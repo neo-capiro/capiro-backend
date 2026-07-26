@@ -137,6 +137,33 @@ export function useHearingSession(id: string) {
   });
 }
 
+export interface WsTicket {
+  ticket: string;
+  expiresAt: string;
+}
+
+/**
+ * Mint a single-use, 60-second ticket for the live audio WebSocket upgrade.
+ *
+ * A WebSocket cannot carry an Authorization header, so the browser used to put
+ * the full Clerk JWT in the query string — where it is captured by ALB access
+ * logs, proxies and browser history — and the gateway then held that token for
+ * the life of the socket. The ticket is minted over authenticated HTTPS
+ * instead, is useless after one use, and expires in a minute.
+ *
+ * Uses the shared `api` client, which already attaches
+ * getToken({ template: 'capiro' }); a raw fetch here would be unauthenticated
+ * and 401.
+ */
+export async function mintWsTicket(
+  api: ReturnType<typeof useApi>,
+  sessionId: string,
+): Promise<WsTicket> {
+  return (
+    await api.post<WsTicket>(`/intel-api/hearings/${encodeURIComponent(sessionId)}/ws-ticket`)
+  ).data;
+}
+
 export function useConfirmConsent() {
   const api = useApi();
   const qc = useQueryClient();

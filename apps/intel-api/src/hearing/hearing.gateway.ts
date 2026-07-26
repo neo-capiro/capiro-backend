@@ -3,12 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { OnGatewayConnection, OnGatewayDisconnect, WebSocketGateway } from '@nestjs/websockets';
 import type { WebSocket } from 'ws';
 import type { IncomingMessage } from 'node:http';
-import { ClerkService } from '../auth/clerk.service.js';
+import { verifyWsOrigin } from './ws-origin.js';
+import { OrgTenantResolverService } from '../auth/org-tenant-resolver.service.js';
 import {
   FeatureFlagService,
   HEARING_WATCH_FEATURE,
 } from '../feature-flags/feature-flag.service.js';
 import { HearingSessionService } from './hearing-session.service.js';
+import { HearingWsTicketService } from './hearing-ws-ticket.service.js';
 import { SegmentCommitService } from './segment-commit.service.js';
 import { WatchlistService } from '../watchlist/watchlist.service.js';
 import { OrchestratorClient } from './orchestrator.client.js';
@@ -22,7 +24,11 @@ interface LiveConn {
   tenantId: string;
   userId: string;
   sessionId: string;
-  authToken: string;
+  // NOTE: the caller's Clerk JWT is deliberately NOT stored here. It used to be
+  // (`authToken`), retained for the life of the socket — up to MAX_SESSION_MS,
+  // four hours — and relayed to MeriV2 on every final segment, long after the
+  // ~60s token had expired. Downstream calls now use service-to-service auth
+  // with an explicitly delegated tenantId/userId.
   recordingPolicy: string;
   sessionContext: {
     clientId?: string | null;
@@ -36,27 +42,29 @@ interface LiveConn {
 
 const MAX_SESSION_MS = Number.parseInt(process.env.MAX_SESSION_MS ?? `${4 * 60 * 60 * 1000}`, 10);
 
+
 /**
  * WebSocket gateway for the live hearing audio stream.
  *
  * URL: ws://<host>/intel-api/live?sessionId=...  (Bearer JWT in Sec-WebSocket-Protocol
  * or `authorization` query param). One browser connection per session; one
  * Deepgram socket per session (DeepgramStreamManager). Auth + tenant scoping
- * via the SAME ClerkService used by the REST guard (no auth reimplemented).
+ * via a single-use ticket minted by the REST surface (no auth reimplemented).
  *
  * Flow: browser audio frames -> Deepgram -> interim (UI only) / final
  * (-> orchestrator extract -> SegmentCommitService -> persisted + cards to UI).
  */
-@WebSocketGateway({ path: '/intel-api/live' })
+@WebSocketGateway({ path: '/intel-api/live', verifyClient: verifyWsOrigin })
 export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(HearingGateway.name);
   private readonly conns = new WeakMap<WebSocket, LiveConn>();
   private readonly deepgramApiKey: string;
 
   constructor(
-    private readonly clerk: ClerkService,
+    private readonly tenants: OrgTenantResolverService,
     private readonly flags: FeatureFlagService,
     private readonly sessions: HearingSessionService,
+    private readonly tickets: HearingWsTicketService,
     private readonly commit: SegmentCommitService,
     private readonly watchlists: WatchlistService,
     private readonly orchestrator: OrchestratorClient,
@@ -71,79 +79,100 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     try {
       const url = new URL(req.url ?? '', 'http://localhost');
       const sessionId = url.searchParams.get('sessionId');
-      const token = extractToken(req, url);
-      if (!sessionId || !token) {
+      if (!sessionId) {
         return this.reject(client, 'Missing sessionId or auth token');
       }
       if (!this.deepgramApiKey) {
         return this.reject(client, 'Deepgram not configured');
       }
 
-      // Same Clerk verification path as the REST guard.
-      const claims = await this.clerk.verifySessionToken(token);
-      const tenantId = claims.capiro_tenant_id?.trim() || claims.org_id?.trim();
-      if (!tenantId || !claims.sub) {
-        return this.reject(client, 'No tenant/subject in token');
-      }
-
-      // Feature gate: refuse non-Capiro tenants until hearing_watch is enabled.
-      const featureOn = await this.flags.isEnabled(HEARING_WATCH_FEATURE, tenantId);
-      if (!featureOn) {
-        return this.reject(client, 'Hearing Watch not enabled for this tenant');
-      }
-
-      // Scope + consent gate (throws 403 if consent needs_review).
-      const session = await this.sessions.assertCaptureAllowed(tenantId, sessionId);
-
-      const deepgram = new DeepgramStreamManager(this.deepgramApiKey, {
-        onOpen: () => this.send(client, { type: 'status', status: 'transcribing' }),
-        onInterim: (segment) => this.send(client, { type: 'interim', segment }),
-        onReconnecting: (attempt) =>
-          this.send(client, { type: 'status', status: `reconnecting:${attempt}` }),
-        onError: (err) => {
-          this.logger.warn(`deepgram error session=${sessionId}: ${err.message}`);
-          this.send(client, { type: 'error', message: err.message });
-        },
-        onFinal: (segment) => {
-          void this.handleFinal(client, segment);
-        },
-      });
-
-      this.conns.set(client, {
-        ws: client,
-        tenantId,
-        userId: claims.sub,
-        sessionId,
-        authToken: token,
-        recordingPolicy: session.recordingPolicy,
-        sessionContext: {
-          clientId: session.clientId,
-          issueIds: session.issueIds,
-          billIds: session.billIds,
-          programElementIds: session.programElementIds,
-          committeeId: session.committeeId,
-        },
-        deepgram,
-      });
-
-      await this.sessions.markStatus(tenantId, sessionId, 'live', { startedAt: new Date() });
-      deepgram.start();
-      this.send(client, { type: 'status', status: 'connected' });
-
-      // Hard cap on session duration (cost + stuck-stream guard).
-      setTimeout(() => {
-        if (this.conns.has(client)) {
-          this.send(client, { type: 'status', status: 'max_duration_reached' });
-          client.close();
+      // ── Preferred path: a single-use ticket minted over authenticated HTTPS.
+      // Nothing long-lived is presented and nothing is retained.
+      const ticket = url.searchParams.get('ticket');
+      if (ticket) {
+        const consumed = await this.tickets.consume(ticket, sessionId);
+        if (!consumed) {
+          // Unknown, already used, expired, or for a different session.
+          return this.reject(client, 'Invalid or expired ticket');
         }
-      }, MAX_SESSION_MS);
+        return this.startSession(client, sessionId, consumed.tenantId, consumed.clerkUserId);
+      }
 
-      client.on('message', (raw: Buffer, isBinary: boolean) =>
-        this.onMessage(client, raw, isBinary),
-      );
+      // Ticket is the ONLY accepted credential. The Clerk JWT is never carried
+      // in the URL: query strings are captured by ALB access logs, proxies,
+      // browser history and error reporting, and the token used to be retained
+      // on the connection for up to four hours and replayed to MeriV2.
+      return this.reject(client, 'Missing or invalid ticket');
     } catch (err) {
       this.reject(client, (err as Error).message);
     }
+  }
+
+  /**
+   * Everything after authorization, shared by the ticket path and the
+   * deprecated JWT path. `tenantId` is always the CANONICAL uuid and `userId`
+   * the Clerk subject; neither path passes a raw token in.
+   */
+  private async startSession(
+    client: WebSocket,
+    sessionId: string,
+    tenantId: string,
+    userId: string,
+  ): Promise<void> {
+    // Feature gate: refuse non-Capiro tenants until hearing_watch is enabled.
+    const featureOn = await this.flags.isEnabled(HEARING_WATCH_FEATURE, tenantId);
+    if (!featureOn) {
+      return this.reject(client, 'Hearing Watch not enabled for this tenant');
+    }
+
+    // Scope + consent gate (throws 403 if consent needs_review).
+    const session = await this.sessions.assertCaptureAllowed(tenantId, sessionId);
+
+    const deepgram = new DeepgramStreamManager(this.deepgramApiKey, {
+      onOpen: () => this.send(client, { type: 'status', status: 'transcribing' }),
+      onInterim: (segment) => this.send(client, { type: 'interim', segment }),
+      onReconnecting: (attempt) =>
+        this.send(client, { type: 'status', status: `reconnecting:${attempt}` }),
+      onError: (err) => {
+        this.logger.warn(`deepgram error session=${sessionId}: ${err.message}`);
+        this.send(client, { type: 'error', message: err.message });
+      },
+      onFinal: (segment) => {
+        void this.handleFinal(client, segment);
+      },
+    });
+
+    this.conns.set(client, {
+      ws: client,
+      tenantId,
+      userId,
+      sessionId,
+      recordingPolicy: session.recordingPolicy,
+      sessionContext: {
+        clientId: session.clientId,
+        issueIds: session.issueIds,
+        billIds: session.billIds,
+        programElementIds: session.programElementIds,
+        committeeId: session.committeeId,
+      },
+      deepgram,
+    });
+
+    await this.sessions.markStatus(tenantId, sessionId, 'live', { startedAt: new Date() });
+    deepgram.start();
+    this.send(client, { type: 'status', status: 'connected' });
+
+    // Hard cap on session duration (cost + stuck-stream guard).
+    setTimeout(() => {
+      if (this.conns.has(client)) {
+        this.send(client, { type: 'status', status: 'max_duration_reached' });
+        client.close();
+      }
+    }, MAX_SESSION_MS);
+
+    client.on('message', (raw: Buffer, isBinary: boolean) =>
+      this.onMessage(client, raw, isBinary),
+    );
   }
 
   async handleDisconnect(client: WebSocket): Promise<void> {
@@ -220,7 +249,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     const extraction = await this.orchestrator.extract({
       tenantId: conn.tenantId,
       sessionId: conn.sessionId,
-      authToken: conn.authToken,
+      clerkUserId: conn.userId,
       segment,
       sessionContext: conn.sessionContext,
     });
@@ -287,7 +316,23 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   }
 
   private reject(client: WebSocket, reason: string): void {
-    this.logger.debug(`ws rejected: ${reason}`);
+    // WARN, not debug. At the default log level every WebSocket rejection was
+    // invisible — including an invalid ticket and a revoked membership — so
+    // there was no signal at all that the live-hearing surface was denying
+    // anyone. Emitted in the structured shape so the Capiro/Security metric
+    // filter counts WS denials alongside HTTP ones.
+    this.logger.warn(
+      JSON.stringify({
+        security_event: 'auth.denied',
+        reason: classifyWsRejection(reason),
+        surface: 'ws',
+        tenant_id: null,
+        claimed_tenant_id: null,
+        clerk_user_id: null,
+        detail: reason,
+        count: 1,
+      }),
+    );
     try {
       client.send(JSON.stringify({ type: 'error', message: reason } satisfies ServerWsMessage));
     } catch {
@@ -297,24 +342,19 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   }
 }
 
-function extractToken(req: IncomingMessage, url: URL): string | null {
-  const fromQuery = url.searchParams.get('authorization') ?? url.searchParams.get('token');
-  if (fromQuery) return fromQuery.replace(/^Bearer\s+/i, '').trim();
-  const header = req.headers.authorization;
-  if (header) {
-    const m = header.match(/^Bearer\s+(.+)$/i);
-    if (m?.[1]) return m[1].trim();
-  }
-  // Browsers can pass the token via the WS subprotocol header.
-  const proto = req.headers['sec-websocket-protocol'];
-  if (typeof proto === 'string' && proto.length > 0) {
-    return (
-      proto
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .pop() ?? null
-    );
-  }
-  return null;
+
+/**
+ * Map a rejection message onto a stable `auth.denied` reason code.
+ *
+ * The gateway rejects with human-readable strings; the metric filter needs a
+ * fixed dimension. Anything unrecognized falls back to ws_ticket_invalid rather
+ * than being dropped, so no denial goes uncounted.
+ */
+function classifyWsRejection(reason: string): string {
+  const r = reason.toLowerCase();
+  if (r.includes('no active membership')) return 'no_active_membership';
+  if (r.includes('tenant claim mismatch')) return 'tenant_claim_mismatch';
+  if (r.includes('org claim mismatch')) return 'org_claim_mismatch';
+  if (r.includes('no tenant')) return 'no_matching_tenant';
+  return 'ws_ticket_invalid';
 }

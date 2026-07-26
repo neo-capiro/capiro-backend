@@ -52,6 +52,7 @@ export class ClerkService {
   private readonly client: ClerkClient;
   private readonly secretKey: string;
   private readonly issuer: string | undefined;
+  private readonly logAzp: boolean;
 
   constructor(config: ConfigService) {
     const secretKey = config.get<string>('CLERK_SECRET_KEY');
@@ -60,6 +61,8 @@ export class ClerkService {
     }
     this.secretKey = secretKey;
     this.issuer = config.get<string>('CLERK_JWT_ISSUER');
+    // Opt-in `azp` telemetry. See logObservedAzp().
+    this.logAzp = config.get<string>('CLERK_LOG_AZP') === 'true';
     this.client = createClerkClient({ secretKey: this.secretKey });
   }
 
@@ -74,9 +77,49 @@ export class ClerkService {
   async verifySessionToken(token: string): Promise<ClerkSessionClaims> {
     const raw = await verifyToken(token, {
       secretKey: this.secretKey,
-      ...(this.issuer ? { issuer: this.issuer } : {}),
     });
+    // Issuer pinning must be done HERE, not by passing `issuer` to
+    // verifyToken. `issuer` is NOT a VerifyJwtOptions field in
+    // @clerk/backend@1.34.0 — the option type is
+    // { audience, authorizedParties, clockSkewInMs, key } and the runtime
+    // destructures exactly those four, so the value we used to spread in was
+    // silently DISCARDED and pinned nothing. Enforce it explicitly.
+    //
+    // Note this is defence in depth rather than the primary control: the JWKS
+    // is fetched using our own CLERK_SECRET_KEY, so a token minted by a
+    // different Clerk instance already fails signature verification above.
+    this.assertIssuer(raw as Record<string, unknown>);
+    this.logObservedAzp(raw as Record<string, unknown>);
     return normalizeClaims(raw as Record<string, unknown>);
+  }
+
+  /**
+   * Emit the observed `azp` claim so the authorized-parties allowlist can be
+   * derived from EVIDENCE rather than guessed.
+   *
+   * Why this exists: Clerk's assertAuthorizedPartiesClaim returns early when a
+   * token carries no `azp`, and matches by exact string with no wildcard
+   * support. Most Capiro requests use the custom `capiro` JWT template, and
+   * whether that template emits `azp` is a Clerk-dashboard fact that cannot be
+   * determined from this repo. Setting an allowlist blind therefore either
+   * protects nothing (no azp) or 401s every user across six services (wrong
+   * list). Turn this on, collect the distinct values, then set the list.
+   *
+   * OPT-IN (CLERK_LOG_AZP=true) and off by default: this sits on the hottest
+   * path in the platform, so an always-on line would add a log record to every
+   * authenticated request indefinitely. `azp` is an origin string, not a
+   * credential.
+   */
+  private logObservedAzp(raw: Record<string, unknown>): void {
+    if (!this.logAzp) return;
+    this.logger.log(`clerk-azp azp=${String(raw.azp ?? 'ABSENT')}`);
+  }
+
+  private assertIssuer(raw: Record<string, unknown>): void {
+    if (!this.issuer) return;
+    if (raw.iss !== this.issuer) {
+      throw new Error(`Token issuer mismatch: expected ${this.issuer}, got ${String(raw.iss)}`);
+    }
   }
 }
 

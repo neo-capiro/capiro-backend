@@ -73,14 +73,61 @@ export interface DataQualityWarning {
 
 // ── Evidence and scoring ────────────────────────────────────────────────────
 
+/** Where a row's district attribution came from (plan §7-E4). Only
+ * place_of_performance | recipient_location | facility | statewide | unknown
+ * are produced today; the rest are reserved for the deferred §6.3 evidence
+ * table. */
+export type GeographyBasis =
+  | 'place_of_performance'
+  | 'recipient_location'
+  | 'facility'
+  | 'employee_aggregate'
+  | 'supplier_location'
+  | 'partner_location'
+  | 'project_site'
+  | 'statewide'
+  | 'multi_district'
+  | 'unknown';
+
+/** How independently a piece of evidence has been confirmed. Distinct from
+ * scoring weight — this is what a human reading one row should believe. */
+export type EvidenceVerificationStatus =
+  | 'source_verified'
+  | 'geocode_verified'
+  | 'user_provided'
+  | 'inferred';
+
+/** Which CD-geometry vintage a row's reported code reflects (plan §8.1).
+ * 'unknown' when the source records none — federal_award has no vintage
+ * column, so contract evidence is honestly unknown, never assumed. */
+export type BoundaryVintage = 'original' | 'current' | 'unknown';
+
+/**
+ * One concrete, checkable fact behind a score.
+ *
+ * Scope: only the components that earn score credit today (facility,
+ * employees, contracts, awarded grants). Opportunities earn zero credit, so
+ * they surface via `opportunities`, never here.
+ */
 export interface NexusEvidence {
   component: string;
-  kind: string;
+  /** Originating table — 'federal_award', 'federal_assistance_award', 'client_facility'. */
+  sourceType: string;
   label: string;
-  sourceId: string | null;
-  sourceSystem: string | null;
-  amount: Money;
+  /** Row id in the originating table, for drill-through. */
+  sourceRecordId: string | null;
+  /** When the originating ROW was last synced (record freshness). */
+  sourceUpdatedAt: IsoTimestamp | null;
+  /** When the underlying FACT happened (award action date, geocode date). */
   observedAt: IsoTimestamp | null;
+  geographyBasis: GeographyBasis;
+  verificationStatus: EvidenceVerificationStatus;
+  /** 0-1 when a real computed score exists; null rather than a fabricated one. */
+  confidence: number | null;
+  /** Whether this fact may appear in external client-facing materials. */
+  externalUseApproved: boolean;
+  boundaryVintage: BoundaryVintage;
+  amount: Money;
 }
 
 export interface NexusScoreBreakdown {

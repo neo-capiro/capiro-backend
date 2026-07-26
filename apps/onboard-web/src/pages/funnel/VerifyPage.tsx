@@ -9,6 +9,7 @@ import { useAuth, useSignUp, useUser } from '@clerk/clerk-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Btn, Card, FunnelShell, Icon, TextInput } from '../../ui/primitives';
 import {
+  clearRegistrationDraft,
   draftMatchesUser,
   FUNNEL_SESSION_KEY,
   readRegistrationDraft,
@@ -25,7 +26,7 @@ export function VerifyPage() {
   const advanceSession = useAdvanceSession();
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const { isLoaded: signUpLoaded, signUp, setActive } = useSignUp();
-  const { user } = useUser();
+  const { isLoaded: userLoaded, user } = useUser();
   const session = useFunnelSession();
 
   const [verified, setVerified] = React.useState(false);
@@ -52,6 +53,7 @@ export function VerifyPage() {
       createdSessionId: string | null;
       firstName: string | null;
       lastName: string | null;
+      emailAddress: string | null;
     }) => {
       if (!setActive) return;
       registeredRef.current = true; // we register right here — skip the fallback effect
@@ -62,6 +64,16 @@ export function VerifyPage() {
         // orgName exists only in the local draft (Clerk never stores it) and
         // RegisterDto rejects an empty one — re-collect instead of 400ing.
         if (!draft?.orgName?.trim()) {
+          navigate('/register', { replace: true });
+          return;
+        }
+        // The draft was typed by a DIFFERENT person than the account that just
+        // completed sign-up (shared browser) — never register their org name
+        // against this identity. Use attempt.emailAddress, NOT the `user` hook:
+        // `user` lags the setActive above by a render, so it would be null here
+        // and, under the fail-closed matcher, reject every legitimate signup.
+        if (!draftMatchesUser(draft, attempt.emailAddress)) {
+          clearRegistrationDraft();
           navigate('/register', { replace: true });
           return;
         }
@@ -78,6 +90,9 @@ export function VerifyPage() {
           await new Promise((resolve) => setTimeout(resolve, 1200));
           snapshot = await api.register(registerBody);
         }
+        // Registered — drop the draft so it cannot be reused by the next person
+        // on this browser.
+        clearRegistrationDraft();
         queryClient.setQueryData(FUNNEL_SESSION_KEY, snapshot);
         const check = await api.verifyCheck();
         if (check.verified) {
@@ -146,7 +161,11 @@ export function VerifyPage() {
   // Without a stored draft (orgName is never in Clerk) an empty register POST
   // would 400 into a dead-end, so send the user back to /register instead.
   React.useEffect(() => {
-    if (!authLoaded || !isSignedIn || finalizing) return;
+    // `userLoaded` is load-bearing: draftMatchesUser fails CLOSED, so running
+    // this before Clerk hydrates `user` would compare against an undefined
+    // email, redirect every legitimate owner to /register, and delete their
+    // draft on the way out.
+    if (!authLoaded || !userLoaded || !isSignedIn || finalizing) return;
     if (session.isLoading || session.data) return;
     if (registeredRef.current) return;
     registeredRef.current = true;
@@ -159,6 +178,7 @@ export function VerifyPage() {
         !draft?.orgName?.trim() ||
         !draftMatchesUser(draft, user?.primaryEmailAddress?.emailAddress)
       ) {
+        clearRegistrationDraft();
         navigate('/register', { replace: true });
         return;
       }
@@ -168,6 +188,7 @@ export function VerifyPage() {
           lastName: draft.lastName ?? '',
           orgName: draft.orgName,
         });
+        clearRegistrationDraft();
         queryClient.setQueryData(FUNNEL_SESSION_KEY, snapshot);
       } catch (err) {
         setFlowError(errorMessage(err));
@@ -175,6 +196,7 @@ export function VerifyPage() {
     })();
   }, [
     authLoaded,
+    userLoaded,
     isSignedIn,
     finalizing,
     session.isLoading,

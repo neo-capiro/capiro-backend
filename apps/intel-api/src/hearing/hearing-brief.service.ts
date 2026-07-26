@@ -58,7 +58,9 @@ export class HearingBriefService {
   async generate(
     tenantId: string,
     sessionId: string,
-    authToken: string,
+    /** Delegated to MeriV2 for service-to-service auth; no raw user token is
+     *  relayed any more. */
+    clerkUserId: string,
   ): Promise<HearingBrief | null> {
     const session = await this.prisma.withTenant(tenantId, (tx) =>
       tx.liveHearingSession.findFirst({ where: { id: sessionId, tenantId } }),
@@ -99,7 +101,7 @@ export class HearingBriefService {
     );
 
     // Try orchestrator synthesis; fall back to deterministic assembly.
-    const synth = await this.synthesize(tenantId, sessionId, authToken, {
+    const synth = await this.synthesize(tenantId, sessionId, clerkUserId, {
       title: session.title,
       quotes: revealedQuotes,
       mentions: mentions.map((m) => ({
@@ -145,7 +147,7 @@ export class HearingBriefService {
   private async synthesize(
     tenantId: string,
     sessionId: string,
-    authToken: string,
+    clerkUserId: string,
     data: {
       title: string;
       quotes: Array<{ text: string; speakerName?: string; timestampMs: number }>;
@@ -166,7 +168,7 @@ export class HearingBriefService {
         const out = await this.orchestrator.summarizeHearing({
           tenantId,
           sessionId,
-          authToken,
+          clerkUserId,
           title: data.title,
           quotes: data.quotes,
           mentions: data.mentions,

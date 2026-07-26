@@ -19,7 +19,13 @@ import {
 } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 import type { Prisma } from '@prisma/client';
-import { TENANT_HEADER, type TenantContext, type TenantRole } from '@capiro/shared';
+import {
+  authDeniedEvent,
+  TENANT_HEADER,
+  type AuthDeniedReason,
+  type TenantContext,
+  type TenantRole,
+} from '@capiro/shared';
 import { ClerkService, type ClerkSessionClaims } from '../auth/clerk.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { mapClerkRoleToCapiro } from '../auth/clerk-role.util.js';
@@ -125,10 +131,19 @@ export class TenantContextMiddleware implements NestMiddleware {
     const claimedTenantSlug = nonEmpty(claims.capiro_tenant_slug);
     const claimedOrgId = nonEmpty(claims.org_id);
 
+    // Denial capture. Set immediately before each 403 throw and consumed AFTER
+    // the transaction has unwound — see the catch below for why it cannot be
+    // recorded inline.
+    let denial: {
+      reason: AuthDeniedReason;
+      tenantId?: string | null;
+      claimedTenantId?: string | null;
+    } | null = null;
+
     // Step 3, resolve membership using RLS bypass. The lookup is not
     // tenant-scoped (we are still resolving the tenant), so it MUST run
     // through the system path.
-    const ctx = await this.prisma.withSystem(async (tx) => {
+    const resolveContext = () => this.prisma.withSystem(async (tx) => {
       let user = await tx.user.findUnique({ where: { clerkUserId: claims.sub } });
       if (!user) {
         // First-time authenticated request from this Clerk user. The webhook is
@@ -144,6 +159,41 @@ export class TenantContextMiddleware implements NestMiddleware {
         const email = claims.email ?? `${claims.sub}@unknown.invalid`;
         const existingByEmail = await tx.user.findUnique({ where: { email } });
         if (existingByEmail) {
+          // IDENTITY REBIND. An existing local row is being re-pointed at a
+          // different Clerk identity on the strength of an email match alone.
+          // That is usually right (an old placeholder row, an out-of-order
+          // webhook) but it is not PROOF the two Clerk identities are the same
+          // person: a stale row whose user.deleted webhook never landed would
+          // hand its memberships to whoever next signs up with that address.
+          //
+          // Recorded, not blocked. Gating this would break the self-heal path
+          // whose whole purpose is preventing lockouts when the webhook is slow
+          // or undelivered, and there is no telemetry yet on how often it
+          // legitimately fires. Populate the ledger, review it, then decide.
+          // Emit a structured security event ONLY — deliberately no database
+          // write on this path.
+          //
+          // This runs inside the caller's interactive transaction, and a failed
+          // INSERT (e.g. the ledger migration not yet applied) would put
+          // Postgres into an aborted-transaction state that a JS try/catch
+          // cannot recover: the tx.user.update below would then fail too and
+          // 500 the login. The webhook and provisioning paths write the
+          // UserIdentityConflict row; this one is covered by the log +
+          // CloudWatch metric filter, which is the evidence that matters.
+          const membershipCount = await tx.tenantMembership.count({
+            where: { userId: existingByEmail.id },
+          });
+          this.logger.warn(
+            JSON.stringify({
+              security_event: 'identity.rebind',
+              source: 'middleware_self_heal',
+              email,
+              incoming_clerk_user_id: claims.sub,
+              previous_clerk_user_id: existingByEmail.clerkUserId,
+              membership_count: membershipCount,
+              count: 1,
+            }),
+          );
           user = await tx.user.update({
             where: { id: existingByEmail.id },
             data: { clerkUserId: claims.sub },
@@ -210,10 +260,12 @@ export class TenantContextMiddleware implements NestMiddleware {
       }
 
       if (memberships.length === 0) {
+        denial = { reason: 'no_active_membership' };
         throw new ForbiddenException('User has no active tenant memberships');
       }
 
       if (!chosen) {
+        denial = { reason: 'no_matching_tenant', claimedTenantId };
         throw new ForbiddenException(
           'No matching tenant for the supplied identifier, re-auth required',
         );
@@ -223,18 +275,26 @@ export class TenantContextMiddleware implements NestMiddleware {
       // disagree on any identifier, force re-auth. Each branch covers a
       // different way an attacker could try to pivot tenants.
       if (claimedTenantId && chosen.tenantId !== claimedTenantId) {
+        denial = {
+          reason: 'tenant_claim_mismatch',
+          tenantId: chosen.tenantId,
+          claimedTenantId,
+        };
         throw new ForbiddenException('Tenant claim mismatch, re-auth required');
       }
       if (claimedOrgId && chosen.tenant.clerkOrgId !== claimedOrgId) {
+        denial = { reason: 'org_claim_mismatch', tenantId: chosen.tenantId, claimedTenantId };
         throw new ForbiddenException('Org claim mismatch, re-auth required');
       }
       if (
         claimedTenantSlug &&
         chosen.tenant.slug.toLowerCase() !== claimedTenantSlug.toLowerCase()
       ) {
+        denial = { reason: 'slug_claim_mismatch', tenantId: chosen.tenantId, claimedTenantId };
         throw new ForbiddenException('Tenant slug claim mismatch, re-auth required');
       }
       if (requestedSlug && chosen.tenant.slug !== requestedSlug) {
+        denial = { reason: 'host_mismatch', tenantId: chosen.tenantId, claimedTenantId };
         throw new ForbiddenException('Subdomain/header tenant mismatch, re-auth required');
       }
 
@@ -285,11 +345,76 @@ export class TenantContextMiddleware implements NestMiddleware {
       return context;
     });
 
+    let ctx: TenantContext;
+    try {
+      ctx = await resolveContext();
+    } catch (err) {
+      // Record the denial AFTER the transaction has unwound.
+      //
+      // It cannot be written inline: the throw rolls the transaction back, so
+      // an audit row inserted before it would vanish with everything else —
+      // exactly the defect that made failed Clerk webhooks leave no trace. The
+      // recorder therefore opens its own transaction.
+      if (denial) await this.recordDenial(denial, claims.sub);
+      throw err;
+    }
+
     // Step 4, propagate via AsyncLocalStorage AND req object. ALS lets
     // services pull the context without prop drilling; req.tenantContext is
     // for the @CurrentTenant() decorator and direct controller access.
     (req as Request & { tenantContext?: TenantContext }).tenantContext = ctx;
     this.store.run(ctx, () => next());
+  }
+
+  /**
+   * Emit the SOC 2 evidence for a rejected request: a structured `auth.denied`
+   * line (counted by the Capiro/Security metric filter) and, when a tenant was
+   * actually resolved, an append-only audit_logs row its own admins can see.
+   *
+   * audit_logs.tenant_id is NOT NULL, so the two pre-resolution reasons
+   * (no_active_membership, no_matching_tenant) get the log line only — there is
+   * no tenant to attribute them to yet.
+   *
+   * The claimed-vs-resolved pair is encoded in `action` + `entityId` rather than
+   * before/after, because the customer-facing audit projection redacts those.
+   *
+   * Entirely best-effort: this is telemetry on a path that is ALREADY failing,
+   * and it must never convert a clean 403 into a 500.
+   */
+  private async recordDenial(
+    denial: { reason: AuthDeniedReason; tenantId?: string | null; claimedTenantId?: string | null },
+    clerkUserId: string,
+  ): Promise<void> {
+    this.logger.warn(
+      authDeniedEvent({
+        reason: denial.reason,
+        surface: 'http',
+        tenantId: denial.tenantId,
+        claimedTenantId: denial.claimedTenantId,
+        clerkUserId,
+      }),
+    );
+
+    if (!denial.tenantId) return;
+
+    try {
+      await this.prisma.withSystem((tx) =>
+        tx.auditLog.create({
+          data: {
+            tenantId: denial.tenantId as string,
+            actorUserId: null,
+            actorRole: null,
+            action: `auth.denied.${denial.reason}`,
+            entityType: 'tenant',
+            // The CLAIMED id, never the resolved one — that is the fact under
+            // review.
+            entityId: denial.claimedTenantId ?? null,
+          },
+        }),
+      );
+    } catch (auditErr) {
+      this.logger.error(`auth-denial audit write failed: ${(auditErr as Error).message}`);
+    }
   }
 
   /**

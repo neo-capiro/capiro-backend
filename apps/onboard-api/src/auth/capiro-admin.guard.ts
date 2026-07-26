@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { ClerkService, type ClerkSessionClaims } from '@capiro/auth';
+import { isClerkOrgAdminRole } from '@capiro/shared';
 import { CAPIRO_INTERNAL_SLUG } from './billing-actor.guard.js';
 
 /**
@@ -44,7 +45,7 @@ export class CapiroAdminGuard implements CanActivate {
     // Fast path: org claims present in the token (Clerk default session token).
     const orgSlug = claims.org_slug ?? null;
     const orgRole = (claims.org_role ?? claims.capiro_org_role ?? '').toLowerCase();
-    if (orgSlug === CAPIRO_INTERNAL_SLUG && orgRole.includes('admin')) {
+    if (orgSlug === CAPIRO_INTERNAL_SLUG && isClerkOrgAdminRole(orgRole)) {
       req.capiroAdmin = { clerkUserId: claims.sub };
       return true;
     }
@@ -68,8 +69,7 @@ export class CapiroAdminGuard implements CanActivate {
         limit: 50,
       });
       return memberships.data.some(
-        (m) =>
-          m.organization.slug === CAPIRO_INTERNAL_SLUG && m.role.toLowerCase().includes('admin'),
+        (m) => m.organization.slug === CAPIRO_INTERNAL_SLUG && isClerkOrgAdminRole(m.role),
       );
     } catch (err) {
       // Fail CLOSED: a Backend API hiccup must never grant staff access.

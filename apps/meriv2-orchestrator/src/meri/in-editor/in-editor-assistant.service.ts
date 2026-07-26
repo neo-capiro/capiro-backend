@@ -26,7 +26,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   ASSISTANT_TOOLS,
   PROPOSE_EDITS_TOOL,
-  buildSystemPrompt,
+  composeInEditorSystemPrompt,
   sanitizeEdits,
   toolLabel,
   type AssistantEdit,
@@ -34,6 +34,7 @@ import {
   type AssistantStep,
   type InEditorInput,
 } from './in-editor-prompt.js';
+import { flattenSystemParts } from '../prompt-cache.helpers.js';
 
 /** System prompt for the cheap grounding-claims pass (mirrors apps/api's verifier). */
 const VERIFIER_SYSTEM_PROMPT =
@@ -113,7 +114,16 @@ export class InEditorAssistantService {
       return { reply: 'What would you like me to do with this document?', edits: [] };
     }
 
-    const system = buildSystemPrompt(dto);
+    // Prompt caching (P0-1 orchestrator parity): `systemParts` (the {base,
+    // dynamic} split) is what every round of THIS turn's tool loop sends —
+    // request-scoped-llm.client.ts places the cache breakpoint on `base`, so
+    // round 2..N of this turn reuses that prefix (the live document in
+    // `dynamic` still changes turn-to-turn, so cross-turn caching is not
+    // expected here — the win is within one turn's multi-round loop). `system`
+    // (the flat string) is kept only for the one-off "FINISH NOW" fallback
+    // below, which is never repeated and so never benefits from a breakpoint.
+    const systemParts = composeInEditorSystemPrompt(dto);
+    const system = flattenSystemParts(systemParts);
     const toolSchemas = [...(await this.fetchToolSchemas()), PROPOSE_EDITS_TOOL];
     const steps: AssistantStep[] = [];
     // Grounding capture for the post-turn verifier + structural pass (parity
@@ -126,7 +136,7 @@ export class InEditorAssistantService {
       let stopReason: string | null;
       try {
         const resp = await this.llm.completeWithTools({
-          system,
+          system: systemParts,
           messages,
           tools: toolSchemas as AnthropicToolSchema[],
           maxTokens: MAX_TOKENS,

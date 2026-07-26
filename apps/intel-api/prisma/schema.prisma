@@ -390,6 +390,37 @@ model IntelSmsVerification {
   @@map("intel_sms_verification")
 }
 
+/// Single-use, short-TTL ticket authorizing exactly ONE WebSocket upgrade to
+/// /intel-api/live.
+///
+/// A browser cannot set an Authorization header on a WebSocket, so the previous
+/// design put the full Clerk JWT in the query string — where it lands in ALB,
+/// proxy and browser logs — then RETAINED it on the connection for up to four
+/// hours and relayed it to MeriV2 long after it had expired. This replaces that
+/// with a credential that is useless after one use and dies in 60 seconds.
+///
+/// The raw ticket is never stored, only its SHA-256. Mirrors the hashed-OTP
+/// shape of IntelSmsVerification above.
+///
+/// tenant_id is TEXT (not @db.Uuid) like every other intel_* table: the RLS
+/// predicate casts current_tenant_id()::text, and a uuid column here would fail
+/// at runtime with PG 42883 "operator does not exist: text = uuid".
+model IntelWsTicket {
+  id          String    @id @default(cuid())
+  tenantId    String    @map("tenant_id")
+  clerkUserId String    @map("clerk_user_id")
+  sessionId   String    @map("session_id")
+  /// SHA-256 hex of the raw ticket.
+  ticketHash  String    @unique @map("ticket_hash")
+  expiresAt   DateTime  @map("expires_at")
+  consumedAt  DateTime? @map("consumed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([tenantId, sessionId])
+  @@index([expiresAt])
+  @@map("intel_ws_ticket")
+}
+
 /// Feedback labels on alerts/bills/hearings/recommendations (§10 training set).
 model IntelFeedback {
   id         String   @id @default(cuid())

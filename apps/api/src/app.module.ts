@@ -2,7 +2,7 @@ import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/c
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { configSchema } from './config/config.schema.js';
+import { validateConfig } from './config/config.schema.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { TenantModule } from './tenant/tenant.module.js';
@@ -61,7 +61,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
-      validate: (raw) => configSchema.parse(raw),
+      validate: (raw) => validateConfig(raw as Record<string, unknown>),
     }),
     // Per-IP rate limiting at the application edge. WAF already drops
     // sustained 2000 req/IP at the ALB; this is the second-layer defence

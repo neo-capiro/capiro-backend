@@ -12,6 +12,19 @@ import {
   type StrategyDraftInput,
 } from './strategy-prompt.js';
 import type { ToolLoopResponse, AnthropicContentBlock } from '../request-scoped-llm.client.js';
+import { flattenSystemParts, type SystemPromptParts } from '../prompt-cache.helpers.js';
+
+/**
+ * completeWithTools is mocked at this layer (see build() below), so every
+ * captured call's `system` arrives as request-scoped-llm.client.ts's
+ * `CompleteWithToolsParams['system']` — either the legacy flat string (the
+ * FINISH-NOW fallback, never cached) or the {base, dynamic} split (every
+ * normal round, cf. prompt-cache.helpers.ts). Flatten before asserting
+ * content so these tests don't care which form a given call used.
+ */
+function systemText(system: string | SystemPromptParts): string {
+  return flattenSystemParts(system);
+}
 
 /*
  * A5 repair-loop coverage for StrategyAssistantService.draft() (LLM proposes →
@@ -298,12 +311,15 @@ describe('StrategyAssistantService.draft — A5 repair loop', () => {
     const result = await svc.draft(CTX, BASE_DRAFT_INPUT);
 
     expect(completeWithTools).toHaveBeenCalledTimes(2);
-    const secondCallParams = completeWithTools.mock.calls[1]![0] as { system: string };
+    const secondCallParams = completeWithTools.mock.calls[1]![0] as {
+      system: string | SystemPromptParts;
+    };
+    const secondCallSystem = systemText(secondCallParams.system);
     // The repair suffix carries the ACTUAL violation message forward verbatim.
-    expect(secondCallParams.system).toContain('FIX THESE PROBLEMS');
-    expect(secondCallParams.system).toContain('starts before the step it depends on');
-    expect(secondCallParams.system).toContain('File the funding request memo');
-    expect(secondCallParams.system).toContain('Host the strategy kickoff');
+    expect(secondCallSystem).toContain('FIX THESE PROBLEMS');
+    expect(secondCallSystem).toContain('starts before the step it depends on');
+    expect(secondCallSystem).toContain('File the funding request memo');
+    expect(secondCallSystem).toContain('Host the strategy kickoff');
     // The repaired plan clears the verifier (dependency now precedes its dependent).
     expect(result.summary).toBe('Fixed pass.');
     expect(result.violations).toEqual([]);
@@ -572,9 +588,10 @@ describe('StrategyAssistantService — Steward passthrough (Stage E)', () => {
       ],
     });
 
-    const params = completeWithTools.mock.calls[0]![0] as { system: string };
-    expect(params.system).toContain('# Client context facts (Steward)');
-    expect(params.system).toContain(
+    const params = completeWithTools.mock.calls[0]![0] as { system: string | SystemPromptParts };
+    const system = systemText(params.system);
+    expect(system).toContain('# Client context facts (Steward)');
+    expect(system).toContain(
       '- [fact:f1] No direct Hill outreach before October. (client_approved, as of 2026-07-01)',
     );
   });
@@ -587,11 +604,12 @@ describe('StrategyAssistantService — Steward passthrough (Stage E)', () => {
 
     const result = await svc.assistant(CTX, { ...ASSISTANT_INPUT, stewardHealth: CONFLICTED });
 
-    const params = completeWithTools.mock.calls[0]![0] as { system: string };
-    expect(params.system).toContain('# Grounding health');
-    expect(params.system).toContain('OPEN MATERIAL CONFLICTS');
+    const params = completeWithTools.mock.calls[0]![0] as { system: string | SystemPromptParts };
+    const system = systemText(params.system);
+    expect(system).toContain('# Grounding health');
+    expect(system).toContain('OPEN MATERIAL CONFLICTS');
     // Verbatim factA vs factB, so the model can name the exact contradiction.
-    expect(params.system).toContain(
+    expect(system).toContain(
       '- "The ask is $12M in FY28 RDT&E." vs "The ask is $8M in FY28 procurement."',
     );
     expect(result.groundingHealth).toEqual({
@@ -646,8 +664,8 @@ describe('StrategyAssistantService — Steward passthrough (Stage E)', () => {
     });
     expect(result.groundingHealth).not.toHaveProperty('openMaterialConflicts');
     // The health note also flags the missing Steward documents.
-    const params = completeWithTools.mock.calls[0]![0] as { system: string };
-    expect(params.system).toContain(
+    const params = completeWithTools.mock.calls[0]![0] as { system: string | SystemPromptParts };
+    expect(systemText(params.system)).toContain(
       'Required Steward context documents are missing: 02_client_constraints',
     );
   });
@@ -661,9 +679,10 @@ describe('StrategyAssistantService — Steward passthrough (Stage E)', () => {
     const result = await svc.assistant(CTX, ASSISTANT_INPUT);
 
     expect(result.groundingHealth).toBe(PACK.health);
-    const params = completeWithTools.mock.calls[0]![0] as { system: string };
-    expect(params.system).not.toContain('# Client context facts (Steward)');
-    expect(params.system).not.toContain('OPEN MATERIAL CONFLICTS');
+    const params = completeWithTools.mock.calls[0]![0] as { system: string | SystemPromptParts };
+    const system = systemText(params.system);
+    expect(system).not.toContain('# Client context facts (Steward)');
+    expect(system).not.toContain('OPEN MATERIAL CONFLICTS');
   });
 });
 
@@ -719,8 +738,8 @@ describe('StrategyAssistantService.draftDocument (Stage-G)', () => {
       }),
     );
     await svc.draftDocument(CTX, { ...DOC_DRAFT_INPUT, kind: 'outreach_record' });
-    const params = completeWithTools.mock.calls[0]![0] as { system: string };
-    expect(params.system).toContain('OUTREACH CAMPAIGN MESSAGE');
+    const params = completeWithTools.mock.calls[0]![0] as { system: string | SystemPromptParts };
+    expect(systemText(params.system)).toContain('OUTREACH CAMPAIGN MESSAGE');
   });
 
   it('degrades to a null/empty result (never throws) when every round including forced-finish fails', async () => {
@@ -766,8 +785,8 @@ describe('StrategyAssistantService.draftDocument (Stage-G)', () => {
         openMaterialConflicts: [],
       },
     });
-    const params = completeWithTools.mock.calls[0]![0] as { system: string };
-    expect(params.system).toContain(
+    const params = completeWithTools.mock.calls[0]![0] as { system: string | SystemPromptParts };
+    expect(systemText(params.system)).toContain(
       'Required Steward context documents are missing: 02_client_constraints',
     );
   });

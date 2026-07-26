@@ -22,6 +22,8 @@ import {
 import type {
   AwardedFunding,
   ClientDistrictNexusResponse,
+  ClientFacilityFootprint,
+  ClientNexusLinkage,
   DataQualityWarning,
   DistrictKey,
   DistrictNexusDistrictDetail,
@@ -85,6 +87,12 @@ export interface ClientNexusInputs {
    * individual rows separately and hands them in pre-grouped. Defaults to [].
    */
   evidenceByDistrict?: Map<DistrictKey, NexusEvidence[]>;
+  /**
+   * Confirmed-mapping status, resolved by the caller inside `withTenant`.
+   * Optional so the existing specs keep compiling; defaults to "nothing
+   * linked", which is the honest reading of "the caller did not tell us".
+   */
+  linkage?: ClientNexusLinkage;
 }
 
 /**
@@ -384,6 +392,36 @@ function sumMoney(values: Array<number | null>): number | null {
   return present.length ? present.reduce((s, v) => s + v, 0) : null;
 }
 
+const NO_LINKAGE: ClientNexusLinkage = {
+  contractingLinked: false,
+  contractorNames: [],
+  assistanceLinked: false,
+  recipientNames: [],
+  ueiConfirmedCount: 0,
+};
+
+/**
+ * Footprint over ALL facilities, not just district-resolved ones — a facility
+ * whose geocode failed still exists and still employs people, and reporting it
+ * as absent would understate the client's footprint.
+ */
+function facilityFootprintOf(facilities: FacilityRow[]): ClientFacilityFootprint {
+  let employeeCount: number | null = null;
+  let facilitiesMissingEmployeeCount = 0;
+  let facilitiesWithoutDistrict = 0;
+  for (const f of facilities) {
+    if (f.employeeCount == null) facilitiesMissingEmployeeCount += 1;
+    else employeeCount = (employeeCount ?? 0) + f.employeeCount;
+    if (districtKeyFor(f.state, f.districtCode) === null) facilitiesWithoutDistrict += 1;
+  }
+  return {
+    facilityCount: facilities.length,
+    facilitiesWithoutDistrict,
+    employeeCount,
+    facilitiesMissingEmployeeCount,
+  };
+}
+
 /**
  * Build the WS-E Step E3 client response.
  *
@@ -435,6 +473,8 @@ export function buildClientNexusResponse(
     clientId: inputs.clientId,
     districts,
     representativesByFacility: inputs.representativesByFacility ?? [],
+    linkage: inputs.linkage ?? NO_LINKAGE,
+    facilityFootprint: facilityFootprintOf(inputs.facilities),
     awarded: {
       contractObligations: sumMoney(districts.map((d) => d.awarded.contractObligations)),
       grantObligations: sumMoney(districts.map((d) => d.awarded.grantObligations)),

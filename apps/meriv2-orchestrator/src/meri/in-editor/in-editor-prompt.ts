@@ -5,6 +5,7 @@ import {
   type Confidence,
   type PeStructuralWarning,
 } from '@capiro/meriv2-core';
+import { flattenSystemParts, type SystemPromptParts } from '../prompt-cache.helpers.js';
 
 /**
  * In-editor assistant — pure prompt/edit logic, reproduced faithfully from
@@ -184,8 +185,20 @@ export function sanitizeEdits(raw: unknown): AssistantEdit[] {
   return out;
 }
 
-/** System prompt: who Meri is, the live document, setup, and the edit contract. */
-export function buildSystemPrompt(dto: InEditorInput): string {
+/**
+ * Split system-prompt parts for prompt caching (P0-1 orchestrator parity):
+ * `base` is every document-invariant instruction — persona, tool contract,
+ * the zero-trust grounding kernel, sourcing/response guidance — reordered to
+ * sit first and stay byte-identical across rounds so request-scoped-llm.
+ * client.ts can put a cache breakpoint on it. `dynamic` is the live document
+ * itself (title, sections, setup, linked context — genuinely different per
+ * document/edit, and typically different every turn) plus today's date. The
+ * combined text carries the exact same content as the previous single-string
+ * prompt, but REORDERED: the document/setup/context blocks used to sit near
+ * the top and are now appended at the end, after the base's tool-contract/
+ * sourcing/response instructions — not a byte-identical reflow.
+ */
+export function composeInEditorSystemPrompt(dto: InEditorInput): SystemPromptParts {
   const doc = dto.document ?? {};
   const title = typeof doc.title === 'string' ? doc.title : 'Untitled document';
   const product = typeof doc.product === 'string' ? doc.product : '';
@@ -225,18 +238,9 @@ export function buildSystemPrompt(dto: InEditorInput): string {
     .map((s) => (s as { name?: unknown })?.name)
     .filter((n): n is string => typeof n === 'string');
 
-  return [
+  const base = [
     'You are Meri, an in-document drafting assistant for a U.S. federal government-affairs (lobbying) firm.',
     'You are editing ONE specific document with the user, like an AI assistant inside a Google Doc. Operate ONLY in the context of THIS document — do not invent unrelated content.',
-    '',
-    `# Document\nTitle: ${title}${product ? `\nWork product: ${product}` : ''}${client ? `\nClient: ${client}` : ''}${dto.clientId ? `\nClient id (use for client tools): ${dto.clientId}` : ''}`,
-    sectionNames.length ? `Sections (in order): ${sectionNames.join(' | ')}` : '',
-    '',
-    '## Current section content\n' + (sectionText || '(no sections yet)'),
-    setupLines ? `\n# Setup\n${setupLines}` : '',
-    contextText
-      ? `\n# Linked context (from the Context Builder — ground your work in this)\n${contextText}`
-      : '',
     '',
     '# Tools',
     'You may call the provided READ-ONLY tools to look up firm/client data, tracked bills, program elements & budgets, the congressional directory, and federal intelligence. Ground factual claims in retrieved data or the linked context above. Never fabricate figures, bill numbers, names, or citations. If you lack the data, say so.',
@@ -249,10 +253,11 @@ export function buildSystemPrompt(dto: InEditorInput): string {
     // protocol, citation grammar, GR domain semantics (supersedes the former
     // inline DOMAIN_PRIMER), numeric integrity, uncertainty ladder, advice gate,
     // self-check. This surface drafts a client deliverable → the memo surface
-    // block (FORM A/B tokens survive into the document; no wit; facts/recs split).
+    // block (FORM A/B tokens survive into the document; no wit; facts/recs
+    // split). The date block (which closes this element) sits in the dynamic
+    // tail below — it changes daily, so it must never sit in the cached base.
     MERI_GROUNDING_INVARIANT,
     meriGroundingSurfaceBlock('memo'),
-    meriGroundingDateBlock(new Date().toISOString()),
     '',
     '# Primary sources outrank secondary coverage',
     'When a news summary and a primary source disagree (bill text, committee report, CBO score, roll call, floor transcript), the primary source wins — say so and cite it. News coverage of legislation is frequently wrong on mechanics: what a bill actually does, vote counts, and timing.',
@@ -275,4 +280,35 @@ export function buildSystemPrompt(dto: InEditorInput): string {
   ]
     .filter(Boolean)
     .join('\n');
+
+  // Grounding date block FIRST in the dynamic (uncached) tail — see the base
+  // comment above. The live document (title/sections/setup/linked context)
+  // follows: it is genuinely per-document and typically changes every turn as
+  // the user or the model edits it, so it must never sit in the cached base.
+  const dynamic = [
+    meriGroundingDateBlock(new Date().toISOString()),
+    `\n# Document\nTitle: ${title}${product ? `\nWork product: ${product}` : ''}${client ? `\nClient: ${client}` : ''}${dto.clientId ? `\nClient id (use for client tools): ${dto.clientId}` : ''}`,
+    sectionNames.length ? `Sections (in order): ${sectionNames.join(' | ')}` : '',
+    '\n## Current section content\n' + (sectionText || '(no sections yet)'),
+    setupLines ? `\n# Setup\n${setupLines}` : '',
+    contextText
+      ? `\n# Linked context (from the Context Builder — ground your work in this)\n${contextText}`
+      : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return { base, dynamic };
+}
+
+/**
+ * System prompt: who Meri is, the live document, setup, and the edit
+ * contract. Legacy joined-string form — kept for the one-off "FINISH NOW"
+ * fallback (never reused, so caching it would only add the cache-write
+ * premium with no reads) and for callers/tests that don't need the cache
+ * split. Delegates to composeInEditorSystemPrompt so the two forms can never
+ * drift.
+ */
+export function buildSystemPrompt(dto: InEditorInput): string {
+  return flattenSystemParts(composeInEditorSystemPrompt(dto));
 }

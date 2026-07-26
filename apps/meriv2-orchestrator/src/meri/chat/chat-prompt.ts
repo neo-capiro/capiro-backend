@@ -8,6 +8,7 @@ import {
   type MeriContext,
 } from '@capiro/meriv2-core';
 import type { MeriCitation } from '@capiro/shared';
+import { flattenSystemParts, type SystemPromptParts } from '../prompt-cache.helpers.js';
 
 /**
  * Full Meri chat (Workstream C4) — pure prompt/label logic, kept dependency-light
@@ -237,75 +238,46 @@ const TOOL_LABELS: Record<string, string> = {
   draft_policy_memo: 'Drafted a policy memo',
 };
 
-/** System prompt: who Meri is, the firm/user voice, the tool contract, the gate. */
-export function buildChatSystemPrompt(
+/**
+ * Split system-prompt parts for prompt caching (P0-1 orchestrator parity):
+ * `base` is every tenant/turn-invariant instruction — persona, the zero-trust
+ * grounding kernel, tool-routing rules, actions/deliverables guidance,
+ * reasoning + register guidance — reordered to sit first and stay
+ * byte-identical across rounds/turns so request-scoped-llm.client.ts can put
+ * a cache breakpoint on it. `dynamic` is everything that varies per turn or
+ * tenant (client focus, firm voice, memory recall, roster, skill addendum,
+ * mode steering, and today's date) and must never carry a breakpoint. The
+ * combined text carries the exact same content as the previous single-string
+ * prompt, but REORDERED: every dynamic bit used to sit near the top (right
+ * after the intro) and is now appended at the end, after the base's
+ * tool-routing/actions/register instructions. This mirrors apps/api's own
+ * P0-1 split (meri.service.ts's composeSystemParts also moves per-turn
+ * content to a trailing tail) — not a byte-identical reflow.
+ */
+export function composeChatSystemPrompt(
   dto: ChatInput,
   ctx: MeriContext,
   intent?: IntentClassification,
-): string {
+): SystemPromptParts {
   const firm = ctx.firmMemory;
   const voice = ctx.userVoice;
-  return [
+
+  const base = [
     'You are Meri, an AI copilot for a U.S. federal government-affairs (lobbying) firm.',
     'You help lobbyists research legislation, program elements & budgets, the congressional directory, federal intelligence, and their own clients — and you can draft and take actions on their behalf.',
-    dto.clientId
-      ? `\nThe conversation is focused on client id: ${dto.clientId} (use it for client tools).`
-      : '',
-    dto.clientKbSnapshot
-      ? `\n# Focused client knowledge base (profile, key people, facilities, recent docs)\n${dto.clientKbSnapshot}`
-      : '',
-    ctx.clientSteering
-      ? `\n# Focused client steering (approved framing for THIS client — use it and cite it)\n` +
-        [
-          ctx.clientSteering.soul ? `Client soul:\n${ctx.clientSteering.soul}` : '',
-          ctx.clientSteering.compass ? `Client compass:\n${ctx.clientSteering.compass}` : '',
-          ctx.clientSteering.people ? `Client people:\n${ctx.clientSteering.people}` : '',
-        ]
-          .filter(Boolean)
-          .join('\n\n')
-      : '',
-    firm?.soul ? `\n# Firm identity\n${firm.soul}` : '',
-    firm?.compass ? `\n# Firm compass\n${firm.compass}` : '',
-    voice ? `\n# The user's writing voice (mirror it when you draft)\n${voice}` : '',
-    dto.conversationSummary
-      ? `\n# Conversation so far (summary of EARLIER turns — the message history below carries only the most recent turns)\n${dto.conversationSummary}`
-      : '',
-    dto.memoryContext?.length
-      ? `\n# What you remember (firm + this user)\nThese are stored memories relevant to this conversation — use them directly when they answer the question:\n${dto.memoryContext.map((m) => `- ${m}`).join('\n')}`
-      : '',
-    ctx.clientRoster?.length
-      ? `\n# Your firm's client roster (AUTHORITATIVE — the Capiro client table)\n` +
-        `This is the definitive list of the organizations this firm represents. When asked who your clients are, how many there are, or whether a given organization is a client, answer ONLY from this list — never enumerate or infer the client list from memory, prior conversations, or examples. Total: ${ctx.clientRoster.length} (${ctx.clientRoster.filter((c) => c.status === 'active').length} active).\n` +
-        ctx.clientRoster
-          .slice(0, 200)
-          .map((c) => `- ${c.name}${c.status && c.status !== 'active' ? ` [${c.status}]` : ''}`)
-          .join('\n') +
-        (ctx.clientRoster.length > 200
-          ? `\n(+${ctx.clientRoster.length - 200} more not shown)`
-          : '')
-      : '',
     '',
     // Zero-trust grounding kernel (v3 plan Wave 1): closed-world rule, refusal
     // protocol, citation grammar, GR domain semantics (supersedes the former
     // inline DOMAIN_PRIMER), numeric integrity, uncertainty ladder, advice gate,
     // and self-check — byte-identical with apps/api's legacy chat via
-    // @capiro/shared. The date block carries today's date for "as-of" reasoning.
+    // @capiro/shared. The date block (which closes this element) sits in the
+    // dynamic tail below — it changes daily, so it must never sit in the
+    // cached base (would bust the prefix cache).
     MERI_GROUNDING_INVARIANT,
     meriGroundingSurfaceBlock('chat'),
-    meriGroundingDateBlock(new Date().toISOString()),
     // Compliance & ethics guardrails — the SAME canonical text the legacy chat
     // base appends (via @capiro/shared), so the two surfaces never drift (1B.6).
     `\n${MERI_COMPLIANCE_GUARDRAILS}`,
-    // Matched firm-authored skill guidance (1B.3), resolved by the apps/api proxy.
-    dto.skillAddendum ? `\n# Firm playbook for this request\n${dto.skillAddendum}` : '',
-    // Plan-mode steering (agent-map wiring): only when a mode classified with
-    // signal — `research` is also the zero-hit fallback, so the common case
-    // stays byte-identical to before.
-    intent && intent.mode !== 'research' && intent.confidence > 0
-      ? `
-# Mode: ${intent.mode}
-${planModeSteering(intent.mode)}`
-      : '',
     '',
     '# Tools',
     'Call the provided tools to look up firm/client data and federal intelligence, and to draft or take actions. Ground every factual claim in retrieved data — never fabricate figures, bill numbers, names, or citations. If you lack the data, say so and offer to look it up.',
@@ -354,4 +326,77 @@ ${planModeSteering(intent.mode)}`
   ]
     .filter(Boolean)
     .join('\n');
+
+  // Grounding date block FIRST in the dynamic (uncached) tail — it changes
+  // daily, so it must never sit in the cached base (would bust the prefix
+  // cache). Closes the <meri_grounding> element opened in the base.
+  const dynamic = [
+    meriGroundingDateBlock(new Date().toISOString()),
+    dto.clientId
+      ? `\nThe conversation is focused on client id: ${dto.clientId} (use it for client tools).`
+      : '',
+    dto.clientKbSnapshot
+      ? `\n# Focused client knowledge base (profile, key people, facilities, recent docs)\n${dto.clientKbSnapshot}`
+      : '',
+    ctx.clientSteering
+      ? `\n# Focused client steering (approved framing for THIS client — use it and cite it)\n` +
+        [
+          ctx.clientSteering.soul ? `Client soul:\n${ctx.clientSteering.soul}` : '',
+          ctx.clientSteering.compass ? `Client compass:\n${ctx.clientSteering.compass}` : '',
+          ctx.clientSteering.people ? `Client people:\n${ctx.clientSteering.people}` : '',
+        ]
+          .filter(Boolean)
+          .join('\n\n')
+      : '',
+    firm?.soul ? `\n# Firm identity\n${firm.soul}` : '',
+    firm?.compass ? `\n# Firm compass\n${firm.compass}` : '',
+    voice ? `\n# The user's writing voice (mirror it when you draft)\n${voice}` : '',
+    dto.conversationSummary
+      ? `\n# Conversation so far (summary of EARLIER turns — the message history below carries only the most recent turns)\n${dto.conversationSummary}`
+      : '',
+    dto.memoryContext?.length
+      ? `\n# What you remember (firm + this user)\nThese are stored memories relevant to this conversation — use them directly when they answer the question:\n${dto.memoryContext.map((m) => `- ${m}`).join('\n')}`
+      : '',
+    ctx.clientRoster?.length
+      ? `\n# Your firm's client roster (AUTHORITATIVE — the Capiro client table)\n` +
+        `This is the definitive list of the organizations this firm represents. When asked who your clients are, how many there are, or whether a given organization is a client, answer ONLY from this list — never enumerate or infer the client list from memory, prior conversations, or examples. Total: ${ctx.clientRoster.length} (${ctx.clientRoster.filter((c) => c.status === 'active').length} active).\n` +
+        ctx.clientRoster
+          .slice(0, 200)
+          .map((c) => `- ${c.name}${c.status && c.status !== 'active' ? ` [${c.status}]` : ''}`)
+          .join('\n') +
+        (ctx.clientRoster.length > 200
+          ? `\n(+${ctx.clientRoster.length - 200} more not shown)`
+          : '')
+      : '',
+    // Matched firm-authored skill guidance (1B.3), resolved by the apps/api proxy.
+    dto.skillAddendum ? `\n# Firm playbook for this request\n${dto.skillAddendum}` : '',
+    // Plan-mode steering (agent-map wiring): only when a mode classified with
+    // signal — `research` is also the zero-hit fallback, so the common case
+    // stays byte-identical to before.
+    intent && intent.mode !== 'research' && intent.confidence > 0
+      ? `
+# Mode: ${intent.mode}
+${planModeSteering(intent.mode)}`
+      : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return { base, dynamic };
+}
+
+/**
+ * System prompt: who Meri is, the firm/user voice, the tool contract, the
+ * gate. Legacy joined-string form — kept for the one-off "FINISH NOW"
+ * synthesis retry (never reused, so caching it would only add the cache-write
+ * premium with no reads) and for callers/tests that don't need the cache
+ * split. Delegates to composeChatSystemPrompt so the two forms can never
+ * drift.
+ */
+export function buildChatSystemPrompt(
+  dto: ChatInput,
+  ctx: MeriContext,
+  intent?: IntentClassification,
+): string {
+  return flattenSystemParts(composeChatSystemPrompt(dto, ctx, intent));
 }

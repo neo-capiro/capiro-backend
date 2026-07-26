@@ -49,6 +49,22 @@ const USASPENDING = 'https://api.usaspending.gov/api/v2/search/spending_by_award
 const ASSISTANCE_AWARD_TYPE_CODES = ['02', '03', '04', '05'];
 const DELAY_MS = 300;
 
+/**
+ * Transient-failure retry (added 2026-07-26 after the first live canary).
+ *
+ * A bounded backfill is 500+ sequential requests over 10+ minutes against a
+ * government API. The first real run died at page ~510 with
+ * `SocketError: other side closed` after 106 MB — not a throttle, not a bad
+ * request, just the far end hanging up mid-stream. With no retry at all, a
+ * single blip discards the whole walk, so the odds of ever completing a large
+ * window were effectively zero.
+ *
+ * 4 attempts with exponential backoff (1s, 2s, 4s) — enough to ride out a
+ * dropped connection without turning a genuine outage into a 20-minute stall.
+ */
+const FETCH_MAX_ATTEMPTS = 4;
+const RETRY_BASE_MS = 1000;
+
 // Deterministic normalization of USAspending's "Award Type" descriptive label
 // back to its filed award_type_code — NOT inferred per-record. This mirrors
 // the exact 4 codes filtered on (award types whitepaper, verified 2026-07-24:
@@ -173,9 +189,61 @@ export async function fetchPage(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`USAspending ${res.status}: ${await res.text().catch(() => '')}`);
+  if (!res.ok) {
+    // Carry the status so the retry wrapper can tell a throttle/outage apart
+    // from a permanently-malformed request.
+    const err = new Error(
+      `USAspending ${res.status}: ${await res.text().catch(() => '')}`,
+    ) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
   const json = (await res.json()) as { results?: AssistanceAwardRaw[]; page_metadata?: PageMetadata };
   return { results: json.results ?? [], pageMetadata: json.page_metadata ?? {} };
+}
+
+/**
+ * Worth retrying? Socket/network failures carry no HTTP status at all (undici
+ * throws `TypeError: fetch failed` wrapping e.g. `UND_ERR_SOCKET`) — those are
+ * the ones that actually bit us. 429 and 5xx are the server asking us to come
+ * back later. Any other 4xx is a defect in the request we just built and will
+ * fail identically forever, so retrying it only wastes the backoff.
+ */
+export function isTransientFetchError(err: unknown): boolean {
+  const status = (err as { status?: number } | null | undefined)?.status;
+  if (typeof status === 'number') return status === 429 || status >= 500;
+  return true;
+}
+
+/**
+ * `fetchPage` with bounded retry. Exported for unit test.
+ *
+ * Takes its collaborators through `deps` (rather than closing over the module
+ * functions) so a spec can drive the retry path with a mocked fetchPage and a
+ * no-op sleep — no live calls, no real waiting.
+ */
+export async function fetchPageWithRetry(
+  args: FetchPageArgs,
+  deps: SyncAssistanceAwardsDeps,
+  maxAttempts: number = FETCH_MAX_ATTEMPTS,
+): Promise<{ results: AssistanceAwardRaw[]; pageMetadata: PageMetadata }> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await deps.fetchPage(args);
+    } catch (err) {
+      lastError = err;
+      if (!isTransientFetchError(err) || attempt === maxAttempts) break;
+      const backoffMs = RETRY_BASE_MS * 2 ** (attempt - 1);
+      console.warn(
+        `[sync-federal-assistance-awards] fetch attempt ${attempt}/${maxAttempts} failed (${
+          (err as Error)?.message ?? err
+        }); retrying in ${backoffMs}ms`,
+      );
+      await deps.sleep(backoffMs);
+    }
+  }
+  throw lastError;
 }
 
 function safeDate(v: string | null | undefined): Date | null {
@@ -264,13 +332,37 @@ export async function syncAssistanceAwardsWindow(
 
   for (let page = 0; page < windowArgs.maxPages; page += 1) {
     if (page > 0) await deps.sleep(DELAY_MS);
-    const { results, pageMetadata } = await deps.fetchPage({
-      startDate: windowArgs.startDate,
-      endDate: windowArgs.endDate,
-      agency: windowArgs.agency,
-      minAmount: windowArgs.minAmount,
-      cursor,
-    });
+
+    let results: AssistanceAwardRaw[];
+    let pageMetadata: PageMetadata;
+    try {
+      ({ results, pageMetadata } = await fetchPageWithRetry(
+        {
+          startDate: windowArgs.startDate,
+          endDate: windowArgs.endDate,
+          agency: windowArgs.agency,
+          minAmount: windowArgs.minAmount,
+          cursor,
+        },
+        deps,
+      ));
+    } catch (err) {
+      // Retries exhausted. Everything upserted so far is REAL and already
+      // committed, so stop the walk and return the true counts rather than
+      // throwing them away: `errors > 0` makes runWithSyncRun record
+      // `success_with_errors`, which is an honest "wrote N, then broke".
+      //
+      // The first live canary is exactly why this exists — it wrote 51,000
+      // rows, threw on a socket drop, and logged `rows_inserted: 0`, so the
+      // ingestion ledger flatly contradicted the database.
+      errors += 1;
+      console.error(
+        `[sync-federal-assistance-awards] stopping at page ${page} after ${FETCH_MAX_ATTEMPTS} attempts: ${
+          (err as Error)?.message ?? err
+        }. Committed so far: inserted=${inserted} updated=${updated}. Window is INCOMPLETE — re-run to continue.`,
+      );
+      break;
+    }
 
     for (const a of results) {
       const awardUniqueId = a.generated_internal_id ? String(a.generated_internal_id) : null;
@@ -306,7 +398,22 @@ async function main(): Promise<void> {
   const agency = arg('agency');
   const minAmountArg = arg('min-amount');
   const minAmount = minAmountArg ? Number(minAmountArg) : undefined;
-  const maxPages = backfill ? 1000 : 200; // circuit breaker, matches sync-federal-award.ts
+  // Circuit breaker. The DAILY branch stays at 200 (a 7-day window is small;
+  // 20,000 records is already far more than a normal day, so hitting it means
+  // something is wrong and stopping is correct).
+  //
+  // The BACKFILL branch was 1000, which silently truncated: a live run of
+  // `--since 2025-10-01 --min-amount 100000` on 2026-07-26 stopped at exactly
+  // 100,000 records (1000 pages x 100) against a true total of 217,289 —
+  // it looked like a clean success. Because results are sorted by Award Amount
+  // desc, the cut landed at $1,153,549: everything above was captured, the
+  // long tail below was silently absent.
+  //
+  // 3000 covers that window (2,173 pages) with headroom. Raising it is safe
+  // because the walk stops on `hasNext: false` anyway — this bound only ever
+  // binds on a runaway, and the retry/backoff added alongside it means a long
+  // walk now survives the transient socket drops that used to kill it.
+  const maxPages = backfill ? 3000 : 200;
 
   const prisma = new PrismaClient();
   await prisma.$connect();

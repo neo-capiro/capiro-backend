@@ -400,3 +400,84 @@ describe('evidenceByDistrict flows into the right district, and only there', () 
     expect(response.districts.find((d) => d.districtKey === 'TX-23')?.evidence).toEqual(rows);
   });
 });
+
+/**
+ * WS-H: the widget's honest states need three facts the money fields cannot
+ * answer — is a contracting rail confirmed, is an assistance rail confirmed,
+ * and how many facilities/employees exist INCLUDING the ones whose district
+ * never resolved. `districts[]` necessarily omits the latter, so counting the
+ * footprint from it would understate the client.
+ */
+describe('buildClientNexusResponse — linkage and facility footprint (WS-H)', () => {
+  test('defaults linkage to nothing-linked when the caller omits it', () => {
+    const response = buildClientNexusResponse(inputs());
+    expect(response.linkage).toEqual({
+      contractingLinked: false,
+      contractorNames: [],
+      assistanceLinked: false,
+      recipientNames: [],
+      ueiConfirmedCount: 0,
+    });
+  });
+
+  test('passes linkage through verbatim when supplied', () => {
+    const response = buildClientNexusResponse(
+      inputs({
+        linkage: {
+          contractingLinked: true,
+          contractorNames: ['Acme Defense'],
+          assistanceLinked: true,
+          recipientNames: ['Acme Research Institute'],
+          ueiConfirmedCount: 2,
+        },
+      }),
+    );
+    expect(response.linkage.contractingLinked).toBe(true);
+    expect(response.linkage.contractorNames).toEqual(['Acme Defense']);
+    expect(response.linkage.assistanceLinked).toBe(true);
+    expect(response.linkage.recipientNames).toEqual(['Acme Research Institute']);
+    expect(response.linkage.ueiConfirmedCount).toBe(2);
+  });
+
+  test('counts facilities with no resolvable district in facilitiesWithoutDistrict', () => {
+    const response = buildClientNexusResponse(
+      inputs({
+        facilities: [
+          { state: 'TX', districtCode: '23', employeeCount: null },
+          { state: null, districtCode: null, employeeCount: null },
+        ],
+      }),
+    );
+    expect(response.facilityFootprint.facilityCount).toBe(2);
+    expect(response.facilityFootprint.facilitiesWithoutDistrict).toBe(1);
+  });
+
+  test('reports employeeCount null (not 0) when no facility reported a headcount', () => {
+    const response = buildClientNexusResponse(
+      inputs({
+        facilities: [
+          { state: 'TX', districtCode: '23', employeeCount: null },
+          { state: 'VA', districtCode: '11', employeeCount: null },
+        ],
+      }),
+    );
+    // Null is "no figure", never zero employees — the widget renders '—' for it.
+    expect(response.facilityFootprint.employeeCount).toBeNull();
+    expect(response.facilityFootprint.facilitiesMissingEmployeeCount).toBe(2);
+  });
+
+  test('sums employees across ALL facilities including district-less ones', () => {
+    const response = buildClientNexusResponse(
+      inputs({
+        facilities: [
+          { state: 'TX', districtCode: '23', employeeCount: 100 },
+          { state: null, districtCode: null, employeeCount: 20 },
+        ],
+      }),
+    );
+    expect(response.facilityFootprint.employeeCount).toBe(120);
+    expect(response.facilityFootprint.facilityCount).toBe(2);
+    expect(response.facilityFootprint.facilitiesWithoutDistrict).toBe(1);
+    expect(response.facilityFootprint.facilitiesMissingEmployeeCount).toBe(0);
+  });
+});

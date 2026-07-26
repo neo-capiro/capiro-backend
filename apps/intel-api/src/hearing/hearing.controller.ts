@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { HearingWatchFeatureGuard } from '../feature-flags/hearing-watch-feature.guard.js';
 import { HearingSessionService } from './hearing-session.service.js';
+import { HearingWsTicketService } from './hearing-ws-ticket.service.js';
 import { PostHearingService } from './post-hearing.service.js';
 import { HearingBriefService } from './hearing-brief.service.js';
 import { StreamResolverService } from './stream-resolver.service.js';
@@ -26,6 +27,7 @@ export class HearingController {
     private readonly post: PostHearingService,
     private readonly brief: HearingBriefService,
     private readonly resolver: StreamResolverService,
+    private readonly tickets: HearingWsTicketService,
   ) {}
 
   @Post()
@@ -80,12 +82,30 @@ export class HearingController {
 
   /** H4: generate the client-ready post-hearing brief. */
   @Get(':id/brief')
-  briefFor(
-    @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Param('id') id: string,
-    @Headers('authorization') authHeader?: string,
-  ) {
-    const token = (authHeader ?? '').replace(/^Bearer\s+/i, '').trim();
-    return this.brief.generate(ctx.tenantId, id, token);
+  briefFor(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string) {
+    // Delegates the caller's identity to MeriV2 rather than relaying their raw
+    // Clerk token; the downstream call uses INTERNAL_SERVICE_SECRET.
+    return this.brief.generate(ctx.tenantId, id, ctx.clerkUserId);
+  }
+
+  /**
+   * Mint a single-use, 60-second ticket for the live audio WebSocket upgrade.
+   *
+   * A browser cannot set an Authorization header on a WebSocket, so the socket
+   * presents this instead of the Clerk JWT. Authorization happens HERE, over
+   * authenticated HTTPS: the class-level TenantGuard has already resolved the
+   * canonical tenant and confirmed an ACTIVE membership, and
+   * assertCaptureAllowed re-applies the same consent/scope gate the gateway
+   * used to apply — so a consent failure now surfaces as a clean HTTP 403
+   * instead of a socket that opens and immediately closes.
+   *
+   * Resolves to POST /intel-api/hearings/:id/ws-ticket (global prefix set in
+   * main.ts). Inherits @UseGuards(TenantGuard, HearingWatchFeatureGuard) from
+   * the class — do NOT add a route-level @UseGuards.
+   */
+  @Post(':id/ws-ticket')
+  async wsTicket(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string) {
+    await this.sessions.assertCaptureAllowed(ctx.tenantId, id);
+    return this.tickets.mint(ctx.tenantId, ctx.clerkUserId, id);
   }
 }

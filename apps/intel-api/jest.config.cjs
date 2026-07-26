@@ -1,3 +1,19 @@
+const path = require('node:path');
+
+// @clerk/backend's `exports` map refuses the deep specifier
+// '@clerk/backend/dist/runtime/node/crypto.js' even though the file exists, so a
+// moduleNameMapper entry pointing at it MATCHES and then fails with "Could not
+// locate module". './package.json' IS exported — resolve that and walk to the
+// file. Absolute, and safe against pnpm's content-hashed store paths.
+// Mirrors apps/api and apps/workspace.
+const clerkNodeCrypto = path.join(
+  path.dirname(require.resolve('@clerk/backend/package.json')),
+  'dist',
+  'runtime',
+  'node',
+  'crypto.js',
+);
+
 module.exports = {
   rootDir: '.',
   testEnvironment: 'node',
@@ -13,6 +29,6 @@ module.exports = {
   },
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
-    '^#crypto$': '@clerk/backend/dist/runtime/node/crypto.js',
+    '^#crypto$': clerkNodeCrypto,
   },
 };

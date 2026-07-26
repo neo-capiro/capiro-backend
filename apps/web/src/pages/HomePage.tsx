@@ -11,6 +11,7 @@ import {
   NotetakerConsentFields,
   openMeetingJoinLink,
 } from './engagement/meeting-actions.js';
+import { redistrictingHref } from './redistricting-link.js';
 import { SectionLabel, SendMeriButton } from './engagement/meetings/meetings-ui.js';
 import type { Meeting } from './engagement/meetings/meetings-types.js';
 import { useMe } from '../lib/me.js';
@@ -403,16 +404,24 @@ function NeedsAttention({
         // WS-C, LegiStorm gaps/enrichment plan: emit-redistricting-alerts.ts
         // writes these when an enacted-but-not-yet-effective congressional
         // map (or a revision to one already alerted on) covers a district
-        // where a tracked client has a facility. No dedicated district page
-        // exists yet (that's WS-D) — deep-links to the general changes inbox
-        // like the program_element branch's own no-specific-page fallback.
+        // where a tracked client has a facility.
+        //
+        // WS-D3: the per-district page now exists, so these deep-link to it
+        // instead of the generic changes inbox — see `redistrictingHref` for
+        // why the payload's `facilityDistrictCode` (not `districtNo`) is the
+        // field that matches the route.
+        //
+        // The page opens on the CURRENT map even though the alert is about a
+        // FUTURE one: DistrictDetailPage keeps its C/F selection in local
+        // state rather than the URL, so there is nothing to deep-link to and
+        // the user toggles.
         out.push({
           id: `rd-${c.id}`,
           sev,
           eyebrow: `Redistricting · ${relativeTime(c.detectedAt)}`,
           title: c.title,
           context: names[0] ?? (c.data as { name?: string } | undefined)?.name ?? 'Tracked district',
-          href: '/intelligence/changes',
+          href: redistrictingHref(c.data),
           rank: hoursSince(c.detectedAt),
         });
       } else if (

@@ -2,6 +2,12 @@ import { Logger } from '@nestjs/common';
 import { AnthropicLlmClient, OpenAiLlmClient, type LlmClient } from '@capiro/meriv2-core';
 import { parseProviderUsage, type ProviderUsage } from '@capiro/shared';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
+import {
+  applyToolCacheControl,
+  buildSystemBlocks,
+  flattenSystemParts,
+  type SystemPromptParts,
+} from './prompt-cache.helpers.js';
 
 /**
  * BYOK2 — the orchestrator's LLM credential resolver (the ONE place a global
@@ -60,7 +66,15 @@ export function modelSupportsStrict(model: string): boolean {
 
 /** Shared params for one tool-use round (completeWithTools + its per-attempt helper). */
 export interface CompleteWithToolsParams {
-  system: string;
+  /**
+   * A plain string is sent as-is (no cache breakpoint) — for one-off prompts
+   * that are never reused (e.g. a "FINISH NOW" synthesis retry). Pass the
+   * `{base, dynamic}` split form for prompts reused across tool-loop rounds
+   * or conversation turns, so the caller's constructor-configured
+   * `promptCacheEnabled` can place a cache breakpoint on the static `base`
+   * (see prompt-cache.helpers.ts).
+   */
+  system: string | SystemPromptParts;
   messages: Array<{ role: 'user' | 'assistant'; content: unknown }>;
   tools: AnthropicToolSchema[];
   maxTokens: number;
@@ -142,6 +156,13 @@ export class RequestScopedLlmClient implements LlmClient {
     // error. Inert when undefined (today's behavior), so this is dark until a
     // global OpenAI key is wired to the orchestrator.
     private readonly globalFallback?: GlobalLlmFallback,
+    // Prompt caching (P0-1 orchestrator parity): defaults to false so every
+    // existing direct `new RequestScopedLlmClient(...)` call site (tests,
+    // reasoning-tool registrations that don't care about caching) keeps
+    // today's uncached wire shape unless it opts in. The real default lives
+    // in meri-registry.service.ts, which resolves CLIO_PROMPT_CACHE_ENABLED
+    // (default true) and passes it here explicitly.
+    private readonly promptCacheEnabled: boolean = false,
   ) {}
 
   /**
@@ -368,8 +389,10 @@ export class RequestScopedLlmClient implements LlmClient {
         model,
         ...(this.timeoutMs !== undefined ? { timeoutMs: this.timeoutMs } : {}),
       });
+      // OpenAI has no Anthropic-style prompt-cache breakpoint on this adapter —
+      // flatten a split system back to one string (a no-op for a plain string).
       const r = await client.completeWithTools({
-        system: params.system,
+        system: flattenSystemParts(params.system),
         messages: params.messages,
         tools: params.tools,
         maxTokens: params.maxTokens,
@@ -395,6 +418,26 @@ export class RequestScopedLlmClient implements LlmClient {
       else params.signal.addEventListener('abort', onExternalAbort, { once: true });
     }
     try {
+      // A7: keep `strict` only for models that support structured outputs;
+      // strip it otherwise so a non-supporting model never 400s on it.
+      const toolsForModel = modelSupportsStrict(model)
+        ? params.tools
+        : params.tools.map((t) => ({
+            name: t.name,
+            description: t.description,
+            input_schema: t.input_schema,
+          }));
+      // Prompt caching (P0-1 orchestrator parity): a single breakpoint on the
+      // last tool schema (the whole tools array is static per turn) — added
+      // AFTER the strict-field stripping above so it survives either branch.
+      // A plain-string `system` is sent as-is (no breakpoint); the `{base,
+      // dynamic}` split form gets a breakpoint on `base` only, so per-turn/
+      // tenant content in `dynamic` never busts the cached prefix.
+      const tools = applyToolCacheControl(toolsForModel, this.promptCacheEnabled);
+      const system =
+        typeof params.system === 'string'
+          ? params.system
+          : buildSystemBlocks({ ...params.system, cacheEnabled: this.promptCacheEnabled });
       const res = await fetch(ANTHROPIC_URL, {
         method: 'POST',
         headers: {
@@ -405,16 +448,8 @@ export class RequestScopedLlmClient implements LlmClient {
         body: JSON.stringify({
           model,
           max_tokens: params.maxTokens,
-          system: params.system,
-          // A7: keep `strict` only for models that support structured outputs;
-          // strip it otherwise so a non-supporting model never 400s on it.
-          tools: modelSupportsStrict(model)
-            ? params.tools
-            : params.tools.map((t) => ({
-                name: t.name,
-                description: t.description,
-                input_schema: t.input_schema,
-              })),
+          system,
+          tools,
           // undefined/'auto' → Anthropic default; 'none' → no tool; {type:'tool',name} → force it (A7).
           ...(params.toolChoice === 'none'
             ? { tool_choice: { type: 'none' } }

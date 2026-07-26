@@ -1,3 +1,29 @@
+const path = require('node:path');
+
+/**
+ * Absolute path to @clerk/backend's node CJS crypto runtime.
+ *
+ * Resolving it by package specifier does NOT work: the package's `exports`
+ * field only publishes '.', './errors', './internal', './jwt', './webhooks'
+ * and './package.json', so a deep specifier like
+ * '@clerk/backend/dist/runtime/node/crypto.js' is refused by the resolver even
+ * though the file is right there on disk. A moduleNameMapper entry pointing at
+ * that specifier therefore matches and then fails with "Could not locate
+ * module", which is what silently killed test/tenant-guard.spec.ts (the guard
+ * imports @capiro/auth, which imports @clerk/backend, which imports #crypto).
+ *
+ * './package.json' IS exported, so resolve that and walk to the file. This
+ * also survives pnpm's content-hashed store paths, which a <rootDir>-relative
+ * literal would not. Mirrors apps/api/jest.config.cjs.
+ */
+const clerkNodeCrypto = path.join(
+  path.dirname(require.resolve('@clerk/backend/package.json')),
+  'dist',
+  'runtime',
+  'node',
+  'crypto.js',
+);
+
 module.exports = {
   rootDir: '.',
   testEnvironment: 'node',
@@ -17,8 +43,10 @@ module.exports = {
   moduleNameMapper: {
     '^(\.{1,2}/.*)\.js$': '$1',
     // Jest cannot resolve package-`imports` subpaths; map @clerk/backend's
-    // #crypto to its node CJS runtime (needed by the AppModule DI smoke test).
-    '^#crypto$': '@clerk/backend/dist/runtime/node/crypto.js',
+    // #crypto to its node CJS runtime. Must be an ABSOLUTE path — see
+    // clerkNodeCrypto above for why the obvious '@clerk/backend/dist/...'
+    // specifier silently fails to resolve.
+    '^#crypto$': clerkNodeCrypto,
     // Jest's resolver doesn't honor @capiro/meriv2-core's `exports` SUBPATHS
     // (node + nest-build DO, at runtime/build). Map the two the workspace uses
     // (Phase 3.1 grounding auditor) to their SOURCE so ts-jest compiles them on

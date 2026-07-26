@@ -31,7 +31,7 @@ import { ApiComplianceAuditRepo } from '../api-compliance-audit.repo.js';
 import { ApiPendingActionRepo } from '../api-pending-action.repo.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
-  buildChatSystemPrompt,
+  composeChatSystemPrompt,
   toolLabel,
   type ChatArtifact,
   type ChatInput,
@@ -39,6 +39,7 @@ import {
   type ChatStep,
   type ChatStreamEvent,
 } from './chat-prompt.js';
+import { flattenSystemParts } from '../prompt-cache.helpers.js';
 
 /** Optional streaming hooks: progressive events + caller-driven cancellation. */
 export interface ChatRunOptions {
@@ -157,7 +158,15 @@ export class ChatAssistantService {
         ];
       }
     }
-    const system = buildChatSystemPrompt(dto, ctx, intent);
+    // Prompt caching (P0-1 orchestrator parity): `systemParts` (the {base,
+    // dynamic} split) is what every round of THIS turn's tool loop sends —
+    // request-scoped-llm.client.ts places the cache breakpoint on `base`, so
+    // round 2..N of this turn (and turn 2..N of this conversation, within the
+    // ~5-minute cache TTL) reuse that prefix. `system` (the flat string) is
+    // kept only for the one-off "FINISH NOW" synthesis retry below, which is
+    // never repeated and so never benefits from a breakpoint.
+    const systemParts = composeChatSystemPrompt(dto, ctx, intent);
+    const system = flattenSystemParts(systemParts);
     const toolSchemas = await this.fetchToolSchemas();
     const steps: ChatStep[] = [];
     const pendingApprovals: NonNullable<ChatResult['pendingApprovals']> = [];
@@ -263,7 +272,7 @@ export class ChatAssistantService {
       let streamed = false;
       try {
         const resp = await this.llm.completeWithTools({
-          system,
+          system: systemParts,
           messages,
           tools: toolSchemas as AnthropicToolSchema[],
           maxTokens: MAX_TOKENS,
