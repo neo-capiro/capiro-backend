@@ -168,6 +168,40 @@ export function showRetryControl(status: DeliveryStatus): boolean {
   return isDeliveryRetryable(status);
 }
 
+/**
+ * The generation keys a "retry failed" action may resubmit.
+ *
+ * Only clear failures — `unknown` is excluded by isDeliveryRetryable, and `sent`
+ * rows must never be included: resubmitting a delivered draft would collide with
+ * the server's (tenant, idempotencyKey) unique index, which rolls the ENTIRE new
+ * intent back and makes a partial-failure retry fail outright.
+ */
+export function retryableGenKeys(intent: SendIntentView | undefined): string[] {
+  if (!intent) return [];
+  return [
+    ...new Set(
+      intent.deliveries.filter((d) => showRetryControl(d.status)).map((d) => d.generationKey),
+    ),
+  ];
+}
+
+/**
+ * Narrow the projected send units to an explicit generation-key scope.
+ *
+ * `null`/empty scope means "everything currently sendable" (a first send). A
+ * non-empty scope is a retry and is honoured exactly: a unit that is no longer
+ * sendable is simply absent from `units`, so a retry can only ever shrink, never
+ * silently pick up a draft the user did not select.
+ */
+export function scopeUnitsToGenKeys(
+  units: SendUnit[],
+  onlyGenKeys?: string[] | null,
+): SendUnit[] {
+  if (!onlyGenKeys?.length) return units;
+  const scope = new Set(onlyGenKeys);
+  return units.filter((u) => scope.has(u.genKey));
+}
+
 export interface AttachmentPreflightIssue {
   id: string;
   fileName: string;

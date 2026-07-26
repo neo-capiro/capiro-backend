@@ -90,6 +90,8 @@ import {
   ensureRequestKey,
   ensureTestRequestKey,
   projectVersionIdsForSend,
+  retryableGenKeys,
+  scopeUnitsToGenKeys,
   showRetryControl,
   summarizeIntent,
   useSendIntent,
@@ -1335,14 +1337,24 @@ export function NewOutreachWizard({
    * to the same intent instead of sending twice.
    */
   const sendIntentMutation = useMutation({
-    mutationFn: async (vars?: { testMode?: boolean }) => {
+    mutationFn: async (vars?: { testMode?: boolean; onlyGenKeys?: string[] }) => {
       const testMode = vars?.testMode === true;
       const recordId = draftId ?? (await ensureDraftRecord());
 
-      const units = projectVersionIdsForSend(state.targets, state.generatedEmails);
+      // A retry of specific failed rows must submit ONLY those. Re-submitting the
+      // whole set would hit the server's (tenant, idempotencyKey) unique index on
+      // the first already-delivered draft, which rolls the new intent back
+      // entirely — so a partial-failure retry would 409 instead of working.
+      const isRetry = !!vars?.onlyGenKeys?.length;
+      const units = scopeUnitsToGenKeys(
+        projectVersionIdsForSend(state.targets, state.generatedEmails),
+        vars?.onlyGenKeys,
+      );
       if (!units.length) {
         throw new Error(
-          'No verified drafts are ready to send. Resolve the flagged drafts in Generate & Review.',
+          isRetry
+            ? 'Those drafts are no longer ready to resend. Reopen Generate & Review to check them.'
+            : 'No verified drafts are ready to send. Resolve the flagged drafts in Generate & Review.',
         );
       }
       if (!selectedInboxId) {
@@ -1392,15 +1404,20 @@ export function NewOutreachWizard({
   /** Retry ONLY explicitly-failed deliveries, under a NEW request key. */
   const retryFailedDeliveries = () => {
     if (!sendIntent) return;
-    const failedKeys = new Set(
-      sendIntent.deliveries.filter((d) => showRetryControl(d.status)).map((d) => d.generationKey),
-    );
-    if (!failedKeys.size) return;
+    const failedKeys = retryableGenKeys(sendIntent);
+    if (!failedKeys.length) return;
     // A retry is a NEW intent with a NEW key (the old key would dedupe onto the
-    // existing intent). 'unknown' rows are deliberately excluded.
-    sendRequestKeyRef.current = null;
+    // existing intent). 'unknown' rows are deliberately excluded by
+    // showRetryControl, and the scope is passed through so an already-DELIVERED
+    // row in the same intent is not resubmitted.
+    //
+    // testMode is inherited from the intent being retried: retrying a failed TEST
+    // send must not silently become a real send to live recipients.
+    const testMode = sendIntent.testMode;
+    if (testMode) testRequestKeyRef.current = null;
+    else sendRequestKeyRef.current = null;
     setSendIntentId(null);
-    sendIntentMutation.mutate(undefined);
+    sendIntentMutation.mutate({ onlyGenKeys: failedKeys, testMode });
   };
 
   const cancelCurrentIntent = async () => {

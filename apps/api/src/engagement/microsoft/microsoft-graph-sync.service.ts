@@ -39,6 +39,7 @@ import {
 import { TokenCryptoService } from './token-crypto.service.js';
 import {
   AmbiguousMailSendError,
+  isAmbiguousTransportFailure,
   type EngagementMailSendResult,
 } from '../mail-send-result.js';
 
@@ -1982,13 +1983,15 @@ function sleep(ms: number): Promise<void> {
  * reset, timeout, aborted request, DNS/TLS failure) means the request may have
  * been fully transmitted and acted on — that is the ambiguous case, and the only
  * safe handling is 'unknown' with no retry.
+ *
+ * The transport-pattern match itself lives in mail-send-result.ts so the Gmail
+ * adapter classifies the identical set of failures; only the HttpException guard
+ * is Graph-specific (graphFetch turns a real HTTP error response into one).
+ * Behaviour is unchanged from the inline regex this replaced.
  */
 export function isAmbiguousGraphSendFailure(err: unknown): boolean {
   if (err instanceof HttpException) return false;
-  const text = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
-  return /fetch failed|ECONNRESET|ETIMEDOUT|ECONNABORTED|EPIPE|socket hang up|aborted|AbortError|timeout|network/i.test(
-    text,
-  );
+  return isAmbiguousTransportFailure(err);
 }
 
 /**

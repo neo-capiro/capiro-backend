@@ -48,6 +48,22 @@ export interface SendableConnection {
 }
 
 /**
+ * The provider slug that gets PERSISTED alongside a send (delivery rows,
+ * OutreachRecord.stats, campaignSend metadata).
+ *
+ * One helper, because every site that hardcoded `'microsoft_graph'` was silently
+ * wrong for a Gmail sender — a real defect this codebase carried on the batch and
+ * campaign paths (plan §1 item 8). Derived from the same connection enum
+ * `sendMail()` above routes on, so the recorded provider and the provider that
+ * actually delivered can never disagree.
+ */
+export function sendProviderSlug(
+  provider: EngagementProvider,
+): 'microsoft_graph' | 'gmail' {
+  return provider === EngagementProvider.google_workspace ? 'gmail' : 'microsoft_graph';
+}
+
+/**
  * Routes an outbound email to the correct provider adapter based on the
  * resolved connection. Every send site in the app dispatches through this so a
  * user's Gmail *or* Outlook mailbox works everywhere identically. Deliberately

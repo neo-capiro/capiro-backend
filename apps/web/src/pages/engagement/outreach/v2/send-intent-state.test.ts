@@ -17,6 +17,8 @@ import {
   isDeliveryRetryable,
   isIntentActive,
   projectVersionIdsForSend,
+  retryableGenKeys,
+  scopeUnitsToGenKeys,
   showRetryControl,
   summarizeIntent,
   type DeliveryStatus,
@@ -307,5 +309,92 @@ describe('attachment preflight — caught BEFORE submission', () => {
     ];
     expect(attachmentPreflight(['at'], edge)).toEqual([]);
     expect(attachmentPreflight(['over'], edge)).toHaveLength(1);
+  });
+});
+
+// A partial-failure retry must resubmit ONLY the failed rows. Resubmitting the
+// whole set would collide with the server's (tenant, idempotencyKey) unique index
+// on the first already-DELIVERED draft, and that insert failure rolls the entire
+// new intent back — so "Create new send for N failed" would 409 instead of
+// working. Safe (never a duplicate email), but broken as a recovery flow.
+describe('retry scoping (partial-failure recovery)', () => {
+  const row = (status: DeliveryStatus, genKey: string): DeliveryView => ({
+    id: `d-${genKey}`,
+    generationKey: genKey,
+    recipientKey: genKey,
+    status,
+    attempt: 1,
+    provider: 'gmail',
+    correlationId: `corr-${genKey}`,
+    to: [{ email: 'x@y.com' }],
+    cc: [],
+    bcc: [],
+    subject: 'S',
+    providerMessageId: null,
+    providerThreadId: null,
+    providerDraftId: null,
+    errorCode: null,
+    errorMessage: null,
+    acceptedAt: null,
+  });
+
+  const mixed: SendIntentView = {
+    id: 'intent-1',
+    outreachRecordId: 'rec-1',
+    status: 'partial',
+    testMode: false,
+    requestKey: 'snd-x',
+    totals: {},
+    error: null,
+    startedAt: null,
+    finishedAt: null,
+    createdAt: '2026-07-27T00:00:00.000Z',
+    deliveries: [
+      row('sent', 'individual:a@x.com'),
+      row('failed', 'individual:b@x.com'),
+      row('unknown', 'individual:c@x.com'),
+      row('skipped', 'individual:d@x.com'),
+    ],
+  };
+
+  it('selects ONLY failed rows — never sent, unknown or skipped', () => {
+    expect(retryableGenKeys(mixed)).toEqual(['individual:b@x.com']);
+  });
+
+  it('never selects an unknown row (it may already have been delivered)', () => {
+    expect(retryableGenKeys(mixed)).not.toContain('individual:c@x.com');
+  });
+
+  it('is empty when nothing failed, so no retry intent is created', () => {
+    expect(retryableGenKeys({ ...mixed, deliveries: [row('sent', 'individual:a@x.com')] })).toEqual(
+      [],
+    );
+    expect(retryableGenKeys(undefined)).toEqual([]);
+  });
+
+  it('scopes the submitted units to the retry set, dropping the already-sent draft', () => {
+    const units = [
+      { genKey: 'individual:a@x.com', draftVersionId: 'v-a' },
+      { genKey: 'individual:b@x.com', draftVersionId: 'v-b' },
+      { genKey: 'individual:c@x.com', draftVersionId: 'v-c' },
+    ];
+    // This is the whole point: v-a was DELIVERED by the first intent and must not
+    // be resubmitted, or the unique index kills the retry.
+    expect(scopeUnitsToGenKeys(units, retryableGenKeys(mixed))).toEqual([
+      { genKey: 'individual:b@x.com', draftVersionId: 'v-b' },
+    ]);
+  });
+
+  it('an absent/empty scope means a normal first send (everything sendable)', () => {
+    const units = [{ genKey: 'individual:a@x.com', draftVersionId: 'v-a' }];
+    expect(scopeUnitsToGenKeys(units, undefined)).toEqual(units);
+    expect(scopeUnitsToGenKeys(units, [])).toEqual(units);
+    expect(scopeUnitsToGenKeys(units, null)).toEqual(units);
+  });
+
+  it('a scoped key that is no longer sendable simply drops out (retries only shrink)', () => {
+    // The draft was edited after the failure, so projectVersionIdsForSend no
+    // longer emits it. The retry must not resurrect a stale version id.
+    expect(scopeUnitsToGenKeys([], ['individual:b@x.com'])).toEqual([]);
   });
 });

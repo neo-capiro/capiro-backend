@@ -177,6 +177,46 @@ describe('sendMail — result contract', () => {
     }
   });
 
+  // The gap this closes: `fetch()` REJECTING (rather than returning an error
+  // response) was uncaught, so the raw transport error reached the send-intent
+  // worker, missed the `instanceof AmbiguousMailSendError` branch, and was
+  // recorded as 'failed' — a status the UI offers a Retry for. If Gmail had
+  // already accepted the message, that retry duplicates a real email.
+  test.each([
+    ['undici transport collapse', new TypeError('fetch failed')],
+    ['socket reset mid-request', new Error('read ECONNRESET')],
+    ['connection died after the body went out', new Error('socket hang up')],
+    ['request timeout', new Error('request timeout')],
+    ['aborted request', Object.assign(new Error('The operation was aborted'), { name: 'AbortError' })],
+  ])('a rejected fetch (%s) is AMBIGUOUS, not a retryable failure', async (_label, err) => {
+    const h = makeService(async () => {
+      throw err;
+    });
+    try {
+      const caught = await h.service.sendMail(ctx, 'conn-1', INPUT).catch((e: unknown) => e);
+      expect(caught).toBeInstanceOf(AmbiguousMailSendError);
+      // Correlation must survive so the row can be reconciled against Sent Items.
+      expect((caught as AmbiguousMailSendError).correlationId).toBe(INPUT.correlationId);
+    } finally {
+      h.restore();
+    }
+  });
+
+  test('a NON-transport programming error still propagates as itself', async () => {
+    const h = makeService(async () => {
+      throw new TypeError("Cannot read properties of undefined (reading 'x')");
+    });
+    try {
+      const caught = await h.service.sendMail(ctx, 'conn-1', INPUT).catch((e: unknown) => e);
+      // Not silently reclassified as an ambiguous send — a bug in our own code
+      // must not be reported to the user as "your email may have been delivered".
+      expect(caught).not.toBeInstanceOf(AmbiguousMailSendError);
+      expect(caught).toBeInstanceOf(TypeError);
+    } finally {
+      h.restore();
+    }
+  });
+
   test('an explicit 403 insufficient-scope still asks the user to reconnect (unchanged)', async () => {
     const h = makeService(async () =>
       jsonResponse({ error: 'ACCESS_TOKEN_SCOPE_INSUFFICIENT' }, 403),

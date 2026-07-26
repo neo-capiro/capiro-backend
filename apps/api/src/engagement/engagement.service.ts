@@ -74,7 +74,7 @@ import {
   type RenderedOutreachBody,
 } from './outreach-email-renderer.js';
 import { MeetingNotesCryptoService } from './meeting-notes-crypto.service.js';
-import { EngagementMailSender } from './mail-sender.service.js';
+import { EngagementMailSender, sendProviderSlug } from './mail-sender.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { editRatio } from '../common/text-distance.js';
@@ -1905,7 +1905,29 @@ export class EngagementService {
     };
   }
 
+  /**
+   * COMPATIBILITY ROUTE (Phase 0 §3.d2) — the record-driven campaign send.
+   *
+   * This path is a raw-body send just like sendBatchEmails(): `PATCH
+   * /api/engagement/outreach/:id` accepts free-text subject/body/recipients, and
+   * this method hands those stored strings straight to a provider — no immutable
+   * version, no audit verdict, no durable intent, and the OutreachRecord is only
+   * updated AFTER delivery. It therefore has to close under the same flag, or
+   * enabling versioned outreach would leave the boundary open through a second
+   * door (and the wizard's own held-draft gate would be bypassable by saving the
+   * text and calling this route instead).
+   *
+   * Deliberately not translated into a send intent server-side: synthesizing a
+   * "version" from caller-supplied text would preserve the bypass under a new
+   * name, because nothing would ever have audited that text.
+   */
   async sendCampaign(ctx: TenantContext, id: string) {
+    if (this.versionedOutreach) {
+      throw new BadRequestException(
+        'This send path is disabled. Real sending now requires an audited draft version — ' +
+          'open the campaign in Outreach and send it through Generate & Review.',
+      );
+    }
     const record = await this.getOutreachRecord(ctx, id);
     if (record.type !== 'campaign' && record.type !== 'outbound_campaign') {
       throw new BadRequestException('Only campaigns can be sent');
@@ -1994,8 +2016,11 @@ export class EngagementService {
                 : null,
           }
         : null;
+    // Derived from the connection that actually delivered — hardcoding
+    // 'microsoft_graph' here mislabelled every Gmail campaign send.
+    const providerSlug = sendProviderSlug(connection.provider);
     const stats = {
-      provider: 'microsoft_graph',
+      provider: providerSlug,
       connectionId: connection.id,
       accountEmail: connection.accountEmail ?? null,
       recipientsAttempted: recipients.length,
@@ -2018,7 +2043,7 @@ export class EngagementService {
           stats: stats as Prisma.InputJsonValue,
           metadata: mergeJsonObjects(record.metadata, {
             campaignSend: {
-              provider: 'microsoft_graph',
+              provider: providerSlug,
               connectionId: connection.id,
               accountEmail: connection.accountEmail ?? null,
               completedAt: now.toISOString(),
@@ -3677,6 +3702,9 @@ export class EngagementService {
         sent,
         errors,
         drafts,
+        // The provider that ACTUALLY delivered. Recording a constant here made
+        // every Gmail batch send look like a Graph send in Outreach → Sent.
+        provider: sendProviderSlug(connection.provider),
       });
     } catch (error) {
       this.logger.error(
@@ -3713,9 +3741,11 @@ export class EngagementService {
       sent: Array<{ email: string; name: string | null; sentAt: string }>;
       errors: Array<{ email: string; message: string }>;
       drafts: SendBatchDraftInput[];
+      /** Resolved from the sending connection by the caller — never assumed. */
+      provider: 'microsoft_graph' | 'gmail';
     },
   ): Promise<string | null> {
-    const { sent, errors, drafts } = outcome;
+    const { sent, errors, drafts, provider } = outcome;
     // Nothing actually attempted/sent and no failures to record → skip.
     if (sent.length === 0 && errors.length === 0) return null;
 
@@ -3746,7 +3776,7 @@ export class EngagementService {
     const status: 'sent' | 'failed' = sent.length > 0 ? 'sent' : 'failed';
     const now = new Date();
     const stats = {
-      provider: 'microsoft_graph',
+      provider,
       recipientsAttempted: sent.length + errors.length,
       recipientsSent: sent.length,
       recipientsFailed: errors.length,
@@ -3757,7 +3787,7 @@ export class EngagementService {
       ...(errors.length ? { errors } : {}),
     };
     const campaignSend = {
-      provider: 'microsoft_graph',
+      provider,
       completedAt: now.toISOString(),
       status,
       recipientsSent: sent.length,
@@ -7450,7 +7480,26 @@ export class EngagementService {
     );
   }
 
+  /**
+   * COMPATIBILITY ROUTE (Phase 0 §3.d2) — the EngagementCampaign send.
+   *
+   * A third raw-body external-send path, on its own
+   * EngagementCampaign/EngagementCampaignRecipient tables, with no first-party web
+   * caller at the time of writing. Closed under the same flag anyway: an
+   * authenticated, callable route that mails arbitrary stored text to real
+   * recipients is a bypass whether or not our own UI happens to use it.
+   *
+   * sendCampaignTest() below is deliberately NOT gated — it delivers only to the
+   * authenticated user's own mailbox, touches no external recipient, and stays
+   * useful during the cutover (same rule as sendBatchEmails' testMode).
+   */
   async sendCampaignEmails(ctx: TenantContext, id: string) {
+    if (this.versionedOutreach) {
+      throw new BadRequestException(
+        'This send path is disabled. Real sending now requires an audited draft version — ' +
+          'use POST /api/engagement/outreach/send-intents.',
+      );
+    }
     const campaign = await this.getCampaign(ctx, id);
     if (!campaign.subject?.trim() || !campaign.body?.trim()) {
       throw new BadRequestException('Campaign subject and body are required before sending');
