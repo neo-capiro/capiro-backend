@@ -372,8 +372,11 @@ describe('AlertMemoAlertDto — sourceType widening (P0-08)', () => {
     expect(errors).toHaveLength(0);
   });
 
+  // state_bill and regulation were rejected when this test was written; §4.5 (phase d)
+  // deliberately widened the allow-list to include them, each with its own template and
+  // prompt. The invariant under test is unchanged: an UNKNOWN value is still rejected.
   it('still REJECTS an unknown sourceType (the allow-list was widened, not removed)', () => {
-    for (const sourceType of ['state_bill', 'regulation', 'martian_decree', '', null]) {
+    for (const sourceType of ['martian_decree', 'not_a_source', 'BILL', '', null]) {
       const errors = validateSync(plainToInstance(AlertMemoAlertDto, valid({ sourceType })), {
         whitelist: true,
         forbidNonWhitelisted: true,

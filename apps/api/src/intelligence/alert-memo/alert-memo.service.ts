@@ -53,7 +53,18 @@ const MEMO_TIMEOUT_MS = 60_000;
  */
 const SECTION_ORDER_BY_SOURCE: Record<string, readonly string[]> = {
   bill: ['Bottom line', 'What happened', 'Why it matters', 'Recommended actions', 'Talking points'],
-  hearing: ['Bottom line', 'Key statements', 'Why it matters', 'Follow-up targets', 'Talking points'],
+  // §4.5 (d-3): a hearing memo's value is the testimony, so the template asks for speaker
+  // relevance, commitments, and a verbatim-quotes section instead of folding all of it
+  // into "Key statements".
+  hearing: [
+    'Bottom line',
+    'Key statements',
+    'Speaker relevance',
+    'Commitments & questions',
+    'Why it matters',
+    'Follow-up targets',
+    'Verbatim quotes',
+  ],
   combined: [
     'Bottom line',
     'What happened',
@@ -68,6 +79,24 @@ const SECTION_ORDER_BY_SOURCE: Record<string, readonly string[]> = {
     'Client program alignment',
     'Committee & program-office targets',
     'Recommended engagement',
+  ],
+  // §4.5 (d-1): a state bill lives or dies on procedural deadlines, so the template leads
+  // with the cutoff/crossover risk rather than a generic "what happened".
+  state_bill: [
+    'Bottom line',
+    'State procedural update',
+    'Deadline & crossover risk',
+    'District & facility impact',
+    'State targets',
+    'Coalition & opposition considerations',
+  ],
+  regulation: [
+    'Bottom line',
+    'Rule or action summary',
+    'Comment & effective deadlines',
+    'Covered entities',
+    'Client compliance & policy impact',
+    'Agency outreach options',
   ],
 };
 
@@ -104,8 +133,69 @@ Hard rules:
 - Keep it tight: ~1 page. "Recommended engagement" = 2-4 concrete, client-specific next steps naming the committee or program office where possible.
 Return ONLY JSON: {"sections":[{"heading":"Bottom line","paragraphs":[{"text":"...","claimIds":["c1"]}]}, ...]} covering, in order: Bottom line, Budget movement, Authorization vs appropriation context, Client program alignment, Committee & program-office targets, Recommended engagement. No prose outside the JSON.`;
 
+/**
+ * §4.5 (d-3): a hearing memo's job is to carry testimony accurately. The Verbatim quotes
+ * section is the risky one — a paraphrase presented as a quote is worse than no quote —
+ * so the prompt requires character-exact reproduction from the claims only. buildClaims
+ * already emits each quote as `Hearing statement — {speaker}: "{text}"`.
+ */
+const HEARING_SYSTEM_PROMPT = `You are a senior federal government-affairs strategist writing a concise internal MEMO for a lobbying firm's account team about a congressional HEARING affecting a specific client.
+You are given: (1) an ABOUT-THE-CLIENT brief that sets the voice, priorities, and hard "red lines" you must respect; and (2) a closed, numbered FACT SHEET of claims (c1, c2, ...).
+Hard rules:
+- Assert ONLY facts drawn from the fact sheet. Never introduce a number, date, name, bill, or quote that is not in a claim.
+- In "Verbatim quotes", reproduce quotes CHARACTER-EXACT from the claims, in quotation marks, each attributed to the speaker named in that claim. Never paraphrase inside quotation marks, never merge two speakers, and never attribute a quote to someone the claim does not name. If a claim gives no speaker, say the speaker is not identified.
+- "Speaker relevance" may only rest on what the fact sheet establishes about the speaker (committee, role). If it establishes nothing, say so rather than inferring influence.
+- "Commitments & questions" covers what a member committed to or asked. If the fact sheet contains no commitment, say none was captured rather than manufacturing one.
+- Every paragraph MUST cite the claim ids it draws on (claimIds).
+- Use the ABOUT-THE-CLIENT brief to shape tone, emphasis, and follow-up targets — but do NOT state it as fact and NEVER contradict a stated red line.
+- Keep it tight: ~1 page.
+Return ONLY JSON: {"sections":[{"heading":"Bottom line","paragraphs":[{"text":"...","claimIds":["c1"]}]}, ...]} covering, in order: Bottom line, Key statements, Speaker relevance, Commitments & questions, Why it matters, Follow-up targets, Verbatim quotes. No prose outside the JSON.`;
+
+/**
+ * §4.5 (d-2, full-feature option): a state bill is a DEADLINE instrument — a committee
+ * cutoff or crossover date can kill it regardless of merits — and its targets are state
+ * legislators, not Congress. The federal prompt had nowhere to put either.
+ */
+const STATE_BILL_SYSTEM_PROMPT = `You are a senior STATE government-affairs strategist writing a concise internal MEMO for a lobbying firm's account team about a state legislative development affecting a specific client.
+You are given: (1) an ABOUT-THE-CLIENT brief that sets the voice, priorities, and hard "red lines" you must respect; and (2) a closed, numbered FACT SHEET of claims (c1, c2, ...).
+Hard rules:
+- Assert ONLY facts drawn from the fact sheet. Never introduce a number, date, chamber, bill, or deadline that is not in a claim.
+- This is STATE legislation. Never describe it as federal, never call a state chamber "Congress", and name the state exactly as the fact sheet names it.
+- Deadlines are the point: if the fact sheet establishes a committee cutoff, crossover, or sine die date, state it and what missing it would mean. If it establishes NO deadline, say the deadline posture is not established rather than inventing one.
+- Never assert a district or facility impact the fact sheet does not support, and never name a state legislator who is not in a claim.
+- Every paragraph MUST cite the claim ids it draws on (claimIds).
+- Use the ABOUT-THE-CLIENT brief to shape tone, emphasis, and the recommended posture — but do NOT state it as fact and NEVER contradict a stated red line.
+- Keep it tight: ~1 page.
+Return ONLY JSON: {"sections":[{"heading":"Bottom line","paragraphs":[{"text":"...","claimIds":["c1"]}]}, ...]} covering, in order: Bottom line, State procedural update, Deadline & crossover risk, District & facility impact, State targets, Coalition & opposition considerations. No prose outside the JSON.`;
+
+/**
+ * §4.5 (d-2, full-feature option): a rulemaking has a comment window and an effective
+ * date, and the client-facing question is compliance exposure — none of which the
+ * bill-shaped prompt could express (which is why a regulation memo used to arrive with
+ * null bill fields).
+ */
+const REGULATION_SYSTEM_PROMPT = `You are a senior regulatory-affairs strategist writing a concise internal MEMO for a lobbying firm's account team about an agency RULEMAKING or regulatory action affecting a specific client.
+You are given: (1) an ABOUT-THE-CLIENT brief that sets the voice, priorities, and hard "red lines" you must respect; and (2) a closed, numbered FACT SHEET of claims (c1, c2, ...).
+Hard rules:
+- Assert ONLY facts drawn from the fact sheet. Never introduce a docket number, agency, date, or CFR citation that is not in a claim.
+- Distinguish a PROPOSED rule from a FINAL rule explicitly, and never describe a proposed rule as being in effect. If the fact sheet does not establish which it is, say the stage is not established.
+- Deadlines are legally operative: state the comment deadline and the effective date ONLY as the fact sheet gives them. Never estimate, extend, or infer a deadline, and never say comments are open if the fact sheet does not establish that.
+- "Covered entities" may only describe who the fact sheet says the rule applies to. Do NOT assert that the client is covered unless a claim establishes it — say what would determine coverage instead.
+- Every paragraph MUST cite the claim ids it draws on (claimIds).
+- Use the ABOUT-THE-CLIENT brief to shape tone, emphasis, and the outreach options — but do NOT state it as fact and NEVER contradict a stated red line.
+- Keep it tight: ~1 page. This is not legal advice; do not tell the client what compliance steps are required, only what the action means and what the options are.
+Return ONLY JSON: {"sections":[{"heading":"Bottom line","paragraphs":[{"text":"...","claimIds":["c1"]}]}, ...]} covering, in order: Bottom line, Rule or action summary, Comment & effective deadlines, Covered entities, Client compliance & policy impact, Agency outreach options. No prose outside the JSON.`;
+
+const SYSTEM_PROMPT_BY_SOURCE: Record<string, string> = {
+  program_element: PE_SYSTEM_PROMPT,
+  hearing: HEARING_SYSTEM_PROMPT,
+  state_bill: STATE_BILL_SYSTEM_PROMPT,
+  regulation: REGULATION_SYSTEM_PROMPT,
+};
+
+/** bill and combined keep the original federal prompt, byte-identical. */
 function systemPromptFor(sourceType: string): string {
-  return sourceType === 'program_element' ? PE_SYSTEM_PROMPT : SYSTEM_PROMPT;
+  return SYSTEM_PROMPT_BY_SOURCE[sourceType] ?? SYSTEM_PROMPT;
 }
 
 interface Claim {
@@ -154,10 +244,12 @@ export class AlertMemoService {
     // drafting time. Best-effort — `billTruthBlock` already returns null for a
     // hearing session id (no matching CongressBill row) or any lookup error is
     // swallowed, so a failure here never blocks memo generation.
-    // P0-08: a PE alert's sourceRef is a PE CODE, not a bill id — billTruthBlock would
-    // return null anyway, so the explicit skip saves a query and documents the intent.
+    // P0-08 / §4.5: a PE alert's sourceRef is a PE CODE and a regulation alert's is a
+    // rule document id — neither is a bill id, so billTruthBlock would return null
+    // anyway. The explicit skip saves a query and documents the intent.
+    const NO_LIVE_BILL = new Set(['hearing', 'program_element', 'regulation']);
     const liveBill =
-      alert.sourceType !== 'hearing' && alert.sourceType !== 'program_element' && alert.sourceRef
+      !NO_LIVE_BILL.has(alert.sourceType) && alert.sourceRef
         ? await this.engagement.billTruthBlock(alert.sourceRef).catch(() => null)
         : null;
     const { claims, sources } = buildClaims(
@@ -210,7 +302,12 @@ export class AlertMemoService {
     // used to fall all the way back to the raw headline.
     const subject = alert.programElement?.peCode
       ? `${alert.programElement.peCode}${alert.programElement.title ? ` — ${alert.programElement.title}` : ''}`
-      : (alert.billDisplayNum ?? alert.hearingTitle ?? alert.title);
+      : (alert.billDisplayNum ??
+        // §4.5: a regulation has no bill number, so it used to fall back to the raw
+        // headline; prefer the rule title.
+        alert.regulation?.ruleTitle ??
+        alert.hearingTitle ??
+        alert.title);
     const title = `Client memo — ${subject}`.slice(0, 200);
     let markdown = toMarkdown(title, sections, claims, sources, clientName);
 
@@ -692,6 +789,37 @@ function buildClaims(
     if (pe.verification) push(`Verification state of these figures: ${pe.verification}`);
     if (pe.linkedRef) push(`Linked authority: ${pe.linkedRef}`);
   }
+  // §4.5: state-bill framing. The jurisdiction claim exists so the model cannot quietly
+  // describe a state bill as federal, and the deadline claims are the whole point of a
+  // state memo — a cutoff can kill a bill regardless of its merits.
+  if (alert.sourceType === 'state_bill') {
+    const jur = alert.jurisdiction && alert.jurisdiction !== 'US' ? alert.jurisdiction : null;
+    push(
+      jur
+        ? `Jurisdiction: this is STATE legislation in ${jur}, not federal legislation.`
+        : `Jurisdiction: this is STATE legislation, not federal legislation.`,
+    );
+  }
+  const dl = alert.deadline;
+  if (dl && (dl.cutoffType || dl.cutoffDate || dl.daysUntil != null)) {
+    const parts = [
+      dl.cutoffType ? `deadline type ${dl.cutoffType}` : null,
+      dl.cutoffDate ? `date ${dl.cutoffDate}` : null,
+      dl.daysUntil != null ? `${dl.daysUntil} day(s) remaining as of this alert` : null,
+    ].filter(Boolean);
+    push(`Procedural deadline: ${parts.join(', ')}.`);
+  }
+  // §4.5: regulation framing. ruleType carries the proposed-vs-final distinction the
+  // prompt is required to respect, and the two dates are legally operative.
+  const reg = alert.regulation;
+  if (reg) {
+    if (reg.ruleTitle) push(`Regulatory action: ${reg.ruleTitle}`, reg.url ?? alert.url);
+    if (reg.agency) push(`Issuing agency: ${reg.agency}`);
+    if (reg.ruleType) push(`Document type: ${reg.ruleType}`);
+    if (reg.docketId) push(`Docket: ${reg.docketId}`, reg.url ?? alert.url);
+    if (reg.commentEndDate) push(`Public comment period closes: ${reg.commentEndDate}`);
+    if (reg.effectiveDate) push(`Effective date: ${reg.effectiveDate}`);
+  }
   if (alert.whyItMatters) push(`Relevance to client: ${alert.whyItMatters}`);
   if (alert.matchedTags?.length)
     push(`Matched the client's tracked interests: ${alert.matchedTags.join(', ')}`);
@@ -844,6 +972,65 @@ function scaffold(alert: AlertMemoAlertInput, claims: Claim[]): GenSection[] {
       },
     ].filter((s) => s.paragraphs.length);
   }
+  // §4.5: a failed state-bill or regulation generation must not fall back to federal
+  // bill headings — the document would claim to be something it is not.
+  if (alert.sourceType === 'state_bill') {
+    return [
+      {
+        heading: 'Bottom line',
+        paragraphs: [{ text: alert.title, claimIds: claims[0] ? [claims[0].id] : [] }],
+      },
+      {
+        heading: 'State procedural update',
+        paragraphs: [{ text: alert.actionText || alert.title, claimIds: allIds.slice(0, 4) }],
+      },
+      {
+        heading: 'Deadline & crossover risk',
+        paragraphs: alert.deadline?.cutoffType
+          ? [
+              {
+                text: `${alert.deadline.cutoffType}${alert.deadline.cutoffDate ? ` on ${alert.deadline.cutoffDate}` : ''}${alert.deadline.daysUntil != null ? ` — ${alert.deadline.daysUntil} day(s) remaining as of this alert` : ''}.`,
+                claimIds: allIds,
+              },
+            ]
+          : [],
+      },
+    ].filter((s) => s.paragraphs.length);
+  }
+  if (alert.sourceType === 'regulation') {
+    const reg = alert.regulation;
+    return [
+      {
+        heading: 'Bottom line',
+        paragraphs: [{ text: alert.title, claimIds: claims[0] ? [claims[0].id] : [] }],
+      },
+      {
+        heading: 'Rule or action summary',
+        paragraphs: [
+          {
+            text: reg?.ruleTitle || alert.actionText || alert.title,
+            claimIds: allIds.slice(0, 4),
+          },
+        ],
+      },
+      {
+        heading: 'Comment & effective deadlines',
+        paragraphs: reg?.commentEndDate || reg?.effectiveDate
+          ? [
+              {
+                text: [
+                  reg.commentEndDate ? `Comments close ${reg.commentEndDate}.` : null,
+                  reg.effectiveDate ? `Effective ${reg.effectiveDate}.` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' '),
+                claimIds: allIds,
+              },
+            ]
+          : [],
+      },
+    ].filter((s) => s.paragraphs.length);
+  }
   return [
     {
       heading: 'Bottom line',
@@ -915,7 +1102,7 @@ function toMemoDocInput(
     ? `${alert.programElement.peCode}${alert.programElement.title ? ` — ${alert.programElement.title}` : ''}`
     : alert.billDisplayNum
       ? `${alert.billDisplayNum}${alert.billTitle ? ` — ${alert.billTitle}` : ''}`
-      : (alert.hearingTitle ?? alert.title);
+      : (alert.regulation?.ruleTitle ?? alert.hearingTitle ?? alert.title);
   return {
     clientName,
     dateStr: formatMemoDate(alert.actionDate),

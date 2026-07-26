@@ -37,6 +37,33 @@ export interface AlertMemoProgramElement {
   href?: string | null;
 }
 
+/**
+ * Agency rulemaking facts (§4.5). Present only for sourceType='regulation'. intel-api
+ * writes these FLAT and normalizes them into one nested block on read
+ * (normalize-evidence.ts), which is what makes a regulation memo groundable at all.
+ */
+export interface AlertMemoRegulation {
+  ruleTitle?: string | null;
+  agency?: string | null;
+  /** e.g. 'Proposed Rule' | 'Rule' — drives the proposed-vs-final distinction. */
+  ruleType?: string | null;
+  commentEndDate?: string | null;
+  effectiveDate?: string | null;
+  docketId?: string | null;
+  url?: string | null;
+}
+
+/**
+ * State legislative deadline context (§4.5). The state-deadline emitter writes
+ * cutoffDate/cutoffType/daysUntil (bill-change-detector.service.ts:793-797), which land
+ * in the normalized evidence's `extra`.
+ */
+export interface AlertMemoDeadline {
+  cutoffType?: string | null;
+  cutoffDate?: string | null;
+  daysUntil?: number | null;
+}
+
 /** A transcript/quote mention carried from a hearing alert. */
 export interface AlertMemoQuote {
   text: string;
@@ -48,7 +75,7 @@ export interface AlertMemoQuote {
 /** The salient alert content the memo is grounded in (passed from the Feed). */
 export interface AlertMemoAlertInput {
   alertId: string;
-  sourceType: 'bill' | 'hearing' | 'combined' | 'program_element';
+  sourceType: 'bill' | 'hearing' | 'combined' | 'program_element' | 'state_bill' | 'regulation';
   /** headline, e.g. "H.R. 8800: Rule granted (floor scheduled)" */
   title: string;
   /** deterministic "why it matters to {client}" from the detector */
@@ -72,6 +99,12 @@ export interface AlertMemoAlertInput {
   matchedTags?: string[];
   /** P0-08: the funding facts a PE alert carries. Only for sourceType='program_element'. */
   programElement?: AlertMemoProgramElement;
+  /** §4.5: 2-letter state code, or 'US' for federal. Drives the state-bill framing. */
+  jurisdiction?: string | null;
+  /** §4.5: state cutoff/crossover context, when the alert is a deadline warning. */
+  deadline?: AlertMemoDeadline | null;
+  /** §4.5: agency rulemaking facts. Only for sourceType='regulation'. */
+  regulation?: AlertMemoRegulation;
 }
 
 export interface AlertMemoResult {

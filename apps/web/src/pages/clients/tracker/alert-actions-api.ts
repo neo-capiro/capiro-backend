@@ -26,9 +26,27 @@ export interface AlertMemoProgramElement {
   href?: string | null;
 }
 
+/** §4.5: agency rulemaking facts, normalized by intel-api from the flat rule writer. */
+export interface AlertMemoRegulation {
+  ruleTitle?: string | null;
+  agency?: string | null;
+  ruleType?: string | null;
+  commentEndDate?: string | null;
+  effectiveDate?: string | null;
+  docketId?: string | null;
+  url?: string | null;
+}
+
+/** §4.5: state cutoff/crossover context, from the normalized evidence's `extra`. */
+export interface AlertMemoDeadline {
+  cutoffType?: string | null;
+  cutoffDate?: string | null;
+  daysUntil?: number | null;
+}
+
 export interface AlertMemoAlertInput {
   alertId: string;
-  sourceType: 'bill' | 'hearing' | 'combined' | 'program_element';
+  sourceType: 'bill' | 'hearing' | 'combined' | 'program_element' | 'state_bill' | 'regulation';
   title: string;
   whyItMatters?: string | null;
   severity?: string | null;
@@ -44,6 +62,9 @@ export interface AlertMemoAlertInput {
   url?: string | null;
   matchedTags?: string[];
   programElement?: AlertMemoProgramElement;
+  jurisdiction?: string | null;
+  deadline?: AlertMemoDeadline | null;
+  regulation?: AlertMemoRegulation;
 }
 
 /** §4.6: a cited source, with when it was pulled and how well it is attested. */
@@ -94,6 +115,20 @@ export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
   const bill = item.evidence?.bill;
   const hearing = item.evidence?.hearing;
   const pe = item.evidence?.programElement;
+  // §4.5: intel-api normalizes the flat rule writer into evidence.regulation, and the
+  // state-deadline emitter's cutoff fields ride in evidence.extra.
+  const reg = item.evidence?.regulation as AlertMemoRegulation | undefined;
+  const extra = item.evidence?.extra as
+    | { cutoffType?: string | null; cutoffDate?: string | null; daysUntil?: number | null }
+    | undefined;
+  const deadline =
+    extra && (extra.cutoffType || extra.cutoffDate || extra.daysUntil != null)
+      ? {
+          cutoffType: extra.cutoffType ?? null,
+          cutoffDate: extra.cutoffDate ?? null,
+          daysUntil: extra.daysUntil ?? null,
+        }
+      : null;
   const quotes = (hearing?.mentions ?? [])
     .map((m) => ({
       text: m.quote ?? '',
@@ -114,15 +149,13 @@ export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
     // (A state_bill DOES still get "Generate district brief" — that has its own
     // endpoint below and accepts state bills.) Map defensively to 'bill' rather
     // than send a value the server's @IsIn(['bill','hearing','combined']) rejects.
-    // P0-08: program_element is now a FIRST-CLASS memo source — apps/api's @IsIn
-    // accepts it and it has a PE-shaped prompt, section order, and claim builder. Sending
-    // it as 'bill' would drop every funding fact, which was the bug. state_bill and
-    // regulation still have no memo DTO and get no memo chip, so they keep the
-    // defensive map rather than a value the server rejects.
-    sourceType:
-      item.sourceType === 'state_bill' || item.sourceType === 'regulation'
-        ? 'bill'
-        : item.sourceType,
+    // P0-08 / §4.5: EVERY source type is now a first-class memo source — apps/api's
+    // @IsIn accepts all six and each has its own prompt, section order, claim builder,
+    // and scaffold. Sending a state bill or a rulemaking as 'bill' (as this used to)
+    // dropped every state deadline and every regulatory date, which was the bug. No
+    // defensive downgrade remains here; see feedItemToDistrictBriefAlert, whose DTO was
+    // NOT widened and therefore still downgrades.
+    sourceType: item.sourceType,
     title: item.title,
     whyItMatters: item.whyItMatters,
     severity: item.severity,
@@ -137,8 +170,25 @@ export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
     committee: hearing?.committeeId ?? null,
     hearingTitle: hearing?.title ?? null,
     quotes: quotes.length ? quotes : undefined,
-    url: bill?.url ?? pe?.href ?? null,
+    url: bill?.url ?? pe?.href ?? reg?.url ?? null,
     matchedTags: tags.length ? tags : undefined,
+    ...(item.evidence?.provenance?.jurisdiction
+      ? { jurisdiction: item.evidence.provenance.jurisdiction }
+      : {}),
+    ...(deadline ? { deadline } : {}),
+    ...(reg
+      ? {
+          regulation: {
+            ruleTitle: reg.ruleTitle,
+            agency: reg.agency,
+            ruleType: reg.ruleType,
+            commentEndDate: reg.commentEndDate,
+            effectiveDate: reg.effectiveDate,
+            docketId: reg.docketId,
+            url: reg.url,
+          },
+        }
+      : {}),
     ...(pe
       ? {
           programElement: {
@@ -162,17 +212,31 @@ export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
 
 /**
  * The district-brief generator's DTO has the same shape as the memo's (Phase 1 M1.5) but
- * has NOT been widened for program_element — sending it sourceType:'program_element'
- * would 400 on its @IsIn. This used to be a bare alias of feedItemToMemoAlert, so
- * widening the memo mapper for PE silently armed that 400. `recommendedActionsFor` does
- * not offer district_brief for a PE alert, so the path is not reachable from the UI
- * today; it is mapped defensively anyway rather than left as a trap.
+ * its @IsIn was NOT widened — district-brief.controller.ts:30 still accepts only
+ * bill | hearing | combined. Anything else must be downgraded here or the request 400s.
+ *
+ * This used to be a bare ALIAS of feedItemToMemoAlert, which made it a live trap: every
+ * time the memo mapper learned a new sourceType, this surface silently started sending a
+ * value its own DTO rejects. For state_bill that is not hypothetical —
+ * `recommendedActionsFor` DOES offer district_brief for a state bill (isBill includes it),
+ * so the alias would have 400'd a reachable, user-facing action the moment the memo
+ * mapper stopped downgrading. The source-specific blocks are stripped too: the
+ * district-brief DTO does not whitelist them, and forbidNonWhitelisted would 400 on the
+ * extra keys even with an accepted sourceType.
  */
+const DISTRICT_BRIEF_SOURCE_TYPES = new Set(['bill', 'hearing', 'combined']);
+
 export function feedItemToDistrictBriefAlert(item: FeedItem): AlertMemoAlertInput {
   const a = feedItemToMemoAlert(item);
-  return a.sourceType === 'program_element'
-    ? { ...a, sourceType: 'bill', programElement: undefined }
-    : a;
+  if (DISTRICT_BRIEF_SOURCE_TYPES.has(a.sourceType)) return a;
+  return {
+    ...a,
+    sourceType: 'bill',
+    programElement: undefined,
+    regulation: undefined,
+    deadline: undefined,
+    jurisdiction: undefined,
+  };
 }
 
 export function useGenerateAlertMemo() {

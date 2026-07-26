@@ -140,6 +140,68 @@ describe('normalizeEvidence — nested shapes pass through', () => {
     expect(r.extra['displayNum']).toBe('S. 4000');
   });
 
+  /**
+   * §4.5 (phase d): the rule-change detector writes its regulation facts FLAT, exactly
+   * like the bill detector (rule-change-detector.service.ts:152-169). Synthesizing them
+   * into one nested block is what makes a regulation memo groundable instead of forcing
+   * consumers to dig untyped keys out of `extra`.
+   */
+  it('synthesizes a nested regulation from the flat rule writer', () => {
+    const r = normalizeEvidence(
+      base({
+        sourceType: 'regulation',
+        sourceRef: '2026-01234',
+        evidence: {
+          stage: 'New rule',
+          actionText: 'EPA proposes to revise the NSPS for stationary turbines.',
+          actionDate: '2026-07-15',
+          url: 'https://www.federalregister.gov/d/2026-01234',
+          sourceUrl: 'https://www.federalregister.gov/d/2026-01234',
+          why: 'Matches your tracked issue area "Emissions".',
+          matchedTags: ['Emissions'],
+          tone: 'info',
+          band: 'low',
+          triggerKey: 'newMatch',
+          ruleTitle: 'Standards of Performance for Stationary Combustion Turbines',
+          agency: 'Environmental Protection Agency',
+          ruleType: 'Proposed Rule',
+          commentEndDate: '2026-09-15',
+          jurisdiction: 'US',
+        },
+      }),
+    );
+    expect(r.type).toBe('regulation');
+    expect(r.regulation).toEqual({
+      ruleTitle: 'Standards of Performance for Stationary Combustion Turbines',
+      agency: 'Environmental Protection Agency',
+      ruleType: 'Proposed Rule',
+      commentEndDate: '2026-09-15',
+      stage: 'New rule',
+      actionText: 'EPA proposes to revise the NSPS for stationary turbines.',
+      actionDate: '2026-07-15',
+      url: 'https://www.federalregister.gov/d/2026-01234',
+      jurisdiction: 'US',
+    });
+    // A regulation must never grow a bill, even though it carries flat bill-ish keys.
+    expect(r.bill).toBeUndefined();
+    // The consumed keys are lifted, not duplicated into extra.
+    for (const k of ['ruleTitle', 'agency', 'ruleType', 'commentEndDate', 'stage', 'actionText']) {
+      expect(k in r.extra).toBe(false);
+    }
+  });
+
+  it('never synthesizes a regulation for a non-regulation sourceType', () => {
+    for (const sourceType of ['bill', 'state_bill', 'hearing', 'combined', 'program_element']) {
+      const r = normalizeEvidence(
+        base({ sourceType, evidence: { ...flatBillEvidence(), agency: 'EPA', ruleTitle: 'R' } }),
+      );
+      expect(r.regulation).toBeUndefined();
+      // ...and the rule-ish keys are preserved in extra rather than dropped.
+      expect(r.extra['agency']).toBe('EPA');
+      expect(r.extra['ruleTitle']).toBe('R');
+    }
+  });
+
   it('passes regulation and link objects through by reference', () => {
     const regulation = { docketId: 'EPA-HQ-OAR-2026-0001', commentsDue: '2026-09-01' };
     const link = { via: 'bill_hearing_linker', confidence: 0.82 };

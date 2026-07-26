@@ -35,6 +35,24 @@ export interface NormalizedBill {
   actionDate: string | null;
   jurisdiction?: string;
 }
+/**
+ * §4.5 (Gate C phase d): the rule-change detector writes its regulation facts FLAT
+ * (ruleTitle / agency / ruleType / commentEndDate alongside stage / actionText /
+ * actionDate), exactly as the bill-change detector does. Synthesizing them into one
+ * nested block is what lets a regulation memo be grounded in real facts instead of
+ * digging them out of `extra` untyped.
+ */
+export interface NormalizedRegulation {
+  ruleTitle: string | null;
+  agency: string | null;
+  ruleType: string | null;
+  commentEndDate: string | null;
+  stage: string;
+  actionText: string | null;
+  actionDate: string | null;
+  url: string | null;
+  jurisdiction?: string;
+}
 export interface NormalizedMatch {
   matchedTags: string[];
   termId: string | null;
@@ -67,7 +85,8 @@ export interface NormalizedAlertEvidence {
   bill?: NormalizedBill;
   hearing?: unknown; // passed through verbatim (already nested + decrypted)
   programElement?: unknown; // passed through verbatim (already nested)
-  regulation?: unknown; // passed through verbatim
+  /** Nested verbatim when the writer nested it; synthesized from the flat rule writer otherwise. */
+  regulation?: NormalizedRegulation | unknown;
   link?: unknown; // passed through verbatim
   match: NormalizedMatch;
   provenance: NormalizedProvenance;
@@ -122,6 +141,8 @@ const ALWAYS_CONSUMED: ReadonlySet<string> = new Set([
   'jurisdiction',
 ]);
 const FLAT_BILL_KEYS = ['stage', 'actionText', 'actionDate', 'billTitle', 'displayNum'] as const;
+/** The rule-change detector's own flat keys (rule-change-detector.service.ts:152-169). */
+const FLAT_REGULATION_KEYS = ['ruleTitle', 'agency', 'ruleType', 'commentEndDate'] as const;
 
 /** True only for a PLAIN object. Rejecting arrays and strings matters: Object.keys('ab')
  *  is ['0','1'], which would pollute `extra` for a malformed row (a-2.9). */
@@ -190,6 +211,29 @@ export function normalizeEvidence(input: NormalizeInput): NormalizedAlertEvidenc
     synthesizedBill = true;
   }
 
+  // §4.5: same treatment for the rule writer's flat keys. Nested wins if a writer ever
+  // nests it; otherwise synthesize, and ONLY for a regulation sourceType so a bill or
+  // hearing alert can never grow a bogus regulation block.
+  let regulation: NormalizedRegulation | unknown | undefined;
+  let synthesizedRegulation = false;
+  if (isObj(ev['regulation'])) {
+    regulation = ev['regulation'];
+  } else if (type === 'regulation' && writerShape !== 'empty') {
+    const jurisdiction = str(ev['jurisdiction']);
+    regulation = {
+      ruleTitle: str(ev['ruleTitle']) ?? null,
+      agency: str(ev['agency']) ?? null,
+      ruleType: str(ev['ruleType']) ?? null,
+      commentEndDate: str(ev['commentEndDate']) ?? null,
+      stage: str(ev['stage']) ?? '',
+      actionText: str(ev['actionText']) ?? null,
+      actionDate: str(ev['actionDate']) ?? null,
+      url: str(ev['sourceUrl']) ?? str(ev['url']) ?? null,
+      ...(jurisdiction ? { jurisdiction } : {}),
+    } satisfies NormalizedRegulation;
+    synthesizedRegulation = true;
+  }
+
   // P1-09: the bill-change detector stores its relevance explanation as
   // `matchedTags` and never sets termId, so this block is the only place a bill
   // alert's match is legible to a consumer. `matchDetails` does not exist yet —
@@ -219,7 +263,14 @@ export function normalizeEvidence(input: NormalizeInput): NormalizedAlertEvidenc
   const extra: Record<string, unknown> = {};
   for (const key of Object.keys(ev)) {
     if (ALWAYS_CONSUMED.has(key)) continue;
-    if (synthesizedBill && (FLAT_BILL_KEYS as readonly string[]).includes(key)) continue;
+    // The flat keys count as consumed only when they were actually lifted into a nested
+    // block — otherwise they stay in `extra` rather than vanishing.
+    if (
+      (synthesizedBill || synthesizedRegulation) &&
+      (FLAT_BILL_KEYS as readonly string[]).includes(key)
+    )
+      continue;
+    if (synthesizedRegulation && (FLAT_REGULATION_KEYS as readonly string[]).includes(key)) continue;
     extra[key] = ev[key];
   }
 
@@ -231,7 +282,7 @@ export function normalizeEvidence(input: NormalizeInput): NormalizedAlertEvidenc
     // text into these mention objects (§2.4.3). Copying here would orphan it.
     ...(ev['hearing'] !== undefined ? { hearing: ev['hearing'] } : {}),
     ...(ev['programElement'] !== undefined ? { programElement: ev['programElement'] } : {}),
-    ...(ev['regulation'] !== undefined ? { regulation: ev['regulation'] } : {}),
+    ...(regulation !== undefined ? { regulation } : {}),
     ...(ev['link'] !== undefined ? { link: ev['link'] } : {}),
     match,
     provenance,

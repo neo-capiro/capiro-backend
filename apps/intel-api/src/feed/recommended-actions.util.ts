@@ -71,17 +71,19 @@ export function recommendedActionsFor(alert: AlertShape): RecommendedAction[] {
     alert.sourceType === 'combined' ||
     alert.sourceType === 'state_bill';
   const isHearing = alert.sourceType === 'hearing' || alert.sourceType === 'combined';
-  // W4.4 (D-12): the memo generator is BILL-shaped — a 'regulation' alert has no
-  // bill fields, so a "Draft client memo" chip on a regulation produced a memo
-  // with null bill fields. Exclude regulation (minimal fix; a real rule-shaped
-  // memo is a deferred feature). state_bill stays excluded (its DTO doesn't
-  // accept the sourceType yet); bill/combined/hearing behavior is unchanged.
   // P0-08: a program_element alert already fell through to canMemo=true, but it got
   // the BILL-shaped memo as its PRIMARY action — which dropped every funding fact the
   // card displays (PE code, FY, budget-stage movement, the dollar delta). It now gets a
   // PE-SHAPED memo (apps/api accepts sourceType='program_element' and has a PE template
   // since b-6/b-10) plus the navigate-to-source action it always lacked.
-  const canMemo = alert.sourceType !== 'state_bill' && alert.sourceType !== 'regulation';
+  //
+  // §4.5 (phase d): state_bill and regulation were excluded because the memo generator
+  // was BILL-shaped — a chip on either produced a memo with null bill fields, or one the
+  // DTO's @IsIn rejected outright. Both now have their own section order, system prompt,
+  // claim builder, and scaffold, and the DTO accepts both, so EVERY source type can be
+  // memoed. Kept as an explicit constant rather than deleted: this is the line to edit
+  // if a future source type arrives without a template.
+  const canMemo = true;
   const isProgramElement = alert.sourceType === 'program_element';
   const sessionId = sessionIdOf(alert.evidence);
   const peCode = peCodeOf(alert.evidence);

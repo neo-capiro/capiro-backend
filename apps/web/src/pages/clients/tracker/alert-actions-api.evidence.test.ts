@@ -192,12 +192,102 @@ describe('feedItemToMemoAlert — Program Element (P0-08)', () => {
     });
   });
 
-  test('state_bill and regulation still map defensively to bill with no PE block', () => {
-    for (const sourceType of ['state_bill', 'regulation'] as const) {
-      const a = feedItemToMemoAlert(feedItem({ sourceType }));
-      expect(a.sourceType).toBe('bill');
-      expect(a.programElement).toBeUndefined();
-    }
+});
+
+/**
+ * §4.5 (phase d, full-feature option). Every source type is now a first-class memo
+ * source, so the mapper no longer downgrades state_bill or regulation to 'bill' — doing
+ * so dropped every state deadline and every regulatory date.
+ */
+const stateBillItem = () =>
+  feedItem({
+    sourceType: 'state_bill',
+    title: 'CA AB 1234: 5 day(s) until its committeeCutoff (2026-08-01).',
+    evidence: {
+      schemaVersion: 1,
+      type: 'state_bill',
+      bill: {
+        billId: 'ca-ab-1234',
+        displayNum: 'CA AB 1234',
+        title: 'Advanced Manufacturing Incentive Act',
+        url: 'https://leginfo.legislature.ca.gov/ab1234',
+        stage: 'Referred to committee',
+        actionText: 'Referred to Assembly Appropriations.',
+        actionDate: '2026-07-20',
+        jurisdiction: 'CA',
+      },
+      provenance: {
+        sourceUrl: 'https://leginfo.legislature.ca.gov/ab1234',
+        triggerKey: 'stateDeadline',
+        tone: 'warn',
+        band: 'B',
+        jurisdiction: 'CA',
+        writerShape: 'flat_bill',
+      },
+      extra: { cutoffType: 'committeeCutoff', cutoffDate: '2026-08-01', daysUntil: 5 },
+    } as FeedItem['evidence'],
+  });
+
+const regulationItem = () =>
+  feedItem({
+    sourceType: 'regulation',
+    title: 'EPA proposes new emissions standards',
+    evidence: {
+      schemaVersion: 1,
+      type: 'regulation',
+      regulation: {
+        ruleTitle: 'Standards of Performance for Stationary Combustion Turbines',
+        agency: 'Environmental Protection Agency',
+        ruleType: 'Proposed Rule',
+        commentEndDate: '2026-09-15',
+        stage: 'New rule',
+        actionText: 'EPA proposes to revise the NSPS.',
+        actionDate: '2026-07-15',
+        url: 'https://www.federalregister.gov/d/2026-01234',
+      },
+      provenance: {
+        sourceUrl: 'https://www.federalregister.gov/d/2026-01234',
+        triggerKey: 'newMatch',
+        tone: 'info',
+        band: 'low',
+        jurisdiction: 'US',
+        writerShape: 'flat_bill',
+      },
+      extra: {},
+    } as FeedItem['evidence'],
+  });
+
+describe('feedItemToMemoAlert — state_bill and regulation (§4.5)', () => {
+  test('a state bill keeps its sourceType and carries jurisdiction + the cutoff deadline', () => {
+    const a = feedItemToMemoAlert(stateBillItem());
+    expect(a.sourceType).toBe('state_bill');
+    expect(a.jurisdiction).toBe('CA');
+    expect(a.deadline).toEqual({
+      cutoffType: 'committeeCutoff',
+      cutoffDate: '2026-08-01',
+      daysUntil: 5,
+    });
+    // The bill fields still populate — a state bill IS bill-shaped.
+    expect(a.billDisplayNum).toBe('CA AB 1234');
+    expect(a.actionText).toBe('Referred to Assembly Appropriations.');
+  });
+
+  test('a state bill with no cutoff sends no deadline block at all', () => {
+    const item = stateBillItem();
+    (item.evidence as { extra?: unknown }).extra = {};
+    expect(feedItemToMemoAlert(item).deadline).toBeUndefined();
+  });
+
+  test('a regulation keeps its sourceType and carries the rule facts', () => {
+    const a = feedItemToMemoAlert(regulationItem());
+    expect(a.sourceType).toBe('regulation');
+    expect(a.regulation).toMatchObject({
+      ruleTitle: 'Standards of Performance for Stationary Combustion Turbines',
+      agency: 'Environmental Protection Agency',
+      ruleType: 'Proposed Rule',
+      commentEndDate: '2026-09-15',
+    });
+    expect(a.url).toBe('https://www.federalregister.gov/d/2026-01234');
   });
 });
 
@@ -219,5 +309,43 @@ describe('feedItemToDistrictBriefAlert', () => {
 
   test('is no longer a bare alias of the memo mapper', () => {
     expect(feedItemToDistrictBriefAlert).not.toBe(feedItemToMemoAlert);
+  });
+
+  /**
+   * The district-brief DTO's @IsIn (district-brief.controller.ts:30) was NOT widened, so
+   * every sourceType the memo mapper now passes through must be downgraded here. For a
+   * STATE BILL this is not hypothetical: recommendedActionsFor DOES offer district_brief
+   * for a state bill, so leaving the old alias in place would have 400'd a reachable,
+   * user-facing action the moment the memo mapper stopped downgrading.
+   */
+  test('downgrades a STATE BILL to bill and strips the state-only blocks (reachable path)', () => {
+    const item = stateBillItem();
+    expect(feedItemToMemoAlert(item).sourceType).toBe('state_bill');
+    const brief = feedItemToDistrictBriefAlert(item);
+    expect(brief.sourceType).toBe('bill');
+    expect(brief.deadline).toBeUndefined();
+    expect(brief.jurisdiction).toBeUndefined();
+    // The bill facts the brief actually grounds on are preserved.
+    expect(brief.billDisplayNum).toBe('CA AB 1234');
+  });
+
+  test('downgrades a regulation and strips the rule block', () => {
+    const brief = feedItemToDistrictBriefAlert(regulationItem());
+    expect(brief.sourceType).toBe('bill');
+    expect(brief.regulation).toBeUndefined();
+  });
+
+  test('only ever sends a sourceType the district-brief DTO accepts', () => {
+    const accepted = new Set(['bill', 'hearing', 'combined']);
+    for (const item of [
+      stateBillItem(),
+      regulationItem(),
+      peItem(),
+      feedItem({ sourceType: 'bill' }),
+      feedItem({ sourceType: 'hearing' }),
+      feedItem({ sourceType: 'combined' }),
+    ]) {
+      expect(accepted.has(feedItemToDistrictBriefAlert(item).sourceType)).toBe(true);
+    }
   });
 });
