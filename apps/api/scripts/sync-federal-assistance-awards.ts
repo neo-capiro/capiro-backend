@@ -398,7 +398,22 @@ async function main(): Promise<void> {
   const agency = arg('agency');
   const minAmountArg = arg('min-amount');
   const minAmount = minAmountArg ? Number(minAmountArg) : undefined;
-  const maxPages = backfill ? 1000 : 200; // circuit breaker, matches sync-federal-award.ts
+  // Circuit breaker. The DAILY branch stays at 200 (a 7-day window is small;
+  // 20,000 records is already far more than a normal day, so hitting it means
+  // something is wrong and stopping is correct).
+  //
+  // The BACKFILL branch was 1000, which silently truncated: a live run of
+  // `--since 2025-10-01 --min-amount 100000` on 2026-07-26 stopped at exactly
+  // 100,000 records (1000 pages x 100) against a true total of 217,289 —
+  // it looked like a clean success. Because results are sorted by Award Amount
+  // desc, the cut landed at $1,153,549: everything above was captured, the
+  // long tail below was silently absent.
+  //
+  // 3000 covers that window (2,173 pages) with headroom. Raising it is safe
+  // because the walk stops on `hasNext: false` anyway — this bound only ever
+  // binds on a runaway, and the retry/backoff added alongside it means a long
+  // walk now survives the transient socket drops that used to kill it.
+  const maxPages = backfill ? 3000 : 200;
 
   const prisma = new PrismaClient();
   await prisma.$connect();
