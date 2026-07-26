@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { HearingController } from './hearing.controller.js';
 import { HearingSessionService } from './hearing-session.service.js';
+import { HearingWsTicketService } from './hearing-ws-ticket.service.js';
 import { SegmentCommitService } from './segment-commit.service.js';
 import { HearingCryptoService } from './hearing-crypto.service.js';
 import { OrchestratorClient } from './orchestrator.client.js';
@@ -24,6 +25,7 @@ import { SourceDataModule } from '../sourcedata/source-data.module.js';
   controllers: [HearingController],
   providers: [
     HearingSessionService,
+    HearingWsTicketService,
     SegmentCommitService,
     HearingCryptoService,
     OrchestratorClient,

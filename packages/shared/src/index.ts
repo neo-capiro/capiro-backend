@@ -102,6 +102,87 @@ export function isTenantAdmin(role: TenantRole): boolean {
   return role === 'user_admin' || role === 'capiro_admin';
 }
 
+/** Clerk org role KEYS (the segment after `org:`) that count as org admin.
+ *  EXACT-match allowlist. A custom role whose name merely CONTAINS "admin"
+ *  (`org:admin_readonly`, `org:not-admin`, `org:admin-assistant`,
+ *  `org:billing-admin`) must NOT pass — the previous `includes('admin')` test
+ *  elevated all of them, and inside the `capiro-internal` org that meant
+ *  cross-tenant `capiro_admin`. */
+export const CLERK_ADMIN_ROLE_KEYS = ['admin', 'administrator'] as const;
+
+/** True when a RAW CLERK org role string (`org:admin`, `admin`, `org:member`)
+ *  denotes an org admin. Accepts both the prefixed and bare forms because both
+ *  are produced: Clerk v1 tokens carry `org:admin` while v2 tokens carry a bare
+ *  `admin` under `o.rol`, which normalizeOrgRole re-prefixes.
+ *
+ *  Fails CLOSED on null/undefined/empty.
+ *
+ *  NOT for Capiro `TenantRole` strings — use isTenantAdmin() for those.
+ *  `isClerkOrgAdminRole('user_admin')` and `('capiro_admin')` both return
+ *  FALSE, whereas the old substring test returned true for both. Every call
+ *  site was checked for which vocabulary it receives; do not add a new one
+ *  without doing the same. */
+export function isClerkOrgAdminRole(clerkRole: string | null | undefined): boolean {
+  if (!clerkRole) return false;
+  const raw = clerkRole.trim().toLowerCase();
+  const key = raw.startsWith('org:') ? raw.slice('org:'.length) : raw;
+  return (CLERK_ADMIN_ROLE_KEYS as readonly string[]).includes(key);
+}
+
+// ---------------------------------------------------------------------------
+// Security events (SOC 2 CC7.2)
+// ---------------------------------------------------------------------------
+
+/** Stable reason codes for an authorization denial. These are the dimension an
+ *  auditor filters on, so they must not drift: a CloudWatch metric filter and
+ *  any future alarm key off them. Add, never rename. */
+export const AUTH_DENIED_REASONS = [
+  'no_active_membership',
+  'no_matching_tenant',
+  'tenant_claim_mismatch',
+  'org_claim_mismatch',
+  'slug_claim_mismatch',
+  'host_mismatch',
+  'unauthorized_party',
+  'ws_ticket_invalid',
+  'missing_delegation',
+] as const;
+
+export type AuthDeniedReason = (typeof AUTH_DENIED_REASONS)[number];
+
+/**
+ * Build the single-line JSON payload for an `auth.denied` security event.
+ *
+ * Emitted on stdout and picked up by the `Capiro/Security` metric filter
+ * (`{ $.security_event = "auth.denied" }`, metricValue `$.count`). Before this
+ * existed, the ONLY metric filter in the stack was bound to the sync-jobs log
+ * group, so nothing the request path logged could become a CloudWatch metric —
+ * an auth denial was invisible to monitoring.
+ *
+ * Carries no token, no email and no PII beyond the Clerk subject and tenant id.
+ * `count: 1` is the metric value; the filter sums it.
+ */
+export function authDeniedEvent(input: {
+  reason: AuthDeniedReason;
+  /** Which surface denied: 'http' | 'ws' | 'internal_service'. */
+  surface?: string;
+  /** The tenant that was RESOLVED, when one was. */
+  tenantId?: string | null;
+  /** The tenant the caller CLAIMED, when it differs from the resolved one. */
+  claimedTenantId?: string | null;
+  clerkUserId?: string | null;
+}): string {
+  return JSON.stringify({
+    security_event: 'auth.denied',
+    reason: input.reason,
+    surface: input.surface ?? 'http',
+    tenant_id: input.tenantId ?? null,
+    claimed_tenant_id: input.claimedTenantId ?? null,
+    clerk_user_id: input.clerkUserId ?? null,
+    count: 1,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Tenant context
 // ---------------------------------------------------------------------------

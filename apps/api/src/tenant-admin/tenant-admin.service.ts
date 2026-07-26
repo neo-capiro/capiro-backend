@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import type { OrganizationMembershipRole } from '@clerk/backend';
 import { ClerkProvisioningService } from '../auth/clerk-provisioning.service.js';
 import { ClerkService } from '../auth/clerk.service.js';
+import { IdentityOutboxService } from '../auth/identity-outbox.service.js';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { Prisma } from '@prisma/client';
@@ -79,6 +80,7 @@ export class TenantAdminService {
     private readonly clerk: ClerkService,
     private readonly provisioning: ClerkProvisioningService,
     private readonly config: ConfigService<AppConfig, true>,
+    private readonly outbox: IdentityOutboxService,
   ) {}
 
   /**
@@ -299,7 +301,18 @@ export class TenantAdminService {
     if (userId === ctx.userId) {
       throw new BadRequestException('Cannot remove yourself');
     }
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+
+    // The local removal and the outbox job commit together; the Clerk call
+    // happens AFTER the transaction closes.
+    //
+    // Previously the Clerk delete ran inside this transaction with its failure
+    // swallowed, which meant (a) a fast Clerk error returned 200 {ok:true} while
+    // the user kept their Clerk org membership and its tokens, and (b) a Clerk
+    // call slower than the 5s interactive-transaction budget aborted the whole
+    // transaction with P2028 — rolling back the removal and returning a 500
+    // having changed nothing — while holding a pool connection across an
+    // external HTTPS call.
+    const { jobId } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const membership = await tx.tenantMembership.findUnique({
         where: { tenantId_userId: { tenantId: ctx.tenantId, userId } },
         include: { user: true, tenant: true },
@@ -309,18 +322,25 @@ export class TenantAdminService {
         where: { id: membership.id },
         data: { status: 'removed' },
       });
+
+      let queued: string | null = null;
       if (membership.tenant.clerkOrgId) {
-        await this.clerk.backend.organizations
-          .deleteOrganizationMembership({
-            organizationId: membership.tenant.clerkOrgId,
-            userId: membership.user.clerkUserId,
-          })
-          .catch((err) => {
-            this.logger.warn(`Clerk delete-membership: ${(err as Error).message}`);
-          });
+        queued = await this.outbox.enqueueClerkMembershipDelete(tx, {
+          tenantId: ctx.tenantId,
+          clerkOrgId: membership.tenant.clerkOrgId,
+          clerkUserId: membership.user.clerkUserId,
+          membershipId: membership.id,
+        });
       }
-      return { ok: true };
+      return { jobId: queued };
     });
+
+    // Best effort, outside the transaction. On failure the job stays pending and
+    // the out-of-band drain retries it with backoff; local access is already
+    // revoked either way because apps/api checks the local membership.
+    if (jobId) await this.outbox.attemptNow(jobId);
+
+    return { ok: true };
   }
 
   async updateMemberRole(ctx: TenantContext, userId: string, role: 'user_admin' | 'standard_user') {

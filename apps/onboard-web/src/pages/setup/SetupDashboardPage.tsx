@@ -33,13 +33,23 @@ export function SetupDashboardPage() {
   const { user } = useUser();
 
   // Invite-accepted sessions can land without an active Clerk org — both APIs
-  // resolve the tenant from org claims, so activate the (only) membership.
+  // resolve the tenant from org claims, so activate the membership.
+  //
+  // ONLY when there is exactly one. Auto-activating `data[0]` out of several
+  // silently picked whichever workspace Clerk happened to return first, so a
+  // user belonging to two firms (or a staff account with a customer org) could
+  // be shown, and act on, the WRONG firm's setup dashboard — including sending
+  // IT invites branded as that firm. With more than one membership the user
+  // must choose; see the chooser in the !orgId branch below.
   const orgList = useOrganizationList({ userMemberships: { pageSize: 10 } });
+  const memberships = orgList.userMemberships?.data ?? [];
   React.useEffect(() => {
     if (!isSignedIn || orgId || !orgList.isLoaded) return;
-    const first = orgList.userMemberships?.data?.[0];
-    if (first && orgList.setActive) {
-      void orgList.setActive({ organization: first.organization.id });
+    const all = orgList.userMemberships?.data ?? [];
+    if (all.length !== 1) return;
+    const only = all[0];
+    if (only && orgList.setActive) {
+      void orgList.setActive({ organization: only.organization.id });
     }
   }, [isSignedIn, orgId, orgList.isLoaded, orgList.userMemberships?.data, orgList.setActive]);
 
@@ -74,7 +84,7 @@ export function SetupDashboardPage() {
   }
 
   if (!orgId) {
-    if (orgList.isLoaded && (orgList.userMemberships?.data?.length ?? 0) === 0) {
+    if (orgList.isLoaded && memberships.length === 0) {
       return (
         <ExtShell>
           <CenteredNotice>
@@ -82,6 +92,43 @@ export function SetupDashboardPage() {
               No firm workspace is linked to your account yet — use the invite link from your email,
               or contact support@capiro.ai.
             </p>
+          </CenteredNotice>
+        </ExtShell>
+      );
+    }
+    // More than one workspace and none active: the user must pick. Never guess
+    // — the wrong pick shows another firm's setup state under this user's name.
+    if (orgList.isLoaded && memberships.length > 1) {
+      return (
+        <ExtShell>
+          <CenteredNotice>
+            <p
+              style={{
+                margin: '0 0 16px',
+                fontSize: 13.5,
+                color: 'var(--ink-2)',
+                lineHeight: 1.6,
+              }}
+            >
+              You're signed in as <b>{user?.primaryEmailAddress?.emailAddress}</b> and belong to
+              more than one workspace. Choose which firm you're setting up.
+            </p>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {memberships.map((m) => (
+                <Btn
+                  key={m.organization.id}
+                  variant="primary"
+                  onClick={() =>
+                    void (async () => {
+                      await orgList.setActive?.({ organization: m.organization.id });
+                      window.location.reload();
+                    })()
+                  }
+                >
+                  {m.organization.name}
+                </Btn>
+              ))}
+            </div>
           </CenteredNotice>
         </ExtShell>
       );

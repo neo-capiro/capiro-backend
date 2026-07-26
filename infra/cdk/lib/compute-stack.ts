@@ -306,6 +306,37 @@ export class ComputeStack extends cdk.Stack {
       retention: cfg.logRetentionDays as unknown as logs.RetentionDays,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
+    // Security-event metric filters on the API log group.
+    //
+    // Until now the ONLY metric filter in this stack was bound to the sync-jobs
+    // log group, so nothing the request path logged could become a CloudWatch
+    // metric — a failed de-provisioning or an auth denial was invisible to
+    // monitoring (SOC 2 CC7.2). These count the single-line JSON security
+    // events emitted by IdentityOutboxService and the tenant guards.
+    //
+    // NOTE: to apply these to the LIVE stack use `aws logs put-metric-filter`,
+    // NOT `cdk deploy Capiro-dev-Compute` — that stack holds dead-ALB values
+    // for the app.capiro.ai records and a failed deploy's rollback reverts
+    // production DNS (2026-07-25 incident).
+    new logs.MetricFilter(this, 'IdentityDeprovisionFailedMetricFilter', {
+      logGroup: apiLogGroup,
+      metricNamespace: 'Capiro/Security',
+      metricName: 'identity.deprovision_failed',
+      filterPattern: logs.FilterPattern.literal(
+        '{ $.security_event = "identity.deprovision_failed" }',
+      ),
+      metricValue: '$.count',
+      defaultValue: 0,
+    });
+    new logs.MetricFilter(this, 'AuthDeniedMetricFilter', {
+      logGroup: apiLogGroup,
+      metricNamespace: 'Capiro/Security',
+      metricName: 'auth.denied_count',
+      filterPattern: logs.FilterPattern.literal('{ $.security_event = "auth.denied" }'),
+      metricValue: '$.count',
+      defaultValue: 0,
+    });
+
     const webLogGroup = new logs.LogGroup(this, 'WebLogs', {
       logGroupName: `/capiro/${cfg.envName}/web`,
       retention: cfg.logRetentionDays as unknown as logs.RetentionDays,

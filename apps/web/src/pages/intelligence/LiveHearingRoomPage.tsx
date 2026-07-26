@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useAuth } from '@clerk/clerk-react';
 import { useQuery } from '@tanstack/react-query';
 import Hls from 'hls.js';
 import {
@@ -31,6 +30,7 @@ import {
   useHearingSession,
   useSaveRecap,
   type HearingBrief,
+  mintWsTicket,
 } from '../../lib/hearing-watch-api.js';
 
 const { Title, Text, Paragraph } = Typography;
@@ -143,17 +143,20 @@ function HlsVideoPlayer({ src }: { src: string }) {
   );
 }
 
-function wsUrl(sessionId: string, token: string): string {
-  // Gateway listens at /intel-api/live and reads sessionId + token from the query
-  // string (WS can't set Authorization). ALB routes /intel-api/* and upgrades WS.
+function wsUrl(sessionId: string, ticket: string): string {
+  // Gateway listens at /intel-api/live. A WebSocket cannot set an Authorization
+  // header, so the browser presents a SINGLE-USE, 60-second ticket minted over
+  // authenticated HTTPS (POST /intel-api/hearings/:id/ws-ticket) instead of the
+  // Clerk JWT. Query strings end up in ALB access logs, proxies and browser
+  // history — a ticket that dies on first use is safe there; a session token
+  // valid for the whole socket lifetime was not.
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${proto}//${window.location.host}/intel-api/live?sessionId=${encodeURIComponent(sessionId)}&token=${encodeURIComponent(token)}`;
+  return `${proto}//${window.location.host}/intel-api/live?sessionId=${encodeURIComponent(sessionId)}&ticket=${encodeURIComponent(ticket)}`;
 }
 
 export function LiveHearingRoomPage() {
   const enabled = useIntelFeatureEnabled('hearing_watch');
   const { id = '' } = useParams();
-  const { getToken } = useAuth();
   const { message } = AntApp.useApp();
   const confirmConsent = useConfirmConsent();
 
@@ -203,12 +206,14 @@ export function LiveHearingRoomPage() {
   const youtubeVideoId = referenceUrl ? extractYouTubeVideoId(referenceUrl) : null;
 
   const connect = useCallback(async () => {
-    const token = await getToken({ template: 'capiro' });
-    if (!token) {
+    let ticket: string;
+    try {
+      ticket = (await mintWsTicket(api, id)).ticket;
+    } catch {
       setError('Not authenticated');
       return;
     }
-    const ws = new WebSocket(wsUrl(id, token));
+    const ws = new WebSocket(wsUrl(id, ticket));
     wsRef.current = ws;
     ws.onopen = () => {
       setConnected(true);
@@ -261,7 +266,7 @@ export function LiveHearingRoomPage() {
         /* ignore malformed frame */
       }
     };
-  }, [getToken, id]);
+  }, [api, id]);
 
   useEffect(() => {
     return () => {

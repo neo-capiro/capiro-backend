@@ -72,6 +72,9 @@ describe('CapiroAdminService — analyst console (Step 3.5)', () => {
       {} as never,
       {} as never,
       { invalidate: jest.fn() } as never,
+      // IdentityOutboxService — de-provisioning is enqueued in-transaction and
+      // the Clerk call happens outside it, so these specs only need the seam.
+      { enqueueClerkMembershipDelete: jest.fn(async () => null), attemptNow: jest.fn(async () => true) } as never,
     );
   });
 
@@ -447,6 +450,7 @@ describe('CapiroAdminService — AI keys & usage console', () => {
       aiUsage as never,
       aiCredentials as never,
       { invalidate: jest.fn() } as never,
+      { enqueueClerkMembershipDelete: jest.fn(async () => null), attemptNow: jest.fn(async () => true) } as never,
     );
   });
 
@@ -525,6 +529,9 @@ describe('CapiroAdminService — deleteTenant S3 purge (DPA/GDPR)', () => {
       {} as never,
       {} as never,
       { invalidate: jest.fn() } as never,
+      // IdentityOutboxService — de-provisioning is enqueued in-transaction and
+      // the Clerk call happens outside it, so these specs only need the seam.
+      { enqueueClerkMembershipDelete: jest.fn(async () => null), attemptNow: jest.fn(async () => true) } as never,
     );
     s3send = jest.fn();
     // Replace the real S3Client built in the constructor with a send() spy.
@@ -615,6 +622,9 @@ describe('CapiroAdminService — deleteTenant S3 purge (DPA/GDPR)', () => {
       {} as never,
       {} as never,
       { invalidate: jest.fn() } as never,
+      // IdentityOutboxService — de-provisioning is enqueued in-transaction and
+      // the Clerk call happens outside it, so these specs only need the seam.
+      { enqueueClerkMembershipDelete: jest.fn(async () => null), attemptNow: jest.fn(async () => true) } as never,
     );
     const send = jest.fn();
     (svc as unknown as { s3: { send: typeof send } }).s3 = { send };
@@ -627,6 +637,14 @@ describe('CapiroAdminService — deleteTenant S3 purge (DPA/GDPR)', () => {
 // Blocker #3(b)+(a): the two remaining destructive ops must write an audit row
 // routed to the AFFECTED tenant (customer-visible under its own RLS). Bespoke
 // minimal mocks (the shared createPrismaMock has no membership/session tables).
+const outbox = {
+  // Enqueued INSIDE the caller's transaction; the Clerk call happens after it
+  // commits, via attemptNow/drainPending. Returning an id keeps the
+  // post-commit attempt path exercised.
+  enqueueClerkMembershipDelete: jest.fn(async () => 'job-1'),
+  attemptNow: jest.fn(async () => true),
+};
+
 function makeService(withSystemTx: Record<string, unknown>): CapiroAdminService {
   const prisma = {
     withSystem: async <T>(fn: (tx: unknown) => Promise<T>) => fn(withSystemTx),
@@ -641,6 +659,7 @@ function makeService(withSystemTx: Record<string, unknown>): CapiroAdminService 
     {} as never,
     {} as never,
     { invalidate: jest.fn() } as never,
+    outbox as never,
   );
 }
 
