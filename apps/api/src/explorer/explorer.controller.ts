@@ -425,6 +425,35 @@ export class ExplorerController {
     return this.service.federalGrantFacets();
   }
 
+  /* ── Federal assistance awards (USAspending, awarded grants) ─────────── */
+
+  @Get('federal-assistance-awards')
+  assistanceAwards(@Query() q: CommonPagingDto & Record<string, unknown>) {
+    return this.service.assistanceAwards({
+      q: q.q,
+      agencies: arrayOrSplit(q.agencies),
+      listings: arrayOrSplit(q.listings),
+      states: arrayOrSplit(q.states),
+      // Singular, NOT arrayOrSplit — one district code, normalized in the service.
+      district: typeof q.district === 'string' ? q.district : undefined,
+      awardTypes: arrayOrSplit(q.awardTypes),
+      minAmount: typeof q.minAmount === 'string' && q.minAmount !== '' ? Number(q.minAmount) : undefined,
+      maxAmount: typeof q.maxAmount === 'string' && q.maxAmount !== '' ? Number(q.maxAmount) : undefined,
+      // Opt-in, unlike samOpportunities/stateLegislators which default to true:
+      // the assistance table is a historical record and defaulting to
+      // active-only would silently hide most of it.
+      activeOnly: q.activeOnly === 'true' || q.activeOnly === true,
+      sort: q.sort,
+      page: q.page,
+      pageSize: q.pageSize,
+    });
+  }
+
+  @Get('federal-assistance-award-facets')
+  assistanceAwardFacets() {
+    return this.service.assistanceAwardFacets();
+  }
+
   /* ── State legislators (OpenStates) ──────────────────────────────────── */
 
   @Get('state-legislators')

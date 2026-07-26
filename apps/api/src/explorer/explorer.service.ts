@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { toUsaSpendingDistrictCode } from '../common/district-code.util.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /**
@@ -1040,6 +1041,139 @@ export class ExplorerService {
     return {
       agencies: agencies.map((r) => r.a),
       statuses: statuses.map((r) => r.s),
+    };
+  }
+
+  /* ── Federal assistance awards (USAspending, awarded grants) ─────────── */
+
+  /**
+   * Awarded federal financial assistance — award_type_codes 02/03/04/05.
+   *
+   * A DIFFERENT data product from `federalGrants` above, which is Grants.gov
+   * OPPORTUNITIES (forecasts). Obligated and outlayed are returned as separate
+   * fields and must never be summed: one is committed, the other is paid.
+   */
+  async assistanceAwards(opts: {
+    q?: string;
+    agencies?: string[];
+    listings?: string[];
+    states?: string[];
+    district?: string;
+    awardTypes?: string[];
+    minAmount?: number;
+    maxAmount?: number;
+    activeOnly?: boolean;
+    sort?: string;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const limit = clampPageSize(opts.pageSize);
+    const offset = ((opts.page ?? 1) - 1) * limit;
+    const where: Prisma.FederalAssistanceAwardWhereInput = {};
+    if (opts.q) {
+      const q = opts.q.trim();
+      where.OR = [
+        { recipientName: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+        { awardingAgency: { contains: q, mode: 'insensitive' } },
+        { assistanceListingTitle: { contains: q, mode: 'insensitive' } },
+        { fain: { contains: q, mode: 'insensitive' } },
+        // UEIs are exact identifiers, never substrings.
+        { recipientUei: q.toUpperCase() },
+      ];
+    }
+    if (opts.agencies?.length) where.awardingAgency = { in: opts.agencies };
+    if (opts.listings?.length) where.assistanceListingNumber = { in: opts.listings };
+    if (opts.states?.length) where.popState = { in: opts.states };
+    if (opts.awardTypes?.length) where.awardTypeCode = { in: opts.awardTypes };
+    // An unparseable district is IGNORED, not silently turned into a filter
+    // that matches nothing — a typo must not read as "this state has no awards".
+    const districtCode = toUsaSpendingDistrictCode(opts.district);
+    if (districtCode) where.popCongressionalDistrict = districtCode;
+    if (opts.minAmount != null || opts.maxAmount != null) {
+      where.totalObligatedAmount = {};
+      if (opts.minAmount != null) where.totalObligatedAmount.gte = opts.minAmount;
+      if (opts.maxAmount != null) where.totalObligatedAmount.lte = opts.maxAmount;
+    }
+    // "Active" = the period of performance has not ended. A null end_date is
+    // UNKNOWN, not active — excluding it is the honest read.
+    if (opts.activeOnly) where.endDate = { gte: new Date() };
+
+    // nulls: 'last' on every descending sort. Postgres defaults DESC to NULLS
+    // FIRST, which would put rows with NO reported amount at the top of
+    // "largest first".
+    const orderBy: Prisma.FederalAssistanceAwardOrderByWithRelationInput =
+      opts.sort === 'recent'
+        ? { startDate: { sort: 'desc', nulls: 'last' } }
+        : opts.sort === 'ending'
+          ? { endDate: { sort: 'asc', nulls: 'last' } }
+          : { totalObligatedAmount: { sort: 'desc', nulls: 'last' } };
+
+    const [rows, total] = await Promise.all([
+      this.prisma.federalAssistanceAward.findMany({ where, orderBy, take: limit, skip: offset }),
+      this.prisma.federalAssistanceAward.count({ where }),
+    ]);
+    return {
+      rows: rows.map((a) => ({
+        id: a.id,
+        fain: a.fain,
+        recipientName: a.recipientName,
+        recipientUei: a.recipientUei,
+        awardTypeCode: a.awardTypeCode,
+        awardTypeLabel: a.awardTypeLabel,
+        awardingAgency: a.awardingAgency,
+        awardingSubTier: a.awardingSubTier,
+        assistanceListingNumber: a.assistanceListingNumber,
+        assistanceListingTitle: a.assistanceListingTitle,
+        // Decimal(18,2) — Number() or it serializes as a Prisma Decimal object.
+        totalObligatedAmount: a.totalObligatedAmount != null ? Number(a.totalObligatedAmount) : null,
+        totalOutlayedAmount: a.totalOutlayedAmount != null ? Number(a.totalOutlayedAmount) : null,
+        description: a.description,
+        popState: a.popState,
+        popCongressionalDistrict: a.popCongressionalDistrict,
+        /** 'original' | 'current' | null — which boundary set the code refers to. */
+        popCdVintage: a.popCdVintage,
+        startDate: a.startDate?.toISOString() ?? null,
+        endDate: a.endDate?.toISOString() ?? null,
+        url: a.awardUniqueId
+          ? `https://www.usaspending.gov/award/${encodeURIComponent(a.awardUniqueId)}`
+          : null,
+      })),
+      total,
+    };
+  }
+
+  async assistanceAwardFacets() {
+    const [agencies, listings, states, awardTypes] = await Promise.all([
+      this.prisma.$queryRaw<Array<{ a: string; n: bigint }>>`
+        SELECT awarding_agency AS a, COUNT(*)::bigint AS n
+        FROM federal_assistance_award
+        WHERE awarding_agency IS NOT NULL AND awarding_agency <> ''
+        GROUP BY awarding_agency ORDER BY n DESC LIMIT 30
+      `,
+      this.prisma.$queryRaw<Array<{ c: string; t: string | null; n: bigint }>>`
+        SELECT assistance_listing_number AS c,
+               MIN(assistance_listing_title) AS t,
+               COUNT(*)::bigint AS n
+        FROM federal_assistance_award
+        WHERE assistance_listing_number IS NOT NULL AND assistance_listing_number <> ''
+        GROUP BY assistance_listing_number ORDER BY n DESC LIMIT 40
+      `,
+      this.prisma.$queryRaw<Array<{ s: string }>>`
+        SELECT DISTINCT pop_state AS s FROM federal_assistance_award
+        WHERE pop_state IS NOT NULL AND pop_state <> '' ORDER BY pop_state
+      `,
+      this.prisma.$queryRaw<Array<{ c: string; l: string | null }>>`
+        SELECT DISTINCT award_type_code AS c, award_type_label AS l
+        FROM federal_assistance_award
+        WHERE award_type_code IS NOT NULL ORDER BY award_type_code
+      `,
+    ]);
+    return {
+      agencies: agencies.map((r) => r.a),
+      listings: listings.map((r) => ({ code: r.c, title: r.t })),
+      states: states.map((r) => r.s),
+      awardTypes: awardTypes.map((r) => ({ code: r.c, label: r.l })),
     };
   }
 

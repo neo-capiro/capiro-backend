@@ -36,6 +36,7 @@ import {
   type ExplorerIntelArticleRow,
   type ExplorerLdaFilingRow,
   type ExplorerResponse,
+  type ExplorerFederalAssistanceAwardRow,
   type ExplorerFederalAwardRow,
   type ExplorerFederalGrantRow,
   type ExplorerSamOppRow,
@@ -57,6 +58,7 @@ import {
   type LdaFacets,
   type LdaFilingDetail,
   type SamOppFacets,
+  type FederalAssistanceAwardFacets,
   type FederalAwardFacets,
   type FederalGrantFacets,
   type StateLegislatorFacets,
@@ -82,6 +84,7 @@ type SourceKey =
   | 'sec'
   | 'sam-opps'
   | 'federal-awards'
+  | 'federal-assistance-awards'
   | 'federal-grants'
   | 'state-legislators'
   | 'articles'
@@ -112,6 +115,7 @@ const SOURCES: SourceMeta[] = [
   // read as awarded money; this source is Grants.gov OPPORTUNITIES (NOFOs).
   // Awarded federal assistance is a separate source (Workstream I).
   { key: 'federal-awards', label: 'Federal Contract Awards (DoD)', description: 'USAspending contract award line items — agency, contractor, amount. DoD scope.', icon: <DollarOutlined /> },
+  { key: 'federal-assistance-awards', label: 'Federal Grant Awards', description: 'USAspending awarded grants and cooperative agreements — recipient, UEI, Assistance Listing, obligated vs outlayed. Awarded money, not opportunities.', icon: <DollarOutlined /> },
   { key: 'federal-grants', label: 'Grant Opportunities', description: 'Grants.gov funding opportunities (NOFOs) by agency, deadline, ceiling — not awarded money.', icon: <BankOutlined /> },
   { key: 'state-bills', label: 'State Bills', description: 'State legislation via LegiScan.', icon: <SolutionOutlined /> },
   { key: 'state-legislators', label: 'State Legislators', description: 'State house & senate members by state, chamber, party.', icon: <TeamOutlined /> },
@@ -211,6 +215,7 @@ export function DataExplorerPage() {
         {source === 'sec' ? <SecExplorer onRowClick={(id, row) => setDrillIn({ source: 'sec', id, rowSummary: row.companyName })} /> : null}
         {source === 'sam-opps' ? <SamOppsExplorer /> : null}
         {source === 'federal-awards' ? <FederalAwardsExplorer /> : null}
+        {source === 'federal-assistance-awards' ? <FederalAssistanceAwardsExplorer /> : null}
         {source === 'federal-grants' ? <FederalGrantsExplorer /> : null}
         {source === 'state-legislators' ? <StateLegislatorsExplorer /> : null}
         {source === 'articles' ? <ArticlesExplorer onRowClick={(id, row) => setDrillIn({ source: 'articles', id, rowSummary: row.title })} /> : null}
@@ -1735,6 +1740,116 @@ function FederalGrantsExplorer() {
           { title: 'Ceiling', dataIndex: 'awardCeiling', width: 120, align: 'right' as const, render: (v: number | null) => <span className="num">{formatMoney(v)}</span> },
           { title: 'Closes', dataIndex: 'closeDate', width: 100, render: (d: string | null) => d ? <span className="num">{formatDate(d)}</span> : '-' },
           { title: 'Status', dataIndex: 'status', width: 90, render: (s: string | null) => s ? <Tag>{s}</Tag> : '-' },
+        ]}
+      />
+    </>
+  );
+}
+
+/* ── Federal assistance awards (USAspending, awarded grants) ────────────── */
+
+/**
+ * Awarded federal financial assistance — the money that actually went out the
+ * door, as distinct from the Grant Opportunities source above (Grants.gov
+ * NOFOs, which are forecasts).
+ *
+ * Obligated and outlayed get their own columns and are never combined:
+ * committed and paid are different facts, and a blended figure would answer
+ * neither question. `activeOnly` defaults to FALSE here, unlike the SAM.gov and
+ * state-legislator sources — this table is a historical record, and defaulting
+ * to active-only would silently hide most of it behind a filter the user never
+ * asked for.
+ */
+function FederalAssistanceAwardsExplorer() {
+  const api = useApi();
+  const [q, setQ] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [agencies, setAgencies] = useState<string[]>([]);
+  const [listings, setListings] = useState<string[]>([]);
+  const [states, setStates] = useState<string[]>([]);
+  const [district, setDistrict] = useState('');
+  const [awardTypes, setAwardTypes] = useState<string[]>([]);
+  const [minAmount, setMinAmount] = useState<number | null>(null);
+  const [maxAmount, setMaxAmount] = useState<number | null>(null);
+  const [activeOnly, setActiveOnly] = useState(false);
+  const [sort, setSort] = useState('amount');
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [q, agencies, listings, states, district, awardTypes, minAmount, maxAmount, activeOnly, sort]);
+
+  const facets = useQuery<FederalAssistanceAwardFacets>({
+    queryKey: ['explorer-federal-assistance-award-facets'],
+    queryFn: async () => (await api.get<FederalAssistanceAwardFacets>('/api/explorer/federal-assistance-award-facets')).data,
+    staleTime: 10 * 60 * 1000,
+  });
+  const rowsQuery = useQuery<ExplorerResponse<ExplorerFederalAssistanceAwardRow>>({
+    queryKey: ['explorer-federal-assistance-awards', q, agencies, listings, states, district, awardTypes, minAmount, maxAmount, activeOnly, sort, page],
+    queryFn: async () => (await api.get<ExplorerResponse<ExplorerFederalAssistanceAwardRow>>('/api/explorer/federal-assistance-awards', {
+      params: {
+        q: q || undefined,
+        agencies: agencies.length ? agencies.join(',') : undefined,
+        listings: listings.length ? listings.join(',') : undefined,
+        states: states.length ? states.join(',') : undefined,
+        district: district.trim() || undefined,
+        awardTypes: awardTypes.length ? awardTypes.join(',') : undefined,
+        minAmount: minAmount != null ? minAmount : undefined,
+        maxAmount: maxAmount != null ? maxAmount : undefined,
+        activeOnly: activeOnly ? 'true' : undefined,
+        sort, page, pageSize: PAGE_SIZE,
+      },
+    })).data,
+    placeholderData: (p) => p,
+  });
+
+  const openAward = (_id: string, row: ExplorerFederalAssistanceAwardRow) => {
+    if (row.url) window.open(row.url, '_blank', 'noopener,noreferrer');
+  };
+
+  return (
+    <>
+      <ExplorerFilterBar
+        searchPlaceholder="Search recipient, description, agency, Assistance Listing, FAIN, or exact UEI…"
+        searchInput={searchInput}
+        onSearchInput={setSearchInput}
+        onSearchSubmit={() => setQ(searchInput.trim())}
+        onClearSearch={() => { setSearchInput(''); setQ(''); }}
+        controls={
+          <>
+            <MultiSelect label="Agency" placeholder="Any" options={(facets.data?.agencies ?? []).map((a) => ({ value: a, label: a }))} values={agencies} onChange={setAgencies} loading={facets.isLoading} />
+            <MultiSelect label="Assistance Listing" placeholder="Any" options={(facets.data?.listings ?? []).map((l) => ({ value: l.code, label: l.title ? `${l.code} — ${l.title}` : l.code }))} values={listings} onChange={setListings} loading={facets.isLoading} />
+            <MultiSelect label="State (PoP)" placeholder="Any" options={(facets.data?.states ?? []).map((s) => ({ value: s, label: s }))} values={states} onChange={setStates} loading={facets.isLoading} />
+            <label className="explorer-filter">
+              <span className="explorer-filter-label">District</span>
+              <Input style={{ width: 90 }} maxLength={2} value={district} onChange={(e) => setDistrict(e.target.value.toUpperCase())} placeholder="e.g. 23" />
+            </label>
+            <MultiSelect label="Award type" placeholder="Any" options={(facets.data?.awardTypes ?? []).map((t) => ({ value: t.code, label: t.label ?? t.code }))} values={awardTypes} onChange={setAwardTypes} loading={facets.isLoading} />
+            <NumberRange label="Obligated ($)" minValue={minAmount} maxValue={maxAmount} onMinChange={setMinAmount} onMaxChange={setMaxAmount} />
+            <ToggleChip label="Active only" active={activeOnly} onToggle={() => setActiveOnly((v) => !v)} />
+            <SortControl value={sort} onChange={setSort} options={[
+              { value: 'amount', label: 'Largest obligated' },
+              { value: 'recent', label: 'Most recently started' },
+              { value: 'ending', label: 'Ending soonest' },
+            ]} />
+          </>
+        }
+      />
+      <ExplorerTable
+        loading={rowsQuery.isLoading}
+        rows={rowsQuery.data?.rows ?? []}
+        total={rowsQuery.data?.total ?? 0}
+        page={page}
+        onPageChange={setPage}
+        rowKey="id"
+        onRowClick={openAward}
+        columns={[
+          { title: 'Recipient', dataIndex: 'recipientName', width: 210, ellipsis: true, render: (n: string | null, r: ExplorerFederalAssistanceAwardRow) => r.url ? <a href={r.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{n ?? '(unnamed)'}</a> : (n ?? '-') },
+          { title: 'Description', dataIndex: 'description', ellipsis: true },
+          { title: 'Agency', dataIndex: 'awardingAgency', width: 170, ellipsis: true, render: (a: string | null) => a ?? '-' },
+          { title: 'ALN', dataIndex: 'assistanceListingNumber', width: 80, render: (c: string | null) => c ? <Tag className="redesign-mono-tag">{c}</Tag> : '-' },
+          { title: 'Type', dataIndex: 'awardTypeLabel', width: 130, ellipsis: true, render: (l: string | null) => l ?? '-' },
+          { title: 'Obligated', dataIndex: 'totalObligatedAmount', width: 120, align: 'right' as const, render: (v: number | null) => <span className="num" style={{ fontWeight: 500 }}>{formatMoney(v)}</span> },
+          { title: 'Outlayed', dataIndex: 'totalOutlayedAmount', width: 110, align: 'right' as const, render: (v: number | null) => <span className="num">{formatMoney(v)}</span> },
+          { title: 'PoP', dataIndex: 'popState', width: 80, render: (_s: string | null, r: ExplorerFederalAssistanceAwardRow) => r.popState ? (r.popCongressionalDistrict ? `${r.popState}-${r.popCongressionalDistrict}` : r.popState) : '-' },
+          { title: 'Ends', dataIndex: 'endDate', width: 100, render: (d: string | null) => d ? <span className="num">{formatDate(d)}</span> : '-' },
         ]}
       />
     </>

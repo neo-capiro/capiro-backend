@@ -7,6 +7,7 @@ import {
   normalizeDistrictForCensus,
   normalizeDistrictForPeopleMatch,
   toFacilityDistrictCode,
+  toUsaSpendingDistrictCode,
 } from './district-code.util.js';
 
 /**
@@ -152,5 +153,56 @@ describe('toFacilityDistrictCode (WS-D artifact feature keys)', () => {
 
   test('is case- and whitespace-insensitive on the state', () => {
     expect(toFacilityDistrictCode(' tx ', '7')).toBe('07');
+  });
+});
+
+/**
+ * The eighth helper, and the third to take a USAspending congressional_code —
+ * so the thing worth pinning is where it DISAGREES with the other two.
+ * `normalizeDistrictForCensus` collapses every sentinel into one 'AL' bucket
+ * and `districtCodeForHouseMatch` throws them away as unresolvable; this one
+ * preserves them, because filtering the Explorer for '90' is how an operator
+ * finds statewide awards. Same input, three answers, all three correct for
+ * their own consumer.
+ */
+describe('toUsaSpendingDistrictCode — Explorer filter form (WS-I)', () => {
+  test('zero-pads a bare number to the 2-char form the column stores', () => {
+    expect(toUsaSpendingDistrictCode('4')).toBe('04');
+    expect(toUsaSpendingDistrictCode('04')).toBe('04');
+    expect(toUsaSpendingDistrictCode('23')).toBe('23');
+    expect(toUsaSpendingDistrictCode(' 7 ')).toBe('07');
+  });
+
+  test('accepts either at-large spelling and returns the facility-style code', () => {
+    expect(toUsaSpendingDistrictCode('AL')).toBe('00');
+    expect(toUsaSpendingDistrictCode('al')).toBe('00');
+    expect(toUsaSpendingDistrictCode('00')).toBe('00');
+    expect(toUsaSpendingDistrictCode('0')).toBe('00');
+  });
+
+  test('PRESERVES the sentinels rather than collapsing or dropping them', () => {
+    // A statewide/delegate/undefined filter is a legitimate data-quality query.
+    expect(toUsaSpendingDistrictCode('90')).toBe('90');
+    expect(toUsaSpendingDistrictCode('98')).toBe('98');
+    expect(toUsaSpendingDistrictCode('ZZ')).toBe('ZZ');
+    expect(toUsaSpendingDistrictCode('zz')).toBe('ZZ');
+  });
+
+  test('disagrees with its two siblings on the sentinels — deliberately', () => {
+    // Same input, three different right answers.
+    expect(toUsaSpendingDistrictCode('90')).toBe('90'); // keep it, it's filterable
+    expect(normalizeDistrictForCensus('90')).toBe('AL'); // collapse it, demographics only
+    expect(districtCodeForHouseMatch('90')).toBeNull(); // drop it, no seat is knowable
+  });
+
+  test('returns null rather than a filter that matches nothing', () => {
+    // A typo must not read as "this state has no awards" — the caller ignores
+    // the filter on null instead of narrowing to the empty set.
+    expect(toUsaSpendingDistrictCode('xyz')).toBeNull();
+    expect(toUsaSpendingDistrictCode('123')).toBeNull(); // not expressible in 2 chars
+    expect(toUsaSpendingDistrictCode('')).toBeNull();
+    expect(toUsaSpendingDistrictCode('   ')).toBeNull();
+    expect(toUsaSpendingDistrictCode(null)).toBeNull();
+    expect(toUsaSpendingDistrictCode(undefined)).toBeNull();
   });
 });
