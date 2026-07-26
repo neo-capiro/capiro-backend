@@ -71,7 +71,15 @@ interface IntelBoardCard {
   /** P0-06: the high-priority subset of matchedTags, computed server-side. */
   matchedHighPriorityTopics?: string[];
   matchedPosition?: string | null;
-  changeChip: { label: string; changeType: string | null; at: string } | null;
+  /** P1-08: `severity` and `tone` are served by intel-api as of Gate D phase a.
+   *  Optional so a cached pre-Gate-D board response still adapts (a-4's fallback). */
+  changeChip: {
+    label: string;
+    changeType: string | null;
+    at: string;
+    severity?: string | null;
+    tone?: string | null;
+  } | null;
   // Phase 9 (Bill→Hearing interlink): "discussed in N hearings" chip data.
   lastHearingSessionId?: string | null;
   lastHearingAt?: string | null;
@@ -151,11 +159,29 @@ interface IntelAlertPrefs {
   jurisdictions?: string[];
 }
 
-const CRITICAL_CHANGE_TYPES = ['bill_enacted', 'bill_to_president', 'bill_failed'];
+/** Kept ONLY as the fallback for a pre-Gate-D intel-api that sends no severity/tone. */
+const LEGACY_CRITICAL_CHANGE_TYPES = ['bill_enacted', 'bill_to_president', 'bill_failed'];
 
-function changeChipToChange(chip: IntelBoardCard['changeChip']): BoardBillChange | null {
+const CHANGE_TONES: readonly ChangeTone[] = ['critical', 'notable', 'info', 'success'];
+
+export function changeChipToChange(chip: IntelBoardCard['changeChip']): BoardBillChange | null {
   if (!chip) return null;
-  const tone: ChangeTone = CRITICAL_CHANGE_TYPES.includes(chip.changeType ?? '') ? 'critical' : 'notable';
+  // P1-08: prefer the SERVER's tone, then its severity. The old client-side list
+  // was a duplicate of a narrow federal-only set, so a failed governing rule or a
+  // state veto rendered as 'notable'. Severity cannot express 'success', which is
+  // why tone is checked first: 'Became law' and 'Failed / rejected' are both
+  // severity 'critical' but must not look the same.
+  const tone: ChangeTone = CHANGE_TONES.includes(chip.tone as ChangeTone)
+    ? (chip.tone as ChangeTone)
+    : chip.severity === 'critical'
+      ? 'critical'
+      : chip.severity === 'info'
+        ? 'info'
+        : chip.severity === 'notable'
+          ? 'notable'
+          : LEGACY_CRITICAL_CHANGE_TYPES.includes(chip.changeType ?? '')
+            ? 'critical'
+            : 'notable';
   return { tone, label: chip.label, dot: true };
 }
 

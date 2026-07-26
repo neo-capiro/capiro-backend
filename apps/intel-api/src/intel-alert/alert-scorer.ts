@@ -12,7 +12,32 @@
  */
 import { MATERIALITY_RANK, type AlertSeverity } from './intel-alert.types.js';
 
-export const CRITICAL_CHANGE_TYPES = ['bill_enacted', 'bill_to_president', 'bill_failed'];
+/**
+ * P1-08: the floor used to key on a hard-coded FEDERAL change-type list, so
+ * bill_rule_failed, state_bill_enacted, state_bill_vetoed, state_bill_failed, and
+ * state_bill_dead_by_deadline — all classified `critical` by the detector — could
+ * band Med. `severity` was already a parameter of scoreShadowAlert and simply unused.
+ * Kept as a named list too, because urgencyFactor uses it for a DIFFERENT purpose
+ * (a terminal move is urgent even with no action date).
+ *
+ * Every string below was grepped against change-detector.util.ts and exists there:
+ * the first three and `bill_rule_failed` are literals (:32,:40,:59,:154); the four
+ * `state_bill_*` entries are produced by `state_bill_${status}` (:229) for the
+ * statuses STATE_STATUS_SEVERITY marks `critical` (:200-203).
+ */
+export const CRITICAL_CHANGE_TYPES = [
+  'bill_enacted',
+  'bill_to_president',
+  'bill_failed',
+  // P1-08 additions — each is classified `critical` by change-detector.util.ts.
+  'bill_rule_failed',
+  'state_bill_enacted',
+  'state_bill_vetoed',
+  'state_bill_failed',
+  'state_bill_dead_by_deadline',
+];
+/** == bandOf's High threshold. */
+export const CRITICAL_SEVERITY_FLOOR = 0.66;
 export const PRIORITY_FACTOR: Record<string, number> = { low: 0.33, med: 0.66, high: 1.0 };
 
 const clamp01 = (n: number): number => Math.max(0, Math.min(1, n));
@@ -48,7 +73,18 @@ export function materialityFactor(materiality: string): number {
   return (MATERIALITY_RANK[(materiality as 'low' | 'medium' | 'high') ?? 'medium'] ?? 2) / 3;
 }
 
-/** Recency of the action; overridden to 1.0 for the critical change types. */
+/**
+ * Recency of the action; overridden to 1.0 for the critical change types.
+ *
+ * P1-08 — this deliberately stays a LIST check and does NOT also key on
+ * `severity`, which looks inconsistent with the score floor below but is not.
+ * A named terminal move (enacted / vetoed / failed / dead-by-deadline) is urgent
+ * on its own because the event IS the deadline. A merely critical-SEVERITY event
+ * with no action date — a <3-day `state_bill_deadline_approaching`, say — has no
+ * recency signal to report, and handing it urgency 1.0 for free would inflate the
+ * composite rather than express urgency. The score floor in `scoreShadowAlert` is
+ * the right lever for those, and it is severity-driven.
+ */
 export function urgencyFactor(actionDate: Date | null, changeType: string, nowMs: number = Date.now()): number {
   if (CRITICAL_CHANGE_TYPES.includes(changeType)) return 1.0;
   if (!actionDate) return 0.1;
@@ -74,7 +110,16 @@ export function scoreShadowAlert(input: {
     clientPriority: PRIORITY_FACTOR[input.clientPriority ?? 'med'] ?? 0.66,
     legCoverage: matched ? 0.5 : 0.25, // keyword(+entity) fired; no semantic leg in shadow
   });
-  // §7.1 S5: critical moves always band High regardless of the proxy relevance.
-  if (CRITICAL_CHANGE_TYPES.includes(input.changeType)) score = Math.max(score, 0.66);
+  // §7.1 S5, generalized (P1-08): a CRITICAL event always bands High. Severity is
+  // the detector's own classification and covers every rail — federal, state, and
+  // the dynamically-critical classes (a <3-day deadline) that no static list can
+  // enumerate. The change-type list is a belt-and-braces second trigger for the
+  // named terminal moves.
+  if (
+    (input.severity ?? '').toLowerCase() === 'critical' ||
+    CRITICAL_CHANGE_TYPES.includes(input.changeType)
+  ) {
+    score = Math.max(score, CRITICAL_SEVERITY_FLOOR);
+  }
   return { score, band: bandOf(score) };
 }

@@ -21,6 +21,7 @@ import {
   type BillStage,
 } from './bill-stage.util.js';
 import { humanizeBillId, type RelevanceBill } from './relevance.util.js';
+import { toneForChange } from './change-detector.util.js';
 
 /**
  * Recommendation feed + tracked-bill curation for the UNIFIED tracker (Phase 3
@@ -144,6 +145,26 @@ export function summarizeTrackedRows(rows: Array<{ unread: boolean }>): {
   return { boardCount: rows.length, unread };
 }
 
+/**
+ * The most recent material change on a tracked bill, for the card's chip.
+ *
+ * P1-08: `severity` and `tone` are new. The web used to re-derive a tone from its
+ * OWN copy of a narrow federal change-type list, so a failed governing rule or a
+ * state veto rendered as an ordinary 'notable' chip. Both now come from the
+ * server: `severity` straight off the `intel_alert` column, `tone` from the
+ * detector's own vocabulary (`toneForChange`).
+ */
+export interface ChangeChip {
+  label: string;
+  changeType: string | null;
+  at: Date;
+  /** The detector's own classification: 'info' | 'notable' | 'critical'. */
+  severity: string | null;
+  /** 'success' | 'critical' | 'notable' | 'info' — distinguishes "Became law"
+   *  (success) from "Failed / rejected" (critical), which severity alone cannot. */
+  tone: string | null;
+}
+
 export interface BoardCard {
   billId: string;
   displayNum: string;
@@ -166,7 +187,7 @@ export interface BoardCard {
   matchedHighPriorityTopics: string[];
   /** The client's stance on the highest-priority matched topic: support|oppose|monitor|null. */
   matchedPosition: string | null;
-  changeChip: { label: string; changeType: string | null; at: Date } | null;
+  changeChip: ChangeChip | null;
   // Phase 9 (Bill→Hearing interlink): "discussed in N hearings" chip. Presence
   // comes from the trackedBill hearing badge (set by the linker); the count is
   // the number of distinct `combined` alerts for this bill.
@@ -510,7 +531,17 @@ export class TrackerBoardService {
             createdAt: { gte: new Date(Date.now() - RECENT_CHANGE_DAYS * DAY_MS) },
           },
           orderBy: { createdAt: 'desc' },
-          select: { sourceRef: true, changeType: true, title: true, createdAt: true },
+          // P1-08: `severity` is a real column and free to add here. `tone` is
+          // NOT selected — it lives only inside the `evidence` JSON, and pulling
+          // that whole column on the board read path is a cost this query does
+          // not need; `toneForChange` derives it from the detector's own tables.
+          select: {
+            sourceRef: true,
+            changeType: true,
+            title: true,
+            createdAt: true,
+            severity: true,
+          },
         }),
       ),
       // Phase 9: per-bill "discussed in N hearings" count from the linker's
@@ -530,10 +561,16 @@ export class TrackerBoardService {
       ),
     ]);
     const billById = bills;
-    const chipByBill = new Map<string, { label: string; changeType: string | null; at: Date }>();
+    const chipByBill = new Map<string, ChangeChip>();
     for (const a of recentAlerts) {
       if (!chipByBill.has(a.sourceRef)) {
-        chipByBill.set(a.sourceRef, { label: a.title, changeType: a.changeType, at: a.createdAt });
+        chipByBill.set(a.sourceRef, {
+          label: a.title,
+          changeType: a.changeType,
+          at: a.createdAt,
+          severity: a.severity ?? null,
+          tone: toneForChange(a.changeType, a.severity),
+        });
       }
     }
     const hearingCountByBill = new Map<string, number>();
@@ -623,12 +660,16 @@ export class TrackerBoardService {
             createdAt: { gte: new Date(Date.now() - RECENT_CHANGE_DAYS * DAY_MS) },
           },
           orderBy: { createdAt: 'desc' },
+          // P1-08: see getBoard — `severity` off the column, `tone` derived. The
+          // evidence JSON is especially not worth pulling HERE: this roll-up is
+          // unbounded by client count.
           select: {
             sourceRef: true,
             clientId: true,
             changeType: true,
             title: true,
             createdAt: true,
+            severity: true,
           },
         }),
       ),
@@ -661,11 +702,17 @@ export class TrackerBoardService {
 
     const billById = bills;
     const ck = (cid: string, bid: string) => `${cid}:${bid}`;
-    const chipByCB = new Map<string, { label: string; changeType: string | null; at: Date }>();
+    const chipByCB = new Map<string, ChangeChip>();
     for (const a of recentAlerts) {
       const k = ck(a.clientId, a.sourceRef);
       if (!chipByCB.has(k))
-        chipByCB.set(k, { label: a.title, changeType: a.changeType, at: a.createdAt });
+        chipByCB.set(k, {
+          label: a.title,
+          changeType: a.changeType,
+          at: a.createdAt,
+          severity: a.severity ?? null,
+          tone: toneForChange(a.changeType, a.severity),
+        });
     }
     const hearingCountByCB = new Map<string, number>();
     for (const g of hearingLinks) hearingCountByCB.set(ck(g.clientId, g.sourceRef), g._count._all);
