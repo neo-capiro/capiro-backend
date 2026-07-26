@@ -7,6 +7,7 @@ import {
   getDistrictNexusDistrictDetail,
   type DataQualityWarning,
   type DistrictNexusDistrictDetailResponse,
+  type EvidenceVerificationStatus,
   type FederalMemberSummary,
   type NexusScoreBreakdown,
   type TopAward,
@@ -435,6 +436,25 @@ function DemographicsSection({ demographics }: { demographics: DistrictNexusDist
   );
 }
 
+/** `place_of_performance` -> `Place of performance`. */
+function humanizeToken(value: string): string {
+  const spaced = value.replace(/_/g, ' ');
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+/**
+ * Verification tiers, rendered honestly (plan §7-E4 / §8.2). `inferred` is
+ * called out in the warning colour rather than shown as a neutral peer of the
+ * verified tiers — it means "matched by name, not by a verified identifier",
+ * which is exactly the claim the plan insists must never read as confirmed.
+ */
+const VERIFICATION_LABEL: Record<EvidenceVerificationStatus, { text: string; muted: boolean }> = {
+  source_verified: { text: 'Source verified', muted: false },
+  geocode_verified: { text: 'Geocode verified', muted: false },
+  user_provided: { text: 'Client provided', muted: true },
+  inferred: { text: 'Name match only', muted: true },
+};
+
 function EvidenceSection({
   evidence,
   freshness,
@@ -449,19 +469,33 @@ function EvidenceSection({
           <table className="dn-htable">
             <thead>
               <tr>
-                <th>Component</th>
-                <th>Source</th>
+                <th>Evidence</th>
+                <th>Basis</th>
                 <th className="dn-right">Amount</th>
               </tr>
             </thead>
             <tbody>
-              {evidence.map((e, i) => (
-                <tr key={i}>
-                  <td>{e.label}</td>
-                  <td className="dn-sub">{e.sourceSystem ?? '—'}</td>
-                  <td className="dn-right dn-num">{formatMoney(e.amount)}</td>
-                </tr>
-              ))}
+              {evidence.map((e, i) => {
+                const verification = VERIFICATION_LABEL[e.verificationStatus];
+                return (
+                  <tr key={e.sourceRecordId ?? `${e.component}-${i}`}>
+                    <td>
+                      {e.label}
+                      <div className="dn-sub">{humanizeToken(e.sourceType)}</div>
+                    </td>
+                    <td>
+                      {humanizeToken(e.geographyBasis)}
+                      <div
+                        className="dn-sub"
+                        style={verification.muted ? { color: 'var(--notable)' } : undefined}
+                      >
+                        {verification.text}
+                      </div>
+                    </td>
+                    <td className="dn-right dn-num">{formatMoney(e.amount)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
