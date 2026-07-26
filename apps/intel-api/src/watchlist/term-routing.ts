@@ -1,5 +1,4 @@
-import { isAcceptableTerm } from './term-validation.js';
-import { wholeWordHit, type RelevanceBill } from '../tracker/relevance.util.js';
+import { termMatcher, type RelevanceBill } from '../tracker/relevance.util.js';
 
 /** Which field of a bill a term is matched against. */
 export type BillField =
@@ -240,8 +239,25 @@ export function weightForTerm(termType: string, topicPriority: string): number {
  */
 export function matchTerms(bill: RelevanceBill, terms: RoutableTerm[]): TermMatch[] {
   const out: TermMatch[] = [];
+  // §4.13: memoize each field's joined original + lower-cased text for the whole
+  // call. Without this, a 50-term topic re-joined `subjects`/`committees` and
+  // re-lower-cased every field once PER TERM — 200 redundant string builds per
+  // topic per bill, on the recommendations hot path.
+  const fieldText = new Map<BillField, { original: string; lower: string } | null>();
+  const textFor = (field: BillField) => {
+    const memo = fieldText.get(field);
+    if (memo !== undefined) return memo;
+    const original = fieldTextOriginal(bill, field);
+    const built = original === null ? null : { original, lower: original.toLowerCase() };
+    fieldText.set(field, built);
+    return built;
+  };
   for (const term of terms) {
-    if (!isAcceptableTerm(term.value)) continue;
+    // §4.13: resolve the term's validation + compiled pattern ONCE, then reuse it
+    // across this route's fields. `null` means the term fails the shape/length
+    // policy and can never match — the same outcome isAcceptableTerm gave.
+    const matcher = termMatcher(term.value);
+    if (!matcher) continue;
     const route = routeFor(term.termType);
     if (!route) continue;
 
@@ -260,9 +276,9 @@ export function matchTerms(bill: RelevanceBill, terms: RoutableTerm[]): TermMatc
         // Free-text field: bounded (whole-word) occurrence — never substring.
         // Reuses wholeWordHit so identifier-shaped SHORT terms (AI, 5G, C2)
         // keep their case-sensitive, false-positive-safe matching (P0-05).
-        const textOriginal = fieldTextOriginal(bill, field);
-        if (textOriginal) {
-          matched = wholeWordHit(textOriginal.toLowerCase(), term.value, textOriginal);
+        const text = textFor(field);
+        if (text) {
+          matched = matcher.test(text.lower, text.original);
         }
       }
 

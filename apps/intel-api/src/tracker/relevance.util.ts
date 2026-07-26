@@ -32,16 +32,57 @@ const ENTITY_KIND_TYPES = new Set([
  * not fire on the letters "ai" in ordinary prose (P0-05).
  */
 export function wholeWordHit(haystackLower: string, term: string, haystackOriginal?: string): boolean {
+  const m = termMatcher(term);
+  return m ? m.test(haystackLower, haystackOriginal) : false;
+}
+
+/** A term resolved to a reusable predicate. See `termMatcher`. */
+export interface TermMatcher {
+  test(haystackLower: string, haystackOriginal?: string): boolean;
+}
+
+/**
+ * Resolve a term to a reusable, CACHED matcher (§4.13).
+ *
+ * P0-04 turned the recommendations loop into `matchTerms` per topic per candidate
+ * bill — bounded by 200 topics × 500 terms, each tested against up to 4 fields. Doing
+ * the shape/length validation and the RegExp construction inside the per-field loop
+ * meant ~4x redundant work per term on the hottest path in the tracker. Both depend
+ * only on the term, so they happen once and are cached.
+ *
+ * Behavior is identical to the previous inline implementation: same patterns, no `/g`
+ * (so no `lastIndex` state to leak between calls), and `null` for a term that fails
+ * the shape policy — which is why an unacceptable term still yields `false`, not a
+ * match. The cache is bounded so a long-lived multi-tenant process cannot grow it
+ * without limit; the cap is far above any single tenant's term count.
+ */
+const TERM_MATCHER_CACHE = new Map<string, TermMatcher | null>();
+const TERM_MATCHER_CACHE_MAX = 5000;
+
+export function termMatcher(term: string): TermMatcher | null {
   const t = (term ?? '').trim();
-  if (!isAcceptableTerm(t)) return false;
+  const hit = TERM_MATCHER_CACHE.get(t);
+  if (hit !== undefined) return hit;
+  const built = buildTermMatcher(t);
+  if (TERM_MATCHER_CACHE.size >= TERM_MATCHER_CACHE_MAX) TERM_MATCHER_CACHE.clear();
+  TERM_MATCHER_CACHE.set(t, built);
+  return built;
+}
+
+function buildTermMatcher(t: string): TermMatcher | null {
+  if (!isAcceptableTerm(t)) return null;
   const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   if (isShortExactTerm(t)) {
-    // Case-sensitive, original case. Without the original text we cannot honor case,
+    // Case-SENSITIVE against the ORIGINAL-case text, so "AI" does not fire on the
+    // letters "ai" in ordinary prose (P0-05). Custom boundaries rather than `\b`:
+    // `\b` treats `-` and `.` as boundaries, so `\bF-35\b` is unpredictable and
+    // `\bH.R.\b` is outright wrong. Without the original text we cannot honor case,
     // so refuse rather than produce a false positive.
-    if (haystackOriginal === undefined) return false;
-    return new RegExp(`(?<![A-Za-z0-9])${esc(t)}(?![A-Za-z0-9])`).test(haystackOriginal);
+    const re = new RegExp(`(?<![A-Za-z0-9])${esc(t)}(?![A-Za-z0-9])`);
+    return { test: (_lower, original) => (original === undefined ? false : re.test(original)) };
   }
-  return new RegExp(`\\b${esc(t.toLowerCase())}\\b`).test(haystackLower);
+  const re = new RegExp(`\\b${esc(t.toLowerCase())}\\b`);
+  return { test: (lower) => re.test(lower) };
 }
 
 export interface RelevanceBill {
