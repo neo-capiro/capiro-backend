@@ -67,7 +67,13 @@ export function SnapshotSection({
         return (
           await api.get<{ id: string; title: string; severity: string }[]>(
             '/api/intelligence/changes',
-            { params: { clientId, since: sinceDate, limit: 50 } },
+            // No `limit`: ChangesQueryDto does not declare it and the global
+            // ValidationPipe runs whitelist + forbidNonWhitelisted, so sending
+            // it made every request 400. The catch below turned that into an
+            // empty array, so this section silently claimed "no recent changes"
+            // for every client. getChanges takes no limit argument either, so
+            // the param never capped anything even before it started failing.
+            { params: { clientId, since: sinceDate } },
           )
         ).data;
       } catch {
