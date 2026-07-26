@@ -3,7 +3,7 @@ import { issueAreaForSector } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isAcceptableTerm, termRejectionReason } from '../watchlist/term-validation.js';
 import { compileWatchlist, type CompiledWatchlist } from '../watchlist/watchlist-compiler.js';
-import { termSurfaceMap, type TermRoute } from '../watchlist/term-routing.js';
+import { termSurfaceMap, weightForTerm, type TermRoute } from '../watchlist/term-routing.js';
 import { normalizeE164 } from './sms/sms.service.js';
 
 /**
@@ -361,7 +361,7 @@ export class TrackerWatchlistService {
           });
           continue;
         }
-        const tk = `${t.termType} ${value.toLowerCase()}`;
+        const tk = JSON.stringify([t.termType, value.toLowerCase()]);
         if (seenTerms.has(tk)) continue;
         seenTerms.add(tk);
         terms.push({ termType: t.termType, value });
@@ -436,9 +436,12 @@ export class TrackerWatchlistService {
       // row's id and createdAt, which is the same churn the delete-all rebuild had.
       const existingTerms = await tx.watchlistTerm.findMany({
         where: { watchlistId: wlId, tenantId, topicId: { not: null } },
-        select: { topicId: true, termType: true, value: true },
+        select: { topicId: true, termType: true, value: true, weight: true },
       });
-      const termKey = (t: { termType: string; value: string }) => `${t.termType} ${t.value}`;
+      // `weight` is part of the key so flipping a topic’s PRIORITY rewrites its
+            // terms’ weights (§4.9) rather than being skipped as an unchanged term set.
+            const termKey = (t: { termType: string; value: string; weight: number }) =>
+              JSON.stringify([t.termType, t.value, t.weight]);
       const termsByTopic = new Map<string, Set<string>>();
       for (const t of existingTerms) {
         const k = t.topicId as string;
@@ -499,7 +502,9 @@ export class TrackerWatchlistService {
         // createdAt. Exact (case-sensitive) compare: `AI` vs `ai` is a real
         // difference for short identifier-shaped terms (P0-05).
         const persisted = termsByTopic.get(topic.id) ?? new Set<string>();
-        const wanted = new Set(tp.terms.map(termKey));
+        const wanted = new Set(
+          tp.terms.map((t) => termKey({ ...t, weight: weightForTerm(t.termType, tp.priority) })),
+        );
         const unchanged =
           persisted.size === wanted.size && [...wanted].every((k) => persisted.has(k));
         if (unchanged) continue;
@@ -514,6 +519,10 @@ export class TrackerWatchlistService {
               topicId: topic.id,
               termType: t.termType,
               value: t.value,
+              // §4.9: the column existed and defaulted to 1 for every row, so the
+              // stored weight was a lie. Persist the real one — the hearing
+              // matcher reads these rows directly, not just via getCompiled.
+              weight: weightForTerm(t.termType, tp.priority),
             })),
           });
         }
@@ -742,7 +751,9 @@ export class TrackerWatchlistService {
         t.terms.map((x) => ({
           termType: x.termType,
           value: x.value,
-          weight: 1,
+          // §4.9: was hardcoded 1 for every term, which made the Deepgram cap a
+          // lexical coin-flip once a client had more than 100 terms.
+          weight: weightForTerm(x.termType, t.priority),
           topicLabel: t.label,
           topicPriority: t.priority,
           termId: x.id ?? null,

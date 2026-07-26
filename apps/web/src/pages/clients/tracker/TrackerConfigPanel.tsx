@@ -388,7 +388,7 @@ function sigOf(issueAreas: string[], jurisdictions: string[], tags: WatchlistTag
       s: [...x.synonyms].sort(),
       e: [...x.relatedEntities].sort(),
       r: [...x.riskTerms].sort(),
-      tt: (x.typedTerms ?? []).map((y) => `${y.termType} ${y.value}`).sort(),
+      tt: (x.typedTerms ?? []).map((y) => JSON.stringify([y.termType, y.value])).sort(),
     })),
   });
 }

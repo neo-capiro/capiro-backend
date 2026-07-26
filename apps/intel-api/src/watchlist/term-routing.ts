@@ -214,6 +214,27 @@ export function weightFor(route: TermRoute, topicPriority: string): number {
 }
 
 /**
+ * §4.9: every hearing keyterm carried weight 1 — `putWatchlist` never wrote the
+ * column and `getCompiled` hardcoded 1 — so once the Deepgram cap of 100 was
+ * exceeded, selection fell through to the alphabetical tiebreak and a client's
+ * highest-priority company name lost to any earlier-alphabet noise term.
+ *
+ * Weight = the term type's routing weight scaled by the owning topic's priority,
+ * i.e. the SAME signal matchTerms uses — deliberately not a second table that could
+ * drift from TERM_ROUTES. An unrouted (hearing-native) type falls back to 1, its
+ * previous value, so nothing regresses.
+ *
+ * Yields §4.9's banding: high bill/PE/company 6.25 · high risk/support/opposition 5
+ * · med entity/agency/committee/legislator 3 · med topic/synonym/keyword 2 · low
+ * broad term 1.5.
+ */
+export function weightForTerm(termType: string, topicPriority: string): number {
+  const route = routeFor(termType);
+  if (!route) return 1;
+  return weightFor(route, topicPriority);
+}
+
+/**
  * Deterministic per-term matching. Pure; no I/O. Returns EVERY match, ordered
  * by weight desc then field order then term value, so output is byte-stable.
  */

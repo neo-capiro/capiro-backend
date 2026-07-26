@@ -141,21 +141,49 @@ export function compileWatchlist(input: {
     .map((t) => ({ value: t.value.trim(), weight: t.weight }))
     .filter((t) => isAcceptableTerm(t.value));
 
-  // Deepgram keyterms: lower-cased, de-duped, top-N by weight, then lexical sort
-  // for byte-stable output (required for the compiler snapshot test, SC-4).
+  // Deepgram keyterms: lower-cased, de-duped, selected by weight with a per-topic
+  // reservation, then lexical sort for byte-stable output (required for the
+  // compiler snapshot test, SC-4).
+  //
+  // §4.10 CAUTION: keyterms are LOWER-CASED here, which destroys the case signal
+  // that makes identifier-shaped short terms (`AI`, `VA`) safe in the BILL matcher
+  // (relevance.util wholeWordHit matches those case-sensitively). That is fine for
+  // transcription boosting — a spurious boost costs nothing — but do NOT "unify"
+  // the two paths by lower-casing the bill matcher too.
   const seen = new Set<string>();
-  const cand: Array<{ value: string; weight: number }> = [];
-  for (const t of hearingTerms) {
-    const v = t.value.toLowerCase();
-    if (!isAcceptableTerm(t.value) || seen.has(v)) continue;
+  const cand: Array<{ value: string; weight: number; topicLabel: string }> = [];
+  for (const t of input.terms) {
+    const raw = t.value.trim();
+    if (!isAcceptableTerm(raw)) continue;
+    const v = raw.toLowerCase();
+    if (seen.has(v)) continue;
     seen.add(v);
-    cand.push({ value: v, weight: t.weight });
+    cand.push({ value: v, weight: t.weight, topicLabel: t.topicLabel ?? '' });
   }
   cand.sort((a, b) => b.weight - a.weight || a.value.localeCompare(b.value));
-  const deepgramKeyterms = cand
-    .slice(0, DEEPGRAM_KEYTERM_CAP)
-    .map((x) => x.value)
-    .sort((a, b) => a.localeCompare(b));
+  // §4.9: reserve a per-topic share so one 400-term topic cannot consume the whole
+  // cap and starve every other topic. Pass 1 takes each topic's top `perTopic` by
+  // weight; pass 2 fills any remaining capacity globally, still by weight. With a
+  // single topic `perTopic` IS the cap, so the pre-change behavior is unchanged.
+  const topicCount = Math.max(1, new Set(cand.map((t) => t.topicLabel)).size);
+  const perTopic = Math.max(1, Math.floor(DEEPGRAM_KEYTERM_CAP / topicCount));
+  const picked: typeof cand = [];
+  const overflow: typeof cand = [];
+  const takenPerTopic = new Map<string, number>();
+  for (const t of cand) {
+    const n = takenPerTopic.get(t.topicLabel) ?? 0;
+    if (n < perTopic && picked.length < DEEPGRAM_KEYTERM_CAP) {
+      takenPerTopic.set(t.topicLabel, n + 1);
+      picked.push(t);
+    } else {
+      overflow.push(t);
+    }
+  }
+  for (const t of overflow) {
+    if (picked.length >= DEEPGRAM_KEYTERM_CAP) break;
+    picked.push(t);
+  }
+  const deepgramKeyterms = picked.map((x) => x.value).sort((a, b) => a.localeCompare(b));
 
   return { issueAreas: [...input.issueAreas], billMatchSet, hearingTerms, deepgramKeyterms };
 }
