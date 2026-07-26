@@ -1688,6 +1688,33 @@
   border-radius: 999px;
   color: #fff;
 }
+/* P1-05: honest per-channel test-alert results — no green check when a channel failed. */
+.trk-toast.has-failure .ti {
+  background: var(--critical);
+}
+.trk-toast .t-results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+.trk-toast .t-results > span:first-child {
+  font-weight: 600;
+}
+.trk-toast .t-chip.t-failed {
+  background: var(--critical);
+}
+.trk-toast .t-chip.t-skipped {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--ink-on-dark-2, rgba(255, 255, 255, 0.7));
+}
+.trk-toast .t-chip.t-sent {
+  background: var(--success);
+}
+.trk-toast .t-chip.t-suppressed {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--ink-on-dark-2, rgba(255, 255, 255, 0.7));
+}
 
 /* empty state */
 .redesign .trk-empty {

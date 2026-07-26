@@ -688,6 +688,12 @@ export function TrackerConfigPanel({
                 </div>
               ))}
             </div>
+            {triggers.size === 0 && (
+              <div className="cfg-help" role="alert" style={{ color: 'var(--critical, #b42318)', fontWeight: 600 }}>
+                No alert events selected — you will not receive any alerts for this client, on any
+                channel, until you select at least one.
+              </div>
+            )}
           </div>
 
           {/* State Legislation Platform (S7.1, DD5): only shown once the client's

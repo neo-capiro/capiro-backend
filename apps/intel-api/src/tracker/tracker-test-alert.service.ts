@@ -44,7 +44,7 @@ export class TrackerTestAlertService {
     clientId: string,
     userId: string,
     channels: TestAlertChannel[],
-  ): Promise<{ channel: TestAlertChannel; status: string }[]> {
+  ): Promise<{ channel: TestAlertChannel; status: string; detail?: string }[]> {
     const prefRow = await this.prisma.withTenant(tenantId, (tx) =>
       tx.intelAlertPreference.findUnique({
         where: { userId_clientId: { userId, clientId } },
@@ -52,7 +52,7 @@ export class TrackerTestAlertService {
     );
     const pref = prefRow && prefRow.tenantId === tenantId ? prefRow : null;
     const client = await this.repo.getClientProfile(tenantId, clientId);
-    const out: { channel: TestAlertChannel; status: string }[] = [];
+    const out: { channel: TestAlertChannel; status: string; detail?: string }[] = [];
 
     for (const channel of channels) {
       if (channel === 'in_app') {
@@ -62,7 +62,11 @@ export class TrackerTestAlertService {
       if (channel === 'email') {
         const to = pref?.emailAddress;
         if (!pref?.emailEnabled || !to) {
-          out.push({ channel, status: 'skipped' });
+          out.push({
+            channel,
+            status: 'skipped',
+            detail: !pref?.emailEnabled ? 'email channel is off' : 'no email address saved',
+          });
           continue;
         }
         const { subject, html, text } = renderTestEmail(
@@ -70,12 +74,25 @@ export class TrackerTestAlertService {
           this.boardUrl(clientId),
         );
         const res = await this.email.send(to, subject, html, text);
-        out.push({ channel, status: res.sent ? 'sent' : 'failed' });
+        // P1-05: surface WHY a send failed — truncated, and never the recipient address.
+        out.push({
+          channel,
+          status: res.sent ? 'sent' : 'failed',
+          ...(res.sent ? {} : { detail: (res.error ?? 'send failed').slice(0, 200) }),
+        });
         continue;
       }
       if (channel === 'sms') {
         if (!pref?.smsEnabled || !pref.smsPhoneVerified || !pref.smsPhone) {
-          out.push({ channel, status: 'skipped' });
+          out.push({
+            channel,
+            status: 'skipped',
+            detail: !pref?.smsEnabled
+              ? 'SMS channel is off'
+              : !pref.smsPhoneVerified
+                ? 'phone not verified'
+                : 'no phone number saved',
+          });
           continue;
         }
         const res = await this.sms.send(

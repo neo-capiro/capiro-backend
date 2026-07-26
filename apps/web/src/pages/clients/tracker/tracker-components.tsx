@@ -482,36 +482,53 @@ export interface ToastItem {
   num?: string;
   text?: string;
   channels?: string[];
+  /** P1-05: per-channel delivery outcome, so an email failure can't hide behind in-app success. */
+  results?: Array<{ channel: string; status: string; detail?: string }>;
 }
 
 export function TrackToasts({ toasts }: { toasts: ToastItem[] }) {
   return (
     <div className="trk-toasts">
-      {toasts.map((t) => (
-        <div key={t.id} className={`trk-toast${t.kind === 'test' ? ' test' : ''}`}>
-          <span className="ti">
-            <Icon name="check" size={12} />
-          </span>
-          {t.kind === 'test' ? (
-            <>
-              <span>Sample alert sent</span>
-              <span className="t-chips">
-                {(t.channels ?? []).map((c) => (
-                  <span key={c} className="t-chip">
-                    {c}
+      {toasts.map((t) => {
+        const hasFailure = t.results?.some((r) => r.status === 'failed') ?? false;
+        return (
+          <div
+            key={t.id}
+            className={`trk-toast${t.kind === 'test' ? ' test' : ''}${hasFailure ? ' has-failure' : ''}`}
+          >
+            <span className="ti">
+              <Icon name="check" size={12} />
+            </span>
+            {t.kind === 'test' && t.results?.length ? (
+              <div className="t-results">
+                <span>Test alert results</span>
+                {t.results.map((r) => (
+                  <span key={r.channel} className={`t-chip t-${r.status}`} title={r.detail}>
+                    {r.channel}: {r.status}
                   </span>
                 ))}
+              </div>
+            ) : t.kind === 'test' ? (
+              <>
+                <span>Sample alert sent</span>
+                <span className="t-chips">
+                  {(t.channels ?? []).map((c) => (
+                    <span key={c} className="t-chip">
+                      {c}
+                    </span>
+                  ))}
+                </span>
+              </>
+            ) : t.num ? (
+              <span>
+                Added to board · <span className="tnum">{t.num}</span>
               </span>
-            </>
-          ) : t.num ? (
-            <span>
-              Added to board · <span className="tnum">{t.num}</span>
-            </span>
-          ) : (
-            <span>{t.text}</span>
-          )}
-        </div>
-      ))}
+            ) : (
+              <span>{t.text}</span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
