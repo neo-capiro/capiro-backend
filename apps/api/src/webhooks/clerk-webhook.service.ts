@@ -90,21 +90,43 @@ export class ClerkWebhookService {
         });
       }
 
+      await this.dispatch(tx, event);
+      await tx.clerkEvent.update({
+        where: { eventId: svixId },
+        data: { processedAt: new Date(), error: null },
+      });
+    }).catch(async (err: unknown) => {
+      // The failure ledger MUST be written outside the transaction above.
+      //
+      // Previously the catch lived INSIDE withSystem: it wrote clerk_events.error
+      // and then rethrew, which rolled the whole transaction back — discarding
+      // both the error write AND the clerkEvent.create that preceded it. The
+      // result was that a failed webhook left NO record at all, and Svix
+      // redelivery was the only thing standing between a dropped event and
+      // silent divergence between Clerk and the local mirror.
+      const message = (err as Error).message;
+      this.logger.error(`Failed to process Clerk event ${svixId} (${event.type}): ${message}`);
       try {
-        await this.dispatch(tx, event);
-        await tx.clerkEvent.update({
-          where: { eventId: svixId },
-          data: { processedAt: new Date(), error: null },
-        });
-      } catch (err) {
-        const message = (err as Error).message;
-        this.logger.error(`Failed to process Clerk event ${svixId} (${event.type}): ${message}`);
-        await tx.clerkEvent.update({
-          where: { eventId: svixId },
-          data: { error: message },
-        });
-        throw err;
+        await this.prisma.withSystem((tx2) =>
+          tx2.clerkEvent.upsert({
+            where: { eventId: svixId },
+            // The create above may have rolled back with the rest of the
+            // transaction, so this has to be an upsert, not an update.
+            create: {
+              eventId: svixId,
+              eventType: event.type,
+              payload: event as unknown as object,
+              error: message,
+            },
+            update: { error: message },
+          }),
+        );
+      } catch (ledgerErr) {
+        this.logger.error(
+          `Could not persist Clerk event failure for ${svixId}: ${(ledgerErr as Error).message}`,
+        );
       }
+      throw err;
     });
   }
 
@@ -275,6 +297,38 @@ export class ClerkWebhookService {
     };
 
     if (existingByClerkId && existingByEmail && existingByClerkId.id !== existingByEmail.id) {
+      // IDENTITY MERGE. Memberships flow FROM the clerkUserId row TO the email
+      // row, and the incoming Clerk identity then owns the email row wholesale
+      // — including reviving a non-active membership it holds. Email equality
+      // is evidence, not proof; the realistic trigger is a stale local email
+      // whose user.deleted webhook never landed.
+      //
+      // Recorded, not blocked — see UserIdentityConflict in schema.prisma.
+      const membershipCount = await tx.tenantMembership.count({
+        where: { userId: existingByEmail.id },
+      });
+      await tx.userIdentityConflict.create({
+        data: {
+          kind: 'merge',
+          source: 'clerk_webhook',
+          email: input.email,
+          incomingClerkUserId: input.clerkUserId,
+          existingUserId: existingByEmail.id,
+          previousClerkUserId: existingByEmail.clerkUserId,
+          membershipCount,
+        },
+      });
+      this.logger.warn(
+        JSON.stringify({
+          security_event: 'identity.merge',
+          source: 'clerk_webhook',
+          email: input.email,
+          incoming_clerk_user_id: input.clerkUserId,
+          previous_clerk_user_id: existingByEmail.clerkUserId,
+          membership_count: membershipCount,
+          count: 1,
+        }),
+      );
       await this.mergeUserIdentity(tx, existingByClerkId.id, existingByEmail.id);
       return tx.user.update({ where: { id: existingByEmail.id }, data: userData });
     }

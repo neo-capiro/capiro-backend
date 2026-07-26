@@ -201,6 +201,33 @@ export class ClerkProvisioningService {
       const existingByEmail = await tx.user.findUnique({ where: { email } });
 
       if (existingByClerkId && existingByEmail && existingByClerkId.id !== existingByEmail.id) {
+        // IDENTITY MERGE — same shape as the webhook path. Recorded, not
+        // blocked; see UserIdentityConflict in schema.prisma.
+        const membershipCount = await tx.tenantMembership.count({
+          where: { userId: existingByEmail.id },
+        });
+        await tx.userIdentityConflict.create({
+          data: {
+            kind: 'merge',
+            source: 'clerk_provisioning',
+            email,
+            incomingClerkUserId: input.user.id,
+            existingUserId: existingByEmail.id,
+            previousClerkUserId: existingByEmail.clerkUserId,
+            membershipCount,
+          },
+        });
+        this.logger.warn(
+          JSON.stringify({
+            security_event: 'identity.merge',
+            source: 'clerk_provisioning',
+            email,
+            incoming_clerk_user_id: input.user.id,
+            previous_clerk_user_id: existingByEmail.clerkUserId,
+            membership_count: membershipCount,
+            count: 1,
+          }),
+        );
         await this.mergeUserIdentity(tx, existingByClerkId.id, existingByEmail.id);
       }
 

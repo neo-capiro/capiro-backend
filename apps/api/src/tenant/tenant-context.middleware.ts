@@ -144,6 +144,41 @@ export class TenantContextMiddleware implements NestMiddleware {
         const email = claims.email ?? `${claims.sub}@unknown.invalid`;
         const existingByEmail = await tx.user.findUnique({ where: { email } });
         if (existingByEmail) {
+          // IDENTITY REBIND. An existing local row is being re-pointed at a
+          // different Clerk identity on the strength of an email match alone.
+          // That is usually right (an old placeholder row, an out-of-order
+          // webhook) but it is not PROOF the two Clerk identities are the same
+          // person: a stale row whose user.deleted webhook never landed would
+          // hand its memberships to whoever next signs up with that address.
+          //
+          // Recorded, not blocked. Gating this would break the self-heal path
+          // whose whole purpose is preventing lockouts when the webhook is slow
+          // or undelivered, and there is no telemetry yet on how often it
+          // legitimately fires. Populate the ledger, review it, then decide.
+          // Emit a structured security event ONLY — deliberately no database
+          // write on this path.
+          //
+          // This runs inside the caller's interactive transaction, and a failed
+          // INSERT (e.g. the ledger migration not yet applied) would put
+          // Postgres into an aborted-transaction state that a JS try/catch
+          // cannot recover: the tx.user.update below would then fail too and
+          // 500 the login. The webhook and provisioning paths write the
+          // UserIdentityConflict row; this one is covered by the log +
+          // CloudWatch metric filter, which is the evidence that matters.
+          const membershipCount = await tx.tenantMembership.count({
+            where: { userId: existingByEmail.id },
+          });
+          this.logger.warn(
+            JSON.stringify({
+              security_event: 'identity.rebind',
+              source: 'middleware_self_heal',
+              email,
+              incoming_clerk_user_id: claims.sub,
+              previous_clerk_user_id: existingByEmail.clerkUserId,
+              membership_count: membershipCount,
+              count: 1,
+            }),
+          );
           user = await tx.user.update({
             where: { id: existingByEmail.id },
             data: { clerkUserId: claims.sub },

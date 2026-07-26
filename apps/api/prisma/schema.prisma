@@ -334,6 +334,51 @@ model TenantMembership {
   @@map("tenant_memberships")
 }
 
+/// Ledger of identity-rebinding events: every time an existing local user row
+/// is re-pointed at a different Clerk identity, or two identities are merged.
+///
+/// Three code paths can do this today, all keyed on EMAIL alone:
+///   * tenant-context.middleware self-heal (adopts an email-matched row),
+///   * clerk-webhook.service (merges when clerkUserId and email rows differ),
+///   * clerk-provisioning.service (same shape).
+///
+/// Email equality is good evidence that two records are the same PERSON, but it
+/// is not proof that two CLERK IDENTITIES are — a stale local row whose
+/// user.deleted webhook never landed is enough to hand its memberships to a new
+/// identity.
+///
+/// This table is RECORD-ONLY for now, deliberately. Blocking the rebind
+/// requires knowing how often it legitimately fires and on what kind of rows,
+/// and there is no such telemetry today; a naive gate would break the self-heal
+/// path whose entire purpose is preventing lockouts when the Clerk webhook is
+/// slow or undelivered. Populate this, review it, then decide.
+///
+/// Has no tenant_id: the middleware path detects a conflict BEFORE any tenant is
+/// resolved, which is also why these cannot be written to audit_logs (its
+/// tenant_id is NOT NULL).
+model UserIdentityConflict {
+  id                  String    @id @default(uuid()) @db.Uuid
+  /// 'rebind' | 'merge'
+  kind                String
+  /// Where it happened: 'middleware_self_heal' | 'clerk_webhook' | 'clerk_provisioning'
+  source              String
+  email               String
+  /// The Clerk identity the row is being re-pointed AT.
+  incomingClerkUserId String    @map("incoming_clerk_user_id")
+  /// The local user row being re-pointed, and the identity it held before.
+  existingUserId      String    @map("existing_user_id") @db.Uuid
+  previousClerkUserId String?   @map("previous_clerk_user_id")
+  /// Memberships the surviving row held at the time, for after-the-fact review.
+  membershipCount     Int       @default(0) @map("membership_count")
+  detectedAt          DateTime  @default(now()) @map("detected_at") @db.Timestamptz(6)
+  reviewedAt          DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  resolution          String?
+
+  @@index([detectedAt])
+  @@index([email])
+  @@map("user_identity_conflict")
+}
+
 /// Durable, retryable record of an identity side effect that MUST eventually
 /// reach Clerk. Written in the SAME transaction as the local state change, then
 /// drained out-of-band by IdentityOutboxWorker.
