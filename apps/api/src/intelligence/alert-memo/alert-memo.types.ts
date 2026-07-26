@@ -80,8 +80,19 @@ export interface AlertMemoResult {
   markdown: string;
   /** structured sections, each paragraph tagged with the claim ids it used */
   sections: Array<{ heading: string; paragraphs: Array<{ text: string; claimIds: string[] }> }>;
-  /** cited sources: claim id → human label + url */
-  sources: Array<{ claimId: string; label: string; url?: string | null }>;
+  /**
+   * Cited sources: claim id → human label + url, plus (§4.6) when it was retrieved and
+   * how well it is attested. `verification` is never 'verified' — nothing verifies these
+   * today and an inflated label is worse than none.
+   */
+  sources: Array<{
+    claimId: string;
+    label: string;
+    url?: string | null;
+    retrievedAt?: string;
+    verification?: 'official' | 'verified' | 'extracted' | 'unverified';
+    page?: number;
+  }>;
   /** the EngagementAttachment (client Documents) the memo was auto-filed as */
   document: { attachmentId: string; fileName: string } | null;
   usedTenantKey: boolean;
@@ -90,6 +101,12 @@ export interface AlertMemoResult {
   lowConfidence: boolean;
   /** which client Memory files steered the voice (audit + "context used" UI) */
   memoryFilesUsed: string[];
+  /**
+   * §4.6: context the compiler SAW and withheld, with the reason (revoked / superseded /
+   * expired / empty / over-budget). The packet always carried this; loadSteering used to
+   * discard it, so the composer could show what steered a memo but not what did not.
+   */
+  contextExcluded: Array<{ title: string; reason: string }>;
   /**
    * true when the post-hoc auditor HELD the memo (enforce mode + a grounding
    * finding): the markdown is returned for review but was NOT auto-filed to the

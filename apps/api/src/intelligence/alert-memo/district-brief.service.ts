@@ -292,11 +292,14 @@ export class DistrictBriefService {
     // uses a district-brief-specific subject (facility+alert) so it never
     // collides with — or blocks — an alert-memo review for the same alert.
     let document: DistrictBriefResult['document'] = null;
+    let reviewRequestId: string | null = null;
     if (held) {
       this.logger.warn(
         `[meri-auditor:enforce] district brief HELD for review — not auto-filed to client Documents`,
       );
-      await this.reviews.createSystem(ctx.tenantId, {
+      // c-8: the id is now RETURNED so the composer can offer "View review request"
+      // instead of mislabeling a governed hold as an auto-file failure.
+      reviewRequestId = await this.reviews.createSystem(ctx.tenantId, {
         riskTier: DELIVERABLE_RISK_TIERS.district_brief ?? 'high',
         surface: 'district-brief',
         subjectType: 'district-brief',
@@ -346,6 +349,8 @@ export class DistrictBriefService {
       lowConfidence,
       memoryFilesUsed,
       held,
+      reviewRequestId,
+      heldReason,
       facility: {
         id: facility.id,
         name: facility.name,
@@ -555,10 +560,23 @@ function buildDistrictClaims(
     push(`Hearing statement — ${who}"${q.text}"`, alert.url);
   }
 
+  // §4.6 — kept symmetric with alert-memo.service.ts's twin.
+  const retrievedAt = new Date().toISOString().slice(0, 10);
   const sources = claims
     .filter((c) => c.url)
-    .map((c) => ({ claimId: c.id, label: c.text.slice(0, 80), url: c.url }));
+    .map((c) => ({
+      claimId: c.id,
+      label: c.text.slice(0, 80),
+      url: c.url,
+      retrievedAt,
+      verification: verificationFor(c.url),
+    }));
   return { claims, sources };
+}
+
+/** §4.6. Never returns 'verified'. Symmetric with alert-memo.service.ts. */
+function verificationFor(url: string | null | undefined): 'official' | 'extracted' {
+  return url && /^https?:\/\//i.test(url) ? 'official' : 'extracted';
 }
 
 function buildUserPrompt(
@@ -673,13 +691,31 @@ function toMarkdown(
   const lines: string[] = [`# ${title}`, `*Prepared for ${clientName} — ${facility.name}*`, ''];
   for (const s of sections) {
     lines.push(`## ${s.heading}`, '');
-    for (const p of s.paragraphs) lines.push(p.text, '');
+    for (const p of s.paragraphs) lines.push(withClaimAnchors(p.text, p.claimIds), '');
   }
   if (sources.length) {
     lines.push('## Sources', '');
-    for (const src of sources) lines.push(`- ${src.label}${src.url ? ` — ${src.url}` : ''}`);
+    for (const src of sources) {
+      lines.push(
+        `- **[${src.claimId}]** ${src.label}` +
+          (src.url ? ` — ${src.url}` : '') +
+          (src.retrievedAt ? ` · retrieved ${src.retrievedAt}` : '') +
+          (src.verification ? ` · ${src.verification}` : ''),
+      );
+    }
   }
   return lines.join('\n').trimEnd() + '\n';
+}
+
+/**
+ * P1-15. BYTE-IDENTICAL to alert-memo.service.ts's withClaimAnchors — these two files are
+ * deliberate near-duplicates and are kept symmetric rather than extracted (a shared
+ * module would also need DistrictBriefResult['sources'] widened in lockstep; noted as a
+ * follow-up, not done here). A symmetry test asserts both produce the same string.
+ */
+export function withClaimAnchors(text: string, claimIds: string[]): string {
+  if (!claimIds.length) return text;
+  return `${text} ${claimIds.map((id) => `[${id}]`).join('')}`;
 }
 
 function toMemoDocInput(
@@ -696,7 +732,8 @@ function toMemoDocInput(
     reLine,
     sections: sections.map((s) => ({
       heading: s.heading,
-      paragraphs: s.paragraphs.map((p) => p.text),
+      // P1-15: anchors ride into the DOCX as plain trailing text.
+      paragraphs: s.paragraphs.map((p) => withClaimAnchors(p.text, p.claimIds)),
     })),
     sources: sources.map((s) => ({ label: s.label, url: s.url })),
   };

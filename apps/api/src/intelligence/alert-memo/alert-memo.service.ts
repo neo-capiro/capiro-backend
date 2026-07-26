@@ -164,7 +164,11 @@ export class AlertMemoService {
       alert,
       liveBill ? { status: liveBill.raw.status, statusAt: liveBill.raw.statusAt } : null,
     );
-    const { steering, memoryFilesUsed } = await this.loadSteering(ctx, clientId, clientName);
+    const { steering, memoryFilesUsed, contextExcluded } = await this.loadSteering(
+      ctx,
+      clientId,
+      clientName,
+    );
 
     const cred = await this.credentials.resolveProvider(ctx, 'anthropic');
     if (!cred)
@@ -390,6 +394,7 @@ export class AlertMemoService {
       model: cred.model,
       lowConfidence,
       memoryFilesUsed,
+      contextExcluded,
       held,
       reviewRequestId,
       heldReason,
@@ -484,7 +489,17 @@ export class AlertMemoService {
     ctx: TenantContext,
     clientId: string,
     clientName: string,
-  ): Promise<{ steering: string; memoryFilesUsed: string[] }> {
+  ): Promise<{
+    steering: string;
+    memoryFilesUsed: string[];
+    /**
+     * §4.6: the context the compiler SAW and deliberately withheld. The packet has
+     * always carried this trace (CompiledContextPacket.exclusions: ContextExclusion[]);
+     * loadSteering discarded it, so the composer could show what steered a memo but
+     * never what was excluded or why.
+     */
+    contextExcluded: Array<{ title: string; reason: string }>;
+  }> {
     // Context Compiler v1 (G1): loading + governance filtering + the packet
     // trace live in ContextCompilerService. render:'all' keeps this surface's
     // historical full-file steering (every section body, no owner filter);
@@ -501,6 +516,7 @@ export class AlertMemoService {
     };
     const blocks: string[] = [];
     const used: string[] = [];
+    const contextExcluded: Array<{ title: string; reason: string }> = [];
     try {
       const packet = await this.contextCompiler.compile({
         tenantId: ctx.tenantId,
@@ -520,13 +536,23 @@ export class AlertMemoService {
         blocks.push(`## ${r.title ?? type}\n${r.body}`);
         used.push(LABEL_BY_TYPE[type] ?? type);
       }
+      // ContextExclusion carries { layer, id, type, slug, reason } — no `title`, so the
+      // label comes from the same LABEL_BY_TYPE map memoryFilesUsed uses, falling back
+      // to the slug. Reasons are the compiler's own vocabulary: revoked / superseded /
+      // expired / empty / over-budget / unauthorized.
+      for (const x of packet.exclusions ?? []) {
+        contextExcluded.push({
+          title: LABEL_BY_TYPE[x.type] ?? x.slug ?? x.type,
+          reason: x.reason,
+        });
+      }
     } catch (err) {
       this.logger.debug(`steering compile skipped: ${(err as Error).message}`);
     }
     const steering = blocks.length
       ? blocks.join('\n\n')
       : `(No client knowledge files on record for ${clientName}. Write a professional, neutral government-affairs memo.)`;
-    return { steering: steering.slice(0, 8000), memoryFilesUsed: used };
+    return { steering: steering.slice(0, 8000), memoryFilesUsed: used, contextExcluded };
   }
 
   /** The only network call. Direct Anthropic Messages with the resolved per-tenant key. */
@@ -673,10 +699,29 @@ function buildClaims(
     const who = q.speaker ? `${q.speaker}: ` : '';
     push(`Hearing statement — ${who}"${q.text}"`, alert.url);
   }
+  // §4.6: each source carries WHEN it was pulled and how well it is attested.
+  const retrievedAt = new Date().toISOString().slice(0, 10);
   const sources = claims
     .filter((c) => c.url)
-    .map((c) => ({ claimId: c.id, label: c.text.slice(0, 80), url: c.url }));
+    .map((c) => ({
+      claimId: c.id,
+      label: c.text.slice(0, 80),
+      url: c.url,
+      retrievedAt,
+      verification: verificationFor(c.url),
+    }));
   return { claims, sources };
+}
+
+/**
+ * §4.6. Deliberately NEVER returns 'verified': nothing verifies these claims today, and
+ * an inflated verification label is worse than none. An absolute http(s) url is a public
+ * official record (congress.gov / a committee site / the Federal Register); a relative
+ * path is an INTERNAL deep link (e.g. a Program Element dossier), which is extracted
+ * data, not an official document.
+ */
+function verificationFor(url: string | null | undefined): 'official' | 'extracted' {
+  return url && /^https?:\/\//i.test(url) ? 'official' : 'extracted';
 }
 
 function buildUserPrompt(
@@ -815,6 +860,22 @@ function scaffold(alert: AlertMemoAlertInput, claims: Claim[]): GenSection[] {
   ].filter((s) => s.paragraphs.length);
 }
 
+/**
+ * P1-15: the structured result carries per-paragraph claimIds, but every DELIVERED
+ * surface (markdown, docx, Workspace draft) dropped them — so the memo the client sees
+ * was strictly less auditable than the internal object. Render them as trailing inline
+ * anchors: "…stalling floor consideration. [c2][c4]"
+ *
+ * Appended at the END of the paragraph, never mid-sentence, so it cannot corrupt
+ * markdown inside a URL or a code span. `[c1]` is left bare on purpose: the Workspace
+ * renderer's inline() only linkifies the `[text](url)` form, so a bare bracket pair
+ * stays literal text there (verified in richtext.ts, locked by test).
+ */
+export function withClaimAnchors(text: string, claimIds: string[]): string {
+  if (!claimIds.length) return text;
+  return `${text} ${claimIds.map((id) => `[${id}]`).join('')}`;
+}
+
 function toMarkdown(
   title: string,
   sections: GenSection[],
@@ -825,11 +886,20 @@ function toMarkdown(
   const lines: string[] = [`# ${title}`, `*Prepared for ${clientName}*`, ''];
   for (const s of sections) {
     lines.push(`## ${s.heading}`, '');
-    for (const p of s.paragraphs) lines.push(p.text, '');
+    for (const p of s.paragraphs) lines.push(withClaimAnchors(p.text, p.claimIds), '');
   }
   if (sources.length) {
+    // §4.6: map each claim id to its label, url, retrieval date, and verification
+    // state, so a reader can audit any anchored sentence back to a source.
     lines.push('## Sources', '');
-    for (const src of sources) lines.push(`- ${src.label}${src.url ? ` — ${src.url}` : ''}`);
+    for (const src of sources) {
+      lines.push(
+        `- **[${src.claimId}]** ${src.label}` +
+          (src.url ? ` — ${src.url}` : '') +
+          (src.retrievedAt ? ` · retrieved ${src.retrievedAt}` : '') +
+          (src.verification ? ` · ${src.verification}` : ''),
+      );
+    }
   }
   return lines.join('\n').trimEnd() + '\n';
 }
@@ -852,7 +922,9 @@ function toMemoDocInput(
     reLine,
     sections: sections.map((s) => ({
       heading: s.heading,
-      paragraphs: s.paragraphs.map((p) => p.text),
+      // P1-15: MemoDocInput.paragraphs is string[], so the anchors ride as plain text
+      // at the end of the paragraph — no superscript styling attempted.
+      paragraphs: s.paragraphs.map((p) => withClaimAnchors(p.text, p.claimIds)),
     })),
     sources: sources.map((s) => ({ label: s.label, url: s.url })),
   };

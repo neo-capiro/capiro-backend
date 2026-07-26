@@ -10,6 +10,7 @@ import {
   useGenerateAlertMemo,
   useRecordMemoLink,
   useSaveAlertMemo,
+  withClaimAnchors,
   type AlertMemoResult,
 } from './alert-actions-api.js';
 
@@ -60,7 +61,9 @@ export function MemoComposerDrawer({
           let heading = base;
           let n = 2;
           while (Object.prototype.hasOwnProperty.call(sectionContent, heading)) heading = `${base} (${n++})`;
-          const md = s.paragraphs.map((p) => p.text).join('\n\n');
+          // P1-15: carry the paragraph claim anchors into the Workspace draft too, in
+          // the SAME format apps/api's withClaimAnchors defines (alert-memo.service.ts).
+          const md = s.paragraphs.map((p) => withClaimAnchors(p.text, p.claimIds)).join('\n\n');
           sections.push(heading);
           sectionContent[heading] = markdownishToHtml(md);
         }
@@ -271,11 +274,42 @@ export function MemoComposerDrawer({
             </Text>
           )}
 
+          {/* §4.6: what steered this memo, and what the compiler withheld and why.
+              "Context used" was only a tag before; the exclusion trace was computed by
+              the Context Compiler on every generate and then discarded. */}
+          {memo?.memoryFilesUsed?.length ? (
+            <div>
+              <Text strong style={{ fontSize: 12 }}>Context used</Text>
+              <Paragraph style={{ margin: '2px 0', fontSize: 11.5 }} type="secondary">
+                {memo.memoryFilesUsed.join(', ')}
+              </Paragraph>
+            </div>
+          ) : null}
+          {memo?.contextExcluded?.length ? (
+            <div>
+              <Text strong style={{ fontSize: 12 }}>Context excluded</Text>
+              {memo.contextExcluded.map((x, i) => (
+                <Paragraph
+                  key={`${x.title}-${x.reason}-${i}`}
+                  style={{ margin: '2px 0', fontSize: 11.5 }}
+                  type="secondary"
+                >
+                  {x.title} — {x.reason}
+                </Paragraph>
+              ))}
+            </div>
+          ) : null}
+
           {memo?.sources?.length ? (
             <div>
               <Text strong style={{ fontSize: 12 }}>Sources</Text>
               {memo.sources.map((s) => (
                 <Paragraph key={s.claimId} style={{ margin: '2px 0', fontSize: 11.5 }} type="secondary">
+                  {/* The claim id is what the paragraph anchors point at ("… [c2]"), so
+                      it has to be visible for an anchor to be auditable. */}
+                  <Text code style={{ fontSize: 10.5 }}>
+                    [{s.claimId}]
+                  </Text>{' '}
                   {s.label}
                   {s.url ? (
                     <>
@@ -285,6 +319,8 @@ export function MemoComposerDrawer({
                       </a>
                     </>
                   ) : null}
+                  {s.retrievedAt ? ` · retrieved ${s.retrievedAt}` : null}
+                  {s.verification ? ` · ${s.verification}` : null}
                 </Paragraph>
               ))}
             </div>

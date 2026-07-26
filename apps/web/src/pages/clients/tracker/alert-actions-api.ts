@@ -46,19 +46,47 @@ export interface AlertMemoAlertInput {
   programElement?: AlertMemoProgramElement;
 }
 
+/** §4.6: a cited source, with when it was pulled and how well it is attested. */
+export interface AlertMemoSource {
+  claimId: string;
+  label: string;
+  url?: string | null;
+  retrievedAt?: string;
+  verification?: 'official' | 'verified' | 'extracted' | 'unverified';
+  page?: number;
+}
+
 export interface AlertMemoResult {
   title: string;
   markdown: string;
   sections: Array<{ heading: string; paragraphs: Array<{ text: string; claimIds: string[] }> }>;
-  sources: Array<{ claimId: string; label: string; url?: string | null }>;
+  sources: AlertMemoSource[];
   document: { attachmentId: string; fileName: string } | null;
   usedTenantKey: boolean;
   model: string;
   lowConfidence: boolean;
   memoryFilesUsed: string[];
+  /** §4.6: context the compiler saw and withheld, with the reason. Optional so a
+   *  not-yet-deployed apps/api degrades cleanly. */
+  contextExcluded?: Array<{ title: string; reason: string }>;
   held: boolean;
   reviewRequestId: string | null;
   heldReason: string;
+}
+
+/**
+ * P1-15: the SAME paragraph-anchor format apps/api's withClaimAnchors defines
+ * (alert-memo.service.ts) — that function is the definition of the format; this is its
+ * web twin for the "Open in Workspace" path, which builds its draft from the structured
+ * `sections` rather than from the server's markdown. A test asserts both render
+ * "Text. [c1][c2]".
+ *
+ * Left unescaped on purpose: markdownishToHtml's inline() only linkifies the
+ * `[text](url)` form, so a bare `[c1]` survives as literal text (richtext.ts).
+ */
+export function withClaimAnchors(text: string, claimIds?: string[]): string {
+  if (!claimIds?.length) return text;
+  return `${text} ${claimIds.map((id) => `[${id}]`).join('')}`;
 }
 
 /** Map a Feed alert into the memo generator's input. */
@@ -173,12 +201,21 @@ export interface DistrictBriefResult {
   title: string;
   markdown: string;
   sections: Array<{ heading: string; paragraphs: Array<{ text: string; claimIds: string[] }> }>;
-  sources: Array<{ claimId: string; label: string; url?: string | null }>;
+  sources: AlertMemoSource[];
   document: { attachmentId: string; fileName: string } | null;
   usedTenantKey: boolean;
   model: string;
   lowConfidence: boolean;
   memoryFilesUsed: string[];
+  /**
+   * c-8: the server has ALWAYS returned `held` (district-brief.service.ts:348) but the
+   * web type never declared it, so a governed hold rendered as "auto-file to Documents
+   * failed" — a governance state mislabeled as a bug. reviewRequestId/heldReason are
+   * returned as of Gate C. All three optional so an older apps/api degrades cleanly.
+   */
+  held?: boolean;
+  reviewRequestId?: string | null;
+  heldReason?: string;
   facility: { id: string; name: string; city: string | null; state: string | null };
 }
 
