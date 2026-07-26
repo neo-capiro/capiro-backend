@@ -131,14 +131,15 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
   // the CURRENT rail stamps boundary metadata onto legislative_district rows
   // and should see a settled table.
   //
-  // Ships DISABLED for two independent reasons. As of 2026-07-25 reason 1 is
-  // CLEARED and only reason 2 still stands:
-  //  1. [CLEARED 2026-07-25] The FUTURE ('F') rail reads each district's
-  //     re-hosted kmlS3Key, which only `sync-legistorm-districts --commit
-  //     --with-kml` populates. That backfill was gated on the LegiStorm key
-  //     rotation; both the rotation and the backfill have now run, so the
-  //     future rail has real input rather than legitimately producing zero
-  //     features.
+  // Ships DISABLED for two independent reasons, BOTH still open:
+  //  1. [STILL OPEN — corrected 2026-07-26] The FUTURE ('F') rail reads each
+  //     district's re-hosted kmlS3Key, which only `sync-legistorm-districts
+  //     --commit --with-kml` populates. An earlier revision of this comment
+  //     recorded that backfill as done; a live read on 2026-07-26 found
+  //     kml_s3_key NULL on all 741 legislative_district rows, so it either
+  //     never ran or did not persist. Until it does, the future rail
+  //     legitimately produces zero features — run `--status=C` alone rather
+  //     than letting the 'F' rail publish an empty artifact.
   //  2. [STILL OPEN] The first run should be a deliberate, reviewed `--commit`
   //     with its warnings read, not a cron tick. The CURRENT rail is verified:
   //     the live Census file yields 441/441 features with zero warnings at
@@ -158,6 +159,32 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     tier: 'weekly',
     description:
       'District Nexus boundary artifacts, current + future rails (Sun 05:00 UTC, after districts sync)',
+    enabled: false,
+  },
+  // ── District Nexus redistricting alerts (WS-D3 — ships DISABLED) ────────────
+  // Emits an intelligence_change row when an enacted-but-not-yet-effective
+  // congressional map covers a district where a TRACKED CLIENT has a facility
+  // — never a market-wide broadcast (the script skips any district with no
+  // related client). Reads legislative_district + client_facilities only and
+  // never calls the vendor API, so it carries no LEGISTORM_API_KEY dependency.
+  //
+  // Sun 05:30 UTC: after the districts sync (04:00) that supplies its 'F' rows,
+  // the directory refresh (04:30), and the boundary build (05:00), so it reads
+  // a fully settled table. It does not actually depend on the 05:00 artifact —
+  // it reads only effective/enacted dates and district identity — but running
+  // last keeps the whole Sunday LegiStorm chain in one ordered block.
+  //
+  // Ships DISABLED per house convention: this is a brand-new automated write
+  // path into intelligence_change that has never run in prod, so its first run
+  // should be a deliberate, reviewed invocation whose emitted/skipped counts
+  // someone actually reads — the same bar EmitCommitteeChanges is held to.
+  {
+    id: 'EmitRedistrictingAlerts',
+    command: ['emit-redistricting-alerts'],
+    cron: { minute: '30', hour: '5', weekDay: 'SUN' },
+    tier: 'weekly',
+    description:
+      'Redistricting alerts for districts where a tracked client has a facility (Sun 05:30 UTC, after districts sync)',
     enabled: false,
   },
   // ── LegiStorm Privately Funded Travel (WS-F — ships DISABLED) ───────────────
