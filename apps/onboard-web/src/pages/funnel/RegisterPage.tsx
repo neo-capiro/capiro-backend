@@ -7,6 +7,7 @@ import { isClerkAPIResponseError } from '@clerk/clerk-react/errors';
 import { useQueryClient } from '@tanstack/react-query';
 import { Btn, Card, Field, FunnelShell, ScreenTitle, TextInput } from '../../ui/primitives';
 import {
+  clearRegistrationDraft,
   draftMatchesUser,
   FUNNEL_SESSION_KEY,
   readRegistrationDraft,
@@ -51,7 +52,7 @@ export function RegisterPage() {
   const api = useFunnelApi();
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const { isLoaded: signUpLoaded, signUp, setActive } = useSignUp();
-  const { user } = useUser();
+  const { isLoaded: userLoaded, user } = useUser();
   const clerk = useClerk();
   const sessionEmail = user?.primaryEmailAddress?.emailAddress ?? null;
 
@@ -73,7 +74,10 @@ export function RegisterPage() {
   // user can re-enter the details; the signed-in submit path below handles it.
   const autoRegisterRef = React.useRef(false);
   React.useEffect(() => {
-    if (!authLoaded || !isSignedIn || autoRegisterRef.current) return;
+    // `userLoaded` is required: draftMatchesUser now fails CLOSED, and until
+    // Clerk hydrates `user` the session email is null, which would look like a
+    // mismatch for a legitimate owner. Waiting costs one extra render.
+    if (!authLoaded || !userLoaded || !isSignedIn || autoRegisterRef.current) return;
     const draft = readRegistrationDraft();
     if (!draft?.orgName?.trim()) return; // fall through to the manual form
     // The draft was typed by a DIFFERENT person than the signed-in session
@@ -88,13 +92,16 @@ export function RegisterPage() {
           lastName: draft.lastName || user?.lastName || '',
           orgName: draft.orgName,
         });
+        // Registration landed — the draft has served its purpose and must not
+        // linger in localStorage for the next person on this browser.
+        clearRegistrationDraft();
         queryClient.setQueryData(FUNNEL_SESSION_KEY, snapshot);
         navigate(routeForState(snapshot.state), { replace: true });
       } catch (err) {
         setErrors({ form: errorMessage(err) });
       }
     })();
-  }, [authLoaded, isSignedIn, api, navigate, queryClient, user]);
+  }, [authLoaded, userLoaded, isSignedIn, sessionEmail, api, navigate, queryClient, user]);
 
   const submit = async () => {
     if (submitting) return;
@@ -102,7 +109,11 @@ export function RegisterPage() {
     setSubmitting(true);
     setErrors({});
     try {
-      storeRegistrationDraft({ firstName, lastName, orgName, email: email.trim() });
+      // NOTE: the draft is deliberately NOT written here. Writing before the
+      // identity check below meant a REJECTED submit still persisted the typed
+      // org name to this browser, where the next signed-in person could pick it
+      // up. It is written instead at each point where the submit is known to be
+      // proceeding — see the two storeRegistrationDraft calls below.
 
       // Signed-in recovery path (#9): the Clerk account exists but the funnel
       // register POST never landed — a signUp.create would throw ("already
@@ -119,14 +130,21 @@ export function RegisterPage() {
           });
           return;
         }
+        // Past the identity check — safe to persist.
+        storeRegistrationDraft({ firstName, lastName, orgName, email: email.trim() });
         autoRegisterRef.current = true;
         const snapshot = await api.register({ firstName, lastName, orgName });
+        clearRegistrationDraft();
         queryClient.setQueryData(FUNNEL_SESSION_KEY, snapshot);
         navigate(routeForState(snapshot.state), { replace: true });
         return;
       }
 
       if (!signUpLoaded || !signUp) return;
+      // Signed-out sign-up path: the draft must survive the /register → /verify
+      // hop (Clerk never stores orgName), so persist it now that the attempt is
+      // definitely going ahead.
+      storeRegistrationDraft({ firstName, lastName, orgName, email: email.trim() });
       const attempt = await signUp.create({
         emailAddress: email,
         password,
@@ -137,10 +155,13 @@ export function RegisterPage() {
         autoRegisterRef.current = true; // we register right here — skip the effect
         await setActive({ session: attempt.createdSessionId });
         const snapshot = await api.register({ firstName, lastName, orgName });
+        clearRegistrationDraft();
         queryClient.setQueryData(FUNNEL_SESSION_KEY, snapshot);
       }
       // Email verification pending ('missing_requirements'): the verify page
       // starts the email-code flow and completes registration afterwards.
+      // Do NOT clear the draft here — /verify still needs orgName, and clearing
+      // would dead-end every new signup back to /register.
       navigate('/verify');
     } catch (err) {
       setErrors(clerkFieldErrors(err));

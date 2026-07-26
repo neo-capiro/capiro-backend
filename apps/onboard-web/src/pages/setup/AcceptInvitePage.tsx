@@ -3,7 +3,7 @@
 // Clerk's headless ticket flow (?__clerk_ticket=…).
 import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth, useSignUp } from '@clerk/clerk-react';
+import { useAuth, useClerk, useSignUp, useUser } from '@clerk/clerk-react';
 import { Btn, Card, Field, TextInput, Spinner, Wordmark } from '../../ui/primitives';
 import { ErrorText, errorMessage } from '../funnel/shared';
 
@@ -18,9 +18,13 @@ export function AcceptInvitePage() {
   const [params] = useSearchParams();
   const ticket = params.get('__clerk_ticket');
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
+  const { isLoaded: userLoaded, user } = useUser();
   const { isLoaded: signUpLoaded, signUp, setActive } = useSignUp();
+  const clerk = useClerk();
 
-  const [phase, setPhase] = React.useState<'loading' | 'create' | 'expired'>('loading');
+  const [phase, setPhase] = React.useState<
+    'loading' | 'create' | 'expired' | 'signed-in-conflict'
+  >('loading');
   const [password, setPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
@@ -28,11 +32,24 @@ export function AcceptInvitePage() {
   const startedRef = React.useRef(false);
 
   const confirmMismatch = confirmPassword.length > 0 && confirmPassword !== password;
+  const sessionEmail = user?.primaryEmailAddress?.emailAddress ?? null;
 
-  // Already signed in → straight to the dashboard.
+  // Already signed in.
+  //
+  // Previously this unconditionally redirected to /setup, which SILENTLY
+  // DISCARDED the invite: on a shared browser the person clicking the link was
+  // dropped into whichever account happened to be signed in, and the invited
+  // address was never claimed. Now, when a ticket is present, stop and make the
+  // identity choice explicit. With no ticket there is nothing to lose, so the
+  // original redirect stands.
   React.useEffect(() => {
-    if (authLoaded && isSignedIn) navigate('/setup', { replace: true });
-  }, [authLoaded, isSignedIn, navigate]);
+    if (!authLoaded || !isSignedIn) return;
+    if (!ticket) {
+      navigate('/setup', { replace: true });
+      return;
+    }
+    setPhase('signed-in-conflict');
+  }, [authLoaded, isSignedIn, ticket, navigate]);
 
   // Start the ticket sign-up (verifies the invite + surfaces the email).
   React.useEffect(() => {
@@ -73,6 +90,14 @@ export function AcceptInvitePage() {
     }
   };
 
+  // Sign out, then land back on this same URL. The ticket is still in the query
+  // string, so the signed-out effect above picks it up and runs the real invite
+  // flow for the invited address.
+  const signOutAndAccept = () => {
+    const returnTo = `${window.location.pathname}${window.location.search}`;
+    void clerk.signOut().then(() => window.location.replace(returnTo));
+  };
+
   return (
     <div
       style={{
@@ -94,6 +119,54 @@ export function AcceptInvitePage() {
         {phase === 'loading' ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
             <Spinner size={18} />
+          </div>
+        ) : phase === 'signed-in-conflict' ? (
+          <div style={{ width: '100%', maxWidth: 420, marginTop: 12 }}>
+            <div style={{ textAlign: 'center', marginBottom: 18 }}>
+              <Wordmark size={17} />
+            </div>
+            <Card style={{ padding: '28px 26px' }}>
+              <h2
+                style={{
+                  margin: '0 0 6px',
+                  fontFamily: 'var(--font-serif)',
+                  fontWeight: 500,
+                  fontSize: 22,
+                  letterSpacing: '-0.015em',
+                }}
+              >
+                You're already signed in
+              </h2>
+              <p
+                style={{
+                  margin: '0 0 18px',
+                  fontSize: 13,
+                  color: 'var(--ink-2)',
+                  lineHeight: 1.6,
+                }}
+              >
+                This browser is signed in as{' '}
+                <b style={{ color: 'var(--ink-1)' }}>
+                  {userLoaded ? (sessionEmail ?? 'another account') : '…'}
+                </b>
+                . If this invite was sent to someone else, continuing would add it to the wrong
+                account.
+              </p>
+              <div style={{ display: 'grid', gap: 10 }}>
+                <Btn variant="primary" onClick={signOutAndAccept} style={{ width: '100%' }}>
+                  Sign out and accept invite
+                </Btn>
+                <Btn
+                  variant="ghost"
+                  onClick={() => navigate('/setup', { replace: true })}
+                  style={{ width: '100%' }}
+                >
+                  {userLoaded && sessionEmail
+                    ? `Continue as ${sessionEmail}`
+                    : 'Continue as this user'}
+                </Btn>
+              </div>
+            </Card>
           </div>
         ) : phase === 'expired' ? (
           <div style={{ width: '100%', maxWidth: 400, marginTop: 12 }}>
