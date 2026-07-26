@@ -39,6 +39,9 @@ export interface AlertMemoResult {
   model: string;
   lowConfidence: boolean;
   memoryFilesUsed: string[];
+  held: boolean;
+  reviewRequestId: string | null;
+  heldReason: string;
 }
 
 /** Map a Feed alert into the memo generator's input. */
@@ -160,6 +163,8 @@ export function useSaveAlertMemo() {
       title: string;
       markdown: string;
       clientName: string;
+      /** REQUIRED (P0-01): the alert this memo came from — the review-hold guard keys on it. */
+      alertId: string;
       actionDate?: string;
       replaceAttachmentId?: string;
     }) =>
@@ -167,7 +172,18 @@ export function useSaveAlertMemo() {
         await api.post<{
           document: { attachmentId: string; fileName: string } | null;
           title: string;
-        }>(`/api/intelligence/clients/${encodeURIComponent(input.clientId)}/alert-memo/save`, input)
+        }>(`/api/intelligence/clients/${encodeURIComponent(input.clientId)}/alert-memo/save`, {
+          // Pre-existing defect (P0-01, c-2): `input` also carries `clientId`,
+          // which SaveAlertMemoDto does not whitelist — the global
+          // ValidationPipe's forbidNonWhitelisted would 400 every save if it
+          // were sent verbatim. Send an explicit body instead.
+          title: input.title,
+          markdown: input.markdown,
+          clientName: input.clientName,
+          alertId: input.alertId,
+          actionDate: input.actionDate,
+          replaceAttachmentId: input.replaceAttachmentId,
+        })
       ).data,
   });
 }

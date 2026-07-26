@@ -92,6 +92,10 @@ export function MemoComposerDrawer({
   const [dirty, setDirty] = useState(false);
   const startedFor = useRef<string | null>(null);
 
+  // P0-01: a memo the grounding auditor HELD for review — governance state, not
+  // a failure. Keep editing available (audit requirement); disable filing.
+  const held = memo?.held === true;
+
   const runGenerate = async (replaceAttachmentId?: string) => {
     if (!item) return;
     try {
@@ -105,10 +109,12 @@ export function MemoComposerDrawer({
       setMarkdown(res.markdown);
       setAttachmentId(res.document?.attachmentId ?? null);
       setDirty(false);
-      if (res.document) {
+      if (res.held) {
+        message.warning('Held for review — not filed. A reviewer must approve it before it can be filed.');
+      } else if (res.document) {
         await recordLink
           .mutateAsync({ clientId, alertId: item.id, documentAttachmentId: res.document.attachmentId, title: res.title })
-          .catch(() => undefined);
+          .catch(() => undefined); // unchanged for now; Gate C fixes the swallow (P1-14)
         message.success('Memo drafted and filed in Documents');
       } else {
         message.warning('Memo drafted (auto-file to Documents failed — use Save to retry)');
@@ -136,12 +142,18 @@ export function MemoComposerDrawer({
 
   const onSave = async () => {
     if (!item) return;
+    if (held) {
+      // Client-side bail is UX only; phase b's server-side locks are the enforcement.
+      message.warning('This memo is held for review and cannot be filed until a reviewer approves it.');
+      return;
+    }
     try {
       const res = await save.mutateAsync({
         clientId,
         title: memo?.title ?? `Client memo — ${item.title}`,
         markdown,
         clientName,
+        alertId: item.id,
         actionDate: item.evidence?.bill?.actionDate ?? undefined,
         replaceAttachmentId: attachmentId ?? undefined,
       });
@@ -188,10 +200,24 @@ export function MemoComposerDrawer({
         >
           Open in Workspace
         </Button>,
+        ...(held
+          ? [
+              <Button key="review" onClick={() => navigate('/reviews')}>
+                View review request
+              </Button>,
+            ]
+          : []),
         <Button key="close" onClick={onClose}>
           Close
         </Button>,
-        <Button key="save" type="primary" onClick={() => void onSave()} loading={save.isPending} disabled={!markdown}>
+        <Button
+          key="save"
+          type="primary"
+          onClick={() => void onSave()}
+          loading={save.isPending}
+          disabled={!markdown || held}
+          title={held ? 'Held for review — a reviewer must approve this memo before it can be filed' : undefined}
+        >
           Save to Documents
         </Button>,
       ]}
@@ -203,7 +229,15 @@ export function MemoComposerDrawer({
       ) : (
         <Space direction="vertical" style={{ width: '100%' }} size={10}>
           <Space size={6} wrap>
-            {attachmentId ? <Tag color="green">Saved to Documents ✓</Tag> : <Tag>Not yet filed</Tag>}
+            {held ? (
+              <Tooltip title={memo?.heldReason || 'The grounding auditor held this memo for review.'}>
+                <Tag color="red">Held for review — unapproved draft</Tag>
+              </Tooltip>
+            ) : attachmentId ? (
+              <Tag color="green">Saved to Documents ✓</Tag>
+            ) : (
+              <Tag>Not yet filed</Tag>
+            )}
             {memo?.lowConfidence && (
               <Tooltip title="Generation was thin or fell back to a scaffold — review carefully.">
                 <Tag color="orange">Low confidence</Tag>
@@ -231,6 +265,11 @@ export function MemoComposerDrawer({
             style={{ fontFamily: 'var(--mono, ui-monospace, monospace)', fontSize: 12.5 }}
           />
           {dirty && <Text type="secondary" style={{ fontSize: 11 }}>Unsaved edits — Save to update the Document.</Text>}
+          {held && (
+            <Text type="warning" style={{ fontSize: 11 }}>
+              Unapproved draft — edits are local only until a reviewer approves this memo.
+            </Text>
+          )}
 
           {memo?.sources?.length ? (
             <div>
