@@ -9,6 +9,7 @@ import {
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { ClerkProvisioningService } from '../auth/clerk-provisioning.service.js';
+import { IdentityOutboxService } from '../auth/identity-outbox.service.js';
 import { ClerkService } from '../auth/clerk.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { AppConfig } from '../config/config.schema.js';
@@ -86,6 +87,7 @@ export class CapiroAdminService {
     private readonly aiUsage: AiUsageService,
     private readonly aiCredentials: AiCredentialStoreService,
     private readonly meriFlags: MeriFeatureFlagsService,
+    private readonly outbox: IdentityOutboxService,
   ) {
     this.bucket = this.config.get('ASSETS_BUCKET', { infer: true });
     this.s3 = new S3Client({ region: this.config.get('AWS_REGION_DEFAULT', { infer: true }) });
@@ -449,7 +451,12 @@ export class CapiroAdminService {
   }
 
   async removeUserFromTenant(actorUserId: string, tenantId: string, userId: string) {
-    return this.prisma.withSystem(async (tx) => {
+    // Local removal + audit row + outbox job commit atomically; the Clerk call
+    // runs AFTER the transaction closes. See IdentityOutboxService for why the
+    // previous in-transaction Clerk call was unsafe — on this path a slow Clerk
+    // response also rolled back the audit_logs row written below, destroying the
+    // SOC 2 evidence that the removal was attempted at all.
+    const { jobId } = await this.prisma.withSystem(async (tx) => {
       const membership = await tx.tenantMembership.findUnique({
         where: { tenantId_userId: { tenantId, userId } },
         include: { user: true, tenant: true },
@@ -474,20 +481,22 @@ export class CapiroAdminService {
           before: { userId, email: membership.user.email, status: membership.status },
         },
       });
+      let queued: string | null = null;
       if (membership.tenant.clerkOrgId) {
-        await this.clerk.backend.organizations
-          .deleteOrganizationMembership({
-            organizationId: membership.tenant.clerkOrgId,
-            userId: membership.user.clerkUserId,
-          })
-          .catch((err) => {
-            // If Clerk-side membership is already gone, our DB still records
-            // the removed state from this point forward.
-            this.logger.warn(`Clerk delete-membership failed: ${(err as Error).message}`);
-          });
+        queued = await this.outbox.enqueueClerkMembershipDelete(tx, {
+          tenantId,
+          clerkOrgId: membership.tenant.clerkOrgId,
+          clerkUserId: membership.user.clerkUserId,
+          membershipId: membership.id,
+        });
       }
-      return { ok: true };
+      return { jobId: queued };
     });
+
+    // Best effort, outside the transaction; the drain retries on failure.
+    if (jobId) await this.outbox.attemptNow(jobId);
+
+    return { ok: true };
   }
 
   /**

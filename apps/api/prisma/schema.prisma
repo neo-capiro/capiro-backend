@@ -334,6 +334,37 @@ model TenantMembership {
   @@map("tenant_memberships")
 }
 
+/// Durable, retryable record of an identity side effect that MUST eventually
+/// reach Clerk. Written in the SAME transaction as the local state change, then
+/// drained out-of-band by IdentityOutboxWorker.
+///
+/// Exists because de-provisioning was fire-and-forget: removeMember flipped the
+/// local membership to 'removed' and called Clerk's
+/// deleteOrganizationMembership INSIDE the same interactive transaction, then
+/// swallowed any failure. A failed delete left the user in the Clerk org — still
+/// being issued org-bearing tokens — with nothing recording it. A slow delete
+/// blew the 5s transaction budget and rolled the removal back entirely.
+///
+/// Modelled on api-strategy's sp_event_outbox.
+model IdentityOutbox {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  /// e.g. 'clerk.membership.delete'
+  type     String
+  /// { clerkOrgId, clerkUserId, membershipId }
+  payload  Json
+
+  attempts      Int       @default(0)
+  lastError     String?   @map("last_error") @db.Text
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  consumedAt    DateTime? @map("consumed_at") @db.Timestamptz(6)
+
+  @@index([consumedAt, nextAttemptAt], map: "identity_outbox_pending_idx")
+  @@index([tenantId, createdAt], map: "identity_outbox_tenant_created_idx")
+  @@map("identity_outbox")
+}
+
 model ClerkEvent {
   id          String    @id @default(uuid()) @db.Uuid
   eventId     String    @unique @map("event_id")

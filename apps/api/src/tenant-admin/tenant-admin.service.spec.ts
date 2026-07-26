@@ -71,7 +71,18 @@ function makeService(rows: Array<Record<string, unknown>>) {
     },
   };
   const prisma = { withTenant };
-  const service = new TenantAdminService(prisma as never, {} as never, {} as never, {} as never);
+  const service = new TenantAdminService(
+    prisma as never,
+    {} as never,
+    {} as never,
+    {} as never,
+    // IdentityOutboxService seam: removal enqueues in-transaction, then the
+    // Clerk call runs outside it.
+    {
+      enqueueClerkMembershipDelete: jest.fn(async () => 'job-1'),
+      attemptNow: jest.fn(async () => true),
+    } as never,
+  );
   return { service, withTenant, calls, findMany: tx.auditLog.findMany };
 }
 
