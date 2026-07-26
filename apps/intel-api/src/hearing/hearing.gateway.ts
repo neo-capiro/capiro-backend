@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { OnGatewayConnection, OnGatewayDisconnect, WebSocketGateway } from '@nestjs/websockets';
 import type { WebSocket } from 'ws';
 import type { IncomingMessage } from 'node:http';
-import { ClerkService } from '../auth/clerk.service.js';
 import { verifyWsOrigin } from './ws-origin.js';
 import { OrgTenantResolverService } from '../auth/org-tenant-resolver.service.js';
 import {
@@ -50,7 +49,7 @@ const MAX_SESSION_MS = Number.parseInt(process.env.MAX_SESSION_MS ?? `${4 * 60 *
  * URL: ws://<host>/intel-api/live?sessionId=...  (Bearer JWT in Sec-WebSocket-Protocol
  * or `authorization` query param). One browser connection per session; one
  * Deepgram socket per session (DeepgramStreamManager). Auth + tenant scoping
- * via the SAME ClerkService used by the REST guard (no auth reimplemented).
+ * via a single-use ticket minted by the REST surface (no auth reimplemented).
  *
  * Flow: browser audio frames -> Deepgram -> interim (UI only) / final
  * (-> orchestrator extract -> SegmentCommitService -> persisted + cards to UI).
@@ -62,7 +61,6 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   private readonly deepgramApiKey: string;
 
   constructor(
-    private readonly clerk: ClerkService,
     private readonly tenants: OrgTenantResolverService,
     private readonly flags: FeatureFlagService,
     private readonly sessions: HearingSessionService,
@@ -100,80 +98,11 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
         return this.startSession(client, sessionId, consumed.tenantId, consumed.clerkUserId);
       }
 
-      // ── DEPRECATED dual-accept path: raw Clerk JWT in the query string.
-      // Retained ONLY so intel-api can ship before apps/web. Remove in the
-      // follow-up commit once the web change is live — at which point
-      // extractToken's ?authorization / ?token branches go too.
-      const token = extractToken(req, url);
-      if (!token) {
-        return this.reject(client, 'Missing sessionId or auth token');
-      }
-      this.logger.warn(
-        JSON.stringify({
-          security_event: 'ws.legacy_token_auth',
-          reason: 'clerk_jwt_in_query_string',
-          session_id: sessionId,
-          count: 1,
-        }),
-      );
-
-      // Same Clerk verification path as the REST guard.
-      const claims = await this.clerk.verifySessionToken(token);
-      if (!claims.sub) {
-        return this.reject(client, 'No tenant/subject in token');
-      }
-
-      // Canonical resolution, mirroring the REST TenantGuard. This used to be
-      // `capiro_tenant_id ?? org_id` taken straight from the claims, which meant
-      // an org_id-only token put a raw `org_...` string into every downstream
-      // tenant predicate — and, more importantly, that a user whose Capiro
-      // membership had been revoked could still open a live audio socket.
-      const claimedOrgId = claims.org_id?.trim() || undefined;
-      const claimedTenantId = claims.capiro_tenant_id?.trim() || undefined;
-      if (!claimedOrgId && !claimedTenantId) {
-        return this.reject(client, 'No tenant/subject in token');
-      }
-
-      let resolvedTenant = claimedOrgId
-        ? await this.tenants.resolveByClerkOrgId(claimedOrgId)
-        : null;
-      if (!resolvedTenant && claimedTenantId) {
-        resolvedTenant = await this.tenants.resolveByTenantId(claimedTenantId);
-      }
-      if (!resolvedTenant) {
-        return this.reject(client, 'No tenant for the supplied identifiers');
-      }
-      if (claimedTenantId && resolvedTenant.tenantId !== claimedTenantId) {
-        return this.reject(client, 'Tenant claim mismatch');
-      }
-      if (
-        claimedOrgId &&
-        resolvedTenant.clerkOrgId &&
-        resolvedTenant.clerkOrgId !== claimedOrgId
-      ) {
-        return this.reject(client, 'Org claim mismatch');
-      }
-
-      const tenantId = resolvedTenant.tenantId;
-
-      // The socket stays open for hours, so an unrevoked membership at connect
-      // time is the minimum bar — re-validation for long-lived sockets is
-      // tracked separately.
-      if (!(await this.tenants.hasActiveMembership(tenantId, claims.sub))) {
-        this.logger.warn(
-          JSON.stringify({
-            security_event: 'auth.denied',
-            reason: 'no_active_membership',
-            surface: 'ws',
-            tenant_id: tenantId,
-            clerk_user_id: claims.sub,
-            count: 1,
-          }),
-        );
-        return this.reject(client, 'No active membership for this tenant');
-      }
-
-      return this.startSession(client, sessionId, tenantId, claims.sub);
+      // Ticket is the ONLY accepted credential. The Clerk JWT is never carried
+      // in the URL: query strings are captured by ALB access logs, proxies,
+      // browser history and error reporting, and the token used to be retained
+      // on the connection for up to four hours and replayed to MeriV2.
+      return this.reject(client, 'Missing or invalid ticket');
     } catch (err) {
       this.reject(client, (err as Error).message);
     }
@@ -413,27 +342,6 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   }
 }
 
-function extractToken(req: IncomingMessage, url: URL): string | null {
-  const fromQuery = url.searchParams.get('authorization') ?? url.searchParams.get('token');
-  if (fromQuery) return fromQuery.replace(/^Bearer\s+/i, '').trim();
-  const header = req.headers.authorization;
-  if (header) {
-    const m = header.match(/^Bearer\s+(.+)$/i);
-    if (m?.[1]) return m[1].trim();
-  }
-  // Browsers can pass the token via the WS subprotocol header.
-  const proto = req.headers['sec-websocket-protocol'];
-  if (typeof proto === 'string' && proto.length > 0) {
-    return (
-      proto
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .pop() ?? null
-    );
-  }
-  return null;
-}
 
 /**
  * Map a rejection message onto a stable `auth.denied` reason code.
