@@ -1,5 +1,5 @@
 import type { AxiosInstance } from 'axios';
-import type { FederalMemberSummary } from './representation-api.js';
+import type { FacilityRepresentation, FederalMemberSummary } from './representation-api.js';
 
 /**
  * Web API for a client's District Nexus — federal contract spend grouped by
@@ -82,6 +82,85 @@ export async function getClientDistrictNexus(
   return (
     await api.get<DistrictNexus>(
       `/api/intelligence/clients/${encodeURIComponent(clientId)}/district-nexus-spend`,
+    )
+  ).data;
+}
+
+// ── District Nexus v2 (WS-H1) ───────────────────────────────────────────────
+//
+// Mirrors apps/api/src/district-nexus/district-nexus.types.ts
+// `ClientDistrictNexusResponse`. The shared sub-types are imported TYPE-ONLY
+// from the map feature's own mirror rather than re-declared here — they are
+// already mirrored once, and a second hand-copy is a second thing to drift.
+// Type-only, so nothing from that folder reaches this chunk at runtime.
+import type {
+  AwardedFunding,
+  DataQualityWarning,
+  DistrictKey,
+  DistrictNexusDistrictDetail,
+  IsoTimestamp,
+  Money,
+  NexusScoreBreakdown,
+  OpportunityFunding,
+  SourceFreshness,
+  UnmappedFunding,
+} from '../../intelligence/district-nexus/district-nexus-api.js';
+
+export type {
+  AwardedFunding,
+  DistrictNexusDistrictDetail,
+  Money,
+  NexusScoreBreakdown,
+  SourceFreshness,
+};
+
+export interface ClientNexusLinkage {
+  contractingLinked: boolean;
+  contractorNames: string[];
+  assistanceLinked: boolean;
+  recipientNames: string[];
+  ueiConfirmedCount: number;
+}
+
+export interface ClientFacilityFootprint {
+  facilityCount: number;
+  facilitiesWithoutDistrict: number;
+  /** null = no facility reported a headcount. NEVER render as 0. */
+  employeeCount: number | null;
+  facilitiesMissingEmployeeCount: number;
+}
+
+export interface ClientDistrictNexusV2 {
+  clientId: string;
+  districts: DistrictNexusDistrictDetail[];
+  representativesByFacility: FacilityRepresentation[];
+  linkage: ClientNexusLinkage;
+  facilityFootprint: ClientFacilityFootprint;
+  awarded: AwardedFunding;
+  /**
+   * Structurally always {null, null} today: opportunity rows carry no district
+   * and foldDistricts drops district-less rows. Kept in the type because the
+   * server sends it; rendered only when non-null, never counted as awarded.
+   */
+  opportunities: OpportunityFunding;
+  unmapped: UnmappedFunding;
+  score: number | null;
+  bestDistrictKey: DistrictKey | null;
+  coveragePercent: number;
+  breakdown: NexusScoreBreakdown[];
+  strongestDrivers: NexusScoreBreakdown[];
+  freshness: SourceFreshness[];
+  warnings: DataQualityWarning[];
+  generatedAt: IsoTimestamp;
+}
+
+export async function getClientDistrictNexusV2(
+  api: AxiosInstance,
+  clientId: string,
+): Promise<ClientDistrictNexusV2> {
+  return (
+    await api.get<ClientDistrictNexusV2>(
+      `/api/intelligence/clients/${encodeURIComponent(clientId)}/district-nexus-v2`,
     )
   ).data;
 }
