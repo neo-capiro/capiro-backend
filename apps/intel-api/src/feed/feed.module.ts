@@ -4,8 +4,10 @@ import { FeedService } from './feed.service.js';
 import { ActionItemController } from './action-item.controller.js';
 import { ActionItemService } from './action-item.service.js';
 import { TrackerV2Guard } from './tracker-v2.guard.js';
+import { AlertPacketService } from './alert-packet.service.js';
 import { HearingCryptoService } from '../hearing/hearing-crypto.service.js';
 import { SourceDataModule } from '../sourcedata/source-data.module.js';
+import { TrackerModule } from '../tracker/tracker.module.js';
 
 /**
  * Combined intel feed (Phase 6 §9.7). PrismaService and FeatureFlagService come
@@ -15,10 +17,19 @@ import { SourceDataModule } from '../sourcedata/source-data.module.js';
  * SourceDataModule supplies the tenant-scoped client-name resolver used by the
  * global cross-client feed roll-up (P11).
  */
+// TrackerModule is imported for TrackerWatchlistService, whose assertClientInTenant is
+// the client-ownership proof the §4.1 packet endpoint needs (intel-api has no RLS).
+// TrackerModule does not import FeedModule, so there is no cycle.
 @Module({
-  imports: [SourceDataModule],
+  imports: [SourceDataModule, TrackerModule],
   controllers: [FeedController, ActionItemController],
-  providers: [FeedService, ActionItemService, TrackerV2Guard, HearingCryptoService],
-  exports: [FeedService, ActionItemService],
+  providers: [
+    FeedService,
+    ActionItemService,
+    AlertPacketService,
+    TrackerV2Guard,
+    HearingCryptoService,
+  ],
+  exports: [FeedService, ActionItemService, AlertPacketService],
 })
 export class FeedModule {}

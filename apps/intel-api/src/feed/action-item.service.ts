@@ -13,11 +13,49 @@ export interface AlertActionsSummary {
   talkingPoints: number;
 }
 
+/**
+ * The docx fileName apps/api would produce for this alert's memo. Mirrors
+ * alert-memo.service.ts's title precedence (PE code → bill display number → hearing
+ * title → headline) and reuses its EXACT sanitization regex, applied to the whole
+ * `${title}.docx` string, so a match here is a real match there.
+ */
+export function expectedMemoFileName(alert: {
+  title: string;
+  evidence: unknown;
+}): string {
+  const ev = (alert.evidence ?? {}) as {
+    bill?: { displayNum?: string };
+    hearing?: { title?: string | null };
+    programElement?: { peCode?: string; title?: string | null };
+    displayNum?: string;
+  };
+  const pe = ev.programElement;
+  const subject = pe?.peCode
+    ? `${pe.peCode}${pe.title ? ` — ${pe.title}` : ''}`
+    : (ev.bill?.displayNum ?? ev.displayNum ?? ev.hearing?.title ?? alert.title);
+  const title = `Client memo — ${subject}`.slice(0, 200);
+  return `${title}.docx`.replace(/[\\/:*?"<>|]+/g, '-');
+}
+
 @Injectable()
 export class ActionItemService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Record (or update) the memo↔alert link after apps/api generated + filed the memo. */
+  /**
+   * Record (or update) the memo↔alert link after apps/api generated + filed the memo.
+   *
+   * IDEMPOTENCY KEY: `(tenantId, alertId, kind:'memo')` — exactly one memo link per
+   * alert. A retry (P1-14: the composer now offers "Link to alert" when the first
+   * attempt failed) UPDATES `documentAttachmentId`/`title` in place and never inserts a
+   * second row, so retrying is always safe.
+   *
+   * Not a Prisma `upsert`: that requires a unique index on those three columns, which
+   * `intel_action_item` does not have and Gate C adds no migration (§2.2). The
+   * update-then-create-if-absent below is therefore idempotent for the sequential-retry
+   * case this fixes; two *concurrent* first-writes for the same alert could still both
+   * insert. Closing that needs the UNIQUE index — noted as a follow-up, not silently
+   * assumed away.
+   */
   async recordMemo(
     tenantId: string,
     clientId: string,
@@ -30,12 +68,12 @@ export class ActionItemService {
       title: memo.title ?? null,
     };
     return this.prisma.withTenant(tenantId, async (tx) => {
-      const existing = await tx.intelActionItem.findFirst({
+      const updated = await tx.intelActionItem.updateMany({
         where: { tenantId, alertId, kind: 'memo' },
-        select: { id: true },
+        data,
       });
-      if (existing) {
-        return tx.intelActionItem.update({ where: { id: existing.id }, data });
+      if (updated.count > 0) {
+        return tx.intelActionItem.findFirst({ where: { tenantId, alertId, kind: 'memo' } });
       }
       return tx.intelActionItem.create({
         data: { tenantId, clientId, alertId, kind: 'memo', createdBy: userId, ...data },
@@ -115,6 +153,119 @@ export class ActionItemService {
         take: 200,
       }),
     );
+  }
+
+  /**
+   * P1-14: DRY-RUN by default. Finds `intel_memo` attachments with no alert link and
+   * re-creates the link where the alert can be identified UNAMBIGUOUSLY.
+   *
+   * Why this exists: filing the memo document and linking it to the alert are two
+   * separate durable writes. The composer used to swallow a failure of the second one and
+   * still say "drafted and filed", so a document could exist in the client's Documents
+   * with no association — and reopening the composer generated a duplicate. The composer
+   * now reports and retries (e-3..e-5); this verb cleans up rows stranded before that.
+   *
+   * Matching, in priority order:
+   *  1. attachment metadata `alertId` — NOT AVAILABLE. `engagement_attachments` has no
+   *     metadata/JSON column (id, tenant_id, client_id, meeting_id, mail_message_id,
+   *     file_name, content_type, byte_size, bucket, s3_key, checksum_sha256, source,
+   *     uploaded_by_user_id, indexed_at, created_at) and Gate C adds no migration, so
+   *     e-6 is deliberately not done and this falls through to (2).
+   *  2. exact `file_name` match against the memo title the alert WOULD produce, using the
+   *     same sanitization alert-memo.service.ts applies.
+   *  3. otherwise AMBIGUOUS — logged and skipped. Never guess.
+   *
+   * `engagement_attachments` is read with raw SQL because it lives in apps/api's Prisma
+   * schema; intel-api has no model for it (same Aurora database, different schema file).
+   * Reads only — the sole write is the intel_action_item link, under withTenant.
+   */
+  async reconcileOrphanMemoLinks(
+    tenantId: string,
+    opts: { apply: boolean },
+    log: (msg: string) => void,
+  ): Promise<{ candidates: number; linked: number; ambiguous: number }> {
+    // 1. every memo document this tenant has filed.
+    const attachments = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.$queryRaw<Array<{ id: string; client_id: string | null; file_name: string }>>`
+        SELECT id::text AS id, client_id::text AS client_id, file_name
+        FROM engagement_attachments
+        WHERE tenant_id = ${tenantId}::uuid AND source = 'intel_memo'
+        ORDER BY created_at DESC
+        LIMIT 5000
+      `,
+    );
+    if (!attachments.length) {
+      log('RECONCILE_ORPHAN_MEMO_LINKS no intel_memo attachments for this tenant');
+      return { candidates: 0, linked: 0, ambiguous: 0 };
+    }
+
+    // 2. which of them are already linked.
+    const linkedIds = new Set(
+      (
+        await this.prisma.withTenant(tenantId, (tx) =>
+          tx.intelActionItem.findMany({
+            where: { tenantId, kind: 'memo', documentAttachmentId: { not: null } },
+            select: { documentAttachmentId: true },
+          }),
+        )
+      )
+        .map((r) => r.documentAttachmentId)
+        .filter((x): x is string => Boolean(x)),
+    );
+    const orphans = attachments.filter((a) => !linkedIds.has(a.id));
+    if (!orphans.length) {
+      log(
+        `RECONCILE_ORPHAN_MEMO_LINKS all ${attachments.length} intel_memo attachment(s) already linked`,
+      );
+      return { candidates: 0, linked: 0, ambiguous: 0 };
+    }
+
+    // 3. build fileName → alertId(s) for this tenant's alerts. A fileName that maps to
+    //    more than one alert is ambiguous by definition.
+    const alerts = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelAlert.findMany({
+        where: { tenantId },
+        select: { id: true, clientId: true, title: true, evidence: true },
+        orderBy: { createdAt: 'desc' },
+        take: 20_000,
+      }),
+    );
+    const byFileName = new Map<string, string[]>();
+    for (const a of alerts) {
+      const key = `${a.clientId}::${expectedMemoFileName(a)}`;
+      byFileName.set(key, [...(byFileName.get(key) ?? []), a.id]);
+    }
+
+    let linked = 0;
+    let ambiguous = 0;
+    for (const att of orphans) {
+      const matches = byFileName.get(`${att.client_id}::${att.file_name}`) ?? [];
+      if (matches.length !== 1) {
+        ambiguous += 1;
+        log(
+          `AMBIGUOUS attachment=${att.id} file="${att.file_name}" client=${att.client_id} ` +
+            `candidateAlerts=${matches.length} — skipped`,
+        );
+        continue;
+      }
+      const alertId = matches[0]!;
+      log(`MATCH attachment=${att.id} file="${att.file_name}" -> alert=${alertId}`);
+      if (opts.apply) {
+        await this.recordMemo(
+          tenantId,
+          att.client_id ?? '',
+          alertId,
+          'system:reconcile-orphan-memo-links',
+          { documentAttachmentId: att.id, title: att.file_name.replace(/\.docx$/i, '') },
+        );
+        linked += 1;
+      }
+    }
+    log(
+      `RECONCILE_ORPHAN_MEMO_LINKS candidates=${orphans.length} linked=${linked} ` +
+        `ambiguous=${ambiguous} mode=${opts.apply ? 'APPLY' : 'DRY_RUN'}`,
+    );
+    return { candidates: orphans.length, linked, ambiguous };
   }
 
   /** Batch action-state for a page of alerts (Feed decoration; no N+1). */

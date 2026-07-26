@@ -10,9 +10,43 @@ import type { FeedItem } from './intel-feed-api.js';
  * Document link (intel-api) → refresh the Feed so it shows "memo drafted".
  */
 
+/** P0-08: the PE funding facts the memo generator now grounds a PE memo in. */
+export interface AlertMemoProgramElement {
+  peCode: string;
+  title?: string | null;
+  fiscalYear?: number | null;
+  deltaType?: string | null;
+  deltaTypeLabel?: string | null;
+  fromRef?: string | null;
+  toRef?: string | null;
+  amountFromMillions?: number | null;
+  amountToMillions?: number | null;
+  deltaMillions?: number | null;
+  deltaPct?: number | null;
+  href?: string | null;
+}
+
+/** §4.5: agency rulemaking facts, normalized by intel-api from the flat rule writer. */
+export interface AlertMemoRegulation {
+  ruleTitle?: string | null;
+  agency?: string | null;
+  ruleType?: string | null;
+  commentEndDate?: string | null;
+  effectiveDate?: string | null;
+  docketId?: string | null;
+  url?: string | null;
+}
+
+/** §4.5: state cutoff/crossover context, from the normalized evidence's `extra`. */
+export interface AlertMemoDeadline {
+  cutoffType?: string | null;
+  cutoffDate?: string | null;
+  daysUntil?: number | null;
+}
+
 export interface AlertMemoAlertInput {
   alertId: string;
-  sourceType: 'bill' | 'hearing' | 'combined';
+  sourceType: 'bill' | 'hearing' | 'combined' | 'program_element' | 'state_bill' | 'regulation';
   title: string;
   whyItMatters?: string | null;
   severity?: string | null;
@@ -27,27 +61,77 @@ export interface AlertMemoAlertInput {
   quotes?: Array<{ text: string; speaker?: string; atSec?: number }>;
   url?: string | null;
   matchedTags?: string[];
+  programElement?: AlertMemoProgramElement;
+  jurisdiction?: string | null;
+  deadline?: AlertMemoDeadline | null;
+  regulation?: AlertMemoRegulation;
+}
+
+/** §4.6: a cited source, with when it was pulled and how well it is attested. */
+export interface AlertMemoSource {
+  claimId: string;
+  label: string;
+  url?: string | null;
+  retrievedAt?: string;
+  verification?: 'official' | 'verified' | 'extracted' | 'unverified';
+  page?: number;
 }
 
 export interface AlertMemoResult {
   title: string;
   markdown: string;
   sections: Array<{ heading: string; paragraphs: Array<{ text: string; claimIds: string[] }> }>;
-  sources: Array<{ claimId: string; label: string; url?: string | null }>;
+  sources: AlertMemoSource[];
   document: { attachmentId: string; fileName: string } | null;
   usedTenantKey: boolean;
   model: string;
   lowConfidence: boolean;
   memoryFilesUsed: string[];
+  /** §4.6: context the compiler saw and withheld, with the reason. Optional so a
+   *  not-yet-deployed apps/api degrades cleanly. */
+  contextExcluded?: Array<{ title: string; reason: string }>;
+  /** §4.7: paragraphs the entailment gate judged unsupported. Under shadow they are still
+   *  in the memo and this is what WOULD have been dropped; under enforce they are gone. */
+  entailmentDropped?: Array<{ heading: string; text: string; reason: string }>;
   held: boolean;
   reviewRequestId: string | null;
   heldReason: string;
+}
+
+/**
+ * P1-15: the SAME paragraph-anchor format apps/api's withClaimAnchors defines
+ * (alert-memo.service.ts) — that function is the definition of the format; this is its
+ * web twin for the "Open in Workspace" path, which builds its draft from the structured
+ * `sections` rather than from the server's markdown. A test asserts both render
+ * "Text. [c1][c2]".
+ *
+ * Left unescaped on purpose: markdownishToHtml's inline() only linkifies the
+ * `[text](url)` form, so a bare `[c1]` survives as literal text (richtext.ts).
+ */
+export function withClaimAnchors(text: string, claimIds?: string[]): string {
+  if (!claimIds?.length) return text;
+  return `${text} ${claimIds.map((id) => `[${id}]`).join('')}`;
 }
 
 /** Map a Feed alert into the memo generator's input. */
 export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
   const bill = item.evidence?.bill;
   const hearing = item.evidence?.hearing;
+  const pe = item.evidence?.programElement;
+  // §4.5: intel-api normalizes the flat rule writer into evidence.regulation, and the
+  // state-deadline emitter's cutoff fields ride in evidence.extra.
+  const reg = item.evidence?.regulation as AlertMemoRegulation | undefined;
+  const extra = item.evidence?.extra as
+    | { cutoffType?: string | null; cutoffDate?: string | null; daysUntil?: number | null }
+    | undefined;
+  const deadline =
+    extra && (extra.cutoffType || extra.cutoffDate || extra.daysUntil != null)
+      ? {
+          cutoffType: extra.cutoffType ?? null,
+          cutoffDate: extra.cutoffDate ?? null,
+          daysUntil: extra.daysUntil ?? null,
+        }
+      : null;
   const quotes = (hearing?.mentions ?? [])
     .map((m) => ({
       text: m.quote ?? '',
@@ -68,16 +152,13 @@ export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
     // (A state_bill DOES still get "Generate district brief" — that has its own
     // endpoint below and accepts state bills.) Map defensively to 'bill' rather
     // than send a value the server's @IsIn(['bill','hearing','combined']) rejects.
-    // R4 §4.3 adds 'program_element', which the memo generator also does not
-    // accept; recommendedActionsFor offers no "Draft memo" for a PE alert, so this
-    // path isn't reachable for one — map defensively like the others rather than
-    // send a value the server's @IsIn(['bill','hearing','combined']) rejects.
-    sourceType:
-      item.sourceType === 'state_bill' ||
-      item.sourceType === 'regulation' ||
-      item.sourceType === 'program_element'
-        ? 'bill'
-        : item.sourceType,
+    // P0-08 / §4.5: EVERY source type is now a first-class memo source — apps/api's
+    // @IsIn accepts all six and each has its own prompt, section order, claim builder,
+    // and scaffold. Sending a state bill or a rulemaking as 'bill' (as this used to)
+    // dropped every state deadline and every regulatory date, which was the bug. No
+    // defensive downgrade remains here; see feedItemToDistrictBriefAlert, whose DTO was
+    // NOT widened and therefore still downgrades.
+    sourceType: item.sourceType,
     title: item.title,
     whyItMatters: item.whyItMatters,
     severity: item.severity,
@@ -87,19 +168,79 @@ export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
     billTitle: bill?.title ?? null,
     actionText: bill?.actionText ?? null,
     actionDate: bill?.actionDate ?? null,
+    // P0-07: `committee` is in AlertMemoAlertInput and buildClaims uses it, but this
+    // mapper never set it — so every hearing memo lost the committee.
+    committee: hearing?.committeeId ?? null,
     hearingTitle: hearing?.title ?? null,
     quotes: quotes.length ? quotes : undefined,
-    url: bill?.url ?? null,
+    url: bill?.url ?? pe?.href ?? reg?.url ?? null,
     matchedTags: tags.length ? tags : undefined,
+    ...(item.evidence?.provenance?.jurisdiction
+      ? { jurisdiction: item.evidence.provenance.jurisdiction }
+      : {}),
+    ...(deadline ? { deadline } : {}),
+    ...(reg
+      ? {
+          regulation: {
+            ruleTitle: reg.ruleTitle,
+            agency: reg.agency,
+            ruleType: reg.ruleType,
+            commentEndDate: reg.commentEndDate,
+            effectiveDate: reg.effectiveDate,
+            docketId: reg.docketId,
+            url: reg.url,
+          },
+        }
+      : {}),
+    ...(pe
+      ? {
+          programElement: {
+            peCode: pe.peCode,
+            title: pe.title,
+            fiscalYear: pe.fiscalYear,
+            deltaType: pe.deltaType,
+            deltaTypeLabel: pe.deltaTypeLabel,
+            fromRef: pe.fromRef,
+            toRef: pe.toRef,
+            amountFromMillions: pe.amountFromMillions,
+            amountToMillions: pe.amountToMillions,
+            deltaMillions: pe.deltaMillions,
+            deltaPct: pe.deltaPct,
+            href: pe.href,
+          },
+        }
+      : {}),
   };
 }
 
 /**
- * The district-brief generator's DTO has the exact same shape/validator as the
- * memo's (Phase 1 M1.5) — including the same 'state_bill' -> 'bill' mapping —
- * so it reuses feedItemToMemoAlert directly rather than duplicating it.
+ * The district-brief generator's DTO has the same shape as the memo's (Phase 1 M1.5) but
+ * its @IsIn was NOT widened — district-brief.controller.ts:30 still accepts only
+ * bill | hearing | combined. Anything else must be downgraded here or the request 400s.
+ *
+ * This used to be a bare ALIAS of feedItemToMemoAlert, which made it a live trap: every
+ * time the memo mapper learned a new sourceType, this surface silently started sending a
+ * value its own DTO rejects. For state_bill that is not hypothetical —
+ * `recommendedActionsFor` DOES offer district_brief for a state bill (isBill includes it),
+ * so the alias would have 400'd a reachable, user-facing action the moment the memo
+ * mapper stopped downgrading. The source-specific blocks are stripped too: the
+ * district-brief DTO does not whitelist them, and forbidNonWhitelisted would 400 on the
+ * extra keys even with an accepted sourceType.
  */
-export const feedItemToDistrictBriefAlert = feedItemToMemoAlert;
+const DISTRICT_BRIEF_SOURCE_TYPES = new Set(['bill', 'hearing', 'combined']);
+
+export function feedItemToDistrictBriefAlert(item: FeedItem): AlertMemoAlertInput {
+  const a = feedItemToMemoAlert(item);
+  if (DISTRICT_BRIEF_SOURCE_TYPES.has(a.sourceType)) return a;
+  return {
+    ...a,
+    sourceType: 'bill',
+    programElement: undefined,
+    regulation: undefined,
+    deadline: undefined,
+    jurisdiction: undefined,
+  };
+}
 
 export function useGenerateAlertMemo() {
   const api = useApi();
@@ -127,12 +268,21 @@ export interface DistrictBriefResult {
   title: string;
   markdown: string;
   sections: Array<{ heading: string; paragraphs: Array<{ text: string; claimIds: string[] }> }>;
-  sources: Array<{ claimId: string; label: string; url?: string | null }>;
+  sources: AlertMemoSource[];
   document: { attachmentId: string; fileName: string } | null;
   usedTenantKey: boolean;
   model: string;
   lowConfidence: boolean;
   memoryFilesUsed: string[];
+  /**
+   * c-8: the server has ALWAYS returned `held` (district-brief.service.ts:348) but the
+   * web type never declared it, so a governed hold rendered as "auto-file to Documents
+   * failed" — a governance state mislabeled as a bug. reviewRequestId/heldReason are
+   * returned as of Gate C. All three optional so an older apps/api degrades cleanly.
+   */
+  held?: boolean;
+  reviewRequestId?: string | null;
+  heldReason?: string;
   facility: { id: string; name: string; city: string | null; state: string | null };
 }
 

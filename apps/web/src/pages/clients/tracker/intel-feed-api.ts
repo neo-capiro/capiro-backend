@@ -67,10 +67,22 @@ export interface FeedProgramElementEvidence {
   href: string;
 }
 
+/**
+ * P0-07: intel-api normalizes every writer shape into ONE versioned contract on read
+ * (apps/intel-api/src/feed/normalize-evidence.ts). The `bill` / `hearing` /
+ * `programElement` / `link` keys are unchanged — the bill fix arrives for free because
+ * `evidence.bill` finally exists for bill-change-detector alerts. Every NEW field is
+ * optional so a cached page or a not-yet-deployed intel-api degrades cleanly, the same
+ * posture as `tag?` and `recommendedActions?`.
+ */
 export interface FeedEvidence {
+  /** Present once intel-api normalizes on read. Absent on a cached pre-Gate-C page. */
+  schemaVersion?: number;
+  type?: FeedSourceType | 'unknown';
   bill?: FeedBillEvidence;
   hearing?: FeedHearingEvidence;
   programElement?: FeedProgramElementEvidence;
+  regulation?: Record<string, unknown>;
   link?: {
     via?: string;
     confidence?: number;
@@ -78,6 +90,32 @@ export interface FeedEvidence {
     billAlertId?: string | null;
     hearingAlertId?: string | null;
   };
+  /** P1-09: the alert's relevance explanation, finally legible to a consumer. */
+  match?: {
+    matchedTags: string[];
+    termId: string | null;
+    topicLabel: string | null;
+    why: string | null;
+    details: Array<{
+      termType: string;
+      matchType: string;
+      matchedText: string;
+      sourceField: string;
+      weight: number;
+      confidence: number;
+      explanation: string;
+    }>;
+  };
+  provenance?: {
+    sourceUrl: string | null;
+    triggerKey: string | null;
+    tone: string | null;
+    band: string | null;
+    jurisdiction: string;
+    writerShape: string;
+  };
+  /** Every stored key the normalizer did not claim — nothing the writer recorded is lost. */
+  extra?: Record<string, unknown>;
 }
 
 export type RecommendedActionKind =
@@ -197,7 +235,9 @@ export function toCanonicalAlert(item: FeedItem): AlertBuildResult {
     whatChanged: item.title,
     whyItMatters: item.whyItMatters ?? '',
     clientId: item.clientId,
-    issueId: item.tag ?? '',
+    // P1-09: fall back to the normalized match block, so a bill-change alert (which
+    // never carries a termId) yields a non-empty issueId instead of reading incomplete.
+    issueId: item.tag ?? item.evidence.match?.matchedTags?.[0] ?? '',
     whoActs: '',
     deadline: item.evidence.bill?.actionDate ?? item.evidence.hearing?.occurredAt ?? null,
     sourceType: item.sourceType,
