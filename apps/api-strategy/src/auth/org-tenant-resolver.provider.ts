@@ -57,8 +57,9 @@ export class PrismaOrgTenantResolver implements OrgTenantResolver {
 
     let rows: TenantRow[] = [];
     try {
-      rows = await this.prisma.withSystem((tx) =>
-        tx.$queryRaw<TenantRow[]>`
+      rows = await this.prisma.withSystem(
+        (tx) =>
+          tx.$queryRaw<TenantRow[]>`
           SELECT id::text AS id, slug::text AS slug, clerk_org_id AS "clerkOrgId"
           FROM tenants
           WHERE clerk_org_id = ${clerkOrgId}
@@ -71,9 +72,7 @@ export class PrismaOrgTenantResolver implements OrgTenantResolver {
     }
 
     const row = rows[0];
-    const value = row
-      ? { tenantId: row.id, slug: row.slug, clerkOrgId: row.clerkOrgId }
-      : null;
+    const value = row ? { tenantId: row.id, slug: row.slug, clerkOrgId: row.clerkOrgId } : null;
     write(this.byOrg, clerkOrgId, value);
     return value;
   }
@@ -84,8 +83,9 @@ export class PrismaOrgTenantResolver implements OrgTenantResolver {
 
     let rows: TenantRow[] = [];
     try {
-      rows = await this.prisma.withSystem((tx) =>
-        tx.$queryRaw<TenantRow[]>`
+      rows = await this.prisma.withSystem(
+        (tx) =>
+          tx.$queryRaw<TenantRow[]>`
           SELECT id::text AS id, slug::text AS slug, clerk_org_id AS "clerkOrgId"
           FROM tenants
           WHERE id = ${tenantId}::uuid
@@ -100,9 +100,7 @@ export class PrismaOrgTenantResolver implements OrgTenantResolver {
     }
 
     const row = rows[0];
-    const value = row
-      ? { tenantId: row.id, slug: row.slug, clerkOrgId: row.clerkOrgId }
-      : null;
+    const value = row ? { tenantId: row.id, slug: row.slug, clerkOrgId: row.clerkOrgId } : null;
     write(this.byId, tenantId, value);
     return value;
   }
@@ -113,8 +111,9 @@ export class PrismaOrgTenantResolver implements OrgTenantResolver {
     if (hit !== undefined) return hit;
 
     try {
-      const rows = await this.prisma.withSystem((tx) =>
-        tx.$queryRaw<Array<{ ok: number }>>`
+      const rows = await this.prisma.withSystem(
+        (tx) =>
+          tx.$queryRaw<Array<{ ok: number }>>`
           SELECT 1 AS ok
           FROM tenant_memberships tm
           JOIN users u ON u.id = tm.user_id
