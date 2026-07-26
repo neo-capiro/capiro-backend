@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import {
@@ -44,6 +44,25 @@ interface ResolutionSummary {
   needsReview: number;
 }
 
+/**
+ * The mapping-source vocabulary, in one place.
+ *
+ * Used by the manual-attach picker AND by the empty state's copy, which names
+ * the source the list is filtered to. Two hand-copied label lists would drift.
+ * `MappingSource` is declared further down; TS hoists the type.
+ */
+const MAPPING_SOURCE_OPTIONS: Array<{ label: string; value: MappingSource }> = [
+  { label: 'LDA registrant (issue codes)', value: 'lda' },
+  { label: 'FEC employer (contributions)', value: 'fec_employer' },
+  { label: 'Federal contractor (contracts)', value: 'contracting' },
+  { label: 'Assistance recipient (grants)', value: 'assistance_recipient' },
+];
+
+/** The `?source=` value as a MappingSource, or undefined when it is not one. */
+function asMappingSource(raw: string | null | undefined): MappingSource | undefined {
+  return MAPPING_SOURCE_OPTIONS.find((o) => o.value === raw)?.value;
+}
+
 function confidenceColor(confidence: number): string {
   if (confidence >= 0.85) return '#52c41a';
   if (confidence >= 0.5) return '#faad14';
@@ -64,6 +83,9 @@ export function IntelligenceMappingsPage() {
   );
   const [confirmedFilter, setConfirmedFilter] = useState<'all' | 'confirmed' | 'unconfirmed'>('all');
   const [manualOpen, setManualOpen] = useState(false);
+  // Human-readable name of the source the list is filtered to, for the empty
+  // state's copy. Undefined when unfiltered or when ?source= is not a real source.
+  const sourceFilterLabel = MAPPING_SOURCE_OPTIONS.find((o) => o.value === sourceFilter)?.label;
 
   const mappingsQuery = useQuery<ClientIntelMapping[]>({
     queryKey: ['intelligence-mappings'],
@@ -288,11 +310,46 @@ export function IntelligenceMappingsPage() {
           columns={columns}
           pagination={{ pageSize: 25, showSizeChanger: true }}
           locale={{
+            // The old copy pointed only at "Resolve All Clients" — i.e. at entity
+            // resolution, which by definition just found nothing. Arriving here
+            // from a profile CTA (e.g. the District Nexus widget's "Map a federal
+            // contractor →", which deep-links ?source=contracting) then looked
+            // like a dead end: an empty table and no route forward. Manual attach
+            // is the answer in that case, so the empty state offers both paths.
             emptyText: (
-              <Empty
-                description="No mappings found, click 'Resolve All Clients' to run entity resolution"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              />
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={null}>
+                <div style={{ maxWidth: 460, margin: '0 auto', textAlign: 'center' }}>
+                  <div style={{ marginBottom: 6 }}>
+                    {sourceFilterLabel
+                      ? `No ${sourceFilterLabel} mappings yet.`
+                      : 'No mappings yet.'}
+                  </div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Entity resolution proposes candidates automatically, but it can only
+                    match records that exist in the federal source tables. If it found
+                    nothing for this client, attach the record yourself — a manual mapping
+                    is confirmed straight away.
+                  </Text>
+                  <div style={{ marginTop: 12 }}>
+                    <Space>
+                      <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => setManualOpen(true)}
+                      >
+                        Add mapping manually
+                      </Button>
+                      <Button
+                        icon={<SyncOutlined />}
+                        loading={resolveAllMutation.isPending}
+                        onClick={() => resolveAllMutation.mutate()}
+                      >
+                        Resolve All Clients
+                      </Button>
+                    </Space>
+                  </div>
+                </div>
+              </Empty>
             ),
           }}
           summary={() => (
@@ -309,7 +366,13 @@ export function IntelligenceMappingsPage() {
         />
       )}
 
-      <ManualMapModal open={manualOpen} onClose={() => setManualOpen(false)} />
+      {/* Seed the picker from ?source= too, so arriving from a profile CTA opens
+          the modal already on the source that CTA was about. */}
+      <ManualMapModal
+        open={manualOpen}
+        initialSource={asMappingSource(searchParams.get('source'))}
+        onClose={() => setManualOpen(false)}
+      />
     </div>
   );
 }
@@ -378,14 +441,30 @@ type MappingSource = 'lda' | 'fec_employer' | 'contracting' | 'assistance_recipi
  * record(s) — saved as confirmed mappings the union logic reads at once.
  * Supports LDA registrants (by id/name) and FEC contributor-employers.
  */
-function ManualMapModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+function ManualMapModal({
+  open,
+  initialSource,
+  onClose,
+}: {
+  open: boolean;
+  /** Preselect this source when the modal opens (from the URL's ?source=). */
+  initialSource?: MappingSource;
+  onClose: () => void;
+}) {
   const api = useApi();
   const qc = useQueryClient();
   const { notification } = AntApp.useApp();
-  const [source, setSource] = useState<MappingSource>('lda');
+  const [source, setSource] = useState<MappingSource>(initialSource ?? 'lda');
   const [clientId, setClientId] = useState<string | undefined>(undefined);
   const [searchInput, setSearchInput] = useState('');
   const [query, setQuery] = useState('');
+
+  // The modal stays mounted between opens, so useState's initial value only
+  // applies once. Re-apply the deep-linked source each time it opens, otherwise
+  // a user who opened it earlier gets whichever source they last looked at.
+  useEffect(() => {
+    if (open && initialSource) setSource(initialSource);
+  }, [open, initialSource]);
 
   const clientsQuery = useQuery<ClientLite[]>({
     queryKey: ['clients-lite-for-mapping'],
@@ -641,12 +720,7 @@ function ManualMapModal({ open, onClose }: { open: boolean; onClose: () => void 
             setSource(v);
             resetSearch();
           }}
-          options={[
-            { label: 'LDA registrant (issue codes)', value: 'lda' },
-            { label: 'FEC employer (contributions)', value: 'fec_employer' },
-            { label: 'Federal contractor (contracts)', value: 'contracting' },
-            { label: 'Assistance recipient (grants)', value: 'assistance_recipient' },
-          ]}
+          options={MAPPING_SOURCE_OPTIONS}
         />
 
         <Select
