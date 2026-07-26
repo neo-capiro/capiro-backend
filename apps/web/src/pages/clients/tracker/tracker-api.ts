@@ -175,6 +175,18 @@ export interface WatchlistPayload {
   /** Sector/facility-derived jurisdiction suggestion (S5.1) — same read-time-hint posture as suggestedIssueAreas. */
   suggestedJurisdictions?: string[];
   /**
+   * P1-02 optimistic concurrency. Targeting is SHARED firm-wide, so the editor
+   * echoes the version it read back as `expectedVersion`; a stale one gets a 409
+   * instead of silently overwriting another analyst. Optional — the legacy
+   * (pre-`tracker_v2`) watchlist has no version at all, and `watchlistToIntel`
+   * falls back to 0, which is correct for a never-configured client.
+   */
+  version?: number;
+  /** Clerk user id of the last writer. NEVER render it (e-8) — show the time instead. */
+  updatedBy?: string | null;
+  /** ISO timestamp of the last accepted save, for "last changed …". */
+  updatedAt?: string | null;
+  /**
    * P0-03/P0-05: what the server refused to persist on the write that produced
    * this payload, so the editor can show inline validation instead of the user
    * believing a blank tag or a too-short term was saved. Absent on a pure GET.

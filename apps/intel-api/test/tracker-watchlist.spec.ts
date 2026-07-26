@@ -164,6 +164,11 @@ describe('TrackerWatchlistService.putWatchlist — flat-term isolation', () => {
         createMany: async (args: any) => calls.push({ op: 'term.createMany', args }),
         findMany: async () => [],
       },
+      // Gate B phase e: every accepted save writes one change-log row, in the
+      // same transaction as the reconcile.
+      intelWatchlistRevision: {
+        create: async (args: any) => calls.push({ op: 'revision.create', args }),
+      },
     };
     const prisma = {
       $transaction: async (fn: (t: unknown) => unknown) => fn(tx),
@@ -602,7 +607,7 @@ describe('TrackerWatchlistService.putWatchlist — label-keyed reconcile (phase 
 
   it('does not grow the row on a re-save when the same term arrives twice in one topic', async () => {
     const h = statefulPrisma();
-    const svc = new TrackerWatchlistService(h.prisma);
+    const svc = new TrackerWatchlistService(h.prisma as never);
 
     await save(svc, [
       {
@@ -615,6 +620,125 @@ describe('TrackerWatchlistService.putWatchlist — label-keyed reconcile (phase 
     ]);
 
     expect(h.snapshot().terms).toHaveLength(1);
+  });
+});
+
+/**
+ * Gate B phase e (P1-02) — optimistic concurrency on SHARED targeting. Two
+ * analysts editing the same client used to silently overwrite each other, because
+ * the editor autosaves a full replacement 600ms after any keystroke.
+ */
+describe('TrackerWatchlistService — watchlist versioning + change log (phase e)', () => {
+  const put = (
+    svc: TrackerWatchlistService,
+    topics: unknown[],
+    expectedVersion?: number,
+  ) =>
+    svc.putWatchlist(TENANT, CLIENT, 'user-1', {
+      issueAreas: [],
+      topics: topics as never,
+      ...(expectedVersion === undefined ? {} : { expectedVersion }),
+    });
+
+  it('e-10.8 getWatchlist reports version 0 for a never-configured client', async () => {
+    const prisma = tenantReader({ watchlist: { findFirst: async () => null } }) as any;
+    const view = await new TrackerWatchlistService(prisma).getWatchlist(TENANT, CLIENT);
+    expect(view).toMatchObject({ version: 0, updatedBy: null, updatedAt: null });
+  });
+
+  it('e-10.1/2 the first PUT with expectedVersion 0 succeeds and the version increments', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma as never);
+
+    const first = await put(svc, [{ label: 'alpha', terms: [] }], 0);
+    expect(first.version).toBe(1);
+    expect(first.updatedBy).toBe('user-1');
+
+    const second = await put(svc, [{ label: 'alpha', terms: [] }, { label: 'beta', terms: [] }], 1);
+    expect(second.version).toBe(2);
+  });
+
+  it('e-10.3 a stale expectedVersion 409s with the code + currentVersion and changes NOTHING', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma as never);
+    await put(svc, [{ label: 'alpha', terms: [] }], 0); // now at version 1
+    await put(svc, [{ label: 'alpha', terms: [] }, { label: 'beta', terms: [] }], 1); // version 2
+    const before = h.snapshot();
+
+    // A second analyst who read at version 1 tries to save their own view.
+    let err: unknown;
+    try {
+      await put(svc, [{ label: 'their-own-tag', terms: [] }], 1);
+    } catch (e) {
+      err = e;
+    }
+
+    expect((err as { status?: number })?.status).toBe(409);
+    expect((err as { response?: unknown }).response).toMatchObject({
+      code: 'WATCHLIST_VERSION_CONFLICT',
+      currentVersion: 2,
+    });
+    const after = h.snapshot();
+    expect(after.topics.map((t) => t.label).sort()).toEqual(['alpha', 'beta']);
+    expect(after.head?.version).toBe(2);
+    expect(after.terms).toEqual(before.terms);
+  });
+
+  it('e-10.4 an OMITTED expectedVersion is accepted (an un-updated bundle is not hard-broken)', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma as never);
+    await put(svc, [{ label: 'alpha', terms: [] }], 0);
+
+    const view = await put(svc, [{ label: 'alpha', terms: [] }, { label: 'beta', terms: [] }]);
+
+    expect(view.version).toBe(2);
+    expect(view.topics.map((t) => t.label).sort()).toEqual(['alpha', 'beta']);
+  });
+
+  it('e-10.5/6 each accepted save writes exactly one revision; a rejected one writes none', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma as never);
+
+    await put(svc, [{ label: 'alpha', terms: [{ termType: 'topic', value: 'grid load' }] }], 0);
+    expect(h.revisions).toHaveLength(1);
+    expect(h.revisions[0]).toMatchObject({ version: 1, changedBy: 'user-1', clientId: CLIENT });
+    expect(h.revisions[0]!['summary']).toMatchObject({ topics: 1, terms: 1 });
+
+    // A rename + a delete, so the summary carries the label-level diff.
+    await put(svc, [{ label: 'beta', renameFrom: 'alpha', terms: [] }], 1);
+    expect(h.revisions).toHaveLength(2);
+    expect(h.revisions[1]!['summary']).toMatchObject({ renamed: [{ from: 'alpha', to: 'beta' }] });
+
+    await expect(put(svc, [{ label: 'gamma', terms: [] }], 0)).rejects.toThrow();
+    expect(h.revisions).toHaveLength(2); // the conflict wrote nothing
+  });
+
+  it('e-10.7 getRevisions returns newest-first, capped at 20, and 404s a foreign tenant', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma as never);
+    for (let v = 0; v < 22; v += 1) {
+      await put(svc, [{ label: `tag-${v}`, terms: [] }], v);
+    }
+
+    const rows = await svc.getRevisions(TENANT, CLIENT);
+    expect(rows).toHaveLength(20);
+    expect(rows[0]!.version).toBe(22);
+    expect(rows.at(-1)!.version).toBe(3);
+    expect(rows.map((r) => r.version)).toEqual([...rows.map((r) => r.version)].sort((a, b) => b - a));
+
+    const foreign = makeWatchlistStore({ tenantId: TENANT, clientId: CLIENT, clientRows: [] });
+    await expect(
+      new TrackerWatchlistService(foreign.prisma as never).getRevisions(TENANT, CLIENT),
+    ).rejects.toThrow('Client not found');
+  });
+
+  it('never returns a raw updatedBy without also returning the timestamp the UI shows', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma as never);
+    const view = await put(svc, [{ label: 'alpha', terms: [] }], 0);
+    // The service exposes both; e-8 requires the UI to render the TIME, never the id.
+    expect(view.updatedBy).toBe('user-1');
+    expect(typeof view.updatedAt).toBe('string');
   });
 });
 

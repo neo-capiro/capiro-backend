@@ -366,6 +366,33 @@ function TagRow({
   );
 }
 
+/**
+ * Order-insensitive content signature of the targeting form, used for two things
+ * that must agree: deciding a server response is worth adopting into the editor
+ * (P0-05 c-9) and suppressing a no-op autosave (P1-02 — a redundant PUT bumps the
+ * SHARED version and writes a revision row for an edit that changed nothing).
+ *
+ * Chip/term ORDER is normalized because the server returns them in row order,
+ * which need not match what the editor sent. `renameFrom` is excluded on purpose:
+ * a rename always changes `tag`, which the signature already covers.
+ */
+function sigOf(issueAreas: string[], jurisdictions: string[], tags: WatchlistTag[]): string {
+  return JSON.stringify({
+    i: [...issueAreas].sort(),
+    j: [...jurisdictions].sort(),
+    t: tags.map((x) => ({
+      tag: x.tag,
+      issueArea: x.issueArea ?? null,
+      position: x.position ?? 'monitor',
+      priority: x.priority,
+      s: [...x.synonyms].sort(),
+      e: [...x.relatedEntities].sort(),
+      r: [...x.riskTerms].sort(),
+      tt: (x.typedTerms ?? []).map((y) => `${y.termType} ${y.value}`).sort(),
+    })),
+  });
+}
+
 function CadenceSeg<T extends string>({
   value,
   onChange,
@@ -400,6 +427,10 @@ export function TrackerConfigPanel({
   jurisdictionsEnabled = false,
   saving = false,
   termSurfaces,
+  saveState = { kind: 'idle' },
+  onRetrySave,
+  onUndoSave,
+  canUndo = false,
 }: {
   allIssueAreas: string[];
   /** LegiWatch v2 (L4): titles the per-user alerts section "Your alerts for [client]". */
@@ -420,6 +451,17 @@ export function TrackerConfigPanel({
   saving?: boolean;
   /** P0-04 c-8: termType → surfaces it affects, for the typed-term editor preview. */
   termSurfaces?: Record<string, string[]>;
+  /** P1-02 e-7: the shared-targeting save state, announced politely. */
+  saveState?:
+    | { kind: 'idle' }
+    | { kind: 'saving' }
+    | { kind: 'saved'; at: string }
+    | { kind: 'error'; message: string }
+    | { kind: 'conflict'; message: string };
+  onRetrySave?: () => void;
+  /** P1-02 e-9: restore the previously persisted targeting (one level only). */
+  onUndoSave?: () => void;
+  canUndo?: boolean;
 }) {
   // ── Targeting ──
   const [issues, setIssues] = useState<Set<string>>(() => new Set(watchlist.issueAreas));
@@ -481,11 +523,7 @@ export function TrackerConfigPanel({
   // autosave's onSuccess writes the response into the cache (which changes
   // this prop) 600ms after a keystroke, and if the user is still typing that
   // would otherwise overwrite their in-flight edits.
-  const serverSig = JSON.stringify({
-    i: watchlist.issueAreas,
-    j: watchlist.jurisdictions ?? [],
-    t: watchlist.tags,
-  });
+  const serverSig = sigOf(watchlist.issueAreas, watchlist.jurisdictions ?? [], watchlist.tags);
   const lastAdopted = useRef(serverSig);
   useEffect(() => {
     if (saving || serverSig === lastAdopted.current) return;
@@ -516,18 +554,29 @@ export function TrackerConfigPanel({
     // all — the inline error is the feedback, and the rest of the form is not
     // lost because the next valid keystroke saves everything together.
     if (hasTagNameError) return;
+    // §4.8 (client half): never schedule a second PUT while one is in flight —
+    // the second would carry the SAME expectedVersion and 409 against the first's
+    // bump. `saving` is in the deps, so the save is re-scheduled the moment the
+    // in-flight one settles.
+    if (saving) return;
+    // Nothing to save: the local form already equals persisted truth. Without this
+    // the post-save resync (which replaces `tags` with fresh objects) would trip
+    // this effect and fire a redundant PUT — bumping the SHARED version and adding
+    // a revision row for an edit that changed nothing.
+    if (sigOf(Array.from(issues), Array.from(jurisdictions), tags) === serverSig) return;
     const id = window.setTimeout(
       () =>
         onSaveWatchlist({
           issueAreas: Array.from(issues),
           tags,
           jurisdictions: Array.from(jurisdictions),
+          version: watchlist.version,
         }),
       600,
     );
     return () => window.clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [issues, tags, jurisdictions, hasTagNameError]);
+  }, [issues, tags, jurisdictions, hasTagNameError, saving, serverSig]);
 
   const prefsMounted = useRef(false);
   useEffect(() => {
@@ -682,7 +731,43 @@ export function TrackerConfigPanel({
       <div className="card">
         <div className="card-head">
           <h3>Targeting</h3>
-          <span className="sub">what Capiro watches for this client</span>
+          {/* P1-02: say out loud that this is FIRM-WIDE. The "Your alerts for
+              {client}" card below is per-user; the contrast is the point. The
+              last writer's Clerk user id is deliberately NOT rendered (e-8) —
+              intel-api has no user lookup on this route, and a raw id is worse
+              than a timestamp. */}
+          <span className="sub">
+            Shared with your team — everyone at your firm sees and is affected by this
+            {watchlist.updatedAt
+              ? ` · last changed ${new Date(watchlist.updatedAt).toLocaleString()}`
+              : ''}
+          </span>
+          <span className="grow" />
+          <span className="wl-savestate" aria-live="polite">
+            {saveState.kind === 'saving' && 'Saving…'}
+            {saveState.kind === 'saved' && (
+              <>
+                Saved at {saveState.at}
+                {canUndo && onUndoSave && (
+                  <>
+                    {' · '}
+                    <button className="btn-link" onClick={onUndoSave}>
+                      Undo last change
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+            {saveState.kind === 'error' && (
+              <>
+                Save failed —{' '}
+                <button className="btn-link" onClick={onRetrySave}>
+                  Retry
+                </button>
+              </>
+            )}
+            {saveState.kind === 'conflict' && <span role="alert">{saveState.message}</span>}
+          </span>
         </div>
         <div className="card-body">
           {seedCount > 0 && (

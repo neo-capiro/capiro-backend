@@ -114,6 +114,10 @@ interface IntelWatchlist {
   jurisdictions?: string[];
   /** Facility-derived jurisdiction suggestion (S5.1), same posture as suggestedIssueAreas. */
   suggestedJurisdictions?: string[];
+  /** P1-02 optimistic concurrency + attribution on the shared watchlist. */
+  version?: number;
+  updatedBy?: string | null;
+  updatedAt?: string | null;
   /** P0-03/P0-05: what the last write to this watchlist refused to persist. Absent on a pure GET. */
   rejected?: {
     topics: Array<{ index: number; label: string; reason: string }>;
@@ -248,6 +252,12 @@ export function adaptWatchlist(w: IntelWatchlist): WatchlistPayload {
     payload.suggestedJurisdictions = w.suggestedJurisdictions;
   }
   if (w.rejected) payload.rejected = w.rejected;
+  // P1-02: the concurrency token + attribution. `version ?? 0` (not `|| 0`) so a
+  // legitimate 0 from a never-configured client survives. Deliberately NOT setting
+  // `renameFrom` on any tag — a reload must clear a pending rename.
+  payload.version = w.version ?? 0;
+  payload.updatedBy = w.updatedBy ?? null;
+  payload.updatedAt = w.updatedAt ?? null;
   return payload;
 }
 
@@ -256,6 +266,9 @@ export function watchlistToIntel(w: WatchlistPayload) {
   return {
     issueAreas: w.issueAreas,
     jurisdictions: w.jurisdictions ?? [],
+    // P1-02: the version this payload was derived from. `?? 0` covers a
+    // never-configured client (the server's own cold-read value is 0 too).
+    expectedVersion: w.version ?? 0,
     topics: w.tags.map((t) => ({
       label: t.tag,
       issueArea: t.issueArea ?? null,

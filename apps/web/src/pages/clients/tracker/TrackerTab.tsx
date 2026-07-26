@@ -156,6 +156,23 @@ export function TrackerSurface({
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
 
+  // P1-02: targeting is SHARED firm-wide and autosaved, so the save must be
+  // legible — "Saving…/Saved at HH:MM/failed + Retry/someone else changed this" —
+  // rather than a silent debounce with one generic error toast.
+  type SaveState =
+    | { kind: 'idle' }
+    | { kind: 'saving' }
+    | { kind: 'saved'; at: string }
+    | { kind: 'error'; message: string }
+    | { kind: 'conflict'; message: string };
+  const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
+  /** The in-flight payload, so Retry has something to send. */
+  const lastPayloadRef = useRef<WatchlistPayload | null>(null);
+  /** Server truth BEFORE the in-flight save; promoted to `undoRef` on success. */
+  const preSaveRef = useRef<WatchlistPayload | null>(null);
+  /** One level of undo — deliberately not a stack (Gate B e-9). */
+  const undoRef = useRef<WatchlistPayload | null>(null);
+
   // Modals + toasts
   const [modal, setModal] = useState<'addBill' | 'otp' | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -382,7 +399,19 @@ export function TrackerSurface({
               tags: w.tags,
             })
           ).data,
+    onMutate: (w) => {
+      lastPayloadRef.current = w;
+      preSaveRef.current =
+        qc.getQueryData<WatchlistPayload>(trackerKeys.watchlist(clientId)) ?? null;
+      setSaveState({ kind: 'saving' });
+    },
     onSuccess: (data) => {
+      // The state that was persisted BEFORE this save is what Undo restores.
+      undoRef.current = preSaveRef.current;
+      setSaveState({
+        kind: 'saved',
+        at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      });
       // Seed the cache with the server-normalized value so the Configure form
       // (and recs) reflect what was actually persisted.
       qc.setQueryData(trackerKeys.watchlist(clientId), data);
@@ -391,8 +420,43 @@ export function TrackerSurface({
       // refetch races the debounced PUT and returns stale (still-importable) rows.
       void qc.invalidateQueries({ queryKey: trackerKeys.seed(clientId) });
     },
-    onError: () => message.error('Could not save targeting'),
+    onError: (e: unknown) => {
+      const res = (
+        e as { response?: { status?: number; data?: { code?: string; message?: string } } }
+      ).response;
+      if (res?.status === 409 && res.data?.code === 'WATCHLIST_VERSION_CONFLICT') {
+        // P1-02: another analyst saved first. Do NOT auto-merge — refetch their
+        // version and say so. The Configure resync adopts it once isPending clears,
+        // so this user's unsaved edits are replaced, which is the honest outcome.
+        setSaveState({
+          kind: 'conflict',
+          message: res.data.message ?? 'Someone else changed this client’s targeting.',
+        });
+        void qc.invalidateQueries({ queryKey: trackerKeys.watchlist(clientId) });
+        return;
+      }
+      setSaveState({ kind: 'error', message: 'Could not save targeting.' });
+    },
   });
+  /** Retry the failed save against the CURRENT server version, not the stale one. */
+  const retrySaveWatchlist = () => {
+    const p = lastPayloadRef.current;
+    if (!p) return;
+    const version = qc.getQueryData<WatchlistPayload>(trackerKeys.watchlist(clientId))?.version;
+    saveWatchlistMutation.mutate({ ...p, version: version ?? p.version });
+  };
+  /**
+   * Restore the previously persisted targeting through the same versioned PUT, at
+   * the CURRENT version — so an undo still 409s if someone else has saved since
+   * (which is the point), but does not 409 merely because it is an undo.
+   */
+  const undoSaveWatchlist = () => {
+    const p = undoRef.current;
+    if (!p) return;
+    undoRef.current = null;
+    const version = qc.getQueryData<WatchlistPayload>(trackerKeys.watchlist(clientId))?.version;
+    saveWatchlistMutation.mutate({ ...p, version: version ?? p.version });
+  };
   const savePrefsMutation = useMutation({
     mutationFn: async (p: AlertPrefsPayload) =>
       trackerV2
@@ -868,6 +932,11 @@ export function TrackerSurface({
             // P0-05 c-9: while a save is in flight, the resync effect must not
             // clobber in-progress edits with the (about to be stale) server value.
             saving={saveWatchlistMutation.isPending}
+            // P1-02 e-7/e-9: legible save state + Retry + one level of Undo.
+            saveState={saveState}
+            onRetrySave={retrySaveWatchlist}
+            onUndoSave={undoSaveWatchlist}
+            canUndo={undoRef.current !== null}
             // P0-04 c-8: surfaces each typed-term type affects, for the editor preview.
             termSurfaces={compiledQuery.data?.termSurfaces}
             typedTermsEnabled={trackerV2}

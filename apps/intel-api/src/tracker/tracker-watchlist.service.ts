@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { issueAreaForSector } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isAcceptableTerm, termRejectionReason } from '../watchlist/term-validation.js';
@@ -50,6 +50,12 @@ export interface PutWatchlistInput {
   topics?: TrackerTopicInput[];
   /** State Legislation Platform (DD5) — empty = federal-only (unchanged default); non-empty also matches those states' bill corpus. */
   jurisdictions?: string[];
+  /**
+   * P1-02: optimistic-concurrency token — the `version` the client last read.
+   * ABSENT is accepted (and logged): an un-updated browser bundle must not have
+   * every save hard-broken the moment this deploys.
+   */
+  expectedVersion?: number;
 }
 export interface WatchlistView {
   clientId: string;
@@ -80,6 +86,25 @@ export interface WatchlistView {
     topics: Array<{ index: number; label: string; reason: string }>;
     terms: Array<{ topicLabel: string; termType: string; value: string; reason: string }>;
   };
+  /**
+   * P1-02 optimistic concurrency. Targeting is SHARED firm-wide and the editor
+   * autosaves the whole payload, so two analysts on one client used to silently
+   * overwrite each other. The client echoes this back as `expectedVersion`; a
+   * stale one gets a 409. `0` for a never-configured client, which is what makes
+   * the first PUT's `expectedVersion: 0` correct against a row that does not exist.
+   */
+  version: number;
+  /** Clerk user id of the last writer. NEVER rendered — resolve or show the time. */
+  updatedBy: string | null;
+  updatedAt: string | null;
+}
+
+/** One row of the shared-targeting change log (P1-02). */
+export interface WatchlistRevisionView {
+  version: number;
+  changedBy: string | null;
+  createdAt: string;
+  summary: unknown;
 }
 /**
  * Default alert triggers seeded on a new subscriber pref (kept in sync with
@@ -121,6 +146,8 @@ export interface PutAlertPrefsInput {
 
 @Injectable()
 export class TrackerWatchlistService {
+  private readonly logger = new Logger(TrackerWatchlistService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async getWatchlist(tenantId: string, clientId: string): Promise<WatchlistView> {
@@ -128,7 +155,14 @@ export class TrackerWatchlistService {
     const wl = await this.prisma.withTenant(tenantId, (tx) =>
       tx.watchlist.findFirst({
         where: { id: wlId, tenantId },
-        select: { issueAreas: true, jurisdictions: true },
+        select: {
+          issueAreas: true,
+          jurisdictions: true,
+          // P1-02: the concurrency token + attribution the editor echoes back.
+          version: true,
+          updatedBy: true,
+          updatedAt: true,
+        },
       }),
     );
     // Never configured → surface the sector-derived issue area as a suggestion
@@ -141,6 +175,11 @@ export class TrackerWatchlistService {
         issueAreas: [],
         jurisdictions: [],
         topics: [],
+        // A row that does not exist yet is version 0, so the first PUT's
+        // `expectedVersion: 0` matches rather than 409-ing on a cold client.
+        version: 0,
+        updatedBy: null,
+        updatedAt: null,
         ...(suggested.length ? { suggestedIssueAreas: suggested } : {}),
         ...(suggestedJ.length ? { suggestedJurisdictions: suggestedJ } : {}),
       };
@@ -209,6 +248,9 @@ export class TrackerWatchlistService {
       issueAreas: wl.issueAreas,
       jurisdictions: wl.jurisdictions,
       topics: outTopics,
+      version: wl.version ?? 0,
+      updatedBy: wl.updatedBy ?? null,
+      updatedAt: wl.updatedAt?.toISOString() ?? null,
       ...(suggestedJ.length ? { suggestedJurisdictions: suggestedJ } : {}),
     };
   }
@@ -339,6 +381,29 @@ export class TrackerWatchlistService {
     let goneLabels: string[] = [];
     // withTenant IS a $transaction (one atomic reconcile) + sets the tenant GUC.
     await this.prisma.withTenant(tenantId, async (tx) => {
+      // P1-02: optimistic concurrency on SHARED targeting, checked INSIDE the
+      // transaction so the compare and the bump cannot interleave with another
+      // writer. An absent expectedVersion is accepted and logged — making it
+      // required would 400 every save from an in-flight browser tab on deploy.
+      const head = await tx.watchlist.findFirst({
+        where: { id: wlId, tenantId },
+        select: { version: true },
+      });
+      const current = head?.version ?? 0;
+      if (input.expectedVersion !== undefined && input.expectedVersion !== current) {
+        throw new ConflictException({
+          code: 'WATCHLIST_VERSION_CONFLICT',
+          message:
+            'This client’s targeting was changed by someone else. Reload to see their changes before saving yours.',
+          currentVersion: current,
+        });
+      }
+      if (input.expectedVersion === undefined) {
+        this.logger.warn(
+          `putWatchlist without expectedVersion (unversioned client) client=${clientId} version=${current}`,
+        );
+      }
+
       // Step 4 — the head. Only ever the `wl:<clientId>` row; hearing flat terms
       // on OTHER watchlist rows (random cuid, old WatchlistsTab) live on a
       // different watchlistId and stay structurally untouched (proven by test).
@@ -352,8 +417,10 @@ export class TrackerWatchlistService {
           createdBy: userId,
           issueAreas,
           jurisdictions,
+          version: 1,
+          updatedBy: userId,
         },
-        update: { issueAreas, jurisdictions },
+        update: { issueAreas, jurisdictions, version: current + 1, updatedBy: userId },
       });
 
       // Step 5 — the live topics for this row, indexed by lower-cased label.
@@ -470,10 +537,57 @@ export class TrackerWatchlistService {
       // just re-persisted as topic-scoped rows; running this BEFORE step 8 would
       // lose every flat term (boundary §2.4.1).
       await tx.watchlistTerm.deleteMany({ where: { watchlistId: wlId, tenantId, topicId: null } });
+
+      // P1-02 — the change log, in the SAME transaction as the reconcile, so a
+      // rolled-back save leaves no phantom revision and a rejected one (the 409
+      // above) writes none at all. Labels and counts only; never term values.
+      await tx.intelWatchlistRevision.create({
+        data: {
+          tenantId,
+          clientId,
+          watchlistId: wlId,
+          version: current + 1,
+          changedBy: userId,
+          summary: {
+            topics: incoming.filter((t) => !t.skipped).length,
+            terms: incoming.reduce((n, t) => n + (t.skipped ? 0 : t.terms.length), 0),
+            issueAreas: issueAreas.length,
+            jurisdictions: jurisdictions.length,
+            renamed: incoming
+              .filter((t) => t.renameFrom && !t.skipped)
+              .map((t) => ({ from: t.renameFrom, to: t.label })),
+            deleted: goneLabels,
+            rejected: rejectedTopics.length + rejectedTerms.length,
+          },
+        },
+      });
     });
-    void goneLabels; // phase e records these in the revision summary
     const view = await this.getWatchlist(tenantId, clientId);
     return { ...view, rejected: { topics: rejectedTopics, terms: rejectedTerms } };
+  }
+
+  /**
+   * The shared-targeting change log, newest first (P1-02). Capped at 20 — this is
+   * a "who touched this recently" affordance in the Configure panel, not an audit
+   * export. `assertClientInTenant` first: the table's rows carry tenant_id but the
+   * route takes a client id from the URL.
+   */
+  async getRevisions(tenantId: string, clientId: string): Promise<WatchlistRevisionView[]> {
+    await this.assertClientInTenant(tenantId, clientId);
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelWatchlistRevision.findMany({
+        where: { tenantId, clientId },
+        orderBy: { version: 'desc' },
+        take: 20,
+        select: { version: true, changedBy: true, createdAt: true, summary: true },
+      }),
+    );
+    return rows.map((r) => ({
+      version: r.version,
+      changedBy: r.changedBy ?? null,
+      createdAt: r.createdAt.toISOString(),
+      summary: r.summary,
+    }));
   }
 
   async getAlertPrefs(tenantId: string, clientId: string, userId: string) {

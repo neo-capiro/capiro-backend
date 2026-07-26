@@ -65,4 +65,13 @@ export class TrackerWatchlistController {
   getCompiled(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('clientId') clientId: string) {
     return this.svc.getCompiled(ctx.tenantId, clientId);
   }
+
+  /**
+   * P1-02: the shared-targeting change log (newest 20). Placed with the other
+   * `:clientId/...` routes so it cannot shadow the bare `@Get(':clientId')` above.
+   */
+  @Get(':clientId/revisions')
+  getRevisions(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('clientId') clientId: string) {
+    return this.svc.getRevisions(ctx.tenantId, clientId);
+  }
 }
