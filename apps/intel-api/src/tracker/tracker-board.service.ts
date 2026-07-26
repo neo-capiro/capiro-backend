@@ -6,6 +6,7 @@ import { TrackerWatchlistService } from './tracker-watchlist.service.js';
 import { isStateBillKey, humanizeStateBillKey, stateBillStatusRank } from '@capiro/shared';
 import { embedText, normalize, vectorLiteral, EMBEDDING_MODEL } from '../embeddings/embedder.js';
 import {
+  highPriorityMatches,
   scoreBillFit,
   type CompiledTopicForFit,
   type MatchReason,
@@ -19,7 +20,7 @@ import {
   passageProbability,
   type BillStage,
 } from './bill-stage.util.js';
-import { humanizeBillId } from './relevance.util.js';
+import { humanizeBillId, type RelevanceBill } from './relevance.util.js';
 
 /**
  * Recommendation feed + tracked-bill curation for the UNIFIED tracker (Phase 3
@@ -156,6 +157,15 @@ export interface BoardCard {
   unread: boolean;
   trackedAt: Date;
   matchedTags: string[];
+  /**
+   * P0-06: the subset of `matchedTags` whose topic priority is 'high'. The web's
+   * High-fit filter reads THIS instead of deriving it from the watchlist query,
+   * which is not enabled on the Bills surface at all — so the filter used to match
+   * nothing there on a cold load.
+   */
+  matchedHighPriorityTopics: string[];
+  /** The client's stance on the highest-priority matched topic: support|oppose|monitor|null. */
+  matchedPosition: string | null;
   changeChip: { label: string; changeType: string | null; at: Date } | null;
   // Phase 9 (Bill→Hearing interlink): "discussed in N hearings" chip. Presence
   // comes from the trackedBill hearing badge (set by the linker); the count is
@@ -174,16 +184,28 @@ export interface BoardColumn {
 
 const stageLabelOf = (s: BillStage): string => BILL_STAGES.find((x) => x.id === s)?.label ?? s;
 
+/**
+ * P0-04: `id` and `sponsorName` are optional because `fetchMergedBills`'s
+ * minimal common shape (board/getTenantBoard matchedTags) carries neither —
+ * legislator routing is consequently inert on that rail. Callers that DO have
+ * the underlying congress_bill/state bill row (recommendations) pass both.
+ */
 const toRelevanceBill = (b: {
   title: string | null;
   policyArea: string | null;
   subjects: string[] | null;
   latestActionText: string | null;
-}) => ({
+  id?: string;
+  sponsorName?: string | null;
+}): RelevanceBill => ({
   title: b.title ?? '',
   policyArea: b.policyArea,
   subjects: b.subjects,
   latestActionText: b.latestActionText,
+  ...(b.id
+    ? { billId: b.id, displayNum: isStateBillKey(b.id) ? humanizeStateBillKey(b.id) : humanizeBillId(b.id) }
+    : {}),
+  ...(b.sponsorName !== undefined ? { sponsorName: b.sponsorName } : {}),
 });
 
 @Injectable()
@@ -276,10 +298,14 @@ export class TrackerBoardService {
       label: t.label,
       issueArea: t.issueArea,
       priority: t.priority,
+      // P0-06: already on the compiler's output — carried so the board can derive
+      // matchedHighPriorityTopics/matchedPosition without a second watchlist read.
+      position: t.position,
       keywords: t.keywords,
       synonyms: t.synonyms,
       entities: t.entities,
       riskPhrases: t.riskPhrases,
+      routableTerms: t.routableTerms,
     }));
     const termSet = new Set<string>();
     for (const t of topics) {
@@ -409,12 +435,14 @@ export class TrackerBoardService {
         const stateBills = await this.stateRepo.getStateBillsByIds(stateCandidateIds);
         for (const b of stateBills) {
           const fit = scoreBillFit(
-            {
-              title: b.title ?? '',
+            toRelevanceBill({
+              title: b.title,
               policyArea: null,
               subjects: b.subjects,
               latestActionText: b.latestActionText,
-            },
+              id: b.id,
+              sponsorName: b.sponsorName,
+            }),
             topics,
             issueAreas,
             0,
@@ -520,8 +548,10 @@ export class TrackerBoardService {
       const latestActionDate = bill?.latestActionDate ?? t.lastSeenActionDate ?? null;
       const stage = (t.stage as BillStage | null) ?? billStage(latestActionText);
       const matchedTags = bill
-        ? scoreBillFit(toRelevanceBill(bill), topics, issueAreas, 0, false).matchedTags
+        ? scoreBillFit(toRelevanceBill({ ...bill, id: t.billId }), topics, issueAreas, 0, false).matchedTags
         : [];
+      // P0-06: from the SAME compiled topics — no extra query, no extra scoring pass.
+      const hi = highPriorityMatches(matchedTags, topics);
       const card: BoardCard = {
         billId: t.billId,
         displayNum: this.displayNumFor(t.billId),
@@ -540,6 +570,8 @@ export class TrackerBoardService {
         unread: t.unread,
         trackedAt: t.trackedAt,
         matchedTags,
+        matchedHighPriorityTopics: hi.matchedHighPriorityTopics,
+        matchedPosition: hi.matchedPosition,
         changeChip: chipByBill.get(t.billId) ?? null,
         lastHearingSessionId: t.lastHearingSessionId ?? null,
         lastHearingAt: t.lastHearingAt ?? null,
@@ -649,8 +681,11 @@ export class TrackerBoardService {
       const ct = topicsByClient.get(t.clientId);
       const matchedTags =
         bill && ct
-          ? scoreBillFit(toRelevanceBill(bill), ct.topics, ct.issueAreas, 0, false).matchedTags
+          ? scoreBillFit(toRelevanceBill({ ...bill, id: t.billId }), ct.topics, ct.issueAreas, 0, false).matchedTags
           : [];
+      // P0-06: the `_all` roll-up already resolves each card's OWN client's compiled
+      // watchlist above, so this adds no query (P1-18's batching is preserved).
+      const hi = highPriorityMatches(matchedTags, ct?.topics ?? []);
       const card: Card = {
         billId: t.billId,
         displayNum: this.displayNumFor(t.billId),
@@ -669,6 +704,8 @@ export class TrackerBoardService {
         unread: t.unread,
         trackedAt: t.trackedAt,
         matchedTags,
+        matchedHighPriorityTopics: hi.matchedHighPriorityTopics,
+        matchedPosition: hi.matchedPosition,
         changeChip: chipByCB.get(ck(t.clientId, t.billId)) ?? null,
         lastHearingSessionId: t.lastHearingSessionId ?? null,
         lastHearingAt: t.lastHearingAt ?? null,

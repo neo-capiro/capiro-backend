@@ -45,6 +45,7 @@ import {
   type IntelRec,
   type IntelWatchlist,
   type IntelAlertPrefs,
+  type IntelCompiled,
 } from './intel-tracker-api.js';
 
 type Panel = 'board' | 'recs' | 'config' | 'feed';
@@ -155,6 +156,23 @@ export function TrackerSurface({
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
 
+  // P1-02: targeting is SHARED firm-wide and autosaved, so the save must be
+  // legible — "Saving…/Saved at HH:MM/failed + Retry/someone else changed this" —
+  // rather than a silent debounce with one generic error toast.
+  type SaveState =
+    | { kind: 'idle' }
+    | { kind: 'saving' }
+    | { kind: 'saved'; at: string }
+    | { kind: 'error'; message: string }
+    | { kind: 'conflict'; message: string };
+  const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
+  /** The in-flight payload, so Retry has something to send. */
+  const lastPayloadRef = useRef<WatchlistPayload | null>(null);
+  /** Server truth BEFORE the in-flight save; promoted to `undoRef` on success. */
+  const preSaveRef = useRef<WatchlistPayload | null>(null);
+  /** One level of undo — deliberately not a stack (Gate B e-9). */
+  const undoRef = useRef<WatchlistPayload | null>(null);
+
   // Modals + toasts
   const [modal, setModal] = useState<'addBill' | 'otp' | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -224,6 +242,16 @@ export function TrackerSurface({
         : (await api.get<AlertPrefsPayload>(trackerPaths.alertPrefs(clientId))).data,
     enabled: activePanel === 'config' && flagsReady,
   });
+  // P0-04 b-7/c-8: which surfaces each typed-term type feeds — a static preview
+  // the Configure editor shows next to the type picker. intel-api only (the
+  // legacy tracker has no equivalent), and only needed while Configure is open.
+  const compiledQuery = useQuery<IntelCompiled>({
+    queryKey: trackerKeys.compiled(clientId),
+    queryFn: async () =>
+      (await api.get<IntelCompiled>(intelTrackerPaths.compiled(clientId))).data,
+    enabled: activePanel === 'config' && flagsReady && trackerV2,
+    staleTime: 60 * 60_000,
+  });
   // Suggestions to seed the watchlist from the client profile (capability tags +
   // sector → issue area). Excludes anything already configured.
   const seedQuery = useQuery<SeedSuggestions>({
@@ -238,7 +266,12 @@ export function TrackerSurface({
 
   const allIssueAreas = issueAreasQuery.data?.issueAreas ?? [];
   const issueSet = useMemo(() => new Set(allIssueAreas), [allIssueAreas]);
-  // High-priority tags drive the "High fit" board filter.
+  // P0-06 FALLBACK ONLY. This derives the high-priority tag set from the watchlist
+  // query, which is `enabled` only while Configure is open — so on the Radar Bills
+  // surface (where Configure is a sibling tab, a different TrackerSurface instance)
+  // it is always empty. The intel board now sends `matchedHighPriorityTopics` and
+  // the filter prefers that; this remains the only thing that makes High-fit work on
+  // the LEGACY (tracker_v2 off) board, so do not delete it as dead code.
   const highPrio = useMemo(
     () =>
       new Set(
@@ -371,7 +404,19 @@ export function TrackerSurface({
               tags: w.tags,
             })
           ).data,
+    onMutate: (w) => {
+      lastPayloadRef.current = w;
+      preSaveRef.current =
+        qc.getQueryData<WatchlistPayload>(trackerKeys.watchlist(clientId)) ?? null;
+      setSaveState({ kind: 'saving' });
+    },
     onSuccess: (data) => {
+      // The state that was persisted BEFORE this save is what Undo restores.
+      undoRef.current = preSaveRef.current;
+      setSaveState({
+        kind: 'saved',
+        at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      });
       // Seed the cache with the server-normalized value so the Configure form
       // (and recs) reflect what was actually persisted.
       qc.setQueryData(trackerKeys.watchlist(clientId), data);
@@ -380,8 +425,43 @@ export function TrackerSurface({
       // refetch races the debounced PUT and returns stale (still-importable) rows.
       void qc.invalidateQueries({ queryKey: trackerKeys.seed(clientId) });
     },
-    onError: () => message.error('Could not save targeting'),
+    onError: (e: unknown) => {
+      const res = (
+        e as { response?: { status?: number; data?: { code?: string; message?: string } } }
+      ).response;
+      if (res?.status === 409 && res.data?.code === 'WATCHLIST_VERSION_CONFLICT') {
+        // P1-02: another analyst saved first. Do NOT auto-merge — refetch their
+        // version and say so. The Configure resync adopts it once isPending clears,
+        // so this user's unsaved edits are replaced, which is the honest outcome.
+        setSaveState({
+          kind: 'conflict',
+          message: res.data.message ?? 'Someone else changed this client’s targeting.',
+        });
+        void qc.invalidateQueries({ queryKey: trackerKeys.watchlist(clientId) });
+        return;
+      }
+      setSaveState({ kind: 'error', message: 'Could not save targeting.' });
+    },
   });
+  /** Retry the failed save against the CURRENT server version, not the stale one. */
+  const retrySaveWatchlist = () => {
+    const p = lastPayloadRef.current;
+    if (!p) return;
+    const version = qc.getQueryData<WatchlistPayload>(trackerKeys.watchlist(clientId))?.version;
+    saveWatchlistMutation.mutate({ ...p, version: version ?? p.version });
+  };
+  /**
+   * Restore the previously persisted targeting through the same versioned PUT, at
+   * the CURRENT version — so an undo still 409s if someone else has saved since
+   * (which is the point), but does not 409 merely because it is an undo.
+   */
+  const undoSaveWatchlist = () => {
+    const p = undoRef.current;
+    if (!p) return;
+    undoRef.current = null;
+    const version = qc.getQueryData<WatchlistPayload>(trackerKeys.watchlist(clientId))?.version;
+    saveWatchlistMutation.mutate({ ...p, version: version ?? p.version });
+  };
   const savePrefsMutation = useMutation({
     mutationFn: async (p: AlertPrefsPayload) =>
       trackerV2
@@ -511,7 +591,16 @@ export function TrackerSurface({
       filter === 'highprob'
         ? b.probability >= 0.7
         : filter === 'highfit'
-          ? b.tags.some((t) => highPrio.has(t))
+          ? // P0-06: prefer the SERVER's high-priority topic list. The old
+            // `b.tags.some(t => highPrio.has(t))` read a watchlist query that is
+            // enabled only when activePanel === 'config', which never happens on
+            // the Bills surface — so High-fit deterministically matched nothing
+            // there. `!== undefined` (not truthiness) so an empty array from the
+            // server correctly means "no high-priority match", while an ABSENT
+            // field means "legacy board, fall back".
+            b.matchedHighPriorityTopics !== undefined
+            ? b.matchedHighPriorityTopics.length > 0
+            : b.tags.some((t) => highPrio.has(t))
           : true;
     const sortBills = (arr: BoardResponse['columns'][number]['bills']) => {
       const c = [...arr];
@@ -813,29 +902,44 @@ export function TrackerSurface({
           </div>
         ) : (
           <div className="board">
-            {boardColumns.map((col) => (
-              <div key={col.id} className="bcol" data-stage={col.id}>
-                <div className="bcol-head">
-                  <span className="sq" />
-                  <span className="ttl">{col.label}</span>
-                  <span className="ct num">{col.bills.length}</span>
-                </div>
-                {col.bills.length === 0 ? (
-                  <div className="bcol-empty">Nothing here</div>
-                ) : (
-                  col.bills.map((b) => (
-                    <BillCard
-                      key={b.billId}
-                      bill={b}
-                      issueSet={issueSet}
-                      justLanded={justLanded === b.billId}
-                      onUntrack={(id) => untrackMutation.mutate(id)}
-                      onOpen={(bb) => openBoardBill(bb.billId, bb.unread)}
-                    />
-                  ))
-                )}
+            {/* P0-06: a filter that legitimately matches nothing used to render as
+                four "Nothing here" columns — indistinguishable from an empty board,
+                which is exactly why the broken High-fit filter went unnoticed. Say
+                which filter is hiding the cards and offer the way out. */}
+            {filter !== 'all' && boardCount > 0 && boardColumns.every((c) => c.bills.length === 0) ? (
+              <div className="trk-col-empty" style={{ gridColumn: '1 / -1' }}>
+                No tracked bills match the “
+                {filter === 'highfit' ? 'High-fit (priority tag)' : 'High-probability (≥70%)'}”
+                filter.{' '}
+                <button className="btn-link" onClick={() => setFilter('all')}>
+                  Show all {boardCount}
+                </button>
               </div>
-            ))}
+            ) : (
+              boardColumns.map((col) => (
+                <div key={col.id} className="bcol" data-stage={col.id}>
+                  <div className="bcol-head">
+                    <span className="sq" />
+                    <span className="ttl">{col.label}</span>
+                    <span className="ct num">{col.bills.length}</span>
+                  </div>
+                  {col.bills.length === 0 ? (
+                    <div className="bcol-empty">Nothing here</div>
+                  ) : (
+                    col.bills.map((b) => (
+                      <BillCard
+                        key={b.billId}
+                        bill={b}
+                        issueSet={issueSet}
+                        justLanded={justLanded === b.billId}
+                        onUntrack={(id) => untrackMutation.mutate(id)}
+                        onOpen={(bb) => openBoardBill(bb.billId, bb.unread)}
+                      />
+                    ))
+                  )}
+                </div>
+              ))
+            )}
           </div>
         ))}
 
@@ -854,6 +958,16 @@ export function TrackerSurface({
             onSavePrefs={(p) => savePrefsMutation.mutate(p)}
             onRequestVerify={requestVerify}
             onTestAlert={fireTest}
+            // P0-05 c-9: while a save is in flight, the resync effect must not
+            // clobber in-progress edits with the (about to be stale) server value.
+            saving={saveWatchlistMutation.isPending}
+            // P1-02 e-7/e-9: legible save state + Retry + one level of Undo.
+            saveState={saveState}
+            onRetrySave={retrySaveWatchlist}
+            onUndoSave={undoSaveWatchlist}
+            canUndo={undoRef.current !== null}
+            // P0-04 c-8: surfaces each typed-term type affects, for the editor preview.
+            termSurfaces={compiledQuery.data?.termSurfaces}
             typedTermsEnabled={trackerV2}
             // State Legislation Platform (DD4/DD5) is intel-api-only — the
             // legacy (pre-tracker_v2) watchlist/prefs can't persist

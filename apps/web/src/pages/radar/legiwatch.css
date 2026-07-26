@@ -356,6 +356,21 @@
 
 .lw-root .card-body { padding: 16px; }
 
+/* P1-02: the shared-targeting save state, right of the Targeting card's subtitle.
+   Quiet by default — it is a status line, not a control — with the failure and
+   conflict states pulled up to --critical so they read as needing attention. */
+.lw-root .wl-savestate { font-size: 12px; color: var(--ink-3); white-space: nowrap; flex-shrink: 0; }
+
+.lw-root .wl-savestate [role='alert'] { color: var(--critical); font-weight: 600; white-space: normal; }
+
+/* Inline text action (Retry / Undo last change / Show all N). Reads as prose, not
+   as a button, so it never competes with the real buttons in the same card head. */
+.lw-root .btn-link { background: none; border: 0; padding: 0; font: inherit; color: var(--accent); font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+
+.lw-root .btn-link:hover { color: var(--ink-1); }
+
+.lw-root .btn-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
 .lw-root .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 
 .lw-root .dot.critical { background: var(--critical); }

@@ -40,6 +40,7 @@ export const intelTrackerPaths = {
   untrack: (c: string) => `/intel-api/clients/${enc(c)}/tracker/untrack`,
   feedback: (c: string) => `/intel-api/clients/${enc(c)}/tracker/feedback`,
   watchlist: (c: string) => `/intel-api/tracker/watchlists/${enc(c)}`,
+  compiled: (c: string) => `/intel-api/tracker/watchlists/${enc(c)}/compiled`,
   alertPrefs: (c: string) => `/intel-api/tracker/watchlists/${enc(c)}/alert-prefs`,
   // P1.1 aux ports — legacy-identical response shapes, no adapters.
   issueAreas: () => `/intel-api/tracker/issue-areas`,
@@ -67,6 +68,9 @@ interface IntelBoardCard {
   unread: boolean;
   trackedAt: string;
   matchedTags: string[];
+  /** P0-06: the high-priority subset of matchedTags, computed server-side. */
+  matchedHighPriorityTopics?: string[];
+  matchedPosition?: string | null;
   changeChip: { label: string; changeType: string | null; at: string } | null;
   // Phase 9 (Bill→Hearing interlink): "discussed in N hearings" chip data.
   lastHearingSessionId?: string | null;
@@ -113,6 +117,23 @@ interface IntelWatchlist {
   jurisdictions?: string[];
   /** Facility-derived jurisdiction suggestion (S5.1), same posture as suggestedIssueAreas. */
   suggestedJurisdictions?: string[];
+  /** P1-02 optimistic concurrency + attribution on the shared watchlist. */
+  version?: number;
+  updatedBy?: string | null;
+  updatedAt?: string | null;
+  /** P0-03/P0-05: what the last write to this watchlist refused to persist. Absent on a pure GET. */
+  rejected?: {
+    topics: Array<{ index: number; label: string; reason: string }>;
+    terms: Array<{ topicLabel: string; termType: string; value: string; reason: string }>;
+  };
+}
+/**
+ * intel `GET .../compiled` (P0-04 b-7) — only the field the Configure UI
+ * consumes (the typed-term surface preview) is modeled here; the rest of the
+ * compiler output is not used by the web.
+ */
+interface IntelCompiled {
+  termSurfaces: Record<string, string[]>;
 }
 interface IntelAlertPrefs {
   triggers?: string[];
@@ -148,6 +169,11 @@ export function adaptBoard(b: IntelBoard): BoardResponse {
       stage: c.stage,
       probability: c.passageProbability,
       tags: c.matchedTags ?? [],
+      // P0-06: the server's high-priority topic list drives the High-fit filter.
+      // `?? []` (an empty array, never undefined) is what tells the web "the server
+      // answered, and the answer is none" as distinct from "legacy board, fall back".
+      matchedHighPriorityTopics: c.matchedHighPriorityTopics ?? [],
+      matchedPosition: c.matchedPosition ?? null,
       isManual: true as const,
       trackedAt: typeof c.trackedAt === 'string' ? c.trackedAt : new Date(c.trackedAt).toISOString(),
       unread: Boolean(c.unread),
@@ -233,6 +259,13 @@ export function adaptWatchlist(w: IntelWatchlist): WatchlistPayload {
   if (w.suggestedJurisdictions && w.suggestedJurisdictions.length) {
     payload.suggestedJurisdictions = w.suggestedJurisdictions;
   }
+  if (w.rejected) payload.rejected = w.rejected;
+  // P1-02: the concurrency token + attribution. `version ?? 0` (not `|| 0`) so a
+  // legitimate 0 from a never-configured client survives. Deliberately NOT setting
+  // `renameFrom` on any tag — a reload must clear a pending rename.
+  payload.version = w.version ?? 0;
+  payload.updatedBy = w.updatedBy ?? null;
+  payload.updatedAt = w.updatedAt ?? null;
   return payload;
 }
 
@@ -241,11 +274,17 @@ export function watchlistToIntel(w: WatchlistPayload) {
   return {
     issueAreas: w.issueAreas,
     jurisdictions: w.jurisdictions ?? [],
+    // P1-02: the version this payload was derived from. `?? 0` covers a
+    // never-configured client (the server's own cold-read value is 0 too).
+    expectedVersion: w.version ?? 0,
     topics: w.tags.map((t) => ({
       label: t.tag,
       issueArea: t.issueArea ?? null,
       position: t.position ?? 'monitor',
       priority: t.priority,
+      // P0-03 item 5: only sent when the user actually renamed this tag, so the
+      // server preserves the topic id rather than delete+recreating it.
+      ...(t.renameFrom ? { renameFrom: t.renameFrom } : {}),
       terms: [
         ...t.synonyms.map((v) => ({ termType: 'synonym', value: v })),
         ...t.relatedEntities.map((v) => ({ termType: 'entity', value: v })),
@@ -292,4 +331,4 @@ export function prefsToIntel(p: AlertPrefsPayload) {
   };
 }
 
-export type { IntelBoard, IntelRec, IntelWatchlist, IntelAlertPrefs };
+export type { IntelBoard, IntelRec, IntelWatchlist, IntelAlertPrefs, IntelCompiled };

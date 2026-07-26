@@ -999,6 +999,15 @@
   color: var(--ink-3);
   margin: 12px 0 7px;
 }
+.redesign .af-req {
+  color: var(--critical);
+}
+.redesign .af-error {
+  font-size: 11.5px;
+  color: var(--critical);
+  margin-top: 6px;
+  line-height: 1.4;
+}
 .redesign .chip-input {
   display: flex;
   flex-wrap: wrap;
@@ -1872,8 +1881,14 @@
 }
 .redesign .typed-terms .tt-add {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+}
+.redesign .typed-terms .tt-surfaces {
+  flex: 0 0 100%;
+  font-size: 11px;
+  color: var(--ink-3);
 }
 .redesign .typed-terms .tt-select {
   font-family: var(--font-sans-rd);

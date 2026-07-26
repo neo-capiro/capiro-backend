@@ -1,15 +1,21 @@
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsDateString,
   IsEmail,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   Matches,
   MaxLength,
+  Min,
+  MinLength,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { EXPECTED_CONFIDENCE_LEVELS, EXPECTED_MILESTONE_TYPES } from '@capiro/shared';
 
 /**
@@ -235,4 +241,43 @@ export class PutAlertPrefsDto {
   @IsString({ each: true })
   @MaxLength(2, { each: true })
   jurisdictions?: string[];
+}
+
+/**
+ * Every term type the system persists: the 11 canonical UI types + the 3 legacy
+ * chip types + `keyword` (Gate B phase a, P0-04/P0-05). Keep in lockstep with
+ * apps/web tracker-api.ts TERM_TYPES.
+ */
+export const WATCHLIST_TERM_TYPES = [
+  'bill', 'agency', 'committee', 'legislator', 'company', 'competitor', 'topic',
+  'risk_phrase', 'support_language', 'opposition_language', 'program_element',
+  'synonym', 'entity', 'risk', 'keyword',
+] as const;
+
+export class WatchlistTermDto {
+  @IsIn(WATCHLIST_TERM_TYPES as unknown as string[]) termType!: string;
+  @IsString() @MaxLength(200) value!: string;
+}
+
+export class WatchlistTopicDto {
+  @IsString() @MinLength(1) @MaxLength(120) label!: string;
+  @IsOptional() @IsString() @MaxLength(120) issueArea?: string | null;
+  @IsOptional() @IsIn(TAG_POSITIONS as unknown as string[]) position?: string;
+  @IsOptional() @IsIn(TAG_PRIORITIES as unknown as string[]) priority?: string;
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => WatchlistTermDto)
+  @ArrayMaxSize(500) terms?: WatchlistTermDto[];
+  /** P0-03 item 5: rename this topic, preserving its id and term/alert association. */
+  @IsOptional() @IsString() @MaxLength(120) renameFrom?: string;
+}
+
+/** Body for PUT .../tracker/watchlists/:clientId (Gate B phase a, P0-03/P0-04/P0-05). */
+export class PutWatchlistDto {
+  @IsOptional() @IsArray() @IsString({ each: true }) @ArrayMaxSize(50) issueAreas?: string[];
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => WatchlistTopicDto)
+  @ArrayMaxSize(200) topics?: WatchlistTopicDto[];
+  @IsOptional() @IsArray() @IsString({ each: true }) @MaxLength(2, { each: true }) @ArrayMaxSize(56)
+  jurisdictions?: string[];
+  /** P1-02: optimistic concurrency. Absent = unversioned legacy client → the service
+   *  accepts it and logs, so an un-updated bundle is not hard-broken. */
+  @IsOptional() @IsInt() @Min(0) expectedVersion?: number;
 }

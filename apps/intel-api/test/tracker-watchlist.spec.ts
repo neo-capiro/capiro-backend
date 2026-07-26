@@ -3,6 +3,7 @@ import {
   HEARING_TERMS_TOPIC_LABEL,
   TrackerWatchlistService,
 } from '../src/tracker/tracker-watchlist.service.js';
+import { makeWatchlistStore } from './support/watchlist-store.js';
 
 /**
  * P5/P6 (plan §5.2) — the unified tracker watchlist service.
@@ -58,7 +59,9 @@ describe('TrackerWatchlistService.getWatchlist — P6 sector-default', () => {
 
   it('never carries a suggestion once a watchlist row exists (parity-safe)', async () => {
     const prisma = tenantReader({
-      watchlist: { findFirst: async () => ({ issueAreas: ['Energy'] }) },
+      // `jurisdictions` is part of the head select (State Legislation Platform,
+      // DD5) — a double that omits it makes getWatchlist throw on `.length`.
+      watchlist: { findFirst: async () => ({ issueAreas: ['Energy'], jurisdictions: [] }) },
       watchlistTopic: { findMany: async () => [] },
       watchlistTerm: { findMany: async () => [] },
     }) as any;
@@ -73,7 +76,7 @@ describe('TrackerWatchlistService.getWatchlist — P6 sector-default', () => {
 describe('TrackerWatchlistService.getWatchlist — P5 flat-term folding', () => {
   it('folds topicId-NULL terms on the wl: row into a synthetic "Hearing terms" topic', async () => {
     const prisma = tenantReader({
-      watchlist: { findFirst: async () => ({ issueAreas: [] }) },
+      watchlist: { findFirst: async () => ({ issueAreas: [], jurisdictions: [] }) },
       watchlistTopic: {
         findMany: async () => [
           {
@@ -109,7 +112,7 @@ describe('TrackerWatchlistService.getWatchlist — P5 flat-term folding', () => 
 
   it('does not add a synthetic topic when there are no flat terms', async () => {
     const prisma = tenantReader({
-      watchlist: { findFirst: async () => ({ issueAreas: [] }) },
+      watchlist: { findFirst: async () => ({ issueAreas: [], jurisdictions: [] }) },
       watchlistTopic: {
         findMany: async () => [
           { id: 'top-1', label: 'tag', issueArea: null, position: 'monitor', priority: 'med' },
@@ -127,29 +130,44 @@ describe('TrackerWatchlistService.getWatchlist — P5 flat-term folding', () => 
 });
 
 describe('TrackerWatchlistService.putWatchlist — flat-term isolation', () => {
-  /** A prisma double that records the delete/create calls a transaction makes. */
-  function recordingPrisma() {
+  /**
+   * A prisma double that records the write calls the reconcile transaction makes.
+   * `existingTopics` seeds what `watchlistTopic.findMany` reports as already
+   * persisted, so a test can exercise the delete sweep (Gate B phase d step 9).
+   */
+  function recordingPrisma(existingTopics: Array<{ id: string; label: string }> = []) {
     const calls: Array<{ op: string; args: any }> = [];
     const tx = {
-      // write path (the rebuild)…
+      // write path (the reconcile)…
       watchlist: {
         upsert: async (args: any) => calls.push({ op: 'watchlist.upsert', args }),
         // …plus the getWatchlist re-read putWatchlist runs at the end (empty configured row).
-        findFirst: async () => ({ issueAreas: [] }),
+        findFirst: async () => ({ issueAreas: [], jurisdictions: [] }),
       },
       watchlistTopic: {
         deleteMany: async (args: any) => calls.push({ op: 'topic.deleteMany', args }),
-        create: async (args: any) => {
+        // Gate B phase d: the reconcile upserts per (watchlistId, label) instead
+        // of delete-all-then-create, so the double must model upsert + update.
+        upsert: async (args: any) => {
           const id = `topic-${calls.length + 1}`;
-          calls.push({ op: 'topic.create', args, __id: id } as any);
+          calls.push({ op: 'topic.upsert', args, __id: id } as any);
           return { id };
         },
-        findMany: async () => [],
+        update: async (args: any) => {
+          calls.push({ op: 'topic.update', args });
+          return { id: args.where.id };
+        },
+        findMany: async () => existingTopics,
       },
       watchlistTerm: {
         deleteMany: async (args: any) => calls.push({ op: 'term.deleteMany', args }),
         createMany: async (args: any) => calls.push({ op: 'term.createMany', args }),
         findMany: async () => [],
+      },
+      // Gate B phase e: every accepted save writes one change-log row, in the
+      // same transaction as the reconcile.
+      intelWatchlistRevision: {
+        create: async (args: any) => calls.push({ op: 'revision.create', args }),
       },
     };
     const prisma = {
@@ -163,8 +181,9 @@ describe('TrackerWatchlistService.putWatchlist — flat-term isolation', () => {
     return { prisma, calls };
   }
 
-  it('scopes both deletes to the wl: row only — never touches other watchlists', async () => {
-    const { prisma, calls } = recordingPrisma();
+  it('scopes EVERY delete to the wl: row only — never touches other watchlists', async () => {
+    // Seed a persisted topic the payload omits, so the phase-d delete sweep runs.
+    const { prisma, calls } = recordingPrisma([{ id: 'top-old', label: 'gone' }]);
     const svc = new TrackerWatchlistService(prisma);
 
     await svc.putWatchlist(TENANT, CLIENT, 'user-1', {
@@ -172,15 +191,25 @@ describe('TrackerWatchlistService.putWatchlist — flat-term isolation', () => {
       topics: [{ label: 'tag', terms: [{ termType: 'bill', value: '119-hr-1234' }] }],
     });
 
+    const deletes = calls.filter((c) => c.op.endsWith('.deleteMany'));
+    // Boundary §2.4.2 / B2: every delete is bounded to watchlistId = wl:<clientId>
+    // AND tenantId, so flat terms or topics on ANY other watchlist row (a
+    // different watchlistId — random cuid, old WatchlistsTab) can never match.
+    expect(deletes.length).toBeGreaterThan(0);
+    for (const d of deletes) {
+      expect(d.args.where.watchlistId).toBe(WL_ID);
+      expect(d.args.where.tenantId).toBe(TENANT);
+    }
+    // The removed topic is swept by id, read from a watchlistId-scoped findMany.
     const topicDelete = calls.find((c) => c.op === 'topic.deleteMany');
-    const termDelete = calls.find((c) => c.op === 'term.deleteMany');
-    // Every delete is bounded to watchlistId = wl:<clientId>. Flat terms on OTHER
-    // watchlist rows (a different watchlistId) can never match these filters.
-    expect(topicDelete?.args.where.watchlistId).toBe(WL_ID);
-    expect(termDelete?.args.where.watchlistId).toBe(WL_ID);
-    // The flat-term delete is further scoped to topicId: null on THIS row only
-    // (the folded hearing terms; a re-save must not duplicate them).
-    expect(termDelete?.args.where.topicId).toBeNull();
+    expect(topicDelete?.args.where.id).toEqual({ in: ['top-old'] });
+    // The flat-term clear is scoped to topicId: null on THIS row only (the folded
+    // hearing terms; a re-save must not duplicate them) and runs LAST.
+    const flatDelete = calls.filter((c) => c.op === 'term.deleteMany').at(-1);
+    expect(flatDelete?.args.where.topicId).toBeNull();
+    expect(calls.indexOf(flatDelete!)).toBeGreaterThan(
+      calls.findIndex((c) => c.op === 'term.createMany'),
+    );
   });
 
   it('REJECTS a client not in the caller tenant and makes NO destructive write (batch-A cross-tenant guard)', async () => {
@@ -189,7 +218,9 @@ describe('TrackerWatchlistService.putWatchlist — flat-term isolation', () => {
       watchlist: { upsert: async () => calls.push({ op: 'watchlist.upsert' }) },
       watchlistTopic: {
         deleteMany: async () => calls.push({ op: 'topic.deleteMany' }),
-        create: async () => ({ id: 'x' }),
+        upsert: async () => ({ id: 'x' }),
+        update: async () => ({ id: 'x' }),
+        findMany: async () => [],
       },
       watchlistTerm: {
         deleteMany: async () => calls.push({ op: 'term.deleteMany' }),
@@ -237,7 +268,7 @@ describe('TrackerWatchlistService.putWatchlist — flat-term isolation', () => {
       ],
     });
 
-    const createTopic = calls.find((c) => c.op === 'topic.create');
+    const createTopic = calls.find((c) => c.op === 'topic.upsert');
     const createdTopicId = (createTopic as any).__id as string | undefined;
     const createMany = calls.find((c) => c.op === 'term.createMany');
     const persistedTypes = (createMany?.args.data as Array<{ termType: string }>).map(
@@ -249,6 +280,465 @@ describe('TrackerWatchlistService.putWatchlist — flat-term isolation', () => {
       expect(row.watchlistId).toBe(WL_ID);
       expect(row.topicId).toBe(createdTopicId);
     }
+  });
+
+  /** P0-05 (Gate B phase a) — the term-shape-aware filter replacing flat MIN_TERM_LEN. */
+  it('persists an identifier-shaped short term ("AI") that the old flat length check dropped', async () => {
+    const { prisma, calls } = recordingPrisma();
+    const svc = new TrackerWatchlistService(prisma);
+
+    await svc.putWatchlist(TENANT, CLIENT, 'user-1', {
+      issueAreas: [],
+      topics: [{ label: 'signals', terms: [{ termType: 'topic', value: 'AI' }] }],
+    });
+
+    const createMany = calls.find((c) => c.op === 'term.createMany');
+    const values = (createMany?.args.data as Array<{ value: string }>).map((r) => r.value);
+    expect(values).toEqual(['AI']);
+  });
+
+  it('drops a lower-case fragment ("of") and reports it in rejected.terms with a reason', async () => {
+    const { prisma } = recordingPrisma();
+    const svc = new TrackerWatchlistService(prisma);
+
+    const view = await svc.putWatchlist(TENANT, CLIENT, 'user-1', {
+      issueAreas: [],
+      topics: [{ label: 'signals', terms: [{ termType: 'topic', value: 'of' }] }],
+    });
+
+    expect(view.rejected?.terms).toHaveLength(1);
+    expect(view.rejected?.terms[0]).toMatchObject({ topicLabel: 'signals', termType: 'topic', value: 'of' });
+    expect(view.rejected?.terms[0]?.reason).toContain('too short');
+  });
+});
+
+// The stateful in-memory prisma double lives in test/support/watchlist-store.ts:
+// Gate B's watchlist work is almost entirely about what survives BETWEEN saves —
+// stable topic ids across an autosave, a rename that keeps its terms, an
+// optimistic-concurrency version, the flat-term round-trip — none of which a
+// static per-call mock can express.
+const statefulPrisma = () => makeWatchlistStore({ tenantId: TENANT, clientId: CLIENT });
+
+/**
+ * QA gap-fill: MASTER §2.4 boundary 1 calls the HEARING_TERMS_TOPIC_LABEL fold
+ * "load bearing" and says "there is an existing test for this — find it and keep
+ * it green." The two older tests (getWatchlist folding, putWatchlist delete
+ * scoping) each cover one half with STATIC mocks that do not persist state between
+ * calls, so neither actually proves a real get -> put -> get cycle preserves flat
+ * terms. This one does.
+ */
+describe('TrackerWatchlistService — hearing flat-term round-trip (stateful)', () => {
+
+  it('flat (topicId: null) hearing terms fold on read, survive a save, and do not duplicate on a second get/put cycle', async () => {
+    const { prisma, seedFlatTerm, seedWatchlistRow } = statefulPrisma();
+    const svc = new TrackerWatchlistService(prisma);
+
+    // Simulate the legacy WatchlistsTab having written two flat terms directly.
+    seedWatchlistRow();
+    seedFlatTerm({ termType: 'topic', value: 'interconnection queue' });
+    seedFlatTerm({ termType: 'agency', value: 'FERC' });
+
+    const firstRead = await svc.getWatchlist(TENANT, CLIENT);
+    const syntheticFirst = firstRead.topics.find((t) => t.label === HEARING_TERMS_TOPIC_LABEL);
+    expect(syntheticFirst?.terms.map((t) => t.value).sort()).toEqual(['FERC', 'interconnection queue']);
+
+    // Save back exactly what the editor would have received (server-normalized view).
+    await svc.putWatchlist(TENANT, CLIENT, 'user-1', {
+      issueAreas: firstRead.issueAreas,
+      topics: firstRead.topics.map((t) => ({
+        label: t.label,
+        terms: t.terms.map((x) => ({ termType: x.termType, value: x.value })),
+      })),
+    });
+
+    const secondRead = await svc.getWatchlist(TENANT, CLIENT);
+    expect(secondRead.topics).toHaveLength(1); // no phantom duplicate "Hearing terms" topic
+    const syntheticSecond = secondRead.topics.find((t) => t.label === HEARING_TERMS_TOPIC_LABEL);
+    expect(syntheticSecond?.terms.map((t) => t.value).sort()).toEqual(['FERC', 'interconnection queue']); // no loss, no dup
+
+    // Third cycle: save again, unchanged — must remain stable (no growth, no loss).
+    await svc.putWatchlist(TENANT, CLIENT, 'user-1', {
+      issueAreas: secondRead.issueAreas,
+      topics: secondRead.topics.map((t) => ({
+        label: t.label,
+        terms: t.terms.map((x) => ({ termType: x.termType, value: x.value })),
+      })),
+    });
+    const thirdRead = await svc.getWatchlist(TENANT, CLIENT);
+    expect(thirdRead.topics).toHaveLength(1);
+    expect(thirdRead.topics[0]?.terms.map((t) => t.value).sort()).toEqual(['FERC', 'interconnection queue']);
+  });
+
+  /**
+   * Gate B §4.3: the synthetic label is a REAL, saveable label, so a client can
+   * hold both flat terms and a same-named persisted topic (the legacy
+   * WatchlistsTab can write flat rows at any time). getWatchlist MERGES rather
+   * than emitting two topics with one label — a duplicate label in the view would
+   * be rejected by the reconcile and the flat rows then cleared, destroying them.
+   */
+  it('merges flat terms into an existing same-named topic instead of emitting a duplicate label', async () => {
+    const { prisma, seedFlatTerm, seedWatchlistRow } = statefulPrisma();
+    const svc = new TrackerWatchlistService(prisma);
+    seedWatchlistRow();
+
+    // A real persisted topic that happens to carry the reserved-looking label.
+    await svc.putWatchlist(TENANT, CLIENT, 'user-1', {
+      issueAreas: [],
+      topics: [{ label: HEARING_TERMS_TOPIC_LABEL, terms: [{ termType: 'agency', value: 'FERC' }] }],
+    });
+    // …and then the legacy tab drops a flat term on the same row.
+    seedFlatTerm({ termType: 'topic', value: 'interconnection queue' });
+
+    const view = await svc.getWatchlist(TENANT, CLIENT);
+    expect(view.topics).toHaveLength(1);
+    expect(view.topics[0]!.label).toBe(HEARING_TERMS_TOPIC_LABEL);
+    expect(view.topics[0]!.terms.map((t) => t.value).sort()).toEqual([
+      'FERC',
+      'interconnection queue',
+    ]);
+
+    // Saving that view back keeps both terms exactly once — no loss, no growth.
+    await svc.putWatchlist(TENANT, CLIENT, 'user-1', {
+      issueAreas: [],
+      topics: view.topics.map((t) => ({
+        label: t.label,
+        terms: t.terms.map((x) => ({ termType: x.termType, value: x.value })),
+      })),
+    });
+    const after = await svc.getWatchlist(TENANT, CLIENT);
+    expect(after.topics).toHaveLength(1);
+    expect(after.topics[0]!.terms.map((t) => t.value).sort()).toEqual([
+      'FERC',
+      'interconnection queue',
+    ]);
+  });
+});
+
+/**
+ * Gate B phase d (P0-03 item 5, P1-02) — the label-keyed reconcile. Before this
+ * phase putWatchlist deleted every topic and re-created it with a fresh cuid on
+ * every autosave, so no topic id was ever stable and a rename was
+ * indistinguishable from delete+create.
+ */
+describe('TrackerWatchlistService.putWatchlist — label-keyed reconcile (phase d)', () => {
+  const save = (svc: TrackerWatchlistService, topics: unknown[]) =>
+    svc.putWatchlist(TENANT, CLIENT, 'user-1', {
+      issueAreas: [],
+      topics: topics as never,
+    });
+
+  it('d-4.1 is idempotent: two identical saves leave identical rows AND identical topic ids', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma);
+    const payload = [
+      { label: 'alpha', terms: [{ termType: 'topic', value: 'grid load' }] },
+      { label: 'beta', terms: [{ termType: 'company', value: 'RTX' }] },
+    ];
+
+    await save(svc, payload);
+    const first = h.snapshot();
+    await save(svc, payload);
+    const second = h.snapshot();
+
+    expect(second.topics.map((t) => t.id).sort()).toEqual(first.topics.map((t) => t.id).sort());
+    expect(second.terms.map((t) => t.id).sort()).toEqual(first.terms.map((t) => t.id).sort());
+    // Not one term write on the second pass — the set was unchanged.
+    expect(h.ops.slice(h.ops.indexOf('watchlist.upsert', 1))).not.toContain('term.createMany');
+  });
+
+  it('d-4.2 a rename preserves the topic id and its terms', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma);
+    const terms = [
+      { termType: 'topic', value: 'grid load' },
+      { termType: 'agency', value: 'FERC' },
+    ];
+    await save(svc, [{ label: 'alpha', terms }]);
+    const before = h.snapshot();
+    const alphaId = before.topics[0]!.id;
+    const termIds = before.terms.map((t) => t.id).sort();
+
+    await save(svc, [{ label: 'beta', renameFrom: 'alpha', terms }]);
+    const after = h.snapshot();
+
+    expect(after.topics).toHaveLength(1);
+    expect(after.topics[0]!.id).toBe(alphaId); // the id survived
+    expect(after.topics[0]!.label).toBe('beta');
+    expect(after.terms.map((t) => t.id).sort()).toEqual(termIds); // so did the terms
+    const view = await svc.getWatchlist(TENANT, CLIENT);
+    expect(view.topics[0]!.terms.map((t) => t.value).sort()).toEqual(['FERC', 'grid load']);
+  });
+
+  it('d-4.3 a rename ONTO a live label is rejected, leaves both topics intact, and never surfaces P2002', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma);
+    await save(svc, [
+      { label: 'alpha', terms: [{ termType: 'topic', value: 'grid load' }] },
+      { label: 'beta', terms: [{ termType: 'company', value: 'RTX' }] },
+    ]);
+    const before = h.snapshot();
+
+    // Rename alpha → beta while beta still exists. `alpha` is NOT sent as its own
+    // entry, so §4.6's protection is what keeps it from being swept.
+    const view = await svc.putWatchlist(TENANT, CLIENT, 'user-1', {
+      issueAreas: [],
+      topics: [
+        { label: 'beta', renameFrom: 'alpha', terms: [{ termType: 'topic', value: 'grid load' }] },
+      ],
+    });
+
+    expect(view.rejected?.topics).toEqual([
+      { index: 0, label: 'beta', reason: 'Duplicate tag name.' },
+    ]);
+    const after = h.snapshot();
+    expect(after.topics.map((t) => t.label).sort()).toEqual(['alpha', 'beta']);
+    expect(after.topics.map((t) => t.id).sort()).toEqual(before.topics.map((t) => t.id).sort());
+    expect(after.terms.map((t) => `${t.termType} ${t.value}`).sort()).toEqual(
+      before.terms.map((t) => `${t.termType} ${t.value}`).sort(),
+    );
+  });
+
+  it('d-4.4 removing a topic deletes it and its terms, and leaves the kept topic byte-identical', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma);
+    await save(svc, [
+      { label: 'alpha', terms: [{ termType: 'topic', value: 'grid load' }] },
+      { label: 'beta', terms: [{ termType: 'company', value: 'RTX' }] },
+    ]);
+    const before = h.snapshot();
+    const alpha = before.topics.find((t) => t.label === 'alpha')!;
+    const alphaTerms = before.terms.filter((t) => t.topicId === alpha.id);
+
+    await save(svc, [{ label: 'alpha', terms: [{ termType: 'topic', value: 'grid load' }] }]);
+    const after = h.snapshot();
+
+    expect(after.topics.map((t) => t.label)).toEqual(['alpha']);
+    expect(after.topics[0]!.id).toBe(alpha.id);
+    // The cascade removed beta's terms; alpha's rows kept their ids AND createdAt.
+    expect(after.terms).toEqual(alphaTerms);
+  });
+
+  it('d-4.6 another watchlist row for the same client is byte-identical afterwards', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma);
+    h.seedWatchlistRow();
+    h.seedForeignRow('clx-legacy-row-id');
+    const foreignBefore = JSON.stringify({
+      topics: h.snapshot().topics.filter((t) => t.watchlistId === 'clx-legacy-row-id'),
+      terms: h.snapshot().terms.filter((t) => t.watchlistId === 'clx-legacy-row-id'),
+    });
+
+    await save(svc, [{ label: 'alpha', terms: [{ termType: 'topic', value: 'grid load' }] }]);
+
+    const foreignAfter = JSON.stringify({
+      topics: h.snapshot().topics.filter((t) => t.watchlistId === 'clx-legacy-row-id'),
+      terms: h.snapshot().terms.filter((t) => t.watchlistId === 'clx-legacy-row-id'),
+    });
+    expect(foreignAfter).toBe(foreignBefore);
+  });
+
+  it('d-4.7 a blank label is not created and IS reported in rejected.topics', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma);
+
+    const view = await save(svc, [
+      { label: '   ', terms: [{ termType: 'topic', value: 'grid load' }] },
+      { label: 'real', terms: [] },
+    ]);
+
+    expect(view.topics.map((t) => t.label)).toEqual(['real']);
+    expect(view.rejected?.topics).toEqual([
+      { index: 0, label: '   ', reason: 'A tag needs a name.' },
+    ]);
+  });
+
+  it('d-4.8 case-insensitively duplicate incoming labels collapse to one topic, the later one reported', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma);
+
+    const view = await save(svc, [
+      { label: 'AI', terms: [{ termType: 'topic', value: 'autonomy' }] },
+      { label: 'ai', terms: [{ termType: 'topic', value: 'machine learning' }] },
+    ]);
+
+    expect(view.topics.map((t) => t.label)).toEqual(['AI']);
+    expect(view.topics[0]!.terms.map((t) => t.value)).toEqual(['autonomy']);
+    expect(view.rejected?.topics).toEqual([{ index: 1, label: 'ai', reason: 'Duplicate tag name.' }]);
+  });
+
+  it('d-4.9 a foreign tenant still 404s before any write (assertClientInTenant is first)', async () => {
+    // clientRows: [] → the ownership lookup finds nothing, as for a foreign tenant.
+    const h = makeWatchlistStore({ tenantId: TENANT, clientId: CLIENT, clientRows: [] });
+    const svc = new TrackerWatchlistService(h.prisma as never);
+
+    await expect(save(svc, [{ label: 'evil', terms: [] }])).rejects.toThrow('Client not found');
+    expect(h.ops).toEqual([]);
+  });
+
+  it('§4.4 a renameFrom pointing at a label that no longer exists becomes a create, not a throw', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma);
+
+    const view = await save(svc, [
+      { label: 'beta', renameFrom: 'never-existed', terms: [{ termType: 'topic', value: 'grid' }] },
+    ]);
+
+    expect(view.rejected?.topics).toEqual([]);
+    expect(view.topics.map((t) => t.label)).toEqual(['beta']);
+    expect(view.topics[0]!.terms.map((t) => t.value)).toEqual(['grid']);
+  });
+
+  it('§4.6 a rename and a delete of the same label in one payload renames, never deletes', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma);
+    await save(svc, [
+      { label: 'alpha', terms: [{ termType: 'topic', value: 'grid' }] },
+      { label: 'gamma', terms: [] },
+    ]);
+    const alphaId = h.snapshot().topics.find((t) => t.label === 'alpha')!.id;
+
+    // `alpha` is absent as its own entry (a delete) but is the rename SOURCE.
+    await save(svc, [{ label: 'beta', renameFrom: 'alpha', terms: [{ termType: 'topic', value: 'grid' }] }]);
+
+    const after = h.snapshot();
+    expect(after.topics.map((t) => t.label)).toEqual(['beta']); // gamma removed, alpha renamed
+    expect(after.topics[0]!.id).toBe(alphaId);
+  });
+
+  it('does not grow the row on a re-save when the same term arrives twice in one topic', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma as never);
+
+    await save(svc, [
+      {
+        label: 'alpha',
+        terms: [
+          { termType: 'topic', value: 'grid load' },
+          { termType: 'topic', value: 'grid load' },
+        ],
+      },
+    ]);
+
+    expect(h.snapshot().terms).toHaveLength(1);
+  });
+});
+
+/**
+ * Gate B phase e (P1-02) — optimistic concurrency on SHARED targeting. Two
+ * analysts editing the same client used to silently overwrite each other, because
+ * the editor autosaves a full replacement 600ms after any keystroke.
+ */
+describe('TrackerWatchlistService — watchlist versioning + change log (phase e)', () => {
+  const put = (
+    svc: TrackerWatchlistService,
+    topics: unknown[],
+    expectedVersion?: number,
+  ) =>
+    svc.putWatchlist(TENANT, CLIENT, 'user-1', {
+      issueAreas: [],
+      topics: topics as never,
+      ...(expectedVersion === undefined ? {} : { expectedVersion }),
+    });
+
+  it('e-10.8 getWatchlist reports version 0 for a never-configured client', async () => {
+    const prisma = tenantReader({ watchlist: { findFirst: async () => null } }) as any;
+    const view = await new TrackerWatchlistService(prisma).getWatchlist(TENANT, CLIENT);
+    expect(view).toMatchObject({ version: 0, updatedBy: null, updatedAt: null });
+  });
+
+  it('e-10.1/2 the first PUT with expectedVersion 0 succeeds and the version increments', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma as never);
+
+    const first = await put(svc, [{ label: 'alpha', terms: [] }], 0);
+    expect(first.version).toBe(1);
+    expect(first.updatedBy).toBe('user-1');
+
+    const second = await put(svc, [{ label: 'alpha', terms: [] }, { label: 'beta', terms: [] }], 1);
+    expect(second.version).toBe(2);
+  });
+
+  it('e-10.3 a stale expectedVersion 409s with the code + currentVersion and changes NOTHING', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma as never);
+    await put(svc, [{ label: 'alpha', terms: [] }], 0); // now at version 1
+    await put(svc, [{ label: 'alpha', terms: [] }, { label: 'beta', terms: [] }], 1); // version 2
+    const before = h.snapshot();
+
+    // A second analyst who read at version 1 tries to save their own view.
+    let err: unknown;
+    try {
+      await put(svc, [{ label: 'their-own-tag', terms: [] }], 1);
+    } catch (e) {
+      err = e;
+    }
+
+    expect((err as { status?: number })?.status).toBe(409);
+    expect((err as { response?: unknown }).response).toMatchObject({
+      code: 'WATCHLIST_VERSION_CONFLICT',
+      currentVersion: 2,
+    });
+    const after = h.snapshot();
+    expect(after.topics.map((t) => t.label).sort()).toEqual(['alpha', 'beta']);
+    expect(after.head?.version).toBe(2);
+    expect(after.terms).toEqual(before.terms);
+  });
+
+  it('e-10.4 an OMITTED expectedVersion is accepted (an un-updated bundle is not hard-broken)', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma as never);
+    await put(svc, [{ label: 'alpha', terms: [] }], 0);
+
+    const view = await put(svc, [{ label: 'alpha', terms: [] }, { label: 'beta', terms: [] }]);
+
+    expect(view.version).toBe(2);
+    expect(view.topics.map((t) => t.label).sort()).toEqual(['alpha', 'beta']);
+  });
+
+  it('e-10.5/6 each accepted save writes exactly one revision; a rejected one writes none', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma as never);
+
+    await put(svc, [{ label: 'alpha', terms: [{ termType: 'topic', value: 'grid load' }] }], 0);
+    expect(h.revisions).toHaveLength(1);
+    expect(h.revisions[0]).toMatchObject({ version: 1, changedBy: 'user-1', clientId: CLIENT });
+    expect(h.revisions[0]!['summary']).toMatchObject({ topics: 1, terms: 1 });
+
+    // A rename + a delete, so the summary carries the label-level diff.
+    await put(svc, [{ label: 'beta', renameFrom: 'alpha', terms: [] }], 1);
+    expect(h.revisions).toHaveLength(2);
+    expect(h.revisions[1]!['summary']).toMatchObject({ renamed: [{ from: 'alpha', to: 'beta' }] });
+
+    await expect(put(svc, [{ label: 'gamma', terms: [] }], 0)).rejects.toThrow();
+    expect(h.revisions).toHaveLength(2); // the conflict wrote nothing
+  });
+
+  it('e-10.7 getRevisions returns newest-first, capped at 20, and 404s a foreign tenant', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma as never);
+    for (let v = 0; v < 22; v += 1) {
+      await put(svc, [{ label: `tag-${v}`, terms: [] }], v);
+    }
+
+    const rows = await svc.getRevisions(TENANT, CLIENT);
+    expect(rows).toHaveLength(20);
+    expect(rows[0]!.version).toBe(22);
+    expect(rows.at(-1)!.version).toBe(3);
+    expect(rows.map((r) => r.version)).toEqual([...rows.map((r) => r.version)].sort((a, b) => b - a));
+
+    const foreign = makeWatchlistStore({ tenantId: TENANT, clientId: CLIENT, clientRows: [] });
+    await expect(
+      new TrackerWatchlistService(foreign.prisma as never).getRevisions(TENANT, CLIENT),
+    ).rejects.toThrow('Client not found');
+  });
+
+  it('never returns a raw updatedBy without also returning the timestamp the UI shows', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma as never);
+    const view = await put(svc, [{ label: 'alpha', terms: [] }], 0);
+    // The service exposes both; e-8 requires the UI to render the TIME, never the id.
+    expect(view.updatedBy).toBe('user-1');
+    expect(typeof view.updatedAt).toBe('string');
   });
 });
 

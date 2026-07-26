@@ -10,8 +10,9 @@
  * `risk_phrase`); MIN_TERM_LEN = 3; topic idempotency key = (watchlist, label).
  */
 import { createHash } from 'node:crypto';
+import { isAcceptableTerm } from './term-validation.js';
 
-export const MIN_TERM_LEN = 3;
+export { MIN_TERM_LEN } from './term-validation.js';
 
 export type TagPosition = 'support' | 'oppose' | 'monitor';
 export type TagPriority = 'low' | 'med' | 'high';
@@ -66,7 +67,7 @@ function cleanTerms(values: string[] | undefined, termType: ExpandedTermType): E
   for (const raw of values) {
     if (typeof raw !== 'string') continue;
     const v = raw.trim();
-    if (v.length < MIN_TERM_LEN) continue;
+    if (!isAcceptableTerm(v)) continue;
     const key = v.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);

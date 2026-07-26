@@ -161,4 +161,40 @@ describe('adaptWatchlist / watchlistToIntel round-trip', () => {
     });
     expect(configured.suggestedJurisdictions).toBeUndefined();
   });
+
+  test('P1-02: version/updatedAt read through and the PUT echoes expectedVersion', () => {
+    const cold = adaptWatchlist({ clientId: 'c1', issueAreas: [], topics: [] });
+    // A never-configured client is version 0, and 0 must survive (`?? 0`, not `|| 0`).
+    expect(cold.version).toBe(0);
+    expect(watchlistToIntel(cold).expectedVersion).toBe(0);
+
+    const configured = adaptWatchlist({
+      clientId: 'c1',
+      issueAreas: [],
+      topics: [],
+      version: 7,
+      updatedBy: 'user_abc',
+      updatedAt: '2026-07-26T13:41:00.000Z',
+    });
+    expect(configured.version).toBe(7);
+    expect(configured.updatedAt).toBe('2026-07-26T13:41:00.000Z');
+    expect(watchlistToIntel(configured).expectedVersion).toBe(7);
+  });
+
+  test('P0-03: renameFrom is sent only when set, and a fresh read never carries one', () => {
+    const read = adaptWatchlist({
+      clientId: 'c1',
+      issueAreas: [],
+      topics: [{ label: 'alpha', issueArea: null, position: 'monitor', priority: 'med', terms: [] }],
+    });
+    // A reload must clear a pending rename, or the next save would rename again.
+    expect(read.tags[0]).not.toHaveProperty('renameFrom');
+    expect(watchlistToIntel(read).topics[0]).not.toHaveProperty('renameFrom');
+
+    const renamed = { ...read, tags: [{ ...read.tags[0]!, tag: 'beta', renameFrom: 'alpha' }] };
+    expect(watchlistToIntel(renamed).topics[0]).toMatchObject({
+      label: 'beta',
+      renameFrom: 'alpha',
+    });
+  });
 });

@@ -38,6 +38,15 @@ export interface BoardBill {
   latestActionDate?: string | null;
   /** The analyst note on the tracked row (legacy `note` column). */
   note?: string | null;
+  /**
+   * P0-06: the high-priority subset of `tags`, computed server-side. ABSENT means
+   * the legacy (pre-`tracker_v2`) board, which has no equivalent — the High-fit
+   * filter then falls back to deriving it from the watchlist query. An empty ARRAY
+   * means the server answered "no high-priority match", which is not the same thing.
+   */
+  matchedHighPriorityTopics?: string[];
+  /** The client's stance on the highest-priority matched topic. Absent on the legacy board. */
+  matchedPosition?: string | null;
 }
 export interface BoardColumn {
   id: BillStage;
@@ -148,6 +157,14 @@ export interface WatchlistTag {
   typedTerms: TypedTerm[];
   position?: TagPosition;
   priority: TagPriority;
+  /**
+   * P0-03 item 5: the tag's persisted name, captured on the FIRST keystroke of a
+   * rename, so the server renames the topic in place (keeping its id, its terms,
+   * and their createdAt) instead of deleting it and creating a new one. Never set
+   * on a fresh read — `adaptWatchlist` does not emit it, so reloading clears it.
+   * intel-api only; the legacy tracker replaces the whole watchlist anyway.
+   */
+  renameFrom?: string;
 }
 export interface WatchlistPayload {
   issueAreas: string[];
@@ -166,6 +183,27 @@ export interface WatchlistPayload {
   jurisdictions?: string[];
   /** Sector/facility-derived jurisdiction suggestion (S5.1) — same read-time-hint posture as suggestedIssueAreas. */
   suggestedJurisdictions?: string[];
+  /**
+   * P1-02 optimistic concurrency. Targeting is SHARED firm-wide, so the editor
+   * echoes the version it read back as `expectedVersion`; a stale one gets a 409
+   * instead of silently overwriting another analyst. Optional — the legacy
+   * (pre-`tracker_v2`) watchlist has no version at all, and `watchlistToIntel`
+   * falls back to 0, which is correct for a never-configured client.
+   */
+  version?: number;
+  /** Clerk user id of the last writer. NEVER render it (e-8) — show the time instead. */
+  updatedBy?: string | null;
+  /** ISO timestamp of the last accepted save, for "last changed …". */
+  updatedAt?: string | null;
+  /**
+   * P0-03/P0-05: what the server refused to persist on the write that produced
+   * this payload, so the editor can show inline validation instead of the user
+   * believing a blank tag or a too-short term was saved. Absent on a pure GET.
+   */
+  rejected?: {
+    topics: Array<{ index: number; label: string; reason: string }>;
+    terms: Array<{ topicLabel: string; termType: string; value: string; reason: string }>;
+  };
 }
 
 export type Materiality = 'low' | 'medium' | 'high';
@@ -230,6 +268,7 @@ export const trackerKeys = {
   summary: (c: string) => ['tracker-summary', c] as const,
   recommendations: (c: string) => ['tracker-recommendations', c] as const,
   watchlist: (c: string) => ['tracker-watchlist', c] as const,
+  compiled: (c: string) => ['tracker-compiled', c] as const,
   seed: (c: string) => ['tracker-seed', c] as const,
   alertPrefs: (c: string) => ['tracker-alert-prefs', c] as const,
   issueAreas: () => ['tracker-issue-areas'] as const,

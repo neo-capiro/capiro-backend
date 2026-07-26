@@ -7,7 +7,8 @@
  *   fit = clamp01( 0.40·semantic + 0.30·textMatch + 0.15·exactEntity
  *                + 0.10·subjectMatch + 0.05·priorityBoost )
  */
-import { billHaystack, wholeWordHit, MIN_TERM_LEN, type RelevanceBill } from './relevance.util.js';
+import { billHaystack, billHaystackOriginal, wholeWordHit, MIN_TERM_LEN, type RelevanceBill } from './relevance.util.js';
+import { matchTerms, routeFor, type RoutableTerm } from '../watchlist/term-routing.js';
 
 export const RECOMMENDATION_FLOOR = 0.45;
 
@@ -18,13 +19,22 @@ export interface MatchReason {
 }
 /** One compiled watchlist topic (subset of WatchlistCompiler's CompiledBillTopic). */
 export interface CompiledTopicForFit {
+  id?: string | null;
   label: string;
   issueArea: string | null;
   priority: string;
+  /**
+   * P0-06: the client's stance on this topic ('support'|'oppose'|'monitor'), carried
+   * so the board can label a matched card without a second watchlist read. Optional
+   * — `scoreBillFit` itself never reads it.
+   */
+  position?: string;
   keywords: string[]; // includes the topic label
   synonyms: string[];
   entities: string[];
   riskPhrases: string[];
+  /** P0-04: every typed term on this topic, routed and weighted. */
+  routableTerms?: RoutableTerm[];
 }
 export interface BillFit {
   fit: number;
@@ -37,6 +47,57 @@ export interface BillFit {
 
 const clamp01 = (n: number): number => Math.max(0, Math.min(1, n));
 
+const PRIORITY_RANK: Record<string, number> = { high: 3, med: 2, low: 1 };
+
+/**
+ * P0-06: the high-priority subset of a card's `matchedTags`, plus the client's
+ * stance on the highest-priority matched topic.
+ *
+ * Why the SERVER computes this: the web's High-fit filter used to derive the
+ * high-priority tag set from the watchlist query, which is `enabled` only while the
+ * Configure panel is open — and Configure is a SIBLING Radar tab rendered by a
+ * different TrackerSurface instance, so on the Bills surface that query never ran
+ * and High-fit deterministically matched nothing.
+ *
+ * Pure, and derived from the same compiled topics `scoreBillFit` was already given —
+ * never a second watchlist read. Entries in `matchedTags` that are issue areas
+ * rather than topics simply do not resolve, which is correct: they carry no priority.
+ */
+export function highPriorityMatches(
+  matchedTags: string[],
+  topics: CompiledTopicForFit[],
+): { matchedHighPriorityTopics: string[]; matchedPosition: string | null } {
+  const byLabel = new Map(topics.map((t) => [t.label, t]));
+  const matched = matchedTags
+    .map((l) => byLabel.get(l))
+    .filter((t): t is CompiledTopicForFit => t !== undefined);
+  let best: CompiledTopicForFit | null = null;
+  for (const t of matched) {
+    if (!best || (PRIORITY_RANK[t.priority] ?? 0) > (PRIORITY_RANK[best.priority] ?? 0)) best = t;
+  }
+  return {
+    matchedHighPriorityTopics: matched.filter((t) => t.priority === 'high').map((t) => t.label),
+    matchedPosition: best?.position ?? null,
+  };
+}
+
+/**
+ * P0-04: which reason `kind` a matched term type maps to. Kept identical to
+ * the pre-routing set ("label or entity term hit" → `entity`, everything
+ * else → `keyword`) so MatchReasonKind and the web's whyKind/RecCard
+ * rendering are unaffected by widening what can match (b-8).
+ */
+const ENTITY_KIND_TYPES = new Set([
+  'bill',
+  'company',
+  'competitor',
+  'program_element',
+  'entity',
+  'agency',
+  'committee',
+  'legislator',
+]);
+
 export function scoreBillFit(
   bill: RelevanceBill,
   topics: CompiledTopicForFit[],
@@ -45,6 +106,7 @@ export function scoreBillFit(
   keywordHit: boolean,
 ): BillFit {
   const hay = billHaystack(bill);
+  const hayOrig = billHaystackOriginal(bill);
   const matchedTags: string[] = [];
   const reasons: MatchReason[] = [];
   let exactEntity = false;
@@ -54,22 +116,29 @@ export function scoreBillFit(
   let topTagLabel: string | null = null;
 
   for (const tp of topics) {
-    const entityTerms = [...tp.keywords, ...tp.entities]; // label lives in keywords
-    const allTerms = [...tp.keywords, ...tp.synonyms, ...tp.entities, ...tp.riskPhrases];
-    const hit = allTerms.find((t) => wholeWordHit(hay, t));
-    if (hit) {
+    // P0-04: every typed term now reaches the fit function, routed + weighted
+    // by term-routing.ts's matchTerms — not just the four legacy buckets.
+    const matches = matchTerms(bill, tp.routableTerms ?? []);
+    if (matches.length) {
       matchedTags.push(tp.label);
       textMatch = true;
-      const isEntity = entityTerms.some((t) => wholeWordHit(hay, t));
+      // Faithful generalization of the old "label or entity term hit" check:
+      // a high-confidence (exact_id) match, or a match whose type is
+      // inherently entity-like, counts as an exact entity hit.
+      const isEntity = matches.some((m) => m.confidence >= 0.9 || ENTITY_KIND_TYPES.has(m.termType));
       if (isEntity) exactEntity = true;
       if (tp.priority === 'high') priorityBoost = 1;
       if (!topTagLabel) topTagLabel = tp.label;
-      reasons.push({ kind: isEntity ? 'entity' : 'keyword', detail: `Matches your watchlist term "${hit}".` });
+      const primary = matches[0]!; // matchTerms sorts by weight desc — highest-weight match explains the topic
+      reasons.push({
+        kind: ENTITY_KIND_TYPES.has(primary.termType) ? 'entity' : 'keyword',
+        detail: primary.explanation,
+      });
     }
   }
   for (const area of issueAreas) {
     const tokens = area.toLowerCase().split(/[^a-z]+/).filter((w) => w.length >= MIN_TERM_LEN && w !== 'and');
-    if (tokens.some((tok) => wholeWordHit(hay, tok))) {
+    if (tokens.some((tok) => wholeWordHit(hay, tok, hayOrig))) {
       matchedTags.push(area);
       subjectMatch = true;
       if (!topTagLabel) topTagLabel = area;

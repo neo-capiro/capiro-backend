@@ -65,12 +65,40 @@ model Watchlist {
   // empty = federal-only (today's behavior, zero migration surprise);
   // non-null entries also match the state corpus for those states.
   jurisdictions String[]      @default([]) @map("jurisdictions")
+  // LegiWatch Gate B (P1-02): targeting is SHARED across the firm, and the
+  // Configure panel autosaves the whole payload 600ms after any keystroke — so
+  // two analysts on the same client used to silently overwrite each other.
+  // `version` is the optimistic-concurrency token (bumped on every accepted
+  // PUT; a stale expectedVersion gets a 409) and `updatedBy` the attribution.
+  // Starts at 0 on existing rows so the first versioned PUT sends 0 and matches.
+  version    Int              @default(0)
+  updatedBy  String?          @map("updated_by")
   terms      WatchlistTerm[]
   topics     WatchlistTopic[]
 
   @@index([tenantId, clientId])
   @@index([tenantId, active])
   @@map("intel_watchlist")
+}
+
+/// LegiWatch Gate B (P1-02): one accepted `putWatchlist` = one revision row, so
+/// the Configure panel can answer "who changed this client's targeting, when, and
+/// what did they change". Written inside the same transaction as the reconcile, so
+/// a rolled-back save leaves no phantom revision. Append-only; never updated.
+model IntelWatchlistRevision {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  clientId    String   @map("client_id")
+  watchlistId String   @map("watchlist_id")
+  version     Int
+  changedBy   String?  @map("changed_by")
+  /// { topics, terms, issueAreas, jurisdictions, renamed[], deleted[] } — counts +
+  /// the label-level diff, never the term values themselves.
+  summary     Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, clientId, version])
+  @@map("intel_watchlist_revision")
 }
 
 /// One watchlist term. `termType` categorizes it (bill, agency, committee,
@@ -112,6 +140,12 @@ model WatchlistTopic {
   watchlist   Watchlist       @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
   terms       WatchlistTerm[]
 
+  // LegiWatch Gate B (P0-03 item 5): `label` is the de-facto topic identity
+  // everywhere downstream (the compiler groups terms by label; the mapper dedupes
+  // by lower-cased label), so make it the real key. This is what lets putWatchlist
+  // upsert per topic instead of delete-all-then-recreate — which minted a fresh
+  // cuid for every topic on every autosave, so no topic id was ever stable.
+  @@unique([watchlistId, label])
   @@index([watchlistId])
   @@index([tenantId, watchlistId])
   @@map("intel_watchlist_topic")
