@@ -154,3 +154,79 @@ it was unrunnable before this phase.
   ever pulls in `@clerk/backend`.
 - Aurora is private-subnet: **no local DB connection**. DB-backed verification runs via
   `ecs run-task` only.
+
+---
+
+# EXECUTION RESULT — phases a–i complete
+
+Branch `feat/clerk-auth-hardening` off `main` @ `913932e7`. 9 commits, 87 files,
++4369/-530. **Not merged, not deployed.**
+
+## Final regression — measured, zero new failures
+
+| Package | Baseline (pre-change) | Final | Delta |
+|---|---|---|---|
+| `@capiro/auth` | 10 passed | **20 passed** | +10 |
+| `@capiro/api-strategy` | 1078 passed | 1078 passed | — |
+| `@capiro/meriv2-orchestrator` | 235 passed | 235 passed | — |
+| `@capiro/onboard-api` | 60 passed | 60 passed | — |
+| `@capiro/api` | 40 failed / 3986 passed | **40 failed** / 4051 passed | +65 passing |
+| `@capiro/intel-api` | 58 failed / 405 passed | **58 failed** / 427 passed | +22 passing |
+| `@capiro/workspace` | 1 failed / 81 passed | **1 failed** / 83 passed | +2 passing |
+| `@capiro/web` | 1 failed / 637 passed | **1 failed** / 637 passed | — |
+| `@capiro/onboard-web` | no tests | **23 passed** | +23 |
+
+Typecheck: **18/18**. Failing sets verified byte-identical to baseline.
+**+122 net new passing tests. Zero new failures.**
+
+## OPEN ITEMS
+
+### Blocked on AWS (authored + committed, NOT applied)
+1. **3 migrations not applied.** `20260802010000_identity_outbox` (apps/api),
+   `20260802020000_intel_ws_ticket` (intel-api), `20260802030000_user_identity_conflict`
+   (apps/api). Run the `capiro-<env>-api-migrate` / `-intel-api-migrate` task
+   families BEFORE the corresponding service rolls. CI does not run migrations.
+2. **`capiro-dev-intel-api` task def needs `CLERK_JWT_ISSUER`, `WEB_ORIGIN`,
+   `NODE_ENV`.** Until then intel-api pins no issuer AND
+   **`http://localhost:5173` remains in its PRODUCTION HTTP CORS allowlist**
+   (main.ts fallback). The new WS origin gate is unaffected — it never reads
+   WEB_ORIGIN — but the HTTP hole is real and live today.
+3. **Phase-h rollout ordering is strict:** migrate → MeriV2 (accept the service
+   secret) → intel-api (dual-accept) → web (ticket) → follow-up commit removing
+   the legacy query-string branch and `extractToken`'s `?authorization`/`?token`
+   handling. Shipping web before intel-api breaks live hearings.
+4. **`packages/auth` consumers must be rebuilt manually.** Only
+   `api-strategy-image.yml` and `onboard-api-image.yml` include `packages/auth/**`
+   in their path filters — **workspace and meriv2-orchestrator will NOT rebuild**
+   and would silently run the old auth code.
+5. **CloudWatch metric filters + alarms** are committed to CDK but must be applied
+   with `aws logs put-metric-filter` / `put-metric-alarm`. **Do NOT
+   `cdk deploy Capiro-dev-Compute`** (2026-07-25 DNS revert incident).
+6. **Outbox drain is not scheduled.** The `drain-identity-outbox` verb exists but
+   nothing invokes it periodically; wire an EventBridge rule to `ecs run-task`.
+
+### Needs a decision
+7. **Phase j (`authorizedParties`) is BLOCKED.** Enable `CLERK_LOG_AZP=true`,
+   collect distinct `azp` values for ~7 days, then set the allowlist to exactly
+   that observed set. **If every value is `ABSENT`, CANCEL phase j** rather than
+   ship it — a control that protects nothing reads as coverage.
+8. **Identity-rebind BLOCKING gate not implemented** (deliberate). Finding #5 is
+   currently record-only: the three paths emit `identity.rebind`/`identity.merge`
+   and two write a `UserIdentityConflict` row. Blocking requires knowing how often
+   the email-rebind legitimately fires — `pending_invite` has zero producers, so a
+   naive gate degrades to "never rebind" and breaks the self-heal path. Review the
+   ledger, then decide.
+9. **Pre-merge DB check not run:** `SELECT id, slug FROM tenants WHERE clerk_org_id IS NULL;`
+   The guard is written to tolerate NULL (the org cross-check is conditional and
+   `capiro_tenant_id` is the fallback), so this is confirmation, not a blocker.
+
+### Out of scope, logged
+10. No WebSocket heartbeat and no client reconnect. Live ALB idle timeout is
+    **4000s (~66 min)**, not the 300s in `compute-stack.ts:1535`, so a hearing quiet
+    for over an hour is culled with no recovery.
+11. Pre-existing spec drift left alone: workspace `cascade` (catalogue has 11
+    products, spec expects 10), `engine-api.int-spec` / `steering-memories` (TS2554
+    arity), `pe-resolver`.
+12. `CAPIRO_INTERNAL_SLUG` is still duplicated in apps/api and onboard-api.
+13. Live `WEB_ORIGIN` drift on `capiro-dev-api`: two hosts (`app-dev.capiro.ai`,
+    `acmelobby.app-dev.capiro.ai`) exist live but appear nowhere in the repo.
