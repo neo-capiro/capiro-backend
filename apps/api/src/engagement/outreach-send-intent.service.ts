@@ -43,12 +43,21 @@ import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EngagementService } from './engagement.service.js';
-import { EngagementMailSender, AmbiguousMailSendError } from './mail-sender.service.js';
+import {
+  EngagementMailSender,
+  AmbiguousMailSendError,
+  type SendableConnection,
+} from './mail-sender.service.js';
 import {
   appendOutreachSignature,
   renderOutreachBody,
 } from './outreach-email-renderer.js';
-import { isDraftVersionSendable, type OutreachDeliveryStatus } from './outreach-draft.types.js';
+import {
+  isDraftVersionSendable,
+  type DraftApprovalStatus,
+  type DraftAuditStatus,
+  type OutreachDeliveryStatus,
+} from './outreach-draft.types.js';
 
 /** Graph/Gmail simple-send inline attachment ceiling. */
 const INLINE_ATTACHMENT_MAX_BYTES = 3 * 1024 * 1024;
@@ -292,8 +301,8 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
         if (
           v.version !== v.artifact.currentVersion ||
           !isDraftVersionSendable({
-            auditStatus: v.auditStatus as never,
-            approvalStatus: v.approvalStatus as never,
+            auditStatus: v.auditStatus as DraftAuditStatus,
+            approvalStatus: v.approvalStatus as DraftApprovalStatus,
           })
         ) {
           throw new ConflictException(
@@ -560,7 +569,9 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
   /** Provider call — outside every transaction — then persist the outcome. */
   private async deliverClaimed(
     ctx: TenantContext,
-    connection: { id: string; provider: string },
+    // Typed as the real dispatch contract: EngagementMailSender routes on the
+    // Prisma provider enum, so erasing it here would hide a genuine mismatch.
+    connection: SendableConnection,
     delivery: ClaimedDelivery,
   ): Promise<void> {
     // Edge case 16: an attachment deleted between intent creation and send. The
@@ -579,7 +590,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     try {
       const result = await this.mailSender.sendMail(
         ctx,
-        connection as never,
+        connection,
         {
           subject: delivery.renderedSubject,
           body: delivery.renderedBody,
@@ -841,8 +852,8 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
       }
       if (
         !isDraftVersionSendable({
-          auditStatus: v.auditStatus as never,
-          approvalStatus: v.approvalStatus as never,
+          auditStatus: v.auditStatus as DraftAuditStatus,
+          approvalStatus: v.approvalStatus as DraftApprovalStatus,
         })
       ) {
         throw new BadRequestException(
