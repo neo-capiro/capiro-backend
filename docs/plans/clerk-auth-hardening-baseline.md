@@ -280,6 +280,6 @@ explicitly.
 |---|---|
 | PR #582 (WS dual-accept removal) | open, CI pending |
 | Live hearing smoke test | **needs a human** — mint→consume→Deepgram unproven with real audio |
-| Phase j (`authorizedParties`) | NOT shipped. Needs `CLERK_LOG_AZP=true` + ~7 days. **Cancel if `azp` is always ABSENT** |
-| Identity-rebind blocking gate | record-only by design; revisit once `user_identity_conflict` has rows |
+| Phase j (`authorizedParties`) | **CANCELLED 2026-07-26.** The audit's premise was false: no in-use ACM cert covers `*.app.capiro.ai`, so tenant vanity hosts are not reachable browser origins. Clerk also skips the check when `azp` is absent, and the residual threat is already covered by JWKS signature verification, the new post-verify `iss` check, and the membership check. Full rationale in the SOC 2 doc. Revisit if a cert for `*.app.capiro.ai` ever goes in use |
+| Identity-rebind blocking gate | **Staying record-only.** Measured 2026-07-26: 29 users, 0 historical merges, 0 duplicate emails, 0 placeholder emails. Blocking would guard an event that has never happened while adding lockout risk to the self-heal path. Revisit on the first `user_identity_conflict` row |
 | WS heartbeat / reconnect | out of scope; ALB idle timeout is 4000s with no heartbeat |

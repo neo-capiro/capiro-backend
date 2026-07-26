@@ -120,14 +120,51 @@ question was raised and approved before the membership check was written.
 
 ## Known gaps (do not present these as covered)
 
-1. **`authorizedParties` is not set.** Requires measuring the observed `azp`
-   values first — Clerk skips the check entirely when the claim is absent, so a
-   blind allowlist can protect nothing while appearing to. If measurement shows
-   `azp` is always absent, this control should be **withdrawn**, not claimed.
+1. **`authorizedParties` — DELIBERATELY NOT IMPLEMENTED (decision 2026-07-26).**
+   Withdrawn after analysis, not deferred. Reasoning, so an auditor can assess it:
+
+   a. **The audit's stated premise is false.** It argued the control was
+      "particularly relevant" because Capiro serves tenant wildcard domains.
+      Verified against live AWS: **no in-use ACM certificate covers
+      `*.app.capiro.ai`** (the CDK cert exists but `InUse=False`, and the
+      attached `*.capiro.ai` cert does not match a two-label-deep host). Tenant
+      vanity hosts therefore cannot be loaded over HTTPS and are not real
+      browser origins. The threat it defends against is not reachable.
+   b. **It may enforce nothing.** `assertAuthorizedPartiesClaim` in
+      @clerk/backend@1.34.0 returns early when `azp` is absent, and most Capiro
+      traffic uses the custom `capiro` JWT template whose claim set is a
+      dashboard-side fact. A list that silently no-ops is worse than no control:
+      it reads as coverage.
+   c. **The residual threat is already covered three ways.** JWKS is fetched
+      with our own CLERK_SECRET_KEY, so a foreign-instance token fails signature
+      verification; the issuer is now pinned by an explicit post-verify `iss`
+      check; and — decisively — a token from any unintended frontend still has
+      to pass the **active-membership check** added in this work.
+   d. **The cost is asymmetric.** Matching is exact-string with no wildcard
+      support, so every origin must be enumerated by hand across six services,
+      and a wrong or stale list produces blanket 401s on the hottest path in the
+      platform, simultaneously, with no partial failure mode.
+
+   The measurement instrument (`CLERK_LOG_AZP`, off by default) is retained, so
+   the decision can be revisited cheaply if tenant vanity domains are ever made
+   reachable. **Revisit trigger: an in-use certificate covering
+   `*.app.capiro.ai`.**
 2. **Metric filters and alarms are not applied to the live stack.** The events
    are emitted; nothing is watching them yet.
-3. **Identity rebinding is recorded, not blocked.** `user_identity_conflict`
-   gives an auditor the list; there is no enforced review state yet.
+3. **Identity rebinding is recorded, not blocked — and the measured rate is
+   ZERO.** Queried 2026-07-26 against production: 29 users, **0** historical
+   merges (`clerk_user_id LIKE 'duplicate:%'`, the tombstone the merge path
+   writes), **0** duplicate emails, **0** placeholder `@unknown.invalid` emails
+   (so the self-heal has never had to invent one). The 7 `deleted:` tombstones
+   present are the CORRECT outcome — they show `user.deleted` webhooks are
+   landing, which is precisely the failure the audit worried about not
+   happening.
+
+   A blocking gate would therefore prevent an event that has never occurred,
+   while introducing lockout risk on the self-heal path that exists to prevent
+   lockouts. The ledger now captures any future occurrence and emits an
+   `identity.rebind` / `identity.merge` security event. **Revisit trigger: the
+   first row in `user_identity_conflict`.**
 4. **No periodic re-authorization of long-lived WebSocket sessions.** Membership
    is checked at connect time only; a session opened before a revocation stays
    open.
