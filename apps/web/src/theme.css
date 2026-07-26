@@ -22256,6 +22256,38 @@ button.engagement-debrief-badge--action:hover {
   padding: 0 2px;
 }
 
+/* WS-H widget v2: score band chip, evidence badges, header action. */
+.iv1-dnx-band {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #4b5563;
+  background: #f1ede5;
+  border-radius: 4px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+.iv1-dnx-badge {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #4b5563;
+  background: #f5f2ec;
+  border: 1px solid #e5e2db;
+  border-radius: 999px;
+  padding: 0 7px;
+  margin-right: 5px;
+  white-space: nowrap;
+}
+/* .iv1-sec-head is display:flex with no spacer, so the header action needs
+   margin-left:auto to sit right-aligned. Do not modify .iv1-sec-head. */
+.iv1-sec-action {
+  margin-left: auto;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 @media (max-width: 720px) {
   .iv1-dnx-summary {
     grid-template-columns: repeat(2, 1fr);

@@ -260,6 +260,16 @@ export class DistrictNexusService {
 
     return buildClientNexusResponse({
       clientId,
+      // `recipientUeis` is already filtered by isUeiShaped above, so a confirmed
+      // mapping whose externalId is a name and whose externalName is empty would
+      // otherwise vanish. Both are checked so "a row exists" is never lost.
+      linkage: {
+        contractingLinked: contractorNames.length > 0,
+        contractorNames,
+        assistanceLinked: recipientNames.length > 0 || recipientUeis.length > 0,
+        recipientNames,
+        ueiConfirmedCount: recipientUeis.length,
+      },
       contracts,
       assistance,
       opportunities,

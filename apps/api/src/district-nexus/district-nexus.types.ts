@@ -375,6 +375,52 @@ export interface DistrictNexusDistrictDetailResponse extends DistrictNexusDistri
   generatedAt: IsoTimestamp;
 }
 
+/**
+ * Which identity rails are confirmed for this client (WS-H3).
+ *
+ * Required because the money fields cannot answer it. `contractObligations:
+ * null` means EITHER "no confirmed contracting mapping" (actionable: go map
+ * one) OR "mapped, and the client genuinely has no DoD prime contracts"
+ * (nothing to do). Telling a user to map a contractor they already mapped is a
+ * wrong answer, so the widget is given the fact instead of guessing at it.
+ */
+export interface ClientNexusLinkage {
+  /** At least one confirmed `contracting` ClientIntelMapping row exists. */
+  contractingLinked: boolean;
+  /** `externalName` of each confirmed contracting mapping. */
+  contractorNames: string[];
+  /** At least one confirmed `assistance_recipient` ClientIntelMapping row exists. */
+  assistanceLinked: boolean;
+  /** `externalName` of each confirmed assistance_recipient mapping. */
+  recipientNames: string[];
+  /**
+   * How many confirmed assistance mappings carry a UEI-shaped `externalId`.
+   * Carried separately from `assistanceLinked` because a name-only assistance
+   * mapping cannot drive the UEI rail at all — "mapped but unusable" is a
+   * distinct, actionable state from "not mapped".
+   */
+  ueiConfirmedCount: number;
+}
+
+/**
+ * The client's physical footprint, counted across ALL facilities — including
+ * ones whose congressional district never resolved, which `districts[]`
+ * necessarily omits. Without this the widget cannot distinguish "no facilities
+ * on file" from "facilities on file, none geocoded".
+ */
+export interface ClientFacilityFootprint {
+  facilityCount: number;
+  /** Facilities with no district-resolvable state+code pair. */
+  facilitiesWithoutDistrict: number;
+  /**
+   * Summed `employeeCount` across every facility. `null` means no facility
+   * reported one — NOT zero employees.
+   */
+  employeeCount: number | null;
+  /** Facilities that reported no headcount, so the UI can render "420+". */
+  facilitiesMissingEmployeeCount: number;
+}
+
 /** The per-client view powering the profile widget (WS-H). */
 export interface ClientDistrictNexusResponse {
   clientId: string;
@@ -386,6 +432,10 @@ export interface ClientDistrictNexusResponse {
    * service's docblock exists to prevent.
    */
   representativesByFacility: FacilityRepresentation[];
+  /** WS-H3 — which identity rails are confirmed. */
+  linkage: ClientNexusLinkage;
+  /** WS-H2 — facility/employee counts across ALL facilities. */
+  facilityFootprint: ClientFacilityFootprint;
   awarded: AwardedFunding;
   opportunities: OpportunityFunding;
   unmapped: UnmappedFunding;
