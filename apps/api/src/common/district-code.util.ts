@@ -192,3 +192,29 @@ export function toFacilityDistrictCode(
   if (!Number.isInteger(n) || n < 1 || n > 99) return null;
   return String(n).padStart(2, '0');
 }
+
+/**
+ * Normalize a user-typed congressional district into the exact form
+ * `federal_assistance_award.pop_congressional_district` stores.
+ *
+ * That column holds USAspending's `congressional_code` VERBATIM — verified at
+ * apps/api/scripts/sync-federal-assistance-awards.ts:285, which assigns
+ * `pop.congressional_code` with no transformation despite the schema comment
+ * calling the column "normalized". So the values are 2-char zero-padded
+ * ('23', '02'), or the sentinels '00' | '90' | '98' | 'ZZ', or null.
+ *
+ * The sentinels are passed through deliberately: filtering for '90' is how an
+ * operator finds statewide awards, which is a legitimate data-quality query.
+ * 'AL' maps to '00' so the census/at-large spelling still works. Returns null
+ * when the input cannot be expressed in that form — callers must ignore the
+ * filter rather than guess.
+ */
+export function toUsaSpendingDistrictCode(raw: string | null | undefined): string | null {
+  if (raw == null) return null;
+  const trimmed = raw.trim().toUpperCase();
+  if (!trimmed) return null;
+  if (UNRESOLVABLE_HOUSE_SENTINELS.has(trimmed)) return trimmed;
+  if (trimmed === AT_LARGE_CENSUS || trimmed === AT_LARGE_FACILITY) return AT_LARGE_FACILITY;
+  if (!/^\d{1,2}$/.test(trimmed)) return null;
+  return trimmed.padStart(2, '0');
+}

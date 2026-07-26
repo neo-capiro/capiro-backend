@@ -254,6 +254,39 @@ export interface FederalGrantFacets {
   statuses: string[];
 }
 
+/** Awarded federal financial assistance (USAspending, award_type_codes 02-05).
+ *  A different product from ExplorerFederalGrantRow, which is Grants.gov
+ *  OPPORTUNITIES. `totalObligatedAmount` and `totalOutlayedAmount` are separate
+ *  facts — committed vs paid — and must never be summed. */
+export interface ExplorerFederalAssistanceAwardRow {
+  id: string;
+  fain: string | null;
+  recipientName: string | null;
+  recipientUei: string | null;
+  awardTypeCode: string | null;
+  awardTypeLabel: string | null;
+  awardingAgency: string | null;
+  awardingSubTier: string | null;
+  assistanceListingNumber: string | null;
+  assistanceListingTitle: string | null;
+  totalObligatedAmount: number | null;
+  totalOutlayedAmount: number | null;
+  description: string | null;
+  popState: string | null;
+  popCongressionalDistrict: string | null;
+  /** Which CD vintage the reported code refers to: 'original' | 'current' | null. */
+  popCdVintage: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  url: string | null;
+}
+export interface FederalAssistanceAwardFacets {
+  agencies: string[];
+  listings: Array<{ code: string; title: string | null }>;
+  states: string[];
+  awardTypes: Array<{ code: string; label: string | null }>;
+}
+
 export interface ExplorerStateLegislatorRow {
   id: string;
   name: string;
