@@ -141,6 +141,13 @@ export interface AlertMemoResult {
    */
   contextExcluded: Array<{ title: string; reason: string }>;
   /**
+   * §4.7: paragraphs the entailment gate judged NOT entailed by their cited claims, with
+   * the judge's reason. Under `shadow` these are still present in the memo and this list
+   * shows what WOULD have been dropped — which is exactly how the gate is evaluated
+   * before it is trusted to remove text. Under `enforce` they have been dropped.
+   */
+  entailmentDropped?: Array<{ heading: string; text: string; reason: string }>;
+  /**
    * true when the post-hoc auditor HELD the memo (enforce mode + a grounding
    * finding): the markdown is returned for review but was NOT auto-filed to the
    * client's Documents (document === null). Always false under shadow/annotate/

@@ -13,6 +13,7 @@ import {
 } from '@capiro/shared';
 import { runAuditor, type LedgerEntry } from '@capiro/meriv2-core';
 import { applySkepticEscalation } from './skeptic-escalation.js';
+import { applyEntailmentGate } from './entailment-gate.js';
 import { resolveTenantAuditorMode } from '../../common/auditor-mode.js';
 import { AiCredentialResolverService } from '../../engagement/ai-credential-resolver.service.js';
 import { EngagementService } from '../../engagement/engagement.service.js';
@@ -269,6 +270,10 @@ export class AlertMemoService {
     let sections: GenSection[] = [];
     let lowConfidence = false;
     let rawUsage: unknown = null;
+    // §4.7: set when the entailment gate dropped EVERY paragraph under enforce.
+    let entailmentHeld = false;
+    let entailmentDropped: AlertMemoResult['entailmentDropped'] = [];
+    let entailmentUsage: unknown[] = [];
     try {
       const { text, raw } = await this.callAnthropic(
         cred.apiKey,
@@ -278,6 +283,31 @@ export class AlertMemoService {
       );
       rawUsage = raw;
       sections = verifyGrounded(parseSections(text), claims);
+      // §4.7: the SECOND gate, immediately after verifyGrounded and before the scaffold
+      // fallback below. verifyGrounded proves a paragraph cites a real claim; this proves
+      // the cited claim actually entails it. Default OFF (MERI_ENTAILMENT_MODE), and the
+      // whole block sits inside this try/catch, so an entailment throw falls through to
+      // the existing scaffold path — the correct fail-open.
+      const entail = await applyEntailmentGate({
+        sections,
+        claims,
+        cred: { apiKey: cred.apiKey, model: cred.model },
+        logger: this.logger,
+      });
+      sections = entail.sections;
+      entailmentHeld = entail.held;
+      entailmentDropped = entail.findings.map((f) => ({
+        heading: f.heading,
+        text: f.text,
+        reason: f.reason,
+      }));
+      entailmentUsage = entail.usage;
+      if (entail.findings.length) {
+        this.logger.warn(
+          `[meri-entailment] ${entail.findings.length} paragraph(s) failed entailment: ` +
+            entail.findings.map((f) => `${f.heading}/${f.verdict}`).join(', '),
+        );
+      }
     } catch (err) {
       this.logger.warn(`alert-memo generation failed (${(err as Error).message}); using scaffold`);
     }
@@ -297,6 +327,23 @@ export class AlertMemoService {
         usedTenantKey: cred.usedTenantKey,
       },
     );
+
+    // §4.9: the entailment gate is a SECOND outbound LLM call on the tenant's BYOK key.
+    // An unmetered LLM call is a billing defect, so it is attributed to its own workflow
+    // rather than folded into the memo's. Only fires when the gate actually called out.
+    for (const raw of entailmentUsage) {
+      await recordAiUsageEvent(
+        { prisma: this.prisma, logger: this.logger },
+        { tenantId: ctx.tenantId, userId: ctx.userId },
+        'alert_memo_entailment',
+        {
+          provider: 'anthropic',
+          model: process.env.MERI_ENTAILMENT_MODEL || cred.model,
+          usage: parseProviderUsage(raw),
+          usedTenantKey: cred.usedTenantKey,
+        },
+      );
+    }
 
     // P0-08: a PE alert has neither a billDisplayNum nor a hearingTitle, so the title
     // used to fall all the way back to the raw headline.
@@ -330,8 +377,14 @@ export class AlertMemoService {
     // auto-file below is unchanged by default. When held, the memo is generated
     // and returned for review but NOT auto-filed to the client's Documents
     // (Phase 2.5-1, "hold as draft, block send/file").
-    let held = false;
-    let heldReason = '';
+    // §4.7: an all-dropped entailment result is a hold in its own right, independent of
+    // the auditor. Seeding `held`/`heldReason` here (rather than only inside the auditor
+    // block) means Gate A's saveEdited locks and the review_request emission cover it with
+    // NO further change — which is why phase g is last.
+    let held = entailmentHeld;
+    let heldReason = entailmentHeld
+      ? 'Entailment gate: every paragraph failed entailment against its cited claims.'
+      : '';
     let reviewRequestId: string | null = null;
     const auditorMode = await resolveTenantAuditorMode(this.prisma, ctx.tenantId);
     if (auditorMode !== 'off' && markdown.trim().length > 0) {
@@ -406,11 +459,19 @@ export class AlertMemoService {
           // Enforce = hold: block the auto-file below. decisionFor() returns
           // 'hold' only in enforce mode (annotate → 'deliver_with_flags'), so
           // this is inert under shadow/annotate and never changes today's flow.
-          held = verdict.decision === 'hold';
-          if (held) {
-            heldReason = `Grounding auditor: ${verdict.findings
-              .map((f) => `${f.check} (${f.severity}): ${f.detail}`)
-              .join('; ')}`.slice(0, 2000);
+          // §4.7: OR-ed with the entailment hold — an auditor 'deliver' must never clear
+          // a hold the entailment gate already established.
+          held = verdict.decision === 'hold' || entailmentHeld;
+          if (verdict.decision === 'hold') {
+            heldReason = [
+              `Grounding auditor: ${verdict.findings
+                .map((f) => `${f.check} (${f.severity}): ${f.detail}`)
+                .join('; ')}`,
+              entailmentHeld ? 'Entailment gate: every paragraph failed entailment.' : null,
+            ]
+              .filter(Boolean)
+              .join(' | ')
+              .slice(0, 2000);
           }
         }
       } catch (err) {
@@ -492,6 +553,7 @@ export class AlertMemoService {
       lowConfidence,
       memoryFilesUsed,
       contextExcluded,
+      entailmentDropped,
       held,
       reviewRequestId,
       heldReason,

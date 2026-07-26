@@ -371,6 +371,31 @@ export function MemoComposerDrawer({
             </div>
           ) : null}
 
+          {/* §4.7 (g-4): show the analyst which sentences the entailment gate judged
+              unsupported. Under shadow these are STILL in the memo above — this list is
+              what would have been withheld, which is how the gate gets evaluated before
+              it is trusted to remove text. */}
+          {memo?.entailmentDropped?.length ? (
+            <div>
+              <Text strong style={{ fontSize: 12 }} type="warning">
+                Withheld as unsupported ({memo.entailmentDropped.length})
+              </Text>
+              {memo.entailmentDropped.map((d, i) => (
+                <Paragraph
+                  key={`${d.heading}-${i}`}
+                  style={{ margin: '2px 0', fontSize: 11.5 }}
+                  type="secondary"
+                >
+                  <Text strong style={{ fontSize: 11 }}>
+                    {d.heading}:
+                  </Text>{' '}
+                  {d.text}
+                  {d.reason ? ` — ${d.reason}` : null}
+                </Paragraph>
+              ))}
+            </div>
+          ) : null}
+
           {memo?.sources?.length ? (
             <div>
               <Text strong style={{ fontSize: 12 }}>Sources</Text>

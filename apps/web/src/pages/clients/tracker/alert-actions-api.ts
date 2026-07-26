@@ -90,6 +90,9 @@ export interface AlertMemoResult {
   /** §4.6: context the compiler saw and withheld, with the reason. Optional so a
    *  not-yet-deployed apps/api degrades cleanly. */
   contextExcluded?: Array<{ title: string; reason: string }>;
+  /** §4.7: paragraphs the entailment gate judged unsupported. Under shadow they are still
+   *  in the memo and this is what WOULD have been dropped; under enforce they are gone. */
+  entailmentDropped?: Array<{ heading: string; text: string; reason: string }>;
   held: boolean;
   reviewRequestId: string | null;
   heldReason: string;
