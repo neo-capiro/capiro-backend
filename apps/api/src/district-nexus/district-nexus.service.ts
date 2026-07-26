@@ -3,15 +3,26 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
 import {
   buildClientNexusResponse,
+  evidenceForDistrict,
+  foldDistricts,
   type AssistanceDistrictRow,
   type ClientNexusInputs,
   type ContractDistrictRow,
   type FacilityRow,
   type OpportunityRow,
 } from './district-nexus.aggregate.js';
+import { scoreNexus } from './district-nexus-scoring.js';
 import { buildFirmNexusResponse } from './district-nexus.firm-aggregate.js';
 import { resolveDistrictNames, statesForKeys } from './district-nexus.district-names.js';
 import { parseView } from './district-nexus.view.js';
+import {
+  assistanceRowToEvidence,
+  contractRowToEvidence,
+  facilityRowToEvidence,
+  EVIDENCE_CAP_PER_DISTRICT,
+  type AssistanceEvidenceSourceRow,
+  type ContractEvidenceSourceRow,
+} from './district-nexus.evidence.js';
 import {
   districtCodeForHouseMatch,
   normalizeDistrictForCensus,
@@ -21,9 +32,11 @@ import type {
   ClientDistrictNexusResponse,
   DistrictClientSummary,
   DistrictDemographics,
+  DistrictKey,
   DistrictNexusDistrictDetailResponse,
   DistrictNexusDistrictSummary,
   DistrictNexusMapResponse,
+  NexusEvidence,
   SourceFreshness,
   TopAward,
 } from './district-nexus.types.js';
@@ -153,8 +166,9 @@ export class DistrictNexusService {
           tx.clientFacility.findMany({
             where: { clientId },
             // Wider than the aggregation rail needs: the extra district columns
-            // and geocodeStatus are what the representation resolver reads, and
-            // fetching them here keeps representation out of its own query.
+            // and geocodeStatus are what the representation resolver reads,
+            // districtSource/updatedAt are what evidence-building (E4) reads,
+            // and fetching them here keeps both out of their own queries.
             select: {
               id: true,
               name: true,
@@ -164,7 +178,9 @@ export class DistrictNexusService {
               stateHouseDistrict: true,
               stateSenateDistrict: true,
               geocodeStatus: true,
+              districtSource: true,
               employeeCount: true,
+              updatedAt: true,
             },
             orderBy: { createdAt: 'asc' },
           }),
@@ -195,19 +211,59 @@ export class DistrictNexusService {
     // Representation joins here too. It reads congress_member and
     // state_legislator, both global reference tables, and the BATCHED resolver
     // costs four queries for the whole client rather than four per facility.
-    const [contracts, assistance, opportunities, freshness, representations] = await Promise.all([
-      this.aggregateContracts(contractorNames),
-      this.aggregateAssistance(recipientUeis, recipientNames),
-      this.aggregateOpportunities(clientId, tenantId),
-      this.readFreshness(),
-      this.representation.representationForFacilities(facilityRows),
-    ]);
+    //
+    // Evidence (WS-E4) fetches record-level rows for the SAME identifiers the
+    // aggregate rails above use — never every award in a district, only the
+    // ones matched to this client's confirmed mappings, per-district capped so
+    // one client's large ingested footprint cannot blow out the response.
+    const uppercasedUeis = new Set(recipientUeis.map((u) => u.toUpperCase()));
+    const [contracts, assistance, opportunities, freshness, representations, contractEvidence, assistanceEvidence] =
+      await Promise.all([
+        this.aggregateContracts(contractorNames),
+        this.aggregateAssistance(recipientUeis, recipientNames),
+        this.aggregateOpportunities(clientId, tenantId),
+        this.readFreshness(),
+        this.representation.representationForFacilities(facilityRows),
+        this.fetchContractEvidenceRowsForClient(contractorNames),
+        this.fetchAssistanceEvidenceRowsForClient(recipientUeis, recipientNames),
+      ]);
+
+    const evidenceByDistrict = new Map<DistrictKey, NexusEvidence[]>();
+    const pushEvidence = (key: DistrictKey, ev: NexusEvidence) => {
+      const bucket = evidenceByDistrict.get(key);
+      if (bucket) bucket.push(ev);
+      else evidenceByDistrict.set(key, [ev]);
+    };
+    for (const row of contractEvidence) {
+      const mapped = contractRowToEvidence(row);
+      if (mapped) pushEvidence(mapped.districtKey, mapped.evidence);
+    }
+    for (const row of assistanceEvidence) {
+      const mapped = assistanceRowToEvidence(row, uppercasedUeis);
+      if (mapped) pushEvidence(mapped.districtKey, mapped.evidence);
+    }
+    for (const f of facilityRows) {
+      const mapped = facilityRowToEvidence({
+        id: f.id,
+        name: f.name,
+        state: f.state,
+        districtCode: f.congressionalDistrict,
+        employeeCount: f.employeeCount,
+        geocodeStatus: f.geocodeStatus,
+        districtSource: f.districtSource,
+        updatedAt: f.updatedAt ? f.updatedAt.toISOString() : null,
+      });
+      if (!mapped) continue;
+      pushEvidence(mapped.districtKey, mapped.facility);
+      if (mapped.employees) pushEvidence(mapped.districtKey, mapped.employees);
+    }
 
     return buildClientNexusResponse({
       clientId,
       contracts,
       assistance,
       opportunities,
+      evidenceByDistrict,
       facilities,
       freshness,
       representativesByFacility: facilityRows.map((f, i) => ({
@@ -462,6 +518,198 @@ export class DistrictNexusService {
   }
 
   /**
+   * Record-level contract rows for evidence (WS-E4), across every district the
+   * client has activity in — as distinct from `aggregateContracts`, which
+   * GROUPs and loses per-record identity. Per-district capped via
+   * ROW_NUMBER() so one client's large ingested footprint cannot blow out the
+   * response; same cap `topContractAwards` already uses.
+   */
+  private async fetchContractEvidenceRowsForClient(
+    contractorNames: string[],
+  ): Promise<ContractEvidenceSourceRow[]> {
+    if (!contractorNames.length) return [];
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        contractor_name: string | null;
+        pop_state: string | null;
+        pop_congressional_district: string | null;
+        amount: number | null;
+        action_date: Date | null;
+        last_synced_at: Date | null;
+      }>
+    >`
+      SELECT id, contractor_name, pop_state, pop_congressional_district, amount, action_date, last_synced_at
+      FROM (
+        SELECT id::text AS id, contractor_name, pop_state, pop_congressional_district,
+               amount::float8 AS amount, action_date, last_synced_at,
+               ROW_NUMBER() OVER (
+                 PARTITION BY pop_state, pop_congressional_district
+                 ORDER BY amount DESC NULLS LAST
+               ) AS rn
+        FROM federal_award
+        WHERE contractor_name = ANY(${contractorNames}::text[])
+      ) ranked
+      WHERE rn <= ${EVIDENCE_CAP_PER_DISTRICT}
+    `;
+    return rows.map((r) => ({
+      id: r.id,
+      contractorName: r.contractor_name,
+      state: r.pop_state,
+      district: r.pop_congressional_district,
+      amount: r.amount,
+      actionDate: r.action_date ? r.action_date.toISOString() : null,
+      lastSyncedAt: r.last_synced_at ? r.last_synced_at.toISOString() : null,
+    }));
+  }
+
+  /** Record-level assistance rows for evidence (WS-E4). See fetchContractEvidenceRowsForClient. */
+  private async fetchAssistanceEvidenceRowsForClient(
+    recipientUeis: string[],
+    recipientNames: string[],
+  ): Promise<AssistanceEvidenceSourceRow[]> {
+    if (!recipientUeis.length && !recipientNames.length) return [];
+    const lowerNames = recipientNames.map((n) => n.toLowerCase());
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        recipient_uei: string | null;
+        recipient_name: string | null;
+        state: string | null;
+        district: string | null;
+        basis: string;
+        total_obligated_amount: number | null;
+        start_date: Date | null;
+        last_synced_at: Date | null;
+        pop_cd_vintage: string | null;
+      }>
+    >`
+      SELECT id, recipient_uei, recipient_name, state, district, basis,
+             total_obligated_amount, start_date, last_synced_at, pop_cd_vintage
+      FROM (
+        SELECT id::text AS id, recipient_uei, recipient_name,
+               COALESCE(pop_state, recipient_state) AS state,
+               COALESCE(pop_congressional_district, recipient_congressional_district) AS district,
+               CASE
+                 WHEN pop_state IS NOT NULL AND pop_congressional_district IS NOT NULL
+                 THEN 'place_of_performance' ELSE 'recipient_location'
+               END AS basis,
+               total_obligated_amount::float8 AS total_obligated_amount,
+               start_date, last_synced_at, pop_cd_vintage,
+               ROW_NUMBER() OVER (
+                 PARTITION BY COALESCE(pop_state, recipient_state),
+                              COALESCE(pop_congressional_district, recipient_congressional_district)
+                 ORDER BY total_obligated_amount DESC NULLS LAST
+               ) AS rn
+        FROM federal_assistance_award
+        WHERE recipient_uei = ANY(${recipientUeis}::text[])
+           OR lower(recipient_name) = ANY(${lowerNames}::text[])
+      ) ranked
+      WHERE rn <= ${EVIDENCE_CAP_PER_DISTRICT}
+    `;
+    return rows.map((r) => ({
+      id: r.id,
+      recipientUei: r.recipient_uei,
+      recipientName: r.recipient_name,
+      state: r.state,
+      district: r.district,
+      basis: r.basis === 'place_of_performance' ? 'place_of_performance' : 'recipient_location',
+      totalObligated: r.total_obligated_amount,
+      startDate: r.start_date ? r.start_date.toISOString() : null,
+      lastSyncedAt: r.last_synced_at ? r.last_synced_at.toISOString() : null,
+      popCdVintage: r.pop_cd_vintage,
+    }));
+  }
+
+  /**
+   * Record-level contract rows for evidence (WS-E4), already known to be in
+   * ONE district — the plain-LIMIT counterpart of
+   * fetchContractEvidenceRowsForClient's per-district window function, which
+   * is unnecessary once state+district is fixed by the caller.
+   */
+  private async fetchContractEvidenceRows(
+    contractorNames: string[],
+    stateCode: string,
+    districtCode: string,
+  ): Promise<ContractEvidenceSourceRow[]> {
+    if (!contractorNames.length) return [];
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        contractor_name: string | null;
+        amount: number | null;
+        action_date: Date | null;
+        last_synced_at: Date | null;
+      }>
+    >`
+      SELECT id::text AS id, contractor_name, amount::float8 AS amount, action_date, last_synced_at
+      FROM federal_award
+      WHERE contractor_name = ANY(${contractorNames}::text[])
+        AND pop_state = ${stateCode} AND pop_congressional_district = ${districtCode}
+      ORDER BY amount DESC NULLS LAST
+      LIMIT ${EVIDENCE_CAP_PER_DISTRICT}
+    `;
+    return rows.map((r) => ({
+      id: r.id,
+      contractorName: r.contractor_name,
+      state: stateCode,
+      district: districtCode,
+      amount: r.amount,
+      actionDate: r.action_date ? r.action_date.toISOString() : null,
+      lastSyncedAt: r.last_synced_at ? r.last_synced_at.toISOString() : null,
+    }));
+  }
+
+  /** Record-level assistance rows for evidence (WS-E4), single-district. See fetchContractEvidenceRows. */
+  private async fetchAssistanceEvidenceRows(
+    recipientUeis: string[],
+    recipientNames: string[],
+    stateCode: string,
+    districtCode: string,
+  ): Promise<AssistanceEvidenceSourceRow[]> {
+    if (!recipientUeis.length && !recipientNames.length) return [];
+    const lowerNames = recipientNames.map((n) => n.toLowerCase());
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        recipient_uei: string | null;
+        recipient_name: string | null;
+        basis: string;
+        total_obligated_amount: number | null;
+        start_date: Date | null;
+        last_synced_at: Date | null;
+        pop_cd_vintage: string | null;
+      }>
+    >`
+      SELECT id::text AS id, recipient_uei, recipient_name,
+             CASE
+               WHEN pop_state IS NOT NULL AND pop_congressional_district IS NOT NULL
+               THEN 'place_of_performance' ELSE 'recipient_location'
+             END AS basis,
+             total_obligated_amount::float8 AS total_obligated_amount,
+             start_date, last_synced_at, pop_cd_vintage
+      FROM federal_assistance_award
+      WHERE (recipient_uei = ANY(${recipientUeis}::text[]) OR lower(recipient_name) = ANY(${lowerNames}::text[]))
+        AND COALESCE(pop_state, recipient_state) = ${stateCode}
+        AND COALESCE(pop_congressional_district, recipient_congressional_district) = ${districtCode}
+      ORDER BY total_obligated_amount DESC NULLS LAST
+      LIMIT ${EVIDENCE_CAP_PER_DISTRICT}
+    `;
+    return rows.map((r) => ({
+      id: r.id,
+      recipientUei: r.recipient_uei,
+      recipientName: r.recipient_name,
+      state: stateCode,
+      district: districtCode,
+      basis: r.basis === 'place_of_performance' ? 'place_of_performance' : 'recipient_location',
+      totalObligated: r.total_obligated_amount,
+      startDate: r.start_date ? r.start_date.toISOString() : null,
+      lastSyncedAt: r.last_synced_at ? r.last_synced_at.toISOString() : null,
+      popCdVintage: r.pop_cd_vintage,
+    }));
+  }
+
+  /**
    * Grant opportunities this client has been explicitly linked to.
    *
    * Only ClientGrantNexus rows with relationshipType 'opportunity_candidate'
@@ -495,6 +743,38 @@ export class DistrictNexusService {
         awardCeiling: g.awardCeiling,
       }),
     );
+  }
+
+  /**
+   * The confirmed contractor/recipient identifiers behind a score — same
+   * mappings query `getFirmDistrictNexusMap`'s phase 1 runs, factored out so
+   * `getDistrictDetail` can independently re-derive the identical identifier
+   * set for evidence/breakdown without depending on that method exposing its
+   * internal state. Deliberately duplicates a small, cheap, indexed,
+   * tenant-scoped query rather than widening an already-shipped public
+   * contract to carry it out.
+   */
+  private async resolveConfirmedIdentifiers(
+    tenantId: string,
+    clientId: string | null,
+  ): Promise<{ contractorNames: string[]; recipientUeis: string[]; recipientNames: string[] }> {
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      const mappings = await tx.clientIntelMapping.findMany({
+        where: {
+          ...(clientId ? { clientId } : {}),
+          confirmed: true,
+          source: { in: ['contracting', 'assistance_recipient'] },
+        },
+        select: { source: true, externalId: true, externalName: true },
+      });
+      const contracting = mappings.filter((m) => m.source === 'contracting');
+      const assistance = mappings.filter((m) => m.source === 'assistance_recipient');
+      return {
+        contractorNames: dedupe(contracting.map((m) => m.externalName)),
+        recipientUeis: dedupe(assistance.map((m) => m.externalId)).filter(isUeiShaped),
+        recipientNames: dedupe(assistance.map((m) => m.externalName)),
+      };
+    });
   }
 
   /**
@@ -545,6 +825,10 @@ export class DistrictNexusService {
           employeeCount: true,
           clientId: true,
           client: { select: { id: true, name: true } },
+          // Read for evidence (WS-E4) — see facilityRowToEvidence.
+          geocodeStatus: true,
+          districtSource: true,
+          updatedAt: true,
         },
       }),
     );
@@ -552,17 +836,92 @@ export class DistrictNexusService {
       (f) => districtCodeForHouseMatch(f.congressionalDistrict) === districtCode,
     );
 
-    const [representatives, demographics, topContractAwards, topGrantAwards, boundaryRow] =
-      await Promise.all([
-        this.resolveDistrictRepresentatives(stateCode, districtCode),
-        this.readDemographics(stateCode, districtCode),
-        this.topContractAwards(stateCode, districtCode),
-        this.topGrantAwards(stateCode, districtCode),
-        this.prisma.legislativeDistrict.findFirst({
-          where: { state: stateCode, chamber: 'house' },
-          select: { geoJsonS3Key: true },
-        }),
-      ]);
+    // The SAME identifier resolution getFirmDistrictNexusMap used to produce
+    // `summary` — evidence and breakdown must explain exactly that score, never
+    // a differently-scoped one. See resolveConfirmedIdentifiers.
+    const identifiers = await this.resolveConfirmedIdentifiers(tenantId, options.clientId ?? null);
+
+    const [
+      representatives,
+      demographics,
+      topContractAwards,
+      topGrantAwards,
+      boundaryRow,
+      contractEvidenceRows,
+      assistanceEvidenceRows,
+      allContracts,
+      allAssistance,
+    ] = await Promise.all([
+      this.resolveDistrictRepresentatives(stateCode, districtCode),
+      this.readDemographics(stateCode, districtCode),
+      this.topContractAwards(stateCode, districtCode),
+      this.topGrantAwards(stateCode, districtCode),
+      this.prisma.legislativeDistrict.findFirst({
+        where: { state: stateCode, chamber: 'house' },
+        select: { geoJsonS3Key: true },
+      }),
+      this.fetchContractEvidenceRows(identifiers.contractorNames, stateCode, districtCode),
+      this.fetchAssistanceEvidenceRows(
+        identifiers.recipientUeis,
+        identifiers.recipientNames,
+        stateCode,
+        districtCode,
+      ),
+      // UNCAPPED totals for THIS district, to explain the score (breakdown) —
+      // never the capped evidence rows above, which would understate a
+      // district with more than EVIDENCE_CAP_PER_DISTRICT contributing awards.
+      this.aggregateContracts(identifiers.contractorNames),
+      this.aggregateAssistance(identifiers.recipientUeis, identifiers.recipientNames),
+    ]);
+
+    // Fold just this district's rows to compute the breakdown that explains
+    // `summary.score` — foldDistricts/evidenceForDistrict are the SAME
+    // functions the map used, so this cannot drift from that score by
+    // construction (money is linear; weakest-basis-wins is associative
+    // regardless of how the contributing rows are grouped beforehand).
+    const districtFold = foldDistricts({
+      clientId: options.clientId ?? 'firm-wide',
+      contracts: allContracts,
+      assistance: allAssistance,
+      opportunities: [],
+      facilities: inDistrict.map((f) => ({
+        state: f.state,
+        districtCode: f.congressionalDistrict,
+        employeeCount: f.employeeCount,
+      })),
+      freshness: [],
+      generatedAt,
+    });
+    const districtAcc = districtFold.districts.find((d) => d.districtKey === districtKey);
+    const breakdown = districtAcc
+      ? scoreNexus({ components: evidenceForDistrict(districtAcc) }).breakdown
+      : [];
+
+    const uppercasedUeis = new Set(identifiers.recipientUeis.map((u) => u.toUpperCase()));
+    const evidence: NexusEvidence[] = [];
+    for (const row of contractEvidenceRows) {
+      const mapped = contractRowToEvidence(row);
+      if (mapped) evidence.push(mapped.evidence);
+    }
+    for (const row of assistanceEvidenceRows) {
+      const mapped = assistanceRowToEvidence(row, uppercasedUeis);
+      if (mapped) evidence.push(mapped.evidence);
+    }
+    for (const f of inDistrict) {
+      const mapped = facilityRowToEvidence({
+        id: f.id,
+        name: f.name,
+        state: f.state,
+        districtCode: f.congressionalDistrict,
+        employeeCount: f.employeeCount,
+        geocodeStatus: f.geocodeStatus,
+        districtSource: f.districtSource,
+        updatedAt: f.updatedAt ? f.updatedAt.toISOString() : null,
+      });
+      if (!mapped) continue;
+      evidence.push(mapped.facility);
+      if (mapped.employees) evidence.push(mapped.employees);
+    }
 
     const clients = new Map<string, DistrictClientSummary>();
     for (const f of inDistrict) {
@@ -600,8 +959,8 @@ export class DistrictNexusService {
 
     return {
       ...base,
-      evidence: [],
-      breakdown: [],
+      evidence,
+      breakdown,
       freshness: map.freshness,
       representatives,
       clients: [...clients.values()],
@@ -679,6 +1038,11 @@ export class DistrictNexusService {
     };
   }
 
+  /**
+   * Unscoped by client: "what's happening in this district" for browsing, not
+   * evidence for a score. `federal_award`'s idempotency/display key is
+   * `award_unique_id` — there is no `award_id` column on this table.
+   */
   private async topContractAwards(stateCode: string, districtCode: string): Promise<TopAward[]> {
     const rows = await this.prisma.$queryRaw<
       Array<{
@@ -687,11 +1051,11 @@ export class DistrictNexusService {
         description: string | null;
         amount: number | null;
         action_date: Date | null;
-        award_id: string | null;
+        award_unique_id: string | null;
       }>
     >`
       SELECT id::text AS id, contractor_name, description,
-             amount::float8 AS amount, action_date, award_id
+             amount::float8 AS amount, action_date, award_unique_id
       FROM federal_award
       WHERE pop_state = ${stateCode} AND pop_congressional_district = ${districtCode}
       ORDER BY amount DESC NULLS LAST
@@ -699,14 +1063,17 @@ export class DistrictNexusService {
     `;
     return rows.map((r) => ({
       id: r.id,
-      label: r.description ?? r.award_id ?? 'Federal contract award',
+      label: r.description ?? r.award_unique_id ?? 'Federal contract award',
       counterparty: r.contractor_name,
       amount: r.amount,
       awardedAt: r.action_date ? r.action_date.toISOString() : null,
-      externalUrl: r.award_id ? `https://www.usaspending.gov/award/${r.award_id}` : null,
+      externalUrl: r.award_unique_id
+        ? `https://www.usaspending.gov/award/${r.award_unique_id}`
+        : null,
     }));
   }
 
+  /** Unscoped by client, same as topContractAwards — browsing, not evidence. */
   private async topGrantAwards(stateCode: string, districtCode: string): Promise<TopAward[]> {
     const rows = await this.prisma.$queryRaw<
       Array<{

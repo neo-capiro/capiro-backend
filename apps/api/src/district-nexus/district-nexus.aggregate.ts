@@ -27,21 +27,16 @@ import type {
   DistrictNexusDistrictDetail,
   FacilityRepresentation,
   OpportunityFunding,
+  GeographyBasis,
+  NexusEvidence,
   SourceFreshness,
   UnmappedFunding,
 } from './district-nexus.types.js';
 
-/**
- * Where a row's district attribution came from. Mirrors the plan's §E4
- * `geographyBasis` vocabulary, restricted to the values the aggregation layer
- * can actually produce.
- */
-export type GeographyBasis =
-  | 'place_of_performance'
-  | 'recipient_location'
-  | 'facility'
-  | 'statewide'
-  | 'unknown';
+// GeographyBasis lives in district-nexus.types.ts (the plan's full §7-E4
+// vocabulary) — re-exported here so existing importers of this module are
+// unaffected by the move.
+export type { GeographyBasis };
 
 export interface ContractDistrictRow {
   state: string | null;
@@ -83,6 +78,13 @@ export interface ClientNexusInputs {
   generatedAt: string;
   /** Already-resolved representation, batched by the caller. Defaults to []. */
   representativesByFacility?: FacilityRepresentation[];
+  /**
+   * Record-level evidence (WS-E4), already built and grouped by the district it
+   * belongs to. The fold above works in aggregates (SUM/GROUP BY); it has no
+   * per-record identity to build evidence from, so the caller fetches and maps
+   * individual rows separately and hands them in pre-grouped. Defaults to [].
+   */
+  evidenceByDistrict?: Map<DistrictKey, NexusEvidence[]>;
 }
 
 /**
@@ -410,7 +412,7 @@ export function buildClientNexusResponse(
       employeeCount: acc.employeeCount,
       employeesUnreported: acc.facilitiesMissingEmployeeCount > 0,
       warnings: [...acc.warnings, ...scored.warnings],
-      evidence: [],
+      evidence: inputs.evidenceByDistrict?.get(acc.districtKey) ?? [],
       breakdown: scored.breakdown,
       freshness: inputs.freshness,
     };
