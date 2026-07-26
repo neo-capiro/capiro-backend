@@ -266,7 +266,12 @@ export function TrackerSurface({
 
   const allIssueAreas = issueAreasQuery.data?.issueAreas ?? [];
   const issueSet = useMemo(() => new Set(allIssueAreas), [allIssueAreas]);
-  // High-priority tags drive the "High fit" board filter.
+  // P0-06 FALLBACK ONLY. This derives the high-priority tag set from the watchlist
+  // query, which is `enabled` only while Configure is open — so on the Radar Bills
+  // surface (where Configure is a sibling tab, a different TrackerSurface instance)
+  // it is always empty. The intel board now sends `matchedHighPriorityTopics` and
+  // the filter prefers that; this remains the only thing that makes High-fit work on
+  // the LEGACY (tracker_v2 off) board, so do not delete it as dead code.
   const highPrio = useMemo(
     () =>
       new Set(
@@ -586,7 +591,16 @@ export function TrackerSurface({
       filter === 'highprob'
         ? b.probability >= 0.7
         : filter === 'highfit'
-          ? b.tags.some((t) => highPrio.has(t))
+          ? // P0-06: prefer the SERVER's high-priority topic list. The old
+            // `b.tags.some(t => highPrio.has(t))` read a watchlist query that is
+            // enabled only when activePanel === 'config', which never happens on
+            // the Bills surface — so High-fit deterministically matched nothing
+            // there. `!== undefined` (not truthiness) so an empty array from the
+            // server correctly means "no high-priority match", while an ABSENT
+            // field means "legacy board, fall back".
+            b.matchedHighPriorityTopics !== undefined
+            ? b.matchedHighPriorityTopics.length > 0
+            : b.tags.some((t) => highPrio.has(t))
           : true;
     const sortBills = (arr: BoardResponse['columns'][number]['bills']) => {
       const c = [...arr];
@@ -888,29 +902,44 @@ export function TrackerSurface({
           </div>
         ) : (
           <div className="board">
-            {boardColumns.map((col) => (
-              <div key={col.id} className="bcol" data-stage={col.id}>
-                <div className="bcol-head">
-                  <span className="sq" />
-                  <span className="ttl">{col.label}</span>
-                  <span className="ct num">{col.bills.length}</span>
-                </div>
-                {col.bills.length === 0 ? (
-                  <div className="bcol-empty">Nothing here</div>
-                ) : (
-                  col.bills.map((b) => (
-                    <BillCard
-                      key={b.billId}
-                      bill={b}
-                      issueSet={issueSet}
-                      justLanded={justLanded === b.billId}
-                      onUntrack={(id) => untrackMutation.mutate(id)}
-                      onOpen={(bb) => openBoardBill(bb.billId, bb.unread)}
-                    />
-                  ))
-                )}
+            {/* P0-06: a filter that legitimately matches nothing used to render as
+                four "Nothing here" columns — indistinguishable from an empty board,
+                which is exactly why the broken High-fit filter went unnoticed. Say
+                which filter is hiding the cards and offer the way out. */}
+            {filter !== 'all' && boardCount > 0 && boardColumns.every((c) => c.bills.length === 0) ? (
+              <div className="trk-col-empty" style={{ gridColumn: '1 / -1' }}>
+                No tracked bills match the “
+                {filter === 'highfit' ? 'High-fit (priority tag)' : 'High-probability (≥70%)'}”
+                filter.{' '}
+                <button className="btn-link" onClick={() => setFilter('all')}>
+                  Show all {boardCount}
+                </button>
               </div>
-            ))}
+            ) : (
+              boardColumns.map((col) => (
+                <div key={col.id} className="bcol" data-stage={col.id}>
+                  <div className="bcol-head">
+                    <span className="sq" />
+                    <span className="ttl">{col.label}</span>
+                    <span className="ct num">{col.bills.length}</span>
+                  </div>
+                  {col.bills.length === 0 ? (
+                    <div className="bcol-empty">Nothing here</div>
+                  ) : (
+                    col.bills.map((b) => (
+                      <BillCard
+                        key={b.billId}
+                        bill={b}
+                        issueSet={issueSet}
+                        justLanded={justLanded === b.billId}
+                        onUntrack={(id) => untrackMutation.mutate(id)}
+                        onOpen={(bb) => openBoardBill(bb.billId, bb.unread)}
+                      />
+                    ))
+                  )}
+                </div>
+              ))
+            )}
           </div>
         ))}
 

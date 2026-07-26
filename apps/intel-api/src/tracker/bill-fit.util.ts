@@ -23,6 +23,12 @@ export interface CompiledTopicForFit {
   label: string;
   issueArea: string | null;
   priority: string;
+  /**
+   * P0-06: the client's stance on this topic ('support'|'oppose'|'monitor'), carried
+   * so the board can label a matched card without a second watchlist read. Optional
+   * — `scoreBillFit` itself never reads it.
+   */
+  position?: string;
   keywords: string[]; // includes the topic label
   synonyms: string[];
   entities: string[];
@@ -40,6 +46,40 @@ export interface BillFit {
 }
 
 const clamp01 = (n: number): number => Math.max(0, Math.min(1, n));
+
+const PRIORITY_RANK: Record<string, number> = { high: 3, med: 2, low: 1 };
+
+/**
+ * P0-06: the high-priority subset of a card's `matchedTags`, plus the client's
+ * stance on the highest-priority matched topic.
+ *
+ * Why the SERVER computes this: the web's High-fit filter used to derive the
+ * high-priority tag set from the watchlist query, which is `enabled` only while the
+ * Configure panel is open — and Configure is a SIBLING Radar tab rendered by a
+ * different TrackerSurface instance, so on the Bills surface that query never ran
+ * and High-fit deterministically matched nothing.
+ *
+ * Pure, and derived from the same compiled topics `scoreBillFit` was already given —
+ * never a second watchlist read. Entries in `matchedTags` that are issue areas
+ * rather than topics simply do not resolve, which is correct: they carry no priority.
+ */
+export function highPriorityMatches(
+  matchedTags: string[],
+  topics: CompiledTopicForFit[],
+): { matchedHighPriorityTopics: string[]; matchedPosition: string | null } {
+  const byLabel = new Map(topics.map((t) => [t.label, t]));
+  const matched = matchedTags
+    .map((l) => byLabel.get(l))
+    .filter((t): t is CompiledTopicForFit => t !== undefined);
+  let best: CompiledTopicForFit | null = null;
+  for (const t of matched) {
+    if (!best || (PRIORITY_RANK[t.priority] ?? 0) > (PRIORITY_RANK[best.priority] ?? 0)) best = t;
+  }
+  return {
+    matchedHighPriorityTopics: matched.filter((t) => t.priority === 'high').map((t) => t.label),
+    matchedPosition: best?.position ?? null,
+  };
+}
 
 /**
  * P0-04: which reason `kind` a matched term type maps to. Kept identical to

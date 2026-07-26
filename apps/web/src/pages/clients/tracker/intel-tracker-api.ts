@@ -68,6 +68,9 @@ interface IntelBoardCard {
   unread: boolean;
   trackedAt: string;
   matchedTags: string[];
+  /** P0-06: the high-priority subset of matchedTags, computed server-side. */
+  matchedHighPriorityTopics?: string[];
+  matchedPosition?: string | null;
   changeChip: { label: string; changeType: string | null; at: string } | null;
   // Phase 9 (Bill→Hearing interlink): "discussed in N hearings" chip data.
   lastHearingSessionId?: string | null;
@@ -166,6 +169,11 @@ export function adaptBoard(b: IntelBoard): BoardResponse {
       stage: c.stage,
       probability: c.passageProbability,
       tags: c.matchedTags ?? [],
+      // P0-06: the server's high-priority topic list drives the High-fit filter.
+      // `?? []` (an empty array, never undefined) is what tells the web "the server
+      // answered, and the answer is none" as distinct from "legacy board, fall back".
+      matchedHighPriorityTopics: c.matchedHighPriorityTopics ?? [],
+      matchedPosition: c.matchedPosition ?? null,
       isManual: true as const,
       trackedAt: typeof c.trackedAt === 'string' ? c.trackedAt : new Date(c.trackedAt).toISOString(),
       unread: Boolean(c.unread),

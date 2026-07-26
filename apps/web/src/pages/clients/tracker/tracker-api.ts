@@ -38,6 +38,15 @@ export interface BoardBill {
   latestActionDate?: string | null;
   /** The analyst note on the tracked row (legacy `note` column). */
   note?: string | null;
+  /**
+   * P0-06: the high-priority subset of `tags`, computed server-side. ABSENT means
+   * the legacy (pre-`tracker_v2`) board, which has no equivalent — the High-fit
+   * filter then falls back to deriving it from the watchlist query. An empty ARRAY
+   * means the server answered "no high-priority match", which is not the same thing.
+   */
+  matchedHighPriorityTopics?: string[];
+  /** The client's stance on the highest-priority matched topic. Absent on the legacy board. */
+  matchedPosition?: string | null;
 }
 export interface BoardColumn {
   id: BillStage;

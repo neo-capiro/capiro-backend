@@ -6,6 +6,7 @@ import { TrackerWatchlistService } from './tracker-watchlist.service.js';
 import { isStateBillKey, humanizeStateBillKey, stateBillStatusRank } from '@capiro/shared';
 import { embedText, normalize, vectorLiteral, EMBEDDING_MODEL } from '../embeddings/embedder.js';
 import {
+  highPriorityMatches,
   scoreBillFit,
   type CompiledTopicForFit,
   type MatchReason,
@@ -156,6 +157,15 @@ export interface BoardCard {
   unread: boolean;
   trackedAt: Date;
   matchedTags: string[];
+  /**
+   * P0-06: the subset of `matchedTags` whose topic priority is 'high'. The web's
+   * High-fit filter reads THIS instead of deriving it from the watchlist query,
+   * which is not enabled on the Bills surface at all — so the filter used to match
+   * nothing there on a cold load.
+   */
+  matchedHighPriorityTopics: string[];
+  /** The client's stance on the highest-priority matched topic: support|oppose|monitor|null. */
+  matchedPosition: string | null;
   changeChip: { label: string; changeType: string | null; at: Date } | null;
   // Phase 9 (Bill→Hearing interlink): "discussed in N hearings" chip. Presence
   // comes from the trackedBill hearing badge (set by the linker); the count is
@@ -288,6 +298,9 @@ export class TrackerBoardService {
       label: t.label,
       issueArea: t.issueArea,
       priority: t.priority,
+      // P0-06: already on the compiler's output — carried so the board can derive
+      // matchedHighPriorityTopics/matchedPosition without a second watchlist read.
+      position: t.position,
       keywords: t.keywords,
       synonyms: t.synonyms,
       entities: t.entities,
@@ -537,6 +550,8 @@ export class TrackerBoardService {
       const matchedTags = bill
         ? scoreBillFit(toRelevanceBill({ ...bill, id: t.billId }), topics, issueAreas, 0, false).matchedTags
         : [];
+      // P0-06: from the SAME compiled topics — no extra query, no extra scoring pass.
+      const hi = highPriorityMatches(matchedTags, topics);
       const card: BoardCard = {
         billId: t.billId,
         displayNum: this.displayNumFor(t.billId),
@@ -555,6 +570,8 @@ export class TrackerBoardService {
         unread: t.unread,
         trackedAt: t.trackedAt,
         matchedTags,
+        matchedHighPriorityTopics: hi.matchedHighPriorityTopics,
+        matchedPosition: hi.matchedPosition,
         changeChip: chipByBill.get(t.billId) ?? null,
         lastHearingSessionId: t.lastHearingSessionId ?? null,
         lastHearingAt: t.lastHearingAt ?? null,
@@ -666,6 +683,9 @@ export class TrackerBoardService {
         bill && ct
           ? scoreBillFit(toRelevanceBill({ ...bill, id: t.billId }), ct.topics, ct.issueAreas, 0, false).matchedTags
           : [];
+      // P0-06: the `_all` roll-up already resolves each card's OWN client's compiled
+      // watchlist above, so this adds no query (P1-18's batching is preserved).
+      const hi = highPriorityMatches(matchedTags, ct?.topics ?? []);
       const card: Card = {
         billId: t.billId,
         displayNum: this.displayNumFor(t.billId),
@@ -684,6 +704,8 @@ export class TrackerBoardService {
         unread: t.unread,
         trackedAt: t.trackedAt,
         matchedTags,
+        matchedHighPriorityTopics: hi.matchedHighPriorityTopics,
+        matchedPosition: hi.matchedPosition,
         changeChip: chipByCB.get(ck(t.clientId, t.billId)) ?? null,
         lastHearingSessionId: t.lastHearingSessionId ?? null,
         lastHearingAt: t.lastHearingAt ?? null,
