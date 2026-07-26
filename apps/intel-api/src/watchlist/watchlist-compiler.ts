@@ -13,6 +13,19 @@ import { isAcceptableTerm } from './term-validation.js';
 import { routeFor, weightFor, type RoutableTerm } from './term-routing.js';
 export { MIN_TERM_LEN } from './term-validation.js';
 export const DEEPGRAM_KEYTERM_CAP = 100;
+/**
+ * §4.13: hard ceiling on the terms one topic contributes to bill matching.
+ *
+ * `matchTerms` runs per topic per CANDIDATE bill, and `WatchlistTopicDto` bounds a
+ * payload at 200 topics x 500 terms x up to 4 fields — so the unbounded worst case
+ * is ~400k bounded-regex scans per bill, multiplied again by the candidate count in
+ * getRecommendations. Capping the per-topic contribution by descending weight bounds
+ * it at 200 x 100 x 4 and keeps the terms that matter most. Live volume is nowhere
+ * near this (13 topics / 31 terms tenant-wide on 2026-07-26), so in practice this
+ * never fires — but an unbounded hot loop behind a user-editable form is a cliff,
+ * not a hypothetical.
+ */
+export const ROUTABLE_TERMS_PER_TOPIC_CAP = 100;
 
 export interface CompilerTopic {
   label: string;
@@ -48,6 +61,13 @@ export interface CompiledWatchlist {
   billMatchSet: CompiledBillTopic[];
   hearingTerms: Array<{ value: string; weight: number }>;
   deepgramKeyterms: string[];
+  /**
+   * §4.13: topics whose `routableTerms` hit ROUTABLE_TERMS_PER_TOPIC_CAP, reported
+   * so the CALLER can log it — `compileWatchlist` must stay pure (boundary §2.4.5),
+   * and a cap that nobody surfaces reads as full coverage. Empty in every realistic
+   * case; non-empty means that topic's lowest-weight terms are not matching bills.
+   */
+  truncatedTopics: Array<{ label: string; kept: number; dropped: number }>;
 }
 
 /** Trim, drop unacceptable-shaped terms, case-insensitive de-dupe, lexical sort. */
@@ -81,6 +101,7 @@ export function compileWatchlist(input: {
   const bucket = (terms: CompilerTerm[], type: string) =>
     dedupeClean(terms.filter((x) => x.termType === type).map((x) => x.value));
 
+  const truncatedTopics: Array<{ label: string; kept: number; dropped: number }> = [];
   const billMatchSet: CompiledBillTopic[] = [...input.topics]
     .sort((a, b) => a.label.localeCompare(b.label))
     .map((tp) => {
@@ -121,6 +142,17 @@ export function compileWatchlist(input: {
             a.termType.localeCompare(b.termType) ||
             a.value.localeCompare(b.value),
         );
+      // §4.13: keep the highest-weight ROUTABLE_TERMS_PER_TOPIC_CAP. Already sorted
+      // weight-desc above, so the slice keeps what matters most, and the drop is
+      // reported rather than silent.
+      if (routableTerms.length > ROUTABLE_TERMS_PER_TOPIC_CAP) {
+        truncatedTopics.push({
+          label: tp.label,
+          kept: ROUTABLE_TERMS_PER_TOPIC_CAP,
+          dropped: routableTerms.length - ROUTABLE_TERMS_PER_TOPIC_CAP,
+        });
+        routableTerms.length = ROUTABLE_TERMS_PER_TOPIC_CAP;
+      }
       return {
         label: tp.label,
         issueArea: tp.issueArea,
@@ -185,5 +217,11 @@ export function compileWatchlist(input: {
   }
   const deepgramKeyterms = picked.map((x) => x.value).sort((a, b) => a.localeCompare(b));
 
-  return { issueAreas: [...input.issueAreas], billMatchSet, hearingTerms, deepgramKeyterms };
+  return {
+    issueAreas: [...input.issueAreas],
+    billMatchSet,
+    hearingTerms,
+    deepgramKeyterms,
+    truncatedTopics,
+  };
 }

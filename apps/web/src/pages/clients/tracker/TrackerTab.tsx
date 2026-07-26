@@ -22,6 +22,8 @@ import { TrackerConfigPanel } from './TrackerConfigPanel.js';
 import { TrackerFeedPanel } from './TrackerFeedPanel.js';
 import { BillDrawer } from '../../radar/BillDrawer.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
+import { useMe } from '../../../lib/me.js';
+import { isTenantAdmin } from '@capiro/shared';
 import {
   trackerKeys,
   trackerPaths,
@@ -141,6 +143,16 @@ export function TrackerSurface({
   // query is still loading would cache the LEGACY response and never refetch
   // when the flag resolves true.
   const { enabled: trackerV2, ready: flagsReady } = useIntelFeature('tracker_v2');
+  // P1-02: firm-wide targeting is admin-only server-side. Mirror that here so a
+  // non-admin sees a read-only card instead of typing edits that will 403. While
+  // /me is still loading `role` is undefined — assume editable so an admin never
+  // sees a flash of read-only; the server is the authority regardless.
+  // An ABSENT role (still loading, a failed /me, or an older cached shape) means
+  // "cannot determine" — treat it as editable rather than locking an admin out of
+  // their own targeting over a transient read. The server still enforces the rule.
+  const meQuery = useMe();
+  const myRole = meQuery.data?.role;
+  const canEditTargeting = myRole ? isTenantAdmin(myRole) : true;
   const activePanel: Panel = panel === 'feed' && !trackerV2 ? 'board' : panel;
 
   // Board controls
@@ -438,6 +450,15 @@ export function TrackerSurface({
           message: res.data.message ?? 'Someone else changed this client’s targeting.',
         });
         void qc.invalidateQueries({ queryKey: trackerKeys.watchlist(clientId) });
+        return;
+      }
+      if (res?.status === 403 && res.data?.code === 'TARGETING_EDIT_FORBIDDEN') {
+        // P1-02: not an admin. Surface the server's own wording rather than a
+        // generic failure, and do not offer Retry — retrying cannot succeed.
+        setSaveState({
+          kind: 'conflict',
+          message: res.data.message ?? 'Only an admin can change firm-wide targeting.',
+        });
         return;
       }
       setSaveState({ kind: 'error', message: 'Could not save targeting.' });
@@ -966,6 +987,7 @@ export function TrackerSurface({
             onRetrySave={retrySaveWatchlist}
             onUndoSave={undoSaveWatchlist}
             canUndo={undoRef.current !== null}
+            canEditTargeting={canEditTargeting}
             // P0-04 c-8: surfaces each typed-term type affects, for the editor preview.
             termSurfaces={compiledQuery.data?.termSurfaces}
             typedTermsEnabled={trackerV2}

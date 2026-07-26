@@ -119,7 +119,7 @@ interface IntelWatchlist {
   suggestedJurisdictions?: string[];
   /** P1-02 optimistic concurrency + attribution on the shared watchlist. */
   version?: number;
-  updatedBy?: string | null;
+  updatedByName?: string | null;
   updatedAt?: string | null;
   /** P0-03/P0-05: what the last write to this watchlist refused to persist. Absent on a pure GET. */
   rejected?: {
@@ -264,7 +264,7 @@ export function adaptWatchlist(w: IntelWatchlist): WatchlistPayload {
   // legitimate 0 from a never-configured client survives. Deliberately NOT setting
   // `renameFrom` on any tag — a reload must clear a pending rename.
   payload.version = w.version ?? 0;
-  payload.updatedBy = w.updatedBy ?? null;
+  payload.updatedByName = w.updatedByName ?? null;
   payload.updatedAt = w.updatedAt ?? null;
   return payload;
 }

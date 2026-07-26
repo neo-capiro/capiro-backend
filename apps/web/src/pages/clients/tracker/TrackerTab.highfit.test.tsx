@@ -96,6 +96,7 @@ function mockGets(opts: {
   watchlist?: unknown;
 }) {
   apiGetMock.mockImplementation(async (url: string) => {
+    if (url === '/api/me') return { data: { role: 'capiro_admin' } };
     if (url.includes('/feature-flags')) {
       return { data: opts.trackerV2 ? { tracker_v2: true } : {} };
     }

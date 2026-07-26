@@ -85,6 +85,14 @@ export function makeWatchlistStore(opts: {
   clientId: string;
   /** Overrides assertClientInTenant's lookup — pass [] to simulate a foreign tenant. */
   clientRows?: Array<{ id: string }>;
+  /**
+   * Capiro role returned for the `tenant_memberships` probe (P1-02 admin gate).
+   * `null` simulates a caller with NO membership row (the fail-open path).
+   * Defaults to `capiro_admin` so existing tests are unaffected by the gate.
+   */
+  membershipRole?: string | null;
+  /** first/last name for the `users` attribution lookup; null = no name on file. */
+  userName?: { firstName: string | null; lastName: string | null } | null;
 }): WatchlistStore {
   const { tenantId, clientId } = opts;
   const wlId = `wl:${clientId}`;
@@ -207,8 +215,27 @@ export function makeWatchlistStore(opts: {
 
   const prisma = {
     withTenant: async (_tid: string, fn: (t: unknown) => unknown) => fn(tx),
+    // Routes by SQL rather than by call order: the service issues three different
+    // raw probes (client ownership, membership role, display name) and a positional
+    // double silently mis-answers them the moment call order changes.
     withSystem: async (fn: (t: unknown) => unknown) =>
-      fn({ $queryRawUnsafe: async () => opts.clientRows ?? [{ id: clientId }] }),
+      fn({
+        $queryRawUnsafe: async (sql: string) => {
+          if (/tenant_memberships/i.test(sql)) {
+            const role = opts.membershipRole === undefined ? 'capiro_admin' : opts.membershipRole;
+            return role === null ? [] : [{ role }];
+          }
+          if (/first_name/i.test(sql)) {
+            return opts.userName === undefined
+              ? [{ firstName: 'Ada', lastName: 'Lovelace' }]
+              : opts.userName === null
+                ? []
+                : [opts.userName];
+          }
+          if (/FROM client_facilities/i.test(sql)) return [];
+          return opts.clientRows ?? [{ id: clientId }];
+        },
+      }),
   };
 
   return {

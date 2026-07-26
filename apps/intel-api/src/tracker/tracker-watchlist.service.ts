@@ -1,5 +1,11 @@
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { issueAreaForSector } from '@capiro/shared';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { isTenantAdmin, issueAreaForSector, type TenantRole } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isAcceptableTerm, termRejectionReason } from '../watchlist/term-validation.js';
 import { compileWatchlist, type CompiledWatchlist } from '../watchlist/watchlist-compiler.js';
@@ -14,6 +20,18 @@ import { normalizeE164 } from './sms/sms.service.js';
  * from the same-named topic. Prefixed to avoid colliding with a real tag label.
  */
 export const HEARING_TERMS_TOPIC_LABEL = 'Hearing terms';
+
+/**
+ * §4.3 / §5.1 criterion 3: the synthetic label is RESERVED as a name a user may
+ * type — but it must stay acceptable when it is the legitimate fold-back of this
+ * row's flat terms, or a topic that already carries it. Rejecting it
+ * unconditionally destroys data: getWatchlist folds `topicId IS NULL` rows under
+ * exactly this label and putWatchlist re-persists them from it, so a blanket
+ * rejection means step 8 never writes them and step 10 then clears the flat rows.
+ */
+export function isReservedTopicLabel(label: string): boolean {
+  return label.trim().toLowerCase() === HEARING_TERMS_TOPIC_LABEL.toLowerCase();
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -94,8 +112,14 @@ export interface WatchlistView {
    * the first PUT's `expectedVersion: 0` correct against a row that does not exist.
    */
   version: number;
-  /** Clerk user id of the last writer. NEVER rendered — resolve or show the time. */
-  updatedBy: string | null;
+  /**
+   * DISPLAY NAME of the last writer, resolved from `users`. The raw Clerk id is
+   * deliberately absent from this shape, so the client physically cannot render it
+   * (`user_2abc…` is worse than no attribution at all). Null when the writer has no
+   * name on file, or when the caller skipped the lookup — `getCompiled` does, to
+   * keep the recommendations hot path free of a users query.
+   */
+  updatedByName: string | null;
   updatedAt: string | null;
 }
 
@@ -150,7 +174,17 @@ export class TrackerWatchlistService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async getWatchlist(tenantId: string, clientId: string): Promise<WatchlistView> {
+  /**
+   * @param opts.withUserNames resolve `updatedBy` to a display name. OFF by default
+   *   because `getCompiled` → `compiledTopics` calls this on the recommendations hot
+   *   path, and attribution is only ever rendered by the Configure panel — so the
+   *   extra `users` lookup is paid by the one caller that needs it.
+   */
+  async getWatchlist(
+    tenantId: string,
+    clientId: string,
+    opts: { withUserNames?: boolean } = {},
+  ): Promise<WatchlistView> {
     const wlId = `wl:${clientId}`;
     const wl = await this.prisma.withTenant(tenantId, (tx) =>
       tx.watchlist.findFirst({
@@ -178,7 +212,7 @@ export class TrackerWatchlistService {
         // A row that does not exist yet is version 0, so the first PUT's
         // `expectedVersion: 0` matches rather than 409-ing on a cold client.
         version: 0,
-        updatedBy: null,
+        updatedByName: null,
         updatedAt: null,
         ...(suggested.length ? { suggestedIssueAreas: suggested } : {}),
         ...(suggestedJ.length ? { suggestedJurisdictions: suggestedJ } : {}),
@@ -249,7 +283,7 @@ export class TrackerWatchlistService {
       jurisdictions: wl.jurisdictions,
       topics: outTopics,
       version: wl.version ?? 0,
-      updatedBy: wl.updatedBy ?? null,
+      updatedByName: opts.withUserNames ? await this.resolveUserName(wl.updatedBy) : null,
       updatedAt: wl.updatedAt?.toISOString() ?? null,
       ...(suggestedJ.length ? { suggestedJurisdictions: suggestedJ } : {}),
     };
@@ -306,6 +340,9 @@ export class TrackerWatchlistService {
     // (putAlertPrefs/markPhoneVerified) carry; TrackerOwnerGuard only checks the
     // caller's flag, not client ownership.
     await this.assertClientInTenant(tenantId, clientId);
+    // P1-02: firm-wide targeting is admin-only. After the tenant/client ownership
+    // check, before any write — same fail-closed ordering as the guard above.
+    await this.assertCanEditTargeting(tenantId, userId);
     const wlId = `wl:${clientId}`;
     const issueAreas = Array.isArray(input.issueAreas) ? input.issueAreas : [];
     const jurisdictions = Array.isArray(input.jurisdictions)
@@ -435,19 +472,44 @@ export class TrackerWatchlistService {
       // every term row of every topic 600ms after any keystroke — resetting each
       // row's id and createdAt, which is the same churn the delete-all rebuild had.
       const existingTerms = await tx.watchlistTerm.findMany({
-        where: { watchlistId: wlId, tenantId, topicId: { not: null } },
+        where: { watchlistId: wlId, tenantId },
         select: { topicId: true, termType: true, value: true, weight: true },
       });
-      // `weight` is part of the key so flipping a topic’s PRIORITY rewrites its
-            // terms’ weights (§4.9) rather than being skipped as an unchanged term set.
-            const termKey = (t: { termType: string; value: string; weight: number }) =>
-              JSON.stringify([t.termType, t.value, t.weight]);
+      // `weight` is part of the key so flipping a topic's PRIORITY rewrites its
+      // terms' weights (§4.9) rather than being skipped as an unchanged term set.
+      const termKey = (t: { termType: string; value: string; weight: number }) =>
+        JSON.stringify([t.termType, t.value, t.weight]);
       const termsByTopic = new Map<string, Set<string>>();
+      let flatTermCount = 0;
       for (const t of existingTerms) {
-        const k = t.topicId as string;
-        const set = termsByTopic.get(k) ?? new Set<string>();
+        if (t.topicId === null) {
+          flatTermCount += 1;
+          continue;
+        }
+        const set = termsByTopic.get(t.topicId) ?? new Set<string>();
         set.add(termKey(t));
-        termsByTopic.set(k, set);
+        termsByTopic.set(t.topicId, set);
+      }
+
+      // §4.3 / criterion 3 — the reserved label. Acceptable ONLY as the fold-back of
+      // this row's flat terms, or as a topic that already carries it; otherwise it is
+      // a user typing the synthetic name, which would shadow the fold on the next
+      // read. Decided HERE rather than during payload normalization because it
+      // depends on persisted state (the flat-term count) that is only known inside
+      // the transaction.
+      const reservedIsLegitimate =
+        flatTermCount > 0 ||
+        [...byLabel.keys()].some((k) => isReservedTopicLabel(k));
+      if (!reservedIsLegitimate) {
+        for (const tp of incoming) {
+          if (!isReservedTopicLabel(tp.label)) continue;
+          rejectedTopics.push({
+            index: tp.index,
+            label: tp.label,
+            reason: `"${HEARING_TERMS_TOPIC_LABEL}" is a reserved name.`,
+          });
+          tp.skipped = true;
+        }
       }
 
       // Step 6 — RENAMES FIRST. Renaming in place is the whole point: it keeps
@@ -571,8 +633,87 @@ export class TrackerWatchlistService {
         },
       });
     });
-    const view = await this.getWatchlist(tenantId, clientId);
+    // The PUT response feeds the editor directly, so it carries attribution too.
+    const view = await this.getWatchlist(tenantId, clientId, { withUserNames: true });
     return { ...view, rejected: { topics: rejectedTopics, terms: rejectedTerms } };
+  }
+
+  /**
+   * P1-02 permission gate: only a tenant ADMIN may edit firm-wide targeting.
+   *
+   * Targeting is shared — one analyst's autosave rewrites what every colleague's
+   * recommendations and alerts are scored against — so "can view" and "can edit
+   * firm-wide targeting" must not be the same permission. Per-user surfaces are
+   * deliberately NOT gated: `intel_alert_preference` is keyed by (userId, clientId),
+   * so a user editing their own alert prefs cannot affect anyone else, and tracking a
+   * bill is additive and reversible.
+   *
+   * Reads the AUTHORITATIVE role from `tenant_memberships` rather than the Clerk
+   * `org_role` claim on the request: the claim carries Clerk's own vocabulary
+   * (`org:admin`), the membership row carries Capiro's (`user_admin` /
+   * `capiro_admin` / `standard_user`) which `isTenantAdmin` is defined over, and the
+   * claim may be absent depending on the JWT template. One extra query on a write
+   * path is a fair price for matching what apps/api would decide.
+   *
+   * FAIL-OPEN on an indeterminate identity (no membership row): this protects
+   * config integrity between colleagues, not a tenant boundary — cross-tenant access
+   * is already blocked by `assertClientInTenant` plus RLS. Locking a real user out of
+   * a feature they use because their membership row is missing would be a worse
+   * failure than permitting the edit, so that case is allowed and logged.
+   */
+  private async assertCanEditTargeting(tenantId: string, clerkUserId: string): Promise<void> {
+    const rows = await this.prisma.withSystem((tx) =>
+      tx.$queryRawUnsafe<Array<{ role: string }>>(
+        `SELECT m.role::text AS role
+           FROM tenant_memberships m
+           JOIN users u ON u.id = m.user_id
+          WHERE u.clerk_user_id = $1 AND m.tenant_id = $2::uuid
+          LIMIT 1`,
+        clerkUserId,
+        tenantId,
+      ),
+    );
+    const role = rows[0]?.role;
+    if (!role) {
+      this.logger.warn(
+        `putWatchlist: no tenant_memberships row for this caller; allowing the edit (fail-open) tenant=${tenantId}`,
+      );
+      return;
+    }
+    if (!isTenantAdmin(role as TenantRole)) {
+      throw new ForbiddenException({
+        code: 'TARGETING_EDIT_FORBIDDEN',
+        message:
+          'Targeting is shared with your whole firm, so only an admin can change it. Ask an admin to update it for you.',
+      });
+    }
+  }
+
+  /**
+   * Clerk user id → display name (P1-02 e-8 follow-up). `withSystem` because
+   * `users` is not tenant-scoped in intel-api's schema and this service has no
+   * Prisma model for it — the same raw-SQL pattern `assertClientInTenant` uses.
+   *
+   * Read-only and best-effort: any miss returns null and the UI falls back to the
+   * timestamp alone. Deliberately returns a NAME or nothing — never the id, and
+   * never the email (which would leak an address into shared firm-wide UI).
+   */
+  private async resolveUserName(clerkUserId: string | null): Promise<string | null> {
+    if (!clerkUserId) return null;
+    try {
+      const rows = await this.prisma.withSystem((tx) =>
+        tx.$queryRawUnsafe<Array<{ firstName: string | null; lastName: string | null }>>(
+          'SELECT first_name AS "firstName", last_name AS "lastName" FROM users WHERE clerk_user_id = $1 LIMIT 1',
+          clerkUserId,
+        ),
+      );
+      const name = [rows[0]?.firstName, rows[0]?.lastName].filter(Boolean).join(' ').trim();
+      return name || null;
+    } catch (err) {
+      // Attribution is a nicety; never fail a watchlist read over it.
+      this.logger.warn(`resolveUserName failed: ${(err as Error).message}`);
+      return null;
+    }
   }
 
   /**
@@ -760,6 +901,15 @@ export class TrackerWatchlistService {
         })),
       ),
     });
+    // §4.13: the compiler is pure, so IT cannot log — surface the cap here, at the
+    // boundary. A silent truncation would read as full coverage.
+    if (compiled.truncatedTopics.length) {
+      for (const t of compiled.truncatedTopics) {
+        this.logger.warn(
+          `watchlist term cap hit: client=${clientId} topic="${t.label}" kept=${t.kept} dropped=${t.dropped} — the dropped (lowest-weight) terms do not affect bill matching`,
+        );
+      }
+    }
     // State Legislation Platform (DD5) — jurisdictions ride alongside the pure
     // compiler output rather than threading through compileWatchlist itself
     // (which stays a pure function of issueAreas/topics/terms only).

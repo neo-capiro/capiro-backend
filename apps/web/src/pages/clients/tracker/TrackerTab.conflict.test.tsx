@@ -87,6 +87,8 @@ function mockGets() {
   apiGetMock.mockImplementation(async (url: string) => {
     // tracker_v2 ON -> the intel (versioned) paths.
     if (url.includes('/feature-flags')) return { data: { tracker_v2: true } };
+    // P1-02: targeting edits are admin-only, so the surface reads /me for the role.
+    if (url === '/api/me') return { data: { role: 'capiro_admin' } };
     if (url.endsWith('/alert-prefs')) return { data: PREFS };
     if (url.includes('/tracker/watchlists/') && url.endsWith('/compiled')) {
       return { data: { termSurfaces: {} } };
