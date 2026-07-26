@@ -16,6 +16,12 @@ const toneColor: Record<string, string> = {
   success: '#167a4a',
 };
 
+/** Single definition of the app's public base URL (P1-06) — shared by every
+ *  link builder in this file and in intel-alert.service.ts / tracker-test-alert.service.ts. */
+export function appBaseUrl(): string {
+  return (process.env.TRACKER_APP_BASE_URL ?? 'https://app.capiro.ai').replace(/\/$/, '');
+}
+
 function esc(s: string): string {
   return (s ?? '')
     .replace(/&/g, '&amp;')
@@ -27,11 +33,11 @@ function esc(s: string): string {
 function shell(inner: string): string {
   return `<!doctype html><html><body style="margin:0;background:#f6f8fb;padding:24px;font-family:Inter,system-ui,Segoe UI,sans-serif;color:${INK}">
   <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #d8e0ea;border-radius:14px;overflow:hidden">
-    <div style="padding:18px 22px;border-bottom:1px solid #eef1f6;font-weight:700;font-size:15px;color:${INK}">Capiro · Bill Tracker</div>
+    <div style="padding:18px 22px;border-bottom:1px solid #eef1f6;font-weight:700;font-size:15px;color:${INK}">Capiro · LegiWatch</div>
     <div style="padding:22px">${inner}</div>
     <div style="padding:16px 22px;border-top:1px solid #eef1f6;font-size:11px;color:${MUTED}">
-      You're receiving this because bill-tracking alerts are enabled for this client.
-      Manage alerts in the client profile → Tracker → Configure.
+      You're receiving this because LegiWatch alerts are enabled for this client.
+      Manage alerts in LegiWatch → Configure.
     </div>
   </div></body></html>`;
 }
@@ -71,7 +77,8 @@ export function renderAlertEmail(event: IntelAlertEvent): {
             .join('')}</div>`
         : ''
     }
-    ${event.url ? `<a href="${esc(event.url)}" style="display:inline-block;margin-top:20px;background:${BRAND};color:#fff;text-decoration:none;font-weight:600;font-size:13px;padding:9px 16px;border-radius:8px">Open in Tracker →</a>` : ''}`;
+    ${event.appUrl ? `<a href="${esc(event.appUrl)}" style="display:inline-block;margin-top:20px;background:${BRAND};color:#fff;text-decoration:none;font-weight:600;font-size:13px;padding:9px 16px;border-radius:8px">Open in LegiWatch →</a>` : ''}
+    ${event.url ? `<a href="${esc(event.url)}" style="display:inline-block;margin-top:20px;margin-left:10px;color:${BRAND};text-decoration:none;font-weight:600;font-size:13px;padding:9px 4px">View official source →</a>` : ''}`;
   const text = [
     `${event.displayNum}: ${event.label}`,
     event.billTitle,
@@ -82,22 +89,164 @@ export function renderAlertEmail(event: IntelAlertEvent): {
     event.why
       ? `Why this matters${event.clientName ? ` (${event.clientName})` : ''}: ${event.why}`
       : '',
-    ...(event.url ? ['', `Open: ${event.url}`] : []),
+    ...(event.appUrl ? ['', `Open in LegiWatch: ${event.appUrl}`] : []),
+    ...(event.url ? [`View official source: ${event.url}`] : []),
   ]
     .filter(Boolean)
     .join('\n');
   return { subject, html: shell(inner), text };
 }
 
-/** Test alert email fired from the Configure panel. */
+/** Severity → sort rank (P0-02 digest grouping). Unknown severities sort last. */
+const SEVERITY_RANK: Record<string, number> = { critical: 0, notable: 1, info: 2, success: 3 };
+
+/**
+ * Stage → sort rank, reusing the existing `toneColor` vocabulary's key order
+ * (critical, notable, info, success) as the "legislative stage" tiebreaker the
+ * audit's required-fix item 2 asks for. NOTE: `DigestItem.label` values are
+ * free-text stage descriptions ("Passed a chamber", "New CBO cost estimate"),
+ * not literally these four tone words, so in practice almost every item falls
+ * into the unmatched/last bucket and this key rarely differentiates anything —
+ * it defers to the next key (deadline). Implemented literally per the plan's
+ * instruction to reuse this vocabulary rather than inventing a new stage-rank
+ * system; flagged in the phase completion report as a real ambiguity in the
+ * plan text.
+ */
+const STAGE_RANK: Record<string, number> = Object.fromEntries(
+  Object.keys(toneColor).map((k, i) => [k, i]),
+);
+
+/** One alert folded into a digest (P0-02) — enough to render without re-reading the queue's payload (it carries none). */
+export interface DigestItem {
+  clientName: string | null;
+  displayNum: string;
+  billTitle: string;
+  label: string; // stage
+  severity: string; // 'critical'|'notable'|'info'|...
+  detail: string; // official action text
+  actionDate: string | null;
+  deadline: string | null;
+  recommendedAction: string | null;
+  why: string | null;
+  url: string; // official source
+  appUrl: string; // LegiWatch deep link (phase f)
+}
+
+/**
+ * Batched daily/weekly digest (P0-02, audit required-fix item 2). Grouping,
+ * exactly as specified: client (alphabetical) → severity → legislative stage
+ * → deadline (ascending, nulls last) → required action (present before
+ * absent). Reuses `shell()`/`esc()` so chrome and escaping stay identical to
+ * the realtime template; every interpolated field goes through `esc()`.
+ */
+export function renderDigestEmail(
+  cadence: 'daily' | 'weekly',
+  items: DigestItem[],
+): { subject: string; html: string; text: string } {
+  const byClient = new Map<string, DigestItem[]>();
+  for (const item of items) {
+    const key = item.clientName ?? '(unassigned)';
+    const arr = byClient.get(key) ?? [];
+    arr.push(item);
+    byClient.set(key, arr);
+  }
+  const clientNames = Array.from(byClient.keys()).sort((a, b) => a.localeCompare(b));
+
+  const compare = (a: DigestItem, b: DigestItem): number => {
+    const sevA = SEVERITY_RANK[a.severity] ?? 4;
+    const sevB = SEVERITY_RANK[b.severity] ?? 4;
+    if (sevA !== sevB) return sevA - sevB;
+    const stageA = STAGE_RANK[a.label.toLowerCase()] ?? 4;
+    const stageB = STAGE_RANK[b.label.toLowerCase()] ?? 4;
+    if (stageA !== stageB) return stageA - stageB;
+    if (a.deadline !== b.deadline) {
+      if (a.deadline === null) return 1;
+      if (b.deadline === null) return -1;
+      return a.deadline.localeCompare(b.deadline);
+    }
+    const actionA = a.recommendedAction ? 0 : 1;
+    const actionB = b.recommendedAction ? 0 : 1;
+    return actionA - actionB;
+  };
+
+  const sections: string[] = [];
+  const textLines: string[] = [];
+  for (const clientName of clientNames) {
+    const sorted = [...byClient.get(clientName)!].sort(compare);
+    sections.push(
+      `<div style="margin-top:20px;font-size:13px;font-weight:700;color:${INK};border-bottom:1px solid #eef1f6;padding-bottom:6px">${esc(clientName)}</div>`,
+    );
+    textLines.push('', clientName, '─'.repeat(clientName.length));
+    for (const item of sorted) {
+      const color = toneColor[item.severity] ?? BRAND;
+      sections.push(`
+        <div style="margin-top:14px;padding-top:2px">
+          <div style="display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${color};background:${color}1a;padding:2px 8px;border-radius:999px">${esc(item.label)}</div>
+          <div style="margin-top:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;font-weight:700;color:${INK}">${esc(item.displayNum)}</div>
+          <div style="margin-top:2px;font-size:14px;font-weight:600;line-height:1.35;color:${INK}">${esc(item.billTitle)}</div>
+          <div style="margin-top:6px;font-size:12.5px;line-height:1.5;color:${MUTED}">${esc(item.detail)}</div>
+          ${item.deadline ? `<div style="margin-top:6px;font-size:11.5px;color:${MUTED}">Deadline · ${esc(item.deadline)}</div>` : ''}
+          ${item.recommendedAction ? `<div style="margin-top:6px;padding:8px 10px;background:#f6f8fb;border:1px solid #eef1f6;border-radius:6px;font-size:11.5px;line-height:1.45;color:${INK}"><span style="font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:9px;color:${MUTED}">Recommended action</span><div style="margin-top:3px">${esc(item.recommendedAction)}</div></div>` : ''}
+          <div style="margin-top:8px">
+            <a href="${esc(item.appUrl)}" style="font-size:11.5px;font-weight:600;color:${BRAND};text-decoration:none">Open in LegiWatch →</a>
+            ${item.url ? `<a href="${esc(item.url)}" style="margin-left:14px;font-size:11.5px;font-weight:600;color:${MUTED};text-decoration:none">Official source →</a>` : ''}
+          </div>
+        </div>`);
+      textLines.push(
+        `- [${item.label}] ${item.displayNum}: ${item.billTitle}`,
+        `  ${item.detail}`,
+        ...(item.deadline ? [`  Deadline: ${item.deadline}`] : []),
+        ...(item.recommendedAction ? [`  Recommended action: ${item.recommendedAction}`] : []),
+        `  LegiWatch: ${item.appUrl}${item.url ? ` | Source: ${item.url}` : ''}`,
+      );
+    }
+  }
+
+  const subject = `[Capiro] LegiWatch ${cadence === 'daily' ? 'daily' : 'weekly'} digest — ${items.length} update${items.length === 1 ? '' : 's'}`;
+  const html = sections.join('');
+  const text = [subject, ...textLines].join('\n');
+  return { subject, html: shell(html), text };
+}
+
+/** Test alert email fired from the Configure panel. `legiwatchUrl` is the
+ *  primary CTA (Feed, client-preselected); `clientTrackerUrl` is a secondary
+ *  text link to the client-profile LegiWatch tab (P1-06). */
 export function renderTestEmail(
   clientName: string | null,
-  boardUrl: string,
+  legiwatchUrl: string,
+  clientTrackerUrl: string,
 ): { subject: string; html: string; text: string } {
-  const subject = `Test alert — Capiro bill tracker${clientName ? ` · ${clientName}` : ''}`;
-  const inner = `<div style="font-size:15px;font-weight:600;color:${INK}">Your bill-tracker alerts are wired up ✓</div>
-    <div style="margin-top:10px;font-size:13px;line-height:1.5;color:${MUTED}">This is a sample alert confirming email delivery for ${esc(clientName ?? 'this client')}. Real alerts fire when a tracked bill moves (amendment, hearing, vote, enactment).</div>
-    <a href="${esc(boardUrl)}" style="display:inline-block;margin-top:18px;background:${BRAND};color:#fff;text-decoration:none;font-weight:600;font-size:13px;padding:9px 16px;border-radius:8px">Open Tracker →</a>`;
-  const text = `Your bill-tracker alerts are wired up.\n\nThis is a sample alert confirming email delivery${clientName ? ` for ${clientName}` : ''}.\n\nOpen: ${boardUrl}`;
+  const subject = `Test alert — Capiro LegiWatch${clientName ? ` · ${clientName}` : ''}`;
+  const inner = `<div style="font-size:15px;font-weight:600;color:${INK}">Your LegiWatch alerts are wired up ✓</div>
+    <div style="margin-top:10px;font-size:13px;line-height:1.5;color:${MUTED}">This is a sample alert confirming email delivery for ${esc(clientName ?? 'this client')}. Real alerts fire when something you track moves — a bill, a hearing, a regulation, or a Program Element.</div>
+    <a href="${esc(legiwatchUrl)}" style="display:inline-block;margin-top:18px;background:${BRAND};color:#fff;text-decoration:none;font-weight:600;font-size:13px;padding:9px 16px;border-radius:8px">Open LegiWatch →</a>
+    <a href="${esc(clientTrackerUrl)}" style="display:inline-block;margin-top:18px;margin-left:10px;color:${BRAND};text-decoration:none;font-weight:600;font-size:13px;padding:9px 4px">Open the client profile →</a>`;
+  const text = `Your LegiWatch alerts are wired up.\n\nThis is a sample alert confirming email delivery${clientName ? ` for ${clientName}` : ''}.\n\nOpen LegiWatch: ${legiwatchUrl}\nOpen the client profile: ${clientTrackerUrl}`;
   return { subject, html: shell(inner), text };
+}
+
+/** Per-source email renderers (P1-07). A source with NO renderer is not
+ *  emailable — fanOut skips it rather than sending a bill-shaped email for a
+ *  hearing/PE/regulation event. Add a renderer here BEFORE widening
+ *  LEGIWATCH_EMIT_SOURCE_TYPES.
+ *
+ *  `state_bill` is included: bill-change-detector.service.ts's writeShadowAlert
+ *  is the SAME writer for both the federal and state rails (its own doc
+ *  comment: "parameterized (S4.3) so the exact same watermark/dedup/fan-out
+ *  machinery serves both rails") — it populates evidence.displayNum,
+ *  evidence.billTitle, evidence.stage, and evidence.actionText identically for
+ *  sourceType='state_bill' and sourceType='bill'. Verified by reading
+ *  writeShadowAlert directly (2026-07-25); no state-rail field is empty. */
+export const ALERT_EMAIL_RENDERERS: Record<
+  string,
+  (e: IntelAlertEvent) => { subject: string; html: string; text: string }
+> = {
+  bill: renderAlertEmail,
+  state_bill: renderAlertEmail, // same fields; jurisdiction rides in the event
+};
+
+export function rendererFor(
+  sourceType: string | undefined,
+): ((e: IntelAlertEvent) => { subject: string; html: string; text: string }) | null {
+  return ALERT_EMAIL_RENDERERS[sourceType ?? 'bill'] ?? null;
 }

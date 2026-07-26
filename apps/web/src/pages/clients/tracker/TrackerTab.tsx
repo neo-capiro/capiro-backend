@@ -439,6 +439,7 @@ export function TrackerSurface({
       ).data as {
         channel: string;
         status: string;
+        detail?: string;
       }[],
   });
 
@@ -491,10 +492,13 @@ export function TrackerSurface({
     testAlertMutation.mutate(channels, {
       onSuccess: (res) => {
         const label: Record<string, string> = { in_app: 'In-app', email: 'Email', sms: 'SMS' };
-        const sent = res
-          .filter((r) => r.status === 'sent' || r.status === 'suppressed')
-          .map((r) => label[r.channel] ?? r.channel);
-        pushToast({ kind: 'test', channels: sent.length ? sent : ['In-app'] });
+        // P1-05: report EVERY requested channel's real outcome. The old code kept only
+        // sent|suppressed and fell back to ['In-app'], so an email failure or skip
+        // produced a success toast naming only In-app.
+        pushToast({
+          kind: 'test',
+          results: res.map((r) => ({ channel: label[r.channel] ?? r.channel, status: r.status, detail: r.detail })),
+        });
       },
       onError: () => message.error('Could not send test alert'),
     });

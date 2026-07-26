@@ -318,15 +318,18 @@ model IntelNotificationLog {
 
 /// Digest queue for daily/weekly cadences (flushDigests target).
 model IntelAlertDigestQueue {
-  id        String   @id @default(cuid())
-  tenantId  String   @map("tenant_id")
-  clientId  String   @map("client_id")
-  userId    String   @map("user_id")
-  alertId   String   @map("alert_id")
-  channel   String //                    'email'|'sms'
-  cadence   String //                    'daily'|'weekly'
-  flushed   Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at")
+  id          String    @id @default(cuid())
+  tenantId    String    @map("tenant_id")
+  clientId    String    @map("client_id")
+  userId      String    @map("user_id")
+  alertId     String    @map("alert_id")
+  channel     String //                    'email'|'sms'
+  cadence     String //                    'daily'|'weekly'
+  flushed     Boolean   @default(false)
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error")
+  deliveredAt DateTime? @map("delivered_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
 
   @@index([tenantId, userId, channel, flushed])
   @@map("intel_alert_digest_queue")

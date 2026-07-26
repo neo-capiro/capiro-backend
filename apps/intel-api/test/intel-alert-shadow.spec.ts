@@ -99,7 +99,7 @@ describe('IntelAlertService.fanOut (shadow)', () => {
     delete process.env.TRACKER_ALERTS_ENABLED;
     const { svc, claims, sendCalls } = makeService(false);
     const r = await svc.fanOut(event);
-    expect(r).toEqual({ suppressed: 1, sent: 0, failed: 0 });
+    expect(r).toEqual({ suppressed: 1, sent: 0, failed: 0, queued: 0 });
     expect(claims).toEqual([{ status: 'suppressed_shadow', channel: 'email' }]);
     expect(sendCalls).toEqual([]); // NEVER sent
   });
@@ -117,7 +117,7 @@ describe('IntelAlertService.fanOut (shadow)', () => {
     delete process.env.TRACKER_ALERTS_ENABLED;
     const { svc, claims } = makeService(false, ['hearing']); // event.triggerKey='amendment' ∉ ['hearing']
     const r = await svc.fanOut(event);
-    expect(r).toEqual({ suppressed: 0, sent: 0, failed: 0 });
+    expect(r).toEqual({ suppressed: 0, sent: 0, failed: 0, queued: 0 });
     expect(claims).toEqual([]);
   });
 });

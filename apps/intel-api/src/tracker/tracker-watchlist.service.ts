@@ -278,10 +278,14 @@ export class TrackerWatchlistService {
       }),
     );
     if (row && row.tenantId === tenantId) return row;
+    // P1-01: a NEW pref view returns the shipped defaults, not zero triggers. Returning
+    // [] let a user save emailEnabled=true with every trigger off, so eligible()
+    // (intel-alert.service.ts) matched nothing forever. markPhoneVerified already
+    // seeded [...DEFAULT_TRIGGERS] on create — this makes all three paths agree.
     return {
       clientId,
       userId,
-      triggers: [] as string[],
+      triggers: [...DEFAULT_TRIGGERS],
       materiality: 'medium',
       emailEnabled: false,
       emailAddress: null,
@@ -342,7 +346,10 @@ export class TrackerWatchlistService {
     await this.assertClientInTenant(tenantId, clientId);
     await this.assertPrefRowTenant(tenantId, clientId, userId);
     const data = {
-      triggers: input.triggers ?? [],
+      // P1-01: `??` distinguishes an ABSENT field (undefined → default) from an
+      // explicit `[]` (a deliberate clear → honor it). Do not use `||` — that
+      // would silently override a user's deliberate clear-all.
+      triggers: input.triggers ?? [...DEFAULT_TRIGGERS],
       materiality: input.materiality ?? 'medium',
       emailEnabled: input.emailEnabled ?? false,
       emailAddress: input.emailAddress ?? null,

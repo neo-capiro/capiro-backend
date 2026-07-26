@@ -1,4 +1,5 @@
 import {
+  DEFAULT_TRIGGERS,
   HEARING_TERMS_TOPIC_LABEL,
   TrackerWatchlistService,
 } from '../src/tracker/tracker-watchlist.service.js';
@@ -248,5 +249,65 @@ describe('TrackerWatchlistService.putWatchlist — flat-term isolation', () => {
       expect(row.watchlistId).toBe(WL_ID);
       expect(row.topicId).toBe(createdTopicId);
     }
+  });
+});
+
+/**
+ * P1-01 (Gate A phase e) — a never-configured pref must default to the
+ * shipped trigger set, not zero triggers, and a deliberate `[]` clear must
+ * still survive (the `??` vs `||` distinction — see tracker-watchlist.service.ts).
+ */
+describe('TrackerWatchlistService.getAlertPrefs — P1-01 default triggers', () => {
+  it('returns DEFAULT_TRIGGERS for a client with no pref row', async () => {
+    const prisma = {
+      withTenant: async (_tid: string, fn: (t: unknown) => unknown) =>
+        fn({ intelAlertPreference: { findUnique: async () => null } }),
+    } as any;
+    const svc = new TrackerWatchlistService(prisma);
+
+    const view = await svc.getAlertPrefs(TENANT, CLIENT, 'user-1');
+
+    expect(view.triggers).toEqual([...DEFAULT_TRIGGERS]);
+  });
+});
+
+describe('TrackerWatchlistService.putAlertPrefs — P1-01 default vs deliberate clear', () => {
+  function recordingPrefsPrisma() {
+    const upserts: Array<{ create: unknown; update: unknown }> = [];
+    const prisma = {
+      // assertClientInTenant: client belongs to the caller's tenant → guard passes.
+      withSystem: async (fn: (t: unknown) => unknown) =>
+        fn({ $queryRawUnsafe: async () => [{ id: CLIENT }] }),
+      // assertPrefRowTenant's read (no existing row) + the upsert write.
+      withTenant: async (_tid: string, fn: (t: unknown) => unknown) =>
+        fn({
+          intelAlertPreference: {
+            findUnique: async () => null,
+            upsert: async (args: { create: unknown; update: unknown }) => {
+              upserts.push(args);
+              return args.create;
+            },
+          },
+        }),
+    } as any;
+    return { prisma, upserts };
+  }
+
+  it('triggers omitted → creates a row with DEFAULT_TRIGGERS', async () => {
+    const { prisma, upserts } = recordingPrefsPrisma();
+    const svc = new TrackerWatchlistService(prisma);
+
+    await svc.putAlertPrefs(TENANT, CLIENT, 'user-1', {});
+
+    expect((upserts[0]!.create as { triggers: string[] }).triggers).toEqual([...DEFAULT_TRIGGERS]);
+  });
+
+  it('triggers: [] → the deliberate clear survives (creates/updates a row with [])', async () => {
+    const { prisma, upserts } = recordingPrefsPrisma();
+    const svc = new TrackerWatchlistService(prisma);
+
+    await svc.putAlertPrefs(TENANT, CLIENT, 'user-1', { triggers: [] });
+
+    expect((upserts[0]!.create as { triggers: string[] }).triggers).toEqual([]);
   });
 });
