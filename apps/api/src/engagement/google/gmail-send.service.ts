@@ -18,6 +18,10 @@ import { randomBytes } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import { GoogleTokenService } from './google-token.service.js';
 import type { EngagementSendMailInput } from '../mail-sender.service.js';
+import {
+  AmbiguousMailSendError,
+  type EngagementMailSendResult,
+} from '../mail-send-result.js';
 
 const GMAIL_SEND_URL = 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send';
 
@@ -27,11 +31,19 @@ export class GmailSendService {
 
   constructor(private readonly googleToken: GoogleTokenService) {}
 
+  /**
+   * Send through the caller's own Gmail mailbox.
+   *
+   * Phase 0 (§3.e2, change-control approved): the returned message resource is
+   * now PARSED and surfaced instead of discarded, so a delivery row can record
+   * Gmail's own message/thread ids. Auth, token refresh, scopes, the CR/LF
+   * header-injection guards, MIME encoding and attachment handling are unchanged.
+   */
   async sendMail(
     ctx: TenantContext,
     connectionId: string,
     input: EngagementSendMailInput,
-  ): Promise<{ ok: boolean }> {
+  ): Promise<EngagementMailSendResult> {
     const { connection, token } = await this.googleToken.loadConnection(ctx.tenantId, connectionId);
     // Defence in depth — resolvers already scope to the caller, but never send
     // through a mailbox the requesting user doesn't own (matches the Microsoft
@@ -78,7 +90,35 @@ export class GmailSendService {
       );
     }
 
-    return { ok: true };
+    // HTTP 200 means Gmail ACCEPTED the message. From here on, failing loudly
+    // would be wrong: the mail is already gone. A response we cannot read, or one
+    // without an id, is genuinely AMBIGUOUS — the caller records the delivery as
+    // 'unknown' and never retries it (a retry would duplicate a delivered email).
+    const correlationId = input.correlationId ?? '';
+    let parsed: { id?: unknown; threadId?: unknown } | null = null;
+    try {
+      parsed = (await response.json()) as { id?: unknown; threadId?: unknown };
+    } catch {
+      throw new AmbiguousMailSendError(
+        'Gmail accepted the message but its response could not be read; verify Sent Items.',
+        correlationId,
+      );
+    }
+    const messageId = typeof parsed?.id === 'string' ? parsed.id.trim() : '';
+    if (!messageId) {
+      throw new AmbiguousMailSendError(
+        'Gmail returned success without a message id; verify Sent Items before resending.',
+        correlationId,
+      );
+    }
+    const threadId = typeof parsed?.threadId === 'string' ? parsed.threadId.trim() : '';
+    return {
+      ok: true,
+      provider: 'gmail',
+      providerMessageId: messageId,
+      ...(threadId ? { providerThreadId: threadId } : {}),
+      correlationId,
+    };
   }
 }
 
@@ -104,6 +144,13 @@ export function buildGmailRawMessage(input: EngagementSendMailInput): string {
   if (bcc) headers.push(`Bcc: ${bcc}`);
   headers.push(`Subject: ${encodeHeaderValue(input.subject ?? '')}`);
   headers.push('MIME-Version: 1.0');
+  // Phase 0 — outbound-only correlation so a message in Sent Items can be tied
+  // back to its outreach_deliveries row. Sanitized through the same CR/LF strip
+  // as every other header value, and restricted to id-safe characters so a
+  // caller-supplied value can never inject a header. NOT tracking: nothing is
+  // fetched, rewritten, or reported when the recipient opens the mail.
+  const correlationHeader = sanitizeCorrelationId(input.correlationId);
+  if (correlationHeader) headers.push(`X-Capiro-Delivery-Id: ${correlationHeader}`);
 
   const bodyBase64 = wrapBase64(Buffer.from(input.body ?? '', 'utf8').toString('base64'));
 
@@ -149,6 +196,19 @@ export function buildGmailRawMessage(input: EngagementSendMailInput): string {
 
 function wrapBase64(b64: string): string {
   return (b64.match(/.{1,76}/g) ?? []).join('\r\n');
+}
+
+/**
+ * Allow only id-safe characters in the correlation header. A UUID passes
+ * untouched; anything with CR/LF, spaces or header punctuation is rejected
+ * outright rather than escaped, because there is no legitimate delivery id that
+ * needs them. Exported for unit tests.
+ */
+export function sanitizeCorrelationId(value: string | undefined): string | null {
+  if (!value) return null;
+  const clean = value.trim();
+  if (!clean || clean.length > 80) return null;
+  return /^[A-Za-z0-9._:-]+$/.test(clean) ? clean : null;
 }
 
 function formatAddressList(list: Array<{ email: string; name?: string | null }>): string {

@@ -14,7 +14,13 @@
  * item is reclaimed after OUTREACH_JOB_STALE_MS. (Send's at-most-once handling
  * lands in W4.3.)
  */
-import { Injectable, Logger, type OnModuleInit, type OnModuleDestroy } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  type OnModuleInit,
+  type OnModuleDestroy,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
@@ -38,8 +44,15 @@ export interface SubmitOutreachJobInput {
   outreachRecordId?: string | null;
 }
 
-/** Terminal + in-flight item statuses. */
-const TERMINAL_ITEM = new Set(['done', 'sent', 'failed', 'skipped']);
+/**
+ * Terminal + in-flight item statuses.
+ *
+ * 'held' is TERMINAL (Phase 0 §3.c3): a draft the grounding auditor held is
+ * finished as far as the worker is concerned — it needs a reviewer or a new
+ * edited version, and re-running generation would neither clear the finding nor
+ * make the draft safe to auto-send.
+ */
+const TERMINAL_ITEM = new Set(['done', 'sent', 'failed', 'skipped', 'held']);
 
 interface RollupInput {
   status: string;
@@ -48,16 +61,28 @@ interface RollupInput {
 /**
  * Pure job rollup: derive the job status + totals from its items. Exported for
  * unit tests (the state machine is the part most worth pinning).
+ *
+ * `held` counts separately from both success and failure: nothing went wrong,
+ * but nothing is sendable either, so a job with held items never rolls up to
+ * 'complete'.
  */
 export function computeJobRollup(items: RollupInput[]): {
   status: 'queued' | 'running' | 'partial' | 'complete' | 'failed';
-  totals: { queued: number; succeeded: number; failed: number; skipped: number; total: number };
+  totals: {
+    queued: number;
+    succeeded: number;
+    failed: number;
+    skipped: number;
+    held: number;
+    total: number;
+  };
 } {
   const total = items.length;
   let queued = 0;
   let succeeded = 0;
   let failed = 0;
   let skipped = 0;
+  let held = 0;
   for (const it of items) {
     if (
       it.status === 'pending' ||
@@ -69,20 +94,88 @@ export function computeJobRollup(items: RollupInput[]): {
     else if (it.status === 'done' || it.status === 'sent') succeeded++;
     else if (it.status === 'failed') failed++;
     else if (it.status === 'skipped') skipped++;
+    else if (it.status === 'held') held++;
   }
-  const totals = { queued, succeeded, failed, skipped, total };
+  const totals = { queued, succeeded, failed, skipped, held, total };
   const allTerminal = items.every((it) => TERMINAL_ITEM.has(it.status));
   let status: 'queued' | 'running' | 'partial' | 'complete' | 'failed';
   if (!allTerminal) {
-    status = succeeded > 0 || failed > 0 ? 'running' : 'queued';
-  } else if (failed === 0) {
+    status = succeeded > 0 || failed > 0 || held > 0 ? 'running' : 'queued';
+  } else if (failed === 0 && held === 0) {
     status = 'complete';
-  } else if (succeeded === 0 && skipped === 0) {
+  } else if (succeeded === 0 && skipped === 0 && held === 0) {
     status = 'failed';
   } else {
+    // Some drafts exist but at least one is held or failed — a human must act.
     status = 'partial';
   }
   return { status, totals };
+}
+
+/**
+ * Map ONE generation result onto its job-item status.
+ *
+ * Understands both shapes: the Phase 0 versioned result (authoritative audit and
+ * approval lifecycle fields) and the pre-Phase-0 `status` string, so the worker
+ * is correct with ENGAGEMENT_VERSIONED_OUTREACH either way.
+ *
+ * Fails CLOSED: a missing result, an unrecognized shape, or any non-sendable
+ * audit state resolves to failed/held — never 'done'. Exported for unit tests.
+ */
+export function classifyGenerationItem(result: unknown): 'done' | 'held' | 'failed' {
+  if (!result || typeof result !== 'object') return 'failed';
+  const r = result as Record<string, unknown>;
+
+  // Phase 0 versioned shape — the lifecycle fields are authoritative.
+  if (typeof r.versionId === 'string' || typeof r.auditStatus === 'string') {
+    if (r.generationStatus === 'generation_failed') return 'failed';
+    const audit = String(r.auditStatus ?? '');
+    const approval = String(r.approvalStatus ?? '');
+    if (audit === 'held' || audit === 'pending' || audit === 'unavailable') return 'held';
+    if (approval === 'pending' || approval === 'rejected') return 'held';
+    if (audit === 'not_required' || audit === 'passed' || audit === 'warning') return 'done';
+    return 'failed';
+  }
+
+  // Pre-Phase-0 shape.
+  if (r.status === 'ready') return 'done';
+  if (r.status === 'held') return 'held';
+  return 'failed';
+}
+
+/** Fields safe to persist in outreach_job_items.result_jsonb. */
+const ITEM_RESULT_FIELDS = [
+  'versionId',
+  'artifactId',
+  'version',
+  'generationKey',
+  'generationStatus',
+  'auditStatus',
+  'approvalStatus',
+  'reviewRequestId',
+  'contextNote',
+] as const;
+
+/**
+ * Project a generation result into the job item's stored result.
+ *
+ * Keeps the REAL subject/body (a held draft must stay readable) plus the version
+ * metadata the wizard needs to look the version up, and deliberately drops
+ * `error` and anything else not on the allowlist so no auditor internals or
+ * provider stack reaches the client through this column. Exported for tests.
+ */
+export function buildItemResult(result: unknown): Record<string, unknown> | null {
+  if (!result || typeof result !== 'object') return null;
+  const r = result as Record<string, unknown>;
+  const out: Record<string, unknown> = {
+    subject: typeof r.subject === 'string' ? r.subject : '',
+    body: typeof r.body === 'string' ? r.body : '',
+  };
+  for (const key of ITEM_RESULT_FIELDS) {
+    const value = r[key];
+    if (value !== undefined && value !== null) out[key] = value;
+  }
+  return out;
 }
 
 /** Stable recipient key mirroring the frontend/generateBatchEmails id chain. */
@@ -107,6 +200,7 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
   private readonly asyncSend: boolean;
   private readonly sweepMs: number;
   private readonly staleMs: number;
+  private readonly versionedOutreach: boolean;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -117,6 +211,7 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
     this.asyncSend = config.get('OUTREACH_ASYNC_SEND', { infer: true });
     this.sweepMs = config.get('OUTREACH_JOB_SWEEP_MS', { infer: true });
     this.staleMs = config.get('OUTREACH_JOB_STALE_MS', { infer: true });
+    this.versionedOutreach = config.get('ENGAGEMENT_VERSIONED_OUTREACH', { infer: true });
   }
 
   /** Whether the async path is enabled for a given kind (controller gate). */
@@ -157,12 +252,17 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
     ctx: TenantContext,
     input: SubmitOutreachJobInput,
   ): Promise<{ jobId: string; deduped: boolean }> {
+    this.assertSendJobAllowed(input.kind);
     if (!input.recipients.length) {
       return this.submitEmpty(ctx, input);
     }
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Phase 0 §3.c3: idempotency is per (tenant, USER, requestKey). Scoping it
+      // to the tenant alone meant two users who minted the same client-side key
+      // resolved to each other's job — a cross-user read of drafts and
+      // recipients through a guessable token.
       const existing = await tx.outreachJob.findFirst({
-        where: { tenantId: ctx.tenantId, requestKey: input.requestKey },
+        where: { tenantId: ctx.tenantId, userId: ctx.userId, requestKey: input.requestKey },
         select: { id: true },
       });
       if (existing) return { jobId: existing.id, deduped: true };
@@ -220,7 +320,7 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
   ): Promise<{ jobId: string; deduped: boolean }> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const existing = await tx.outreachJob.findFirst({
-        where: { tenantId: ctx.tenantId, requestKey: input.requestKey },
+        where: { tenantId: ctx.tenantId, userId: ctx.userId, requestKey: input.requestKey },
         select: { id: true },
       });
       if (existing) return { jobId: existing.id, deduped: true };
@@ -241,9 +341,20 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  /**
+   * Read one job the CALLER owns. Owner-scoped as well as tenant-scoped (§3.c3):
+   * `submit()` has always stored userId, but reads only checked the tenant, so
+   * any colleague's job id exposed their recipients and drafts.
+   *
+   * Held items keep their version metadata in `result` but their `error` column
+   * is never surfaced raw — a hold is not an error and must not leak auditor
+   * internals to the wizard.
+   */
   async getJob(ctx: TenantContext, jobId: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const job = await tx.outreachJob.findFirst({ where: { id: jobId, tenantId: ctx.tenantId } });
+      const job = await tx.outreachJob.findFirst({
+        where: { id: jobId, tenantId: ctx.tenantId, userId: ctx.userId },
+      });
       if (!job) return null;
       const items = await tx.outreachJobItem.findMany({
         where: { jobId, tenantId: ctx.tenantId },
@@ -258,7 +369,10 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
           attempt: true,
         },
       });
-      return { job, items };
+      return {
+        job,
+        items: items.map((it) => (it.status === 'held' ? { ...it, error: null } : it)),
+      };
     });
   }
 
@@ -277,7 +391,7 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
   ): Promise<{ retried: boolean; reason?: string }> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const job = await tx.outreachJob.findFirst({
-        where: { id: jobId, tenantId: ctx.tenantId },
+        where: { id: jobId, tenantId: ctx.tenantId, userId: ctx.userId },
         select: { id: true, kind: true, status: true },
       });
       if (!job) return { retried: false, reason: 'job not found' };
@@ -289,6 +403,15 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
         select: { id: true, status: true },
       });
       if (!item) return { retried: false, reason: 'item not found' };
+      // 'held' is deliberately NOT retryable (§3.c3): regenerating would not
+      // resolve the grounding finding, and the held draft must go to a reviewer
+      // or be superseded by a new edited version instead.
+      if (item.status === 'held') {
+        return {
+          retried: false,
+          reason: 'this draft is held for review — approve it in Reviews or edit it to create a new version',
+        };
+      }
       if (item.status !== 'failed') {
         return { retried: false, reason: `item is ${item.status}, not failed` };
       }
@@ -310,7 +433,7 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
   async cancelJob(ctx: TenantContext, jobId: string): Promise<{ canceled: boolean }> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const job = await tx.outreachJob.findFirst({
-        where: { id: jobId, tenantId: ctx.tenantId },
+        where: { id: jobId, tenantId: ctx.tenantId, userId: ctx.userId },
         select: { id: true, status: true },
       });
       if (!job) return { canceled: false };
@@ -503,16 +626,20 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
       const byKey = new Map(results.map((r) => [r.recipientId, r]));
       for (const item of batch) {
         const r = byKey.get(item.recipientKey);
-        // Gate on the authoritative per-item status the generator now returns —
-        // NOT a subject/body emptiness heuristic (which would wrongly accept a
-        // non-empty placeholder tagged 'error', and drifts from the frontend's
-        // own guard). A missing result (dropped recipient) is also a failure.
-        const ok = r?.status === 'ready';
+        // Gate on the authoritative lifecycle the generator returns — NOT a
+        // subject/body emptiness heuristic. A missing result (dropped recipient)
+        // is a failure; a held/pending/unavailable audit is 'held', which is
+        // terminal and never auto-retried or auto-sent.
+        const status = classifyGenerationItem(r);
         await this.setItem(
           item.id,
-          ok ? 'done' : 'failed',
-          ok ? { subject: r!.subject, body: r!.body } : null,
-          ok ? null : (r?.error ?? 'generation returned no draft'),
+          status,
+          // Phase 0 §3.c3: a held item KEEPS its real content and carries the
+          // version metadata, so the wizard can show the draft (and link to its
+          // review) instead of a fabricated "generation failed" placeholder.
+          status === 'failed' ? null : buildItemResult(r),
+          // A hold is not an error: no auditor internals in the error column.
+          status === 'failed' ? (r?.error ?? 'generation returned no draft') : null,
         );
       }
     } catch (err) {
@@ -537,6 +664,14 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
     );
   }
 
+  /**
+   * Roll the job up from its items.
+   *
+   * CANCEL IS TERMINAL (§3.c3): the update is guarded on `status != 'canceled'`
+   * via updateMany, so a sweep that was mid-flight when the user cancelled can
+   * never resurrect the job as complete/partial. Before this guard, a cancel
+   * raced by an in-progress batch silently lost.
+   */
   private async finalizeJob(jobId: string): Promise<void> {
     await this.prisma.withSystem(async (tx) => {
       const items = await tx.outreachJobItem.findMany({
@@ -545,11 +680,22 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
       });
       const { status, totals } = computeJobRollup(items);
       const done = status === 'complete' || status === 'partial' || status === 'failed';
-      await tx.outreachJob.update({
-        where: { id: jobId },
+      await tx.outreachJob.updateMany({
+        where: { id: jobId, status: { not: 'canceled' } },
         data: { status, totals, ...(done ? { finishedAt: new Date() } : {}) },
       });
     });
+  }
+
+  /**
+   * Legacy async SEND jobs are refused once versioned outreach is on (§3.c3):
+   * they carry raw caller subject/body in the item payload, which is exactly the
+   * bypass durable send intents exist to close. Generation jobs are unaffected.
+   */
+  private assertSendJobAllowed(kind: OutreachJobKind): void {
+    if (kind === 'send' && this.versionedOutreach) {
+      throw new BadRequestException('Legacy async send is disabled; use send intents');
+    }
   }
 
   /**

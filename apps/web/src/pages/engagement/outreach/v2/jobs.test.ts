@@ -124,3 +124,99 @@ describe('transientStatusByGenKey', () => {
     expect(t['individual:b']).toBe('generating');
   });
 });
+
+// ── Phase 0 (plan §3.g2 / §5.4) ──────────────────────────────────────────────
+
+describe('mapJobItemsToDraftPatch — held content is PRESERVED', () => {
+  const ph = (genKey: string) => ({ subject: `PH ${genKey}`, body: 'placeholder body' });
+
+  it('a held item keeps its real subject/body and carries the version metadata', () => {
+    const map = buildResultIdToGenKeys([slot('individual:a', 'a')]);
+    const patch = mapJobItemsToDraftPatch(
+      [
+        item({
+          recipientKey: 'a',
+          status: 'held',
+          result: {
+            subject: 'Funding update',
+            body: 'H.R.1 was signed into law.',
+            versionId: 'v-1',
+            artifactId: 'art-1',
+            version: 1,
+            auditStatus: 'held',
+            approvalStatus: 'pending',
+            reviewRequestId: 'rr-1',
+            contextNote: 'Unverified — 1 grounding finding',
+          },
+        }),
+      ],
+      map,
+      ph,
+    );
+    expect(patch).toHaveLength(1);
+    expect(patch[0]!.status).toBe('held');
+    // The real content survives — NOT the failure placeholder.
+    expect(patch[0]!.subject).toBe('Funding update');
+    expect(patch[0]!.body).toContain('H.R.1');
+    expect(patch[0]!.body).not.toContain('placeholder');
+    // …and the version metadata lets the wizard link to the review.
+    expect(patch[0]!.versionId).toBe('v-1');
+    expect(patch[0]!.auditStatus).toBe('held');
+    expect(patch[0]!.reviewRequestId).toBe('rr-1');
+    expect(patch[0]!.contextNote).toMatch(/Unverified/);
+  });
+
+  it('a FAILED item still gets the placeholder (there is no content to keep)', () => {
+    const map = buildResultIdToGenKeys([slot('individual:a', 'a')]);
+    const patch = mapJobItemsToDraftPatch(
+      [item({ recipientKey: 'a', status: 'failed', result: null })],
+      map,
+      ph,
+    );
+    expect(patch[0]!.status).toBe('error');
+    expect(patch[0]!.subject).toBe('PH individual:a');
+  });
+
+  it('a done item carries its version metadata too', () => {
+    const map = buildResultIdToGenKeys([slot('individual:a', 'a')]);
+    const patch = mapJobItemsToDraftPatch(
+      [
+        item({
+          recipientKey: 'a',
+          status: 'done',
+          result: { subject: 'S', body: 'B', versionId: 'v-2', auditStatus: 'passed' },
+        }),
+      ],
+      map,
+      ph,
+    );
+    expect(patch[0]!.status).toBe('ready');
+    expect(patch[0]!.versionId).toBe('v-2');
+  });
+});
+
+describe('jobItemsProgress — held is terminal', () => {
+  it('counts held separately and includes it in settled', () => {
+    const p = jobItemsProgress(
+      [
+        item({ recipientKey: 'a', status: 'done' }),
+        item({ recipientKey: 'b', status: 'held' }),
+        item({ recipientKey: 'c', status: 'failed' }),
+      ],
+      'partial',
+    );
+    expect(p.done).toBe(1);
+    expect(p.held).toBe(1);
+    expect(p.failed).toBe(1);
+    // Excluding held would leave the progress bar stuck short of 100% forever on
+    // a job whose every draft was held.
+    expect(p.settled).toBe(3);
+    expect(p.total).toBe(3);
+  });
+
+  it('an all-held job is fully settled', () => {
+    const p = jobItemsProgress([item({ recipientKey: 'a', status: 'held' })], 'partial');
+    expect(p.settled).toBe(p.total);
+    expect(p.done).toBe(0);
+  });
+});

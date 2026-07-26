@@ -2,6 +2,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ReviewsService } from './reviews.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { EngagementService } from '../engagement/engagement.service.js';
+import type { OutreachDraftService } from '../engagement/outreach-draft.service.js';
 import type { TenantContext } from '@capiro/shared';
 
 const admin: TenantContext = {
@@ -35,7 +36,16 @@ function makeService(pending: Record<string, unknown> | null) {
   const engagement = {
     createAttachmentFromBuffer: jest.fn(async () => ({ id: 'att-9', fileName: 'memo.docx' })),
   } as unknown as EngagementService;
-  const service = new ReviewsService(prisma, engagement);
+  // Phase 0: ReviewsService also takes OutreachDraftService. These cases cover
+  // the alert-memo/research surfaces only, so a stub that THROWS if touched is
+  // the right double - it proves the outreach path is not entered for them.
+  const outreachDrafts = {
+    decideWithinTx: jest.fn(async () => {
+      throw new Error('outreach draft path must not be used for this surface');
+    }),
+    getVersionForReviewerUnchecked: jest.fn(async () => null),
+  } as unknown as OutreachDraftService;
+  const service = new ReviewsService(prisma, engagement, outreachDrafts);
   return { service, updates, execRaw, engagement };
 }
 
@@ -52,6 +62,7 @@ describe('ReviewsService (G4 named-reviewer routing)', () => {
     const boom = new ReviewsService(
       { withTenant: jest.fn().mockRejectedValue(new Error('db down')) } as unknown as PrismaService,
       {} as EngagementService,
+      {} as OutreachDraftService,
     );
     await expect(
       boom.createSystem('t1', {

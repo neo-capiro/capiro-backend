@@ -24,7 +24,10 @@ export type JobItemStatus =
   | 'failed'
   | 'sending'
   | 'sent'
-  | 'skipped';
+  | 'skipped'
+  // Phase 0: the grounding auditor HELD this draft. Terminal — it needs a
+  // reviewer or a new edited version, and it is never auto-retried.
+  | 'held';
 
 /** Backend OutreachJob.status. */
 export type JobStatus = 'queued' | 'running' | 'partial' | 'complete' | 'failed' | 'canceled';
@@ -33,7 +36,23 @@ export interface JobItem {
   id: string;
   recipientKey: string;
   status: JobItemStatus;
-  result: { subject?: string; body?: string } | null;
+  /**
+   * Phase 0: a held item keeps its REAL subject/body plus the version metadata
+   * the wizard needs to look the version up and link to its review. The server
+   * allowlists these fields, so no auditor internals arrive here.
+   */
+  result: {
+    subject?: string;
+    body?: string;
+    versionId?: string;
+    artifactId?: string;
+    version?: number;
+    generationStatus?: string;
+    auditStatus?: string;
+    approvalStatus?: string;
+    reviewRequestId?: string;
+    contextNote?: string;
+  } | null;
   error: string | null;
   attempt: number;
 }
@@ -97,7 +116,9 @@ export interface JobProgress {
   done: number;
   failed: number;
   skipped: number;
-  /** succeeded + failed + skipped — i.e. items that reached a terminal state. */
+  /** Held for review: terminal, but NOT a success and NOT a failure. */
+  held: number;
+  /** done + failed + skipped + held — items that reached a terminal state. */
   settled: number;
   active: boolean;
 }
@@ -108,17 +129,22 @@ export function jobItemsProgress(items: JobItem[], jobStatus: JobStatus | undefi
   let done = 0;
   let failed = 0;
   let skipped = 0;
+  let held = 0;
   for (const it of items) {
     if (it.status === 'done' || it.status === 'sent') done++;
     else if (it.status === 'failed') failed++;
     else if (it.status === 'skipped') skipped++;
+    else if (it.status === 'held') held++;
   }
   return {
     total: items.length,
     done,
     failed,
     skipped,
-    settled: done + failed + skipped,
+    held,
+    // 'held' is terminal: excluding it would leave the progress bar stuck short
+    // of 100% forever on a job whose every draft was held.
+    settled: done + failed + skipped + held,
     active: isJobActive(jobStatus),
   };
 }
@@ -127,7 +153,16 @@ export interface DraftPatchEntry {
   genKey: string;
   subject: string;
   body: string;
-  status: 'ready' | 'error';
+  status: 'ready' | 'error' | 'held';
+  // Phase 0 version metadata, present for done AND held items.
+  versionId?: string;
+  artifactId?: string;
+  version?: number;
+  generationStatus?: string;
+  auditStatus?: string;
+  approvalStatus?: string;
+  reviewRequestId?: string;
+  contextNote?: string;
 }
 
 /**
@@ -147,10 +182,29 @@ export function mapJobItemsToDraftPatch(
   for (const it of items) {
     const genKeys = resultIdToGenKeys.get(it.recipientKey);
     if (!genKeys) continue;
+
+    // Version metadata rides along for both done and held items.
+    const meta = {
+      ...(it.result?.versionId ? { versionId: it.result.versionId } : {}),
+      ...(it.result?.artifactId ? { artifactId: it.result.artifactId } : {}),
+      ...(it.result?.version != null ? { version: it.result.version } : {}),
+      ...(it.result?.generationStatus ? { generationStatus: it.result.generationStatus } : {}),
+      ...(it.result?.auditStatus ? { auditStatus: it.result.auditStatus } : {}),
+      ...(it.result?.approvalStatus ? { approvalStatus: it.result.approvalStatus } : {}),
+      ...(it.result?.reviewRequestId ? { reviewRequestId: it.result.reviewRequestId } : {}),
+      ...(it.result?.contextNote ? { contextNote: it.result.contextNote } : {}),
+    };
+
     if (it.status === 'done') {
       const subject = it.result?.subject ?? '';
       const body = sanitizeHtml(markdownishToHtml(it.result?.body ?? ''));
-      for (const genKey of genKeys) out.push({ genKey, subject, body, status: 'ready' });
+      for (const genKey of genKeys) out.push({ genKey, subject, body, status: 'ready', ...meta });
+    } else if (it.status === 'held') {
+      // Phase 0 (§3.g2): PRESERVE the held content. Manufacturing a placeholder
+      // here is what previously destroyed the text a reviewer had to read.
+      const subject = it.result?.subject ?? '';
+      const body = sanitizeHtml(markdownishToHtml(it.result?.body ?? ''));
+      for (const genKey of genKeys) out.push({ genKey, subject, body, status: 'held', ...meta });
     } else if (it.status === 'failed') {
       for (const genKey of genKeys) {
         const ph = placeholder(genKey);

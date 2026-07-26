@@ -42,6 +42,8 @@ import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { EngagementService } from './engagement.service.js';
 import { OutreachJobService, outreachRecipientKey } from './outreach-job.service.js';
 import { NotetakerService } from './notetaker/notetaker.service.js';
+import { OutreachDraftService } from './outreach-draft.service.js';
+import { OutreachSendIntentService } from './outreach-send-intent.service.js';
 
 /**
  * Coerce empty/whitespace-only strings to `undefined` BEFORE validation runs.
@@ -796,6 +798,27 @@ class OutreachRecipientDto {
   @Type(() => GroupMemberDto)
   groupMembers?: GroupMemberDto[];
 
+  /**
+   * Phase 0 (§3.c1) — the generation slot(s) this recipient's draft belongs to.
+   * The wizard sends its GenerationTargetKey; one generated draft can back
+   * several slots (the same person in two lists is generated once, on purpose).
+   *
+   * NOTE: `recipientKey` is deliberately NOT accepted from the browser — it is
+   * derived server-side with the same precedence as outreachRecipientKey().
+   */
+  @IsOptional()
+  @IsString()
+  @EmptyToUndefined()
+  @Length(1, 512)
+  generationKey?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(8)
+  @IsString({ each: true })
+  @Length(1, 512, { each: true })
+  generationKeys?: string[];
+
   @IsOptional()
   @IsUUID()
   meetingId?: string;
@@ -1037,6 +1060,18 @@ export class GenerateBatchEmailDto {
   @IsUUID()
   campaignId?: string;
 
+  /**
+   * Phase 0 (§3.c1) — the OutreachRecord every generated version is filed under.
+   *
+   * Declared OPTIONAL at the DTO layer so the pre-Phase-0 wizard keeps working
+   * with ENGAGEMENT_VERSIONED_OUTREACH=false; the SERVICE requires it (a typed
+   * 400) whenever the flag is on. Making it structurally required here would 400
+   * every legacy caller the moment this code deploys, before the flag flip.
+   */
+  @IsOptional()
+  @IsUUID()
+  outreachRecordId?: string;
+
   @IsOptional()
   @IsUUID()
   clientId?: string;
@@ -1208,6 +1243,73 @@ export class OutreachSendJobDto extends SendBatchEmailDto {
   requestKey!: string;
 }
 
+// ── Phase 0: immutable draft versions + durable send intents ─────────────────
+
+/**
+ * Append a new IMMUTABLE version of one draft slot (§3.c1).
+ *
+ * `baseVersionId` is the optimistic-concurrency token: the server refuses (409)
+ * if it is no longer the artifact's current version, so two tabs cannot silently
+ * overwrite each other.
+ */
+export class CreateDraftVersionDto {
+  @IsUUID()
+  baseVersionId!: string;
+
+  @IsString()
+  @Length(0, 300)
+  subject!: string;
+
+  @IsString()
+  @Length(0, 40000)
+  body!: string;
+
+  @IsIn(['manual', 'improve', 'revert'])
+  editKind!: 'manual' | 'improve' | 'revert';
+}
+
+/**
+ * Create a durable send intent (§3.d2).
+ *
+ * Carries DRAFT VERSION IDS ONLY. There is deliberately no subject/body field:
+ * the outbound text is read from the immutable audited version server-side, which
+ * is what makes the raw-body bypass structurally impossible rather than merely
+ * discouraged.
+ */
+export class CreateSendIntentDto {
+  @IsUUID()
+  outreachRecordId!: string;
+
+  /** Client idempotency token, minted once per Send click and reused on retry. */
+  @IsString()
+  @Length(8, 128)
+  requestKey!: string;
+
+  /** Which connected inbox to send from. Required — never inferred for a real send. */
+  @IsUUID()
+  senderConnectionId!: string;
+
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsUUID('4', { each: true })
+  draftVersionIds!: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(25)
+  @IsUUID('4', { each: true })
+  attachmentIds?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  appendSignature?: boolean;
+
+  /** Test send: one copy to the authenticated user; no real recipient rows. */
+  @IsOptional()
+  @IsBoolean()
+  testMode?: boolean;
+}
+
 class CreateOutreachRecordDto {
   @IsIn(outreachTypes)
   type!: (typeof outreachTypes)[number];
@@ -1371,11 +1473,19 @@ export class EngagementController {
     private readonly service: EngagementService,
     private readonly notetaker: NotetakerService,
     private readonly outreachJobs: OutreachJobService,
+    private readonly drafts: OutreachDraftService,
+    private readonly sendIntents: OutreachSendIntentService,
   ) {}
 
   @Get('capabilities')
   capabilities() {
-    return this.service.capabilities();
+    // Phase 0 §3.i1: the web app must know whether versioned outreach and the
+    // v2 send gate are on, so it can pick the right send path. Booleans only —
+    // no secrets, and the raw auditor mode is never exposed.
+    return {
+      ...this.service.capabilities(),
+      ...this.service.engagementTrustBoundaryCapabilities(),
+    };
   }
 
   // Tenant-wide CRM contact list for link pickers (e.g. linking an
@@ -1803,6 +1913,68 @@ export class EngagementController {
       throw new BadRequestException('Async outreach generation is not enabled in this environment');
     }
     return this.outreachJobs.retryItem(ctx, id, itemId);
+  }
+
+  // ── Phase 0: immutable draft versions ──────────────────────────────────────
+  // All declared BEFORE 'outreach/:id' so the dynamic route cannot swallow
+  // 'draft-artifacts' / 'draft-versions' / 'send-intents' as record ids.
+
+  /** Every draft slot for one outreach record, with its current version. */
+  @Get('outreach/:outreachRecordId/draft-artifacts')
+  listDraftArtifacts(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('outreachRecordId') outreachRecordId: string,
+  ) {
+    return this.drafts.listForOutreach(ctx, outreachRecordId);
+  }
+
+  /**
+   * Append a new immutable version (manual edit / Improve / Revert).
+   *
+   * Throttled like the other write endpoints: this can trigger an AUDIT but never
+   * a new drafting LLM call, so it does not need the tight generate-batch budget —
+   * and autosave means a user legitimately produces a steady trickle of these.
+   */
+  @Throttle({ long: { ttl: 60_000, limit: 240 } })
+  @Post('outreach/draft-artifacts/:artifactId/versions')
+  createDraftVersion(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('artifactId') artifactId: string,
+    @Body() body: CreateDraftVersionDto,
+  ) {
+    return this.drafts.createEditedVersion(ctx, artifactId, body);
+  }
+
+  /** One immutable version, owner-scoped. */
+  @Get('outreach/draft-versions/:versionId')
+  getDraftVersion(@CurrentTenant() ctx: TenantContext, @Param('versionId') versionId: string) {
+    return this.drafts.getVersion(ctx, versionId);
+  }
+
+  // ── Phase 0: durable send intents ──────────────────────────────────────────
+
+  /**
+   * Create a durable send intent. The intent and every delivery row are committed
+   * BEFORE any provider request; the worker then delivers at-most-once.
+   */
+  @Post('outreach/send-intents')
+  createSendIntent(@CurrentTenant() ctx: TenantContext, @Body() body: CreateSendIntentDto) {
+    return this.sendIntents.createIntent(ctx, body);
+  }
+
+  @Get('outreach/send-intents/:id')
+  getSendIntent(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.sendIntents.getIntent(ctx, id);
+  }
+
+  /**
+   * Cancel what has not left yet. Pending deliveries become skipped; a delivery
+   * already in flight is NOT cancelled (we will not claim success for a message
+   * that may already have been delivered) and is reported back in `inFlight`.
+   */
+  @Post('outreach/send-intents/:id/cancel')
+  cancelSendIntent(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.sendIntents.cancelIntent(ctx, id);
   }
 
   // Tenant-wide context library for the Build Context step (docs/notes, debriefs,
