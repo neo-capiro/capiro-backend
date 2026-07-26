@@ -16,6 +16,12 @@ const toneColor: Record<string, string> = {
   success: '#167a4a',
 };
 
+/** Single definition of the app's public base URL (P1-06) — shared by every
+ *  link builder in this file and in intel-alert.service.ts / tracker-test-alert.service.ts. */
+export function appBaseUrl(): string {
+  return (process.env.TRACKER_APP_BASE_URL ?? 'https://app.capiro.ai').replace(/\/$/, '');
+}
+
 function esc(s: string): string {
   return (s ?? '')
     .replace(/&/g, '&amp;')
@@ -27,11 +33,11 @@ function esc(s: string): string {
 function shell(inner: string): string {
   return `<!doctype html><html><body style="margin:0;background:#f6f8fb;padding:24px;font-family:Inter,system-ui,Segoe UI,sans-serif;color:${INK}">
   <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #d8e0ea;border-radius:14px;overflow:hidden">
-    <div style="padding:18px 22px;border-bottom:1px solid #eef1f6;font-weight:700;font-size:15px;color:${INK}">Capiro · Bill Tracker</div>
+    <div style="padding:18px 22px;border-bottom:1px solid #eef1f6;font-weight:700;font-size:15px;color:${INK}">Capiro · LegiWatch</div>
     <div style="padding:22px">${inner}</div>
     <div style="padding:16px 22px;border-top:1px solid #eef1f6;font-size:11px;color:${MUTED}">
-      You're receiving this because bill-tracking alerts are enabled for this client.
-      Manage alerts in the client profile → Tracker → Configure.
+      You're receiving this because LegiWatch alerts are enabled for this client.
+      Manage alerts in LegiWatch → Configure.
     </div>
   </div></body></html>`;
 }
@@ -71,7 +77,8 @@ export function renderAlertEmail(event: IntelAlertEvent): {
             .join('')}</div>`
         : ''
     }
-    ${event.url ? `<a href="${esc(event.url)}" style="display:inline-block;margin-top:20px;background:${BRAND};color:#fff;text-decoration:none;font-weight:600;font-size:13px;padding:9px 16px;border-radius:8px">Open in Tracker →</a>` : ''}`;
+    ${event.appUrl ? `<a href="${esc(event.appUrl)}" style="display:inline-block;margin-top:20px;background:${BRAND};color:#fff;text-decoration:none;font-weight:600;font-size:13px;padding:9px 16px;border-radius:8px">Open in LegiWatch →</a>` : ''}
+    ${event.url ? `<a href="${esc(event.url)}" style="display:inline-block;margin-top:20px;margin-left:10px;color:${BRAND};text-decoration:none;font-weight:600;font-size:13px;padding:9px 4px">View official source →</a>` : ''}`;
   const text = [
     `${event.displayNum}: ${event.label}`,
     event.billTitle,
@@ -82,7 +89,8 @@ export function renderAlertEmail(event: IntelAlertEvent): {
     event.why
       ? `Why this matters${event.clientName ? ` (${event.clientName})` : ''}: ${event.why}`
       : '',
-    ...(event.url ? ['', `Open: ${event.url}`] : []),
+    ...(event.appUrl ? ['', `Open in LegiWatch: ${event.appUrl}`] : []),
+    ...(event.url ? [`View official source: ${event.url}`] : []),
   ]
     .filter(Boolean)
     .join('\n');
@@ -200,15 +208,45 @@ export function renderDigestEmail(
   return { subject, html: shell(html), text };
 }
 
-/** Test alert email fired from the Configure panel. */
+/** Test alert email fired from the Configure panel. `legiwatchUrl` is the
+ *  primary CTA (Feed, client-preselected); `clientTrackerUrl` is a secondary
+ *  text link to the client-profile LegiWatch tab (P1-06). */
 export function renderTestEmail(
   clientName: string | null,
-  boardUrl: string,
+  legiwatchUrl: string,
+  clientTrackerUrl: string,
 ): { subject: string; html: string; text: string } {
-  const subject = `Test alert — Capiro bill tracker${clientName ? ` · ${clientName}` : ''}`;
-  const inner = `<div style="font-size:15px;font-weight:600;color:${INK}">Your bill-tracker alerts are wired up ✓</div>
-    <div style="margin-top:10px;font-size:13px;line-height:1.5;color:${MUTED}">This is a sample alert confirming email delivery for ${esc(clientName ?? 'this client')}. Real alerts fire when a tracked bill moves (amendment, hearing, vote, enactment).</div>
-    <a href="${esc(boardUrl)}" style="display:inline-block;margin-top:18px;background:${BRAND};color:#fff;text-decoration:none;font-weight:600;font-size:13px;padding:9px 16px;border-radius:8px">Open Tracker →</a>`;
-  const text = `Your bill-tracker alerts are wired up.\n\nThis is a sample alert confirming email delivery${clientName ? ` for ${clientName}` : ''}.\n\nOpen: ${boardUrl}`;
+  const subject = `Test alert — Capiro LegiWatch${clientName ? ` · ${clientName}` : ''}`;
+  const inner = `<div style="font-size:15px;font-weight:600;color:${INK}">Your LegiWatch alerts are wired up ✓</div>
+    <div style="margin-top:10px;font-size:13px;line-height:1.5;color:${MUTED}">This is a sample alert confirming email delivery for ${esc(clientName ?? 'this client')}. Real alerts fire when something you track moves — a bill, a hearing, a regulation, or a Program Element.</div>
+    <a href="${esc(legiwatchUrl)}" style="display:inline-block;margin-top:18px;background:${BRAND};color:#fff;text-decoration:none;font-weight:600;font-size:13px;padding:9px 16px;border-radius:8px">Open LegiWatch →</a>
+    <a href="${esc(clientTrackerUrl)}" style="display:inline-block;margin-top:18px;margin-left:10px;color:${BRAND};text-decoration:none;font-weight:600;font-size:13px;padding:9px 4px">Open the client profile →</a>`;
+  const text = `Your LegiWatch alerts are wired up.\n\nThis is a sample alert confirming email delivery${clientName ? ` for ${clientName}` : ''}.\n\nOpen LegiWatch: ${legiwatchUrl}\nOpen the client profile: ${clientTrackerUrl}`;
   return { subject, html: shell(inner), text };
+}
+
+/** Per-source email renderers (P1-07). A source with NO renderer is not
+ *  emailable — fanOut skips it rather than sending a bill-shaped email for a
+ *  hearing/PE/regulation event. Add a renderer here BEFORE widening
+ *  LEGIWATCH_EMIT_SOURCE_TYPES.
+ *
+ *  `state_bill` is included: bill-change-detector.service.ts's writeShadowAlert
+ *  is the SAME writer for both the federal and state rails (its own doc
+ *  comment: "parameterized (S4.3) so the exact same watermark/dedup/fan-out
+ *  machinery serves both rails") — it populates evidence.displayNum,
+ *  evidence.billTitle, evidence.stage, and evidence.actionText identically for
+ *  sourceType='state_bill' and sourceType='bill'. Verified by reading
+ *  writeShadowAlert directly (2026-07-25); no state-rail field is empty. */
+export const ALERT_EMAIL_RENDERERS: Record<
+  string,
+  (e: IntelAlertEvent) => { subject: string; html: string; text: string }
+> = {
+  bill: renderAlertEmail,
+  state_bill: renderAlertEmail, // same fields; jurisdiction rides in the event
+};
+
+export function rendererFor(
+  sourceType: string | undefined,
+): ((e: IntelAlertEvent) => { subject: string; html: string; text: string }) | null {
+  return ALERT_EMAIL_RENDERERS[sourceType ?? 'bill'] ?? null;
 }

@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
 import { IntelEmailService } from '../intel-alert/intel-email.service.js';
 import { SmsService } from './sms/sms.service.js';
-import { renderTestEmail } from './tracker-email.templates.js';
+import { renderTestEmail, appBaseUrl } from './tracker-email.templates.js';
 
 export type TestAlertChannel = 'email' | 'sms' | 'in_app';
 
@@ -28,10 +28,16 @@ export class TrackerTestAlertService {
     private readonly sms: SmsService,
   ) {}
 
-  /** Deep link to the client's Tracker tab (TRACKER_APP_BASE_URL env). */
-  private boardUrl(clientId: string): string {
-    const base = (process.env.TRACKER_APP_BASE_URL ?? 'https://app.capiro.ai').replace(/\/$/, '');
-    return `${base}/clients/${clientId}?tab=tracker`;
+  /** LegiWatch Feed, client-scoped. `/legiwatch` + ?tab=&client= are the real
+   *  contract (apps/web App.tsx:165, RadarPage.tsx:136,140). */
+  private legiwatchUrl(clientId: string): string {
+    return `${appBaseUrl()}/legiwatch?tab=feed&client=${encodeURIComponent(clientId)}`;
+  }
+
+  /** The client-profile LegiWatch tab. There is NO /clients/:id route — the
+   *  real contract is /clients?clientId=&tab= (apps/web ClientWorkspacePage.tsx:56). */
+  private clientTrackerUrl(clientId: string): string {
+    return `${appBaseUrl()}/clients?clientId=${encodeURIComponent(clientId)}&tab=tracker`;
   }
 
   /**
@@ -71,7 +77,8 @@ export class TrackerTestAlertService {
         }
         const { subject, html, text } = renderTestEmail(
           client?.name ?? null,
-          this.boardUrl(clientId),
+          this.legiwatchUrl(clientId),
+          this.clientTrackerUrl(clientId),
         );
         const res = await this.email.send(to, subject, html, text);
         // P1-05: surface WHY a send failed — truncated, and never the recipient address.
@@ -97,7 +104,7 @@ export class TrackerTestAlertService {
         }
         const res = await this.sms.send(
           pref.smsPhone,
-          `Capiro test alert — your bill-tracker SMS is wired up. ${this.boardUrl(clientId)}`,
+          `Capiro test alert — your LegiWatch SMS is wired up. ${this.legiwatchUrl(clientId)}`,
         );
         out.push({ channel, status: res.sent ? 'sent' : res.dormant ? 'suppressed' : 'failed' });
       }

@@ -54,6 +54,10 @@ export interface IntelAlertEvent {
    *  apps/api's TrackerSummaryService. Null/absent when disabled, unresolved, or
    *  on any failure — the email simply omits the "What happened" line. */
   summary?: string | null;
+  /** The in-app LegiWatch deep link. Distinct from `url`, which is the OFFICIAL source (P1-06). */
+  appUrl?: string;
+  /** 'bill' | 'state_bill' | 'hearing' | 'combined' | 'regulation' | 'program_element' — selects the email renderer (P1-07). */
+  sourceType?: string;
 }
 
 /** Parse "HH:MM" to minutes-since-midnight, or null. */

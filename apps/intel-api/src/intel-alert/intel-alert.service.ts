@@ -12,7 +12,12 @@ import {
   type IntelAlertEvent,
 } from './intel-alert.types.js';
 import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
-import { renderAlertEmail, renderDigestEmail, type DigestItem } from '../tracker/tracker-email.templates.js';
+import {
+  rendererFor,
+  renderDigestEmail,
+  appBaseUrl,
+  type DigestItem,
+} from '../tracker/tracker-email.templates.js';
 import { AlertSummaryClient } from './alert-summary.client.js';
 
 type Channel = 'email' | 'sms' | 'in_app';
@@ -261,7 +266,17 @@ export class IntelAlertService {
     let failed = 0;
     let queued = 0;
     // Rendered once per event (not per-pref — content doesn't vary by recipient).
-    const rendered = renderAlertEmail(event);
+    // P1-07: a source with no registered renderer is not emailable. Return
+    // all-zeros (not `failed`) so emitNewBillAlerts still stamps deliveredAt
+    // (:failed === 0) instead of retrying an alert that can never render.
+    const render = rendererFor(event.sourceType);
+    if (!render) {
+      this.logger.warn(
+        `fanOut: no email renderer for sourceType='${event.sourceType}' (alert ${alertId}); skipping email delivery`,
+      );
+      return { suppressed: 0, sent: 0, failed: 0, queued: 0 };
+    }
+    const rendered = render(event);
     for (const pref of prefs) {
       if (!eligible(pref)) continue;
 
@@ -435,6 +450,8 @@ export class IntelAlertService {
         score: a.score,
         band: (ev.band as string) ?? undefined,
         jurisdiction: (ev.jurisdiction as string) ?? 'US',
+        sourceType: a.sourceType,
+        appUrl: `${appBaseUrl()}/legiwatch?tab=feed&client=${encodeURIComponent(a.clientId)}`,
       };
       try {
         const r = await this.fanOut(event, summaryCache);
