@@ -744,29 +744,41 @@ export function TrackerConfigPanel({
           </span>
           <span className="grow" />
           <span className="wl-savestate" aria-live="polite">
-            {saveState.kind === 'saving' && 'Saving…'}
-            {saveState.kind === 'saved' && (
+            {/* A blocked save OUTRANKS any earlier success. Without this the strip
+                keeps reading "Saved at 16:21" from the last good save while
+                `hasTagNameError` is silently swallowing every subsequent edit — so
+                the card claims saved and not-saved simultaneously. Observed in the
+                2026-07-26 live smoke: a priority change looked applied and was
+                never persisted. */}
+            {hasTagNameError ? (
+              <span role="alert">Not saved — every tag needs a name</span>
+            ) : (
               <>
-                Saved at {saveState.at}
-                {canUndo && onUndoSave && (
+                {saveState.kind === 'saving' && 'Saving…'}
+                {saveState.kind === 'saved' && (
                   <>
-                    {' · '}
-                    <button className="btn-link" onClick={onUndoSave}>
-                      Undo last change
+                    Saved at {saveState.at}
+                    {canUndo && onUndoSave && (
+                      <>
+                        {' · '}
+                        <button className="btn-link" onClick={onUndoSave}>
+                          Undo last change
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
+                {saveState.kind === 'error' && (
+                  <>
+                    Save failed —{' '}
+                    <button className="btn-link" onClick={onRetrySave}>
+                      Retry
                     </button>
                   </>
                 )}
+                {saveState.kind === 'conflict' && <span role="alert">{saveState.message}</span>}
               </>
             )}
-            {saveState.kind === 'error' && (
-              <>
-                Save failed —{' '}
-                <button className="btn-link" onClick={onRetrySave}>
-                  Retry
-                </button>
-              </>
-            )}
-            {saveState.kind === 'conflict' && <span role="alert">{saveState.message}</span>}
           </span>
         </div>
         <div className="card-body">
