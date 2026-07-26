@@ -10,9 +10,25 @@ import type { FeedItem } from './intel-feed-api.js';
  * Document link (intel-api) → refresh the Feed so it shows "memo drafted".
  */
 
+/** P0-08: the PE funding facts the memo generator now grounds a PE memo in. */
+export interface AlertMemoProgramElement {
+  peCode: string;
+  title?: string | null;
+  fiscalYear?: number | null;
+  deltaType?: string | null;
+  deltaTypeLabel?: string | null;
+  fromRef?: string | null;
+  toRef?: string | null;
+  amountFromMillions?: number | null;
+  amountToMillions?: number | null;
+  deltaMillions?: number | null;
+  deltaPct?: number | null;
+  href?: string | null;
+}
+
 export interface AlertMemoAlertInput {
   alertId: string;
-  sourceType: 'bill' | 'hearing' | 'combined';
+  sourceType: 'bill' | 'hearing' | 'combined' | 'program_element';
   title: string;
   whyItMatters?: string | null;
   severity?: string | null;
@@ -27,6 +43,7 @@ export interface AlertMemoAlertInput {
   quotes?: Array<{ text: string; speaker?: string; atSec?: number }>;
   url?: string | null;
   matchedTags?: string[];
+  programElement?: AlertMemoProgramElement;
 }
 
 export interface AlertMemoResult {
@@ -48,6 +65,7 @@ export interface AlertMemoResult {
 export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
   const bill = item.evidence?.bill;
   const hearing = item.evidence?.hearing;
+  const pe = item.evidence?.programElement;
   const quotes = (hearing?.mentions ?? [])
     .map((m) => ({
       text: m.quote ?? '',
@@ -68,14 +86,13 @@ export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
     // (A state_bill DOES still get "Generate district brief" — that has its own
     // endpoint below and accepts state bills.) Map defensively to 'bill' rather
     // than send a value the server's @IsIn(['bill','hearing','combined']) rejects.
-    // R4 §4.3 adds 'program_element', which the memo generator also does not
-    // accept; recommendedActionsFor offers no "Draft memo" for a PE alert, so this
-    // path isn't reachable for one — map defensively like the others rather than
-    // send a value the server's @IsIn(['bill','hearing','combined']) rejects.
+    // P0-08: program_element is now a FIRST-CLASS memo source — apps/api's @IsIn
+    // accepts it and it has a PE-shaped prompt, section order, and claim builder. Sending
+    // it as 'bill' would drop every funding fact, which was the bug. state_bill and
+    // regulation still have no memo DTO and get no memo chip, so they keep the
+    // defensive map rather than a value the server rejects.
     sourceType:
-      item.sourceType === 'state_bill' ||
-      item.sourceType === 'regulation' ||
-      item.sourceType === 'program_element'
+      item.sourceType === 'state_bill' || item.sourceType === 'regulation'
         ? 'bill'
         : item.sourceType,
     title: item.title,
@@ -92,17 +109,43 @@ export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
     committee: hearing?.committeeId ?? null,
     hearingTitle: hearing?.title ?? null,
     quotes: quotes.length ? quotes : undefined,
-    url: bill?.url ?? null,
+    url: bill?.url ?? pe?.href ?? null,
     matchedTags: tags.length ? tags : undefined,
+    ...(pe
+      ? {
+          programElement: {
+            peCode: pe.peCode,
+            title: pe.title,
+            fiscalYear: pe.fiscalYear,
+            deltaType: pe.deltaType,
+            deltaTypeLabel: pe.deltaTypeLabel,
+            fromRef: pe.fromRef,
+            toRef: pe.toRef,
+            amountFromMillions: pe.amountFromMillions,
+            amountToMillions: pe.amountToMillions,
+            deltaMillions: pe.deltaMillions,
+            deltaPct: pe.deltaPct,
+            href: pe.href,
+          },
+        }
+      : {}),
   };
 }
 
 /**
- * The district-brief generator's DTO has the exact same shape/validator as the
- * memo's (Phase 1 M1.5) — including the same 'state_bill' -> 'bill' mapping —
- * so it reuses feedItemToMemoAlert directly rather than duplicating it.
+ * The district-brief generator's DTO has the same shape as the memo's (Phase 1 M1.5) but
+ * has NOT been widened for program_element — sending it sourceType:'program_element'
+ * would 400 on its @IsIn. This used to be a bare alias of feedItemToMemoAlert, so
+ * widening the memo mapper for PE silently armed that 400. `recommendedActionsFor` does
+ * not offer district_brief for a PE alert, so the path is not reachable from the UI
+ * today; it is mapped defensively anyway rather than left as a trap.
  */
-export const feedItemToDistrictBriefAlert = feedItemToMemoAlert;
+export function feedItemToDistrictBriefAlert(item: FeedItem): AlertMemoAlertInput {
+  const a = feedItemToMemoAlert(item);
+  return a.sourceType === 'program_element'
+    ? { ...a, sourceType: 'bill', programElement: undefined }
+    : a;
+}
 
 export function useGenerateAlertMemo() {
   const api = useApi();

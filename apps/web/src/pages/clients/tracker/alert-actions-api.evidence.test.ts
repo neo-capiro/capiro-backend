@@ -145,9 +145,79 @@ describe('feedItemToMemoAlert — hearing evidence', () => {
   });
 });
 
+/** What intel-api's PE change detector writes, after normalization. */
+const peItem = () =>
+  feedItem({
+    sourceType: 'program_element',
+    title: "0603286F: FY27 President's Budget increases funding",
+    evidence: {
+      schemaVersion: 1,
+      type: 'program_element',
+      programElement: {
+        peCode: '0603286F',
+        title: 'Hypersonics Prototyping',
+        fiscalYear: 2027,
+        deltaType: 'pb_increase',
+        deltaTypeLabel: "President's Budget increase",
+        fromRef: 'FY26 PB',
+        toRef: 'FY27 PB',
+        amountFromMillions: 250,
+        amountToMillions: 1234.5,
+        deltaMillions: 984.5,
+        deltaPct: 393.8,
+        materialityScore: 0.82,
+        href: '/program-elements/0603286F',
+      },
+    } as FeedItem['evidence'],
+  });
+
+describe('feedItemToMemoAlert — Program Element (P0-08)', () => {
+  // Case 14
+  test('keeps sourceType program_element and round-trips every PE field', () => {
+    const a = feedItemToMemoAlert(peItem());
+    expect(a.sourceType).toBe('program_element');
+    expect(a.programElement).toEqual({
+      peCode: '0603286F',
+      title: 'Hypersonics Prototyping',
+      fiscalYear: 2027,
+      deltaType: 'pb_increase',
+      deltaTypeLabel: "President's Budget increase",
+      fromRef: 'FY26 PB',
+      toRef: 'FY27 PB',
+      amountFromMillions: 250,
+      amountToMillions: 1234.5,
+      deltaMillions: 984.5,
+      deltaPct: 393.8,
+      href: '/program-elements/0603286F',
+    });
+  });
+
+  test('state_bill and regulation still map defensively to bill with no PE block', () => {
+    for (const sourceType of ['state_bill', 'regulation'] as const) {
+      const a = feedItemToMemoAlert(feedItem({ sourceType }));
+      expect(a.sourceType).toBe('bill');
+      expect(a.programElement).toBeUndefined();
+    }
+  });
+});
+
 describe('feedItemToDistrictBriefAlert', () => {
   test('still maps a bill alert identically to the memo mapper', () => {
     const item = feedItem({ evidence: normalizedBillEvidence });
     expect(feedItemToDistrictBriefAlert(item)).toEqual(feedItemToMemoAlert(item));
+  });
+
+  // Case 15 — the alias break. The district-brief DTO was NOT widened for PE, so
+  // sending it sourceType:'program_element' would 400.
+  test('downgrades a PE alert to bill and strips the PE block', () => {
+    const item = peItem();
+    expect(feedItemToMemoAlert(item).sourceType).toBe('program_element');
+    const brief = feedItemToDistrictBriefAlert(item);
+    expect(brief.sourceType).toBe('bill');
+    expect(brief.programElement).toBeUndefined();
+  });
+
+  test('is no longer a bare alias of the memo mapper', () => {
+    expect(feedItemToDistrictBriefAlert).not.toBe(feedItemToMemoAlert);
   });
 });

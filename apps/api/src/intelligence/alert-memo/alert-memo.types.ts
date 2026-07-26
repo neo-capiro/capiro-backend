@@ -10,6 +10,33 @@
  * intel-api (intel_draft).
  */
 
+/**
+ * Program Element funding-movement facts (P0-08). Present only for
+ * sourceType='program_element'. Every amount is in MILLIONS and every figure is
+ * pre-computed upstream — the model is never asked to do budget arithmetic.
+ *
+ * `verification` and `linkedRef` are accepted but NOT yet emitted by intel-api's PE
+ * change detector (it writes peCode/title/fiscalYear/deltaType/deltaTypeLabel/
+ * fromRef/toRef/amounts/deltas/href). Their claims simply do not fire until a writer
+ * supplies them.
+ */
+export interface AlertMemoProgramElement {
+  peCode: string;
+  title?: string | null;
+  fiscalYear?: number | null;
+  deltaType?: string | null;
+  deltaTypeLabel?: string | null;
+  fromRef?: string | null;
+  toRef?: string | null;
+  amountFromMillions?: number | null;
+  amountToMillions?: number | null;
+  deltaMillions?: number | null;
+  deltaPct?: number | null;
+  verification?: string | null;
+  linkedRef?: string | null;
+  href?: string | null;
+}
+
 /** A transcript/quote mention carried from a hearing alert. */
 export interface AlertMemoQuote {
   text: string;
@@ -21,7 +48,7 @@ export interface AlertMemoQuote {
 /** The salient alert content the memo is grounded in (passed from the Feed). */
 export interface AlertMemoAlertInput {
   alertId: string;
-  sourceType: 'bill' | 'hearing' | 'combined';
+  sourceType: 'bill' | 'hearing' | 'combined' | 'program_element';
   /** headline, e.g. "H.R. 8800: Rule granted (floor scheduled)" */
   title: string;
   /** deterministic "why it matters to {client}" from the detector */
@@ -43,6 +70,8 @@ export interface AlertMemoAlertInput {
   url?: string | null;
   /** matched watchlist tags / issue areas */
   matchedTags?: string[];
+  /** P0-08: the funding facts a PE alert carries. Only for sourceType='program_element'. */
+  programElement?: AlertMemoProgramElement;
 }
 
 export interface AlertMemoResult {

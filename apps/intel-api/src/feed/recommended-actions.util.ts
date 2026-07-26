@@ -19,17 +19,22 @@ export type RecommendedActionKind =
   | 'add_to_report'
   | 'add_talking_point'
   | 'open_bill'
-  | 'open_hearing';
+  | 'open_hearing'
+  /** P0-08: open the line-level Program Element 360 dossier. The web mirror has
+   *  declared this kind (and the peCode target) since R4 §4.3 — this closes the gap
+   *  in the AUTHORITATIVE direction, so a PE alert can finally offer its own source. */
+  | 'open_program_element';
 
 export interface RecommendedAction {
   kind: RecommendedActionKind;
   label: string;
   primary?: boolean;
-  target?: { billId?: string; sessionId?: string };
+  target?: { billId?: string; sessionId?: string; peCode?: string };
 }
 
 export interface AlertShape {
-  sourceType: string; // 'bill' | 'hearing' | 'combined' | 'state_bill'
+  // 'bill' | 'hearing' | 'combined' | 'state_bill' | 'regulation' | 'program_element'
+  sourceType: string;
   severity?: string | null; // 'critical' | 'notable' | 'info'
   sourceRef?: string | null;
   evidence?: unknown;
@@ -45,6 +50,13 @@ function sessionIdOf(evidence: unknown): string | undefined {
     | { sessionId?: string; hearing?: { sessionId?: string }; extra?: { sessionId?: string } }
     | null;
   return ev?.sessionId ?? ev?.hearing?.sessionId ?? ev?.extra?.sessionId ?? undefined;
+}
+
+function peCodeOf(evidence: unknown): string | undefined {
+  const ev = evidence as
+    | { programElement?: { peCode?: string }; peCode?: string; extra?: { peCode?: string } }
+    | null;
+  return ev?.programElement?.peCode ?? ev?.peCode ?? ev?.extra?.peCode ?? undefined;
 }
 
 export function recommendedActionsFor(alert: AlertShape): RecommendedAction[] {
@@ -64,8 +76,15 @@ export function recommendedActionsFor(alert: AlertShape): RecommendedAction[] {
   // with null bill fields. Exclude regulation (minimal fix; a real rule-shaped
   // memo is a deferred feature). state_bill stays excluded (its DTO doesn't
   // accept the sourceType yet); bill/combined/hearing behavior is unchanged.
+  // P0-08: a program_element alert already fell through to canMemo=true, but it got
+  // the BILL-shaped memo as its PRIMARY action — which dropped every funding fact the
+  // card displays (PE code, FY, budget-stage movement, the dollar delta). It now gets a
+  // PE-SHAPED memo (apps/api accepts sourceType='program_element' and has a PE template
+  // since b-6/b-10) plus the navigate-to-source action it always lacked.
   const canMemo = alert.sourceType !== 'state_bill' && alert.sourceType !== 'regulation';
+  const isProgramElement = alert.sourceType === 'program_element';
   const sessionId = sessionIdOf(alert.evidence);
+  const peCode = peCodeOf(alert.evidence);
 
   const actions: RecommendedAction[] = [];
   // Memo — primary on meaningful alerts, still offered (non-primary) on routine ones.
@@ -89,6 +108,12 @@ export function recommendedActionsFor(alert: AlertShape): RecommendedAction[] {
     actions.push({ kind: 'open_bill', label: 'Open bill', target: { billId: alert.sourceRef } });
   if (isHearing && sessionId)
     actions.push({ kind: 'open_hearing', label: 'Open hearing', target: { sessionId } });
+  if (isProgramElement && peCode)
+    actions.push({
+      kind: 'open_program_element',
+      label: 'Open Program Element',
+      target: { peCode },
+    });
 
   return actions;
 }

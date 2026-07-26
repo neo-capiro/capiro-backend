@@ -27,7 +27,11 @@ import {
   renderMemoDocx,
   type MemoDocInput,
 } from './alert-memo-docx.js';
-import type { AlertMemoAlertInput, AlertMemoResult } from './alert-memo.types.js';
+import type {
+  AlertMemoAlertInput,
+  AlertMemoProgramElement,
+  AlertMemoResult,
+} from './alert-memo.types.js';
 
 /**
  * Generates a client-voiced, source-grounded MEMO from an intel alert and
@@ -42,13 +46,34 @@ import type { AlertMemoAlertInput, AlertMemoResult } from './alert-memo.types.js
  */
 const MEMO_TIMEOUT_MS = 60_000;
 
-const SECTION_ORDER = [
-  'Bottom line',
-  'What happened',
-  'Why it matters',
-  'Recommended actions',
-  'Talking points',
-] as const;
+/**
+ * §4.5 / P0-08: the requested section list is per-source. `bill` is byte-identical to
+ * the single pre-Gate-C SECTION_ORDER, so no existing memo changes shape. A sourceType
+ * with no entry falls back to the bill order — never an empty list.
+ */
+const SECTION_ORDER_BY_SOURCE: Record<string, readonly string[]> = {
+  bill: ['Bottom line', 'What happened', 'Why it matters', 'Recommended actions', 'Talking points'],
+  hearing: ['Bottom line', 'Key statements', 'Why it matters', 'Follow-up targets', 'Talking points'],
+  combined: [
+    'Bottom line',
+    'What happened',
+    'Why it matters',
+    'Recommended actions',
+    'Talking points',
+  ],
+  program_element: [
+    'Bottom line',
+    'Budget movement',
+    'Authorization vs appropriation context',
+    'Client program alignment',
+    'Committee & program-office targets',
+    'Recommended engagement',
+  ],
+};
+
+export function sectionOrderFor(sourceType: string): readonly string[] {
+  return SECTION_ORDER_BY_SOURCE[sourceType] ?? SECTION_ORDER_BY_SOURCE['bill']!;
+}
 
 const SYSTEM_PROMPT = `You are a senior federal government-affairs strategist writing a concise internal MEMO for a lobbying firm's account team about a development affecting a specific client.
 You are given: (1) an ABOUT-THE-CLIENT brief that sets the voice, priorities, and hard "red lines" you must respect; and (2) a closed, numbered FACT SHEET of claims (c1, c2, ...).
@@ -58,6 +83,30 @@ Hard rules:
 - Use the ABOUT-THE-CLIENT brief to shape tone, emphasis, and the recommended actions — but do NOT state it as fact and NEVER contradict a stated red line.
 - Keep it tight: ~1 page. "Recommended actions" = 2-4 concrete, client-specific next steps.
 Return ONLY JSON: {"sections":[{"heading":"Bottom line","paragraphs":[{"text":"...","claimIds":["c1"]}]}, ...]} covering, in order: Bottom line, What happened, Why it matters, Recommended actions, Talking points. No prose outside the JSON.`;
+
+/**
+ * P0-08 / §4.5: a Program Element movement is a budget fact, not a legislative one. The
+ * bill prompt has no place to put a funding delta, an authorization-vs-appropriation
+ * stage, or a program office — so a PE alert generated against it produced a memo that
+ * silently dropped every figure the alert card displays.
+ *
+ * The arithmetic ban is the point: every dollar figure and delta is already a claim,
+ * pre-computed by code (see fmtM in buildClaims), so the model has no reason to compute.
+ */
+const PE_SYSTEM_PROMPT = `You are a senior defense-budget government-affairs strategist writing a concise internal MEMO for a lobbying firm's account team about a Program Element funding movement affecting a specific client.
+You are given: (1) an ABOUT-THE-CLIENT brief that sets the voice, priorities, and hard "red lines" you must respect; and (2) a closed, numbered FACT SHEET of claims (c1, c2, ...).
+Hard rules:
+- Assert ONLY facts drawn from the fact sheet. Never introduce a dollar figure, percentage, fiscal year, PE code, or document reference that is not in a claim.
+- NEVER compute or restate arithmetic. Every figure and delta you need is already a claim; use it verbatim.
+- Distinguish AUTHORIZATION (NDAA) from APPROPRIATION (defense approps) explicitly, and say which stage this movement is at. If the fact sheet does not establish the stage, say the stage is not established rather than inferring it.
+- Every paragraph MUST cite the claim ids it draws on (claimIds).
+- Use the ABOUT-THE-CLIENT brief to shape tone, emphasis, and the recommended engagement — but do NOT state it as fact and NEVER contradict a stated red line.
+- Keep it tight: ~1 page. "Recommended engagement" = 2-4 concrete, client-specific next steps naming the committee or program office where possible.
+Return ONLY JSON: {"sections":[{"heading":"Bottom line","paragraphs":[{"text":"...","claimIds":["c1"]}]}, ...]} covering, in order: Bottom line, Budget movement, Authorization vs appropriation context, Client program alignment, Committee & program-office targets, Recommended engagement. No prose outside the JSON.`;
+
+function systemPromptFor(sourceType: string): string {
+  return sourceType === 'program_element' ? PE_SYSTEM_PROMPT : SYSTEM_PROMPT;
+}
 
 interface Claim {
   id: string;
@@ -105,8 +154,10 @@ export class AlertMemoService {
     // drafting time. Best-effort — `billTruthBlock` already returns null for a
     // hearing session id (no matching CongressBill row) or any lookup error is
     // swallowed, so a failure here never blocks memo generation.
+    // P0-08: a PE alert's sourceRef is a PE CODE, not a bill id — billTruthBlock would
+    // return null anyway, so the explicit skip saves a query and documents the intent.
     const liveBill =
-      alert.sourceType !== 'hearing' && alert.sourceRef
+      alert.sourceType !== 'hearing' && alert.sourceType !== 'program_element' && alert.sourceRef
         ? await this.engagement.billTruthBlock(alert.sourceRef).catch(() => null)
         : null;
     const { claims, sources } = buildClaims(
@@ -127,6 +178,7 @@ export class AlertMemoService {
         cred.apiKey,
         cred.model,
         buildUserPrompt(alert, clientName, steering, claims),
+        systemPromptFor(alert.sourceType),
       );
       rawUsage = raw;
       sections = verifyGrounded(parseSections(text), claims);
@@ -150,8 +202,12 @@ export class AlertMemoService {
       },
     );
 
-    const title =
-      `Client memo — ${alert.billDisplayNum ?? alert.hearingTitle ?? alert.title}`.slice(0, 200);
+    // P0-08: a PE alert has neither a billDisplayNum nor a hearingTitle, so the title
+    // used to fall all the way back to the raw headline.
+    const subject = alert.programElement?.peCode
+      ? `${alert.programElement.peCode}${alert.programElement.title ? ` — ${alert.programElement.title}` : ''}`
+      : (alert.billDisplayNum ?? alert.hearingTitle ?? alert.title);
+    const title = `Client memo — ${subject}`.slice(0, 200);
     let markdown = toMarkdown(title, sections, claims, sources, clientName);
 
     // Wave-2 post-hoc auditor on the ALERT-MEMO surface — SHADOW by default
@@ -478,6 +534,8 @@ export class AlertMemoService {
     apiKey: string,
     model: string,
     prompt: string,
+    /** Per-source system prompt (P0-08). Defaults to the federal-bill prompt. */
+    system: string = SYSTEM_PROMPT,
   ): Promise<{ text: string; raw: unknown }> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), MEMO_TIMEOUT_MS);
@@ -493,9 +551,10 @@ export class AlertMemoService {
           model,
           max_tokens: 2000,
           // Zero-trust Wave 1 (RC8): memos restate bill numbers/vote counts —
-          // low temperature cuts the numeric-scramble sampling variance.
+          // low temperature cuts the numeric-scramble sampling variance. PE memos
+          // restate MORE figures than bill memos, not fewer, so 0.2 stays.
           temperature: 0.2,
-          system: SYSTEM_PROMPT,
+          system,
           messages: [{ role: 'user', content: prompt }],
         }),
         signal: controller.signal,
@@ -522,6 +581,32 @@ export class AlertMemoService {
 }
 
 // ---- pure helpers ----------------------------------------------------------
+
+/**
+ * BYTE-IDENTICAL to `fmtMillionsShort` (apps/web TrackerFeedPanel.tsx:103-106) for every
+ * non-null input, so the memo and the feed card can never disagree on a figure. Do not
+ * "improve" one without the other.
+ */
+function fmtM(m: number | null | undefined): string {
+  if (m == null) return 'unknown';
+  if (Math.abs(m) >= 1000) return `$${(m / 1000).toFixed(1)}B`;
+  return `$${m % 1 ? m.toFixed(1) : m.toFixed(0)}M`;
+}
+
+/** The parenthesised delta on the PE funding claim. A 0 delta is a real fact ("no change
+ *  at this stage") and must survive, so the guard is `!= null`, never truthiness. */
+function deltaSuffix(pe: AlertMemoProgramElement): string {
+  const parts: string[] = [];
+  if (pe.deltaMillions != null && Number.isFinite(pe.deltaMillions))
+    parts.push(`delta ${fmtM(pe.deltaMillions)}`);
+  if (pe.deltaPct != null && Number.isFinite(pe.deltaPct))
+    parts.push(`${pe.deltaPct > 0 ? '+' : ''}${pe.deltaPct.toFixed(1)}%`);
+  else if (pe.amountFromMillions === 0 && pe.amountToMillions != null && pe.amountToMillions !== 0)
+    // A from-zero baseline makes the percentage Infinity (or null upstream). "+Infinity%"
+    // in a client memo is worse than naming what actually happened.
+    parts.push('new start (no prior baseline)');
+  return parts.length ? ` (${parts.join(', ')})` : '';
+}
 
 function buildClaims(
   alert: AlertMemoAlertInput,
@@ -562,6 +647,25 @@ function buildClaims(
   }
   if (alert.committee) push(`Committee: ${alert.committee}`);
   if (alert.hearingTitle) push(`Hearing: ${alert.hearingTitle}`, alert.url);
+  // P0-08: Program Element funding facts. EVERY dollar figure must arrive as a claim —
+  // the model is explicitly forbidden from computing a delta (PE_SYSTEM_PROMPT), so the
+  // arithmetic is pre-computed here, where code can be held to it.
+  const pe = alert.programElement;
+  if (pe) {
+    push(`Program Element: ${pe.peCode}${pe.title ? ` — ${pe.title}` : ''}`, pe.href ?? alert.url);
+    if (pe.fiscalYear) push(`Fiscal year: FY${String(pe.fiscalYear).slice(-2)} (FY${pe.fiscalYear})`);
+    if (pe.deltaTypeLabel || pe.deltaType)
+      push(`Budget-stage movement: ${pe.deltaTypeLabel ?? pe.deltaType}`);
+    if (pe.fromRef || pe.toRef)
+      push(
+        `Source comparison: from ${pe.fromRef ?? 'unknown'} to ${pe.toRef ?? 'unknown'}`,
+        pe.href ?? null,
+      );
+    if (pe.amountFromMillions != null || pe.amountToMillions != null)
+      push(`Funding: ${fmtM(pe.amountFromMillions)} → ${fmtM(pe.amountToMillions)}${deltaSuffix(pe)}`, pe.href ?? null);
+    if (pe.verification) push(`Verification state of these figures: ${pe.verification}`);
+    if (pe.linkedRef) push(`Linked authority: ${pe.linkedRef}`);
+  }
   if (alert.whyItMatters) push(`Relevance to client: ${alert.whyItMatters}`);
   if (alert.matchedTags?.length)
     push(`Matched the client's tracked interests: ${alert.matchedTags.join(', ')}`);
@@ -581,8 +685,14 @@ function buildUserPrompt(
   steering: string,
   claims: Claim[],
 ): string {
+  const sections = sectionOrderFor(alert.sourceType);
+  // P0-08: name the Program Element in the ask, so the model anchors on the PE code
+  // rather than on a headline that may not repeat it.
+  const subject = alert.programElement?.peCode
+    ? `Program Element ${alert.programElement.peCode}${alert.programElement.title ? ` (${alert.programElement.title})` : ''}: ${alert.title}`
+    : alert.title;
   return [
-    `Write the internal memo for client "${clientName}" about: ${alert.title}`,
+    `Write the internal memo for client "${clientName}" about: ${subject}`,
     '',
     'ABOUT THE CLIENT (voice/priorities/red lines — steer by this, do not cite as fact):',
     steering,
@@ -590,7 +700,12 @@ function buildUserPrompt(
     'FACT SHEET (the ONLY material you may assert; cite ids):',
     claims.map((c) => `${c.id}: ${c.text}`).join('\n'),
     '',
-    'Return JSON: {"sections":[{"heading":"Bottom line","paragraphs":[{"text":"...","claimIds":["c1"]}]}, ...]}',
+    // The requested list is per-source (§4.5), so the JSON example can never ask for
+    // bill headings on a PE memo.
+    `Return JSON with exactly these sections, in order — ${sections.join(', ')}:`,
+    '{"sections":[{"heading":"' +
+      sections[0] +
+      '","paragraphs":[{"text":"...","claimIds":["c1"]}]}, ...]}',
   ].join('\n');
 }
 
@@ -657,6 +772,33 @@ function verifyGrounded(sections: GenSection[], claims: Claim[]): GenSection[] {
 /** Deterministic fallback when generation fails or is fully ungrounded. */
 function scaffold(alert: AlertMemoAlertInput, claims: Claim[]): GenSection[] {
   const allIds = claims.map((c) => c.id);
+  // P0-08: a failed PE generation used to fall back to bill-shaped headings ("What
+  // happened"), which read as a different document than the one that was requested.
+  if (alert.sourceType === 'program_element') {
+    const pe = alert.programElement;
+    return [
+      {
+        heading: 'Bottom line',
+        paragraphs: [{ text: alert.title, claimIds: claims[0] ? [claims[0].id] : [] }],
+      },
+      {
+        heading: 'Budget movement',
+        paragraphs: [
+          {
+            text:
+              pe && (pe.amountFromMillions != null || pe.amountToMillions != null)
+                ? `${pe.peCode}: ${fmtM(pe.amountFromMillions)} → ${fmtM(pe.amountToMillions)}${deltaSuffix(pe)}.`
+                : (alert.actionText || alert.title),
+            claimIds: allIds.slice(0, 6),
+          },
+        ],
+      },
+      {
+        heading: 'Client program alignment',
+        paragraphs: alert.whyItMatters ? [{ text: alert.whyItMatters, claimIds: allIds }] : [],
+      },
+    ].filter((s) => s.paragraphs.length);
+  }
   return [
     {
       heading: 'Bottom line',
@@ -698,9 +840,12 @@ function toMemoDocInput(
   sections: GenSection[],
   sources: AlertMemoResult['sources'],
 ): MemoDocInput {
-  const reLine = alert.billDisplayNum
-    ? `${alert.billDisplayNum}${alert.billTitle ? ` — ${alert.billTitle}` : ''}`
-    : (alert.hearingTitle ?? alert.title);
+  // P0-08: prefer the PE code on the docx RE: line, same precedence as the memo title.
+  const reLine = alert.programElement?.peCode
+    ? `${alert.programElement.peCode}${alert.programElement.title ? ` — ${alert.programElement.title}` : ''}`
+    : alert.billDisplayNum
+      ? `${alert.billDisplayNum}${alert.billTitle ? ` — ${alert.billTitle}` : ''}`
+      : (alert.hearingTitle ?? alert.title);
   return {
     clientName,
     dateStr: formatMemoDate(alert.actionDate),
