@@ -4,6 +4,8 @@ import {
   PutAlertPrefsDto,
   RecordFeedbackDto,
   TrackBillDto,
+  PutWatchlistDto,
+  WATCHLIST_TERM_TYPES,
 } from '../src/tracker/tracker.dto.js';
 
 /**
@@ -134,5 +136,114 @@ describe('RecordFeedbackDto', () => {
     await expect(
       validate(RecordFeedbackDto, { targetRef: '119-hr-1234', signal: 'nonsense' }),
     ).rejects.toThrow(BadRequestException);
+  });
+});
+
+/**
+ * Gate B phase a (P0-03/P0-04/P0-05) — the watchlist PUT DTOs, exercised
+ * through the same global ValidationPipe config as above. None of the
+ * existing intel-api tests exercise this pipe for the watchlist route: every
+ * tracker-watchlist.spec.ts test calls TrackerWatchlistService.putWatchlist()
+ * directly with a hand-typed object, bypassing class-validator entirely. This
+ * is the regression lock that stops these DTOs from 400-ing real traffic.
+ */
+describe('PutWatchlistDto', () => {
+  it('accepts the exact payload watchlistToIntel produces (regression lock)', async () => {
+    // apps/web/src/pages/clients/tracker/intel-tracker-api.ts watchlistToIntel()
+    const payload = {
+      issueAreas: ['Energy & Utilities'],
+      jurisdictions: ['CA', 'TX'],
+      topics: [
+        {
+          label: 'data center load',
+          issueArea: 'Energy & Utilities',
+          position: 'monitor',
+          priority: 'high',
+          terms: [
+            { termType: 'synonym', value: 'hyperscale demand' },
+            { termType: 'entity', value: 'PJM' },
+            { termType: 'risk', value: 'grid strain' },
+            { termType: 'company', value: 'RTX' },
+            { termType: 'topic', value: 'AI' },
+          ],
+        },
+      ],
+    };
+    await expect(validate(PutWatchlistDto, payload)).resolves.toBeDefined();
+  });
+
+  it('accepts every one of the 15 canonical term types', async () => {
+    for (const termType of WATCHLIST_TERM_TYPES) {
+      await expect(
+        validate(PutWatchlistDto, {
+          topics: [{ label: 'x', terms: [{ termType, value: 'some value' }] }],
+        }),
+      ).resolves.toBeDefined();
+    }
+  });
+
+  it('rejects an unknown term type', async () => {
+    await expect(
+      validate(PutWatchlistDto, {
+        topics: [{ label: 'x', terms: [{ termType: 'bogus_type', value: 'v' }] }],
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects a topic missing a label', async () => {
+    await expect(validate(PutWatchlistDto, { topics: [{ terms: [] }] })).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('cascades nested validation: one invalid term inside an otherwise-valid topic rejects the whole payload', async () => {
+    await expect(
+      validate(PutWatchlistDto, {
+        topics: [
+          {
+            label: 'valid topic',
+            terms: [
+              { termType: 'topic', value: 'fine' },
+              { termType: 'not-a-real-type', value: 'also fine text' },
+            ],
+          },
+        ],
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects a negative expectedVersion', async () => {
+    await expect(validate(PutWatchlistDto, { expectedVersion: -1 })).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('accepts expectedVersion 0 and an omitted expectedVersion (unversioned legacy client)', async () => {
+    await expect(validate(PutWatchlistDto, { expectedVersion: 0 })).resolves.toBeDefined();
+    await expect(validate(PutWatchlistDto, {})).resolves.toBeDefined();
+  });
+
+  it('rejects an extra, non-whitelisted top-level property', async () => {
+    await expect(validate(PutWatchlistDto, { issueAreas: [], evil: true })).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('rejects an unknown topic position', async () => {
+    await expect(
+      validate(PutWatchlistDto, { topics: [{ label: 'x', position: 'bogus' }] }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects a 3-letter jurisdiction code', async () => {
+    await expect(validate(PutWatchlistDto, { jurisdictions: ['USA'] })).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('accepts a renameFrom string (P0-03 item 5, phase d wiring)', async () => {
+    await expect(
+      validate(PutWatchlistDto, { topics: [{ label: 'grid load', renameFrom: 'data center load' }] }),
+    ).resolves.toBeDefined();
   });
 });

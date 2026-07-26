@@ -3,12 +3,9 @@ import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { TrackerOwnerGuard } from './tracker-owner.guard.js';
-import {
-  TrackerWatchlistService,
-  type PutWatchlistInput,
-} from './tracker-watchlist.service.js';
+import { TrackerWatchlistService } from './tracker-watchlist.service.js';
 import { TrackerSeedService } from './tracker-seed.service.js';
-import { PutAlertPrefsDto } from './tracker.dto.js';
+import { PutAlertPrefsDto, PutWatchlistDto } from './tracker.dto.js';
 
 /**
  * Unified tracker watchlist CRUD (Phase 2, plan §5.2).
@@ -37,7 +34,7 @@ export class TrackerWatchlistController {
   putWatchlist(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('clientId') clientId: string,
-    @Body() body: PutWatchlistInput,
+    @Body() body: PutWatchlistDto,
   ) {
     return this.svc.putWatchlist(ctx.tenantId, clientId, ctx.clerkUserId, body);
   }

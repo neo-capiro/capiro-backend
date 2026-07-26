@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { issueAreaForSector } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { MIN_TERM_LEN } from '../watchlist/watchlist-mapping.js';
+import { isAcceptableTerm, termRejectionReason } from '../watchlist/term-validation.js';
 import { compileWatchlist, type CompiledWatchlist } from '../watchlist/watchlist-compiler.js';
 import { normalizeE164 } from './sms/sms.service.js';
 
@@ -63,6 +63,15 @@ export interface WatchlistView {
   suggestedIssueAreas?: string[];
   /** Same posture, for state jurisdictions (S5.1) — derived from client_facilities.state, shown only while the client's own jurisdictions are empty. */
   suggestedJurisdictions?: string[];
+  /**
+   * P0-03/P0-05: what the server refused to persist on the write that produced this
+   * view, so the editor can show inline validation instead of the user believing a
+   * blank tag or a 2-char fragment was saved. Absent on a pure GET.
+   */
+  rejected?: {
+    topics: Array<{ index: number; label: string; reason: string }>;
+    terms: Array<{ topicLabel: string; termType: string; value: string; reason: string }>;
+  };
 }
 /**
  * Default alert triggers seeded on a new subscriber pref (kept in sync with
@@ -219,6 +228,9 @@ export class TrackerWatchlistService {
       ? input.jurisdictions.map((j) => j.toUpperCase())
       : [];
     const topics = Array.isArray(input.topics) ? input.topics : [];
+    // P0-05: terms the length/shape filter below drops, surfaced back to the
+    // editor instead of vanishing silently (phase d adds the topics side of this).
+    const rejectedTerms: Array<{ topicLabel: string; termType: string; value: string; reason: string }> = [];
     // withTenant IS a $transaction (same atomic rebuild) + sets the tenant GUC.
     await this.prisma.withTenant(tenantId, async (tx) => {
       await tx.watchlist.upsert({
@@ -246,29 +258,37 @@ export class TrackerWatchlistService {
       await tx.watchlistTerm.deleteMany({ where: { watchlistId: wlId, tenantId, topicId: null } });
       for (const tp of topics) {
         if (!tp?.label?.trim()) continue;
+        const topicLabel = tp.label.trim();
         const topic = await tx.watchlistTopic.create({
           data: {
             watchlistId: wlId,
             tenantId,
-            label: tp.label.trim(),
+            label: topicLabel,
             issueArea: tp.issueArea ?? null,
             position: tp.position ?? 'monitor',
             priority: tp.priority ?? 'med',
           },
         });
-        const rows = (tp.terms ?? [])
-          .filter((t) => t?.value && t.value.trim().length >= MIN_TERM_LEN && t.termType)
-          .map((t) => ({
-            watchlistId: wlId,
-            tenantId,
-            topicId: topic.id,
-            termType: t.termType,
-            value: t.value.trim(),
-          }));
+        const rows: Array<{ watchlistId: string; tenantId: string; topicId: string; termType: string; value: string }> = [];
+        for (const t of tp.terms ?? []) {
+          if (!t?.value || !t.termType) continue;
+          const value = t.value.trim();
+          if (!isAcceptableTerm(value)) {
+            rejectedTerms.push({
+              topicLabel,
+              termType: t.termType,
+              value,
+              reason: termRejectionReason(value) ?? 'Term rejected.',
+            });
+            continue;
+          }
+          rows.push({ watchlistId: wlId, tenantId, topicId: topic.id, termType: t.termType, value });
+        }
         if (rows.length) await tx.watchlistTerm.createMany({ data: rows });
       }
     });
-    return this.getWatchlist(tenantId, clientId);
+    const view = await this.getWatchlist(tenantId, clientId);
+    return { ...view, rejected: { topics: [], terms: rejectedTerms } };
   }
 
   async getAlertPrefs(tenantId: string, clientId: string, userId: string) {

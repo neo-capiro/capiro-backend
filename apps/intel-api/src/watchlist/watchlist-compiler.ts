@@ -9,7 +9,8 @@
  *  - deepgramKeyterms → DeepgramStreamManager.open() keyterms (F1): deduped,
  *                     lower-cased, capped, byte-stable across runs.
  */
-export const MIN_TERM_LEN = 3;
+import { isAcceptableTerm } from './term-validation.js';
+export { MIN_TERM_LEN } from './term-validation.js';
 export const DEEPGRAM_KEYTERM_CAP = 100;
 
 export interface CompilerTopic {
@@ -42,13 +43,13 @@ export interface CompiledWatchlist {
   deepgramKeyterms: string[];
 }
 
-/** Trim, drop < MIN_TERM_LEN, case-insensitive de-dupe, lexical sort. */
-function dedupeClean(values: string[]): string[] {
+/** Trim, drop unacceptable-shaped terms, case-insensitive de-dupe, lexical sort. */
+export function dedupeClean(values: string[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const raw of values) {
     const v = (raw ?? '').trim();
-    if (v.length < MIN_TERM_LEN) continue;
+    if (!isAcceptableTerm(v)) continue;
     const key = v.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
@@ -94,7 +95,7 @@ export function compileWatchlist(input: {
   // Hearing terms: every term (topic-scoped or global) with len ≥ MIN_TERM_LEN.
   const hearingTerms = input.terms
     .map((t) => ({ value: t.value.trim(), weight: t.weight }))
-    .filter((t) => t.value.length >= MIN_TERM_LEN);
+    .filter((t) => isAcceptableTerm(t.value));
 
   // Deepgram keyterms: lower-cased, de-duped, top-N by weight, then lexical sort
   // for byte-stable output (required for the compiler snapshot test, SC-4).
@@ -102,7 +103,7 @@ export function compileWatchlist(input: {
   const cand: Array<{ value: string; weight: number }> = [];
   for (const t of hearingTerms) {
     const v = t.value.toLowerCase();
-    if (v.length < MIN_TERM_LEN || seen.has(v)) continue;
+    if (!isAcceptableTerm(t.value) || seen.has(v)) continue;
     seen.add(v);
     cand.push({ value: v, weight: t.weight });
   }

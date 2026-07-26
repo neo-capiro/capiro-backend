@@ -4,14 +4,26 @@
  * a bill's searchable text; NO embeddings, NO LLM, so it is safe to run inside
  * the shadow detection cycle for every fired event. Side-effect-free.
  */
-export const MIN_TERM_LEN = 3;
+import { isAcceptableTerm, isShortExactTerm, MIN_TERM_LEN } from '../watchlist/term-validation.js';
+export { MIN_TERM_LEN } from '../watchlist/term-validation.js';
 
-/** Whole-word (regex-boundary) match of a term against a lower-cased haystack. */
-export function wholeWordHit(haystackLower: string, term: string): boolean {
-  const t = term.trim().toLowerCase();
-  if (t.length < MIN_TERM_LEN) return false;
-  const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`\\b${escaped}\\b`).test(haystackLower);
+/**
+ * Whole-word match. Terms at/above MIN_TERM_LEN match case-INSENSITIVELY against the
+ * lower-cased haystack (unchanged behavior). Identifier-shaped SHORT terms (AI, 5G,
+ * C2, F-35) match case-SENSITIVELY against the original-case haystack, so "AI" does
+ * not fire on the letters "ai" in ordinary prose (P0-05).
+ */
+export function wholeWordHit(haystackLower: string, term: string, haystackOriginal?: string): boolean {
+  const t = (term ?? '').trim();
+  if (!isAcceptableTerm(t)) return false;
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (isShortExactTerm(t)) {
+    // Case-sensitive, original case. Without the original text we cannot honor case,
+    // so refuse rather than produce a false positive.
+    if (haystackOriginal === undefined) return false;
+    return new RegExp(`(?<![A-Za-z0-9])${esc(t)}(?![A-Za-z0-9])`).test(haystackOriginal);
+  }
+  return new RegExp(`\\b${esc(t.toLowerCase())}\\b`).test(haystackLower);
 }
 
 export interface RelevanceBill {
@@ -25,6 +37,11 @@ export function billHaystack(bill: RelevanceBill): string {
   return [bill.title, bill.policyArea ?? '', bill.latestActionText ?? '', ...(bill.subjects ?? [])]
     .join('  ')
     .toLowerCase();
+}
+
+/** Original-case twin of billHaystack, for case-sensitive short-term matching. */
+export function billHaystackOriginal(bill: RelevanceBill): string {
+  return [bill.title, bill.policyArea ?? '', bill.latestActionText ?? '', ...(bill.subjects ?? [])].join('  ');
 }
 
 /** Watchlist shape the enricher reads (built from the unified intel watchlist). */
@@ -49,6 +66,7 @@ export interface MatchExplanation {
  */
 export function explainMatch(bill: RelevanceBill, watchlist: WatchlistLike): MatchExplanation {
   const hay = billHaystack(bill);
+  const hayOrig = billHaystackOriginal(bill);
   const matchedTags: string[] = [];
   let entityHit: string | null = null;
   let keywordHit: string | null = null;
@@ -56,8 +74,8 @@ export function explainMatch(bill: RelevanceBill, watchlist: WatchlistLike): Mat
   for (const tag of watchlist.tags ?? []) {
     const entityTerms = [tag.tag, ...(tag.relatedEntities ?? [])];
     const otherTerms = [...(tag.synonyms ?? []), ...(tag.riskTerms ?? [])];
-    const eHit = entityTerms.find((t) => wholeWordHit(hay, t));
-    const kHit = eHit ?? otherTerms.find((t) => wholeWordHit(hay, t));
+    const eHit = entityTerms.find((t) => wholeWordHit(hay, t, hayOrig));
+    const kHit = eHit ?? otherTerms.find((t) => wholeWordHit(hay, t, hayOrig));
     if (kHit) {
       matchedTags.push(tag.tag);
       if (eHit) entityHit = entityHit ?? eHit;
@@ -71,7 +89,7 @@ export function explainMatch(bill: RelevanceBill, watchlist: WatchlistLike): Mat
       .toLowerCase()
       .split(/[^a-z]+/)
       .filter((w) => w.length >= MIN_TERM_LEN && w !== 'and');
-    if (tokens.some((tok) => wholeWordHit(hay, tok))) {
+    if (tokens.some((tok) => wholeWordHit(hay, tok, hayOrig))) {
       matchedTags.push(area);
       areaHit = areaHit ?? area;
     }

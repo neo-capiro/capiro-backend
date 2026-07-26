@@ -135,7 +135,7 @@ describe('TrackerWatchlistService.putWatchlist — flat-term isolation', () => {
       watchlist: {
         upsert: async (args: any) => calls.push({ op: 'watchlist.upsert', args }),
         // …plus the getWatchlist re-read putWatchlist runs at the end (empty configured row).
-        findFirst: async () => ({ issueAreas: [] }),
+        findFirst: async () => ({ issueAreas: [], jurisdictions: [] }),
       },
       watchlistTopic: {
         deleteMany: async (args: any) => calls.push({ op: 'topic.deleteMany', args }),
@@ -249,6 +249,178 @@ describe('TrackerWatchlistService.putWatchlist — flat-term isolation', () => {
       expect(row.watchlistId).toBe(WL_ID);
       expect(row.topicId).toBe(createdTopicId);
     }
+  });
+
+  /** P0-05 (Gate B phase a) — the term-shape-aware filter replacing flat MIN_TERM_LEN. */
+  it('persists an identifier-shaped short term ("AI") that the old flat length check dropped', async () => {
+    const { prisma, calls } = recordingPrisma();
+    const svc = new TrackerWatchlistService(prisma);
+
+    await svc.putWatchlist(TENANT, CLIENT, 'user-1', {
+      issueAreas: [],
+      topics: [{ label: 'signals', terms: [{ termType: 'topic', value: 'AI' }] }],
+    });
+
+    const createMany = calls.find((c) => c.op === 'term.createMany');
+    const values = (createMany?.args.data as Array<{ value: string }>).map((r) => r.value);
+    expect(values).toEqual(['AI']);
+  });
+
+  it('drops a lower-case fragment ("of") and reports it in rejected.terms with a reason', async () => {
+    const { prisma } = recordingPrisma();
+    const svc = new TrackerWatchlistService(prisma);
+
+    const view = await svc.putWatchlist(TENANT, CLIENT, 'user-1', {
+      issueAreas: [],
+      topics: [{ label: 'signals', terms: [{ termType: 'topic', value: 'of' }] }],
+    });
+
+    expect(view.rejected?.terms).toHaveLength(1);
+    expect(view.rejected?.terms[0]).toMatchObject({ topicLabel: 'signals', termType: 'topic', value: 'of' });
+    expect(view.rejected?.terms[0]?.reason).toContain('too short');
+  });
+});
+
+/**
+ * QA gap-fill (not in the phase-a task list): MASTER §2.4 boundary 1 calls the
+ * HEARING_TERMS_TOPIC_LABEL fold "load bearing" and says "there is an existing
+ * test for this — find it and keep it green." The existing tests
+ * (getWatchlist folding, putWatchlist delete-scoping) each cover one half with
+ * STATIC mocks that don't persist state between calls, so neither actually
+ * proves a real get -> put -> get cycle preserves flat terms. This is a
+ * stateful in-memory double that does.
+ */
+describe('TrackerWatchlistService — hearing flat-term round-trip (stateful)', () => {
+  function statefulPrisma() {
+    let watchlist: { id: string; tenantId: string; issueAreas: string[]; jurisdictions: string[] } | null = null;
+    let topics: Array<{
+      id: string;
+      watchlistId: string;
+      tenantId: string;
+      label: string;
+      issueArea: string | null;
+      position: string;
+      priority: string;
+    }> = [];
+    let terms: Array<{
+      id: string;
+      watchlistId: string;
+      tenantId: string;
+      topicId: string | null;
+      termType: string;
+      value: string;
+    }> = [];
+    let nextId = 1;
+
+    const tx = {
+      watchlist: {
+        upsert: async ({ where, create, update }: any) => {
+          if (!watchlist) {
+            watchlist = {
+              id: where.id,
+              tenantId: create.tenantId,
+              issueAreas: create.issueAreas,
+              jurisdictions: create.jurisdictions,
+            };
+          } else {
+            Object.assign(watchlist, update);
+          }
+          return watchlist;
+        },
+        findFirst: async ({ where }: any) =>
+          watchlist && watchlist.id === where.id && watchlist.tenantId === where.tenantId
+            ? { issueAreas: watchlist.issueAreas, jurisdictions: watchlist.jurisdictions }
+            : null,
+      },
+      watchlistTopic: {
+        deleteMany: async ({ where }: any) => {
+          topics = topics.filter((t) => !(t.watchlistId === where.watchlistId && t.tenantId === where.tenantId));
+        },
+        create: async ({ data }: any) => {
+          const id = `topic-${nextId++}`;
+          topics.push({ id, ...data });
+          return { id };
+        },
+        findMany: async ({ where }: any) =>
+          topics
+            .filter((t) => t.watchlistId === where.watchlistId && t.tenantId === where.tenantId)
+            .map((t) => ({ id: t.id, label: t.label, issueArea: t.issueArea, position: t.position, priority: t.priority })),
+      },
+      watchlistTerm: {
+        deleteMany: async ({ where }: any) => {
+          terms = terms.filter((x) => {
+            if (x.watchlistId !== where.watchlistId || x.tenantId !== where.tenantId) return true;
+            if (Object.prototype.hasOwnProperty.call(where, 'topicId') && where.topicId === null) {
+              return x.topicId !== null; // keep everything that is NOT a flat term
+            }
+            return false; // unscoped delete (topic rebuild) — drop everything matched
+          });
+        },
+        createMany: async ({ data }: any) => {
+          for (const row of data) terms.push({ id: `term-${nextId++}`, ...row });
+        },
+        findMany: async ({ where }: any) => {
+          const scopedTopicIds = topics
+            .filter((t) => t.watchlistId === where.watchlistId && t.tenantId === where.tenantId)
+            .map((t) => t.id);
+          return terms
+            .filter((x) => x.watchlistId === where.watchlistId && x.tenantId === where.tenantId)
+            .filter((x) => x.topicId === null || scopedTopicIds.includes(x.topicId as string))
+            .map((x) => ({ topicId: x.topicId, termType: x.termType, value: x.value }));
+        },
+      },
+    };
+    const prisma = {
+      withTenant: async (_tid: string, fn: (t: unknown) => unknown) => fn(tx),
+      withSystem: async (fn: (t: unknown) => unknown) => fn({ $queryRawUnsafe: async () => [{ id: CLIENT }] }),
+    } as any;
+    // Expose the raw stores so the test can seed legacy flat (topicId: null) rows —
+    // the one thing putWatchlist itself can never write (it always attaches a topicId).
+    return { prisma, seedFlatTerm: (row: { termType: string; value: string }) => {
+      terms.push({ id: `term-${nextId++}`, watchlistId: WL_ID, tenantId: TENANT, topicId: null, ...row });
+    }, seedWatchlistRow: () => {
+      watchlist = { id: WL_ID, tenantId: TENANT, issueAreas: [], jurisdictions: [] };
+    } };
+  }
+
+  it('flat (topicId: null) hearing terms fold on read, survive a save, and do not duplicate on a second get/put cycle', async () => {
+    const { prisma, seedFlatTerm, seedWatchlistRow } = statefulPrisma();
+    const svc = new TrackerWatchlistService(prisma);
+
+    // Simulate the legacy WatchlistsTab having written two flat terms directly.
+    seedWatchlistRow();
+    seedFlatTerm({ termType: 'topic', value: 'interconnection queue' });
+    seedFlatTerm({ termType: 'agency', value: 'FERC' });
+
+    const firstRead = await svc.getWatchlist(TENANT, CLIENT);
+    const syntheticFirst = firstRead.topics.find((t) => t.label === HEARING_TERMS_TOPIC_LABEL);
+    expect(syntheticFirst?.terms.map((t) => t.value).sort()).toEqual(['FERC', 'interconnection queue']);
+
+    // Save back exactly what the editor would have received (server-normalized view).
+    await svc.putWatchlist(TENANT, CLIENT, 'user-1', {
+      issueAreas: firstRead.issueAreas,
+      topics: firstRead.topics.map((t) => ({
+        label: t.label,
+        terms: t.terms.map((x) => ({ termType: x.termType, value: x.value })),
+      })),
+    });
+
+    const secondRead = await svc.getWatchlist(TENANT, CLIENT);
+    expect(secondRead.topics).toHaveLength(1); // no phantom duplicate "Hearing terms" topic
+    const syntheticSecond = secondRead.topics.find((t) => t.label === HEARING_TERMS_TOPIC_LABEL);
+    expect(syntheticSecond?.terms.map((t) => t.value).sort()).toEqual(['FERC', 'interconnection queue']); // no loss, no dup
+
+    // Third cycle: save again, unchanged — must remain stable (no growth, no loss).
+    await svc.putWatchlist(TENANT, CLIENT, 'user-1', {
+      issueAreas: secondRead.issueAreas,
+      topics: secondRead.topics.map((t) => ({
+        label: t.label,
+        terms: t.terms.map((x) => ({ termType: x.termType, value: x.value })),
+      })),
+    });
+    const thirdRead = await svc.getWatchlist(TENANT, CLIENT);
+    expect(thirdRead.topics).toHaveLength(1);
+    expect(thirdRead.topics[0]?.terms.map((t) => t.value).sort()).toEqual(['FERC', 'interconnection queue']);
   });
 });
 

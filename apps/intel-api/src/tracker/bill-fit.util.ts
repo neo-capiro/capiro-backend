@@ -7,7 +7,7 @@
  *   fit = clamp01( 0.40·semantic + 0.30·textMatch + 0.15·exactEntity
  *                + 0.10·subjectMatch + 0.05·priorityBoost )
  */
-import { billHaystack, wholeWordHit, MIN_TERM_LEN, type RelevanceBill } from './relevance.util.js';
+import { billHaystack, billHaystackOriginal, wholeWordHit, MIN_TERM_LEN, type RelevanceBill } from './relevance.util.js';
 
 export const RECOMMENDATION_FLOOR = 0.45;
 
@@ -45,6 +45,7 @@ export function scoreBillFit(
   keywordHit: boolean,
 ): BillFit {
   const hay = billHaystack(bill);
+  const hayOrig = billHaystackOriginal(bill);
   const matchedTags: string[] = [];
   const reasons: MatchReason[] = [];
   let exactEntity = false;
@@ -56,11 +57,11 @@ export function scoreBillFit(
   for (const tp of topics) {
     const entityTerms = [...tp.keywords, ...tp.entities]; // label lives in keywords
     const allTerms = [...tp.keywords, ...tp.synonyms, ...tp.entities, ...tp.riskPhrases];
-    const hit = allTerms.find((t) => wholeWordHit(hay, t));
+    const hit = allTerms.find((t) => wholeWordHit(hay, t, hayOrig));
     if (hit) {
       matchedTags.push(tp.label);
       textMatch = true;
-      const isEntity = entityTerms.some((t) => wholeWordHit(hay, t));
+      const isEntity = entityTerms.some((t) => wholeWordHit(hay, t, hayOrig));
       if (isEntity) exactEntity = true;
       if (tp.priority === 'high') priorityBoost = 1;
       if (!topTagLabel) topTagLabel = tp.label;
@@ -69,7 +70,7 @@ export function scoreBillFit(
   }
   for (const area of issueAreas) {
     const tokens = area.toLowerCase().split(/[^a-z]+/).filter((w) => w.length >= MIN_TERM_LEN && w !== 'and');
-    if (tokens.some((tok) => wholeWordHit(hay, tok))) {
+    if (tokens.some((tok) => wholeWordHit(hay, tok, hayOrig))) {
       matchedTags.push(area);
       subjectMatch = true;
       if (!topTagLabel) topTagLabel = area;
