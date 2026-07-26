@@ -12,7 +12,7 @@ import {
   type IntelAlertEvent,
 } from './intel-alert.types.js';
 import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
-import { renderAlertEmail } from '../tracker/tracker-email.templates.js';
+import { renderAlertEmail, renderDigestEmail, type DigestItem } from '../tracker/tracker-email.templates.js';
 import { AlertSummaryClient } from './alert-summary.client.js';
 
 type Channel = 'email' | 'sms' | 'in_app';
@@ -142,6 +142,34 @@ export class IntelAlertService {
   }
 
   /**
+   * Claim (alertId,user,'email') AND insert the digest-queue row in ONE transaction,
+   * so a crash between the two can never leave a 'queued' log row with no queue row
+   * (which would suppress the alert forever). P2002 on the claim = already queued → no-op.
+   */
+  private async claimAndEnqueueDigest(
+    tenantId: string,
+    clientId: string,
+    userId: string,
+    alertId: string,
+    cadence: 'daily' | 'weekly',
+  ): Promise<boolean> {
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      try {
+        await tx.intelNotificationLog.create({
+          data: { tenantId, clientId, userId, alertId, channel: 'email', status: 'queued' },
+        });
+      } catch (e) {
+        if ((e as { code?: string }).code === 'P2002') return false; // already queued/sent
+        throw e;
+      }
+      await tx.intelAlertDigestQueue.create({
+        data: { tenantId, clientId, userId, alertId, channel: 'email', cadence },
+      });
+      return true;
+    });
+  }
+
+  /**
    * Fan one alert out to every eligible pref for the client. In shadow: log +
    * claim `suppressed_shadow`, send nothing. Returns per-run counters.
    */
@@ -152,6 +180,7 @@ export class IntelAlertService {
     suppressed: number;
     sent: number;
     failed: number;
+    queued: number;
   }> {
     // Canonical 7-field Alert (SC1.1/SC1.2): map + LOG ONLY — completeness
     // flags surface the field gaps (whoActs/issueId/whyItMatters have no
@@ -230,6 +259,7 @@ export class IntelAlertService {
     let suppressed = 0;
     let sent = 0;
     let failed = 0;
+    let queued = 0;
     // Rendered once per event (not per-pref — content doesn't vary by recipient).
     const rendered = renderAlertEmail(event);
     for (const pref of prefs) {
@@ -260,6 +290,17 @@ export class IntelAlertService {
           'suppressed_shadow',
         );
         suppressed += 1;
+        continue;
+      }
+
+      // P0-02: honor pref.emailCadence. realtime → send now; daily/weekly → enqueue
+      // an immutable alert reference for flushDigests. Reached only when canSend,
+      // so shadow still suppresses BEFORE enqueue (no cutover backlog).
+      const cadence = (pref.emailCadence ?? 'realtime').toLowerCase();
+      if (cadence === 'daily' || cadence === 'weekly') {
+        if (await this.claimAndEnqueueDigest(event.tenantId, event.clientId, pref.userId, alertId, cadence)) {
+          queued += 1;
+        }
         continue;
       }
 
@@ -298,7 +339,7 @@ export class IntelAlertService {
         else failed += 1;
       }
     }
-    return { suppressed, sent, failed };
+    return { suppressed, sent, failed, queued };
   }
 
   /**
@@ -321,6 +362,7 @@ export class IntelAlertService {
     suppressed: number;
     sent: number;
     failed: number;
+    queued: number;
   }> {
     // Cross-tenant emit sweep: reads NEW alerts across ALL tenants, then fanOut
     // re-scopes each to its own tenant. Under RLS this MUST bypass.
@@ -369,6 +411,7 @@ export class IntelAlertService {
     let suppressed = 0;
     let sent = 0;
     let failed = 0;
+    let queued = 0;
     for (const a of rows) {
       const ev = (a.evidence ?? {}) as Record<string, unknown>;
       const event: IntelAlertEvent = {
@@ -398,6 +441,7 @@ export class IntelAlertService {
         suppressed += r.suppressed;
         sent += r.sent;
         failed += r.failed;
+        queued += r.queued;
         // Mark processed ONLY when no recipient's send soft-failed — otherwise
         // leave deliveredAt null so the next sweep retries (claim() reclaims the
         // 'failed' log row). A clean run (all sent, all suppressed, or no eligible
@@ -418,7 +462,7 @@ export class IntelAlertService {
         );
       }
     }
-    return { alerts: rows.length, suppressed, sent, failed };
+    return { alerts: rows.length, suppressed, sent, failed, queued };
   }
 
   /**
@@ -560,12 +604,39 @@ export class IntelAlertService {
    * the same UPDATE...RETURNING) so overlapping runs don't double-process
    * (plan §7.3a). In shadow nothing is enqueued (fanOut suppresses before
    * enqueue), so this drains 0 rows; the guard is enforced per group anyway.
+   *
+   * Idempotency contract (P0-02):
+   *  - Re-running immediately after a successful flush claims nothing
+   *    (`flushed = true`) → `{0,0,0,0,0}`.
+   *  - Re-running after a failed flush re-claims the same rows (reset to
+   *    `flushed = false` by the failure-compensation branch below) and
+   *    retries, up to `maxAttempts`.
+   *  - A crash between claim and send leaves rows `flushed = true` with
+   *    `delivered_at IS NULL` — a STRANDED state, deliberately NOT
+   *    auto-reset here (a crash-loop must not self-heal into an infinite
+   *    retry). `recoverStrandedDigests` (d-7) is the diag-only recovery verb.
+   *  - A digest queue row for a pref whose cadence has since changed to
+   *    `realtime` still flushes as a digest — re-reading cadence at flush
+   *    time would strand the row instead, which is worse.
+   *  - A digest queue row for a pref that has since been deleted or had
+   *    email disabled is skipped at step 5 below; it stays `flushed = true`,
+   *    `delivered_at IS NULL` (stranded, intentionally — a human should see
+   *    it via `recover-stranded-digests`'s dry run, not have it silently
+   *    resurrected).
    */
-  async flushDigests(cadence: 'daily' | 'weekly'): Promise<{ flushed: number; sent: number }> {
+  async flushDigests(cadence: 'daily' | 'weekly'): Promise<{
+    flushed: number;
+    sent: number;
+    failed: number;
+    deadLettered: number;
+    unresolvable: number;
+  }> {
+    const maxAttempts = Number(process.env.LEGIWATCH_DIGEST_MAX_ATTEMPTS ?? '5');
     // Claim-on-read: atomically mark a batch flushed and return it, so a
     // concurrent run cannot grab the same rows (§7.3a). Cross-tenant drain by
     // cadence → withSystem (bypass RLS); the per-group send below re-checks the
-    // per-tenant ownership flag.
+    // per-tenant ownership flag. `attempts < maxAttempts` excludes dead-lettered
+    // rows from ever being re-claimed.
     const claimed = await this.prisma.withSystem((tx) =>
       tx.$queryRawUnsafe<
         Array<{
@@ -574,38 +645,286 @@ export class IntelAlertService {
           user_id: string;
           channel: string;
           client_id: string;
+          alert_id: string;
         }>
       >(
         `UPDATE intel_alert_digest_queue
-          SET flushed = true
-        WHERE id IN (
-          SELECT id FROM intel_alert_digest_queue
-           WHERE cadence = $1 AND flushed = false
-           ORDER BY created_at ASC
-           LIMIT 5000
-           FOR UPDATE SKIP LOCKED
-        )
-      RETURNING id, tenant_id, user_id, channel, client_id`,
+            SET flushed = true
+          WHERE id IN (
+            SELECT id FROM intel_alert_digest_queue
+             WHERE cadence = $1 AND flushed = false AND attempts < $2
+             ORDER BY created_at ASC
+             LIMIT 5000
+             FOR UPDATE SKIP LOCKED
+          )
+        RETURNING id, tenant_id, user_id, channel, client_id, alert_id`,
         cadence,
+        maxAttempts,
       ),
     );
-    if (!claimed.length) return { flushed: 0, sent: 0 };
+    if (!claimed.length) return { flushed: 0, sent: 0, failed: 0, deadLettered: 0, unresolvable: 0 };
 
     let sent = 0;
-    const groups = new Map<string, { tenantId: string; userId: string; clientId: string }>();
+    let failed = 0;
+    let deadLettered = 0;
+    let unresolvable = 0;
+
+    interface QueueRow {
+      queueId: string;
+      alertId: string;
+    }
+    // Grouped by (tenant,user,channel) — NOT client — because one recipient's
+    // digest can legitimately span several clients they track; d-5's renderer
+    // groups the rendered items back out by client within the single email.
+    // `clientId` on the group is therefore only a REPRESENTATIVE value (the
+    // last-seen row's), used for the step-5 pref lookup below — matching this
+    // method's pre-existing grouping shape. A user with genuinely different
+    // per-client email prefs (schema allows it) gets one representative pref
+    // for the whole group; that limitation predates this rewrite.
+    const groups = new Map<
+      string,
+      { tenantId: string; userId: string; clientId: string; rows: QueueRow[] }
+    >();
     for (const r of claimed) {
-      groups.set(`${r.tenant_id}|${r.user_id}|${r.channel}`, {
+      const key = `${r.tenant_id}|${r.user_id}|${r.channel}`;
+      const g = groups.get(key) ?? {
         tenantId: r.tenant_id,
         userId: r.user_id,
         clientId: r.client_id,
-      });
+        rows: [],
+      };
+      g.clientId = r.client_id;
+      g.rows.push({ queueId: r.id, alertId: r.alert_id });
+      groups.set(key, g);
     }
+
+    const appBase = (process.env.TRACKER_APP_BASE_URL ?? 'https://app.capiro.ai').replace(/\/$/, '');
+
     for (const g of groups.values()) {
-      const owned = await this.flags.isEnabled(TRACKER_OWNER_FEATURE, g.tenantId);
-      if (!(owned && !this.killSwitchOff())) continue; // shadow: suppress (already marked flushed)
-      // Phase 8 real digest send would go here.
+      const queueIds = g.rows.map((r) => r.queueId);
+      try {
+        const owned = await this.flags.isEnabled(TRACKER_OWNER_FEATURE, g.tenantId);
+        if (!(owned && !this.killSwitchOff())) continue; // shadow/not-owned: rows stay flushed=true, no accumulation
+
+        // The queue carries no payload — re-read the alerts by row id.
+        const alertIds = g.rows.map((r) => r.alertId);
+        const alerts = await this.prisma.withTenant(g.tenantId, (tx) =>
+          tx.intelAlert.findMany({ where: { tenantId: g.tenantId, id: { in: alertIds } } }),
+        );
+        const alertById = new Map(alerts.map((a) => [a.id, a]));
+
+        const resolvedRows: QueueRow[] = [];
+        let groupUnresolvable = 0;
+        for (const row of g.rows) {
+          if (alertById.has(row.alertId)) {
+            resolvedRows.push(row);
+          } else {
+            // A composite-string alert_id (a fanOut caller that omitted
+            // alertRowId) will never resolve. Never retried — leave flushed=true.
+            groupUnresolvable += 1;
+            this.logger.warn(
+              JSON.stringify({ digestUnresolvableAlertId: row.queueId, alertId: row.alertId }),
+            );
+          }
+        }
+        if (groupUnresolvable > 0) {
+          unresolvable += groupUnresolvable;
+          this.logger.warn(
+            `flushDigests: ${groupUnresolvable} unresolvable alert id(s) for tenant=${g.tenantId} user=${g.userId}`,
+          );
+        }
+        if (!resolvedRows.length) continue;
+
+        const clientIds = Array.from(
+          new Set(resolvedRows.map((r) => alertById.get(r.alertId)!.clientId)),
+        );
+        const clientNames = await this.sourceData
+          .getClientNames(g.tenantId, clientIds)
+          .catch(() => new Map<string, string>());
+
+        // Same field map as emitNewBillAlerts (:373-395): ev.* from the frozen
+        // evidence snapshot, falling back to the alert row's own columns.
+        const items: DigestItem[] = resolvedRows.map((row) => {
+          const a = alertById.get(row.alertId)!;
+          const ev = (a.evidence ?? {}) as Record<string, unknown>;
+          const actionDate = (ev.actionDate as string) ?? null;
+          return {
+            clientName: clientNames.get(a.clientId) ?? null,
+            displayNum: (ev.displayNum as string) ?? a.sourceRef,
+            billTitle: (ev.billTitle as string) ?? a.title,
+            label: (ev.stage as string) ?? a.title,
+            severity: a.severity,
+            detail: (ev.actionText as string) ?? a.title,
+            actionDate,
+            // "deadline ← actionDate" mirrors the existing canonical-alert.adapter.ts convention.
+            deadline: actionDate,
+            recommendedAction: a.recommendedAction ?? null,
+            why: a.whyItMatters,
+            url: (ev.url as string) ?? '',
+            appUrl: `${appBase}/clients/${encodeURIComponent(a.clientId)}?tab=tracker`,
+          };
+        });
+        if (!items.length) continue;
+
+        const pref = await this.prisma.withTenant(g.tenantId, (tx) =>
+          tx.intelAlertPreference.findFirst({
+            where: { tenantId: g.tenantId, userId: g.userId, clientId: g.clientId },
+          }),
+        );
+        if (!(pref?.emailEnabled && pref.emailAddress)) continue; // stranded intentionally — see doc comment
+
+        const { subject, html, text } = renderDigestEmail(cadence, items);
+        const res = await this.email.send(pref.emailAddress, subject, html, text);
+        const sentAlertIds = resolvedRows.map((r) => r.alertId);
+
+        if (res.sent) {
+          sent += 1;
+          await this.prisma.withSystem((tx) =>
+            tx.$executeRawUnsafe(
+              `UPDATE intel_alert_digest_queue SET delivered_at = now() WHERE id = ANY($1)`,
+              queueIds,
+            ),
+          );
+          await this.prisma.withTenant(g.tenantId, (tx) =>
+            tx.intelNotificationLog.updateMany({
+              where: {
+                tenantId: g.tenantId,
+                userId: g.userId,
+                channel: 'email',
+                alertId: { in: sentAlertIds },
+                status: 'queued',
+              },
+              data: { status: 'sent' },
+            }),
+          );
+        } else {
+          failed += 1;
+          await this.prisma.withSystem((tx) =>
+            tx.$executeRawUnsafe(
+              `UPDATE intel_alert_digest_queue
+                  SET flushed = false, attempts = attempts + 1, last_error = $2
+                WHERE id = ANY($1)`,
+              queueIds,
+              (res.error ?? 'unknown').slice(0, 500),
+            ),
+          );
+          const after = await this.prisma.withSystem((tx) =>
+            tx.$queryRawUnsafe<Array<{ id: string; attempts: number }>>(
+              `SELECT id, attempts FROM intel_alert_digest_queue WHERE id = ANY($1)`,
+              queueIds,
+            ),
+          );
+          const nowDead = after.filter((r) => r.attempts >= maxAttempts);
+          if (nowDead.length) {
+            deadLettered += 1;
+            this.logger.error(
+              JSON.stringify({
+                digestDeadLettered: true,
+                tenantId: g.tenantId,
+                userId: g.userId,
+                cadence,
+                ids: nowDead.map((r) => r.id),
+              }),
+            );
+            // Dead-lettered rows are never re-claimed (attempts < maxAttempts
+            // filter above); flip the log rows so claim() can reclaim them if
+            // the user's cadence later changes to realtime.
+            await this.prisma.withTenant(g.tenantId, (tx) =>
+              tx.intelNotificationLog.updateMany({
+                where: {
+                  tenantId: g.tenantId,
+                  userId: g.userId,
+                  channel: 'email',
+                  alertId: { in: sentAlertIds },
+                  status: 'queued',
+                },
+                data: { status: 'failed' },
+              }),
+            );
+          }
+        }
+      } catch (e) {
+        // One recipient's failure must not abort the sweep — same step-9
+        // compensation as an explicit send failure.
+        failed += 1;
+        this.logger.error(
+          `flushDigests group failed (tenant=${g.tenantId} user=${g.userId}, cadence=${cadence}): ${(e as Error).message}`,
+        );
+        await this.prisma
+          .withSystem((tx) =>
+            tx.$executeRawUnsafe(
+              `UPDATE intel_alert_digest_queue
+                  SET flushed = false, attempts = attempts + 1, last_error = $2
+                WHERE id = ANY($1)`,
+              queueIds,
+              String((e as Error).message).slice(0, 500),
+            ),
+          )
+          .catch(() => undefined);
+      }
     }
-    return { flushed: claimed.length, sent };
+    return { flushed: claimed.length, sent, failed, deadLettered, unresolvable };
+  }
+
+  /**
+   * DRY-RUN by default (mirrors dedupeStateActionAlerts's dual gate). A row
+   * with `flushed = true` and `delivered_at IS NULL` older than
+   * `olderThanMinutes` was claimed by a `flushDigests` run that crashed before
+   * reaching a send outcome (success or the failure-compensation branch) —
+   * this resets it to `flushed = false` so the next `flushDigests` naturally
+   * re-claims it. `attempts` is left untouched here (a stranded-row recovery
+   * is not itself a send failure); the next real attempt increments it only
+   * if that attempt fails. Excludes rows already at `attempts >= maxAttempts`
+   * — those are dead-lettered by design and must not be silently resurrected.
+   */
+  async recoverStrandedDigests(
+    opts: { apply: boolean; olderThanMinutes?: number },
+    log: (msg: string) => void,
+  ): Promise<{ candidates: number; reset: number }> {
+    const maxAttempts = Number(process.env.LEGIWATCH_DIGEST_MAX_ATTEMPTS ?? '5');
+    const olderThanMinutes = opts.olderThanMinutes ?? 60;
+    const candidates = await this.prisma.withSystem((tx) =>
+      tx.$queryRawUnsafe<
+        Array<{
+          id: string;
+          tenant_id: string;
+          user_id: string;
+          cadence: string;
+          attempts: number;
+          created_at: Date;
+        }>
+      >(
+        `SELECT id, tenant_id, user_id, cadence, attempts, created_at
+           FROM intel_alert_digest_queue
+          WHERE flushed = true
+            AND delivered_at IS NULL
+            AND attempts < $1
+            AND created_at < now() - ($2 || ' minutes')::interval`,
+        maxAttempts,
+        String(olderThanMinutes),
+      ),
+    );
+
+    for (const cand of candidates) {
+      log(
+        `STRANDED_DIGEST_CANDIDATE id=${cand.id} tenant=${cand.tenant_id} user=${cand.user_id} ` +
+          `cadence=${cand.cadence} attempts=${cand.attempts} createdAt=${cand.created_at.toISOString()}`,
+      );
+    }
+
+    let reset = 0;
+    if (opts.apply && candidates.length) {
+      const ids = candidates.map((c) => c.id);
+      const r = await this.prisma.withSystem((tx) =>
+        tx.$executeRawUnsafe(
+          `UPDATE intel_alert_digest_queue SET flushed = false WHERE id = ANY($1)`,
+          ids,
+        ),
+      );
+      reset = Number(r);
+    }
+
+    return { candidates: candidates.length, reset };
   }
 
   /**

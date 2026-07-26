@@ -89,6 +89,117 @@ export function renderAlertEmail(event: IntelAlertEvent): {
   return { subject, html: shell(inner), text };
 }
 
+/** Severity → sort rank (P0-02 digest grouping). Unknown severities sort last. */
+const SEVERITY_RANK: Record<string, number> = { critical: 0, notable: 1, info: 2, success: 3 };
+
+/**
+ * Stage → sort rank, reusing the existing `toneColor` vocabulary's key order
+ * (critical, notable, info, success) as the "legislative stage" tiebreaker the
+ * audit's required-fix item 2 asks for. NOTE: `DigestItem.label` values are
+ * free-text stage descriptions ("Passed a chamber", "New CBO cost estimate"),
+ * not literally these four tone words, so in practice almost every item falls
+ * into the unmatched/last bucket and this key rarely differentiates anything —
+ * it defers to the next key (deadline). Implemented literally per the plan's
+ * instruction to reuse this vocabulary rather than inventing a new stage-rank
+ * system; flagged in the phase completion report as a real ambiguity in the
+ * plan text.
+ */
+const STAGE_RANK: Record<string, number> = Object.fromEntries(
+  Object.keys(toneColor).map((k, i) => [k, i]),
+);
+
+/** One alert folded into a digest (P0-02) — enough to render without re-reading the queue's payload (it carries none). */
+export interface DigestItem {
+  clientName: string | null;
+  displayNum: string;
+  billTitle: string;
+  label: string; // stage
+  severity: string; // 'critical'|'notable'|'info'|...
+  detail: string; // official action text
+  actionDate: string | null;
+  deadline: string | null;
+  recommendedAction: string | null;
+  why: string | null;
+  url: string; // official source
+  appUrl: string; // LegiWatch deep link (phase f)
+}
+
+/**
+ * Batched daily/weekly digest (P0-02, audit required-fix item 2). Grouping,
+ * exactly as specified: client (alphabetical) → severity → legislative stage
+ * → deadline (ascending, nulls last) → required action (present before
+ * absent). Reuses `shell()`/`esc()` so chrome and escaping stay identical to
+ * the realtime template; every interpolated field goes through `esc()`.
+ */
+export function renderDigestEmail(
+  cadence: 'daily' | 'weekly',
+  items: DigestItem[],
+): { subject: string; html: string; text: string } {
+  const byClient = new Map<string, DigestItem[]>();
+  for (const item of items) {
+    const key = item.clientName ?? '(unassigned)';
+    const arr = byClient.get(key) ?? [];
+    arr.push(item);
+    byClient.set(key, arr);
+  }
+  const clientNames = Array.from(byClient.keys()).sort((a, b) => a.localeCompare(b));
+
+  const compare = (a: DigestItem, b: DigestItem): number => {
+    const sevA = SEVERITY_RANK[a.severity] ?? 4;
+    const sevB = SEVERITY_RANK[b.severity] ?? 4;
+    if (sevA !== sevB) return sevA - sevB;
+    const stageA = STAGE_RANK[a.label.toLowerCase()] ?? 4;
+    const stageB = STAGE_RANK[b.label.toLowerCase()] ?? 4;
+    if (stageA !== stageB) return stageA - stageB;
+    if (a.deadline !== b.deadline) {
+      if (a.deadline === null) return 1;
+      if (b.deadline === null) return -1;
+      return a.deadline.localeCompare(b.deadline);
+    }
+    const actionA = a.recommendedAction ? 0 : 1;
+    const actionB = b.recommendedAction ? 0 : 1;
+    return actionA - actionB;
+  };
+
+  const sections: string[] = [];
+  const textLines: string[] = [];
+  for (const clientName of clientNames) {
+    const sorted = [...byClient.get(clientName)!].sort(compare);
+    sections.push(
+      `<div style="margin-top:20px;font-size:13px;font-weight:700;color:${INK};border-bottom:1px solid #eef1f6;padding-bottom:6px">${esc(clientName)}</div>`,
+    );
+    textLines.push('', clientName, '─'.repeat(clientName.length));
+    for (const item of sorted) {
+      const color = toneColor[item.severity] ?? BRAND;
+      sections.push(`
+        <div style="margin-top:14px;padding-top:2px">
+          <div style="display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${color};background:${color}1a;padding:2px 8px;border-radius:999px">${esc(item.label)}</div>
+          <div style="margin-top:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;font-weight:700;color:${INK}">${esc(item.displayNum)}</div>
+          <div style="margin-top:2px;font-size:14px;font-weight:600;line-height:1.35;color:${INK}">${esc(item.billTitle)}</div>
+          <div style="margin-top:6px;font-size:12.5px;line-height:1.5;color:${MUTED}">${esc(item.detail)}</div>
+          ${item.deadline ? `<div style="margin-top:6px;font-size:11.5px;color:${MUTED}">Deadline · ${esc(item.deadline)}</div>` : ''}
+          ${item.recommendedAction ? `<div style="margin-top:6px;padding:8px 10px;background:#f6f8fb;border:1px solid #eef1f6;border-radius:6px;font-size:11.5px;line-height:1.45;color:${INK}"><span style="font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:9px;color:${MUTED}">Recommended action</span><div style="margin-top:3px">${esc(item.recommendedAction)}</div></div>` : ''}
+          <div style="margin-top:8px">
+            <a href="${esc(item.appUrl)}" style="font-size:11.5px;font-weight:600;color:${BRAND};text-decoration:none">Open in LegiWatch →</a>
+            ${item.url ? `<a href="${esc(item.url)}" style="margin-left:14px;font-size:11.5px;font-weight:600;color:${MUTED};text-decoration:none">Official source →</a>` : ''}
+          </div>
+        </div>`);
+      textLines.push(
+        `- [${item.label}] ${item.displayNum}: ${item.billTitle}`,
+        `  ${item.detail}`,
+        ...(item.deadline ? [`  Deadline: ${item.deadline}`] : []),
+        ...(item.recommendedAction ? [`  Recommended action: ${item.recommendedAction}`] : []),
+        `  LegiWatch: ${item.appUrl}${item.url ? ` | Source: ${item.url}` : ''}`,
+      );
+    }
+  }
+
+  const subject = `[Capiro] LegiWatch ${cadence === 'daily' ? 'daily' : 'weekly'} digest — ${items.length} update${items.length === 1 ? '' : 's'}`;
+  const html = sections.join('');
+  const text = [subject, ...textLines].join('\n');
+  return { subject, html: shell(html), text };
+}
+
 /** Test alert email fired from the Configure panel. */
 export function renderTestEmail(
   clientName: string | null,

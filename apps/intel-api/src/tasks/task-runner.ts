@@ -75,7 +75,8 @@ export const KNOWN_VERBS = [
   'detect-new-matches', //          LegiWatch B1: candidate × watchlist → intel_bill_match + bill_new_match alert
   'backfill-default-triggers', //   LegiWatch B: turn fiscalNote/sponsorMomentum on for existing subscriber prefs
   'emit-bill-alerts', //            Phase 4: fan out NEW intel_alert (SHADOW: suppress+log, no send)
-  'flush-digests', //               Phase 4: drain digest queue (SHADOW: no send)
+  'flush-digests', //               P0-02: drain digest queue, real send when owned (shadow still suppresses)
+  'recover-stranded-digests', //    P0-02: diag-only recovery for crash-stranded digest rows (dry-run default)
   'shadow-selftest', //             Phase 4: live proof of the shadow suppress path
   'verify-recommendations', //      §6.2: live proof of the recs+board path (keyword+semantic SQL)
   'parity-report', //               Phase 5: diff legacy intelligence_change vs shadow intel_alert (§8)
@@ -501,7 +502,24 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
     case 'flush-digests': {
       const cadence = args[0] === 'weekly' ? 'weekly' : 'daily';
       const r = await buildAlertService(deps.prisma).flushDigests(cadence);
-      deps.log(`FLUSH_DONE cadence=${cadence} flushed=${r.flushed} sent=${r.sent}`);
+      deps.log(
+        `FLUSH_DONE cadence=${cadence} flushed=${r.flushed} sent=${r.sent} failed=${r.failed} ` +
+          `deadLettered=${r.deadLettered} unresolvable=${r.unresolvable}`,
+      );
+      return;
+    }
+    case 'recover-stranded-digests': {
+      // DRY-RUN unless --apply=true, mirroring dedupeStateActionAlerts's dual gate.
+      const flags = parseFlags(args);
+      const olderThanMinutes = flags['olderThanMinutes'] ? Number(flags['olderThanMinutes']) : undefined;
+      const r = await buildAlertService(deps.prisma).recoverStrandedDigests(
+        { apply: flags['apply'] === 'true', olderThanMinutes },
+        deps.log,
+      );
+      deps.log(
+        `RECOVER_STRANDED_DIGESTS_DONE candidates=${r.candidates} reset=${r.reset} ` +
+          `mode=${flags['apply'] === 'true' ? 'APPLY' : 'DRY_RUN'}`,
+      );
       return;
     }
     case 'shadow-selftest': {
