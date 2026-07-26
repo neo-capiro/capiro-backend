@@ -48,3 +48,27 @@ export class AmbiguousMailSendError extends Error {
     this.name = 'AmbiguousMailSendError';
   }
 }
+
+/**
+ * Transport-level failures whose send outcome CANNOT be determined.
+ *
+ * A rejected `fetch()` on a send call means the request left this process but no
+ * response came back: the provider may or may not have accepted the message. The
+ * only safe classification is `unknown` — recording it as `failed` invites the
+ * user to retry and duplicate an email that was in fact delivered.
+ *
+ * Deliberately broad (undici collapses most transport faults into a generic
+ * `TypeError: fetch failed`, so even connection-refused lands here). That errs
+ * toward "a human verifies Sent Items" instead of "we quietly resend", which is
+ * the correct direction for an at-most-once external send.
+ *
+ * Shared by BOTH provider adapters so the Gmail and Graph paths cannot drift —
+ * they previously did, and only Graph classified these correctly.
+ */
+const AMBIGUOUS_TRANSPORT_PATTERN =
+  /fetch failed|ECONNRESET|ETIMEDOUT|ECONNABORTED|EPIPE|socket hang up|aborted|AbortError|timeout|network/i;
+
+export function isAmbiguousTransportFailure(err: unknown): boolean {
+  const text = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+  return AMBIGUOUS_TRANSPORT_PATTERN.test(text);
+}

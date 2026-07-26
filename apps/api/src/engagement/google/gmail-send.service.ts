@@ -20,6 +20,7 @@ import { GoogleTokenService } from './google-token.service.js';
 import type { EngagementSendMailInput } from '../mail-sender.service.js';
 import {
   AmbiguousMailSendError,
+  isAmbiguousTransportFailure,
   type EngagementMailSendResult,
 } from '../mail-send-result.js';
 
@@ -58,15 +59,33 @@ export class GmailSendService {
     );
 
     const raw = buildGmailRawMessage(input);
+    const correlationId = input.correlationId ?? '';
 
-    const response = await fetch(GMAIL_SEND_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ raw }),
-    });
+    // The request may die on the wire AFTER the body was transmitted, in which
+    // case Gmail may already have accepted the message. That is genuinely
+    // ambiguous, not a failure: letting the raw transport error escape would have
+    // the send-intent worker record 'failed' and offer the user a retry, which can
+    // duplicate a delivered email. Only the fetch itself is guarded — our own
+    // HttpExceptions below are thrown after a response was received.
+    let response: Response;
+    try {
+      response = await fetch(GMAIL_SEND_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ raw }),
+      });
+    } catch (err) {
+      if (isAmbiguousTransportFailure(err)) {
+        throw new AmbiguousMailSendError(
+          'The connection to Gmail failed before a result was returned; verify Sent Items before resending.',
+          correlationId,
+        );
+      }
+      throw err;
+    }
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
@@ -94,7 +113,6 @@ export class GmailSendService {
     // would be wrong: the mail is already gone. A response we cannot read, or one
     // without an id, is genuinely AMBIGUOUS — the caller records the delivery as
     // 'unknown' and never retries it (a retry would duplicate a delivered email).
-    const correlationId = input.correlationId ?? '';
     let parsed: { id?: unknown; threadId?: unknown } | null = null;
     try {
       parsed = (await response.json()) as { id?: unknown; threadId?: unknown };
