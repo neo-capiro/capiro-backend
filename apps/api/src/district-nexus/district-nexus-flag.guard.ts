@@ -57,12 +57,23 @@ export class DistrictNexusFlagGuard implements CanActivate {
 
     let enabled = false;
     try {
+      // NO ::uuid cast. `intel_feature_flag.tenant_id` is TEXT, not uuid —
+      // intel-api owns the table and declares it `tenantId String` with no
+      // @db.Uuid (apps/intel-api/prisma/schema.prisma), and its RLS policy
+      // casts the other way round: `tenant_id = (current_tenant_id())::text`.
+      //
+      // The plan's §4.5 sketch specified a uuid cast, and that was wrong. With
+      // it, every read threw `42883 operator does not exist: text = uuid`, hit
+      // the catch below, and failed closed — so the feature 404'd for a tenant
+      // whose flag was genuinely enabled. It could not surface until the flag
+      // was first switched on for someone (2026-07-26), because with no rows
+      // anywhere the guard's answer was "denied" either way.
       const rows = await this.prisma.withSystem((tx) =>
         tx.$queryRaw<Array<{ ok: number }>>`
           SELECT 1 AS ok
           FROM intel_feature_flag
           WHERE feature = ${DISTRICT_NEXUS_FEATURE}
-            AND tenant_id = ${tenantId}::uuid
+            AND tenant_id = ${tenantId}
             AND enabled = true
           LIMIT 1
         `,
