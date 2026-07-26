@@ -130,6 +130,60 @@ export function isClerkOrgAdminRole(clerkRole: string | null | undefined): boole
 }
 
 // ---------------------------------------------------------------------------
+// Security events (SOC 2 CC7.2)
+// ---------------------------------------------------------------------------
+
+/** Stable reason codes for an authorization denial. These are the dimension an
+ *  auditor filters on, so they must not drift: a CloudWatch metric filter and
+ *  any future alarm key off them. Add, never rename. */
+export const AUTH_DENIED_REASONS = [
+  'no_active_membership',
+  'no_matching_tenant',
+  'tenant_claim_mismatch',
+  'org_claim_mismatch',
+  'slug_claim_mismatch',
+  'host_mismatch',
+  'unauthorized_party',
+  'ws_ticket_invalid',
+  'missing_delegation',
+] as const;
+
+export type AuthDeniedReason = (typeof AUTH_DENIED_REASONS)[number];
+
+/**
+ * Build the single-line JSON payload for an `auth.denied` security event.
+ *
+ * Emitted on stdout and picked up by the `Capiro/Security` metric filter
+ * (`{ $.security_event = "auth.denied" }`, metricValue `$.count`). Before this
+ * existed, the ONLY metric filter in the stack was bound to the sync-jobs log
+ * group, so nothing the request path logged could become a CloudWatch metric —
+ * an auth denial was invisible to monitoring.
+ *
+ * Carries no token, no email and no PII beyond the Clerk subject and tenant id.
+ * `count: 1` is the metric value; the filter sums it.
+ */
+export function authDeniedEvent(input: {
+  reason: AuthDeniedReason;
+  /** Which surface denied: 'http' | 'ws' | 'internal_service'. */
+  surface?: string;
+  /** The tenant that was RESOLVED, when one was. */
+  tenantId?: string | null;
+  /** The tenant the caller CLAIMED, when it differs from the resolved one. */
+  claimedTenantId?: string | null;
+  clerkUserId?: string | null;
+}): string {
+  return JSON.stringify({
+    security_event: 'auth.denied',
+    reason: input.reason,
+    surface: input.surface ?? 'http',
+    tenant_id: input.tenantId ?? null,
+    claimed_tenant_id: input.claimedTenantId ?? null,
+    clerk_user_id: input.clerkUserId ?? null,
+    count: 1,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Tenant context
 // ---------------------------------------------------------------------------
 

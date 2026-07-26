@@ -127,24 +127,37 @@ export class TenantGuard implements CanActivate {
       resolved = await this.tenants.resolveByTenantId(claimedTenantId);
     }
     if (!resolved) {
-      this.logger.warn(
-        `No tenant for org=${claimedOrgId ?? '-'} tenantClaim=${claimedTenantId ?? '-'}`,
-      );
+      this.denied('no_matching_tenant', { claimedTenantId, clerkUserId: claims.sub });
       throw new ForbiddenException('No tenant for the supplied identifiers');
     }
 
     // Step 5 — integrity cross-checks, mirroring apps/api's middleware. Each
     // covers a different way the token and the canonical row can disagree.
     if (claimedTenantId && resolved.tenantId !== claimedTenantId) {
+      this.denied('tenant_claim_mismatch', {
+        tenantId: resolved.tenantId,
+        claimedTenantId,
+        clerkUserId: claims.sub,
+      });
       throw new ForbiddenException('Tenant claim mismatch, re-auth required');
     }
     // Conditional on clerkOrgId being set: a tenant that has never been linked
     // to a Clerk org has nothing to compare against, and making this
     // unconditional would lock those tenants out entirely.
     if (claimedOrgId && resolved.clerkOrgId && resolved.clerkOrgId !== claimedOrgId) {
+      this.denied('org_claim_mismatch', {
+        tenantId: resolved.tenantId,
+        claimedTenantId,
+        clerkUserId: claims.sub,
+      });
       throw new ForbiddenException('Org claim mismatch, re-auth required');
     }
     if (claimedSlug && resolved.slug.toLowerCase() !== claimedSlug.toLowerCase()) {
+      this.denied('slug_claim_mismatch', {
+        tenantId: resolved.tenantId,
+        claimedTenantId,
+        clerkUserId: claims.sub,
+      });
       throw new ForbiddenException('Tenant slug claim mismatch, re-auth required');
     }
 
@@ -152,17 +165,10 @@ export class TenantGuard implements CanActivate {
     // longer sufficient on its own.
     const active = await this.tenants.hasActiveMembership(resolved.tenantId, claims.sub);
     if (!active) {
-      // Single-line JSON so a CloudWatch metric filter can count it:
-      //   { $.security_event = "auth.denied" }
-      this.logger.warn(
-        JSON.stringify({
-          security_event: 'auth.denied',
-          reason: 'no_active_membership',
-          tenant_id: resolved.tenantId,
-          clerk_user_id: claims.sub,
-          count: 1,
-        }),
-      );
+      this.denied('no_active_membership', {
+        tenantId: resolved.tenantId,
+        clerkUserId: claims.sub,
+      });
       throw new ForbiddenException('No active membership for this tenant');
     }
 
@@ -173,6 +179,32 @@ export class TenantGuard implements CanActivate {
       role: claims.org_role ?? claims.capiro_org_role ?? null,
     };
     return true;
+  }
+
+  /**
+   * Single-line JSON security event, counted by the Capiro/Security metric
+   * filter (`{ $.security_event = "auth.denied" }`, metricValue `$.count`).
+   *
+   * The payload shape is duplicated from @capiro/shared's authDeniedEvent()
+   * ON PURPOSE: packages/auth declares no @capiro/* dependency and adding one
+   * to this change-controlled package for a log line is not worth the coupling
+   * or the CJS/ESM build risk. Keep the two shapes identical.
+   */
+  private denied(
+    reason: string,
+    ctx: { tenantId?: string | null; claimedTenantId?: string | null; clerkUserId?: string | null },
+  ): void {
+    this.logger.warn(
+      JSON.stringify({
+        security_event: 'auth.denied',
+        reason,
+        surface: 'http',
+        tenant_id: ctx.tenantId ?? null,
+        claimed_tenant_id: ctx.claimedTenantId ?? null,
+        clerk_user_id: ctx.clerkUserId ?? null,
+        count: 1,
+      }),
+    );
   }
 }
 

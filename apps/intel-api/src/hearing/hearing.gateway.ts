@@ -387,7 +387,23 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   }
 
   private reject(client: WebSocket, reason: string): void {
-    this.logger.debug(`ws rejected: ${reason}`);
+    // WARN, not debug. At the default log level every WebSocket rejection was
+    // invisible — including an invalid ticket and a revoked membership — so
+    // there was no signal at all that the live-hearing surface was denying
+    // anyone. Emitted in the structured shape so the Capiro/Security metric
+    // filter counts WS denials alongside HTTP ones.
+    this.logger.warn(
+      JSON.stringify({
+        security_event: 'auth.denied',
+        reason: classifyWsRejection(reason),
+        surface: 'ws',
+        tenant_id: null,
+        claimed_tenant_id: null,
+        clerk_user_id: null,
+        detail: reason,
+        count: 1,
+      }),
+    );
     try {
       client.send(JSON.stringify({ type: 'error', message: reason } satisfies ServerWsMessage));
     } catch {
@@ -417,4 +433,20 @@ function extractToken(req: IncomingMessage, url: URL): string | null {
     );
   }
   return null;
+}
+
+/**
+ * Map a rejection message onto a stable `auth.denied` reason code.
+ *
+ * The gateway rejects with human-readable strings; the metric filter needs a
+ * fixed dimension. Anything unrecognized falls back to ws_ticket_invalid rather
+ * than being dropped, so no denial goes uncounted.
+ */
+function classifyWsRejection(reason: string): string {
+  const r = reason.toLowerCase();
+  if (r.includes('no active membership')) return 'no_active_membership';
+  if (r.includes('tenant claim mismatch')) return 'tenant_claim_mismatch';
+  if (r.includes('org claim mismatch')) return 'org_claim_mismatch';
+  if (r.includes('no tenant')) return 'no_matching_tenant';
+  return 'ws_ticket_invalid';
 }

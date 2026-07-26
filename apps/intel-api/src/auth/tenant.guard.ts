@@ -111,22 +111,35 @@ export class TenantGuard implements CanActivate {
       resolved = await this.tenants.resolveByTenantId(claimedTenantId);
     }
     if (!resolved) {
-      this.logger.warn(
-        `No tenant for org=${claimedOrgId ?? '-'} tenantClaim=${claimedTenantId ?? '-'}`,
-      );
+      this.denied('no_matching_tenant', { claimedTenantId, clerkUserId: claims.sub });
       throw new ForbiddenException('No tenant for the supplied identifiers');
     }
 
     if (claimedTenantId && resolved.tenantId !== claimedTenantId) {
+      this.denied('tenant_claim_mismatch', {
+        tenantId: resolved.tenantId,
+        claimedTenantId,
+        clerkUserId: claims.sub,
+      });
       throw new ForbiddenException('Tenant claim mismatch, re-auth required');
     }
     // Conditional on clerkOrgId being set: a tenant never linked to a Clerk org
     // has nothing to compare against, and an unconditional check would lock
     // those tenants out.
     if (claimedOrgId && resolved.clerkOrgId && resolved.clerkOrgId !== claimedOrgId) {
+      this.denied('org_claim_mismatch', {
+        tenantId: resolved.tenantId,
+        claimedTenantId,
+        clerkUserId: claims.sub,
+      });
       throw new ForbiddenException('Org claim mismatch, re-auth required');
     }
     if (claimedSlug && resolved.slug.toLowerCase() !== claimedSlug.toLowerCase()) {
+      this.denied('slug_claim_mismatch', {
+        tenantId: resolved.tenantId,
+        claimedTenantId,
+        clerkUserId: claims.sub,
+      });
       throw new ForbiddenException('Tenant slug claim mismatch, re-auth required');
     }
 
@@ -134,15 +147,10 @@ export class TenantGuard implements CanActivate {
     if (!active) {
       // Single-line JSON so a CloudWatch metric filter can count it:
       //   { $.security_event = "auth.denied" }
-      this.logger.warn(
-        JSON.stringify({
-          security_event: 'auth.denied',
-          reason: 'no_active_membership',
-          tenant_id: resolved.tenantId,
-          clerk_user_id: claims.sub,
-          count: 1,
-        }),
-      );
+      this.denied('no_active_membership', {
+        tenantId: resolved.tenantId,
+        clerkUserId: claims.sub,
+      });
       throw new ForbiddenException('No active membership for this tenant');
     }
 
@@ -153,6 +161,25 @@ export class TenantGuard implements CanActivate {
       role: claims.org_role ?? claims.capiro_org_role ?? null,
     };
     return true;
+  }
+
+  /** Counted by the Capiro/Security metric filter. Shape mirrors
+   *  @capiro/shared's authDeniedEvent() and packages/auth's copy — keep in step. */
+  private denied(
+    reason: string,
+    ctx: { tenantId?: string | null; claimedTenantId?: string | null; clerkUserId?: string | null },
+  ): void {
+    this.logger.warn(
+      JSON.stringify({
+        security_event: 'auth.denied',
+        reason,
+        surface: 'http',
+        tenant_id: ctx.tenantId ?? null,
+        claimed_tenant_id: ctx.claimedTenantId ?? null,
+        clerk_user_id: ctx.clerkUserId ?? null,
+        count: 1,
+      }),
+    );
   }
 }
 
