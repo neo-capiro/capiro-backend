@@ -8,6 +8,8 @@
 //   • GET /reviews/:id serves the protected draft body only to admin / assignee /
 //     requester, and marks a requester view-only.
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, jest, test } from '@jest/globals';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
@@ -255,5 +257,44 @@ describe('detail — the protected draft view (§3.f2)', () => {
     expect(serialized).not.toMatch(/access_?token|refresh_?token|ciphertext|authTag/i);
     expect(out.draftVersion).not.toHaveProperty('raw');
     expect(out.draftVersion).not.toHaveProperty('auditLedger');
+  });
+});
+
+/**
+ * Phase 0 §3.d3 — the module wiring rule, asserted structurally.
+ *
+ * ReviewsModule already imports EngagementModule. If EngagementModule ever
+ * imports ReviewsModule back, Nest hits a module cycle and the API fails to boot
+ * — a failure that unit tests with hand-built providers would never catch.
+ * OutreachDraftService is EXPORTED instead, and ReviewsService injects it.
+ */
+describe('module wiring (no Engagement <-> Reviews cycle)', () => {
+  const engagementModule = readFileSync(
+    join(__dirname, '..', 'engagement', 'engagement.module.ts'),
+    'utf8',
+  );
+
+  test('EngagementModule does NOT import ReviewsModule', () => {
+    // Assert on real syntax, not raw text: the file legitimately MENTIONS
+    // ReviewsModule in the comment explaining why it must not import it.
+    expect(engagementModule).not.toMatch(/^\s*import\s+.*reviews\.module/m);
+    const importsBlock = /imports:\s*\[([\s\S]*?)\]/.exec(engagementModule)?.[1] ?? '';
+    expect(importsBlock).not.toContain('Reviews');
+  });
+
+  test('EngagementModule EXPORTS OutreachDraftService so Reviews can inject it', () => {
+    const exportsBlock = /exports:\s*\[([\s\S]*?)\]/.exec(engagementModule)?.[1] ?? '';
+    expect(exportsBlock).toContain('OutreachDraftService');
+  });
+
+  test('all three Phase 0 services are registered as providers', () => {
+    const providersBlock = /providers:\s*\[([\s\S]*?)\]/.exec(engagementModule)?.[1] ?? '';
+    for (const provider of [
+      'OutreachDraftService',
+      'OutreachDraftAuditService',
+      'OutreachSendIntentService',
+    ]) {
+      expect(providersBlock).toContain(provider);
+    }
   });
 });
