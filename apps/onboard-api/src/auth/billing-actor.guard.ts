@@ -9,6 +9,7 @@ import {
 import { createParamDecorator, InternalServerErrorException } from '@nestjs/common';
 import type { Request } from 'express';
 import { ClerkService, type ClerkSessionClaims } from '@capiro/auth';
+import { isClerkOrgAdminRole } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /** Reserved Clerk org slug for Capiro internal staff (mirrors apps/api). */
@@ -66,7 +67,9 @@ export class BillingActorGuard implements CanActivate {
 
     const orgSlug = claims.org_slug ?? null;
     const orgRole = (claims.org_role ?? claims.capiro_org_role ?? '').toLowerCase();
-    const isOrgAdmin = orgRole.includes('admin');
+    // Exact-match on the RAW CLERK role. Only feeds `capiroAdmin` below — the
+    // tenant-side billing gate is the exact membership check at isBillingAdmin.
+    const isOrgAdmin = isClerkOrgAdminRole(orgRole);
     const capiroAdmin = orgSlug === CAPIRO_INTERNAL_SLUG && isOrgAdmin;
 
     // Resolve the tenant UUID from the verified claims (template claim is the

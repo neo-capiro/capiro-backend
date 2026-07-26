@@ -102,6 +102,33 @@ export function isTenantAdmin(role: TenantRole): boolean {
   return role === 'user_admin' || role === 'capiro_admin';
 }
 
+/** Clerk org role KEYS (the segment after `org:`) that count as org admin.
+ *  EXACT-match allowlist. A custom role whose name merely CONTAINS "admin"
+ *  (`org:admin_readonly`, `org:not-admin`, `org:admin-assistant`,
+ *  `org:billing-admin`) must NOT pass — the previous `includes('admin')` test
+ *  elevated all of them, and inside the `capiro-internal` org that meant
+ *  cross-tenant `capiro_admin`. */
+export const CLERK_ADMIN_ROLE_KEYS = ['admin', 'administrator'] as const;
+
+/** True when a RAW CLERK org role string (`org:admin`, `admin`, `org:member`)
+ *  denotes an org admin. Accepts both the prefixed and bare forms because both
+ *  are produced: Clerk v1 tokens carry `org:admin` while v2 tokens carry a bare
+ *  `admin` under `o.rol`, which normalizeOrgRole re-prefixes.
+ *
+ *  Fails CLOSED on null/undefined/empty.
+ *
+ *  NOT for Capiro `TenantRole` strings — use isTenantAdmin() for those.
+ *  `isClerkOrgAdminRole('user_admin')` and `('capiro_admin')` both return
+ *  FALSE, whereas the old substring test returned true for both. Every call
+ *  site was checked for which vocabulary it receives; do not add a new one
+ *  without doing the same. */
+export function isClerkOrgAdminRole(clerkRole: string | null | undefined): boolean {
+  if (!clerkRole) return false;
+  const raw = clerkRole.trim().toLowerCase();
+  const key = raw.startsWith('org:') ? raw.slice('org:'.length) : raw;
+  return (CLERK_ADMIN_ROLE_KEYS as readonly string[]).includes(key);
+}
+
 // ---------------------------------------------------------------------------
 // Tenant context
 // ---------------------------------------------------------------------------

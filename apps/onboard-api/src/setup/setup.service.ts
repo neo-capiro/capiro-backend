@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AuthTenantContext } from '@capiro/auth';
-import { effectiveClientSlots } from '@capiro/shared';
+import { effectiveClientSlots, isClerkOrgAdminRole } from '@capiro/shared';
 import type { OnboardTaskKey, OnboardTaskStatus } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantResolverService } from '../auth/tenant-resolver.service.js';
@@ -80,10 +80,15 @@ export class SetupService {
     ).replace(/\/$/, '');
   }
 
-  /** Admin-only mutation gate — the dashboard is an admin surface. */
+  /** Admin-only mutation gate — the dashboard is an admin surface.
+   *
+   *  `ctx.role` here is the RAW CLERK claim (packages/auth TenantGuard sets it
+   *  from `org_role ?? capiro_org_role`, normalized to the `org:` form), so the
+   *  Clerk-vocabulary helper is the correct test. Exact-match: the previous
+   *  `role.includes('admin')` would have admitted any custom role containing
+   *  the substring. Fails CLOSED — a null/empty role is not an admin. */
   private assertAdmin(ctx: AuthTenantContext): void {
-    const role = (ctx.role ?? '').toLowerCase();
-    if (!role.includes('admin')) {
+    if (!isClerkOrgAdminRole(ctx.role)) {
       throw new ForbiddenException('Firm setup is limited to admins');
     }
   }
