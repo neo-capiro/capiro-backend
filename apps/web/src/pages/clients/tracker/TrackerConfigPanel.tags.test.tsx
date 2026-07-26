@@ -250,4 +250,31 @@ describe('TrackerConfigPanel — tag naming + inline validation + resync (P0-03,
     });
     expect(onSave).toHaveBeenCalledTimes(1);
   });
+
+  test('10. a resync that reorders tags keeps the SAME tag open, not the same slot', () => {
+    const v1 = makeWatchlist({ tags: [makeTag({ tag: 'Alpha' }), makeTag({ tag: 'Beta' })] });
+    const { rerender } = renderPanel({ watchlist: v1 });
+    // Open Beta — the second row, index 1.
+    fireEvent.click(screen.getByText('Beta'));
+    expect((screen.getByLabelText('Tag name') as HTMLInputElement).value).toBe('Beta');
+
+    // A save round-trip can return topics in a different order than the local
+    // array had them (e.g. a just-touched topic sorts first) — index 1 now
+    // holds Alpha, not Beta. `openTags` is index-based, so without the label
+    // remap this would silently swap to showing Alpha's editor instead.
+    const v2 = makeWatchlist({ tags: [makeTag({ tag: 'Beta' }), makeTag({ tag: 'Alpha' })] });
+    rerender(
+      <TrackerConfigPanel
+        allIssueAreas={[]}
+        watchlist={v2}
+        prefs={makePrefs()}
+        onSaveWatchlist={() => {}}
+        onSavePrefs={() => {}}
+        onRequestVerify={() => {}}
+        onTestAlert={() => {}}
+        typedTermsEnabled
+      />,
+    );
+    expect((screen.getByLabelText('Tag name') as HTMLInputElement).value).toBe('Beta');
+  });
 });

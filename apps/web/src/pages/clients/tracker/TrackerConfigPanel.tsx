@@ -555,15 +555,30 @@ export function TrackerConfigPanel({
     lastAdopted.current = serverSig;
     setIssues(new Set(watchlist.issueAreas));
     setJurisdictions(new Set(watchlist.jurisdictions ?? []));
-    setTags(
-      watchlist.tags.map((t) => ({
-        ...t,
-        synonyms: [...t.synonyms],
-        relatedEntities: [...t.relatedEntities],
-        riskTerms: [...t.riskTerms],
-        typedTerms: (t.typedTerms ?? []).map((x) => ({ ...x })),
-      })),
-    );
+    const nextTags = watchlist.tags.map((t) => ({
+      ...t,
+      synonyms: [...t.synonyms],
+      relatedEntities: [...t.relatedEntities],
+      riskTerms: [...t.riskTerms],
+      typedTerms: (t.typedTerms ?? []).map((x) => ({ ...x })),
+    }));
+    // `openTags` is keyed by array index, but the server can return topics in a
+    // different order than the local array had them (e.g. a freshly-created or
+    // renamed topic sorts first) — remap by label so the SAME tag stays open
+    // across a resync instead of whatever tag now happens to sit at that index.
+    setOpenTags((openSet) => {
+      if (!openSet.size) return openSet;
+      const prevLabels = tags.map((t) => t.tag.trim().toLowerCase());
+      const nextLabels = nextTags.map((t) => t.tag.trim().toLowerCase());
+      const remapped = new Set<number>();
+      openSet.forEach((idx) => {
+        const label = prevLabels[idx];
+        const newIdx = label ? nextLabels.indexOf(label) : -1;
+        if (newIdx !== -1) remapped.add(newIdx);
+      });
+      return remapped;
+    });
+    setTags(nextTags);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverSig, saving]);
 
