@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module.js';
+import { OrgTenantResolverModule } from './auth/org-tenant-resolver.module.js';
 import { HealthModule } from './health/health.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { FlagsModule } from './flags/flags.module.js';
@@ -23,6 +24,10 @@ import { ContextModule } from './context/context.module.js';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, cache: true }),
     PrismaModule,
+    // MUST precede AuthModule: the shared TenantGuard injects
+    // ORG_TENANT_RESOLVER as a REQUIRED dependency (no @Optional(), which would
+    // fail open). Missing it is a boot failure, by design.
+    OrgTenantResolverModule,
     AuthModule,
     FlagsModule,
     HealthModule,

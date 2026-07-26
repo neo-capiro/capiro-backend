@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { PrismaClient } from '../../generated/prisma-client/index.js';
+import { Prisma, PrismaClient } from '../../generated/prisma-client/index.js';
 
 /**
  * Workspace engine Prisma client.
@@ -22,5 +22,27 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleDestroy(): Promise<void> {
     await this.$disconnect();
+  }
+
+  /**
+   * Run `fn` in a transaction with `app.bypass_rls` set, mirroring apps/api's
+   * withSystem.
+   *
+   * Workspace's OWN tables (ws_*) have no RLS, so this is not needed for them.
+   * It exists for the identity tables in the same Aurora database — `tenants`
+   * and `tenant_memberships`, owned by apps/api — which have FORCE ROW LEVEL
+   * SECURITY. FORCE subjects even the table owner to the policy, so connecting
+   * as capiro_app is not sufficient: without this GUC the canonical
+   * org->tenant lookup returns ZERO ROWS rather than raising, and every request
+   * 403s with "No tenant for the supplied identifiers" — a total outage that
+   * presents as a data problem.
+   *
+   * The GUC is `app.bypass_rls` (NOT `app.rls_bypass`).
+   */
+  async withSystem<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    return this.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
+      return fn(tx as unknown as Prisma.TransactionClient);
+    });
   }
 }

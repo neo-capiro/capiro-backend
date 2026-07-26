@@ -4,6 +4,7 @@ import { OnGatewayConnection, OnGatewayDisconnect, WebSocketGateway } from '@nes
 import type { WebSocket } from 'ws';
 import type { IncomingMessage } from 'node:http';
 import { ClerkService } from '../auth/clerk.service.js';
+import { OrgTenantResolverService } from '../auth/org-tenant-resolver.service.js';
 import {
   FeatureFlagService,
   HEARING_WATCH_FEATURE,
@@ -55,6 +56,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
   constructor(
     private readonly clerk: ClerkService,
+    private readonly tenants: OrgTenantResolverService,
     private readonly flags: FeatureFlagService,
     private readonly sessions: HearingSessionService,
     private readonly commit: SegmentCommitService,
@@ -81,9 +83,58 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
       // Same Clerk verification path as the REST guard.
       const claims = await this.clerk.verifySessionToken(token);
-      const tenantId = claims.capiro_tenant_id?.trim() || claims.org_id?.trim();
-      if (!tenantId || !claims.sub) {
+      if (!claims.sub) {
         return this.reject(client, 'No tenant/subject in token');
+      }
+
+      // Canonical resolution, mirroring the REST TenantGuard. This used to be
+      // `capiro_tenant_id ?? org_id` taken straight from the claims, which meant
+      // an org_id-only token put a raw `org_...` string into every downstream
+      // tenant predicate — and, more importantly, that a user whose Capiro
+      // membership had been revoked could still open a live audio socket.
+      const claimedOrgId = claims.org_id?.trim() || undefined;
+      const claimedTenantId = claims.capiro_tenant_id?.trim() || undefined;
+      if (!claimedOrgId && !claimedTenantId) {
+        return this.reject(client, 'No tenant/subject in token');
+      }
+
+      let resolvedTenant = claimedOrgId
+        ? await this.tenants.resolveByClerkOrgId(claimedOrgId)
+        : null;
+      if (!resolvedTenant && claimedTenantId) {
+        resolvedTenant = await this.tenants.resolveByTenantId(claimedTenantId);
+      }
+      if (!resolvedTenant) {
+        return this.reject(client, 'No tenant for the supplied identifiers');
+      }
+      if (claimedTenantId && resolvedTenant.tenantId !== claimedTenantId) {
+        return this.reject(client, 'Tenant claim mismatch');
+      }
+      if (
+        claimedOrgId &&
+        resolvedTenant.clerkOrgId &&
+        resolvedTenant.clerkOrgId !== claimedOrgId
+      ) {
+        return this.reject(client, 'Org claim mismatch');
+      }
+
+      const tenantId = resolvedTenant.tenantId;
+
+      // The socket stays open for hours, so an unrevoked membership at connect
+      // time is the minimum bar — re-validation for long-lived sockets is
+      // tracked separately.
+      if (!(await this.tenants.hasActiveMembership(tenantId, claims.sub))) {
+        this.logger.warn(
+          JSON.stringify({
+            security_event: 'auth.denied',
+            reason: 'no_active_membership',
+            surface: 'ws',
+            tenant_id: tenantId,
+            clerk_user_id: claims.sub,
+            count: 1,
+          }),
+        );
+        return this.reject(client, 'No active membership for this tenant');
       }
 
       // Feature gate: refuse non-Capiro tenants until hearing_watch is enabled.

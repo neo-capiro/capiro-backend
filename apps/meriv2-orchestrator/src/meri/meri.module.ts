@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriController } from './meri.controller.js';
 import { MeriRegistryService } from './meri-registry.service.js';
 import { MeriContextResolver } from './meri-context.resolver.js';
@@ -39,7 +38,9 @@ import { StewardExtractService } from './steward/steward-extract.service.js';
     StewardController,
   ],
   providers: [
-    PrismaService,
+    // PrismaService is NOT listed here: it now comes from the @Global
+    // PrismaModule. Re-providing it locally would create a second
+    // PrismaClient and a second connection pool.
     MeriContextResolver,
     OrchestratorContextCompilerService,
     ApiClientContextRepo,

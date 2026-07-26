@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module.js';
+import { OrgTenantResolverModule } from './auth/org-tenant-resolver.module.js';
+import { PrismaModule } from './prisma/prisma.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MeriModule } from './meri/meri.module.js';
 
@@ -12,6 +14,10 @@ import { MeriModule } from './meri/meri.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, cache: true }),
+    // PrismaModule + OrgTenantResolverModule MUST precede AuthModule: the
+    // shared TenantGuard injects ORG_TENANT_RESOLVER as a REQUIRED dependency.
+    PrismaModule,
+    OrgTenantResolverModule,
     AuthModule,
     HealthModule,
     MeriModule,

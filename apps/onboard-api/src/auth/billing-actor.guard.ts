@@ -72,20 +72,29 @@ export class BillingActorGuard implements CanActivate {
     const isOrgAdmin = isClerkOrgAdminRole(orgRole);
     const capiroAdmin = orgSlug === CAPIRO_INTERNAL_SLUG && isOrgAdmin;
 
-    // Resolve the tenant UUID from the verified claims (template claim is the
-    // UUID; org_id fallback is the Clerk org id needing a lookup).
-    const rawTenant = claims.capiro_tenant_id?.trim() || claims.org_id?.trim();
-    if (!rawTenant) throw new ForbiddenException('No tenant in token');
+    // Resolve the tenant from the verified claims. Prefer org_id — Clerk is the
+    // source of truth for organization identity — and fall back to the
+    // capiro_tenant_id template claim so a tenant whose row has no clerk_org_id
+    // yet is not locked out.
+    const claimedOrgId = claims.org_id?.trim() || undefined;
+    const claimedTenantId = claims.capiro_tenant_id?.trim() || undefined;
+    if (!claimedOrgId && !claimedTenantId) throw new ForbiddenException('No tenant in token');
 
     const resolved = await this.prisma.withSystem(async (tx) => {
-      const tenant = rawTenant.startsWith('org_')
-        ? await tx.tenant.findUnique({
-            where: { clerkOrgId: rawTenant },
-            select: { id: true, slug: true },
-          })
+      const tenant = claimedOrgId
+        ? ((await tx.tenant.findUnique({
+            where: { clerkOrgId: claimedOrgId },
+            select: { id: true, slug: true, clerkOrgId: true },
+          })) ??
+          (claimedTenantId
+            ? await tx.tenant.findUnique({
+                where: { id: claimedTenantId },
+                select: { id: true, slug: true, clerkOrgId: true },
+              })
+            : null))
         : await tx.tenant.findUnique({
-            where: { id: rawTenant },
-            select: { id: true, slug: true },
+            where: { id: claimedTenantId! },
+            select: { id: true, slug: true, clerkOrgId: true },
           });
       if (!tenant) return null;
       const user = await tx.user.findUnique({
@@ -103,6 +112,18 @@ export class BillingActorGuard implements CanActivate {
     if (!resolved) throw new ForbiddenException('No tenant for org');
 
     const { tenant, user, membership } = resolved;
+
+    // Integrity cross-checks against the canonical row. Neither claim is
+    // attacker-controlled (both are minted by Clerk from the active org), but a
+    // stale or mis-set org public_metadata value would otherwise point this
+    // request at the wrong tenant with nothing to catch it. The clerkOrgId
+    // check is conditional because a tenant may have no Clerk org linked yet.
+    if (claimedTenantId && tenant.id !== claimedTenantId) {
+      throw new ForbiddenException('Tenant claim mismatch, re-auth required');
+    }
+    if (claimedOrgId && tenant.clerkOrgId && tenant.clerkOrgId !== claimedOrgId) {
+      throw new ForbiddenException('Org claim mismatch, re-auth required');
+    }
     const isBillingAdmin =
       membership?.status === 'active' &&
       membership.role === 'user_admin' &&
