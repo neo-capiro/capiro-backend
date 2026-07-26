@@ -148,6 +148,14 @@ export interface WatchlistTag {
   typedTerms: TypedTerm[];
   position?: TagPosition;
   priority: TagPriority;
+  /**
+   * P0-03 item 5: the tag's persisted name, captured on the FIRST keystroke of a
+   * rename, so the server renames the topic in place (keeping its id, its terms,
+   * and their createdAt) instead of deleting it and creating a new one. Never set
+   * on a fresh read — `adaptWatchlist` does not emit it, so reloading clears it.
+   * intel-api only; the legacy tracker replaces the whole watchlist anyway.
+   */
+  renameFrom?: string;
 }
 export interface WatchlistPayload {
   issueAreas: string[];

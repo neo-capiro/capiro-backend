@@ -304,7 +304,14 @@ function TagRow({
               aria-label="Tag name"
               aria-invalid={!!nameError}
               placeholder="e.g. data center load"
-              onChange={(e) => patch({ tag: e.target.value })}
+              // P0-03 item 5: capture the ORIGINAL name on the first keystroke —
+              // `tag.tag` is still the persisted label at that moment — and never
+              // overwrite it afterwards, so the server can rename the topic in
+              // place and keep its id/terms. A brand-new tag has tag === '', so
+              // `renameFrom` stays undefined and the topic is created, not renamed.
+              onChange={(e) =>
+                patch({ tag: e.target.value, renameFrom: tag.renameFrom ?? (tag.tag || undefined) })
+              }
             />
             {nameError && (
               <div className="af-error" role="alert">

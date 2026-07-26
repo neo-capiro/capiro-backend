@@ -261,6 +261,9 @@ export function watchlistToIntel(w: WatchlistPayload) {
       issueArea: t.issueArea ?? null,
       position: t.position ?? 'monitor',
       priority: t.priority,
+      // P0-03 item 5: only sent when the user actually renamed this tag, so the
+      // server preserves the topic id rather than delete+recreating it.
+      ...(t.renameFrom ? { renameFrom: t.renameFrom } : {}),
       terms: [
         ...t.synonyms.map((v) => ({ termType: 'synonym', value: v })),
         ...t.relatedEntities.map((v) => ({ termType: 'entity', value: v })),
