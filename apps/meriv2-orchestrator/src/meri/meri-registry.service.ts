@@ -16,6 +16,7 @@ import { ApiClientContextRepo } from './api-client-context.repo.js';
 import { ApiToolExecutorRepo } from './api-tool-executor.repo.js';
 import { ApiApprovalRepo } from './api-approval.repo.js';
 import { RequestScopedLlmClient } from './request-scoped-llm.client.js';
+import { parseCacheEnabledFlag } from './prompt-cache.helpers.js';
 import { IN_EDITOR_DELEGATED_TOOLS } from './delegated-tools.catalog.js';
 import { WRITE_DELEGATED_TOOLS } from './write-tools.catalog.js';
 import { FULL_CHAT_READ_TOOLS } from './full-chat-read-tools.catalog.js';
@@ -137,12 +138,27 @@ export class MeriRegistryService {
     const globalFallback = openaiKey
       ? { apiKey: openaiKey, model: openaiModel, provider: 'openai' as const }
       : undefined;
-    const llm = new RequestScopedLlmClient(apiKey, model, undefined, globalFallback);
+    // Prompt caching (P0-1 orchestrator parity): same env var + default as
+    // apps/api's CLIO_PROMPT_CACHE_ENABLED (one mental model for "is Meri
+    // prompt caching on" across both surfaces), read here — the ONE place
+    // this client is constructed, shared by chat/in-editor/strategy/steward.
+    const promptCacheEnabled = parseCacheEnabledFlag(
+      config.get<string>('CLIO_PROMPT_CACHE_ENABLED'),
+      true,
+    );
+    const llm = new RequestScopedLlmClient(
+      apiKey,
+      model,
+      undefined,
+      globalFallback,
+      promptCacheEnabled,
+    );
     registry.register(createTagLivePolicyMentionsTool(llm));
     registry.register(createGeneratePostHearingSummaryTool(llm));
     this.logger.log(
       `Hearing reasoning tools registered (defaultModel=${model}, globalKeyFallback=${Boolean(apiKey)}, ` +
-        `providerFailover=${globalFallback ? `global→${globalFallback.provider}` : 'off (no OPENAI_API_KEY)'})`,
+        `providerFailover=${globalFallback ? `global→${globalFallback.provider}` : 'off (no OPENAI_API_KEY)'}, ` +
+        `promptCacheEnabled=${promptCacheEnabled})`,
     );
 
     this.registry = registry;

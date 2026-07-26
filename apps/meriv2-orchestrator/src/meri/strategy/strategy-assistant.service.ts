@@ -25,10 +25,10 @@ import {
   PROPOSE_PLAN_EDITS_TOOL,
   PROPOSE_REFERENCE_EDITS_TOOL,
   PROPOSE_STRATEGY_DRAFT_TOOL,
-  buildAssistantSystemPrompt,
-  buildDocumentDraftSystemPrompt,
-  buildDraftSystemPrompt,
-  buildReferenceSystemPrompt,
+  composeAssistantSystemPrompt,
+  composeDocumentDraftSystemPrompt,
+  composeDraftSystemPrompt,
+  composeReferenceSystemPrompt,
   sanitizeDocumentSections,
   sanitizeDraftNodes,
   sanitizePlanEdits,
@@ -40,6 +40,7 @@ import {
   type StrategyDraftInput,
   type StrategyReferenceAssistInput,
 } from './strategy-prompt.js';
+import { flattenSystemParts, type SystemPromptParts } from '../prompt-cache.helpers.js';
 
 const MAX_ROUNDS = 8;
 // A7.4b: 12288 (was 8192) — Sonnet 5's heavier tokenizer + dependsOn/sources on a
@@ -101,7 +102,14 @@ export class StrategyAssistantService {
       query: input.goal ?? '',
       slim: false,
     });
-    const baseSystem = buildDraftSystemPrompt(
+    // Prompt caching (P0-1 orchestrator parity): `pack.text`/healthNote are
+    // compiled ONCE above and stay byte-identical across every repair attempt
+    // below (and across every round within one attempt) — request-scoped-llm.
+    // client.ts places the cache breakpoint on `systemParts.base` (persona +
+    // grounding kernel, shared across ALL strategy operations, not just this
+    // one), so repeats within this call — and calls from other tenants/turns
+    // within the ~5-minute cache TTL — reuse that prefix.
+    const systemParts = composeDraftSystemPrompt(
       input,
       pack.text,
       healthNoteFrom(pack.health, input.stewardHealth),
@@ -137,7 +145,9 @@ export class StrategyAssistantService {
     for (let attempt = 0; attempt <= MAX_REPAIRS; attempt += 1) {
       const roundStart = Date.now();
       const result = await this.runTerminal(
-        baseSystem + repairSuffix,
+        // repairSuffix ('' on the first attempt) rides the DYNAMIC tail —
+        // never `base` — so a repair round still hits the cached base prefix.
+        { base: systemParts.base, dynamic: `${systemParts.dynamic}${repairSuffix}` },
         userText,
         PROPOSE_STRATEGY_DRAFT_TOOL,
         ctx,
@@ -263,13 +273,13 @@ export class StrategyAssistantService {
       query: input.instruction,
       slim: true,
     });
-    const system = buildAssistantSystemPrompt(
+    const systemParts = composeAssistantSystemPrompt(
       input,
       pack.text,
       healthNoteFrom(pack.health, input.stewardHealth),
     );
     const result = await this.runTerminal(
-      system,
+      systemParts,
       input.instruction,
       PROPOSE_PLAN_EDITS_TOOL,
       ctx,
@@ -299,7 +309,7 @@ export class StrategyAssistantService {
       query: `${input.node.title} ${input.goal ?? ''}`.trim(),
       slim: false,
     });
-    const system = buildDocumentDraftSystemPrompt(
+    const systemParts = composeDocumentDraftSystemPrompt(
       input,
       pack.text,
       healthNoteFrom(pack.health, input.stewardHealth),
@@ -309,7 +319,7 @@ export class StrategyAssistantService {
         ? `Draft the full document for: ${input.node.title}`
         : `Draft the full outreach message for: ${input.node.title}`;
     const result = await this.runTerminal(
-      system,
+      systemParts,
       userText,
       PROPOSE_DOCUMENT_DRAFT_TOOL,
       ctx,
@@ -326,9 +336,9 @@ export class StrategyAssistantService {
   }
 
   async referenceAssist(ctx: MeriContext, input: StrategyReferenceAssistInput) {
-    const system = buildReferenceSystemPrompt(input);
+    const systemParts = composeReferenceSystemPrompt(input);
     const result = await this.runTerminal(
-      system,
+      systemParts,
       input.instruction,
       PROPOSE_REFERENCE_EDITS_TOOL,
       ctx,
@@ -347,7 +357,7 @@ export class StrategyAssistantService {
    * use the tool, and on budget exhaustion a tool-free synthesis returns text.
    */
   private async runTerminal(
-    system: string,
+    system: string | SystemPromptParts,
     userText: string,
     tool: { name: string },
     ctx: MeriContext,
@@ -423,7 +433,9 @@ export class StrategyAssistantService {
     // degraded path returns a schema-valid plan/edits, never prose-only.
     try {
       const resp = await this.llm.completeWithTools({
-        system: `${system}\n\n# FINISH NOW\nYou have used your budget. Call the ${tool.name} tool now with your best answer given the work so far.`,
+        // One-off, never repeated — flatten to a plain string rather than
+        // caching (a breakpoint here would only add the write premium).
+        system: `${flattenSystemParts(system)}\n\n# FINISH NOW\nYou have used your budget. Call the ${tool.name} tool now with your best answer given the work so far.`,
         messages,
         tools: [tool as AnthropicToolSchema],
         toolChoice: { type: 'tool', name: tool.name },

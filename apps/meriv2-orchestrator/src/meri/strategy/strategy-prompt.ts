@@ -1,4 +1,5 @@
 import { MERI_GROUNDING_INVARIANT, truncateToTokens } from '@capiro/meriv2-core';
+import type { SystemPromptParts } from '../prompt-cache.helpers.js';
 
 /*
  * Strategy Planner Meri — pure prompt/tool/sanitize logic (no network, no DI),
@@ -631,14 +632,24 @@ function stewardFactsSection(facts?: StewardFactLite[]): string {
 const PERSONA =
   'You are Meri, a government-affairs strategist. You turn a client goal into a concrete, date-placed plan of steps (actions, decisions, gates, milestones, risks) aligned to the federal budget (PPBE), the congressional calendar, and the firm’s own operating rhythm.';
 
-export function buildDraftSystemPrompt(
+/**
+ * Prompt caching (P0-1 orchestrator parity): the ONE thing genuinely
+ * invariant across every strategy call, of any kind, for any client — the
+ * persona + the zero-trust grounding kernel. Everything else in these four
+ * builders (fiscal/firm/reference calendars, the Client Context Pack,
+ * Steward facts, grounding health, attachments, the current plan/strategy)
+ * is per-request data and stays in each builder's `dynamic` tail. Shared
+ * across all four so a cache write from ANY strategy operation is read by
+ * the next one, not just repeats of the same operation.
+ */
+const STRATEGY_BASE = [PERSONA, MERI_GROUNDING_INVARIANT].join('\n\n');
+
+export function composeDraftSystemPrompt(
   input: StrategyDraftInput,
   packText: string,
   healthNote?: string,
-): string {
-  return [
-    PERSONA,
-    MERI_GROUNDING_INVARIANT,
+): SystemPromptParts {
+  const dynamic = [
     `# Objective type\n${input.type}`,
     input.goal
       ? `# Goal\n${input.goal}`
@@ -658,20 +669,32 @@ export function buildDraftSystemPrompt(
   ]
     .filter(Boolean)
     .join('\n\n');
+  return { base: STRATEGY_BASE, dynamic };
 }
 
-export function buildAssistantSystemPrompt(
-  input: StrategyAssistantInput,
+/** Legacy joined-string form — kept for strategy-prompt.spec.ts and any
+ *  caller that doesn't need the cache split. Byte-identical to before:
+ *  `STRATEGY_BASE` is exactly `[PERSONA, MERI_GROUNDING_INVARIANT].join('\n\n')`,
+ *  so `${base}\n\n${dynamic}` reproduces the original single joined array. */
+export function buildDraftSystemPrompt(
+  input: StrategyDraftInput,
   packText: string,
   healthNote?: string,
 ): string {
+  const { base, dynamic } = composeDraftSystemPrompt(input, packText, healthNote);
+  return `${base}\n\n${dynamic}`;
+}
+
+export function composeAssistantSystemPrompt(
+  input: StrategyAssistantInput,
+  packText: string,
+  healthNote?: string,
+): SystemPromptParts {
   const focus =
     input.scope === 'node' && input.nodeId
       ? `# Focus\nThe user is editing node [${input.nodeId}]. Prefer edits to that node unless they clearly ask for more.`
       : '# Focus\nThe user may change any part of the plan.';
-  return [
-    PERSONA,
-    MERI_GROUNDING_INVARIANT,
+  const dynamic = [
     `# Current strategy\n${input.strategy.title} (${input.strategy.type})${input.strategy.goal ? `\nGoal: ${input.strategy.goal}` : ''}`,
     `# Current plan\n${renderPlan(input.strategy)}`,
     `# Fiscal calendar\n${renderFiscal(input.fiscal)}`,
@@ -688,19 +711,37 @@ export function buildAssistantSystemPrompt(
   ]
     .filter(Boolean)
     .join('\n\n');
+  return { base: STRATEGY_BASE, dynamic };
 }
 
-export function buildReferenceSystemPrompt(input: StrategyReferenceAssistInput): string {
+/** Legacy joined-string form — see buildDraftSystemPrompt's comment. */
+export function buildAssistantSystemPrompt(
+  input: StrategyAssistantInput,
+  packText: string,
+  healthNote?: string,
+): string {
+  const { base, dynamic } = composeAssistantSystemPrompt(input, packText, healthNote);
+  return `${base}\n\n${dynamic}`;
+}
+
+export function composeReferenceSystemPrompt(
+  input: StrategyReferenceAssistInput,
+): SystemPromptParts {
   const which =
     input.kind === 'congress' ? 'legislative (congressional) calendar' : 'PPBE reference';
-  return [
-    PERSONA,
-    MERI_GROUNDING_INVARIANT,
+  const dynamic = [
     `# Task\nEdit the firm's ${which} per the user's instruction. This is reference data shared across strategies — be conservative and precise.`,
     `# Fiscal calendar\n${renderFiscal(input.fiscal)}`,
     `# Current rows (JSON)\n${JSON.stringify(input.rows).slice(0, 8000)}`,
     '# How to answer\nCall propose_reference_edits with the FULL edited row set (preserve rows you are not changing) and a short reply.',
   ].join('\n\n');
+  return { base: STRATEGY_BASE, dynamic };
+}
+
+/** Legacy joined-string form — see buildDraftSystemPrompt's comment. */
+export function buildReferenceSystemPrompt(input: StrategyReferenceAssistInput): string {
+  const { base, dynamic } = composeReferenceSystemPrompt(input);
+  return `${base}\n\n${dynamic}`;
 }
 
 function renderDocumentNode(n: DocumentDraftNode): string {
@@ -719,18 +760,16 @@ function renderDocumentNode(n: DocumentDraftNode): string {
  * outreach_record gets "write one cohesive campaign message" framing — the
  * terminal tool shape (propose_document_draft) is identical either way.
  */
-export function buildDocumentDraftSystemPrompt(
+export function composeDocumentDraftSystemPrompt(
   input: StrategyDocumentDraftInput,
   packText: string,
   healthNote?: string,
-): string {
+): SystemPromptParts {
   const isWorkspace = input.kind === 'workspace_draft';
   const deliverableNote = isWorkspace
     ? 'You are drafting a full internal WORKSPACE DOCUMENT (a white paper / strategy memo) for this step. Write complete, substantive sections — this is a real first draft, not an outline.'
     : 'You are drafting a full OUTREACH CAMPAIGN MESSAGE for this step — the message that will eventually go to the counterparty named by this step. Write it as a cohesive message (opening, key points, the ask, a close), split into sections. This message is STAGED ONLY — it will never be sent by you or as a result of this call.';
-  return [
-    PERSONA,
-    MERI_GROUNDING_INVARIANT,
+  const dynamic = [
     `# Deliverable\n${deliverableNote}`,
     `# Objective type\n${input.type}`,
     input.goal ? `# Strategy goal\n${input.goal}` : '# Strategy goal\n(none stated)',
@@ -748,4 +787,15 @@ export function buildDocumentDraftSystemPrompt(
   ]
     .filter(Boolean)
     .join('\n\n');
+  return { base: STRATEGY_BASE, dynamic };
+}
+
+/** Legacy joined-string form — see buildDraftSystemPrompt's comment. */
+export function buildDocumentDraftSystemPrompt(
+  input: StrategyDocumentDraftInput,
+  packText: string,
+  healthNote?: string,
+): string {
+  const { base, dynamic } = composeDocumentDraftSystemPrompt(input, packText, healthNote);
+  return `${base}\n\n${dynamic}`;
 }

@@ -570,6 +570,163 @@ describe('RequestScopedLlmClient resilience (retry + BYOK-safe failover)', () =>
   });
 });
 
+describe('RequestScopedLlmClient prompt caching (P0-1 orchestrator parity)', () => {
+  const tools = [
+    { name: 'search_congress_bills', description: 'x', input_schema: { type: 'object' } },
+  ];
+  function mockToolFetch() {
+    const calls: Array<{ body: Record<string, unknown> }> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (_url: string, init: { body: string }) => {
+        calls.push({ body: JSON.parse(init.body) });
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' }),
+        };
+      },
+    );
+    return calls;
+  }
+
+  it('defaults to uncached (no 5th ctor arg): a plain string system and a plain tools array pass through unchanged', async () => {
+    const calls = mockToolFetch();
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    await client.completeWithTools({ system: 'sys', messages: [], tools, maxTokens: 10 });
+    expect(calls[0]?.body.system).toBe('sys');
+    expect(calls[0]?.body.tools).toEqual(tools); // no cache_control anywhere
+  });
+
+  it('places a cache breakpoint on the base block and the last tool when enabled', async () => {
+    const calls = mockToolFetch();
+    const client = new RequestScopedLlmClient(
+      'sk-global',
+      'claude-default',
+      undefined,
+      undefined,
+      /* promptCacheEnabled */ true,
+    );
+    await client.completeWithTools({
+      system: { base: 'BASE', dynamic: 'per-turn ctx' },
+      messages: [],
+      tools,
+      maxTokens: 10,
+    });
+    expect(calls[0]?.body.system).toEqual([
+      { type: 'text', text: 'BASE', cache_control: { type: 'ephemeral' } },
+      // Leading '\n' — Anthropic concatenates adjacent system blocks with no
+      // implicit separator between them.
+      { type: 'text', text: '\nper-turn ctx' },
+    ]);
+    expect(calls[0]?.body.tools).toEqual([{ ...tools[0], cache_control: { type: 'ephemeral' } }]);
+  });
+
+  it('omits the dynamic block entirely when absent, even with caching enabled', async () => {
+    const calls = mockToolFetch();
+    const client = new RequestScopedLlmClient(
+      'sk-global',
+      'claude-default',
+      undefined,
+      undefined,
+      true,
+    );
+    await client.completeWithTools({
+      system: { base: 'BASE' },
+      messages: [],
+      tools,
+      maxTokens: 10,
+    });
+    expect(calls[0]?.body.system).toEqual([
+      { type: 'text', text: 'BASE', cache_control: { type: 'ephemeral' } },
+    ]);
+  });
+
+  it('a plain-string system still sends a bare string (no array wrapping) even when caching is enabled — only the {base,dynamic} form gets a breakpoint', async () => {
+    const calls = mockToolFetch();
+    const client = new RequestScopedLlmClient(
+      'sk-global',
+      'claude-default',
+      undefined,
+      undefined,
+      true,
+    );
+    await client.completeWithTools({
+      system: 'one-off synthesis prompt',
+      messages: [],
+      tools,
+      maxTokens: 10,
+    });
+    expect(calls[0]?.body.system).toBe('one-off synthesis prompt');
+    // Tool caching is independent of system shape — still breakpointed.
+    expect((calls[0]?.body.tools as Array<Record<string, unknown>>)[0]?.cache_control).toEqual({
+      type: 'ephemeral',
+    });
+  });
+
+  it('the A7 strict-stripping branch still gets the cache breakpoint on the post-strip tool array', async () => {
+    const calls = mockToolFetch();
+    const client = new RequestScopedLlmClient(
+      'sk-global',
+      'claude-sonnet-4-6', // does NOT support strict → tools get stripped to name/description/input_schema
+      undefined,
+      undefined,
+      true,
+    );
+    const strictTool = [
+      { name: 't', description: 'd', input_schema: { type: 'object' }, strict: true },
+    ];
+    await client.completeWithTools({
+      system: 'sys',
+      messages: [],
+      tools: strictTool,
+      maxTokens: 10,
+    });
+    expect(calls[0]?.body.tools).toEqual([
+      {
+        name: 't',
+        description: 'd',
+        input_schema: { type: 'object' },
+        cache_control: { type: 'ephemeral' },
+      },
+    ]);
+  });
+
+  it('flattens a split system to one string for an OpenAI-resolved credential (no Anthropic-style caching there)', async () => {
+    const calls: Array<{ body: Record<string, unknown> }> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (_url: string, init: { body: string }) => {
+        calls.push({ body: JSON.parse(init.body) });
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            choices: [{ message: { content: 'hi' }, finish_reason: 'stop' }],
+          }),
+        };
+      },
+    );
+    const client = new RequestScopedLlmClient(
+      'sk-global',
+      'claude-default',
+      undefined,
+      undefined,
+      true,
+    );
+    await RequestCredentialsStore.run(
+      { bearerToken: 't', aiProvider: { ...tenantCred, provider: 'openai' as const } },
+      () =>
+        client.completeWithTools({
+          system: { base: 'BASE', dynamic: 'ctx' },
+          messages: [],
+          tools,
+          maxTokens: 10,
+        }),
+    );
+    const msgs = calls[0]!.body.messages as Array<Record<string, unknown>>;
+    expect(msgs[0]).toEqual({ role: 'system', content: 'BASE\nctx' });
+  });
+});
+
 describe('parseAiProviderHeader', () => {
   const reqWith = (value: unknown): Request =>
     ({ headers: { 'x-capiro-ai-provider': value } }) as unknown as Request;
