@@ -680,3 +680,31 @@ export const configSchema = z.object({
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
+
+/**
+ * Parse + enforce the cross-field rules the plain schema cannot express.
+ *
+ * CLERK_JWT_ISSUER stays `.optional()` above on purpose: making it a hard
+ * schema requirement would break every unit test that builds a config object,
+ * and the schema is imported in contexts that never boot the app. The boot-time
+ * requirement lives here instead.
+ *
+ * Deliberately gated on `NODE_ENV !== 'test'` and NOT on
+ * `NODE_ENV === 'production'`: apps/api runs with NODE_ENV=development in the
+ * LIVE capiro-dev deployment (which IS production), so a production-only gate
+ * would be a silent no-op exactly where the control matters.
+ *
+ * Safe to ship for apps/api specifically — capiro-dev-api already sets
+ * CLERK_JWT_ISSUER. Do NOT copy this guard into apps/intel-api, whose live task
+ * definition does not set it; that service would crashloop.
+ */
+export function validateConfig(raw: Record<string, unknown>): AppConfig {
+  const parsed = configSchema.parse(raw);
+  if (parsed.NODE_ENV !== 'test' && !parsed.CLERK_JWT_ISSUER) {
+    throw new Error(
+      'CLERK_JWT_ISSUER is required outside tests — set it in the ECS task definition ' +
+        '(e.g. https://clerk.app.capiro.ai). Refusing to start without issuer pinning.',
+    );
+  }
+  return parsed;
+}

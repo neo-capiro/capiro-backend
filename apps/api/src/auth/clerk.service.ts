@@ -77,9 +77,25 @@ export class ClerkService {
   async verifySessionToken(token: string): Promise<ClerkSessionClaims> {
     const raw = await verifyToken(token, {
       secretKey: this.secretKey,
-      ...(this.issuer ? { issuer: this.issuer } : {}),
     });
+    // Issuer pinning must be done HERE, not by passing `issuer` to
+    // verifyToken. `issuer` is NOT a VerifyJwtOptions field in
+    // @clerk/backend@1.34.0 — the option type is
+    // { audience, authorizedParties, clockSkewInMs, key } and the runtime
+    // destructures exactly those four, so the value we used to spread in was
+    // silently DISCARDED and pinned nothing. Enforce it explicitly.
+    //
+    // Defence in depth: the JWKS is fetched with our own CLERK_SECRET_KEY, so a
+    // foreign-instance token already fails signature verification above.
+    this.assertIssuer(raw as Record<string, unknown>);
     return normalizeClaims(raw as Record<string, unknown>);
+  }
+
+  private assertIssuer(raw: Record<string, unknown>): void {
+    if (!this.issuer) return;
+    if (raw.iss !== this.issuer) {
+      throw new Error(`Token issuer mismatch: expected ${this.issuer}, got ${String(raw.iss)}`);
+    }
   }
 }
 

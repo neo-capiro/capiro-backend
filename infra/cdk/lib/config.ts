@@ -162,6 +162,18 @@ export function loadConfig(app: cdk.App): EnvConfig {
             wildcardHost: '*.app.staging.capiro.ai',
             rootDomain: 'staging.capiro.ai',
             protectFromDestroy: true,
+            // Staging was the ONLY environment with no clerkJwtIssuer in CDK,
+            // so compute-stack's `...(cfg.clerkJwtIssuer ? {...} : {})` spread
+            // omitted the var entirely and nothing was pinned.
+            //
+            // This is deliberately NOT the prod issuer: staging authenticates
+            // against its OWN Clerk instance. The value is taken from the live
+            // staging task definition (the tracked staging-api-td.json snapshot
+            // at the repo root sets CLERK_JWT_ISSUER to exactly this), not
+            // assumed. The dev/prod block below warns against this instance for
+            // dev/prod — where the pk_live key belongs to clerk.app.capiro.ai —
+            // but for staging it is the correct one.
+            clerkJwtIssuer: 'https://stirring-warthog-40.clerk.accounts.dev',
           }
         : {
             // Dev/prod account: 967807252336  region: us-east-1
