@@ -21,6 +21,7 @@ export class OrchestratorClient {
   private readonly logger = new Logger(OrchestratorClient.name);
   private readonly baseUrl?: string;
   private readonly timeoutMs: number;
+  private readonly internalSecret?: string;
 
   constructor(
     config: ConfigService,
@@ -28,6 +29,7 @@ export class OrchestratorClient {
   ) {
     this.baseUrl = config.get<string>('MERIV2_ORCHESTRATOR_URL');
     this.timeoutMs = Number.parseInt(config.get<string>('MERIV2_TIMEOUT_MS') ?? '8000', 10);
+    this.internalSecret = config.get<string>('INTERNAL_SERVICE_SECRET');
   }
 
   get configured(): boolean {
@@ -41,7 +43,9 @@ export class OrchestratorClient {
   async extract(params: {
     tenantId: string;
     sessionId: string;
-    authToken: string;
+    /** Clerk subject of the user whose session opened the socket. Delegated to
+     *  MeriV2, which resolves the Capiro user from it and 401s without one. */
+    clerkUserId: string;
     segment: FinalSegment;
     sessionContext: {
       clientId?: string | null;
@@ -70,7 +74,7 @@ export class OrchestratorClient {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          authorization: `Bearer ${params.authToken}`,
+          ...this.authHeaders(params.tenantId, params.clerkUserId),
           'x-tenant-id': params.tenantId,
           ...(aiProvider ? { 'x-capiro-ai-provider': JSON.stringify(aiProvider) } : {}),
         },
@@ -117,7 +121,7 @@ export class OrchestratorClient {
   async summarizeHearing(params: {
     tenantId: string;
     sessionId: string;
-    authToken: string;
+    clerkUserId: string;
     title: string;
     quotes: Array<{ text: string; speakerName?: string; timestampMs: number }>;
     mentions: Array<{ type: string; label: string; ref: string | null }>;
@@ -141,12 +145,12 @@ export class OrchestratorClient {
           method: 'POST',
           headers: {
             'content-type': 'application/json',
-            authorization: `Bearer ${params.authToken}`,
+            ...this.authHeaders(params.tenantId, params.clerkUserId),
             'x-tenant-id': params.tenantId,
             ...(aiProvider ? { 'x-capiro-ai-provider': JSON.stringify(aiProvider) } : {}),
           },
-          // Only the tool's schema fields belong in `input`; tenantId/authToken are
-          // transport concerns (x-tenant-id header + bearer), not tool input.
+          // Only the tool's schema fields belong in `input`; tenant and user
+          // identity are transport concerns (headers), not tool input.
           body: JSON.stringify({
             input: {
               sessionId: params.sessionId,
@@ -176,5 +180,33 @@ export class OrchestratorClient {
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  /**
+   * Service-to-service authentication for MeriV2.
+   *
+   * This used to replay the BROWSER's Clerk JWT, captured from the WebSocket
+   * query string at connect time and retained for the life of the socket — up
+   * to four hours. Clerk session tokens live about 60 seconds, so nearly every
+   * call after the first minute was made with an expired credential. Because
+   * this client degrades gracefully, that surfaced not as an error but as
+   * silently missing AI extraction on long hearings.
+   *
+   * Now: the shared INTERNAL_SERVICE_SECRET plus an explicitly delegated tenant
+   * and user. MeriV2 re-checks that the delegated user still holds an ACTIVE
+   * membership, so this conveys identity, not authorization.
+   */
+  private authHeaders(tenantId: string, clerkUserId: string): Record<string, string> {
+    if (!this.internalSecret) {
+      // Fail loudly in logs but let the call proceed unauthenticated so the
+      // graceful-degrade contract holds — MeriV2 will reject it.
+      this.logger.warn('INTERNAL_SERVICE_SECRET is not configured; MeriV2 call will be rejected');
+      return {};
+    }
+    return {
+      'x-internal-service-secret': this.internalSecret,
+      'x-capiro-delegated-tenant': tenantId,
+      'x-capiro-delegated-user': clerkUserId,
+    };
   }
 }

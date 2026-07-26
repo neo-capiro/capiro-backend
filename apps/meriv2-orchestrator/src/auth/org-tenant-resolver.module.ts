@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { ORG_TENANT_RESOLVER } from '@capiro/auth';
+import { MeriTenantGuard } from './meri-tenant.guard.js';
 import { PrismaOrgTenantResolver } from './org-tenant-resolver.provider.js';
 
 /**
@@ -14,7 +15,7 @@ import { PrismaOrgTenantResolver } from './org-tenant-resolver.provider.js';
  */
 @Global()
 @Module({
-  providers: [{ provide: ORG_TENANT_RESOLVER, useClass: PrismaOrgTenantResolver }],
-  exports: [ORG_TENANT_RESOLVER],
+  providers: [{ provide: ORG_TENANT_RESOLVER, useClass: PrismaOrgTenantResolver }, MeriTenantGuard],
+  exports: [ORG_TENANT_RESOLVER, MeriTenantGuard],
 })
 export class OrgTenantResolverModule {}
