@@ -87,6 +87,9 @@ export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
     billTitle: bill?.title ?? null,
     actionText: bill?.actionText ?? null,
     actionDate: bill?.actionDate ?? null,
+    // P0-07: `committee` is in AlertMemoAlertInput and buildClaims uses it, but this
+    // mapper never set it — so every hearing memo lost the committee.
+    committee: hearing?.committeeId ?? null,
     hearingTitle: hearing?.title ?? null,
     quotes: quotes.length ? quotes : undefined,
     url: bill?.url ?? null,

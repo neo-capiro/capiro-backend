@@ -10,9 +10,9 @@ const NO_ACTIONS = { summaryForAlerts: async () => new Map() } as any;
 // tests never hit it (clientId short-circuits name resolution).
 const NO_SOURCE_DATA = { getClientNames: async () => new Map() } as any;
 
-function mockPrisma(rows: any[], groups?: any[]) {
+function mockPrisma(rows: any[], groups?: any[], terms?: any[]) {
   let lastArgs: any = null;
-  const prisma = {
+  const tx = {
     intelAlert: {
       findMany: async (args: any) => {
         lastArgs = args;
@@ -20,7 +20,13 @@ function mockPrisma(rows: any[], groups?: any[]) {
       },
       groupBy: async () => groups ?? [],
     },
-  } as any;
+    watchlistTerm: { findMany: async () => terms ?? [] },
+    transcriptSegment: { findMany: async () => [] },
+  };
+  // FeedService runs every query through prisma.withTenant(tenantId, cb). This spec
+  // predated that refactor and mocked the delegates directly, so every getFeed test in
+  // it threw "withTenant is not a function". Route the callback at the tx above.
+  const prisma = { ...tx, withTenant: async (_t: string, cb: any) => cb(tx) } as any;
   return { prisma, getArgs: () => lastArgs };
 }
 const mkRow = (i: number, score: number, clientId = 'c1') => ({
@@ -204,10 +210,12 @@ describe('FeedService decrypt-on-read', () => {
     },
   });
   function prismaWithSeg(seg: any) {
-    return {
+    const tx = {
       intelAlert: { findMany: async () => [encRow()], groupBy: async () => [] },
       transcriptSegment: { findMany: async () => (seg ? [seg] : []) },
-    } as any;
+      watchlistTerm: { findMany: async () => [] },
+    };
+    return { ...tx, withTenant: async (_t: string, cb: any) => cb(tx) } as any;
   }
 
   it('fills encrypted quotes via HearingCryptoService, leaves textPlain intact', async () => {
@@ -235,5 +243,107 @@ describe('FeedService decrypt-on-read', () => {
     const prisma = prismaWithSeg({ id: 'seg1', textCiphertext: 'ct', iv: 'iv', authTag: 'tag' });
     const r = await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA).getFeed('t1', 'c1', {});
     expect((r.items[0] as any).evidence.hearing.mentions[0].quote).toBeNull();
+  });
+});
+
+/**
+ * P0-07 / P1-09 end-to-end through getFeed (Gate C a-8 cases 11-14). The unit-level
+ * contract lives in normalize-evidence.spec.ts; these are the wire-level locks.
+ */
+describe('FeedService.getFeed — normalized evidence (P0-07, P1-09)', () => {
+  /** The exact object bill-change-detector.service.ts:1031-1048 stores. */
+  const flatBillRow = (over: Record<string, unknown> = {}) => ({
+    id: 'a-flat',
+    clientId: 'c1',
+    sourceType: 'bill',
+    sourceRef: '119-hr-8800',
+    kind: 'committee_vote',
+    severity: 'notable',
+    materiality: 'medium',
+    score: 0.7,
+    clientImpact: 'monitor',
+    urgency: 'med',
+    title: 'H.R. 8800: Reported by committee',
+    whyItMatters: 'Matches your watchlist term "hypersonics".',
+    recommendedAction: null,
+    status: 'new',
+    createdAt: new Date('2026-07-20T00:00:00Z'),
+    termId: null,
+    evidence: {
+      tally: { yea: 32, nay: 12 },
+      stage: 'Reported by committee',
+      actionText: 'Ordered to be Reported by the Yeas and Nays: 32 - 12.',
+      actionDate: '2026-07-18',
+      url: 'https://www.congress.gov/bill/119th-congress/house-bill/8800',
+      sourceUrl: 'https://www.congress.gov/bill/119th-congress/house-bill/8800',
+      why: 'Matches your watchlist term "hypersonics".',
+      matchedTags: ['Hypersonics', 'Defense RDT&E'],
+      tone: 'positive',
+      band: 'B',
+      triggerKey: 'committee_vote',
+      billTitle: 'Hypersonic Capability Acceleration Act',
+      displayNum: 'H.R. 8800',
+      jurisdiction: 'US',
+    },
+    ...over,
+  });
+
+  // Case 11 — the P0-07 regression lock.
+  it('returns a nested evidence.bill for a FLAT bill-change-detector row', async () => {
+    const { prisma } = mockPrisma([flatBillRow()]);
+    const r = await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA).getFeed('t1', 'c1', {});
+    const ev = (r.items[0] as any).evidence;
+    expect(ev.bill.displayNum).toBe('H.R. 8800');
+    expect(ev.bill.billId).toBe('119-hr-8800');
+    expect(ev.bill.title).toBe('Hypersonic Capability Acceleration Act');
+    expect(ev.bill.stage).toBe('Reported by committee');
+    expect(ev.bill.actionText).toContain('Ordered to be Reported');
+    expect(ev.bill.actionDate).toBe('2026-07-18');
+    expect(ev.bill.url).toContain('congress.gov');
+    expect(ev.schemaVersion).toBe(1);
+    expect(ev.type).toBe('bill');
+    expect(ev.provenance.writerShape).toBe('flat_bill');
+    expect(ev.extra.tally).toEqual({ yea: 32, nay: 12 });
+  });
+
+  // Case 12 — P1-09.
+  it('derives the tag chip from evidence.matchedTags when there is no termId', async () => {
+    const { prisma } = mockPrisma([flatBillRow()]);
+    const r = await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA).getFeed('t1', 'c1', {});
+    expect((r.items[0] as any).tag).toBe('Hypersonics');
+    expect((r.items[0] as any).evidence.match.matchedTags).toEqual(['Hypersonics', 'Defense RDT&E']);
+  });
+
+  // Case 13 — existing precedence is untouched.
+  it('still prefers the termId topic label over matchedTags when both exist', async () => {
+    const { prisma } = mockPrisma(
+      [flatBillRow({ termId: 'term-1' })],
+      undefined,
+      [{ id: 'term-1', value: 'hypersonic', topic: { label: 'Hypersonic Weapons' } }],
+    );
+    const r = await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA).getFeed('t1', 'c1', {});
+    expect((r.items[0] as any).tag).toBe('Hypersonic Weapons');
+    expect((r.items[0] as any).evidence.match.topicLabel).toBe('Hypersonic Weapons');
+  });
+
+  // Case 14 — proves b-4 landed with a-3: sessionId moved into `extra`.
+  it('still offers open_hearing after normalization moves a flat sessionId into extra', async () => {
+    const { prisma } = mockPrisma([
+      flatBillRow({
+        id: 'a-hearing',
+        sourceType: 'hearing',
+        sourceRef: 'sess-9',
+        // Flat bill-ish keys on a HEARING alert (§4 edge case 3) — no bill may be
+        // synthesized from them, and none of them may be lost.
+        evidence: { sessionId: 'sess-9', stage: 'Hearing held', actionText: 'Testimony taken' },
+      }),
+    ]);
+    const r = await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA).getFeed('t1', 'c1', {});
+    const item = r.items[0] as any;
+    expect(item.evidence.extra.sessionId).toBe('sess-9');
+    const openHearing = item.recommendedActions.find((a: any) => a.kind === 'open_hearing');
+    expect(openHearing?.target?.sessionId).toBe('sess-9');
+    // A hearing sourceType must never get a synthesized bill, even with flat keys.
+    expect(item.evidence.bill).toBeUndefined();
   });
 });

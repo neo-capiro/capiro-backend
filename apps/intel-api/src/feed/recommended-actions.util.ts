@@ -38,8 +38,13 @@ export interface AlertShape {
 const MEANINGFUL = new Set(['critical', 'notable', 'high']);
 
 function sessionIdOf(evidence: unknown): string | undefined {
-  const ev = evidence as { sessionId?: string; hearing?: { sessionId?: string } } | null;
-  return ev?.sessionId ?? ev?.hearing?.sessionId ?? undefined;
+  // P0-07 (b-4): FeedService now hands us NORMALIZED evidence, where a flat writer's
+  // top-level `sessionId` has moved under `extra`. The first two reads stay for any
+  // caller still passing a raw row. Ships in the same commit as the normalizer.
+  const ev = evidence as
+    | { sessionId?: string; hearing?: { sessionId?: string }; extra?: { sessionId?: string } }
+    | null;
+  return ev?.sessionId ?? ev?.hearing?.sessionId ?? ev?.extra?.sessionId ?? undefined;
 }
 
 export function recommendedActionsFor(alert: AlertShape): RecommendedAction[] {
