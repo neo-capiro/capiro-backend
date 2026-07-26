@@ -230,3 +230,56 @@ Typecheck: **18/18**. Failing sets verified byte-identical to baseline.
 12. `CAPIRO_INTERNAL_SLUG` is still duplicated in apps/api and onboard-api.
 13. Live `WEB_ORIGIN` drift on `capiro-dev-api`: two hosts (`app-dev.capiro.ai`,
     `acmelobby.app-dev.capiro.ai`) exist live but appear nowhere in the repo.
+
+---
+
+# CLOSE-OUT — 2026-07-26
+
+## Shipped to production
+
+`main` @ `f02a40cb` (#573) + `dc80445b` (#579) + `3b595ed0` (#580); #582 pending.
+All 7 ECS services rolled and verified HEALTHY on new code.
+
+### Live-verified fixes (not just deployed — observed working)
+
+| Fix | Evidence |
+|---|---|
+| localhost out of production CORS | curl: `http://localhost:5173` → rejected; `app.capiro.ai` → allowed |
+| SMS OTP no longer returned in API responses | `NODE_ENV=production` now set on capiro-dev-intel-api |
+| WS origin gate | disallowed origin → **401 before the 101 upgrade**; no-Origin → 401 |
+| WS ticket rejection | bogus ticket → `{"security_event":"auth.denied","reason":"ws_ticket_invalid","surface":"ws"}` |
+| ws-ticket endpoint | 401 unauthenticated (vs 404 for a nonexistent route → proves registration) |
+| Membership enforcement | 0 tenants with NULL clerk_org_id; the 1 removed membership is a tombstoned identity, so **0 live users denied** |
+| Migrations | all 3 tables exist with RLS **enabled + forced**; `_prisma_migrations` all finished |
+| Outbox drain | exit 0, `{"event":"identity_outbox.drain","processed":0,...}` |
+
+### Monitoring live
+- 4 metric filters, namespace `Capiro/Security`, on `/capiro/dev/api`,
+  `/capiro/dev/api-strategy`, `/capiro/dev/onboard-api`.
+- Alarm `capiro-dev-identity-deprovision-failed` → SNS `capiro-dev-platform-alarms`.
+- EventBridge `capiro-dev-drain-identity-outbox`, `rate(15 minutes)`, **ENABLED**
+  (only after a manual run exited 0 — it was disabled through two failed attempts).
+
+## Two bugs I shipped and had to fix
+
+`drain-identity-outbox` failed **twice** in production before working:
+1. `createApplicationContext(AppModule)` → crashed in `InsightGeneratorService`.
+2. A minimal Nest module → `ConfigService` undefined in `ClerkService`.
+
+Fixed by dropping Nest entirely and constructing the collaborators by hand,
+matching the 127 scripts that already do that.
+
+**ROOT CAUSE, worth fixing separately: `apps/api/tsconfig.json` excludes
+`scripts/`, so `turbo run typecheck` never checks ANY file in that directory.**
+Both bugs were invisible to CI. Any script change must be typechecked
+explicitly.
+
+## Remaining
+
+| Item | Status |
+|---|---|
+| PR #582 (WS dual-accept removal) | open, CI pending |
+| Live hearing smoke test | **needs a human** — mint→consume→Deepgram unproven with real audio |
+| Phase j (`authorizedParties`) | **CANCELLED 2026-07-26.** The audit's premise was false: no in-use ACM cert covers `*.app.capiro.ai`, so tenant vanity hosts are not reachable browser origins. Clerk also skips the check when `azp` is absent, and the residual threat is already covered by JWKS signature verification, the new post-verify `iss` check, and the membership check. Full rationale in the SOC 2 doc. Revisit if a cert for `*.app.capiro.ai` ever goes in use |
+| Identity-rebind blocking gate | **Staying record-only.** Measured 2026-07-26: 29 users, 0 historical merges, 0 duplicate emails, 0 placeholder emails. Blocking would guard an event that has never happened while adding lockout risk to the self-heal path. Revisit on the first `user_identity_conflict` row |
+| WS heartbeat / reconnect | out of scope; ALB idle timeout is 4000s with no heartbeat |
