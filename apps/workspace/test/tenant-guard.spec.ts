@@ -24,7 +24,9 @@ function makeContext(req: Partial<Request>): ExecutionContext {
   } as unknown as ExecutionContext;
 }
 
-type Spy = jest.Mock<Promise<ClerkSessionClaims>, [token: string]>;
+// NOTE: `jest.Mock` from @jest/globals (jest-mock) takes a SINGLE function-type
+// argument, unlike @types/jest's two-argument `Mock<Return, Args>` form.
+type Spy = jest.Mock<(token: string) => Promise<ClerkSessionClaims>>;
 
 function makeClerk(
   impl: (token: string) => Promise<ClerkSessionClaims>,
