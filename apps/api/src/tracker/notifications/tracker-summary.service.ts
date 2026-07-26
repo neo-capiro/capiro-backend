@@ -21,6 +21,8 @@ import { recordAiUsageEvent, parseProviderUsage } from '@capiro/shared';
 const SUMMARY_TIMEOUT_MS = 15_000;
 const SUMMARY_MAX_TOKENS = 160;
 const SUMMARY_MAX_CHARS = 360;
+/** §4.3: low temperature on a figure/procedure-heavy path. */
+const SUMMARY_TEMPERATURE = 0.2;
 
 export interface SummaryInput {
   tenantId: string;
@@ -36,21 +38,58 @@ export interface SummaryInput {
    * carried here — never a specific user's writing voice.
    */
   firmContext?: string;
+  /** §4.3: the ONLY next steps the model may name. Empty = it must say the next
+   *  step is not established. Computed deterministically by intel-api's
+   *  proceduralOutlook — the model never derives the procedure itself. */
+  allowedNextSteps?: string[];
+  /** Procedural reasons the bill cannot advance (a rejected governing rule, a
+   *  terminal status, a missed session deadline). */
+  blockedBy?: string[];
 }
 
 /** Build the user prompt for a factual, non-client-specific event summary. */
 export function buildSummaryPrompt(input: SummaryInput): string {
+  const steps = input.allowedNextSteps ?? [];
   return [
     ...(input.firmContext ? [input.firmContext, ''] : []),
     `Bill: ${input.displayNum} — ${input.billTitle}`,
     `Stage: ${input.label}`,
     `Latest action: ${input.actionText}`,
+    ...(input.blockedBy?.length
+      ? ['', `Procedurally blocked by: ${input.blockedBy.join('; ')}`]
+      : []),
+    '',
+    steps.length
+      ? `ALLOWED NEXT STEPS (choose only from this list, verbatim; you may name at most two):\n${steps
+          .map((s) => `- ${s}`)
+          .join('\n')}`
+      : 'The next procedural step is NOT established. You must say so explicitly and name no next step.',
     '',
     'In 1-2 sentences (max ~40 words), plainly explain what just happened on this',
-    'bill and the immediate next step in the legislative process. Be factual and',
-    'specific to this action; do not reference any client, company, or strategy;',
+    'bill and, if and only if an allowed next step is listed above, the immediate next',
+    'step — using its wording verbatim. Never name a step that is not listed. Be factual',
+    'and specific to this action; do not reference any client, company, or strategy;',
     'do not speculate; no preamble, no markdown — just the summary sentence(s).',
   ].join('\n');
+}
+
+/**
+ * §4.3 step 3, enforced in CODE rather than trusted to the prompt: if the model
+ * named a next step when it had no allowed set, drop the summary rather than
+ * emailing a wrong procedural claim.
+ *
+ * Only the empty-set case is checked. With a non-empty set the model is told to
+ * quote a listed step verbatim, and any cheap check on that side would have to
+ * decide whether arbitrary prose "means" a listed step — which is the same
+ * guessing this finding is about. The empty set is where the damage is: it is
+ * exactly the terminal / rule-failed / unknown states, where ANY forward-looking
+ * claim is unfounded.
+ */
+export function violatesAllowedSteps(summary: string, allowed: string[]): boolean {
+  if (allowed.length) return false;
+  return /\bnext step\b|\bwill (?:be |now )?(?:go|move|proceed|head)\b|\bexpected to\b|\bheads? to\b|\bawaits?\b|\bwould then\b/i.test(
+    summary,
+  );
 }
 
 const SUMMARY_SYSTEM_PROMPT =
@@ -166,6 +205,11 @@ export class TrackerSummaryService {
         body: JSON.stringify({
           model: cred.model,
           max_tokens: SUMMARY_MAX_TOKENS,
+          // §4.3: this path is figure- and procedure-heavy — a bill number, a
+          // vote tally, a named procedural step. There was NO temperature here
+          // before, so it ran at the provider default (1.0). Matches
+          // alert-memo.service.ts's rationale for the same choice.
+          temperature: SUMMARY_TEMPERATURE,
           system: SUMMARY_SYSTEM_PROMPT,
           messages: [{ role: 'user', content: buildSummaryPrompt({ ...input, firmContext }) }],
         }),
@@ -179,7 +223,18 @@ export class TrackerSummaryService {
         return null;
       }
       const json = (await res.json()) as unknown;
-      const summary = sanitizeSummary(extractAnthropicText(json));
+      let summary = sanitizeSummary(extractAnthropicText(json));
+
+      // §4.3 step 3: the prompt told the model there is no established next
+      // step. If it asserted one anyway, drop the line rather than email a
+      // wrong procedural claim — the same fail-safe contract as every other
+      // failure here (the alert still sends, just without the summary).
+      if (summary && violatesAllowedSteps(summary, input.allowedNextSteps ?? [])) {
+        this.logger.warn(
+          `Tracker summary named a next step with no allowed set (${input.displayNum}); dropping the line.`,
+        );
+        summary = null;
+      }
 
       // Best-effort metering — never fails the alert (records on the tenant's
       // key when used, so BYO spend bills correctly).

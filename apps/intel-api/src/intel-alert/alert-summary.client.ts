@@ -8,6 +8,13 @@ export interface AlertSummaryInput {
   label: string;
   /** The verbatim latest-action text for this move. */
   actionText: string;
+  /** §4.3: the ONLY next steps the model may name, from `proceduralOutlook`.
+   *  Empty means the prompt instructs it to name none. Both this and `blockedBy`
+   *  are declared on apps/api's SummarizeAlertDto — the global ValidationPipe
+   *  runs forbidNonWhitelisted, so an undeclared key would 400 and fail soft to
+   *  a null summary for EVERY alert. */
+  allowedNextSteps?: string[];
+  blockedBy?: string[];
 }
 
 /** Headroom over apps/api's own 15s Anthropic-fetch timeout PLUS its unbounded
