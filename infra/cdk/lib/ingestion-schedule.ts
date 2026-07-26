@@ -698,6 +698,44 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     tier: 'weekly',
     description: 'Tracker: weekly alert digest flush (Mon ~8am ET)',
   },
+  // ⚠️ THE THREE JOBS ABOVE ARE THE **LEGACY apps/api** TRACKER RAIL. The
+  // intel-api rail has its own separate, live schedule that is NOT in this
+  // matrix — read this before concluding intel-api alerts "aren't scheduled".
+  //
+  // Every entry in INGESTION_JOBS runs on `syncJobsTaskDef`, which is built
+  // from the **apps/api image** and dispatched by apps/api/scripts/
+  // entrypoint.sh. It therefore CANNOT express an intel-api task-runner verb:
+  // adding e.g. `command: ['flush-digests', 'daily']` here would start a
+  // container whose entrypoint has no such arm and die on "Unknown command".
+  // (That mistake was made and reverted during the P0-02 work — don't repeat it.)
+  //
+  // intel-api's verbs (`node dist/tasks/task-runner.js <verb>`, registered in
+  // apps/intel-api/src/tasks/task-runner.ts KNOWN_VERBS) are scheduled by
+  // OUT-OF-BAND EventBridge rules targeting the `capiro-<env>-intel-api-enableflag`
+  // task def with a `["task", "<verb>", ...]` containerOverride. Verified live on
+  // 2026-07-26 (all ENABLED, cluster capiro-dev):
+  //   capiro-dev-emit-bill-alerts            cron(20 0/6 * * ? *)   task emit-bill-alerts
+  //   capiro-dev-flush-intel-digests-daily   cron(30 12 * * ? *)    task flush-digests daily
+  //   capiro-dev-flush-intel-digests-weekly  cron(45 12 ? * MON *)  task flush-digests weekly
+  //
+  // Note the near-identical names hiding DIFFERENT tables/services:
+  //   flush-tracker-digests (above) → apps/api TrackerAlertService → `alert_digest_queue`
+  //   flush-digests (intel-api)     → IntelAlertService            → `intel_alert_digest_queue`
+  // Both are scheduled at the same 12:30/12:45 slots and neither supersedes the
+  // other; they drain independent queues.
+  //
+  // These rules are deliberately NOT declared here (this matrix cannot target a
+  // second task def). Treat the live rules as source of truth — same
+  // out-of-band posture as the ~10 ingestion secrets and the
+  // SyncLegistormDistricts drift documented above.
+  //
+  // OPERATIONAL NOTE: all three intel-api task defs pull `intel-api:latest`, so
+  // the verb runner picks up a newly-pushed image at its NEXT tick with no
+  // `update-service` step and no deploy gate. A schema-dependent change must
+  // therefore have its migration applied (run-task on
+  // `capiro-<env>-intel-api-migrate`, which CI does NOT do automatically —
+  // no workflow references `migrate`) BEFORE the image lands, or the next tick
+  // runs new code against an old schema.
   {
     id: 'ComputeHealthScores',
     command: ['compute-health-scores'],
