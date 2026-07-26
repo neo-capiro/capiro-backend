@@ -65,6 +65,7 @@ export function DistrictNexusFilters({ value, onChange, resultCount }: Props) {
         allowClear
         showSearch
         placeholder="Client"
+        aria-label="Filter by client"
         style={{ minWidth: 168 }}
         suffixIcon={<DownOutlined />}
         optionFilterProp="label"
@@ -77,6 +78,7 @@ export function DistrictNexusFilters({ value, onChange, resultCount }: Props) {
         allowClear
         showSearch
         placeholder="State"
+        aria-label="Filter by state"
         style={{ width: 128 }}
         suffixIcon={<DownOutlined />}
         value={value.state}
@@ -84,6 +86,7 @@ export function DistrictNexusFilters({ value, onChange, resultCount }: Props) {
         options={US_STATES.map((s) => ({ value: s, label: s }))}
       />
       <Select<ChoroplethMetric>
+        aria-label="Colour the map by"
         style={{ width: 190 }}
         suffixIcon={<DownOutlined />}
         value={value.metric}
@@ -91,6 +94,7 @@ export function DistrictNexusFilters({ value, onChange, resultCount }: Props) {
         options={METRIC_OPTIONS.map((m) => ({ value: m.value, label: `Colour by: ${m.label}` }))}
       />
       <Select<number>
+        aria-label="Minimum public funding"
         style={{ width: 150 }}
         suffixIcon={<DownOutlined />}
         value={value.minAmount}
