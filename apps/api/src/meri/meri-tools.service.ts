@@ -2073,39 +2073,66 @@ export class MeriToolsService {
         results: [],
       };
     }
-    const rows = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      // Ethical wall: results for walled clients this user is not granted are
-      // excluded (fail-closed; an empty denied set appends no SQL).
-      const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
-      return tx.$queryRawUnsafe<
-        Array<{
-          id: string;
-          type: string;
-          slug: string;
-          title: string;
-          client_id: string | null;
-          score: number;
-        }>
-      >(
-        // Recall surfaces only ACTIVE memory (excludes superseded corrections
-        // and revoked/forgotten items — Phase 1, 1C/1D) and only UNEXPIRED
-        // memory (G2 ephemeral class). owner + expiry filters stay as
-        // defense-in-depth alongside the RLS predicates.
-        `SELECT mi.id, mi.type, mi.slug, mi.title, mi.client_id,
+    type MemoryHit = {
+      id: string;
+      type: string;
+      slug: string;
+      title: string;
+      client_id: string | null;
+      score: number;
+    };
+    let rows: MemoryHit[];
+    try {
+      rows = await this.prisma.withTenantUser(
+        ctx.tenantId,
+        ctx.userId,
+        async (tx) => {
+          // Ethical wall: results for walled clients this user is not granted are
+          // excluded (fail-closed; an empty denied set appends no SQL).
+          const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
+          return tx.$queryRawUnsafe<MemoryHit[]>(
+            // Recall surfaces only ACTIVE memory (excludes superseded corrections
+            // and revoked/forgotten items — Phase 1, 1C/1D) and only UNEXPIRED
+            // memory (G2 ephemeral class). owner + expiry filters stay as
+            // defense-in-depth alongside the RLS predicates.
+            //
+            // mi.tenant_id is filtered EXPLICITLY as well as ce.tenant_id: without
+            // it the join's index scan matches every tenant's memory_items rows and
+            // discards the rest, leaning on RLS alone for correctness. Naming the
+            // tenant on both sides is both defense-in-depth and a large planner win.
+            `SELECT mi.id, mi.type, mi.slug, mi.title, mi.client_id,
                 1 - (ce.embedding <=> '${literal}'::vector) AS score
            FROM context_embeddings ce
            JOIN memory_items mi ON mi.id::text = ce.source_id
           WHERE ce.source_type = 'memory_item'
             AND ce.tenant_id = $1::uuid
+            AND mi.tenant_id = $1::uuid
             AND (mi.owner_user_id IS NULL OR mi.owner_user_id = $2::uuid)
             AND mi.status = 'active'
             AND (mi.expires_at IS NULL OR mi.expires_at > now())${wallExclusionSql(denied, 'mi.client_id')}
           ORDER BY ce.embedding <=> '${literal}'::vector
           LIMIT ${k}`,
-        ctx.tenantId,
-        ctx.userId,
+            ctx.tenantId,
+            ctx.userId,
+          );
+        },
+        // A cold 1024-dim ANN scan over context_embeddings measured 10.3s live and
+        // blew Prisma's DEFAULT 5s interactive-transaction cap -> P2028, which the
+        // exception filter does not map, so a READ tool returned HTTP 500 and the
+        // Strategy context pack silently dropped a whole grounding section.
+        // prisma.service documents passing a higher budget for known-slow paths.
+        { timeoutMs: 20_000 },
       );
-    });
+    } catch (err) {
+      // A recall tool must DEGRADE, never 5xx: the embed path above already fails
+      // soft this way, and the caller (Meri / the Strategy context pack) treats an
+      // empty result as a missing section rather than an error.
+      this.logger.warn(`search_memory query failed: ${(err as Error).message}`);
+      return {
+        summary: 'Memory search is temporarily unavailable.',
+        results: [],
+      };
+    }
     if (!rows.length) {
       return {
         summary:

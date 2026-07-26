@@ -348,3 +348,55 @@ describe('client roll-up pools evidence rather than averaging district scores', 
     expect([...credits].sort((a, b) => b - a)).toEqual(credits);
   });
 });
+
+/**
+ * WS-E4: evidenceByDistrict is the only way a per-district `evidence[]` gets
+ * populated. foldDistricts has no per-record identity to build evidence from
+ * (it works in SUM/GROUP BY), so the caller fetches record-level rows
+ * separately, maps them (district-nexus.evidence.ts) and hands the grouped
+ * result in here.
+ */
+describe('evidenceByDistrict flows into the right district, and only there', () => {
+  const twoDistrictInputs = inputs({
+    contracts: [
+      { state: 'TX', district: '23', awardCount: 1, totalAmount: 1_000 },
+      { state: 'VA', district: '11', awardCount: 1, totalAmount: 1_000 },
+    ],
+  });
+
+  const fakeEvidence = (label: string) => ({
+    component: 'contractPlaceOfPerformance',
+    sourceType: 'federal_award',
+    label,
+    sourceRecordId: 'row-1',
+    sourceUpdatedAt: null,
+    observedAt: null,
+    geographyBasis: 'place_of_performance' as const,
+    verificationStatus: 'inferred' as const,
+    confidence: null,
+    externalUseApproved: true,
+    boundaryVintage: 'unknown' as const,
+    amount: 1_000,
+  });
+
+  test('a district with evidence gets it; a district without gets none', () => {
+    const evidenceByDistrict = new Map([['TX-23', [fakeEvidence('Acme Defense')]]]);
+    const response = buildClientNexusResponse({ ...twoDistrictInputs, evidenceByDistrict });
+    const tx = response.districts.find((d) => d.districtKey === 'TX-23');
+    const va = response.districts.find((d) => d.districtKey === 'VA-11');
+    expect(tx?.evidence).toEqual([fakeEvidence('Acme Defense')]);
+    expect(va?.evidence).toEqual([]);
+  });
+
+  test('omitting evidenceByDistrict entirely defaults every district to an empty list', () => {
+    const response = buildClientNexusResponse(twoDistrictInputs);
+    expect(response.districts.every((d) => d.evidence.length === 0)).toBe(true);
+  });
+
+  test('multiple evidence rows for one district all appear, in the order provided', () => {
+    const rows = [fakeEvidence('Acme Defense'), fakeEvidence('Acme Research')];
+    const evidenceByDistrict = new Map([['TX-23', rows]]);
+    const response = buildClientNexusResponse({ ...twoDistrictInputs, evidenceByDistrict });
+    expect(response.districts.find((d) => d.districtKey === 'TX-23')?.evidence).toEqual(rows);
+  });
+});

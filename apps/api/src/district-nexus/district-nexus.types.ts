@@ -95,22 +95,94 @@ export interface DataQualityWarning {
 // ── Evidence and scoring ────────────────────────────────────────────────────
 
 /**
+ * Where a row's district attribution came from (Rev 2 plan §7-E4).
+ *
+ * Only `place_of_performance | recipient_location | facility | statewide |
+ * unknown` are producible today — those are what `district-nexus.aggregate.ts`
+ * actually computes from the ingested rails. `project_site`,
+ * `employee_aggregate`, `supplier_location`, `partner_location` and
+ * `multi_district` are in the type because the plan's contract names them, and
+ * they are what the second-migration-wave `ClientDistrictNexusEvidence` table
+ * (§6.3, deliberately deferred) will eventually populate — reserved, not wired.
+ */
+export type GeographyBasis =
+  | 'place_of_performance'
+  | 'recipient_location'
+  | 'facility'
+  | 'employee_aggregate'
+  | 'supplier_location'
+  | 'partner_location'
+  | 'project_site'
+  | 'statewide'
+  | 'multi_district'
+  | 'unknown';
+
+/**
+ * How independently a piece of evidence has been confirmed.
+ *
+ * Not the plan's `EvidenceStrength` (district-nexus-scoring.ts) — that governs
+ * how many SCORE points a component earns. This governs what a human reading
+ * one evidence row should believe about it. They usually move together (a
+ * name-matched contract is both `inferred` here and discounted nowhere in
+ * scoring today — the plan flags that pre-existing gap explicitly: "the legacy
+ * contract rail joins by contractor name; keep it, label it." This field is
+ * the label) but they are not the same axis and must not be collapsed into one.
+ */
+export type EvidenceVerificationStatus =
+  /** A verified external identifier (UEI) or an authoritative government feed. */
+  | 'source_verified'
+  /** Client-asserted (e.g. a facility address), independently confirmed by geocoding. */
+  | 'geocode_verified'
+  /** Client-asserted, not independently confirmed. */
+  | 'user_provided'
+  /** Matched to the client by name similarity rather than a verified identifier. */
+  | 'inferred';
+
+/**
+ * Which vintage of congressional-district geometry a row's reported code
+ * reflects (plan §8.1). `'unknown'` when the source never recorded one —
+ * `federal_award` has no vintage column at all, so every contract evidence row
+ * is honestly `'unknown'` rather than assumed `'original'`.
+ */
+export type BoundaryVintage = 'original' | 'current' | 'unknown';
+
+/**
  * One concrete, checkable fact behind a score. Every point a client sees must
  * trace back to one of these — the UI is never allowed to render a bare
  * "84/100" (plan §Workstream F).
+ *
+ * Scope: this backs the components that actually earn score credit today
+ * (facilities, employees, contracts, awarded grants). Grant OPPORTUNITIES earn
+ * zero credit by rule 3 (district-nexus-scoring.ts) — there is no "point" for
+ * an opportunity to trace back to — so they are surfaced through the separate
+ * `opportunities` field, not through this list.
  */
 export interface NexusEvidence {
   /** Which scoring component this supports. */
   component: string;
-  /** e.g. 'facility', 'federal_award', 'federal_assistance_award', 'client_person'. */
-  kind: string;
+  /** The originating table/system — 'federal_award', 'federal_assistance_award', 'client_facility'. */
+  sourceType: string;
   label: string;
-  /** Identifier in the originating table, for drill-through. */
-  sourceId: string | null;
-  sourceSystem: string | null;
+  /** Row identifier in the originating table, for drill-through. */
+  sourceRecordId: string | null;
+  /** When the originating ROW was last synced — a freshness fact about the record. */
+  sourceUpdatedAt: IsoTimestamp | null;
+  /** When the underlying FACT happened — an award's action date, a facility's geocode date. */
+  observedAt: IsoTimestamp | null;
+  geographyBasis: GeographyBasis;
+  verificationStatus: EvidenceVerificationStatus;
+  /** 0-1 when a real computed score exists; null rather than a fabricated number otherwise. */
+  confidence: number | null;
+  /**
+   * Whether this fact may appear in client-facing external materials. Public
+   * award/opportunity data is always true; client-supplied facts (facility
+   * existence, employee counts) are false until an approval workflow exists —
+   * see plan §8.5 and the deferred §6.3 evidence table.
+   */
+  externalUseApproved: boolean;
+  boundaryVintage: BoundaryVintage;
   /** Present only for money-bearing evidence; see the no-totalAmount note above. */
   amount: Money;
-  observedAt: IsoTimestamp | null;
 }
 
 /** Per-component contribution. `credit` is exact and unrounded — see scoring module. */

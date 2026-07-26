@@ -19,6 +19,7 @@ import {
   QuestionCircleOutlined,
   RadarChartOutlined,
   DeploymentUnitOutlined,
+  EnvironmentOutlined,
   SearchOutlined,
   SettingOutlined,
   StarOutlined,
@@ -83,6 +84,7 @@ type AppSection =
   | 'strategies'
   | 'intelligence'
   | 'knowledge-graph'
+  | 'district-nexus'
   | 'actions'
   | 'reviews'
   | 'pe-group'
@@ -195,6 +197,15 @@ const NAV: NavItem[] = [
         label: 'Data Explorer',
         path: '/explorer',
         icon: <RadarChartOutlined />,
+      },
+      {
+        key: 'district-nexus',
+        label: 'District Nexus',
+        path: '/intelligence/district-nexus',
+        icon: <EnvironmentOutlined />,
+        // First production use of NavItem.featureFlag (plan §3.1/§4.5) — the
+        // intel-api flag map, not the /me `features` boolean above.
+        featureFlag: 'district_nexus_v2',
       },
       {
         key: 'knowledge-graph',
@@ -1118,6 +1129,9 @@ function pageKeyFor(pathname: string): AppSection {
   // general /intelligence prefix, otherwise it falls through to 'intelligence'
   // (Data Explorer) and the wrong child highlights.
   if (pathname.startsWith('/intelligence/graph')) return 'knowledge-graph';
+  // District Nexus has its own nav entry too — same reasoning as Knowledge
+  // Graph above, matched before the general /intelligence prefix.
+  if (pathname.startsWith('/intelligence/district-nexus')) return 'district-nexus';
   // Only the live hearing ROOM still lives here (the list redirects to Radar).
   // Highlight Radar: 'hearing-watch' is no longer a nav item, and the room is a
   // Radar child surface now (P4 review finding).
@@ -1144,6 +1158,7 @@ function pageConfigFor(pathname: string): PageConfig {
     strategies: 'Strategies',
     intelligence: 'Intelligence Center',
     'knowledge-graph': 'Knowledge Graph',
+    'district-nexus': 'District Nexus',
     actions: 'Action Board',
     reviews: 'Review Queue',
     'pe-group': 'Program Elements',

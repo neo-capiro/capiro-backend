@@ -23,8 +23,10 @@
         { "name": "CLERK_JWT_ISSUER", "value": "https://clerk.app.capiro.ai" },
         { "name": "WEB_ORIGIN", "value": "https://app.capiro.ai" },
         { "name": "STRATEGY_MERI_ENABLED", "value": "true" },
+        { "name": "STRATEGY_AGENTS_ENABLED", "value": "true" },
         { "name": "MERIV2_ORCHESTRATOR_URL", "value": "https://app.capiro.ai" },
-        { "name": "API_INTERNAL_URL", "value": "https://app.capiro.ai" }
+        { "name": "API_INTERNAL_URL", "value": "https://app.capiro.ai" },
+        { "name": "STRATEGY_MERI_TIMEOUT_MS", "value": "80000" }
       ],
       "secrets": [
         { "name": "CLERK_SECRET_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/clerk/secret-key-FT67tM" },
