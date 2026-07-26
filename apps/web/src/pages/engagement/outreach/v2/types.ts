@@ -49,6 +49,82 @@ export interface SelectedContextItem extends ContextPoolItem {
   note: string;
 }
 
+// ── Phase 0: server-owned draft lifecycle ────────────────────────────────────
+// These mirror apps/api/src/engagement/outreach-draft.types.ts. The wizard is a
+// READER of this lifecycle: it must never decide sendability itself, which is
+// exactly the bug Phase 0 closes (a local edit used to flip a rejected draft to
+// 'edited' and thereby make it sendable with no server verdict at all).
+
+export type DraftGenerationStatus = 'generated' | 'manually_authored' | 'generation_failed';
+
+export type DraftAuditStatus =
+  | 'not_required'
+  | 'pending'
+  | 'passed'
+  | 'warning'
+  | 'held'
+  | 'unavailable';
+
+export type DraftApprovalStatus = 'not_required' | 'pending' | 'approved' | 'rejected';
+
+/** One entry in a draft's version history strip (metadata only, no text). */
+export interface DraftHistoryEntry {
+  id: string;
+  version: number;
+  auditStatus: DraftAuditStatus;
+  approvalStatus: DraftApprovalStatus;
+  createdAt: string;
+}
+
+/**
+ * One editable draft slot in wizard state.
+ *
+ * `versionId` + the three lifecycle fields are SERVER state. `dirty` and
+ * `localStatus` are the only client-owned fields, and neither can make a draft
+ * sendable — `dirty` can only ever make it LESS sendable, because unsaved text
+ * has by definition not been audited.
+ */
+export interface GeneratedDraft {
+  subject: string;
+  body: string;
+
+  /** The immutable server version this text came from. Absent = not persisted. */
+  versionId?: string;
+  artifactId?: string;
+  version?: number;
+  generationStatus?: DraftGenerationStatus;
+  auditStatus?: DraftAuditStatus;
+  approvalStatus?: DraftApprovalStatus;
+  reviewRequestId?: string;
+  /** Server-computed sendability of `versionId`. Never derived client-side. */
+  sendable?: boolean;
+  /** Internal note for the lobbyist only — never sent to the recipient. */
+  contextNote?: string;
+  history?: DraftHistoryEntry[];
+
+  /**
+   * The editor has unsaved keystrokes. Set the instant a user types, cleared
+   * only when the server returns a new audited version.
+   */
+  dirty?: boolean;
+  /** Presentation-only hint; NOT a sendability signal. */
+  localStatus?: 'saving' | 'conflict' | 'save_failed';
+
+  /**
+   * Pre-Phase-0 sendability signal, still used when the server reports
+   * `versionedOutreachEnabled: false`. When `versionId` is present this is
+   * ignored — the lifecycle fields above are authoritative.
+   */
+  status?: 'pending' | 'ready' | 'edited' | 'error' | 'held';
+
+  /**
+   * Prior text kept for one-click Revert after an "Improve" (W2.6). Under
+   * versioning, Revert POSTs this text as a NEW version rather than restoring
+   * it in place.
+   */
+  localHistory?: Array<{ subject: string; body: string }>;
+}
+
 export interface WizardV2State {
   direction: WizardDirection | null;
   clientId: string | null;
@@ -77,20 +153,7 @@ export interface WizardV2State {
    * draft. (`appliesTo` is derived from the key prefix, so the value shape is
    * unchanged.)
    */
-  generatedEmails: Record<
-    string,
-    {
-      subject: string;
-      body: string;
-      status: 'pending' | 'ready' | 'edited' | 'error';
-      /**
-       * Prior versions kept for one-click Revert after an "Improve" (revision).
-       * Newest-last; capped at the last 2 so a user can back out a bad rewrite
-       * without losing their current text (W2.6).
-       */
-      history?: Array<{ subject: string; body: string }>;
-    }
-  >;
+  generatedEmails: Record<string, GeneratedDraft>;
   /** Generate & Review: the GenerationTargetKey of the draft being edited. */
   selectedGenerationKey: string | null;
   /** EngagementAttachment ids to attach to the generated emails on send. */

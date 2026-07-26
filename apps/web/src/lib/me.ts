@@ -41,6 +41,15 @@ export interface MeResponse {
      */
     outreachAsyncGen?: boolean;
     outreachAsyncSend?: boolean;
+    /**
+     * Engagement Phase 0 trust boundary. When true, outreach drafts are immutable
+     * audited versions and real sending goes through durable send intents (version
+     * ids only). Optional so an older cached /me degrades to the legacy path
+     * rather than crashing.
+     */
+    versionedOutreach?: boolean;
+    /** True when a REAL send requires a PromptSpec v2-or-later draft. */
+    externalSendV2Required?: boolean;
     /** New global Meri dock/undock presentation; false keeps the legacy drawer rollback. */
     meriDockUndockUi: boolean;
     /**

@@ -73,12 +73,36 @@ import {
 } from './jobs.js';
 import { htmlToPlainText, markdownishToHtml, sanitizeHtml } from './richtext.js';
 import {
+  DRAFT_AUTOSAVE_DEBOUNCE_MS,
+  applyNewVersion,
+  applyVersionConflict,
+  canEnterSendStep,
+  isDraftSendable,
+  markDirty,
+  type DraftVersionRef,
+  type VersionedBatchResult,
+} from './versioned-drafts.js';
+import {
+  DELIVERY_STATUS_COPY,
+  attachmentPreflight,
+  cancelSendIntent,
+  createSendIntent,
+  ensureRequestKey,
+  ensureTestRequestKey,
+  projectVersionIdsForSend,
+  showRetryControl,
+  summarizeIntent,
+  useSendIntent,
+  type SendIntentView,
+} from './send-intent.js';
+import {
   INITIAL_V2_STATE,
   WIZARD_STEPS,
   normalizeTone,
   recipientKey,
   type ContextKind,
   type ContextPoolItem,
+  type GeneratedDraft,
   type WizardV2State,
 } from './types.js';
 import './outreach.css';
@@ -159,6 +183,13 @@ interface AttachmentItem {
   id: string;
   fileName: string;
   contentType: string;
+  /**
+   * Stored byte length. GET /attachments already returns this (the row is spread
+   * whole); it was simply never declared here. Phase 0 needs it so an oversized
+   * file is caught BEFORE submission rather than reported as "skipped" after the
+   * emails have already gone out. Null when S3 HeadObject did not report a length.
+   */
+  byteSize?: number | null;
 }
 interface AttachmentsResponse {
   items: AttachmentItem[];
@@ -200,6 +231,10 @@ interface GenDraft {
  *  keys flagged 'error' (unsendable), plus the first failure message to surface. */
 interface GenerateResult {
   succeeded: GenDraft[];
+  /** Held content, PRESERVED (Phase 0 g2) — real text awaiting review. */
+  held: Array<{ genKey: string; subject: string; body: string; contextNote?: string }>;
+  /** genKey → the immutable server version behind it (versioned mode only). */
+  refs: Map<string, DraftVersionRef>;
   failed: string[];
   errorMessage?: string;
 }
@@ -227,6 +262,12 @@ export function NewOutreachWizard({
     'there';
 
   const [stepIdx, setStepIdx] = useState(0);
+  /**
+   * Mirror of `state` for async guards. The navigation gate runs AFTER awaiting
+   * version writes, by which point the closed-over `state` is stale — reading the
+   * ref is what makes "block navigation until every draft settles" actually true.
+   */
+  const stateRef = useRef<WizardV2State>(INITIAL_V2_STATE);
   const [state, setState] = useState<WizardV2State>({
     ...INITIAL_V2_STATE,
     clientId: selectedClientId,
@@ -262,13 +303,71 @@ export function NewOutreachWizard({
 
   // Async outreach job-mode is on only when GET /me says so (env AND tenant flag).
   const asyncGen = me.data?.features.outreachAsyncGen === true;
+  /**
+   * Phase 0 trust boundary. When true: every draft is an immutable audited server
+   * version, edits POST new versions, and real sending goes through send intents.
+   * When false the wizard keeps the pre-Phase-0 path byte-for-byte.
+   */
+  const versionedOutreach = me.data?.features.versionedOutreach === true;
+
+  /**
+   * The single in-flight ensureDraftRecord() promise (§3.g3).
+   *
+   * Generation fans out several POSTs concurrently, so without ONE shared awaited
+   * promise each of them would race to create its own OutreachRecord and the
+   * campaign would fragment across duplicates.
+   */
+  const ensureRecordRef = useRef<Promise<string> | null>(null);
+  /** Per-artifact autosave timers, so each draft debounces independently. */
+  const autosaveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  /** In-flight version writes, awaited before navigating to Send. */
+  const versionWritesRef = useRef<Map<string, Promise<void>>>(new Map());
+  /** Request keys minted per Send click, reused across network retries. */
+  const sendRequestKeyRef = useRef<string | null>(null);
+  const testRequestKeyRef = useRef<string | null>(null);
 
   // WIZARD_STEPS is readonly + non-empty, but TS's noUncheckedIndexedAccess
   // narrows the indexed read to `T | undefined`. The clamp on stepIdx
   // guarantees a value, so a fallback keeps the type system happy without
   // bleeding nullability into every downstream usage.
   const step = WIZARD_STEPS[stepIdx] ?? WIZARD_STEPS[0]!;
-  const next = () => setStepIdx((i) => Math.min(i + 1, WIZARD_STEPS.length - 1));
+  const rawNext = () => setStepIdx((i) => Math.min(i + 1, WIZARD_STEPS.length - 1));
+
+  /**
+   * Advance a step (§3.g4/g5).
+   *
+   * Leaving Generate & Review flushes every pending version write and AWAITS it,
+   * then refuses to continue while any draft is unsaved, awaiting verification,
+   * held, unavailable or rejected. Without this a user could navigate past a held
+   * draft and reach a Send step that silently excluded it.
+   */
+  // Keep the async-guard mirror in step with render state.
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  const next = () => {
+    const leavingGenerate = step.id === 'generate';
+    if (!versionedOutreach || !leavingGenerate) {
+      rawNext();
+      return;
+    }
+    void (async () => {
+      await flushAllDirtyDrafts();
+      // Re-read from the ref-free source: setState above has settled by now
+      // because flushDraftVersion awaited its own writes.
+      const gate = canEnterSendStep(genModel.slots, stateRef.current.generatedEmails);
+      if (!gate.ok) {
+        message.warning(
+          gate.dirty.length
+            ? 'Still saving your edits — each edited draft has to be verified before it can be sent.'
+            : `${gate.blocked.length} draft(s) are not cleared for sending yet. Resolve them in Generate & Review first.`,
+        );
+        return;
+      }
+      rawNext();
+    })();
+  };
   const back = () => setStepIdx((i) => Math.max(i - 1, 0));
   // Leaving the Direction landing. Outreach 2.0 has exactly ONE campaign
   // type — the on-behalf/to-clients fork is gone as a product concept. The
@@ -754,8 +853,34 @@ export function NewOutreachWizard({
       setState((prev) => {
         const generatedEmails = { ...prev.generatedEmails };
         for (const p of fresh) {
-          if (generatedEmails[p.genKey]?.status === 'edited') continue; // never clobber edits
-          generatedEmails[p.genKey] = { subject: p.subject, body: p.body, status: p.status };
+          const prior = generatedEmails[p.genKey];
+          // Never clobber unsaved user edits (legacy 'edited' OR Phase 0 dirty).
+          if (prior?.status === 'edited' || prior?.dirty) continue;
+          generatedEmails[p.genKey] = {
+            ...prior,
+            subject: p.subject,
+            body: p.body,
+            status: p.status,
+            // Phase 0 (g2): a HELD item keeps its real content and carries the
+            // version lifecycle, so the rail shows "Pending review" over the
+            // actual draft instead of a fabricated failure placeholder.
+            ...(p.versionId ? { versionId: p.versionId } : {}),
+            ...(p.artifactId ? { artifactId: p.artifactId } : {}),
+            ...(p.version != null ? { version: p.version } : {}),
+            ...(p.generationStatus
+              ? { generationStatus: p.generationStatus as GeneratedDraft['generationStatus'] }
+              : {}),
+            ...(p.auditStatus
+              ? { auditStatus: p.auditStatus as GeneratedDraft['auditStatus'] }
+              : {}),
+            ...(p.approvalStatus
+              ? { approvalStatus: p.approvalStatus as GeneratedDraft['approvalStatus'] }
+              : {}),
+            ...(p.reviewRequestId ? { reviewRequestId: p.reviewRequestId } : {}),
+            ...(p.contextNote ? { contextNote: p.contextNote } : {}),
+            dirty: false,
+            ...(p.versionId ? { sendable: p.status === 'ready' } : {}),
+          };
         }
         return { ...prev, generatedEmails };
       });
@@ -851,7 +976,8 @@ export function NewOutreachWizard({
        */
       revise?: { genKey: string; instruction: string };
     }): Promise<GenerateResult> => {
-      if (!vars.slots.length) return { succeeded: [], failed: [] };
+      if (!vars.slots.length)
+        return { succeeded: [], held: [], refs: new Map(), failed: [] };
       // GenerateBatchEmailDto whitelists only id/kind/title/body/scope/note on
       // context items; with forbidNonWhitelisted on, pool-only fields (tag/sub/
       // matches) 400 the batch. Strip to the DTO shape. List/group scopes are
@@ -872,6 +998,44 @@ export function NewOutreachWizard({
             }
           : {}),
       };
+      // Phase 0 (§3.g3): the protected draft record must exist BEFORE the AI is
+      // called. If this throws we never reach the provider, so nothing is spent
+      // and no transient text is produced that the server could not persist.
+      let recordId: string | null = null;
+      if (versionedOutreach) {
+        try {
+          recordId = await ensureDraftRecord();
+        } catch {
+          throw new Error(
+            'Could not create the protected draft record; generation was not started.',
+          );
+        }
+      }
+
+      /**
+       * Attach each recipient's generation slot key(s). One generated draft can
+       * back several slots (the same person in two lists is generated ONCE by
+       * design), so the keys travel as a list and the server versions each.
+       */
+      const withGenerationKeys = (
+        recipients: OutreachRecipient[],
+        chunkSlots: GenSlot[],
+      ): OutreachRecipient[] => {
+        if (!versionedOutreach) return recipients;
+        const keysByResultId = new Map<string, string[]>();
+        for (const slot of chunkSlots) {
+          const list = keysByResultId.get(slot.resultId) ?? [];
+          list.push(slot.genKey);
+          keysByResultId.set(slot.resultId, list);
+        }
+        return recipients.map((r) => {
+          const keys = keysByResultId.get(recipientKey(r)) ?? [];
+          return keys.length
+            ? ({ ...r, generationKeys: keys } as unknown as OutreachRecipient)
+            : r;
+        });
+      };
+
       const post = (
         recipients: OutreachRecipient[],
         opts?: { additionalContext?: string; audienceKind?: 'group' },
@@ -885,6 +1049,7 @@ export function NewOutreachWizard({
             '/api/engagement/outreach/generate-batch',
             {
               ...base,
+              ...(recordId ? { outreachRecordId: recordId } : {}),
               recipients,
               ...(opts?.additionalContext ? { additionalContext: opts.additionalContext } : {}),
               ...(opts?.audienceKind ? { audienceKind: opts.audienceKind } : {}),
@@ -909,24 +1074,55 @@ export function NewOutreachWizard({
       // (identical to the async job path — no drift); each chunk is partitioned on
       // each item's authoritative status.
       type TaskOut =
-        | { ok: true; drafts: GenDraft[]; failedGenKeys: string[] }
+        | {
+            ok: true;
+            drafts: GenDraft[];
+            heldDrafts: Array<{ genKey: string; subject: string; body: string; contextNote?: string }>;
+            failedGenKeys: string[];
+            refs: Map<string, DraftVersionRef>;
+          }
         | { ok: false; genKeys: string[]; message: string };
       const tasks = buildGenerateTasks(vars.slots, GEN_BATCH_MAX);
       const outs = await Promise.all(
         tasks.map(
           (t): Promise<TaskOut> =>
             post(
-              t.recipients,
+              withGenerationKeys(t.recipients, t.chunkSlots),
               t.additionalContext || t.audienceKind
                 ? { additionalContext: t.additionalContext, audienceKind: t.audienceKind }
                 : undefined,
             )
               .then((results): TaskOut => {
-                const { drafts, failedGenKeys } = partitionGenerationResults(
+                const { drafts, heldDrafts, failedGenKeys } = partitionGenerationResults(
                   t.chunkSlots.map((s) => ({ genKey: s.genKey, resultId: s.resultId })),
                   results,
                 );
-                return { ok: true, drafts, failedGenKeys };
+                // Phase 0 (g2): held drafts are REAL content pending review. They
+                // travel separately from failures so onSuccess can keep the text
+                // and attach the version lifecycle, rather than overwriting it.
+                const byRecipient = new Map(results.map((r) => [r.recipientId, r]));
+                const refs = new Map<string, DraftVersionRef>();
+                for (const slot of t.chunkSlots) {
+                  const r = byRecipient.get(slot.resultId) as VersionedBatchResult | undefined;
+                  if (!r) continue;
+                  const match =
+                    r.versions?.find((v) => v.generationKey === slot.genKey) ??
+                    (r.generationKey === slot.genKey && r.versionId && r.artifactId
+                      ? {
+                          generationKey: r.generationKey,
+                          artifactId: r.artifactId,
+                          versionId: r.versionId,
+                          version: r.version ?? 1,
+                          generationStatus: r.generationStatus,
+                          auditStatus: r.auditStatus ?? 'pending',
+                          approvalStatus: r.approvalStatus ?? 'not_required',
+                          ...(r.reviewRequestId ? { reviewRequestId: r.reviewRequestId } : {}),
+                          sendable: r.sendable === true,
+                        }
+                      : undefined);
+                  if (match) refs.set(slot.genKey, match as DraftVersionRef);
+                }
+                return { ok: true, drafts, heldDrafts, failedGenKeys, refs };
               })
               .catch(
                 (err): TaskOut => ({
@@ -938,12 +1134,15 @@ export function NewOutreachWizard({
         ),
       );
       const succeeded = outs.flatMap((o) => (o.ok ? o.drafts : []));
+      const held = outs.flatMap((o) => (o.ok ? o.heldDrafts : []));
+      const refs = new Map<string, DraftVersionRef>();
+      for (const o of outs) if (o.ok) for (const [k, v] of o.refs) refs.set(k, v);
       // `failed` now unions BOTH whole-POST failures (ok:false) AND same-batch
       // per-recipient failures (ok:true, failedGenKeys) — both flow to the same
       // 'error' placeholder path in onSuccess.
       const failed = outs.flatMap((o) => (o.ok ? o.failedGenKeys : o.genKeys));
       const firstFailure = outs.find((o): o is Extract<TaskOut, { ok: false }> => !o.ok);
-      return { succeeded, failed, errorMessage: firstFailure?.message };
+      return { succeeded, held, refs, failed, errorMessage: firstFailure?.message };
     },
     onSuccess: (res, vars) => {
       setState((prev) => {
@@ -957,12 +1156,63 @@ export function NewOutreachWizard({
           // (keep the last 2). A normal regenerate carries history forward as-is.
           const prior = generatedEmails[r.genKey];
           const isRevise = vars.revise?.genKey === r.genKey;
-          const history = isRevise ? appendDraftHistory(prior) : prior?.history;
+          // Local revert history is CLIENT state (text kept for one-click undo).
+          // It is distinct from the server version history, which is metadata only.
+          const localHistory = isRevise
+            ? appendDraftHistory(prior ? { ...prior, history: prior.localHistory } : undefined)
+            : prior?.localHistory;
           generatedEmails[r.genKey] = {
+            ...prior,
             subject: r.subject,
             body: sanitizeHtml(markdownishToHtml(r.body)),
             status: 'ready',
-            ...(history && history.length ? { history } : {}),
+            dirty: false,
+            ...(localHistory && localHistory.length ? { localHistory } : {}),
+          };
+        }
+        // Held drafts: keep the generated text and attach the version lifecycle,
+        // so the editor shows the actual draft under a "Pending review" banner.
+        for (const h of res.held) {
+          const ref = res.refs.get(h.genKey);
+          const priorHeld = generatedEmails[h.genKey];
+          generatedEmails[h.genKey] = {
+            ...(priorHeld ?? { subject: '', body: '' }),
+            subject: h.subject,
+            body: sanitizeHtml(markdownishToHtml(h.body)),
+            ...(h.contextNote ? { contextNote: h.contextNote } : {}),
+            ...(ref
+              ? {
+                  artifactId: ref.artifactId,
+                  versionId: ref.versionId,
+                  version: ref.version,
+                  generationStatus: ref.generationStatus ?? 'generated',
+                  auditStatus: ref.auditStatus,
+                  approvalStatus: ref.approvalStatus,
+                  ...(ref.reviewRequestId ? { reviewRequestId: ref.reviewRequestId } : {}),
+                  sendable: ref.sendable,
+                }
+              : {}),
+            dirty: false,
+            status: 'held',
+          };
+        }
+        // Attach the version lifecycle to the SUCCEEDED drafts too, so the send
+        // step reads server state rather than a local guess.
+        for (const r of res.succeeded) {
+          const ref = res.refs.get(r.genKey);
+          const priorOk = generatedEmails[r.genKey];
+          if (!ref || !priorOk) continue;
+          generatedEmails[r.genKey] = {
+            ...priorOk,
+            artifactId: ref.artifactId,
+            versionId: ref.versionId,
+            version: ref.version,
+            generationStatus: ref.generationStatus ?? 'generated',
+            auditStatus: ref.auditStatus,
+            approvalStatus: ref.approvalStatus,
+            ...(ref.reviewRequestId ? { reviewRequestId: ref.reviewRequestId } : {}),
+            sendable: ref.sendable,
+            dirty: false,
           };
         }
         for (const genKey of res.failed) {
@@ -986,12 +1236,19 @@ export function NewOutreachWizard({
           generatedEmails,
           // Only a FULLY-successful full regeneration is "fresh" — leave the
           // "context changed" banner up if any slot failed so the user retries.
-          ...(vars.markFresh && vars.sig != null && res.failed.length === 0
+          ...(vars.markFresh && vars.sig != null && res.failed.length === 0 && res.held.length === 0
             ? { generatedInputSig: vars.sig }
             : {}),
         };
       });
       setGeneratingKey(null);
+      if (res.held.length) {
+        message.warning(
+          res.held.length === 1
+            ? '1 draft is held for review — a reviewer must approve it before it can be sent.'
+            : `${res.held.length} drafts are held for review before they can be sent.`,
+        );
+      }
       if (res.failed.length && res.succeeded.length) {
         message.warning(
           `Generated ${res.succeeded.length}; ${res.failed.length} failed — ${
@@ -1038,7 +1295,18 @@ export function NewOutreachWizard({
 
   // Flat {recipientId,subject,body} per recipient for the unchanged send-batch
   // contract — a group's shared draft fans to every member (see generation.ts).
-  const buildDrafts = () => projectDraftsForSend(state.targets, state.generatedEmails);
+  // LEGACY (flag-off) projection of raw TEXT. Under versioned outreach the Send
+  // step uses projectVersionIdsForSend() instead, which emits version ids only.
+  const buildDrafts = () =>
+    projectDraftsForSend(
+      state.targets,
+      Object.fromEntries(
+        Object.entries(state.generatedEmails).map(([k, d]) => [
+          k,
+          { subject: d.subject, body: d.body, status: d.status ?? 'ready' },
+        ]),
+      ),
+    );
 
   // Which connected inbox this send goes out from. Defaults to the first inbox
   // in the list, which the API orders provider-first (Outlook before Gmail, per
@@ -1054,6 +1322,102 @@ export function NewOutreachWizard({
   const selectedSendFrom = selectedInbox
     ? (selectedInbox.accountEmail ?? selectedInbox.displayName ?? null)
     : sendFrom;
+
+  /** The intent currently being watched (Phase 0 send path). */
+  const [sendIntentId, setSendIntentId] = useState<string | null>(null);
+  const { intent: sendIntent, isPolling: intentPolling } = useSendIntent(api, sendIntentId);
+
+  /**
+   * Submit a durable send intent (§3.g6).
+   *
+   * Submits DRAFT VERSION IDS — never subject/body. One request key is minted per
+   * click and REUSED across retries, so a double-click or a network retry resolves
+   * to the same intent instead of sending twice.
+   */
+  const sendIntentMutation = useMutation({
+    mutationFn: async (vars?: { testMode?: boolean }) => {
+      const testMode = vars?.testMode === true;
+      const recordId = draftId ?? (await ensureDraftRecord());
+
+      const units = projectVersionIdsForSend(state.targets, state.generatedEmails);
+      if (!units.length) {
+        throw new Error(
+          'No verified drafts are ready to send. Resolve the flagged drafts in Generate & Review.',
+        );
+      }
+      if (!selectedInboxId) {
+        throw new Error('Choose the mailbox to send from.');
+      }
+
+      // Attachment preflight BEFORE submission: nothing is ever silently omitted
+      // from a sent email (the old path reported "skipped" after sending).
+      const issues = attachmentPreflight(state.attachmentIds, docsQuery.data?.items ?? []);
+      if (issues.length) {
+        throw new Error(
+          `These files are over the 3 MB email limit and cannot be sent: ${issues
+            .map((i) => i.fileName)
+            .join(', ')}. Remove them or share a link instead.`,
+        );
+      }
+
+      const requestKey = testMode
+        ? (testRequestKeyRef.current = ensureTestRequestKey(testRequestKeyRef.current))
+        : (sendRequestKeyRef.current = ensureRequestKey(sendRequestKeyRef.current));
+
+      const created = await createSendIntent(api, {
+        outreachRecordId: recordId,
+        requestKey,
+        senderConnectionId: selectedInboxId,
+        draftVersionIds: units.map((u) => u.draftVersionId),
+        attachmentIds: state.attachmentIds,
+        appendSignature,
+        testMode,
+      });
+      return { ...created, testMode };
+    },
+    onSuccess: (data) => {
+      setSendIntentId(data.intentId);
+      if (data.deduped) {
+        message.info('This send was already submitted — showing its progress.');
+      }
+      qc.invalidateQueries({ queryKey: ['engagement-outreach'] });
+    },
+    onError: (err) => {
+      // Keep the request key: a retry after a transient failure must reuse it so
+      // the server can dedupe rather than starting a second send.
+      message.error(apiErrorMessage(err) || 'Could not submit the send.');
+    },
+  });
+
+  /** Retry ONLY explicitly-failed deliveries, under a NEW request key. */
+  const retryFailedDeliveries = () => {
+    if (!sendIntent) return;
+    const failedKeys = new Set(
+      sendIntent.deliveries.filter((d) => showRetryControl(d.status)).map((d) => d.generationKey),
+    );
+    if (!failedKeys.size) return;
+    // A retry is a NEW intent with a NEW key (the old key would dedupe onto the
+    // existing intent). 'unknown' rows are deliberately excluded.
+    sendRequestKeyRef.current = null;
+    setSendIntentId(null);
+    sendIntentMutation.mutate(undefined);
+  };
+
+  const cancelCurrentIntent = async () => {
+    if (!sendIntentId) return;
+    try {
+      const res = await cancelSendIntent(api, sendIntentId);
+      if (res.inFlight > 0) {
+        message.warning(
+          `${res.skipped} queued email(s) cancelled. ${res.inFlight} already in flight could not be cancelled — check the per-recipient results.`,
+        );
+      } else {
+        message.success(`Cancelled ${res.skipped} queued email(s).`);
+      }
+    } catch (err) {
+      message.error(apiErrorMessage(err) || 'Could not cancel this send.');
+    }
+  };
 
   const sendMutation = useMutation({
     mutationFn: async (vars?: { testMode?: boolean }) => {
@@ -1105,6 +1469,95 @@ export function NewOutreachWizard({
 
   // Save the current drafts as a reusable outreach record. Available at any
   // step; first save creates the record, later saves update it in place.
+  /**
+   * Build the save payload from an EXPLICIT snapshot (§3.g3).
+   *
+   * Extracted from saveDraftMutation so ensureDraftRecord() can persist the
+   * record without depending on an asynchronous React state update having landed
+   * — the old closure read `state`, so a save fired during the same tick as a
+   * state change could serialize stale wizard content.
+   */
+  const buildSaveBody = (snapshot: WizardV2State, stepIndex: number, stepId: string) => {
+    const drafts = projectDraftsForSend(
+      snapshot.targets,
+      Object.fromEntries(
+        Object.entries(snapshot.generatedEmails).map(([k, d]) => [
+          k,
+          { subject: d.subject, body: d.body, status: d.status ?? 'ready' },
+        ]),
+      ),
+    );
+    const first = drafts[0];
+    const contextPool = expandContextItemScopes(snapshot.contextItems, snapshot.targets).map(
+      (item) => ({
+        id: item.id,
+        sourceType: item.kind,
+        title: item.title,
+        summary: item.body,
+        note: item.note,
+        scope: item.scope,
+        recipientIds: item.scope && item.scope !== 'all' ? [item.scope] : undefined,
+        matches: item.matches,
+      }),
+    );
+    return {
+      clientId: snapshot.clientId ?? undefined,
+      direction: snapshot.direction ?? undefined,
+      title: snapshot.campaignName?.trim() || 'Untitled outreach',
+      subject: first?.subject?.trim() || undefined,
+      body: first ? htmlToPlainText(first.body).trim() || undefined : undefined,
+      recipients: snapshot.recipients,
+      lastStep: stepIndex + 1,
+      contextPool,
+      metadata: {
+        source: 'v2-wizard',
+        lastStep: stepIndex + 1,
+        lastStepId: stepId,
+        tone: snapshot.tone,
+        templateId: snapshot.templateId,
+        perRecipientEmails: drafts,
+        generatedByKey: snapshot.generatedEmails,
+        contextItems: snapshot.contextItems,
+        attachmentIds: snapshot.attachmentIds,
+        targets: snapshot.targets,
+      },
+    };
+  };
+
+  /**
+   * Ensure a durable OutreachRecord exists, returning its id (§3.g3).
+   *
+   * Under versioned outreach there is nowhere to persist an immutable draft
+   * version without this record, so generation MUST NOT start before it exists —
+   * otherwise the AI is billed for text the server cannot keep. One shared
+   * promise held in a ref serializes concurrent callers, so a fan-out of
+   * generation tasks creates exactly one record.
+   */
+  const ensureDraftRecord = async (): Promise<string> => {
+    if (draftId) return draftId;
+    if (ensureRecordRef.current) return ensureRecordRef.current;
+    const pending = (async () => {
+      const body = buildSaveBody(state, stepIdx, step.id);
+      const created = (
+        await api.post<{ id: string }>('/api/engagement/outreach', {
+          type: 'campaign',
+          ...body,
+        })
+      ).data;
+      setDraftId(created.id);
+      return created.id;
+    })();
+    ensureRecordRef.current = pending;
+    try {
+      return await pending;
+    } catch (err) {
+      // Clear the ref so a later attempt can retry rather than replaying a
+      // rejected promise forever.
+      ensureRecordRef.current = null;
+      throw err;
+    }
+  };
+
   const saveDraftMutation = useMutation({
     mutationFn: async () => {
       const drafts = buildDrafts();
@@ -1256,9 +1709,148 @@ export function NewOutreachWizard({
     }
   };
 
-  // Inline edits to a generated draft mark it 'edited' so the user can see
-  // their changes are captured; edits persist in wizard state immediately.
-  const updateDraft = (key: string, patch: { subject?: string; body?: string }) =>
+  /**
+   * Persist one draft slot as a NEW immutable version (§3.g4).
+   *
+   * Returns a promise the navigation guard awaits, so entering the Send step can
+   * never race an unsaved edit. A 409 means someone else appended first: autosave
+   * STOPS, the local text is kept, and the user is offered "Load latest" — an
+   * automatic retry would either clobber the winner or spin forever.
+   */
+  const flushDraftVersion = async (genKey: string): Promise<void> => {
+    const draft = state.generatedEmails[genKey];
+    if (!versionedOutreach || !draft?.artifactId || !draft.versionId || !draft.dirty) return;
+
+    const existing = versionWritesRef.current.get(genKey);
+    if (existing) return existing;
+
+    const write = (async () => {
+      setState((prev) => {
+        const d = prev.generatedEmails[genKey];
+        if (!d) return prev;
+        return {
+          ...prev,
+          generatedEmails: { ...prev.generatedEmails, [genKey]: { ...d, localStatus: 'saving' } },
+        };
+      });
+      try {
+        const res = await api.post<{
+          id: string;
+          artifactId: string;
+          version: number;
+          subject: string;
+          body: string;
+          generationStatus: GeneratedDraft['generationStatus'];
+          auditStatus: NonNullable<GeneratedDraft['auditStatus']>;
+          approvalStatus: NonNullable<GeneratedDraft['approvalStatus']>;
+          reviewRequestId?: string | null;
+          sendable: boolean;
+          contextNote?: string;
+        }>(`/api/engagement/outreach/draft-artifacts/${draft.artifactId}/versions`, {
+          baseVersionId: draft.versionId,
+          subject: draft.subject,
+          body: draft.body,
+          editKind: 'manual',
+        });
+        setState((prev) => {
+          const d = prev.generatedEmails[genKey];
+          if (!d) return prev;
+          return {
+            ...prev,
+            generatedEmails: { ...prev.generatedEmails, [genKey]: applyNewVersion(d, res.data) },
+          };
+        });
+      } catch (err) {
+        const status = (err as { response?: { status?: number; data?: unknown } })?.response?.status;
+        if (status === 409) {
+          const data = (err as { response?: { data?: { currentVersionId?: string | null } } })
+            .response?.data;
+          setState((prev) => {
+            const d = prev.generatedEmails[genKey];
+            if (!d) return prev;
+            return {
+              ...prev,
+              generatedEmails: {
+                ...prev.generatedEmails,
+                [genKey]: applyVersionConflict(d, { currentVersionId: data?.currentVersionId }),
+              },
+            };
+          });
+          message.warning(
+            'A newer version of this draft exists. Your text was kept — load the latest version to continue.',
+          );
+        } else {
+          setState((prev) => {
+            const d = prev.generatedEmails[genKey];
+            if (!d) return prev;
+            return {
+              ...prev,
+              generatedEmails: {
+                ...prev.generatedEmails,
+                [genKey]: { ...d, localStatus: 'save_failed', sendable: false },
+              },
+            };
+          });
+          message.error('Could not save this draft. It will not be sent until it saves.');
+        }
+      } finally {
+        versionWritesRef.current.delete(genKey);
+      }
+    })();
+    versionWritesRef.current.set(genKey, write);
+    return write;
+  };
+
+  /** Fetch and adopt the server's latest version after a 409 ("Load latest"). */
+  const loadLatestVersion = async (genKey: string) => {
+    const draft = state.generatedEmails[genKey];
+    if (!draft?.artifactId) return;
+    try {
+      const artifacts = (
+        await api.get<
+          Array<{
+            id: string;
+            generationKey: string;
+            current: {
+              id: string;
+              artifactId: string;
+              version: number;
+              subject: string;
+              body: string;
+              generationStatus: GeneratedDraft['generationStatus'];
+              auditStatus: NonNullable<GeneratedDraft['auditStatus']>;
+              approvalStatus: NonNullable<GeneratedDraft['approvalStatus']>;
+              reviewRequestId?: string | null;
+              sendable: boolean;
+            } | null;
+          }>
+        >(`/api/engagement/outreach/${draftId}/draft-artifacts`)
+      ).data;
+      const match = artifacts.find((a) => a.generationKey === genKey);
+      if (!match?.current) return;
+      setState((prev) => {
+        const d = prev.generatedEmails[genKey];
+        if (!d) return prev;
+        return {
+          ...prev,
+          generatedEmails: { ...prev.generatedEmails, [genKey]: applyNewVersion(d, match.current!) },
+        };
+      });
+      message.success('Loaded the latest version of this draft.');
+    } catch {
+      message.error('Could not load the latest version.');
+    }
+  };
+
+  /**
+   * Inline edits (§3.g4).
+   *
+   * Under versioning the draft becomes DIRTY and immediately non-sendable, then a
+   * debounced POST creates a new immutable version that must earn its own audit.
+   * The old behaviour — flipping status to 'edited', which counted as sendable —
+   * is what let a held or failed draft be sent by typing one character.
+   */
+  const updateDraft = (key: string, patch: { subject?: string; body?: string }) => {
     setState((prev) => {
       const existing = prev.generatedEmails[key];
       if (!existing) return prev;
@@ -1266,10 +1858,37 @@ export function NewOutreachWizard({
         ...prev,
         generatedEmails: {
           ...prev.generatedEmails,
-          [key]: { ...existing, ...patch, status: 'edited' },
+          [key]: versionedOutreach
+            ? markDirty(existing, patch)
+            : { ...existing, ...patch, status: 'edited' },
         },
       };
     });
+    if (!versionedOutreach) return;
+    // Debounce per artifact so each draft saves independently; a conflicted draft
+    // is deliberately NOT rescheduled.
+    const timers = autosaveTimersRef.current;
+    if (timers[key]) clearTimeout(timers[key]);
+    timers[key] = setTimeout(() => {
+      delete timers[key];
+      void flushDraftVersion(key);
+    }, DRAFT_AUTOSAVE_DEBOUNCE_MS);
+  };
+
+  /** Flush on blur / before navigating forward, whichever happens first. */
+  const flushAllDirtyDrafts = async (): Promise<void> => {
+    const timers = autosaveTimersRef.current;
+    for (const key of Object.keys(timers)) {
+      clearTimeout(timers[key]!);
+      delete timers[key];
+    }
+    const dirty = Object.entries(state.generatedEmails)
+      .filter(([, d]) => d.dirty && d.localStatus !== 'conflict')
+      .map(([k]) => k);
+    await Promise.all(dirty.map((k) => flushDraftVersion(k)));
+    // Also await anything already in flight.
+    await Promise.all([...versionWritesRef.current.values()]);
+  };
 
   // Regenerate one draft slot (by GenerationTargetKey).
   const regenerateOne = (genKey: string) => {
@@ -1303,7 +1922,7 @@ export function NewOutreachWizard({
     setState((prev) => {
       const draft = prev.generatedEmails[genKey];
       if (!draft) return prev;
-      const reverted = revertDraftHistory(draft);
+      const reverted = revertDraftHistory({ ...draft, history: draft.localHistory });
       if (!reverted) return prev;
       return {
         ...prev,
@@ -1314,7 +1933,7 @@ export function NewOutreachWizard({
             subject: reverted.subject,
             body: reverted.body,
             status: 'edited',
-            history: reverted.history.length ? reverted.history : undefined,
+            localHistory: reverted.history.length ? reverted.history : undefined,
           },
         },
       };
@@ -1343,18 +1962,37 @@ export function NewOutreachWizard({
 
   const canSaveDraft = Object.keys(state.generatedEmails).length > 0 || state.recipients.length > 0;
   // Distinguish the real send from a test send so only the clicked button spins.
-  const realSending = sendMutation.isPending && !sendMutation.variables?.testMode;
-  const testSending = sendMutation.isPending && !!sendMutation.variables?.testMode;
+  /** One dispatcher so every Send/Test control picks the right path. */
+  const submitSend = (vars?: { testMode?: boolean }) => {
+    if (versionedOutreach) sendIntentMutation.mutate(vars);
+    else sendMutation.mutate(vars);
+  };
+  const activeSendMutation = versionedOutreach ? sendIntentMutation : sendMutation;
+  const realSending =
+    activeSendMutation.isPending && !activeSendMutation.variables?.testMode;
+  const testSending =
+    activeSendMutation.isPending && !!activeSendMutation.variables?.testMode;
+  /** Disable Send while an intent with the same request key is still active. */
+  const sendLocked = versionedOutreach && (intentPolling || activeSendMutation.isPending);
+  const intentSummary = summarizeIntent(sendIntent);
   // Send-readiness guard: drafts that failed to generate (status 'error') are
   // excluded from the send projection, so a batch with failures must surface the
   // count and Send must hard-disable when nothing is actually sendable.
-  const sendableDraftCount = buildDrafts().length;
-  // Count failures against the CURRENT generation model only — a stale 'error'
-  // draft for a target the user has since removed must not warn about a slot
+  // Phase 0: under versioning this counts VERIFIED versions (the shared send
+  // gate), not locally-editable text — so a held or dirty draft never inflates it.
+  const sendableDraftCount = versionedOutreach
+    ? projectVersionIdsForSend(state.targets, state.generatedEmails).length
+    : buildDrafts().length;
+  // Count blocked slots against the CURRENT generation model only — a stale
+  // failure for a target the user has since removed must not warn about a slot
   // that no longer appears in the rail.
-  const failedDraftCount = genModel.slots.filter(
-    (s) => state.generatedEmails[s.genKey]?.status === 'error',
-  ).length;
+  const failedDraftCount = versionedOutreach
+    ? genModel.slots.filter((s) => {
+        const d = state.generatedEmails[s.genKey];
+        // Only slots that actually have a draft and are NOT cleared to send.
+        return !!d && !isDraftSendable(d);
+      }).length
+    : genModel.slots.filter((s) => state.generatedEmails[s.genKey]?.status === 'error').length;
 
   // ---- Render ----
   return (
@@ -1498,12 +2136,18 @@ export function NewOutreachWizard({
               hasSignature={hasSignature}
               appendSignature={appendSignature}
               onToggleSignature={setAppendSigOverride}
-              onSend={() => sendMutation.mutate(undefined)}
-              onTest={() => sendMutation.mutate({ testMode: true })}
+              onSend={() => submitSend(undefined)}
+              onTest={() => submitSend({ testMode: true })}
               sending={realSending}
               testing={testSending}
               sentResult={sentResult}
               onDone={onComplete}
+              versionedOutreach={versionedOutreach}
+              sendIntent={sendIntent}
+              intentPolling={intentPolling}
+              sendLocked={sendLocked}
+              onRetryFailed={retryFailedDeliveries}
+              onCancelIntent={cancelCurrentIntent}
             />
           )}
         </div>
@@ -1539,9 +2183,11 @@ export function NewOutreachWizard({
               <Button
                 type="primary"
                 icon={<SendOutlined />}
-                onClick={() => sendMutation.mutate(undefined)}
+                onClick={() => submitSend(undefined)}
                 loading={realSending}
-                disabled={!emailConnected || sendableDraftCount === 0}
+                // Locked while an intent with the same request key is active, so a
+                // second click cannot start a second send.
+                disabled={!emailConnected || sendableDraftCount === 0 || sendLocked}
               >
                 Send all
               </Button>
@@ -2013,6 +2659,12 @@ function StepSend({
   testing,
   sentResult,
   onDone,
+  versionedOutreach,
+  sendIntent,
+  intentPolling,
+  sendLocked,
+  onRetryFailed,
+  onCancelIntent,
 }: {
   recipients: OutreachRecipient[];
   sendableCount: number;
@@ -2031,11 +2683,116 @@ function StepSend({
   testing: boolean;
   sentResult: { sent: number; failed: number } | null;
   onDone: () => void;
+  /** Phase 0: render the durable-intent result view instead of a count. */
+  versionedOutreach: boolean;
+  sendIntent: SendIntentView | undefined;
+  intentPolling: boolean;
+  sendLocked: boolean;
+  onRetryFailed: () => void;
+  onCancelIntent: () => void;
 }) {
   // Nothing sendable (every draft failed, or none generated) → block Send and
   // say why, so the primary CTA is never a dead click into a backend 400.
   const nothingToSend = sendableCount === 0;
-  // Post-send confirmation screen.
+
+  /**
+   * Phase 0 (§3.g6) — one row per DELIVERY, with the real provider outcome.
+   *
+   * Deliberate omissions:
+   *   • an `unknown` row gets NO Retry button. The provider may already have
+   *     delivered it, so the only safe instruction is "verify Sent Items".
+   *   • nothing is reported as a blanket success while any outcome is undetermined.
+   */
+  if (versionedOutreach && sendIntent) {
+    const summary = summarizeIntent(sendIntent);
+    const retryable = sendIntent.deliveries.filter((d) => showRetryControl(d.status));
+    return (
+      <div style={{ padding: '28px 20px', textAlign: 'left' }}>
+        <h2 style={{ marginTop: 0, textAlign: 'center' }}>
+          {intentPolling
+            ? 'Sending…'
+            : summary.hasUnknown
+              ? `Sent ${summary.sent} · ${summary.unknown} unconfirmed`
+              : summary.failed > 0
+                ? `Sent ${summary.sent}, ${summary.failed} failed`
+                : `${summary.sent} ${summary.sent === 1 ? 'email' : 'emails'} sent`}
+        </h2>
+        <div className="ov2-pane-sub" style={{ fontSize: 13.5, textAlign: 'center' }}>
+          {sendIntent.testMode ? 'Test send — only you received a copy. ' : ''}
+          {summary.inFlight > 0 ? `${summary.inFlight} still in progress. ` : ''}
+          {summary.hasUnknown
+            ? 'Some outcomes could not be confirmed — check Sent Items before resending those.'
+            : ''}
+        </div>
+
+        {summary.hasUnknown && (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ margin: '16px 0' }}
+            message={`${summary.unknown} delivery outcome(s) unknown`}
+            description={DELIVERY_STATUS_COPY.unknown}
+          />
+        )}
+
+        <div style={{ marginTop: 18 }}>
+          {sendIntent.deliveries.map((d) => (
+            <div
+              key={d.id}
+              style={{
+                display: 'flex',
+                gap: 12,
+                alignItems: 'flex-start',
+                padding: '10px 12px',
+                borderTop: '1px solid var(--ov2-line, #eee)',
+              }}
+            >
+              <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 13.5 }}>
+                  {d.to.map((t) => t.email).join(', ') || d.recipientKey}
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--ov2-ink-2)' }}>{d.subject}</div>
+                {d.cc.length > 0 && (
+                  <div style={{ fontSize: 12, color: 'var(--ov2-ink-2)' }}>Cc: {d.cc.join(', ')}</div>
+                )}
+                {/* Provider ids make a send reconcilable against the mailbox. */}
+                {(d.providerMessageId || d.providerDraftId) && (
+                  <div style={{ fontSize: 11.5, color: 'var(--ov2-ink-2)', marginTop: 2 }}>
+                    {d.provider === 'gmail' ? 'Gmail id' : 'Outlook draft'}:{' '}
+                    {d.providerMessageId ?? d.providerDraftId}
+                  </div>
+                )}
+                {d.errorMessage && (
+                  <div style={{ fontSize: 12, color: 'var(--ov2-danger, #dc2626)', marginTop: 2 }}>
+                    {d.errorCode ? `${d.errorCode}: ` : ''}
+                    {d.errorMessage}
+                  </div>
+                )}
+              </div>
+              <div style={{ flex: '0 0 auto', fontSize: 12.5, textAlign: 'right' }}>
+                {DELIVERY_STATUS_COPY[d.status]}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <Space style={{ marginTop: 22, justifyContent: 'center', width: '100%' }}>
+          {intentPolling && <Button onClick={onCancelIntent}>Cancel queued</Button>}
+          {/* Retry exists ONLY for explicit failures, and creates a NEW intent. */}
+          {!intentPolling && retryable.length > 0 && (
+            <Button onClick={onRetryFailed}>Create new send for {retryable.length} failed</Button>
+          )}
+          {!intentPolling && (
+            <Button type="primary" icon={<CheckOutlined />} onClick={onDone}>
+              Done
+            </Button>
+          )}
+        </Space>
+      </div>
+    );
+  }
+
+  // Post-send confirmation screen (pre-Phase-0 path).
   if (sentResult) {
     return (
       <div style={{ textAlign: 'center', padding: '48px 20px' }}>
@@ -2124,7 +2881,7 @@ function StepSend({
           icon={<EyeOutlined />}
           loading={testing && !sending}
           onClick={onTest}
-          disabled={!emailConnected || nothingToSend}
+          disabled={!emailConnected || nothingToSend || sendLocked}
         >
           Send test email to myself
         </Button>
@@ -2133,7 +2890,7 @@ function StepSend({
           icon={<SendOutlined />}
           loading={sending}
           onClick={onSend}
-          disabled={!emailConnected || nothingToSend}
+          disabled={!emailConnected || nothingToSend || sendLocked}
         >
           Confirm Send
         </Button>

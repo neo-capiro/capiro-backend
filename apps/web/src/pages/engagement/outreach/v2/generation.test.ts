@@ -144,7 +144,11 @@ describe('projectDraftsForSend — failed drafts are unsendable (W0.2)', () => {
     expect(drafts).toHaveLength(0);
   });
 
-  it('includes a once-failed draft after the user edits it (status "edited")', () => {
+  it('LEGACY path only: a locally-edited draft is sendable when versioning is OFF', () => {
+    // This is the pre-Phase-0 contract, retained for the flag-off path. Under
+    // versioned outreach the equivalent case is covered by
+    // versioned-drafts.test.ts, where a local edit is NOT sendable until the
+    // server returns a new audited version.
     const drafts = projectDraftsForSend([individual('a@x.com')], {
       'individual:a@x.com': { subject: 'Fixed subject', body: 'Real content', status: 'edited' },
     });
@@ -236,18 +240,62 @@ describe('partitionGenerationResults (W0.2 same-batch failure routing)', () => {
       { recipientId: 'b', subject: '', body: '', status: 'error' },
     ];
     expect(partitionGenerationResults(slots, allError).drafts).toEqual([]);
+    expect(partitionGenerationResults(slots, allError).heldDrafts).toEqual([]);
   });
 
-  it('routes a status:held item (auditor hold under enforce) to failedGenKeys — never auto-sent (Phase 2.5-1)', () => {
+  it('PRESERVES a status:held item instead of collapsing it into a failure (Phase 0 g2)', () => {
     const results: BatchDraftResult[] = [
       { recipientId: 'a', subject: 'SA', body: 'BA', status: 'ready' },
-      // A held draft has real content but a grounding finding held it; it must
-      // NOT flow into `drafts` (which projectDraftsForSend would then send).
-      { recipientId: 'b', subject: 'SB', body: 'BB', status: 'held' },
+      // A held draft has REAL content that a reviewer must read. Routing it to
+      // failedGenKeys made the wizard overwrite it with a "generation failed"
+      // placeholder, destroying the very text under review.
+      {
+        recipientId: 'b',
+        subject: 'SB',
+        body: 'BB',
+        status: 'held',
+        contextNote: 'Unverified — 1 grounding finding',
+      },
     ];
-    const { drafts, failedGenKeys } = partitionGenerationResults(slots, results);
+    const { drafts, heldDrafts, failedGenKeys, heldGenKeys } = partitionGenerationResults(
+      slots,
+      results,
+    );
     expect(drafts).toEqual([{ genKey: 'individual:a', subject: 'SA', body: 'BA' }]);
-    expect(failedGenKeys).toEqual(['individual:b']);
+    // NOT a failure…
+    expect(failedGenKeys).toEqual([]);
+    // …and the content survives, with its internal note.
+    expect(heldGenKeys).toEqual(['individual:b']);
+    expect(heldDrafts).toEqual([
+      {
+        genKey: 'individual:b',
+        subject: 'SB',
+        body: 'BB',
+        contextNote: 'Unverified — 1 grounding finding',
+      },
+    ]);
+  });
+
+  it('a held draft is still NOT sendable (it never reaches `drafts`)', () => {
+    const results: BatchDraftResult[] = [
+      { recipientId: 'a', subject: 'SA', body: 'BA', status: 'held' },
+    ];
+    const { drafts, heldDrafts } = partitionGenerationResults(
+      [{ genKey: 'individual:a', resultId: 'a' }],
+      results,
+    );
+    expect(drafts).toEqual([]);
+    expect(heldDrafts).toHaveLength(1);
+  });
+
+  it('a genuine failure and a dropped slot both remain failures', () => {
+    const { drafts, heldDrafts, failedGenKeys } = partitionGenerationResults(slots, [
+      { recipientId: 'a', subject: '', body: '', status: 'error', error: 'boom' },
+      // nothing for 'b'
+    ]);
+    expect(drafts).toEqual([]);
+    expect(heldDrafts).toEqual([]);
+    expect(failedGenKeys.sort()).toEqual(['individual:a', 'individual:b']);
   });
 });
 

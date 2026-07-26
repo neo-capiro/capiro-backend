@@ -26,7 +26,13 @@ import {
   UnorderedListOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import type { WizardV2State } from './types.js';
+import type { GeneratedDraft, WizardV2State } from './types.js';
+import {
+  DRAFT_BLOCK_COPY,
+  draftBlockReason,
+  isDraftSendable,
+  isVersioned,
+} from './versioned-drafts.js';
 import { listAidFromKey, type GenSlot, type RailEntity, type RailSlot } from './generation.js';
 import { RichTextEditor } from './RichTextEditor.js';
 import './step-generate.css';
@@ -71,8 +77,68 @@ const KIND_BADGE: Record<RailEntity['kind'], { label: string; cls: string; icon:
   group: { label: 'Group', cls: 'group', icon: <TeamOutlined /> },
 };
 
-function isReady(draft?: { status: string }): boolean {
-  return draft?.status === 'ready' || draft?.status === 'edited';
+/**
+ * Phase 0 (§3.g5) — readiness comes from the SERVER lifecycle, via the one shared
+ * gate. The old local check treated 'edited' as ready, which meant typing a
+ * character into a held or failed draft marked it ready in the rail and let it
+ * through the send projection.
+ */
+function isReady(draft?: GeneratedDraft): boolean {
+  return isDraftSendable(draft);
+}
+
+/** Per-state banner for the active draft. Held is never shown as "failed". */
+function draftBanner(draft: GeneratedDraft | undefined): {
+  type: 'warning' | 'error' | 'info';
+  message: string;
+  description: string;
+} | null {
+  const reason = draftBlockReason(draft);
+  if (!reason) return null;
+  switch (reason) {
+    case 'held':
+      return {
+        type: 'warning',
+        message: 'Held for review',
+        description: DRAFT_BLOCK_COPY.held,
+      };
+    case 'unavailable':
+      return {
+        type: 'error',
+        message: 'Verification unavailable',
+        description: DRAFT_BLOCK_COPY.unavailable,
+      };
+    case 'pending':
+      return {
+        type: 'info',
+        message: 'Verification in progress',
+        description: DRAFT_BLOCK_COPY.pending,
+      };
+    case 'rejected':
+      return {
+        type: 'error',
+        message: 'Rejected by a reviewer',
+        description: DRAFT_BLOCK_COPY.rejected,
+      };
+    case 'awaiting_review':
+      return {
+        type: 'warning',
+        message: 'Pending review',
+        description: DRAFT_BLOCK_COPY.awaiting_review,
+      };
+    case 'dirty':
+      return { type: 'info', message: 'Unsaved changes', description: DRAFT_BLOCK_COPY.dirty };
+    case 'generation_failed':
+      return {
+        type: 'warning',
+        message: "This draft couldn't be generated",
+        description:
+          'It will not be sent as-is. Edit the text below, or click "Regenerate this" to try again.',
+      };
+    case 'missing':
+    default:
+      return null;
+  }
 }
 
 export function StepGenerate({
@@ -300,15 +366,55 @@ export function StepGenerate({
           )}
 
           <div className="ov2-gen-editor-body">
-            {activeDraft?.status === 'error' && (
-              <Alert
-                type="warning"
-                showIcon
-                style={{ marginBottom: 12 }}
-                message="This draft couldn't be generated"
-                description='It won&apos;t be sent as-is. Edit the text below, or click "Regenerate this" to try again.'
-              />
-            )}
+            {(() => {
+              const banner = draftBanner(activeDraft);
+              if (!banner) {
+                // A non-blocking auditor warning is still worth surfacing.
+                if (activeDraft?.auditStatus === 'warning' && activeDraft.contextNote) {
+                  return (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      style={{ marginBottom: 12 }}
+                      message="Review the flagged claims"
+                      description={activeDraft.contextNote}
+                    />
+                  );
+                }
+                return null;
+              }
+              return (
+                <Alert
+                  type={banner.type}
+                  showIcon
+                  style={{ marginBottom: 12 }}
+                  message={banner.message}
+                  description={
+                    <>
+                      <div>{banner.description}</div>
+                      {/* The internal auditor note: shown to the lobbyist ONLY,
+                          never appended to the subject/body a recipient sees. */}
+                      {activeDraft?.contextNote ? (
+                        <div style={{ marginTop: 6 }}>{activeDraft.contextNote}</div>
+                      ) : null}
+                      {activeDraft?.reviewRequestId ? (
+                        <div style={{ marginTop: 6 }}>
+                          <a href={`/reviews?id=${activeDraft.reviewRequestId}`}>
+                            Open this draft in Reviews
+                          </a>
+                        </div>
+                      ) : null}
+                      {isVersioned(activeDraft) && activeDraft?.version != null ? (
+                        <div style={{ marginTop: 6, opacity: 0.75 }}>
+                          Version {activeDraft.version}. Editing creates a new version and does not
+                          release this one.
+                        </div>
+                      ) : null}
+                    </>
+                  }
+                />
+              );
+            })()}
             {activeDraft ? (
               <>
                 <div className="ov2-gen-field-label">Subject</div>

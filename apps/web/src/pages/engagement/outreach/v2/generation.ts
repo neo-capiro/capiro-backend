@@ -211,6 +211,12 @@ export function listAidFromKey(genKey: string): string | null {
  * A GROUP emits ONE draft keyed to its single representative `group:<targetKey>`
  * — matching flattenTargets' group representative — so the group sends as one
  * email with all members in To. Drafts with no subject AND no body are skipped.
+ *
+ * @deprecated Phase 0 (§3.g2) — LEGACY path only, reached when the server reports
+ * `versionedOutreachEnabled: false`. It projects raw TEXT, which is exactly the
+ * bypass Phase 0 closes; the versioned path uses projectVersionIdsForSend() in
+ * send-intent.ts, which emits version ids and no content. Retained so the flag
+ * can be switched off without regressing. Do not add new callers.
  */
 export function projectDraftsForSend(
   targets: OutreachTarget[],
@@ -286,33 +292,60 @@ export interface BatchDraftResult {
    */
   status: 'ready' | 'error' | 'held';
   error?: string;
+  /** Internal note for the lobbyist only — never sent to the recipient. */
+  contextNote?: string;
 }
 
 /**
- * Partition a chunk's slots against the backend results by resultId. A slot whose
- * matching result is `status:'error'` — OR whose result is missing entirely (the
- * backend dropped it) — goes to `failedGenKeys`; everything else becomes a ready
- * draft. This replaces the wizard's old "trust every 200-OK item as ready" map so
- * a per-recipient generation failure inside a successful batch is honestly surfaced
- * as an error, not a blank draft with a false ready checkmark.
+ * Partition a chunk's slots against the backend results by resultId.
+ *
+ * Phase 0 (§3.g2) changed the HELD case. A held draft is real content that a
+ * reviewer must read; routing it to `failedGenKeys` made the wizard overwrite it
+ * with a "generation failed" placeholder, destroying the very text under review.
+ * Held results now come back in `heldDrafts` — kept verbatim, and still NOT
+ * sendable. Genuine failures (and dropped slots) remain in `failedGenKeys`.
  */
 export function partitionGenerationResults(
   slots: Array<{ genKey: string; resultId: string }>,
   results: BatchDraftResult[],
-): { drafts: Array<{ genKey: string; subject: string; body: string }>; failedGenKeys: string[] } {
+): {
+  drafts: Array<{ genKey: string; subject: string; body: string }>;
+  /** Held content, preserved. Non-sendable, but shown to the user for review. */
+  heldDrafts: Array<{ genKey: string; subject: string; body: string; contextNote?: string }>;
+  failedGenKeys: string[];
+  /** Convenience: the genKeys in `heldDrafts`. */
+  heldGenKeys: string[];
+} {
   const byId = new Map(results.map((r) => [r.recipientId, r]));
   const drafts: Array<{ genKey: string; subject: string; body: string }> = [];
+  const heldDrafts: Array<{
+    genKey: string;
+    subject: string;
+    body: string;
+    contextNote?: string;
+  }> = [];
   const failedGenKeys: string[] = [];
   for (const s of slots) {
     const r = byId.get(s.resultId);
-    // Only 'ready' proceeds as a sendable draft. 'error' (generation failure),
-    // 'held' (auditor hold under enforce), and a missing result all route to
-    // failedGenKeys so they are surfaced for attention and never auto-sent.
-    if (r && r.status === 'ready')
+    if (!r) {
+      // The backend dropped this slot: a genuine failure, no content exists.
+      failedGenKeys.push(s.genKey);
+      continue;
+    }
+    if (r.status === 'ready') {
       drafts.push({ genKey: s.genKey, subject: r.subject, body: r.body });
-    else failedGenKeys.push(s.genKey);
+    } else if (r.status === 'held') {
+      heldDrafts.push({
+        genKey: s.genKey,
+        subject: r.subject,
+        body: r.body,
+        ...(r.contextNote ? { contextNote: r.contextNote } : {}),
+      });
+    } else {
+      failedGenKeys.push(s.genKey);
+    }
   }
-  return { drafts, failedGenKeys };
+  return { drafts, heldDrafts, failedGenKeys, heldGenKeys: heldDrafts.map((d) => d.genKey) };
 }
 
 // ── Generate task construction (shared by sync POST + async job submit) ───────

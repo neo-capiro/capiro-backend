@@ -151,6 +151,15 @@ export class UsersController {
         outreachAsyncSend:
           this.config.get('OUTREACH_ASYNC_SEND', { infer: true }) &&
           outreachAsyncFlagEnabled(profile.tenant?.settings),
+        // Engagement Phase 0 (§3.i1): the wizard must know which send path to
+        // use. Environment-level only — there is no per-tenant canary for the
+        // trust boundary, because a half-enabled tenant would have drafts with no
+        // immutable version behind them. Booleans only: the auditor mode itself
+        // is never exposed to a standard user.
+        versionedOutreach: this.config.get('ENGAGEMENT_VERSIONED_OUTREACH', { infer: true }),
+        externalSendV2Required: this.config.get('ENGAGEMENT_EXTERNAL_SEND_V2_REQUIRED', {
+          infer: true,
+        }),
         meriDockUndockUi: meriDockUndockUiEnabled(profile.tenant?.settings),
         strategyPlanner: strategyPlannerEnabled(profile.tenant?.settings),
         strategyPlannerMeri: strategyMeriActive(profile.tenant?.settings),
