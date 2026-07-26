@@ -45,6 +45,7 @@ import {
   type IntelRec,
   type IntelWatchlist,
   type IntelAlertPrefs,
+  type IntelCompiled,
 } from './intel-tracker-api.js';
 
 type Panel = 'board' | 'recs' | 'config' | 'feed';
@@ -223,6 +224,16 @@ export function TrackerSurface({
         ? adaptPrefs((await api.get<IntelAlertPrefs>(intelTrackerPaths.alertPrefs(clientId))).data)
         : (await api.get<AlertPrefsPayload>(trackerPaths.alertPrefs(clientId))).data,
     enabled: activePanel === 'config' && flagsReady,
+  });
+  // P0-04 b-7/c-8: which surfaces each typed-term type feeds — a static preview
+  // the Configure editor shows next to the type picker. intel-api only (the
+  // legacy tracker has no equivalent), and only needed while Configure is open.
+  const compiledQuery = useQuery<IntelCompiled>({
+    queryKey: trackerKeys.compiled(clientId),
+    queryFn: async () =>
+      (await api.get<IntelCompiled>(intelTrackerPaths.compiled(clientId))).data,
+    enabled: activePanel === 'config' && flagsReady && trackerV2,
+    staleTime: 60 * 60_000,
   });
   // Suggestions to seed the watchlist from the client profile (capability tags +
   // sector → issue area). Excludes anything already configured.
@@ -854,6 +865,11 @@ export function TrackerSurface({
             onSavePrefs={(p) => savePrefsMutation.mutate(p)}
             onRequestVerify={requestVerify}
             onTestAlert={fireTest}
+            // P0-05 c-9: while a save is in flight, the resync effect must not
+            // clobber in-progress edits with the (about to be stale) server value.
+            saving={saveWatchlistMutation.isPending}
+            // P0-04 c-8: surfaces each typed-term type affects, for the editor preview.
+            termSurfaces={compiledQuery.data?.termSurfaces}
             typedTermsEnabled={trackerV2}
             // State Legislation Platform (DD4/DD5) is intel-api-only — the
             // legacy (pre-tracker_v2) watchlist/prefs can't persist

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './tracker-icons.js';
 import { US_STATE_CODES } from '../facilities-api.js';
+import { termRejectionReason } from './term-validation.js';
 import {
   TERM_TYPES,
   TERM_TYPE_LABELS,
@@ -27,6 +28,13 @@ const POS_LABEL: Record<TagPosition, string> = {
   oppose: 'Oppose',
   monitor: 'Monitor',
 };
+/** P0-04 c-8: human labels for the surfaces a typed-term type can affect. */
+const SURFACE_LABELS: Record<string, string> = {
+  recommendations: 'Recommendations',
+  alert_relevance: 'Alert relevance',
+  hearing_keyterms: 'Hearing transcription',
+  program_element: 'Program Element matching',
+};
 
 function ChipInput({
   items,
@@ -40,39 +48,63 @@ function ChipInput({
   placeholder?: string;
 }) {
   const [v, setV] = useState('');
+  const [err, setErr] = useState<string | null>(null);
   const add = () => {
     const t = v.trim();
-    if (t && !items.includes(t)) onChange([...items, t]);
+    if (!t) {
+      setErr(null);
+      setV('');
+      return;
+    }
+    // P0-05: reject with a visible reason instead of silently accepting a term
+    // the server will drop — keep the text in the box so it can be fixed.
+    const reason = termRejectionReason(t);
+    if (reason) {
+      setErr(reason);
+      return;
+    }
+    setErr(null);
+    if (!items.includes(t)) onChange([...items, t]);
     setV('');
   };
   return (
-    <div
-      className="chip-input"
-      onClick={(e) => (e.currentTarget.querySelector('input') as HTMLInputElement | null)?.focus()}
-    >
-      {items.map((it, i) => (
-        <span key={`${it}-${i}`} className={`ci-chip${kind === 'risk' ? ' risk' : ''}`}>
-          {it}
-          <span className="x" onClick={() => onChange(items.filter((_, j) => j !== i))}>
-            <Icon name="plus" size={10} style={{ transform: 'rotate(45deg)' }} />
+    <>
+      <div
+        className="chip-input"
+        onClick={(e) => (e.currentTarget.querySelector('input') as HTMLInputElement | null)?.focus()}
+      >
+        {items.map((it, i) => (
+          <span key={`${it}-${i}`} className={`ci-chip${kind === 'risk' ? ' risk' : ''}`}>
+            {it}
+            <span className="x" onClick={() => onChange(items.filter((_, j) => j !== i))}>
+              <Icon name="plus" size={10} style={{ transform: 'rotate(45deg)' }} />
+            </span>
           </span>
-        </span>
-      ))}
-      <input
-        className="ci-add"
-        value={v}
-        placeholder={placeholder || 'Add…'}
-        onChange={(e) => setV(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            add();
-          }
-          if (e.key === 'Backspace' && !v && items.length) onChange(items.slice(0, -1));
-        }}
-        onBlur={add}
-      />
-    </div>
+        ))}
+        <input
+          className="ci-add"
+          value={v}
+          placeholder={placeholder || 'Add…'}
+          onChange={(e) => {
+            setV(e.target.value);
+            if (err) setErr(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              add();
+            }
+            if (e.key === 'Backspace' && !v && items.length) onChange(items.slice(0, -1));
+          }}
+          onBlur={add}
+        />
+      </div>
+      {err && (
+        <div className="af-error" role="alert">
+          {err}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -87,23 +119,43 @@ function ChipInput({
 function TypedTermEditor({
   terms,
   onChange,
+  termSurfaces,
 }: {
   terms: TypedTerm[];
   onChange: (terms: TypedTerm[]) => void;
+  /** P0-04 c-8: termType → surfaces it affects, from GET .../compiled. Absent while loading. */
+  termSurfaces?: Record<string, string[]>;
 }) {
   const [type, setType] = useState<TermType>('bill');
   const [value, setValue] = useState('');
+  const [err, setErr] = useState<string | null>(null);
   const add = () => {
     const v = value.trim();
-    if (!v) return;
-    if (terms.some((t) => t.termType === type && t.value.toLowerCase() === v.toLowerCase())) {
+    if (!v) {
+      setErr(null);
       setValue('');
       return;
     }
+    if (terms.some((t) => t.termType === type && t.value.toLowerCase() === v.toLowerCase())) {
+      setErr(null);
+      setValue('');
+      return;
+    }
+    // P0-05: reject with a visible reason instead of silently accepting a term
+    // the server will drop — keep the text in the box so it can be fixed.
+    const reason = termRejectionReason(v);
+    if (reason) {
+      setErr(reason);
+      return;
+    }
+    setErr(null);
     onChange([...terms, { termType: type, value: v }]);
     setValue('');
   };
   const labelFor = (t: string) => TERM_TYPE_LABELS[t] ?? t;
+  // P0-04 c-8: preview which surfaces the SELECTED type feeds. Never a guessed
+  // hint — render nothing until the compiled query actually has data.
+  const surfaceHint = (termSurfaces?.[type] ?? []).map((s) => SURFACE_LABELS[s] ?? s).join(' · ');
   return (
     <div className="typed-terms">
       <div className="tt-list">
@@ -130,11 +182,15 @@ function TypedTermEditor({
             </option>
           ))}
         </select>
+        {surfaceHint && <div className="tt-surfaces">Affects: {surfaceHint}</div>}
         <input
           className="tt-value"
           value={value}
           placeholder="add term…"
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            setValue(e.target.value);
+            if (err) setErr(null);
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
@@ -147,6 +203,11 @@ function TypedTermEditor({
           <Icon name="plus" size={12} /> Add
         </button>
       </div>
+      {err && (
+        <div className="af-error" role="alert">
+          {err}
+        </div>
+      )}
     </div>
   );
 }
@@ -158,6 +219,8 @@ function TagRow({
   onChange,
   onDelete,
   typedTermsEnabled,
+  nameError,
+  termSurfaces,
 }: {
   tag: WatchlistTag;
   open: boolean;
@@ -168,6 +231,11 @@ function TagRow({
    *  (tracker_v2). With the flag off, the legacy path drops them (normalizeTag),
    *  so hide the editor entirely rather than silently lose input (batch-A review). */
   typedTermsEnabled: boolean;
+  /** P0-03: blank/duplicate-name validation for THIS row, computed by the parent
+   *  over the full tag list so it can never go stale against a sibling edit. */
+  nameError?: string | null;
+  /** P0-04 c-8: passed through to the typed-term editor's surface preview. */
+  termSurfaces?: Record<string, string[]>;
 }) {
   const patch = (p: Partial<WatchlistTag>) => onChange({ ...tag, ...p });
   const priority = tag.priority ?? 'med';
@@ -182,7 +250,7 @@ function TagRow({
       <div className="tagrow-head" onClick={onToggleOpen}>
         <span className="tg-name">
           <span className="hash">#</span>
-          {tag.tag || 'new tag'}
+          {tag.tag || <em style={{ opacity: 0.6 }}>Unnamed — add a name</em>}
         </span>
         <button
           className={`tag-pill prio-${priority}`}
@@ -224,6 +292,26 @@ function TagRow({
       </div>
       {open && (
         <div className="tag-adv">
+          <div className="adv-field" style={{ gridColumn: '1 / -1' }}>
+            <div className="af-label">
+              Tag name <span className="af-req" aria-hidden="true">*</span>
+            </div>
+            <input
+              className="tt-value"
+              style={{ width: '100%' }}
+              value={tag.tag}
+              autoFocus={!tag.tag}
+              aria-label="Tag name"
+              aria-invalid={!!nameError}
+              placeholder="e.g. data center load"
+              onChange={(e) => patch({ tag: e.target.value })}
+            />
+            {nameError && (
+              <div className="af-error" role="alert">
+                {nameError}
+              </div>
+            )}
+          </div>
           <div className="adv-field">
             <div className="af-label">Synonyms</div>
             <ChipInput
@@ -261,6 +349,7 @@ function TagRow({
               <TypedTermEditor
                 terms={tag.typedTerms ?? []}
                 onChange={(v) => patch({ typedTerms: v })}
+                termSurfaces={termSurfaces}
               />
             </div>
           )}
@@ -302,6 +391,8 @@ export function TrackerConfigPanel({
   onTestAlert,
   typedTermsEnabled = false,
   jurisdictionsEnabled = false,
+  saving = false,
+  termSurfaces,
 }: {
   allIssueAreas: string[];
   /** LegiWatch v2 (L4): titles the per-user alerts section "Your alerts for [client]". */
@@ -317,6 +408,11 @@ export function TrackerConfigPanel({
   typedTermsEnabled?: boolean;
   /** Show the Jurisdictions selectors (State Legislation Platform, DD4/DD5 — intel-api/tracker_v2 only). */
   jurisdictionsEnabled?: boolean;
+  /** P0-05 c-9: a watchlist save is in flight — suppress the server resync so
+   *  in-progress edits are not clobbered by the (about to be stale) prop value. */
+  saving?: boolean;
+  /** P0-04 c-8: termType → surfaces it affects, for the typed-term editor preview. */
+  termSurfaces?: Record<string, string[]>;
 }) {
   // ── Targeting ──
   const [issues, setIssues] = useState<Set<string>>(() => new Set(watchlist.issueAreas));
@@ -334,6 +430,23 @@ export function TrackerConfigPanel({
     })),
   );
   const [openTags, setOpenTags] = useState<Set<number>>(() => new Set(tags.length ? [] : []));
+
+  // P0-03: case-insensitive uniqueness within this client's watchlist, plus a
+  // required name. Computed, not stored, so it can never go stale against `tags`.
+  const tagNameErrors = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const t of tags) {
+      const k = t.tag.trim().toLowerCase();
+      if (k) counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
+    return tags.map((t) => {
+      const v = t.tag.trim();
+      if (!v) return 'A tag needs a name before it can be saved.';
+      if ((counts.get(v.toLowerCase()) ?? 0) > 1) return `"${v}" is already a tag for this client.`;
+      return null;
+    });
+  }, [tags]);
+  const hasTagNameError = tagNameErrors.some(Boolean);
 
   // ── Alerts ──
   const [triggers, setTriggers] = useState<Set<string>>(() => new Set(prefs.triggers));
@@ -353,6 +466,37 @@ export function TrackerConfigPanel({
     () => new Set(prefs.jurisdictions ?? []),
   );
 
+  // P0-05 c-9: the server drops terms it will not persist and normalizes
+  // labels, so the editor MUST adopt the persisted truth or it keeps showing
+  // input that does not exist. Keyed on a content signature so a resync
+  // happens exactly when the server response differs from what we sent — not
+  // on every render, which would fight typing. Guarded on `saving`: the
+  // autosave's onSuccess writes the response into the cache (which changes
+  // this prop) 600ms after a keystroke, and if the user is still typing that
+  // would otherwise overwrite their in-flight edits.
+  const serverSig = JSON.stringify({
+    i: watchlist.issueAreas,
+    j: watchlist.jurisdictions ?? [],
+    t: watchlist.tags,
+  });
+  const lastAdopted = useRef(serverSig);
+  useEffect(() => {
+    if (saving || serverSig === lastAdopted.current) return;
+    lastAdopted.current = serverSig;
+    setIssues(new Set(watchlist.issueAreas));
+    setJurisdictions(new Set(watchlist.jurisdictions ?? []));
+    setTags(
+      watchlist.tags.map((t) => ({
+        ...t,
+        synonyms: [...t.synonyms],
+        relatedEntities: [...t.relatedEntities],
+        riskTerms: [...t.riskTerms],
+        typedTerms: (t.typedTerms ?? []).map((x) => ({ ...x })),
+      })),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverSig, saving]);
+
   // Debounced autosave (skip the initial mount).
   const wlMounted = useRef(false);
   useEffect(() => {
@@ -360,6 +504,11 @@ export function TrackerConfigPanel({
       wlMounted.current = true;
       return;
     }
+    // P0-03: an unnamed or duplicate tag is silently discarded by the server
+    // (tracker-watchlist.service.ts skips a blank label), so do not save at
+    // all — the inline error is the feedback, and the rest of the form is not
+    // lost because the next valid keystroke saves everything together.
+    if (hasTagNameError) return;
     const id = window.setTimeout(
       () =>
         onSaveWatchlist({
@@ -371,7 +520,7 @@ export function TrackerConfigPanel({
     );
     return () => window.clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [issues, tags, jurisdictions]);
+  }, [issues, tags, jurisdictions, hasTagNameError]);
 
   const prefsMounted = useRef(false);
   useEffect(() => {
@@ -646,16 +795,33 @@ export function TrackerConfigPanel({
                   onChange={(nt) => patchTag(i, nt)}
                   onDelete={() => delTag(i)}
                   typedTermsEnabled={typedTermsEnabled}
+                  nameError={tagNameErrors[i]}
+                  termSurfaces={termSurfaces}
                 />
               ))}
             </div>
             <button className="add-btn" onClick={addTag} style={{ marginTop: 12 }}>
               <Icon name="plus" size={12} /> Add tag
             </button>
+            {hasTagNameError && (
+              <div
+                className="cfg-help"
+                role="alert"
+                style={{ color: 'var(--critical, #b42318)', fontWeight: 600 }}
+              >
+                Targeting is not being saved — every tag needs a unique name.
+              </div>
+            )}
             <div className="cfg-help" style={{ marginTop: 10 }}>
               Synonyms, related entities, and risk terms tune the embeddings + keyword match behind
               Recommendations.
             </div>
+            {watchlist.rejected?.terms?.length ? (
+              <div className="cfg-help" role="alert">
+                Not saved: {watchlist.rejected.terms.map((r) => `"${r.value}"`).join(', ')} —{' '}
+                {watchlist.rejected.terms[0]!.reason}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

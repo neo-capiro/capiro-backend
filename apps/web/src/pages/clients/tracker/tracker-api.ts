@@ -166,6 +166,15 @@ export interface WatchlistPayload {
   jurisdictions?: string[];
   /** Sector/facility-derived jurisdiction suggestion (S5.1) — same read-time-hint posture as suggestedIssueAreas. */
   suggestedJurisdictions?: string[];
+  /**
+   * P0-03/P0-05: what the server refused to persist on the write that produced
+   * this payload, so the editor can show inline validation instead of the user
+   * believing a blank tag or a too-short term was saved. Absent on a pure GET.
+   */
+  rejected?: {
+    topics: Array<{ index: number; label: string; reason: string }>;
+    terms: Array<{ topicLabel: string; termType: string; value: string; reason: string }>;
+  };
 }
 
 export type Materiality = 'low' | 'medium' | 'high';
@@ -230,6 +239,7 @@ export const trackerKeys = {
   summary: (c: string) => ['tracker-summary', c] as const,
   recommendations: (c: string) => ['tracker-recommendations', c] as const,
   watchlist: (c: string) => ['tracker-watchlist', c] as const,
+  compiled: (c: string) => ['tracker-compiled', c] as const,
   seed: (c: string) => ['tracker-seed', c] as const,
   alertPrefs: (c: string) => ['tracker-alert-prefs', c] as const,
   issueAreas: () => ['tracker-issue-areas'] as const,

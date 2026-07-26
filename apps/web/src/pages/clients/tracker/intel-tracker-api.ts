@@ -40,6 +40,7 @@ export const intelTrackerPaths = {
   untrack: (c: string) => `/intel-api/clients/${enc(c)}/tracker/untrack`,
   feedback: (c: string) => `/intel-api/clients/${enc(c)}/tracker/feedback`,
   watchlist: (c: string) => `/intel-api/tracker/watchlists/${enc(c)}`,
+  compiled: (c: string) => `/intel-api/tracker/watchlists/${enc(c)}/compiled`,
   alertPrefs: (c: string) => `/intel-api/tracker/watchlists/${enc(c)}/alert-prefs`,
   // P1.1 aux ports — legacy-identical response shapes, no adapters.
   issueAreas: () => `/intel-api/tracker/issue-areas`,
@@ -113,6 +114,19 @@ interface IntelWatchlist {
   jurisdictions?: string[];
   /** Facility-derived jurisdiction suggestion (S5.1), same posture as suggestedIssueAreas. */
   suggestedJurisdictions?: string[];
+  /** P0-03/P0-05: what the last write to this watchlist refused to persist. Absent on a pure GET. */
+  rejected?: {
+    topics: Array<{ index: number; label: string; reason: string }>;
+    terms: Array<{ topicLabel: string; termType: string; value: string; reason: string }>;
+  };
+}
+/**
+ * intel `GET .../compiled` (P0-04 b-7) — only the field the Configure UI
+ * consumes (the typed-term surface preview) is modeled here; the rest of the
+ * compiler output is not used by the web.
+ */
+interface IntelCompiled {
+  termSurfaces: Record<string, string[]>;
 }
 interface IntelAlertPrefs {
   triggers?: string[];
@@ -233,6 +247,7 @@ export function adaptWatchlist(w: IntelWatchlist): WatchlistPayload {
   if (w.suggestedJurisdictions && w.suggestedJurisdictions.length) {
     payload.suggestedJurisdictions = w.suggestedJurisdictions;
   }
+  if (w.rejected) payload.rejected = w.rejected;
   return payload;
 }
 
@@ -292,4 +307,4 @@ export function prefsToIntel(p: AlertPrefsPayload) {
   };
 }
 
-export type { IntelBoard, IntelRec, IntelWatchlist, IntelAlertPrefs };
+export type { IntelBoard, IntelRec, IntelWatchlist, IntelAlertPrefs, IntelCompiled };
