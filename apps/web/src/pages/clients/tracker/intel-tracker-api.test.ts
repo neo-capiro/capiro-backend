@@ -173,7 +173,7 @@ describe('adaptWatchlist / watchlistToIntel round-trip', () => {
       issueAreas: [],
       topics: [],
       version: 7,
-      updatedBy: 'user_abc',
+      updatedByName: 'Neo Martinez',
       updatedAt: '2026-07-26T13:41:00.000Z',
     });
     expect(configured.version).toBe(7);

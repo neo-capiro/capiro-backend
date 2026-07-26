@@ -191,8 +191,11 @@ export interface WatchlistPayload {
    * falls back to 0, which is correct for a never-configured client.
    */
   version?: number;
-  /** Clerk user id of the last writer. NEVER render it (e-8) — show the time instead. */
-  updatedBy?: string | null;
+  /**
+   * DISPLAY NAME of the last writer, resolved server-side. The raw Clerk id is never
+   * sent, so it cannot be rendered by accident.
+   */
+  updatedByName?: string | null;
   /** ISO timestamp of the last accepted save, for "last changed …". */
   updatedAt?: string | null;
   /**

@@ -65,7 +65,7 @@ function makeTag(overrides: Partial<WatchlistTag> = {}): WatchlistTag {
 }
 
 function makeWatchlist(overrides: Partial<WatchlistPayload> = {}): WatchlistPayload {
-  return { issueAreas: [], tags: [], version: 3, updatedBy: null, updatedAt: null, ...overrides };
+  return { issueAreas: [], tags: [], version: 3, updatedByName: null, updatedAt: null, ...overrides };
 }
 
 function renderPanel(props: Partial<ComponentProps<typeof TrackerConfigPanel>> = {}) {
@@ -164,19 +164,20 @@ describe('TrackerConfigPanel — save state + shared-targeting framing (P1-02)',
     expect(onUndoSave).toHaveBeenCalledTimes(1);
   });
 
-  test('e-10.11 says targeting is shared, shows the last-changed time, and never renders a raw user id', () => {
+  test('e-10.11 says targeting is shared, attributes by NAME, and never renders a raw user id', () => {
     renderPanel({
       watchlist: makeWatchlist({
-        updatedBy: 'user_2abcDEFghiJKLmnoPQRstu',
+        updatedByName: 'Neo Martinez',
         updatedAt: '2026-07-26T13:41:00.000Z',
       }),
     });
 
     expect(screen.getByText(/Shared with your team/i)).toBeInTheDocument();
-    expect(screen.getByText(/last changed/i)).toBeInTheDocument();
-    // A Clerk user id must never reach the DOM (e-8) — intel-api has no user
-    // lookup on this route, and a raw id is worse than a timestamp.
-    expect(document.body.textContent).not.toContain('user_2abcDEFghiJKLmnoPQRstu');
+    expect(screen.getByText(/last changed by Neo Martinez/i)).toBeInTheDocument();
+    // A Clerk user id can no longer reach the DOM at all: the server sends a
+    // resolved name and never the id (e-8). `user_` anywhere in the rendered text
+    // would mean the raw shape leaked back in.
+    expect(document.body.textContent).not.toMatch(/user_[A-Za-z0-9]{8}/);
   });
 
   test('the per-user alerts card still contrasts with the shared targeting card', () => {

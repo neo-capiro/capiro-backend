@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { TrackerConfigPanel } from './TrackerConfigPanel.js';
 import type { AlertPrefsPayload, WatchlistPayload, WatchlistTag } from './tracker-api.js';
@@ -64,7 +64,7 @@ const watchlist = (over: Partial<WatchlistPayload> = {}): WatchlistPayload => ({
   issueAreas: ['Defense'],
   jurisdictions: [],
   version: 3,
-  updatedBy: 'user_x',
+  updatedByName: 'Neo Martinez',
   updatedAt: '2026-07-26T16:21:51.240Z',
   tags: [
     tag({ tag: 'defense authorization', synonyms: ['defense authorization'] }),
@@ -178,6 +178,56 @@ describe('TrackerConfigPanel — priority pill must persist (live-smoke regressi
     const strip = document.querySelector('.wl-savestate')!;
     expect(strip.textContent).toContain('Saved at 16:21');
     expect(strip.textContent).not.toContain('Not saved');
+  });
+
+  test('P1-02: a non-admin gets a read-only card and fires no save', () => {
+    const onSaveWatchlist = vi.fn();
+    render(
+      <TrackerConfigPanel
+        allIssueAreas={['Defense']}
+        watchlist={watchlist()}
+        prefs={prefs()}
+        onSaveWatchlist={onSaveWatchlist}
+        onSavePrefs={() => {}}
+        onRequestVerify={() => {}}
+        onTestAlert={() => {}}
+        typedTermsEnabled
+        canEditTargeting={false}
+      />,
+    );
+
+    // A native <fieldset disabled> makes every descendant inert AND announces it.
+    // NB: `button.disabled` reflects only the element's OWN attribute — inherited
+    // disabling is observable via the enclosing fieldset (and `:disabled` in a real
+    // browser), which is what actually stops the click there.
+    const pill = screen.getAllByTitle('Priority — click to change')[0]!;
+    expect(pill.closest('fieldset')?.disabled).toBe(true);
+    act(() => pill.click());
+    act(() => void vi.advanceTimersByTime(700));
+    expect(onSaveWatchlist).not.toHaveBeenCalled();
+    expect(screen.getByText(/view only/i)).toBeInTheDocument();
+  });
+
+  test('§4.3: TYPING the reserved tag name is refused and blocks the save', () => {
+    const onSaveWatchlist = vi.fn();
+    renderPanel(onSaveWatchlist, { tags: [tag({ tag: 'grid' })] });
+
+    // Expand the row to reach the name input, then rename it to the reserved label.
+    act(() => screen.getByText('grid').click());
+    const input = screen.getByLabelText('Tag name');
+    act(() => void fireEvent.change(input, { target: { value: 'Hearing terms' } }));
+
+    expect(screen.getByText(/reserved/i)).toBeInTheDocument();
+    act(() => void vi.advanceTimersByTime(700));
+    expect(onSaveWatchlist).not.toHaveBeenCalled();
+  });
+
+  test('§4.3: a reserved label the SERVER sent stays editable (the fold-back must round-trip)', () => {
+    // getWatchlist folds legacy flat hearing terms under this exact label. If the
+    // editor flagged it, saving would be blocked and those terms would be stranded.
+    renderPanel(() => {}, { tags: [tag({ tag: 'Hearing terms' })] });
+    expect(screen.queryByText(/reserved/i)).toBeNull();
+    expect(screen.queryByText(/not being saved/i)).toBeNull();
   });
 
   test('the position pill persists too (same code path)', () => {

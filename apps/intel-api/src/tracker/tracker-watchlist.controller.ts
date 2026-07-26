@@ -27,7 +27,9 @@ export class TrackerWatchlistController {
 
   @Get(':clientId')
   getWatchlist(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('clientId') clientId: string) {
-    return this.svc.getWatchlist(ctx.tenantId, clientId);
+    // withUserNames: the Configure panel renders "Updated by <name>"; getCompiled
+    // deliberately does not, to keep the recommendations path free of a users query.
+    return this.svc.getWatchlist(ctx.tenantId, clientId, { withUserNames: true });
   }
 
   @Put(':clientId')

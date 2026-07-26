@@ -381,12 +381,19 @@ describe('TrackerWatchlistService — hearing flat-term round-trip (stateful)', 
     const svc = new TrackerWatchlistService(prisma);
     seedWatchlistRow();
 
-    // A real persisted topic that happens to carry the reserved-looking label.
+    // Establish the persisted reserved-label topic the ONLY legitimate way (a
+    // flat-term fold-back saved once) — creating it directly is now rejected as a
+    // reserved name, which is criterion 3 working.
+    seedFlatTerm({ termType: 'agency', value: 'FERC' });
+    const folded = await svc.getWatchlist(TENANT, CLIENT);
     await svc.putWatchlist(TENANT, CLIENT, 'user-1', {
       issueAreas: [],
-      topics: [{ label: HEARING_TERMS_TOPIC_LABEL, terms: [{ termType: 'agency', value: 'FERC' }] }],
+      topics: folded.topics.map((t) => ({
+        label: t.label,
+        terms: t.terms.map((x) => ({ termType: x.termType, value: x.value })),
+      })),
     });
-    // …and then the legacy tab drops a flat term on the same row.
+    // …and then the legacy tab drops ANOTHER flat term on the same row.
     seedFlatTerm({ termType: 'topic', value: 'interconnection queue' });
 
     const view = await svc.getWatchlist(TENANT, CLIENT);
@@ -643,7 +650,7 @@ describe('TrackerWatchlistService — watchlist versioning + change log (phase e
   it('e-10.8 getWatchlist reports version 0 for a never-configured client', async () => {
     const prisma = tenantReader({ watchlist: { findFirst: async () => null } }) as any;
     const view = await new TrackerWatchlistService(prisma).getWatchlist(TENANT, CLIENT);
-    expect(view).toMatchObject({ version: 0, updatedBy: null, updatedAt: null });
+    expect(view).toMatchObject({ version: 0, updatedByName: null, updatedAt: null });
   });
 
   it('e-10.1/2 the first PUT with expectedVersion 0 succeeds and the version increments', async () => {
@@ -652,7 +659,8 @@ describe('TrackerWatchlistService — watchlist versioning + change log (phase e
 
     const first = await put(svc, [{ label: 'alpha', terms: [] }], 0);
     expect(first.version).toBe(1);
-    expect(first.updatedBy).toBe('user-1');
+    // Attribution is the resolved display NAME (the store's users double), never the id.
+    expect(first.updatedByName).toBe('Ada Lovelace');
 
     const second = await put(svc, [{ label: 'alpha', terms: [] }, { label: 'beta', terms: [] }], 1);
     expect(second.version).toBe(2);
@@ -732,13 +740,15 @@ describe('TrackerWatchlistService — watchlist versioning + change log (phase e
     ).rejects.toThrow('Client not found');
   });
 
-  it('never returns a raw updatedBy without also returning the timestamp the UI shows', async () => {
+  it('attributes by resolved NAME and never exposes the Clerk id in the response shape', async () => {
     const h = statefulPrisma();
     const svc = new TrackerWatchlistService(h.prisma as never);
     const view = await put(svc, [{ label: 'alpha', terms: [] }], 0);
-    // The service exposes both; e-8 requires the UI to render the TIME, never the id.
-    expect(view.updatedBy).toBe('user-1');
+    expect(view.updatedByName).toBe('Ada Lovelace');
     expect(typeof view.updatedAt).toBe('string');
+    // e-8: the id must not be reachable at all, not merely unrendered.
+    expect(Object.keys(view)).not.toContain('updatedBy');
+    expect(JSON.stringify(view)).not.toContain('user-1');
   });
 });
 
@@ -747,6 +757,116 @@ describe('TrackerWatchlistService — watchlist versioning + change log (phase e
  * shipped trigger set, not zero triggers, and a deliberate `[]` clear must
  * still survive (the `??` vs `||` distinction — see tracker-watchlist.service.ts).
  */
+/**
+ * Follow-ups closed after the Gate B live smoke (2026-07-26), at Neo's direction:
+ * §5.1 criterion 3 (the reserved label) and P1-02's permission split. Both were
+ * previously reported as deliberate deviations.
+ */
+describe('TrackerWatchlistService — reserved topic label (criterion 3)', () => {
+  const put = (svc: TrackerWatchlistService, topics: unknown[]) =>
+    svc.putWatchlist(TENANT, CLIENT, 'user-1', { issueAreas: [], topics: topics as never });
+
+  it('rejects the reserved label for a NEW tag when the client has no flat terms', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma as never);
+
+    const view = await put(svc, [
+      { label: 'grid', terms: [] },
+      { label: HEARING_TERMS_TOPIC_LABEL, terms: [{ termType: 'topic', value: 'sneaky' }] },
+    ]);
+
+    expect(view.topics.map((t) => t.label)).toEqual(['grid']);
+    expect(view.rejected?.topics).toEqual([
+      { index: 1, label: HEARING_TERMS_TOPIC_LABEL, reason: '"Hearing terms" is a reserved name.' },
+    ]);
+  });
+
+  it('is case-insensitive about the reserved label', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma as never);
+    const view = await put(svc, [{ label: 'hEaRiNg TeRmS', terms: [] }]);
+    expect(view.topics).toHaveLength(0);
+    expect(view.rejected?.topics[0]?.reason).toContain('reserved');
+  });
+
+  it('ACCEPTS the reserved label when it is the fold-back of real flat terms (no data loss)', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma as never);
+    h.seedWatchlistRow();
+    h.seedFlatTerm({ termType: 'agency', value: 'FERC' });
+
+    // Exactly what the editor round-trips: getWatchlist folded the flat term under
+    // the synthetic label, so the save must persist it rather than reject it.
+    const read = await svc.getWatchlist(TENANT, CLIENT);
+    const view = await put(
+      svc,
+      read.topics.map((t) => ({
+        label: t.label,
+        terms: t.terms.map((x) => ({ termType: x.termType, value: x.value })),
+      })),
+    );
+
+    expect(view.rejected?.topics).toEqual([]);
+    expect(view.topics.map((t) => t.label)).toEqual([HEARING_TERMS_TOPIC_LABEL]);
+    expect(view.topics[0]!.terms.map((t) => t.value)).toEqual(['FERC']);
+  });
+
+  it('ACCEPTS the reserved label once a topic already carries it (never breaks existing data)', async () => {
+    const h = statefulPrisma();
+    const svc = new TrackerWatchlistService(h.prisma as never);
+    h.seedWatchlistRow();
+    h.seedFlatTerm({ termType: 'agency', value: 'FERC' });
+    const read = await svc.getWatchlist(TENANT, CLIENT);
+    await put(
+      svc,
+      read.topics.map((t) => ({
+        label: t.label,
+        terms: t.terms.map((x) => ({ termType: x.termType, value: x.value })),
+      })),
+    );
+    // The flat rows are gone now — the label survives only as a persisted topic.
+    const second = await put(svc, [
+      { label: HEARING_TERMS_TOPIC_LABEL, terms: [{ termType: 'agency', value: 'FERC' }] },
+    ]);
+    expect(second.rejected?.topics).toEqual([]);
+    expect(second.topics.map((t) => t.label)).toEqual([HEARING_TERMS_TOPIC_LABEL]);
+  });
+});
+
+describe('TrackerWatchlistService — targeting is admin-only (P1-02 permission split)', () => {
+  const prismaWithRole = (membershipRole: string | null) =>
+    makeWatchlistStore({ tenantId: TENANT, clientId: CLIENT, membershipRole });
+  const put = (svc: TrackerWatchlistService) =>
+    svc.putWatchlist(TENANT, CLIENT, 'user-1', {
+      issueAreas: [],
+      topics: [{ label: 'grid', terms: [] }],
+    });
+
+  it.each(['user_admin', 'capiro_admin'])('allows an admin (%s) to edit targeting', async (role) => {
+    const h = prismaWithRole(role);
+    await expect(put(new TrackerWatchlistService(h.prisma as never))).resolves.toMatchObject({
+      version: 1,
+    });
+  });
+
+  it('403s a standard_user and writes NOTHING', async () => {
+    const h = prismaWithRole('standard_user');
+    const svc = new TrackerWatchlistService(h.prisma as never);
+
+    await expect(put(svc)).rejects.toMatchObject({ status: 403 });
+    // Fail-closed BEFORE the transaction: no topic, no revision, no version bump.
+    expect(h.ops).toEqual([]);
+    expect(h.revisions).toEqual([]);
+  });
+
+  it('fails OPEN when the caller has no membership row (a lockout is worse than an edit)', async () => {
+    const h = prismaWithRole(null);
+    await expect(put(new TrackerWatchlistService(h.prisma as never))).resolves.toMatchObject({
+      version: 1,
+    });
+  });
+});
+
 describe('TrackerWatchlistService.getAlertPrefs — P1-01 default triggers', () => {
   it('returns DEFAULT_TRIGGERS for a client with no pref row', async () => {
     const prisma = {

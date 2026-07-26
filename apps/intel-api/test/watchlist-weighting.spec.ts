@@ -194,6 +194,33 @@ describe('compileWatchlist — per-topic Deepgram capacity reservation (§4.9)',
     expect(out.deepgramKeyterms).not.toContain('term-000'); // lowest weight dropped
   });
 
+  it('§4.13 caps routableTerms per topic by weight and REPORTS the truncation', () => {
+    const terms: CompilerTerm[] = [];
+    // 150 broad terms plus one high-value company term on the same topic.
+    for (let i = 0; i < 150; i += 1) terms.push(term('A', 'topic', `a-term-${String(i).padStart(3, '0')}`));
+    terms.push(term('A', 'company', 'RTX', 'high'));
+
+    const out = compileWatchlist({ issueAreas: [], topics: [topic('A')], terms });
+    const t = out.billMatchSet[0]!;
+
+    // 100 kept (+ nothing more), and the highest-weight term is among them — a cap
+    // that dropped the company name while keeping noise would be worse than none.
+    expect(t.routableTerms).toHaveLength(100);
+    expect(t.routableTerms.map((x) => x.value)).toContain('RTX');
+    // Reported, not silent — getCompiled logs this at the boundary (the compiler is pure).
+    expect(out.truncatedTopics).toEqual([{ label: 'A', kept: 100, dropped: 51 }]);
+  });
+
+  it('a normal-sized topic reports NO truncation', () => {
+    const out = compileWatchlist({
+      issueAreas: [],
+      topics: [topic('A')],
+      terms: [term('A', 'company', 'RTX', 'high'), term('A', 'topic', 'autonomy')],
+    });
+    expect(out.truncatedTopics).toEqual([]);
+    expect(out.billMatchSet[0]!.routableTerms.length).toBeLessThan(100);
+  });
+
   it('flat (topic-less) hearing terms get their own reserved bucket rather than none', () => {
     const terms: CompilerTerm[] = [];
     for (let i = 0; i < 120; i += 1) terms.push(term('A', 'topic', `a-term-${String(i).padStart(3, '0')}`));

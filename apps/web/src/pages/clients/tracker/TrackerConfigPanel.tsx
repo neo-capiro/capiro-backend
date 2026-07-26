@@ -28,6 +28,12 @@ const POS_LABEL: Record<TagPosition, string> = {
   oppose: 'Oppose',
   monitor: 'Monitor',
 };
+/**
+ * §4.3: mirrors HEARING_TERMS_TOPIC_LABEL in intel-api. The server folds legacy
+ * flat hearing terms under this label, so a user must not be able to create a tag
+ * that shadows it — but an existing one must remain editable (see tagNameErrors).
+ */
+const RESERVED_TAG_NAME = 'Hearing terms';
 /** P0-04 c-8: human labels for the surfaces a typed-term type can affect. */
 const SURFACE_LABELS: Record<string, string> = {
   recommendations: 'Recommendations',
@@ -431,6 +437,7 @@ export function TrackerConfigPanel({
   onRetrySave,
   onUndoSave,
   canUndo = false,
+  canEditTargeting = true,
 }: {
   allIssueAreas: string[];
   /** LegiWatch v2 (L4): titles the per-user alerts section "Your alerts for [client]". */
@@ -462,6 +469,14 @@ export function TrackerConfigPanel({
   /** P1-02 e-9: restore the previously persisted targeting (one level only). */
   onUndoSave?: () => void;
   canUndo?: boolean;
+  /**
+   * P1-02: targeting is firm-wide, so only tenant admins may change it (the server
+   * enforces this and 403s otherwise). When false the Targeting card renders
+   * read-only, so a non-admin is never invited to type edits that will be rejected.
+   * Defaults TRUE so any caller that has not been updated keeps working — the server
+   * remains the authority either way.
+   */
+  canEditTargeting?: boolean;
 }) {
   // ── Targeting ──
   const [issues, setIssues] = useState<Set<string>>(() => new Set(watchlist.issueAreas));
@@ -488,13 +503,23 @@ export function TrackerConfigPanel({
       const k = t.tag.trim().toLowerCase();
       if (k) counts.set(k, (counts.get(k) ?? 0) + 1);
     }
+    // §4.3: the server's synthetic label for legacy flat hearing terms. Reserved for
+    // a NEW name only — if the server already sends a tag with it (the fold-back, or
+    // a topic that predates the rule) it must stay editable, or the round-trip that
+    // preserves those terms breaks.
+    const serverHasReserved = watchlist.tags.some(
+      (t) => t.tag.trim().toLowerCase() === RESERVED_TAG_NAME.toLowerCase(),
+    );
     return tags.map((t) => {
       const v = t.tag.trim();
       if (!v) return 'A tag needs a name before it can be saved.';
       if ((counts.get(v.toLowerCase()) ?? 0) > 1) return `"${v}" is already a tag for this client.`;
+      if (!serverHasReserved && v.toLowerCase() === RESERVED_TAG_NAME.toLowerCase()) {
+        return `"${RESERVED_TAG_NAME}" is reserved — Capiro uses it for hearing terms. Pick another name.`;
+      }
       return null;
     });
-  }, [tags]);
+  }, [tags, watchlist.tags]);
   const hasTagNameError = tagNameErrors.some(Boolean);
 
   // ── Alerts ──
@@ -554,6 +579,10 @@ export function TrackerConfigPanel({
     // all — the inline error is the feedback, and the rest of the form is not
     // lost because the next valid keystroke saves everything together.
     if (hasTagNameError) return;
+    // P1-02: a non-admin cannot persist targeting, so never fire a PUT that the
+    // server will 403. The card is read-only in this state anyway; this is the
+    // belt to that braces.
+    if (!canEditTargeting) return;
     // §4.8 (client half): never schedule a second PUT while one is in flight —
     // the second would carry the SAME expectedVersion and 409 against the first's
     // bump. `saving` is in the deps, so the save is re-scheduled the moment the
@@ -576,7 +605,7 @@ export function TrackerConfigPanel({
     );
     return () => window.clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [issues, tags, jurisdictions, hasTagNameError, saving, serverSig]);
+  }, [issues, tags, jurisdictions, hasTagNameError, saving, serverSig, canEditTargeting]);
 
   const prefsMounted = useRef(false);
   useEffect(() => {
@@ -732,15 +761,17 @@ export function TrackerConfigPanel({
         <div className="card-head">
           <h3>Targeting</h3>
           {/* P1-02: say out loud that this is FIRM-WIDE. The "Your alerts for
-              {client}" card below is per-user; the contrast is the point. The
-              last writer's Clerk user id is deliberately NOT rendered (e-8) —
-              intel-api has no user lookup on this route, and a raw id is worse
-              than a timestamp. */}
+              {client}" card below is per-user; the contrast is the point.
+              Attribution is a resolved display NAME — the server no longer sends
+              the Clerk id at all, so it cannot be rendered by accident (e-8). */}
           <span className="sub">
-            Shared with your team — everyone at your firm sees and is affected by this
-            {watchlist.updatedAt
-              ? ` · last changed ${new Date(watchlist.updatedAt).toLocaleString()}`
-              : ''}
+            {canEditTargeting
+              ? 'Shared with your team — everyone at your firm sees and is affected by this'
+              : 'Shared with your team — view only, because changing it affects every colleague. Ask an admin to edit.'}
+            {watchlist.updatedAt &&
+              ` · last changed${watchlist.updatedByName ? ` by ${watchlist.updatedByName}` : ''} ${new Date(
+                watchlist.updatedAt,
+              ).toLocaleString()}`}
           </span>
           <span className="grow" />
           <span className="wl-savestate" aria-live="polite">
@@ -781,6 +812,15 @@ export function TrackerConfigPanel({
             )}
           </span>
         </div>
+        {/* P1-02: a native <fieldset disabled> makes every descendant control
+            non-interactive and announces it to assistive tech, which a
+            pointer-events hack does not. Reset styling so a read-only card looks
+            identical apart from being inert. */}
+        <fieldset
+          className="wl-fieldset"
+          disabled={!canEditTargeting}
+          style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
+        >
         <div className="card-body">
           {seedCount > 0 && (
             <div className="wl-seed">
@@ -928,6 +968,7 @@ export function TrackerConfigPanel({
             ) : null}
           </div>
         </div>
+        </fieldset>
       </div>
 
       {/* Alerts */}

@@ -68,6 +68,7 @@ const PREFS = {
 function mockGets() {
   apiGetMock.mockImplementation(async (url: string) => {
     if (url.includes('/feature-flags')) return { data: {} }; // tracker_v2 off -> legacy paths
+    if (url === '/api/me') return { data: { role: 'capiro_admin' } };
     if (url.endsWith('/alert-prefs')) return { data: PREFS };
     if (url.endsWith('/watchlist')) return { data: { issueAreas: [], tags: [] } };
     if (url.endsWith('/watchlist/seed-suggestions')) return { data: { tags: [], issueAreas: [] } };
