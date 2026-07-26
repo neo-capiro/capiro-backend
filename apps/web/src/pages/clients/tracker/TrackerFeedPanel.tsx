@@ -17,6 +17,12 @@ import {
   type RecommendedAction,
 } from './intel-feed-api.js';
 import { useAddTalkingPoint, useSetReport } from './alert-actions-api.js';
+import {
+  actionTextOf,
+  buildOutreachContextPoolItem,
+  renderPacketSummary,
+  type GovernmentAffairsAlertPacket,
+} from './alert-packet.js';
 import { MemoComposerDrawer } from './MemoComposerDrawer.js';
 import { DistrictBriefComposerDrawer } from './DistrictBriefComposerDrawer.js';
 
@@ -375,11 +381,20 @@ export function TrackerFeedPanel({
   // (CreateOutreachRecordDto: type/clientId/title/direction/lastStep/metadata/contextPool).
   const draftOutreach = useMutation({
     mutationFn: async (item: FeedItem) => {
-      const bill = item.evidence?.bill;
-      const actionText = bill
-        ? `${bill.displayNum}${bill.actionText ? ` — ${bill.actionText}` : ''}`
-        : null;
-      const body = [item.whyItMatters, actionText].filter(Boolean).join(' · ');
+      // P1-13: the wizard used to open with `whyItMatters + one bill action`, dropping
+      // every hearing quote and speaker, every PE funding delta, every regulation field,
+      // the official source URL, the client's position/priority, the active strategy, and
+      // the target offices. Fetch the server-built §4.1 packet instead.
+      //
+      // .catch(() => null) is load-bearing: a packet-fetch failure must NEVER block the
+      // outreach draft, and the fallback is byte-identical to the old projection.
+      const packet = await api
+        .get<GovernmentAffairsAlertPacket>(
+          `/intel-api/clients/${encodeURIComponent(item.clientId)}/alerts/${encodeURIComponent(item.id)}/packet`,
+        )
+        .then((r) => r.data)
+        .catch(() => null);
+      const body = packet ? renderPacketSummary(packet) : actionTextOf(item);
       const ctxId = `alert-${item.id}`;
       const contextItem = {
         id: ctxId,
@@ -404,21 +419,18 @@ export function TrackerFeedPanel({
           targets: [],
           contextItems: [contextItem],
         },
-        // Lossy projection the API stores at the top level so Meri generation
-        // sees the alert as a context source (mirrors the wizard's contextPool).
+        // The projection the API stores at the top level so Meri generation sees the
+        // alert as a context source (mirrors the wizard's contextPool). Since P1-13 this
+        // carries the PACKET-derived context, not the old one-line summary.
+        //
+        // The packet is nested in `summary` rather than sent as its own key on purpose:
+        // OutreachContextPoolItemDto is strictly typed and the global ValidationPipe runs
+        // forbidNonWhitelisted, so an unwhitelisted `packet` key would 400 the whole POST
+        // — and widening that DTO would touch a contract the outreach wizard also uses.
         // Slice to the DTO bounds (title @Length(1,240), summary @Length(0,2000)):
         // intel_alert.title is unbounded and federal bill/hearing titles routinely
         // exceed 240, which would 400 the whole POST (review finding).
-        contextPool: [
-          {
-            id: ctxId,
-            sourceType: 'intel',
-            title: item.title.slice(0, 240),
-            summary: body.slice(0, 2000),
-            note: '',
-            scope: 'all',
-          },
-        ],
+        contextPool: [buildOutreachContextPoolItem(ctxId, item, body)],
       });
       return res.data;
     },

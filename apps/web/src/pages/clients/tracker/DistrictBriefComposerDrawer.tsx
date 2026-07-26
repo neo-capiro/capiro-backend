@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { App as AntApp, Button, Empty, Modal, Select, Space, Tag, Tooltip, Typography } from 'antd';
 import { useApi } from '../../../lib/use-api.js';
 import { errorMessage } from '../../../lib/error-message.js';
@@ -33,6 +34,7 @@ export function DistrictBriefComposerDrawer({
 }) {
   const { message } = AntApp.useApp();
   const api = useApi();
+  const navigate = useNavigate();
   const generate = useGenerateDistrictBrief();
 
   const facilities = useQuery<ClientFacility[]>({
@@ -58,7 +60,17 @@ export function DistrictBriefComposerDrawer({
       });
       setBrief(res);
       setAttachmentId(res.document?.attachmentId ?? null);
-      if (res.document) {
+      // c-8 (resolves Gate A b-6's deferral): a HELD brief also has document === null,
+      // so the old two-branch check told the analyst "auto-file to Documents failed" for
+      // a deliberate governance hold — a policy decision reported as a bug. `held` is
+      // checked FIRST, exactly as Gate A c-4 did for the memo. Note there is no filing
+      // path on this surface at all (the footer is Regenerate/Copy/Close and the service
+      // has no saveEdited), so this was mislabeling, never a save bypass.
+      if (res.held) {
+        message.warning(
+          'Held for review — not filed. A reviewer must approve it before it can be filed.',
+        );
+      } else if (res.document) {
         message.success('District brief drafted and filed in Documents');
       } else {
         message.warning('District brief drafted (auto-file to Documents failed)');
@@ -98,6 +110,7 @@ export function DistrictBriefComposerDrawer({
 
   const busy = generate.isPending;
   const markdown = brief?.markdown ?? '';
+  const held = brief?.held === true;
 
   return (
     <Modal
@@ -125,6 +138,11 @@ export function DistrictBriefComposerDrawer({
         >
           Copy
         </Button>,
+        held && (
+          <Button key="review" onClick={() => navigate('/reviews')}>
+            View review request
+          </Button>
+        ),
         <Button key="close" onClick={onClose}>
           Close
         </Button>,
@@ -162,7 +180,13 @@ export function DistrictBriefComposerDrawer({
       ) : (
         <Space direction="vertical" style={{ width: '100%' }} size={10}>
           <Space size={6} wrap>
-            {attachmentId ? (
+            {held ? (
+              <Tooltip
+                title={brief?.heldReason || 'The grounding auditor held this brief for review.'}
+              >
+                <Tag color="red">Held for review — unapproved draft</Tag>
+              </Tooltip>
+            ) : attachmentId ? (
               <Tag color="green">Saved to Documents ✓</Tag>
             ) : (
               <Tag>Not yet filed</Tag>
@@ -209,6 +233,9 @@ export function DistrictBriefComposerDrawer({
                   style={{ margin: '2px 0', fontSize: 11.5 }}
                   type="secondary"
                 >
+                  <Text code style={{ fontSize: 10.5 }}>
+                    [{s.claimId}]
+                  </Text>{' '}
                   {s.label}
                   {s.url ? (
                     <>
@@ -218,6 +245,8 @@ export function DistrictBriefComposerDrawer({
                       </a>
                     </>
                   ) : null}
+                  {s.retrievedAt ? ` · retrieved ${s.retrievedAt}` : null}
+                  {s.verification ? ` · ${s.verification}` : null}
                 </Paragraph>
               ))}
             </div>

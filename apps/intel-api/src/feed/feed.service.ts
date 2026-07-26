@@ -4,6 +4,7 @@ import { HearingCryptoService } from '../hearing/hearing-crypto.service.js';
 import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
 import { ActionItemService } from './action-item.service.js';
 import { recommendedActionsFor } from './recommended-actions.util.js';
+import { normalizeEvidence } from './normalize-evidence.js';
 
 /**
  * Combined intel feed (Phase 6 §9.7). Reads `intel_alert` only — evidence is
@@ -282,18 +283,38 @@ export class FeedService {
           )
           .catch(() => new Map<string, string>());
 
-    const decorated = items.map((it) => ({
-      ...it,
-      clientName: clientNames.get(it.clientId) ?? null,
-      tag: deriveTag(it, termTagById),
-      recommendedActions: recommendedActionsFor({
+    // P0-07: normalize evidence into ONE versioned contract, here and nowhere else.
+    // Order matters and is asserted by test: decryptQuotes (above) → actionState →
+    // termTagById → clientNames → normalize. Normalizing earlier would copy the
+    // hearing mentions and the decrypted quote text would land on an orphaned object.
+    const decorated = items.map((it) => {
+      const evidence = normalizeEvidence({
         sourceType: it.sourceType,
-        severity: it.severity,
         sourceRef: it.sourceRef,
+        title: it.title,
+        whyItMatters: it.whyItMatters,
+        termId: it.termId,
         evidence: it.evidence,
-      }),
-      actions: actionState.get(it.id) ?? { inReport: false, talkingPoints: 0 },
-    }));
+        topicLabel: it.termId ? (termTagById.get(it.termId) ?? null) : null,
+      });
+      return {
+        ...it,
+        evidence,
+        clientName: clientNames.get(it.clientId) ?? null,
+        // deriveTag reads the RAW row on purpose — it runs independently of
+        // normalization and reads the stored flat `matchedTags` key directly.
+        tag: deriveTag(it, termTagById),
+        recommendedActions: recommendedActionsFor({
+          sourceType: it.sourceType,
+          severity: it.severity,
+          sourceRef: it.sourceRef,
+          // The NORMALIZED evidence: a flat writer's top-level `sessionId` now lives
+          // under `extra`, which is why sessionIdOf grew an `extra` fallback (b-4).
+          evidence,
+        }),
+        actions: actionState.get(it.id) ?? { inReport: false, talkingPoints: 0 },
+      };
+    });
 
     return { items: decorated, nextCursor, hasMore, counts, severityCounts };
   }
@@ -318,5 +339,18 @@ function deriveTag(
   const byTerm = mentions.find((m) => m?.term)?.term;
   if (byTerm) return byTerm;
   const byIssue = mentions.flatMap((m) => m?.issueTags ?? [])[0];
-  return byIssue ?? null;
+  if (byIssue) return byIssue;
+  // P1-09: the bill-change detector stores its relevance explanation as
+  // evidence.matchedTags (bill-change-detector.service.ts:1041) and never sets termId,
+  // so every bill alert used to render with no tag chip and an empty canonical issueId.
+  // Ordering is deterministic — explainMatch returns
+  // Array.from(new Set(matchedTags)).slice(0, 4) (relevance.util.ts:201), tags before
+  // issue areas — so [0] is the strongest match. LAST fallback: existing precedence is
+  // untouched.
+  const flatTags = (it.evidence as { matchedTags?: unknown } | null)?.matchedTags;
+  if (Array.isArray(flatTags)) {
+    const first = flatTags.find((t): t is string => typeof t === 'string' && t.trim().length > 0);
+    if (first) return first;
+  }
+  return null;
 }

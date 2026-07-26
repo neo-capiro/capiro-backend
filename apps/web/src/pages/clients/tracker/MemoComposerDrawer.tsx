@@ -10,6 +10,7 @@ import {
   useGenerateAlertMemo,
   useRecordMemoLink,
   useSaveAlertMemo,
+  withClaimAnchors,
   type AlertMemoResult,
 } from './alert-actions-api.js';
 
@@ -60,7 +61,9 @@ export function MemoComposerDrawer({
           let heading = base;
           let n = 2;
           while (Object.prototype.hasOwnProperty.call(sectionContent, heading)) heading = `${base} (${n++})`;
-          const md = s.paragraphs.map((p) => p.text).join('\n\n');
+          // P1-15: carry the paragraph claim anchors into the Workspace draft too, in
+          // the SAME format apps/api's withClaimAnchors defines (alert-memo.service.ts).
+          const md = s.paragraphs.map((p) => withClaimAnchors(p.text, p.claimIds)).join('\n\n');
           sections.push(heading);
           sectionContent[heading] = markdownishToHtml(md);
         }
@@ -90,6 +93,9 @@ export function MemoComposerDrawer({
   const [markdown, setMarkdown] = useState('');
   const [attachmentId, setAttachmentId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  // P1-14: the document is filed but the alert↔document link is a SECOND durable write.
+  // When it fails we hold what a retry needs instead of dropping it on the floor.
+  const [linkFailed, setLinkFailed] = useState<{ attachmentId: string; title: string } | null>(null);
   const startedFor = useRef<string | null>(null);
 
   // P0-01: a memo the grounding auditor HELD for review — governance state, not
@@ -112,10 +118,25 @@ export function MemoComposerDrawer({
       if (res.held) {
         message.warning('Held for review — not filed. A reviewer must approve it before it can be filed.');
       } else if (res.document) {
-        await recordLink
-          .mutateAsync({ clientId, alertId: item.id, documentAttachmentId: res.document.attachmentId, title: res.title })
-          .catch(() => undefined); // unchanged for now; Gate C fixes the swallow (P1-14)
-        message.success('Memo drafted and filed in Documents');
+        // P1-14: swallowing this failure told the user "drafted and filed" while the
+        // Feed had NO association — so reopening the composer saw no
+        // documentAttachmentId and generated a SECOND document. Report the partial
+        // state and offer a retry instead.
+        try {
+          await recordLink.mutateAsync({
+            clientId,
+            alertId: item.id,
+            documentAttachmentId: res.document.attachmentId,
+            title: res.title,
+          });
+          setLinkFailed(null);
+          message.success('Memo drafted and filed in Documents');
+        } catch {
+          setLinkFailed({ attachmentId: res.document.attachmentId, title: res.title });
+          message.warning(
+            'Memo filed in Documents, but it is not yet linked to this alert. Use Link to alert to finish.',
+          );
+        }
       } else {
         message.warning('Memo drafted (auto-file to Documents failed — use Save to retry)');
       }
@@ -159,14 +180,46 @@ export function MemoComposerDrawer({
       });
       if (res.document) {
         setAttachmentId(res.document.attachmentId);
-        await recordLink
-          .mutateAsync({ clientId, alertId: item.id, documentAttachmentId: res.document.attachmentId, title: res.title })
-          .catch(() => undefined);
+        // P1-14 (e-5): identical treatment on the save path — a swallowed link failure
+        // here left the same orphaned document behind.
+        try {
+          await recordLink.mutateAsync({
+            clientId,
+            alertId: item.id,
+            documentAttachmentId: res.document.attachmentId,
+            title: res.title,
+          });
+          setLinkFailed(null);
+        } catch {
+          setLinkFailed({ attachmentId: res.document.attachmentId, title: res.title });
+          setDirty(false);
+          message.warning(
+            'Memo filed in Documents, but it is not yet linked to this alert. Use Link to alert to finish.',
+          );
+          return;
+        }
       }
       setDirty(false);
       message.success('Saved to Documents');
     } catch (e) {
       message.error(`Save failed: ${(e as Error).message}`);
+    }
+  };
+
+  /** P1-14 (e-4): finish the alert↔document link after a failed first attempt. */
+  const retryLink = async () => {
+    if (!item || !linkFailed) return;
+    try {
+      await recordLink.mutateAsync({
+        clientId,
+        alertId: item.id,
+        documentAttachmentId: linkFailed.attachmentId,
+        title: linkFailed.title,
+      });
+      setLinkFailed(null);
+      message.success('Linked to this alert');
+    } catch (e) {
+      message.error(`Could not link the memo to this alert: ${(e as Error).message}`);
     }
   };
 
@@ -207,6 +260,20 @@ export function MemoComposerDrawer({
               </Button>,
             ]
           : []),
+        // P1-14 (e-4): the retry the swallowed failure never offered. Re-runs the link
+        // write with the stored ids; recordMemo is idempotent on
+        // (tenantId, alertId, kind:'memo'), so pressing it twice cannot double-write.
+        ...(linkFailed
+          ? [
+              <Button
+                key="relink"
+                onClick={() => void retryLink()}
+                loading={recordLink.isPending}
+              >
+                Link to alert
+              </Button>,
+            ]
+          : []),
         <Button key="close" onClick={onClose}>
           Close
         </Button>,
@@ -243,6 +310,13 @@ export function MemoComposerDrawer({
                 <Tag color="orange">Low confidence</Tag>
               </Tooltip>
             )}
+            {/* P1-14: the partial state has to be visible after the toast fades, or the
+                analyst has no way to know the alert is still unlinked. */}
+            {linkFailed && (
+              <Tooltip title="The memo is in the client's Documents, but the alert has no durable link to it yet. Use Link to alert.">
+                <Tag color="orange">Filed, not linked to this alert</Tag>
+              </Tooltip>
+            )}
             {memo?.memoryFilesUsed?.length ? (
               <Tooltip title={`Voice/priorities steered by: ${memo.memoryFilesUsed.join(', ')}`}>
                 <Tag color="blue">Context: {memo.memoryFilesUsed.join(', ')}</Tag>
@@ -271,11 +345,67 @@ export function MemoComposerDrawer({
             </Text>
           )}
 
+          {/* §4.6: what steered this memo, and what the compiler withheld and why.
+              "Context used" was only a tag before; the exclusion trace was computed by
+              the Context Compiler on every generate and then discarded. */}
+          {memo?.memoryFilesUsed?.length ? (
+            <div>
+              <Text strong style={{ fontSize: 12 }}>Context used</Text>
+              <Paragraph style={{ margin: '2px 0', fontSize: 11.5 }} type="secondary">
+                {memo.memoryFilesUsed.join(', ')}
+              </Paragraph>
+            </div>
+          ) : null}
+          {memo?.contextExcluded?.length ? (
+            <div>
+              <Text strong style={{ fontSize: 12 }}>Context excluded</Text>
+              {memo.contextExcluded.map((x, i) => (
+                <Paragraph
+                  key={`${x.title}-${x.reason}-${i}`}
+                  style={{ margin: '2px 0', fontSize: 11.5 }}
+                  type="secondary"
+                >
+                  {x.title} — {x.reason}
+                </Paragraph>
+              ))}
+            </div>
+          ) : null}
+
+          {/* §4.7 (g-4): show the analyst which sentences the entailment gate judged
+              unsupported. Under shadow these are STILL in the memo above — this list is
+              what would have been withheld, which is how the gate gets evaluated before
+              it is trusted to remove text. */}
+          {memo?.entailmentDropped?.length ? (
+            <div>
+              <Text strong style={{ fontSize: 12 }} type="warning">
+                Withheld as unsupported ({memo.entailmentDropped.length})
+              </Text>
+              {memo.entailmentDropped.map((d, i) => (
+                <Paragraph
+                  key={`${d.heading}-${i}`}
+                  style={{ margin: '2px 0', fontSize: 11.5 }}
+                  type="secondary"
+                >
+                  <Text strong style={{ fontSize: 11 }}>
+                    {d.heading}:
+                  </Text>{' '}
+                  {d.text}
+                  {d.reason ? ` — ${d.reason}` : null}
+                </Paragraph>
+              ))}
+            </div>
+          ) : null}
+
           {memo?.sources?.length ? (
             <div>
               <Text strong style={{ fontSize: 12 }}>Sources</Text>
               {memo.sources.map((s) => (
                 <Paragraph key={s.claimId} style={{ margin: '2px 0', fontSize: 11.5 }} type="secondary">
+                  {/* The claim id is what the paragraph anchors point at ("… [c2]"), so
+                      it has to be visible for an anchor to be auditable. */}
+                  <Text code style={{ fontSize: 10.5 }}>
+                    [{s.claimId}]
+                  </Text>{' '}
                   {s.label}
                   {s.url ? (
                     <>
@@ -285,6 +415,8 @@ export function MemoComposerDrawer({
                       </a>
                     </>
                   ) : null}
+                  {s.retrievedAt ? ` · retrieved ${s.retrievedAt}` : null}
+                  {s.verification ? ` · ${s.verification}` : null}
                 </Paragraph>
               ))}
             </div>

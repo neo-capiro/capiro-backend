@@ -26,9 +26,52 @@ class AlertMemoQuoteDto {
   @IsOptional() @IsNumber() atSec?: number;
 }
 
-class AlertMemoAlertDto implements AlertMemoAlertInput {
+/**
+ * P0-08. Every field carries a decorator because the global ValidationPipe runs
+ * forbidNonWhitelisted — an undecorated field would 400 the whole request.
+ */
+/** §4.5. Every field decorated — forbidNonWhitelisted would 400 the request otherwise. */
+class AlertMemoRegulationDto {
+  @IsOptional() @IsString() @MaxLength(500) ruleTitle?: string | null;
+  @IsOptional() @IsString() @MaxLength(200) agency?: string | null;
+  @IsOptional() @IsString() @MaxLength(64) ruleType?: string | null;
+  @IsOptional() @IsString() @MaxLength(32) commentEndDate?: string | null;
+  @IsOptional() @IsString() @MaxLength(32) effectiveDate?: string | null;
+  @IsOptional() @IsString() @MaxLength(120) docketId?: string | null;
+  @IsOptional() @IsString() @MaxLength(500) url?: string | null;
+}
+
+class AlertMemoDeadlineDto {
+  @IsOptional() @IsString() @MaxLength(64) cutoffType?: string | null;
+  @IsOptional() @IsString() @MaxLength(32) cutoffDate?: string | null;
+  @IsOptional() @IsNumber() daysUntil?: number | null;
+}
+
+class AlertMemoProgramElementDto {
+  @IsString() @MaxLength(32) peCode!: string;
+  @IsOptional() @IsString() @MaxLength(300) title?: string | null;
+  @IsOptional() @IsNumber() fiscalYear?: number | null;
+  @IsOptional() @IsString() @MaxLength(64) deltaType?: string | null;
+  @IsOptional() @IsString() @MaxLength(120) deltaTypeLabel?: string | null;
+  @IsOptional() @IsString() @MaxLength(200) fromRef?: string | null;
+  @IsOptional() @IsString() @MaxLength(200) toRef?: string | null;
+  @IsOptional() @IsNumber() amountFromMillions?: number | null;
+  @IsOptional() @IsNumber() amountToMillions?: number | null;
+  @IsOptional() @IsNumber() deltaMillions?: number | null;
+  @IsOptional() @IsNumber() deltaPct?: number | null;
+  @IsOptional() @IsString() @MaxLength(32) verification?: string | null;
+  @IsOptional() @IsString() @MaxLength(200) linkedRef?: string | null;
+  @IsOptional() @IsString() @MaxLength(500) href?: string | null;
+}
+
+/** Exported so the PE widening (P0-08) can be validated directly in a unit test. */
+export class AlertMemoAlertDto implements AlertMemoAlertInput {
   @IsString() alertId!: string;
-  @IsIn(['bill', 'hearing', 'combined']) sourceType!: 'bill' | 'hearing' | 'combined';
+  // P0-08 / §4.5: widened for program_element, state_bill, and regulation — each now has
+  // its own section order, system prompt, claim builder, and scaffold. Still an
+  // allow-list: an unknown sourceType is rejected, never coerced.
+  @IsIn(['bill', 'hearing', 'combined', 'program_element', 'state_bill', 'regulation'])
+  sourceType!: 'bill' | 'hearing' | 'combined' | 'program_element' | 'state_bill' | 'regulation';
   @IsString() @MaxLength(500) title!: string;
   @IsOptional() @IsString() whyItMatters?: string | null;
   @IsOptional() @IsString() severity?: string | null;
@@ -44,6 +87,13 @@ class AlertMemoAlertDto implements AlertMemoAlertInput {
   quotes?: AlertMemoQuoteDto[];
   @IsOptional() @IsString() url?: string | null;
   @IsOptional() @IsArray() @IsString({ each: true }) matchedTags?: string[];
+  @IsOptional() @ValidateNested() @Type(() => AlertMemoProgramElementDto)
+  programElement?: AlertMemoProgramElementDto;
+  @IsOptional() @IsString() @MaxLength(32) jurisdiction?: string | null;
+  @IsOptional() @ValidateNested() @Type(() => AlertMemoDeadlineDto)
+  deadline?: AlertMemoDeadlineDto | null;
+  @IsOptional() @ValidateNested() @Type(() => AlertMemoRegulationDto)
+  regulation?: AlertMemoRegulationDto;
 }
 
 class GenerateAlertMemoDto {

@@ -11,7 +11,15 @@ export interface DistrictBriefResult {
   /** full brief as markdown (for the composer + edit) */
   markdown: string;
   sections: Array<{ heading: string; paragraphs: Array<{ text: string; claimIds: string[] }> }>;
-  sources: Array<{ claimId: string; label: string; url?: string | null }>;
+  /** §4.6: label + url, plus when it was retrieved and how well it is attested. */
+  sources: Array<{
+    claimId: string;
+    label: string;
+    url?: string | null;
+    retrievedAt?: string;
+    verification?: 'official' | 'verified' | 'extracted' | 'unverified';
+    page?: number;
+  }>;
   /** the EngagementAttachment (client Documents) the brief was auto-filed as */
   document: { attachmentId: string; fileName: string } | null;
   usedTenantKey: boolean;
@@ -25,6 +33,12 @@ export interface DistrictBriefResult {
    * carries it until an admin/assigned reviewer approves (`document` is null).
    */
   held: boolean;
+  /**
+   * c-8: the pending review_request created when held, so the composer can link to it,
+   * and the human-readable reason. Mirrors AlertMemoResult. Null/'' unless held.
+   */
+  reviewRequestId: string | null;
+  heldReason: string;
   /** which facility this brief covers, for the composer header */
   facility: { id: string; name: string; city: string | null; state: string | null };
 }

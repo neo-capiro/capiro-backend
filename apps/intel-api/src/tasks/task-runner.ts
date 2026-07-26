@@ -29,6 +29,7 @@ import { SourceRuleRepository } from '../sourcedata/rule-source-data.repository.
 import { NewMatchDetectorService } from '../tracker/new-match-detector.service.js';
 import { FeatureFlagService } from '../feature-flags/feature-flag.service.js';
 import { IntelAlertService } from '../intel-alert/intel-alert.service.js';
+import { ActionItemService } from '../feed/action-item.service.js';
 import { IntelEmailService } from '../intel-alert/intel-email.service.js';
 import { AlertSummaryClient } from '../intel-alert/alert-summary.client.js';
 import { TrackerWatchlistService } from '../tracker/tracker-watchlist.service.js';
@@ -77,6 +78,7 @@ export const KNOWN_VERBS = [
   'emit-bill-alerts', //            Phase 4: fan out NEW intel_alert (SHADOW: suppress+log, no send)
   'flush-digests', //               P0-02: drain digest queue, real send when owned (shadow still suppresses)
   'recover-stranded-digests', //    P0-02: diag-only recovery for crash-stranded digest rows (dry-run default)
+  'reconcile-orphan-memo-links', // P1-14: diag-only relink of filed memo docs with no alert link (dry-run default)
   'shadow-selftest', //             Phase 4: live proof of the shadow suppress path
   'verify-recommendations', //      §6.2: live proof of the recs+board path (keyword+semantic SQL)
   'parity-report', //               Phase 5: diff legacy intelligence_change vs shadow intel_alert (§8)
@@ -519,6 +521,25 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       deps.log(
         `RECOVER_STRANDED_DIGESTS_DONE candidates=${r.candidates} reset=${r.reset} ` +
           `mode=${flags['apply'] === 'true' ? 'APPLY' : 'DRY_RUN'}`,
+      );
+      return;
+    }
+    case 'reconcile-orphan-memo-links': {
+      // P1-14: DRY-RUN unless --apply=true, same dual gate as the verbs above. Requires
+      // an explicit tenantId: the attachments read is tenant-scoped and this must never
+      // reach for withSystem (MASTER §4.7 forbids a withSystem write).
+      const tenantId = args[0];
+      if (!tenantId)
+        throw new Error('reconcile-orphan-memo-links requires <tenantId> [--apply=true]');
+      const flags = parseFlags(args.slice(1));
+      const r = await new ActionItemService(deps.prisma).reconcileOrphanMemoLinks(
+        tenantId,
+        { apply: flags['apply'] === 'true' },
+        deps.log,
+      );
+      deps.log(
+        `RECONCILE_ORPHAN_MEMO_LINKS_DONE candidates=${r.candidates} linked=${r.linked} ` +
+          `ambiguous=${r.ambiguous} mode=${flags['apply'] === 'true' ? 'APPLY' : 'DRY_RUN'}`,
       );
       return;
     }
