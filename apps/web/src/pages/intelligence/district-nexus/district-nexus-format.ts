@@ -128,3 +128,23 @@ export function splitDistrictKey(districtKey: string): { state: string; district
   const [state, districtNo] = districtKey.split('-');
   return { state: state ?? '', districtNo: districtNo ?? '' };
 }
+
+/**
+ * Link to the `/directory/districts/:state/:districtNo` page for a district key.
+ *
+ * `districtNo` is zero-padded to the 2-digit convention that route expects.
+ * This is not belt-and-braces: `districtCodeForHouseMatch`
+ * (apps/api/src/common/district-code.util.ts) returns the source's code
+ * VERBATIM, so a rail that stored '4' produces the key 'TX-4', and an unpadded
+ * link lands on a page that cannot resolve it.
+ *
+ * Single home for the convention because it is needed from two different
+ * chunks — the lazy map drawer and the eager client-profile widget — and two
+ * hand-rolled copies are two things to drift.
+ */
+export function directoryDistrictPath(districtKey: string): string {
+  const { state, districtNo } = splitDistrictKey(districtKey);
+  return `/directory/districts/${encodeURIComponent(state)}/${encodeURIComponent(
+    districtNo.padStart(2, '0'),
+  )}`;
+}
