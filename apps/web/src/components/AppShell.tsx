@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ChatDrawer } from './chat/ChatDrawer.js';
 import { MeriOverlay } from './chat/MeriOverlay.js';
+import { isStrategyMeriSuppressed } from './strategy-meri-suppression.js';
 import { WorkspaceNotificationBell } from './WorkspaceNotificationBell.js';
 import { QuickLogButton } from './QuickLog.js';
 import {
@@ -257,6 +258,10 @@ export function AppShell() {
   const displayTitle = me.data?.user.title ?? null;
 
   const page = useMemo(() => pageConfigFor(location.pathname), [location.pathname]);
+  const strategyMeriSuppressed = useMemo(
+    () => isStrategyMeriSuppressed(location.pathname),
+    [location.pathname],
+  );
 
   const clients = useQuery<Client[]>({
     queryKey: ['clients'],
@@ -679,11 +684,15 @@ export function AppShell() {
           </Content>
         </Layout>
       </Layout>
-      {me.data?.features.meriDockUndockUi ? (
-        <MeriOverlay selectedClientName={selectedClient?.name ?? null} />
-      ) : (
-        <ChatDrawer selectedClientName={selectedClient?.name ?? null} />
-      )}
+      {/* Phase 1 §3 Step 6: the strategy list + editor carry their own Meri
+          panel, so the global control is suppressed there (and only there —
+          Context / Steward / agent-review deep links keep it). */}
+      {!strategyMeriSuppressed &&
+        (me.data?.features.meriDockUndockUi ? (
+          <MeriOverlay selectedClientName={selectedClient?.name ?? null} />
+        ) : (
+          <ChatDrawer selectedClientName={selectedClient?.name ?? null} />
+        ))}
     </>
   );
 }
