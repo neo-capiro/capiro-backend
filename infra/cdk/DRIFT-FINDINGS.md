@@ -209,3 +209,29 @@ Pattern (validated for SAM.gov key, 2026-06-01):
 4. Run by pinned revision (`capiro-dev-api-migrate:N`), container name is **`api`**.
 Out-of-band secrets must be named `capiro/dev/<name>` (NO leading slash) to fall under
 the exec role's `capiro/dev/*` grant; slash-path names are not covered and fail startup.
+
+---
+
+## Codified 2026-07-26 — Google Workspace OAuth
+`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` were live out-of-band on
+`capiro-dev-api:59` and `capiro-dev-onboard-api:4` with **zero** CDK
+representation. Now codified in `config.ts` (`externalSecretArns.googleClientId`
+/ `.googleClientSecret`) and `compute-stack.ts` (import, `apiServeSecrets`,
+exec-role + task-role ARN patterns, plus a host-derived `GOOGLE_REDIRECT_URI`).
+Secret names are **UPPER_SNAKE** (`capiro/dev/GOOGLE_CLIENT_ID`), unlike every
+`microsoft-*` secret. Source-only: NOT deployed, per the freeze above.
+
+## STILL UNCODIFIED — `onboard-api` has no CDK construct at all
+`grep -rln onboard infra/cdk/lib infra/cdk/bin` returns nothing. The ECS service
+`capiro-dev-onboard-api` (task def rev 4) is 100% out-of-band. Its live config,
+captured 2026-07-26, so a future codification does not drop it:
+- **Secrets:** CLERK_SECRET_KEY, INTERNAL_SERVICE_SECRET, OAUTH_STATE_SECRET,
+  MICROSOFT_CLIENT_ID, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, DB_HOST,
+  DB_PORT, DB_USER, DB_PASSWORD, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+- **Env:** ONBOARD_BIND_HOST, ONBOARD_API_PUBLIC_BASE_URL=https://app.capiro.ai,
+  ONBOARD_PUBLIC_BASE_URL=https://onboarding.capiro.ai, ONBOARD_EMAIL_ENABLED,
+  ONBOARD_EMAIL_FROM, ONBOARD_CS_NOTIFY_EMAIL, ONBOARD_WIRE_DUE_DAYS,
+  CLERK_JWT_ISSUER, DB_NAME, STRIPE_PRICE_SLOTS, STRIPE_OVERAGE_METER_EVENT
+`ONBOARD_API_PUBLIC_BASE_URL` is what builds the Google IT-admin redirect
+`${base}/onboard-api/it/google/callback` (`it-admin.service.ts:195,435`) — that
+exact URI must stay registered in the Google Cloud Console OAuth client.
