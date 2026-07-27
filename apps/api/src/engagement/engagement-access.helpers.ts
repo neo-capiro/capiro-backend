@@ -43,6 +43,19 @@ export function ownMailMessageWhere(userId: string): Prisma.MailMessageWhereInpu
 }
 
 /**
+ * Parent outreach drafts (OutreachRecord) are tenant-scoped but not
+ * owner-scoped: PrismaService.withTenant() injects a tenant predicate only, and
+ * the runtime application role bypasses RLS, so a colleague's private draft is
+ * otherwise readable by any same-tenant caller who has (or guesses) its id.
+ * Callers must continue supplying the tenant predicate separately — this
+ * helper intentionally omits tenantId so it composes with withTenant() instead
+ * of duplicating it.
+ */
+export function ownOutreachRecordWhere(userId: string): Prisma.OutreachRecordWhereInput {
+  return { createdByUserId: userId };
+}
+
+/**
  * Whether this caller may read the decrypted body of a note/debrief.
  *
  * A non-confidential entry is open; the author always can; tenant/Capiro admins
