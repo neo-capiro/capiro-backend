@@ -290,8 +290,12 @@ export class EvidencePacketService {
           data: {
             id: packet.packetId,
             tenantId: packet.tenantId,
-            // `surface` is VARCHAR(24); the generation-surface names fit.
-            surface: packet.surface,
+            // The COLUMN keeps the canonical ContextSurface vocabulary
+            // ('outreach' | 'memo' | …) that every existing provenance reader
+            // filters on; writing 'outreach_email' here would make these packets
+            // invisible to a query for surface='outreach'. The precise generation
+            // surface is preserved in policy_jsonb below.
+            surface: contextSurfaceFor(packet.surface),
             userId: packet.userId,
             clientId: packet.clientId,
             ref: packet.ref as unknown as Prisma.InputJsonValue,
@@ -310,6 +314,9 @@ export class EvidencePacketService {
             policy: {
               ...packet.policy,
               emailScope: packet.emailScope,
+              // The precise generation surface, kept here because the column
+              // holds the coarser canonical ContextSurface.
+              generationSurface: packet.surface,
             } as unknown as Prisma.InputJsonValue,
             modelPolicy: packet.modelPolicy as unknown as Prisma.InputJsonValue,
             packetHash: packet.packetHash,
@@ -365,6 +372,27 @@ export class EvidencePacketService {
       this.logger.warn(`standing-memory compile failed: ${(e as Error).message}`);
       return { items: [], exclusions: [], failed: true };
     }
+  }
+}
+
+/**
+ * Map a generation surface onto the canonical `ContextSurface` value stored in
+ * `context_packet.surface`.
+ *
+ * The column has a documented, fixed vocabulary that existing provenance readers
+ * filter on. Every Engagement generation surface is an 'outreach'-family packet
+ * from that vocabulary's point of view, so they collapse to 'outreach' and the
+ * finer distinction lives in policy_jsonb.generationSurface.
+ */
+export function contextSurfaceFor(surface: GenerationSurface): string {
+  switch (surface) {
+    case 'outreach_email':
+    case 'meeting_prep':
+    case 'meeting_debrief':
+    case 'talking_points':
+      return 'outreach';
+    default:
+      return 'outreach';
   }
 }
 
