@@ -212,6 +212,19 @@ interface GmailHeader {
   value?: string;
 }
 
+// Recursive: a MIME tree nests parts arbitrarily deep (e.g. multipart/mixed
+// wrapping multipart/alternative wrapping text/plain + text/html). Carries
+// `body` at every level because a non-multipart message stores its content on
+// the top-level part (payload.body.data) with no `parts` array at all.
+interface GmailMessagePart {
+  partId?: string;
+  filename?: string;
+  mimeType?: string;
+  headers?: GmailHeader[];
+  body?: { size?: number; data?: string; attachmentId?: string };
+  parts?: GmailMessagePart[];
+}
+
 interface GmailMessage {
   id?: string;
   threadId?: string;
@@ -219,11 +232,7 @@ interface GmailMessage {
   snippet?: string;
   internalDate?: string;
   historyId?: string;
-  payload?: {
-    mimeType?: string;
-    headers?: GmailHeader[];
-    parts?: Array<{ filename?: string; mimeType?: string }>;
-  };
+  payload?: GmailMessagePart;
 }
 
 interface CalendarDateTime {
@@ -808,6 +817,12 @@ export class GoogleSyncService {
     const hasAttachments = Boolean(
       message.payload?.parts?.some((part) => part.filename && part.filename.length > 0),
     );
+    // format=full (see gmailGet) returns the full MIME tree with base64 body
+    // data on every part. bodyText already holds the extracted text below; do
+    // not also persist the raw bytes here, or full message content ends up
+    // duplicated across four columns in two tables (mailThread.raw,
+    // mailMessage.raw, both on create and update).
+    const rawForStorage = stripGmailBodyData(message) as unknown as Prisma.InputJsonValue;
 
     return this.prisma.withTenantRetry(
       tenantId,
@@ -876,7 +891,7 @@ export class GoogleSyncService {
                 snippet: clean(message.snippet),
                 participants: participantJson as Prisma.InputJsonValue,
                 lastMessageAt,
-                raw: message as unknown as Prisma.InputJsonValue,
+                raw: rawForStorage,
                 metadata: { labels: unique([folder]) } as Prisma.InputJsonValue,
                 associationScore: association.score,
                 associationReason: association.reason,
@@ -895,7 +910,7 @@ export class GoogleSyncService {
                 snippet: clean(message.snippet),
                 participants: participantJson as Prisma.InputJsonValue,
                 lastMessageAt,
-                raw: message as unknown as Prisma.InputJsonValue,
+                raw: rawForStorage,
                 metadata: { labels: [folder] } as Prisma.InputJsonValue,
                 associationScore: association.score,
                 associationReason: association.reason,
@@ -923,9 +938,9 @@ export class GoogleSyncService {
             bccRecipients: bccRecipients as unknown as Prisma.InputJsonValue,
             sentAt: isSent ? messageDate : null,
             receivedAt: messageDate,
-            bodyText: clean(message.snippet),
+            bodyText: extractGmailBodyText(message.payload) ?? clean(message.snippet),
             hasAttachments,
-            raw: message as unknown as Prisma.InputJsonValue,
+            raw: rawForStorage,
             metadata: {
               label: folder,
               folder,
@@ -947,9 +962,9 @@ export class GoogleSyncService {
             bccRecipients: bccRecipients as unknown as Prisma.InputJsonValue,
             sentAt: isSent ? messageDate : null,
             receivedAt: messageDate,
-            bodyText: clean(message.snippet),
+            bodyText: extractGmailBodyText(message.payload) ?? clean(message.snippet),
             hasAttachments,
-            raw: message as unknown as Prisma.InputJsonValue,
+            raw: rawForStorage,
             metadata: {
               label: folder,
               folder,
@@ -1017,10 +1032,12 @@ export class GoogleSyncService {
   }
 
   private async gmailGet(accessToken: string, id: string): Promise<GmailMessage> {
-    const params = new URLSearchParams({ format: 'metadata' });
-    for (const header of ['From', 'To', 'Cc', 'Bcc', 'Subject', 'Date', 'Message-ID']) {
-      params.append('metadataHeaders', header);
-    }
+    // format=full returns every header plus the MIME tree with base64url body
+    // data. metadata (the previous value) returns headers only, which is why
+    // bodyText was the ~200-char snippet. gmail.readonly already permits full;
+    // NO scope change is required and none must be made -- a scope change
+    // re-triggers Google brand verification (see GOOGLE_WORKSPACE_SCOPES).
+    const params = new URLSearchParams({ format: 'full' });
     return this.googleGet<GmailMessage>(
       `${GMAIL_BASE_URL}/users/me/messages/${encodeURIComponent(id)}?${params.toString()}`,
       accessToken,
@@ -1265,6 +1282,93 @@ function getHeader(headers: GmailHeader[], name: string): string | null {
     if (header.name?.toLowerCase() === lower) return header.value ?? null;
   }
   return null;
+}
+
+const GMAIL_BODY_MAX_CHARS = 100_000;
+const GMAIL_BODY_TRUNCATION_MARKER = '\n\n[truncated]';
+
+function decodeGmailBodyData(data: string): string {
+  return Buffer.from(data, 'base64url').toString('utf8');
+}
+
+function stripHtmlToText(html: string): string {
+  const withoutTags = html
+    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|tr|li|h[1-6])>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ');
+  return withoutTags
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function truncateGmailBody(text: string): string {
+  return text.length > GMAIL_BODY_MAX_CHARS
+    ? text.slice(0, GMAIL_BODY_MAX_CHARS) + GMAIL_BODY_TRUNCATION_MARKER
+    : text;
+}
+
+/** Depth-first search for the first part matching `mimeType`, skipping any
+ *  part with a non-empty `filename` -- that is an attachment, not body text.
+ *  A non-multipart message has its content on `payload` itself (no `parts`
+ *  array), which this matches because the check runs on `part` before it
+ *  recurses into children. */
+function findGmailBodyPart(part: GmailMessagePart, mimeType: string): GmailMessagePart | null {
+  if (part.filename && part.filename.length > 0) return null;
+  if (part.mimeType === mimeType && part.body?.data) return part;
+  for (const child of part.parts ?? []) {
+    const found = findGmailBodyPart(child, mimeType);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * Depth-first walk for the first text/plain part, falling back to text/html
+ * stripped to text. Returns null when the message is attachment-only or has
+ * no payload. Exported so it is unit-testable without a live Gmail fetch.
+ */
+export function extractGmailBodyText(payload: GmailMessagePart | undefined): string | null {
+  if (!payload) return null;
+
+  const plainPart = findGmailBodyPart(payload, 'text/plain');
+  if (plainPart?.body?.data) {
+    return truncateGmailBody(decodeGmailBodyData(plainPart.body.data));
+  }
+
+  const htmlPart = findGmailBodyPart(payload, 'text/html');
+  if (htmlPart?.body?.data) {
+    return truncateGmailBody(stripHtmlToText(decodeGmailBodyData(htmlPart.body.data)));
+  }
+
+  return null;
+}
+
+/** Deep copy of the message with every body.data cleared, preserving the MIME
+ *  structure (mimeType, filename, size, attachmentId) for debugging. The body
+ *  itself is already stored in bodyText; keeping it in raw_jsonb too would
+ *  duplicate full message content across four columns in two tables. Applies
+ *  at every depth, including payload.body.data on a non-multipart message
+ *  (which has no `parts` array to iterate). Does not mutate its input. */
+export function stripGmailBodyData(message: GmailMessage): GmailMessage {
+  function stripPart(part: GmailMessagePart): GmailMessagePart {
+    return {
+      ...part,
+      body: part.body ? { ...part.body, data: undefined } : part.body,
+      parts: part.parts?.map(stripPart),
+    };
+  }
+  return {
+    ...message,
+    payload: message.payload ? stripPart(message.payload) : message.payload,
+  };
 }
 
 // Parse an RFC-5322 address-list header ("Alice <a@x.com>, b@y.com") into
