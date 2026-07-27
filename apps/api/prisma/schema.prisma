@@ -5547,6 +5547,14 @@ model ClientGrantNexus {
   @@index([tenantId, clientId], map: "client_grant_nexus_tenant_client_idx")
   @@index([tenantId, assistanceAwardId], map: "client_grant_nexus_tenant_award_idx")
   @@index([tenantId, grantOpportunityId], map: "client_grant_nexus_tenant_opp_idx")
+  // B3: prevents a concurrent double-run of generate-grant-opportunity-candidates.ts
+  // from creating duplicate rows for the same (tenant, client, opportunity,
+  // relationship) under the SAME evidence source. evidenceSourceType is part of
+  // the key deliberately — a producer row (deterministic_relevance_v1) and a
+  // human-entered row (e.g. analyst_manual_entry) for the same pair are meant
+  // to coexist (see generate-grant-opportunity-candidates.spec.ts's "a
+  // human-created row for the same pair is never read or touched").
+  @@unique([tenantId, clientId, grantOpportunityId, relationshipType, evidenceSourceType], map: "client_grant_nexus_producer_unique_idx")
   @@map("client_grant_nexus")
 }
 
