@@ -255,8 +255,10 @@ describe('TrackerConfigPanel — tag naming + inline validation + resync (P0-03,
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
-  test('10. a resync that reorders tags keeps the SAME tag open, not the same slot', () => {
-    const v1 = makeWatchlist({ tags: [makeTag({ tag: 'Alpha' }), makeTag({ tag: 'Beta' })] });
+  test('10. a resync that reorders tags keeps the SAME tag open, tracked by stable id (Gate K, MP-08)', () => {
+    const v1 = makeWatchlist({
+      tags: [makeTag({ id: 't-alpha', tag: 'Alpha' }), makeTag({ id: 't-beta', tag: 'Beta' })],
+    });
     const { rerender } = renderPanel({ watchlist: v1 });
     // Open Beta — the second row, index 1.
     fireEvent.click(screen.getByText('Beta'));
@@ -264,8 +266,37 @@ describe('TrackerConfigPanel — tag naming + inline validation + resync (P0-03,
 
     // A save round-trip can return topics in a different order than the local
     // array had them (e.g. a just-touched topic sorts first) — index 1 now
-    // holds Alpha, not Beta. `openTags` is index-based, so without the label
-    // remap this would silently swap to showing Alpha's editor instead.
+    // holds Alpha, not Beta. `openTags` is keyed by the topic's server id
+    // (t-beta), which is unchanged by the reorder, so identity survives
+    // without needing to infer anything from label or position.
+    const v2 = makeWatchlist({
+      tags: [makeTag({ id: 't-beta', tag: 'Beta' }), makeTag({ id: 't-alpha', tag: 'Alpha' })],
+    });
+    rerender(
+      <TrackerConfigPanel
+        allIssueAreas={[]}
+        watchlist={v2}
+        prefs={makePrefs()}
+        onSaveWatchlist={() => {}}
+        onSavePrefs={() => {}}
+        onRequestVerify={() => {}}
+        onTestAlert={() => {}}
+        typedTermsEnabled
+      />,
+    );
+    expect((screen.getByLabelText('Tag name') as HTMLInputElement).value).toBe('Beta');
+  });
+
+  test('10b. a resync that reorders tags with NO id (legacy/pre-Gate-K shape) still bridges the open row by label', () => {
+    // Historical safety net: some watchlist reads may carry no id at all (a
+    // synthetic fold-back topic before its first save). The id-based fast
+    // path cannot apply, so the resync must still fall back to a label
+    // bridge rather than silently losing track of which row was open.
+    const v1 = makeWatchlist({ tags: [makeTag({ tag: 'Alpha' }), makeTag({ tag: 'Beta' })] });
+    const { rerender } = renderPanel({ watchlist: v1 });
+    fireEvent.click(screen.getByText('Beta'));
+    expect((screen.getByLabelText('Tag name') as HTMLInputElement).value).toBe('Beta');
+
     const v2 = makeWatchlist({ tags: [makeTag({ tag: 'Beta' }), makeTag({ tag: 'Alpha' })] });
     rerender(
       <TrackerConfigPanel
@@ -280,5 +311,48 @@ describe('TrackerConfigPanel — tag naming + inline validation + resync (P0-03,
       />,
     );
     expect((screen.getByLabelText('Tag name') as HTMLInputElement).value).toBe('Beta');
+  });
+
+  test('11. a resync that reorders tags does NOT migrate in-progress draft text to a different tag (Gate K, b-7 — data confusion, not a cosmetic quirk)', () => {
+    const v1 = makeWatchlist({
+      tags: [makeTag({ id: 't-alpha', tag: 'Alpha' }), makeTag({ id: 't-beta', tag: 'Beta' })],
+    });
+    const { rerender } = renderPanel({ watchlist: v1, saving: true });
+    // Open Beta (index 1) and start typing an in-progress synonym — never
+    // committed (no blur/Enter), so it lives only in ChipInput's local state.
+    fireEvent.click(screen.getByText('Beta'));
+    const synInput = screen.getByPlaceholderText('add synonym…') as HTMLInputElement;
+    fireEvent.change(synInput, { target: { value: 'draft-in-progress' } });
+    expect(synInput.value).toBe('draft-in-progress');
+
+    // The server responds with Beta now sorted FIRST (index 0). `saving` was
+    // true during the edit (a save was in flight for an unrelated reason);
+    // clearing it now lets the resync adopt the reordered response — the
+    // exact moment the old index-keyed `key=` would swap React's component
+    // instance for this slot, carrying the draft text to whatever tag now
+    // sits at index 1 (Alpha) instead of leaving it with Beta.
+    const v2 = makeWatchlist({
+      tags: [makeTag({ id: 't-beta', tag: 'Beta' }), makeTag({ id: 't-alpha', tag: 'Alpha' })],
+    });
+    rerender(
+      <TrackerConfigPanel
+        allIssueAreas={[]}
+        watchlist={v2}
+        prefs={makePrefs()}
+        onSaveWatchlist={() => {}}
+        onSavePrefs={() => {}}
+        onRequestVerify={() => {}}
+        onTestAlert={() => {}}
+        typedTermsEnabled
+        saving={false}
+      />,
+    );
+
+    // Still Beta's editor open, and the draft text is still there — keyed by
+    // id, React reused the SAME component instance for the SAME topic.
+    expect((screen.getByLabelText('Tag name') as HTMLInputElement).value).toBe('Beta');
+    expect((screen.getByPlaceholderText('add synonym…') as HTMLInputElement).value).toBe(
+      'draft-in-progress',
+    );
   });
 });

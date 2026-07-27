@@ -158,6 +158,41 @@ describe('TrackerWatchlistService.getWatchlist — deterministic ordering (Gate 
   });
 });
 
+describe('TrackerWatchlistService.getWatchlist — stable topic id (Gate K, MP-08)', () => {
+  it('surfaces the persisted topic id in the view contract (K-2)', async () => {
+    const prisma = tenantReader({
+      watchlist: { findFirst: async () => ({ issueAreas: [], jurisdictions: [] }) },
+      watchlistTopic: {
+        findMany: async () => [
+          { id: 'topic-abc', label: 'data center load', issueArea: null, position: 'monitor', priority: 'high' },
+        ],
+      },
+      watchlistTerm: { findMany: async () => [] },
+    }) as any;
+    const svc = new TrackerWatchlistService(prisma);
+
+    const view = await svc.getWatchlist(TENANT, CLIENT);
+
+    expect(view.topics[0]!.id).toBe('topic-abc');
+  });
+
+  it('the synthetic "Hearing terms" fold-back topic (no persisted row) carries no id', async () => {
+    const prisma = tenantReader({
+      watchlist: { findFirst: async () => ({ issueAreas: [], jurisdictions: [] }) },
+      watchlistTopic: { findMany: async () => [] },
+      watchlistTerm: {
+        findMany: async () => [{ id: 'term-1', topicId: null, termType: 'agency', value: 'FERC' }],
+      },
+    }) as any;
+    const svc = new TrackerWatchlistService(prisma);
+
+    const view = await svc.getWatchlist(TENANT, CLIENT);
+
+    expect(view.topics[0]!.label).toBe(HEARING_TERMS_TOPIC_LABEL);
+    expect(view.topics[0]!.id).toBeUndefined();
+  });
+});
+
 describe('TrackerWatchlistService.getWatchlist — P5 flat-term folding', () => {
   it('folds topicId-NULL terms on the wl: row into a synthetic "Hearing terms" topic', async () => {
     const prisma = tenantReader({

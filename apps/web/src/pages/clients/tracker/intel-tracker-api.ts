@@ -128,6 +128,8 @@ interface IntelRec {
   cosponsorsCount: number | null;
   fit: number;
   matchedTags: string[];
+  /** Gate K (MP-09). Absent on a legacy (pre-Gate-K) intel-api response. */
+  matchedTopicIds?: string[];
   why: string;
   whyKind: MatchReasonKind;
   matchReasons: MatchReason[];
@@ -138,6 +140,9 @@ interface IntelWatchlist {
   clientId: string;
   issueAreas: string[];
   topics: Array<{
+    /** Gate K (MP-08). Absent only for the synthetic "Hearing terms"
+     *  fold-back topic before its first save. */
+    id?: string;
     label: string;
     issueArea: string | null;
     position: string;
@@ -270,6 +275,7 @@ export function adaptRecs(items: IntelRec[]): RecommendationsResponse {
     fit: r.fit,
     belowFloor: r.fit < RECOMMENDATION_FLOOR,
     matchedTags: r.matchedTags ?? [],
+    matchedTopicIds: r.matchedTopicIds ?? [],
     matchReasons: r.matchReasons ?? [],
     whyKind: r.whyKind,
     why: r.why,
@@ -300,6 +306,7 @@ export function adaptWatchlist(w: IntelWatchlist): WatchlistPayload {
   const payload: WatchlistPayload = {
     issueAreas: w.issueAreas ?? [],
     tags: (w.topics ?? []).map((t) => ({
+      id: t.id,
       tag: t.label,
       issueArea: t.issueArea ?? null,
       synonyms: t.terms.filter((x) => x.termType === 'synonym').map((x) => x.value),
@@ -346,6 +353,11 @@ export function watchlistToIntel(w: WatchlistPayload) {
       issueArea: t.issueArea ?? null,
       position: t.position ?? 'monitor',
       priority: t.priority,
+      // Gate K (MP-08, b-3): echoed back so an existing topic's identity is
+      // legible in the request too, though putWatchlist still upserts by
+      // label — a client-minted temp id (an unsaved row) round-trips
+      // harmlessly since the server never reads this field's value.
+      ...(t.id ? { id: t.id } : {}),
       // P0-03 item 5: only sent when the user actually renamed this tag, so the
       // server preserves the topic id rather than delete+recreating it.
       ...(t.renameFrom ? { renameFrom: t.renameFrom } : {}),

@@ -1,6 +1,7 @@
 import { compileWatchlist, type CompilerTerm } from '../src/watchlist/watchlist-compiler.js';
 
-const topic = (label: string, issueArea: string | null = null) => ({
+const topic = (label: string, issueArea: string | null = null, id: string | null = null) => ({
+  id,
   label,
   issueArea,
   position: 'monitor',
@@ -97,5 +98,38 @@ describe('compileWatchlist', () => {
     );
     // The topic label is still the primary bill keyword.
     expect(out.billMatchSet[0].keywords).toContain('everything');
+  });
+
+  /**
+   * Gate K (MP-08/MP-09). `CompiledBillTopic.id` and each `RoutableTerm.topicId`
+   * were both hardcoded away before this gate — `id` was simply absent from
+   * the output topic, and every routable term (including the synthetic
+   * label-as-keyword entry) carried `topicId: null` regardless of the real
+   * topic id. Both are what `scoreBillFit`'s matchedTopicIds (recommendations)
+   * and `matchTerms`'s per-match provenance depend on.
+   */
+  it('carries the topic id through to CompiledBillTopic.id and every RoutableTerm.topicId (Gate K)', () => {
+    const out = compileWatchlist({
+      issueAreas: [],
+      topics: [topic('data center load', 'Energy', 'topic-abc')],
+      terms: [term('data center load', 'synonym', 'hyperscale demand')],
+    });
+    expect(out.billMatchSet[0]!.id).toBe('topic-abc');
+    // Every routable term — the synthetic label keyword AND the real term — carries the same topicId.
+    for (const rt of out.billMatchSet[0]!.routableTerms) {
+      expect(rt.topicId).toBe('topic-abc');
+    }
+  });
+
+  it('a topic with no id (not yet persisted) compiles with id: null, never throwing', () => {
+    const out = compileWatchlist({
+      issueAreas: [],
+      topics: [topic('Hearing terms')],
+      terms: [term('Hearing terms', 'agency', 'FERC')],
+    });
+    expect(out.billMatchSet[0]!.id).toBeNull();
+    for (const rt of out.billMatchSet[0]!.routableTerms) {
+      expect(rt.topicId).toBeNull();
+    }
   });
 });

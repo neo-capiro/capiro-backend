@@ -100,6 +100,9 @@ export interface RecommendationBill {
   fit: number;
   belowFloor: boolean;
   matchedTags: string[];
+  /** Gate K (MP-09): topic ids behind matchedTags's topic entries (never
+   *  issue areas). Absent on a legacy (pre-Gate-K) intel-api response. */
+  matchedTopicIds?: string[];
   matchReasons: MatchReason[];
   whyKind: MatchReasonKind;
   why: string;
@@ -169,6 +172,13 @@ export interface TypedTerm {
 }
 
 export interface WatchlistTag {
+  /**
+   * Gate K (MP-08): the server's stable topic id. Absent on a brand-new,
+   * unsaved row — TrackerConfigPanel mints a client-side temp id for those
+   * so every row still has SOME stable key, never falling back to array
+   * index (MASTER §6.10 edge case 2).
+   */
+  id?: string;
   tag: string;
   issueArea?: string | null;
   /** Legacy `synonym`-typed terms (the "Synonyms" chip input). */

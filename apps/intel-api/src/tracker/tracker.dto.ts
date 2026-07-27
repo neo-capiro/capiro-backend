@@ -349,6 +349,16 @@ export class WatchlistTopicDto {
   @ArrayMaxSize(500) terms?: WatchlistTermDto[];
   /** P0-03 item 5: rename this topic, preserving its id and term/alert association. */
   @IsOptional() @IsString() @MaxLength(120) renameFrom?: string;
+  /**
+   * Gate K (MP-08, b-2): the client echoes this back on every save (a real
+   * server id for an existing topic, or a client-minted temp id for a new,
+   * unsaved one). The global ValidationPipe is whitelist+forbidNonWhitelisted
+   * (MASTER §6.10) — omitting this declaration 400s every watchlist save the
+   * moment the web starts sending it. The server does not use this value for
+   * anything (topics are still upserted by label); it exists purely so the
+   * echo round-trips without being rejected.
+   */
+  @IsOptional() @IsString() @MaxLength(64) id?: string;
 }
 
 /**

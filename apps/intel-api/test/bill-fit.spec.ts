@@ -84,14 +84,29 @@ describe('scoreBillFit', () => {
     expect(r.whyKind).toBe('issue_code');
   });
 
+  it('Gate K (c-4): an issue-area-only match populates matchedTags but NEVER matchedTopicIds — issue areas have no topic id', () => {
+    const r = scoreBillFit(bill('An Environment quality bill'), topics, issueAreas, 0, false);
+    expect(r.matchedTags).toContain('Environment');
+    expect(r.matchedTopicIds).toEqual([]);
+  });
+
+  it('Gate K (MP-08): a topic with no id (not yet persisted) still matches into matchedTags but contributes no entry to matchedTopicIds', () => {
+    // The module-level `topics` fixture predates MP-08 and carries no `id` —
+    // exercising it here proves the id plumbing is additive, never required.
+    const r = scoreBillFit(bill('A bill to address data center load on the PJM grid', { policyArea: 'Energy' }), topics, issueAreas, 0.7, true);
+    expect(r.matchedTags).toContain('data center load');
+    expect(r.matchedTopicIds).toEqual([]);
+  });
+
   it('falls back to keywordHit for textMatch when no topic term hits', () => {
     const r = scoreBillFit(bill('Unrelated title'), topics, [], 0.6, true);
     // 0.4*0.6 + 0.3 = 0.54
     expect(r.fit).toBeCloseTo(0.54, 9);
   });
 
-  it('caps matchedTags at 4 and dedupes', () => {
-    const many: CompiledTopicForFit[] = Array.from({ length: 8 }, (_, i) => ({
+  it('caps matchedTags at 10 (Gate K c-5, raised from 4 now that ids make each entry cheap) and dedupes', () => {
+    const many: CompiledTopicForFit[] = Array.from({ length: 12 }, (_, i) => ({
+      id: `topic-${i}`,
       label: `t${i}`,
       issueArea: null,
       priority: 'low',
@@ -106,7 +121,28 @@ describe('scoreBillFit', () => {
     }));
     const title = many.map((_, i) => `term${i}`).join(' ');
     const r = scoreBillFit(bill(title), many, [], 0, false);
-    expect(r.matchedTags.length).toBe(4);
+    expect(r.matchedTags.length).toBe(10);
+  });
+
+  it('caps matchedTopicIds at 10 alongside matchedTags, carrying only real topic ids', () => {
+    const many: CompiledTopicForFit[] = Array.from({ length: 12 }, (_, i) => ({
+      id: `topic-${i}`,
+      label: `t${i}`,
+      issueArea: null,
+      priority: 'low',
+      keywords: [`term${i}`],
+      synonyms: [],
+      entities: [],
+      riskPhrases: [],
+      routableTerms: [
+        labelTerm(`t${i}`, 'low'),
+        { id: null, topicId: null, topicLabel: `t${i}`, termType: 'keyword', value: `term${i}`, topicPriority: 'low' },
+      ],
+    }));
+    const title = many.map((_, i) => `term${i}`).join(' ');
+    const r = scoreBillFit(bill(title), many, [], 0, false);
+    expect(r.matchedTopicIds.length).toBe(10);
+    expect(r.matchedTopicIds.every((id) => /^topic-\d+$/.test(id))).toBe(true);
   });
 });
 
@@ -195,5 +231,62 @@ describe('scoreBillFit — §4.10 (Gate E phase f): feedback parameter', () => {
     );
     expect(withAlreadyHandled.fit).toBeCloseTo(baseline.fit, 9);
     expect(withAlreadyHandled.fit).toBeCloseTo(0.3, 9);
+  });
+
+  describe('Gate K (MP-09, c-6): topicWeight looks up by id first, label second', () => {
+    const idTopic: CompiledTopicForFit[] = [
+      {
+        id: 'topic-permitting',
+        label: 'permitting',
+        issueArea: null,
+        priority: 'med',
+        keywords: ['permitting'],
+        synonyms: [],
+        entities: [],
+        riskPhrases: [],
+        routableTerms: [labelTerm('permitting', 'med')],
+      },
+    ];
+
+    it('down-weights via a feedback map keyed by topic ID, not label', () => {
+      const byId = scoreBillFit(
+        feedbackBill,
+        idTopic,
+        [],
+        0,
+        false,
+        new Map([['topic-permitting', { total: 6, byReason: { too_broad: 6 } }]]),
+      );
+      expect(byId.fit).toBeCloseTo(0.3 * 0.5, 9);
+    });
+
+    it("a rename (label changes, id does not) KEEPS the accumulated dismissal signal — the whole point of MP-09", () => {
+      const renamed: CompiledTopicForFit[] = [{ ...idTopic[0]!, label: 'permitting reform' }];
+      const renamedBill = bill('A permitting reform reform bill');
+      const r = scoreBillFit(
+        renamedBill,
+        renamed,
+        [],
+        0,
+        false,
+        // Feedback accumulated under the OLD label/id pairing — only the id survives the rename.
+        new Map([['topic-permitting', { total: 6, byReason: { too_broad: 6 } }]]),
+      );
+      expect(r.matchedTags).toContain('permitting reform');
+      expect(r.fit).toBeCloseTo(0.3 * 0.5, 9); // still down-weighted — the signal followed the id
+    });
+
+    it('falls back to label when no id is present on the topic (historical/pre-MP-08 shape)', () => {
+      const labelOnly: CompiledTopicForFit[] = [{ ...idTopic[0]!, id: undefined }];
+      const r = scoreBillFit(
+        feedbackBill,
+        labelOnly,
+        [],
+        0,
+        false,
+        new Map([['permitting', { total: 6, byReason: { too_broad: 6 } }]]),
+      );
+      expect(r.fit).toBeCloseTo(0.3 * 0.5, 9);
+    });
   });
 });

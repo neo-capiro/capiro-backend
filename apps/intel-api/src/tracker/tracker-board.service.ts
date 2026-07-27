@@ -183,6 +183,9 @@ export interface RecommendationItem {
   cosponsorsCount: number | null;
   fit: number;
   matchedTags: string[];
+  /** Gate K (MP-09): topic ids behind matchedTags's topic entries (never
+   *  issue areas) — see BillFit.matchedTopicIds. */
+  matchedTopicIds: string[];
   why: string;
   whyKind: MatchReasonKind;
   matchReasons: MatchReason[];
@@ -454,6 +457,7 @@ export class TrackerBoardService {
   }> {
     const compiled = await this.watchlists.getCompiled(tenantId, clientId);
     const topics: CompiledTopicForFit[] = compiled.billMatchSet.map((t) => ({
+      id: t.id,
       label: t.label,
       issueArea: t.issueArea,
       priority: t.priority,
@@ -578,6 +582,7 @@ export class TrackerBoardService {
           cosponsorsCount: b.cosponsorsCount,
           fit: fit.fit,
           matchedTags: fit.matchedTags,
+          matchedTopicIds: fit.matchedTopicIds,
           why: fit.why,
           whyKind: fit.whyKind,
           matchReasons: fit.matchReasons,
@@ -635,6 +640,7 @@ export class TrackerBoardService {
             cosponsorsCount: null, // state bills carry sponsorCount, not a cosponsor time series (S1.4)
             fit: fit.fit,
             matchedTags: fit.matchedTags,
+            matchedTopicIds: fit.matchedTopicIds,
             why: fit.why,
             whyKind: fit.whyKind,
             matchReasons: fit.matchReasons,
@@ -1107,6 +1113,7 @@ export class TrackerBoardService {
       const wlId = `wl:${clientId}`;
       const clientTopics = topicsByWatchlist.get(wlId) ?? [];
       const compilerTopics: CompilerTopic[] = clientTopics.map((t) => ({
+        id: t.id,
         label: t.label,
         issueArea: t.issueArea,
         position: t.position,
@@ -1154,6 +1161,7 @@ export class TrackerBoardService {
         terms: compilerTerms,
       });
       const topicsForFit: CompiledTopicForFit[] = compiled.billMatchSet.map((t) => ({
+        id: t.id,
         label: t.label,
         issueArea: t.issueArea,
         priority: t.priority,

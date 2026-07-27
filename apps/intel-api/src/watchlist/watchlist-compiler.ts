@@ -28,6 +28,11 @@ export const DEEPGRAM_KEYTERM_CAP = 100;
 export const ROUTABLE_TERMS_PER_TOPIC_CAP = 100;
 
 export interface CompilerTopic {
+  /** Gate K (MP-08/MP-09): the persisted topic's stable id, so downstream
+   *  feedback (recordFeedback/feedbackSignal) can key on identity instead of
+   *  a label that can be renamed. `null`/absent for a topic with no row yet
+   *  (the synthetic "Hearing terms" fold-back before its first save). */
+  id?: string | null;
   label: string;
   issueArea: string | null;
   position: string;
@@ -45,6 +50,8 @@ export interface CompilerTerm {
   termId?: string | null;
 }
 export interface CompiledBillTopic {
+  /** Gate K (MP-08/MP-09) — see CompilerTopic.id. */
+  id?: string | null;
   label: string;
   issueArea: string | null;
   position: string;
@@ -116,7 +123,10 @@ export function compileWatchlist(input: {
       // Sorted for the compiler's byte-stability requirement (SC-4).
       const labelTerm: RoutableTerm = {
         id: null,
-        topicId: null,
+        // Gate K (MP-08): was hardcoded null — RoutableTerm.topicId exists
+        // precisely so a TermMatch can attribute back to its owning topic,
+        // but nothing ever populated it on this (recommendations) path.
+        topicId: tp.id ?? null,
         topicLabel: tp.label,
         termType: 'keyword',
         value: tp.label,
@@ -128,7 +138,7 @@ export function compileWatchlist(input: {
           .filter((t) => isAcceptableTerm(t.value) && routeFor(t.termType))
           .map((t) => ({
             id: t.termId ?? null,
-            topicId: null,
+            topicId: tp.id ?? null,
             topicLabel: tp.label,
             termType: t.termType,
             value: t.value.trim(),
@@ -154,6 +164,7 @@ export function compileWatchlist(input: {
         routableTerms.length = ROUTABLE_TERMS_PER_TOPIC_CAP;
       }
       return {
+        id: tp.id ?? null,
         label: tp.label,
         issueArea: tp.issueArea,
         position: tp.position,

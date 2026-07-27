@@ -94,6 +94,13 @@ export interface WatchlistView {
   issueAreas: string[];
   jurisdictions: string[];
   topics: Array<{
+    /**
+     * Gate K (MP-08): stable server id, so the web can key a tag by identity
+     * instead of array position/label. Present on every PERSISTED topic;
+     * absent only for the synthetic "Hearing terms" fold-back topic when no
+     * such topic has ever been saved yet (it has no row to carry an id).
+     */
+    id?: string;
     label: string;
     issueArea: string | null;
     position: string;
@@ -261,7 +268,11 @@ export class TrackerWatchlistService {
         select: { id: true, topicId: true, termType: true, value: true },
       }),
     );
-    const outTopics = topics.map((t) => ({
+    const outTopics: WatchlistView['topics'] = topics.map((t) => ({
+      // Gate K (MP-08, b-1): `id` was already SELECTED above (line ~238) and
+      // then dropped here — the exact gap that forced the web to key tags by
+      // label/array-index instead of a stable identity.
+      id: t.id,
       label: t.label,
       issueArea: t.issueArea,
       position: t.position,
@@ -992,6 +1003,7 @@ export class TrackerWatchlistService {
     const compiled = compileWatchlist({
       issueAreas: wl.issueAreas,
       topics: wl.topics.map((t) => ({
+        id: t.id ?? null,
         label: t.label,
         issueArea: t.issueArea,
         position: t.position,
