@@ -509,8 +509,15 @@ export class AlertMemoService {
       if (reviewRequestId === null) {
         // createSystem is fail-open (never throws), so a hold can land with NO
         // pending review_request row for a reviewer to see or for saveEdited's
-        // L1/L2/L3 locks to catch — saveEdited's L0 lock is the backstop for
-        // exactly this case (banner + a recent meri_audit_ledger hold row).
+        // L1/L2/L3 locks to catch. CORRECTED (Gate I phase a, CG-01): saveEdited's
+        // L0 lock does NOT backstop this for an entailment-only hold. L0 fires
+        // only when the HELD_BANNER_MARKER is present in the saved markdown, and
+        // that banner is inserted only inside the auditor-finding branch above
+        // (auditorMode !== 'off' AND verdict.findings.length > 0, :390/:431). An
+        // entailment-only hold — auditor 'off', or auditor on with zero findings
+        // on the deterministic scaffold (the common case in prod) — reaches this
+        // branch with no banner and no ledger row, so a standard user's later
+        // saveEdited call is UNGATED.
         this.logger.error(
           `[meri-auditor:enforce] alert memo HELD but review_request creation FAILED — ` +
             `no reviewer will see this hold (tenant=${ctx.tenantId}, client=${clientId}, alert=${alert.alertId})`,
@@ -608,10 +615,13 @@ export class AlertMemoService {
       }
       // L0 (plan §4.2/§6.5 — required, not optional): closes the hole where
       // reviews.createSystem() failed and returned null, so NO review_request
-      // row exists for L1/L2/L3 to find. The meri_audit_ledger write is NOT
-      // fail-open-to-null (it happens before the hold branch, unconditionally
-      // when the auditor produces findings), so a recent 'hold' decision row is
-      // durable evidence a hold happened even when the review row didn't land.
+      // row exists for L1/L2/L3 to find. CORRECTED (Gate I phase a, CG-01): the
+      // meri_audit_ledger write is NOT unconditional — it runs only inside BOTH
+      // `auditorMode !== 'off'` (:390) AND `verdict.findings.length > 0` (:431).
+      // An entailment-only hold under `auditorMode==='off'`, or under auditor-on
+      // with zero findings (the common case, since the memo is a deterministic
+      // scaffold), produces NO ledger row and NO banner, so L0 cannot fire and
+      // is not a backstop for that hold at all.
       // Filtering on decision:'hold' specifically (not just row-exists) means
       // this can never fire for an annotate-mode save, whose ledger rows carry
       // decision:'deliver_with_flags' — annotate keeps filing normally.
