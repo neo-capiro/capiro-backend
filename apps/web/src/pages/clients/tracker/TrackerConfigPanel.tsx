@@ -558,7 +558,19 @@ export function TrackerConfigPanel({
       typedTerms: (t.typedTerms ?? []).map((x) => ({ ...x })),
     })),
   );
-  const [openTags, setOpenTags] = useState<Set<number>>(() => new Set(tags.length ? [] : []));
+  // Gate K (MP-08, b-4): openTags is keyed by topic ID, not array position —
+  // a save can return topics in a different order (a just-touched topic
+  // sorts first), and index-based identity migrated an expanded row's
+  // in-progress draft text (ChipInput/TypedTermEditor local state) to
+  // whatever tag now happened to sit at that slot. Real data confusion, not
+  // a cosmetic quirk.
+  const [openTags, setOpenTags] = useState<Set<string>>(() => new Set());
+  /** b-4: a brand-new tag has no server id until its first save completes.
+   *  Mint a stable client-side temp id so it still has SOME key — never the
+   *  array index (MASTER §6.10 edge case 2). */
+  const tempIdSeq = useRef(0);
+  const nextTempId = () => `temp-${tempIdSeq.current++}`;
+  const keyOf = (t: WatchlistTag, i: number): string => t.id ?? `idx-${i}`;
 
   // P0-03: case-insensitive uniqueness within this client's watchlist, plus a
   // required name. Computed, not stored, so it can never go stale against `tags`.
@@ -627,19 +639,38 @@ export function TrackerConfigPanel({
       riskTerms: [...t.riskTerms],
       typedTerms: (t.typedTerms ?? []).map((x) => ({ ...x })),
     }));
-    // `openTags` is keyed by array index, but the server can return topics in a
-    // different order than the local array had them (e.g. a freshly-created or
-    // renamed topic sorts first) — remap by label so the SAME tag stays open
-    // across a resync instead of whatever tag now happens to sit at that index.
+    // Gate K (MP-08, b-4/b-5): openTags is keyed by topic id, which is STABLE
+    // across a resync for an already-saved tag — no remap needed for those,
+    // superseding the old label-based remap band-aid (which was itself
+    // MP-09's failure mode transplanted into the UI: two tags sharing a
+    // rename-in-flight label could collide). The one transition that still
+    // needs bridging: a brand-new tag has only a client-minted temp id until
+    // its first save completes, at which point the server assigns a real id
+    // and the temp id disappears from `nextTags` — without this bridge, a
+    // tag the user is STILL actively editing when that save round-trip lands
+    // would appear to collapse.
     setOpenTags((openSet) => {
       if (!openSet.size) return openSet;
-      const prevLabels = tags.map((t) => t.tag.trim().toLowerCase());
-      const nextLabels = nextTags.map((t) => t.tag.trim().toLowerCase());
-      const remapped = new Set<number>();
-      openSet.forEach((idx) => {
-        const label = prevLabels[idx];
-        const newIdx = label ? nextLabels.indexOf(label) : -1;
-        if (newIdx !== -1) remapped.add(newIdx);
+      const prevByKey = new Map(tags.map((t, i) => [keyOf(t, i), t]));
+      const nextByLabel = new Map(nextTags.map((t, i) => [t.tag.trim().toLowerCase(), keyOf(t, i)]));
+      const remapped = new Set<string>();
+      openSet.forEach((key) => {
+        const prevTag = prevByKey.get(key);
+        // A REAL server id (never an index-fallback key) is stable identity —
+        // it survives verbatim into nextTags for an already-saved tag, no
+        // bridging needed. Do NOT treat an index-fallback key as "still
+        // present" just because something else now sits at that same slot —
+        // that coincidence is exactly the bug MP-08 exists to remove.
+        if (prevTag?.id && nextTags.some((t) => t.id === prevTag.id)) {
+          remapped.add(key);
+          return;
+        }
+        // No real id survives (a brand-new temp-id tag that just received its
+        // first real id back from the server, or a shape with no id at all)
+        // — bridge by label, the one narrow case that still needs it.
+        const label = prevTag?.tag.trim().toLowerCase();
+        const bridgedKey = label ? nextByLabel.get(label) : undefined;
+        if (bridgedKey) remapped.add(bridgedKey);
       });
       return remapped;
     });
@@ -755,20 +786,24 @@ export function TrackerConfigPanel({
   const patchTag = (i: number, t: WatchlistTag) =>
     setTags((arr) => arr.map((x, j) => (j === i ? t : x)));
   const delTag = (i: number) => {
+    // b-4: ids are stable across the array mutation, so removing one entry no
+    // longer requires shifting every OTHER open id's index — just drop this
+    // row's own id from openTags, if it was open.
+    const id = keyOf(tags[i]!, i);
     setTags((arr) => arr.filter((_, j) => j !== i));
     setOpenTags((s) => {
-      const n = new Set<number>();
-      s.forEach((idx) => {
-        if (idx < i) n.add(idx);
-        else if (idx > i) n.add(idx - 1);
-      });
+      if (!s.has(id)) return s;
+      const n = new Set(s);
+      n.delete(id);
       return n;
     });
   };
   const addTag = () => {
+    const id = nextTempId();
     setTags((arr) => [
       ...arr,
       {
+        id,
         tag: '',
         priority: 'med',
         position: 'monitor',
@@ -778,12 +813,12 @@ export function TrackerConfigPanel({
         typedTerms: [],
       },
     ]);
-    setOpenTags((s) => new Set(s).add(tags.length));
+    setOpenTags((s) => new Set(s).add(id));
   };
-  const toggleOpen = (i: number) =>
+  const toggleOpen = (id: string) =>
     setOpenTags((s) => {
       const n = new Set(s);
-      n.has(i) ? n.delete(i) : n.add(i);
+      n.has(id) ? n.delete(id) : n.add(id);
       return n;
     });
   const toggleTrig = (k: string) =>
@@ -812,6 +847,10 @@ export function TrackerConfigPanel({
           .filter((t) => !have.has(t.tag.toLowerCase()))
           .map((t) => ({
             ...t,
+            // b-4: a seed suggestion is not a persisted topic, so it never
+            // carries a real server id — mint the same client-side temp id a
+            // manually-added tag gets.
+            id: t.id ?? nextTempId(),
             synonyms: [...t.synonyms],
             relatedEntities: [...t.relatedEntities],
             riskTerms: [...t.riskTerms],
@@ -1016,23 +1055,26 @@ export function TrackerConfigPanel({
                 <Icon name="settings" size={13} />
               </span>
               Each tag carries a <b>priority</b> (how much it matters — this drives how alerts are
-              ranked) and a <b>position</b> (this client’s stance: Support, Oppose, or Monitor). Click
-              either pill to change it.
+              ranked) and a <b>position</b> (this client’s stance: Support, Oppose, or Monitor). Use
+              the menus on each tag to set either one.
             </span>
             <div className="stack" style={{ gap: 10 }}>
-              {tags.map((t, i) => (
-                <TagRow
-                  key={i}
-                  tag={t}
-                  open={openTags.has(i)}
-                  onToggleOpen={() => toggleOpen(i)}
-                  onChange={(nt) => patchTag(i, nt)}
-                  onDelete={() => delTag(i)}
-                  typedTermsEnabled={typedTermsEnabled}
-                  nameError={tagNameErrors[i]}
-                  termSurfaces={termSurfaces}
-                />
-              ))}
+              {tags.map((t, i) => {
+                const rowId = keyOf(t, i);
+                return (
+                  <TagRow
+                    key={rowId}
+                    tag={t}
+                    open={openTags.has(rowId)}
+                    onToggleOpen={() => toggleOpen(rowId)}
+                    onChange={(nt) => patchTag(i, nt)}
+                    onDelete={() => delTag(i)}
+                    typedTermsEnabled={typedTermsEnabled}
+                    nameError={tagNameErrors[i]}
+                    termSurfaces={termSurfaces}
+                  />
+                );
+              })}
             </div>
             <button className="add-btn" onClick={addTag} style={{ marginTop: 12 }}>
               <Icon name="plus" size={12} /> Add tag
@@ -1046,13 +1088,18 @@ export function TrackerConfigPanel({
                 Targeting is not being saved — every tag needs a unique name.
               </div>
             )}
-            {/* P2-15 (Gate E phase e): predated the 11 typed-term types Gate B
-                wired (this said "embeddings + keyword match" as if the three
-                legacy chip inputs were the whole story). */}
+            {/* Gate K (HP-02, e-7): the prior copy named every typed-term type
+                — including committees and legislators — as if each tuned
+                Recommendations and alert relevance equally well. Coverage
+                genuinely varies by type and by surface (MASTER HP-02 coverage
+                table); the per-type "Affects" preview above (term-routing.ts
+                termSurfaceMap) already states this correctly and specifically,
+                so this general blurb now points there instead of re-asserting
+                uniform strength itself. */}
             <div className="cfg-help" style={{ marginTop: 10 }}>
-              Synonyms, related entities, risk terms, and typed terms — bills, agencies,
-              committees, legislators, companies, competitors, Program Elements — tune the
-              keyword and entity match behind Recommendations and alert relevance.
+              Synonyms, related entities, risk terms, and typed terms feed the keyword and
+              entity match behind Recommendations and alert relevance — coverage varies by
+              type; pick a term type above to see exactly what it affects.
             </div>
             {watchlist.rejected?.terms?.length ? (
               <div className="cfg-help" role="alert">

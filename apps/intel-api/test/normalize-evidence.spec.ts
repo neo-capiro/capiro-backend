@@ -220,7 +220,35 @@ describe('normalizeEvidence — match block (P1-09)', () => {
     const r = normalizeEvidence(base());
     expect(r.match.matchedTags).toEqual(['Hypersonics', 'Defense RDT&E']);
     expect(r.match.why).toBe('Matches your watchlist term "hypersonics".');
-    expect(r.match.details).toEqual([]); // honest: no writer emits matchDetails yet
+    // This fixture (flatBillEvidence) predates HP-01 and carries no
+    // matchDetails key at all — still a real, honest case (an event with no
+    // typed-term matches, or a row written before Gate K), just no longer
+    // the ONLY case. See the next test for the now-populated one.
+    expect(r.match.details).toEqual([]);
+  });
+
+  // Gate K (HP-01, d-8): inverts the prior "no writer emits matchDetails
+  // yet" comment — writeShadowAlert now does (bill-change-detector.service.ts).
+  it('Gate K (HP-01): passes a non-empty matchDetails through with its full TermMatch shape (termId/topicId included)', () => {
+    const evWithMatchDetails = {
+      ...flatBillEvidence(),
+      matchDetails: [
+        {
+          termId: 'term-1',
+          topicId: 'topic-1',
+          topicLabel: 'Hypersonics',
+          termType: 'company',
+          matchType: 'whole_word',
+          matchedText: 'RTX',
+          sourceField: 'title',
+          weight: 5,
+          confidence: 0.9,
+          explanation: 'Names RTX directly.',
+        },
+      ],
+    };
+    const r = normalizeEvidence(base({ evidence: evWithMatchDetails }));
+    expect(r.match.details).toEqual(evWithMatchDetails.matchDetails);
   });
 
   it('falls back to whyItMatters when ev.why is absent', () => {

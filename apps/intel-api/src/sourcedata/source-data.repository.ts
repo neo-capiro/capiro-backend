@@ -42,6 +42,15 @@ export interface SourceBill {
   statusAt: Date | null;
   updateDateIncludingText: Date | null;
   cosponsorsCount: number | null;
+  /**
+   * Gate K (HP-02, e-1): the `legislator`/`committee` term routes
+   * (term-routing.ts) were consequently inert on the shadow-detector rail —
+   * SourceBill carried neither field even though congress_bill.sponsor_name
+   * and the normalized congress_bill_committee table have always had them
+   * (getBillDossierIdentity/getBillCommittees already read them elsewhere).
+   */
+  sponsorName: string | null;
+  committees: string[] | null;
 }
 
 export interface SourceBillAction {
@@ -123,6 +132,10 @@ export interface RecommendationBillRow {
   sponsorName: string | null;
   sponsorParty: string | null;
   cosponsorsCount: number | null;
+  /** Gate K (HP-02, e-4): the `program_element` term route was consequently
+   *  inert on the recommendations rail even though congress_bill.pe_codes
+   *  has always existed (the shadow detector's SourceBill.peCodes reads it). */
+  peCodes: string[] | null;
 }
 
 export interface BillSearchRow {
@@ -783,27 +796,41 @@ export class SourceDataRepository {
     return rows;
   }
 
-  /** Batch-read GLOBAL `congress_bill` rows by id (for the shadow change detector). */
+  /**
+   * Batch-read GLOBAL `congress_bill` rows by id (for the shadow change
+   * detector). Gate K (HP-02, e-1): LEFT JOIN congress_bill_committee
+   * (array_agg, same aggregation pattern as getCosponsorMomentum below) so
+   * the `committee` term route has a real field to match against — mirrors
+   * the per-bill getBillCommittees() shape (committeeName), just batched.
+   */
   async getBillsByIds(ids: string[]): Promise<SourceBill[]> {
     if (!ids.length) return [];
     return this.prisma.$queryRawUnsafe<SourceBill[]>(
-      `SELECT id,
-              congress,
-              bill_type          AS "billType",
-              bill_number        AS "billNumber",
-              title,
-              latest_action_text AS "latestActionText",
-              latest_action_date AS "latestActionDate",
-              policy_area        AS "policyArea",
-              subjects,
-              pe_codes           AS "peCodes",
-              url,
-              status,
-              status_at                    AS "statusAt",
-              update_date_including_text   AS "updateDateIncludingText",
-              cosponsors_count             AS "cosponsorsCount"
-         FROM congress_bill
-        WHERE id = ANY($1::text[])`,
+      `SELECT cb.id,
+              cb.congress,
+              cb.bill_type          AS "billType",
+              cb.bill_number        AS "billNumber",
+              cb.title,
+              cb.latest_action_text AS "latestActionText",
+              cb.latest_action_date AS "latestActionDate",
+              cb.policy_area        AS "policyArea",
+              cb.subjects,
+              cb.pe_codes           AS "peCodes",
+              cb.url,
+              cb.status,
+              cb.status_at                    AS "statusAt",
+              cb.update_date_including_text   AS "updateDateIncludingText",
+              cb.cosponsors_count             AS "cosponsorsCount",
+              cb.sponsor_name                 AS "sponsorName",
+              c.committee_names               AS "committees"
+         FROM congress_bill cb
+         LEFT JOIN (
+           SELECT bill_id, array_agg(DISTINCT committee_name) AS committee_names
+             FROM congress_bill_committee
+            WHERE bill_id = ANY($1::text[])
+            GROUP BY bill_id
+         ) c ON c.bill_id = cb.id
+        WHERE cb.id = ANY($1::text[])`,
       ids,
     );
   }
@@ -1127,7 +1154,8 @@ export class SourceDataRepository {
               policy_area         AS "policyArea",
               sponsor_name        AS "sponsorName",
               sponsor_party       AS "sponsorParty",
-              cosponsors_count    AS "cosponsorsCount"
+              cosponsors_count    AS "cosponsorsCount",
+              pe_codes            AS "peCodes"
          FROM congress_bill
         WHERE id = ANY($1::text[])`,
       ids,

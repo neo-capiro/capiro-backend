@@ -523,7 +523,14 @@ export function TrackerSurface({
     // intel-api path. The legacy apps/api endpoint's ValidationPipe runs
     // forbidNonWhitelisted, so sending these extra fields there would 400;
     // that backend predates §4.10 and is out of Gate E's scope.
-    mutationFn: async (vars: { billId: string; reason?: string | null; matchedTags?: string[] }) =>
+    // Gate K (MP-09): `matchedTopicIds` rides alongside matchedTags — same
+    // intel-api-only gating, since the legacy DTO doesn't know the field.
+    mutationFn: async (vars: {
+      billId: string;
+      reason?: string | null;
+      matchedTags?: string[];
+      matchedTopicIds?: string[];
+    }) =>
       trackerV2
         ? (
             await api.post(intelTrackerPaths.feedback(clientId), {
@@ -531,6 +538,7 @@ export function TrackerSurface({
               signal: 'marked_irrelevant',
               ...(vars.reason ? { reason: vars.reason } : {}),
               ...(vars.matchedTags?.length ? { matchedTags: vars.matchedTags } : {}),
+              ...(vars.matchedTopicIds?.length ? { matchedTopicIds: vars.matchedTopicIds } : {}),
             })
           ).data
         : (await api.post(trackerPaths.feedback(clientId), { billId: vars.billId, signal: 'marked_irrelevant' })).data,
@@ -1140,8 +1148,8 @@ export function TrackerSurface({
                   selected={selected.has(b.billId)}
                   onToggleSelect={toggleSel}
                   onTrack={trackRec}
-                  onDismiss={(id, reason, matchedTags) =>
-                    dismissMutation.mutate({ billId: id, reason, matchedTags })
+                  onDismiss={(id, reason, matchedTags, matchedTopicIds) =>
+                    dismissMutation.mutate({ billId: id, reason, matchedTags, matchedTopicIds })
                   }
                   onOpen={(bb) => drillTo(bb.billId)}
                   dismissOpen={menu === `dismiss:${b.billId}`}
