@@ -489,6 +489,95 @@ describe('DistrictBriefService.generate', () => {
   });
 });
 
+/** Gate I (MP-12) — entailment judge response shape, distinct from the brief
+ *  generator's {"sections":[...]}. */
+function anthropicJudgeResponse(verdicts: Array<{ i: number; entailed: boolean; reason: string }>) {
+  return jsonResponse({
+    content: [{ type: 'text', text: JSON.stringify({ verdicts }) }],
+    usage: { input_tokens: 90, output_tokens: 30 },
+  });
+}
+/** 1st call = the brief generator, every later call = the entailment judge. */
+function stagedFetch(briefSections: unknown, judgeVerdicts: Array<{ entailed: boolean; reason: string }>) {
+  let call = 0;
+  return jest.fn(async () => {
+    call += 1;
+    if (call === 1) return anthropicTextResponse(briefSections);
+    return anthropicJudgeResponse(judgeVerdicts.map((v, i) => ({ i, ...v })));
+  });
+}
+
+describe('DistrictBriefService.generate — MP-12 (Gate I phase d): entailment is shadow-only', () => {
+  const originalFetch = global.fetch;
+  const originalEntailmentMode = process.env.MERI_ENTAILMENT_MODE;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    if (originalEntailmentMode === undefined) delete process.env.MERI_ENTAILMENT_MODE;
+    else process.env.MERI_ENTAILMENT_MODE = originalEntailmentMode;
+    jest.restoreAllMocks();
+  });
+
+  it('never holds the brief even when every paragraph fails entailment under MERI_ENTAILMENT_MODE=enforce — clamped to shadow', async () => {
+    process.env.MERI_ENTAILMENT_MODE = 'enforce';
+    const { service, aiUsageEvents } = makeDeps({
+      facility: FACILITY_ROW,
+      representation: RESOLVED_REP,
+    });
+    global.fetch = stagedFetch(
+      [
+        {
+          heading: 'Facility & footprint',
+          paragraphs: [
+            { text: 'This facility is a strategic priority for regional employment.', claimIds: ['c1'] },
+          ],
+        },
+      ],
+      [{ entailed: false, reason: 'no claim supports "strategic priority"' }],
+    ) as unknown as typeof fetch;
+
+    const result = await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      'fac-1',
+      FEDERAL_ALERT,
+    );
+
+    // The clamp: 'enforce' for alert-memo must not also enforce on briefs.
+    expect(result.held).toBe(false);
+    expect(result.document).not.toBeNull();
+    expect(result.markdown).toContain('strategic priority for regional employment');
+
+    // Metered separately from the brief's own generation call (§4.9 precedent).
+    const entailmentEvents = (aiUsageEvents as Array<{ data: Record<string, unknown> }>).filter(
+      (e) => e.data.workflow === 'district_brief_entailment',
+    );
+    expect(entailmentEvents).toHaveLength(1);
+  });
+
+  it('makes no entailment call at all when MERI_ENTAILMENT_MODE is unset (off) — the default, live-today state', async () => {
+    const { service, aiUsageEvents } = makeDeps({ facility: FACILITY_ROW, representation: RESOLVED_REP });
+    const fetchSpy = stagedFetch(
+      [
+        {
+          heading: 'Facility & footprint',
+          paragraphs: [{ text: 'Acme Plant 3 is a key regional employer.', claimIds: ['c1'] }],
+        },
+      ],
+      [{ entailed: false, reason: 'unused' }],
+    );
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    await service.generate({ tenantId: 't1', userId: 'u1' } as never, 'client-1', 'fac-1', FEDERAL_ALERT);
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1); // brief generation only — no judge call
+    const entailmentEvents = (aiUsageEvents as Array<{ data: Record<string, unknown> }>).filter(
+      (e) => e.data.workflow === 'district_brief_entailment',
+    );
+    expect(entailmentEvents).toHaveLength(0);
+  });
+});
+
 describe('DistrictBriefService.resolveCommitteeRoles (private, best-effort, never guesses)', () => {
   it('asserts a role when the committee name matches exactly one current committee', async () => {
     const { service } = makeDeps({
