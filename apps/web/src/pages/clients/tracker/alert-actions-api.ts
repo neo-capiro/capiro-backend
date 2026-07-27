@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
+import { markdownishToHtml } from '../../engagement/outreach/v2/richtext.js';
 import type { FeedItem } from './intel-feed-api.js';
 
 /**
@@ -355,6 +356,68 @@ export function useRecordMemoLink() {
         )
       ).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['intel-feed'] }),
+  });
+}
+
+/** The saved memo-link row for an alert, if one exists — read-only, no generation. */
+export interface MemoLinkRecord {
+  documentAttachmentId: string | null;
+  title: string | null;
+  /** The persisted markdown (Gate H a-5). Null for a memo drafted before this shipped. */
+  text: string | null;
+}
+
+export function useGetMemoLink() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async (input: { clientId: string; alertId: string }) =>
+      (
+        await api.get<MemoLinkRecord | null>(
+          `/intel-api/clients/${encodeURIComponent(input.clientId)}/alerts/${encodeURIComponent(input.alertId)}/memo-link`,
+        )
+      ).data,
+  });
+}
+
+/**
+ * RB-04 / Gate H a-1: "Edit in Workspace" on an alert that already has a memo —
+ * NO generation, NO replacement. Reads back the content already saved (a-5) and
+ * opens it as an editable Workspace draft directly; never calls the generate
+ * endpoint, never sends a replaceAttachmentId, never touches the filed
+ * .docx/EngagementAttachment at all.
+ */
+export function useEditMemoInWorkspace() {
+  const api = useApi();
+  const getMemoLink = useGetMemoLink();
+  return useMutation({
+    mutationFn: async (input: {
+      clientId: string;
+      alertId: string;
+      clientName: string;
+      fallbackTitle: string;
+    }) => {
+      const memo = await getMemoLink.mutateAsync({
+        clientId: input.clientId,
+        alertId: input.alertId,
+      });
+      if (!memo?.text) {
+        // a-4: surface the inconsistent state rather than silently opening an
+        // empty draft or falling back to generating a replacement.
+        throw new Error(
+          'No saved memo content on record for this alert — use Redraft memo instead.',
+        );
+      }
+      const title = memo.title || input.fallbackTitle;
+      const created = await api.post<{ id: string }>('/workspace-api/drafts', {
+        docTitle: title,
+        client: input.clientName,
+      });
+      const draftId = created.data.id;
+      await api.patch(`/workspace-api/drafts/${encodeURIComponent(draftId)}`, {
+        config: { sections: ['Memo'], sectionContent: { Memo: markdownishToHtml(memo.text) } },
+      });
+      return draftId;
+    },
   });
 }
 

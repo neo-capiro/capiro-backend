@@ -579,3 +579,99 @@ describe('g-7 — the &alert= deep link focuses one card', () => {
     expect(screen.queryByText('Why this matters')).toBeNull();
   });
 });
+
+/**
+ * RB-04 / Gate H a-1, a-7: "Edit in Workspace" on an alert that already has a
+ * memo must never generate (and so never replace the filed document) — it
+ * reads the saved content directly and opens a Workspace draft from it. A
+ * repo-wide grep before this fix found zero tests anywhere exercising the
+ * generate endpoint's replaceAttachmentId at all.
+ */
+describe('P2-05 — Edit in Workspace reads saved content, never regenerates (Gate H a-7)', () => {
+  test('clicking Edit in Workspace calls memo-link + drafts, never the generate endpoint, and opens with the saved content', async () => {
+    mockApi([
+      feedItem({
+        actions: {
+          inReport: false,
+          talkingPoints: 0,
+          memo: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200' },
+        },
+      }),
+    ]);
+    apiGetMock.mockImplementation(async (url: string) => {
+      if (url.includes('/feed')) {
+        feedUrls.push(url);
+        return { data: feedPage([
+          feedItem({
+            actions: {
+              inReport: false,
+              talkingPoints: 0,
+              memo: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200' },
+            },
+          }),
+        ]) };
+      }
+      if (url.includes('/memo-link')) {
+        return { data: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200', text: 'Saved body text.' } };
+      }
+      return { data: {} };
+    });
+    apiPostMock.mockImplementation(async (url: string) => {
+      if (url.includes('/workspace-api/drafts')) return { data: { id: 'draft-1' } };
+      return { data: { ok: true, updated: 0 } };
+    });
+
+    renderPanel();
+    fireEvent.click(await screen.findByText(/Rule failed on the floor/));
+    fireEvent.click(await screen.findByRole('button', { name: /Edit in Workspace/i }));
+
+    await screen.findByText(/Opened in Workspace/i);
+
+    const getUrls = apiGetMock.mock.calls.map((c) => c[0] as string);
+    expect(getUrls.some((u) => u.includes('/memo-link'))).toBe(true);
+    const postCalls = apiPostMock.mock.calls as Array<[string, unknown]>;
+    expect(postCalls.some(([u]) => u.includes('/workspace-api/drafts'))).toBe(true);
+    expect(postCalls.some(([u]) => u.includes('/alert-memo'))).toBe(false);
+    // No replaceAttachmentId anywhere — this path never carries one at all.
+    expect(postCalls.every(([, body]) => !(body as Record<string, unknown> | undefined)?.replaceAttachmentId)).toBe(
+      true,
+    );
+  });
+
+  test('when there is no saved content to read, Edit in Workspace fails loudly instead of opening an empty draft', async () => {
+    mockApi([
+      feedItem({
+        actions: {
+          inReport: false,
+          talkingPoints: 0,
+          memo: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200' },
+        },
+      }),
+    ]);
+    apiGetMock.mockImplementation(async (url: string) => {
+      if (url.includes('/feed')) {
+        feedUrls.push(url);
+        return { data: feedPage([
+          feedItem({
+            actions: {
+              inReport: false,
+              talkingPoints: 0,
+              memo: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200' },
+            },
+          }),
+        ]) };
+      }
+      if (url.includes('/memo-link')) {
+        return { data: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200', text: null } };
+      }
+      return { data: {} };
+    });
+
+    renderPanel();
+    fireEvent.click(await screen.findByText(/Rule failed on the floor/));
+    fireEvent.click(await screen.findByRole('button', { name: /Edit in Workspace/i }));
+
+    await screen.findByText(/No saved memo content on record/i);
+    expect(apiPostMock.mock.calls.some(([u]: [string]) => u.includes('/workspace-api/drafts'))).toBe(false);
+  });
+});

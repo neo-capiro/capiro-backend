@@ -23,6 +23,7 @@ import { intelTrackerPaths } from './intel-tracker-api.js';
 import {
   useAddTalkingPoint,
   useBulkWorkState,
+  useEditMemoInWorkspace,
   useSetReport,
   useSetWorkState,
   WORK_STATE_BULK_MAX,
@@ -239,6 +240,7 @@ function FeedCard({
   onToggleSelect,
   autoExpand = false,
   onAutoExpanded,
+  onEditMemoInWorkspace,
 }: {
   item: FeedItem;
   onAction: (a: RecommendedAction, item: FeedItem) => void;
@@ -253,6 +255,8 @@ function FeedCard({
   /** g-7: this card is the `&alert=` deep-link target — scroll to it and open it. */
   autoExpand?: boolean;
   onAutoExpanded?: () => void;
+  /** RB-04: no generation, no replacement — reads the saved memo and opens it in Workspace. */
+  onEditMemoInWorkspace: (item: FeedItem) => void;
 }) {
   // LegiWatch v2 (L1): calm card — collapsed by default, expands on demand.
   const [open, setOpen] = useState(false);
@@ -634,7 +638,7 @@ function FeedCard({
               </button>
               <button
                 className="btn sm btn-ghost"
-                onClick={() => onAction({ kind: 'draft_memo', label: 'Redraft memo' }, item)}
+                onClick={() => onEditMemoInWorkspace(item)}
               >
                 <Ic n="spark" /> Edit in Workspace
               </button>
@@ -763,6 +767,7 @@ function FeedItemsList({
   toggleSelect,
   focusAlertId,
   onFocused,
+  onEditMemoInWorkspace,
 }: {
   items: FeedItem[];
   onAction: (a: RecommendedAction, item: FeedItem) => void;
@@ -773,6 +778,7 @@ function FeedItemsList({
   toggleSelect: (alertId: string) => void;
   focusAlertId?: string | null;
   onFocused?: () => void;
+  onEditMemoInWorkspace: (item: FeedItem) => void;
 }) {
   const parentRef = useRef<HTMLDivElement | null>(null);
   const shouldVirtualize = items.length > FEED_VIRTUALIZE_THRESHOLD;
@@ -796,6 +802,7 @@ function FeedItemsList({
       onToggleSelect={toggleSelect}
       autoExpand={focusAlertId === it.id}
       onAutoExpanded={onFocused}
+      onEditMemoInWorkspace={onEditMemoInWorkspace}
     />
   );
 
@@ -964,6 +971,30 @@ export function TrackerFeedPanel({
     onError: (e: unknown) =>
       message.error(`Could not create outreach draft: ${(e as Error).message}`),
   });
+
+  // RB-04 / Gate H a-1: "Edit in Workspace" on an alert that already has a memo
+  // — reads the saved content and opens it directly, never through the
+  // generate-on-open composer (that path is Redraft memo, a separate,
+  // confirm-gated action inside MemoComposerDrawer).
+  const editInWorkspace = useEditMemoInWorkspace();
+  const handleEditMemoInWorkspace = (item: FeedItem) => {
+    if (editInWorkspace.isPending) return;
+    editInWorkspace.mutate(
+      {
+        clientId: item.clientId,
+        alertId: item.id,
+        clientName: item.clientName ?? clientName ?? '',
+        fallbackTitle: `Client memo — ${item.title}`,
+      },
+      {
+        onSuccess: (draftId) => {
+          message.success('Opened in Workspace');
+          navigate(`/workspace/draft/${encodeURIComponent(draftId)}`);
+        },
+        onError: (e: unknown) => message.error((e as Error).message),
+      },
+    );
+  };
 
   // P11: global mode reads the tenant-wide roll-up (`_all/feed`) under a distinct
   // cache key; per-client mode is unchanged. The path/key switch is the ONLY
@@ -1191,6 +1222,7 @@ export function TrackerFeedPanel({
                     onToggleSelect={toggleSelect}
                     autoExpand={focusAlertId === it.id}
                     onAutoExpanded={onFocused}
+                    onEditMemoInWorkspace={handleEditMemoInWorkspace}
                   />
                 ))}
               </div>
@@ -1221,6 +1253,7 @@ export function TrackerFeedPanel({
           toggleSelect={toggleSelect}
           focusAlertId={focusAlertId}
           onFocused={onFocused}
+          onEditMemoInWorkspace={handleEditMemoInWorkspace}
         />
         {query.hasNextPage && (
           <button
