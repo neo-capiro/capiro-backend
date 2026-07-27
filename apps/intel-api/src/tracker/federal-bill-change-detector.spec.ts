@@ -124,6 +124,8 @@ const BASE_BILL: SourceBill = {
   statusAt: null,
   updateDateIncludingText: null,
   cosponsorsCount: null,
+  sponsorName: null,
+  committees: null,
 };
 
 function makeFederalSourceRepo(bill: SourceBill) {
@@ -289,5 +291,64 @@ describe('BillChangeDetectorService — federal rail, P0-04 explainMatch integra
 
     const alert = alerts[0] as { evidence: { relevanceKinds: string[] } };
     expect(alert.evidence.relevanceKinds).toContain('direct_impact'); // 'company' term type
+  });
+
+  /**
+   * Gate K (HP-02, e-9): coverage matrix — per term kind, which SourceBill
+   * field the federal detector now supplies. Before e-1/e-2, sponsorName and
+   * committees were never selected at all, so `legislator` and `committee`
+   * terms could only ever match via latestActionText (1/3 and 2/3 fields
+   * live, per MASTER's HP-02 coverage table) — never via the sponsor name or
+   * committee name fields term-routing.ts's TERM_ROUTES declares for them.
+   */
+  it('23. coverage matrix: legislator matches via sponsorName, committee matches via committees, both newly supplied', async () => {
+    const movedBill: SourceBill = {
+      ...BASE_BILL,
+      title: 'A defense modernization act', // does NOT itself name the legislator or committee
+      latestActionText: 'Became Public Law No. 119-5', // a classified event; does NOT name either by value
+      latestActionDate: new Date(),
+      sponsorName: 'Jane Representative',
+      committees: ['House Armed Services'],
+    };
+    const { prisma, alerts } = makeHarness([{ ...BASELINED_ROW, id: 'tb-fed-5' }], {
+      issueAreas: [],
+      topics: [{ id: 'topic-cov', label: 'watch list', priority: 'med' }],
+      terms: [
+        { id: 't-leg', topicId: 'topic-cov', termType: 'legislator', value: 'Jane Representative' },
+        { id: 't-com', topicId: 'topic-cov', termType: 'committee', value: 'House Armed Services' },
+      ],
+    });
+    const svc = new BillChangeDetectorService(prisma, makeFederalSourceRepo(movedBill), NO_STATE_REPO);
+    await svc.runDetectionCycle();
+
+    expect(alerts).toHaveLength(1);
+    const alert = alerts[0] as { evidence: { matchDetails: Array<{ termType: string; sourceField: string }> } };
+    const byType = new Map(alert.evidence.matchDetails.map((m) => [m.termType, m.sourceField]));
+    expect(byType.get('legislator')).toBe('sponsorName');
+    expect(byType.get('committee')).toBe('committees');
+  });
+
+  it("24. coverage matrix: cosponsorNames (already in memory) also feeds legislator matching", async () => {
+    const movedBill: SourceBill = {
+      ...BASE_BILL,
+      title: 'A defense modernization act',
+      latestActionText: 'Became Public Law No. 119-6',
+      latestActionDate: new Date(),
+    };
+    const { prisma, alerts } = makeHarness([{ ...BASELINED_ROW, id: 'tb-fed-6' }], {
+      issueAreas: [],
+      topics: [{ id: 'topic-cos', label: 'watch list', priority: 'med' }],
+      terms: [{ id: 't-cos', topicId: 'topic-cos', termType: 'legislator', value: 'John Cosponsor' }],
+    });
+    const repo = makeFederalSourceRepo(movedBill);
+    (repo.getCosponsorMomentum as jest.Mock).mockResolvedValue([
+      { billId: movedBill.id, liveCount: 1, new7d: 1, recentNames: ['John Cosponsor (D)'] },
+    ]);
+    const svc = new BillChangeDetectorService(prisma, repo, NO_STATE_REPO);
+    await svc.runDetectionCycle();
+
+    expect(alerts).toHaveLength(1);
+    const alert = alerts[0] as { evidence: { matchDetails: Array<{ termType: string; sourceField: string }> } };
+    expect(alert.evidence.matchDetails.some((m) => m.sourceField === 'cosponsorNames')).toBe(true);
   });
 });

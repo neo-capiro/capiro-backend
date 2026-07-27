@@ -126,6 +126,17 @@ describe('TrackerConfigPanel copy (Gate E phase e, P2-15)', () => {
     expect(screen.getByText(/Hearings, regulations, and Program Elements don.t email yet/i)).toBeInTheDocument();
   });
 
+  test('Gate K (HP-02, e-7): the typed-terms help no longer overclaims uniform coverage, and points to the Affects preview instead', () => {
+    renderConfigPanel();
+    expect(
+      screen.getByText(/coverage varies by type; pick a term type above to see exactly what it affects/i),
+    ).toBeInTheDocument();
+    // The old copy named committees/legislators as if they tuned relevance
+    // as strongly as every other type — MASTER's HP-02 coverage table shows
+    // that was never uniformly true.
+    expect(screen.queryByText(/committees, legislators, companies, competitors, Program Elements — tune/i)).toBeNull();
+  });
+
   test('TrackerTab.tsx Bills-surface copy is intentionally UNCHANGED (verified, not touched)', () => {
     // Documented per the plan's e-2: "Bills scored against {client}'s
     // watchlist" and "Bills you track, grouped by live legislative status"

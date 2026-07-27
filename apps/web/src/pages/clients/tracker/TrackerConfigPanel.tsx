@@ -1088,13 +1088,18 @@ export function TrackerConfigPanel({
                 Targeting is not being saved — every tag needs a unique name.
               </div>
             )}
-            {/* P2-15 (Gate E phase e): predated the 11 typed-term types Gate B
-                wired (this said "embeddings + keyword match" as if the three
-                legacy chip inputs were the whole story). */}
+            {/* Gate K (HP-02, e-7): the prior copy named every typed-term type
+                — including committees and legislators — as if each tuned
+                Recommendations and alert relevance equally well. Coverage
+                genuinely varies by type and by surface (MASTER HP-02 coverage
+                table); the per-type "Affects" preview above (term-routing.ts
+                termSurfaceMap) already states this correctly and specifically,
+                so this general blurb now points there instead of re-asserting
+                uniform strength itself. */}
             <div className="cfg-help" style={{ marginTop: 10 }}>
-              Synonyms, related entities, risk terms, and typed terms — bills, agencies,
-              committees, legislators, companies, competitors, Program Elements — tune the
-              keyword and entity match behind Recommendations and alert relevance.
+              Synonyms, related entities, risk terms, and typed terms feed the keyword and
+              entity match behind Recommendations and alert relevance — coverage varies by
+              type; pick a term type above to see exactly what it affects.
             </div>
             {watchlist.rejected?.terms?.length ? (
               <div className="cfg-help" role="alert">

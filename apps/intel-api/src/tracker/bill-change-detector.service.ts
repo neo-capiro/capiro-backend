@@ -344,11 +344,16 @@ export class BillChangeDetectorService {
               policyArea: bill.policyArea,
               subjects: bill.subjects,
               latestActionText: bill.latestActionText,
-              // P0-04: SourceBill has no sponsorName/committees — legislator
-              // and committee routing are consequently inert on this rail.
               displayNum,
               billId: row.billId,
               programElements: bill.peCodes,
+              // Gate K (HP-02, e-1/e-2): sponsorName/committees now selected
+              // by getBillsByIds; cosponsorNames were ALREADY in memory
+              // (cosponsorByBill, loaded above) and simply never threaded
+              // through — zero extra queries for either fix.
+              sponsorName: bill.sponsorName,
+              committees: bill.committees,
+              cosponsorNames: cm?.recentNames,
             },
             wl,
           );
@@ -604,11 +609,17 @@ export class BillChangeDetectorService {
               policyArea: null,
               subjects: bill.subjects,
               latestActionText: bill.latestActionText,
-              // P0-04: SourceStateBill has no committees/PE codes — committee
-              // and program_element routing are consequently inert on this rail.
+              // P0-04/Gate K (HP-02, e-5): state_bill still has no
+              // policyArea/PE-code column at all — a genuine data gap, not
+              // fixable by a join. program_element routing stays inert here.
               displayNum,
               billId: row.billId,
               sponsorName: bill.sponsorName,
+              // Gate K (HP-02, e-3): committees now selected by
+              // getStateBillsByIds (current referral only); cosponsorNames
+              // was already in memory (sponsorByBill, loaded above).
+              committees: bill.committees,
+              cosponsorNames: sm?.recentNames,
             },
             wl,
           );

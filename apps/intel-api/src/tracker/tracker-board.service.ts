@@ -332,6 +332,8 @@ const toRelevanceBill = (b: {
   latestActionText: string | null;
   id?: string;
   sponsorName?: string | null;
+  /** Gate K (HP-02, e-4): only fetchRecommendationBills' row shape carries this. */
+  peCodes?: string[] | null;
 }): RelevanceBill => ({
   title: b.title ?? '',
   policyArea: b.policyArea,
@@ -341,6 +343,7 @@ const toRelevanceBill = (b: {
     ? { billId: b.id, displayNum: isStateBillKey(b.id) ? humanizeStateBillKey(b.id) : humanizeBillId(b.id) }
     : {}),
   ...(b.sponsorName !== undefined ? { sponsorName: b.sponsorName } : {}),
+  ...(b.peCodes !== undefined ? { programElements: b.peCodes } : {}),
 });
 
 @Injectable()
