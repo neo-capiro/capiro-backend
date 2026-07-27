@@ -208,6 +208,13 @@ case "${1:-serve}" in
     echo "Running backfill-mail-removal-state $*"
     exec ./node_modules/.bin/tsx scripts/backfill-mail-removal-state.ts "$@"
     ;;
+  smoke-integrations)
+    # Read-only Google/Microsoft integration diagnostic: syncState continuation
+    # fields, active/removed mail counts. Never writes. Pass --tenant=<slug|uuid>.
+    shift
+    echo "Running smoke-integrations $*"
+    exec ./node_modules/.bin/tsx scripts/smoke-integrations.ts "$@"
+    ;;
   delete-tenant)
     shift
     echo "Running delete-tenant $*"
