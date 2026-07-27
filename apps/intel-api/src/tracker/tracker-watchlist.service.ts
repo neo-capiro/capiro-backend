@@ -1,6 +1,8 @@
 import {
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
@@ -34,6 +36,17 @@ export function isReservedTopicLabel(label: string): boolean {
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Gate J (MP-02, Neo-confirmed 2026-07-27): the dated grace-window cutover
+ * for requiring `expectedVersion` on `putWatchlist`. The shipped web client
+ * already always sends it (`intel-tracker-api.ts:340`); this only ever
+ * catches a stale cached bundle or a hand-rolled request. Before this date,
+ * an absent `expectedVersion` is accepted and logged (unchanged); from this
+ * date on, it 428s. Do not backdate this without re-confirming — it is a
+ * behavior change to a live write path.
+ */
+const EXPECTED_VERSION_REQUIRED_FROM = new Date('2026-08-10T00:00:00Z');
 
 /**
  * Read/write API for the UNIFIED tracker watchlist (Phase 2, plan §5.2).
@@ -423,8 +436,12 @@ export class TrackerWatchlistService {
     await this.prisma.withTenant(tenantId, async (tx) => {
       // P1-02: optimistic concurrency on SHARED targeting, checked INSIDE the
       // transaction so the compare and the bump cannot interleave with another
-      // writer. An absent expectedVersion is accepted and logged — making it
-      // required would 400 every save from an in-flight browser tab on deploy.
+      // writer. An absent expectedVersion was originally accepted-and-logged
+      // unconditionally — making it required immediately would have 400ed
+      // every save from an in-flight browser tab on deploy. Gate J (MP-02,
+      // Neo-confirmed 2026-07-27) adds a dated cutover below: the shipped web
+      // client already always sends it, so this only ever catches a stale
+      // cached bundle or a hand-rolled request.
       const head = await tx.watchlist.findFirst({
         where: { id: wlId, tenantId },
         select: { version: true },
@@ -439,8 +456,20 @@ export class TrackerWatchlistService {
         });
       }
       if (input.expectedVersion === undefined) {
+        if (new Date() >= EXPECTED_VERSION_REQUIRED_FROM) {
+          throw new HttpException(
+            {
+              code: 'WATCHLIST_VERSION_REQUIRED',
+              message:
+                'Your app is out of date. Please reload the page before saving targeting changes.',
+              currentVersion: current,
+            },
+            HttpStatus.PRECONDITION_REQUIRED,
+          );
+        }
         this.logger.warn(
-          `putWatchlist without expectedVersion (unversioned client) client=${clientId} version=${current}`,
+          `putWatchlist without expectedVersion (unversioned client, grace window until ` +
+            `${EXPECTED_VERSION_REQUIRED_FROM.toISOString()}) client=${clientId} version=${current}`,
         );
       }
 
@@ -658,11 +687,18 @@ export class TrackerWatchlistService {
    * claim may be absent depending on the JWT template. One extra query on a write
    * path is a fair price for matching what apps/api would decide.
    *
-   * FAIL-OPEN on an indeterminate identity (no membership row): this protects
-   * config integrity between colleagues, not a tenant boundary — cross-tenant access
-   * is already blocked by `assertClientInTenant` plus RLS. Locking a real user out of
-   * a feature they use because their membership row is missing would be a worse
-   * failure than permitting the edit, so that case is allowed and logged.
+   * FAIL-CLOSED on an indeterminate identity (no membership row) — Gate J
+   * (MP-03, Neo-confirmed 2026-07-27, MASTER §7.3). Previously fail-open, on
+   * the reasoning that this protects config integrity between colleagues, not
+   * a tenant boundary (cross-tenant access is already blocked by
+   * `assertClientInTenant` plus RLS). That is still true, but it left a real
+   * hole: `TenantGuard` requires an ACTIVE membership via a near-superset
+   * query, so the one live window this fires in is
+   * `org-tenant-resolver.service.ts`'s 30-second positive-membership cache
+   * serving a stale "active" after the row is deleted — in that window a
+   * just-removed non-admin could rewrite firm-wide targeting. Do NOT touch
+   * `org-tenant-resolver.service.ts` or its cache TTL here — it is
+   * auth-adjacent and any change to it is a separate, Neo-gated decision.
    */
   private async assertCanEditTargeting(tenantId: string, clerkUserId: string): Promise<void> {
     const rows = await this.prisma.withSystem((tx) =>
@@ -678,10 +714,24 @@ export class TrackerWatchlistService {
     );
     const role = rows[0]?.role;
     if (!role) {
-      this.logger.warn(
-        `putWatchlist: no tenant_memberships row for this caller; allowing the edit (fail-open) tenant=${tenantId}`,
+      // The "repair path": this is deliberately an ERROR (not warn) with
+      // enough to investigate, and a distinct code (not the generic
+      // TARGETING_EDIT_FORBIDDEN below) with a message that separates the
+      // two real causes — retry past the 30s cache window, or an admin needs
+      // to repair a missing/stale local `users`/`tenant_memberships` row —
+      // rather than a bypass that hides either from ever surfacing.
+      this.logger.error(
+        `putWatchlist: no tenant_memberships row for this caller — denying the edit ` +
+          `(fail-closed) tenant=${tenantId}. A retry after ~30s resolves a stale positive- ` +
+          `membership-cache read; a repeat past that window means this caller's local ` +
+          `users/tenant_memberships row is missing or stale and needs an admin to repair it.`,
       );
-      return;
+      throw new ForbiddenException({
+        code: 'TARGETING_MEMBERSHIP_UNRESOLVED',
+        message:
+          'We could not verify your membership in this workspace. Please refresh and try again; ' +
+          'if this keeps happening, ask an admin to check your account.',
+      });
     }
     if (!isTenantAdmin(role as TenantRole)) {
       throw new ForbiddenException({
