@@ -10,7 +10,7 @@
  * re-exports) so the two surfaces cannot drift.
  */
 import type { CSSProperties, ReactNode } from 'react';
-import { Video, MapPin, Link2Off, Check, Circle, Lock, Users, ExternalLink } from 'lucide-react';
+import { Video, MapPin, Link2Off, Check, Circle, Users, ExternalLink } from 'lucide-react';
 import { providerLabel } from './meetings-format.js';
 import {
   completedDebrief,
@@ -360,68 +360,10 @@ export function JoinButton({
   );
 }
 
-// ── Share toggle — Private / Shared segmented control (prototype ShareToggle) ──
-function ShareSeg({
-  icon,
-  label,
-  active,
-  tone,
-}: {
-  icon: ReactNode;
-  label: string;
-  active: boolean;
-  tone: 'dark' | 'green';
-}) {
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 5,
-        padding: '5px 12px',
-        borderRadius: 6,
-        fontSize: 11.5,
-        fontWeight: 600,
-        transition: 'background 0.12s',
-        background: active ? (tone === 'green' ? 'var(--success)' : 'var(--ink-1)') : 'transparent',
-        color: active ? '#fff' : 'var(--ink-4)',
-      }}
-    >
-      {icon}
-      {label}
-    </span>
-  );
-}
-
-export function ShareToggle({ m, onToggle }: { m: Meeting; onToggle?: (m: Meeting) => void }) {
-  const shareable = canShare(m);
-  const shared = m.visibility === 'shared';
-  return (
-    <div
-      style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}
-    >
-      <div
-        onClick={() => shareable && onToggle?.(m)}
-        title={shareable ? 'Toggle sharing' : 'Assign a client to share'}
-        style={{
-          display: 'inline-flex',
-          padding: 2,
-          border: '1px solid var(--border-1)',
-          borderRadius: 8,
-          background: 'var(--bg-sunken)',
-          cursor: shareable ? 'pointer' : 'not-allowed',
-          opacity: shareable ? 1 : 0.6,
-        }}
-      >
-        <ShareSeg icon={<Lock size={12} />} label="Private" active={!shared} tone="dark" />
-        <ShareSeg icon={<Users size={12} />} label="Shared" active={shared} tone="green" />
-      </div>
-      {!shareable && (
-        <span style={{ fontSize: 10.5, color: 'var(--ink-4)' }}>Assign a client to share</span>
-      )}
-    </div>
-  );
-}
+// ShareToggle (binary Private/Shared segmented control) was removed in
+// Phase 2 §3.e — it unshared EVERYTHING on a single click. Replaced by
+// ShareArtifactsControl in MeetingDetailPanel.tsx (explicit per-artifact
+// selection via ShareConfirmation).
 
 export function SectionLabel({ children, style }: { children: ReactNode; style?: CSSProperties }) {
   return (

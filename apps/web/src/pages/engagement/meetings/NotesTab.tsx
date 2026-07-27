@@ -1,9 +1,117 @@
+import { useState } from 'react';
 import { App } from 'antd';
 import { CalendarClock, StickyNote } from 'lucide-react';
-import { useCancelNotetaker, useMeetingNotes } from './meetings-api.js';
+import {
+  useApproveNote,
+  useCancelNotetaker,
+  useMeetingNotes,
+  useUpdateNote,
+} from './meetings-api.js';
 import { Empty, MeriGlyph, SendMeriButton, eligibleForMeri } from './meetings-ui.js';
 import { GeneratingState } from './tab-kit.js';
-import type { Meeting } from './meetings-types.js';
+import type { Meeting, MeetingNote } from './meetings-types.js';
+
+/** Phase 2 §3.e — Draft/Edited/Approved status pill, distinct from "Summarized". */
+function noteStatusPill(status: MeetingNote['status']) {
+  if (status === 'approved') return <span className="pill success">Approved</span>;
+  if (status === 'edited') return <span className="pill notable">Edited</span>;
+  return <span className="pill muted">Draft</span>;
+}
+
+/** One note's body + Edit/Approve controls (Phase 2 §3.e). */
+function NoteRow({ meetingId, note }: { meetingId: string; note: MeetingNote }) {
+  const { message } = App.useApp();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(note.body ?? '');
+  const update = useUpdateNote();
+  const approve = useApproveNote();
+
+  const save = async () => {
+    try {
+      await update.mutateAsync({ meetingId, noteId: note.id, body: draft });
+      setEditing(false);
+    } catch {
+      message.error('Could not save the note.');
+    }
+  };
+
+  return (
+    <div style={{ margin: '0 0 18px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        {noteStatusPill(note.status)}
+        {!editing && (
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => {
+              setDraft(note.body ?? '');
+              setEditing(true);
+            }}
+          >
+            Edit
+          </button>
+        )}
+        {!editing && note.status !== 'approved' && (
+          <button
+            type="button"
+            className="btn sm btn-accent"
+            disabled={approve.isPending}
+            onClick={() =>
+              approve
+                .mutateAsync({ meetingId, noteId: note.id })
+                .catch(() => message.error('Could not approve the note.'))
+            }
+          >
+            Approve
+          </button>
+        )}
+      </div>
+      {editing ? (
+        <div>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={4}
+            style={{
+              width: '100%',
+              fontSize: 13,
+              lineHeight: 1.65,
+              padding: 8,
+              borderRadius: 6,
+              border: '1px solid var(--border-2)',
+              resize: 'vertical',
+            }}
+          />
+          <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+            <button type="button" className="btn sm" onClick={() => setEditing(false)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn sm btn-accent"
+              disabled={update.isPending || !draft.trim()}
+              onClick={save}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p
+          style={{
+            fontSize: 13,
+            lineHeight: 1.65,
+            color: 'var(--ink-1)',
+            margin: 0,
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          {note.body}
+        </p>
+      )}
+    </div>
+  );
+}
 
 /**
  * Meeting Notes tab = Meri's canonical record of the call (notes-first). After
@@ -124,18 +232,7 @@ export function NotesTab({
       </div>
 
       {noteRows.map((n) => (
-        <p
-          key={n.id}
-          style={{
-            fontSize: 13,
-            lineHeight: 1.65,
-            color: 'var(--ink-1)',
-            margin: '0 0 18px',
-            whiteSpace: 'pre-wrap',
-          }}
-        >
-          {n.body}
-        </p>
+        <NoteRow key={n.id} meetingId={m.id} note={n} />
       ))}
 
       <button

@@ -5,7 +5,12 @@ import { ChevronDown, ChevronRight, Lock, Plus, Users, X } from 'lucide-react';
 import { PrepTab } from './PrepTab.js';
 import { NotesTab } from './NotesTab.js';
 import { DebriefTab } from './DebriefTab.js';
-import { useAssignMeetingClient, useClientOptions, useUnshareMeeting } from './meetings-api.js';
+import {
+  useAssignMeetingClient,
+  useClientOptions,
+  useUnshareArtifacts,
+  type ShareArtifactRef,
+} from './meetings-api.js';
 import { formatDayTitle, formatTimeRange, isAllDayMeeting } from './meetings-format.js';
 import {
   Ava,
@@ -14,12 +19,84 @@ import {
   ProviderTag,
   SectionLabel,
   SendMeriButton,
-  ShareToggle,
+  canShare,
   initialsOf,
   meetingStatus,
   showSendMeri,
 } from './meetings-ui.js';
 import type { DetailTab, Meeting } from './meetings-types.js';
+
+/**
+ * Phase 2 §3.e — replaces the binary Private/Shared toggle (which unshared
+ * EVERYTHING in one click) with an explicit per-artifact control: a count of
+ * what's currently shared, a button that opens ShareConfirmation to add
+ * more, and (only when something is shared) an "Unshare all" action that
+ * requires confirmation and shows exactly what it will unshare.
+ */
+function ShareArtifactsControl({ m, onOpenShare }: { m: Meeting; onOpenShare: () => void }) {
+  const { modal, message } = App.useApp();
+  const unshare = useUnshareArtifacts();
+  const shareable = canShare(m);
+  const sharedItems: ShareArtifactRef[] = [
+    ...m.preps.filter((p) => p.sharedAt != null).map((p) => ({ type: 'prep' as const, id: p.id })),
+    ...m.notes.filter((n) => n.sharedAt != null).map((n) => ({ type: 'note' as const, id: n.id })),
+    ...m.debriefs
+      .filter((d) => d.sharedAt != null)
+      .map((d) => ({ type: 'debrief' as const, id: d.id })),
+    ...m.attachments
+      .filter((a) => a.sharedAt != null)
+      .map((a) => ({ type: 'attachment' as const, id: a.id })),
+  ];
+
+  const confirmUnshareAll = () => {
+    modal.confirm({
+      title: `Unshare ${sharedItems.length} artifact${sharedItems.length === 1 ? '' : 's'}?`,
+      content: `This removes ${sharedItems.length === 1 ? 'it' : 'them'} from ${m.client?.name ?? 'the client'}'s Documents and your firm's Meeting Library. This cannot be undone from here — you'd need to re-share.`,
+      okText: 'Unshare all',
+      okButtonProps: { danger: true },
+      rootClassName: 'redesign',
+      onOk: async () => {
+        try {
+          await unshare.mutateAsync({ meetingId: m.id, artifacts: sharedItems });
+          message.success('Unshared.');
+        } catch {
+          message.error('Could not unshare.');
+        }
+      },
+    });
+  };
+
+  return (
+    <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+      <div style={{ display: 'inline-flex', gap: 6 }}>
+        <button
+          type="button"
+          className="btn sm"
+          disabled={!shareable}
+          title={shareable ? undefined : 'Assign a client to share'}
+          onClick={onOpenShare}
+          style={{ gap: 6 }}
+        >
+          <Users size={13} />
+          Share artifacts
+          {sharedItems.length > 0 && (
+            <span className="pill success" style={{ fontSize: 9 }}>
+              {sharedItems.length} shared
+            </span>
+          )}
+        </button>
+        {sharedItems.length > 0 && (
+          <button type="button" className="btn sm" onClick={confirmUnshareAll}>
+            Unshare all
+          </button>
+        )}
+      </div>
+      {!shareable && (
+        <span style={{ fontSize: 10.5, color: 'var(--ink-4)' }}>Assign a client to share</span>
+      )}
+    </div>
+  );
+}
 
 /** The client pill / "Assign client" affordance — assigns or overrides the
  *  meeting's client (spec §6: sharing requires a client). Wired to PUT /meetings/:id. */
@@ -103,9 +180,7 @@ export function MeetingDetailPanel({
   onSendMeri: (m: Meeting) => void;
   onRequestShare: (m: Meeting) => void;
 }) {
-  const { message } = App.useApp();
   const [attOpen, setAttOpen] = useState(false);
-  const unshare = useUnshareMeeting();
 
   const status: MeetingStatus = m
     ? meetingStatus(m)
@@ -144,15 +219,6 @@ export function MeetingDetailPanel({
     { k: 'notes', label: 'Meeting Notes', done: status.notes },
     { k: 'debrief', label: 'Debrief', done: status.debrief, disabled: debriefLocked },
   ];
-
-  const handleToggleShare = async (mm: Meeting) => {
-    if (mm.visibility !== 'shared') {
-      onRequestShare(mm); // private → confirm first
-      return;
-    }
-    await unshare.mutateAsync(mm.id);
-    message.success('Sharing turned off — back to private.');
-  };
 
   return (
     <>
@@ -276,7 +342,7 @@ export function MeetingDetailPanel({
           >
             <ClientAssign key={m.id} meeting={m} />
             <div style={{ flex: 1, minWidth: 12 }} />
-            <ShareToggle m={m} onToggle={handleToggleShare} />
+            <ShareArtifactsControl m={m} onOpenShare={() => onRequestShare(m)} />
           </div>
 
           {/* Attendees (collapsible) */}
