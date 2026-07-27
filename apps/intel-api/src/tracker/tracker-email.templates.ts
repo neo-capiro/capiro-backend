@@ -4,6 +4,7 @@
  * builders, no I/O.
  */
 import type { IntelAlertEvent } from '../intel-alert/intel-alert.types.js';
+import { billStage, type BillStage } from '@capiro/shared';
 
 const BRAND = '#2447ff';
 const INK = '#102033';
@@ -101,20 +102,25 @@ export function renderAlertEmail(event: IntelAlertEvent): {
 const SEVERITY_RANK: Record<string, number> = { critical: 0, notable: 1, info: 2, success: 3 };
 
 /**
- * Stage → sort rank, reusing the existing `toneColor` vocabulary's key order
- * (critical, notable, info, success) as the "legislative stage" tiebreaker the
- * audit's required-fix item 2 asks for. NOTE: `DigestItem.label` values are
- * free-text stage descriptions ("Passed a chamber", "New CBO cost estimate"),
- * not literally these four tone words, so in practice almost every item falls
- * into the unmatched/last bucket and this key rarely differentiates anything —
- * it defers to the next key (deadline). Implemented literally per the plan's
- * instruction to reuse this vocabulary rather than inventing a new stage-rank
- * system; flagged in the phase completion report as a real ambiguity in the
- * plan text.
+ * Stage → sort rank (MP-01). The plan asked to rank on the alert's canonical
+ * changeType via "the shared procedural status rank" — no such table exists
+ * anywhere in the codebase (grepped; the closest namesakes, bill-dossier's
+ * funding STAGE_ORDER and the board's BOARD_TABLE_STAGE_ORDER, are different
+ * domains). What genuinely IS shared is `billStage()` (`@capiro/shared`),
+ * the same classifier the tracker BOARD already uses for its four columns
+ * (introduced/committee/passed/enacted) — reused here instead of inventing a
+ * parallel one, and it needs no new field on DigestItem: it reads
+ * `item.detail`, which already carries the official action text.
+ * STAGE_SIGNIFICANCE inverts BILL_STAGES' natural (chronological) order into
+ * sort priority — 'enacted' is the most newsworthy digest item, so it sorts
+ * FIRST, not last.
  */
-const STAGE_RANK: Record<string, number> = Object.fromEntries(
-  Object.keys(toneColor).map((k, i) => [k, i]),
-);
+const STAGE_SIGNIFICANCE: Record<BillStage, number> = {
+  enacted: 0,
+  passed: 1,
+  committee: 2,
+  introduced: 3,
+};
 
 /** One alert folded into a digest (P0-02) — enough to render without re-reading the queue's payload (it carries none). */
 export interface DigestItem {
@@ -156,8 +162,8 @@ export function renderDigestEmail(
     const sevA = SEVERITY_RANK[a.severity] ?? 4;
     const sevB = SEVERITY_RANK[b.severity] ?? 4;
     if (sevA !== sevB) return sevA - sevB;
-    const stageA = STAGE_RANK[a.label.toLowerCase()] ?? 4;
-    const stageB = STAGE_RANK[b.label.toLowerCase()] ?? 4;
+    const stageA = STAGE_SIGNIFICANCE[billStage(a.detail)];
+    const stageB = STAGE_SIGNIFICANCE[billStage(b.detail)];
     if (stageA !== stageB) return stageA - stageB;
     if (a.deadline !== b.deadline) {
       if (a.deadline === null) return 1;
