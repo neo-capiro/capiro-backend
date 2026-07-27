@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
@@ -306,7 +306,9 @@ export function AddBillModal({
 }: {
   clientId: string;
   boardNums: Set<string>;
-  onTrackManual: (bill: BillSearchResult) => void;
+  /** P2-06: returns a promise so the row's "On board" marker can wait for the
+   *  write to succeed instead of assuming it did. */
+  onTrackManual: (bill: BillSearchResult) => void | Promise<unknown>;
   onClose: () => void;
 }) {
   const api = useApi();
@@ -322,13 +324,45 @@ export function AddBillModal({
     inputRef.current?.focus();
   }, []);
 
+  /**
+   * P1-17: the jurisdictions this client actually tracks, so the search covers
+   * the state legislatures they care about and not all 50.
+   *
+   * Fetched HERE rather than passed down, because both the watchlist and the
+   * alert-prefs queries in TrackerTab are `enabled: activePanel === 'config'`
+   * and are therefore empty on the Bills surface (the same chicken-and-egg g-4
+   * documents). A modal is user-initiated and transient, so one fetch when it
+   * opens is the right cost — unlike adding a query to every board load.
+   */
+  const prefs = useQuery<{ jurisdictions?: string[] }>({
+    queryKey: ['tracker-modal-jurisdictions', clientId],
+    queryFn: async () =>
+      (await api.get<{ jurisdictions?: string[] }>(intelTrackerPaths.alertPrefs(clientId))).data,
+    enabled: trackerV2 && flagsReady,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
+  // DD5 semantics (MASTER §4.5): an EMPTY jurisdictions list means "everything
+  // the watchlist produces", NOT "none" — so an empty list defaults to federal
+  // only here rather than being "fixed" into a list of all states.
+  const clientStates = useMemo(
+    () => (prefs.data?.jurisdictions ?? []).filter((j) => j && j !== 'US'),
+    [prefs.data],
+  );
+  const [selectedJuris, setSelectedJuris] = useState<string[] | null>(null);
+  // Default = US + whatever the client tracks, recomputed once prefs arrive.
+  const jurisdictions = selectedJuris ?? ['US', ...clientStates];
+
   const results = useQuery<BillSearchResult[]>({
-    queryKey: ['tracker-bill-search', clientId, q],
+    queryKey: ['tracker-bill-search', clientId, q, jurisdictions.join(',')],
     queryFn: async () =>
       (
         await api.get<BillSearchResult[]>(
           trackerV2 ? intelTrackerPaths.billSearch(clientId) : trackerPaths.billSearch(clientId),
-          { params: { q } },
+          {
+            params: trackerV2 ? { q, jurisdictions } : { q },
+          },
         )
       ).data,
     enabled: q.trim().length >= 2 && flagsReady,
@@ -336,9 +370,21 @@ export function AddBillModal({
   });
 
   const isTracked = (billId: string) => boardNums.has(billId) || added.has(billId);
+  /**
+   * P2-06: `added` used to be set the moment the button was clicked, so a bill
+   * whose track request FAILED still showed "✓ On board". It is now recorded
+   * only after the caller's mutation resolves — `onTrackManual` returns a
+   * promise for exactly this.
+   */
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const handle = (b: BillSearchResult) => {
-    onTrackManual(b);
-    setAdded((s) => new Set(s).add(b.billId));
+    setPendingId(b.billId);
+    void Promise.resolve(onTrackManual(b))
+      .then(() => setAdded((s) => new Set(s).add(b.billId)))
+      .catch(() => {
+        /* the caller surfaces the error; the row simply stays untracked */
+      })
+      .finally(() => setPendingId((cur) => (cur === b.billId ? null : cur)));
   };
   const rows = results.data ?? [];
 
@@ -346,7 +392,14 @@ export function AddBillModal({
     <Modal size="md" onClose={onClose}>
       <div className="dlg-head">
         <h3>Add a bill to the board</h3>
-        <span className="sub">Search the congressional record by number or title</span>
+        {/* P1-17: the old copy claimed congress-only while the search WAS
+            congress-only — an honest description of a broken capability. Both
+            are fixed together. */}
+        <span className="sub">
+          {trackerV2 && clientStates.length
+            ? 'Search Congress and the state legislatures this client tracks, by number or title'
+            : 'Search Congress by number or title'}
+        </span>
         <button className="dlg-x" onClick={onClose}>
           <Icon name="plus" size={15} style={{ transform: 'rotate(45deg)' }} />
         </button>
@@ -361,10 +414,39 @@ export function AddBillModal({
             placeholder="e.g. “transmission”, “H.R. 4455”, “data center”…"
           />
         </div>
+        {/* P1-17: the jurisdiction facet, defaulted from the client's own
+            tracked states. Only shown when there is a real choice to make. */}
+        {trackerV2 && clientStates.length > 0 && (
+          <div className="search-juris" role="group" aria-label="Jurisdictions">
+            {['US', ...clientStates].map((j) => {
+              const on = jurisdictions.includes(j);
+              return (
+                <button
+                  key={j}
+                  type="button"
+                  className={'pick-chip' + (on ? ' on' : '')}
+                  aria-pressed={on}
+                  onClick={() =>
+                    setSelectedJuris(
+                      on ? jurisdictions.filter((x) => x !== j) : [...jurisdictions, j],
+                    )
+                  }
+                >
+                  {j === 'US' ? 'Congress' : j}
+                </button>
+              );
+            })}
+          </div>
+        )}
         <div className="search-results">
           {rows.map((b) => (
             <div key={b.billId} className={`sr-row${isTracked(b.billId) ? ' tracked' : ''}`}>
               <span className="sr-num">{b.displayNum}</span>
+              {/* P1-17: label the rail so a state result is not mistaken for a
+                  federal one with a similar number. */}
+              {b.jurisdiction && (
+                <span className="sr-juris">{b.jurisdiction === 'US' ? 'Congress' : b.jurisdiction}</span>
+              )}
               <span className="sr-title">{b.title}</span>
               <span className="sr-stage">
                 {b.stage === 'passed'
@@ -375,8 +457,18 @@ export function AddBillModal({
                       ? 'Enacted'
                       : 'Introduced'}
               </span>
-              <button className="sr-track" onClick={() => handle(b)}>
-                {isTracked(b.billId) ? '✓ On board' : 'Track'}
+              {/* P2-06: disabled while its own request is in flight, and the
+                  "On board" marker only appears once the write succeeded. */}
+              <button
+                className="sr-track"
+                disabled={pendingId === b.billId || isTracked(b.billId)}
+                onClick={() => handle(b)}
+              >
+                {isTracked(b.billId)
+                  ? '✓ On board'
+                  : pendingId === b.billId
+                    ? 'Adding…'
+                    : 'Track'}
               </button>
             </div>
           ))}

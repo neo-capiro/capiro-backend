@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntApp } from 'antd';
@@ -221,5 +221,57 @@ describe('MemoComposerDrawer — held-for-review state (Gate A, P0-01 item 5)', 
         expect.objectContaining({ alertId: 'alert-42' }),
       ),
     );
+  });
+});
+
+/**
+ * Gate D phase f (P2-06), f-6 case 8 — the clipboard write was un-awaited AND
+ * optional-chained (`void navigator.clipboard?.writeText(...)`), so on an
+ * insecure origin (navigator.clipboard undefined) or a rejected permission it
+ * copied nothing and still reported "Copied".
+ */
+describe('P2-06 — Copy tells the truth', () => {
+  beforeEach(() => {
+    apiGetMock.mockReset();
+    apiPatchMock.mockReset();
+    apiPostMock.mockReset();
+    setupBrowserMocks();
+  });
+
+  /** The drawer generates on open, so waiting for Copy to enable is enough. */
+  async function renderWithMemo() {
+    apiPostMock.mockResolvedValue({ data: baseMemoResult() });
+    renderDrawer(makeItem());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy' })).not.toBeDisabled());
+  }
+
+  test('a rejected clipboard write shows the fallback, not "Copied"', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+      writable: true,
+    });
+
+    await renderWithMemo();
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    expect(await screen.findByText(/Could not copy automatically/i)).toBeInTheDocument();
+    expect(screen.queryByText('Copied')).toBeNull();
+  });
+
+  test('a successful clipboard write reports success', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+      writable: true,
+    });
+
+    await renderWithMemo();
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+
+    expect(await screen.findByText('Copied')).toBeInTheDocument();
   });
 });

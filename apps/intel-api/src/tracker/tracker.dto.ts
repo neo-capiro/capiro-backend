@@ -15,7 +15,7 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { EXPECTED_CONFIDENCE_LEVELS, EXPECTED_MILESTONE_TYPES } from '@capiro/shared';
 
 /**
@@ -66,6 +66,25 @@ export const FEEDBACK_SIGNALS = [
 export class BillSearchQueryDto {
   @IsString()
   q!: string;
+
+  /**
+   * P1-17: which rails to search. Absent = federal only, which keeps every
+   * existing caller (including the Workspace ContextBuilder) byte-identical.
+   * 'US' plus state codes searches both. Each entry is a 2-letter code, so
+   * MaxLength(2) also bounds the state fan-out.
+   *
+   * A single value arrives as a string from the query string, so it is
+   * normalised to an array before validation.
+   */
+  @IsOptional()
+  @Transform(({ value }) =>
+    value === undefined || value === null ? undefined : Array.isArray(value) ? value : [value],
+  )
+  @IsArray()
+  @ArrayMaxSize(56)
+  @IsString({ each: true })
+  @MaxLength(2, { each: true })
+  jurisdictions?: string[];
 }
 
 /**

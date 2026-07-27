@@ -110,6 +110,9 @@ export interface BillSearchResult {
   title: string | null;
   stage: BillStage;
   probability: number;
+  /** P1-17: 'US' or a 2-letter state code, so the Add Bill modal can label
+   *  which rail each result came from. */
+  jurisdiction?: string;
 }
 
 /**
@@ -788,13 +791,44 @@ export class TrackerBoardService {
    * Add-bill-modal text search (P1.1, ported from apps/api
    * tracker.service.searchBills). Current Congress only; <2 chars → []. Tenant-
    * independent by design (GLOBAL `congress_bill`; auth is the route guards).
+   *
+   * P1-17: this searched the federal corpus ONLY, while the modal's copy claimed
+   * it searched the congressional record — so a client could enable state
+   * jurisdictions, receive state recommendations, and still be unable to add a
+   * state bill it had missed. It now searches both rails.
+   *
+   * `jurisdictions` semantics, matching the rest of LegiWatch: an EMPTY/absent
+   * list means BOTH (federal + every state the caller passes nothing about),
+   * `['US']` means federal only, and a list of state codes searches those states
+   * (plus federal when 'US' is among them). Never "fix" an empty array to a
+   * default list — MASTER §4.5.
    */
-  async searchBills(q: string): Promise<BillSearchResult[]> {
+  async searchBills(
+    q: string,
+    opts: { jurisdictions?: string[]; limit?: number } = {},
+  ): Promise<BillSearchResult[]> {
     const query = (q ?? '').trim();
     if (query.length < 2) return [];
+    const limit = Math.min(Math.max(opts.limit ?? 20, 1), 50);
     const { titleLike, idLike } = billSearchPatterns(query);
-    const rows = await this.repo.searchBillRows(titleLike, idLike, currentCongress());
-    return rows.map((b) => ({
+
+    const juris = (opts.jurisdictions ?? []).map((j) => j.trim().toUpperCase()).filter(Boolean);
+    const wantsAll = juris.length === 0;
+    const wantsFederal = wantsAll || juris.includes('US');
+    const states = juris.filter((j) => j !== 'US');
+
+    const [federal, stateRows] = await Promise.all([
+      wantsFederal
+        ? this.repo.searchBillRows(titleLike, idLike, currentCongress())
+        : Promise.resolve([]),
+      // With no jurisdictions named we cannot scan all 50 legislatures on a
+      // 2-character query, so the state rail runs only when states are named.
+      states.length
+        ? this.stateRepo.searchStateBillRows(titleLike, idLike, states, limit)
+        : Promise.resolve([]),
+    ]);
+
+    const out: BillSearchResult[] = federal.map((b) => ({
       billId: b.id,
       displayNum: humanizeBillId(b.id),
       title: b.title,
@@ -804,7 +838,24 @@ export class TrackerBoardService {
         title: b.title,
         latestActionDate: b.latestActionDate,
       }),
+      jurisdiction: 'US',
     }));
+
+    for (const b of stateRows) {
+      out.push({
+        billId: b.id,
+        displayNum: humanizeStateBillKey(b.id),
+        title: b.title,
+        stage: billStage(b.latestActionText),
+        probability: passageProbability({
+          latestActionText: b.latestActionText,
+          title: b.title,
+          latestActionDate: b.latestActionDate,
+        }),
+        jurisdiction: b.state,
+      });
+    }
+    return out.slice(0, limit);
   }
 
   private async trackCongressStage(

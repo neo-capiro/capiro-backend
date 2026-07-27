@@ -63,10 +63,13 @@ export class TrackerBoardController {
   }
 
   // Add-bill-modal search. `:clientId` is vestigial (legacy contract — the
-  // Workspace ContextBuilder calls this shape too); only `q` drives the query.
+  // Workspace ContextBuilder calls this shape too); `q` plus the optional
+  // jurisdiction facet drive the query.
   @Get(':clientId/tracker/bill-search')
   searchBills(@Query() query: BillSearchQueryDto) {
-    return this.svc.searchBills(query.q);
+    // P1-17: `jurisdictions` is optional, so an existing caller sending only
+    // `q` still gets exactly the federal-only result set it got before.
+    return this.svc.searchBills(query.q, { jurisdictions: query.jurisdictions });
   }
 
   @Post(':clientId/tracker/track')

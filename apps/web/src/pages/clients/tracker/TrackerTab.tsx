@@ -75,26 +75,23 @@ function loadBillsPanel(): Panel {
   return 'board';
 }
 
-const MONTHS: Record<string, number> = {
-  '01': 0,
-  '02': 1,
-  '03': 2,
-  '04': 3,
-  '05': 4,
-  '06': 5,
-  '07': 6,
-  '08': 7,
-  '09': 8,
-  '10': 9,
-  '11': 10,
-  '12': 11,
-};
-function dateVal(s: string | null): number {
+/**
+ * P1-16: the old dateVal read only parts[1] (month) and parts[2] (day) and
+ * returned `MONTHS[m] * 31 + day`, never touching parts[0] — the YEAR. So
+ * December 2025 (11*31+15 = 356) sorted ahead of January 2026 (0*31+20 = 20),
+ * and "Newest action" put last year's bills first.
+ *
+ * The `T00:00:00Z` suffix on the 10-char case is load-bearing and must stay:
+ * `Date.parse` treats a bare `YYYY-MM-DD` as UTC but a bare
+ * `YYYY-MM-DDTHH:mm:ss` (no zone) as LOCAL. Appending Z only for the date-only
+ * form keeps both branches UTC-stable; "just parse the ISO string" would
+ * introduce a timezone bug the old month/day code did not have.
+ * `latestActionDate` is `YYYY-MM-DD` (intel-tracker-api.ts slices to 10).
+ */
+export function dateVal(s: string | null): number {
   if (!s) return 0;
-  const parts = s.split('-');
-  const m = parts[1] ?? '';
-  const d = parts[2] ?? '0';
-  return (MONTHS[m] ?? 0) * 31 + parseInt(d, 10);
+  const t = Date.parse(s.length === 10 ? `${s}T00:00:00Z` : s);
+  return Number.isFinite(t) ? t : 0;
 }
 
 export interface TrackerSurfaceProps {
@@ -551,15 +548,33 @@ export function TrackerSurface({
     if (unread) markReadMutation.mutate(billId);
     drillTo(billId);
   };
+  // P2-06: the toast used to fire on the line AFTER .mutate(), so a rejected
+  // request still read as "added to board". It now lives in the per-call
+  // onSuccess, and a failure says so.
   const trackRec = (billId: string) => {
     const b = recs?.recommendations.find((r) => r.billId === billId);
-    trackMutation.mutate({ billId, source: 'recommended' });
-    pushToast({ num: b?.displayNum ?? '' });
+    trackMutation.mutate(
+      { billId, source: 'recommended' },
+      {
+        onSuccess: () => pushToast({ num: b?.displayNum ?? '' }),
+        onError: (e: unknown) =>
+          message.error(`Could not track ${b?.displayNum ?? 'the bill'}: ${(e as Error).message}`),
+      },
+    );
   };
-  const trackManual = (bill: BillSearchResult) => {
-    trackMutation.mutate({ billId: bill.billId, source: 'manual_search' });
-    pushToast({ num: bill.displayNum });
-  };
+  // Returns the promise so AddBillModal only marks the row "On board" after the
+  // write actually succeeded (P2-06).
+  const trackManual = (bill: BillSearchResult) =>
+    trackMutation
+      .mutateAsync({ billId: bill.billId, source: 'manual_search' })
+      .then((r) => {
+        pushToast({ num: bill.displayNum });
+        return r;
+      })
+      .catch((e: unknown) => {
+        message.error(`Could not track ${bill.displayNum}: ${(e as Error).message}`);
+        throw e;
+      });
   const requestVerify = (phone: string, onVerified: () => void) => {
     smsStartMutation.mutate(phone, {
       onSuccess: (res) => {
@@ -664,12 +679,32 @@ export function TrackerSurface({
       n.has(id) ? n.delete(id) : n.add(id);
       return n;
     });
+  /**
+   * P2-06: this fired N mutations and then immediately claimed all N succeeded.
+   * Now it settles them all and reports the real count, naming the failures.
+   * The selection is cleared only AFTER settling, so a partial failure leaves
+   * the user somewhere they can retry from.
+   */
   const trackSelected = () => {
     const ids = [...selected];
-    ids.forEach((id) => trackMutation.mutate({ billId: id, source: 'recommended' }));
-    pushToast({ text: `${ids.length} bill${ids.length > 1 ? 's' : ''} added to board` });
-    setSelected(new Set());
-    setSelectMode(false);
+    if (!ids.length) return;
+    void Promise.allSettled(
+      ids.map((id) => trackMutation.mutateAsync({ billId: id, source: 'recommended' })),
+    ).then((results) => {
+      const failedIds = ids.filter((_, i) => results[i]!.status === 'rejected');
+      const ok = ids.length - failedIds.length;
+      if (failedIds.length) {
+        pushToast({ text: `${ok} of ${ids.length} added to board` });
+        const names = failedIds
+          .map((id) => recs?.recommendations.find((r) => r.billId === id)?.displayNum ?? id)
+          .join(', ');
+        message.error(`Could not track: ${names}`);
+      } else {
+        pushToast({ text: `${ok} bill${ok > 1 ? 's' : ''} added to board` });
+      }
+      setSelected(new Set());
+      setSelectMode(false);
+    });
   };
 
   // LegiWatch v2 (L2): the Bills tab shows Recommendations ABOVE the board (both
@@ -839,7 +874,13 @@ export function TrackerSurface({
                 <button className="b-cancel" onClick={() => setSelected(new Set())}>
                   Clear
                 </button>
-                <button className="b-track" onClick={trackSelected}>
+                {/* P2-06: repeated clicks while the batch is in flight would
+                    fire the same mutations again. */}
+                <button
+                  className="b-track"
+                  disabled={trackMutation.isPending}
+                  onClick={trackSelected}
+                >
                   Track selected
                 </button>
               </div>

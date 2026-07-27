@@ -857,8 +857,14 @@ export function TrackerFeedPanel({
           .map((m) => `${m.speakerName ? `${m.speakerName}: ` : ''}${m.quote ?? ''}`.trim())
           .filter(Boolean);
         if (qs.length) {
-          void navigator.clipboard?.writeText(qs.join('\n'));
-          message.success(`Copied ${qs.length} quote${qs.length === 1 ? '' : 's'}`);
+          // P2-06: same un-awaited + optional-chained clipboard bug as the two
+          // composer drawers — it claimed success while copying nothing.
+          void navigator.clipboard
+            .writeText(qs.join('\n'))
+            .then(() => message.success(`Copied ${qs.length} quote${qs.length === 1 ? '' : 's'}`))
+            .catch(() =>
+              message.warning('Could not copy automatically — select the text and copy manually.'),
+            );
         } else {
           message.info('No decrypted quotes available — open the hearing to view.');
         }

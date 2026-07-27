@@ -234,6 +234,9 @@ export interface BillSearchResult {
   title: string;
   stage: BillStage;
   probability: number;
+  /** P1-17: 'US' or a 2-letter state code, so the modal can label each result.
+   *  Optional — a pre-Gate-D intel-api sends federal results with no label. */
+  jurisdiction?: string;
 }
 
 export interface SeedSuggestions {
