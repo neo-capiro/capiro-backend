@@ -9,6 +9,7 @@ import { intelTrackerPaths } from './intel-tracker-api.js';
 import {
   feedItemToMemoAlert,
   useGenerateAlertMemo,
+  useGetMemoLink,
   useRecordMemoLink,
   useSaveAlertMemo,
   withClaimAnchors,
@@ -63,6 +64,7 @@ export function MemoComposerDrawer({
   const generate = useGenerateAlertMemo();
   const save = useSaveAlertMemo();
   const recordLink = useRecordMemoLink();
+  const getMemoLink = useGetMemoLink();
 
   // P10: "Open in Workspace" — create an EDITABLE Workspace draft from the
   // in-memory memo content (never the auto-filed .docx; Documents/EngagementAttachment
@@ -118,6 +120,15 @@ export function MemoComposerDrawer({
   // P1-14: the document is filed but the alert↔document link is a SECOND durable write.
   // When it fails we hold what a retry needs instead of dropping it on the floor.
   const [linkFailed, setLinkFailed] = useState<{ attachmentId: string; title: string } | null>(null);
+  // RB-04 / Gate H a-2: true while `markdown` holds previously-SAVED content
+  // rather than a fresh generation — gates whether Regenerate needs a confirm
+  // and tells the analyst what they're looking at.
+  const [existingLoaded, setExistingLoaded] = useState(false);
+  // The saved title for loaded content — `memo` (the generator's rich result)
+  // is never populated on this path, so onSave's title fallback needs it
+  // separately or a save-without-regenerating would re-file under a fresh
+  // `Client memo — {item.title}` instead of the name it was actually filed as.
+  const [loadedTitle, setLoadedTitle] = useState<string | null>(null);
   const startedFor = useRef<string | null>(null);
 
   // P0-01: a memo the grounding auditor HELD for review — governance state, not
@@ -137,6 +148,8 @@ export function MemoComposerDrawer({
       setMarkdown(res.markdown);
       setAttachmentId(res.document?.attachmentId ?? null);
       setDirty(false);
+      setExistingLoaded(false);
+      setLoadedTitle(null);
       // §4.10 (f-5): fired on generation itself, independent of the filing
       // outcome below — a held-for-review memo was still generated.
       void api
@@ -176,21 +189,82 @@ export function MemoComposerDrawer({
     }
   };
 
-  // Auto-generate once when the drawer opens for an item. If the alert already
-  // has a memo, seed its Document id so this (re)generation REPLACES that
-  // Document instead of filing a duplicate.
+  /**
+   * RB-04 / Gate H a-2, a-4: loads the SAVED memo (a-5's content field) instead
+   * of generating over it. A null documentAttachmentId (memo present but never
+   * successfully filed) is a real, surfaced state here — not silently treated
+   * as "nothing exists yet" — so Save below files it exactly once instead of a
+   * generate silently producing a second, unlinked document.
+   */
+  const loadExisting = async (
+    alertId: string,
+    existingMemo: { documentAttachmentId: string | null; title: string | null },
+  ) => {
+    setAttachmentId(existingMemo.documentAttachmentId ?? null);
+    setLoadedTitle(existingMemo.title ?? null);
+    let saved: { text: string | null } | null = null;
+    try {
+      saved = await getMemoLink.mutateAsync({ clientId, alertId });
+    } catch {
+      saved = null;
+    }
+    if (saved?.text) {
+      setMemo(null);
+      setMarkdown(saved.text);
+      setDirty(false);
+      setExistingLoaded(true);
+    } else {
+      // A memo-link row exists but has no saved content (drafted before Gate H
+      // a-5, or the read failed) — surface it rather than quietly regenerating.
+      setMemo(null);
+      setMarkdown('');
+      setExistingLoaded(true);
+      message.warning('No saved memo content on record — use Regenerate to draft a new one.');
+    }
+  };
+
+  // Auto-generate on open ONLY when there is no existing memo (a-2). When one
+  // exists, load its saved content instead — generating (and so replacing the
+  // filed document) now requires the explicit, confirm-gated Regenerate action
+  // below, on both this open path and the footer button (a-3).
   useEffect(() => {
     if (open && item && startedFor.current !== item.id) {
       startedFor.current = item.id;
-      const existing = item.actions?.memo?.documentAttachmentId ?? null;
-      setMemo(null);
-      setMarkdown('');
-      setAttachmentId(existing);
-      void runGenerate(existing ?? undefined);
+      const existingMemo = item.actions?.memo;
+      if (existingMemo) {
+        setMemo(null);
+        setMarkdown('');
+        setExistingLoaded(false);
+        void loadExisting(item.id, existingMemo);
+      } else {
+        setMemo(null);
+        setMarkdown('');
+        setAttachmentId(null);
+        setExistingLoaded(false);
+        setLoadedTitle(null);
+        void runGenerate();
+      }
     }
     if (!open) startedFor.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, item?.id]);
+
+  /** a-3 / H-2: every regenerate that would replace a filed document — the open
+   *  path above never auto-fires this; only an explicit click does. */
+  const confirmAndRegenerate = () => {
+    if (attachmentId) {
+      Modal.confirm({
+        title: 'Regenerate this memo?',
+        content:
+          'This drafts a brand-new memo and files it in place of the current one — the version in Documents today will no longer appear once this finishes. Any unsaved edits here will be lost.',
+        okText: 'Regenerate',
+        okButtonProps: { danger: true },
+        onOk: () => void runGenerate(attachmentId),
+      });
+    } else {
+      void runGenerate();
+    }
+  };
 
   const onSave = async () => {
     if (!item) return;
@@ -202,7 +276,7 @@ export function MemoComposerDrawer({
     try {
       const res = await save.mutateAsync({
         clientId,
-        title: memo?.title ?? `Client memo — ${item.title}`,
+        title: memo?.title ?? loadedTitle ?? `Client memo — ${item.title}`,
         markdown,
         clientName,
         alertId: item.id,
@@ -266,7 +340,7 @@ export function MemoComposerDrawer({
     }
   };
 
-  const busy = generate.isPending;
+  const busy = generate.isPending || (getMemoLink.isPending && !existingLoaded);
 
   return (
     <Modal
@@ -275,7 +349,7 @@ export function MemoComposerDrawer({
       onCancel={onClose}
       width={760}
       footer={[
-        <Button key="regen" onClick={() => void runGenerate(attachmentId ?? undefined)} loading={busy} disabled={!item}>
+        <Button key="regen" onClick={confirmAndRegenerate} loading={busy} disabled={!item}>
           Regenerate
         </Button>,
         <Button
@@ -305,7 +379,16 @@ export function MemoComposerDrawer({
         </Button>,
         ...(held
           ? [
-              <Button key="review" onClick={() => navigate('/reviews')}>
+              <Button
+                key="review"
+                onClick={() =>
+                  navigate(
+                    memo?.reviewRequestId
+                      ? `/reviews?id=${encodeURIComponent(memo.reviewRequestId)}`
+                      : '/reviews',
+                  )
+                }
+              >
                 View review request
               </Button>,
             ]
@@ -341,7 +424,9 @@ export function MemoComposerDrawer({
     >
       {busy && !memo ? (
         <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--muted,#8a8a96)' }}>
-          Generating a memo grounded in {clientName}&apos;s profile…
+          {generate.isPending
+            ? <>Generating a memo grounded in {clientName}&apos;s profile…</>
+            : 'Loading the saved memo…'}
         </div>
       ) : (
         <Space direction="vertical" style={{ width: '100%' }} size={10}>
@@ -354,6 +439,11 @@ export function MemoComposerDrawer({
               <Tag color="green">Saved to Documents ✓</Tag>
             ) : (
               <Tag>Not yet filed</Tag>
+            )}
+            {existingLoaded && !memo && (
+              <Tooltip title="This is the previously saved memo, not a new AI draft. Use Regenerate for a brand-new version.">
+                <Tag>Loaded from Documents</Tag>
+              </Tooltip>
             )}
             {memo?.lowConfidence && (
               <Tooltip title="Generation was thin or fell back to a scaffold — review carefully.">

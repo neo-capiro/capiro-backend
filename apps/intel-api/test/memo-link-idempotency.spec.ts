@@ -101,6 +101,83 @@ describe('ActionItemService.recordMemo — idempotency (P1-14)', () => {
 
     expect(rows).toHaveLength(2);
   });
+
+  // Gate H a-5: content is persisted into the existing `text` column so a
+  // saved memo can be read back without regenerating (RB-04's read path).
+  it('persists content into the row', async () => {
+    const { prisma, rows } = makePrisma();
+    const svc = new ActionItemService(prisma);
+
+    await svc.recordMemo('t1', 'c1', 'alert-1', 'u1', {
+      documentAttachmentId: 'att-1',
+      title: 'Memo',
+      content: '# Client memo\n\nBody text.',
+    });
+
+    expect((rows[0] as any).text).toBe('# Client memo\n\nBody text.');
+  });
+
+  // The reconcile-orphan-memo-links backfill (and any other caller that never
+  // had content to send) must NOT wipe a real saved memo's text — this is
+  // exactly why recordMemo spreads `content` conditionally rather than
+  // defaulting to null like documentAttachmentId/title do.
+  it('a call that omits content leaves previously-saved content untouched', async () => {
+    const { prisma, rows } = makePrisma();
+    const svc = new ActionItemService(prisma);
+
+    await svc.recordMemo('t1', 'c1', 'alert-1', 'u1', {
+      documentAttachmentId: 'att-1',
+      title: 'Memo',
+      content: 'original saved content',
+    });
+    // A metadata-only update (e.g. a regenerate that replaces the attachment
+    // id but the caller forgot to resend content, or the orphan-link backfill).
+    await svc.recordMemo('t1', 'c1', 'alert-1', 'u1', {
+      documentAttachmentId: 'att-2',
+      title: 'Regenerated',
+    });
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.documentAttachmentId).toBe('att-2');
+    expect((rows[0] as any).text).toBe('original saved content');
+  });
+
+  // An explicit empty-string content (e.g. clearing a memo) IS honored — only
+  // `undefined` (the key never sent) is treated as "don't touch".
+  it('an explicit empty-string content DOES overwrite (only undefined is "leave alone")', async () => {
+    const { prisma, rows } = makePrisma();
+    const svc = new ActionItemService(prisma);
+
+    await svc.recordMemo('t1', 'c1', 'alert-1', 'u1', { documentAttachmentId: 'att-1', content: 'first' });
+    await svc.recordMemo('t1', 'c1', 'alert-1', 'u1', { documentAttachmentId: 'att-1', content: '' });
+
+    expect((rows[0] as any).text).toBe('');
+  });
+});
+
+describe('ActionItemService.getMemo — round-trips saved content (Gate H a-5)', () => {
+  it('returns the content recordMemo persisted, with no server change needed to getMemo itself', async () => {
+    const { prisma } = makePrisma();
+    const svc = new ActionItemService(prisma);
+    await svc.recordMemo('t1', 'c1', 'alert-1', 'u1', {
+      documentAttachmentId: 'att-1',
+      title: 'Client memo — H.R. 8800',
+      content: 'The full saved markdown.',
+    });
+
+    const got = await svc.getMemo('t1', 'alert-1');
+    expect(got).toMatchObject({
+      documentAttachmentId: 'att-1',
+      title: 'Client memo — H.R. 8800',
+      text: 'The full saved markdown.',
+    });
+  });
+
+  it('returns null when no memo exists for the alert', async () => {
+    const { prisma } = makePrisma();
+    const svc = new ActionItemService(prisma);
+    expect(await svc.getMemo('t1', 'no-such-alert')).toBeNull();
+  });
 });
 
 describe('expectedMemoFileName — mirrors apps/api title precedence', () => {

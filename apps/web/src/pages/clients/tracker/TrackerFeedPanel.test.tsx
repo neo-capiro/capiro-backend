@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntApp } from 'antd';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { TrackerFeedPanel } from './TrackerFeedPanel.js';
 import type { FeedItem } from './intel-feed-api.js';
 
@@ -290,22 +290,55 @@ describe('P1-11 — internal instrumentation is out of the analyst view', () => 
     expect(container.querySelector('.chip.warn')).toBeNull();
   });
 
-  /** c-9 case 7. */
-  test('an assigned owner renders; unassigned shows the affordance', async () => {
+  /**
+   * c-9 case 7. MP-15 / Gate H d-5: `assignedToName` (set here as a red herring)
+   * is never produced by any server code — "Who should act" resolves the raw
+   * `assignedTo` DB user id against the tenant-admin roster instead, the SAME
+   * roster + resolver the collapsed-card chip already used correctly.
+   */
+  test('an assigned owner renders (resolved from the roster, not the dead assignedToName field); unassigned shows the affordance', async () => {
     mockApi([
       feedItem({
         workState: {
           state: 'assigned',
           assignedTo: 'user-42',
-          assignedToName: 'Dana Reyes',
+          assignedToName: 'Wrong Name — must never render',
           snoozedUntil: null,
           note: null,
         },
       }),
     ]);
+    apiGetMock.mockImplementation(async (url: string) => {
+      if (url.includes('/feed')) {
+        feedUrls.push(url);
+        return { data: feedPage([feedItem({
+          workState: { state: 'assigned', assignedTo: 'user-42', assignedToName: 'Wrong Name — must never render', snoozedUntil: null, note: null },
+        })]) };
+      }
+      if (url.includes('/tenant-admin/team')) {
+        return { data: [{ userId: 'user-42', email: 'dana@acme.test', firstName: 'Dana', lastName: 'Reyes' }] };
+      }
+      return { data: {} };
+    });
     renderPanel();
     fireEvent.click(await screen.findByText(/Rule failed on the floor/));
-    expect(await screen.findByText('Dana Reyes')).toBeInTheDocument();
+    // "Dana Reyes" legitimately also appears as an <option> in the Assign
+    // owner picker once the roster loads — assert presence, not exclusivity.
+    await waitFor(() => expect(screen.getAllByText('Dana Reyes').length).toBeGreaterThan(0));
+    const whoShouldAct = (await screen.findByText('Who should act')).parentElement;
+    expect(whoShouldAct?.textContent).toContain('Dana Reyes');
+    expect(screen.queryByText('Wrong Name — must never render')).toBeNull();
+  });
+
+  test('an assigned owner with no matching roster row renders the raw id, never blank or "undefined" (edge case)', async () => {
+    mockApi([
+      feedItem({
+        workState: { state: 'assigned', assignedTo: 'user-99', snoozedUntil: null, note: null },
+      }),
+    ]);
+    renderPanel();
+    fireEvent.click(await screen.findByText(/Rule failed on the floor/));
+    expect(await screen.findByText('user-99')).toBeInTheDocument();
   });
 
   test('unassigned renders "Unassigned", never an empty string', async () => {
@@ -523,6 +556,80 @@ describe('P2-05 — open an existing memo', () => {
   });
 });
 
+/** Renders whatever route navigate() actually lands on, as visible text. */
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location-probe">{location.pathname}{location.search}</div>;
+}
+
+/** MP-13 / Gate H phase b: Open memo must land on the specific attachment. */
+describe('P2-05 — Open memo lands on the specific attachment (Gate H phase b)', () => {
+  function renderPanelWithLocationProbe() {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <AntApp>
+            <TrackerFeedPanel clientId="c1" clientName="Acme Aerospace" />
+            <Routes>
+              <Route path="*" element={<LocationProbe />} />
+            </Routes>
+          </AntApp>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  test('navigates with &attachmentId= when the memo has a filed document', async () => {
+    mockApi([
+      feedItem({
+        actions: { inReport: false, talkingPoints: 0, memo: { documentAttachmentId: 'att-9', title: 'Client memo' } },
+      }),
+    ]);
+    renderPanelWithLocationProbe();
+    fireEvent.click(await screen.findByText(/Rule failed on the floor/));
+    fireEvent.click(await screen.findByRole('button', { name: /Open memo/ }));
+
+    await waitFor(() => {
+      const text = screen.getByTestId('location-probe').textContent ?? '';
+      expect(text).toContain('/clients?');
+      expect(text).toContain('clientId=c1');
+      expect(text).toContain('tab=documents');
+      expect(text).toContain('attachmentId=att-9');
+    });
+  });
+
+  test('navigates WITHOUT attachmentId (not a fabricated one) when the memo has no filed document (a-4)', async () => {
+    mockApi([
+      feedItem({
+        actions: { inReport: false, talkingPoints: 0, memo: { documentAttachmentId: null, title: 'Client memo' } },
+      }),
+    ]);
+    renderPanelWithLocationProbe();
+    fireEvent.click(await screen.findByText(/Rule failed on the floor/));
+    fireEvent.click(await screen.findByRole('button', { name: /Open memo/ }));
+
+    await waitFor(() => {
+      const text = screen.getByTestId('location-probe').textContent ?? '';
+      expect(text).toContain('tab=documents');
+    });
+    expect(screen.getByTestId('location-probe').textContent ?? '').not.toContain('attachmentId');
+  });
+});
+
+/** MP-14 / Gate H phase c: these are honest navigation labels, not alert actions. */
+describe('MP-14 — Action Board / Strategies are labelled as navigation', () => {
+  test('renders "Open Action Board" / "Open Strategies", not "Create task" / "Add to strategy"', async () => {
+    mockApi([feedItem()]);
+    renderPanel();
+    fireEvent.click(await screen.findByText(/Rule failed on the floor/));
+    expect(await screen.findByRole('button', { name: 'Open Action Board' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Strategies' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Create task' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add to strategy' })).toBeNull();
+  });
+});
+
 /**
  * Gate D phase g (g-7, g-8 case 8) — the `&alert=<id>` deep link.
  *
@@ -577,5 +684,102 @@ describe('g-7 — the &alert= deep link focuses one card', () => {
     renderPanel();
     await screen.findByText(/Rule failed on the floor/);
     expect(screen.queryByText('Why this matters')).toBeNull();
+  });
+});
+
+/**
+ * RB-04 / Gate H a-1, a-7: "Edit in Workspace" on an alert that already has a
+ * memo must never generate (and so never replace the filed document) — it
+ * reads the saved content directly and opens a Workspace draft from it. A
+ * repo-wide grep before this fix found zero tests anywhere exercising the
+ * generate endpoint's replaceAttachmentId at all.
+ */
+describe('P2-05 — Edit in Workspace reads saved content, never regenerates (Gate H a-7)', () => {
+  test('clicking Edit in Workspace calls memo-link + drafts, never the generate endpoint, and opens with the saved content', async () => {
+    mockApi([
+      feedItem({
+        actions: {
+          inReport: false,
+          talkingPoints: 0,
+          memo: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200' },
+        },
+      }),
+    ]);
+    apiGetMock.mockImplementation(async (url: string) => {
+      if (url.includes('/feed')) {
+        feedUrls.push(url);
+        return { data: feedPage([
+          feedItem({
+            actions: {
+              inReport: false,
+              talkingPoints: 0,
+              memo: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200' },
+            },
+          }),
+        ]) };
+      }
+      if (url.includes('/memo-link')) {
+        return { data: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200', text: 'Saved body text.' } };
+      }
+      return { data: {} };
+    });
+    apiPostMock.mockImplementation(async (url: string) => {
+      if (url.includes('/workspace-api/drafts')) return { data: { id: 'draft-1' } };
+      return { data: { ok: true, updated: 0 } };
+    });
+
+    renderPanel();
+    fireEvent.click(await screen.findByText(/Rule failed on the floor/));
+    fireEvent.click(await screen.findByRole('button', { name: /Edit in Workspace/i }));
+
+    await screen.findByText(/Opened in Workspace/i);
+
+    const getUrls = apiGetMock.mock.calls.map((c) => c[0] as string);
+    expect(getUrls.some((u) => u.includes('/memo-link'))).toBe(true);
+    const postCalls = apiPostMock.mock.calls as Array<[string, unknown]>;
+    expect(postCalls.some(([u]) => u.includes('/workspace-api/drafts'))).toBe(true);
+    expect(postCalls.some(([u]) => u.includes('/alert-memo'))).toBe(false);
+    // No replaceAttachmentId anywhere — this path never carries one at all.
+    expect(postCalls.every(([, body]) => !(body as Record<string, unknown> | undefined)?.replaceAttachmentId)).toBe(
+      true,
+    );
+  });
+
+  test('when there is no saved content to read, Edit in Workspace fails loudly instead of opening an empty draft', async () => {
+    mockApi([
+      feedItem({
+        actions: {
+          inReport: false,
+          talkingPoints: 0,
+          memo: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200' },
+        },
+      }),
+    ]);
+    apiGetMock.mockImplementation(async (url: string) => {
+      if (url.includes('/feed')) {
+        feedUrls.push(url);
+        return { data: feedPage([
+          feedItem({
+            actions: {
+              inReport: false,
+              talkingPoints: 0,
+              memo: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200' },
+            },
+          }),
+        ]) };
+      }
+      if (url.includes('/memo-link')) {
+        return { data: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200', text: null } };
+      }
+      return { data: {} };
+    });
+
+    renderPanel();
+    fireEvent.click(await screen.findByText(/Rule failed on the floor/));
+    fireEvent.click(await screen.findByRole('button', { name: /Edit in Workspace/i }));
+
+    await screen.findByText(/No saved memo content on record/i);
+    const postUrls = apiPostMock.mock.calls.map((c) => c[0] as string);
+    expect(postUrls.some((u) => u.includes('/workspace-api/drafts'))).toBe(false);
   });
 });

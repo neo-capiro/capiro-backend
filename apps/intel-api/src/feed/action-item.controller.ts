@@ -25,9 +25,16 @@ import {
   type WorkStateValue,
 } from './alert-work-state.service.js';
 
-class MemoLinkDto {
+export class MemoLinkDto {
   @IsOptional() @IsString() documentAttachmentId?: string;
   @IsOptional() @IsString() @MaxLength(300) title?: string;
+  // Gate H a-5: the memo's markdown, persisted into intel_action_item's
+  // existing (already-nullable) `text` column — the same column
+  // addTalkingPoint already writes to for kind='talking_point'. No migration:
+  // the column already exists and was simply never populated for kind='memo'.
+  // Capped well above any realistic memo length; a save that somehow exceeds
+  // it 400s rather than silently truncating a filed document's editable copy.
+  @IsOptional() @IsString() @MaxLength(100_000) content?: string;
 }
 class TalkingPointDto {
   @IsString() @MinLength(1) @MaxLength(2000) text!: string;

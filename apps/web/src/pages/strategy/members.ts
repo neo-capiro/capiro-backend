@@ -18,7 +18,14 @@ export function useTenantMembers() {
   const api = useApi();
   return useQuery<TenantMember[]>({
     queryKey: ['strategy', 'tenant-members'],
-    queryFn: async () => (await api.get<TenantMember[]>('/api/tenant-members')).data,
+    queryFn: async () => {
+      const rows = (await api.get<TenantMember[]>('/api/tenant-members')).data;
+      // Gate H phase d (tracker board owner column): a second consumer of this
+      // hook, so a non-array response (an old cached shape, a 304 with no
+      // body) degrades to an empty roster instead of throwing inside every
+      // memberName() lookup — matching useTeamMembers()'s own guard.
+      return Array.isArray(rows) ? rows : [];
+    },
     staleTime: 300_000,
   });
 }

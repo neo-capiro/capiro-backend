@@ -145,7 +145,16 @@ export function DistrictBriefComposerDrawer({
           Copy
         </Button>,
         held && (
-          <Button key="review" onClick={() => navigate('/reviews')}>
+          <Button
+            key="review"
+            onClick={() =>
+              navigate(
+                brief?.reviewRequestId
+                  ? `/reviews?id=${encodeURIComponent(brief.reviewRequestId)}`
+                  : '/reviews',
+              )
+            }
+          >
             View review request
           </Button>
         ),

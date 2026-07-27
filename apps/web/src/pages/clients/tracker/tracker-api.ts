@@ -53,6 +53,9 @@ export interface BoardBill {
   matchedHighPriorityTopics?: string[];
   /** The client's stance on the highest-priority matched topic. Absent on the legacy board. */
   matchedPosition?: string | null;
+  /** MP-15 / Gate H phase d: the Clerk user id that tracked this bill. Absent on
+   *  the legacy board; null on an intel board row tracked before this shipped. */
+  trackedBy?: string | null;
 }
 export interface BoardColumn {
   id: BillStage;

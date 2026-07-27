@@ -81,6 +81,10 @@ function makeDeps(opts: {
   const engagement = {
     createAttachmentFromBuffer: jest.fn(async () => ({ id: 'att-1', fileName: 'memo.docx' })),
     deleteAttachment: jest.fn(async () => undefined),
+    // Gate H a-6: regenerate/save now supersede rather than delete — see the
+    // dedicated describe block below. Stubbed here so any path that reaches
+    // it doesn't throw "supersedeAttachment is not a function".
+    supersedeAttachment: jest.fn(async () => undefined),
     billTruthBlock: jest.fn(opts.billTruthBlock ?? (async () => null)),
   };
   // G4: held memos emit a review_request (fail-open) — captured for assertions.
@@ -475,5 +479,121 @@ describe('AlertMemoService.generate — live bill re-query (5.2C / RC3 fix)', ()
     const row = (meriAuditLedgerRows[0] as { data: Record<string, unknown> }).data;
     expect(row.surface).toBe('alert');
     expect(row.findingCount).toBeGreaterThan(0);
+  });
+});
+
+describe('AlertMemoService — regenerate/save supersedes, never deletes (Gate H a-6 / RB-04)', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  it('generate() with a replaceAttachmentId supersedes the old doc — never deletes it', async () => {
+    const { service, engagement } = makeDeps({});
+    global.fetch = jest.fn(async () =>
+      anthropicTextResponse([
+        { heading: 'Bottom line', paragraphs: [{ text: 'Rule granted.', claimIds: ['c1'] }] },
+      ]),
+    );
+
+    const result = await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      FEDERAL_ALERT,
+      'Acme Corp',
+      'old-att-1',
+    );
+
+    expect(result.document).toEqual({ attachmentId: 'att-1', fileName: 'memo.docx' });
+    expect(engagement.supersedeAttachment).toHaveBeenCalledTimes(1);
+    expect(engagement.supersedeAttachment).toHaveBeenCalledWith(
+      { tenantId: 't1', userId: 'u1' },
+      'old-att-1',
+      'att-1',
+    );
+    expect(engagement.deleteAttachment).not.toHaveBeenCalled();
+  });
+
+  it('generate() with no replaceAttachmentId calls neither supersede nor delete (first-time generation)', async () => {
+    const { service, engagement } = makeDeps({});
+    global.fetch = jest.fn(async () =>
+      anthropicTextResponse([
+        { heading: 'Bottom line', paragraphs: [{ text: 'Rule granted.', claimIds: ['c1'] }] },
+      ]),
+    );
+
+    await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      FEDERAL_ALERT,
+      'Acme Corp',
+    );
+
+    expect(engagement.supersedeAttachment).not.toHaveBeenCalled();
+    expect(engagement.deleteAttachment).not.toHaveBeenCalled();
+  });
+
+  it('a failed supersede is swallowed (best-effort) — the regenerated memo is still returned with its new document', async () => {
+    const { service, engagement } = makeDeps({});
+    (engagement.supersedeAttachment as jest.Mock).mockRejectedValueOnce(new Error('db down'));
+    global.fetch = jest.fn(async () =>
+      anthropicTextResponse([
+        { heading: 'Bottom line', paragraphs: [{ text: 'Rule granted.', claimIds: ['c1'] }] },
+      ]),
+    );
+
+    const result = await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      FEDERAL_ALERT,
+      'Acme Corp',
+      'old-att-1',
+    );
+
+    expect(result.document).toEqual({ attachmentId: 'att-1', fileName: 'memo.docx' });
+  });
+
+  it('saveEdited() with a replaceAttachmentId supersedes the old doc — never deletes it', async () => {
+    const { service, engagement } = makeDeps({});
+
+    const result = await service.saveEdited(
+      { tenantId: 't1', userId: 'u1', role: 'user_admin' } as never,
+      'client-1',
+      {
+        title: 'H.R. 8800 memo',
+        markdown: '# Bottom line\n\nRule granted.',
+        clientName: 'Acme Corp',
+        alertId: 'alert-1',
+        replaceAttachmentId: 'old-att-2',
+      },
+    );
+
+    expect(result.document).toEqual({ attachmentId: 'att-1', fileName: 'memo.docx' });
+    expect(engagement.supersedeAttachment).toHaveBeenCalledTimes(1);
+    expect(engagement.supersedeAttachment).toHaveBeenCalledWith(
+      { tenantId: 't1', userId: 'u1', role: 'user_admin' },
+      'old-att-2',
+      'att-1',
+    );
+    expect(engagement.deleteAttachment).not.toHaveBeenCalled();
+  });
+
+  it('saveEdited() with no replaceAttachmentId calls neither supersede nor delete (first-time save)', async () => {
+    const { service, engagement } = makeDeps({});
+
+    await service.saveEdited(
+      { tenantId: 't1', userId: 'u1', role: 'user_admin' } as never,
+      'client-1',
+      {
+        title: 'H.R. 8800 memo',
+        markdown: '# Bottom line\n\nRule granted.',
+        clientName: 'Acme Corp',
+        alertId: 'alert-1',
+      },
+    );
+
+    expect(engagement.supersedeAttachment).not.toHaveBeenCalled();
+    expect(engagement.deleteAttachment).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowLeftOutlined,
   CloudUploadOutlined,
@@ -1232,6 +1232,19 @@ function DocumentsTab({
       ).data,
   });
 
+  // MP-13 / Gate H phase b: "Open memo" (and any other deep link into
+  // Documents) lands on the specific record instead of the bare tab.
+  const highlightAttachmentId = useMemo(
+    () => new URLSearchParams(window.location.search).get('attachmentId'),
+    [],
+  );
+  const highlightRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (highlightAttachmentId && highlightRef.current) {
+      highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlightAttachmentId, docs.data]);
+
   const kbStatus = useQuery<KbStatusResponse>({
     queryKey: ['client-kb-status', client.id],
     queryFn: async () => (await api.get<KbStatusResponse>(`/api/clio/kb/${client.id}/status`)).data,
@@ -1369,8 +1382,18 @@ function DocumentsTab({
         <div className="doc-list">
           {docs.data.map((doc) => {
             const { bg, fg } = docColors(doc.contentType, doc.fileName);
+            const highlighted = !!highlightAttachmentId && doc.id === highlightAttachmentId;
             return (
-              <div className="doc-item" key={doc.id}>
+              <div
+                className="doc-item"
+                key={doc.id}
+                ref={highlighted ? highlightRef : undefined}
+                style={
+                  highlighted
+                    ? { outline: '2px solid var(--accent, #4f7cff)', outlineOffset: 2, borderRadius: 8 }
+                    : undefined
+                }
+              >
                 <div className="doc-icon" style={{ background: bg, color: fg }}>
                   {docIcon(doc.contentType, doc.fileName)}
                 </div>
