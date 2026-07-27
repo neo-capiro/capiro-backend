@@ -59,6 +59,20 @@ export function useMeetings(params: MeetingsRangeParams, enabled = true) {
   });
 }
 
+/** GET /api/engagement/meetings/:id — a single decorated meeting, used as a
+ *  fallback when the selected meeting isn't present in the currently fetched
+ *  calendar range (e.g. a deep link to a meeting outside the visible window).
+ *  Mirrors the pattern already used for the legacy page's selectedMeetingQuery. */
+export function useMeeting(meetingId: string | null) {
+  const api = useApi();
+  return useQuery<Meeting>({
+    queryKey: ['meetings-v2-detail', meetingId],
+    queryFn: async () => (await api.get<Meeting>(`${BASE}/meetings/${meetingId}`)).data,
+    enabled: Boolean(meetingId),
+    staleTime: 30_000,
+  });
+}
+
 export interface LibraryParams {
   clientId?: string;
   artifactType?: 'prep' | 'notes' | 'debrief';

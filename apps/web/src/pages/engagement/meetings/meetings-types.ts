@@ -185,6 +185,10 @@ export interface MeetingLibraryResponse {
 /** The current calendar view mode; chips switch the calendar body, not a filter. */
 export type MeetingViewMode = 'day' | 'month' | 'list';
 
+/** The active tab in the meeting detail panel (Phase 2 §2a: now controlled by
+ *  the parent EngagementPage so it round-trips through the URL). */
+export type DetailTab = 'prep' | 'notes' | 'debrief';
+
 /** Whether a meeting is eligible for the Meri notetaker (spec §4.1). */
 export function eligibleForMeri(m: Pick<Meeting, 'isVirtual' | 'joinLink'>): boolean {
   return m.isVirtual && Boolean(m.joinLink);

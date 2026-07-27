@@ -1,14 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Skeleton } from 'antd';
-import { Calendar, CalendarCheck, CalendarSearch, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useMeetings } from './meetings-api.js';
+import {
+  Calendar,
+  CalendarCheck,
+  CalendarSearch,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  X,
+} from 'lucide-react';
+import { useMeeting, useMeetings } from './meetings-api.js';
 import { MonthView } from './MonthView.js';
 import { MeetingRow } from './MeetingRow.js';
 import { MeetingDetailPanel } from './MeetingDetailPanel.js';
 import { SendMeriModal } from './SendMeriModal.js';
 import { ShareConfirmation } from './ShareConfirmation.js';
 import { MeetingLibraryView } from './MeetingLibraryView.js';
-import { Empty } from './meetings-ui.js';
+import { Empty, meetingStatus } from './meetings-ui.js';
 import {
   addDays,
   dayKey,
@@ -24,7 +32,46 @@ import {
   startOfMonth,
   startOfWeek,
 } from './meetings-format.js';
-import type { Meeting, MeetingViewMode } from './meetings-types.js';
+import type { DetailTab, Meeting, MeetingViewMode } from './meetings-types.js';
+
+/**
+ * The best default detail tab for a freshly opened meeting (spec §2.8): debrief
+ * if already done, else notes if captured, else prep. This used to live as an
+ * internal effect in MeetingDetailPanel; now that the tab is controlled by the
+ * parent, it's computed once per meeting-open in openMeeting() below.
+ */
+function bestDetailTab(m: Meeting): DetailTab {
+  const status = meetingStatus(m);
+  if (status.debrief) return 'debrief';
+  if (
+    m.notesApproved ||
+    m.meri === 'done' ||
+    m.meri === 'attended' ||
+    (m.notes && m.notes.length > 0)
+  ) {
+    return 'notes';
+  }
+  return 'prep';
+}
+
+export interface MeetingsV2Props {
+  clientId?: string | null;
+  aiConfigured: boolean;
+  libraryOpen: boolean;
+  onLibraryOpenChange: (open: boolean) => void;
+  /** All of the below are owned by the parent (EngagementPage owns the URL —
+   *  Phase 2 §2a2). This component only calls the on*Change callbacks; it never
+   *  keeps its own copy of view mode / cursor / selection / detail tab. */
+  viewMode: MeetingViewMode;
+  cursor: Date;
+  selectedMeetingId: string | null;
+  detailTab: DetailTab;
+  onViewModeChange: (mode: MeetingViewMode) => void;
+  onCursorChange: (date: Date) => void;
+  onSelectedMeetingChange: (meetingId: string | null) => void;
+  onDetailTabChange: (tab: DetailTab) => void;
+  onCreateMeeting: (defaultDate?: Date) => void;
+}
 
 /**
  * Redesigned Engagement → Meetings surface (Meetings & Meri v2) — a faithful
@@ -35,18 +82,18 @@ import type { Meeting, MeetingViewMode } from './meetings-types.js';
 export function MeetingsV2({
   clientId,
   aiConfigured,
-  libraryOpen = false,
+  libraryOpen,
   onLibraryOpenChange,
-}: {
-  clientId?: string | null;
-  aiConfigured: boolean;
-  libraryOpen?: boolean;
-  onLibraryOpenChange?: (open: boolean) => void;
-}) {
-  const [viewMode, setViewMode] = useState<MeetingViewMode>('day');
-  const [cursor, setCursor] = useState<Date>(() => new Date());
-  const [selected, setSelected] = useState<Meeting | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
+  viewMode,
+  cursor,
+  selectedMeetingId,
+  detailTab,
+  onViewModeChange,
+  onCursorChange,
+  onSelectedMeetingChange,
+  onDetailTabChange,
+  onCreateMeeting,
+}: MeetingsV2Props) {
   const [sendMeriTarget, setSendMeriTarget] = useState<Meeting | null>(null);
   const [shareTarget, setShareTarget] = useState<Meeting | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -78,21 +125,48 @@ export function MeetingsV2({
   const meetings = useMeetings({ from, to, clientId: clientId ?? undefined });
   const list = meetings.data ?? [];
 
-  useEffect(() => {
-    if (!selected) return;
-    const fresh = list.find((m) => m.id === selected.id);
-    if (fresh && fresh !== selected) setSelected(fresh);
-  }, [meetings.data]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The selected meeting may live outside the fetched range entirely (a deep
+  // link to a meeting on a different day/month) — fall back to fetching it
+  // directly by id when it isn't in the visible list (spec §4 edge case 1).
+  const listMeeting = list.find((m) => m.id === selectedMeetingId) ?? null;
+  const needsFallback = Boolean(selectedMeetingId) && !listMeeting;
+  const fallbackMeetingQuery = useMeeting(needsFallback ? selectedMeetingId : null);
+  const selected = listMeeting ?? fallbackMeetingQuery.data ?? null;
 
+  // The id is set but neither the visible list nor the direct fetch resolved
+  // it — deleted or no longer accessible (spec §4 edge case 2). Surfaced as an
+  // explicit not-found panel rather than silently showing nothing; the user
+  // dismisses it (closing clears the selection), so there's no auto-redirect
+  // loop to worry about.
+  const notFound =
+    Boolean(selectedMeetingId) &&
+    !listMeeting &&
+    !fallbackMeetingQuery.isLoading &&
+    (fallbackMeetingQuery.isError ||
+      (fallbackMeetingQuery.isFetched && !fallbackMeetingQuery.data));
+
+  const detailOpen = Boolean(selectedMeetingId) && !notFound;
+
+  // Opens a meeting from a click (calendar cell / row / library). Deep links
+  // and browser back/forward set `selectedMeetingId` directly from the URL and
+  // never go through here, so the "pick the best tab" heuristic only ever runs
+  // for in-app opens — an explicit `?detail=` from a URL is never clobbered
+  // (spec §2a3, §4 edge cases 3-4). Re-clicking the already-open meeting is a
+  // no-op for the tab so it can't stomp a manual tab change either.
   const openMeeting = (m: Meeting) => {
-    setSelected(m);
-    setDetailOpen(true);
+    const isNewMeeting = m.id !== selectedMeetingId;
+    onSelectedMeetingChange(m.id);
+    if (isNewMeeting) onDetailTabChange(bestDetailTab(m));
   };
 
   const shift = (dir: -1 | 1) => {
-    if (viewMode === 'month') setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + dir, 1));
-    else if (viewMode === 'day') setCursor(addDays(cursor, dir));
-    else setCursor(addDays(cursor, dir * 7));
+    if (viewMode === 'month') {
+      onCursorChange(new Date(cursor.getFullYear(), cursor.getMonth() + dir, 1));
+    } else if (viewMode === 'day') {
+      onCursorChange(addDays(cursor, dir));
+    } else {
+      onCursorChange(addDays(cursor, dir * 7));
+    }
   };
 
   const label = (() => {
@@ -118,14 +192,53 @@ export function MeetingsV2({
 
   const panel = (
     <>
-      <MeetingDetailPanel
-        meeting={selected}
-        open={detailOpen}
-        onClose={() => setDetailOpen(false)}
-        aiConfigured={aiConfigured}
-        onSendMeri={(m) => setSendMeriTarget(m)}
-        onRequestShare={(m) => setShareTarget(m)}
-      />
+      {notFound ? (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: 'min(680px,92%)',
+            background: 'var(--bg-surface)',
+            zIndex: 50,
+            borderLeft: '1px solid var(--border-1)',
+            boxShadow: '-8px 0 44px rgba(12,26,56,0.16)',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px 0' }}>
+            <button
+              type="button"
+              onClick={() => onSelectedMeetingChange(null)}
+              aria-label="Close"
+              className="btn sm btn-ghost"
+              style={{ padding: 6 }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Empty
+              icon={<CalendarSearch size={20} />}
+              title="Meeting not found"
+              body="It may have been deleted, or you no longer have access to it."
+            />
+          </div>
+        </div>
+      ) : (
+        <MeetingDetailPanel
+          meeting={selected}
+          open={detailOpen}
+          onClose={() => onSelectedMeetingChange(null)}
+          aiConfigured={aiConfigured}
+          activeTab={detailTab}
+          onTabChange={onDetailTabChange}
+          onSendMeri={(m) => setSendMeriTarget(m)}
+          onRequestShare={(m) => setShareTarget(m)}
+        />
+      )}
       <SendMeriModal
         meeting={sendMeriTarget}
         open={Boolean(sendMeriTarget)}
@@ -159,7 +272,7 @@ export function MeetingsV2({
         }}
       >
         <MeetingLibraryView
-          onBack={() => onLibraryOpenChange?.(false)}
+          onBack={() => onLibraryOpenChange(false)}
           onOpenMeeting={(m) => openMeeting(m)}
         />
         {panel}
@@ -261,7 +374,7 @@ export function MeetingsV2({
           </div>
           <button
             type="button"
-            onClick={() => setCursor(new Date())}
+            onClick={() => onCursorChange(new Date())}
             className="btn sm btn-ghost"
             style={{ gap: 5, color: 'var(--ink-3)' }}
           >
@@ -287,7 +400,7 @@ export function MeetingsV2({
               <button
                 key={v}
                 type="button"
-                onClick={() => setViewMode(v)}
+                onClick={() => onViewModeChange(v)}
                 style={{
                   padding: '6px 14px',
                   border: 'none',
@@ -327,7 +440,7 @@ export function MeetingsV2({
                 <button
                   key={dayKey(d)}
                   type="button"
-                  onClick={() => setCursor(d)}
+                  onClick={() => onCursorChange(d)}
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -390,8 +503,8 @@ export function MeetingsV2({
             meetings={list}
             onSelect={(m) => openMeeting(m)}
             onOpenDay={(d) => {
-              setCursor(d);
-              setViewMode('day');
+              onCursorChange(d);
+              onViewModeChange('day');
             }}
           />
         ) : (
@@ -414,6 +527,17 @@ export function MeetingsV2({
                   viewMode === 'day'
                     ? 'Nothing on the calendar for this day.'
                     : 'Nothing on the calendar for this period.'
+                }
+                action={
+                  <button
+                    type="button"
+                    className="btn sm"
+                    style={{ gap: 6 }}
+                    onClick={() => onCreateMeeting(cursor)}
+                  >
+                    <Plus size={13} />
+                    New meeting
+                  </button>
                 }
               />
             ) : (
@@ -441,7 +565,7 @@ export function MeetingsV2({
                       <MeetingRow
                         key={m.id}
                         meeting={m}
-                        selected={m.id === selected?.id}
+                        selected={m.id === selectedMeetingId}
                         onSelect={(mm) => openMeeting(mm)}
                         onSendMeri={(mm) => setSendMeriTarget(mm)}
                       />

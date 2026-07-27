@@ -35,7 +35,9 @@ import { useMe } from '../../lib/me.js';
 import { useApi } from '../../lib/use-api.js';
 import { useClientFilter } from '../../state/client-filter.js';
 import type { Client } from '../clients/clientTypes.js';
+import { meetingsListKey } from './meetings/meetings-api.js';
 import { MeetingsV2 } from './meetings/MeetingsV2.js';
+import type { DetailTab, MeetingViewMode } from './meetings/meetings-types.js';
 import { OutreachView } from './OutreachView.js';
 import {
   DebriefNotesView,
@@ -372,6 +374,7 @@ export function EngagementPage() {
   const qc = useQueryClient();
   const { message } = App.useApp();
   const me = useMe();
+  const meetingsV2Enabled = Boolean(me.data?.features?.meetingsV2);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -384,7 +387,11 @@ export function EngagementPage() {
   const [activeEngagementTab, setActiveEngagementTab] = useState<
     'overview' | 'meetings' | 'outreach' | 'reports'
   >('meetings');
-  const [meetingViewMode, setMeetingViewMode] = useState<'list' | 'calendar' | 'day'>('day');
+  const [meetingViewMode, setMeetingViewMode] = useState<MeetingViewMode>('day');
+  // Meetings v2's calendar anchor date (day/month/list all pivot around this).
+  // Separate from the legacy rangeStart/rangeEnd, which the flag-off branch
+  // keeps using untouched (spec Phase 2 §2a4 / edge case 8).
+  const [meetingCursor, setMeetingCursor] = useState<Date>(() => new Date());
   const [historyBatch, setHistoryBatch] = useState(0);
   // Day picked from the week-nav date picker, so the Day view can highlight it.
   const [meetingFocusDayKey, setMeetingFocusDayKey] = useState<string | null>(null);
@@ -441,20 +448,34 @@ export function EngagementPage() {
     const nextMeetingId =
       nextTab === 'meetings' && segments[2] ? decodeURIComponent(segments[2]) : null;
     const nextDetail = searchParams.get('detail');
-    const nextView = searchParams.get('view');
+    // Accepts the legacy `view=calendar` alias and normalizes it to 'month'
+    // (spec Phase 2 §2a1 / edge case 4) — the stored state and every future
+    // URL write only ever use the canonical 'month'.
+    const nextView = parseMeetingViewMode(searchParams.get('view'));
     const nextFrom = searchParams.get('from');
     const nextTo = searchParams.get('to');
+    const nextDate = searchParams.get('date');
     const nextPeriod = searchParams.get('period');
+    const currentCursorKey = inputValueFromDate(meetingCursor);
 
     const hasUrlStateChange =
       (nextTab && nextTab !== activeEngagementTab) ||
       (nextTab === 'meetings' && nextMeetingId !== selectedMeetingId) ||
       (nextTab === 'meetings' && nextDetail && nextDetail !== meetingDetailTab) ||
-      (nextTab === 'meetings' &&
-        (nextView === 'list' || nextView === 'calendar' || nextView === 'day') &&
-        nextView !== meetingViewMode) ||
+      (nextTab === 'meetings' && nextView && nextView !== meetingViewMode) ||
       (nextTab === 'meetings' && nextFrom && nextFrom !== rangeStart) ||
       (nextTab === 'meetings' && nextTo && nextTo !== rangeEnd) ||
+      // Meetings v2's cursor date — read `date=` when present, else fall back
+      // to a legacy `from=` link opened while v2 is active (spec §2a4).
+      (nextTab === 'meetings' &&
+        meetingsV2Enabled &&
+        Boolean(nextDate) &&
+        nextDate !== currentCursorKey) ||
+      (nextTab === 'meetings' &&
+        meetingsV2Enabled &&
+        !nextDate &&
+        Boolean(nextFrom) &&
+        nextFrom !== currentCursorKey) ||
       (nextTab === 'reports' &&
         ['current', 'previous', 'all'].includes(nextPeriod ?? '') &&
         nextPeriod !== reportPeriod);
@@ -468,11 +489,13 @@ export function EngagementPage() {
     if (nextTab === 'meetings') {
       setSelectedMeetingId(nextMeetingId);
       if (nextDetail) setMeetingDetailTab(nextDetail);
-      if (nextView === 'list' || nextView === 'calendar' || nextView === 'day') {
-        setMeetingViewMode(nextView);
-      }
+      if (nextView) setMeetingViewMode(nextView);
       if (nextFrom) setRangeStart(nextFrom);
       if (nextTo) setRangeEnd(nextTo);
+      if (meetingsV2Enabled) {
+        if (nextDate) setMeetingCursor(localDateFromInput(nextDate));
+        else if (nextFrom) setMeetingCursor(localDateFromInput(nextFrom));
+      }
     }
     if (nextTab === 'reports' && ['current', 'previous', 'all'].includes(nextPeriod ?? '')) {
       setReportPeriod(nextPeriod as ReportPeriod);
@@ -480,7 +503,9 @@ export function EngagementPage() {
   }, [
     activeEngagementTab,
     location.pathname,
+    meetingCursor,
     meetingDetailTab,
+    meetingsV2Enabled,
     meetingViewMode,
     rangeEnd,
     rangeStart,
@@ -507,8 +532,16 @@ export function EngagementPage() {
         nextParams.set('detail', meetingDetailTab);
       // Day is the default view, so only serialize the non-default views.
       if (meetingViewMode !== 'day') nextParams.set('view', meetingViewMode);
-      if (rangeStart) nextParams.set('from', rangeStart);
-      if (rangeEnd) nextParams.set('to', rangeEnd);
+      if (meetingsV2Enabled) {
+        // Meetings v2 pivots on a single cursor date for every mode
+        // (day/month/list) — always serialize it, and never write the legacy
+        // from/to pair (spec §2a4). The URL writer only ever emits the
+        // canonical 'month', never 'calendar' (edge case 4).
+        nextParams.set('date', inputValueFromDate(meetingCursor));
+      } else {
+        if (rangeStart) nextParams.set('from', rangeStart);
+        if (rangeEnd) nextParams.set('to', rangeEnd);
+      }
     } else if (activeEngagementTab === 'outreach') {
       nextPath = location.pathname.startsWith('/engagement/outreach')
         ? location.pathname
@@ -536,7 +569,9 @@ export function EngagementPage() {
   }, [
     activeEngagementTab,
     location.pathname,
+    meetingCursor,
     meetingDetailTab,
+    meetingsV2Enabled,
     meetingViewMode,
     navigate,
     rangeEnd,
@@ -587,23 +622,16 @@ export function EngagementPage() {
           },
         })
       ).data,
+    // Purely legacy-UI fuel — Meetings v2 fetches its own data via useMeetings()
+    // in meetings-api.ts (spec Phase 2 §2c2).
+    enabled: !meetingsV2Enabled,
   });
-
-  // ── Tenant-scoped mock meetings (only for "capiro" tenant when API returns nothing)
-  const isCapiroTenant = me.data?.tenant?.slug === 'capiro';
-  const meetingsWithMock = useMemo(() => {
-    const realMeetings = meetings.data ?? [];
-    if (isCapiroTenant && realMeetings.length === 0) {
-      return MOCK_MEETINGS_FOR_CAPIRO;
-    }
-    return realMeetings;
-  }, [meetings.data, isCapiroTenant]);
 
   const visibleMeetings = useMemo(() => {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
     const todayStart = startOfToday.getTime();
-    return [...meetingsWithMock].sort((left, right) => {
+    return [...(meetings.data ?? [])].sort((left, right) => {
       const leftTime = new Date(left.startsAt).getTime();
       const rightTime = new Date(right.startsAt).getTime();
       // Today + upcoming meetings come first (soonest first); past meetings
@@ -613,7 +641,7 @@ export function EngagementPage() {
       if (leftUpcoming !== rightUpcoming) return leftUpcoming ? -1 : 1;
       return leftUpcoming ? leftTime - rightTime : rightTime - leftTime;
     });
-  }, [meetingsWithMock]);
+  }, [meetings.data]);
   const selectedMeetingFromVisible = useMemo(
     () => visibleMeetings.find((meeting) => meeting.id === selectedMeetingId) ?? null,
     [visibleMeetings, selectedMeetingId],
@@ -622,7 +650,9 @@ export function EngagementPage() {
     queryKey: ['engagement-meeting', selectedMeetingId],
     queryFn: async () =>
       (await api.get<Meeting>(`/api/engagement/meetings/${selectedMeetingId}`)).data,
-    enabled: Boolean(selectedMeetingId && !selectedMeetingFromVisible),
+    // Legacy-only fallback (v2 resolves its own selection independently inside
+    // MeetingsV2 via useMeetings()/useMeeting()).
+    enabled: Boolean(selectedMeetingId && !selectedMeetingFromVisible) && !meetingsV2Enabled,
   });
   const selectedMeeting = selectedMeetingFromVisible ?? selectedMeetingQuery.data ?? null;
   const contextClientId = selectedClientId ?? selectedMeeting?.client?.id ?? null;
@@ -631,7 +661,8 @@ export function EngagementPage() {
     queryKey: ['engagement-client-context', contextClientId],
     queryFn: async () =>
       (await api.get<ClientContext>(`/api/engagement/context/${contextClientId}`)).data,
-    enabled: Boolean(contextClientId),
+    // Feeds only the legacy detail panel's Context tab.
+    enabled: Boolean(contextClientId) && !meetingsV2Enabled,
   });
 
   const meetingAttachments = useQuery<EngagementAttachment[]>({
@@ -642,7 +673,7 @@ export function EngagementPage() {
           params: { meetingId: selectedMeeting?.id },
         })
       ).data,
-    enabled: Boolean(selectedMeeting?.id),
+    enabled: Boolean(selectedMeeting?.id) && !meetingsV2Enabled,
   });
 
   const meetingDebriefs = useQuery<MeetingDebrief[]>({
@@ -650,7 +681,7 @@ export function EngagementPage() {
     queryFn: async () =>
       (await api.get<MeetingDebrief[]>(`/api/engagement/meetings/${selectedMeeting?.id}/debriefs`))
         .data,
-    enabled: Boolean(selectedMeeting?.id),
+    enabled: Boolean(selectedMeeting?.id) && !meetingsV2Enabled,
   });
 
   const notetakerSession = useQuery<MeetingBotSession | null>({
@@ -661,7 +692,7 @@ export function EngagementPage() {
           `/api/engagement/meetings/${selectedMeeting?.id}/notetaker`,
         )
       ).data,
-    enabled: Boolean(selectedMeeting?.id),
+    enabled: Boolean(selectedMeeting?.id) && !meetingsV2Enabled,
     // Poll while Meri is working, stop once the session settles (or is absent).
     refetchInterval: (query) => {
       const status = query.state.data?.status;
@@ -678,7 +709,9 @@ export function EngagementPage() {
     queryFn: async () =>
       (await api.get<MeetingDebrief[]>(`/api/engagement/meetings/${notesModalMeetingId}/debriefs`))
         .data,
-    enabled: Boolean(notesModalMeetingId),
+    // notesModalMeetingId is only ever set by the legacy list/day/calendar
+    // views' "View notes" action.
+    enabled: Boolean(notesModalMeetingId) && !meetingsV2Enabled,
   });
 
   const tasks = useQuery<EngagementTask[]>({
@@ -714,7 +747,7 @@ export function EngagementPage() {
   const createMeeting = useMutation({
     mutationFn: async (values: MeetingFormValues) =>
       (
-        await api.post('/api/engagement/meetings', {
+        await api.post<Meeting>('/api/engagement/meetings', {
           clientId: values.clientId || selectedClientId || undefined,
           subject: values.subject,
           description: optionalText(values.description),
@@ -724,12 +757,22 @@ export function EngagementPage() {
           attendees: parseAttendees(values.attendeesText),
         })
       ).data,
-    onSuccess: () => {
+    onSuccess: (created) => {
       message.success('Meeting saved');
       setMeetingModalOpen(false);
       meetingForm.resetFields();
       qc.invalidateQueries({ queryKey: ['engagement-meetings'] });
+      // v2's own meetings-list query (meetings-api.ts) — the legacy key above
+      // never overlaps with it, so both need invalidating on every create.
+      qc.invalidateQueries({ queryKey: [meetingsListKey] });
       qc.invalidateQueries({ queryKey: ['engagement-tasks'] });
+      // Only v2 auto-opens/jumps to the created meeting — the legacy page
+      // never did this and edge case 8 keeps it that way.
+      if (meetingsV2Enabled && created?.id) {
+        setSelectedMeetingId(created.id);
+        setMeetingDetailTab('prep');
+        setMeetingCursor(localDateFromInput(localDateKey(created.startsAt)));
+      }
     },
     onError: (err) => message.error(errorMessage(err)),
   });
@@ -1088,14 +1131,26 @@ export function EngagementPage() {
     : null;
   const detailTab = meetingDetailTab === 'notes' ? 'prep' : meetingDetailTab;
 
-  const openMeetingModal = () => {
+  // `defaultDate` prefills the day when invoked from a selected calendar day in
+  // Meetings v2 (MeetingsV2's onCreateMeeting); the header button calls this
+  // with no argument, which still defaults to today (spec Phase 2 §2b1).
+  const openMeetingModal = (defaultDate?: Date) => {
     meetingForm.setFieldsValue({
-      date: todayInputValue(),
+      date: defaultDate ? inputValueFromDate(defaultDate) : todayInputValue(),
       startsAt: '09:00',
       endsAt: '09:30',
       clientId: selectedClientId ?? undefined,
     });
     setMeetingModalOpen(true);
+  };
+
+  // Resets + prefills the Add Target Office form (spec Phase 2 §2b2). Nothing
+  // opened this modal before this change — the ReportsView header/empty-state
+  // buttons are the first real trigger.
+  const openTargetOfficeModal = () => {
+    targetOfficeForm.resetFields();
+    targetOfficeForm.setFieldsValue({ clientId: selectedClientId ?? undefined });
+    setTargetOfficeModalOpen(true);
   };
 
   const handleGeneratePrep = (meeting: Meeting, additionalContext?: string) => {
@@ -1135,22 +1190,37 @@ export function EngagementPage() {
         tabBarExtraContent={
           activeEngagementTab === 'meetings'
             ? {
-                right: me.data?.features?.meetingsV2 ? (
-                  // Prototype places the Library entry at the top-right of the
-                  // Engagement header (spec §3); the redesigned module owns
-                  // meeting creation, so no +Meeting button here.
-                  <button
-                    type="button"
-                    className="btn"
-                    style={{ gap: 7, fontWeight: 600 }}
-                    onClick={() => setMeetingsLibraryOpen(true)}
-                  >
-                    <Library size={15} />
-                    Meeting Library
-                  </button>
+                right: meetingsV2Enabled ? (
+                  // Spec Phase 2 §2b1: v2 gets BOTH a primary New Meeting action
+                  // and the Library entry (superseding the older assumption that
+                  // the redesigned module owned meeting creation on its own).
+                  // `wrap` matches the same responsive pattern already used for
+                  // the Reports header controls (edge case 34).
+                  <Space size={10} wrap className="engagement-tab-actions">
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      onClick={() => openMeetingModal()}
+                    >
+                      New meeting
+                    </Button>
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{ gap: 7, fontWeight: 600 }}
+                      onClick={() => setMeetingsLibraryOpen(true)}
+                    >
+                      <Library size={15} />
+                      Meeting Library
+                    </button>
+                  </Space>
                 ) : (
-                  <Space size={10} className="engagement-tab-actions">
-                    <Button type="primary" icon={<PlusOutlined />} onClick={openMeetingModal}>
+                  <Space size={10} wrap className="engagement-tab-actions">
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      onClick={() => openMeetingModal()}
+                    >
                       Meeting
                     </Button>
                   </Space>
@@ -1165,12 +1235,21 @@ export function EngagementPage() {
           {
             key: 'meetings',
             label: 'Meetings',
-            children: me.data?.features?.meetingsV2 ? (
+            children: meetingsV2Enabled ? (
               <MeetingsV2
                 clientId={selectedClientId}
                 aiConfigured={Boolean(capabilities.data?.ai.activeProvider)}
                 libraryOpen={meetingsLibraryOpen}
                 onLibraryOpenChange={setMeetingsLibraryOpen}
+                viewMode={meetingViewMode}
+                cursor={meetingCursor}
+                selectedMeetingId={selectedMeetingId}
+                detailTab={toDetailTab(meetingDetailTab)}
+                onViewModeChange={setMeetingViewMode}
+                onCursorChange={setMeetingCursor}
+                onSelectedMeetingChange={setSelectedMeetingId}
+                onDetailTabChange={setMeetingDetailTab}
+                onCreateMeeting={openMeetingModal}
               />
             ) : (
               <div className="engagement-meeting-shell">
@@ -1187,8 +1266,8 @@ export function EngagementPage() {
                       </button>
                       <button
                         type="button"
-                        className={meetingViewMode === 'calendar' ? 'active' : ''}
-                        onClick={() => setMeetingViewMode('calendar')}
+                        className={meetingViewMode === 'month' ? 'active' : ''}
+                        onClick={() => setMeetingViewMode('month')}
                       >
                         Calendar
                       </button>
@@ -1393,6 +1472,7 @@ export function EngagementPage() {
                 onStatusFilterChange={setReportStatusFilter}
                 sort={reportSort}
                 onSortChange={setReportSort}
+                onAddTargetOffice={openTargetOfficeModal}
                 updatingCell={
                   updateReportTarget.isPending && updateReportTarget.variables
                     ? reportCellKey(
@@ -3363,6 +3443,7 @@ function ReportsView({
   updatingCell,
   onViewMeetings,
   onStatusChange,
+  onAddTargetOffice,
 }: {
   report?: EngagementReport;
   loading: boolean;
@@ -3379,6 +3460,7 @@ function ReportsView({
     field: ReportStatusField,
     status: ReportStatus,
   ) => void;
+  onAddTargetOffice: () => void;
 }) {
   const rows = useMemo(() => {
     const base = report?.rows ?? [];
@@ -3431,6 +3513,9 @@ function ReportsView({
             </div>
           </div>
           <Space wrap className="engagement-report-controls">
+            <Button type="primary" icon={<PlusOutlined />} onClick={onAddTargetOffice}>
+              Add target office
+            </Button>
             <Select
               value={statusFilter}
               onChange={onStatusFilterChange}
@@ -3547,7 +3632,11 @@ function ReportsView({
             </div>
           </>
         ) : (
-          <Empty description="No Target Offices Are Linked To This Reporting Period Yet." />
+          <Empty description="No Target Offices Are Linked To This Reporting Period Yet.">
+            <Button type="primary" icon={<PlusOutlined />} onClick={onAddTargetOffice}>
+              Add target office
+            </Button>
+          </Empty>
         )}
       </div>
     </div>
@@ -4082,6 +4171,29 @@ function dateRangeWindow(start: string, end: string, historyBatch: number) {
   return { from: from.toISOString(), to: to.toISOString() };
 }
 
+/**
+ * Normalizes a raw `view` URL param into the canonical MeetingViewMode used by
+ * Meetings v2, accepting the legacy `calendar` alias (spec Phase 2 §2a1 / edge
+ * case 4) — any bookmarked/shared `?view=calendar` link keeps working, mapped
+ * once to 'month'. Returns null for anything else so callers can tell "no
+ * (valid) view in the URL" apart from "explicitly the current value".
+ */
+function parseMeetingViewMode(value: string | null): MeetingViewMode | null {
+  if (value === 'day' || value === 'list' || value === 'month') return value;
+  if (value === 'calendar') return 'month';
+  return null;
+}
+
+/**
+ * meetingDetailTab is kept as a loose string because the legacy (flag-off)
+ * detail panel has a third tab ('intel') that isn't part of Meetings v2's
+ * DetailTab union — this narrows it for the strictly-typed v2 prop, falling
+ * back to 'prep' for anything v2 doesn't understand (including 'intel').
+ */
+function toDetailTab(value: string): DetailTab {
+  return value === 'notes' || value === 'debrief' ? value : 'prep';
+}
+
 function formatFullDay(value: Date): string {
   return new Intl.DateTimeFormat(undefined, {
     weekday: 'long',
@@ -4539,105 +4651,3 @@ function EngClientPicker({
     </Dropdown>
   );
 }
-
-/**
- * Mock meeting data, only injected for the Capiro tenant when the API
- * returns zero meetings. Other tenants never see these records.
- */
-const MOCK_MEETINGS_FOR_CAPIRO: Meeting[] = (() => {
-  const now = new Date();
-  const from = (d: number, h = 14, m = 0) => {
-    const date = new Date(now);
-    date.setDate(date.getDate() + d);
-    date.setHours(h, m, 0, 0);
-    return date.toISOString();
-  };
-
-  return [
-    {
-      id: 'mock-m1',
-      subject: 'Capiro Platform Review',
-      source: 'google',
-      description: 'Review the Capiro platform capabilities and discuss partnership alignment.',
-      location: 'Microsoft Teams Meeting',
-      startsAt: from(2),
-      endsAt: from(2, 14, 45),
-      organizerEmail: 'jordan@capiro.ai',
-      organizerName: 'Jordan Clayton',
-      status: 'confirmed',
-      metadata: null,
-      associationScore: null,
-      associationReason: null,
-      client: {
-        id: 'c1',
-        name: 'Brightdefense',
-        website: null,
-        primaryContactName: null,
-        primaryContactEmail: null,
-      },
-      attendees: [
-        { id: 'a1', email: 'jordan@capiro.ai', name: 'Jordan Clayton', role: 'organizer' },
-        { id: 'a2', email: 'neo@capiro.ai', name: 'Neo Martinez', role: 'required' },
-        { id: 'a3', email: 'jham@mavenadvocacy.com', name: 'Justin Ham', role: 'required' },
-      ],
-      attachments: [],
-      preps: [],
-      notes: [],
-      debriefs: [],
-    },
-    {
-      id: 'mock-m2',
-      subject: 'Intro meeting with Persues consultant',
-      source: 'google',
-      description: null,
-      location: 'Room 16, 112 Main St Los Angeles CA',
-      startsAt: from(1, 13),
-      endsAt: from(1, 13, 30),
-      organizerEmail: 'neo@capiro.ai',
-      organizerName: 'Neo Martinez',
-      status: 'confirmed',
-      metadata: null,
-      associationScore: null,
-      associationReason: null,
-      client: {
-        id: 'c1',
-        name: 'Brightdefense',
-        website: null,
-        primaryContactName: null,
-        primaryContactEmail: null,
-      },
-      attendees: [],
-      attachments: [],
-      preps: [],
-      notes: [],
-      debriefs: [],
-    },
-    {
-      id: 'mock-m3',
-      subject: 'HASC Seapower PSM coffee, Rachel Kim',
-      source: 'google',
-      description: 'Discuss Jaia authorization language.',
-      location: 'Rayburn HOB, Room 2118',
-      startsAt: from(-3, 9),
-      endsAt: from(-3, 9, 30),
-      organizerEmail: 'neo@capiro.ai',
-      organizerName: 'Neo Martinez',
-      status: 'confirmed',
-      metadata: null,
-      associationScore: null,
-      associationReason: null,
-      client: {
-        id: 'c2',
-        name: 'SAGINT INC.',
-        website: null,
-        primaryContactName: null,
-        primaryContactEmail: null,
-      },
-      attendees: [],
-      attachments: [],
-      preps: [],
-      notes: [],
-      debriefs: [],
-    },
-  ];
-})();

@@ -19,9 +19,7 @@ import {
   meetingStatus,
   showSendMeri,
 } from './meetings-ui.js';
-import type { Meeting } from './meetings-types.js';
-
-type DetailTab = 'prep' | 'notes' | 'debrief';
+import type { DetailTab, Meeting } from './meetings-types.js';
 
 /** The client pill / "Assign client" affordance — assigns or overrides the
  *  meeting's client (spec §6: sharing requires a client). Wired to PUT /meetings/:id. */
@@ -89,6 +87,8 @@ export function MeetingDetailPanel({
   open,
   onClose,
   aiConfigured,
+  activeTab,
+  onTabChange,
   onSendMeri,
   onRequestShare,
 }: {
@@ -96,11 +96,14 @@ export function MeetingDetailPanel({
   open: boolean;
   onClose: () => void;
   aiConfigured: boolean;
+  /** Controlled by the parent (EngagementPage owns the URL — Phase 2 §2a3).
+   *  This panel no longer keeps its own copy of the active tab. */
+  activeTab: DetailTab;
+  onTabChange: (tab: DetailTab) => void;
   onSendMeri: (m: Meeting) => void;
   onRequestShare: (m: Meeting) => void;
 }) {
   const { message } = App.useApp();
-  const [tab, setTab] = useState<DetailTab>('prep');
   const [attOpen, setAttOpen] = useState(false);
   const unshare = useUnshareMeeting();
 
@@ -108,21 +111,13 @@ export function MeetingDetailPanel({
     ? meetingStatus(m)
     : { prep: false, notes: false, debrief: false };
 
-  // Reset + auto-select the most relevant tab when a different meeting opens
-  // (spec §2.8): debrief if done, else notes if captured, else prep.
+  // Collapse the attendees disclosure when a different meeting opens. Picking
+  // the most-relevant tab for a freshly opened meeting is now the caller's
+  // job (MeetingsV2's openMeeting) so it only fires once per meeting-open and
+  // never clobbers an explicit `?detail=` deep link or a manual tab change.
   useEffect(() => {
     setAttOpen(false);
-    if (!m) return;
-    if (status.debrief) setTab('debrief');
-    else if (
-      m.notesApproved ||
-      m.meri === 'done' ||
-      m.meri === 'attended' ||
-      (m.notes && m.notes.length > 0)
-    )
-      setTab('notes');
-    else setTab('prep');
-  }, [m?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [m?.id]);
 
   // Debrief is locked until the meeting itself is over — debriefing something
   // that hasn't happened yet doesn't make sense, Meri notetaker or not. "Over"
@@ -133,10 +128,13 @@ export function MeetingDetailPanel({
     : false;
 
   // Direct URL navigation (?detail=debrief) could otherwise land on a locked
-  // tab without ever going through the tab button's disabled state.
+  // tab without ever going through the tab button's disabled state. Routing
+  // this through onTabChange (rather than local state) lets the parent
+  // canonicalize the URL too, so a bookmarked/shared debrief link on an
+  // unfinished meeting doesn't keep claiming `detail=debrief`.
   useEffect(() => {
-    if (tab === 'debrief' && debriefLocked) setTab('prep');
-  }, [tab, debriefLocked]);
+    if (activeTab === 'debrief' && debriefLocked) onTabChange('prep');
+  }, [activeTab, debriefLocked, onTabChange]);
 
   if (!m) return null;
 
@@ -416,13 +414,13 @@ export function MeetingDetailPanel({
           {/* Tabs */}
           <div style={{ display: 'flex', gap: 0, marginTop: shared ? 10 : 2 }}>
             {tabs.map((t) => {
-              const on = tab === t.k;
+              const on = activeTab === t.k;
               return (
                 <button
                   key={t.k}
                   type="button"
                   disabled={t.disabled}
-                  onClick={() => !t.disabled && setTab(t.k)}
+                  onClick={() => !t.disabled && onTabChange(t.k)}
                   title={t.disabled ? 'Debrief unlocks once this meeting ends' : undefined}
                   style={{
                     display: 'flex',
@@ -474,11 +472,15 @@ export function MeetingDetailPanel({
             background: 'var(--bg-canvas)',
           }}
         >
-          {tab === 'prep' && <PrepTab meeting={m} aiConfigured={aiConfigured} />}
-          {tab === 'notes' && (
-            <NotesTab meeting={m} onSendMeri={onSendMeri} onGoToDebrief={() => setTab('debrief')} />
+          {activeTab === 'prep' && <PrepTab meeting={m} aiConfigured={aiConfigured} />}
+          {activeTab === 'notes' && (
+            <NotesTab
+              meeting={m}
+              onSendMeri={onSendMeri}
+              onGoToDebrief={() => onTabChange('debrief')}
+            />
           )}
-          {tab === 'debrief' && <DebriefTab meeting={m} />}
+          {activeTab === 'debrief' && <DebriefTab meeting={m} />}
         </div>
       </div>
     </>
