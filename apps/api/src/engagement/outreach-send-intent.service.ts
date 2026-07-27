@@ -43,6 +43,7 @@ import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EngagementService } from './engagement.service.js';
+import { ownOutreachRecordWhere } from './engagement-access.helpers.js';
 import {
   EngagementMailSender,
   AmbiguousMailSendError,
@@ -736,7 +737,14 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     const summary = await this.prisma.withSystem(async (tx) => {
       const intent = await tx.outreachSendIntent.findFirst({
         where: { id: intentId },
-        select: { id: true, status: true, outreachRecordId: true, tenantId: true, testMode: true },
+        select: {
+          id: true,
+          status: true,
+          outreachRecordId: true,
+          tenantId: true,
+          userId: true,
+          testMode: true,
+        },
       });
       if (!intent) return null;
       const rows = await tx.outreachDelivery.findMany({
@@ -763,9 +771,16 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     try {
       const { intent, totals } = summary;
       const anySent = (totals.sent ?? 0) > 0;
-      await this.prisma.withSystem((tx) =>
+      const result = await this.prisma.withSystem((tx) =>
         tx.outreachRecord.updateMany({
-          where: { id: intent.outreachRecordId, tenantId: intent.tenantId },
+          // The parent record must still belong to the intent's own creator —
+          // a durable send outcome must never mutate a campaign that isn't (or
+          // is no longer) that user's own draft.
+          where: {
+            id: intent.outreachRecordId,
+            tenantId: intent.tenantId,
+            ...ownOutreachRecordWhere(intent.userId),
+          },
           data: {
             status: anySent ? 'sent' : 'failed',
             ...(anySent ? { sentAt: new Date() } : {}),
@@ -783,6 +798,12 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
           },
         }),
       );
+      if (result.count !== 1) {
+        this.logger.warn(
+          `send intent ${intentId} rollup matched ${result.count} OutreachRecord rows for ` +
+            `record ${intent.outreachRecordId} (expected owner ${intent.userId}); expected exactly 1`,
+        );
+      }
     } catch (e) {
       this.logger.warn(
         `send intent ${intentId} is authoritative but its OutreachRecord summary update failed ` +

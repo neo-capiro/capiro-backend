@@ -38,6 +38,7 @@ import {
   ownMailMessageWhere,
   ownMailThreadWhere,
   ownMeetingWhere,
+  ownOutreachRecordWhere,
 } from './engagement-access.helpers.js';
 import { activeMailMessageWhere } from './mail-message-state.js';
 // ── Phase 1 — governed generation gateway ───────────────────────────────────
@@ -2144,6 +2145,7 @@ export class EngagementService {
       tx.outreachRecord.findMany({
         where: {
           tenantId: ctx.tenantId,
+          ...ownOutreachRecordWhere(ctx.userId),
           deletedAt: query.deleted ? { not: null } : null,
           ...(query.clientId ? { clientId: query.clientId } : {}),
           ...(type ? { type } : {}),
@@ -2162,7 +2164,12 @@ export class EngagementService {
   async getOutreachRecord(ctx: TenantContext, id: string) {
     const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.outreachRecord.findFirst({
-        where: { id, tenantId: ctx.tenantId, deletedAt: null },
+        where: {
+          id,
+          tenantId: ctx.tenantId,
+          ...ownOutreachRecordWhere(ctx.userId),
+          deletedAt: null,
+        },
         include: outreachInclude(),
       }),
     );
@@ -2216,7 +2223,12 @@ export class EngagementService {
   async updateOutreachRecord(ctx: TenantContext, id: string, input: UpdateOutreachRecordInput) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const existing = await tx.outreachRecord.findFirst({
-        where: { id, tenantId: ctx.tenantId, deletedAt: null },
+        where: {
+          id,
+          tenantId: ctx.tenantId,
+          ...ownOutreachRecordWhere(ctx.userId),
+          deletedAt: null,
+        },
       });
       if (!existing) throw new NotFoundException('Outreach record not found');
       if (existing.status !== 'draft' && input.status === 'draft') {
@@ -5033,7 +5045,12 @@ export class EngagementService {
   async deleteOutreachRecord(ctx: TenantContext, id: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const existing = await tx.outreachRecord.findFirst({
-        where: { id, tenantId: ctx.tenantId, deletedAt: null },
+        where: {
+          id,
+          tenantId: ctx.tenantId,
+          ...ownOutreachRecordWhere(ctx.userId),
+          deletedAt: null,
+        },
       });
       if (!existing) throw new NotFoundException('Outreach record not found');
       const deletedAt = new Date();
@@ -5064,7 +5081,12 @@ export class EngagementService {
   async restoreOutreachRecord(ctx: TenantContext, id: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const existing = await tx.outreachRecord.findFirst({
-        where: { id, tenantId: ctx.tenantId, deletedAt: { not: null } },
+        where: {
+          id,
+          tenantId: ctx.tenantId,
+          ...ownOutreachRecordWhere(ctx.userId),
+          deletedAt: { not: null },
+        },
       });
       if (!existing) throw new NotFoundException('Deleted outreach record not found');
 
