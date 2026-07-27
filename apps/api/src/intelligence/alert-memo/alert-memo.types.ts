@@ -158,4 +158,13 @@ export interface AlertMemoResult {
   reviewRequestId: string | null;
   /** Human-readable auditor findings that caused the hold. Empty string unless held. */
   heldReason: string;
+  /**
+   * Gate I (CG-01): the server-owned AlertGenerationRecord id. The composer must
+   * round-trip this back on saveEdited — it is what lets filing fail closed on
+   * an entailment-only hold, which never produces a banner or ledger row for
+   * saveEdited's older content-marker-based locks to catch. Null only when the
+   * record write itself failed (fail-open on generation); a client that omits
+   * it on save still gets the pre-Gate-I compatibility checks.
+   */
+  generationId: string | null;
 }

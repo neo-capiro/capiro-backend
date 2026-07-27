@@ -8,6 +8,7 @@ import {
 } from '@capiro/shared';
 import { runAuditor, type LedgerEntry } from '@capiro/meriv2-core';
 import { applySkepticEscalation } from './skeptic-escalation.js';
+import { applyEntailmentGate, resolveEntailmentMode } from './entailment-gate.js';
 import { resolveTenantAuditorMode } from '../../common/auditor-mode.js';
 import { AiCredentialResolverService } from '../../engagement/ai-credential-resolver.service.js';
 import { EngagementService } from '../../engagement/engagement.service.js';
@@ -128,6 +129,7 @@ export class DistrictBriefService {
     let sections: GenSection[] = [];
     let lowConfidence = false;
     let rawUsage: unknown = null;
+    let entailmentUsage: unknown[] = [];
     try {
       const { text, raw } = await this.callAnthropic(
         cred.apiKey,
@@ -136,6 +138,42 @@ export class DistrictBriefService {
       );
       rawUsage = raw;
       sections = verifyGrounded(parseSections(text), claims);
+      // MP-12 (Gate I phase d): shadow-only entailment measurement. Clamped to
+      // 'shadow' regardless of MERI_ENTAILMENT_MODE — this surface has no
+      // saveEdited equivalent to guard a hold (I_GOVERNANCE.md phase d-3), so
+      // it must never enforce even once alert-memo's env var is set for CG-01.
+      // `held` is deliberately never adopted from this: entailment-gate.ts:169
+      // guarantees shadow's `held` is always false, and the assignment is
+      // omitted here anyway as a second, structural guarantee against it ever
+      // holding a brief in this gate. Sits inside this try/catch exactly like
+      // alert-memo's call, so an entailment throw falls through to the
+      // existing scaffold path — the correct fail-open.
+      const briefEntailmentMode =
+        resolveEntailmentMode(process.env.MERI_ENTAILMENT_MODE) === 'off' ? 'off' : 'shadow';
+      // d-2: the total BEFORE the gate runs, so the log line below can state
+      // whether this generation would have held (every paragraph rejected) —
+      // shadow's own `held` is hardcoded false (entailment-gate.ts:169), so
+      // that signal has to be recomputed here for it to be measurable at all.
+      const paragraphsBeforeEntailment = sections.reduce((n, s) => n + s.paragraphs.length, 0);
+      const entail = await applyEntailmentGate({
+        sections,
+        claims,
+        cred: { apiKey: cred.apiKey, model: cred.model },
+        logger: this.logger,
+        modeOverride: briefEntailmentMode,
+      });
+      sections = entail.sections;
+      entailmentUsage = entail.usage;
+      if (entail.findings.length) {
+        // d-2: grep this prefix + would-hold=true to compute a hold-rate proxy
+        // over a real corpus before ever proposing enforce for this surface.
+        const wouldHold = entail.findings.length === paragraphsBeforeEntailment;
+        this.logger.warn(
+          `[meri-entailment:shadow] district brief — ${entail.findings.length}/${paragraphsBeforeEntailment} ` +
+            `paragraph(s) would fail entailment (would-hold=${wouldHold}): ` +
+            entail.findings.map((f) => `${f.heading}/${f.verdict}: ${f.reason}`).join(', '),
+        );
+      }
     } catch (err) {
       this.logger.warn(
         `district-brief generation failed (${(err as Error).message}); using scaffold`,
@@ -157,6 +195,22 @@ export class DistrictBriefService {
         usedTenantKey: cred.usedTenantKey,
       },
     );
+
+    // §4.9 precedent (alert-memo.service.ts): an unmetered BYOK LLM call is a
+    // billing defect. Only fires when the gate actually ran (mode !== 'off').
+    for (const raw of entailmentUsage) {
+      await recordAiUsageEvent(
+        { prisma: this.prisma, logger: this.logger },
+        { tenantId: ctx.tenantId, userId: ctx.userId },
+        'district_brief_entailment',
+        {
+          provider: 'anthropic',
+          model: process.env.MERI_ENTAILMENT_MODEL || cred.model,
+          usage: parseProviderUsage(raw),
+          usedTenantKey: cred.usedTenantKey,
+        },
+      );
+    }
 
     const title =
       `District brief — ${facility.name} — ${alert.billDisplayNum ?? alert.hearingTitle ?? alert.title}`.slice(

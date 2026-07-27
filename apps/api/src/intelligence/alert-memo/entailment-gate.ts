@@ -81,6 +81,14 @@ export async function applyEntailmentGate(input: {
   claims: Array<{ id: string; text: string }>;
   cred: { apiKey: string; model: string };
   logger: { warn(message: string): void };
+  /**
+   * Gate I (MP-12): force a specific mode regardless of MERI_ENTAILMENT_MODE.
+   * district-brief.service.ts clamps to 'shadow' — it has no saveEdited
+   * equivalent to guard a hold (I_GOVERNANCE.md phase d-3), so it must never
+   * enforce even if the env var is later set to 'enforce' for alert-memo.
+   * Omitted (alert-memo's call site) preserves the existing env-driven behavior.
+   */
+  modeOverride?: EntailmentMode;
 }): Promise<{
   sections: EntailmentSection[];
   findings: EntailmentFinding[];
@@ -88,7 +96,7 @@ export async function applyEntailmentGate(input: {
   /** Raw provider response(s) so the caller can meter this call separately (§4.9). */
   usage: unknown[];
 }> {
-  const mode = resolveEntailmentMode(process.env.MERI_ENTAILMENT_MODE);
+  const mode = input.modeOverride ?? resolveEntailmentMode(process.env.MERI_ENTAILMENT_MODE);
   // The default-off lock: not one byte of network traffic unless deliberately enabled.
   if (mode === 'off') return { sections: input.sections, findings: [], held: false, usage: [] };
 

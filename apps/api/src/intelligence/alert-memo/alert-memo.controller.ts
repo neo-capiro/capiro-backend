@@ -111,6 +111,10 @@ export class SaveAlertMemoDto {
   @IsString() @MaxLength(128) alertId!: string;
   @IsOptional() @IsString() actionDate?: string;
   @IsOptional() @IsString() replaceAttachmentId?: string;
+  /** Gate I (CG-01): round-tripped from AlertMemoResult.generationId. Optional —
+   *  the global ValidationPipe is forbidNonWhitelisted, so this MUST stay
+   *  declared here or every save from an updated client 400s (MASTER §6.10). */
+  @IsOptional() @IsString() generationId?: string;
 }
 
 /**

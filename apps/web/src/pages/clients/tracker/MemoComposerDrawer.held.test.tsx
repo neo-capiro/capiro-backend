@@ -320,3 +320,107 @@ describe('MemoComposerDrawer — View review request lands on the specific revie
     );
   });
 });
+
+/**
+ * Gate I (CG-01) phase c — `held: true, reviewRequestId: null` means
+ * reviews.createSystem() failed (I_GOVERNANCE.md S1-S4): no review row exists
+ * anywhere for a reviewer to find. The composer must say filing is blocked, not
+ * imply a retry ("auto-file failed") or offer a dead-end "View review request".
+ */
+describe('MemoComposerDrawer — filing blocked, no reviewer notified (Gate I, CG-01 phase c)', () => {
+  beforeEach(() => {
+    apiGetMock.mockReset();
+    apiPatchMock.mockReset();
+    apiPostMock.mockReset();
+    setupBrowserMocks();
+  });
+
+  test('a held result with no reviewRequestId shows "Filing blocked — no reviewer notified", not the ordinary held tag', async () => {
+    apiPostMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/alert-memo')) {
+        return {
+          data: baseMemoResult({
+            held: true,
+            document: null,
+            reviewRequestId: null,
+            heldReason: 'Entailment gate: every paragraph failed entailment against its cited claims.',
+            generationId: 'gen-1',
+          }),
+        };
+      }
+      return { data: {} };
+    });
+
+    renderDrawer(makeItem());
+
+    await waitFor(() =>
+      expect(screen.getByText('Filing blocked — no reviewer notified')).toBeInTheDocument(),
+    );
+    expect(screen.queryByText('Held for review — unapproved draft')).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/This draft could not be filed for review/i),
+    ).toBeInTheDocument();
+  });
+
+  test('the same state disables Save but renders no "View review request" (there is nothing to view)', async () => {
+    apiPostMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/alert-memo')) {
+        return {
+          data: baseMemoResult({ held: true, document: null, reviewRequestId: null, heldReason: 'x' }),
+        };
+      }
+      return { data: {} };
+    });
+
+    renderDrawer(makeItem());
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save to Documents' })).toBeDisabled());
+    expect(screen.queryByRole('button', { name: 'View review request' })).not.toBeInTheDocument();
+  });
+
+  test('the markdown textarea stays enabled and editable (blocking filing must not block editing)', async () => {
+    apiPostMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/alert-memo')) {
+        return {
+          data: baseMemoResult({
+            held: true,
+            document: null,
+            reviewRequestId: null,
+            heldReason: 'x',
+            markdown: 'Blocked-but-editable markdown.',
+          }),
+        };
+      }
+      return { data: {} };
+    });
+
+    renderDrawer(makeItem());
+
+    const textarea = await screen.findByDisplayValue('Blocked-but-editable markdown.');
+    expect(textarea).not.toBeDisabled();
+  });
+
+  test('a fresh generate()\'s returned generationId is round-tripped on save', async () => {
+    apiPostMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/alert-memo')) {
+        return { data: baseMemoResult({ held: false, document: null, generationId: 'gen-77' }) };
+      }
+      if (url.endsWith('/alert-memo/save')) {
+        return { data: { document: { attachmentId: 'att-2', fileName: 'm.docx' }, title: 'Client memo — H.R. 8800' } };
+      }
+      return { data: {} };
+    });
+
+    renderDrawer(makeItem());
+
+    await waitFor(() => expect(screen.getByText('Not yet filed')).toBeInTheDocument());
+    screen.getByRole('button', { name: 'Save to Documents' }).click();
+
+    await waitFor(() =>
+      expect(apiPostMock).toHaveBeenCalledWith(
+        expect.stringContaining('/alert-memo/save'),
+        expect.objectContaining({ generationId: 'gen-77' }),
+      ),
+    );
+  });
+});
