@@ -1,9 +1,9 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { TrackerV2Guard } from './tracker-v2.guard.js';
-import { FeedService, type FeedQuery } from './feed.service.js';
+import { FeedService, type FeedQuery, RECOGNISED_WORK_FILTERS } from './feed.service.js';
 
 /**
  * Combined intel feed (Phase 6 §9.7).
@@ -42,6 +42,18 @@ export class FeedController {
       return Number.isNaN(d.getTime()) ? undefined : d;
     };
     const n = Number(limit);
+    const workStates = arr(workState);
+    // Gate F c-3 (RB-01): an unrecognised workState 400s rather than silently
+    // falling through to the default view — that silent fallthrough is exactly
+    // how RB-01 shipped undetected (every unhandled value behaved like
+    // `default`, so a typo or a stale client was indistinguishable from Active).
+    for (const w of workStates ?? []) {
+      if (!(RECOGNISED_WORK_FILTERS as readonly string[]).includes(w)) {
+        throw new BadRequestException(
+          `Unrecognised workState "${w}". Expected one of: ${RECOGNISED_WORK_FILTERS.join(', ')}.`,
+        );
+      }
+    }
     return {
       sourceTypes: arr(sourceType),
       severities: arr(severity),
@@ -53,7 +65,7 @@ export class FeedController {
       limit: Number.isFinite(n) && n > 0 ? n : undefined,
       // P2-04: the feed hides THIS user's dismissed/snoozed alerts by default.
       userId,
-      workStates: arr(workState),
+      workStates,
     };
   }
 

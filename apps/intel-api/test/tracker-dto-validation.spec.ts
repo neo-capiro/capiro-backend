@@ -37,6 +37,40 @@ describe('PutAlertPrefsDto', () => {
     await expect(validate(PutAlertPrefsDto, { emailAddress: '' })).resolves.toBeDefined();
   });
 
+  // MP-04: email cannot be enabled with no address. Keyed strictly on
+  // emailEnabled === true — the two tests above (emailAddress: null/'' with
+  // emailEnabled OMITTED) must keep passing unchanged, which is exactly why
+  // this rule does not key on emailAddress alone.
+  it('rejects emailEnabled:true with a null address', async () => {
+    await expect(
+      validate(PutAlertPrefsDto, { emailEnabled: true, emailAddress: null }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects emailEnabled:true with an empty-string address', async () => {
+    await expect(
+      validate(PutAlertPrefsDto, { emailEnabled: true, emailAddress: '' }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects emailEnabled:true with the address omitted entirely', async () => {
+    await expect(validate(PutAlertPrefsDto, { emailEnabled: true })).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('accepts emailEnabled:true WITH a valid address', async () => {
+    await expect(
+      validate(PutAlertPrefsDto, { emailEnabled: true, emailAddress: 'u1@x.com' }),
+    ).resolves.toBeDefined();
+  });
+
+  it('accepts emailEnabled:false with a null address (disabling never requires one)', async () => {
+    await expect(
+      validate(PutAlertPrefsDto, { emailEnabled: false, emailAddress: null }),
+    ).resolves.toBeDefined();
+  });
+
   it('accepts a realistic long email near the max valid total length, and rejects a clearly oversized string', async () => {
     // class-validator's @IsEmail() enforces RFC 5321's real ~254-char total
     // ceiling regardless of the local/domain split, well under the DTO's own

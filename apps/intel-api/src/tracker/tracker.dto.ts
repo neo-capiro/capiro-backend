@@ -264,8 +264,28 @@ export class PutAlertPrefsDto {
   @IsBoolean()
   emailEnabled?: boolean;
 
-  @IsOptional()
-  @ValidateIf((o) => o.emailAddress !== null && o.emailAddress !== undefined && o.emailAddress !== '')
+  // MP-04: `@ValidateIf` fires when EITHER a non-empty address was sent
+  // (the original rule — validate its FORMAT whenever one is present,
+  // regardless of emailEnabled) OR emailEnabled is explicitly true (the new
+  // rule — null/undefined/'' then FAIL @IsEmail(), since none of those is a
+  // valid email, closing the "Email ON with no address" gap). Keyed strictly
+  // on `emailEnabled === true`, never on emailAddress alone, so disabling
+  // email (emailEnabled: false) with no address still validates fine.
+  //
+  // Deliberately NO `@IsOptional()` here: class-validator's @IsOptional
+  // unconditionally skips ALL validators on a property when the value is
+  // null/undefined, regardless of what @ValidateIf's condition evaluates to
+  // — which would silently defeat this exact rule for the omitted/null cases
+  // (the two most likely shapes a client that flips the toggle without
+  // typing an address would send). @ValidateIf alone already provides the
+  // "optional unless" gate: when its condition is false the property is
+  // skipped entirely, same as @IsOptional would give — just without the
+  // unconditional null/undefined bypass.
+  @ValidateIf(
+    (o) =>
+      o.emailEnabled === true ||
+      (o.emailAddress !== null && o.emailAddress !== undefined && o.emailAddress !== ''),
+  )
   @IsEmail()
   @MaxLength(320)
   emailAddress?: string | null;

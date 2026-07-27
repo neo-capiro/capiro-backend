@@ -132,48 +132,64 @@ export class AlertWorkStateService {
   }
 
   /**
-   * The alert ids this user has actively hidden — dismissed, or snoozed with the
-   * snooze still in the future. Feeds the feed's exclusion predicate.
+   * The alert ids this user has a row in ANY of `states`, for this
+   * (tenant[, client]) scope. `snoozed` is special-cased to mean an ACTIVE
+   * snooze only — `snoozedUntil` in the future, or unset (a snooze with no end
+   * date stays "snoozed" until acted on). An EXPIRED snooze (`snoozedUntil` in
+   * the past) never matches `snoozed` here; per the RB-01 fix it is treated as
+   * visible again, same as the default view already did.
    *
-   * A snooze whose `snoozedUntil` has PASSED is not hidden, and that is computed
-   * here in the predicate rather than by a background job, so an expired snooze
-   * reappears with nothing running.
-   *
-   * Capped: an unbounded `NOT IN` list would degrade the feed's keyset query. On
-   * hitting the cap we LOG it rather than silently truncating.
+   * Deliberately uncapped (Gate F / MP-06): the prior `hiddenAlertIds` capped
+   * at 5,000 and silently truncated past it, so some dismissed/snoozed alerts
+   * would reappear for a heavy user. This is a per-(tenant,user[,client])
+   * working set against an indexed scope (`intel_alert_work_state_scope_idx`
+   * on (tenant_id, client_id, user_id, state)), not an unbounded table scan —
+   * there is no volume at which capping is the safer choice over correctness.
    */
-  async hiddenAlertIds(
+  async alertIdsInState(
     tenantId: string,
     userId: string,
     clientId: string | null,
-    cap = 5000,
+    states: WorkStateValue[],
   ): Promise<string[]> {
+    if (!states.length) return [];
     const now = new Date();
+    const wantsSnoozed = states.includes('snoozed');
+    const otherStates = states.filter((s) => s !== 'snoozed');
+    // One flat { state: s } branch per non-snoozed state (not `state: { in: [...] }`)
+    // — keeps every OR branch a simple state-equality clause, matching the shape
+    // the snoozed branches below already use.
+    const or: Record<string, unknown>[] = otherStates.map((s) => ({ state: s }));
+    if (wantsSnoozed) {
+      or.push({ state: 'snoozed', snoozedUntil: { gt: now } });
+      or.push({ state: 'snoozed', snoozedUntil: null });
+    }
     const rows = await this.prisma.withTenant(tenantId, (tx) =>
       tx.intelAlertWorkState.findMany({
         where: {
           tenantId,
           userId,
           ...(clientId ? { clientId } : {}),
-          OR: [
-            { state: 'dismissed' },
-            { state: 'snoozed', snoozedUntil: { gt: now } },
-            // A snooze with no end date stays hidden until acted on.
-            { state: 'snoozed', snoozedUntil: null },
-          ],
+          OR: or,
         },
         select: { alertId: true },
-        take: cap + 1,
       }),
     );
-    if (rows.length > cap) {
-      this.logger.warn(
-        `hiddenAlertIds: user ${userId} has more than ${cap} hidden alerts; ` +
-          `truncating the exclusion list — some dismissed/snoozed alerts will reappear in the feed.`,
-      );
-      return rows.slice(0, cap).map((r) => r.alertId);
-    }
     return rows.map((r) => r.alertId);
+  }
+
+  /**
+   * The alert ids this user has actively hidden — dismissed, or actively
+   * snoozed. Feeds the feed's DEFAULT-view exclusion predicate. A thin,
+   * semantically-named wrapper over alertIdsInState so getFeed's default
+   * branch reads the same as it always did.
+   */
+  async hiddenAlertIds(
+    tenantId: string,
+    userId: string,
+    clientId: string | null,
+  ): Promise<string[]> {
+    return this.alertIdsInState(tenantId, userId, clientId, ['dismissed', 'snoozed']);
   }
 
   /**

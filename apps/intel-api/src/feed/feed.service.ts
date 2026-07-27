@@ -5,7 +5,7 @@ import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
 import { ActionItemService } from './action-item.service.js';
 import { recommendedActionsFor } from './recommended-actions.util.js';
 import { normalizeEvidence } from './normalize-evidence.js';
-import { AlertWorkStateService, type WorkState } from './alert-work-state.service.js';
+import { AlertWorkStateService, type WorkState, type WorkStateValue } from './alert-work-state.service.js';
 
 /**
  * Combined intel feed (Phase 6 §9.7). Reads `intel_alert` only — evidence is
@@ -54,23 +54,45 @@ export interface FeedQuery {
    */
   userId?: string;
   /**
-   * Which work states to show. Omitted → the DEFAULT view, which EXCLUDES this
-   * user's dismissed and still-snoozed alerts. `['all']` disables the exclusion.
+   * Which work state to show. Omitted → the DEFAULT view, which EXCLUDES this
+   * user's dismissed and actively-snoozed alerts. `'all'` disables all
+   * work-state narrowing. Every other value POSITIVELY filters to alerts this
+   * user has a row for in exactly that state (`'new'` also matches an alert
+   * with no row at all, and never matches an actively-snoozed one) — see
+   * Gate F / RB-01. Recognised values: 'all' | WorkStateValue (new, in_review,
+   * assigned, actioned, snoozed, dismissed). An unrecognised value 400s at the
+   * controller rather than silently behaving like the default (that silent
+   * fallback is exactly how RB-01 shipped undetected).
    *
-   * APPROACH (e-4 asks this to be stated explicitly): an EXCLUSION predicate,
-   * `id: { notIn: <this user's hidden ids> }`, not a join and not a post-filter.
+   * APPROACH: a two-step id-list predicate — `id: { in: … }` or
+   * `id: { notIn: … }` against `intel_alert.id` — computed from a SEPARATE,
+   * simple query over intel_alert_work_state (see AlertWorkStateService),
+   * never a join or a post-filter against this function's own result set.
    *   - A join to intel_alert_work_state cannot be expressed alongside the
    *     keyset OR while staying index-backed, so it would silently drop the
-   *     covering index the feed depends on.
+   *     covering index the feed depends on. Two decoupled queries — the first
+   *     hitting intel_alert_work_state's own scope index, the second an
+   *     ordinary AND-ed id-list against intel_alert — keeps both index-backed.
    *   - A post-filter would break `hasMore`/`nextCursor`: `take: limit + 1`
    *     would count rows that are then discarded in JS, so a page whose items
    *     were all filtered out would report hasMore:false and end the infinite
    *     scroll early (edge case 11).
-   *   The exclusion is a plain AND-ed primary-key predicate, so the ordering
-   *   index still drives the scan, and the page is genuinely full.
+   *
+   * Only one work state is meaningful per request (the web sends exactly one);
+   * the type stays an array for wire-shape compatibility with the historical
+   * `workStates` query param name.
    */
   workStates?: string[];
 }
+
+/** The work-state filter values getFeed recognises, beyond the stored WorkStateValue set. */
+export const RECOGNISED_WORK_FILTERS = ['all', 'new', 'in_review', 'assigned', 'actioned', 'snoozed', 'dismissed'] as const;
+export type WorkFilterValue = (typeof RECOGNISED_WORK_FILTERS)[number];
+
+/** States a positive `id: { in }` lookup covers one-to-one with the filter name. */
+const POSITIVE_STATE_FILTERS: ReadonlySet<string> = new Set(['in_review', 'assigned', 'actioned', 'snoozed', 'dismissed']);
+/** Every state that disqualifies an alert from the 'new' filter (anti-join set). */
+const NOT_NEW_STATES: WorkStateValue[] = ['in_review', 'assigned', 'actioned', 'dismissed', 'snoozed'];
 
 interface DateCursor {
   t: string;
@@ -191,18 +213,58 @@ export class FeedService {
     const where: Record<string, unknown> = { ...baseWhere };
     if (q.sourceTypes?.length) where['sourceType'] = { in: q.sourceTypes };
 
-    // P2-04: exclude THIS user's dismissed / still-snoozed alerts. See FeedQuery
-    // .workStates for why this is an exclusion rather than a join or a
-    // post-filter. Never widens: `status` above still gates suppressed rows, so
-    // work state can only narrow what a user sees (edge case 7).
-    const wantsAll = q.workStates?.includes('all');
-    if (q.userId && !wantsAll) {
-      const hidden = await this.workState.hiddenAlertIds(tenantId, q.userId, clientId ?? null);
-      if (hidden.length) where['id'] = { notIn: hidden };
-    }
     // Bill 360 (§1.4): equality predicate on source_ref so a single-bill event
     // history hits @@index([tenantId, sourceType, sourceRef]) — never a JS filter.
+    // Applied to `facetWhere` too (MP-07) so a bill's event-history counts are
+    // scoped to that bill, not the whole client.
     if (q.sourceRef) where['sourceRef'] = q.sourceRef;
+    const facetWhere: Record<string, unknown> = { ...baseWhere };
+    if (q.sourceRef) facetWhere['sourceRef'] = q.sourceRef;
+
+    // P2-04 / RB-01: per-user work-state filtering. Never widens: `status`
+    // above still gates suppressed rows, so work state can only narrow what a
+    // user sees (edge case 7). See FeedQuery.workStates for the full contract.
+    //
+    // Known index gap (Gate F c-6, deferred to Gate K's migration): every call
+    // below passes `clientId ?? null`. For the per-client view this hits
+    // intel_alert_work_state_scope_idx's exact leading prefix
+    // (tenant_id, client_id, user_id, state). For the `_all` tenant-wide roll-up
+    // (clientId is null), client_id can't be used as a prefix column, so
+    // Postgres can only seed the scan from tenant_id and must filter
+    // user_id/state without an index assist. Accepted at current volume; Gate K
+    // adds `@@index([tenantId, userId, state])` to close this for `_all`.
+    const workFilter = q.workStates?.[0];
+    if (q.userId && workFilter !== 'all') {
+      if (!workFilter) {
+        // Default view: exclude this user's dismissed / actively-snoozed alerts.
+        const hidden = await this.workState.hiddenAlertIds(tenantId, q.userId, clientId ?? null);
+        if (hidden.length) {
+          where['id'] = { notIn: hidden };
+          facetWhere['id'] = { notIn: hidden };
+        }
+      } else if (workFilter === 'new') {
+        // Anti-join: no row for this user, OR an explicit state='new' row.
+        // Expired snoozes are NOT excluded here (RB-01 c-2 decision) — an
+        // expired snooze is default-visible again, same as every other view.
+        const notNew = await this.workState.alertIdsInState(tenantId, q.userId, clientId ?? null, NOT_NEW_STATES);
+        if (notNew.length) {
+          where['id'] = { notIn: notNew };
+          facetWhere['id'] = { notIn: notNew };
+        }
+      } else if (POSITIVE_STATE_FILTERS.has(workFilter)) {
+        // Positive filter: alert has a row for this user in exactly this state.
+        // Always set `id: { in }` even when empty — an empty positive match set
+        // must return ZERO rows, never fall through to "no id filter" (which
+        // would silently behave like `default` — the exact RB-01 failure mode).
+        const matching = await this.workState.alertIdsInState(tenantId, q.userId, clientId ?? null, [
+          workFilter as WorkStateValue,
+        ]);
+        where['id'] = { in: matching };
+        facetWhere['id'] = { in: matching };
+      }
+      // An unrecognised workFilter is rejected at the controller (Gate F c-3)
+      // before it reaches here; there is no silent-default fallthrough left.
+    }
 
     // Keyset predicate from the cursor (AND-ed with the filters above).
     const cur = q.cursor ? b64decode(q.cursor) : null;
@@ -261,15 +323,20 @@ export class FeedService {
     const nextCursor = hasMore && last ? encodeCursor(order, last) : null;
 
     // Per-sourceType counts for the SubNav badges + per-severity counts for the
-    // Feed rail's "At a glance" panel (LegiWatch v2). Both over `baseWhere`, which
-    // omits the sourceType facet and (in this UI) carries no severity filter — so
-    // each reflects true tenant/client-scoped totals, not the loaded page.
+    // Feed rail's "At a glance" panel (LegiWatch v2). Both over `facetWhere`
+    // (MP-07 fix), which carries the SAME work-state narrowing and sourceRef
+    // scoping as the item query — so counts always match what this caller can
+    // actually see, never a firm-wide total that includes hidden rows. A facet
+    // never filters by its OWN dimension (a severity facet under a severity
+    // filter would show 0 for every non-selected severity, which defeats the
+    // point of a facet panel) — severityFacetWhere strips that one key back out.
+    const { severity: _severityFilter, ...severityFacetWhere } = facetWhere;
     const [grouped, groupedSev] = await Promise.all([
       this.prisma.withTenant(tenantId, (tx) =>
-        tx.intelAlert.groupBy({ by: ['sourceType'], where: baseWhere, _count: true }),
+        tx.intelAlert.groupBy({ by: ['sourceType'], where: facetWhere, _count: true }),
       ),
       this.prisma.withTenant(tenantId, (tx) =>
-        tx.intelAlert.groupBy({ by: ['severity'], where: baseWhere, _count: true }),
+        tx.intelAlert.groupBy({ by: ['severity'], where: severityFacetWhere, _count: true }),
       ),
     ]);
     const counts: Record<string, number> = {};
