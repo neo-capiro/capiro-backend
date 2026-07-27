@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusTrap } from './use-focus-trap.js';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
@@ -12,10 +13,25 @@ import {
 } from './tracker-api.js';
 import { intelTrackerPaths } from './intel-tracker-api.js';
 
+/**
+ * §4.8 (Gate D c-8): the meter used to be labelled "Passage probability", which
+ * claims a calibrated forecast. It is not one — `passageProbability` is derived
+ * from the bill's current stage and the age of its latest action, and has never
+ * been checked against historical outcomes. The number is unchanged; only the
+ * claim it makes is. Do NOT re-derive the computation here.
+ */
+export const PASSAGE_LIKELIHOOD_LABEL = 'Estimated passage likelihood';
+export const PASSAGE_LIKELIHOOD_TOOLTIP =
+  'Stage-based estimate — derived from the bill’s current stage and latest action date. Not calibrated against historical outcomes.';
+
 export function PassageBar({ prob }: { prob: number }) {
   const percent = Math.round(prob > 1 ? prob : prob * 100);
   return (
-    <div className={`passage ${probClass(prob)}`} title={`Passage probability ${percent}%`}>
+    <div
+      className={`passage ${probClass(prob)}`}
+      title={`${PASSAGE_LIKELIHOOD_LABEL} ${percent}% — ${PASSAGE_LIKELIHOOD_TOOLTIP}`}
+      aria-label={`${PASSAGE_LIKELIHOOD_LABEL} ${percent} percent`}
+    >
       <div className="bar">
         <span style={{ width: `${percent}%` }} />
       </div>
@@ -72,18 +88,31 @@ export function BillCard({
   // side-drawer; the small filled star untracks (kept off the prototype's chrome
   // but preserved so the board isn't read-only without the drawer).
   return (
-    <div className={`bcard${justLanded ? ' just-landed' : ''}`} onClick={() => onOpen(bill)}>
+    <div
+      className={`bcard${justLanded ? ' just-landed' : ''}${bill.terminalRisk ? ' terminal-risk' : ''}`}
+      onClick={() => onOpen(bill)}
+    >
       <div className="b-top">
         <span className="b-num">{bill.displayNum}</span>
         <JurisdictionPill jurisdiction={bill.jurisdiction} />
-        {bill.unread && <span className="b-unread" title="Unseen change" />}
+        {/* P2-10: unread was a bare dot with a `title`, unreachable by touch or
+            screen reader. Now a labelled dot PLUS a visible "New" chip. */}
+        {bill.unread && (
+          <>
+            <span className="b-unread" aria-hidden />
+            <span className="chip muted b-new" aria-label="Unread" style={{ fontSize: 10 }}>
+              New
+            </span>
+          </>
+        )}
         <span className="grow" />
+        {/* P2-10: the change indicator was a colored dot whose only content was
+            a `title`. The label it already carried is now visible text. */}
         {bill.change && (
-          <span
-            className={`dot ${bill.change.tone}`}
-            style={{ width: 7, height: 7 }}
-            title={bill.change.label}
-          />
+          <span className={`b-change ${bill.change.tone}`}>
+            <span className={`dot ${bill.change.tone}`} style={{ width: 7, height: 7 }} aria-hidden />
+            {bill.change.label}
+          </span>
         )}
         <button
           className="bc-untrack"
@@ -105,6 +134,14 @@ export function BillCard({
         </button>
       </div>
       <div className="b-title">{bill.title}</div>
+      {/* P2-09: the bill's REAL status. The board has four lanes but the
+          detector classifies far more, so without this a failed governing rule
+          is visually identical to a bill that is progressing. */}
+      {bill.canonicalStatus && (
+        <div className={`b-status${bill.terminalRisk ? ' terminal' : ''}`}>
+          {bill.canonicalStatus}
+        </div>
+      )}
       <PassageBar prob={bill.probability} />
       <div className="b-foot">
         {(bill.tags ?? []).slice(0, 2).map((t) => (
@@ -115,6 +152,7 @@ export function BillCard({
         <HearingChip bill={bill} onOpen={onOpen} />
         <LatestActionStamp bill={bill} />
       </div>
+      <LatestActionLine bill={bill} onOpen={onOpen} />
     </div>
   );
 }
@@ -131,11 +169,41 @@ export function LatestActionStamp({ bill }: { bill: BoardBill }) {
   return (
     <span
       className="num"
-      title={bill.latestActionText ?? undefined}
       style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--ink-4)', whiteSpace: 'nowrap' }}
     >
       {bill.latestActionDate}
     </span>
+  );
+}
+
+/**
+ * P2-10: the latest action TEXT used to exist only as a hover `title` on the
+ * date stamp — unreachable by touch and by screen reader. It is now visible
+ * truncated text with an explicit Details control that opens the drawer where
+ * the full text lives.
+ */
+export function LatestActionLine({
+  bill,
+  onOpen,
+}: {
+  bill: BoardBill;
+  onOpen: (bill: BoardBill) => void;
+}) {
+  if (!bill.latestActionText) return null;
+  return (
+    <div className="b-action">
+      <span className="b-action-text">{bill.latestActionText}</span>
+      <button
+        type="button"
+        className="b-details"
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpen(bill);
+        }}
+      >
+        Details
+      </button>
+    </div>
   );
 }
 
@@ -258,25 +326,42 @@ export function RecCard({
   );
 }
 
+/**
+ * The tracker's hand-rolled modal shell, shared by AddBillModal and
+ * VerifyOtpModal — the two CUSTOM modals (the composer drawers use antd's
+ * `Modal`, which brings its own trapping and must not get a second one).
+ *
+ * P1-12 / P2-12 (h-2): it had Escape-to-close and nothing else. No dialog role,
+ * no accessible name, no initial focus, and no trapping — so a keyboard user
+ * Tabbed straight out into the page behind, which was still focusable, with no
+ * way back. Fixed HERE rather than in each modal so the two cannot drift.
+ */
 export function Modal({
   size = 'sm',
   children,
   onClose,
+  label,
 }: {
   size?: 'sm' | 'md';
   children: React.ReactNode;
   onClose: () => void;
+  /** The dialog's accessible name — the same words as its visible title. */
+  label?: string;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  // Owns Escape (and focus restore) so the shell no longer needs its own
+  // keydown listener; two would close twice.
+  useFocusTrap(dialogRef, true, onClose);
   return (
     <div className="trk-overlay" onClick={onClose}>
-      <div className={`trk-dialog ${size}`} onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        className={`trk-dialog ${size}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         {children}
       </div>
     </div>
@@ -291,7 +376,9 @@ export function AddBillModal({
 }: {
   clientId: string;
   boardNums: Set<string>;
-  onTrackManual: (bill: BillSearchResult) => void;
+  /** P2-06: returns a promise so the row's "On board" marker can wait for the
+   *  write to succeed instead of assuming it did. */
+  onTrackManual: (bill: BillSearchResult) => void | Promise<unknown>;
   onClose: () => void;
 }) {
   const api = useApi();
@@ -307,13 +394,45 @@ export function AddBillModal({
     inputRef.current?.focus();
   }, []);
 
+  /**
+   * P1-17: the jurisdictions this client actually tracks, so the search covers
+   * the state legislatures they care about and not all 50.
+   *
+   * Fetched HERE rather than passed down, because both the watchlist and the
+   * alert-prefs queries in TrackerTab are `enabled: activePanel === 'config'`
+   * and are therefore empty on the Bills surface (the same chicken-and-egg g-4
+   * documents). A modal is user-initiated and transient, so one fetch when it
+   * opens is the right cost — unlike adding a query to every board load.
+   */
+  const prefs = useQuery<{ jurisdictions?: string[] }>({
+    queryKey: ['tracker-modal-jurisdictions', clientId],
+    queryFn: async () =>
+      (await api.get<{ jurisdictions?: string[] }>(intelTrackerPaths.alertPrefs(clientId))).data,
+    enabled: trackerV2 && flagsReady,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
+  // DD5 semantics (MASTER §4.5): an EMPTY jurisdictions list means "everything
+  // the watchlist produces", NOT "none" — so an empty list defaults to federal
+  // only here rather than being "fixed" into a list of all states.
+  const clientStates = useMemo(
+    () => (prefs.data?.jurisdictions ?? []).filter((j) => j && j !== 'US'),
+    [prefs.data],
+  );
+  const [selectedJuris, setSelectedJuris] = useState<string[] | null>(null);
+  // Default = US + whatever the client tracks, recomputed once prefs arrive.
+  const jurisdictions = selectedJuris ?? ['US', ...clientStates];
+
   const results = useQuery<BillSearchResult[]>({
-    queryKey: ['tracker-bill-search', clientId, q],
+    queryKey: ['tracker-bill-search', clientId, q, jurisdictions.join(',')],
     queryFn: async () =>
       (
         await api.get<BillSearchResult[]>(
           trackerV2 ? intelTrackerPaths.billSearch(clientId) : trackerPaths.billSearch(clientId),
-          { params: { q } },
+          {
+            params: trackerV2 ? { q, jurisdictions } : { q },
+          },
         )
       ).data,
     enabled: q.trim().length >= 2 && flagsReady,
@@ -321,18 +440,37 @@ export function AddBillModal({
   });
 
   const isTracked = (billId: string) => boardNums.has(billId) || added.has(billId);
+  /**
+   * P2-06: `added` used to be set the moment the button was clicked, so a bill
+   * whose track request FAILED still showed "✓ On board". It is now recorded
+   * only after the caller's mutation resolves — `onTrackManual` returns a
+   * promise for exactly this.
+   */
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const handle = (b: BillSearchResult) => {
-    onTrackManual(b);
-    setAdded((s) => new Set(s).add(b.billId));
+    setPendingId(b.billId);
+    void Promise.resolve(onTrackManual(b))
+      .then(() => setAdded((s) => new Set(s).add(b.billId)))
+      .catch(() => {
+        /* the caller surfaces the error; the row simply stays untracked */
+      })
+      .finally(() => setPendingId((cur) => (cur === b.billId ? null : cur)));
   };
   const rows = results.data ?? [];
 
   return (
-    <Modal size="md" onClose={onClose}>
+    <Modal size="md" onClose={onClose} label="Add a bill to the board">
       <div className="dlg-head">
         <h3>Add a bill to the board</h3>
-        <span className="sub">Search the congressional record by number or title</span>
-        <button className="dlg-x" onClick={onClose}>
+        {/* P1-17: the old copy claimed congress-only while the search WAS
+            congress-only — an honest description of a broken capability. Both
+            are fixed together. */}
+        <span className="sub">
+          {trackerV2 && clientStates.length
+            ? 'Search Congress and the state legislatures this client tracks, by number or title'
+            : 'Search Congress by number or title'}
+        </span>
+        <button type="button" className="dlg-x" aria-label="Close" onClick={onClose}>
           <Icon name="plus" size={15} style={{ transform: 'rotate(45deg)' }} />
         </button>
       </div>
@@ -346,10 +484,39 @@ export function AddBillModal({
             placeholder="e.g. “transmission”, “H.R. 4455”, “data center”…"
           />
         </div>
+        {/* P1-17: the jurisdiction facet, defaulted from the client's own
+            tracked states. Only shown when there is a real choice to make. */}
+        {trackerV2 && clientStates.length > 0 && (
+          <div className="search-juris" role="group" aria-label="Jurisdictions">
+            {['US', ...clientStates].map((j) => {
+              const on = jurisdictions.includes(j);
+              return (
+                <button
+                  key={j}
+                  type="button"
+                  className={'pick-chip' + (on ? ' on' : '')}
+                  aria-pressed={on}
+                  onClick={() =>
+                    setSelectedJuris(
+                      on ? jurisdictions.filter((x) => x !== j) : [...jurisdictions, j],
+                    )
+                  }
+                >
+                  {j === 'US' ? 'Congress' : j}
+                </button>
+              );
+            })}
+          </div>
+        )}
         <div className="search-results">
           {rows.map((b) => (
             <div key={b.billId} className={`sr-row${isTracked(b.billId) ? ' tracked' : ''}`}>
               <span className="sr-num">{b.displayNum}</span>
+              {/* P1-17: label the rail so a state result is not mistaken for a
+                  federal one with a similar number. */}
+              {b.jurisdiction && (
+                <span className="sr-juris">{b.jurisdiction === 'US' ? 'Congress' : b.jurisdiction}</span>
+              )}
               <span className="sr-title">{b.title}</span>
               <span className="sr-stage">
                 {b.stage === 'passed'
@@ -360,8 +527,18 @@ export function AddBillModal({
                       ? 'Enacted'
                       : 'Introduced'}
               </span>
-              <button className="sr-track" onClick={() => handle(b)}>
-                {isTracked(b.billId) ? '✓ On board' : 'Track'}
+              {/* P2-06: disabled while its own request is in flight, and the
+                  "On board" marker only appears once the write succeeded. */}
+              <button
+                className="sr-track"
+                disabled={pendingId === b.billId || isTracked(b.billId)}
+                onClick={() => handle(b)}
+              >
+                {isTracked(b.billId)
+                  ? '✓ On board'
+                  : pendingId === b.billId
+                    ? 'Adding…'
+                    : 'Track'}
               </button>
             </div>
           ))}
@@ -422,10 +599,10 @@ export function VerifyOtpModal({
   const full = code.length === 6;
 
   return (
-    <Modal size="sm" onClose={onClose}>
+    <Modal size="sm" onClose={onClose} label="Verify your phone number">
       <div className="dlg-head">
         <h3>Verify your phone</h3>
-        <button className="dlg-x" onClick={onClose}>
+        <button type="button" className="dlg-x" aria-label="Close" onClick={onClose}>
           <Icon name="plus" size={15} style={{ transform: 'rotate(45deg)' }} />
         </button>
       </div>
@@ -488,7 +665,10 @@ export interface ToastItem {
 
 export function TrackToasts({ toasts }: { toasts: ToastItem[] }) {
   return (
-    <div className="trk-toasts">
+    // P2-12 (h-3): toasts are the ONLY confirmation that a track succeeded or
+    // partially failed. Without a live region a screen-reader user gets no
+    // feedback at all. `polite` so it does not interrupt mid-sentence.
+    <div className="trk-toasts" aria-live="polite">
       {toasts.map((t) => {
         const hasFailure = t.results?.some((r) => r.status === 'failed') ?? false;
         return (

@@ -463,6 +463,40 @@ model IntelActionItem {
   @@map("intel_action_item")
 }
 
+/// P2-04 (Gate D phase e): PER-USER triage state for an alert.
+///
+/// Deliberately NOT `intel_alert.status`. That column is the shared, firm-wide
+/// state of the intelligence EVENT — read by DEFAULT_STATUSES and written by
+/// dedupeStateActionAlerts and the emitter — so one analyst dismissing an alert
+/// there would hide it from everyone and collide with the suppression sweep.
+///
+/// Work state is an ADDITIONAL narrowing of the feed, never a widening: a
+/// suppressed alert stays excluded regardless of what any user did here.
+/// Keyed on (alertId, userId), which is the idempotency contract — a repeated
+/// action upserts rather than inserting a duplicate. Deliberately NOT keyed on
+/// (clientId, sourceRef, changeType): a recurrence after the 14-day dedup window
+/// is a NEW alert row and should correctly arrive un-dismissed.
+model IntelAlertWorkState {
+  id       String @id @default(cuid())
+  tenantId String @map("tenant_id")
+  clientId String @map("client_id")
+  alertId  String @map("alert_id")
+  userId   String @map("user_id")
+  /// new | in_review | assigned | actioned | snoozed | dismissed
+  state    String @default("new")
+  /// A user id from the tenant's own team roster. Required when state='assigned'.
+  assignedTo   String?   @map("assigned_to")
+  snoozedUntil DateTime? @map("snoozed_until") @db.Timestamptz(6)
+  note         String?
+  updatedBy    String?   @map("updated_by")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([alertId, userId], map: "intel_alert_work_state_alert_user_key")
+  @@index([tenantId, clientId, userId, state], map: "intel_alert_work_state_scope_idx")
+  @@map("intel_alert_work_state")
+}
+
 /// Phase 5 parity audit (§8.6). One row per parity-report run per scope. Compares
 /// what the legacy apps/api tracker DECIDED to fire (durable `intelligence_change`
 /// rows, source='congress_bill' + data.tracker=true) against the shadow

@@ -36,7 +36,11 @@ import {
   type MaterialEvent,
 } from './change-detector.util.js';
 import { explainMatch, humanizeBillId, type WatchlistLike } from './relevance.util.js';
-import { scoreShadowAlert } from '../intel-alert/alert-scorer.js';
+import {
+  evidenceCoverage,
+  scoreShadowAlert,
+  SCORE_MODEL_VERSION,
+} from '../intel-alert/alert-scorer.js';
 
 /** Minimum new-cosponsors-in-7d to fire a momentum alert (plan B8 default 5). */
 const COSPONSOR_MOMENTUM_MIN_7D = (() => {
@@ -971,6 +975,19 @@ export class BillChangeDetectorService {
        */
       dedupEvidenceKey?: { path: string; value: string };
       dedupSeverity?: string;
+      /** §4.8 (Gate D d-2): per-term match records for the weighted relevance
+       *  factor, and the client's stance on the matched topic. Both optional —
+       *  a caller that has neither yields the same behaviour as before. */
+      matchDetails?: Array<{
+        termType: string;
+        matchType: string;
+        matchedText: string;
+        sourceField: string;
+        weight: number;
+        confidence: number;
+        explanation: string;
+      }>;
+      position?: string | null;
     } = {},
   ): Promise<boolean> {
     const sourceType = opts.sourceType ?? 'bill';
@@ -1006,12 +1023,50 @@ export class BillChangeDetectorService {
     );
     if (existing) return false;
     const materiality = severityToMateriality(ev.cls.severity);
-    const { score, band } = scoreShadowAlert({
+
+    /**
+     * §4.8 duplication penalty (Gate D d-2). Distinct from the 14-day dedup
+     * above, which suppresses a repeat of the SAME changeType outright. This
+     * asks a different question: has this client already been alerted about
+     * this bill AT ALL in the last 24h, under any changeType? If so, this alert
+     * is incremental noise on a story they are already following, and it is
+     * scored slightly lower.
+     *
+     * Computed HERE, not in the scorer: `alert-scorer.ts` is pure and imports
+     * no Prisma (D6). The result is passed in as a plain boolean.
+     */
+    const duplicateSince = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const recentOther = await this.prisma.withTenant(row.tenantId, (tx) =>
+      tx.intelAlert.findFirst({
+        where: {
+          tenantId: row.tenantId,
+          clientId: row.clientId,
+          sourceRef: row.billId,
+          createdAt: { gte: duplicateSince },
+        },
+        select: { id: true },
+      }),
+    );
+
+    const matchDetails = opts.matchDetails ?? [];
+    const { score, band, factors } = scoreShadowAlert({
       severity: ev.cls.severity,
       materiality,
       changeType: ev.cls.changeType,
       actionDate: ev.date,
       matchedTags,
+      position: opts.position ?? null,
+      matchDetails,
+      evidenceConfidence: evidenceCoverage({
+        whatChanged: `${displayNum}: ${ev.cls.label}`,
+        whyItMatters: why,
+        clientId: row.clientId,
+        issueId: matchedTags[0] ?? null,
+        whoActs: null, // no assignment at write time (P1-11)
+        deadline: actionDate,
+        sourceType,
+      }),
+      duplicate: Boolean(recentOther),
     });
     await this.prisma.withTenant(row.tenantId, (tx) =>
       tx.intelAlert.create({
@@ -1045,6 +1100,21 @@ export class BillChangeDetectorService {
             billTitle: bill.title,
             displayNum,
             jurisdiction,
+            // ── Gate D d-2, ADDED KEYS ONLY (D7) ────────────────────────────
+            // Nothing above moved or was removed, so the JSON-path dedup on
+            // `cutoffType` (Gate C §2.4.1) is unaffected. Both keys are already
+            // claimed by normalize-evidence.ts, so they read back as
+            // `match.details` and stay out of `extra`.
+            //
+            // matchDetails: the per-term match records the weighted relevance
+            // factor is computed from — the slot Gate C reserved and left empty.
+            matchDetails,
+            // scoreModel: FORWARD-ONLY scoring (§6.2) means v1 and v2 scores
+            // sort against each other. Stamping the model makes that legible
+            // instead of silent.
+            scoreModel: SCORE_MODEL_VERSION,
+            scoreFactors: factors.contributions,
+            scoreUnavailable: factors.unavailable,
           },
           status: 'new',
         },

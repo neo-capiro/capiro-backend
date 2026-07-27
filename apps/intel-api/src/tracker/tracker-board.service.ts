@@ -3,7 +3,12 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
 import { StateSourceDataRepository } from '../sourcedata/state-source-data.repository.js';
 import { TrackerWatchlistService } from './tracker-watchlist.service.js';
-import { isStateBillKey, humanizeStateBillKey, stateBillStatusRank } from '@capiro/shared';
+import {
+  isStateBillKey,
+  humanizeStateBillKey,
+  stateBillStatusLabel,
+  stateBillStatusRank,
+} from '@capiro/shared';
 import { embedText, normalize, vectorLiteral, EMBEDDING_MODEL } from '../embeddings/embedder.js';
 import {
   highPriorityMatches,
@@ -21,6 +26,7 @@ import {
   type BillStage,
 } from './bill-stage.util.js';
 import { humanizeBillId, type RelevanceBill } from './relevance.util.js';
+import { isTerminalRisk, toneForChange } from './change-detector.util.js';
 
 /**
  * Recommendation feed + tracked-bill curation for the UNIFIED tracker (Phase 3
@@ -109,6 +115,9 @@ export interface BillSearchResult {
   title: string | null;
   stage: BillStage;
   probability: number;
+  /** P1-17: 'US' or a 2-letter state code, so the Add Bill modal can label
+   *  which rail each result came from. */
+  jurisdiction?: string;
 }
 
 /**
@@ -144,6 +153,26 @@ export function summarizeTrackedRows(rows: Array<{ unread: boolean }>): {
   return { boardCount: rows.length, unread };
 }
 
+/**
+ * The most recent material change on a tracked bill, for the card's chip.
+ *
+ * P1-08: `severity` and `tone` are new. The web used to re-derive a tone from its
+ * OWN copy of a narrow federal change-type list, so a failed governing rule or a
+ * state veto rendered as an ordinary 'notable' chip. Both now come from the
+ * server: `severity` straight off the `intel_alert` column, `tone` from the
+ * detector's own vocabulary (`toneForChange`).
+ */
+export interface ChangeChip {
+  label: string;
+  changeType: string | null;
+  at: Date;
+  /** The detector's own classification: 'info' | 'notable' | 'critical'. */
+  severity: string | null;
+  /** 'success' | 'critical' | 'notable' | 'info' — distinguishes "Became law"
+   *  (success) from "Failed / rejected" (critical), which severity alone cannot. */
+  tone: string | null;
+}
+
 export interface BoardCard {
   billId: string;
   displayNum: string;
@@ -166,7 +195,16 @@ export interface BoardCard {
   matchedHighPriorityTopics: string[];
   /** The client's stance on the highest-priority matched topic: support|oppose|monitor|null. */
   matchedPosition: string | null;
-  changeChip: { label: string; changeType: string | null; at: Date } | null;
+  changeChip: ChangeChip | null;
+  /**
+   * P2-09: the bill's REAL status label, not the coarse lane it was bucketed
+   * into. The board has four lanes but the detector classifies far more, so a
+   * failed governing rule used to render as an ordinary card in the lane its
+   * stage happened to map to.
+   */
+  canonicalStatus: string | null;
+  /** P2-09: a failed rule / veto / failed vote / past-deadline state bill. */
+  terminalRisk: boolean;
   // Phase 9 (Bill→Hearing interlink): "discussed in N hearings" chip. Presence
   // comes from the trackedBill hearing badge (set by the linker); the count is
   // the number of distinct `combined` alerts for this bill.
@@ -243,6 +281,9 @@ export class TrackerBoardService {
         latestActionDate: Date | null;
         policyArea: string | null;
         subjects: string[] | null;
+        /** P2-09: the state rail's canonical status. Null for federal bills,
+         *  whose status is derived from the action text instead. */
+        status?: string | null;
       }
     >
   > {
@@ -260,6 +301,9 @@ export class TrackerBoardService {
         latestActionDate: Date | null;
         policyArea: string | null;
         subjects: string[] | null;
+        /** P2-09: the state rail's canonical status. Null for federal bills,
+         *  whose status is derived from the action text instead. */
+        status?: string | null;
       }
     >();
     for (const b of congressBills) out.set(b.id, b);
@@ -270,9 +314,30 @@ export class TrackerBoardService {
         latestActionDate: b.latestActionDate,
         policyArea: null,
         subjects: b.subjects,
+        status: b.status,
       });
     }
     return out;
+  }
+
+  /**
+   * P2-09: the bill's REAL status, for the card's chip.
+   *
+   * The board buckets into four coarse lanes, so the lane alone cannot tell a
+   * failed governing rule from a bill that merely reached the floor. Precedence:
+   * the most recent material change's own label (the most specific truth we
+   * have), then the state rail's canonical status, then the lane label.
+   * Reuses values already in scope — nothing is re-derived or re-queried.
+   */
+  private canonicalStatusFor(
+    billId: string,
+    chip: ChangeChip | null,
+    status: string | null | undefined,
+    stage: BillStage,
+  ): string | null {
+    if (chip?.label) return chip.label;
+    if (isStateBillKey(billId) && status) return stateBillStatusLabel(status);
+    return BILL_STAGES.find((s) => s.id === stage)?.label ?? null;
   }
 
   private displayNumFor(billId: string): string {
@@ -510,7 +575,17 @@ export class TrackerBoardService {
             createdAt: { gte: new Date(Date.now() - RECENT_CHANGE_DAYS * DAY_MS) },
           },
           orderBy: { createdAt: 'desc' },
-          select: { sourceRef: true, changeType: true, title: true, createdAt: true },
+          // P1-08: `severity` is a real column and free to add here. `tone` is
+          // NOT selected — it lives only inside the `evidence` JSON, and pulling
+          // that whole column on the board read path is a cost this query does
+          // not need; `toneForChange` derives it from the detector's own tables.
+          select: {
+            sourceRef: true,
+            changeType: true,
+            title: true,
+            createdAt: true,
+            severity: true,
+          },
         }),
       ),
       // Phase 9: per-bill "discussed in N hearings" count from the linker's
@@ -530,10 +605,16 @@ export class TrackerBoardService {
       ),
     ]);
     const billById = bills;
-    const chipByBill = new Map<string, { label: string; changeType: string | null; at: Date }>();
+    const chipByBill = new Map<string, ChangeChip>();
     for (const a of recentAlerts) {
       if (!chipByBill.has(a.sourceRef)) {
-        chipByBill.set(a.sourceRef, { label: a.title, changeType: a.changeType, at: a.createdAt });
+        chipByBill.set(a.sourceRef, {
+          label: a.title,
+          changeType: a.changeType,
+          at: a.createdAt,
+          severity: a.severity ?? null,
+          tone: toneForChange(a.changeType, a.severity),
+        });
       }
     }
     const hearingCountByBill = new Map<string, number>();
@@ -573,6 +654,15 @@ export class TrackerBoardService {
         matchedHighPriorityTopics: hi.matchedHighPriorityTopics,
         matchedPosition: hi.matchedPosition,
         changeChip: chipByBill.get(t.billId) ?? null,
+        // P2-09: the real status + a terminal-risk flag, so a failed rule never
+        // renders as an ordinary card in whichever lane its stage maps to.
+        canonicalStatus: this.canonicalStatusFor(
+          t.billId,
+          chipByBill.get(t.billId) ?? null,
+          bill?.status,
+          stage,
+        ),
+        terminalRisk: isTerminalRisk(chipByBill.get(t.billId)?.changeType),
         lastHearingSessionId: t.lastHearingSessionId ?? null,
         lastHearingAt: t.lastHearingAt ?? null,
         hearingCount: hearingCountByBill.get(t.billId) ?? 0,
@@ -623,12 +713,16 @@ export class TrackerBoardService {
             createdAt: { gte: new Date(Date.now() - RECENT_CHANGE_DAYS * DAY_MS) },
           },
           orderBy: { createdAt: 'desc' },
+          // P1-08: see getBoard — `severity` off the column, `tone` derived. The
+          // evidence JSON is especially not worth pulling HERE: this roll-up is
+          // unbounded by client count.
           select: {
             sourceRef: true,
             clientId: true,
             changeType: true,
             title: true,
             createdAt: true,
+            severity: true,
           },
         }),
       ),
@@ -661,11 +755,17 @@ export class TrackerBoardService {
 
     const billById = bills;
     const ck = (cid: string, bid: string) => `${cid}:${bid}`;
-    const chipByCB = new Map<string, { label: string; changeType: string | null; at: Date }>();
+    const chipByCB = new Map<string, ChangeChip>();
     for (const a of recentAlerts) {
       const k = ck(a.clientId, a.sourceRef);
       if (!chipByCB.has(k))
-        chipByCB.set(k, { label: a.title, changeType: a.changeType, at: a.createdAt });
+        chipByCB.set(k, {
+          label: a.title,
+          changeType: a.changeType,
+          at: a.createdAt,
+          severity: a.severity ?? null,
+          tone: toneForChange(a.changeType, a.severity),
+        });
     }
     const hearingCountByCB = new Map<string, number>();
     for (const g of hearingLinks) hearingCountByCB.set(ck(g.clientId, g.sourceRef), g._count._all);
@@ -707,6 +807,14 @@ export class TrackerBoardService {
         matchedHighPriorityTopics: hi.matchedHighPriorityTopics,
         matchedPosition: hi.matchedPosition,
         changeChip: chipByCB.get(ck(t.clientId, t.billId)) ?? null,
+        // P2-09: same treatment on the all-clients roll-up.
+        canonicalStatus: this.canonicalStatusFor(
+          t.billId,
+          chipByCB.get(ck(t.clientId, t.billId)) ?? null,
+          bill?.status,
+          stage,
+        ),
+        terminalRisk: isTerminalRisk(chipByCB.get(ck(t.clientId, t.billId))?.changeType),
         lastHearingSessionId: t.lastHearingSessionId ?? null,
         lastHearingAt: t.lastHearingAt ?? null,
         hearingCount: hearingCountByCB.get(ck(t.clientId, t.billId)) ?? 0,
@@ -723,31 +831,87 @@ export class TrackerBoardService {
    * Lightweight board counts for the client-profile tab badge (Phase 7 —
    * repoints the legacy GET .../tracker/summary badge fetch). One tenant-scoped
    * SELECT of the `unread` bits, reduced by the pure summarizeTrackedRows.
+   *
+   * P2-01 (Gate D g-4): `hasWatchlist` is added here because the cold-start gate
+   * needs an ALWAYS-AVAILABLE signal. The profile's own `watchlistQuery` is
+   * `enabled: activePanel === 'config'`, so a cold-start check driven by it has
+   * no data to run on — the chicken-and-egg that left the profile variant
+   * defaulting to an empty Board instead of Configure. Enabling that query
+   * unconditionally would add a request to every board load; this rides an
+   * existing one.
+   *
+   * "Has a watchlist" means at least one topic OR one issue area — the same
+   * two-part test the cold-start copy asks the user to complete.
    */
   async getSummary(
     tenantId: string,
     clientId: string,
-  ): Promise<{ boardCount: number; unread: number }> {
-    const rows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.trackedBill.findMany({
-        where: { tenantId, clientId },
-        select: { unread: true },
-      }),
-    );
-    return summarizeTrackedRows(rows);
+  ): Promise<{ boardCount: number; unread: number; hasWatchlist: boolean }> {
+    const [rows, watchlist] = await Promise.all([
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.trackedBill.findMany({
+          where: { tenantId, clientId },
+          select: { unread: true },
+        }),
+      ),
+      // One row + a topic count in a single read; WatchlistTopic keys on
+      // watchlistId, so counting through the relation avoids a second lookup.
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.watchlist.findFirst({
+          where: { tenantId, clientId },
+          select: { issueAreas: true, _count: { select: { topics: true } } },
+        }),
+      ),
+    ]);
+    return {
+      ...summarizeTrackedRows(rows),
+      hasWatchlist:
+        (watchlist?._count?.topics ?? 0) > 0 || (watchlist?.issueAreas?.length ?? 0) > 0,
+    };
   }
 
   /**
    * Add-bill-modal text search (P1.1, ported from apps/api
    * tracker.service.searchBills). Current Congress only; <2 chars → []. Tenant-
    * independent by design (GLOBAL `congress_bill`; auth is the route guards).
+   *
+   * P1-17: this searched the federal corpus ONLY, while the modal's copy claimed
+   * it searched the congressional record — so a client could enable state
+   * jurisdictions, receive state recommendations, and still be unable to add a
+   * state bill it had missed. It now searches both rails.
+   *
+   * `jurisdictions` semantics, matching the rest of LegiWatch: an EMPTY/absent
+   * list means BOTH (federal + every state the caller passes nothing about),
+   * `['US']` means federal only, and a list of state codes searches those states
+   * (plus federal when 'US' is among them). Never "fix" an empty array to a
+   * default list — MASTER §4.5.
    */
-  async searchBills(q: string): Promise<BillSearchResult[]> {
+  async searchBills(
+    q: string,
+    opts: { jurisdictions?: string[]; limit?: number } = {},
+  ): Promise<BillSearchResult[]> {
     const query = (q ?? '').trim();
     if (query.length < 2) return [];
+    const limit = Math.min(Math.max(opts.limit ?? 20, 1), 50);
     const { titleLike, idLike } = billSearchPatterns(query);
-    const rows = await this.repo.searchBillRows(titleLike, idLike, currentCongress());
-    return rows.map((b) => ({
+
+    const juris = (opts.jurisdictions ?? []).map((j) => j.trim().toUpperCase()).filter(Boolean);
+    const wantsAll = juris.length === 0;
+    const wantsFederal = wantsAll || juris.includes('US');
+    const states = juris.filter((j) => j !== 'US');
+
+    const [federal, stateRows] = await Promise.all([
+      wantsFederal
+        ? this.repo.searchBillRows(titleLike, idLike, currentCongress())
+        : Promise.resolve([]),
+      // With no jurisdictions named we cannot scan all 50 legislatures on a
+      // 2-character query, so the state rail runs only when states are named.
+      states.length
+        ? this.stateRepo.searchStateBillRows(titleLike, idLike, states, limit)
+        : Promise.resolve([]),
+    ]);
+
+    const out: BillSearchResult[] = federal.map((b) => ({
       billId: b.id,
       displayNum: humanizeBillId(b.id),
       title: b.title,
@@ -757,7 +921,24 @@ export class TrackerBoardService {
         title: b.title,
         latestActionDate: b.latestActionDate,
       }),
+      jurisdiction: 'US',
     }));
+
+    for (const b of stateRows) {
+      out.push({
+        billId: b.id,
+        displayNum: humanizeStateBillKey(b.id),
+        title: b.title,
+        stage: billStage(b.latestActionText),
+        probability: passageProbability({
+          latestActionText: b.latestActionText,
+          title: b.title,
+          latestActionDate: b.latestActionDate,
+        }),
+        jurisdiction: b.state,
+      });
+    }
+    return out.slice(0, limit);
   }
 
   private async trackCongressStage(

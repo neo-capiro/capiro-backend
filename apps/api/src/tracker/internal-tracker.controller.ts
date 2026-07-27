@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
-import { IsOptional, IsString } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsOptional, IsString, MaxLength } from 'class-validator';
 import { InternalServiceGuard } from '../auth/internal-service.guard.js';
 import { TrackerSummaryService } from './notifications/tracker-summary.service.js';
 
@@ -9,6 +9,11 @@ import { TrackerSummaryService } from './notifications/tracker-summary.service.j
  * DTO makes EVERY body key "non-whitelisted" → the pipe 400s before the handler
  * ever runs. billTitle is optional (some bills carry a null title); the other
  * four are required strings (emptiness is re-checked, trimmed, in the handler).
+ *
+ * §4.3 (Gate D b-6): allowedNextSteps and blockedBy MUST be declared here.
+ * Without them the pipe 400s on intel-api's new payload, AlertSummaryClient
+ * fails soft, and every alert summary silently becomes null — a total outage of
+ * the feature that looks like nothing at all. Locked by a test.
  */
 export class SummarizeAlertDto {
   @IsString()
@@ -26,6 +31,20 @@ export class SummarizeAlertDto {
 
   @IsString()
   actionText!: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(12)
+  @IsString({ each: true })
+  @MaxLength(200, { each: true })
+  allowedNextSteps?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(12)
+  @IsString({ each: true })
+  @MaxLength(300, { each: true })
+  blockedBy?: string[];
 }
 
 /**
@@ -68,12 +87,21 @@ export class InternalTrackerController {
       throw new BadRequestException('displayNum, label, and actionText are required');
     }
 
+    // §4.3: pass the deterministic step set straight through. An ABSENT
+    // allowedNextSteps and an EMPTY one mean the same thing to the prompt ("not
+    // established"), which is the safe default for any caller that has not been
+    // upgraded yet.
+    const strArray = (v: unknown): string[] =>
+      Array.isArray(v) ? v.map((s) => str(s)).filter(Boolean) : [];
+
     const summary = await this.summaries.summarize({
       tenantId,
       displayNum,
       billTitle,
       label,
       actionText,
+      allowedNextSteps: strArray(dto?.allowedNextSteps),
+      blockedBy: strArray(dto?.blockedBy),
     });
     return { summary };
   }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { App as AntApp } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
 import './tracker.css';
@@ -75,26 +76,23 @@ function loadBillsPanel(): Panel {
   return 'board';
 }
 
-const MONTHS: Record<string, number> = {
-  '01': 0,
-  '02': 1,
-  '03': 2,
-  '04': 3,
-  '05': 4,
-  '06': 5,
-  '07': 6,
-  '08': 7,
-  '09': 8,
-  '10': 9,
-  '11': 10,
-  '12': 11,
-};
-function dateVal(s: string | null): number {
+/**
+ * P1-16: the old dateVal read only parts[1] (month) and parts[2] (day) and
+ * returned `MONTHS[m] * 31 + day`, never touching parts[0] — the YEAR. So
+ * December 2025 (11*31+15 = 356) sorted ahead of January 2026 (0*31+20 = 20),
+ * and "Newest action" put last year's bills first.
+ *
+ * The `T00:00:00Z` suffix on the 10-char case is load-bearing and must stay:
+ * `Date.parse` treats a bare `YYYY-MM-DD` as UTC but a bare
+ * `YYYY-MM-DDTHH:mm:ss` (no zone) as LOCAL. Appending Z only for the date-only
+ * form keeps both branches UTC-stable; "just parse the ISO string" would
+ * introduce a timezone bug the old month/day code did not have.
+ * `latestActionDate` is `YYYY-MM-DD` (intel-tracker-api.ts slices to 10).
+ */
+export function dateVal(s: string | null): number {
   if (!s) return 0;
-  const parts = s.split('-');
-  const m = parts[1] ?? '';
-  const d = parts[2] ?? '0';
-  return (MONTHS[m] ?? 0) * 31 + parseInt(d, 10);
+  const t = Date.parse(s.length === 10 ? `${s}T00:00:00Z` : s);
+  return Number.isFinite(t) ? t : 0;
 }
 
 export interface TrackerSurfaceProps {
@@ -121,6 +119,7 @@ export function TrackerSurface({
 }: TrackerSurfaceProps) {
   const api = useApi();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { message } = AntApp.useApp();
 
   const [panel, setPanelState] = useState<Panel>(
@@ -153,6 +152,42 @@ export function TrackerSurface({
   const meQuery = useMe();
   const myRole = meQuery.data?.role;
   const canEditTargeting = myRole ? isTenantAdmin(myRole) : true;
+  /**
+   * P2-01 (Gate D g-4): cold-start parity between the two LegiWatch surfaces.
+   *
+   * `/legiwatch` routes an unconfigured client to Configure; the profile variant
+   * defaulted to `loadPanel()` → 'board' and showed an empty board instead. The
+   * obvious fix — check the watchlist — does not work: `watchlistQuery` is
+   * `enabled: activePanel === 'config'`, so on the Board it has no data. This
+   * rides the summary endpoint, which the tab badge already needs, so the signal
+   * is always available and no query is added to a board load.
+   *
+   * Only redirects ONCE, and only while the user has not chosen a panel
+   * themselves — a deliberate visit to an empty Board must stay there.
+   */
+  const summaryQuery = useQuery<{ boardCount: number; unread: number; hasWatchlist?: boolean }>({
+    queryKey: trackerKeys.summary(clientId),
+    queryFn: async () =>
+      (
+        await api.get<{ boardCount: number; unread: number; hasWatchlist?: boolean }>(
+          trackerV2 ? intelTrackerPaths.summary(clientId) : trackerPaths.summary(clientId),
+        )
+      ).data,
+    enabled: flagsReady,
+    staleTime: 60_000,
+  });
+  const coldStartRedirected = useRef(false);
+  useEffect(() => {
+    if (variant !== 'profile' || coldStartRedirected.current) return;
+    if (!summaryQuery.data) return;
+    // `hasWatchlist` is absent on the legacy summary — treat unknown as
+    // configured rather than bouncing the user to Configure on no evidence.
+    if (summaryQuery.data.hasWatchlist === false && panel === 'board') {
+      coldStartRedirected.current = true;
+      setPanelState('config');
+    }
+  }, [summaryQuery.data, variant, panel]);
+
   const activePanel: Panel = panel === 'feed' && !trackerV2 ? 'board' : panel;
 
   // Board controls
@@ -551,15 +586,33 @@ export function TrackerSurface({
     if (unread) markReadMutation.mutate(billId);
     drillTo(billId);
   };
+  // P2-06: the toast used to fire on the line AFTER .mutate(), so a rejected
+  // request still read as "added to board". It now lives in the per-call
+  // onSuccess, and a failure says so.
   const trackRec = (billId: string) => {
     const b = recs?.recommendations.find((r) => r.billId === billId);
-    trackMutation.mutate({ billId, source: 'recommended' });
-    pushToast({ num: b?.displayNum ?? '' });
+    trackMutation.mutate(
+      { billId, source: 'recommended' },
+      {
+        onSuccess: () => pushToast({ num: b?.displayNum ?? '' }),
+        onError: (e: unknown) =>
+          message.error(`Could not track ${b?.displayNum ?? 'the bill'}: ${(e as Error).message}`),
+      },
+    );
   };
-  const trackManual = (bill: BillSearchResult) => {
-    trackMutation.mutate({ billId: bill.billId, source: 'manual_search' });
-    pushToast({ num: bill.displayNum });
-  };
+  // Returns the promise so AddBillModal only marks the row "On board" after the
+  // write actually succeeded (P2-06).
+  const trackManual = (bill: BillSearchResult) =>
+    trackMutation
+      .mutateAsync({ billId: bill.billId, source: 'manual_search' })
+      .then((r) => {
+        pushToast({ num: bill.displayNum });
+        return r;
+      })
+      .catch((e: unknown) => {
+        message.error(`Could not track ${bill.displayNum}: ${(e as Error).message}`);
+        throw e;
+      });
   const requestVerify = (phone: string, onVerified: () => void) => {
     smsStartMutation.mutate(phone, {
       onSuccess: (res) => {
@@ -664,12 +717,32 @@ export function TrackerSurface({
       n.has(id) ? n.delete(id) : n.add(id);
       return n;
     });
+  /**
+   * P2-06: this fired N mutations and then immediately claimed all N succeeded.
+   * Now it settles them all and reports the real count, naming the failures.
+   * The selection is cleared only AFTER settling, so a partial failure leaves
+   * the user somewhere they can retry from.
+   */
   const trackSelected = () => {
     const ids = [...selected];
-    ids.forEach((id) => trackMutation.mutate({ billId: id, source: 'recommended' }));
-    pushToast({ text: `${ids.length} bill${ids.length > 1 ? 's' : ''} added to board` });
-    setSelected(new Set());
-    setSelectMode(false);
+    if (!ids.length) return;
+    void Promise.allSettled(
+      ids.map((id) => trackMutation.mutateAsync({ billId: id, source: 'recommended' })),
+    ).then((results) => {
+      const failedIds = ids.filter((_, i) => results[i]!.status === 'rejected');
+      const ok = ids.length - failedIds.length;
+      if (failedIds.length) {
+        pushToast({ text: `${ok} of ${ids.length} added to board` });
+        const names = failedIds
+          .map((id) => recs?.recommendations.find((r) => r.billId === id)?.displayNum ?? id)
+          .join(', ');
+        message.error(`Could not track: ${names}`);
+      } else {
+        pushToast({ text: `${ok} bill${ok > 1 ? 's' : ''} added to board` });
+      }
+      setSelected(new Set());
+      setSelectMode(false);
+    });
   };
 
   // LegiWatch v2 (L2): the Bills tab shows Recommendations ABOVE the board (both
@@ -691,7 +764,7 @@ export function TrackerSurface({
         options={[
           { v: 'all', l: 'All bills' },
           { v: 'highfit', l: 'High-fit (priority tag)' },
-          { v: 'highprob', l: 'High-probability (≥70%)' },
+          { v: 'highprob', l: 'High passage likelihood (≥70%)' },
         ]}
       />
       <TrkDropdown
@@ -704,7 +777,9 @@ export function TrackerSurface({
           setMenu(null);
         }}
         options={[
-          { v: 'prob', l: 'Probability' },
+          // §4.8 (c-8): the number is unchanged; the label no longer claims a
+          // calibrated forecast. See PASSAGE_LIKELIHOOD_LABEL.
+          { v: 'prob', l: 'Passage likelihood' },
           { v: 'num', l: 'Bill number' },
           { v: 'changed', l: 'Recently changed' },
         ]}
@@ -739,7 +814,7 @@ export function TrackerSurface({
         }}
         options={[
           { v: 'relevance', l: 'Relevance' },
-          { v: 'probability', l: 'Probability' },
+          { v: 'probability', l: 'Passage likelihood' },
           { v: 'newest', l: 'Newest action' },
         ]}
       />
@@ -774,6 +849,20 @@ export function TrackerSurface({
           <div className="trk-spacer" />
           {activePanel === 'board' && boardControls}
           {activePanel === 'recs' && recsControls}
+          {/* P2-02 (§6.3, confirmed): the profile tab is a COMPACT view of
+              LegiWatch, not a second copy of the full product. Saying so — and
+              offering the way through — stops the two surfaces competing to be
+              the real one. `/legiwatch` keeps the stacked experience. */}
+          <a
+            className="trk-open-full"
+            href={`/legiwatch?tab=bills&client=${encodeURIComponent(clientId)}`}
+            onClick={(e) => {
+              e.preventDefault();
+              navigate(`/legiwatch?tab=bills&client=${encodeURIComponent(clientId)}`);
+            }}
+          >
+            Open full LegiWatch →
+          </a>
         </div>
       )}
 
@@ -837,7 +926,13 @@ export function TrackerSurface({
                 <button className="b-cancel" onClick={() => setSelected(new Set())}>
                   Clear
                 </button>
-                <button className="b-track" onClick={trackSelected}>
+                {/* P2-06: repeated clicks while the batch is in flight would
+                    fire the same mutations again. */}
+                <button
+                  className="b-track"
+                  disabled={trackMutation.isPending}
+                  onClick={trackSelected}
+                >
                   Track selected
                 </button>
               </div>
@@ -930,7 +1025,7 @@ export function TrackerSurface({
             {filter !== 'all' && boardCount > 0 && boardColumns.every((c) => c.bills.length === 0) ? (
               <div className="trk-col-empty" style={{ gridColumn: '1 / -1' }}>
                 No tracked bills match the “
-                {filter === 'highfit' ? 'High-fit (priority tag)' : 'High-probability (≥70%)'}”
+                {filter === 'highfit' ? 'High-fit (priority tag)' : 'High passage likelihood (≥70%)'}”
                 filter.{' '}
                 <button className="btn-link" onClick={() => setFilter('all')}>
                   Show all {boardCount}

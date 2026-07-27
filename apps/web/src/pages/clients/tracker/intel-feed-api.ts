@@ -114,6 +114,14 @@ export interface FeedEvidence {
     jurisdiction: string;
     writerShape: string;
   };
+  /** §4.8 (Gate D d-1): each factor's share of the score. Absent on any alert
+   *  written before the re-weight — those carry v1 scores. */
+  scoreFactors?: Record<string, number>;
+  /** Factors with no signal at all. Rendered "unavailable", never as 0. */
+  scoreUnavailable?: string[];
+  /** Which scoring model produced `score`. Absent/1 = the pre-Gate-D model.
+   *  Scoring is FORWARD-ONLY (§6.2), so a Priority list mixes the two. */
+  scoreModel?: number;
   /** Every stored key the normalizer did not claim — nothing the writer recorded is lost. */
   extra?: Record<string, unknown>;
 }
@@ -144,6 +152,18 @@ export interface FeedItemActions {
   talkingPoints: number;
 }
 
+/** P2-04: the CURRENT USER's triage state for this alert. The intelligence event
+ *  itself is global (`intel_alert.status` is shared by the whole firm); this is
+ *  per-user, so one analyst's dismiss never hides the alert from another.
+ *  Decorated by intel-api in Gate D phase e — optional until then. */
+export interface FeedItemWorkState {
+  state: 'new' | 'in_review' | 'assigned' | 'actioned' | 'snoozed' | 'dismissed';
+  assignedTo: string | null;
+  assignedToName?: string | null;
+  snoozedUntil: string | null;
+  note: string | null;
+}
+
 export interface FeedItem {
   id: string;
   /** Owning client (always present). Drives the client label on the global feed. */
@@ -171,6 +191,8 @@ export interface FeedItem {
   recommendedActions?: RecommendedAction[];
   /** Whether a memo is already drafted, in the weekly report, etc. */
   actions?: FeedItemActions;
+  /** P2-04: this user's own triage state. Absent = never triaged (treat as 'new'). */
+  workState?: FeedItemWorkState;
 }
 
 export interface FeedResponse {
@@ -204,13 +226,26 @@ export const intelFeedKeys = {
 
 export const FEED_PAGE_SIZE = 25;
 
-/** Build the query string for one feed page. */
-export function feedQueryString(source: FeedFilter, order: FeedOrder, cursor?: string): string {
+/**
+ * Build the query string for one feed page.
+ *
+ * P2-04: `workFilter` is the per-user worklist facet. 'default' is the active
+ * queue and is sent as NOTHING — the server already excludes this user's
+ * dismissed and still-snoozed alerts by default, so omitting it keeps the
+ * common case's URL (and therefore its cache entry) byte-identical to before.
+ */
+export function feedQueryString(
+  source: FeedFilter,
+  order: FeedOrder,
+  cursor?: string,
+  workFilter?: string,
+): string {
   const p = new URLSearchParams();
   if (source !== 'all') p.set('sourceType', source);
   p.set('order', order);
   p.set('limit', String(FEED_PAGE_SIZE));
   if (cursor) p.set('cursor', cursor);
+  if (workFilter && workFilter !== 'default') p.set('workState', workFilter);
   return p.toString();
 }
 
@@ -224,11 +259,73 @@ export const SOURCE_LABEL: Record<FeedSourceType, string> = {
 };
 
 /**
+ * P1-10/§4.8: the display band for an alert's score. Mirrors intel-api's
+ * `bandOf` thresholds (alert-scorer.ts) exactly — do not drift them, or a
+ * card's band stops matching the one stored on the alert and emailed.
+ *
+ * Prefers the band the WRITER stored in evidence (`provenance.band`) and only
+ * derives from `score` when a pre-Gate-C row carries none.
+ */
+export function alertBand(item: FeedItem): 'High' | 'Med' | 'Low' {
+  const stored = item.evidence?.provenance?.band;
+  if (stored === 'High' || stored === 'Med' || stored === 'Low') return stored;
+  const s = typeof item.score === 'number' ? item.score : 0;
+  return s >= 0.66 ? 'High' : s >= 0.45 ? 'Med' : 'Low';
+}
+
+/** Human labels for the §4.8 score factors. */
+export const SCORE_FACTOR_LABEL: Record<string, string> = {
+  relevance: 'client relevance',
+  materiality: 'materiality',
+  urgency: 'time sensitivity',
+  clientPriority: 'client priority',
+  targetOpportunity: 'target opportunity',
+  evidenceConfidence: 'evidence confidence',
+  duplicationPenalty: 'duplication penalty',
+};
+
+/** §6.2: alerts written before the re-weight keep v1 scores. */
+export const SCORE_MODEL_CURRENT = 2;
+
+export function isPriorScoreModel(item: FeedItem): boolean {
+  return (item.evidence?.scoreModel ?? 1) < SCORE_MODEL_CURRENT;
+}
+
+/**
+ * §4.8 (d-5): the Priority chip's tooltip — every factor, its contribution, and
+ * an explicit `unavailable` for anything with no signal. Falls back to the
+ * generic sentence for a pre-re-weight alert, which carries no breakdown.
+ */
+export function scoreExplanation(item: FeedItem): string {
+  const factors = item.evidence?.scoreFactors;
+  const unavailable = item.evidence?.scoreUnavailable ?? [];
+  if (!factors || !Object.keys(factors).length) {
+    return (
+      'Ranked from client relevance, materiality, urgency, and client priority. ' +
+      'Scored by the prior model — see the Priority sort note.'
+    );
+  }
+  const lines = Object.entries(factors).map(
+    ([k, v]) => `${SCORE_FACTOR_LABEL[k] ?? k} — ${v >= 0 ? '+' : ''}${v.toFixed(2)}`,
+  );
+  // An unavailable factor is named as such rather than shown contributing 0.
+  for (const k of unavailable) lines.push(`${SCORE_FACTOR_LABEL[k] ?? k} — unavailable`);
+  return lines.join('\n');
+}
+
+/**
  * Feed → canonical Alert adapter (MeriV2 Phase-1, SC1.1/SC1.2): maps a
- * FeedItem onto the ONE seven-field Alert. Used ONLY to render an
- * "incomplete" flag on feed cards — items are never hidden or filtered on
- * incompleteness (drop-nothing). whoActs has no feed source today → always
- * flagged; issueId ← the matched watchlist tag when present.
+ * FeedItem onto the ONE seven-field Alert.
+ *
+ * P1-11: this is INTERNAL COMPLETENESS INSTRUMENTATION and is no longer
+ * rendered to analysts. It used to drive an "incomplete" chip on the feed card,
+ * which fired on EVERY alert because `whoActs` had no source and was hard-coded
+ * to ''. The user-facing warning is now `materialGaps` in TrackerFeedPanel,
+ * which only fires on evidence an analyst can act on. Items are still never
+ * hidden or filtered on incompleteness (drop-nothing).
+ *
+ * `whoActs` now reads the per-user work state's assignee, so an unassigned
+ * alert is legitimately incomplete on that field rather than artificially so.
  */
 export function toCanonicalAlert(item: FeedItem): AlertBuildResult {
   return buildAlert({
@@ -238,7 +335,7 @@ export function toCanonicalAlert(item: FeedItem): AlertBuildResult {
     // P1-09: fall back to the normalized match block, so a bill-change alert (which
     // never carries a termId) yields a non-empty issueId instead of reading incomplete.
     issueId: item.tag ?? item.evidence.match?.matchedTags?.[0] ?? '',
-    whoActs: '',
+    whoActs: item.workState?.assignedTo ?? '',
     deadline: item.evidence.bill?.actionDate ?? item.evidence.hearing?.occurredAt ?? null,
     sourceType: item.sourceType,
   });

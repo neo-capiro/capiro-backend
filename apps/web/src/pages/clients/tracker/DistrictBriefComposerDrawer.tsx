@@ -130,9 +130,15 @@ export function DistrictBriefComposerDrawer({
         ),
         <Button
           key="copy"
-          onClick={() => {
-            void navigator.clipboard?.writeText(markdown);
-            message.success('Copied');
+          // P2-06: see MemoComposerDrawer — un-awaited + optional-chained meant
+          // a failed copy still reported success.
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(markdown);
+              message.success('Copied');
+            } catch {
+              message.warning('Could not copy automatically — select the text and copy manually.');
+            }
           }}
           disabled={!markdown}
         >

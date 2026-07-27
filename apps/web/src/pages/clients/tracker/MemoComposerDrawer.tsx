@@ -237,9 +237,16 @@ export function MemoComposerDrawer({
         </Button>,
         <Button
           key="copy"
-          onClick={() => {
-            void navigator.clipboard?.writeText(markdown);
-            message.success('Copied');
+          // P2-06: the write was un-awaited AND optional-chained, so on an
+          // insecure origin (navigator.clipboard undefined) or a rejected
+          // permission it copied nothing and still said "Copied".
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(markdown);
+              message.success('Copied');
+            } catch {
+              message.warning('Could not copy automatically — select the text and copy manually.');
+            }
           }}
           disabled={!markdown}
         >
