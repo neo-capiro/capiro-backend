@@ -1094,9 +1094,17 @@ export function NewOutreachWizard({
       if (versionedOutreach) {
         try {
           recordId = await ensureDraftRecord();
-        } catch {
+        } catch (err) {
+          // Keep the server's own message. Swallowing it turned a precise
+          // validation reject (e.g. "contextPool.0.title must be shorter than or
+          // equal to 240 characters") into an unactionable "generation failed",
+          // which is what made a 240-char cap on ONE library document look like
+          // a broken AI pipeline.
+          const detail = apiErrorMessage(err);
           throw new Error(
-            'Could not create the protected draft record; generation was not started.',
+            detail
+              ? `Could not create the protected draft record, so generation was not started: ${detail}`
+              : 'Could not create the protected draft record; generation was not started.',
           );
         }
       }
@@ -1832,7 +1840,14 @@ export function NewOutreachWizard({
       qc.invalidateQueries({ queryKey: ['engagement-outreach'] });
       message.success('Draft saved');
     },
-    onError: () => message.error('Could not save draft'),
+    // Same reasoning as the ensureDraftRecord catch above: surface what the
+    // server actually objected to, not just that something went wrong.
+    onError: (err) =>
+      message.error(
+        apiErrorMessage(err)
+          ? `Could not save draft: ${apiErrorMessage(err)}`
+          : 'Could not save draft',
+      ),
   });
 
   // Auto-generate any slots that don't yet have a draft when we land on the
