@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Badge, Button, Popover, Segmented, Skeleton, Tooltip } from 'antd';
+import { Alert, Badge, Button, Popover, Skeleton, Tooltip } from 'antd';
 import { ClockCircleOutlined, EnvironmentOutlined, WarningOutlined } from '@ant-design/icons';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeatureEnabled } from '../../../lib/intel-feature-flags.js';
@@ -52,7 +52,21 @@ export function DistrictNexusPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const filters = readFilters(searchParams);
-  const view: 'current' | 'future' = searchParams.get('view') === 'future' ? 'future' : 'current';
+  /**
+   * There is exactly ONE answerable view. The backend rejects `future` outright
+   * (apps/api/src/district-nexus/district-nexus.view.ts) because award geography
+   * is reported against CURRENT districts and cannot be re-attributed to future
+   * boundaries without inventing the answer.
+   *
+   * The previous code kept a separate `view` (what the URL asked for) and
+   * `effectiveView` (what it actually requested), passed `view` to the header and
+   * `effectiveView` to the map, and so rendered "Enacted future" as selected
+   * while loading current data. A clamp under a future LABEL is the exact failure
+   * the backend refuses to produce. So there is no future state here at all:
+   * a stale `?view=future` deep link is stripped from the URL and the toggle is
+   * gone until a future rail genuinely exists.
+   */
+  const view = 'current' as const;
   const selectedDistrictKey = searchParams.get('district');
   const showFacilities = searchParams.get('facilities') !== 'off';
 
@@ -65,23 +79,26 @@ export function DistrictNexusPage() {
     setSearchParams(next);
   }
 
-  const futureManifest = useQuery({
-    queryKey: ['district-nexus', 'boundary-manifest', 'F'],
-    queryFn: () => getDistrictBoundaryManifest(api, 'F'),
+  // Strip a stale ?view=future deep link. Runs once per param change and is a
+  // no-op in the normal case.
+  useEffect(() => {
+    if (searchParams.get('view') != null) patchParams({ view: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.get('view')]);
+
+  const currentManifest = useQuery({
+    queryKey: ['district-nexus', 'boundary-manifest', 'C'],
+    queryFn: () => getDistrictBoundaryManifest(api, 'C'),
     retry: false,
     staleTime: 5 * 60_000,
     enabled,
   });
-  const futureAvailable = Boolean(futureManifest.data && futureManifest.data.districtCount > 0);
-  // A stale deep-link (?view=future) from before the artifact existed, or
-  // from after it's removed, must not 400 the whole page — clamp silently.
-  const effectiveView: 'current' | 'future' = view === 'future' && futureAvailable ? 'future' : 'current';
 
   const mapQuery = useQuery<DistrictNexusMapResponse>({
-    queryKey: ['district-nexus', 'map', effectiveView, filters.clientId, filters.state],
+    queryKey: ['district-nexus', 'map', 'current', filters.clientId, filters.state],
     queryFn: () =>
       getDistrictNexusMap(api, {
-        view: effectiveView,
+        view: 'current',
         clientId: filters.clientId ?? undefined,
         state: filters.state ?? undefined,
       }),
@@ -101,7 +118,7 @@ export function DistrictNexusPage() {
   if (!enabled) {
     return (
       <div className="dn-root" style={{ padding: '22px 32px 40px', minHeight: '100%' }}>
-        <PageHead view={view} futureAvailable={false} onViewChange={() => {}} />
+        <PageHead />
         <div className="dn-guide">
           <div className="dn-gico">
             <EnvironmentOutlined />
@@ -121,7 +138,7 @@ export function DistrictNexusPage() {
     <div className="dn-root" style={{ padding: '22px 32px 40px', minHeight: '100%', gap: 14 }}>
       <TopControls mapData={mapQuery.data} />
       <div className="dn-content">
-        <PageHead view={view} futureAvailable={futureAvailable} onViewChange={(v) => patchParams({ view: v === 'current' ? null : v, district: null })} />
+        <PageHead />
 
         {mapQuery.isPending ? <LoadingSkeleton /> : null}
 
@@ -176,7 +193,7 @@ export function DistrictNexusPage() {
                 <DistrictNexusMap
                   districts={filteredDistricts}
                   metric={filters.metric}
-                  view={effectiveView}
+                  view="current"
                   selectedDistrictKey={selectedDistrictKey}
                   onSelectDistrict={(key) => patchParams({ district: key })}
                   showFacilities={showFacilities}
@@ -199,7 +216,11 @@ export function DistrictNexusPage() {
                   />
                 </div>
                 {mapQuery.data.unmapped.unmappedContractAmount || mapQuery.data.unmapped.unmappedGrantAmount ? (
-                  <button type="button" className="dn-rfoot">
+                  // Deliberately not a button. It was rendered as one with no
+                  // onClick and no destination, so it advertised an action that
+                  // did not exist. An unmapped-funding panel needs a response
+                  // field the E1 aggregate does not carry.
+                  <div className="dn-rfoot">
                     <span style={{ color: 'var(--notable)', display: 'grid', placeItems: 'center' }}>
                       <WarningOutlined />
                     </span>
@@ -214,7 +235,7 @@ export function DistrictNexusPage() {
                       · {formatMoney(mapQuery.data.unmapped.unmappedContractAmount)} contracts,{' '}
                       {formatMoney(mapQuery.data.unmapped.unmappedGrantAmount)} grants
                     </span>
-                  </button>
+                  </div>
                 ) : null}
               </div>
             </div>
@@ -225,22 +246,14 @@ export function DistrictNexusPage() {
       <DistrictNexusDrawer
         districtKey={selectedDistrictKey}
         clientId={filters.clientId}
-        boundaryVintage={futureManifest.data?.vintage}
+        boundaryVintage={currentManifest.data?.vintage}
         onClose={() => patchParams({ district: null })}
       />
     </div>
   );
 }
 
-function PageHead({
-  view,
-  futureAvailable,
-  onViewChange,
-}: {
-  view: 'current' | 'future';
-  futureAvailable: boolean;
-  onViewChange: (view: 'current' | 'future') => void;
-}) {
+function PageHead() {
   return (
     <div className="dn-pg-head">
       <div>
@@ -248,15 +261,11 @@ function PageHead({
         <p className="dn-pg-desc">Verified client footprint, public funding, and representation by congressional district.</p>
       </div>
       <div className="dn-acts">
-        <Tooltip title={futureAvailable ? undefined : 'No enacted-future boundary artifact has been built yet.'}>
-          <Segmented<'current' | 'future'>
-            value={view}
-            onChange={onViewChange}
-            options={[
-              { label: 'Current · 119th', value: 'current' },
-              { label: 'Enacted future', value: 'future', disabled: !futureAvailable },
-            ]}
-          />
+        {/* Not a toggle. There is one answerable view, so this states the
+            vintage rather than offering a choice that cannot be honoured —
+            see the `view` docblock above. */}
+        <Tooltip title="Award geography is reported against current districts, so a future-boundary view cannot be produced without re-attributing money that was never reported that way.">
+          <Badge status="processing" text="Current · 119th Congress" />
         </Tooltip>
       </div>
     </div>
@@ -325,12 +334,32 @@ function KpiStrip({
   unmapped: DistrictNexusMapResponse['unmapped'];
 }) {
   const states = new Set(districts.map((d) => d.state)).size;
-  const employees = districts.reduce((sum, d) => sum + (d.employeeCount ?? 0), 0);
+
+  /**
+   * Sums that keep "we have no figure" separate from "the figure is zero".
+   *
+   * A plain `reduce((s, d) => s + (x ?? 0), 0)` returns 0 for a rail with no data
+   * at all, which formatMoney then renders as `$0` — a positive claim we cannot
+   * support. And `employees || null` did the opposite: it converted a REAL zero
+   * into an em dash. Track presence separately from the total.
+   */
+  const sumOrNull = (pick: (d: DistrictNexusMapResponse['districts'][number]) => number | null) => {
+    let total = 0;
+    let sawValue = false;
+    for (const d of districts) {
+      const v = pick(d);
+      if (v == null) continue;
+      total += v;
+      sawValue = true;
+    }
+    return sawValue ? total : null;
+  };
+
+  const employees = sumOrNull((d) => d.employeeCount);
   const employeesUnreportedCount = districts.filter((d) => d.employeesUnreported).length;
-  const contracts = districts.reduce((sum, d) => sum + (d.awarded.contractObligations ?? 0), 0);
-  const grants = districts.reduce((sum, d) => sum + (d.awarded.grantObligations ?? 0), 0);
-  const outlays = districts.reduce((sum, d) => sum + (d.awarded.grantOutlays ?? 0), 0);
-  const opportunityEst = districts.reduce((sum, d) => sum + (d.opportunities.opportunityEstimatedFunding ?? 0), 0);
+  const contracts = sumOrNull((d) => d.awarded.contractObligations);
+  const grants = sumOrNull((d) => d.awarded.grantObligations);
+  const outlays = sumOrNull((d) => d.awarded.grantOutlays);
 
   return (
     <div className="dn-kpis">
@@ -344,7 +373,7 @@ function KpiStrip({
         </div>
         <div className="dn-kpi">
           <div className="dn-k">Employees</div>
-          <div className="dn-v">{formatNumber(employees || null)}</div>
+          <div className="dn-v">{formatNumber(employees)}</div>
           <div className="dn-s">
             {employeesUnreportedCount ? (
               <b>
@@ -374,8 +403,11 @@ function KpiStrip({
       <div className="dn-kgrp dn-opp" title="Opportunities are never added to awarded-dollar totals">
         <div className="dn-kpi">
           <div className="dn-k">Opportunities · not awarded</div>
-          <div className="dn-v">{formatMoney(opportunityEst, 0)}</div>
-          <div className="dn-s">est. program funding</div>
+          {/* Not $0. The firm map does not carry opportunities at all (they are a
+              client-level rail with no place of performance), so this is an
+              UNAVAILABLE figure, not a zero one. */}
+          <div className="dn-v">—</div>
+          <div className="dn-s">per-client only · see a client profile</div>
         </div>
       </div>
     </div>

@@ -88,6 +88,47 @@ describe('resolveDistrictNames', () => {
   });
 });
 
+describe('current/future isolation', () => {
+  test('a numbered district with both C and F rows resolves the C name', () => {
+    // resolveDistrictNames does not itself discriminate on status when two rows
+    // share a state+districtNo — matchFacilityDistrictCode's non-at-large branch
+    // is a plain `.find()`, so it returns whichever row comes first in the array
+    // the caller supplied. Correctness therefore depends entirely on the CALLER
+    // querying status: 'C' only (district-nexus.service.ts, b1) before this
+    // function ever sees the rows — this module has no status filter of its own.
+    const rows = [
+      row({ state: 'TX', districtNo: '23', name: 'TX-23 (current)', status: 'C' }),
+      row({ state: 'TX', districtNo: '23', name: 'TX-23 (enacted 2028)', status: 'F' }),
+    ];
+    const unfiltered = resolveDistrictNames(['TX-23'], rows);
+    expect(unfiltered.get('TX-23')).toEqual({ name: 'TX-23 (current)', status: 'C' });
+
+    // The caller's actual contract (post-b1): only ever pass status: 'C' rows.
+    // Filtered input is unambiguous by construction, not by row order.
+    const filtered = resolveDistrictNames(['TX-23'], rows.filter((r) => r.status === 'C'));
+    expect(filtered.get('TX-23')).toEqual({ name: 'TX-23 (current)', status: 'C' });
+  });
+
+  test('an at-large state with both C and F rows still resolves when filtered to C', () => {
+    const cOnly = [row({ state: 'WY', districtNo: '1', name: 'Wyoming At-Large', status: 'C' })];
+    expect(resolveDistrictNames(['WY-00'], cOnly).get('WY-00')).toEqual({
+      name: 'Wyoming At-Large',
+      status: 'C',
+    });
+
+    // Pins the regression the b1 filter prevents: an UNFILTERED read (both C and
+    // F present for the state) means WY no longer has exactly one House row, so
+    // matchFacilityDistrictCode's at-large branch refuses to guess and the state
+    // silently loses its name. Anyone removing the service's `status: 'C'`
+    // filter reintroduces this and breaks this assertion.
+    const cAndF = [
+      ...cOnly,
+      row({ state: 'WY', districtNo: '1', name: 'Wyoming At-Large (enacted 2028)', status: 'F' }),
+    ];
+    expect(resolveDistrictNames(['WY-00'], cAndF).has('WY-00')).toBe(false);
+  });
+});
+
 describe('parseView refuses what it cannot answer', () => {
   test('absent or empty defaults to current', () => {
     expect(parseView(undefined)).toBe('current');

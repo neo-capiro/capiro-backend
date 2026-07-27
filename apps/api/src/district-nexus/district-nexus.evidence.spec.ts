@@ -3,9 +3,11 @@ import {
   assistanceRowToEvidence,
   contractRowToEvidence,
   facilityRowToEvidence,
+  relationshipRowToEvidence,
   type AssistanceEvidenceSourceRow,
   type ContractEvidenceSourceRow,
   type FacilityEvidenceSourceRow,
+  type RelationshipEvidenceSourceRow,
 } from './district-nexus.evidence.js';
 
 function contractRow(partial: Partial<ContractEvidenceSourceRow> = {}): ContractEvidenceSourceRow {
@@ -47,6 +49,27 @@ function facilityRow(partial: Partial<FacilityEvidenceSourceRow> = {}): Facility
     geocodeStatus: 'matched',
     districtSource: 'geocoded',
     updatedAt: '2026-06-01T00:00:00.000Z',
+    ...partial,
+  };
+}
+
+function relationshipRow(
+  partial: Partial<RelationshipEvidenceSourceRow> = {},
+): RelationshipEvidenceSourceRow {
+  return {
+    id: 'rel-1',
+    relationshipType: 'subrecipient',
+    counterparty: 'Acme Research Institute',
+    state: 'TX',
+    district: '23',
+    geographyBasis: 'place_of_performance',
+    status: 'inferred',
+    confidence: null,
+    externalUseApproved: false,
+    popCdVintage: 'original',
+    obligatedAmount: 250_000,
+    sourceUpdatedAt: '2026-07-20T00:00:00.000Z',
+    observedAt: '2026-01-01T00:00:00.000Z',
     ...partial,
   };
 }
@@ -200,5 +223,81 @@ describe('facilityRowToEvidence', () => {
   test('an unresolvable district produces no evidence at all', () => {
     expect(facilityRowToEvidence(facilityRow({ districtCode: '90' }))).toBeNull();
     expect(facilityRowToEvidence(facilityRow({ state: null }))).toBeNull();
+  });
+});
+
+describe('relationshipRowToEvidence (audit F4)', () => {
+  test('maps a well-formed row, labelling the role and counterparty', () => {
+    const out = relationshipRowToEvidence(relationshipRow());
+    expect(out?.districtKey).toBe('TX-23');
+    expect(out?.evidence).toEqual({
+      component: 'grantPlaceOfPerformance',
+      sourceType: 'client_grant_nexus',
+      label: 'Subrecipient — Acme Research Institute',
+      sourceRecordId: 'rel-1',
+      sourceUpdatedAt: '2026-07-20T00:00:00.000Z',
+      observedAt: '2026-01-01T00:00:00.000Z',
+      geographyBasis: 'place_of_performance',
+      verificationStatus: 'inferred',
+      confidence: null,
+      externalUseApproved: false,
+      boundaryVintage: 'original',
+      amount: 250_000,
+    });
+  });
+
+  test('a partner/beneficiary role maps to the partnerBeneficiary component', () => {
+    expect(
+      relationshipRowToEvidence(relationshipRow({ relationshipType: 'beneficiary' }))?.evidence.component,
+    ).toBe('partnerBeneficiary');
+  });
+
+  test('an unrecognised relationship type produces no evidence row', () => {
+    expect(relationshipRowToEvidence(relationshipRow({ relationshipType: 'something_new' }))).toBeNull();
+  });
+
+  test('a sentinel or missing state/district produces no evidence row', () => {
+    expect(relationshipRowToEvidence(relationshipRow({ district: '90' }))).toBeNull();
+    expect(relationshipRowToEvidence(relationshipRow({ state: null }))).toBeNull();
+  });
+
+  test('a facility-supplied district is always boundaryVintage current, regardless of the award vintage', () => {
+    const out = relationshipRowToEvidence(
+      relationshipRow({ geographyBasis: 'project_site', popCdVintage: 'original' }),
+    );
+    expect(out?.evidence.boundaryVintage).toBe('current');
+  });
+
+  test.each([
+    ['original', 'original'],
+    ['current', 'current'],
+    [null, 'unknown'],
+    ['garbage', 'unknown'],
+  ])('when geography is award-sourced, popCdVintage %p maps to boundaryVintage %p', (raw, expected) => {
+    expect(
+      relationshipRowToEvidence(relationshipRow({ geographyBasis: 'place_of_performance', popCdVintage: raw }))
+        ?.evidence.boundaryVintage,
+    ).toBe(expected);
+  });
+
+  test('never hardcodes externalUseApproved — it is the reviewer\'s own flag, not decoration', () => {
+    expect(
+      relationshipRowToEvidence(relationshipRow({ externalUseApproved: true }))?.evidence.externalUseApproved,
+    ).toBe(true);
+    expect(
+      relationshipRowToEvidence(relationshipRow({ externalUseApproved: false }))?.evidence.externalUseApproved,
+    ).toBe(false);
+  });
+
+  test('falls back to a role-only label when there is no counterparty', () => {
+    expect(relationshipRowToEvidence(relationshipRow({ counterparty: null }))?.evidence.label).toBe(
+      'Subrecipient',
+    );
+  });
+
+  test('status/confidence pass through verbatim — they come from relationshipTier via the caller, never recomputed here', () => {
+    const out = relationshipRowToEvidence(relationshipRow({ status: 'source_verified', confidence: 1 }));
+    expect(out?.evidence.verificationStatus).toBe('source_verified');
+    expect(out?.evidence.confidence).toBe(1);
   });
 });

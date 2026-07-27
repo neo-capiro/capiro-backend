@@ -1,6 +1,7 @@
 import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import {
   ALERT_TRIGGER_KEYS,
+  FEEDBACK_REASONS,
   PutAlertPrefsDto,
   RecordFeedbackDto,
   TrackBillDto,
@@ -34,6 +35,40 @@ describe('PutAlertPrefsDto', () => {
 
   it('accepts an empty-string email address (the pre-typing state)', async () => {
     await expect(validate(PutAlertPrefsDto, { emailAddress: '' })).resolves.toBeDefined();
+  });
+
+  // MP-04: email cannot be enabled with no address. Keyed strictly on
+  // emailEnabled === true — the two tests above (emailAddress: null/'' with
+  // emailEnabled OMITTED) must keep passing unchanged, which is exactly why
+  // this rule does not key on emailAddress alone.
+  it('rejects emailEnabled:true with a null address', async () => {
+    await expect(
+      validate(PutAlertPrefsDto, { emailEnabled: true, emailAddress: null }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects emailEnabled:true with an empty-string address', async () => {
+    await expect(
+      validate(PutAlertPrefsDto, { emailEnabled: true, emailAddress: '' }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects emailEnabled:true with the address omitted entirely', async () => {
+    await expect(validate(PutAlertPrefsDto, { emailEnabled: true })).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('accepts emailEnabled:true WITH a valid address', async () => {
+    await expect(
+      validate(PutAlertPrefsDto, { emailEnabled: true, emailAddress: 'u1@x.com' }),
+    ).resolves.toBeDefined();
+  });
+
+  it('accepts emailEnabled:false with a null address (disabling never requires one)', async () => {
+    await expect(
+      validate(PutAlertPrefsDto, { emailEnabled: false, emailAddress: null }),
+    ).resolves.toBeDefined();
   });
 
   it('accepts a realistic long email near the max valid total length, and rejects a clearly oversized string', async () => {
@@ -135,6 +170,47 @@ describe('RecordFeedbackDto', () => {
   it('rejects an unknown feedback signal', async () => {
     await expect(
       validate(RecordFeedbackDto, { targetRef: '119-hr-1234', signal: 'nonsense' }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  // §4.10 (Gate E phase f, f-7 case 1).
+  it.each(FEEDBACK_REASONS)('accepts the structured dismiss reason "%s"', async (reason) => {
+    await expect(
+      validate(RecordFeedbackDto, {
+        targetRef: '119-hr-1234',
+        signal: 'marked_irrelevant',
+        reason,
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it('rejects an unknown dismiss reason', async () => {
+    await expect(
+      validate(RecordFeedbackDto, {
+        targetRef: '119-hr-1234',
+        signal: 'marked_irrelevant',
+        reason: 'the_analyst_just_felt_like_it',
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('accepts matchedTags as an array of topic labels', async () => {
+    await expect(
+      validate(RecordFeedbackDto, {
+        targetRef: '119-hr-1234',
+        signal: 'marked_irrelevant',
+        matchedTags: ['data center load', 'permitting'],
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it('rejects a non-string matchedTags entry', async () => {
+    await expect(
+      validate(RecordFeedbackDto, {
+        targetRef: '119-hr-1234',
+        signal: 'marked_irrelevant',
+        matchedTags: [42],
+      }),
     ).rejects.toThrow(BadRequestException);
   });
 });

@@ -729,15 +729,7 @@
   align-items: center;
   gap: 9px;
   background: var(--notable-soft);
-  cursor: pointer;
   width: 100%;
-  text-align: left;
-  border-left: none;
-  border-right: none;
-  border-bottom: none;
-}
-.dn-rfoot:hover {
-  filter: brightness(0.985);
 }
 .dn-rfoot .dn-tt {
   font-size: 12.5px;

@@ -91,13 +91,24 @@ const AWARDED_FUNDING_COMPONENTS: ReadonlySet<NexusComponentKey> = new Set<Nexus
  * `statewide` and `recipientLocation` are geographic qualifiers rather than
  * quality judgements, but they behave identically to a strength reduction and
  * modelling them here keeps every discount in one auditable table.
+ *
+ * `compounded` (Neo, 2026-07-27 calibration decision) is the ONLY tier whose
+ * multiplier is a PRODUCT of two others (0.5 x 0.5) rather than its own
+ * independent judgement — see `compoundStrength`. It exists so that a row
+ * weak on two genuinely independent axes (e.g. a name-only match AND
+ * recipient-location geography) is never silently relabelled as `statewide`
+ * just because the two multipliers happen to coincide at 0.25 — that would
+ * misstate WHY the row is discounted and would wrongly trigger the
+ * statewide-attribution warning for money that is not statewide at all.
  */
 export type EvidenceStrength =
   | 'verified'
   | 'sourceAuthoritative'
   | 'inferred'
+  | 'userProvided'
   | 'recipientLocation'
   | 'statewide'
+  | 'compounded'
   | 'absent';
 
 const STRENGTH_MULTIPLIER: Readonly<Record<EvidenceStrength, number>> = Object.freeze({
@@ -105,10 +116,14 @@ const STRENGTH_MULTIPLIER: Readonly<Record<EvidenceStrength, number>> = Object.f
   sourceAuthoritative: 1,
   /** Name-fingerprint match, not a verified identifier. */
   inferred: 0.5,
+  /** Client-asserted and not independently confirmed (no geocode). */
+  userProvided: 0.5,
   /** Recipient's mailing location, not where the work happened. */
   recipientLocation: 0.5,
   /** Statewide "90" — real money, but not attributable to one district. */
   statewide: 0.25,
+  /** Two independent weaknesses on the SAME row, multiplied — see compoundStrength. */
+  compounded: 0.25,
   absent: 0,
 });
 
@@ -116,10 +131,14 @@ const STRENGTH_RATIONALE: Readonly<Record<EvidenceStrength, string>> = Object.fr
   verified: 'Verified evidence — full weight.',
   sourceAuthoritative: 'Source-authoritative evidence — full weight.',
   inferred: 'Inferred from a name match rather than a verified identifier — half weight.',
+  userProvided:
+    'Client-provided and not independently confirmed by a geocoder — half weight.',
   recipientLocation:
     'Geography taken from recipient location rather than place of performance — half weight.',
   statewide:
     'Award geography is statewide, so it cannot be attributed to a single district — quarter weight.',
+  compounded:
+    'Two independent weaknesses — a name-only match AND recipient-location geography, neither a verified identifier nor a confirmed place of performance — quarter weight.',
   absent: 'No evidence found for this component.',
 });
 
@@ -165,33 +184,68 @@ const MAX_STRONGEST_DRIVERS = 3;
 /**
  * Strengths ordered weakest-first by credit multiplier.
  *
- * `recipientLocation` and `inferred` share a multiplier (0.5), so their relative
- * order cannot change any score — it is fixed here only so that combining them
- * is deterministic, and `recipientLocation` is listed first because a geographic
- * fallback is the more specific claim to warn about.
+ * `statewide` and `compounded` share a multiplier (0.25), and separately
+ * `recipientLocation`, `userProvided`, and `inferred` share one (0.5), so
+ * within each pair the relative order cannot change any score — it is fixed
+ * here only so that combining them is deterministic. `recipientLocation` is
+ * listed before `userProvided`/`inferred` because a geographic fallback is
+ * the more specific claim to warn about; `compounded` is listed before
+ * `statewide` for the same reason (compounding is the more specific, rarer
+ * fact — a plain statewide row is never ALSO name-matched in this rail).
  */
 const STRENGTH_ORDER: readonly EvidenceStrength[] = [
   'absent',
+  'compounded',
   'statewide',
   'recipientLocation',
+  'userProvided',
   'inferred',
   'sourceAuthoritative',
   'verified',
 ];
 
 /**
- * The weaker of two strengths.
+ * The weaker of two strengths, for POOLING across separate records/districts.
  *
  * Used when the same component is evidenced at different qualities across
- * several districts and has to be collapsed into one client-level claim. It
- * takes the weaker deliberately: if one district's grant geography came from
- * recipient location, the client-level grant claim is no longer purely
- * place-of-performance evidence, and reporting the stronger of the two would
- * launder a degraded basis into a full-weight one. This is the same rule
- * `foldDistricts` already applies to `assistanceBasis` within a single district.
+ * several districts (or several award rows in one district) and has to be
+ * collapsed into one claim. It takes the weaker deliberately: if one
+ * district's grant geography came from recipient location, the client-level
+ * grant claim is no longer purely place-of-performance evidence, and
+ * reporting the stronger of the two would launder a degraded basis into a
+ * full-weight one. This is the same rule `foldDistricts` already applies to
+ * `assistanceBasis` within a single district.
+ *
+ * NOT for combining two independent axes of the SAME row (e.g. a match basis
+ * and a geography basis on one assistance award) — that is `compoundStrength`,
+ * a deliberately different rule (Neo, 2026-07-27): those discounts multiply
+ * rather than the weaker one alone.
  */
 export function weakerStrength(a: EvidenceStrength, b: EvidenceStrength): EvidenceStrength {
   return STRENGTH_ORDER.indexOf(a) <= STRENGTH_ORDER.indexOf(b) ? a : b;
+}
+
+/**
+ * Combine two INDEPENDENT weaknesses on the same row by multiplying their
+ * multipliers, rather than taking the weaker one alone (Neo, 2026-07-27
+ * calibration decision — the plan's original, tested default was
+ * non-compounding; see the git history of this function for that version
+ * and why it was considered defensible).
+ *
+ * Only produces the synthetic `compounded` tier when BOTH axes are
+ * independently weak (multiplier < 1) — a genuinely open product like
+ * 0.5 x 0.5. When exactly one axis is full-strength (multiplier 1), the
+ * product equals the other axis's own multiplier exactly, so that axis's
+ * own named tier is returned unchanged rather than inventing a synthetic
+ * label for a fact one existing tier already states correctly. `absent`
+ * (multiplier 0) short-circuits to `absent` for the same reason — 0 x
+ * anything is 0, not a quarter.
+ */
+export function compoundStrength(a: EvidenceStrength, b: EvidenceStrength): EvidenceStrength {
+  if (STRENGTH_MULTIPLIER[a] === 0 || STRENGTH_MULTIPLIER[b] === 0) return 'absent';
+  if (STRENGTH_MULTIPLIER[a] >= 1) return b;
+  if (STRENGTH_MULTIPLIER[b] >= 1) return a;
+  return 'compounded';
 }
 
 const TOTAL_WEIGHT = Object.values(NEXUS_COMPONENT_WEIGHTS).reduce((sum, w) => sum + w, 0);
@@ -264,6 +318,25 @@ export function scoreNexus(input: NexusScoreInput): NexusScoreResult {
         code: 'inferred_entity_match',
         message: `${NEXUS_COMPONENT_LABELS[component]} rests on an inferred entity match rather than a verified identifier.`,
       });
+    } else if (strength === 'userProvided') {
+      warnings.push({
+        code: 'inferred_entity_match',
+        message: `${NEXUS_COMPONENT_LABELS[component]} rests on a client-provided claim that has not been independently confirmed.`,
+      });
+    } else if (strength === 'compounded') {
+      // Two independent facts, so both existing warnings apply — reusing
+      // their codes/messages rather than inventing a third that would only
+      // ever fire alongside these two anyway.
+      warnings.push(
+        {
+          code: 'inferred_entity_match',
+          message: `${NEXUS_COMPONENT_LABELS[component]} rests on an inferred entity match rather than a verified identifier.`,
+        },
+        {
+          code: 'recipient_location_fallback',
+          message: `${NEXUS_COMPONENT_LABELS[component]} uses recipient location because no place of performance was available.`,
+        },
+      );
     }
   }
 

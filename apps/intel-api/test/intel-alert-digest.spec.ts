@@ -455,48 +455,172 @@ describe('IntelAlertService.flushDigests — lifecycle (P0-02, cases 6-12)', () 
     expect(store.rows[0]!.flushed).toBe(true);
   });
 
-  it('11. grouping: client A before client B, critical before notable within a client', async () => {
-    const rows = [
-      queueRow({ id: 'q1', alert_id: 'a1-critical', client_id: 'client-a' }),
-      queueRow({ id: 'q2', alert_id: 'a1-notable', client_id: 'client-a' }),
-      queueRow({ id: 'q3', alert_id: 'a2-critical', client_id: 'client-b' }),
-      queueRow({ id: 'q4', alert_id: 'a2-notable', client_id: 'client-b' }),
-    ];
-    const alerts = [
-      alertRow({ id: 'a1-notable', clientId: 'client-a', severity: 'notable', evidence: { displayNum: 'A-NOTABLE' } }),
-      alertRow({ id: 'a1-critical', clientId: 'client-a', severity: 'critical', evidence: { displayNum: 'A-CRITICAL' } }),
-      alertRow({ id: 'a2-notable', clientId: 'client-b', severity: 'notable', evidence: { displayNum: 'B-NOTABLE' } }),
-      alertRow({ id: 'a2-critical', clientId: 'client-b', severity: 'critical', evidence: { displayNum: 'B-CRITICAL' } }),
-    ];
-    const { svc, sendCalls } = makeFlushService({
-      digestRows: rows,
-      alerts,
-      // Both clients' rows land in ONE (tenant,user,channel) group — flushDigests
-      // uses the group's last-seen clientId as the representative pref lookup
-      // (documented limitation), so both clients need a pref here regardless
-      // of which one ends up representative.
-      prefs: [
-        { tenantId: 't1', userId: 'u1', clientId: 'client-a', emailEnabled: true, emailAddress: 'u1@x.com' },
-        { tenantId: 't1', userId: 'u1', clientId: 'client-b', emailEnabled: true, emailAddress: 'u1@x.com' },
-      ],
-      owned: true,
-      killSwitchOn: true,
-      clientNames: new Map([
-        ['client-a', 'Acme'],
-        ['client-b', 'Beta'],
-      ]),
-    });
-    await svc.flushDigests('daily');
-    const html = sendCalls[0]!.html;
-    const idxAcme = html.indexOf('Acme');
-    const idxBeta = html.indexOf('Beta');
-    expect(idxAcme).toBeGreaterThanOrEqual(0);
-    expect(idxBeta).toBeGreaterThan(idxAcme); // client A section before client B
+  describe('11. grouping (RB-02): one digest per client, never a borrowed preference', () => {
+    it('11a. two clients, one user, DIFFERENT addresses → two digests, each to its own address, each containing only its own client', async () => {
+      const rows = [
+        queueRow({ id: 'q1', alert_id: 'a1-critical', client_id: 'client-a' }),
+        queueRow({ id: 'q2', alert_id: 'a1-notable', client_id: 'client-a' }),
+        queueRow({ id: 'q3', alert_id: 'a2-critical', client_id: 'client-b' }),
+      ];
+      const alerts = [
+        alertRow({ id: 'a1-notable', clientId: 'client-a', severity: 'notable', evidence: { displayNum: 'A-NOTABLE' } }),
+        alertRow({ id: 'a1-critical', clientId: 'client-a', severity: 'critical', evidence: { displayNum: 'A-CRITICAL' } }),
+        alertRow({ id: 'a2-critical', clientId: 'client-b', severity: 'critical', evidence: { displayNum: 'B-CRITICAL' } }),
+      ];
+      const { svc, sendCalls } = makeFlushService({
+        digestRows: rows,
+        alerts,
+        prefs: [
+          { tenantId: 't1', userId: 'u1', clientId: 'client-a', emailEnabled: true, emailAddress: 'a@x.com' },
+          { tenantId: 't1', userId: 'u1', clientId: 'client-b', emailEnabled: true, emailAddress: 'b@x.com' },
+        ],
+        owned: true,
+        killSwitchOn: true,
+        clientNames: new Map([
+          ['client-a', 'Acme'],
+          ['client-b', 'Beta'],
+        ]),
+      });
+      const r = await svc.flushDigests('daily');
+      expect(r.sent).toBe(2);
+      expect(sendCalls).toHaveLength(2);
 
-    const idxACrit = html.indexOf('A-CRITICAL');
-    const idxANotable = html.indexOf('A-NOTABLE');
-    expect(idxACrit).toBeGreaterThanOrEqual(0);
-    expect(idxANotable).toBeGreaterThan(idxACrit); // critical before notable within client A
+      const toAcme = sendCalls.find((c) => c.html.includes('Acme'))!;
+      const toBeta = sendCalls.find((c) => c.html.includes('Beta'))!;
+      expect(toAcme.to).toBe('a@x.com');
+      expect(toBeta.to).toBe('b@x.com');
+      // Client A's digest never smuggles in client B's alert, and vice versa —
+      // this is the actual RB-02 defect: before the fix, ONE representative
+      // preference decided delivery for BOTH clients' alerts at once.
+      expect(toAcme.html).not.toContain('B-CRITICAL');
+      expect(toBeta.html).not.toContain('A-CRITICAL');
+
+      // Still true within a single client's digest: critical before notable.
+      const idxACrit = toAcme.html.indexOf('A-CRITICAL');
+      const idxANotable = toAcme.html.indexOf('A-NOTABLE');
+      expect(idxACrit).toBeGreaterThanOrEqual(0);
+      expect(idxANotable).toBeGreaterThan(idxACrit);
+    });
+
+    it('11b. one client disabled AFTER enqueue, the other enabled → exactly one digest; the disabled client is never smuggled into it', async () => {
+      const rows = [
+        queueRow({ id: 'q1', alert_id: 'a1', client_id: 'client-a' }),
+        queueRow({ id: 'q2', alert_id: 'a2', client_id: 'client-b' }),
+      ];
+      const alerts = [
+        alertRow({ id: 'a1', clientId: 'client-a', evidence: { displayNum: 'A-ITEM' } }),
+        alertRow({ id: 'a2', clientId: 'client-b', evidence: { displayNum: 'B-ITEM' } }),
+      ];
+      const { svc, sendCalls } = makeFlushService({
+        digestRows: rows,
+        alerts,
+        prefs: [
+          { tenantId: 't1', userId: 'u1', clientId: 'client-a', emailEnabled: false, emailAddress: 'a@x.com' },
+          { tenantId: 't1', userId: 'u1', clientId: 'client-b', emailEnabled: true, emailAddress: 'b@x.com' },
+        ],
+        owned: true,
+        killSwitchOn: true,
+      });
+      const r = await svc.flushDigests('daily');
+      expect(r.sent).toBe(1);
+      expect(sendCalls).toHaveLength(1);
+      expect(sendCalls[0]!.to).toBe('b@x.com');
+      expect(sendCalls[0]!.html).not.toContain('A-ITEM');
+      expect(sendCalls[0]!.html).toContain('B-ITEM');
+    });
+
+    it('11c. a client with NO preference row does not suppress any other client\'s digest', async () => {
+      const rows = [
+        queueRow({ id: 'q1', alert_id: 'a1', client_id: 'client-a' }),
+        queueRow({ id: 'q2', alert_id: 'a2', client_id: 'client-b' }),
+      ];
+      const alerts = [
+        alertRow({ id: 'a1', clientId: 'client-a', evidence: { displayNum: 'A-ITEM' } }),
+        alertRow({ id: 'a2', clientId: 'client-b', evidence: { displayNum: 'B-ITEM' } }),
+      ];
+      const { svc, sendCalls } = makeFlushService({
+        digestRows: rows,
+        alerts,
+        // client-a has NO preference row at all.
+        prefs: [{ tenantId: 't1', userId: 'u1', clientId: 'client-b', emailEnabled: true, emailAddress: 'b@x.com' }],
+        owned: true,
+        killSwitchOn: true,
+      });
+      const r = await svc.flushDigests('daily');
+      expect(r.sent).toBe(1);
+      expect(sendCalls).toHaveLength(1);
+      expect(sendCalls[0]!.to).toBe('b@x.com');
+      expect(sendCalls[0]!.html).toContain('B-ITEM');
+    });
+
+    it('11d. differing cadence per client is irrelevant to grouping — flushDigests is called once per cadence, each client resolved independently', async () => {
+      // cadence lives on the QUEUE ROW (set at enqueue time by fanOut, per the
+      // user's per-client emailCadence pref), not on the group — so two rows
+      // for the same user with different cadences never land in the same
+      // flushDigests('daily') / flushDigests('weekly') call to begin with.
+      const dailyRows = [queueRow({ id: 'q1', alert_id: 'a1', client_id: 'client-a', cadence: 'daily' })];
+      const weeklyRows = [queueRow({ id: 'q2', alert_id: 'a2', client_id: 'client-b', cadence: 'weekly' })];
+      const alerts = [
+        alertRow({ id: 'a1', clientId: 'client-a', evidence: { displayNum: 'A-ITEM' } }),
+        alertRow({ id: 'a2', clientId: 'client-b', evidence: { displayNum: 'B-ITEM' } }),
+      ];
+      const prefs = [
+        { tenantId: 't1', userId: 'u1', clientId: 'client-a', emailEnabled: true, emailAddress: 'a@x.com' },
+        { tenantId: 't1', userId: 'u1', clientId: 'client-b', emailEnabled: true, emailAddress: 'b@x.com' },
+      ];
+      const daily = makeFlushService({ digestRows: dailyRows, alerts, prefs, owned: true, killSwitchOn: true });
+      const rDaily = await daily.svc.flushDigests('daily');
+      expect(rDaily.sent).toBe(1);
+      expect(daily.sendCalls[0]!.to).toBe('a@x.com');
+
+      const weekly = makeFlushService({ digestRows: weeklyRows, alerts, prefs, owned: true, killSwitchOn: true });
+      const rWeekly = await weekly.svc.flushDigests('weekly');
+      expect(rWeekly.sent).toBe(1);
+      expect(weekly.sendCalls[0]!.to).toBe('b@x.com');
+    });
+
+    it('11e. a DELETED preference for one client does not affect the other client\'s digest', async () => {
+      const rows = [
+        queueRow({ id: 'q1', alert_id: 'a1', client_id: 'client-a' }),
+        queueRow({ id: 'q2', alert_id: 'a2', client_id: 'client-b' }),
+      ];
+      const alerts = [
+        alertRow({ id: 'a1', clientId: 'client-a', evidence: { displayNum: 'A-ITEM' } }),
+        alertRow({ id: 'a2', clientId: 'client-b', evidence: { displayNum: 'B-ITEM' } }),
+      ];
+      // client-a's preference was deleted entirely (not just disabled) —
+      // findFirst returns null for it, same code path as 11c, asserted
+      // separately because "deleted" and "never existed" are different real
+      // states even though the query result is identical.
+      const { svc, sendCalls } = makeFlushService({
+        digestRows: rows,
+        alerts,
+        prefs: [{ tenantId: 't1', userId: 'u1', clientId: 'client-b', emailEnabled: true, emailAddress: 'b@x.com' }],
+        owned: true,
+        killSwitchOn: true,
+      });
+      const r = await svc.flushDigests('daily');
+      expect(r.sent).toBe(1);
+      expect(sendCalls[0]!.to).toBe('b@x.com');
+    });
+
+    it('11f. a non-email channel row is never emailed, and is reset for retry rather than stuck', async () => {
+      const rows = [queueRow({ id: 'q1', alert_id: 'a1', client_id: 'client-a', channel: 'sms' })];
+      const alerts = [alertRow({ id: 'a1', clientId: 'client-a' })];
+      const { svc, sendCalls, store } = makeFlushService({
+        digestRows: rows,
+        alerts,
+        prefs: [{ tenantId: 't1', userId: 'u1', clientId: 'client-a', emailEnabled: true, emailAddress: 'a@x.com' }],
+        owned: true,
+        killSwitchOn: true,
+      });
+      const r = await svc.flushDigests('daily');
+      expect(sendCalls).toHaveLength(0);
+      expect(r.sent).toBe(0);
+      expect(r.failed).toBe(1);
+      expect(store.rows[0]!.flushed).toBe(false); // reset, not permanently claimed
+      expect(store.rows[0]!.attempts).toBe(1);
+    });
   });
 
   it('12. a not-owned tenant claims the rows but sends nothing and does not reset them', async () => {

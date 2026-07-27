@@ -255,6 +255,13 @@ describe('DistrictNexusSection v2 (WS-H, flag on)', () => {
         grantOutlays: 1_000_000,
       },
       opportunities: { opportunityEstimatedFunding: null, opportunityAwardCeiling: null },
+      opportunitySummary: {
+        activeOpportunityCount: 0,
+        closedOpportunityCount: 0,
+        totalEstimatedFunding: null,
+        maximumAwardCeiling: null,
+        topOpportunities: [],
+      },
       unmapped: { unmappedContractAmount: null, unmappedGrantAmount: null },
       score: 62,
       bestDistrictKey: 'TX-23',
@@ -433,10 +440,13 @@ describe('DistrictNexusSection v2 (WS-H, flag on)', () => {
       }),
     );
     renderSection();
+    // Audit F1/honesty defects (h4): the backend DOES fall back to a
+    // recipient-name match, so the old "cannot be matched" copy was wrong —
+    // see DistrictNexusSection.tsx's corrected gap text.
     await waitFor(() =>
-      expect(screen.getByText(/The confirmed assistance mapping has no UEI/i)).toBeTruthy(),
+      expect(screen.getByText(/No verified UEI is attached to the confirmed assistance mapping/i)).toBeTruthy(),
     );
-    expect(screen.getByText('Review the mapping →')).toBeTruthy();
+    expect(screen.getByText('Add a UEI to the mapping →')).toBeTruthy();
     // "not mapped" and "mapped but unusable" are different facts.
     expect(screen.queryByText(/No federal assistance recipient is confirmed/i)).toBeNull();
   });
@@ -569,21 +579,68 @@ describe('DistrictNexusSection v2 (WS-H, flag on)', () => {
     expect(text).not.toContain('District demographics');
   });
 
-  test('no opportunity COUNT is ever rendered', async () => {
+  test('no opportunity pipeline block renders when the client has none linked', async () => {
     getNexusV2Mock.mockResolvedValue(
       v2Fixture({
         opportunities: { opportunityEstimatedFunding: null, opportunityAwardCeiling: null },
+        // Default v2Fixture() opportunitySummary is already the honest
+        // all-zero shape; restated here for the test's own clarity.
+        opportunitySummary: {
+          activeOpportunityCount: 0,
+          closedOpportunityCount: 0,
+          totalEstimatedFunding: null,
+          maximumAwardCeiling: null,
+          topOpportunities: [],
+        },
         freshness: [],
       }),
     );
     renderSection();
     await waitFor(() => expect(screen.getByText('Contract obligations')).toBeTruthy());
     const text = sectionText();
-    // Opportunity rows carry no district, so foldDistricts drops them and no
-    // count is computable. The forecast line must stay absent too.
     expect(screen.queryByText(/opportunity pipeline/i)).toBeNull();
     expect(text).not.toMatch(/\d+\s+[a-z ]*opportunit/i);
     expect(text).not.toMatch(/(four|three|two|one)\s+[a-z ]*opportunit/i);
+  });
+
+  test('a populated opportunity pipeline renders its own rail, never blended into the grant line', async () => {
+    getNexusV2Mock.mockResolvedValue(
+      v2Fixture({
+        opportunitySummary: {
+          activeOpportunityCount: 2,
+          closedOpportunityCount: 1,
+          totalEstimatedFunding: 4_500_000,
+          maximumAwardCeiling: 3_000_000,
+          topOpportunities: [
+            {
+              opportunityId: 'opp-1',
+              title: 'Advanced Manufacturing R&D',
+              agency: 'DOD',
+              status: 'posted',
+              closeDate: '2026-09-01T00:00:00.000Z',
+              responseDateDesc: null,
+              isActive: true,
+              estimatedFunding: 3_000_000,
+              awardCeiling: 3_000_000,
+              relevanceScore: 72,
+              eligibilityState: 'needs_review',
+              eligibilityReason: 'No applicant-type data on file for this client.',
+              matchedSignals: [{ signal: 'priorAssistanceListing', weight: 60, matchedOn: '12.345' }],
+              districtKey: null,
+            },
+          ],
+        },
+      }),
+    );
+    renderSection();
+    await waitFor(() => expect(screen.getByText(/Opportunity pipeline/i)).toBeTruthy());
+    const text = sectionText();
+    expect(text).toContain('2 active');
+    expect(text).toContain('1 closed or archived');
+    expect(text).toContain('Advanced Manufacturing R&D');
+    expect(text).toContain('needs review');
+    // Never blended into the grant-obligations line.
+    expect(text).not.toMatch(/outlays[^.]*Opportunity pipeline/i);
   });
 
   test('unmapped contract and grant money is reported separately, never summed', async () => {

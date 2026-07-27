@@ -19,6 +19,7 @@ import type {
   AlertPrefsPayload,
   BillStage,
   BoardBillChange,
+  BoardFilters,
   BoardResponse,
   ChangeTone,
   MatchReason,
@@ -31,8 +32,21 @@ import type {
 
 const enc = encodeURIComponent;
 
+/** P1-18: builds the board query string from a cursor + BoardFilters. Every field is optional; an empty result omits `?` entirely. */
+function boardQueryString(cursor?: string, filters?: BoardFilters): string {
+  const params = new URLSearchParams();
+  if (cursor) params.set('cursor', cursor);
+  if (filters?.changedWithinDays) params.set('changedWithinDays', String(filters.changedWithinDays));
+  if (filters?.activeOnly) params.set('activeOnly', 'true');
+  for (const s of filters?.stages ?? []) params.append('stages', s);
+  for (const c of filters?.clientIds ?? []) params.append('clientIds', c);
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
+}
+
 export const intelTrackerPaths = {
-  board: (c: string) => `/intel-api/clients/${enc(c)}/tracker/board`,
+  board: (c: string, cursor?: string, filters?: BoardFilters) =>
+    `/intel-api/clients/${enc(c)}/tracker/board${boardQueryString(cursor, filters)}`,
   // Tab-badge counts (ClientProfilePage) — legacy-identical `{ boardCount, unread }`, no adapter.
   summary: (c: string) => `/intel-api/clients/${enc(c)}/tracker/summary`,
   recommendations: (c: string) => `/intel-api/clients/${enc(c)}/recommendations`,
@@ -93,6 +107,11 @@ interface IntelBoardCard {
 }
 interface IntelBoard {
   columns: Array<{ id: BillStage; label: string; cards: IntelBoardCard[] }>;
+  /** P1-18 (Gate E phase a) — absent on a legacy/cached pre-Gate-E response. */
+  nextCursor?: string | null;
+  hasMore?: boolean;
+  total?: number;
+  withheld?: number;
 }
 interface IntelRec {
   billId: string;
@@ -223,7 +242,16 @@ export function adaptBoard(b: IntelBoard): BoardResponse {
     }));
     return { id: col.id, label: col.label, count: bills.length, bills };
   });
-  return { columns, total: columns.reduce((n, c) => n + c.bills.length, 0) };
+  const loadedCount = columns.reduce((n, c) => n + c.bills.length, 0);
+  return {
+    columns,
+    // P1-18: prefer the server's real COUNT; a legacy/cached response with no
+    // `total` falls back to counting what loaded (today's exact behavior).
+    total: b.total ?? loadedCount,
+    nextCursor: b.nextCursor ?? null,
+    hasMore: b.hasMore ?? false,
+    withheld: b.withheld ?? 0,
+  };
 }
 
 export const RECOMMENDATION_FLOOR = 0.45;

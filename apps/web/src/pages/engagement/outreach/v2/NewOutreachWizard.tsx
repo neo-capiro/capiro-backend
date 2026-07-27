@@ -36,6 +36,7 @@ import {
 } from '@ant-design/icons';
 import { useApi } from '../../../../lib/use-api.js';
 import { useMe } from '../../../../lib/me.js';
+import { intelTrackerPaths } from '../../../clients/tracker/intel-tracker-api.js';
 import type { Client } from '../../../clients/clientTypes.js';
 import type { OutreachRecipient, OutreachRecord } from '../../OutreachView.js';
 import { StepCampaignSetup } from './StepCampaignSetup.js';
@@ -1394,6 +1395,26 @@ export function NewOutreachWizard({
           tone: state.tone,
           direction: state.direction,
         });
+      }
+      // §4.10 (f-5): best-effort, per successfully-generated draft — NOT for an
+      // "Improve" (that revises existing text, it doesn't generate fresh). Only
+      // the synchronous path (this mutation) is wired; the async bulk job
+      // pipeline (submitGenerateJobs) is not — a known, documented gap rather
+      // than a silent one. A slot whose recipient carries no clientId (a
+      // cross-client campaign, or "All clients") is skipped rather than guessed.
+      if (!vars.revise) {
+        const slotByKey = new Map(genModel.slots.map((s) => [s.genKey, s]));
+        for (const r of res.succeeded) {
+          const clientId = slotByKey.get(r.genKey)?.genRecipients[0]?.clientId;
+          if (!clientId) continue;
+          void api
+            .post(intelTrackerPaths.feedback(clientId), {
+              targetRef: r.genKey,
+              targetType: 'outreach_draft',
+              signal: 'outreach_generated',
+            })
+            .catch(() => {});
+        }
       }
       setGeneratingKey(null);
       if (res.held.length) {

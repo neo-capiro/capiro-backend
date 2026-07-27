@@ -30,15 +30,13 @@ import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { TokenCryptoService } from './token-crypto.service.js';
+import { MicrosoftGraphSyncService } from './microsoft-graph-sync.service.js';
+import { MICROSOFT_SCOPES, normalizePem } from './microsoft-oauth-constants.js';
 
-export const MICROSOFT_SCOPES = [
-  'offline_access',
-  'User.Read',
-  'Mail.Read',
-  'Mail.ReadWrite',
-  'Mail.Send',
-  'Calendars.Read',
-];
+// Re-exported for existing importers (e.g. microsoft-graph-sync.scopes.spec.ts)
+// that read MICROSOFT_SCOPES from this file. The canonical definition now
+// lives in microsoft-oauth-constants.ts — see that file's header for why.
+export { MICROSOFT_SCOPES };
 const STATE_TTL_SECONDS = 600;
 
 export interface MicrosoftAuthStartInput {
@@ -98,6 +96,7 @@ export class MicrosoftOAuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokenCrypto: TokenCryptoService,
+    private readonly graphSync: MicrosoftGraphSyncService,
     config: ConfigService<AppConfig, true>,
   ) {
     this.clientId = config.get('MICROSOFT_CLIENT_ID', { infer: true });
@@ -236,6 +235,61 @@ export class MicrosoftOAuthService {
     await this.persistToken(decoded.t, decoded.c, result, refreshToken, expiresAt);
 
     return { tenantId: decoded.t, connectionId: decoded.c };
+  }
+
+  /**
+   * Disconnect a Microsoft 365 connection: tear down its Graph subscriptions,
+   * then delete the connection record (the encrypted token row goes with it via
+   * FK cascade; ingested meetings/mail keep their data because their
+   * connectionId is SetNull, not cascaded). Ownership is enforced — a user may
+   * only disconnect a connection they created, matching start() and
+   * listIntegrations(). Works at ANY status so a stale/errored connection can be
+   * cleared too.
+   *
+   * NOTE — deliberately NOT symmetric with the Google path: Microsoft exposes no
+   * per-app delegated-grant revoke reachable with our scopes
+   * (/me/oauth2PermissionGrants needs DelegatedPermissionGrant.ReadWrite.All;
+   * /me/revokeSignInSessions is app-wide). This removes Capiro's stored tokens
+   * and stops all syncing; revoking the app grant itself is a user action at
+   * https://myapplications.microsoft.com.
+   */
+  async disconnect(
+    ctx: TenantContext,
+    connectionId: string,
+  ): Promise<{ disconnected: true; connectionId: string; subscriptionsDeleted: number }> {
+    const existing = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const found = await tx.integrationConnection.findUnique({ where: { id: connectionId } });
+      if (!found) throw new NotFoundException('Integration connection not found');
+      if (found.provider !== EngagementProvider.microsoft_365) {
+        throw new BadRequestException('Connection is not a Microsoft 365 integration');
+      }
+      if (found.createdByUserId !== ctx.userId) {
+        throw new ForbiddenException('You can only disconnect your own Microsoft account');
+      }
+      return found;
+    });
+
+    // Outside the transaction: this makes network calls to Graph.
+    // deleteSubscriptionsByTenant already swallows its own errors and always
+    // resolves; this catch is defense in depth so the disconnect intent is
+    // NEVER stranded on a remote failure even if that guarantee ever slips.
+    let subscriptionsDeleted = 0;
+    try {
+      subscriptionsDeleted = await this.graphSync.deleteSubscriptionsByTenant(
+        ctx.tenantId,
+        existing.id,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Graph subscription teardown failed for connection ${existing.id}, deleting anyway: ${(err as Error).message}`,
+      );
+    }
+
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await tx.integrationConnection.delete({ where: { id: existing.id } });
+    });
+
+    return { disconnected: true, connectionId: existing.id, subscriptionsDeleted };
   }
 
   private async persistToken(
@@ -398,9 +452,3 @@ export class MicrosoftOAuthService {
   }
 }
 
-export function normalizePem(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed.startsWith('-----BEGIN')) return trimmed;
-  // Assume base64-encoded PEM transported via env var.
-  return Buffer.from(trimmed, 'base64').toString('utf8');
-}

@@ -114,7 +114,19 @@ export class GoogleOAuthController {
       throw new BadRequestException('Missing code or state');
     }
 
-    const result = await this.oauth.handleCallback({ code, state });
+    let result: { tenantId: string; connectionId: string };
+    try {
+      result = await this.oauth.handleCallback({ code, state });
+    } catch (err) {
+      // The user finished the Google flow — land them back on the integrations
+      // page with a readable reason instead of a bare JSON 400.
+      const reason = err instanceof Error ? err.message : 'Google connection failed';
+      const target = `${this.oauth.getSuccessRedirect()}?provider=google_workspace&error=${encodeURIComponent(
+        reason,
+      )}`;
+      res.redirect(302, target);
+      return;
+    }
     const target = `${this.oauth.getSuccessRedirect()}?provider=google_workspace&connectionId=${encodeURIComponent(
       result.connectionId,
     )}&connected=1`;

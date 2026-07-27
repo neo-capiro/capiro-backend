@@ -46,6 +46,11 @@ const CALENDAR_PAGE_SIZE = 250;
 // advisory lock, then upserts. 20s gives headroom over the 5s interactive-tx
 // default. The lock auto-releases on commit/rollback.
 const GOOGLE_SYNC_TX_TIMEOUT_MS = 20_000;
+// Upper bound on Retry-After-driven retries for ONE request. Without this the
+// 429/5xx branch below recursed unboundedly: a provider that keeps returning
+// the same retryable status with a small Retry-After could hold a request (and
+// its scheduler slot) open forever. 3 attempts = at most ~30s of backoff.
+const MAX_RETRYABLE_ATTEMPTS = 3;
 // Gmail labels we mirror into the store — the direct analog of the Outlook
 // 'inbox' / 'sentitems' mail folders.
 // Backfill scope: ALL mail minus junk — spam/trash/drafts excluded, archived
@@ -71,6 +76,62 @@ export function gmailFolderFromLabelIds(labelIds: readonly string[] | undefined)
     folder: isSent ? 'sent' : labels.includes('INBOX') ? 'inbox' : 'archive',
     isSent,
   };
+}
+
+/**
+ * Fold one page of Gmail history entries into a last-write-wins map of
+ * message id -> the single operation to apply. History entries arrive in
+ * ascending id order and a single run can contain add-then-delete (or
+ * delete-then-add, e.g. restored from Trash) for the same message, so a
+ * first-seen Set would keep the WRONG event. Exported pure so the fold logic
+ * is unit-testable without a live Prisma/fetch.
+ *
+ * Gmail semantics encoded here: moving to Trash emits labelAdded(TRASH), not
+ * messageDeleted — messageDeleted is permanent deletion / emptying Trash.
+ * Archiving emits labelRemoved(INBOX); un-archiving emits labelAdded(INBOX).
+ */
+export function foldGmailHistory(
+  history: NonNullable<GmailHistoryResponse['history']>,
+): Map<string, { action: 'upsert' | 'remove'; reason?: 'deleted' | 'trashed' | 'spam' }> {
+  const ops = new Map<string, { action: 'upsert' | 'remove'; reason?: 'deleted' | 'trashed' | 'spam' }>();
+  for (const entry of history) {
+    for (const added of entry.messagesAdded ?? []) {
+      const msg = added.message;
+      if (!msg?.id) continue;
+      const labels = msg.labelIds ?? [];
+      if (labels.some((label) => EXCLUDED_LABEL_IDS.has(label))) {
+        ops.set(msg.id, { action: 'remove', reason: 'trashed' });
+        continue;
+      }
+      ops.set(msg.id, { action: 'upsert' });
+    }
+    for (const removed of entry.messagesDeleted ?? []) {
+      const id = removed.message?.id;
+      if (id) ops.set(id, { action: 'remove', reason: 'deleted' });
+    }
+    // A label change can move a message INTO an excluded label (trash/spam)
+    // or merely between inbox/archive. Re-fetch and re-persist for the
+    // latter so the stored folder tracks the mailbox; mark removed for the
+    // former.
+    for (const change of entry.labelsAdded ?? []) {
+      const id = change.message?.id;
+      if (!id) continue;
+      const addedLabels = change.labelIds ?? [];
+      if (addedLabels.some((label) => EXCLUDED_LABEL_IDS.has(label))) {
+        ops.set(id, {
+          action: 'remove',
+          reason: addedLabels.includes('SPAM') ? 'spam' : 'trashed',
+        });
+      } else {
+        ops.set(id, { action: 'upsert' });
+      }
+    }
+    for (const change of entry.labelsRemoved ?? []) {
+      const id = change.message?.id;
+      if (id) ops.set(id, { action: 'upsert' });
+    }
+  }
+  return ops;
 }
 
 interface GoogleSyncState {
@@ -128,6 +189,14 @@ interface GmailHistoryResponse {
     id?: string;
     messagesAdded?: Array<{ message?: { id?: string; threadId?: string; labelIds?: string[] } }>;
     messagesDeleted?: Array<{ message?: { id?: string; threadId?: string; labelIds?: string[] } }>;
+    labelsAdded?: Array<{
+      message?: { id?: string; threadId?: string; labelIds?: string[] };
+      labelIds?: string[];
+    }>;
+    labelsRemoved?: Array<{
+      message?: { id?: string; threadId?: string; labelIds?: string[] };
+      labelIds?: string[];
+    }>;
   }>;
   nextPageToken?: string;
   historyId?: string;
@@ -143,6 +212,19 @@ interface GmailHeader {
   value?: string;
 }
 
+// Recursive: a MIME tree nests parts arbitrarily deep (e.g. multipart/mixed
+// wrapping multipart/alternative wrapping text/plain + text/html). Carries
+// `body` at every level because a non-multipart message stores its content on
+// the top-level part (payload.body.data) with no `parts` array at all.
+interface GmailMessagePart {
+  partId?: string;
+  filename?: string;
+  mimeType?: string;
+  headers?: GmailHeader[];
+  body?: { size?: number; data?: string; attachmentId?: string };
+  parts?: GmailMessagePart[];
+}
+
 interface GmailMessage {
   id?: string;
   threadId?: string;
@@ -150,11 +232,7 @@ interface GmailMessage {
   snippet?: string;
   internalDate?: string;
   historyId?: string;
-  payload?: {
-    mimeType?: string;
-    headers?: GmailHeader[];
-    parts?: Array<{ filename?: string; mimeType?: string }>;
-  };
+  payload?: GmailMessagePart;
 }
 
 interface CalendarDateTime {
@@ -606,7 +684,11 @@ export class GoogleSyncService {
   ): Promise<SyncStats> {
     const stats = emptyStats();
     const startHistoryId = mailState.historyId!;
-    const seen = new Set<string>();
+    // Last-write-wins per message id, in history order (accumulated across
+    // pages too). A message that is added and then trashed inside one run
+    // must end as 'remove', and vice versa; the old first-seen Set kept
+    // whichever event came first.
+    const ops = new Map<string, { action: 'upsert' | 'remove'; reason?: 'deleted' | 'trashed' | 'spam' }>();
     let pageToken: string | null = null;
     let latestHistoryId: string | null = startHistoryId;
 
@@ -617,42 +699,92 @@ export class GoogleSyncService {
         pageToken: pageToken ?? undefined,
       });
       latestHistoryId = response.historyId ?? latestHistoryId;
-      for (const entry of response.history ?? []) {
-        for (const added of entry.messagesAdded ?? []) {
-          const msg = added.message;
-          if (!msg?.id || seen.has(msg.id)) continue;
-          // Junk stays out; everything else (inbox, sent, archive, custom
-          // labels) mirrors — matching the widened backfill scope.
-          const labels = msg.labelIds ?? [];
-          if (labels.some((label) => EXCLUDED_LABEL_IDS.has(label))) continue;
-          seen.add(msg.id);
-          stats.scanned += 1;
-          try {
-            const message = await this.gmailGet(accessToken, msg.id);
-            const outcome = await this.persistGmailMessage(tenantId, connection.id, message);
-            stats.matched += outcome === 'matched' ? 1 : 0;
-            stats.skipped += outcome === 'skipped' ? 1 : 0;
-          } catch (err) {
-            // Same rule as the backfill loop: skip only a gone message; let
-            // transient/infra errors propagate so historyId is NOT advanced past
-            // unpersisted messages (gmailHistory would never re-emit them).
-            if (!isMessageGoneError(err)) throw err;
-            stats.failed += 1;
-            this.logger.warn(
-              `Gmail message ${msg.id} is gone for connection ${connection.id}; skipping: ${
-                err instanceof Error ? err.message : err
-              }`,
-            );
-          }
-        }
+      for (const [id, op] of foldGmailHistory(response.history ?? [])) {
+        ops.set(id, op);
       }
       pageToken = response.nextPageToken ?? null;
       if (!pageToken) break;
     }
 
+    for (const [id, op] of ops) {
+      stats.scanned += 1;
+      try {
+        if (op.action === 'remove') {
+          await this.markGmailMessageRemoved(tenantId, id, op.reason ?? 'deleted');
+          stats.removed += 1;
+          continue;
+        }
+        const message = await this.gmailGet(accessToken, id);
+        // Re-check live labels: the message may have moved into an excluded
+        // label after the history entry was written.
+        if ((message.labelIds ?? []).some((label) => EXCLUDED_LABEL_IDS.has(label))) {
+          await this.markGmailMessageRemoved(tenantId, id, 'trashed');
+          stats.removed += 1;
+          continue;
+        }
+        const outcome = await this.persistGmailMessage(tenantId, connection.id, message);
+        stats.matched += outcome === 'matched' ? 1 : 0;
+        stats.skipped += outcome === 'skipped' ? 1 : 0;
+      } catch (err) {
+        // Unchanged rule: skip only a GONE message; let transient/infra errors
+        // propagate so historyId is NOT advanced past unpersisted work
+        // (gmailHistory would never re-emit them).
+        if (!isMessageGoneError(err)) throw err;
+        stats.failed += 1;
+        this.logger.warn(
+          `Gmail message ${id} is gone for connection ${connection.id}; skipping: ${
+            err instanceof Error ? err.message : err
+          }`,
+        );
+      }
+    }
+
     stats.hasMore = Boolean(pageToken);
     mailState.historyId = latestHistoryId;
     return stats;
+  }
+
+  /**
+   * Mark a stored Gmail message as gone without destroying it — the direct
+   * analog of the Outlook '@removed' handling (microsoft-graph-sync
+   * persistGraphMessage). Read-modify-write so the existing metadata
+   * (internetMessageId, folder, labelIds) survives; the Outlook path overwrites
+   * the whole object and loses them, which is a wart we are not copying.
+   * updateMany + a no-row result is a NO-OP by design: a message deleted before
+   * we ever ingested it needs no record.
+   */
+  private async markGmailMessageRemoved(
+    tenantId: string,
+    externalId: string,
+    reason: 'deleted' | 'trashed' | 'spam',
+  ): Promise<'removed'> {
+    await this.prisma.withTenant(tenantId, async (tx) => {
+      const existing = await tx.mailMessage.findUnique({
+        where: {
+          tenantId_source_externalId: {
+            tenantId,
+            source: EngagementSource.google,
+            externalId,
+          },
+        },
+        select: { id: true, metadata: true },
+      });
+      if (!existing) return;
+      const base =
+        existing.metadata && typeof existing.metadata === 'object' && !Array.isArray(existing.metadata)
+          ? (existing.metadata as Record<string, unknown>)
+          : {};
+      await tx.mailMessage.update({
+        where: { id: existing.id },
+        data: {
+          metadata: {
+            ...base,
+            googleRemoved: { reason, at: new Date().toISOString() },
+          } as Prisma.InputJsonValue,
+        },
+      });
+    });
+    return 'removed';
   }
 
   private async persistGmailMessage(
@@ -685,6 +817,12 @@ export class GoogleSyncService {
     const hasAttachments = Boolean(
       message.payload?.parts?.some((part) => part.filename && part.filename.length > 0),
     );
+    // format=full (see gmailGet) returns the full MIME tree with base64 body
+    // data on every part. bodyText already holds the extracted text below; do
+    // not also persist the raw bytes here, or full message content ends up
+    // duplicated across four columns in two tables (mailThread.raw,
+    // mailMessage.raw, both on create and update).
+    const rawForStorage = stripGmailBodyData(message) as unknown as Prisma.InputJsonValue;
 
     return this.prisma.withTenantRetry(
       tenantId,
@@ -753,7 +891,7 @@ export class GoogleSyncService {
                 snippet: clean(message.snippet),
                 participants: participantJson as Prisma.InputJsonValue,
                 lastMessageAt,
-                raw: message as unknown as Prisma.InputJsonValue,
+                raw: rawForStorage,
                 metadata: { labels: unique([folder]) } as Prisma.InputJsonValue,
                 associationScore: association.score,
                 associationReason: association.reason,
@@ -772,7 +910,7 @@ export class GoogleSyncService {
                 snippet: clean(message.snippet),
                 participants: participantJson as Prisma.InputJsonValue,
                 lastMessageAt,
-                raw: message as unknown as Prisma.InputJsonValue,
+                raw: rawForStorage,
                 metadata: { labels: [folder] } as Prisma.InputJsonValue,
                 associationScore: association.score,
                 associationReason: association.reason,
@@ -800,9 +938,9 @@ export class GoogleSyncService {
             bccRecipients: bccRecipients as unknown as Prisma.InputJsonValue,
             sentAt: isSent ? messageDate : null,
             receivedAt: messageDate,
-            bodyText: clean(message.snippet),
+            bodyText: extractGmailBodyText(message.payload) ?? clean(message.snippet),
             hasAttachments,
-            raw: message as unknown as Prisma.InputJsonValue,
+            raw: rawForStorage,
             metadata: {
               label: folder,
               folder,
@@ -824,9 +962,9 @@ export class GoogleSyncService {
             bccRecipients: bccRecipients as unknown as Prisma.InputJsonValue,
             sentAt: isSent ? messageDate : null,
             receivedAt: messageDate,
-            bodyText: clean(message.snippet),
+            bodyText: extractGmailBodyText(message.payload) ?? clean(message.snippet),
             hasAttachments,
-            raw: message as unknown as Prisma.InputJsonValue,
+            raw: rawForStorage,
             metadata: {
               label: folder,
               folder,
@@ -894,10 +1032,12 @@ export class GoogleSyncService {
   }
 
   private async gmailGet(accessToken: string, id: string): Promise<GmailMessage> {
-    const params = new URLSearchParams({ format: 'metadata' });
-    for (const header of ['From', 'To', 'Cc', 'Bcc', 'Subject', 'Date', 'Message-ID']) {
-      params.append('metadataHeaders', header);
-    }
+    // format=full returns every header plus the MIME tree with base64url body
+    // data. metadata (the previous value) returns headers only, which is why
+    // bodyText was the ~200-char snippet. gmail.readonly already permits full;
+    // NO scope change is required and none must be made -- a scope change
+    // re-triggers Google brand verification (see GOOGLE_WORKSPACE_SCOPES).
+    const params = new URLSearchParams({ format: 'full' });
     return this.googleGet<GmailMessage>(
       `${GMAIL_BASE_URL}/users/me/messages/${encodeURIComponent(id)}?${params.toString()}`,
       accessToken,
@@ -908,10 +1048,13 @@ export class GoogleSyncService {
     accessToken: string,
     input: { startHistoryId: string; pageToken?: string },
   ): Promise<GmailHistoryResponse> {
-    const params = new URLSearchParams({
-      startHistoryId: input.startHistoryId,
-      historyTypes: 'messageAdded',
-    });
+    const params = new URLSearchParams({ startHistoryId: input.startHistoryId });
+    // historyTypes is REPEATABLE. Requesting only messageAdded meant permanent
+    // deletes, trashes, archives and un-archives never reached the store, so the
+    // Gmail timeline drifted from the mailbox after the initial backfill.
+    for (const type of ['messageAdded', 'messageDeleted', 'labelAdded', 'labelRemoved']) {
+      params.append('historyTypes', type);
+    }
     if (input.pageToken) params.set('pageToken', input.pageToken);
     return this.googleGet<GmailHistoryResponse>(
       `${GMAIL_BASE_URL}/users/me/history?${params.toString()}`,
@@ -923,7 +1066,7 @@ export class GoogleSyncService {
     return this.googleGet<GmailProfile>(`${GMAIL_BASE_URL}/users/me/profile`, accessToken);
   }
 
-  private async googleGet<T>(url: string, accessToken: string): Promise<T> {
+  private async googleGet<T>(url: string, accessToken: string, attempt = 1): Promise<T> {
     const response = await fetch(url, {
       method: 'GET',
       headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
@@ -931,9 +1074,9 @@ export class GoogleSyncService {
 
     if (response.status === 429 || response.status >= 500) {
       const retryAfter = Number(response.headers.get('retry-after') ?? '0');
-      if (retryAfter > 0 && retryAfter <= 10) {
+      if (retryAfter > 0 && retryAfter <= 10 && attempt < MAX_RETRYABLE_ATTEMPTS) {
         await sleep(retryAfter * 1000);
-        return this.googleGet<T>(url, accessToken);
+        return this.googleGet<T>(url, accessToken, attempt + 1);
       }
     }
 
@@ -1139,6 +1282,93 @@ function getHeader(headers: GmailHeader[], name: string): string | null {
     if (header.name?.toLowerCase() === lower) return header.value ?? null;
   }
   return null;
+}
+
+const GMAIL_BODY_MAX_CHARS = 100_000;
+const GMAIL_BODY_TRUNCATION_MARKER = '\n\n[truncated]';
+
+function decodeGmailBodyData(data: string): string {
+  return Buffer.from(data, 'base64url').toString('utf8');
+}
+
+function stripHtmlToText(html: string): string {
+  const withoutTags = html
+    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|tr|li|h[1-6])>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ');
+  return withoutTags
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function truncateGmailBody(text: string): string {
+  return text.length > GMAIL_BODY_MAX_CHARS
+    ? text.slice(0, GMAIL_BODY_MAX_CHARS) + GMAIL_BODY_TRUNCATION_MARKER
+    : text;
+}
+
+/** Depth-first search for the first part matching `mimeType`, skipping any
+ *  part with a non-empty `filename` -- that is an attachment, not body text.
+ *  A non-multipart message has its content on `payload` itself (no `parts`
+ *  array), which this matches because the check runs on `part` before it
+ *  recurses into children. */
+function findGmailBodyPart(part: GmailMessagePart, mimeType: string): GmailMessagePart | null {
+  if (part.filename && part.filename.length > 0) return null;
+  if (part.mimeType === mimeType && part.body?.data) return part;
+  for (const child of part.parts ?? []) {
+    const found = findGmailBodyPart(child, mimeType);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * Depth-first walk for the first text/plain part, falling back to text/html
+ * stripped to text. Returns null when the message is attachment-only or has
+ * no payload. Exported so it is unit-testable without a live Gmail fetch.
+ */
+export function extractGmailBodyText(payload: GmailMessagePart | undefined): string | null {
+  if (!payload) return null;
+
+  const plainPart = findGmailBodyPart(payload, 'text/plain');
+  if (plainPart?.body?.data) {
+    return truncateGmailBody(decodeGmailBodyData(plainPart.body.data));
+  }
+
+  const htmlPart = findGmailBodyPart(payload, 'text/html');
+  if (htmlPart?.body?.data) {
+    return truncateGmailBody(stripHtmlToText(decodeGmailBodyData(htmlPart.body.data)));
+  }
+
+  return null;
+}
+
+/** Deep copy of the message with every body.data cleared, preserving the MIME
+ *  structure (mimeType, filename, size, attachmentId) for debugging. The body
+ *  itself is already stored in bodyText; keeping it in raw_jsonb too would
+ *  duplicate full message content across four columns in two tables. Applies
+ *  at every depth, including payload.body.data on a non-multipart message
+ *  (which has no `parts` array to iterate). Does not mutate its input. */
+export function stripGmailBodyData(message: GmailMessage): GmailMessage {
+  function stripPart(part: GmailMessagePart): GmailMessagePart {
+    return {
+      ...part,
+      body: part.body ? { ...part.body, data: undefined } : part.body,
+      parts: part.parts?.map(stripPart),
+    };
+  }
+  return {
+    ...message,
+    payload: message.payload ? stripPart(message.payload) : message.payload,
+  };
 }
 
 // Parse an RFC-5322 address-list header ("Alice <a@x.com>, b@y.com") into

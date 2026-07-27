@@ -155,6 +155,58 @@ export interface OpportunityFunding {
   opportunityAwardCeiling: Money;
 }
 
+/** Ordered strongest-first. Mirrors apps/api/.../grant-opportunity-relevance.ts. */
+export type OpportunityEligibilityState = 'eligible' | 'ineligible' | 'needs_review' | 'unknown';
+
+/**
+ * One grant opportunity a client has been explicitly linked to.
+ *
+ * `status` and `isActive` are separate facts: `status` is Grants.gov's own value,
+ * `isActive` is the server's computed reading of it AND the close date. A closed
+ * or archived opportunity stays visible as history but must never be counted active.
+ */
+export interface ClientOpportunity {
+  opportunityId: string;
+  title: string;
+  agency: string | null;
+  /** Grants.gov value verbatim: posted | forecasted | closed | archived. */
+  status: string | null;
+  closeDate: IsoTimestamp | null;
+  /** Close-date semantics when the date alone misleads ("continuous", "TBD"). */
+  responseDateDesc: string | null;
+  isActive: boolean;
+  estimatedFunding: Money;
+  awardCeiling: Money;
+  /** 0-100, deterministic. Null when no client profile could be built. */
+  relevanceScore: number | null;
+  eligibilityState: OpportunityEligibilityState;
+  /** Operator-readable justification for eligibilityState. Always populated. */
+  eligibilityReason: string;
+  /** The specific values that matched, never paraphrased. */
+  matchedSignals: Array<{ signal: string; weight: number; matchedOn: string }>;
+  /** The ClientGrantNexus district link, when a project site established one. */
+  districtKey: DistrictKey | null;
+}
+
+/**
+ * The client's opportunity pipeline, deliberately its OWN rail rather than part
+ * of district award aggregation — see `ClientOpportunity` for why.
+ *
+ * Every field is nullable-or-counted so "no linked opportunities" and "linked
+ * opportunities worth an unstated amount" stay distinguishable from "$0".
+ */
+export interface ClientOpportunitySummary {
+  activeOpportunityCount: number;
+  /** Closed or archived. History, never counted as active. */
+  closedOpportunityCount: number;
+  /** Summed estimated program funding across ACTIVE opportunities only. */
+  totalEstimatedFunding: Money;
+  /** Largest single active award ceiling — a max, never a sum. */
+  maximumAwardCeiling: Money;
+  /** Active opportunities, relevance-desc then close-date-asc. Capped. */
+  topOpportunities: ClientOpportunity[];
+}
+
 /** Money we know about but could not attribute to a district. */
 export interface UnmappedFunding {
   unmappedContractAmount: Money;
@@ -249,8 +301,19 @@ export interface DistrictNexusDistrictDetailResponse extends DistrictNexusDistri
   } | null;
   clients: DistrictClientSummary[];
   facilities: DistrictFacilitySummary[];
+  /** Unscoped "all public activity in this district" — browsing, not evidence. */
   topContractAwards: TopAward[];
   topGrantAwards: TopAward[];
+  /**
+   * Awards tied to the SELECTED client's confirmed identifiers in this
+   * district (audit F5). Empty (not absent) when no client filter is
+   * applied — see `clientScoped`. Must never fall back to the unscoped
+   * lists above.
+   */
+  clientContractAwards: TopAward[];
+  clientGrantAwards: TopAward[];
+  /** True when a clientId narrowed this response. Drives the UI's copy. */
+  clientScoped: boolean;
   demographics: DistrictDemographics | null;
   boundaryAvailable: boolean;
   generatedAt: IsoTimestamp;

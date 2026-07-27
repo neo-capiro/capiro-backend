@@ -2,7 +2,11 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
 import { StateSourceDataRepository } from '../sourcedata/state-source-data.repository.js';
-import { TrackerWatchlistService } from './tracker-watchlist.service.js';
+import {
+  TrackerWatchlistService,
+  HEARING_TERMS_TOPIC_LABEL,
+  isReservedTopicLabel,
+} from './tracker-watchlist.service.js';
 import {
   isStateBillKey,
   humanizeStateBillKey,
@@ -10,6 +14,7 @@ import {
   stateBillStatusRank,
 } from '@capiro/shared';
 import { embedText, normalize, vectorLiteral, EMBEDDING_MODEL } from '../embeddings/embedder.js';
+import { compileWatchlist, type CompilerTopic, type CompilerTerm } from '../watchlist/watchlist-compiler.js';
 import {
   highPriorityMatches,
   scoreBillFit,
@@ -58,6 +63,74 @@ export const LEGIWATCH_STATE_FIT_FLOOR = Number(process.env.LEGIWATCH_STATE_FIT_
 const RECENT_CHANGE_DAYS = 21;
 const DAY_MS = 86_400_000;
 
+/**
+ * P1-18: max tracked bills returned per board request. The code default IS
+ * the intended production value — do not declare it in ECS; a deployment
+ * that wants a different cap sets the env var explicitly.
+ */
+const BOARD_PAGE_SIZE = (() => {
+  const n = Number(process.env.LEGIWATCH_BOARD_PAGE_SIZE);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 200;
+})();
+const BOARD_PAGE_SIZE_MAX = 500;
+
+interface BoardCursor {
+  t: string;
+  id: string;
+}
+const b64encode = (obj: unknown): string =>
+  Buffer.from(JSON.stringify(obj), 'utf8').toString('base64url');
+/** Mirrors feed.service.ts's b64decode: a malformed or stale cursor is ignored (page 1), never thrown. */
+const b64decode = (cur: string): BoardCursor | null => {
+  try {
+    const parsed = JSON.parse(Buffer.from(cur, 'base64url').toString('utf8')) as unknown;
+    return parsed &&
+      typeof (parsed as BoardCursor).t === 'string' &&
+      typeof (parsed as BoardCursor).id === 'string'
+      ? (parsed as BoardCursor)
+      : null;
+  } catch {
+    return null;
+  }
+};
+function encodeBoardCursor(row: { trackedAt: Date; billId: string }): string {
+  return b64encode({ t: row.trackedAt.toISOString(), id: row.billId } satisfies BoardCursor);
+}
+
+/**
+ * P1-18: server-side board filters (the audit's "default to active/recent/
+ * changed bills rather than the entire history"). ALL default OFF — today's
+ * default is "everything tracked"; silently narrowing it would make bills
+ * vanish from an analyst's board (MASTER §4.5).
+ */
+export interface BoardFilters {
+  /** Only bills with a bill/state_bill alert in the last N days. */
+  changedWithinDays?: number;
+  /**
+   * Excludes the 'enacted' lane — a STAGE-based proxy for "terminal"
+   * (enacted/failed/vetoed). The richer signal, `terminalRisk`, is derived
+   * from alerts inside the 21-day RECENT_CHANGE_DAYS window (see
+   * `canonicalStatusFor` below) and is therefore unknown for a bill that
+   * went terminal longer ago than that — it cannot gate the paginated query
+   * without a join this phase does not add. Documented, not silent.
+   */
+  activeOnly?: boolean;
+  stages?: BillStage[];
+  /** Tenant board (`_all`) only; `getBoard` ignores it (already one client). */
+  clientIds?: string[];
+}
+export interface BoardQueryOpts {
+  limit?: number;
+  cursor?: string;
+  filters?: BoardFilters;
+}
+export interface BoardPage {
+  nextCursor: string | null;
+  hasMore: boolean;
+  total: number;
+  withheld: number;
+}
+
 /** Editable Bill 360 client-bill context fields (Release R1, §1.3). All optional. */
 export interface UpdateBillContextInput {
   position?: string;
@@ -69,7 +142,11 @@ export interface UpdateBillContextInput {
   expectedConfidence?: string;
   expectedRationale?: string;
 }
-/** Feedback signals the API accepts (mirrors the `intel_feedback.signal` doc set). */
+/**
+ * Feedback signals the API accepts (mirrors the `intel_feedback.signal` doc
+ * set). Kept in exact lockstep with FEEDBACK_SIGNALS (tracker.dto.ts) — that
+ * const is documented as DERIVED from this one.
+ */
 const ALLOWED_FEEDBACK_SIGNALS = new Set([
   'useful',
   'not_useful',
@@ -81,7 +158,14 @@ const ALLOWED_FEEDBACK_SIGNALS = new Set([
   'dismissed',
   'marked_irrelevant',
   'opened',
+  'memo_generated',
+  'memo_heavily_edited',
+  'outreach_generated',
+  'alert_ignored',
 ]);
+/** §4.10 (Gate E phase f): the two dismiss reasons that mean the MATCH was
+ *  over-broad, not just "handled" — see feedbackSignal/scoreBillFit. */
+const MATCH_QUALITY_REASONS = new Set(['too_broad', 'wrong_issue']);
 
 export interface RecommendationItem {
   billId: string;
@@ -403,6 +487,11 @@ export class TrackerBoardService {
     );
     if (!terms.length) return [];
     const congress = currentCongress();
+    // §4.10 (Gate E phase f): per-topic dismissal signal — down-weights a
+    // topic the analyst has repeatedly marked too-broad/wrong-issue. Empty
+    // for a client with no such dismissals, which scores byte-identically to
+    // pre-phase-f (bill-fit.util.ts topicWeight defaults every topic to 1.0).
+    const feedback = await this.feedbackSignal(tenantId, clientId);
 
     // Semantic candidates (best-effort — keyword path still works if Bedrock is down).
     const semantic = new Map<string, number>();
@@ -456,6 +545,7 @@ export class TrackerBoardService {
           issueAreas,
           semantic.get(b.id) ?? 0,
           keywordIds.has(b.id),
+          feedback,
         );
         if (fit.fit <= 0 || fit.belowFloor) continue;
         const stage = billStage(b.latestActionText);
@@ -512,6 +602,7 @@ export class TrackerBoardService {
             issueAreas,
             0,
             true,
+            feedback,
           );
           if (fit.fit < LEGIWATCH_STATE_FIT_FLOOR) continue;
           const stage = this.stateStatusToBoardStage(b.status);
@@ -549,19 +640,77 @@ export class TrackerBoardService {
     return items.slice(0, limit);
   }
 
-  /** The curated tracker board: tracked bills bucketed by stage, newest-first per column. */
-  async getBoard(tenantId: string, clientId: string): Promise<{ columns: BoardColumn[] }> {
+  /**
+   * The curated tracker board: tracked bills bucketed by stage, newest-first per
+   * column. P1-18: bounded by `opts.limit` (default `BOARD_PAGE_SIZE`, hard max
+   * `BOARD_PAGE_SIZE_MAX`), keyset-paginated (no OFFSET) via `opts.cursor`, and
+   * optionally narrowed by `opts.filters` — every filter defaults OFF.
+   */
+  async getBoard(
+    tenantId: string,
+    clientId: string,
+    opts: BoardQueryOpts = {},
+  ): Promise<{ columns: BoardColumn[] } & BoardPage> {
     const empty = () =>
       BILL_STAGES.map((s) => ({ id: s.id, label: s.label, cards: [] as BoardCard[] }));
-    const tracked = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.trackedBill.findMany({
-        where: { tenantId, clientId },
-        orderBy: { trackedAt: 'desc' },
-      }),
-    );
-    if (!tracked.length) return { columns: empty() };
+    const take = Math.min(opts.limit ?? BOARD_PAGE_SIZE, BOARD_PAGE_SIZE_MAX);
+    const cur = opts.cursor ? b64decode(opts.cursor) : null;
 
-    const billIds = tracked.map((t) => t.billId);
+    // a-5: changedWithinDays needs the qualifying billId SET before the paginated
+    // query can filter on it — a dependent lookup, run before (not parallel with)
+    // the count/page queries below.
+    let changedIds: Set<string> | null = null;
+    if (opts.filters?.changedWithinDays) {
+      const days = opts.filters.changedWithinDays;
+      const rows = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.intelAlert.findMany({
+          where: {
+            tenantId,
+            clientId,
+            sourceType: { in: ['bill', 'state_bill'] },
+            createdAt: { gte: new Date(Date.now() - days * DAY_MS) },
+          },
+          select: { sourceRef: true },
+          distinct: ['sourceRef'],
+        }),
+      );
+      changedIds = new Set(rows.map((r) => r.sourceRef));
+      if (!changedIds.size) {
+        return { columns: empty(), nextCursor: null, hasMore: false, total: 0, withheld: 0 };
+      }
+    }
+
+    const baseWhere: Record<string, unknown> = { tenantId, clientId };
+    if (changedIds) baseWhere['billId'] = { in: [...changedIds] };
+    if (opts.filters?.stages?.length) baseWhere['stage'] = { in: opts.filters.stages };
+    else if (opts.filters?.activeOnly) baseWhere['stage'] = { not: 'enacted' };
+    const pageWhere: Record<string, unknown> = { ...baseWhere };
+    if (cur) {
+      pageWhere['OR'] = [
+        { trackedAt: { lt: new Date(cur.t) } },
+        { trackedAt: new Date(cur.t), billId: { lt: cur.id } },
+      ];
+    }
+
+    const [tracked, total] = await Promise.all([
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.trackedBill.findMany({
+          where: pageWhere,
+          orderBy: [{ trackedAt: 'desc' }, { billId: 'desc' }],
+          take: take + 1,
+        }),
+      ),
+      this.prisma.withTenant(tenantId, (tx) => tx.trackedBill.count({ where: baseWhere })),
+    ]);
+    const hasMore = tracked.length > take;
+    const page = hasMore ? tracked.slice(0, take) : tracked;
+    const last = page[page.length - 1];
+    const nextCursor =
+      hasMore && last ? encodeBoardCursor({ trackedAt: last.trackedAt, billId: last.billId }) : null;
+    const withheld = Math.max(0, total - page.length);
+    if (!page.length) return { columns: empty(), nextCursor, hasMore, total, withheld };
+
+    const billIds = page.map((t) => t.billId);
     const [bills, { topics, issueAreas }, recentAlerts, hearingLinks] = await Promise.all([
       this.fetchMergedBills(billIds),
       this.compiledTopics(tenantId, clientId),
@@ -623,7 +772,7 @@ export class TrackerBoardService {
     const nowMs = Date.now();
     const columns = empty();
     const colById = new Map(columns.map((c) => [c.id, c]));
-    for (const t of tracked) {
+    for (const t of page) {
       const bill = billById.get(t.billId) ?? null;
       const latestActionText = bill?.latestActionText ?? t.lastSeenActionText ?? null;
       const latestActionDate = bill?.latestActionDate ?? t.lastSeenActionDate ?? null;
@@ -670,7 +819,7 @@ export class TrackerBoardService {
       };
       (colById.get(stage) ?? columns[0]!).cards.push(card);
     }
-    return { columns };
+    return { columns, nextCursor, hasMore, total, withheld };
   }
 
   /**
@@ -683,25 +832,75 @@ export class TrackerBoardService {
    * (the High-fit filter) use each card's OWN client's compiled watchlist,
    * batch-resolved per distinct client (bounded by client count, no per-row work).
    */
-  async getTenantBoard(tenantId: string): Promise<{
+  async getTenantBoard(
+    tenantId: string,
+    opts: BoardQueryOpts = {},
+  ): Promise<{
     columns: Array<{
       id: BillStage;
       label: string;
       cards: Array<BoardCard & { clientId: string; clientName: string | null }>;
     }>;
-  }> {
+  } & BoardPage> {
     type Card = BoardCard & { clientId: string; clientName: string | null };
     const empty = () => BILL_STAGES.map((s) => ({ id: s.id, label: s.label, cards: [] as Card[] }));
-    const tracked = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.trackedBill.findMany({
-        where: { tenantId },
-        orderBy: { trackedAt: 'desc' },
-      }),
-    );
-    if (!tracked.length) return { columns: empty() };
+    const take = Math.min(opts.limit ?? BOARD_PAGE_SIZE, BOARD_PAGE_SIZE_MAX);
+    const cur = opts.cursor ? b64decode(opts.cursor) : null;
 
-    const billIds = Array.from(new Set(tracked.map((t) => t.billId)));
-    const clientIds = Array.from(new Set(tracked.map((t) => t.clientId)));
+    // a-5: same dependent lookup as getBoard, tenant-wide (no clientId scope).
+    let changedIds: Set<string> | null = null;
+    if (opts.filters?.changedWithinDays) {
+      const days = opts.filters.changedWithinDays;
+      const rows = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.intelAlert.findMany({
+          where: {
+            tenantId,
+            sourceType: { in: ['bill', 'state_bill'] },
+            createdAt: { gte: new Date(Date.now() - days * DAY_MS) },
+          },
+          select: { sourceRef: true },
+          distinct: ['sourceRef'],
+        }),
+      );
+      changedIds = new Set(rows.map((r) => r.sourceRef));
+      if (!changedIds.size) {
+        return { columns: empty(), nextCursor: null, hasMore: false, total: 0, withheld: 0 };
+      }
+    }
+
+    const baseWhere: Record<string, unknown> = { tenantId };
+    if (changedIds) baseWhere['billId'] = { in: [...changedIds] };
+    if (opts.filters?.clientIds?.length) baseWhere['clientId'] = { in: opts.filters.clientIds };
+    if (opts.filters?.stages?.length) baseWhere['stage'] = { in: opts.filters.stages };
+    else if (opts.filters?.activeOnly) baseWhere['stage'] = { not: 'enacted' };
+    const pageWhere: Record<string, unknown> = { ...baseWhere };
+    if (cur) {
+      pageWhere['OR'] = [
+        { trackedAt: { lt: new Date(cur.t) } },
+        { trackedAt: new Date(cur.t), billId: { lt: cur.id } },
+      ];
+    }
+
+    const [tracked, total] = await Promise.all([
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.trackedBill.findMany({
+          where: pageWhere,
+          orderBy: [{ trackedAt: 'desc' }, { billId: 'desc' }],
+          take: take + 1,
+        }),
+      ),
+      this.prisma.withTenant(tenantId, (tx) => tx.trackedBill.count({ where: baseWhere })),
+    ]);
+    const hasMore = tracked.length > take;
+    const page = hasMore ? tracked.slice(0, take) : tracked;
+    const last = page[page.length - 1];
+    const nextCursor =
+      hasMore && last ? encodeBoardCursor({ trackedAt: last.trackedAt, billId: last.billId }) : null;
+    const withheld = Math.max(0, total - page.length);
+    if (!page.length) return { columns: empty(), nextCursor, hasMore, total, withheld };
+
+    const billIds = Array.from(new Set(page.map((t) => t.billId)));
+    const clientIds = Array.from(new Set(page.map((t) => t.clientId)));
     const [bills, recentAlerts, hearingLinks, clientNames] = await Promise.all([
       this.fetchMergedBills(billIds),
       this.prisma.withTenant(tenantId, (tx) =>
@@ -741,17 +940,12 @@ export class TrackerBoardService {
       this.repo.getClientNames(tenantId, clientIds).catch(() => new Map<string, string>()),
     ]);
 
-    // Per-client compiled watchlist (for matchedTags / the High-fit filter).
-    const topicsByClient = new Map<
-      string,
-      { topics: CompiledTopicForFit[]; issueAreas: string[] }
-    >();
-    await Promise.all(
-      clientIds.map(async (cid) => {
-        const { topics, issueAreas } = await this.compiledTopics(tenantId, cid);
-        topicsByClient.set(cid, { topics, issueAreas });
-      }),
-    );
+    // a-6: per-client compiled watchlist (for matchedTags / the High-fit
+    // filter), batch-resolved in a CONSTANT number of queries regardless of
+    // client count — replaces the old one-`getCompiled`-call-per-client loop,
+    // which was really 3 queries per client (watchlist + topics + terms via
+    // getWatchlist). See compileTopicsForClients.
+    const topicsByClient = await this.compileTopicsForClients(tenantId, clientIds);
 
     const billById = bills;
     const ck = (cid: string, bid: string) => `${cid}:${bid}`;
@@ -773,7 +967,7 @@ export class TrackerBoardService {
     const nowMs = Date.now();
     const columns = empty();
     const colById = new Map(columns.map((c) => [c.id, c]));
-    for (const t of tracked) {
+    for (const t of page) {
       const bill = billById.get(t.billId) ?? null;
       const latestActionText = bill?.latestActionText ?? t.lastSeenActionText ?? null;
       const latestActionDate = bill?.latestActionDate ?? t.lastSeenActionDate ?? null;
@@ -824,7 +1018,143 @@ export class TrackerBoardService {
       };
       (colById.get(stage) ?? columns[0]!).cards.push(card);
     }
-    return { columns };
+    return { columns, nextCursor, hasMore, total, withheld };
+  }
+
+  /**
+   * P1-18 (a-6): batch-resolve the compiled watchlist (for `matchedTags` / the
+   * High-fit filter) for a SET of clients in a query count independent of
+   * `clientIds.length` — 3 queries total (watchlist rows for issueAreas, all
+   * topics, all terms), replacing a `getCompiled` call per client (itself 3
+   * queries via `getWatchlist`). Faithfully replicates `getWatchlist`'s fold of
+   * hearing-native FLAT terms (topicId NULL) into the reserved "Hearing terms"
+   * topic (tracker-watchlist.service.ts:251-276) so a client with flat terms
+   * scores identically to the per-client path.
+   */
+  private async compileTopicsForClients(
+    tenantId: string,
+    clientIds: string[],
+  ): Promise<Map<string, { topics: CompiledTopicForFit[]; issueAreas: string[] }>> {
+    const out = new Map<string, { topics: CompiledTopicForFit[]; issueAreas: string[] }>();
+    if (!clientIds.length) return out;
+    const watchlistIds = clientIds.map((c) => `wl:${c}`);
+
+    const [watchlists, topics] = await this.prisma.withTenant(tenantId, (tx) =>
+      Promise.all([
+        tx.watchlist.findMany({
+          where: { tenantId, clientId: { in: clientIds } },
+          select: { clientId: true, issueAreas: true },
+        }),
+        tx.watchlistTopic.findMany({
+          where: { tenantId, watchlistId: { in: watchlistIds } },
+          select: {
+            id: true,
+            watchlistId: true,
+            label: true,
+            issueArea: true,
+            position: true,
+            priority: true,
+          },
+        }),
+      ]),
+    );
+    const topicIds = topics.map((t) => t.id);
+    const terms = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.watchlistTerm.findMany({
+        where: {
+          tenantId,
+          watchlistId: { in: watchlistIds },
+          OR: [...(topicIds.length ? [{ topicId: { in: topicIds } }] : []), { topicId: null }],
+        },
+        select: { watchlistId: true, topicId: true, termType: true, value: true, weight: true, id: true },
+      }),
+    );
+
+    const issueAreasByClient = new Map(watchlists.map((w) => [w.clientId, w.issueAreas]));
+    const topicsByWatchlist = new Map<string, typeof topics>();
+    for (const t of topics) {
+      const arr = topicsByWatchlist.get(t.watchlistId) ?? [];
+      arr.push(t);
+      topicsByWatchlist.set(t.watchlistId, arr);
+    }
+    const termsByTopicId = new Map<string, typeof terms>();
+    const flatTermsByWatchlist = new Map<string, typeof terms>();
+    for (const term of terms) {
+      if (term.topicId) {
+        const arr = termsByTopicId.get(term.topicId) ?? [];
+        arr.push(term);
+        termsByTopicId.set(term.topicId, arr);
+      } else {
+        const arr = flatTermsByWatchlist.get(term.watchlistId) ?? [];
+        arr.push(term);
+        flatTermsByWatchlist.set(term.watchlistId, arr);
+      }
+    }
+
+    for (const clientId of clientIds) {
+      const wlId = `wl:${clientId}`;
+      const clientTopics = topicsByWatchlist.get(wlId) ?? [];
+      const compilerTopics: CompilerTopic[] = clientTopics.map((t) => ({
+        label: t.label,
+        issueArea: t.issueArea,
+        position: t.position,
+        priority: t.priority,
+      }));
+      const compilerTerms: CompilerTerm[] = clientTopics.flatMap((t) =>
+        (termsByTopicId.get(t.id) ?? []).map((term) => ({
+          termType: term.termType,
+          value: term.value,
+          weight: term.weight,
+          topicLabel: t.label,
+          topicPriority: t.priority,
+          termId: term.id,
+        })),
+      );
+      // §4.3 fold — mirrors getWatchlist: merge flat terms into the existing
+      // reserved-label topic if one exists, else synthesize it.
+      const flat = flatTermsByWatchlist.get(wlId) ?? [];
+      if (flat.length) {
+        const host = clientTopics.find((t) => isReservedTopicLabel(t.label));
+        const hostLabel = host?.label ?? HEARING_TERMS_TOPIC_LABEL;
+        const hostPriority = host?.priority ?? 'med';
+        if (!host) {
+          compilerTopics.push({
+            label: hostLabel,
+            issueArea: null,
+            position: 'monitor',
+            priority: hostPriority,
+          });
+        }
+        for (const term of flat) {
+          compilerTerms.push({
+            termType: term.termType,
+            value: term.value,
+            weight: term.weight,
+            topicLabel: hostLabel,
+            topicPriority: hostPriority,
+            termId: term.id,
+          });
+        }
+      }
+      const compiled = compileWatchlist({
+        issueAreas: issueAreasByClient.get(clientId) ?? [],
+        topics: compilerTopics,
+        terms: compilerTerms,
+      });
+      const topicsForFit: CompiledTopicForFit[] = compiled.billMatchSet.map((t) => ({
+        label: t.label,
+        issueArea: t.issueArea,
+        priority: t.priority,
+        position: t.position,
+        keywords: t.keywords,
+        synonyms: t.synonyms,
+        entities: t.entities,
+        riskPhrases: t.riskPhrases,
+        routableTerms: t.routableTerms,
+      }));
+      out.set(clientId, { topics: topicsForFit, issueAreas: issueAreasByClient.get(clientId) ?? [] });
+    }
+    return out;
   }
 
   /**
@@ -1116,7 +1446,16 @@ export class TrackerBoardService {
     tenantId: string,
     clientId: string,
     userId: string,
-    input: { targetType?: string; targetRef: string; signal: string; alertId?: string | null },
+    input: {
+      targetType?: string;
+      targetRef: string;
+      signal: string;
+      alertId?: string | null;
+      /** §4.10 (Gate E phase f): structured dismiss reason. */
+      reason?: string | null;
+      /** §4.10 (Gate E phase f): matched topic labels at dismissal time. */
+      matchedTags?: string[];
+    },
   ) {
     // Cross-tenant guard (P1-03/P1-04) — must run before the write below.
     await this.watchlists.assertClientInTenant(tenantId, clientId);
@@ -1134,9 +1473,53 @@ export class TrackerBoardService {
           targetType: input.targetType ?? 'bill',
           targetRef: input.targetRef,
           signal: input.signal,
+          reason: input.reason ?? null,
+          matchedTags: input.matchedTags ?? [],
         },
       }),
     );
     return { ok: true };
+  }
+
+  /**
+   * §4.10 (Gate E phase f): turn dismissals into a MEASURABLE signal instead
+   * of only a per-bill exclusion. Returns per-topic-label dismissal counts by
+   * reason for this client, so scoreBillFit can down-weight a topic that
+   * keeps producing wrong-issue matches.
+   *
+   * Forward-only (§6 open decision 3, option (a)): `matchedTags` is only
+   * populated going forward from this phase's `recordFeedback` change, so a
+   * client with only pre-phase-f dismissals returns an empty map — not
+   * because nothing was dismissed, but because the link did not exist yet.
+   * Re-deriving it retroactively would re-match against the CURRENT
+   * watchlist, which has likely changed since — answering a different
+   * question than "what did the analyst actually see and reject".
+   */
+  async feedbackSignal(
+    tenantId: string,
+    clientId: string,
+  ): Promise<Map<string, { total: number; byReason: Record<string, number> }>> {
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelFeedback.findMany({
+        where: {
+          tenantId,
+          clientId,
+          signal: 'marked_irrelevant',
+          matchedTags: { isEmpty: false },
+        },
+        select: { matchedTags: true, reason: true },
+      }),
+    );
+    const out = new Map<string, { total: number; byReason: Record<string, number> }>();
+    for (const row of rows) {
+      const reasonKey = row.reason ?? 'unspecified';
+      for (const label of row.matchedTags) {
+        const entry = out.get(label) ?? { total: 0, byReason: {} };
+        entry.total += 1;
+        entry.byReason[reasonKey] = (entry.byReason[reasonKey] ?? 0) + 1;
+        out.set(label, entry);
+      }
+    }
+    return out;
   }
 }

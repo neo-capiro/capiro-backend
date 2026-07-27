@@ -2,8 +2,10 @@ import { Logger } from '@nestjs/common';
 import {
   renderTestEmail,
   renderAlertEmail,
+  renderDigestEmail,
   rendererFor,
   ALERT_EMAIL_RENDERERS,
+  type DigestItem,
 } from '../src/tracker/tracker-email.templates.js';
 import { IntelAlertService } from '../src/intel-alert/intel-alert.service.js';
 import type { IntelAlertEvent } from '../src/intel-alert/intel-alert.types.js';
@@ -94,6 +96,63 @@ describe('no rendered template names the old product or the old CTA (P1-06)', ()
       expect(s.toLowerCase()).not.toContain('bill tracker');
       expect(s.toLowerCase()).not.toContain('open in tracker');
     }
+  });
+});
+
+/** A minimal, complete DigestItem fixture (RB-03 / MP-01). */
+function digestItem(over: Partial<DigestItem> = {}): DigestItem {
+  return {
+    clientName: 'Acme Corp',
+    displayNum: 'H.R. 1',
+    billTitle: 'Test Act',
+    label: 'Amended',
+    severity: 'notable',
+    detail: 'Amended',
+    actionDate: null,
+    deadline: null,
+    recommendedAction: null,
+    why: null,
+    url: '',
+    appUrl: 'https://app.capiro.ai/legiwatch?tab=feed&client=c1&alert=a1',
+    ...over,
+  };
+}
+
+describe('renderDigestEmail (RB-03)', () => {
+  it('the LegiWatch link is /legiwatch?tab=feed&client=<id>&alert=<id> and never /clients/<id>?tab=tracker', () => {
+    const { html, text } = renderDigestEmail('daily', [digestItem()]);
+    expect(html).toContain('/legiwatch?tab=feed&amp;client=c1&amp;alert=a1');
+    expect(text).toContain('/legiwatch?tab=feed&client=c1&alert=a1');
+    expect(html).not.toContain('/clients/c1?tab=tracker');
+    expect(text).not.toContain('/clients/c1?tab=tracker');
+  });
+});
+
+/**
+ * Gate G a-4: generic across EVERY renderer, so the next one added (HP-07's
+ * per-source renderers) cannot regress this without failing here first.
+ */
+describe('every email renderer — never the /clients/<id>?tab= anti-pattern (RB-03)', () => {
+  it('renderTestEmail', () => {
+    const { html, text } = renderTestEmail(
+      'Acme Corp',
+      'https://app.capiro.ai/legiwatch?tab=feed&client=c1',
+      'https://app.capiro.ai/clients?clientId=c1&tab=tracker', // the CORRECT query-param route
+    );
+    expect(html).not.toMatch(/\/clients\/[^?]+\?tab=/);
+    expect(text).not.toMatch(/\/clients\/[^?]+\?tab=/);
+  });
+
+  it('renderAlertEmail', () => {
+    const { html, text } = renderAlertEmail(EVENT);
+    expect(html).not.toMatch(/\/clients\/[^?]+\?tab=/);
+    expect(text).not.toMatch(/\/clients\/[^?]+\?tab=/);
+  });
+
+  it('renderDigestEmail', () => {
+    const { html, text } = renderDigestEmail('weekly', [digestItem({ appUrl: 'https://app.capiro.ai/legiwatch?tab=feed&client=c9&alert=a9' })]);
+    expect(html).not.toMatch(/\/clients\/[^?]+\?tab=/);
+    expect(text).not.toMatch(/\/clients\/[^?]+\?tab=/);
   });
 });
 

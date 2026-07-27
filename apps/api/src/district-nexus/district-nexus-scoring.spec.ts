@@ -2,7 +2,9 @@ import { describe, expect, test } from '@jest/globals';
 import {
   NEXUS_COMPONENTS,
   NEXUS_COMPONENT_WEIGHTS,
+  compoundStrength,
   scoreNexus,
+  weakerStrength,
   type EvidenceStrength,
   type NexusScoreInput,
 } from './district-nexus-scoring.js';
@@ -107,6 +109,77 @@ describe('evidence strength', () => {
       components: { contractPlaceOfPerformance: { strength: 'statewide' } },
     });
     expect(result.warnings.some((w) => w.code === 'statewide_attribution')).toBe(true);
+  });
+
+  test('userProvided earns half weight', () => {
+    const result = scoreNexus({
+      components: { verifiedFacility: { strength: 'userProvided' } },
+    });
+    expect(result.breakdown.find((b) => b.component === 'verifiedFacility')?.credit).toBe(12.5);
+  });
+
+  test('userProvided is weaker than sourceAuthoritative and stronger-or-equal to statewide', () => {
+    expect(weakerStrength('userProvided', 'sourceAuthoritative')).toBe('userProvided');
+    expect(weakerStrength('statewide', 'userProvided')).toBe('statewide');
+  });
+
+  test('a userProvided component emits an inferred_entity_match warning', () => {
+    const result = scoreNexus({
+      components: { verifiedFacility: { strength: 'userProvided' } },
+    });
+    expect(result.warnings.some((w) => w.code === 'inferred_entity_match')).toBe(true);
+  });
+
+  test('compounded earns quarter weight, same as statewide numerically but a different fact', () => {
+    const result = scoreNexus({
+      components: { grantPlaceOfPerformance: { strength: 'compounded' } },
+    });
+    expect(result.breakdown.find((b) => b.component === 'grantPlaceOfPerformance')?.credit).toBe(2.5);
+  });
+
+  test('a compounded component emits BOTH contributing warnings, not a blended third one', () => {
+    const result = scoreNexus({
+      components: { grantPlaceOfPerformance: { strength: 'compounded' } },
+    });
+    expect(result.warnings.some((w) => w.code === 'inferred_entity_match')).toBe(true);
+    expect(result.warnings.some((w) => w.code === 'recipient_location_fallback')).toBe(true);
+    // Specifically NOT statewide_attribution — a compounded row is not statewide money.
+    expect(result.warnings.some((w) => w.code === 'statewide_attribution')).toBe(false);
+  });
+});
+
+/**
+ * Audit F2 follow-up (Neo, 2026-07-27 calibration decision): two independent
+ * weaknesses on the SAME row now multiply rather than collapsing to the
+ * weaker one alone. `compoundStrength` is the ONE place that rule lives —
+ * see its docblock for why this is a different function from
+ * `weakerStrength` rather than a mode flag on it.
+ */
+describe('compoundStrength', () => {
+  test('two independently-weak axes (0.5 x 0.5) compound to the new quarter-weight tier', () => {
+    expect(compoundStrength('inferred', 'recipientLocation')).toBe('compounded');
+    expect(compoundStrength('userProvided', 'recipientLocation')).toBe('compounded');
+  });
+
+  test('one full-strength axis leaves the other axis unchanged — no synthetic tier invented', () => {
+    expect(compoundStrength('sourceAuthoritative', 'recipientLocation')).toBe('recipientLocation');
+    expect(compoundStrength('inferred', 'sourceAuthoritative')).toBe('inferred');
+    expect(compoundStrength('verified', 'userProvided')).toBe('userProvided');
+  });
+
+  test('two full-strength axes compound to full strength', () => {
+    expect(compoundStrength('verified', 'sourceAuthoritative')).toBe('sourceAuthoritative');
+  });
+
+  test('absent short-circuits — 0 x anything is 0, never a quarter', () => {
+    expect(compoundStrength('absent', 'inferred')).toBe('absent');
+    expect(compoundStrength('recipientLocation', 'absent')).toBe('absent');
+  });
+
+  test('is commutative — the two axes have no inherent order', () => {
+    expect(compoundStrength('inferred', 'recipientLocation')).toBe(
+      compoundStrength('recipientLocation', 'inferred'),
+    );
   });
 });
 

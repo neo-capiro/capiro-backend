@@ -29,7 +29,7 @@ import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { harvestMailContacts } from '../contact-harvest.js';
 import { ClientAssociationService } from '../client-association.service.js';
-import { MICROSOFT_SCOPES, normalizePem } from './microsoft-oauth.service.js';
+import { MICROSOFT_SCOPES, normalizePem } from './microsoft-oauth-constants.js';
 import {
   MAX_SYNCED_MAIL_FOLDERS,
   selectSyncableFolders,
@@ -52,6 +52,11 @@ const MAX_CALENDAR_PAGES_PER_RUN = 12;
 const MAX_MAIL_PAGES_PER_FOLDER_PER_RUN = 12;
 const OUTLOOK_SUBSCRIPTION_MS = 6 * 24 * 60 * 60 * 1000;
 const SUBSCRIPTION_RENEWAL_SKEW_MS = 24 * 60 * 60 * 1000;
+// Upper bound on Retry-After-driven retries for ONE request. Without this the
+// 429/5xx branch below recursed unboundedly: a provider that keeps returning
+// the same retryable status with a small Retry-After could hold a request (and
+// its scheduler slot) open forever. 3 attempts = at most ~30s of backoff.
+const MAX_RETRYABLE_ATTEMPTS = 3;
 // Budget for BOTH phases of a persist: the unlocked phase-1 association read
 // and the phase-2 write txn that waits on the per-tenant sync advisory lock
 // (lockTenantForGraphSync) and then upserts. 20s gives headroom over the prior
@@ -393,6 +398,40 @@ export class MicrosoftGraphSyncService {
     );
 
     return { configured: true, subscriptions };
+  }
+
+  /**
+   * Best-effort delete of this connection's Graph subscriptions. Called from the
+   * disconnect path BEFORE the connection row is removed, so Graph stops posting
+   * notifications for a mailbox we no longer track (an orphaned subscription
+   * keeps firing for up to 6 days and every notification then fails to match a
+   * connection in handleNotifications). Never throws: the user's intent is to
+   * disconnect, and a Graph outage must not strand the local record.
+   */
+  async deleteSubscriptionsByTenant(tenantId: string, connectionId: string): Promise<number> {
+    let deleted = 0;
+    try {
+      const { connection, token } = await this.loadConnection(tenantId, connectionId);
+      const state = readSyncState(connection.syncState);
+      const subscriptions = state.webhooks?.subscriptions ?? [];
+      if (subscriptions.length === 0) return 0;
+      const accessToken = await this.getValidAccessToken(tenantId, connectionId, token);
+      for (const subscription of subscriptions) {
+        try {
+          await this.graphDelete(`/subscriptions/${encodeURIComponent(subscription.id)}`, accessToken);
+          deleted += 1;
+        } catch (err) {
+          this.logger.warn(
+            `Failed to delete Graph subscription ${subscription.id} for connection ${connectionId}: ${(err as Error).message}`,
+          );
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Graph subscription teardown skipped for connection ${connectionId}: ${(err as Error).message}`,
+      );
+    }
+    return deleted;
   }
 
   /**
@@ -1525,13 +1564,18 @@ export class MicrosoftGraphSyncService {
     await this.graphFetch<void>('POST', url, accessToken, body, {}, false);
   }
 
+  private async graphDelete(url: string, accessToken: string): Promise<void> {
+    await this.graphFetch<void>('DELETE', url, accessToken, undefined, {}, false);
+  }
+
   private async graphFetch<T>(
-    method: 'GET' | 'POST',
+    method: 'GET' | 'POST' | 'DELETE',
     url: string,
     accessToken: string,
     body?: unknown,
     headers: Record<string, string> = {},
     parseJson = true,
+    attempt = 1,
   ): Promise<T> {
     const target = url.startsWith('https://') ? url : `${GRAPH_BASE_URL}${url}`;
     const response = await fetch(target, {
@@ -1547,9 +1591,9 @@ export class MicrosoftGraphSyncService {
 
     if (response.status === 429 || response.status >= 500) {
       const retryAfter = Number(response.headers.get('retry-after') ?? '0');
-      if (retryAfter > 0 && retryAfter <= 10) {
+      if (retryAfter > 0 && retryAfter <= 10 && attempt < MAX_RETRYABLE_ATTEMPTS) {
         await sleep(retryAfter * 1000);
-        return this.graphFetch(method, url, accessToken, body, headers);
+        return this.graphFetch(method, url, accessToken, body, headers, parseJson, attempt + 1);
       }
     }
 

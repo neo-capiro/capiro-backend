@@ -263,6 +263,22 @@ export class ComputeStack extends cdk.Stack {
         )
       : undefined;
 
+    // Google Workspace OAuth (engagement Gmail/Calendar integration + the
+    // onboarding IT-admin test-connect). Both live out-of-band today; see
+    // config.ts externalSecretArns.googleClientId for provenance.
+    const googleClientIdSecret = importExternalSecret(
+      this,
+      'ImportedGoogleClientId',
+      `capiro/${cfg.envName}/GOOGLE_CLIENT_ID`,
+      cfg.externalSecretArns?.googleClientId,
+    );
+    const googleClientSecretSecret = importExternalSecret(
+      this,
+      'ImportedGoogleClientSecret',
+      `capiro/${cfg.envName}/GOOGLE_CLIENT_SECRET`,
+      cfg.externalSecretArns?.googleClientSecret,
+    );
+
     // ------------------------------------------------------------------ ECR
     // Repos are pre-created out-of-band so images can be pushed BEFORE the
     // first ComputeStack deploy (otherwise the Fargate service has no image
@@ -397,6 +413,10 @@ export class ComputeStack extends cdk.Stack {
           `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/anthropic-api-key*`,
           `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/recall-api-key*`,
           `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/recall-webhook-secret*`,
+          // Google Workspace OAuth. UPPER_SNAKE names, unlike every microsoft-*
+          // pattern above — see config.ts externalSecretArns.googleClientId.
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/GOOGLE_CLIENT_ID*`,
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/GOOGLE_CLIENT_SECRET*`,
         ],
       }),
     );
@@ -450,6 +470,8 @@ export class ComputeStack extends cdk.Stack {
       MICROSOFT_TENANT_ID: ecs.Secret.fromSecretsManager(microsoftTenantIdSecret),
       MICROSOFT_CERT_THUMBPRINT: ecs.Secret.fromSecretsManager(microsoftCertThumbprintSecret),
       MICROSOFT_CERT_PRIVATE_KEY: ecs.Secret.fromSecretsManager(microsoftCertPrivateKeySecret),
+      GOOGLE_CLIENT_ID: ecs.Secret.fromSecretsManager(googleClientIdSecret),
+      GOOGLE_CLIENT_SECRET: ecs.Secret.fromSecretsManager(googleClientSecretSecret),
       OAUTH_TOKEN_ENCRYPTION_KEY: ecs.Secret.fromSecretsManager(oauthTokenEncryptionKeySecret),
       OAUTH_STATE_SECRET: ecs.Secret.fromSecretsManager(oauthStateSecret),
       NOTES_ENCRYPTION_KEY: ecs.Secret.fromSecretsManager(notesEncryptionKeySecret),
@@ -502,6 +524,10 @@ export class ComputeStack extends cdk.Stack {
       APP_SIGN_IN_URL: `https://${cfg.appHost}/sign-in`,
       MICROSOFT_REDIRECT_URI: `https://${cfg.appHost}/api/engagement/integrations/microsoft/callback`,
       MICROSOFT_GRAPH_NOTIFICATION_URL: `https://${cfg.appHost}/api/engagement/integrations/microsoft/notifications`,
+      // Mirrors MICROSOFT_REDIRECT_URI above. Currently UNSET in the live task
+      // def, so the API runs on the config.schema.ts prod default — correct for
+      // app.capiro.ai, silently wrong for any other appHost (e.g. staging).
+      GOOGLE_REDIRECT_URI: `https://${cfg.appHost}/api/engagement/integrations/google/callback`,
       // MeriV2 grounding subsystem — codified to match the LIVE prod task def
       // (these three are currently applied OUT-OF-BAND, so a cdk deploy would
       // silently DROP them and regress prod: MeriV2 would turn OFF and the Deep
@@ -624,6 +650,11 @@ export class ComputeStack extends cdk.Stack {
       // Recall.ai meeting-notetaker secrets (serve task).
       `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/recall-api-key*`,
       `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/recall-webhook-secret*`,
+      // Google Workspace OAuth. UPPER_SNAKE names — the lower-kebab patterns
+      // above do NOT match these, and a mismatch means "unable to pull secrets"
+      // and a circuit-breaker rollback on the next task start.
+      `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/GOOGLE_CLIENT_ID*`,
+      `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/GOOGLE_CLIENT_SECRET*`,
     ];
 
     grantSecretsAndKmsToExecutionRole(

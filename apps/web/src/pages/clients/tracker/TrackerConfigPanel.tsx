@@ -698,7 +698,13 @@ export function TrackerConfigPanel({
         onSavePrefs({
           triggers: Array.from(triggers),
           materiality,
-          emailEnabled,
+          // MP-04: mirrors the SMS composite guard immediately below — the
+          // toggle can be flipped on before an address is typed, but the
+          // ENABLED value actually sent stays false until there is one, so a
+          // save can never persist emailEnabled:true with no address. The
+          // blocked-save-state message just below the field is the visible
+          // half of this fix.
+          emailEnabled: emailEnabled && !!emailAddress.trim(),
           emailAddress: emailAddress.trim() || null,
           emailCadence,
           smsEnabled: smsEnabled && smsVerified && !!smsPhone,
@@ -954,9 +960,13 @@ export function TrackerConfigPanel({
                 </button>
               ))}
             </div>
+            {/* P2-15 (Gate E phase e): this predated state bills, hearings,
+                regulations, and Program Elements — said "the recommendation
+                matcher" as if bills were the only thing selected areas fed. */}
             <div className="cfg-help">
-              Capiro-managed taxonomy. Selected areas seed the recommendation matcher and alert
-              routing.
+              Capiro-managed taxonomy. Selected areas seed matching across every source type —
+              bills, state bills, hearings, regulations, and Program Elements — for Recommendations
+              and alert routing.
             </div>
           </div>
 
@@ -1036,9 +1046,13 @@ export function TrackerConfigPanel({
                 Targeting is not being saved — every tag needs a unique name.
               </div>
             )}
+            {/* P2-15 (Gate E phase e): predated the 11 typed-term types Gate B
+                wired (this said "embeddings + keyword match" as if the three
+                legacy chip inputs were the whole story). */}
             <div className="cfg-help" style={{ marginTop: 10 }}>
-              Synonyms, related entities, and risk terms tune the embeddings + keyword match behind
-              Recommendations.
+              Synonyms, related entities, risk terms, and typed terms — bills, agencies,
+              committees, legislators, companies, competitors, Program Elements — tune the
+              keyword and entity match behind Recommendations and alert relevance.
             </div>
             {watchlist.rejected?.terms?.length ? (
               <div className="cfg-help" role="alert">
@@ -1164,7 +1178,12 @@ export function TrackerConfigPanel({
                   </span>
                   <div style={{ flex: 1 }}>
                     <div className="chan-name">In-app</div>
-                    <div className="chan-sub">Changes inbox + unread dots on board cards</div>
+                    {/* P2-15 (Gate E phase e): predated hearings/state
+                        bills/regulations/Program Elements on this surface. */}
+                    <div className="chan-sub">
+                      Changes inbox, feed, and unread markers across bills, hearings, regulations,
+                      and Program Elements
+                    </div>
                   </div>
                   <span className="chan-lock">Always on</span>
                   <button
@@ -1186,7 +1205,19 @@ export function TrackerConfigPanel({
                   </span>
                   <div style={{ flex: 1 }}>
                     <div className="chan-name">Email</div>
-                    <div className="chan-sub">Full context — bill, change, why it matters</div>
+                    {/* HP-07 (Gate G e-5): the prior copy — "Full context ... "
+                        with no source qualifier — read as covering the whole
+                        unified Feed. The email renderer registry
+                        (ALERT_EMAIL_RENDERERS, apps/intel-api) only covers
+                        bill + state_bill today; hearing/regulation/Program
+                        Element alerts never emailed regardless of this
+                        toggle. State that honestly rather than imply full
+                        Feed coverage. */}
+                    <div className="chan-sub">
+                      Bills and state bills only, for now — what changed, why it matters to this
+                      client, and the official source. Hearings, regulations, and Program Elements
+                      don't email yet; watch them in the Feed instead.
+                    </div>
                   </div>
                   {/* P1-12: an unlabelled toggle with no pressed state — a
                       screen reader announced only "button". */}
@@ -1208,6 +1239,14 @@ export function TrackerConfigPanel({
                         onChange={(e) => setEmailAddress(e.target.value)}
                       />
                     </div>
+                    {/* MP-04: the toggle reads "on", but nothing saves as enabled
+                        until an address exists — say so, rather than letting the
+                        UI silently disagree with what was actually persisted. */}
+                    {!emailAddress.trim() && (
+                      <div className="chan-sub" role="alert">
+                        Not saved as enabled — add an address to activate email delivery
+                      </div>
+                    )}
                     <CadenceSeg
                       value={emailCadence}
                       onChange={setEmailCadence}

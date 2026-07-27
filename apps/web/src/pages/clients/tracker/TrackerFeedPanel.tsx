@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNavigate } from 'react-router-dom';
 import { useBillTarget } from '../../bills/bill-target.js';
 import { App as AntApp, Input, Modal } from 'antd';
@@ -18,6 +19,7 @@ import {
   type FeedResponse,
   type RecommendedAction,
 } from './intel-feed-api.js';
+import { intelTrackerPaths } from './intel-tracker-api.js';
 import {
   useAddTalkingPoint,
   useBulkWorkState,
@@ -99,6 +101,23 @@ function Ic({ n, size = 12 }: { n: string; size?: number }) {
       <path d={paths[n] ?? paths.file} />
     </svg>
   );
+}
+
+/**
+ * P2-15 (Gate E phase e): the feed's empty state said "a tracked bill moves
+ * or a hearing hits" — predating state bills, regulations, and Program
+ * Elements, all of which the SAME feed already carries (FeedItem.sourceType
+ * has covered all six for a while; the copy just never caught up). Built
+ * FROM SOURCE_LABEL rather than a second hard-coded list, so it cannot drift
+ * from the real source types again. "combined" is a bill+hearing pairing
+ * marker, not a distinct source, so it is excluded from the enumeration.
+ */
+const FEED_SOURCE_NAMES = Object.entries(SOURCE_LABEL)
+  .filter(([k]) => k !== 'combined')
+  .map(([, label]) => label.toLowerCase());
+function joinWithOr(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? '';
+  return `${items.slice(0, -1).join(', ')}, or ${items[items.length - 1]}`;
 }
 
 const ACTION_ICON: Record<string, string> = {
@@ -288,7 +307,20 @@ function FeedCard({
     setWorkState.mutate(
       { clientId: item.clientId, alertId: item.id, ...patch },
       {
-        onSuccess: () => message.success(done),
+        onSuccess: () => {
+          message.success(done);
+          // §4.10 (f-5): Gate D phase e's `dismissed` work state, fired only on
+          // the transition INTO it — best-effort, never blocks the triage UX.
+          if (patch.state === 'dismissed') {
+            void api
+              .post(intelTrackerPaths.feedback(item.clientId), {
+                targetRef: item.id,
+                targetType: 'alert',
+                signal: 'alert_ignored',
+              })
+              .catch(() => {});
+          }
+        },
         onError: (e: unknown) => message.error(`Could not update: ${(e as Error).message}`),
       },
     );
@@ -706,6 +738,98 @@ function FeedCard({
   );
 }
 
+/**
+ * P1-18 (Gate E phase c): the feed's flat (non-grouped) item list virtualizes
+ * once a loaded page set exceeds 100 items — only DOM nodes near the visible
+ * window are mounted. Below that, render normally (c-2). FeedCard's height
+ * varies hugely between collapsed and expanded (quotes, actions, confidence
+ * block all appear only when open), so `measureElement` (dynamic
+ * measurement) is used rather than trusting a fixed estimate.
+ *
+ * The GROUPED-by-client arrangement (global + group=true) is intentionally
+ * NOT virtualized here — group boundaries make windowing meaningfully more
+ * complex, and it is an opt-in, less-common view where each group is
+ * typically much smaller than the full page anyway.
+ */
+const FEED_VIRTUALIZE_THRESHOLD = 100;
+
+function FeedItemsList({
+  items,
+  onAction,
+  showClient,
+  onScopeClient,
+  members,
+  selectedIds,
+  toggleSelect,
+  focusAlertId,
+  onFocused,
+}: {
+  items: FeedItem[];
+  onAction: (a: RecommendedAction, item: FeedItem) => void;
+  showClient: boolean;
+  onScopeClient?: (clientId: string) => void;
+  members: TeamMemberOption[];
+  selectedIds: string[];
+  toggleSelect: (alertId: string) => void;
+  focusAlertId?: string | null;
+  onFocused?: () => void;
+}) {
+  const parentRef = useRef<HTMLDivElement | null>(null);
+  const shouldVirtualize = items.length > FEED_VIRTUALIZE_THRESHOLD;
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 90,
+    overscan: 6,
+    enabled: shouldVirtualize,
+  });
+
+  const card = (it: FeedItem) => (
+    <FeedCard
+      key={it.id}
+      item={it}
+      onAction={onAction}
+      showClient={showClient}
+      onScopeClient={onScopeClient}
+      members={members}
+      selected={selectedIds.includes(it.id)}
+      onToggleSelect={toggleSelect}
+      autoExpand={focusAlertId === it.id}
+      onAutoExpanded={onFocused}
+    />
+  );
+
+  if (!shouldVirtualize) {
+    return <div className="feed">{items.map(card)}</div>;
+  }
+
+  return (
+    <div
+      ref={parentRef}
+      className="feed feed-virtual"
+      tabIndex={0}
+      role="group"
+      aria-label={`${items.length} alerts loaded — scroll for more`}
+    >
+      <div style={{ height: virtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
+        {virtualizer.getVirtualItems().map((vi) => {
+          const it = items[vi.index]!;
+          return (
+            <div
+              key={it.id}
+              data-index={vi.index}
+              ref={virtualizer.measureElement}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)` }}
+            >
+              {card(it)}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function TrackerFeedPanel({
   clientId,
   clientName,
@@ -956,10 +1080,9 @@ export function TrackerFeedPanel({
       if (!ids.has(it.id)) continue;
       byClient.set(it.clientId, [...(byClient.get(it.clientId) ?? []), it.id]);
     }
+    const groups = [...byClient.entries()];
     void Promise.allSettled(
-      [...byClient.entries()].map(([cid, alertIds]) =>
-        bulkWorkState.mutateAsync({ clientId: cid, alertIds, state }),
-      ),
+      groups.map(([cid, alertIds]) => bulkWorkState.mutateAsync({ clientId: cid, alertIds, state })),
     ).then((results) => {
       let ok = 0;
       let failed = 0;
@@ -967,6 +1090,21 @@ export function TrackerFeedPanel({
         if (r.status === 'fulfilled') {
           ok += r.value.ok;
           failed += r.value.failed;
+          // §4.10 (f-5): only when the WHOLE group succeeded — the bulk result
+          // is a count, not per-id outcomes, so a partial failure can't tell us
+          // which ids to attribute the signal to. Conservative: skip the group.
+          if (state === 'dismissed' && r.value.failed === 0) {
+            const [cid, alertIds] = groups[i]!;
+            for (const alertId of alertIds) {
+              void api
+                .post(intelTrackerPaths.feedback(cid), {
+                  targetRef: alertId,
+                  targetType: 'alert',
+                  signal: 'alert_ignored',
+                })
+                .catch(() => {});
+            }
+          }
         } else {
           failed += [...byClient.values()][i]?.length ?? 1;
         }
@@ -1016,8 +1154,8 @@ export function TrackerFeedPanel({
           <h4>Nothing new right now</h4>
           <p>
             {global
-              ? 'When a tracked bill moves or a hearing hits any client’s watchlist, it lands here — newest first.'
-              : `When a tracked bill moves or a hearing mentions ${clientName ?? 'this client'}’s watchlist, it lands here.`}
+              ? `When a ${joinWithOr(FEED_SOURCE_NAMES)} moves for any client, it lands here — newest first.`
+              : `When a ${joinWithOr(FEED_SOURCE_NAMES)} moves for ${clientName ?? 'this client'}, it lands here.`}
           </p>
         </div>
       );
@@ -1072,21 +1210,18 @@ export function TrackerFeedPanel({
       );
     }
     return (
-      <div className="feed">
-        {items.map((it) => (
-          <FeedCard
-            key={it.id}
-            item={it}
-            onAction={onAction}
-            showClient={global}
-            onScopeClient={onScopeClient}
-            members={members}
-            selected={selectedIds.includes(it.id)}
-            onToggleSelect={toggleSelect}
-            autoExpand={focusAlertId === it.id}
-            onAutoExpanded={onFocused}
-          />
-        ))}
+      <>
+        <FeedItemsList
+          items={items}
+          onAction={onAction}
+          showClient={global}
+          onScopeClient={onScopeClient}
+          members={members}
+          selectedIds={selectedIds}
+          toggleSelect={toggleSelect}
+          focusAlertId={focusAlertId}
+          onFocused={onFocused}
+        />
         {query.hasNextPage && (
           <button
             className="btn"
@@ -1097,7 +1232,7 @@ export function TrackerFeedPanel({
             {query.isFetchingNextPage ? 'Loading…' : 'Load more'}
           </button>
         )}
-      </div>
+      </>
     );
   })();
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, App as AntApp, Button, Form, Input, List, Modal, Select, Spin, Tag, Typography } from 'antd';
 import { AudioOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -91,6 +91,39 @@ function buildPresetTitle(r: UpcomingHearing): string {
  *  hearing/markup do not. Kept in sync with intel-api's requiresConsent(). */
 const PRIVATE_SOURCE_TYPES = new Set(['meeting', 'webinar', 'agency_session']);
 
+/** A `[Postponed]`/`[Cancelled]` prefix means the event never happened —
+ *  there is genuinely nothing to watch. Mirrors the ScheduleView row-render
+ *  check so `hearingCapability` (below) can be the single source of truth. */
+function isPostponedOrCancelled(title: string): boolean {
+  const m = /^\[([^\]]+)\]\s*/.exec(title ?? '');
+  const label = m?.[1] ?? null;
+  return !!label && /postpon|cancel/i.test(label);
+}
+
+/**
+ * P2-14: the CTA used to be chosen by tense alone — "Watch recording" for
+ * past, "Watch live" for upcoming — regardless of whether anything was
+ * actually playable. `UpcomingHearing` carries no stream-capability field at
+ * all (no hasStream/streamStatus), and `onWatch` always opens the SAME
+ * resolver modal regardless of capability — which can succeed via a
+ * server-side hearingId lookup even when the row itself has no client-visible
+ * `url`. That means the row cannot honestly distinguish "will resolve to a
+ * direct stream" from "needs browser-tab capture" from "not live yet"
+ * without actually calling the resolver — so per the plan's own fallback,
+ * this collapses to two HONEST states rather than guessing a four-way split
+ * that risks landing on a dead stream (the exact P2-14 bug). The resolver
+ * modal (NewHearingModal) already presents the real outcome on open via its
+ * resolved/pending/candidates/unresolvable Alert states.
+ */
+export type HearingCapability = 'available' | 'unavailable';
+export const CAPABILITY_LABEL: Record<HearingCapability, string> = {
+  available: 'Set up transcription',
+  unavailable: 'Recording unavailable',
+};
+export function hearingCapability(row: UpcomingHearing): HearingCapability {
+  return isPostponedOrCancelled(row.title) ? 'unavailable' : 'available';
+}
+
 type HearingSub = 'schedule' | 'sessions';
 
 /**
@@ -151,26 +184,78 @@ export function HearingWatchPanel() {
   );
 }
 
+/**
+ * P2-13: the archive was pinned to the first 50 with no way forward — the
+ * UI just told the user to refine their search. `useBrowseHearings` takes an
+ * offset, but the BACKEND clamps `limit` to 100
+ * (upcoming-hearings.service.ts:75, `clamp(opts.limit ?? 25, 1, 100)`) — a
+ * growing-limit pattern (limit: PAGE * pagesLoaded) would silently stop
+ * growing past 100 and every "Load more" after that would be a no-op
+ * (exactly the P2-13 failure class). This pages by a FIXED limit and a
+ * growing offset instead, accumulating pages in a Map keyed by offset so a
+ * background refetch of an already-loaded page replaces its slot rather
+ * than duplicating rows.
+ */
+const ARCHIVE_PAGE = 50;
+
 /** The schedule: Upcoming|Archive segmented toggle + search over an editorial table. */
 function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
   const [when, setWhen] = useState<'upcoming' | 'past'>('upcoming');
   const [q, setQ] = useState('');
+  const [archiveOffset, setArchiveOffset] = useState(0);
+  const [archivePagesByOffset, setArchivePagesByOffset] = useState<Map<number, UpcomingHearing[]>>(
+    () => new Map(),
+  );
+  // A CHANGED offset means useBrowseHearings returns a brand-new query with
+  // `data` transiently undefined until it resolves. Reading `total` straight
+  // off `archive.data` would drop it to 0 for that window, which makes the
+  // Load-more button's own render condition (`total > rows.length`) hide the
+  // button entirely mid-fetch instead of showing "Loading…" — tracking the
+  // last-seen total separately keeps it stable across that gap.
+  const [archiveTotalSeen, setArchiveTotalSeen] = useState(0);
   const upcoming = useUpcomingHearings();
   const archive = useBrowseHearings({
     scope: 'past',
     search: q.trim() || undefined,
-    limit: 50,
-    offset: 0,
+    limit: ARCHIVE_PAGE,
+    offset: archiveOffset,
   });
 
-  const loading = when === 'upcoming' ? upcoming.isLoading : archive.isLoading;
+  // d-2: a new search must not inherit the old depth.
+  useEffect(() => {
+    setArchiveOffset(0);
+    setArchivePagesByOffset(new Map());
+    setArchiveTotalSeen(0);
+  }, [q]);
+
+  useEffect(() => {
+    if (!archive.data) return;
+    setArchivePagesByOffset((prev) => {
+      const next = new Map(prev);
+      next.set(archiveOffset, archive.data!.items);
+      return next;
+    });
+    setArchiveTotalSeen(archive.data.total);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [archive.data, archiveOffset]);
+
+  const archiveRows = useMemo(() => {
+    const offsets = [...archivePagesByOffset.keys()].sort((a, b) => a - b);
+    return offsets.flatMap((o) => archivePagesByOffset.get(o)!);
+  }, [archivePagesByOffset]);
+
+  // The FULL spinner only for the very first fetch — a "Load more" fetch of
+  // a LATER page must not blank out the rows already accumulated (that would
+  // lose scroll position, the opposite of P2-13's fix).
+  const archiveInitialLoading = archive.isLoading && archivePagesByOffset.size === 0;
+  const loading = when === 'upcoming' ? upcoming.isLoading : archiveInitialLoading;
   const rows: UpcomingHearing[] =
     when === 'upcoming'
       ? (upcoming.data ?? []).filter(
           (r) => !q.trim() || `${r.title} ${r.committee}`.toLowerCase().includes(q.toLowerCase()),
         )
-      : archive.data?.items ?? [];
-  const archiveTotal = archive.data?.total ?? 0;
+      : archiveRows;
+  const archiveTotal = archiveTotalSeen;
 
   return (
     <div className="stack" style={{ gap: 12 }}>
@@ -205,7 +290,11 @@ function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
         </div>
       </div>
 
-      <div className="card" style={{ overflow: 'hidden' }}>
+      {/* P2-11 (phase b, b-4): overflow-x:auto is the FLOOR — nothing is
+          unreachable above 768px even before the card-stacking layout below
+          768px takes over (legiwatch.css). overflow-y stays hidden so the
+          rounded corners still clip the table body vertically. */}
+      <div className="card" style={{ overflowX: 'auto', overflowY: 'hidden' }}>
         <table className="htable">
           <thead>
             <tr>
@@ -243,15 +332,19 @@ function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
                 const statusMatch = /^\[([^\]]+)\]\s*/.exec(r.title);
                 const statusLabel = statusMatch?.[1] ?? null;
                 const cleanTitle = statusMatch ? r.title.slice(statusMatch[0].length) : r.title;
-                const noRecording = !!statusLabel && /postpon|cancel/i.test(statusLabel);
+                const capability = hearingCapability(r);
                 return (
                   <tr key={r.id}>
-                    <td className="num" style={{ whiteSpace: 'nowrap' }}>
+                    {/* P2-11 (b-4): data-label feeds legiwatch.css's td::before on
+                        the card-stacked layout below 768px — every data cell
+                        needs one; the trailing action cell gets '' so its
+                        (redundant) label is suppressed there. */}
+                    <td className="num" data-label="Date" style={{ whiteSpace: 'nowrap' }}>
                       {formatHearingDate(r.scheduledAt)}
                       {r.time ? <span className="muted"> · {r.time}</span> : null}
                     </td>
-                    <td>{r.committee}</td>
-                    <td>
+                    <td data-label="Committee">{r.committee}</td>
+                    <td data-label="Type">
                       <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
                         {r.type ? (
                           <span className="chip muted" style={{ fontSize: 10.5 }}>
@@ -274,7 +367,7 @@ function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
                         ) : null}
                       </span>
                     </td>
-                    <td style={{ fontWeight: 500 }}>
+                    <td data-label="Title" style={{ fontWeight: 500 }}>
                       {r.url ? (
                         <a href={r.url} target="_blank" rel="noreferrer">
                           {cleanTitle}
@@ -283,14 +376,19 @@ function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
                         cleanTitle
                       )}
                     </td>
-                    <td style={{ textAlign: 'right' }}>
-                      {noRecording ? (
-                        <span className="mini muted" title={`${statusLabel} — nothing to watch`}>
-                          No recording
+                    {/* P2-14: label chosen by CAPABILITY, not tense — "Watch
+                        live" no longer appears regardless of source state. */}
+                    <td data-label="" style={{ textAlign: 'right' }}>
+                      {capability === 'unavailable' ? (
+                        <span
+                          className="mini muted"
+                          title={statusLabel ? `${statusLabel} — nothing to watch` : 'Recording unavailable'}
+                        >
+                          {CAPABILITY_LABEL.unavailable}
                         </span>
                       ) : (
                         <button className="btn btn-accent sm" onClick={() => onWatch(r)}>
-                          <Ic n="play" size={12} /> {when === 'past' ? 'Watch recording' : 'Watch live'}
+                          <Ic n="play" size={12} /> {CAPABILITY_LABEL.available}
                         </button>
                       )}
                     </td>
@@ -301,9 +399,24 @@ function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
           </tbody>
         </table>
       </div>
+      {/* P2-13: a working control instead of "refine your search to narrow".
+          Growing the offset (not the limit) keeps every loaded row in the
+          Map above, so scroll position and sort survive a Load-more with no
+          risk of hitting the server's limit clamp. */}
       {when === 'past' && archiveTotal > rows.length && (
-        <div className="muted mini" style={{ textAlign: 'center' }}>
-          Showing {rows.length} of {archiveTotal.toLocaleString()} — refine your search to narrow.
+        <div style={{ textAlign: 'center' }}>
+          <button
+            className="btn"
+            onClick={() => setArchiveOffset(rows.length)}
+            disabled={archive.isFetching}
+          >
+            {archive.isFetching
+              ? 'Loading…'
+              : `Load ${Math.min(ARCHIVE_PAGE, archiveTotal - rows.length)} more`}
+          </button>
+          <div className="muted mini" style={{ marginTop: 6 }}>
+            Showing {rows.length} of {archiveTotal.toLocaleString()}
+          </div>
         </div>
       )}
     </div>
