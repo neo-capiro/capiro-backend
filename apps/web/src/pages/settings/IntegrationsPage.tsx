@@ -217,6 +217,20 @@ export function IntegrationsPage() {
     onError: (err) => message.error(err instanceof Error ? err.message : 'Disconnect failed'),
   });
 
+  const disconnectMicrosoft = useMutation({
+    mutationFn: async (connectionId: string) =>
+      (await api.delete(`/api/engagement/integrations/microsoft/${connectionId}`)).data,
+    onSuccess: () => {
+      message.success('Microsoft 365 disconnected');
+      qc.invalidateQueries({ queryKey: ['engagement-integrations'] });
+      qc.invalidateQueries({ queryKey: ['engagement-meetings'] });
+      qc.invalidateQueries({ queryKey: ['engagement-mail-threads'] });
+      qc.invalidateQueries({ queryKey: ['client-meetings'] });
+      qc.invalidateQueries({ queryKey: ['client-mail-threads'] });
+    },
+    onError: (err) => message.error(err instanceof Error ? err.message : 'Disconnect failed'),
+  });
+
   // Surface success / error from the OAuth callback redirect (both providers).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -334,20 +348,32 @@ export function IntegrationsPage() {
                         {/* Disconnect is offered for ANY status: a connected
                             account can be removed, and an errored/stale one
                             (revoked token) can be cleared out too. */}
-                        {provider.key === 'google_workspace' ? (
+                        {provider.key === 'google_workspace' || provider.key === 'microsoft_365' ? (
                           <Button
                             size="small"
                             danger
-                            loading={disconnectGoogle.isPending}
+                            loading={
+                              provider.key === 'google_workspace'
+                                ? disconnectGoogle.isPending
+                                : disconnectMicrosoft.isPending
+                            }
                             onClick={() =>
                               modal.confirm({
-                                title: 'Disconnect Google Workspace?',
+                                title:
+                                  provider.key === 'google_workspace'
+                                    ? 'Disconnect Google Workspace?'
+                                    : 'Disconnect Microsoft 365?',
                                 content:
-                                  'This revokes Capiro’s access to this Google account and removes the connection. Previously synced meetings and mail are kept; future syncing stops until you reconnect.',
+                                  provider.key === 'google_workspace'
+                                    ? 'This revokes Capiro’s access to this Google account and removes the connection. Previously synced meetings and mail are kept; future syncing stops until you reconnect.'
+                                    : 'This removes Capiro’s stored access for this Outlook mailbox and stops all syncing. Previously synced meetings and mail are kept. To also withdraw the app permission itself, visit myapplications.microsoft.com.',
                                 okText: 'Disconnect',
                                 okButtonProps: { danger: true },
                                 cancelText: 'Cancel',
-                                onOk: () => disconnectGoogle.mutateAsync(connection.id),
+                                onOk: () =>
+                                  provider.key === 'google_workspace'
+                                    ? disconnectGoogle.mutateAsync(connection.id)
+                                    : disconnectMicrosoft.mutateAsync(connection.id),
                               })
                             }
                           >

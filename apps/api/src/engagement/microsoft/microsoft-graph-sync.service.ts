@@ -29,7 +29,7 @@ import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { harvestMailContacts } from '../contact-harvest.js';
 import { ClientAssociationService } from '../client-association.service.js';
-import { MICROSOFT_SCOPES, normalizePem } from './microsoft-oauth.service.js';
+import { MICROSOFT_SCOPES, normalizePem } from './microsoft-oauth-constants.js';
 import {
   MAX_SYNCED_MAIL_FOLDERS,
   selectSyncableFolders,
@@ -398,6 +398,40 @@ export class MicrosoftGraphSyncService {
     );
 
     return { configured: true, subscriptions };
+  }
+
+  /**
+   * Best-effort delete of this connection's Graph subscriptions. Called from the
+   * disconnect path BEFORE the connection row is removed, so Graph stops posting
+   * notifications for a mailbox we no longer track (an orphaned subscription
+   * keeps firing for up to 6 days and every notification then fails to match a
+   * connection in handleNotifications). Never throws: the user's intent is to
+   * disconnect, and a Graph outage must not strand the local record.
+   */
+  async deleteSubscriptionsByTenant(tenantId: string, connectionId: string): Promise<number> {
+    let deleted = 0;
+    try {
+      const { connection, token } = await this.loadConnection(tenantId, connectionId);
+      const state = readSyncState(connection.syncState);
+      const subscriptions = state.webhooks?.subscriptions ?? [];
+      if (subscriptions.length === 0) return 0;
+      const accessToken = await this.getValidAccessToken(tenantId, connectionId, token);
+      for (const subscription of subscriptions) {
+        try {
+          await this.graphDelete(`/subscriptions/${encodeURIComponent(subscription.id)}`, accessToken);
+          deleted += 1;
+        } catch (err) {
+          this.logger.warn(
+            `Failed to delete Graph subscription ${subscription.id} for connection ${connectionId}: ${(err as Error).message}`,
+          );
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Graph subscription teardown skipped for connection ${connectionId}: ${(err as Error).message}`,
+      );
+    }
+    return deleted;
   }
 
   /**
@@ -1530,8 +1564,12 @@ export class MicrosoftGraphSyncService {
     await this.graphFetch<void>('POST', url, accessToken, body, {}, false);
   }
 
+  private async graphDelete(url: string, accessToken: string): Promise<void> {
+    await this.graphFetch<void>('DELETE', url, accessToken, undefined, {}, false);
+  }
+
   private async graphFetch<T>(
-    method: 'GET' | 'POST',
+    method: 'GET' | 'POST' | 'DELETE',
     url: string,
     accessToken: string,
     body?: unknown,
