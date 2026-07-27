@@ -221,7 +221,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     );
 
     // 3. Load every requested version with its artifact + current version.
-    const versions = await this.loadSendableVersions(ctx, versionIds, testMode);
+    const versions = await this.loadSendableVersions(ctx, outreachRecordId, versionIds, testMode);
 
     // 4. Attachments: resolved, size-checked and REJECTED up front. A file over
     //    the inline limit fails intent creation — it is never silently skipped,
@@ -234,6 +234,20 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     if (testMode && !signature.senderEmail) {
       throw new BadRequestException('Your user has no email on file for a test send.');
     }
+
+    // Remediation plan §3.c6: bind requestKey to what was actually asked for,
+    // computed once from the same validated inputs everything else below
+    // uses — never re-derived later from whatever the DB happens to hold.
+    const requestFingerprint = sendIntentRequestFingerprint({
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      outreachRecordId,
+      senderConnectionId: connection.id,
+      versionIds,
+      manifest,
+      appendSignature: signature.appendSignature,
+      testMode,
+    });
 
     const provider = connection.provider === 'google_workspace' ? 'gmail' : 'microsoft_graph';
     const planned = versions.map((v) => {
@@ -280,14 +294,37 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const existing = await tx.outreachSendIntent.findFirst({
         where: { tenantId: ctx.tenantId, userId: ctx.userId, requestKey },
-        select: { id: true },
+        select: { id: true, requestFingerprint: true },
       });
-      // Edge case 9: a duplicate request key returns the EXISTING intent and
-      // creates nothing. The provider is not called a second time.
-      if (existing) return { intentId: existing.id, deduped: true };
+      if (existing) {
+        // Edge case 9 / plan §3.c7: the SAME request key AND the SAME
+        // canonical payload is a genuine retry — return the EXISTING intent
+        // and create nothing; the provider is not called a second time.
+        if (existing.requestFingerprint === requestFingerprint) {
+          return { intentId: existing.id, deduped: true };
+        }
+        // The same client-minted key was reused for a MATERIALLY DIFFERENT
+        // request (different versions, mailbox, attachments, signature
+        // choice, or test mode). Silently returning the old intent here
+        // would send the wrong content, or nothing at all, under the name of
+        // what the caller just asked for — refuse instead of guessing.
+        throw new ConflictException({
+          statusCode: 409,
+          error: 'OUTREACH_REQUEST_KEY_REUSED',
+          message:
+            'This request key was already used for a different send request. ' +
+            'Use a new request key for this send.',
+        });
+      }
 
-      // TOCTOU re-check: sendability is re-read inside the write transaction, so
-      // a version edited/held between validation and commit cannot be sent.
+      // TOCTOU re-check (plan §3.c3): sendability, OWNER, and CAMPAIGN
+      // BINDING are all re-read fresh inside the write transaction — never
+      // trusted from the pre-transaction load above — so a version edited,
+      // reassigned, held, or deleted between validation and commit cannot be
+      // sent. A row-count mismatch (plan edge case #5) means a version
+      // vanished in that window and must reject exactly like a mismatch found
+      // on a still-present row: every failure mode here is "something changed,
+      // reload and try again," not a new user-facing category.
       const stillCurrent = await tx.outreachDraftVersion.findMany({
         where: { id: { in: planned.map((p) => p.versionId) }, tenantId: ctx.tenantId },
         select: {
@@ -295,11 +332,20 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
           version: true,
           auditStatus: true,
           approvalStatus: true,
-          artifact: { select: { currentVersion: true } },
+          artifact: {
+            select: { currentVersion: true, createdByUserId: true, outreachRecordId: true },
+          },
         },
       });
+      if (stillCurrent.length !== planned.length) {
+        throw new ConflictException(
+          'A draft changed while the send was being prepared. Reload and try again.',
+        );
+      }
       for (const v of stillCurrent) {
         if (
+          v.artifact.createdByUserId !== ctx.userId ||
+          v.artifact.outreachRecordId !== outreachRecordId ||
           v.version !== v.artifact.currentVersion ||
           !isDraftVersionSendable({
             auditStatus: v.auditStatus as DraftAuditStatus,
@@ -319,6 +365,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
           outreachRecordId,
           senderConnectionId: connection.id,
           requestKey,
+          requestFingerprint,
           appendSignature: signature.appendSignature,
           attachmentIds: attachmentIds as unknown as object,
           testMode,
@@ -818,21 +865,39 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     const record = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.outreachRecord.findFirst({
         where: { id: outreachRecordId, tenantId: ctx.tenantId, deletedAt: null },
-        select: { id: true, createdByUserId: true },
+        select: { id: true, createdByUserId: true, status: true },
       }),
     );
     if (!record || record.createdByUserId !== ctx.userId) {
       throw new NotFoundException('Outreach draft record not found');
+    }
+    // Remediation plan §3.c1: a send intent may only be created against a
+    // campaign that is STILL a draft. Once it has moved on (sent, failed,
+    // canceled, delivery_unknown…) it exists and is owned — this is a 409,
+    // not the ownership 404 above — but a NEW intent against it makes no
+    // sense: rollUpIntent mirrors totals onto exactly this record, and a
+    // second concurrent intent would corrupt whichever campaign's stats
+    // "win" the race.
+    if (record.status !== 'draft') {
+      throw new ConflictException(
+        'This campaign is no longer a draft; a new send intent cannot be created for it.',
+      );
     }
     return record.id;
   }
 
   /**
    * Load the requested versions and refuse anything not safe to send: a
-   * superseded version, a version that fails the audit/approval gate, or (when
-   * the v2 gate is on) a REAL send of a legacy-prompt draft.
+   * version from a DIFFERENT campaign, a superseded version, a version that
+   * fails the audit/approval gate, or (when the v2 gate is on) a REAL send of
+   * a legacy-prompt draft.
    */
-  private async loadSendableVersions(ctx: TenantContext, versionIds: string[], testMode: boolean) {
+  private async loadSendableVersions(
+    ctx: TenantContext,
+    outreachRecordId: string,
+    versionIds: string[],
+    testMode: boolean,
+  ) {
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.outreachDraftVersion.findMany({
         where: { id: { in: versionIds }, tenantId: ctx.tenantId },
@@ -862,8 +927,14 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
       throw new NotFoundException('One or more drafts could not be found.');
     }
     for (const v of rows) {
-      if (v.artifact.createdByUserId !== ctx.userId) {
-        // Owner-private: same 404 as missing (no existence leak).
+      // Remediation plan §3.c2/c4: owner-private AND campaign-bound. A
+      // version from one of the caller's OWN other campaigns is just as
+      // invalid for THIS intent as one that doesn't exist — mixing campaigns
+      // into one intent would mean rollUpIntent mirrors a delivery's outcome
+      // onto the wrong OutreachRecord's stats. Same 404 either way: no
+      // existence leak, and no separate "wrong campaign" signal to a caller
+      // who already owns both records.
+      if (v.artifact.createdByUserId !== ctx.userId || v.artifact.outreachRecordId !== outreachRecordId) {
         throw new NotFoundException('One or more drafts could not be found.');
       }
       if (v.version !== v.artifact.currentVersion) {
@@ -1065,6 +1136,47 @@ export function deliveryIdempotencyKey(input: {
     cc: addrs(input.envelope.cc ?? []),
     bcc: addrs(input.envelope.bcc ?? []),
     a: [...input.manifest.map((m) => `${m.id}:${m.byteSize}`)].sort(),
+    test: input.testMode,
+  });
+  return `sha256:${createHash('sha256').update(canonical, 'utf8').digest('hex')}`;
+}
+
+/**
+ * sha256 over the canonical WHOLE-INTENT request payload (remediation plan
+ * §3.c6): tenant, user, parent record, mailbox, sorted version ids, sorted
+ * attachment manifest, signature choice, and test mode. This is coarser than
+ * {@link deliveryIdempotencyKey} (one hash for the whole intent, not one per
+ * delivery) and answers a different question: not "is this the same delivery
+ * as one already committed" but "does a REUSED requestKey describe the SAME
+ * request, or a materially different one that happens to reuse an old key."
+ *
+ * KNOWN GAP (tracked for plan Phase d): the attachment manifest fingerprinted
+ * here is `{id, fileName, contentType, byteSize}` because that is all
+ * {@link AttachmentManifestEntry} carries today — there is no persisted
+ * content hash anywhere in this codebase yet. Phase d ("expand the immutable
+ * attachment manifest") adds SHA-256 to the manifest; once it exists, THIS
+ * function's attachment tuple must include it too, or a request that swaps an
+ * attachment's bytes without changing its id/name/type/size would incorrectly
+ * fingerprint as identical.
+ */
+export function sendIntentRequestFingerprint(input: {
+  tenantId: string;
+  userId: string;
+  outreachRecordId: string;
+  senderConnectionId: string;
+  versionIds: string[];
+  manifest: AttachmentManifestEntry[];
+  appendSignature: boolean;
+  testMode: boolean;
+}): string {
+  const canonical = JSON.stringify({
+    t: input.tenantId,
+    u: input.userId,
+    r: input.outreachRecordId,
+    c: input.senderConnectionId,
+    v: [...input.versionIds].sort(),
+    a: [...input.manifest.map((m) => `${m.id}:${m.fileName}:${m.contentType}:${m.byteSize}`)].sort(),
+    sig: input.appendSignature,
     test: input.testMode,
   });
   return `sha256:${createHash('sha256').update(canonical, 'utf8').digest('hex')}`;

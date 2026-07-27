@@ -2271,6 +2271,16 @@ model OutreachSendIntent {
   senderConnectionId String    @map("sender_connection_id") @db.Uuid
   /// Client idempotency token, minted once per Send click.
   requestKey         String    @map("request_key") @db.VarChar(128)
+  /// Remediation plan §3.c5/c6 — sha256 over the canonical request payload
+  /// (tenant, user, parent record, mailbox, sorted version ids, sorted
+  /// attachment manifest, signature choice, test mode). Lets a REUSED
+  /// requestKey be told apart from a genuine retry: same key + same
+  /// fingerprint dedupes, same key + a different fingerprint is refused
+  /// (OUTREACH_REQUEST_KEY_REUSED) instead of silently returning the old
+  /// intent for a materially different request. Historical rows backfill to
+  /// `legacy:<id>`, a format a real `sha256:`-prefixed fingerprint can never
+  /// collide with.
+  requestFingerprint String    @map("request_fingerprint") @db.VarChar(160)
   appendSignature    Boolean   @default(true) @map("append_signature")
   attachmentIds      Json      @default("[]") @map("attachment_ids_jsonb")
   testMode           Boolean   @default(false) @map("test_mode")

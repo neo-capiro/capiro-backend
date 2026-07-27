@@ -19,6 +19,7 @@ import {
   deliveryIdempotencyKey,
   isPromptSpecV2OrLater,
   rollUpStatus,
+  sendIntentRequestFingerprint,
 } from './outreach-send-intent.service.js';
 import { AmbiguousMailSendError } from './mail-send-result.js';
 
@@ -142,8 +143,35 @@ interface IntentHarness {
   orderLog: string[];
 }
 
+/** Minimal shape of a TOCTOU-recheck row — a subset of the full version select. */
+function toctouRow(
+  overrides: Partial<{
+    id: string;
+    version: number;
+    auditStatus: string;
+    approvalStatus: string;
+    artifactCurrentVersion: number;
+    artifactCreatedByUserId: string;
+    artifactOutreachRecordId: string;
+  }> = {},
+) {
+  return {
+    id: overrides.id ?? 'v-1',
+    version: overrides.version ?? 1,
+    auditStatus: overrides.auditStatus ?? 'passed',
+    approvalStatus: overrides.approvalStatus ?? 'not_required',
+    artifact: {
+      currentVersion: overrides.artifactCurrentVersion ?? 1,
+      createdByUserId: overrides.artifactCreatedByUserId ?? 'u1',
+      outreachRecordId: overrides.artifactOutreachRecordId ?? 'rec-1',
+    },
+  };
+}
+
 function makeIntentHarness(opts: {
   existingIntentId?: string | null;
+  /** requestFingerprint on the "existing" intent row. Defaults to a value that will NOT match a fresh computation — a test asserting a true dedupe must pass the matching value explicitly. */
+  existingFingerprint?: string;
   versionAudit?: string;
   versionApproval?: string;
   versionCurrent?: number;
@@ -153,6 +181,13 @@ function makeIntentHarness(opts: {
   attachmentByteSize?: number | null;
   duplicateDelivery?: boolean;
   recordOwner?: string;
+  recordStatus?: string;
+  /** The version's OWN campaign — defaults to 'rec-1', matching the record being sent against. */
+  versionRecordId?: string;
+  /** A SECOND, independent version row appended alongside 'v-1' — lets a test build a genuinely mixed-campaign (or mixed-validity) multi-version request. */
+  secondVersion?: Record<string, unknown>;
+  /** If set, returned by the SECOND+ outreachDraftVersion.findMany call (the TOCTOU recheck) instead of the first call's row(s) — simulates something changing between the pre-transaction load and the commit. */
+  toctouVersions?: unknown[];
 }): IntentHarness {
   const createdIntents: Array<Record<string, unknown>> = [];
   const createdDeliveries: Array<Record<string, unknown>> = [];
@@ -174,13 +209,19 @@ function makeIntentHarness(opts: {
       recipientKey: 'a@x.com',
       recipientSnapshot: { email: 'a@x.com', name: 'A', cc: [], bcc: [] },
       createdByUserId: 'u1',
-      outreachRecordId: 'rec-1',
+      outreachRecordId: opts.versionRecordId ?? 'rec-1',
     },
   };
 
+  let versionFindManyCalls = 0;
+
   const tx = {
     outreachRecord: {
-      findFirst: async () => ({ id: 'rec-1', createdByUserId: opts.recordOwner ?? 'u1' }),
+      findFirst: async () => ({
+        id: 'rec-1',
+        createdByUserId: opts.recordOwner ?? 'u1',
+        status: opts.recordStatus ?? 'draft',
+      }),
       updateMany: async () => ({ count: 1 }),
     },
     user: {
@@ -203,11 +244,25 @@ function makeIntentHarness(opts: {
       ],
     },
     outreachDraftVersion: {
-      findMany: async () => [versionRow],
+      findMany: async () => {
+        versionFindManyCalls++;
+        // 1st call = loadSendableVersions (pre-transaction). 2nd+ = the TOCTOU
+        // recheck inside the transaction — only diverges when a test supplies
+        // toctouVersions, so every existing (pre-Phase-c) test is unaffected.
+        if (versionFindManyCalls > 1 && opts.toctouVersions !== undefined) {
+          return opts.toctouVersions;
+        }
+        return opts.secondVersion ? [versionRow, opts.secondVersion] : [versionRow];
+      },
     },
     outreachSendIntent: {
       findFirst: async () =>
-        opts.existingIntentId ? { id: opts.existingIntentId } : null,
+        opts.existingIntentId
+          ? {
+              id: opts.existingIntentId,
+              requestFingerprint: opts.existingFingerprint ?? `sha256:${'0'.repeat(64)}`,
+            }
+          : null,
       create: async ({ data }: { data: Record<string, unknown> }) => {
         orderLog.push('intent-commit');
         createdIntents.push(data);
@@ -275,6 +330,18 @@ const intentInput = {
   draftVersionIds: ['v-1'],
 };
 
+/** What createIntent will actually compute for the default fixture above — used to simulate a TRUE retry (matching fingerprint) versus a key reused for a different request. */
+const DEFAULT_FINGERPRINT = sendIntentRequestFingerprint({
+  tenantId: 't1',
+  userId: 'u1',
+  outreachRecordId: 'rec-1',
+  senderConnectionId: 'conn-1',
+  versionIds: ['v-1'],
+  manifest: [],
+  appendSignature: false,
+  testMode: false,
+});
+
 describe('createIntent — commit before any provider call', () => {
   test('the intent and its delivery are committed and NO provider call is made', async () => {
     const h = makeIntentHarness({});
@@ -296,13 +363,22 @@ describe('createIntent — commit before any provider call', () => {
     expect(delivery.draftVersionId).toBe('v-1');
   });
 
-  test('a DUPLICATE request key returns the existing intent and creates nothing', async () => {
-    const h = makeIntentHarness({ existingIntentId: 'intent-existing' });
+  test('a DUPLICATE request key with the SAME payload returns the existing intent and creates nothing', async () => {
+    const h = makeIntentHarness({
+      existingIntentId: 'intent-existing',
+      existingFingerprint: DEFAULT_FINGERPRINT,
+    });
     const out = await h.service.createIntent(ctx, intentInput);
     expect(out).toEqual({ intentId: 'intent-existing', deduped: true });
     expect(h.createdIntents).toHaveLength(0);
     expect(h.createdDeliveries).toHaveLength(0);
     expect(h.providerCalls).toBe(0);
+  });
+
+  test('the intent row PERSISTS its own requestFingerprint', async () => {
+    const h = makeIntentHarness({});
+    await h.service.createIntent(ctx, intentInput);
+    expect(h.createdIntents[0]!.requestFingerprint).toBe(DEFAULT_FINGERPRINT);
   });
 
   test('the SAME exact delivery under a NEW request key is refused (409), not re-sent', async () => {
@@ -374,6 +450,234 @@ describe('createIntent — refuses anything not cleared to send', () => {
     await expect(h.service.createIntent(ctx, { ...intentInput, requestKey: 'short' })).rejects.toThrow(
       /8/,
     );
+  });
+});
+
+// ── Phase c: campaign binding + request-key integrity ───────────────────────
+
+describe('createIntent — parent record must remain a draft (plan §3.c1)', () => {
+  test('a SENT campaign refuses a new intent (409, not 404 — it exists and is owned)', async () => {
+    const h = makeIntentHarness({ recordStatus: 'sent' });
+    await expect(h.service.createIntent(ctx, intentInput)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
+
+  test('a FAILED campaign refuses a new intent', async () => {
+    const h = makeIntentHarness({ recordStatus: 'failed' });
+    await expect(h.service.createIntent(ctx, intentInput)).rejects.toThrow(/no longer a draft/i);
+  });
+
+  test('a DRAFT campaign (the default) is unaffected', async () => {
+    const h = makeIntentHarness({});
+    await expect(h.service.createIntent(ctx, intentInput)).resolves.toEqual({
+      intentId: 'intent-1',
+      deduped: false,
+    });
+  });
+});
+
+describe('createIntent — versions must belong to the requested campaign (plan §3.c2/c4)', () => {
+  test('a version from a DIFFERENT one of the caller\'s own campaigns is refused as 404, not disclosed as "wrong campaign"', async () => {
+    const h = makeIntentHarness({ versionRecordId: 'rec-OTHER' });
+    await expect(h.service.createIntent(ctx, intentInput)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  test('mixing that cross-record version alongside a VALID in-record one refuses the WHOLE intent', async () => {
+    // A genuinely mixed request: 'v-1' legitimately belongs to rec-1, 'v-2'
+    // belongs to rec-OTHER. Neither is dropped silently — the whole intent
+    // is refused, because rollUpIntent can only mirror a delivery's outcome
+    // onto ONE OutreachRecord.
+    const h = makeIntentHarness({
+      secondVersion: {
+        id: 'v-2',
+        version: 1,
+        subject: 'Subject 2',
+        body: 'Body 2',
+        auditStatus: 'passed',
+        approvalStatus: 'not_required',
+        promptSpecVersion: 'v2.1',
+        artifact: {
+          id: 'art-2',
+          currentVersion: 1,
+          generationKey: 'individual:b@x.com',
+          recipientKey: 'b@x.com',
+          recipientSnapshot: { email: 'b@x.com', name: 'B', cc: [], bcc: [] },
+          createdByUserId: 'u1',
+          outreachRecordId: 'rec-OTHER',
+        },
+      },
+    });
+    await expect(
+      h.service.createIntent(ctx, { ...intentInput, draftVersionIds: ['v-1', 'v-2'] }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.createdIntents).toHaveLength(0);
+  });
+});
+
+describe('createIntent — TOCTOU recheck inside the transaction (plan §3.c3)', () => {
+  test('a version that vanished between load and commit (row-count mismatch) rejects', async () => {
+    const h = makeIntentHarness({ toctouVersions: [] });
+    await expect(h.service.createIntent(ctx, intentInput)).rejects.toThrow(
+      /changed while the send was being prepared/i,
+    );
+    expect(h.createdIntents).toHaveLength(0);
+  });
+
+  test('ownership changing between load and commit rejects, even though the pre-transaction check passed', async () => {
+    const h = makeIntentHarness({
+      toctouVersions: [toctouRow({ artifactCreatedByUserId: 'someone-else' })],
+    });
+    await expect(h.service.createIntent(ctx, intentInput)).rejects.toThrow(
+      /changed while the send was being prepared/i,
+    );
+  });
+
+  test('the campaign binding changing between load and commit rejects', async () => {
+    const h = makeIntentHarness({
+      toctouVersions: [toctouRow({ artifactOutreachRecordId: 'rec-OTHER' })],
+    });
+    await expect(h.service.createIntent(ctx, intentInput)).rejects.toThrow(
+      /changed while the send was being prepared/i,
+    );
+  });
+
+  test('a version superseded only by the time of the TOCTOU recheck rejects', async () => {
+    const h = makeIntentHarness({
+      toctouVersions: [toctouRow({ version: 1, artifactCurrentVersion: 2 })],
+    });
+    await expect(h.service.createIntent(ctx, intentInput)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
+
+  test('a version held (not sendable) only by the time of the TOCTOU recheck rejects', async () => {
+    const h = makeIntentHarness({
+      toctouVersions: [toctouRow({ auditStatus: 'held', approvalStatus: 'pending' })],
+    });
+    await expect(h.service.createIntent(ctx, intentInput)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
+
+  test('when nothing changed, the TOCTOU recheck is a silent no-op and the intent commits', async () => {
+    const h = makeIntentHarness({ toctouVersions: [toctouRow()] });
+    await expect(h.service.createIntent(ctx, intentInput)).resolves.toEqual({
+      intentId: 'intent-1',
+      deduped: false,
+    });
+  });
+});
+
+describe('sendIntentRequestFingerprint (plan §3.c6)', () => {
+  const base = {
+    tenantId: 't1',
+    userId: 'u1',
+    outreachRecordId: 'rec-1',
+    senderConnectionId: 'conn-1',
+    versionIds: ['v-1'],
+    manifest: [],
+    appendSignature: false,
+    testMode: false,
+  };
+
+  test('is stable and looks like a real sha256 fingerprint', () => {
+    expect(sendIntentRequestFingerprint(base)).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(sendIntentRequestFingerprint(base)).toBe(sendIntentRequestFingerprint(base));
+  });
+
+  test('version id order does not change it, but the SET of versions does', () => {
+    const a = sendIntentRequestFingerprint({ ...base, versionIds: ['v-1', 'v-2'] });
+    const b = sendIntentRequestFingerprint({ ...base, versionIds: ['v-2', 'v-1'] });
+    expect(a).toBe(b);
+    expect(sendIntentRequestFingerprint({ ...base, versionIds: ['v-1', 'v-3'] })).not.toBe(a);
+  });
+
+  test('every one of tenant, user, parent record, mailbox, signature choice, and test mode changes it', () => {
+    const a = sendIntentRequestFingerprint(base);
+    expect(sendIntentRequestFingerprint({ ...base, tenantId: 't2' })).not.toBe(a);
+    expect(sendIntentRequestFingerprint({ ...base, userId: 'u2' })).not.toBe(a);
+    expect(sendIntentRequestFingerprint({ ...base, outreachRecordId: 'rec-2' })).not.toBe(a);
+    expect(sendIntentRequestFingerprint({ ...base, senderConnectionId: 'conn-2' })).not.toBe(a);
+    expect(sendIntentRequestFingerprint({ ...base, appendSignature: true })).not.toBe(a);
+    expect(sendIntentRequestFingerprint({ ...base, testMode: true })).not.toBe(a);
+  });
+
+  test('an attachment manifest change (id, name, type, or size) changes it', () => {
+    const a = sendIntentRequestFingerprint(base);
+    const withAttachment = (
+      over: Partial<{ id: string; fileName: string; contentType: string; byteSize: number }>,
+    ) =>
+      sendIntentRequestFingerprint({
+        ...base,
+        manifest: [{ id: 'att-1', fileName: 'f.pdf', contentType: 'application/pdf', byteSize: 10, ...over }],
+      });
+    const withDefault = withAttachment({});
+    expect(withDefault).not.toBe(a);
+    expect(withAttachment({ id: 'att-2' })).not.toBe(withDefault);
+    expect(withAttachment({ fileName: 'g.pdf' })).not.toBe(withDefault);
+    expect(withAttachment({ contentType: 'application/octet-stream' })).not.toBe(withDefault);
+    expect(withAttachment({ byteSize: 11 })).not.toBe(withDefault);
+  });
+
+  test('attachment order does not matter, only the set', () => {
+    const att1 = { id: 'att-1', fileName: 'a', contentType: 'application/pdf', byteSize: 1 };
+    const att2 = { id: 'att-2', fileName: 'b', contentType: 'application/pdf', byteSize: 2 };
+    const a = sendIntentRequestFingerprint({ ...base, manifest: [att1, att2] });
+    const b = sendIntentRequestFingerprint({ ...base, manifest: [att2, att1] });
+    expect(a).toBe(b);
+  });
+});
+
+describe('createIntent — request-key reuse with a DIFFERENT payload (plan §3.c7)', () => {
+  test('same key, unrelated stored fingerprint → 409 OUTREACH_REQUEST_KEY_REUSED with a structured error body', async () => {
+    const h = makeIntentHarness({
+      existingIntentId: 'intent-existing',
+      existingFingerprint: 'sha256:' + 'f'.repeat(64), // deliberately NOT DEFAULT_FINGERPRINT
+    });
+    try {
+      await h.service.createIntent(ctx, intentInput);
+      throw new Error('expected createIntent to reject');
+    } catch (e) {
+      expect(e).toBeInstanceOf(ConflictException);
+      const response = (e as ConflictException).getResponse() as Record<string, unknown>;
+      expect(response.error).toBe('OUTREACH_REQUEST_KEY_REUSED');
+    }
+    expect(h.createdIntents).toHaveLength(0);
+    expect(h.providerCalls).toBe(0);
+  });
+
+  test('the exact same request under the SAME key genuinely dedupes when the fingerprint matches', async () => {
+    const h = makeIntentHarness({
+      existingIntentId: 'intent-existing',
+      existingFingerprint: DEFAULT_FINGERPRINT,
+    });
+    await expect(h.service.createIntent(ctx, intentInput)).resolves.toEqual({
+      intentId: 'intent-existing',
+      deduped: true,
+    });
+  });
+
+  test('reusing a key for what is now a TEST send does not silently dedupe the earlier real request', async () => {
+    const h = makeIntentHarness({
+      existingIntentId: 'intent-existing',
+      existingFingerprint: DEFAULT_FINGERPRINT, // matches the ORIGINAL (non-test) request only
+    });
+    await expect(
+      h.service.createIntent(ctx, { ...intentInput, testMode: true }),
+    ).rejects.toThrow(/different send request/i);
+  });
+
+  test('reusing a key for a DIFFERENT set of draft versions does not silently dedupe', async () => {
+    const h = makeIntentHarness({
+      existingIntentId: 'intent-existing',
+      existingFingerprint: DEFAULT_FINGERPRINT,
+    });
+    await expect(
+      h.service.createIntent(ctx, { ...intentInput, draftVersionIds: ['v-2'] }),
+    ).rejects.toThrow(/different send request/i);
   });
 });
 
