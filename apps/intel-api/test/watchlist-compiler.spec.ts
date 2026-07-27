@@ -67,6 +67,39 @@ describe('compileWatchlist', () => {
     expect(out.deepgramKeyterms).toContain('term-149');
   });
 
+  /**
+   * Gate K (MP-10, f-2): the cross-topic duplicate case. No existing test in
+   * this file (or watchlist-weighting.spec.ts) uses the SAME value across
+   * two topics with DIFFERENT weights — every prior case used distinct
+   * values or equal weights, so this failure mode had zero coverage.
+   *
+   * Before the fix, dedup kept whichever occurrence appeared FIRST in
+   * `input.terms` (Set-based, first-write-wins), freezing its weight AND
+   * topic attribution regardless of whether a later, higher-weight
+   * occurrence existed. Proven here via a deliberate cap squeeze: 'shared'
+   * is fed in at weight 0 under topic 'low' FIRST, then at weight 99 under
+   * topic 'high' second. Topic 'low' also carries 99 filler terms at
+   * weight 50 — enough that, with a 2-topic 50-each reservation split, a
+   * weight-0 'shared' attributed to 'low' would rank last among ALL 100 of
+   * low's own candidates and be squeezed out of both the per-topic
+   * reservation AND the global overflow fill (worked through below). Only
+   * the FIXED (max-weight-wins) behavior lets it survive.
+   */
+  it('Gate K (MP-10): a term appearing in both a low- and high-priority topic keeps the HIGH weight and high-priority attribution, not whichever the input array happened to list first', () => {
+    const terms: CompilerTerm[] = [
+      term('low', 'synonym', 'shared', 0),
+      ...Array.from({ length: 99 }, (_, i) => term('low', 'synonym', `low-filler-${i}`, 50)),
+      term('high', 'synonym', 'shared', 99),
+      term('high', 'synonym', 'high-filler', 1),
+    ];
+    const out = compileWatchlist({
+      issueAreas: [],
+      topics: [topic('low'), topic('high')],
+      terms,
+    });
+    expect(out.deepgramKeyterms).toContain('shared');
+  });
+
   // P5: the unified editor writes the full 11 canonical term types. Every type
   // must survive compilation and be usable by the hearing matcher (each shows up
   // as a hearingTerm); the three billMatchSet buckets (synonym/entity/risk) stay

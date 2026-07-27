@@ -126,6 +126,12 @@ describe('TrackerConfigPanel copy (Gate E phase e, P2-15)', () => {
     expect(screen.getByText(/Hearings, regulations, and Program Elements don.t email yet/i)).toBeInTheDocument();
   });
 
+  test('Gate K (MP-16, f-4): the priority/position hint no longer says "pill" — both are <select> menus, not clickable pills', () => {
+    renderConfigPanel();
+    expect(screen.getByText(/Use the menus on each tag to set either one/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Click either pill to change it/i)).toBeNull();
+  });
+
   test('Gate K (HP-02, e-7): the typed-terms help no longer overclaims uniform coverage, and points to the Affects preview instead', () => {
     renderConfigPanel();
     expect(

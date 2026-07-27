@@ -1055,8 +1055,8 @@ export function TrackerConfigPanel({
                 <Icon name="settings" size={13} />
               </span>
               Each tag carries a <b>priority</b> (how much it matters — this drives how alerts are
-              ranked) and a <b>position</b> (this client’s stance: Support, Oppose, or Monitor). Click
-              either pill to change it.
+              ranked) and a <b>position</b> (this client’s stance: Support, Oppose, or Monitor). Use
+              the menus on each tag to set either one.
             </span>
             <div className="stack" style={{ gap: 10 }}>
               {tags.map((t, i) => {
