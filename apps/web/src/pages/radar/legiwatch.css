@@ -909,3 +909,32 @@
   .lw-root .tag-adv { grid-template-columns: 1fr; }
   .lw-root .ws-editor { grid-template-columns: 1fr; }
 }
+
+/* P1-12 / P2-12 (Gate D phase h): a real focus ring on every keyboard-focused
+   control on the calm surface. :focus-visible so a mouse click paints nothing —
+   the reason the original styles reached for `outline: none`. */
+.lw-root button:focus-visible,
+.lw-root select:focus-visible,
+.lw-root a:focus-visible,
+.lw-root [role='button']:focus-visible,
+.lw-root input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* P1-12 (Gate D h-1): several clickable `<div>`/`<span>` elements became real
+   buttons so they are focusable and announce their state. They must keep the
+   exact appearance they had — a button brings UA styles a div never had. */
+.lw-root button.acard-title {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}

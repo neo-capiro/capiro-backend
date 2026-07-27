@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Icon } from './tracker-icons.js';
 import { US_STATE_CODES } from '../facilities-api.js';
 import { termRejectionReason } from './term-validation.js';
@@ -98,9 +98,16 @@ function ChipInput({
         {items.map((it, i) => (
           <span key={`${it}-${i}`} className={`ci-chip${kind === 'risk' ? ' risk' : ''}`}>
             {it}
-            <span className="x" onClick={() => onChange(items.filter((_, j) => j !== i))}>
+            {/* P1-12: was a <span onClick> — invisible to Tab and to a screen
+                reader, so a chip could be added by keyboard but never removed. */}
+            <button
+              type="button"
+              className="x"
+              aria-label={`Remove ${it}`}
+              onClick={() => onChange(items.filter((_, j) => j !== i))}
+            >
               <Icon name="plus" size={10} style={{ transform: 'rotate(45deg)' }} />
-            </span>
+            </button>
           </span>
         ))}
         <input
@@ -185,9 +192,15 @@ function TypedTermEditor({
           <span key={`${t.termType}-${t.value}-${i}`} className="tt-chip">
             <span className="tt-type">{labelFor(t.termType)}</span>
             {t.value}
-            <span className="x" onClick={() => onChange(terms.filter((_, j) => j !== i))}>
+            {/* P1-12: was a <span onClick>, unreachable by keyboard. */}
+            <button
+              type="button"
+              className="x"
+              aria-label={`Remove ${labelFor(t.termType)} term ${t.value}`}
+              onClick={() => onChange(terms.filter((_, j) => j !== i))}
+            >
               <Icon name="plus" size={10} style={{ transform: 'rotate(45deg)' }} />
-            </span>
+            </button>
           </span>
         ))}
         {terms.length === 0 && <span className="tt-empty">No typed terms yet</span>}
@@ -195,6 +208,7 @@ function TypedTermEditor({
       <div className="tt-add">
         <select
           className="tt-select"
+          aria-label="Term type"
           value={type}
           onChange={(e) => setType(e.target.value as TermType)}
         >
@@ -260,6 +274,9 @@ function TagRow({
   termSurfaces?: Record<string, string[]>;
 }) {
   const patch = (p: Partial<WatchlistTag>) => onChange({ ...tag, ...p });
+  // P1-12: a stable id so the name button's aria-controls points at the panel
+  // it actually discloses. useId keeps it unique across rows and renders.
+  const advId = `tag-adv-${useId()}`;
   const priority = tag.priority ?? 'med';
   const position = tag.position ?? 'monitor';
   const termCount =
@@ -269,11 +286,24 @@ function TagRow({
     (tag.typedTerms?.length ?? 0);
   return (
     <div className={`tagrow${open ? ' open' : ''}`}>
-      <div className="tagrow-head" onClick={onToggleOpen}>
-        <span className="tg-name">
+      {/* P1-12: this row was a `<div onClick>` — not focusable, no role, no
+          expanded state. The plan asked for the whole head to become a button,
+          but it CONTAINS two <select>s and a delete control, and interactive
+          elements cannot nest inside a button (invalid HTML; it breaks keyboard
+          and AT both). The disclosure trigger is therefore the tag NAME, with
+          the menus and delete as siblings — which is the correct semantic
+          anyway: they are separate controls, not part of "expand this row". */}
+      <div className="tagrow-head">
+        <button
+          type="button"
+          className="tg-name"
+          aria-expanded={open}
+          aria-controls={advId}
+          onClick={onToggleOpen}
+        >
           <span className="hash">#</span>
           {tag.tag || <em style={{ opacity: 0.6 }}>Unnamed — add a name</em>}
-        </span>
+        </button>
         {/* P2-08: these were CYCLING pills — one click advanced low→med→high /
             support→monitor→oppose. With a 600ms autosave, a mis-click silently
             persisted a wrong stance on a client's position. They are explicit
@@ -315,22 +345,24 @@ function TagRow({
         <span className="mini muted">
           {termCount} term{termCount === 1 ? '' : 's'}
         </span>
-        <span
+        {/* P1-12: was a <span onClick>. */}
+        <button
+          type="button"
           className="tg-trash"
+          aria-label={`Remove tag ${tag.tag || 'unnamed'}`}
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
           }}
-          title="Remove tag"
         >
           <Icon name="trash" size={13} />
-        </span>
+        </button>
         <span className="tg-chev">
           <Icon name="chev-r" size={15} />
         </span>
       </div>
       {open && (
-        <div className="tag-adv">
+        <div className="tag-adv" id={advId}>
           <div className="adv-field" style={{ gridColumn: '1 / -1' }}>
             <div className="af-label">
               Tag name <span className="af-req" aria-hidden="true">*</span>
@@ -1033,8 +1065,15 @@ export function TrackerConfigPanel({
             <div className="cfg-label">Alert triggers</div>
             <div className="trig-grid">
               {TRIGGER_ORDER.map((k) => (
-                <div
+                // P1-12: was a `<div onClick>` — not focusable, no role, and
+                // no checked state exposed, so the alert triggers could not be
+                // set by keyboard at all. A real button carrying checkbox
+                // semantics keeps the tile look and announces its state.
+                <button
                   key={k}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={triggers.has(k)}
                   className={`trig${triggers.has(k) ? ' on' : ''}`}
                   onClick={() => toggleTrig(k)}
                 >
@@ -1044,7 +1083,7 @@ export function TrackerConfigPanel({
                     </span>
                   </span>
                   {TRIGGER_LABELS[k]}
-                </div>
+                </button>
               ))}
             </div>
             {triggers.size === 0 && (
@@ -1128,7 +1167,14 @@ export function TrackerConfigPanel({
                     <div className="chan-sub">Changes inbox + unread dots on board cards</div>
                   </div>
                   <span className="chan-lock">Always on</span>
-                  <button className="tgl locked on" title="Always on" disabled />
+                  <button
+                    type="button"
+                    className="tgl locked on"
+                    aria-label="In-app delivery"
+                    aria-pressed
+                    title="Always on"
+                    disabled
+                  />
                 </div>
               </div>
 
@@ -1142,8 +1188,13 @@ export function TrackerConfigPanel({
                     <div className="chan-name">Email</div>
                     <div className="chan-sub">Full context — bill, change, why it matters</div>
                   </div>
+                  {/* P1-12: an unlabelled toggle with no pressed state — a
+                      screen reader announced only "button". */}
                   <button
+                    type="button"
                     className={`tgl${emailEnabled ? ' on' : ''}`}
+                    aria-label="Email delivery"
+                    aria-pressed={emailEnabled}
                     onClick={() => setEmailEnabled((v) => !v)}
                   />
                 </div>
@@ -1187,7 +1238,10 @@ export function TrackerConfigPanel({
                   {/* LegiWatch v2 (L4/U6/D12): SMS is "coming soon" — disabled so it
                       can't be newly enabled; the verify/cadence flow stays in code. */}
                   <button
+                    type="button"
                     className={`tgl${smsEnabled ? ' on' : ''}`}
+                    aria-label="SMS delivery"
+                    aria-pressed={smsEnabled}
                     disabled
                     title="SMS delivery is coming soon"
                     style={{ cursor: 'not-allowed', opacity: 0.5 }}

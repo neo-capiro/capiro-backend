@@ -321,7 +321,10 @@ function FeedCard({
       data-sev={item.severity}
       data-alert-id={item.id}
     >
-      <div className="acard-head" onClick={() => setOpen((o) => !o)}>
+      {/* P1-12: this header was a `<div onClick>` — a keyboard user could not
+          expand a feed card at all. The checkbox and client chip are siblings,
+          not children, so the disclosure button wraps only the title block. */}
+      <div className="acard-head">
         {onToggleSelect && (
           <input
             type="checkbox"
@@ -333,7 +336,17 @@ function FeedCard({
           />
         )}
         <div className="acard-main">
-          <div className={'acard-title' + (open ? '' : ' clip')}>{item.title}</div>
+          {/* Only the TITLE is the disclosure control: `acard-meta` below
+              contains the client-scope button, and a button cannot nest inside
+              another button (invalid HTML, and it breaks both keyboard and AT). */}
+          <button
+            type="button"
+            className={'acard-title' + (open ? '' : ' clip')}
+            aria-expanded={open}
+            onClick={() => setOpen((o) => !o)}
+          >
+            {item.title}
+          </button>
           <div className="acard-meta">
             {showClient && (
               <button
@@ -1091,7 +1104,9 @@ export function TrackerFeedPanel({
   return (
     <div className="feed-layout">
       <div className="feed-main">
-        <div className="feed-lead">
+        {/* P2-12 (h-3): the result count changes when a filter or the ordering
+            changes, and that change is the only feedback either produces. */}
+        <div className="feed-lead" aria-live="polite">
           {global
             ? 'What changed across all clients'
             : `What changed for ${clientName ?? 'this client'}`}{' '}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusTrap } from './use-focus-trap.js';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
@@ -325,25 +326,42 @@ export function RecCard({
   );
 }
 
+/**
+ * The tracker's hand-rolled modal shell, shared by AddBillModal and
+ * VerifyOtpModal — the two CUSTOM modals (the composer drawers use antd's
+ * `Modal`, which brings its own trapping and must not get a second one).
+ *
+ * P1-12 / P2-12 (h-2): it had Escape-to-close and nothing else. No dialog role,
+ * no accessible name, no initial focus, and no trapping — so a keyboard user
+ * Tabbed straight out into the page behind, which was still focusable, with no
+ * way back. Fixed HERE rather than in each modal so the two cannot drift.
+ */
 export function Modal({
   size = 'sm',
   children,
   onClose,
+  label,
 }: {
   size?: 'sm' | 'md';
   children: React.ReactNode;
   onClose: () => void;
+  /** The dialog's accessible name — the same words as its visible title. */
+  label?: string;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  // Owns Escape (and focus restore) so the shell no longer needs its own
+  // keydown listener; two would close twice.
+  useFocusTrap(dialogRef, true, onClose);
   return (
     <div className="trk-overlay" onClick={onClose}>
-      <div className={`trk-dialog ${size}`} onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        className={`trk-dialog ${size}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         {children}
       </div>
     </div>
@@ -441,7 +459,7 @@ export function AddBillModal({
   const rows = results.data ?? [];
 
   return (
-    <Modal size="md" onClose={onClose}>
+    <Modal size="md" onClose={onClose} label="Add a bill to the board">
       <div className="dlg-head">
         <h3>Add a bill to the board</h3>
         {/* P1-17: the old copy claimed congress-only while the search WAS
@@ -452,7 +470,7 @@ export function AddBillModal({
             ? 'Search Congress and the state legislatures this client tracks, by number or title'
             : 'Search Congress by number or title'}
         </span>
-        <button className="dlg-x" onClick={onClose}>
+        <button type="button" className="dlg-x" aria-label="Close" onClick={onClose}>
           <Icon name="plus" size={15} style={{ transform: 'rotate(45deg)' }} />
         </button>
       </div>
@@ -581,10 +599,10 @@ export function VerifyOtpModal({
   const full = code.length === 6;
 
   return (
-    <Modal size="sm" onClose={onClose}>
+    <Modal size="sm" onClose={onClose} label="Verify your phone number">
       <div className="dlg-head">
         <h3>Verify your phone</h3>
-        <button className="dlg-x" onClick={onClose}>
+        <button type="button" className="dlg-x" aria-label="Close" onClick={onClose}>
           <Icon name="plus" size={15} style={{ transform: 'rotate(45deg)' }} />
         </button>
       </div>
@@ -647,7 +665,10 @@ export interface ToastItem {
 
 export function TrackToasts({ toasts }: { toasts: ToastItem[] }) {
   return (
-    <div className="trk-toasts">
+    // P2-12 (h-3): toasts are the ONLY confirmation that a track succeeded or
+    // partially failed. Without a live region a screen-reader user gets no
+    // feedback at all. `polite` so it does not interrupt mid-sentence.
+    <div className="trk-toasts" aria-live="polite">
       {toasts.map((t) => {
         const hasFailure = t.results?.some((r) => r.status === 'failed') ?? false;
         return (

@@ -2032,3 +2032,84 @@
 .redesign .trk-open-full:hover {
   text-decoration: underline;
 }
+
+/* ============================================================
+   P1-12 / P2-12 (Gate D phase h) — VISIBLE FOCUS.
+
+   Audit of `outline: none` in this file found four interactive elements that
+   stripped the focus ring with NO replacement:
+     .chip-input .ci-add, .field input, .search-field input, .tt-value
+   A keyboard user tabbing through Configure or the Add Bill modal had no idea
+   where they were. That is a keyboard-blocking bug, not a polish item.
+
+   Each input sits inside a styled wrapper, so the ring goes on the WRAPPER via
+   :focus-within — the visual affordance the design already implies, made real.
+   (.otp-box and .lw-root .field already had their own :focus replacement and
+   are left alone.)
+   ============================================================ */
+.redesign .chip-input:focus-within,
+.redesign .field:focus-within,
+.trk-overlay .search-field:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(42, 87, 206, 0.12);
+}
+
+.redesign .typed-terms .tt-value:focus,
+.redesign .typed-terms .tt-type:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(42, 87, 206, 0.12);
+}
+
+/* A real focus ring on every keyboard-focused control in the tracker. Uses
+   :focus-visible so a mouse click does not paint a ring, which is why the
+   original code reached for `outline: none` in the first place. */
+.redesign button:focus-visible,
+.redesign select:focus-visible,
+.redesign a:focus-visible,
+.redesign [role='button']:focus-visible,
+.redesign input[type='checkbox']:focus-visible,
+.trk-overlay button:focus-visible,
+.trk-overlay select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* P1-12 (Gate D h-1): elements promoted from div/span to <button> keep their
+   original appearance — a button carries UA styling a div never had. */
+.redesign button.trig,
+.redesign button.tg-name,
+.redesign button.tg-trash,
+.redesign .chip-input .ci-chip button.x,
+.redesign .typed-terms .tt-chip button.x {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: inherit;
+}
+/* .trig is a tile, not inline text — restore its box. */
+.redesign button.trig {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+}
+.redesign button.tg-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.redesign button.tg-trash,
+.redesign .chip-input .ci-chip button.x,
+.redesign .typed-terms .tt-chip button.x {
+  display: inline-flex;
+  align-items: center;
+}
