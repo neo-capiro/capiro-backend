@@ -47,6 +47,110 @@ export interface SelectedContextItem extends ContextPoolItem {
   scope: 'all' | string;
   // Free-form instruction the user writes to the AI for this item only.
   note: string;
+  /**
+   * Phase 1 §3.b2 — for a CUSTOM NOTE only: whether the user's text is a FACT
+   * the message may state, or an INSTRUCTION for how to write it.
+   *
+   * Defaults to 'instruction'. The default matters: "dinner last week went well"
+   * as an instruction produces a warm reference, whereas as a fact it licenses
+   * the model to narrate a dinner it knows nothing about.
+   */
+  noteUse?: 'fact' | 'instruction';
+  /**
+   * Phase 1 §3.d3 — set on AUTO-SUGGESTED email threads so the picker can explain
+   * itself. Suggestions are never selected by default.
+   */
+  relevance?: 'high' | 'medium' | 'low';
+  relevanceReasons?: string[];
+  mailboxScope?: string;
+}
+
+// ── Phase 1: Context Used / source manifest (§3.j1) ─────────────────────────
+// Mirrors apps/api/src/engagement/generation/generation-gateway.types.ts.
+
+export interface SourceManifestEntry {
+  sourceType: string;
+  sourceId: string;
+  title: string;
+  trust: string;
+  asOf: string | null;
+  scope: string;
+  relevance?: 'high' | 'medium' | 'low';
+  relevanceReasons?: string[];
+  truncated?: boolean;
+}
+
+export interface SourceFailure {
+  sourceType: string;
+  sourceId?: string;
+  severity: 'informational' | 'important' | 'critical';
+  code: string;
+  userMessage: string;
+}
+
+export interface GenerationSourceManifest {
+  contextPacketId: string;
+  packetHash: string;
+  evidenceCountsByType: Record<string, number>;
+  included: SourceManifestEntry[];
+  exclusions: Array<{ sourceType: string; sourceId?: string; reason: string }>;
+  failures: SourceFailure[];
+  criticalFailures: SourceFailure[];
+  oldestSourceAt: string | null;
+  newestSourceAt: string | null;
+  policy: {
+    policyId: string;
+    version: string;
+    label: string;
+    jurisdiction: string;
+    audienceType: string;
+  };
+  provider: string | null;
+  model: string | null;
+  planModel: string | null;
+  promptSpecVersion: string;
+  emailScopeLabel: string;
+  standingMemoryCount: number;
+  criticalMissingContext: string[];
+  disclosures: string[];
+}
+
+/** The Phase 1 wire shape for one selected context item (§3.b1). */
+export interface SelectedContextItemPayload {
+  id: string;
+  kind: ContextKind;
+  scope: 'all' | string;
+  userInstruction?: string;
+  customNoteText?: string;
+  noteUse?: 'fact' | 'instruction';
+}
+
+/**
+ * Map wizard state onto the Phase 1 request payload.
+ *
+ * Sends IDENTIFIERS and the user's own words — never `title` or `body`. The
+ * server rehydrates every server-backed source by id, so shipping a body would
+ * at best be ignored and at worst be treated as authoritative text the browser
+ * could edit. A custom note's text goes to `customNoteText`; on any other kind
+ * the same `note` field is a per-item directive.
+ */
+export function toContextItemPayload(item: SelectedContextItem): SelectedContextItemPayload {
+  const text = item.note?.trim() ?? '';
+  if (item.kind === 'note') {
+    return {
+      id: item.id,
+      kind: item.kind,
+      scope: item.scope,
+      ...(text ? { customNoteText: text } : {}),
+      noteUse: item.noteUse === 'fact' ? 'fact' : 'instruction',
+    };
+  }
+  return {
+    id: item.id,
+    kind: item.kind,
+    scope: item.scope,
+    ...(text ? { userInstruction: text } : {}),
+  };
 }
 
 // ── Phase 0: server-owned draft lifecycle ────────────────────────────────────
@@ -101,6 +205,12 @@ export interface GeneratedDraft {
   /** Internal note for the lobbyist only — never sent to the recipient. */
   contextNote?: string;
   history?: DraftHistoryEntry[];
+  /**
+   * Phase 1 §3.j — what this draft was grounded in, what was excluded, and what
+   * failed. A CRITICAL failure here blocks Send: the user must resolve it, and
+   * the panel names the remediation.
+   */
+  manifest?: GenerationSourceManifest;
 
   /**
    * The editor has unsaved keystrokes. Set the instant a user types, cleared

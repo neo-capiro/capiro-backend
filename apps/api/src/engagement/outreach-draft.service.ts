@@ -39,6 +39,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import {
   OutreachAuditUnavailableError,
   OutreachDraftAuditService,
+  type DeterministicVerifierCheck,
 } from './outreach-draft-audit.service.js';
 import {
   isDraftVersionSendable,
@@ -68,6 +69,13 @@ export interface UpsertGeneratedVersionInput {
    * against — passed through from generation, never re-derived from prose.
    */
   auditLedger?: LedgerEntry[];
+  /**
+   * Phase 1 §3.i2 — findings from the deterministic government-affairs verifier,
+   * computed on THIS exact text by the generation gateway. Merged into the
+   * version's auditFindings alongside the Meri auditor's (distinguished by
+   * `source`); a blocking one holds the version regardless of MERI_AUDITOR_MODE.
+   */
+  verifierFindings?: DeterministicVerifierCheck[];
 }
 
 export interface CreateEditedVersionInput {
@@ -222,7 +230,7 @@ export class OutreachDraftService {
       return row;
     });
 
-    return this.auditAndReload(ctx, created);
+    return this.auditAndReload(ctx, created, input.verifierFindings);
   }
 
   /**
@@ -518,10 +526,13 @@ export class OutreachDraftService {
   private async auditAndReload(
     ctx: TenantContext,
     created: VersionRow,
+    verifierFindings?: DeterministicVerifierCheck[],
   ): Promise<OutreachDraftVersionDto> {
     let contextNote: string | undefined;
     try {
-      const outcome = await this.audit.runForVersion(ctx, created.id);
+      const outcome = await this.audit.runForVersion(ctx, created.id, {
+        ...(verifierFindings?.length ? { verifierFindings } : {}),
+      });
       contextNote = outcome.contextNote;
     } catch (err) {
       if (err instanceof OutreachAuditUnavailableError) {

@@ -282,6 +282,42 @@ export const configSchema = z.object({
     .default('false')
     .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
 
+  // Engagement Phase 1 — governed generation gateway + evidence packets.
+  //
+  // ENGAGEMENT_GENERATION_GATEWAY: when ON, Engagement generation runs through
+  // GenerationGatewayService — server-rehydrated evidence, authenticated
+  // directives separated from untrusted text, a synchronously persisted Evidence
+  // Packet (fail-CLOSED), a validated Message Plan before any prose, and the
+  // deterministic claim verifier. OFF keeps the pre-Phase-1 path byte-for-byte,
+  // so this lands inert and is enabled per environment afterwards.
+  //
+  // ENGAGEMENT_EMAIL_CONTEXT_SCOPE: how broadly relevant-email evidence may be
+  // drawn. 'mine' (default) = the current user's own connected mailbox only.
+  // 'firm_shared' additionally allows explicitly client-linked threads owned by
+  // colleagues — and requires BOTH this value AND the per-tenant setting
+  // settings.clioFeatureFlags.engagementFirmMailContext, AND an ethical-wall
+  // pass. The browser can never escalate scope by sending a string.
+  //
+  // ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED: when ON, a quarantined/threat/failed/
+  // unsupported/access-denied attachment cannot be extracted, selected as
+  // context, downloaded, or sent. Ships FALSE because no production malware
+  // scanner is provisioned yet (Phase 1 §6.1 — a Neo decision); while false the
+  // UI must state that a file was not scanned rather than imply it was clean.
+  //
+  // All three default to the SAFE value in repository code: enabling any of them
+  // is an explicit out-of-band environment change, never a code-deploy effect.
+  ENGAGEMENT_GENERATION_GATEWAY: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+
+  ENGAGEMENT_EMAIL_CONTEXT_SCOPE: z.enum(['mine', 'firm_shared']).default('mine'),
+
+  ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+
   // Engagement auto-sync scheduler: periodic reconciliation syncs for connected
   // M365/Google mailboxes. Webhooks are a latency optimization, NOT a
   // reliability mechanism — Graph subscriptions expire after 6 days and were

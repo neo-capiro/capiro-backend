@@ -1041,17 +1041,55 @@ class OutreachSelectedContextItemDto {
     | 'programElement';
 
   @IsString()
-  title!: string;
+  scope!: 'all' | string;
 
+  // ── Phase 1 §3.b1 — the current contract ──────────────────────────────────
+  // The server rehydrates every server-backed source by `id`. The only free text
+  // the browser may contribute is the user's OWN words, and both are bounded.
+
+  /** An authenticated per-item directive. */
+  @IsOptional()
+  @IsString()
+  @Length(0, 2000)
+  userInstruction?: string;
+
+  /** Only meaningful for kind==='note'. */
+  @IsOptional()
+  @IsString()
+  @Length(0, 8000)
+  customNoteText?: string;
+
+  /**
+   * Whether a custom note is a FACT to state or an INSTRUCTION to follow.
+   * Absent ⇒ 'instruction' (the safe default: treating typed prose as assertable
+   * fact is how "we spoke last week" becomes invented detail about the call).
+   */
+  @IsOptional()
+  @IsIn(['fact', 'instruction'])
+  noteUse?: 'fact' | 'instruction';
+
+  // ── Legacy fields, accepted for ONE compatibility release ─────────────────
+  // Kept so a cached client bundle or a resumed localStorage draft does not 400
+  // the moment this deploys. `title`/`body` are display-only and are NEVER used
+  // as evidence; under ENGAGEMENT_GENERATION_GATEWAY a `body` on a server-backed
+  // kind is REJECTED (assertGatewayContextContract) rather than silently ignored,
+  // so a stale client is told rather than quietly having its context dropped.
+
+  /** @deprecated Display-only; the server resolves the real title by id. */
+  @IsOptional()
+  @IsString()
+  @Length(0, 500)
+  title?: string;
+
+  /** @deprecated Never evidence. Rejected under the gateway for server-backed kinds. */
   @IsOptional()
   @IsString()
   body?: string;
 
-  @IsString()
-  scope!: 'all' | string;
-
+  /** @deprecated Maps to userInstruction (or customNoteText for a note). */
   @IsOptional()
   @IsString()
+  @Length(0, 8000)
   note?: string;
 }
 

@@ -81,6 +81,14 @@ export class ContextCompilerService {
           OR (${wantsClient} AND type = ANY(${clientTypes})
               AND client_id = ${req.clientId ?? null}::uuid)
         )
+        -- Phase 1 §3.c2: an explicit total order. Postgres gives no ordering
+        -- guarantee without ORDER BY, and ContextCompiler.compile() preserves
+        -- adapter row order within each requested layer — so the rendered
+        -- steering block could differ between two identical requests purely from
+        -- plan or heap variation. That defeats the Evidence Packet hash (two
+        -- identical requests must hash identically) and the byte-stable cacheable
+        -- prompt prefix. (type, slug, id) is total: id breaks any remaining tie.
+        ORDER BY type ASC, slug ASC, id ASC
       `;
       return tx.$queryRaw<SteeringRow[]>(sql);
     };

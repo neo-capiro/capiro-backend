@@ -323,3 +323,82 @@ describe('listAidFromKey', () => {
     expect(listAidFromKey('individual:x')).toBeNull();
   });
 });
+
+// ── Phase 1 §3.j / §5.5 — the Context Used manifest travels with each result ──
+
+describe('partitionGenerationResults carries the source manifest', () => {
+  const manifest = (packetId: string) =>
+    ({
+      contextPacketId: packetId,
+      packetHash: 'h',
+      evidenceCountsByType: { bill: 1 },
+      included: [],
+      exclusions: [],
+      failures: [],
+      criticalFailures: [],
+      oldestSourceAt: null,
+      newestSourceAt: null,
+      policy: {
+        policyId: 'federal.congressional_office',
+        version: 'ga-policy-v1',
+        label: 'Federal congressional office',
+        jurisdiction: 'federal',
+        audienceType: 'congressional_office',
+      },
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+      planModel: null,
+      promptSpecVersion: 'v2.2-gateway',
+      emailScopeLabel: 'My mailbox',
+      standingMemoryCount: 0,
+      criticalMissingContext: [],
+      disclosures: [],
+    }) as NonNullable<BatchDraftResult['manifest']>;
+
+  const slots = [
+    { genKey: 'individual:a', resultId: 'a' },
+    { genKey: 'individual:b', resultId: 'b' },
+    { genKey: 'individual:c', resultId: 'c' },
+  ];
+
+  it('attaches the manifest to a READY draft', () => {
+    const out = partitionGenerationResults(slots.slice(0, 1), [
+      { recipientId: 'a', subject: 's', body: 'b', status: 'ready', manifest: manifest('pkt-a') },
+    ]);
+    expect(out.drafts[0]?.manifest?.contextPacketId).toBe('pkt-a');
+    expect(out.manifests.get('individual:a')?.contextPacketId).toBe('pkt-a');
+  });
+
+  it('attaches the manifest to a HELD draft', () => {
+    const out = partitionGenerationResults(slots.slice(1, 2), [
+      { recipientId: 'b', subject: 's', body: 'b', status: 'held', manifest: manifest('pkt-b') },
+    ]);
+    expect(out.heldDrafts[0]?.manifest?.contextPacketId).toBe('pkt-b');
+  });
+
+  it('keeps the manifest for a FAILED slot — that is when it is most needed', () => {
+    // A blocked generation is exactly when the user needs to see which source
+    // failed; dropping the manifest with the draft would leave an unexplained
+    // error on screen.
+    const out = partitionGenerationResults(slots.slice(2, 3), [
+      {
+        recipientId: 'c',
+        subject: '',
+        body: '',
+        status: 'error',
+        error: 'CRITICAL_SOURCE_FAILURE',
+        manifest: manifest('pkt-c'),
+      },
+    ]);
+    expect(out.failedGenKeys).toEqual(['individual:c']);
+    expect(out.manifests.get('individual:c')?.contextPacketId).toBe('pkt-c');
+  });
+
+  it('is absent on the flag-off path, without breaking partitioning', () => {
+    const out = partitionGenerationResults(slots.slice(0, 1), [
+      { recipientId: 'a', subject: 's', body: 'b', status: 'ready' },
+    ]);
+    expect(out.drafts[0]?.manifest).toBeUndefined();
+    expect(out.manifests.size).toBe(0);
+  });
+});
