@@ -828,6 +828,8 @@ model MailMessage {
   bodyText       String?          @map("body_text")
   bodyHtmlS3Key  String?          @map("body_html_s3_key")
   hasAttachments Boolean          @default(false) @map("has_attachments")
+  removedAt      DateTime?        @map("removed_at") @db.Timestamptz(6)
+  removedReason  String?          @map("removed_reason") @db.VarChar(32)
   metadata       Json             @default("{}") @map("metadata_jsonb")
   raw            Json?            @map("raw_jsonb")
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -841,6 +843,7 @@ model MailMessage {
   @@unique([tenantId, source, externalId], map: "mail_messages_tenant_source_external_key")
   @@index([tenantId, fromEmail], map: "mail_messages_tenant_from_idx")
   @@index([tenantId, receivedAt], map: "mail_messages_tenant_received_idx")
+  @@index([threadId, removedAt, receivedAt], map: "mail_messages_thread_removed_received_idx")
   @@map("mail_messages")
 }
 

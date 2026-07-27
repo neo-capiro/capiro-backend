@@ -12,6 +12,7 @@
  */
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
+import { activeMailMessageWhere, activeMailThreadWhere } from './mail-message-state.js';
 
 /**
  * A user sees a meeting they created, or one that arrived through a calendar
@@ -30,12 +31,14 @@ export function ownMeetingWhere(userId: string): Prisma.MeetingWhereInput {
 export function ownMailThreadWhere(userId: string): Prisma.MailThreadWhereInput {
   return {
     connection: { createdByUserId: userId },
+    ...activeMailThreadWhere(),
   };
 }
 
 export function ownMailMessageWhere(userId: string): Prisma.MailMessageWhereInput {
   return {
     connection: { createdByUserId: userId },
+    ...activeMailMessageWhere(),
   };
 }
 
