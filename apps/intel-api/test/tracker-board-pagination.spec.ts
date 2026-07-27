@@ -28,6 +28,8 @@ interface FakeBillRow {
   lastSeenActionDate: Date | null;
   lastHearingSessionId: string | null;
   lastHearingAt: Date | null;
+  /** Optional (not required on every existing literal in this file) — MP-15 / Gate H phase d. */
+  trackedBy?: string | null;
 }
 interface FakeAlertRow {
   sourceRef: string;
@@ -328,5 +330,34 @@ describe('TrackerBoardService — getBoard (single client) pagination (P1-18 a-7
     const page1 = await h.svc.getBoard(TENANT, 'client-1', { limit: 3 });
     const page2 = await h.svc.getBoard(TENANT, 'client-1', { cursor: page1.nextCursor!, limit: 7 });
     expect(page2.columns.reduce((n, c) => n + c.cards.length, 0)).toBe(7);
+  });
+
+  // MP-15 / Gate H phase d: trackedBy is already in memory from the unfiltered
+  // findMany — this locks that it actually reaches the card, on both the
+  // per-client AND the tenant-wide roll-up (edge case 6: cards spanning clients).
+  it('MP-15: projects trackedBy onto each card, defaulting to null for a row tracked before the column existed', async () => {
+    const rows: FakeBillRow[] = [
+      { billId: 'bill-tracked', clientId: 'client-1', stage: 'introduced', trackedAt: new Date(BASE_MS), note: null, isManual: true, unread: false, lastSeenActionText: null, lastSeenActionDate: null, lastHearingSessionId: null, lastHearingAt: null, trackedBy: 'clerk-42' },
+      { billId: 'bill-untracked', clientId: 'client-1', stage: 'introduced', trackedAt: new Date(BASE_MS - 1000), note: null, isManual: true, unread: false, lastSeenActionText: null, lastSeenActionDate: null, lastHearingSessionId: null, lastHearingAt: null },
+    ];
+    const h = makeHarness(rows);
+    const res = await h.svc.getBoard(TENANT, 'client-1');
+    const cards = res.columns.flatMap((c) => c.cards);
+    expect(cards.find((c) => c.billId === 'bill-tracked')?.trackedBy).toBe('clerk-42');
+    expect(cards.find((c) => c.billId === 'bill-untracked')?.trackedBy).toBeNull();
+  });
+});
+
+describe('TrackerBoardService — getTenantBoard: trackedBy on the all-clients roll-up (MP-15 / Gate H phase d)', () => {
+  it('projects trackedBy on cards spanning MULTIPLE clients (edge case 6)', async () => {
+    const rows: FakeBillRow[] = [
+      { billId: 'bill-a', clientId: 'client-1', stage: 'introduced', trackedAt: new Date(BASE_MS), note: null, isManual: true, unread: false, lastSeenActionText: null, lastSeenActionDate: null, lastHearingSessionId: null, lastHearingAt: null, trackedBy: 'clerk-1' },
+      { billId: 'bill-b', clientId: 'client-2', stage: 'introduced', trackedAt: new Date(BASE_MS - 1000), note: null, isManual: true, unread: false, lastSeenActionText: null, lastSeenActionDate: null, lastHearingSessionId: null, lastHearingAt: null, trackedBy: 'clerk-2' },
+    ];
+    const h = makeHarness(rows);
+    const res = await h.svc.getTenantBoard(TENANT);
+    const cards = res.columns.flatMap((c) => c.cards) as Array<{ billId: string; clientId: string; trackedBy: string | null }>;
+    expect(cards.find((c) => c.billId === 'bill-a')).toMatchObject({ clientId: 'client-1', trackedBy: 'clerk-1' });
+    expect(cards.find((c) => c.billId === 'bill-b')).toMatchObject({ clientId: 'client-2', trackedBy: 'clerk-2' });
   });
 });

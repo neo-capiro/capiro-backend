@@ -379,7 +379,16 @@ export function MemoComposerDrawer({
         </Button>,
         ...(held
           ? [
-              <Button key="review" onClick={() => navigate('/reviews')}>
+              <Button
+                key="review"
+                onClick={() =>
+                  navigate(
+                    memo?.reviewRequestId
+                      ? `/reviews?id=${encodeURIComponent(memo.reviewRequestId)}`
+                      : '/reviews',
+                  )
+                }
+              >
                 View review request
               </Button>,
             ]

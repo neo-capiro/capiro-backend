@@ -53,7 +53,7 @@ function setupBrowserMocks() {
   }
 }
 
-function intelCard(i: number) {
+function intelCard(i: number, overrides: Partial<{ trackedBy: string | null }> = {}) {
   return {
     billId: `119-hr-${i}`,
     displayNum: `H.R. ${i}`,
@@ -70,10 +70,12 @@ function intelCard(i: number) {
     matchedHighPriorityTopics: [],
     matchedPosition: null,
     changeChip: null,
+    trackedBy: null,
+    ...overrides,
   };
 }
 
-function mockBoard(count: number) {
+function mockBoard(count: number, cards?: ReturnType<typeof intelCard>[]) {
   apiGetMock.mockImplementation(async (url: string) => {
     if (url === '/api/me') return { data: { role: 'capiro_admin' } };
     if (url.includes('/feature-flags')) return { data: { tracker_v2: true } };
@@ -84,7 +86,7 @@ function mockBoard(count: number) {
             {
               id: 'introduced',
               label: 'Introduced',
-              cards: Array.from({ length: count }, (_, i) => intelCard(i)),
+              cards: cards ?? Array.from({ length: count }, (_, i) => intelCard(i)),
             },
           ],
           total: count,
@@ -97,6 +99,11 @@ function mockBoard(count: number) {
     if (url.endsWith('/recommendations')) return { data: [] };
     if (url.endsWith('/issue-areas')) return { data: { issueAreas: [] } };
     if (url.includes('watchlist')) return { data: { issueAreas: [], tags: [] } };
+    // MP-15 / Gate H phase d: the board owner column's roster (Clerk-id keyed,
+    // NOT the admin-gated /tenant-admin/team).
+    if (url.endsWith('/tenant-members')) {
+      return { data: [{ id: 'u1', clerkUserId: 'clerk-42', email: 'dana@acme.test', name: 'Dana Reyes' }] };
+    }
     return { data: {} };
   });
 }
@@ -186,5 +193,55 @@ describe('Board Table view (Gate E phase c, c-3)', () => {
     screen.getByRole('button', { name: /^Bill/i }).click();
     const firstRowText = document.querySelector('table.board-table tbody tr')?.textContent ?? '';
     expect(firstRowText).toContain('H.R. 0');
+  });
+});
+
+/** MP-15 / Gate H phase d: board table Owner column. */
+describe('Board Table view — Owner column (MP-15 / Gate H phase d)', () => {
+  beforeEach(() => {
+    apiGetMock.mockReset();
+    setupBrowserMocks();
+  });
+
+  test('renders 5 headers including Owner, and resolves a tracked bill\'s owner by name', async () => {
+    mockBoard(3, [
+      intelCard(0, { trackedBy: 'clerk-42' }),
+      intelCard(1, { trackedBy: null }),
+      intelCard(2, { trackedBy: 'clerk-removed' }),
+    ]);
+    renderSurface();
+    await waitFor(() => expect(screen.getByText('H.R. 0')).toBeInTheDocument());
+    screen.getByRole('button', { name: /^Table$/i }).click();
+    await waitFor(() => expect(document.querySelector('table.board-table')).not.toBeNull());
+
+    const headers = Array.from(document.querySelectorAll('table.board-table thead th')).map(
+      (th) => th.textContent,
+    );
+    expect(headers).toHaveLength(5);
+    expect(headers.some((h) => h?.includes('Owner'))).toBe(true);
+
+    await waitFor(() => expect(screen.getByText('Dana Reyes')).toBeInTheDocument());
+    // Edge case 4: never tracked / null trackedBy.
+    expect(screen.getByText('Unassigned')).toBeInTheDocument();
+    // Edge case 5: a Clerk id with no matching roster row (removed member).
+    expect(screen.getByText('Former member')).toBeInTheDocument();
+  });
+
+  test('an empty table still spans all 5 columns', async () => {
+    // A wholly empty board short-circuits to TrackerSurface's own "Your board
+    // is empty" state before BoardTableView ever mounts — this exercises
+    // BoardTableView's own zero-rows branch directly instead.
+    apiGetMock.mockImplementation(async (url: string) =>
+      url.endsWith('/tenant-members') ? { data: [] } : { data: {} },
+    );
+    const { BoardTableView } = await import('./tracker-components.js');
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <BoardTableView columns={[]} issueSet={new Set()} onOpen={() => {}} />
+      </QueryClientProvider>,
+    );
+    const emptyCell = await screen.findByText('No tracked bills.');
+    expect(emptyCell.closest('td')?.getAttribute('colspan')).toBe('5');
   });
 });

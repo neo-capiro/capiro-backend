@@ -586,11 +586,16 @@ function FeedCard({
           )}
 
           {/* c-3.4: who should act. An unassigned alert gets a real affordance
-              rather than the empty string that used to flag every card. */}
+              rather than the empty string that used to flag every card.
+              MP-15 / Gate H d-5: item.workState.assignedToName is declared but no
+              server code has ever produced it, so this rendered a raw DB user id
+              in production. `assigneeName` already resolves the SAME assignedTo
+              against the SAME tenant-admin roster for the collapsed-card chip
+              (line ~437) — reuse it here instead of the dead field. */}
           <div className="acard-why">
             <span className="acard-sect">Who should act</span>
             {item.workState?.assignedTo ? (
-              <span>{item.workState.assignedToName ?? item.workState.assignedTo}</span>
+              <span>{assigneeName ?? item.workState.assignedTo}</span>
             ) : (
               <span className="muted">Unassigned</span>
             )}
@@ -624,15 +629,17 @@ function FeedCard({
             <div className="acard-actions">
               <button
                 className="btn sm btn-ghost"
-                onClick={() =>
-                  // The client profile's Documents tab, via the SAME ?tab= deep
-                  // link tracker emails already use. Deliberately not a
-                  // hand-built attachment URL: apps/api exposes no attachment
-                  // download route, so any such URL would be invented.
-                  navigate(
-                    `/clients?clientId=${encodeURIComponent(item.clientId)}&tab=documents`,
-                  )
-                }
+                onClick={() => {
+                  // MP-13 / Gate H phase b: the client profile's Documents tab, via
+                  // the SAME ?tab= deep link tracker emails already use, plus
+                  // ?attachmentId= so DocumentsTab highlights the exact row —
+                  // apps/api still exposes no per-attachment download ROUTE, so
+                  // this lands on the record rather than fetching it directly.
+                  const attId = item.actions?.memo?.documentAttachmentId;
+                  const qs = new URLSearchParams({ clientId: item.clientId, tab: 'documents' });
+                  if (attId) qs.set('attachmentId', attId);
+                  navigate(`/clients?${qs.toString()}`);
+                }}
               >
                 <Ic n="doc" /> Open memo
               </button>
@@ -708,11 +715,14 @@ function FeedCard({
             >
               Dismiss
             </button>
+            {/* MP-14 / Gate H phase c: these are honest navigation, not alert-scoped
+                actions — no task or strategy record is created here. Neo confirmed
+                c-2 (relabel) over c-1 (build real linked records) for this gate. */}
             <button className="btn sm btn-ghost" onClick={() => navigate('/actions')}>
-              Create task
+              Open Action Board
             </button>
             <button className="btn sm btn-ghost" onClick={() => navigate('/strategies')}>
-              Add to strategy
+              Open Strategies
             </button>
           </div>
 

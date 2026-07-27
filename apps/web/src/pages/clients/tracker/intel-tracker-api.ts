@@ -104,6 +104,8 @@ interface IntelBoardCard {
   hearingCount?: number;
   /** State Legislation Platform (S7.2) — 2-letter state code; absent/'US' = federal. */
   jurisdiction?: string;
+  /** MP-15 / Gate H phase d: the Clerk user id that tracked this bill, or null. */
+  trackedBy?: string | null;
 }
 interface IntelBoard {
   columns: Array<{ id: BillStage; label: string; cards: IntelBoardCard[] }>;
@@ -239,6 +241,7 @@ export function adaptBoard(b: IntelBoard): BoardResponse {
       latestActionText: c.latestActionText ?? null,
       latestActionDate: c.latestActionDate ? String(c.latestActionDate).slice(0, 10) : null,
       note: c.note ?? null,
+      trackedBy: c.trackedBy ?? null,
     }));
     return { id: col.id, label: col.label, count: bills.length, bills };
   });
