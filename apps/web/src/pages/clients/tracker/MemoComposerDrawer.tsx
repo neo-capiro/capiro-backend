@@ -134,6 +134,13 @@ export function MemoComposerDrawer({
   // P0-01: a memo the grounding auditor HELD for review — governance state, not
   // a failure. Keep editing available (audit requirement); disable filing.
   const held = memo?.held === true;
+  // Gate I (CG-01) phase c: `held` alone doesn't say whether a reviewer will
+  // ever see this — apps/api's reviews.createSystem() is fail-open and can
+  // return null (I_GOVERNANCE.md §1.4's S1-S4). When that happens filing is
+  // blocked (the server-owned AlertGenerationRecord enforces it) but there is
+  // no review row to link to, so this must read as "filing is blocked" — never
+  // as "auto-file failed", which implies a retry would help. It won't.
+  const blockedNoReviewer = held && !memo?.reviewRequestId;
 
   const runGenerate = async (replaceAttachmentId?: string) => {
     if (!item) return;
@@ -282,6 +289,10 @@ export function MemoComposerDrawer({
         alertId: item.id,
         actionDate: item.evidence?.bill?.actionDate ?? undefined,
         replaceAttachmentId: attachmentId ?? undefined,
+        // Gate I (CG-01): only present after a fresh generate() this session —
+        // a loaded-not-regenerated memo has no known id, and falls back to the
+        // pre-Gate-I compatibility checks (b-5), same as an older client build.
+        generationId: memo?.generationId ?? undefined,
       });
       if (res.document) {
         setAttachmentId(res.document.attachmentId);
@@ -377,17 +388,14 @@ export function MemoComposerDrawer({
         >
           Open in Workspace
         </Button>,
-        ...(held
+        // Gate I (CG-01) phase c: only offer this when there is a review row to
+        // land on — sending the analyst to the general /reviews queue for a
+        // hold nothing was ever filed under is a dead end dressed up as a link.
+        ...(held && memo?.reviewRequestId
           ? [
               <Button
                 key="review"
-                onClick={() =>
-                  navigate(
-                    memo?.reviewRequestId
-                      ? `/reviews?id=${encodeURIComponent(memo.reviewRequestId)}`
-                      : '/reviews',
-                  )
-                }
+                onClick={() => navigate(`/reviews?id=${encodeURIComponent(memo.reviewRequestId!)}`)}
               >
                 View review request
               </Button>,
@@ -416,7 +424,13 @@ export function MemoComposerDrawer({
           onClick={() => void onSave()}
           loading={save.isPending}
           disabled={!markdown || held}
-          title={held ? 'Held for review — a reviewer must approve this memo before it can be filed' : undefined}
+          title={
+            blockedNoReviewer
+              ? 'This draft could not be filed for review — filing is blocked until a reviewer releases it'
+              : held
+                ? 'Held for review — a reviewer must approve this memo before it can be filed'
+                : undefined
+          }
         >
           Save to Documents
         </Button>,
@@ -431,7 +445,13 @@ export function MemoComposerDrawer({
       ) : (
         <Space direction="vertical" style={{ width: '100%' }} size={10}>
           <Space size={6} wrap>
-            {held ? (
+            {blockedNoReviewer ? (
+              <Tooltip
+                title={`${memo?.heldReason || 'This memo was held for review.'} No reviewer has been notified — filing is blocked until a reviewer releases it.`}
+              >
+                <Tag color="volcano">Filing blocked — no reviewer notified</Tag>
+              </Tooltip>
+            ) : held ? (
               <Tooltip title={memo?.heldReason || 'The grounding auditor held this memo for review.'}>
                 <Tag color="red">Held for review — unapproved draft</Tag>
               </Tooltip>
@@ -479,10 +499,17 @@ export function MemoComposerDrawer({
             style={{ fontFamily: 'var(--mono, ui-monospace, monospace)', fontSize: 12.5 }}
           />
           {dirty && <Text type="secondary" style={{ fontSize: 11 }}>Unsaved edits — Save to update the Document.</Text>}
-          {held && (
-            <Text type="warning" style={{ fontSize: 11 }}>
-              Unapproved draft — edits are local only until a reviewer approves this memo.
+          {blockedNoReviewer ? (
+            <Text type="danger" style={{ fontSize: 11 }}>
+              This draft could not be filed for review — filing is blocked until a reviewer releases
+              it. You can keep editing; Save will stay disabled until then.
             </Text>
+          ) : (
+            held && (
+              <Text type="warning" style={{ fontSize: 11 }}>
+                Unapproved draft — edits are local only until a reviewer approves this memo.
+              </Text>
+            )
           )}
 
           {/* §4.6: what steered this memo, and what the compiler withheld and why.
