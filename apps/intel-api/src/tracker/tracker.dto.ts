@@ -239,6 +239,20 @@ export class RecordFeedbackDto {
   @MaxLength(120, { each: true })
   @ArrayMaxSize(20)
   matchedTags?: string[];
+
+  /**
+   * Gate K (MP-09): the topic IDS behind matchedTags's topic entries (never
+   * issue areas — RecommendationBill.matchedTopicIds). feedbackSignal
+   * prefers this over matchedTags/label, so a topic rename no longer severs
+   * its accumulated dismissal signal. Optional: an un-updated web bundle
+   * omits it, which is byte-identical to today's label-only behavior.
+   */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(64, { each: true })
+  @ArrayMaxSize(20)
+  matchedTopicIds?: string[];
 }
 
 /**

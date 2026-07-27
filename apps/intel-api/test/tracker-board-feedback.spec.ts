@@ -1,4 +1,6 @@
 import { TrackerBoardService } from '../src/tracker/tracker-board.service.js';
+import { scoreBillFit, type CompiledTopicForFit } from '../src/tracker/bill-fit.util.js';
+import type { RoutableTerm } from '../src/watchlist/term-routing.js';
 
 /**
  * §4.10 (Gate E phase f) — `recordFeedback` persisting the structured dismiss
@@ -24,6 +26,7 @@ interface FeedbackRow {
   signal: string;
   reason: string | null;
   matchedTags: string[];
+  matchedTopicIds: string[];
 }
 
 function feedbackHarness(over: { assertAlertInClient?: jest.Mock } = {}) {
@@ -87,6 +90,29 @@ describe('TrackerBoardService.recordFeedback — §4.10 (f-7 case 2)', () => {
       signal: 'marked_irrelevant',
     });
     expect(h.rows[0]).toMatchObject({ reason: null, matchedTags: [] });
+  });
+
+  it('Gate K (MP-09): persists matchedTopicIds alongside matchedTags, and defaults it to [] when omitted', async () => {
+    const h = feedbackHarness();
+    await h.svc.recordFeedback(TENANT, CLIENT, USER, {
+      targetRef: '119-hr-1',
+      signal: 'marked_irrelevant',
+      matchedTags: ['grid reliability'],
+      matchedTopicIds: ['topic-grid'],
+    });
+    expect(h.rows[0]).toMatchObject({
+      matchedTags: ['grid reliability'],
+      matchedTopicIds: ['topic-grid'],
+    });
+
+    const h2 = feedbackHarness();
+    await h2.svc.recordFeedback(TENANT, CLIENT, USER, {
+      targetRef: '119-hr-1',
+      signal: 'marked_irrelevant',
+      matchedTags: ['grid reliability'],
+      // matchedTopicIds omitted — an un-updated web bundle.
+    });
+    expect(h2.rows[0]).toMatchObject({ matchedTopicIds: [] });
   });
 });
 
@@ -199,5 +225,93 @@ describe('TrackerBoardService.feedbackSignal — §4.10 (f-7 case 3)', () => {
     });
     const out = await h.svc.feedbackSignal(TENANT, CLIENT);
     expect(out.size).toBe(0);
+  });
+
+  describe('Gate K (MP-09, c-2/c-8): keyed by topic id, falling back to label', () => {
+    it('a row WITH matchedTopicIds aggregates by id, not label', async () => {
+      const h = feedbackHarness();
+      await h.svc.recordFeedback(TENANT, CLIENT, USER, {
+        targetRef: '119-hr-1',
+        signal: 'marked_irrelevant',
+        reason: 'too_broad',
+        matchedTags: ['grid reliability'],
+        matchedTopicIds: ['topic-grid'],
+      });
+      const out = await h.svc.feedbackSignal(TENANT, CLIENT);
+      expect(out.get('topic-grid')).toEqual({ total: 1, byReason: { too_broad: 1 } });
+      expect(out.has('grid reliability')).toBe(false);
+    });
+
+    it('a row with NO matchedTopicIds (pre-migration row) still falls back to label — forward-only does not mean silently dropped', async () => {
+      const h = feedbackHarness();
+      await h.svc.recordFeedback(TENANT, CLIENT, USER, {
+        targetRef: '119-hr-1',
+        signal: 'marked_irrelevant',
+        reason: 'too_broad',
+        matchedTags: ['grid reliability'],
+        // matchedTopicIds omitted, as a row written before this column existed would be.
+      });
+      const out = await h.svc.feedbackSignal(TENANT, CLIENT);
+      expect(out.get('grid reliability')).toEqual({ total: 1, byReason: { too_broad: 1 } });
+    });
+
+    /**
+     * c-8: "rename a topic, then confirm prior dismissal signal still
+     * applies" — the whole point of MP-09. End-to-end through
+     * recordFeedback -> feedbackSignal -> scoreBillFit, mirroring what
+     * getRecommendations actually does.
+     */
+    it('renaming a topic (label changes, id does not) preserves the accumulated dismissal signal through the full recordFeedback -> feedbackSignal -> scoreBillFit chain', async () => {
+      const h = feedbackHarness();
+      const labelTerm = (label: string): RoutableTerm => ({
+        id: null,
+        topicId: 'topic-grid',
+        topicLabel: label,
+        termType: 'keyword',
+        value: label,
+        topicPriority: 'med',
+      });
+      const bill = (title: string) => ({ title, policyArea: null, subjects: [], latestActionText: '' });
+
+      // 6 too_broad dismissals under the ORIGINAL label — the floor band (0.5×).
+      for (let i = 0; i < 6; i += 1) {
+        await h.svc.recordFeedback(TENANT, CLIENT, USER, {
+          targetRef: `119-hr-${i}`,
+          signal: 'marked_irrelevant',
+          reason: 'too_broad',
+          matchedTags: ['grid reliability'],
+          matchedTopicIds: ['topic-grid'],
+        });
+      }
+      const feedback = await h.svc.feedbackSignal(TENANT, CLIENT);
+
+      // The topic is RENAMED — same id, new label — exactly as putWatchlist's
+      // rename-in-place (tracker-watchlist.service.ts) preserves it.
+      const renamedTopic: CompiledTopicForFit[] = [
+        {
+          id: 'topic-grid',
+          label: 'grid reliability reform',
+          issueArea: null,
+          priority: 'med',
+          keywords: ['grid reliability reform'],
+          synonyms: [],
+          entities: [],
+          riskPhrases: [],
+          routableTerms: [labelTerm('grid reliability reform')],
+        },
+      ];
+      const r = scoreBillFit(
+        bill('A grid reliability reform bill'),
+        renamedTopic,
+        [],
+        0,
+        false,
+        feedback,
+      );
+
+      expect(r.matchedTags).toContain('grid reliability reform');
+      // 0.3 * weight(0.5 floor) — the down-weight followed the id across the rename.
+      expect(r.fit).toBeCloseTo(0.3 * 0.5, 9);
+    });
   });
 });

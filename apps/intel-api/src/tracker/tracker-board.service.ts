@@ -1477,6 +1477,9 @@ export class TrackerBoardService {
       reason?: string | null;
       /** §4.10 (Gate E phase f): matched topic labels at dismissal time. */
       matchedTags?: string[];
+      /** Gate K (MP-09): the topic ids behind matchedTags's topic entries
+       *  (never issue areas) — the id-keyed twin feedbackSignal prefers. */
+      matchedTopicIds?: string[];
     },
   ) {
     // Cross-tenant guard (P1-03/P1-04) — must run before the write below.
@@ -1504,6 +1507,7 @@ export class TrackerBoardService {
           signal: input.signal,
           reason: input.reason ?? null,
           matchedTags: input.matchedTags ?? [],
+          matchedTopicIds: input.matchedTopicIds ?? [],
         },
       }),
     );
@@ -1523,6 +1527,13 @@ export class TrackerBoardService {
    * Re-deriving it retroactively would re-match against the CURRENT
    * watchlist, which has likely changed since — answering a different
    * question than "what did the analyst actually see and reject".
+   *
+   * Gate K (MP-09, c-2): the map is keyed by topic ID when a row has one
+   * (stable across a rename — see topicWeight in bill-fit.util.ts, which
+   * looks up by id first), and falls back to LABEL keys for a row written
+   * before `matched_topic_ids` existed. Also forward-only, same posture as
+   * `matchedTags` itself — never backfilled by matching labels to ids,
+   * which would risk mis-attributing a historical dismissal after a rename.
    */
   async feedbackSignal(
     tenantId: string,
@@ -1536,17 +1547,18 @@ export class TrackerBoardService {
           signal: 'marked_irrelevant',
           matchedTags: { isEmpty: false },
         },
-        select: { matchedTags: true, reason: true },
+        select: { matchedTags: true, matchedTopicIds: true, reason: true },
       }),
     );
     const out = new Map<string, { total: number; byReason: Record<string, number> }>();
     for (const row of rows) {
       const reasonKey = row.reason ?? 'unspecified';
-      for (const label of row.matchedTags) {
-        const entry = out.get(label) ?? { total: 0, byReason: {} };
+      const keys = row.matchedTopicIds.length ? row.matchedTopicIds : row.matchedTags;
+      for (const key of keys) {
+        const entry = out.get(key) ?? { total: 0, byReason: {} };
         entry.total += 1;
         entry.byReason[reasonKey] = (entry.byReason[reasonKey] ?? 0) + 1;
-        out.set(label, entry);
+        out.set(key, entry);
       }
     }
     return out;

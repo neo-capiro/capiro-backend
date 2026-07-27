@@ -519,8 +519,15 @@ export function RecCard({
   onTrack: (billId: string) => void;
   /** f-1: `reason` is null for "Just hide it" (no reason given). `matchedTags`
    *  is this card's OWN tags at dismiss time — the link f-3's `feedbackSignal`
-   *  aggregates by (tracker-board.service.ts). */
-  onDismiss: (billId: string, reason: string | null, matchedTags: string[]) => void;
+   *  aggregates by (tracker-board.service.ts). Gate K (MP-09): `matchedTopicIds`
+   *  is the id-keyed twin — feedbackSignal prefers it so a rename can't sever
+   *  the signal. */
+  onDismiss: (
+    billId: string,
+    reason: string | null,
+    matchedTags: string[],
+    matchedTopicIds: string[],
+  ) => void;
   onOpen: (bill: RecommendationBill) => void;
   /** f-1: whether THIS card's reason menu is open. Lifted to the parent's
    *  shared `menu` state (TrackerTab.tsx) so the existing outside-click-close
@@ -598,7 +605,7 @@ export function RecCard({
                   key={r.value}
                   className="opt"
                   role="menuitem"
-                  onClick={() => onDismiss(bill.billId, r.value, bill.matchedTags)}
+                  onClick={() => onDismiss(bill.billId, r.value, bill.matchedTags, bill.matchedTopicIds ?? [])}
                 >
                   {r.label}
                 </div>
@@ -606,7 +613,7 @@ export function RecCard({
               <div
                 className="opt"
                 role="menuitem"
-                onClick={() => onDismiss(bill.billId, null, bill.matchedTags)}
+                onClick={() => onDismiss(bill.billId, null, bill.matchedTags, bill.matchedTopicIds ?? [])}
               >
                 Just hide it
               </div>

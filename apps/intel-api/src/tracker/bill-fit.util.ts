@@ -109,7 +109,12 @@ const ENTITY_KIND_TYPES = new Set([
   'legislator',
 ]);
 
-/** §4.10 (Gate E phase f): per-topic dismissal counts, keyed by topic label. */
+/**
+ * §4.10 (Gate E phase f): per-topic dismissal counts. Gate K (MP-09): keyed
+ * by topic ID when the producing row has one (stable across a rename — see
+ * `topicWeight` below), falling back to LABEL for a row written before
+ * `intel_feedback.matched_topic_ids` existed.
+ */
 export interface TopicFeedback {
   total: number;
   byReason: Record<string, number>;

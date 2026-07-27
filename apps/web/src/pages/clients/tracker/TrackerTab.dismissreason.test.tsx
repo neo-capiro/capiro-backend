@@ -38,11 +38,22 @@ const BILL: RecommendationBill = {
 /** A thin wrapper: RecCard's dismiss-menu open state is CONTROLLED by the
  *  parent (lifted to TrackerTab's shared `menu` state in the real app) —
  *  this stands in for that parent. */
-function RecCardHarness({ onDismiss }: { onDismiss: (billId: string, reason: string | null, matchedTags: string[]) => void }) {
+function RecCardHarness({
+  onDismiss,
+  bill = BILL,
+}: {
+  onDismiss: (
+    billId: string,
+    reason: string | null,
+    matchedTags: string[],
+    matchedTopicIds: string[],
+  ) => void;
+  bill?: RecommendationBill;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <RecCard
-      bill={BILL}
+      bill={bill}
       issueSet={new Set()}
       selectMode={false}
       selected={false}
@@ -76,7 +87,7 @@ describe('RecCard dismiss-reason menu (f-1)', () => {
     render(<RecCardHarness onDismiss={onDismiss} />);
     fireEvent.click(screen.getByRole('button', { name: /Hide this bill/i }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Too broad' }));
-    expect(onDismiss).toHaveBeenCalledWith('119-hr-1', 'too_broad', ['grid', 'permitting']);
+    expect(onDismiss).toHaveBeenCalledWith('119-hr-1', 'too_broad', ['grid', 'permitting'], []);
   });
 
   test('"Just hide it" sends a null reason (still carrying matchedTags)', () => {
@@ -84,7 +95,21 @@ describe('RecCard dismiss-reason menu (f-1)', () => {
     render(<RecCardHarness onDismiss={onDismiss} />);
     fireEvent.click(screen.getByRole('button', { name: /Hide this bill/i }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Just hide it' }));
-    expect(onDismiss).toHaveBeenCalledWith('119-hr-1', null, ['grid', 'permitting']);
+    expect(onDismiss).toHaveBeenCalledWith('119-hr-1', null, ['grid', 'permitting'], []);
+  });
+
+  test('Gate K (MP-09): also sends this card\'s matchedTopicIds when present', () => {
+    const onDismiss = vi.fn();
+    const billWithIds: RecommendationBill = { ...BILL, matchedTopicIds: ['topic-grid', 'topic-permitting'] };
+    render(<RecCardHarness onDismiss={onDismiss} bill={billWithIds} />);
+    fireEvent.click(screen.getByRole('button', { name: /Hide this bill/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Too broad' }));
+    expect(onDismiss).toHaveBeenCalledWith(
+      '119-hr-1',
+      'too_broad',
+      ['grid', 'permitting'],
+      ['topic-grid', 'topic-permitting'],
+    );
   });
 });
 
@@ -193,5 +218,26 @@ describe('TrackerSurface dismissMutation wire payload (f-1/f-2)', () => {
       reason: 'too_broad',
       matchedTags: ['grid'],
     });
+  });
+
+  test('Gate K (MP-09): also POSTs matchedTopicIds when the recommendation carries them', async () => {
+    apiGetMock.mockImplementation(async (url: string) => {
+      if (url === '/api/me') return { data: { role: 'capiro_admin' } };
+      if (url.includes('/feature-flags')) return { data: { tracker_v2: true } };
+      if (url.endsWith('/board')) return { data: { columns: [{ id: 'introduced', label: 'Introduced', cards: [] }] } };
+      if (url.endsWith('/recommendations')) return { data: [intelRec({ matchedTopicIds: ['topic-grid'] })] };
+      if (url.endsWith('/issue-areas')) return { data: { issueAreas: [] } };
+      if (url.includes('watchlist')) return { data: { issueAreas: [], tags: [] } };
+      return { data: {} };
+    });
+    renderSurface();
+
+    await waitFor(() => expect(screen.getByText('Grid modernization act')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /Hide this bill/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Too broad' }));
+
+    await waitFor(() => expect(apiPostMock).toHaveBeenCalled());
+    const [, body] = apiPostMock.mock.calls[0]!;
+    expect(body).toMatchObject({ matchedTopicIds: ['topic-grid'] });
   });
 });
