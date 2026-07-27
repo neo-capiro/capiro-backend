@@ -69,6 +69,80 @@ function scopesMatch(actual: string[], canonical: readonly string[] | null): boo
   return a.length === b.length && a.every((s, i) => s === b[i]);
 }
 
+interface GoogleSyncStateFields {
+  mailHistoryId: string | null;
+  mailIncrementalPageToken: string | null;
+  mailIncrementalLatestHistoryId: string | null;
+  mailBackfillPageToken: string | null;
+  mailBackfillQuery: string | null;
+  calendarPageToken: string | null;
+  calendarWindow: { from: string; to: string } | null;
+}
+
+function asString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+/** Diagnostic-only read of the multi-run pagination cursors (remaining-items
+ *  plan §3.g1) -- historyId/pageToken/query/window are opaque Gmail/Calendar
+ *  sync bookkeeping, never an OAuth credential. */
+function googleSyncStateFields(syncState: unknown): GoogleSyncStateFields {
+  const state = asRecord(syncState);
+  const mail = asRecord(state.mail);
+  const allLabel = asRecord(asRecord(mail.labels).ALL);
+  const calendar = asRecord(state.calendar);
+  const window = asRecord(calendar.window);
+  return {
+    mailHistoryId: asString(mail.historyId),
+    mailIncrementalPageToken: asString(mail.incrementalPageToken),
+    mailIncrementalLatestHistoryId: asString(mail.incrementalLatestHistoryId),
+    mailBackfillPageToken: asString(allLabel.backfillPageToken),
+    mailBackfillQuery: asString(allLabel.backfillQuery),
+    calendarPageToken: asString(calendar.pageToken),
+    calendarWindow:
+      typeof window.from === 'string' && typeof window.to === 'string'
+        ? { from: window.from, to: window.to }
+        : null,
+  };
+}
+
+interface MailRemovalCounts {
+  activeMessages: number;
+  removedMessages: number;
+  activeThreads: number;
+  allRemovedThreads: number;
+}
+
+/** Provider-neutral (Gmail and Outlook both write mail_messages/mail_threads),
+ *  so this runs for every connection, not just Google. */
+async function mailRemovalCounts(
+  prisma: PrismaService,
+  tenantId: string,
+  connectionId: string,
+): Promise<MailRemovalCounts> {
+  return prisma.withTenant(tenantId, async (tx) => {
+    const [activeMessages, removedMessages, activeThreads, allRemovedThreads] = await Promise.all([
+      tx.mailMessage.count({ where: { tenantId, connectionId, removedAt: null } }),
+      tx.mailMessage.count({ where: { tenantId, connectionId, removedAt: { not: null } } }),
+      tx.mailThread.count({
+        where: { tenantId, connectionId, messages: { some: { removedAt: null } } },
+      }),
+      tx.mailThread.count({
+        where: {
+          tenantId,
+          connectionId,
+          AND: [{ messages: { none: { removedAt: null } } }, { messages: { some: {} } }],
+        },
+      }),
+    ]);
+    return { activeMessages, removedMessages, activeThreads, allRemovedThreads };
+  });
+}
+
 /** Microsoft's webhook subscription ids + expiries, read out of syncState.
  *  Google has no equivalent (no webhook subscriptions for Gmail/Calendar). */
 function subscriptionsFrom(syncState: unknown): SubscriptionState[] {
@@ -175,6 +249,27 @@ async function main(): Promise<void> {
           }
         }
       }
+
+      if (conn.provider === EngagementProvider.google_workspace) {
+        const sync = googleSyncStateFields(conn.syncState);
+        logger.log(`  mail.historyId:                 ${sync.mailHistoryId ?? '(none)'}`);
+        logger.log(`  mail.incrementalPageToken:      ${sync.mailIncrementalPageToken ?? '(none)'}`);
+        logger.log(`  mail.incrementalLatestHistoryId:${sync.mailIncrementalLatestHistoryId ?? ' (none)'}`);
+        logger.log(`  mail.labels.ALL.backfillPageToken: ${sync.mailBackfillPageToken ?? '(none)'}`);
+        logger.log(`  mail.labels.ALL.backfillQuery:     ${sync.mailBackfillQuery ?? '(none)'}`);
+        logger.log(`  calendar.pageToken:             ${sync.calendarPageToken ?? '(none)'}`);
+        logger.log(
+          `  calendar.window:                ${sync.calendarWindow ? `${sync.calendarWindow.from} .. ${sync.calendarWindow.to}` : '(none)'}`,
+        );
+      }
+
+      const removal = await mailRemovalCounts(prisma, tenant.id, conn.id);
+      logger.log(
+        `  mail (active/removed):  ${removal.activeMessages}/${removal.removedMessages}`,
+      );
+      logger.log(
+        `  threads (active/all-removed): ${removal.activeThreads}/${removal.allRemovedThreads}`,
+      );
     }
   } finally {
     await app.close();
