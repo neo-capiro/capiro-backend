@@ -3,6 +3,7 @@ import {
   NEXUS_COMPONENTS,
   NEXUS_COMPONENT_WEIGHTS,
   scoreNexus,
+  weakerStrength,
   type EvidenceStrength,
   type NexusScoreInput,
 } from './district-nexus-scoring.js';
@@ -107,6 +108,25 @@ describe('evidence strength', () => {
       components: { contractPlaceOfPerformance: { strength: 'statewide' } },
     });
     expect(result.warnings.some((w) => w.code === 'statewide_attribution')).toBe(true);
+  });
+
+  test('userProvided earns half weight', () => {
+    const result = scoreNexus({
+      components: { verifiedFacility: { strength: 'userProvided' } },
+    });
+    expect(result.breakdown.find((b) => b.component === 'verifiedFacility')?.credit).toBe(12.5);
+  });
+
+  test('userProvided is weaker than sourceAuthoritative and stronger-or-equal to statewide', () => {
+    expect(weakerStrength('userProvided', 'sourceAuthoritative')).toBe('userProvided');
+    expect(weakerStrength('statewide', 'userProvided')).toBe('statewide');
+  });
+
+  test('a userProvided component emits an inferred_entity_match warning', () => {
+    const result = scoreNexus({
+      components: { verifiedFacility: { strength: 'userProvided' } },
+    });
+    expect(result.warnings.some((w) => w.code === 'inferred_entity_match')).toBe(true);
   });
 });
 

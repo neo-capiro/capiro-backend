@@ -27,7 +27,13 @@
  * client's score no matter how large it is.
  */
 import { districtKeyFor } from './district-nexus.aggregate.js';
-import type { DistrictKey, NexusEvidence } from './district-nexus.types.js';
+import { CONTRACT_TIER, assistanceTier, componentForRelationship, facilityTier } from './district-nexus.verification.js';
+import type {
+  DistrictKey,
+  EvidenceVerificationStatus,
+  GeographyBasis,
+  NexusEvidence,
+} from './district-nexus.types.js';
 
 /** Per-district-per-rail cap, matching the existing topContractAwards/topGrantAwards precedent. */
 export const EVIDENCE_CAP_PER_DISTRICT = 10;
@@ -93,8 +99,8 @@ export function contractRowToEvidence(
       sourceUpdatedAt: row.lastSyncedAt,
       observedAt: row.actionDate,
       geographyBasis: 'place_of_performance',
-      verificationStatus: 'inferred',
-      confidence: null,
+      verificationStatus: CONTRACT_TIER.status,
+      confidence: CONTRACT_TIER.confidence,
       externalUseApproved: true,
       boundaryVintage: 'unknown',
       amount: row.amount,
@@ -118,6 +124,7 @@ export function assistanceRowToEvidence(
   const districtKey = districtKeyFor(row.state, row.district);
   if (!districtKey) return null;
   const matchedByUei = !!row.recipientUei && matchedUeis.has(row.recipientUei.toUpperCase());
+  const tier = assistanceTier(matchedByUei ? 'uei' : 'recipient_name');
   const vintage: NexusEvidence['boundaryVintage'] =
     row.popCdVintage === 'original' || row.popCdVintage === 'current' ? row.popCdVintage : 'unknown';
   return {
@@ -130,28 +137,13 @@ export function assistanceRowToEvidence(
       sourceUpdatedAt: row.lastSyncedAt,
       observedAt: row.startDate,
       geographyBasis: row.basis,
-      verificationStatus: matchedByUei ? 'source_verified' : 'inferred',
-      confidence: matchedByUei ? 1 : null,
+      verificationStatus: tier.status,
+      confidence: tier.confidence,
       externalUseApproved: true,
       boundaryVintage: vintage,
       amount: row.totalObligated,
     },
   };
-}
-
-/** How a hand-typed or web-imported district claim is trusted, absent a geocode. */
-function facilityVerificationStatus(row: FacilityEvidenceSourceRow): {
-  status: 'geocode_verified' | 'user_provided';
-  confidence: number | null;
-} {
-  if (row.districtSource === 'geocoded' || row.geocodeStatus === 'matched') {
-    return { status: 'geocode_verified', confidence: 1 };
-  }
-  // 'user' and 'web_import' are both unconfirmed client-asserted district
-  // claims — web_import is machine-parsed rather than hand-typed, but neither
-  // has been independently checked against a geocoder, so both get the same
-  // (weaker) trust tier rather than a third, unsupported confidence tier.
-  return { status: 'user_provided', confidence: null };
 }
 
 /**
@@ -174,7 +166,7 @@ export function facilityRowToEvidence(
 ): { districtKey: DistrictKey; facility: NexusEvidence; employees: NexusEvidence | null } | null {
   const districtKey = districtKeyFor(row.state, row.districtCode);
   if (!districtKey) return null;
-  const { status, confidence } = facilityVerificationStatus(row);
+  const { status, confidence } = facilityTier(row);
 
   const facility: NexusEvidence = {
     component: 'verifiedFacility',
@@ -202,4 +194,77 @@ export function facilityRowToEvidence(
         };
 
   return { districtKey, facility, employees };
+}
+
+export interface RelationshipEvidenceSourceRow {
+  id: string;
+  /** direct_recipient | subrecipient | project_site | research_partner | ... */
+  relationshipType: string;
+  counterparty: string | null;
+  /** Already resolved by the caller — see aggregateRelationshipNexus's geography precedence. */
+  state: string | null;
+  district: string | null;
+  geographyBasis: GeographyBasis;
+  /** From relationshipTier(verificationStatus), computed ONCE by the caller so this can never drift from the row's scoring strength. */
+  status: EvidenceVerificationStatus;
+  confidence: number | null;
+  externalUseApproved: boolean;
+  /** The linked award's pop_cd_vintage — irrelevant when a facility supplied the district. */
+  popCdVintage: string | null;
+  obligatedAmount: number | null;
+  sourceUpdatedAt: string | null;
+  observedAt: string | null;
+}
+
+/** `direct_recipient` -> `Direct recipient`. */
+function humanizeRelationshipType(value: string): string {
+  const spaced = value.replace(/_/g, ' ');
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+/**
+ * A reviewed client↔award relationship (audit F4). Unlike contracts and
+ * assistance, this rail's geography and money were already resolved by the
+ * caller (district-nexus.service.ts's aggregateRelationshipNexus): the
+ * facility > place-of-performance > recipient-location precedence needs the
+ * linked award and facility rows, which this I/O-free module deliberately has
+ * no access to. `status`/`confidence` likewise come from `relationshipTier`,
+ * computed once by the caller and carried through rather than recomputed
+ * here, so the score's strength and this row's displayed status can never
+ * disagree — see district-nexus.verification.ts.
+ */
+export function relationshipRowToEvidence(
+  row: RelationshipEvidenceSourceRow,
+): { districtKey: DistrictKey; evidence: NexusEvidence } | null {
+  const districtKey = districtKeyFor(row.state, row.district);
+  if (!districtKey) return null;
+  const component = componentForRelationship(row.relationshipType);
+  if (!component) return null;
+
+  const vintage: NexusEvidence['boundaryVintage'] =
+    row.geographyBasis === 'project_site'
+      ? 'current'
+      : row.popCdVintage === 'original' || row.popCdVintage === 'current'
+        ? row.popCdVintage
+        : 'unknown';
+
+  return {
+    districtKey,
+    evidence: {
+      component,
+      sourceType: 'client_grant_nexus',
+      label: `${humanizeRelationshipType(row.relationshipType)}${row.counterparty ? ` — ${row.counterparty}` : ''}`,
+      sourceRecordId: row.id,
+      sourceUpdatedAt: row.sourceUpdatedAt,
+      observedAt: row.observedAt,
+      geographyBasis: row.geographyBasis,
+      verificationStatus: row.status,
+      confidence: row.confidence,
+      // Client-supplied and reviewer-attested, never a hardcoded true — this
+      // flag IS the approval gate (plan §8.5), not decoration.
+      externalUseApproved: row.externalUseApproved,
+      boundaryVintage: vintage,
+      amount: row.obligatedAmount,
+    },
+  };
 }

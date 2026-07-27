@@ -96,6 +96,7 @@ export type EvidenceStrength =
   | 'verified'
   | 'sourceAuthoritative'
   | 'inferred'
+  | 'userProvided'
   | 'recipientLocation'
   | 'statewide'
   | 'absent';
@@ -105,6 +106,8 @@ const STRENGTH_MULTIPLIER: Readonly<Record<EvidenceStrength, number>> = Object.f
   sourceAuthoritative: 1,
   /** Name-fingerprint match, not a verified identifier. */
   inferred: 0.5,
+  /** Client-asserted and not independently confirmed (no geocode). */
+  userProvided: 0.5,
   /** Recipient's mailing location, not where the work happened. */
   recipientLocation: 0.5,
   /** Statewide "90" — real money, but not attributable to one district. */
@@ -116,6 +119,8 @@ const STRENGTH_RATIONALE: Readonly<Record<EvidenceStrength, string>> = Object.fr
   verified: 'Verified evidence — full weight.',
   sourceAuthoritative: 'Source-authoritative evidence — full weight.',
   inferred: 'Inferred from a name match rather than a verified identifier — half weight.',
+  userProvided:
+    'Client-provided and not independently confirmed by a geocoder — half weight.',
   recipientLocation:
     'Geography taken from recipient location rather than place of performance — half weight.',
   statewide:
@@ -165,15 +170,17 @@ const MAX_STRONGEST_DRIVERS = 3;
 /**
  * Strengths ordered weakest-first by credit multiplier.
  *
- * `recipientLocation` and `inferred` share a multiplier (0.5), so their relative
- * order cannot change any score — it is fixed here only so that combining them
- * is deterministic, and `recipientLocation` is listed first because a geographic
- * fallback is the more specific claim to warn about.
+ * `recipientLocation`, `userProvided`, and `inferred` share a multiplier (0.5),
+ * so their relative order cannot change any score — it is fixed here only so
+ * that combining them is deterministic, and `recipientLocation` is listed
+ * first because a geographic fallback is the more specific claim to warn
+ * about.
  */
 const STRENGTH_ORDER: readonly EvidenceStrength[] = [
   'absent',
   'statewide',
   'recipientLocation',
+  'userProvided',
   'inferred',
   'sourceAuthoritative',
   'verified',
@@ -263,6 +270,11 @@ export function scoreNexus(input: NexusScoreInput): NexusScoreResult {
       warnings.push({
         code: 'inferred_entity_match',
         message: `${NEXUS_COMPONENT_LABELS[component]} rests on an inferred entity match rather than a verified identifier.`,
+      });
+    } else if (strength === 'userProvided') {
+      warnings.push({
+        code: 'inferred_entity_match',
+        message: `${NEXUS_COMPONENT_LABELS[component]} rests on a client-provided claim that has not been independently confirmed.`,
       });
     }
   }

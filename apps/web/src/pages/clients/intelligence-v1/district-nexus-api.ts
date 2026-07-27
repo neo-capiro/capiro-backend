@@ -95,12 +95,15 @@ export async function getClientDistrictNexus(
 // Type-only, so nothing from that folder reaches this chunk at runtime.
 import type {
   AwardedFunding,
+  ClientOpportunity,
+  ClientOpportunitySummary,
   DataQualityWarning,
   DistrictKey,
   DistrictNexusDistrictDetail,
   IsoTimestamp,
   Money,
   NexusScoreBreakdown,
+  OpportunityEligibilityState,
   OpportunityFunding,
   SourceFreshness,
   UnmappedFunding,
@@ -108,9 +111,12 @@ import type {
 
 export type {
   AwardedFunding,
+  ClientOpportunity,
+  ClientOpportunitySummary,
   DistrictNexusDistrictDetail,
   Money,
   NexusScoreBreakdown,
+  OpportunityEligibilityState,
   SourceFreshness,
 };
 
@@ -138,11 +144,15 @@ export interface ClientDistrictNexusV2 {
   facilityFootprint: ClientFacilityFootprint;
   awarded: AwardedFunding;
   /**
-   * Structurally always {null, null} today: opportunity rows carry no district
-   * and foldDistricts drops district-less rows. Kept in the type because the
-   * server sends it; rendered only when non-null, never counted as awarded.
+   * District-derived only: populated when an opportunity was explicitly linked
+   * to a project-site facility that resolved to a district (see
+   * aggregateOpportunitySummary). Most opportunities have no such link, so
+   * this is usually {null, null} — the client's OWN full pipeline, never
+   * dropped for lack of geography, is `opportunitySummary` below.
    */
   opportunities: OpportunityFunding;
+  /** The client's own opportunity pipeline (WS-F) — see `ClientOpportunitySummary`. */
+  opportunitySummary: ClientOpportunitySummary;
   unmapped: UnmappedFunding;
   score: number | null;
   bestDistrictKey: DistrictKey | null;
