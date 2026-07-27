@@ -3,6 +3,10 @@ import {
   renderTestEmail,
   renderAlertEmail,
   renderDigestEmail,
+  renderHearingAlertEmail,
+  renderCombinedAlertEmail,
+  renderRegulationAlertEmail,
+  renderProgramElementAlertEmail,
   rendererFor,
   ALERT_EMAIL_RENDERERS,
   type DigestItem,
@@ -154,11 +158,196 @@ describe('every email renderer — never the /clients/<id>?tab= anti-pattern (RB
     expect(html).not.toMatch(/\/clients\/[^?]+\?tab=/);
     expect(text).not.toMatch(/\/clients\/[^?]+\?tab=/);
   });
+
+  // HP-07 (Gate G phase e): the 4 renderers this gate adds.
+  it('renderHearingAlertEmail', () => {
+    const event: IntelAlertEvent = {
+      ...EVENT,
+      sourceType: 'hearing',
+      hearing: {
+        sessionId: 's1',
+        title: 'Full Committee Markup',
+        committeeId: 'HASC',
+        occurredAt: '2026-07-01T14:00:00.000Z',
+        mentions: [{ speakerName: 'Rep. X', quote: 'We need to address this.', timestampMs: 1000 }],
+      },
+    };
+    const { html, text } = ALERT_EMAIL_RENDERERS.hearing!(event);
+    expect(html).not.toMatch(/\/clients\/[^?]+\?tab=/);
+    expect(text).not.toMatch(/\/clients\/[^?]+\?tab=/);
+  });
+
+  it('renderCombinedAlertEmail', () => {
+    const event: IntelAlertEvent = {
+      ...EVENT,
+      sourceType: 'combined',
+      linkedBill: {
+        displayNum: 'H.R. 1',
+        title: 'Test Act',
+        url: 'https://congress.gov/bill/119/hr1',
+        actionText: 'Referenced in hearing',
+        actionDate: '2026-07-01',
+      },
+      hearing: { sessionId: 's1', title: 'Full Committee Markup', committeeId: 'HASC', occurredAt: null, mentions: [] },
+    };
+    const { html, text } = ALERT_EMAIL_RENDERERS.combined!(event);
+    expect(html).not.toMatch(/\/clients\/[^?]+\?tab=/);
+    expect(text).not.toMatch(/\/clients\/[^?]+\?tab=/);
+  });
+
+  it('renderRegulationAlertEmail', () => {
+    const event: IntelAlertEvent = {
+      ...EVENT,
+      sourceType: 'regulation',
+      regulationInfo: { agency: 'EPA', ruleType: 'proposed', commentEndDate: '2026-08-01', jurisdiction: 'US' },
+    };
+    const { html, text } = ALERT_EMAIL_RENDERERS.regulation!(event);
+    expect(html).not.toMatch(/\/clients\/[^?]+\?tab=/);
+    expect(text).not.toMatch(/\/clients\/[^?]+\?tab=/);
+  });
+
+  it('renderProgramElementAlertEmail', () => {
+    const event: IntelAlertEvent = {
+      ...EVENT,
+      sourceType: 'program_element',
+      programElement: {
+        peCode: '0603286F',
+        title: 'Hypersonics Prototyping',
+        fiscalYear: 2027,
+        deltaTypeLabel: 'New start',
+        amountFromMillions: 0,
+        amountToMillions: 12,
+        deltaMillions: 12,
+        deltaPct: null,
+        href: '/program-elements/0603286F',
+      },
+    };
+    const { html, text } = ALERT_EMAIL_RENDERERS.program_element!(event);
+    expect(html).not.toMatch(/\/clients\/[^?]+\?tab=/);
+    expect(text).not.toMatch(/\/clients\/[^?]+\?tab=/);
+  });
 });
 
-describe('rendererFor (P1-07)', () => {
-  it("returns null for a source with no registered renderer ('program_element')", () => {
-    expect(rendererFor('program_element')).toBeNull();
+describe('HP-07 per-source renderers — content (Gate G phase e)', () => {
+  it('renderHearingAlertEmail: no official-source link (none exists for this type), shows mentions', () => {
+    const event: IntelAlertEvent = {
+      ...EVENT,
+      sourceType: 'hearing',
+      billTitle: 'Full Committee Markup — 1 watchlist mention',
+      detail: 'Your watchlist term(s) were referenced in this hearing.',
+      hearing: {
+        sessionId: 's1',
+        title: 'Full Committee Markup',
+        committeeId: 'HASC',
+        occurredAt: '2026-07-01T14:00:00.000Z',
+        mentions: [{ speakerName: 'Rep. X', quote: 'We need to address this.', timestampMs: 1000 }],
+      },
+    };
+    const { html, text, subject } = renderHearingAlertEmail(event);
+    expect(subject).toContain('Full Committee Markup — 1 watchlist mention');
+    expect(html).toContain('Rep. X');
+    expect(html).toContain('We need to address this.');
+    expect(html).not.toContain('View official source');
+    expect(text).toContain('Rep. X: We need to address this.');
+  });
+
+  it('renderHearingAlertEmail: an encrypted (undecrypted) mention shows a pending notice, not a crash', () => {
+    const event: IntelAlertEvent = {
+      ...EVENT,
+      sourceType: 'hearing',
+      hearing: {
+        sessionId: 's1',
+        title: 'Hearing',
+        committeeId: null,
+        occurredAt: null,
+        mentions: [{ speakerName: null, quote: null, timestampMs: null }],
+      },
+    };
+    const { html, text } = renderHearingAlertEmail(event);
+    expect(html).toContain('Content pending decryption');
+    expect(text).toContain('(content pending decryption)');
+  });
+
+  it('renderCombinedAlertEmail: official source is the LINKED BILL\'s url, and shows the hearing context', () => {
+    const event: IntelAlertEvent = {
+      ...EVENT,
+      sourceType: 'combined',
+      linkedBill: {
+        displayNum: 'H.R. 8800',
+        title: 'National Defense Manufacturing Act',
+        url: 'https://congress.gov/bill/hr8800',
+        actionText: 'Rules Committee granted a closed rule',
+        actionDate: '2026-07-01',
+      },
+      hearing: { sessionId: 's1', title: 'FY27 Posture Hearing', committeeId: 'HASC', occurredAt: null, mentions: [] },
+    };
+    const { html, text, subject } = renderCombinedAlertEmail(event);
+    expect(subject).toContain('H.R. 8800');
+    expect(html).toContain(`href="${event.linkedBill!.url}"`);
+    expect(html).toContain('View official source');
+    expect(html).toContain('FY27 Posture Hearing');
+    expect(text).toContain(`View official source: ${event.linkedBill!.url}`);
+  });
+
+  it('renderRegulationAlertEmail: shows agency/ruleType and the comment-period deadline', () => {
+    const event: IntelAlertEvent = {
+      ...EVENT,
+      sourceType: 'regulation',
+      billTitle: 'New matched rule: PFAS Drinking Water Standard',
+      url: 'https://federalregister.gov/d/2026-12345',
+      regulationInfo: { agency: 'EPA', ruleType: 'final', commentEndDate: '2026-08-15', jurisdiction: 'US' },
+    };
+    const { html, text } = renderRegulationAlertEmail(event);
+    expect(html).toContain('EPA');
+    expect(html).toContain('final');
+    expect(html).toContain('2026-08-15');
+    expect(html).toContain(`href="${event.url}"`);
+    expect(text).toContain('Comment period ends: 2026-08-15');
+  });
+
+  it('renderRegulationAlertEmail: never assumes docketId/effectiveDate exist (writer never sets them)', () => {
+    const event: IntelAlertEvent = {
+      ...EVENT,
+      sourceType: 'regulation',
+      regulationInfo: { agency: null, ruleType: null, commentEndDate: null, jurisdiction: 'US' },
+    };
+    expect(() => renderRegulationAlertEmail(event)).not.toThrow();
+  });
+
+  it('renderProgramElementAlertEmail: shows the funding move and links the internal PE-360 dossier, not an official source', () => {
+    const event: IntelAlertEvent = {
+      ...EVENT,
+      sourceType: 'program_element',
+      billTitle: 'FY2027 New start: 0603286F Hypersonics Prototyping ($0.0M → $12.0M)',
+      programElement: {
+        peCode: '0603286F',
+        title: 'Hypersonics Prototyping',
+        fiscalYear: 2027,
+        deltaTypeLabel: 'New start',
+        amountFromMillions: 0,
+        amountToMillions: 12,
+        deltaMillions: 12,
+        deltaPct: null,
+        href: '/program-elements/0603286F',
+      },
+    };
+    const { html, text } = renderProgramElementAlertEmail(event);
+    expect(html).toContain('$0.0M → $12.0M');
+    expect(html).toContain('FY2027');
+    expect(html).toContain('Open Program Element');
+    expect(html).toContain('href="https://app.capiro.ai/program-elements/0603286F"');
+    expect(html).not.toContain('View official source');
+    expect(text).toContain('Open Program Element: https://app.capiro.ai/program-elements/0603286F');
+  });
+});
+
+describe('rendererFor (P1-07, HP-07)', () => {
+  // HP-07 (Gate G phase e): all 6 canonical source types now have a
+  // renderer — there is no longer a real "known source, no renderer" case to
+  // lock on, so this asserts the true regression: an UNKNOWN string still
+  // safely resolves to null rather than crashing fanOut.
+  it('returns null for an unregistered/unknown source type', () => {
+    expect(rendererFor('not_a_real_source_type')).toBeNull();
   });
   it("returns a function for 'bill'", () => {
     expect(rendererFor('bill')).toBe(ALERT_EMAIL_RENDERERS.bill);
@@ -166,6 +355,12 @@ describe('rendererFor (P1-07)', () => {
   it('defaults to the bill renderer when sourceType is undefined', () => {
     expect(rendererFor(undefined)).toBe(ALERT_EMAIL_RENDERERS.bill);
   });
+  it.each(['hearing', 'combined', 'regulation', 'program_element'] as const)(
+    "returns the %s-specific renderer, registered by HP-07 (Gate G phase e)",
+    (sourceType) => {
+      expect(rendererFor(sourceType)).toBe(ALERT_EMAIL_RENDERERS[sourceType]);
+    },
+  );
 });
 
 /** fanOut's renderer-registry gate — mirrors intel-alert-shadow.spec.ts's harness. */
@@ -218,15 +413,15 @@ describe('IntelAlertService.fanOut — renderer registry (P1-07)', () => {
     return { svc, event, claims, sendCalls };
   }
 
-  it('sourceType=program_element: email.send NOT called, returns all-zeros, logs a warning', async () => {
+  it('sourceType=not_a_real_source_type: email.send NOT called, returns all-zeros, logs a warning', async () => {
     process.env.TRACKER_ALERTS_ENABLED = 'true';
     const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-    const { svc, event, claims, sendCalls } = makeService('program_element');
+    const { svc, event, claims, sendCalls } = makeService('not_a_real_source_type');
     const r = await svc.fanOut(event);
     expect(r).toEqual({ suppressed: 0, sent: 0, failed: 0, queued: 0 });
     expect(sendCalls).toEqual([]);
     expect(claims).toEqual([]); // never reaches the per-pref loop, so no claim either
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("no email renderer for sourceType='program_element'"));
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("no email renderer for sourceType='not_a_real_source_type'"));
     warnSpy.mockRestore();
     delete process.env.TRACKER_ALERTS_ENABLED;
   });
@@ -239,6 +434,22 @@ describe('IntelAlertService.fanOut — renderer registry (P1-07)', () => {
     expect(sendCalls).toEqual(['u1@x.com']);
     delete process.env.TRACKER_ALERTS_ENABLED;
   });
+
+  // HP-07 (Gate G phase e): a renderer now exists for these 4, so fanOut (if
+  // ever reached for one — today it's only reached via emitNewBillAlerts'
+  // LEGIWATCH_EMIT_SOURCE_TYPES-gated sweep, per intel-alert.service.ts's
+  // own call site) sends exactly like 'bill' does, not the no-renderer skip.
+  it.each(['hearing', 'combined', 'regulation', 'program_element'] as const)(
+    'sourceType=%s: HP-07 renderer registered, email.send IS called (not the no-renderer skip)',
+    async (sourceType) => {
+      process.env.TRACKER_ALERTS_ENABLED = 'true';
+      const { svc, event, sendCalls } = makeService(sourceType);
+      const r = await svc.fanOut(event);
+      expect(r.sent).toBe(1);
+      expect(sendCalls).toEqual(['u1@x.com']);
+      delete process.env.TRACKER_ALERTS_ENABLED;
+    },
+  );
 });
 
 describe('TrackerTestAlertService — client id percent-encoding (P1-06)', () => {

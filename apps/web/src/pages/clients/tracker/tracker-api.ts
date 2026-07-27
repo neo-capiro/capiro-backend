@@ -314,6 +314,19 @@ export function probClass(p: number): 'hi' | 'mid' | 'lo' {
   return pct >= 70 ? 'hi' : pct >= 40 ? 'mid' : 'lo';
 }
 
+/**
+ * HP-07 (Gate G phase e): 3 of the 4 newly-rendered source types
+ * (hearing_mention/risk_phrase for 'hearing', 'combined', and 'peFundingChange'
+ * for 'program_element') have NO entry here on purpose. Registering them would
+ * put a working-looking checkbox in Configure for a delivery path that cannot
+ * fire — LEGIWATCH_EMIT_SOURCE_TYPES still excludes these source types from
+ * the emit sweep entirely (MASTER §7.7, Neo-gated), and the Email channel's
+ * own copy below already tells the user honestly that these don't email yet
+ * (HP-07 e-5). Add these 3 keys here in the SAME change that widens the env
+ * var, not before — otherwise Configure would contradict its own copy.
+ * ('regulation' needs no new key: its evidence sets triggerKey:'newMatch',
+ * already registered below and already default-on.)
+ */
 export const TRIGGER_LABELS: Record<string, string> = {
   newMatch: 'New matched bill',
   amendment: 'Amendment / text changed',

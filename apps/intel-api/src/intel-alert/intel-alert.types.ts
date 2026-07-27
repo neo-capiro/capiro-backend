@@ -58,6 +58,49 @@ export interface IntelAlertEvent {
   appUrl?: string;
   /** 'bill' | 'state_bill' | 'hearing' | 'combined' | 'regulation' | 'program_element' — selects the email renderer (P1-07). */
   sourceType?: string;
+  /** HP-07: hearing / combined evidence — set only for those two sourceTypes.
+   *  `mentions[].quote` is null when the segment is still encrypted (this layer
+   *  never decrypts; the Feed does that read-side). */
+  hearing?: {
+    sessionId: string;
+    title: string | null;
+    committeeId: string | null;
+    occurredAt: string | null;
+    mentions: Array<{ speakerName: string | null; quote: string | null; timestampMs: number | null }>;
+  };
+  /** HP-07: the bill side of a `combined` alert — the top-level `billId`/
+   *  `displayNum`/`billTitle`/`url` fields above are NOT populated for
+   *  `combined` (that evidence is nested under `evidence.bill`, not flat), so
+   *  the combined renderer reads this instead. */
+  linkedBill?: {
+    displayNum: string;
+    title: string;
+    url: string;
+    actionText: string | null;
+    actionDate: string | null;
+  };
+  /** HP-07: set only for sourceType 'program_element'. `href` is an internal,
+   *  relative PE-360 dossier path — there is no external "official source" for
+   *  a funding-delta event, unlike every other source type. */
+  programElement?: {
+    peCode: string;
+    title: string | null;
+    fiscalYear: number | null;
+    deltaTypeLabel: string | null;
+    amountFromMillions: number | null;
+    amountToMillions: number | null;
+    deltaMillions: number | null;
+    deltaPct: number | null;
+    href: string;
+  };
+  /** HP-07: set only for sourceType 'regulation' — extra context the flat
+   *  `detail`/`url`/`actionDate` fields above don't carry. */
+  regulationInfo?: {
+    agency: string | null;
+    ruleType: string | null;
+    commentEndDate: string | null;
+    jurisdiction: string | null;
+  };
 }
 
 /** Parse "HH:MM" to minutes-since-midnight, or null. */
