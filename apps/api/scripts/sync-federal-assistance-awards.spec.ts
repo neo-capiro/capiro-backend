@@ -241,7 +241,14 @@ describe('syncAssistanceAwardsWindow', () => {
       { fetchPage, sleep: noSleep },
     );
 
-    expect(counts).toEqual({ inserted: 1, updated: 1, skipped: 0, errors: 0 });
+    expect(counts).toEqual({
+      inserted: 1,
+      updated: 1,
+      skipped: 0,
+      errors: 0,
+      capExhausted: false,
+      resumeCursor: null,
+    });
     expect(prisma.upsertCalls).toHaveLength(2);
     expect(fetchPage).toHaveBeenCalledTimes(1);
   });
@@ -290,7 +297,14 @@ describe('syncAssistanceAwardsWindow', () => {
       { fetchPage, sleep: noSleep },
     );
 
-    expect(counts).toEqual({ inserted: 0, updated: 0, skipped: 0, errors: 0 });
+    expect(counts).toEqual({
+      inserted: 0,
+      updated: 0,
+      skipped: 0,
+      errors: 0,
+      capExhausted: false,
+      resumeCursor: null,
+    });
   });
 
   test('counts a row with no generated_internal_id as an error, not a fabricated upsert', async () => {
@@ -312,19 +326,59 @@ describe('syncAssistanceAwardsWindow', () => {
   });
 
   test('respects maxPages as a circuit breaker even if the API keeps saying hasNext', async () => {
-    const prisma = makePrismaMock();
-    const fetchPage = jest.fn(async (_args: FetchPageArgs) => ({
-      results: [MEDICAID_BLOCK_GRANT],
-      pageMetadata: { hasNext: true, last_record_unique_id: 1, last_record_sort_value: '1' } as PageMetadata,
-    }));
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const prisma = makePrismaMock();
+      const fetchPage = jest.fn(async (_args: FetchPageArgs) => ({
+        results: [MEDICAID_BLOCK_GRANT],
+        pageMetadata: { hasNext: true, last_record_unique_id: 1, last_record_sort_value: '1' } as PageMetadata,
+      }));
 
-    await syncAssistanceAwardsWindow(
+      const counts = await syncAssistanceAwardsWindow(
+        prisma,
+        { startDate: '2025-10-01', endDate: '2026-07-24', maxPages: 3 },
+        { fetchPage, sleep: noSleep },
+      );
+
+      expect(fetchPage).toHaveBeenCalledTimes(3);
+      // Phase i1: stopping at the bound while hasNext is STILL true is a
+      // truncation, so it must never report a clean success. This test
+      // pre-dates that fix and only asserted the call count, which passed
+      // identically before and after — the assertions below are what actually
+      // pin the honesty behaviour.
+      expect(counts.capExhausted).toBe(true);
+      expect(counts.errors).toBeGreaterThan(0);
+      expect(counts.resumeCursor).toEqual({ lastRecordUniqueId: 1, lastRecordSortValue: '1' });
+      expect(errorSpy.mock.calls.flat().join(' ')).toMatch(/CAP EXHAUSTED/);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  test('stopping because hasNext went false is a COMPLETE window — no cap flag, no error', async () => {
+    const prisma = makePrismaMock();
+    const fetchPage = jest
+      .fn<typeof import('./sync-federal-assistance-awards.js').fetchPage>()
+      .mockResolvedValueOnce({
+        results: [MEDICAID_BLOCK_GRANT],
+        pageMetadata: { hasNext: true, last_record_unique_id: 1, last_record_sort_value: '1' },
+      })
+      .mockResolvedValueOnce({
+        results: [NAWCA_COOPERATIVE_AGREEMENT],
+        pageMetadata: { hasNext: false },
+      });
+
+    // maxPages is 2 and the walk uses both — the distinction under test is that
+    // it stopped because the vendor said "no more", not because of the bound.
+    const counts = await syncAssistanceAwardsWindow(
       prisma,
-      { startDate: '2025-10-01', endDate: '2026-07-24', maxPages: 3 },
+      { startDate: '2025-10-01', endDate: '2026-07-24', maxPages: 2 },
       { fetchPage, sleep: noSleep },
     );
 
-    expect(fetchPage).toHaveBeenCalledTimes(3);
+    expect(counts.capExhausted).toBe(false);
+    expect(counts.errors).toBe(0);
+    expect(counts.resumeCursor).toBeNull();
   });
 
   test('forwards agency and minAmount filters to fetchPage unchanged', async () => {
@@ -473,7 +527,16 @@ describe('transient-failure handling', () => {
           { startDate: '2025-10-01', endDate: '2026-07-24', maxPages: 50 },
           { fetchPage, sleep: noSleep },
         ),
-      ).resolves.toEqual({ inserted: 0, updated: 0, skipped: 0, errors: 1 });
+      ).resolves.toEqual({
+        inserted: 0,
+        updated: 0,
+        skipped: 0,
+        errors: 1,
+        // A fetch failure is NOT cap exhaustion — it has its own log line and
+        // stops the walk before the page bound is ever reached.
+        capExhausted: false,
+        resumeCursor: null,
+      });
     });
   });
 });

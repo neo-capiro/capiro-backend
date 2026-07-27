@@ -149,19 +149,35 @@ export interface SyncDeps {
 
 const realSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+export interface SyncOpportunitiesResult extends RunCounts {
+  /**
+   * True when MAX_PAGES stopped the walk without either exhaustion signal
+   * firing (a short page, or hitCount coverage) — i.e. the corpus was never
+   * proven exhausted, so the run is INCOMPLETE despite real counts.
+   */
+  capExhausted: boolean;
+  /** Page a follow-up run should start from when capExhausted; null otherwise. */
+  resumeFromPage: number | null;
+}
+
 /** Exported for unit testing with a mocked fetcher — no live calls, no real DB. */
 export async function syncOpportunities(
   prisma: GrantsPrisma,
   opts: { allStatuses: boolean },
   deps: SyncDeps = { fetchSearchPage, sleep: realSleep },
-): Promise<RunCounts> {
+): Promise<SyncOpportunitiesResult> {
   const oppStatuses = opts.allStatuses ? ALL_STATUSES : DAILY_STATUSES;
   let total = 0;
   let errors = 0;
+  let capExhausted = false;
+  let lastHitCount: number | null = null;
+  let lastPage = -1;
 
   for (let page = 0; page < MAX_PAGES; page++) {
     if (page > 0) await deps.sleep(DELAY_MS);
     const { hits, hitCount } = await deps.fetchSearchPage(oppStatuses, page);
+    lastHitCount = hitCount ?? lastHitCount;
+    lastPage = page;
     if (!hits.length) break;
 
     for (const g of hits) {
@@ -189,12 +205,35 @@ export async function syncOpportunities(
     // honored past the end), which just re-upserts the same rows. Stop once
     // the reported total is covered.
     if (hitCount && total >= hitCount) break;
+    if (page === MAX_PAGES - 1) {
+      // Reached the hard bound without proving the corpus was exhausted —
+      // neither a short page nor hitCount coverage stopped us. Never record a
+      // clean success here.
+      capExhausted = true;
+    }
+  }
+
+  if (capExhausted) {
+    // errors++ downgrades the SyncRun to success_with_errors (statusFromCounts),
+    // so the ingestion ledger reports INCOMPLETE instead of a clean success.
+    errors++;
+    console.error(
+      `[grants-sync] CAP EXHAUSTED at MAX_PAGES=${MAX_PAGES} (last page ${lastPage}) without proving the corpus was exhausted. ` +
+        `Upserted ${total} of a reported hitCount of ${lastHitCount ?? 'unknown'}. Resume offset: page ${lastPage + 1}. INCOMPLETE.`,
+    );
   }
 
   const expired = await prisma.$executeRawUnsafe(EXPIRE_SQL);
   if (expired > 0) console.log(`[grants-sync] marked ${expired} past-deadline opportunities closed`);
 
-  return { inserted: total, updated: expired, skipped: 0, errors };
+  return {
+    inserted: total,
+    updated: expired,
+    skipped: 0,
+    errors,
+    capExhausted,
+    resumeFromPage: capExhausted ? lastPage + 1 : null,
+  };
 }
 
 async function main() {
