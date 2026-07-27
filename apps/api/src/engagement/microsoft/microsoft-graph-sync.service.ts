@@ -52,6 +52,11 @@ const MAX_CALENDAR_PAGES_PER_RUN = 12;
 const MAX_MAIL_PAGES_PER_FOLDER_PER_RUN = 12;
 const OUTLOOK_SUBSCRIPTION_MS = 6 * 24 * 60 * 60 * 1000;
 const SUBSCRIPTION_RENEWAL_SKEW_MS = 24 * 60 * 60 * 1000;
+// Upper bound on Retry-After-driven retries for ONE request. Without this the
+// 429/5xx branch below recursed unboundedly: a provider that keeps returning
+// the same retryable status with a small Retry-After could hold a request (and
+// its scheduler slot) open forever. 3 attempts = at most ~30s of backoff.
+const MAX_RETRYABLE_ATTEMPTS = 3;
 // Budget for BOTH phases of a persist: the unlocked phase-1 association read
 // and the phase-2 write txn that waits on the per-tenant sync advisory lock
 // (lockTenantForGraphSync) and then upserts. 20s gives headroom over the prior
@@ -1532,6 +1537,7 @@ export class MicrosoftGraphSyncService {
     body?: unknown,
     headers: Record<string, string> = {},
     parseJson = true,
+    attempt = 1,
   ): Promise<T> {
     const target = url.startsWith('https://') ? url : `${GRAPH_BASE_URL}${url}`;
     const response = await fetch(target, {
@@ -1547,9 +1553,9 @@ export class MicrosoftGraphSyncService {
 
     if (response.status === 429 || response.status >= 500) {
       const retryAfter = Number(response.headers.get('retry-after') ?? '0');
-      if (retryAfter > 0 && retryAfter <= 10) {
+      if (retryAfter > 0 && retryAfter <= 10 && attempt < MAX_RETRYABLE_ATTEMPTS) {
         await sleep(retryAfter * 1000);
-        return this.graphFetch(method, url, accessToken, body, headers);
+        return this.graphFetch(method, url, accessToken, body, headers, parseJson, attempt + 1);
       }
     }
 

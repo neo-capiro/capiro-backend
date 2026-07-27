@@ -46,6 +46,11 @@ const CALENDAR_PAGE_SIZE = 250;
 // advisory lock, then upserts. 20s gives headroom over the 5s interactive-tx
 // default. The lock auto-releases on commit/rollback.
 const GOOGLE_SYNC_TX_TIMEOUT_MS = 20_000;
+// Upper bound on Retry-After-driven retries for ONE request. Without this the
+// 429/5xx branch below recursed unboundedly: a provider that keeps returning
+// the same retryable status with a small Retry-After could hold a request (and
+// its scheduler slot) open forever. 3 attempts = at most ~30s of backoff.
+const MAX_RETRYABLE_ATTEMPTS = 3;
 // Gmail labels we mirror into the store — the direct analog of the Outlook
 // 'inbox' / 'sentitems' mail folders.
 // Backfill scope: ALL mail minus junk — spam/trash/drafts excluded, archived
@@ -923,7 +928,7 @@ export class GoogleSyncService {
     return this.googleGet<GmailProfile>(`${GMAIL_BASE_URL}/users/me/profile`, accessToken);
   }
 
-  private async googleGet<T>(url: string, accessToken: string): Promise<T> {
+  private async googleGet<T>(url: string, accessToken: string, attempt = 1): Promise<T> {
     const response = await fetch(url, {
       method: 'GET',
       headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
@@ -931,9 +936,9 @@ export class GoogleSyncService {
 
     if (response.status === 429 || response.status >= 500) {
       const retryAfter = Number(response.headers.get('retry-after') ?? '0');
-      if (retryAfter > 0 && retryAfter <= 10) {
+      if (retryAfter > 0 && retryAfter <= 10 && attempt < MAX_RETRYABLE_ATTEMPTS) {
         await sleep(retryAfter * 1000);
-        return this.googleGet<T>(url, accessToken);
+        return this.googleGet<T>(url, accessToken, attempt + 1);
       }
     }
 
