@@ -32,6 +32,8 @@ interface WatchlistTopicRow {
   id: string;
   label: string;
   priority: string;
+  /** Gate K (HP-01, d-3): defaults to 'monitor' (the DB column default) when omitted. */
+  position?: string;
 }
 interface WatchlistTermRow {
   id: string;
@@ -81,7 +83,12 @@ function makeHarness(
       findMany: jest
         .fn()
         .mockResolvedValue(
-          (watchlist?.topics ?? []).map((t) => ({ id: t.id, label: t.label, priority: t.priority })),
+          (watchlist?.topics ?? []).map((t) => ({
+            id: t.id,
+            label: t.label,
+            priority: t.priority,
+            position: t.position ?? 'monitor',
+          })),
         ),
     },
     watchlistTerm: {
@@ -204,5 +211,83 @@ describe('BillChangeDetectorService — federal rail, P0-04 explainMatch integra
     // (the label 'grid' does not itself appear in the title).
     expect(alert.whyItMatters).toBe('Matches your watchlist term "PJM".');
     expect(alert.evidence.matchedTags).toEqual(['grid']);
+  });
+
+  /**
+   * Gate K (HP-01, d-8): a PERSISTED-alert test, not just a scorer unit test
+   * (alert-scoring-v2.spec.ts already covers scoreShadowAlert in isolation).
+   * Proves the real writer — writeShadowAlert via the full detection cycle —
+   * now supplies non-empty matchDetails and a real (non-constant)
+   * clientPriority, closing the gap test/normalize-evidence.spec.ts:223 used
+   * to document as "honest: no writer emits matchDetails yet".
+   */
+  it('21. Gate K (HP-01): a persisted alert carries non-empty matchDetails and a clientPriority that reflects the topic\'s real priority + position, not the constant 0.561', async () => {
+    const movedBill: SourceBill = {
+      ...BASE_BILL,
+      title: 'RTX modernization act',
+      latestActionText: 'Became Public Law No. 119-3',
+    };
+    // Scenario A: high priority, oppose — PRIORITY_FACTOR.high(1.0) *
+    // positionMultiplier('oppose')(1.0) = 1.0, the maximum clientPriority factor.
+    const { prisma: prismaA, alerts: alertsA } = makeHarness([{ ...BASELINED_ROW, id: 'tb-fed-3a' }], {
+      issueAreas: [],
+      topics: [{ id: 'topic-a', label: 'defense primes', priority: 'high', position: 'oppose' }],
+      terms: [{ id: 'term-a', topicId: 'topic-a', termType: 'company', value: 'RTX' }],
+    });
+    const svcA = new BillChangeDetectorService(prismaA, makeFederalSourceRepo(movedBill), NO_STATE_REPO);
+    await svcA.runDetectionCycle();
+
+    // Scenario B: low priority, monitor — PRIORITY_FACTOR.low(0.33) *
+    // positionMultiplier('monitor')(0.85) = 0.2805, far below scenario A.
+    const { prisma: prismaB, alerts: alertsB } = makeHarness([{ ...BASELINED_ROW, id: 'tb-fed-3b' }], {
+      issueAreas: [],
+      topics: [{ id: 'topic-b', label: 'defense primes', priority: 'low', position: 'monitor' }],
+      terms: [{ id: 'term-b', topicId: 'topic-b', termType: 'company', value: 'RTX' }],
+    });
+    const svcB = new BillChangeDetectorService(prismaB, makeFederalSourceRepo(movedBill), NO_STATE_REPO);
+    await svcB.runDetectionCycle();
+
+    expect(alertsA).toHaveLength(1);
+    expect(alertsB).toHaveLength(1);
+    const alertA = alertsA[0] as {
+      score: number;
+      evidence: { matchDetails: unknown[]; scoreFactors: Record<string, number>; scoreUnavailable: string[] };
+    };
+    const alertB = alertsB[0] as { score: number; evidence: { matchDetails: unknown[] } };
+
+    // Non-empty matchDetails — the K-7 gap this closes.
+    expect(alertA.evidence.matchDetails.length).toBeGreaterThan(0);
+    expect(alertA.evidence.matchDetails[0]).toMatchObject({ termType: 'company', matchedText: 'RTX' });
+    expect(alertB.evidence.matchDetails.length).toBeGreaterThan(0);
+
+    // The expected factor breakdown is present and accounted for.
+    expect(alertA.evidence.scoreFactors).toHaveProperty('relevance');
+    expect(alertA.evidence.scoreFactors).toHaveProperty('materiality');
+    expect(alertA.evidence.scoreFactors).toHaveProperty('urgency');
+    expect(alertA.evidence.scoreFactors).toHaveProperty('clientPriority');
+    expect(alertA.evidence.scoreUnavailable).toContain('targetOpportunity'); // still unavailable (MASTER C-5)
+
+    // K-6: clientPriority is no longer the constant 0.561 — two topics with
+    // different priority/position produce DIFFERENT scores for the identical bill.
+    expect(alertA.score).not.toBe(alertB.score);
+    expect(alertA.score).toBeGreaterThan(alertB.score);
+  });
+
+  it('22. Gate K (HP-01, d-6): relevanceKindsFor now has a real production caller — a company-typed match against an opposed topic yields direct_impact', async () => {
+    const movedBill: SourceBill = {
+      ...BASE_BILL,
+      title: 'RTX modernization act',
+      latestActionText: 'Became Public Law No. 119-4',
+    };
+    const { prisma, alerts } = makeHarness([{ ...BASELINED_ROW, id: 'tb-fed-4' }], {
+      issueAreas: [],
+      topics: [{ id: 'topic-c', label: 'defense primes', priority: 'high', position: 'oppose' }],
+      terms: [{ id: 'term-c', topicId: 'topic-c', termType: 'company', value: 'RTX' }],
+    });
+    const svc = new BillChangeDetectorService(prisma, makeFederalSourceRepo(movedBill), NO_STATE_REPO);
+    await svc.runDetectionCycle();
+
+    const alert = alerts[0] as { evidence: { relevanceKinds: string[] } };
+    expect(alert.evidence.relevanceKinds).toContain('direct_impact'); // 'company' term type
   });
 });
