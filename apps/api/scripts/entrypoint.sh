@@ -37,7 +37,7 @@ encode() {
 # Fallback: use node since it's always present in this image.
 ENCODED_PASSWORD=$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$DB_PASSWORD")
 
-export DATABASE_URL="postgresql://${DB_USER}:${ENCODED_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public&sslmode=require"
+export DATABASE_URL="postgresql://${DB_USER}:${ENCODED_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public&sslmode=require&connection_limit=10"
 
 # tsx writes its compile cache under TMPDIR; this image has no /tmp or /app/tmp, so
 # an unset TMPDIR makes tsx-based verbs (sync-*/diag-*/reconcile-*) crash. /dev/shm
