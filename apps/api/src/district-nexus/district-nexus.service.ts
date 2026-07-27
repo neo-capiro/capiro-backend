@@ -137,6 +137,24 @@ const AWARD_RELATIONSHIP_TYPES = [
 ] as const;
 
 /**
+ * Soft-archived ("deleted") clients must not contribute to any aggregate
+ * (audit F6).
+ *
+ * Archiving sets `status='archived'` and leaves `profileStatus` untouched, so
+ * filtering on `profileStatus` alone still surfaces a deleted client — see
+ * apps/api/src/intelligence/intelligence.service.ts:4205, the precedent this
+ * copies. Filtering only in the web selector (DistrictNexusFilters.tsx) was
+ * insufficient: the firm-wide aggregate never consults the selector.
+ *
+ * `ClientFacility` and `ClientGrantNexus` both have a real `client` relation,
+ * so this filters through it directly (`client: VISIBLE_CLIENT_FILTER`).
+ * `ClientIntelMapping` has NO such relation (confirmed — only a bare
+ * `clientId` column) — every read against it instead pre-resolves the
+ * visible client id set and filters `clientId: { in: visibleClientIds }`.
+ */
+const VISIBLE_CLIENT_FILTER = { status: { not: 'archived' }, profileStatus: 'ACTIVE' } as const;
+
+/**
  * aggregateRelationshipNexus's row, shaped for BOTH of its consumers: the
  * scoring fold (the RelationshipNexusRow fields) and evidence (the rest).
  * Computed once so the two can never drift — the same principle
@@ -200,17 +218,15 @@ export class DistrictNexusService {
     // ── Phase 1: tenant-scoped identity resolution, short transaction ───────
     const { contractorNames, recipientUeis, recipientNames, facilities, facilityRows } =
       await this.prisma.withTenant(tenantId, async (tx) => {
-        const [mappings, rows] = await Promise.all([
-          tx.clientIntelMapping.findMany({
-            where: {
-              clientId,
-              confirmed: true,
-              source: { in: ['contracting', 'assistance_recipient'] },
-            },
-            select: { source: true, externalId: true, externalName: true },
-          }),
+        // Soft-archived clients contribute nothing (audit F6). ClientFacility
+        // has a real `client` relation and filters through it directly;
+        // ClientIntelMapping does not, so its visibility is resolved first —
+        // an archived client's own profile request now returns the same
+        // "honest empty" shape a client with no confirmed mappings gets.
+        const [visibleClient, rows] = await Promise.all([
+          tx.client.findFirst({ where: { id: clientId, ...VISIBLE_CLIENT_FILTER }, select: { id: true } }),
           tx.clientFacility.findMany({
-            where: { clientId },
+            where: { clientId, client: VISIBLE_CLIENT_FILTER },
             // Wider than the aggregation rail needs: the extra district columns
             // and geocodeStatus are what the representation resolver reads,
             // districtSource/updatedAt are what evidence-building (E4) reads,
@@ -231,6 +247,16 @@ export class DistrictNexusService {
             orderBy: { createdAt: 'asc' },
           }),
         ]);
+        const mappings = visibleClient
+          ? await tx.clientIntelMapping.findMany({
+              where: {
+                clientId,
+                confirmed: true,
+                source: { in: ['contracting', 'assistance_recipient'] },
+              },
+              select: { source: true, externalId: true, externalName: true },
+            })
+          : [];
 
         const contracting = mappings.filter((m) => m.source === 'contracting');
         const assistance = mappings.filter((m) => m.source === 'assistance_recipient');
@@ -375,17 +401,17 @@ export class DistrictNexusService {
     // ── Phase 1: tenant-scoped, one short transaction for ALL clients ───────
     const { byClient } = await this.prisma.withTenant(tenantId, async (tx) => {
       const clientWhere = options.clientId ? { clientId: options.clientId } : {};
-      const [mappings, facilityRows] = await Promise.all([
-        tx.clientIntelMapping.findMany({
-          where: {
-            ...clientWhere,
-            confirmed: true,
-            source: { in: ['contracting', 'assistance_recipient'] },
-          },
-          select: { clientId: true, source: true, externalId: true, externalName: true },
+      // Soft-archived clients contribute nothing (audit F6). ClientFacility
+      // filters through its real `client` relation directly; ClientIntelMapping
+      // has none, so the visible client id set is pre-resolved and used as an
+      // explicit `clientId: { in: ... }` filter instead.
+      const [visibleClients, facilityRows] = await Promise.all([
+        tx.client.findMany({
+          where: { ...VISIBLE_CLIENT_FILTER, ...(options.clientId ? { id: options.clientId } : {}) },
+          select: { id: true },
         }),
         tx.clientFacility.findMany({
-          where: { ...clientWhere, ...(options.state ? { state: options.state } : {}) },
+          where: { ...clientWhere, ...(options.state ? { state: options.state } : {}), client: VISIBLE_CLIENT_FILTER },
           select: {
             clientId: true,
             state: true,
@@ -396,6 +422,17 @@ export class DistrictNexusService {
           },
         }),
       ]);
+      const visibleClientIds = visibleClients.map((c) => c.id);
+      const mappings = visibleClientIds.length
+        ? await tx.clientIntelMapping.findMany({
+            where: {
+              clientId: { in: visibleClientIds },
+              confirmed: true,
+              source: { in: ['contracting', 'assistance_recipient'] },
+            },
+            select: { clientId: true, source: true, externalId: true, externalName: true },
+          })
+        : [];
 
       const clients = new Map<
         string,
@@ -893,6 +930,8 @@ export class DistrictNexusService {
           // A rejected candidate is not weak evidence, it is not evidence.
           verificationStatus: { not: 'rejected' },
           grantOpportunityId: { not: null },
+          // Soft-archived clients contribute nothing (audit F6).
+          client: VISIBLE_CLIENT_FILTER,
         },
         select: { grantOpportunityId: true, facilityId: true },
       });
@@ -1053,6 +1092,8 @@ export class DistrictNexusService {
           relationshipType: { in: [...AWARD_RELATIONSHIP_TYPES] },
           verificationStatus: { not: 'rejected' },
           assistanceAwardId: { not: null },
+          // Soft-archived clients contribute nothing (audit F6).
+          client: VISIBLE_CLIENT_FILTER,
         },
         select: {
           id: true,
@@ -1209,17 +1250,25 @@ export class DistrictNexusService {
         },
         select: { clientId: true, source: true, externalId: true, externalName: true },
       });
-      const contracting = mappings.filter((m) => m.source === 'contracting');
-      const assistance = mappings.filter((m) => m.source === 'assistance_recipient');
 
       // ClientIntelMapping carries no Prisma `client` relation (unlike
       // ClientFacility/ClientGrantNexus) — the name behind each clientId is
       // resolved with a second, batched lookup rather than a nested select.
+      // The same lookup carries the visibility filter (audit F6): a
+      // soft-archived client's mappings are excluded below by virtue of
+      // never getting a `clientNameById` entry.
       const mappedClientIds = dedupe(mappings.map((m) => m.clientId));
       const clients = mappedClientIds.length
-        ? await tx.client.findMany({ where: { id: { in: mappedClientIds } }, select: { id: true, name: true } })
+        ? await tx.client.findMany({
+            where: { id: { in: mappedClientIds }, ...VISIBLE_CLIENT_FILTER },
+            select: { id: true, name: true },
+          })
         : [];
       const clientNameById = new Map(clients.map((c) => [c.id, c.name]));
+
+      const visibleMappings = mappings.filter((m) => clientNameById.has(m.clientId));
+      const contracting = visibleMappings.filter((m) => m.source === 'contracting');
+      const assistance = visibleMappings.filter((m) => m.source === 'assistance_recipient');
 
       const byClient = new Map<
         string,
@@ -1378,11 +1427,14 @@ export class DistrictNexusService {
     const generatedAt = new Date().toISOString();
 
     // Tenant-scoped: which clients and facilities actually sit here.
+    // client: VISIBLE_CLIENT_FILTER — soft-archived clients contribute
+    // nothing (audit F6).
     const facilityRows = await this.prisma.withTenant(tenantId, (tx) =>
       tx.clientFacility.findMany({
         where: {
           state: stateCode,
           ...(options.clientId ? { clientId: options.clientId } : {}),
+          client: VISIBLE_CLIENT_FILTER,
         },
         select: {
           id: true,
