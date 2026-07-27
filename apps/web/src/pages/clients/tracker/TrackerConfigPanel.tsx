@@ -1205,11 +1205,18 @@ export function TrackerConfigPanel({
                   </span>
                   <div style={{ flex: 1 }}>
                     <div className="chan-name">Email</div>
-                    {/* P2-15 (Gate E phase e): "bill, change" implied bills
-                        were the only source type an email could be about. */}
+                    {/* HP-07 (Gate G e-5): the prior copy — "Full context ... "
+                        with no source qualifier — read as covering the whole
+                        unified Feed. The email renderer registry
+                        (ALERT_EMAIL_RENDERERS, apps/intel-api) only covers
+                        bill + state_bill today; hearing/regulation/Program
+                        Element alerts never emailed regardless of this
+                        toggle. State that honestly rather than imply full
+                        Feed coverage. */}
                     <div className="chan-sub">
-                      Full context — what changed, why it matters to this client, and the official
-                      source
+                      Bills and state bills only, for now — what changed, why it matters to this
+                      client, and the official source. Hearings, regulations, and Program Elements
+                      don't email yet; watch them in the Feed instead.
                     </div>
                   </div>
                   {/* P1-12: an unlabelled toggle with no pressed state — a

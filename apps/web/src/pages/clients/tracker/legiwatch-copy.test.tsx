@@ -120,6 +120,12 @@ describe('TrackerConfigPanel copy (Gate E phase e, P2-15)', () => {
     expect(screen.queryByText(/Full context — bill, change/i)).toBeNull();
   });
 
+  test('HP-07 (Gate G e-5): the Email channel honestly states it only covers bills and state bills', () => {
+    renderConfigPanel();
+    expect(screen.getByText(/Bills and state bills only, for now/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hearings, regulations, and Program Elements don.t email yet/i)).toBeInTheDocument();
+  });
+
   test('TrackerTab.tsx Bills-surface copy is intentionally UNCHANGED (verified, not touched)', () => {
     // Documented per the plan's e-2: "Bills scored against {client}'s
     // watchlist" and "Bills you track, grouped by live legislative status"
