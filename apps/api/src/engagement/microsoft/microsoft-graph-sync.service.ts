@@ -29,6 +29,7 @@ import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { harvestMailContacts } from '../contact-harvest.js';
 import { ClientAssociationService } from '../client-association.service.js';
+import { markMailMessageRemovedInTx } from '../mail-message-state.js';
 import { MICROSOFT_SCOPES, normalizePem } from './microsoft-oauth-constants.js';
 import {
   MAX_SYNCED_MAIL_FOLDERS,
@@ -1144,17 +1145,17 @@ export class MicrosoftGraphSyncService {
   ): Promise<'matched' | 'skipped' | 'removed'> {
     if (!message.id) return 'skipped';
     if (message['@removed']) {
-      await this.prisma.withTenant(tenantId, (tx) =>
-        tx.mailMessage.updateMany({
-          where: { tenantId, source: EngagementSource.outlook, externalId: message.id },
-          data: {
-            metadata: {
-              graphRemoved: message['@removed'],
-              folder,
-            } as Prisma.InputJsonValue,
-          },
-        }),
-      );
+      await this.prisma.withTenantRetry(tenantId, async (tx) => {
+        await lockTenantForGraphSync(tx, tenantId);
+        await markMailMessageRemovedInTx(tx, {
+          tenantId,
+          source: EngagementSource.outlook,
+          externalId: message.id!,
+          reason: 'provider_removed',
+          removedAt: new Date(),
+          providerMetadata: { graphRemoved: message['@removed'], folder },
+        });
+      });
       return 'removed';
     }
 
@@ -1256,6 +1257,7 @@ export class MicrosoftGraphSyncService {
                 metadata: {
                   webLink: message.webLink ?? null,
                   folders: unique([folder, ...readFolders(existingThread)]),
+                  deleted: false,
                 } as Prisma.InputJsonValue,
                 associationScore: association.score,
                 associationReason: association.reason,
@@ -1307,6 +1309,8 @@ export class MicrosoftGraphSyncService {
             receivedAt: parseGraphDateTime(message.receivedDateTime),
             bodyText: clean(message.bodyPreview),
             hasAttachments: Boolean(message.hasAttachments),
+            removedAt: null,
+            removedReason: null,
             raw: message as Prisma.InputJsonValue,
             metadata: {
               folder,
@@ -1331,6 +1335,8 @@ export class MicrosoftGraphSyncService {
             receivedAt: parseGraphDateTime(message.receivedDateTime),
             bodyText: clean(message.bodyPreview),
             hasAttachments: Boolean(message.hasAttachments),
+            removedAt: null,
+            removedReason: null,
             raw: message as Prisma.InputJsonValue,
             metadata: {
               folder,

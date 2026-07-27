@@ -31,6 +31,7 @@ import { MeetingNotesCryptoService } from '../meeting-notes-crypto.service.js';
 import { AttachmentContentService } from '../attachment-content.service.js';
 import { OutreachTruthService } from './outreach-truth.service.js';
 import { canReadEncryptedEntry, ownMeetingWhere } from '../engagement-access.helpers.js';
+import { activeMailMessageWhere, activeMailThreadWhere } from '../mail-message-state.js';
 import {
   boundEvidenceText,
   sourceFailure,
@@ -408,7 +409,7 @@ export class EvidenceSourceService {
 
     const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.mailThread.findFirst({
-        where: { id: threadId, tenantId: ctx.tenantId },
+        where: { id: threadId, tenantId: ctx.tenantId, ...activeMailThreadWhere() },
         select: {
           id: true,
           subject: true,
@@ -421,9 +422,10 @@ export class EvidenceSourceService {
           connection: { select: { createdByUserId: true } },
           metadata: true,
           messages: {
-            orderBy: { sentAt: 'desc' },
+            where: activeMailMessageWhere(),
+            orderBy: [{ receivedAt: 'desc' }, { sentAt: 'desc' }, { createdAt: 'desc' }],
             take: 2,
-            select: { fromName: true, fromEmail: true, sentAt: true, bodyText: true },
+            select: { fromName: true, fromEmail: true, sentAt: true, receivedAt: true, bodyText: true },
           },
           participants: true,
         },
@@ -556,6 +558,7 @@ export class EvidenceSourceService {
                       { clientId: input.clientId },
                     ],
                   },
+              activeMailThreadWhere(),
             ],
           },
           orderBy: { lastMessageAt: 'desc' },
@@ -572,9 +575,10 @@ export class EvidenceSourceService {
             connection: { select: { createdByUserId: true } },
             metadata: true,
             messages: {
-              orderBy: { sentAt: 'desc' },
+              where: activeMailMessageWhere(),
+              orderBy: [{ receivedAt: 'desc' }, { sentAt: 'desc' }, { createdAt: 'desc' }],
               take: 2,
-              select: { fromName: true, fromEmail: true, sentAt: true, bodyText: true },
+              select: { fromName: true, fromEmail: true, sentAt: true, receivedAt: true, bodyText: true },
             },
             participants: true,
           },
@@ -1419,6 +1423,7 @@ function toThreadCandidate(row: {
     fromName: string | null;
     fromEmail: string | null;
     sentAt: Date | null;
+    receivedAt: Date | null;
     bodyText: string | null;
   }>;
 }): EmailThreadCandidate {
@@ -1445,6 +1450,13 @@ function toThreadCandidate(row: {
     closed: row.status === 'closed' || row.status === 'resolved',
     contradicted: meta.contradicted === true,
     direction: typeof meta.direction === 'string' ? (meta.direction as 'inbound') : null,
-    messages: row.messages,
+    // A purely-received message may have no sentAt; fall back to receivedAt
+    // so the excerpt still gets a usable date instead of showing none.
+    messages: row.messages.map((m) => ({
+      fromName: m.fromName,
+      fromEmail: m.fromEmail,
+      sentAt: m.sentAt ?? m.receivedAt,
+      bodyText: m.bodyText,
+    })),
   };
 }

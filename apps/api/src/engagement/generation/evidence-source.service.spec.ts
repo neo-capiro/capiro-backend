@@ -482,6 +482,142 @@ describe('non-rehydratable kinds', () => {
   });
 });
 
+describe('Phase d — removal filtering (remaining-items plan §3.d5/d6)', () => {
+  test('resolveEmail requests only an active thread with active-message ordering/select (§3.d5)', async () => {
+    let captured: {
+      where: Record<string, unknown>;
+      select: { messages: { where: unknown; orderBy: unknown; select: unknown } };
+    } | null = null;
+    const { svc } = makeService({
+      tables: {
+        mailThread: {
+          findFirst: async (args: unknown) => {
+            captured = args as typeof captured;
+            return {
+              id: 'th1',
+              subject: 'S',
+              snippet: 'snippet',
+              lastMessageAt: NOW,
+              clientId: 'c1',
+              status: 'open',
+              associationScore: null,
+              associationReason: null,
+              connection: { createdByUserId: 'u1' },
+              metadata: {},
+              messages: [{ fromName: 'Alice', fromEmail: 'a@x.com', sentAt: NOW, receivedAt: NOW, bodyText: 'body' }],
+              participants: [],
+            };
+          },
+        },
+      },
+    });
+
+    await svc.resolveSelectedItems(CTX, resolveInput([{ id: 'mail-th1', kind: 'email', scope: 'all' }]));
+
+    expect(captured).not.toBeNull();
+    expect(captured!.where).toMatchObject({ messages: { some: { removedAt: null } } });
+    expect(captured!.select.messages.where).toEqual({ removedAt: null });
+    expect(captured!.select.messages.orderBy).toEqual([
+      { receivedAt: 'desc' },
+      { sentAt: 'desc' },
+      { createdAt: 'desc' },
+    ]);
+    expect(captured!.select.messages.select).toMatchObject({ receivedAt: true, sentAt: true });
+  });
+
+  test('a selected thread with no remaining active messages resolves as unavailable, no evidence text (§3.d5)', async () => {
+    // Mirrors what Prisma's where: {...activeMailThreadWhere()} does for real: a
+    // thread whose every message is removed simply never matches, so findFirst
+    // returns null exactly as it does for "thread doesn't exist at all".
+    const { svc } = makeService({
+      tables: { mailThread: { findFirst: async () => null } },
+    });
+
+    const out = await svc.resolveSelectedItems(
+      CTX,
+      resolveInput([{ id: 'mail-th1', kind: 'email', scope: 'all' }]),
+    );
+
+    expect(out.evidence).toHaveLength(0);
+    expect(out.failures[0]?.code).toBe('EMAIL_THREAD_NOT_FOUND');
+  });
+
+  test("an active thread's excerpt reflects only the active message — removed content never reaches threadExcerpt (§3.d5)", async () => {
+    // The messages array below is what Prisma returns AFTER where:
+    // activeMailMessageWhere() has already excluded the removed message — a
+    // removed message's body can never appear here for the resolver to leak.
+    const { svc } = makeService({
+      tables: {
+        mailThread: {
+          findFirst: async () => ({
+            id: 'th1',
+            subject: 'S',
+            snippet: 'snippet',
+            lastMessageAt: NOW,
+            clientId: 'c1',
+            status: 'open',
+            associationScore: null,
+            associationReason: null,
+            connection: { createdByUserId: 'u1' },
+            metadata: {},
+            messages: [
+              {
+                fromName: 'Alice',
+                fromEmail: 'alice@x.com',
+                sentAt: null,
+                receivedAt: NOW,
+                bodyText: 'ACTIVE-MESSAGE-BODY-ONLY',
+              },
+            ],
+            participants: [],
+          }),
+        },
+      },
+    });
+
+    const out = await svc.resolveSelectedItems(
+      CTX,
+      resolveInput([{ id: 'mail-th1', kind: 'email', scope: 'all' }]),
+    );
+
+    expect(out.evidence).toHaveLength(1);
+    expect(out.evidence[0]!.evidenceText).toContain('ACTIVE-MESSAGE-BODY-ONLY');
+  });
+
+  test('resolveRelevantEmail (auto-suggest) requests only active threads/messages, AND-composed (§3.d6)', async () => {
+    let captured: {
+      where: { AND: unknown[] };
+      select: { messages: { where: unknown } };
+    } | null = null;
+    const { svc } = makeService({
+      tables: {
+        mailThread: {
+          findMany: async (args: unknown) => {
+            captured = args as typeof captured;
+            return [];
+          },
+        },
+      },
+    });
+
+    await svc.resolveRelevantEmail(CTX, {
+      clientId: 'c1',
+      recipientEmails: [],
+      topicTerms: [],
+      emailScope: 'mine',
+      wallAllowsClient: true,
+      audience: 'external',
+      scope: 'all',
+      policy: policyForAudience('congressional_office'),
+      now: NOW,
+    });
+
+    expect(captured).not.toBeNull();
+    expect(captured!.where.AND).toContainEqual({ messages: { some: { removedAt: null } } });
+    expect(captured!.select.messages.where).toEqual({ removedAt: null });
+  });
+});
+
 describe('freshness', () => {
   test('a source past its policy threshold raises an important staleness failure', async () => {
     const stale = {
