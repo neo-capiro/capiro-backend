@@ -100,6 +100,7 @@ import {
   useSendIntent,
   type SendIntentView,
 } from './send-intent.js';
+import { computeSendPreflight, type SendPreflightResult } from './send-preflight.js';
 import {
   INITIAL_V2_STATE,
   WIZARD_STEPS,
@@ -2296,6 +2297,31 @@ export function NewOutreachWizard({
       }).length
     : genModel.slots.filter((s) => state.generatedEmails[s.genKey]?.status === 'error').length;
 
+  // Phase 2 §3.h1 — the required final review checkbox. Tied to a signature
+  // of what's actually being reviewed (not just a plain boolean) so ANY
+  // change to targets/attachments/drafts since the box was checked re-opens
+  // it — same discipline as the collision "keep all" fingerprint in g.
+  const preflightSignature = JSON.stringify([
+    state.targets.map((t) => [t.type, t.key, t.recipients.length]),
+    state.attachmentIds.slice().sort(),
+    genModel.slots.map((s) => [s.genKey, state.generatedEmails[s.genKey]?.versionId ?? null]),
+  ]);
+  const [acknowledgedSignature, setAcknowledgedSignature] = useState<string | null>(null);
+  const reviewAcknowledged = acknowledgedSignature === preflightSignature;
+
+  const preflight = computeSendPreflight({
+    targets: state.targets,
+    slots: genModel.slots,
+    generated: state.generatedEmails,
+    attachmentIds: state.attachmentIds,
+    docs: docsQuery.data?.items ?? [],
+    collisionResolution: state.collisionResolution,
+    emailConnected,
+    selectedInboxId,
+    reviewAcknowledged,
+    sendInFlight: activeSendMutation.isPending,
+  });
+
   // ---- Render ----
   return (
     <div className="ov2-wiz">
@@ -2464,6 +2490,11 @@ export function NewOutreachWizard({
               sendLocked={sendLocked}
               onRetryFailed={retryFailedDeliveries}
               onCancelIntent={cancelCurrentIntent}
+              preflight={preflight}
+              reviewAcknowledged={reviewAcknowledged}
+              onToggleReviewAcknowledged={(checked) =>
+                setAcknowledgedSignature(checked ? preflightSignature : null)
+              }
             />
           )}
         </div>
@@ -2981,6 +3012,9 @@ function StepSend({
   sendLocked,
   onRetryFailed,
   onCancelIntent,
+  preflight,
+  reviewAcknowledged,
+  onToggleReviewAcknowledged,
 }: {
   recipients: OutreachRecipient[];
   sendableCount: number;
@@ -3006,6 +3040,10 @@ function StepSend({
   sendLocked: boolean;
   onRetryFailed: () => void;
   onCancelIntent: () => void;
+  /** Phase 2 §3.h1 — full blockers/warnings + sendable count, computed fresh every render. */
+  preflight: SendPreflightResult;
+  reviewAcknowledged: boolean;
+  onToggleReviewAcknowledged: (checked: boolean) => void;
 }) {
   // Nothing sendable (every draft failed, or none generated) → block Send and
   // say why, so the primary CTA is never a dead click into a backend 400.
@@ -3136,8 +3174,8 @@ function StepSend({
     <div style={{ textAlign: 'center', padding: '40px 20px' }}>
       <h2 style={{ marginTop: 14 }}>Ready to send</h2>
       <div className="ov2-pane-sub" style={{ fontSize: 13.5 }}>
-        <b style={{ color: 'var(--ov2-ink-1)' }}>{recipients.length}</b> personalized{' '}
-        {recipients.length === 1 ? 'email is' : 'emails are'} queued. Capiro will send from{' '}
+        <b style={{ color: 'var(--ov2-ink-1)' }}>{preflight.sendableCount}</b> personalized{' '}
+        {preflight.sendableCount === 1 ? 'email is' : 'emails are'} ready. Capiro will send from{' '}
         <b>{sendFrom || 'your connected inbox'}</b>.
       </div>
       {sendableInboxes.length > 1 && (
@@ -3156,25 +3194,71 @@ function StepSend({
           />
         </div>
       )}
-      {!emailConnected && (
-        <Typography.Paragraph type="warning" style={{ marginTop: 12 }}>
-          No email account connected. Connect Outlook or Gmail in Settings → Integrations before
-          sending.
-        </Typography.Paragraph>
+
+      {/* Phase 2 §3.h1 — itemized recipient/group rows with To/Cc/Bcc counts,
+          instead of only a flat total. */}
+      {recipients.length > 0 && (
+        <div
+          style={{
+            marginTop: 18,
+            maxHeight: 220,
+            overflowY: 'auto',
+            textAlign: 'left',
+            border: '1px solid var(--ov2-border-1)',
+            borderRadius: 8,
+          }}
+        >
+          {recipients.map((r, i) => {
+            const isGroup = (r.groupMembers?.length ?? 0) > 0;
+            const toCount = isGroup ? r.groupMembers!.length : 1;
+            return (
+              <div
+                key={r.id ?? r.email ?? i}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                  padding: '8px 12px',
+                  borderTop: i > 0 ? '1px solid var(--ov2-border-1)' : 'none',
+                  fontSize: 12.5,
+                }}
+              >
+                <span style={{ color: 'var(--ov2-ink-1)', fontWeight: 600 }}>
+                  {r.name || r.email || 'Recipient'}
+                  {isGroup && (
+                    <span style={{ fontWeight: 500, color: 'var(--ov2-ink-3)' }}>
+                      {' '}
+                      ({toCount} {toCount === 1 ? 'member' : 'members'})
+                    </span>
+                  )}
+                </span>
+                <span style={{ color: 'var(--ov2-ink-3)', flexShrink: 0 }}>
+                  To {toCount}
+                  {(r.cc?.length ?? 0) > 0 ? ` · Cc ${r.cc!.length}` : ''}
+                  {(r.bcc?.length ?? 0) > 0 ? ` · Bcc ${r.bcc!.length}` : ''}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       )}
-      {failedCount > 0 && (
-        <Typography.Paragraph type="warning" style={{ marginTop: 12 }}>
-          {failedCount} {failedCount === 1 ? 'draft' : 'drafts'} could not be generated and will be
-          skipped. Go back to Generate &amp; Review to edit or regenerate{' '}
-          {failedCount === 1 ? 'it' : 'them'}.
-        </Typography.Paragraph>
+
+      {/* Preflight blockers/warnings — grouped, not a wall of per-slot text. */}
+      {preflight.issues.length > 0 && (
+        <div style={{ marginTop: 16, textAlign: 'left' }}>
+          {preflight.blockers.map((b, i) => (
+            <Typography.Paragraph key={`b-${i}`} type="danger" style={{ margin: '4px 0' }}>
+              {b.message}
+            </Typography.Paragraph>
+          ))}
+          {preflight.warnings.map((w, i) => (
+            <Typography.Paragraph key={`w-${i}`} type="warning" style={{ margin: '4px 0' }}>
+              {w.message}
+            </Typography.Paragraph>
+          ))}
+        </div>
       )}
-      {nothingToSend && (
-        <Typography.Paragraph type="danger" style={{ marginTop: 12 }}>
-          No emails are ready to send yet. Generate drafts — and fix any that failed — in Generate
-          &amp; Review first.
-        </Typography.Paragraph>
-      )}
+
       {hasSignature && (
         <div
           style={{
@@ -3192,7 +3276,37 @@ function StepSend({
           <span style={{ fontSize: 13, color: 'var(--ov2-ink-1)' }}>Append my email signature</span>
         </div>
       )}
-      <Space style={{ marginTop: 20 }}>
+
+      {/* Phase 2 §3.h1 — the mandatory final review acknowledgement. Resets
+          (see preflightSignature) the moment anything it covers changes. */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 8,
+          marginTop: 18,
+          textAlign: 'left',
+          maxWidth: 480,
+          marginLeft: 'auto',
+          marginRight: 'auto',
+        }}
+      >
+        <input
+          type="checkbox"
+          id="ov2-send-review-ack"
+          checked={reviewAcknowledged}
+          onChange={(e) => onToggleReviewAcknowledged(e.target.checked)}
+          style={{ marginTop: 3 }}
+        />
+        <label
+          htmlFor="ov2-send-review-ack"
+          style={{ fontSize: 12.5, color: 'var(--ov2-ink-2)', cursor: 'pointer' }}
+        >
+          I reviewed the recipients, current draft versions, attachments, and verification status.
+        </label>
+      </div>
+
+      <Space style={{ marginTop: 16 }}>
         <Button
           icon={<EyeOutlined />}
           loading={testing && !sending}
@@ -3206,7 +3320,7 @@ function StepSend({
           icon={<SendOutlined />}
           loading={sending}
           onClick={onSend}
-          disabled={!emailConnected || nothingToSend || sendLocked}
+          disabled={!preflight.canSend || sendLocked}
         >
           Confirm Send
         </Button>
