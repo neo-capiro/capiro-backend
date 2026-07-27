@@ -216,7 +216,11 @@ export function DistrictNexusPage() {
                   />
                 </div>
                 {mapQuery.data.unmapped.unmappedContractAmount || mapQuery.data.unmapped.unmappedGrantAmount ? (
-                  <button type="button" className="dn-rfoot">
+                  // Deliberately not a button. It was rendered as one with no
+                  // onClick and no destination, so it advertised an action that
+                  // did not exist. An unmapped-funding panel needs a response
+                  // field the E1 aggregate does not carry.
+                  <div className="dn-rfoot">
                     <span style={{ color: 'var(--notable)', display: 'grid', placeItems: 'center' }}>
                       <WarningOutlined />
                     </span>
@@ -231,7 +235,7 @@ export function DistrictNexusPage() {
                       · {formatMoney(mapQuery.data.unmapped.unmappedContractAmount)} contracts,{' '}
                       {formatMoney(mapQuery.data.unmapped.unmappedGrantAmount)} grants
                     </span>
-                  </button>
+                  </div>
                 ) : null}
               </div>
             </div>
@@ -330,12 +334,32 @@ function KpiStrip({
   unmapped: DistrictNexusMapResponse['unmapped'];
 }) {
   const states = new Set(districts.map((d) => d.state)).size;
-  const employees = districts.reduce((sum, d) => sum + (d.employeeCount ?? 0), 0);
+
+  /**
+   * Sums that keep "we have no figure" separate from "the figure is zero".
+   *
+   * A plain `reduce((s, d) => s + (x ?? 0), 0)` returns 0 for a rail with no data
+   * at all, which formatMoney then renders as `$0` — a positive claim we cannot
+   * support. And `employees || null` did the opposite: it converted a REAL zero
+   * into an em dash. Track presence separately from the total.
+   */
+  const sumOrNull = (pick: (d: DistrictNexusMapResponse['districts'][number]) => number | null) => {
+    let total = 0;
+    let sawValue = false;
+    for (const d of districts) {
+      const v = pick(d);
+      if (v == null) continue;
+      total += v;
+      sawValue = true;
+    }
+    return sawValue ? total : null;
+  };
+
+  const employees = sumOrNull((d) => d.employeeCount);
   const employeesUnreportedCount = districts.filter((d) => d.employeesUnreported).length;
-  const contracts = districts.reduce((sum, d) => sum + (d.awarded.contractObligations ?? 0), 0);
-  const grants = districts.reduce((sum, d) => sum + (d.awarded.grantObligations ?? 0), 0);
-  const outlays = districts.reduce((sum, d) => sum + (d.awarded.grantOutlays ?? 0), 0);
-  const opportunityEst = districts.reduce((sum, d) => sum + (d.opportunities.opportunityEstimatedFunding ?? 0), 0);
+  const contracts = sumOrNull((d) => d.awarded.contractObligations);
+  const grants = sumOrNull((d) => d.awarded.grantObligations);
+  const outlays = sumOrNull((d) => d.awarded.grantOutlays);
 
   return (
     <div className="dn-kpis">
@@ -349,7 +373,7 @@ function KpiStrip({
         </div>
         <div className="dn-kpi">
           <div className="dn-k">Employees</div>
-          <div className="dn-v">{formatNumber(employees || null)}</div>
+          <div className="dn-v">{formatNumber(employees)}</div>
           <div className="dn-s">
             {employeesUnreportedCount ? (
               <b>
@@ -379,8 +403,11 @@ function KpiStrip({
       <div className="dn-kgrp dn-opp" title="Opportunities are never added to awarded-dollar totals">
         <div className="dn-kpi">
           <div className="dn-k">Opportunities · not awarded</div>
-          <div className="dn-v">{formatMoney(opportunityEst, 0)}</div>
-          <div className="dn-s">est. program funding</div>
+          {/* Not $0. The firm map does not carry opportunities at all (they are a
+              client-level rail with no place of performance), so this is an
+              UNAVAILABLE figure, not a zero one. */}
+          <div className="dn-v">—</div>
+          <div className="dn-s">per-client only · see a client profile</div>
         </div>
       </div>
     </div>
