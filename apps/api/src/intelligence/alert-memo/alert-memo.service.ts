@@ -4,6 +4,7 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import {
   recordAiUsageEvent,
@@ -386,6 +387,10 @@ export class AlertMemoService {
       ? 'Entailment gate: every paragraph failed entailment against its cited claims.'
       : '';
     let reviewRequestId: string | null = null;
+    // Gate I (CG-01): tracks whether the AUDITOR specifically produced 'hold',
+    // as distinct from `held` (which is OR-ed with entailment). Feeds holdSource
+    // on the generation record below — 'auditor' | 'entailment' | 'both'.
+    let auditorHeld = false;
     const auditorMode = await resolveTenantAuditorMode(this.prisma, ctx.tenantId);
     if (auditorMode !== 'off' && markdown.trim().length > 0) {
       try {
@@ -440,6 +445,10 @@ export class AlertMemoService {
                 tenantId: ctx.tenantId,
                 surface: 'alert',
                 mode: auditorMode,
+                // Gate I (CG-01) b-8: lets saveEdited's L0 scope its recent-hold
+                // lookup to this client/alert instead of the whole tenant.
+                clientId,
+                alertId: alert.alertId,
                 model: cred.model,
                 decision: verdict.decision,
                 topSeverity: verdict.topSeverity ?? null,
@@ -462,6 +471,7 @@ export class AlertMemoService {
           // §4.7: OR-ed with the entailment hold — an auditor 'deliver' must never clear
           // a hold the entailment gate already established.
           held = verdict.decision === 'hold' || entailmentHeld;
+          auditorHeld = verdict.decision === 'hold';
           if (verdict.decision === 'hold') {
             heldReason = [
               `Grounding auditor: ${verdict.findings
@@ -479,6 +489,50 @@ export class AlertMemoService {
           `[meri-auditor] alert memo audit failed (memo unaffected): ${(err as Error).message}`,
         );
       }
+    }
+
+    // Gate I (CG-01) b-2/b-3: a server-owned record of what governance decided,
+    // written BEFORE reviews.createSystem() is attempted and unconditionally for
+    // EVERY generation — not only held ones (I_GOVERNANCE.md §1.2/§1.4's S1-S4
+    // slip-throughs all share one root cause: filing state was never durably
+    // recorded anywhere saveEdited could later check). A record with
+    // holdSource:'none' is what lets saveEdited distinguish "not held" from "we
+    // have no idea" (edge case 4). Pessimistic by design: a held generation
+    // starts 'blocked_pending_review' and only relaxes to 'draft' once
+    // createSystem proves a real review row exists below, so a crash between
+    // the two writes still leaves a blocking row. Fail-open (try/caught): a
+    // failure here must not break generation (edge case 1) — it only means this
+    // one generation falls back to the pre-existing L0-L3 checks in saveEdited.
+    const holdSource: 'none' | 'entailment' | 'auditor' | 'both' = !held
+      ? 'none'
+      : entailmentHeld && auditorHeld
+        ? 'both'
+        : entailmentHeld
+          ? 'entailment'
+          : 'auditor';
+    let generationId: string | null = null;
+    try {
+      const rec = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.alertGenerationRecord.create({
+          data: {
+            tenantId: ctx.tenantId,
+            clientId,
+            alertId: alert.alertId,
+            surface: 'alert-memo',
+            holdSource,
+            holdReason: heldReason || null,
+            filingState: held ? 'blocked_pending_review' : 'draft',
+            contentHash: contentHashOf(markdown),
+            createdBy: ctx.userId,
+          },
+          select: { id: true },
+        }),
+      );
+      generationId = rec.id;
+    } catch (err) {
+      this.logger.warn(
+        `alert generation record create failed (non-fatal): ${(err as Error).message}`,
+      );
     }
 
     // Render docx + auto-file in the client's Documents — UNLESS the memo is
@@ -506,6 +560,24 @@ export class AlertMemoService {
         payload: { markdown, title, clientName, clientId, alertId: alert.alertId },
         requestedBy: ctx.userId,
       });
+      if (reviewRequestId !== null && generationId) {
+        // Relax the pessimistic default now that a real review row exists — L1
+        // (hasOpenForSubject) is the backstop for this case; the new lock's job
+        // is specifically the null branch below, where L1 has nothing to find.
+        const gid = generationId;
+        await this.prisma
+          .withTenant(ctx.tenantId, (tx) =>
+            tx.alertGenerationRecord.update({
+              where: { id: gid },
+              data: { reviewRequestId, filingState: 'draft' },
+            }),
+          )
+          .catch((e) =>
+            this.logger.warn(
+              `alert generation record update failed (non-fatal): ${(e as Error).message}`,
+            ),
+          );
+      }
       if (reviewRequestId === null) {
         // createSystem is fail-open (never throws), so a hold can land with NO
         // pending review_request row for a reviewer to see or for saveEdited's
@@ -535,6 +607,20 @@ export class AlertMemoService {
           source: 'intel_memo',
         });
         document = { attachmentId: saved.id, fileName: saved.fileName };
+        if (generationId) {
+          // Best-effort bookkeeping (Gate I): the memo is already filed by this
+          // point regardless of whether this update succeeds.
+          const gid = generationId;
+          await this.prisma
+            .withTenant(ctx.tenantId, (tx) =>
+              tx.alertGenerationRecord.update({ where: { id: gid }, data: { filingState: 'filed' } }),
+            )
+            .catch((e) =>
+              this.logger.warn(
+                `alert generation record filed-update failed (non-fatal): ${(e as Error).message}`,
+              ),
+            );
+        }
         // Gate H a-6: regenerate SUPERSEDES the prior Document rather than
         // deleting it — the client's Documents list still shows only the
         // current version (listAttachments excludes superseded rows), but
@@ -568,6 +654,7 @@ export class AlertMemoService {
       held,
       reviewRequestId,
       heldReason,
+      generationId,
     };
   }
 
@@ -583,12 +670,35 @@ export class AlertMemoService {
       alertId: string;
       actionDate?: string;
       replaceAttachmentId?: string;
+      /** Gate I (CG-01): the server-owned record generate() minted. Optional so
+       *  an in-flight client that predates this field still gets the L0-L3
+       *  compatibility path (b-5) instead of a hard failure. */
+      generationId?: string;
     },
   ): Promise<{ document: { attachmentId: string; fileName: string } | null; title: string }> {
+    const generationId = input.generationId ?? null;
     // P0-01: a memo the grounding auditor HELD may not be filed around the review
-    // gate. Four independent locks, any of which blocks; an admin (who can also
-    // decide the review) bypasses, matching reviews.assertMayDecide.
+    // gate. Five independent locks (Gate I adds the first), any of which blocks;
+    // an admin (who can also decide the review) bypasses, matching
+    // reviews.assertMayDecide.
     if (!isTenantAdmin(ctx.role)) {
+      // Gate I (CG-01) b-4: the NEW first lock. A server-owned record is
+      // authoritative — it does not depend on inferring hold state from content
+      // markers the client could omit or fabricate (I_GOVERNANCE.md §1.4's
+      // S1-S4 slip-throughs). Absence of a record — no generationId sent, or
+      // none found — is NOT held (edge case 4); it falls through to L1-L3/L0,
+      // the compatibility path for any in-flight client (b-5).
+      if (generationId) {
+        const record = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.alertGenerationRecord.findFirst({
+            where: { id: generationId, tenantId: ctx.tenantId, clientId, alertId: input.alertId },
+            select: { filingState: true },
+          }),
+        );
+        if (record?.filingState === 'blocked_pending_review') {
+          throw new ForbiddenException(HELD_MEMO_MESSAGE);
+        }
+      }
       // L1 — the existing subject guard, now ALWAYS reachable (alertId is required).
       if (await this.reviews.hasOpenForSubject(ctx.tenantId, 'alert', input.alertId)) {
         throw new ForbiddenException(HELD_MEMO_MESSAGE);
@@ -626,11 +736,18 @@ export class AlertMemoService {
       // this can never fire for an annotate-mode save, whose ledger rows carry
       // decision:'deliver_with_flags' — annotate keeps filing normally.
       if (input.markdown.includes(HELD_BANNER_MARKER)) {
+        // Gate I (CG-01) b-8: scoped to this client/alert — previously any hold
+        // anywhere in the tenant in the last 24h blocked every banner-bearing
+        // save. clientId/alertId are NULL on ledger rows written before this
+        // column existed, so a pre-existing row never matches (fail-safe, not a
+        // new hole) — see the migration's comment.
         const recentHold = await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.meriAuditLedger.findFirst({
             where: {
               tenantId: ctx.tenantId,
               surface: 'alert',
+              clientId,
+              alertId: input.alertId,
               decision: 'hold',
               createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
             },
@@ -657,6 +774,23 @@ export class AlertMemoService {
         .supersedeAttachment(ctx, input.replaceAttachmentId, saved.id)
         .catch((e) =>
           this.logger.warn(`superseding prior memo doc failed on save: ${(e as Error).message}`),
+        );
+    }
+    // Gate I (CG-01) b-6: the repair/release path for a 'blocked_pending_review'
+    // record IS the admin bypass above — an admin's save reaches here having
+    // skipped the lock, and this marks the record filed so it stops reporting a
+    // state the save itself just resolved. Best-effort: a failure to update
+    // bookkeeping must not undo a save that already succeeded.
+    if (generationId) {
+      const gid = generationId;
+      await this.prisma
+        .withTenant(ctx.tenantId, (tx) =>
+          tx.alertGenerationRecord.update({ where: { id: gid }, data: { filingState: 'filed' } }),
+        )
+        .catch((e) =>
+          this.logger.warn(
+            `alert generation record filed-update failed on save (non-fatal): ${(e as Error).message}`,
+          ),
         );
     }
     return { document: { attachmentId: saved.id, fileName: saved.fileName }, title: input.title };
@@ -1021,6 +1155,13 @@ function verifyGrounded(sections: GenSection[], claims: Claim[]): GenSection[] {
     if (kept.length) out.push({ heading: s.heading, paragraphs: kept });
   }
   return out;
+}
+
+/** Gate I (CG-01): sha256 of the final markdown, snapshotted into the generation
+ *  record at write time. Not re-checked on save — the lock keys on the record's
+ *  existence + filingState, not hash equality (open decision #2). */
+function contentHashOf(markdown: string): string {
+  return createHash('sha256').update(markdown).digest('hex');
 }
 
 /** Deterministic fallback when generation fails or is fully ungrounded. */

@@ -30,6 +30,11 @@ function makeDeps(opts: {
 }) {
   const aiUsageEvents: unknown[] = [];
   const meriAuditLedgerRows: unknown[] = [];
+  // Gate I (CG-01): generate() now unconditionally writes an
+  // AlertGenerationRecord. A tiny in-memory store (rather than a bare jest.fn
+  // stub) so create()/update() stay consistent for any test that inspects them.
+  const alertGenerationRecordStore = new Map<string, Record<string, unknown>>();
+  let alertGenerationRecordSeq = 0;
   const prisma = {
     withTenant: jest.fn(async (_tenantId: string, fn: (tx: unknown) => unknown) =>
       fn({
@@ -43,6 +48,24 @@ function makeDeps(opts: {
           create: jest.fn(async (args: unknown) => {
             meriAuditLedgerRows.push(args);
             return args;
+          }),
+        },
+        alertGenerationRecord: {
+          create: jest.fn(async (args: { data: Record<string, unknown> }) => {
+            alertGenerationRecordSeq += 1;
+            const id = `gen-${alertGenerationRecordSeq}`;
+            alertGenerationRecordStore.set(id, { id, ...args.data });
+            return { id };
+          }),
+          update: jest.fn(async (args: { where: { id: string }; data: Record<string, unknown> }) => {
+            const existing = alertGenerationRecordStore.get(args.where.id) ?? {};
+            const updated = { ...existing, ...args.data };
+            alertGenerationRecordStore.set(args.where.id, updated);
+            return updated;
+          }),
+          findFirst: jest.fn(async (args: { where?: { id?: string } }) => {
+            const id = args?.where?.id;
+            return id ? (alertGenerationRecordStore.get(id) ?? null) : null;
           }),
         },
       }),
@@ -108,6 +131,7 @@ function makeDeps(opts: {
     reviews,
     aiUsageEvents,
     meriAuditLedgerRows,
+    alertGenerationRecordStore,
   };
 }
 

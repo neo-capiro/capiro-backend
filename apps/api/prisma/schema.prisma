@@ -249,6 +249,7 @@ model Tenant {
   contextPackets               ContextPacket[]
   outcomeEvents                OutcomeEvent[]
   reviewRequests               ReviewRequest[]
+  alertGenerationRecords       AlertGenerationRecord[]
   aiCredentials                TenantAiCredential[]
   usageMeters                  TenantUsageMeter[]
   memoryItems                  MemoryItem[]
@@ -1943,6 +1944,13 @@ model MeriAuditLedger {
   /// 'shadow' | 'annotate' | 'enforce' — the AuditorMode this verdict ran under.
   mode           String   @db.VarChar(16)
   conversationId String?  @map("conversation_id") @db.Uuid
+  /// Gate I (CG-01) b-8: scopes the saveEdited L0 recent-hold lookup to ONE
+  /// client/alert instead of any hold tenant-wide. NULL on rows written before
+  /// this column existed and on surfaces with no single client/alert (chat/
+  /// research/outreach) — NULL never matches a scoped lookup, so pre-existing
+  /// rows cannot newly start blocking a save.
+  clientId       String?  @map("client_id") @db.Uuid
+  alertId        String?  @map("alert_id") @db.VarChar(128)
   model          String?  @db.VarChar(80)
   /// 'deliver' | 'deliver_with_flags' | 'repair' | 'hold'
   decision       String   @db.VarChar(24)
@@ -1957,6 +1965,7 @@ model MeriAuditLedger {
 
   @@index([tenantId, createdAt(sort: Desc)], map: "meri_audit_ledger_tenant_created_idx")
   @@index([surface, topSeverity, createdAt(sort: Desc)], map: "meri_audit_ledger_surface_severity_idx")
+  @@index([tenantId, clientId, alertId, decision, createdAt(sort: Desc)], map: "meri_audit_ledger_tenant_client_alert_idx")
   @@map("meri_audit_ledger")
 }
 
@@ -1988,13 +1997,55 @@ model ReviewRequest {
   decidedAt   DateTime? @map("decided_at") @db.Timestamptz(6)
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant                Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   outreachDraftVersions OutreachDraftVersion[]
+  alertGenerationRecords AlertGenerationRecord[]
 
   @@index([tenantId, status, createdAt(sort: Desc)], map: "review_request_tenant_status_idx")
   @@index([tenantId, assignedTo, status], map: "review_request_assigned_idx")
   @@index([tenantId, subjectType, subjectId], map: "review_request_subject_idx")
   @@map("review_request")
+}
+
+/// Gate I (CG-01) — a server-owned record of what governance decided about ONE
+/// alert-memo/district-brief generation, so filing (saveEdited) can check
+/// durable DB state instead of inferring hold status from banner text or a
+/// meri_audit_ledger row — both of which are ABSENT for an entailment-only
+/// hold when the auditor is off or found nothing (the S1-S4 slip-throughs
+/// I_GOVERNANCE.md §1.4 documents). Modeled on OutreachDraftVersion's audit/
+/// approval columns. Written pessimistically — filingState defaults to
+/// 'blocked_pending_review' for a held generation BEFORE the review_request
+/// create is attempted — so a crash between the two writes still leaves a
+/// blocking row; filingState only relaxes to 'draft' once createSystem proves
+/// a real review row exists. Additive-only; RLS per the meri_audit_ledger
+/// template.
+model AlertGenerationRecord {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  clientId        String   @map("client_id") @db.Uuid
+  /// The alert (intel-api id) this generation was produced from. Not an FK —
+  /// alerts are not persisted in apps/api.
+  alertId         String   @map("alert_id") @db.VarChar(128)
+  /// 'alert-memo' | 'district-brief'
+  surface         String   @db.VarChar(24)
+  /// 'none' | 'entailment' | 'auditor' | 'both'
+  holdSource      String   @map("hold_source") @db.VarChar(16)
+  holdReason      String?  @map("hold_reason")
+  reviewRequestId String?  @map("review_request_id") @db.Uuid
+  /// 'draft' | 'filed' | 'blocked_pending_review'
+  filingState     String   @map("filing_state") @db.VarChar(32)
+  /// sha256 of the generated markdown at write time. The saveEdited lock keys
+  /// on the record's existence + filingState, NOT hash equality (Gate I open
+  /// decision #2) — an expected edit must not itself invalidate the lock.
+  contentHash     String   @map("content_hash") @db.VarChar(80)
+  createdBy       String?  @map("created_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reviewRequest ReviewRequest? @relation(fields: [reviewRequestId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, clientId, alertId, createdAt(sort: Desc)], map: "alert_generation_record_tenant_client_alert_idx")
+  @@map("alert_generation_record")
 }
 
 /// G3 — structured advocacy outcomes (blueprint §3.1 stage 5 + §5.2 flywheel).
