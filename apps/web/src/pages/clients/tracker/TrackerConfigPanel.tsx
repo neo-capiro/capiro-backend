@@ -954,9 +954,13 @@ export function TrackerConfigPanel({
                 </button>
               ))}
             </div>
+            {/* P2-15 (Gate E phase e): this predated state bills, hearings,
+                regulations, and Program Elements — said "the recommendation
+                matcher" as if bills were the only thing selected areas fed. */}
             <div className="cfg-help">
-              Capiro-managed taxonomy. Selected areas seed the recommendation matcher and alert
-              routing.
+              Capiro-managed taxonomy. Selected areas seed matching across every source type —
+              bills, state bills, hearings, regulations, and Program Elements — for Recommendations
+              and alert routing.
             </div>
           </div>
 
@@ -1036,9 +1040,13 @@ export function TrackerConfigPanel({
                 Targeting is not being saved — every tag needs a unique name.
               </div>
             )}
+            {/* P2-15 (Gate E phase e): predated the 11 typed-term types Gate B
+                wired (this said "embeddings + keyword match" as if the three
+                legacy chip inputs were the whole story). */}
             <div className="cfg-help" style={{ marginTop: 10 }}>
-              Synonyms, related entities, and risk terms tune the embeddings + keyword match behind
-              Recommendations.
+              Synonyms, related entities, risk terms, and typed terms — bills, agencies,
+              committees, legislators, companies, competitors, Program Elements — tune the
+              keyword and entity match behind Recommendations and alert relevance.
             </div>
             {watchlist.rejected?.terms?.length ? (
               <div className="cfg-help" role="alert">
@@ -1164,7 +1172,12 @@ export function TrackerConfigPanel({
                   </span>
                   <div style={{ flex: 1 }}>
                     <div className="chan-name">In-app</div>
-                    <div className="chan-sub">Changes inbox + unread dots on board cards</div>
+                    {/* P2-15 (Gate E phase e): predated hearings/state
+                        bills/regulations/Program Elements on this surface. */}
+                    <div className="chan-sub">
+                      Changes inbox, feed, and unread markers across bills, hearings, regulations,
+                      and Program Elements
+                    </div>
                   </div>
                   <span className="chan-lock">Always on</span>
                   <button
@@ -1186,7 +1199,12 @@ export function TrackerConfigPanel({
                   </span>
                   <div style={{ flex: 1 }}>
                     <div className="chan-name">Email</div>
-                    <div className="chan-sub">Full context — bill, change, why it matters</div>
+                    {/* P2-15 (Gate E phase e): "bill, change" implied bills
+                        were the only source type an email could be about. */}
+                    <div className="chan-sub">
+                      Full context — what changed, why it matters to this client, and the official
+                      source
+                    </div>
                   </div>
                   {/* P1-12: an unlabelled toggle with no pressed state — a
                       screen reader announced only "button". */}

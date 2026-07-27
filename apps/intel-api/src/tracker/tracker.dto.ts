@@ -16,7 +16,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { EXPECTED_CONFIDENCE_LEVELS, EXPECTED_MILESTONE_TYPES } from '@capiro/shared';
+import { BILL_STAGES, EXPECTED_CONFIDENCE_LEVELS, EXPECTED_MILESTONE_TYPES } from '@capiro/shared';
 
 /**
  * DTOs for the P1.1 aux tracker endpoints (ported from apps/api
@@ -48,8 +48,14 @@ export const EMAIL_CADENCE_VALUES = ['realtime', 'daily', 'weekly'] as const;
 export const SMS_CADENCE_VALUES = ['realtime', 'daily'] as const;
 export const TAG_POSITIONS = ['support', 'oppose', 'monitor'] as const;
 export const TAG_PRIORITIES = ['low', 'med', 'high'] as const;
+/** Gate E phase a (P1-18) — the board's 4 lanes, for BoardQueryDto.stages. */
+const BOARD_STAGE_IDS = BILL_STAGES.map((s) => s.id);
 // Derived from ALLOWED_FEEDBACK_SIGNALS (tracker-board.service.ts) — the actual
 // runtime allowlist, not the smaller set the finding's own writeup guessed.
+// Gate E phase f (§4.10) added memo_generated/memo_heavily_edited/
+// outreach_generated/alert_ignored — each fired from an existing success
+// handler, never a new table. Deliberately NOT added: false_positive/
+// missed_alert have no UI to report them, and an unreachable signal is noise.
 export const FEEDBACK_SIGNALS = [
   'useful',
   'not_useful',
@@ -61,6 +67,25 @@ export const FEEDBACK_SIGNALS = [
   'dismissed',
   'marked_irrelevant',
   'opened',
+  'memo_generated',
+  'memo_heavily_edited',
+  'outreach_generated',
+  'alert_ignored',
+] as const;
+
+/**
+ * §4.10 (Gate E phase f): the five structured dismiss reasons the picker
+ * offers, plus the implicit "no reason given" (omit the field — Just hide
+ * it). Only `too_broad` and `wrong_issue` are MATCH-QUALITY signals that
+ * feed scoreBillFit's down-weighting (bill-fit.util.ts) — `already_handled`
+ * says nothing about whether the topic over-matches (f-4/f-7 case 6).
+ */
+export const FEEDBACK_REASONS = [
+  'wrong_issue',
+  'wrong_entity',
+  'too_broad',
+  'already_handled',
+  'not_actionable',
 ] as const;
 
 export class BillSearchQueryDto {
@@ -197,6 +222,23 @@ export class RecordFeedbackDto {
   @IsString()
   @MaxLength(128)
   alertId?: string | null;
+
+  /** §4.10 (Gate E phase f): structured dismiss reason — only meaningful
+   *  alongside signal='marked_irrelevant'; the service does not enforce that
+   *  pairing (a reason on another signal is simply ignored downstream). */
+  @IsOptional()
+  @IsIn(FEEDBACK_REASONS as unknown as string[])
+  reason?: string;
+
+  /** §4.10 (Gate E phase f): the watchlist topic labels this bill matched at
+   *  dismissal time (the web already has them, RecommendationBill.matchedTags)
+   *  — this is the link feedbackSignal aggregates by. */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(120, { each: true })
+  @ArrayMaxSize(20)
+  matchedTags?: string[];
 }
 
 /**
@@ -287,6 +329,57 @@ export class WatchlistTopicDto {
   @ArrayMaxSize(500) terms?: WatchlistTermDto[];
   /** P0-03 item 5: rename this topic, preserving its id and term/alert association. */
   @IsOptional() @IsString() @MaxLength(120) renameFrom?: string;
+}
+
+/**
+ * Query for GET .../tracker/board (Gate E phase a, P1-18). Every field is
+ * OPTIONAL and defaults OFF (MASTER §4.5) — an absent query is BYTE-IDENTICAL
+ * to the pre-Gate-E default page (bounded at `LEGIWATCH_BOARD_PAGE_SIZE`, no
+ * filter narrowing). `enableImplicitConversion` is off globally
+ * (main.ts), so numeric/boolean query values need an explicit `@Transform`.
+ */
+export class BoardQueryDto {
+  @IsOptional()
+  @Transform(({ value }) => (value === undefined || value === '' ? undefined : Number(value)))
+  @IsInt()
+  @Min(1)
+  limit?: number;
+
+  /** Opaque keyset cursor from a previous page's `nextCursor`. A malformed one is ignored (page 1), never a 400. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  cursor?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === undefined || value === '' ? undefined : Number(value)))
+  @IsInt()
+  @Min(1)
+  changedWithinDays?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  activeOnly?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) =>
+    value === undefined || value === null ? undefined : Array.isArray(value) ? value : [value],
+  )
+  @IsArray()
+  @ArrayMaxSize(4)
+  @IsIn(BOARD_STAGE_IDS as unknown as string[], { each: true })
+  stages?: string[];
+
+  /** Tenant (`_all`) board only — ignored on a single-client board. */
+  @IsOptional()
+  @Transform(({ value }) =>
+    value === undefined || value === null ? undefined : Array.isArray(value) ? value : [value],
+  )
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  clientIds?: string[];
 }
 
 /** Body for PUT .../tracker/watchlists/:clientId (Gate B phase a, P0-03/P0-04/P0-05). */

@@ -156,11 +156,11 @@ describe('RadarPage', () => {
 
     // No client selected → the tenant-wide feed panel renders (empty here), NOT
     // the ClientGate picker prompt. The empty-state copy is the global variant
-    // (LegiWatch v2 calm re-skin).
+    // (LegiWatch v2 calm re-skin). P2-15 (Gate E phase e) rebuilt this copy
+    // from SOURCE_LABEL instead of a hard-coded "bill or hearing" phrase —
+    // match the stable structural part, not the enumerated source-type list.
     await waitFor(() =>
-      expect(
-        screen.getByText(/a hearing hits any client’s watchlist, it lands here/i),
-      ).toBeInTheDocument(),
+      expect(screen.getByText(/moves for any client, it lands here/i)).toBeInTheDocument(),
     );
     // It must hit the tenant-wide roll-up endpoint, not a per-client feed.
     expect(

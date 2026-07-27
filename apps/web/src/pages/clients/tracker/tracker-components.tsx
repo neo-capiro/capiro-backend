@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusTrap } from './use-focus-trap.js';
 import { useQuery } from '@tanstack/react-query';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import { Icon, StarIcon } from './tracker-icons.js';
@@ -9,6 +10,7 @@ import {
   trackerPaths,
   type BillSearchResult,
   type BoardBill,
+  type BoardColumn,
   type RecommendationBill,
 } from './tracker-api.js';
 import { intelTrackerPaths } from './intel-tracker-api.js';
@@ -23,6 +25,19 @@ import { intelTrackerPaths } from './intel-tracker-api.js';
 export const PASSAGE_LIKELIHOOD_LABEL = 'Estimated passage likelihood';
 export const PASSAGE_LIKELIHOOD_TOOLTIP =
   'Stage-based estimate — derived from the bill’s current stage and latest action date. Not calibrated against historical outcomes.';
+
+/**
+ * §4.10 (Gate E phase f, f-1): mirrors intel-api's `FEEDBACK_REASONS`
+ * (tracker.dto.ts) exactly — duplicated here because that DTO lives in a
+ * backend-only package. Keep both lists in sync if either changes.
+ */
+export const DISMISS_REASONS: Array<{ value: string; label: string }> = [
+  { value: 'wrong_issue', label: 'Wrong issue' },
+  { value: 'wrong_entity', label: 'Wrong entity' },
+  { value: 'too_broad', label: 'Too broad' },
+  { value: 'already_handled', label: 'Already handled' },
+  { value: 'not_actionable', label: 'Not actionable' },
+];
 
 export function PassageBar({ prob }: { prob: number }) {
   const percent = Math.round(prob > 1 ? prob : prob * 100);
@@ -158,6 +173,226 @@ export function BillCard({
 }
 
 /**
+ * P1-18 (Gate E phase c): a column exceeding 50 cards virtualizes — only DOM
+ * nodes near the visible window are mounted. Below the threshold, render
+ * normally: virtualization breaks Ctrl-F and adds complexity for a column
+ * size no real tenant hits today (c-2).
+ *
+ * Keyboard reachability (c-4): windowing fundamentally means Tab cannot land
+ * on an unmounted off-screen card. The mitigation is a real scrollable
+ * region (tabIndex, role="group") a keyboard user can focus and page/arrow
+ * through with the browser's native scroll-on-focused-container behavior,
+ * bringing a card's controls into the DOM (and into Tab order) before
+ * tabbing to them — plus generous overscan so short scrolls need no extra
+ * step at all.
+ */
+const BOARD_VIRTUALIZE_THRESHOLD = 50;
+
+export function BoardColumnCards({
+  cards,
+  issueSet,
+  justLanded,
+  onUntrack,
+  onOpen,
+}: {
+  cards: BoardBill[];
+  issueSet: Set<string>;
+  justLanded: string | null;
+  onUntrack: (billId: string) => void;
+  onOpen: (bill: BoardBill) => void;
+}) {
+  const parentRef = useRef<HTMLDivElement | null>(null);
+  const shouldVirtualize = cards.length > BOARD_VIRTUALIZE_THRESHOLD;
+  const virtualizer = useVirtualizer({
+    count: cards.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 140,
+    overscan: 10,
+    enabled: shouldVirtualize,
+  });
+
+  if (!shouldVirtualize) {
+    return (
+      <>
+        {cards.map((b) => (
+          <BillCard
+            key={b.billId}
+            bill={b}
+            issueSet={issueSet}
+            justLanded={justLanded === b.billId}
+            onUntrack={onUntrack}
+            onOpen={onOpen}
+          />
+        ))}
+      </>
+    );
+  }
+
+  return (
+    <div
+      ref={parentRef}
+      className="bcol-scroll"
+      tabIndex={0}
+      role="group"
+      aria-label={`${cards.length} tracked bills in this column — scroll for more`}
+    >
+      <div style={{ height: virtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
+        {virtualizer.getVirtualItems().map((vi) => {
+          const b = cards[vi.index]!;
+          return (
+            <div
+              key={b.billId}
+              data-index={vi.index}
+              ref={virtualizer.measureElement}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                // .bcard's own `margin-top:8px` (`:first-of-type` resets it to
+                // 0) does not apply usefully here — each card is alone in its
+                // OWN wrapper, so it is trivially ":first-of-type" every
+                // time and would render with NO gap at all. Padding on this
+                // wrapper (which measureElement includes) replaces it.
+                paddingTop: vi.index === 0 ? 0 : 8,
+                transform: `translateY(${vi.start}px)`,
+              }}
+            >
+              <BillCard
+                bill={b}
+                issueSet={issueSet}
+                justLanded={justLanded === b.billId}
+                onUntrack={onUntrack}
+                onOpen={onOpen}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export type BoardTableSortKey = 'stage' | 'bill' | 'status' | 'action';
+const BOARD_TABLE_STAGE_ORDER: Record<string, number> = {
+  introduced: 0,
+  committee: 1,
+  passed: 2,
+  enacted: 3,
+};
+
+/**
+ * P1-18 (Gate E phase c, c-3): the table-view alternative to the 4-column
+ * card grid, per Neo's decision to ship BOTH virtualization and this — one
+ * flat, sortable <table> of every loaded card. Far cheaper to render than a
+ * large board split across four flex-card columns, and what a large-firm
+ * analyst asks for regardless of the virtualization decision.
+ *
+ * "Owner" (the audit's 5th column) is deliberately NOT included: BoardCard
+ * carries no owner/assignee field today — `trackedBy` exists on the DB row
+ * but is write-only and never resolved to a display name for the web.
+ * Adding it needs a batch user-resolution query (a backend change), which is
+ * out of scope for a client-side view toggle. Reported as a gap, not
+ * fabricated.
+ */
+export function BoardTableView({
+  columns,
+  issueSet,
+  onOpen,
+}: {
+  columns: BoardColumn[];
+  issueSet: Set<string>;
+  onOpen: (bill: BoardBill) => void;
+}) {
+  const [sortKey, setSortKey] = useState<BoardTableSortKey>('stage');
+  const [sortDesc, setSortDesc] = useState(false);
+
+  const rows = useMemo(() => {
+    const flat = columns.flatMap((c) => c.bills.map((b) => ({ ...b, stageLabel: c.label })));
+    const sorted = [...flat].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === 'stage') {
+        cmp = (BOARD_TABLE_STAGE_ORDER[a.stage] ?? 9) - (BOARD_TABLE_STAGE_ORDER[b.stage] ?? 9);
+      } else if (sortKey === 'bill') {
+        cmp = a.displayNum.localeCompare(b.displayNum, undefined, { numeric: true });
+      } else if (sortKey === 'status') {
+        cmp = (a.canonicalStatus ?? a.stageLabel).localeCompare(b.canonicalStatus ?? b.stageLabel);
+      } else {
+        cmp = (b.latestActionDate ?? '').localeCompare(a.latestActionDate ?? '');
+      }
+      return sortDesc ? -cmp : cmp;
+    });
+    return sorted;
+  }, [columns, sortKey, sortDesc]);
+
+  const toggleSort = (key: BoardTableSortKey) => {
+    if (key === sortKey) setSortDesc((d) => !d);
+    else {
+      setSortKey(key);
+      setSortDesc(false);
+    }
+  };
+  const indicator = (key: BoardTableSortKey) => (key === sortKey ? (sortDesc ? ' ▼' : ' ▲') : '');
+
+  return (
+    <table className="htable board-table">
+      <thead>
+        <tr>
+          <th>
+            <button type="button" className="th-sort" onClick={() => toggleSort('stage')}>
+              Stage{indicator('stage')}
+            </button>
+          </th>
+          <th>
+            <button type="button" className="th-sort" onClick={() => toggleSort('bill')}>
+              Bill{indicator('bill')}
+            </button>
+          </th>
+          <th>
+            <button type="button" className="th-sort" onClick={() => toggleSort('status')}>
+              Status{indicator('status')}
+            </button>
+          </th>
+          <th>
+            <button type="button" className="th-sort" onClick={() => toggleSort('action')}>
+              Latest action{indicator('action')}
+            </button>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 ? (
+          <tr>
+            <td colSpan={4} style={{ textAlign: 'center', padding: 24 }}>
+              <span className="muted mini">No tracked bills.</span>
+            </td>
+          </tr>
+        ) : (
+          rows.map((b) => (
+            <tr key={b.billId} onClick={() => onOpen(b)} style={{ cursor: 'pointer' }}>
+              <td data-label="Stage">{b.stageLabel}</td>
+              <td data-label="Bill">
+                <span className="num" style={{ marginRight: 6 }}>
+                  {b.displayNum}
+                </span>
+                {issueSet.has(b.tags?.[0] ?? '') && b.tags?.[0] ? (
+                  <span className="chip issue" style={{ fontSize: 10, marginRight: 6 }}>
+                    {b.tags[0]}
+                  </span>
+                ) : null}
+                {b.title}
+              </td>
+              <td data-label="Status">{b.canonicalStatus ?? b.stageLabel}</td>
+              <td data-label="Latest action">{b.latestActionText ?? '—'}</td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  );
+}
+
+/**
  * Bill 360 (R2 §2.4): the latest official action date, right-aligned in the foot
  * row — the prototype's board-card stamp (mono 10px, ink-4, `margin-left:auto`).
  * The action TEXT is the hover title rather than a second line, so the calm card
@@ -258,6 +493,8 @@ export function RecCard({
   onTrack,
   onDismiss,
   onOpen,
+  dismissOpen,
+  onToggleDismiss,
 }: {
   bill: RecommendationBill;
   issueSet: Set<string>;
@@ -265,8 +502,16 @@ export function RecCard({
   selected: boolean;
   onToggleSelect: (billId: string) => void;
   onTrack: (billId: string) => void;
-  onDismiss: (billId: string) => void;
+  /** f-1: `reason` is null for "Just hide it" (no reason given). `matchedTags`
+   *  is this card's OWN tags at dismiss time — the link f-3's `feedbackSignal`
+   *  aggregates by (tracker-board.service.ts). */
+  onDismiss: (billId: string, reason: string | null, matchedTags: string[]) => void;
   onOpen: (bill: RecommendationBill) => void;
+  /** f-1: whether THIS card's reason menu is open. Lifted to the parent's
+   *  shared `menu` state (TrackerTab.tsx) so the existing outside-click-close
+   *  effect closes it exactly like every other dropdown on the page. */
+  dismissOpen: boolean;
+  onToggleDismiss: () => void;
 }) {
   // LegiWatch v2 calm re-skin: `.rcard` — a violet-edged card with the big FIT
   // score on the left, the "why it matches" prose, sponsor, and a Track action.
@@ -314,13 +559,45 @@ export function RecCard({
         <button className="btn btn-accent sm" onClick={() => onTrack(bill.billId)}>
           <Icon name="plus" size={11} /> Track
         </button>
-        <button
-          className="btn btn-ghost sm"
-          onClick={() => onDismiss(bill.billId)}
-          title="Dismiss — trains the feed"
-        >
-          Not relevant
-        </button>
+        {/* P2-15 (Gate E phase e, §4.10 honesty half): "Not relevant" /
+            "trains the feed" claimed a learning effect that did not exist
+            yet — dismissing only excluded this one bill
+            (tracker-board.service.ts recordFeedback), nothing was learned.
+            Relabeled honestly; phase f-6 restores "Not relevant" once
+            dismissals actually feed scoreBillFit's weighting AND that is
+            verified live (not yet — see the phase f completion report). */}
+        <div className="trk-drop" onClick={(e) => e.stopPropagation()}>
+          <button
+            className="btn btn-ghost sm"
+            onClick={onToggleDismiss}
+            title="Hides this bill from recommendations for this client."
+            aria-haspopup="menu"
+            aria-expanded={dismissOpen}
+          >
+            Hide this bill
+          </button>
+          {dismissOpen && (
+            <div className="trk-menu" role="menu">
+              {DISMISS_REASONS.map((r) => (
+                <div
+                  key={r.value}
+                  className="opt"
+                  role="menuitem"
+                  onClick={() => onDismiss(bill.billId, r.value, bill.matchedTags)}
+                >
+                  {r.label}
+                </div>
+              ))}
+              <div
+                className="opt"
+                role="menuitem"
+                onClick={() => onDismiss(bill.billId, null, bill.matchedTags)}
+              >
+                Just hide it
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

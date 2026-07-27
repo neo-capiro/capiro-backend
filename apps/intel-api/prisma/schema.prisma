@@ -226,6 +226,10 @@ model TrackedBill {
   @@unique([clientId, billId])
   @@index([tenantId, clientId])
   @@index([billId])
+  // P1-18: keyset pagination over the board orders by (trackedAt desc, billId
+  // desc) — tenant-wide (getTenantBoard) and per-client (getBoard).
+  @@index([tenantId, trackedAt])
+  @@index([tenantId, clientId, trackedAt])
   @@map("intel_tracked_bill")
 }
 
@@ -430,7 +434,18 @@ model IntelFeedback {
   alertId    String?  @map("alert_id")
   targetType String   @map("target_type") // 'bill'|'hearing'|'alert'|'recommendation'
   targetRef  String   @map("target_ref")
-  signal     String //                       useful|not_useful|wrong_impact|wrong_urgency|false_positive|missed|tracked|dismissed|marked_irrelevant|opened
+  signal     String //                       useful|not_useful|wrong_impact|wrong_urgency|false_positive|missed|tracked|dismissed|marked_irrelevant|opened|memo_generated|memo_heavily_edited|outreach_generated|alert_ignored
+  // §4.10 (Gate E phase f): a structured reason for a marked_irrelevant
+  // dismissal — wrong_issue|wrong_entity|too_broad|already_handled|not_actionable.
+  // Null for every other signal and for a pre-phase-f dismissal (no reason
+  // picker existed yet).
+  reason     String?
+  // §4.10 (Gate E phase f): the watchlist topic labels this bill matched AT
+  // DISMISSAL TIME (RecommendationBill.matchedTags, already on the client).
+  // Forward-only — historical rows before this column existed carry `[]` and
+  // contribute nothing to feedbackSignal's aggregation. This is what lets a
+  // dismissal be traced back to the TOPIC that over-matched.
+  matchedTags String[] @default([]) @map("matched_tags")
   createdAt  DateTime @default(now()) @map("created_at")
 
   @@index([tenantId, clientId])

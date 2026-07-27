@@ -243,7 +243,11 @@ describe('TrackerConfigPanel — tag naming + inline validation + resync (P0-03,
     const onSave = vi.fn();
     renderPanel({ typedTermsEnabled: false, onSaveWatchlist: onSave });
     fireEvent.click(screen.getByRole('button', { name: /Add tag/i }));
-    expect(screen.queryByText(/Typed terms/i)).not.toBeInTheDocument();
+    // P2-15 (Gate E phase e) added source-aware help copy that itself
+    // mentions "typed terms" in prose, so a loose /Typed terms/i text match
+    // now also hits that (unrelated, always-rendered) help text. Target the
+    // editor's own control instead — unique to the actual editor mounting.
+    expect(screen.queryByLabelText('Term type')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Tag name'), { target: { value: 'X-Ray' } });
     act(() => {
       vi.advanceTimersByTime(700);
