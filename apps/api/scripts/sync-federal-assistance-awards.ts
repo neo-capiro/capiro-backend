@@ -319,16 +319,32 @@ export interface SyncWindowArgs {
   maxPages: number;
 }
 
+export interface SyncWindowResult extends RunCounts {
+  /**
+   * True when the `maxPages` circuit breaker stopped the walk while the vendor
+   * still had more pages. The window is INCOMPLETE and the counts, while real,
+   * are a truncation rather than a full answer.
+   */
+  capExhausted: boolean;
+  /**
+   * Keyset cursor a follow-up run should resume from, or null when the window
+   * completed (or stopped for a different, separately-logged reason). Purely
+   * diagnostic — nothing consumes it automatically.
+   */
+  resumeCursor: NonNullable<FetchPageArgs['cursor']> | null;
+}
+
 /** Exported for unit testing with a mocked fetchPage/sleep — no live calls, no real DB. */
 export async function syncAssistanceAwardsWindow(
   prisma: AssistanceAwardPrisma,
   windowArgs: SyncWindowArgs,
   deps: SyncAssistanceAwardsDeps = { fetchPage, sleep },
-): Promise<RunCounts> {
+): Promise<SyncWindowResult> {
   let inserted = 0;
   let updated = 0;
   let errors = 0;
   let cursor: FetchPageArgs['cursor'];
+  let exhaustedCap = false;
 
   for (let page = 0; page < windowArgs.maxPages; page += 1) {
     if (page > 0) await deps.sleep(DELAY_MS);
@@ -386,9 +402,38 @@ export async function syncAssistanceAwardsWindow(
       lastRecordUniqueId: pageMetadata.last_record_unique_id,
       lastRecordSortValue: pageMetadata.last_record_sort_value ?? '',
     };
+    if (page === windowArgs.maxPages - 1) {
+      // The circuit breaker fired while the vendor still had more pages. This is
+      // NOT a clean success: a live run silently truncated at exactly 100,000
+      // records against a true total of 217,289 and reported success, and because
+      // results sort by amount desc the entire long tail below $1,153,549 was
+      // absent. Flagged here (rather than after the loop) because this is the one
+      // spot that knows hasNext was still true.
+      exhaustedCap = true;
+    }
   }
 
-  return { inserted, updated, skipped: 0, errors };
+  if (exhaustedCap) {
+    // `errors += 1` makes runWithSyncRun record success_with_errors
+    // (statusFromCounts) so the ingestion ledger says INCOMPLETE rather than
+    // reporting a truncated walk as a clean success.
+    errors += 1;
+    console.error(
+      `[sync-federal-assistance-awards] CAP EXHAUSTED at ${windowArgs.maxPages} pages with hasNext still true. ` +
+        `Window ${windowArgs.startDate}..${windowArgs.endDate} is INCOMPLETE — committed inserted=${inserted} updated=${updated}. ` +
+        `Resume cursor: ${JSON.stringify(cursor ?? null)}. ` +
+        `Re-run with a narrower window or a higher page bound.`,
+    );
+  }
+
+  return {
+    inserted,
+    updated,
+    skipped: 0,
+    errors,
+    capExhausted: exhaustedCap,
+    resumeCursor: exhaustedCap ? (cursor ?? null) : null,
+  };
 }
 
 async function main(): Promise<void> {

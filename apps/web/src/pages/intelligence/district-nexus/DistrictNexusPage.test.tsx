@@ -175,3 +175,110 @@ describe('DistrictNexusPage', () => {
     expect(written.get('district')).toBe('TX-23');
   });
 });
+
+/**
+ * Audit F1/honesty defects (phase h): the firm-map KPI strip must keep "we
+ * have no figure" (null) distinct from "the figure is zero" (0) in both
+ * directions — a plain `reduce((s, x) => s + (v ?? 0), 0)` collapses the
+ * former into `$0`, and the old `employees || null` collapsed a real zero
+ * into an em dash.
+ */
+describe('unknown is never rendered as $0', () => {
+  // getByText alone is ambiguous: DistrictNexusTable renders the same labels
+  // ("Contracts", "Employees") as rail-table column headers alongside the KPI
+  // strip. Scope to whichever match actually sits inside a `.dn-kpi` tile.
+  function kpiValue(label: string): string | null {
+    const tile = screen
+      .getAllByText(label)
+      .map((el) => el.closest('.dn-kpi'))
+      .find((t): t is HTMLElement => t != null);
+    return tile?.querySelector('.dn-v')?.textContent ?? null;
+  }
+
+  test('all districts null on contractObligations renders the Contracts KPI as —, not $0', async () => {
+    mockApiRoutes({
+      map: () =>
+        Promise.resolve({
+          ...MAP_RESPONSE,
+          districts: [
+            {
+              ...MAP_RESPONSE.districts[0]!,
+              awarded: { ...MAP_RESPONSE.districts[0]!.awarded, contractObligations: null },
+            },
+          ],
+        }),
+    });
+    renderPage();
+    await screen.findByTestId('dn-map-stub');
+    expect(kpiValue('Contracts')).toBe('—');
+  });
+
+  test('a district with contractObligations: 0 renders the Contracts KPI as $0, not —', async () => {
+    mockApiRoutes({
+      map: () =>
+        Promise.resolve({
+          ...MAP_RESPONSE,
+          districts: [
+            {
+              ...MAP_RESPONSE.districts[0]!,
+              awarded: { ...MAP_RESPONSE.districts[0]!.awarded, contractObligations: 0 },
+            },
+          ],
+        }),
+    });
+    renderPage();
+    await screen.findByTestId('dn-map-stub');
+    expect(kpiValue('Contracts')).toBe('$0');
+  });
+
+  test('all districts null on employeeCount renders the Employees KPI as —', async () => {
+    mockApiRoutes({
+      map: () =>
+        Promise.resolve({
+          ...MAP_RESPONSE,
+          districts: [{ ...MAP_RESPONSE.districts[0]!, employeeCount: null }],
+        }),
+    });
+    renderPage();
+    await screen.findByTestId('dn-map-stub');
+    expect(kpiValue('Employees')).toBe('—');
+  });
+
+  test('a district with employeeCount: 0 renders the Employees KPI as 0, not —', async () => {
+    mockApiRoutes({
+      map: () =>
+        Promise.resolve({
+          ...MAP_RESPONSE,
+          districts: [{ ...MAP_RESPONSE.districts[0]!, employeeCount: 0 }],
+        }),
+    });
+    renderPage();
+    await screen.findByTestId('dn-map-stub');
+    expect(kpiValue('Employees')).toBe('0');
+  });
+
+  test('the Opportunities KPI always renders — — the firm map carries no opportunities by design', async () => {
+    mockApiRoutes({
+      map: () =>
+        Promise.resolve({
+          ...MAP_RESPONSE,
+          districts: [
+            {
+              ...MAP_RESPONSE.districts[0]!,
+              opportunities: { opportunityEstimatedFunding: 2_000_000, opportunityAwardCeiling: 3_000_000 },
+            },
+          ],
+        }),
+    });
+    renderPage();
+    await screen.findByTestId('dn-map-stub');
+    expect(kpiValue('Opportunities · not awarded')).toBe('—');
+  });
+
+  test('the unplaced-funding footer is not a button — it advertises no action', async () => {
+    mockApiRoutes();
+    renderPage();
+    const footer = await screen.findByText(/Unplaced funding/);
+    expect(footer.closest('button')).toBeNull();
+  });
+});

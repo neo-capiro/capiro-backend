@@ -440,10 +440,13 @@ describe('DistrictNexusSection v2 (WS-H, flag on)', () => {
       }),
     );
     renderSection();
+    // Audit F1/honesty defects (h4): the backend DOES fall back to a
+    // recipient-name match, so the old "cannot be matched" copy was wrong —
+    // see DistrictNexusSection.tsx's corrected gap text.
     await waitFor(() =>
-      expect(screen.getByText(/The confirmed assistance mapping has no UEI/i)).toBeTruthy(),
+      expect(screen.getByText(/No verified UEI is attached to the confirmed assistance mapping/i)).toBeTruthy(),
     );
-    expect(screen.getByText('Review the mapping →')).toBeTruthy();
+    expect(screen.getByText('Add a UEI to the mapping →')).toBeTruthy();
     // "not mapped" and "mapped but unusable" are different facts.
     expect(screen.queryByText(/No federal assistance recipient is confirmed/i)).toBeNull();
   });
