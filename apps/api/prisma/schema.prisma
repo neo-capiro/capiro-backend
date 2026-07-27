@@ -1943,6 +1943,12 @@ model MeriAuditLedger {
   /// 'shadow' | 'annotate' | 'enforce' — the AuditorMode this verdict ran under.
   mode           String   @db.VarChar(16)
   conversationId String?  @map("conversation_id") @db.Uuid
+  /// Remediation plan §3.b2 — generic exact-subject correlation, e.g.
+  /// 'outreach-draft-version' + an OutreachDraftVersion id. NULL for
+  /// surfaces (chat/research/memo/alert) that ledger at the conversation
+  /// level and have not adopted per-subject correlation.
+  subjectType    String?  @map("subject_type") @db.VarChar(32)
+  subjectId      String?  @map("subject_id")
   model          String?  @db.VarChar(80)
   /// 'deliver' | 'deliver_with_flags' | 'repair' | 'hold'
   decision       String   @db.VarChar(24)
@@ -1955,6 +1961,14 @@ model MeriAuditLedger {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  /// One FINAL ledger row per exact subject + mode (plan §3.b5) — a re-run
+  /// upserts its own prior verdict instead of accumulating duplicates.
+  /// Surfaces that leave subjectType/subjectId NULL are unaffected: Postgres
+  /// never treats two NULLs as conflicting under a unique index.
+  /// Also serves as the tenant/subject lookup index (plan §3.b2): any query
+  /// filtering on (tenantId, subjectType, subjectId) uses this index's
+  /// leading columns without needing a separate redundant index.
+  @@unique([tenantId, subjectType, subjectId, mode], map: "meri_audit_ledger_subject_mode_key")
   @@index([tenantId, createdAt(sort: Desc)], map: "meri_audit_ledger_tenant_created_idx")
   @@index([surface, topSeverity, createdAt(sort: Desc)], map: "meri_audit_ledger_surface_severity_idx")
   @@map("meri_audit_ledger")
