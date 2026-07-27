@@ -32,6 +32,16 @@ export interface DraftVersionRef {
   approvalStatus: DraftApprovalStatus;
   reviewRequestId?: string;
   sendable: boolean;
+  /**
+   * Phase 2 §3.f2 — true when the server refused to advance this slot's
+   * current version (it was manually authored) and persisted this result as
+   * a non-current CANDIDATE instead. `baseVersion` is the artifact's
+   * currentVersion the candidate was offered against — required by the
+   * accept endpoint's optimistic check, and by DraftVersionCompare to detect
+   * a stale candidate.
+   */
+  isCandidate?: boolean;
+  baseVersion?: number;
 }
 
 /** A per-recipient result from POST /outreach/generate-batch (versioned shape). */
@@ -196,11 +206,33 @@ export function applyVersionedResult(
 }
 
 /**
+ * Phase 2 §3.f2 — a regeneration the server refused to apply directly because
+ * the slot's current version was manually authored. Offered for compare/merge
+ * (DraftVersionCompare); the current draft is left completely untouched
+ * unless/until the user explicitly accepts it.
+ */
+export interface DraftCandidate {
+  genKey: string;
+  artifactId: string;
+  candidateVersionId: string;
+  candidateVersion: number;
+  /** The artifact's currentVersion this candidate was offered against. */
+  baseVersion: number;
+  subject: string;
+  body: string;
+}
+
+/**
  * Map a batch response onto its slots.
  *
  * A slot is matched to the version whose generationKey it owns — NOT to the
  * recipient — because one generated draft legitimately backs several slots (the
  * same person in two lists is generated once, then versioned per slot).
+ *
+ * A slot whose ref is a CANDIDATE (§3.f2) is deliberately excluded from
+ * `patches` — applying it would silently replace whatever the slot currently
+ * shows, which is exactly the destructive regeneration this phase forbids.
+ * It surfaces in `candidates` instead.
  */
 export function partitionVersionedResults(
   slots: Array<{ genKey: string; resultId: string }>,
@@ -210,6 +242,7 @@ export function partitionVersionedResults(
   patches: Array<{ genKey: string; draft: GeneratedDraft }>;
   failedGenKeys: string[];
   heldGenKeys: string[];
+  candidates: DraftCandidate[];
 } {
   const byRecipient = new Map(results.map((r) => [r.recipientId, r]));
   const refByGenKey = new Map<string, { ref: DraftVersionRef; result: VersionedBatchResult }>();
@@ -237,6 +270,7 @@ export function partitionVersionedResults(
   const patches: Array<{ genKey: string; draft: GeneratedDraft }> = [];
   const failedGenKeys: string[] = [];
   const heldGenKeys: string[] = [];
+  const candidates: DraftCandidate[] = [];
 
   for (const slot of slots) {
     const matched = refByGenKey.get(slot.genKey);
@@ -246,13 +280,25 @@ export function partitionVersionedResults(
       failedGenKeys.push(slot.genKey);
       continue;
     }
+    if (matched?.ref?.isCandidate) {
+      candidates.push({
+        genKey: slot.genKey,
+        artifactId: matched.ref.artifactId,
+        candidateVersionId: matched.ref.versionId,
+        candidateVersion: matched.ref.version,
+        baseVersion: matched.ref.baseVersion ?? matched.ref.version - 1,
+        subject: result.subject,
+        body: renderBody(result.body),
+      });
+      continue;
+    }
     const draft = applyVersionedResult(undefined, result, matched?.ref, renderBody);
     patches.push({ genKey: slot.genKey, draft });
     if (draft.generationStatus === 'generation_failed') failedGenKeys.push(slot.genKey);
     else if (!draft.sendable) heldGenKeys.push(slot.genKey);
   }
 
-  return { patches, failedGenKeys, heldGenKeys };
+  return { patches, failedGenKeys, heldGenKeys, candidates };
 }
 
 /** Mark a draft dirty on the first keystroke — immediately non-sendable. */

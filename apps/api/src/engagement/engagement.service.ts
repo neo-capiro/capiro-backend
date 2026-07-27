@@ -524,6 +524,15 @@ export interface OutreachBatchDraftVersionRef {
   reviewRequestId?: string;
   /** Server-computed. The wizard must NEVER derive sendability itself. */
   sendable: boolean;
+  /**
+   * Phase 2 §3.f2 — true when this regeneration was persisted as a candidate
+   * (the artifact's current version was manually authored, so the server
+   * refused to advance it automatically). `baseVersion` is the artifact's
+   * currentVersion this candidate was offered against — required by the
+   * accept endpoint's optimistic check.
+   */
+  isCandidate?: boolean;
+  baseVersion?: number;
 }
 
 export interface OutreachBatchDraftResult {
@@ -3681,7 +3690,12 @@ export class EngagementService {
           try {
             const refs: OutreachBatchDraftVersionRef[] = [];
             for (const generationKey of generationKeys) {
-              const version = await this.draft.upsertGeneratedVersion(ctx, {
+              // Phase 2 §3.f2 — persists as a normal version UNLESS this
+              // slot's current version was manually authored, in which case
+              // it comes back as a non-current CANDIDATE instead. The wizard
+              // routes a candidate through the compare/merge UI rather than
+              // silently replacing the user's edit.
+              const version = await this.draft.upsertGeneratedVersionOrCandidate(ctx, {
                 outreachRecordId: versionedRecordId!,
                 generationKey,
                 recipientKey: recipientId,
@@ -3710,6 +3724,9 @@ export class EngagementService {
                 approvalStatus: version.approvalStatus,
                 ...(version.reviewRequestId ? { reviewRequestId: version.reviewRequestId } : {}),
                 sendable: version.sendable,
+                ...(version.mode === 'candidate'
+                  ? { isCandidate: true, baseVersion: version.baseVersion }
+                  : {}),
               });
               if (version.contextNote) contextNoteFromVersion = version.contextNote;
             }

@@ -30,6 +30,7 @@ interface VersionRowSeed {
   subject?: string;
   body?: string;
   contentHash?: string;
+  generationStatus?: string;
 }
 
 interface Harness {
@@ -64,11 +65,52 @@ function makeHarness(opts: {
           : { id: 'rec-1', createdByUserId: opts.recordOwner ?? 'u1' },
     },
     outreachDraftArtifact: {
+      // `versions` is included so loadArtifact() (used by acceptCandidateVersion's
+      // return value) can resolve `current`/`history` without a separate mock —
+      // real Prisma would only include it when `select.versions` is requested,
+      // but this generic mock always includes it, which every caller tolerates.
       findFirst: async () => ({
         id: 'art-1',
         outreachRecordId: 'rec-1',
+        generationKey: 'individual:a@x.com',
+        recipientKey: 'a@x.com',
+        audienceKind: 'individual',
         currentVersion,
         createdByUserId: 'u1',
+        versions: [...versions]
+          .sort((a, b) => b.version - a.version)
+          .map((v) => ({
+            id: v.id,
+            tenantId: 't1',
+            artifactId: 'art-1',
+            version: v.version,
+            sourceVersionId: null,
+            subject: v.subject ?? 'S',
+            body: v.body ?? 'B',
+            contentHash: v.contentHash ?? contentHashOf(v.subject ?? 'S', v.body ?? 'B'),
+            generationStatus: v.generationStatus ?? 'generated',
+            auditStatus: v.auditStatus ?? 'pending',
+            approvalStatus: v.approvalStatus ?? 'not_required',
+            auditMode: null,
+            auditDecision: null,
+            auditFindings: null,
+            auditLedger: [],
+            reviewRequestId: null,
+            contextPacketId: null,
+            provider: null,
+            model: null,
+            promptSpecVersion: null,
+            createdAt: new Date('2026-07-27T00:00:00Z'),
+            artifact: {
+              id: 'art-1',
+              outreachRecordId: 'rec-1',
+              generationKey: 'individual:a@x.com',
+              recipientKey: 'a@x.com',
+              audienceKind: 'individual',
+              currentVersion,
+              createdByUserId: 'u1',
+            },
+          })),
       }),
       create: async ({ data }: { data: Record<string, unknown> }) => {
         created.push({ table: 'artifact', ...data });
@@ -96,7 +138,7 @@ function makeHarness(opts: {
           subject: row.subject ?? 'S',
           body: row.body ?? 'B',
           contentHash: row.contentHash ?? contentHashOf(row.subject ?? 'S', row.body ?? 'B'),
-          generationStatus: 'generated',
+          generationStatus: row.generationStatus ?? 'generated',
           auditStatus: row.auditStatus ?? 'pending',
           approvalStatus: row.approvalStatus ?? 'not_required',
           auditMode: null,
@@ -121,6 +163,13 @@ function makeHarness(opts: {
         };
       },
       findMany: async () => [],
+      // Phase 2 §3.f2 — candidate numbering reads MAX(version) across ALL
+      // rows for the artifact, not just currentVersion, so a second
+      // candidate offered before the first is accepted still gets a fresh,
+      // non-colliding number.
+      aggregate: async () => ({
+        _max: { version: versions.length ? Math.max(...versions.map((v) => v.version)) : null },
+      }),
       create: async ({ data }: { data: Record<string, unknown> }) => {
         created.push({ table: 'version', ...data });
         versions.push({
@@ -130,6 +179,7 @@ function makeHarness(opts: {
           approvalStatus: String(data.approvalStatus),
           subject: String(data.subject),
           body: String(data.body),
+          generationStatus: String(data.generationStatus),
         });
         return {
           id: `v-${data.version}`,
@@ -381,6 +431,119 @@ describe('createEditedVersion', () => {
       }),
     ).rejects.toThrow();
     expect(h.created).toHaveLength(0);
+  });
+});
+
+describe('upsertGeneratedVersionOrCandidate (Phase 2 §3.f2)', () => {
+  test('a brand-new slot (no prior version) takes the normal path — advances current like upsertGeneratedVersion', async () => {
+    const h = makeHarness({ artifactCurrentVersion: 0 });
+    const dto = await h.service.upsertGeneratedVersionOrCandidate(ctx, generatedInput);
+    expect(dto.mode).toBe('current');
+    expect(dto.version).toBe(1);
+    expect(h.artifactUpdates).toEqual([{ currentVersion: 1 }]);
+  });
+
+  test('regenerating over a GENERATED (not manually authored) current version still advances current', async () => {
+    const h = makeHarness({
+      artifactCurrentVersion: 1,
+      versions: [{ id: 'v-1', version: 1, generationStatus: 'generated' }],
+    });
+    const dto = await h.service.upsertGeneratedVersionOrCandidate(ctx, generatedInput);
+    expect(dto.mode).toBe('current');
+    expect(dto.version).toBe(2);
+    expect(h.artifactUpdates).toEqual([{ currentVersion: 2 }]);
+  });
+
+  test('regenerating over a MANUALLY AUTHORED current version persists a candidate WITHOUT advancing current', async () => {
+    const h = makeHarness({
+      artifactCurrentVersion: 1,
+      versions: [
+        { id: 'v-1', version: 1, generationStatus: 'manually_authored', subject: 'my edit' },
+      ],
+    });
+    const dto = await h.service.upsertGeneratedVersionOrCandidate(ctx, generatedInput);
+    expect(dto.mode).toBe('candidate');
+    if (dto.mode === 'candidate') expect(dto.baseVersion).toBe(1);
+    expect(dto.version).toBe(2); // numbered, but not current
+    // The artifact's currentVersion was NEVER touched — v-1 (the user's edit)
+    // is still what the wizard shows.
+    expect(h.artifactUpdates).toEqual([]);
+  });
+
+  test('a second candidate offered before the first is accepted gets version 3, not a collision at 2', async () => {
+    const h = makeHarness({
+      artifactCurrentVersion: 1,
+      versions: [{ id: 'v-1', version: 1, generationStatus: 'manually_authored' }],
+    });
+    const first = await h.service.upsertGeneratedVersionOrCandidate(ctx, generatedInput);
+    const second = await h.service.upsertGeneratedVersionOrCandidate(ctx, generatedInput);
+    expect(first.mode).toBe('candidate');
+    expect(second.mode).toBe('candidate');
+    expect(first.version).toBe(2);
+    expect(second.version).toBe(3);
+    expect(h.artifactUpdates).toEqual([]); // current never moved for either
+  });
+});
+
+describe('acceptCandidateVersion (Phase 2 §3.f2)', () => {
+  test('advances current to the candidate when the base version still matches', async () => {
+    const h = makeHarness({
+      artifactCurrentVersion: 1,
+      versions: [
+        { id: 'v-1', version: 1, generationStatus: 'manually_authored' },
+        { id: 'v-2', version: 2, generationStatus: 'generated' },
+      ],
+    });
+    const artifact = await h.service.acceptCandidateVersion(ctx, 'art-1', 'v-2', 1);
+    expect(h.artifactUpdates).toEqual([{ currentVersion: 2 }]);
+    expect(artifact.currentVersion).toBe(2);
+  });
+
+  test('409s when the artifact moved since the candidate was offered — never silently overwrites', async () => {
+    const h = makeHarness({
+      artifactCurrentVersion: 2, // someone else already advanced it
+      versions: [
+        { id: 'v-1', version: 1 },
+        { id: 'v-2', version: 2 },
+      ],
+    });
+    let caught: unknown;
+    try {
+      await h.service.acceptCandidateVersion(ctx, 'art-1', 'v-2', 1); // stale expectedBaseVersion
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(ConflictException);
+    const body = (caught as ConflictException).getResponse() as Record<string, unknown>;
+    expect(body.error).toBe('OUTREACH_DRAFT_VERSION_STALE');
+    expect(h.artifactUpdates).toEqual([]);
+  });
+
+  test('409s when the target version is already current or older — nothing to accept', async () => {
+    const h = makeHarness({
+      artifactCurrentVersion: 2,
+      versions: [
+        { id: 'v-1', version: 1 },
+        { id: 'v-2', version: 2 },
+      ],
+    });
+    let caught: unknown;
+    try {
+      await h.service.acceptCandidateVersion(ctx, 'art-1', 'v-1', 2); // v-1 is OLDER than current
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(ConflictException);
+    const body = (caught as ConflictException).getResponse() as Record<string, unknown>;
+    expect(body.error).toBe('OUTREACH_DRAFT_NOT_A_CANDIDATE');
+  });
+
+  test('a nonexistent candidate version is a 404', async () => {
+    const h = makeHarness({ artifactCurrentVersion: 1, versions: [{ id: 'v-1', version: 1 }] });
+    await expect(
+      h.service.acceptCandidateVersion(ctx, 'art-1', 'v-does-not-exist', 1),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.artifactUpdates).toEqual([]);
   });
 });
 

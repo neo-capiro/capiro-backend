@@ -1327,6 +1327,18 @@ export class CreateDraftVersionDto {
   editKind!: 'manual' | 'improve' | 'revert';
 }
 
+/** Phase 2 §3.f2 — accept a candidate regeneration as the new current version. */
+export class AcceptCandidateVersionDto {
+  /**
+   * The artifact's currentVersion the candidate was offered against —
+   * server rejects with 409 if the artifact has moved since (someone
+   * accepted a different candidate, or authored a new edit).
+   */
+  @IsInt()
+  @Min(0)
+  baseVersion!: number;
+}
+
 /**
  * Create a durable send intent (§3.d2).
  *
@@ -2054,6 +2066,23 @@ export class EngagementController {
   @Get('outreach/draft-versions/:versionId')
   getDraftVersion(@CurrentTenant() ctx: TenantContext, @Param('versionId') versionId: string) {
     return this.drafts.getVersion(ctx, versionId);
+  }
+
+  /**
+   * Phase 2 §3.f2 — accept a candidate regeneration (one offered instead of
+   * silently overwriting a manually authored current version) as the new
+   * current version. 409s if the artifact moved since the candidate was
+   * generated.
+   */
+  @Throttle({ long: { ttl: 60_000, limit: 240 } })
+  @Post('outreach/draft-artifacts/:artifactId/versions/:candidateVersionId/accept')
+  acceptCandidateVersion(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('artifactId') artifactId: string,
+    @Param('candidateVersionId') candidateVersionId: string,
+    @Body() body: AcceptCandidateVersionDto,
+  ) {
+    return this.drafts.acceptCandidateVersion(ctx, artifactId, candidateVersionId, body.baseVersion);
   }
 
   // ── Phase 0: durable send intents ──────────────────────────────────────────

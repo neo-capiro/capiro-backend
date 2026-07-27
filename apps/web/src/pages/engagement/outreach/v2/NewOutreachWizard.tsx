@@ -55,11 +55,13 @@ import {
   appendDraftHistory,
   buildGenerateTasks,
   buildGenerationModel,
+  computeAffectedGenerationKeys,
   genInputSignature,
   partitionGenerationResults,
   projectDraftsForSend,
   revertDraftHistory,
   type BatchDraftResult,
+  type GenerationSnapshot,
   type GenSlot,
 } from './generation.js';
 import {
@@ -79,6 +81,7 @@ import {
   canEnterSendStep,
   isDraftSendable,
   markDirty,
+  type DraftCandidate,
   type DraftVersionRef,
   type VersionedBatchResult,
 } from './versioned-drafts.js';
@@ -255,6 +258,13 @@ interface GenerateResult {
   manifests: Map<string, GenerationSourceManifest>;
   failed: string[];
   errorMessage?: string;
+  /**
+   * Phase 2 §3.f2 — regenerations the server refused to apply directly (the
+   * slot's current draft was manually authored). NEVER merged into
+   * `succeeded`/`held` — a candidate genKey's current draft is left exactly
+   * as it was; the compare UI decides its fate.
+   */
+  candidates: DraftCandidate[];
 }
 
 export function NewOutreachWizard({
@@ -302,6 +312,19 @@ export function NewOutreachWizard({
   const [sentResult, setSentResult] = useState<{ sent: number; failed: number } | null>(null);
   // Recipient key currently being (re)generated individually, if any.
   const [generatingKey, setGeneratingKey] = useState<string | null>(null);
+  // Phase 2 §3.f2/f3 — regenerations offered as candidates (server refused to
+  // overwrite a manually authored current version), keyed by genKey. Ephemeral
+  // UI state, not part of WizardV2State: a candidate that isn't accepted before
+  // the user navigates away is simply re-offered on the next regenerate.
+  const [candidates, setCandidates] = useState<Map<string, DraftCandidate>>(new Map());
+  const [candidateBusyKey, setCandidateBusyKey] = useState<string | null>(null);
+  // Phase 2 §3.f1 — the generation snapshot captured at the last FULL/affected
+  // regeneration, for computing exactly which slots the CURRENT inputs still
+  // differ from (see computeAffectedGenerationKeys). null = nothing generated
+  // yet, or the campaign was resumed from a draft (no fine-grained history).
+  const [lastGenerationSnapshot, setLastGenerationSnapshot] = useState<GenerationSnapshot | null>(
+    null,
+  );
   // Async job pipeline (W4.4): the generate-job ids currently being polled, plus
   // the set of genKeys already merged from a TERMINAL job item — so a later poll
   // never re-clobbers a draft the user has since edited. Job-mode runs only when
@@ -870,6 +893,18 @@ export function NewOutreachWizard({
   // mounted; with no active jobs it polls nothing. Terminal item results merge
   // into generatedEmails via the SAME shape the sync onSuccess writes, so Send /
   // Save / Improve need no job awareness.
+  //
+  // KNOWN GAP (Phase 2 §3.f2): JobItem.result (jobs.ts) does not carry
+  // isCandidate/baseVersion, so a regeneration the server persisted as a
+  // candidate (current draft manually authored) still gets merged here as if
+  // it were the new current draft — the async path does not yet route through
+  // the compare/merge UI the sync generateMutation.onSuccess below does. The
+  // SERVER-side protection (upsertGeneratedVersionOrCandidate not advancing
+  // currentVersion) still holds regardless, so nothing is destroyed in the
+  // database — but the wizard's displayed text and the version id it would
+  // send under async-job mode can show the candidate rather than the user's
+  // edit. asyncGen is default-off (env kill-switch + per-tenant canary flag),
+  // so this does not affect the sync path most tenants use.
   const { byJob, anyActive: jobsPolling } = useOutreachJobs(api, activeJobIds);
   const jobMarkFreshRef = useRef<{ markFresh: boolean; sig: string | null }>({
     markFresh: false,
@@ -1022,7 +1057,14 @@ export function NewOutreachWizard({
       revise?: { genKey: string; instruction: string };
     }): Promise<GenerateResult> => {
       if (!vars.slots.length)
-        return { succeeded: [], held: [], refs: new Map(), manifests: new Map(), failed: [] };
+        return {
+          succeeded: [],
+          held: [],
+          refs: new Map(),
+          manifests: new Map(),
+          candidates: [],
+          failed: [],
+        };
       // GenerateBatchEmailDto whitelists only id/kind/title/body/scope/note on
       // context items; with forbidNonWhitelisted on, pool-only fields (tag/sub/
       // matches) 400 the batch. Strip to the DTO shape. List/group scopes are
@@ -1126,6 +1168,7 @@ export function NewOutreachWizard({
             failedGenKeys: string[];
             refs: Map<string, DraftVersionRef>;
             manifests: Map<string, GenerationSourceManifest>;
+            candidates: DraftCandidate[];
           }
         | { ok: false; genKeys: string[]; message: string };
       const tasks = buildGenerateTasks(vars.slots, GEN_BATCH_MAX);
@@ -1148,6 +1191,11 @@ export function NewOutreachWizard({
                 // and attach the version lifecycle, rather than overwriting it.
                 const byRecipient = new Map(results.map((r) => [r.recipientId, r]));
                 const refs = new Map<string, DraftVersionRef>();
+                // Phase 2 §3.f2 — a slot whose match is a CANDIDATE never gets a
+                // ref applied to its current draft: the server deliberately did
+                // not advance that artifact's current version, so the wizard
+                // must not either. It surfaces via `candidates` for compare/merge.
+                const candidates: DraftCandidate[] = [];
                 for (const slot of t.chunkSlots) {
                   const r = byRecipient.get(slot.resultId) as VersionedBatchResult | undefined;
                   if (!r) continue;
@@ -1166,9 +1214,32 @@ export function NewOutreachWizard({
                           sendable: r.sendable === true,
                         }
                       : undefined);
-                  if (match) refs.set(slot.genKey, match as DraftVersionRef);
+                  if (!match) continue;
+                  if ((match as DraftVersionRef).isCandidate) {
+                    const m = match as DraftVersionRef;
+                    candidates.push({
+                      genKey: slot.genKey,
+                      artifactId: m.artifactId,
+                      candidateVersionId: m.versionId,
+                      candidateVersion: m.version,
+                      baseVersion: m.baseVersion ?? m.version - 1,
+                      subject: r.subject,
+                      body: sanitizeHtml(markdownishToHtml(r.body)),
+                    });
+                    continue;
+                  }
+                  refs.set(slot.genKey, match as DraftVersionRef);
                 }
-                return { ok: true, drafts, heldDrafts, failedGenKeys, refs, manifests };
+                const candidateKeys = new Set(candidates.map((c) => c.genKey));
+                return {
+                  ok: true,
+                  drafts: drafts.filter((d) => !candidateKeys.has(d.genKey)),
+                  heldDrafts: heldDrafts.filter((d) => !candidateKeys.has(d.genKey)),
+                  failedGenKeys,
+                  refs,
+                  manifests,
+                  candidates,
+                };
               })
               .catch(
                 (err): TaskOut => ({
@@ -1185,14 +1256,33 @@ export function NewOutreachWizard({
       for (const o of outs) if (o.ok) for (const [k, v] of o.refs) refs.set(k, v);
       const manifests = new Map<string, GenerationSourceManifest>();
       for (const o of outs) if (o.ok) for (const [k, v] of o.manifests) manifests.set(k, v);
+      const candidates = outs.flatMap((o) => (o.ok ? o.candidates : []));
       // `failed` now unions BOTH whole-POST failures (ok:false) AND same-batch
       // per-recipient failures (ok:true, failedGenKeys) — both flow to the same
       // 'error' placeholder path in onSuccess.
       const failed = outs.flatMap((o) => (o.ok ? o.failedGenKeys : o.genKeys));
       const firstFailure = outs.find((o): o is Extract<TaskOut, { ok: false }> => !o.ok);
-      return { succeeded, held, refs, manifests, failed, errorMessage: firstFailure?.message };
+      return {
+        succeeded,
+        held,
+        refs,
+        manifests,
+        candidates,
+        failed,
+        errorMessage: firstFailure?.message,
+      };
     },
     onSuccess: (res, vars) => {
+      // Phase 2 §3.f2/f3 — offer for compare/merge. The slot's current draft
+      // (in `generatedEmails`) is untouched; see the candidateKeys filter
+      // above for why `res.succeeded`/`res.held` never include these genKeys.
+      if (res.candidates.length) {
+        setCandidates((prev) => {
+          const next = new Map(prev);
+          for (const c of res.candidates) next.set(c.genKey, c);
+          return next;
+        });
+      }
       setState((prev) => {
         const generatedEmails = { ...prev.generatedEmails };
         for (const r of res.succeeded) {
@@ -1292,6 +1382,18 @@ export function NewOutreachWizard({
             : {}),
         };
       });
+      // Phase 2 §3.f1 — same condition as generatedInputSig above: a full OR
+      // exactly-affected regeneration brings the WHOLE campaign back in sync
+      // with the current inputs (an unaffected slot was, by definition,
+      // already consistent with them).
+      if (vars.markFresh && vars.sig != null && res.failed.length === 0 && res.held.length === 0) {
+        setLastGenerationSnapshot({
+          contextItems: state.contextItems,
+          templateId: state.templateId,
+          tone: state.tone,
+          direction: state.direction,
+        });
+      }
       setGeneratingKey(null);
       if (res.held.length) {
         message.warning(
@@ -1914,6 +2016,102 @@ export function NewOutreachWizard({
     }
   };
 
+  // ── Phase 2 §3.f2/f3 — candidate regeneration compare/merge ────────────────
+
+  /** Discard a candidate — it stays immutable, non-current history. Nothing to send. */
+  const keepMineCandidate = (genKey: string) => {
+    setCandidates((prev) => {
+      const next = new Map(prev);
+      next.delete(genKey);
+      return next;
+    });
+  };
+
+  const acceptCandidate = async (candidate: DraftCandidate) => {
+    setCandidateBusyKey(candidate.genKey);
+    try {
+      const res = await api.post<{
+        current: {
+          id: string;
+          artifactId: string;
+          version: number;
+          subject: string;
+          body: string;
+          generationStatus: GeneratedDraft['generationStatus'];
+          auditStatus: NonNullable<GeneratedDraft['auditStatus']>;
+          approvalStatus: NonNullable<GeneratedDraft['approvalStatus']>;
+          reviewRequestId?: string | null;
+          sendable: boolean;
+        } | null;
+      }>(
+        `/api/engagement/outreach/draft-artifacts/${candidate.artifactId}/versions/${candidate.candidateVersionId}/accept`,
+        { baseVersion: candidate.baseVersion },
+      );
+      if (res.data.current) {
+        setState((prev) => {
+          const d = prev.generatedEmails[candidate.genKey];
+          if (!d) return prev;
+          return {
+            ...prev,
+            generatedEmails: {
+              ...prev.generatedEmails,
+              [candidate.genKey]: applyNewVersion(d, res.data.current!),
+            },
+          };
+        });
+      }
+      keepMineCandidate(candidate.genKey);
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      message.error(
+        status === 409
+          ? 'This draft changed since the candidate was generated. Reload before accepting.'
+          : apiErrorMessage(err) || 'Could not accept the regenerated draft.',
+      );
+    } finally {
+      setCandidateBusyKey(null);
+    }
+  };
+
+  /** Merge manually: save the user's merged text as a new edited version, based on the CURRENT (not the candidate's) version. */
+  const mergeCandidate = async (candidate: DraftCandidate, subject: string, body: string) => {
+    const currentDraft = state.generatedEmails[candidate.genKey];
+    if (!currentDraft?.versionId) return;
+    setCandidateBusyKey(candidate.genKey);
+    try {
+      const res = await api.post<{
+        id: string;
+        artifactId: string;
+        version: number;
+        subject: string;
+        body: string;
+        generationStatus: GeneratedDraft['generationStatus'];
+        auditStatus: NonNullable<GeneratedDraft['auditStatus']>;
+        approvalStatus: NonNullable<GeneratedDraft['approvalStatus']>;
+        reviewRequestId?: string | null;
+        sendable: boolean;
+      }>(`/api/engagement/outreach/draft-artifacts/${candidate.artifactId}/versions`, {
+        baseVersionId: currentDraft.versionId,
+        subject,
+        body: sanitizeHtml(markdownishToHtml(body)),
+        editKind: 'manual',
+      });
+      setState((prev) => {
+        const d = prev.generatedEmails[candidate.genKey];
+        if (!d) return prev;
+        return {
+          ...prev,
+          generatedEmails: { ...prev.generatedEmails, [candidate.genKey]: applyNewVersion(d, res.data) },
+        };
+      });
+      keepMineCandidate(candidate.genKey);
+    } catch (err) {
+      message.error(apiErrorMessage(err) || 'Could not save the merged draft.');
+    } finally {
+      setCandidateBusyKey(null);
+    }
+  };
+
   /**
    * Inline edits (§3.g4).
    *
@@ -1976,6 +2174,38 @@ export function NewOutreachWizard({
     // (one recipient completes in seconds — a job would only add poll latency).
     if (asyncGen) void submitGenerateJobs(genModel.slots, true, genSig);
     else generateMutation.mutate({ slots: genModel.slots, markFresh: true, sig: genSig });
+  };
+
+  // Phase 2 §3.f1 — precisely which slots the current inputs still differ
+  // from, computed against the snapshot captured at the last full/affected
+  // regeneration (null before any generation happens, so nothing is flagged
+  // affected on first load — there is no "stale" without a prior baseline).
+  const affected = useMemo(
+    () =>
+      computeAffectedGenerationKeys(
+        lastGenerationSnapshot,
+        {
+          contextItems: state.contextItems,
+          templateId: state.templateId,
+          tone: state.tone,
+          direction: state.direction,
+        },
+        genModel,
+      ),
+    [lastGenerationSnapshot, state.contextItems, state.templateId, state.tone, state.direction, genModel],
+  );
+
+  /** Regenerate exactly the slots the current inputs affect (§3.f1) — same
+   *  candidate-safety as any other regenerate; see the generateMutation. */
+  const regenerateAffected = () => {
+    const slots = genModel.slots.filter((s) => affected.affected.includes(s.genKey));
+    if (!slots.length) return;
+    setGeneratingKey(null);
+    // Regenerating exactly the affected set brings the WHOLE campaign back in
+    // sync with the current inputs, so this stamps markFresh/sig too — same
+    // as a full regenerate (see the onSuccess condition).
+    if (asyncGen) void submitGenerateJobs(slots, true, genSig);
+    else generateMutation.mutate({ slots, markFresh: true, sig: genSig });
   };
 
   // "Improve": revise ONE draft in place per a freeform instruction (keeps the
@@ -2185,6 +2415,14 @@ export function NewOutreachWizard({
               selectedKey={state.selectedGenerationKey}
               onSelectKey={(k) => setState((p) => ({ ...p, selectedGenerationKey: k }))}
               contextStale={contextStale}
+              affectedGenKeys={affected.affected}
+              affectedReasonsByKey={affected.reasonsByKey}
+              onRegenerateAffected={regenerateAffected}
+              candidates={Array.from(candidates.values())}
+              onKeepMineCandidate={keepMineCandidate}
+              onAcceptCandidate={acceptCandidate}
+              onMergeCandidate={mergeCandidate}
+              candidateBusyKey={candidateBusyKey}
               onRegenerateAll={regenerateAll}
               onRegenerateOne={regenerateOne}
               onImprove={improveOne}

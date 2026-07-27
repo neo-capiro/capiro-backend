@@ -37,6 +37,9 @@ function meetingRow(overrides: Record<string, unknown> = {}) {
     notes: [],
     debriefs: [],
     preps: [],
+    // Phase 2 §d — filterToSharedArtifacts (run on every row inside
+    // listSharedMeetingsForClient) narrows this down to sharedAt != null.
+    attachments: [],
     ...overrides,
   };
 }
@@ -82,7 +85,9 @@ describe('shareMeeting', () => {
           return meetingRow({
             visibility: 'shared',
             sharedByUserId: 'user-1',
-            notes: [{ id: 'n1' }],
+            // Phase 2 §d — notesApproved now requires status: 'approved';
+            // existence alone no longer counts (that was the whole point).
+            notes: [{ id: 'n1', status: 'approved' }],
             debriefs: [{ status: 'approved' }],
             preps: [{ status: 'approved' }],
           });
@@ -221,7 +226,8 @@ describe('listMeetingLibrary', () => {
         OR: [
           { preps: { some: { status: 'approved' } } },
           { debriefs: { some: { status: 'approved' } } },
-          { notes: { some: {} } },
+          // Phase 2 §d — note existence no longer means approved.
+          { notes: { some: { status: 'approved' } } },
         ],
       },
     ]);
@@ -262,7 +268,14 @@ describe('decorateMeetings (via listSharedMeetingsForClient)', () => {
     const service = serviceWith({
       meeting: {
         findMany: async () => [
-          meetingRow({ notes: [{ id: 'n1' }], debriefs: [{ status: 'generated' }], preps: [] }),
+          meetingRow({
+            // Phase 2 §d — filterToSharedArtifacts (run before decoration)
+            // narrows to sharedAt != null; decorateMeetings then requires
+            // status: 'approved' for notesApproved. Both are needed here.
+            notes: [{ id: 'n1', status: 'approved', sharedAt: new Date('2026-07-01T00:00:00Z') }],
+            debriefs: [{ status: 'generated' }],
+            preps: [],
+          }),
         ],
       },
       ...decorateStubs,
@@ -300,7 +313,10 @@ describe('Phase 2 cross-user grouping (listSharedMeetingsForClient + meetingsCro
           iCalUId: 'ICAL-1',
           sharedAt: new Date('2026-07-03T00:00:00Z'),
           startsAt: new Date('2026-07-02T15:00:00Z'),
-          preps: [{ status: 'approved' }],
+          // Phase 2 §d — filterToSharedArtifacts (run before decoration)
+          // narrows to sharedAt != null per-artifact, on top of decoration's
+          // own status: 'approved' requirement. Both are needed on each row.
+          preps: [{ status: 'approved', sharedAt: new Date('2026-07-03T00:00:00Z') }],
         }),
         meetingRow({
           id: 'mA',
@@ -310,8 +326,8 @@ describe('Phase 2 cross-user grouping (listSharedMeetingsForClient + meetingsCro
           iCalUId: 'ICAL-1',
           sharedAt: new Date('2026-07-01T00:00:00Z'),
           startsAt: new Date('2026-07-02T15:00:00Z'),
-          notes: [{ id: 'n1' }],
-          debriefs: [{ status: 'approved' }],
+          notes: [{ id: 'n1', status: 'approved', sharedAt: new Date('2026-07-01T00:00:00Z') }],
+          debriefs: [{ status: 'approved', sharedAt: new Date('2026-07-01T00:00:00Z') }],
         }),
       ],
     },
