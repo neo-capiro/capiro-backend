@@ -69,6 +69,7 @@ import {
   billStatusLabel,
   currentCycleFyOf,
   DELIVERABLE_RISK_TIERS,
+  isTenantAdmin,
   type AiGenerationUsageLike,
   type TenantContext,
 } from '@capiro/shared';
@@ -974,6 +975,8 @@ export class EngagementService {
   private readonly versionedOutreach: boolean;
   /** Phase 0: refuse a REAL send of a pre-v2-prompt draft (default off). */
   private readonly externalSendV2Required: boolean;
+  /** Phase 2 §d: per-artifact approval + sharing instead of whole-meeting (default off). */
+  private readonly artifactSharingV2: boolean;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -1002,6 +1005,7 @@ export class EngagementService {
     this.externalSendV2Required = config.get('ENGAGEMENT_EXTERNAL_SEND_V2_REQUIRED', {
       infer: true,
     });
+    this.artifactSharingV2 = config.get('ENGAGEMENT_ARTIFACT_SHARING_V2', { infer: true });
     this.s3 = new S3Client({ region: config.get('AWS_REGION_DEFAULT', { infer: true }) });
     // EvidenceSourceService must read attachment bytes but must NOT depend on this
     // service (that edge would be a cycle) nor build a second S3 client. Handing
@@ -1440,8 +1444,18 @@ export class EngagementService {
    * attribution is preserved (forward-compatible with the Phase 2 multi-
    * contributor model, where a meeting stays shared while ANY contributor has
    * shared it).
+   *
+   * Phase 2 §d (ENGAGEMENT_ARTIFACT_SHARING_V2): once per-artifact sharing is
+   * on, whole-meeting sharing is refused outright — share the specific
+   * approved artifact(s) via shareArtifacts instead.
    */
   async shareMeeting(ctx: TenantContext, meetingId: string) {
+    if (this.artifactSharingV2) {
+      throw new BadRequestException(
+        'Whole-meeting sharing is no longer available. Share the specific approved ' +
+          'artifact(s) via POST /engagement/meetings/:id/artifacts/share instead.',
+      );
+    }
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const existing = await tx.meeting.findFirst({
         where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
@@ -1470,11 +1484,43 @@ export class EngagementService {
   /**
    * Un-share a meeting record — returns it to private (Meetings v2 §6). In Phase 1
    * a meeting has a single owner/contributor, so this fully reverts visibility and
-   * clears the sharer stamp. (Phase 2 makes un-share per-contributor: the record
-   * stays shared until the last contributor un-shares.)
+   * clears the sharer stamp.
+   *
+   * Phase 2 §d (ENGAGEMENT_ARTIFACT_SHARING_V2): becomes an explicit "unshare
+   * EVERYTHING on this meeting" bulk action, gated per-artifact by the same
+   * authorization rule as unshareArtifacts — an admin bulk-unshares anything; a
+   * standard user's bulk-unshare only clears the artifacts they're authorized
+   * to touch (their own sharedBy, or note/debrief they authored). If that
+   * leaves other artifacts still shared, Meeting.visibility stays 'shared'
+   * (it is a derived summary — see recomputeMeetingVisibility).
    */
   async unshareMeeting(ctx: TenantContext, meetingId: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      if (this.artifactSharingV2) {
+        // Tenant-scoped (NOT ownMeetingWhere) so an admin can reach a meeting
+        // they don't personally own — per-artifact authorization below is what
+        // actually gates what gets cleared.
+        const meeting = await tx.meeting.findFirst({
+          where: { id: meetingId, tenantId: ctx.tenantId },
+          select: { id: true },
+        });
+        if (!meeting) throw new NotFoundException('Meeting not found');
+
+        const shared = await this.loadAllSharedArtifacts(tx, ctx, meetingId);
+        for (const { ref, artifact } of shared) {
+          if (canUnshareArtifact(ctx, artifact)) {
+            await this.clearArtifactShared(tx, ref);
+          }
+        }
+        await this.recomputeMeetingVisibility(tx, ctx, meetingId);
+
+        const refreshed = await tx.meeting.findFirst({
+          where: { id: meetingId },
+          include: meetingInclude(),
+        });
+        return (await this.decorateMeetings(tx, ctx, [refreshed!]))[0];
+      }
+
       const existing = await tx.meeting.findFirst({
         where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
         select: { id: true },
@@ -1491,6 +1537,334 @@ export class EngagementService {
       });
       return (await this.decorateMeetings(tx, ctx, [updated]))[0];
     });
+  }
+
+  /**
+   * Share specific artifacts on a meeting to its associated client (Phase 2
+   * §d, ENGAGEMENT_ARTIFACT_SHARING_V2). Owner-gated exactly like shareMeeting
+   * (mirrors its clientId requirement). All-or-nothing: every referenced
+   * artifact must belong to this meeting/tenant AND already be `approved`, or
+   * NOTHING is written. Idempotent per-artifact: re-sharing an
+   * already-shared artifact never overwrites the first sharer's stamp (mirrors
+   * shareMeeting's alreadyShared short-circuit). Once at least one artifact is
+   * shared, Meeting.visibility flips to 'shared' (first-sharer-wins) — it is a
+   * derived summary field, not independently settable once this flag is on.
+   */
+  async shareArtifacts(ctx: TenantContext, meetingId: string, refs: ArtifactRef[]) {
+    if (!refs.length) throw new BadRequestException('artifacts must not be empty');
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const meeting = await tx.meeting.findFirst({
+        where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
+        select: { id: true, clientId: true, visibility: true },
+      });
+      if (!meeting) throw new NotFoundException('Meeting not found');
+      if (!meeting.clientId) {
+        throw new BadRequestException(
+          'This meeting must be associated with a client before it can be shared',
+        );
+      }
+
+      const loaded = await Promise.all(
+        refs.map(async (ref) => ({
+          ref,
+          artifact: await this.loadArtifactShareState(tx, ctx, meetingId, ref),
+        })),
+      );
+      const missing = loaded.filter((l) => !l.artifact);
+      if (missing.length) {
+        throw new BadRequestException(
+          `Artifact(s) not found on this meeting: ${describeRefs(missing.map((l) => l.ref))}`,
+        );
+      }
+      const unapproved = loaded.filter((l) => !l.artifact!.approved);
+      if (unapproved.length) {
+        throw new BadRequestException(
+          `Only approved artifacts can be shared. Not yet approved: ${describeRefs(
+            unapproved.map((l) => l.ref),
+          )}`,
+        );
+      }
+
+      const now = new Date();
+      for (const { ref, artifact } of loaded) {
+        if (artifact!.sharedAt) continue; // idempotent — first sharer's stamp wins
+        await this.stampArtifactShared(tx, ref, ctx.userId, now);
+      }
+      if (meeting.visibility !== MeetingVisibility.shared) {
+        await tx.meeting.update({
+          where: { id: meetingId },
+          data: { visibility: MeetingVisibility.shared, sharedAt: now, sharedByUserId: ctx.userId },
+        });
+      }
+
+      const refreshed = await tx.meeting.findFirst({
+        where: { id: meetingId },
+        include: meetingInclude(),
+      });
+      return (await this.decorateMeetings(tx, ctx, [refreshed!]))[0];
+    });
+  }
+
+  /**
+   * Un-share specific artifacts (Phase 2 §d, ENGAGEMENT_ARTIFACT_SHARING_V2).
+   * Tenant-scoped meeting lookup (not ownMeetingWhere) so an admin can act on a
+   * meeting they don't personally own. Per Neo's decision, authorization is
+   * PER ARTIFACT: a user_admin/capiro_admin may unshare ANY artifact; a
+   * standard user may only unshare one they personally shared
+   * (sharedByUserId), or — for note/debrief specifically — one they authored.
+   * All-or-nothing on AUTHORIZATION: if the caller isn't authorized to unshare
+   * even one requested artifact, the WHOLE batch is rejected rather than
+   * partially unsharing (this is the opposite of unshareMeeting's bulk mode,
+   * which is deliberately best-effort/partial — see its own doc comment).
+   * Once no artifact on the meeting remains shared, Meeting.visibility resets
+   * to 'private'.
+   */
+  async unshareArtifacts(ctx: TenantContext, meetingId: string, refs: ArtifactRef[]) {
+    if (!refs.length) throw new BadRequestException('artifacts must not be empty');
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const meeting = await tx.meeting.findFirst({
+        where: { id: meetingId, tenantId: ctx.tenantId },
+        select: { id: true },
+      });
+      if (!meeting) throw new NotFoundException('Meeting not found');
+
+      const loaded = await Promise.all(
+        refs.map(async (ref) => ({
+          ref,
+          artifact: await this.loadArtifactShareState(tx, ctx, meetingId, ref),
+        })),
+      );
+      const missing = loaded.filter((l) => !l.artifact);
+      if (missing.length) {
+        throw new BadRequestException(
+          `Artifact(s) not found on this meeting: ${describeRefs(missing.map((l) => l.ref))}`,
+        );
+      }
+      const unauthorized = loaded.filter((l) => !canUnshareArtifact(ctx, l.artifact!));
+      if (unauthorized.length) {
+        throw new ForbiddenException(
+          `You are not authorized to unshare: ${describeRefs(unauthorized.map((l) => l.ref))}`,
+        );
+      }
+
+      for (const { ref } of loaded) {
+        await this.clearArtifactShared(tx, ref);
+      }
+      await this.recomputeMeetingVisibility(tx, ctx, meetingId);
+
+      const refreshed = await tx.meeting.findFirst({
+        where: { id: meetingId },
+        include: meetingInclude(),
+      });
+      return (await this.decorateMeetings(tx, ctx, [refreshed!]))[0];
+    });
+  }
+
+  /** Load one artifact's approval/share state, scoped to this meeting+tenant. Null if not found. */
+  private async loadArtifactShareState(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    meetingId: string,
+    ref: ArtifactRef,
+  ): Promise<ArtifactShareState | null> {
+    switch (ref.type) {
+      case 'prep': {
+        const row = await tx.meetingPrep.findFirst({
+          where: { id: ref.id, tenantId: ctx.tenantId, meetingId },
+          select: { status: true, sharedAt: true, sharedByUserId: true },
+        });
+        if (!row) return null;
+        return {
+          approved: row.status === MeetingPrepStatus.approved,
+          sharedAt: row.sharedAt,
+          sharedByUserId: row.sharedByUserId,
+          authorUserId: null,
+        };
+      }
+      case 'note': {
+        const row = await tx.meetingNote.findFirst({
+          where: { id: ref.id, tenantId: ctx.tenantId, meetingId },
+          select: { status: true, sharedAt: true, sharedByUserId: true, authorUserId: true },
+        });
+        if (!row) return null;
+        return {
+          approved: row.status === 'approved',
+          sharedAt: row.sharedAt,
+          sharedByUserId: row.sharedByUserId,
+          authorUserId: row.authorUserId,
+        };
+      }
+      case 'debrief': {
+        const row = await tx.meetingDebrief.findFirst({
+          where: { id: ref.id, tenantId: ctx.tenantId, meetingId },
+          select: { status: true, sharedAt: true, sharedByUserId: true, authorUserId: true },
+        });
+        if (!row) return null;
+        return {
+          approved: row.status === MeetingDebriefStatus.approved,
+          sharedAt: row.sharedAt,
+          sharedByUserId: row.sharedByUserId,
+          authorUserId: row.authorUserId,
+        };
+      }
+      case 'attachment': {
+        const row = await tx.engagementAttachment.findFirst({
+          where: { id: ref.id, tenantId: ctx.tenantId, meetingId },
+          select: { approvedAt: true, sharedAt: true, sharedByUserId: true },
+        });
+        if (!row) return null;
+        // Attachments have no author concept (Neo decision — see
+        // canUnshareArtifact): never populate authorUserId here.
+        return {
+          approved: row.approvedAt != null,
+          sharedAt: row.sharedAt,
+          sharedByUserId: row.sharedByUserId,
+          authorUserId: null,
+        };
+      }
+      default:
+        throw new BadRequestException(`Unknown artifact type: ${(ref as ArtifactRef).type}`);
+    }
+  }
+
+  /** Every currently-shared artifact on a meeting, across all four tables (for bulk unshare). */
+  private async loadAllSharedArtifacts(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    meetingId: string,
+  ): Promise<Array<{ ref: ArtifactRef; artifact: ArtifactShareState }>> {
+    const [preps, notes, debriefs, attachments] = await Promise.all([
+      tx.meetingPrep.findMany({
+        where: { meetingId, tenantId: ctx.tenantId, sharedAt: { not: null } },
+        select: { id: true, status: true, sharedAt: true, sharedByUserId: true },
+      }),
+      tx.meetingNote.findMany({
+        where: { meetingId, tenantId: ctx.tenantId, sharedAt: { not: null } },
+        select: { id: true, status: true, sharedAt: true, sharedByUserId: true, authorUserId: true },
+      }),
+      tx.meetingDebrief.findMany({
+        where: { meetingId, tenantId: ctx.tenantId, sharedAt: { not: null } },
+        select: { id: true, status: true, sharedAt: true, sharedByUserId: true, authorUserId: true },
+      }),
+      tx.engagementAttachment.findMany({
+        where: { meetingId, tenantId: ctx.tenantId, sharedAt: { not: null } },
+        select: { id: true, approvedAt: true, sharedAt: true, sharedByUserId: true },
+      }),
+    ]);
+    return [
+      ...preps.map((p) => ({
+        ref: { type: 'prep' as const, id: p.id },
+        artifact: {
+          approved: p.status === MeetingPrepStatus.approved,
+          sharedAt: p.sharedAt,
+          sharedByUserId: p.sharedByUserId,
+          authorUserId: null,
+        },
+      })),
+      ...notes.map((n) => ({
+        ref: { type: 'note' as const, id: n.id },
+        artifact: {
+          approved: n.status === 'approved',
+          sharedAt: n.sharedAt,
+          sharedByUserId: n.sharedByUserId,
+          authorUserId: n.authorUserId,
+        },
+      })),
+      ...debriefs.map((d) => ({
+        ref: { type: 'debrief' as const, id: d.id },
+        artifact: {
+          approved: d.status === MeetingDebriefStatus.approved,
+          sharedAt: d.sharedAt,
+          sharedByUserId: d.sharedByUserId,
+          authorUserId: d.authorUserId,
+        },
+      })),
+      ...attachments.map((a) => ({
+        ref: { type: 'attachment' as const, id: a.id },
+        artifact: {
+          approved: a.approvedAt != null,
+          sharedAt: a.sharedAt,
+          sharedByUserId: a.sharedByUserId,
+          authorUserId: null,
+        },
+      })),
+    ];
+  }
+
+  /** Stamp one artifact as shared. */
+  private stampArtifactShared(
+    tx: Prisma.TransactionClient,
+    ref: ArtifactRef,
+    userId: string,
+    now: Date,
+  ): Promise<unknown> {
+    const data = { sharedAt: now, sharedByUserId: userId };
+    switch (ref.type) {
+      case 'prep':
+        return tx.meetingPrep.update({ where: { id: ref.id }, data });
+      case 'note':
+        return tx.meetingNote.update({ where: { id: ref.id }, data });
+      case 'debrief':
+        return tx.meetingDebrief.update({ where: { id: ref.id }, data });
+      case 'attachment':
+        return tx.engagementAttachment.update({ where: { id: ref.id }, data });
+      default:
+        throw new BadRequestException(`Unknown artifact type: ${(ref as ArtifactRef).type}`);
+    }
+  }
+
+  /** Clear one artifact's share stamp. */
+  private clearArtifactShared(tx: Prisma.TransactionClient, ref: ArtifactRef): Promise<unknown> {
+    const data = { sharedAt: null, sharedByUserId: null };
+    switch (ref.type) {
+      case 'prep':
+        return tx.meetingPrep.update({ where: { id: ref.id }, data });
+      case 'note':
+        return tx.meetingNote.update({ where: { id: ref.id }, data });
+      case 'debrief':
+        return tx.meetingDebrief.update({ where: { id: ref.id }, data });
+      case 'attachment':
+        return tx.engagementAttachment.update({ where: { id: ref.id }, data });
+      default:
+        throw new BadRequestException(`Unknown artifact type: ${(ref as ArtifactRef).type}`);
+    }
+  }
+
+  /**
+   * After an unshare, recompute the meeting-level visibility summary: if NO
+   * artifact on the meeting remains shared, reset Meeting.visibility to
+   * 'private' and clear its own sharedAt/sharedByUserId; otherwise leave it
+   * 'shared' (some artifact is still shared).
+   */
+  private async recomputeMeetingVisibility(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    meetingId: string,
+  ): Promise<void> {
+    const [prep, note, debrief, attachment] = await Promise.all([
+      tx.meetingPrep.findFirst({
+        where: { meetingId, tenantId: ctx.tenantId, sharedAt: { not: null } },
+        select: { id: true },
+      }),
+      tx.meetingNote.findFirst({
+        where: { meetingId, tenantId: ctx.tenantId, sharedAt: { not: null } },
+        select: { id: true },
+      }),
+      tx.meetingDebrief.findFirst({
+        where: { meetingId, tenantId: ctx.tenantId, sharedAt: { not: null } },
+        select: { id: true },
+      }),
+      tx.engagementAttachment.findFirst({
+        where: { meetingId, tenantId: ctx.tenantId, sharedAt: { not: null } },
+        select: { id: true },
+      }),
+    ]);
+    if (!prep && !note && !debrief && !attachment) {
+      await tx.meeting.update({
+        where: { id: meetingId },
+        data: { visibility: MeetingVisibility.private, sharedAt: null, sharedByUserId: null },
+      });
+    }
   }
 
   /**
@@ -1554,6 +1928,15 @@ export class EngagementService {
    * scoped (NOT ownMeetingWhere) — sharing to the client makes the record visible
    * to the org, the same precedent as listClientDebriefs. Nested notes/debriefs
    * are metadata-only (no decrypted bodies), so this list leaks no artifact content.
+   *
+   * Phase 2 §d: `meeting.visibility='shared'` no longer means "show all of this
+   * meeting's metadata" — it means "at least one artifact on it is shared."
+   * The nested notes/debriefs/preps/attachments arrays are narrowed down to
+   * artifacts that are ACTUALLY shared (sharedAt != null) before decoration, so
+   * an approved-but-never-shared artifact never appears in this client-facing
+   * feed. (Legacy meetings shared before this migration existed had their
+   * already-approved prep/debrief conservatively backfilled with sharedAt —
+   * see the migration header; notes/attachments were deliberately not.)
    */
   async listSharedMeetingsForClient(ctx: TenantContext, clientId: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
@@ -1565,7 +1948,8 @@ export class EngagementService {
           orderBy: [{ sharedAt: 'desc' }, { startsAt: 'desc' }],
         }),
       ]);
-      const decorated = await this.decorateMeetings(tx, ctx, rows);
+      const narrowed = rows.map((row) => this.filterToSharedArtifacts(row));
+      const decorated = await this.decorateMeetings(tx, ctx, narrowed);
       // Phase 2 collision model (spec §7, §4.4): when the tenant is on the
       // cross-user flag, collapse per-mailbox rows that share a Graph iCalUId into
       // ONE record — canonical notes, contributors merged (first-sharer primary,
@@ -1579,6 +1963,32 @@ export class EngagementService {
   }
 
   /**
+   * Phase 2 §d: narrow a shared meeting's nested artifact arrays down to the
+   * ones that are ACTUALLY shared (sharedAt != null). listSharedMeetingsForClient
+   * is a client-facing feed — "the meeting is shared" no longer means "show
+   * all of its metadata"; each artifact must have been explicitly (or, for a
+   * legacy pre-Phase-2 meeting, conservatively backfilled — see the migration)
+   * shared on its own. Metadata-only in, metadata-only out: bodies are never
+   * touched, only which rows are included.
+   */
+  private filterToSharedArtifacts<
+    T extends {
+      notes: Array<{ sharedAt: Date | null }>;
+      debriefs: Array<{ sharedAt: Date | null }>;
+      preps: Array<{ sharedAt: Date | null }>;
+      attachments: Array<{ sharedAt: Date | null }>;
+    },
+  >(row: T): T {
+    return {
+      ...row,
+      notes: row.notes.filter((n) => n.sharedAt != null),
+      debriefs: row.debriefs.filter((d) => d.sharedAt != null),
+      preps: row.preps.filter((p) => p.sharedAt != null),
+      attachments: row.attachments.filter((a) => a.sharedAt != null),
+    };
+  }
+
+  /**
    * Augment meeting rows (from meetingInclude) with the computed response fields
    * the Meetings v2 UI needs (docs/plans/2026-07-10-meetings-meri-v2-redesign-plan.md
    * §6): `notesApproved`, the coarse notetaker `meri` state, the `contributors`
@@ -1586,13 +1996,17 @@ export class EngagementService {
    * are batch-resolved for createdByUserId/sharedByUserId (those are bare UUIDs
    * with no relation, by convention), and the latest bot-session status per meeting
    * is fetched once for the whole set — no N+1.
+   *
+   * Phase 2 §d: `notesApproved` requires an ACTUALLY-approved note (checks
+   * `status`), not mere existence — callers must select `status` in whatever
+   * note projection they pass in (see noteMetadataSelect).
    */
   private async decorateMeetings<
     T extends {
       id: string;
       createdByUserId: string | null;
       sharedByUserId: string | null;
-      notes: unknown[];
+      notes: Array<{ status: string }>;
       debriefs: Array<{ status: MeetingDebriefStatus }>;
       preps: Array<{ status: MeetingPrepStatus }>;
     },
@@ -1637,9 +2051,12 @@ export class EngagementService {
     }
 
     return rows.map((row) => {
+      // Phase 2 §d: a note counts here only once APPROVED — existence alone is
+      // not approval (that was the pre-Phase-2 bug this fixes).
+      const hasApprovedNote = row.notes.some((n) => n.status === 'approved');
       const artifacts: Array<'prep' | 'notes' | 'debrief'> = [];
       if (row.preps[0]?.status === MeetingPrepStatus.approved) artifacts.push('prep');
-      if (row.notes.length > 0) artifacts.push('notes');
+      if (hasApprovedNote) artifacts.push('notes');
       if (row.debriefs.some((d) => d.status === MeetingDebriefStatus.approved)) {
         artifacts.push('debrief');
       }
@@ -1654,7 +2071,7 @@ export class EngagementService {
         : [];
       return {
         ...row,
-        notesApproved: row.notes.length > 0,
+        notesApproved: hasApprovedNote,
         meri: coarseMeriState(latestSessionByMeeting.get(row.id) ?? null),
         contributors,
         sharedBy: row.sharedByUserId
@@ -5198,6 +5615,16 @@ export class EngagementService {
           iv: encrypted.iv,
           authTag: encrypted.authTag,
           keyVersion: encrypted.keyVersion,
+          // Phase 2 §d: a manual edit moves an approved/draft note back to
+          // `edited` (mirrors updateMeetingDebrief/updateMeetingPrep) and
+          // clears any prior approval/share stamp — an edited note must be
+          // re-approved (and, if it was shared, re-shared) before it's
+          // eligible for the Library or the client-facing feed again.
+          status: 'edited',
+          approvedAt: null,
+          approvedByUserId: null,
+          sharedAt: null,
+          sharedByUserId: null,
           ...(input.confidential === undefined ? {} : { confidential: input.confidential }),
           ...(input.accessLevel === undefined ? {} : { accessLevel: input.accessLevel }),
         },
@@ -5262,8 +5689,11 @@ export class EngagementService {
           keyVersion: encrypted.keyVersion,
           // A manual edit moves an approved/generated debrief back to `edited`
           // (mirrors updateMeetingPrep), so it must be re-approved before it
-          // reaches the Library / is shareable.
+          // reaches the Library / is shareable. Phase 2 §d: also clears any
+          // prior share stamp — an edited debrief must be explicitly re-shared.
           status: MeetingDebriefStatus.edited,
+          sharedAt: null,
+          sharedByUserId: null,
           ...(input.confidential === undefined ? {} : { confidential: input.confidential }),
           ...(input.accessLevel === undefined ? {} : { accessLevel: input.accessLevel }),
         },
@@ -5293,6 +5723,34 @@ export class EngagementService {
         where: { id: debriefId },
         data: { status: MeetingDebriefStatus.approved },
         select: debriefMetadataSelect(),
+      });
+    });
+  }
+
+  /**
+   * Approve a meeting note (Phase 2 §d) — the note-side counterpart to
+   * approveMeetingDebrief/approveMeetingPrep. A note is captured on creation
+   * but is NOT approved merely by existing (that was the pre-Phase-2 bug: the
+   * Library and decorateMeetings both inferred "approved" from mere
+   * presence). Only an `approved` note is eligible for the Meeting Library and
+   * for sharing. Same owner-guard + author/admin edit check as
+   * updateMeetingNote/approveMeetingDebrief.
+   */
+  async approveMeetingNote(ctx: TenantContext, meetingId: string, noteId: string) {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.ensureOwnMeeting(tx, ctx, meetingId);
+      const note = await tx.meetingNote.findFirst({
+        where: { id: noteId, tenantId: ctx.tenantId, meetingId },
+        select: { id: true, authorUserId: true },
+      });
+      if (!note) throw new NotFoundException('Meeting note not found');
+      if (!canEditEncryptedEntry(ctx, note)) {
+        throw new ForbiddenException('You can only approve your own meeting notes');
+      }
+      return tx.meetingNote.update({
+        where: { id: noteId },
+        data: { status: 'approved', approvedAt: new Date(), approvedByUserId: ctx.userId },
+        select: noteMetadataSelect(),
       });
     });
   }
@@ -6597,6 +7055,28 @@ export class EngagementService {
     };
   }
 
+  /**
+   * Approve a meeting attachment (Phase 2 §d). Single-user approval (Neo
+   * decision): any user with access to the meeting — INCLUDING the uploader
+   * themself — may approve; there is no second-reviewer/two-person flow. A
+   * Meri-generated or user-uploaded attachment is never approved merely by
+   * existing — approval is always this explicit call.
+   */
+  async approveMeetingAttachment(ctx: TenantContext, meetingId: string, attachmentId: string) {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.ensureOwnMeeting(tx, ctx, meetingId);
+      const attachment = await tx.engagementAttachment.findFirst({
+        where: { id: attachmentId, tenantId: ctx.tenantId, meetingId },
+        select: { id: true },
+      });
+      if (!attachment) throw new NotFoundException('Attachment not found');
+      return tx.engagementAttachment.update({
+        where: { id: attachmentId },
+        data: { approvedAt: new Date(), approvedByUserId: ctx.userId },
+      });
+    });
+  }
+
   /** Record what an extraction actually produced. Best-effort bookkeeping. */
   private async recordExtractionOutcome(
     ctx: TenantContext,
@@ -6718,10 +7198,15 @@ export class EngagementService {
 
     // 1. Record the intent FIRST. From this moment the file is unusable and
     //    undownloadable even if the steps below fail or the process dies.
+    //    Phase 2 §d: unshare-before-delete — a shared attachment must stop
+    //    surfacing in the client-facing shared feed the moment its deletion is
+    //    recorded, even while the row lingers in delete_pending/delete_failed
+    //    for S3 retry. Clearing is unconditional (a harmless no-op when the
+    //    attachment was already private).
     await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.engagementAttachment.updateMany({
         where: { id, tenantId: ctx.tenantId },
-        data: { lifecycleStatus: 'delete_pending' },
+        data: { lifecycleStatus: 'delete_pending', sharedAt: null, sharedByUserId: null },
       }),
     );
 
@@ -8564,6 +9049,13 @@ function noteMetadataSelect() {
     confidential: true,
     accessLevel: true,
     keyVersion: true,
+    // Phase 2 §d — lifecycle: decorateMeetings' notesApproved and
+    // libraryArtifactWhere both need `status` to tell existence from approval.
+    status: true,
+    approvedAt: true,
+    approvedByUserId: true,
+    sharedAt: true,
+    sharedByUserId: true,
     createdAt: true,
     updatedAt: true,
   };
@@ -8580,6 +9072,9 @@ function debriefMetadataSelect() {
     accessLevel: true,
     status: true,
     keyVersion: true,
+    // Phase 2 §d — sharing only; approval already lives in `status` above.
+    sharedAt: true,
+    sharedByUserId: true,
     createdAt: true,
     updatedAt: true,
   };
@@ -8727,10 +9222,48 @@ function normalizeLibraryLimit(limit?: number): number {
   return Math.min(100, Math.floor(l));
 }
 
+// ── Phase 2 §d — per-artifact approval + sharing helper types ───────────────
+// (used by shareArtifacts/unshareArtifacts/unshareMeeting's bulk mode above).
+
+type ArtifactType = 'prep' | 'note' | 'debrief' | 'attachment';
+
+interface ArtifactRef {
+  type: ArtifactType;
+  id: string;
+}
+
+/** An artifact's approval/share state, normalized across all four artifact tables. */
+interface ArtifactShareState {
+  approved: boolean;
+  sharedAt: Date | null;
+  sharedByUserId: string | null;
+  /** null for prep/attachment — neither has a per-item author concept. */
+  authorUserId: string | null;
+}
+
+function describeRefs(refs: ArtifactRef[]): string {
+  return refs.map((r) => `${r.type}:${r.id}`).join(', ');
+}
+
+/**
+ * Neo's unshare-authorization rule (Phase 2 §d), applied PER ARTIFACT: a
+ * user_admin/capiro_admin may unshare ANY artifact. A standard user may only
+ * unshare an artifact they personally shared (sharedByUserId), or — for
+ * note/debrief specifically — one they authored. Prep and attachment have no
+ * per-item author concept (ArtifactShareState.authorUserId is null for both),
+ * so for those it is admin-or-sharer only.
+ */
+function canUnshareArtifact(ctx: TenantContext, artifact: ArtifactShareState): boolean {
+  if (isTenantAdmin(ctx.role)) return true;
+  if (artifact.sharedByUserId === ctx.userId) return true;
+  return artifact.authorUserId !== null && artifact.authorUserId === ctx.userId;
+}
+
 /**
  * Prisma `where` fragment for Library eligibility — "has at least one approved
- * artifact." A note counts once it exists (notes are final on capture, per §5);
- * prep/debrief must be `approved`. Narrows to a single artifact type when given.
+ * artifact." Prep/debrief/notes must all be `approved` — a note existing is
+ * NOT approval (that was the pre-Phase-2 bug: existence ≠ approved). Narrows
+ * to a single artifact type when given.
  */
 function libraryArtifactWhere(
   artifactType?: 'prep' | 'notes' | 'debrief',
@@ -8741,7 +9274,7 @@ function libraryArtifactWhere(
   const debrief: Prisma.MeetingWhereInput = {
     debriefs: { some: { status: MeetingDebriefStatus.approved } },
   };
-  const notes: Prisma.MeetingWhereInput = { notes: { some: {} } };
+  const notes: Prisma.MeetingWhereInput = { notes: { some: { status: 'approved' } } };
   if (artifactType === 'prep') return prep;
   if (artifactType === 'debrief') return debrief;
   if (artifactType === 'notes') return notes;

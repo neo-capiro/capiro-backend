@@ -16,6 +16,7 @@ import { Throttle } from '@nestjs/throttler';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsDateString,
@@ -187,6 +188,26 @@ class CreateNoteDto {
 }
 
 class CreateDebriefDto extends CreateNoteDto {}
+
+// Phase 2 §d — per-artifact sharing (ENGAGEMENT_ARTIFACT_SHARING_V2). 'note' is
+// deliberately singular (one artifact reference), unlike the plural 'notes' used
+// by ArtifactKind / MeetingLibraryQueryDto.artifactType elsewhere in this file.
+class ArtifactRefDto {
+  @IsIn(['prep', 'note', 'debrief', 'attachment'])
+  type!: 'prep' | 'note' | 'debrief' | 'attachment';
+
+  @IsUUID()
+  id!: string;
+}
+
+class ShareArtifactsDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => ArtifactRefDto)
+  artifacts!: ArtifactRefDto[];
+}
 
 class GenerateDebriefDraftDto {
   @IsIn(['upload', 'manual', 'voice'])
@@ -1608,6 +1629,28 @@ export class EngagementController {
     return this.service.unshareMeeting(ctx, id);
   }
 
+  // Per-artifact sharing (Phase 2 §d, ENGAGEMENT_ARTIFACT_SHARING_V2). Requires
+  // each target artifact to already be approved; the legacy whole-meeting
+  // share/unshare above keep working unchanged while the flag is off, and
+  // shareMeeting() is refused once it's on (see the service).
+  @Post('meetings/:id/artifacts/share')
+  shareArtifacts(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') meetingId: string,
+    @Body() body: ShareArtifactsDto,
+  ) {
+    return this.service.shareArtifacts(ctx, meetingId, body.artifacts);
+  }
+
+  @Post('meetings/:id/artifacts/unshare')
+  unshareArtifacts(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') meetingId: string,
+    @Body() body: ShareArtifactsDto,
+  ) {
+    return this.service.unshareArtifacts(ctx, meetingId, body.artifacts);
+  }
+
   @Post('meetings/:id/notes')
   createNote(
     @CurrentTenant() ctx: TenantContext,
@@ -1630,6 +1673,18 @@ export class EngagementController {
     @Body() body: CreateNoteDto,
   ) {
     return this.service.updateMeetingNote(ctx, meetingId, noteId, body);
+  }
+
+  // Approve a note (Phase 2 §d) — symmetric with debriefs/:debriefId/approve
+  // and meeting-preps/:id/approve below. Only an approved note reaches the
+  // Library / is shareable.
+  @Post('meetings/:id/notes/:noteId/approve')
+  approveNote(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') meetingId: string,
+    @Param('noteId') noteId: string,
+  ) {
+    return this.service.approveMeetingNote(ctx, meetingId, noteId);
   }
 
   @Post('meetings/:id/debriefs')
@@ -1665,6 +1720,18 @@ export class EngagementController {
     @Param('debriefId') debriefId: string,
   ) {
     return this.service.approveMeetingDebrief(ctx, meetingId, debriefId);
+  }
+
+  // Approve a meeting attachment (Phase 2 §d). Single-user approval (Neo
+  // decision) — any user with access to the meeting, including the uploader,
+  // may approve.
+  @Post('meetings/:id/attachments/:attachmentId/approve')
+  approveMeetingAttachment(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') meetingId: string,
+    @Param('attachmentId') attachmentId: string,
+  ) {
+    return this.service.approveMeetingAttachment(ctx, meetingId, attachmentId);
   }
 
   @Post('meetings/:id/debrief-draft')

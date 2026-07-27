@@ -9,6 +9,10 @@ export type MeriState = 'scheduled' | 'attending' | 'attended' | 'done';
 export type MeetingVisibility = 'private' | 'shared';
 export type PrepStatus = 'generated' | 'edited' | 'approved' | 'stale' | 'failed';
 export type DebriefStatus = 'generated' | 'edited' | 'approved';
+// Phase 2 §d: notes gain their first lifecycle status, mirroring Prep/Debrief
+// in spirit. 'draft' (captured, never approved) | 'edited' (was approved, then
+// edited — needs re-approval) | 'approved' (explicit approve call).
+export type MeetingNoteStatus = 'draft' | 'edited' | 'approved';
 export type ArtifactKind = 'prep' | 'notes' | 'debrief';
 
 export interface ArtifactAuthor {
@@ -36,6 +40,9 @@ export interface MeetingPrep {
   summary: string | null;
   provider: string | null;
   model: string | null;
+  // Phase 2 §d: sharing only — approval is still tracked via `status` above.
+  sharedAt: string | null;
+  sharedByUserId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -44,6 +51,12 @@ export interface MeetingNoteSummary {
   id: string;
   confidential: boolean;
   accessLevel?: string;
+  // Phase 2 §d: existence is never approval — see MeetingNoteStatus.
+  status?: MeetingNoteStatus;
+  approvedAt?: string | null;
+  approvedByUserId?: string | null;
+  sharedAt?: string | null;
+  sharedByUserId?: string | null;
   authorUserId?: string | null;
   author?: ArtifactAuthor | null;
   createdAt: string;
@@ -54,6 +67,9 @@ export interface MeetingDebriefSummary {
   confidential: boolean;
   accessLevel?: string;
   status?: DebriefStatus;
+  // Phase 2 §d: sharing only — approval is still tracked via `status` above.
+  sharedAt?: string | null;
+  sharedByUserId?: string | null;
   authorUserId?: string | null;
   author?: ArtifactAuthor | null;
   createdAt: string;
@@ -83,6 +99,12 @@ export interface MeetingAttachment {
   source: string;
   createdAt: string;
   downloadUrl?: string | null;
+  // Phase 2 §d: attachments' first approval concept (single-user — any user
+  // with meeting access, including the uploader, may approve).
+  approvedAt?: string | null;
+  approvedByUserId?: string | null;
+  sharedAt?: string | null;
+  sharedByUserId?: string | null;
 }
 
 export interface MeetingContributor {
@@ -218,4 +240,14 @@ export function completedPrep(m: Meeting): MeetingPrep | null {
 /** A debrief once it counts as COMPLETED — any generated/edited/approved debrief. */
 export function completedDebrief(m: Meeting): MeetingDebriefSummary | null {
   return m.debriefs[0] ?? null;
+}
+
+/**
+ * Notes count as COMPLETED once at least one exists — same "exists, not
+ * approved" completion semantics as completedPrep/completedDebrief above.
+ * Approval (MeetingNoteStatus) is a separate, later gate (Library eligibility
+ * / sharing), deliberately NOT folded into this helper — see §j.
+ */
+export function completedNotes(m: Meeting): boolean {
+  return m.notes.length > 0;
 }
