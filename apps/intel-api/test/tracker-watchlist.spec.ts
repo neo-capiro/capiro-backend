@@ -958,3 +958,40 @@ describe('TrackerWatchlistService.assertAlertInClient — Gate J (HP-06)', () =>
     await expect(svc.assertAlertInClient(TENANT, CLIENT, 'no-such-alert')).rejects.toThrow('Alert not found');
   });
 });
+
+describe('TrackerWatchlistService.assertTenantMember — Gate J (HP-06 b-1/b-2)', () => {
+  const MEMBER = '33333333-3333-3333-3333-333333333333';
+
+  function membershipReader(memberships: Array<{ userId: string; tenantId: string }>) {
+    return {
+      withSystem: async (fn: (t: unknown) => unknown) =>
+        fn({
+          $queryRawUnsafe: async (_sql: string, userId: string, tenantId: string) =>
+            memberships.some((m) => m.userId === userId && m.tenantId === tenantId) ? [{ id: 'm-1' }] : [],
+        }),
+    } as any;
+  }
+
+  it('resolves when userId is a member of this tenant', async () => {
+    const prisma = membershipReader([{ userId: MEMBER, tenantId: TENANT }]);
+    const svc = new TrackerWatchlistService(prisma);
+    await expect(svc.assertTenantMember(TENANT, MEMBER)).resolves.toBeUndefined();
+  });
+
+  it('404s when the user id is a member of a DIFFERENT tenant (the id-space is DB users.id, not Clerk — cross-tenant collision must still be caught)', async () => {
+    const prisma = membershipReader([{ userId: MEMBER, tenantId: 'other-tenant' }]);
+    const svc = new TrackerWatchlistService(prisma);
+    await expect(svc.assertTenantMember(TENANT, MEMBER)).rejects.toThrow('User not found');
+  });
+
+  it('404s on a non-UUID id without querying the database', async () => {
+    let queried = false;
+    const prisma = {
+      withSystem: async (fn: (t: unknown) => unknown) =>
+        fn({ $queryRawUnsafe: async () => { queried = true; return []; } }),
+    } as any;
+    const svc = new TrackerWatchlistService(prisma);
+    await expect(svc.assertTenantMember(TENANT, 'not-a-uuid')).rejects.toThrow('User not found');
+    expect(queried).toBe(false);
+  });
+});

@@ -66,6 +66,20 @@ export class AlertWorkStateService {
   }
 
   /**
+   * Gate J (HP-06) b-1: `schema.prisma`'s comment on `assignedTo` asserts
+   * "a user id from the tenant's own team roster" but nothing enforced it —
+   * any string up to 200 chars passed the DTO. Runs whenever `assignedTo` is
+   * being SET (not just when state==='assigned' — a patch can set assignedTo
+   * alongside any other state), so an unassign (`assignedTo: null`) never
+   * triggers a lookup.
+   */
+  private async assertValidAssignee(tenantId: string, patch: WorkStatePatch): Promise<void> {
+    if (patch.assignedTo) {
+      await this.watchlist.assertTenantMember(tenantId, patch.assignedTo);
+    }
+  }
+
+  /**
    * Upsert on (alertId, userId) — the table's unique index, so a repeated action
    * is idempotent rather than a duplicate row.
    */
@@ -85,6 +99,7 @@ export class AlertWorkStateService {
     // to hide the alert).
     await this.watchlist.assertAlertInClient(tenantId, clientId, alertId);
     this.assertAssignable(patch);
+    await this.assertValidAssignee(tenantId, patch);
 
     const data = {
       ...(patch.state !== undefined ? { state: patch.state } : {}),
@@ -221,6 +236,7 @@ export class AlertWorkStateService {
   ): Promise<{ updated: number }> {
     await this.watchlist.assertClientInTenant(tenantId, clientId);
     this.assertAssignable(patch);
+    await this.assertValidAssignee(tenantId, patch);
 
     const ids = Array.from(new Set(alertIds)).slice(0, BULK_MAX);
     if (!ids.length) return { updated: 0 };

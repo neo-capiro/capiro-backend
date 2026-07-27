@@ -811,6 +811,34 @@ export class TrackerWatchlistService {
   }
 
   /**
+   * Gate J (HP-06) b-1/b-2: 404 unless `userId` is a member of this tenant.
+   * `assignedTo` on work-state is a DB `users.id` UUID — confirmed by reading
+   * `tenant-admin.service.ts:143` (`userId: m.user.id`), the SAME id
+   * `GET /api/tenant-admin/team` returns and the Assign picker
+   * (`TrackerFeedPanel.tsx`'s `<select>`) sends back. This is DELIBERATELY the
+   * opposite id-space from `trackedBy`, which is a Clerk id — the exact trap
+   * Gate H hit and got right for `trackedBy` (tracker-components.tsx:292-296);
+   * getting `assignedTo` wrong here would repeat it in the other direction.
+   * `withSystem`: `tenant_memberships`/`users` are apps/api-owned FORCE-RLS
+   * tables, the same cross-schema-read posture as `assertClientInTenant`. No
+   * status filter, matching `listTeam()` (`tenant-admin.service.ts:130-153`)
+   * exactly — the roster the picker offers has none either, so this never
+   * rejects an id the UI let someone pick.
+   */
+  async assertTenantMember(tenantId: string, userId: string): Promise<void> {
+    if (!UUID_RE.test(userId)) throw new NotFoundException('User not found');
+    const rows = await this.prisma.withSystem((tx) =>
+      tx.$queryRawUnsafe<Array<{ id: string }>>(
+        'SELECT m.id::text AS id FROM tenant_memberships m JOIN users u ON u.id = m.user_id ' +
+          'WHERE u.id = $1::uuid AND m.tenant_id = $2::uuid LIMIT 1',
+        userId,
+        tenantId,
+      ),
+    );
+    if (rows.length === 0) throw new NotFoundException('User not found');
+  }
+
+  /**
    * The upsert's update-branch guard: the unique key is tenant-free, so a row
    * created under ANOTHER tenant (same user in two orgs) must read as absent —
    * mirrors getAlertPrefs's `row.tenantId === tenantId` read guard.
