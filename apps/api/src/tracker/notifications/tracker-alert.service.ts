@@ -58,9 +58,17 @@ export class TrackerAlertService {
     private readonly config: ConfigService<AppConfig, true>,
   ) {}
 
+  /**
+   * RB-03: the canonical LegiWatch deep link. `/clients/<id>?tab=tracker` was
+   * never a route — apps/web's only client route is the query-param-driven
+   * `/clients` (no `/clients/:id`) — so every caller of this (realtime email,
+   * SMS, digest, test alert) linked to an in-app 404. This legacy rail is dark
+   * for all 6 tenants today (tracker_v2 is ON everywhere), but its crons are
+   * still live, so a fix here is not a no-op.
+   */
   private boardUrl(clientId: string): string {
     const base = this.config.get('TRACKER_APP_BASE_URL', { infer: true }).replace(/\/$/, '');
-    return `${base}/clients/${clientId}?tab=tracker`;
+    return `${base}/legiwatch?tab=feed&client=${encodeURIComponent(clientId)}`;
   }
 
   /**

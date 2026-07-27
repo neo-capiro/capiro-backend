@@ -738,8 +738,6 @@ export class IntelAlertService {
       groups.set(key, g);
     }
 
-    const appBase = (process.env.TRACKER_APP_BASE_URL ?? 'https://app.capiro.ai').replace(/\/$/, '');
-
     for (const g of groups.values()) {
       const queueIds = g.rows.map((r) => r.queueId);
       try {
@@ -801,7 +799,11 @@ export class IntelAlertService {
             recommendedAction: a.recommendedAction ?? null,
             why: a.whyItMatters,
             url: (ev.url as string) ?? '',
-            appUrl: `${appBase}/clients/${encodeURIComponent(a.clientId)}?tab=tracker`,
+            // RB-03: the canonical LegiWatch deep link, matching the realtime
+            // path (:477) — /clients/<id>?tab=tracker is not a route (there is
+            // no /clients/:id in the SPA; App.tsx's only client route is the
+            // query-param-driven /clients).
+            appUrl: `${appBaseUrl()}/legiwatch?tab=feed&client=${encodeURIComponent(a.clientId)}&alert=${encodeURIComponent(a.id)}`,
           };
         });
         if (!items.length) continue;
