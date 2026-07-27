@@ -44,6 +44,7 @@ import type {
   ResumeRunInput,
   RunCheckResult,
   RunPolicy,
+  StrategyChatMessage,
   StrategyDetail,
   StrategyListItem,
   UpdateMissionInput,
@@ -222,6 +223,47 @@ export function useDraftStrategy() {
   });
 }
 
+/**
+ * Phase 2: the query key for ONE conversation context. Strategy and step threads
+ * MUST NOT share a cache entry — switching context has to render that context's
+ * own persisted history, not the last one fetched.
+ */
+export function conversationKey(strategyId: string, nodeId: string | null) {
+  return ['strategy', 'conversation', strategyId, nodeId ?? 'strategy'] as const;
+}
+
+/** GET /strategies/:id/conversations — one context's durable Meri thread. */
+export function useStrategyConversation(strategyId: string | null, nodeId: string | null, enabled = true) {
+  const api = useApi();
+  return useQuery<StrategyChatMessage[]>({
+    queryKey: conversationKey(strategyId ?? '', nodeId),
+    enabled: !!strategyId && enabled,
+    queryFn: async () => {
+      const qs = nodeId ? `?nodeId=${encodeURIComponent(nodeId)}` : '';
+      return (
+        await api.get<StrategyChatMessage[]>(`${BASE}/strategies/${strategyId}/conversations${qs}`)
+      ).data;
+    },
+  });
+}
+
+/** POST /strategies/:id/conversations/context-gaps/:messageId/dismiss. */
+export function useDismissContextGap(strategyId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { messageId: string; nodeId: string | null }) =>
+      (
+        await api.post<StrategyChatMessage>(
+          `${BASE}/strategies/${strategyId}/conversations/context-gaps/${vars.messageId}/dismiss`,
+        )
+      ).data,
+    onSuccess: (_msg, vars) => {
+      void qc.invalidateQueries({ queryKey: conversationKey(strategyId, vars.nodeId) });
+    },
+  });
+}
+
 /** POST /strategies/:id/assistant — Meri edits the plan (NOD-4 node / MRI-3 strategy). */
 export function useAssistant(strategyId: string) {
   const api = useApi();
@@ -234,6 +276,14 @@ export function useAssistant(strategyId: string) {
       qc.setQueryData(['strategy', 'strategy', strategyId], resp.strategy);
       void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
       void qc.invalidateQueries({ queryKey: ['strategy', 'versions', strategyId] });
+    },
+    // onSettled, not onSuccess: a failed send still appended the user's message
+    // AND an `assistant_error` line server-side, so the thread must refetch on
+    // BOTH outcomes or the failure is invisible until the next reload.
+    onSettled: (_data, _err, input) => {
+      void qc.invalidateQueries({
+        queryKey: conversationKey(strategyId, input.scope === 'node' ? (input.nodeId ?? null) : null),
+      });
     },
   });
 }

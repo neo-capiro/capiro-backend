@@ -342,18 +342,75 @@ export interface DraftStrategyInput {
   attachmentIds?: string[];
 }
 
-/** POST /strategies/:id/assistant — rail edit engine (NOD-4 / MRI-3). */
+/*
+ * Phase 2 — the durable contextual Meri conversation.
+ *
+ * One thread per context: the strategy itself (`nodeId: null`) and one per step.
+ * Messages persist across reloads and context switches, so the panel renders
+ * server state rather than an in-memory transcript that dies with the component.
+ */
+
+/** Who authored a message. Only `user` originates client-side. */
+export type StrategyChatRole = 'user' | 'meri' | 'system' | 'watch';
+
+/**
+ * What a message IS, beyond who said it:
+ *  - `context_gap`     — persistent "drafted on partial information" note
+ *  - `watch_applied`   — Watch-acceptance confirmation (Phase 4 renders a badge)
+ *  - `assistant_error` — the model failed after the user's message was stored
+ */
+export type StrategyChatMessageKind = 'message' | 'context_gap' | 'watch_applied' | 'assistant_error';
+
+export type StrategyChatMessageState = 'active' | 'resolved' | 'dismissed';
+
+/** The immutable display snapshot of an attachment sent with a user message. */
+export interface StrategyChatAttachment {
+  id: string;
+  filename: string;
+  kind: string;
+  status: string;
+}
+
+/** The only action this phase supports: the reply's `Open "<step>"` affordance. */
+export interface StrategyChatAction {
+  type: 'open_node';
+  nodeId: string;
+  title: string;
+}
+
+export interface StrategyChatMessage {
+  id: string;
+  strategyId: string;
+  /** null = the strategy thread; a node id = that step's thread. */
+  nodeId: string | null;
+  role: StrategyChatRole;
+  kind: StrategyChatMessageKind;
+  body: string;
+  attachments: StrategyChatAttachment[];
+  action: StrategyChatAction | null;
+  state: StrategyChatMessageState;
+  createdByUserId: string | null;
+  createdAt: string;
+}
+
+/** POST /strategies/:id/assistant — panel edit engine (NOD-4 / MRI-3). */
 export interface AssistantInput {
   scope: 'node' | 'strategy';
   nodeId?: string;
   instruction: string;
   attachmentIds?: string[];
+  /** Phase 2: minted per user send so a retry reuses the stored message. */
+  clientMessageId: string;
+  /** Phase 2: display snapshots for the attachment chips on the user's bubble. */
+  attachments?: StrategyChatAttachment[];
 }
 
 export interface AssistantResponse {
   reply: string;
   summary: string | null;
   strategy: StrategyDetail;
+  /** Phase 2: the created (or, on a retry, reused) user + Meri messages. */
+  messages?: StrategyChatMessage[];
 }
 
 export interface PatchStrategyInput {

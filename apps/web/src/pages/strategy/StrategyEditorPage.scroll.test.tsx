@@ -83,7 +83,7 @@ vi.mock('./StrategyTimeline.js', () => ({
     <button onClick={() => onSelectNode('node-1')}>select-node</button>
   ),
 }));
-vi.mock('./NodeRail.js', () => ({ EditorRail: () => <div>panel</div> }));
+vi.mock('./NodeRail.js', () => ({ StrategyMeriPanel: () => <div>panel</div> }));
 vi.mock('./HistoryModal.js', () => ({ HistoryModal: () => null }));
 vi.mock('./FirmConfig.js', () => ({ FirmConfig: () => null }));
 vi.mock('./RefCalendarConfig.js', () => ({ RefCalendarConfig: () => null }));
