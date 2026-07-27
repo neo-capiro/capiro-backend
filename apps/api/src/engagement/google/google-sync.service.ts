@@ -144,6 +144,8 @@ interface GoogleSyncState {
   };
   mail?: {
     historyId?: string | null;
+    incrementalPageToken?: string | null;
+    incrementalLatestHistoryId?: string | null;
     labels?: Record<string, MailLabelSyncState>;
     updatedAt?: string | null;
     lastStats?: SyncStats;
@@ -157,6 +159,7 @@ interface GoogleSyncState {
 interface MailLabelSyncState {
   backfillPageToken?: string | null;
   backfillDone?: boolean;
+  backfillQuery?: string | null;
   updatedAt?: string | null;
 }
 
@@ -365,10 +368,36 @@ export class GoogleSyncService {
   ): Promise<SyncStats> {
     const stats = emptyStats();
     const current = state.calendar ?? {};
-    const window = calendarWindow();
     const useSyncToken = !input.reset && Boolean(current.syncToken);
-    let pageToken: string | null = current.pageToken ?? null;
+    let pageToken: string | null = input.reset ? null : (current.pageToken ?? null);
     let syncToken: string | null = null;
+
+    let window: { from: string; to: string };
+    if (useSyncToken) {
+      // Sync-token path is unchanged: window isn't sent to the API below, but
+      // a fresh value is still computed/persisted exactly as before.
+      window = calendarWindow();
+    } else if (!input.reset && pageToken && current.window) {
+      // Resuming a paginated full-window sync: reuse the EXACT window that
+      // produced this pageToken. calendarWindow() computes from "now", so
+      // recalculating it on every scheduler tick would silently drift
+      // timeMin/timeMax out from under a still-valid pageToken.
+      window = current.window;
+    } else if (!input.reset && pageToken && !current.window) {
+      // Legacy state: a page token was persisted before `window` was tracked.
+      // It cannot be trusted against a freshly computed window — discard it
+      // and restart the full-window sync from page one instead of reusing an
+      // unbound provider token.
+      this.logger.warn(
+        `Google Calendar pageToken for connection ${connection.id} has no stored window; discarding and restarting from page one`,
+      );
+      pageToken = null;
+      window = calendarWindow();
+    } else {
+      // Explicit reset, or no full-window continuation exists (first run, or
+      // a prior cycle already completed) — safe to compute a fresh window.
+      window = calendarWindow();
+    }
 
     for (let page = 0; page < MAX_CALENDAR_PAGES_PER_RUN; page += 1) {
       stats.pages += 1;
@@ -383,11 +412,12 @@ export class GoogleSyncService {
         // 410 GONE => the syncToken expired; drop it and force a full-window
         // resync on the next run (direct analog of Graph's resync-required).
         if (isGoneError(err) && useSyncToken) {
+          // Do not carry the expired cycle's window forward — the next full
+          // run has no continuation to resume, so it computes a fresh one.
           state.calendar = {
             syncToken: null,
             pageToken: null,
             updatedAt: new Date().toISOString(),
-            window,
             lastStats: stats,
           };
           return stats;
@@ -598,6 +628,8 @@ export class GoogleSyncService {
           `Gmail historyId too old for connection ${connection.id}; resetting to full backfill`,
         );
         mailState.historyId = null;
+        mailState.incrementalPageToken = null;
+        mailState.incrementalLatestHistoryId = null;
         mailState.labels = {};
       }
     }
@@ -615,7 +647,28 @@ export class GoogleSyncService {
     } else {
       const stats = emptyStats();
       let pageToken: string | null = input.reset ? null : (current.backfillPageToken ?? null);
-      const query = `after:${Math.floor(addDays(new Date(), -MAIL_BACKFILL_DAYS).getTime() / 1000)} ${MAIL_EXCLUDE_QUERY}`;
+
+      // The pageToken a prior run stored is only valid against the EXACT query
+      // that produced it. `after:` is a Unix timestamp computed from "now", so
+      // recomputing it on every scheduler tick would silently drift the query
+      // out from under a still-valid pageToken. Freeze it once per backfill
+      // cycle and reuse verbatim on every resume within that cycle.
+      let query: string;
+      if (input.reset || !pageToken) {
+        query = `after:${Math.floor(addDays(new Date(), -MAIL_BACKFILL_DAYS).getTime() / 1000)} ${MAIL_EXCLUDE_QUERY}`;
+      } else if (current.backfillQuery) {
+        query = current.backfillQuery;
+      } else {
+        // Legacy state: a page token was persisted before backfillQuery
+        // existed. It cannot be trusted against a freshly computed query —
+        // discard it and restart the backfill from page one instead of
+        // reusing an unbound provider token.
+        this.logger.warn(
+          `Gmail backfill pageToken for connection ${connection.id} has no stored query; discarding and restarting from page one`,
+        );
+        pageToken = null;
+        query = `after:${Math.floor(addDays(new Date(), -MAIL_BACKFILL_DAYS).getTime() / 1000)} ${MAIL_EXCLUDE_QUERY}`;
+      }
 
       for (let page = 0; page < MAX_MAIL_PAGES_PER_LABEL_PER_RUN; page += 1) {
         stats.pages += 1;
@@ -655,6 +708,7 @@ export class GoogleSyncService {
       labelStates[MAIL_BACKFILL_SCOPE] = {
         backfillPageToken: pageToken,
         backfillDone: !pageToken,
+        backfillQuery: query,
         updatedAt: new Date().toISOString(),
       };
       results[MAIL_BACKFILL_SCOPE] = stats;
@@ -689,8 +743,13 @@ export class GoogleSyncService {
     // must end as 'remove', and vice versa; the old first-seen Set kept
     // whichever event came first.
     const ops = new Map<string, { action: 'upsert' | 'remove'; reason?: 'deleted' | 'trashed' | 'spam' }>();
-    let pageToken: string | null = null;
-    let latestHistoryId: string | null = startHistoryId;
+    // Resume exactly where a prior capped run left off, rather than always
+    // starting a fresh page chain from startHistoryId — a mailbox with more
+    // than MAX_MAIL_PAGES_PER_LABEL_PER_RUN pages of change would otherwise
+    // never reach its later pages, since each run silently discarded the
+    // provider's nextPageToken.
+    let pageToken: string | null = mailState.incrementalPageToken ?? null;
+    let latestHistoryId: string | null = mailState.incrementalLatestHistoryId ?? startHistoryId;
 
     for (let page = 0; page < MAX_MAIL_PAGES_PER_LABEL_PER_RUN; page += 1) {
       stats.pages += 1;
@@ -740,7 +799,19 @@ export class GoogleSyncService {
     }
 
     stats.hasMore = Boolean(pageToken);
-    mailState.historyId = latestHistoryId;
+    if (pageToken) {
+      // Provider pages remain beyond this run's cap. Freeze progress exactly
+      // where Gmail left off — historyId must NOT advance yet, or the next
+      // run would start its history window past pages we never fetched.
+      mailState.incrementalPageToken = pageToken;
+      mailState.incrementalLatestHistoryId = latestHistoryId;
+    } else {
+      // Page chain exhausted for real: this run's latest historyId is now a
+      // safe baseline, and any prior continuation is done.
+      mailState.historyId = latestHistoryId;
+      mailState.incrementalPageToken = null;
+      mailState.incrementalLatestHistoryId = null;
+    }
     return stats;
   }
 
