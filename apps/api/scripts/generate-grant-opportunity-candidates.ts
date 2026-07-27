@@ -32,11 +32,20 @@
  * details.ts precedent.
  *
  * ── Idempotency ──────────────────────────────────────────────────────────────
- * No unique index exists yet on (tenantId, clientId, grantOpportunityId,
- * relationshipType) — verified against schema.prisma:5383-5385, three plain
- * @@index, no @@unique. So this is find-then-create-or-update, not upsert. A
- * concurrent double-run COULD duplicate rows until that index lands (plan §6
- * follow-up) — do not disable runWithSyncRun's default skipIfRunning guard.
+ * A unique index now exists (migration 20260806010000_client_grant_nexus_
+ * producer_unique) on (tenantId, clientId, grantOpportunityId,
+ * relationshipType, evidenceSourceType) — five columns, not the four originally
+ * proposed in the B3 remediation note: the existing regression test "a
+ * human-created row for the same pair is never read or touched" deliberately
+ * lets a producer row and a human (`analyst_manual_entry`) row coexist for the
+ * same (tenant, client, grant, relationshipType) — only a collision within the
+ * SAME evidenceSourceType (i.e. this script racing itself) is the actual
+ * concurrency bug B3 closes. This is still find-then-create-or-update, not
+ * upsert — a genuine double-run now surfaces as a caught P2002 (counted as an
+ * error, logged) instead of a silent duplicate row, which is what the
+ * per-grant try/catch below already exists to handle. Do not disable
+ * runWithSyncRun's default skipIfRunning guard, which remains the primary
+ * defense; the index is the backstop for when that guard is bypassed.
  *
  * Never deletes: a previously-generated candidate that drops below the floor
  * is marked `verificationStatus: 'rejected'` (every read path already filters
@@ -146,7 +155,9 @@ export interface CandidatesPrisma {
     >;
   };
   clientGrantNexus: {
-    findFirst(args: unknown): Promise<{ id: string; verificationStatus: string } | null>;
+    findMany(
+      args: unknown,
+    ): Promise<Array<{ id: string; grantOpportunityId: string | null; verificationStatus: string }>>;
     create(args: unknown): Promise<unknown>;
     update(args: unknown): Promise<unknown>;
   };
@@ -313,6 +324,31 @@ export async function generateCandidates(
       }
 
       await withBypass(prisma, async (tx) => {
+        // Batched ONCE per client instead of once per (client, grant) pair —
+        // measured 2026-07-27 against capiro-internal: 567 sequential findFirst
+        // calls took 780-960ms/client; one findMany here is 4-6ms (130-240x).
+        // Scoped to THIS script's own rows only — a human-entered relationship
+        // for the same pair is a DIFFERENT evidenceSourceType and is never
+        // read or touched here (see "a human-created row for the same pair is
+        // never read or touched" below).
+        const existingRows = await tx.clientGrantNexus.findMany({
+          where: {
+            tenantId,
+            clientId: client.id,
+            relationshipType: RELATIONSHIP_TYPE,
+            evidenceSourceType: EVIDENCE_SOURCE_TYPE,
+          },
+          select: { id: true, grantOpportunityId: true, verificationStatus: true },
+        });
+        const existingByGrantId = new Map(
+          existingRows
+            .filter(
+              (r): r is { id: string; grantOpportunityId: string; verificationStatus: string } =>
+                r.grantOpportunityId != null,
+            )
+            .map((r) => [r.grantOpportunityId, { id: r.id, verificationStatus: r.verificationStatus }]),
+        );
+
         for (const grant of grants) {
           evaluated++;
           try {
@@ -330,18 +366,7 @@ export async function generateCandidates(
             });
             const clears = scored.relevanceScore >= options.minRelevance;
 
-            // Scoped to THIS script's own rows only — a human-entered
-            // relationship for the same pair is never read or touched here.
-            const existing = await tx.clientGrantNexus.findFirst({
-              where: {
-                tenantId,
-                clientId: client.id,
-                grantOpportunityId: grant.id,
-                relationshipType: RELATIONSHIP_TYPE,
-                evidenceSourceType: EVIDENCE_SOURCE_TYPE,
-              },
-              select: { id: true, verificationStatus: true },
-            });
+            const existing = existingByGrantId.get(grant.id) ?? null;
 
             if (!clears) {
               if (existing && existing.verificationStatus !== 'rejected') {
@@ -417,14 +442,16 @@ export async function generateCandidates(
 
 async function main(): Promise<void> {
   const parsed = parseArgs(process.argv);
-  // The `continue` fix above is what makes withBypass's per-client transaction
-  // long: it goes from ~1 query (bail at grant #1) to one per active grant.
-  // Measured 2026-07-27 against capiro-internal — 567 sequential findFirst
-  // inside a single transaction takes 780–960 ms per client, comfortably under
-  // Prisma 5.22's 5 000 ms default. These explicit values keep ~30× headroom
-  // for an Aurora latency spike without masking a real regression, and raise
-  // `maxWait` because pool-acquisition timeout is the failure signature this
-  // repo has actually been bitten by (2026-07-21 graph-sync P2028).
+  // The `continue` fix (above) makes withBypass's per-client transaction do
+  // real work for every active grant instead of bailing at #1; batching the
+  // per-grant findFirst into one findMany (also above) is what keeps that
+  // affordable — measured 2026-07-27 against capiro-internal, 567 sequential
+  // findFirst calls took 780-960ms/client pre-batching vs. a single ~4-6ms
+  // findMany now. These explicit timeout/maxWait values are left generous
+  // (comfortably over even the pre-batching duration) rather than tightened
+  // to the new, much smaller number — an Aurora latency spike is still
+  // possible, and `maxWait` in particular guards against the failure mode
+  // this repo has actually been bitten by (2026-07-21 graph-sync P2028).
   const prisma = new PrismaClient({ transactionOptions: { timeout: 30_000, maxWait: 10_000 } });
 
   try {

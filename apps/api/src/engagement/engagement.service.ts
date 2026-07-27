@@ -71,10 +71,12 @@ import {
   billStatusLabel,
   currentCycleFyOf,
   DELIVERABLE_RISK_TIERS,
+  GOOGLE_WORKSPACE_SCOPES,
   isTenantAdmin,
   type AiGenerationUsageLike,
   type TenantContext,
 } from '@capiro/shared';
+import { MICROSOFT_SCOPES } from './microsoft/microsoft-oauth-constants.js';
 import {
   outreachDraftHoldKey,
   OUTREACH_HOLD_BLOCKING_STATUSES,
@@ -10288,23 +10290,14 @@ function unique<T>(values: T[]): T[] {
 
 function defaultScopes(provider: EngagementProvider): string[] {
   if (provider === EngagementProvider.microsoft_365) {
-    return [
-      'offline_access',
-      'User.Read',
-      'Mail.Read',
-      'Mail.ReadWrite',
-      'Mail.Send',
-      'Calendars.Read',
-    ];
+    return [...MICROSOFT_SCOPES];
   }
   if (provider === EngagementProvider.google_workspace) {
-    return [
-      'https://www.googleapis.com/auth/gmail.readonly',
-      'https://www.googleapis.com/auth/gmail.send',
-      'https://www.googleapis.com/auth/calendar.events.readonly',
-    ];
+    return [...GOOGLE_WORKSPACE_SCOPES];
   }
-  if (provider === EngagementProvider.imap_caldav) return ['imap.read', 'caldav.read'];
+  if (provider === EngagementProvider.imap_caldav) {
+    return ['imap.read', 'caldav.read'];
+  }
   return [];
 }
 

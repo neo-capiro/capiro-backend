@@ -43,6 +43,8 @@ export function EditorRail({
   meriEnabled,
   watcherEnabled,
   agenticEnabled,
+  focusWatch,
+  onWatchFocused,
   meriSummary,
   currentUserId,
   existingNodeIds,
@@ -76,6 +78,14 @@ export function EditorRail({
    * executionAgent flags). Optional so an older cached /me shape degrades.
    */
   agenticEnabled?: boolean;
+  /**
+   * Phase 1 §3 Step 3: the header's Watch chip asks the panel to reveal its
+   * Watch block. The panel scrolls it into view and flags it briefly; Phase 4
+   * replaces the block itself.
+   */
+  focusWatch?: boolean;
+  /** Acknowledges a focusWatch request so it fires once per click. */
+  onWatchFocused?: () => void;
   meriSummary?: string | null;
   currentUserId: string | undefined;
   existingNodeIds: string[];
@@ -297,7 +307,13 @@ export function EditorRail({
               onAsk={(t, ids) => runAssistant('strategy', undefined, t, ids)}
             />
             {/* Stage F: Watch-mode affordance (agenticMeri+strategyWatcher UI belt). */}
-            {watcherEnabled && <WatchRail strategyId={strategyId} />}
+            {watcherEnabled && (
+              <WatchRail
+                strategyId={strategyId}
+                focus={focusWatch}
+                onFocused={onWatchFocused}
+              />
+            )}
           </>
         ) : (
           <>
@@ -315,7 +331,13 @@ export function EditorRail({
               Select a step on the timeline to edit its fields, re-time it, or delete it. Use{' '}
               <b>+ Add step</b> in the header to create one.
             </div>
-            {watcherEnabled && <WatchRail strategyId={strategyId} />}
+            {watcherEnabled && (
+              <WatchRail
+                strategyId={strategyId}
+                focus={focusWatch}
+                onFocused={onWatchFocused}
+              />
+            )}
           </>
         )}
       </div>

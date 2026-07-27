@@ -129,10 +129,12 @@ export class ActionItemController {
   @Get(':clientId/alerts/:alertId/memo-link')
   getMemo(
     @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Param('clientId') _clientId: string,
+    @Param('clientId') clientId: string,
     @Param('alertId') alertId: string,
   ) {
-    return this.svc.getMemo(ctx.tenantId, alertId);
+    // Gate J (HP-06/C-2): the path clientId used to be bound to `_clientId` and
+    // discarded, so this returned ANY client's memo link for a matching alertId.
+    return this.svc.getMemo(ctx.tenantId, clientId, alertId);
   }
 
   @Post(':clientId/alerts/:alertId/talking-point')

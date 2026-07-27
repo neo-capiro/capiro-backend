@@ -9,8 +9,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { App } from 'antd';
-import { Icon, btnGhost, iconBtn } from './strategy-ui.js';
+import { Icon, btnGhost } from './strategy-ui.js';
 import { StrategyTimeline } from './StrategyTimeline.js';
+import { StrategyHeader, type LayerKey } from './StrategyHeader.js';
 import { EditorRail } from './NodeRail.js';
 import { HistoryModal } from './HistoryModal.js';
 import { FirmConfig } from './FirmConfig.js';
@@ -26,6 +27,7 @@ import {
   useMissions,
   useCreateMission,
   useUpdateMission,
+  useChangeSets,
 } from './api.js';
 import { useClientsLite } from './clients-lite.js';
 import { useTenantMembers } from './members.js';
@@ -37,13 +39,12 @@ import { clip } from './context/context-utils.js';
 import {
   canShowWatchRail,
   findExecutionMission,
+  findWatchMission,
   EXECUTION_MISSION_NAME,
   classifyWaitingReason,
 } from './agents/agent-utils.js';
 import { buildCalendar, formatDbDate } from './fiscal.js';
 import type { StrategyNode, StrategyNodeArtifact } from './types.js';
-
-type LayerKey = 'ppbe' | 'congress';
 
 export function StrategyEditorPage() {
   const { id = null } = useParams();
@@ -71,6 +72,10 @@ export function StrategyEditorPage() {
   const [draftBannerClosed, setDraftBannerClosed] = useState(false);
   const flashTimer = useRef<number>();
   const [searchParams] = useSearchParams();
+  // Step 3: the header's Watch chip asks the panel to reveal its Watch block.
+  const [focusWatch, setFocusWatch] = useState(false);
+  // Step 10: this page owns the editor's vertical scroll container.
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const addNode = useAddNode(id ?? '');
   const updateNode = useUpdateNode(id ?? '');
@@ -117,6 +122,30 @@ export function StrategyEditorPage() {
   // flags). Optional so an older cached /me shape degrades to hidden.
   const agenticEnabled = Boolean(me.data?.features?.agenticMeri);
 
+  // Step 3 (interim Watch chip). Both reads reuse queries the Watch panel
+  // already makes — same React Query keys, so this costs no extra request, and
+  // both are gated on watcherEnabled (⊆ agenticMeri) so a non-canaried tenant
+  // never fires a request the server would 403.
+  //
+  // "Current-head" caveat: StrategyDetail exposes no head version id, and
+  // nothing client-side resolves one (the review queue discovers staleness
+  // lazily from apply's 409). So the count is the strategy's `proposed`
+  // change-sets — what the app currently treats as actionable. Phase 3 adds the
+  // version-aware revalidation that makes this exact.
+  const watchProposals = useChangeSets({ strategyId: id ?? undefined, status: 'proposed' }, watcherEnabled);
+  const watchMission = findWatchMission(missions.data ?? [], id ?? '');
+  const watchChip = watcherEnabled
+    ? { on: watchMission?.state === 'active', pending: watchProposals.data?.length ?? 0 }
+    : null;
+
+  // Step 10: every open starts at the top of the plan. Keyed on the strategy id
+  // ONLY — selecting a node (which re-renders this page) must not jump the
+  // timeline back to the top.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = 0;
+  }, [id]);
+
   if (strategy.isLoading) {
     return <div style={{ padding: 40, color: 'var(--ink-3)' }}>Loading strategy…</div>;
   }
@@ -161,14 +190,18 @@ export function StrategyEditorPage() {
     setDraftBannerClosed(true);
   };
 
-  const layerDefs: Array<[LayerKey, string, string]> = [
-    ['ppbe', 'PPBE', 'var(--info)'],
-    ['congress', 'Congress', 'var(--accent)'],
-  ];
-
   const selectNode = (nid: string) => {
     setSelectedId(nid);
     setRailOpen(true);
+  };
+
+  // Step 3: the Watch chip opens the EXISTING editor panel on its Watch block —
+  // it deliberately does not navigate to /strategies/agents/review. The panel
+  // only renders Watch at the strategy level, so any node selection clears.
+  const openWatch = () => {
+    setSelectedId(null);
+    setRailOpen(true);
+    setFocusWatch(true);
   };
 
   const onAddStep = () => {
@@ -279,161 +312,45 @@ export function StrategyEditorPage() {
     <div
       style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}
     >
-      <div
-        style={{
-          padding: '14px 26px 24px',
-          borderBottom: '1px solid var(--border-1)',
-          background: 'var(--bg-surface)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button
-            onClick={() => navigate('/strategies')}
-            style={{ ...iconBtn, border: '1px solid var(--border-2)', width: 30, height: 30 }}
-          >
-            <Icon name="chevleft" size={16} color="var(--ink-2)" />
-          </button>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 'var(--text-xs)',
-                color: 'var(--ink-3)',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-              }}
-            >
-              {clientName} · {STRATEGY_TYPE_LABEL[s.type]}
-            </div>
-            <div
-              style={{
-                fontSize: 25,
-                fontWeight: 700,
-                color: 'var(--ink-1)',
-                letterSpacing: '-0.02em',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                marginTop: 1,
-              }}
-            >
-              {s.title}
-            </div>
-          </div>
-        </div>
+      <StrategyHeader
+        onBack={() => navigate('/strategies')}
+        clientLabel={clientName}
+        typeLabel={STRATEGY_TYPE_LABEL[s.type]}
+        title={s.title}
+        goal={s.goal}
+        layers={layers}
+        onToggleLayer={(k) => setLayers((st) => ({ ...st, [k]: !st[k] }))}
+        watch={watchChip}
+        onOpenWatch={openWatch}
+        onExport={() => setExportOpen(true)}
+        onHistory={() => setHistoryOpen(true)}
+        onAskMeri={() => setRailOpen(true)}
+        meriPanelOpen={railOpen}
+        meriEnabled={meriEnabled}
+        // Manual creation survives ONLY as the Meri-off fallback (§3 Step 2).
+        onAddStep={meriEnabled ? undefined : onAddStep}
+        addStepPending={addNode.isPending}
+      />
 
+      <div style={{ flex: 1, minHeight: 0, minWidth: 0, display: 'flex' }}>
+        {/* Steps 8 + 10: the editor owns VERTICAL scrolling only — horizontal
+            belongs to the timeline's own grid scroller, and overflowX:hidden
+            here means a wide timeline can never widen the document. Every
+            ancestor down to the grid viewport carries min-width:0; without it a
+            flex item refuses to shrink below its content and the overflow
+            escapes to the body. Padding matches the prototype's timeline area
+            (12px top, 26px sides) with its 20px scroll tail. */}
         <div
-          style={{
-            marginTop: 12,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            flexWrap: 'wrap',
-            rowGap: 10,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 'var(--text-2xs)',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              color: 'var(--ink-4)',
-              marginRight: 2,
-            }}
-          >
-            Layers
-          </span>
-          {layerDefs.map(([k, label, c]) => {
-            const on = layers[k];
-            return (
-              <button
-                key={k}
-                onClick={() => setLayers((st) => ({ ...st, [k]: !st[k] }))}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '5px 11px',
-                  borderRadius: 7,
-                  cursor: 'pointer',
-                  border: on ? `1px solid ${c}` : '1px solid var(--border-2)',
-                  background: on ? 'var(--bg-surface-2)' : 'var(--bg-surface)',
-                  color: on ? 'var(--ink-1)' : 'var(--ink-3)',
-                  fontSize: 'var(--text-xs)',
-                  fontWeight: 600,
-                }}
-              >
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: on ? c : 'var(--ink-4)' }} />
-                {label}
-              </button>
-            );
-          })}
-          <span style={{ flex: 1 }} />
-
-          <button
-            onClick={onAddStep}
-            disabled={addNode.isPending}
-            style={{ ...btnGhost, padding: '8px 12px', fontSize: 'var(--text-sm)' }}
-          >
-            <Icon name="plus" size={14} color="var(--ink-2)" /> Add step
-          </button>
-          <button
-            onClick={() => setHistoryOpen(true)}
-            style={{ ...btnGhost, padding: '8px 12px', fontSize: 'var(--text-sm)' }}
-          >
-            <Icon name="clock" size={14} color="var(--ink-2)" /> History
-          </button>
-          <button
-            onClick={() => setExportOpen(true)}
-            style={{ ...btnGhost, padding: '8px 12px', fontSize: 'var(--text-sm)' }}
-          >
-            <Icon name="upload" size={14} color="var(--ink-2)" /> Export
-          </button>
-          {!railOpen &&
-            (meriEnabled ? (
-              // AI on (G5): accent "Ask Meri" CTA.
-              <button
-                onClick={() => setRailOpen(true)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  whiteSpace: 'nowrap',
-                  padding: '8px 16px',
-                  borderRadius: 9,
-                  border: 'none',
-                  background: 'var(--accent)',
-                  color: '#fff',
-                  fontSize: 'var(--text-sm)',
-                  fontWeight: 700,
-                  fontFamily: 'var(--font-sans)',
-                  cursor: 'pointer',
-                }}
-              >
-                <Icon name="spark" size={14} color="#fff" /> Ask Meri
-              </button>
-            ) : (
-              // AI off (SHL-4): ghost "Edit panel" button opens the manual rail.
-              <button
-                onClick={() => setRailOpen(true)}
-                style={{ ...btnGhost, padding: '8px 12px', fontSize: 'var(--text-sm)' }}
-              >
-                <Icon name="panel" size={14} color="var(--ink-2)" /> Edit panel
-              </button>
-            ))}
-        </div>
-      </div>
-
-      <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-        <div
+          ref={scrollRef}
           data-sp-scroll="true"
           onClick={() => setSelectedId(null)}
           style={{
             flex: 1,
+            minWidth: 0,
             minHeight: 0,
-            overflow: 'auto',
-            padding: '16px 26px 24px',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            padding: '12px 26px 20px',
             background: 'var(--bg-canvas)',
           }}
         >
@@ -591,8 +508,9 @@ export function StrategyEditorPage() {
               </ul>
             </div>
           )}
-          <div style={{ zoom: 0.82 as unknown as number }}>
+          <div style={{ zoom: 0.82 as unknown as number, minWidth: 0 }}>
             <StrategyTimeline
+              strategyId={sid}
               calendar={calendar}
               nodes={s.nodes}
               congress={reference.data?.congress ?? []}
@@ -620,6 +538,8 @@ export function StrategyEditorPage() {
             meriEnabled={meriEnabled}
             watcherEnabled={watcherEnabled}
             agenticEnabled={agenticEnabled}
+            focusWatch={focusWatch}
+            onWatchFocused={() => setFocusWatch(false)}
             meriSummary={s.meriSummary}
             currentUserId={user?.id}
             existingNodeIds={s.nodes.map((n) => n.id)}

@@ -439,19 +439,24 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     description: 'Grants.gov fetchOpportunity detail enrichment (daily 10:45 UTC, 45min after the opportunity sync)',
     enabled: false,
   },
-  // ── District Nexus F3 producer (audit remediation phase i3) ────────────────
+  // ── District Nexus F3 producer (audit remediation phase i3, B3) ─────────────
   //
   // Deterministic relevance producer for client_grant_nexus
-  // 'opportunity_candidate' rows. NO live rule exists for this one — unlike the
-  // four above, it has never been hand-created, and it must not be enabled yet.
-  //
-  // 🚧 PRECONDITION BEFORE ENABLING: batch the per-(client, grant) findFirst.
-  // The loop currently issues one findFirst per pair inside withBypass's
-  // per-client transaction. Measured 2026-07-27 against capiro-internal: 567
-  // sequential findFirst = 780–960 ms per client, vs 4–6 ms for one batched
-  // findMany (130–240x). That is 12 clients today but ~67 across all six
-  // tenants, and this repo has already had one Prisma pool-starvation outage
-  // from long-held transactions (2026-07-21 graph-sync P2028).
+  // 'opportunity_candidate' rows. Both preconditions this entry used to block
+  // on are now addressed IN CODE (2026-07-27):
+  //   1. The per-(client, grant) findFirst is batched into one findMany per
+  //      client (was 780-960ms/client for 567 sequential findFirst calls
+  //      against capiro-internal, now ~4-6ms) — see
+  //      generate-grant-opportunity-candidates.ts.
+  //   2. A 5-column unique index (migration
+  //      20260806010000_client_grant_nexus_producer_unique) closes the
+  //      concurrent-double-run duplicate-row risk.
+  // NEITHER is live yet: the migration has not been applied to capiro-dev, and
+  // — like every entry in this file — enabled:true here is a declared desired
+  // state, not a deploy; this repo's EventBridge rules are managed out-of-band
+  // (`aws events put-rule`/`enable-rule`), not via `cdk deploy Capiro-dev-
+  // Compute` (see the hard boundary on that stack). No live rule exists for
+  // this job yet — apply the migration FIRST, then create/enable the rule.
   //
   // Also note the producer only lights up F3. F4's seven award-bearing
   // relationship types have NO producer and no entry UI — reviewer-entered by
@@ -463,7 +468,7 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     tier: 'daily',
     description:
       'District Nexus F3: deterministic opportunity_candidate producer (daily 11:35 UTC, after the assistance sync at 11:20 supplies prior ALNs)',
-    enabled: false,
+    enabled: true,
   },
   {
     id: 'SyncOpenstates',

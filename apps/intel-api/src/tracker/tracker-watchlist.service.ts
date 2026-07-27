@@ -1,6 +1,8 @@
 import {
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
@@ -36,14 +38,26 @@ export function isReservedTopicLabel(label: string): boolean {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
+ * Gate J (MP-02, Neo-confirmed 2026-07-27): the dated grace-window cutover
+ * for requiring `expectedVersion` on `putWatchlist`. The shipped web client
+ * already always sends it (`intel-tracker-api.ts:340`); this only ever
+ * catches a stale cached bundle or a hand-rolled request. Before this date,
+ * an absent `expectedVersion` is accepted and logged (unchanged); from this
+ * date on, it 428s. Do not backdate this without re-confirming — it is a
+ * behavior change to a live write path.
+ */
+const EXPECTED_VERSION_REQUIRED_FROM = new Date('2026-08-10T00:00:00Z');
+
+/**
  * Read/write API for the UNIFIED tracker watchlist (Phase 2, plan §5.2).
  *
  * Operates on the deterministic-id watchlist `wl:<clientId>` + its topics/terms
- * and the per-user `intel_alert_preference`. intel-api has no RLS, so every
- * query filters by the TenantGuard-resolved `tenantId` (app-code isolation).
- * All routes are gated by `tracker_owner_intel` (TrackerOwnerGuard, 404 when
- * off), so during shadow only the internal tenant can write here — apps/api
- * stays source of truth (D6).
+ * and the per-user `intel_alert_preference`. Both carry FORCE ROW LEVEL
+ * SECURITY (`20260706010000_intel_full_rls_hold`) scoped to `tenant_id`; every
+ * query additionally filters by the TenantGuard-resolved `tenantId` in app
+ * code (belt-and-braces, not the only defense). All routes are gated by
+ * `tracker_owner_intel` (TrackerOwnerGuard, 404 when off), so during shadow
+ * only the internal tenant can write here — apps/api stays source of truth (D6).
  */
 export interface TrackerTermInput {
   termType: string;
@@ -334,9 +348,11 @@ export class TrackerWatchlistService {
     input: PutWatchlistInput,
   ): Promise<WatchlistView> {
     // CROSS-TENANT GUARD (batch-A review, CRITICAL): wl:<clientId> is a globally
-    // unique id and intel-api has no RLS, so an unscoped write could clobber
-    // ANOTHER tenant's watchlist (cascade-deleting all their topics/terms).
-    // Prove the client belongs to the caller — same guard the sibling writers
+    // unique id, and while intel_watchlist carries FORCE RLS scoped to
+    // tenant_id, defense-in-depth still requires proving CLIENT ownership
+    // before an unscoped write can clobber ANOTHER tenant's watchlist
+    // (cascade-deleting all their topics/terms). Prove the client belongs to
+    // the caller — same guard the sibling writers
     // (putAlertPrefs/markPhoneVerified) carry; TrackerOwnerGuard only checks the
     // caller's flag, not client ownership.
     await this.assertClientInTenant(tenantId, clientId);
@@ -420,8 +436,12 @@ export class TrackerWatchlistService {
     await this.prisma.withTenant(tenantId, async (tx) => {
       // P1-02: optimistic concurrency on SHARED targeting, checked INSIDE the
       // transaction so the compare and the bump cannot interleave with another
-      // writer. An absent expectedVersion is accepted and logged — making it
-      // required would 400 every save from an in-flight browser tab on deploy.
+      // writer. An absent expectedVersion was originally accepted-and-logged
+      // unconditionally — making it required immediately would have 400ed
+      // every save from an in-flight browser tab on deploy. Gate J (MP-02,
+      // Neo-confirmed 2026-07-27) adds a dated cutover below: the shipped web
+      // client already always sends it, so this only ever catches a stale
+      // cached bundle or a hand-rolled request.
       const head = await tx.watchlist.findFirst({
         where: { id: wlId, tenantId },
         select: { version: true },
@@ -436,8 +456,20 @@ export class TrackerWatchlistService {
         });
       }
       if (input.expectedVersion === undefined) {
+        if (new Date() >= EXPECTED_VERSION_REQUIRED_FROM) {
+          throw new HttpException(
+            {
+              code: 'WATCHLIST_VERSION_REQUIRED',
+              message:
+                'Your app is out of date. Please reload the page before saving targeting changes.',
+              currentVersion: current,
+            },
+            HttpStatus.PRECONDITION_REQUIRED,
+          );
+        }
         this.logger.warn(
-          `putWatchlist without expectedVersion (unversioned client) client=${clientId} version=${current}`,
+          `putWatchlist without expectedVersion (unversioned client, grace window until ` +
+            `${EXPECTED_VERSION_REQUIRED_FROM.toISOString()}) client=${clientId} version=${current}`,
         );
       }
 
@@ -655,11 +687,18 @@ export class TrackerWatchlistService {
    * claim may be absent depending on the JWT template. One extra query on a write
    * path is a fair price for matching what apps/api would decide.
    *
-   * FAIL-OPEN on an indeterminate identity (no membership row): this protects
-   * config integrity between colleagues, not a tenant boundary — cross-tenant access
-   * is already blocked by `assertClientInTenant` plus RLS. Locking a real user out of
-   * a feature they use because their membership row is missing would be a worse
-   * failure than permitting the edit, so that case is allowed and logged.
+   * FAIL-CLOSED on an indeterminate identity (no membership row) — Gate J
+   * (MP-03, Neo-confirmed 2026-07-27, MASTER §7.3). Previously fail-open, on
+   * the reasoning that this protects config integrity between colleagues, not
+   * a tenant boundary (cross-tenant access is already blocked by
+   * `assertClientInTenant` plus RLS). That is still true, but it left a real
+   * hole: `TenantGuard` requires an ACTIVE membership via a near-superset
+   * query, so the one live window this fires in is
+   * `org-tenant-resolver.service.ts`'s 30-second positive-membership cache
+   * serving a stale "active" after the row is deleted — in that window a
+   * just-removed non-admin could rewrite firm-wide targeting. Do NOT touch
+   * `org-tenant-resolver.service.ts` or its cache TTL here — it is
+   * auth-adjacent and any change to it is a separate, Neo-gated decision.
    */
   private async assertCanEditTargeting(tenantId: string, clerkUserId: string): Promise<void> {
     const rows = await this.prisma.withSystem((tx) =>
@@ -675,10 +714,24 @@ export class TrackerWatchlistService {
     );
     const role = rows[0]?.role;
     if (!role) {
-      this.logger.warn(
-        `putWatchlist: no tenant_memberships row for this caller; allowing the edit (fail-open) tenant=${tenantId}`,
+      // The "repair path": this is deliberately an ERROR (not warn) with
+      // enough to investigate, and a distinct code (not the generic
+      // TARGETING_EDIT_FORBIDDEN below) with a message that separates the
+      // two real causes — retry past the 30s cache window, or an admin needs
+      // to repair a missing/stale local `users`/`tenant_memberships` row —
+      // rather than a bypass that hides either from ever surfacing.
+      this.logger.error(
+        `putWatchlist: no tenant_memberships row for this caller — denying the edit ` +
+          `(fail-closed) tenant=${tenantId}. A retry after ~30s resolves a stale positive- ` +
+          `membership-cache read; a repeat past that window means this caller's local ` +
+          `users/tenant_memberships row is missing or stale and needs an admin to repair it.`,
       );
-      return;
+      throw new ForbiddenException({
+        code: 'TARGETING_MEMBERSHIP_UNRESOLVED',
+        message:
+          'We could not verify your membership in this workspace. Please refresh and try again; ' +
+          'if this keeps happening, ask an admin to check your account.',
+      });
     }
     if (!isTenantAdmin(role as TenantRole)) {
       throw new ForbiddenException({
@@ -771,9 +824,12 @@ export class TrackerWatchlistService {
 
   /**
    * Legacy `assertClient` port: 404 unless `clientId` is a client of the
-   * caller's tenant. intel-api has no RLS, and (userId, clientId) — the pref
-   * unique key — carries no tenant, so every pref WRITE must first prove the
-   * client belongs to the caller (cross-tenant review finding, PR-1).
+   * caller's tenant. `intel_*` carries FORCE ROW LEVEL SECURITY
+   * (`20260706010000_intel_full_rls_hold`) scoped to `tenant_id`, but `clients`
+   * is an apps/api-owned table read here via `withSystem` (outside the RLS
+   * session), and (userId, clientId) — the pref unique key — carries no
+   * tenant, so every pref WRITE must first prove the client belongs to the
+   * caller (cross-tenant review finding, PR-1).
    */
   async assertClientInTenant(tenantId: string, clientId: string): Promise<void> {
     if (!UUID_RE.test(clientId)) throw new NotFoundException('Client not found');
@@ -785,6 +841,51 @@ export class TrackerWatchlistService {
       ),
     );
     if (rows.length === 0) throw new NotFoundException('Client not found');
+  }
+
+  /**
+   * Gate J (HP-06): 404 unless `alertId` belongs to BOTH this tenant and this
+   * client. Generalizes the one place this predicate was previously inlined
+   * correctly — `alert-packet.service.ts`'s `build()` — so every alert-bearing
+   * route can share it instead of re-deriving it (or omitting it, as routes
+   * 2-5 in J_INTEGRITY.md §1.1 did). 404, not 403 (MASTER §6/edge case 2): a
+   * miss must not confirm that another client's alert exists. Does not special-
+   * case `_all` — callers pass a real alertId here, and `_all` is only ever a
+   * clientId, never an alertId (MASTER §6.3).
+   */
+  async assertAlertInClient(tenantId: string, clientId: string, alertId: string): Promise<void> {
+    const alert = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelAlert.findFirst({ where: { id: alertId, tenantId, clientId }, select: { id: true } }),
+    );
+    if (!alert) throw new NotFoundException('Alert not found');
+  }
+
+  /**
+   * Gate J (HP-06) b-1/b-2: 404 unless `userId` is a member of this tenant.
+   * `assignedTo` on work-state is a DB `users.id` UUID — confirmed by reading
+   * `tenant-admin.service.ts:143` (`userId: m.user.id`), the SAME id
+   * `GET /api/tenant-admin/team` returns and the Assign picker
+   * (`TrackerFeedPanel.tsx`'s `<select>`) sends back. This is DELIBERATELY the
+   * opposite id-space from `trackedBy`, which is a Clerk id — the exact trap
+   * Gate H hit and got right for `trackedBy` (tracker-components.tsx:292-296);
+   * getting `assignedTo` wrong here would repeat it in the other direction.
+   * `withSystem`: `tenant_memberships`/`users` are apps/api-owned FORCE-RLS
+   * tables, the same cross-schema-read posture as `assertClientInTenant`. No
+   * status filter, matching `listTeam()` (`tenant-admin.service.ts:130-153`)
+   * exactly — the roster the picker offers has none either, so this never
+   * rejects an id the UI let someone pick.
+   */
+  async assertTenantMember(tenantId: string, userId: string): Promise<void> {
+    if (!UUID_RE.test(userId)) throw new NotFoundException('User not found');
+    const rows = await this.prisma.withSystem((tx) =>
+      tx.$queryRawUnsafe<Array<{ id: string }>>(
+        'SELECT m.id::text AS id FROM tenant_memberships m JOIN users u ON u.id = m.user_id ' +
+          'WHERE u.id = $1::uuid AND m.tenant_id = $2::uuid LIMIT 1',
+        userId,
+        tenantId,
+      ),
+    );
+    if (rows.length === 0) throw new NotFoundException('User not found');
   }
 
   /**
@@ -922,8 +1023,8 @@ export class TrackerWatchlistService {
    * Facility-derived jurisdiction hint for a client (S5.1) — the exact
    * suggestedIssueAreas precedent (getSectorSuggestion above): read-only,
    * never written, absent once the client has explicitly configured
-   * jurisdictions. withSystem because client_facilities is tenant-scoped and
-   * intel-api has no RLS.
+   * jurisdictions. withSystem because client_facilities is an apps/api-owned
+   * table intel-api has no Prisma model for, not because intel_* lacks RLS.
    */
   async suggestedJurisdictions(tenantId: string, clientId: string): Promise<string[]> {
     if (!UUID_RE.test(clientId)) return [];

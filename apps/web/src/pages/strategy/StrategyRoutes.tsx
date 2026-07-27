@@ -35,7 +35,7 @@ export function StrategyRoutes() {
   const agentic = Boolean(me.data.features.agenticMeri);
 
   return (
-    <div className="sp-root" style={{ height: '100%', overflow: 'hidden' }}>
+    <div className="sp-root" style={{ height: '100%', minWidth: 0, overflow: 'hidden' }}>
       <Routes>
         <Route index element={<StrategyLibraryPage />} />
         <Route

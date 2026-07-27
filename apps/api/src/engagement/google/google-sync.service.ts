@@ -61,6 +61,11 @@ const MAX_RETRYABLE_ATTEMPTS = 3;
 const MAIL_BACKFILL_SCOPE = 'ALL';
 const MAIL_EXCLUDE_QUERY = '-in:spam -in:trash -in:draft';
 const EXCLUDED_LABEL_IDS: ReadonlySet<string> = new Set(['SPAM', 'TRASH', 'DRAFT']);
+// Bound on the SEPARATE attachments.get fetch gmailGet issues when the
+// preferred body part has no inline data. This is a fetch-size guard, not the
+// stored-text bound -- extractGmailBodyText's 100,000-char truncation is
+// unchanged and still applies after decoding whatever this pulls down.
+const GMAIL_BODY_ATTACHMENT_MAX_BYTES = 1_048_576;
 
 /**
  * Derive the stored folder label + sent-ness from a message's own labelIds
@@ -237,6 +242,11 @@ interface GmailMessage {
   internalDate?: string;
   historyId?: string;
   payload?: GmailMessagePart;
+}
+
+interface GmailAttachmentResponse {
+  data?: string;
+  size?: number;
 }
 
 interface CalendarDateTime {
@@ -879,6 +889,10 @@ export class GoogleSyncService {
     // duplicated across four columns in two tables (mailThread.raw,
     // mailMessage.raw, both on create and update).
     const rawForStorage = stripGmailBodyData(message) as unknown as Prisma.InputJsonValue;
+    // Computed once, before the transaction: used for BOTH association scoring
+    // and the stored MailMessage row below, so extractGmailBodyText's MIME
+    // walk never runs twice for the same message.
+    const bodyText = extractGmailBodyText(message.payload) ?? clean(message.snippet);
 
     return this.prisma.withTenantRetry(
       tenantId,
@@ -912,7 +926,7 @@ export class GoogleSyncService {
             });
         const association = await this.association.associate(tx, tenantId, {
           subject,
-          body: message.snippet,
+          body: bodyText,
           participantEmails,
         });
         const hasManualOverride = existingThread
@@ -994,7 +1008,7 @@ export class GoogleSyncService {
             bccRecipients: bccRecipients as unknown as Prisma.InputJsonValue,
             sentAt: isSent ? messageDate : null,
             receivedAt: messageDate,
-            bodyText: extractGmailBodyText(message.payload) ?? clean(message.snippet),
+            bodyText,
             hasAttachments,
             removedAt: null,
             removedReason: null,
@@ -1020,7 +1034,7 @@ export class GoogleSyncService {
             bccRecipients: bccRecipients as unknown as Prisma.InputJsonValue,
             sentAt: isSent ? messageDate : null,
             receivedAt: messageDate,
-            bodyText: extractGmailBodyText(message.payload) ?? clean(message.snippet),
+            bodyText,
             hasAttachments,
             removedAt: null,
             removedReason: null,
@@ -1098,8 +1112,66 @@ export class GoogleSyncService {
     // NO scope change is required and none must be made -- a scope change
     // re-triggers Google brand verification (see GOOGLE_WORKSPACE_SCOPES).
     const params = new URLSearchParams({ format: 'full' });
-    return this.googleGet<GmailMessage>(
+    const message = await this.googleGet<GmailMessage>(
       `${GMAIL_BASE_URL}/users/me/messages/${encodeURIComponent(id)}?${params.toString()}`,
+      accessToken,
+    );
+    return this.hydrateGmailAttachmentBody(accessToken, message);
+  }
+
+  /**
+   * Some MIME parts carry body.attachmentId with no inline body.data --
+   * Gmail does this for large-ish plain/html bodies. Fetches that ONE
+   * attachment (bounded by GMAIL_BODY_ATTACHMENT_MAX_BYTES) and assigns the
+   * decoded-later data back into the SAME in-memory part findPreferredGmail-
+   * TextPart selected, so extractGmailBodyText finds it afterward. Skips
+   * (returns the unhydrated message) rather than failing the whole sync when
+   * there is nothing to hydrate, the part is oversized, or Gmail reports the
+   * attachment gone -- persistence's snippet fallback covers all of those.
+   */
+  private async hydrateGmailAttachmentBody(
+    accessToken: string,
+    message: GmailMessage,
+  ): Promise<GmailMessage> {
+    const part = findPreferredGmailTextPart(message.payload);
+    const attachmentId = part?.body?.attachmentId;
+    if (!attachmentId || part?.body?.data || !message.id) return message;
+
+    const size = part?.body?.size ?? 0;
+    if (size > GMAIL_BODY_ATTACHMENT_MAX_BYTES) {
+      this.logger.warn(
+        `Gmail message ${message.id} body attachment is ${size} bytes, exceeding the ` +
+          `${GMAIL_BODY_ATTACHMENT_MAX_BYTES}-byte bound; falling back to snippet`,
+      );
+      return message;
+    }
+
+    let attachment: GmailAttachmentResponse;
+    try {
+      attachment = await this.gmailGetAttachment(accessToken, message.id, attachmentId);
+    } catch (err) {
+      if (isMessageGoneError(err)) {
+        this.logger.warn(
+          `Gmail message ${message.id} body attachment is gone (404/410); falling back to snippet`,
+        );
+        return message;
+      }
+      throw err;
+    }
+
+    if (attachment.data && part?.body) {
+      part.body.data = attachment.data;
+    }
+    return message;
+  }
+
+  private async gmailGetAttachment(
+    accessToken: string,
+    messageId: string,
+    attachmentId: string,
+  ): Promise<GmailAttachmentResponse> {
+    return this.googleGet<GmailAttachmentResponse>(
+      `${GMAIL_BASE_URL}/users/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`,
       accessToken,
     );
   }
@@ -1377,38 +1449,45 @@ function truncateGmailBody(text: string): string {
 
 /** Depth-first search for the first part matching `mimeType`, skipping any
  *  part with a non-empty `filename` -- that is an attachment, not body text.
- *  A non-multipart message has its content on `payload` itself (no `parts`
- *  array), which this matches because the check runs on `part` before it
- *  recurses into children. */
-function findGmailBodyPart(part: GmailMessagePart, mimeType: string): GmailMessagePart | null {
+ *  A candidate is valid with either inline `body.data` or an unhydrated
+ *  `body.attachmentId` (gmailGet fetches the latter separately, bounded, and
+ *  assigns it back into this same part). A non-multipart message has its
+ *  content on `payload` itself (no `parts` array), which this matches because
+ *  the check runs on `part` before it recurses into children. */
+function findGmailTextPart(
+  part: GmailMessagePart,
+  mimeType: 'text/plain' | 'text/html',
+): GmailMessagePart | null {
   if (part.filename && part.filename.length > 0) return null;
-  if (part.mimeType === mimeType && part.body?.data) return part;
+  if (part.mimeType === mimeType && (part.body?.data || part.body?.attachmentId)) return part;
   for (const child of part.parts ?? []) {
-    const found = findGmailBodyPart(child, mimeType);
+    const found = findGmailTextPart(child, mimeType);
     if (found) return found;
   }
   return null;
 }
 
+/** The single preferred body part: text/plain first, text/html fallback.
+ *  gmailGet hydrates whichever part this selects, and extractGmailBodyText
+ *  selects the SAME part later -- they must agree, or a hydration fetch goes
+ *  to a part extraction never reads. */
+function findPreferredGmailTextPart(payload: GmailMessagePart | undefined): GmailMessagePart | null {
+  if (!payload) return null;
+  return findGmailTextPart(payload, 'text/plain') ?? findGmailTextPart(payload, 'text/html');
+}
+
 /**
- * Depth-first walk for the first text/plain part, falling back to text/html
- * stripped to text. Returns null when the message is attachment-only or has
- * no payload. Exported so it is unit-testable without a live Gmail fetch.
+ * Decodes the preferred body part's INLINE data only -- an attachment-backed
+ * part with no body.data yet (hydration skipped or failed) yields null here,
+ * same as no body at all; the caller falls back to the snippet. Remains
+ * synchronous: fetching the attachment is gmailGet's job. Exported so it is
+ * unit-testable without a live Gmail fetch.
  */
 export function extractGmailBodyText(payload: GmailMessagePart | undefined): string | null {
-  if (!payload) return null;
-
-  const plainPart = findGmailBodyPart(payload, 'text/plain');
-  if (plainPart?.body?.data) {
-    return truncateGmailBody(decodeGmailBodyData(plainPart.body.data));
-  }
-
-  const htmlPart = findGmailBodyPart(payload, 'text/html');
-  if (htmlPart?.body?.data) {
-    return truncateGmailBody(stripHtmlToText(decodeGmailBodyData(htmlPart.body.data)));
-  }
-
-  return null;
+  const part = findPreferredGmailTextPart(payload);
+  if (!part?.body?.data) return null;
+  const decoded = decodeGmailBodyData(part.body.data);
+  return truncateGmailBody(part.mimeType === 'text/html' ? stripHtmlToText(decoded) : decoded);
 }
 
 /** Deep copy of the message with every body.data cleared, preserving the MIME

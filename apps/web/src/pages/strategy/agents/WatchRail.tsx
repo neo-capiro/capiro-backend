@@ -14,7 +14,7 @@
  * third trigger source next to the cadence scheduler and this manual button;
  * nothing in this component assumes triggers are only manual/scheduled.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App } from 'antd';
 import { Chip, Icon, chipBtn, fieldLbl } from '../strategy-ui.js';
@@ -30,7 +30,20 @@ import { WATCH_MISSION_NAME, findWatchMission } from './agent-utils.js';
 import { FindingsList } from './ReviewQueue.js';
 import type { RunCheckResult } from '../types.js';
 
-export function WatchRail({ strategyId }: { strategyId: string }) {
+export function WatchRail({
+  strategyId,
+  focus,
+  onFocused,
+}: {
+  strategyId: string;
+  /**
+   * Phase 1 §3 Step 3: the header's Watch chip opens the panel here rather than
+   * navigating to the separate review queue. Scrolls this block into view and
+   * outlines it briefly. Phase 4 replaces the block itself.
+   */
+  focus?: boolean;
+  onFocused?: () => void;
+}) {
   const navigate = useNavigate();
   const { message } = App.useApp();
   const missions = useMissions(strategyId);
@@ -39,6 +52,20 @@ export function WatchRail({ strategyId }: { strategyId: string }) {
   const runCheck = useRunCheck();
   const proposed = useChangeSets({ strategyId, status: 'proposed' });
   const [lastCheck, setLastCheck] = useState<RunCheckResult | null>(null);
+  const blockRef = useRef<HTMLDivElement>(null);
+  const [flagged, setFlagged] = useState(false);
+
+  // Reveal-on-request. Acknowledged immediately so a second chip click focuses
+  // again, and the outline clears on a timer that is cancelled on unmount.
+  useEffect(() => {
+    if (!focus) return;
+    blockRef.current?.scrollIntoView({ block: 'nearest' });
+    setFlagged(true);
+    onFocused?.();
+    const t = window.setTimeout(() => setFlagged(false), 2200);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus]);
 
   const mission = findWatchMission(missions.data ?? [], strategyId);
   const watching = mission?.state === 'active';
@@ -87,7 +114,21 @@ export function WatchRail({ strategyId }: { strategyId: string }) {
   };
 
   return (
-    <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 12 }}>
+    <div
+      ref={blockRef}
+      style={{
+        borderTop: '1px solid var(--border-1)',
+        paddingTop: 12,
+        ...(flagged
+          ? {
+              outline: '2px solid var(--accent)',
+              outlineOffset: 4,
+              borderRadius: 6,
+              transition: 'outline-color 0.2s',
+            }
+          : null),
+      }}
+    >
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
         <Icon name="radar" size={14} color="var(--ink-2)" />
         <span

@@ -37,7 +37,7 @@ encode() {
 # Fallback: use node since it's always present in this image.
 ENCODED_PASSWORD=$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$DB_PASSWORD")
 
-export DATABASE_URL="postgresql://${DB_USER}:${ENCODED_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public&sslmode=require"
+export DATABASE_URL="postgresql://${DB_USER}:${ENCODED_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public&sslmode=require&connection_limit=10"
 
 # tsx writes its compile cache under TMPDIR; this image has no /tmp or /app/tmp, so
 # an unset TMPDIR makes tsx-based verbs (sync-*/diag-*/reconcile-*) crash. /dev/shm
@@ -198,6 +198,22 @@ case "${1:-serve}" in
     shift
     echo "Running reclaim-google-mail $*"
     exec ./node_modules/.bin/tsx scripts/reclaim-google-mail.ts "$@"
+    ;;
+  backfill-mail-removal-state)
+    # Idempotent historical repair: recompute mail_thread snippet/lastMessageAt/
+    # metadata.deleted for threads that had a removed message before the
+    # removal-state migration existed. DRY RUN by default; pass
+    # --tenant=<slug|uuid> | --all-tenants [--commit].
+    shift
+    echo "Running backfill-mail-removal-state $*"
+    exec ./node_modules/.bin/tsx scripts/backfill-mail-removal-state.ts "$@"
+    ;;
+  smoke-integrations)
+    # Read-only Google/Microsoft integration diagnostic: syncState continuation
+    # fields, active/removed mail counts. Never writes. Pass --tenant=<slug|uuid>.
+    shift
+    echo "Running smoke-integrations $*"
+    exec ./node_modules/.bin/tsx scripts/smoke-integrations.ts "$@"
     ;;
   delete-tenant)
     shift

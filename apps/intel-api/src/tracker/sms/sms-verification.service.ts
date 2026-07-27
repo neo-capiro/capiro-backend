@@ -15,8 +15,9 @@ export function hashCode(code: string, phone: string): string {
  * (P1.1, ported from apps/api/src/tracker/sms/sms-verification.service.ts).
  * The OTP is stored hashed in `intel_sms_verification` (intel-owned — D2
  * forbids writing the legacy sms_verification); the verify step is the opt-in
- * record. intel-api has no RLS, so every query filters by the TenantGuard-
- * resolved tenantId. Works in dormant SMS mode too — non-prod returns the code
+ * record. `intel_sms_verification` carries FORCE ROW LEVEL SECURITY scoped to
+ * tenant_id; every query additionally filters by the TenantGuard-resolved
+ * tenantId in app code. Works in dormant SMS mode too — non-prod returns the code
  * inline so the flow is testable before a carrier number is provisioned.
  */
 @Injectable()

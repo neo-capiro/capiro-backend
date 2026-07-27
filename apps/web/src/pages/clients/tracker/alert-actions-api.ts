@@ -97,6 +97,9 @@ export interface AlertMemoResult {
   held: boolean;
   reviewRequestId: string | null;
   heldReason: string;
+  /** Gate I (CG-01): round-trip this on save so the server-owned-record lock can
+   *  fire. Optional so a not-yet-deployed apps/api degrades cleanly. */
+  generationId?: string | null;
 }
 
 /**
@@ -318,6 +321,11 @@ export function useSaveAlertMemo() {
       alertId: string;
       actionDate?: string;
       replaceAttachmentId?: string;
+      /** Gate I (CG-01): round-tripped from AlertMemoResult.generationId so
+       *  saveEdited's server-owned-record lock can fire. Optional — omitting it
+       *  (a stale bundle, or a loaded-not-regenerated memo with no known id)
+       *  falls back to the pre-Gate-I compatibility checks. */
+      generationId?: string | null;
     }) =>
       (
         await api.post<{
@@ -334,6 +342,7 @@ export function useSaveAlertMemo() {
           alertId: input.alertId,
           actionDate: input.actionDate,
           replaceAttachmentId: input.replaceAttachmentId,
+          generationId: input.generationId ?? undefined,
         })
       ).data,
   });

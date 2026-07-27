@@ -26,7 +26,7 @@ interface FeedbackRow {
   matchedTags: string[];
 }
 
-function feedbackHarness() {
+function feedbackHarness(over: { assertAlertInClient?: jest.Mock } = {}) {
   const rows: FeedbackRow[] = [];
   const prisma = {
     withTenant: async (_tid: string, fn: (tx: unknown) => unknown) =>
@@ -55,10 +55,11 @@ function feedbackHarness() {
         },
       }),
   } as never;
-  const watchlists = { assertClientInTenant: async () => {} } as never;
+  const assertAlertInClient = over.assertAlertInClient ?? jest.fn().mockResolvedValue(undefined);
+  const watchlists = { assertClientInTenant: async () => {}, assertAlertInClient } as never;
   const repo = {} as never;
   const stateRepo = {} as never;
-  return { svc: new TrackerBoardService(prisma, repo, watchlists, stateRepo), rows };
+  return { svc: new TrackerBoardService(prisma, repo, watchlists, stateRepo), rows, assertAlertInClient };
 }
 
 describe('TrackerBoardService.recordFeedback — §4.10 (f-7 case 2)', () => {
@@ -86,6 +87,44 @@ describe('TrackerBoardService.recordFeedback — §4.10 (f-7 case 2)', () => {
       signal: 'marked_irrelevant',
     });
     expect(h.rows[0]).toMatchObject({ reason: null, matchedTags: [] });
+  });
+});
+
+describe('TrackerBoardService.recordFeedback — Gate J (HP-06) a-7', () => {
+  it('validates alertId against the client when present, before writing', async () => {
+    const assertAlertInClient = jest.fn().mockResolvedValue(undefined);
+    const h = feedbackHarness({ assertAlertInClient });
+    await h.svc.recordFeedback(TENANT, CLIENT, USER, {
+      targetRef: '119-hr-1',
+      signal: 'dismissed',
+      alertId: 'alert-1',
+    });
+    expect(assertAlertInClient).toHaveBeenCalledWith(TENANT, CLIENT, 'alert-1');
+    expect(h.rows).toHaveLength(1);
+  });
+
+  it('rejects a foreign alertId and writes nothing', async () => {
+    const assertAlertInClient = jest.fn().mockRejectedValue(new Error('404'));
+    const h = feedbackHarness({ assertAlertInClient });
+    await expect(
+      h.svc.recordFeedback(TENANT, CLIENT, USER, {
+        targetRef: '119-hr-1',
+        signal: 'dismissed',
+        alertId: 'someone-elses-alert',
+      }),
+    ).rejects.toThrow();
+    expect(h.rows).toHaveLength(0);
+  });
+
+  it('skips the alert check entirely when alertId is absent (a bare targetRef signal is legitimate)', async () => {
+    const assertAlertInClient = jest.fn().mockResolvedValue(undefined);
+    const h = feedbackHarness({ assertAlertInClient });
+    await h.svc.recordFeedback(TENANT, CLIENT, USER, {
+      targetRef: '119-hr-1',
+      signal: 'marked_irrelevant',
+    });
+    expect(assertAlertInClient).not.toHaveBeenCalled();
+    expect(h.rows).toHaveLength(1);
   });
 });
 

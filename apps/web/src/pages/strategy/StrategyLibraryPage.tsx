@@ -8,7 +8,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App } from 'antd';
 import { Icon, Ava, Chip, btnPrimary, btnGhost } from './strategy-ui.js';
-import { useStrategies, useFirmPhases, useChangeSets, useExecutionRuns } from './api.js';
+import { useStrategies, useFirmPhases } from './api.js';
 import { useMe } from '../../lib/me.js';
 import { useClientsLite, clientColor } from './clients-lite.js';
 import { useTenantMembers, memberName, initialsOf } from './members.js';
@@ -38,20 +38,12 @@ export function StrategyLibraryPage() {
   const members = useTenantMembers();
   const me = useMe();
   const meriEnabled = Boolean(me.data?.features?.strategyPlannerMeri);
-  // Stage D: the context-document library rides the agentic flag — the link is
-  // hidden entirely (not disabled) when the tenant isn't canaried in.
-  const agenticEnabled = Boolean(me.data?.features?.agenticMeri);
-  // Stage F: proposed-change-set count for the review-queue nav badge (the
-  // query only fires for agentic tenants — the server 403s everyone else).
-  const proposedCs = useChangeSets({ status: 'proposed' }, agenticEnabled);
-  const proposedCount = proposedCs.data?.length ?? 0;
-  // Stage G: badge the Execution nav with runs that need a human (ready_for_review
-  // / waiting_for_input). Gated on agentic (the server 403s everyone else).
-  const executionRuns = useExecutionRuns(null, agenticEnabled);
-  const executionCount =
-    executionRuns.data?.filter(
-      (r) => r.state === 'ready_for_review' || r.state === 'waiting_for_input',
-    ).length ?? 0;
+  // Phase 1 §3 Step 5: the Review / Execution / Context entry points are gone
+  // from this header, and with them the firm-wide change-set and execution-run
+  // queries that only existed to badge them. The ROUTES remain registered in
+  // StrategyRoutes (deep links and the node execution flow still use them) —
+  // only the buttons were retired. Per-strategy Watch review moves into the
+  // editor panel (Phase 4).
   const calendar = useMemo(() => buildCalendar(new Date()), []);
 
   const [goalOpen, setGoalOpen] = useState(false);
@@ -115,57 +107,6 @@ export function StrategyLibraryPage() {
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {agenticEnabled && (
-              <button onClick={() => navigate('/strategies/agents/review')} style={btnGhost}>
-                <Icon name="radar" size={14} color="var(--ink-2)" /> Review
-                {proposedCount > 0 && (
-                  <span
-                    style={{
-                      minWidth: 18,
-                      height: 18,
-                      borderRadius: 9,
-                      background: 'var(--accent)',
-                      color: '#fff',
-                      display: 'grid',
-                      placeItems: 'center',
-                      fontSize: 'var(--text-2xs)',
-                      fontWeight: 700,
-                      padding: '0 5px',
-                    }}
-                  >
-                    {proposedCount}
-                  </span>
-                )}
-              </button>
-            )}
-            {agenticEnabled && (
-              <button onClick={() => navigate('/strategies/agents/execution')} style={btnGhost}>
-                <Icon name="play" size={14} color="var(--ink-2)" /> Execution
-                {executionCount > 0 && (
-                  <span
-                    style={{
-                      minWidth: 18,
-                      height: 18,
-                      borderRadius: 9,
-                      background: 'var(--notable)',
-                      color: '#fff',
-                      display: 'grid',
-                      placeItems: 'center',
-                      fontSize: 'var(--text-2xs)',
-                      fontWeight: 700,
-                      padding: '0 5px',
-                    }}
-                  >
-                    {executionCount}
-                  </span>
-                )}
-              </button>
-            )}
-            {agenticEnabled && (
-              <button onClick={() => navigate('/strategies/context')} style={btnGhost}>
-                <Icon name="book" size={14} color="var(--ink-2)" /> Context
-              </button>
-            )}
             <button onClick={() => setGoalOpen(true)} style={btnPrimary}>
               <Icon name="plus" size={15} color="#fff" /> New strategy
             </button>

@@ -107,18 +107,22 @@ function makePrismaMock(
       findMany: (async () => grants) as CandidatesPrisma['federalGrant']['findMany'],
     },
     clientGrantNexus: {
-      findFirst: (async (args: { where: Record<string, string> }) => {
+      findMany: (async (args: { where: Record<string, string> }) => {
         const w = args.where;
-        const found = links.find(
-          (l) =>
-            l.tenantId === w.tenantId &&
-            l.clientId === w.clientId &&
-            l.grantOpportunityId === w.grantOpportunityId &&
-            l.relationshipType === w.relationshipType &&
-            l.evidenceSourceType === w.evidenceSourceType,
-        );
-        return found ? { id: found.id, verificationStatus: found.verificationStatus } : null;
-      }) as CandidatesPrisma['clientGrantNexus']['findFirst'],
+        return links
+          .filter(
+            (l) =>
+              l.tenantId === w.tenantId &&
+              l.clientId === w.clientId &&
+              l.relationshipType === w.relationshipType &&
+              l.evidenceSourceType === w.evidenceSourceType,
+          )
+          .map((l) => ({
+            id: l.id,
+            grantOpportunityId: l.grantOpportunityId,
+            verificationStatus: l.verificationStatus,
+          }));
+      }) as CandidatesPrisma['clientGrantNexus']['findMany'],
       create: (async (args: { data: Record<string, unknown> }) => {
         createCalls.push(args);
         const row = { id: `new-${links.length}`, verificationStatus: 'unverified', ...args.data } as ExistingLink;
@@ -347,16 +351,40 @@ describe('generateCandidates', () => {
       grants: [makeGrant({ id: 'g-1' }), makeGrant({ id: 'g-boom' }), makeGrant({ id: 'g-3' })],
     });
 
-    const passthrough = prisma.clientGrantNexus.findFirst;
-    prisma.clientGrantNexus.findFirst = (async (args: { where: { grantOpportunityId: string } }) => {
-      if (args.where.grantOpportunityId === 'g-boom') throw new Error('simulated read failure');
+    // Post-batching, the per-grant DB call is the write (create/update), not a
+    // read — the existence check is now a single findMany done once per client
+    // (see the batching test below). Simulate a write failure for one grant.
+    const passthrough = prisma.clientGrantNexus.create;
+    prisma.clientGrantNexus.create = (async (args: { data: { grantOpportunityId: string } }) => {
+      if (args.data.grantOpportunityId === 'g-boom') throw new Error('simulated write failure');
       return passthrough(args);
-    }) as CandidatesPrisma['clientGrantNexus']['findFirst'];
+    }) as CandidatesPrisma['clientGrantNexus']['create'];
 
     const result = await generateCandidates(prisma, { tenantIds: [TENANT], minRelevance: 10, commit: true });
 
     expect(result.evaluated).toBe(3);
     expect(result.errors).toBe(1);
     expect(result.inserted).toBe(2); // g-1 and g-3 are still linked
+  });
+
+  // ── B3: the per-grant findFirst is now a single per-client findMany ────────
+  test('fetches existing links once per client, not once per (client, grant) pair', async () => {
+    const client = makeClient({ capabilities: [{ name: 'Advanced Manufacturing', sector: null, tags: [] }] });
+    const { prisma } = makePrismaMock({
+      clients: [client],
+      grants: [makeGrant({ id: 'g-1' }), makeGrant({ id: 'g-2' }), makeGrant({ id: 'g-3' })],
+    });
+
+    let findManyCalls = 0;
+    const passthrough = prisma.clientGrantNexus.findMany;
+    prisma.clientGrantNexus.findMany = (async (args: unknown) => {
+      findManyCalls++;
+      return passthrough(args);
+    }) as CandidatesPrisma['clientGrantNexus']['findMany'];
+
+    const result = await generateCandidates(prisma, { tenantIds: [TENANT], minRelevance: 10, commit: true });
+
+    expect(result.evaluated).toBe(3);
+    expect(findManyCalls).toBe(1); // one client -> one batched fetch, not three
   });
 });

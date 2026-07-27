@@ -7,6 +7,11 @@ interface MatchRow {
   external_name: string;
   similarity: number;
   state?: string | null;
+  // Set only by a verified-identifier match (e.g. UEI-to-UEI). When present,
+  // persistSourceCandidates uses this value directly instead of running the
+  // row through scoreCandidate's name-fingerprint heuristics, which have
+  // nothing meaningful to say about a match that isn't name-based at all.
+  preScored?: number;
 }
 
 export interface ResolutionSummary {
@@ -78,6 +83,24 @@ export const MIN_WRITE_CONFIDENCE = 0.4;
 /** Confidence at/above which a single best candidate may be auto-confirmed. */
 export const AUTO_CONFIRM_THRESHOLD = 0.85;
 
+// Confidence ceiling applied to a candidate we don't trust as a graduated
+// signal — either because the two names share no distinctive token, or (for
+// assistance_recipient specifically) because they aren't fingerprint-exact at
+// all. Strictly below MIN_WRITE_CONFIDENCE so the candidate is dropped, not
+// written. One named constant so the two call sites can't silently drift.
+const NON_DISTINCTIVE_MATCH_CAP = 0.35;
+
+// Confidence assigned to an assistance_recipient candidate found via an exact
+// Client.uei ↔ federal_assistance_award.recipient_uei match (see
+// matchAssistanceRecipientByUei). A UEI is a verified, globally-unique federal
+// identifier — categorically stronger evidence than any name heuristic in this
+// file — so it's scored high enough to sort first in review. Deliberately below
+// 1.0 (reserved for a deliberate human pin via the manual-attach endpoint) and
+// deliberately still routed through NEVER_AUTO_CONFIRM: District Nexus Rev 2's
+// 2026-07-27 remediation found $15B+ in wrong name-based suggestions, so this
+// source keeps a human in the loop even for its strongest signal.
+export const ASSISTANCE_RECIPIENT_UEI_MATCH_CONFIDENCE = 0.97;
+
 /**
  * The best candidate for a source must beat the runner-up by at least this much
  * to auto-confirm. A near-tie (e.g. two plausible LDA clients with the same
@@ -93,12 +116,13 @@ export type CandidateDecision = 'skip' | 'review' | 'auto_confirm';
  * auto-confirm, and only when it clears the threshold AND is clearly ahead of
  * the runner-up. fec_committee never auto-confirms (PAC attribution is
  * compliance-sensitive — always human-reviewed). assistance_recipient never
- * auto-confirms EITHER, but for a different reason: matchAssistanceRecipient
- * is fuzzy CLIENT-NAME-to-RECIPIENT-NAME matching only (District Nexus Rev 2
- * §5.3's higher-precedence "exact client UEI" path is a direct fact-level
- * join done at read time by DistrictNexusService, not a scored candidate —
- * scoreCandidate's name-fingerprint heuristics are the wrong tool for judging
- * a verified UEI match, so that tier deliberately never reaches this pipeline).
+ * auto-confirms EITHER, deliberately, for both of its candidate paths: a
+ * name-fuzzy match (matchAssistanceRecipient — scoreCandidate's name-fingerprint
+ * heuristics, capped hard for this source, see NON_DISTINCTIVE_MATCH_CAP) and
+ * an exact-UEI match (matchAssistanceRecipientByUei — a verified identifier,
+ * not a name heuristic, but still routed to human review; see
+ * ASSISTANCE_RECIPIENT_UEI_MATCH_CONFIDENCE for why). Both paths only ever
+ * reach 'review', never 'auto_confirm', regardless of confidence.
  */
 export function candidateDecision(params: {
   source: string;
@@ -139,7 +163,12 @@ export class EntityResolutionService {
 
   // ── Stage C: Score a candidate ────────────────────────────────────────────
 
-  private scoreCandidate(clientFp: string, row: MatchRow, opts?: { anchored?: boolean }): number {
+  private scoreCandidate(
+    clientFp: string,
+    row: MatchRow,
+    source?: string,
+    opts?: { anchored?: boolean },
+  ): number {
     let confidence = row.similarity;
 
     // Exact normalized-name ("fingerprint") match is the strongest signal we
@@ -174,8 +203,26 @@ export class EntityResolutionService {
     // If the two names share NO distinctive token, cap below the write floor so the
     // candidate is dropped rather than flooding the review queue. Never lowers a
     // genuine fingerprint-exact match (those share all tokens by definition).
-    if (!fingerprintExact && !sharesDistinctiveToken(clientFp, externalFp)) {
-      confidence = Math.min(confidence, 0.35);
+    if (!fingerprintExact) {
+      if (!sharesDistinctiveToken(clientFp, externalFp)) {
+        confidence = Math.min(confidence, NON_DISTINCTIVE_MATCH_CAP);
+      }
+
+      // assistance_recipient's pool (federal_assistance_award recipients) spans
+      // wildly heterogeneous entity types — universities, counties, energy
+      // companies, foundations — where two DIFFERENT organizations routinely
+      // share a real, non-generic word the guard above can't catch: "Olivet
+      // University"/"Duke University", "Santa Rosa County"/"Santa Clara
+      // County". Verified 2026-07-27: 173 of 183 live candidates were wrong
+      // this way, several with $B+ obligated attached (district-nexus
+      // remediation). Unlike every other source here, a non-exact name match
+      // on this source is not a graduated confidence signal — it's capped
+      // below the write floor unconditionally. A verified UEI match bypasses
+      // this function entirely via MatchRow.preScored (see
+      // matchAssistanceRecipientByUei), so this only affects name-only guesses.
+      if (source === 'assistance_recipient') {
+        confidence = Math.min(confidence, NON_DISTINCTIVE_MATCH_CAP);
+      }
     }
 
     return Math.min(confidence, 1.0);
@@ -199,7 +246,9 @@ export class EntityResolutionService {
       .map((row) => ({
         externalId: row.external_id,
         externalName: row.external_name,
-        confidence: this.scoreCandidate(clientFp, row, { anchored }),
+        // A verified-identifier match (row.preScored) skips the name-fingerprint
+        // heuristics entirely — see MatchRow.preScored.
+        confidence: row.preScored ?? this.scoreCandidate(clientFp, row, source, { anchored }),
       }))
       .sort((a, b) => b.confidence - a.confidence);
 
@@ -424,7 +473,12 @@ export class EntityResolutionService {
    * externalId is the recipient UEI when available, else the recipient name
    * — matching how a manual pin from the search endpoint would key it.
    * Always routed to human review (see candidateDecision) — never auto-
-   * confirmed from name similarity alone.
+   * confirmed from name similarity alone. As of the 2026-07-27 remediation,
+   * scoreCandidate also caps any non-fingerprint-exact row from this source
+   * below the write floor (see NON_DISTINCTIVE_MATCH_CAP) — this SQL's job is
+   * now just to surface the pool; scoreCandidate decides almost none of it is
+   * trustworthy enough to write. See matchAssistanceRecipientByUei for the
+   * higher-precision identifier-based path.
    */
   private async matchAssistanceRecipient(clientName: string): Promise<MatchRow[]> {
     return this.prisma.$queryRaw<MatchRow[]>`
@@ -454,29 +508,74 @@ export class EntityResolutionService {
     `;
   }
 
+  // A client UEI is exactly 12 alphanumeric characters (SAM.gov format) — same
+  // shape the manual-attach search endpoint already validates against.
+  private static readonly UEI_RE = /^[A-Z0-9]{12}$/i;
+
+  /**
+   * Exact Client.uei ↔ federal_assistance_award.recipient_uei candidates —
+   * the "-or-UEI" half of District Nexus Rev 2's assistance-matcher
+   * remediation. A UEI is a verified, globally-unique federal identifier, so
+   * this needs no name-similarity scoring at all: every row it returns is
+   * pre-scored at ASSISTANCE_RECIPIENT_UEI_MATCH_CONFIDENCE (see MatchRow.
+   * preScored) and skips scoreCandidate's name-fingerprint heuristics, which
+   * would otherwise judge a legal-entity-name mismatch (e.g. client "RTX
+   * Corporation" vs recipient "RAYTHEON TECHNOLOGIES CORPORATION") as a weak
+   * match despite the identifier match being certain. recipient_uei is
+   * indexed (faa_recipient_uei_idx), so this is a fast equality lookup, not a
+   * trigram scan.
+   */
+  private async matchAssistanceRecipientByUei(clientUei: string): Promise<MatchRow[]> {
+    if (!EntityResolutionService.UEI_RE.test(clientUei)) return [];
+    const rows = await this.prisma.$queryRaw<
+      Array<{ external_id: string; external_name: string; state: string | null }>
+    >`
+      SELECT recipient_uei AS external_id,
+             MAX(recipient_name) AS external_name,
+             MAX(recipient_state) AS state
+      FROM federal_assistance_award
+      WHERE recipient_uei = upper(${clientUei})
+      GROUP BY recipient_uei
+    `;
+    return rows.map((r) => ({
+      ...r,
+      similarity: 1,
+      preScored: ASSISTANCE_RECIPIENT_UEI_MATCH_CONFIDENCE,
+    }));
+  }
+
   // ── Public: resolve a single client ──────────────────────────────────────
 
   async resolveClient(
     clientId: string,
     tenantId: string,
     clientName: string,
-    opts?: { ldaRegistrantId?: number | null },
+    opts?: { ldaRegistrantId?: number | null; clientUei?: string | null },
   ): Promise<{ created: number; autoConfirmed: number; needsReview: number }> {
     const clientFp = this.fingerprint(clientName);
 
     // LDA uses the registrant-anchored pool when available (falls back to global);
     // the other sources stay on the global fuzzy pool.
     const lda = await this.ldaCandidates(clientName, clientFp, opts?.ldaRegistrantId);
-    const [contractorRows, secRows, fecRows, fecCommitteeRows, faraRows, lobbyRows, assistanceRows] =
-      await Promise.all([
-        this.matchContractor(clientName),
-        this.matchSec(clientName),
-        this.matchFec(clientName),
-        this.matchFecCommittee(clientName),
-        this.matchFara(clientName),
-        this.matchLobbyIntel(clientName),
-        this.matchAssistanceRecipient(clientName),
-      ]);
+    const [
+      contractorRows,
+      secRows,
+      fecRows,
+      fecCommitteeRows,
+      faraRows,
+      lobbyRows,
+      assistanceNameRows,
+      assistanceUeiRows,
+    ] = await Promise.all([
+      this.matchContractor(clientName),
+      this.matchSec(clientName),
+      this.matchFec(clientName),
+      this.matchFecCommittee(clientName),
+      this.matchFara(clientName),
+      this.matchLobbyIntel(clientName),
+      this.matchAssistanceRecipient(clientName),
+      opts?.clientUei ? this.matchAssistanceRecipientByUei(opts.clientUei) : Promise.resolve([]),
+    ]);
 
     const groups: Array<{ source: string; rows: MatchRow[]; anchored: boolean }> = [
       { source: 'lda', rows: lda.rows, anchored: lda.anchored },
@@ -486,7 +585,10 @@ export class EntityResolutionService {
       { source: 'fec_committee', rows: fecCommitteeRows, anchored: false },
       { source: 'fara', rows: faraRows, anchored: false },
       { source: 'lobby_intel', rows: lobbyRows, anchored: false },
-      { source: 'assistance_recipient', rows: assistanceRows, anchored: false },
+      // UEI rows first: when both paths find the same recipient, persistSourceCandidates
+      // sorts by confidence before upserting, but listing the higher-trust rows first
+      // keeps this readable regardless.
+      { source: 'assistance_recipient', rows: [...assistanceUeiRows, ...assistanceNameRows], anchored: false },
     ];
 
     let created = 0;
@@ -513,7 +615,7 @@ export class EntityResolutionService {
             select: { ldaRegistrantId: true },
           })
         )?.ldaRegistrantId ?? null,
-      clients: await tx.client.findMany({ select: { id: true, name: true } }),
+      clients: await tx.client.findMany({ select: { id: true, name: true, uei: true } }),
     }));
 
     let mappingsCreated = 0;
@@ -521,7 +623,10 @@ export class EntityResolutionService {
     let needsReview = 0;
 
     for (const client of clients) {
-      const result = await this.resolveClient(client.id, tenantId, client.name, { ldaRegistrantId });
+      const result = await this.resolveClient(client.id, tenantId, client.name, {
+        ldaRegistrantId,
+        clientUei: client.uei,
+      });
       mappingsCreated += result.created;
       autoConfirmed += result.autoConfirmed;
       needsReview += result.needsReview;
