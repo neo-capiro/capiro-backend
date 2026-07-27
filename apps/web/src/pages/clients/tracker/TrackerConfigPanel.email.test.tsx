@@ -128,4 +128,44 @@ describe('TrackerConfigPanel — email cannot be enabled with no address (MP-04)
     });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+
+  // QA gap found on independent review: a realistic real-world sequence —
+  // start from a genuinely-enabled pref, then clear the address (e.g. an
+  // analyst fat-fingers a delete) — must re-block, not keep sending the
+  // stale emailEnabled:true from before the edit.
+  test('clearing a previously-valid address re-shows the blocked message and re-sends emailEnabled:false', () => {
+    const onSavePrefs = vi.fn();
+    renderPanel(onSavePrefs, {
+      prefs: makePrefs({ emailEnabled: true, emailAddress: 'existing@x.com' }),
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('you@firm.com'), { target: { value: '' } });
+    expect(screen.getByRole('alert')).toHaveTextContent(/Not saved as enabled/i);
+
+    act(() => void vi.advanceTimersByTime(700));
+    expect(onSavePrefs).toHaveBeenCalledTimes(1);
+    expect(onSavePrefs.mock.calls[0]![0]).toMatchObject({
+      emailEnabled: false,
+      emailAddress: null,
+    });
+  });
+
+  // QA gap: whitespace-only input must not count as "an address" — the UI
+  // guard and the DTO's own rule both key off a trimmed, non-empty string.
+  test('a whitespace-only address is treated as blank — still blocked, still saved as disabled', () => {
+    const onSavePrefs = vi.fn();
+    renderPanel(onSavePrefs);
+    fireEvent.click(screen.getByRole('button', { name: 'Email delivery' }));
+    fireEvent.change(screen.getByPlaceholderText('you@firm.com'), {
+      target: { value: '   ' },
+    });
+    expect(screen.getByRole('alert')).toHaveTextContent(/Not saved as enabled/i);
+
+    act(() => void vi.advanceTimersByTime(700));
+    expect(onSavePrefs.mock.calls[0]![0]).toMatchObject({
+      emailEnabled: false,
+      emailAddress: null,
+    });
+  });
 });

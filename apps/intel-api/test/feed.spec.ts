@@ -244,6 +244,23 @@ describe('FeedService.getFeed — work-state filtering (RB-01)', () => {
     expect(getArgs().where.id).toEqual({ in: [] });
   });
 
+  // QA gap found on independent review: the web only ever sends one workState
+  // value, and the controller (feed.controller.spec.ts) validates every
+  // element of the array — but nothing previously pinned what the SERVICE
+  // does if it somehow receives more than one. Documenting the by-design
+  // behavior explicitly: only the first is honored, silently.
+  it('multiple workStates values: only the FIRST is honored (by design — see FeedQuery.workStates doc)', async () => {
+    const { prisma, getArgs } = mockPrisma([mkRow(1, 0.5)]);
+    const workState = makeWorkStateStub({ alertIdsInState: async () => ['m1'] });
+    await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA, workState as any).getFeed(
+      't1', 'c1', { userId: 'u1', workStates: ['dismissed', 'snoozed'] },
+    );
+    // Only ONE call, for 'dismissed' (the first element) — 'snoozed' (the
+    // second) is silently ignored, not merged or OR-ed in.
+    expect(workState.calls.alertIdsInState).toHaveLength(1);
+    expect(workState.calls.alertIdsInState[0]).toEqual(['t1', 'u1', 'c1', ['dismissed']]);
+  });
+
   it('no userId: no work-state call, no id predicate, regardless of workStates', async () => {
     const { prisma, getArgs } = mockPrisma([mkRow(1, 0.5)]);
     const workState = makeWorkStateStub();
