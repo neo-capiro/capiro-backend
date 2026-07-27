@@ -185,7 +185,7 @@ export class ClientsService {
     // scope (the table is RLS-protected), so it runs safely detached and never
     // blocks or fails the create response.
     void this.entityResolution
-      .resolveClient(client.id, ctx.tenantId, client.name, { ldaRegistrantId })
+      .resolveClient(client.id, ctx.tenantId, client.name, { ldaRegistrantId, clientUei: client.uei })
       // After resolution (which may auto-confirm an LDA id), run the prepopulation
       // cascade to sync lda_client_ids + merge issue codes / signals.
       .then(() => this.prepopulation.prepopulate(ctx.tenantId, client.id))

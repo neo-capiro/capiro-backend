@@ -16,6 +16,7 @@ import {
   Switch,
   Table,
   Tag,
+  Tooltip,
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -62,6 +63,20 @@ const MAPPING_SOURCE_OPTIONS: Array<{ label: string; value: MappingSource }> = [
 function asMappingSource(raw: string | null | undefined): MappingSource | undefined {
   return MAPPING_SOURCE_OPTIONS.find((o) => o.value === raw)?.value;
 }
+
+/**
+ * Sources the backend's entity resolver never auto-confirms regardless of
+ * confidence (see NEVER_AUTO_CONFIRM in apps/api's entity-resolution.service.ts).
+ * assistance_recipient's confidence is a name-similarity score across wildly
+ * heterogeneous entity types (universities, counties, energy companies) where a
+ * high score can still be the wrong entity; fec_committee is PAC attribution,
+ * compliance-sensitive by policy. "Confirm All" must not let one click override
+ * that per-source policy for a whole filtered page — each of these mappings
+ * needs individual eyes, no matter its confidence. (Verified live 2026-07-27:
+ * $15B+ in wrong assistance_recipient suggestions sat at confidence a
+ * confidence-only bulk action would have swept up.)
+ */
+const REQUIRES_INDIVIDUAL_REVIEW = new Set<string>(['assistance_recipient', 'fec_committee']);
 
 function confidenceColor(confidence: number): string {
   if (confidence >= 0.85) return '#52c41a';
@@ -148,11 +163,19 @@ export function IntelligenceMappingsPage() {
   }, [mappings, clientSearch, sourceFilter, confirmedFilter]);
 
   async function handleConfirmAll() {
-    const toConfirm = filtered.filter((m) => m.confidence >= 0.60 && !m.confirmed);
+    const eligible = filtered.filter((m) => m.confidence >= 0.60 && !m.confirmed);
+    const toConfirm = eligible.filter((m) => !REQUIRES_INDIVIDUAL_REVIEW.has(m.source));
+    const skipped = eligible.length - toConfirm.length;
     for (const m of toConfirm) {
       await confirmMutation.mutateAsync({ id: m.id, confirmed: true });
     }
-    notification.success({ message: `Confirmed ${toConfirm.length} mapping(s) with ≥60% confidence` });
+    notification.success({
+      message: `Confirmed ${toConfirm.length} mapping(s) with ≥60% confidence`,
+      description:
+        skipped > 0
+          ? `${skipped} mapping(s) skipped — assistance-recipient and PAC-committee matches require individual review regardless of confidence.`
+          : undefined,
+    });
   }
 
   async function handleRejectAll() {
@@ -280,14 +303,20 @@ export function IntelligenceMappingsPage() {
           />
           <span style={{ flex: 1 }} />
           <Space>
-            <Button
-              size="small"
-              icon={<CheckCircleOutlined />}
-              onClick={() => void handleConfirmAll()}
-              disabled={!filtered.some((m) => m.confidence >= 0.60 && !m.confirmed)}
-            >
-              Confirm All ≥ 60%
-            </Button>
+            <Tooltip title="Excludes assistance-recipient and PAC-committee mappings — those require individual review regardless of confidence.">
+              <Button
+                size="small"
+                icon={<CheckCircleOutlined />}
+                onClick={() => void handleConfirmAll()}
+                disabled={
+                  !filtered.some(
+                    (m) => m.confidence >= 0.60 && !m.confirmed && !REQUIRES_INDIVIDUAL_REVIEW.has(m.source),
+                  )
+                }
+              >
+                Confirm All ≥ 60%
+              </Button>
+            </Tooltip>
             <Button
               size="small"
               danger
@@ -358,7 +387,12 @@ export function IntelligenceMappingsPage() {
                 <Text type="secondary" style={{ fontSize: 11 }}>
                   {filtered.length} mapping{filtered.length !== 1 ? 's' : ''} shown ·{' '}
                   {filtered.filter((m) => m.confirmed).length} confirmed ·{' '}
-                  {filtered.filter((m) => m.confidence >= 0.85).length} auto-confirm eligible
+                  {
+                    filtered.filter(
+                      (m) => m.confidence >= 0.85 && !REQUIRES_INDIVIDUAL_REVIEW.has(m.source),
+                    ).length
+                  }{' '}
+                  auto-confirm eligible
                 </Text>
               </Table.Summary.Cell>
             </Table.Summary.Row>
