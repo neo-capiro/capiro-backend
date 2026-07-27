@@ -6,6 +6,8 @@ import { App as AntApp, Input, Modal } from 'antd';
 import { useApi } from '../../../lib/use-api.js';
 import {
   alertBand,
+  isPriorScoreModel,
+  scoreExplanation,
   feedQueryString,
   intelFeedKeys,
   intelFeedPaths,
@@ -250,9 +252,10 @@ function FeedCard({
             <span className={`chip sev-${item.severity}`} title={`Severity: ${item.severity}`}>
               {item.severity}
             </span>
-            {/* P1-10 (c-6): the score is shown as an explainable BAND, never as a
-                raw 0.72. Phase d replaces this tooltip with the factor breakdown. */}
-            <span className="chip band" title={BAND_TOOLTIP}>
+            {/* P1-10 (c-6) + §4.8 (d-5): the score is shown as an explainable
+                BAND, never as a raw 0.72, and the tooltip lists every factor's
+                contribution — with "unavailable" for anything we cannot compute. */}
+            <span className="chip band" title={scoreExplanation(item)}>
               {band} priority
             </span>
             {urgency && (
@@ -619,6 +622,8 @@ export function TrackerFeedPanel({
   });
 
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
+  // §4.8 edge case 4: how many loaded alerts predate the re-weight.
+  const priorModelCount = items.filter(isPriorScoreModel).length;
   const counts = query.data?.pages[0]?.counts ?? {};
   const sevCounts = query.data?.pages[0]?.severityCounts ?? {};
   const totalUpdates = Object.values(counts).reduce((n, v) => n + (v ?? 0), 0);
@@ -836,6 +841,16 @@ export function TrackerFeedPanel({
               Priority
             </button>
           </div>
+          {/* §4.8 edge case 4: scoring is FORWARD-ONLY (§6.2), so this list can
+              mix alerts scored by two different models. Saying so is the
+              condition on which the re-weight ships — it must not be silent. */}
+          {order === 'score' && priorModelCount > 0 && (
+            <div className="muted mini" style={{ marginTop: 6 }}>
+              Ranked by the current model. {priorModelCount} alert
+              {priorModelCount === 1 ? '' : 's'} on this page {priorModelCount === 1 ? 'was' : 'were'}{' '}
+              scored by the prior model and may rank differently.
+            </div>
+          )}
         </div>
 
         <div className="rail-card">

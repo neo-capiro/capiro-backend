@@ -152,21 +152,18 @@ describe('P1-08 — critical events band High on SEVERITY, not a federal list', 
     expect(r.band).toBe('High');
   });
 
-  // case 6 — a non-critical alert's score is byte-identical to pre-Gate-D.
-  it('leaves a non-critical alert byte-identical', () => {
-    const r = scoreShadowAlert({
-      severity: 'notable',
-      materiality: 'medium',
-      changeType: 'bill_amendment',
-      actionDate: new Date(NOW - 3_600_000), // 1h ago → urgency 1.0
-      matchedTags: ['energy'],
-      nowMs: NOW,
-    });
-    // The literal pre-Gate-D double, not an approximation.
-    expect(r.score).toBe(0.6376666666666668);
-    expect(r.band).toBe('Med');
-    // …and it still routes through the untouched §7.1 weights.
-    expect(r.score).toBe(
+  /**
+   * case 6 — the v1 composite is frozen byte-for-byte.
+   *
+   * Phase a on its own changed no non-critical score. Phase d's §4.8 re-weight
+   * then DID, deliberately and with approval (§6.2, forward-only), so
+   * `scoreShadowAlert` no longer runs this model. What must stay byte-identical
+   * is the v1 function itself: existing `intel_alert.score` rows were written by
+   * it and are NOT backfilled, so it remains the definition of what those
+   * historical numbers mean.
+   */
+  it('freezes the v1 composite byte-for-byte (historical scores were written by it)', () => {
+    expect(
       computeScore({
         relevance: 0.8,
         materiality: materialityFactor('medium'),
@@ -175,7 +172,7 @@ describe('P1-08 — critical events band High on SEVERITY, not a federal list', 
         clientPriority: 0.66,
         legCoverage: 0.5,
       }),
-    );
+    ).toBe(0.6376666666666668);
   });
 
   // case 7 — the deliberate asymmetry documented on urgencyFactor: a critical

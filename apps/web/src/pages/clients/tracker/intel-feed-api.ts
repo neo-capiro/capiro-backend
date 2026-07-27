@@ -114,6 +114,14 @@ export interface FeedEvidence {
     jurisdiction: string;
     writerShape: string;
   };
+  /** §4.8 (Gate D d-1): each factor's share of the score. Absent on any alert
+   *  written before the re-weight — those carry v1 scores. */
+  scoreFactors?: Record<string, number>;
+  /** Factors with no signal at all. Rendered "unavailable", never as 0. */
+  scoreUnavailable?: string[];
+  /** Which scoring model produced `score`. Absent/1 = the pre-Gate-D model.
+   *  Scoring is FORWARD-ONLY (§6.2), so a Priority list mixes the two. */
+  scoreModel?: number;
   /** Every stored key the normalizer did not claim — nothing the writer recorded is lost. */
   extra?: Record<string, unknown>;
 }
@@ -250,6 +258,46 @@ export function alertBand(item: FeedItem): 'High' | 'Med' | 'Low' {
   if (stored === 'High' || stored === 'Med' || stored === 'Low') return stored;
   const s = typeof item.score === 'number' ? item.score : 0;
   return s >= 0.66 ? 'High' : s >= 0.45 ? 'Med' : 'Low';
+}
+
+/** Human labels for the §4.8 score factors. */
+export const SCORE_FACTOR_LABEL: Record<string, string> = {
+  relevance: 'client relevance',
+  materiality: 'materiality',
+  urgency: 'time sensitivity',
+  clientPriority: 'client priority',
+  targetOpportunity: 'target opportunity',
+  evidenceConfidence: 'evidence confidence',
+  duplicationPenalty: 'duplication penalty',
+};
+
+/** §6.2: alerts written before the re-weight keep v1 scores. */
+export const SCORE_MODEL_CURRENT = 2;
+
+export function isPriorScoreModel(item: FeedItem): boolean {
+  return (item.evidence?.scoreModel ?? 1) < SCORE_MODEL_CURRENT;
+}
+
+/**
+ * §4.8 (d-5): the Priority chip's tooltip — every factor, its contribution, and
+ * an explicit `unavailable` for anything with no signal. Falls back to the
+ * generic sentence for a pre-re-weight alert, which carries no breakdown.
+ */
+export function scoreExplanation(item: FeedItem): string {
+  const factors = item.evidence?.scoreFactors;
+  const unavailable = item.evidence?.scoreUnavailable ?? [];
+  if (!factors || !Object.keys(factors).length) {
+    return (
+      'Ranked from client relevance, materiality, urgency, and client priority. ' +
+      'Scored by the prior model — see the Priority sort note.'
+    );
+  }
+  const lines = Object.entries(factors).map(
+    ([k, v]) => `${SCORE_FACTOR_LABEL[k] ?? k} — ${v >= 0 ? '+' : ''}${v.toFixed(2)}`,
+  );
+  // An unavailable factor is named as such rather than shown contributing 0.
+  for (const k of unavailable) lines.push(`${SCORE_FACTOR_LABEL[k] ?? k} — unavailable`);
+  return lines.join('\n');
 }
 
 /**

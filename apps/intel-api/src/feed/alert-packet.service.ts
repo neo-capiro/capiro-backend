@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { TrackerWatchlistService } from '../tracker/tracker-watchlist.service.js';
 import { recommendedActionsFor } from './recommended-actions.util.js';
 import { normalizeEvidence, type NormalizedAlertEvidence } from './normalize-evidence.js';
+import { proceduralOutlook, proceduralStateFromAlert } from '../tracker/procedural-steps.js';
 import {
   MAX_OFFICIAL_EVIDENCE,
   PACKET_UNAVAILABLE_IN_INTEL_API,
@@ -56,6 +57,8 @@ export class AlertPacketService {
           evidence: true,
           termId: true,
           createdAt: true,
+          // Gate D phase b: the state machine keys on the change type.
+          changeType: true,
         },
       }),
     );
@@ -187,11 +190,35 @@ export class AlertPacketService {
       missingFields.push('clientContext.position', 'clientContext.priority');
     }
 
-    // ---- proceduralMeaning. nextPossibleSteps needs Gate D phase b's state machine.
-    const currentStage =
+    // ---- proceduralMeaning, from Gate D phase b's deterministic state machine.
+    const stageLabel =
       bill?.stage || reg?.ruleType || pe?.deltaTypeLabel || evidence.provenance.band || 'not established';
+    const outlook = proceduralOutlook(
+      proceduralStateFromAlert({
+        changeType: alert.changeType ?? '',
+        jurisdiction: evidence.provenance.jurisdiction,
+        cutoffType: typeof extra?.cutoffType === 'string' ? extra.cutoffType : null,
+      }),
+    );
+    // Prefer the stage the evidence actually recorded; fall back to the state
+    // machine's label, and keep 'not established' when neither knows — that
+    // phrase is the established contract here and reads better to an analyst
+    // than the state machine's internal 'Unknown'.
+    const currentStage =
+      stageLabel !== 'not established'
+        ? stageLabel
+        : outlook.currentStage === 'Unknown'
+          ? 'not established'
+          : outlook.currentStage;
     if (currentStage === 'not established') missingFields.push('proceduralMeaning.currentStage');
-    missingFields.push('proceduralMeaning.nextPossibleSteps', 'proceduralMeaning.priorStage');
+    // Only claim these are MISSING when they really are. Reporting
+    // nextPossibleSteps as missing unconditionally understated every packet's
+    // coverage and put a false "not established" in the analyst's confidence
+    // block — an empty step set is now a real, deliberate answer.
+    if (!outlook.nextPossibleSteps.length) {
+      missingFields.push('proceduralMeaning.nextPossibleSteps');
+    }
+    if (!outlook.priorStage) missingFields.push('proceduralMeaning.priorStage');
     const deadline = reg?.commentEndDate ?? extra?.cutoffDate ?? null;
 
     const recommendedActions = recommendedActionsFor({
@@ -228,8 +255,13 @@ export class AlertPacketService {
       officialEvidence,
       proceduralMeaning: {
         currentStage,
-        nextPossibleSteps: [], // Gate D phase b
-        uncertainty: officialEvidence.length ? [] : ['No official evidence resolved for this alert.'],
+        ...(outlook.priorStage ? { priorStage: outlook.priorStage } : {}),
+        nextPossibleSteps: outlook.nextPossibleSteps,
+        ...(outlook.blockedBy.length ? { blockedBy: outlook.blockedBy } : {}),
+        uncertainty: [
+          ...outlook.uncertainty,
+          ...(officialEvidence.length ? [] : ['No official evidence resolved for this alert.']),
+        ],
         ...(deadline ? { deadline } : {}),
       },
       clientContext: {
@@ -257,7 +289,12 @@ export class AlertPacketService {
       confidence: {
         // The alert's own composite score is the best relevance signal intel-api has.
         relevance: alert.score ?? 0,
-        procedural: 0, // no state machine yet — 0 is honest, not a guess
+        // Gate D phase b landed the state machine, so this is no longer a
+        // placeholder. 0 when the outlook could NOT classify the event (still
+        // honest, not a guess); 0.9 once it did — including a terminal status,
+        // where "there is no next step" is a confident determination, not an
+        // absence of one.
+        procedural: outlook.uncertainty.length ? 0 : 0.9,
         evidenceCoverage: Number((filled / canonical.length).toFixed(2)),
         missingFields,
       },
