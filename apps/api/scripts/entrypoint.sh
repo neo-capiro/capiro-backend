@@ -199,6 +199,15 @@ case "${1:-serve}" in
     echo "Running reclaim-google-mail $*"
     exec ./node_modules/.bin/tsx scripts/reclaim-google-mail.ts "$@"
     ;;
+  backfill-mail-removal-state)
+    # Idempotent historical repair: recompute mail_thread snippet/lastMessageAt/
+    # metadata.deleted for threads that had a removed message before the
+    # removal-state migration existed. DRY RUN by default; pass
+    # --tenant=<slug|uuid> | --all-tenants [--commit].
+    shift
+    echo "Running backfill-mail-removal-state $*"
+    exec ./node_modules/.bin/tsx scripts/backfill-mail-removal-state.ts "$@"
+    ;;
   delete-tenant)
     shift
     echo "Running delete-tenant $*"
