@@ -68,6 +68,7 @@ import {
 } from './audiences.js';
 import { useGroups } from './groups.js';
 import { candidateEmails, formatLastContacted, usePriorContact } from './priorContact.js';
+import { RecipientCollisions, type CollisionResolution } from './RecipientCollisions.js';
 import './step-recipients-select.css';
 
 /**
@@ -84,6 +85,9 @@ interface Props {
   onChange: (patch: { targets?: OutreachTarget[] }) => void;
   /** Campaign client (scopes the "last contacted" lookup); optional. */
   clientId?: string | null;
+  /** Phase 2 §3.g — recipient-collision "keep all" acknowledgement. */
+  collisionResolution: CollisionResolution;
+  onCollisionResolutionChange: (next: CollisionResolution) => void;
 }
 
 type SourceTab = 'congress' | 'statelegislators' | 'clients' | 'manual';
@@ -255,7 +259,14 @@ const MEMBERSHIP_TAG: Record<TargetType, { text: string; cls: string }> = {
 // Main step
 // =====================================================================
 
-export function StepRecipientsSelect({ clients, targets, onChange, clientId }: Props) {
+export function StepRecipientsSelect({
+  clients,
+  targets,
+  onChange,
+  clientId,
+  collisionResolution,
+  onCollisionResolutionChange,
+}: Props) {
   const api = useApi();
   const qc = useQueryClient();
   const { message, notification } = App.useApp();
@@ -554,6 +565,15 @@ export function StepRecipientsSelect({ clients, targets, onChange, clientId }: P
         <LastContactContext.Provider value={renderLastContact}>
           <SelectedPanel targets={targets} onTargets={setTargets} clients={clients} />
         </LastContactContext.Provider>
+      )}
+
+      {targets.length > 0 && (
+        <RecipientCollisions
+          targets={targets}
+          onTargetsChange={setTargets}
+          resolution={collisionResolution}
+          onResolutionChange={onCollisionResolutionChange}
+        />
       )}
 
       <div className="ov2-rs-tabs">

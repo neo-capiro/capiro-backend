@@ -6,6 +6,8 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  analyzeRecipientCollisions,
+  collisionsFingerprint,
   expandContextItemScopes,
   flattenTargets,
   membershipOf,
@@ -204,5 +206,174 @@ describe('expandContextItemScopes — Build Context list/group scope routing', (
   it('drops an item scoped to a list/group that no longer exists', () => {
     const out = expandContextItemScopes([item('list:GONE'), item('all')], targets);
     expect(out.map((c) => c.scope)).toEqual(['all']);
+  });
+});
+
+describe('analyzeRecipientCollisions (Phase 2 §3.g)', () => {
+  it('reports nothing when every email appears exactly once', () => {
+    const targets: OutreachTarget[] = [
+      { key: 'i1', type: 'individual', recipients: [rec('Alma', 'alma@x.com')], cc: [], bcc: [] },
+      {
+        key: 'L1',
+        type: 'list',
+        name: 'L',
+        recipients: [rec('Bob', 'bob@x.com')],
+        cc: [],
+        bcc: [],
+      },
+    ];
+    expect(analyzeRecipientCollisions(targets)).toEqual([]);
+  });
+
+  it('flags a person who is both an individual target AND a group member — the INTENTIONALLY allowed case', () => {
+    const targets: OutreachTarget[] = [
+      { key: 'i1', type: 'individual', recipients: [rec('Gail', 'gail@x.com')], cc: [], bcc: [] },
+      {
+        key: 'G1',
+        type: 'group',
+        name: 'HASC offices',
+        recipients: [rec('Gail', 'gail@x.com'), rec('Hank', 'hank@x.com')],
+        cc: [],
+        bcc: [],
+      },
+    ];
+    const [collision] = analyzeRecipientCollisions(targets);
+    expect(collision?.email).toBe('gail@x.com');
+    expect(collision?.toMessageIds).toHaveLength(2);
+    expect(collision?.individualToCount).toBe(1);
+    expect(collision?.groupToCount).toBe(1);
+    expect(collision?.ccOverlapsOwnTo).toBe(false);
+    // Never silently deduped: both appearances are preserved.
+    expect(collision?.appearances).toHaveLength(2);
+  });
+
+  it('flags a person who belongs to two DIFFERENT groups (two separate shared emails)', () => {
+    const targets: OutreachTarget[] = [
+      {
+        key: 'G1',
+        type: 'group',
+        name: 'Group A',
+        recipients: [rec('Gail', 'gail@x.com')],
+        cc: [],
+        bcc: [],
+      },
+      {
+        key: 'G2',
+        type: 'group',
+        name: 'Group B',
+        recipients: [rec('Gail', 'gail@x.com')],
+        cc: [],
+        bcc: [],
+      },
+    ];
+    const [collision] = analyzeRecipientCollisions(targets);
+    expect(collision?.toMessageIds.sort()).toEqual(['group:G1', 'group:G2']);
+    expect(collision?.groupToCount).toBe(2);
+  });
+
+  it('flags Cc/Bcc overlap with the same message’s To recipient', () => {
+    const targets: OutreachTarget[] = [
+      {
+        key: 'i1',
+        type: 'individual',
+        recipients: [rec('Alma', 'alma@x.com')],
+        cc: ['alma@x.com'],
+        bcc: [],
+      },
+    ];
+    const [collision] = analyzeRecipientCollisions(targets);
+    expect(collision?.email).toBe('alma@x.com');
+    expect(collision?.ccOverlapsOwnTo).toBe(true);
+    // Still only ONE outgoing message — this is a Cc mistake, not a duplicate send.
+    expect(collision?.toMessageIds).toHaveLength(1);
+  });
+
+  it('flags the same email recorded under two different display names (likely duplicate contacts)', () => {
+    const targets: OutreachTarget[] = [
+      {
+        key: 'i1',
+        type: 'individual',
+        recipients: [rec('Gail Smith', 'gail@x.com')],
+        cc: [],
+        bcc: [],
+      },
+      {
+        key: 'i2',
+        type: 'individual',
+        recipients: [{ id: 'other-id', name: 'G. Smith', email: 'gail@x.com' }],
+        cc: [],
+        bcc: [],
+      },
+    ];
+    const [collision] = analyzeRecipientCollisions(targets);
+    expect(collision?.identityMismatch).toBe(true);
+  });
+
+  it('is case/whitespace-insensitive when normalizing email identity', () => {
+    const targets: OutreachTarget[] = [
+      { key: 'i1', type: 'individual', recipients: [rec('A', ' Gail@X.com ')], cc: [], bcc: [] },
+      {
+        key: 'G1',
+        type: 'group',
+        name: 'G',
+        recipients: [rec('A', 'gail@x.com')],
+        cc: [],
+        bcc: [],
+      },
+    ];
+    const collisions = analyzeRecipientCollisions(targets);
+    expect(collisions).toHaveLength(1);
+    expect(collisions[0]?.email).toBe('gail@x.com');
+  });
+
+  it('sorts most-appearances first, then alphabetically', () => {
+    const targets: OutreachTarget[] = [
+      { key: 'i1', type: 'individual', recipients: [rec('Z', 'zed@x.com')], cc: [], bcc: [] },
+      { key: 'i2', type: 'individual', recipients: [rec('A', 'aaa@x.com')], cc: [], bcc: [] },
+      {
+        key: 'G1',
+        type: 'group',
+        name: 'G',
+        recipients: [rec('Z', 'zed@x.com'), rec('A', 'aaa@x.com')],
+        cc: [],
+        bcc: [],
+      },
+      {
+        key: 'G2',
+        type: 'group',
+        name: 'G2',
+        recipients: [rec('Z', 'zed@x.com')],
+        cc: [],
+        bcc: [],
+      },
+    ];
+    const collisions = analyzeRecipientCollisions(targets);
+    // zed@x.com has 3 appearances (individual + 2 groups); aaa@x.com has 2.
+    expect(collisions.map((c) => c.email)).toEqual(['zed@x.com', 'aaa@x.com']);
+  });
+});
+
+describe('collisionsFingerprint (Phase 2 §3.g)', () => {
+  it('is stable for the same collision set and changes when a collision is resolved', () => {
+    const withGroup: OutreachTarget[] = [
+      { key: 'i1', type: 'individual', recipients: [rec('Gail', 'gail@x.com')], cc: [], bcc: [] },
+      {
+        key: 'G1',
+        type: 'group',
+        name: 'G',
+        recipients: [rec('Gail', 'gail@x.com')],
+        cc: [],
+        bcc: [],
+      },
+    ];
+    const withoutGroup: OutreachTarget[] = [withGroup[0]!];
+
+    const fp1 = collisionsFingerprint(analyzeRecipientCollisions(withGroup));
+    const fp2 = collisionsFingerprint(analyzeRecipientCollisions(withGroup));
+    const fp3 = collisionsFingerprint(analyzeRecipientCollisions(withoutGroup));
+
+    expect(fp1).toBe(fp2);
+    expect(fp1).not.toBe(fp3);
+    expect(fp3).toBe(''); // no collisions left once the group is removed
   });
 });

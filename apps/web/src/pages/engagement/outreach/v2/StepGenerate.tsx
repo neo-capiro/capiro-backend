@@ -33,9 +33,11 @@ import {
   draftBlockReason,
   isDraftSendable,
   isVersioned,
+  type DraftCandidate,
 } from './versioned-drafts.js';
 import { listAidFromKey, type GenSlot, type RailEntity, type RailSlot } from './generation.js';
 import { RichTextEditor } from './RichTextEditor.js';
+import { DraftVersionCompare } from './DraftVersionCompare.js';
 import './step-generate.css';
 
 interface AttachmentDoc {
@@ -60,6 +62,24 @@ interface Props {
   onRevert: (genKey: string) => void;
   /** Context (or template/tone) changed since these drafts were generated. */
   contextStale?: boolean;
+  /**
+   * Phase 2 §3.f1 — the precise slots the current stale context touches,
+   * with why. Empty/undefined when nothing is affected (nothing to show)
+   * or `contextStale` covers exactly this same information less precisely.
+   */
+  affectedGenKeys?: string[];
+  affectedReasonsByKey?: Record<string, string[]>;
+  onRegenerateAffected?: () => void;
+  /**
+   * Phase 2 §3.f2/f3 — regenerations the server refused to apply directly
+   * because the slot's current draft was manually authored. Rendered as
+   * compare/merge cards; the current draft is untouched until resolved.
+   */
+  candidates?: DraftCandidate[];
+  onKeepMineCandidate?: (genKey: string) => void;
+  onAcceptCandidate?: (candidate: DraftCandidate) => void | Promise<void>;
+  onMergeCandidate?: (candidate: DraftCandidate, subject: string, body: string) => void | Promise<void>;
+  candidateBusyKey?: string | null;
   onEdit: (genKey: string, patch: { subject?: string; body?: string }) => void;
   onApplyToList: (listAid: string, sourceKey: string) => void;
   regenerating: boolean;
@@ -161,6 +181,14 @@ export function StepGenerate({
   onImprove,
   onRevert,
   contextStale,
+  affectedGenKeys,
+  affectedReasonsByKey,
+  onRegenerateAffected,
+  candidates,
+  onKeepMineCandidate,
+  onAcceptCandidate,
+  onMergeCandidate,
+  candidateBusyKey,
   onEdit,
   onApplyToList,
   regenerating,
@@ -198,6 +226,13 @@ export function StepGenerate({
   const total = slots.length;
   const ready = slots.filter((s) => isReady(generated[s.genKey])).length;
   const batchGenerating = regenerating && !generatingKey;
+  const affectedCount = affectedGenKeys?.length ?? 0;
+  // Only worth its own button when it's a real subset — regenerating
+  // "affected" when that's everyone is just Regenerate all with extra steps.
+  const showAffectedButton = affectedCount > 0 && affectedCount < total && onRegenerateAffected;
+  const affectedReasons = affectedGenKeys?.length
+    ? Array.from(new Set(affectedGenKeys.flatMap((k) => affectedReasonsByKey?.[k] ?? [])))
+    : [];
 
   const select = (key: string) => {
     if (key !== activeKey) {
@@ -250,10 +285,29 @@ export function StepGenerate({
             <ThunderboltOutlined />
           </span>
           <span className="ov2-gen-stale-msg">
-            Your context changed since these drafts were generated. Regenerate to apply it
-            {' '}
-            <em>(this replaces every draft, including any manual edits)</em>.
+            Your context changed since these drafts were generated
+            {showAffectedButton ? (
+              <>
+                {' '}
+                — {affectedCount} of {total} draft{affectedCount === 1 ? '' : 's'} affected
+                {affectedReasons.length ? `: ${affectedReasons.slice(0, 3).join('; ')}` : ''}.
+              </>
+            ) : (
+              <>
+                . Regenerate to apply it <em>(this replaces every draft, including any manual edits)</em>.
+              </>
+            )}
           </span>
+          {showAffectedButton && (
+            <button
+              type="button"
+              className="ov2-gen-stale-btn"
+              onClick={onRegenerateAffected}
+              disabled={batchGenerating}
+            >
+              {batchGenerating ? 'Regenerating…' : `Regenerate affected (${affectedCount})`}
+            </button>
+          )}
           <button
             type="button"
             className="ov2-gen-stale-btn"
@@ -263,6 +317,27 @@ export function StepGenerate({
             {batchGenerating ? 'Regenerating…' : 'Regenerate all'}
           </button>
         </div>
+      )}
+
+      {candidates && candidates.length > 0 && (
+        <>
+          {candidates.map((c) => {
+            const slotInfo = index.get(c.genKey);
+            const currentDraft = generated[c.genKey];
+            return (
+              <DraftVersionCompare
+                key={c.genKey}
+                candidate={c}
+                slotName={slotInfo?.slot.name ?? c.genKey}
+                current={{ subject: currentDraft?.subject ?? '', body: currentDraft?.body ?? '' }}
+                busy={candidateBusyKey === c.genKey}
+                onKeepMine={() => onKeepMineCandidate?.(c.genKey)}
+                onAccept={() => onAcceptCandidate?.(c)}
+                onMergeManually={(subject, body) => onMergeCandidate?.(c, subject, body)}
+              />
+            );
+          })}
+        </>
       )}
 
       <div className="ov2-gen-grid">

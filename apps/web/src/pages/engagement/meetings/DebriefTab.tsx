@@ -436,6 +436,7 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
         }}
         onExport={onExport}
         approved={status === 'approved'}
+        shared={current.sharedAt != null}
         onApprove={async () => {
           await approve.mutateAsync({ meetingId: meeting.id, debriefId: current.id });
           message.success('Debrief approved.');

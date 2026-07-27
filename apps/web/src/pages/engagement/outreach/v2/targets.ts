@@ -277,6 +277,162 @@ export function flattenTargets(targets: OutreachTarget[]): OutreachRecipient[] {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Phase 2 §3.g — recipient-collision analysis.
+//
+// Current target semantics INTENTIONALLY allow a person to receive both a
+// personal email (individual/list) AND a group email — see the module
+// comment and flattenTargets() above. That is a deliberate product decision,
+// not a bug, so this analyzer never dedupes anything itself. It only makes
+// every appearance of a normalized email visible — across To/Cc/Bcc and
+// individual/list/group targets — so the wizard can require an EXPLICIT
+// acknowledgement before send (§3.h preflight) instead of silently mailing
+// someone twice.
+// ---------------------------------------------------------------------------
+
+export type CollisionRole = 'to' | 'cc' | 'bcc';
+
+export interface CollisionAppearance {
+  targetKey: string;
+  targetType: TargetType;
+  targetName?: string;
+  role: CollisionRole;
+  /** Display name recorded for THIS occurrence — may differ across appearances of the same email. */
+  displayName?: string;
+  /**
+   * The outgoing message this occurrence rides on: `recipientKey(r)` for an
+   * individual/list To (and any Cc/Bcc riding on that person's message), or
+   * `group:<targetKey>` for a group's one shared message. Two 'to'
+   * appearances with different messageIds are two SEPARATE emails landing in
+   * the same inbox.
+   */
+  messageId: string;
+}
+
+export interface RecipientCollision {
+  /** Normalized (trimmed, lowercased) email identity. */
+  email: string;
+  appearances: CollisionAppearance[];
+  /** Distinct outgoing messages (by messageId) this email receives as a To recipient. */
+  toMessageIds: string[];
+  individualToCount: number;
+  listToCount: number;
+  groupToCount: number;
+  /** This email is Cc'd/Bcc'd on the very message it is ALSO the To recipient of. */
+  ccOverlapsOwnTo: boolean;
+  /** The same email surfaces under more than one distinct display name (likely duplicate contact records). */
+  identityMismatch: boolean;
+}
+
+/**
+ * Surfaces every place a normalized email address appears across targets.
+ * Only emails with 2+ total appearances are returned — a single appearance
+ * can never collide with itself. Never mutates or dedupes `targets`.
+ */
+export function analyzeRecipientCollisions(targets: OutreachTarget[]): RecipientCollision[] {
+  const byEmail = new Map<string, CollisionAppearance[]>();
+  const record = (email: string | undefined, appearance: CollisionAppearance) => {
+    const norm = (email ?? '').trim().toLowerCase();
+    if (!norm || !EMAIL_RE.test(norm)) return;
+    if (!byEmail.has(norm)) byEmail.set(norm, []);
+    byEmail.get(norm)!.push(appearance);
+  };
+  const recordCopies = (
+    t: OutreachTarget,
+    messageId: string,
+    memberKey?: string,
+  ) => {
+    for (const email of t.cc) record(email, { targetKey: t.key, targetType: t.type, targetName: t.name, role: 'cc', messageId });
+    for (const c of t.ccContacts ?? [])
+      record(c.email, { targetKey: t.key, targetType: t.type, targetName: t.name, role: 'cc', displayName: c.name, messageId });
+    for (const email of t.bcc) record(email, { targetKey: t.key, targetType: t.type, targetName: t.name, role: 'bcc', messageId });
+    for (const c of t.bccContacts ?? [])
+      record(c.email, { targetKey: t.key, targetType: t.type, targetName: t.name, role: 'bcc', displayName: c.name, messageId });
+    if (t.type === 'list' && memberKey) {
+      for (const email of t.memberCc?.[memberKey] ?? [])
+        record(email, { targetKey: t.key, targetType: t.type, targetName: t.name, role: 'cc', messageId });
+      for (const c of t.memberCcContacts?.[memberKey] ?? [])
+        record(c.email, { targetKey: t.key, targetType: t.type, targetName: t.name, role: 'cc', displayName: c.name, messageId });
+      for (const email of t.memberBcc?.[memberKey] ?? [])
+        record(email, { targetKey: t.key, targetType: t.type, targetName: t.name, role: 'bcc', messageId });
+      for (const c of t.memberBccContacts?.[memberKey] ?? [])
+        record(c.email, { targetKey: t.key, targetType: t.type, targetName: t.name, role: 'bcc', displayName: c.name, messageId });
+    }
+  };
+
+  for (const t of targets) {
+    if (t.type === 'group') {
+      const messageId = `group:${t.key}`;
+      for (const r of t.recipients) {
+        record(r.email, {
+          targetKey: t.key,
+          targetType: 'group',
+          targetName: t.name,
+          role: 'to',
+          displayName: r.name,
+          messageId,
+        });
+      }
+      recordCopies(t, messageId);
+      continue;
+    }
+    // individual / list: EACH recipient gets their OWN message.
+    for (const r of t.recipients) {
+      const messageId = recipientKey(r);
+      record(r.email, {
+        targetKey: t.key,
+        targetType: t.type,
+        targetName: t.name,
+        role: 'to',
+        displayName: r.name,
+        messageId,
+      });
+      recordCopies(t, messageId, messageId);
+    }
+  }
+
+  const collisions: RecipientCollision[] = [];
+  for (const [email, appearances] of byEmail) {
+    if (appearances.length < 2) continue;
+    const toAppearances = appearances.filter((a) => a.role === 'to');
+    const toMessageIds = Array.from(new Set(toAppearances.map((a) => a.messageId)));
+    const names = new Set(appearances.map((a) => (a.displayName ?? '').trim()).filter(Boolean));
+    const ccOverlapsOwnTo = appearances.some(
+      (a) =>
+        (a.role === 'cc' || a.role === 'bcc') &&
+        toAppearances.some((to) => to.messageId === a.messageId),
+    );
+    collisions.push({
+      email,
+      appearances,
+      toMessageIds,
+      individualToCount: toAppearances.filter((a) => a.targetType === 'individual').length,
+      listToCount: toAppearances.filter((a) => a.targetType === 'list').length,
+      groupToCount: toAppearances.filter((a) => a.targetType === 'group').length,
+      ccOverlapsOwnTo,
+      identityMismatch: names.size > 1,
+    });
+  }
+  // Deterministic order: most-appearances first, then alphabetical.
+  collisions.sort(
+    (a, b) => b.appearances.length - a.appearances.length || a.email.localeCompare(b.email),
+  );
+  return collisions;
+}
+
+/**
+ * Stable summary of a collision set for acknowledgement tracking (§3.h
+ * preflight persists this alongside the user's resolution choice). Any target
+ * change that adds/removes/reshapes a collision changes the fingerprint,
+ * which invalidates a prior "keep all" acknowledgement.
+ */
+export function collisionsFingerprint(collisions: RecipientCollision[]): string {
+  return collisions
+    .map((c) => `${c.email}:${c.toMessageIds.length}:${c.ccOverlapsOwnTo ? 1 : 0}:${c.identityMismatch ? 1 : 0}`)
+    .sort()
+    .join('|');
+}
+
 /**
  * Context-item scope (Build Context step) is one of:
  *   'all'                — shared with every recipient

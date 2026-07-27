@@ -56,11 +56,13 @@ import {
   appendDraftHistory,
   buildGenerateTasks,
   buildGenerationModel,
+  computeAffectedGenerationKeys,
   genInputSignature,
   partitionGenerationResults,
   projectDraftsForSend,
   revertDraftHistory,
   type BatchDraftResult,
+  type GenerationSnapshot,
   type GenSlot,
 } from './generation.js';
 import {
@@ -80,6 +82,7 @@ import {
   canEnterSendStep,
   isDraftSendable,
   markDirty,
+  type DraftCandidate,
   type DraftVersionRef,
   type VersionedBatchResult,
 } from './versioned-drafts.js';
@@ -98,6 +101,7 @@ import {
   useSendIntent,
   type SendIntentView,
 } from './send-intent.js';
+import { computeSendPreflight, type SendPreflightResult } from './send-preflight.js';
 import {
   INITIAL_V2_STATE,
   WIZARD_STEPS,
@@ -144,16 +148,24 @@ interface Props {
   initialDraftId?: string | null;
 }
 
+interface InsightsBillRow {
+  id: string;
+  billNumber: string;
+  title: string;
+  policyArea: string | null;
+  status: string | null;
+  latestAction: string | null;
+}
 interface InsightsResponse {
   clientName?: string | null;
-  recentBills?: Array<{
-    id: string;
-    billNumber: string;
-    title: string;
-    policyArea: string | null;
-    status: string | null;
-    latestAction: string | null;
-  }>;
+  // Phase 2 §3.i — ONLY the selected client's own tracked bills. Empty when the
+  // client tracks nothing; never filled with unrelated global bills.
+  clientTrackedBills?: InsightsBillRow[];
+  // Separate, honestly-labeled global discovery feed — always present,
+  // independent of clientTrackedBills, never auto-selected as context.
+  suggestedPublicDevelopments?: Array<
+    InsightsBillRow & { relevanceReason: string; sourceDate: string | null }
+  >;
   clientLdaHistory?: Array<{ year: number; filingCount: number; issueAreas: string[] }>;
   // Client-profile intelligence the endpoint already returns; surfaced in the
   // Intel tab so it isn't empty when the client has no LDA filings.
@@ -248,6 +260,13 @@ interface GenerateResult {
   manifests: Map<string, GenerationSourceManifest>;
   failed: string[];
   errorMessage?: string;
+  /**
+   * Phase 2 §3.f2 — regenerations the server refused to apply directly (the
+   * slot's current draft was manually authored). NEVER merged into
+   * `succeeded`/`held` — a candidate genKey's current draft is left exactly
+   * as it was; the compare UI decides its fate.
+   */
+  candidates: DraftCandidate[];
 }
 
 export function NewOutreachWizard({
@@ -295,6 +314,19 @@ export function NewOutreachWizard({
   const [sentResult, setSentResult] = useState<{ sent: number; failed: number } | null>(null);
   // Recipient key currently being (re)generated individually, if any.
   const [generatingKey, setGeneratingKey] = useState<string | null>(null);
+  // Phase 2 §3.f2/f3 — regenerations offered as candidates (server refused to
+  // overwrite a manually authored current version), keyed by genKey. Ephemeral
+  // UI state, not part of WizardV2State: a candidate that isn't accepted before
+  // the user navigates away is simply re-offered on the next regenerate.
+  const [candidates, setCandidates] = useState<Map<string, DraftCandidate>>(new Map());
+  const [candidateBusyKey, setCandidateBusyKey] = useState<string | null>(null);
+  // Phase 2 §3.f1 — the generation snapshot captured at the last FULL/affected
+  // regeneration, for computing exactly which slots the CURRENT inputs still
+  // differ from (see computeAffectedGenerationKeys). null = nothing generated
+  // yet, or the campaign was resumed from a draft (no fine-grained history).
+  const [lastGenerationSnapshot, setLastGenerationSnapshot] = useState<GenerationSnapshot | null>(
+    null,
+  );
   // Async job pipeline (W4.4): the generate-job ids currently being polled, plus
   // the set of genKeys already merged from a TERMINAL job item — so a later poll
   // never re-clobbers a draft the user has since edited. Job-mode runs only when
@@ -500,6 +532,17 @@ export function NewOutreachWizard({
       generatedEmails:
         Object.keys(generatedEmails).length > 0 ? generatedEmails : prev.generatedEmails,
       attachmentIds: attachmentIds.length > 0 ? attachmentIds : prev.attachmentIds,
+      // Phase 2 §3.g — resume a prior "keep all" acknowledgement verbatim; it's
+      // re-validated against the CURRENT fingerprint at Send time regardless
+      // (a target edited since this save invalidates it naturally).
+      collisionResolution:
+        metadata.collisionResolution &&
+        typeof metadata.collisionResolution === 'object' &&
+        typeof (metadata.collisionResolution as { fingerprint?: unknown }).fingerprint ===
+          'string' &&
+        Array.isArray((metadata.collisionResolution as { keepAllEmails?: unknown }).keepAllEmails)
+          ? (metadata.collisionResolution as WizardV2State['collisionResolution'])
+          : prev.collisionResolution,
       // Stamp the restored context signature so resumed drafts aren't instantly
       // flagged stale (they were generated against this exact context).
       generatedInputSig:
@@ -674,8 +717,10 @@ export function NewOutreachWizard({
     out.debrief = mapLib('debrief', lib?.debriefs);
     out.prep = mapLib('prep', lib?.preps);
 
-    // Bills come from /outreach/insights → recentBills.
-    for (const b of insightsQuery.data?.recentBills ?? []) {
+    // Bills come from /outreach/insights → clientTrackedBills. Phase 2 §3.i:
+    // this is ONLY the client's own tracked bills, never backfilled with global
+    // activity — see discoveryBills below for the separate, labeled feed.
+    for (const b of insightsQuery.data?.clientTrackedBills ?? []) {
       out.bill.push({
         id: `bill-${b.id}`,
         kind: 'bill',
@@ -764,6 +809,22 @@ export function NewOutreachWizard({
     return out;
   }, [insightsQuery.data, mailQuery.data, contextLibraryQuery.data, peWatchlistQuery.data]);
 
+  // Phase 2 §3.i — general legislative activity, kept OUT of `pool.bill` and
+  // rendered as its own labeled section so it can never be mistaken for
+  // something selected because of this client. Never auto-added to `selected`.
+  const discoveryBills: ContextPoolItem[] = useMemo(
+    () =>
+      (insightsQuery.data?.suggestedPublicDevelopments ?? []).map((b) => ({
+        id: `bill-${b.id}`,
+        kind: 'bill',
+        title: `${b.billNumber}, ${b.title}`,
+        body: b.latestAction ?? undefined,
+        tag: b.policyArea ?? undefined,
+        sub: [b.relevanceReason, b.sourceDate].filter(Boolean).join(' · '),
+      })),
+    [insightsQuery.data],
+  );
+
   const poolLoading =
     insightsQuery.isLoading ||
     mailQuery.isLoading ||
@@ -834,6 +895,18 @@ export function NewOutreachWizard({
   // mounted; with no active jobs it polls nothing. Terminal item results merge
   // into generatedEmails via the SAME shape the sync onSuccess writes, so Send /
   // Save / Improve need no job awareness.
+  //
+  // KNOWN GAP (Phase 2 §3.f2): JobItem.result (jobs.ts) does not carry
+  // isCandidate/baseVersion, so a regeneration the server persisted as a
+  // candidate (current draft manually authored) still gets merged here as if
+  // it were the new current draft — the async path does not yet route through
+  // the compare/merge UI the sync generateMutation.onSuccess below does. The
+  // SERVER-side protection (upsertGeneratedVersionOrCandidate not advancing
+  // currentVersion) still holds regardless, so nothing is destroyed in the
+  // database — but the wizard's displayed text and the version id it would
+  // send under async-job mode can show the candidate rather than the user's
+  // edit. asyncGen is default-off (env kill-switch + per-tenant canary flag),
+  // so this does not affect the sync path most tenants use.
   const { byJob, anyActive: jobsPolling } = useOutreachJobs(api, activeJobIds);
   const jobMarkFreshRef = useRef<{ markFresh: boolean; sig: string | null }>({
     markFresh: false,
@@ -986,7 +1059,14 @@ export function NewOutreachWizard({
       revise?: { genKey: string; instruction: string };
     }): Promise<GenerateResult> => {
       if (!vars.slots.length)
-        return { succeeded: [], held: [], refs: new Map(), manifests: new Map(), failed: [] };
+        return {
+          succeeded: [],
+          held: [],
+          refs: new Map(),
+          manifests: new Map(),
+          candidates: [],
+          failed: [],
+        };
       // GenerateBatchEmailDto whitelists only id/kind/title/body/scope/note on
       // context items; with forbidNonWhitelisted on, pool-only fields (tag/sub/
       // matches) 400 the batch. Strip to the DTO shape. List/group scopes are
@@ -1090,6 +1170,7 @@ export function NewOutreachWizard({
             failedGenKeys: string[];
             refs: Map<string, DraftVersionRef>;
             manifests: Map<string, GenerationSourceManifest>;
+            candidates: DraftCandidate[];
           }
         | { ok: false; genKeys: string[]; message: string };
       const tasks = buildGenerateTasks(vars.slots, GEN_BATCH_MAX);
@@ -1112,6 +1193,11 @@ export function NewOutreachWizard({
                 // and attach the version lifecycle, rather than overwriting it.
                 const byRecipient = new Map(results.map((r) => [r.recipientId, r]));
                 const refs = new Map<string, DraftVersionRef>();
+                // Phase 2 §3.f2 — a slot whose match is a CANDIDATE never gets a
+                // ref applied to its current draft: the server deliberately did
+                // not advance that artifact's current version, so the wizard
+                // must not either. It surfaces via `candidates` for compare/merge.
+                const candidates: DraftCandidate[] = [];
                 for (const slot of t.chunkSlots) {
                   const r = byRecipient.get(slot.resultId) as VersionedBatchResult | undefined;
                   if (!r) continue;
@@ -1130,9 +1216,32 @@ export function NewOutreachWizard({
                           sendable: r.sendable === true,
                         }
                       : undefined);
-                  if (match) refs.set(slot.genKey, match as DraftVersionRef);
+                  if (!match) continue;
+                  if ((match as DraftVersionRef).isCandidate) {
+                    const m = match as DraftVersionRef;
+                    candidates.push({
+                      genKey: slot.genKey,
+                      artifactId: m.artifactId,
+                      candidateVersionId: m.versionId,
+                      candidateVersion: m.version,
+                      baseVersion: m.baseVersion ?? m.version - 1,
+                      subject: r.subject,
+                      body: sanitizeHtml(markdownishToHtml(r.body)),
+                    });
+                    continue;
+                  }
+                  refs.set(slot.genKey, match as DraftVersionRef);
                 }
-                return { ok: true, drafts, heldDrafts, failedGenKeys, refs, manifests };
+                const candidateKeys = new Set(candidates.map((c) => c.genKey));
+                return {
+                  ok: true,
+                  drafts: drafts.filter((d) => !candidateKeys.has(d.genKey)),
+                  heldDrafts: heldDrafts.filter((d) => !candidateKeys.has(d.genKey)),
+                  failedGenKeys,
+                  refs,
+                  manifests,
+                  candidates,
+                };
               })
               .catch(
                 (err): TaskOut => ({
@@ -1149,14 +1258,33 @@ export function NewOutreachWizard({
       for (const o of outs) if (o.ok) for (const [k, v] of o.refs) refs.set(k, v);
       const manifests = new Map<string, GenerationSourceManifest>();
       for (const o of outs) if (o.ok) for (const [k, v] of o.manifests) manifests.set(k, v);
+      const candidates = outs.flatMap((o) => (o.ok ? o.candidates : []));
       // `failed` now unions BOTH whole-POST failures (ok:false) AND same-batch
       // per-recipient failures (ok:true, failedGenKeys) — both flow to the same
       // 'error' placeholder path in onSuccess.
       const failed = outs.flatMap((o) => (o.ok ? o.failedGenKeys : o.genKeys));
       const firstFailure = outs.find((o): o is Extract<TaskOut, { ok: false }> => !o.ok);
-      return { succeeded, held, refs, manifests, failed, errorMessage: firstFailure?.message };
+      return {
+        succeeded,
+        held,
+        refs,
+        manifests,
+        candidates,
+        failed,
+        errorMessage: firstFailure?.message,
+      };
     },
     onSuccess: (res, vars) => {
+      // Phase 2 §3.f2/f3 — offer for compare/merge. The slot's current draft
+      // (in `generatedEmails`) is untouched; see the candidateKeys filter
+      // above for why `res.succeeded`/`res.held` never include these genKeys.
+      if (res.candidates.length) {
+        setCandidates((prev) => {
+          const next = new Map(prev);
+          for (const c of res.candidates) next.set(c.genKey, c);
+          return next;
+        });
+      }
       setState((prev) => {
         const generatedEmails = { ...prev.generatedEmails };
         for (const r of res.succeeded) {
@@ -1256,6 +1384,18 @@ export function NewOutreachWizard({
             : {}),
         };
       });
+      // Phase 2 §3.f1 — same condition as generatedInputSig above: a full OR
+      // exactly-affected regeneration brings the WHOLE campaign back in sync
+      // with the current inputs (an unaffected slot was, by definition,
+      // already consistent with them).
+      if (vars.markFresh && vars.sig != null && res.failed.length === 0 && res.held.length === 0) {
+        setLastGenerationSnapshot({
+          contextItems: state.contextItems,
+          templateId: state.templateId,
+          tone: state.tone,
+          direction: state.direction,
+        });
+      }
       // §4.10 (f-5): best-effort, per successfully-generated draft — NOT for an
       // "Improve" (that revises existing text, it doesn't generate fresh). Only
       // the synchronous path (this mutation) is wired; the async bulk job
@@ -1570,6 +1710,9 @@ export function NewOutreachWizard({
         contextItems: snapshot.contextItems,
         attachmentIds: snapshot.attachmentIds,
         targets: snapshot.targets,
+        // Phase 2 §3.g — "keep all" acknowledgement, tied to the collision-set
+        // fingerprint it was given against (see collisionsFingerprint).
+        collisionResolution: snapshot.collisionResolution,
       },
     };
   };
@@ -1671,6 +1814,9 @@ export function NewOutreachWizard({
           // Individual/List/Group targets (incl. their Cc/Bcc). The flat
           // `recipients` above is its legacy projection (flattenTargets).
           targets: state.targets,
+          // Phase 2 §3.g — "keep all" acknowledgement, tied to the collision-set
+          // fingerprint it was given against (see collisionsFingerprint).
+          collisionResolution: state.collisionResolution,
         },
       };
       if (draftId) {
@@ -1892,6 +2038,102 @@ export function NewOutreachWizard({
     }
   };
 
+  // ── Phase 2 §3.f2/f3 — candidate regeneration compare/merge ────────────────
+
+  /** Discard a candidate — it stays immutable, non-current history. Nothing to send. */
+  const keepMineCandidate = (genKey: string) => {
+    setCandidates((prev) => {
+      const next = new Map(prev);
+      next.delete(genKey);
+      return next;
+    });
+  };
+
+  const acceptCandidate = async (candidate: DraftCandidate) => {
+    setCandidateBusyKey(candidate.genKey);
+    try {
+      const res = await api.post<{
+        current: {
+          id: string;
+          artifactId: string;
+          version: number;
+          subject: string;
+          body: string;
+          generationStatus: GeneratedDraft['generationStatus'];
+          auditStatus: NonNullable<GeneratedDraft['auditStatus']>;
+          approvalStatus: NonNullable<GeneratedDraft['approvalStatus']>;
+          reviewRequestId?: string | null;
+          sendable: boolean;
+        } | null;
+      }>(
+        `/api/engagement/outreach/draft-artifacts/${candidate.artifactId}/versions/${candidate.candidateVersionId}/accept`,
+        { baseVersion: candidate.baseVersion },
+      );
+      if (res.data.current) {
+        setState((prev) => {
+          const d = prev.generatedEmails[candidate.genKey];
+          if (!d) return prev;
+          return {
+            ...prev,
+            generatedEmails: {
+              ...prev.generatedEmails,
+              [candidate.genKey]: applyNewVersion(d, res.data.current!),
+            },
+          };
+        });
+      }
+      keepMineCandidate(candidate.genKey);
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      message.error(
+        status === 409
+          ? 'This draft changed since the candidate was generated. Reload before accepting.'
+          : apiErrorMessage(err) || 'Could not accept the regenerated draft.',
+      );
+    } finally {
+      setCandidateBusyKey(null);
+    }
+  };
+
+  /** Merge manually: save the user's merged text as a new edited version, based on the CURRENT (not the candidate's) version. */
+  const mergeCandidate = async (candidate: DraftCandidate, subject: string, body: string) => {
+    const currentDraft = state.generatedEmails[candidate.genKey];
+    if (!currentDraft?.versionId) return;
+    setCandidateBusyKey(candidate.genKey);
+    try {
+      const res = await api.post<{
+        id: string;
+        artifactId: string;
+        version: number;
+        subject: string;
+        body: string;
+        generationStatus: GeneratedDraft['generationStatus'];
+        auditStatus: NonNullable<GeneratedDraft['auditStatus']>;
+        approvalStatus: NonNullable<GeneratedDraft['approvalStatus']>;
+        reviewRequestId?: string | null;
+        sendable: boolean;
+      }>(`/api/engagement/outreach/draft-artifacts/${candidate.artifactId}/versions`, {
+        baseVersionId: currentDraft.versionId,
+        subject,
+        body: sanitizeHtml(markdownishToHtml(body)),
+        editKind: 'manual',
+      });
+      setState((prev) => {
+        const d = prev.generatedEmails[candidate.genKey];
+        if (!d) return prev;
+        return {
+          ...prev,
+          generatedEmails: { ...prev.generatedEmails, [candidate.genKey]: applyNewVersion(d, res.data) },
+        };
+      });
+      keepMineCandidate(candidate.genKey);
+    } catch (err) {
+      message.error(apiErrorMessage(err) || 'Could not save the merged draft.');
+    } finally {
+      setCandidateBusyKey(null);
+    }
+  };
+
   /**
    * Inline edits (§3.g4).
    *
@@ -1954,6 +2196,38 @@ export function NewOutreachWizard({
     // (one recipient completes in seconds — a job would only add poll latency).
     if (asyncGen) void submitGenerateJobs(genModel.slots, true, genSig);
     else generateMutation.mutate({ slots: genModel.slots, markFresh: true, sig: genSig });
+  };
+
+  // Phase 2 §3.f1 — precisely which slots the current inputs still differ
+  // from, computed against the snapshot captured at the last full/affected
+  // regeneration (null before any generation happens, so nothing is flagged
+  // affected on first load — there is no "stale" without a prior baseline).
+  const affected = useMemo(
+    () =>
+      computeAffectedGenerationKeys(
+        lastGenerationSnapshot,
+        {
+          contextItems: state.contextItems,
+          templateId: state.templateId,
+          tone: state.tone,
+          direction: state.direction,
+        },
+        genModel,
+      ),
+    [lastGenerationSnapshot, state.contextItems, state.templateId, state.tone, state.direction, genModel],
+  );
+
+  /** Regenerate exactly the slots the current inputs affect (§3.f1) — same
+   *  candidate-safety as any other regenerate; see the generateMutation. */
+  const regenerateAffected = () => {
+    const slots = genModel.slots.filter((s) => affected.affected.includes(s.genKey));
+    if (!slots.length) return;
+    setGeneratingKey(null);
+    // Regenerating exactly the affected set brings the WHOLE campaign back in
+    // sync with the current inputs, so this stamps markFresh/sig too — same
+    // as a full regenerate (see the onSuccess condition).
+    if (asyncGen) void submitGenerateJobs(slots, true, genSig);
+    else generateMutation.mutate({ slots, markFresh: true, sig: genSig });
   };
 
   // "Improve": revise ONE draft in place per a freeform instruction (keeps the
@@ -2044,6 +2318,31 @@ export function NewOutreachWizard({
       }).length
     : genModel.slots.filter((s) => state.generatedEmails[s.genKey]?.status === 'error').length;
 
+  // Phase 2 §3.h1 — the required final review checkbox. Tied to a signature
+  // of what's actually being reviewed (not just a plain boolean) so ANY
+  // change to targets/attachments/drafts since the box was checked re-opens
+  // it — same discipline as the collision "keep all" fingerprint in g.
+  const preflightSignature = JSON.stringify([
+    state.targets.map((t) => [t.type, t.key, t.recipients.length]),
+    state.attachmentIds.slice().sort(),
+    genModel.slots.map((s) => [s.genKey, state.generatedEmails[s.genKey]?.versionId ?? null]),
+  ]);
+  const [acknowledgedSignature, setAcknowledgedSignature] = useState<string | null>(null);
+  const reviewAcknowledged = acknowledgedSignature === preflightSignature;
+
+  const preflight = computeSendPreflight({
+    targets: state.targets,
+    slots: genModel.slots,
+    generated: state.generatedEmails,
+    attachmentIds: state.attachmentIds,
+    docs: docsQuery.data?.items ?? [],
+    collisionResolution: state.collisionResolution,
+    emailConnected,
+    selectedInboxId,
+    reviewAcknowledged,
+    sendInFlight: activeSendMutation.isPending,
+  });
+
   // ---- Render ----
   return (
     <div className="ov2-wiz">
@@ -2103,6 +2402,10 @@ export function NewOutreachWizard({
                   };
                 })
               }
+              collisionResolution={state.collisionResolution}
+              onCollisionResolutionChange={(next) =>
+                setState((p) => ({ ...p, collisionResolution: next }))
+              }
             />
           )}
 
@@ -2113,6 +2416,8 @@ export function NewOutreachWizard({
               selected={state.contextItems}
               onChange={(items) => setState((p) => ({ ...p, contextItems: items }))}
               pool={pool}
+              discoveryBills={discoveryBills}
+              hasClient={Boolean(state.clientId)}
               loading={poolLoading}
             />
           )}
@@ -2157,6 +2462,14 @@ export function NewOutreachWizard({
               selectedKey={state.selectedGenerationKey}
               onSelectKey={(k) => setState((p) => ({ ...p, selectedGenerationKey: k }))}
               contextStale={contextStale}
+              affectedGenKeys={affected.affected}
+              affectedReasonsByKey={affected.reasonsByKey}
+              onRegenerateAffected={regenerateAffected}
+              candidates={Array.from(candidates.values())}
+              onKeepMineCandidate={keepMineCandidate}
+              onAcceptCandidate={acceptCandidate}
+              onMergeCandidate={mergeCandidate}
+              candidateBusyKey={candidateBusyKey}
               onRegenerateAll={regenerateAll}
               onRegenerateOne={regenerateOne}
               onImprove={improveOne}
@@ -2198,6 +2511,11 @@ export function NewOutreachWizard({
               sendLocked={sendLocked}
               onRetryFailed={retryFailedDeliveries}
               onCancelIntent={cancelCurrentIntent}
+              preflight={preflight}
+              reviewAcknowledged={reviewAcknowledged}
+              onToggleReviewAcknowledged={(checked) =>
+                setAcknowledgedSignature(checked ? preflightSignature : null)
+              }
             />
           )}
         </div>
@@ -2715,6 +3033,9 @@ function StepSend({
   sendLocked,
   onRetryFailed,
   onCancelIntent,
+  preflight,
+  reviewAcknowledged,
+  onToggleReviewAcknowledged,
 }: {
   recipients: OutreachRecipient[];
   sendableCount: number;
@@ -2740,6 +3061,10 @@ function StepSend({
   sendLocked: boolean;
   onRetryFailed: () => void;
   onCancelIntent: () => void;
+  /** Phase 2 §3.h1 — full blockers/warnings + sendable count, computed fresh every render. */
+  preflight: SendPreflightResult;
+  reviewAcknowledged: boolean;
+  onToggleReviewAcknowledged: (checked: boolean) => void;
 }) {
   // Nothing sendable (every draft failed, or none generated) → block Send and
   // say why, so the primary CTA is never a dead click into a backend 400.
@@ -2870,8 +3195,8 @@ function StepSend({
     <div style={{ textAlign: 'center', padding: '40px 20px' }}>
       <h2 style={{ marginTop: 14 }}>Ready to send</h2>
       <div className="ov2-pane-sub" style={{ fontSize: 13.5 }}>
-        <b style={{ color: 'var(--ov2-ink-1)' }}>{recipients.length}</b> personalized{' '}
-        {recipients.length === 1 ? 'email is' : 'emails are'} queued. Capiro will send from{' '}
+        <b style={{ color: 'var(--ov2-ink-1)' }}>{preflight.sendableCount}</b> personalized{' '}
+        {preflight.sendableCount === 1 ? 'email is' : 'emails are'} ready. Capiro will send from{' '}
         <b>{sendFrom || 'your connected inbox'}</b>.
       </div>
       {sendableInboxes.length > 1 && (
@@ -2890,25 +3215,71 @@ function StepSend({
           />
         </div>
       )}
-      {!emailConnected && (
-        <Typography.Paragraph type="warning" style={{ marginTop: 12 }}>
-          No email account connected. Connect Outlook or Gmail in Settings → Integrations before
-          sending.
-        </Typography.Paragraph>
+
+      {/* Phase 2 §3.h1 — itemized recipient/group rows with To/Cc/Bcc counts,
+          instead of only a flat total. */}
+      {recipients.length > 0 && (
+        <div
+          style={{
+            marginTop: 18,
+            maxHeight: 220,
+            overflowY: 'auto',
+            textAlign: 'left',
+            border: '1px solid var(--ov2-border-1)',
+            borderRadius: 8,
+          }}
+        >
+          {recipients.map((r, i) => {
+            const isGroup = (r.groupMembers?.length ?? 0) > 0;
+            const toCount = isGroup ? r.groupMembers!.length : 1;
+            return (
+              <div
+                key={r.id ?? r.email ?? i}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                  padding: '8px 12px',
+                  borderTop: i > 0 ? '1px solid var(--ov2-border-1)' : 'none',
+                  fontSize: 12.5,
+                }}
+              >
+                <span style={{ color: 'var(--ov2-ink-1)', fontWeight: 600 }}>
+                  {r.name || r.email || 'Recipient'}
+                  {isGroup && (
+                    <span style={{ fontWeight: 500, color: 'var(--ov2-ink-3)' }}>
+                      {' '}
+                      ({toCount} {toCount === 1 ? 'member' : 'members'})
+                    </span>
+                  )}
+                </span>
+                <span style={{ color: 'var(--ov2-ink-3)', flexShrink: 0 }}>
+                  To {toCount}
+                  {(r.cc?.length ?? 0) > 0 ? ` · Cc ${r.cc!.length}` : ''}
+                  {(r.bcc?.length ?? 0) > 0 ? ` · Bcc ${r.bcc!.length}` : ''}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       )}
-      {failedCount > 0 && (
-        <Typography.Paragraph type="warning" style={{ marginTop: 12 }}>
-          {failedCount} {failedCount === 1 ? 'draft' : 'drafts'} could not be generated and will be
-          skipped. Go back to Generate &amp; Review to edit or regenerate{' '}
-          {failedCount === 1 ? 'it' : 'them'}.
-        </Typography.Paragraph>
+
+      {/* Preflight blockers/warnings — grouped, not a wall of per-slot text. */}
+      {preflight.issues.length > 0 && (
+        <div style={{ marginTop: 16, textAlign: 'left' }}>
+          {preflight.blockers.map((b, i) => (
+            <Typography.Paragraph key={`b-${i}`} type="danger" style={{ margin: '4px 0' }}>
+              {b.message}
+            </Typography.Paragraph>
+          ))}
+          {preflight.warnings.map((w, i) => (
+            <Typography.Paragraph key={`w-${i}`} type="warning" style={{ margin: '4px 0' }}>
+              {w.message}
+            </Typography.Paragraph>
+          ))}
+        </div>
       )}
-      {nothingToSend && (
-        <Typography.Paragraph type="danger" style={{ marginTop: 12 }}>
-          No emails are ready to send yet. Generate drafts — and fix any that failed — in Generate
-          &amp; Review first.
-        </Typography.Paragraph>
-      )}
+
       {hasSignature && (
         <div
           style={{
@@ -2926,7 +3297,37 @@ function StepSend({
           <span style={{ fontSize: 13, color: 'var(--ov2-ink-1)' }}>Append my email signature</span>
         </div>
       )}
-      <Space style={{ marginTop: 20 }}>
+
+      {/* Phase 2 §3.h1 — the mandatory final review acknowledgement. Resets
+          (see preflightSignature) the moment anything it covers changes. */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 8,
+          marginTop: 18,
+          textAlign: 'left',
+          maxWidth: 480,
+          marginLeft: 'auto',
+          marginRight: 'auto',
+        }}
+      >
+        <input
+          type="checkbox"
+          id="ov2-send-review-ack"
+          checked={reviewAcknowledged}
+          onChange={(e) => onToggleReviewAcknowledged(e.target.checked)}
+          style={{ marginTop: 3 }}
+        />
+        <label
+          htmlFor="ov2-send-review-ack"
+          style={{ fontSize: 12.5, color: 'var(--ov2-ink-2)', cursor: 'pointer' }}
+        >
+          I reviewed the recipients, current draft versions, attachments, and verification status.
+        </label>
+      </div>
+
+      <Space style={{ marginTop: 16 }}>
         <Button
           icon={<EyeOutlined />}
           loading={testing && !sending}
@@ -2940,7 +3341,7 @@ function StepSend({
           icon={<SendOutlined />}
           loading={sending}
           onClick={onSend}
-          disabled={!emailConnected || nothingToSend || sendLocked}
+          disabled={!preflight.canSend || sendLocked}
         >
           Confirm Send
         </Button>

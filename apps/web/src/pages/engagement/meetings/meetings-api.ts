@@ -59,6 +59,20 @@ export function useMeetings(params: MeetingsRangeParams, enabled = true) {
   });
 }
 
+/** GET /api/engagement/meetings/:id — a single decorated meeting, used as a
+ *  fallback when the selected meeting isn't present in the currently fetched
+ *  calendar range (e.g. a deep link to a meeting outside the visible window).
+ *  Mirrors the pattern already used for the legacy page's selectedMeetingQuery. */
+export function useMeeting(meetingId: string | null) {
+  const api = useApi();
+  return useQuery<Meeting>({
+    queryKey: ['meetings-v2-detail', meetingId],
+    queryFn: async () => (await api.get<Meeting>(`${BASE}/meetings/${meetingId}`)).data,
+    enabled: Boolean(meetingId),
+    staleTime: 30_000,
+  });
+}
+
 export interface LibraryParams {
   clientId?: string;
   artifactType?: 'prep' | 'notes' | 'debrief';
@@ -202,6 +216,92 @@ export function useUnshareMeeting() {
     mutationFn: async (meetingId) =>
       (await api.post<Meeting>(`${BASE}/meetings/${meetingId}/unshare`)).data,
     onSuccess: invalidate,
+  });
+}
+
+// ── Phase 2 §3.e — artifact-selective approval/sharing ──────────────────────
+// Each mutation returns the freshly decorated Meeting (same shape useMeeting
+// reads), so onSuccess writes it straight into the detail cache instead of
+// waiting on a refetch, then invalidates the list/library/shared feeds too
+// (approval/share state affects what those show).
+
+export function useUpdateNote() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useInvalidateMeetings();
+  return useMutation<MeetingNote, Error, { meetingId: string; noteId: string; body: string }>({
+    mutationFn: async ({ meetingId, noteId, body }) =>
+      (await api.patch<MeetingNote>(`${BASE}/meetings/${meetingId}/notes/${noteId}`, { body })).data,
+    onSuccess: (_data, { meetingId }) => {
+      void qc.invalidateQueries({ queryKey: ['meetings-v2-notes', meetingId] });
+      invalidate();
+    },
+  });
+}
+
+export function useApproveNote() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useInvalidateMeetings();
+  return useMutation<MeetingNote, Error, { meetingId: string; noteId: string }>({
+    mutationFn: async ({ meetingId, noteId }) =>
+      (await api.post<MeetingNote>(`${BASE}/meetings/${meetingId}/notes/${noteId}/approve`)).data,
+    onSuccess: (_data, { meetingId }) => {
+      void qc.invalidateQueries({ queryKey: ['meetings-v2-notes', meetingId] });
+      invalidate();
+    },
+  });
+}
+
+export function useApproveAttachment() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useInvalidateMeetings();
+  return useMutation<Meeting, Error, { meetingId: string; attachmentId: string }>({
+    mutationFn: async ({ meetingId, attachmentId }) =>
+      (
+        await api.post<Meeting>(
+          `${BASE}/meetings/${meetingId}/attachments/${attachmentId}/approve`,
+        )
+      ).data,
+    onSuccess: (data, { meetingId }) => {
+      qc.setQueryData(['meetings-v2-detail', meetingId], data);
+      invalidate();
+    },
+  });
+}
+
+export interface ShareArtifactRef {
+  type: 'prep' | 'note' | 'debrief' | 'attachment';
+  id: string;
+}
+
+export function useShareArtifacts() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useInvalidateMeetings();
+  return useMutation<Meeting, Error, { meetingId: string; artifacts: ShareArtifactRef[] }>({
+    mutationFn: async ({ meetingId, artifacts }) =>
+      (await api.post<Meeting>(`${BASE}/meetings/${meetingId}/artifacts/share`, { artifacts })).data,
+    onSuccess: (data, { meetingId }) => {
+      qc.setQueryData(['meetings-v2-detail', meetingId], data);
+      invalidate();
+    },
+  });
+}
+
+export function useUnshareArtifacts() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useInvalidateMeetings();
+  return useMutation<Meeting, Error, { meetingId: string; artifacts: ShareArtifactRef[] }>({
+    mutationFn: async ({ meetingId, artifacts }) =>
+      (await api.post<Meeting>(`${BASE}/meetings/${meetingId}/artifacts/unshare`, { artifacts }))
+        .data,
+    onSuccess: (data, { meetingId }) => {
+      qc.setQueryData(['meetings-v2-detail', meetingId], data);
+      invalidate();
+    },
   });
 }
 

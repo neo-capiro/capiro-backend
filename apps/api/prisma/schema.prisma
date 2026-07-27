@@ -288,31 +288,37 @@ model User {
   createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  memberships               TenantMembership[]
-  auditLogs                 AuditLog[]                     @relation("AuditActor")
-  impersonationSessions     ImpersonationSession[]         @relation("ImpersonationActor")
-  directoryContactNotes     DirectoryContactNote[]         @relation("DirectoryContactNoteAuthor")
-  directoryContactFavorites DirectoryContactFavorite[]     @relation("DirectoryContactFavoriteUser")
-  meetingNotes              MeetingNote[]                  @relation("MeetingNoteAuthor")
-  meetingDebriefs           MeetingDebrief[]               @relation("MeetingDebriefAuthor")
-  engagementReportTargets   EngagementReportTargetOffice[] @relation("EngagementReportTargetOfficeAuthor")
-  clientTargets             ClientTarget[]                 @relation("ClientTargetAuthor")
-  outreachRecords           OutreachRecord[]               @relation("OutreachRecordAuthor")
-  outreachTemplates         OutreachTemplate[]             @relation("OutreachTemplateAuthor")
-  outreachAiTemplates       OutreachAiTemplate[]           @relation("OutreachAiTemplateAuthor")
-  clioConversations         ClioConversation[]             @relation("ClioConversationUser")
-  clioMessages              ClioMessage[]                  @relation("ClioMessageUser")
-  clioArtifacts             ClioArtifact[]                 @relation("ClioArtifactUser")
-  clioNotes                 ClioNote[]                     @relation("ClioNoteUser")
-  clioResearchSessions      ClioResearchSession[]          @relation("ClioResearchSessionUser")
-  clioAttachments           ClioAttachment[]               @relation("ClioAttachmentUser")
-  createdCampaigns          EngagementCampaign[]           @relation("CampaignCreator")
-  programElementWatches     ProgramElementWatch[]
-  peAlertEmailPrefs         PeAlertEmailPref[]
-  clientMemoryAccessGrants  ClientMemoryAccess[]           @relation("ClientMemoryAccessUser")
-  outreachDraftArtifacts    OutreachDraftArtifact[]        @relation("OutreachDraftArtifactAuthor")
-  outreachDraftVersions     OutreachDraftVersion[]         @relation("OutreachDraftVersionAuthor")
-  outreachSendIntents       OutreachSendIntent[]           @relation("OutreachSendIntentOwner")
+  memberships                   TenantMembership[]
+  auditLogs                     AuditLog[]                     @relation("AuditActor")
+  impersonationSessions         ImpersonationSession[]         @relation("ImpersonationActor")
+  directoryContactNotes         DirectoryContactNote[]         @relation("DirectoryContactNoteAuthor")
+  directoryContactFavorites     DirectoryContactFavorite[]     @relation("DirectoryContactFavoriteUser")
+  meetingNotes                  MeetingNote[]                  @relation("MeetingNoteAuthor")
+  meetingNotesApproved          MeetingNote[]                  @relation("MeetingNoteApprovedBy")
+  meetingNotesShared            MeetingNote[]                  @relation("MeetingNoteSharedBy")
+  meetingDebriefs               MeetingDebrief[]               @relation("MeetingDebriefAuthor")
+  meetingDebriefsShared         MeetingDebrief[]               @relation("MeetingDebriefSharedBy")
+  meetingPrepsShared            MeetingPrep[]                  @relation("MeetingPrepSharedBy")
+  engagementAttachmentsApproved EngagementAttachment[]         @relation("EngagementAttachmentApprovedBy")
+  engagementAttachmentsShared   EngagementAttachment[]         @relation("EngagementAttachmentSharedBy")
+  engagementReportTargets       EngagementReportTargetOffice[] @relation("EngagementReportTargetOfficeAuthor")
+  clientTargets                 ClientTarget[]                 @relation("ClientTargetAuthor")
+  outreachRecords               OutreachRecord[]               @relation("OutreachRecordAuthor")
+  outreachTemplates             OutreachTemplate[]             @relation("OutreachTemplateAuthor")
+  outreachAiTemplates           OutreachAiTemplate[]           @relation("OutreachAiTemplateAuthor")
+  clioConversations             ClioConversation[]             @relation("ClioConversationUser")
+  clioMessages                  ClioMessage[]                  @relation("ClioMessageUser")
+  clioArtifacts                 ClioArtifact[]                 @relation("ClioArtifactUser")
+  clioNotes                     ClioNote[]                     @relation("ClioNoteUser")
+  clioResearchSessions          ClioResearchSession[]          @relation("ClioResearchSessionUser")
+  clioAttachments               ClioAttachment[]               @relation("ClioAttachmentUser")
+  createdCampaigns              EngagementCampaign[]           @relation("CampaignCreator")
+  programElementWatches         ProgramElementWatch[]
+  peAlertEmailPrefs             PeAlertEmailPref[]
+  clientMemoryAccessGrants      ClientMemoryAccess[]           @relation("ClientMemoryAccessUser")
+  outreachDraftArtifacts        OutreachDraftArtifact[]        @relation("OutreachDraftArtifactAuthor")
+  outreachDraftVersions         OutreachDraftVersion[]         @relation("OutreachDraftVersionAuthor")
+  outreachSendIntents           OutreachSendIntent[]           @relation("OutreachSendIntentOwner")
 
   @@map("users")
 }
@@ -885,6 +891,16 @@ model EngagementAttachment {
   /// { chars, truncated, pageLimitHit, rowLimitHit, timedOut, extractedAt … }
   extractionMetadata  Json      @default("{}") @map("extraction_metadata_jsonb")
 
+  // ── Phase 2 §d — per-artifact approval + sharing (2026-08) ────────────────
+  // Attachments never had an approval concept before this: a Meri-generated or
+  // user-uploaded file was never gated on anything. Single-user approval (Neo
+  // decision): any user with access to the meeting — including the uploader
+  // themself — may approve; there is no second-reviewer/two-person flow.
+  approvedAt       DateTime? @map("approved_at") @db.Timestamptz(6)
+  approvedByUserId String?   @map("approved_by_user_id") @db.Uuid
+  sharedAt         DateTime? @map("shared_at") @db.Timestamptz(6)
+  sharedByUserId   String?   @map("shared_by_user_id") @db.Uuid
+
   /// Gate H a-6 (LegiWatch): set when a generator (today: the alert-memo
   /// regenerate path) supersedes this document with a newer version, INSTEAD
   /// of calling deleteAttachment. NULL = current version. Deliberately generic
@@ -900,35 +916,52 @@ model EngagementAttachment {
   client      Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
   meeting     Meeting?     @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   mailMessage MailMessage? @relation(fields: [mailMessageId], references: [id], onDelete: Cascade)
+  approvedBy  User?        @relation("EngagementAttachmentApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  sharedBy    User?        @relation("EngagementAttachmentSharedBy", fields: [sharedByUserId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, clientId], map: "engagement_attachments_tenant_client_idx")
   @@index([tenantId, meetingId], map: "engagement_attachments_tenant_meeting_idx")
   @@index([tenantId, mailMessageId], map: "engagement_attachments_tenant_mail_message_idx")
   @@index([tenantId, lifecycleStatus, createdAt], map: "engagement_attachments_tenant_lifecycle_created_idx")
+  @@index([tenantId, sharedAt], map: "engagement_attachments_tenant_shared_idx")
   @@map("engagement_attachments")
 }
 
 model MeetingNote {
-  id             String   @id @default(uuid()) @db.Uuid
-  tenantId       String   @map("tenant_id") @db.Uuid
-  meetingId      String   @map("meeting_id") @db.Uuid
-  clientId       String?  @map("client_id") @db.Uuid
-  authorUserId   String?  @map("author_user_id") @db.Uuid
-  bodyCiphertext String   @map("body_ciphertext")
-  iv             String
-  authTag        String   @map("auth_tag")
-  keyVersion     String?  @map("key_version")
-  confidential   Boolean  @default(true)
-  accessLevel    String   @default("tenant_admins_and_author") @map("access_level")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  meetingId        String    @map("meeting_id") @db.Uuid
+  clientId         String?   @map("client_id") @db.Uuid
+  authorUserId     String?   @map("author_user_id") @db.Uuid
+  bodyCiphertext   String    @map("body_ciphertext")
+  iv               String
+  authTag          String    @map("auth_tag")
+  keyVersion       String?   @map("key_version")
+  confidential     Boolean   @default(true)
+  accessLevel      String    @default("tenant_admins_and_author") @map("access_level")
+  // ── Phase 2 §d — per-artifact approval + sharing (2026-08) ─────────────────
+  /// MeetingNoteStatus: 'draft' (default; captured, never explicitly approved)
+  /// | 'edited' (was approved, then a later edit reset it — needs
+  /// re-approval) | 'approved' (explicit POST .../notes/:noteId/approve).
+  /// Existence is NEVER approval — the Library and the client-facing shared
+  /// feed both gate on this being 'approved', not on the row merely existing.
+  status           String    @default("draft") @db.VarChar(24)
+  approvedAt       DateTime? @map("approved_at") @db.Timestamptz(6)
+  approvedByUserId String?   @map("approved_by_user_id") @db.Uuid
+  sharedAt         DateTime? @map("shared_at") @db.Timestamptz(6)
+  sharedByUserId   String?   @map("shared_by_user_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  client  Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  author  User?   @relation("MeetingNoteAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  tenant     Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  meeting    Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  client     Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  author     User?   @relation("MeetingNoteAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  approvedBy User?   @relation("MeetingNoteApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  sharedBy   User?   @relation("MeetingNoteSharedBy", fields: [sharedByUserId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, meetingId, createdAt], map: "meeting_notes_tenant_meeting_created_idx")
+  @@index([tenantId, sharedAt], map: "meeting_notes_tenant_shared_idx")
   @@map("meeting_notes")
 }
 
@@ -949,14 +982,22 @@ model MeetingPrep {
   promptHash     String?           @map("prompt_hash")
   generatedFrom  Json              @default("{}") @map("generated_from_jsonb")
   editedByUserId String?           @map("edited_by_user_id") @db.Uuid
+  // Phase 2 §d (2026-08): sharing only — approval already exists via `status`
+  // above (edited_by_user_id stays a bare UUID with no FK, matching its own
+  // pre-existing convention; this pair is new and gets a real FK — see the
+  // migration header for the FK-convention judgment call).
+  sharedAt       DateTime?         @map("shared_at") @db.Timestamptz(6)
+  sharedByUserId String?           @map("shared_by_user_id") @db.Uuid
   createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  client  Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  meeting  Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  sharedBy User?   @relation("MeetingPrepSharedBy", fields: [sharedByUserId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, meetingId, createdAt], map: "meeting_preps_tenant_meeting_created_idx")
+  @@index([tenantId, sharedAt], map: "meeting_preps_tenant_shared_idx")
   @@map("meeting_preps")
 }
 
@@ -976,15 +1017,21 @@ model MeetingDebrief {
   // an `approved` debrief reaches the Library / is shareable. Existing rows
   // backfill to `generated` (see migration) — behavior unchanged until a user approves.
   status         MeetingDebriefStatus @default(generated)
+  // Phase 2 §d (2026-08): sharing only — approval already exists via `status`
+  // above.
+  sharedAt       DateTime?            @map("shared_at") @db.Timestamptz(6)
+  sharedByUserId String?              @map("shared_by_user_id") @db.Uuid
   createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  client  Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  author  User?   @relation("MeetingDebriefAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  meeting  Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  author   User?   @relation("MeetingDebriefAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  sharedBy User?   @relation("MeetingDebriefSharedBy", fields: [sharedByUserId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, meetingId, createdAt], map: "meeting_debriefs_tenant_meeting_created_idx")
+  @@index([tenantId, sharedAt], map: "meeting_debriefs_tenant_shared_idx")
   @@map("meeting_debriefs")
 }
 

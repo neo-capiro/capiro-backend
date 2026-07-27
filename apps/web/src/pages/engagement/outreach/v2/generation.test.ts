@@ -7,12 +7,14 @@ import { describe, expect, it } from 'vitest';
 import {
   buildGenerateTasks,
   buildGenerationModel,
+  computeAffectedGenerationKeys,
   listAidFromKey,
   partitionGenerationResults,
   projectDraftsForSend,
   type BatchDraftResult,
+  type GenerationSnapshot,
 } from './generation.js';
-import { normalizeTone } from './types.js';
+import { normalizeTone, type SelectedContextItem } from './types.js';
 import type { OutreachTarget } from './targets.js';
 import type { OutreachRecipient } from '../../OutreachView.js';
 
@@ -400,5 +402,158 @@ describe('partitionGenerationResults carries the source manifest', () => {
     ]);
     expect(out.drafts[0]?.manifest).toBeUndefined();
     expect(out.manifests.size).toBe(0);
+  });
+});
+
+describe('computeAffectedGenerationKeys (Phase 2 §3.f1)', () => {
+  const model = buildGenerationModel(mix).slots.map((s) => ({
+    genKey: s.genKey,
+    resultId: s.resultId,
+  }));
+  // mix = individual a@x.com, list aud1 [b@x.com, c@x.com], group aud2 [d@x.com, e@x.com]
+  const ALL_KEYS = ['individual:a@x.com', 'list:aud1:b@x.com', 'list:aud1:c@x.com', 'group:aud2'];
+
+  const ctxItem = (
+    id: string,
+    scope: string,
+    extra: Partial<SelectedContextItem> = {},
+  ): SelectedContextItem => ({
+    id,
+    kind: 'bill',
+    title: id,
+    scope,
+    note: '',
+    ...extra,
+  });
+
+  const base: GenerationSnapshot = {
+    contextItems: [ctxItem('bill-1', 'all')],
+    templateId: 'tmpl-1',
+    tone: 'professional',
+    direction: 'to-clients',
+  };
+
+  it('returns nothing affected when there is no previous snapshot (first generation)', () => {
+    expect(computeAffectedGenerationKeys(null, base, { slots: model })).toEqual({
+      affected: [],
+      reasonsByKey: {},
+    });
+  });
+
+  it('returns nothing affected when nothing changed', () => {
+    const next: GenerationSnapshot = { ...base, contextItems: [ctxItem('bill-1', 'all')] };
+    const result = computeAffectedGenerationKeys(base, next, { slots: model });
+    expect(result.affected).toEqual([]);
+  });
+
+  it('a template change affects every slot', () => {
+    const next: GenerationSnapshot = { ...base, templateId: 'tmpl-2' };
+    const result = computeAffectedGenerationKeys(base, next, { slots: model });
+    expect(result.affected.sort()).toEqual([...ALL_KEYS].sort());
+    expect(result.reasonsByKey['individual:a@x.com']).toEqual(['Template changed']);
+  });
+
+  it('a tone change affects every slot', () => {
+    const next: GenerationSnapshot = { ...base, tone: 'friendly' };
+    const result = computeAffectedGenerationKeys(base, next, { slots: model });
+    expect(result.affected.sort()).toEqual([...ALL_KEYS].sort());
+  });
+
+  it('a direction change affects every slot', () => {
+    const next: GenerationSnapshot = { ...base, direction: 'on-behalf' };
+    const result = computeAffectedGenerationKeys(base, next, { slots: model });
+    expect(result.affected.sort()).toEqual([...ALL_KEYS].sort());
+  });
+
+  it('a shared ("all") context item change affects every slot', () => {
+    const next: GenerationSnapshot = { ...base, contextItems: [ctxItem('bill-1', 'all', { note: 'edited' })] };
+    const result = computeAffectedGenerationKeys(base, next, { slots: model });
+    expect(result.affected.sort()).toEqual([...ALL_KEYS].sort());
+    expect(result.reasonsByKey['group:aud2']).toEqual(['"bill-1" changed']);
+  });
+
+  it('a recipient-scoped item change affects ONLY that individual slot', () => {
+    const withPersonal: GenerationSnapshot = {
+      ...base,
+      contextItems: [ctxItem('bill-1', 'all'), ctxItem('note-1', 'a@x.com')],
+    };
+    const next: GenerationSnapshot = {
+      ...withPersonal,
+      contextItems: [ctxItem('bill-1', 'all'), ctxItem('note-1', 'a@x.com', { note: 'edited' })],
+    };
+    const result = computeAffectedGenerationKeys(withPersonal, next, { slots: model });
+    expect(result.affected).toEqual(['individual:a@x.com']);
+  });
+
+  it('a list-scoped item change affects every member of that list, not other slots', () => {
+    const withList: GenerationSnapshot = {
+      ...base,
+      contextItems: [ctxItem('note-1', 'list:aud1')],
+    };
+    const next: GenerationSnapshot = {
+      ...withList,
+      contextItems: [ctxItem('note-1', 'list:aud1', { note: 'edited' })],
+    };
+    const result = computeAffectedGenerationKeys(withList, next, { slots: model });
+    expect(result.affected.sort()).toEqual(['list:aud1:b@x.com', 'list:aud1:c@x.com']);
+  });
+
+  it('a group-scoped item change affects only the group slot', () => {
+    const withGroup: GenerationSnapshot = {
+      ...base,
+      contextItems: [ctxItem('note-1', 'group:aud2')],
+    };
+    const next: GenerationSnapshot = {
+      ...withGroup,
+      contextItems: [ctxItem('note-1', 'group:aud2', { note: 'edited' })],
+    };
+    const result = computeAffectedGenerationKeys(withGroup, next, { slots: model });
+    expect(result.affected).toEqual(['group:aud2']);
+  });
+
+  it('adding a new recipient-scoped item affects only that recipient, with an "Added" reason', () => {
+    const next: GenerationSnapshot = {
+      ...base,
+      contextItems: [...base.contextItems, ctxItem('note-new', 'b@x.com')],
+    };
+    const result = computeAffectedGenerationKeys(base, next, { slots: model });
+    expect(result.affected).toEqual(['list:aud1:b@x.com']);
+    expect(result.reasonsByKey['list:aud1:b@x.com']).toEqual(['Added "note-new"']);
+  });
+
+  it('removing an item affects the slots it used to apply to, with a "Removed" reason', () => {
+    const withPersonal: GenerationSnapshot = {
+      ...base,
+      contextItems: [...base.contextItems, ctxItem('note-1', 'a@x.com')],
+    };
+    const result = computeAffectedGenerationKeys(withPersonal, base, { slots: model });
+    expect(result.affected).toEqual(['individual:a@x.com']);
+    expect(result.reasonsByKey['individual:a@x.com']).toEqual(['Removed "note-1"']);
+  });
+
+  it('re-scoping an item from one recipient to another affects both old and new slots', () => {
+    const withPersonal: GenerationSnapshot = {
+      ...base,
+      contextItems: [...base.contextItems, ctxItem('note-1', 'a@x.com')],
+    };
+    const rescoped: GenerationSnapshot = {
+      ...base,
+      contextItems: [...base.contextItems, ctxItem('note-1', 'b@x.com')],
+    };
+    const result = computeAffectedGenerationKeys(withPersonal, rescoped, { slots: model });
+    expect(result.affected.sort()).toEqual(['individual:a@x.com', 'list:aud1:b@x.com']);
+  });
+
+  it('a noteUse ("fact" vs "instruction") change on a custom note counts as a content change', () => {
+    const withNote: GenerationSnapshot = {
+      ...base,
+      contextItems: [ctxItem('note-1', 'all', { noteUse: 'instruction' })],
+    };
+    const next: GenerationSnapshot = {
+      ...base,
+      contextItems: [ctxItem('note-1', 'all', { noteUse: 'fact' })],
+    };
+    const result = computeAffectedGenerationKeys(withNote, next, { slots: model });
+    expect(result.affected.sort()).toEqual([...ALL_KEYS].sort());
   });
 });

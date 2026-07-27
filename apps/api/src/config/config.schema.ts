@@ -318,6 +318,25 @@ export const configSchema = z.object({
     .default('false')
     .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
 
+  // Engagement Phase 2 — per-artifact approval + sharing (plan §d).
+  //
+  // ENGAGEMENT_ARTIFACT_SHARING_V2: when ON, sharing moves from whole-meeting
+  // (shareMeeting/unshareMeeting flipping Meeting.visibility as one unit) to
+  // per-artifact (POST .../meetings/:id/artifacts/share|unshare, gated on each
+  // target artifact being individually approved first). While ON,
+  // shareMeeting() is refused outright — callers must use the artifacts/share
+  // endpoint — and unshareMeeting() becomes an authorization-gated "unshare
+  // everything on this meeting" bulk action instead of an unconditional flip.
+  // Meeting.visibility becomes a DERIVED summary of "does any artifact on this
+  // meeting currently have sharedAt set", rather than an independently-set
+  // field. OFF (default) keeps the pre-Phase-2 whole-meeting share/unshare
+  // byte-for-byte, so the migration + new endpoints land inert and are
+  // enabled per environment afterwards.
+  ENGAGEMENT_ARTIFACT_SHARING_V2: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+
   // Engagement auto-sync scheduler: periodic reconciliation syncs for connected
   // M365/Google mailboxes. Webhooks are a latency optimization, NOT a
   // reliability mechanism — Graph subscriptions expire after 6 days and were

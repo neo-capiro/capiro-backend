@@ -331,6 +331,159 @@ export class OutreachDraftService {
   }
 
   /**
+   * Phase 2 §3.f2 — the regeneration entry point. Persists as a normal
+   * version (advances current) UNLESS the artifact already has a current
+   * version AND it was manually authored, in which case it persists as a
+   * CANDIDATE instead — a version numbered above `currentVersion` that does
+   * NOT advance it — so a hand edit is never silently overwritten by a
+   * regenerate. A brand-new slot (no prior version) always takes the normal
+   * path; there is nothing to protect yet.
+   *
+   * The guard check and the version insert share ONE transaction with the
+   * artifact row locked throughout (same discipline as createEditedVersion's
+   * staleness check above) — otherwise a manual edit landing between "check"
+   * and "write" could still get silently overwritten.
+   *
+   * Any version whose number exceeds `currentVersion` IS, by definition, an
+   * unaccepted candidate; there is no separate "candidate" flag to keep
+   * consistent, and "reject" is simply never calling acceptCandidateVersion().
+   */
+  async upsertGeneratedVersionOrCandidate(
+    ctx: TenantContext,
+    input: UpsertGeneratedVersionInput,
+  ): Promise<
+    | (OutreachDraftVersionDto & { mode: 'current' })
+    | (OutreachDraftVersionDto & { mode: 'candidate'; baseVersion: number })
+  > {
+    const created = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.assertRecordOwned(tx, ctx, input.outreachRecordId);
+      const artifactId = await this.findOrCreateArtifactId(tx, ctx, input);
+
+      const locked = await tx.$queryRaw<Array<{ current_version: number }>>`
+        SELECT current_version
+        FROM outreach_draft_artifacts
+        WHERE id = ${artifactId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+        FOR UPDATE
+      `;
+      if (!locked.length) throw new NotFoundException('Draft not found');
+      const baseVersion = Number(locked[0]!.current_version);
+
+      const current =
+        baseVersion === 0
+          ? null
+          : await tx.outreachDraftVersion.findFirst({
+              where: { tenantId: ctx.tenantId, artifactId, version: baseVersion },
+              select: { generationStatus: true },
+            });
+      const guardEdited = current?.generationStatus === 'manually_authored';
+
+      let nextVersion: number;
+      if (guardEdited) {
+        // Candidate: numbered from MAX(existing version), not baseVersion + 1,
+        // so a second candidate offered before the first is accepted/discarded
+        // still gets a fresh, non-colliding number. currentVersion is untouched.
+        const maxVersion = await tx.outreachDraftVersion.aggregate({
+          where: { tenantId: ctx.tenantId, artifactId },
+          _max: { version: true },
+        });
+        nextVersion = Math.max(maxVersion._max.version ?? 0, baseVersion) + 1;
+      } else {
+        nextVersion = baseVersion + 1;
+        await tx.outreachDraftArtifact.update({
+          where: { id: artifactId },
+          data: { currentVersion: nextVersion },
+        });
+      }
+
+      const row = await tx.outreachDraftVersion.create({
+        data: {
+          tenantId: ctx.tenantId,
+          artifactId,
+          version: nextVersion,
+          subject: input.subject,
+          body: input.body,
+          contentHash: contentHashOf(input.subject, input.body),
+          generationStatus: 'generated',
+          auditStatus: 'pending',
+          approvalStatus: 'not_required',
+          auditLedger: (input.auditLedger ?? []) as unknown as Prisma.InputJsonValue,
+          provider: input.provider ?? null,
+          model: input.model ? input.model.slice(0, 160) : null,
+          promptSpecVersion: input.promptSpecVersion ?? null,
+          contextPacketId: input.contextPacketId ?? null,
+          createdByUserId: ctx.userId,
+        },
+        select: VERSION_SELECT,
+      });
+      return { row, guardEdited, baseVersion };
+    });
+
+    const audited = await this.auditAndReload(ctx, created.row, input.verifierFindings);
+    return created.guardEdited
+      ? { ...audited, mode: 'candidate' as const, baseVersion: created.baseVersion }
+      : { ...audited, mode: 'current' as const };
+  }
+
+  /**
+   * Advance the artifact's current version to an existing, still-valid
+   * candidate. 409s if the artifact moved since the candidate was offered
+   * (someone accepted a different candidate, or authored a new edited
+   * version) — the caller must re-fetch and re-decide, never silently
+   * overwrite whatever is current now.
+   */
+  async acceptCandidateVersion(
+    ctx: TenantContext,
+    artifactId: string,
+    candidateVersionId: string,
+    expectedBaseVersion: number,
+  ): Promise<OutreachDraftArtifactDto> {
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const artifact = await tx.outreachDraftArtifact.findFirst({
+        where: { id: artifactId, tenantId: ctx.tenantId },
+        select: { id: true, outreachRecordId: true },
+      });
+      if (!artifact) throw new NotFoundException('Draft not found');
+      await this.assertRecordOwned(tx, ctx, artifact.outreachRecordId);
+
+      const locked = await tx.$queryRaw<Array<{ current_version: number }>>`
+        SELECT current_version
+        FROM outreach_draft_artifacts
+        WHERE id = ${artifactId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+        FOR UPDATE
+      `;
+      if (!locked.length) throw new NotFoundException('Draft not found');
+      const currentVersion = Number(locked[0]!.current_version);
+      if (currentVersion !== expectedBaseVersion) {
+        throw new ConflictException({
+          statusCode: 409,
+          error: 'OUTREACH_DRAFT_VERSION_STALE',
+          message: 'This draft changed since the candidate was generated. Reload before accepting.',
+          currentVersion,
+        });
+      }
+      const candidate = await tx.outreachDraftVersion.findFirst({
+        where: { id: candidateVersionId, tenantId: ctx.tenantId, artifactId },
+        select: { id: true, version: true },
+      });
+      if (!candidate) throw new NotFoundException('Candidate version not found');
+      if (candidate.version <= currentVersion) {
+        throw new ConflictException({
+          statusCode: 409,
+          error: 'OUTREACH_DRAFT_NOT_A_CANDIDATE',
+          message: 'That version is already current, or older — there is nothing to accept.',
+        });
+      }
+      await tx.outreachDraftArtifact.update({
+        where: { id: artifactId },
+        data: { currentVersion: candidate.version },
+      });
+    });
+    const artifact = await this.loadArtifact(ctx, artifactId);
+    if (!artifact) throw new NotFoundException('Draft not found');
+    return artifact;
+  }
+
+  /**
    * Create the artifact row WITHOUT a version. Used when generation failed: the
    * slot still needs a stable target so the user can author a version by hand,
    * but there is no generated text to persist and nothing to audit.

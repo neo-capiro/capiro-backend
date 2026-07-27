@@ -47,6 +47,110 @@ export function genInputSignature(input: {
   });
 }
 
+// ── Phase 2 §3.f1 — selective stale-draft analysis ───────────────────────────
+
+/** The generation inputs captured at a point in time, for diffing against the current ones. */
+export interface GenerationSnapshot {
+  contextItems: SelectedContextItem[];
+  templateId: string | null;
+  tone: string;
+  direction: string | null;
+}
+
+export interface AffectedKeysResult {
+  /** genKeys whose evidence changed since `previous` — the "Regenerate affected" set. */
+  affected: string[];
+  /** Human-readable reasons per affected genKey, for the compare/regenerate banner. */
+  reasonsByKey: Record<string, string[]>;
+}
+
+/** Stable fingerprint of one context item's CONTENT (not its identity/scope). */
+function itemContentFingerprint(item: SelectedContextItem): string {
+  return JSON.stringify({
+    note: item.note ?? '',
+    noteUse: item.noteUse ?? 'instruction',
+    bodyLength: (item.body ?? '').length,
+  });
+}
+
+/**
+ * Which genKeys a context/template/tone/direction change actually touches, so
+ * "Regenerate affected" re-runs only the slots whose evidence changed instead
+ * of the whole campaign.
+ *
+ * Recipient/list/group MEMBERSHIP changes are intentionally not modeled here:
+ * `model.slots` is rebuilt from the current targets on every render (see
+ * buildGenerationModel), so an added/removed recipient simply gains or loses a
+ * slot — there is no "stale" state to detect for that case, only a slot with
+ * no draft yet.
+ */
+export function computeAffectedGenerationKeys(
+  previous: GenerationSnapshot | null,
+  next: GenerationSnapshot,
+  model: { slots: Array<{ genKey: string; resultId: string }> },
+): AffectedKeysResult {
+  const reasonsByKey: Record<string, string[]> = {};
+  if (!previous) return { affected: [], reasonsByKey };
+
+  const addReason = (genKey: string, reason: string) => {
+    (reasonsByKey[genKey] ??= []).push(reason);
+  };
+  const allKeys = model.slots.map((s) => s.genKey);
+  const affectAll = (reason: string) => {
+    for (const key of allKeys) addReason(key, reason);
+  };
+
+  if (previous.templateId !== next.templateId) affectAll('Template changed');
+  if (previous.tone !== next.tone) affectAll('Tone changed');
+  if (previous.direction !== next.direction) affectAll('Direction changed');
+
+  /** genKeys a context item's scope maps onto — mirrors expandContextItemScopes'
+   *  list/group semantics (a list/group scope reaches every current member). */
+  const keysForScope = (scope: string): string[] => {
+    if (scope === 'all') return allKeys;
+    if (scope.startsWith('list:')) {
+      const aid = scope.slice('list:'.length);
+      return model.slots
+        .filter((s) => s.genKey.startsWith(`list:${aid}:`))
+        .map((s) => s.genKey);
+    }
+    if (scope.startsWith('group:')) {
+      const aid = scope.slice('group:'.length);
+      return model.slots.filter((s) => s.genKey === `group:${aid}`).map((s) => s.genKey);
+    }
+    // A bare recipientKey — the individual's slot, or that one list member's slot.
+    return model.slots.filter((s) => s.resultId === scope).map((s) => s.genKey);
+  };
+
+  const prevById = new Map(previous.contextItems.map((c) => [c.id, c]));
+  const nextById = new Map(next.contextItems.map((c) => [c.id, c]));
+
+  for (const [id, item] of nextById) {
+    const prior = prevById.get(id);
+    if (!prior) {
+      for (const key of keysForScope(item.scope)) addReason(key, `Added "${item.title}"`);
+      continue;
+    }
+    if (prior.scope !== item.scope) {
+      for (const key of keysForScope(prior.scope)) {
+        addReason(key, `"${item.title}" no longer applies here`);
+      }
+      for (const key of keysForScope(item.scope)) addReason(key, `"${item.title}" now applies here`);
+      continue;
+    }
+    if (itemContentFingerprint(prior) !== itemContentFingerprint(item)) {
+      for (const key of keysForScope(item.scope)) addReason(key, `"${item.title}" changed`);
+    }
+  }
+  for (const [id, item] of prevById) {
+    if (!nextById.has(id)) {
+      for (const key of keysForScope(item.scope)) addReason(key, `Removed "${item.title}"`);
+    }
+  }
+
+  return { affected: Object.keys(reasonsByKey), reasonsByKey };
+}
+
 export type GenerationAppliesTo = 'individual' | 'member' | 'group';
 
 /**
