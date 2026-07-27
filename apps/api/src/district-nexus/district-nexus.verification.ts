@@ -17,11 +17,12 @@
  * are no longer two independent opinions.
  *
  * NOTE ON COMPOUNDING: a grant can be weak on BOTH axes — matched by name AND
- * geolocated from recipient location. Those are not multiplied. The scoring
- * module holds exactly one multiplier per component so that `breakdown` accounts
- * for all 100 points (rule 5), and `weakerStrength` is the established way to
- * collapse several qualities into one claim. Compounding is a calibration
- * decision, not a bug fix — see the plan's §6.
+ * geolocated from recipient location. As of 2026-07-27 (Neo's calibration
+ * decision) those DO multiply, via `compoundStrength` — see that function's
+ * docblock in district-nexus-scoring.ts and its call site in
+ * district-nexus.aggregate.ts's assistance fold. `weakerStrength` remains the
+ * rule for collapsing several ROWS/records into one claim (pooling); it was
+ * never the rule for two axes on the SAME row, which is what changed here.
  */
 import { weakerStrength, type EvidenceStrength } from './district-nexus-scoring.js';
 import type { EvidenceVerificationStatus } from './district-nexus.types.js';

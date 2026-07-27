@@ -15,6 +15,7 @@ import { districtCodeForHouseMatch, normalizeDistrictCode } from '../common/dist
 import {
   scoreNexus,
   weakerStrength,
+  compoundStrength,
   type NexusComponentEvidence,
   type NexusComponentKey,
   type EvidenceStrength,
@@ -307,10 +308,12 @@ export function foldDistricts(inputs: ClientNexusInputs): {
     } else {
       acc.assistanceBasis = 'place_of_performance';
     }
-    // Two independent weaknesses (name match, recipient location) collapse to the
-    // weaker single strength rather than compounding — see the verification
-    // module's docblock for why.
-    const rowStrength = weakerStrength(
+    // Two independent weaknesses on this ROW (name match, recipient location)
+    // multiply rather than collapsing to the weaker one alone (Neo, 2026-07-27
+    // calibration decision — see compoundStrength's docblock). rowStrength is
+    // then POOLED with other rows via weakerStrength, which is the separate,
+    // unchanged rule for combining across records.
+    const rowStrength = compoundStrength(
       assistanceTier(row.matchBasis ?? 'recipient_name').strength,
       row.basis === 'recipient_location' ? 'recipientLocation' : 'sourceAuthoritative',
     );

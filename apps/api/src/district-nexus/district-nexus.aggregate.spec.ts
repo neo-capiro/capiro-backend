@@ -106,6 +106,11 @@ describe('geography basis precedence', () => {
   test('a single recipient-location row downgrades the whole district', () => {
     // §5.3: recipient location ranks below place of performance. Mixing them
     // means the district total is no longer purely place-of-performance.
+    // matchBasis: 'uei' on both rows isolates the GEOGRAPHY axis under test
+    // from the separately-tested compounding behaviour (compoundStrength) —
+    // without it, both rows default to matchBasis 'recipient_name' and the
+    // recipient-location row also compounds, which is a real fact but not
+    // the one this test is about.
     const { districts } = foldDistricts(
       inputs({
         assistance: [
@@ -113,6 +118,7 @@ describe('geography basis precedence', () => {
             state: 'TX',
             district: '23',
             basis: 'place_of_performance',
+            matchBasis: 'uei',
             awardCount: 1,
             totalObligated: 900,
             totalOutlayed: 0,
@@ -121,6 +127,7 @@ describe('geography basis precedence', () => {
             state: 'TX',
             district: '23',
             basis: 'recipient_location',
+            matchBasis: 'uei',
             awardCount: 1,
             totalObligated: 100,
             totalOutlayed: 0,
@@ -304,12 +311,18 @@ describe('client roll-up pools evidence rather than averaging district scores', 
   });
 
   test('a degraded basis in one district is not laundered by a stronger one', () => {
+    // matchBasis: 'uei' on both rows isolates the cross-district GEOGRAPHY
+    // pooling under test from the separately-tested compounding behaviour —
+    // without it, both rows default to matchBasis 'recipient_name' and the
+    // VA row also compounds, which changes the credit for a different reason
+    // than the one this test is about.
     const mixed = inputs({
       assistance: [
         {
           state: 'TX',
           district: '23',
           basis: 'place_of_performance',
+          matchBasis: 'uei',
           awardCount: 1,
           totalObligated: 5_000_000,
           totalOutlayed: 1_000_000,
@@ -318,6 +331,7 @@ describe('client roll-up pools evidence rather than averaging district scores', 
           state: 'VA',
           district: '11',
           basis: 'recipient_location',
+          matchBasis: 'uei',
           awardCount: 1,
           totalObligated: 2_000_000,
           totalOutlayed: 500_000,
@@ -614,7 +628,7 @@ describe('the score carries the verification tier the evidence table shows', () 
     expect(scored.breakdown.find((b) => b.component === 'grantPlaceOfPerformance')?.credit).toBe(5);
   });
 
-  test('two weaknesses (name match AND recipient location) do not compound', () => {
+  test('two weaknesses (name match AND recipient location) compound (Neo, 2026-07-27 calibration decision)', () => {
     const acc = foldOne({
       assistance: [
         {
@@ -628,9 +642,47 @@ describe('the score carries the verification tier the evidence table shows', () 
         },
       ],
     });
-    const scored = scoreNexus({ components: evidenceForDistrict(acc) });
-    // Weakest-wins, not multiplied: 10 * 0.5, NOT 10 * 0.5 * 0.5.
-    expect(scored.breakdown.find((b) => b.component === 'grantPlaceOfPerformance')?.credit).toBe(5);
+    const evidence = evidenceForDistrict(acc);
+    expect(evidence.grantPlaceOfPerformance?.strength).toBe('compounded');
+    const scored = scoreNexus({ components: evidence });
+    // Multiplied, not weakest-wins: 10 * 0.5 * 0.5 = 2.5, NOT 10 * 0.5.
+    expect(scored.breakdown.find((b) => b.component === 'grantPlaceOfPerformance')?.credit).toBe(2.5);
+  });
+
+  test('exactly one weakness does NOT get compound-discounted — a full-strength axis leaves the other axis unchanged', () => {
+    const ueiButRecipientLocation = foldOne({
+      assistance: [
+        {
+          state: 'TX',
+          district: '23',
+          basis: 'recipient_location',
+          matchBasis: 'uei',
+          awardCount: 1,
+          totalObligated: 1_000_000,
+          totalOutlayed: 0,
+        },
+      ],
+    });
+    expect(evidenceForDistrict(ueiButRecipientLocation).grantPlaceOfPerformance?.strength).toBe(
+      'recipientLocation',
+    );
+
+    const namedButPlaceOfPerformance = foldOne({
+      assistance: [
+        {
+          state: 'TX',
+          district: '23',
+          basis: 'place_of_performance',
+          matchBasis: 'recipient_name',
+          awardCount: 1,
+          totalObligated: 1_000_000,
+          totalOutlayed: 0,
+        },
+      ],
+    });
+    expect(evidenceForDistrict(namedButPlaceOfPerformance).grantPlaceOfPerformance?.strength).toBe(
+      'inferred',
+    );
   });
 
   test('matchBasis omitted defaults to the conservative recipient_name reading', () => {
