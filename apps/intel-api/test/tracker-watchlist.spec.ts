@@ -73,6 +73,91 @@ describe('TrackerWatchlistService.getWatchlist — P6 sector-default', () => {
   });
 });
 
+describe('TrackerWatchlistService.getWatchlist — deterministic ordering (Gate K a-1)', () => {
+  /**
+   * MP-08/a-1: neither query had an `orderBy`, so row order was Postgres
+   * physical order — genuinely unstable across reads. That instability is
+   * the root cause the web's label-based `openTags` remap band-aid
+   * (TrackerConfigPanel.tsx) papered over. Since this is a mocked-Prisma
+   * unit test (no real DB to observe physical-order drift against), the
+   * correct assertion is that the query itself now CARRIES a deterministic
+   * `orderBy` — that is what makes two consecutive reads agree.
+   */
+  it('topics and terms queries both carry a deterministic orderBy', async () => {
+    const topicFindManyArgs: unknown[] = [];
+    const termFindManyArgs: unknown[] = [];
+    const prisma = tenantReader({
+      watchlist: { findFirst: async () => ({ issueAreas: [], jurisdictions: [] }) },
+      watchlistTopic: {
+        findMany: async (args: unknown) => {
+          topicFindManyArgs.push(args);
+          return [];
+        },
+      },
+      watchlistTerm: {
+        findMany: async (args: unknown) => {
+          termFindManyArgs.push(args);
+          return [];
+        },
+      },
+    }) as any;
+    const svc = new TrackerWatchlistService(prisma);
+
+    await svc.getWatchlist(TENANT, CLIENT);
+
+    expect((topicFindManyArgs[0] as { orderBy?: unknown })?.orderBy).toEqual([
+      { createdAt: 'asc' },
+      { id: 'asc' },
+    ]);
+    expect((termFindManyArgs[0] as { orderBy?: unknown })?.orderBy).toEqual([
+      { createdAt: 'asc' },
+      { id: 'asc' },
+    ]);
+  });
+
+  it('two consecutive reads of an out-of-physical-order store return identical topic order', async () => {
+    // Simulate a store whose rows are NOT already sorted by createdAt/id — the
+    // double sorts by the orderBy clause the service passes, exactly like a
+    // real Postgres ORDER BY would, so this proves the SERVICE's query (not
+    // the double) is what makes the two reads agree.
+    const rows = [
+      { id: 't-b', label: 'Beta', issueArea: null, position: 'monitor', priority: 'med', createdAt: 2 },
+      { id: 't-a', label: 'Alpha', issueArea: null, position: 'monitor', priority: 'med', createdAt: 1 },
+    ];
+    const sortByOrderBy = <T extends Record<string, unknown>>(
+      data: T[],
+      orderBy: Array<Record<string, 'asc' | 'desc'>> | undefined,
+    ): T[] => {
+      if (!orderBy) return data;
+      return [...data].sort((a, b) => {
+        for (const clause of orderBy) {
+          const [key, dir] = Object.entries(clause)[0]!;
+          const av = a[key] as number | string;
+          const bv = b[key] as number | string;
+          if (av < bv) return dir === 'asc' ? -1 : 1;
+          if (av > bv) return dir === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    };
+    const prisma = tenantReader({
+      watchlist: { findFirst: async () => ({ issueAreas: [], jurisdictions: [] }) },
+      watchlistTopic: {
+        findMany: async ({ orderBy }: { orderBy?: Array<Record<string, 'asc' | 'desc'>> }) =>
+          sortByOrderBy(rows, orderBy),
+      },
+      watchlistTerm: { findMany: async () => [] },
+    }) as any;
+    const svc = new TrackerWatchlistService(prisma);
+
+    const first = await svc.getWatchlist(TENANT, CLIENT);
+    const second = await svc.getWatchlist(TENANT, CLIENT);
+
+    expect(first.topics.map((t) => t.label)).toEqual(['Alpha', 'Beta']);
+    expect(second.topics.map((t) => t.label)).toEqual(first.topics.map((t) => t.label));
+  });
+});
+
 describe('TrackerWatchlistService.getWatchlist — P5 flat-term folding', () => {
   it('folds topicId-NULL terms on the wl: row into a synthetic "Hearing terms" topic', async () => {
     const prisma = tenantReader({

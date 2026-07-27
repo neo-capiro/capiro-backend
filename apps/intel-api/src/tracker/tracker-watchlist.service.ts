@@ -235,6 +235,12 @@ export class TrackerWatchlistService {
     const topics = await this.prisma.withTenant(tenantId, (tx) =>
       tx.watchlistTopic.findMany({
         where: { watchlistId: wlId, tenantId },
+        // Gate K (a-1): row order was Postgres physical order (genuinely
+        // unstable across reads) — the root cause the web's label-remap
+        // band-aid (TrackerConfigPanel.tsx) papered over. `id` breaks ties
+        // deterministically (createdAt has millisecond granularity and a
+        // bulk reconcile can insert two topics in the same millisecond).
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         select: { id: true, label: true, issueArea: true, position: true, priority: true },
       }),
     );
@@ -250,6 +256,8 @@ export class TrackerWatchlistService {
           tenantId,
           OR: [...(topicIds.length ? [{ topicId: { in: topicIds } }] : []), { topicId: null }],
         },
+        // Gate K (a-1): same determinism fix as the topics query above.
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         select: { id: true, topicId: true, termType: true, value: true },
       }),
     );
