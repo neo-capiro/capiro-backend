@@ -178,6 +178,159 @@ describe('FeedService.getFeed', () => {
   });
 });
 
+/**
+ * Gate F c-7 (RB-01): one case per WORK_FILTERS option, proving getFeed builds
+ * a DIFFERENT, CORRECT id predicate for each — not the pre-fix reality where
+ * 6 of 8 options were byte-identical to `default`. Each test asserts on the
+ * args passed to intelAlert.findMany (mockPrisma does not itself filter by
+ * `where` — see its definition above), which is exactly the layer this bug
+ * lived in: the predicate that never got built. The QUERY LOGIC behind each
+ * predicate (which rows alertIdsInState/hiddenAlertIds actually return) is
+ * covered separately in alert-work-state.spec.ts.
+ */
+describe('FeedService.getFeed — work-state filtering (RB-01)', () => {
+  it('default (no workStates): excludes hiddenAlertIds via notIn', async () => {
+    const { prisma, getArgs } = mockPrisma([mkRow(1, 0.5)]);
+    const workState = makeWorkStateStub({ hiddenAlertIds: async () => ['h1', 'h2'] });
+    await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA, workState as any).getFeed(
+      't1', 'c1', { userId: 'u1' },
+    );
+    expect(getArgs().where.id).toEqual({ notIn: ['h1', 'h2'] });
+    expect(workState.calls.alertIdsInState).toHaveLength(0); // default never calls alertIdsInState
+  });
+
+  it("'all': no id predicate at all, no work-state call made", async () => {
+    const { prisma, getArgs } = mockPrisma([mkRow(1, 0.5)]);
+    const workState = makeWorkStateStub();
+    await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA, workState as any).getFeed(
+      't1', 'c1', { userId: 'u1', workStates: ['all'] },
+    );
+    expect(getArgs().where.id).toBeUndefined();
+    expect(workState.calls.hiddenAlertIds).toHaveLength(0);
+    expect(workState.calls.alertIdsInState).toHaveLength(0);
+  });
+
+  it("'new': anti-join over NOT_NEW_STATES via notIn", async () => {
+    const { prisma, getArgs } = mockPrisma([mkRow(1, 0.5)]);
+    const workState = makeWorkStateStub({ alertIdsInState: async () => ['t1', 't2', 't3'] });
+    await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA, workState as any).getFeed(
+      't1', 'c1', { userId: 'u1', workStates: ['new'] },
+    );
+    expect(getArgs().where.id).toEqual({ notIn: ['t1', 't2', 't3'] });
+    expect(workState.calls.alertIdsInState[0]).toEqual([
+      't1', 'u1', 'c1', ['in_review', 'assigned', 'actioned', 'dismissed', 'snoozed'],
+    ]);
+  });
+
+  it.each(['in_review', 'assigned', 'actioned', 'dismissed', 'snoozed'])(
+    "'%s': positive filter via in",
+    async (filter) => {
+      const { prisma, getArgs } = mockPrisma([mkRow(1, 0.5)]);
+      const workState = makeWorkStateStub({ alertIdsInState: async () => ['m1', 'm2'] });
+      await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA, workState as any).getFeed(
+        't1', 'c1', { userId: 'u1', workStates: [filter] },
+      );
+      expect(getArgs().where.id).toEqual({ in: ['m1', 'm2'] });
+      expect(workState.calls.alertIdsInState[0]).toEqual(['t1', 'u1', 'c1', [filter]]);
+    },
+  );
+
+  it('a positive filter with NO matches produces id:{in:[]} — zero rows, never falls through to default', async () => {
+    const { prisma, getArgs } = mockPrisma([mkRow(1, 0.5)]);
+    const workState = makeWorkStateStub({ alertIdsInState: async () => [] });
+    await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA, workState as any).getFeed(
+      't1', 'c1', { userId: 'u1', workStates: ['dismissed'] },
+    );
+    expect(getArgs().where.id).toEqual({ in: [] });
+  });
+
+  it('no userId: no work-state call, no id predicate, regardless of workStates', async () => {
+    const { prisma, getArgs } = mockPrisma([mkRow(1, 0.5)]);
+    const workState = makeWorkStateStub();
+    await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA, workState as any).getFeed(
+      't1', 'c1', { workStates: ['dismissed'] },
+    );
+    expect(getArgs().where.id).toBeUndefined();
+    expect(workState.calls.hiddenAlertIds).toHaveLength(0);
+    expect(workState.calls.alertIdsInState).toHaveLength(0);
+  });
+
+  it('_all (clientId null): work-state calls pass null client, same as hiddenAlertIds already did', async () => {
+    const { prisma, getArgs } = mockPrisma([mkRow(1, 0.5, 'cA')]);
+    const workState = makeWorkStateStub({ alertIdsInState: async () => ['x1'] });
+    await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA, workState as any).getFeed(
+      't1', null, { userId: 'u1', workStates: ['assigned'] },
+    );
+    expect(getArgs().where.id).toEqual({ in: ['x1'] });
+    expect(workState.calls.alertIdsInState[0]).toEqual(['t1', 'u1', null, ['assigned']]);
+  });
+});
+
+/**
+ * Gate F d (MP-07): facet counts must carry the SAME work-state narrowing as
+ * the item query, and a facet must never filter by its own dimension.
+ */
+describe('FeedService.getFeed — facet counts respect the filter (MP-07)', () => {
+  it('sourceType/severity counts are narrowed by the SAME work-state filter as the items', async () => {
+    const groups = [{ sourceType: 'bill', _count: 5 }];
+    const groupsSev = [{ severity: 'critical', _count: 5 }];
+    let sourceTypeWhere: any;
+    let severityWhere: any;
+    let call = 0;
+    const tx = {
+      intelAlert: {
+        findMany: async (args: any) => [mkRow(1, 0.5)].slice(0, args.take),
+        groupBy: async (args: any) => {
+          call += 1;
+          if (call === 1) sourceTypeWhere = args.where;
+          else severityWhere = args.where;
+          return args.by[0] === 'sourceType' ? groups : groupsSev;
+        },
+      },
+      watchlistTerm: { findMany: async () => [] },
+      transcriptSegment: { findMany: async () => [] },
+    };
+    const prisma = { ...tx, withTenant: async (_t: string, cb: any) => cb(tx) } as any;
+    const workState = makeWorkStateStub({ hiddenAlertIds: async () => ['h1'] });
+
+    await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA, workState as any).getFeed(
+      't1', 'c1', { userId: 'u1', severities: ['critical'] },
+    );
+
+    // sourceType facet: carries the work-state exclusion AND the severity filter
+    // (severity is not the sourceType facet's own dimension).
+    expect(sourceTypeWhere.id).toEqual({ notIn: ['h1'] });
+    expect(sourceTypeWhere.severity).toEqual({ in: ['critical'] });
+
+    // severity facet: carries the work-state exclusion but NOT its own severity
+    // filter (a facet never filters by its own dimension — d-3).
+    expect(severityWhere.id).toEqual({ notIn: ['h1'] });
+    expect(severityWhere.severity).toBeUndefined();
+  });
+
+  it("Bill 360 event history (sourceRef) scopes facet counts to that bill, not the whole client", async () => {
+    let sourceTypeWhere: any;
+    const tx = {
+      intelAlert: {
+        findMany: async (args: any) => [mkRow(1, 0.5)].slice(0, args.take),
+        groupBy: async (args: any) => {
+          if (args.by[0] === 'sourceType') sourceTypeWhere = args.where;
+          return [];
+        },
+      },
+      watchlistTerm: { findMany: async () => [] },
+      transcriptSegment: { findMany: async () => [] },
+    };
+    const prisma = { ...tx, withTenant: async (_t: string, cb: any) => cb(tx) } as any;
+    await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA, NO_WORK_STATE).getFeed(
+      't1', 'c1', { sourceRef: 'bill-123' },
+    );
+    // Before MP-07's fix, sourceRef only ever reached `where`, never the
+    // facet's `baseWhere` — so this would have been undefined.
+    expect(sourceTypeWhere.sourceRef).toBe('bill-123');
+  });
+});
+
 describe('FeedService.getFeed tenant-wide roll-up (P11)', () => {
   it('drops the clientId predicate when clientId is null (still tenant-scoped)', async () => {
     const { prisma, getArgs } = mockPrisma(
