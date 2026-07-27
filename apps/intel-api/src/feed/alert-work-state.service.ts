@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TrackerWatchlistService } from '../tracker/tracker-watchlist.service.js';
 
@@ -77,6 +77,13 @@ export class AlertWorkStateService {
     patch: WorkStatePatch,
   ): Promise<void> {
     await this.watchlist.assertClientInTenant(tenantId, clientId);
+    // Gate J (HP-06): setState had the client check but not the alert↔client
+    // one — a triage write under client B's route for client A's alertId
+    // would upsert a mismatched row (create stamps the URL clientId; forAlerts
+    // reads it back under A's real client, but hiddenAlertIds filters by
+    // clientId and never finds it, so a dismiss filed this way silently fails
+    // to hide the alert).
+    await this.watchlist.assertAlertInClient(tenantId, clientId, alertId);
     this.assertAssignable(patch);
 
     const data = {
@@ -195,6 +202,15 @@ export class AlertWorkStateService {
   /**
    * Apply one patch to many alerts. Capped at BULK_MAX so a 500-alert triage
    * cannot issue an unbounded statement; the caller chunks and reports it.
+   *
+   * Gate J (HP-06/J-3, §6 open decision 1): previously checked client
+   * ownership but NOT that each alertId belonged to that client at all — the
+   * update/create predicates below matched on `(tenantId, userId, alertId)`
+   * only. Now proves every id up front and REJECTS THE WHOLE BATCH if any is
+   * foreign, per the plan's recommendation: a partial bulk write is exactly
+   * the mismatched state this gate exists to prevent, so this changes the
+   * response shape from "always {updated: n}" to "throws, or {updated: n}
+   * for a fully-owned batch" — never a partial success.
    */
   async bulkSetState(
     tenantId: string,
@@ -212,6 +228,25 @@ export class AlertWorkStateService {
       this.logger.warn(
         `bulkSetState: received ${alertIds.length} ids, capped at ${BULK_MAX}; caller must chunk.`,
       );
+    }
+
+    const owned = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelAlert.findMany({
+        where: { id: { in: ids }, tenantId, clientId },
+        select: { id: true },
+      }),
+    );
+    const ownedIds = new Set(owned.map((a) => a.id));
+    const foreign = ids.filter((id) => !ownedIds.has(id));
+    if (foreign.length) {
+      this.logger.warn(
+        `bulkSetState rejected: ${foreign.length}/${ids.length} alert id(s) do not belong to ` +
+          `client=${clientId} tenant=${tenantId} — no changes written.`,
+      );
+      throw new NotFoundException({
+        code: 'ALERT_NOT_IN_CLIENT',
+        message: 'One or more alerts do not belong to this client. No changes were made.',
+      });
     }
 
     const data = {

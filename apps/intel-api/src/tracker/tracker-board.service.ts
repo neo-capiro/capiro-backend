@@ -39,8 +39,10 @@ import { isTerminalRisk, toneForChange } from './change-detector.util.js';
  * trackBill/untrackBill. The relevance input is the compiled UNIFIED watchlist
  * (Phase 2 WatchlistCompiler) rather than the apps/api IntelligenceService.
  *
- * intel-api has no RLS, so every read/write filters by the TenantGuard-resolved
- * `tenantId` (app-code isolation). Gated by `tracker_owner_intel` at the
+ * `intel_*` carries FORCE ROW LEVEL SECURITY (`20260706010000_intel_full_rls_hold`)
+ * scoped to tenant_id; every read/write additionally filters by the
+ * TenantGuard-resolved `tenantId` (+ clientId where applicable) in app code.
+ * Gated by `tracker_owner_intel` at the
  * controller (404 when off) → during shadow only the internal tenant reaches
  * this, and apps/api stays source of truth (D6). Reads GLOBAL bill data
  * read-only via SourceDataRepository; writes only `intel_*`.
@@ -1313,8 +1315,9 @@ export class TrackerBoardService {
     billId: string,
     opts?: { note?: string | null; source?: string; isManual?: boolean },
   ) {
-    // Cross-tenant guard (P1-03/P1-04): intel-api has no RLS and clientId is
-    // globally unique, so this must run before any read or write below.
+    // Cross-tenant guard (P1-03/P1-04): clientId is globally unique and RLS
+    // alone does not prove CLIENT ownership within a tenant, so this must run
+    // before any read or write below.
     await this.watchlists.assertClientInTenant(tenantId, clientId);
     // State Legislation Platform (S4.5): a DD1-shaped id ("tx-2025-hb1234")
     // routes to the state-bill lookup + status-rank stage bucketing instead
@@ -1380,9 +1383,10 @@ export class TrackerBoardService {
    *  - builds the update `data` from ONLY the fields present in the body, so a
    *    partial PUT can't null unspecified context (mirrors trackBill's guard);
    *  - uses updateMany with the { tenantId, clientId, billId } predicate (NOT
-   *    update({ clientId_billId }), whose unique key omits tenantId) — intel-api
-   *    has no RLS, so app-code tenant scoping is mandatory. res.count === 0 means
-   *    the bill isn't tracked for that client (or wrong tenant) → 404.
+   *    update({ clientId_billId }), whose unique key omits tenantId) — app-code
+   *    tenant scoping stays mandatory belt-and-braces alongside RLS.
+   *    res.count === 0 means the bill isn't tracked for that client (or wrong
+   *    tenant) → 404.
    *  - end-before-start expected windows are rejected 400 (§1.3).
    */
   async updateBillContext(
@@ -1473,6 +1477,13 @@ export class TrackerBoardService {
       throw new BadRequestException(`Unknown feedback signal "${input.signal}"`);
     }
     if (!input.targetRef?.trim()) throw new BadRequestException('targetRef is required');
+    // Gate J (HP-06) a-7: input.alertId is optional and attacker-controlled body
+    // input (not a path param) — previously written verbatim with no proof it
+    // belongs to this client. Only validate when present; feedback on a bare
+    // targetRef with no alertId is a legitimate, alert-less signal.
+    if (input.alertId) {
+      await this.watchlists.assertAlertInClient(tenantId, clientId, input.alertId);
+    }
     await this.prisma.withTenant(tenantId, (tx) =>
       tx.intelFeedback.create({
         data: {

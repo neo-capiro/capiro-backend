@@ -8,8 +8,10 @@ import { PrismaService } from '../prisma/prisma.service.js';
  * storms) — and upserts it idempotently on `dedupe_key`.
  *
  * SHADOW-safe: writes `intel_alert` with status='new' and delivers nothing (no
- * SES/SNS, single-sender invariant intact). intel_* tables carry no RLS, so
- * reads/writes filter by the caller-supplied tenantId (app-code isolation). Does
+ * SES/SNS, single-sender invariant intact). `intel_*` carries FORCE ROW LEVEL
+ * SECURITY scoped to tenant_id (`20260706010000_intel_full_rls_hold`);
+ * reads/writes additionally filter by the caller-supplied tenantId in app code
+ * (belt-and-braces). Does
  * NOT decrypt transcript text (§9.3): encrypted segments store a pointer
  * (segmentId + timestamp + quoteSource='encrypted'); the feed decrypts on read.
  */

@@ -103,8 +103,9 @@ function noFunding(status: string): LoadedFunding {
  * Composes a bill dossier from GLOBAL public bill facts (federal via
  * SourceDataRepository, state via StateSourceDataRepository) and — on the client
  * route only — that tenant/client's tracking context (intel_tracked_bill,
- * intel_alert). intel-api has no RLS, so every client read filters explicitly by
- * tenantId (+ clientId) inside prisma.withTenant.
+ * intel_alert). Both carry FORCE ROW LEVEL SECURITY scoped to tenant_id
+ * (`20260706010000_intel_full_rls_hold`); every client read additionally
+ * filters explicitly by tenantId (+ clientId) inside prisma.withTenant.
  *
  * The service is READ-ONLY toward apps/api-owned tables (it only reads through the
  * repositories) and never recomputes or overwrites the canonical bill status — an

@@ -532,7 +532,10 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       if (!tenantId)
         throw new Error('reconcile-orphan-memo-links requires <tenantId> [--apply=true]');
       const flags = parseFlags(args.slice(1));
-      const r = await new ActionItemService(deps.prisma).reconcileOrphanMemoLinks(
+      const r = await new ActionItemService(
+        deps.prisma,
+        new TrackerWatchlistService(deps.prisma),
+      ).reconcileOrphanMemoLinks(
         tenantId,
         { apply: flags['apply'] === 'true' },
         deps.log,

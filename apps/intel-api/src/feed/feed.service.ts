@@ -21,8 +21,10 @@ import { AlertWorkStateService, type WorkState, type WorkStateValue } from './al
  * its own clientId + resolved clientName so cards can label the client. When
  * present the feed is the per-client view (unchanged).
  *
- * intel_alert has no RLS → every query filters by tenantId (app-code isolation),
- * plus clientId when scoped to one client. Encrypted mention quotes are returned
+ * intel_alert carries FORCE ROW LEVEL SECURITY scoped to tenant_id
+ * (`20260706010000_intel_full_rls_hold`); every query additionally filters by
+ * tenantId in app code, plus clientId when scoped to one client. Encrypted
+ * mention quotes are returned
  * as pointers (quoteSource='encrypted', quote=null) as stored; decrypt-on-read is
  * a fast follow (the serve task-def carries HEARING_ENCRYPTION_KEY).
  */

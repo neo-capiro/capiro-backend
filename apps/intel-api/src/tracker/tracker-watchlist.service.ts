@@ -39,11 +39,12 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * Read/write API for the UNIFIED tracker watchlist (Phase 2, plan §5.2).
  *
  * Operates on the deterministic-id watchlist `wl:<clientId>` + its topics/terms
- * and the per-user `intel_alert_preference`. intel-api has no RLS, so every
- * query filters by the TenantGuard-resolved `tenantId` (app-code isolation).
- * All routes are gated by `tracker_owner_intel` (TrackerOwnerGuard, 404 when
- * off), so during shadow only the internal tenant can write here — apps/api
- * stays source of truth (D6).
+ * and the per-user `intel_alert_preference`. Both carry FORCE ROW LEVEL
+ * SECURITY (`20260706010000_intel_full_rls_hold`) scoped to `tenant_id`; every
+ * query additionally filters by the TenantGuard-resolved `tenantId` in app
+ * code (belt-and-braces, not the only defense). All routes are gated by
+ * `tracker_owner_intel` (TrackerOwnerGuard, 404 when off), so during shadow
+ * only the internal tenant can write here — apps/api stays source of truth (D6).
  */
 export interface TrackerTermInput {
   termType: string;
@@ -334,9 +335,11 @@ export class TrackerWatchlistService {
     input: PutWatchlistInput,
   ): Promise<WatchlistView> {
     // CROSS-TENANT GUARD (batch-A review, CRITICAL): wl:<clientId> is a globally
-    // unique id and intel-api has no RLS, so an unscoped write could clobber
-    // ANOTHER tenant's watchlist (cascade-deleting all their topics/terms).
-    // Prove the client belongs to the caller — same guard the sibling writers
+    // unique id, and while intel_watchlist carries FORCE RLS scoped to
+    // tenant_id, defense-in-depth still requires proving CLIENT ownership
+    // before an unscoped write can clobber ANOTHER tenant's watchlist
+    // (cascade-deleting all their topics/terms). Prove the client belongs to
+    // the caller — same guard the sibling writers
     // (putAlertPrefs/markPhoneVerified) carry; TrackerOwnerGuard only checks the
     // caller's flag, not client ownership.
     await this.assertClientInTenant(tenantId, clientId);
@@ -771,9 +774,12 @@ export class TrackerWatchlistService {
 
   /**
    * Legacy `assertClient` port: 404 unless `clientId` is a client of the
-   * caller's tenant. intel-api has no RLS, and (userId, clientId) — the pref
-   * unique key — carries no tenant, so every pref WRITE must first prove the
-   * client belongs to the caller (cross-tenant review finding, PR-1).
+   * caller's tenant. `intel_*` carries FORCE ROW LEVEL SECURITY
+   * (`20260706010000_intel_full_rls_hold`) scoped to `tenant_id`, but `clients`
+   * is an apps/api-owned table read here via `withSystem` (outside the RLS
+   * session), and (userId, clientId) — the pref unique key — carries no
+   * tenant, so every pref WRITE must first prove the client belongs to the
+   * caller (cross-tenant review finding, PR-1).
    */
   async assertClientInTenant(tenantId: string, clientId: string): Promise<void> {
     if (!UUID_RE.test(clientId)) throw new NotFoundException('Client not found');
@@ -785,6 +791,23 @@ export class TrackerWatchlistService {
       ),
     );
     if (rows.length === 0) throw new NotFoundException('Client not found');
+  }
+
+  /**
+   * Gate J (HP-06): 404 unless `alertId` belongs to BOTH this tenant and this
+   * client. Generalizes the one place this predicate was previously inlined
+   * correctly — `alert-packet.service.ts`'s `build()` — so every alert-bearing
+   * route can share it instead of re-deriving it (or omitting it, as routes
+   * 2-5 in J_INTEGRITY.md §1.1 did). 404, not 403 (MASTER §6/edge case 2): a
+   * miss must not confirm that another client's alert exists. Does not special-
+   * case `_all` — callers pass a real alertId here, and `_all` is only ever a
+   * clientId, never an alertId (MASTER §6.3).
+   */
+  async assertAlertInClient(tenantId: string, clientId: string, alertId: string): Promise<void> {
+    const alert = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelAlert.findFirst({ where: { id: alertId, tenantId, clientId }, select: { id: true } }),
+    );
+    if (!alert) throw new NotFoundException('Alert not found');
   }
 
   /**
@@ -922,8 +945,8 @@ export class TrackerWatchlistService {
    * Facility-derived jurisdiction hint for a client (S5.1) — the exact
    * suggestedIssueAreas precedent (getSectorSuggestion above): read-only,
    * never written, absent once the client has explicitly configured
-   * jurisdictions. withSystem because client_facilities is tenant-scoped and
-   * intel-api has no RLS.
+   * jurisdictions. withSystem because client_facilities is an apps/api-owned
+   * table intel-api has no Prisma model for, not because intel_* lacks RLS.
    */
   async suggestedJurisdictions(tenantId: string, clientId: string): Promise<string[]> {
     if (!UUID_RE.test(clientId)) return [];

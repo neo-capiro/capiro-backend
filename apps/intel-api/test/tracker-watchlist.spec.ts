@@ -921,3 +921,40 @@ describe('TrackerWatchlistService.putAlertPrefs — P1-01 default vs deliberate 
     expect((upserts[0]!.create as { triggers: string[] }).triggers).toEqual([]);
   });
 });
+
+describe('TrackerWatchlistService.assertAlertInClient — Gate J (HP-06)', () => {
+  const ALERT = 'alert-1';
+
+  function alertReader(alerts: Array<{ id: string; tenantId: string; clientId: string }>) {
+    return {
+      withTenant: async (_tid: string, fn: (t: unknown) => unknown) =>
+        fn({
+          intelAlert: {
+            findFirst: async ({ where }: { where: { id: string; tenantId: string; clientId: string } }) =>
+              alerts.find(
+                (a) => a.id === where.id && a.tenantId === where.tenantId && a.clientId === where.clientId,
+              ) ?? null,
+          },
+        }),
+    } as any;
+  }
+
+  it('resolves when the alert belongs to this tenant and client', async () => {
+    const prisma = alertReader([{ id: ALERT, tenantId: TENANT, clientId: CLIENT }]);
+    const svc = new TrackerWatchlistService(prisma);
+    await expect(svc.assertAlertInClient(TENANT, CLIENT, ALERT)).resolves.toBeUndefined();
+  });
+
+  it('404s when the alert belongs to a DIFFERENT client in the same tenant (the HP-06 case)', async () => {
+    const OTHER_CLIENT = '22222222-2222-2222-2222-222222222222';
+    const prisma = alertReader([{ id: ALERT, tenantId: TENANT, clientId: OTHER_CLIENT }]);
+    const svc = new TrackerWatchlistService(prisma);
+    await expect(svc.assertAlertInClient(TENANT, CLIENT, ALERT)).rejects.toThrow('Alert not found');
+  });
+
+  it('404s when the alert does not exist at all', async () => {
+    const prisma = alertReader([]);
+    const svc = new TrackerWatchlistService(prisma);
+    await expect(svc.assertAlertInClient(TENANT, CLIENT, 'no-such-alert')).rejects.toThrow('Alert not found');
+  });
+});
