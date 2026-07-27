@@ -228,6 +228,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         regenerateDisabled={!aiConfigured}
         onExport={onExport}
         approved={prep.status === 'approved'}
+        shared={prep.sharedAt != null}
         onApprove={async () => {
           await approve.mutateAsync(prep.id);
           message.success('Prep approved.');

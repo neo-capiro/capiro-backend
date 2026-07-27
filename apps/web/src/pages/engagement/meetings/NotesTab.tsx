@@ -11,10 +11,17 @@ import { Empty, MeriGlyph, SendMeriButton, eligibleForMeri } from './meetings-ui
 import { GeneratingState } from './tab-kit.js';
 import type { Meeting, MeetingNote } from './meetings-types.js';
 
-/** Phase 2 §3.e — Draft/Edited/Approved status pill, distinct from "Summarized". */
-function noteStatusPill(status: MeetingNote['status']) {
-  if (status === 'approved') return <span className="pill success">Approved</span>;
-  if (status === 'edited') return <span className="pill notable">Edited</span>;
+/**
+ * Phase 2 §3.e/§3.j — Draft/Edited/Approved/Shared status pill, distinct from
+ * the tab's own "Summarized" (completion) indicator above. Shared implies
+ * approved (the server refuses to share an unapproved note), so it takes
+ * priority in display — completion and approval/share are visibly different
+ * signals, never conflated.
+ */
+function noteStatusPill(note: MeetingNote) {
+  if (note.sharedAt) return <span className="pill success">Shared</span>;
+  if (note.status === 'approved') return <span className="pill info">Approved</span>;
+  if (note.status === 'edited') return <span className="pill notable">Edited</span>;
   return <span className="pill muted">Draft</span>;
 }
 
@@ -38,7 +45,7 @@ function NoteRow({ meetingId, note }: { meetingId: string; note: MeetingNote }) 
   return (
     <div style={{ margin: '0 0 18px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        {noteStatusPill(note.status)}
+        {noteStatusPill(note)}
         {!editing && (
           <button
             type="button"

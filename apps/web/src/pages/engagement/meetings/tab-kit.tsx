@@ -92,6 +92,10 @@ export function ArtifactActionBar({
   approving,
   approveLabel = 'Approve',
   approvedLabel = 'Approved',
+  /** Phase 2 §3.j — a SEPARATE signal from `approved`: this exact approved
+   *  version has also been shared. Never shown for an unapproved artifact
+   *  (sharing requires approval), so it only ever augments the approved pill. */
+  shared,
 }: {
   refine?: boolean;
   refineValue?: string;
@@ -107,6 +111,7 @@ export function ArtifactActionBar({
   approving?: boolean;
   approveLabel?: string;
   approvedLabel?: string;
+  shared?: boolean;
 }) {
   return (
     <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border-1)' }}>
@@ -161,22 +166,33 @@ export function ArtifactActionBar({
         </button>
         <div style={{ flex: 1 }} />
         {approved ? (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 12.5,
-              fontWeight: 600,
-              color: 'var(--success)',
-              background: 'var(--success-soft)',
-              borderRadius: 7,
-              padding: '6px 12px',
-            }}
-          >
-            <Check size={14} strokeWidth={3} />
-            {approvedLabel}
-          </span>
+          <>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: 'var(--success)',
+                background: 'var(--success-soft)',
+                borderRadius: 7,
+                padding: '6px 12px',
+              }}
+              title="Approved — completion and approval are separate: this artifact existed before it was approved."
+            >
+              <Check size={14} strokeWidth={3} />
+              {approvedLabel}
+            </span>
+            {shared && (
+              <span
+                className="pill info"
+                title="Also shared to the client and your firm's Meeting Library."
+              >
+                Shared
+              </span>
+            )}
+          </>
         ) : (
           onApprove && (
             <button

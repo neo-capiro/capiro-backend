@@ -188,6 +188,13 @@ export function ProviderTag({ m }: { m: Meeting }) {
 export function MatBadge({ label, done }: { label: string; done: boolean }) {
   return (
     <span
+      // Phase 2 §3.j — this is COMPLETION (the artifact exists), not approval
+      // or sharing. Open the meeting to see approval/share status per artifact.
+      title={
+        done
+          ? `${label} exists. Open the meeting for its approval/share status.`
+          : `${label} has not been generated yet.`
+      }
       style={{
         display: 'inline-flex',
         alignItems: 'center',
