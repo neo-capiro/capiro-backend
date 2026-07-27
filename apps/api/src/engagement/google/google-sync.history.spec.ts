@@ -225,6 +225,151 @@ describe('syncMailIncremental orchestration (Phase F apply loop)', () => {
     expect(stats.pages).toBe(2);
     expect(mailState.historyId).toBe('200');
   });
+
+  // Phase b (remaining-items plan §3.b3) — durable multi-run pagination:
+  // a mailbox with more than MAX_MAIL_PAGES_PER_LABEL_PER_RUN (12) pages of
+  // history must resume from where a capped run left off, rather than
+  // silently discarding the unconsumed nextPageToken and skipping history.
+  type DurableMailState = {
+    historyId?: string | null;
+    incrementalPageToken?: string | null;
+    incrementalLatestHistoryId?: string | null;
+  };
+
+  test('a 12-page capped run stores continuation and leaves historyId unchanged', async () => {
+    const pages = Array.from({ length: 12 }, (_, i) => ({
+      history: [],
+      historyId: String(101 + i),
+      nextPageToken: `p${i + 2}`,
+    }));
+    const { service } = makeService({ historyPages: pages });
+    const mailState: DurableMailState = { historyId: '100' };
+
+    const stats = await (
+      service as unknown as {
+        syncMailIncremental: (
+          t: string,
+          c: unknown,
+          m: DurableMailState,
+          a: string,
+        ) => Promise<{ hasMore: boolean; pages: number }>;
+      }
+    ).syncMailIncremental('t1', connection, mailState, 'token');
+
+    expect(stats.hasMore).toBe(true);
+    expect(stats.pages).toBe(12);
+    expect(mailState.historyId).toBe('100');
+    expect(mailState.incrementalPageToken).toBe('p13');
+    expect(mailState.incrementalLatestHistoryId).toBe('112');
+  });
+
+  test('a resumed run passes the persisted incrementalPageToken to the first gmailHistory call', async () => {
+    const { service, patch } = makeService({
+      historyPages: [{ history: [], historyId: '250' }],
+    });
+    const mailState: DurableMailState = {
+      historyId: '100',
+      incrementalPageToken: 'p13',
+      incrementalLatestHistoryId: '112',
+    };
+
+    await (
+      service as unknown as {
+        syncMailIncremental: (t: string, c: unknown, m: DurableMailState, a: string) => Promise<unknown>;
+      }
+    ).syncMailIncremental('t1', connection, mailState, 'token');
+
+    expect(patch.gmailHistory).toHaveBeenCalledWith('token', {
+      startHistoryId: '100',
+      pageToken: 'p13',
+    });
+  });
+
+  test('the run that finally exhausts the provider chain clears continuation and advances historyId', async () => {
+    const { service } = makeService({
+      historyPages: [{ history: [], historyId: '250' }],
+    });
+    const mailState: DurableMailState = {
+      historyId: '100',
+      incrementalPageToken: 'p13',
+      incrementalLatestHistoryId: '112',
+    };
+
+    const stats = await (
+      service as unknown as {
+        syncMailIncremental: (
+          t: string,
+          c: unknown,
+          m: DurableMailState,
+          a: string,
+        ) => Promise<{ hasMore: boolean }>;
+      }
+    ).syncMailIncremental('t1', connection, mailState, 'token');
+
+    expect(stats.hasMore).toBe(false);
+    expect(mailState.historyId).toBe('250');
+    expect(mailState.incrementalPageToken).toBeNull();
+    expect(mailState.incrementalLatestHistoryId).toBeNull();
+  });
+
+  test('incrementalLatestHistoryId seeds from the persisted value, not startHistoryId, and survives a second capped run', async () => {
+    const pages = Array.from({ length: 12 }, (_, i) => ({
+      history: [],
+      historyId: String(200 + i),
+      nextPageToken: `p${20 + i}`,
+    }));
+    const { service } = makeService({ historyPages: pages });
+    const mailState: DurableMailState = {
+      historyId: '100',
+      incrementalPageToken: 'p19',
+      incrementalLatestHistoryId: '105',
+    };
+
+    const stats = await (
+      service as unknown as {
+        syncMailIncremental: (
+          t: string,
+          c: unknown,
+          m: DurableMailState,
+          a: string,
+        ) => Promise<{ hasMore: boolean }>;
+      }
+    ).syncMailIncremental('t1', connection, mailState, 'token');
+
+    expect(stats.hasMore).toBe(true);
+    // Still mid-chain: the ORIGINAL baseline must not advance.
+    expect(mailState.historyId).toBe('100');
+    // Seeded from the persisted '105', not reset to startHistoryId ('100').
+    expect(mailState.incrementalLatestHistoryId).toBe('211');
+    expect(mailState.incrementalPageToken).toBe('p31');
+  });
+
+  test('a failed (non-gone) operation propagates and leaves cursor fields untouched', async () => {
+    const { service } = makeService({
+      historyPages: [
+        {
+          history: [{ id: '1', messagesAdded: [{ message: { id: 'm1', labelIds: ['INBOX'] } }] }],
+          historyId: '200',
+        },
+      ],
+      gmailGetImpl: async () => {
+        throw new Error('transient boom');
+      },
+    });
+    const mailState: DurableMailState = { historyId: '100' };
+
+    await expect(
+      (
+        service as unknown as {
+          syncMailIncremental: (t: string, c: unknown, m: DurableMailState, a: string) => Promise<unknown>;
+        }
+      ).syncMailIncremental('t1', connection, mailState, 'token'),
+    ).rejects.toThrow('transient boom');
+
+    expect(mailState.historyId).toBe('100');
+    expect(mailState.incrementalPageToken).toBeUndefined();
+    expect(mailState.incrementalLatestHistoryId).toBeUndefined();
+  });
 });
 
 describe('gmailHistory request', () => {
