@@ -1944,6 +1944,12 @@ model MeriAuditLedger {
   /// 'shadow' | 'annotate' | 'enforce' — the AuditorMode this verdict ran under.
   mode           String   @db.VarChar(16)
   conversationId String?  @map("conversation_id") @db.Uuid
+  /// Remediation plan §3.b2 — generic exact-subject correlation, e.g.
+  /// 'outreach-draft-version' + an OutreachDraftVersion id. NULL for
+  /// surfaces (chat/research/memo/alert) that ledger at the conversation
+  /// level and have not adopted per-subject correlation.
+  subjectType    String?  @map("subject_type") @db.VarChar(32)
+  subjectId      String?  @map("subject_id")
   /// Gate I (CG-01) b-8: scopes the saveEdited L0 recent-hold lookup to ONE
   /// client/alert instead of any hold tenant-wide. NULL on rows written before
   /// this column existed and on surfaces with no single client/alert (chat/
@@ -1963,6 +1969,14 @@ model MeriAuditLedger {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  /// One FINAL ledger row per exact subject + mode (plan §3.b5) — a re-run
+  /// upserts its own prior verdict instead of accumulating duplicates.
+  /// Surfaces that leave subjectType/subjectId NULL are unaffected: Postgres
+  /// never treats two NULLs as conflicting under a unique index.
+  /// Also serves as the tenant/subject lookup index (plan §3.b2): any query
+  /// filtering on (tenantId, subjectType, subjectId) uses this index's
+  /// leading columns without needing a separate redundant index.
+  @@unique([tenantId, subjectType, subjectId, mode], map: "meri_audit_ledger_subject_mode_key")
   @@index([tenantId, createdAt(sort: Desc)], map: "meri_audit_ledger_tenant_created_idx")
   @@index([surface, topSeverity, createdAt(sort: Desc)], map: "meri_audit_ledger_surface_severity_idx")
   @@index([tenantId, clientId, alertId, decision, createdAt(sort: Desc)], map: "meri_audit_ledger_tenant_client_alert_idx")
@@ -2308,6 +2322,16 @@ model OutreachSendIntent {
   senderConnectionId String    @map("sender_connection_id") @db.Uuid
   /// Client idempotency token, minted once per Send click.
   requestKey         String    @map("request_key") @db.VarChar(128)
+  /// Remediation plan §3.c5/c6 — sha256 over the canonical request payload
+  /// (tenant, user, parent record, mailbox, sorted version ids, sorted
+  /// attachment manifest, signature choice, test mode). Lets a REUSED
+  /// requestKey be told apart from a genuine retry: same key + same
+  /// fingerprint dedupes, same key + a different fingerprint is refused
+  /// (OUTREACH_REQUEST_KEY_REUSED) instead of silently returning the old
+  /// intent for a materially different request. Historical rows backfill to
+  /// `legacy:<id>`, a format a real `sha256:`-prefixed fingerprint can never
+  /// collide with.
+  requestFingerprint String    @map("request_fingerprint") @db.VarChar(160)
   appendSignature    Boolean   @default(true) @map("append_signature")
   attachmentIds      Json      @default("[]") @map("attachment_ids_jsonb")
   testMode           Boolean   @default(false) @map("test_mode")

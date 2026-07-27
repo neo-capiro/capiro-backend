@@ -43,7 +43,14 @@ const LEDGER = [
 interface Harness {
   service: OutreachDraftAuditService;
   versionUpdates: Array<Record<string, unknown>>;
+  /** Distinct ledger ROWS currently stored, post-dedupe (remediation plan §3.b5). */
   ledgerCreates: number;
+  /** Every upsert ATTEMPT regardless of dedupe — proves the write actually ran. */
+  ledgerWriteCalls: number;
+  /** The final stored payload per distinct (tenant, subjectType, subjectId, mode) row. */
+  ledgerRows: Array<Record<string, unknown>>;
+  /** 'ledger' / 'version' / 'review', pushed in the order the mocks actually ran. */
+  callOrder: string[];
   reviewCreates: Array<Record<string, unknown>>;
 }
 
@@ -57,7 +64,9 @@ function makeHarness(opts: {
 }): Harness {
   const versionUpdates: Array<Record<string, unknown>> = [];
   const reviewCreates: Array<Record<string, unknown>> = [];
-  const counters = { ledgerCreates: 0 };
+  const callOrder: string[] = [];
+  const ledgerRowsByKey = new Map<string, Record<string, unknown>>();
+  const counters = { ledgerWriteCalls: 0 };
 
   const tx = {
     outreachDraftVersion: {
@@ -82,20 +91,36 @@ function makeHarness(opts: {
       }),
       updateMany: async ({ data }: { data: Record<string, unknown> }) => {
         if (opts.failVersionWrite) throw new Error('version write failed');
+        callOrder.push('version');
         versionUpdates.push(data);
         return { count: 1 };
       },
     },
     meriAuditLedger: {
-      create: async () => {
+      // Real upsert semantics keyed by the compound unique — a second call
+      // with the SAME key replaces rather than adds a row (plan §3.b5).
+      upsert: async ({
+        where,
+        create,
+        update,
+      }: {
+        where: { tenantId_subjectType_subjectId_mode: Record<string, unknown> };
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }) => {
         if (opts.failLedgerWrite) throw new Error('meri_audit_ledger insert failed');
-        counters.ledgerCreates++;
+        counters.ledgerWriteCalls++;
+        callOrder.push('ledger');
+        const key = JSON.stringify(where.tenantId_subjectType_subjectId_mode);
+        const existing = ledgerRowsByKey.get(key);
+        ledgerRowsByKey.set(key, existing ? { ...existing, ...update } : create);
         return { id: 'ledger-1' };
       },
     },
     reviewRequest: {
       create: async ({ data }: { data: Record<string, unknown> }) => {
         if (opts.failReviewWrite) throw new Error('review_request insert failed');
+        callOrder.push('review');
         reviewCreates.push(data);
         return { id: 'rr-1' };
       },
@@ -116,8 +141,15 @@ function makeHarness(opts: {
     service,
     versionUpdates,
     get ledgerCreates() {
-      return counters.ledgerCreates;
+      return ledgerRowsByKey.size;
     },
+    get ledgerWriteCalls() {
+      return counters.ledgerWriteCalls;
+    },
+    get ledgerRows() {
+      return [...ledgerRowsByKey.values()];
+    },
+    callOrder,
     reviewCreates,
   } as Harness;
 }
@@ -135,17 +167,87 @@ describe('auditor mode: off', () => {
 });
 
 describe('clean draft', () => {
-  test('no findings → passed, no review, sendable', async () => {
-    const h = makeHarness({
-      mode: 'enforce',
-      body: 'Thank you for meeting with our team last month. We would value your continued support.',
-      ledger: [],
-    });
+  const CLEAN_BODY =
+    'Thank you for meeting with our team last month. We would value your continued support.';
+
+  test('no findings → passed, no review, sendable, AND now leaves a ledger record (plan defect #2)', async () => {
+    const h = makeHarness({ mode: 'enforce', body: CLEAN_BODY, ledger: [] });
     const out = await h.service.runForVersion(ctx, 'v-1');
     expect(out.auditStatus).toBe('passed');
     expect(out.findingCount).toBe(0);
     expect(isDraftVersionSendable(out)).toBe(true);
     expect(h.reviewCreates).toHaveLength(0);
+    // Before this fix, a clean/passed release wrote NOTHING to the ledger —
+    // a release with no durable evidence of why it was released.
+    expect(h.ledgerCreates).toBe(1);
+    expect(h.ledgerRows[0]).toMatchObject({
+      subjectType: 'outreach-draft-version',
+      subjectId: 'v-1',
+      mode: 'enforce',
+      decision: 'deliver',
+      findingCount: 0,
+    });
+  });
+
+  test('the ledger is persisted BEFORE the passed version-state write (plan §3.b3)', async () => {
+    const h = makeHarness({ mode: 'enforce', body: CLEAN_BODY, ledger: [] });
+    await h.service.runForVersion(ctx, 'v-1');
+    const ledgerAt = h.callOrder.indexOf('ledger');
+    const versionAt = h.callOrder.indexOf('version');
+    expect(ledgerAt).toBeGreaterThanOrEqual(0);
+    expect(ledgerAt).toBeLessThan(versionAt);
+  });
+
+  test('Meri auditor clean but a non-blocking VERIFIER finding present → still a ledger record', async () => {
+    // The other silent gap defect #2 covers: checks.length > 0 ONLY because of
+    // a verifier finding — the Meri auditor itself found nothing, so the old
+    // code never reached its (findings-gated) ledger write either.
+    const h = makeHarness({ mode: 'enforce', body: CLEAN_BODY, ledger: [] });
+    const out = await h.service.runForVersion(ctx, 'v-1', {
+      verifierFindings: [{ check: 'PLACEHOLDER_TEXT', severity: 'low', blocking: false }],
+    });
+    expect(out.auditStatus).toBe('warning');
+    expect(out.approvalStatus).toBe('not_required');
+    expect(isDraftVersionSendable(out)).toBe(true);
+    expect(h.reviewCreates).toHaveLength(0);
+    expect(h.ledgerCreates).toBe(1);
+  });
+});
+
+describe('duplicate execution (plan §3.b5) — one FINAL ledger row per version + mode', () => {
+  test('re-running the SAME version under the SAME mode replaces, not duplicates', async () => {
+    const h = makeHarness({ mode: 'shadow' });
+    await h.service.runForVersion(ctx, 'v-1');
+    await h.service.runForVersion(ctx, 'v-1');
+    expect(h.ledgerWriteCalls).toBe(2);
+    expect(h.ledgerCreates).toBe(1);
+  });
+
+  test('the SECOND run overwrites the stored verdict rather than appending', async () => {
+    const h = makeHarness({ mode: 'shadow' });
+    await h.service.runForVersion(ctx, 'v-1');
+    const first = h.ledgerRows[0]!;
+    await h.service.runForVersion(ctx, 'v-1');
+    expect(h.ledgerRows).toHaveLength(1);
+    // Same verdict both times (fixture is deterministic) — this proves
+    // "replace" semantics without needing the finding set to actually change.
+    expect(h.ledgerRows[0]).toMatchObject({
+      subjectId: first.subjectId,
+      mode: first.mode,
+      decision: first.decision,
+    });
+  });
+});
+
+describe('exact-version correlation and payload shape (plan §3.b2)', () => {
+  test('the ledger row correlates to the EXACT version id, and never carries body/subject', async () => {
+    const h = makeHarness({ mode: 'enforce' });
+    await h.service.runForVersion(ctx, 'v-1');
+    const row = h.ledgerRows[0]!;
+    expect(row.subjectType).toBe('outreach-draft-version');
+    expect(row.subjectId).toBe('v-1');
+    expect(row).not.toHaveProperty('body');
+    expect(row).not.toHaveProperty('subject');
   });
 });
 

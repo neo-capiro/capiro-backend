@@ -212,6 +212,17 @@ export class OutreachDraftAuditService {
         })),
       ];
 
+      // Durable evidence FIRST (remediation plan §3.b3), before ANY
+      // version-state write and regardless of outcome: passed, warning, or
+      // held. Previously this only ran on the findings-present branch below,
+      // so a clean release (0 findings) or a verifier-only warning (Meri
+      // clean, non-blocking verifier finding) left no MeriAuditLedger row —
+      // a release with no evidence of why it was released (plan defect #2).
+      // A throw here is caught by this function's own catch block, which
+      // already fails closed under enforce via handleControlFailure
+      // (plan §3.b4) — no separate handling needed.
+      await this.persistAuditLedger(ctx, version, mode, verdict);
+
       // A blocking deterministic finding holds regardless of mode.
       if (verifierBlocks) {
         return this.holdForVerifier(ctx, version, mode, checks, verdict.decision);
@@ -262,25 +273,6 @@ export class OutreachDraftAuditService {
         `[meri-auditor:${mode}] outreach draft version ${versionId} — ` +
           `${verdict.findings.length} finding(s), top=${verdict.topSeverity}, ` +
           `decision=${verdict.decision}: ${checks.map((c) => `${c.check}/${c.severity}`).join(', ')}`,
-      );
-
-      // The audit ledger row is the durable evidence. It is written BEFORE the
-      // version is marked passed/held so a ledger failure can never leave a
-      // released draft with no record of why it was released.
-      await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.meriAuditLedger.create({
-          data: {
-            tenantId: ctx.tenantId,
-            surface: 'outreach',
-            mode,
-            decision: verdict.decision,
-            topSeverity: verdict.topSeverity ?? null,
-            findingCount: verdict.findings.length,
-            findings: verdict.findings as unknown as Prisma.InputJsonValue,
-            outputChars: version.body.length,
-            ...(version.model ? { model: version.model.slice(0, 80) } : {}),
-          },
-        }),
       );
 
       // Non-blocking modes: visible warning, still sendable. Never a banner in
@@ -587,6 +579,55 @@ export class OutreachDraftAuditService {
       contextNote:
         '⚠️ Verification was unavailable for this draft. Treat any factual claim as unconfirmed.',
     };
+  }
+
+  /**
+   * The ONE place a completed non-off audit becomes durable evidence
+   * (remediation plan §3.b1). Called once per {@link runForVersion} call,
+   * for every outcome — passed, warning, or held — before any version-state
+   * write (plan §3.b3).
+   *
+   * Upserts on (tenant, subject, mode) rather than inserting (plan §3.b5):
+   * re-running the audit for the SAME exact version under the SAME mode
+   * (retry, redelivered job) replaces its own prior verdict rather than
+   * accumulating duplicate rows — the ledger holds the FINAL verdict per
+   * version+mode, not a log of every attempt (Open Decision 6.1 default).
+   */
+  private async persistAuditLedger(
+    ctx: TenantContext,
+    version: { id: string; body: string; model: string | null },
+    mode: AuditorMode,
+    verdict: { decision: string; topSeverity?: string | null; findings: readonly unknown[] },
+  ): Promise<void> {
+    const shared = {
+      decision: verdict.decision,
+      topSeverity: verdict.topSeverity ?? null,
+      findingCount: verdict.findings.length,
+      findings: verdict.findings as unknown as Prisma.InputJsonValue,
+      outputChars: version.body.length,
+      ...(version.model ? { model: version.model.slice(0, 80) } : {}),
+    };
+    await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.meriAuditLedger.upsert({
+        where: {
+          tenantId_subjectType_subjectId_mode: {
+            tenantId: ctx.tenantId,
+            subjectType: OUTREACH_DRAFT_VERSION_SUBJECT_TYPE,
+            subjectId: version.id,
+            mode,
+          },
+        },
+        create: {
+          tenantId: ctx.tenantId,
+          surface: 'outreach',
+          mode,
+          subjectType: OUTREACH_DRAFT_VERSION_SUBJECT_TYPE,
+          subjectId: version.id,
+          ...shared,
+        },
+        update: shared,
+      }),
+    );
   }
 
   /** Write the audit verdict onto the exact version row (tenant-scoped). */
