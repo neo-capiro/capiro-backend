@@ -61,11 +61,16 @@ export class ActionItemService {
     clientId: string,
     alertId: string,
     userId: string,
-    memo: { documentAttachmentId?: string | null; title?: string | null },
+    memo: { documentAttachmentId?: string | null; title?: string | null; content?: string | null },
   ) {
     const data = {
       documentAttachmentId: memo.documentAttachmentId ?? null,
       title: memo.title ?? null,
+      // Gate H a-5: only touch `text` when the caller actually sent content —
+      // NOT `?? null`. The reconcile-orphan-memo-links backfill (:254-260) and
+      // any other caller that never had content to send must not overwrite a
+      // real saved memo's text with null on an unrelated metadata update.
+      ...(memo.content !== undefined ? { text: memo.content } : {}),
     };
     return this.prisma.withTenant(tenantId, async (tx) => {
       const updated = await tx.intelActionItem.updateMany({

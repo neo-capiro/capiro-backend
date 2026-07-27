@@ -297,6 +297,14 @@ export interface BoardCard {
   hearingCount: number;
   /** 'US' | <state code> (State Legislation Platform, S7.2). Absent = 'US'. */
   jurisdiction?: string;
+  /**
+   * MP-15 / Gate H phase d: the Clerk user id that tracked this bill — already
+   * in memory from the unfiltered `findMany` above, just never projected.
+   * Null for a row tracked before this column was populated (edge case 4).
+   * A Clerk id, NOT a DB user UUID — the web resolves it to a name via
+   * GET /api/users/tenant-members, never via useTeamMembers() (wrong id space).
+   */
+  trackedBy: string | null;
 }
 export interface BoardColumn {
   id: BillStage;
@@ -816,6 +824,7 @@ export class TrackerBoardService {
         lastHearingAt: t.lastHearingAt ?? null,
         hearingCount: hearingCountByBill.get(t.billId) ?? 0,
         jurisdiction: this.jurisdictionFor(t.billId),
+        trackedBy: t.trackedBy ?? null,
       };
       (colById.get(stage) ?? columns[0]!).cards.push(card);
     }
@@ -1015,6 +1024,7 @@ export class TrackerBoardService {
         jurisdiction: this.jurisdictionFor(t.billId),
         clientId: t.clientId,
         clientName: clientNames.get(t.clientId) ?? null,
+        trackedBy: t.trackedBy ?? null,
       };
       (colById.get(stage) ?? columns[0]!).cards.push(card);
     }

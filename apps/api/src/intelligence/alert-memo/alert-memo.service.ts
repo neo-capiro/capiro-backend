@@ -528,12 +528,16 @@ export class AlertMemoService {
           source: 'intel_memo',
         });
         document = { attachmentId: saved.id, fileName: saved.fileName };
-        // Regenerate: replace the prior Document so the client's Documents don't accrue drafts.
+        // Gate H a-6: regenerate SUPERSEDES the prior Document rather than
+        // deleting it — the client's Documents list still shows only the
+        // current version (listAttachments excludes superseded rows), but
+        // the old version is never destroyed. deleteAttachment used to run
+        // here; that was a real, unrecoverable S3 delete on every regenerate.
         if (replaceAttachmentId) {
           await this.engagement
-            .deleteAttachment(ctx, replaceAttachmentId)
+            .supersedeAttachment(ctx, replaceAttachmentId, saved.id)
             .catch((e) =>
-              this.logger.warn(`replace prior memo doc failed: ${(e as Error).message}`),
+              this.logger.warn(`superseding prior memo doc failed: ${(e as Error).message}`),
             );
         }
       } catch (err) {
@@ -637,8 +641,13 @@ export class AlertMemoService {
       buffer,
       source: 'intel_memo',
     });
+    // Gate H a-6: same supersede-not-delete treatment as the generate path.
     if (input.replaceAttachmentId) {
-      await this.engagement.deleteAttachment(ctx, input.replaceAttachmentId).catch(() => undefined);
+      await this.engagement
+        .supersedeAttachment(ctx, input.replaceAttachmentId, saved.id)
+        .catch((e) =>
+          this.logger.warn(`superseding prior memo doc failed on save: ${(e as Error).message}`),
+        );
     }
     return { document: { attachmentId: saved.id, fileName: saved.fileName }, title: input.title };
   }

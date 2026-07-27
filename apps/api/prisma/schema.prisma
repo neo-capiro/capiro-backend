@@ -901,6 +901,17 @@ model EngagementAttachment {
   sharedAt         DateTime? @map("shared_at") @db.Timestamptz(6)
   sharedByUserId   String?   @map("shared_by_user_id") @db.Uuid
 
+  /// Gate H a-6 (LegiWatch): set when a generator (today: the alert-memo
+  /// regenerate path) supersedes this document with a newer version, INSTEAD
+  /// of calling deleteAttachment. NULL = current version. Deliberately generic
+  /// (not memo-specific) — any generator's "regenerate" can adopt this same
+  /// contract instead of destructively deleting. The row, its S3 object, and
+  /// its KB index are all left exactly as they were; only this pointer and
+  /// listAttachments' default filter change.
+  supersededByAttachmentId String?               @map("superseded_by_attachment_id") @db.Uuid
+  supersededBy             EngagementAttachment?  @relation("AttachmentSupersession", fields: [supersededByAttachmentId], references: [id], onDelete: SetNull)
+  supersedes               EngagementAttachment[] @relation("AttachmentSupersession")
+
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client      Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
   meeting     Meeting?     @relation(fields: [meetingId], references: [id], onDelete: Cascade)

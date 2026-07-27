@@ -1,8 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntApp } from 'antd';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { DistrictBriefComposerDrawer } from './DistrictBriefComposerDrawer.js';
 import type { FeedItem } from './intel-feed-api.js';
 import type { DistrictBriefResult } from './alert-actions-api.js';
@@ -181,5 +181,46 @@ describe('DistrictBriefComposerDrawer — held-for-review state (Gate C c-8)', (
     expect(screen.getByRole('button', { name: /Regenerate/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Copy/i })).toBeTruthy();
     expect(screen.getAllByRole('button', { name: /Close/i }).length).toBeGreaterThan(0);
+  });
+});
+
+/** Renders whatever route navigate() actually lands on, as visible text. */
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location-probe">{location.pathname}{location.search}</div>;
+}
+
+describe('DistrictBriefComposerDrawer — View review request lands on the specific review (MP-13 / Gate H phase b)', () => {
+  beforeEach(() => {
+    apiGetMock.mockReset();
+    apiPatchMock.mockReset();
+    apiPostMock.mockReset();
+    setupBrowserMocks();
+  });
+
+  test("clicking View review request navigates to /reviews?id=<the held brief's reviewRequestId>", async () => {
+    apiPostMock.mockImplementation(async () => ({
+      data: baseBrief({ held: true, document: null, reviewRequestId: 'rr-77', heldReason: 'x' }),
+    }));
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AntApp>
+          <MemoryRouter initialEntries={['/clients']}>
+            <DistrictBriefComposerDrawer open={true} onClose={() => {}} clientId="client-1" item={makeItem()} />
+            <Routes>
+              <Route path="*" element={<LocationProbe />} />
+            </Routes>
+          </MemoryRouter>
+        </AntApp>
+      </QueryClientProvider>,
+    );
+
+    const reviewBtn = await screen.findByRole('button', { name: /View review request/i });
+    fireEvent.click(reviewBtn);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/reviews?id=rr-77'),
+    );
   });
 });

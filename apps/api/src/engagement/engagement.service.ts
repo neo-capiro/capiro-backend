@@ -6959,6 +6959,11 @@ export class EngagementService {
       const rows = await tx.engagementAttachment.findMany({
         where: {
           tenantId: ctx.tenantId,
+          // Gate H a-6: a superseded row is a past version, not a document a
+          // caller listing "the client's documents" should see — excluding it
+          // here is what makes supersedeAttachment look like a delete to every
+          // existing reader of this list, even though nothing was destroyed.
+          supersededByAttachmentId: null,
           // "unlinked" = the tenant's general outreach library: files not tied
           // to any client, meeting, or mail message. Explicit opt-in (and only
           // when no parent is given) so a caller can't accidentally page the
@@ -7287,6 +7292,45 @@ export class EngagementService {
       this.clientKb.purgeFireAndForget(ctx.tenantId, 'client_doc_chunk', id);
     }
     return { ok: true };
+  }
+
+  /**
+   * Gate H a-6: link an OLD attachment to the NEW one that replaces it,
+   * instead of deleting it. Used by the alert-memo regenerate path (and any
+   * future generator's "regenerate" action) in place of deleteAttachment.
+   *
+   * The old row, its S3 object, and its KB index are all left untouched —
+   * only `supersededByAttachmentId` is set. `listAttachments` excludes
+   * superseded rows by default, so Documents/Workspace look exactly as they
+   * did when this WAS a destructive delete; the difference is that nothing is
+   * actually gone, and the old id is still individually readable if anything
+   * still holds a reference to it (a stale download link, an old memo-link
+   * row that has not yet been repointed).
+   *
+   * `oldId` and `newId` must be different attachments the caller already
+   * knows belong to the same tenant — this does not re-derive that; it is
+   * intentionally called right after the new attachment is created, using
+   * ids the caller (alert-memo.service.ts) already holds.
+   */
+  async supersedeAttachment(ctx: TenantContext, oldId: string, newId: string): Promise<void> {
+    if (oldId === newId) return; // nothing to link — never self-reference
+    const old = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.engagementAttachment.findFirst({ where: { id: oldId, tenantId: ctx.tenantId } }),
+    );
+    if (!old) {
+      // The "old" attachment is already gone (e.g. deleted through a
+      // different path since the caller last read it) — nothing to supersede.
+      // Not an error: the caller's goal (an old reference does not linger as
+      // the "current" one) is already satisfied.
+      this.logger.warn(`supersedeAttachment: old attachment ${oldId} not found — nothing to link`);
+      return;
+    }
+    await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.engagementAttachment.updateMany({
+        where: { id: oldId, tenantId: ctx.tenantId },
+        data: { supersededByAttachmentId: newId },
+      }),
+    );
   }
 
   /**

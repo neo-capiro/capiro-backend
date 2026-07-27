@@ -7,7 +7,7 @@
  * whole tenant queue and gets the Assign control. Honest empty state; every
  * collection read is Array.isArray-guarded.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Empty, Radio, Skeleton, Space, Typography } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { isTenantAdmin } from '@capiro/shared';
@@ -22,7 +22,12 @@ type StatusFilter = ReviewStatus | 'all';
 
 export function ReviewQueuePage() {
   const me = useMe();
-  const [status, setStatus] = useState<StatusFilter>('pending');
+  // MP-13 / Gate H phase b: revives the already-shipped-but-dead
+  // /reviews?id= link (StepGenerate.tsx). The target's status is unknown from
+  // the link alone, so default to the 'all' filter rather than 'pending' —
+  // otherwise a link to an already-decided review would land on an empty list.
+  const targetId = useMemo(() => new URLSearchParams(window.location.search).get('id'), []);
+  const [status, setStatus] = useState<StatusFilter>(() => (targetId ? 'all' : 'pending'));
 
   const role = me.data?.role;
   const isAdmin = role ? isTenantAdmin(role) : false;
@@ -41,6 +46,13 @@ export function ReviewQueuePage() {
 
   const isLoading = list.isLoading;
   const isEmpty = !isLoading && reviews.length === 0;
+
+  const highlightRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (targetId && highlightRef.current) {
+      highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [targetId, reviews]);
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '0 16px 48px' }}>
@@ -92,9 +104,22 @@ export function ReviewQueuePage() {
         />
       ) : (
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
-          {reviews.map((review) => (
-            <ReviewCard key={review.id} review={review} isAdmin={isAdmin} teamMembers={members} />
-          ))}
+          {reviews.map((review) => {
+            const highlighted = !!targetId && review.id === targetId;
+            return (
+              <div
+                key={review.id}
+                ref={highlighted ? highlightRef : undefined}
+                style={
+                  highlighted
+                    ? { outline: '2px solid var(--accent, #4f7cff)', outlineOffset: 2, borderRadius: 8 }
+                    : undefined
+                }
+              >
+                <ReviewCard review={review} isAdmin={isAdmin} teamMembers={members} />
+              </div>
+            );
+          })}
         </Space>
       )}
     </div>

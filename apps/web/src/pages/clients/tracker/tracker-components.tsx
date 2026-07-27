@@ -14,6 +14,7 @@ import {
   type RecommendationBill,
 } from './tracker-api.js';
 import { intelTrackerPaths } from './intel-tracker-api.js';
+import { memberName, useTenantMembers } from '../../strategy/members.js';
 
 /**
  * §4.8 (Gate D c-8): the meter used to be labelled "Passage probability", which
@@ -273,7 +274,7 @@ export function BoardColumnCards({
   );
 }
 
-export type BoardTableSortKey = 'stage' | 'bill' | 'status' | 'action';
+export type BoardTableSortKey = 'stage' | 'bill' | 'status' | 'action' | 'owner';
 const BOARD_TABLE_STAGE_ORDER: Record<string, number> = {
   introduced: 0,
   committee: 1,
@@ -288,12 +289,11 @@ const BOARD_TABLE_STAGE_ORDER: Record<string, number> = {
  * large board split across four flex-card columns, and what a large-firm
  * analyst asks for regardless of the virtualization decision.
  *
- * "Owner" (the audit's 5th column) is deliberately NOT included: BoardCard
- * carries no owner/assignee field today — `trackedBy` exists on the DB row
- * but is write-only and never resolved to a display name for the web.
- * Adding it needs a batch user-resolution query (a backend change), which is
- * out of scope for a client-side view toggle. Reported as a gap, not
- * fabricated.
+ * "Owner" (the audit's 5th column, MP-15 / Gate H phase d): `trackedBy` is now
+ * projected by tracker-board.service.ts and resolved to a display name via the
+ * SAME tenant-members roster the Strategy owner picker uses — NOT
+ * useTeamMembers() (admin-gated, and keyed by a DB user UUID rather than the
+ * Clerk id `trackedBy` actually is).
  */
 export function BoardTableView({
   columns,
@@ -306,6 +306,7 @@ export function BoardTableView({
 }) {
   const [sortKey, setSortKey] = useState<BoardTableSortKey>('stage');
   const [sortDesc, setSortDesc] = useState(false);
+  const teamMembers = useTenantMembers();
 
   const rows = useMemo(() => {
     const flat = columns.flatMap((c) => c.bills.map((b) => ({ ...b, stageLabel: c.label })));
@@ -317,13 +318,17 @@ export function BoardTableView({
         cmp = a.displayNum.localeCompare(b.displayNum, undefined, { numeric: true });
       } else if (sortKey === 'status') {
         cmp = (a.canonicalStatus ?? a.stageLabel).localeCompare(b.canonicalStatus ?? b.stageLabel);
+      } else if (sortKey === 'owner') {
+        cmp = memberName(teamMembers.data, a.trackedBy).localeCompare(
+          memberName(teamMembers.data, b.trackedBy),
+        );
       } else {
         cmp = (b.latestActionDate ?? '').localeCompare(a.latestActionDate ?? '');
       }
       return sortDesc ? -cmp : cmp;
     });
     return sorted;
-  }, [columns, sortKey, sortDesc]);
+  }, [columns, sortKey, sortDesc, teamMembers.data]);
 
   const toggleSort = (key: BoardTableSortKey) => {
     if (key === sortKey) setSortDesc((d) => !d);
@@ -358,12 +363,17 @@ export function BoardTableView({
               Latest action{indicator('action')}
             </button>
           </th>
+          <th>
+            <button type="button" className="th-sort" onClick={() => toggleSort('owner')}>
+              Owner{indicator('owner')}
+            </button>
+          </th>
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
           <tr>
-            <td colSpan={4} style={{ textAlign: 'center', padding: 24 }}>
+            <td colSpan={5} style={{ textAlign: 'center', padding: 24 }}>
               <span className="muted mini">No tracked bills.</span>
             </td>
           </tr>
@@ -384,6 +394,11 @@ export function BoardTableView({
               </td>
               <td data-label="Status">{b.canonicalStatus ?? b.stageLabel}</td>
               <td data-label="Latest action">{b.latestActionText ?? '—'}</td>
+              {/* MP-15 / Gate H phase d: edge case 5 — a Clerk id with no matching
+                  tenant-member row (removed user) renders "Former member", never
+                  blank and never a raw id. Edge case 4 (never tracked / null) is
+                  memberName's own "Unassigned". */}
+              <td data-label="Owner">{memberName(teamMembers.data, b.trackedBy, 'Former member')}</td>
             </tr>
           ))
         )}

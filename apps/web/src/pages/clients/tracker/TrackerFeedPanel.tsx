@@ -23,6 +23,7 @@ import { intelTrackerPaths } from './intel-tracker-api.js';
 import {
   useAddTalkingPoint,
   useBulkWorkState,
+  useEditMemoInWorkspace,
   useSetReport,
   useSetWorkState,
   WORK_STATE_BULK_MAX,
@@ -239,6 +240,7 @@ function FeedCard({
   onToggleSelect,
   autoExpand = false,
   onAutoExpanded,
+  onEditMemoInWorkspace,
 }: {
   item: FeedItem;
   onAction: (a: RecommendedAction, item: FeedItem) => void;
@@ -253,6 +255,8 @@ function FeedCard({
   /** g-7: this card is the `&alert=` deep-link target — scroll to it and open it. */
   autoExpand?: boolean;
   onAutoExpanded?: () => void;
+  /** RB-04: no generation, no replacement — reads the saved memo and opens it in Workspace. */
+  onEditMemoInWorkspace: (item: FeedItem) => void;
 }) {
   // LegiWatch v2 (L1): calm card — collapsed by default, expands on demand.
   const [open, setOpen] = useState(false);
@@ -582,11 +586,16 @@ function FeedCard({
           )}
 
           {/* c-3.4: who should act. An unassigned alert gets a real affordance
-              rather than the empty string that used to flag every card. */}
+              rather than the empty string that used to flag every card.
+              MP-15 / Gate H d-5: item.workState.assignedToName is declared but no
+              server code has ever produced it, so this rendered a raw DB user id
+              in production. `assigneeName` already resolves the SAME assignedTo
+              against the SAME tenant-admin roster for the collapsed-card chip
+              (line ~437) — reuse it here instead of the dead field. */}
           <div className="acard-why">
             <span className="acard-sect">Who should act</span>
             {item.workState?.assignedTo ? (
-              <span>{item.workState.assignedToName ?? item.workState.assignedTo}</span>
+              <span>{assigneeName ?? item.workState.assignedTo}</span>
             ) : (
               <span className="muted">Unassigned</span>
             )}
@@ -620,21 +629,23 @@ function FeedCard({
             <div className="acard-actions">
               <button
                 className="btn sm btn-ghost"
-                onClick={() =>
-                  // The client profile's Documents tab, via the SAME ?tab= deep
-                  // link tracker emails already use. Deliberately not a
-                  // hand-built attachment URL: apps/api exposes no attachment
-                  // download route, so any such URL would be invented.
-                  navigate(
-                    `/clients?clientId=${encodeURIComponent(item.clientId)}&tab=documents`,
-                  )
-                }
+                onClick={() => {
+                  // MP-13 / Gate H phase b: the client profile's Documents tab, via
+                  // the SAME ?tab= deep link tracker emails already use, plus
+                  // ?attachmentId= so DocumentsTab highlights the exact row —
+                  // apps/api still exposes no per-attachment download ROUTE, so
+                  // this lands on the record rather than fetching it directly.
+                  const attId = item.actions?.memo?.documentAttachmentId;
+                  const qs = new URLSearchParams({ clientId: item.clientId, tab: 'documents' });
+                  if (attId) qs.set('attachmentId', attId);
+                  navigate(`/clients?${qs.toString()}`);
+                }}
               >
                 <Ic n="doc" /> Open memo
               </button>
               <button
                 className="btn sm btn-ghost"
-                onClick={() => onAction({ kind: 'draft_memo', label: 'Redraft memo' }, item)}
+                onClick={() => onEditMemoInWorkspace(item)}
               >
                 <Ic n="spark" /> Edit in Workspace
               </button>
@@ -704,11 +715,14 @@ function FeedCard({
             >
               Dismiss
             </button>
+            {/* MP-14 / Gate H phase c: these are honest navigation, not alert-scoped
+                actions — no task or strategy record is created here. Neo confirmed
+                c-2 (relabel) over c-1 (build real linked records) for this gate. */}
             <button className="btn sm btn-ghost" onClick={() => navigate('/actions')}>
-              Create task
+              Open Action Board
             </button>
             <button className="btn sm btn-ghost" onClick={() => navigate('/strategies')}>
-              Add to strategy
+              Open Strategies
             </button>
           </div>
 
@@ -763,6 +777,7 @@ function FeedItemsList({
   toggleSelect,
   focusAlertId,
   onFocused,
+  onEditMemoInWorkspace,
 }: {
   items: FeedItem[];
   onAction: (a: RecommendedAction, item: FeedItem) => void;
@@ -773,6 +788,7 @@ function FeedItemsList({
   toggleSelect: (alertId: string) => void;
   focusAlertId?: string | null;
   onFocused?: () => void;
+  onEditMemoInWorkspace: (item: FeedItem) => void;
 }) {
   const parentRef = useRef<HTMLDivElement | null>(null);
   const shouldVirtualize = items.length > FEED_VIRTUALIZE_THRESHOLD;
@@ -796,6 +812,7 @@ function FeedItemsList({
       onToggleSelect={toggleSelect}
       autoExpand={focusAlertId === it.id}
       onAutoExpanded={onFocused}
+      onEditMemoInWorkspace={onEditMemoInWorkspace}
     />
   );
 
@@ -964,6 +981,30 @@ export function TrackerFeedPanel({
     onError: (e: unknown) =>
       message.error(`Could not create outreach draft: ${(e as Error).message}`),
   });
+
+  // RB-04 / Gate H a-1: "Edit in Workspace" on an alert that already has a memo
+  // — reads the saved content and opens it directly, never through the
+  // generate-on-open composer (that path is Redraft memo, a separate,
+  // confirm-gated action inside MemoComposerDrawer).
+  const editInWorkspace = useEditMemoInWorkspace();
+  const handleEditMemoInWorkspace = (item: FeedItem) => {
+    if (editInWorkspace.isPending) return;
+    editInWorkspace.mutate(
+      {
+        clientId: item.clientId,
+        alertId: item.id,
+        clientName: item.clientName ?? clientName ?? '',
+        fallbackTitle: `Client memo — ${item.title}`,
+      },
+      {
+        onSuccess: (draftId) => {
+          message.success('Opened in Workspace');
+          navigate(`/workspace/draft/${encodeURIComponent(draftId)}`);
+        },
+        onError: (e: unknown) => message.error((e as Error).message),
+      },
+    );
+  };
 
   // P11: global mode reads the tenant-wide roll-up (`_all/feed`) under a distinct
   // cache key; per-client mode is unchanged. The path/key switch is the ONLY
@@ -1191,6 +1232,7 @@ export function TrackerFeedPanel({
                     onToggleSelect={toggleSelect}
                     autoExpand={focusAlertId === it.id}
                     onAutoExpanded={onFocused}
+                    onEditMemoInWorkspace={handleEditMemoInWorkspace}
                   />
                 ))}
               </div>
@@ -1221,6 +1263,7 @@ export function TrackerFeedPanel({
           toggleSelect={toggleSelect}
           focusAlertId={focusAlertId}
           onFocused={onFocused}
+          onEditMemoInWorkspace={handleEditMemoInWorkspace}
         />
         {query.hasNextPage && (
           <button

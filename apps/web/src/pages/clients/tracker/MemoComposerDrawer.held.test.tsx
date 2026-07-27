@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntApp } from 'antd';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { MemoComposerDrawer } from './MemoComposerDrawer.js';
 import type { FeedItem } from './intel-feed-api.js';
 import type { AlertMemoResult } from './alert-actions-api.js';
@@ -273,5 +273,50 @@ describe('P2-06 — Copy tells the truth', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
 
     expect(await screen.findByText('Copied')).toBeInTheDocument();
+  });
+});
+
+/** Renders whatever route MemoComposerDrawer's navigate() actually lands on, as
+ *  visible text — proving the destination rather than just that the button exists. */
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location-probe">{location.pathname}{location.search}</div>;
+}
+
+describe('MemoComposerDrawer — View review request lands on the specific review (MP-13 / Gate H phase b)', () => {
+  beforeEach(() => {
+    apiGetMock.mockReset();
+    apiPatchMock.mockReset();
+    apiPostMock.mockReset();
+    setupBrowserMocks();
+  });
+
+  test('clicking View review request navigates to /reviews?id=<the held memo\'s reviewRequestId>', async () => {
+    apiPostMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/alert-memo')) {
+        return { data: baseMemoResult({ held: true, document: null, reviewRequestId: 'rr-42', heldReason: 'x' }) };
+      }
+      return { data: {} };
+    });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AntApp>
+          <MemoryRouter initialEntries={['/clients']}>
+            <MemoComposerDrawer open={true} onClose={() => {}} clientId="client-1" clientName="Acme Corp" item={makeItem()} />
+            <Routes>
+              <Route path="*" element={<LocationProbe />} />
+            </Routes>
+          </MemoryRouter>
+        </AntApp>
+      </QueryClientProvider>,
+    );
+
+    const reviewBtn = await screen.findByRole('button', { name: 'View review request' });
+    fireEvent.click(reviewBtn);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/reviews?id=rr-42'),
+    );
   });
 });
