@@ -533,3 +533,61 @@
   margin-bottom: 14px;
 }
 .ov2-ctx-no-recipients b { color: var(--ov2-ink-1); display: block; margin-bottom: 4px; font-weight: 600; }
+
+/* ── Phase 1 §3.b2 — custom-note "instruction vs fact" selector ─────────────
+   The default (instruction) is visually first and pre-selected: marking typed
+   prose as an assertable fact is the higher-consequence choice, so it must be a
+   deliberate click rather than the path of least resistance. */
+.ov2-ctx-note-use {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.ov2-ctx-note-use button {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 11.5px;
+  border: 1px solid var(--ov2-border, #e5e7eb);
+  border-radius: 6px;
+  background: #fff;
+  color: #6b7280;
+  cursor: pointer;
+}
+.ov2-ctx-note-use button.is-on {
+  border-color: #6366f1;
+  background: #eef2ff;
+  color: #3730a3;
+  font-weight: 600;
+}
+
+/* ── Phase 1 §3.d3 — why an email suggestion is here ───────────────────────── */
+.ov2-ctx-card-relevance {
+  margin: 6px 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #f9fafb;
+  border: 1px solid var(--ov2-border, #e5e7eb);
+  font-size: 11.5px;
+}
+.ov2-ctx-rel-badge {
+  font-weight: 600;
+  text-transform: capitalize;
+  margin-right: 8px;
+}
+.ov2-ctx-card-relevance--high .ov2-ctx-rel-badge {
+  color: #047857;
+}
+.ov2-ctx-card-relevance--medium .ov2-ctx-rel-badge {
+  color: #b45309;
+}
+.ov2-ctx-card-relevance--low .ov2-ctx-rel-badge {
+  color: #6b7280;
+}
+.ov2-ctx-rel-scope {
+  color: #6b7280;
+}
+.ov2-ctx-rel-why {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  color: #6b7280;
+}

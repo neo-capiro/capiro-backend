@@ -53,6 +53,11 @@ function makeService(): Harness {
   };
   const service = Object.create(EngagementService.prototype) as EngagementService;
   const patch = service as unknown as Record<string, unknown>;
+  // Phase 1: generateBatchEmails branches on this.gateway.enabled before doing
+  // anything else. These specs build the service with Object.create (no
+  // constructor), so the injected dependency has to be supplied here. OFF selects
+  // the legacy path, which is what this spec exercises.
+  patch.gateway = { enabled: false };
   patch.logger = { warn: () => {}, error: () => {}, log: () => {} };
   patch.prisma = { withTenant: (_t: string, fn: (t: unknown) => unknown) => fn(tx) };
   patch.ai = {

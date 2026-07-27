@@ -400,6 +400,10 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
   const setNote = (id: string, note: string) =>
     onChange(selected.map((c) => (c.id === id ? { ...c, note } : c)));
 
+  /** Phase 1 §3.b2 — mark a custom note as an instruction (default) or a fact. */
+  const setNoteUse = (id: string, noteUse: 'fact' | 'instruction') =>
+    onChange(selected.map((c) => (c.id === id ? { ...c, noteUse } : c)));
+
   const setScope = (id: string, scope: 'all' | string) =>
     onChange(selected.map((c) => (c.id === id ? { ...c, scope } : c)));
 
@@ -696,6 +700,7 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
                   c={c}
                   scopeOptions={scopeOptions}
                   onNote={setNote}
+                  onNoteUse={setNoteUse}
                   onScope={setScope}
                   onRemove={remove}
                 />
@@ -735,6 +740,7 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
                     c={c}
                     scopeOptions={scopeOptions}
                     onNote={setNote}
+                  onNoteUse={setNoteUse}
                     onScope={setScope}
                     onRemove={remove}
                   />
@@ -765,6 +771,7 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
                     c={c}
                     scopeOptions={scopeOptions}
                     onNote={setNote}
+                  onNoteUse={setNoteUse}
                     onScope={setScope}
                     onRemove={remove}
                   />
@@ -909,9 +916,11 @@ interface CardProps {
   onNote: (id: string, note: string) => void;
   onScope: (id: string, scope: 'all' | string) => void;
   onRemove: (id: string) => void;
+  onNoteUse: (id: string, use: 'fact' | 'instruction') => void;
 }
 
-function ContextCard({ c, scopeOptions, onNote, onScope, onRemove }: CardProps) {
+function ContextCard({ c, scopeOptions, onNote, onScope, onRemove, onNoteUse }: CardProps) {
+  const noteUse = c.noteUse === 'fact' ? 'fact' : 'instruction';
   return (
     <div className="ov2-ctx-card">
       <div className="ov2-ctx-card-head">
@@ -928,6 +937,27 @@ function ContextCard({ c, scopeOptions, onNote, onScope, onRemove }: CardProps) 
           <CloseOutlined style={{ fontSize: 12 }} />
         </button>
       </div>
+
+      {/* Phase 1 §3.d3 — why an auto-suggested thread is here, and from which
+          mailbox. A suggestion the user cannot interrogate is one they cannot
+          reasonably approve. (Suggestions are never pre-selected: an item only
+          reaches this list once the user adds it.) */}
+      {c.relevance ? (
+        <div className={`ov2-ctx-card-relevance ov2-ctx-card-relevance--${c.relevance}`}>
+          <span className="ov2-ctx-rel-badge">{c.relevance} relevance</span>
+          {c.mailboxScope ? <span className="ov2-ctx-rel-scope">{c.mailboxScope}</span> : null}
+          {c.relevanceReasons?.length ? (
+            <ul className="ov2-ctx-rel-why">
+              {c.relevanceReasons.map((r, i) => (
+                <li key={i}>{r}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* Display-only preview. Under the gateway the SERVER rehydrates this
+          source by id — whatever text is shown here never reaches the model. */}
       {c.body && <div className="ov2-ctx-card-body">{c.body}</div>}
       <textarea
         className="ov2-ctx-card-note"
@@ -939,6 +969,33 @@ function ContextCard({ c, scopeOptions, onNote, onScope, onRemove }: CardProps) 
             : "+ Add a personalized instruction (optional), e.g. 'lead with this', 'omit the deadline language'…"
         }
       />
+
+      {/* Phase 1 §3.b2 — is this note something to DO, or something that is TRUE?
+          Defaults to instruction: treating typed prose as an assertable fact is
+          how "we spoke last week" becomes invented detail about the call. */}
+      {c.kind === 'note' ? (
+        <div className="ov2-ctx-note-use" role="radiogroup" aria-label="How to use this note">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={noteUse === 'instruction'}
+            className={noteUse === 'instruction' ? 'is-on' : ''}
+            onClick={() => onNoteUse(c.id, 'instruction')}
+          >
+            Instruction — how to write
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={noteUse === 'fact'}
+            className={noteUse === 'fact' ? 'is-on' : ''}
+            onClick={() => onNoteUse(c.id, 'fact')}
+          >
+            Fact — may be stated
+          </button>
+        </div>
+      ) : null}
+
       <div className="ov2-ctx-scope-row">
         <span className="label">Applies to</span>
         <ScopeSelect value={c.scope} options={scopeOptions} onChange={(v) => onScope(c.id, v)} />

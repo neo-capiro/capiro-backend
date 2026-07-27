@@ -31,6 +31,9 @@ import {
   type OutreachRecipientInput,
   type SendBatchEmailInput,
 } from './engagement.service.js';
+import { GenerationGatewayService } from './generation/generation-gateway.service.js';
+import type { PinnedGenerationIdentity } from './generation/generation-gateway.types.js';
+import type { GaPolicy } from './generation/government-affairs-policy.registry.js';
 
 export type OutreachJobKind = 'generate' | 'send';
 
@@ -154,6 +157,12 @@ const ITEM_RESULT_FIELDS = [
   'approvalStatus',
   'reviewRequestId',
   'contextNote',
+  // Phase 1 §3.k4 / §5.5 — an async result must keep its packet, policy and
+  // provider identity, or the Context Used panel goes blank for exactly the
+  // large campaigns that most need provenance. The manifest is summaries only
+  // (ids, titles, counts, dates) — it carries no restricted email or document
+  // content, so it is safe in this column.
+  'manifest',
 ] as const;
 
 /**
@@ -205,6 +214,7 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly engagement: EngagementService,
+    private readonly gateway: GenerationGatewayService,
     config: ConfigService<AppConfig, true>,
   ) {
     this.asyncGen = config.get('OUTREACH_ASYNC_GEN', { infer: true });
@@ -256,6 +266,27 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
     if (!input.recipients.length) {
       return this.submitEmpty(ctx, input);
     }
+
+    // ── Phase 1 §3.k1 — resolve provider/model ONCE, at submit ──────────────
+    //
+    // A generate job is claimed in chunks by a sweep that may run minutes apart
+    // and, after a restart, in a different process. Resolving credentials per
+    // chunk meant a provider that became unavailable (or a config change) midway
+    // silently switched the drafting model — so one campaign's recipients got
+    // messages in two different voices, with no record of which was which.
+    //
+    // Resolved OUTSIDE the transaction: it is an external call, and holding a row
+    // lock across one is the pool-starvation pattern this codebase has been bitten
+    // by. Best-effort — a resolution failure leaves the job unpinned and each
+    // chunk falls back to today's behavior rather than refusing to queue.
+    let pinnedIdentity: PinnedGenerationIdentity | null = null;
+    if (input.kind === 'generate' && this.gateway.enabled) {
+      pinnedIdentity = await this.resolveJobIdentity(ctx, input).catch((e) => {
+        this.logger.warn(`could not pin provider/model for job: ${(e as Error).message}`);
+        return null;
+      });
+    }
+
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       // Phase 0 §3.c3: idempotency is per (tenant, USER, requestKey). Scoping it
       // to the tenant alone meant two users who minted the same client-side key
@@ -273,7 +304,14 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
           userId: ctx.userId,
           kind: input.kind,
           outreachRecordId: input.outreachRecordId ?? null,
-          params: input.params as object,
+          // Phase 1 §3.k2 — the pinned identity rides in params, resolved ONCE
+          // before the job was created (see submitGenerate). Every claimed chunk
+          // reads it back out, so a 200-recipient campaign spread over many sweeps
+          // cannot drift onto a second provider or model.
+          params: {
+            ...(input.params as object),
+            ...(pinnedIdentity ? { pinnedIdentity } : {}),
+          } as object,
           status: 'queued',
           totals: {
             queued: input.recipients.length,
@@ -312,6 +350,57 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
       await tx.outreachJobItem.createMany({ data: rows });
       return { jobId: job.id, deduped: false };
     });
+  }
+
+  /**
+   * Resolve the provider/model this whole job will use (§3.k1).
+   *
+   * Uses the FIRST recipient only to pick an audience policy for the pinning call;
+   * each chunk still resolves its own policy per recipient inside the gateway, so
+   * a mixed-audience campaign is not forced onto one policy. What is pinned here
+   * is the VOICE (provider + model + prompt spec), which is the thing that must
+   * not change partway through a single campaign.
+   */
+  private async resolveJobIdentity(
+    ctx: TenantContext,
+    input: SubmitOutreachJobInput,
+  ): Promise<PinnedGenerationIdentity | null> {
+    const params = input.params as Partial<GenerateBatchEmailInput>;
+    const first = input.recipients[0] as OutreachRecipientInput | undefined;
+    if (!first) return null;
+    let policy: GaPolicy;
+    try {
+      policy = this.gateway.resolvePolicy({
+        surface: 'outreach_email',
+        clientId: params.clientId ?? null,
+        items: [],
+        templateId: params.templateId ?? '',
+        templatePrompt: '',
+        tone: 'professional',
+        direction: params.direction ?? null,
+        audienceKind: params.audienceKind === 'group' ? 'group' : 'individual',
+        recipient: {
+          generationKey: '',
+          scopeKeys: [],
+          recipientKey: '',
+          name: first.name ?? null,
+          email: first.email ?? null,
+          title: first.title ?? null,
+          office: first.office ?? null,
+          state: first.state ?? null,
+          district: first.district ?? null,
+          sourceType: first.direction === 'to-clients' ? 'client' : null,
+          chamber: first.chamber ?? null,
+          snapshot: {},
+        },
+      });
+    } catch {
+      // Ambiguous audience at submit is not fatal here: the per-chunk resolution
+      // will raise it with the full recipient context and a usable message.
+      return null;
+    }
+    const identity = await this.gateway.resolvePinnedIdentity(ctx, { policy });
+    return identity?.pinned ?? null;
   }
 
   private async submitEmpty(
@@ -617,9 +706,15 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
     params: Record<string, unknown>,
     batch: Array<{ id: string; recipientKey: string; payload: Record<string, unknown> }>,
   ): Promise<void> {
+    // §3.k3/§3.k5 — every claimed chunk (including a RETRY) uses the identity
+    // pinned at submit. A retry that re-resolved credentials would be exactly the
+    // mid-campaign voice split this pins against; a user who wants a different
+    // provider creates a new job.
+    const pinnedIdentity = readPinnedIdentity(params);
     const input: GenerateBatchEmailInput = {
       ...(params as unknown as GenerateBatchEmailInput),
       recipients: batch.map((b) => b.payload as unknown as OutreachRecipientInput),
+      ...(pinnedIdentity ? { pinnedIdentity } : {}),
     };
     try {
       const { results } = await this.engagement.generateBatchEmails(ctx, input);
@@ -727,4 +822,33 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
       role: 'standard_user',
     } as TenantContext;
   }
+}
+
+/**
+ * Read the pinned identity back out of a job's params (§3.k3).
+ *
+ * Validated rather than cast: params is a JSONB column, so a hand-edited or
+ * partially-written row must not produce a half-formed identity that silently
+ * pins nothing. A malformed value degrades to null, which restores per-chunk
+ * resolution — the pre-Phase-1 behavior — rather than failing the job.
+ */
+export function readPinnedIdentity(
+  params: Record<string, unknown>,
+): PinnedGenerationIdentity | null {
+  const raw = params.pinnedIdentity;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  const provider = typeof o.provider === 'string' ? o.provider : '';
+  const model = typeof o.model === 'string' ? o.model : '';
+  const promptSpecVersion = typeof o.promptSpecVersion === 'string' ? o.promptSpecVersion : '';
+  if (!provider || !model || !promptSpecVersion) return null;
+  return {
+    provider,
+    model,
+    planModel: typeof o.planModel === 'string' ? o.planModel : null,
+    promptSpecVersion,
+    policyId: typeof o.policyId === 'string' ? o.policyId : '',
+    policyVersion: typeof o.policyVersion === 'string' ? o.policyVersion : '',
+    ...(typeof o.contextPacketId === 'string' ? { contextPacketId: o.contextPacketId } : {}),
+  };
 }

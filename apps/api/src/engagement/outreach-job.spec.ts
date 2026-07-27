@@ -12,6 +12,7 @@ import {
   classifyGenerationItem,
   computeJobRollup,
   outreachRecipientKey,
+  readPinnedIdentity,
 } from './outreach-job.service.js';
 
 describe('computeJobRollup (W4.2)', () => {
@@ -75,12 +76,36 @@ const ctx: TenantContext = {
 } as TenantContext;
 
 /** Stub the withTenant tx surface submit() touches. */
-function makeService(existingJobId: string | null) {
+function makeService(
+  existingJobId: string | null,
+  opts: { gatewayEnabled?: boolean; pinned?: Record<string, unknown> | null } = {},
+) {
   const created: { job?: Record<string, unknown>; items?: unknown[] } = {};
   const lookups: Array<Record<string, unknown>> = [];
   const service = Object.create(OutreachJobService.prototype) as OutreachJobService;
   const patch = service as unknown as Record<string, unknown>;
   patch.versionedOutreach = false;
+  // Phase 1 §3.k1: submit() resolves the provider/model identity ONCE through
+  // the gateway before the transaction. With the gateway off it is never called.
+  patch.logger = { warn: () => {}, error: () => {}, log: () => {} };
+  patch.gateway = {
+    enabled: opts.gatewayEnabled ?? false,
+    resolvePolicy: () => ({ policyId: 'federal.congressional_office', version: 'ga-policy-v1' }),
+    resolvePinnedIdentity: async () =>
+      opts.pinned === null
+        ? null
+        : {
+            creds: [],
+            pinned: opts.pinned ?? {
+              provider: 'anthropic',
+              model: 'claude-sonnet-4-6',
+              planModel: 'claude-haiku-4-5-20251001',
+              promptSpecVersion: 'v2.2-gateway',
+              policyId: 'federal.congressional_office',
+              policyVersion: 'ga-policy-v1',
+            },
+          },
+  };
   patch.prisma = {
     withTenant: (_t: string, fn: (tx: unknown) => unknown) =>
       fn({
@@ -543,5 +568,114 @@ describe('cancel is terminal (§3.c3)', () => {
     expect(calls).toHaveLength(1);
     // The write is guarded so a canceled job is never rolled forward.
     expect(calls[0]!.where).toMatchObject({ status: { not: 'canceled' } });
+  });
+});
+
+// ── Phase 1 §3.k — provider/model pinned at submit, honored by every chunk ────
+
+describe('async provider/model pinning (Phase 1 §3.k)', () => {
+  const recipients = [{ email: 'a@mail.house.gov' }, { email: 'b@mail.house.gov' }];
+
+  test('with the gateway ON, submit stores the pinned identity in job params', async () => {
+    const { service, created } = makeService(null, { gatewayEnabled: true });
+    await service.submit(ctx, {
+      requestKey: 'rk-pin',
+      kind: 'generate',
+      params: { templateId: 'meeting_request', clientId: 'c1' },
+      recipients,
+    });
+    const pinned = (created.job?.params as Record<string, unknown>).pinnedIdentity as Record<
+      string,
+      unknown
+    >;
+    expect(pinned).toMatchObject({
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+      promptSpecVersion: 'v2.2-gateway',
+    });
+  });
+
+  test('with the gateway OFF, no identity is pinned (flag-off path unchanged)', async () => {
+    const { service, created } = makeService(null, { gatewayEnabled: false });
+    await service.submit(ctx, {
+      requestKey: 'rk-nopin',
+      kind: 'generate',
+      params: { templateId: 'meeting_request' },
+      recipients,
+    });
+    expect((created.job?.params as Record<string, unknown>).pinnedIdentity).toBeUndefined();
+  });
+
+  test('a SEND job is never pinned — it drafts nothing', async () => {
+    const { service, created } = makeService(null, { gatewayEnabled: true });
+    await service.submit(ctx, {
+      requestKey: 'rk-send',
+      kind: 'send',
+      params: { senderConnectionId: 'conn-1' },
+      recipients,
+    });
+    expect((created.job?.params as Record<string, unknown>).pinnedIdentity).toBeUndefined();
+  });
+
+  test('a failure to resolve the identity does not block queueing', async () => {
+    // Degrades to per-chunk resolution (today's behavior) rather than refusing
+    // to accept the campaign.
+    const { service, created } = makeService(null, { gatewayEnabled: true, pinned: null });
+    const out = await service.submit(ctx, {
+      requestKey: 'rk-degrade',
+      kind: 'generate',
+      params: { templateId: 'meeting_request' },
+      recipients,
+    });
+    expect(out.jobId).toBe('new-job');
+    expect((created.job?.params as Record<string, unknown>).pinnedIdentity).toBeUndefined();
+  });
+});
+
+describe('readPinnedIdentity (Phase 1 §3.k3)', () => {
+  const valid = {
+    provider: 'anthropic',
+    model: 'claude-sonnet-4-6',
+    planModel: 'claude-haiku-4-5-20251001',
+    promptSpecVersion: 'v2.2-gateway',
+    policyId: 'federal.congressional_office',
+    policyVersion: 'ga-policy-v1',
+  };
+
+  test('round-trips a well-formed identity', () => {
+    expect(readPinnedIdentity({ pinnedIdentity: valid })).toMatchObject(valid);
+  });
+
+  test('absent params yield null (per-chunk resolution, the pre-Phase-1 behavior)', () => {
+    expect(readPinnedIdentity({})).toBeNull();
+  });
+
+  test('a HALF-formed identity degrades to null rather than pinning nothing silently', () => {
+    // params is JSONB; a hand-edited or partially-written row must not produce an
+    // identity with an empty model that would then be sent to the provider.
+    expect(readPinnedIdentity({ pinnedIdentity: { provider: 'anthropic' } })).toBeNull();
+    expect(readPinnedIdentity({ pinnedIdentity: { ...valid, model: '' } })).toBeNull();
+    expect(readPinnedIdentity({ pinnedIdentity: { ...valid, promptSpecVersion: 42 } })).toBeNull();
+  });
+
+  test('a non-object value is rejected', () => {
+    expect(readPinnedIdentity({ pinnedIdentity: 'anthropic' })).toBeNull();
+    expect(readPinnedIdentity({ pinnedIdentity: ['a'] })).toBeNull();
+    expect(readPinnedIdentity({ pinnedIdentity: null })).toBeNull();
+  });
+});
+
+describe('the job item result keeps the Context Used manifest (§3.k4)', () => {
+  test('manifest is on the persisted-field allowlist', () => {
+    const out = buildItemResult({
+      subject: 's',
+      body: 'b',
+      versionId: 'v1',
+      manifest: { contextPacketId: 'pkt-1', promptSpecVersion: 'v2.2-gateway' },
+      // Not on the allowlist — must not leak into the column.
+      error: 'RAW PROVIDER STACK',
+    });
+    expect((out?.manifest as { contextPacketId: string }).contextPacketId).toBe('pkt-1');
+    expect(out).not.toHaveProperty('error');
   });
 });

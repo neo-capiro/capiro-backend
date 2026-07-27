@@ -27,6 +27,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import type { GeneratedDraft, WizardV2State } from './types.js';
+import { ContextUsedPanel } from './ContextUsedPanel.js';
 import {
   DRAFT_BLOCK_COPY,
   draftBlockReason,
@@ -125,6 +126,12 @@ function draftBanner(draft: GeneratedDraft | undefined): {
         type: 'warning',
         message: 'Pending review',
         description: DRAFT_BLOCK_COPY.awaiting_review,
+      };
+    case 'source_failure':
+      return {
+        type: 'error',
+        message: 'Missing required context',
+        description: DRAFT_BLOCK_COPY.source_failure,
       };
     case 'dirty':
       return { type: 'info', message: 'Unsaved changes', description: DRAFT_BLOCK_COPY.dirty };
@@ -466,6 +473,19 @@ export function StepGenerate({
                   Edits save automatically. Use “Save as draft” below to keep everything and finish
                   later.
                 </Typography.Text>
+
+                {/* Phase 1 §3.j2 — what this draft was grounded in. Rendered for
+                    every generated draft, not only failing ones: the point is
+                    that a silently thin draft looks identical to a complete one
+                    unless the provenance is always on screen. */}
+                {activeDraft.manifest ? (
+                  <ContextUsedPanel
+                    manifest={activeDraft.manifest}
+                    {...(activeDraft.auditStatus === 'held' && activeDraft.contextNote
+                      ? { heldNote: activeDraft.contextNote }
+                      : {})}
+                  />
+                ) : null}
               </>
             ) : (
               <Typography.Text type="secondary">

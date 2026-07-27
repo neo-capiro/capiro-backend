@@ -334,6 +334,37 @@ export function outreachClientProfileEnabled(settings: unknown): boolean {
 }
 
 /**
+ * Engagement Phase 1 §3.d2 — firm-shared mailbox context.
+ *
+ * Allows a colleague's EXPLICITLY client-linked mail thread to inform a draft.
+ * ANDed with ENGAGEMENT_EMAIL_CONTEXT_SCOPE=firm_shared and an ethical-wall pass:
+ * all three must hold, so neither an env change nor a tenant flag alone can widen
+ * a user's mailbox reach. Default OFF, and Phase 1 §6.3 requires confirming the
+ * organization's mailbox-sharing model before enabling any tenant.
+ */
+export const ENGAGEMENT_FIRM_MAIL_CONTEXT_FLAG = 'engagementFirmMailContext' as const;
+
+export function engagementFirmMailContextEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, ENGAGEMENT_FIRM_MAIL_CONTEXT_FLAG, false);
+}
+
+/**
+ * Engagement Phase 1 §3.e1 — consent to analyze the author's own sent outreach
+ * for a STRUCTURED style profile.
+ *
+ * Note what this flag does and does not permit. Even when ON, raw example text
+ * never reaches the drafting prompt: it is read only to extract a structured
+ * profile (sentence length, greeting/closing pattern, tone tags), and only from
+ * examples for the SAME client. Default OFF because analyzing a user's sent mail
+ * — even their own — is a consent decision, not a default.
+ */
+export const ENGAGEMENT_AUTHOR_EXAMPLE_ANALYSIS_FLAG = 'engagementAuthorExampleAnalysis' as const;
+
+export function engagementAuthorExampleAnalysisEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, ENGAGEMENT_AUTHOR_EXAMPLE_ANALYSIS_FLAG, false);
+}
+
+/**
  * Effective feature entitlements for a tenant (Phase 5, §5.1). The tier map
  * (resolveEntitlements) sets the baseline; a per-tenant boolean override at
  * settings_jsonb.clioFeatureFlags['entitlement.<feature>'] can flip a single
