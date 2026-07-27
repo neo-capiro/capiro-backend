@@ -62,10 +62,43 @@ export interface OutreachDraftAuditOutcome {
   contextNote?: string;
 }
 
-/** Only the shape the reviewer needs: check + severity. Never spans or evidence. */
+/**
+ * Only the shape the reviewer needs: check + severity, plus WHICH layer produced
+ * it. Never spans or evidence.
+ *
+ * `source` was added in Phase 1 §3.i2: the version's findings array now carries
+ * two independent layers — the deterministic government-affairs verifier and the
+ * Meri grounding auditor. They must stay distinguishable, because they answer
+ * different questions and a reviewer needs to know which one objected.
+ */
 interface SanitizedCheck {
   check: string;
   severity: string;
+  source?: 'meri_auditor' | 'deterministic_verifier';
+}
+
+/**
+ * A deterministic-verifier finding handed in by the generation gateway (§3.i2).
+ *
+ * These are computed on the exact generated text BEFORE this service runs, so
+ * they ride in rather than being recomputed here.
+ */
+export interface DeterministicVerifierCheck {
+  check: string;
+  severity: string;
+  /** True when this finding alone makes the draft non-sendable. */
+  blocking: boolean;
+}
+
+export interface RunForVersionOptions {
+  /**
+   * Findings from GenerationVerifierService. A BLOCKING one holds the version
+   * regardless of MERI_AUDITOR_MODE: the deterministic verifier is a separate
+   * control with its own blocking rules (§3.i1), and an unresolved placeholder or
+   * a contradicted dollar figure is not a judgment call that a shadow-mode
+   * setting should be able to wave through.
+   */
+  verifierFindings?: DeterministicVerifierCheck[];
 }
 
 @Injectable()
@@ -81,7 +114,18 @@ export class OutreachDraftAuditService {
    * {@link OutreachAuditUnavailableError} only after the version has been
    * durably marked non-sendable under enforce.
    */
-  async runForVersion(ctx: TenantContext, versionId: string): Promise<OutreachDraftAuditOutcome> {
+  async runForVersion(
+    ctx: TenantContext,
+    versionId: string,
+    opts: RunForVersionOptions = {},
+  ): Promise<OutreachDraftAuditOutcome> {
+    const verifierChecks: SanitizedCheck[] = (opts.verifierFindings ?? []).map((f) => ({
+      check: f.check,
+      severity: f.severity,
+      source: 'deterministic_verifier' as const,
+    }));
+    const verifierBlocks = (opts.verifierFindings ?? []).some((f) => f.blocking);
+
     const version = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.outreachDraftVersion.findFirst({
         where: { id: versionId, tenantId: ctx.tenantId },
@@ -120,22 +164,29 @@ export class OutreachDraftAuditService {
     // itself fail-safe and falls back to the env mode.
     const mode = await resolveTenantAuditorMode(this.prisma, ctx.tenantId);
 
-    // Auditor off for this tenant: nothing to verify, so nothing to hold.
+    // Auditor off for this tenant: the MERI auditor has nothing to say. But the
+    // deterministic verifier is an independent control — if it blocked, the
+    // version is held here even with the Meri auditor off (§3.i1 blocking rules
+    // are unconditional). Its non-blocking findings are still recorded so the UI
+    // never claims "verified" on the strength of an absent layer (§3.i2).
     if (mode === 'off') {
+      if (verifierBlocks) {
+        return this.holdForVerifier(ctx, version, mode, verifierChecks);
+      }
       await this.writeState(ctx, versionId, {
-        auditStatus: 'not_required',
+        auditStatus: verifierChecks.length ? 'warning' : 'not_required',
         approvalStatus: 'not_required',
         auditMode: mode,
         auditDecision: null,
-        auditFindings: null,
+        auditFindings: verifierChecks.length ? verifierChecks : null,
       });
       return {
         versionId,
-        auditStatus: 'not_required',
+        auditStatus: verifierChecks.length ? 'warning' : 'not_required',
         approvalStatus: 'not_required',
         auditMode: mode,
         auditDecision: null,
-        findingCount: 0,
+        findingCount: verifierChecks.length,
         reviewRequestId: null,
       };
     }
@@ -151,13 +202,23 @@ export class OutreachDraftAuditService {
         surface: 'outreach',
         mode,
       });
-      const checks: SanitizedCheck[] = verdict.findings.map((f) => ({
-        check: String(f.check),
-        severity: String(f.severity),
-      }));
+      // BOTH layers, kept distinguishable by `source` (§3.i2).
+      const checks: SanitizedCheck[] = [
+        ...verifierChecks,
+        ...verdict.findings.map((f) => ({
+          check: String(f.check),
+          severity: String(f.severity),
+          source: 'meri_auditor' as const,
+        })),
+      ];
 
-      // Clean: no findings at all. Passed under every non-off mode.
-      if (verdict.findings.length === 0) {
+      // A blocking deterministic finding holds regardless of mode.
+      if (verifierBlocks) {
+        return this.holdForVerifier(ctx, version, mode, checks, verdict.decision);
+      }
+
+      // Clean: neither layer objected. Passed under every non-off mode.
+      if (checks.length === 0) {
         await this.writeState(ctx, versionId, {
           auditStatus: 'passed',
           approvalStatus: 'not_required',
@@ -172,6 +233,27 @@ export class OutreachDraftAuditService {
           auditMode: mode,
           auditDecision: verdict.decision,
           findingCount: 0,
+          reviewRequestId: null,
+        };
+      }
+
+      // Only non-blocking VERIFIER findings, and the Meri auditor was clean:
+      // a visible warning, still sendable.
+      if (verdict.findings.length === 0) {
+        await this.writeState(ctx, versionId, {
+          auditStatus: 'warning',
+          approvalStatus: 'not_required',
+          auditMode: mode,
+          auditDecision: verdict.decision,
+          auditFindings: checks,
+        });
+        return {
+          versionId,
+          auditStatus: 'warning',
+          approvalStatus: 'not_required',
+          auditMode: mode,
+          auditDecision: verdict.decision,
+          findingCount: checks.length,
           reviewRequestId: null,
         };
       }
@@ -301,6 +383,153 @@ export class OutreachDraftAuditService {
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       return this.handleControlFailure(ctx, versionId, mode, reason);
+    }
+  }
+
+  /**
+   * Hold a version because the DETERMINISTIC verifier objected (Phase 1 §3.i1).
+   *
+   * Structurally identical to the enforce-mode hold — one transaction writing
+   * both the review row and the held state, so a held version can never exist
+   * without the review that makes it reviewable — but it fires independently of
+   * MERI_AUDITOR_MODE, and the review reason names the verifier so the reviewer
+   * knows which control objected.
+   */
+  private async holdForVerifier(
+    ctx: TenantContext,
+    version: {
+      id: string;
+      subject: string;
+      body: string;
+      contentHash: string;
+      version: number;
+      artifactId: string;
+      provider: string | null;
+      model: string | null;
+      promptSpecVersion: string | null;
+      artifact: {
+        generationKey: string;
+        recipientKey: string;
+        recipientSnapshot: unknown;
+        outreachRecordId: string;
+        outreachRecord: { clientId: string | null } | null;
+      };
+    },
+    mode: AuditorMode,
+    checks: SanitizedCheck[],
+    auditorDecision: string | null = null,
+  ): Promise<OutreachDraftAuditOutcome> {
+    const verifierChecks = checks.filter((c) => c.source === 'deterministic_verifier');
+    const decision = 'verifier_hold';
+    try {
+      const reviewRequestId = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        const review = await tx.reviewRequest.create({
+          data: {
+            tenantId: ctx.tenantId,
+            riskTier: DELIVERABLE_RISK_TIERS.external_send ?? 'restricted',
+            surface: 'outreach',
+            subjectType: OUTREACH_DRAFT_VERSION_SUBJECT_TYPE,
+            subjectId: version.id,
+            clientId: version.artifact.outreachRecord?.clientId ?? null,
+            title: `Held outreach draft v${version.version} — ${this.recipientLabel(version.artifact)}`.slice(
+              0,
+              300,
+            ),
+            reason:
+              `The deterministic government-affairs verifier held this draft ` +
+              `(${verifierChecks.map((c) => `${c.check} (${c.severity})`).join(', ')}). ` +
+              `These are exact checks against the supplied evidence, not judgments. ` +
+              `Approving releases ONLY this exact version; any edit creates a new ` +
+              `version that must earn its own verdict.`,
+            payload: {
+              versionId: version.id,
+              artifactId: version.artifactId,
+              outreachRecordId: version.artifact.outreachRecordId,
+              generationKey: version.artifact.generationKey,
+              recipientKey: version.artifact.recipientKey,
+              version: version.version,
+              contentHash: version.contentHash,
+              auditMode: mode,
+              auditDecision: decision,
+              meriAuditorDecision: auditorDecision,
+              findingCount: checks.length,
+              checks,
+              provider: version.provider,
+              model: version.model,
+              promptSpecVersion: version.promptSpecVersion,
+            } as unknown as Prisma.InputJsonValue,
+            requestedBy: ctx.userId ?? null,
+          },
+          select: { id: true },
+        });
+        await tx.outreachDraftVersion.updateMany({
+          where: { id: version.id, tenantId: ctx.tenantId },
+          data: {
+            auditStatus: 'held',
+            approvalStatus: 'pending',
+            auditMode: mode,
+            auditDecision: decision,
+            auditFindings: checks as unknown as Prisma.InputJsonValue,
+            reviewRequestId: review.id,
+          },
+        });
+        return review.id;
+      });
+
+      this.logger.warn(
+        `[generation-verifier] outreach draft version ${version.id} HELD — ` +
+          verifierChecks.map((c) => `${c.check}/${c.severity}`).join(', '),
+      );
+
+      return {
+        versionId: version.id,
+        auditStatus: 'held',
+        approvalStatus: 'pending',
+        auditMode: mode,
+        auditDecision: decision,
+        findingCount: checks.length,
+        reviewRequestId,
+        contextNote: this.contextNote(verifierChecks),
+      };
+    } catch (err) {
+      // The hold itself failed to persist. This deliberately does NOT route
+      // through handleControlFailure: that helper is mode-sensitive and under
+      // shadow/annotate resolves to a sendable `warning` — correct for a Meri
+      // auditor outage, wrong here. The verifier already DID object, so the
+      // version must end up non-sendable whatever the mode.
+      const reason = err instanceof Error ? err.message : String(err);
+      this.logger.error(
+        `[generation-verifier] could not persist verifier hold for version ${version.id}; ` +
+          `forcing unavailable: ${reason}`,
+      );
+      try {
+        await this.writeState(ctx, version.id, {
+          auditStatus: 'unavailable',
+          approvalStatus: 'pending',
+          auditMode: mode,
+          auditDecision: 'verifier_hold_unavailable',
+          auditFindings: checks,
+        });
+      } catch (writeErr) {
+        // Even that write failed. The version keeps its creation-time 'pending'
+        // audit status, which isDraftVersionSendable() already blocks — so this
+        // cannot open the send gate either.
+        this.logger.error(
+          `could not mark version ${version.id} unavailable after verifier hold failure: ${
+            (writeErr as Error).message
+          }`,
+        );
+      }
+      return {
+        versionId: version.id,
+        auditStatus: 'unavailable',
+        approvalStatus: 'pending',
+        auditMode: mode,
+        auditDecision: 'verifier_hold_unavailable',
+        findingCount: checks.length,
+        reviewRequestId: null,
+        contextNote: this.contextNote(verifierChecks),
+      };
     }
   }
 

@@ -19,6 +19,7 @@ import type {
   AlertPrefsPayload,
   BillStage,
   BoardBillChange,
+  BoardFilters,
   BoardResponse,
   ChangeTone,
   MatchReason,
@@ -31,8 +32,21 @@ import type {
 
 const enc = encodeURIComponent;
 
+/** P1-18: builds the board query string from a cursor + BoardFilters. Every field is optional; an empty result omits `?` entirely. */
+function boardQueryString(cursor?: string, filters?: BoardFilters): string {
+  const params = new URLSearchParams();
+  if (cursor) params.set('cursor', cursor);
+  if (filters?.changedWithinDays) params.set('changedWithinDays', String(filters.changedWithinDays));
+  if (filters?.activeOnly) params.set('activeOnly', 'true');
+  for (const s of filters?.stages ?? []) params.append('stages', s);
+  for (const c of filters?.clientIds ?? []) params.append('clientIds', c);
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
+}
+
 export const intelTrackerPaths = {
-  board: (c: string) => `/intel-api/clients/${enc(c)}/tracker/board`,
+  board: (c: string, cursor?: string, filters?: BoardFilters) =>
+    `/intel-api/clients/${enc(c)}/tracker/board${boardQueryString(cursor, filters)}`,
   // Tab-badge counts (ClientProfilePage) — legacy-identical `{ boardCount, unread }`, no adapter.
   summary: (c: string) => `/intel-api/clients/${enc(c)}/tracker/summary`,
   recommendations: (c: string) => `/intel-api/clients/${enc(c)}/recommendations`,
@@ -71,7 +85,19 @@ interface IntelBoardCard {
   /** P0-06: the high-priority subset of matchedTags, computed server-side. */
   matchedHighPriorityTopics?: string[];
   matchedPosition?: string | null;
-  changeChip: { label: string; changeType: string | null; at: string } | null;
+  /** P1-08: `severity` and `tone` are served by intel-api as of Gate D phase a.
+   *  Optional so a cached pre-Gate-D board response still adapts (a-4's fallback). */
+  changeChip: {
+    label: string;
+    changeType: string | null;
+    at: string;
+    severity?: string | null;
+    tone?: string | null;
+  } | null;
+  /** P2-09: served by intel-api as of Gate D phase g. Optional so a cached
+   *  pre-Gate-D board response still adapts. */
+  canonicalStatus?: string | null;
+  terminalRisk?: boolean;
   // Phase 9 (Bill→Hearing interlink): "discussed in N hearings" chip data.
   lastHearingSessionId?: string | null;
   lastHearingAt?: string | null;
@@ -81,6 +107,11 @@ interface IntelBoardCard {
 }
 interface IntelBoard {
   columns: Array<{ id: BillStage; label: string; cards: IntelBoardCard[] }>;
+  /** P1-18 (Gate E phase a) — absent on a legacy/cached pre-Gate-E response. */
+  nextCursor?: string | null;
+  hasMore?: boolean;
+  total?: number;
+  withheld?: number;
 }
 interface IntelRec {
   billId: string;
@@ -151,11 +182,29 @@ interface IntelAlertPrefs {
   jurisdictions?: string[];
 }
 
-const CRITICAL_CHANGE_TYPES = ['bill_enacted', 'bill_to_president', 'bill_failed'];
+/** Kept ONLY as the fallback for a pre-Gate-D intel-api that sends no severity/tone. */
+const LEGACY_CRITICAL_CHANGE_TYPES = ['bill_enacted', 'bill_to_president', 'bill_failed'];
 
-function changeChipToChange(chip: IntelBoardCard['changeChip']): BoardBillChange | null {
+const CHANGE_TONES: readonly ChangeTone[] = ['critical', 'notable', 'info', 'success'];
+
+export function changeChipToChange(chip: IntelBoardCard['changeChip']): BoardBillChange | null {
   if (!chip) return null;
-  const tone: ChangeTone = CRITICAL_CHANGE_TYPES.includes(chip.changeType ?? '') ? 'critical' : 'notable';
+  // P1-08: prefer the SERVER's tone, then its severity. The old client-side list
+  // was a duplicate of a narrow federal-only set, so a failed governing rule or a
+  // state veto rendered as 'notable'. Severity cannot express 'success', which is
+  // why tone is checked first: 'Became law' and 'Failed / rejected' are both
+  // severity 'critical' but must not look the same.
+  const tone: ChangeTone = CHANGE_TONES.includes(chip.tone as ChangeTone)
+    ? (chip.tone as ChangeTone)
+    : chip.severity === 'critical'
+      ? 'critical'
+      : chip.severity === 'info'
+        ? 'info'
+        : chip.severity === 'notable'
+          ? 'notable'
+          : LEGACY_CRITICAL_CHANGE_TYPES.includes(chip.changeType ?? '')
+            ? 'critical'
+            : 'notable';
   return { tone, label: chip.label, dot: true };
 }
 
@@ -178,6 +227,9 @@ export function adaptBoard(b: IntelBoard): BoardResponse {
       trackedAt: typeof c.trackedAt === 'string' ? c.trackedAt : new Date(c.trackedAt).toISOString(),
       unread: Boolean(c.unread),
       change: changeChipToChange(c.changeChip),
+      // P2-09: carry the real status + terminal-risk flag to the card.
+      canonicalStatus: c.canonicalStatus ?? null,
+      terminalRisk: Boolean(c.terminalRisk),
       hearingCount: c.hearingCount ?? 0,
       lastHearingSessionId: c.lastHearingSessionId ?? null,
       jurisdiction: c.jurisdiction,
@@ -190,7 +242,16 @@ export function adaptBoard(b: IntelBoard): BoardResponse {
     }));
     return { id: col.id, label: col.label, count: bills.length, bills };
   });
-  return { columns, total: columns.reduce((n, c) => n + c.bills.length, 0) };
+  const loadedCount = columns.reduce((n, c) => n + c.bills.length, 0);
+  return {
+    columns,
+    // P1-18: prefer the server's real COUNT; a legacy/cached response with no
+    // `total` falls back to counting what loaded (today's exact behavior).
+    total: b.total ?? loadedCount,
+    nextCursor: b.nextCursor ?? null,
+    hasMore: b.hasMore ?? false,
+    withheld: b.withheld ?? 0,
+  };
 }
 
 export const RECOMMENDATION_FLOOR = 0.45;

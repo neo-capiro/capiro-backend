@@ -4,8 +4,10 @@ import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { TrackerOwnerGuard } from './tracker-owner.guard.js';
 import { TrackerBoardService } from './tracker-board.service.js';
+import type { BillStage } from './bill-stage.util.js';
 import {
   BillSearchQueryDto,
+  BoardQueryDto,
   UpdateBillContextDto,
   TrackBillDto,
   UntrackBillDto,
@@ -49,11 +51,27 @@ export class TrackerBoardController {
   // `_all` → the LegiWatch all-clients board roll-up (L2b); any real clientId →
   // that client's board. (Handled on one route to avoid `:clientId` capturing
   // the literal `_all`.)
+  // P1-18: `query` is entirely optional — an absent query reproduces the
+  // pre-Gate-E default page exactly (BOARD_PAGE_SIZE, no filter narrowing).
   @Get(':clientId/tracker/board')
-  getBoard(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('clientId') clientId: string) {
+  getBoard(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('clientId') clientId: string,
+    @Query() query: BoardQueryDto,
+  ) {
+    const opts = {
+      limit: query.limit,
+      cursor: query.cursor,
+      filters: {
+        changedWithinDays: query.changedWithinDays,
+        activeOnly: query.activeOnly,
+        stages: query.stages as BillStage[] | undefined,
+        clientIds: query.clientIds,
+      },
+    };
     return clientId === '_all'
-      ? this.svc.getTenantBoard(ctx.tenantId)
-      : this.svc.getBoard(ctx.tenantId, clientId);
+      ? this.svc.getTenantBoard(ctx.tenantId, opts)
+      : this.svc.getBoard(ctx.tenantId, clientId, opts);
   }
 
   // Client-profile tab badge: legacy-identical `{ boardCount, unread }`.
@@ -63,10 +81,13 @@ export class TrackerBoardController {
   }
 
   // Add-bill-modal search. `:clientId` is vestigial (legacy contract — the
-  // Workspace ContextBuilder calls this shape too); only `q` drives the query.
+  // Workspace ContextBuilder calls this shape too); `q` plus the optional
+  // jurisdiction facet drive the query.
   @Get(':clientId/tracker/bill-search')
   searchBills(@Query() query: BillSearchQueryDto) {
-    return this.svc.searchBills(query.q);
+    // P1-17: `jurisdictions` is optional, so an existing caller sending only
+    // `q` still gets exactly the federal-only result set it got before.
+    return this.svc.searchBills(query.q, { jurisdictions: query.jurisdictions });
   }
 
   @Post(':clientId/tracker/track')

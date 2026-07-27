@@ -23,6 +23,12 @@ export interface BoardBill {
   trackedAt: string;
   unread: boolean;
   change: BoardBillChange | null;
+  /** P2-09: the bill's real status label, not the coarse lane it sits in.
+   *  Optional — the legacy board and cached pre-Gate-D responses carry none. */
+  canonicalStatus?: string | null;
+  /** P2-09: a failed governing rule, veto, failed vote, or past-deadline state
+   *  bill. Such a card must not look like an ordinary one in the same lane. */
+  terminalRisk?: boolean;
   // Phase 9 (Bill→Hearing interlink): "discussed in N hearings" chip. Optional —
   // only the intel board (adaptBoard) populates it; the legacy board omits it.
   hearingCount?: number;
@@ -57,6 +63,25 @@ export interface BoardColumn {
 export interface BoardResponse {
   columns: BoardColumn[];
   total: number;
+  /**
+   * P1-18 (Gate E phase a). Absent on a legacy (pre-Gate-E) board response —
+   * the web must render with no Load-more and no crash rather than assume it.
+   */
+  nextCursor?: string | null;
+  hasMore?: boolean;
+  /** How many tracked bills this response does NOT contain. Must be rendered
+   *  when > 0 — a bounded board that doesn't say so is less honest than the
+   *  unbounded one it replaced. */
+  withheld?: number;
+}
+
+/** P1-18 (a-5): server-side board filters, all default OFF. */
+export interface BoardFilters {
+  changedWithinDays?: number;
+  activeOnly?: boolean;
+  stages?: BillStage[];
+  /** Tenant (`_all`) board only. */
+  clientIds?: string[];
 }
 
 export interface MatchReason {
@@ -234,6 +259,9 @@ export interface BillSearchResult {
   title: string;
   stage: BillStage;
   probability: number;
+  /** P1-17: 'US' or a 2-letter state code, so the modal can label each result.
+   *  Optional — a pre-Gate-D intel-api sends federal results with no label. */
+  jurisdiction?: string;
 }
 
 export interface SeedSuggestions {

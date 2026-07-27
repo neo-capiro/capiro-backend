@@ -31,6 +31,11 @@ function serviceCapturingInput(): {
   const inputs: CapturedInput[] = [];
   const service = Object.create(EngagementService.prototype) as EngagementService;
   const patch = service as unknown as Record<string, unknown>;
+  // Phase 1: generateBatchEmails branches on this.gateway.enabled before doing
+  // anything else. These specs build the service with Object.create (no
+  // constructor), so the injected dependency has to be supplied here. OFF selects
+  // the legacy path, which is what these specs exercise.
+  patch.gateway = { enabled: false };
   patch.ai = {
     resolveOutreachCredentials: async () => [
       {

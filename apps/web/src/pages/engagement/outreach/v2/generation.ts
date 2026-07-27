@@ -19,7 +19,11 @@
 // drafts back to one flat {recipientId,subject,body} per recipient.
 
 import type { OutreachRecipient } from '../../OutreachView.js';
-import { recipientKey, type SelectedContextItem } from './types.js';
+import {
+  recipientKey,
+  type GenerationSourceManifest,
+  type SelectedContextItem,
+} from './types.js';
 import type { OutreachTarget, TargetType } from './targets.js';
 
 /**
@@ -294,6 +298,11 @@ export interface BatchDraftResult {
   error?: string;
   /** Internal note for the lobbyist only — never sent to the recipient. */
   contextNote?: string;
+  /**
+   * Phase 1 §3.j1 — the Context Used manifest for this draft. Present only under
+   * the generation gateway; absent on the flag-off path.
+   */
+  manifest?: GenerationSourceManifest;
 }
 
 /**
@@ -309,22 +318,42 @@ export function partitionGenerationResults(
   slots: Array<{ genKey: string; resultId: string }>,
   results: BatchDraftResult[],
 ): {
-  drafts: Array<{ genKey: string; subject: string; body: string }>;
+  drafts: Array<{ genKey: string; subject: string; body: string; manifest?: GenerationSourceManifest }>;
   /** Held content, preserved. Non-sendable, but shown to the user for review. */
-  heldDrafts: Array<{ genKey: string; subject: string; body: string; contextNote?: string }>;
+  heldDrafts: Array<{
+    genKey: string;
+    subject: string;
+    body: string;
+    contextNote?: string;
+    manifest?: GenerationSourceManifest;
+  }>;
   failedGenKeys: string[];
   /** Convenience: the genKeys in `heldDrafts`. */
   heldGenKeys: string[];
+  /**
+   * Phase 1 §3.j — manifests by genKey, INCLUDING for failed slots. A blocked
+   * generation is precisely when the user most needs to see which source failed;
+   * dropping the manifest with the draft would leave them with an unexplained
+   * error.
+   */
+  manifests: Map<string, GenerationSourceManifest>;
 } {
   const byId = new Map(results.map((r) => [r.recipientId, r]));
-  const drafts: Array<{ genKey: string; subject: string; body: string }> = [];
+  const drafts: Array<{
+    genKey: string;
+    subject: string;
+    body: string;
+    manifest?: GenerationSourceManifest;
+  }> = [];
   const heldDrafts: Array<{
     genKey: string;
     subject: string;
     body: string;
     contextNote?: string;
+    manifest?: GenerationSourceManifest;
   }> = [];
   const failedGenKeys: string[] = [];
+  const manifests = new Map<string, GenerationSourceManifest>();
   for (const s of slots) {
     const r = byId.get(s.resultId);
     if (!r) {
@@ -332,20 +361,33 @@ export function partitionGenerationResults(
       failedGenKeys.push(s.genKey);
       continue;
     }
+    if (r.manifest) manifests.set(s.genKey, r.manifest);
     if (r.status === 'ready') {
-      drafts.push({ genKey: s.genKey, subject: r.subject, body: r.body });
+      drafts.push({
+        genKey: s.genKey,
+        subject: r.subject,
+        body: r.body,
+        ...(r.manifest ? { manifest: r.manifest } : {}),
+      });
     } else if (r.status === 'held') {
       heldDrafts.push({
         genKey: s.genKey,
         subject: r.subject,
         body: r.body,
         ...(r.contextNote ? { contextNote: r.contextNote } : {}),
+        ...(r.manifest ? { manifest: r.manifest } : {}),
       });
     } else {
       failedGenKeys.push(s.genKey);
     }
   }
-  return { drafts, heldDrafts, failedGenKeys, heldGenKeys: heldDrafts.map((d) => d.genKey) };
+  return {
+    drafts,
+    heldDrafts,
+    failedGenKeys,
+    heldGenKeys: heldDrafts.map((d) => d.genKey),
+    manifests,
+  };
 }
 
 // ── Generate task construction (shared by sync POST + async job submit) ───────

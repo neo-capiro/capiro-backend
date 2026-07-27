@@ -32,6 +32,34 @@ import {
 import mammoth from 'mammoth';
 import { sanitizeSignatureHtml } from '../common/sanitize-signature.js';
 import { meetingsCrossUserEnabled } from '../common/tenant-flags.js';
+import {
+  canEditEncryptedEntry,
+  canReadEncryptedEntry,
+  ownMailMessageWhere,
+  ownMailThreadWhere,
+  ownMeetingWhere,
+} from './engagement-access.helpers.js';
+// ── Phase 1 — governed generation gateway ───────────────────────────────────
+import {
+  GenerationGatewayService,
+  type GatewayEnrichmentInput,
+} from './generation/generation-gateway.service.js';
+import { OutreachTruthService } from './generation/outreach-truth.service.js';
+import { EvidenceSourceService } from './generation/evidence-source.service.js';
+import { AttachmentContentService } from './attachment-content.service.js';
+import { AttachmentScannerService } from './attachment-scanner.service.js';
+import type { EnrichmentChannel } from './generation/evidence-packet.service.js';
+import type {
+  GenerationRequest,
+  GenerationResult,
+  GenerationSourceManifest,
+  PinnedGenerationIdentity,
+} from './generation/generation-gateway.types.js';
+import {
+  AudiencePolicyRequiredError,
+  type GaPolicy,
+} from './generation/government-affairs-policy.registry.js';
+import type { PlanValidationIssue } from './generation/message-plan.schema.js';
 import { extractXlsxText, isSpreadsheetAttachment } from './xlsx-extract.js';
 import { extractPptxText, isPowerPointAttachment } from './pptx-extract.js';
 import { createHash, randomUUID } from 'node:crypto';
@@ -299,7 +327,20 @@ export interface UpdateAiTemplateInput {
   tone?: string;
 }
 
-/** v2 wizard's per-item scoped context object. */
+/**
+ * The v2 wizard's per-item scoped context object.
+ *
+ * Phase 1 §3.b1 changed what this carries. `id` + `kind` + `scope` identify a
+ * SOURCE the server rehydrates; the only free text the browser may contribute is
+ * the user's own words (`userInstruction`, `customNoteText`).
+ *
+ * `title`, `body` and `note` are retained as LEGACY fields for one compatibility
+ * release so a pre-Phase-1 client (or a draft resumed from localStorage) does not
+ * 400 the moment this deploys. Under ENGAGEMENT_GENERATION_GATEWAY they are
+ * rejected for server-backed kinds rather than honored — see
+ * assertGatewayContextContract. They must never be treated as evidence: a body
+ * the browser supplied is, by construction, a claim the client could edit.
+ */
 export interface OutreachSelectedContextItemInput {
   id: string;
   kind:
@@ -313,11 +354,92 @@ export interface OutreachSelectedContextItemInput {
     | 'debrief'
     | 'prep'
     | 'programElement';
-  title: string;
-  body?: string;
   /** 'all' = shared across every recipient; else recipient-key string. */
   scope: 'all' | string;
+  /** An authenticated per-item directive (max 2,000 chars). */
+  userInstruction?: string;
+  /** Only valid for kind==='note' (max 8,000 chars). */
+  customNoteText?: string;
+  /**
+   * For a custom note: whether the user marked it a FACT to state or an
+   * INSTRUCTION to follow. Defaults to 'instruction'.
+   */
+  noteUse?: 'fact' | 'instruction';
+
+  // ---- Legacy (pre-Phase-1) fields, accepted for one compatibility release ----
+  /** @deprecated Display-only. The server rehydrates the real title by id. */
+  title?: string;
+  /** @deprecated NEVER evidence. Rejected under the gateway for server-backed kinds. */
+  body?: string;
+  /** @deprecated Maps to userInstruction (or customNoteText for a note). */
   note?: string;
+}
+
+/** Kinds whose content the server rehydrates by id (§3.b1). */
+const SERVER_REHYDRATED_KINDS = new Set([
+  'bill',
+  'stateBill',
+  'programElement',
+  'email',
+  'document',
+  'prep',
+  'debrief',
+]);
+
+/**
+ * Normalize a possibly-legacy selected item into the Phase 1 contract.
+ *
+ * A legacy `note` becomes `userInstruction` (or `customNoteText` for a custom
+ * note) only AFTER the request has authenticated — which it has by the time the
+ * service runs, since the guard rejects unauthenticated calls before this point.
+ */
+export function normalizeSelectedContextItem(
+  item: OutreachSelectedContextItemInput,
+): OutreachSelectedContextItemInput {
+  const isNote = item.kind === 'note';
+  const legacyNote = item.note?.trim() || undefined;
+  return {
+    id: item.id,
+    kind: item.kind,
+    scope: item.scope,
+    ...(item.userInstruction?.trim()
+      ? { userInstruction: item.userInstruction.trim() }
+      : !isNote && legacyNote
+        ? { userInstruction: legacyNote }
+        : {}),
+    ...(isNote
+      ? {
+          customNoteText:
+            item.customNoteText?.trim() ||
+            legacyNote ||
+            // A pre-Phase-1 custom note could carry its text in `body`.
+            item.body?.trim() ||
+            undefined,
+          noteUse: item.noteUse === 'fact' ? 'fact' : 'instruction',
+        }
+      : {}),
+  };
+}
+
+/**
+ * Reject legacy browser-supplied bodies once the gateway is on (§3.b1).
+ *
+ * The compatibility window is for the FLAG-OFF path. With the gateway on, a
+ * request that still ships an external body is a client that has not been
+ * updated, and silently ignoring the field would leave the caller believing its
+ * curated text informed the draft when it did not.
+ */
+export function assertGatewayContextContract(items: OutreachSelectedContextItemInput[]): void {
+  const offenders = items
+    .filter((i) => SERVER_REHYDRATED_KINDS.has(i.kind) && Boolean(i.body?.trim()))
+    .map((i) => i.id);
+  if (offenders.length) {
+    throw new BadRequestException(
+      `Selected context items must be sent as identifiers only; the server loads their content. ` +
+        `Remove the "body" field from: ${offenders.slice(0, 5).join(', ')}. ` +
+        `Reload the page to pick up the current client.`,
+    );
+  }
 }
 
 /**
@@ -364,6 +486,13 @@ export interface GenerateBatchEmailInput {
   existingSubject?: string;
   existingBody?: string;
   reviseInstruction?: string;
+  /**
+   * Phase 1 §3.k — the provider/model/prompt identity an async JOB pinned at
+   * submit. Present only on job-driven chunks; a synchronous request pins its own.
+   * NEVER accepted from the browser (it is not on the controller DTO): a caller
+   * that could choose the model could also choose a cheaper ungoverned one.
+   */
+  pinnedIdentity?: PinnedGenerationIdentity;
 }
 
 /**
@@ -440,6 +569,16 @@ export interface OutreachBatchDraftResult {
    * The flat fields above mirror `versions[0]`.
    */
   versions?: OutreachBatchDraftVersionRef[];
+
+  // ---- Phase 1 gateway fields (ENGAGEMENT_GENERATION_GATEWAY=true only) ----
+  /**
+   * The Context-Used manifest for this draft (§3.j1): what it was grounded in,
+   * what was excluded, what failed, the policy/provider/model, and the freshness
+   * window. Summaries only — never restricted email or document content.
+   */
+  manifest?: GenerationSourceManifest;
+  /** Structured reasons a Message Plan was rejected, for a reviewable error. */
+  planIssues?: PlanValidationIssue[];
 }
 
 export interface GenerateTalkingPointsInput {
@@ -848,6 +987,12 @@ export class EngagementService {
     private readonly clientKb: ClientKbService,
     private readonly contextCompiler: ContextCompilerService,
     private readonly draft: OutreachDraftService,
+    // Phase 1 — the governed generation stack.
+    private readonly gateway: GenerationGatewayService,
+    private readonly truth: OutreachTruthService,
+    private readonly attachmentContent: AttachmentContentService,
+    private readonly scanner: AttachmentScannerService,
+    private readonly evidenceSources: EvidenceSourceService,
     config: ConfigService<AppConfig, true>,
   ) {
     this.bucket = config.get('ASSETS_BUCKET', { infer: true });
@@ -858,6 +1003,10 @@ export class EngagementService {
       infer: true,
     });
     this.s3 = new S3Client({ region: config.get('AWS_REGION_DEFAULT', { infer: true }) });
+    // EvidenceSourceService must read attachment bytes but must NOT depend on this
+    // service (that edge would be a cycle) nor build a second S3 client. Handing
+    // it the reader here keeps one S3 client and one tenant-prefix check.
+    this.evidenceSources.setAttachmentReader((_bucket, key) => this.readAttachmentBytes(key));
   }
 
   /**
@@ -2670,6 +2819,21 @@ export class EngagementService {
       );
     }
 
+    // ── Phase 1 §3.g3 — the governed gateway ────────────────────────────────
+    // When ENGAGEMENT_GENERATION_GATEWAY is on, generation runs through
+    // GenerationGatewayService and this method contributes only the enrichment
+    // channels. The whole legacy branch below is kept verbatim for the flag-off
+    // window (removed after the Phase 3 eval gates, §6.8) — a rollback must not
+    // land on a path that has been quietly refactored underneath it.
+    if (this.gateway.enabled) {
+      return this.generateBatchEmailsViaGateway(ctx, input, {
+        versionedRecordId,
+        budgetWarning: budget.softWarn
+          ? `Your organization has used ${Math.round(budget.ratio * 100)}% of today's outreach AI limit.`
+          : undefined,
+      });
+    }
+
     // A 'group' batch is ONE shared email whose single recipient is a stand-in
     // for the whole group; per-member enrichment (directory profile, that
     // member's press / meeting / email history) must NOT be hoisted, or the
@@ -2790,7 +2954,7 @@ export class EngagementService {
     const voiceBlock = await this.loadUserVoiceBlock(ctx, clientId ?? null).catch(() => null);
     // W5.6: append the author's own recent sent-outreach excerpts (PII-stripped)
     // so drafts mirror their voice. Outreach-only (not in the shared voice block).
-    const voiceFewShots = await this.outreachVoiceFewShots(ctx).catch(() => null);
+    const voiceFewShots = await this.outreachVoiceFewShots(ctx, clientId ?? null).catch(() => null);
     const userWritingStyle = [voiceBlock, voiceFewShots].filter(Boolean).join('\n\n') || null;
 
     // Client's tracked legislation with latest action — a timely "reason to write
@@ -3383,6 +3547,573 @@ export class EngagementService {
       : undefined;
 
     return { results, ...(budgetWarning ? { budgetWarning } : {}) };
+  }
+
+  /**
+   * Phase 1 §3.g3 — batch generation through the governed gateway.
+   *
+   * This method's job is deliberately narrow: authorize the request, resolve the
+   * campaign-invariant enrichment ONCE, pin the provider/model ONCE, and then
+   * hand each recipient to GenerationGatewayService. It does NOT assemble a
+   * prompt, does NOT run an auditor, and does NOT decide sendability — those all
+   * moved behind the gateway, which is the point of the section. What is left here
+   * is the data-loading this service already owned.
+   */
+  private async generateBatchEmailsViaGateway(
+    ctx: TenantContext,
+    input: GenerateBatchEmailInput,
+    opts: { versionedRecordId: string | null; budgetWarning?: string },
+  ): Promise<{ results: OutreachBatchDraftResult[]; budgetWarning?: string }> {
+    const {
+      templateId,
+      insights,
+      additionalContext,
+      tone,
+      clientId,
+      contextItems,
+      direction,
+      audienceKind,
+      existingSubject,
+      existingBody,
+      reviseInstruction,
+    } = input;
+
+    // §3.b1: reject a stale client still shipping external bodies, rather than
+    // ignoring the field and letting the caller believe it was used.
+    assertGatewayContextContract(contextItems ?? []);
+    const items = (contextItems ?? []).map(normalizeSelectedContextItem);
+
+    const isGroup = audienceKind === 'group';
+    const isReviseSingle = Boolean(existingBody) && input.recipients.length === 1;
+    const recipients = dedupeOutreachRecipients(input.recipients);
+
+    // Template resolution is unchanged: a system template is global, a custom one
+    // is owner-scoped (Phase 0 §3.h1).
+    const systemTemplate = SYSTEM_AI_TEMPLATES.find((t) => t.id === templateId);
+    let templatePrompt: string;
+    if (systemTemplate) {
+      templatePrompt = systemTemplate.prompt;
+    } else {
+      const dbTemplate = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.outreachAiTemplate.findFirst({
+          where: { id: templateId, tenantId: ctx.tenantId, userId: ctx.userId },
+        }),
+      );
+      if (!dbTemplate) throw new NotFoundException('Template not found');
+      templatePrompt = dbTemplate.prompt;
+      await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.outreachAiTemplate.update({
+          where: { id: templateId },
+          data: { usageCount: { increment: 1 } },
+        }),
+      );
+    }
+
+    // ---- Client-level context, resolved ONCE ----
+    let clientBrief: string | null = null;
+    let clientName: string | null = null;
+    if (clientId) {
+      const [row, relationship] = await Promise.all([
+        this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.client.findFirst({ where: { id: clientId, tenantId: ctx.tenantId } }),
+        ),
+        this.clientContext(ctx, clientId).catch(() => null),
+      ]);
+      if (row) {
+        clientName = row.name;
+        const pruned = pruneForAi(row);
+        clientBrief = renderGatewayClientBrief(pruned);
+      }
+      if (relationship) {
+        const snapshot = renderClientRelationshipSnapshot(relationship);
+        if (snapshot) clientBrief = [clientBrief, snapshot].filter(Boolean).join('\n\n');
+      }
+    }
+
+    // Directory profiles for the whole batch in ONE scan (unchanged approach).
+    const batchRecipientEmails = unique(
+      recipients.map((r) => r.email?.trim().toLowerCase() ?? '').filter(Boolean),
+    );
+    const directoryByEmail = new Map<string, DirectoryEmailMatch>();
+    if (batchRecipientEmails.length) {
+      const matches = await this.directory
+        .findContactsByEmails(batchRecipientEmails, Math.max(batchRecipientEmails.length, 200))
+        .catch(() => [] as DirectoryEmailMatch[]);
+      for (const match of matches) {
+        const key = match.attendeeEmail.toLowerCase();
+        if (!directoryByEmail.has(key)) directoryByEmail.set(key, match);
+      }
+    }
+
+    const trackedBillIds = clientId
+      ? await this.outreachTrackedBillIds(ctx, clientId).catch(() => [])
+      : [];
+
+    // ---- Pin ONE provider/model for the whole campaign (§3.k) ----
+    // Resolved from the FIRST recipient's policy purely to satisfy the pinning
+    // API; each unit re-resolves its own policy inside the gateway (see
+    // resolvePolicy's note), so a mixed-audience batch is handled correctly.
+    let campaignPolicy: GaPolicy;
+    try {
+      campaignPolicy = this.gateway.resolvePolicy(
+        this.toGatewayRequest({
+          input,
+          items,
+          templatePrompt,
+          recipient: recipients[0]!,
+          index: 0,
+          directoryByEmail,
+          isGroup,
+          isReviseSingle,
+          versionedRecordId: opts.versionedRecordId,
+          pinned: null,
+        }),
+      );
+    } catch (e) {
+      if (e instanceof AudiencePolicyRequiredError) {
+        throw new BadRequestException({
+          statusCode: HttpStatus.BAD_REQUEST,
+          error: e.code,
+          message: e.message,
+          candidates: e.candidates,
+        });
+      }
+      throw e;
+    }
+
+    const identity = await this.gateway.resolvePinnedIdentity(ctx, { policy: campaignPolicy });
+    if (!identity) {
+      throw new ServiceUnavailableException(
+        'Outreach drafting is not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY (or a tenant AI key).',
+      );
+    }
+    const pinned = input.pinnedIdentity ?? identity.pinned;
+
+    // ---- Per-recipient generation ----
+    const generateOne = async (
+      recipient: OutreachRecipientInput,
+      index: number,
+    ): Promise<OutreachBatchDraftResult> => {
+      const recipientId =
+        recipient.id?.toString() ||
+        recipient.directoryContactId?.toString() ||
+        recipient.email?.toString() ||
+        recipient.name?.toString() ||
+        String(index);
+      const generationKeys = resolveGenerationKeys(recipient, recipientId);
+
+      const request = this.toGatewayRequest({
+        input,
+        items,
+        templatePrompt,
+        recipient,
+        index,
+        directoryByEmail,
+        isGroup,
+        isReviseSingle,
+        versionedRecordId: opts.versionedRecordId,
+        pinned,
+      });
+
+      const enrichment = await this.buildGatewayEnrichment(ctx, {
+        clientId: clientId ?? null,
+        clientBrief,
+        clientName,
+        recipient,
+        directoryMatch: recipient.email
+          ? (directoryByEmail.get(recipient.email.trim().toLowerCase()) ?? null)
+          : null,
+        isGroup,
+        insights: insights ?? [],
+        additionalContext: additionalContext ?? null,
+        items,
+        trackedBillIds,
+      });
+
+      const result = await this.gateway.generate(ctx, request, enrichment, identity.creds);
+      return this.toBatchResult(result, recipientId, generationKeys);
+    };
+
+    // Warm the prompt cache on recipient #1 before fanning out: the gateway's
+    // static prefix is byte-stable per campaign, so its cache WRITE must land
+    // before drafts 2..N read it.
+    const OUTREACH_GEN_CONCURRENCY = 4;
+    let results: OutreachBatchDraftResult[];
+    if (recipients.length > 1) {
+      const head = await generateOne(recipients[0]!, 0);
+      const tail = await mapWithConcurrency(
+        recipients.slice(1),
+        OUTREACH_GEN_CONCURRENCY,
+        (recipient, i) => generateOne(recipient, i + 1),
+      );
+      results = [head, ...tail];
+    } else {
+      results = [await generateOne(recipients[0]!, 0)];
+    }
+
+    return { results, ...(opts.budgetWarning ? { budgetWarning: opts.budgetWarning } : {}) };
+  }
+
+  /** Assemble a GenerationRequest for one recipient slot. */
+  private toGatewayRequest(o: {
+    input: GenerateBatchEmailInput;
+    items: OutreachSelectedContextItemInput[];
+    templatePrompt: string;
+    recipient: OutreachRecipientInput;
+    index: number;
+    directoryByEmail: Map<string, DirectoryEmailMatch>;
+    isGroup: boolean;
+    isReviseSingle: boolean;
+    versionedRecordId: string | null;
+    pinned: PinnedGenerationIdentity | null;
+  }): GenerationRequest {
+    const { input, recipient } = o;
+    const recipientId =
+      recipient.id?.toString() ||
+      recipient.directoryContactId?.toString() ||
+      recipient.email?.toString() ||
+      recipient.name?.toString() ||
+      String(o.index);
+    const generationKeys = resolveGenerationKeys(recipient, recipientId);
+    const emailLower = recipient.email?.trim().toLowerCase() ?? null;
+    const match = emailLower ? (o.directoryByEmail.get(emailLower) ?? null) : null;
+
+    // Every identifier this recipient may be scoped by — the same fallback chain
+    // the wizard's recipientKey() uses, so a per-recipient context item lands on
+    // the right draft.
+    const scopeKeys = [
+      recipient.id?.toString(),
+      recipient.directoryContactId?.toString(),
+      recipient.email?.toString(),
+      recipient.name?.toString(),
+      ...generationKeys,
+    ].filter((s): s is string => Boolean(s));
+
+    return {
+      surface: 'outreach_email',
+      clientId: input.clientId ?? null,
+      outreachRecordId: o.versionedRecordId,
+      ref: {
+        outreachRecordId: o.versionedRecordId,
+        generationKey: generationKeys[0] ?? null,
+        ...(input.campaignId ? { campaignId: input.campaignId } : {}),
+      },
+      items: o.items.map((i) => ({
+        id: i.id,
+        kind: i.kind,
+        scope: i.scope,
+        ...(i.userInstruction ? { userInstruction: i.userInstruction } : {}),
+        ...(i.customNoteText ? { customNoteText: i.customNoteText } : {}),
+        ...(i.noteUse ? { noteUse: i.noteUse } : {}),
+      })),
+      templateId: input.templateId,
+      templatePrompt: o.templatePrompt,
+      tone: normalizeGatewayTone(input.tone),
+      length: null,
+      direction: input.direction ?? null,
+      audienceKind: o.isGroup ? 'group' : 'individual',
+      ...(o.isGroup && recipient.groupMembers
+        ? { groupMemberCount: recipient.groupMembers.length }
+        : {}),
+      recipient: {
+        generationKey: generationKeys[0] ?? `individual:${recipientId}`,
+        scopeKeys,
+        recipientKey: recipientId,
+        name: recipient.name ?? match?.member?.fullName ?? match?.member?.memberName ?? null,
+        email: recipient.email ?? null,
+        title: recipient.title ?? null,
+        office: recipient.office ?? recipient.chamber ?? null,
+        state: recipient.state ?? null,
+        district: recipient.district ?? null,
+        // Server-resolved: the directory match, not a browser assertion. A
+        // recipient the directory knows as a congressional member cannot be
+        // relabeled by the request body.
+        sourceType: match?.member ? 'congress' : (recipient.direction === 'to-clients' ? 'client' : null),
+        chamber: match?.member?.chamber ?? recipient.chamber ?? null,
+        snapshot: pruneForAi(recipient as unknown as Record<string, unknown>) as Record<
+          string,
+          unknown
+        >,
+      },
+      ...(o.isReviseSingle
+        ? {
+            existingSubject: input.existingSubject ?? null,
+            existingBody: input.existingBody ?? null,
+            reviseInstruction: input.reviseInstruction ?? null,
+          }
+        : {}),
+      pinned: o.pinned,
+    };
+  }
+
+  /**
+   * The enrichment channels for one recipient.
+   *
+   * Each channel is a THUNK, not an already-resolved value: the packet service
+   * awaits them at its orchestration boundary so a throw becomes a visible
+   * SourceFailure. Resolving them here with `.catch(() => null)` is exactly the
+   * silent degradation Phase 1 removes.
+   */
+  private async buildGatewayEnrichment(
+    ctx: TenantContext,
+    o: {
+      clientId: string | null;
+      clientBrief: string | null;
+      clientName: string | null;
+      recipient: OutreachRecipientInput;
+      directoryMatch: DirectoryEmailMatch | null;
+      isGroup: boolean;
+      insights: string[];
+      additionalContext: string | null;
+      items: OutreachSelectedContextItemInput[];
+      trackedBillIds: string[];
+    },
+  ): Promise<GatewayEnrichmentInput> {
+    const channels: EnrichmentChannel[] = [];
+    const bioguideId = o.directoryMatch?.member?.bioguideId ?? null;
+
+    const add = (
+      sourceType: string,
+      title: string,
+      trust: 'server_record' | 'external_untrusted',
+      load: () => Promise<string | null>,
+      failureMessage: string,
+    ): void => {
+      channels.push({
+        sourceType,
+        title,
+        trust,
+        scope: 'all',
+        load,
+        failureSeverity: 'important',
+        failureCode: `${sourceType.toUpperCase()}_UNAVAILABLE`,
+        failureMessage,
+      });
+    };
+
+    if (o.clientId) {
+      const clientId = o.clientId;
+      add(
+        'trackedBills',
+        "The client's tracked legislation",
+        'server_record',
+        () => this.outreachTrackedBillsBlock(ctx, clientId),
+        "The client's tracked-legislation list could not be loaded, so the draft has no timely legislative hook.",
+      );
+      add(
+        'clientWatchlist',
+        "The client's priority issues",
+        'server_record',
+        () => this.outreachClientWatchlistBlock(ctx, clientId),
+        "The client's priority-issue watchlist could not be loaded.",
+      );
+      add(
+        'actionRecommendations',
+        'Recommended asks for this client',
+        'server_record',
+        () => this.outreachActionsBlock(ctx, clientId),
+        'The recommended-asks list could not be loaded.',
+      );
+    }
+
+    // Per-member channels are suppressed for a GROUP: they describe ONE member
+    // and would tailor a one-email-to-all draft toward them.
+    if (!o.isGroup) {
+      const profile = formatRecipientDirectoryProfile(o.directoryMatch);
+      if (profile) {
+        channels.push({
+          sourceType: 'directory',
+          title: 'Recipient directory profile',
+          // A directory row is external data: a title field can carry an
+          // injection payload, so it is spotlighted like any other.
+          trust: 'external_untrusted',
+          scope: 'all',
+          load: async () => profile,
+          failureSeverity: 'informational',
+        });
+      }
+      if (bioguideId) {
+        const bg = bioguideId;
+        add(
+          'press',
+          'Recent press about the recipient',
+          'external_untrusted',
+          async () => {
+            const byBioguide = await this.outreachMemberPress([bg]);
+            const rows = byBioguide.get(bg) ?? [];
+            return rows.length ? renderGatewayPress(rows) : null;
+          },
+          'Recent press about the recipient could not be loaded.',
+        );
+        if (o.trackedBillIds.length) {
+          const billIds = o.trackedBillIds;
+          add(
+            'relevantVotes',
+            "The recipient's votes on tracked bills",
+            'server_record',
+            async () => {
+              const byBioguide = await this.outreachRelevantVotesByBioguide([bg], billIds);
+              return byBioguide.get(bg) ?? null;
+            },
+            "The recipient's votes on the client's tracked bills could not be loaded.",
+          );
+        }
+        add(
+          'upcomingHearings',
+          'Upcoming hearings in the recipient’s committees',
+          'server_record',
+          async () => {
+            const hearings = await this.outreachUpcomingHearings();
+            return this.renderRecipientHearings(
+              hearings,
+              o.directoryMatch?.member?.committees ?? [],
+            );
+          },
+          'The upcoming-hearings list could not be loaded.',
+        );
+      }
+      const email = o.recipient.email?.trim().toLowerCase() ?? null;
+      if (email) {
+        add(
+          'priorOutreach',
+          'Prior outreach to this recipient',
+          'server_record',
+          async () => {
+            const byEmail = await this.outreachPriorContactByEmail(ctx, o.clientId, [email]);
+            const prior = byEmail.get(email);
+            if (!prior) return null;
+            return (
+              `Your firm last emailed this recipient on ${prior.sentAt.toISOString().slice(0, 10)}` +
+              `${prior.subject ? ` re: "${prior.subject}"` : ''}. Do not repeat that ask verbatim; ` +
+              `acknowledge or build on it.`
+            );
+          },
+          'Prior-outreach history could not be loaded, so the draft may repeat an earlier ask.',
+        );
+      }
+    }
+
+    if (o.insights.length) {
+      const insights = o.insights;
+      channels.push({
+        sourceType: 'insights',
+        title: 'Selected intelligence insights',
+        trust: 'external_untrusted',
+        scope: 'all',
+        load: async () => insights.join('\n'),
+        failureSeverity: 'informational',
+      });
+    }
+    if (o.additionalContext) {
+      const extra = o.additionalContext;
+      channels.push({
+        sourceType: 'additionalContext',
+        title: 'Additional context you supplied',
+        // The user typed it, so it is user_authored rather than external — but it
+        // is still evidence, not a directive: it says what is true, not what to do.
+        trust: 'server_record',
+        scope: 'all',
+        load: async () => extra,
+        failureSeverity: 'informational',
+      });
+    }
+
+    // Structured-truth ledger entries for the Phase 0 auditor, rebuilt from the
+    // AUTHORITATIVE evidence rather than from any browser body.
+    const auditLedger = await this.buildGatewayAuditLedger(o.items);
+
+    return {
+      channels,
+      clientBrief: o.clientBrief,
+      clientName: o.clientName,
+      topicTerms: gatewayTopicTerms(o.items, o.trackedBillIds),
+      auditLedger,
+      includeRelevantEmail: true,
+    };
+  }
+
+  /**
+   * Ledger entries for the Phase 0 grounding auditor, built from server truth.
+   *
+   * The legacy path set `serialized` to the browser-supplied item body; here it is
+   * the server's own rendered truth block, so the auditor judges the draft against
+   * what we actually know rather than against what the client sent.
+   */
+  private async buildGatewayAuditLedger(
+    items: OutreachSelectedContextItemInput[],
+  ): Promise<LedgerEntry[]> {
+    const entries: LedgerEntry[] = [];
+    for (const item of items) {
+      try {
+        if (item.kind === 'bill') {
+          const billId = billIdFromItemId(item.id);
+          const block = billId ? await this.truth.billTruthBlock(billId) : null;
+          if (!block) continue;
+          entries.push({
+            tool: 'get_bill_status',
+            serialized: block.text,
+            result: {
+              billId: block.raw.id,
+              status: block.raw.status,
+              statusAt: block.raw.statusAt ? new Date(block.raw.statusAt).toISOString() : null,
+              ...(block.raw.sponsorName ? { sponsor: { name: block.raw.sponsorName } } : {}),
+            },
+          });
+        } else if (item.kind === 'programElement') {
+          const peCode = peCodeFromItemId(item.id);
+          const block = peCode ? await this.truth.peTruthBlock(peCode) : null;
+          if (!block) continue;
+          entries.push({
+            tool: 'get_pe_budget_timeline',
+            serialized: block.text,
+            result: {
+              peCode: block.raw.peCode,
+              years: block.raw.years,
+              currentCycleFy: block.raw.currentCycleFy ?? null,
+              identifierKind: 'pe',
+            },
+          });
+        }
+      } catch (e) {
+        this.logger.warn(
+          `gateway audit-ledger build failed for ${item.id}: ${(e as Error).message}`,
+        );
+      }
+    }
+    return entries;
+  }
+
+  /** Map a gateway result onto the batch response shape the wizard reads. */
+  private toBatchResult(
+    result: GenerationResult,
+    recipientId: string,
+    generationKeys: string[],
+  ): OutreachBatchDraftResult {
+    const status: OutreachBatchDraftResult['status'] =
+      result.outcome === 'ready' ? 'ready' : result.outcome === 'held' ? 'held' : 'error';
+    return {
+      recipientId,
+      subject: result.subject,
+      body: result.body,
+      status,
+      ...(result.contextNote ? { contextNote: result.contextNote } : {}),
+      generationKey: result.generationKey || generationKeys[0],
+      ...(result.artifactId ? { artifactId: result.artifactId } : {}),
+      ...(result.versionId ? { versionId: result.versionId } : {}),
+      ...(result.version != null ? { version: result.version } : {}),
+      ...(result.generationStatus
+        ? { generationStatus: result.generationStatus as DraftGenerationStatus }
+        : {}),
+      ...(result.auditStatus ? { auditStatus: result.auditStatus as DraftAuditStatus } : {}),
+      ...(result.approvalStatus
+        ? { approvalStatus: result.approvalStatus as DraftApprovalStatus }
+        : {}),
+      ...(result.reviewRequestId ? { reviewRequestId: result.reviewRequestId } : {}),
+      sendable: result.sendable,
+      ...(result.error ? { error: result.error } : {}),
+      ...(result.planIssues?.length ? { planIssues: result.planIssues } : {}),
+      manifest: result.manifest,
+    };
   }
 
   /**
@@ -5634,6 +6365,43 @@ export class EngagementService {
     if (!head) throw new BadRequestException('Uploaded attachment not found in S3');
     await this.validateAttachmentParents(ctx, input);
 
+    // ── Phase 1 §3.h1 — verify the bytes, don't trust the claims ────────────
+    //
+    // Previously confirm recorded whatever the client declared: its contentType
+    // and its optional checksum. Both are assertions by the uploader. Here the
+    // server reads the object it will actually serve and computes its OWN digest,
+    // and sniffs the content type from magic bytes — so "this is a PDF" over a zip
+    // container is caught rather than handed to the PDF parser.
+    let calculatedSha256: string | null = null;
+    let verifiedContentType: string | null = null;
+    try {
+      const bytes = await this.readAttachmentBytes(input.s3Key);
+      calculatedSha256 = this.attachmentContent.sha256(bytes);
+      verifiedContentType = this.attachmentContent.detectContentType(bytes);
+      if (
+        verifiedContentType &&
+        this.attachmentContent.contentTypeConflicts(input.contentType, verifiedContentType)
+      ) {
+        throw new BadRequestException(
+          `This file's contents (${verifiedContentType}) do not match its declared type ` +
+            `(${input.contentType}). Re-upload it with the correct type.`,
+        );
+      }
+    } catch (e) {
+      if (e instanceof BadRequestException) throw e;
+      // A read failure must not silently produce an attachment with no digest and
+      // no verified type: it stays quarantined below, so it cannot be used.
+      this.logger.warn(
+        `attachment verification could not read ${input.s3Key}: ${(e as Error).message}`,
+      );
+    }
+
+    // New uploads start QUARANTINED with a pending scan. The DB default is
+    // 'legacy_ready' precisely so the migration cannot retroactively quarantine
+    // historical rows; the quarantine decision lives here, at the point of upload.
+    const initialScan = await this.scanner.getStatus(this.bucket!, input.s3Key);
+    const scanClean = initialScan === 'clean';
+
     const attachment = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.engagementAttachment.create({
         data: {
@@ -5649,6 +6417,13 @@ export class EngagementService {
           checksumSha256: input.checksumSha256 ?? null,
           source: input.source ?? 'manual',
           uploadedByUserId: ctx.userId,
+          lifecycleStatus: scanClean ? 'ready' : 'quarantined',
+          verifiedContentType,
+          calculatedSha256,
+          scanProvider: this.scanner.providerName,
+          scanStatus: initialScan,
+          scanResultAt: initialScan === 'pending' ? null : new Date(),
+          extractionStatus: 'pending',
         },
       }),
     );
@@ -5657,6 +6432,32 @@ export class EngagementService {
       this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
     }
     return attachment;
+  }
+
+  /**
+   * Phase 1 §3.h1 — the readiness gate, applied from every consumer.
+   *
+   * Throws when the bytes may not be used. Returns the disclosure string when they
+   * MAY be used but were not really scanned, so the caller can say so. Silence
+   * would read as "scanned and clean".
+   */
+  private assertAttachmentUsable(row: {
+    id: string;
+    fileName: string;
+    contentType: string;
+    lifecycleStatus: string;
+    scanStatus: string | null;
+    verifiedContentType: string | null;
+  }): { disclosure: string | null } {
+    const verdict = this.attachmentContent.readiness(row, this.scanner.scanRequired);
+    if (!verdict.usable) {
+      throw new BadRequestException({
+        statusCode: HttpStatus.BAD_REQUEST,
+        error: verdict.code ?? 'ATTACHMENT_NOT_READY',
+        message: verdict.disclosure ?? 'This file is not available for use.',
+      });
+    }
+    return { disclosure: verdict.disclosure };
   }
 
   async listAttachments(
@@ -5700,13 +6501,23 @@ export class EngagementService {
       return { rows, uploaderNameById };
     });
     return Promise.all(
-      rows.map(async (row) => ({
-        ...row,
-        uploadedByName: row.uploadedByUserId
-          ? (uploaderNameById.get(row.uploadedByUserId) ?? null)
-          : null,
-        downloadUrl: await this.createAttachmentDownloadUrl(row.s3Key),
-      })),
+      rows.map(async (row) => {
+        // Phase 1 §3.h1 — no download URL for a file that may not be used, and an
+        // explicit disclosure when it was never actually scanned. A signed URL for
+        // a quarantined or threat-flagged object is the download the gate exists
+        // to prevent.
+        const verdict = this.attachmentContent.readiness(row, this.scanner.scanRequired);
+        return {
+          ...row,
+          uploadedByName: row.uploadedByUserId
+            ? (uploaderNameById.get(row.uploadedByUserId) ?? null)
+            : null,
+          downloadUrl: verdict.usable ? await this.createAttachmentDownloadUrl(row.s3Key) : null,
+          usable: verdict.usable,
+          ...(verdict.code ? { blockedReason: verdict.code } : {}),
+          ...(verdict.disclosure ? { scanDisclosure: verdict.disclosure } : {}),
+        };
+      }),
     );
   }
 
@@ -5730,48 +6541,85 @@ export class EngagementService {
       meetingId: attachment.meetingId ?? undefined,
     });
 
+    // Phase 1 §3.h1 — readiness gate BEFORE the bytes are read at all.
+    const { disclosure } = this.assertAttachmentUsable(attachment);
+
     const bytes = await this.readAttachmentBytes(attachment.s3Key);
     const contentType = attachment.contentType || 'application/octet-stream';
     const fileName = attachment.fileName || 'attachment';
-    let source: 'text' | 'docx' | 'pdf' | 'spreadsheet' | 'pptx' | 'transcription';
-    let text: string;
 
-    if (isPlainTextAttachment(fileName, contentType)) {
-      source = 'text';
-      text = bytes.toString('utf8').trim();
-    } else if (isDocxAttachment(fileName, contentType)) {
-      source = 'docx';
-      const result = await mammoth.extractRawText({ buffer: bytes });
-      text = result.value.trim();
-    } else if (isPdfAttachment(fileName, contentType)) {
-      source = 'pdf';
-      text = await extractPdfBuffer(bytes);
-    } else if (isSpreadsheetAttachment(fileName, contentType)) {
-      source = 'spreadsheet';
-      text = await extractXlsxText(bytes);
-    } else if (isPowerPointAttachment(fileName, contentType)) {
-      source = 'pptx';
-      text = await extractPptxText(bytes);
-    } else if (isTranscribableAttachment(fileName, contentType)) {
-      source = 'transcription';
-      text = await this.transcribeAttachmentWithOpenAi(bytes, fileName, contentType);
-    } else {
+    // Audio/video transcription stays here: it needs the OpenAI key this service
+    // holds, and it is not a document-extraction path.
+    if (isTranscribableAttachment(fileName, contentType)) {
+      const text = await this.transcribeAttachmentWithOpenAi(bytes, fileName, contentType);
+      if (!text.trim()) {
+        throw new BadRequestException('No usable text could be extracted from this attachment');
+      }
+      await this.recordExtractionOutcome(ctx, attachment.id, 'extracted', {
+        chars: text.length,
+        source: 'transcription',
+      });
+      return {
+        attachmentId: attachment.id,
+        fileName,
+        contentType,
+        source: 'transcription' as const,
+        text,
+        ...(disclosure ? { disclosure } : {}),
+      };
+    }
+
+    // Phase 1 §3.h3 — BOUNDED document extraction (pages, characters, rows,
+    // wall clock), with truncation reported rather than silent.
+    const extraction = await this.attachmentContent.extractBounded(bytes, fileName, contentType);
+    if (extraction.status === 'empty') {
+      await this.recordExtractionOutcome(ctx, attachment.id, 'empty', extraction.metadata);
       throw new BadRequestException(
-        'Unsupported source. Upload .txt, .csv, .pdf, .docx, .xlsx, .pptx, audio, or video.',
+        'No readable text could be extracted from this attachment (it may be password-protected or a scanned image).',
       );
     }
-
-    if (!text) {
-      throw new BadRequestException('No usable text could be extracted from this attachment');
-    }
+    await this.recordExtractionOutcome(
+      ctx,
+      attachment.id,
+      extraction.status,
+      extraction.metadata,
+    );
 
     return {
       attachmentId: attachment.id,
       fileName,
       contentType,
-      source,
-      text,
+      source: extraction.source,
+      text: extraction.text,
+      truncated: extraction.metadata.truncated,
+      extractionMetadata: extraction.metadata,
+      ...(disclosure ? { disclosure } : {}),
     };
+  }
+
+  /** Record what an extraction actually produced. Best-effort bookkeeping. */
+  private async recordExtractionOutcome(
+    ctx: TenantContext,
+    id: string,
+    status: 'extracted' | 'truncated' | 'empty' | 'failed',
+    metadata: Record<string, unknown>,
+  ): Promise<void> {
+    await this.prisma
+      .withTenant(ctx.tenantId, (tx) =>
+        tx.engagementAttachment.updateMany({
+          where: { id, tenantId: ctx.tenantId },
+          data: {
+            extractionStatus: status,
+            extractionMetadata: {
+              ...metadata,
+              extractedAt: new Date().toISOString(),
+            } as unknown as Prisma.InputJsonValue,
+          },
+        }),
+      )
+      .catch((e) =>
+        this.logger.warn(`could not record extraction outcome for ${id}: ${(e as Error).message}`),
+      );
   }
 
   /**
@@ -5841,6 +6689,19 @@ export class EngagementService {
     return { id: attachment.id, fileName: attachment.fileName, s3Key };
   }
 
+  /**
+   * Delete an attachment RECOVERABLY (Phase 1 §3.h4).
+   *
+   * The previous order was: swallow the S3 delete failure, then delete the row.
+   * That produces an ORPHAN — the object still exists in the bucket with nothing
+   * left pointing at it, so nothing will ever retry the delete and the erasure
+   * claim is quietly false. For an erasure path that is the worst possible
+   * failure mode: the user is told the file is gone.
+   *
+   * New order: mark intent, delete the object, then drop the row. A failure keeps
+   * the row as `delete_failed` — inaccessible to every consumer (the readiness
+   * gate rejects it) but visible to reconciliation, which can retry.
+   */
   async deleteAttachment(ctx: TenantContext, id: string) {
     const attachment = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const row = await tx.engagementAttachment.findFirst({
@@ -5855,12 +6716,56 @@ export class EngagementService {
       mailMessageId: attachment.mailMessageId ?? undefined,
     });
 
+    // 1. Record the intent FIRST. From this moment the file is unusable and
+    //    undownloadable even if the steps below fail or the process dies.
+    await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.engagementAttachment.updateMany({
+        where: { id, tenantId: ctx.tenantId },
+        data: { lifecycleStatus: 'delete_pending' },
+      }),
+    );
+
+    // 2. Delete the object OUTSIDE any transaction.
     if (this.bucket) {
-      await this.s3
-        .send(new DeleteObjectCommand({ Bucket: this.bucket, Key: attachment.s3Key }))
-        .catch(() => undefined);
+      try {
+        await this.s3.send(
+          new DeleteObjectCommand({ Bucket: this.bucket, Key: attachment.s3Key }),
+        );
+      } catch (e) {
+        // 3b. Retain the row for reconciliation. Never expose the object.
+        await this.prisma
+          .withTenant(ctx.tenantId, (tx) =>
+            tx.engagementAttachment.updateMany({
+              where: { id, tenantId: ctx.tenantId },
+              data: {
+                lifecycleStatus: 'delete_failed',
+                extractionMetadata: {
+                  deleteError: (e as Error).message.slice(0, 300),
+                  deleteFailedAt: new Date().toISOString(),
+                } as unknown as Prisma.InputJsonValue,
+              },
+            }),
+          )
+          .catch((markErr) =>
+            this.logger.error(
+              `could not mark attachment ${id} delete_failed: ${(markErr as Error).message}`,
+            ),
+          );
+        this.logger.error(
+          `attachment ${id} S3 delete FAILED; row retained as delete_failed for retry: ${
+            (e as Error).message
+          }`,
+        );
+        throw new ServiceUnavailableException({
+          statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+          error: 'ATTACHMENT_DELETE_FAILED',
+          message:
+            'The file could not be removed from storage. It has been made inaccessible and the deletion will be retried — no download link remains valid.',
+        });
+      }
     }
 
+    // 3a. Object gone: drop the row and purge KB chunks.
     await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.engagementAttachment.delete({ where: { id } }),
     );
@@ -5869,6 +6774,48 @@ export class EngagementService {
       this.clientKb.purgeFireAndForget(ctx.tenantId, 'client_doc_chunk', id);
     }
     return { ok: true };
+  }
+
+  /**
+   * Retry the S3 deletion for rows stranded in `delete_failed` (§3.h4 step 4).
+   *
+   * Exposed as a service method rather than a scheduled sweep: the failure is rare
+   * and the retry is cheap, so an operator-triggered reconciliation is enough for
+   * this phase, and it avoids adding a background job whose failures nobody watches.
+   */
+  async reconcileFailedAttachmentDeletes(
+    ctx: TenantContext,
+    limit = 50,
+  ): Promise<{ retried: number; deleted: number; stillFailing: number }> {
+    if (!this.bucket) return { retried: 0, deleted: 0, stillFailing: 0 };
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.engagementAttachment.findMany({
+        where: { tenantId: ctx.tenantId, lifecycleStatus: 'delete_failed' },
+        orderBy: { createdAt: 'asc' },
+        take: Math.min(Math.max(limit, 1), 200),
+        select: { id: true, s3Key: true, clientId: true },
+      }),
+    );
+    let deleted = 0;
+    let stillFailing = 0;
+    for (const row of rows) {
+      try {
+        await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: row.s3Key }));
+        await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.engagementAttachment.delete({ where: { id: row.id } }),
+        );
+        if (row.clientId) {
+          this.clientKb.purgeFireAndForget(ctx.tenantId, 'client_doc_chunk', row.id);
+        }
+        deleted += 1;
+      } catch (e) {
+        stillFailing += 1;
+        this.logger.warn(
+          `attachment ${row.id} delete retry failed again: ${(e as Error).message}`,
+        );
+      }
+    }
+    return { retried: rows.length, deleted, stillFailing };
   }
 
   private async createAttachmentDownloadUrl(s3Key: string): Promise<string | null> {
@@ -5907,13 +6854,49 @@ export class EngagementService {
         where: { tenantId: ctx.tenantId, id: { in: attachmentIds } },
       }),
     );
+    // Every requested id must resolve: an id the tenant does not own, or one that
+    // has since been deleted, cannot be silently dropped from a send the user
+    // believes carries it.
+    const foundIds = new Set(rows.map((r) => r.id));
+    const missing = attachmentIds.filter((id) => !foundIds.has(id));
+    if (missing.length) {
+      throw new BadRequestException({
+        statusCode: HttpStatus.BAD_REQUEST,
+        error: 'ATTACHMENT_MISSING',
+        message: `${missing.length} attachment(s) selected for this send are no longer available. Remove them and try again.`,
+      });
+    }
+
     const graphAttachments: Array<{ name: string; contentType: string; contentBytes: string }> = [];
     for (const row of rows) {
-      // Skip without downloading when the stored size is known to be too big;
-      // otherwise verify the actual byte length after fetching.
-      if (row.byteSize != null && row.byteSize > GRAPH_INLINE_ATTACHMENT_MAX) continue;
+      // Phase 1 §3.h1 — an external send is the highest-consequence consumer of
+      // these bytes. A quarantined / threat / unscanned file must never leave the
+      // building, and the failure is LOUD.
+      this.assertAttachmentUsable(row);
+
+      // Global invariant: "no silently omitted attachment". This used to `continue`
+      // past an oversized file, so the recipient received an email whose body
+      // referred to a document that was never attached, and nobody was told. Now
+      // it fails with the file named, so the user can shrink it or link it.
+      if (row.byteSize != null && row.byteSize > GRAPH_INLINE_ATTACHMENT_MAX) {
+        throw new BadRequestException({
+          statusCode: HttpStatus.BAD_REQUEST,
+          error: 'ATTACHMENT_TOO_LARGE',
+          message: `"${row.fileName}" is larger than the ${Math.round(
+            GRAPH_INLINE_ATTACHMENT_MAX / (1024 * 1024),
+          )}MB email attachment limit and cannot be sent. Remove it or share a link instead.`,
+        });
+      }
       const bytes = await this.readAttachmentBytes(row.s3Key);
-      if (bytes.length > GRAPH_INLINE_ATTACHMENT_MAX) continue;
+      if (bytes.length > GRAPH_INLINE_ATTACHMENT_MAX) {
+        throw new BadRequestException({
+          statusCode: HttpStatus.BAD_REQUEST,
+          error: 'ATTACHMENT_TOO_LARGE',
+          message: `"${row.fileName}" is larger than the ${Math.round(
+            GRAPH_INLINE_ATTACHMENT_MAX / (1024 * 1024),
+          )}MB email attachment limit and cannot be sent. Remove it or share a link instead.`,
+        });
+      }
       graphAttachments.push({
         name: row.fileName,
         contentType: row.contentType,
@@ -6459,155 +7442,15 @@ export class EngagementService {
    * rather than a second bill-status query getting built for that surface.
    */
   async billTruthBlock(billId: string): Promise<{ text: string; raw: BillTruth } | null> {
-    const bill = await this.prisma.congressBill.findUnique({
-      where: { id: billId },
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        statusAt: true,
-        latestActionText: true,
-        latestActionDate: true,
-        sponsorName: true,
-        sponsorParty: true,
-        sponsorState: true,
-        cosponsorsCount: true,
-        committees: true,
-      },
-    });
-    if (!bill) return null;
-
-    const [votes, ruleLinks] = await Promise.all([
-      this.prisma.rollCallVote.findMany({
-        where: { billId },
-        orderBy: { voteDate: 'desc' },
-        take: 5,
-        select: {
-          chamber: true,
-          rollNumber: true,
-          question: true,
-          result: true,
-          yeas: true,
-          nays: true,
-          voteDate: true,
-        },
-      }),
-      this.prisma.billRuleLink.findMany({
-        where: { targetBillId: billId },
-        select: { ruleBillId: true },
-      }),
-    ]);
-
-    const governingRules: GoverningRuleRow[] = await Promise.all(
-      ruleLinks.map(async (l) => {
-        const [ruleBill, ruleVotes] = await Promise.all([
-          this.prisma.congressBill.findUnique({
-            where: { id: l.ruleBillId },
-            select: { status: true, latestActionText: true },
-          }),
-          this.prisma.rollCallVote.findMany({
-            where: { billId: l.ruleBillId },
-            orderBy: { voteDate: 'desc' },
-            take: 3,
-            select: {
-              chamber: true,
-              rollNumber: true,
-              question: true,
-              result: true,
-              yeas: true,
-              nays: true,
-              voteDate: true,
-            },
-          }),
-        ]);
-        return {
-          ruleBillId: l.ruleBillId,
-          ruleStatus: ruleBill?.status ?? null,
-          ruleLatestAction: ruleBill?.latestActionText ?? null,
-          ruleVotes: ruleVotes as BillVoteRow[],
-        };
-      }),
-    );
-
-    const committees = Array.isArray(bill.committees)
-      ? (bill.committees as unknown[])
-          .map((c) =>
-            typeof c === 'string'
-              ? c
-              : c && typeof c === 'object' && 'name' in c
-                ? String((c as { name: unknown }).name)
-                : null,
-          )
-          .filter((c): c is string => Boolean(c))
-      : [];
-
-    const raw: BillTruth = {
-      id: bill.id,
-      title: bill.title,
-      status: bill.status,
-      statusAt: bill.statusAt,
-      latestActionText: bill.latestActionText,
-      latestActionDate: bill.latestActionDate,
-      sponsorName: bill.sponsorName,
-      sponsorParty: bill.sponsorParty,
-      sponsorState: bill.sponsorState,
-      cosponsorsCount: bill.cosponsorsCount,
-      committees,
-      votes: votes as BillVoteRow[],
-      governingRules,
-    };
-    return { text: formatBillTruth(raw), raw };
+    // Phase 1: the implementation moved to OutreachTruthService so the evidence
+    // resolvers can reach it without a module cycle. This stays as the public
+    // entry point because AlertMemoService calls (and mocks) it by this name.
+    return this.truth.billTruthBlock(billId);
   }
 
-  /** Authoritative PE-funding block (see outreach-context-enrichment). Null if the
-   *  PE isn't on record — the caller then keeps the thin client body. */
+  /** Authoritative PE-funding block. Null if the PE isn't on record. */
   private async peTruthBlock(peCode: string): Promise<{ text: string; raw: PeTruth } | null> {
-    const pe = await this.prisma.programElement.findUnique({
-      where: { peCode },
-      select: { peCode: true, title: true, service: true, budgetActivityName: true },
-    });
-    if (!pe) return null;
-
-    const years = await this.prisma.programElementYear.findMany({
-      where: { peCode },
-      orderBy: { fy: 'desc' },
-      select: {
-        fy: true,
-        request: true,
-        hascMark: true,
-        sascMark: true,
-        hacDMark: true,
-        sacDMark: true,
-        conference: true,
-        ndaaConference: true,
-        enacted: true,
-      },
-    });
-    const num = (d: Prisma.Decimal | null): number | null => (d == null ? null : Number(d));
-    // The FULL fiscal-year series — the authoritative block renders historical,
-    // current-cycle, and outyear rows so trend/direction claims are grounded and
-    // an outyear projection is never quoted as the current request.
-    const series: PeYearFunding[] = years.map((y) => ({
-      fy: y.fy,
-      request: num(y.request),
-      hascMark: num(y.hascMark),
-      sascMark: num(y.sascMark),
-      hacDMark: num(y.hacDMark),
-      sacDMark: num(y.sacDMark),
-      conference: num(y.conference),
-      ndaaConference: num(y.ndaaConference),
-      enacted: num(y.enacted),
-    }));
-
-    const raw: PeTruth = {
-      peCode: pe.peCode,
-      title: pe.title,
-      service: pe.service,
-      budgetActivityName: pe.budgetActivityName,
-      currentCycleFy: currentCycleFyOf(series),
-      years: series,
-    };
-    return { text: formatPeTruth(raw), raw };
+    return this.truth.peTruthBlock(peCode);
   }
 
   /**
@@ -7023,13 +7866,32 @@ export class EngagementService {
    * the outreach path (appended to the voice block there), not the shared
    * loadUserVoiceBlock used by meeting prep/debrief.
    */
-  private async outreachVoiceFewShots(ctx: TenantContext): Promise<string | null> {
+  private async outreachVoiceFewShots(
+    ctx: TenantContext,
+    clientId: string | null,
+  ): Promise<string | null> {
+    // Phase 1 §3.e2 / §5.8 — HARD client scope.
+    //
+    // This query previously selected by AUTHOR alone, so a lobbyist working three
+    // accounts could have Client A's sent email body pasted verbatim into a draft
+    // written for Client B. Nothing downstream stopped the model from reusing its
+    // specifics. The invariant "raw cross-client writing examples never enter
+    // prompts" is unconditional, so the scope is fixed on BOTH the gateway and the
+    // legacy path rather than only behind the flag — a cross-client leak should not
+    // wait on a rollout. With no campaign client there is no safe scope, so no
+    // examples are used at all.
+    //
+    // NOTE (deviation): this does change the flag-off prompt bytes for the
+    // few-shot block. Strictly in the safe direction — fewer, correctly-scoped
+    // examples — and only for campaigns that previously leaked.
+    if (!clientId) return null;
     const rows = await this.prisma
       .withTenant(ctx.tenantId, (tx) =>
         tx.outreachRecord.findMany({
           where: {
             tenantId: ctx.tenantId,
             createdByUserId: ctx.userId,
+            clientId,
             status: 'sent',
             deletedAt: null,
             body: { not: null },
@@ -7621,38 +8483,10 @@ function meetingInclude() {
   };
 }
 
-function isPlainTextAttachment(fileName: string, contentType: string): boolean {
-  const normalized = contentType.toLowerCase();
-  return (
-    normalized.startsWith('text/') ||
-    /\.(txt|text|md|csv|log)$/i.test(fileName) ||
-    normalized === 'application/json'
-  );
-}
-
-function isDocxAttachment(fileName: string, contentType: string): boolean {
-  const normalized = contentType.toLowerCase();
-  return (
-    /\.docx$/i.test(fileName) ||
-    normalized === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  );
-}
-
-function isPdfAttachment(fileName: string, contentType: string): boolean {
-  return contentType.toLowerCase() === 'application/pdf' || /\.pdf$/i.test(fileName);
-}
-
-/** Extract text from a PDF buffer. Lazy-loads pdf-parse (heavy at module load). */
-async function extractPdfBuffer(buffer: Buffer): Promise<string> {
-  const { PDFParse } = await import('pdf-parse');
-  const parser = new PDFParse({ data: buffer });
-  try {
-    const parsed = await parser.getText();
-    return (parsed.text ?? '').trim();
-  } finally {
-    await parser.destroy().catch(() => {});
-  }
-}
+// isPlainTextAttachment / isDocxAttachment / isPdfAttachment / extractPdfBuffer
+// moved to attachment-content.service.ts in Phase 1 §3.h3, where the bounded
+// extractor lives. Keeping copies here would let the two drift on which formats
+// are extractable — the readiness gate and the extractor must agree.
 
 function isTranscribableAttachment(fileName: string, contentType: string): boolean {
   const normalized = contentType.toLowerCase();
@@ -7663,29 +8497,15 @@ function isTranscribableAttachment(fileName: string, contentType: string): boole
   );
 }
 
-/**
- * Exported for NotetakerService: bot dispatch must enforce the SAME ownership
- * predicate as generateMeetingDebriefDraft/createMeetingDebrief, so a dispatch
- * for a meeting the user doesn't own fails fast at dispatch time — not after a
- * whole meeting has already been recorded.
- */
-export function ownMeetingWhere(userId: string): Prisma.MeetingWhereInput {
-  return {
-    OR: [{ createdByUserId: userId }, { connection: { createdByUserId: userId } }],
-  };
-}
-
-function ownMailThreadWhere(userId: string): Prisma.MailThreadWhereInput {
-  return {
-    connection: { createdByUserId: userId },
-  };
-}
-
-function ownMailMessageWhere(userId: string): Prisma.MailMessageWhereInput {
-  return {
-    connection: { createdByUserId: userId },
-  };
-}
+// Re-exported so existing importers (NotetakerService imports ownMeetingWhere
+// from here) keep working after the Phase 1 move to engagement-access.helpers.ts.
+export {
+  ownMeetingWhere,
+  ownMailThreadWhere,
+  ownMailMessageWhere,
+  canReadEncryptedEntry,
+  canEditEncryptedEntry,
+};
 
 function outreachInclude() {
   return {
@@ -7765,20 +8585,11 @@ function debriefMetadataSelect() {
   };
 }
 
-function canReadEncryptedEntry(
-  ctx: TenantContext,
-  note: { confidential: boolean; accessLevel: string; authorUserId: string | null },
-): boolean {
-  if (!note.confidential) return true;
-  if (note.authorUserId === ctx.userId) return true;
-  if (ctx.role === 'user_admin' || ctx.role === 'capiro_admin') return true;
-  return note.accessLevel === 'tenant_members';
-}
-
-function canEditEncryptedEntry(ctx: TenantContext, note: { authorUserId: string | null }): boolean {
-  if (note.authorUserId === ctx.userId) return true;
-  return ctx.role === 'user_admin' || ctx.role === 'capiro_admin';
-}
+// canReadEncryptedEntry / canEditEncryptedEntry / ownMeetingWhere /
+// ownMailThreadWhere / ownMailMessageWhere now live in
+// engagement-access.helpers.ts (Phase 1) so the generation services can apply the
+// same boundaries without importing this module. They are imported at the top and
+// re-exported below for existing callers.
 
 // ── Meetings v2 response helpers ────────────────────────────────────────────
 // scheduled → attending (in the call) → attended (call ended, Meri summarizing)
@@ -9116,4 +9927,79 @@ async function mapWithConcurrency<T, R>(
 
   await Promise.all(Array.from({ length: limit }, () => runner()));
   return results;
+}
+
+// ── Phase 1 gateway helpers (pure) ──────────────────────────────────────────
+
+/**
+ * A rendered client brief from KNOWN fields only.
+ *
+ * Never the raw Prisma row. `pruneForAi` already strips ids and timestamps, but
+ * this whitelists the fields we actually want a model to read — the old
+ * `JSON.stringify(client)` habit is how tenant internals and unrelated intake
+ * data ended up in prompts.
+ */
+export function renderGatewayClientBrief(client: Record<string, unknown>): string | null {
+  const str = (v: unknown): string | null =>
+    typeof v === 'string' && v.trim() ? v.trim() : null;
+  const parts: string[] = [];
+  const name = str(client.name) ?? str(client.displayName);
+  if (name) parts.push(`Name: ${name}`);
+  const about = str(client.description) ?? str(client.summary) ?? str(client.oneLiner);
+  if (about) parts.push(`About: ${about.replace(/\s+/g, ' ').slice(0, 300)}`);
+  const industry = str(client.industry) ?? str(client.sector);
+  if (industry) parts.push(`Industry: ${industry}`);
+  const issues = Array.isArray(client.issueAreas)
+    ? client.issueAreas.map((x) => str(x)).filter((s): s is string => Boolean(s))
+    : [];
+  if (issues.length) parts.push(`Issue areas: ${issues.slice(0, 12).join(', ')}`);
+  if (!parts.length) return null;
+  return `CLIENT BRIEF (facts about the client you represent; do not mine it for new topics):\n${parts.join('\n')}`;
+}
+
+/** Compact press rows for the packet. Bounded; no raw provider payloads. */
+export function renderGatewayPress(rows: unknown[]): string | null {
+  const lines = rows
+    .slice(0, 6)
+    .map((it) => {
+      const r = (it ?? {}) as Record<string, unknown>;
+      const title = typeof r.title === 'string' ? r.title.trim() : '';
+      if (!title) return null;
+      const date = typeof r.publishedAt === 'string' ? r.publishedAt.slice(0, 10) : '';
+      const summary =
+        typeof r.summary === 'string' ? r.summary.replace(/\s+/g, ' ').trim().slice(0, 160) : '';
+      return `- ${title}${date ? ` (${date})` : ''}${summary ? `: ${summary}` : ''}`;
+    })
+    .filter((s): s is string => Boolean(s));
+  return lines.length ? lines.join('\n') : null;
+}
+
+/** Canonicalize the request tone to the gateway's enum. */
+export function normalizeGatewayTone(
+  tone: string | undefined,
+): 'professional' | 'friendly' | 'formal' | 'concise' {
+  const t = (tone ?? '').trim().toLowerCase();
+  return t === 'friendly' || t === 'formal' || t === 'concise' ? t : 'professional';
+}
+
+/**
+ * Terms the relevant-email ranker matches on: the selected bill ids / PE codes
+ * plus the client's tracked bills. These are what make an email "about the same
+ * thing" rather than merely recent.
+ */
+export function gatewayTopicTerms(
+  items: OutreachSelectedContextItemInput[],
+  trackedBillIds: string[],
+): string[] {
+  const terms = new Set<string>();
+  for (const item of items) {
+    const billId = billIdFromItemId(item.id);
+    if (billId) terms.add(billId);
+    const peCode = peCodeFromItemId(item.id);
+    if (peCode) terms.add(peCode);
+    const stateBill = /^state-bill-(.+)$/.exec(item.id)?.[1];
+    if (stateBill) terms.add(stateBill);
+  }
+  for (const id of trackedBillIds.slice(0, 20)) terms.add(id);
+  return [...terms];
 }

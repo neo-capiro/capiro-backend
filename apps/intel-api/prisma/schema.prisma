@@ -226,6 +226,10 @@ model TrackedBill {
   @@unique([clientId, billId])
   @@index([tenantId, clientId])
   @@index([billId])
+  // P1-18: keyset pagination over the board orders by (trackedAt desc, billId
+  // desc) — tenant-wide (getTenantBoard) and per-client (getBoard).
+  @@index([tenantId, trackedAt])
+  @@index([tenantId, clientId, trackedAt])
   @@map("intel_tracked_bill")
 }
 
@@ -430,7 +434,18 @@ model IntelFeedback {
   alertId    String?  @map("alert_id")
   targetType String   @map("target_type") // 'bill'|'hearing'|'alert'|'recommendation'
   targetRef  String   @map("target_ref")
-  signal     String //                       useful|not_useful|wrong_impact|wrong_urgency|false_positive|missed|tracked|dismissed|marked_irrelevant|opened
+  signal     String //                       useful|not_useful|wrong_impact|wrong_urgency|false_positive|missed|tracked|dismissed|marked_irrelevant|opened|memo_generated|memo_heavily_edited|outreach_generated|alert_ignored
+  // §4.10 (Gate E phase f): a structured reason for a marked_irrelevant
+  // dismissal — wrong_issue|wrong_entity|too_broad|already_handled|not_actionable.
+  // Null for every other signal and for a pre-phase-f dismissal (no reason
+  // picker existed yet).
+  reason     String?
+  // §4.10 (Gate E phase f): the watchlist topic labels this bill matched AT
+  // DISMISSAL TIME (RecommendationBill.matchedTags, already on the client).
+  // Forward-only — historical rows before this column existed carry `[]` and
+  // contribute nothing to feedbackSignal's aggregation. This is what lets a
+  // dismissal be traced back to the TOPIC that over-matched.
+  matchedTags String[] @default([]) @map("matched_tags")
   createdAt  DateTime @default(now()) @map("created_at")
 
   @@index([tenantId, clientId])
@@ -461,6 +476,40 @@ model IntelActionItem {
   @@index([tenantId, clientId])
   @@index([alertId, kind])
   @@map("intel_action_item")
+}
+
+/// P2-04 (Gate D phase e): PER-USER triage state for an alert.
+///
+/// Deliberately NOT `intel_alert.status`. That column is the shared, firm-wide
+/// state of the intelligence EVENT — read by DEFAULT_STATUSES and written by
+/// dedupeStateActionAlerts and the emitter — so one analyst dismissing an alert
+/// there would hide it from everyone and collide with the suppression sweep.
+///
+/// Work state is an ADDITIONAL narrowing of the feed, never a widening: a
+/// suppressed alert stays excluded regardless of what any user did here.
+/// Keyed on (alertId, userId), which is the idempotency contract — a repeated
+/// action upserts rather than inserting a duplicate. Deliberately NOT keyed on
+/// (clientId, sourceRef, changeType): a recurrence after the 14-day dedup window
+/// is a NEW alert row and should correctly arrive un-dismissed.
+model IntelAlertWorkState {
+  id       String @id @default(cuid())
+  tenantId String @map("tenant_id")
+  clientId String @map("client_id")
+  alertId  String @map("alert_id")
+  userId   String @map("user_id")
+  /// new | in_review | assigned | actioned | snoozed | dismissed
+  state    String @default("new")
+  /// A user id from the tenant's own team roster. Required when state='assigned'.
+  assignedTo   String?   @map("assigned_to")
+  snoozedUntil DateTime? @map("snoozed_until") @db.Timestamptz(6)
+  note         String?
+  updatedBy    String?   @map("updated_by")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([alertId, userId], map: "intel_alert_work_state_alert_user_key")
+  @@index([tenantId, clientId, userId, state], map: "intel_alert_work_state_scope_idx")
+  @@map("intel_alert_work_state")
 }
 
 /// Phase 5 parity audit (§8.6). One row per parity-report run per scope. Compares

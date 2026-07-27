@@ -5,6 +5,7 @@ import { App as AntApp, Button, Input, Modal, Space, Tag, Tooltip, Typography } 
 import { useApi } from '../../../lib/use-api.js';
 import { markdownishToHtml } from '../../engagement/outreach/v2/richtext.js';
 import type { FeedItem } from './intel-feed-api.js';
+import { intelTrackerPaths } from './intel-tracker-api.js';
 import {
   feedItemToMemoAlert,
   useGenerateAlertMemo,
@@ -15,6 +16,27 @@ import {
 } from './alert-actions-api.js';
 
 const { Text, Paragraph } = Typography;
+
+/**
+ * §4.10 (Gate E phase f, f-5): how much `b` differs from `a`, as a fraction of
+ * the longer string's length. A common-prefix/suffix trim, not a full edit
+ * distance — cheap (O(n)) and good enough to gate a >20% threshold without
+ * risking jank on a multi-KB memo in a click handler.
+ */
+export function textDiffRatio(a: string, b: string): number {
+  if (a === b) return 0;
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 0;
+  const minLen = Math.min(a.length, b.length);
+  let prefix = 0;
+  while (prefix < minLen && a[prefix] === b[prefix]) prefix++;
+  let suffix = 0;
+  while (suffix < minLen - prefix && a[a.length - 1 - suffix] === b[b.length - 1 - suffix]) suffix++;
+  return (maxLen - prefix - suffix) / maxLen;
+}
+/** f-5 / edge case 16: a real computed ratio, not `dirty` alone (`dirty` is
+ *  true after one keystroke). */
+export const MEMO_HEAVY_EDIT_THRESHOLD = 0.2;
 
 /**
  * One-click memo composer. On open it generates a Memory-grounded, source-cited
@@ -115,6 +137,15 @@ export function MemoComposerDrawer({
       setMarkdown(res.markdown);
       setAttachmentId(res.document?.attachmentId ?? null);
       setDirty(false);
+      // §4.10 (f-5): fired on generation itself, independent of the filing
+      // outcome below — a held-for-review memo was still generated.
+      void api
+        .post(intelTrackerPaths.feedback(clientId), {
+          targetRef: item.id,
+          targetType: 'alert',
+          signal: 'memo_generated',
+        })
+        .catch(() => {});
       if (res.held) {
         message.warning('Held for review — not filed. A reviewer must approve it before it can be filed.');
       } else if (res.document) {
@@ -199,6 +230,18 @@ export function MemoComposerDrawer({
           return;
         }
       }
+      // §4.10 (f-5): `dirty` alone is true after one keystroke (edge case 16) —
+      // gate on the ACTUAL character-diff ratio between what was generated and
+      // what is being saved, computed here, not guessed from `dirty`.
+      if (dirty && memo && textDiffRatio(memo.markdown, markdown) > MEMO_HEAVY_EDIT_THRESHOLD) {
+        void api
+          .post(intelTrackerPaths.feedback(clientId), {
+            targetRef: item.id,
+            targetType: 'alert',
+            signal: 'memo_heavily_edited',
+          })
+          .catch(() => {});
+      }
       setDirty(false);
       message.success('Saved to Documents');
     } catch (e) {
@@ -237,9 +280,16 @@ export function MemoComposerDrawer({
         </Button>,
         <Button
           key="copy"
-          onClick={() => {
-            void navigator.clipboard?.writeText(markdown);
-            message.success('Copied');
+          // P2-06: the write was un-awaited AND optional-chained, so on an
+          // insecure origin (navigator.clipboard undefined) or a rejected
+          // permission it copied nothing and still said "Copied".
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(markdown);
+              message.success('Copied');
+            } catch {
+              message.warning('Could not copy automatically — select the text and copy manually.');
+            }
           }}
           disabled={!markdown}
         >

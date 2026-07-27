@@ -156,11 +156,11 @@ describe('RadarPage', () => {
 
     // No client selected → the tenant-wide feed panel renders (empty here), NOT
     // the ClientGate picker prompt. The empty-state copy is the global variant
-    // (LegiWatch v2 calm re-skin).
+    // (LegiWatch v2 calm re-skin). P2-15 (Gate E phase e) rebuilt this copy
+    // from SOURCE_LABEL instead of a hard-coded "bill or hearing" phrase —
+    // match the stable structural part, not the enumerated source-type list.
     await waitFor(() =>
-      expect(
-        screen.getByText(/a hearing hits any client’s watchlist, it lands here/i),
-      ).toBeInTheDocument(),
+      expect(screen.getByText(/moves for any client, it lands here/i)).toBeInTheDocument(),
     );
     // It must hit the tenant-wide roll-up endpoint, not a per-client feed.
     expect(
@@ -494,5 +494,67 @@ describe('BillDrawer — Bill 360 flag OFF fails closed', () => {
     renderBillDrawer({ billId: 'tx-2025-hb1234' });
     await waitFor(() => expect(screen.getByText('State bill')).toBeInTheDocument());
     expect(screen.queryByText('Bill 360')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Gate D phase g (P2-03, g-7) — the client picker and the alert deep link.
+ *
+ * P2-03: the header picker rendered on EVERY tab, including two places it does
+ * nothing. Hearings is not client-filtered (HearingWatchPanel takes no
+ * clientId), and on a tab that requires a client the ClientGate renders its own
+ * picker inside the empty state — two pickers for one decision.
+ *
+ * Counted by picker ROOT (`.ant-select`), scoped to the header vs the gate: one
+ * antd Select carries its aria-label on two nodes, so getAllByLabelText would
+ * report 2 for a single control.
+ */
+function pickerCounts() {
+  return {
+    header: document.querySelectorAll('.pg-top .ant-select').length,
+    gate: document.querySelectorAll('.guide .ant-select').length,
+  };
+}
+
+describe('P2-03 — the client picker appears exactly once, and only where it acts', () => {
+  beforeEach(() => {
+    apiGetMock.mockReset();
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+    setupBrowserMocks();
+  });
+
+  /** g-8 case 7, first half. */
+  test('Hearings renders NO client picker', async () => {
+    mockApi({ tracker_v2: true, hearing_watch: true });
+    renderRadar('/radar?tab=hearings');
+    await waitFor(() => expect(apiGetMock).toHaveBeenCalled());
+    expect(pickerCounts()).toEqual({ header: 0, gate: 0 });
+  });
+
+  /** g-8 case 7, second half. */
+  test('Feed with no client selected renders exactly ONE picker', async () => {
+    mockApi({ tracker_v2: true });
+    renderRadar('/radar?tab=feed');
+    await waitFor(() => expect(apiGetMock).toHaveBeenCalled());
+    const { header, gate } = pickerCounts();
+    expect(header + gate).toBe(1);
+  });
+
+  test('a gated tab shows the GATE picker and hides the header one', async () => {
+    // Watchlist always gates without a client. Bills does NOT when tracker_v2
+    // is on — it renders the all-clients roll-up, so the header picker is the
+    // way to scope down and correctly stays.
+    mockApi({ tracker_v2: true });
+    renderRadar('/radar?tab=watchlist');
+    await screen.findByText('Choose a client');
+    expect(pickerCounts()).toEqual({ header: 0, gate: 1 });
+  });
+
+  test('Feed WITH a client keeps the header picker, and only that one', async () => {
+    mockApi({ tracker_v2: true });
+    renderRadar('/radar?tab=feed&client=c1');
+    await waitFor(() => expect(apiGetMock).toHaveBeenCalled());
+    expect(pickerCounts()).toEqual({ header: 1, gate: 0 });
   });
 });

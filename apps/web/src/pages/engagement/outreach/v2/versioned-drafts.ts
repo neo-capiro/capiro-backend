@@ -72,6 +72,15 @@ export function isDraftSendable(draft: GeneratedDraft | undefined): boolean {
   // character, press Send" impossible.
   if (draft.dirty) return false;
 
+  // Phase 1 §3.j2 — a CRITICAL source failure blocks Send.
+  //
+  // Checked before the version lifecycle because the two answer different
+  // questions: the audit asks "is what we wrote defensible", the manifest asks
+  // "did we actually have the context we claimed to write from". A draft can pass
+  // the auditor precisely BECAUSE the missing source produced nothing to
+  // contradict — so a clean audit must not override a critical context failure.
+  if ((draft.manifest?.criticalFailures?.length ?? 0) > 0) return false;
+
   if (isVersioned(draft)) {
     // Trust the server's own computation when present; otherwise recompute the
     // identical policy so a partial response cannot open the gate.
@@ -99,11 +108,15 @@ export type DraftBlockReason =
   | 'rejected'
   | 'awaiting_review'
   | 'generation_failed'
+  | 'source_failure'
   | null;
 
 export function draftBlockReason(draft: GeneratedDraft | undefined): DraftBlockReason {
   if (!draft) return 'missing';
   if (draft.dirty) return 'dirty';
+  // Phase 1 §3.j2 — must match isDraftSendable's ordering, or the banner would
+  // explain a different reason than the one that actually blocked the send.
+  if ((draft.manifest?.criticalFailures?.length ?? 0) > 0) return 'source_failure';
   if (isVersioned(draft)) {
     if (draft.generationStatus === 'generation_failed') return 'generation_failed';
     if (draft.auditStatus === 'unavailable') return 'unavailable';
@@ -128,6 +141,8 @@ export const DRAFT_BLOCK_COPY: Record<Exclude<DraftBlockReason, null>, string> =
   rejected: 'A reviewer rejected this version. Edit it to create a new version.',
   awaiting_review: 'Pending review.',
   generation_failed: 'Generation failed for this recipient. Edit the draft or regenerate.',
+  source_failure:
+    'Required context could not be loaded, so this draft cannot be sent. See “Source failures” below for what to fix.',
 };
 
 /**

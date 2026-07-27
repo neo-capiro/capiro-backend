@@ -1392,6 +1392,13 @@
   animation: dlgIn 0.16s ease-out;
   font-family: var(--font-sans-rd);
   color: var(--ink-1);
+  /* P2-11 (phase b, b-5): AddBillModal/VerifyOtpModal had no height cap at
+     all, so a tall viewport-constrained screen (or a long search-results
+     list) could push the footer off-screen. max-height + the flex column
+     below pin dlg-head/dlg-foot and let ONLY dlg-body scroll. */
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
 }
 @keyframes dlgIn {
   from {
@@ -1404,10 +1411,11 @@
   }
 }
 .trk-overlay .trk-dialog.sm {
-  max-width: 420px;
+  /* min() so a 360px viewport still fits within its own margin (b-5). */
+  max-width: min(420px, calc(100vw - 24px));
 }
 .trk-overlay .trk-dialog.md {
-  max-width: 560px;
+  max-width: min(560px, calc(100vw - 24px));
 }
 .trk-overlay .dlg-head {
   display: flex;
@@ -1415,6 +1423,8 @@
   gap: 10px;
   padding: 16px 18px;
   border-bottom: 1px solid var(--border-1);
+  /* b-5: never shrink — only dlg-body scrolls. */
+  flex-shrink: 0;
 }
 .trk-overlay .dlg-head h3 {
   margin: 0;
@@ -1445,6 +1455,13 @@
 }
 .trk-overlay .dlg-body {
   padding: 16px 18px;
+  /* b-5: the ONE scrollable region — grows to fill whatever space dlg-head/
+     dlg-foot (flex-shrink:0) don't need; min-height:0 is required for a flex
+     child's overflow to actually engage instead of the child forcing the
+     dialog taller than its max-height. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 .trk-overlay .dlg-foot {
   padding: 13px 18px;
@@ -1452,6 +1469,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  /* b-5: never shrink — only dlg-body scrolls. */
+  flex-shrink: 0;
 }
 
 /* add-bill modal */
@@ -1502,6 +1521,25 @@
   font-weight: 600;
   color: var(--ink-1);
   min-width: 64px;
+}
+/* P1-17: the rail label on a search result, so a state bill is never mistaken
+   for a federal one with a similar number. */
+.trk-overlay .sr-row .sr-juris {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  background: var(--bg-sunken);
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+/* P1-17: the jurisdiction facet above the results. */
+.trk-overlay .search-juris {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 4px;
 }
 .trk-overlay .sr-row .sr-title {
   font-size: 13px;
@@ -1997,4 +2035,142 @@
   .redesign .tag-adv-body {
     grid-template-columns: 1fr;
   }
+}
+
+/* P2-11 (Gate E phase b): the board/recs toolbar (Filter/Sort/filter toggles/
+   Add bill) and the Configure segmented controls had no behavior below
+   1100px. Declared AFTER the 1100px block above so the cascade resolves
+   narrowest-wins. */
+/* b-3: desktop default — the inline Filter/Sort/Add-bill row shows, the
+   Filters trigger stays hidden. Declared BEFORE the 768px override below so
+   the cascade's source-order tiebreak resolves the way it must (a rule of
+   equal specificity declared AFTER this one wins at any width where both
+   apply — this rule must lose at <=768px, not the other way round). */
+.redesign .trk-filters-btn { display: none; }
+
+@media (max-width: 768px) {
+  .redesign .trk-head {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .redesign .trk-controls {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  /* b-3: below 768px the inline row collapses behind a single Filters button
+     opening a dialog (ResponsiveControls, TrackerTab.tsx) that reuses the
+     SAME TrkDropdown controls verbatim — no new control code, so keyboard
+     behavior and a11y carry over. */
+  .redesign .trk-controls-desktop { display: none; }
+  .redesign .trk-filters-btn { display: inline-flex; }
+}
+
+@media (max-width: 560px) {
+  .redesign .trk-controls > * {
+    flex: 1 1 auto;
+  }
+  .redesign .cadence-seg,
+  .redesign .mat-seg {
+    width: 100%;
+  }
+  .redesign .cadence-seg button,
+  .redesign .mat-seg button {
+    flex: 1;
+  }
+}
+
+/* P2-02 (Gate D phase g): the client-profile tracker tab is a COMPACT view of
+   LegiWatch; this is the way through to the full surface. Without it the tab
+   reads as a second, worse copy of the product. */
+.redesign .trk-open-full {
+  margin-left: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-ink, #2447ff);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.redesign .trk-open-full:hover {
+  text-decoration: underline;
+}
+
+/* ============================================================
+   P1-12 / P2-12 (Gate D phase h) — VISIBLE FOCUS.
+
+   Audit of `outline: none` in this file found four interactive elements that
+   stripped the focus ring with NO replacement:
+     .chip-input .ci-add, .field input, .search-field input, .tt-value
+   A keyboard user tabbing through Configure or the Add Bill modal had no idea
+   where they were. That is a keyboard-blocking bug, not a polish item.
+
+   Each input sits inside a styled wrapper, so the ring goes on the WRAPPER via
+   :focus-within — the visual affordance the design already implies, made real.
+   (.otp-box and .lw-root .field already had their own :focus replacement and
+   are left alone.)
+   ============================================================ */
+.redesign .chip-input:focus-within,
+.redesign .field:focus-within,
+.trk-overlay .search-field:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(42, 87, 206, 0.12);
+}
+
+.redesign .typed-terms .tt-value:focus,
+.redesign .typed-terms .tt-type:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(42, 87, 206, 0.12);
+}
+
+/* A real focus ring on every keyboard-focused control in the tracker. Uses
+   :focus-visible so a mouse click does not paint a ring, which is why the
+   original code reached for `outline: none` in the first place. */
+.redesign button:focus-visible,
+.redesign select:focus-visible,
+.redesign a:focus-visible,
+.redesign [role='button']:focus-visible,
+.redesign input[type='checkbox']:focus-visible,
+.trk-overlay button:focus-visible,
+.trk-overlay select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* P1-12 (Gate D h-1): elements promoted from div/span to <button> keep their
+   original appearance — a button carries UA styling a div never had. */
+.redesign button.trig,
+.redesign button.tg-name,
+.redesign button.tg-trash,
+.redesign .chip-input .ci-chip button.x,
+.redesign .typed-terms .tt-chip button.x {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: inherit;
+}
+/* .trig is a tile, not inline text — restore its box. */
+.redesign button.trig {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+}
+.redesign button.tg-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.redesign button.tg-trash,
+.redesign .chip-input .ci-chip button.x,
+.redesign .typed-terms .tt-chip button.x {
+  display: inline-flex;
+  align-items: center;
 }

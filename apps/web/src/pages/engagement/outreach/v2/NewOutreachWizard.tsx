@@ -36,6 +36,7 @@ import {
 } from '@ant-design/icons';
 import { useApi } from '../../../../lib/use-api.js';
 import { useMe } from '../../../../lib/me.js';
+import { intelTrackerPaths } from '../../../clients/tracker/intel-tracker-api.js';
 import type { Client } from '../../../clients/clientTypes.js';
 import type { OutreachRecipient, OutreachRecord } from '../../OutreachView.js';
 import { StepCampaignSetup } from './StepCampaignSetup.js';
@@ -102,9 +103,11 @@ import {
   WIZARD_STEPS,
   normalizeTone,
   recipientKey,
+  toContextItemPayload,
   type ContextKind,
   type ContextPoolItem,
   type GeneratedDraft,
+  type GenerationSourceManifest,
   type WizardV2State,
 } from './types.js';
 import './outreach.css';
@@ -237,6 +240,12 @@ interface GenerateResult {
   held: Array<{ genKey: string; subject: string; body: string; contextNote?: string }>;
   /** genKey → the immutable server version behind it (versioned mode only). */
   refs: Map<string, DraftVersionRef>;
+  /**
+   * Phase 1 §3.j — genKey → Context Used manifest. Populated for held slots too:
+   * a held or blocked generation is exactly when the user most needs to see which
+   * source failed.
+   */
+  manifests: Map<string, GenerationSourceManifest>;
   failed: string[];
   errorMessage?: string;
 }
@@ -812,14 +821,12 @@ export function NewOutreachWizard({
     templateId: state.templateId,
     tone: state.tone,
     direction: state.direction,
-    contextItems: expandContextItemScopes(state.contextItems, state.targets).map((item) => ({
-      id: item.id,
-      kind: item.kind,
-      title: item.title,
-      body: item.body,
-      scope: item.scope,
-      note: item.note,
-    })),
+    // Phase 1 §3.b1: IDs + the user's own words only. `title`/`body` are NOT
+    // sent — the server rehydrates every server-backed source by id, and a body
+    // the browser supplied could never be authoritative anyway.
+    contextItems: expandContextItemScopes(state.contextItems, state.targets).map(
+      toContextItemPayload,
+    ),
   });
 
   // ── Async job pipeline (W4.4) ──────────────────────────────────────────────
@@ -979,7 +986,7 @@ export function NewOutreachWizard({
       revise?: { genKey: string; instruction: string };
     }): Promise<GenerateResult> => {
       if (!vars.slots.length)
-        return { succeeded: [], held: [], refs: new Map(), failed: [] };
+        return { succeeded: [], held: [], refs: new Map(), manifests: new Map(), failed: [] };
       // GenerateBatchEmailDto whitelists only id/kind/title/body/scope/note on
       // context items; with forbidNonWhitelisted on, pool-only fields (tag/sub/
       // matches) 400 the batch. Strip to the DTO shape. List/group scopes are
@@ -1082,6 +1089,7 @@ export function NewOutreachWizard({
             heldDrafts: Array<{ genKey: string; subject: string; body: string; contextNote?: string }>;
             failedGenKeys: string[];
             refs: Map<string, DraftVersionRef>;
+            manifests: Map<string, GenerationSourceManifest>;
           }
         | { ok: false; genKeys: string[]; message: string };
       const tasks = buildGenerateTasks(vars.slots, GEN_BATCH_MAX);
@@ -1095,7 +1103,7 @@ export function NewOutreachWizard({
                 : undefined,
             )
               .then((results): TaskOut => {
-                const { drafts, heldDrafts, failedGenKeys } = partitionGenerationResults(
+                const { drafts, heldDrafts, failedGenKeys, manifests } = partitionGenerationResults(
                   t.chunkSlots.map((s) => ({ genKey: s.genKey, resultId: s.resultId })),
                   results,
                 );
@@ -1124,7 +1132,7 @@ export function NewOutreachWizard({
                       : undefined);
                   if (match) refs.set(slot.genKey, match as DraftVersionRef);
                 }
-                return { ok: true, drafts, heldDrafts, failedGenKeys, refs };
+                return { ok: true, drafts, heldDrafts, failedGenKeys, refs, manifests };
               })
               .catch(
                 (err): TaskOut => ({
@@ -1139,12 +1147,14 @@ export function NewOutreachWizard({
       const held = outs.flatMap((o) => (o.ok ? o.heldDrafts : []));
       const refs = new Map<string, DraftVersionRef>();
       for (const o of outs) if (o.ok) for (const [k, v] of o.refs) refs.set(k, v);
+      const manifests = new Map<string, GenerationSourceManifest>();
+      for (const o of outs) if (o.ok) for (const [k, v] of o.manifests) manifests.set(k, v);
       // `failed` now unions BOTH whole-POST failures (ok:false) AND same-batch
       // per-recipient failures (ok:true, failedGenKeys) — both flow to the same
       // 'error' placeholder path in onSuccess.
       const failed = outs.flatMap((o) => (o.ok ? o.failedGenKeys : o.genKeys));
       const firstFailure = outs.find((o): o is Extract<TaskOut, { ok: false }> => !o.ok);
-      return { succeeded, held, refs, failed, errorMessage: firstFailure?.message };
+      return { succeeded, held, refs, manifests, failed, errorMessage: firstFailure?.message };
     },
     onSuccess: (res, vars) => {
       setState((prev) => {
@@ -1170,6 +1180,8 @@ export function NewOutreachWizard({
             status: 'ready',
             dirty: false,
             ...(localHistory && localHistory.length ? { localHistory } : {}),
+            // Phase 1 §3.j: the Context Used manifest travels with the draft.
+            ...(res.manifests.get(r.genKey) ? { manifest: res.manifests.get(r.genKey) } : {}),
           };
         }
         // Held drafts: keep the generated text and attach the version lifecycle,
@@ -1196,6 +1208,7 @@ export function NewOutreachWizard({
               : {}),
             dirty: false,
             status: 'held',
+            ...(res.manifests.get(h.genKey) ? { manifest: res.manifests.get(h.genKey) } : {}),
           };
         }
         // Attach the version lifecycle to the SUCCEEDED drafts too, so the send
@@ -1243,6 +1256,26 @@ export function NewOutreachWizard({
             : {}),
         };
       });
+      // §4.10 (f-5): best-effort, per successfully-generated draft — NOT for an
+      // "Improve" (that revises existing text, it doesn't generate fresh). Only
+      // the synchronous path (this mutation) is wired; the async bulk job
+      // pipeline (submitGenerateJobs) is not — a known, documented gap rather
+      // than a silent one. A slot whose recipient carries no clientId (a
+      // cross-client campaign, or "All clients") is skipped rather than guessed.
+      if (!vars.revise) {
+        const slotByKey = new Map(genModel.slots.map((s) => [s.genKey, s]));
+        for (const r of res.succeeded) {
+          const clientId = slotByKey.get(r.genKey)?.genRecipients[0]?.clientId;
+          if (!clientId) continue;
+          void api
+            .post(intelTrackerPaths.feedback(clientId), {
+              targetRef: r.genKey,
+              targetType: 'outreach_draft',
+              signal: 'outreach_generated',
+            })
+            .catch(() => {});
+        }
+      }
       setGeneratingKey(null);
       if (res.held.length) {
         message.warning(

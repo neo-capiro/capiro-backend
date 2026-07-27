@@ -220,3 +220,64 @@ describe('jobItemsProgress — held is terminal', () => {
     expect(p.done).toBe(0);
   });
 });
+
+// ── Phase 1 §3.k4 / §5.5 — async results keep packet/policy/provider identity ──
+
+describe('async job results retain the Context Used manifest', () => {
+  const MANIFEST = {
+    contextPacketId: 'pkt-async',
+    packetHash: 'h',
+    evidenceCountsByType: {},
+    included: [],
+    exclusions: [],
+    failures: [],
+    criticalFailures: [],
+    oldestSourceAt: null,
+    newestSourceAt: null,
+    policy: {
+      policyId: 'federal.congressional_office',
+      version: 'ga-policy-v1',
+      label: 'Federal congressional office',
+      jurisdiction: 'federal',
+      audienceType: 'congressional_office',
+    },
+    provider: 'anthropic',
+    model: 'claude-sonnet-4-6',
+    planModel: null,
+    promptSpecVersion: 'v2.2-gateway',
+    emailScopeLabel: 'My mailbox',
+    standingMemoryCount: 0,
+    criticalMissingContext: [],
+    disclosures: [],
+  };
+
+  it('a terminal item result carries the packet, policy and provider through', () => {
+    // The worker stores `manifest` on the item result (ITEM_RESULT_FIELDS), so a
+    // large campaign completed hours later still has its provenance.
+    const items: JobItem[] = [
+      {
+        recipientKey: 'a',
+        status: 'done',
+        result: {
+          subject: 's',
+          body: 'b',
+          versionId: 'v1',
+          artifactId: 'art1',
+          version: 1,
+          auditStatus: 'passed',
+          approvalStatus: 'not_required',
+          manifest: MANIFEST,
+        },
+        error: null,
+      } as unknown as JobItem,
+    ];
+    const map = new Map<string, string[]>([['a', ['individual:a']]]);
+    const patches = mapJobItemsToDraftPatch(items, map, () => ({ subject: '', body: '' }));
+    expect(patches).toHaveLength(1);
+    const result = (items[0] as unknown as { result: Record<string, unknown> }).result;
+    expect((result.manifest as { contextPacketId: string }).contextPacketId).toBe('pkt-async');
+    expect((result.manifest as { promptSpecVersion: string }).promptSpecVersion).toBe(
+      'v2.2-gateway',
+    );
+  });
+});

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Icon } from './tracker-icons.js';
 import { US_STATE_CODES } from '../facilities-api.js';
 import { termRejectionReason } from './term-validation.js';
@@ -16,18 +16,34 @@ import {
   type WatchlistTag,
 } from './tracker-api.js';
 
-const PRIO_CYCLE: Record<TagPriority, TagPriority> = { low: 'med', med: 'high', high: 'low' };
-const POS_CYCLE: Record<TagPosition, TagPosition> = {
-  support: 'monitor',
-  monitor: 'oppose',
-  oppose: 'support',
-};
 const PRIO_LABEL: Record<TagPriority, string> = { low: 'Low', med: 'Med', high: 'High' };
 const POS_LABEL: Record<TagPosition, string> = {
   support: 'Support',
   oppose: 'Oppose',
   monitor: 'Monitor',
 };
+
+/**
+ * P2-08: PRIO_CYCLE and POS_CYCLE are DELETED. The two pills used to advance
+ * through their values on every click (low→med→high→low,
+ * support→monitor→oppose→support) with only a `title="… — click to change"` to
+ * explain it. Combined with the 600ms autosave, one mis-click silently
+ * persisted a wrong priority — or worse, a wrong POSITION, which is the firm's
+ * stated stance on a bill.
+ *
+ * Each option carries its own definition, so what the value MEANS is on screen
+ * rather than something the analyst has to have been told.
+ */
+export const PRIORITY_OPTIONS: Array<{ v: TagPriority; label: string }> = [
+  { v: 'low', label: 'Low — monitor only' },
+  { v: 'med', label: 'Med — worth a look' },
+  { v: 'high', label: 'High — drives alert ranking' },
+];
+export const POSITION_OPTIONS: Array<{ v: TagPosition; label: string }> = [
+  { v: 'support', label: 'Support — we want this to advance' },
+  { v: 'monitor', label: 'Monitor — no stated stance' },
+  { v: 'oppose', label: 'Oppose — we want this stopped' },
+];
 /**
  * §4.3: mirrors HEARING_TERMS_TOPIC_LABEL in intel-api. The server folds legacy
  * flat hearing terms under this label, so a user must not be able to create a tag
@@ -82,9 +98,16 @@ function ChipInput({
         {items.map((it, i) => (
           <span key={`${it}-${i}`} className={`ci-chip${kind === 'risk' ? ' risk' : ''}`}>
             {it}
-            <span className="x" onClick={() => onChange(items.filter((_, j) => j !== i))}>
+            {/* P1-12: was a <span onClick> — invisible to Tab and to a screen
+                reader, so a chip could be added by keyboard but never removed. */}
+            <button
+              type="button"
+              className="x"
+              aria-label={`Remove ${it}`}
+              onClick={() => onChange(items.filter((_, j) => j !== i))}
+            >
               <Icon name="plus" size={10} style={{ transform: 'rotate(45deg)' }} />
-            </span>
+            </button>
           </span>
         ))}
         <input
@@ -169,9 +192,15 @@ function TypedTermEditor({
           <span key={`${t.termType}-${t.value}-${i}`} className="tt-chip">
             <span className="tt-type">{labelFor(t.termType)}</span>
             {t.value}
-            <span className="x" onClick={() => onChange(terms.filter((_, j) => j !== i))}>
+            {/* P1-12: was a <span onClick>, unreachable by keyboard. */}
+            <button
+              type="button"
+              className="x"
+              aria-label={`Remove ${labelFor(t.termType)} term ${t.value}`}
+              onClick={() => onChange(terms.filter((_, j) => j !== i))}
+            >
               <Icon name="plus" size={10} style={{ transform: 'rotate(45deg)' }} />
-            </span>
+            </button>
           </span>
         ))}
         {terms.length === 0 && <span className="tt-empty">No typed terms yet</span>}
@@ -179,6 +208,7 @@ function TypedTermEditor({
       <div className="tt-add">
         <select
           className="tt-select"
+          aria-label="Term type"
           value={type}
           onChange={(e) => setType(e.target.value as TermType)}
         >
@@ -244,6 +274,9 @@ function TagRow({
   termSurfaces?: Record<string, string[]>;
 }) {
   const patch = (p: Partial<WatchlistTag>) => onChange({ ...tag, ...p });
+  // P1-12: a stable id so the name button's aria-controls points at the panel
+  // it actually discloses. useId keeps it unique across rows and renders.
+  const advId = `tag-adv-${useId()}`;
   const priority = tag.priority ?? 'med';
   const position = tag.position ?? 'monitor';
   const termCount =
@@ -253,51 +286,83 @@ function TagRow({
     (tag.typedTerms?.length ?? 0);
   return (
     <div className={`tagrow${open ? ' open' : ''}`}>
-      <div className="tagrow-head" onClick={onToggleOpen}>
-        <span className="tg-name">
+      {/* P1-12: this row was a `<div onClick>` — not focusable, no role, no
+          expanded state. The plan asked for the whole head to become a button,
+          but it CONTAINS two <select>s and a delete control, and interactive
+          elements cannot nest inside a button (invalid HTML; it breaks keyboard
+          and AT both). The disclosure trigger is therefore the tag NAME, with
+          the menus and delete as siblings — which is the correct semantic
+          anyway: they are separate controls, not part of "expand this row". */}
+      <div className="tagrow-head">
+        <button
+          type="button"
+          className="tg-name"
+          aria-expanded={open}
+          aria-controls={advId}
+          onClick={onToggleOpen}
+        >
           <span className="hash">#</span>
           {tag.tag || <em style={{ opacity: 0.6 }}>Unnamed — add a name</em>}
-        </span>
-        <button
+        </button>
+        {/* P2-08: these were CYCLING pills — one click advanced low→med→high /
+            support→monitor→oppose. With a 600ms autosave, a mis-click silently
+            persisted a wrong stance on a client's position. They are explicit
+            menus now, each option carrying a one-line definition so the choice
+            is legible rather than learned. */}
+        <select
           className={`tag-pill prio-${priority}`}
-          onClick={(e) => {
+          aria-label="Priority"
+          value={priority}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => {
             e.stopPropagation();
-            patch({ priority: PRIO_CYCLE[priority] });
+            patch({ priority: e.target.value as TagPriority });
           }}
-          title="Priority — click to change"
         >
-          {PRIO_LABEL[priority]} priority
-        </button>
-        <button
+          {PRIORITY_OPTIONS.map((o) => (
+            <option key={o.v} value={o.v}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <select
           className={`tag-pill pos-${position}`}
-          onClick={(e) => {
+          aria-label="Position"
+          value={position}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => {
             e.stopPropagation();
-            patch({ position: POS_CYCLE[position] });
+            patch({ position: e.target.value as TagPosition });
           }}
-          title="Position — click to change"
         >
-          {POS_LABEL[position]}
-        </button>
+          {POSITION_OPTIONS.map((o) => (
+            <option key={o.v} value={o.v}>
+              {o.label}
+            </option>
+          ))}
+        </select>
         <span className="grow" />
         <span className="mini muted">
           {termCount} term{termCount === 1 ? '' : 's'}
         </span>
-        <span
+        {/* P1-12: was a <span onClick>. */}
+        <button
+          type="button"
           className="tg-trash"
+          aria-label={`Remove tag ${tag.tag || 'unnamed'}`}
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
           }}
-          title="Remove tag"
         >
           <Icon name="trash" size={13} />
-        </span>
+        </button>
         <span className="tg-chev">
           <Icon name="chev-r" size={15} />
         </span>
       </div>
       {open && (
-        <div className="tag-adv">
+        <div className="tag-adv" id={advId}>
           <div className="adv-field" style={{ gridColumn: '1 / -1' }}>
             <div className="af-label">
               Tag name <span className="af-req" aria-hidden="true">*</span>
@@ -889,9 +954,13 @@ export function TrackerConfigPanel({
                 </button>
               ))}
             </div>
+            {/* P2-15 (Gate E phase e): this predated state bills, hearings,
+                regulations, and Program Elements — said "the recommendation
+                matcher" as if bills were the only thing selected areas fed. */}
             <div className="cfg-help">
-              Capiro-managed taxonomy. Selected areas seed the recommendation matcher and alert
-              routing.
+              Capiro-managed taxonomy. Selected areas seed matching across every source type —
+              bills, state bills, hearings, regulations, and Program Elements — for Recommendations
+              and alert routing.
             </div>
           </div>
 
@@ -971,9 +1040,13 @@ export function TrackerConfigPanel({
                 Targeting is not being saved — every tag needs a unique name.
               </div>
             )}
+            {/* P2-15 (Gate E phase e): predated the 11 typed-term types Gate B
+                wired (this said "embeddings + keyword match" as if the three
+                legacy chip inputs were the whole story). */}
             <div className="cfg-help" style={{ marginTop: 10 }}>
-              Synonyms, related entities, and risk terms tune the embeddings + keyword match behind
-              Recommendations.
+              Synonyms, related entities, risk terms, and typed terms — bills, agencies,
+              committees, legislators, companies, competitors, Program Elements — tune the
+              keyword and entity match behind Recommendations and alert relevance.
             </div>
             {watchlist.rejected?.terms?.length ? (
               <div className="cfg-help" role="alert">
@@ -1000,8 +1073,15 @@ export function TrackerConfigPanel({
             <div className="cfg-label">Alert triggers</div>
             <div className="trig-grid">
               {TRIGGER_ORDER.map((k) => (
-                <div
+                // P1-12: was a `<div onClick>` — not focusable, no role, and
+                // no checked state exposed, so the alert triggers could not be
+                // set by keyboard at all. A real button carrying checkbox
+                // semantics keeps the tile look and announces its state.
+                <button
                   key={k}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={triggers.has(k)}
                   className={`trig${triggers.has(k) ? ' on' : ''}`}
                   onClick={() => toggleTrig(k)}
                 >
@@ -1011,7 +1091,7 @@ export function TrackerConfigPanel({
                     </span>
                   </span>
                   {TRIGGER_LABELS[k]}
-                </div>
+                </button>
               ))}
             </div>
             {triggers.size === 0 && (
@@ -1092,10 +1172,22 @@ export function TrackerConfigPanel({
                   </span>
                   <div style={{ flex: 1 }}>
                     <div className="chan-name">In-app</div>
-                    <div className="chan-sub">Changes inbox + unread dots on board cards</div>
+                    {/* P2-15 (Gate E phase e): predated hearings/state
+                        bills/regulations/Program Elements on this surface. */}
+                    <div className="chan-sub">
+                      Changes inbox, feed, and unread markers across bills, hearings, regulations,
+                      and Program Elements
+                    </div>
                   </div>
                   <span className="chan-lock">Always on</span>
-                  <button className="tgl locked on" title="Always on" disabled />
+                  <button
+                    type="button"
+                    className="tgl locked on"
+                    aria-label="In-app delivery"
+                    aria-pressed
+                    title="Always on"
+                    disabled
+                  />
                 </div>
               </div>
 
@@ -1107,10 +1199,20 @@ export function TrackerConfigPanel({
                   </span>
                   <div style={{ flex: 1 }}>
                     <div className="chan-name">Email</div>
-                    <div className="chan-sub">Full context — bill, change, why it matters</div>
+                    {/* P2-15 (Gate E phase e): "bill, change" implied bills
+                        were the only source type an email could be about. */}
+                    <div className="chan-sub">
+                      Full context — what changed, why it matters to this client, and the official
+                      source
+                    </div>
                   </div>
+                  {/* P1-12: an unlabelled toggle with no pressed state — a
+                      screen reader announced only "button". */}
                   <button
+                    type="button"
                     className={`tgl${emailEnabled ? ' on' : ''}`}
+                    aria-label="Email delivery"
+                    aria-pressed={emailEnabled}
                     onClick={() => setEmailEnabled((v) => !v)}
                   />
                 </div>
@@ -1154,7 +1256,10 @@ export function TrackerConfigPanel({
                   {/* LegiWatch v2 (L4/U6/D12): SMS is "coming soon" — disabled so it
                       can't be newly enabled; the verify/cadence flow stays in code. */}
                   <button
+                    type="button"
                     className={`tgl${smsEnabled ? ' on' : ''}`}
+                    aria-label="SMS delivery"
+                    aria-pressed={smsEnabled}
                     disabled
                     title="SMS delivery is coming soon"
                     style={{ cursor: 'not-allowed', opacity: 0.5 }}

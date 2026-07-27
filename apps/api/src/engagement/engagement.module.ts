@@ -31,6 +31,17 @@ import { OutcomeController } from './outcome/outcome.controller.js';
 import { OutreachDraftService } from './outreach-draft.service.js';
 import { OutreachDraftAuditService } from './outreach-draft-audit.service.js';
 import { OutreachSendIntentService } from './outreach-send-intent.service.js';
+// Phase 1 — governed generation gateway.
+import { LlmCompletionService } from './llm-completion.service.js';
+import { AttachmentContentService } from './attachment-content.service.js';
+import { AttachmentScannerService } from './attachment-scanner.service.js';
+import { OutreachTruthService } from './generation/outreach-truth.service.js';
+import { EvidenceSourceService } from './generation/evidence-source.service.js';
+import { EvidencePacketService } from './generation/evidence-packet.service.js';
+import { AuthorStyleProfileService } from './generation/author-style-profile.service.js';
+import { MessagePlanService } from './generation/message-plan.service.js';
+import { GenerationVerifierService } from './generation/generation-verifier.service.js';
+import { GenerationGatewayService } from './generation/generation-gateway.service.js';
 
 @Module({
   imports: [
@@ -73,6 +84,24 @@ import { OutreachSendIntentService } from './outreach-send-intent.service.js';
     OutreachDraftService,
     OutreachDraftAuditService,
     OutreachSendIntentService,
+    // Phase 1 §3.g2 — the generation stack. All internal to this module: the
+    // per-source resolvers, the truth builders, the ranker and the style
+    // extractor are implementation detail of the gateway, and exporting them
+    // would invite another surface to assemble its own half-governed path, which
+    // is exactly the fragmentation Phase 1 removes.
+    // LlmCompletionService is a plain (non-@Injectable) class that EngagementAiService
+    // instantiates directly; registered here via a factory so the generation
+    // services can take it by DI and a spec can swap in a fault-injecting fetch.
+    { provide: LlmCompletionService, useFactory: () => new LlmCompletionService() },
+    AttachmentScannerService,
+    AttachmentContentService,
+    OutreachTruthService,
+    EvidenceSourceService,
+    EvidencePacketService,
+    AuthorStyleProfileService,
+    MessagePlanService,
+    GenerationVerifierService,
+    GenerationGatewayService,
   ],
   exports: [
     OutcomeService,
@@ -84,6 +113,11 @@ import { OutreachSendIntentService } from './outreach-send-intent.service.js';
     // Exported so ReviewsService can approve/reject an EXACT draft version
     // inside its own transaction (plan §3.f1) without a module cycle.
     OutreachDraftService,
+    // Only these two are exported (§3.g2): the gateway is the entry point, and
+    // the packet service is what another module would legitimately need to read
+    // provenance from.
+    GenerationGatewayService,
+    EvidencePacketService,
   ],
 })
 export class EngagementModule {}

@@ -7,6 +7,8 @@
 import { isAcceptableTerm, isShortExactTerm, MIN_TERM_LEN } from '../watchlist/term-validation.js';
 export { MIN_TERM_LEN } from '../watchlist/term-validation.js';
 import { matchTerms, type RoutableTerm } from '../watchlist/term-routing.js';
+import type { RelevanceKind } from './relevance-kinds.js';
+export { relevanceKindsFor, composeWhy, type RelevanceKind } from './relevance-kinds.js';
 
 /**
  * P0-04: which reason `kind` a matched term type maps to for the alert
@@ -130,6 +132,11 @@ export interface WatchlistLike {
 export interface MatchExplanation {
   matchedTags: string[];
   why: string | null;
+  /** §4.4 (Gate D d-4): WHY it matters, not just that it matched. Deterministic
+   *  — derived from the term types that fired plus the caller's own signals. */
+  kinds?: RelevanceKind[];
+  /** The term types that produced `matchedTags`, for `relevanceKindsFor`. */
+  matchedTermTypes?: string[];
 }
 
 /**
@@ -140,6 +147,8 @@ export function explainMatch(bill: RelevanceBill, watchlist: WatchlistLike): Mat
   const hay = billHaystack(bill);
   const hayOrig = billHaystackOriginal(bill);
   const matchedTags: string[] = [];
+  // §4.4 (d-4): every term TYPE that fired, so relevanceKindsFor can classify.
+  const matchedTermTypes = new Set<string>();
   let entityHit: string | null = null;
   let keywordHit: string | null = null;
 
@@ -170,6 +179,7 @@ export function explainMatch(bill: RelevanceBill, watchlist: WatchlistLike): Mat
       const typedMatches = matchTerms(bill, routable);
       if (typedMatches.length) {
         tagMatched = true;
+        for (const m of typedMatches) matchedTermTypes.add(m.termType);
         const primary = typedMatches[0]!;
         if (ENTITY_KIND_TYPES.has(primary.termType)) entityHit = entityHit ?? primary.matchedText;
         else keywordHit = keywordHit ?? primary.matchedText;
@@ -198,7 +208,15 @@ export function explainMatch(bill: RelevanceBill, watchlist: WatchlistLike): Mat
   else if (keywordHit) why = `Matches your watchlist term "${keywordHit}".`;
   else if (areaHit) why = `In your tracked issue area "${areaHit}".`;
 
-  return { matchedTags: Array.from(new Set(matchedTags)).slice(0, 4), why };
+  // §4.4 (d-4): `why`'s FIRST clause is byte-identical to what shipped before —
+  // Gate B §2.4.6 / criterion 9 still applies. The caller enriches it via
+  // `composeWhy` only when it holds the extra signals (position, severity,
+  // facility, committee) that make a second clause factual rather than filler.
+  return {
+    matchedTags: Array.from(new Set(matchedTags)).slice(0, 4),
+    why,
+    matchedTermTypes: Array.from(matchedTermTypes),
+  };
 }
 
 const BILL_TYPE_LABEL: Record<string, string> = {
