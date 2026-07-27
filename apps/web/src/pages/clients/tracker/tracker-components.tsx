@@ -536,12 +536,18 @@ export function RecCard({
         <button className="btn btn-accent sm" onClick={() => onTrack(bill.billId)}>
           <Icon name="plus" size={11} /> Track
         </button>
+        {/* P2-15 (Gate E phase e, §4.10 honesty half): "Not relevant" /
+            "trains the feed" claimed a learning effect that did not exist
+            yet — dismissing only excluded this one bill
+            (tracker-board.service.ts recordFeedback), nothing was learned.
+            Relabeled honestly; phase f-6 restores "Not relevant" once
+            dismissals actually feed scoreBillFit's weighting. */}
         <button
           className="btn btn-ghost sm"
           onClick={() => onDismiss(bill.billId)}
-          title="Dismiss — trains the feed"
+          title="Hides this bill from recommendations for this client."
         >
-          Not relevant
+          Hide this bill
         </button>
       </div>
     </div>

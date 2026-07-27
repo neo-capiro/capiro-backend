@@ -102,6 +102,23 @@ function Ic({ n, size = 12 }: { n: string; size?: number }) {
   );
 }
 
+/**
+ * P2-15 (Gate E phase e): the feed's empty state said "a tracked bill moves
+ * or a hearing hits" — predating state bills, regulations, and Program
+ * Elements, all of which the SAME feed already carries (FeedItem.sourceType
+ * has covered all six for a while; the copy just never caught up). Built
+ * FROM SOURCE_LABEL rather than a second hard-coded list, so it cannot drift
+ * from the real source types again. "combined" is a bill+hearing pairing
+ * marker, not a distinct source, so it is excluded from the enumeration.
+ */
+const FEED_SOURCE_NAMES = Object.entries(SOURCE_LABEL)
+  .filter(([k]) => k !== 'combined')
+  .map(([, label]) => label.toLowerCase());
+function joinWithOr(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? '';
+  return `${items.slice(0, -1).join(', ')}, or ${items[items.length - 1]}`;
+}
+
 const ACTION_ICON: Record<string, string> = {
   save_recap: 'spark',
   draft_memo: 'doc',
@@ -1109,8 +1126,8 @@ export function TrackerFeedPanel({
           <h4>Nothing new right now</h4>
           <p>
             {global
-              ? 'When a tracked bill moves or a hearing hits any client’s watchlist, it lands here — newest first.'
-              : `When a tracked bill moves or a hearing mentions ${clientName ?? 'this client'}’s watchlist, it lands here.`}
+              ? `When a ${joinWithOr(FEED_SOURCE_NAMES)} moves for any client, it lands here — newest first.`
+              : `When a ${joinWithOr(FEED_SOURCE_NAMES)} moves for ${clientName ?? 'this client'}, it lands here.`}
           </p>
         </div>
       );
