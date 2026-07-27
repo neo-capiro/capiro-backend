@@ -215,3 +215,87 @@ describe('syncOpportunities', () => {
     expect(counts.inserted).toBe(1);
   });
 });
+
+/**
+ * Audit F6 / phase i2: hitting the MAX_PAGES circuit breaker while the corpus
+ * is demonstrably NOT exhausted must never read as a clean success. Before
+ * this, the loop simply fell out of its `page < MAX_PAGES` condition and
+ * returned `errors: 0`, so runWithSyncRun recorded `success` and the
+ * ingestion ledger claimed a complete run over a truncated one.
+ */
+describe('syncOpportunities — page-cap exhaustion is never a clean success', () => {
+  /** A always-full page of unique ids, so neither exhaustion signal can fire. */
+  function fullPageFetcher() {
+    return jest.fn(async (_s: string, page: number) => ({
+      hits: Array.from({ length: 100 }, (_v, i) => ({
+        ...POSTED_SYNOPSIS,
+        id: `p${page}-${i}`,
+      })),
+      // Far beyond anything 100 pages x 100 rows can cover, so the
+      // `total >= hitCount` break never fires either.
+      hitCount: 999_999,
+    }));
+  }
+
+  test('a run that hits MAX_PAGES without proving exhaustion reports errors > 0 and capExhausted', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const prisma = makePrismaMock();
+      const fetchSearchPage = fullPageFetcher();
+
+      const counts = await syncOpportunities(prisma as any, { allStatuses: false }, {
+        fetchSearchPage,
+        sleep: noSleep,
+      });
+
+      // Walked the full bound and stopped only because of it.
+      expect(fetchSearchPage).toHaveBeenCalledTimes(100);
+      expect(counts.capExhausted).toBe(true);
+      // errors > 0 is what downgrades the SyncRun to success_with_errors.
+      expect(counts.errors).toBeGreaterThan(0);
+      // The real rows are still reported — a truncated walk is incomplete, not void.
+      expect(counts.inserted).toBe(10_000);
+      // Resume point is the page after the last one attempted.
+      expect(counts.resumeFromPage).toBe(100);
+      expect(errorSpy.mock.calls.flat().join(' ')).toMatch(/CAP EXHAUSTED/);
+    } finally {
+      errorSpy.mockRestore();
+      logSpy.mockRestore();
+    }
+  });
+
+  test('a run that stops on a short page reports errors === 0 and no cap exhaustion', async () => {
+    const prisma = makePrismaMock();
+    // 40 < PAGE_SIZE, so the short-page break fires on page 0.
+    const fetchSearchPage = jest.fn(async (_s: string, _p: number) => ({
+      hits: Array.from({ length: 40 }, (_v, i) => ({ ...POSTED_SYNOPSIS, id: `s${i}` })),
+      hitCount: 40,
+    }));
+
+    const counts = await syncOpportunities(prisma as any, { allStatuses: false }, {
+      fetchSearchPage,
+      sleep: noSleep,
+    });
+
+    expect(fetchSearchPage).toHaveBeenCalledTimes(1);
+    expect(counts.capExhausted).toBe(false);
+    expect(counts.errors).toBe(0);
+    expect(counts.resumeFromPage).toBeNull();
+  });
+
+  test('a run that stops because hitCount is covered is also not cap-exhausted', async () => {
+    const prisma = makePrismaMock();
+    const page = Array.from({ length: 100 }, (_v, i) => ({ ...POSTED_SYNOPSIS, id: String(i) }));
+    const fetchSearchPage = jest.fn(async (_s: string, _p: number) => ({ hits: page, hitCount: 100 }));
+
+    const counts = await syncOpportunities(prisma as any, { allStatuses: false }, {
+      fetchSearchPage,
+      sleep: noSleep,
+    });
+
+    expect(counts.capExhausted).toBe(false);
+    expect(counts.errors).toBe(0);
+    expect(counts.resumeFromPage).toBeNull();
+  });
+});
