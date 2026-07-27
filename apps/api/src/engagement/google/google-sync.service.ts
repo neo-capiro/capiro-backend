@@ -78,6 +78,62 @@ export function gmailFolderFromLabelIds(labelIds: readonly string[] | undefined)
   };
 }
 
+/**
+ * Fold one page of Gmail history entries into a last-write-wins map of
+ * message id -> the single operation to apply. History entries arrive in
+ * ascending id order and a single run can contain add-then-delete (or
+ * delete-then-add, e.g. restored from Trash) for the same message, so a
+ * first-seen Set would keep the WRONG event. Exported pure so the fold logic
+ * is unit-testable without a live Prisma/fetch.
+ *
+ * Gmail semantics encoded here: moving to Trash emits labelAdded(TRASH), not
+ * messageDeleted — messageDeleted is permanent deletion / emptying Trash.
+ * Archiving emits labelRemoved(INBOX); un-archiving emits labelAdded(INBOX).
+ */
+export function foldGmailHistory(
+  history: NonNullable<GmailHistoryResponse['history']>,
+): Map<string, { action: 'upsert' | 'remove'; reason?: 'deleted' | 'trashed' | 'spam' }> {
+  const ops = new Map<string, { action: 'upsert' | 'remove'; reason?: 'deleted' | 'trashed' | 'spam' }>();
+  for (const entry of history) {
+    for (const added of entry.messagesAdded ?? []) {
+      const msg = added.message;
+      if (!msg?.id) continue;
+      const labels = msg.labelIds ?? [];
+      if (labels.some((label) => EXCLUDED_LABEL_IDS.has(label))) {
+        ops.set(msg.id, { action: 'remove', reason: 'trashed' });
+        continue;
+      }
+      ops.set(msg.id, { action: 'upsert' });
+    }
+    for (const removed of entry.messagesDeleted ?? []) {
+      const id = removed.message?.id;
+      if (id) ops.set(id, { action: 'remove', reason: 'deleted' });
+    }
+    // A label change can move a message INTO an excluded label (trash/spam)
+    // or merely between inbox/archive. Re-fetch and re-persist for the
+    // latter so the stored folder tracks the mailbox; mark removed for the
+    // former.
+    for (const change of entry.labelsAdded ?? []) {
+      const id = change.message?.id;
+      if (!id) continue;
+      const addedLabels = change.labelIds ?? [];
+      if (addedLabels.some((label) => EXCLUDED_LABEL_IDS.has(label))) {
+        ops.set(id, {
+          action: 'remove',
+          reason: addedLabels.includes('SPAM') ? 'spam' : 'trashed',
+        });
+      } else {
+        ops.set(id, { action: 'upsert' });
+      }
+    }
+    for (const change of entry.labelsRemoved ?? []) {
+      const id = change.message?.id;
+      if (id) ops.set(id, { action: 'upsert' });
+    }
+  }
+  return ops;
+}
+
 interface GoogleSyncState {
   calendar?: {
     syncToken?: string | null;
@@ -133,6 +189,14 @@ interface GmailHistoryResponse {
     id?: string;
     messagesAdded?: Array<{ message?: { id?: string; threadId?: string; labelIds?: string[] } }>;
     messagesDeleted?: Array<{ message?: { id?: string; threadId?: string; labelIds?: string[] } }>;
+    labelsAdded?: Array<{
+      message?: { id?: string; threadId?: string; labelIds?: string[] };
+      labelIds?: string[];
+    }>;
+    labelsRemoved?: Array<{
+      message?: { id?: string; threadId?: string; labelIds?: string[] };
+      labelIds?: string[];
+    }>;
   }>;
   nextPageToken?: string;
   historyId?: string;
@@ -611,7 +675,11 @@ export class GoogleSyncService {
   ): Promise<SyncStats> {
     const stats = emptyStats();
     const startHistoryId = mailState.historyId!;
-    const seen = new Set<string>();
+    // Last-write-wins per message id, in history order (accumulated across
+    // pages too). A message that is added and then trashed inside one run
+    // must end as 'remove', and vice versa; the old first-seen Set kept
+    // whichever event came first.
+    const ops = new Map<string, { action: 'upsert' | 'remove'; reason?: 'deleted' | 'trashed' | 'spam' }>();
     let pageToken: string | null = null;
     let latestHistoryId: string | null = startHistoryId;
 
@@ -622,42 +690,92 @@ export class GoogleSyncService {
         pageToken: pageToken ?? undefined,
       });
       latestHistoryId = response.historyId ?? latestHistoryId;
-      for (const entry of response.history ?? []) {
-        for (const added of entry.messagesAdded ?? []) {
-          const msg = added.message;
-          if (!msg?.id || seen.has(msg.id)) continue;
-          // Junk stays out; everything else (inbox, sent, archive, custom
-          // labels) mirrors — matching the widened backfill scope.
-          const labels = msg.labelIds ?? [];
-          if (labels.some((label) => EXCLUDED_LABEL_IDS.has(label))) continue;
-          seen.add(msg.id);
-          stats.scanned += 1;
-          try {
-            const message = await this.gmailGet(accessToken, msg.id);
-            const outcome = await this.persistGmailMessage(tenantId, connection.id, message);
-            stats.matched += outcome === 'matched' ? 1 : 0;
-            stats.skipped += outcome === 'skipped' ? 1 : 0;
-          } catch (err) {
-            // Same rule as the backfill loop: skip only a gone message; let
-            // transient/infra errors propagate so historyId is NOT advanced past
-            // unpersisted messages (gmailHistory would never re-emit them).
-            if (!isMessageGoneError(err)) throw err;
-            stats.failed += 1;
-            this.logger.warn(
-              `Gmail message ${msg.id} is gone for connection ${connection.id}; skipping: ${
-                err instanceof Error ? err.message : err
-              }`,
-            );
-          }
-        }
+      for (const [id, op] of foldGmailHistory(response.history ?? [])) {
+        ops.set(id, op);
       }
       pageToken = response.nextPageToken ?? null;
       if (!pageToken) break;
     }
 
+    for (const [id, op] of ops) {
+      stats.scanned += 1;
+      try {
+        if (op.action === 'remove') {
+          await this.markGmailMessageRemoved(tenantId, id, op.reason ?? 'deleted');
+          stats.removed += 1;
+          continue;
+        }
+        const message = await this.gmailGet(accessToken, id);
+        // Re-check live labels: the message may have moved into an excluded
+        // label after the history entry was written.
+        if ((message.labelIds ?? []).some((label) => EXCLUDED_LABEL_IDS.has(label))) {
+          await this.markGmailMessageRemoved(tenantId, id, 'trashed');
+          stats.removed += 1;
+          continue;
+        }
+        const outcome = await this.persistGmailMessage(tenantId, connection.id, message);
+        stats.matched += outcome === 'matched' ? 1 : 0;
+        stats.skipped += outcome === 'skipped' ? 1 : 0;
+      } catch (err) {
+        // Unchanged rule: skip only a GONE message; let transient/infra errors
+        // propagate so historyId is NOT advanced past unpersisted work
+        // (gmailHistory would never re-emit them).
+        if (!isMessageGoneError(err)) throw err;
+        stats.failed += 1;
+        this.logger.warn(
+          `Gmail message ${id} is gone for connection ${connection.id}; skipping: ${
+            err instanceof Error ? err.message : err
+          }`,
+        );
+      }
+    }
+
     stats.hasMore = Boolean(pageToken);
     mailState.historyId = latestHistoryId;
     return stats;
+  }
+
+  /**
+   * Mark a stored Gmail message as gone without destroying it — the direct
+   * analog of the Outlook '@removed' handling (microsoft-graph-sync
+   * persistGraphMessage). Read-modify-write so the existing metadata
+   * (internetMessageId, folder, labelIds) survives; the Outlook path overwrites
+   * the whole object and loses them, which is a wart we are not copying.
+   * updateMany + a no-row result is a NO-OP by design: a message deleted before
+   * we ever ingested it needs no record.
+   */
+  private async markGmailMessageRemoved(
+    tenantId: string,
+    externalId: string,
+    reason: 'deleted' | 'trashed' | 'spam',
+  ): Promise<'removed'> {
+    await this.prisma.withTenant(tenantId, async (tx) => {
+      const existing = await tx.mailMessage.findUnique({
+        where: {
+          tenantId_source_externalId: {
+            tenantId,
+            source: EngagementSource.google,
+            externalId,
+          },
+        },
+        select: { id: true, metadata: true },
+      });
+      if (!existing) return;
+      const base =
+        existing.metadata && typeof existing.metadata === 'object' && !Array.isArray(existing.metadata)
+          ? (existing.metadata as Record<string, unknown>)
+          : {};
+      await tx.mailMessage.update({
+        where: { id: existing.id },
+        data: {
+          metadata: {
+            ...base,
+            googleRemoved: { reason, at: new Date().toISOString() },
+          } as Prisma.InputJsonValue,
+        },
+      });
+    });
+    return 'removed';
   }
 
   private async persistGmailMessage(
@@ -913,10 +1031,13 @@ export class GoogleSyncService {
     accessToken: string,
     input: { startHistoryId: string; pageToken?: string },
   ): Promise<GmailHistoryResponse> {
-    const params = new URLSearchParams({
-      startHistoryId: input.startHistoryId,
-      historyTypes: 'messageAdded',
-    });
+    const params = new URLSearchParams({ startHistoryId: input.startHistoryId });
+    // historyTypes is REPEATABLE. Requesting only messageAdded meant permanent
+    // deletes, trashes, archives and un-archives never reached the store, so the
+    // Gmail timeline drifted from the mailbox after the initial backfill.
+    for (const type of ['messageAdded', 'messageDeleted', 'labelAdded', 'labelRemoved']) {
+      params.append('historyTypes', type);
+    }
     if (input.pageToken) params.set('pageToken', input.pageToken);
     return this.googleGet<GmailHistoryResponse>(
       `${GMAIL_BASE_URL}/users/me/history?${params.toString()}`,
