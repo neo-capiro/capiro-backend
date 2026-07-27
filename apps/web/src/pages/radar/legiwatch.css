@@ -210,6 +210,13 @@
 /* c-4: the material-evidence warning that replaced the `incomplete` chip. */
 .lw-root .chip.warn { background: var(--notable-soft); border-color: transparent; color: var(--notable); }
 
+/* P2-04 (Gate D phase e): the worklist. `.bulk-bar` already exists but is scoped
+   under `.redesign`, and the feed renders under `.lw-root` — so the pattern is
+   reproduced here rather than re-scoping a selector three other surfaces use. */
+.lw-root .bulk-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; margin-bottom: 8px; border: 1px solid var(--border-1); border-radius: var(--r-sm); background: var(--accent-soft); font-size: 12.5px; font-weight: 600; color: var(--accent-ink); }
+
+.lw-root .acard-select { margin: 2px 10px 0 0; flex: none; cursor: pointer; }
+
 /* c-3: labelled sections in the expanded card body (why it matters, procedural
    meaning, source, who should act, confidence). */
 .lw-root .acard-why { font-size: 12.5px; line-height: 1.55; color: var(--ink-2); padding: 10px 0 2px; }

@@ -226,13 +226,26 @@ export const intelFeedKeys = {
 
 export const FEED_PAGE_SIZE = 25;
 
-/** Build the query string for one feed page. */
-export function feedQueryString(source: FeedFilter, order: FeedOrder, cursor?: string): string {
+/**
+ * Build the query string for one feed page.
+ *
+ * P2-04: `workFilter` is the per-user worklist facet. 'default' is the active
+ * queue and is sent as NOTHING — the server already excludes this user's
+ * dismissed and still-snoozed alerts by default, so omitting it keeps the
+ * common case's URL (and therefore its cache entry) byte-identical to before.
+ */
+export function feedQueryString(
+  source: FeedFilter,
+  order: FeedOrder,
+  cursor?: string,
+  workFilter?: string,
+): string {
   const p = new URLSearchParams();
   if (source !== 'all') p.set('sourceType', source);
   p.set('order', order);
   p.set('limit', String(FEED_PAGE_SIZE));
   if (cursor) p.set('cursor', cursor);
+  if (workFilter && workFilter !== 'default') p.set('workState', workFilter);
   return p.toString();
 }
 

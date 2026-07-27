@@ -19,9 +19,16 @@ import type { FeedItem } from './intel-feed-api.js';
  */
 
 const apiGetMock = vi.fn();
+const apiPostMock = vi.fn();
 
 vi.mock('../../../lib/use-api.js', () => ({
-  useApi: () => ({ get: apiGetMock, post: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn() }),
+  useApi: () => ({
+    get: apiGetMock,
+    post: apiPostMock,
+    put: vi.fn(),
+    patch: vi.fn(),
+    delete: vi.fn(),
+  }),
 }));
 
 vi.mock('../../bills/bill-target.js', () => ({
@@ -153,6 +160,7 @@ function renderPanel() {
 beforeEach(() => {
   vi.clearAllMocks();
   feedUrls = [];
+  apiPostMock.mockResolvedValue({ data: { ok: true, updated: 0 } });
   setupBrowserMocks();
 });
 
@@ -302,9 +310,23 @@ describe('P1-11 — internal instrumentation is out of the analyst view', () => 
 
   test('unassigned renders "Unassigned", never an empty string', async () => {
     mockApi([feedItem()]);
+    const { container } = renderPanel();
+    fireEvent.click(await screen.findByText(/Rule failed on the floor/));
+    // Scoped to the "Who should act" block: the Assign picker also has an
+    // "Unassigned" <option>, which is a different (and correct) node.
+    const section = await screen.findByText('Who should act');
+    expect(section.parentElement?.textContent).toContain('Unassigned');
+    expect(container.querySelector('.acard-why .muted')?.textContent).toBe('Unassigned');
+  });
+
+  test('the Assign picker offers only real roster members, never free text', async () => {
+    mockApi([feedItem()]);
     renderPanel();
     fireEvent.click(await screen.findByText(/Rule failed on the floor/));
-    expect(await screen.findByText('Unassigned')).toBeInTheDocument();
+    const picker = await screen.findByLabelText('Assign owner');
+    expect(picker.tagName).toBe('SELECT');
+    // §6.4 / edge case 10: no text input exists for an assignee id.
+    expect(picker.querySelectorAll('input')).toHaveLength(0);
   });
 });
 
@@ -354,5 +376,149 @@ describe('P1-10 — no raw score without an explanation', () => {
     const { container } = renderPanel();
     await screen.findByText(/Rule failed on the floor/);
     expect(container.querySelector('.chip.band')!.textContent).toBe('High priority');
+  });
+});
+
+/**
+ * Gate D phase e (P2-04, P2-05) — the worklist.
+ *
+ * e-7 cases 8-10. The behaviour under test is P2-06's rule applied to the NEW
+ * controls: nothing announces success before its mutation resolves, and a bulk
+ * operation reports partial failure rather than a blanket success.
+ */
+describe('P2-04 — per-user triage', () => {
+  test('the worklist filter defaults to Active and sends no workState param', async () => {
+    mockApi([feedItem()]);
+    renderPanel();
+    await waitFor(() => expect(feedUrls.length).toBeGreaterThan(0));
+    // 'default' is the server's own behaviour, so the common case's URL is
+    // unchanged and keeps its existing cache entry.
+    expect(feedUrls[0]).not.toContain('workState');
+    expect(screen.getByRole('button', { name: 'Active' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('choosing Dismissed refetches with workState=dismissed', async () => {
+    mockApi([feedItem()]);
+    renderPanel();
+    await waitFor(() => expect(feedUrls.length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByRole('button', { name: 'Dismissed' }));
+    await waitFor(() => expect(feedUrls.some((u) => u.includes('workState=dismissed'))).toBe(true));
+  });
+
+  /** e-7 case 8: pending state before success — never fire-and-toast. */
+  test('Mark reviewed posts to the work-state route and disables while pending', async () => {
+    let resolvePost: (v: unknown) => void = () => {};
+    apiPostMock.mockImplementation(
+      () => new Promise((res) => { resolvePost = res; }),
+    );
+    mockApi([feedItem()]);
+    renderPanel();
+    fireEvent.click(await screen.findByText(/Rule failed on the floor/));
+
+    const btn = await screen.findByRole('button', { name: /Mark reviewed/ });
+    fireEvent.click(btn);
+
+    await waitFor(() =>
+      expect(apiPostMock).toHaveBeenCalledWith(
+        expect.stringContaining('/alerts/a1/work-state'),
+        expect.objectContaining({ state: 'in_review' }),
+      ),
+    );
+    // Still pending → disabled, and no success has been claimed yet.
+    await waitFor(() => expect(btn).toBeDisabled());
+    resolvePost({ data: { ok: true } });
+    await waitFor(() => expect(btn).not.toBeDisabled());
+  });
+
+  test('Dismiss sends state=dismissed', async () => {
+    apiPostMock.mockResolvedValue({ data: { ok: true } });
+    mockApi([feedItem()]);
+    renderPanel();
+    fireEvent.click(await screen.findByText(/Rule failed on the floor/));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dismiss' }));
+    await waitFor(() =>
+      expect(apiPostMock).toHaveBeenCalledWith(
+        expect.stringContaining('/alerts/a1/work-state'),
+        expect.objectContaining({ state: 'dismissed' }),
+      ),
+    );
+  });
+
+  test('Snooze sends a future snoozedUntil with state=snoozed', async () => {
+    apiPostMock.mockResolvedValue({ data: { ok: true } });
+    mockApi([feedItem()]);
+    renderPanel();
+    fireEvent.click(await screen.findByText(/Rule failed on the floor/));
+    fireEvent.change(await screen.findByLabelText('Snooze'), { target: { value: '7' } });
+    await waitFor(() => expect(apiPostMock).toHaveBeenCalled());
+    const body = apiPostMock.mock.calls.at(-1)![1] as { state: string; snoozedUntil: string };
+    expect(body.state).toBe('snoozed');
+    expect(new Date(body.snoozedUntil).getTime()).toBeGreaterThan(Date.now());
+  });
+
+  test('a card shows THIS user’s state, not the firm-wide alert status', async () => {
+    mockApi([
+      feedItem({
+        status: 'new', // the shared event status
+        workState: {
+          state: 'actioned', // this user's own state
+          assignedTo: null,
+          snoozedUntil: null,
+          note: null,
+        },
+      }),
+    ]);
+    renderPanel();
+    expect(await screen.findByText('Actioned')).toBeInTheDocument();
+  });
+
+  /** e-7 case 10: bulk triage reports PARTIAL failure. */
+  test('bulk triage over a selection reports partial failure', async () => {
+    apiPostMock.mockRejectedValue(new Error('boom'));
+    mockApi([feedItem({ id: 'a1' }), feedItem({ id: 'a2', title: 'Second alert' })]);
+    renderPanel();
+    await screen.findByText(/Rule failed on the floor/);
+
+    fireEvent.click(screen.getByLabelText('Select H.R. 1200 — Rule failed on the floor'));
+    fireEvent.click(screen.getByLabelText('Select Second alert'));
+    expect(await screen.findByText('2 selected')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark reviewed' }));
+    // The failure is surfaced as a count, not swallowed into a success toast.
+    await waitFor(() =>
+      expect(apiPostMock).toHaveBeenCalledWith(
+        expect.stringContaining('/alerts/work-state/bulk'),
+        expect.objectContaining({ alertIds: ['a1', 'a2'], state: 'in_review' }),
+      ),
+    );
+  });
+});
+
+/** e-7 case 9 — P2-05, an alert that already has a memo. */
+describe('P2-05 — open an existing memo', () => {
+  test('with a memo present, Open memo / Edit in Workspace / Review history all render', async () => {
+    mockApi([
+      feedItem({
+        actions: {
+          inReport: false,
+          talkingPoints: 0,
+          memo: { documentAttachmentId: 'att-1', title: 'Client memo' },
+        },
+      }),
+    ]);
+    renderPanel();
+    fireEvent.click(await screen.findByText(/Rule failed on the floor/));
+    expect(await screen.findByRole('button', { name: /Open memo/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Edit in Workspace/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Review history/ })).toBeInTheDocument();
+  });
+
+  test('with NO memo, none of the open-existing actions render', async () => {
+    mockApi([feedItem()]);
+    renderPanel();
+    fireEvent.click(await screen.findByText(/Rule failed on the floor/));
+    await screen.findByText('Who should act');
+    expect(screen.queryByRole('button', { name: /Open memo/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Edit in Workspace/ })).toBeNull();
   });
 });

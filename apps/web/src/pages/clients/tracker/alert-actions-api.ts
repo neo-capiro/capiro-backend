@@ -385,3 +385,86 @@ export function useSetReport() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['intel-feed'] }),
   });
 }
+
+// ── P2-04 (Gate D phase e): per-user alert work state ────────────────────────
+
+export type WorkStateValue =
+  | 'new'
+  | 'in_review'
+  | 'assigned'
+  | 'actioned'
+  | 'snoozed'
+  | 'dismissed';
+
+/** Mirrors intel-api's BULK_MAX. The web chunks above this and REPORTS it. */
+export const WORK_STATE_BULK_MAX = 200;
+
+export interface WorkStatePatchInput {
+  state?: WorkStateValue;
+  assignedTo?: string | null;
+  snoozedUntil?: string | null;
+  note?: string | null;
+}
+
+/**
+ * Set THIS user's triage state on one alert. Idempotent server-side (upsert on
+ * (alertId, userId)), so a double-click cannot create a second row.
+ *
+ * P2-06: no toast here. The caller reports success from `onSuccess` and shows a
+ * pending state meanwhile — never fire-and-toast.
+ */
+export function useSetWorkState() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (
+      input: { clientId: string; alertId: string } & WorkStatePatchInput,
+    ) => {
+      const { clientId, alertId, ...patch } = input;
+      return (
+        await api.post(
+          `/intel-api/clients/${encodeURIComponent(clientId)}/alerts/${encodeURIComponent(alertId)}/work-state`,
+          patch,
+        )
+      ).data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['intel-feed'] }),
+  });
+}
+
+/**
+ * Bulk triage. Chunks at WORK_STATE_BULK_MAX and returns per-chunk outcomes so
+ * the caller can report PARTIAL failure — never a blanket success (P2-06).
+ */
+export function useBulkWorkState() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (
+      input: { clientId: string; alertIds: string[] } & WorkStatePatchInput,
+    ): Promise<{ ok: number; failed: number; total: number }> => {
+      const { clientId, alertIds, ...patch } = input;
+      const chunks: string[][] = [];
+      for (let i = 0; i < alertIds.length; i += WORK_STATE_BULK_MAX) {
+        chunks.push(alertIds.slice(i, i + WORK_STATE_BULK_MAX));
+      }
+      const results = await Promise.allSettled(
+        chunks.map((ids) =>
+          api.post<{ updated: number }>(
+            `/intel-api/clients/${encodeURIComponent(clientId)}/alerts/work-state/bulk`,
+            { alertIds: ids, ...patch },
+          ),
+        ),
+      );
+      let ok = 0;
+      let failed = 0;
+      results.forEach((r, i) => {
+        const size = chunks[i]!.length;
+        if (r.status === 'fulfilled') ok += r.value.data?.updated ?? size;
+        else failed += size;
+      });
+      return { ok, failed, total: alertIds.length };
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['intel-feed'] }),
+  });
+}

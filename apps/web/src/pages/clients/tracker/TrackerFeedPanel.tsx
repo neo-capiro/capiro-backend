@@ -18,7 +18,15 @@ import {
   type FeedResponse,
   type RecommendedAction,
 } from './intel-feed-api.js';
-import { useAddTalkingPoint, useSetReport } from './alert-actions-api.js';
+import {
+  useAddTalkingPoint,
+  useBulkWorkState,
+  useSetReport,
+  useSetWorkState,
+  WORK_STATE_BULK_MAX,
+  type WorkStatePatchInput,
+} from './alert-actions-api.js';
+import { useTeamMembers, type TeamMemberOption } from '../../actions/actions-api.js';
 import {
   actionTextOf,
   buildOutreachContextPoolItem,
@@ -172,11 +180,44 @@ function urgencyText(item: FeedItem): string | null {
 const BAND_TOOLTIP =
   'Ranked from client relevance, materiality, urgency, and client priority.';
 
+/** P2-04: the worklist filter. 'default' hides this user's dismissed + snoozed. */
+const WORK_FILTERS: Array<{ v: string; label: string }> = [
+  { v: 'default', label: 'Active' },
+  { v: 'new', label: 'New' },
+  { v: 'in_review', label: 'In review' },
+  { v: 'assigned', label: 'Assigned' },
+  { v: 'actioned', label: 'Actioned' },
+  { v: 'snoozed', label: 'Snoozed' },
+  { v: 'dismissed', label: 'Dismissed' },
+  { v: 'all', label: 'All' },
+];
+
+const WORK_STATE_LABEL: Record<string, string> = {
+  new: 'New',
+  in_review: 'In review',
+  assigned: 'Assigned',
+  actioned: 'Actioned',
+  snoozed: 'Snoozed',
+  dismissed: 'Dismissed',
+};
+
+/** Display name for an assignee id, from the tenant roster. */
+function memberName(members: TeamMemberOption[], userId: string | null): string | null {
+  if (!userId) return null;
+  const m = members.find((x) => x.userId === userId);
+  if (!m) return userId;
+  const full = [m.firstName, m.lastName].filter(Boolean).join(' ').trim();
+  return full || m.email;
+}
+
 function FeedCard({
   item,
   onAction,
   showClient = false,
   onScopeClient,
+  members = [],
+  selected = false,
+  onToggleSelect,
 }: {
   item: FeedItem;
   onAction: (a: RecommendedAction, item: FeedItem) => void;
@@ -184,6 +225,10 @@ function FeedCard({
   showClient?: boolean;
   /** LegiWatch v2: clicking the client label scopes the whole feature to it. */
   onScopeClient?: (clientId: string) => void;
+  /** P2-04: the tenant roster, for the Assign owner picker. */
+  members?: TeamMemberOption[];
+  selected?: boolean;
+  onToggleSelect?: (alertId: string) => void;
 }) {
   // LegiWatch v2 (L1): calm card — collapsed by default, expands on demand.
   const [open, setOpen] = useState(false);
@@ -222,9 +267,46 @@ function FeedCard({
   });
   const packet = packetQ.data ?? null;
 
+  // ── P2-04 triage ───────────────────────────────────────────────────────────
+  const navigate = useNavigate();
+  const { message } = AntApp.useApp();
+  const setWorkState = useSetWorkState();
+  const work = item.workState;
+  const assigneeName = memberName(members, work?.assignedTo ?? null);
+
+  /**
+   * P2-06: pending-then-success, never fire-and-toast. The toast is raised from
+   * `onSuccess`, and every button that triggers this disables while pending, so
+   * a slow network cannot produce a success message for a request that failed.
+   */
+  const triage = (patch: WorkStatePatchInput, done: string) =>
+    setWorkState.mutate(
+      { clientId: item.clientId, alertId: item.id, ...patch },
+      {
+        onSuccess: () => message.success(done),
+        onError: (e: unknown) => message.error(`Could not update: ${(e as Error).message}`),
+      },
+    );
+
+  const snoozeUntil = (days: number): string => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return d.toISOString();
+  };
+
   return (
     <div className={'acard' + (open ? ' open' : '')} data-sev={item.severity}>
       <div className="acard-head" onClick={() => setOpen((o) => !o)}>
+        {onToggleSelect && (
+          <input
+            type="checkbox"
+            className="acard-select"
+            aria-label={`Select ${item.title}`}
+            checked={selected}
+            onClick={(e) => e.stopPropagation()}
+            onChange={() => onToggleSelect(item.id)}
+          />
+        )}
         <div className="acard-main">
           <div className={'acard-title' + (open ? '' : ' clip')}>{item.title}</div>
           <div className="acard-meta">
@@ -272,6 +354,13 @@ function FeedCard({
                 title={`This alert is missing: ${gaps.join(', ')}`}
               >
                 limited evidence
+              </span>
+            )}
+            {/* P2-04: this user's own triage state, never the firm-wide one. */}
+            {work && work.state !== 'new' && (
+              <span className="chip muted" style={{ fontSize: 10.5 }} title="Your triage state">
+                {WORK_STATE_LABEL[work.state] ?? work.state}
+                {work.state === 'assigned' && assigneeName ? ` · ${assigneeName}` : ''}
               </span>
             )}
             {drafted && (
@@ -454,6 +543,105 @@ function FeedCard({
             </div>
           )}
 
+          {/* P2-05: an alert that ALREADY has a memo offers ways to reach it,
+              not just "Redraft". documentAttachmentId has been in the contract
+              all along; nothing surfaced it. */}
+          {item.actions?.memo && (
+            <div className="acard-actions">
+              <button
+                className="btn sm btn-ghost"
+                onClick={() =>
+                  // The client profile's Documents tab, via the SAME ?tab= deep
+                  // link tracker emails already use. Deliberately not a
+                  // hand-built attachment URL: apps/api exposes no attachment
+                  // download route, so any such URL would be invented.
+                  navigate(
+                    `/clients?clientId=${encodeURIComponent(item.clientId)}&tab=documents`,
+                  )
+                }
+              >
+                <Ic n="doc" /> Open memo
+              </button>
+              <button
+                className="btn sm btn-ghost"
+                onClick={() => onAction({ kind: 'draft_memo', label: 'Redraft memo' }, item)}
+              >
+                <Ic n="spark" /> Edit in Workspace
+              </button>
+              <button className="btn sm btn-ghost" onClick={() => navigate('/reviews')}>
+                <Ic n="check" /> Review history
+              </button>
+            </div>
+          )}
+
+          {/* P2-04: triage. Every control disables while its mutation is in
+              flight, and success is reported from onSuccess (P2-06). */}
+          <div className="acard-actions" aria-label="Triage">
+            <button
+              className="btn sm btn-ghost"
+              disabled={setWorkState.isPending}
+              onClick={() => triage({ state: 'in_review' }, 'Marked reviewed')}
+            >
+              <Ic n="check" /> Mark reviewed
+            </button>
+            <label className="btn sm btn-ghost" style={{ gap: 6 }}>
+              Assign
+              <select
+                aria-label="Assign owner"
+                value={work?.assignedTo ?? ''}
+                disabled={setWorkState.isPending || members.length === 0}
+                onChange={(e) =>
+                  e.target.value
+                    ? triage({ state: 'assigned', assignedTo: e.target.value }, 'Owner assigned')
+                    : triage({ state: 'in_review', assignedTo: null }, 'Owner cleared')
+                }
+              >
+                {/* §6.4 / edge case 10: the options come from the tenant's own
+                    roster, so an id that is not a member cannot be stored. There
+                    is deliberately no free-text user-id field. */}
+                <option value="">Unassigned</option>
+                {members.map((m) => (
+                  <option key={m.userId} value={m.userId}>
+                    {memberName(members, m.userId)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="btn sm btn-ghost" style={{ gap: 6 }}>
+              Snooze
+              <select
+                aria-label="Snooze"
+                value=""
+                disabled={setWorkState.isPending}
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  triage(
+                    { state: 'snoozed', snoozedUntil: snoozeUntil(Number(e.target.value)) },
+                    'Snoozed',
+                  );
+                }}
+              >
+                <option value="">Choose…</option>
+                <option value="1">1 day</option>
+                <option value="7">1 week</option>
+                <option value="30">30 days</option>
+              </select>
+            </label>
+            <button
+              className="btn sm btn-ghost"
+              disabled={setWorkState.isPending}
+              onClick={() => triage({ state: 'dismissed' }, 'Dismissed')}
+            >
+              Dismiss
+            </button>
+            <button className="btn sm btn-ghost" onClick={() => navigate('/actions')}>
+              Create task
+            </button>
+            <button className="btn sm btn-ghost" onClick={() => navigate('/strategies')}>
+              Add to strategy
+            </button>
+          </div>
+
           {actions.length > 0 && (
             <div className="acard-actions">
               {actions.map((a, i) => (
@@ -524,6 +712,10 @@ export function TrackerFeedPanel({
   // LegiWatch v2 (L1): global feed arrangement — single stream (default) or grouped
   // by client. Never the default; only offered at the all-clients altitude.
   const [group, setGroup] = useState(false);
+  // P2-04: the worklist filter. 'default' = this user's active queue, which
+  // EXCLUDES their dismissed and still-snoozed alerts.
+  const [workFilter, setWorkFilter] = useState('default');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [composerItem, setComposerItem] = useState<FeedItem | null>(null);
   const [briefItem, setBriefItem] = useState<FeedItem | null>(null);
   const [tpItem, setTpItem] = useState<FeedItem | null>(null);
@@ -531,6 +723,11 @@ export function TrackerFeedPanel({
 
   const setReport = useSetReport();
   const addTalkingPoint = useAddTalkingPoint();
+  // §6.4: a real tenant roster already exists and is reused here, so Assign
+  // owner stores a member id the picker returned — never free text.
+  const team = useTeamMembers();
+  const members = Array.isArray(team.data) ? team.data : [];
+  const bulkWorkState = useBulkWorkState();
 
   // P10: acting on a feed alert = hand-off. "Draft outreach" creates a real
   // outreach DRAFT record seeded with the alert as a context item, then deep-links
@@ -606,13 +803,13 @@ export function TrackerFeedPanel({
   // difference — filters, keyset cursor, and page shape are identical.
   const query = useInfiniteQuery({
     queryKey: global
-      ? intelFeedKeys.tenantFeed(source, order)
-      : intelFeedKeys.feed(clientId!, source, order),
+      ? [...intelFeedKeys.tenantFeed(source, order), workFilter]
+      : [...intelFeedKeys.feed(clientId!, source, order), workFilter],
     queryFn: async ({ pageParam }) => {
       const path = global ? intelFeedPaths.tenantFeed() : intelFeedPaths.feed(clientId!);
       return (
         await api.get<FeedResponse>(
-          `${path}?${feedQueryString(source, order, pageParam || undefined)}`,
+          `${path}?${feedQueryString(source, order, pageParam || undefined, workFilter)}`,
         )
       ).data;
     },
@@ -690,6 +887,47 @@ export function TrackerFeedPanel({
     }
   };
 
+  const toggleSelect = (alertId: string) =>
+    setSelectedIds((prev) =>
+      prev.includes(alertId) ? prev.filter((x) => x !== alertId) : [...prev, alertId],
+    );
+
+  /**
+   * P2-04 + P2-06: bulk triage reports PARTIAL failure. The hook chunks at
+   * WORK_STATE_BULK_MAX and returns per-chunk outcomes, so "12 of 30" is a real
+   * count rather than an optimistic claim, and the selection clears only after
+   * every call settles.
+   */
+  const runBulk = (state: WorkStatePatchInput['state'], label: string) => {
+    const ids = new Set(selectedIds);
+    // The bulk route is client-scoped, and the global roll-up mixes clients —
+    // group by each alert's OWN clientId rather than assuming one.
+    const byClient = new Map<string, string[]>();
+    for (const it of items) {
+      if (!ids.has(it.id)) continue;
+      byClient.set(it.clientId, [...(byClient.get(it.clientId) ?? []), it.id]);
+    }
+    void Promise.allSettled(
+      [...byClient.entries()].map(([cid, alertIds]) =>
+        bulkWorkState.mutateAsync({ clientId: cid, alertIds, state }),
+      ),
+    ).then((results) => {
+      let ok = 0;
+      let failed = 0;
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled') {
+          ok += r.value.ok;
+          failed += r.value.failed;
+        } else {
+          failed += [...byClient.values()][i]?.length ?? 1;
+        }
+      });
+      if (failed > 0) message.warning(`${label}: ${ok} of ${ok + failed} updated — ${failed} failed`);
+      else message.success(`${label}: ${ok} updated`);
+      setSelectedIds([]);
+    });
+  };
+
   // Right-rail "Show" options — source facet with tenant/client-scoped counts.
   const srcOpts: Array<{ v: FeedFilter; label: string; n?: number }> = [
     { v: 'all', label: 'All sources' },
@@ -761,6 +999,9 @@ export function TrackerFeedPanel({
                     onAction={onAction}
                     showClient={false}
                     onScopeClient={onScopeClient}
+                    members={members}
+                    selected={selectedIds.includes(it.id)}
+                    onToggleSelect={toggleSelect}
                   />
                 ))}
               </div>
@@ -788,6 +1029,9 @@ export function TrackerFeedPanel({
             onAction={onAction}
             showClient={global}
             onScopeClient={onScopeClient}
+            members={members}
+            selected={selectedIds.includes(it.id)}
+            onToggleSelect={toggleSelect}
           />
         ))}
         {query.hasNextPage && (
@@ -813,6 +1057,37 @@ export function TrackerFeedPanel({
             : `What changed for ${clientName ?? 'this client'}`}{' '}
           · {totalUpdates} update{totalUpdates === 1 ? '' : 's'}
         </div>
+        {/* P2-04: bulk triage. Reuses the existing .bulk-bar pattern. Reports
+            PARTIAL failure — never a blanket success (P2-06). */}
+        {selectedIds.length > 0 && (
+          <div className="bulk-bar" role="region" aria-label="Bulk triage">
+            <span>
+              {selectedIds.length} selected
+              {selectedIds.length > WORK_STATE_BULK_MAX
+                ? ` — sent in ${Math.ceil(selectedIds.length / WORK_STATE_BULK_MAX)} batches`
+                : ''}
+            </span>
+            {(
+              [
+                ['in_review', 'Mark reviewed'],
+                ['actioned', 'Mark actioned'],
+                ['dismissed', 'Dismiss'],
+              ] as const
+            ).map(([state, label]) => (
+              <button
+                key={state}
+                className="btn sm"
+                disabled={bulkWorkState.isPending}
+                onClick={() => runBulk(state, label)}
+              >
+                {label}
+              </button>
+            ))}
+            <button className="btn sm btn-ghost" onClick={() => setSelectedIds([])}>
+              Clear
+            </button>
+          </div>
+        )}
         {body}
       </div>
 
@@ -851,6 +1126,25 @@ export function TrackerFeedPanel({
               scored by the prior model and may rank differently.
             </div>
           )}
+        </div>
+
+        {/* P2-04: the worklist. Default is this user's ACTIVE queue — their
+            dismissed and still-snoozed alerts are excluded server-side. */}
+        <div className="rail-card">
+          <div className="rc-t">Worklist</div>
+          {WORK_FILTERS.map((o) => (
+            <button
+              key={o.v}
+              className={'rail-opt' + (workFilter === o.v ? ' on' : '')}
+              aria-pressed={workFilter === o.v}
+              onClick={() => {
+                setWorkFilter(o.v);
+                setSelectedIds([]);
+              }}
+            >
+              {o.label}
+            </button>
+          ))}
         </div>
 
         <div className="rail-card">

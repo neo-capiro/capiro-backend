@@ -31,6 +31,8 @@ export class FeedController {
     order?: string,
     cursor?: string,
     limit?: string,
+    userId?: string,
+    workState?: string | string[],
   ): FeedQuery {
     const arr = (v?: string | string[]): string[] | undefined =>
       v === undefined ? undefined : Array.isArray(v) ? v : [v];
@@ -49,6 +51,9 @@ export class FeedController {
       order: order === 'score' ? 'score' : 'date',
       cursor: cursor || undefined,
       limit: Number.isFinite(n) && n > 0 ? n : undefined,
+      // P2-04: the feed hides THIS user's dismissed/snoozed alerts by default.
+      userId,
+      workStates: arr(workState),
     };
   }
 
@@ -65,8 +70,12 @@ export class FeedController {
     @Query('order') order?: string,
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
+    @Query('workState') workState?: string | string[],
   ) {
-    const query = this.buildQuery(sourceType, severity, status, since, until, order, cursor, limit);
+    const query = this.buildQuery(
+      sourceType, severity, status, since, until, order, cursor, limit,
+      ctx.clerkUserId, workState,
+    );
     return this.svc.getFeed(ctx.tenantId, null, query);
   }
 
@@ -82,8 +91,12 @@ export class FeedController {
     @Query('order') order?: string,
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
+    @Query('workState') workState?: string | string[],
   ) {
-    const query = this.buildQuery(sourceType, severity, status, since, until, order, cursor, limit);
+    const query = this.buildQuery(
+      sourceType, severity, status, since, until, order, cursor, limit,
+      ctx.clerkUserId, workState,
+    );
     return this.svc.getFeed(ctx.tenantId, clientId, query);
   }
 
@@ -104,6 +117,8 @@ export class FeedController {
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
   ) {
+    // Bill 360 shows the full event history for a bill — a personal dismiss must
+    // not hide a historical event from the record, so no userId is passed here.
     const query = this.buildQuery('bill', severity, status, since, until, order, cursor, limit);
     return this.svc.getFeed(ctx.tenantId, clientId, { ...query, sourceRef: billId });
   }
