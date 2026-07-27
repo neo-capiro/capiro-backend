@@ -98,6 +98,7 @@
     "sync:grants": "tsx scripts/sync-grants.ts",
     "sync:grants:reconcile": "tsx scripts/sync-grants.ts --all-statuses",
     "enrich:grant-details": "tsx scripts/enrich-grant-details.ts",
+    "generate:grant-opportunity-candidates": "tsx scripts/generate-grant-opportunity-candidates.ts",
     "sync:gao": "tsx scripts/sync-gao.ts",
     "sync:openstates": "tsx scripts/sync-openstates.ts",
     "sync:crs": "tsx scripts/sync-crs.ts",

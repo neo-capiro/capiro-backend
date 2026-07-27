@@ -1,12 +1,14 @@
 import { describe, expect, test } from '@jest/globals';
 import {
   buildClientNexusResponse,
+  buildDistrictClientBreakdown,
   districtKeyFor,
   evidenceForDistrict,
   foldDistricts,
   isStatewide,
   type ClientNexusInputs,
 } from './district-nexus.aggregate.js';
+import { scoreNexus } from './district-nexus-scoring.js';
 
 const GENERATED_AT = '2026-07-25T12:00:00.000Z';
 
@@ -133,7 +135,7 @@ describe('geography basis precedence', () => {
     expect(evidence.grantPlaceOfPerformance?.strength).toBe('recipientLocation');
   });
 
-  test('pure place-of-performance keeps full authority', () => {
+  test('pure place-of-performance keeps full authority when the recipient is UEI-verified', () => {
     const { districts } = foldDistricts(
       inputs({
         assistance: [
@@ -141,6 +143,7 @@ describe('geography basis precedence', () => {
             state: 'TX',
             district: '23',
             basis: 'place_of_performance',
+            matchBasis: 'uei',
             awardCount: 1,
             totalObligated: 900,
             totalOutlayed: 0,
@@ -255,8 +258,11 @@ describe('client roll-up pools evidence rather than averaging district scores', 
 
   test('a strong district is not diluted by six incidental ones', () => {
     const response = buildClientNexusResponse(lopsided);
-    // Facility 25 + employees 20 + contract 10 = 55, all pooled at full strength.
-    expect(response.score).toBe(55);
+    // None of this fixture's facilities are geocoded and none of its contracts
+    // carry a verified identifier (contracts never do — see CONTRACT_TIER), so
+    // pooled strength is userProvided/inferred throughout, not full strength:
+    // facility 25*0.5 + employees 20*0.5 + contract 10*0.5 = 27.5, rounds to 28.
+    expect(response.score).toBe(28);
     // The mean of the per-district scores would be far lower, and most of those
     // districts do not even have a score to average.
     const scored = response.districts.filter((d) => d.score != null);
@@ -479,5 +485,512 @@ describe('buildClientNexusResponse — linkage and facility footprint (WS-H)', (
     expect(response.facilityFootprint.facilityCount).toBe(2);
     expect(response.facilityFootprint.facilitiesWithoutDistrict).toBe(1);
     expect(response.facilityFootprint.facilitiesMissingEmployeeCount).toBe(0);
+  });
+});
+
+/**
+ * Audit F2: the evidence table's verification status and the score's
+ * EvidenceStrength must agree — a name-matched contract that reads "inferred"
+ * in the evidence panel must not silently earn full-strength score credit,
+ * and a hand-typed facility address must not silently earn a geocoder's
+ * credit. See district-nexus.verification.ts for the shared tier table.
+ */
+describe('the score carries the verification tier the evidence table shows', () => {
+  function foldOne(partial: Partial<ClientNexusInputs>) {
+    return foldDistricts(inputs(partial)).districts[0]!;
+  }
+
+  test('a hand-typed facility claim earns userProvided strength and half credit', () => {
+    const acc = foldOne({
+      facilities: [
+        {
+          state: 'TX',
+          districtCode: '23',
+          employeeCount: 50,
+          districtSource: 'user',
+          geocodeStatus: 'no_match',
+        },
+      ],
+    });
+    const evidence = evidenceForDistrict(acc);
+    expect(evidence.verifiedFacility?.strength).toBe('userProvided');
+    const scored = scoreNexus({ components: evidence });
+    expect(scored.breakdown.find((b) => b.component === 'verifiedFacility')?.credit).toBe(12.5);
+  });
+
+  test('a geocoded facility claim earns full verified strength and credit', () => {
+    const acc = foldOne({
+      facilities: [{ state: 'TX', districtCode: '23', employeeCount: 50, districtSource: 'geocoded' }],
+    });
+    const evidence = evidenceForDistrict(acc);
+    expect(evidence.verifiedFacility?.strength).toBe('verified');
+    const scored = scoreNexus({ components: evidence });
+    expect(scored.breakdown.find((b) => b.component === 'verifiedFacility')?.credit).toBe(25);
+  });
+
+  test('one geocoded facility and one user-provided one pool to the weaker strength', () => {
+    const acc = foldOne({
+      facilities: [
+        { state: 'TX', districtCode: '23', employeeCount: 50, districtSource: 'geocoded' },
+        {
+          state: 'TX',
+          districtCode: '23',
+          employeeCount: 10,
+          districtSource: 'user',
+          geocodeStatus: 'no_match',
+        },
+      ],
+    });
+    expect(evidenceForDistrict(acc).verifiedFacility?.strength).toBe('userProvided');
+  });
+
+  test('a contract is always inferred — the rail joins on contractor name only', () => {
+    const acc = foldOne({
+      contracts: [{ state: 'TX', district: '23', awardCount: 1, totalAmount: 1_000_000 }],
+    });
+    const evidence = evidenceForDistrict(acc);
+    expect(evidence.contractPlaceOfPerformance?.strength).toBe('inferred');
+    const scored = scoreNexus({ components: evidence });
+    expect(scored.breakdown.find((b) => b.component === 'contractPlaceOfPerformance')?.credit).toBe(5);
+  });
+
+  test('a UEI-matched, place-of-performance assistance row earns full credit', () => {
+    const acc = foldOne({
+      assistance: [
+        {
+          state: 'TX',
+          district: '23',
+          basis: 'place_of_performance',
+          matchBasis: 'uei',
+          awardCount: 1,
+          totalObligated: 1_000_000,
+          totalOutlayed: 0,
+        },
+      ],
+    });
+    const evidence = evidenceForDistrict(acc);
+    expect(evidence.grantPlaceOfPerformance?.strength).toBe('sourceAuthoritative');
+    const scored = scoreNexus({ components: evidence });
+    expect(scored.breakdown.find((b) => b.component === 'grantPlaceOfPerformance')?.credit).toBe(10);
+  });
+
+  test('a name-matched, place-of-performance assistance row is discounted to inferred', () => {
+    const acc = foldOne({
+      assistance: [
+        {
+          state: 'TX',
+          district: '23',
+          basis: 'place_of_performance',
+          matchBasis: 'recipient_name',
+          awardCount: 1,
+          totalObligated: 1_000_000,
+          totalOutlayed: 0,
+        },
+      ],
+    });
+    const evidence = evidenceForDistrict(acc);
+    expect(evidence.grantPlaceOfPerformance?.strength).toBe('inferred');
+    const scored = scoreNexus({ components: evidence });
+    expect(scored.breakdown.find((b) => b.component === 'grantPlaceOfPerformance')?.credit).toBe(5);
+  });
+
+  test('a UEI-matched but recipient-location row is discounted to recipientLocation', () => {
+    const acc = foldOne({
+      assistance: [
+        {
+          state: 'TX',
+          district: '23',
+          basis: 'recipient_location',
+          matchBasis: 'uei',
+          awardCount: 1,
+          totalObligated: 1_000_000,
+          totalOutlayed: 0,
+        },
+      ],
+    });
+    const evidence = evidenceForDistrict(acc);
+    expect(evidence.grantPlaceOfPerformance?.strength).toBe('recipientLocation');
+    const scored = scoreNexus({ components: evidence });
+    expect(scored.breakdown.find((b) => b.component === 'grantPlaceOfPerformance')?.credit).toBe(5);
+  });
+
+  test('two weaknesses (name match AND recipient location) do not compound', () => {
+    const acc = foldOne({
+      assistance: [
+        {
+          state: 'TX',
+          district: '23',
+          basis: 'recipient_location',
+          matchBasis: 'recipient_name',
+          awardCount: 1,
+          totalObligated: 1_000_000,
+          totalOutlayed: 0,
+        },
+      ],
+    });
+    const scored = scoreNexus({ components: evidenceForDistrict(acc) });
+    // Weakest-wins, not multiplied: 10 * 0.5, NOT 10 * 0.5 * 0.5.
+    expect(scored.breakdown.find((b) => b.component === 'grantPlaceOfPerformance')?.credit).toBe(5);
+  });
+
+  test('matchBasis omitted defaults to the conservative recipient_name reading', () => {
+    const acc = foldOne({
+      assistance: [
+        {
+          state: 'TX',
+          district: '23',
+          basis: 'place_of_performance',
+          awardCount: 1,
+          totalObligated: 1_000_000,
+          totalOutlayed: 0,
+        },
+      ],
+    });
+    expect(evidenceForDistrict(acc).grantPlaceOfPerformance?.strength).toBe('inferred');
+  });
+});
+
+/**
+ * Audit F4: reviewed ClientGrantNexus relationships (subrecipient, project
+ * site, partner, beneficiary, etc.) reach the score exactly like every other
+ * rail. district-nexus.service.ts's aggregateRelationshipNexus is what turns
+ * a raw ClientGrantNexus + linked award/facility into the row shape below —
+ * these fixtures represent that resolution already having happened, which is
+ * the boundary this I/O-free module actually owns.
+ */
+describe('reviewed client↔award relationships reach the numbers (audit F4)', () => {
+  test("a subrecipient row with a stated share adds exactly that amount, not the award's full amount", () => {
+    const { districts } = foldDistricts(
+      inputs({
+        relationships: [
+          {
+            clientId: 'client-1',
+            state: 'TX',
+            district: '23',
+            component: 'grantPlaceOfPerformance',
+            obligatedAmount: 250_000,
+            outlayedAmount: null,
+            strength: 'userProvided',
+            geographyBasis: 'place_of_performance',
+          },
+        ],
+      }),
+    );
+    expect(districts[0]?.grantObligations).toBe(250_000);
+  });
+
+  test('a subrecipient row with no stated share adds null money but still marks presence', () => {
+    const { districts } = foldDistricts(
+      inputs({
+        relationships: [
+          {
+            clientId: 'client-1',
+            state: 'TX',
+            district: '23',
+            component: 'grantPlaceOfPerformance',
+            obligatedAmount: null,
+            outlayedAmount: null,
+            strength: 'userProvided',
+            geographyBasis: 'place_of_performance',
+          },
+        ],
+      }),
+    );
+    expect(districts[0]?.grantObligations).toBeNull();
+    expect(districts[0]?.grantStrength).toBe('userProvided');
+  });
+
+  test("a direct_recipient row already resolved to the award's full amount carries both obligations and outlays", () => {
+    const { districts } = foldDistricts(
+      inputs({
+        relationships: [
+          {
+            clientId: 'client-1',
+            state: 'TX',
+            district: '23',
+            component: 'grantPlaceOfPerformance',
+            obligatedAmount: 5_000_000,
+            outlayedAmount: 2_000_000,
+            strength: 'verified',
+            geographyBasis: 'place_of_performance',
+          },
+        ],
+      }),
+    );
+    expect(districts[0]?.grantObligations).toBe(5_000_000);
+    expect(districts[0]?.grantOutlays).toBe(2_000_000);
+  });
+
+  test('a beneficiary row populates partnerBeneficiary and raises coverage above the pre-F4 65% ceiling', () => {
+    const { districts } = foldDistricts(
+      inputs({
+        facilities: [{ state: 'TX', districtCode: '23', employeeCount: 50, districtSource: 'geocoded' }],
+        contracts: [{ state: 'TX', district: '23', awardCount: 1, totalAmount: 1_000_000 }],
+        assistance: [
+          {
+            state: 'TX',
+            district: '23',
+            basis: 'place_of_performance',
+            matchBasis: 'uei',
+            awardCount: 1,
+            totalObligated: 1_000_000,
+            totalOutlayed: 0,
+          },
+        ],
+        relationships: [
+          {
+            clientId: 'client-1',
+            state: 'TX',
+            district: '23',
+            component: 'partnerBeneficiary',
+            obligatedAmount: null,
+            outlayedAmount: null,
+            strength: 'verified',
+            geographyBasis: 'place_of_performance',
+          },
+        ],
+      }),
+    );
+    const evidence = evidenceForDistrict(districts[0]!);
+    expect(evidence.partnerBeneficiary).toEqual({ strength: 'verified', evidenceCount: 1 });
+    const scored = scoreNexus({ components: evidence });
+    // facility 25 + employees 20 + contract 10 + grant 10 = 65 was the only
+    // coverage reachable before F4; partnerBeneficiary's 10 pushes it to 75.
+    expect(scored.coveragePercent).toBe(75);
+  });
+
+  test('an unverified relationship scores userProvided (half); an explicitly verified one scores verified (full)', () => {
+    const unverified = foldDistricts(
+      inputs({
+        relationships: [
+          {
+            clientId: 'client-1',
+            state: 'TX',
+            district: '23',
+            component: 'partnerBeneficiary',
+            obligatedAmount: null,
+            outlayedAmount: null,
+            strength: 'userProvided',
+            geographyBasis: 'place_of_performance',
+          },
+        ],
+      }),
+    ).districts[0]!;
+    expect(evidenceForDistrict(unverified).partnerBeneficiary?.strength).toBe('userProvided');
+
+    const verified = foldDistricts(
+      inputs({
+        relationships: [
+          {
+            clientId: 'client-1',
+            state: 'TX',
+            district: '23',
+            component: 'partnerBeneficiary',
+            obligatedAmount: null,
+            outlayedAmount: null,
+            strength: 'verified',
+            geographyBasis: 'place_of_performance',
+          },
+        ],
+      }),
+    ).districts[0]!;
+    expect(evidenceForDistrict(verified).partnerBeneficiary?.strength).toBe('verified');
+  });
+
+  test('a grant-shaped relationship with no resolvable district joins unmapped, never a district', () => {
+    const { districts, unmapped } = foldDistricts(
+      inputs({
+        relationships: [
+          {
+            clientId: 'client-1',
+            state: null,
+            district: null,
+            component: 'grantPlaceOfPerformance',
+            obligatedAmount: 400_000,
+            outlayedAmount: null,
+            strength: 'verified',
+            geographyBasis: 'unknown',
+          },
+        ],
+      }),
+    );
+    expect(districts).toHaveLength(0);
+    expect(unmapped.unmappedGrantAmount).toBe(400_000);
+  });
+
+  test('a partnerBeneficiary row with no resolvable district contributes nothing anywhere — presence alone has no unmapped bucket', () => {
+    const { districts, unmapped } = foldDistricts(
+      inputs({
+        relationships: [
+          {
+            clientId: 'client-1',
+            state: null,
+            district: null,
+            component: 'partnerBeneficiary',
+            obligatedAmount: null,
+            outlayedAmount: null,
+            strength: 'verified',
+            geographyBasis: 'unknown',
+          },
+        ],
+      }),
+    );
+    expect(districts).toHaveLength(0);
+    expect(unmapped.unmappedContractAmount).toBeNull();
+    expect(unmapped.unmappedGrantAmount).toBeNull();
+  });
+});
+
+/**
+ * Audit F5: the district drawer's "Clients in this district" list must be
+ * seeded from every nexus source, not just facilities. Pre-fix, a client
+ * whose only presence was award geography or a reviewed relationship never
+ * appeared, and the Contracts/Grants columns were permanently em-dashed for
+ * the clients it did show because nothing populated them.
+ */
+describe('buildDistrictClientBreakdown (audit F5)', () => {
+  const byClient = new Map([
+    [
+      'client-1',
+      { clientName: 'Acme Defense', contractorNames: ['Acme Defense LLC'], recipientUeis: [], recipientNames: [] },
+    ],
+  ]);
+
+  test('a client with a matched award but no facility still appears, with real awarded totals', () => {
+    const clients = buildDistrictClientBreakdown({
+      districtKey: 'TX-23',
+      facilities: [],
+      byClient,
+      contractRows: [{ identifier: 'Acme Defense LLC', state: 'TX', district: '23', totalAmount: 500_000 }],
+      assistanceRows: [],
+      relationships: [],
+    });
+    expect(clients).toHaveLength(1);
+    expect(clients[0]).toMatchObject({ clientId: 'client-1', clientName: 'Acme Defense', facilityCount: 0 });
+    expect(clients[0]?.employeeCount).toBeNull();
+    expect(clients[0]?.awarded.contractObligations).toBe(500_000);
+  });
+
+  test('a client with a facility but no matched award appears with null awarded totals, not $0', () => {
+    const clients = buildDistrictClientBreakdown({
+      districtKey: 'TX-23',
+      facilities: [{ clientId: 'client-2', clientName: 'Beta Research', employeeCount: 40 }],
+      byClient: new Map(),
+      contractRows: [],
+      assistanceRows: [],
+      relationships: [],
+    });
+    expect(clients).toHaveLength(1);
+    expect(clients[0]?.awarded).toEqual({
+      contractObligations: null,
+      grantObligations: null,
+      grantOutlays: null,
+    });
+    expect(clients[0]?.employeeCount).toBe(40);
+  });
+
+  test('a client whose only nexus is a reviewed relationship still appears', () => {
+    const clients = buildDistrictClientBreakdown({
+      districtKey: 'TX-23',
+      facilities: [],
+      byClient: new Map(),
+      contractRows: [],
+      assistanceRows: [],
+      relationships: [
+        {
+          clientId: 'client-3',
+          clientName: 'Gamma Partners',
+          state: 'TX',
+          district: '23',
+          component: 'partnerBeneficiary',
+          obligatedAmount: null,
+          outlayedAmount: null,
+        },
+      ],
+    });
+    expect(clients).toHaveLength(1);
+    expect(clients[0]?.clientName).toBe('Gamma Partners');
+    expect(clients[0]?.awarded.grantObligations).toBeNull();
+  });
+
+  test('a relationship scoped to a different district is not attributed here', () => {
+    const clients = buildDistrictClientBreakdown({
+      districtKey: 'TX-23',
+      facilities: [],
+      byClient: new Map(),
+      contractRows: [],
+      assistanceRows: [],
+      relationships: [
+        {
+          clientId: 'client-4',
+          clientName: 'Delta Co',
+          state: 'VA',
+          district: '11',
+          component: 'grantPlaceOfPerformance',
+          obligatedAmount: 100_000,
+          outlayedAmount: null,
+        },
+      ],
+    });
+    expect(clients).toHaveLength(0);
+  });
+
+  test('a client with a confirmed mapping but zero activity in THIS district is not listed', () => {
+    const clients = buildDistrictClientBreakdown({
+      districtKey: 'TX-23',
+      facilities: [],
+      byClient: new Map([
+        [
+          'client-5',
+          { clientName: 'Epsilon Inc', contractorNames: ['Epsilon Inc'], recipientUeis: [], recipientNames: [] },
+        ],
+      ]),
+      contractRows: [{ identifier: 'Epsilon Inc', state: 'VA', district: '11', totalAmount: 1_000_000 }],
+      assistanceRows: [],
+      relationships: [],
+    });
+    expect(clients).toHaveLength(0);
+  });
+
+  test('facility and award nexus for the SAME client merge into one row rather than two', () => {
+    const clients = buildDistrictClientBreakdown({
+      districtKey: 'TX-23',
+      facilities: [{ clientId: 'client-1', clientName: 'Acme Defense', employeeCount: 12 }],
+      byClient,
+      contractRows: [{ identifier: 'Acme Defense LLC', state: 'TX', district: '23', totalAmount: 500_000 }],
+      assistanceRows: [],
+      relationships: [],
+    });
+    expect(clients).toHaveLength(1);
+    expect(clients[0]?.facilityCount).toBe(1);
+    expect(clients[0]?.employeeCount).toBe(12);
+    expect(clients[0]?.awarded.contractObligations).toBe(500_000);
+  });
+
+  test('assistance is matched by UEI or lowercased recipient name, same as the firm-wide rail', () => {
+    const clients = buildDistrictClientBreakdown({
+      districtKey: 'TX-23',
+      facilities: [],
+      byClient: new Map([
+        [
+          'client-6',
+          { clientName: 'Zeta Labs', contractorNames: [], recipientUeis: ['K2QB7VNX9DM4'], recipientNames: [] },
+        ],
+      ]),
+      contractRows: [],
+      assistanceRows: [
+        {
+          uei: 'K2QB7VNX9DM4',
+          nameLower: null,
+          state: 'TX',
+          district: '23',
+          totalObligated: 900_000,
+          totalOutlayed: 400_000,
+        },
+      ],
+      relationships: [],
+    });
+    expect(clients[0]?.awarded.grantObligations).toBe(900_000);
+    expect(clients[0]?.awarded.grantOutlays).toBe(400_000);
   });
 });

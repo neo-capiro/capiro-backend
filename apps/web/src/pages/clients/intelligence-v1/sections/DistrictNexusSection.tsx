@@ -259,10 +259,7 @@ function DistrictNexusSectionV2({ clientId, onUnavailable }: DistrictNexusSectio
     : '';
 
   const showGrantLine =
-    !!data &&
-    (data.awarded.grantObligations != null ||
-      data.awarded.grantOutlays != null ||
-      data.opportunities.opportunityEstimatedFunding != null);
+    !!data && (data.awarded.grantObligations != null || data.awarded.grantOutlays != null);
 
   const showUnmapped =
     !!data &&
@@ -417,19 +414,45 @@ function DistrictNexusSectionV2({ clientId, onUnavailable }: DistrictNexusSectio
           ) : null}
 
           {/* ── Grant funding. Obligated and outlayed are separate facts —
-                committed vs paid — and are never summed. Opportunity money is
-                a forecast and is never counted as awarded; no count is shown
-                because none is computable (opportunity rows carry no
-                district, so foldDistricts drops them). ── */}
+                committed vs paid — and are never summed. The opportunity
+                pipeline is its own block below, never blended into this one. ── */}
           {showGrantLine ? (
             <div className="iv1-dnx-row-sub" style={{ marginTop: 10 }}>
               Grant obligations {formatMoney(data.awarded.grantObligations)} · outlays{' '}
               {formatMoney(data.awarded.grantOutlays)}
-              {data.opportunities.opportunityEstimatedFunding != null
-                ? ` · opportunity pipeline ${formatMoney(
-                    data.opportunities.opportunityEstimatedFunding,
-                  )} (forecast, not awarded)`
-                : ''}
+            </div>
+          ) : null}
+          {/* ── Opportunity pipeline. Its OWN rail: opportunities are forecasts
+                with no place of performance, so they are never district money and
+                never added to awarded totals. An unavailable rail renders as an
+                em dash, never $0. ── */}
+          {data.opportunitySummary.activeOpportunityCount > 0 ||
+          data.opportunitySummary.closedOpportunityCount > 0 ? (
+            <div className="iv1-dnx-row-sub" style={{ marginTop: 10 }}>
+              <b>Opportunity pipeline — forecast, not awarded</b>{' '}
+              {data.opportunitySummary.activeOpportunityCount} active
+              {data.opportunitySummary.closedOpportunityCount > 0
+                ? ` · ${data.opportunitySummary.closedOpportunityCount} closed or archived`
+                : ''}{' '}
+              · est. funding {formatMoney(data.opportunitySummary.totalEstimatedFunding)} · largest
+              ceiling {formatMoney(data.opportunitySummary.maximumAwardCeiling)}
+              {data.opportunitySummary.topOpportunities.length ? (
+                <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                  {data.opportunitySummary.topOpportunities.slice(0, 3).map((o) => (
+                    <li key={o.opportunityId}>
+                      {o.title}
+                      {o.agency ? ` — ${o.agency}` : ''} · relevance {o.relevanceScore ?? '—'} ·
+                      eligibility {o.eligibilityState.replace(/_/g, ' ')}
+                      {o.closeDate
+                        ? ` · closes ${new Date(o.closeDate).toLocaleDateString('en-US')}`
+                        : o.responseDateDesc
+                          ? ` · ${o.responseDateDesc}`
+                          : ''}
+                      <div className="iv1-dnx-row-sub">{o.eligibilityReason}</div>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           ) : null}
 

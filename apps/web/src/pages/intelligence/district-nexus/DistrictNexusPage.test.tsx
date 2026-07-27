@@ -149,12 +149,19 @@ describe('DistrictNexusPage', () => {
     expect(await screen.findByText(/Unplaced funding/)).toBeTruthy();
   });
 
-  test('the current/future toggle is disabled when no future boundary artifact exists', async () => {
+  test('a stale ?view=future deep link neither selects a future view nor reaches the API', async () => {
+    // There is exactly one answerable view (audit F1) — the future toggle is
+    // gone entirely, not just disabled. See DistrictNexusPage.tsx's `view`
+    // docblock.
+    search = '?view=future';
     mockApiRoutes();
     renderPage();
-    await screen.findByTestId('dn-map-stub');
-    const toggle = screen.getByText('Enacted future').closest('.ant-segmented-item') as HTMLElement | null;
-    expect(toggle?.className).toContain('ant-segmented-item-disabled');
+    const mapStub = await screen.findByTestId('dn-map-stub');
+    expect(mapStub.textContent).toContain('map districts:1');
+    expect(screen.queryByText('Enacted future')).toBeNull();
+    await waitFor(() => expect(setSearchParamsMock).toHaveBeenCalled());
+    const written = setSearchParamsMock.mock.calls.at(-1)![0] as URLSearchParams;
+    expect(written.get('view')).toBeNull();
   });
 
   test('selecting a district row (G4) writes it to the URL and opens the drawer', async () => {

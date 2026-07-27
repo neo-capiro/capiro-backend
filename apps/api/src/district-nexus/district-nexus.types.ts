@@ -122,11 +122,11 @@ export type GeographyBasis =
  *
  * Not the plan's `EvidenceStrength` (district-nexus-scoring.ts) — that governs
  * how many SCORE points a component earns. This governs what a human reading
- * one evidence row should believe about it. They usually move together (a
- * name-matched contract is both `inferred` here and discounted nowhere in
- * scoring today — the plan flags that pre-existing gap explicitly: "the legacy
- * contract rail joins by contractor name; keep it, label it." This field is
- * the label) but they are not the same axis and must not be collapsed into one.
+ * one evidence row should believe about it. They are derived together from
+ * `district-nexus.verification.ts` so they can no longer disagree (a
+ * name-matched contract is `inferred` here AND earns half weight there), but
+ * they remain two axes — a geographic fallback is not a trust judgement — and
+ * must not be collapsed into one field.
  */
 export type EvidenceVerificationStatus =
   /** A verified external identifier (UEI) or an authoritative government feed. */
@@ -219,6 +219,64 @@ export interface AwardedFunding {
 export interface OpportunityFunding {
   opportunityEstimatedFunding: Money;
   opportunityAwardCeiling: Money;
+}
+
+/** Ordered strongest-first. Mirrors grant-opportunity-relevance.ts. */
+export type OpportunityEligibilityState = 'eligible' | 'ineligible' | 'needs_review' | 'unknown';
+
+/**
+ * One grant opportunity a client has been explicitly linked to.
+ *
+ * `status` and `isActive` are separate facts: `status` is Grants.gov's own value,
+ * `isActive` is our computed reading of it AND the close date. A closed or
+ * archived opportunity stays visible as history but must never be counted active.
+ */
+export interface ClientOpportunity {
+  opportunityId: string;
+  title: string;
+  agency: string | null;
+  /** Grants.gov value verbatim: posted | forecasted | closed | archived. */
+  status: string | null;
+  closeDate: IsoTimestamp | null;
+  /** Close-date semantics when the date alone misleads ("continuous", "TBD"). */
+  responseDateDesc: string | null;
+  isActive: boolean;
+  estimatedFunding: Money;
+  awardCeiling: Money;
+  /** 0-100, deterministic. Null when no client profile could be built. */
+  relevanceScore: number | null;
+  eligibilityState: OpportunityEligibilityState;
+  /** Operator-readable justification for eligibilityState. Always populated. */
+  eligibilityReason: string;
+  /** The specific values that matched, never paraphrased. */
+  matchedSignals: Array<{ signal: string; weight: number; matchedOn: string }>;
+  /** The ClientGrantNexus district link, when a project site established one. */
+  districtKey: DistrictKey | null;
+}
+
+/**
+ * The client's opportunity pipeline, deliberately its OWN rail rather than part
+ * of district award aggregation.
+ *
+ * Opportunities carry no reliable geography — Grants.gov publishes applicant
+ * eligibility, not a place of performance — so folding them into districts meant
+ * every one was silently dropped and every total came back null while the KPI
+ * strip rendered `$0`. They live here instead, at the level they are actually
+ * true at.
+ *
+ * Every field is nullable-or-counted so "no linked opportunities" and "linked
+ * opportunities worth an unstated amount" stay distinguishable from "$0".
+ */
+export interface ClientOpportunitySummary {
+  activeOpportunityCount: number;
+  /** Closed or archived. History, never counted as active. */
+  closedOpportunityCount: number;
+  /** Summed estimated program funding across ACTIVE opportunities only. */
+  totalEstimatedFunding: Money;
+  /** Largest single active award ceiling — a max, never a sum. */
+  maximumAwardCeiling: Money;
+  /** Active opportunities, relevance-desc then close-date-asc. Capped. */
+  topOpportunities: ClientOpportunity[];
 }
 
 /**
@@ -367,8 +425,20 @@ export interface DistrictNexusDistrictDetailResponse extends DistrictNexusDistri
   } | null;
   clients: DistrictClientSummary[];
   facilities: DistrictFacilitySummary[];
+  /** Unscoped "all public activity in this district" — browsing, not evidence. */
   topContractAwards: TopAward[];
   topGrantAwards: TopAward[];
+  /**
+   * Awards tied to the SELECTED client's confirmed identifiers in this
+   * district (audit F5). Empty (not absent) when no client filter is
+   * applied — see `clientScoped`. `topContractAwards`/`topGrantAwards` above
+   * are the UNSCOPED lists and must be labelled as such in the UI; these must
+   * never silently fall back to them.
+   */
+  clientContractAwards: TopAward[];
+  clientGrantAwards: TopAward[];
+  /** True when a clientId narrowed this response. Drives the UI's copy. */
+  clientScoped: boolean;
   demographics: DistrictDemographics | null;
   /** Whether a published boundary artifact covers this district. */
   boundaryAvailable: boolean;
@@ -438,6 +508,12 @@ export interface ClientDistrictNexusResponse {
   facilityFootprint: ClientFacilityFootprint;
   awarded: AwardedFunding;
   opportunities: OpportunityFunding;
+  /**
+   * The client's OWN opportunity pipeline (WS-F). Deliberately separate from
+   * `opportunities` above, which is the district-derived (project-site-linked
+   * only) figure folded through `foldDistricts` — see `ClientOpportunitySummary`.
+   */
+  opportunitySummary: ClientOpportunitySummary;
   unmapped: UnmappedFunding;
   /**
    * Overall client score, or null when coverage is too thin to claim one.

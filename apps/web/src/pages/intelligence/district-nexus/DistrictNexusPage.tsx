@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Badge, Button, Popover, Segmented, Skeleton, Tooltip } from 'antd';
+import { Alert, Badge, Button, Popover, Skeleton, Tooltip } from 'antd';
 import { ClockCircleOutlined, EnvironmentOutlined, WarningOutlined } from '@ant-design/icons';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeatureEnabled } from '../../../lib/intel-feature-flags.js';
@@ -52,7 +52,21 @@ export function DistrictNexusPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const filters = readFilters(searchParams);
-  const view: 'current' | 'future' = searchParams.get('view') === 'future' ? 'future' : 'current';
+  /**
+   * There is exactly ONE answerable view. The backend rejects `future` outright
+   * (apps/api/src/district-nexus/district-nexus.view.ts) because award geography
+   * is reported against CURRENT districts and cannot be re-attributed to future
+   * boundaries without inventing the answer.
+   *
+   * The previous code kept a separate `view` (what the URL asked for) and
+   * `effectiveView` (what it actually requested), passed `view` to the header and
+   * `effectiveView` to the map, and so rendered "Enacted future" as selected
+   * while loading current data. A clamp under a future LABEL is the exact failure
+   * the backend refuses to produce. So there is no future state here at all:
+   * a stale `?view=future` deep link is stripped from the URL and the toggle is
+   * gone until a future rail genuinely exists.
+   */
+  const view = 'current' as const;
   const selectedDistrictKey = searchParams.get('district');
   const showFacilities = searchParams.get('facilities') !== 'off';
 
@@ -65,23 +79,26 @@ export function DistrictNexusPage() {
     setSearchParams(next);
   }
 
-  const futureManifest = useQuery({
-    queryKey: ['district-nexus', 'boundary-manifest', 'F'],
-    queryFn: () => getDistrictBoundaryManifest(api, 'F'),
+  // Strip a stale ?view=future deep link. Runs once per param change and is a
+  // no-op in the normal case.
+  useEffect(() => {
+    if (searchParams.get('view') != null) patchParams({ view: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.get('view')]);
+
+  const currentManifest = useQuery({
+    queryKey: ['district-nexus', 'boundary-manifest', 'C'],
+    queryFn: () => getDistrictBoundaryManifest(api, 'C'),
     retry: false,
     staleTime: 5 * 60_000,
     enabled,
   });
-  const futureAvailable = Boolean(futureManifest.data && futureManifest.data.districtCount > 0);
-  // A stale deep-link (?view=future) from before the artifact existed, or
-  // from after it's removed, must not 400 the whole page — clamp silently.
-  const effectiveView: 'current' | 'future' = view === 'future' && futureAvailable ? 'future' : 'current';
 
   const mapQuery = useQuery<DistrictNexusMapResponse>({
-    queryKey: ['district-nexus', 'map', effectiveView, filters.clientId, filters.state],
+    queryKey: ['district-nexus', 'map', 'current', filters.clientId, filters.state],
     queryFn: () =>
       getDistrictNexusMap(api, {
-        view: effectiveView,
+        view: 'current',
         clientId: filters.clientId ?? undefined,
         state: filters.state ?? undefined,
       }),
@@ -101,7 +118,7 @@ export function DistrictNexusPage() {
   if (!enabled) {
     return (
       <div className="dn-root" style={{ padding: '22px 32px 40px', minHeight: '100%' }}>
-        <PageHead view={view} futureAvailable={false} onViewChange={() => {}} />
+        <PageHead />
         <div className="dn-guide">
           <div className="dn-gico">
             <EnvironmentOutlined />
@@ -121,7 +138,7 @@ export function DistrictNexusPage() {
     <div className="dn-root" style={{ padding: '22px 32px 40px', minHeight: '100%', gap: 14 }}>
       <TopControls mapData={mapQuery.data} />
       <div className="dn-content">
-        <PageHead view={view} futureAvailable={futureAvailable} onViewChange={(v) => patchParams({ view: v === 'current' ? null : v, district: null })} />
+        <PageHead />
 
         {mapQuery.isPending ? <LoadingSkeleton /> : null}
 
@@ -176,7 +193,7 @@ export function DistrictNexusPage() {
                 <DistrictNexusMap
                   districts={filteredDistricts}
                   metric={filters.metric}
-                  view={effectiveView}
+                  view="current"
                   selectedDistrictKey={selectedDistrictKey}
                   onSelectDistrict={(key) => patchParams({ district: key })}
                   showFacilities={showFacilities}
@@ -225,22 +242,14 @@ export function DistrictNexusPage() {
       <DistrictNexusDrawer
         districtKey={selectedDistrictKey}
         clientId={filters.clientId}
-        boundaryVintage={futureManifest.data?.vintage}
+        boundaryVintage={currentManifest.data?.vintage}
         onClose={() => patchParams({ district: null })}
       />
     </div>
   );
 }
 
-function PageHead({
-  view,
-  futureAvailable,
-  onViewChange,
-}: {
-  view: 'current' | 'future';
-  futureAvailable: boolean;
-  onViewChange: (view: 'current' | 'future') => void;
-}) {
+function PageHead() {
   return (
     <div className="dn-pg-head">
       <div>
@@ -248,15 +257,11 @@ function PageHead({
         <p className="dn-pg-desc">Verified client footprint, public funding, and representation by congressional district.</p>
       </div>
       <div className="dn-acts">
-        <Tooltip title={futureAvailable ? undefined : 'No enacted-future boundary artifact has been built yet.'}>
-          <Segmented<'current' | 'future'>
-            value={view}
-            onChange={onViewChange}
-            options={[
-              { label: 'Current · 119th', value: 'current' },
-              { label: 'Enacted future', value: 'future', disabled: !futureAvailable },
-            ]}
-          />
+        {/* Not a toggle. There is one answerable view, so this states the
+            vintage rather than offering a choice that cannot be honoured —
+            see the `view` docblock above. */}
+        <Tooltip title="Award geography is reported against current districts, so a future-boundary view cannot be produced without re-attributing money that was never reported that way.">
+          <Badge status="processing" text="Current · 119th Congress" />
         </Tooltip>
       </div>
     </div>

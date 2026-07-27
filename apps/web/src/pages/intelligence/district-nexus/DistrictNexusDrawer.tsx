@@ -106,7 +106,10 @@ export function DistrictNexusDrawer({ districtKey, clientId, boundaryVintage, on
               <Tag>Unscored · below coverage floor</Tag>
             )}
             <Tag>Coverage {d.coveragePercent}%</Tag>
-            <Tag>Boundary: {d.status === 'F' ? 'future' : 'current'}{boundaryVintage ? `, ${boundaryVintage}th` : ''}</Tag>
+            {/* `boundaryVintage` is the vintage of the manifest ACTUALLY being
+                rendered, passed down by the page. It must never be the future
+                manifest's vintage while current data is on screen. */}
+            <Tag>Boundary: current{boundaryVintage ? `, ${boundaryVintage}th` : ''}</Tag>
           </div>
           <div className="dn-dr-l3">
             <Link to={directoryDistrictPath(districtKey ?? '')}>
@@ -160,7 +163,31 @@ export function DistrictNexusDrawer({ districtKey, clientId, boundaryVintage, on
                     meta={`${formatMoney(d.awarded.contractObligations)} · DoD prime`}
                   />
                 ),
-                children: <AwardsSection awards={d.topContractAwards} emptyText="No contract obligations placed in this district." />,
+                children: (
+                  <>
+                    {d.clientScoped ? (
+                      <>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>
+                          This client&apos;s contract awards
+                        </div>
+                        <AwardsSection
+                          awards={d.clientContractAwards}
+                          emptyText="No contract award matched to this client's confirmed contractor names in this district."
+                        />
+                        {/* Explicitly re-labelled. The list below is real and
+                            useful, but under a client filter it is NOT this
+                            client's money and must not read as though it were. */}
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', margin: '14px 0 6px' }}>
+                          All public contract awards in this district
+                        </div>
+                      </>
+                    ) : null}
+                    <AwardsSection
+                      awards={d.topContractAwards}
+                      emptyText="No contract obligations placed in this district."
+                    />
+                  </>
+                ),
               },
               {
                 key: 'grants',
@@ -175,6 +202,20 @@ export function DistrictNexusDrawer({ districtKey, clientId, boundaryVintage, on
                         {formatMoney(d.awarded.grantOutlays)} <span className="dn-muted">(never summed with obligations)</span>
                       </dd>
                     </dl>
+                    {d.clientScoped ? (
+                      <>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>
+                          This client&apos;s assistance awards
+                        </div>
+                        <AwardsSection
+                          awards={d.clientGrantAwards}
+                          emptyText="No assistance award matched to this client's confirmed recipient identifiers in this district."
+                        />
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', margin: '14px 0 6px' }}>
+                          All public assistance awards in this district
+                        </div>
+                      </>
+                    ) : null}
                     <AwardsSection awards={d.topGrantAwards} emptyText="No awarded assistance placed in this district." />
                   </>
                 ),
@@ -343,7 +384,7 @@ function ClientsSection({
         <span className="dn-hico">
           <InfoCircleOutlined />
         </span>
-        <div>No client facility here. The nexus rests entirely on award geography, which is weaker evidence than a physical site.</div>
+        <div>No client has nexus in this district — no facility, no matched award, and no reviewed relationship.</div>
       </div>
     );
   }
