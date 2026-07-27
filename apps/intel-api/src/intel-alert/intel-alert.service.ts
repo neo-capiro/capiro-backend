@@ -713,27 +713,31 @@ export class IntelAlertService {
       queueId: string;
       alertId: string;
     }
-    // Grouped by (tenant,user,channel) — NOT client — because one recipient's
-    // digest can legitimately span several clients they track; d-5's renderer
-    // groups the rendered items back out by client within the single email.
-    // `clientId` on the group is therefore only a REPRESENTATIVE value (the
-    // last-seen row's), used for the step-5 pref lookup below — matching this
-    // method's pre-existing grouping shape. A user with genuinely different
-    // per-client email prefs (schema allows it) gets one representative pref
-    // for the whole group; that limitation predates this rewrite.
+    // RB-02: grouped by (tenant,user,channel,CLIENT) — one digest per client.
+    // The prior grouping was (tenant,user,channel) only, spanning every client
+    // a user tracks into one email whose recipient/enablement decision was
+    // then made against a single ARBITRARY "representative" client's
+    // preference — a genuinely different client's emailEnabled=false or a
+    // different emailAddress could suppress or misdeliver alerts that were
+    // never that client's. `intel_alert_preference` is legitimately per-client
+    // (@@unique([userId, clientId])), so per-client grouping is what makes the
+    // step-5 pref lookup below correct BY CONSTRUCTION rather than by luck of
+    // which row the claim UPDATE...RETURNING happened to emit last. `channel`
+    // stays in the key (and is now checked at send-time below) rather than
+    // being dropped, since a future SMS row must not be silently emailed.
     const groups = new Map<
       string,
-      { tenantId: string; userId: string; clientId: string; rows: QueueRow[] }
+      { tenantId: string; userId: string; clientId: string; channel: string; rows: QueueRow[] }
     >();
     for (const r of claimed) {
-      const key = `${r.tenant_id}|${r.user_id}|${r.channel}`;
+      const key = `${r.tenant_id}|${r.user_id}|${r.channel}|${r.client_id}`;
       const g = groups.get(key) ?? {
         tenantId: r.tenant_id,
         userId: r.user_id,
         clientId: r.client_id,
+        channel: r.channel,
         rows: [],
       };
-      g.clientId = r.client_id;
       g.rows.push({ queueId: r.id, alertId: r.alert_id });
       groups.set(key, g);
     }
@@ -773,11 +777,11 @@ export class IntelAlertService {
         }
         if (!resolvedRows.length) continue;
 
-        const clientIds = Array.from(
-          new Set(resolvedRows.map((r) => alertById.get(r.alertId)!.clientId)),
-        );
+        // RB-02: every row in this group is now the SAME client (client is
+        // part of the group key), so this is a single-client lookup, not a
+        // batch across whichever clients happened to land in the group.
         const clientNames = await this.sourceData
-          .getClientNames(g.tenantId, clientIds)
+          .getClientNames(g.tenantId, [g.clientId])
           .catch(() => new Map<string, string>());
 
         // Same field map as emitNewBillAlerts (:373-395): ev.* from the frozen
@@ -807,6 +811,30 @@ export class IntelAlertService {
           };
         });
         if (!items.length) continue;
+
+        // RB-02 (channel branch): the queue's own comment documents
+        // channel:'email'|'sms', but claimAndEnqueueDigest (:172) is the only
+        // writer and hardcodes 'email' — so this is unreachable today. Kept as
+        // an explicit guard rather than an assumption: an SMS row must never
+        // silently reach this.email.send. Treated as a soft failure (not a
+        // permanent claim) so it participates in the existing retry/dead-letter
+        // mechanics once an SMS renderer exists, rather than looping forever.
+        if (g.channel !== 'email') {
+          this.logger.warn(
+            `flushDigests: unhandled channel "${g.channel}" for tenant=${g.tenantId} user=${g.userId}; no renderer — resetting for retry`,
+          );
+          failed += 1;
+          await this.prisma.withSystem((tx) =>
+            tx.$executeRawUnsafe(
+              `UPDATE intel_alert_digest_queue
+                  SET flushed = false, attempts = attempts + 1, last_error = $2
+                WHERE id = ANY($1)`,
+              queueIds,
+              `unhandled channel "${g.channel}"`,
+            ),
+          );
+          continue;
+        }
 
         const pref = await this.prisma.withTenant(g.tenantId, (tx) =>
           tx.intelAlertPreference.findFirst({
