@@ -307,22 +307,46 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     tier: 'daily',
     description: 'Award district enrichment (after awards)',
   },
-  // ── District Nexus assistance awards (ships DISABLED pending Phase 1 canary
-  // volume approval — see district-nexus-grants-mcp-plan.md §10 Phase 1) ─────
+  // ── District Nexus assistance awards ───────────────────────────────────────
+  //
+  // ⚠️ CDK↔LIVE DRIFT — READ BEFORE "FIXING" THIS.
+  // `enabled: false` below does NOT describe reality. Both live EventBridge
+  // rules were HAND-CREATED 2026-07-27 and are ENABLED:
+  //   capiro-dev-sync-federal-assistance-awards  cron(20 11 * * ? *)
+  //   capiro-dev-enrich-assistance-awards        cron(50 11 * * ? *)
+  // Each had one verified manual run that day (4 inserted / 32 updated, and
+  // 499 updated respectively). The crons below have been updated to MATCH live;
+  // the `enabled: false` is kept deliberately, exactly as for
+  // SyncLegistormDistricts above.
+  //
+  // Do NOT "reconcile" this by deploying the Compute stack — CloudFormation
+  // holds dead-ALB values for the app.capiro.ai Route53 records and a failed
+  // deploy repeats the 2026-07-25 seven-minute prod DNS outage. Flipping these
+  // to `enabled: true` would also make a future deploy try to take over rules
+  // that already exist out-of-band.
+  //
+  // Original gate (Phase 1 canary volume approval, district-nexus-grants-mcp-
+  // plan.md §10) was cleared by audit finding F6: the rails were merged but
+  // never operating, so 239,114 assistance awards sat frozen at 2026-07-26.
+  //
+  // KNOWN LIMITATION on EnrichAssistanceAwards: default --limit 500/run against
+  // 238,619 unenriched rows is ~478 days to clear the backlog. The daily cadence
+  // correctly absorbs NEW arrivals; the backlog needs a separate bounded
+  // backfill (--limit 50000 is ~4.2h/run at DELAY_MS=300).
   {
     id: 'SyncFederalAssistanceAwards',
-    command: ['sync-federal-assistance-awards'],
-    cron: { minute: '10', hour: '8' },
+    command: ['sync-federal-assistance-awards', '--days', '7'],
+    cron: { minute: '20', hour: '11' },
     tier: 'daily',
-    description: 'USAspending financial assistance awards, all agencies (daily, after contracts)',
+    description: 'USAspending financial assistance awards, all agencies (daily 11:20 UTC, after contracts 09:50 and grants 10:00)',
     enabled: false,
   },
   {
     id: 'EnrichAssistanceAwards',
     command: ['enrich-assistance-awards'],
-    cron: { minute: '20', hour: '8' },
+    cron: { minute: '50', hour: '11' },
     tier: 'daily',
-    description: 'Assistance award detail enrichment (after assistance sync)',
+    description: 'Assistance award detail enrichment (daily 11:50 UTC, 30min after its own upstream sync)',
     enabled: false,
   },
 
@@ -376,22 +400,69 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     tier: 'weekly',
     description: 'Federal grants (weekly Mon)',
   },
-  // ── District Nexus Workstream C (ships DISABLED pending Phase 1 canary) ───
+  // ── District Nexus Workstream C ────────────────────────────────────────────
+  //
+  // ⚠️ CDK↔LIVE DRIFT — READ BEFORE "FIXING" THIS.
+  // `enabled: false` below does NOT describe reality. Both live EventBridge
+  // rules were HAND-CREATED 2026-07-27 and are ENABLED:
+  //   capiro-dev-sync-grants-reconcile   cron(25 8 ? * SUN *)
+  //   capiro-dev-enrich-grant-details    cron(45 10 * * ? *)
+  // Crons below updated to MATCH live; `enabled: false` kept deliberately.
+  // Same rationale as SyncLegistormDistricts and the assistance pair above —
+  // never deploy the Compute stack (2026-07-25 prod DNS outage).
+  //
+  // Schedules differ from the original plan's proposals for a measured reason:
+  // it proposed 10:30 for EnrichGrantDetails, but that slot already holds
+  // enrich-award-districts AND pe-derive-chain, and :30 is hourly-busy
+  // (sync-legiscan-bills). It proposed Sun 09:00 for the reconcile, but 09:00
+  // holds emit-changes-daily AND sync-congress, and :00 is hourly-busy
+  // (emit-clio-alerts).
+  //
+  // KNOWN LIMITATION on SyncGrantsReconcile: MAX_PAGES=100 caps a run at 10,000
+  // upserts against a reported hitCount of 82,982 — 12% per run, ~8 Sundays to
+  // walk the corpus. It legitimately reports success_with_errors on cap
+  // exhaustion (verified live 2026-07-27), so do not treat that as an alarm.
   {
     id: 'SyncGrantsReconcile',
     command: ['sync-grants', '--all-statuses'],
-    cron: { minute: '45', hour: '7', weekDay: 'SUN' },
+    cron: { minute: '25', hour: '8', weekDay: 'SUN' },
     tier: 'weekly',
     description:
-      'Grants.gov all-status reconcile — re-sees closed/archived opportunities the posted|forecasted pass cannot (weekly Sun)',
+      'Grants.gov all-status reconcile — re-sees closed/archived opportunities the posted|forecasted pass cannot (weekly Sun 08:25 UTC)',
     enabled: false,
   },
   {
     id: 'EnrichGrantDetails',
     command: ['enrich-grant-details'],
-    cron: { minute: '30', hour: '8' },
+    cron: { minute: '45', hour: '10' },
     tier: 'daily',
-    description: 'Grants.gov fetchOpportunity detail enrichment (after the opportunity sync)',
+    description: 'Grants.gov fetchOpportunity detail enrichment (daily 10:45 UTC, 45min after the opportunity sync)',
+    enabled: false,
+  },
+  // ── District Nexus F3 producer (audit remediation phase i3) ────────────────
+  //
+  // Deterministic relevance producer for client_grant_nexus
+  // 'opportunity_candidate' rows. NO live rule exists for this one — unlike the
+  // four above, it has never been hand-created, and it must not be enabled yet.
+  //
+  // 🚧 PRECONDITION BEFORE ENABLING: batch the per-(client, grant) findFirst.
+  // The loop currently issues one findFirst per pair inside withBypass's
+  // per-client transaction. Measured 2026-07-27 against capiro-internal: 567
+  // sequential findFirst = 780–960 ms per client, vs 4–6 ms for one batched
+  // findMany (130–240x). That is 12 clients today but ~67 across all six
+  // tenants, and this repo has already had one Prisma pool-starvation outage
+  // from long-held transactions (2026-07-21 graph-sync P2028).
+  //
+  // Also note the producer only lights up F3. F4's seven award-bearing
+  // relationship types have NO producer and no entry UI — reviewer-entered by
+  // design, so F4 stays dark regardless of this job.
+  {
+    id: 'GenerateGrantOpportunityCandidates',
+    command: ['generate-grant-opportunity-candidates', '--commit'],
+    cron: { minute: '35', hour: '11' },
+    tier: 'daily',
+    description:
+      'District Nexus F3: deterministic opportunity_candidate producer (daily 11:35 UTC, after the assistance sync at 11:20 supplies prior ALNs)',
     enabled: false,
   },
   {
