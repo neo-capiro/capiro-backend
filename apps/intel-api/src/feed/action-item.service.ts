@@ -67,11 +67,11 @@ export class ActionItemService {
    * `intel_action_item` does not have — the DB carries a PARTIAL unique index instead
    * (`intel_action_item_alert_singleton_key` on `(alert_id, kind)` for
    * `kind IN ('memo','report','targeting_brief')`, `20260702160000`/`20260710050000`),
-   * which Prisma's `upsert` cannot target. The update-then-create-if-absent below
-   * remains idempotent for the sequential-retry case this fixes; two *concurrent*
-   * first-writes for the same alert still race on that partial index as of THIS
-   * phase (a) — MP-05's follow-up phase (c, same gate) catches that `P2002`
-   * instead of leaving it an unhandled 500. Not yet true here.
+   * which Prisma's `upsert` cannot target. The update-then-create-if-absent below is
+   * idempotent for the sequential-retry case this fixes; two *concurrent* first-writes
+   * for the same alert both see `updated.count === 0` and both attempt `create` — the
+   * loser now catches `P2002` (Gate J phase c, MP-05) and re-applies its data as an
+   * update instead of 500ing, so neither caller's edit is silently dropped.
    *
    * Gate J (HP-06): `clientId` now joins EVERY predicate below, and
    * `assertAlertInClient` proves the alert belongs to this client before any write —
@@ -104,9 +104,22 @@ export class ActionItemService {
       if (updated.count > 0) {
         return tx.intelActionItem.findFirst({ where: { tenantId, clientId, alertId, kind: 'memo' } });
       }
-      return tx.intelActionItem.create({
-        data: { tenantId, clientId, alertId, kind: 'memo', createdBy: userId, ...data },
-      });
+      try {
+        return await tx.intelActionItem.create({
+          data: { tenantId, clientId, alertId, kind: 'memo', createdBy: userId, ...data },
+        });
+      } catch (err) {
+        // Gate J (MP-05) c-1/c-2: precedent is claim() (intel-alert.service.ts).
+        // The other concurrent first-write already inserted between our
+        // updateMany (count:0) and this create — re-run the update branch
+        // against the now-existing row rather than 500ing.
+        if ((err as { code?: string }).code !== 'P2002') throw err;
+        await tx.intelActionItem.updateMany({
+          where: { tenantId, clientId, alertId, kind: 'memo' },
+          data,
+        });
+        return tx.intelActionItem.findFirst({ where: { tenantId, clientId, alertId, kind: 'memo' } });
+      }
     });
   }
 
@@ -155,7 +168,12 @@ export class ActionItemService {
    * Toggle the weekly-report flag on an alert (idempotent). Gate J (HP-06):
    * both ownership proofs run before either branch, and `clientId` now joins
    * the delete/find predicates so a stale row from another client can never
-   * be reached — mirrors `recordMemo`.
+   * be reached — mirrors `recordMemo`. Gate J (MP-05) c-1: two concurrent
+   * `on=true` calls both see `!existing` and both `create` — the loser's
+   * insert now catches `P2002` instead of 500ing. Unlike `recordMemo`, there
+   * is no caller data to reconcile on conflict: a `report` row's only
+   * meaning is its existence, and the winner's insert already satisfies
+   * this call's goal (`inReport: true`), so the catch is a plain no-op.
    */
   async setReport(
     tenantId: string,
@@ -178,9 +196,15 @@ export class ActionItemService {
         select: { id: true },
       });
       if (!existing) {
-        await tx.intelActionItem.create({
-          data: { tenantId, clientId, alertId, kind: 'report', createdBy: userId },
-        });
+        try {
+          await tx.intelActionItem.create({
+            data: { tenantId, clientId, alertId, kind: 'report', createdBy: userId },
+          });
+        } catch (err) {
+          if ((err as { code?: string }).code !== 'P2002') throw err;
+          // The other concurrent call already created the flag — exactly the
+          // state this call wanted. Nothing left to do.
+        }
       }
     });
     return { inReport: true };

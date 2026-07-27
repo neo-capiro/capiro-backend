@@ -133,6 +133,72 @@ describe('ActionItemService.recordMemo — Gate J (HP-06)', () => {
     expect(rows.find((r) => r.clientId === CLIENT_B)!.documentAttachmentId).toBe('b-att');
     expect(rows.find((r) => r.clientId === CLIENT_A)!.documentAttachmentId).toBe('a-att');
   });
+
+  /**
+   * Gate J (MP-05) c-4. Simulates the real race: both callers' updateMany see
+   * count:0 (no row yet), both attempt create — the loser's create hits
+   * Postgres's partial unique index (intel_action_item_alert_singleton_key)
+   * AFTER the winner's insert has already landed. The fake mirrors that exact
+   * ordering: the create call inserts the "winner" row as a side effect of
+   * throwing P2002, precisely modeling what a second SELECT would see in the
+   * real DB after a real unique-violation.
+   */
+  it('a concurrent first-write race resolves via a caught P2002, not a 500 — exactly one row, our data applied', async () => {
+    const rows: ActionItemRow[] = [];
+    let seq = 0;
+    let raceOnce = true;
+    const table = {
+      updateMany: async ({ where, data }: any) => {
+        const hit = rows.filter(
+          (r) =>
+            r.tenantId === where.tenantId &&
+            r.clientId === where.clientId &&
+            r.alertId === where.alertId &&
+            r.kind === where.kind,
+        );
+        for (const r of hit) Object.assign(r, data);
+        return { count: hit.length };
+      },
+      findFirst: async ({ where }: any) =>
+        rows.find(
+          (r) =>
+            r.tenantId === where.tenantId &&
+            r.clientId === where.clientId &&
+            r.alertId === where.alertId &&
+            r.kind === where.kind,
+        ) ?? null,
+      create: async ({ data }: any) => {
+        if (raceOnce) {
+          raceOnce = false;
+          seq += 1;
+          rows.push({ id: `ai-${seq}`, ...data, documentAttachmentId: 'winner-att', title: 'Winner memo' });
+          const err = new Error('Unique constraint failed on (`alert_id`,`kind`)') as Error & { code: string };
+          err.code = 'P2002';
+          throw err;
+        }
+        seq += 1;
+        const row = { id: `ai-${seq}`, ...data } as ActionItemRow;
+        rows.push(row);
+        return row;
+      },
+    };
+    const prisma = {
+      withTenant: async (_t: string, fn: (tx: any) => any) => fn({ intelActionItem: table }),
+    } as unknown as PrismaService;
+    const watchlist = {
+      assertClientInTenant: jest.fn().mockResolvedValue(undefined),
+      assertAlertInClient: jest.fn().mockResolvedValue(undefined),
+    } as unknown as TrackerWatchlistService;
+    const svc = new ActionItemService(prisma, watchlist);
+
+    const result = await svc.recordMemo(TENANT, CLIENT_A, ALERT, USER, {
+      documentAttachmentId: 'our-att',
+      title: 'Our memo',
+    });
+
+    expect(rows).toHaveLength(1); // no duplicate row, no crash
+    expect(result?.documentAttachmentId).toBe('our-att'); // our data reconciled onto the winner's row, not dropped
+  });
 });
 
 describe('ActionItemService.getMemo — Gate J (HP-06/C-2)', () => {
@@ -204,5 +270,55 @@ describe('ActionItemService.setReport — Gate J (HP-06)', () => {
     await svc.setReport(TENANT, CLIENT_A, ALERT, USER, false); // A never set one — must be a no-op
     expect(rows).toHaveLength(1);
     expect(rows[0]!.clientId).toBe(CLIENT_B);
+  });
+
+  /**
+   * Gate J (MP-05) c-4, setReport's variant: both concurrent `on=true` calls
+   * see `!existing`, both create — the loser's create hits the same partial
+   * unique index. Unlike recordMemo there is no data to reconcile; the catch
+   * is a plain no-op, and the end state (`inReport: true`, one row) is
+   * already satisfied by the winner.
+   */
+  it('a concurrent on=true race resolves via a caught P2002, not a 500 — exactly one row', async () => {
+    const rows: ActionItemRow[] = [];
+    let seq = 0;
+    let raceOnce = true;
+    const table = {
+      findFirst: async ({ where }: any) =>
+        rows.find(
+          (r) =>
+            r.tenantId === where.tenantId &&
+            r.clientId === where.clientId &&
+            r.alertId === where.alertId &&
+            r.kind === where.kind,
+        ) ?? null,
+      create: async ({ data }: any) => {
+        if (raceOnce) {
+          raceOnce = false;
+          seq += 1;
+          rows.push({ id: `ai-${seq}`, ...data });
+          const err = new Error('Unique constraint failed on (`alert_id`,`kind`)') as Error & { code: string };
+          err.code = 'P2002';
+          throw err;
+        }
+        seq += 1;
+        const row = { id: `ai-${seq}`, ...data } as ActionItemRow;
+        rows.push(row);
+        return row;
+      },
+    };
+    const prisma = {
+      withTenant: async (_t: string, fn: (tx: any) => any) => fn({ intelActionItem: table }),
+    } as unknown as PrismaService;
+    const watchlist = {
+      assertClientInTenant: jest.fn().mockResolvedValue(undefined),
+      assertAlertInClient: jest.fn().mockResolvedValue(undefined),
+    } as unknown as TrackerWatchlistService;
+    const svc = new ActionItemService(prisma, watchlist);
+
+    const result = await svc.setReport(TENANT, CLIENT_A, ALERT, USER, true);
+
+    expect(result).toEqual({ inReport: true });
+    expect(rows).toHaveLength(1);
   });
 });
