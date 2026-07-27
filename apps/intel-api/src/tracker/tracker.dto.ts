@@ -409,7 +409,14 @@ export class PutWatchlistDto {
   @ArrayMaxSize(200) topics?: WatchlistTopicDto[];
   @IsOptional() @IsArray() @IsString({ each: true }) @MaxLength(2, { each: true }) @ArrayMaxSize(56)
   jurisdictions?: string[];
-  /** P1-02: optimistic concurrency. Absent = unversioned legacy client → the service
-   *  accepts it and logs, so an un-updated bundle is not hard-broken. */
+  /**
+   * P1-02: optimistic concurrency. Absent = unversioned legacy client — the
+   * service accepts-and-logs until `EXPECTED_VERSION_REQUIRED_FROM`
+   * (tracker-watchlist.service.ts, Gate J/MP-02, 2026-08-10), then 428s.
+   * KEEP `@IsOptional()` here even after that date: the cutover is a service-
+   * level business-hours check with a distinct 428 + explanatory message,
+   * not a DTO-shape requirement — dropping it would make the ValidationPipe
+   * reject with a generic 400 before the service's clearer error ever runs.
+   */
   @IsOptional() @IsInt() @Min(0) expectedVersion?: number;
 }

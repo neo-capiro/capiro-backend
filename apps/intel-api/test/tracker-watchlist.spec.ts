@@ -174,9 +174,16 @@ describe('TrackerWatchlistService.putWatchlist — flat-term isolation', () => {
       $transaction: async (fn: (t: unknown) => unknown) => fn(tx),
       // withTenant IS a SET-LOCAL $transaction — run the rebuild + re-read with the recording tx.
       withTenant: async (_tid: string, fn: (t: unknown) => unknown) => fn(tx),
-      // assertClientInTenant: client belongs to the caller's tenant → guard passes.
+      // Routes by SQL, not call order (mirrors makeWatchlistStore, test/support/watchlist-store.ts):
+      // assertClientInTenant's clients probe and assertCanEditTargeting's tenant_memberships
+      // probe (Gate J, MP-03 fail-closed) are two DIFFERENT queries through the same
+      // withSystem — a single canned response answered both before MP-03 made the second
+      // one's shape matter (no `role` key → treated as "no membership row" → now 403s).
       withSystem: async (fn: (t: unknown) => unknown) =>
-        fn({ $queryRawUnsafe: async () => [{ id: CLIENT }] }),
+        fn({
+          $queryRawUnsafe: async (sql: string) =>
+            /tenant_memberships/i.test(sql) ? [{ role: 'capiro_admin' }] : [{ id: CLIENT }],
+        }),
     } as any;
     return { prisma, calls };
   }
@@ -692,15 +699,63 @@ describe('TrackerWatchlistService — watchlist versioning + change log (phase e
     expect(after.terms).toEqual(before.terms);
   });
 
-  it('e-10.4 an OMITTED expectedVersion is accepted (an un-updated bundle is not hard-broken)', async () => {
-    const h = statefulPrisma();
-    const svc = new TrackerWatchlistService(h.prisma as never);
-    await put(svc, [{ label: 'alpha', terms: [] }], 0);
+  /**
+   * Gate J (MP-02): pinned BEFORE the 2026-08-10 grace-window cutover — this
+   * test asserts the pre-cutover behavior specifically, not "whatever today
+   * happens to be" (which would silently start failing the day the cutover
+   * arrives for an unrelated reason: the fixture, not the code, going stale).
+   */
+  it('e-10.4 an OMITTED expectedVersion is accepted before the MP-02 cutover (an un-updated bundle is not hard-broken)', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-07-28T00:00:00Z'));
+    try {
+      const h = statefulPrisma();
+      const svc = new TrackerWatchlistService(h.prisma as never);
+      await put(svc, [{ label: 'alpha', terms: [] }], 0);
 
-    const view = await put(svc, [{ label: 'alpha', terms: [] }, { label: 'beta', terms: [] }]);
+      const view = await put(svc, [{ label: 'alpha', terms: [] }, { label: 'beta', terms: [] }]);
 
-    expect(view.version).toBe(2);
-    expect(view.topics.map((t) => t.label).sort()).toEqual(['alpha', 'beta']);
+      expect(view.version).toBe(2);
+      expect(view.topics.map((t) => t.label).sort()).toEqual(['alpha', 'beta']);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('e-10.4b MP-02: an OMITTED expectedVersion 428s ON/AFTER 2026-08-10, and writes nothing', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-08-10T00:00:00Z'));
+    try {
+      const h = statefulPrisma();
+      const svc = new TrackerWatchlistService(h.prisma as never);
+      await put(svc, [{ label: 'alpha', terms: [] }], 0); // versioned save, still fine post-cutover
+      const before = h.snapshot();
+
+      let err: unknown;
+      try {
+        await put(svc, [{ label: 'alpha', terms: [] }, { label: 'beta', terms: [] }]); // omitted
+      } catch (e) {
+        err = e;
+      }
+
+      expect((err as { status?: number })?.status).toBe(428);
+      expect((err as { response?: unknown }).response).toMatchObject({
+        code: 'WATCHLIST_VERSION_REQUIRED',
+      });
+      expect(h.snapshot()).toEqual(before); // nothing written by the rejected call
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('e-10.4c MP-02: a save WITH expectedVersion still succeeds after the cutover', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-01T00:00:00Z'));
+    try {
+      const h = statefulPrisma();
+      const svc = new TrackerWatchlistService(h.prisma as never);
+      const view = await put(svc, [{ label: 'alpha', terms: [] }], 0);
+      expect(view.version).toBe(1);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('e-10.5/6 each accepted save writes exactly one revision; a rejected one writes none', async () => {
@@ -859,11 +914,23 @@ describe('TrackerWatchlistService — targeting is admin-only (P1-02 permission 
     expect(h.revisions).toEqual([]);
   });
 
-  it('fails OPEN when the caller has no membership row (a lockout is worse than an edit)', async () => {
+  /**
+   * Gate J (MP-03, Neo-confirmed 2026-07-27): flipped from fail-open to
+   * fail-closed. The only known live window for "no membership row" is a
+   * stale positive-membership-cache read (org-tenant-resolver.service.ts's
+   * 30s TTL) after the row was deleted — permitting the edit in that window
+   * let a just-removed non-admin rewrite firm-wide targeting.
+   */
+  it('fails CLOSED when the caller has no membership row, and writes NOTHING', async () => {
     const h = prismaWithRole(null);
-    await expect(put(new TrackerWatchlistService(h.prisma as never))).resolves.toMatchObject({
-      version: 1,
+    const svc = new TrackerWatchlistService(h.prisma as never);
+
+    await expect(put(svc)).rejects.toMatchObject({
+      status: 403,
+      response: { code: 'TARGETING_MEMBERSHIP_UNRESOLVED' },
     });
+    expect(h.ops).toEqual([]);
+    expect(h.revisions).toEqual([]);
   });
 });
 
@@ -919,5 +986,79 @@ describe('TrackerWatchlistService.putAlertPrefs — P1-01 default vs deliberate 
     await svc.putAlertPrefs(TENANT, CLIENT, 'user-1', { triggers: [] });
 
     expect((upserts[0]!.create as { triggers: string[] }).triggers).toEqual([]);
+  });
+});
+
+describe('TrackerWatchlistService.assertAlertInClient — Gate J (HP-06)', () => {
+  const ALERT = 'alert-1';
+
+  function alertReader(alerts: Array<{ id: string; tenantId: string; clientId: string }>) {
+    return {
+      withTenant: async (_tid: string, fn: (t: unknown) => unknown) =>
+        fn({
+          intelAlert: {
+            findFirst: async ({ where }: { where: { id: string; tenantId: string; clientId: string } }) =>
+              alerts.find(
+                (a) => a.id === where.id && a.tenantId === where.tenantId && a.clientId === where.clientId,
+              ) ?? null,
+          },
+        }),
+    } as any;
+  }
+
+  it('resolves when the alert belongs to this tenant and client', async () => {
+    const prisma = alertReader([{ id: ALERT, tenantId: TENANT, clientId: CLIENT }]);
+    const svc = new TrackerWatchlistService(prisma);
+    await expect(svc.assertAlertInClient(TENANT, CLIENT, ALERT)).resolves.toBeUndefined();
+  });
+
+  it('404s when the alert belongs to a DIFFERENT client in the same tenant (the HP-06 case)', async () => {
+    const OTHER_CLIENT = '22222222-2222-2222-2222-222222222222';
+    const prisma = alertReader([{ id: ALERT, tenantId: TENANT, clientId: OTHER_CLIENT }]);
+    const svc = new TrackerWatchlistService(prisma);
+    await expect(svc.assertAlertInClient(TENANT, CLIENT, ALERT)).rejects.toThrow('Alert not found');
+  });
+
+  it('404s when the alert does not exist at all', async () => {
+    const prisma = alertReader([]);
+    const svc = new TrackerWatchlistService(prisma);
+    await expect(svc.assertAlertInClient(TENANT, CLIENT, 'no-such-alert')).rejects.toThrow('Alert not found');
+  });
+});
+
+describe('TrackerWatchlistService.assertTenantMember — Gate J (HP-06 b-1/b-2)', () => {
+  const MEMBER = '33333333-3333-3333-3333-333333333333';
+
+  function membershipReader(memberships: Array<{ userId: string; tenantId: string }>) {
+    return {
+      withSystem: async (fn: (t: unknown) => unknown) =>
+        fn({
+          $queryRawUnsafe: async (_sql: string, userId: string, tenantId: string) =>
+            memberships.some((m) => m.userId === userId && m.tenantId === tenantId) ? [{ id: 'm-1' }] : [],
+        }),
+    } as any;
+  }
+
+  it('resolves when userId is a member of this tenant', async () => {
+    const prisma = membershipReader([{ userId: MEMBER, tenantId: TENANT }]);
+    const svc = new TrackerWatchlistService(prisma);
+    await expect(svc.assertTenantMember(TENANT, MEMBER)).resolves.toBeUndefined();
+  });
+
+  it('404s when the user id is a member of a DIFFERENT tenant (the id-space is DB users.id, not Clerk — cross-tenant collision must still be caught)', async () => {
+    const prisma = membershipReader([{ userId: MEMBER, tenantId: 'other-tenant' }]);
+    const svc = new TrackerWatchlistService(prisma);
+    await expect(svc.assertTenantMember(TENANT, MEMBER)).rejects.toThrow('User not found');
+  });
+
+  it('404s on a non-UUID id without querying the database', async () => {
+    let queried = false;
+    const prisma = {
+      withSystem: async (fn: (t: unknown) => unknown) =>
+        fn({ $queryRawUnsafe: async () => { queried = true; return []; } }),
+    } as any;
+    const svc = new TrackerWatchlistService(prisma);
+    await expect(svc.assertTenantMember(TENANT, 'not-a-uuid')).rejects.toThrow('User not found');
+    expect(queried).toBe(false);
   });
 });

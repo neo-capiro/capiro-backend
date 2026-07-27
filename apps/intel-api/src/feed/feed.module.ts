@@ -18,9 +18,11 @@ import { TrackerModule } from '../tracker/tracker.module.js';
  * SourceDataModule supplies the tenant-scoped client-name resolver used by the
  * global cross-client feed roll-up (P11).
  */
-// TrackerModule is imported for TrackerWatchlistService, whose assertClientInTenant is
-// the client-ownership proof the §4.1 packet endpoint needs (intel-api has no RLS).
-// TrackerModule does not import FeedModule, so there is no cycle.
+// TrackerModule is imported for TrackerWatchlistService, whose assertClientInTenant
+// (client ownership) and assertAlertInClient (Gate J, alert↔client ownership) are
+// the proofs the §4.1 packet endpoint and every action-item/work-state route need
+// beyond tenant-scoped RLS. TrackerModule does not import FeedModule, so there is
+// no cycle.
 @Module({
   imports: [SourceDataModule, TrackerModule],
   controllers: [FeedController, ActionItemController],

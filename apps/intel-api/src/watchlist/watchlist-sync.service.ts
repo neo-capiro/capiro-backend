@@ -16,7 +16,9 @@ import {
  * `alert_preference`, `tracked_bill`) go through `prisma.withSystem` — the RLS
  * bypass path (`SET LOCAL app.bypass_rls = 'on'`) — so a cross-tenant run reads
  * every tenant's rows. intel-api NEVER writes apps/api tables (D2). Writes land
- * only in `intel_*` (no RLS). Per-client work is serialized with a Postgres
+ * only in `intel_*`, which itself carries FORCE ROW LEVEL SECURITY scoped to
+ * tenant_id — this sweep's writes go through the same `withSystem` bypass since
+ * they are legitimately cross-tenant. Per-client work is serialized with a Postgres
  * transaction advisory lock so an overlapping scheduled + manual run can't
  * double-write the same client.
  */

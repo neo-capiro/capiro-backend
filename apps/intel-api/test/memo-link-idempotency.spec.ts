@@ -1,4 +1,5 @@
 import { ActionItemService, expectedMemoFileName } from '../src/feed/action-item.service.js';
+import type { TrackerWatchlistService } from '../src/tracker/tracker-watchlist.service.js';
 
 /**
  * P1-14 (Gate C e-8 cases 5-7). The alert↔memo-document link must be idempotent — the
@@ -6,7 +7,15 @@ import { ActionItemService, expectedMemoFileName } from '../src/feed/action-item
  * row would trade one bug for another. And documents already stranded by the old
  * swallow-the-failure behavior need a way back: `reconcileOrphanMemoLinks`, dry-run by
  * default, which never guesses.
+ *
+ * Gate J (HP-06) added a required TrackerWatchlistService dependency to prove alert↔client
+ * ownership on every write. This file is about idempotency/content-handling, not ownership
+ * (that's action-item.spec.ts) — so every service here gets an always-succeeding stub.
  */
+const watchlist = {
+  assertClientInTenant: async () => undefined,
+  assertAlertInClient: async () => undefined,
+} as unknown as TrackerWatchlistService;
 
 type Row = {
   id: string;
@@ -70,7 +79,7 @@ describe('ActionItemService.recordMemo — idempotency (P1-14)', () => {
   // Case 5
   it('writing the same (alertId, attachmentId) twice keeps ONE row and updates it', async () => {
     const { prisma, rows } = makePrisma();
-    const svc = new ActionItemService(prisma);
+    const svc = new ActionItemService(prisma, watchlist);
 
     await svc.recordMemo('t1', 'c1', 'alert-1', 'u1', { documentAttachmentId: 'att-1', title: 'Memo' });
     await svc.recordMemo('t1', 'c1', 'alert-1', 'u1', { documentAttachmentId: 'att-1', title: 'Memo' });
@@ -82,7 +91,7 @@ describe('ActionItemService.recordMemo — idempotency (P1-14)', () => {
   // Case 6
   it('writing a DIFFERENT attachmentId keeps one row, holding the latest id', async () => {
     const { prisma, rows } = makePrisma();
-    const svc = new ActionItemService(prisma);
+    const svc = new ActionItemService(prisma, watchlist);
 
     await svc.recordMemo('t1', 'c1', 'alert-1', 'u1', { documentAttachmentId: 'att-1', title: 'First' });
     await svc.recordMemo('t1', 'c1', 'alert-1', 'u1', { documentAttachmentId: 'att-2', title: 'Regenerated' });
@@ -94,7 +103,7 @@ describe('ActionItemService.recordMemo — idempotency (P1-14)', () => {
 
   it('keeps separate rows for separate alerts', async () => {
     const { prisma, rows } = makePrisma();
-    const svc = new ActionItemService(prisma);
+    const svc = new ActionItemService(prisma, watchlist);
 
     await svc.recordMemo('t1', 'c1', 'alert-1', 'u1', { documentAttachmentId: 'att-1' });
     await svc.recordMemo('t1', 'c1', 'alert-2', 'u1', { documentAttachmentId: 'att-2' });
@@ -106,7 +115,7 @@ describe('ActionItemService.recordMemo — idempotency (P1-14)', () => {
   // saved memo can be read back without regenerating (RB-04's read path).
   it('persists content into the row', async () => {
     const { prisma, rows } = makePrisma();
-    const svc = new ActionItemService(prisma);
+    const svc = new ActionItemService(prisma, watchlist);
 
     await svc.recordMemo('t1', 'c1', 'alert-1', 'u1', {
       documentAttachmentId: 'att-1',
@@ -123,7 +132,7 @@ describe('ActionItemService.recordMemo — idempotency (P1-14)', () => {
   // defaulting to null like documentAttachmentId/title do.
   it('a call that omits content leaves previously-saved content untouched', async () => {
     const { prisma, rows } = makePrisma();
-    const svc = new ActionItemService(prisma);
+    const svc = new ActionItemService(prisma, watchlist);
 
     await svc.recordMemo('t1', 'c1', 'alert-1', 'u1', {
       documentAttachmentId: 'att-1',
@@ -146,7 +155,7 @@ describe('ActionItemService.recordMemo — idempotency (P1-14)', () => {
   // `undefined` (the key never sent) is treated as "don't touch".
   it('an explicit empty-string content DOES overwrite (only undefined is "leave alone")', async () => {
     const { prisma, rows } = makePrisma();
-    const svc = new ActionItemService(prisma);
+    const svc = new ActionItemService(prisma, watchlist);
 
     await svc.recordMemo('t1', 'c1', 'alert-1', 'u1', { documentAttachmentId: 'att-1', content: 'first' });
     await svc.recordMemo('t1', 'c1', 'alert-1', 'u1', { documentAttachmentId: 'att-1', content: '' });
@@ -158,14 +167,14 @@ describe('ActionItemService.recordMemo — idempotency (P1-14)', () => {
 describe('ActionItemService.getMemo — round-trips saved content (Gate H a-5)', () => {
   it('returns the content recordMemo persisted, with no server change needed to getMemo itself', async () => {
     const { prisma } = makePrisma();
-    const svc = new ActionItemService(prisma);
+    const svc = new ActionItemService(prisma, watchlist);
     await svc.recordMemo('t1', 'c1', 'alert-1', 'u1', {
       documentAttachmentId: 'att-1',
       title: 'Client memo — H.R. 8800',
       content: 'The full saved markdown.',
     });
 
-    const got = await svc.getMemo('t1', 'alert-1');
+    const got = await svc.getMemo('t1', 'c1', 'alert-1');
     expect(got).toMatchObject({
       documentAttachmentId: 'att-1',
       title: 'Client memo — H.R. 8800',
@@ -175,8 +184,8 @@ describe('ActionItemService.getMemo — round-trips saved content (Gate H a-5)',
 
   it('returns null when no memo exists for the alert', async () => {
     const { prisma } = makePrisma();
-    const svc = new ActionItemService(prisma);
-    expect(await svc.getMemo('t1', 'no-such-alert')).toBeNull();
+    const svc = new ActionItemService(prisma, watchlist);
+    expect(await svc.getMemo('t1', 'c1', 'no-such-alert')).toBeNull();
   });
 });
 
@@ -231,7 +240,7 @@ describe('ActionItemService.reconcileOrphanMemoLinks (P1-14)', () => {
   // Case 7
   it('DRY RUN reports candidates and links ZERO', async () => {
     const { prisma, rows } = makePrisma({ attachments, alerts });
-    const r = await new ActionItemService(prisma).reconcileOrphanMemoLinks('t1', { apply: false }, log);
+    const r = await new ActionItemService(prisma, watchlist).reconcileOrphanMemoLinks('t1', { apply: false }, log);
 
     expect(r.candidates).toBe(3);
     expect(r.linked).toBe(0); // dry run writes nothing
@@ -243,7 +252,7 @@ describe('ActionItemService.reconcileOrphanMemoLinks (P1-14)', () => {
 
   it('APPLY links only the unambiguous one and reports the ambiguous count', async () => {
     const { prisma, rows } = makePrisma({ attachments, alerts });
-    const r = await new ActionItemService(prisma).reconcileOrphanMemoLinks('t1', { apply: true }, log);
+    const r = await new ActionItemService(prisma, watchlist).reconcileOrphanMemoLinks('t1', { apply: true }, log);
 
     expect(r.candidates).toBe(3);
     expect(r.linked).toBe(1);
@@ -255,7 +264,7 @@ describe('ActionItemService.reconcileOrphanMemoLinks (P1-14)', () => {
 
   it('treats an already-linked attachment as not a candidate', async () => {
     const { prisma } = makePrisma({ attachments, alerts });
-    const svc = new ActionItemService(prisma);
+    const svc = new ActionItemService(prisma, watchlist);
     await svc.recordMemo('t1', 'c1', 'alert-1', 'u1', { documentAttachmentId: 'att-1' });
 
     const r = await svc.reconcileOrphanMemoLinks('t1', { apply: true }, log);
@@ -266,7 +275,7 @@ describe('ActionItemService.reconcileOrphanMemoLinks (P1-14)', () => {
 
   it('is a no-op when the tenant has no intel_memo attachments', async () => {
     const { prisma, rows } = makePrisma({ attachments: [], alerts });
-    const r = await new ActionItemService(prisma).reconcileOrphanMemoLinks('t1', { apply: true }, log);
+    const r = await new ActionItemService(prisma, watchlist).reconcileOrphanMemoLinks('t1', { apply: true }, log);
 
     expect(r).toEqual({ candidates: 0, linked: 0, ambiguous: 0 });
     expect(rows).toHaveLength(0);
@@ -314,7 +323,7 @@ describe('ActionItemService.summaryForAlerts — attaches reviewRequestId (H-5)'
       ],
       reviewRequests: [{ subject_id: 'alert-1', id: 'rr-1' }],
     });
-    const summary = await new ActionItemService(prisma).summaryForAlerts('t1', ['alert-1']);
+    const summary = await new ActionItemService(prisma, watchlist).summaryForAlerts('t1', ['alert-1']);
 
     expect(summary.get('alert-1')?.memo?.reviewRequestId).toBe('rr-1');
   });
@@ -326,7 +335,7 @@ describe('ActionItemService.summaryForAlerts — attaches reviewRequestId (H-5)'
       ],
       reviewRequests: [], // filed straight through — no hold, no review_request row
     });
-    const summary = await new ActionItemService(prisma).summaryForAlerts('t1', ['alert-1']);
+    const summary = await new ActionItemService(prisma, watchlist).summaryForAlerts('t1', ['alert-1']);
 
     expect(summary.get('alert-1')?.memo?.reviewRequestId).toBeUndefined();
   });
@@ -342,7 +351,7 @@ describe('ActionItemService.summaryForAlerts — attaches reviewRequestId (H-5)'
     };
     const prisma = { withTenant: async (_t: string, cb: (t: unknown) => unknown) => cb(tx) } as never;
 
-    const summary = await new ActionItemService(prisma).summaryForAlerts('t1', ['alert-1']);
+    const summary = await new ActionItemService(prisma, watchlist).summaryForAlerts('t1', ['alert-1']);
 
     expect(summary.get('alert-1')).toEqual({ inReport: false, talkingPoints: 0 });
     expect(queried).toBe(false);

@@ -37,10 +37,11 @@ export class AlertPacketService {
     clientId: string,
     alertId: string,
   ): Promise<GovernmentAffairsAlertPacket> {
-    // Two independent ownership proofs. assertClientInTenant covers the CLIENT
-    // (intel-api has no RLS); the alert predicate below covers the ALERT, so fetching
-    // alert X under client Y 404s instead of leaking a sibling client's alert
-    // (§4 edge case 13).
+    // Two independent ownership proofs. assertClientInTenant covers the CLIENT;
+    // the alert predicate below covers the ALERT — RLS scopes to tenant only, so
+    // fetching alert X under client Y 404s instead of leaking a sibling client's
+    // alert (§4 edge case 13). Gate J's assertAlertInClient generalizes this
+    // exact predicate for every other alert-bearing route.
     await this.watchlist.assertClientInTenant(tenantId, clientId);
     const alert = await this.prisma.withTenant(tenantId, (tx) =>
       tx.intelAlert.findFirst({

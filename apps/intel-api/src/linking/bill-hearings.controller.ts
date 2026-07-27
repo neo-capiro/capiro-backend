@@ -16,8 +16,9 @@ import { BillHearingsService } from './bill-hearings.service.js';
  *
  * Mounted under `/intel-api/clients/*` (global prefix + TenantGuard resolves the
  * tenant); TrackerOwnerGuard gates it to the intel-owned tenant (404 when off),
- * matching the tracker board/feed controllers. intel_alert has no RLS so the
- * service filters by tenantId + clientId on every query.
+ * matching the tracker board/feed controllers. intel_alert carries FORCE ROW
+ * LEVEL SECURITY scoped to tenant_id; the service additionally filters by
+ * tenantId + clientId on every query.
  */
 @Controller('clients')
 @UseGuards(TenantGuard, TrackerOwnerGuard)
