@@ -39,6 +39,7 @@ import {
   ownMailThreadWhere,
   ownMeetingWhere,
 } from './engagement-access.helpers.js';
+import { activeMailMessageWhere } from './mail-message-state.js';
 // ── Phase 1 — governed generation gateway ───────────────────────────────────
 import {
   GenerationGatewayService,
@@ -2114,7 +2115,11 @@ export class EngagementService {
         where,
         include: {
           client: clientSummarySelect(),
-          messages: { orderBy: { receivedAt: 'desc' }, take: 3 },
+          messages: {
+            where: activeMailMessageWhere(),
+            orderBy: [{ receivedAt: 'desc' }, { sentAt: 'desc' }, { createdAt: 'desc' }],
+            take: 3,
+          },
         },
         orderBy: [{ lastMessageAt: 'desc' }, { updatedAt: 'desc' }],
         take: 50,

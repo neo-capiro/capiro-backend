@@ -31,6 +31,7 @@ import { deriveMeetingVirtuality, type TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { harvestMailContacts } from '../contact-harvest.js';
 import { ClientAssociationService } from '../client-association.service.js';
+import { markMailMessageRemovedInTx } from '../mail-message-state.js';
 import { GoogleTokenService } from './google-token.service.js';
 
 const GMAIL_BASE_URL = 'https://gmail.googleapis.com/gmail/v1';
@@ -816,43 +817,27 @@ export class GoogleSyncService {
   }
 
   /**
-   * Mark a stored Gmail message as gone without destroying it — the direct
-   * analog of the Outlook '@removed' handling (microsoft-graph-sync
-   * persistGraphMessage). Read-modify-write so the existing metadata
-   * (internetMessageId, folder, labelIds) survives; the Outlook path overwrites
-   * the whole object and loses them, which is a wart we are not copying.
-   * updateMany + a no-row result is a NO-OP by design: a message deleted before
-   * we ever ingested it needs no record.
+   * Mark a stored Gmail message removed via the shared provider-neutral
+   * contract (mail-message-state.ts) — the direct analog of Outlook's
+   * persistGraphMessage '@removed' handling. Never deletes the row or clears
+   * its body; a no-op when the provider event refers to a message Capiro
+   * never persisted.
    */
   private async markGmailMessageRemoved(
     tenantId: string,
     externalId: string,
     reason: 'deleted' | 'trashed' | 'spam',
   ): Promise<'removed'> {
-    await this.prisma.withTenant(tenantId, async (tx) => {
-      const existing = await tx.mailMessage.findUnique({
-        where: {
-          tenantId_source_externalId: {
-            tenantId,
-            source: EngagementSource.google,
-            externalId,
-          },
-        },
-        select: { id: true, metadata: true },
-      });
-      if (!existing) return;
-      const base =
-        existing.metadata && typeof existing.metadata === 'object' && !Array.isArray(existing.metadata)
-          ? (existing.metadata as Record<string, unknown>)
-          : {};
-      await tx.mailMessage.update({
-        where: { id: existing.id },
-        data: {
-          metadata: {
-            ...base,
-            googleRemoved: { reason, at: new Date().toISOString() },
-          } as Prisma.InputJsonValue,
-        },
+    await this.prisma.withTenantRetry(tenantId, async (tx) => {
+      await lockTenantForEngagementSync(tx, tenantId);
+      const removedAt = new Date();
+      await markMailMessageRemovedInTx(tx, {
+        tenantId,
+        source: EngagementSource.google,
+        externalId,
+        reason,
+        removedAt,
+        providerMetadata: { googleRemoved: { reason, at: removedAt.toISOString() } },
       });
     });
     return 'removed';
@@ -963,7 +948,7 @@ export class GoogleSyncService {
                 participants: participantJson as Prisma.InputJsonValue,
                 lastMessageAt,
                 raw: rawForStorage,
-                metadata: { labels: unique([folder]) } as Prisma.InputJsonValue,
+                metadata: { labels: unique([folder]), deleted: false } as Prisma.InputJsonValue,
                 associationScore: association.score,
                 associationReason: association.reason,
                 associationSignals: association.signals as Prisma.InputJsonValue,
@@ -1011,6 +996,8 @@ export class GoogleSyncService {
             receivedAt: messageDate,
             bodyText: extractGmailBodyText(message.payload) ?? clean(message.snippet),
             hasAttachments,
+            removedAt: null,
+            removedReason: null,
             raw: rawForStorage,
             metadata: {
               label: folder,
@@ -1035,6 +1022,8 @@ export class GoogleSyncService {
             receivedAt: messageDate,
             bodyText: extractGmailBodyText(message.payload) ?? clean(message.snippet),
             hasAttachments,
+            removedAt: null,
+            removedReason: null,
             raw: rawForStorage,
             metadata: {
               label: folder,
