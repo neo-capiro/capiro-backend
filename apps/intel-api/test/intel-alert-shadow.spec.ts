@@ -494,3 +494,239 @@ describe('IntelAlertService "what happened" summary delegation', () => {
     expect(sent[0].html).not.toContain('What happened');
   });
 });
+
+/**
+ * HP-07 (Gate G phase e): emitNewBillAlerts' event construction now reads
+ * NESTED evidence (evidence.hearing / evidence.bill / evidence.programElement)
+ * in addition to the flat keys the bill writer uses — proven end-to-end here
+ * by asserting on the ACTUAL rendered email content each source type's real
+ * writer shape produces (fixtures copied verbatim from the writers'
+ * evidence, per the research that preceded this change), not just that
+ * construction doesn't throw. LEGIWATCH_EMIT_SOURCE_TYPES defaults to 'bill'
+ * only, so each test sets it explicitly — this is exactly the pre-work that
+ * default leaves inert in production.
+ */
+describe('IntelAlertService.emitNewBillAlerts — per-source evidence mapping (HP-07, Gate G phase e)', () => {
+  afterEach(() => {
+    delete process.env.TRACKER_ALERTS_ENABLED;
+    delete process.env.LEGIWATCH_EMIT_SOURCE_TYPES;
+  });
+
+  function makeSourceTypeService(row: Record<string, unknown>, triggerKey: string) {
+    const store = [row];
+    const sent: Array<{ to: string; subject: string; html: string; text: string }> = [];
+    const inner = {
+      intelAlert: {
+        findMany: async (args: { where: { sourceType: { in: string[] } } }) =>
+          store.filter((r) => args.where.sourceType.in.includes(r.sourceType as string)),
+        update: async () => ({}),
+      },
+      intelAlertPreference: {
+        findMany: async () => [
+          {
+            userId: 'u1',
+            triggers: [triggerKey],
+            materiality: 'low',
+            jurisdictions: [],
+            emailEnabled: true,
+            emailAddress: 'u1@x.com',
+          },
+        ],
+      },
+      intelNotificationLog: {
+        create: async () => ({ id: 'log-1' }),
+        update: async () => ({}),
+        findFirst: async () => null,
+      },
+    };
+    const prisma = {
+      ...inner,
+      withTenant: async <T>(_t: string, cb: (tx: typeof inner) => Promise<T>) => cb(inner),
+      withSystem: async <T>(cb: (tx: typeof inner) => Promise<T>) => cb(inner),
+    };
+    const svc = new IntelAlertService(
+      prisma as never,
+      { isEnabled: async () => true } as never,
+      {
+        send: async (to: string, subject: string, html: string, text: string) => {
+          sent.push({ to, subject, html, text });
+          return { sent: true, messageId: 'm1' };
+        },
+      } as never,
+      { getClientNames: async () => new Map() } as never,
+      { configured: false } as never,
+    );
+    return { svc, sent };
+  }
+
+  it('hearing: mentions and committee reach the rendered email; no official-source link', async () => {
+    process.env.TRACKER_ALERTS_ENABLED = 'true';
+    process.env.LEGIWATCH_EMIT_SOURCE_TYPES = 'hearing';
+    const row = {
+      id: 'a1',
+      tenantId: 't1',
+      clientId: 'c1',
+      sourceType: 'hearing',
+      sourceRef: 's1',
+      status: 'new',
+      deliveredAt: null,
+      changeType: null,
+      kind: 'hearing_mention',
+      severity: 'info',
+      score: 0.4,
+      title: 'Full Committee Markup — 1 watchlist mention',
+      whyItMatters: 'Your watchlist term(s) ("supply chain") was referenced in this hearing.',
+      evidence: {
+        hearing: {
+          sessionId: 's1',
+          title: 'Full Committee Markup',
+          committeeId: 'HASC',
+          occurredAt: '2026-07-01T14:00:00.000Z',
+          mentions: [{ segmentId: 'seg1', timestampMs: 1000, speakerName: 'Rep. X', quote: 'We rely on this supply chain.', quoteSource: 'textPlain', issueTags: [], term: 'supply chain', termType: 'keyword', score: 0.8 }],
+        },
+        link: { via: 'watchlist_match', matchCount: 1 },
+      },
+    };
+    const { svc, sent } = makeSourceTypeService(row, 'hearing_mention');
+    const r = await svc.emitNewBillAlerts();
+    expect(r.sent).toBe(1);
+    expect(sent[0].html).toContain('Rep. X');
+    expect(sent[0].html).toContain('We rely on this supply chain.');
+    expect(sent[0].html).toContain('HASC');
+    expect(sent[0].html).not.toContain('View official source');
+  });
+
+  it('combined: the linked bill\'s own url becomes the official source, hearing context is shown', async () => {
+    process.env.TRACKER_ALERTS_ENABLED = 'true';
+    process.env.LEGIWATCH_EMIT_SOURCE_TYPES = 'combined';
+    const row = {
+      id: 'a2',
+      tenantId: 't1',
+      clientId: 'c1',
+      sourceType: 'combined',
+      sourceRef: 'bill-1',
+      status: 'new',
+      deliveredAt: null,
+      changeType: null,
+      kind: 'combined',
+      severity: 'notable',
+      score: 0.7,
+      title: 'H.R. 8800 referenced in hearing — FY27 Posture Hearing',
+      whyItMatters: 'H.R. 8800 (Passed committee) — a bill you track — was referenced in "FY27 Posture Hearing".',
+      evidence: {
+        bill: {
+          billId: 'bill-1',
+          displayNum: 'H.R. 8800',
+          title: 'National Defense Manufacturing Act',
+          url: 'https://congress.gov/bill/hr8800',
+          stage: 'committee',
+          actionText: 'Rules Committee granted a closed rule',
+          actionDate: '2026-07-01',
+        },
+        hearing: { sessionId: 's1', title: 'FY27 Posture Hearing', committeeId: 'HASC', occurredAt: '2026-07-01T14:00:00.000Z', mentions: [] },
+        link: { via: 'session.billIds', confidence: 0.75, billAlertId: null, hearingAlertId: null },
+      },
+    };
+    const { svc, sent } = makeSourceTypeService(row, 'combined');
+    const r = await svc.emitNewBillAlerts();
+    expect(r.sent).toBe(1);
+    expect(sent[0].html).toContain('href="https://congress.gov/bill/hr8800"');
+    expect(sent[0].html).toContain('View official source');
+    expect(sent[0].html).toContain('FY27 Posture Hearing');
+  });
+
+  it('regulation: flat evidence (already the bill-shaped keys) plus agency/comment-period context', async () => {
+    process.env.TRACKER_ALERTS_ENABLED = 'true';
+    process.env.LEGIWATCH_EMIT_SOURCE_TYPES = 'regulation';
+    const row = {
+      id: 'a3',
+      tenantId: 't1',
+      clientId: 'c1',
+      sourceType: 'regulation',
+      sourceRef: 'rule-1',
+      status: 'new',
+      deliveredAt: null,
+      changeType: 'rule_new_match',
+      kind: 'rule_new_match',
+      severity: 'info',
+      score: 0.3,
+      title: 'New matched rule: PFAS Drinking Water Standard',
+      whyItMatters: 'Matched your watchlist term "PFAS".',
+      evidence: {
+        stage: 'New rule',
+        actionText: 'EPA proposes a new maximum contaminant level for PFAS compounds.',
+        actionDate: '2026-07-01',
+        url: 'https://federalregister.gov/d/2026-12345',
+        sourceUrl: 'https://federalregister.gov/d/2026-12345',
+        tone: 'info',
+        band: 'low',
+        triggerKey: 'newMatch',
+        ruleTitle: 'PFAS Drinking Water Standard',
+        agency: 'EPA',
+        ruleType: 'proposed',
+        commentEndDate: '2026-08-15',
+        jurisdiction: 'US',
+      },
+    };
+    // newMatch is in DEFAULT_TRIGGERS today — this is the one source type that
+    // already works end to end once a renderer exists (per the HP-07 research).
+    const { svc, sent } = makeSourceTypeService(row, 'newMatch');
+    const r = await svc.emitNewBillAlerts();
+    expect(r.sent).toBe(1);
+    expect(sent[0].html).toContain('EPA');
+    expect(sent[0].html).toContain('href="https://federalregister.gov/d/2026-12345"');
+    expect(sent[0].html).toContain('2026-08-15');
+  });
+
+  it('program_element: the funding delta reaches the email; the PE-360 link is internal, not "official source"', async () => {
+    process.env.TRACKER_ALERTS_ENABLED = 'true';
+    process.env.LEGIWATCH_EMIT_SOURCE_TYPES = 'program_element';
+    const row = {
+      id: 'a4',
+      tenantId: 't1',
+      clientId: 'c1',
+      sourceType: 'program_element',
+      sourceRef: '0603286F',
+      status: 'new',
+      deliveredAt: null,
+      changeType: 'new_start',
+      kind: 'pe_funding_change',
+      severity: 'critical',
+      score: 0.8,
+      title: 'FY2027 New start: 0603286F Hypersonics Prototyping ($0.0M → $12.0M)',
+      whyItMatters: '0603286F is on this client\'s watchlist under "Hypersonics".',
+      evidence: {
+        programElement: {
+          peCode: '0603286F',
+          title: 'Hypersonics Prototyping',
+          fiscalYear: 2027,
+          deltaType: 'new_start',
+          deltaTypeLabel: 'New start',
+          fromRef: null,
+          toRef: 'PB2027',
+          amountFromMillions: 0,
+          amountToMillions: 12,
+          deltaMillions: 12,
+          deltaPct: null,
+          materialityScore: 0.8,
+          href: '/program-elements/0603286F',
+        },
+        actionText: 'New start: Hypersonics Prototyping',
+        actionDate: '2026-07-01',
+        why: '0603286F is on this client\'s watchlist under "Hypersonics".',
+        matchedTags: ['Hypersonics'],
+        tone: 'critical',
+        band: 'high',
+        triggerKey: 'peFundingChange',
+        sourceDeltaId: 'delta-1',
+      },
+    };
+    const { svc, sent } = makeSourceTypeService(row, 'peFundingChange');
+    const r = await svc.emitNewBillAlerts();
+    expect(r.sent).toBe(1);
+    expect(sent[0].html).toContain('$0.0M → $12.0M');
+    expect(sent[0].html).toContain('FY2027');
+    expect(sent[0].html).toContain('href="https://app.capiro.ai/program-elements/0603286F"');
+    expect(sent[0].html).not.toContain('View official source');
+  });
+});

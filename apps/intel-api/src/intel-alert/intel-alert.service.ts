@@ -448,22 +448,56 @@ export class IntelAlertService {
     let queued = 0;
     for (const a of rows) {
       const ev = (a.evidence ?? {}) as Record<string, unknown>;
+      // HP-07 (Gate G phase e): hearing/combined evidence is NESTED
+      // (evidence.bill / evidence.hearing), not flat like bill/state_bill/
+      // regulation/program_element — `evBill` lets the generic flat reads
+      // below fall back to combined's nested bill ref without a sourceType
+      // branch, and `evHearing` feeds the hearing renderer's own fields.
+      const evBill = (ev.bill ?? undefined) as
+        | { billId?: string; displayNum?: string; title?: string; url?: string; actionText?: string | null; actionDate?: string | null }
+        | undefined;
+      const evHearing = (ev.hearing ?? undefined) as
+        | {
+            sessionId?: string;
+            title?: string | null;
+            committeeId?: string | null;
+            occurredAt?: string | null;
+            mentions?: Array<{ speakerName?: string | null; quote?: string | null; timestampMs?: number | null }>;
+          }
+        | undefined;
+      const evPe = (ev.programElement ?? undefined) as
+        | {
+            peCode?: string;
+            title?: string | null;
+            fiscalYear?: number | null;
+            deltaTypeLabel?: string | null;
+            amountFromMillions?: number | null;
+            amountToMillions?: number | null;
+            deltaMillions?: number | null;
+            deltaPct?: number | null;
+            href?: string;
+          }
+        | undefined;
       const event: IntelAlertEvent = {
         tenantId: a.tenantId,
         clientId: a.clientId,
         clientName: clientNamesByTenant.get(a.tenantId)?.get(a.clientId) ?? null,
         alertRowId: a.id, // per-occurrence claim key (recurrences deliver; same row can't double-send)
         billId: a.sourceRef,
-        displayNum: (ev.displayNum as string) ?? a.sourceRef,
-        billTitle: (ev.billTitle as string) ?? a.title,
+        displayNum: (ev.displayNum as string) ?? evBill?.displayNum ?? a.sourceRef,
+        billTitle: (ev.billTitle as string) ?? evBill?.title ?? a.title,
         changeType: a.changeType ?? a.kind,
         triggerKey: (ev.triggerKey as string) ?? a.kind,
         label: (ev.stage as string) ?? a.title,
         tone: (ev.tone as string) ?? undefined,
         severity: a.severity as AlertSeverity,
-        detail: (ev.actionText as string) ?? a.title,
-        actionDate: (ev.actionDate as string) ?? null,
-        url: (ev.url as string) ?? '',
+        // HP-07: `a.whyItMatters` is a real, always-populated column — a
+        // better fallback than repeating `a.title` (which `billTitle` above
+        // already shows) for hearing/combined, whose evidence has no
+        // top-level `actionText`.
+        detail: (ev.actionText as string) ?? evBill?.actionText ?? a.whyItMatters ?? a.title,
+        actionDate: (ev.actionDate as string) ?? evBill?.actionDate ?? null,
+        url: (ev.url as string) ?? evBill?.url ?? '',
         why: a.whyItMatters,
         matchedTags: (ev.matchedTags as string[]) ?? [],
         score: a.score,
@@ -475,6 +509,57 @@ export class IntelAlertService {
         // the list to hunt for the alert they were emailed about. Gate A f-1
         // deferred this precisely because nothing consumed the param yet.
         appUrl: `${appBaseUrl()}/legiwatch?tab=feed&client=${encodeURIComponent(a.clientId)}&alert=${encodeURIComponent(a.id)}`,
+        ...(evHearing
+          ? {
+              hearing: {
+                sessionId: evHearing.sessionId ?? a.sourceRef,
+                title: evHearing.title ?? null,
+                committeeId: evHearing.committeeId ?? null,
+                occurredAt: evHearing.occurredAt ?? null,
+                mentions: (evHearing.mentions ?? []).map((m) => ({
+                  speakerName: m.speakerName ?? null,
+                  quote: m.quote ?? null,
+                  timestampMs: m.timestampMs ?? null,
+                })),
+              },
+            }
+          : {}),
+        ...(a.sourceType === 'combined' && evBill
+          ? {
+              linkedBill: {
+                displayNum: evBill.displayNum ?? a.sourceRef,
+                title: evBill.title ?? a.title,
+                url: evBill.url ?? '',
+                actionText: evBill.actionText ?? null,
+                actionDate: evBill.actionDate ?? null,
+              },
+            }
+          : {}),
+        ...(evPe
+          ? {
+              programElement: {
+                peCode: evPe.peCode ?? a.sourceRef,
+                title: evPe.title ?? null,
+                fiscalYear: evPe.fiscalYear ?? null,
+                deltaTypeLabel: evPe.deltaTypeLabel ?? null,
+                amountFromMillions: evPe.amountFromMillions ?? null,
+                amountToMillions: evPe.amountToMillions ?? null,
+                deltaMillions: evPe.deltaMillions ?? null,
+                deltaPct: evPe.deltaPct ?? null,
+                href: evPe.href ?? `/program-elements/${encodeURIComponent(a.sourceRef)}`,
+              },
+            }
+          : {}),
+        ...(a.sourceType === 'regulation'
+          ? {
+              regulationInfo: {
+                agency: (ev.agency as string) ?? null,
+                ruleType: (ev.ruleType as string) ?? null,
+                commentEndDate: (ev.commentEndDate as string) ?? null,
+                jurisdiction: (ev.jurisdiction as string) ?? null,
+              },
+            }
+          : {}),
       };
       try {
         const r = await this.fanOut(event, summaryCache);

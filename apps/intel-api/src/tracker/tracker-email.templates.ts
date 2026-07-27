@@ -98,6 +98,179 @@ export function renderAlertEmail(event: IntelAlertEvent): {
   return { subject, html: shell(inner), text };
 }
 
+/**
+ * HP-07 (Gate G phase e): renderers for the 4 source types the registry
+ * didn't cover — hearing, combined, regulation, program_element. Each has a
+ * genuinely different evidence shape (intel-alert.types.ts's `hearing` /
+ * `linkedBill` / `programElement` / `regulationInfo`), so each gets its own
+ * layout rather than being force-fit into `renderAlertEmail`'s bill-shaped
+ * fields. None of these fire in production yet — `LEGIWATCH_EMIT_SOURCE_TYPES`
+ * still defaults to `bill` only; widening it is a separate, Neo-gated decision
+ * (MASTER §7.7). This is pre-work so that flip needs no further code change.
+ */
+
+function ctaRow(appUrl: string | undefined, officialUrl: string | undefined, officialLabel: string): string {
+  return `<div style="margin-top:16px">
+    ${appUrl ? `<a href="${esc(appUrl)}" style="display:inline-block;background:${BRAND};color:#fff;text-decoration:none;font-weight:600;font-size:13px;padding:9px 16px;border-radius:8px">Open in LegiWatch →</a>` : ''}
+    ${officialUrl ? `<a href="${esc(officialUrl)}" style="display:inline-block;margin-left:10px;color:${BRAND};text-decoration:none;font-weight:600;font-size:13px;padding:9px 4px">${esc(officialLabel)} →</a>` : ''}
+  </div>`;
+}
+
+function pill(label: string, color: string): string {
+  return `<div style="display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${color};background:${color}1a;padding:3px 9px;border-radius:999px">${esc(label)}</div>`;
+}
+
+/** Drop null/undefined entries and narrow to string[] so `.map(esc)` typechecks. */
+function compact(parts: Array<string | null | undefined>): string[] {
+  return parts.filter((p): p is string => Boolean(p));
+}
+
+/** A watchlist term mentioned during a hearing (sourceType 'hearing'). No
+ *  official external source exists for this alert type (no evidence field
+ *  carries a C-SPAN/committee-page URL) — only the in-app CTA is offered. */
+export function renderHearingAlertEmail(event: IntelAlertEvent): { subject: string; html: string; text: string } {
+  const client = event.clientName ? ` · ${event.clientName}` : '';
+  const subject = `${event.billTitle}${client}`;
+  const color = (event.tone && toneColor[event.tone]) ?? BRAND;
+  const h = event.hearing;
+  const mentions = h?.mentions ?? [];
+  const inner = `
+    ${pill(event.label, color)}
+    <div style="margin-top:12px;font-size:16px;font-weight:600;line-height:1.35;color:${INK}">${esc(event.billTitle)}</div>
+    <div style="margin-top:8px;font-size:13px;line-height:1.5;color:${MUTED}">${esc(event.detail)}</div>
+    ${h?.committeeId || h?.occurredAt ? `<div style="margin-top:8px;font-size:12px;color:${MUTED}">${compact([h?.committeeId, h?.occurredAt]).map(esc).join(' · ')}</div>` : ''}
+    ${
+      mentions.length
+        ? `<div style="margin-top:14px">${mentions
+            .map(
+              (m) =>
+                `<div style="margin-top:8px;padding:8px 10px;background:#f6f8fb;border:1px solid #eef1f6;border-radius:6px;font-size:12.5px;line-height:1.5;color:${INK}">${m.speakerName ? `<span style="font-weight:700">${esc(m.speakerName)}:</span> ` : ''}${m.quote ? esc(m.quote) : '<span style="color:' + MUTED + '">Content pending decryption — view in LegiWatch</span>'}</div>`,
+            )
+            .join('')}</div>`
+        : ''
+    }
+    ${ctaRow(event.appUrl, undefined, '')}`;
+  const text = [
+    event.billTitle,
+    event.detail,
+    ...(h?.committeeId || h?.occurredAt ? [[h?.committeeId, h?.occurredAt].filter(Boolean).join(' · ')] : []),
+    ...mentions.map((m) => `${m.speakerName ? `${m.speakerName}: ` : ''}${m.quote ?? '(content pending decryption)'}`),
+    ...(event.appUrl ? ['', `Open in LegiWatch: ${event.appUrl}`] : []),
+  ]
+    .filter(Boolean)
+    .join('\n');
+  return { subject, html: shell(inner), text };
+}
+
+/** A tracked bill referenced in a hearing (sourceType 'combined'). The
+ *  official source IS available — it's the bill's own url. */
+export function renderCombinedAlertEmail(event: IntelAlertEvent): { subject: string; html: string; text: string } {
+  const client = event.clientName ? ` · ${event.clientName}` : '';
+  const bill = event.linkedBill;
+  const subject = `${bill?.displayNum ?? event.displayNum}: ${event.label}${client}`;
+  const color = (event.tone && toneColor[event.tone]) ?? BRAND;
+  const h = event.hearing;
+  const mentions = h?.mentions ?? [];
+  const inner = `
+    ${pill(event.label, color)}
+    <div style="margin-top:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;font-weight:700;color:${INK}">${esc(bill?.displayNum ?? event.displayNum)}</div>
+    <div style="margin-top:4px;font-size:16px;font-weight:600;line-height:1.35;color:${INK}">${esc(bill?.title ?? event.billTitle)}</div>
+    <div style="margin-top:10px;font-size:13px;line-height:1.5;color:${MUTED}">${esc(event.detail)}</div>
+    <div style="margin-top:14px;padding:11px 13px;background:#f6f8fb;border:1px solid #eef1f6;border-radius:8px;font-size:12px;line-height:1.5;color:${INK}">
+      <span style="font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:${MUTED}">Referenced in hearing</span>
+      <div style="margin-top:4px;font-weight:600">${esc(h?.title ?? 'Hearing')}</div>
+      ${
+        mentions.length
+          ? mentions
+              .map(
+                (m) =>
+                  `<div style="margin-top:6px">${m.speakerName ? `<span style="font-weight:700">${esc(m.speakerName)}:</span> ` : ''}${m.quote ? esc(m.quote) : '<span style="color:' + MUTED + '">Content pending decryption</span>'}</div>`,
+              )
+              .join('')
+          : ''
+      }
+    </div>
+    ${ctaRow(event.appUrl, bill?.url, 'View official source')}`;
+  const text = [
+    `${bill?.displayNum ?? event.displayNum}: ${bill?.title ?? event.billTitle}`,
+    event.detail,
+    `Referenced in hearing: ${h?.title ?? 'Hearing'}`,
+    ...mentions.map((m) => `  ${m.speakerName ? `${m.speakerName}: ` : ''}${m.quote ?? '(content pending decryption)'}`),
+    ...(event.appUrl ? ['', `Open in LegiWatch: ${event.appUrl}`] : []),
+    ...(bill?.url ? [`View official source: ${bill.url}`] : []),
+  ]
+    .filter(Boolean)
+    .join('\n');
+  return { subject, html: shell(inner), text };
+}
+
+/** A newly matched federal or state rule (sourceType 'regulation'). Uses the
+ *  generic flat `event.url`/`event.detail`/`event.actionDate` reads, which
+ *  already work for this type, plus `regulationInfo` for agency/comment
+ *  period. No `docketId`/`effectiveDate` — the writer never populates them
+ *  (verified: SourceRule carries neither), so this renderer doesn't assume them. */
+export function renderRegulationAlertEmail(event: IntelAlertEvent): { subject: string; html: string; text: string } {
+  const client = event.clientName ? ` · ${event.clientName}` : '';
+  const subject = `${event.billTitle}${client}`;
+  const color = (event.tone && toneColor[event.tone]) ?? BRAND;
+  const r = event.regulationInfo;
+  const meta = compact([r?.agency, r?.ruleType, r?.jurisdiction && r.jurisdiction !== 'US' ? r.jurisdiction : null]);
+  const inner = `
+    ${pill(event.label, color)}
+    <div style="margin-top:12px;font-size:16px;font-weight:600;line-height:1.35;color:${INK}">${esc(event.billTitle)}</div>
+    ${meta.length ? `<div style="margin-top:4px;font-size:12px;color:${MUTED}">${meta.map(esc).join(' · ')}</div>` : ''}
+    <div style="margin-top:10px;font-size:13px;line-height:1.5;color:${MUTED}">${esc(event.detail)}</div>
+    ${r?.commentEndDate ? `<div style="margin-top:8px;font-size:12px;color:${MUTED}">Comment period ends · ${esc(r.commentEndDate)}</div>` : ''}
+    ${ctaRow(event.appUrl, event.url, 'View official source')}`;
+  const text = [
+    event.billTitle,
+    meta.join(' · '),
+    event.detail,
+    ...(r?.commentEndDate ? [`Comment period ends: ${r.commentEndDate}`] : []),
+    ...(event.appUrl ? ['', `Open in LegiWatch: ${event.appUrl}`] : []),
+    ...(event.url ? [`View official source: ${event.url}`] : []),
+  ]
+    .filter(Boolean)
+    .join('\n');
+  return { subject, html: shell(inner), text };
+}
+
+/** A funding-delta match against a Program Element watchlist term (sourceType
+ *  'program_element'). No official external source exists — the second link
+ *  is the internal PE-360 dossier (`programElement.href`, a relative path
+ *  that needs the app base URL prefixed), not a government source. */
+export function renderProgramElementAlertEmail(event: IntelAlertEvent): { subject: string; html: string; text: string } {
+  const client = event.clientName ? ` · ${event.clientName}` : '';
+  const subject = `${event.billTitle}${client}`;
+  const color = (event.tone && toneColor[event.tone]) ?? BRAND;
+  const pe = event.programElement;
+  const from = pe?.amountFromMillions != null ? `$${pe.amountFromMillions.toFixed(1)}M` : null;
+  const to = pe?.amountToMillions != null ? `$${pe.amountToMillions.toFixed(1)}M` : null;
+  const move = from && to ? `${from} → ${to}` : null;
+  const peUrl = pe?.href ? `${appBaseUrl()}${pe.href}` : undefined;
+  const inner = `
+    ${pill(event.label, color)}
+    <div style="margin-top:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;font-weight:700;color:${INK}">${esc(pe?.peCode ?? event.billId)}</div>
+    <div style="margin-top:4px;font-size:16px;font-weight:600;line-height:1.35;color:${INK}">${esc(event.billTitle)}</div>
+    <div style="margin-top:10px;font-size:13px;line-height:1.5;color:${MUTED}">${esc(event.detail)}</div>
+    ${
+      move || pe?.fiscalYear
+        ? `<div style="margin-top:8px;font-size:12px;color:${MUTED}">${compact([pe?.fiscalYear ? `FY${pe.fiscalYear}` : null, move]).map(esc).join(' · ')}</div>`
+        : ''
+    }
+    ${ctaRow(event.appUrl, peUrl, 'Open Program Element')}`;
+  const text = [
+    event.billTitle,
+    event.detail,
+    ...(move || pe?.fiscalYear ? [[pe?.fiscalYear ? `FY${pe.fiscalYear}` : null, move].filter(Boolean).join(' · ')] : []),
+    ...(event.appUrl ? ['', `Open in LegiWatch: ${event.appUrl}`] : []),
+    ...(peUrl ? [`Open Program Element: ${peUrl}`] : []),
+  ]
+    .filter(Boolean)
+    .join('\n');
+  return { subject, html: shell(inner), text };
+}
+
 /** Severity → sort rank (P0-02 digest grouping). Unknown severities sort last. */
 const SEVERITY_RANK: Record<string, number> = { critical: 0, notable: 1, info: 2, success: 3 };
 
@@ -231,10 +404,12 @@ export function renderTestEmail(
   return { subject, html: shell(inner), text };
 }
 
-/** Per-source email renderers (P1-07). A source with NO renderer is not
- *  emailable — fanOut skips it rather than sending a bill-shaped email for a
- *  hearing/PE/regulation event. Add a renderer here BEFORE widening
- *  LEGIWATCH_EMIT_SOURCE_TYPES.
+/** Per-source email renderers (P1-07, HP-07). A source with NO renderer is
+ *  not emailable — fanOut skips it rather than sending a bill-shaped email
+ *  for a hearing/PE/regulation event. All 6 source types now have one; only
+ *  `LEGIWATCH_EMIT_SOURCE_TYPES` (still `bill` by default) decides which
+ *  actually reach this fan-out — widening it is a separate, Neo-gated
+ *  decision (MASTER §7.7), not a code change.
  *
  *  `state_bill` is included: bill-change-detector.service.ts's writeShadowAlert
  *  is the SAME writer for both the federal and state rails (its own doc
@@ -249,6 +424,10 @@ export const ALERT_EMAIL_RENDERERS: Record<
 > = {
   bill: renderAlertEmail,
   state_bill: renderAlertEmail, // same fields; jurisdiction rides in the event
+  hearing: renderHearingAlertEmail,
+  combined: renderCombinedAlertEmail,
+  regulation: renderRegulationAlertEmail,
+  program_element: renderProgramElementAlertEmail,
 };
 
 export function rendererFor(
