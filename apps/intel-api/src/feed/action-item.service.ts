@@ -8,7 +8,12 @@ import { PrismaService } from '../prisma/prisma.service.js';
  * flags). intel_* has no RLS → every query filters by tenantId (+ clientId).
  */
 export interface AlertActionsSummary {
-  memo?: { documentAttachmentId: string | null; title: string | null };
+  memo?: {
+    documentAttachmentId: string | null;
+    title: string | null;
+    /** MP-13/H-5: the memo's most recent hold, if any — lets the Feed deep-link "Review history". */
+    reviewRequestId?: string | null;
+  };
   inReport: boolean;
   talkingPoints: number;
 }
@@ -294,6 +299,32 @@ export class ActionItemService {
       else if (r.kind === 'report') s.inReport = true;
       else if (r.kind === 'talking_point') s.talkingPoints += 1;
       out.set(r.alertId, s);
+    }
+
+    // MP-13/H-5: attach the latest review_request id for alerts with a memo, so
+    // the Feed's "Review history" button can deep-link to the specific request
+    // instead of landing on the bare queue. review_request is apps/api-owned —
+    // intel-api has no Prisma model for it, so this is a raw cross-schema read
+    // (same pattern reconcileOrphanMemoLinks already uses for
+    // engagement_attachments). Read-only: no migration needed.
+    const memoAlertIds = [...out.entries()]
+      .filter(([, s]) => s.memo)
+      .map(([alertId]) => alertId);
+    if (memoAlertIds.length) {
+      const reviews = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.$queryRaw<Array<{ subject_id: string; id: string }>>`
+          SELECT DISTINCT ON (subject_id) subject_id, id::text AS id
+          FROM review_request
+          WHERE tenant_id = ${tenantId}::uuid
+            AND subject_type = 'alert'
+            AND subject_id = ANY(${memoAlertIds}::text[])
+          ORDER BY subject_id, created_at DESC
+        `,
+      );
+      for (const row of reviews) {
+        const s = out.get(row.subject_id);
+        if (s?.memo) s.memo.reviewRequestId = row.id;
+      }
     }
     return out;
   }

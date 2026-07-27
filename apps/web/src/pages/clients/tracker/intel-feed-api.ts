@@ -147,7 +147,12 @@ export interface RecommendedAction {
 
 /** Current action state on an alert (decorated by intel-api from intel_action_item). */
 export interface FeedItemActions {
-  memo?: { documentAttachmentId: string | null; title: string | null };
+  memo?: {
+    documentAttachmentId: string | null;
+    title: string | null;
+    /** MP-13/H-5: the memo's most recent hold, if any. */
+    reviewRequestId?: string | null;
+  };
   inReport: boolean;
   talkingPoints: number;
 }
