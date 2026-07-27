@@ -29,6 +29,12 @@ interface IntegrationFormValues {
   displayName?: string;
 }
 
+interface ProviderCapabilities {
+  configured: boolean;
+  redirectUri: string;
+  scopes: string[];
+}
+
 const providers: Array<{
   key: Provider;
   title: string;
@@ -66,6 +72,29 @@ export function IntegrationsPage() {
     queryKey: ['engagement-integrations'],
     queryFn: async () =>
       (await api.get<IntegrationConnection[]>('/api/engagement/integrations')).data,
+  });
+
+  // Both providers expose GET .../capabilities returning { configured }. Until
+  // this was wired, an unconfigured provider rendered an enabled Connect button
+  // that 503'd on click ("Google OAuth is not fully configured") instead of
+  // saying so up front.
+  const microsoftCapabilities = useQuery<ProviderCapabilities>({
+    queryKey: ['integration-capabilities', 'microsoft'],
+    queryFn: async () =>
+      (
+        await api.get<ProviderCapabilities>(
+          '/api/engagement/integrations/microsoft/capabilities',
+        )
+      ).data,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const googleCapabilities = useQuery<ProviderCapabilities>({
+    queryKey: ['integration-capabilities', 'google'],
+    queryFn: async () =>
+      (await api.get<ProviderCapabilities>('/api/engagement/integrations/google/capabilities')).data,
+    staleTime: 5 * 60_000,
+    retry: false,
   });
 
   const createIntegration = useMutation({
@@ -188,6 +217,20 @@ export function IntegrationsPage() {
     onError: (err) => message.error(err instanceof Error ? err.message : 'Disconnect failed'),
   });
 
+  const disconnectMicrosoft = useMutation({
+    mutationFn: async (connectionId: string) =>
+      (await api.delete(`/api/engagement/integrations/microsoft/${connectionId}`)).data,
+    onSuccess: () => {
+      message.success('Microsoft 365 disconnected');
+      qc.invalidateQueries({ queryKey: ['engagement-integrations'] });
+      qc.invalidateQueries({ queryKey: ['engagement-meetings'] });
+      qc.invalidateQueries({ queryKey: ['engagement-mail-threads'] });
+      qc.invalidateQueries({ queryKey: ['client-meetings'] });
+      qc.invalidateQueries({ queryKey: ['client-mail-threads'] });
+    },
+    onError: (err) => message.error(err instanceof Error ? err.message : 'Disconnect failed'),
+  });
+
   // Surface success / error from the OAuth callback redirect (both providers).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -227,6 +270,19 @@ export function IntegrationsPage() {
           const connections = (integrations.data ?? []).filter(
             (connection) => connection.provider === provider.key,
           );
+          const capabilityQuery =
+            provider.key === 'microsoft_365'
+              ? microsoftCapabilities
+              : provider.key === 'google_workspace'
+                ? googleCapabilities
+                : undefined;
+          // Fail OPEN while loading or if the probe itself errored: a flaky
+          // capabilities call must never block a user from connecting a provider
+          // that is in fact configured. Only an explicit configured:false disables.
+          const providerConfigured = capabilityQuery?.data
+            ? capabilityQuery.data.configured
+            : true;
+          const capabilitiesLoading = Boolean(capabilityQuery?.isLoading);
           return (
             <article className="settings-integration-card" key={provider.key}>
               <div className="settings-integration-top">
@@ -292,20 +348,32 @@ export function IntegrationsPage() {
                         {/* Disconnect is offered for ANY status: a connected
                             account can be removed, and an errored/stale one
                             (revoked token) can be cleared out too. */}
-                        {provider.key === 'google_workspace' ? (
+                        {provider.key === 'google_workspace' || provider.key === 'microsoft_365' ? (
                           <Button
                             size="small"
                             danger
-                            loading={disconnectGoogle.isPending}
+                            loading={
+                              provider.key === 'google_workspace'
+                                ? disconnectGoogle.isPending
+                                : disconnectMicrosoft.isPending
+                            }
                             onClick={() =>
                               modal.confirm({
-                                title: 'Disconnect Google Workspace?',
+                                title:
+                                  provider.key === 'google_workspace'
+                                    ? 'Disconnect Google Workspace?'
+                                    : 'Disconnect Microsoft 365?',
                                 content:
-                                  'This revokes Capiro’s access to this Google account and removes the connection. Previously synced meetings and mail are kept; future syncing stops until you reconnect.',
+                                  provider.key === 'google_workspace'
+                                    ? 'This revokes Capiro’s access to this Google account and removes the connection. Previously synced meetings and mail are kept; future syncing stops until you reconnect.'
+                                    : 'This removes Capiro’s stored access for this Outlook mailbox and stops all syncing. Previously synced meetings and mail are kept. To also withdraw the app permission itself, visit myapplications.microsoft.com.',
                                 okText: 'Disconnect',
                                 okButtonProps: { danger: true },
                                 cancelText: 'Cancel',
-                                onOk: () => disconnectGoogle.mutateAsync(connection.id),
+                                onOk: () =>
+                                  provider.key === 'google_workspace'
+                                    ? disconnectGoogle.mutateAsync(connection.id)
+                                    : disconnectMicrosoft.mutateAsync(connection.id),
                               })
                             }
                           >
@@ -319,6 +387,13 @@ export function IntegrationsPage() {
                   <Typography.Text type="secondary">No accounts registered.</Typography.Text>
                 )}
               </div>
+
+              {capabilityQuery && !providerConfigured ? (
+                <Typography.Text type="warning">
+                  This provider is not configured on the server. A Capiro administrator must
+                  add the OAuth credentials before accounts can be connected.
+                </Typography.Text>
+              ) : null}
 
               <Space wrap>
                 <Button
@@ -334,25 +409,37 @@ export function IntegrationsPage() {
                   <Button
                     icon={<ApiOutlined />}
                     type="primary"
-                    loading={startMicrosoftOAuth.isPending}
+                    loading={startMicrosoftOAuth.isPending || capabilitiesLoading}
+                    disabled={!providerConfigured}
+                    title={
+                      providerConfigured ? undefined : 'Administrator setup required'
+                    }
                     onClick={() =>
                       startMicrosoftOAuth.mutate(
                         connections.find((c) => c.status !== 'connected')?.id,
                       )
                     }
                   >
-                    Connect Microsoft 365
+                    {providerConfigured
+                      ? 'Connect Microsoft 365'
+                      : 'Administrator setup required'}
                   </Button>
                 ) : provider.key === 'google_workspace' ? (
                   <Button
                     icon={<ApiOutlined />}
                     type="primary"
-                    loading={startGoogleOAuth.isPending}
+                    loading={startGoogleOAuth.isPending || capabilitiesLoading}
+                    disabled={!providerConfigured}
+                    title={
+                      providerConfigured ? undefined : 'Administrator setup required'
+                    }
                     onClick={() =>
                       startGoogleOAuth.mutate(connections.find((c) => c.status !== 'connected')?.id)
                     }
                   >
-                    Connect Google Workspace
+                    {providerConfigured
+                      ? 'Connect Google Workspace'
+                      : 'Administrator setup required'}
                   </Button>
                 ) : (
                   <Button icon={<ApiOutlined />} disabled>

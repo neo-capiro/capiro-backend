@@ -147,9 +147,11 @@ narrower scopes would not work, including specifics on what functionality would 
 intended"* — [support.google.com/cloud/answer/13464321](https://support.google.com/cloud/answer/13464321). Draft this now so 0b isn't blocked on writing it later. Suggested basis (edit once
 Phase 1's actual UX is real, since the video must match):
 
-- **`gmail.readonly`** (RESTRICTED — [confirmed on the official scopes table](https://developers.google.com/workspace/gmail/api/auth/scopes)): "Capiro is a client-engagement platform for government-affairs professionals. Connected users' email threads with their own clients are read and associated with the relevant client record inside Capiro, mirroring the same read-only mailbox sync Capiro already performs for Microsoft 365/Outlook. A narrower scope (e.g. `gmail.metadata`) would not work because Capiro surfaces message body content in the client engagement timeline and feeds it to the user's own AI assistant for meeting prep and follow-up drafting — functionality that requires the message body, not just headers."
+- **`gmail.readonly`** (RESTRICTED — [confirmed on the official scopes table](https://developers.google.com/workspace/gmail/api/auth/scopes)): "Capiro is a client-engagement platform for government-affairs professionals. Connected users' email threads with their own clients are read and associated with the relevant client record inside Capiro, mirroring the same read-only mailbox sync Capiro already performs for Microsoft 365/Outlook. The message body is passed to the user's own AI assistant for meeting-prep summaries and follow-up drafting that reference the substance of prior correspondence. A narrower scope (`gmail.metadata`) would not work, on three independent grounds: (1) it exposes headers only, with no message body, so there would be nothing to summarize or draft from; (2) [Google's own `users.messages.list` reference](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/list) states the `q` search parameter — which the sync depends on to bound the backfill window and exclude spam/trash/drafts — 'cannot be used when accessing the api using the gmail.metadata scope'; (3) `gmail.metadata` is itself classified RESTRICTED, so narrowing to it would not reduce the security-assessment burden while removing the functionality. `gmail.readonly` is therefore the narrowest workable scope."
+  **Status (2026-07-27):** full-body retrieval (`format=full` + `extractGmailBodyText`, matching the claim above) is code-complete — see the completion plan's Phase G / Branch G-A — but **NOT YET DEPLOYED**. Until it is deployed and verified live (completion plan §0.1 / K5), the running code still stores only Gmail's short snippet as `bodyText`, and no correspondence with Google should describe full-body access as already live.
 - **`gmail.send`** (SENSITIVE): "Capiro lets the connected user send outreach emails and AI-drafted follow-ups from within the platform, which are delivered from the user's own Gmail account (mirroring the existing Outlook send capability) so recipients see mail from the user's real address, not a third-party relay."
-- **`calendar.readonly`** (SENSITIVE): "Capiro reads the connected user's calendar to surface upcoming client meetings and auto-associate them with the correct client record, identical to the existing Google Calendar-equivalent behavior already shipped for Microsoft 365."
+- **`calendar.events.readonly`** (SENSITIVE): "Capiro reads events from the connected user's primary Google Calendar and automatically matches meetings to the correct client record by attendee email address, surfacing upcoming and past client meetings alongside email in the same client-engagement view — identical to the existing Microsoft 365 Calendar-equivalent behavior. A narrower scope, `calendar.events.owned.readonly`, would not work: it is limited to events the user owns, but the meetings this feature exists to track are, in the majority of cases, organized by the client or a third party, with the user as an invitee rather than the owner — exactly the events that scope would hide. Capiro does not request the broader `calendar.readonly`, and never reads calendar list metadata or calendar settings; `calendar.events.readonly` is the narrowest scope that returns the event data the feature depends on."
+  **Note:** this bullet previously named the scope `calendar.readonly`, which does not match the code (`calendar.events.readonly` — `packages/shared/src/index.ts:76-83`) or the Cloud Console configuration. That exact mismatch triggered a real Google verification rejection; see commit `9f685e2b` and completion plan Phase J.
 
 ---
 
@@ -198,7 +200,7 @@ CASA remediation is needed.
 [Google's own Gmail scopes table](https://developers.google.com/workspace/gmail/api/auth/scopes)),
 and *"every app that requests access to Google users' restricted data and has the ability to access
 data from or through a third-party server must go through a security assessment"* —
-[developers.google.com/.../restricted-scope-verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification). Capiro's backend is exactly that third-party server. `calendar.readonly` and `gmail.send` are SENSITIVE, not restricted, and would not by
+[developers.google.com/.../restricted-scope-verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification). Capiro's backend is exactly that third-party server. `calendar.events.readonly` and `gmail.send` are SENSITIVE, not restricted, and would not by
 themselves trigger CASA — but the locked-in decision to use `gmail.readonly` for full-body parity
 means CASA applies regardless.
 
@@ -294,3 +296,25 @@ statement; (2) the exact CASA Tier 3 audit boundary — one ADA page says infras
 another ADA page and third-party sources say Tier 3 tests deployment infrastructure too. If Capiro
 ends up in Tier 3, get the exact scope boundary from the assigned assessor in writing rather than
 relying on either ADA page.
+
+---
+
+## 6. Verified status
+
+**Human task, no code — see completion plan (`2026-07-27-google-integration-completion-plan.md`)
+Phase I. Neo only. Do not mark any item below "done" without actually checking the Cloud Console —
+this section exists specifically to stop stale assumptions from silently becoming the operating
+"truth," which is exactly what happened to the `calendar.readonly` bullets in §2.5/§4.4 above before
+this pass corrected them.**
+
+| # | Question | Answer | Verified on |
+|---|---|---|---|
+| 1 | Publishing status — Testing or Production? (Testing = 100-user cap + 7-day refresh-token expiry) | _unanswered_ | |
+| 2 | Brand verification — approved? | _unanswered_ | |
+| 3 | Scope approval — does the Console's approved set match `packages/shared/src/index.ts:76-83` exactly (`openid`, `email`, `profile`, `gmail.readonly`, `gmail.send`, `calendar.events.readonly`)? | _unanswered_ | |
+| 4 | CASA — Letter of Validation issued? Which tier? Recertification date and owner? | _unanswered_ | |
+| 5 | Authorized redirect URIs registered — all four? (`.../api/engagement/integrations/google/callback` prod; `.../onboard-api/it/google/callback`; staging, if staging is still live; `localhost:4000/...` dev) | _unanswered_ | |
+| 6 | Authorized domain — `capiro.ai` verified in Search Console as a DNS Domain Property? | _unanswered_ | |
+
+Until items 1–4 are confirmed, the honest product statement is that Google Workspace is
+**conditionally functional** — that framing should not be softened in customer-facing material.

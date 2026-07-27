@@ -27,7 +27,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { EngagementConnectionStatus, EngagementProvider, Prisma } from '@prisma/client';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { GOOGLE_WORKSPACE_SCOPES } from '@capiro/shared';
+import { GOOGLE_WORKSPACE_REQUIRED_GRANTS, GOOGLE_WORKSPACE_SCOPES } from '@capiro/shared';
 import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -38,6 +38,22 @@ import { TokenCryptoService } from '../microsoft/token-crypto.service.js';
 // registered on the OAuth consent screen — a prior drift here is exactly what
 // triggered a Google verification rejection.
 export const GOOGLE_SCOPES: string[] = [...GOOGLE_WORKSPACE_SCOPES];
+
+/**
+ * The non-identity grants a connection cannot function without. Google supports
+ * granular consent: a user can UNCHECK Gmail read or send on the consent screen
+ * and still be redirected back with a valid access token. Without this check the
+ * callback wrote the CANONICAL scope list to the row and flipped the connection
+ * to `connected`, so the UI showed a healthy integration that failed on the
+ * first sync or send. The onboarding IT-admin verify already enforces exactly
+ * this (apps/onboard-api it-admin.service.ts:379-388); the per-user mailbox
+ * connect must enforce it independently. Exported pure so it is testable
+ * without a live token exchange.
+ */
+export function missingGoogleGrants(grantedScope: string | undefined): string[] {
+  const granted = new Set((grantedScope ?? '').split(/\s+/).filter(Boolean));
+  return GOOGLE_WORKSPACE_REQUIRED_GRANTS.filter((scope) => !granted.has(scope));
+}
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -199,6 +215,23 @@ export class GoogleOAuthService {
     if (!token.access_token) {
       throw new BadRequestException('Google did not return an access token');
     }
+
+    // Validate the ACTUAL grant before persisting anything. `include_granted_scopes`
+    // means token.scope can be a superset (previously-granted scopes from other
+    // flows), so this is a subset test, not equality.
+    const missing = missingGoogleGrants(token.scope);
+    if (missing.length > 0) {
+      this.logger.warn(
+        `Google callback for connection ${decoded.c} granted only [${token.scope ?? ''}]; missing [${missing.join(', ')}]`,
+      );
+      // Best-effort revoke the token we were just handed — we are refusing it,
+      // so leaving a live grant dangling at Google would be wrong.
+      await this.revokeGoogleGrant(token.access_token);
+      await this.markConnectionInsufficientScope(decoded.t, decoded.c, missing);
+      throw new BadRequestException(
+        `Google Workspace connection needs all requested permissions. Missing: ${missing.join(', ')}`,
+      );
+    }
     const expiresAt = new Date(Date.now() + (token.expires_in ?? 3600) * 1000);
     const claims = this.decodeIdToken(token.id_token);
 
@@ -287,6 +320,30 @@ export class GoogleOAuthService {
     } catch (err) {
       this.logger.warn(`Google token revocation failed: ${(err as Error).message}`);
     }
+  }
+
+  /** Record WHY the connect failed so the integrations page can explain it. */
+  private async markConnectionInsufficientScope(
+    tenantId: string,
+    connectionId: string,
+    missing: string[],
+  ): Promise<void> {
+    await this.prisma.withTenant(tenantId, async (tx) => {
+      await tx.integrationConnection
+        .update({
+          where: { id: connectionId },
+          data: {
+            status: EngagementConnectionStatus.needs_configuration,
+            lastError:
+              `Google Workspace was connected without all required permissions. ` +
+              `Missing: ${missing.join(', ')}. Reconnect and leave every checkbox ticked.`.slice(
+                0,
+                1000,
+              ),
+          },
+        })
+        .catch(() => undefined);
+    });
   }
 
   private async exchangeCode(code: string): Promise<GoogleTokenResponse> {

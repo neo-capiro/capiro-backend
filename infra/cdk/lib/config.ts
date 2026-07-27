@@ -70,6 +70,14 @@ export interface EnvConfig {
     // not-yet-existing secret would make every new task fail to start
     // ("unable to pull secrets" → circuit-breaker rollback).
     recallWebhookSecret?: string;
+    // Google Workspace OAuth (capiro-gmail-integration GCP project). Live on
+    // capiro-dev-api:59 and capiro-dev-onboard-api:4 OUT-OF-BAND since the Gmail
+    // Phase-1 rollout; codified here so a future reconciliation cannot drop them
+    // and flip GoogleOAuthService.capabilities().configured to false. NOTE the
+    // secret names are UPPER_SNAKE (capiro/dev/GOOGLE_CLIENT_ID), unlike every
+    // microsoft-* secret which is lower-kebab.
+    googleClientId?: string;
+    googleClientSecret?: string;
   };
 }
 
@@ -251,6 +259,10 @@ export function loadConfig(app: cdk.App): EnvConfig {
                 'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/recall-api-key-WDNzEP',
               recallWebhookSecret:
                 'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/recall-webhook-secret-FxKv9v',
+              googleClientId:
+                'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/GOOGLE_CLIENT_ID-Y59j1r',
+              googleClientSecret:
+                'arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/GOOGLE_CLIENT_SECRET-EBWpbt',
             },
           };
 

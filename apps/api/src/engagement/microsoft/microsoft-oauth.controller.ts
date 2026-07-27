@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -46,6 +47,20 @@ export class MicrosoftOAuthController {
   @Roles('standard_user')
   capabilities() {
     return this.oauth.capabilities();
+  }
+
+  // Tear down Graph subscriptions and remove the connection + stored tokens.
+  // Ownership (own connections only) is enforced in the service. Mirrors the
+  // Google DELETE route; see the service docstring for why it does NOT revoke
+  // the Microsoft app grant.
+  @Delete(':connectionId')
+  @UseGuards(RolesGuard)
+  @Roles('standard_user')
+  disconnect(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('connectionId') connectionId: string,
+  ): Promise<unknown> {
+    return this.oauth.disconnect(ctx, connectionId);
   }
 
   // Returns an authorization URL the browser should navigate to. Called from
