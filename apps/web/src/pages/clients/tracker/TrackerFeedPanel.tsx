@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { useInfiniteQuery, useMutation } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useBillTarget } from '../../bills/bill-target.js';
 import { App as AntApp, Input, Modal } from 'antd';
 import { useApi } from '../../../lib/use-api.js';
 import {
-  toCanonicalAlert,
+  alertBand,
+  isPriorScoreModel,
+  scoreExplanation,
   feedQueryString,
   intelFeedKeys,
   intelFeedPaths,
@@ -16,7 +18,15 @@ import {
   type FeedResponse,
   type RecommendedAction,
 } from './intel-feed-api.js';
-import { useAddTalkingPoint, useSetReport } from './alert-actions-api.js';
+import {
+  useAddTalkingPoint,
+  useBulkWorkState,
+  useSetReport,
+  useSetWorkState,
+  WORK_STATE_BULK_MAX,
+  type WorkStatePatchInput,
+} from './alert-actions-api.js';
+import { useTeamMembers, type TeamMemberOption } from '../../actions/actions-api.js';
 import {
   actionTextOf,
   buildOutreachContextPoolItem,
@@ -136,11 +146,80 @@ function actionLabel(a: RecommendedAction, item: FeedItem): string {
   return a.label;
 }
 
+/**
+ * P1-11: the old chip fired on EVERY alert, because `toCanonicalAlert` hard-codes
+ * `whoActs: ''` (it had no feed source) and canonical completeness flagged it —
+ * and the tooltip listed raw field names. Canonical completeness stays in
+ * observability; the USER-facing warning fires only when a MATERIAL piece of
+ * evidence is absent, described in words an analyst can act on.
+ *
+ * `whoActs` is deliberately NOT here: an unassigned alert is an assignment gap,
+ * not an evidence gap, and phase e gives it a real "Assign owner" affordance.
+ */
+export function materialGaps(item: FeedItem): string[] {
+  const gaps: string[] = [];
+  if (!item.whyItMatters) gaps.push('client relevance');
+  if (!item.evidence?.provenance?.sourceUrl && !item.evidence?.bill?.url) gaps.push('a source link');
+  if (
+    item.sourceType === 'bill' ||
+    item.sourceType === 'state_bill' ||
+    item.sourceType === 'combined'
+  ) {
+    if (!item.evidence?.bill?.actionText) gaps.push('the official action text');
+  }
+  return gaps;
+}
+
+/** P1-10: the deadline/urgency cue for a collapsed card. */
+function urgencyText(item: FeedItem): string | null {
+  if (item.urgency) return item.urgency;
+  const d = item.evidence?.bill?.actionDate;
+  return d ? `Action ${d}` : null;
+}
+
+const BAND_TOOLTIP =
+  'Ranked from client relevance, materiality, urgency, and client priority.';
+
+/** P2-04: the worklist filter. 'default' hides this user's dismissed + snoozed. */
+const WORK_FILTERS: Array<{ v: string; label: string }> = [
+  { v: 'default', label: 'Active' },
+  { v: 'new', label: 'New' },
+  { v: 'in_review', label: 'In review' },
+  { v: 'assigned', label: 'Assigned' },
+  { v: 'actioned', label: 'Actioned' },
+  { v: 'snoozed', label: 'Snoozed' },
+  { v: 'dismissed', label: 'Dismissed' },
+  { v: 'all', label: 'All' },
+];
+
+const WORK_STATE_LABEL: Record<string, string> = {
+  new: 'New',
+  in_review: 'In review',
+  assigned: 'Assigned',
+  actioned: 'Actioned',
+  snoozed: 'Snoozed',
+  dismissed: 'Dismissed',
+};
+
+/** Display name for an assignee id, from the tenant roster. */
+function memberName(members: TeamMemberOption[], userId: string | null): string | null {
+  if (!userId) return null;
+  const m = members.find((x) => x.userId === userId);
+  if (!m) return userId;
+  const full = [m.firstName, m.lastName].filter(Boolean).join(' ').trim();
+  return full || m.email;
+}
+
 function FeedCard({
   item,
   onAction,
   showClient = false,
   onScopeClient,
+  members = [],
+  selected = false,
+  onToggleSelect,
+  autoExpand = false,
+  onAutoExpanded,
 }: {
   item: FeedItem;
   onAction: (a: RecommendedAction, item: FeedItem) => void;
@@ -148,22 +227,126 @@ function FeedCard({
   showClient?: boolean;
   /** LegiWatch v2: clicking the client label scopes the whole feature to it. */
   onScopeClient?: (clientId: string) => void;
+  /** P2-04: the tenant roster, for the Assign owner picker. */
+  members?: TeamMemberOption[];
+  selected?: boolean;
+  onToggleSelect?: (alertId: string) => void;
+  /** g-7: this card is the `&alert=` deep-link target — scroll to it and open it. */
+  autoExpand?: boolean;
+  onAutoExpanded?: () => void;
 }) {
   // LegiWatch v2 (L1): calm card — collapsed by default, expands on demand.
   const [open, setOpen] = useState(false);
   const [showAllQuotes, setShowAllQuotes] = useState(false);
+  const api = useApi();
   const ev = item.evidence ?? {};
   const mentions = ev.hearing?.mentions ?? [];
   const actions = item.recommendedActions ?? [];
   const primary = actions.find((a) => a.primary) ?? actions[0];
   const drafted = !!item.actions?.memo;
   const inReport = !!item.actions?.inReport;
+  // P1-11 (c-4/c-7): computed ONCE per render. The old code called
+  // toCanonicalAlert(item) twice in the same JSX block.
+  const gaps = materialGaps(item);
+  const band = alertBand(item);
+  const urgency = urgencyText(item);
+  const sourceUrl = ev.provenance?.sourceUrl ?? ev.bill?.url ?? null;
+
+  /**
+   * P1-10 (c-3): the §4.1 packet supplies procedural meaning and the
+   * confidence/unknowns block. Fetched LAZILY — `enabled: open` means an
+   * unexpanded card costs nothing — and cached per alert id by TanStack, so
+   * collapsing and re-expanding does not refetch.
+   */
+  const packetQ = useQuery({
+    queryKey: ['intel-alert-packet', item.clientId, item.id],
+    queryFn: async () =>
+      (
+        await api.get<GovernmentAffairsAlertPacket>(
+          `/intel-api/clients/${encodeURIComponent(item.clientId)}/alerts/${encodeURIComponent(item.id)}/packet`,
+        )
+      ).data,
+    enabled: open,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  const packet = packetQ.data ?? null;
+
+  // ── P2-04 triage ───────────────────────────────────────────────────────────
+  const navigate = useNavigate();
+  const { message } = AntApp.useApp();
+  const setWorkState = useSetWorkState();
+  const work = item.workState;
+  const assigneeName = memberName(members, work?.assignedTo ?? null);
+
+  /**
+   * P2-06: pending-then-success, never fire-and-toast. The toast is raised from
+   * `onSuccess`, and every button that triggers this disables while pending, so
+   * a slow network cannot produce a success message for a request that failed.
+   */
+  const triage = (patch: WorkStatePatchInput, done: string) =>
+    setWorkState.mutate(
+      { clientId: item.clientId, alertId: item.id, ...patch },
+      {
+        onSuccess: () => message.success(done),
+        onError: (e: unknown) => message.error(`Could not update: ${(e as Error).message}`),
+      },
+    );
+
+  const snoozeUntil = (days: number): string => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return d.toISOString();
+  };
+
+  /**
+   * g-7: the `&alert=` deep-link target. Scrolls to the card and expands it,
+   * then tells the parent to CLEAR the param — so a refresh does not re-scroll
+   * and re-expand a card the user has since collapsed. Runs once.
+   */
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const focusedRef = useRef(false);
+  useEffect(() => {
+    if (!autoExpand || focusedRef.current) return;
+    focusedRef.current = true;
+    setOpen(true);
+    cardRef.current?.scrollIntoView({ block: 'center' });
+    onAutoExpanded?.();
+  }, [autoExpand, onAutoExpanded]);
 
   return (
-    <div className={'acard' + (open ? ' open' : '')} data-sev={item.severity}>
-      <div className="acard-head" onClick={() => setOpen((o) => !o)}>
+    <div
+      ref={cardRef}
+      className={'acard' + (open ? ' open' : '')}
+      data-sev={item.severity}
+      data-alert-id={item.id}
+    >
+      {/* P1-12: this header was a `<div onClick>` — a keyboard user could not
+          expand a feed card at all. The checkbox and client chip are siblings,
+          not children, so the disclosure button wraps only the title block. */}
+      <div className="acard-head">
+        {onToggleSelect && (
+          <input
+            type="checkbox"
+            className="acard-select"
+            aria-label={`Select ${item.title}`}
+            checked={selected}
+            onClick={(e) => e.stopPropagation()}
+            onChange={() => onToggleSelect(item.id)}
+          />
+        )}
         <div className="acard-main">
-          <div className={'acard-title' + (open ? '' : ' clip')}>{item.title}</div>
+          {/* Only the TITLE is the disclosure control: `acard-meta` below
+              contains the client-scope button, and a button cannot nest inside
+              another button (invalid HTML, and it breaks both keyboard and AT). */}
+          <button
+            type="button"
+            className={'acard-title' + (open ? '' : ' clip')}
+            aria-expanded={open}
+            onClick={() => setOpen((o) => !o)}
+          >
+            {item.title}
+          </button>
           <div className="acard-meta">
             {showClient && (
               <button
@@ -184,13 +367,38 @@ function FeedCard({
                 #{item.tag}
               </span>
             )}
-            {!toCanonicalAlert(item).complete && (
+            {/* P1-10 (c-2): severity, in the same critical|notable|info vocabulary
+                the alert emails use, so the two surfaces never disagree. */}
+            <span className={`chip sev-${item.severity}`} title={`Severity: ${item.severity}`}>
+              {item.severity}
+            </span>
+            {/* P1-10 (c-6) + §4.8 (d-5): the score is shown as an explainable
+                BAND, never as a raw 0.72, and the tooltip lists every factor's
+                contribution — with "unavailable" for anything we cannot compute. */}
+            <span className="chip band" title={scoreExplanation(item)}>
+              {band} priority
+            </span>
+            {urgency && (
+              <span className="chip" style={{ fontSize: 10.5 }} title="Deadline / urgency">
+                {urgency}
+              </span>
+            )}
+            {/* P1-11 (c-4): replaces the `incomplete` chip, which fired on EVERY
+                alert. This one only fires on evidence an analyst can act on. */}
+            {gaps.length > 0 && (
               <span
-                className="chip"
-                style={{ fontSize: 10.5, opacity: 0.65 }}
-                title={`Incomplete alert — missing: ${toCanonicalAlert(item).missingFields.join(', ')}`}
+                className="chip warn"
+                style={{ fontSize: 10.5 }}
+                title={`This alert is missing: ${gaps.join(', ')}`}
               >
-                incomplete
+                limited evidence
+              </span>
+            )}
+            {/* P2-04: this user's own triage state, never the firm-wide one. */}
+            {work && work.state !== 'new' && (
+              <span className="chip muted" style={{ fontSize: 10.5 }} title="Your triage state">
+                {WORK_STATE_LABEL[work.state] ?? work.state}
+                {work.state === 'assigned' && assigneeName ? ` · ${assigneeName}` : ''}
               </span>
             )}
             {drafted && (
@@ -220,6 +428,39 @@ function FeedCard({
 
       {open && (
         <div className="acard-body">
+          {/* P1-10 (c-3.1): "why this matters to THIS client". The API has always
+              returned it (feed.service selects whyItMatters); the calm card just
+              never rendered it. Highest-value restoration in this phase. */}
+          {item.whyItMatters && (
+            <div className="acard-why">
+              <span className="acard-sect">Why this matters</span>
+              {item.whyItMatters}
+            </div>
+          )}
+
+          {/* c-3.2: procedural meaning — the deterministic §4.3 outlook off the
+              packet, falling back to the stage the evidence already carries. */}
+          {(packet?.proceduralMeaning || ev.bill?.stage) && (
+            <div className="acard-why">
+              <span className="acard-sect">Procedural meaning</span>
+              {packet?.proceduralMeaning ? (
+                <>
+                  {packet.proceduralMeaning.currentStage}
+                  {packet.proceduralMeaning.nextPossibleSteps?.length
+                    ? ` — next: ${packet.proceduralMeaning.nextPossibleSteps.join(', ')}`
+                    : ''}
+                  {packet.proceduralMeaning.blockedBy?.length ? (
+                    <div className="muted mini">
+                      Blocked by: {packet.proceduralMeaning.blockedBy.join('; ')}
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                ev.bill?.stage
+              )}
+            </div>
+          )}
+
           {ev.bill && (
             <div
               className="acard-evi"
@@ -297,6 +538,148 @@ function FeedCard({
             </div>
           )}
 
+          {/* c-3.3: the official source, as an explicit link. Gate C made
+              provenance.sourceUrl reliable, so this stops being a guess. */}
+          {sourceUrl && (
+            <div className="acard-why">
+              <span className="acard-sect">Source</span>
+              <a href={sourceUrl} target="_blank" rel="noreferrer noopener">
+                View official source
+              </a>
+            </div>
+          )}
+
+          {/* c-3.4: who should act. An unassigned alert gets a real affordance
+              rather than the empty string that used to flag every card. */}
+          <div className="acard-why">
+            <span className="acard-sect">Who should act</span>
+            {item.workState?.assignedTo ? (
+              <span>{item.workState.assignedToName ?? item.workState.assignedTo}</span>
+            ) : (
+              <span className="muted">Unassigned</span>
+            )}
+          </div>
+
+          {/* c-3.5: confidence and unknowns — the packet's own coverage numbers,
+              never a number without an explanation. */}
+          {packet?.confidence && (
+            <div className="acard-why">
+              <span className="acard-sect">Confidence and unknowns</span>
+              <span>
+                Evidence coverage {Math.round((packet.confidence.evidenceCoverage ?? 0) * 100)}%
+              </span>
+              {packet.confidence.missingFields?.length ? (
+                <div className="muted mini">
+                  Not established: {packet.confidence.missingFields.join(', ')}
+                </div>
+              ) : null}
+              {packet.proceduralMeaning?.uncertainty?.length ? (
+                <div className="muted mini">
+                  {packet.proceduralMeaning.uncertainty.join('; ')}
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {/* P2-05: an alert that ALREADY has a memo offers ways to reach it,
+              not just "Redraft". documentAttachmentId has been in the contract
+              all along; nothing surfaced it. */}
+          {item.actions?.memo && (
+            <div className="acard-actions">
+              <button
+                className="btn sm btn-ghost"
+                onClick={() =>
+                  // The client profile's Documents tab, via the SAME ?tab= deep
+                  // link tracker emails already use. Deliberately not a
+                  // hand-built attachment URL: apps/api exposes no attachment
+                  // download route, so any such URL would be invented.
+                  navigate(
+                    `/clients?clientId=${encodeURIComponent(item.clientId)}&tab=documents`,
+                  )
+                }
+              >
+                <Ic n="doc" /> Open memo
+              </button>
+              <button
+                className="btn sm btn-ghost"
+                onClick={() => onAction({ kind: 'draft_memo', label: 'Redraft memo' }, item)}
+              >
+                <Ic n="spark" /> Edit in Workspace
+              </button>
+              <button className="btn sm btn-ghost" onClick={() => navigate('/reviews')}>
+                <Ic n="check" /> Review history
+              </button>
+            </div>
+          )}
+
+          {/* P2-04: triage. Every control disables while its mutation is in
+              flight, and success is reported from onSuccess (P2-06). */}
+          <div className="acard-actions" aria-label="Triage">
+            <button
+              className="btn sm btn-ghost"
+              disabled={setWorkState.isPending}
+              onClick={() => triage({ state: 'in_review' }, 'Marked reviewed')}
+            >
+              <Ic n="check" /> Mark reviewed
+            </button>
+            <label className="btn sm btn-ghost" style={{ gap: 6 }}>
+              Assign
+              <select
+                aria-label="Assign owner"
+                value={work?.assignedTo ?? ''}
+                disabled={setWorkState.isPending || members.length === 0}
+                onChange={(e) =>
+                  e.target.value
+                    ? triage({ state: 'assigned', assignedTo: e.target.value }, 'Owner assigned')
+                    : triage({ state: 'in_review', assignedTo: null }, 'Owner cleared')
+                }
+              >
+                {/* §6.4 / edge case 10: the options come from the tenant's own
+                    roster, so an id that is not a member cannot be stored. There
+                    is deliberately no free-text user-id field. */}
+                <option value="">Unassigned</option>
+                {members.map((m) => (
+                  <option key={m.userId} value={m.userId}>
+                    {memberName(members, m.userId)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="btn sm btn-ghost" style={{ gap: 6 }}>
+              Snooze
+              <select
+                aria-label="Snooze"
+                value=""
+                disabled={setWorkState.isPending}
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  triage(
+                    { state: 'snoozed', snoozedUntil: snoozeUntil(Number(e.target.value)) },
+                    'Snoozed',
+                  );
+                }}
+              >
+                <option value="">Choose…</option>
+                <option value="1">1 day</option>
+                <option value="7">1 week</option>
+                <option value="30">30 days</option>
+              </select>
+            </label>
+            <button
+              className="btn sm btn-ghost"
+              disabled={setWorkState.isPending}
+              onClick={() => triage({ state: 'dismissed' }, 'Dismissed')}
+            >
+              Dismiss
+            </button>
+            <button className="btn sm btn-ghost" onClick={() => navigate('/actions')}>
+              Create task
+            </button>
+            <button className="btn sm btn-ghost" onClick={() => navigate('/strategies')}>
+              Add to strategy
+            </button>
+          </div>
+
           {actions.length > 0 && (
             <div className="acard-actions">
               {actions.map((a, i) => (
@@ -329,6 +712,8 @@ export function TrackerFeedPanel({
   onOpenBill,
   onScopeClient,
   global = false,
+  focusAlertId,
+  onFocused,
 }: {
   /** Per-client mode: the client to scope to. Omitted/ignored in `global` mode. */
   clientId?: string;
@@ -352,6 +737,9 @@ export function TrackerFeedPanel({
    * per-alert operation is scoped to `item.clientId`.
    */
   global?: boolean;
+  /** g-7: `&alert=<id>` deep link from an alert email. */
+  focusAlertId?: string | null;
+  onFocused?: () => void;
 }) {
   const api = useApi();
   const navigate = useNavigate();
@@ -359,12 +747,18 @@ export function TrackerFeedPanel({
   const billTarget = useBillTarget();
   const { message } = AntApp.useApp();
   const [source, setSource] = useState<FeedFilter>('all');
-  // LegiWatch v2 leads with newest-first (the feed-lead copy says so); priority
-  // ordering isn't surfaced as a control in the calm design.
-  const order: FeedOrder = 'date';
+  // P1-10: the API has supported order=score since Phase 6 (feed.service.ts:146,
+  // 187-190) with a covering index, and the web hard-coded 'date'. It is now a
+  // control. Newest stays the DEFAULT — the calm design leads with recency, and
+  // the feed-lead copy says so.
+  const [order, setOrder] = useState<FeedOrder>('date');
   // LegiWatch v2 (L1): global feed arrangement — single stream (default) or grouped
   // by client. Never the default; only offered at the all-clients altitude.
   const [group, setGroup] = useState(false);
+  // P2-04: the worklist filter. 'default' = this user's active queue, which
+  // EXCLUDES their dismissed and still-snoozed alerts.
+  const [workFilter, setWorkFilter] = useState('default');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [composerItem, setComposerItem] = useState<FeedItem | null>(null);
   const [briefItem, setBriefItem] = useState<FeedItem | null>(null);
   const [tpItem, setTpItem] = useState<FeedItem | null>(null);
@@ -372,6 +766,11 @@ export function TrackerFeedPanel({
 
   const setReport = useSetReport();
   const addTalkingPoint = useAddTalkingPoint();
+  // §6.4: a real tenant roster already exists and is reused here, so Assign
+  // owner stores a member id the picker returned — never free text.
+  const team = useTeamMembers();
+  const members = Array.isArray(team.data) ? team.data : [];
+  const bulkWorkState = useBulkWorkState();
 
   // P10: acting on a feed alert = hand-off. "Draft outreach" creates a real
   // outreach DRAFT record seeded with the alert as a context item, then deep-links
@@ -447,13 +846,13 @@ export function TrackerFeedPanel({
   // difference — filters, keyset cursor, and page shape are identical.
   const query = useInfiniteQuery({
     queryKey: global
-      ? intelFeedKeys.tenantFeed(source, order)
-      : intelFeedKeys.feed(clientId!, source, order),
+      ? [...intelFeedKeys.tenantFeed(source, order), workFilter]
+      : [...intelFeedKeys.feed(clientId!, source, order), workFilter],
     queryFn: async ({ pageParam }) => {
       const path = global ? intelFeedPaths.tenantFeed() : intelFeedPaths.feed(clientId!);
       return (
         await api.get<FeedResponse>(
-          `${path}?${feedQueryString(source, order, pageParam || undefined)}`,
+          `${path}?${feedQueryString(source, order, pageParam || undefined, workFilter)}`,
         )
       ).data;
     },
@@ -463,6 +862,8 @@ export function TrackerFeedPanel({
   });
 
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
+  // §4.8 edge case 4: how many loaded alerts predate the re-weight.
+  const priorModelCount = items.filter(isPriorScoreModel).length;
   const counts = query.data?.pages[0]?.counts ?? {};
   const sevCounts = query.data?.pages[0]?.severityCounts ?? {};
   const totalUpdates = Object.values(counts).reduce((n, v) => n + (v ?? 0), 0);
@@ -499,8 +900,14 @@ export function TrackerFeedPanel({
           .map((m) => `${m.speakerName ? `${m.speakerName}: ` : ''}${m.quote ?? ''}`.trim())
           .filter(Boolean);
         if (qs.length) {
-          void navigator.clipboard?.writeText(qs.join('\n'));
-          message.success(`Copied ${qs.length} quote${qs.length === 1 ? '' : 's'}`);
+          // P2-06: same un-awaited + optional-chained clipboard bug as the two
+          // composer drawers — it claimed success while copying nothing.
+          void navigator.clipboard
+            .writeText(qs.join('\n'))
+            .then(() => message.success(`Copied ${qs.length} quote${qs.length === 1 ? '' : 's'}`))
+            .catch(() =>
+              message.warning('Could not copy automatically — select the text and copy manually.'),
+            );
         } else {
           message.info('No decrypted quotes available — open the hearing to view.');
         }
@@ -527,6 +934,47 @@ export function TrackerFeedPanel({
         break;
       }
     }
+  };
+
+  const toggleSelect = (alertId: string) =>
+    setSelectedIds((prev) =>
+      prev.includes(alertId) ? prev.filter((x) => x !== alertId) : [...prev, alertId],
+    );
+
+  /**
+   * P2-04 + P2-06: bulk triage reports PARTIAL failure. The hook chunks at
+   * WORK_STATE_BULK_MAX and returns per-chunk outcomes, so "12 of 30" is a real
+   * count rather than an optimistic claim, and the selection clears only after
+   * every call settles.
+   */
+  const runBulk = (state: WorkStatePatchInput['state'], label: string) => {
+    const ids = new Set(selectedIds);
+    // The bulk route is client-scoped, and the global roll-up mixes clients —
+    // group by each alert's OWN clientId rather than assuming one.
+    const byClient = new Map<string, string[]>();
+    for (const it of items) {
+      if (!ids.has(it.id)) continue;
+      byClient.set(it.clientId, [...(byClient.get(it.clientId) ?? []), it.id]);
+    }
+    void Promise.allSettled(
+      [...byClient.entries()].map(([cid, alertIds]) =>
+        bulkWorkState.mutateAsync({ clientId: cid, alertIds, state }),
+      ),
+    ).then((results) => {
+      let ok = 0;
+      let failed = 0;
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled') {
+          ok += r.value.ok;
+          failed += r.value.failed;
+        } else {
+          failed += [...byClient.values()][i]?.length ?? 1;
+        }
+      });
+      if (failed > 0) message.warning(`${label}: ${ok} of ${ok + failed} updated — ${failed} failed`);
+      else message.success(`${label}: ${ok} updated`);
+      setSelectedIds([]);
+    });
   };
 
   // Right-rail "Show" options — source facet with tenant/client-scoped counts.
@@ -600,6 +1048,11 @@ export function TrackerFeedPanel({
                     onAction={onAction}
                     showClient={false}
                     onScopeClient={onScopeClient}
+                    members={members}
+                    selected={selectedIds.includes(it.id)}
+                    onToggleSelect={toggleSelect}
+                    autoExpand={focusAlertId === it.id}
+                    onAutoExpanded={onFocused}
                   />
                 ))}
               </div>
@@ -627,6 +1080,11 @@ export function TrackerFeedPanel({
             onAction={onAction}
             showClient={global}
             onScopeClient={onScopeClient}
+            members={members}
+            selected={selectedIds.includes(it.id)}
+            onToggleSelect={toggleSelect}
+            autoExpand={focusAlertId === it.id}
+            onAutoExpanded={onFocused}
           />
         ))}
         {query.hasNextPage && (
@@ -646,16 +1104,104 @@ export function TrackerFeedPanel({
   return (
     <div className="feed-layout">
       <div className="feed-main">
-        <div className="feed-lead">
+        {/* P2-12 (h-3): the result count changes when a filter or the ordering
+            changes, and that change is the only feedback either produces. */}
+        <div className="feed-lead" aria-live="polite">
           {global
             ? 'What changed across all clients'
             : `What changed for ${clientName ?? 'this client'}`}{' '}
           · {totalUpdates} update{totalUpdates === 1 ? '' : 's'}
         </div>
+        {/* P2-04: bulk triage. Reuses the existing .bulk-bar pattern. Reports
+            PARTIAL failure — never a blanket success (P2-06). */}
+        {selectedIds.length > 0 && (
+          <div className="bulk-bar" role="region" aria-label="Bulk triage">
+            <span>
+              {selectedIds.length} selected
+              {selectedIds.length > WORK_STATE_BULK_MAX
+                ? ` — sent in ${Math.ceil(selectedIds.length / WORK_STATE_BULK_MAX)} batches`
+                : ''}
+            </span>
+            {(
+              [
+                ['in_review', 'Mark reviewed'],
+                ['actioned', 'Mark actioned'],
+                ['dismissed', 'Dismiss'],
+              ] as const
+            ).map(([state, label]) => (
+              <button
+                key={state}
+                className="btn sm"
+                disabled={bulkWorkState.isPending}
+                onClick={() => runBulk(state, label)}
+              >
+                {label}
+              </button>
+            ))}
+            <button className="btn sm btn-ghost" onClick={() => setSelectedIds([])}>
+              Clear
+            </button>
+          </div>
+        )}
         {body}
       </div>
 
       <aside className="feed-rail">
+        {/* P1-10: Newest / Priority. `order` is already part of the query key
+            AND the query string, so switching refetches under a distinct cache
+            entry with no other change. */}
+        <div className="rail-card">
+          <div className="rc-t">Order</div>
+          <div className="seg-toggle" role="group" aria-label="Feed ordering">
+            <button
+              type="button"
+              aria-pressed={order === 'date'}
+              className={order === 'date' ? 'on' : ''}
+              onClick={() => setOrder('date')}
+            >
+              Newest
+            </button>
+            <button
+              type="button"
+              aria-pressed={order === 'score'}
+              className={order === 'score' ? 'on' : ''}
+              onClick={() => setOrder('score')}
+              title={BAND_TOOLTIP}
+            >
+              Priority
+            </button>
+          </div>
+          {/* §4.8 edge case 4: scoring is FORWARD-ONLY (§6.2), so this list can
+              mix alerts scored by two different models. Saying so is the
+              condition on which the re-weight ships — it must not be silent. */}
+          {order === 'score' && priorModelCount > 0 && (
+            <div className="muted mini" style={{ marginTop: 6 }}>
+              Ranked by the current model. {priorModelCount} alert
+              {priorModelCount === 1 ? '' : 's'} on this page {priorModelCount === 1 ? 'was' : 'were'}{' '}
+              scored by the prior model and may rank differently.
+            </div>
+          )}
+        </div>
+
+        {/* P2-04: the worklist. Default is this user's ACTIVE queue — their
+            dismissed and still-snoozed alerts are excluded server-side. */}
+        <div className="rail-card">
+          <div className="rc-t">Worklist</div>
+          {WORK_FILTERS.map((o) => (
+            <button
+              key={o.v}
+              className={'rail-opt' + (workFilter === o.v ? ' on' : '')}
+              aria-pressed={workFilter === o.v}
+              onClick={() => {
+                setWorkFilter(o.v);
+                setSelectedIds([]);
+              }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+
         <div className="rail-card">
           <div className="rc-t">Show</div>
           {srcOpts.map((o) => (

@@ -41,6 +41,9 @@ describe('InternalTrackerController', () => {
       billTitle: '',
       label: 'Passed a chamber',
       actionText: 'On passage Passed by recorded vote: 219 - 210.',
+      // §4.3 (Gate D): always forwarded, empty when the caller sends neither.
+      allowedNextSteps: [],
+      blockedBy: [],
     });
   });
 
@@ -62,6 +65,9 @@ describe('InternalTrackerController', () => {
       billTitle: 'A bill',
       label: 'Passed a chamber',
       actionText: 'On passage...',
+      // §4.3 (Gate D): always forwarded, empty when the caller sends neither.
+      allowedNextSteps: [],
+      blockedBy: [],
     });
     expect(result).toEqual({ summary: 'The House passed it 219-210.' });
   });
@@ -111,5 +117,71 @@ describe('InternalTrackerController', () => {
         BadRequestException,
       );
     });
+
+    /**
+     * §4.3 (Gate D b-7 case 6) — THE regression this test exists for.
+     *
+     * intel-api now sends allowedNextSteps + blockedBy. If the DTO does not
+     * declare them, forbidNonWhitelisted 400s, AlertSummaryClient fails soft,
+     * and EVERY alert summary silently becomes null. Nothing errors, nothing
+     * alarms — the feature just stops. Hence an explicit accept-test.
+     */
+    it('accepts the §4.3 allowedNextSteps + blockedBy payload', async () => {
+      await expect(
+        pipe.transform(
+          {
+            ...validBody,
+            allowedNextSteps: ['Referral in the other chamber', 'Conference to resolve differences'],
+            blockedBy: ['The governing rule was rejected, so floor consideration cannot proceed under it'],
+          },
+          meta,
+        ),
+      ).resolves.toBeInstanceOf(SummarizeAlertDto);
+    });
+
+    it('accepts empty §4.3 arrays (the "not established" case)', async () => {
+      await expect(
+        pipe.transform({ ...validBody, allowedNextSteps: [], blockedBy: [] }, meta),
+      ).resolves.toBeInstanceOf(SummarizeAlertDto);
+    });
+
+    it('still rejects a malformed §4.3 payload', async () => {
+      await expect(
+        pipe.transform({ ...validBody, allowedNextSteps: 'Floor vote' }, meta),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        pipe.transform({ ...validBody, allowedNextSteps: [1, 2] }, meta),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  it('passes the §4.3 step set through to TrackerSummaryService', async () => {
+    const summarize = jest.fn().mockResolvedValue('The House rejected the governing rule.');
+    const summaries = { summarize } as unknown as TrackerSummaryService;
+    const controller = new InternalTrackerController(summaries);
+    await controller.summarize({
+      ...validBody,
+      allowedNextSteps: ['New rule from the Rules Committee'],
+      blockedBy: ['The governing rule was rejected, so floor consideration cannot proceed under it'],
+    });
+    expect(summarize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allowedNextSteps: ['New rule from the Rules Committee'],
+        blockedBy: [
+          'The governing rule was rejected, so floor consideration cannot proceed under it',
+        ],
+      }),
+    );
+  });
+
+  it('defaults the §4.3 fields to empty for a caller that has not been upgraded', async () => {
+    const summarize = jest.fn().mockResolvedValue('x');
+    const summaries = { summarize } as unknown as TrackerSummaryService;
+    const controller = new InternalTrackerController(summaries);
+    await controller.summarize({ ...validBody });
+    // Absent === empty === "the next step is NOT established": the safe default.
+    expect(summarize).toHaveBeenCalledWith(
+      expect.objectContaining({ allowedNextSteps: [], blockedBy: [] }),
+    );
   });
 });

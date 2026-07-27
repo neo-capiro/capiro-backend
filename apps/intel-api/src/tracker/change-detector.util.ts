@@ -411,6 +411,108 @@ export function severityToMateriality(sev: AlertSeverity): 'low' | 'medium' | 'h
 }
 
 /**
+ * P1-08: every changeType this file can emit, mapped to the tone its own
+ * ChangeClass carries. The board read path needs the tone for a card whose
+ * alert row it has already fetched, and the only other place the tone is
+ * recorded is the alert's `evidence` JSON (bill-change-detector.service.ts:1042,
+ * normalized to `provenance.tone` by Gate C). Selecting that whole JSON column
+ * would be a real cost on `getTenantBoard`, which rolls up EVERY client's
+ * tracked bills — so the board reads the cheap `severity` column and derives
+ * tone here instead, from this file's own definitions rather than a duplicated
+ * list in the web app (which is what P1-08 is about).
+ *
+ * `change-detector.tone-map.spec.ts` locks this against drift: it asserts every
+ * class this module can produce has an entry, so adding a class without adding
+ * a tone fails the suite rather than silently falling back.
+ *
+ * Two classes are deliberately ABSENT because their tone is computed from
+ * runtime data, not fixed by changeType — `toneForChange` derives those from the
+ * severity the row already carries, exactly as the emitting function does:
+ *   - state_bill_deadline_approaching (stateDeadlineClass: tone tracks severity)
+ *   - bill_cosponsor_momentum        (cosponsorMomentumClass: severity varies)
+ */
+export const CHANGE_TYPE_TONE: Record<string, ChangeTone> = {
+  // classifyChange (action text)
+  bill_enacted: 'success',
+  bill_to_president: 'success',
+  bill_failed: 'critical',
+  bill_passed_chamber: 'success',
+  bill_rule_reported: 'info',
+  bill_floor_scheduled: 'info',
+  bill_reported: 'success',
+  bill_markup: 'info',
+  bill_hearing: 'info',
+  bill_amendment: 'notable',
+  // classifyStatusChange (canonical federal status)
+  bill_rule_failed: 'critical',
+  bill_rule_adopted: 'info',
+  // classifyStateStatusChange (canonical state status) — mirrors STATE_STATUS_TONE
+  state_bill_enacted: 'success',
+  state_bill_vetoed: 'critical',
+  state_bill_failed: 'critical',
+  state_bill_dead_by_deadline: 'critical',
+  state_bill_passed_chamber: 'success',
+  state_bill_floor: 'info',
+  state_bill_to_governor: 'info',
+  state_bill_veto_overridden: 'info',
+  state_bill_resolving: 'info',
+  state_bill_reported: 'success',
+  // standalone classes
+  state_bill_vote_recorded: 'info',
+  state_companion_moved: 'info',
+  bill_fiscal_note: 'info',
+  bill_text_changed: 'notable',
+  bill_hearing_scheduled: 'info',
+  bill_new_match: 'info',
+};
+
+/**
+ * P2-09: change types that mean the bill is in real procedural trouble — a
+ * failed governing rule, a veto, a failed vote, or a state bill past its
+ * session deadline. Derived from the SAME classes phase a-1 verified, not a
+ * second hand-maintained list.
+ *
+ * The board keeps its four coarse lanes, so without this a failed rule renders
+ * as an ordinary card in whichever lane its stage maps to — visually identical
+ * to a bill that is progressing.
+ */
+export const TERMINAL_RISK_CHANGE_TYPES = new Set([
+  'bill_rule_failed',
+  'bill_failed',
+  'state_bill_vetoed',
+  'state_bill_failed',
+  'state_bill_dead_by_deadline',
+]);
+
+/** True when this change type puts the bill in terminal or near-terminal risk. */
+export function isTerminalRisk(changeType: string | null | undefined): boolean {
+  return !!changeType && TERMINAL_RISK_CHANGE_TYPES.has(changeType);
+}
+
+/**
+ * The tone for an emitted alert, from its changeType and the severity stored on
+ * the row. Falls back to the severity-derived tone that `stateDeadlineClass`
+ * itself uses, so a dynamic class is right rather than merely non-null.
+ */
+export function toneForChange(
+  changeType: string | null | undefined,
+  severity: string | null | undefined,
+): ChangeTone | null {
+  const fixed = changeType ? CHANGE_TYPE_TONE[changeType] : undefined;
+  if (fixed) return fixed;
+  switch ((severity ?? '').toLowerCase()) {
+    case 'critical':
+      return 'critical';
+    case 'notable':
+      return 'notable';
+    case 'info':
+      return 'info';
+    default:
+      return null;
+  }
+}
+
+/**
  * Keep the first event per changeType (input order preserved). Used to merge the
  * derived-event list with the action-text list without emitting two alerts of the
  * same changeType for one bill in one cycle. Pass derived events first so a more

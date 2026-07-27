@@ -5,6 +5,7 @@ import { ActionItemController } from './action-item.controller.js';
 import { ActionItemService } from './action-item.service.js';
 import { TrackerV2Guard } from './tracker-v2.guard.js';
 import { AlertPacketService } from './alert-packet.service.js';
+import { AlertWorkStateService } from './alert-work-state.service.js';
 import { HearingCryptoService } from '../hearing/hearing-crypto.service.js';
 import { SourceDataModule } from '../sourcedata/source-data.module.js';
 import { TrackerModule } from '../tracker/tracker.module.js';
@@ -27,9 +28,10 @@ import { TrackerModule } from '../tracker/tracker.module.js';
     FeedService,
     ActionItemService,
     AlertPacketService,
+    AlertWorkStateService,
     TrackerV2Guard,
     HearingCryptoService,
   ],
-  exports: [FeedService, ActionItemService, AlertPacketService],
+  exports: [FeedService, ActionItemService, AlertPacketService, AlertWorkStateService],
 })
 export class FeedModule {}

@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { adaptWatchlist, watchlistToIntel, type IntelWatchlist } from './intel-tracker-api.js';
+import {
+  adaptWatchlist,
+  changeChipToChange,
+  watchlistToIntel,
+  type IntelWatchlist,
+} from './intel-tracker-api.js';
 import { TERM_TYPES } from './tracker-api.js';
 
 /**
@@ -196,5 +201,100 @@ describe('adaptWatchlist / watchlistToIntel round-trip', () => {
       label: 'beta',
       renameFrom: 'alpha',
     });
+  });
+});
+
+/**
+ * Gate D phase a (P1-08), a-5 case 8. The web used to derive a card's tone from
+ * its OWN copy of a narrow federal change-type list, so a failed governing rule
+ * or a state veto rendered 'notable'. It now prefers the server's tone, then the
+ * server's severity, and keeps the old list only as a pre-Gate-D fallback.
+ */
+describe('changeChipToChange — tone comes from the server (P1-08)', () => {
+  test('prefers the server tone over everything else', () => {
+    expect(
+      changeChipToChange({
+        label: 'Rule failed — stalled on the floor',
+        changeType: 'bill_rule_failed',
+        at: '2026-03-10',
+        severity: 'critical',
+        tone: 'critical',
+      })?.tone,
+    ).toBe('critical');
+    // 'success' is reachable ONLY via tone — severity cannot express it, which
+    // is why "Became law" must not look like "Failed / rejected".
+    expect(
+      changeChipToChange({
+        label: 'Became law',
+        changeType: 'bill_enacted',
+        at: '2026-03-10',
+        severity: 'critical',
+        tone: 'success',
+      })?.tone,
+    ).toBe('success');
+  });
+
+  test('falls back to severity when tone is absent', () => {
+    expect(
+      changeChipToChange({
+        label: 'Vetoed',
+        changeType: 'state_bill_vetoed',
+        at: '2026-03-10',
+        severity: 'critical',
+        tone: null,
+      })?.tone,
+    ).toBe('critical');
+    expect(
+      changeChipToChange({
+        label: 'Hearing scheduled',
+        changeType: 'bill_hearing',
+        at: '2026-03-10',
+        severity: 'info',
+        tone: null,
+      })?.tone,
+    ).toBe('info');
+    expect(
+      changeChipToChange({
+        label: 'Amended',
+        changeType: 'bill_amendment',
+        at: '2026-03-10',
+        severity: 'notable',
+        tone: null,
+      })?.tone,
+    ).toBe('notable');
+  });
+
+  test('falls back to the legacy list for a pre-Gate-D response', () => {
+    // A cached board page from before this deploy carries neither field.
+    expect(
+      changeChipToChange({ label: 'Became law', changeType: 'bill_enacted', at: '2026-03-10' })
+        ?.tone,
+    ).toBe('critical');
+    expect(
+      changeChipToChange({ label: 'Amended', changeType: 'bill_amendment', at: '2026-03-10' })
+        ?.tone,
+    ).toBe('notable');
+  });
+
+  test('the REGRESSION this fixes: state veto / failed rule are no longer notable', () => {
+    // Pre-Gate-D these hit the legacy list, missed, and rendered 'notable'.
+    for (const changeType of [
+      'bill_rule_failed',
+      'state_bill_vetoed',
+      'state_bill_failed',
+      'state_bill_dead_by_deadline',
+    ]) {
+      expect(
+        changeChipToChange({ label: 'x', changeType, at: '2026-03-10', severity: 'critical' })
+          ?.tone,
+      ).toBe('critical');
+    }
+  });
+
+  test('null chip stays null; an unknown type with no server fields is notable', () => {
+    expect(changeChipToChange(null)).toBeNull();
+    expect(
+      changeChipToChange({ label: 'x', changeType: 'something_new', at: '2026-03-10' })?.tone,
+    ).toBe('notable');
   });
 });

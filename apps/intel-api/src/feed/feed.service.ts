@@ -5,6 +5,7 @@ import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
 import { ActionItemService } from './action-item.service.js';
 import { recommendedActionsFor } from './recommended-actions.util.js';
 import { normalizeEvidence } from './normalize-evidence.js';
+import { AlertWorkStateService, type WorkState } from './alert-work-state.service.js';
 
 /**
  * Combined intel feed (Phase 6 §9.7). Reads `intel_alert` only — evidence is
@@ -46,6 +47,29 @@ export interface FeedQuery {
    * in-memory filter. Pair with sourceTypes:['bill'] for a covering lookup.
    */
   sourceRef?: string;
+  /**
+   * P2-04 (Gate D e-4): the CURRENT USER, for per-user work-state decoration and
+   * the dismissed/snoozed exclusion. Omitted → no work state is loaded and the
+   * feed behaves exactly as before.
+   */
+  userId?: string;
+  /**
+   * Which work states to show. Omitted → the DEFAULT view, which EXCLUDES this
+   * user's dismissed and still-snoozed alerts. `['all']` disables the exclusion.
+   *
+   * APPROACH (e-4 asks this to be stated explicitly): an EXCLUSION predicate,
+   * `id: { notIn: <this user's hidden ids> }`, not a join and not a post-filter.
+   *   - A join to intel_alert_work_state cannot be expressed alongside the
+   *     keyset OR while staying index-backed, so it would silently drop the
+   *     covering index the feed depends on.
+   *   - A post-filter would break `hasMore`/`nextCursor`: `take: limit + 1`
+   *     would count rows that are then discarded in JS, so a page whose items
+   *     were all filtered out would report hasMore:false and end the infinite
+   *     scroll early (edge case 11).
+   *   The exclusion is a plain AND-ed primary-key predicate, so the ordering
+   *   index still drives the scan, and the page is genuinely full.
+   */
+  workStates?: string[];
 }
 
 interface DateCursor {
@@ -84,6 +108,7 @@ export class FeedService {
     private readonly crypto: HearingCryptoService,
     private readonly actions: ActionItemService,
     private readonly sourceData: SourceDataRepository,
+    private readonly workState: AlertWorkStateService,
   ) {}
 
   /**
@@ -165,6 +190,16 @@ export class FeedService {
 
     const where: Record<string, unknown> = { ...baseWhere };
     if (q.sourceTypes?.length) where['sourceType'] = { in: q.sourceTypes };
+
+    // P2-04: exclude THIS user's dismissed / still-snoozed alerts. See FeedQuery
+    // .workStates for why this is an exclusion rather than a join or a
+    // post-filter. Never widens: `status` above still gates suppressed rows, so
+    // work state can only narrow what a user sees (edge case 7).
+    const wantsAll = q.workStates?.includes('all');
+    if (q.userId && !wantsAll) {
+      const hidden = await this.workState.hiddenAlertIds(tenantId, q.userId, clientId ?? null);
+      if (hidden.length) where['id'] = { notIn: hidden };
+    }
     // Bill 360 (§1.4): equality predicate on source_ref so a single-bill event
     // history hits @@index([tenantId, sourceType, sourceRef]) — never a JS filter.
     if (q.sourceRef) where['sourceRef'] = q.sourceRef;
@@ -251,6 +286,16 @@ export class FeedService {
       items.map((i) => i.id),
     );
 
+    // P2-04: per-user triage state for this page, batch-loaded in ONE query
+    // beside actionState — same no-N+1 posture.
+    const workStateByAlert: Map<string, WorkState> = q.userId
+      ? await this.workState.forAlerts(
+          tenantId,
+          q.userId,
+          items.map((i) => i.id),
+        )
+      : new Map();
+
     // Matched-tag resolution (LegiWatch v2 / L1): batch-resolve each alert's
     // termId → its WatchlistTerm → owning WatchlistTopic label ("tag"), in ONE
     // tenant-scoped read (no per-row join, mirrors decryptQuotes/getClientNames).
@@ -313,6 +358,14 @@ export class FeedService {
           evidence,
         }),
         actions: actionState.get(it.id) ?? { inReport: false, talkingPoints: 0 },
+        // P2-04: this USER's triage state. Absent row = never triaged; 'new' is
+        // the honest default rather than a missing field the UI has to guess at.
+        workState: workStateByAlert.get(it.id) ?? {
+          state: 'new' as const,
+          assignedTo: null,
+          snoozedUntil: null,
+          note: null,
+        },
       };
     });
 

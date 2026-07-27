@@ -107,6 +107,53 @@ export class StateSourceDataRepository {
     return rows[0] ?? null;
   }
 
+  /**
+   * P1-17: Add-bill-modal text search over the STATE corpus. The federal twin is
+   * SourceDataRepository.searchBillRows; this mirrors its shape (title OR
+   * identifier substring, newest action first, LIMIT 20) so the modal can merge
+   * the two result sets without reconciling two contracts.
+   *
+   * Matches on `identifier` rather than `id`: a state bill's DD1 key is
+   * `<state>-<session>-<identifier>`, so a user typing "HB 1234" means the
+   * identifier, not the composite key. Restricted to the passed states so a
+   * two-character query cannot scan all 50 legislatures.
+   */
+  async searchStateBillRows(
+    titleLike: string,
+    idLike: string,
+    states: string[],
+    limit = 20,
+  ): Promise<SourceStateBill[]> {
+    if (!states.length) return [];
+    return this.prisma.$queryRawUnsafe<SourceStateBill[]>(
+      `SELECT id,
+              state,
+              session_key         AS "sessionKey",
+              identifier,
+              title,
+              status,
+              status_at            AS "statusAt",
+              latest_action_text   AS "latestActionText",
+              latest_action_date   AS "latestActionDate",
+              text_date            AS "textDate",
+              sponsor_name         AS "sponsorName",
+              sponsor_party        AS "sponsorParty",
+              sponsor_count        AS "sponsorCount",
+              state_url            AS "stateUrl",
+              url,
+              subjects
+         FROM state_bill
+        WHERE state = ANY($3::text[])
+          AND (LOWER(title) LIKE $1 OR LOWER(REPLACE(identifier, ' ', '')) LIKE $2)
+        ORDER BY latest_action_date DESC NULLS LAST
+        LIMIT $4`,
+      titleLike,
+      idLike,
+      states,
+      limit,
+    );
+  }
+
   /** Batch-read `state_bill_action` rows for many bills, oldest-first — same shape as SourceBillAction. */
   async getStateBillActionsByIds(keys: string[]): Promise<SourceBillAction[]> {
     if (!keys.length) return [];

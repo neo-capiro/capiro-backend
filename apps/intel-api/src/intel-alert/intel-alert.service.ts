@@ -19,6 +19,7 @@ import {
   type DigestItem,
 } from '../tracker/tracker-email.templates.js';
 import { AlertSummaryClient } from './alert-summary.client.js';
+import { proceduralOutlook, proceduralStateFromAlert } from '../tracker/procedural-steps.js';
 
 type Channel = 'email' | 'sms' | 'in_app';
 
@@ -238,12 +239,25 @@ export class IntelAlertService {
     // the FULL input signature — NOT (tenant,bill,changeType) — so two DISTINCT
     // actions that happen to share a changeType never reuse each other's text.
     if (canSend && this.summaryClient.configured && !event.summary && prefs.some(eligible)) {
+      // §4.3: derive the allowed next steps DETERMINISTICALLY before asking the
+      // model anything. An empty set is a real answer — the prompt then forbids
+      // naming a next step at all, and apps/api drops a summary that names one
+      // regardless. This is what stops a rejected governing rule being reported
+      // as heading to a floor vote.
+      const outlook = proceduralOutlook(
+        proceduralStateFromAlert({
+          changeType: event.changeType,
+          jurisdiction: event.jurisdiction,
+        }),
+      );
       const summaryInput = {
         tenantId: event.tenantId,
         displayNum: event.displayNum,
         billTitle: event.billTitle,
         label: event.label,
         actionText: event.detail,
+        allowedNextSteps: outlook.nextPossibleSteps,
+        blockedBy: outlook.blockedBy,
       };
       const key = [
         summaryInput.tenantId,
@@ -251,6 +265,11 @@ export class IntelAlertService {
         summaryInput.billTitle,
         summaryInput.label,
         summaryInput.actionText,
+        // The outlook is part of the prompt, so it is part of the cache
+        // identity: two events with identical text but different allowed steps
+        // must not reuse each other's summary.
+        summaryInput.allowedNextSteps.join('|'),
+        summaryInput.blockedBy.join('|'),
       ].join('\u0000'); // NUL delimiter -> collision-free even if a field value contains it
       if (summaryCache?.has(key)) {
         event.summary = summaryCache.get(key) ?? null;
@@ -451,7 +470,11 @@ export class IntelAlertService {
         band: (ev.band as string) ?? undefined,
         jurisdiction: (ev.jurisdiction as string) ?? 'US',
         sourceType: a.sourceType,
-        appUrl: `${appBaseUrl()}/legiwatch?tab=feed&client=${encodeURIComponent(a.clientId)}`,
+        // g-7: `&alert=` now that RadarPage READS it — the Feed scrolls to and
+        // expands this exact card instead of dropping the reader at the top of
+        // the list to hunt for the alert they were emailed about. Gate A f-1
+        // deferred this precisely because nothing consumed the param yet.
+        appUrl: `${appBaseUrl()}/legiwatch?tab=feed&client=${encodeURIComponent(a.clientId)}&alert=${encodeURIComponent(a.id)}`,
       };
       try {
         const r = await this.fanOut(event, summaryCache);

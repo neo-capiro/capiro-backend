@@ -98,14 +98,21 @@ describe('TrackerConfigPanel — priority pill must persist (live-smoke regressi
     vi.useRealTimers();
   });
 
-  test('clicking the priority pill once fires a save carrying priority=high', () => {
+  /**
+   * P2-08 (Gate D g-3): this control WAS a cycling pill — one click advanced
+   * low→med→high→low. It is an explicit menu now, so the test selects a value
+   * rather than clicking N times. The save path it guards is unchanged.
+   */
+  test('selecting High fires a save carrying priority=high', () => {
     const onSaveWatchlist = vi.fn();
     renderPanel(onSaveWatchlist);
 
-    const pill = screen.getAllByTitle('Priority — click to change')[0]!;
-    expect(pill.textContent).toBe('Med priority');
+    const select = screen.getAllByLabelText('Priority')[0]! as HTMLSelectElement;
+    expect(select.value).toBe('med');
 
-    act(() => pill.click());
+    act(() => {
+      fireEvent.change(select, { target: { value: 'high' } });
+    });
     act(() => void vi.advanceTimersByTime(700));
 
     expect(onSaveWatchlist).toHaveBeenCalledTimes(1);
@@ -114,11 +121,58 @@ describe('TrackerConfigPanel — priority pill must persist (live-smoke regressi
     expect(sent.version).toBe(3);
   });
 
-  test('the pill reflects the new priority in the DOM immediately', () => {
+  test('the control reflects the new priority in the DOM immediately', () => {
     renderPanel(() => {});
-    const pill = screen.getAllByTitle('Priority — click to change')[0]!;
-    act(() => pill.click());
-    expect(screen.getAllByTitle('Priority — click to change')[0]!.textContent).toBe('High priority');
+    const select = screen.getAllByLabelText('Priority')[0]! as HTMLSelectElement;
+    act(() => {
+      fireEvent.change(select, { target: { value: 'high' } });
+    });
+    expect((screen.getAllByLabelText('Priority')[0]! as HTMLSelectElement).value).toBe('high');
+  });
+
+  /** g-8 case 4 — THE P2-08 lock: clicking must no longer change the value. */
+  test('CLICKING the control does not change the value (no cycling)', () => {
+    const onSaveWatchlist = vi.fn();
+    renderPanel(onSaveWatchlist);
+
+    const select = screen.getAllByLabelText('Priority')[0]! as HTMLSelectElement;
+    act(() => select.click());
+    act(() => void vi.advanceTimersByTime(700));
+
+    expect(select.value).toBe('med');
+    expect(onSaveWatchlist).not.toHaveBeenCalled();
+  });
+
+  test('priority and position are listboxes with three DEFINED options each', () => {
+    renderPanel(() => {});
+    const priority = screen.getAllByLabelText('Priority')[0]! as HTMLSelectElement;
+    const position = screen.getAllByLabelText('Position')[0]! as HTMLSelectElement;
+
+    expect(priority.tagName).toBe('SELECT');
+    expect(position.tagName).toBe('SELECT');
+    expect([...priority.options].map((o) => o.textContent)).toEqual([
+      'Low — monitor only',
+      'Med — worth a look',
+      'High — drives alert ranking',
+    ]);
+    expect([...position.options].map((o) => o.textContent)).toEqual([
+      'Support — we want this to advance',
+      'Monitor — no stated stance',
+      'Oppose — we want this stopped',
+    ]);
+  });
+
+  test('selecting a position fires one save with that exact value', () => {
+    const onSaveWatchlist = vi.fn();
+    renderPanel(onSaveWatchlist);
+    const position = screen.getAllByLabelText('Position')[0]!;
+    act(() => {
+      fireEvent.change(position, { target: { value: 'oppose' } });
+    });
+    act(() => void vi.advanceTimersByTime(700));
+    expect(onSaveWatchlist).toHaveBeenCalledTimes(1);
+    const sent = onSaveWatchlist.mock.calls[0]![0] as WatchlistPayload;
+    expect(sent.tags.find((t) => t.tag === 'defense authorization')?.position).toBe('oppose');
   });
 
   test('an UNNAMED sibling tag blocks the priority save (phase c, by design)', () => {
@@ -127,8 +181,10 @@ describe('TrackerConfigPanel — priority pill must persist (live-smoke regressi
       tags: [tag({ tag: 'defense authorization' }), tag({ tag: '' })],
     });
 
-    const pill = screen.getAllByTitle('Priority — click to change')[0]!;
-    act(() => pill.click());
+    const select = screen.getAllByLabelText('Priority')[0]!;
+    act(() => {
+      fireEvent.change(select, { target: { value: 'high' } });
+    });
     act(() => void vi.advanceTimersByTime(700));
 
     // This is the production-plausible trap: the change is visible but unsaved.
@@ -200,9 +256,11 @@ describe('TrackerConfigPanel — priority pill must persist (live-smoke regressi
     // NB: `button.disabled` reflects only the element's OWN attribute — inherited
     // disabling is observable via the enclosing fieldset (and `:disabled` in a real
     // browser), which is what actually stops the click there.
-    const pill = screen.getAllByTitle('Priority — click to change')[0]!;
-    expect(pill.closest('fieldset')?.disabled).toBe(true);
-    act(() => pill.click());
+    const select = screen.getAllByLabelText('Priority')[0]!;
+    expect(select.closest('fieldset')?.disabled).toBe(true);
+    act(() => {
+      fireEvent.change(select, { target: { value: 'high' } });
+    });
     act(() => void vi.advanceTimersByTime(700));
     expect(onSaveWatchlist).not.toHaveBeenCalled();
     expect(screen.getByText(/view only/i)).toBeInTheDocument();
@@ -230,12 +288,15 @@ describe('TrackerConfigPanel — priority pill must persist (live-smoke regressi
     expect(screen.queryByText(/not being saved/i)).toBeNull();
   });
 
-  test('the position pill persists too (same code path)', () => {
+  test('the position control persists too (same code path)', () => {
     const onSaveWatchlist = vi.fn();
     renderPanel(onSaveWatchlist);
 
-    const pos = screen.getAllByTitle('Position — click to change')[0]!;
-    act(() => pos.click());
+    // P2-08: was a cycling pill; now an explicit menu. Same save path.
+    const pos = screen.getAllByLabelText('Position')[0]!;
+    act(() => {
+      fireEvent.change(pos, { target: { value: 'oppose' } });
+    });
     act(() => void vi.advanceTimersByTime(700));
 
     expect(onSaveWatchlist).toHaveBeenCalledTimes(1);

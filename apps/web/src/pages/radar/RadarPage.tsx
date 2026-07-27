@@ -138,8 +138,14 @@ export function RadarPage() {
     ? (tabParam as RadarTab)
     : 'feed';
   const clientParam = searchParams.get('client');
+  /**
+   * Gate D g-7: `&alert=<id>` — the deep link Gate A's email wanted and deferred
+   * because nothing read it. The Feed scrolls to that card, expands it, and then
+   * CLEARS the param, so a refresh does not re-scroll and re-expand.
+   */
+  const alertParam = searchParams.get('alert');
 
-  const setParam = (key: 'tab' | 'client', value: string | null) => {
+  const setParam = (key: 'tab' | 'client' | 'alert', value: string | null) => {
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -236,6 +242,26 @@ export function RadarPage() {
     />
   );
 
+  /**
+   * P2-03 (Gate D g-6): the header client picker used to render on EVERY tab,
+   * including two places it does nothing useful.
+   *
+   * 1. Hearings is NOT client-filtered — HearingWatchPanel takes no clientId, so
+   *    the picker there is a control that changes nothing.
+   * 2. On a tab that REQUIRES a client, ClientGate renders its own picker inside
+   *    the empty state. With the header picker also visible that is two pickers
+   *    for one decision; the gate's is the one with the explanation next to it.
+   */
+  const HEARINGS_IS_CLIENT_FILTERED = false;
+  // Mirrors the render conditions below exactly: Watchlist ALWAYS gates without
+  // a client; Bills gates only when tracker_v2 is off (with it on, the
+  // all-clients board roll-up renders instead and the header picker is the way
+  // to scope down).
+  const gateWillShow =
+    !selectedClient && (tab === 'watchlist' || (tab === 'bills' && !(trackerReady && trackerV2)));
+  const showHeaderPicker =
+    (tab !== 'hearings' || HEARINGS_IS_CLIENT_FILTERED) && !gateWillShow;
+
   const TABS: Array<{ v: RadarTab; label: string; icon: ReactNode }> = [
     { v: 'feed', label: 'Feed', icon: <BellOutlined /> },
     { v: 'bills', label: 'Bills', icon: <FileTextOutlined /> },
@@ -259,7 +285,7 @@ export function RadarPage() {
             <AimOutlined /> LegiWatch
           </h1>
           <span className="grow" />
-          {clientPicker}
+          {showHeaderPicker && clientPicker}
           <button className="btn btn-ghost" onClick={() => setShowIntro(true)}>
             <QuestionCircleOutlined /> How it works
           </button>
@@ -304,6 +330,8 @@ export function RadarPage() {
                 key={selectedClient.id}
                 clientId={selectedClient.id}
                 clientName={selectedClient.name}
+                focusAlertId={alertParam}
+                onFocused={() => setParam('alert', null)}
               />
             </div>
           </FirstRunGate>
@@ -314,6 +342,8 @@ export function RadarPage() {
             <RadarGlobalFeedTab
               clientNameById={clientNameById}
               onScopeClient={(id) => setParam('client', id)}
+              focusAlertId={alertParam}
+              onFocused={() => setParam('alert', null)}
             />
           </div>
         ))}
@@ -420,7 +450,18 @@ function PanelLoading() {
  * standard track endpoint; the board query (shared react-query key with the Bills
  * tab) tells the drawer whether the bill is already tracked.
  */
-function RadarFeedTab({ clientId, clientName }: { clientId: string; clientName: string }) {
+function RadarFeedTab({
+  clientId,
+  clientName,
+  focusAlertId,
+  onFocused,
+}: {
+  clientId: string;
+  clientName: string;
+  /** g-7: `&alert=<id>` from an alert email — scroll to and expand that card. */
+  focusAlertId?: string | null;
+  onFocused?: () => void;
+}) {
   const api = useApi();
   const qc = useQueryClient();
   const { message } = AntApp.useApp();
@@ -465,6 +506,8 @@ function RadarFeedTab({ clientId, clientName }: { clientId: string; clientName: 
         clientId={clientId}
         clientName={clientName}
         onOpenBill={(billId) => setDrawerBillId(billId)}
+        focusAlertId={focusAlertId}
+        onFocused={onFocused}
       />
       <BillDrawer
         open={drawerBillId !== null}
@@ -490,10 +533,15 @@ function RadarFeedTab({ clientId, clientName }: { clientId: string; clientName: 
 function RadarGlobalFeedTab({
   clientNameById,
   onScopeClient,
+  focusAlertId,
+  onFocused,
 }: {
   clientNameById: Map<string, string>;
   /** LegiWatch v2 (L1): scope the whole feature to a client (from a feed card's label). */
   onScopeClient: (clientId: string) => void;
+  /** g-7: `&alert=<id>` from an alert email. */
+  focusAlertId?: string | null;
+  onFocused?: () => void;
 }) {
   const api = useApi();
   const qc = useQueryClient();
@@ -538,6 +586,8 @@ function RadarGlobalFeedTab({
         global
         onScopeClient={onScopeClient}
         onOpenBill={(billId, cId) => setDrawer({ billId, clientId: cId })}
+        focusAlertId={focusAlertId}
+        onFocused={onFocused}
       />
       <BillDrawer
         open={drawer !== null}
@@ -639,7 +689,9 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
           options={[
             { value: 'all', label: 'All tracked bills' },
             { value: 'hifit', label: 'Priority-tag bills' },
-            { value: 'hiprob', label: 'High probability (≥70%)' },
+            // §4.8 (Gate D c-8): the estimate is stage-based, not a calibrated
+            // forecast — the label says so now. Computation unchanged.
+            { value: 'hiprob', label: 'High passage likelihood (≥70%)' },
           ]}
         />
       </div>

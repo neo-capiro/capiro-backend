@@ -192,6 +192,39 @@
 
 .lw-root .chip.success { background: var(--success-soft); border-color: transparent; color: var(--success); }
 
+/* P1-10 (Gate D c-2): the severity cue as a CHIP, in the same
+   critical|notable|info vocabulary the alert email templates use, so the two
+   surfaces never disagree. Hexes come from this file's own palette vars rather
+   than the email's literals — the vocabulary is what must match, and the calm
+   re-skin owns its own colour values. */
+.lw-root .chip.sev-critical { background: var(--critical-soft); border-color: transparent; color: var(--critical); font-weight: 600; text-transform: capitalize; }
+
+.lw-root .chip.sev-notable { background: var(--notable-soft); border-color: transparent; color: var(--notable); font-weight: 600; text-transform: capitalize; }
+
+.lw-root .chip.sev-info { background: var(--info-soft); border-color: transparent; color: var(--info); font-weight: 600; text-transform: capitalize; }
+
+/* c-6: the score's display BAND. Never a raw 0.72 — always a band plus a
+   tooltip that says what produced it. */
+.lw-root .chip.band { background: var(--bg-sunken); border-color: transparent; color: var(--ink-2); font-weight: 600; }
+
+/* c-4: the material-evidence warning that replaced the `incomplete` chip. */
+.lw-root .chip.warn { background: var(--notable-soft); border-color: transparent; color: var(--notable); }
+
+/* P2-04 (Gate D phase e): the worklist. `.bulk-bar` already exists but is scoped
+   under `.redesign`, and the feed renders under `.lw-root` — so the pattern is
+   reproduced here rather than re-scoping a selector three other surfaces use. */
+.lw-root .bulk-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; margin-bottom: 8px; border: 1px solid var(--border-1); border-radius: var(--r-sm); background: var(--accent-soft); font-size: 12.5px; font-weight: 600; color: var(--accent-ink); }
+
+.lw-root .acard-select { margin: 2px 10px 0 0; flex: none; cursor: pointer; }
+
+/* c-3: labelled sections in the expanded card body (why it matters, procedural
+   meaning, source, who should act, confidence). */
+.lw-root .acard-why { font-size: 12.5px; line-height: 1.55; color: var(--ink-2); padding: 10px 0 2px; }
+
+.lw-root .acard-sect { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); margin-bottom: 3px; }
+
+.lw-root .acard-why .mini { font-size: 11.5px; margin-top: 3px; }
+
 .lw-root .src-label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
 
 .lw-root .pdot.high { background: var(--critical); }
@@ -440,6 +473,41 @@
 .lw-root .bcard { background: var(--bg-surface); border: 1px solid var(--border-1); border-radius: var(--r-md); padding: 11px 12px; margin-top: 8px; cursor: pointer; transition: box-shadow .13s, transform .13s, border-color .13s; }
 
 .lw-root .bcard:first-of-type { margin-top: 0; }
+
+/* P2-09 (Gate D phase g): a bill in terminal or near-terminal trouble — a failed
+   governing rule, a veto, a failed vote, a past-deadline state bill. The board
+   keeps its four coarse lanes, so without a distinct edge such a card is
+   indistinguishable from one that is progressing normally. */
+.lw-root .bcard.terminal-risk { border-left: 3px solid var(--critical); }
+
+/* P2-09: the bill's REAL status, not the lane it was bucketed into. */
+.lw-root .b-status { font-size: 11px; font-weight: 600; color: var(--ink-3); margin: 3px 0 5px; }
+
+.lw-root .b-status.terminal { color: var(--critical); }
+
+/* P2-10: the change label and the latest action were HOVER-ONLY (a `title`
+   attribute), unreachable by touch and by screen reader. Both are visible text
+   now; the action line truncates with an explicit Details control. */
+.lw-root .b-change { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 600; color: var(--ink-3); }
+
+.lw-root .b-change.critical { color: var(--critical); }
+
+.lw-root .b-change.success { color: var(--success); }
+
+.lw-root .b-change.notable { color: var(--notable); }
+
+.lw-root .b-new { background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; }
+
+.lw-root .b-action { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-1); }
+
+.lw-root .b-action-text { font-size: 11px; color: var(--ink-3); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.lw-root .b-details { flex: none; margin-left: auto; font-size: 10.5px; font-weight: 600; color: var(--accent-ink); background: none; border: none; padding: 0; cursor: pointer; text-decoration: underline; }
+
+/* P2-08: the priority/position controls are real menus now, not cycling pills.
+   They keep the pill look so the board reads the same. */
+.lw-root select.tag-pill,
+.redesign select.tag-pill { appearance: none; cursor: pointer; }
 
 .lw-root .bcard:hover { box-shadow: var(--shadow-1); transform: translateY(-1px); border-color: var(--border-2); }
 
@@ -840,4 +908,33 @@
   .lw-root .room-grid { grid-template-columns: 1fr; }
   .lw-root .tag-adv { grid-template-columns: 1fr; }
   .lw-root .ws-editor { grid-template-columns: 1fr; }
+}
+
+/* P1-12 / P2-12 (Gate D phase h): a real focus ring on every keyboard-focused
+   control on the calm surface. :focus-visible so a mouse click paints nothing —
+   the reason the original styles reached for `outline: none`. */
+.lw-root button:focus-visible,
+.lw-root select:focus-visible,
+.lw-root a:focus-visible,
+.lw-root [role='button']:focus-visible,
+.lw-root input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* P1-12 (Gate D h-1): several clickable `<div>`/`<span>` elements became real
+   buttons so they are focusable and announce their state. They must keep the
+   exact appearance they had — a button brings UA styles a div never had. */
+.lw-root button.acard-title {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
 }
