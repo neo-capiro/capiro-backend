@@ -619,6 +619,28 @@ describe('AlertMemoService — Gate I (CG-01): server-owned generation record cl
     expect(engagement.createAttachmentFromBuffer).toHaveBeenCalledTimes(1);
   });
 
+  it('I-9: generationId is declared on the save DTO — present or absent, neither 400s through the real global ValidationPipe', async () => {
+    const pipe = new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: false },
+    });
+    const meta = { type: 'body' as const, metatype: SaveAlertMemoDto };
+
+    // A current client sending generationId.
+    await expect(
+      pipe.transform(
+        { title: 't', markdown: 'm', clientName: 'c', alertId: 'alert-1', generationId: 'gen-1' },
+        meta,
+      ),
+    ).resolves.toBeInstanceOf(SaveAlertMemoDto);
+    // A stale bundle omitting it (b-5 compatibility path) — still not a 400.
+    await expect(
+      pipe.transform({ title: 't', markdown: 'm', clientName: 'c', alertId: 'alert-1' }, meta),
+    ).resolves.toBeInstanceOf(SaveAlertMemoDto);
+  });
+
   it('I-5: a clean (non-held) generation writes holdSource:none/filingState:draft, and its generationId never blocks a later save', async () => {
     process.env.MERI_AUDITOR_MODE = 'off';
     const { service, alertGenerationRecordRows } = makeDeps({ hasOpenForSubject: false, pendingReviews: [] });

@@ -150,6 +150,11 @@ export class DistrictBriefService {
       // existing scaffold path — the correct fail-open.
       const briefEntailmentMode =
         resolveEntailmentMode(process.env.MERI_ENTAILMENT_MODE) === 'off' ? 'off' : 'shadow';
+      // d-2: the total BEFORE the gate runs, so the log line below can state
+      // whether this generation would have held (every paragraph rejected) —
+      // shadow's own `held` is hardcoded false (entailment-gate.ts:169), so
+      // that signal has to be recomputed here for it to be measurable at all.
+      const paragraphsBeforeEntailment = sections.reduce((n, s) => n + s.paragraphs.length, 0);
       const entail = await applyEntailmentGate({
         sections,
         claims,
@@ -160,9 +165,13 @@ export class DistrictBriefService {
       sections = entail.sections;
       entailmentUsage = entail.usage;
       if (entail.findings.length) {
+        // d-2: grep this prefix + would-hold=true to compute a hold-rate proxy
+        // over a real corpus before ever proposing enforce for this surface.
+        const wouldHold = entail.findings.length === paragraphsBeforeEntailment;
         this.logger.warn(
-          `[meri-entailment:shadow] district brief — ${entail.findings.length} paragraph(s) would fail entailment: ` +
-            entail.findings.map((f) => `${f.heading}/${f.verdict}`).join(', '),
+          `[meri-entailment:shadow] district brief — ${entail.findings.length}/${paragraphsBeforeEntailment} ` +
+            `paragraph(s) would fail entailment (would-hold=${wouldHold}): ` +
+            entail.findings.map((f) => `${f.heading}/${f.verdict}: ${f.reason}`).join(', '),
         );
       }
     } catch (err) {
