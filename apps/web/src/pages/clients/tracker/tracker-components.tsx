@@ -87,18 +87,31 @@ export function BillCard({
   // side-drawer; the small filled star untracks (kept off the prototype's chrome
   // but preserved so the board isn't read-only without the drawer).
   return (
-    <div className={`bcard${justLanded ? ' just-landed' : ''}`} onClick={() => onOpen(bill)}>
+    <div
+      className={`bcard${justLanded ? ' just-landed' : ''}${bill.terminalRisk ? ' terminal-risk' : ''}`}
+      onClick={() => onOpen(bill)}
+    >
       <div className="b-top">
         <span className="b-num">{bill.displayNum}</span>
         <JurisdictionPill jurisdiction={bill.jurisdiction} />
-        {bill.unread && <span className="b-unread" title="Unseen change" />}
+        {/* P2-10: unread was a bare dot with a `title`, unreachable by touch or
+            screen reader. Now a labelled dot PLUS a visible "New" chip. */}
+        {bill.unread && (
+          <>
+            <span className="b-unread" aria-hidden />
+            <span className="chip muted b-new" aria-label="Unread" style={{ fontSize: 10 }}>
+              New
+            </span>
+          </>
+        )}
         <span className="grow" />
+        {/* P2-10: the change indicator was a colored dot whose only content was
+            a `title`. The label it already carried is now visible text. */}
         {bill.change && (
-          <span
-            className={`dot ${bill.change.tone}`}
-            style={{ width: 7, height: 7 }}
-            title={bill.change.label}
-          />
+          <span className={`b-change ${bill.change.tone}`}>
+            <span className={`dot ${bill.change.tone}`} style={{ width: 7, height: 7 }} aria-hidden />
+            {bill.change.label}
+          </span>
         )}
         <button
           className="bc-untrack"
@@ -120,6 +133,14 @@ export function BillCard({
         </button>
       </div>
       <div className="b-title">{bill.title}</div>
+      {/* P2-09: the bill's REAL status. The board has four lanes but the
+          detector classifies far more, so without this a failed governing rule
+          is visually identical to a bill that is progressing. */}
+      {bill.canonicalStatus && (
+        <div className={`b-status${bill.terminalRisk ? ' terminal' : ''}`}>
+          {bill.canonicalStatus}
+        </div>
+      )}
       <PassageBar prob={bill.probability} />
       <div className="b-foot">
         {(bill.tags ?? []).slice(0, 2).map((t) => (
@@ -130,6 +151,7 @@ export function BillCard({
         <HearingChip bill={bill} onOpen={onOpen} />
         <LatestActionStamp bill={bill} />
       </div>
+      <LatestActionLine bill={bill} onOpen={onOpen} />
     </div>
   );
 }
@@ -146,11 +168,41 @@ export function LatestActionStamp({ bill }: { bill: BoardBill }) {
   return (
     <span
       className="num"
-      title={bill.latestActionText ?? undefined}
       style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--ink-4)', whiteSpace: 'nowrap' }}
     >
       {bill.latestActionDate}
     </span>
+  );
+}
+
+/**
+ * P2-10: the latest action TEXT used to exist only as a hover `title` on the
+ * date stamp — unreachable by touch and by screen reader. It is now visible
+ * truncated text with an explicit Details control that opens the drawer where
+ * the full text lives.
+ */
+export function LatestActionLine({
+  bill,
+  onOpen,
+}: {
+  bill: BoardBill;
+  onOpen: (bill: BoardBill) => void;
+}) {
+  if (!bill.latestActionText) return null;
+  return (
+    <div className="b-action">
+      <span className="b-action-text">{bill.latestActionText}</span>
+      <button
+        type="button"
+        className="b-details"
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpen(bill);
+        }}
+      >
+        Details
+      </button>
+    </div>
   );
 }
 

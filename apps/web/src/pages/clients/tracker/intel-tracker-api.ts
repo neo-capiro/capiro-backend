@@ -80,6 +80,10 @@ interface IntelBoardCard {
     severity?: string | null;
     tone?: string | null;
   } | null;
+  /** P2-09: served by intel-api as of Gate D phase g. Optional so a cached
+   *  pre-Gate-D board response still adapts. */
+  canonicalStatus?: string | null;
+  terminalRisk?: boolean;
   // Phase 9 (Bill→Hearing interlink): "discussed in N hearings" chip data.
   lastHearingSessionId?: string | null;
   lastHearingAt?: string | null;
@@ -204,6 +208,9 @@ export function adaptBoard(b: IntelBoard): BoardResponse {
       trackedAt: typeof c.trackedAt === 'string' ? c.trackedAt : new Date(c.trackedAt).toISOString(),
       unread: Boolean(c.unread),
       change: changeChipToChange(c.changeChip),
+      // P2-09: carry the real status + terminal-risk flag to the card.
+      canonicalStatus: c.canonicalStatus ?? null,
+      terminalRisk: Boolean(c.terminalRisk),
       hearingCount: c.hearingCount ?? 0,
       lastHearingSessionId: c.lastHearingSessionId ?? null,
       jurisdiction: c.jurisdiction,

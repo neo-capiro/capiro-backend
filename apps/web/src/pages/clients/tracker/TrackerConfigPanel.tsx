@@ -16,18 +16,34 @@ import {
   type WatchlistTag,
 } from './tracker-api.js';
 
-const PRIO_CYCLE: Record<TagPriority, TagPriority> = { low: 'med', med: 'high', high: 'low' };
-const POS_CYCLE: Record<TagPosition, TagPosition> = {
-  support: 'monitor',
-  monitor: 'oppose',
-  oppose: 'support',
-};
 const PRIO_LABEL: Record<TagPriority, string> = { low: 'Low', med: 'Med', high: 'High' };
 const POS_LABEL: Record<TagPosition, string> = {
   support: 'Support',
   oppose: 'Oppose',
   monitor: 'Monitor',
 };
+
+/**
+ * P2-08: PRIO_CYCLE and POS_CYCLE are DELETED. The two pills used to advance
+ * through their values on every click (low→med→high→low,
+ * support→monitor→oppose→support) with only a `title="… — click to change"` to
+ * explain it. Combined with the 600ms autosave, one mis-click silently
+ * persisted a wrong priority — or worse, a wrong POSITION, which is the firm's
+ * stated stance on a bill.
+ *
+ * Each option carries its own definition, so what the value MEANS is on screen
+ * rather than something the analyst has to have been told.
+ */
+export const PRIORITY_OPTIONS: Array<{ v: TagPriority; label: string }> = [
+  { v: 'low', label: 'Low — monitor only' },
+  { v: 'med', label: 'Med — worth a look' },
+  { v: 'high', label: 'High — drives alert ranking' },
+];
+export const POSITION_OPTIONS: Array<{ v: TagPosition; label: string }> = [
+  { v: 'support', label: 'Support — we want this to advance' },
+  { v: 'monitor', label: 'Monitor — no stated stance' },
+  { v: 'oppose', label: 'Oppose — we want this stopped' },
+];
 /**
  * §4.3: mirrors HEARING_TERMS_TOPIC_LABEL in intel-api. The server folds legacy
  * flat hearing terms under this label, so a user must not be able to create a tag
@@ -258,26 +274,43 @@ function TagRow({
           <span className="hash">#</span>
           {tag.tag || <em style={{ opacity: 0.6 }}>Unnamed — add a name</em>}
         </span>
-        <button
+        {/* P2-08: these were CYCLING pills — one click advanced low→med→high /
+            support→monitor→oppose. With a 600ms autosave, a mis-click silently
+            persisted a wrong stance on a client's position. They are explicit
+            menus now, each option carrying a one-line definition so the choice
+            is legible rather than learned. */}
+        <select
           className={`tag-pill prio-${priority}`}
-          onClick={(e) => {
+          aria-label="Priority"
+          value={priority}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => {
             e.stopPropagation();
-            patch({ priority: PRIO_CYCLE[priority] });
+            patch({ priority: e.target.value as TagPriority });
           }}
-          title="Priority — click to change"
         >
-          {PRIO_LABEL[priority]} priority
-        </button>
-        <button
+          {PRIORITY_OPTIONS.map((o) => (
+            <option key={o.v} value={o.v}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <select
           className={`tag-pill pos-${position}`}
-          onClick={(e) => {
+          aria-label="Position"
+          value={position}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => {
             e.stopPropagation();
-            patch({ position: POS_CYCLE[position] });
+            patch({ position: e.target.value as TagPosition });
           }}
-          title="Position — click to change"
         >
-          {POS_LABEL[position]}
-        </button>
+          {POSITION_OPTIONS.map((o) => (
+            <option key={o.v} value={o.v}>
+              {o.label}
+            </option>
+          ))}
+        </select>
         <span className="grow" />
         <span className="mini muted">
           {termCount} term{termCount === 1 ? '' : 's'}

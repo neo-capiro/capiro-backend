@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useBillTarget } from '../../bills/bill-target.js';
@@ -218,6 +218,8 @@ function FeedCard({
   members = [],
   selected = false,
   onToggleSelect,
+  autoExpand = false,
+  onAutoExpanded,
 }: {
   item: FeedItem;
   onAction: (a: RecommendedAction, item: FeedItem) => void;
@@ -229,6 +231,9 @@ function FeedCard({
   members?: TeamMemberOption[];
   selected?: boolean;
   onToggleSelect?: (alertId: string) => void;
+  /** g-7: this card is the `&alert=` deep-link target — scroll to it and open it. */
+  autoExpand?: boolean;
+  onAutoExpanded?: () => void;
 }) {
   // LegiWatch v2 (L1): calm card — collapsed by default, expands on demand.
   const [open, setOpen] = useState(false);
@@ -294,8 +299,28 @@ function FeedCard({
     return d.toISOString();
   };
 
+  /**
+   * g-7: the `&alert=` deep-link target. Scrolls to the card and expands it,
+   * then tells the parent to CLEAR the param — so a refresh does not re-scroll
+   * and re-expand a card the user has since collapsed. Runs once.
+   */
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const focusedRef = useRef(false);
+  useEffect(() => {
+    if (!autoExpand || focusedRef.current) return;
+    focusedRef.current = true;
+    setOpen(true);
+    cardRef.current?.scrollIntoView({ block: 'center' });
+    onAutoExpanded?.();
+  }, [autoExpand, onAutoExpanded]);
+
   return (
-    <div className={'acard' + (open ? ' open' : '')} data-sev={item.severity}>
+    <div
+      ref={cardRef}
+      className={'acard' + (open ? ' open' : '')}
+      data-sev={item.severity}
+      data-alert-id={item.id}
+    >
       <div className="acard-head" onClick={() => setOpen((o) => !o)}>
         {onToggleSelect && (
           <input
@@ -674,6 +699,8 @@ export function TrackerFeedPanel({
   onOpenBill,
   onScopeClient,
   global = false,
+  focusAlertId,
+  onFocused,
 }: {
   /** Per-client mode: the client to scope to. Omitted/ignored in `global` mode. */
   clientId?: string;
@@ -697,6 +724,9 @@ export function TrackerFeedPanel({
    * per-alert operation is scoped to `item.clientId`.
    */
   global?: boolean;
+  /** g-7: `&alert=<id>` deep link from an alert email. */
+  focusAlertId?: string | null;
+  onFocused?: () => void;
 }) {
   const api = useApi();
   const navigate = useNavigate();
@@ -1008,6 +1038,8 @@ export function TrackerFeedPanel({
                     members={members}
                     selected={selectedIds.includes(it.id)}
                     onToggleSelect={toggleSelect}
+                    autoExpand={focusAlertId === it.id}
+                    onAutoExpanded={onFocused}
                   />
                 ))}
               </div>
@@ -1038,6 +1070,8 @@ export function TrackerFeedPanel({
             members={members}
             selected={selectedIds.includes(it.id)}
             onToggleSelect={toggleSelect}
+            autoExpand={focusAlertId === it.id}
+            onAutoExpanded={onFocused}
           />
         ))}
         {query.hasNextPage && (

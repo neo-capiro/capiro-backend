@@ -467,6 +467,29 @@ export const CHANGE_TYPE_TONE: Record<string, ChangeTone> = {
 };
 
 /**
+ * P2-09: change types that mean the bill is in real procedural trouble — a
+ * failed governing rule, a veto, a failed vote, or a state bill past its
+ * session deadline. Derived from the SAME classes phase a-1 verified, not a
+ * second hand-maintained list.
+ *
+ * The board keeps its four coarse lanes, so without this a failed rule renders
+ * as an ordinary card in whichever lane its stage maps to — visually identical
+ * to a bill that is progressing.
+ */
+export const TERMINAL_RISK_CHANGE_TYPES = new Set([
+  'bill_rule_failed',
+  'bill_failed',
+  'state_bill_vetoed',
+  'state_bill_failed',
+  'state_bill_dead_by_deadline',
+]);
+
+/** True when this change type puts the bill in terminal or near-terminal risk. */
+export function isTerminalRisk(changeType: string | null | undefined): boolean {
+  return !!changeType && TERMINAL_RISK_CHANGE_TYPES.has(changeType);
+}
+
+/**
  * The tone for an emitted alert, from its changeType and the severity stored on
  * the row. Falls back to the severity-derived tone that `stateDeadlineClass`
  * itself uses, so a dynamic class is right rather than merely non-null.

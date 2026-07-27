@@ -474,6 +474,41 @@
 
 .lw-root .bcard:first-of-type { margin-top: 0; }
 
+/* P2-09 (Gate D phase g): a bill in terminal or near-terminal trouble — a failed
+   governing rule, a veto, a failed vote, a past-deadline state bill. The board
+   keeps its four coarse lanes, so without a distinct edge such a card is
+   indistinguishable from one that is progressing normally. */
+.lw-root .bcard.terminal-risk { border-left: 3px solid var(--critical); }
+
+/* P2-09: the bill's REAL status, not the lane it was bucketed into. */
+.lw-root .b-status { font-size: 11px; font-weight: 600; color: var(--ink-3); margin: 3px 0 5px; }
+
+.lw-root .b-status.terminal { color: var(--critical); }
+
+/* P2-10: the change label and the latest action were HOVER-ONLY (a `title`
+   attribute), unreachable by touch and by screen reader. Both are visible text
+   now; the action line truncates with an explicit Details control. */
+.lw-root .b-change { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 600; color: var(--ink-3); }
+
+.lw-root .b-change.critical { color: var(--critical); }
+
+.lw-root .b-change.success { color: var(--success); }
+
+.lw-root .b-change.notable { color: var(--notable); }
+
+.lw-root .b-new { background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; }
+
+.lw-root .b-action { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-1); }
+
+.lw-root .b-action-text { font-size: 11px; color: var(--ink-3); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.lw-root .b-details { flex: none; margin-left: auto; font-size: 10.5px; font-weight: 600; color: var(--accent-ink); background: none; border: none; padding: 0; cursor: pointer; text-decoration: underline; }
+
+/* P2-08: the priority/position controls are real menus now, not cycling pills.
+   They keep the pill look so the board reads the same. */
+.lw-root select.tag-pill,
+.redesign select.tag-pill { appearance: none; cursor: pointer; }
+
 .lw-root .bcard:hover { box-shadow: var(--shadow-1); transform: translateY(-1px); border-color: var(--border-2); }
 
 .lw-root .bcard .b-top { display: flex; align-items: center; gap: 7px; }

@@ -522,3 +522,60 @@ describe('P2-05 — open an existing memo', () => {
     expect(screen.queryByRole('button', { name: /Edit in Workspace/ })).toBeNull();
   });
 });
+
+/**
+ * Gate D phase g (g-7, g-8 case 8) — the `&alert=<id>` deep link.
+ *
+ * Gate A's alert email wanted this and deferred it because nothing read the
+ * param. RadarPage now does: the Feed scrolls to that card, expands it, and
+ * clears the param so a refresh does not re-scroll a card the user collapsed.
+ */
+describe('g-7 — the &alert= deep link focuses one card', () => {
+  test('the targeted card auto-expands and the param is cleared once', async () => {
+    mockApi([feedItem({ id: 'a9' })]);
+    const onFocused = vi.fn();
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <AntApp>
+            <TrackerFeedPanel
+              clientId="c1"
+              clientName="Acme Aerospace"
+              focusAlertId="a9"
+              onFocused={onFocused}
+            />
+          </AntApp>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // Expanded WITHOUT a click — the expanded-only body is present.
+    expect(await screen.findByText('Why this matters')).toBeInTheDocument();
+    // And the parent is told to drop the param, exactly once.
+    await waitFor(() => expect(onFocused).toHaveBeenCalledTimes(1));
+  });
+
+  test('a NON-targeted card stays collapsed', async () => {
+    mockApi([feedItem({ id: 'a1' })]);
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <AntApp>
+            <TrackerFeedPanel clientId="c1" clientName="Acme" focusAlertId="a9" />
+          </AntApp>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await screen.findByText(/Rule failed on the floor/);
+    expect(screen.queryByText('Why this matters')).toBeNull();
+  });
+
+  test('with no focusAlertId nothing auto-expands (the default feed)', async () => {
+    mockApi([feedItem()]);
+    renderPanel();
+    await screen.findByText(/Rule failed on the floor/);
+    expect(screen.queryByText('Why this matters')).toBeNull();
+  });
+});

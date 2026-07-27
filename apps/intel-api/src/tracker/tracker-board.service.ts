@@ -3,7 +3,12 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
 import { StateSourceDataRepository } from '../sourcedata/state-source-data.repository.js';
 import { TrackerWatchlistService } from './tracker-watchlist.service.js';
-import { isStateBillKey, humanizeStateBillKey, stateBillStatusRank } from '@capiro/shared';
+import {
+  isStateBillKey,
+  humanizeStateBillKey,
+  stateBillStatusLabel,
+  stateBillStatusRank,
+} from '@capiro/shared';
 import { embedText, normalize, vectorLiteral, EMBEDDING_MODEL } from '../embeddings/embedder.js';
 import {
   highPriorityMatches,
@@ -21,7 +26,7 @@ import {
   type BillStage,
 } from './bill-stage.util.js';
 import { humanizeBillId, type RelevanceBill } from './relevance.util.js';
-import { toneForChange } from './change-detector.util.js';
+import { isTerminalRisk, toneForChange } from './change-detector.util.js';
 
 /**
  * Recommendation feed + tracked-bill curation for the UNIFIED tracker (Phase 3
@@ -191,6 +196,15 @@ export interface BoardCard {
   /** The client's stance on the highest-priority matched topic: support|oppose|monitor|null. */
   matchedPosition: string | null;
   changeChip: ChangeChip | null;
+  /**
+   * P2-09: the bill's REAL status label, not the coarse lane it was bucketed
+   * into. The board has four lanes but the detector classifies far more, so a
+   * failed governing rule used to render as an ordinary card in the lane its
+   * stage happened to map to.
+   */
+  canonicalStatus: string | null;
+  /** P2-09: a failed rule / veto / failed vote / past-deadline state bill. */
+  terminalRisk: boolean;
   // Phase 9 (Bill→Hearing interlink): "discussed in N hearings" chip. Presence
   // comes from the trackedBill hearing badge (set by the linker); the count is
   // the number of distinct `combined` alerts for this bill.
@@ -267,6 +281,9 @@ export class TrackerBoardService {
         latestActionDate: Date | null;
         policyArea: string | null;
         subjects: string[] | null;
+        /** P2-09: the state rail's canonical status. Null for federal bills,
+         *  whose status is derived from the action text instead. */
+        status?: string | null;
       }
     >
   > {
@@ -284,6 +301,9 @@ export class TrackerBoardService {
         latestActionDate: Date | null;
         policyArea: string | null;
         subjects: string[] | null;
+        /** P2-09: the state rail's canonical status. Null for federal bills,
+         *  whose status is derived from the action text instead. */
+        status?: string | null;
       }
     >();
     for (const b of congressBills) out.set(b.id, b);
@@ -294,9 +314,30 @@ export class TrackerBoardService {
         latestActionDate: b.latestActionDate,
         policyArea: null,
         subjects: b.subjects,
+        status: b.status,
       });
     }
     return out;
+  }
+
+  /**
+   * P2-09: the bill's REAL status, for the card's chip.
+   *
+   * The board buckets into four coarse lanes, so the lane alone cannot tell a
+   * failed governing rule from a bill that merely reached the floor. Precedence:
+   * the most recent material change's own label (the most specific truth we
+   * have), then the state rail's canonical status, then the lane label.
+   * Reuses values already in scope — nothing is re-derived or re-queried.
+   */
+  private canonicalStatusFor(
+    billId: string,
+    chip: ChangeChip | null,
+    status: string | null | undefined,
+    stage: BillStage,
+  ): string | null {
+    if (chip?.label) return chip.label;
+    if (isStateBillKey(billId) && status) return stateBillStatusLabel(status);
+    return BILL_STAGES.find((s) => s.id === stage)?.label ?? null;
   }
 
   private displayNumFor(billId: string): string {
@@ -613,6 +654,15 @@ export class TrackerBoardService {
         matchedHighPriorityTopics: hi.matchedHighPriorityTopics,
         matchedPosition: hi.matchedPosition,
         changeChip: chipByBill.get(t.billId) ?? null,
+        // P2-09: the real status + a terminal-risk flag, so a failed rule never
+        // renders as an ordinary card in whichever lane its stage maps to.
+        canonicalStatus: this.canonicalStatusFor(
+          t.billId,
+          chipByBill.get(t.billId) ?? null,
+          bill?.status,
+          stage,
+        ),
+        terminalRisk: isTerminalRisk(chipByBill.get(t.billId)?.changeType),
         lastHearingSessionId: t.lastHearingSessionId ?? null,
         lastHearingAt: t.lastHearingAt ?? null,
         hearingCount: hearingCountByBill.get(t.billId) ?? 0,
@@ -757,6 +807,14 @@ export class TrackerBoardService {
         matchedHighPriorityTopics: hi.matchedHighPriorityTopics,
         matchedPosition: hi.matchedPosition,
         changeChip: chipByCB.get(ck(t.clientId, t.billId)) ?? null,
+        // P2-09: same treatment on the all-clients roll-up.
+        canonicalStatus: this.canonicalStatusFor(
+          t.billId,
+          chipByCB.get(ck(t.clientId, t.billId)) ?? null,
+          bill?.status,
+          stage,
+        ),
+        terminalRisk: isTerminalRisk(chipByCB.get(ck(t.clientId, t.billId))?.changeType),
         lastHearingSessionId: t.lastHearingSessionId ?? null,
         lastHearingAt: t.lastHearingAt ?? null,
         hearingCount: hearingCountByCB.get(ck(t.clientId, t.billId)) ?? 0,
@@ -773,18 +831,43 @@ export class TrackerBoardService {
    * Lightweight board counts for the client-profile tab badge (Phase 7 —
    * repoints the legacy GET .../tracker/summary badge fetch). One tenant-scoped
    * SELECT of the `unread` bits, reduced by the pure summarizeTrackedRows.
+   *
+   * P2-01 (Gate D g-4): `hasWatchlist` is added here because the cold-start gate
+   * needs an ALWAYS-AVAILABLE signal. The profile's own `watchlistQuery` is
+   * `enabled: activePanel === 'config'`, so a cold-start check driven by it has
+   * no data to run on — the chicken-and-egg that left the profile variant
+   * defaulting to an empty Board instead of Configure. Enabling that query
+   * unconditionally would add a request to every board load; this rides an
+   * existing one.
+   *
+   * "Has a watchlist" means at least one topic OR one issue area — the same
+   * two-part test the cold-start copy asks the user to complete.
    */
   async getSummary(
     tenantId: string,
     clientId: string,
-  ): Promise<{ boardCount: number; unread: number }> {
-    const rows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.trackedBill.findMany({
-        where: { tenantId, clientId },
-        select: { unread: true },
-      }),
-    );
-    return summarizeTrackedRows(rows);
+  ): Promise<{ boardCount: number; unread: number; hasWatchlist: boolean }> {
+    const [rows, watchlist] = await Promise.all([
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.trackedBill.findMany({
+          where: { tenantId, clientId },
+          select: { unread: true },
+        }),
+      ),
+      // One row + a topic count in a single read; WatchlistTopic keys on
+      // watchlistId, so counting through the relation avoids a second lookup.
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.watchlist.findFirst({
+          where: { tenantId, clientId },
+          select: { issueAreas: true, _count: { select: { topics: true } } },
+        }),
+      ),
+    ]);
+    return {
+      ...summarizeTrackedRows(rows),
+      hasWatchlist:
+        (watchlist?._count?.topics ?? 0) > 0 || (watchlist?.issueAreas?.length ?? 0) > 0,
+    };
   }
 
   /**

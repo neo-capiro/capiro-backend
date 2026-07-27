@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { App as AntApp } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
 import './tracker.css';
@@ -118,6 +119,7 @@ export function TrackerSurface({
 }: TrackerSurfaceProps) {
   const api = useApi();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { message } = AntApp.useApp();
 
   const [panel, setPanelState] = useState<Panel>(
@@ -150,6 +152,42 @@ export function TrackerSurface({
   const meQuery = useMe();
   const myRole = meQuery.data?.role;
   const canEditTargeting = myRole ? isTenantAdmin(myRole) : true;
+  /**
+   * P2-01 (Gate D g-4): cold-start parity between the two LegiWatch surfaces.
+   *
+   * `/legiwatch` routes an unconfigured client to Configure; the profile variant
+   * defaulted to `loadPanel()` → 'board' and showed an empty board instead. The
+   * obvious fix — check the watchlist — does not work: `watchlistQuery` is
+   * `enabled: activePanel === 'config'`, so on the Board it has no data. This
+   * rides the summary endpoint, which the tab badge already needs, so the signal
+   * is always available and no query is added to a board load.
+   *
+   * Only redirects ONCE, and only while the user has not chosen a panel
+   * themselves — a deliberate visit to an empty Board must stay there.
+   */
+  const summaryQuery = useQuery<{ boardCount: number; unread: number; hasWatchlist?: boolean }>({
+    queryKey: trackerKeys.summary(clientId),
+    queryFn: async () =>
+      (
+        await api.get<{ boardCount: number; unread: number; hasWatchlist?: boolean }>(
+          trackerV2 ? intelTrackerPaths.summary(clientId) : trackerPaths.summary(clientId),
+        )
+      ).data,
+    enabled: flagsReady,
+    staleTime: 60_000,
+  });
+  const coldStartRedirected = useRef(false);
+  useEffect(() => {
+    if (variant !== 'profile' || coldStartRedirected.current) return;
+    if (!summaryQuery.data) return;
+    // `hasWatchlist` is absent on the legacy summary — treat unknown as
+    // configured rather than bouncing the user to Configure on no evidence.
+    if (summaryQuery.data.hasWatchlist === false && panel === 'board') {
+      coldStartRedirected.current = true;
+      setPanelState('config');
+    }
+  }, [summaryQuery.data, variant, panel]);
+
   const activePanel: Panel = panel === 'feed' && !trackerV2 ? 'board' : panel;
 
   // Board controls
@@ -811,6 +849,20 @@ export function TrackerSurface({
           <div className="trk-spacer" />
           {activePanel === 'board' && boardControls}
           {activePanel === 'recs' && recsControls}
+          {/* P2-02 (§6.3, confirmed): the profile tab is a COMPACT view of
+              LegiWatch, not a second copy of the full product. Saying so — and
+              offering the way through — stops the two surfaces competing to be
+              the real one. `/legiwatch` keeps the stacked experience. */}
+          <a
+            className="trk-open-full"
+            href={`/legiwatch?tab=bills&client=${encodeURIComponent(clientId)}`}
+            onClick={(e) => {
+              e.preventDefault();
+              navigate(`/legiwatch?tab=bills&client=${encodeURIComponent(clientId)}`);
+            }}
+          >
+            Open full LegiWatch →
+          </a>
         </div>
       )}
 

@@ -23,6 +23,12 @@ export interface BoardBill {
   trackedAt: string;
   unread: boolean;
   change: BoardBillChange | null;
+  /** P2-09: the bill's real status label, not the coarse lane it sits in.
+   *  Optional — the legacy board and cached pre-Gate-D responses carry none. */
+  canonicalStatus?: string | null;
+  /** P2-09: a failed governing rule, veto, failed vote, or past-deadline state
+   *  bill. Such a card must not look like an ordinary one in the same lane. */
+  terminalRisk?: boolean;
   // Phase 9 (Bill→Hearing interlink): "discussed in N hearings" chip. Optional —
   // only the intel board (adaptBoard) populates it; the legacy board omits it.
   hearingCount?: number;

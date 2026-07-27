@@ -470,7 +470,11 @@ export class IntelAlertService {
         band: (ev.band as string) ?? undefined,
         jurisdiction: (ev.jurisdiction as string) ?? 'US',
         sourceType: a.sourceType,
-        appUrl: `${appBaseUrl()}/legiwatch?tab=feed&client=${encodeURIComponent(a.clientId)}`,
+        // g-7: `&alert=` now that RadarPage READS it — the Feed scrolls to and
+        // expands this exact card instead of dropping the reader at the top of
+        // the list to hunt for the alert they were emailed about. Gate A f-1
+        // deferred this precisely because nothing consumed the param yet.
+        appUrl: `${appBaseUrl()}/legiwatch?tab=feed&client=${encodeURIComponent(a.clientId)}&alert=${encodeURIComponent(a.id)}`,
       };
       try {
         const r = await this.fanOut(event, summaryCache);
