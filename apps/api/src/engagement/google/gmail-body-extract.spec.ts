@@ -149,6 +149,54 @@ describe('extractGmailBodyText', () => {
   });
 });
 
+describe('extractGmailBodyText — attachment-backed parts (remaining-items plan §3.e2)', () => {
+  test('a preferred text/plain part with only attachmentId (no inline data) yields null, not a fallback to text/html', () => {
+    // Proves plain is still correctly identified as PREFERRED even though it
+    // has nothing to decode yet -- a broken implementation that skipped past
+    // an unhydrated plain part straight to html's inline data would return
+    // the html text here instead of null.
+    const payload: GmailMessagePart = {
+      mimeType: 'multipart/alternative',
+      parts: [
+        { mimeType: 'text/plain', body: { attachmentId: 'att-plain', size: 500 } },
+        { mimeType: 'text/html', body: { data: b64url('<p>HTML fallback content</p>') } },
+      ],
+    };
+    expect(extractGmailBodyText(payload)).toBeNull();
+  });
+
+  test('an attachment-backed text/html body (no plain part at all) is recognized as the fallback candidate, still null without inline data', () => {
+    const payload: GmailMessagePart = {
+      mimeType: 'text/html',
+      body: { attachmentId: 'att-html', size: 500 },
+    };
+    expect(extractGmailBodyText(payload)).toBeNull();
+  });
+
+  test('a filename-bearing text/plain part is skipped even when it only has attachmentId (never mistaken for the body)', () => {
+    const payload: GmailMessagePart = {
+      mimeType: 'multipart/mixed',
+      parts: [
+        { filename: 'notes.txt', mimeType: 'text/plain', body: { attachmentId: 'att-notes', size: 100 } },
+        { mimeType: 'text/plain', body: { data: b64url('This is the real body') } },
+      ],
+    };
+    expect(extractGmailBodyText(payload)).toBe('This is the real body');
+  });
+
+  test('a single-part message with a hydrated (post-fetch) attachment-backed body decodes correctly', () => {
+    // Realistic post-hydration shape: gmailGet injects fetched data into
+    // body.data while attachmentId is still present from the original
+    // response. Decoding must key off data, not be confused by attachmentId
+    // also being set.
+    const payload: GmailMessagePart = {
+      mimeType: 'text/plain',
+      body: { attachmentId: 'att-single', data: b64url('Hydrated single-part body') },
+    };
+    expect(extractGmailBodyText(payload)).toBe('Hydrated single-part body');
+  });
+});
+
 describe('stripGmailBodyData', () => {
   test('clears body.data at every depth, including a single-part payload.body.data with no parts array', () => {
     const message: GmailMessage = {
