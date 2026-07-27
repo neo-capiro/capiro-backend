@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusTrap } from './use-focus-trap.js';
 import { useQuery } from '@tanstack/react-query';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import { Icon, StarIcon } from './tracker-icons.js';
@@ -9,6 +10,7 @@ import {
   trackerPaths,
   type BillSearchResult,
   type BoardBill,
+  type BoardColumn,
   type RecommendationBill,
 } from './tracker-api.js';
 import { intelTrackerPaths } from './intel-tracker-api.js';
@@ -154,6 +156,226 @@ export function BillCard({
       </div>
       <LatestActionLine bill={bill} onOpen={onOpen} />
     </div>
+  );
+}
+
+/**
+ * P1-18 (Gate E phase c): a column exceeding 50 cards virtualizes — only DOM
+ * nodes near the visible window are mounted. Below the threshold, render
+ * normally: virtualization breaks Ctrl-F and adds complexity for a column
+ * size no real tenant hits today (c-2).
+ *
+ * Keyboard reachability (c-4): windowing fundamentally means Tab cannot land
+ * on an unmounted off-screen card. The mitigation is a real scrollable
+ * region (tabIndex, role="group") a keyboard user can focus and page/arrow
+ * through with the browser's native scroll-on-focused-container behavior,
+ * bringing a card's controls into the DOM (and into Tab order) before
+ * tabbing to them — plus generous overscan so short scrolls need no extra
+ * step at all.
+ */
+const BOARD_VIRTUALIZE_THRESHOLD = 50;
+
+export function BoardColumnCards({
+  cards,
+  issueSet,
+  justLanded,
+  onUntrack,
+  onOpen,
+}: {
+  cards: BoardBill[];
+  issueSet: Set<string>;
+  justLanded: string | null;
+  onUntrack: (billId: string) => void;
+  onOpen: (bill: BoardBill) => void;
+}) {
+  const parentRef = useRef<HTMLDivElement | null>(null);
+  const shouldVirtualize = cards.length > BOARD_VIRTUALIZE_THRESHOLD;
+  const virtualizer = useVirtualizer({
+    count: cards.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 140,
+    overscan: 10,
+    enabled: shouldVirtualize,
+  });
+
+  if (!shouldVirtualize) {
+    return (
+      <>
+        {cards.map((b) => (
+          <BillCard
+            key={b.billId}
+            bill={b}
+            issueSet={issueSet}
+            justLanded={justLanded === b.billId}
+            onUntrack={onUntrack}
+            onOpen={onOpen}
+          />
+        ))}
+      </>
+    );
+  }
+
+  return (
+    <div
+      ref={parentRef}
+      className="bcol-scroll"
+      tabIndex={0}
+      role="group"
+      aria-label={`${cards.length} tracked bills in this column — scroll for more`}
+    >
+      <div style={{ height: virtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
+        {virtualizer.getVirtualItems().map((vi) => {
+          const b = cards[vi.index]!;
+          return (
+            <div
+              key={b.billId}
+              data-index={vi.index}
+              ref={virtualizer.measureElement}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                // .bcard's own `margin-top:8px` (`:first-of-type` resets it to
+                // 0) does not apply usefully here — each card is alone in its
+                // OWN wrapper, so it is trivially ":first-of-type" every
+                // time and would render with NO gap at all. Padding on this
+                // wrapper (which measureElement includes) replaces it.
+                paddingTop: vi.index === 0 ? 0 : 8,
+                transform: `translateY(${vi.start}px)`,
+              }}
+            >
+              <BillCard
+                bill={b}
+                issueSet={issueSet}
+                justLanded={justLanded === b.billId}
+                onUntrack={onUntrack}
+                onOpen={onOpen}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export type BoardTableSortKey = 'stage' | 'bill' | 'status' | 'action';
+const BOARD_TABLE_STAGE_ORDER: Record<string, number> = {
+  introduced: 0,
+  committee: 1,
+  passed: 2,
+  enacted: 3,
+};
+
+/**
+ * P1-18 (Gate E phase c, c-3): the table-view alternative to the 4-column
+ * card grid, per Neo's decision to ship BOTH virtualization and this — one
+ * flat, sortable <table> of every loaded card. Far cheaper to render than a
+ * large board split across four flex-card columns, and what a large-firm
+ * analyst asks for regardless of the virtualization decision.
+ *
+ * "Owner" (the audit's 5th column) is deliberately NOT included: BoardCard
+ * carries no owner/assignee field today — `trackedBy` exists on the DB row
+ * but is write-only and never resolved to a display name for the web.
+ * Adding it needs a batch user-resolution query (a backend change), which is
+ * out of scope for a client-side view toggle. Reported as a gap, not
+ * fabricated.
+ */
+export function BoardTableView({
+  columns,
+  issueSet,
+  onOpen,
+}: {
+  columns: BoardColumn[];
+  issueSet: Set<string>;
+  onOpen: (bill: BoardBill) => void;
+}) {
+  const [sortKey, setSortKey] = useState<BoardTableSortKey>('stage');
+  const [sortDesc, setSortDesc] = useState(false);
+
+  const rows = useMemo(() => {
+    const flat = columns.flatMap((c) => c.bills.map((b) => ({ ...b, stageLabel: c.label })));
+    const sorted = [...flat].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === 'stage') {
+        cmp = (BOARD_TABLE_STAGE_ORDER[a.stage] ?? 9) - (BOARD_TABLE_STAGE_ORDER[b.stage] ?? 9);
+      } else if (sortKey === 'bill') {
+        cmp = a.displayNum.localeCompare(b.displayNum, undefined, { numeric: true });
+      } else if (sortKey === 'status') {
+        cmp = (a.canonicalStatus ?? a.stageLabel).localeCompare(b.canonicalStatus ?? b.stageLabel);
+      } else {
+        cmp = (b.latestActionDate ?? '').localeCompare(a.latestActionDate ?? '');
+      }
+      return sortDesc ? -cmp : cmp;
+    });
+    return sorted;
+  }, [columns, sortKey, sortDesc]);
+
+  const toggleSort = (key: BoardTableSortKey) => {
+    if (key === sortKey) setSortDesc((d) => !d);
+    else {
+      setSortKey(key);
+      setSortDesc(false);
+    }
+  };
+  const indicator = (key: BoardTableSortKey) => (key === sortKey ? (sortDesc ? ' ▼' : ' ▲') : '');
+
+  return (
+    <table className="htable board-table">
+      <thead>
+        <tr>
+          <th>
+            <button type="button" className="th-sort" onClick={() => toggleSort('stage')}>
+              Stage{indicator('stage')}
+            </button>
+          </th>
+          <th>
+            <button type="button" className="th-sort" onClick={() => toggleSort('bill')}>
+              Bill{indicator('bill')}
+            </button>
+          </th>
+          <th>
+            <button type="button" className="th-sort" onClick={() => toggleSort('status')}>
+              Status{indicator('status')}
+            </button>
+          </th>
+          <th>
+            <button type="button" className="th-sort" onClick={() => toggleSort('action')}>
+              Latest action{indicator('action')}
+            </button>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 ? (
+          <tr>
+            <td colSpan={4} style={{ textAlign: 'center', padding: 24 }}>
+              <span className="muted mini">No tracked bills.</span>
+            </td>
+          </tr>
+        ) : (
+          rows.map((b) => (
+            <tr key={b.billId} onClick={() => onOpen(b)} style={{ cursor: 'pointer' }}>
+              <td data-label="Stage">{b.stageLabel}</td>
+              <td data-label="Bill">
+                <span className="num" style={{ marginRight: 6 }}>
+                  {b.displayNum}
+                </span>
+                {issueSet.has(b.tags?.[0] ?? '') && b.tags?.[0] ? (
+                  <span className="chip issue" style={{ fontSize: 10, marginRight: 6 }}>
+                    {b.tags[0]}
+                  </span>
+                ) : null}
+                {b.title}
+              </td>
+              <td data-label="Status">{b.canonicalStatus ?? b.stageLabel}</td>
+              <td data-label="Latest action">{b.latestActionText ?? '—'}</td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
   );
 }
 

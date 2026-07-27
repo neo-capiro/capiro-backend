@@ -18,6 +18,8 @@ import { Icon, StarIcon } from './tracker-icons.js';
 import {
   AddBillModal,
   BillCard,
+  BoardColumnCards,
+  BoardTableView,
   Modal,
   RecCard,
   SubNav,
@@ -83,6 +85,19 @@ function loadBillsPanel(): Panel {
     /* ignore */
   }
   return 'board';
+}
+
+/** P1-18 (Gate E phase c): Cards vs Table view for the board, persisted like the other panel keys. */
+type BoardView = 'cards' | 'table';
+const BOARD_VIEW_KEY = 'capiro:tracker:boardview';
+function loadBoardView(): BoardView {
+  try {
+    const v = window.sessionStorage.getItem(BOARD_VIEW_KEY);
+    if (v === 'cards' || v === 'table') return v;
+  } catch {
+    /* ignore */
+  }
+  return 'cards';
 }
 
 /**
@@ -272,6 +287,16 @@ export function TrackerSurface({
   // P1-18 (a-5): server-side board filters. Default {} (off) — intel-api only;
   // the legacy board ignores these (trackerV2 gates the controls below).
   const [boardFilters, setBoardFilters] = useState<BoardFilters>({});
+  // P1-18 (phase c): Cards vs Table view.
+  const [boardView, setBoardView] = useState<BoardView>(loadBoardView);
+  const setBoardViewMode = (v: BoardView) => {
+    setBoardView(v);
+    try {
+      window.sessionStorage.setItem(BOARD_VIEW_KEY, v);
+    } catch {
+      /* ignore */
+    }
+  };
 
   // Recs controls
   const [recSort, setRecSort] = useState<'relevance' | 'probability' | 'newest'>('relevance');
@@ -916,6 +941,29 @@ export function TrackerSurface({
     </div>
   );
 
+  // P1-18 (phase c): Cards vs Table view — outside ResponsiveControls since
+  // it is a layout choice, not a data filter, and useful on any viewport.
+  const boardViewToggle = (
+    <div className="seg-toggle" role="group" aria-label="Board view">
+      <button
+        type="button"
+        aria-pressed={boardView === 'cards'}
+        className={boardView === 'cards' ? 'on' : ''}
+        onClick={() => setBoardViewMode('cards')}
+      >
+        Cards
+      </button>
+      <button
+        type="button"
+        aria-pressed={boardView === 'table'}
+        className={boardView === 'table' ? 'on' : ''}
+        onClick={() => setBoardViewMode('table')}
+      >
+        Table
+      </button>
+    </div>
+  );
+
   const recsControls = (
     <div className="trk-controls">
       <TrkDropdown
@@ -973,6 +1021,7 @@ export function TrackerSurface({
             showConfig
           />
           <div className="trk-spacer" />
+          {activePanel === 'board' && boardViewToggle}
           {activePanel === 'board' && (
             <ResponsiveControls label="Board filters">{boardControls}</ResponsiveControls>
           )}
@@ -1117,6 +1166,7 @@ export function TrackerSurface({
             <p>Bills you track, grouped by live legislative status — updates automatically.</p>
           </div>
           <span className="grow" />
+          {boardViewToggle}
           <ResponsiveControls label="Board filters">{boardControls}</ResponsiveControls>
           {/* P1-18 (a-4): `withheld` is mandatory to render when > 0 — a bounded
               board that doesn't say so is less honest than the unbounded one it
@@ -1156,46 +1206,51 @@ export function TrackerSurface({
           </div>
         ) : (
           <>
-            <div className="board">
-              {/* P0-06: a filter that legitimately matches nothing used to render as
-                  four "Nothing here" columns — indistinguishable from an empty board,
-                  which is exactly why the broken High-fit filter went unnoticed. Say
-                  which filter is hiding the cards and offer the way out. */}
-              {filter !== 'all' && boardCount > 0 && boardColumns.every((c) => c.bills.length === 0) ? (
-                <div className="trk-col-empty" style={{ gridColumn: '1 / -1' }}>
-                  No tracked bills match the “
-                  {filter === 'highfit' ? 'High-fit (priority tag)' : 'High passage likelihood (≥70%)'}”
-                  filter.{' '}
-                  <button className="btn-link" onClick={() => setFilter('all')}>
-                    Show all {boardCount}
-                  </button>
-                </div>
-              ) : (
-                boardColumns.map((col) => (
-                  <div key={col.id} className="bcol" data-stage={col.id}>
-                    <div className="bcol-head">
-                      <span className="sq" />
-                      <span className="ttl">{col.label}</span>
-                      <span className="ct num">{col.bills.length}</span>
-                    </div>
-                    {col.bills.length === 0 ? (
-                      <div className="bcol-empty">Nothing here</div>
-                    ) : (
-                      col.bills.map((b) => (
-                        <BillCard
-                          key={b.billId}
-                          bill={b}
+            {boardView === 'table' ? (
+              <BoardTableView
+                columns={boardColumns}
+                issueSet={issueSet}
+                onOpen={(bb) => openBoardBill(bb.billId, bb.unread)}
+              />
+            ) : (
+              <div className="board">
+                {/* P0-06: a filter that legitimately matches nothing used to render as
+                    four "Nothing here" columns — indistinguishable from an empty board,
+                    which is exactly why the broken High-fit filter went unnoticed. Say
+                    which filter is hiding the cards and offer the way out. */}
+                {filter !== 'all' && boardCount > 0 && boardColumns.every((c) => c.bills.length === 0) ? (
+                  <div className="trk-col-empty" style={{ gridColumn: '1 / -1' }}>
+                    No tracked bills match the “
+                    {filter === 'highfit' ? 'High-fit (priority tag)' : 'High passage likelihood (≥70%)'}”
+                    filter.{' '}
+                    <button className="btn-link" onClick={() => setFilter('all')}>
+                      Show all {boardCount}
+                    </button>
+                  </div>
+                ) : (
+                  boardColumns.map((col) => (
+                    <div key={col.id} className="bcol" data-stage={col.id}>
+                      <div className="bcol-head">
+                        <span className="sq" />
+                        <span className="ttl">{col.label}</span>
+                        <span className="ct num">{col.bills.length}</span>
+                      </div>
+                      {col.bills.length === 0 ? (
+                        <div className="bcol-empty">Nothing here</div>
+                      ) : (
+                        <BoardColumnCards
+                          cards={col.bills}
                           issueSet={issueSet}
-                          justLanded={justLanded === b.billId}
+                          justLanded={justLanded}
                           onUntrack={(id) => untrackMutation.mutate(id)}
                           onOpen={(bb) => openBoardBill(bb.billId, bb.unread)}
                         />
-                      ))
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
             {/* P1-18 (a-7): Load more when the keyset cursor says more remain. */}
             {boardQuery.hasNextPage && (
               <button

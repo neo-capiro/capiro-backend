@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNavigate } from 'react-router-dom';
 import { useBillTarget } from '../../bills/bill-target.js';
 import { App as AntApp, Input, Modal } from 'antd';
@@ -706,6 +707,98 @@ function FeedCard({
   );
 }
 
+/**
+ * P1-18 (Gate E phase c): the feed's flat (non-grouped) item list virtualizes
+ * once a loaded page set exceeds 100 items — only DOM nodes near the visible
+ * window are mounted. Below that, render normally (c-2). FeedCard's height
+ * varies hugely between collapsed and expanded (quotes, actions, confidence
+ * block all appear only when open), so `measureElement` (dynamic
+ * measurement) is used rather than trusting a fixed estimate.
+ *
+ * The GROUPED-by-client arrangement (global + group=true) is intentionally
+ * NOT virtualized here — group boundaries make windowing meaningfully more
+ * complex, and it is an opt-in, less-common view where each group is
+ * typically much smaller than the full page anyway.
+ */
+const FEED_VIRTUALIZE_THRESHOLD = 100;
+
+function FeedItemsList({
+  items,
+  onAction,
+  showClient,
+  onScopeClient,
+  members,
+  selectedIds,
+  toggleSelect,
+  focusAlertId,
+  onFocused,
+}: {
+  items: FeedItem[];
+  onAction: (a: RecommendedAction, item: FeedItem) => void;
+  showClient: boolean;
+  onScopeClient?: (clientId: string) => void;
+  members: TeamMemberOption[];
+  selectedIds: string[];
+  toggleSelect: (alertId: string) => void;
+  focusAlertId?: string | null;
+  onFocused?: () => void;
+}) {
+  const parentRef = useRef<HTMLDivElement | null>(null);
+  const shouldVirtualize = items.length > FEED_VIRTUALIZE_THRESHOLD;
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 90,
+    overscan: 6,
+    enabled: shouldVirtualize,
+  });
+
+  const card = (it: FeedItem) => (
+    <FeedCard
+      key={it.id}
+      item={it}
+      onAction={onAction}
+      showClient={showClient}
+      onScopeClient={onScopeClient}
+      members={members}
+      selected={selectedIds.includes(it.id)}
+      onToggleSelect={toggleSelect}
+      autoExpand={focusAlertId === it.id}
+      onAutoExpanded={onFocused}
+    />
+  );
+
+  if (!shouldVirtualize) {
+    return <div className="feed">{items.map(card)}</div>;
+  }
+
+  return (
+    <div
+      ref={parentRef}
+      className="feed feed-virtual"
+      tabIndex={0}
+      role="group"
+      aria-label={`${items.length} alerts loaded — scroll for more`}
+    >
+      <div style={{ height: virtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
+        {virtualizer.getVirtualItems().map((vi) => {
+          const it = items[vi.index]!;
+          return (
+            <div
+              key={it.id}
+              data-index={vi.index}
+              ref={virtualizer.measureElement}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)` }}
+            >
+              {card(it)}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function TrackerFeedPanel({
   clientId,
   clientName,
@@ -1072,21 +1165,18 @@ export function TrackerFeedPanel({
       );
     }
     return (
-      <div className="feed">
-        {items.map((it) => (
-          <FeedCard
-            key={it.id}
-            item={it}
-            onAction={onAction}
-            showClient={global}
-            onScopeClient={onScopeClient}
-            members={members}
-            selected={selectedIds.includes(it.id)}
-            onToggleSelect={toggleSelect}
-            autoExpand={focusAlertId === it.id}
-            onAutoExpanded={onFocused}
-          />
-        ))}
+      <>
+        <FeedItemsList
+          items={items}
+          onAction={onAction}
+          showClient={global}
+          onScopeClient={onScopeClient}
+          members={members}
+          selectedIds={selectedIds}
+          toggleSelect={toggleSelect}
+          focusAlertId={focusAlertId}
+          onFocused={onFocused}
+        />
         {query.hasNextPage && (
           <button
             className="btn"
@@ -1097,7 +1187,7 @@ export function TrackerFeedPanel({
             {query.isFetchingNextPage ? 'Loading…' : 'Load more'}
           </button>
         )}
-      </div>
+      </>
     );
   })();
 

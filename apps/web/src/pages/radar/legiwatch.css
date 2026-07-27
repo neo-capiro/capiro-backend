@@ -267,6 +267,14 @@
 
 .lw-root .feed { display: flex; flex-direction: column; gap: 8px; }
 
+/* P1-18 (Gate E phase c): virtualized feed (>100 loaded items). A real
+   scrollable region (tabIndex, role="group") so a keyboard user can reach
+   off-screen cards via native arrow/Page-key scrolling — mirrors
+   .bcol-scroll's rationale for the board. */
+.lw-root .feed-virtual { max-height: min(1400px, 85vh); overflow-y: auto; position: relative; }
+.lw-root .feed-virtual:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.lw-root .feed-virtual .acard { margin-bottom: 8px; }
+
 .lw-root .feed-layout { display: grid; grid-template-columns: minmax(0,1fr) 292px; gap: 26px; align-items: start; }
 
 .lw-root .feed-main { min-width: 0; }
@@ -469,6 +477,29 @@
 .lw-root .bcol[data-stage='enacted'] .ttl { color: var(--success); }
 
 .lw-root .bcol-empty { font-size: 11.5px; color: var(--ink-4); text-align: center; padding: 20px 8px; font-style: italic; }
+
+/* P1-18 (Gate E phase c): the virtualized scroll region for a column over 50
+   cards. Real tabIndex + role="group" so a keyboard user can focus it and
+   scroll with native arrow/Page keys — see BoardColumnCards' comment on why
+   that matters for a windowed list. */
+.lw-root .bcol-scroll { max-height: min(640px, 70vh); overflow-y: auto; position: relative; }
+.lw-root .bcol-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* P1-18 (phase c, c-3): the board's Table view — a sortable column header
+   button inside .htable's existing <th>. Reuses .htable wholesale; only the
+   header buttons are new. */
+.lw-root .board-table .th-sort {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+.lw-root .board-table tbody tr:hover { background: var(--bg-surface-2); }
 
 .lw-root .bcard { background: var(--bg-surface); border: 1px solid var(--border-1); border-radius: var(--r-md); padding: 11px 12px; margin-top: 8px; cursor: pointer; transition: box-shadow .13s, transform .13s, border-color .13s; }
 
