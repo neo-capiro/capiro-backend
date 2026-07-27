@@ -69,6 +69,19 @@ describe('highPriorityMatches (P0-06 reducer)', () => {
 /** A board harness: real TrackerBoardService, doubles for everything it reads. */
 function boardHarness(topics: CompiledTopicForFit[]) {
   let compiledCalls = 0;
+  // P1-18 (a-6): getTenantBoard no longer calls watchlists.getCompiled — it
+  // batch-reads watchlist/watchlistTopic/watchlistTerm directly and runs
+  // compileWatchlist itself. Mirror `topics` as raw rows so that path produces
+  // the SAME compiled output as the getCompiled-driven getBoard path below.
+  const wlId = `wl:${CLIENT}`;
+  const topicRows = topics.map((t, i) => ({
+    id: `topic-${i}`,
+    watchlistId: wlId,
+    label: t.label,
+    issueArea: t.issueArea,
+    position: t.position ?? 'monitor',
+    priority: t.priority,
+  }));
   const prisma = {
     withTenant: async (_tid: string, fn: (t: unknown) => unknown) =>
       fn({
@@ -88,8 +101,12 @@ function boardHarness(topics: CompiledTopicForFit[]) {
               lastHearingAt: null,
             },
           ],
+          count: async () => 1,
         },
         intelAlert: { findMany: async () => [], groupBy: async () => [] },
+        watchlist: { findMany: async () => [{ clientId: CLIENT, issueAreas: [] }] },
+        watchlistTopic: { findMany: async () => topicRows },
+        watchlistTerm: { findMany: async () => [] },
       }),
   } as never;
   const repo = {
@@ -172,13 +189,20 @@ describe('TrackerBoardService.getBoard — matchedHighPriorityTopics (P0-06)', (
     expect(card.clientId).toBe(CLIENT);
   });
 
-  it('f-6.9 adds NO watchlist read: still exactly one getCompiled per client', async () => {
+  it('f-6.9 getBoard adds NO extra watchlist read: still exactly one getCompiled call', async () => {
     const h = boardHarness([topic('Grid modernization', 'high')]);
     await h.svc.getBoard(TENANT, CLIENT);
     expect(h.compiledCalls()).toBe(1);
+  });
 
-    const t = boardHarness([topic('Grid modernization', 'high')]);
-    await t.svc.getTenantBoard(TENANT);
-    expect(t.compiledCalls()).toBe(1); // one per DISTINCT client, unchanged (P1-18)
+  it('f-6.9b P1-18 (a-6): getTenantBoard no longer calls getCompiled AT ALL — it batch-reads ' +
+    'topics/terms directly (0 calls, not 1-per-client) — and still produces the same matches', async () => {
+    const t = boardHarness([topic('Grid modernization', 'high', 'oppose')]);
+    const { columns } = await t.svc.getTenantBoard(TENANT);
+    const card = columns.flatMap((c) => c.cards).find((c) => c.billId === BILL)!;
+
+    expect(t.compiledCalls()).toBe(0);
+    expect(card.matchedHighPriorityTopics).toEqual(['Grid modernization']);
+    expect(card.matchedPosition).toBe('oppose');
   });
 });

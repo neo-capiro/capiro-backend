@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { App as AntApp } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+} from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
 import './tracker.css';
 // The calm LegiWatch component classes (.bcard/.rcard/.board/.tagrow/.pick-chip …)
@@ -30,6 +36,8 @@ import {
   trackerPaths,
   type AlertPrefsPayload,
   type BillSearchResult,
+  type BoardColumn,
+  type BoardFilters,
   type BoardResponse,
   type RecommendationBill,
   type RecommendationsResponse,
@@ -93,6 +101,40 @@ export function dateVal(s: string | null): number {
   if (!s) return 0;
   const t = Date.parse(s.length === 10 ? `${s}T00:00:00Z` : s);
   return Number.isFinite(t) ? t : 0;
+}
+
+/**
+ * P1-18: merges `useInfiniteQuery`'s loaded pages into one board. Each stage
+ * column accumulates its cards ACROSS pages — a page's tracked bills span all
+ * four stages, not just one, so this cannot be a flatMap the way the feed's
+ * flat list is. `withheld` is recomputed over the CUMULATIVE loaded count
+ * (`total - loadedCount`); a single page's own `withheld` describes only
+ * that one response, not everything loaded so far.
+ */
+export function mergeBoardPages(pages: BoardResponse[]): BoardResponse {
+  if (!pages.length) {
+    return { columns: [], total: 0, hasMore: false, nextCursor: null, withheld: 0 };
+  }
+  const byId = new Map<string, BoardColumn>();
+  for (const page of pages) {
+    for (const col of page.columns) {
+      const existing = byId.get(col.id);
+      if (existing) existing.bills.push(...col.bills);
+      else byId.set(col.id, { ...col, bills: [...col.bills] });
+    }
+  }
+  const columns = [...byId.values()].map((c) => ({ ...c, count: c.bills.length }));
+  const loadedCount = columns.reduce((n, c) => n + c.bills.length, 0);
+  const last = pages[pages.length - 1]!;
+  // Legacy (no `total`): fall back to the loaded count, matching adaptBoard.
+  const total = last.total ?? loadedCount;
+  return {
+    columns,
+    total,
+    hasMore: last.hasMore ?? false,
+    nextCursor: last.nextCursor ?? null,
+    withheld: Math.max(0, total - loadedCount),
+  };
 }
 
 export interface TrackerSurfaceProps {
@@ -195,6 +237,9 @@ export function TrackerSurface({
   const [filter, setFilter] = useState<'all' | 'highfit' | 'highprob'>('all');
   const [menu, setMenu] = useState<string | null>(null);
   const [justLanded, setJustLanded] = useState<string | null>(null);
+  // P1-18 (a-5): server-side board filters. Default {} (off) — intel-api only;
+  // the legacy board ignores these (trackerV2 gates the controls below).
+  const [boardFilters, setBoardFilters] = useState<BoardFilters>({});
 
   // Recs controls
   const [recSort, setRecSort] = useState<'relevance' | 'probability' | 'newest'>('relevance');
@@ -247,14 +292,24 @@ export function TrackerSurface({
   };
 
   // ── Queries ──────────────────────────────────────────────────────────────
-  const boardQuery = useQuery<BoardResponse>({
-    queryKey: trackerKeys.board(clientId),
-    queryFn: async () =>
+  // P1-18: the board is keyset-paginated (intel-api path only — the legacy
+  // path ignores pageParam/filters and always returns its one unbounded page,
+  // which getNextPageParam then correctly reports as having no next page).
+  const boardQuery = useInfiniteQuery({
+    queryKey: [...trackerKeys.board(clientId), boardFilters],
+    queryFn: async ({ pageParam }: { pageParam: string }) =>
       trackerV2
-        ? adaptBoard((await api.get<IntelBoard>(intelTrackerPaths.board(clientId))).data)
+        ? adaptBoard(
+            (await api.get<IntelBoard>(intelTrackerPaths.board(clientId, pageParam || undefined, boardFilters)))
+              .data,
+          )
         : (await api.get<BoardResponse>(trackerPaths.board(clientId))).data,
+    initialPageParam: '',
+    getNextPageParam: (last: BoardResponse) =>
+      last.hasMore && last.nextCursor ? last.nextCursor : undefined,
     enabled: flagsReady,
   });
+  const board = useMemo(() => mergeBoardPages(boardQuery.data?.pages ?? []), [boardQuery.data]);
   const recsQuery = useQuery<RecommendationsResponse>({
     queryKey: trackerKeys.recommendations(clientId),
     queryFn: async () =>
@@ -327,7 +382,6 @@ export function TrackerSurface({
     [watchlistQuery.data],
   );
 
-  const board = boardQuery.data;
   const recs = recsQuery.data;
   const boardCount = board?.total ?? 0;
   const aboveFloorCount = recs?.aboveFloorCount ?? 0;
@@ -378,17 +432,25 @@ export function TrackerSurface({
         ? (await api.post(intelTrackerPaths.untrack(clientId), { billId })).data
         : (await api.delete(trackerPaths.untrack(clientId, billId))).data,
     onMutate: (billId) => {
-      qc.setQueryData<BoardResponse>(trackerKeys.board(clientId), (prev) =>
-        prev
-          ? {
-              total: Math.max(0, prev.total - 1),
-              columns: prev.columns.map((c) => ({
-                ...c,
-                bills: c.bills.filter((b) => b.billId !== billId),
-                count: c.bills.filter((b) => b.billId !== billId).length,
-              })),
-            }
-          : prev,
+      // P1-18: the board cache is now an InfiniteData<BoardResponse> — patch
+      // EVERY loaded page's columns (and its own `total`), not one flat object.
+      qc.setQueryData<InfiniteData<BoardResponse>>(
+        [...trackerKeys.board(clientId), boardFilters],
+        (prev) =>
+          prev
+            ? {
+                ...prev,
+                pages: prev.pages.map((page) => ({
+                  ...page,
+                  total: Math.max(0, (page.total ?? 0) - 1),
+                  columns: page.columns.map((c) => ({
+                    ...c,
+                    bills: c.bills.filter((b) => b.billId !== billId),
+                    count: c.bills.filter((b) => b.billId !== billId).length,
+                  })),
+                })),
+              }
+            : prev,
       );
     },
     onSuccess: () => invalidateAll(),
@@ -770,7 +832,11 @@ export function TrackerSurface({
       <TrkDropdown
         open={menu === 'b-sort'}
         onToggle={() => setMenu(menu === 'b-sort' ? null : 'b-sort')}
-        label="Sort"
+        // P1-18 (a-7): the board is now paginated, so this sort only reorders
+        // the bills LOADED so far, not the whole board. Per Neo's decision,
+        // labeled honestly rather than moved server-side (which would need a
+        // second key on the keyset cursor for a board most tenants never page).
+        label="Sort loaded bills"
         value={sort}
         onSelect={(v) => {
           setSort(v as typeof sort);
@@ -784,6 +850,34 @@ export function TrackerSurface({
           { v: 'changed', l: 'Recently changed' },
         ]}
       />
+      {/* P1-18 (a-5): server-side filters, intel-api only — default off. A
+          legacy (tracker_v2 off) board would silently no-op on these, so they
+          render only when the flag is on (MASTER §4.1). */}
+      {trackerV2 && (
+        <>
+          <button
+            type="button"
+            className={`btn${boardFilters.changedWithinDays ? ' btn-accent' : ''}`}
+            aria-pressed={!!boardFilters.changedWithinDays}
+            onClick={() =>
+              setBoardFilters((f) => ({
+                ...f,
+                changedWithinDays: f.changedWithinDays ? undefined : 7,
+              }))
+            }
+          >
+            Changed in last 7 days
+          </button>
+          <button
+            type="button"
+            className={`btn${boardFilters.activeOnly ? ' btn-accent' : ''}`}
+            aria-pressed={!!boardFilters.activeOnly}
+            onClick={() => setBoardFilters((f) => ({ ...f, activeOnly: !f.activeOnly }))}
+          >
+            Active only
+          </button>
+        </>
+      )}
       <button className="btn btn-primary" onClick={() => setModal('addBill')}>
         <Icon name="plus" size={13} /> Add bill
       </button>
@@ -988,7 +1082,15 @@ export function TrackerSurface({
           </div>
           <span className="grow" />
           {boardControls}
-          <span className="chip muted">{boardCount} tracked</span>
+          {/* P1-18 (a-4): `withheld` is mandatory to render when > 0 — a bounded
+              board that doesn't say so is less honest than the unbounded one it
+              replaced. */}
+          <span className="chip muted">
+            {boardCount} tracked
+            {(board.withheld ?? 0) > 0
+              ? ` · showing ${boardCount - (board.withheld ?? 0)}`
+              : ''}
+          </span>
         </div>
       )}
 
@@ -1017,46 +1119,61 @@ export function TrackerSurface({
             )}
           </div>
         ) : (
-          <div className="board">
-            {/* P0-06: a filter that legitimately matches nothing used to render as
-                four "Nothing here" columns — indistinguishable from an empty board,
-                which is exactly why the broken High-fit filter went unnoticed. Say
-                which filter is hiding the cards and offer the way out. */}
-            {filter !== 'all' && boardCount > 0 && boardColumns.every((c) => c.bills.length === 0) ? (
-              <div className="trk-col-empty" style={{ gridColumn: '1 / -1' }}>
-                No tracked bills match the “
-                {filter === 'highfit' ? 'High-fit (priority tag)' : 'High passage likelihood (≥70%)'}”
-                filter.{' '}
-                <button className="btn-link" onClick={() => setFilter('all')}>
-                  Show all {boardCount}
-                </button>
-              </div>
-            ) : (
-              boardColumns.map((col) => (
-                <div key={col.id} className="bcol" data-stage={col.id}>
-                  <div className="bcol-head">
-                    <span className="sq" />
-                    <span className="ttl">{col.label}</span>
-                    <span className="ct num">{col.bills.length}</span>
-                  </div>
-                  {col.bills.length === 0 ? (
-                    <div className="bcol-empty">Nothing here</div>
-                  ) : (
-                    col.bills.map((b) => (
-                      <BillCard
-                        key={b.billId}
-                        bill={b}
-                        issueSet={issueSet}
-                        justLanded={justLanded === b.billId}
-                        onUntrack={(id) => untrackMutation.mutate(id)}
-                        onOpen={(bb) => openBoardBill(bb.billId, bb.unread)}
-                      />
-                    ))
-                  )}
+          <>
+            <div className="board">
+              {/* P0-06: a filter that legitimately matches nothing used to render as
+                  four "Nothing here" columns — indistinguishable from an empty board,
+                  which is exactly why the broken High-fit filter went unnoticed. Say
+                  which filter is hiding the cards and offer the way out. */}
+              {filter !== 'all' && boardCount > 0 && boardColumns.every((c) => c.bills.length === 0) ? (
+                <div className="trk-col-empty" style={{ gridColumn: '1 / -1' }}>
+                  No tracked bills match the “
+                  {filter === 'highfit' ? 'High-fit (priority tag)' : 'High passage likelihood (≥70%)'}”
+                  filter.{' '}
+                  <button className="btn-link" onClick={() => setFilter('all')}>
+                    Show all {boardCount}
+                  </button>
                 </div>
-              ))
+              ) : (
+                boardColumns.map((col) => (
+                  <div key={col.id} className="bcol" data-stage={col.id}>
+                    <div className="bcol-head">
+                      <span className="sq" />
+                      <span className="ttl">{col.label}</span>
+                      <span className="ct num">{col.bills.length}</span>
+                    </div>
+                    {col.bills.length === 0 ? (
+                      <div className="bcol-empty">Nothing here</div>
+                    ) : (
+                      col.bills.map((b) => (
+                        <BillCard
+                          key={b.billId}
+                          bill={b}
+                          issueSet={issueSet}
+                          justLanded={justLanded === b.billId}
+                          onUntrack={(id) => untrackMutation.mutate(id)}
+                          onOpen={(bb) => openBoardBill(bb.billId, bb.unread)}
+                        />
+                      ))
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+            {/* P1-18 (a-7): Load more when the keyset cursor says more remain. */}
+            {boardQuery.hasNextPage && (
+              <button
+                className="btn"
+                style={{ margin: '10px auto 0', display: 'block' }}
+                disabled={boardQuery.isFetchingNextPage}
+                onClick={() => void boardQuery.fetchNextPage()}
+              >
+                {boardQuery.isFetchingNextPage
+                  ? 'Loading…'
+                  : `Load more (${board.withheld ?? 0} more tracked)`}
+              </button>
             )}
-          </div>
+          </>
         ))}
 
       {/* ===================== CONFIGURE ===================== */}

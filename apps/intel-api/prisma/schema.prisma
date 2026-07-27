@@ -226,6 +226,10 @@ model TrackedBill {
   @@unique([clientId, billId])
   @@index([tenantId, clientId])
   @@index([billId])
+  // P1-18: keyset pagination over the board orders by (trackedAt desc, billId
+  // desc) — tenant-wide (getTenantBoard) and per-client (getBoard).
+  @@index([tenantId, trackedAt])
+  @@index([tenantId, clientId, trackedAt])
   @@map("intel_tracked_bill")
 }
 

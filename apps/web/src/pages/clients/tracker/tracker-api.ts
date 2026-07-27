@@ -63,6 +63,25 @@ export interface BoardColumn {
 export interface BoardResponse {
   columns: BoardColumn[];
   total: number;
+  /**
+   * P1-18 (Gate E phase a). Absent on a legacy (pre-Gate-E) board response —
+   * the web must render with no Load-more and no crash rather than assume it.
+   */
+  nextCursor?: string | null;
+  hasMore?: boolean;
+  /** How many tracked bills this response does NOT contain. Must be rendered
+   *  when > 0 — a bounded board that doesn't say so is less honest than the
+   *  unbounded one it replaced. */
+  withheld?: number;
+}
+
+/** P1-18 (a-5): server-side board filters, all default OFF. */
+export interface BoardFilters {
+  changedWithinDays?: number;
+  activeOnly?: boolean;
+  stages?: BillStage[];
+  /** Tenant (`_all`) board only. */
+  clientIds?: string[];
 }
 
 export interface MatchReason {
