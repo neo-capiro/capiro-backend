@@ -1,8 +1,9 @@
-// getOutreachInsights (W0.1 + W0.6): LDA history must query the client's real
-// LDA registrant id SET (Client.ldaClientIds) — the old code did Number(<uuid>)
-// → NaN and silently returned an empty history — and recentBills must prefer the
-// client's actively tracked bills, falling back to the global recent list only
-// when the client tracks nothing.
+// getOutreachInsights — LDA history (W0.1): must query the client's real LDA
+// registrant id SET (Client.ldaClientIds) — the old code did Number(<uuid>) →
+// NaN and silently returned an empty history.
+//
+// Bill-separation behavior (clientTrackedBills vs suggestedPublicDevelopments)
+// lives in engagement-insights-separation.spec.ts.
 //
 // Follows the engagement-audiences.spec pattern: a real prototype over a stub
 // `prisma` + stub intel deps, so the heavy EngagementService DI graph is skipped.
@@ -19,34 +20,11 @@ const ctx: TenantContext = {
   role: 'standard_user',
 } as TenantContext;
 
-interface BillRow {
-  id: string;
-  billNumber: string;
-  title: string;
-  policyArea: string | null;
-  latestActionText: string | null;
-  latestActionDate: Date | null;
-}
-
-function bill(id: string, extra: Partial<BillRow> = {}): BillRow {
-  return {
-    id,
-    billNumber: id,
-    title: `Title ${id}`,
-    policyArea: null,
-    latestActionText: null,
-    latestActionDate: null,
-    ...extra,
-  };
-}
-
 function serviceWith(opts: {
   client?: { name: string; ldaClientIds: number[] } | null;
   trackedBillRefs?: Array<{ billId: string }>;
   ldaFilings?: Array<{ filingYear: number; issueCodes: string[] }>;
-  congressBills?: BillRow[];
   onLda?: (args: Record<string, unknown>) => void;
-  onCongress?: (args: Record<string, unknown>) => void;
 }): EngagementService {
   const tx = {
     client: { findFirst: async () => opts.client ?? null },
@@ -61,10 +39,7 @@ function serviceWith(opts: {
       },
     },
     congressBill: {
-      findMany: async (args: Record<string, unknown>) => {
-        opts.onCongress?.(args);
-        return opts.congressBills ?? [];
-      },
+      findMany: async () => [],
     },
   };
   const service = Object.create(EngagementService.prototype) as EngagementService;
@@ -127,61 +102,6 @@ describe('getOutreachInsights — LDA history (W0.1)', () => {
     });
 
     expect(ldaCalled).toBe(false);
-    expect(result.clientLdaHistory).toEqual([]);
-  });
-});
-
-describe('getOutreachInsights — recentBills (W0.6)', () => {
-  test('prefers the client tracked bills and preserves their order', async () => {
-    let congressWhere: Record<string, unknown> | undefined;
-    const service = serviceWith({
-      client: { name: 'Aperture', ldaClientIds: [] },
-      trackedBillRefs: [{ billId: '119-hr-2' }, { billId: '119-hr-1' }],
-      // Returned out of order — the method must re-order to the tracked order.
-      congressBills: [bill('119-hr-1'), bill('119-hr-2')],
-      onCongress: (args) => {
-        congressWhere = args.where as Record<string, unknown>;
-      },
-    });
-
-    const result = await service.getOutreachInsights(ctx, {
-      clientId: '33333333-3333-3333-3333-333333333333',
-    });
-
-    // Tracked branch: queried by id, ordered by the trackedBill recency order.
-    expect(congressWhere).toEqual({ id: { in: ['119-hr-2', '119-hr-1'] } });
-    expect(result.recentBills.map((b) => b.id)).toEqual(['119-hr-2', '119-hr-1']);
-  });
-
-  test('falls back to global recent bills when the client tracks nothing', async () => {
-    let congressArgs: Record<string, unknown> | undefined;
-    const service = serviceWith({
-      client: { name: 'Aperture', ldaClientIds: [] },
-      trackedBillRefs: [],
-      congressBills: [bill('g-1'), bill('g-2')],
-      onCongress: (args) => {
-        congressArgs = args;
-      },
-    });
-
-    const result = await service.getOutreachInsights(ctx, {
-      clientId: '44444444-4444-4444-4444-444444444444',
-    });
-
-    // Global branch: most-recently-updated, no id filter.
-    expect(congressArgs?.orderBy).toEqual({ updateDate: 'desc' });
-    expect(congressArgs?.where).toBeUndefined();
-    expect(result.recentBills.map((b) => b.id)).toEqual(['g-1', 'g-2']);
-  });
-
-  test('with no clientId, returns global recent bills and empty LDA history', async () => {
-    const service = serviceWith({
-      congressBills: [bill('g-9')],
-    });
-
-    const result = await service.getOutreachInsights(ctx, {});
-
-    expect(result.recentBills.map((b) => b.id)).toEqual(['g-9']);
     expect(result.clientLdaHistory).toEqual([]);
   });
 });

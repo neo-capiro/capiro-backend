@@ -275,6 +275,16 @@ export interface WizardV2State {
    * banner. null = nothing generated yet (no banner).
    */
   generatedInputSig: string | null;
+  /**
+   * Phase 2 §3.g — recipient-collision acknowledgement. Only "Keep all
+   * messages" needs persisting: "Remove …"/"Merge …" choices mutate `targets`
+   * directly, which makes the collision disappear on its own. `fingerprint`
+   * is collisionsFingerprint() of the collision set this was acknowledged
+   * against (see targets.ts) — any target change that alters the collision
+   * set invalidates it, so Send re-checks against the CURRENT fingerprint,
+   * never a stale one. null = nothing acknowledged yet.
+   */
+  collisionResolution: { fingerprint: string; keepAllEmails: string[] } | null;
 }
 
 export const INITIAL_V2_STATE: WizardV2State = {
@@ -290,6 +300,7 @@ export const INITIAL_V2_STATE: WizardV2State = {
   selectedGenerationKey: null,
   attachmentIds: [],
   generatedInputSig: null,
+  collisionResolution: null,
 };
 
 export const WIZARD_STEPS = [

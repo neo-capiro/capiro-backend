@@ -82,6 +82,16 @@ interface Props {
   selected: SelectedContextItem[];
   onChange: (next: SelectedContextItem[]) => void;
   pool: Record<ContextKind, ContextPoolItem[]>;
+  /**
+   * Phase 2 §3.i — general legislative activity, kept separate from
+   * `pool.bill` (the client's own tracked bills) so it can never be mistaken
+   * for something relevant to the selected client. Rendered as its own
+   * labeled section on the Bills tab; selection is explicit, same as any
+   * other pool item.
+   */
+  discoveryBills?: ContextPoolItem[];
+  /** Whether a client is currently selected — drives the Bills empty-state copy. */
+  hasClient?: boolean;
   loading?: boolean;
 }
 
@@ -135,7 +145,16 @@ function individualSub(r: OutreachRecipient): string {
   return r.office || r.state || r.title || r.email || '';
 }
 
-export function StepContext({ recipients, targets, selected, onChange, pool, loading }: Props) {
+export function StepContext({
+  recipients,
+  targets,
+  selected,
+  onChange,
+  pool,
+  discoveryBills,
+  hasClient,
+  loading,
+}: Props) {
   const api = useApi();
   const [tab, setTab] = useState<ContextKind>('bill');
   const [search, setSearch] = useState('');
@@ -517,8 +536,12 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
               {tab === 'bill' && (
                 <div style={{ padding: '4px 12px 6px', fontSize: 11, color: 'var(--ov2-ink-3)' }}>
                   {billSearchActive
-                    ? 'Searching every tracked bill in Congress.'
-                    : 'Showing this client’s bills. Type to search the full bill database.'}
+                    ? 'Searching every bill in Congress.'
+                    : !hasClient
+                      ? 'Select a client to see their tracked bills, or browse suggested public developments below. Type to search the full bill database.'
+                      : (pool.bill?.length ?? 0) === 0
+                        ? 'This client has no tracked bills available for outreach context.'
+                        : 'Showing this client’s tracked bills. Type to search the full bill database.'}
                 </div>
               )}
               {tab === 'stateBill' && (
@@ -588,43 +611,34 @@ export function StepContext({ recipients, targets, selected, onChange, pool, loa
                           : 'No matches.'}
                   </div>
                 )}
-                {groupedVisible.map((it) => {
-                  const hint = matchHint(it);
-                  return (
-                    <div
-                      key={it.id}
-                      className={'ov2-ctx-item' + (isOn(it.id) ? ' selected' : '')}
-                      onClick={() => toggle(it)}
-                    >
-                      <span className="ov2-ctx-cb">
-                        {isOn(it.id) && (
-                          <svg
-                            width="11"
-                            height="11"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="3"
-                            strokeLinecap="round"
-                          >
-                            <path d="m5 12 5 5L20 7" />
-                          </svg>
-                        )}
-                      </span>
-                      <div>
-                        <div className="title">
-                          {it.title}
-                          {hint && <span className="ov2-ctx-match-hint">→ {hint}</span>}
-                        </div>
-                        <div className="sub">
-                          {it.tag && <span className="tag">{it.tag}</span>}
-                          {it.sub && <span>{it.sub}</span>}
-                        </div>
-                        {it.body && <div className="body">{it.body}</div>}
-                      </div>
-                    </div>
-                  );
-                })}
+                {groupedVisible.map((it) => (
+                  <PoolRow
+                    key={it.id}
+                    item={it}
+                    selectedOn={isOn(it.id)}
+                    hint={matchHint(it)}
+                    onToggle={() => toggle(it)}
+                  />
+                ))}
+
+                {/* Phase 2 §3.i — general legislative activity, kept visibly
+                    separate from the client's own tracked bills above so it can
+                    never be mistaken for something relevant to this client.
+                    Same explicit click-to-add interaction; never pre-selected. */}
+                {tab === 'bill' && !billSearchActive && (discoveryBills?.length ?? 0) > 0 && (
+                  <>
+                    <div className="ov2-ctx-list-section-head">Suggested public developments</div>
+                    {discoveryBills!.map((it) => (
+                      <PoolRow
+                        key={it.id}
+                        item={it}
+                        selectedOn={isOn(it.id)}
+                        hint={matchHint(it)}
+                        onToggle={() => toggle(it)}
+                      />
+                    ))}
+                  </>
+                )}
               </div>
             </>
           )}
@@ -904,6 +918,53 @@ function ScopeSelect({
           {options.groups.map((o) => renderOpt(o, 'group', <TeamOutlined />))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------- Pool browse row ----------------
+
+/** One clickable row in the left-hand pool browser (shared by the main list
+ *  and the Phase 2 §3.i "Suggested public developments" section). */
+function PoolRow({
+  item,
+  selectedOn,
+  hint,
+  onToggle,
+}: {
+  item: ContextPoolItem;
+  selectedOn: boolean;
+  hint: string | null;
+  onToggle: () => void;
+}) {
+  return (
+    <div className={'ov2-ctx-item' + (selectedOn ? ' selected' : '')} onClick={onToggle}>
+      <span className="ov2-ctx-cb">
+        {selectedOn && (
+          <svg
+            width="11"
+            height="11"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+          >
+            <path d="m5 12 5 5L20 7" />
+          </svg>
+        )}
+      </span>
+      <div>
+        <div className="title">
+          {item.title}
+          {hint && <span className="ov2-ctx-match-hint">→ {hint}</span>}
+        </div>
+        <div className="sub">
+          {item.tag && <span className="tag">{item.tag}</span>}
+          {item.sub && <span>{item.sub}</span>}
+        </div>
+        {item.body && <div className="body">{item.body}</div>}
+      </div>
     </div>
   );
 }

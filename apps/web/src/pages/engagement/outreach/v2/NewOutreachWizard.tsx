@@ -143,16 +143,24 @@ interface Props {
   initialDraftId?: string | null;
 }
 
+interface InsightsBillRow {
+  id: string;
+  billNumber: string;
+  title: string;
+  policyArea: string | null;
+  status: string | null;
+  latestAction: string | null;
+}
 interface InsightsResponse {
   clientName?: string | null;
-  recentBills?: Array<{
-    id: string;
-    billNumber: string;
-    title: string;
-    policyArea: string | null;
-    status: string | null;
-    latestAction: string | null;
-  }>;
+  // Phase 2 §3.i — ONLY the selected client's own tracked bills. Empty when the
+  // client tracks nothing; never filled with unrelated global bills.
+  clientTrackedBills?: InsightsBillRow[];
+  // Separate, honestly-labeled global discovery feed — always present,
+  // independent of clientTrackedBills, never auto-selected as context.
+  suggestedPublicDevelopments?: Array<
+    InsightsBillRow & { relevanceReason: string; sourceDate: string | null }
+  >;
   clientLdaHistory?: Array<{ year: number; filingCount: number; issueAreas: string[] }>;
   // Client-profile intelligence the endpoint already returns; surfaced in the
   // Intel tab so it isn't empty when the client has no LDA filings.
@@ -499,6 +507,17 @@ export function NewOutreachWizard({
       generatedEmails:
         Object.keys(generatedEmails).length > 0 ? generatedEmails : prev.generatedEmails,
       attachmentIds: attachmentIds.length > 0 ? attachmentIds : prev.attachmentIds,
+      // Phase 2 §3.g — resume a prior "keep all" acknowledgement verbatim; it's
+      // re-validated against the CURRENT fingerprint at Send time regardless
+      // (a target edited since this save invalidates it naturally).
+      collisionResolution:
+        metadata.collisionResolution &&
+        typeof metadata.collisionResolution === 'object' &&
+        typeof (metadata.collisionResolution as { fingerprint?: unknown }).fingerprint ===
+          'string' &&
+        Array.isArray((metadata.collisionResolution as { keepAllEmails?: unknown }).keepAllEmails)
+          ? (metadata.collisionResolution as WizardV2State['collisionResolution'])
+          : prev.collisionResolution,
       // Stamp the restored context signature so resumed drafts aren't instantly
       // flagged stale (they were generated against this exact context).
       generatedInputSig:
@@ -673,8 +692,10 @@ export function NewOutreachWizard({
     out.debrief = mapLib('debrief', lib?.debriefs);
     out.prep = mapLib('prep', lib?.preps);
 
-    // Bills come from /outreach/insights → recentBills.
-    for (const b of insightsQuery.data?.recentBills ?? []) {
+    // Bills come from /outreach/insights → clientTrackedBills. Phase 2 §3.i:
+    // this is ONLY the client's own tracked bills, never backfilled with global
+    // activity — see discoveryBills below for the separate, labeled feed.
+    for (const b of insightsQuery.data?.clientTrackedBills ?? []) {
       out.bill.push({
         id: `bill-${b.id}`,
         kind: 'bill',
@@ -762,6 +783,22 @@ export function NewOutreachWizard({
 
     return out;
   }, [insightsQuery.data, mailQuery.data, contextLibraryQuery.data, peWatchlistQuery.data]);
+
+  // Phase 2 §3.i — general legislative activity, kept OUT of `pool.bill` and
+  // rendered as its own labeled section so it can never be mistaken for
+  // something selected because of this client. Never auto-added to `selected`.
+  const discoveryBills: ContextPoolItem[] = useMemo(
+    () =>
+      (insightsQuery.data?.suggestedPublicDevelopments ?? []).map((b) => ({
+        id: `bill-${b.id}`,
+        kind: 'bill',
+        title: `${b.billNumber}, ${b.title}`,
+        body: b.latestAction ?? undefined,
+        tag: b.policyArea ?? undefined,
+        sub: [b.relevanceReason, b.sourceDate].filter(Boolean).join(' · '),
+      })),
+    [insightsQuery.data],
+  );
 
   const poolLoading =
     insightsQuery.isLoading ||
@@ -1549,6 +1586,9 @@ export function NewOutreachWizard({
         contextItems: snapshot.contextItems,
         attachmentIds: snapshot.attachmentIds,
         targets: snapshot.targets,
+        // Phase 2 §3.g — "keep all" acknowledgement, tied to the collision-set
+        // fingerprint it was given against (see collisionsFingerprint).
+        collisionResolution: snapshot.collisionResolution,
       },
     };
   };
@@ -1650,6 +1690,9 @@ export function NewOutreachWizard({
           // Individual/List/Group targets (incl. their Cc/Bcc). The flat
           // `recipients` above is its legacy projection (flattenTargets).
           targets: state.targets,
+          // Phase 2 §3.g — "keep all" acknowledgement, tied to the collision-set
+          // fingerprint it was given against (see collisionsFingerprint).
+          collisionResolution: state.collisionResolution,
         },
       };
       if (draftId) {
@@ -2082,6 +2125,10 @@ export function NewOutreachWizard({
                   };
                 })
               }
+              collisionResolution={state.collisionResolution}
+              onCollisionResolutionChange={(next) =>
+                setState((p) => ({ ...p, collisionResolution: next }))
+              }
             />
           )}
 
@@ -2092,6 +2139,8 @@ export function NewOutreachWizard({
               selected={state.contextItems}
               onChange={(items) => setState((p) => ({ ...p, contextItems: items }))}
               pool={pool}
+              discoveryBills={discoveryBills}
+              hasClient={Boolean(state.clientId)}
               loading={poolLoading}
             />
           )}

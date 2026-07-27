@@ -1526,3 +1526,85 @@
   align-items: center;
   gap: 6px;
 }
+
+/* ---- Recipient collisions (Phase 2 §3.g) ---- */
+.ov2-collision-panel {
+  margin: 4px 0 14px;
+  border: 1px solid rgba(217, 130, 20, 0.35);
+  border-radius: var(--ov2-r-md);
+  background: rgba(217, 130, 20, 0.06);
+  overflow: hidden;
+}
+.ov2-collision-head {
+  padding: 10px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ov2-collision-head-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ov2-notable);
+}
+.ov2-collision-head-sub {
+  font-size: 11.5px;
+  color: var(--ov2-ink-3);
+}
+.ov2-collision-item {
+  padding: 10px 14px;
+  border-top: 1px solid rgba(217, 130, 20, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ov2-collision-item.resolved {
+  opacity: 0.55;
+}
+.ov2-collision-item-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.ov2-collision-email {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ov2-ink-1);
+}
+.ov2-collision-desc {
+  font-size: 11.5px;
+  color: var(--ov2-ink-3);
+}
+.ov2-collision-flag {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(217, 130, 20, 0.16);
+  color: var(--ov2-notable);
+}
+.ov2-collision-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ov2-collision-btn {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--ov2-r-sm, 5px);
+  border: 1px solid var(--ov2-border-2);
+  background: var(--ov2-bg-surface-1, #fff);
+  color: var(--ov2-ink-2);
+  cursor: pointer;
+}
+.ov2-collision-btn:hover {
+  background: var(--ov2-bg-surface-2);
+}
+.ov2-collision-btn.active {
+  background: var(--ov2-accent);
+  border-color: var(--ov2-accent);
+  color: #fff;
+}

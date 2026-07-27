@@ -3057,9 +3057,17 @@ export class EngagementService {
       status: b.latestActionDate ? b.latestActionDate.toISOString().slice(0, 10) : null,
       latestAction: b.latestActionText ?? null,
     });
+    // Phase 2 §3.i — general legislative activity, honestly labeled as discovery
+    // (never presented as client-relevant). Distinct from clientTrackedBills:
+    // this is recency-ranked, not relevance-ranked, so the reason string never
+    // claims relevance to the selected client.
+    const toSuggestedDevelopment = (b: BillRow) => ({
+      ...toRecentBill(b),
+      relevanceReason: 'Recently active in Congress',
+      sourceDate: b.latestActionDate ? b.latestActionDate.toISOString().slice(0, 10) : null,
+    });
     // congress_bill is a GLOBAL (non-RLS) table, read directly like elsewhere in
-    // this method; the 10 most-recently-updated bills are the tenant-agnostic
-    // fallback used only when the client tracks nothing of its own.
+    // this method; the 10 most-recently-updated bills back the discovery feed.
     const recentGlobalBills = (): Promise<BillRow[]> =>
       this.prisma.congressBill.findMany({
         orderBy: { updateDate: 'desc' },
@@ -3069,7 +3077,11 @@ export class EngagementService {
 
     let clientName: string | null = null;
     let clientLdaHistory: Array<{ year: number; filingCount: number; issueAreas: string[] }> = [];
-    let recentBills: Array<ReturnType<typeof toRecentBill>> = [];
+    // Phase 2 §3.i — ONLY the client's own tracked bills. Empty means empty: the
+    // old code filled this with unrelated global bills whenever a client tracked
+    // nothing, which made general activity look client-relevant. See
+    // suggestedPublicDevelopments below for the (honestly labeled) global feed.
+    let clientTrackedBills: Array<ReturnType<typeof toRecentBill>> = [];
 
     if (clientId) {
       // A Capiro client maps to a SET of LDA registrant ids (client.ldaClientIds);
@@ -3114,21 +3126,15 @@ export class EngagementService {
           : Promise.resolve([] as BillRow[]),
       ]);
 
-      if (trackedBills.length) {
-        // Preserve the tracked-bill recency order (trackedBillIds is ordered by
-        // updatedAt desc; congressBill.findMany order is not guaranteed).
-        const byId = new Map(trackedBills.map((b) => [b.id, b]));
-        recentBills = trackedBillIds
-          .map((id) => byId.get(id))
-          .filter((b): b is BillRow => Boolean(b))
-          .map(toRecentBill);
-      } else {
-        // Fall back to global recent bills whenever the client has no RESOLVED
-        // tracked bills — this covers both "tracks nothing" and "tracks bills
-        // whose ids aren't in congress_bill yet" (fetched only on this path so
-        // the common tracked case pays no extra query).
-        recentBills = (await recentGlobalBills()).map(toRecentBill);
-      }
+      // Preserve the tracked-bill recency order (trackedBillIds is ordered by
+      // updatedAt desc; congressBill.findMany order is not guaranteed). Stays []
+      // when the client tracks nothing, or tracks only ids not yet resolved in
+      // congress_bill — no global fallback (Phase 2 §3.i).
+      const byId = new Map(trackedBills.map((b) => [b.id, b]));
+      clientTrackedBills = trackedBillIds
+        .map((id) => byId.get(id))
+        .filter((b): b is BillRow => Boolean(b))
+        .map(toRecentBill);
 
       const byYear = new Map<number, Set<string>>();
       for (const filing of ldaFilings) {
@@ -3145,18 +3151,22 @@ export class EngagementService {
           filingCount: ldaFilings.filter((f) => f.filingYear === year).length,
           issueAreas: Array.from(areas),
         }));
-    } else {
-      const bills = await recentGlobalBills();
-      recentBills = bills.map(toRecentBill);
     }
+    // No clientId: there is no client to track bills for, so clientTrackedBills
+    // stays []. (Previously this branch filled recentBills with the global list
+    // and the web layer had no way to tell "tracked" from "everyone's recent
+    // activity" apart — see suggestedPublicDevelopments.)
 
-    const [lobbyCtx, spendCtx] = await Promise.all([
+    const [lobbyCtx, spendCtx, suggestedPublicDevelopments] = await Promise.all([
       this.lobbyIntel.getAiContext().catch(() => ({
         surgingIssues: [] as { code: string; name: string; surgePct: number | null }[],
         trendingTopics: [] as { word: string; growthPct: number | null }[],
         latestQuarter: null as string | null,
       })),
       this.federalSpending.getAiContext(clientName),
+      // Phase 2 §3.i — always available, independent of tracked-bill status, so
+      // a client with tracked bills can still see general discovery to add.
+      recentGlobalBills().then((bills) => bills.map(toSuggestedDevelopment)),
     ]);
 
     return {
@@ -3165,7 +3175,8 @@ export class EngagementService {
       latestQuarter: lobbyCtx.latestQuarter,
       clientSpending: spendCtx.matchedContractor,
       topAgencies: spendCtx.topAgencyTotals.slice(0, 5),
-      recentBills,
+      clientTrackedBills,
+      suggestedPublicDevelopments,
       clientLdaHistory,
       suggestedTalkingPoints: null as string[] | null,
     };
