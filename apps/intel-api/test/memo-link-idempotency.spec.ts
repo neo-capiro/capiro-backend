@@ -272,3 +272,79 @@ describe('ActionItemService.reconcileOrphanMemoLinks (P1-14)', () => {
     expect(rows).toHaveLength(0);
   });
 });
+
+/**
+ * MP-13/H-5: the Feed's "Review history" button needs the memo's latest
+ * review_request id to deep-link instead of landing on the bare queue.
+ * review_request lives in apps/api's schema — this is a raw cross-schema
+ * read, so it gets its own fake `$queryRaw` distinct from
+ * reconcileOrphanMemoLinks's (which stands in for a different table).
+ */
+describe('ActionItemService.summaryForAlerts — attaches reviewRequestId (H-5)', () => {
+  type ActionRow = {
+    id: string;
+    tenantId: string;
+    alertId: string;
+    kind: string;
+    documentAttachmentId: string | null;
+    title: string | null;
+  };
+
+  function makeSummaryPrisma(opts: {
+    actionItems: ActionRow[];
+    reviewRequests: Array<{ subject_id: string; id: string }>;
+  }) {
+    const tx = {
+      intelActionItem: {
+        findMany: async ({ where }: any) =>
+          opts.actionItems.filter(
+            (r) => r.tenantId === where.tenantId && where.alertId.in.includes(r.alertId),
+          ),
+      },
+      $queryRaw: async () => opts.reviewRequests,
+    };
+    const prisma = { withTenant: async (_t: string, cb: (t: unknown) => unknown) => cb(tx) } as never;
+    return prisma;
+  }
+
+  it('attaches the latest review_request id to an alert with a held memo', async () => {
+    const prisma = makeSummaryPrisma({
+      actionItems: [
+        { id: 'ai-1', tenantId: 't1', alertId: 'alert-1', kind: 'memo', documentAttachmentId: null, title: 'Client memo' },
+      ],
+      reviewRequests: [{ subject_id: 'alert-1', id: 'rr-1' }],
+    });
+    const summary = await new ActionItemService(prisma).summaryForAlerts('t1', ['alert-1']);
+
+    expect(summary.get('alert-1')?.memo?.reviewRequestId).toBe('rr-1');
+  });
+
+  it('leaves reviewRequestId unset when the memo was never held for review', async () => {
+    const prisma = makeSummaryPrisma({
+      actionItems: [
+        { id: 'ai-1', tenantId: 't1', alertId: 'alert-1', kind: 'memo', documentAttachmentId: 'att-1', title: 'Client memo' },
+      ],
+      reviewRequests: [], // filed straight through — no hold, no review_request row
+    });
+    const summary = await new ActionItemService(prisma).summaryForAlerts('t1', ['alert-1']);
+
+    expect(summary.get('alert-1')?.memo?.reviewRequestId).toBeUndefined();
+  });
+
+  it('never queries review_request for alerts with no memo at all', async () => {
+    let queried = false;
+    const tx = {
+      intelActionItem: { findMany: async () => [] },
+      $queryRaw: async () => {
+        queried = true;
+        return [];
+      },
+    };
+    const prisma = { withTenant: async (_t: string, cb: (t: unknown) => unknown) => cb(tx) } as never;
+
+    const summary = await new ActionItemService(prisma).summaryForAlerts('t1', ['alert-1']);
+
+    expect(summary.get('alert-1')).toEqual({ inReport: false, talkingPoints: 0 });
+    expect(queried).toBe(false);
+  });
+});

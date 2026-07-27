@@ -221,11 +221,15 @@ const WORK_STATE_LABEL: Record<string, string> = {
   dismissed: 'Dismissed',
 };
 
-/** Display name for an assignee id, from the tenant roster. */
+/**
+ * Display name for an assignee id, from the tenant roster.
+ * MP-15/H-8: a departed member's id no longer appears in the roster — render
+ * "Former member", never the raw id (edge case: removed user).
+ */
 function memberName(members: TeamMemberOption[], userId: string | null): string | null {
   if (!userId) return null;
   const m = members.find((x) => x.userId === userId);
-  if (!m) return userId;
+  if (!m) return 'Former member';
   const full = [m.firstName, m.lastName].filter(Boolean).join(' ').trim();
   return full || m.email;
 }
@@ -649,7 +653,13 @@ function FeedCard({
               >
                 <Ic n="spark" /> Edit in Workspace
               </button>
-              <button className="btn sm btn-ghost" onClick={() => navigate('/reviews')}>
+              <button
+                className="btn sm btn-ghost"
+                onClick={() => {
+                  const reviewId = item.actions?.memo?.reviewRequestId;
+                  navigate(reviewId ? `/reviews?id=${encodeURIComponent(reviewId)}` : '/reviews');
+                }}
+              >
                 <Ic n="check" /> Review history
               </button>
             </div>

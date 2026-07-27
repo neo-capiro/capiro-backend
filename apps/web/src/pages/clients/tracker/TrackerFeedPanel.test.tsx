@@ -330,7 +330,7 @@ describe('P1-11 — internal instrumentation is out of the analyst view', () => 
     expect(screen.queryByText('Wrong Name — must never render')).toBeNull();
   });
 
-  test('an assigned owner with no matching roster row renders the raw id, never blank or "undefined" (edge case)', async () => {
+  test('an assigned owner with no matching roster row renders "Former member", never the raw id, blank, or "undefined" (H-8)', async () => {
     mockApi([
       feedItem({
         workState: { state: 'assigned', assignedTo: 'user-99', snoozedUntil: null, note: null },
@@ -338,7 +338,8 @@ describe('P1-11 — internal instrumentation is out of the analyst view', () => 
     ]);
     renderPanel();
     fireEvent.click(await screen.findByText(/Rule failed on the floor/));
-    expect(await screen.findByText('user-99')).toBeInTheDocument();
+    expect(await screen.findByText('Former member')).toBeInTheDocument();
+    expect(screen.queryByText('user-99')).toBeNull();
   });
 
   test('unassigned renders "Unassigned", never an empty string', async () => {
@@ -614,6 +615,67 @@ describe('P2-05 — Open memo lands on the specific attachment (Gate H phase b)'
       expect(text).toContain('tab=documents');
     });
     expect(screen.getByTestId('location-probe').textContent ?? '').not.toContain('attachmentId');
+  });
+});
+
+/** MP-13 / H-5: Review history must land on the specific review request when one exists. */
+describe('P2-05 — Review history lands on the specific review request (H-5)', () => {
+  function renderPanelWithLocationProbe() {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <AntApp>
+            <TrackerFeedPanel clientId="c1" clientName="Acme Aerospace" />
+            <Routes>
+              <Route path="*" element={<LocationProbe />} />
+            </Routes>
+          </AntApp>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  test('navigates with ?id= when the memo has a review request', async () => {
+    mockApi([
+      feedItem({
+        actions: {
+          inReport: false,
+          talkingPoints: 0,
+          memo: { documentAttachmentId: 'att-9', title: 'Client memo', reviewRequestId: 'rr-1' },
+        },
+      }),
+    ]);
+    renderPanelWithLocationProbe();
+    fireEvent.click(await screen.findByText(/Rule failed on the floor/));
+    fireEvent.click(await screen.findByRole('button', { name: /Review history/ }));
+
+    await waitFor(() => {
+      const text = screen.getByTestId('location-probe').textContent ?? '';
+      expect(text).toContain('/reviews');
+      expect(text).toContain('id=rr-1');
+    });
+  });
+
+  test('navigates to the bare queue when the memo was never held for review', async () => {
+    mockApi([
+      feedItem({
+        actions: {
+          inReport: false,
+          talkingPoints: 0,
+          memo: { documentAttachmentId: 'att-9', title: 'Client memo', reviewRequestId: null },
+        },
+      }),
+    ]);
+    renderPanelWithLocationProbe();
+    fireEvent.click(await screen.findByText(/Rule failed on the floor/));
+    fireEvent.click(await screen.findByRole('button', { name: /Review history/ }));
+
+    await waitFor(() => {
+      const text = screen.getByTestId('location-probe').textContent ?? '';
+      expect(text).toContain('/reviews');
+    });
+    expect(screen.getByTestId('location-probe').textContent ?? '').not.toContain('id=');
   });
 });
 
