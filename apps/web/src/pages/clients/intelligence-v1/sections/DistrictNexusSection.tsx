@@ -213,9 +213,13 @@ function DistrictNexusSectionV2({ clientId, onUnavailable }: DistrictNexusSectio
     }
     if (linkage.assistanceLinked && linkage.ueiConfirmedCount === 0) {
       gaps.push({
-        text: 'The confirmed assistance mapping has no UEI, so grant awards cannot be matched to it.',
+        // The backend DOES fall back to a lower-confidence recipient-name match
+        // (district-nexus.service.ts aggregateAssistance), so "cannot be matched"
+        // was wrong. Name-matched awards are real and are labelled `inferred` in
+        // the evidence table and discounted in the score.
+        text: 'No verified UEI is attached to the confirmed assistance mapping. Grant awards may still be matched by recipient name, and those are labelled inferred and earn reduced score credit.',
         to: '/settings/intelligence-mappings?source=assistance_recipient',
-        linkText: 'Review the mapping →',
+        linkText: 'Add a UEI to the mapping →',
       });
     }
     if (fp.facilityCount === 0) {

@@ -129,6 +129,14 @@ export function DistrictNexusMap({
     };
   }, [geojson.data, byKey, metric]);
 
+  /**
+   * One marker per DISTRICT, at the district centroid, sized by that district's
+   * aggregate employee count. This is deliberately NOT a facility map: the E1
+   * aggregate carries no facility coordinates, and placing a marker at a
+   * centroid while calling it "Client facilities" claimed a precision we do not
+   * have. Rendering real coordinates needs a tenant-scoped facility-points field
+   * on the API — see the plan's §6.
+   */
   const facilityPoints = useMemo(() => {
     if (!geojson.data) return { type: 'FeatureCollection' as const, features: [] };
     const features = geojson.data.features
@@ -329,7 +337,7 @@ export function DistrictNexusMap({
           placement="bottomRight"
           content={
             <Checkbox checked={showFacilities} onChange={(e) => onShowFacilitiesChange(e.target.checked)}>
-              Client facilities
+              Districts with client facilities
             </Checkbox>
           }
         >
@@ -359,7 +367,7 @@ export function DistrictNexusMap({
             {showFacilities ? (
               <div className="dn-ex-row">
                 <span className="dn-sw" style={{ borderRadius: '50%', width: 11, background: '#fff', border: '2px solid #1a3f9f' }} />
-                Client facilities (district centroid)
+                Districts with client facilities · sized by employees
               </div>
             ) : null}
           </div>
