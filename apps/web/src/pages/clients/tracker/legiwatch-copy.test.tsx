@@ -161,6 +161,8 @@ describe('RecCard dismiss action copy (Gate E phase e, §4.10 honesty half)', ()
         onTrack={() => {}}
         onDismiss={() => {}}
         onOpen={() => {}}
+        dismissOpen={false}
+        onToggleDismiss={() => {}}
       />,
     );
     const dismissBtn = screen.getByRole('button', { name: /Hide this bill/i });

@@ -52,6 +52,10 @@ export const TAG_PRIORITIES = ['low', 'med', 'high'] as const;
 const BOARD_STAGE_IDS = BILL_STAGES.map((s) => s.id);
 // Derived from ALLOWED_FEEDBACK_SIGNALS (tracker-board.service.ts) — the actual
 // runtime allowlist, not the smaller set the finding's own writeup guessed.
+// Gate E phase f (§4.10) added memo_generated/memo_heavily_edited/
+// outreach_generated/alert_ignored — each fired from an existing success
+// handler, never a new table. Deliberately NOT added: false_positive/
+// missed_alert have no UI to report them, and an unreachable signal is noise.
 export const FEEDBACK_SIGNALS = [
   'useful',
   'not_useful',
@@ -63,6 +67,25 @@ export const FEEDBACK_SIGNALS = [
   'dismissed',
   'marked_irrelevant',
   'opened',
+  'memo_generated',
+  'memo_heavily_edited',
+  'outreach_generated',
+  'alert_ignored',
+] as const;
+
+/**
+ * §4.10 (Gate E phase f): the five structured dismiss reasons the picker
+ * offers, plus the implicit "no reason given" (omit the field — Just hide
+ * it). Only `too_broad` and `wrong_issue` are MATCH-QUALITY signals that
+ * feed scoreBillFit's down-weighting (bill-fit.util.ts) — `already_handled`
+ * says nothing about whether the topic over-matches (f-4/f-7 case 6).
+ */
+export const FEEDBACK_REASONS = [
+  'wrong_issue',
+  'wrong_entity',
+  'too_broad',
+  'already_handled',
+  'not_actionable',
 ] as const;
 
 export class BillSearchQueryDto {
@@ -199,6 +222,23 @@ export class RecordFeedbackDto {
   @IsString()
   @MaxLength(128)
   alertId?: string | null;
+
+  /** §4.10 (Gate E phase f): structured dismiss reason — only meaningful
+   *  alongside signal='marked_irrelevant'; the service does not enforce that
+   *  pairing (a reason on another signal is simply ignored downstream). */
+  @IsOptional()
+  @IsIn(FEEDBACK_REASONS as unknown as string[])
+  reason?: string;
+
+  /** §4.10 (Gate E phase f): the watchlist topic labels this bill matched at
+   *  dismissal time (the web already has them, RecommendationBill.matchedTags)
+   *  — this is the link feedbackSignal aggregates by. */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(120, { each: true })
+  @ArrayMaxSize(20)
+  matchedTags?: string[];
 }
 
 /**

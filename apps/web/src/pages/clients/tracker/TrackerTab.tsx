@@ -518,11 +518,24 @@ export function TrackerSurface({
   });
 
   const dismissMutation = useMutation({
-    mutationFn: async (billId: string) =>
+    // f-1: `reason`/`matchedTags` are the structured dismiss-reason picker's
+    // payload — only meaningful (and only accepted by the DTO) on the
+    // intel-api path. The legacy apps/api endpoint's ValidationPipe runs
+    // forbidNonWhitelisted, so sending these extra fields there would 400;
+    // that backend predates §4.10 and is out of Gate E's scope.
+    mutationFn: async (vars: { billId: string; reason?: string | null; matchedTags?: string[] }) =>
       trackerV2
-        ? (await api.post(intelTrackerPaths.feedback(clientId), { targetRef: billId, signal: 'marked_irrelevant' })).data
-        : (await api.post(trackerPaths.feedback(clientId), { billId, signal: 'marked_irrelevant' })).data,
-    onMutate: (billId) => {
+        ? (
+            await api.post(intelTrackerPaths.feedback(clientId), {
+              targetRef: vars.billId,
+              signal: 'marked_irrelevant',
+              ...(vars.reason ? { reason: vars.reason } : {}),
+              ...(vars.matchedTags?.length ? { matchedTags: vars.matchedTags } : {}),
+            })
+          ).data
+        : (await api.post(trackerPaths.feedback(clientId), { billId: vars.billId, signal: 'marked_irrelevant' })).data,
+    onMutate: (vars) => {
+      const billId = vars.billId;
       qc.setQueryData<RecommendationsResponse>(trackerKeys.recommendations(clientId), (prev) =>
         prev
           ? {
@@ -1127,8 +1140,14 @@ export function TrackerSurface({
                   selected={selected.has(b.billId)}
                   onToggleSelect={toggleSel}
                   onTrack={trackRec}
-                  onDismiss={(id) => dismissMutation.mutate(id)}
+                  onDismiss={(id, reason, matchedTags) =>
+                    dismissMutation.mutate({ billId: id, reason, matchedTags })
+                  }
                   onOpen={(bb) => drillTo(bb.billId)}
+                  dismissOpen={menu === `dismiss:${b.billId}`}
+                  onToggleDismiss={() =>
+                    setMenu(menu === `dismiss:${b.billId}` ? null : `dismiss:${b.billId}`)
+                  }
                 />
               ))}
             </div>

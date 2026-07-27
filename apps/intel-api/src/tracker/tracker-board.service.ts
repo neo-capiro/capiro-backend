@@ -142,7 +142,11 @@ export interface UpdateBillContextInput {
   expectedConfidence?: string;
   expectedRationale?: string;
 }
-/** Feedback signals the API accepts (mirrors the `intel_feedback.signal` doc set). */
+/**
+ * Feedback signals the API accepts (mirrors the `intel_feedback.signal` doc
+ * set). Kept in exact lockstep with FEEDBACK_SIGNALS (tracker.dto.ts) — that
+ * const is documented as DERIVED from this one.
+ */
 const ALLOWED_FEEDBACK_SIGNALS = new Set([
   'useful',
   'not_useful',
@@ -154,7 +158,14 @@ const ALLOWED_FEEDBACK_SIGNALS = new Set([
   'dismissed',
   'marked_irrelevant',
   'opened',
+  'memo_generated',
+  'memo_heavily_edited',
+  'outreach_generated',
+  'alert_ignored',
 ]);
+/** §4.10 (Gate E phase f): the two dismiss reasons that mean the MATCH was
+ *  over-broad, not just "handled" — see feedbackSignal/scoreBillFit. */
+const MATCH_QUALITY_REASONS = new Set(['too_broad', 'wrong_issue']);
 
 export interface RecommendationItem {
   billId: string;
@@ -476,6 +487,11 @@ export class TrackerBoardService {
     );
     if (!terms.length) return [];
     const congress = currentCongress();
+    // §4.10 (Gate E phase f): per-topic dismissal signal — down-weights a
+    // topic the analyst has repeatedly marked too-broad/wrong-issue. Empty
+    // for a client with no such dismissals, which scores byte-identically to
+    // pre-phase-f (bill-fit.util.ts topicWeight defaults every topic to 1.0).
+    const feedback = await this.feedbackSignal(tenantId, clientId);
 
     // Semantic candidates (best-effort — keyword path still works if Bedrock is down).
     const semantic = new Map<string, number>();
@@ -529,6 +545,7 @@ export class TrackerBoardService {
           issueAreas,
           semantic.get(b.id) ?? 0,
           keywordIds.has(b.id),
+          feedback,
         );
         if (fit.fit <= 0 || fit.belowFloor) continue;
         const stage = billStage(b.latestActionText);
@@ -585,6 +602,7 @@ export class TrackerBoardService {
             issueAreas,
             0,
             true,
+            feedback,
           );
           if (fit.fit < LEGIWATCH_STATE_FIT_FLOOR) continue;
           const stage = this.stateStatusToBoardStage(b.status);
@@ -1428,7 +1446,16 @@ export class TrackerBoardService {
     tenantId: string,
     clientId: string,
     userId: string,
-    input: { targetType?: string; targetRef: string; signal: string; alertId?: string | null },
+    input: {
+      targetType?: string;
+      targetRef: string;
+      signal: string;
+      alertId?: string | null;
+      /** §4.10 (Gate E phase f): structured dismiss reason. */
+      reason?: string | null;
+      /** §4.10 (Gate E phase f): matched topic labels at dismissal time. */
+      matchedTags?: string[];
+    },
   ) {
     // Cross-tenant guard (P1-03/P1-04) — must run before the write below.
     await this.watchlists.assertClientInTenant(tenantId, clientId);
@@ -1446,9 +1473,53 @@ export class TrackerBoardService {
           targetType: input.targetType ?? 'bill',
           targetRef: input.targetRef,
           signal: input.signal,
+          reason: input.reason ?? null,
+          matchedTags: input.matchedTags ?? [],
         },
       }),
     );
     return { ok: true };
+  }
+
+  /**
+   * §4.10 (Gate E phase f): turn dismissals into a MEASURABLE signal instead
+   * of only a per-bill exclusion. Returns per-topic-label dismissal counts by
+   * reason for this client, so scoreBillFit can down-weight a topic that
+   * keeps producing wrong-issue matches.
+   *
+   * Forward-only (§6 open decision 3, option (a)): `matchedTags` is only
+   * populated going forward from this phase's `recordFeedback` change, so a
+   * client with only pre-phase-f dismissals returns an empty map — not
+   * because nothing was dismissed, but because the link did not exist yet.
+   * Re-deriving it retroactively would re-match against the CURRENT
+   * watchlist, which has likely changed since — answering a different
+   * question than "what did the analyst actually see and reject".
+   */
+  async feedbackSignal(
+    tenantId: string,
+    clientId: string,
+  ): Promise<Map<string, { total: number; byReason: Record<string, number> }>> {
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.intelFeedback.findMany({
+        where: {
+          tenantId,
+          clientId,
+          signal: 'marked_irrelevant',
+          matchedTags: { isEmpty: false },
+        },
+        select: { matchedTags: true, reason: true },
+      }),
+    );
+    const out = new Map<string, { total: number; byReason: Record<string, number> }>();
+    for (const row of rows) {
+      const reasonKey = row.reason ?? 'unspecified';
+      for (const label of row.matchedTags) {
+        const entry = out.get(label) ?? { total: 0, byReason: {} };
+        entry.total += 1;
+        entry.byReason[reasonKey] = (entry.byReason[reasonKey] ?? 0) + 1;
+        out.set(label, entry);
+      }
+    }
+    return out;
   }
 }

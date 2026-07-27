@@ -109,3 +109,91 @@ describe('scoreBillFit', () => {
     expect(r.matchedTags.length).toBe(4);
   });
 });
+
+describe('scoreBillFit — §4.10 (Gate E phase f): feedback parameter', () => {
+  // Isolate ONE plain-keyword, med-priority topic so the feedback multiplier
+  // affects ONLY textMatchWeight — exactEntityWeight, priorityBoostWeight,
+  // subjectMatch, and semantic all stay at 0 (empty issueAreas, semantic=0,
+  // keywordHit=false), so the fit formula reduces to exactly `0.3 * weight`.
+  const feedbackTopic: CompiledTopicForFit[] = [
+    {
+      label: 'permitting',
+      issueArea: null,
+      priority: 'med',
+      keywords: ['permitting'],
+      synonyms: [],
+      entities: [],
+      riskPhrases: [],
+      routableTerms: [labelTerm('permitting', 'med')],
+    },
+  ];
+  const feedbackBill = bill('A permitting reform bill');
+
+  it('f-7 case 4 (byte-identical — the most important test in the phase): feedback absent, an explicit undefined, and an empty Map all produce identical output, across five varied inputs', () => {
+    const check = (
+      b: ReturnType<typeof bill>,
+      t: CompiledTopicForFit[],
+      areas: string[],
+      sem: number,
+      kw: boolean,
+    ) => {
+      const omitted = scoreBillFit(b, t, areas, sem, kw);
+      expect(scoreBillFit(b, t, areas, sem, kw, undefined)).toEqual(omitted);
+      expect(scoreBillFit(b, t, areas, sem, kw, new Map())).toEqual(omitted);
+    };
+    check(bill('A bill to address data center load on the PJM grid', { policyArea: 'Energy' }), topics, issueAreas, 0.7, true);
+    check(bill('A bill about postal rates', { policyArea: 'Government operations' }), topics, issueAreas, 0.5, false);
+    check(bill('A permitting reform Energy bill'), topics, issueAreas, 0.5, false);
+    check(bill('An Environment quality bill'), topics, issueAreas, 0, false);
+    check(bill('Unrelated title'), topics, [], 0.6, true);
+  });
+
+  it("f-7 case 5: 3 too_broad dismissals multiply a topic's contribution by 0.75, 6 by 0.5, 20 stays at the 0.5 floor", () => {
+    const baseline = scoreBillFit(feedbackBill, feedbackTopic, [], 0, false);
+    expect(baseline.fit).toBeCloseTo(0.3, 9); // 0.3 * weight(1.0), nothing else contributes
+
+    const at3 = scoreBillFit(
+      feedbackBill,
+      feedbackTopic,
+      [],
+      0,
+      false,
+      new Map([['permitting', { total: 3, byReason: { too_broad: 3 } }]]),
+    );
+    expect(at3.fit).toBeCloseTo(0.3 * 0.75, 9);
+
+    const at6 = scoreBillFit(
+      feedbackBill,
+      feedbackTopic,
+      [],
+      0,
+      false,
+      new Map([['permitting', { total: 6, byReason: { too_broad: 6 } }]]),
+    );
+    expect(at6.fit).toBeCloseTo(0.3 * 0.5, 9);
+
+    const at20 = scoreBillFit(
+      feedbackBill,
+      feedbackTopic,
+      [],
+      0,
+      false,
+      new Map([['permitting', { total: 20, byReason: { too_broad: 20 } }]]),
+    );
+    expect(at20.fit).toBeCloseTo(0.3 * 0.5, 9); // floor — a topic must stay able to recover
+  });
+
+  it('f-7 case 6: already_handled dismissals do not down-weight a topic (the reason filter is load-bearing)', () => {
+    const baseline = scoreBillFit(feedbackBill, feedbackTopic, [], 0, false);
+    const withAlreadyHandled = scoreBillFit(
+      feedbackBill,
+      feedbackTopic,
+      [],
+      0,
+      false,
+      new Map([['permitting', { total: 3, byReason: { already_handled: 3 } }]]),
+    );
+    expect(withAlreadyHandled.fit).toBeCloseTo(baseline.fit, 9);
+    expect(withAlreadyHandled.fit).toBeCloseTo(0.3, 9);
+  });
+});

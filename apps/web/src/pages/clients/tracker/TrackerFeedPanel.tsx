@@ -19,6 +19,7 @@ import {
   type FeedResponse,
   type RecommendedAction,
 } from './intel-feed-api.js';
+import { intelTrackerPaths } from './intel-tracker-api.js';
 import {
   useAddTalkingPoint,
   useBulkWorkState,
@@ -306,7 +307,20 @@ function FeedCard({
     setWorkState.mutate(
       { clientId: item.clientId, alertId: item.id, ...patch },
       {
-        onSuccess: () => message.success(done),
+        onSuccess: () => {
+          message.success(done);
+          // §4.10 (f-5): Gate D phase e's `dismissed` work state, fired only on
+          // the transition INTO it — best-effort, never blocks the triage UX.
+          if (patch.state === 'dismissed') {
+            void api
+              .post(intelTrackerPaths.feedback(item.clientId), {
+                targetRef: item.id,
+                targetType: 'alert',
+                signal: 'alert_ignored',
+              })
+              .catch(() => {});
+          }
+        },
         onError: (e: unknown) => message.error(`Could not update: ${(e as Error).message}`),
       },
     );
@@ -1066,10 +1080,9 @@ export function TrackerFeedPanel({
       if (!ids.has(it.id)) continue;
       byClient.set(it.clientId, [...(byClient.get(it.clientId) ?? []), it.id]);
     }
+    const groups = [...byClient.entries()];
     void Promise.allSettled(
-      [...byClient.entries()].map(([cid, alertIds]) =>
-        bulkWorkState.mutateAsync({ clientId: cid, alertIds, state }),
-      ),
+      groups.map(([cid, alertIds]) => bulkWorkState.mutateAsync({ clientId: cid, alertIds, state })),
     ).then((results) => {
       let ok = 0;
       let failed = 0;
@@ -1077,6 +1090,21 @@ export function TrackerFeedPanel({
         if (r.status === 'fulfilled') {
           ok += r.value.ok;
           failed += r.value.failed;
+          // §4.10 (f-5): only when the WHOLE group succeeded — the bulk result
+          // is a count, not per-id outcomes, so a partial failure can't tell us
+          // which ids to attribute the signal to. Conservative: skip the group.
+          if (state === 'dismissed' && r.value.failed === 0) {
+            const [cid, alertIds] = groups[i]!;
+            for (const alertId of alertIds) {
+              void api
+                .post(intelTrackerPaths.feedback(cid), {
+                  targetRef: alertId,
+                  targetType: 'alert',
+                  signal: 'alert_ignored',
+                })
+                .catch(() => {});
+            }
+          }
         } else {
           failed += [...byClient.values()][i]?.length ?? 1;
         }

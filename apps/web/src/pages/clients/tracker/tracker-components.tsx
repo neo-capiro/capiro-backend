@@ -26,6 +26,19 @@ export const PASSAGE_LIKELIHOOD_LABEL = 'Estimated passage likelihood';
 export const PASSAGE_LIKELIHOOD_TOOLTIP =
   'Stage-based estimate — derived from the bill’s current stage and latest action date. Not calibrated against historical outcomes.';
 
+/**
+ * §4.10 (Gate E phase f, f-1): mirrors intel-api's `FEEDBACK_REASONS`
+ * (tracker.dto.ts) exactly — duplicated here because that DTO lives in a
+ * backend-only package. Keep both lists in sync if either changes.
+ */
+export const DISMISS_REASONS: Array<{ value: string; label: string }> = [
+  { value: 'wrong_issue', label: 'Wrong issue' },
+  { value: 'wrong_entity', label: 'Wrong entity' },
+  { value: 'too_broad', label: 'Too broad' },
+  { value: 'already_handled', label: 'Already handled' },
+  { value: 'not_actionable', label: 'Not actionable' },
+];
+
 export function PassageBar({ prob }: { prob: number }) {
   const percent = Math.round(prob > 1 ? prob : prob * 100);
   return (
@@ -480,6 +493,8 @@ export function RecCard({
   onTrack,
   onDismiss,
   onOpen,
+  dismissOpen,
+  onToggleDismiss,
 }: {
   bill: RecommendationBill;
   issueSet: Set<string>;
@@ -487,8 +502,16 @@ export function RecCard({
   selected: boolean;
   onToggleSelect: (billId: string) => void;
   onTrack: (billId: string) => void;
-  onDismiss: (billId: string) => void;
+  /** f-1: `reason` is null for "Just hide it" (no reason given). `matchedTags`
+   *  is this card's OWN tags at dismiss time — the link f-3's `feedbackSignal`
+   *  aggregates by (tracker-board.service.ts). */
+  onDismiss: (billId: string, reason: string | null, matchedTags: string[]) => void;
   onOpen: (bill: RecommendationBill) => void;
+  /** f-1: whether THIS card's reason menu is open. Lifted to the parent's
+   *  shared `menu` state (TrackerTab.tsx) so the existing outside-click-close
+   *  effect closes it exactly like every other dropdown on the page. */
+  dismissOpen: boolean;
+  onToggleDismiss: () => void;
 }) {
   // LegiWatch v2 calm re-skin: `.rcard` — a violet-edged card with the big FIT
   // score on the left, the "why it matches" prose, sponsor, and a Track action.
@@ -541,14 +564,40 @@ export function RecCard({
             yet — dismissing only excluded this one bill
             (tracker-board.service.ts recordFeedback), nothing was learned.
             Relabeled honestly; phase f-6 restores "Not relevant" once
-            dismissals actually feed scoreBillFit's weighting. */}
-        <button
-          className="btn btn-ghost sm"
-          onClick={() => onDismiss(bill.billId)}
-          title="Hides this bill from recommendations for this client."
-        >
-          Hide this bill
-        </button>
+            dismissals actually feed scoreBillFit's weighting AND that is
+            verified live (not yet — see the phase f completion report). */}
+        <div className="trk-drop" onClick={(e) => e.stopPropagation()}>
+          <button
+            className="btn btn-ghost sm"
+            onClick={onToggleDismiss}
+            title="Hides this bill from recommendations for this client."
+            aria-haspopup="menu"
+            aria-expanded={dismissOpen}
+          >
+            Hide this bill
+          </button>
+          {dismissOpen && (
+            <div className="trk-menu" role="menu">
+              {DISMISS_REASONS.map((r) => (
+                <div
+                  key={r.value}
+                  className="opt"
+                  role="menuitem"
+                  onClick={() => onDismiss(bill.billId, r.value, bill.matchedTags)}
+                >
+                  {r.label}
+                </div>
+              ))}
+              <div
+                className="opt"
+                role="menuitem"
+                onClick={() => onDismiss(bill.billId, null, bill.matchedTags)}
+              >
+                Just hide it
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -98,21 +98,61 @@ const ENTITY_KIND_TYPES = new Set([
   'legislator',
 ]);
 
+/** §4.10 (Gate E phase f): per-topic dismissal counts, keyed by topic label. */
+export interface TopicFeedback {
+  total: number;
+  byReason: Record<string, number>;
+}
+/** Only these two reasons say the MATCH ITSELF over-matches; `already_handled`
+ *  etc. say nothing about match quality (f-7 case 6) and must not count. */
+const MATCH_QUALITY_REASONS = new Set(['too_broad', 'wrong_issue']);
+
+/**
+ * §4.10: 1.0 below 3 qualifying dismissals, 0.75 at 3-5, 0.5 at 6+ — a FLOOR,
+ * never zero, so a topic can always recover (f-4/f-7 case 5). Absent
+ * feedback (undefined, or no entry for this label) is 1.0 — i.e. identical
+ * to today's unweighted behavior.
+ */
+function topicWeight(feedback: Map<string, TopicFeedback> | undefined, label: string): number {
+  const entry = feedback?.get(label);
+  if (!entry) return 1;
+  const n = MATCH_QUALITY_REASONS_COUNT(entry);
+  if (n >= 6) return 0.5;
+  if (n >= 3) return 0.75;
+  return 1;
+}
+function MATCH_QUALITY_REASONS_COUNT(entry: TopicFeedback): number {
+  let n = 0;
+  for (const reason of MATCH_QUALITY_REASONS) n += entry.byReason[reason] ?? 0;
+  return n;
+}
+
 export function scoreBillFit(
   bill: RelevanceBill,
   topics: CompiledTopicForFit[],
   issueAreas: string[],
   semantic: number,
   keywordHit: boolean,
+  /**
+   * §4.10 (Gate E phase f): per-topic dismissal signal (tracker-board.service
+   * .feedbackSignal). Absent/empty is BYTE-IDENTICAL to pre-phase-f scoring
+   * (f-7 case 4) — every topic's weight defaults to 1.0 either way.
+   */
+  feedback?: Map<string, TopicFeedback>,
 ): BillFit {
   const hay = billHaystack(bill);
   const hayOrig = billHaystackOriginal(bill);
   const matchedTags: string[] = [];
   const reasons: MatchReason[] = [];
-  let exactEntity = false;
-  let textMatch = false;
+  // These were plain booleans/0-1 flags before phase f. Now they track the
+  // MAX weight among contributing topics — with feedback absent, `topicWeight`
+  // always returns 1, so `Math.max(w, 1)` behaves exactly like the old
+  // `= true` / `= 1` assignment (never reset, never re-lowered).
+  let exactEntityWeight = 0;
+  let textMatchWeight = 0;
+  let topicTextMatch = false; // mirrors the OLD `textMatch` boolean exactly, for the keywordHit gate below
   let subjectMatch = false;
-  let priorityBoost = 0;
+  let priorityBoostWeight = 0;
   let topTagLabel: string | null = null;
 
   for (const tp of topics) {
@@ -121,13 +161,15 @@ export function scoreBillFit(
     const matches = matchTerms(bill, tp.routableTerms ?? []);
     if (matches.length) {
       matchedTags.push(tp.label);
-      textMatch = true;
+      topicTextMatch = true;
+      const w = topicWeight(feedback, tp.label);
+      textMatchWeight = Math.max(textMatchWeight, w);
       // Faithful generalization of the old "label or entity term hit" check:
       // a high-confidence (exact_id) match, or a match whose type is
       // inherently entity-like, counts as an exact entity hit.
       const isEntity = matches.some((m) => m.confidence >= 0.9 || ENTITY_KIND_TYPES.has(m.termType));
-      if (isEntity) exactEntity = true;
-      if (tp.priority === 'high') priorityBoost = 1;
+      if (isEntity) exactEntityWeight = Math.max(exactEntityWeight, w);
+      if (tp.priority === 'high') priorityBoostWeight = Math.max(priorityBoostWeight, w);
       if (!topTagLabel) topTagLabel = tp.label;
       const primary = matches[0]!; // matchTerms sorts by weight desc — highest-weight match explains the topic
       reasons.push({
@@ -145,8 +187,8 @@ export function scoreBillFit(
       reasons.push({ kind: 'issue_code', detail: `In your issue area "${area}".` });
     }
   }
-  if (keywordHit && !textMatch) {
-    textMatch = true;
+  if (keywordHit && !topicTextMatch) {
+    textMatchWeight = Math.max(textMatchWeight, 1);
     reasons.push({ kind: 'keyword', detail: "Matches this client's tracked issue areas." });
   }
   if (semantic > 0) {
@@ -159,7 +201,11 @@ export function scoreBillFit(
   }
 
   const fit = clamp01(
-    0.4 * semantic + 0.3 * (textMatch ? 1 : 0) + 0.15 * (exactEntity ? 1 : 0) + 0.1 * (subjectMatch ? 1 : 0) + 0.05 * priorityBoost,
+    0.4 * semantic +
+      0.3 * textMatchWeight +
+      0.15 * exactEntityWeight +
+      0.1 * (subjectMatch ? 1 : 0) +
+      0.05 * priorityBoostWeight,
   );
   const order: MatchReasonKind[] = ['entity', 'keyword', 'issue_code', 'semantic'];
   const primary =
