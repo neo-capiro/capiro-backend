@@ -698,7 +698,13 @@ export function TrackerConfigPanel({
         onSavePrefs({
           triggers: Array.from(triggers),
           materiality,
-          emailEnabled,
+          // MP-04: mirrors the SMS composite guard immediately below — the
+          // toggle can be flipped on before an address is typed, but the
+          // ENABLED value actually sent stays false until there is one, so a
+          // save can never persist emailEnabled:true with no address. The
+          // blocked-save-state message just below the field is the visible
+          // half of this fix.
+          emailEnabled: emailEnabled && !!emailAddress.trim(),
           emailAddress: emailAddress.trim() || null,
           emailCadence,
           smsEnabled: smsEnabled && smsVerified && !!smsPhone,
@@ -1226,6 +1232,14 @@ export function TrackerConfigPanel({
                         onChange={(e) => setEmailAddress(e.target.value)}
                       />
                     </div>
+                    {/* MP-04: the toggle reads "on", but nothing saves as enabled
+                        until an address exists — say so, rather than letting the
+                        UI silently disagree with what was actually persisted. */}
+                    {!emailAddress.trim() && (
+                      <div className="chan-sub" role="alert">
+                        Not saved as enabled — add an address to activate email delivery
+                      </div>
+                    )}
                     <CadenceSeg
                       value={emailCadence}
                       onChange={setEmailCadence}
