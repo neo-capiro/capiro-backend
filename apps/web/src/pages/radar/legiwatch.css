@@ -910,6 +910,56 @@
   .lw-root .ws-editor { grid-template-columns: 1fr; }
 }
 
+/* P2-11 (Gate E phase b): below 1100px the board was permanently TWO columns
+   and never became one, so at 400px it rendered two ~180px columns. 768px and
+   560px behavior added below. Declared AFTER the 1040/900/1100px blocks above
+   so the cascade resolves narrowest-wins — a wider breakpoint declared after a
+   narrower one would silently win (boundary: those existing blocks are
+   byte-identical; only new rules were added below them). */
+@media (max-width: 768px) {
+  .lw-root .board { grid-template-columns: 1fr; }
+  .lw-root .bcol { min-height: 0; }
+  .lw-root .sec-head { flex-wrap: wrap; row-gap: 8px; }
+  .lw-root .feed-rail .rail-card { min-width: 0; flex-basis: 100%; }
+
+  /* P2-13 (phase d) responsive table -> card conversion for the hearing
+     archive/upcoming table. Floor: nothing is unreachable even if a cell's
+     content is unexpectedly wide (the container's own overflow-x:auto,
+     HearingWatchPage.tsx, is the wider-viewport floor). One markup, two
+     layouts — data-label attributes come from the JSX, never invented here. */
+  .lw-root .htable,
+  .lw-root .htable thead,
+  .lw-root .htable tbody,
+  .lw-root .htable tr {
+    display: block;
+  }
+  .lw-root .htable thead { display: none; }
+  .lw-root .htable tr { border-bottom: 1px solid var(--border-1); padding: 10px 0; }
+  .lw-root .htable tr:last-child { border-bottom: none; }
+  .lw-root .htable td {
+    display: block;
+    border-bottom: none;
+    padding: 3px 16px;
+    text-align: left;
+    white-space: normal;
+  }
+  .lw-root .htable td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-3);
+    margin-bottom: 2px;
+  }
+  .lw-root .htable td[data-label='']::before { display: none; }
+}
+
+@media (max-width: 560px) {
+  .lw-root .chips-wrap { max-height: 168px; overflow-y: auto; }
+}
+
 /* P1-12 / P2-12 (Gate D phase h): a real focus ring on every keyboard-focused
    control on the calm surface. :focus-visible so a mouse click paints nothing —
    the reason the original styles reached for `outline: none`. */

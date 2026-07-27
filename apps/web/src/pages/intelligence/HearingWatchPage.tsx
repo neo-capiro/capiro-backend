@@ -205,7 +205,11 @@ function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
         </div>
       </div>
 
-      <div className="card" style={{ overflow: 'hidden' }}>
+      {/* P2-11 (phase b, b-4): overflow-x:auto is the FLOOR — nothing is
+          unreachable above 768px even before the card-stacking layout below
+          768px takes over (legiwatch.css). overflow-y stays hidden so the
+          rounded corners still clip the table body vertically. */}
+      <div className="card" style={{ overflowX: 'auto', overflowY: 'hidden' }}>
         <table className="htable">
           <thead>
             <tr>
@@ -246,12 +250,16 @@ function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
                 const noRecording = !!statusLabel && /postpon|cancel/i.test(statusLabel);
                 return (
                   <tr key={r.id}>
-                    <td className="num" style={{ whiteSpace: 'nowrap' }}>
+                    {/* P2-11 (b-4): data-label feeds legiwatch.css's td::before on
+                        the card-stacked layout below 768px — every data cell
+                        needs one; the trailing action cell gets '' so its
+                        (redundant) label is suppressed there. */}
+                    <td className="num" data-label="Date" style={{ whiteSpace: 'nowrap' }}>
                       {formatHearingDate(r.scheduledAt)}
                       {r.time ? <span className="muted"> · {r.time}</span> : null}
                     </td>
-                    <td>{r.committee}</td>
-                    <td>
+                    <td data-label="Committee">{r.committee}</td>
+                    <td data-label="Type">
                       <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
                         {r.type ? (
                           <span className="chip muted" style={{ fontSize: 10.5 }}>
@@ -274,7 +282,7 @@ function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
                         ) : null}
                       </span>
                     </td>
-                    <td style={{ fontWeight: 500 }}>
+                    <td data-label="Title" style={{ fontWeight: 500 }}>
                       {r.url ? (
                         <a href={r.url} target="_blank" rel="noreferrer">
                           {cleanTitle}
@@ -283,7 +291,7 @@ function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
                         cleanTitle
                       )}
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td data-label="" style={{ textAlign: 'right' }}>
                       {noRecording ? (
                         <span className="mini muted" title={`${statusLabel} — nothing to watch`}>
                           No recording

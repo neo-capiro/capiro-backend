@@ -142,7 +142,11 @@ function renderSurface(variant: 'bills' | 'profile') {
 }
 
 async function selectFilter(label: RegExp) {
-  const filterBtn = (await screen.findAllByRole('button', { name: /Filter/i }))[0]!;
+  // P2-11 (Gate E phase b) added a "Filters" mobile-drawer trigger button
+  // alongside the inline "Filter" dropdown — both match a bare /Filter/i, so
+  // this excludes "Filters" specifically (negative lookahead) to keep
+  // targeting the actual filter DROPDOWN, not the drawer trigger.
+  const filterBtn = (await screen.findAllByRole('button', { name: /^Filter(?!s\b)/i }))[0]!;
   filterBtn.click();
   const option = await screen.findByText(label);
   option.click();

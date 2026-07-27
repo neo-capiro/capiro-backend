@@ -1392,6 +1392,13 @@
   animation: dlgIn 0.16s ease-out;
   font-family: var(--font-sans-rd);
   color: var(--ink-1);
+  /* P2-11 (phase b, b-5): AddBillModal/VerifyOtpModal had no height cap at
+     all, so a tall viewport-constrained screen (or a long search-results
+     list) could push the footer off-screen. max-height + the flex column
+     below pin dlg-head/dlg-foot and let ONLY dlg-body scroll. */
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
 }
 @keyframes dlgIn {
   from {
@@ -1404,10 +1411,11 @@
   }
 }
 .trk-overlay .trk-dialog.sm {
-  max-width: 420px;
+  /* min() so a 360px viewport still fits within its own margin (b-5). */
+  max-width: min(420px, calc(100vw - 24px));
 }
 .trk-overlay .trk-dialog.md {
-  max-width: 560px;
+  max-width: min(560px, calc(100vw - 24px));
 }
 .trk-overlay .dlg-head {
   display: flex;
@@ -1415,6 +1423,8 @@
   gap: 10px;
   padding: 16px 18px;
   border-bottom: 1px solid var(--border-1);
+  /* b-5: never shrink — only dlg-body scrolls. */
+  flex-shrink: 0;
 }
 .trk-overlay .dlg-head h3 {
   margin: 0;
@@ -1445,6 +1455,13 @@
 }
 .trk-overlay .dlg-body {
   padding: 16px 18px;
+  /* b-5: the ONE scrollable region — grows to fill whatever space dlg-head/
+     dlg-foot (flex-shrink:0) don't need; min-height:0 is required for a flex
+     child's overflow to actually engage instead of the child forcing the
+     dialog taller than its max-height. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 .trk-overlay .dlg-foot {
   padding: 13px 18px;
@@ -1452,6 +1469,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  /* b-5: never shrink — only dlg-body scrolls. */
+  flex-shrink: 0;
 }
 
 /* add-bill modal */
@@ -2015,6 +2034,48 @@
   }
   .redesign .tag-adv-body {
     grid-template-columns: 1fr;
+  }
+}
+
+/* P2-11 (Gate E phase b): the board/recs toolbar (Filter/Sort/filter toggles/
+   Add bill) and the Configure segmented controls had no behavior below
+   1100px. Declared AFTER the 1100px block above so the cascade resolves
+   narrowest-wins. */
+/* b-3: desktop default — the inline Filter/Sort/Add-bill row shows, the
+   Filters trigger stays hidden. Declared BEFORE the 768px override below so
+   the cascade's source-order tiebreak resolves the way it must (a rule of
+   equal specificity declared AFTER this one wins at any width where both
+   apply — this rule must lose at <=768px, not the other way round). */
+.redesign .trk-filters-btn { display: none; }
+
+@media (max-width: 768px) {
+  .redesign .trk-head {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .redesign .trk-controls {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  /* b-3: below 768px the inline row collapses behind a single Filters button
+     opening a dialog (ResponsiveControls, TrackerTab.tsx) that reuses the
+     SAME TrkDropdown controls verbatim — no new control code, so keyboard
+     behavior and a11y carry over. */
+  .redesign .trk-controls-desktop { display: none; }
+  .redesign .trk-filters-btn { display: inline-flex; }
+}
+
+@media (max-width: 560px) {
+  .redesign .trk-controls > * {
+    flex: 1 1 auto;
+  }
+  .redesign .cadence-seg,
+  .redesign .mat-seg {
+    width: 100%;
+  }
+  .redesign .cadence-seg button,
+  .redesign .mat-seg button {
+    flex: 1;
   }
 }
 

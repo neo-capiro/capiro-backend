@@ -18,6 +18,7 @@ import { Icon, StarIcon } from './tracker-icons.js';
 import {
   AddBillModal,
   BillCard,
+  Modal,
   RecCard,
   SubNav,
   TrackToasts,
@@ -135,6 +136,37 @@ export function mergeBoardPages(pages: BoardResponse[]): BoardResponse {
     nextCursor: last.nextCursor ?? null,
     withheld: Math.max(0, total - loadedCount),
   };
+}
+
+/**
+ * P2-11 (Gate E phase b, b-3): below 768px the inline Filter/Sort/Add-bill
+ * (or Tag/Sort/Select) row collapses behind a single Filters button opening
+ * a dialog. Reuses the caller's OWN controls element verbatim (no new
+ * control code) so keyboard behavior and Gate D phase h's a11y work carry
+ * over unchanged — the same `.trk-controls` JSX just renders in a second
+ * place, gated by CSS (tracker.css) rather than by two implementations.
+ */
+function ResponsiveControls({ label, children }: { label: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div className="trk-controls-desktop">{children}</div>
+      <button type="button" className="btn trk-filters-btn" onClick={() => setOpen(true)}>
+        <Icon name="settings" size={13} /> Filters
+      </button>
+      {open && (
+        <Modal size="sm" onClose={() => setOpen(false)} label={label}>
+          <div className="dlg-head">
+            <h3>{label}</h3>
+            <button type="button" className="dlg-x" aria-label="Close" onClick={() => setOpen(false)}>
+              <Icon name="plus" size={15} style={{ transform: 'rotate(45deg)' }} />
+            </button>
+          </div>
+          <div className="dlg-body">{children}</div>
+        </Modal>
+      )}
+    </>
+  );
 }
 
 export interface TrackerSurfaceProps {
@@ -941,8 +973,12 @@ export function TrackerSurface({
             showConfig
           />
           <div className="trk-spacer" />
-          {activePanel === 'board' && boardControls}
-          {activePanel === 'recs' && recsControls}
+          {activePanel === 'board' && (
+            <ResponsiveControls label="Board filters">{boardControls}</ResponsiveControls>
+          )}
+          {activePanel === 'recs' && (
+            <ResponsiveControls label="Recommendation filters">{recsControls}</ResponsiveControls>
+          )}
           {/* P2-02 (§6.3, confirmed): the profile tab is a COMPACT view of
               LegiWatch, not a second copy of the full product. Saying so — and
               offering the way through — stops the two surfaces competing to be
@@ -972,7 +1008,7 @@ export function TrackerSurface({
             <p>Bills scored against {clientName}’s watchlist — add the ones worth following to your board.</p>
           </div>
           <span className="grow" />
-          {recsControls}
+          <ResponsiveControls label="Recommendation filters">{recsControls}</ResponsiveControls>
         </div>
       )}
 
@@ -1081,7 +1117,7 @@ export function TrackerSurface({
             <p>Bills you track, grouped by live legislative status — updates automatically.</p>
           </div>
           <span className="grow" />
-          {boardControls}
+          <ResponsiveControls label="Board filters">{boardControls}</ResponsiveControls>
           {/* P1-18 (a-4): `withheld` is mandatory to render when > 0 — a bounded
               board that doesn't say so is less honest than the unbounded one it
               replaced. */}
