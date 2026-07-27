@@ -355,7 +355,18 @@ export async function generateCandidates(
               } else {
                 counts.skipped++;
               }
-              return;
+              // `continue`, NOT `return`. This loop body sits inside the
+              // `async (tx) => {…}` callback handed to withBypass, so a
+              // `return` exits the WHOLE per-client transaction and silently
+              // abandons every remaining grant. Since ~97% of
+              // (client, opportunity) pairs score 0, the first grant almost
+              // always fails the floor — so the producer evaluated exactly ONE
+              // grant per client and stopped. Verified live 2026-07-27: eight
+              // independent dry runs all reported `evaluated=12` for
+              // 12 clients × 567 grants, at every floor from 10 to 40.
+              // The outer client loop (above) already uses `continue`; only
+              // this inner one crossed the callback boundary.
+              continue;
             }
 
             if (existing) {
@@ -406,7 +417,15 @@ export async function generateCandidates(
 
 async function main(): Promise<void> {
   const parsed = parseArgs(process.argv);
-  const prisma = new PrismaClient();
+  // The `continue` fix above is what makes withBypass's per-client transaction
+  // long: it goes from ~1 query (bail at grant #1) to one per active grant.
+  // Measured 2026-07-27 against capiro-internal — 567 sequential findFirst
+  // inside a single transaction takes 780–960 ms per client, comfortably under
+  // Prisma 5.22's 5 000 ms default. These explicit values keep ~30× headroom
+  // for an Aurora latency spike without masking a real regression, and raise
+  // `maxWait` because pool-acquisition timeout is the failure signature this
+  // repo has actually been bitten by (2026-07-21 graph-sync P2028).
+  const prisma = new PrismaClient({ transactionOptions: { timeout: 30_000, maxWait: 10_000 } });
 
   try {
     const tenantIds = await resolveTenantIds(

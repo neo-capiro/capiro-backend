@@ -285,4 +285,78 @@ describe('generateCandidates', () => {
     // risk between two DIFFERENT evidenceSourceTypes, not this script's bug).
     expect(createCalls).toHaveLength(1);
   });
+
+  // ── Regression: the inner grant loop must not stop at the first miss ──────
+  //
+  // Until 2026-07-27 this loop used `return` where it meant `continue`. That
+  // `return` sat inside the `async (tx) => {…}` callback handed to withBypass,
+  // so it exited the entire per-client transaction and abandoned every
+  // remaining grant. Live effect: the producer evaluated exactly ONE grant per
+  // client (`evaluated=12` for 12 clients × 567 grants, reproduced across
+  // eight dry runs at every floor from 10 to 40), so F3 could never emit a row.
+  //
+  // Every test above passes a SINGLE-element grants array, which makes `return`
+  // and `continue` indistinguishable — that is precisely how the bug shipped
+  // behind a fully green suite. The non-clearing grant MUST come first here or
+  // the test has no teeth.
+  test('keeps evaluating after a grant falls below the floor', async () => {
+    const { prisma, createCalls } = makePrismaMock({
+      clients: [makeClient({ capabilities: [{ name: 'Advanced Manufacturing', sector: null, tags: [] }] })],
+      grants: [
+        makeGrant({ id: 'g-miss', title: 'Unrelated Widget Program' }), // no keyword hit -> 0
+        makeGrant({ id: 'g-hit-1' }), // 'Advanced Manufacturing R&D' -> keyword hit, 15
+        makeGrant({ id: 'g-hit-2' }),
+      ],
+    });
+
+    const result = await generateCandidates(prisma, { tenantIds: [TENANT], minRelevance: 10, commit: true });
+
+    expect(result.evaluated).toBe(3); // pre-fix: 1
+    expect(result.skipped).toBe(1);
+    expect(result.inserted).toBe(2); // pre-fix: 0
+    expect(createCalls.map((c) => c.data.grantOpportunityId)).toEqual(['g-hit-1', 'g-hit-2']);
+  });
+
+  test('evaluates every (client, opportunity) pair', async () => {
+    const { prisma } = makePrismaMock({
+      clients: [makeClient({ id: 'c-1' }), makeClient({ id: 'c-2' }), makeClient({ id: 'c-3' })],
+      grants: [
+        makeGrant({ id: 'g-1' }),
+        makeGrant({ id: 'g-2' }),
+        makeGrant({ id: 'g-3' }),
+        makeGrant({ id: 'g-4' }),
+      ],
+    });
+
+    const result = await generateCandidates(prisma, {
+      tenantIds: [TENANT],
+      minRelevance: DEFAULT_MIN_RELEVANCE,
+      commit: false,
+    });
+
+    // Zero-signal clients, so all 12 pairs miss the floor. That "every pair
+    // misses" shape is exactly what the `return` bug hid behind, so assert the
+    // full cross product is walked rather than only the write count.
+    expect(result.evaluated).toBe(12);
+    expect(result.skipped).toBe(12);
+  });
+
+  test('a mid-loop failure is counted but does not abandon the remaining grants', async () => {
+    const { prisma } = makePrismaMock({
+      clients: [makeClient({ capabilities: [{ name: 'Advanced Manufacturing', sector: null, tags: [] }] })],
+      grants: [makeGrant({ id: 'g-1' }), makeGrant({ id: 'g-boom' }), makeGrant({ id: 'g-3' })],
+    });
+
+    const passthrough = prisma.clientGrantNexus.findFirst;
+    prisma.clientGrantNexus.findFirst = (async (args: { where: { grantOpportunityId: string } }) => {
+      if (args.where.grantOpportunityId === 'g-boom') throw new Error('simulated read failure');
+      return passthrough(args);
+    }) as CandidatesPrisma['clientGrantNexus']['findFirst'];
+
+    const result = await generateCandidates(prisma, { tenantIds: [TENANT], minRelevance: 10, commit: true });
+
+    expect(result.evaluated).toBe(3);
+    expect(result.errors).toBe(1);
+    expect(result.inserted).toBe(2); // g-1 and g-3 are still linked
+  });
 });
