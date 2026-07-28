@@ -167,6 +167,14 @@ export function SectionBlock({
           {name}
         </h3>
         {status === 'review' && <span className="pill notable">Needs review</span>}
+        {/* A failed regeneration keeps the OLD text. Label it so the reader never
+            mistakes retained content for what Meri just produced. */}
+        {section.stale && (
+          <span className="pill critical" title={section.staleReason}>
+            <Icon name="AlertTriangle" size={10} />
+            Not regenerated
+          </span>
+        )}
         {smart && (
           <span className="pill info">
             <Icon name="Sparkles" size={10} />

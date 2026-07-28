@@ -29,7 +29,7 @@ export class PromoteMemoryDto {
   @IsOptional() @IsString() @Length(1, 4000) note?: string;
 }
 
-/** Meri generation endpoints (Phase 6). Tenant-scoped (Sonnet runtime). */
+/** Meri generation endpoints (Phase 6). Tenant-scoped. */
 @Controller('drafts/:draftId')
 @UseGuards(TenantGuard)
 export class GenerationController {
@@ -38,11 +38,7 @@ export class GenerationController {
     private readonly memoryPromotion: MemoryPromotionService,
   ) {}
 
-  /**
-   * POST /workspace-api/drafts/:draftId/generate-section
-   * Draft a single section with Meri (Claude Sonnet, tenant key when present).
-   * Honors the draft's anonymize flag end-to-end.
-   */
+  /** Draft a single section with Meri. Honors the draft's anonymize flag. */
   @Post('generate-section')
   generateSection(
     @CurrentTenant() ctx: WorkspaceTenantContext,
@@ -53,11 +49,9 @@ export class GenerationController {
   }
 
   /**
-   * POST /workspace-api/drafts/:draftId/generate-all
-   * Draft EVERY section of the document with Meri (concurrent, best-effort),
-   * grounded in the draft config + the Context Builder plan. Used after the
-   * Context Builder ("Open editor") and by the editor's "Regenerate All".
-   * Returns the refreshed draft so the client can re-hydrate.
+   * Draft every requested section and return the refreshed draft plus the
+   * durable generationRun summary. The proxy and direct paths share the same
+   * in-process implementation and therefore the same result contract.
    */
   @Post('generate-all')
   generateAll(
@@ -65,23 +59,23 @@ export class GenerationController {
     @Param('draftId') draftId: string,
     @Req() req: Request,
   ) {
-    // Forward the caller's bearer so the MeriV2 proxy branch (flag-gated, OFF
-    // by default) can authenticate to the orchestrator; flipping
-    // meriv2.workspaceGen ON without this fails every generate-all with
-    // "requires the caller bearer token". No-op for the legacy path.
     return this.generation.generateAllSections(ctx.tenantId, draftId, ctx.clerkUserId, {
       bearerToken: extractGenBearer(req),
     });
   }
 
+  /** Retry only sections the latest generationRun recorded as failed. */
+  @Post('retry-failed-sections')
+  retryFailed(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('draftId') draftId: string,
+  ) {
+    return this.generation.retryFailedSections(ctx.tenantId, draftId, ctx.clerkUserId);
+  }
+
   /**
-   * POST /workspace-api/drafts/:draftId/apply-generated-sections
-   * Write-back half of the MeriV2 orchestrator-generation contract: the
-   * orchestrator does the reasoning (dormant proxy branch in generate-all)
-   * and calls back here, forwarding the caller's bearer, so apps/workspace
-   * remains the only writer of ws_draft.config. Tenant-scoped like every
-   * other draft mutation — grants no capability beyond what the normal editor
-   * save path already allows for a caller's own draft.
+   * Write-back half of the optional orchestrator-generation contract. Workspace
+   * remains the only writer of ws_draft.config.
    */
   @Post('apply-generated-sections')
   applyGeneratedSections(
@@ -93,14 +87,8 @@ export class GenerationController {
   }
 
   /**
-   * POST /workspace-api/drafts/:draftId/generate-all-direct
-   * The NON-PROXY generate-all entry the MeriV2 orchestrator routes to
-   * (/meri-api/workspace-generation → here, forwarding the caller's bearer).
-   * Runs generateAllSectionsInProcess directly, so it NEVER re-enters the
-   * meriv2.workspaceGen proxy branch (no orchestrator→workspace→orchestrator
-   * recursion). Identical result to the flag-off generate-all path — the
-   * reasoning + anonymization stay in apps/workspace where they are proven.
-   * Tenant-scoped; same capability as the normal editor generate.
+   * Non-proxy endpoint used by the orchestrator. It calls the same implementation
+   * as the flag-off path and cannot recurse back to the orchestrator.
    */
   @Post('generate-all-direct')
   generateAllDirect(
@@ -110,25 +98,13 @@ export class GenerationController {
     return this.generation.generateAllSectionsInProcess(ctx.tenantId, draftId, ctx.clerkUserId);
   }
 
-  /**
-   * GET /workspace-api/drafts/:draftId/context-used
-   * Phase 3.3 "Context used in this draft" panel: the provenance snapshot from
-   * the last generation (context items, memory files, linked PEs that actually
-   * grounded the text). Returns null when the draft has not been generated yet.
-   */
+  /** Last durable context provenance for this draft, or null before generation. */
   @Get('context-used')
   contextUsed(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('draftId') draftId: string) {
     return this.generation.getContextUsed(ctx.tenantId, draftId, ctx.clerkUserId);
   }
 
-  /**
-   * POST /workspace-api/drafts/:draftId/promote-memory
-   * Phase 3.4 memory write-back: explicitly promote this artifact's key fact
-   * into FIRM institutional memory (a separate decision from export/approve).
-   * Creates a firm-scope memory_candidate via apps/api's internal endpoint —
-   * it lands 'pending' in the admin review queue (Phase 1 lifecycle), never
-   * auto-committed. Tenant-scoped like every other draft action.
-   */
+  /** Explicitly propose this artifact's key fact for governed memory review. */
   @Post('promote-memory')
   promoteMemory(
     @CurrentTenant() ctx: WorkspaceTenantContext,
@@ -139,11 +115,7 @@ export class GenerationController {
   }
 }
 
-/**
- * "Start with Meri" intake (handoff Q-LIB-3): resolve a free-text prompt to a
- * work product + cascade, create the draft, auto-draft the sections, and return
- * it so the UI can open the editor directly.
- */
+/** Resolve a free-text request to a canonical work product and seed its setup. */
 @Controller('meri')
 @UseGuards(TenantGuard)
 export class MeriIntakeController {

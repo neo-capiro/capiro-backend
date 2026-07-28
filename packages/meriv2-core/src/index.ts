@@ -3,6 +3,8 @@
 // claim-map grounding. Hosted over HTTP by `apps/meriv2-orchestrator`.
 export * from './registry/types';
 export * from './registry/tool-registry';
+export * from './registry/tool-execution-metadata';
+export * from './registry/in-editor-tools';
 export * from './compliance/approval-gate';
 export * from './compliance/compliance-rules';
 export * from './compliance/action-approval';

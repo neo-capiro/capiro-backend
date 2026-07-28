@@ -7,6 +7,7 @@
  */
 import type { WsConfig, WsSectionMeta, WsSectionStatus } from '../types.js';
 import { htmlWordCount } from './rich-text.js';
+import { isStaleSection, staleSectionReason } from './generation-status.js';
 
 export interface SectionView {
   /** Section heading / key into sectionContent + sectionMeta. */
@@ -18,6 +19,14 @@ export interface SectionView {
   content: string;
   /** Live word count derived from the body. */
   words: number;
+  /**
+   * True when this content predates a FAILED regeneration attempt. The text is
+   * real, but it is NOT what the last run produced, so the canvas must not
+   * present it as freshly generated.
+   */
+  stale: boolean;
+  /** Bounded, user-safe reason for the stale state (empty when not stale). */
+  staleReason: string;
 }
 
 /** Heuristic: which section name is the auto-populated budget block. */
@@ -49,6 +58,8 @@ export function sectionViews(cfg: WsConfig): SectionView[] {
       tailor,
       content: body,
       words: smart ? (m.words ?? 0) : htmlWordCount(body),
+      stale: isStaleSection(m),
+      staleReason: staleSectionReason(m),
     };
   });
 }

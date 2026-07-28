@@ -14,20 +14,25 @@ const configStub = {
 } as never;
 
 function makeService(): WorkspaceAssistantService {
-  // 4th/5th args (MeriFeatureFlagsService, MeriV2OrchestratorClient) are the
-  // P0-T4 dormant-proxy deps; unused by buildSystemPrompt/verifyEdits, so null.
+  // Args 4-7 (MeriFeatureFlagsService, MeriV2OrchestratorClient,
+  // ContextCompilerService, PrismaService) are the dormant-proxy + context deps;
+  // unused by buildSystemPrompt/verifyEdits, so null.
   return new WorkspaceAssistantService(
     null as never,
     null as never,
     configStub,
     null as never,
     null as never,
+    null as never,
+    null as never,
   );
 }
 
-function buildPrompt(dto: unknown): string {
-  const svc = makeService() as unknown as { buildSystemPrompt: (d: unknown) => string };
-  return svc.buildSystemPrompt(dto);
+function buildPrompt(dto: unknown, packet?: unknown): string {
+  const svc = makeService() as unknown as {
+    buildSystemPrompt: (d: unknown, p?: unknown) => string;
+  };
+  return svc.buildSystemPrompt(dto, packet);
 }
 
 describe('WorkspaceAssistantService.buildSystemPrompt — grounding hardening', () => {
@@ -68,12 +73,18 @@ describe('WorkspaceAssistantService.verifyEdits — structural pass parity', () 
     return (
       svc as unknown as {
         verifyEdits: (
+          c: { apiKey: string; model: string; usedTenantKey: boolean },
           e: unknown,
           g: string[],
           p: Map<string, unknown>,
         ) => Promise<{ confidence?: unknown; structuralWarnings?: Array<{ code: string }> }>;
       }
-    ).verifyEdits(edits, [], pes);
+    ).verifyEdits(
+      { apiKey: 'sk-test', model: 'claude-sonnet-test', usedTenantKey: true },
+      edits,
+      [],
+      pes,
+    );
   }
 
   it('flags an RDT&E PE used with procurement language (no detail tool needed)', async () => {
