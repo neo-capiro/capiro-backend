@@ -179,6 +179,13 @@ function listLocalPdfs(target: string): string[] {
     .sort();
 }
 
+/** Fail closed when a local target resolves to no PDFs. */
+function listLocalPdfsRequired(target: string): string[] {
+  const files = listLocalPdfs(target);
+  if (files.length === 0) throw new Error(`No PDF files found under target: ${target}`);
+  return files;
+}
+
 function runExtractor(
   cls: DocClassification,
   pages: ReturnType<typeof adaptLlamaParseJson>,
@@ -266,7 +273,7 @@ function runPreflight(
     };
   }
 
-  const files = listLocalPdfs(target)
+  const files = listLocalPdfsRequired(target)
     .map((file) => {
       const cls = classificationFor(file, fyFallback);
       return {
@@ -294,7 +301,7 @@ async function materializePdfs(
 ): Promise<MaterializedCorpus> {
   const loc = parseS3Uri(target);
   if (!loc) {
-    return { files: listLocalPdfs(target), materializedFromS3: false, skipped: 0 };
+    return { files: listLocalPdfsRequired(target), materializedFromS3: false, skipped: 0 };
   }
   const mat = await materializeS3Corpus(loc, makeCorpusS3(region));
   return { files: mat.files, materializedFromS3: true, skipped: mat.skipped };

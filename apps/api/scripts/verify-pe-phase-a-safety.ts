@@ -71,13 +71,26 @@ function verifyMoneyAndApprovalHelpers(): void {
 function verifyMigrationGuard(): void {
   const active = apiFile('scripts/entrypoint.sh');
   const compatibility = apiFile('scripts/entrypoint-legacy.sh');
-  for (const source of [active, compatibility]) {
+  const dispatcher = apiFile('scripts/entrypoint-dispatcher.inc');
+  for (const source of [active, compatibility, dispatcher]) {
     assert.equal(source.includes('_prisma_migrations'), false);
     assert.equal(source.includes('rolled_back_at = NOW()'), false);
     assert.equal(source.includes('Resolving failed migration:'), false);
+    assert.equal(/prisma[^\n]*migrate\s+resolve/.test(source), false);
   }
   assert.match(active, /node .*prisma.* migrate deploy/);
   assert.match(compatibility, /Refusing legacy migrate dispatch/);
+  assert.match(dispatcher, /Refusing legacy migrate dispatch/);
+  const executableLines = (source: string): string =>
+    source
+      .split('\n')
+      .filter((line) => !/^\s*#/.test(line))
+      .join('\n');
+  const executes = [active, compatibility, dispatcher].filter((source) =>
+    /migrate deploy/.test(executableLines(source)),
+  );
+  assert.equal(executes.length, 1, 'exactly one entrypoint may execute prisma migrate deploy');
+  assert.match(dispatcher, /Unknown command[^\n]*diag-pe-trust/);
   assert.match(active, /audit-llamaparse-pe-units/);
 }
 
@@ -89,6 +102,10 @@ function verifyPromotionSafety(): void {
   assert.match(source, /onePdfPerTransaction: true/);
   assert.match(source, /CANONICAL_TRANSACTION_TIMEOUT_MS/);
   assert.match(source, /Do not run generalized --commit in production until Phase D/);
+  assert.match(source, /Immutable source archive did not return an S3 VersionId/);
+  assert.match(source, /registered\.document\.supersededByDocumentId/);
+  assert.match(source, /const preExistingObservationIds = new Set/);
+  assert.match(source, /function listLocalPdfsRequired/);
 
   const mainStart = source.indexOf('async function main(): Promise<void>');
   const approvalParse = source.indexOf(

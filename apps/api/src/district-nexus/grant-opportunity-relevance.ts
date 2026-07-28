@@ -36,6 +36,11 @@ export type RelevanceSignalKey = (typeof RELEVANCE_SIGNALS)[number];
  * received money under 93.778, a new 93.778 opportunity is the same program.
  * Keyword and sector matches are topical and much weaker on their own.
  */
+// The only import in this otherwise dependency-free module: the shared
+// normalizer both sides of the applicant-type comparison must agree on.
+// Pure function, no I/O — the file stays deterministic.
+import { applicantTypeKey } from '@capiro/shared';
+
 export const RELEVANCE_WEIGHTS: Readonly<Record<RelevanceSignalKey, number>> = Object.freeze({
   assistanceListing: 40,
   agency: 20,
@@ -61,7 +66,12 @@ export interface ClientRelevanceProfile {
   priorAssistanceListings: string[];
   /** Agencies the client has prior awards from. */
   priorAgencies: string[];
-  /** Applicant type codes the client qualifies as, e.g. '12' (for-profit). */
+  /**
+   * Grants.gov "Eligible Applicants" values the client qualifies as, e.g.
+   * 'Small businesses'. LABELS, not the numeric codes — the opportunity side
+   * comes from `federal_grant.eligibility`, which stores labels, and the two are
+   * compared by string. See GRANTS_GOV_APPLICANT_TYPES in @capiro/shared.
+   */
   applicantTypes: string[];
   states: string[];
   knownPartnerNames: string[];
@@ -73,7 +83,10 @@ export interface OpportunityProfile {
   fundingCategory: string | null;
   title: string | null;
   description: string | null;
-  /** Applicant type codes the opportunity accepts. Empty = unspecified. */
+  /**
+   * "Eligible Applicants" values the opportunity accepts, as label strings from
+   * `federal_grant.eligibility`. Empty = the notice did not say.
+   */
   eligibleApplicantTypes: string[];
   /** State codes the opportunity is restricted to. Empty = unrestricted. */
   geographicRestrictions: string[];
@@ -178,8 +191,15 @@ export function computeEligibility(
     };
   }
 
-  const clientTypes = new Set(client.applicantTypes.map((t) => t.trim()));
-  const matched = opportunity.eligibleApplicantTypes.filter((t) => clientTypes.has(t.trim()));
+  // Compared through `applicantTypeKey` (case + whitespace normalized,
+  // punctuation untouched) on BOTH sides. These are long vendor label strings
+  // such as 'For profit organizations other than small businesses'; a stored
+  // client value differing only in case or a double space must not read as
+  // "ineligible" for a client that genuinely qualifies.
+  const clientTypes = new Set(client.applicantTypes.map(applicantTypeKey));
+  const matched = opportunity.eligibleApplicantTypes.filter((t) =>
+    clientTypes.has(applicantTypeKey(t)),
+  );
   if (matched.length > 0) {
     return {
       state: 'eligible',

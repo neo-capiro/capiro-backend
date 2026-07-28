@@ -31,6 +31,7 @@ vi.mock('./api.js', () => ({
     useExecutionRunsSpy(...args);
     return { ...idle, data: [] };
   },
+  usePendingWatchCounts: () => ({ ...idle, data: {} }),
 }));
 
 vi.mock('../../lib/me.js', () => ({

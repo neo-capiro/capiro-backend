@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -100,6 +100,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  */
 @Injectable()
 export class StrategyConversationService {
+  private readonly logger = new Logger(StrategyConversationService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -169,6 +171,13 @@ export class StrategyConversationService {
           where: { clientMessageId: input.clientMessageId },
         });
         if (!existing) throw err;
+        // Phase 6 §6 ("conversation send success/failure/idempotent replay"):
+        // a replay is a SUCCESS that did no work — invisible in request logs
+        // otherwise, and the number that tells you whether clients are
+        // retrying. Ids only; never the message body.
+        this.logger.log(
+          `[strategy:${input.strategyId}] conversation send replayed idempotently (message ${existing.id})`,
+        );
         return toPublic(existing);
       }
     });
@@ -233,6 +242,51 @@ export class StrategyConversationService {
       });
       return toPublic(updated);
     });
+  }
+
+  /**
+   * Phase 5 §5 — upsert the ONE active `context_gap` message for a strategy.
+   * `body` is deterministically derived from the current gap set (same gaps
+   * -> byte-identical body), so the body itself is the dedup key: unchanged
+   * body is a no-op, a changed body updates the SAME row in place, and there
+   * is never a second active row. `body: null` means every gap has resolved —
+   * the existing active row (if any) is marked resolved, never deleted, so
+   * the thread keeps its history. Runs in the CALLER's transaction (draft /
+   * assistant already hold one) so this commits or rolls back with the plan
+   * write it is reporting on.
+   */
+  async syncContextGap(
+    tx: Tx,
+    tenantId: string,
+    strategyId: string,
+    body: string | null,
+  ): Promise<{ wasResolved: boolean }> {
+    const existing = await tx.spStrategyChatMessage.findFirst({
+      where: { strategyId, nodeId: null, kind: 'context_gap', state: 'active' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+    if (!body) {
+      if (existing) {
+        await tx.spStrategyChatMessage.update({ where: { id: existing.id }, data: { state: 'resolved' } });
+        return { wasResolved: true };
+      }
+      return { wasResolved: false };
+    }
+    if (existing) {
+      if (existing.body !== body) {
+        await tx.spStrategyChatMessage.update({ where: { id: existing.id }, data: { body } });
+      }
+      return { wasResolved: false };
+    }
+    await this.appendIn(tx, tenantId, {
+      strategyId,
+      nodeId: null,
+      role: 'meri',
+      kind: 'context_gap',
+      body,
+      createdByUserId: null,
+    });
+    return { wasResolved: false };
   }
 
   // ---- validation ---------------------------------------------------------

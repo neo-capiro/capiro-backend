@@ -181,6 +181,69 @@ describe('IntelligenceService.getClientProfileV1', () => {
     expect(payload.links).toBeDefined();
   });
 
+  /**
+   * Every optional source has an inline fallback literal, and most are written
+   * `as unknown as Awaited<ReturnType<...>>` — a double cast, which turns OFF
+   * the structural check. On 2026-07-28 that let `billRegulationLinks` ship a
+   * fallback of `{ rails: [] }` (the RESPONSE shape, `regulatoryLifecycle.rails`)
+   * against a method that returns `{ links: [] }`, so the aggregate ran
+   * `for (... of undefined)` and returned 500 for the entire client Intelligence
+   * tab whenever that one source failed — which the 20s per-source budget made
+   * routine under portfolio-alerts load.
+   *
+   * The budget spec already proved a source can reject without hanging. Nothing
+   * proved the AGGREGATE survives that rejection. This does, for every source,
+   * so a fallback that does not satisfy its consumers fails here instead of in
+   * production.
+   */
+  describe('a rejected optional source degrades its section, never the request', () => {
+    const optionalSources = [
+      'computeEngagementHealth',
+      'getLobbyingRoi',
+      'buildRoiQuarterSeries',
+      'getFecMoneyFlow',
+      'getDistrictNexus',
+      'getTrackedBills',
+      'getBillRegulationLinks',
+      'getKnowledgeGraph',
+      'getExStaffers',
+      'getCommentPeriodAlerts',
+    ] as const;
+
+    test.each(optionalSources)('%s rejecting still yields a complete envelope', async (source) => {
+      const { service } = makeService();
+      (service as any)[source].mockRejectedValue(new Error(`${source} exceeded its budget`));
+
+      const payload = await service.getClientProfileV1(clientId, tenantId);
+
+      expect(payload.client).toEqual({ id: clientId, name: 'Acme Defense' });
+      expect(payload.sections.snapshot).toBeDefined();
+      expect(payload.sections.financialFootprint).toBeDefined();
+      expect(payload.sections.legislativeRegulatory).toBeDefined();
+      expect(payload.sections.relationships).toBeDefined();
+    });
+
+    test('billRegulationLinks: the section reports zero instead of throwing', async () => {
+      // The exact 2026-07-28 regression. `links` is iterated; `totalBills` and
+      // `totalRegulations` are read. All three must survive the fallback.
+      const { service } = makeService();
+      (service as any).getBillRegulationLinks.mockRejectedValue(
+        new Error('exceeded its 20000ms budget (still running)'),
+      );
+
+      const payload = await service.getClientProfileV1(clientId, tenantId);
+
+      // Cast because normalizeProfileV1Sections spreads a `Record<string, any>`
+      // and TS drops the index signature from the resulting literal, so
+      // `regulatoryLifecycle` is present at runtime but not on the typed surface.
+      const lifecycle = (payload.sections.legislativeRegulatory as Record<string, any>)
+        .regulatoryLifecycle;
+      expect(lifecycle.totalLinkedBills).toBe(0);
+      expect(lifecycle.totalRegulations).toBe(0);
+      expect(lifecycle.rails).toEqual([]);
+    });
+  });
+
   test('throws NotFoundException when client does not exist in tenant', async () => {
     const { service, prisma } = makeService();
     prisma.withTenant.mockImplementationOnce(async (_tenantId: string, run: (tx: any) => Promise<any>) =>

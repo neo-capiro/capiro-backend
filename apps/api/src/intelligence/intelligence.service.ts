@@ -648,11 +648,17 @@ export class IntelligenceService {
     const trackedBills = settle(4, { total: 0, issueCodes: [], bills: [] } as Awaited<
       ReturnType<typeof this.getTrackedBills>
     >);
+    // NOT `as unknown as` — a plain assertion makes tsc structurally check this
+    // literal against the real return type. The previous version used the
+    // double cast and shipped `rails: []` where the method returns `links: []`,
+    // so every failure of this source (including a budget breach) made the
+    // consumer below do `for (... of undefined)` and 500 the WHOLE aggregate.
+    // The double cast is what silenced the compiler; keep it off.
     const regLinks = settle(5, {
+      links: [],
       totalBills: 0,
       totalRegulations: 0,
-      rails: [],
-    } as unknown as Awaited<ReturnType<typeof this.getBillRegulationLinks>>);
+    } as Awaited<ReturnType<typeof this.getBillRegulationLinks>>);
     const graph = settle(6, {
       nodes: [],
       edges: [],
@@ -1066,7 +1072,10 @@ export class IntelligenceService {
         linkedBills: string[];
       }
     >();
-    for (const link of regLinks.links) {
+    // `?? []` on purpose: a degraded source must never be able to throw here.
+    // The fallback above is now type-checked, so this is the second line of
+    // defence, not the first.
+    for (const link of regLinks.links ?? []) {
       for (const reg of link.regulations) {
         const existing = regDocByNumber.get(reg.documentNumber);
         if (existing) {
@@ -1303,11 +1312,28 @@ export class IntelligenceService {
           ? 'normal'
           : 'no_activity';
 
-    const quarterRoiSeries = await this.buildRoiQuarterSeries({
-      mappedLdaClientIds: roi.mappedLdaClientIds,
-      lobbyingYearly: profile.lda.yearlySpend,
-      obligationsYearly: profile.contracting.yearlySpend,
-      now,
+    // Not part of the `Promise.allSettled` fan-out above (it needs `roi` and
+    // `profile`, so it can only run after they resolve) — but it still issues a
+    // raw `lda_filing` aggregate. Awaiting it bare meant a slow or failing
+    // query here took the whole aggregate down with a 500, with none of the
+    // budget/naming/fallback the other 24 sources get. Give it the same
+    // treatment: named budget, logged failure, empty series as the fallback.
+    const quarterRoiSeries = await this.withSourceBudget(
+      'roiQuarterSeries',
+      clientId,
+      this.buildRoiQuarterSeries({
+        mappedLdaClientIds: roi.mappedLdaClientIds,
+        lobbyingYearly: profile.lda.yearlySpend,
+        obligationsYearly: profile.contracting.yearlySpend,
+        now,
+      }),
+    ).catch((err: unknown) => {
+      this.logger.warn(
+        `profile-v1 source "roiQuarterSeries" failed for client ${clientId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return [] as Array<{ label: string; lobbying: number; obligations: number }>;
     });
 
     const trajectoryModel = classifyTrajectory({

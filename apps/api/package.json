@@ -48,6 +48,7 @@
     "sync:federal-award": "tsx scripts/sync-federal-award.ts",
     "sync:federal-assistance-awards": "tsx scripts/sync-federal-assistance-awards.ts",
     "enrich:assistance-awards": "tsx scripts/enrich-assistance-award-details.ts",
+    "backfill:assistance-awards-bulk": "tsx scripts/backfill-assistance-awards-bulk.ts",
     "prune:assistance-recipient-candidates": "tsx scripts/prune-stale-assistance-recipient-candidates.ts",
     "extract:press-personnel": "tsx scripts/extract-personnel-from-press-releases.ts",
     "sync:sam-personnel": "tsx scripts/sync-sam-personnel.ts",

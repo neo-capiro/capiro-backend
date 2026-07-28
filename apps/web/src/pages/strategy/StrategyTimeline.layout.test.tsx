@@ -214,8 +214,6 @@ describe('today is centred after the final measurement (§4.10)', () => {
   const expected = (clientWidth: number, scrollWidth: number) =>
     todayScrollLeft({
       todayX: calendar.todayQ * 3 * COLW,
-      rangeStartX: 0,
-      rangeEndX: calendar.months.length * COLW,
       viewportWidth: clientWidth,
       contentWidth: scrollWidth,
     });

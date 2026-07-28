@@ -11,35 +11,48 @@ function apiFile(relativePath: string): string {
 }
 
 describe('Program Elements operational safety guards', () => {
-  test('supported entrypoint scripts contain no automatic Prisma migration-history mutation', () => {
+  test('supported entrypoints contain no automatic migration-history mutation', () => {
     const active = apiFile('scripts/entrypoint.sh');
     const compatibility = apiFile('scripts/entrypoint-legacy.sh');
-
-    for (const source of [active, compatibility]) {
+    const dispatcher = apiFile('scripts/entrypoint-dispatcher.inc');
+    for (const source of [active, compatibility, dispatcher]) {
       expect(source).not.toContain('_prisma_migrations');
       expect(source).not.toContain('rolled_back_at = NOW()');
       expect(source).not.toContain('Resolving failed migration:');
+      expect(source).not.toMatch(/prisma[^\n]*migrate\s+resolve/);
     }
-
     expect(active).toMatch(/node .*prisma.* migrate deploy/);
     expect(compatibility).toContain('Refusing legacy migrate dispatch');
+    expect(dispatcher).toContain('Refusing legacy migrate dispatch');
   });
 
-  test('canonical PDF promotion gates approval and byte comparison before DB access', () => {
-    const source = apiFile('scripts/ingest-defense-budget-pdf.ts');
+  test('exactly one supported entrypoint can execute a migration', () => {
+    const executable = (source: string): string =>
+      source
+        .split('\n')
+        .filter((line) => !/^\s*#/.test(line))
+        .join('\n');
+    const sources = [
+      apiFile('scripts/entrypoint.sh'),
+      apiFile('scripts/entrypoint-legacy.sh'),
+      apiFile('scripts/entrypoint-dispatcher.inc'),
+    ].map(executable);
+    expect(sources.filter((source) => /migrate deploy/.test(source))).toHaveLength(1);
+  });
 
+  test('canonical promotion gates SHA approval and comparison before DB access', () => {
+    const source = apiFile('scripts/ingest-defense-budget-pdf.ts');
     const mainStart = source.indexOf('async function main(): Promise<void>');
     const approvalParse = source.indexOf(
       "requireApprovedSha256(arg('approved-sha256'))",
       mainStart,
     );
     const commitDispatch = source.indexOf(': await runCommit(', approvalParse);
-    expect(mainStart).toBeGreaterThan(-1);
     expect(approvalParse).toBeGreaterThan(mainStart);
     expect(commitDispatch).toBeGreaterThan(approvalParse);
 
     const runCommitStart = source.indexOf('async function runCommit(');
-    const byteComparison = source.indexOf(
+    const comparison = source.indexOf(
       'assertApprovedShaMatches(sourceSha256, approvedSha256)',
       runCommitStart,
     );
@@ -47,22 +60,20 @@ describe('Program Elements operational safety guards', () => {
       'const prisma = new PrismaClient()',
       runCommitStart,
     );
-    expect(runCommitStart).toBeGreaterThan(-1);
-    expect(byteComparison).toBeGreaterThan(runCommitStart);
-    expect(prismaConstruction).toBeGreaterThan(byteComparison);
-
+    expect(comparison).toBeGreaterThan(runCommitStart);
+    expect(prismaConstruction).toBeGreaterThan(comparison);
     expect(source).toContain('--commit promotes exactly one processable PDF');
     expect(source).toContain('onePdfPerTransaction: true');
-    expect(source).toContain('CANONICAL_TRANSACTION_TIMEOUT_MS');
+    expect(source).toContain('Immutable source archive did not return an S3 VersionId');
+    expect(source).toContain('const preExistingObservationIds = new Set');
+    expect(source).toContain('function listLocalPdfsRequired');
   });
 
-  test('preflight stays network-free and vendor parsing remains explicitly authorized', () => {
+  test('preflight stays network-free and vendor parsing requires explicit authorization', () => {
     const source = apiFile('scripts/ingest-defense-budget-pdf.ts');
     const loaderStart = source.indexOf('function loadVendorParseEnvironment');
-    const beforeLoader = source.slice(0, loaderStart);
-
     expect(loaderStart).toBeGreaterThan(-1);
-    expect(beforeLoader).not.toContain('dotenvConfig(');
+    expect(source.slice(0, loaderStart)).not.toContain('dotenvConfig(');
     expect(source).toContain("const ALLOW_VENDOR_PARSE = '--allow-vendor-parse'");
     expect(source).toContain(
       '--extract-only requires explicit --allow-vendor-parse authorization before any archive or LlamaParse call.',

@@ -42,6 +42,7 @@ function makeClient(
     sectorTag: string | null;
     status: string;
     profileStatus: string;
+    applicantTypes: string[];
     capabilities: Array<{ name: string; sector: string | null; tags: unknown }>;
     facilities: Array<{ state: string | null }>;
   }> = {},
@@ -51,6 +52,10 @@ function makeClient(
     sectorTag: null,
     status: 'active',
     profileStatus: 'ACTIVE',
+    // Defaults to empty, which is what every existing row gets from
+    // `20260809010000_client_applicant_types`. Empty means "we do not know",
+    // so eligibility stays `needs_review` rather than claiming `eligible`.
+    applicantTypes: [] as string[],
     capabilities: [] as Array<{ name: string; sector: string | null; tags: unknown }>,
     facilities: [] as Array<{ state: string | null }>,
     ...overrides,
@@ -93,9 +98,10 @@ function makePrismaMock(
         clients
           // Simulates `where: { status: { not: 'archived' }, profileStatus: 'ACTIVE' }`.
           .filter((c) => c.status !== 'archived' && c.profileStatus === 'ACTIVE')
-          .map(({ id, sectorTag, capabilities, facilities }) => ({
+          .map(({ id, sectorTag, applicantTypes, capabilities, facilities }) => ({
             id,
             sectorTag,
+            applicantTypes,
             capabilities,
             facilities,
           }))) as CandidatesPrisma['client']['findMany'],

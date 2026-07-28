@@ -172,10 +172,61 @@ describe('StrategyHeader — Add step gating (§4.4, §4.5)', () => {
     expect(screen.getByRole('button', { name: /edit panel/i })).toBeInTheDocument();
   });
 
-  test('the Ask Meri CTA is hidden while the panel is already open', () => {
-    render(<StrategyHeader {...props({ meriPanelOpen: true })} />);
-    expect(screen.queryByRole('button', { name: /ask meri/i })).toBeNull();
-    expect(screen.getByRole('button', { name: /export/i })).toBeInTheDocument();
+  /*
+   * Phase 7 (Lia) accepted the full-width header over the prototype's shrinking
+   * one, on two conditions. These are those conditions.
+   */
+  test('with the panel open the CTA becomes the collapse control, not nothing', () => {
+    const onClosePanel = vi.fn();
+    const onAskMeri = vi.fn();
+    render(<StrategyHeader {...props({ meriPanelOpen: true, onClosePanel, onAskMeri })} />);
+
+    // It is still there, and it now collapses rather than re-opening.
+    const toggle = el('sp-header-meri-toggle');
+    expect(toggle).toBeInTheDocument();
+    expect(toggle).toHaveTextContent(/collapse/i);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(toggle);
+    expect(onClosePanel).toHaveBeenCalledTimes(1);
+    expect(onAskMeri).not.toHaveBeenCalled();
+  });
+
+  test('with the panel closed it is the Ask Meri CTA again', () => {
+    const onClosePanel = vi.fn();
+    const onAskMeri = vi.fn();
+    render(<StrategyHeader {...props({ meriPanelOpen: false, onClosePanel, onAskMeri })} />);
+    const toggle = el('sp-header-meri-toggle');
+    expect(toggle).toHaveTextContent(/ask meri/i);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(toggle);
+    expect(onAskMeri).toHaveBeenCalledTimes(1);
+    expect(onClosePanel).not.toHaveBeenCalled();
+  });
+
+  test('the Meri-off fallback toggles the same way', () => {
+    const onClosePanel = vi.fn();
+    render(
+      <StrategyHeader {...props({ meriEnabled: false, meriPanelOpen: true, onClosePanel })} />,
+    );
+    const toggle = el('sp-header-meri-toggle');
+    expect(toggle).toHaveTextContent(/collapse/i);
+    fireEvent.click(toggle);
+    expect(onClosePanel).toHaveBeenCalledTimes(1);
+  });
+
+  test('the Watch chip stays visible AND clickable while the panel is open', () => {
+    const onOpenWatch = vi.fn();
+    render(
+      <StrategyHeader
+        {...props({ meriPanelOpen: true, watch: { on: true, pending: 5 }, onOpenWatch })}
+      />,
+    );
+    const chip = el('sp-header-watch');
+    expect(chip).toBeInTheDocument();
+    expect(chip).toHaveTextContent('Watching');
+    expect(chip).not.toBeDisabled();
+    fireEvent.click(chip);
+    expect(onOpenWatch).toHaveBeenCalledTimes(1);
   });
 });
 

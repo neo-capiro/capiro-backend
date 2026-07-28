@@ -8,7 +8,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App } from 'antd';
 import { Icon, Ava, Chip, btnPrimary, btnGhost } from './strategy-ui.js';
-import { useStrategies, useFirmPhases } from './api.js';
+import { useStrategies, useFirmPhases, usePendingWatchCounts } from './api.js';
 import { useMe } from '../../lib/me.js';
 import { useClientsLite, clientColor } from './clients-lite.js';
 import { useTenantMembers, memberName, initialsOf } from './members.js';
@@ -16,6 +16,7 @@ import { STRATEGY_TYPE_LABEL, relativeTime, FIRM_PHASES_DEFAULT } from './consta
 import { buildCalendar } from './fiscal.js';
 import { GoalModal } from './GoalModal.js';
 import { FirmConfig } from './FirmConfig.js';
+import { canShowWatchRail } from './agents/agent-utils.js';
 import type { StrategyListItem } from './types.js';
 
 const selS: React.CSSProperties = {
@@ -44,6 +45,10 @@ export function StrategyLibraryPage() {
   // StrategyRoutes (deep links and the node execution flow still use them) —
   // only the buttons were retired. Per-strategy Watch review moves into the
   // editor panel (Phase 4).
+  const watcherEnabled = canShowWatchRail(me.data?.features);
+  // Phase 4 §6: ONE aggregate query for every row's nudge — never N queries
+  // (one getState()-shaped call per strategy in the list).
+  const pendingCounts = usePendingWatchCounts(watcherEnabled);
   const calendar = useMemo(() => buildCalendar(new Date()), []);
 
   const [goalOpen, setGoalOpen] = useState(false);
@@ -285,6 +290,7 @@ export function StrategyLibraryPage() {
                 clientName={clientName}
                 ownerLabel={ownerLabel}
                 ownerInitials={ownerInitials}
+                pendingWatchCount={pendingCounts.data?.[s.id] ?? 0}
                 onOpen={() => navigate(`/strategies/${s.id}`)}
               />
             ))}
@@ -342,12 +348,15 @@ function StrategyRow({
   clientName,
   ownerLabel,
   ownerInitials,
+  pendingWatchCount,
   onOpen,
 }: {
   s: StrategyListItem;
   clientName: (id: string) => string;
   ownerLabel: (id: string) => string;
   ownerInitials: (id: string) => string;
+  /** Phase 4 §6: the weekly Watch nudge count for this row (0 = no chip). */
+  pendingWatchCount: number;
   onOpen: () => void;
 }) {
   const cc = clientColor(s.clientId);
@@ -404,6 +413,26 @@ function StrategyRow({
         >
           <Chip tone="ink">{STRATEGY_TYPE_LABEL[s.type]}</Chip>
           <span>{s.nodeCount} nodes</span>
+          {pendingWatchCount > 0 && (
+            <span
+              data-testid="sp-library-watch-nudge"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                background: 'var(--accent-soft)',
+                border: '1px solid var(--accent)',
+                color: 'var(--accent-ink)',
+                borderRadius: 20,
+                padding: '2px 9px',
+                fontSize: 'var(--text-2xs)',
+                fontWeight: 700,
+              }}
+            >
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)' }} />
+              {pendingWatchCount} proposed change{pendingWatchCount === 1 ? '' : 's'} to review
+            </span>
+          )}
           <span style={{ color: 'var(--ink-4)' }}>·</span>
           <span>
             Edited by {ownerLabel(s.lastEditedByUserId ?? s.ownerUserId)} ·{' '}

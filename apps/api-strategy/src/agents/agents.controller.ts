@@ -372,6 +372,17 @@ export class AgentsController {
   // the generic change-set endpoints above are untouched and still serve
   // person-authored / firm-level proposals exactly as before.
 
+  /**
+   * Phase 4 §6: per-strategy pending counts for the library's weekly nudge —
+   * one aggregate query, not one getState() per row. Declared as a literal
+   * segment so it can never be shadowed by `watch/strategies/:strategyId`.
+   */
+  @Get('watch/pending-counts')
+  @UseGuards(StrategyWatcherGuard)
+  getWatchPendingCounts(@CurrentTenant() tc: AuthTenantContext) {
+    return this.watchReview.getPendingCounts(tc.tenantId);
+  }
+
   /** The panel's read state: current-head Watch proposals only, sorted, with
    *  dismissed and deleted-target findings already excluded. */
   @Get('watch/strategies/:strategyId')

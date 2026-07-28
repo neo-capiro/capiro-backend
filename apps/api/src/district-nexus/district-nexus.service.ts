@@ -872,6 +872,7 @@ export class DistrictNexusService {
         where: { id: clientId, ...VISIBLE_CLIENT_FILTER },
         select: {
           sectorTag: true,
+          applicantTypes: true,
           capabilities: { select: { name: true, sector: true, tags: true } },
           facilities: { select: { state: true } },
         },
@@ -900,6 +901,9 @@ export class DistrictNexusService {
       facilityStates: (client?.facilities ?? []).map((f) => f.state),
       priorAssistanceListings,
       priorAgencies,
+      // Archived client → `client` is null here, so this stays empty and F3
+      // eligibility reports needs_review, matching every other field above.
+      applicantTypes: client?.applicantTypes ?? [],
     });
   }
 

@@ -1,0 +1,203 @@
+# Phase A local verification matrix
+
+Reviewed revision : e43b3a6f5b6ee987752b5fdd6eab8c4f5cd64c18
+origin/main       : 2d8067f47ededbb3f189296fc8a4bc60d85994a2
+Clean-main worktree used for every baseline comparison, detached at origin/main.
+Captured          : 2026-07-28 (UTC)
+
+Every "pre-existing" label below was produced by running the IDENTICAL command in
+a clean origin/main worktree and comparing the result. None is asserted from
+memory or inference.
+
+================================================================================
+COMMAND RESULTS
+================================================================================
+
+pnpm install --frozen-lockfile                                    exit 0   PASS
+pnpm --filter @capiro/shared build                                exit 0   PASS
+pnpm --filter @capiro/meriv2-core build                           exit 0   PASS
+pnpm --filter @capiro/api exec prisma generate                    exit 0   PASS
+pnpm --filter @capiro/api exec prisma validate                    exit 1   ENVIRONMENTAL (see N1)
+pnpm --filter @capiro/api exec prisma validate  (DATABASE_URL set) exit 0   PASS  "schema is valid"
+pnpm --filter @capiro/api typecheck                               exit 0   PASS  prints PE_PHASE_A_SAFETY_OK
+pnpm --filter @capiro/web typecheck                               exit 0   PASS
+pnpm turbo run typecheck                                          exit 0   PASS  18/18 tasks (see N2)
+pnpm --filter @capiro/api verify:pe-phase-a                       exit 0   PASS  prints PE_PHASE_A_SAFETY_OK
+pnpm --filter @capiro/api exec jest scripts/lib/pe-ingestion-mode.spec.ts \
+    scripts/lib/pe-phase-a-safety.spec.ts --runInBand --detectOpenHandles \
+    --forceExit                                                   exit 0   PASS  2 suites, 14 tests
+sh -n apps/api/scripts/entrypoint.sh                              exit 0   PASS
+sh -n apps/api/scripts/entrypoint-legacy.sh                       exit 0   PASS
+sh -n apps/api/scripts/entrypoint-dispatcher.inc                  exit 0   PASS  (not required by the
+                                                                                 handoff; checked because
+                                                                                 this file is executed by
+                                                                                 /bin/sh at runtime)
+node -e "JSON.parse(... apps/api/package.json ...)"               exit 0   PASS  package-json-ok
+pnpm --filter @capiro/api lint                                    exit 1   PRE-EXISTING (see N3)
+pnpm --filter @capiro/api test                                    exit 1   PRE-EXISTING (see N4)
+
+--------------------------------------------------------------------------------
+N1 — prisma validate without DATABASE_URL
+--------------------------------------------------------------------------------
+Branch  : exit 1, "Error code: P1012 ... Environment variable not found: DATABASE_URL"
+Main    : exit 1, byte-identical error
+Cause   : schema.prisma:17 declares url = env("DATABASE_URL"); `validate` evaluates it.
+          It does not connect. With any placeholder DATABASE_URL set, the same command
+          returns "The schema at prisma\schema.prisma is valid" on this branch.
+Verdict : environmental, identical on main, not branch-caused, schema itself is valid.
+
+--------------------------------------------------------------------------------
+N2 — pnpm turbo run typecheck
+--------------------------------------------------------------------------------
+FINAL RESULT ON THIS BRANCH: exit 0, "Tasks: 18 successful, 18 total".
+
+A first attempt failed (exit 2) on @capiro/workspace, and clean origin/main failed
+the same command the same way. With --continue, BOTH sides failed the identical
+four packages:
+          @capiro/api-strategy, @capiro/intel-api, @capiro/onboard-api, @capiro/workspace
+Neither side failed @capiro/api or @capiro/web.
+
+Root cause found rather than assumed: those four apps own separate Prisma schemas
+whose clients a bare `pnpm install` does not generate, so the errors were
+"Cannot find module '../../generated/prisma-client/index.js'" and consequent
+implicit-any cascades. .github/workflows/ci-pr.yml has an explicit
+"Generate Prisma clients" step covering exactly @capiro/api, @capiro/workspace,
+@capiro/intel-api, @capiro/onboard-api and @capiro/api-strategy.
+
+After replicating that CI step locally, `pnpm turbo run typecheck` passes 18/18 on
+this branch. This is a local setup gap, NOT a pre-existing defect and NOT
+branch-caused. CI confirms it: the ci-pr "Typecheck (turbo)" step succeeded.
+
+--------------------------------------------------------------------------------
+N3 — api lint
+--------------------------------------------------------------------------------
+Branch  : exit 1, "'eslint' is not recognized as an internal or external command"
+Main    : exit 1, identical message
+Cause   : ESLint is not installed anywhere in the repo. This is a deliberate,
+          documented repo condition, stated in .github/workflows/ci-pr.yml:
+            "Lint is intentionally substituted with `prettier --check` on the
+             MeriV2 code: `pnpm lint` is non-functional repo-wide (eslint is not
+             installed)"
+Action  : no package added, per the Phase A instruction not to add dependencies.
+Verdict : pre-existing and intentional, proven identical on main.
+
+--------------------------------------------------------------------------------
+N4 — full api jest suite
+--------------------------------------------------------------------------------
+BRANCH   : Test Suites: 12 failed, 451 passed, 463 total
+           Tests:       40 failed, 1 todo, 5321 passed, 5362 total
+CLEAN MAIN: Test Suites: 12 failed, 449 passed, 461 total
+           Tests:       40 failed, 1 todo, 5307 passed, 5348 total
+
+Failing-suite SET comparison (sorted, deduped, compared with comm):
+  failing on branch but NOT on clean main : NONE
+  failing on clean main but NOT on branch : NONE
+The two sets are identical. All 12 are pre-existing:
+
+  src/acquisition-personnel/acquisition-personnel-read.service.spec.ts
+  src/acquisition-personnel/extractors/sam-personnel-extractor.spec.ts
+  src/acquisition-personnel/org-import/dow-org-import.helpers.spec.ts
+  src/engagement/engagement-batch-error-status.spec.ts
+  src/engagement/engagement-batch-group.spec.ts
+  src/engagement/engagement-batch-revise.spec.ts
+  src/engagement/engagement-batch-sticky-provider.spec.ts
+  src/meri/meri-tools.firmdata.spec.ts
+  src/program-element/extractors/bill-pe-extractor.spec.ts
+  src/program-element/program-element-read-provisions.spec.ts
+  src/program-element/program-element-read.service.spec.ts
+  test/e2e/defense-budget-intelligence.e2e.spec.ts
+
+Note the last four are program-element / defense-budget suites. They fail
+IDENTICALLY on clean origin/main, so they are not Phase A regressions. This
+branch changes no file under any src/ tree (verified: `git diff --name-only
+origin/main...HEAD` contains zero src/ paths), so it cannot affect them.
+
+The delta is entirely additive and entirely passing:
+  +2 suites  = scripts/lib/pe-ingestion-mode.spec.ts + scripts/lib/pe-phase-a-safety.spec.ts
+  +14 tests  = the 14 Phase A tests, all passing
+  +0 failures
+
+================================================================================
+BEHAVIOURAL VERIFICATION (executed, not grepped)
+================================================================================
+
+The Phase A specs assert largely on file text, so the safety-critical behaviour
+was additionally executed directly.
+
+a3 — generalized ingestion, run with LLAMA_CLOUD_API_KEY / DEFENSE_BUDGET_* /
+     DATABASE_URL / AWS credentials all unset:
+
+  --commit                                exit 1  "Canonical generalized defense-budget
+                                                   writes are disabled until the USD-millions
+                                                   migration in Phase b is verified."
+  --commit --path /nonexistent/x.pdf      exit 1  SAME message — not ENOENT. Proves the block
+                                                  precedes target validation, config loading,
+                                                  S3, LlamaParse and any DB access.
+  --extract-only                          exit 1  "--extract-only requires explicit
+                                                   --allow-vendor-parse authorization before
+                                                   any archive or LlamaParse call."
+  --allow-vendor-parse --path <pdf>       exit 1  "--allow-vendor-parse is valid only with
+                                                   --extract-only or deprecated --dry-run."
+  --commit --extract-only                 exit 1  "Choose exactly one ingestion posture"
+  --extract-only --dry-run                exit 1  "Choose exactly one ingestion posture"
+  (no arguments)                          exit 1  usage
+  --path <non-pdf file>                   exit 1  "Input file is not a PDF"
+  --path <missing file>                   exit 1  ENOENT, sanitized
+  --mode pdf_turbo                        exit 1  "--mode must be one of pdf_fast, pdf_premium,
+                                                   or pdf_ocr"
+  --fy 99                                 exit 1  "--fy must be a four-digit fiscal year"
+  --limit 0                               exit 1  "--limit must be a positive integer"
+  --path <empty dir>                      exit 1  "No PDF files found under target: ..."
+  --path <dir with only non-PDFs>         exit 1  "No PDF files found under target: ..."
+  --path <real local PDF>                 exit 0  JSON with externalCalls:false,
+                                                  canonicalWrites:false, sha256 computed
+  --path s3://bucket/prefix               exit 0  JSON with sha256:null and
+                                                  materializationRequired:true — no S3 call was
+                                                  attempted. With AWS credentials unset an
+                                                  actual list/get would have failed, so the
+                                                  "no network in preflight" promise is truthful.
+
+  The two empty-target cases returned exit 0 before this PR; they are fixed here.
+  --extract-only --allow-vendor-parse was NEVER run: it is the only combination
+  that can reach LlamaParse.
+
+a1 — diagnostic:
+  entrypoint.sh diag-pe-trust             reaches the script; prints
+                                          "Running diag-pe-trust (SELECT-only Program Elements
+                                           trust baseline)"
+  against an unreachable database         exit 1, one "[diag-pe-trust] FAILED" message,
+                                          NO partial JSON report, no credential in the output
+  static proof                            all 8 Prisma calls are findMany; zero
+                                          create/update/upsert/delete/$executeRaw/$transaction;
+                                          exactly one console.log (one JSON object)
+
+a2 / a4 — entrypoints:
+  entrypoint-legacy.sh migrate            exit 64 "Refusing legacy migrate dispatch..."
+  entrypoint-dispatcher.inc migrate       exit 64 "Refusing legacy migrate dispatch..."
+                                          (before this PR this path would have executed
+                                           UPDATE _prisma_migrations SET rolled_back_at = NOW())
+  entrypoint-dispatcher.inc <unknown>     exit 1, usage output listing BOTH diag-pe-trust
+                                          (added here) and backfill-assistance-awards-bulk
+                                          (added by main after this branch forked, preserved)
+  verb parity vs main's dispatcher        175 case labels on each side, zero drift
+
+================================================================================
+CI (GitHub Actions, run against e43b3a6f)
+================================================================================
+
+  ci-pr                      success
+  legiwatch-ci               success
+  engagement-trust-boundary  success
+
+ci-pr detail: all 18 steps succeeded. "Typecheck (turbo)" is the repository's
+ordinary blocking step — no `continue-on-error`, no `id: typecheck`, no
+"Enforce typecheck result" shim, and the run uploaded 0 artifacts (so no
+`pe-phase-a-typecheck-log`). Its log contains:
+
+    > tsc --noEmit && tsc -p tsconfig.pe-phase-a.json --noEmit \
+      && tsx scripts/verify-pe-phase-a-safety.ts
+    PE_PHASE_A_SAFETY_OK
+
+confirming the narrow PE script project and the direct safety verifier both ran
+and passed inside CI. For comparison, ci-pr and legiwatch-ci both FAILED at the
+previous branch head 766e7002.

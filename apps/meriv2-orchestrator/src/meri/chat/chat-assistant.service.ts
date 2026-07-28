@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import {
-  computeActionFingerprint,
   KeywordIntentRouter,
   wrapToolResultForPrompt,
   runAuditor,
@@ -28,7 +27,7 @@ import {
 } from '../request-scoped-llm.client.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { ApiComplianceAuditRepo } from '../api-compliance-audit.repo.js';
-import { ApiPendingActionRepo } from '../api-pending-action.repo.js';
+import { ApiActionProposalRepo } from '../api-action-proposal.repo.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   composeChatSystemPrompt,
@@ -89,9 +88,10 @@ interface ContentBlock {
  * MeriV2-served full chat surface (Workstream C4). The bounded agentic loop over
  * the ENTIRE tool registry (all read tools + the gated write tools), on the
  * tenant's key (BYOK via the shared RequestScopedLlmClient). Read tools delegate
- * to apps/api; write tools run through the registry's B1-B4 compliance gate —
- * an unapproved write comes back as `pending_approval` (with the fingerprint the
- * surface uses to approve), NOT as a completed action, and the model is told so.
+ * to apps/api; write tools run through the registry's compliance gate — an
+ * unapproved write comes back as `pending_approval` (carrying the durable,
+ * server-created proposalId the surface approves by ID only), NOT as a
+ * completed action, and the model is told so.
  *
  * SCOPE (v1): stateless per turn — the caller threads `messages[]` (same
  * contract as the in-editor surface). STREAMING (SSE) and server-side
@@ -113,7 +113,7 @@ export class ChatAssistantService {
     config: ConfigService,
     private readonly audit: ApiComplianceAuditRepo,
     private readonly prisma: PrismaService,
-    private readonly pendingActions: ApiPendingActionRepo,
+    private readonly actionProposals: ApiActionProposalRepo,
   ) {
     this.registry = registryService.registry;
     this.llm = registryService.llm; // single global-key-read site lives in the registry (BYOK4-clean)
@@ -341,6 +341,7 @@ export class ChatAssistantService {
             ctx,
             tu.name,
             this.augmentToolInput(dto, tu.input ?? {}),
+            dto.conversationId,
             steps,
             pendingApprovals,
             artifacts,
@@ -568,16 +569,19 @@ export class ChatAssistantService {
 
   /**
    * Run one tool through the registry (scoping + write gate enforced). A gated
-   * write throws ApprovalPendingError / ComplianceBlockedError — caught here and
-   * turned into a `pending_approval` / `blocked` step + a tool_result the model
+   * write throws ApprovalPendingError / ComplianceBlockedError — caught here.
+   * ApprovalPendingError is turned into a durable, server-created
+   * MeriActionProposal (Phase 0: apps/api is the sole source of proposal
+   * authority) surfaced as a `pending_approval` step + tool_result the model
    * reads, so it tells the user the action awaits approval instead of claiming
-   * it ran. The fingerprint (recomputed with the same pure function the gate
-   * used) is surfaced so the client can approve, then re-run.
+   * it ran. Only the opaque proposalId is surfaced — never a
+   * browser-authoritative tool/payload/fingerprint.
    */
   private async invokeTool(
     ctx: MeriContext,
     name: string,
     input: Record<string, unknown>,
+    conversationId: string | undefined,
     steps: ChatStep[],
     pendingApprovals: NonNullable<ChatResult['pendingApprovals']>,
     artifacts: ChatArtifact[],
@@ -613,40 +617,75 @@ export class ChatAssistantService {
     } catch (e) {
       const err = e as Error;
       if (err.name === 'ApprovalPendingError') {
-        const fingerprint = computeActionFingerprint(name, input, ctx);
         // Propose-time client check. The gate WARNs BEFORE the tool runs, so a
         // write naming a client that cannot be resolved used to render as a
         // perfectly clean approve card and only fail after the click. Three
         // profile fills were once proposed for clients whose create_client had
         // never been approved; every card looked fine. Say so on the card.
         const blocker = await this.describeClientBlocker(input);
-        const reason = blocker ? `${err.message} — ${blocker}` : err.message;
+
+        let proposal: Awaited<ReturnType<ApiActionProposalRepo['create']>>;
+        try {
+          proposal = await this.actionProposals.create({
+            tool: name,
+            input,
+            ...(conversationId ? { conversationId } : {}),
+            surface: 'chat',
+          });
+        } catch (createErr) {
+          // Persistence failed — never fabricate a usable approval card. The
+          // model must be told plainly that nothing was proposed or queued, so
+          // it can never claim otherwise (a browser card requires a durable
+          // proposalId that does not exist here).
+          const detail = (createErr as Error).message.slice(0, 160);
+          steps.push({ tool: name, label, status: 'error', detail });
+          emit({ type: 'tool_done', tool: name, label, status: 'error', detail });
+          return {
+            error: true,
+            message:
+              'This action could not be proposed due to a system error. Tell the user it was NOT submitted, queued, or scheduled, and that they should try again.',
+          };
+        }
+
+        const reason = blocker ? `${proposal.reason} — ${blocker}` : proposal.reason;
         steps.push({ tool: name, label, status: 'pending_approval' });
-        pendingApprovals.push({ tool: name, fingerprint, reason });
+        pendingApprovals.push({
+          tool: name,
+          proposalId: proposal.proposalId,
+          reason,
+          status: proposal.status,
+        });
         emit({ type: 'tool_done', tool: name, label, status: 'pending_approval' });
-        emit({ type: 'pending_approval', tool: name, label, fingerprint, reason });
-        this.audit.record({ trigger: name, decision: 'WARN', reason });
-        // B4.1: cache the EXACT input behind this fingerprint so approving it
-        // replays THIS action directly — never re-asks the model, which would
-        // re-research/reword and hash to a fingerprint that was never approved
-        // (the confirmed root cause of "approve does nothing," proven live:
-        // update_client_profile was approved 8 times over a week and executed
-        // zero times).
-        this.pendingActions.record({ fingerprint, tool: name, input });
+        emit({
+          type: 'pending_approval',
+          tool: name,
+          label,
+          proposalId: proposal.proposalId,
+          status: proposal.status,
+          reason,
+          expiresAt: proposal.expiresAt,
+          riskTier: proposal.riskTier,
+          policyCode: proposal.policyCode,
+          preview: proposal.preview,
+        });
+        // Compliance audit for this WARN decision is already durably recorded
+        // by apps/api INSIDE the same transaction as proposal creation
+        // (MeriActionProposalService.create -> recordDecision) — recording it
+        // again here would just duplicate the row.
         if (blocker) {
           // Also hand it to the model as tool output, so its prose matches the
           // card instead of promising a fill that provably cannot happen.
           return {
             pendingApproval: true,
-            fingerprint,
+            proposalId: proposal.proposalId,
             willFail: true,
             message: `This action needs the user's approval, and as proposed it will FAIL: ${blocker}. Tell the user plainly and fix the reference (or create the client first) rather than repeating the same proposal.`,
           };
         }
         return {
           pendingApproval: true,
-          fingerprint,
-          message: `This action needs the user's approval before it runs: ${err.message}`,
+          proposalId: proposal.proposalId,
+          message: `This action needs the user's approval before it runs: ${proposal.reason}`,
         };
       }
       if (err.name === 'ComplianceBlockedError') {

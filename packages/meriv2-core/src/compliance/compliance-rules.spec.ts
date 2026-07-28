@@ -145,9 +145,6 @@ describe('PROPOSED_CAPIRO_RULES — the tiered production proposal', () => {
     for (const tool of [
       'save_note',
       'save_memory',
-      'confirm_memory',
-      'correct_memory',
-      'forget_memory',
       'create_word',
       'create_excel',
       'create_powerpoint',
@@ -157,6 +154,14 @@ describe('PROPOSED_CAPIRO_RULES — the tiered production proposal', () => {
       const d = decide(policy, tool);
       expect(d.outcome).toBe('PASS');
       expect(d.ruleId).toBe('internal_artifacts.pass');
+    }
+  });
+
+  it('does not unconditionally pre-approve scope-sensitive memory mutations', () => {
+    for (const tool of ['confirm_memory', 'correct_memory', 'forget_memory']) {
+      const d = decide(policy, tool);
+      expect(d.outcome).toBe('WARN');
+      expect(d.ruleId).toBeUndefined();
     }
   });
 
