@@ -864,7 +864,12 @@ export class DistrictNexusService {
   ): Promise<ClientRelevanceProfile> {
     const client = await this.prisma.withTenant(tenantId, (tx) =>
       tx.client.findFirst({
-        where: { id: clientId },
+        // Soft-archived clients contribute nothing (audit F6) — same filter
+        // every other client read in this file uses. The caller already
+        // zeroes identifiers.recipientUeis/recipientNames for an archived
+        // client, but without this, this call alone would still leak its
+        // real sectorTag/capabilities/facilities into the relevance profile.
+        where: { id: clientId, ...VISIBLE_CLIENT_FILTER },
         select: {
           sectorTag: true,
           capabilities: { select: { name: true, sector: true, tags: true } },
