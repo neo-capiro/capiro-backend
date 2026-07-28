@@ -13,8 +13,9 @@
 // exact same method — so this function is already invoked identically from
 // both surfaces by construction, not by a duplicated implementation.
 //
-// Phase 4 write-confidence gate lives in memory-confidence.helpers (single
-// source of truth); re-exported below for the rule + its existing spec importers.
+// Confidence helpers remain exported for explicit extraction/evaluation callers,
+// but Phase 0 governance never lets model extraction auto-promote merely because
+// a model assigned itself a high score.
 import {
   DEFAULT_MIN_WRITE_CONFIDENCE,
   passesWriteConfidenceGate,
@@ -32,12 +33,11 @@ export interface MemoryCandidateDecision {
 export interface MemoryCandidateRuleInput {
   scope: 'personal' | 'firm' | 'client';
   isAdmin: boolean;
-  /** Phase 4: how the write originated. Only 'model_extraction' is gated on
-   *  confidence; explicit human saves are unaffected. Absent = human/explicit. */
+  /** Machine extraction is always review-only in Phase 0. Absent = explicit human save. */
   sourceKind?: string;
-  /** Phase 4: extraction confidence [0,1] when the source scored it. */
+  /** Extraction confidence [0,1], retained for review context, never auto-authority. */
   confidence?: number | null;
-  /** Phase 4: floor for the model_extraction low-confidence rule (default 0.7). */
+  /** Retained for compatibility with evaluation callers; not an auto-promotion threshold. */
   minConfidence?: number;
 }
 
@@ -49,31 +49,17 @@ interface MemoryCandidateRule {
 }
 
 /**
- * Seed ruleset. Preserves both halves of the pre-Phase-1 behavior exactly:
- * personal memory always committed immediately, and an admin's own
- * firm-scope save committed immediately (an admin is trusted to self-approve
- * — this is not a new capability, it's what saveMemory already did before a
- * candidate/approval concept existed). The ONLY behavior change is the third
- * rule: a non-admin's firm-scope save used to be a dead-end rejection
- * message; it now creates a real, reviewable pending candidate.
+ * Explicit human saves retain their existing scope behavior. Machine extraction
+ * is the first rule and always remains pending: assistant/model-authored prose
+ * and model confidence can never become active institutional truth by themselves.
  */
 const MEMORY_CANDIDATE_RULES: readonly MemoryCandidateRule[] = [
-  // Phase 4 (FIRST — first-match-wins): a MODEL-extracted memory below the
-  // confidence floor never auto-commits, it lands in the review queue. Gated
-  // strictly to sourceKind='model_extraction' with a numeric confidence, so
-  // every existing caller (explicit human saves, which pass no sourceKind/
-  // confidence) is unaffected — this rule is inert until governed ingestion
-  // (Phase 6) routes machine extractions through the candidate flow.
   {
-    id: 'memory.model_extraction.low_confidence_requires_approval',
+    id: 'memory.model_extraction.requires_review',
     outcome: 'WARN',
     reason:
-      'Low-confidence machine-extracted memory requires an authorized reviewer before it is stored.',
-    matches: (i) =>
-      i.sourceKind === 'model_extraction' &&
-      typeof i.confidence === 'number' &&
-      Number.isFinite(i.confidence) &&
-      !passesWriteConfidenceGate(i.confidence, i.minConfidence ?? DEFAULT_MIN_WRITE_CONFIDENCE),
+      'Machine-extracted memory requires an authorized reviewer before it becomes active memory.',
+    matches: (i) => i.sourceKind === 'model_extraction',
   },
   {
     id: 'memory.personal.auto_commit',
@@ -111,8 +97,7 @@ const MEMORY_CANDIDATE_RULES: readonly MemoryCandidateRule[] = [
   },
 ];
 
-/** First matching rule wins. Fail-safe fallback (unreachable today — the two
- *  scope values are exhaustive) still requires approval, never auto-commits. */
+/** First matching rule wins. Fail-safe fallback still requires approval. */
 export function evaluateMemoryCandidate(input: MemoryCandidateRuleInput): MemoryCandidateDecision {
   for (const rule of MEMORY_CANDIDATE_RULES) {
     if (rule.matches(input)) {
