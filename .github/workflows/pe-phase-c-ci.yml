@@ -25,6 +25,9 @@ jobs:
       - name: Apply Phase C patch
         run: python apps/api/scripts/__phase_c_apply_patch.py
 
+      - name: Establish PE-watch RLS controls
+        run: python apps/api/scripts/__phase_c_post_patch.py
+
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -74,7 +77,8 @@ jobs:
             .github/workflows/pe-phase-c-ci.yml \
             .github/workflows/pe-phase-c-rls-diagnostic.yml \
             apps/api/scripts/__phase_c_apply_patch.py \
-            apps/api/scripts/__phase_c_patch_fix.py
+            apps/api/scripts/__phase_c_patch_fix.py \
+            apps/api/scripts/__phase_c_post_patch.py
           git config user.name 'capiro-phase-c-bot'
           git config user.email 'actions@users.noreply.github.com'
           git add \
