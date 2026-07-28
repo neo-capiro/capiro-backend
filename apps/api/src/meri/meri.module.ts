@@ -14,6 +14,8 @@ import { MemoryModule } from '../memory/memory.module.js';
 import { ContextModule } from '../context/context.module.js';
 import { ReviewsModule } from '../reviews/reviews.module.js';
 import { MeriController } from './meri.controller.js';
+import { MeriActionProposalController } from './meri-action-proposal.controller.js';
+import { MeriActionProposalService } from './meri-action-proposal.service.js';
 import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { MeriResearchService } from './meri-research.service.js';
@@ -45,7 +47,7 @@ import { MeriV2ChatClient } from './meriv2-chat.client.js';
     ContextModule,
     ReviewsModule,
   ],
-  controllers: [MeriController, MeriMcpOAuthController],
+  controllers: [MeriController, MeriActionProposalController, MeriMcpOAuthController],
   providers: [
     MeriService,
     MeriToolsService,
@@ -56,6 +58,7 @@ import { MeriV2ChatClient } from './meriv2-chat.client.js';
     MeriFirmSkillsService,
     MeriFeatureFlagsService,
     MeriApprovalService,
+    MeriActionProposalService,
     MeriComplianceAuditService,
     MeriClaimWriterService,
     MeriV2ChatClient,
