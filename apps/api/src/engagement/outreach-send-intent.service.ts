@@ -451,6 +451,13 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
       // Kept for the worker: bytes are re-read at send time from the manifest,
       // so nothing large is stored on the intent.
       void inlineAttachments;
+      // §h5 — structured safety log: ids, counts and the test/real flag only.
+      // No recipient email, subject, body, or attachment name ever appears in
+      // a log line for this send boundary.
+      this.logger.log(
+        `send intent ${intent.id} committed for record ${outreachRecordId} ` +
+          `(tenant ${ctx.tenantId}, ${planned.length} delivery row(s), testMode=${testMode})`,
+      );
       return { intentId: intent.id, deduped: false };
     });
   }
