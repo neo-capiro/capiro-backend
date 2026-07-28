@@ -186,6 +186,7 @@ All seven award-bearing types are supported:
 | H13 | ~~Merge **#650**~~ + apply the KML `s3:PutObject` grant out-of-band | **Merged 2026-07-28** (`e2de4b1e`); the live IAM grant is still outstanding | `kml_s3_key` is NULL on **all 741** `legislative_district` rows (537 `C` + 204 `F`) because `apiTaskRole` has never held `s3:PutObject` on `UPDATED DISTRICTS/kml/` — in CDK or live. #650 codifies the grant; `cdk deploy Capiro-dev-Compute` stays forbidden, so the live grant is a separate `aws iam put-role-policy` (runbook §10.1). **Privilege change — Neo's call** | Neo |
 | H14 | ~~Merge **#651** — `Client.applicantTypes`~~ | **Merged 2026-07-28** (`2c4a0414`) — closes **E9**, which was confirmed inert live (§J4). **Its migration was broken on arrival; see H17.** | — |
 | H17 | ~~Merge **#655**~~, then apply `20260809010000_client_applicant_types` | **#655 merged 2026-07-28 (`0721c7c5`); applying the migration is still outstanding, and must happen before any api rollout past `6122a0a5`.** This was not a latent hazard — it was **actively breaking CI on every PR**: the `engagement` workflow runs `prisma migrate deploy` against a fresh database and died with `P3018 / 42P01 relation "client" does not exist`, which also blocks every migration queued behind it. #655's `engagement` check going green is the proof it clears | #651's migration shipped as `ALTER TABLE "client"`. The table is `clients` (`@@map("clients")`). `IF NOT EXISTS` guards the **column**, not the table, so `migrate deploy` fails outright with `relation "client" does not exist` and blocks everything queued behind it. Worse: #651 already updated `schema.prisma`, so the generated client selects `applicant_types` on **every** read of `clients` — rolling the API to `:latest` before a working migration 500s every client query for every tenant, not just District Nexus. Verified against `capiro-dev` (diag task `92726b3c`): `pg_tables` holds only `clients`, `applicant_types` exists nowhere, and the migration is absent from `_prisma_migrations`. **#655** fixes the SQL and adds a static guard (131 ALTER targets across the full history, 0 orphans after the fix) | Neo |
+| H18 | ~~Merge **#657**~~ — the *second* defect #651 shipped | **Merged 2026-07-28 (`2ec465dc`)** | `CandidatesPrisma.client.findMany` hand-declares its return shape (its `args` is `unknown`, so the shape is **not** derived from the `select`). #651 added `applicantTypes` to the runtime select **and** to `buildRelevanceProfileForClient`'s parameter, but not to that interface, so the producer script stopped compiling. **CI could not see it**: `apps/api/tsconfig.json` excludes `scripts`, so `pnpm typecheck` never reads `apps/api/scripts`. `ts-jest` does, so the effect was that `generate-grant-opportunity-candidates.spec.ts` **could not run at all** — `grant-opportunity` went from 31 passing with one suite failing to load, to **44 passing across 3 suites**. 13 tests were silently not executing, on the script behind the live producer cron. **Recommend merging PR #584** (`build(api): typecheck apps/api/scripts in CI`, still open) — it closes the hole that let both this and H17 through | Neo (merge #584) |
 | H15 | ~~Close **#591** as superseded~~ | **Closed 2026-07-28** with the byte-identity evidence in the comment | Verified by content hash 2026-07-28: all **6** files in #591 are **byte-for-byte identical** to `origin/main` (commit `bd31c071`, same file set, same +281/−151). Merging it is a no-op at best. See I1 | Neo |
 | H16 | Merge **#592** — codify `CAPIRO_INTERNAL_TENANT_ID` in the Compute stack | **Open — real IaC drift, not superseded** | The env var **is live** on `capiro-dev-api:59` (applied out-of-band) but is **absent from `main`'s `compute-stack.ts`**, so it is drift that a future `cdk deploy` would silently drop. Merging changes no running behaviour — the Compute stack is frozen by the DNS-revert incident — it only makes IaC honest | Neo |
 
@@ -294,3 +295,57 @@ returns for that legacy record, so this is a **presentation** fix, not an
 ingestion one: the award-title renderer should detect an unparsed
 delimiter-dense record and fall back to the award id plus recipient. Not a
 correctness or tenancy issue; does not block merge. **Newly found, unowned.**
+
+---
+
+## K. Definition-of-done evidence, measured 2026-07-28
+
+The closeout brief's own **Definition of done** list, each clause answered with a
+number rather than an assertion. Suites run at `main` = `2ec465dc` in a clean
+worktree, after `pnpm install --frozen-lockfile`,
+`pnpm --filter "./packages/**" build` and `prisma:generate` — all three are
+mandatory or the counts are wrong.
+
+| Suite | Result |
+| --- | --- |
+| `apps/api/src/district-nexus/` | **12 suites, 271 tests, all pass** |
+| `grant-opportunity` (incl. the producer script) | **3 suites, 44 tests, all pass** |
+| `apps/api/src/prisma/` (tenant-scope + migration guards) | **4 suites, 17 tests, all pass** |
+| `apps/web` `DistrictNexus` | **5 files, 58 tests, all pass** |
+
+The `DistrictNexusFlagGuard` "connection reset" line in the API log is a
+**passing** fail-closed test (row A2), not a failure.
+
+### "Reviewed grant relationships are fully usable and audited" — MET
+
+Usable: create / list / update / verify / approve-for-external-use / reject are
+each exercised. Audited, specifically:
+
+- *creates verified project-site evidence and its audit record in one tenant transaction*
+- *an update writes BOTH a before and an after snapshot in the same transaction*
+- *soft-rejects a relationship and keeps the before/after audit trail*
+- *the audited actor is the CALLER, not anything client-supplied*
+
+Plus the invariants: rejection is soft state at zero confidence and never
+deleted; unverified is stored at half confidence; external-use approval is
+impossible unless verified and cannot be smuggled in by an update; project-site
+requires a facility *before any tenant write begins*; a null obligation cannot
+be used to pass an unbounded attributable amount; duplicates are a conflict from
+the index, and losing the insert race surfaces as the **same** conflict rather
+than a 500 — while a non-duplicate database error is **not** laundered into one.
+
+### "Tenant isolation is tested" — MET at the test level, UNMET live
+
+Tested: *every handler passes the caller tenant from context, never a body or
+param value*; a facility belonging to another client is refused; the full role
+matrix (`standard_user` may read but not create/update/reject;
+`client_portal_user` refused even on reads; an unrecognised role refused
+everywhere); the flag gate is mounted alongside the role gate and fails closed;
+and `tenant-scope-guard.spec.ts` is a build gate that re-derives tenant-scoped
+models from `schema.prisma`, so it covers new models without being edited.
+
+**Still unmet live:** runbook §14's three curls. Not a code gap — it needs a
+`standard_user` account and a second tenant's client id, and the same-origin
+browser trick does **not** work because the app authenticates with a bearer
+token, so a cookie-credentialed `fetch` returns 401. Rollout gate (H9), not a
+merge gate.
