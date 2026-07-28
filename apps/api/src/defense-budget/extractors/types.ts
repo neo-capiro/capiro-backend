@@ -22,11 +22,20 @@
 export type LineKind = 'RDTE_PE' | 'PROCUREMENT_BLIN' | 'OM_SAG' | 'MILCON_PROJECT' | 'UNKNOWN';
 
 export type ExhibitType =
-  | 'R-1' | 'R-2' | 'R-2A' | 'R-3' | 'R-4'
-  | 'P-1' | 'P-5' | 'P-40'
-  | 'O-1' | 'OP-5'
+  | 'R-1'
+  | 'R-2'
+  | 'R-2A'
+  | 'R-3'
+  | 'R-4'
+  | 'P-1'
+  | 'P-5'
+  | 'P-40'
+  | 'O-1'
+  | 'OP-5'
   | 'C-1'
-  | 'committee_report' | 'conference_report' | 'public_law';
+  | 'committee_report'
+  | 'conference_report'
+  | 'public_law';
 
 export type PerformerRole = 'PERFORMING_ACTIVITY' | 'PRIME_CONTRACTOR';
 
@@ -40,6 +49,11 @@ export interface Money {
 
 /** Page + table + row/col provenance for a single extracted value. */
 export interface ValueProvenance {
+  /**
+   * Provenance is persisted inside Prisma JSON values. The index signature makes
+   * that JSON-safe structural contract explicit while retaining named fields.
+   */
+  [key: string]: string | number | undefined;
   /** PDF page index (1-based, physical page in the PDF). */
   pdfPage: number;
   /** Printed page label as it appears on the page (e.g. "Volume 1 - 17"), if any. */
