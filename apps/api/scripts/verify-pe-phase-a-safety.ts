@@ -90,10 +90,27 @@ function verifyPromotionSafety(): void {
   assert.match(source, /CANONICAL_TRANSACTION_TIMEOUT_MS/);
   assert.match(source, /Do not run generalized --commit in production until Phase D/);
 
-  const approvalParse = source.indexOf("requireApprovedSha256(arg('approved-sha256'))");
-  const comparison = source.indexOf('assertApprovedShaMatches(sourceSha256, approvedSha256)');
-  const prismaConstruction = source.indexOf('const prisma = new PrismaClient()');
-  assert(approvalParse >= 0 && comparison > approvalParse && prismaConstruction > comparison);
+  const mainStart = source.indexOf('async function main(): Promise<void>');
+  const approvalParse = source.indexOf(
+    "requireApprovedSha256(arg('approved-sha256'))",
+    mainStart,
+  );
+  const commitDispatch = source.indexOf(': await runCommit(', approvalParse);
+  assert(
+    mainStart >= 0 && approvalParse > mainStart && commitDispatch > approvalParse,
+    'main() must parse the exact SHA approval before dispatching runCommit()',
+  );
+
+  const runCommitStart = source.indexOf('async function runCommit(');
+  const comparison = source.indexOf(
+    'assertApprovedShaMatches(sourceSha256, approvedSha256)',
+    runCommitStart,
+  );
+  const prismaConstruction = source.indexOf('const prisma = new PrismaClient()', runCommitStart);
+  assert(
+    runCommitStart >= 0 && comparison > runCommitStart && prismaConstruction > comparison,
+    'runCommit() must compare source bytes before constructing Prisma',
+  );
 
   const loaderStart = source.indexOf('function loadVendorParseEnvironment');
   assert(loaderStart >= 0, 'loadVendorParseEnvironment must exist');
