@@ -28,20 +28,21 @@ BEGIN
       ELSE '[]'::jsonb
     END;
 
-    SELECT COALESCE(
-      jsonb_agg(
-        jsonb_build_object(
-          'check', item ->> 'check',
-          'severity', COALESCE(NULLIF(item ->> 'severity', ''), 'unknown'),
-          'source', COALESCE(NULLIF(item ->> 'source', ''), 'meri_auditor')
+    NEW.findings_jsonb := COALESCE(
+      (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'check', item ->> 'check',
+            'severity', COALESCE(NULLIF(item ->> 'severity', ''), 'unknown'),
+            'source', COALESCE(NULLIF(item ->> 'source', ''), 'meri_auditor')
+          )
         )
+        FROM jsonb_array_elements(source_findings) AS item
+        WHERE jsonb_typeof(item) = 'object'
+          AND NULLIF(item ->> 'check', '') IS NOT NULL
       ),
       '[]'::jsonb
-    )
-    INTO NEW.findings_jsonb
-    FROM jsonb_array_elements(source_findings) AS item
-    WHERE jsonb_typeof(item) = 'object'
-      AND NULLIF(item ->> 'check', '') IS NOT NULL;
+    );
   END IF;
 
   RETURN NEW;
