@@ -102,12 +102,17 @@ COPY --chown=capiro:capiro --from=build /workspace/apps/api/src /app/apps/api/sr
 # tsx (used by entrypoint.sh for sync-entity-resolution, which boots the full
 # NestJS AppModule) needs a tsconfig with experimentalDecorators/emitDecoratorMetadata
 # at runtime; without it esbuild fails NestJS controllers with
-# "Parameter decorators only work when experimental decorators are enabled".
+# "Parameter decorators only work when experimentalDecorators are enabled".
 # Copy the api tsconfig + the base it extends so tsx auto-discovers them.
 COPY --chown=capiro:capiro --from=build /workspace/tsconfig.base.json /app/tsconfig.base.json
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/tsconfig.json /app/apps/api/tsconfig.json
+# Phase A: retain the large legacy dispatcher for all ordinary verbs, but put a
+# small fail-closed wrapper in front of it. The wrapper owns migration deployment
+# (never edits _prisma_migrations) and the SELECT-only PE trust diagnostic.
+COPY --chown=capiro:capiro apps/api/scripts/entrypoint-legacy.sh /usr/local/lib/capiro/entrypoint-legacy.sh
 COPY --chown=capiro:capiro apps/api/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+RUN chmod 0644 /usr/local/lib/capiro/entrypoint-legacy.sh \
+ && chmod 0755 /usr/local/bin/entrypoint.sh
 
 USER capiro
 WORKDIR /app/apps/api

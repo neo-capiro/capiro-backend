@@ -1,0 +1,22 @@
+# Phase A reviewed revision
+
+repository:            neo-capiro/capirov2
+branch:                agent/pe-trust-phase-a
+pull request:          #647 (draft, unmerged)
+branch HEAD:           e43b3a6f5b6ee987752b5fdd6eab8c4f5cd64c18
+origin/main integrated: 2d8067f47ededbb3f189296fc8a4bc60d85994a2
+merge commit:          1428bb09802f57b9965efea0b1810740fe3f2e52  (merge of origin/main into the branch)
+fix commit:            e43b3a6f5b6ee987752b5fdd6eab8c4f5cd64c18
+original merge base:   1fb6c635313b70512732d8ae98c30737370c9de3
+behind origin/main:    0
+ahead of origin/main:  14
+captured at:           2026-07-28T17:54:59Z (UTC)
+
+# Deployment status (verified read-only against ECR)
+deployed:              NO. `aws ecr describe-images capiro/dev/api` contains no tag for
+                       e43b3a6f, 1428bb09 or 766e7002, so no image of this revision exists.
+live :latest image:    commit 2ec465dcf83ab0504df1ad54ccb357a85a2a88fe,
+                       pushed 2026-07-28T12:02:06-04:00 (digest sha256:2a5ac29d...).
+consequence:           the diag-pe-trust verb and diag script added by this PR are absent
+                       from every running image, so a5 live diagnostic capture is not
+                       possible without a deploy, which Phase A forbids.

@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "scripts/diag-program-element-trust-baseline.ts",
+    "scripts/ingest-defense-budget-pdf.ts",
+    "scripts/lib/defense-budget-ingest-mode.ts",
+    "scripts/lib/pe-ingestion-mode.spec.ts",
+    "scripts/verify-pe-phase-a-safety.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
