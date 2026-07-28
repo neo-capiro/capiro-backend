@@ -29,13 +29,13 @@ if source.count(old) != 1:
     raise RuntimeError(f'expected one ambiguous detail-query patch block, found {source.count(old)}')
 source = source.replace(old, new, 1)
 
-for marker in [
-    "watch_spec.write_text(\n    '''import",
-    "migration_spec.write_text(\n    '''import",
-]:
-    if source.count(marker) != 1:
-        raise RuntimeError(f'expected one generated-spec marker: {marker!r}')
-    source = source.replace(marker, marker.replace("'''import", "r'''import"), 1)
+# Keep generated TypeScript as normal multiline text. Only the TypeScript string
+# passed to Array.join needs a literal backslash-n rather than a real newline.
+old_join = "return files.map((path) => readFileSync(path, 'utf8')).join('\\n');"
+new_join = "return files.map((path) => readFileSync(path, 'utf8')).join('\\\\n');"
+if source.count(old_join) != 1:
+    raise RuntimeError(f'expected one migration join expression, found {source.count(old_join)}')
+source = source.replace(old_join, new_join, 1)
 
 path.write_text(source, encoding='utf-8')
 print('PHASE_C_PATCH_ANCHORS_FIXED')
