@@ -52,6 +52,27 @@ const GENERIC_NAME_TOKENS = new Set([
   'a',
 ]);
 
+/**
+ * Normalise an entity name to the form every similarity judgement in this file
+ * is made against: lowercased, corporate suffixes stripped, punctuation
+ * flattened.
+ *
+ * Exported as a free function (the class method below just delegates) so
+ * offline tooling can reproduce the matcher's own verdict instead of
+ * approximating it. `prune-stale-assistance-recipient-candidates.ts` has to
+ * decide which historical rows today's matcher would refuse to write, and that
+ * answer is only trustworthy if it uses this exact normalisation — a second
+ * copy would drift and start deleting rows the matcher would have kept.
+ */
+export function fingerprintName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(SUFFIX_RE, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /** Distinctive tokens of a fingerprint = tokens that aren't generic corporate words. */
 export function distinctiveTokens(fingerprint: string): string[] {
   return fingerprint
@@ -153,12 +174,7 @@ export class EntityResolutionService {
   // ── Stage B: Fingerprint ──────────────────────────────────────────────────
 
   fingerprint(name: string): string {
-    return name
-      .toLowerCase()
-      .replace(SUFFIX_RE, ' ')
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+    return fingerprintName(name);
   }
 
   // ── Stage C: Score a candidate ────────────────────────────────────────────
