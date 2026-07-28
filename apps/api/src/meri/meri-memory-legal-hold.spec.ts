@@ -9,13 +9,26 @@ import type { TenantContext } from '@capiro/shared';
  * wrote NO audit_logs entry, unlike the chat-tool forget_memory/correct_memory
  * verbs (memory-store.service.ts) which refuse under legal hold and tombstone
  * every change. Both methods now match that governance parity.
+ *
+ * Role is capiro_admin (not standard_user, its original value): forgetMemory/
+ * updateMemory now route shared-scope mutation through the Phase 0
+ * evaluateMemoryMutation policy, which correctly requires admin for the
+ * fixture's scope:'firm' row (memory-mutation-auth.ts, "standard user cannot
+ * mutate shared firm/client memory"). On origin/main, forgetMemory used a
+ * much simpler owner-only check for user_private rows and no role check at
+ * all otherwise, so this fixture's original standard_user role was correct
+ * there; a standard_user is now unauthorized before ever reaching the
+ * legal-hold branch this file exists to test. Confirmed this policy tightening
+ * is a real, intentional change on this branch (not a test bug) by diffing
+ * against origin/main's forgetMemory, which has no evaluateMemoryMutation
+ * call at all.
  */
 const ctx: TenantContext = {
   tenantId: 't1',
   tenantSlug: 'acme',
   userId: 'u1',
   clerkUserId: 'clerk_u1',
-  role: 'standard_user',
+  role: 'capiro_admin',
 };
 
 function buildService(opts: { clioMemoryRow: Record<string, unknown> | null; legalHold: boolean }) {
@@ -71,8 +84,10 @@ describe('MeriService.forgetMemory — legal hold + audit tombstone', () => {
     const { service, tx, memoryIngest } = buildService({ clioMemoryRow: row, legalHold: false });
     const out = await service.forgetMemory(ctx, 'm1');
     expect(out).toEqual({ ok: true, id: 'm1' });
+    // scope/ownerUserId are re-asserted in the mutation query itself, not just
+    // the earlier read (defense-in-depth against a TOCTOU between the two).
     expect(tx.clioMemory.deleteMany).toHaveBeenCalledWith({
-      where: { id: 'm1', tenantId: 't1' },
+      where: { id: 'm1', tenantId: 't1', scope: 'firm', ownerUserId: null },
     });
     expect(tx.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
