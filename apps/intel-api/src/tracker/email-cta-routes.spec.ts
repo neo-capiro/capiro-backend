@@ -22,7 +22,8 @@
  * If this test fails, do not relax the matcher. Either the CTA is wrong, or the
  * SPA route was removed and every previously-sent email now dead-links.
  */
-import { describe, expect, test } from '@jest/globals';
+// apps/intel-api exposes jest's globals via @types/jest (no @jest/globals dep),
+// matching every other spec in this tree.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
@@ -232,10 +233,12 @@ describe('every email CTA resolves to a real SPA route (V-5)', () => {
     expect([...files].some((f) => f.includes('apps/api/src/tracker'))).toBe(true);
   });
 
-  test.each(
-    // Deduplicate by path so the report is about routes, not repetition.
-    [...new Map(collectAllCtas().map((c) => [c.path, c])).values()].map((c) => [c.path, c] as const),
-  )('%s resolves', (path, cta) => {
+  // Deduplicate by path so the report is about routes, not repetition.
+  const uniqueCtas: [string, FoundCta][] = [...new Map(collectAllCtas().map((c) => [c.path, c])).values()].map(
+    (c) => [c.path, c],
+  );
+
+  test.each(uniqueCtas)('%s resolves', (path: string, cta: FoundCta) => {
     const ok = matchers.some((m) => m.test(path));
     expect(ok ? '' : `${path} (${cta.file}:${cta.line}) matches no route in apps/web/src/App.tsx`).toBe('');
   });
@@ -249,9 +252,11 @@ describe('every email CTA resolves to a real SPA route (V-5)', () => {
     expect(undeclared).toEqual([]);
   });
 
-  test.each(
-    Object.entries(DYNAMIC_CTA_SOURCES).flatMap(([expr, d]) => d.paths.map((p) => [expr, p] as const)),
-  )('dynamic CTA %s can only produce %s, which resolves', (expr, path) => {
+  const dynamicPairs: [string, string][] = Object.entries(DYNAMIC_CTA_SOURCES).flatMap(([expr, d]) =>
+    d.paths.map((p): [string, string] => [expr, p]),
+  );
+
+  test.each(dynamicPairs)('dynamic CTA %s can only produce %s, which resolves', (expr: string, path: string) => {
     const ok = matchers.some((m) => m.test(path));
     expect(ok ? '' : `${path} (from ${expr}, ${DYNAMIC_CTA_SOURCES[expr]?.producedBy}) matches no SPA route`).toBe('');
   });
