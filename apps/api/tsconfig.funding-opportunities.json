@@ -1,0 +1,38 @@
+{
+  // Narrow script typecheck for the Funding Opportunities producers.
+  //
+  // apps/api/tsconfig.json EXCLUDES `scripts`, so `tsc --noEmit` does not see
+  // any of them. That is not a theoretical gap: PR #651 shipped an uncompilable
+  // producer script through a green CI for exactly this reason (2026-07-28), and
+  // the same PR's migration named the wrong table.
+  //
+  // A blanket `include: scripts/**/*` is not the fix — measured on this branch, it
+  // surfaces 123 pre-existing errors across ~40 unrelated scripts, so adopting it
+  // here would trade one silent gap for a red gate on work this PR does not
+  // touch. Instead this follows the tsconfig.pe-phase-a.json precedent: an
+  // explicit file list for one feature's scripts, wired into the package's
+  // `typecheck` so CI actually runs it.
+  //
+  // ADD EVERY NEW FUNDING-OPPORTUNITIES SCRIPT TO THIS LIST. A script that is not
+  // listed here is not typechecked by anything except a spec that happens to
+  // import it.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "scripts/generate-sam-opportunity-candidates.ts",
+    "scripts/generate-sam-opportunity-candidates.spec.ts",
+    "scripts/match-contractor-identifiers.ts",
+    "scripts/backfill-sam-opportunity-fields.ts",
+    "scripts/backfill-sam-opportunity-fields.spec.ts",
+    // Touched by this work: sync-sam-opportunities now promotes four source
+    // fields through the backfill's shared extractor, and the grant producer's
+    // relevance floor became derived rather than hardcoded.
+    "scripts/sync-sam-opportunities.ts",
+    "scripts/generate-grant-opportunity-candidates.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
