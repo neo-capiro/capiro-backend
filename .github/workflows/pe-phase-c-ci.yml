@@ -72,6 +72,7 @@ jobs:
         run: |
           git rm \
             .github/workflows/pe-phase-c-ci.yml \
+            .github/workflows/pe-phase-c-rls-diagnostic.yml \
             apps/api/scripts/__phase_c_apply_patch.py \
             apps/api/scripts/__phase_c_patch_fix.py
           git config user.name 'capiro-phase-c-bot'
