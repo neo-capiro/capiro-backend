@@ -62,24 +62,20 @@ export function SnapshotSection({
 
   const changesQuery = useQuery<{ id: string; title: string; severity: string }[]>({
     queryKey: ['intel-changes-snap', clientId, sinceDate],
-    queryFn: async () => {
-      try {
-        return (
-          await api.get<{ id: string; title: string; severity: string }[]>(
-            '/api/intelligence/changes',
-            // No `limit`: ChangesQueryDto does not declare it and the global
-            // ValidationPipe runs whitelist + forbidNonWhitelisted, so sending
-            // it made every request 400. The catch below turned that into an
-            // empty array, so this section silently claimed "no recent changes"
-            // for every client. getChanges takes no limit argument either, so
-            // the param never capped anything even before it started failing.
-            { params: { clientId, since: sinceDate } },
-          )
-        ).data;
-      } catch {
-        return [];
-      }
-    },
+    // No `limit` param: ChangesQueryDto does not declare one and the global
+    // ValidationPipe runs whitelist + forbidNonWhitelisted, so sending it made
+    // every request 400 (getChanges takes no limit argument either, so it
+    // never capped anything even before it started failing). No try/catch: a
+    // caught failure here used to render as "No new events this week" — a
+    // confident wrong answer indistinguishable from a real zero. Letting the
+    // query fail lets meriText read `changesQuery.isError` and say so instead.
+    queryFn: async () =>
+      (
+        await api.get<{ id: string; title: string; severity: string }[]>(
+          '/api/intelligence/changes',
+          { params: { clientId, since: sinceDate } },
+        )
+      ).data,
     staleTime: 2 * 60 * 1000,
   });
 
@@ -92,19 +88,18 @@ export function SnapshotSection({
     () => new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
     [],
   );
+  // No try/catch: see changesQuery above for why. A failed fetch here used to
+  // render as "0 meetings" in the Activity bar's critical-red styling AND as
+  // "No meetings logged this quarter" in the briefing — both confident wrong
+  // answers. `meetingsQuery.isError` lets both render sites say "unknown".
   const meetingsQuery = useQuery<unknown[]>({
     queryKey: ['client-meetings-snap', clientId, meetingsFrom],
-    queryFn: async () => {
-      try {
-        return (
-          await api.get<unknown[]>('/api/engagement/meetings', {
-            params: { clientId, from: meetingsFrom },
-          })
-        ).data;
-      } catch {
-        return [];
-      }
-    },
+    queryFn: async () =>
+      (
+        await api.get<unknown[]>('/api/engagement/meetings', {
+          params: { clientId, from: meetingsFrom },
+        })
+      ).data,
     staleTime: 60_000,
   });
 
@@ -129,6 +124,10 @@ export function SnapshotSection({
   const trackedTotal =
     aggregate?.sections.legislativeRegulatory.kanban.total ?? profile?.relevantBills?.total ?? 0;
   const activityRows = aggregate?.sections.snapshot.activity14d ?? null;
+  // The Meetings bar's number falls back to meetingsQuery only when the
+  // aggregate has no activity14d — when activityRows is present, meetingsQuery
+  // isn't consulted for the bar at all, so its failure only matters here.
+  const meetingsBarUnknown = !activityRows && meetingsQuery.isError;
   const activityMeetings = activityRows
     ? activityRows.reduce((sum, d) => sum + d.meetings, 0)
     : meetings.length;
@@ -150,9 +149,15 @@ export function SnapshotSection({
   );
   // Whether there is any CRM activity at all in the window. When everything is
   // zero we render a compact empty state instead of flat zero-bars, which
-  // read as a broken/empty chart.
+  // read as a broken/empty chart. An unknown Meetings count must NOT collapse
+  // into this empty state — "we don't know" is a different claim from "there
+  // was genuinely nothing", and the empty state's copy asserts the latter.
   const hasActivity =
-    activityMeetings > 0 || activityOutreach > 0 || trackedTotal > 0 || criticalAlerts.length > 0;
+    activityMeetings > 0 ||
+    activityOutreach > 0 ||
+    trackedTotal > 0 ||
+    criticalAlerts.length > 0 ||
+    meetingsBarUnknown;
   return (
     <section id="snapshot" className="iv1-section">
       {/* ── Section heading ── */}
@@ -176,6 +181,8 @@ export function SnapshotSection({
               changes.length,
               meetings.length,
               clientName,
+              changesQuery.isError,
+              meetingsQuery.isError,
             )}
             ctaHref={aggregate?.links.changesInbox ?? '/intelligence/changes'}
           />
@@ -221,6 +228,7 @@ export function SnapshotSection({
                   max={activityMax}
                   color={activityMeetings === 0 ? 'var(--ink-4)' : 'var(--accent)'}
                   criticalIfZero
+                  unknown={meetingsBarUnknown}
                 />
                 <ActivityBar
                   label="Outreach sent"
@@ -328,20 +336,28 @@ function ActivityBar({
   max,
   color,
   criticalIfZero = false,
+  unknown = false,
 }: {
   label: string;
   value: number;
   max: number;
   color: string;
   criticalIfZero?: boolean;
+  /** The fetch behind this metric failed. Render "—", never a confident 0 —
+   *  `criticalIfZero` would otherwise paint an unknown value critical-red,
+   *  asserting a problem ("zero meetings") the data never actually showed. */
+  unknown?: boolean;
 }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
-  const isCritical = criticalIfZero && value === 0;
+  const pct = unknown ? 0 : max > 0 ? Math.round((value / max) * 100) : 0;
+  const isCritical = !unknown && criticalIfZero && value === 0;
   return (
     <div className="iv1-activity-row">
       <span style={{ color: 'var(--ink-3)', fontSize: 12 }}>{label}</span>
       <div className="iv1-bar-track">
-        <div className="iv1-bar-fill" style={{ width: `${pct}%`, background: color }} />
+        <div
+          className="iv1-bar-fill"
+          style={{ width: `${pct}%`, background: unknown ? 'var(--ink-4)' : color }}
+        />
       </div>
       <span
         className="num"
@@ -351,8 +367,9 @@ function ActivityBar({
           fontSize: 12,
           color: isCritical ? 'var(--critical)' : 'var(--ink-1)',
         }}
+        title={unknown ? "Couldn't load this metric. Try refreshing." : undefined}
       >
-        {value}
+        {unknown ? '—' : value}
       </span>
     </div>
   );
@@ -364,6 +381,8 @@ function meriText(
   changeCount: number,
   meetingCount: number,
   clientName: string,
+  changesUnknown: boolean,
+  meetingsUnknown: boolean,
 ): ReactNode {
   const critAlerts = alerts.filter((a) => a.daysToDeadline <= 7);
   const totalBills = profile?.relevantBills?.total ?? 0;
@@ -406,10 +425,14 @@ function meriText(
           capabilities.{' '}
         </>
       )}
-      {meetingCount === 0 && 'No meetings logged this quarter. '}
-      {changeCount > 0
-        ? `${changeCount} new intel event${changeCount === 1 ? '' : 's'} this week.`
-        : 'No new events this week.'}
+      {/* A failed fetch defaults meetingCount/changeCount to 0 — without the
+          isError checks below, "0" and "genuinely none" would read identically. */}
+      {meetingCount === 0 && !meetingsUnknown && 'No meetings logged this quarter. '}
+      {changesUnknown
+        ? 'Recent activity unavailable — try refreshing.'
+        : changeCount > 0
+          ? `${changeCount} new intel event${changeCount === 1 ? '' : 's'} this week.`
+          : 'No new events this week.'}
     </>
   );
 }

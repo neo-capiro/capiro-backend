@@ -80,17 +80,19 @@ export function ChangesInboxPage() {
   // compute-on-read alerts (NOT intelligence_change rows), so we merge them
   // into the inbox as synthetic rows and expose their categories as source
   // filters. Keeps the inbox in lockstep with the other two surfaces.
+  // No try/catch: a caught failure here used to silently drop out of the merge
+  // below, so a real outage rendered identically to "no portfolio alerts" —
+  // and if changesQuery's own rows were also empty, the table's "No changes
+  // found" text asserted a specific, wrong claim. `.isError` lets that text
+  // distinguish the two.
   const portfolioAlertsQuery = useQuery<PortfolioAlertsResponse>({
     queryKey: ['portfolio-alerts-inbox'],
-    queryFn: async () => {
-      try {
-        return (await api.get<PortfolioAlertsResponse>('/api/intelligence/portfolio-alerts', {
+    queryFn: async () =>
+      (
+        await api.get<PortfolioAlertsResponse>('/api/intelligence/portfolio-alerts', {
           params: { limit: 50 },
-        })).data;
-      } catch {
-        return { alerts: [], total: 0, clientCount: 0, generatedAt: new Date().toISOString() };
-      }
-    },
+        })
+      ).data,
     staleTime: 2 * 60 * 1000,
   });
 
@@ -319,7 +321,18 @@ export function ChangesInboxPage() {
         loading={changesQuery.isLoading}
         pagination={{ pageSize: 25, showSizeChanger: false }}
         onRow={(record) => ({ onClick: () => handleRowClick(record), style: { cursor: 'pointer' } })}
-        locale={{ emptyText: <Empty description="No changes found" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+        locale={{
+          emptyText: (
+            <Empty
+              description={
+                changesQuery.isError || portfolioAlertsQuery.isError
+                  ? "Couldn't load some sources — this list may be incomplete. Try refreshing."
+                  : 'No changes found'
+              }
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            />
+          ),
+        }}
         rowClassName={(record) => {
           const isRead =
             readIds.has(record.id) ||

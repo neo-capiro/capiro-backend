@@ -111,4 +111,40 @@ describe('ChangesInboxPage', () => {
     },
     15000,
   );
+
+  /**
+   * REGRESSION: portfolioAlertsQuery used to catch its own failure and return
+   * an empty shape, so a real outage on that source rendered identically to
+   * "there are genuinely no changes". These pin that a failure is now visible
+   * to the empty-state copy, and that a real empty result still reads as empty.
+   */
+  test('a failed portfolio-alerts fetch with no other changes shows a distinct notice, not "No changes found"', async () => {
+    apiGetMock.mockImplementation(async (url: string) => {
+      if (url === '/api/intelligence/comment-alerts') return { data: { alerts: [] } };
+      if (url === '/api/intelligence/changes') return { data: [] };
+      if (url === '/api/intelligence/portfolio-alerts') throw new Error('boom');
+      return { data: [] };
+    });
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByText(/Couldn't load some sources/i)).toBeInTheDocument(),
+    );
+    expect(screen.queryByText('No changes found')).toBeNull();
+  });
+
+  test('genuinely no changes and a successful (empty) portfolio-alerts fetch shows "No changes found"', async () => {
+    apiGetMock.mockImplementation(async (url: string) => {
+      if (url === '/api/intelligence/comment-alerts') return { data: { alerts: [] } };
+      if (url === '/api/intelligence/changes') return { data: [] };
+      if (url === '/api/intelligence/portfolio-alerts') {
+        return { data: { alerts: [], total: 0, clientCount: 0, generatedAt: '2026-07-26T00:00:00.000Z' } };
+      }
+      return { data: [] };
+    });
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('No changes found')).toBeInTheDocument());
+    expect(screen.queryByText(/Couldn't load some sources/i)).toBeNull();
+  });
 });
