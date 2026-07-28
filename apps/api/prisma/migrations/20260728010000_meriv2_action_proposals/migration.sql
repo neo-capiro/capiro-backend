@@ -49,10 +49,24 @@ CREATE INDEX "meri_action_proposal_expiry_status_idx"
 CREATE INDEX "meri_action_proposal_tenant_fingerprint_idx"
   ON "meri_action_proposals"("tenant_id", "fingerprint");
 
+-- Fail-closed tenant isolation, matching every other tenant-scoped apps/api
+-- table (meri_pending_action, meri_action_approval, tenants, ...): FORCE is
+-- required or the table-owning role bypasses RLS entirely regardless of the
+-- policy below. rls_bypass()/current_tenant_id() are the shared policy
+-- functions from migration 20260501000000_init_identity_tenancy.
 ALTER TABLE "meri_action_proposals" ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "meri_action_proposals_tenant_isolation" ON "meri_action_proposals"
-  USING ("tenant_id" = NULLIF(current_setting('app.current_tenant', true), '')::uuid)
-  WITH CHECK ("tenant_id" = NULLIF(current_setting('app.current_tenant', true), '')::uuid);
+ALTER TABLE "meri_action_proposals" FORCE ROW LEVEL SECURITY;
+CREATE POLICY "meri_action_proposals_isolation" ON "meri_action_proposals"
+  USING (rls_bypass() OR tenant_id = current_tenant_id())
+  WITH CHECK (rls_bypass() OR tenant_id = current_tenant_id());
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'capiro_app') THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON "meri_action_proposals" TO capiro_app;
+  END IF;
+END
+$$;
 
 COMMENT ON TABLE "meri_action_proposals" IS
   'Immutable MeriV2 action proposals. Application-level tenant/user predicates remain mandatory because the application role may bypass owner RLS.';
