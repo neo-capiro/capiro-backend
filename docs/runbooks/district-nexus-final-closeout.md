@@ -605,15 +605,48 @@ Commands:
 
 **Read only. This runbook does not change any flag.**
 
+> **This block was wrong in two ways until 2026-07-28 and would have failed
+> twice before returning anything.** It named the container `api` (the diag task
+> def's container is **`db-inspect`** — §2 gotcha 1) and it assumed
+> `DATABASE_URL` exists (it does not — §2 gotcha 3). Both are corrected below,
+> and the corrected form is the one that was actually run.
+
+Write the script to a file and pass the overrides as a **file**; inline JSON
+quoting of a JS body through PowerShell/Git Bash is the trap that eats runs.
+
 ```bash
+cat > /tmp/flag.js <<'JS'
+const { PrismaClient } = require("@prisma/client");
+if (!process.env.DATABASE_URL) {
+  const u = encodeURIComponent(process.env.DB_USER);
+  const pw = encodeURIComponent(process.env.DB_PASSWORD);
+  process.env.DATABASE_URL =
+    `postgresql://${u}:${pw}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}?schema=public&connection_limit=5`;
+}
+const p = new PrismaClient();
+p.$queryRawUnsafe(
+  "SELECT t.slug, f.enabled FROM intel_feature_flag f " +
+  "JOIN tenants t ON t.id::text = f.tenant_id WHERE f.feature = 'district_nexus_v2'"
+).then(r => console.log(JSON.stringify(r, null, 1)))
+ .finally(() => p.$disconnect());
+JS
+
+python -c "import json;print(json.dumps({'containerOverrides':[{'name':'db-inspect','command':[open('/tmp/flag.js').read()]}]}))" > /tmp/ov.json
+
 MSYS_NO_PATHCONV=1 aws ecs run-task --profile capiro-dev \
   --cluster capiro-dev --launch-type FARGATE --network-configuration "$NETCFG" \
   --task-definition capiro-dev-api-diag \
-  --overrides '{"containerOverrides":[{"name":"api","command":["node","-e","const {PrismaClient}=require(\"@prisma/client\");const p=new PrismaClient();p.$queryRawUnsafe(\"SELECT f.feature, f.enabled, t.slug FROM intel_feature_flag f JOIN tenants t ON t.id::text = f.tenant_id WHERE f.feature = $$district_nexus_v2$$\").then(r=>console.log(JSON.stringify(r,null,1))).finally(()=>p.$disconnect())"]}]}' \
+  --overrides file:///tmp/ov.json \
   --query 'tasks[0].taskArn' --output text
 ```
 
-Expected today: exactly one row, `capiro-internal`, `enabled = true`.
+Reading a tenant-scoped table needs the RLS bypass first —
+`await p.$executeRawUnsafe("SELECT set_config('app.bypass_rls','on',false)")` —
+otherwise the probe returns **zero rows and looks like clean empty data**.
+`intel_feature_flag` itself is not tenant-scoped, so the query above does not
+need it; `client_grant_nexus` and `client_intel_mapping` do.
+
+**Verified 2026-07-28:** exactly one row — `capiro-internal`, `enabled = true`.
 
 Two gotchas that have each cost a session:
 
@@ -778,14 +811,33 @@ WHERE source = 'assistance_recipient' GROUP BY 1;
 
 ## 16. 🟢 Performance checks
 
+> **Corrected 2026-07-28 — this block named the wrong task definition.**
+> `diag-profile-v1` is an **`entrypoint.sh` case** (`apps/api/scripts/entrypoint.sh:161`).
+> `capiro-dev-api-diag` bypasses `entrypoint.sh` entirely — its `entryPoint` is
+> `["node","-e"]`, so the command would have been evaluated as JavaScript source
+> named `diag-profile-v1` and died. Entrypoint commands must go to a task def
+> that *runs* the entrypoint, e.g. `capiro-dev-api-sync`, whose container **is**
+> named `api`.
+>
+> Rule of thumb for this whole runbook: `capiro-dev-api-diag` + container
+> `db-inspect` = **JavaScript source**. `capiro-dev-api-sync*` + container `api`
+> = **entrypoint subcommand**. Mixing the two is the single most common way to
+> waste a run here.
+
 ```bash
 # 16.1 Per-source health + latency for the client Intelligence tab.
 MSYS_NO_PATHCONV=1 aws ecs run-task --profile capiro-dev \
   --cluster capiro-dev --launch-type FARGATE --network-configuration "$NETCFG" \
-  --task-definition capiro-dev-api-diag \
+  --task-definition capiro-dev-api-sync \
   --overrides '{"containerOverrides":[{"name":"api","command":["diag-profile-v1","--client","<client-uuid>"]}]}' \
   --query 'tasks[0].taskArn' --output text
 ```
+
+**Measured in a real browser 2026-07-28** (see matrix §J1), which is cheaper than
+this task and gives the client-observed number rather than the server-side one:
+`profile-v1` **21,688 ms**, `pe-relevance` **12,384 ms**, `client-profile`
+6,298 ms, `district-nexus-v2` 1,222 ms, `district-nexus-relationships` 1,394 ms.
+The first two are the ones to chase.
 
 ```bash
 # 16.2 Any source that breached or approached its budget now says so by name.
