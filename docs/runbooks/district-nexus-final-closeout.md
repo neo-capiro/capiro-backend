@@ -79,6 +79,47 @@ export AWS_PROFILE=capiro-dev
 export NETCFG='awsvpcConfiguration={subnets=[subnet-0e38bd390f8961fef,subnet-0920665f91c905f01,subnet-06db79cd21239de19],securityGroups=[sg-01def4e5c0fe44d4a],assignPublicIp=DISABLED}'
 ```
 
+### 0.4 🟢 There are THREE one-off task definitions, and they are not interchangeable
+
+Picking the wrong one fails in a way that reads like a code bug. Verified
+2026-07-28:
+
+| Task definition | Container | Log prefix | Use it for |
+| --- | --- | --- | --- |
+| `capiro-dev-api-sync` | `api` | `api` | Ingestion/cleanup jobs that need **no vendor key beyond the shared set** |
+| `capiro-dev-api-sync-jobs` | `api-sync-jobs` | `sync-jobs` | **Anything LegiStorm.** This is the only one carrying `LEGISTORM_API_KEY` |
+| `capiro-dev-api-diag` | `db-inspect` | `api` | Read-only DB probes (`entryPoint` is `["node","-e"]`) |
+
+All three log to `/capiro/dev/api` — the stream *prefix* is what differs, so
+`filter-log-events` on the group sees all of them.
+
+**`capiro-dev-api-sync` does NOT have `LEGISTORM_API_KEY`.** Running
+`sync-legistorm-districts` (or any LegiStorm verb) there fails with
+`LEGISTORM_API_KEY is required`, which looks like a missing secret in the
+environment and is actually the wrong task definition. Every live LegiStorm
+EventBridge rule targets `capiro-dev-api-sync-jobs`; confirm with
+`aws events list-targets-by-rule --rule capiro-dev-sync-legistorm-districts`.
+
+### 0.5 🟢 Probing a tenant-scoped table needs an explicit RLS bypass
+
+`capiro_app` is **not** `BYPASSRLS`. A raw read of a tenant-scoped table
+(`client_grant_nexus`, `client_intel_mapping`, `client_facilities`, …) from a
+diag task returns **zero rows** with no error — it looks exactly like an empty
+table. Global tables (`federal_assistance_award`, `legislative_district`) are
+unaffected, which makes the mix especially convincing.
+
+Wrap every tenant-scoped probe the way `PrismaService` does:
+
+```js
+await prisma.$transaction(async (tx) => {
+  await tx.$executeRawUnsafe("SELECT set_config('app.bypass_rls', 'on', true)");
+  return tx.$queryRawUnsafe(sql);
+});
+```
+
+On 2026-07-28 the unwrapped version of this probe reported `client_grant_nexus`
+and `client_intel_mapping` as empty. Both have rows.
+
 ---
 
 ## 1. 🔴 Database backup
@@ -447,12 +488,79 @@ curl -s -o /dev/null -w '%{http_code} %{size_download}\n' \
 > 437 LegislativeDistrict rows updated
 > ```
 
-⚠️ **Commit the current rail only (`--status=C`) until the future rail has
-input.** `sync-legistorm-districts --commit --with-kml` has never run, so every
-`status='F'` district lacks `kmlS3Key`: a `--status=F` commit publishes a
-**74-byte, zero-feature** artifact, which risks the UI advertising a future map
-that contains nothing. The dry run reports this honestly as 0 districts and 184
-warnings.
+⚠️ **Commit the current rail only (`--status=C`).** A `--status=F` commit
+publishes a **74-byte, zero-feature** artifact, which risks the UI advertising a
+future map that contains nothing. The dry run reports this honestly as 0
+districts and 184 warnings.
+
+**Why the future rail has no input — root-caused 2026-07-28.** Earlier revisions
+said "`sync-legistorm-districts --commit --with-kml` has never run", which reads
+as an outstanding ops step. It is an **infrastructure gap**: `apiTaskRole` had no
+`s3:PutObject` on the `UPDATED DISTRICTS/kml/` prefix, in CDK or live, so the job
+has never been *able* to succeed anywhere.
+
+Proven by execution, not by reading policy — a real
+`sync-legistorm-districts --commit --with-kml --states=UT` run failed:
+
+```
+[sync-legistorm-districts] FAILED User: …/ApiTaskRole… is not authorized to
+perform: s3:PutObject on resource:
+"arn:aws:s3:::updated-directory-967807252336-us-east-1/UPDATED DISTRICTS/kml/611-C.kml"
+because no identity-based policy allows the s3:PutObject action
+```
+
+Note this is a **different prefix** from the `district-boundaries/*` grant
+above, which does exist. Having one is not evidence of the other.
+
+The script fetches every KML *before* it writes anything to the database, so the
+failed run left no partial state — but the whole run is wasted until the grant
+exists.
+
+**Confirmed scope of the gap** (measured 2026-07-28): `kml_s3_key` is NULL on
+**all 741** rows — 537 `status='C'` and 204 `status='F'`. Not just the future
+side.
+
+### 10.1 🔴 Unblocking the future rail (out-of-band; **needs Neo** — IAM change)
+
+```bash
+# Read the existing statement first; this ADDS a resource, it must not replace one.
+MSYS_NO_PATHCONV=1 aws iam list-role-policies --profile capiro-dev \
+  --role-name Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ
+
+MSYS_NO_PATHCONV=1 aws iam put-role-policy --profile capiro-dev \
+  --role-name Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ \
+  --policy-name district-kml-s3-write \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::updated-directory-967807252336-us-east-1/UPDATED DISTRICTS/kml/*"
+    }]
+  }'
+```
+
+`PutObject` only, never `DeleteObject`, scoped to the one prefix — the same
+shape as the directory grant. The matching CDK change is in
+`infra/cdk/lib/compute-stack.ts` so IaC stays honest; **do not `cdk deploy`** to
+apply it (see Hard boundaries).
+
+Then, on `capiro-dev-api-sync-jobs` (§0.4 — **not** `capiro-dev-api-sync`):
+
+```bash
+# Future districts exist in only these 10 states (measured 2026-07-28: AL 9,
+# CA 53, FL 29, MO 10, NC 16, OH 17, TN 11, TX 40, UT 6, VA 13 = 204 rows), so
+# there is no reason to walk all 56 jurisdictions.
+MSYS_NO_PATHCONV=1 aws ecs run-task --profile capiro-dev \
+  --cluster capiro-dev --launch-type FARGATE --network-configuration "$NETCFG" \
+  --task-definition capiro-dev-api-sync-jobs \
+  --overrides '{"containerOverrides":[{"name":"api-sync-jobs","command":["sync-legistorm-districts","--commit","--with-kml","--states=UT"]}]}' \
+  --query 'tasks[0].taskArn' --output text
+```
+
+Start with `--states=UT` (6 current + 6 future = 12 KML fetches). Verify
+`kml_s3_key IS NOT NULL` for Utah, then widen to all ten. Only after that does
+a `--status=F` boundary commit have real input.
 
 If the policy ever needs recreating (do **not** `cdk deploy`):
 
