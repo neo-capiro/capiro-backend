@@ -21,7 +21,9 @@
 /** Ordered strongest-first; the order is the tie-break for matchedSignals. */
 export const RELEVANCE_SIGNALS = [
   'assistanceListing',
+  'applicantType',
   'agency',
+  'stateRestriction',
   'capabilityKeyword',
   'sector',
   'fundingCategory',
@@ -29,6 +31,29 @@ export const RELEVANCE_SIGNALS = [
 ] as const;
 
 export type RelevanceSignalKey = (typeof RELEVANCE_SIGNALS)[number];
+
+export type SignalStrength = 'strong' | 'moderate' | 'weak';
+
+/**
+ * Evidence-quality band per signal, independent of the weight.
+ *
+ * A weight orders results; a band states how much the evidence is WORTH. Keeping
+ * them separate is what stops "nudge the weight up" from quietly promoting a
+ * topical guess into a sufficient reason to surface something. The Funding
+ * Opportunities read path reports the band to the UI so a weak match can say why
+ * it is weak, and the SAM engine (sam-opportunity-relevance.ts) uses the same
+ * three-band vocabulary so both rails explain themselves the same way.
+ */
+export const SIGNAL_STRENGTH: Readonly<Record<RelevanceSignalKey, SignalStrength>> = Object.freeze({
+  assistanceListing: 'strong',
+  applicantType: 'strong',
+  agency: 'strong',
+  stateRestriction: 'strong',
+  capabilityKeyword: 'moderate',
+  sector: 'weak',
+  fundingCategory: 'weak',
+  knownPartner: 'weak',
+});
 
 /**
  * Signal weights. An exact Assistance Listing match dominates because it is a
@@ -43,7 +68,23 @@ import { applicantTypeKey } from '@capiro/shared';
 
 export const RELEVANCE_WEIGHTS: Readonly<Record<RelevanceSignalKey, number>> = Object.freeze({
   assistanceListing: 40,
+  // An explicit applicant-type match means the notice is AIMED at organizations
+  // of this legal form. Structured on both sides (federal_grant.eligibility vs
+  // Client.applicantTypes, both label strings), so it is evidence, not a topical
+  // guess — hence a strong band.
+  //
+  // It deliberately OVERLAPS with computeEligibility, which reads the same two
+  // arrays. That is not duplication: eligibility answers "may they apply", this
+  // answers "is this aimed at them". A notice open to state governments AND small
+  // businesses is more relevant to a small business than one open to state
+  // governments alone, and the eligibility state ('eligible') is identical in
+  // both cases, so eligibility cannot carry that distinction.
+  applicantType: 25,
   agency: 20,
+  // The client is present in a state the notice RESTRICTS itself to. A
+  // restriction the client satisfies is a positive relevance fact (the pool of
+  // competitors is smaller), separate from it not being disqualifying.
+  stateRestriction: 15,
   capabilityKeyword: 15,
   sector: 10,
   fundingCategory: 10,
@@ -55,6 +96,7 @@ export type EligibilityState = 'eligible' | 'ineligible' | 'needs_review' | 'unk
 export interface MatchedSignal {
   signal: RelevanceSignalKey;
   weight: number;
+  strength: SignalStrength;
   /** The specific value that matched, for display. Never a paraphrase. */
   matchedOn: string;
 }
@@ -105,8 +147,34 @@ export interface RelevanceResult {
 // scores lower, it isn't excused from the denominator. Simplicity/auditability
 // tradeoff: a fixed scale is trivial to reproduce and explain, whereas "which
 // signals could this client-opportunity pair have possibly evaluated" has no
-// defined rule for all six signals.
-const MAX_SCORE = Object.values(RELEVANCE_WEIGHTS).reduce((sum, w) => sum + w, 0);
+// defined rule for all eight signals.
+//
+// Exported because the denominator is not an implementation detail: it is what a
+// relevance FLOOR is a fraction of, and a caller that hardcodes a floor against
+// an assumed denominator breaks silently the next time a signal is added. See
+// MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR.
+export const RELEVANCE_MAX_SCORE = Object.values(RELEVANCE_WEIGHTS).reduce((sum, w) => sum + w, 0);
+const MAX_SCORE = RELEVANCE_MAX_SCORE;
+
+/**
+ * The floor at which "an exact Assistance Listing match, and nothing else,
+ * qualifies" — DERIVED from the weights rather than written down.
+ *
+ * That invariant is the actual product rule behind
+ * generate-grant-opportunity-candidates.ts's relevance floor. It used to be
+ * spelled `40`, which was correct only because the denominator happened to be
+ * 100 and `assistanceListing` happened to weigh 40. Adding the `applicantType`
+ * and `stateRestriction` signals moved the denominator to
+ * {@link RELEVANCE_MAX_SCORE}, at which point a hardcoded 40 would have quietly
+ * started EXCLUDING listing-only matches — a shipped producer silently
+ * generating fewer candidates, with no failing test to say so.
+ *
+ * grant-opportunity-relevance.spec.ts pins the invariant directly, so a future
+ * weight change that breaks it fails the build instead of the feature.
+ */
+export const MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR = Math.round(
+  (RELEVANCE_WEIGHTS.assistanceListing / MAX_SCORE) * 100,
+);
 
 function norm(value: string | null | undefined): string {
   return (value ?? '').trim().toLowerCase();
@@ -230,22 +298,46 @@ export function scoreOpportunityRelevance(
 ): RelevanceResult {
   const matchedSignals: MatchedSignal[] = [];
 
+  const add = (signal: RelevanceSignalKey, matchedOn: string): void => {
+    matchedSignals.push({
+      signal,
+      weight: RELEVANCE_WEIGHTS[signal],
+      strength: SIGNAL_STRENGTH[signal],
+      matchedOn,
+    });
+  };
+
   const listing = normalizeListing(opportunity.assistanceListingNumber);
   if (listing && client.priorAssistanceListings.some((l) => normalizeListing(l) === listing)) {
-    matchedSignals.push({
-      signal: 'assistanceListing',
-      weight: RELEVANCE_WEIGHTS.assistanceListing,
-      matchedOn: opportunity.assistanceListingNumber ?? listing,
-    });
+    add('assistanceListing', opportunity.assistanceListingNumber ?? listing);
+  }
+
+  // Compared through `applicantTypeKey` on BOTH sides, exactly as
+  // computeEligibility does — the two must never disagree about whether the same
+  // pair of label strings matches, or a notice would read "eligible" while
+  // scoring as though the applicant type were irrelevant.
+  if (opportunity.eligibleApplicantTypes.length > 0 && client.applicantTypes.length > 0) {
+    const clientTypeKeys = new Set(client.applicantTypes.map(applicantTypeKey));
+    const typeHit = opportunity.eligibleApplicantTypes.find((t) =>
+      clientTypeKeys.has(applicantTypeKey(t)),
+    );
+    if (typeHit) add('applicantType', typeHit);
   }
 
   const agency = norm(opportunity.agency);
   if (agency && client.priorAgencies.some((a) => norm(a) === agency)) {
-    matchedSignals.push({
-      signal: 'agency',
-      weight: RELEVANCE_WEIGHTS.agency,
-      matchedOn: opportunity.agency ?? '',
-    });
+    add('agency', opportunity.agency ?? '');
+  }
+
+  // A restriction the client SATISFIES. Only fires when the notice actually
+  // states restrictions — an unrestricted notice is not a geographic match for
+  // everybody, it is simply silent on geography.
+  if (opportunity.geographicRestrictions.length > 0 && client.states.length > 0) {
+    const clientStates = new Set(client.states.map((s) => s.trim().toUpperCase()));
+    const stateHit = opportunity.geographicRestrictions.find((s) =>
+      clientStates.has(s.trim().toUpperCase()),
+    );
+    if (stateHit) add('stateRestriction', stateHit);
   }
 
   // Keyword matching runs over title + description. Substring rather than
@@ -257,20 +349,12 @@ export function scoreOpportunityRelevance(
     return needle.length > 2 && haystack.includes(needle);
   });
   if (keywordHit) {
-    matchedSignals.push({
-      signal: 'capabilityKeyword',
-      weight: RELEVANCE_WEIGHTS.capabilityKeyword,
-      matchedOn: keywordHit,
-    });
+    add('capabilityKeyword', keywordHit);
   }
 
   const sectorHit = sectorTokens(client.sector).find((t) => haystack.includes(t));
   if (sectorHit) {
-    matchedSignals.push({
-      signal: 'sector',
-      weight: RELEVANCE_WEIGHTS.sector,
-      matchedOn: sectorHit,
-    });
+    add('sector', sectorHit);
   }
 
   // Client-independent on purpose is NOT allowed here: fundingCategory is the
@@ -282,11 +366,7 @@ export function scoreOpportunityRelevance(
   // capabilities and no sector at all).
   const category = norm(opportunity.fundingCategory);
   if (category && norm(client.sector) === category) {
-    matchedSignals.push({
-      signal: 'fundingCategory',
-      weight: RELEVANCE_WEIGHTS.fundingCategory,
-      matchedOn: opportunity.fundingCategory ?? '',
-    });
+    add('fundingCategory', opportunity.fundingCategory ?? '');
   }
 
   const partnerHit = client.knownPartnerNames.find((p) => {
@@ -294,11 +374,7 @@ export function scoreOpportunityRelevance(
     return needle.length > 2 && haystack.includes(needle);
   });
   if (partnerHit) {
-    matchedSignals.push({
-      signal: 'knownPartner',
-      weight: RELEVANCE_WEIGHTS.knownPartner,
-      matchedOn: partnerHit,
-    });
+    add('knownPartner', partnerHit);
   }
 
   matchedSignals.sort(

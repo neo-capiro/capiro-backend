@@ -62,14 +62,30 @@ import {
   shapeClientRelevanceProfile,
   type ClientRelevanceProfileRows,
 } from '../src/district-nexus/grant-opportunity-candidates.js';
-import { scoreOpportunityRelevance } from '../src/district-nexus/grant-opportunity-relevance.js';
+import {
+  scoreOpportunityRelevance,
+  MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR,
+} from '../src/district-nexus/grant-opportunity-relevance.js';
 
 dotenvConfig();
 
 const SOURCE = 'generate-grant-opportunity-candidates';
 const EVIDENCE_SOURCE_TYPE = 'deterministic_relevance_v1';
 const RELATIONSHIP_TYPE = 'opportunity_candidate';
-export const DEFAULT_MIN_RELEVANCE = 40;
+/**
+ * The default floor is DERIVED, not written down. The product rule is "an exact
+ * prior Assistance Listing, on its own, qualifies a candidate", and
+ * MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR is that rule expressed against the
+ * scorer's CURRENT denominator.
+ *
+ * It used to be the literal `40`, correct only while
+ * RELEVANCE_WEIGHTS.assistanceListing was 40 AND the denominator happened to be
+ * 100. The Funding Opportunities work added two strong signals, moving the
+ * denominator to 140 — at which point a hardcoded 40 would have silently begun
+ * EXCLUDING listing-only matches: this shipped producer generating fewer
+ * candidates every night with nothing failing to say so.
+ */
+export const DEFAULT_MIN_RELEVANCE = MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR;
 
 function hasFlag(argv: string[], name: string): boolean {
   return argv.includes(`--${name}`);

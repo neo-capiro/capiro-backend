@@ -2,9 +2,22 @@ import { describe, expect, test } from '@jest/globals';
 import {
   computeEligibility,
   scoreOpportunityRelevance,
+  MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR,
+  RELEVANCE_MAX_SCORE,
+  RELEVANCE_WEIGHTS,
   type ClientRelevanceProfile,
   type OpportunityProfile,
 } from './grant-opportunity-relevance.js';
+
+/**
+ * Score expectations below are a share of RELEVANCE_MAX_SCORE, which the Funding
+ * Opportunities work moved from 100 to 140 by adding the `applicantType` (25) and
+ * `stateRestriction` (15) strong signals. The absolute numbers therefore changed
+ * even where the matched-signal SETS did not; the ratios are what is being pinned.
+ * They are written as explicit fractions so a future weight change shows up as an
+ * arithmetic disagreement rather than as an unexplained magic number.
+ */
+const pct = (earned: number): number => Math.round((earned / RELEVANCE_MAX_SCORE) * 100);
 
 function client(partial: Partial<ClientRelevanceProfile> = {}): ClientRelevanceProfile {
   return {
@@ -39,7 +52,62 @@ describe('relevance signals', () => {
       opportunity({ assistanceListingNumber: '93.778' }),
     );
     expect(result.matchedSignals.map((s) => s.signal)).toEqual(['assistanceListing']);
-    expect(result.relevanceScore).toBe(40);
+    expect(result.relevanceScore).toBe(pct(RELEVANCE_WEIGHTS.assistanceListing));
+  });
+
+  test('an exact Assistance Listing alone clears the producer relevance floor', () => {
+    // THE invariant behind generate-grant-opportunity-candidates.ts's default
+    // floor: if the client previously received money under 93.778, a new 93.778
+    // notice is the same program and must be suggested on that basis alone. The
+    // floor used to be the literal 40, correct only while the denominator was
+    // 100; this pins the rule itself so a weight change cannot quietly stop the
+    // shipped producer from generating listing-only candidates.
+    const result = scoreOpportunityRelevance(
+      client({ priorAssistanceListings: ['93.778'] }),
+      opportunity({ assistanceListingNumber: '93.778' }),
+    );
+    expect(result.relevanceScore).toBeGreaterThanOrEqual(MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR);
+  });
+
+  test('an explicit applicant-type match is a strong relevance signal in its own right', () => {
+    // Separate from eligibility, which reads the same two arrays: a notice open
+    // to small businesses AND state governments is more relevant to a small
+    // business than one open to state governments alone, and both are equally
+    // "eligible", so eligibility cannot carry that distinction.
+    const result = scoreOpportunityRelevance(
+      client({ applicantTypes: ['Small businesses'] }),
+      opportunity({ eligibleApplicantTypes: ['Small businesses', 'State governments'] }),
+    );
+    const hit = result.matchedSignals.find((s) => s.signal === 'applicantType');
+    expect(hit).toBeDefined();
+    expect(hit?.strength).toBe('strong');
+    expect(hit?.matchedOn).toBe('Small businesses');
+  });
+
+  test('applicant-type matching tolerates case and whitespace, like eligibility does', () => {
+    const result = scoreOpportunityRelevance(
+      client({ applicantTypes: ['small  BUSINESSES'] }),
+      opportunity({ eligibleApplicantTypes: ['Small businesses'] }),
+    );
+    expect(result.matchedSignals.map((s) => s.signal)).toContain('applicantType');
+  });
+
+  test('a state restriction the client satisfies is a positive relevance signal', () => {
+    const result = scoreOpportunityRelevance(
+      client({ states: ['CA'] }),
+      opportunity({ geographicRestrictions: ['CA', 'OR'] }),
+    );
+    const hit = result.matchedSignals.find((s) => s.signal === 'stateRestriction');
+    expect(hit?.matchedOn).toBe('CA');
+  });
+
+  test('an UNRESTRICTED opportunity is not a geographic match for everybody', () => {
+    // Silence about geography is not agreement about geography.
+    const result = scoreOpportunityRelevance(
+      client({ states: ['CA'] }),
+      opportunity({ geographicRestrictions: [] }),
+    );
+    expect(result.matchedSignals.map((s) => s.signal)).not.toContain('stateRestriction');
   });
 
   test('listing comparison ignores formatting noise', () => {
@@ -86,7 +154,13 @@ describe('relevance signals', () => {
       'agency',
       'capabilityKeyword',
     ]);
-    expect(result.relevanceScore).toBe(75); // (40+20+15)/100
+    expect(result.relevanceScore).toBe(
+      pct(
+        RELEVANCE_WEIGHTS.assistanceListing +
+          RELEVANCE_WEIGHTS.agency +
+          RELEVANCE_WEIGHTS.capabilityKeyword,
+      ),
+    );
   });
 
   test('no signals means zero, and an empty matchedSignals list to explain it', () => {
@@ -252,16 +326,37 @@ describe('relevance and eligibility are independent', () => {
         eligibleApplicantTypes: ['06'],
       }),
     );
-    expect(result.relevanceScore).toBe(60);
+    // assistanceListing + agency only: the client's applicant type ('12') is NOT
+    // among the ones this notice accepts ('06'), so applicantType does not fire,
+    // and the notice states no geographic restriction.
+    expect(result.relevanceScore).toBe(
+      pct(RELEVANCE_WEIGHTS.assistanceListing + RELEVANCE_WEIGHTS.agency),
+    );
     expect(result.eligibilityState).toBe('ineligible');
   });
 
-  test('an eligible but irrelevant opportunity scores zero and stays eligible', () => {
+  test('an opportunity whose ONLY tie to the client is the applicant type scores low, and stays eligible', () => {
+    // This case used to assert a score of zero. It changed deliberately: an
+    // applicant-type match is now a strong relevance signal (§6), so a notice
+    // aimed at this kind of organization is not "irrelevant" — it is weakly
+    // relevant, and separately eligible. The independence being pinned is that
+    // eligibility did not inflate the score to something it hasn't earned.
     const result = scoreOpportunityRelevance(
       client({ applicantTypes: ['12'] }),
       opportunity({ eligibleApplicantTypes: ['12'], title: 'Something unrelated' }),
     );
-    expect(result.relevanceScore).toBe(0);
+    expect(result.matchedSignals.map((s) => s.signal)).toEqual(['applicantType']);
+    expect(result.relevanceScore).toBe(pct(RELEVANCE_WEIGHTS.applicantType));
+    expect(result.relevanceScore).toBeLessThan(MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR);
     expect(result.eligibilityState).toBe('eligible');
+  });
+
+  test('an opportunity with no client tie at all still scores zero', () => {
+    const result = scoreOpportunityRelevance(
+      client({ applicantTypes: ['12'] }),
+      opportunity({ eligibleApplicantTypes: ['06'], title: 'Something unrelated' }),
+    );
+    expect(result.relevanceScore).toBe(0);
+    expect(result.eligibilityState).toBe('ineligible');
   });
 });
