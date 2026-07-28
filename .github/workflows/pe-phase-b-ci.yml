@@ -1,10 +1,8 @@
 name: pe-phase-b-ci
 
 on:
-  push:
-    branches: [agent/pe-trust-phase-b]
   pull_request:
-    branches: [main]
+    branches: [agent/pe-trust-phase-b-ci-base]
   workflow_dispatch:
 
 permissions:
