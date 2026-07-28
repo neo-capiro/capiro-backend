@@ -383,6 +383,54 @@ describe('DistrictBriefService.generate', () => {
     expect(prompt).not.toContain('Procedural deadline');
   });
 
+  it('Gate L (HP-03) followup: grounds a state_bill brief in the legislative session claim when the detector supplied one', async () => {
+    const { service } = makeDeps({ facility: FACILITY_ROW, representation: RESOLVED_REP });
+    const sessionedAlert = { ...STATE_BILL_ALERT, session: '2026 Regular Session' };
+    let capturedBody: string | undefined;
+    global.fetch = jest.fn(async (_url: unknown, init?: { body?: string }) => {
+      capturedBody = init?.body;
+      return anthropicTextResponse([
+        { heading: 'The bill/rule at stake', paragraphs: [{ text: 'CA AB 1234.', claimIds: ['c1'] }] },
+      ]);
+    }) as never;
+
+    await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      'fac-1',
+      sessionedAlert,
+    );
+
+    const prompt = (JSON.parse(capturedBody!) as { messages: Array<{ content: string }> })
+      .messages[0]!.content;
+    expect(prompt).toContain('Legislative session: 2026 Regular Session.');
+  });
+
+  it('Gate L (HP-03) followup: a state bill with no session data on record grounds without it — no fabricated session claim', async () => {
+    const { service } = makeDeps({ facility: FACILITY_ROW, representation: RESOLVED_REP });
+    let capturedBody: string | undefined;
+    global.fetch = jest.fn(async (_url: unknown, init?: { body?: string }) => {
+      capturedBody = init?.body;
+      return anthropicTextResponse([
+        { heading: 'The bill/rule at stake', paragraphs: [{ text: 'CA AB 1234.', claimIds: ['c1'] }] },
+      ]);
+    }) as never;
+
+    // STATE_BILL_ALERT itself carries no `session` — the realistic case for any
+    // alert written before this field existed, or a state whose session label
+    // never made it into state_bill.session.
+    await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      'fac-1',
+      STATE_BILL_ALERT,
+    );
+
+    const prompt = (JSON.parse(capturedBody!) as { messages: Array<{ content: string }> })
+      .messages[0]!.content;
+    expect(prompt).not.toContain('Legislative session');
+  });
+
   it('under ENFORCE, a grounding finding HOLDS the brief — not auto-filed, emits a district-brief review_request (G4)', async () => {
     process.env.MERI_AUDITOR_MODE = 'enforce';
     try {

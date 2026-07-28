@@ -222,6 +222,7 @@ const stateBillItem = () =>
         tone: 'warn',
         band: 'B',
         jurisdiction: 'CA',
+        session: '2026 Regular Session',
         writerShape: 'flat_bill',
       },
       extra: { cutoffType: 'committeeCutoff', cutoffDate: '2026-08-01', daysUntil: 5 },
@@ -270,6 +271,18 @@ describe('feedItemToMemoAlert — state_bill and regulation (§4.5)', () => {
     // The bill fields still populate — a state bill IS bill-shaped.
     expect(a.billDisplayNum).toBe('CA AB 1234');
     expect(a.actionText).toBe('Referred to Assembly Appropriations.');
+  });
+
+  test('Gate L (HP-03) followup: a state bill carries its legislative session through to the memo/brief generator', () => {
+    const a = feedItemToMemoAlert(stateBillItem());
+    expect(a.session).toBe('2026 Regular Session');
+  });
+
+  test('Gate L (HP-03) followup: omits session entirely rather than sending null when the alert never carried one', () => {
+    const item = stateBillItem();
+    delete (item.evidence as { provenance?: { session?: string } }).provenance?.session;
+    const a = feedItemToMemoAlert(item);
+    expect('session' in a).toBe(false);
   });
 
   test('a state bill with no cutoff sends no deadline block at all', () => {
@@ -330,6 +343,9 @@ describe('feedItemToDistrictBriefAlert', () => {
       daysUntil: 5,
     });
     expect(brief.jurisdiction).toBe('CA');
+    // Gate L (HP-03) followup: the session claim reaches the SAME reachable
+    // path — a district brief is where this claim actually matters.
+    expect(brief.session).toBe('2026 Regular Session');
     // The bill facts the brief actually grounds on are preserved.
     expect(brief.billDisplayNum).toBe('CA AB 1234');
   });

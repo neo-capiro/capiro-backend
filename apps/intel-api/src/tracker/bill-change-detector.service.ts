@@ -651,6 +651,7 @@ export class BillChangeDetectorService {
               sourceType: 'state_bill',
               displayNum,
               jurisdiction: bill.state,
+              session: bill.session,
               dedupEvidenceKey,
               dedupSeverity: isDeadline ? ev.cls.severity : undefined,
               // Gate K (HP-01, d-4/d-5): this call site already had an opts
@@ -985,6 +986,10 @@ export class BillChangeDetectorService {
       sourceType?: string;
       displayNum?: string;
       jurisdiction?: string;
+      /** Gate L (HP-03) followup: the state legislative session's display name
+       *  (e.g. "2026 Regular Session"), for a district brief's session claim.
+       *  federal callers never pass it — absent there, same as jurisdiction. */
+      session?: string | null;
       /**
        * 2026-07-10 (W2.1, hardened in Wave-2 closure): sub-key the 14-day dedup
        * so distinct sub-events sharing ONE changeType each fire once within the
@@ -1030,6 +1035,7 @@ export class BillChangeDetectorService {
     const sourceType = opts.sourceType ?? 'bill';
     const displayNum = opts.displayNum ?? humanizeBillId(row.billId);
     const jurisdiction = opts.jurisdiction ?? 'US';
+    const session = opts.session ?? null;
     const dedupeSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
     // Dedup is PER CLIENT: the alert is client-specific (its own board/feed row,
     // its own subscribers), and legacy emits one intelligence_change per client
@@ -1153,6 +1159,10 @@ export class BillChangeDetectorService {
             billTitle: bill.title,
             displayNum,
             jurisdiction,
+            // Gate L (HP-03) followup: same optional-flat-key treatment as
+            // jurisdiction — undefined for federal, the session display name
+            // for state. normalize-evidence.ts reads it into provenance.session.
+            ...(session ? { session } : {}),
             // ── Gate D d-2, ADDED KEYS ONLY (D7) ────────────────────────────
             // Nothing above moved or was removed, so the JSON-path dedup on
             // `cutoffType` (Gate C §2.4.1) is unaffected. Both keys are already

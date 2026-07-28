@@ -102,6 +102,9 @@ export interface AlertMemoAlertInput {
   programElement?: AlertMemoProgramElement;
   /** §4.5: 2-letter state code, or 'US' for federal. Drives the state-bill framing. */
   jurisdiction?: string | null;
+  /** Gate L (HP-03) followup: the state legislative session's display name
+   *  (e.g. "2026 Regular Session"). Only ever set for sourceType='state_bill'. */
+  session?: string | null;
   /** §4.5: state cutoff/crossover context, when the alert is a deadline warning. */
   deadline?: AlertMemoDeadline | null;
   /** §4.5: agency rulemaking facts. Only for sourceType='regulation'. */

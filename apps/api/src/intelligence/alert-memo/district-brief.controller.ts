@@ -88,6 +88,9 @@ class DistrictBriefAlertDto implements AlertMemoAlertInput {
   programElement?: DistrictBriefProgramElementDto;
   /** §4.5: 2-letter state code, or 'US' for federal. Drives the state-bill framing. */
   @IsOptional() @IsString() @MaxLength(32) jurisdiction?: string | null;
+  /** Gate L (HP-03) followup: the state legislative session's display name
+   *  (e.g. "2026 Regular Session"). Only ever set for sourceType='state_bill'. */
+  @IsOptional() @IsString() @MaxLength(120) session?: string | null;
   @IsOptional() @ValidateNested() @Type(() => DistrictBriefDeadlineDto)
   deadline?: DistrictBriefDeadlineDto | null;
   @IsOptional() @ValidateNested() @Type(() => DistrictBriefRegulationDto)
