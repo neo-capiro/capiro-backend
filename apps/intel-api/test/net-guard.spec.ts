@@ -139,7 +139,7 @@ describe('assertUrlAllowed', () => {
 /**
  * guardedProbe follows redirects MANUALLY, re-validating each hop, and returns the
  * FINAL post-redirect URL — so a redirect off the allowlist is rejected and the
- * caller hands ffmpeg the validated endpoint (not the original redirecting URL).
+ * caller gets the validated endpoint (not the original redirecting URL).
  * `fetch` is stubbed; `skipDnsCheck` bypasses the DNS/IP branch (host allowlist
  * still applies).
  */
@@ -182,7 +182,7 @@ describe('guardedProbe — redirect handling', () => {
     const res = await guardedProbe(start, { skipDnsCheck: true });
     expect(res.ok).toBe(true);
     expect(res.status).toBe(200);
-    expect(res.url).toBe(final); // ffmpeg gets the final, not the original
+    expect(res.url).toBe(final); // callers get the final, not the original
   });
 
   it('rejects a redirect to a DENIED host (SsrfError, not "reachable")', async () => {

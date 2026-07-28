@@ -1,17 +1,9 @@
-/**
- * Context Compiler v1 — assembly, rendering, exclusion tracing (G1).
- *
- * Pure logic over a ContextStoreAdapter: classify rows into layers, filter to
- * the requested layers, exclude non-active / empty / over-budget rows WITH A
- * RECORDED REASON, render human-owned section bodies with the ONE shared
- * renderer (previously copy-pasted four times), and fire-and-forget the packet
- * trace. Zod-free, Node-builtin-only (crypto.randomUUID) — see contract.ts for
- * why this subpath must stay dependency-free.
- */
-import { randomUUID } from 'node:crypto';
+/** Context Compiler v1 — deterministic assembly and auditable exclusions. */
+import { createHash, randomUUID } from 'node:crypto';
 import { estimateTokens } from './token-budget';
 import {
   LAYER_BY_TYPE,
+  typeRank,
   type CompiledContextPacket,
   type ContextExclusion,
   type ContextPacketItem,
@@ -22,7 +14,6 @@ import {
   type SteeringRow,
 } from './contract';
 
-/** Stable, human-readable inclusion rationales per layer (packet trace). */
 const RATIONALE: Readonly<Record<SteeringLayer, string>> = {
   'firm-identity': 'Firm Soul/Compass: firm identity always steers firm-scoped drafting',
   'firm-playbook': 'Firm playbook: house drafting doctrine for deliverables',
@@ -31,38 +22,37 @@ const RATIONALE: Readonly<Record<SteeringLayer, string>> = {
   'client-people': 'Client people roster: named principals for this client',
 };
 
-/**
- * THE shared human-sections renderer. Only sections a human owns are ever
- * rendered into prompts (`owner === 'human'`); Meri-owned sections are
- * derived content and must not steer generation. Formerly quadruplicated in
- * meri.service / engagement.service / meri-context.resolver /
- * generation.service — byte-identical output to those copies.
- */
 export function renderHumanSections(sections: unknown): string {
-  if (!Array.isArray(sections)) return '';
-  return sections
-    .filter((s) => s && typeof s === 'object' && (s as { owner?: string }).owner === 'human')
-    .map((s) => {
-      const sec = s as { heading?: string; body?: string };
-      return sec.body?.trim() ? `${sec.heading}: ${sec.body.trim()}` : '';
-    })
-    .filter(Boolean)
+  return renderSectionUnits(sections, 'human')
+    .map((unit) => unit.body)
     .join('\n');
 }
 
-/**
- * 'all' render mode: every non-empty section body regardless of owner, no
- * heading prefix — alert-memo's historical full-file steering shape.
- */
 export function renderAllSections(sections: unknown): string {
-  if (!Array.isArray(sections)) return '';
-  return sections
-    .map((s) => {
-      const sec = s as { body?: string } | null;
-      return typeof sec?.body === 'string' ? sec.body.trim() : '';
-    })
-    .filter(Boolean)
+  return renderSectionUnits(sections, 'all')
+    .map((unit) => unit.body)
     .join('\n');
+}
+
+interface SectionUnit {
+  label: string;
+  body: string;
+}
+
+function renderSectionUnits(sections: unknown, mode: 'human' | 'all'): SectionUnit[] {
+  if (!Array.isArray(sections)) return [];
+  const out: SectionUnit[] = [];
+  for (let index = 0; index < sections.length; index += 1) {
+    const raw = sections[index];
+    if (!raw || typeof raw !== 'object') continue;
+    const section = raw as { owner?: string; heading?: string; body?: string };
+    if (mode === 'human' && section.owner !== 'human') continue;
+    const body = typeof section.body === 'string' ? section.body.trim() : '';
+    if (!body) continue;
+    const heading = section.heading?.trim() || `section-${index + 1}`;
+    out.push({ label: heading, body: mode === 'human' ? `${heading}: ${body}` : body });
+  }
+  return out;
 }
 
 export class ContextCompiler {
@@ -70,66 +60,74 @@ export class ContextCompiler {
 
   async compile(req: ContextRequest): Promise<CompiledContextPacket> {
     const rows = await this.store.loadSteeringRows(req);
-
     const wanted = new Set<SteeringLayer>(req.layers);
     const items: ContextPacketItem[] = [];
     const exclusions: ContextExclusion[] = [];
     const rendered: RenderedSteeringItem[] = [];
 
-    // Stable ordering: requested-layer order first, then adapter row order —
-    // so prompt-block composition is deterministic across compiles.
     const byLayer = new Map<SteeringLayer, SteeringRow[]>();
     for (const row of rows) {
       const layer = LAYER_BY_TYPE[row.type];
-      if (!layer || !wanted.has(layer)) continue; // not requested: not traced
+      if (!layer || !wanted.has(layer)) continue;
       const bucket = byLayer.get(layer) ?? [];
       bucket.push(row);
       byLayer.set(layer, bucket);
     }
+    // Adapter SQL ordering is defense-in-depth only. The shared compiler sorts
+    // independently so shuffled adapters produce identical packets.
+    for (const bucket of byLayer.values()) bucket.sort(compareSteeringRows);
 
-    // Phase 5: unit-aware budgeting. Default ('chars' / undefined) is byte-
-    // identical to before (cost = body.length, budget = charBudget). 'tokens'
-    // routes both the budget and the per-row cost through the shared estimator.
     const useTokens = req.budgetUnit === 'tokens';
     const cost = (body: string): number => (useTokens ? estimateTokens(body) : body.length);
     let budgetLeft = (useTokens ? req.tokenBudget : req.charBudget) ?? Number.POSITIVE_INFINITY;
+
     for (const layer of req.layers) {
       for (const row of byLayer.get(layer) ?? []) {
         const base = { layer, id: row.id, type: row.type, slug: row.slug };
-        const withTitle = { ...base, title: row.title ?? null };
-        // Governance first: superseded/revoked rows are visible to the
-        // compiler (the adapter must not status-filter) precisely so the
-        // withholding is RECORDED rather than silent.
         if (row.status === 'revoked' || row.status === 'superseded') {
           exclusions.push({ ...base, reason: row.status });
           continue;
         }
-        // G2 ephemeral: the RLS expiry predicate normally hides expired rows
-        // before they reach the adapter — this in-code check is defense in
-        // depth (and the only guard for rows read under rls_bypass), and it
-        // makes the withholding visible in the trace when it does fire.
         if (row.expiresAt && new Date(row.expiresAt).getTime() <= Date.now()) {
           exclusions.push({ ...base, reason: 'expired' });
           continue;
         }
-        const body =
-          req.render === 'all'
-            ? renderAllSections(row.sections)
-            : renderHumanSections(row.sections);
-        if (!body) {
+
+        const units = renderSectionUnits(row.sections, req.render === 'all' ? 'all' : 'human');
+        if (!units.length) {
           exclusions.push({ ...base, reason: 'empty' });
           continue;
         }
-        const bodyCost = cost(body);
-        if (bodyCost > budgetLeft) {
+
+        const selected: SectionUnit[] = [];
+        const omitted: string[] = [];
+        let selectedCost = 0;
+        for (const unit of units) {
+          const separator = selected.length ? '\n' : '';
+          const incremental = cost(`${separator}${unit.body}`);
+          if (incremental <= budgetLeft - selectedCost) {
+            selected.push(unit);
+            selectedCost += incremental;
+          } else {
+            omitted.push(unit.label);
+          }
+        }
+        if (!selected.length) {
           exclusions.push({ ...base, reason: 'over-budget' });
           continue;
         }
-        budgetLeft -= bodyCost;
-        // `chars` remains the field name (contract-stable); it carries the cost
-        // in the active unit (chars by default, estimated tokens when on).
-        items.push({ ...base, chars: bodyCost, rationale: RATIONALE[layer] });
-        rendered.push({ ...withTitle, body });
+
+        const body = selected.map((unit) => unit.body).join('\n');
+        const contentHash = sha256(body);
+        budgetLeft -= selectedCost;
+        items.push({
+          ...base,
+          chars: selectedCost,
+          rationale: RATIONALE[layer],
+          contentHash,
+          ...(omitted.length ? { omittedSections: omitted } : {}),
+        });
+        rendered.push({ ...base, title: row.title ?? null, body, contentHash });
       }
     }
 
@@ -144,28 +142,98 @@ export class ContextCompiler {
       items,
       exclusions,
       rendered,
+      traceHash: sha256(
+        stableStringify({
+          version: 1,
+          surface: req.surface,
+          tenantId: req.tenantId,
+          userId: req.userId,
+          clientId: req.clientId ?? null,
+          ref: req.ref ?? {},
+          items,
+          exclusions,
+          rendered,
+        }),
+      ),
+      persisted: false,
       compiledAt: new Date().toISOString(),
     };
 
-    // Trace persistence is fail-open and non-blocking by contract: losing a
-    // trace row must never cost a user their draft.
     if (this.store.persistPacket) {
-      void this.store.persistPacket(packet).catch(() => undefined);
+      try {
+        await this.store.persistPacket(packet);
+        // Set only AFTER the write resolves: `persisted` is what lets a surface
+        // claim `packetId` as a durable row, so it must never be true on a
+        // packet whose insert has not actually completed.
+        packet.persisted = true;
+      } catch (error) {
+        packet.persisted = false;
+        if (req.persistence === 'required') throw error;
+      }
     }
-
     return packet;
   }
 }
 
-/** First rendered body for a type, or undefined — the common composition op. */
-export function renderedBody(packet: CompiledContextPacket, type: string): string | undefined {
-  return packet.rendered.find((r) => r.type === type)?.body;
+function compareSteeringRows(a: SteeringRow, b: SteeringRow): number {
+  return (
+    // Canonical type rank FIRST within a layer: Firm Soul before Firm Compass,
+    // Client Soul before Client Compass. Alphabetical `type` ordering would invert
+    // both while still looking deterministic.
+    typeRank(a.type) - typeRank(b.type) ||
+    statusRank(a.status) - statusRank(b.status) ||
+    compareNullableText(a.authority, b.authority) ||
+    compareDateDesc(a.confirmedAt, b.confirmedAt) ||
+    compareDateDesc(a.updatedAt, b.updatedAt) ||
+    a.type.localeCompare(b.type) ||
+    a.slug.localeCompare(b.slug) ||
+    a.id.localeCompare(b.id)
+  );
 }
 
-/** All rendered bodies for a layer, in packet order. */
+function statusRank(status: string): number {
+  if (status === 'active') return 0;
+  if (status === 'superseded') return 1;
+  if (status === 'revoked') return 2;
+  return 3;
+}
+
+function compareNullableText(a: string | null | undefined, b: string | null | undefined): number {
+  return (a ?? '').localeCompare(b ?? '');
+}
+
+function compareDateDesc(
+  a: string | Date | null | undefined,
+  b: string | Date | null | undefined,
+): number {
+  const left = a ? new Date(a).getTime() : 0;
+  const right = b ? new Date(b).getTime() : 0;
+  return right - left;
+}
+
+function sha256(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .filter(([, item]) => item !== undefined)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
+export function renderedBody(packet: CompiledContextPacket, type: string): string | undefined {
+  return packet.rendered.find((item) => item.type === type)?.body;
+}
+
 export function renderedLayer(
   packet: CompiledContextPacket,
   layer: SteeringLayer,
 ): RenderedSteeringItem[] {
-  return packet.rendered.filter((r) => r.layer === layer);
+  return packet.rendered.filter((item) => item.layer === layer);
 }

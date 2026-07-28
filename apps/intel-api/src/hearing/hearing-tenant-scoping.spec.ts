@@ -21,8 +21,13 @@ interface FakeModel {
   findMany: jest.Mock;
   create: jest.Mock;
   update: jest.Mock;
+  // `updateMany`/`aggregate` arrived with the split of raw transcript persistence
+  // from AI enrichment (commitRawFinal + enrichFinal + protectSegmentText) and the
+  // resume-offset read; they must be tenant-scoped like every other call.
+  updateMany: jest.Mock;
   upsert: jest.Mock;
   count: jest.Mock;
+  aggregate: jest.Mock;
 }
 
 function makeFakePrisma() {
@@ -35,8 +40,10 @@ function makeFakePrisma() {
         findMany: jest.fn().mockResolvedValue([]),
         create: jest.fn().mockResolvedValue({ id: 'created-1' }),
         update: jest.fn().mockResolvedValue({ id: 'updated-1' }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         upsert: jest.fn().mockResolvedValue({ id: 'upserted-1' }),
         count: jest.fn().mockResolvedValue(0),
+        aggregate: jest.fn().mockResolvedValue({ _max: { endMs: null } }),
       };
       models.set(name, m);
     }
@@ -77,12 +84,22 @@ describe('G3: hearing module Prisma calls are tenant-scoped via withTenant', () 
       expect(withTenant).toHaveBeenCalledWith('tenant-1', expect.any(Function));
     });
 
-    it('list() scopes to the caller tenantId', async () => {
-      const { prisma, withTenant } = makeFakePrisma();
+    it('list() scopes to the caller tenantId AND the caller user', async () => {
+      const { prisma, withTenant, model } = makeFakePrisma();
       const service = new HearingSessionService(prisma);
 
-      await service.list('tenant-1');
+      // `list` now takes the clerk user id too: a private meeting/webinar/agency
+      // session is creator-visible only, so tenant scoping alone is not enough.
+      await service.list('tenant-1', 'user-1');
       expect(withTenant).toHaveBeenCalledWith('tenant-1', expect.any(Function));
+      expect(model('liveHearingSession').findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            tenantId: 'tenant-1',
+            OR: [{ sourceType: { in: ['hearing', 'markup'] } }, { createdBy: 'user-1' }],
+          }),
+        }),
+      );
     });
   });
 

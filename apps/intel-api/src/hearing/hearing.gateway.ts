@@ -17,44 +17,74 @@ import { OrchestratorClient } from './orchestrator.client.js';
 import { DeepgramStreamManager } from './deepgram-stream.manager.js';
 import { BillHearingLinkerService } from '../linking/bill-hearing-linker.service.js';
 import { WatchlistMatchPromoterService } from '../linking/watchlist-match-promoter.service.js';
-import type { ClientWsMessage, ServerWsMessage } from './hearing.types.js';
+import type {
+  ClientWsMessage,
+  FinalSegment,
+  InterimSegment,
+  ServerWsMessage,
+} from './hearing.types.js';
+
+const MAX_SESSION_MS = Number.parseInt(
+  process.env.MAX_SESSION_MS ?? `${12 * 60 * 60 * 1000}`,
+  10,
+);
+const CAPTURE_START_TIMEOUT_MS = 15_000;
+const FIRST_AUDIO_TIMEOUT_MS = 30_000;
+const HEARTBEAT_MS = 30_000;
+const MAX_FRAME_BYTES = 1_000_000;
+const MAX_BYTES_PER_SECOND = 512 * 1024;
+const BROWSER_MIME_TYPES = new Set(['audio/webm;codecs=opus', 'audio/webm']);
+
+type CaptureState = 'connected' | 'starting' | 'ready' | 'capturing' | 'stopping' | 'ended';
 
 interface LiveConn {
   ws: WebSocket;
   tenantId: string;
   userId: string;
   sessionId: string;
-  // NOTE: the caller's Clerk JWT is deliberately NOT stored here. It used to be
-  // (`authToken`), retained for the life of the socket — up to MAX_SESSION_MS,
-  // four hours — and relayed to MeriV2 on every final segment, long after the
-  // ~60s token had expired. Downstream calls now use service-to-service auth
-  // with an explicitly delegated tenantId/userId.
   recordingPolicy: string;
+  forceEncrypt: boolean;
   sessionContext: {
     clientId?: string | null;
     issueIds: string[];
     billIds: string[];
     programElementIds: string[];
+    agencyIds: string[];
     committeeId?: string | null;
+    hearingId?: string | null;
   };
-  deepgram: DeepgramStreamManager;
+  state: CaptureState;
+  deepgram?: DeepgramStreamManager;
+  claimStartedAt?: Date;
+  timelineOffsetMs: number;
+  hasAudio: boolean;
+  rawChain: Promise<void>;
+  pendingEnrichment: Set<Promise<void>>;
+  finalizePromise?: Promise<void>;
+  heartbeatTimer?: ReturnType<typeof setInterval>;
+  startTimer?: ReturnType<typeof setTimeout>;
+  firstAudioTimer?: ReturnType<typeof setTimeout>;
+  durationTimer?: ReturnType<typeof setTimeout>;
+  rateWindowStartedAt: number;
+  bytesThisWindow: number;
 }
 
-const MAX_SESSION_MS = Number.parseInt(process.env.MAX_SESSION_MS ?? `${4 * 60 * 60 * 1000}`, 10);
-
-
 /**
- * WebSocket gateway for the live hearing audio stream.
+ * Browser-audio hearing gateway.
  *
- * URL: ws://<host>/intel-api/live?sessionId=...  (Bearer JWT in Sec-WebSocket-Protocol
- * or `authorization` query param). One browser connection per session; one
- * Deepgram socket per session (DeepgramStreamManager). Auth + tenant scoping
- * via a single-use ticket minted by the REST surface (no auth reimplemented).
- *
- * Flow: browser audio frames -> Deepgram -> interim (UI only) / final
- * (-> orchestrator extract -> SegmentCommitService -> persisted + cards to UI).
+ * The application WebSocket is only an authenticated control channel until the
+ * browser sends `capture_start`. The server atomically claims the session in a
+ * preparation state, opens Deepgram, and replies `capture_ready`; only then may
+ * MediaRecorder bytes flow. The session becomes `live` on its first accepted
+ * audio frame. Final transcript persistence is ordered and immediate, while Meri
+ * enrichment runs off the critical path. Graceful stop drains every stage before
+ * hearing-end linking and lease release.
  */
-@WebSocketGateway({ path: '/intel-api/live', verifyClient: verifyWsOrigin })
+@WebSocketGateway({
+  path: '/intel-api/live',
+  verifyClient: verifyWsOrigin,
+  maxPayload: MAX_FRAME_BYTES,
+})
 export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(HearingGateway.name);
   private readonly conns = new WeakMap<WebSocket, LiveConn>();
@@ -79,173 +109,341 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     try {
       const url = new URL(req.url ?? '', 'http://localhost');
       const sessionId = url.searchParams.get('sessionId');
-      if (!sessionId) {
-        return this.reject(client, 'Missing sessionId or auth token');
-      }
-      if (!this.deepgramApiKey) {
-        return this.reject(client, 'Deepgram not configured');
-      }
+      if (!sessionId) return this.reject(client, 'Missing sessionId or auth token');
+      if (!this.deepgramApiKey) return this.reject(client, 'Deepgram not configured');
 
-      // ── Preferred path: a single-use ticket minted over authenticated HTTPS.
-      // Nothing long-lived is presented and nothing is retained.
       const ticket = url.searchParams.get('ticket');
-      if (ticket) {
-        const consumed = await this.tickets.consume(ticket, sessionId);
-        if (!consumed) {
-          // Unknown, already used, expired, or for a different session.
-          return this.reject(client, 'Invalid or expired ticket');
-        }
-        return this.startSession(client, sessionId, consumed.tenantId, consumed.clerkUserId);
-      }
-
-      // Ticket is the ONLY accepted credential. The Clerk JWT is never carried
-      // in the URL: query strings are captured by ALB access logs, proxies,
-      // browser history and error reporting, and the token used to be retained
-      // on the connection for up to four hours and replayed to MeriV2.
-      return this.reject(client, 'Missing or invalid ticket');
+      if (!ticket) return this.reject(client, 'Missing or invalid ticket');
+      const consumed = await this.tickets.consume(ticket, sessionId);
+      if (!consumed) return this.reject(client, 'Invalid or expired ticket');
+      await this.startSession(client, sessionId, consumed.tenantId, consumed.clerkUserId);
     } catch (err) {
       this.reject(client, (err as Error).message);
     }
   }
 
-  /**
-   * Everything after authorization, shared by the ticket path and the
-   * deprecated JWT path. `tenantId` is always the CANONICAL uuid and `userId`
-   * the Clerk subject; neither path passes a raw token in.
-   */
   private async startSession(
     client: WebSocket,
     sessionId: string,
     tenantId: string,
     userId: string,
   ): Promise<void> {
-    // Feature gate: refuse non-Capiro tenants until hearing_watch is enabled.
     const featureOn = await this.flags.isEnabled(HEARING_WATCH_FEATURE, tenantId);
-    if (!featureOn) {
-      return this.reject(client, 'Hearing Watch not enabled for this tenant');
-    }
+    if (!featureOn) return this.reject(client, 'Hearing Watch not enabled for this tenant');
 
-    // Scope + consent gate (throws 403 if consent needs_review).
-    const session = await this.sessions.assertCaptureAllowed(tenantId, sessionId);
-
-    const deepgram = new DeepgramStreamManager(this.deepgramApiKey, {
-      onOpen: () => this.send(client, { type: 'status', status: 'transcribing' }),
-      onInterim: (segment) => this.send(client, { type: 'interim', segment }),
-      onReconnecting: (attempt) =>
-        this.send(client, { type: 'status', status: `reconnecting:${attempt}` }),
-      onError: (err) => {
-        this.logger.warn(`deepgram error session=${sessionId}: ${err.message}`);
-        this.send(client, { type: 'error', message: err.message });
-      },
-      onFinal: (segment) => {
-        void this.handleFinal(client, segment);
-      },
-    });
-
-    this.conns.set(client, {
+    // Defense in depth: the HTTPS ticket endpoint already checked this user, but
+    // the single-use ticket carries their identity so the upgrade rechecks that a
+    // private session still belongs to them before accepting any audio.
+    const session = await this.sessions.assertCaptureAllowed(tenantId, sessionId, userId);
+    const conn: LiveConn = {
       ws: client,
       tenantId,
       userId,
       sessionId,
       recordingPolicy: session.recordingPolicy,
+      forceEncrypt: HearingSessionService.isSensitiveSession(session),
+      // Everything structured the session was created with travels to Meri with
+      // each segment. Agencies and the scheduled hearing id used to be dropped
+      // here even though the row carried them.
       sessionContext: {
         clientId: session.clientId,
         issueIds: session.issueIds,
         billIds: session.billIds,
         programElementIds: session.programElementIds,
+        agencyIds: session.agencyIds,
         committeeId: session.committeeId,
+        hearingId: session.hearingId,
       },
-      deepgram,
-    });
-
-    await this.sessions.markStatus(tenantId, sessionId, 'live', { startedAt: new Date() });
-    deepgram.start();
+      state: 'connected',
+      timelineOffsetMs: 0,
+      hasAudio: false,
+      rawChain: Promise.resolve(),
+      pendingEnrichment: new Set(),
+      rateWindowStartedAt: Date.now(),
+      bytesThisWindow: 0,
+    };
+    this.conns.set(client, conn);
     this.send(client, { type: 'status', status: 'connected' });
 
-    // Hard cap on session duration (cost + stuck-stream guard).
-    setTimeout(() => {
-      if (this.conns.has(client)) {
-        this.send(client, { type: 'status', status: 'max_duration_reached' });
-        client.close();
-      }
-    }, MAX_SESSION_MS);
-
-    client.on('message', (raw: Buffer, isBinary: boolean) =>
-      this.onMessage(client, raw, isBinary),
-    );
+    client.on('message', (raw: Buffer, isBinary: boolean) => {
+      void this.onMessage(client, raw, isBinary);
+    });
   }
 
   async handleDisconnect(client: WebSocket): Promise<void> {
     const conn = this.conns.get(client);
     if (!conn) return;
-    conn.deepgram.stop();
+    await this.finalize(conn, conn.hasAudio ? 'ended' : 'failed', false);
     this.conns.delete(client);
-    try {
-      await this.sessions.markStatus(conn.tenantId, conn.sessionId, 'ended', {
-        endedAt: new Date(),
-      });
-    } catch (err) {
-      this.logger.warn(`markStatus ended failed: ${(err as Error).message}`);
-    }
-    // Hearing-end auto-link (Phase 6 §9.6): promote watchlist matches → hearing
-    // alerts, then link tracked bills → combined alerts. SHADOW-safe (writes
-    // intel_alert status='new', no delivery). Fire-and-forget so the disconnect
-    // path never blocks; advisory locks dedupe against the daily sweep.
-    void this.autoLink(conn.tenantId, conn.sessionId);
   }
 
-  /** Fire-and-forget hearing-end linking. Promote BEFORE link so the combined
-   *  alert can reference the just-created hearing alert (§9.4 ordering). */
-  private async autoLink(tenantId: string, sessionId: string): Promise<void> {
-    try {
-      const promoted = await this.promoter.promoteMatches(tenantId, sessionId);
-      const linked = await this.linker.linkSession(tenantId, sessionId);
-      this.logger.log(
-        `hearing-end auto-link session=${sessionId} promoted=${promoted.alerts} combined=${linked.combined}`,
-      );
-    } catch (err) {
-      this.logger.warn(
-        `hearing-end auto-link failed session=${sessionId}: ${(err as Error).message}`,
-      );
-    }
-  }
-
-  private onMessage(client: WebSocket, raw: Buffer, isBinary: boolean): void {
+  private async onMessage(client: WebSocket, raw: Buffer, isBinary: boolean): Promise<void> {
     const conn = this.conns.get(client);
-    if (!conn) return;
-    // ws v8 delivers BOTH text and binary frames as a Buffer, so a
-    // `Buffer.isBuffer(raw)` test is always true and would misroute every JSON
-    // control frame (audio/stop) into Deepgram as audio. The `isBinary` flag is
-    // the only reliable discriminator: true = raw audio frame, false = a JSON
-    // control message.
+    if (!conn || conn.state === 'ended') return;
+
     if (isBinary) {
-      conn.deepgram.sendAudio(raw);
+      await this.onAudioFrame(conn, raw);
       return;
     }
+
+    let msg: ClientWsMessage;
     try {
-      const msg = JSON.parse(raw.toString('utf8')) as ClientWsMessage;
-      if (msg.type === 'audio') {
-        conn.deepgram.sendAudio(Buffer.from(msg.chunk, 'base64'));
-      } else if (msg.type === 'stop') {
-        client.close();
-      }
+      msg = JSON.parse(raw.toString('utf8')) as ClientWsMessage;
     } catch {
-      // ignore malformed control frame
+      this.send(client, {
+        type: 'error',
+        code: 'INVALID_CONTROL_FRAME',
+        message: 'Invalid control frame',
+      });
+      return;
+    }
+
+    if (msg.type === 'capture_start') {
+      await this.startCapture(conn, msg.mimeType, msg.displaySurface);
+    } else if (msg.type === 'capture_stop' || msg.type === 'stop') {
+      await this.finalize(conn, 'ended', true);
+    } else if (msg.type === 'audio') {
+      await this.onAudioFrame(conn, Buffer.from(msg.chunk, 'base64'));
     }
   }
 
-  private async handleFinal(
-    client: WebSocket,
-    segment: {
-      startMs: number;
-      endMs: number;
-      text: string;
-      speakerLabel?: string;
-      confidence?: number;
-    },
+  private async startCapture(
+    conn: LiveConn,
+    mimeType: string,
+    displaySurface?: string,
   ): Promise<void> {
-    const conn = this.conns.get(client);
-    if (!conn) return;
+    if (conn.state !== 'connected') {
+      this.send(conn.ws, {
+        type: 'error',
+        code: 'CAPTURE_STATE_CONFLICT',
+        message: 'This session is already starting or capturing.',
+      });
+      return;
+    }
+    if (!BROWSER_MIME_TYPES.has(mimeType.toLowerCase())) {
+      this.send(conn.ws, {
+        type: 'error',
+        code: 'UNSUPPORTED_AUDIO_CONTAINER',
+        message: 'Browser capture must use audio/webm with Opus.',
+      });
+      return;
+    }
+
+    const claim = await this.sessions.claimCapture(conn.tenantId, conn.sessionId);
+    if (!claim) {
+      this.send(conn.ws, {
+        type: 'error',
+        code: 'SESSION_ALREADY_ACTIVE',
+        message: 'This hearing session is already being transcribed in another tab or browser.',
+      });
+      return;
+    }
+
+    conn.state = 'starting';
+    conn.claimStartedAt = claim.startedAt;
+    conn.timelineOffsetMs = await this.commit.maxEndMs(conn.tenantId, conn.sessionId);
+    this.logger.log(
+      `capture claimed session=${conn.sessionId} user=${conn.userId} ` +
+        `surface=${displaySurface ?? 'unknown'} offsetMs=${conn.timelineOffsetMs}`,
+    );
+
+    conn.heartbeatTimer = setInterval(() => {
+      const claimToken = conn.claimStartedAt;
+      if (!claimToken || conn.state === 'ended') return;
+      void this.sessions
+        .heartbeatCapture(conn.tenantId, conn.sessionId, claimToken)
+        .then((ok) => {
+          if (!ok && conn.state !== 'ended') {
+            this.send(conn.ws, {
+              type: 'error',
+              code: 'CAPTURE_LEASE_LOST',
+              message: 'This capture lost ownership of the hearing session.',
+            });
+            void this.finalize(conn, 'failed', true);
+          }
+        })
+        .catch((err) => {
+          this.logger.warn(`capture heartbeat failed: ${(err as Error).message}`);
+          this.send(conn.ws, {
+            type: 'error',
+            code: 'CAPTURE_LEASE_UNAVAILABLE',
+            message: 'Capture ownership could not be verified. The session was stopped safely.',
+          });
+          void this.finalize(conn, 'failed', true);
+        });
+    }, HEARTBEAT_MS);
+
+    conn.durationTimer = setTimeout(() => {
+      this.send(conn.ws, { type: 'status', status: 'max_duration_reached' });
+      void this.finalize(conn, 'ended', true);
+    }, MAX_SESSION_MS);
+
+    conn.deepgram = new DeepgramStreamManager(this.deepgramApiKey, {
+      onOpen: () => {
+        if (conn.state !== 'starting') return;
+        if (conn.startTimer) clearTimeout(conn.startTimer);
+        conn.state = 'ready';
+        this.send(conn.ws, { type: 'status', status: 'capture_ready' });
+        // A share-picker or recorder failure after the server claim used to leave
+        // Deepgram and the distributed lease alive for up to 12 hours. A ready
+        // capture must deliver its first browser audio promptly or release itself.
+        conn.firstAudioTimer = setTimeout(() => {
+          if (conn.state === 'ready' && !conn.hasAudio) {
+            this.send(conn.ws, {
+              type: 'error',
+              code: 'FIRST_AUDIO_TIMEOUT',
+              message: 'No browser audio arrived. Start transcription again and share tab audio.',
+            });
+            void this.finalize(conn, 'failed', true);
+          }
+        }, FIRST_AUDIO_TIMEOUT_MS);
+      },
+      onInterim: (segment) => {
+        if (conn.state === 'ended' || conn.state === 'stopping') return;
+        this.send(conn.ws, {
+          type: 'interim',
+          segment: this.withOffset(segment, conn.timelineOffsetMs),
+        });
+      },
+      onFinal: (segment) => this.enqueueFinal(conn, this.withOffset(segment, conn.timelineOffsetMs)),
+      onReconnecting: () => undefined,
+      onError: (err) => {
+        this.logger.warn(`deepgram error session=${conn.sessionId}: ${err.message}`);
+        this.send(conn.ws, {
+          type: 'error',
+          code: 'TRANSCRIPTION_RESTART_REQUIRED',
+          message: err.message,
+        });
+        this.send(conn.ws, { type: 'status', status: 'capture_restart_required' });
+        void this.finalize(conn, 'failed', true);
+      },
+    });
+
+    conn.startTimer = setTimeout(() => {
+      if (conn.state === 'starting') {
+        this.send(conn.ws, {
+          type: 'error',
+          code: 'TRANSCRIPTION_START_TIMEOUT',
+          message: 'The transcription service did not become ready. Try again.',
+        });
+        void this.finalize(conn, 'failed', true);
+      }
+    }, CAPTURE_START_TIMEOUT_MS);
+
+    this.send(conn.ws, { type: 'status', status: 'preparing_transcription' });
+    conn.deepgram.start();
+  }
+
+  private async onAudioFrame(conn: LiveConn, raw: Buffer): Promise<void> {
+    if (conn.state !== 'ready' && conn.state !== 'capturing') {
+      this.send(conn.ws, {
+        type: 'error',
+        code: 'AUDIO_BEFORE_READY',
+        message: 'Wait for capture_ready before sending audio.',
+      });
+      return;
+    }
+    if (raw.byteLength <= 0 || raw.byteLength > MAX_FRAME_BYTES) {
+      this.send(conn.ws, {
+        type: 'error',
+        code: 'AUDIO_FRAME_TOO_LARGE',
+        message: 'Audio frame exceeded the allowed size.',
+      });
+      await this.finalize(conn, 'failed', true);
+      return;
+    }
+
+    const now = Date.now();
+    if (now - conn.rateWindowStartedAt >= 1_000) {
+      conn.rateWindowStartedAt = now;
+      conn.bytesThisWindow = 0;
+    }
+    conn.bytesThisWindow += raw.byteLength;
+    if (conn.bytesThisWindow > MAX_BYTES_PER_SECOND) {
+      this.send(conn.ws, {
+        type: 'error',
+        code: 'AUDIO_RATE_EXCEEDED',
+        message: 'Audio arrived faster than the supported browser capture rate.',
+      });
+      await this.finalize(conn, 'failed', true);
+      return;
+    }
+
+    if (!conn.hasAudio) {
+      const claimToken = conn.claimStartedAt;
+      let activated = false;
+      try {
+        activated = Boolean(
+          claimToken &&
+            (await this.sessions.activateCapture(conn.tenantId, conn.sessionId, claimToken)),
+        );
+      } catch (err) {
+        this.logger.warn(`capture activation failed: ${(err as Error).message}`);
+      }
+      if (!activated) {
+        this.send(conn.ws, {
+          type: 'error',
+          code: 'CAPTURE_LEASE_LOST',
+          message: 'The hearing session could not be activated for audio.',
+        });
+        await this.finalize(conn, 'failed', true);
+        return;
+      }
+      if (conn.firstAudioTimer) clearTimeout(conn.firstAudioTimer);
+    }
+
+    if (!conn.deepgram?.sendAudio(raw)) {
+      this.send(conn.ws, {
+        type: 'error',
+        code: 'TRANSCRIPTION_NOT_READY',
+        message: 'The transcription service is not ready for audio.',
+      });
+      await this.finalize(conn, 'failed', true);
+      return;
+    }
+    if (!conn.hasAudio) {
+      conn.hasAudio = true;
+      conn.state = 'capturing';
+      this.send(conn.ws, { type: 'status', status: 'capturing' });
+    }
+  }
+
+  private enqueueFinal(conn: LiveConn, segment: FinalSegment): void {
+    conn.rawChain = conn.rawChain
+      .then(async () => {
+        const raw = await this.commit.commitRawFinal({
+          tenantId: conn.tenantId,
+          sessionId: conn.sessionId,
+          recordingPolicy: conn.recordingPolicy,
+          segment,
+          forceEncrypt: conn.forceEncrypt,
+        });
+
+        this.send(conn.ws, { type: 'final', segmentId: raw.id ?? '', segment });
+        if (!raw.id || !raw.created) return;
+
+        let task!: Promise<void>;
+        task = this.enrichFinal(conn, raw.id, segment)
+          .catch((err) =>
+            this.logger.warn(
+              `segment enrichment failed session=${conn.sessionId} segment=${raw.id}: ` +
+                `${(err as Error).message}`,
+            ),
+          )
+          .finally(() => conn.pendingEnrichment.delete(task));
+        conn.pendingEnrichment.add(task);
+      })
+      .catch((err) => {
+        this.logger.error(`raw segment commit failed session=${conn.sessionId}: ${(err as Error).message}`);
+        this.send(conn.ws, {
+          type: 'error',
+          code: 'TRANSCRIPT_PERSIST_FAILED',
+          message: 'A transcript segment could not be saved.',
+        });
+      });
+  }
+
+  private async enrichFinal(conn: LiveConn, segmentId: string, segment: FinalSegment): Promise<void> {
     const extraction = await this.orchestrator.extract({
       tenantId: conn.tenantId,
       sessionId: conn.sessionId,
@@ -253,53 +451,42 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       segment,
       sessionContext: conn.sessionContext,
     });
-    let segmentId: string | null = null;
-    try {
-      segmentId = await this.commit.commitFinal({
-        tenantId: conn.tenantId,
-        sessionId: conn.sessionId,
-        recordingPolicy: conn.recordingPolicy,
-        segment,
-        extraction,
-      });
-    } catch (err) {
-      this.logger.error(`commit failed session=${conn.sessionId}: ${(err as Error).message}`);
-    }
-    this.send(client, { type: 'final', segmentId: segmentId ?? '', segment });
-    // Watchlist matching (H2): score the committed segment against the tenant's
-    // active watchlist terms, persist matches, and surface an alert card.
-    if (segmentId) {
-      try {
-        const matchCount = await this.watchlists.matchAndPersist({
-          tenantId: conn.tenantId,
-          sessionId: conn.sessionId,
-          segmentId,
-          text: segment.text,
-          clientId: conn.sessionContext.clientId ?? undefined,
-        });
-        if (matchCount > 0) {
-          this.send(client, {
-            type: 'card',
-            card: {
-              id: `wl-${segmentId}`,
-              cardType: 'watchlist_match',
-              title: `${matchCount} watchlist match${matchCount > 1 ? 'es' : ''}`,
-              body: segment.text.slice(0, 200),
-              startMs: segment.startMs,
-            },
-          });
-        }
-      } catch (err) {
-        this.logger.warn(
-          `watchlist match failed session=${conn.sessionId}: ${(err as Error).message}`,
-        );
-      }
-    }
-    if (extraction.summaryCard) {
-      this.send(client, {
+
+    await this.commit.enrichFinal({
+      tenantId: conn.tenantId,
+      sessionId: conn.sessionId,
+      segmentId,
+      segment,
+      extraction,
+      forceEncrypt: conn.forceEncrypt,
+    });
+
+    const matchCount = await this.watchlists.matchAndPersist({
+      tenantId: conn.tenantId,
+      sessionId: conn.sessionId,
+      segmentId,
+      text: segment.text,
+      clientId: conn.sessionContext.clientId ?? undefined,
+    });
+    if (matchCount > 0) {
+      await this.commit.protectSegmentText(conn.tenantId, conn.sessionId, segmentId);
+      this.send(conn.ws, {
         type: 'card',
         card: {
-          id: segmentId ?? `${segment.startMs}`,
+          id: `wl-${segmentId}`,
+          cardType: 'watchlist_match',
+          title: `${matchCount} watchlist match${matchCount > 1 ? 'es' : ''}`,
+          body: segment.text.slice(0, 200),
+          startMs: segment.startMs,
+        },
+      });
+    }
+
+    if (extraction.summaryCard) {
+      this.send(conn.ws, {
+        type: 'card',
+        card: {
+          id: segmentId,
           cardType: extraction.summaryCard.cardType,
           title: extraction.summaryCard.title,
           body: extraction.summaryCard.body,
@@ -309,18 +496,85 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     }
   }
 
-  private send(client: WebSocket, msg: ServerWsMessage): void {
-    if (client.readyState === client.OPEN) {
-      client.send(JSON.stringify(msg));
+  private async finalize(
+    conn: LiveConn,
+    outcome: 'ended' | 'failed',
+    closeClient: boolean,
+  ): Promise<void> {
+    if (conn.finalizePromise) return conn.finalizePromise;
+    conn.finalizePromise = (async () => {
+      if (conn.state === 'ended') return;
+      conn.state = 'stopping';
+      if (conn.startTimer) clearTimeout(conn.startTimer);
+      if (conn.firstAudioTimer) clearTimeout(conn.firstAudioTimer);
+      if (conn.durationTimer) clearTimeout(conn.durationTimer);
+      if (conn.heartbeatTimer) clearInterval(conn.heartbeatTimer);
+
+      await conn.deepgram?.stopAndWait().catch(() => undefined);
+      await conn.rawChain;
+      await Promise.allSettled([...conn.pendingEnrichment]);
+
+      let released = conn.claimStartedAt == null;
+      if (conn.claimStartedAt) {
+        try {
+          released = await this.sessions.releaseCapture(
+            conn.tenantId,
+            conn.sessionId,
+            conn.claimStartedAt,
+            outcome,
+          );
+        } catch (err) {
+          released = false;
+          this.logger.warn(
+            `capture release failed session=${conn.sessionId}: ${(err as Error).message}`,
+          );
+        }
+        if (!released) {
+          this.logger.warn(
+            `capture release did not match owned lease session=${conn.sessionId}; skipping hearing-end linking`,
+          );
+        }
+      }
+
+      // Never emit downstream alerts from a stale socket that failed to release
+      // its exact lease token. It may be observing a newer active capture.
+      if (released && outcome === 'ended' && conn.hasAudio) {
+        await this.autoLink(conn.tenantId, conn.sessionId);
+      }
+      conn.state = 'ended';
+      const finalStatus = released ? outcome : 'failed';
+      this.send(conn.ws, { type: 'status', status: finalStatus });
+      if (closeClient && conn.ws.readyState === conn.ws.OPEN) conn.ws.close();
+    })();
+    return conn.finalizePromise;
+  }
+
+  private async autoLink(tenantId: string, sessionId: string): Promise<void> {
+    try {
+      const promoted = await this.promoter.promoteMatches(tenantId, sessionId);
+      const linked = await this.linker.linkSession(tenantId, sessionId);
+      this.logger.log(
+        `hearing-end auto-link session=${sessionId} promoted=${promoted.alerts} ` +
+          `combined=${linked.combined}`,
+      );
+    } catch (err) {
+      this.logger.warn(`hearing-end auto-link failed session=${sessionId}: ${(err as Error).message}`);
     }
   }
 
+  private withOffset<T extends InterimSegment | FinalSegment>(segment: T, offsetMs: number): T {
+    return {
+      ...segment,
+      startMs: segment.startMs + offsetMs,
+      endMs: segment.endMs + offsetMs,
+    };
+  }
+
+  private send(client: WebSocket, msg: ServerWsMessage): void {
+    if (client.readyState === client.OPEN) client.send(JSON.stringify(msg));
+  }
+
   private reject(client: WebSocket, reason: string): void {
-    // WARN, not debug. At the default log level every WebSocket rejection was
-    // invisible — including an invalid ticket and a revoked membership — so
-    // there was no signal at all that the live-hearing surface was denying
-    // anyone. Emitted in the structured shape so the Capiro/Security metric
-    // filter counts WS denials alongside HTTP ones.
     this.logger.warn(
       JSON.stringify({
         security_event: 'auth.denied',
@@ -342,14 +596,6 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   }
 }
 
-
-/**
- * Map a rejection message onto a stable `auth.denied` reason code.
- *
- * The gateway rejects with human-readable strings; the metric filter needs a
- * fixed dimension. Anything unrecognized falls back to ws_ticket_invalid rather
- * than being dropped, so no denial goes uncounted.
- */
 function classifyWsRejection(reason: string): string {
   const r = reason.toLowerCase();
   if (r.includes('no active membership')) return 'no_active_membership';

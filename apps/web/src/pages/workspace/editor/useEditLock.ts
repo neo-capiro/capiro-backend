@@ -1,15 +1,6 @@
 /**
  * Concurrent-edit lock lifecycle hook (Phase 6b, Q-ED-2). DB + polling — no
  * websockets.
- *
- * On mount it tries to acquire the lock (free / inactive → I hold it; actively
- * held → I become a view-only viewer). While I hold the lock it heartbeats every
- * HEARTBEAT_MS so other viewers can tell I'm active; status itself polls every
- * POLL_MS (the query's refetchInterval). On unmount it releases (the release
- * endpoint transfers to a pending requester or frees the lock).
- *
- * Returns the current lock status, a `canEdit` flag, the request-pending local
- * state, and the action callbacks the LockBanner + EditorPage drive.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -41,18 +32,15 @@ const FREE: WsLockStatus = {
 
 export interface EditLockController {
   lock: WsLockStatus;
-  /** I hold the active lock (may edit). */
   canEdit: boolean;
-  /** I sent a request to edit (local optimistic). */
   requestPending: boolean;
   requestBusy: boolean;
   takeOverBusy: boolean;
   releasing: boolean;
   request: () => void;
   takeOver: () => void;
-  /** Flush + release + transfer (the "Save & release" flow). */
-  saveAndRelease: (flush: () => void) => void;
-  /** Dismiss an incoming request locally (the holder "Keep editing"). */
+  /** Flush durably, then release. A failed save never transfers the lock. */
+  saveAndRelease: (flush: () => Promise<{ ok: boolean }>) => Promise<boolean>;
   keepEditing: () => void;
 }
 
@@ -65,30 +53,23 @@ export function useEditLock(draftId: string | null, selfName: string): EditLockC
   const takeOverMut = useTakeOverLock(draftId ?? '');
 
   const [requestPending, setRequestPending] = useState(false);
-  // Locally dismissed incoming-request ids so "Keep editing" hides the banner
-  // until a NEW request arrives.
   const [dismissedRequest, setDismissedRequest] = useState<string | null>(null);
 
   const lockRaw = data ?? FREE;
-  // Apply the local "Keep editing" dismissal to the surfaced incoming request.
   const lock: WsLockStatus =
     lockRaw.hasIncomingRequest && lockRaw.requestedById === dismissedRequest
       ? { ...lockRaw, hasIncomingRequest: false }
       : lockRaw;
-
   const canEdit = lock.heldByMe && lock.held;
 
-  // Auto-acquire once per draft on mount.
   const acquiredFor = useRef<string | null>(null);
   useEffect(() => {
-    if (!draftId) return;
-    if (acquiredFor.current === draftId) return;
+    if (!draftId || acquiredFor.current === draftId) return;
     acquiredFor.current = draftId;
     acquire.mutate({ name: selfName });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftId]);
 
-  // Heartbeat while I hold the lock.
   useEffect(() => {
     if (!draftId || !canEdit) return;
     const id = setInterval(() => heartbeat.mutate(undefined), HEARTBEAT_MS);
@@ -96,7 +77,8 @@ export function useEditLock(draftId: string | null, selfName: string): EditLockC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftId, canEdit]);
 
-  // Release on unmount (best-effort; the lock also self-expires after inactivity).
+  // Best-effort lock cleanup only. Document durability is handled explicitly by
+  // saveAndRelease/navigation guards; unmount must never claim a save happened.
   const releaseRef = useRef(release);
   releaseRef.current = release;
   const canEditRef = useRef(canEdit);
@@ -108,7 +90,6 @@ export function useEditLock(draftId: string | null, selfName: string): EditLockC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftId]);
 
-  // Clear my pending-request flag once I become the holder (request granted).
   useEffect(() => {
     if (canEdit && requestPending) setRequestPending(false);
   }, [canEdit, requestPending]);
@@ -123,10 +104,11 @@ export function useEditLock(draftId: string | null, selfName: string): EditLockC
   }, [takeOverMut, selfName]);
 
   const saveAndRelease = useCallback(
-    (flush: () => void) => {
-      flush();
-      // Release transfers the lock to the pending requester server-side.
-      release.mutate(undefined);
+    async (flush: () => Promise<{ ok: boolean }>): Promise<boolean> => {
+      const outcome = await flush();
+      if (!outcome.ok) return false;
+      await release.mutateAsync(undefined);
+      return true;
     },
     [release],
   );

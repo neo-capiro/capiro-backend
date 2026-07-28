@@ -5,13 +5,32 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { LiveHearingSourceType } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { CreateSessionDto, LiveHearingSourceTypeDto } from './dto/session.dto.js';
+import {
+  CreateSessionDto,
+  LiveHearingAudioSourceDto,
+  LiveHearingSourceTypeDto,
+  RecordingPolicyDto,
+} from './dto/session.dto.js';
+
+const CAPTURE_LEASE_STALE_MS = Number.parseInt(
+  process.env.HEARING_CAPTURE_LEASE_STALE_MS ?? '90000',
+  10,
+);
+
+const PUBLIC_SOURCE_TYPES = [
+  LiveHearingSourceType.hearing,
+  LiveHearingSourceType.markup,
+] as const;
+
+export interface HearingCaptureClaim {
+  startedAt: Date;
+}
 
 /**
- * Live Hearing session lifecycle + tenant/user scoping.
- *
- * EVERY method filters by tenantId (the TenantGuard-resolved scope).
+ * Live Hearing session lifecycle + tenant/user scoping. EVERY method filters by
+ * tenantId (the TenantGuard-resolved scope).
  *
  * CONSENT (P8, spec D11) — conditional on source type:
  *  - PUBLIC congressional proceedings (`hearing` / `markup`): consent is NOT
@@ -23,6 +42,16 @@ import { CreateSessionDto, LiveHearingSourceTypeDto } from './dto/session.dto.js
  *    attestation is PERSISTED (consentAttestation + attestedBy + attestedAt) as a
  *    durable, queryable compliance artifact (only a truncated copy is logged);
  *    capture proceeds.
+ *
+ * Public congressional hearings and markups are team-visible inside the tenant.
+ * Private meetings, webinars and agency sessions are creator-private: a same-
+ * tenant user who guesses a session id receives the same 404 as a missing row.
+ *
+ * The browser capture lease uses the existing session row rather than an in-
+ * memory map. `status in (paused, live) + updated_at` is the distributed lease;
+ * `started_at` is its ownership token. A new capture first claims `paused` while
+ * Deepgram and the browser recorder are prepared, then becomes `live` on the
+ * first audio frame.
  */
 @Injectable()
 export class HearingSessionService {
@@ -40,26 +69,67 @@ export class HearingSessionService {
     return HearingSessionService.PRIVATE_SOURCE_TYPES.has(sourceType);
   }
 
+  /**
+   * Whether a session's transcript must be encrypted REGARDLESS of what any
+   * classifier later says about it. Deciding this from the session's own
+   * structure — private source type, or an explicit client/matter/issue/bill/PE/
+   * agency link — is what stops sensitive text from sitting in plaintext for the
+   * seconds (or forever, on model failure) before an AI relevance score arrives.
+   */
+  static isSensitiveSession(session: {
+    sourceType: string;
+    clientId?: string | null;
+    matterId?: string | null;
+    issueIds?: string[] | null;
+    billIds?: string[] | null;
+    programElementIds?: string[] | null;
+    agencyIds?: string[] | null;
+  }): boolean {
+    return (
+      HearingSessionService.requiresConsent(session.sourceType) ||
+      Boolean(session.clientId || session.matterId) ||
+      Boolean(session.issueIds?.length) ||
+      Boolean(session.billIds?.length) ||
+      Boolean(session.programElementIds?.length) ||
+      Boolean(session.agencyIds?.length)
+    );
+  }
+
   constructor(private readonly prisma: PrismaService) {}
 
   async create(tenantId: string, userId: string, dto: CreateSessionDto) {
     const isPrivate = HearingSessionService.requiresConsent(dto.sourceType);
     const attestation = dto.consentAttestation?.trim();
 
-    // Server-side enforcement (D11): a PRIVATE session requires an attestation.
     if (isPrivate && !attestation) {
       throw new BadRequestException(
         'Consent attestation required for a private session (meeting/webinar/agency_session)',
       );
     }
 
+    // Server-side enforcement (D11): a PRIVATE session requires an attestation.
     // Public → not_required; private (with attestation) → confirmed up front.
     const consentStatus = isPrivate ? 'confirmed' : 'not_required';
     if (isPrivate) {
       // Log truncated only — the FULL attestation is persisted below (durable,
       // queryable compliance artifact), so we don't emit the full text to logs.
       this.logger.log(
-        `consent attested at create session-type=${dto.sourceType} tenant=${tenantId} user=${userId} attestation="${attestation!.slice(0, 80)}"`,
+        `consent attested at create session-type=${dto.sourceType} tenant=${tenantId} ` +
+          `user=${userId} attestation="${attestation!.slice(0, 80)}"`,
+      );
+    }
+
+    // The active browser workflow never stores raw audio. A stale client may
+    // still submit the old `audio_and_transcript` enum; persist the truthful
+    // effective policy instead of promising retention that does not exist.
+    const recordingPolicy =
+      dto.recordingPolicy === RecordingPolicyDto.no_storage
+        ? RecordingPolicyDto.no_storage
+        : RecordingPolicyDto.transcript_only;
+    if (dto.recordingPolicy === RecordingPolicyDto.audio_and_transcript) {
+      this.logger.warn(
+        `audio retention requested but unavailable; normalized to transcript_only ` +
+          `tenant=${tenantId} user=${userId}`,
       );
     }
 
@@ -70,9 +140,12 @@ export class HearingSessionService {
           createdBy: userId,
           title: dto.title,
           sourceType: dto.sourceType,
-          audioSource: dto.audioSource,
+          // Browser-tab audio is the only active capture implementation. Older
+          // clients may still send stream_url/upload/bridge enum values; normalize
+          // them instead of persisting metadata the room cannot honor.
+          audioSource: LiveHearingAudioSourceDto.browser_mic,
           sourceUrl: dto.sourceUrl?.trim() || null,
-          recordingPolicy: dto.recordingPolicy ?? 'transcript_only',
+          recordingPolicy,
           consentStatus,
           // Persist the full attestation + who/when for PRIVATE sessions (P8/D11
           // compliance record). Public proceedings store nothing here.
@@ -92,21 +165,46 @@ export class HearingSessionService {
     );
   }
 
-  /** Tenant-scoped fetch; throws 404 if not found in this tenant. */
+  /** Internal tenant-only read after a caller has already been authorized. */
   async getOwned(tenantId: string, sessionId: string) {
     const session = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.liveHearingSession.findFirst({ where: { id: sessionId, tenantId } }),
+    );
+    if (!session) throw new NotFoundException('Live hearing session not found');
+    return session;
+  }
+
+  /**
+   * User-facing read: public proceedings are firm-visible; private sessions are
+   * visible only to their creator. A denied row is deliberately non-enumerating.
+   */
+  async getAccessible(tenantId: string, sessionId: string, userId: string) {
+    const session = await this.prisma.withTenant(tenantId, (tx) =>
       tx.liveHearingSession.findFirst({
-        where: { id: sessionId, tenantId },
+        where: {
+          id: sessionId,
+          tenantId,
+          OR: [
+            { sourceType: { in: [...PUBLIC_SOURCE_TYPES] } },
+            { createdBy: userId },
+          ],
+        },
       }),
     );
     if (!session) throw new NotFoundException('Live hearing session not found');
     return session;
   }
 
-  async list(tenantId: string) {
+  async list(tenantId: string, userId: string) {
     return this.prisma.withTenant(tenantId, (tx) =>
       tx.liveHearingSession.findMany({
-        where: { tenantId },
+        where: {
+          tenantId,
+          OR: [
+            { sourceType: { in: [...PUBLIC_SOURCE_TYPES] } },
+            { createdBy: userId },
+          ],
+        },
         orderBy: { createdAt: 'desc' },
         take: 100,
       }),
@@ -114,19 +212,27 @@ export class HearingSessionService {
   }
 
   /** Confirm consent (needs_review -> confirmed). Persists the attestation. */
-  async confirmConsent(tenantId: string, sessionId: string, userId: string, attestation: string) {
-    const session = await this.getOwned(tenantId, sessionId);
+  async confirmConsent(
+    tenantId: string,
+    sessionId: string,
+    userId: string,
+    attestation: string,
+  ) {
+    const session = await this.getAccessible(tenantId, sessionId, userId);
     if (session.consentStatus === 'not_required') return session;
+    const normalized = attestation.trim();
+    if (!normalized) throw new BadRequestException('Consent attestation is required');
     // Log truncated only; persist the full attestation as the durable record.
     this.logger.log(
-      `consent confirmed session=${sessionId} tenant=${tenantId} user=${userId} attestation="${attestation.slice(0, 80)}"`,
+      `consent confirmed session=${sessionId} tenant=${tenantId} user=${userId} ` +
+        `attestation="${normalized.slice(0, 80)}"`,
     );
     return this.prisma.withTenant(tenantId, (tx) =>
       tx.liveHearingSession.update({
         where: { id: sessionId },
         data: {
           consentStatus: 'confirmed',
-          consentAttestation: attestation,
+          consentAttestation: normalized,
           attestedBy: userId,
           attestedAt: new Date(),
         },
@@ -136,10 +242,14 @@ export class HearingSessionService {
 
   /**
    * Guard: capture may start only when consent is satisfied. Throws 403 if the
-   * session still needs review. Returns the session when allowed.
+   * session still needs review, 404 if this user cannot see it. Returns the
+   * session when allowed. `userId` is omitted only for internal re-reads by a
+   * caller that has ALREADY proven the user's access.
    */
-  async assertCaptureAllowed(tenantId: string, sessionId: string) {
-    const session = await this.getOwned(tenantId, sessionId);
+  async assertCaptureAllowed(tenantId: string, sessionId: string, userId?: string) {
+    const session = userId
+      ? await this.getAccessible(tenantId, sessionId, userId)
+      : await this.getOwned(tenantId, sessionId);
     if (session.consentStatus === 'needs_review') {
       throw new ForbiddenException(
         'Consent required before recording (consent_status=needs_review)',
@@ -148,6 +258,108 @@ export class HearingSessionService {
     return session;
   }
 
+  /**
+   * Atomically claim one active browser capture across every intel-api replica.
+   * The `paused` state is an active lease that has not received audio yet.
+   */
+  async claimCapture(tenantId: string, sessionId: string): Promise<HearingCaptureClaim | null> {
+    await this.assertCaptureAllowed(tenantId, sessionId);
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.$queryRaw<Array<{ started_at: Date }>>`
+        UPDATE intel_live_hearing_session
+        SET status = 'paused',
+            started_at = now(),
+            ended_at = NULL,
+            updated_at = now()
+        WHERE id = ${sessionId}
+          AND tenant_id = ${tenantId}
+          AND (
+            status NOT IN ('live', 'paused')
+            OR updated_at < now() - (${CAPTURE_LEASE_STALE_MS} * interval '1 millisecond')
+          )
+        RETURNING started_at
+      `,
+    );
+    const row = rows[0];
+    return row ? { startedAt: row.started_at } : null;
+  }
+
+  /** Promote the owned preparation lease to live on the first audio frame. */
+  async activateCapture(
+    tenantId: string,
+    sessionId: string,
+    claimStartedAt: Date,
+  ): Promise<boolean> {
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.$queryRaw<Array<{ id: string }>>`
+        UPDATE intel_live_hearing_session
+        SET status = 'live', updated_at = now()
+        WHERE id = ${sessionId}
+          AND tenant_id = ${tenantId}
+          AND status = 'paused'
+          AND started_at = ${claimStartedAt}
+        RETURNING id
+      `,
+    );
+    return rows.length === 1;
+  }
+
+  /** Renew only the claim that owns this exact started_at token. */
+  async heartbeatCapture(
+    tenantId: string,
+    sessionId: string,
+    claimStartedAt: Date,
+  ): Promise<boolean> {
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.$queryRaw<Array<{ id: string }>>`
+        UPDATE intel_live_hearing_session
+        SET updated_at = now()
+        WHERE id = ${sessionId}
+          AND tenant_id = ${tenantId}
+          AND status IN ('paused', 'live')
+          AND started_at = ${claimStartedAt}
+        RETURNING id
+      `,
+    );
+    return rows.length === 1;
+  }
+
+  /**
+   * Release only the caller's own claim. A stale socket cannot end a replacement
+   * capture because its started_at token no longer matches.
+   */
+  async releaseCapture(
+    tenantId: string,
+    sessionId: string,
+    claimStartedAt: Date,
+    outcome: 'ended' | 'failed',
+  ): Promise<boolean> {
+    const rows =
+      outcome === 'failed'
+        ? await this.prisma.withTenant(tenantId, (tx) =>
+            tx.$queryRaw<Array<{ id: string }>>`
+              UPDATE intel_live_hearing_session
+              SET status = 'failed', ended_at = now(), updated_at = now()
+              WHERE id = ${sessionId}
+                AND tenant_id = ${tenantId}
+                AND started_at = ${claimStartedAt}
+              RETURNING id
+            `,
+          )
+        : await this.prisma.withTenant(tenantId, (tx) =>
+            tx.$queryRaw<Array<{ id: string }>>`
+              UPDATE intel_live_hearing_session
+              SET status = 'ended', ended_at = now(), updated_at = now()
+              WHERE id = ${sessionId}
+                AND tenant_id = ${tenantId}
+                AND started_at = ${claimStartedAt}
+              RETURNING id
+            `,
+          );
+    return rows.length === 1;
+  }
+
+  /** Compatibility helper retained for non-live lifecycle callers. */
   async markStatus(
     tenantId: string,
     sessionId: string,

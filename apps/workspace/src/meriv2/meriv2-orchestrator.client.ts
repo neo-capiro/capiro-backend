@@ -28,10 +28,15 @@ export class MeriV2OrchestratorClient {
     if (!bearerToken) {
       throw new Error('MeriV2 workspace-generation proxy requires the caller bearer token');
     }
+    // Body carries the draft only. The orchestrator derives the effective tenant
+    // from the authorized bearer, and its request schema is closed — sending
+    // `tenantId` would both be untrusted input and get the call rejected as an
+    // unknown field, so the proxy could never match the direct contract.
+    void tenantId;
     const res = await fetch(`${this.baseUrl}/meri-api/workspace-generation`, {
       method: 'POST',
       headers: { authorization: `Bearer ${bearerToken}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ tenantId, draftId }),
+      body: JSON.stringify({ draftId }),
     });
     if (!res.ok) {
       throw new Error(`MeriV2 workspace-generation proxy failed: ${res.status} ${res.statusText}`);

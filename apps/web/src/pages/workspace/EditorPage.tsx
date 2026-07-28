@@ -40,6 +40,7 @@ import {
   useDraftContext,
   useGenerateAll,
   useGenerateSection,
+  useRetryFailedSections,
   useTenantMembers,
   useUpdateDocument,
   useUpdateDraft,
@@ -51,8 +52,25 @@ import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../lib/use-api.js';
 import { sanitizeWorkspaceBody } from './editor/workspace-richtext.js';
 import { useMe } from '../../lib/me.js';
-import type { WsAsk, WsBlock, WsConfig, WsDocument, WsSectionMeta, WsTemplate } from './types.js';
+import type {
+  WsAsk,
+  WsBlock,
+  WsConfig,
+  WsDocument,
+  WsGenerationRun,
+  WsSectionMeta,
+  WsTemplate,
+} from './types.js';
+import { describeGenerationRun } from './editor/generation-status.js';
+import { GenerationRunBanner } from './editor/GenerationRunBanner.js';
 import { EditorToolbar, type SaveStatus } from './editor/EditorToolbar.js';
+import {
+  serializeUnsavedWorkspace,
+  settleSaveTargets,
+  shouldCreateAutosaveCheckpoint,
+  type SaveOutcome,
+  type SaveTarget,
+} from './editor/save-state.js';
 import { RichTextToolbar } from './editor/RichTextToolbar.js';
 import { DraftOutline } from './editor/DraftOutline.js';
 import { OfficeRow } from './editor/OfficeRow.js';
@@ -97,6 +115,7 @@ export function EditorPage() {
   const deleteDocument = useDeleteDocument(draftId ?? '');
   const generate = useGenerateSection(draftId ?? '');
   const generateAll = useGenerateAll(draftId ?? null);
+  const retryFailedSections = useRetryFailedSections(draftId ?? null);
 
   // E-17: real collaborator avatars (owner + active collaborators), resolving
   // clerk ids to initials via the tenant roster. No seed avatars.
@@ -136,10 +155,16 @@ export function EditorPage() {
     return () => clearTimeout(t);
   }, [justInserted]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [failedSaveTargets, setFailedSaveTargets] = useState<string[]>([]);
   const [draftingSection, setDraftingSection] = useState<string | null>(null);
   // Regenerate-all (whole main doc) + per-packet-doc drafting spinners.
   const [regenerating, setRegenerating] = useState(false);
   const [draftingDocId, setDraftingDocId] = useState<string | null>(null);
+  // The last generation run's outcome, held so a partial/failed result stays on
+  // screen after its toast has gone. `null` before any run in this session.
+  const [lastRun, setLastRun] = useState<WsGenerationRun | null>(null);
+  const [runDismissed, setRunDismissed] = useState(false);
 
   // ── Phase 6: rail tab, comment composing, selection FAB, anonymize modal ────
   const [railTab, setRailTab] = useState<'meri' | 'comments'>('meri');
@@ -185,6 +210,9 @@ export function EditorPage() {
   // Dirty trackers so the debounce only writes what changed.
   const cfgDirty = useRef(false);
   const dirtyDocs = useRef<Set<string>>(new Set());
+  // Revisions prevent a successful in-flight write from clearing edits made after it began.
+  const cfgRevision = useRef(0);
+  const docRevision = useRef<Record<string, number>>({});
 
   // Hydrate the local working copies from the draft (Q-DOC-2: open on the
   // draft's OWN data, including Meri-intake/initial-generation auto-drafted
@@ -218,63 +246,120 @@ export function EditorPage() {
   // `flush` closes over the latest cfg/bodies; the debounce timer dispatches
   // through `flushRef` so a fired timer always runs the freshest flush (not a
   // stale closure captured when the timer was set).
-  const flushRef = useRef<(manual: boolean) => void>(() => {});
-  const lastCheckpoint = useRef(0); // E-16: last autosave version checkpoint time
+  const emptySaveOutcome = (): SaveOutcome => ({
+    ok: true,
+    attempted: [],
+    succeeded: [],
+    failed: [],
+  });
+  const flushRef = useRef<(manual: boolean) => Promise<SaveOutcome>>(async () =>
+    emptySaveOutcome(),
+  );
+  const lastCheckpoint = useRef(0);
   const scheduleSave = useCallback(() => {
     if (!draftId) return;
     setSaveStatus('saving');
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => flushRef.current(false), AUTOSAVE_MS);
+    saveTimer.current = setTimeout(() => void flushRef.current(false), AUTOSAVE_MS);
   }, [draftId]);
 
   const flush = useCallback(
-    (manual: boolean) => {
-      if (!draftId) return;
+    async (manual: boolean): Promise<SaveOutcome> => {
+      if (!draftId) return emptySaveOutcome();
       if (saveTimer.current) {
         clearTimeout(saveTimer.current);
         saveTimer.current = null;
       }
-      const tasks: Promise<unknown>[] = [];
-      // cfg + title.
+
+      const targets: SaveTarget[] = [];
+      const cfgRevAtStart = cfgRevision.current;
+      const docRevisionsAtStart: Record<string, number> = {};
       if (cfgDirty.current && cfg) {
-        cfgDirty.current = false;
-        tasks.push(
-          updateDraft.mutateAsync({
-            docTitle,
-            config: { ...cfg, mainBlocks } as Partial<WsConfig>,
-          }),
-        );
+        const payload = {
+          docTitle,
+          config: { ...cfg, mainBlocks } as Partial<WsConfig>,
+        };
+        targets.push({
+          key: 'draft-config',
+          kind: 'draft-config',
+          label: 'Draft settings and main document',
+          persist: () => updateDraft.mutateAsync(payload),
+        });
       }
-      // each dirty packet body.
-      for (const docId of dirtyDocs.current) {
+      for (const docId of [...dirtyDocs.current]) {
         const body = packetBodies[docId];
         if (!body) continue;
-        tasks.push(
-          updateDocument.mutateAsync({
-            docId,
-            body: { body: { blocks: body.blocks, title: body.title } },
-          }),
-        );
+        docRevisionsAtStart[docId] = docRevision.current[docId] ?? 0;
+        const label = (draft?.documents ?? []).find((document) => document.id === docId)?.name ?? docId;
+        targets.push({
+          key: `document:${docId}`,
+          kind: 'packet-document',
+          label: `Packet document: ${label}`,
+          persist: () =>
+            updateDocument.mutateAsync({
+              docId,
+              body: { body: { blocks: body.blocks, title: body.title } },
+            }),
+        });
       }
-      dirtyDocs.current.clear();
 
-      const hadChanges = tasks.length > 0;
-      Promise.allSettled(tasks).then(() => {
-        setSaveStatus('saved');
-        if (manual) message.success('Saved to Documents');
-        // E-16: snapshot a throttled version checkpoint on autosave so version
-        // history is populated without a manual "Save draft" button (E-20).
-        if (hadChanges && draftId) {
-          const now = Date.now();
-          if (now - lastCheckpoint.current > VERSION_CHECKPOINT_MS) {
-            lastCheckpoint.current = now;
-            createVersion.mutate({ label: 'Autosave' });
-          }
+      if (!targets.length) {
+        if (!cfgDirty.current && dirtyDocs.current.size === 0) {
+          setSaveStatus('saved');
+          setFailedSaveTargets([]);
         }
-      });
+        return emptySaveOutcome();
+      }
+
+      setSaveStatus('saving');
+      const outcome = await settleSaveTargets(targets);
+      if (outcome.succeeded.includes('draft-config') && cfgRevision.current === cfgRevAtStart) {
+        cfgDirty.current = false;
+      }
+      for (const key of outcome.succeeded) {
+        if (!key.startsWith('document:')) continue;
+        const docId = key.slice('document:'.length);
+        if ((docRevision.current[docId] ?? 0) === docRevisionsAtStart[docId]) {
+          dirtyDocs.current.delete(docId);
+        }
+      }
+
+      if (!outcome.ok) {
+        const labels = outcome.failed.map((failure) => failure.label);
+        setFailedSaveTargets(labels);
+        setSaveStatus('error');
+        if (manual) message.error(`Save failed: ${labels.join(', ')}. Your edits remain local.`);
+        return outcome;
+      }
+
+      setFailedSaveTargets([]);
+      setSaveStatus('saved');
+      const now = Date.now();
+      setLastSavedAt(now);
+      if (manual) message.success('Saved to Documents');
+      if (
+        shouldCreateAutosaveCheckpoint(
+          outcome,
+          true,
+          lastCheckpoint.current,
+          now,
+          VERSION_CHECKPOINT_MS,
+        )
+      ) {
+        lastCheckpoint.current = now;
+        try {
+          await createVersion.mutateAsync({ label: 'Autosave' });
+        } catch {
+          // The document writes are durable. Version history is secondary and must
+          // not falsify the save result; surface a warning instead.
+          message.warning('Saved, but the autosave history checkpoint could not be created.');
+        }
+      }
+      return outcome;
     },
     [
       draftId,
+      (draft?.documents ?? []),
       cfg,
       docTitle,
       mainBlocks,
@@ -287,13 +372,39 @@ export function EditorPage() {
   );
   flushRef.current = flush;
 
-  // Flush any pending save on unmount so EXITING the editor never loses the last
-  // <1.2s of edits (the debounce timer would otherwise just be cancelled). The
-  // mutateAsync request outlives the unmounting component on an SPA route change.
+  const retrySave = useCallback(() => flush(true), [flush]);
+  const copyUnsaved = useCallback(async () => {
+    const text = serializeUnsavedWorkspace({
+      docTitle,
+      config: cfg,
+      packetBodies,
+      failedKeys: [
+        ...(cfgDirty.current ? ['draft-config'] : []),
+        ...[...dirtyDocs.current].map((docId) => `document:${docId}`),
+      ],
+    });
+    try {
+      await navigator.clipboard.writeText(text);
+      message.success('Unsaved content copied');
+    } catch {
+      message.error('Could not copy unsaved content. Keep this editor open and retry the save.');
+    }
+  }, [cfg, docTitle, packetBodies, message]);
+
+  // A best-effort unmount request cannot establish durability. Keep dirty/error
+  // state visible and warn the browser before a destructive unload.
+  useEffect(() => {
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (!cfgDirty.current && dirtyDocs.current.size === 0 && saveStatus !== 'error') return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => window.removeEventListener('beforeunload', beforeUnload);
+  }, [saveStatus]);
   useEffect(
     () => () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
-      if (cfgDirty.current || dirtyDocs.current.size) flushRef.current(false);
     },
     [],
   );
@@ -303,6 +414,7 @@ export function EditorPage() {
     (partial: Partial<WsConfig>) => {
       setCfg((prev) => (prev ? { ...prev, ...partial } : prev));
       cfgDirty.current = true;
+      cfgRevision.current += 1;
       scheduleSave();
     },
     [scheduleSave],
@@ -414,7 +526,7 @@ export function EditorPage() {
         }
       }
       patchCfg({ sections, sectionContent: content, sectionMeta: meta });
-      message.success('Applied Meri’s edits');
+      message.info('Applied locally — saving');
     },
     [cfg, patchCfg, message],
   );
@@ -488,6 +600,9 @@ export function EditorPage() {
 
   // ── Derived view-models ─────────────────────────────────────────────────────
   const views = sectionViews(cfg);
+  // The run summary persisted on the draft. Used until this session performs its
+  // own run, so a reload of a partially generated document still reports it.
+  const persistedRun = (draft.config as WsConfig | undefined)?.generationRun ?? null;
   const storedRedactions = (cfg.anonymizeMap as { redactions?: StoredRedaction[] } | undefined)
     ?.redactions;
   const anonMap = anonymizeMap(draft.client, draft.product, storedRedactions);
@@ -623,15 +738,16 @@ export function EditorPage() {
       cancelText: 'Cancel',
       onOk: async () => {
         setRegenerating(true);
-        if (saveTimer.current) {
-          clearTimeout(saveTimer.current);
-          saveTimer.current = null;
+        const save = await flush(false);
+        if (!save.ok) {
+          message.error('Regeneration was not started because the current draft could not be saved.');
+          setRegenerating(false);
+          return;
         }
-        cfgDirty.current = false;
         try {
-          await generateAll.mutateAsync();
+          const generated = await generateAll.mutateAsync();
           hydrated.current = false; // let the refetched draft re-hydrate the editor
-          message.success('Meri re-drafted the document');
+          reportRun(generated.generationRun);
         } catch {
           message.error('Could not regenerate the document.');
         } finally {
@@ -639,6 +755,42 @@ export function EditorPage() {
         }
       },
     });
+  };
+
+  /**
+   * Report a run's outcome from its OWN status — never from "the request didn't
+   * throw". A 2xx here only means the run completed, not that it succeeded.
+   */
+  const reportRun = (run: WsGenerationRun | null) => {
+    setLastRun(run);
+    setRunDismissed(false);
+    const report = describeGenerationRun(run);
+    if (!report.toast) return;
+    if (report.tone === 'error') message.error(report.toast);
+    else if (report.tone === 'warning') message.warning(report.toast);
+    else message.success(report.toast);
+  };
+
+  /**
+   * Regenerate ONLY the sections the last run failed. Successful sections keep
+   * their content, so a partial run can be finished without losing good drafts.
+   */
+  const onRetryFailedSections = async () => {
+    const save = await flush(false);
+    if (!save.ok) {
+      message.error('Retry was not started because the current draft could not be saved.');
+      return;
+    }
+    setRegenerating(true);
+    try {
+      const generated = await retryFailedSections.mutateAsync();
+      hydrated.current = false;
+      reportRun(generated.generationRun);
+    } catch {
+      message.error('Could not retry the failed sections.');
+    } finally {
+      setRegenerating(false);
+    }
   };
 
   // Packet "Ask Meri to draft": generate content for the active packet doc and
@@ -708,6 +860,7 @@ export function EditorPage() {
     if (isMainDoc) {
       setMainBlocks((b) => [...b, block]);
       cfgDirty.current = true;
+      cfgRevision.current += 1;
       scheduleSave();
     } else {
       setPacketBodies((prev) => {
@@ -715,6 +868,7 @@ export function EditorPage() {
         return { ...prev, [activeTab]: { ...body, blocks: [...body.blocks, block] } };
       });
       dirtyDocs.current.add(activeTab);
+      docRevision.current[activeTab] = (docRevision.current[activeTab] ?? 0) + 1;
       scheduleSave();
     }
     setJustInserted(id); // E-9: scroll into view + flash so the user sees it
@@ -723,11 +877,13 @@ export function EditorPage() {
   const removeMainBlock = (id: string) => {
     setMainBlocks((b) => b.filter((x) => x.id !== id));
     cfgDirty.current = true;
+    cfgRevision.current += 1;
     scheduleSave();
   };
   const changeMainBlock = (id: string, patch: Partial<WsBlock>) => {
     setMainBlocks((b) => b.map((x) => (x.id === id ? { ...x, ...patch } : x)));
     cfgDirty.current = true;
+    cfgRevision.current += 1;
     scheduleSave();
   };
   const reorderMainBlock = (from: number, to: number) => {
@@ -739,6 +895,7 @@ export function EditorPage() {
       return arr;
     });
     cfgDirty.current = true;
+    cfgRevision.current += 1;
     scheduleSave();
   };
 
@@ -746,6 +903,7 @@ export function EditorPage() {
   const onPacketChange = (docId: string, body: PacketBody) => {
     setPacketBodies((prev) => ({ ...prev, [docId]: body }));
     dirtyDocs.current.add(docId);
+    docRevision.current[docId] = (docRevision.current[docId] ?? 0) + 1;
     scheduleSave();
   };
   const addDoc = (label: string) => {
@@ -781,13 +939,18 @@ export function EditorPage() {
     );
   };
   const onHistory = () => setPopover((p) => (p === 'history' ? null : 'history'));
-  const onShare = () => navigate(`/workspace/collab/${draftId}`);
-  const onPreview = () => {
-    flush(false);
-    navigate(`/workspace/preview/${draftId}`);
+  const navigateAfterSave = async (path: string) => {
+    const outcome = await flush(false);
+    if (!outcome.ok) {
+      message.error('Navigation was blocked because some edits are not saved. Retry or copy the unsaved content.');
+      return;
+    }
+    navigate(path);
   };
+  const onShare = () => void navigateAfterSave(`/workspace/collab/${draftId}`);
+  const onPreview = () => navigateAfterSave(`/workspace/preview/${draftId}`);
 
-  const onEditContext = () => navigate(`/workspace/context/${draftId}`);
+  const onEditContext = () => void navigateAfterSave(`/workspace/context/${draftId}`);
 
   // ── Comment handlers (highlight-to-comment) ─────────────────────────────────
   // Clicking the selection FAB: snapshot the selection's anchor, wrap it in a
@@ -838,7 +1001,7 @@ export function EditorPage() {
       const content = (cfg.sectionContent as Record<string, string> | undefined) ?? {};
       const current = content[anchor.section] ?? '';
       setSectionBody(anchor.section, applyEditToSectionHtml(current, anchor, after));
-      message.success('Applied Meri’s edit');
+      message.info('Applied locally — saving');
       return;
     }
     // Packet doc: find the section block by title and splice its content.
@@ -892,6 +1055,10 @@ export function EditorPage() {
       <EditorToolbar
         title={docTitle || draft.docTitle}
         saveStatus={saveStatus}
+        lastSavedAt={lastSavedAt}
+        failedTargets={failedSaveTargets}
+        onRetrySave={retrySave}
+        onCopyUnsaved={copyUnsaved}
         anonymize={!!cfg.anonymize}
         letterhead={cfg.letterhead}
         historyOpen={popover === 'history'}
@@ -905,6 +1072,17 @@ export function EditorPage() {
         regenerating={regenerating}
       />
 
+      {/* Persistent partial/failed generation state. Seeded from the draft's own
+          durable generationRun, so a partially generated document still says so
+          after a reload — not only while the toast is up. */}
+      <GenerationRunBanner
+        report={describeGenerationRun(runDismissed ? null : (lastRun ?? persistedRun))}
+        retrying={regenerating}
+        onRetryFailed={isMainDoc && !viewOnly ? () => void onRetryFailedSections() : undefined}
+        onDismiss={() => setRunDismissed(true)}
+        disabled={viewOnly || saveStatus === 'error'}
+      />
+
       {/* Concurrent-edit lock banner (Q-ED-2): view-only / request / take-over,
           plus the active-editor receive-request UI. */}
       <LockBanner
@@ -915,7 +1093,11 @@ export function EditorPage() {
         releasing={editLock.releasing}
         onRequest={editLock.request}
         onTakeOver={editLock.takeOver}
-        onSaveAndRelease={() => editLock.saveAndRelease(() => flush(true))}
+        onSaveAndRelease={() =>
+          void editLock.saveAndRelease(() => flush(true)).then((released) => {
+            if (!released) message.error('The lock was not released because the draft is not saved.');
+          })
+        }
         onKeepEditing={editLock.keepEditing}
       />
 

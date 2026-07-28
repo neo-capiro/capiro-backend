@@ -617,11 +617,12 @@ model LiveHearingSession {
   title              String
   sourceType         LiveHearingSourceType  @map("source_type")
   audioSource        LiveHearingAudioSource @map("audio_source")
-  // Optional direct media URL (HLS .m3u8 / MP3 / AAC / MP4) captured at session
-  // creation so the Live Hearing Room pre-fills + auto-starts ingestion instead
-  // of the user pasting it by hand. NULL = enter it in the room. Never a
-  // congress.gov event page (that's not a stream); a real media URL from the
-  // committee stream / C-SPAN.
+  // Optional source the analyst will PLAY in a browser tab, captured at session
+  // creation so the Live Hearing Room can embed or link it instead of the user
+  // pasting it by hand. Either direct media (HLS .m3u8 / MP3 / AAC / MP4) or a
+  // hearing/event/YouTube reference page — the server never ingests it; the
+  // transcript comes from the tab audio the analyst explicitly shares. NULL =
+  // enter it in the room.
   sourceUrl          String?                @map("source_url")
   status             LiveHearingStatus      @default(scheduled)
   startedAt          DateTime?              @map("started_at")
