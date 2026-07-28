@@ -456,9 +456,18 @@
 
 /* A resolved card stays on screen carrying its own outcome — when several were
    approved at once this is the only place the user can see which one failed. */
-.chat-pending-approval-row--ran,
-.chat-pending-approval-row--failed {
+.chat-pending-approval-row--succeeded,
+.chat-pending-approval-row--failed_retryable,
+.chat-pending-approval-row--failed_terminal,
+.chat-pending-approval-row--outcome_unknown,
+.chat-pending-approval-row--blocked,
+.chat-pending-approval-row--expired,
+.chat-pending-approval-row--dismissed {
   opacity: 0.85;
+}
+
+.chat-pending-approval-row--executing {
+  opacity: 0.7;
 }
 
 .chat-pending-approval-outcome {
@@ -469,6 +478,12 @@
 
 .chat-pending-approval-outcome--failed {
   color: var(--danger, #b3261e);
+}
+
+/* outcome_unknown is neither success nor failure — a distinct warning tone so
+   it never reads as either, and its copy explicitly says not to retry. */
+.chat-pending-approval-row--outcome_unknown .chat-pending-approval-outcome {
+  color: var(--warning, #9a6700);
 }
 
 .chat-pending-approval-row {
