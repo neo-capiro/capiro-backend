@@ -25,15 +25,32 @@ describe('Program Elements operational safety guards', () => {
     expect(compatibility).toContain('Refusing legacy migrate dispatch');
   });
 
-  test('canonical PDF promotion requires exact SHA approval before Prisma construction', () => {
+  test('canonical PDF promotion gates approval and byte comparison before DB access', () => {
     const source = apiFile('scripts/ingest-defense-budget-pdf.ts');
-    const approvalParse = source.indexOf("requireApprovedSha256(arg('approved-sha256'))");
-    const byteComparison = source.indexOf('assertApprovedShaMatches(sourceSha256, approvedSha256)');
-    const prismaConstruction = source.indexOf('const prisma = new PrismaClient()');
 
-    expect(approvalParse).toBeGreaterThan(-1);
-    expect(byteComparison).toBeGreaterThan(approvalParse);
+    const mainStart = source.indexOf('async function main(): Promise<void>');
+    const approvalParse = source.indexOf(
+      "requireApprovedSha256(arg('approved-sha256'))",
+      mainStart,
+    );
+    const commitDispatch = source.indexOf(': await runCommit(', approvalParse);
+    expect(mainStart).toBeGreaterThan(-1);
+    expect(approvalParse).toBeGreaterThan(mainStart);
+    expect(commitDispatch).toBeGreaterThan(approvalParse);
+
+    const runCommitStart = source.indexOf('async function runCommit(');
+    const byteComparison = source.indexOf(
+      'assertApprovedShaMatches(sourceSha256, approvedSha256)',
+      runCommitStart,
+    );
+    const prismaConstruction = source.indexOf(
+      'const prisma = new PrismaClient()',
+      runCommitStart,
+    );
+    expect(runCommitStart).toBeGreaterThan(-1);
+    expect(byteComparison).toBeGreaterThan(runCommitStart);
     expect(prismaConstruction).toBeGreaterThan(byteComparison);
+
     expect(source).toContain('--commit promotes exactly one processable PDF');
     expect(source).toContain('onePdfPerTransaction: true');
     expect(source).toContain('CANONICAL_TRANSACTION_TIMEOUT_MS');
