@@ -1,5 +1,8 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { MeriService } from './meri.service.js';
+import { Prisma } from '../../generated/prisma-client/index.js';
+import { CONTEXT_GAP_LABELS, MeriService } from './meri.service.js';
+import { StrategyConversationService } from './strategy-conversation.service.js';
+import { REQUIRED_TEMPLATE_KEYS } from '../context/steward.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { VersioningService } from '../strategy/versioning.service.js';
 import type { StrategyAiCredentialResolver } from './strategy-ai-credential.resolver.js';
@@ -36,6 +39,8 @@ function makeStore() {
   const nodes = new Map<string, Rec>();
   // Stage E: sp_context_fact rows the provenance fact-check resolves against.
   const contextFacts = new Map<string, Rec>();
+  // Phase 2: sp_strategy_chat_message rows the durable conversation writes.
+  const chatMessages = new Map<string, Rec>();
   let seq = 0;
   const nextId = (p: string) => `${p}-${++seq}`;
   const nodesFor = (sid: string) =>
@@ -54,6 +59,12 @@ function makeStore() {
     strategies,
     nodes,
     contextFacts,
+    chatMessages,
+    // Chat ids/timestamps must be unique ACROSS transactions: one send spans two
+    // (the user message commits before the model call, the reply commits with
+    // the plan edit), so a per-tx counter would mint the same id twice and the
+    // second write would silently overwrite the first.
+    chatSeq: 0,
     nextId,
     nodesFor,
     clientRows: [{ ok: 1 }] as Array<{ ok: number }>,
@@ -61,8 +72,15 @@ function makeStore() {
 }
 type Store = ReturnType<typeof makeStore>;
 
-function makeTx(store: Store) {
+/**
+ * `scope` models what PrismaService's DMMF query hook does in production:
+ * inject `where.tenantId` on every where-bearing op against a tenant-scoped
+ * model. Without it this fake would happily serve another tenant's rows, and a
+ * "tenant-isolated read" assertion here would prove nothing.
+ */
+function makeTx(store: Store, scope: string) {
   const now = new Date();
+  const mine = (rec: Rec | undefined | null): boolean => !!rec && rec.tenantId === scope;
   const spNode = {
     createMany: async ({ data }: { data: Rec[] }) => {
       for (const d of data) {
@@ -82,23 +100,24 @@ function makeTx(store: Store) {
     },
     findFirst: async ({ where }: { where: { id: string; strategyId?: string } }) => {
       const rec = store.nodes.get(where.id);
-      if (!rec) return null;
-      if (where.strategyId && rec.strategyId !== where.strategyId) return null;
+      if (!mine(rec)) return null;
+      if (where.strategyId && rec!.strategyId !== where.strategyId) return null;
       return rec;
     },
     // resolveEditDeps' DB-existence check for edit-op dependsOn.
     findMany: async ({ where }: { where: { strategyId: string; id: { in: string[] } } }) =>
       [...store.nodes.values()].filter(
-        (n) => n.strategyId === where.strategyId && where.id.in.includes(n.id as string),
+        (n) => mine(n) && n.strategyId === where.strategyId && where.id.in.includes(n.id as string),
       ),
     delete: async ({ where }: { where: { id: string } }) => {
       const rec = store.nodes.get(where.id);
+      if (!mine(rec)) throw new Error('node not found');
       store.nodes.delete(where.id);
       return rec ?? null;
     },
     update: async ({ where, data }: { where: { id: string }; data: Rec }) => {
       const rec = store.nodes.get(where.id);
-      if (!rec) throw new Error('node not found');
+      if (!mine(rec)) throw new Error('node not found');
       const merged = { ...rec, ...data };
       store.nodes.set(where.id, merged);
       return merged;
@@ -132,7 +151,7 @@ function makeTx(store: Store) {
       include?: { nodes?: unknown };
     }) => {
       const rec = store.strategies.get(where.id);
-      return rec ? attach(rec, include) : null;
+      return mine(rec) ? attach(rec!, include) : null;
     },
     findFirstOrThrow: async ({
       where,
@@ -142,8 +161,8 @@ function makeTx(store: Store) {
       include?: { nodes?: unknown; artifacts?: unknown };
     }) => {
       const rec = store.strategies.get(where.id);
-      if (!rec) throw new Error('strategy not found');
-      return attach(rec, include);
+      if (!mine(rec)) throw new Error('strategy not found');
+      return attach(rec!, include);
     },
   };
   // Cross-schema client-existence check runs as tx.$queryRaw inside withTenant.
@@ -159,30 +178,99 @@ function makeTx(store: Store) {
     findMany: async ({ where }: { where: { id?: { in: string[] } } }) =>
       [...store.contextFacts.values()].filter((f) => where.id?.in.includes(f.id as string) ?? true),
   };
-  return { spNode, spStrategy, $queryRaw, $executeRaw, spEventOutbox, spContextFact } as unknown as import('../../generated/prisma-client/index.js').Prisma.TransactionClient;
+  // Phase 2: the durable conversation table. Models the two behaviours the
+  // service actually depends on — the (tenant_id, client_message_id) UNIQUE
+  // index (a real P2002, so the idempotent-retry branch is exercised rather
+  // than assumed) and the ordered per-context read.
+  const spStrategyChatMessage = {
+    create: async ({ data }: { data: Rec }) => {
+      const cmid = data.clientMessageId as string | null | undefined;
+      if (cmid) {
+        const clash = [...store.chatMessages.values()].some(
+          (m) => m.tenantId === data.tenantId && m.clientMessageId === cmid,
+        );
+        if (clash) {
+          throw new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+            code: 'P2002',
+            clientVersion: 'test',
+            meta: { target: ['tenant_id', 'client_message_id'] },
+          });
+        }
+      }
+      // createdAt must strictly increase: the service orders by (createdAt, id),
+      // and a shared `now` would make the user message / reply order arbitrary.
+      const seq = ++store.chatSeq;
+      const id = `chat-${seq}`;
+      const rec: Rec = {
+        attachmentRefs: null,
+        action: null,
+        clientMessageId: null,
+        createdByUserId: null,
+        nodeId: null,
+        ...data,
+        id,
+        createdAt: new Date(now.getTime() + seq),
+      };
+      store.chatMessages.set(id, rec);
+      return rec;
+    },
+    findMany: async ({ where }: { where: { strategyId: string; nodeId: string | null } }) =>
+      [...store.chatMessages.values()]
+        .filter((m) => mine(m) && m.strategyId === where.strategyId && (m.nodeId ?? null) === where.nodeId)
+        .sort((a, b) => {
+          const d = (a.createdAt as Date).getTime() - (b.createdAt as Date).getTime();
+          return d !== 0 ? d : String(a.id).localeCompare(String(b.id));
+        }),
+    findFirst: async ({
+      where,
+    }: {
+      where: { id?: string; strategyId?: string; kind?: string; clientMessageId?: string };
+    }) =>
+      [...store.chatMessages.values()].find(
+        (m) =>
+          mine(m) &&
+          (where.id === undefined || m.id === where.id) &&
+          (where.strategyId === undefined || m.strategyId === where.strategyId) &&
+          (where.kind === undefined || m.kind === where.kind) &&
+          (where.clientMessageId === undefined || m.clientMessageId === where.clientMessageId),
+      ) ?? null,
+    update: async ({ where, data }: { where: { id: string }; data: Rec }) => {
+      const rec = store.chatMessages.get(where.id);
+      if (!mine(rec)) throw new Error('chat message not found');
+      const merged = { ...rec, ...data };
+      store.chatMessages.set(where.id, merged);
+      return merged;
+    },
+  };
+  return { spNode, spStrategy, $queryRaw, $executeRaw, spEventOutbox, spContextFact, spStrategyChatMessage } as unknown as import('../../generated/prisma-client/index.js').Prisma.TransactionClient;
 }
 
 function makePrisma(store: Store) {
   const snapshot = () => ({
     strategies: new Map(store.strategies),
     nodes: new Map(store.nodes),
+    // Phase 2: chat rows are inside the same tx as the plan edit, so a rollback
+    // must take Meri's reply with it — otherwise the thread would claim a change
+    // the plan never got.
+    chatMessages: new Map(store.chatMessages),
   });
   const restore = (snap: ReturnType<typeof snapshot>) => {
     store.strategies = snap.strategies as Store['strategies'];
     store.nodes = snap.nodes as Store['nodes'];
+    store.chatMessages = snap.chatMessages as Store['chatMessages'];
   };
   // withTenantUser models the $transaction: snapshot, run, roll back on throw.
-  const withTenantUser = jest.fn(async (_t: string, _u: string, fn: (tx: unknown) => Promise<unknown>) => {
+  const withTenantUser = jest.fn(async (t: string, _u: string, fn: (tx: unknown) => Promise<unknown>) => {
     const snap = snapshot();
     try {
-      return await fn(makeTx(store));
+      return await fn(makeTx(store, t));
     } catch (e) {
       restore(snap);
       throw e;
     }
   });
-  const withTenant = jest.fn(async (_t: string, fn: (tx: unknown) => Promise<unknown>) =>
-    fn(makeTx(store)),
+  const withTenant = jest.fn(async (t: string, fn: (tx: unknown) => Promise<unknown>) =>
+    fn(makeTx(store, t)),
   );
   const $queryRaw = jest.fn(async () => [{ ok: 1 }]);
   return {
@@ -241,6 +329,10 @@ function makeService(
     factsForOrchestrator: stewardFactsFn,
     health: stewardHealthFn,
   } as unknown as StewardService;
+  // The REAL conversation service over the fake prisma — the idempotency,
+  // context validation and normalization paths are the point of these tests, so
+  // stubbing them would test nothing.
+  const conversations = new StrategyConversationService(prisma);
   const svc = new MeriService(
     prisma,
     versioning,
@@ -250,9 +342,11 @@ function makeService(
     reference,
     attachments,
     steward,
+    conversations,
   );
   return {
     svc,
+    conversations,
     versioning,
     withTenantUser,
     $queryRaw,
@@ -524,7 +618,11 @@ describe('MeriService.draft', () => {
 });
 
 describe('MeriService.assistant', () => {
-  const dto = { scope: 'strategy', instruction: 'Rework the plan' } as AssistantDto;
+  const dto = {
+    scope: 'strategy',
+    instruction: 'Rework the plan',
+    clientMessageId: 'aaaaaaaa-0000-4000-8000-000000000001',
+  } as AssistantDto;
 
   it('applies an add/update/remove/retime edit-set as one version', async () => {
     const store = makeStore();
@@ -606,15 +704,21 @@ describe('MeriService.assistant', () => {
     };
 
     expect(out.reply).toContain('CR');
-    // A question is not a mutation batch: no version, no write tx, and the
+    // A question is not a mutation batch: no version, no activity row, and the
     // resp.summary is NOT persisted (existing meriSummary preserved).
     expect(versioning.cutVersion).not.toHaveBeenCalled();
-    expect(withTenantUser).not.toHaveBeenCalled();
+    expect(versioning.logActivity).not.toHaveBeenCalled();
     expect(store.strategies.get('S1')!.meriSummary).toBeNull();
+    expect(store.strategies.get('S1')!.lastEditedAt).toBeUndefined();
     expect(out.summary).toBeNull();
     // Current, unchanged state is returned.
     expect(out.strategy.nodes).toHaveLength(3);
     expect(store.nodes.size).toBe(3);
+    // Phase 2 changed what "no write" means here: the ONE withTenantUser tx is
+    // the durable chat write (the user's own message), which must happen even
+    // for a pure question. It carries no plan mutation — asserted above.
+    expect(withTenantUser).toHaveBeenCalledTimes(1);
+    expect([...store.chatMessages.values()].map((m) => m.role)).toEqual(['user', 'meri']);
   });
 
   it('surfaces a degraded groundingHealth on a no-op (empty edit-set) question', async () => {
@@ -726,6 +830,378 @@ describe('MeriService.assistant', () => {
     expect(store.nodes.get(n1)!.status).toBe('active');
     expect(store.strategies.get('S1')!.meriSummary).toBeNull();
     expect(versioning.cutVersion).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * Phase 2 — the durable contextual conversation.
+ *
+ * These run the REAL StrategyConversationService over the in-memory tx, which
+ * models both things isolation and idempotency actually rest on: the query
+ * hook's tenant scoping and the (tenant_id, client_message_id) UNIQUE index.
+ */
+describe('MeriService — Phase 2 durable Meri conversation', () => {
+  const T2 = 'tenant-2';
+  const CMID = 'bbbbbbbb-0000-4000-8000-000000000001';
+  const nodeDto = (nodeId: string, clientMessageId = CMID) =>
+    ({ scope: 'node', nodeId, instruction: 'Push this a month', clientMessageId }) as AssistantDto;
+  const strategyDto = (clientMessageId = CMID, instruction = 'Add a coalition letter') =>
+    ({ scope: 'strategy', instruction, clientMessageId }) as AssistantDto;
+  const noEdits = (reply: string) => ({ assistant: jest.fn(async () => ({ reply, edits: [] })) });
+
+  it('keeps the strategy thread and each step thread separate', async () => {
+    const store = makeStore();
+    const { n1 } = seedStrategy(store);
+    const { svc, conversations } = makeService(noEdits('Noted.'), store);
+
+    await svc.assistant(T, U, 'bearer', 'S1', strategyDto('bbbbbbbb-0000-4000-8000-00000000000a'));
+    await svc.assistant(T, U, 'bearer', 'S1', nodeDto(n1, 'bbbbbbbb-0000-4000-8000-00000000000b'));
+
+    const strategyThread = await conversations.list(T, 'S1', null);
+    const nodeThread = await conversations.list(T, 'S1', n1);
+
+    expect(strategyThread).toHaveLength(2); // user + Meri
+    expect(nodeThread).toHaveLength(2);
+    expect(strategyThread.every((m) => m.nodeId === null)).toBe(true);
+    expect(nodeThread.every((m) => m.nodeId === n1)).toBe(true);
+    expect(strategyThread[0]!.body).toBe('Add a coalition letter');
+    expect(nodeThread[0]!.body).toBe('Push this a month');
+  });
+
+  it('reads and writes are tenant-isolated', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    const { svc, conversations } = makeService(noEdits('Noted.'), store);
+    await svc.assistant(T, U, 'bearer', 'S1', strategyDto());
+
+    // Another tenant cannot read the thread, send into it, or dismiss from it —
+    // the strategy itself is invisible to them.
+    await expect(conversations.list(T2, 'S1', null)).rejects.toThrow(/Strategy not found/);
+    await expect(
+      svc.assistant(T2, 'user-2', 'bearer', 'S1', strategyDto('bbbbbbbb-0000-4000-8000-00000000000c')),
+    ).rejects.toThrow(/Strategy not found/);
+    await expect(
+      conversations.dismissContextGap(T2, 'S1', 'chat-1'),
+    ).rejects.toThrow(/Strategy not found/);
+    // ...and the owning tenant still sees exactly its own two messages.
+    expect(await conversations.list(T, 'S1', null)).toHaveLength(2);
+  });
+
+  it('a retried send reuses the stored user message instead of posting it twice', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    const { svc, conversations } = makeService(noEdits('Noted.'), store);
+
+    const first = (await svc.assistant(T, U, 'bearer', 'S1', strategyDto())) as {
+      messages: Array<{ id: string; role: string }>;
+    };
+    const retry = (await svc.assistant(T, U, 'bearer', 'S1', strategyDto())) as {
+      messages: Array<{ id: string; role: string }>;
+    };
+
+    // Same stored row returned both times...
+    expect(retry.messages[0]!.id).toBe(first.messages[0]!.id);
+    // ...and only ONE user bubble exists in the thread.
+    const thread = await conversations.list(T, 'S1', null);
+    expect(thread.filter((m) => m.role === 'user')).toHaveLength(1);
+  });
+
+  it("keeps the user's message and appends a plain error line when the model call fails", async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    const orchestrator = {
+      assistant: jest.fn(async () => {
+        throw new Error('anthropic 529 overloaded: model claude-x');
+      }),
+    };
+    const { svc, conversations, versioning } = makeService(orchestrator, store);
+
+    await expect(svc.assistant(T, U, 'bearer', 'S1', strategyDto())).rejects.toThrow(/529/);
+
+    const thread = await conversations.list(T, 'S1', null);
+    expect(thread).toHaveLength(2);
+    expect(thread[0]!.role).toBe('user');
+    expect(thread[0]!.body).toBe('Add a coalition letter');
+    expect(thread[1]!.kind).toBe('assistant_error');
+    expect(thread[1]!.body).toBe("I couldn't complete that change. Your message is saved—try again.");
+    // No provider name, status code or stack leaks into user-visible copy.
+    expect(thread[1]!.body).not.toMatch(/anthropic|529|claude/i);
+    // The plan was not touched.
+    expect(versioning.cutVersion).not.toHaveBeenCalled();
+    expect(store.nodes.size).toBe(3);
+  });
+
+  it("commits Meri's reply in the same transaction as the plan edit", async () => {
+    const store = makeStore();
+    const { n1 } = seedStrategy(store);
+    const orchestrator = {
+      assistant: jest.fn(async () => ({
+        reply: 'Renamed it.',
+        edits: [{ op: 'update', nodeId: n1, title: 'Node one (revised)' }],
+      })),
+    };
+    const { svc, conversations } = makeService(orchestrator, store);
+
+    await svc.assistant(T, U, 'bearer', 'S1', strategyDto());
+
+    expect(store.nodes.get(n1)!.title).toBe('Node one (revised)');
+    const thread = await conversations.list(T, 'S1', null);
+    expect(thread.map((m) => m.role)).toEqual(['user', 'meri']);
+    expect(thread[1]!.body).toBe('Renamed it.');
+  });
+
+  it('rolls the reply back with the plan when the edit transaction fails', async () => {
+    const store = makeStore();
+    const { n1 } = seedStrategy(store);
+    const orchestrator = {
+      assistant: jest.fn(async () => ({
+        reply: 'All set — renamed and restatused.',
+        edits: [
+          { op: 'update', nodeId: n1, title: 'Renamed' },
+          { op: 'update', nodeId: n1, status: 'not-a-status' },
+        ],
+      })),
+    };
+    const { svc, conversations } = makeService(orchestrator, store);
+
+    await expect(svc.assistant(T, U, 'bearer', 'S1', strategyDto())).rejects.toThrow(/invalid node status/);
+
+    // The plan is untouched AND the thread never claims otherwise: the user's
+    // own message survives (its own committed tx), Meri's reply does not.
+    expect(store.nodes.get(n1)!.title).toBe('Node one');
+    const thread = await conversations.list(T, 'S1', null);
+    expect(thread.map((m) => m.role)).toEqual(['user']);
+  });
+
+  it('attaches one open_node action when the edit-set created exactly one step', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    const orchestrator = {
+      assistant: jest.fn(async () => ({
+        reply: 'Added the coalition letter.',
+        edits: [
+          { op: 'add', kind: 'action', subject: 'deliverable', title: 'Coalition sign-on letter', startsOn: '2027-05-01' },
+        ],
+      })),
+    };
+    const { svc, conversations } = makeService(orchestrator, store);
+
+    await svc.assistant(T, U, 'bearer', 'S1', strategyDto());
+
+    const thread = await conversations.list(T, 'S1', null);
+    const reply = thread[1]!;
+    expect(reply.action).toEqual({
+      type: 'open_node',
+      nodeId: expect.any(String),
+      title: 'Coalition sign-on letter',
+    });
+    // The action points at a step that really exists in the returned plan.
+    expect(store.nodes.get(reply.action!.nodeId)!.title).toBe('Coalition sign-on letter');
+  });
+
+  it('attaches no action when the edit-set created zero or several steps', async () => {
+    const two = {
+      assistant: jest.fn(async () => ({
+        reply: 'Added both.',
+        edits: [
+          { op: 'add', kind: 'action', subject: 'deliverable', title: 'First', startsOn: '2027-05-01' },
+          { op: 'add', kind: 'action', subject: 'deliverable', title: 'Second', startsOn: '2027-06-01' },
+        ],
+      })),
+    };
+    const storeTwo = makeStore();
+    seedStrategy(storeTwo);
+    const svcTwo = makeService(two, storeTwo);
+    await svcTwo.svc.assistant(T, U, 'bearer', 'S1', strategyDto());
+    const twoThread = await svcTwo.conversations.list(T, 'S1', null);
+    expect(twoThread[1]!.action).toBeNull();
+
+    // Zero created (a pure retime) — also no action.
+    const storeNone = makeStore();
+    const { n1 } = seedStrategy(storeNone);
+    const none = {
+      assistant: jest.fn(async () => ({
+        reply: 'Pushed it.',
+        edits: [{ op: 'retime', nodeId: n1, startsOn: '2027-08-01' }],
+      })),
+    };
+    const svcNone = makeService(none, storeNone);
+    await svcNone.svc.assistant(T, U, 'bearer', 'S1', strategyDto());
+    const noneThread = await svcNone.conversations.list(T, 'S1', null);
+    expect(noneThread[1]!.action).toBeNull();
+  });
+
+  it('records the attachment display snapshot on the user message', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    const { svc, conversations } = makeService(noEdits('Read it.'), store);
+
+    await svc.assistant(T, U, 'bearer', 'S1', {
+      scope: 'strategy',
+      instruction: 'Read this and add a step',
+      clientMessageId: CMID,
+      attachmentIds: ['cccccccc-0000-4000-8000-000000000001'],
+      attachments: [
+        {
+          id: 'cccccccc-0000-4000-8000-000000000001',
+          filename: 'FY27 markup memo.pdf',
+          kind: 'pdf',
+          status: 'ready',
+        },
+        // Not in attachmentIds — Meri never saw it, so the bubble must not claim it.
+        { id: 'cccccccc-0000-4000-8000-00000000ffff', filename: 'unrelated.pdf', kind: 'pdf', status: 'ready' },
+      ],
+    } as AssistantDto);
+
+    const [userMessage] = await conversations.list(T, 'S1', null);
+    expect(userMessage!.attachments).toEqual([
+      {
+        id: 'cccccccc-0000-4000-8000-000000000001',
+        filename: 'FY27 markup memo.pdf',
+        kind: 'pdf',
+        status: 'ready',
+      },
+    ]);
+  });
+
+  it('draft seeds the strategy thread with Meri’s summary', async () => {
+    const store = makeStore();
+    const orchestrator = {
+      draft: jest.fn(async () => ({
+        summary: 'A tight FY27 push, front-loaded before markup.',
+        nodes: [{ kind: 'action', subject: 'deliverable', title: 'Step', startsOn: '2027-05-01' }],
+      })),
+    };
+    const { svc, conversations } = makeService(orchestrator, store);
+
+    const detail = (await svc.draft(T, U, 'bearer', {
+      clientId: 'C1',
+      type: 'appropriations',
+      goal: 'Win the plus-up',
+    } as DraftStrategyDto)) as { id: string };
+
+    const thread = await conversations.list(T, detail.id, null);
+    expect(thread).toHaveLength(1);
+    expect(thread[0]!.role).toBe('meri');
+    expect(thread[0]!.kind).toBe('message');
+    expect(thread[0]!.body).toBe('A tight FY27 push, front-loaded before markup.');
+  });
+
+  it('draft seeds ONE context_gap message in plain language on degraded grounding', async () => {
+    const store = makeStore();
+    const orchestrator = {
+      draft: jest.fn(async () => ({
+        summary: 'Drafted.',
+        nodes: [{ kind: 'action', subject: 'deliverable', title: 'Step', startsOn: '2027-05-01' }],
+        groundingHealth: {
+          status: 'degraded',
+          missingRequired: ['strategy_brief', 'client_constraints'],
+          omittedOptional: [],
+        },
+      })),
+    };
+    const { svc, conversations } = makeService(orchestrator, store);
+
+    const detail = (await svc.draft(T, U, 'bearer', {
+      clientId: 'C1',
+      type: 'appropriations',
+      goal: 'Win the plus-up',
+    } as DraftStrategyDto)) as { id: string };
+
+    const thread = await conversations.list(T, detail.id, null);
+    const gaps = thread.filter((m) => m.kind === 'context_gap');
+    // ONE message, not one per missing field.
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0]!.state).toBe('active');
+    expect(gaps[0]!.body).toContain('the strategy brief');
+    expect(gaps[0]!.body).toContain("this client's constraints");
+    // Internal template keys must never reach the user.
+    expect(gaps[0]!.body).not.toMatch(/strategy_brief|client_constraints/);
+  });
+
+  it('draft seeds no context_gap when grounding is clean', async () => {
+    const store = makeStore();
+    const orchestrator = {
+      draft: jest.fn(async () => ({
+        summary: 'Drafted.',
+        nodes: [{ kind: 'action', subject: 'deliverable', title: 'Step', startsOn: '2027-05-01' }],
+        groundingHealth: { status: 'ok', missingRequired: [], omittedOptional: [] },
+      })),
+    };
+    const { svc, conversations } = makeService(orchestrator, store);
+    const detail = (await svc.draft(T, U, 'bearer', {
+      clientId: 'C1',
+      type: 'appropriations',
+      goal: 'Win the plus-up',
+    } as DraftStrategyDto)) as { id: string };
+
+    const thread = await conversations.list(T, detail.id, null);
+    expect(thread.some((m) => m.kind === 'context_gap')).toBe(false);
+  });
+
+  it('every REQUIRED_TEMPLATE_KEYS entry has plain-language copy', () => {
+    // Adding a required Steward doc without a label here would otherwise print
+    // its internal key to the user in the seeded gap message.
+    for (const key of REQUIRED_TEMPLATE_KEYS) {
+      expect(CONTEXT_GAP_LABELS[key]).toBeTruthy();
+    }
+  });
+
+  it('dismissing a context gap changes only that message', async () => {
+    const store = makeStore();
+    const orchestrator = {
+      draft: jest.fn(async () => ({
+        summary: 'Drafted.',
+        nodes: [{ kind: 'action', subject: 'deliverable', title: 'Step', startsOn: '2027-05-01' }],
+        groundingHealth: { status: 'degraded', missingRequired: ['strategy_brief'], omittedOptional: [] },
+      })),
+    };
+    const { svc, conversations } = makeService(orchestrator, store);
+    const detail = (await svc.draft(T, U, 'bearer', {
+      clientId: 'C1',
+      type: 'appropriations',
+      goal: 'Win the plus-up',
+    } as DraftStrategyDto)) as { id: string };
+
+    const before = await conversations.list(T, detail.id, null);
+    const gap = before.find((m) => m.kind === 'context_gap')!;
+    const summary = before.find((m) => m.kind === 'message')!;
+
+    const dismissed = await conversations.dismissContextGap(T, detail.id, gap.id);
+    expect(dismissed.state).toBe('dismissed');
+
+    const after = await conversations.list(T, detail.id, null);
+    expect(after.find((m) => m.id === gap.id)!.state).toBe('dismissed');
+    // The neighbouring summary message is untouched.
+    expect(after.find((m) => m.id === summary.id)!.state).toBe('active');
+    // An ordinary message id is not dismissible through this endpoint.
+    await expect(conversations.dismissContextGap(T, detail.id, summary.id)).rejects.toThrow(
+      /Context note not found/,
+    );
+  });
+
+  it('a step thread stays readable after its step is archived', async () => {
+    const store = makeStore();
+    const { n1 } = seedStrategy(store);
+    const { svc, conversations } = makeService(noEdits('Noted.'), store);
+    await svc.assistant(T, U, 'bearer', 'S1', nodeDto(n1));
+
+    // P0-1 soft delete: a version restore archives the step rather than
+    // deleting it. Its conversation must survive that.
+    store.nodes.get(n1)!.archivedAt = new Date();
+
+    const thread = await conversations.list(T, 'S1', n1);
+    expect(thread).toHaveLength(2);
+    expect(thread[0]!.body).toBe('Push this a month');
+  });
+
+  it('rejects a node context that belongs to another strategy', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    store.strategies.set('S2', { id: 'S2', tenantId: T, clientId: 'C1', title: 'Other', type: 'appropriations' });
+    await expect(
+      new StrategyConversationService(makePrisma(store).prisma).list(T, 'S2', 'N1'),
+    ).rejects.toThrow(/Step not found on this strategy/);
   });
 });
 
@@ -922,7 +1398,7 @@ describe('MeriService.applyEditSet (Stage C change-set replay)', () => {
     // defers to this pipeline) — the op discriminator itself must be checked.
     const ops = [{ op: 'duplicate', nodeId: n1, status: 'done' }] as unknown as PlanEdit[];
 
-    await expect(svc.applyEditSet(makeTx(store), T, 'S1', U, ops)).rejects.toThrow(
+    await expect(svc.applyEditSet(makeTx(store, T), T, 'S1', U, ops)).rejects.toThrow(
       /invalid edit op/,
     );
     expect(store.nodes.get(n1)!.status).toBe('active');
@@ -943,7 +1419,7 @@ describe('MeriService.verifyAppliedPlan (Stage C change-set A6 parity)', () => {
     const prevFlag = process.env.STRATEGY_VERIFY_BLOCK;
     process.env.STRATEGY_VERIFY_BLOCK = 'true';
     try {
-      await expect(svc.verifyAppliedPlan(makeTx(store), T, U, 'S1', ground)).rejects.toThrow(
+      await expect(svc.verifyAppliedPlan(makeTx(store, T), T, U, 'S1', ground)).rejects.toThrow(
         /would break the plan/,
       );
     } finally {
@@ -959,7 +1435,7 @@ describe('MeriService.verifyAppliedPlan (Stage C change-set A6 parity)', () => {
     const { svc, versioning } = makeService({}, store);
     const ground = await svc.grounding(T);
 
-    const { detail, violations } = await svc.verifyAppliedPlan(makeTx(store), T, U, 'S1', ground);
+    const { detail, violations } = await svc.verifyAppliedPlan(makeTx(store, T), T, U, 'S1', ground);
 
     expect(detail.id).toBe('S1'); // callers reuse the loaded post-apply detail
     expect(violations.some((v) => v.severity === 'error')).toBe(true); // annotate-only

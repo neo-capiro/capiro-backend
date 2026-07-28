@@ -10,6 +10,14 @@
  * @capiro/strategy-verifier's verifyPlan (consumer 4, after the orchestrator
  * repair loop, the write gate and change-set apply) and hands the violations
  * in; check (a) merely FOLDS them into the Finding shape.
+ *
+ * Phase 3 (Watch consistency backend): every Finding now also carries
+ * server-safe PRESENTATION metadata (category/title/sourceLabel/sourceDate/
+ * impact/whyCompared/sortRank) — Phase 4's card UI reads these instead of
+ * re-deriving them from `message`, and getState's display order is a plain
+ * sort on sortRank (then source date, then id). Raw template keys / internal
+ * field names never leak into these strings — they read the same as `message`
+ * always has: plain language naming the real node/date/label involved.
  */
 
 import { fyOfIso, validIso, type Violation } from '@capiro/strategy-verifier';
@@ -19,9 +27,55 @@ export const FINDING_SEVERITIES = ['info', 'warning', 'critical'] as const;
 export type FindingSeverity = (typeof FINDING_SEVERITIES)[number];
 
 /**
+ * Presentation bucket for a finding's card. `dependency` is reserved for the
+ * Watcher's OWN actionable ordering check (checkDependencySlippage) and its
+ * structural cousin (checkGatePrereq) — a verifier-folded dep-order violation
+ * stays `verifier` even though it can describe the same edge; dedupeDependencyFold
+ * below removes the redundant verifier card when an actionable one covers the
+ * same (node, dependency) pair, so the category split never produces two
+ * visible cards for one problem.
+ */
+export const FINDING_CATEGORIES = [
+  'dependency',
+  'calendar',
+  'deadline',
+  'context',
+  'ownership',
+  'artifact',
+  'verifier',
+] as const;
+export type FindingCategory = (typeof FINDING_CATEGORIES)[number];
+
+/**
+ * Display-order rank (ascending; lower sorts first). The plan's acceptance
+ * criterion is specific: dependency-order findings must be actionable and
+ * sort ABOVE calendar/deadline findings. The remaining tiers are otherwise
+ * unconstrained but kept distinct so the order is stable and greppable rather
+ * than an accident of check-function iteration order.
+ */
+const CATEGORY_SORT_RANK: Record<FindingCategory, number> = {
+  dependency: 0,
+  calendar: 1,
+  deadline: 2,
+  ownership: 3,
+  context: 4,
+  artifact: 5,
+  verifier: 6,
+};
+
+/**
  * One Watcher observation. `proposedOps` (PlanEdit[], the Meri assistant op
  * shape) makes a finding ACTIONABLE — the service turns each such finding into
  * one proposed sp_change_set. `null`/absent = advisory only.
+ *
+ * Phase 3 presentation fields are populated by every check below (never left
+ * for a caller to backfill): `category`/`sortRank` drive display grouping and
+ * order; `title`/`impact` are short, plain-language card text distinct from
+ * the fuller `message`; `whyCompared` names the concrete inputs the check
+ * used (audit/debugging, not shown verbatim as prose); `sourceLabel`/
+ * `sourceDate` are set only when the finding is anchored to an external
+ * reference row or another node (a bare self/today comparison has no
+ * "source" to name).
  */
 export interface Finding {
   code: string;
@@ -30,6 +84,13 @@ export interface Finding {
   message: string;
   suggestion?: string;
   proposedOps?: PlanEdit[] | null;
+  category: FindingCategory;
+  title: string;
+  sourceLabel?: string;
+  sourceDate?: string | null;
+  impact: string;
+  whyCompared: string[];
+  sortRank: number;
 }
 
 /** A plan step as the service serializes it (dates already YYYY-MM-DD). */
@@ -108,6 +169,34 @@ export function findingKey(f: Pick<Finding, 'code' | 'nodeIds'>): string {
   return `${f.code}:${[...f.nodeIds].sort().join('+')}`;
 }
 
+// --- verifier-code presentation lookup ------------------------------------------
+
+/** Short card titles for the shared verifier's codes; unlisted codes fall
+ *  back to a plain humanization so a future verifier check never surfaces
+ *  raw-code text. */
+const VERIFIER_TITLES: Record<string, string> = {
+  dates: 'Invalid date',
+  'dep-self': 'Self-dependency',
+  'dep-missing': 'Missing dependency',
+  'dep-cycle': 'Dependency cycle',
+  'dep-order': 'Out of order',
+  'gate-before-dependents': 'Gate not cleared',
+  'dep-overlap': 'Overlaps its dependency',
+  'submission-before-markup': 'Submission timing risk',
+  recess: 'Scheduled during a recess',
+  window: 'Outside the planning window',
+  'focal-fy-appropriations': 'No focal-year ask',
+};
+
+function humanizeCode(code: string): string {
+  const words = code.replace(/^verifier:/, '').replace(/[-_]/g, ' ');
+  return words.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function verifierTitle(code: string): string {
+  return VERIFIER_TITLES[code] ?? humanizeCode(code);
+}
+
 // --- checks (each pure; silent on a clean plan) --------------------------------
 
 /**
@@ -118,6 +207,12 @@ export function findingKey(f: Pick<Finding, 'code' | 'nodeIds'>): string {
  * proposedOps stays null (advisory) — the repair belongs to Meri/the user.
  * The verifier's own code is preserved (`verifier:<code>`) so distinct
  * violations on the same node don't dedup into one finding.
+ *
+ * Category is always 'verifier' (never 'dependency', even for dep-order/
+ * dep-cycle/etc.) — dedupeDependencyFold below is what keeps a verifier fold
+ * from duplicating an actionable dependency-slippage card for the same edge;
+ * splitting these into the 'dependency' bucket would defeat that dedup's
+ * purpose of picking exactly one visible card per real problem.
  */
 function foldVerifier(violations: Violation[]): Finding[] {
   return violations.map((v) => ({
@@ -127,6 +222,11 @@ function foldVerifier(violations: Violation[]): Finding[] {
     message: v.message,
     ...(v.suggestion ? { suggestion: v.suggestion } : {}),
     proposedOps: null,
+    category: 'verifier',
+    title: verifierTitle(v.code),
+    impact: v.message,
+    whyCompared: [`strategy-verifier:${v.code}`],
+    sortRank: CATEGORY_SORT_RANK.verifier,
   }));
 }
 
@@ -159,6 +259,11 @@ function checkOverdue(nodes: WatcherNode[], today: string): Finding[] {
       message: `"${n.title}" ended ${n.endsOn} and is still ${n.status.replace('_', ' ')}.`,
       suggestion: `Restart it ${newStartsOn}–${newEndsOn}, or mark it active if the work is done.`,
       proposedOps: [{ op: 'retime', nodeId: n.id, startsOn: newStartsOn, endsOn: newEndsOn }],
+      category: 'calendar',
+      title: 'Overdue',
+      impact: `"${n.title}" is still open past its planned end date.`,
+      whyCompared: ['today', 'endsOn', 'status'],
+      sortRank: CATEGORY_SORT_RANK.calendar,
     });
   }
   return out;
@@ -175,6 +280,11 @@ function checkMissingOwner(nodes: WatcherNode[]): Finding[] {
       nodeIds: [n.id],
       message: `"${n.title}" has no owner.`,
       suggestion: 'Assign an owner so the step has someone accountable.',
+      category: 'ownership' as const,
+      title: 'No owner',
+      impact: `No one is accountable for "${n.title}".`,
+      whyCompared: ['ownerUserId'],
+      sortRank: CATEGORY_SORT_RANK.ownership,
     }));
 }
 
@@ -188,6 +298,10 @@ function checkMissingOwner(nodes: WatcherNode[]): Finding[] {
  * same node in the same run). Duration preserved; point events keep no end.
  * Overlaps the verifier's dep-overlap warning by design — this one is
  * ACTIONABLE (carries the retime op the verifier only suggests in prose).
+ *
+ * The actionable dependency-order check: category 'dependency', top sortRank.
+ * sourceLabel/sourceDate name the dependency actually driving the retime (the
+ * latest-finishing slipped predecessor), matching the message/suggestion.
  */
 function checkDependencySlippage(nodes: WatcherNode[], today: string): Finding[] {
   const byId = new Map(nodes.map((n) => [n.id, n]));
@@ -221,13 +335,23 @@ function checkDependencySlippage(nodes: WatcherNode[], today: string): Finding[]
           ...(duration !== null ? { endsOn: addDaysIso(newStartsOn, duration) } : {}),
         },
       ],
+      category: 'dependency',
+      title: 'Out of order',
+      sourceLabel: latest.title,
+      sourceDate: depEnd,
+      impact: `"${n.title}" starts before "${latest.title}" is done.`,
+      whyCompared: ['startsOn', 'dependency effective end'],
+      sortRank: CATEGORY_SORT_RANK.dependency,
     });
   }
   return out;
 }
 
 /** (e) 'gate-prereq' — a gate/decision other steps wait on that itself has no
- *  prerequisites: probably an unmodelled input (info, advisory). */
+ *  prerequisites: probably an unmodelled input (info, advisory). Structural
+ *  dependency shape, not a calendar/ownership/context matter, so it shares
+ *  the 'dependency' category (not the top sortRank tier for actionability —
+ *  it carries no proposedOps — but the same grouping bucket). */
 function checkGatePrereq(nodes: WatcherNode[]): Finding[] {
   const dependedOn = new Set(nodes.flatMap((n) => n.dependsOnIds ?? []));
   return nodes
@@ -243,6 +367,11 @@ function checkGatePrereq(nodes: WatcherNode[]): Finding[] {
       nodeIds: [n.id],
       message: `${n.kind === 'gate' ? 'Gate' : 'Decision'} "${n.title}" has steps depending on it but no prerequisites of its own.`,
       suggestion: 'Link the inputs this gate actually waits on so slippage propagates.',
+      category: 'dependency' as const,
+      title: 'No prerequisite',
+      impact: `Slippage upstream of "${n.title}" will not propagate to it.`,
+      whyCompared: ['dependsOnIds'],
+      sortRank: CATEGORY_SORT_RANK.dependency,
     }));
 }
 
@@ -282,6 +411,13 @@ function checkHardDeadlineRisk(nodes: WatcherNode[], congress: WatcherRefRow[]):
       nodeIds: [n.id],
       message: `"${n.title}" starts only ${days} day${days === 1 ? '' : 's'} before ${hit.label} (${hit.startsOn}).`,
       suggestion: `Start "${n.title}" more than ${HARD_DEADLINE_WINDOW_DAYS} days ahead of ${hit.label}.`,
+      category: 'deadline',
+      title: 'Deadline risk',
+      sourceLabel: hit.label,
+      sourceDate: hit.startsOn,
+      impact: `Only ${days} day${days === 1 ? '' : 's'} of runway before ${hit.label}.`,
+      whyCompared: ['startsOn', 'congress calendar'],
+      sortRank: CATEGORY_SORT_RANK.deadline,
     });
   }
   return out;
@@ -292,6 +428,7 @@ function checkHardDeadlineRisk(nodes: WatcherNode[], congress: WatcherRefRow[]):
 function checkStaleContext(health: WatcherStewardHealth): Finding[] {
   if (health.status !== 'degraded' && health.status !== 'conflicted') return [];
   const parts: string[] = [];
+  let sourceLabel: string | undefined;
   if (health.status === 'conflicted') {
     const c = health.openMaterialConflicts?.[0];
     const extra = (health.openMaterialConflicts?.length ?? 0) - 1;
@@ -306,6 +443,7 @@ function checkStaleContext(health: WatcherStewardHealth): Finding[] {
   }
   if (health.staleDocs?.length) {
     parts.push(`stale documents: ${health.staleDocs.map((d) => d.title).join(', ')}`);
+    sourceLabel = health.staleDocs[0]!.title;
   }
   return [
     {
@@ -314,6 +452,12 @@ function checkStaleContext(health: WatcherStewardHealth): Finding[] {
       nodeIds: [],
       message: `Client grounding is ${health.status} — ${parts.join('; ') || 'see the Context Steward'}.`,
       suggestion: 'Resolve the Steward review queue before trusting plan suggestions.',
+      category: 'context',
+      title: 'Context needs review',
+      ...(sourceLabel ? { sourceLabel } : {}),
+      impact: 'Plan suggestions may rely on incomplete or conflicting client information.',
+      whyCompared: ['steward health'],
+      sortRank: CATEGORY_SORT_RANK.context,
     },
   ];
 }
@@ -332,7 +476,40 @@ function checkArtifactMismatch(nodes: WatcherNode[], mismatches: string[]): Find
         ? `"${n.title}" has a linked artifact that no longer matches its state (${n.status.replace('_', ' ')}).`
         : 'A linked artifact references a step that is no longer in this plan.',
       suggestion: 'Re-check the workspace/outreach back-link for this step.',
+      category: 'artifact' as const,
+      title: 'Linked artifact mismatch',
+      impact: n
+        ? `The linked draft/record for "${n.title}" may no longer reflect its real state.`
+        : 'A linked draft/record no longer has a matching step in this plan.',
+      whyCompared: ['node status', 'linked artifact'],
+      sortRank: CATEGORY_SORT_RANK.artifact,
     };
+  });
+}
+
+/**
+ * Drop a folded `verifier:dep-order` finding when an ACTIONABLE
+ * `dependency-slippage` finding already covers the same (node, dependency)
+ * edge — the plan's own instruction: "the actionable finding wins". Both
+ * checks can legitimately fire on the same edge (dep-order: starts before the
+ * dependency STARTS; dependency-slippage: starts before it EFFECTIVELY ENDS),
+ * so without this a genuinely out-of-order pair would show two cards for one
+ * problem. Matching is per-pair, not per-node: a node with several slipped
+ * dependencies only suppresses the verifier folds for the specific pairs its
+ * dependency-slippage finding actually names.
+ */
+function dedupeDependencyFold(findings: Finding[]): Finding[] {
+  const actionableEdges = new Set<string>();
+  for (const f of findings) {
+    if (f.code !== 'dependency-slippage') continue;
+    const [nodeId, ...depIds] = f.nodeIds;
+    for (const depId of depIds) actionableEdges.add(`${nodeId}|${depId}`);
+  }
+  if (actionableEdges.size === 0) return findings;
+  return findings.filter((f) => {
+    if (f.code !== 'verifier:dep-order') return true;
+    const [nodeId, depId] = f.nodeIds;
+    return !actionableEdges.has(`${nodeId}|${depId}`);
   });
 }
 
@@ -340,7 +517,7 @@ function checkArtifactMismatch(nodes: WatcherNode[], mismatches: string[]): Find
  * Run every deterministic check and dedup on (code + sorted nodeIds) — the
  * same identity the service uses to avoid re-proposing an already-open
  * change-set. Order: verifier fold first (plan-integrity context), then the
- * Watcher-specific checks.
+ * Watcher-specific checks, then the dependency/verifier edge dedup (Phase 3).
  */
 export function runWatcherChecks(input: WatcherCheckInput): Finding[] {
   const nodes = input.nodes ?? [];
@@ -355,12 +532,12 @@ export function runWatcherChecks(input: WatcherCheckInput): Finding[] {
     ...checkArtifactMismatch(nodes, input.artifactMismatches ?? []),
   ];
   const seen = new Set<string>();
-  const out: Finding[] = [];
+  const deduped: Finding[] = [];
   for (const f of all) {
     const key = findingKey(f);
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push(f);
+    deduped.push(f);
   }
-  return out;
+  return dedupeDependencyFold(deduped);
 }

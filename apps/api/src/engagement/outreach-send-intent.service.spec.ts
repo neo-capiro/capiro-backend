@@ -20,8 +20,13 @@ import {
   isPromptSpecV2OrLater,
   rollUpStatus,
   sendIntentRequestFingerprint,
+  type AttachmentManifestEntry,
 } from './outreach-send-intent.service.js';
 import { AmbiguousMailSendError } from './mail-send-result.js';
+import { AttachmentContentService } from './attachment-content.service.js';
+
+/** A real (dependency-free) hash for a default attachment fixture's bytes ('bytes'). */
+const DEFAULT_ATTACHMENT_SHA256 = new AttachmentContentService().sha256(Buffer.from('bytes'));
 
 const ctx: TenantContext = {
   tenantId: 't1',
@@ -97,7 +102,20 @@ describe('deliveryIdempotencyKey', () => {
     expect(
       deliveryIdempotencyKey({
         ...base,
-        manifest: [{ id: 'att-1', fileName: 'f', contentType: 'application/pdf', byteSize: 10 }],
+        manifest: [
+          {
+            id: 'att-1',
+            fileName: 'f',
+            contentType: 'application/pdf',
+            byteSize: 10,
+            verifiedContentType: 'application/pdf',
+            sha256: 'sha256:' + 'a'.repeat(64),
+            lifecycleStatus: 'ready',
+            scanStatus: 'clean',
+            scanProvider: 'test',
+            scanResultAt: null,
+          },
+        ],
       }),
     ).not.toBe(a);
   });
@@ -179,6 +197,7 @@ function makeIntentHarness(opts: {
   promptSpecVersion?: string | null;
   v2Required?: boolean;
   attachmentByteSize?: number | null;
+  scanRequired?: boolean;
   duplicateDelivery?: boolean;
   recordOwner?: string;
   recordStatus?: string;
@@ -240,6 +259,14 @@ function makeIntentHarness(opts: {
           contentType: 'application/pdf',
           byteSize: opts.attachmentByteSize ?? 1024,
           s3Key: 'k',
+          // Matches the mocked readAttachmentBytes()'s bytes below, so the
+          // default fixture passes the d3/d4 integrity re-check unchanged.
+          lifecycleStatus: 'ready',
+          verifiedContentType: 'application/pdf',
+          calculatedSha256: DEFAULT_ATTACHMENT_SHA256,
+          scanProvider: 'test',
+          scanStatus: 'clean',
+          scanResultAt: null,
         },
       ],
     },
@@ -304,6 +331,11 @@ function makeIntentHarness(opts: {
     }),
     readAttachmentBytes: async () => Buffer.from('bytes'),
   };
+  // Real (dependency-free) service: readiness/sha256/detectContentType are
+  // exercised for real rather than mocked, so these specs prove the actual
+  // policy, not a stub of it.
+  patch.attachmentContent = new AttachmentContentService();
+  patch.attachmentScanner = { scanRequired: opts.scanRequired ?? false };
   patch.mailSender = {
     sendMail: async () => {
       orderLog.push('provider-call');
@@ -605,26 +637,40 @@ describe('sendIntentRequestFingerprint (plan §3.c6)', () => {
     expect(sendIntentRequestFingerprint({ ...base, testMode: true })).not.toBe(a);
   });
 
-  test('an attachment manifest change (id, name, type, or size) changes it', () => {
+  /** A fully-populated manifest entry (plan §3.d2 fields), with sane overridable defaults. */
+  const manifestEntry = (over: Partial<AttachmentManifestEntry> = {}) => ({
+    id: 'att-1',
+    fileName: 'f.pdf',
+    contentType: 'application/pdf',
+    byteSize: 10,
+    verifiedContentType: 'application/pdf',
+    sha256: 'sha256:' + 'a'.repeat(64),
+    lifecycleStatus: 'ready',
+    scanStatus: 'clean',
+    scanProvider: 'test',
+    scanResultAt: null,
+    ...over,
+  });
+
+  test('an attachment manifest change (id, name, type, size, or hash) changes it', () => {
     const a = sendIntentRequestFingerprint(base);
-    const withAttachment = (
-      over: Partial<{ id: string; fileName: string; contentType: string; byteSize: number }>,
-    ) =>
-      sendIntentRequestFingerprint({
-        ...base,
-        manifest: [{ id: 'att-1', fileName: 'f.pdf', contentType: 'application/pdf', byteSize: 10, ...over }],
-      });
+    const withAttachment = (over: Partial<AttachmentManifestEntry>) =>
+      sendIntentRequestFingerprint({ ...base, manifest: [manifestEntry(over)] });
     const withDefault = withAttachment({});
     expect(withDefault).not.toBe(a);
     expect(withAttachment({ id: 'att-2' })).not.toBe(withDefault);
     expect(withAttachment({ fileName: 'g.pdf' })).not.toBe(withDefault);
     expect(withAttachment({ contentType: 'application/octet-stream' })).not.toBe(withDefault);
     expect(withAttachment({ byteSize: 11 })).not.toBe(withDefault);
+    // Plan §3.d2 closed the fingerprint function's own documented gap: a byte
+    // swap with an unchanged id/name/type/size must still fingerprint as
+    // DIFFERENT, or a reused requestKey could dedupe against the wrong bytes.
+    expect(withAttachment({ sha256: 'sha256:' + 'b'.repeat(64) })).not.toBe(withDefault);
   });
 
   test('attachment order does not matter, only the set', () => {
-    const att1 = { id: 'att-1', fileName: 'a', contentType: 'application/pdf', byteSize: 1 };
-    const att2 = { id: 'att-2', fileName: 'b', contentType: 'application/pdf', byteSize: 2 };
+    const att1 = manifestEntry({ id: 'att-1', fileName: 'a', byteSize: 1 });
+    const att2 = manifestEntry({ id: 'att-2', fileName: 'b', byteSize: 2 });
     const a = sendIntentRequestFingerprint({ ...base, manifest: [att1, att2] });
     const b = sendIntentRequestFingerprint({ ...base, manifest: [att2, att1] });
     expect(a).toBe(b);

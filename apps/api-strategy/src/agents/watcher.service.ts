@@ -374,6 +374,15 @@ export class WatcherService {
         where: { strategyId, status: { in: ['proposed', 'approved'] } },
         select: { id: true, status: true, summary: true, ops: true, strategyVersionId: true },
       });
+      // Phase 3: permanent dismissals, loaded inside this SAME strategy-locked
+      // tx so a concurrent dismiss can't race a propose into re-creating the
+      // row it just suppressed. Keyed on findingKey (code + sorted nodeIds) —
+      // the same identity persisted as sp_change_set.watch_key below.
+      const dismissedKeys = new Set(
+        (await tx.spWatchDismissal.findMany({ where: { strategyId }, select: { watchKey: true } })).map(
+          (d) => d.watchKey,
+        ),
+      );
       // Zombie exclusion (see doc comment): only proposals still pinned to
       // the current head can apply, so only those block re-proposal. The row
       // is kept (not just its marker) so a marker hit can compare ops for the
@@ -394,6 +403,10 @@ export class WatcherService {
       // status ('proposed', CAS) and the pinned head in its own tx.
       const refreshes: Array<{ id: string; summary: string; ops: unknown[] }> = [];
       for (const f of actionable) {
+        // Phase 3: a permanently dismissed finding is never re-proposed, full
+        // stop — no refresh-in-place, no new row, regardless of how many runs
+        // keep re-detecting it.
+        if (dismissedKeys.has(findingKey(f))) continue;
         const marker = watchMarker(f);
         const ops = f.proposedOps!;
         const existing = openByMarker.get(marker);
@@ -442,7 +455,11 @@ export class WatcherService {
           } as CreateChangeSetDto,
           // JOIN this tx: the dedup read and the create must commit together
           // under the strategy-row lock, or the dedup races (see above).
-          { risk, tx },
+          // watchKey: the plain, untruncated findingKey — distinct from the
+          // bracketed/possibly-digested `marker` embedded in `summary` (see
+          // watchMarker's own doc comment), so getState's lookup never has to
+          // regex-parse prose or hit the 500-char summary budget.
+          { risk, tx, watchKey: findingKey(f) },
         )) as { id: string };
         ids.push(cs.id);
       }

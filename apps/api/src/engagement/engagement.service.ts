@@ -4744,6 +4744,25 @@ export class EngagementService {
           where: { tenantId: ctx.tenantId, id: { in: input.attachmentIds! } },
         }),
       );
+      // Remediation plan §3.d6: this legacy path predates the scan/lifecycle
+      // readiness gate and never checked it — a quarantined or threat-flagged
+      // file would sail straight through to a real recipient. Apply the SAME
+      // centralized policy the send-intent path enforces, and refuse the whole
+      // send rather than silently mailing without it (plan hard boundary: never
+      // silently omit an attachment).
+      const unusable: string[] = [];
+      for (const row of rows) {
+        const verdict = this.attachmentContent.readiness(row, this.scanner.scanRequired);
+        if (!verdict.usable) {
+          unusable.push(`${row.fileName} (${verdict.disclosure ?? 'not usable'})`);
+        }
+      }
+      if (unusable.length) {
+        throw new BadRequestException(
+          `These files cannot be sent: ${unusable.join(', ')}. ` +
+            `Remove them or wait for verification to complete.`,
+        );
+      }
       for (const row of rows) {
         // Skip without downloading when the stored size is known to be too big;
         // otherwise verify the actual byte length after fetching (byteSize can
