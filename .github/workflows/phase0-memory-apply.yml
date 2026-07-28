@@ -1,0 +1,90 @@
+name: MeriV2 Phase 0 Memory Containment
+
+on:
+  push:
+    branches:
+      - fix/meriv2-p0-control-boundaries
+    paths:
+      - .github/workflows/phase0-memory-apply.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/meriv2-p0-control-boundaries
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Apply memory, learning, and routing patches
+        shell: bash
+        run: |
+          node .github/scripts/phase0-memory-store-apply.mjs
+          node .github/scripts/phase0-memory-candidate-apply.mjs
+          node .github/scripts/phase0-meri-routing-apply.mjs
+          node .github/scripts/phase0-meri-autolearn-apply.mjs
+          node .github/scripts/phase0-meri-memory-auth-apply.mjs
+      - run: pnpm install --frozen-lockfile
+      - name: Validate memory containment
+        shell: bash
+        run: |
+          set +e
+          mkdir -p docs/engineering
+          : > /tmp/phase0-memory-validation.txt
+          run_check() {
+            echo "$ $*" | tee -a /tmp/phase0-memory-validation.txt
+            "$@" 2>&1 | tee -a /tmp/phase0-memory-validation.txt
+            code=${PIPESTATUS[0]}
+            echo "exit_code=$code" | tee -a /tmp/phase0-memory-validation.txt
+            return $code
+          }
+          failed=0
+          run_check pnpm --filter @capiro/shared build || failed=1
+          run_check pnpm --filter @capiro/meriv2-core build || failed=1
+          run_check pnpm --filter @capiro/api prisma:generate || failed=1
+          run_check pnpm --filter @capiro/api typecheck || failed=1
+          run_check pnpm --filter @capiro/api test -- --runInBand --logHeapUsage \
+            src/memory/memory-mutation-auth.spec.ts \
+            src/memory/memory-autolearn-governance.spec.ts \
+            src/memory/memory-candidate-rules.spec.ts \
+            src/memory/memory-store.mutation.spec.ts \
+            src/meri/meriv2-routing.helpers.spec.ts || failed=1
+          {
+            echo "# MeriV2 Phase 0 Memory Containment Validation"
+            echo
+            echo "Base commit: 1cdd372f0409986ac238beef2c4e9f310925fb37"
+            echo "Workflow run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "Result: $([ "$failed" -eq 0 ] && echo PASS || echo FAIL)"
+            echo
+            echo '```text'
+            cat /tmp/phase0-memory-validation.txt
+            echo '```'
+          } > docs/engineering/meriv2-phase0-memory-validation.md
+          echo "PHASE0_MEMORY_FAILED=$failed" >> "$GITHUB_ENV"
+      - name: Commit implementation and evidence to branch
+        shell: bash
+        run: |
+          rm -f .github/scripts/phase0-memory-store-apply.mjs
+          rm -f .github/scripts/phase0-memory-candidate-apply.mjs
+          rm -f .github/scripts/phase0-meri-routing-apply.mjs
+          rm -f .github/scripts/phase0-meri-autolearn-apply.mjs
+          rm -f .github/scripts/phase0-meri-memory-auth-apply.mjs
+          rm -f .github/workflows/phase0-memory-apply.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(meriv2): contain memory mutation and auto-learning [skip ci]"
+          git push origin HEAD:fix/meriv2-p0-control-boundaries
+      - name: Preserve failing validation status
+        if: env.PHASE0_MEMORY_FAILED == '1'
+        run: exit 1
