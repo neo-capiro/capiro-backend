@@ -241,7 +241,7 @@ describe('ChatAssistantService.run', () => {
     );
   });
 
-  it('audits a PASS write directly, but leaves a held WARN to apps/api\'s durable proposal transaction (no duplicate row)', async () => {
+  it("audits a PASS write directly, but leaves a held WARN to apps/api's durable proposal transaction (no duplicate row)", async () => {
     (auditRepo.record as jest.Mock).mockClear();
     const executor = {
       execute: jest.fn(async () => ({ items: [] })),
@@ -774,7 +774,10 @@ describe('ChatAssistantService.run', () => {
           [{ type: 'tool_use', id: 't1', name: 'send_email', input: emailInput }],
           'tool_use',
         );
-      return anthropic([{ type: 'text', text: 'Something went wrong proposing that.' }], 'end_turn');
+      return anthropic(
+        [{ type: 'text', text: 'Something went wrong proposing that.' }],
+        'end_turn',
+      );
     });
 
     const events: Array<{ type: string; [k: string]: unknown }> = [];
