@@ -58,7 +58,7 @@ function verifyMigrationGuard(): void {
     assert.equal(source.includes('rolled_back_at = NOW()'), false);
     assert.equal(source.includes('Resolving failed migration:'), false);
   }
-  assert.match(active, /prisma migrate deploy/);
+  assert.match(active, /node .*prisma.* migrate deploy/);
   assert.match(compatibility, /Refusing legacy migrate dispatch/);
 }
 
