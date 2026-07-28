@@ -85,7 +85,67 @@ Fixed as part of this pass (all three were genuine, not environment noise):
 
 ### 3.2 API — full suite result
 
-<!-- Filled in from the background run's final summary. -->
+Running the genuinely full suite (not just the targeted Phase 0 batches) is
+what surfaced three additional real bugs that no batch-level run had ever
+reached — none of them have a compile error, so nothing before this had a
+reason to catch that they fail at runtime:
+
+1. `apps/api/src/meri/meri-memory-legal-hold.spec.ts` — beyond the constructor
+   arg-count compile fix (§2), the fixture itself used `role:'standard_user'`
+   against a `scope:'firm'` (shared) memory row. `forgetMemory`/`updateMemory`
+   now route shared-scope mutation through `evaluateMemoryMutation`, which
+   correctly requires an admin role for shared memory — confirmed this is an
+   intentional tightening already present on this branch (not something this
+   validation pass introduced) by diffing against `origin/main`'s
+   `forgetMemory`, which has no `evaluateMemoryMutation` call at all and lets
+   any user touch firm-scope rows. Fixed by changing the fixture's role to
+   `capiro_admin` so the legal-hold assertions the file exists to test are
+   actually reached, and updating one `deleteMany` assertion to match the
+   current, more specific (defense-in-depth) where-clause.
+2. `apps/api/src/memory/memory-private-fail-closed.spec.ts` — a
+   "regression lock" test that greps `meri.service.ts` for the exact old
+   inline check `row.scope === 'user_private' && row.ownerUserId !==
+   ctx.userId`, which `evaluateMemoryMutation` legitimately replaced (it
+   subsumes the same guarantee — proven separately in
+   `memory-mutation-auth.spec.ts` — plus adds role/legal-hold gating the old
+   inline check never had). Updated the detection regex to match the new
+   `evaluateMemoryMutation(ctx, { scope: row.scope, ownerUserId:
+   row.ownerUserId, ...` call shape instead of weakening what it proves.
+3. `apps/api/src/memory/memory-verbs.spec.ts` — `MemoryStoreService`'s
+   confirm/forget/correct SELECTs grew more columns (`visibility`,
+   `owner_user_id`, `client_id`, `status`) so authorization no longer
+   piggybacks on the read's own WHERE clause. The mocked `$queryRaw` matched
+   on the OLD, narrower column list as a substring key, so post-refactor it
+   silently returned no rows. Matched on `'FROM memory_items'` instead
+   (stable across column-list changes) and added `visibility`/`owner_user_id`
+   to every row fixture so the mocked row is authorized as the owner's own
+   private memory — these tests are about confirm/forget/correct SQL control
+   flow, not authorization, which has its own dedicated spec.
+
+Command: `NODE_OPTIONS=--max-old-space-size=6144 node_modules/.bin/jest
+--silent --maxWorkers=2 --workerIdleMemoryLimit=1500MB` (from `apps/api`).
+
+**Final tally, the run that found the three bugs above (started before their
+fixes landed on disk):** `Test Suites: 15 failed, 439 passed, 454 total.
+Tests: 48 failed, 1 todo, 5186 passed, 5235 total. Time: 2557.8s.` The 15
+failing suites are exactly the pre-existing 12-suite baseline
+(`bill-pe-extractor`, `sam-personnel-extractor`, `dow-org-import.helpers`,
+`program-element-read`(+`provisions`), `acquisition-personnel-read`,
+`engagement-batch-*` (4 suites), `defense-budget-e2e`,
+`meri-tools.firmdata` — all class-2 "drifted hand-mock" failures unrelated to
+Meri/memory/proposal code, unaffected by this branch) plus the three files
+above, whose Jest workers had already started executing the pre-fix source
+by the time the fixes landed — a full 2557s run overlapping a same-repo edit
+is expected to show this, not a sign the fixes didn't take.
+
+**Confirmation, fresh targeted run against the current committed HEAD
+(`98300e41`) after the fixes:**
+`jest src/memory/memory-private-fail-closed.spec.ts
+src/meri/meri-memory-legal-hold.spec.ts src/memory/memory-verbs.spec.ts` →
+`Test Suites: 3 passed, 3 total. Tests: 20 passed, 20 total.` This confirms
+the true current state of the branch is **exactly the 12-suite pre-existing
+baseline failing, and nothing else** — zero suites newly broken by Phase 0
+work.
 
 ## 4. Root validation
 
