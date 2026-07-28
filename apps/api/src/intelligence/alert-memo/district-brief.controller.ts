@@ -25,9 +25,47 @@ class DistrictBriefQuoteDto {
   @IsOptional() @IsNumber() atSec?: number;
 }
 
+/** §4.5 twins, copied verbatim from AlertMemoController (HP-03/Gate L phase a). */
+class DistrictBriefRegulationDto {
+  @IsOptional() @IsString() @MaxLength(500) ruleTitle?: string | null;
+  @IsOptional() @IsString() @MaxLength(200) agency?: string | null;
+  @IsOptional() @IsString() @MaxLength(64) ruleType?: string | null;
+  @IsOptional() @IsString() @MaxLength(32) commentEndDate?: string | null;
+  @IsOptional() @IsString() @MaxLength(32) effectiveDate?: string | null;
+  @IsOptional() @IsString() @MaxLength(120) docketId?: string | null;
+  @IsOptional() @IsString() @MaxLength(500) url?: string | null;
+}
+
+class DistrictBriefDeadlineDto {
+  @IsOptional() @IsString() @MaxLength(64) cutoffType?: string | null;
+  @IsOptional() @IsString() @MaxLength(32) cutoffDate?: string | null;
+  @IsOptional() @IsNumber() daysUntil?: number | null;
+}
+
+class DistrictBriefProgramElementDto {
+  @IsString() @MaxLength(32) peCode!: string;
+  @IsOptional() @IsString() @MaxLength(300) title?: string | null;
+  @IsOptional() @IsNumber() fiscalYear?: number | null;
+  @IsOptional() @IsString() @MaxLength(64) deltaType?: string | null;
+  @IsOptional() @IsString() @MaxLength(120) deltaTypeLabel?: string | null;
+  @IsOptional() @IsString() @MaxLength(200) fromRef?: string | null;
+  @IsOptional() @IsString() @MaxLength(200) toRef?: string | null;
+  @IsOptional() @IsNumber() amountFromMillions?: number | null;
+  @IsOptional() @IsNumber() amountToMillions?: number | null;
+  @IsOptional() @IsNumber() deltaMillions?: number | null;
+  @IsOptional() @IsNumber() deltaPct?: number | null;
+  @IsOptional() @IsString() @MaxLength(32) verification?: string | null;
+  @IsOptional() @IsString() @MaxLength(200) linkedRef?: string | null;
+  @IsOptional() @IsString() @MaxLength(500) href?: string | null;
+}
+
 class DistrictBriefAlertDto implements AlertMemoAlertInput {
   @IsString() alertId!: string;
-  @IsIn(['bill', 'hearing', 'combined']) sourceType!: 'bill' | 'hearing' | 'combined';
+  // HP-03 (Gate L phase a): widened for state_bill only — a district brief for a
+  // program_element or regulation alert stays out of scope (feedItemToDistrictBriefAlert
+  // still downgrades those). Still an allow-list: an unknown sourceType is rejected.
+  @IsIn(['bill', 'hearing', 'combined', 'state_bill'])
+  sourceType!: 'bill' | 'hearing' | 'combined' | 'state_bill';
   @IsString() @MaxLength(500) title!: string;
   @IsOptional() @IsString() whyItMatters?: string | null;
   @IsOptional() @IsString() severity?: string | null;
@@ -46,6 +84,14 @@ class DistrictBriefAlertDto implements AlertMemoAlertInput {
   quotes?: DistrictBriefQuoteDto[];
   @IsOptional() @IsString() url?: string | null;
   @IsOptional() @IsArray() @IsString({ each: true }) matchedTags?: string[];
+  @IsOptional() @ValidateNested() @Type(() => DistrictBriefProgramElementDto)
+  programElement?: DistrictBriefProgramElementDto;
+  /** §4.5: 2-letter state code, or 'US' for federal. Drives the state-bill framing. */
+  @IsOptional() @IsString() @MaxLength(32) jurisdiction?: string | null;
+  @IsOptional() @ValidateNested() @Type(() => DistrictBriefDeadlineDto)
+  deadline?: DistrictBriefDeadlineDto | null;
+  @IsOptional() @ValidateNested() @Type(() => DistrictBriefRegulationDto)
+  regulation?: DistrictBriefRegulationDto;
 }
 
 class GenerateDistrictBriefDto {

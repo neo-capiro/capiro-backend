@@ -606,6 +606,29 @@ function buildDistrictClaims(
     push(`Bill: ${[alert.billDisplayNum, alert.billTitle].filter(Boolean).join(' — ')}`, alert.url);
   if (alert.committee) push(`Committee: ${alert.committee}`);
   if (alert.hearingTitle) push(`Hearing: ${alert.hearingTitle}`, alert.url);
+  // HP-03 (Gate L phase a): state-bill framing, byte-identical in intent to
+  // alert-memo.service.ts's twin. The jurisdiction claim exists so the model cannot
+  // quietly describe a state bill as federal, and the deadline claim is the whole
+  // point of a state-facing brief — a cutoff can kill a bill regardless of its
+  // merits. Only pushed when the data exists: a state bill with no cutoff on record
+  // gets no deadline claim at all (an honest gap, never a fabricated one).
+  if (alert.sourceType === 'state_bill') {
+    const jur = alert.jurisdiction && alert.jurisdiction !== 'US' ? alert.jurisdiction : null;
+    push(
+      jur
+        ? `Jurisdiction: this is STATE legislation in ${jur}, not federal legislation.`
+        : `Jurisdiction: this is STATE legislation, not federal legislation.`,
+    );
+  }
+  const dl = alert.deadline;
+  if (dl && (dl.cutoffType || dl.cutoffDate || dl.daysUntil != null)) {
+    const parts = [
+      dl.cutoffType ? `deadline type ${dl.cutoffType}` : null,
+      dl.cutoffDate ? `date ${dl.cutoffDate}` : null,
+      dl.daysUntil != null ? `${dl.daysUntil} day(s) remaining as of this alert` : null,
+    ].filter(Boolean);
+    push(`Procedural deadline: ${parts.join(', ')}.`);
+  }
   if (alert.whyItMatters) push(`Relevance to client: ${alert.whyItMatters}`);
   if (alert.matchedTags?.length)
     push(`Matched the client's tracked interests: ${alert.matchedTags.join(', ')}`);

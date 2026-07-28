@@ -218,20 +218,20 @@ export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
 }
 
 /**
- * The district-brief generator's DTO has the same shape as the memo's (Phase 1 M1.5) but
- * its @IsIn was NOT widened — district-brief.controller.ts:30 still accepts only
- * bill | hearing | combined. Anything else must be downgraded here or the request 400s.
+ * The district-brief generator's DTO has the same shape as the memo's (Phase 1 M1.5).
+ * HP-03 (Gate L phase a) widened its @IsIn to also accept state_bill —
+ * district-brief.controller.ts:30 now accepts bill | hearing | combined | state_bill,
+ * so a state bill's jurisdiction/deadline facts reach buildClaims instead of being
+ * stripped here. program_element and regulation are still NOT accepted (a district
+ * brief for either stays out of HP-03's scope) and are still downgraded below.
  *
  * This used to be a bare ALIAS of feedItemToMemoAlert, which made it a live trap: every
  * time the memo mapper learned a new sourceType, this surface silently started sending a
- * value its own DTO rejects. For state_bill that is not hypothetical —
- * `recommendedActionsFor` DOES offer district_brief for a state bill (isBill includes it),
- * so the alias would have 400'd a reachable, user-facing action the moment the memo
- * mapper stopped downgrading. The source-specific blocks are stripped too: the
- * district-brief DTO does not whitelist them, and forbidNonWhitelisted would 400 on the
- * extra keys even with an accepted sourceType.
+ * value its own DTO rejects. The source-specific blocks for what's still rejected are
+ * stripped too: the district-brief DTO does not whitelist them, and forbidNonWhitelisted
+ * would 400 on the extra keys even with an accepted sourceType.
  */
-const DISTRICT_BRIEF_SOURCE_TYPES = new Set(['bill', 'hearing', 'combined']);
+const DISTRICT_BRIEF_SOURCE_TYPES = new Set(['bill', 'hearing', 'combined', 'state_bill']);
 
 export function feedItemToDistrictBriefAlert(item: FeedItem): AlertMemoAlertInput {
   const a = feedItemToMemoAlert(item);
