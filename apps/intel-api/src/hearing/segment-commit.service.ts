@@ -6,20 +6,35 @@ import type { FinalSegment, ExtractionResult } from './hearing.types.js';
 
 const CLIENT_RELEVANCE_ENCRYPT_THRESHOLD = 0.3;
 
+export interface RawSegmentCommitResult {
+  id: string | null;
+  created: boolean;
+}
+
 /**
  * Commits finalized transcript segments + derived intelligence to Postgres,
  * enforcing the session's recording_policy AT THE STORAGE LAYER (SC5.3) and
- * AES-256-GCM encryption for client-relevant text (SC5.4).
+ * AES-256-GCM encryption for sensitive text (SC5.4).
  *
  * recording_policy semantics (enforced here, not in the UI):
  *   - no_storage           -> persist NOTHING (return null; live UI only)
- *   - transcript_only      -> persist transcript (encrypted), never audio
- *   - audio_and_transcript -> persist transcript (encrypted); audio handled
- *                             separately by the audio sink (also gated here)
+ *   - transcript_only      -> persist transcript (encrypted when sensitive)
+ *   - audio_and_transcript -> accepted on the wire for older clients but
+ *                             normalized to transcript_only at create time;
+ *                             there is no audio sink, so nothing else changes
  *
- * Encryption rule: a segment is client-relevant (encrypt) when it has entity
- * mentions OR clientRelevanceScore >= threshold. Otherwise public hearing text
- * MAY be stored as plaintext for searchability. NEVER both ciphertext+plaintext.
+ * Raw transcript persistence is intentionally separate from Meri enrichment:
+ * the live transcript is no longer held behind an 8-second model call, and final
+ * segments retain their arrival order. Sensitive/private sessions force
+ * encryption before any classifier result exists. A later deterministic or AI
+ * relevance result can only make storage more restrictive via
+ * `protectSegmentText`; it can never downgrade encrypted text to plaintext.
+ *
+ * KeyQuote already has encrypted columns. EntityMention, LiveActionItem and
+ * LiveSummaryCard do not. For a sensitive session their plaintext prose is
+ * therefore not persisted at all; the live authorized browser can still receive
+ * the cards over its scoped WebSocket. This is deliberately fail-closed until a
+ * future additive migration gives those tables encrypted text columns.
  */
 @Injectable()
 export class SegmentCommitService {
@@ -30,37 +45,32 @@ export class SegmentCommitService {
     private readonly crypto: HearingCryptoService,
   ) {}
 
-  /** True if this policy permits persisting any audio. */
   audioPersistenceAllowed(recordingPolicy: string): boolean {
     return recordingPolicy === 'audio_and_transcript';
   }
 
-  /**
-   * Commit one final segment + its extraction. Idempotent on
-   * (sessionId,startMs,endMs) so a Deepgram reconnect can't double-write (SC5.9).
-   * Returns the persisted segment id, or null when policy is no_storage.
-   */
-  async commitFinal(params: {
+  async maxEndMs(tenantId: string, sessionId: string): Promise<number> {
+    const agg = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.transcriptSegment.aggregate({
+        where: { tenantId, sessionId, isFinal: true },
+        _max: { endMs: true },
+      }),
+    );
+    return agg._max.endMs ?? 0;
+  }
+
+  /** Persist and return the raw final immediately, before any model call. */
+  async commitRawFinal(params: {
     tenantId: string;
     sessionId: string;
     recordingPolicy: string;
     segment: FinalSegment;
-    extraction: ExtractionResult;
-  }): Promise<string | null> {
-    const { tenantId, sessionId, recordingPolicy, segment, extraction } = params;
+    forceEncrypt: boolean;
+  }): Promise<RawSegmentCommitResult> {
+    const { tenantId, sessionId, recordingPolicy, segment, forceEncrypt } = params;
+    if (recordingPolicy === 'no_storage') return { id: null, created: false };
 
-    // SC5.3: no_storage persists nothing.
-    if (recordingPolicy === 'no_storage') {
-      return null;
-    }
-
-    const clientRelevant =
-      extraction.entityMentions.length > 0 ||
-      (extraction.clientRelevanceScore ?? 0) >= CLIENT_RELEVANCE_ENCRYPT_THRESHOLD;
-
-    // SC5.4: client-relevant text encrypted; public text may be plaintext. Never both.
-    const textFields = this.buildTextFields(segment.text, clientRelevant);
-
+    const textFields = this.buildTextFields(segment.text, forceEncrypt);
     // NOTE: we deliberately use create + P2002-catch here rather than upsert.
     // PrismaService.scopedClient injects `where.tenantId` into every
     // where-bearing op (findUnique/update/delete/UPSERT) to enforce tenant
@@ -81,44 +91,137 @@ export class SegmentCommitService {
             startMs: segment.startMs,
             endMs: segment.endMs,
             speakerLabel: segment.speakerLabel ?? null,
-            resolvedSpeakerId: extraction.resolvedSpeakerId ?? null,
-            resolvedSpeakerName: extraction.resolvedSpeakerName ?? null,
+            resolvedSpeakerId: null,
+            resolvedSpeakerName: null,
             isFinal: true,
             confidence: segment.confidence ?? null,
             source: 'deepgram',
-            clientRelevanceScore: extraction.clientRelevanceScore ?? null,
-            issueTags: extraction.issueTags,
+            clientRelevanceScore: null,
+            issueTags: [],
             ...textFields,
           },
         }),
       );
-
-      await this.persistDerived(
-        tenantId,
-        sessionId,
-        created.id,
-        segment.startMs,
-        extraction,
-        clientRelevant,
-      );
-      return created.id;
+      return { id: created.id, created: true };
     } catch (err) {
-      // Idempotent replay (SC5.9): a Deepgram reconnect can re-deliver the same
-      // final. The unique (sessionId,startMs,endMs) makes the second insert a
-      // P2002 — treat it as a no-op and return the already-persisted id, without
-      // re-running persistDerived (the first final already wrote the derivations).
+      // Idempotent replay (SC5.9): a duplicate or replayed final can re-deliver
+      // the same segment. The unique (sessionId,startMs,endMs) makes the second
+      // insert a P2002 — treat it as a no-op and return the already-persisted id
+      // with created=false, so the caller does not re-run enrichment over it.
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         const existing = await this.prisma.withTenant(tenantId, (tx) =>
           tx.transcriptSegment.findFirst({
-            where: { sessionId, startMs: segment.startMs, endMs: segment.endMs },
+            where: { tenantId, sessionId, startMs: segment.startMs, endMs: segment.endMs },
             select: { id: true },
           }),
         );
-        return existing?.id ?? null;
+        return { id: existing?.id ?? null, created: false };
       }
-      this.logger.error(`commitFinal failed for session ${sessionId}: ${(err as Error).message}`);
+      this.logger.error(`commitRawFinal failed for session ${sessionId}: ${(err as Error).message}`);
       throw err;
     }
+  }
+
+  /** Apply asynchronous model enrichment to an already-durable transcript row. */
+  async enrichFinal(params: {
+    tenantId: string;
+    sessionId: string;
+    segmentId: string;
+    segment: FinalSegment;
+    extraction: ExtractionResult;
+    /** True for private or explicitly client/matter-linked sessions. */
+    forceEncrypt?: boolean;
+  }): Promise<void> {
+    const { tenantId, sessionId, segmentId, segment, extraction } = params;
+    const clientRelevant =
+      extraction.entityMentions.length > 0 ||
+      (extraction.clientRelevanceScore ?? 0) >= CLIENT_RELEVANCE_ENCRYPT_THRESHOLD;
+    const sensitive = params.forceEncrypt === true || clientRelevant;
+
+    if (sensitive) await this.protectSegmentText(tenantId, sessionId, segmentId);
+
+    await this.prisma.withTenant(tenantId, (tx) =>
+      tx.transcriptSegment.updateMany({
+        where: { id: segmentId, tenantId, sessionId },
+        data: {
+          resolvedSpeakerId: extraction.resolvedSpeakerId ?? null,
+          // A resolved human name is plaintext on TranscriptSegment. Do not write
+          // it for a sensitive session until that field has encrypted storage.
+          resolvedSpeakerName: sensitive ? null : extraction.resolvedSpeakerName ?? null,
+          clientRelevanceScore: extraction.clientRelevanceScore ?? null,
+          issueTags: extraction.issueTags,
+        },
+      }),
+    );
+
+    await this.persistDerived(
+      tenantId,
+      sessionId,
+      segmentId,
+      segment.startMs,
+      extraction,
+      sensitive,
+    );
+  }
+
+  /**
+   * Upgrade a plaintext segment to encrypted storage. If encryption is required
+   * but unavailable, fail closed by removing plaintext instead of retaining
+   * sensitive content in the clear.
+   */
+  async protectSegmentText(tenantId: string, sessionId: string, segmentId: string): Promise<void> {
+    const row = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.transcriptSegment.findFirst({
+        where: { id: segmentId, tenantId, sessionId },
+        select: {
+          textPlain: true,
+          textCiphertext: true,
+          iv: true,
+          authTag: true,
+          keyVersion: true,
+        },
+      }),
+    );
+    if (!row || row.textCiphertext || row.textPlain == null) return;
+
+    const protectedFields = this.buildTextFields(row.textPlain, true);
+    await this.prisma.withTenant(tenantId, (tx) =>
+      tx.transcriptSegment.updateMany({
+        where: { id: segmentId, tenantId, sessionId, textPlain: row.textPlain },
+        data: protectedFields,
+      }),
+    );
+  }
+
+  /** Compatibility entry point retained for existing callers and tests. */
+  async commitFinal(params: {
+    tenantId: string;
+    sessionId: string;
+    recordingPolicy: string;
+    segment: FinalSegment;
+    extraction: ExtractionResult;
+  }): Promise<string | null> {
+    const clientRelevant =
+      params.extraction.entityMentions.length > 0 ||
+      (params.extraction.clientRelevanceScore ?? 0) >= CLIENT_RELEVANCE_ENCRYPT_THRESHOLD;
+    const raw = await this.commitRawFinal({
+      tenantId: params.tenantId,
+      sessionId: params.sessionId,
+      recordingPolicy: params.recordingPolicy,
+      segment: params.segment,
+      forceEncrypt: clientRelevant,
+    });
+    if (raw.id && raw.created) {
+      await this.enrichFinal({
+        tenantId: params.tenantId,
+        sessionId: params.sessionId,
+        segmentId: raw.id,
+        segment: params.segment,
+        extraction: params.extraction,
+        forceEncrypt: clientRelevant,
+      });
+    }
+    return raw.id;
   }
 
   private buildTextFields(text: string, encrypt: boolean) {
@@ -132,12 +235,24 @@ export class SegmentCommitService {
         textPlain: null,
       };
     }
+    // Fail closed: if we must encrypt but cannot, do NOT store plaintext.
     if (encrypt && !this.crypto.configured) {
-      // Fail closed: if we must encrypt but cannot, do NOT store plaintext.
-      this.logger.warn('client-relevant segment but encryption unconfigured; storing no text');
-      return { textCiphertext: null, iv: null, authTag: null, keyVersion: null, textPlain: null };
+      this.logger.error('sensitive hearing segment but encryption is unconfigured; storing no text');
+      return {
+        textCiphertext: null,
+        iv: null,
+        authTag: null,
+        keyVersion: null,
+        textPlain: null,
+      };
     }
-    return { textCiphertext: null, iv: null, authTag: null, keyVersion: null, textPlain: text };
+    return {
+      textCiphertext: null,
+      iv: null,
+      authTag: null,
+      keyVersion: null,
+      textPlain: text,
+    };
   }
 
   private async persistDerived(
@@ -146,31 +261,85 @@ export class SegmentCommitService {
     segmentId: string,
     startMs: number,
     extraction: ExtractionResult,
-    clientRelevant: boolean,
+    sensitive: boolean,
   ): Promise<void> {
     const ops: Promise<unknown>[] = [];
 
-    for (const m of extraction.entityMentions) {
-      ops.push(
-        this.prisma.withTenant(tenantId, (tx) =>
-          tx.entityMention.create({
-            data: {
-              sessionId,
-              tenantId,
-              segmentId,
-              entityType: m.entityType,
-              entityRef: m.entityRef ?? null,
-              entityLabel: m.entityLabel,
-              confidence: m.confidence ?? null,
-            },
-          }),
-        ),
+    // These three tables currently have only plaintext prose columns. The
+    // authorized live browser still gets the extraction cards, but storage skips
+    // them for sensitive sessions instead of weakening the transcript's privacy.
+    if (!sensitive) {
+      for (const m of extraction.entityMentions) {
+        ops.push(
+          this.prisma.withTenant(tenantId, (tx) =>
+            tx.entityMention.create({
+              data: {
+                sessionId,
+                tenantId,
+                segmentId,
+                entityType: m.entityType,
+                entityRef: m.entityRef ?? null,
+                entityLabel: m.entityLabel,
+                confidence: m.confidence ?? null,
+              },
+            }),
+          ),
+        );
+      }
+
+      // Bind to a const before the closure: TypeScript discards a property
+      // narrowing inside a callback, so `extraction.actionItem.description` read
+      // as possibly-undefined even under the `if`.
+      const actionItem = extraction.actionItem;
+      if (actionItem) {
+        ops.push(
+          this.prisma.withTenant(tenantId, (tx) =>
+            tx.liveActionItem.create({
+              data: {
+                sessionId,
+                tenantId,
+                segmentId,
+                startMs,
+                description: actionItem.description,
+              },
+            }),
+          ),
+        );
+      }
+
+      const summaryCard = extraction.summaryCard;
+      if (summaryCard) {
+        ops.push(
+          this.prisma.withTenant(tenantId, (tx) =>
+            tx.liveSummaryCard.create({
+              data: {
+                sessionId,
+                tenantId,
+                segmentId,
+                startMs,
+                cardType: summaryCard.cardType,
+                title: summaryCard.title,
+                body: summaryCard.body ?? null,
+              },
+            }),
+          ),
+        );
+      }
+    } else if (
+      extraction.entityMentions.length ||
+      extraction.actionItem ||
+      extraction.summaryCard
+    ) {
+      this.logger.log(
+        `sensitive derived plaintext skipped session=${sessionId} segment=${segmentId} ` +
+          `mentions=${extraction.entityMentions.length} action=${Boolean(extraction.actionItem)} ` +
+          `card=${Boolean(extraction.summaryCard)}`,
       );
     }
 
     if (extraction.keyQuote) {
       const q = extraction.keyQuote;
-      const qText = clientRelevant && this.crypto.configured ? this.crypto.encrypt(q.text) : null;
+      const qText = sensitive && this.crypto.configured ? this.crypto.encrypt(q.text) : null;
       ops.push(
         this.prisma.withTenant(tenantId, (tx) =>
           tx.keyQuote.create({
@@ -179,53 +348,28 @@ export class SegmentCommitService {
               tenantId,
               segmentId,
               startMs,
+              // Speaker names also remain plaintext on KeyQuote. Omit them for
+              // sensitive sessions until that column has encrypted storage.
+              speakerName: null,
               confidence: q.confidence ?? null,
               issueTags: q.issueTags,
               textCiphertext: qText?.textCiphertext ?? null,
               iv: qText?.iv ?? null,
               authTag: qText?.authTag ?? null,
               keyVersion: qText?.keyVersion ?? null,
-              textPlain: qText ? null : clientRelevant ? null : q.text,
+              textPlain: qText ? null : sensitive ? null : q.text,
             },
           }),
         ),
       );
     }
 
-    if (extraction.actionItem) {
-      ops.push(
-        this.prisma.withTenant(tenantId, (tx) =>
-          tx.liveActionItem.create({
-            data: {
-              sessionId,
-              tenantId,
-              segmentId,
-              startMs,
-              description: extraction.actionItem!.description,
-            },
-          }),
-        ),
+    const results = await Promise.allSettled(ops);
+    const failures = results.filter((r) => r.status === 'rejected');
+    if (failures.length) {
+      this.logger.warn(
+        `persistDerived session=${sessionId} segment=${segmentId} failures=${failures.length}`,
       );
     }
-
-    if (extraction.summaryCard) {
-      ops.push(
-        this.prisma.withTenant(tenantId, (tx) =>
-          tx.liveSummaryCard.create({
-            data: {
-              sessionId,
-              tenantId,
-              segmentId,
-              startMs,
-              cardType: extraction.summaryCard!.cardType,
-              title: extraction.summaryCard!.title,
-              body: extraction.summaryCard!.body ?? null,
-            },
-          }),
-        ),
-      );
-    }
-
-    await Promise.allSettled(ops);
   }
 }
