@@ -22,9 +22,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Generate API Prisma client
         run: pnpm --filter @capiro/api exec prisma generate
-      - name: Build and typecheck shared contract
+      - name: Build shared dependencies and typecheck money contract
         run: |
           pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/meriv2-core build
           pnpm --filter @capiro/shared typecheck
       - name: Typecheck API and operational scripts
         id: typecheck
