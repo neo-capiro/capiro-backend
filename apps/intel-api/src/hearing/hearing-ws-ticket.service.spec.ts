@@ -77,9 +77,14 @@ describe('HearingWsTicketService', () => {
       const svc = new HearingWsTicketService(makePrisma(rec));
       const before = Date.now();
       const { expiresAt } = await svc.mint('tenant-1', 'user_1', 'sess-1');
-      const ttl = expiresAt.getTime() - before;
-      expect(ttl).toBeGreaterThan(55_000);
-      expect(ttl).toBeLessThanOrEqual(60_000);
+      const after = Date.now();
+
+      // Bound the expiry against BOTH sides of the call. Comparing only to
+      // `before` and requiring <=60,000ms was inherently flaky: mint computes
+      // Date.now()+60s after `before`, so any millisecond boundary made the TTL
+      // 60,001ms under CI load even though the implementation was correct.
+      expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + 59_000);
+      expect(expiresAt.getTime()).toBeLessThanOrEqual(after + 60_000);
     });
 
     it('binds the ticket to a tenant, user and session', async () => {
