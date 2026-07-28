@@ -65,6 +65,41 @@ function EmptyToUndefined() {
   );
 }
 
+/**
+ * Truncate an over-long string to `max` BEFORE validation runs — the max-length
+ * counterpart to `EmptyToUndefined` above.
+ *
+ * The recipient/context normalizers the service runs on this payload
+ * (`normalizeOutreachRecipients`, `normalizeOutreachContextPool`) already clamp
+ * every one of these fields with `.slice(0, N)` at exactly the `N` the matching
+ * `@Length(_, N)` rejects on. So the two layers disagreed: validation 400'd the
+ * whole request for a value the service was written to store truncated.
+ *
+ * That is not hypothetical — a 305-char document title ("Hearing recap — Armed
+ * Services Committee — …") in a real context library made `contextPool.0.title`
+ * 400 `POST /api/engagement/outreach`. Because Phase 0 routes generation through
+ * `ensureDraftRecord()` first, an over-long *title* presented to the user as
+ * "email generation is failing" — the AI was never reached.
+ *
+ * Clamping here makes the DTO produce exactly what the normalizer would have
+ * stored, so the `@Length` max can no longer fire; it stays declared as the
+ * documented bound. Guarded on `typeof value === 'string'` so it composes with
+ * `EmptyToUndefined` in either decorator order, and leaves non-strings for
+ * `@IsString` to reject.
+ */
+function ClampTo(max: number) {
+  return Transform(({ value }) => (typeof value === 'string' ? value.slice(0, max) : value));
+}
+
+/**
+ * Array counterpart to `ClampTo`: drop entries past `max`, mirroring the
+ * `.slice(0, N)` the same normalizers apply to `recipients`, `contextPool`,
+ * `recipientIds`, and `matches`.
+ */
+function ClampArrayTo(max: number) {
+  return Transform(({ value }) => (Array.isArray(value) ? value.slice(0, max) : value));
+}
+
 class CreateIntegrationDto {
   @IsEnum(EngagementProvider)
   provider!: EngagementProvider;
@@ -640,45 +675,57 @@ class UpsertReportTargetOfficeDto extends CreateReportTargetOfficeDto {
   source?: string;
 }
 
+// Every bound below mirrors normalizeOutreachContextPool (engagement.service.ts):
+// the DTO clamps to the same N the service would have `.slice(0, N)`'d to, so an
+// over-long library title/summary is truncated rather than 400ing the save. See
+// ClampTo.
 class OutreachContextPoolItemDto {
   @IsOptional()
   @IsString()
+  @ClampTo(240)
   @Length(1, 240)
   id?: string;
 
   @IsOptional()
   @IsString()
+  @ClampTo(80)
   @Length(1, 80)
   sourceType?: string;
 
   @IsOptional()
   @IsString()
+  @ClampTo(240)
   @Length(1, 240)
   title?: string;
 
   @IsOptional()
   @IsString()
+  @ClampTo(2000)
   @Length(0, 2000)
   summary?: string;
 
   @IsOptional()
   @IsString()
+  @ClampTo(2000)
   @Length(0, 2000)
   note?: string;
 
   @IsOptional()
   @IsString()
+  @ClampTo(240)
   @Length(1, 240)
   scope?: string;
 
   @IsOptional()
   @IsArray()
+  @ClampArrayTo(200)
   @ArrayMaxSize(200)
   @IsString({ each: true })
   recipientIds?: string[];
 
   @IsOptional()
   @IsArray()
+  @ClampArrayTo(200)
   @ArrayMaxSize(200)
   @IsString({ each: true })
   matches?: string[];
@@ -694,10 +741,16 @@ class GroupMemberDto {
   name?: string;
 }
 
+// As with OutreachContextPoolItemDto, every ClampTo below mirrors the matching
+// `.slice(0, N)` in normalizeOutreachRecipients (engagement.service.ts). Fields
+// the normalizer does NOT clamp (sourceLabel, cc/bcc, groupMembers,
+// generationKey[s]) keep their hard bound — there is no server-side truncation
+// to agree with, so rejecting is still the honest answer.
 class OutreachRecipientDto {
   @IsOptional()
   @IsString()
   @EmptyToUndefined()
+  @ClampTo(240)
   @Length(1, 240)
   id?: string;
 
@@ -712,9 +765,12 @@ class OutreachRecipientDto {
   @IsOptional()
   @IsString()
   @EmptyToUndefined()
+  @ClampTo(160)
   @Length(1, 160)
   name?: string;
 
+  // Deliberately NOT clamped: a truncated address is an undeliverable address,
+  // so a malformed value must still be rejected rather than quietly mailed.
   @IsOptional()
   @IsEmail()
   email?: string;
@@ -722,65 +778,76 @@ class OutreachRecipientDto {
   @IsOptional()
   @IsString()
   @EmptyToUndefined()
+  @ClampTo(240)
   @Length(1, 240)
   office?: string;
 
   @IsOptional()
   @IsString()
   @EmptyToUndefined()
+  @ClampTo(160)
   @Length(1, 160)
   title?: string;
 
   @IsOptional()
   @IsString()
   @EmptyToUndefined()
+  @ClampTo(80)
   @Length(1, 80)
   chamber?: string;
 
   @IsOptional()
   @IsString()
   @EmptyToUndefined()
+  @ClampTo(80)
   @Length(1, 80)
   state?: string;
 
   @IsOptional()
   @IsString()
   @EmptyToUndefined()
+  @ClampTo(80)
   @Length(1, 80)
   district?: string;
 
   @IsOptional()
   @IsString()
   @EmptyToUndefined()
+  @ClampTo(80)
   @Length(1, 80)
   party?: string;
 
   @IsOptional()
   @IsString()
   @EmptyToUndefined()
+  @ClampTo(240)
   @Length(1, 240)
   directoryContactId?: string;
 
   @IsOptional()
   @IsString()
   @EmptyToUndefined()
+  @ClampTo(240)
   @Length(1, 240)
   directoryContactName?: string;
 
   @IsOptional()
   @IsString()
   @EmptyToUndefined()
+  @ClampTo(160)
   @Length(1, 160)
   committee?: string;
 
   @IsOptional()
   @IsString()
+  @ClampTo(500)
   @Length(0, 500)
   address?: string;
 
   @IsOptional()
   @IsString()
   @EmptyToUndefined()
+  @ClampTo(240)
   @Length(1, 240)
   relevanceReason?: string;
 
@@ -796,6 +863,7 @@ class OutreachRecipientDto {
   @IsOptional()
   @IsString()
   @EmptyToUndefined()
+  @ClampTo(500)
   @Length(1, 500)
   personalNote?: string;
 
@@ -847,37 +915,44 @@ class OutreachRecipientDto {
   @IsOptional()
   @IsString()
   @EmptyToUndefined()
+  @ClampTo(240)
   @Length(1, 240)
   meetingSubject?: string;
 
   @IsOptional()
   @IsString()
   @EmptyToUndefined()
+  @ClampTo(120)
   @Length(1, 120)
   meetingDateTime?: string;
 
   @IsOptional()
   @IsString()
+  @ClampTo(1000)
   @Length(0, 1000)
   attendeeNames?: string;
 
   @IsOptional()
   @IsString()
+  @ClampTo(1000)
   @Length(0, 1000)
   attendeeEmails?: string;
 
   @IsOptional()
   @IsString()
+  @ClampTo(2000)
   @Length(0, 2000)
   prepSummary?: string;
 
   @IsOptional()
   @IsString()
+  @ClampTo(2000)
   @Length(0, 2000)
   debriefSummary?: string;
 
   @IsOptional()
   @IsString()
+  @ClampTo(500)
   @Length(0, 500)
   meetingLocation?: string;
 }
@@ -1381,7 +1456,10 @@ export class CreateSendIntentDto {
   testMode?: boolean;
 }
 
-class CreateOutreachRecordDto {
+// Exported so engagement-outreach-clamp.spec.ts can validate the REAL DTO
+// (with its real ClampTo bounds) rather than a hand-mirrored copy that could
+// drift from it.
+export class CreateOutreachRecordDto {
   @IsIn(outreachTypes)
   type!: (typeof outreachTypes)[number];
 
@@ -1410,8 +1488,14 @@ class CreateOutreachRecordDto {
   @IsString()
   body?: string;
 
+  // Both arrays are clamped to 500 by their normalizers before persisting, so
+  // the DTO clamps too rather than 400ing an over-long list. This is the
+  // PERSISTENCE path only — GenerateBatchEmailDto.recipients keeps its hard
+  // @ArrayMaxSize(100) reject, because silently dropping recipients from a
+  // generate or a send would lose mail the user asked to send.
   @IsOptional()
   @IsArray()
+  @ClampArrayTo(500)
   @ArrayMaxSize(500)
   @ValidateNested({ each: true })
   @Type(() => OutreachRecipientDto)
@@ -1419,6 +1503,7 @@ class CreateOutreachRecordDto {
 
   @IsOptional()
   @IsArray()
+  @ClampArrayTo(500)
   @ArrayMaxSize(500)
   @ValidateNested({ each: true })
   @Type(() => OutreachContextPoolItemDto)
@@ -1466,8 +1551,14 @@ class UpdateOutreachRecordDto {
   @IsString()
   body?: string | null;
 
+  // Both arrays are clamped to 500 by their normalizers before persisting, so
+  // the DTO clamps too rather than 400ing an over-long list. This is the
+  // PERSISTENCE path only — GenerateBatchEmailDto.recipients keeps its hard
+  // @ArrayMaxSize(100) reject, because silently dropping recipients from a
+  // generate or a send would lose mail the user asked to send.
   @IsOptional()
   @IsArray()
+  @ClampArrayTo(500)
   @ArrayMaxSize(500)
   @ValidateNested({ each: true })
   @Type(() => OutreachRecipientDto)
@@ -1475,6 +1566,7 @@ class UpdateOutreachRecordDto {
 
   @IsOptional()
   @IsArray()
+  @ClampArrayTo(500)
   @ArrayMaxSize(500)
   @ValidateNested({ each: true })
   @Type(() => OutreachContextPoolItemDto)
@@ -1500,8 +1592,14 @@ class GenerateOutreachDraftDto {
   @IsIn(['on-behalf', 'to-clients'])
   direction?: 'on-behalf' | 'to-clients';
 
+  // Both arrays are clamped to 500 by their normalizers before persisting, so
+  // the DTO clamps too rather than 400ing an over-long list. This is the
+  // PERSISTENCE path only — GenerateBatchEmailDto.recipients keeps its hard
+  // @ArrayMaxSize(100) reject, because silently dropping recipients from a
+  // generate or a send would lose mail the user asked to send.
   @IsOptional()
   @IsArray()
+  @ClampArrayTo(500)
   @ArrayMaxSize(500)
   @ValidateNested({ each: true })
   @Type(() => OutreachRecipientDto)
@@ -1509,6 +1607,7 @@ class GenerateOutreachDraftDto {
 
   @IsOptional()
   @IsArray()
+  @ClampArrayTo(500)
   @ArrayMaxSize(500)
   @ValidateNested({ each: true })
   @Type(() => OutreachContextPoolItemDto)

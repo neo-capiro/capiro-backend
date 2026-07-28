@@ -59,6 +59,8 @@ describe('scoreBillFit — P0-04 routing end-to-end', () => {
       fit: 0.42, // 0.4*0.3 (semantic) + 0.3 (textMatch) + 0 (exactEntity — synonym is not entity-like) + 0 + 0
       belowFloor: true, // < RECOMMENDATION_FLOOR (0.45)
       matchedTags: ['grid reliability'],
+      // Gate K (MP-09): this fixture's topic carries no `id`, so matchedTopicIds stays empty.
+      matchedTopicIds: [],
       matchReasons: [
         { kind: 'keyword', detail: 'Matches your watchlist term "load shedding".' },
         { kind: 'semantic', detail: 'Semantic match to your watchlist (≈ "grid reliability").' },

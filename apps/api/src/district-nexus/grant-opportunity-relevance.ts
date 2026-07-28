@@ -87,6 +87,12 @@ export interface RelevanceResult {
   reason: string;
 }
 
+// Fixed total signal weight — the scoring denominator (see scoreOpportunityRelevance).
+// It does NOT shrink for a client we hold thin profile data on; a thin profile
+// scores lower, it isn't excused from the denominator. Simplicity/auditability
+// tradeoff: a fixed scale is trivial to reproduce and explain, whereas "which
+// signals could this client-opportunity pair have possibly evaluated" has no
+// defined rule for all six signals.
 const MAX_SCORE = Object.values(RELEVANCE_WEIGHTS).reduce((sum, w) => sum + w, 0);
 
 function norm(value: string | null | undefined): string {
@@ -97,6 +103,32 @@ function normalizeListing(value: string | null | undefined): string {
   // Assistance Listings are "NN.NNN"; strip anything that isn't part of that
   // so "93.778 " and "CFDA 93.778" compare equal.
   return (value ?? '').replace(/[^0-9.]/g, '');
+}
+
+// Sector-taxonomy / domain-universal words that carry no topical signal on
+// their own for FEDERAL GRANT text specifically: "government"/"federal" are
+// near-tautological in an opportunity's own title+description (it is
+// necessarily a federal notice), and "other" is SECTOR_TAGS' literal
+// catch-all meaning "no specific sector" (packages/shared SECTOR_TAGS) — none
+// of these should be able to manufacture a match by themselves. Distinctive
+// topical words ("defense", "aerospace", "energy") pass through.
+const GENERIC_SECTOR_TOKENS = new Set(['and', 'of', 'the', 'for', 'government', 'federal', 'other']);
+
+/**
+ * client.sector (Client.sectorTag) is meant to be a controlled SectorTag
+ * (packages/shared SECTOR_TAGS) but carries pre-migration free text for
+ * clients created before that enum existed — e.g. "Defense / Aerospace"
+ * rather than "DEFENSE" (confirmed live on the RTX client). Splitting into
+ * tokens instead of matching the whole string handles both shapes the same
+ * way and lets a compound legacy value match on ANY of its distinctive words,
+ * not just when the entire string happens to appear verbatim in the grant
+ * text (which single-token clean enum values do, but almost no multi-word or
+ * punctuated value ever will).
+ */
+function sectorTokens(sector: string | null | undefined): string[] {
+  return norm(sector)
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length > 2 && !GENERIC_SECTOR_TOKENS.has(t));
 }
 
 /**
@@ -166,10 +198,11 @@ export function computeEligibility(
  * Score how relevant an opportunity is to a client, and separately whether the
  * client can actually apply.
  *
- * Score is expressed 0-100 as a share of the weight that could match, so a
- * client we hold little profile data for does not automatically look
- * irrelevant. Only signals that could be evaluated count toward the
- * denominator.
+ * Score is expressed 0-100 as a share of the FIXED total signal weight
+ * (MAX_SCORE — see its own comment for why the denominator doesn't vary
+ * per client). A thin client profile scores lower on this scale, not
+ * "not applicable" — a floor is a statement like "an assistanceListing hit
+ * alone clears it" or "these weaker signals together reach the same share".
  */
 export function scoreOpportunityRelevance(
   client: ClientRelevanceProfile,
@@ -211,17 +244,24 @@ export function scoreOpportunityRelevance(
     });
   }
 
-  const sector = norm(client.sector);
-  if (sector && sector.length > 2 && haystack.includes(sector)) {
+  const sectorHit = sectorTokens(client.sector).find((t) => haystack.includes(t));
+  if (sectorHit) {
     matchedSignals.push({
       signal: 'sector',
       weight: RELEVANCE_WEIGHTS.sector,
-      matchedOn: client.sector ?? '',
+      matchedOn: sectorHit,
     });
   }
 
+  // Client-independent on purpose is NOT allowed here: fundingCategory is the
+  // OPPORTUNITY's own taxonomy value, so it must only ever be compared against
+  // something about the CLIENT (client.sector), never against the
+  // opportunity's own title/description — that would score every client
+  // identically off a fact that has nothing to do with them (confirmed live:
+  // 120 of 183 signal hits were exactly this, including clients with zero
+  // capabilities and no sector at all).
   const category = norm(opportunity.fundingCategory);
-  if (category && (haystack.includes(category) || norm(client.sector) === category)) {
+  if (category && norm(client.sector) === category) {
     matchedSignals.push({
       signal: 'fundingCategory',
       weight: RELEVANCE_WEIGHTS.fundingCategory,

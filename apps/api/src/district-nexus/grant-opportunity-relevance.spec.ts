@@ -94,6 +94,79 @@ describe('relevance signals', () => {
     expect(result.relevanceScore).toBe(0);
     expect(result.matchedSignals).toEqual([]);
   });
+
+  describe('fundingCategory (regression: was client-independent self-match)', () => {
+    test('does NOT match just because the category string appears in the opportunity\'s own text', () => {
+      // A grant's own title/description mentioning its own funding category is
+      // a fact about the OPPORTUNITY, not the client — this client has no
+      // sector, no capabilities, nothing that could legitimately signal a match.
+      const result = scoreOpportunityRelevance(
+        client(),
+        opportunity({
+          fundingCategory: 'Health',
+          title: 'Health Research Initiative',
+          description: 'Funding for health-related research.',
+        }),
+      );
+      expect(result.matchedSignals.map((s) => s.signal)).not.toContain('fundingCategory');
+    });
+
+    test('still matches when the client sector exactly equals the funding category', () => {
+      const result = scoreOpportunityRelevance(
+        client({ sector: 'Health' }),
+        opportunity({ fundingCategory: 'Health', title: 'Unrelated title', description: null }),
+      );
+      expect(result.matchedSignals.map((s) => s.signal)).toContain('fundingCategory');
+    });
+  });
+
+  describe('sector (regression: was whole-string match only)', () => {
+    test('a clean single-token sector still matches', () => {
+      const result = scoreOpportunityRelevance(
+        client({ sector: 'DEFENSE' }),
+        opportunity({ description: 'Support for defense modernization programs.' }),
+      );
+      expect(result.matchedSignals.map((s) => s.signal)).toContain('sector');
+    });
+
+    test('a legacy compound sector value ("Defense / Aerospace", confirmed live on RTX) matches on its distinctive tokens', () => {
+      const result = scoreOpportunityRelevance(
+        client({ sector: 'Defense / Aerospace' }),
+        opportunity({ description: 'Advanced aerospace propulsion research.' }),
+      );
+      const hit = result.matchedSignals.find((s) => s.signal === 'sector');
+      expect(hit).toBeDefined();
+      expect(hit?.matchedOn).toBe('aerospace');
+    });
+
+    test('an underscore-separated legacy sector value tokenizes the same way', () => {
+      const result = scoreOpportunityRelevance(
+        client({ sector: 'GOVERNMENT_AFFAIRS' }),
+        opportunity({ description: 'Public affairs and outreach coordination.' }),
+      );
+      const hit = result.matchedSignals.find((s) => s.signal === 'sector');
+      expect(hit).toBeDefined();
+      expect(hit?.matchedOn).toBe('affairs');
+    });
+
+    test('a sector value made ONLY of domain-generic words does not manufacture a match', () => {
+      // "government"/"federal" are near-tautological in a federal opportunity's
+      // own text; matching on them alone would flood every opportunity.
+      const result = scoreOpportunityRelevance(
+        client({ sector: 'Federal Government' }),
+        opportunity({ description: 'A routine federal government notice with no other detail.' }),
+      );
+      expect(result.matchedSignals.map((s) => s.signal)).not.toContain('sector');
+    });
+
+    test('the "OTHER" catch-all sector value does not manufacture a match off the common word "other"', () => {
+      const result = scoreOpportunityRelevance(
+        client({ sector: 'OTHER' }),
+        opportunity({ description: 'This program is unlike any other in the portfolio.' }),
+      );
+      expect(result.matchedSignals.map((s) => s.signal)).not.toContain('sector');
+    });
+  });
 });
 
 describe('eligibility is computed only from structured fields', () => {

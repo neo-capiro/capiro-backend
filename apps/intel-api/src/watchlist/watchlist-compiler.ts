@@ -28,6 +28,11 @@ export const DEEPGRAM_KEYTERM_CAP = 100;
 export const ROUTABLE_TERMS_PER_TOPIC_CAP = 100;
 
 export interface CompilerTopic {
+  /** Gate K (MP-08/MP-09): the persisted topic's stable id, so downstream
+   *  feedback (recordFeedback/feedbackSignal) can key on identity instead of
+   *  a label that can be renamed. `null`/absent for a topic with no row yet
+   *  (the synthetic "Hearing terms" fold-back before its first save). */
+  id?: string | null;
   label: string;
   issueArea: string | null;
   position: string;
@@ -45,6 +50,8 @@ export interface CompilerTerm {
   termId?: string | null;
 }
 export interface CompiledBillTopic {
+  /** Gate K (MP-08/MP-09) — see CompilerTopic.id. */
+  id?: string | null;
   label: string;
   issueArea: string | null;
   position: string;
@@ -116,7 +123,10 @@ export function compileWatchlist(input: {
       // Sorted for the compiler's byte-stability requirement (SC-4).
       const labelTerm: RoutableTerm = {
         id: null,
-        topicId: null,
+        // Gate K (MP-08): was hardcoded null — RoutableTerm.topicId exists
+        // precisely so a TermMatch can attribute back to its owning topic,
+        // but nothing ever populated it on this (recommendations) path.
+        topicId: tp.id ?? null,
         topicLabel: tp.label,
         termType: 'keyword',
         value: tp.label,
@@ -128,7 +138,7 @@ export function compileWatchlist(input: {
           .filter((t) => isAcceptableTerm(t.value) && routeFor(t.termType))
           .map((t) => ({
             id: t.termId ?? null,
-            topicId: null,
+            topicId: tp.id ?? null,
             topicLabel: tp.label,
             termType: t.termType,
             value: t.value.trim(),
@@ -154,6 +164,7 @@ export function compileWatchlist(input: {
         routableTerms.length = ROUTABLE_TERMS_PER_TOPIC_CAP;
       }
       return {
+        id: tp.id ?? null,
         label: tp.label,
         issueArea: tp.issueArea,
         position: tp.position,
@@ -182,16 +193,30 @@ export function compileWatchlist(input: {
   // (relevance.util wholeWordHit matches those case-sensitively). That is fine for
   // transcription boosting — a spurious boost costs nothing — but do NOT "unify"
   // the two paths by lower-casing the bill matcher too.
-  const seen = new Set<string>();
-  const cand: Array<{ value: string; weight: number; topicLabel: string }> = [];
+  // Gate K (MP-10): FIRST occurrence used to win unconditionally, freezing
+  // BOTH weight and topicLabel to whichever row the DB read happened to
+  // return first — which was unordered before a-1's fix, and even with a-1
+  // is still an arbitrary tie-break for two topics genuinely sharing a term.
+  // A low-priority topic's term could beat its high-priority twin purely by
+  // row order. Keep the HIGHER-weight occurrence instead, with a
+  // deterministic tie-break (weight desc, then lexically smallest label) so
+  // a genuine tie is byte-stable across runs rather than arrival-order-dependent.
+  const byValue = new Map<string, { value: string; weight: number; topicLabel: string }>();
   for (const t of input.terms) {
     const raw = t.value.trim();
     if (!isAcceptableTerm(raw)) continue;
     const v = raw.toLowerCase();
-    if (seen.has(v)) continue;
-    seen.add(v);
-    cand.push({ value: v, weight: t.weight, topicLabel: t.topicLabel ?? '' });
+    const candTopicLabel = t.topicLabel ?? '';
+    const existing = byValue.get(v);
+    if (
+      !existing ||
+      t.weight > existing.weight ||
+      (t.weight === existing.weight && candTopicLabel.localeCompare(existing.topicLabel) < 0)
+    ) {
+      byValue.set(v, { value: v, weight: t.weight, topicLabel: candTopicLabel });
+    }
   }
+  const cand = Array.from(byValue.values());
   cand.sort((a, b) => b.weight - a.weight || a.value.localeCompare(b.value));
   // §4.9: reserve a per-topic share so one 400-term topic cannot consume the whole
   // cap and starve every other topic. Pass 1 takes each topic's top `perTopic` by

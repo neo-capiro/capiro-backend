@@ -31,6 +31,13 @@ export interface SourceStateBill {
   stateUrl: string | null;
   url: string | null;
   subjects: string[] | null;
+  /**
+   * Gate K (HP-02, e-3): the bill's CURRENT committee referral only
+   * (state_bill.current_committee_id is a single FK, not a history — unlike
+   * the federal rail's full congress_bill_committee list). Null when
+   * uncurated/not yet referred. A single-element array, never multiple.
+   */
+  committees: string[] | null;
 }
 
 export interface SourceStateSponsorMomentum {
@@ -75,28 +82,36 @@ export interface SourceStateSessionCalendar {
 export class StateSourceDataRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Batch-read GLOBAL `state_bill` rows by DD1 key (for the shadow change detector). */
+  /**
+   * Batch-read GLOBAL `state_bill` rows by DD1 key (for the shadow change
+   * detector). Gate K (HP-02, e-3): LEFT JOIN state_committee via the
+   * bill's current_committee_id — a single FK, so this is the bill's
+   * CURRENT referral only, wrapped in a one-element array to match the
+   * federal rail's `committees: string[]` shape (RelevanceBill).
+   */
   async getStateBillsByIds(keys: string[]): Promise<SourceStateBill[]> {
     if (!keys.length) return [];
     return this.prisma.$queryRawUnsafe<SourceStateBill[]>(
-      `SELECT id,
-              state,
-              session_key         AS "sessionKey",
-              identifier,
-              title,
-              status,
-              status_at            AS "statusAt",
-              latest_action_text   AS "latestActionText",
-              latest_action_date   AS "latestActionDate",
-              text_date            AS "textDate",
-              sponsor_name         AS "sponsorName",
-              sponsor_party        AS "sponsorParty",
-              sponsor_count        AS "sponsorCount",
-              state_url            AS "stateUrl",
-              url,
-              subjects
-         FROM state_bill
-        WHERE id = ANY($1::text[])`,
+      `SELECT sb.id,
+              sb.state,
+              sb.session_key         AS "sessionKey",
+              sb.identifier,
+              sb.title,
+              sb.status,
+              sb.status_at            AS "statusAt",
+              sb.latest_action_text   AS "latestActionText",
+              sb.latest_action_date   AS "latestActionDate",
+              sb.text_date            AS "textDate",
+              sb.sponsor_name         AS "sponsorName",
+              sb.sponsor_party        AS "sponsorParty",
+              sb.sponsor_count        AS "sponsorCount",
+              sb.state_url            AS "stateUrl",
+              sb.url,
+              sb.subjects,
+              CASE WHEN sc.name IS NOT NULL THEN ARRAY[sc.name] ELSE NULL END AS "committees"
+         FROM state_bill sb
+         LEFT JOIN state_committee sc ON sc.id = sb.current_committee_id
+        WHERE sb.id = ANY($1::text[])`,
       keys,
     );
   }

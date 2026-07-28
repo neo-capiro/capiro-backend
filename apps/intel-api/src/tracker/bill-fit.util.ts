@@ -40,10 +40,21 @@ export interface BillFit {
   fit: number;
   belowFloor: boolean;
   matchedTags: string[];
+  /**
+   * Gate K (MP-09): the topic ids behind `matchedTags`'s topic entries
+   * (never issue areas, which have no topic id — c-4's keyspace split).
+   * This is what `recordFeedback` should persist so a topic rename can no
+   * longer sever an already-accumulated dismissal signal.
+   */
+  matchedTopicIds: string[];
   matchReasons: MatchReason[];
   whyKind: MatchReasonKind;
   why: string;
 }
+
+/** Gate K (c-5, Neo-confirmed 2026-07-27): raised from 4 now that ids make
+ *  each entry cheap — live volume is ~13 topics/31 terms tenant-wide. */
+const MATCHED_TAGS_CAP = 10;
 
 const clamp01 = (n: number): number => Math.max(0, Math.min(1, n));
 
@@ -98,7 +109,12 @@ const ENTITY_KIND_TYPES = new Set([
   'legislator',
 ]);
 
-/** §4.10 (Gate E phase f): per-topic dismissal counts, keyed by topic label. */
+/**
+ * §4.10 (Gate E phase f): per-topic dismissal counts. Gate K (MP-09): keyed
+ * by topic ID when the producing row has one (stable across a rename — see
+ * `topicWeight` below), falling back to LABEL for a row written before
+ * `intel_feedback.matched_topic_ids` existed.
+ */
 export interface TopicFeedback {
   total: number;
   byReason: Record<string, number>;
@@ -113,8 +129,19 @@ const MATCH_QUALITY_REASONS = new Set(['too_broad', 'wrong_issue']);
  * feedback (undefined, or no entry for this label) is 1.0 — i.e. identical
  * to today's unweighted behavior.
  */
-function topicWeight(feedback: Map<string, TopicFeedback> | undefined, label: string): number {
-  const entry = feedback?.get(label);
+/**
+ * Gate K (MP-09, c-6): look up by topic id FIRST, label second. A rename
+ * changes `label` but not `id`, so an id hit is what keeps a topic's
+ * accumulated dismissal signal attached to it across a rename; the label
+ * fallback is what still serves historical `intel_feedback` rows written
+ * before `matched_topic_ids` existed.
+ */
+function topicWeight(
+  feedback: Map<string, TopicFeedback> | undefined,
+  label: string,
+  id?: string | null,
+): number {
+  const entry = (id ? feedback?.get(id) : undefined) ?? feedback?.get(label);
   if (!entry) return 1;
   const n = MATCH_QUALITY_REASONS_COUNT(entry);
   if (n >= 6) return 0.5;
@@ -143,6 +170,7 @@ export function scoreBillFit(
   const hay = billHaystack(bill);
   const hayOrig = billHaystackOriginal(bill);
   const matchedTags: string[] = [];
+  const matchedTopicIds: string[] = [];
   const reasons: MatchReason[] = [];
   // These were plain booleans/0-1 flags before phase f. Now they track the
   // MAX weight among contributing topics — with feedback absent, `topicWeight`
@@ -161,8 +189,9 @@ export function scoreBillFit(
     const matches = matchTerms(bill, tp.routableTerms ?? []);
     if (matches.length) {
       matchedTags.push(tp.label);
+      if (tp.id) matchedTopicIds.push(tp.id);
       topicTextMatch = true;
-      const w = topicWeight(feedback, tp.label);
+      const w = topicWeight(feedback, tp.label, tp.id);
       textMatchWeight = Math.max(textMatchWeight, w);
       // Faithful generalization of the old "label or entity term hit" check:
       // a high-confidence (exact_id) match, or a match whose type is
@@ -215,7 +244,8 @@ export function scoreBillFit(
   return {
     fit,
     belowFloor: fit < RECOMMENDATION_FLOOR,
-    matchedTags: Array.from(new Set(matchedTags)).slice(0, 4),
+    matchedTags: Array.from(new Set(matchedTags)).slice(0, MATCHED_TAGS_CAP),
+    matchedTopicIds: Array.from(new Set(matchedTopicIds)).slice(0, MATCHED_TAGS_CAP),
     matchReasons: reasons.slice(0, 3),
     whyKind: primary.kind,
     why: primary.detail,

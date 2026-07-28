@@ -14,6 +14,8 @@
  *
  * Pure — no I/O, no Date, no throw. A malformed `evidence` yields a valid object.
  */
+import type { TermMatch } from '../watchlist/term-routing.js';
+
 export const ALERT_EVIDENCE_SCHEMA_VERSION = 1;
 
 export type NormalizedEvidenceType =
@@ -58,16 +60,14 @@ export interface NormalizedMatch {
   termId: string | null;
   topicLabel: string | null;
   why: string | null;
-  /** Populated from Gate B's TermMatch when the writer recorded it; [] otherwise. */
-  details: Array<{
-    termType: string;
-    matchType: string;
-    matchedText: string;
-    sourceField: string;
-    weight: number;
-    confidence: number;
-    explanation: string;
-  }>;
+  /**
+   * Populated from Gate B's TermMatch when the writer recorded it; [] on a
+   * row from before any writer did (Gate K, HP-01, made this non-empty for
+   * the first time — bill-change-detector.service.ts's writeShadowAlert).
+   * Widened to the full TermMatch shape (was missing termId/topicId) since
+   * that is exactly what is now stored.
+   */
+  details: TermMatch[];
 }
 export interface NormalizedProvenance {
   /** The official source URL (congress.gov / LegiScan / Federal Register / committee). */

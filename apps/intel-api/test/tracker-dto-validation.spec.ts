@@ -322,4 +322,57 @@ describe('PutWatchlistDto', () => {
       validate(PutWatchlistDto, { topics: [{ label: 'grid load', renameFrom: 'data center load' }] }),
     ).resolves.toBeDefined();
   });
+
+  /**
+   * Gate K (MP-08, b-2). MASTER §6.10: this is "the single most likely way
+   * this gate breaks production" — the global pipe is whitelist +
+   * forbidNonWhitelisted, so the moment the web starts echoing `id` back on
+   * every topic (intel-tracker-api.ts watchlistToIntel), every save 400s
+   * unless the DTO declares the field.
+   */
+  it('accepts a topic id (Gate K, MP-08) — the exact field the web now echoes back', async () => {
+    await expect(
+      validate(PutWatchlistDto, {
+        topics: [{ id: 'cksometopicid123', label: 'data center load', terms: [] }],
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it('accepts a client-minted temp id on a brand-new, unsaved topic', async () => {
+    await expect(
+      validate(PutWatchlistDto, { topics: [{ id: 'temp-0', label: 'new tag', terms: [] }] }),
+    ).resolves.toBeDefined();
+  });
+
+  it('rejects an oversized id', async () => {
+    await expect(
+      validate(PutWatchlistDto, {
+        topics: [{ id: 'x'.repeat(65), label: 'data center load', terms: [] }],
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('accepts the exact payload watchlistToIntel produces once ids are wired in (regression lock)', async () => {
+    const payload = {
+      issueAreas: ['Energy & Utilities'],
+      jurisdictions: ['CA', 'TX'],
+      topics: [
+        {
+          id: 'cksometopicid123',
+          label: 'data center load',
+          issueArea: 'Energy & Utilities',
+          position: 'monitor',
+          priority: 'high',
+          terms: [
+            { termType: 'synonym', value: 'hyperscale demand' },
+            { termType: 'entity', value: 'PJM' },
+            { termType: 'risk', value: 'grid strain' },
+            { termType: 'company', value: 'RTX' },
+            { termType: 'topic', value: 'AI' },
+          ],
+        },
+      ],
+    };
+    await expect(validate(PutWatchlistDto, payload)).resolves.toBeDefined();
+  });
 });
