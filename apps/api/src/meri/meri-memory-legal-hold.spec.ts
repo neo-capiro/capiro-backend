@@ -51,6 +51,7 @@ function buildService(opts: { clioMemoryRow: Record<string, unknown> | null; leg
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
   );
   return { service, tx, prisma, memoryIngest };
 }

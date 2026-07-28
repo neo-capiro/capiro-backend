@@ -514,8 +514,9 @@ export class MeriService {
     mode: 'new' | 'regenerate' | 'resend' = 'new',
     attachmentIds: string[] = [],
     // The caller's raw Clerk bearer — required ONLY by the MeriV2 full-chat
-    // proxy branch (delegated tools + the approval check re-authenticate with
-    // it downstream). The legacy in-process path never touches it.
+    // proxy branch (delegated tool execution + action-proposal creation
+    // re-authenticate with it downstream). The legacy in-process path never
+    // touches it.
     bearerToken?: string,
     // Impersonation (2.5): the effective tenant a staff caller is acting AS,
     // forwarded to the MeriV2 proxy branch so its delegated apps/api calls scope
@@ -857,7 +858,8 @@ export class MeriService {
     // emits page_write output, carries native vision blocks, and propagates the
     // impersonation header (apps/api re-validates the impersonation authz on
     // every delegated call). A MISSING bearer still routes legacy: the
-    // orchestrator's delegated tools + approval check re-authenticate with it.
+    // orchestrator's delegated tool execution + action-proposal creation
+    // re-authenticate with it.
     const meriV2FullChatEnabled =
       bearerToken && this.meriV2Chat.configured
         ? await this.meriFlags.isMeriV2SurfaceEnabled(ctx.tenantId, MERIV2_FLAGS.fullChat)
@@ -868,7 +870,8 @@ export class MeriService {
         configured: this.meriV2Chat.configured,
         enabled: meriV2FullChatEnabled,
         impersonateTenantId,
-      })
+      }) &&
+      bearerToken
     ) {
       await this.streamMessageViaMeriV2({
         ctx,
@@ -1928,7 +1931,8 @@ export class MeriService {
     const pendingApprovals: Array<{
       tool: string;
       label?: string;
-      fingerprint: string;
+      proposalId: string;
+      status: string;
       reason: string;
     }> = [];
     // Ids of deliverables the delegated create_* tools persisted this turn (with
@@ -1978,13 +1982,27 @@ export class MeriService {
           return;
         }
         case 'pending_approval':
-          pendingApprovals.push(event);
+          pendingApprovals.push({
+            tool: event.tool,
+            label: event.label,
+            proposalId: event.proposalId,
+            status: event.status,
+            reason: event.reason,
+          });
+          // Forward the full proposal shape — the browser approves by opaque
+          // proposalId only and renders the preview/expiry/risk tier; it never
+          // receives a tool payload or fingerprint it could replay as authority.
           emit({
             type: 'pending_approval',
             tool: event.tool,
             label: event.label,
-            fingerprint: event.fingerprint,
+            proposalId: event.proposalId,
+            status: event.status,
             reason: event.reason,
+            expiresAt: event.expiresAt,
+            riskTier: event.riskTier,
+            policyCode: event.policyCode,
+            preview: event.preview,
           });
           return;
         case 'artifact':

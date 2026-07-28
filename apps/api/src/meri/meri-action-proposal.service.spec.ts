@@ -233,6 +233,17 @@ describe('MeriActionProposalService', () => {
     expect(h.tools.execute).not.toHaveBeenCalled();
   });
 
+  it('blocks a stored tool that no longer matches its fingerprint', async () => {
+    const original = makeRow();
+    const tamperedTool = { ...original, tool: 'reply_email' } as MeriActionProposal;
+    const h = harness({ row: tamperedTool });
+    h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
+    const result = await h.service.approveAndExecute(ctx, PROPOSAL);
+    expect(result.status).toBe('blocked');
+    expect(result.error?.code).toBe('fingerprint_mismatch');
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
   it('rechecks current policy and blocks a WARN proposal that is now BLOCK', async () => {
     const h = harness();
     h.setPolicy({ outcome: 'BLOCK', reasons: ['Policy now blocks this action'], code: 'new_block' });
@@ -283,6 +294,16 @@ describe('MeriActionProposalService', () => {
     expect((await h.service.approveAndExecute(ctx, PROPOSAL)).status).toBe('failed_retryable');
   });
 
+  it('classifies a genuine validation failure as failed_terminal, never succeeded', async () => {
+    const row = makeRow({ tool: 'update_client_profile', input: { clientId: TENANT, name: 'Acme' } });
+    const h = harness({ row, executeError: new Error('validation failed: clientId not found') });
+    h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
+    const result = await h.service.approveAndExecute(ctx, PROPOSAL);
+    expect(result.status).toBe('failed_terminal');
+    expect(result.status).not.toBe('succeeded');
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
+
   it('does not reveal or execute another user or tenant proposal', async () => {
     const h = harness();
     h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
@@ -306,5 +327,41 @@ describe('MeriActionProposalService', () => {
     const h = harness({ row: makeRow({ status }) });
     expect((await h.service.approveAndExecute(ctx, PROPOSAL)).status).toBe(status);
     expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+});
+
+describe('MeriActionProposalService.list', () => {
+  it("never returns another tenant or user's proposals", async () => {
+    const own = makeRow({ id: PROPOSAL });
+    const foreign = makeRow({
+      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      tenantId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      userId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    });
+    const rows = [own, foreign];
+    const tx = {
+      meriActionProposal: {
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        findMany: jest.fn(async ({ where }: { where: Record<string, unknown> }) =>
+          rows.filter((r) => r.tenantId === where.tenantId && r.userId === where.userId),
+        ),
+      },
+    };
+    const prisma = {
+      withTenant: jest.fn((_tenantId: string, callback: (arg: typeof tx) => unknown) => callback(tx)),
+    } as unknown as PrismaService;
+    const tools = {} as unknown as MeriToolsService;
+    const config = {
+      get: (key: string) => (key === 'MERIV2_ACTION_PROPOSALS_ENABLED' ? true : undefined),
+    } as unknown as ConfigService<AppConfig, true>;
+    const service = new MeriActionProposalService(prisma, tools, config);
+
+    const result = await service.list(ctx);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.proposalId).toBe(PROPOSAL);
+    expect(tx.meriActionProposal.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ tenantId: TENANT, userId: USER }) }),
+    );
   });
 });

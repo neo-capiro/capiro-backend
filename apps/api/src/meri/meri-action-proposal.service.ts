@@ -417,12 +417,19 @@ export class MeriActionProposalService {
     },
   ): Promise<MeriActionProposal> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // The claim winner is the only caller that ever reaches finalize() for this
+      // proposal, but a slow execution can outlive reconcileStaleExecuting()'s
+      // 5-minute cutoff, which flips 'executing' -> 'outcome_unknown' out from
+      // under it. Accepting that state here too lets the true terminal result
+      // still land instead of being silently discarded in favor of a premature
+      // "unknown" — this never lets a second actor finalize (only the single
+      // claim winner ever calls this method).
       await tx.meriActionProposal.updateMany({
         where: {
           id: proposalId,
           tenantId: ctx.tenantId,
           userId: ctx.userId,
-          status: 'executing',
+          status: { in: ['executing', 'outcome_unknown'] },
         },
         data: {
           status: data.status,
