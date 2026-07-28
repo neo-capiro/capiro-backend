@@ -125,10 +125,17 @@ export interface CandidatesPrisma {
   $executeRawUnsafe(sql: string): Promise<unknown>;
   $queryRaw<T = unknown>(query: TemplateStringsArray, ...values: unknown[]): Promise<T[]>;
   client: {
+    // `args` is `unknown`, so this shape is NOT derived from the `select` — it is
+    // asserted by hand, and it is the only thing the compiler believes. #651 added
+    // `applicantTypes` to the runtime select and to
+    // `buildRelevanceProfileForClient`'s parameter, but not here, so the two
+    // disagreed and the script stopped compiling. Keep this in step with the
+    // select in `run()` whenever a field is added.
     findMany(args: unknown): Promise<
       Array<{
         id: string;
         sectorTag: string | null;
+        applicantTypes: string[];
         capabilities: Array<{ name: string; sector: string | null; tags: unknown }>;
         facilities: Array<{ state: string | null }>;
       }>
