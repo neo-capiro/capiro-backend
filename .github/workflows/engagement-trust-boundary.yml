@@ -27,11 +27,13 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: capiro_ci
+          # Early repository migrations intentionally reference database
+          # "capiro" by name, so a clean replay must use that exact database.
+          POSTGRES_DB: capiro
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d capiro_ci"
+          --health-cmd "pg_isready -U postgres -d capiro"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
@@ -39,8 +41,8 @@ jobs:
     env:
       # Prisma understands ?schema=public; libpq/psql does not, so keep a plain
       # URI for the direct trigger assertion below.
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro_ci?schema=public
-      PSQL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro_ci
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro?schema=public
+      PSQL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro
 
     steps:
       - uses: actions/checkout@v4
@@ -129,6 +131,7 @@ jobs:
         run: pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/web
 
       - name: Tests — apps/api Engagement trust boundary
+        id: api_tests
         run: >-
           pnpm --filter @capiro/api exec jest --ci --runInBand --silent
           --json --outputFile=$GITHUB_WORKSPACE/engagement-api-summary.json
@@ -147,12 +150,13 @@ jobs:
           src/engagement/prisma-unique-retry.spec.ts
 
       - name: Assert apps/api scope is clean and complete
-        if: always()
+        if: always() && steps.api_tests.outcome != 'skipped'
         run: >-
           node scripts/assert-test-summary.mjs
           "$GITHUB_WORKSPACE/engagement-api-summary.json" apps/api 13 300
 
       - name: Tests — apps/web Engagement trust boundary
+        id: web_tests
         run: >-
           pnpm --filter @capiro/web exec vitest run
           --reporter=json --outputFile=$GITHUB_WORKSPACE/engagement-web-summary.json
@@ -162,7 +166,7 @@ jobs:
           src/pages/engagement/outreach/v2/versioned-drafts.test.ts
 
       - name: Assert apps/web scope is clean and complete
-        if: always()
+        if: always() && steps.web_tests.outcome != 'skipped'
         run: >-
           node scripts/assert-test-summary.mjs
           "$GITHUB_WORKSPACE/engagement-web-summary.json" apps/web 4 110
