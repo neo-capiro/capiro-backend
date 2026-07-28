@@ -1,4 +1,4 @@
-name: MeriV2 Phase 0 Inspection
+name: MeriV2 Phase 0 Core Apply
 
 on:
   push:
@@ -11,87 +11,66 @@ permissions:
   contents: write
 
 jobs:
-  inspect:
+  apply:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: fix/meriv2-p0-control-boundaries
-      - name: Capture Phase 0 call sites
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Apply core, schema, and configuration changes
+        run: node .github/scripts/phase0-core-apply.mjs
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Validate generated client and core package
         shell: bash
         run: |
-          node <<'NODE' > .phase0-inspect-output.txt
-          const fs = require('node:fs');
-
-          function show(file, needles, before = 10, after = 45) {
-            const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/);
-            console.log(`\n===== ${file} (${lines.length} lines) =====`);
-            for (const needle of needles) {
-              const matches = [];
-              lines.forEach((line, index) => {
-                if (line.includes(needle)) matches.push(index);
-              });
-              console.log(`\n--- needle: ${needle} matches=${matches.map(i => i + 1).join(',') || 'none'} ---`);
-              for (const index of matches.slice(0, 4)) {
-                const start = Math.max(0, index - before);
-                const end = Math.min(lines.length, index + after + 1);
-                for (let i = start; i < end; i += 1) {
-                  console.log(`${String(i + 1).padStart(5)} | ${lines[i]}`);
-                }
-              }
-            }
+          set +e
+          mkdir -p docs/engineering
+          : > /tmp/phase0-core-validation.txt
+          run_check() {
+            echo "$ $*" | tee -a /tmp/phase0-core-validation.txt
+            "$@" 2>&1 | tee -a /tmp/phase0-core-validation.txt
+            code=${PIPESTATUS[0]}
+            echo "exit_code=$code" | tee -a /tmp/phase0-core-validation.txt
+            return $code
           }
-
-          show('apps/api/src/meri/meri.service.ts', [
-            'async streamMessage(',
-            'maybeLearnFromConversation(',
-            'async listRecentLearnedMemories(',
-            'async listMemories(',
-            'async forgetMemory(',
-            'async updateMemory(',
-            'meriV2Chat.streamChat(',
-            'MEMORY_AUTOLEARN_GOVERNED',
-          ]);
-
-          show('apps/api/src/meri/meri-tools.service.ts', [
-            'isSideEffecting(',
-            'anthropicToolSchemas(',
-            'executeFromAuthenticatedUser(',
-            'async execute(',
-            'async saveMemory(',
-            "case 'confirm_memory'",
-            "case 'correct_memory'",
-            "case 'forget_memory'",
-          ]);
-
-          show('apps/web/src/components/chat/useMeriChatController.ts', [
-            'pending_approval',
-            'approvals/approve',
-            'fingerprint',
-            'approve',
-          ]);
-
-          show('apps/web/src/components/chat/ChatDrawer.tsx', [
-            'pendingApprovals',
-            'pendingApproval',
-            'Approve',
-            'fingerprint',
-          ]);
-
-          show('apps/web/src/components/chat/meri-pending-approvals.ts', [
-            'export',
-            'fingerprint',
-            'pending',
-          ]);
-
-          show('apps/api/src/tenant/tenant-context.store.ts', ['export', 'interface', 'actorUserId', 'impersonation'], 8, 35);
-          show('packages/shared/src/index.ts', ['TenantContext'], 8, 35);
-          NODE
-      - name: Commit inspection output
+          failed=0
+          run_check pnpm --filter @capiro/api prisma:generate || failed=1
+          run_check pnpm --filter @capiro/meriv2-core typecheck || failed=1
+          run_check pnpm --filter @capiro/meriv2-core test || failed=1
+          {
+            echo "# MeriV2 Phase 0 Core Validation"
+            echo
+            echo "Base commit: 1cdd372f0409986ac238beef2c4e9f310925fb37"
+            echo "Workflow run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "Result: $([ "$failed" -eq 0 ] && echo PASS || echo FAIL)"
+            echo
+            echo '```text'
+            cat /tmp/phase0-core-validation.txt
+            echo '```'
+          } > docs/engineering/meriv2-phase0-core-validation.md
+          echo "PHASE0_CORE_FAILED=$failed" >> "$GITHUB_ENV"
+      - name: Commit branch-only implementation
         shell: bash
         run: |
+          rm -f .phase0-inspect-output.txt
+          rm -f .github/scripts/phase0-core-apply.mjs
+          rm -f .github/workflows/phase0-core-apply.yml
+          rm -f .github/workflows/phase0-inspect.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .phase0-inspect-output.txt
-          git commit -m "chore(meriv2): capture phase 0 call sites [skip ci]"
+          git add -A
+          git commit -m "feat(meriv2): add phase 0 proposal authority foundation [skip ci]"
           git push origin HEAD:fix/meriv2-p0-control-boundaries
+      - name: Fail validation run when checks failed
+        if: env.PHASE0_CORE_FAILED == '1'
+        run: exit 1
