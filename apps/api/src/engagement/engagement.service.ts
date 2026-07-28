@@ -1076,14 +1076,29 @@ export class EngagementService {
     };
   }
 
-  /** Phase 0 capability flags, exposed to the first-party web app (§3.i1). */
+  /**
+   * Phase 0 capability flags, exposed to the first-party web app (§3.i1).
+   *
+   * §h4 — the remediation-specific booleans are unconditionally `this.versionedOutreach`,
+   * not a separate flag: attachment integrity verification, request
+   * fingerprinting, and exact-version audit-ledger correlation are not
+   * independently toggleable — they are load-bearing parts of the send-intent
+   * path itself, so the only meaningful question is whether that path is
+   * reachable at all.
+   */
   engagementTrustBoundaryCapabilities(): {
     versionedOutreachEnabled: boolean;
     externalSendV2Required: boolean;
+    attachmentIntegrityEnforced: boolean;
+    requestFingerprintingEnabled: boolean;
+    auditLedgerExactVersionSupported: boolean;
   } {
     return {
       versionedOutreachEnabled: this.versionedOutreach,
       externalSendV2Required: this.externalSendV2Required,
+      attachmentIntegrityEnforced: this.versionedOutreach,
+      requestFingerprintingEnabled: this.versionedOutreach,
+      auditLedgerExactVersionSupported: this.versionedOutreach,
     };
   }
 
