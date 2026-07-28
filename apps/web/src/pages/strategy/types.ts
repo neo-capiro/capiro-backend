@@ -853,6 +853,69 @@ export interface RunCheckResult {
 }
 
 /*
+ * ---- Phase 4: Watch review (/strategy-api/agents/watch/*) ----
+ * Mirrors WatchReviewService's public response types EXACTLY (apps/api-strategy
+ * src/agents/watch-review.service.ts) — these are server-computed presentation
+ * shapes, not raw rows, so no tolerant normalizer is needed the way the Stage F
+ * change-set/mission rows need one.
+ */
+
+/** One badge a Watch proposal card may carry — rendered only when the
+ *  prototype has a matching treatment (critical/high_risk have none today). */
+export type WatchProposalBadge = 'out_of_order' | 'updated' | 'critical' | 'high_risk';
+
+export interface WatchProposalCard {
+  id: string;
+  watchKey: string;
+  strategyVersionId: string;
+  sourceLabel: string;
+  sourceDate: string | null;
+  badges: WatchProposalBadge[];
+  title: string;
+  proposal: string;
+  impact: string;
+  why: string;
+  risk: ChangeSetRisk;
+  recheckStatus: 'unchanged' | 'updated' | null;
+}
+
+export interface WatchRecheckResult {
+  state: 'complete' | 'failed';
+  elapsedMs: number;
+  unchanged: Array<{ watchKey: string; newProposalId: string }>;
+  updated: Array<{ watchKey: string; newProposalId: string }>;
+  dropped: Array<{ watchKey: string; reason: string; targetDeleted: boolean }>;
+}
+
+export interface WatchReviewState {
+  strategyId: string;
+  headVersionId: string;
+  mission: {
+    id: string;
+    state: MissionState;
+    cadence: 'daily' | 'weekly' | null;
+    lastRunAt: string | null;
+    nextRunAt: string | null;
+  } | null;
+  pendingCount: number;
+  proposals: WatchProposalCard[];
+  lastRecheck?: WatchRecheckResult | null;
+}
+
+/** POST /agents/watch/strategies/:id/accept-all. */
+export interface AcceptAllWatchInput {
+  expectedVersionId: string;
+  proposalIds: string[];
+}
+
+/** The shared response shape of both accept endpoints. */
+export interface WatchAcceptResult {
+  strategy: StrategyDetail;
+  state: WatchReviewState;
+  recheck: WatchRecheckResult;
+}
+
+/*
  * ---- Stage G: the Execution Agent (/strategy-api/agents/execution/*) ----
  * The Execution Agent STAGES artifacts (Workspace drafts / Outreach records)
  * and DRAFTS outreach sends against a plan node, then parks for human review.

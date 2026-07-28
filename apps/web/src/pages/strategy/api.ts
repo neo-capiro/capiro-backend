@@ -9,6 +9,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../lib/use-api.js';
 import type {
+  AcceptAllWatchInput,
   AgentMission,
   AgentRun,
   ApproveChangeSetInput,
@@ -51,6 +52,8 @@ import type {
   UpdateNodeInput,
   UploadContextDocumentInput,
   VersionsPage,
+  WatchAcceptResult,
+  WatchReviewState,
 } from './types.js';
 import {
   normalizeChangeSets,
@@ -844,6 +847,130 @@ export function useTransitionRun() {
       void qc.invalidateQueries({ queryKey: ['strategy', 'firm-review-runs'] });
       void qc.invalidateQueries({ queryKey: ['strategy', 'agent-run'] });
     },
+  });
+}
+
+/*
+ * ---- Phase 4: Watch review (/strategy-api/agents/watch/*) ----
+ * Same guard stack as Stage F (features.agenticMeri UI belt; the server
+ * additionally enforces strategyWatcher via StrategyWatcherGuard). Response
+ * shapes are server-computed presentation types (types.ts) — no tolerant
+ * normalizer needed. A mutation's fresh `state`/`strategy` is written straight
+ * into the relevant caches rather than only invalidated, so the panel and the
+ * editor never show a stale frame while a background refetch is in flight.
+ */
+
+function watchStateKey(strategyId: string) {
+  return ['strategy', 'watch-state', strategyId] as const;
+}
+
+/** Every Watch write invalidates the same surfaces the generic change-set
+ *  path does, PLUS the Watch state itself and the library's pending-count
+ *  nudge (plan §3: "strategy detail; strategy list; current Watch state;
+ *  change-set lists; versions/history; strategy conversation; missions"). */
+function useWatchInvalidate(strategyId: string) {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'change-sets'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'missions'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'versions', strategyId] });
+    void qc.invalidateQueries({ queryKey: conversationKey(strategyId, null) });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'watch-pending-counts'] });
+  };
+}
+
+/** GET /agents/watch/strategies/:id — the panel's read state. staleTime: 0
+ *  while the panel is open (`enabled`) — Watch proposals can move under the
+ *  user from a scheduled check, so the panel must never serve a cached frame. */
+export function useWatchReviewState(strategyId: string | null, enabled: boolean) {
+  const api = useApi();
+  return useQuery<WatchReviewState>({
+    queryKey: watchStateKey(strategyId ?? ''),
+    enabled: !!strategyId && enabled,
+    staleTime: 0,
+    queryFn: async () =>
+      (await api.get<WatchReviewState>(`${BASE}/agents/watch/strategies/${strategyId}`)).data,
+  });
+}
+
+/** POST /agents/watch/strategies/:id/revalidate — panel-open / "Check now". */
+export function useRevalidateWatch(strategyId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useWatchInvalidate(strategyId);
+  return useMutation({
+    mutationFn: async () =>
+      (await api.post<WatchReviewState>(`${BASE}/agents/watch/strategies/${strategyId}/revalidate`)).data,
+    onSuccess: (state) => {
+      qc.setQueryData(watchStateKey(strategyId), state);
+      invalidate();
+    },
+  });
+}
+
+/** POST /agents/watch/proposals/:id/accept — this call IS the approval. */
+export function useAcceptWatchProposal(strategyId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useWatchInvalidate(strategyId);
+  return useMutation({
+    mutationFn: async (proposalId: string) =>
+      (await api.post<WatchAcceptResult>(`${BASE}/agents/watch/proposals/${proposalId}/accept`)).data,
+    onSuccess: (res) => {
+      qc.setQueryData(['strategy', 'strategy', strategyId], res.strategy);
+      qc.setQueryData(watchStateKey(strategyId), res.state);
+      invalidate();
+    },
+  });
+}
+
+/** POST /agents/watch/proposals/:id/dismiss — permanent suppression. */
+export function useDismissWatchProposal(strategyId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useWatchInvalidate(strategyId);
+  return useMutation({
+    mutationFn: async (proposalId: string) =>
+      (await api.post<WatchReviewState>(`${BASE}/agents/watch/proposals/${proposalId}/dismiss`)).data,
+    onSuccess: (state) => {
+      qc.setQueryData(watchStateKey(strategyId), state);
+      invalidate();
+    },
+  });
+}
+
+/** POST /agents/watch/strategies/:id/accept-all — one dependency-ordered batch. */
+export function useAcceptAllWatchProposals(strategyId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useWatchInvalidate(strategyId);
+  return useMutation({
+    mutationFn: async (input: AcceptAllWatchInput) =>
+      (
+        await api.post<WatchAcceptResult>(
+          `${BASE}/agents/watch/strategies/${strategyId}/accept-all`,
+          input,
+        )
+      ).data,
+    onSuccess: (res) => {
+      qc.setQueryData(['strategy', 'strategy', strategyId], res.strategy);
+      qc.setQueryData(watchStateKey(strategyId), res.state);
+      invalidate();
+    },
+  });
+}
+
+/** GET /agents/watch/pending-counts — one aggregate query for the library's
+ *  weekly nudge (plan §6: not N queries per row). */
+export function usePendingWatchCounts(enabled: boolean) {
+  const api = useApi();
+  return useQuery<Record<string, number>>({
+    queryKey: ['strategy', 'watch-pending-counts'],
+    enabled,
+    queryFn: async () =>
+      (await api.get<Record<string, number>>(`${BASE}/agents/watch/pending-counts`)).data,
+    staleTime: 15_000,
   });
 }
 

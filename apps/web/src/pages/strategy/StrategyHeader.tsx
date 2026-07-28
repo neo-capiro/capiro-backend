@@ -281,9 +281,7 @@ function WatchChip({ watch, onOpen }: { watch: WatchChipState; onOpen?: () => vo
     <button
       data-testid="sp-header-watch"
       onClick={onOpen}
-      // The cadence is a per-mission server setting, so the tooltip stays
-      // cadence-free until Phase 4 surfaces the real schedule.
-      title="Watch mode — Meri's scheduled check of this strategy"
+      title="Watch mode — Meri's weekly check"
       aria-label={
         alert
           ? `${label}. ${watch.pending} proposed change${watch.pending === 1 ? '' : 's'} awaiting review.`

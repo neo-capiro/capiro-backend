@@ -21,7 +21,7 @@ import { TargetPicker } from './TargetPicker.js';
 import { useClientTargetsLite, targetDisplayLabel } from './client-targets-lite.js';
 import { StrategyChatComposer } from './StrategyChatComposer.js';
 import { StrategyChatThread, type PendingChatMessage } from './StrategyChatThread.js';
-import { WatchRail } from './agents/WatchRail.js';
+import { StrategyWatchPanel } from './agents/StrategyWatchPanel.js';
 import { useAssistant, useStrategyConversation } from './api.js';
 import {
   NODE_KIND_META,
@@ -495,9 +495,9 @@ export function StrategyMeriPanel({
                 <b>+ Add step</b> in the header to create one.
               </div>
             )}
-            {/* Stage F: Watch-mode affordance (agenticMeri+strategyWatcher UI belt). */}
+            {/* Stage F / Phase 4: Watch-mode affordance (agenticMeri+strategyWatcher UI belt). */}
             {watcherEnabled && (
-              <WatchRail
+              <StrategyWatchPanel
                 strategyId={strategyId}
                 focus={focusWatch}
                 onFocused={onWatchFocused}
