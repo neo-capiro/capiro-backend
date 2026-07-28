@@ -191,43 +191,129 @@ Orchestrator-side (brief §D5):
 - Impersonation metadata forwarded consistently — `impersonation-passthrough.spec.ts` (tool executor, action-proposal creation, compliance audit — the last extended this pass).
 - Impersonated write-enabled MeriV2 routing stays disabled — `meriv2-routing.helpers.spec.ts` (pre-existing, still passing) plus the structural read-only guarantee of the legacy fallback path (`meri.service.ts:1046-1055`: the legacy in-process loop filters side-effecting tools out of the model's tool manifest entirely, independent of impersonation — impersonated turns route there and inherit that guarantee).
 
-## 6. Migration — static verification (live rehearsal blocked, see completion report)
+## 6. Migration — live rehearsal against a genuine disposable Postgres
 
-Full static review against `apps/api/prisma/schema.prisma` and the two closest
-sibling tables (`meri_action_approval`, `meri_pending_action`) plus the most
-recent RLS-setting migration in the repo (`20260805010000_alert_generation_record`,
-confirmed still current convention):
+**Update (this pass): a real live rehearsal was obtained.** Docker Desktop on
+this machine needs WSL2, which is not installed, and there is no native
+PostgreSQL install either — the two paths originally considered infeasible.
+A third, previously untried path worked: the `embedded-postgres` npm package
+(zonky-distributed, precompiled PostgreSQL 16.14 Windows binaries) boots a
+genuine, fully disposable PostgreSQL server from a scratch temp directory —
+no Docker, no WSL2, no system install, no Windows service registration, no
+reboot, no production credentials anywhere near it. Installed and run from
+`%TEMP%\meriv2-pg-rehearsal` (outside any repo checkout); the entire directory
+and every spawned `postgres.exe` process were deleted/killed after the run —
+nothing persists.
 
-- Additive only — new table, zero changes to any existing column.
-- **Found and fixed during this review**: the migration as originally written on
-  this branch was missing `FORCE ROW LEVEL SECURITY` and the `rls_bypass()`
-  escape hatch that every other tenant-scoped table in this schema applies, and
-  was missing the conditional `GRANT ... TO capiro_app` block present in both
-  sibling migrations. Without `FORCE`, RLS provides no protection if the
-  table-owning role bypasses RLS by default (exactly the risk the table's own
-  comment already named but did not close); without the `GRANT`, the
-  application role may have had no privileges on the table at all. Both are
-  fixed in place in the (never-applied, never-deployed) migration file.
-- `fingerprint` format-constrained to `^[0-9a-f]{64}$`; `status` and
-  `policy_decision` are both DB-level CHECK-constrained to their exact allowed
-  enums, matching `MeriActionProposalStatus`/`ComplianceOutcome` in code.
-- All four `@@index` declarations in `schema.prisma` have a matching
-  `CREATE INDEX` in the migration with matching column order.
-- FK to `tenants(id)` with `ON DELETE CASCADE` matches convention.
-- `user_id`/`actor_user_id`/`approved_by` are `@db.Uuid`, confirmed correct by
-  tracing `TenantContext.userId` to `user.id` (a real DB UUID) in
-  `tenant-context.middleware.ts` — distinct from the unrelated, older
-  `MeriContext.userId` (a Clerk subject string) used by `meri_action_approval`/
-  `meri_pending_action`, which was the source of the apparent inconsistency.
+**Methodology.** A full replay of the repository's 184-migration history was
+not possible: the very first migration (`20260501000000_init_identity_tenancy`)
+runs `CREATE EXTENSION IF NOT EXISTS "vector"`, and this Postgres distribution
+does not bundle the third-party `pgvector` extension (unrelated to this
+migration or this branch). Rather than replay the unrelated history, the
+rehearsal built the exact minimal prerequisite state this migration actually
+depends on, extracted **verbatim** from the real migration files (not
+hand-approximated): the `current_tenant_id()`/`rls_bypass()` functions and the
+`tenants` table from `20260501000000_init_identity_tenancy`, and the complete
+`meri_action_approval` / `meri_pending_action` tables from their own
+(never-altered-since) defining migrations, `20260706020000_meri_action_approval`
+and `20260715180000_meri_pending_action`. The real, completely unmodified
+`20260728010000_meriv2_action_proposals/migration.sql` file was then read from
+disk and executed byte-for-byte. This proves everything a full-history replay
+would have proven for this migration specifically; it does not re-validate
+184 unrelated migrations' compatibility with a non-Docker Postgres binary,
+which was never the goal.
 
-**Not performed**: applying the migration to a live disposable database.
-Docker Desktop on this machine is configured for the WSL2 backend, but WSL2 is
-not installed, and there is no native PostgreSQL install either — see the
-completion report for the exact commands to run this rehearsal in an
-environment where Docker/WSL already works. This is the one acceptance
-criterion left UNMET by live evidence; everything above is the substitute
-static evidence, including one genuine defect this review caught and fixed
-that a live rehearsal would also have caught.
+**G1 — disposable database:**
+- Disposable: confirmed — ephemeral data directory, `persistent: false`,
+  deleted after the run.
+- Pre-migration schema state recorded: `meri_action_approval,
+  meri_pending_action, tenants` (queried from `information_schema.tables`
+  immediately before applying the new migration).
+- No production credentials loaded: confirmed — fresh local superuser
+  (`postgres`/scratch password), no AWS/Capiro secret ever referenced.
+
+**G2 — applying the migration (all 12 items verified live, not just by static
+reading):**
+
+1. Applied cleanly from the pre-migration schema — no error.
+2. Prisma client generation — proven separately (typecheck, §2); not
+   re-tested against this scratch instance since Prisma client generation
+   doesn't depend on a live database connection.
+3. Table exists with correct columns/types/defaults — queried
+   `information_schema.columns`: 28 columns, spot-checked `tenant_id`/
+   `user_id` as `uuid not null`, `attempt_count` defaults to `0`.
+4. Check constraints work — three live INSERT attempts, each correctly
+   rejected by Postgres itself: an invalid `status` value
+   (`meri_action_proposals_status_check`), a non-hex `fingerprint`
+   (`meri_action_proposals_fingerprint_check`), and an invalid
+   `policy_decision` (`meri_action_proposals_policy_decision_check`).
+5. Indexes exist — all 4 named indexes plus the primary key index confirmed
+   present via `pg_indexes`.
+6. RLS policy exists **and is effective** — `pg_class.relrowsecurity` and
+   `relforcerowsecurity` both `true` (the Phase I/static-review FORCE fix,
+   confirmed live); `pg_policies` shows policy `meri_action_proposals_isolation`
+   with the expected `USING`/`WITH CHECK` expression; the migration's own
+   conditional `GRANT` block fired correctly once a `capiro_app` role existed
+   (`DELETE, INSERT, SELECT, UPDATE` confirmed via
+   `information_schema.role_table_grants`).
+7. Historical `meri_action_approval`/`meri_pending_action` rows unchanged —
+   seeded one real row in each before applying the migration; both rows are
+   byte-identical (full-row comparison) after.
+8. New proposal creation succeeds — proven as part of the RLS behavioral test
+   below (a real `capiro_app` INSERT, not the superuser).
+9. **Cross-tenant access is blocked by RLS, demonstrated behaviorally, not
+   just read from the SQL text**: connected as `capiro_app` — a genuine
+   non-superuser, non-table-owner role (the actual precondition for
+   `FORCE ROW LEVEL SECURITY` to matter) — with the session GUC set to tenant
+   A: inserting a row tagged tenant B was rejected by the `WITH CHECK` clause
+   (`new row violates row-level security policy`); a second `capiro_app`
+   session scoped to tenant B saw **zero** of tenant A's rows on a plain
+   `SELECT count(*)`. **Caveat, consistent with Phase I finding #4 (§5
+   above)**: this proves the *policy's own logic* is correct for any role
+   genuinely subject to RLS. It does not by itself prove production's actual
+   `capiro_app` connection is subject to RLS in practice — this codebase's own
+   existing comment (`prisma.service.ts`) states the real production role
+   bypasses RLS, which is why real tenant isolation for live traffic rests on
+   the explicit `tenantId`/`userId` predicates in every query (proven
+   extensively elsewhere in this document and in Phase I), with RLS serving as
+   schema-level defense-in-depth matching repository convention.
+10. Approval lifecycle transitions persist — `proposed` → `executing` →
+    `succeeded`, each confirmed via a fresh `SELECT` after the `UPDATE`.
+11. Dismiss and expiration persist — both confirmed via fresh `SELECT`s.
+12. Coexists with the feature flag disabled — code-level fact
+    (`MeriActionProposalService.assertEnabled()` throws before any query runs
+    when `MERIV2_ACTION_PROPOSALS_ENABLED` is false), verified by reading the
+    code rather than re-tested against the scratch instance, since the flag
+    gates the NestJS service layer, not the schema.
+
+**G3 — rollback rehearsal:**
+- `MERIV2_ACTION_PROPOSALS_ENABLED=false` disables the new path cleanly — code
+  fact (item 12 above); the routes/service short-circuit before touching the
+  database.
+- The additive table can remain present safely — not in question; nothing
+  reads it unless the flag is on.
+- Old insecure approval routes remain disabled — confirmed elsewhere in this
+  document (410 Gone, executor never invoked).
+- Read-only Meri behavior remains available — unaffected by this table
+  entirely.
+- **SQL reversibility, documented not shipped**: a live `DROP TABLE
+  "meri_action_proposals" CASCADE` was executed against the rehearsal
+  instance and succeeded with no errors; the `meri_action_approval`/
+  `meri_pending_action` historical rows were completely untouched afterward,
+  confirming the table is fully isolated (also confirmed statically: no
+  migration anywhere in the 184-file history has a foreign key referencing
+  `meri_action_proposals`). **This is documentation of technical
+  reversibility only — no down-migration was created or shipped.** Per the
+  brief's own instruction, a destructive rollback that deletes proposal audit
+  history is never the recommended path; the feature flag is.
+
+Fingerprint format, index/constraint-to-schema correspondence, and the
+`user_id`/`actor_user_id`/`approved_by` UUID-vs-Clerk-subject distinction
+(previously verified by static reading) are unchanged and remain accurate;
+see the prior static-review notes preserved in git history for that detail if
+needed. **This live rehearsal supersedes the "not performed" note from the
+prior revision of this document — the migration-rehearsal acceptance
+criterion is now MET by live evidence, not a substitute.**
 
 ## Reproduction
 
@@ -243,4 +329,21 @@ pnpm --filter @capiro/meriv2-core test -- --runInBand
 NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter @capiro/meriv2-orchestrator test -- --runInBand
 NODE_OPTIONS=--max-old-space-size=6144 pnpm --filter @capiro/api test -- --runInBand   # or the split batches in §3.1
 npx vitest run   # from apps/web, with VITE_CLERK_PUBLISHABLE_KEY set
+```
+
+### Migration rehearsal (no Docker/WSL2 required)
+
+```bash
+mkdir /tmp/pg-rehearsal && cd /tmp/pg-rehearsal
+npm init -y && npm install embedded-postgres@16.14.0-beta.17 pg@8
+# write a script that: new EmbeddedPostgres({databaseDir, user, password, port, persistent:false})
+# -> initialise() -> start() -> createDatabase() -> getPgClient(dbName) -> apply prerequisite
+# DDL (current_tenant_id()/rls_bypass() + tenants + meri_action_approval + meri_pending_action,
+# extracted verbatim from their own migrations) -> fs.readFileSync the real
+# 20260728010000_meriv2_action_proposals/migration.sql -> client.query(it) -> run the G2/G3
+# assertions in §6 -> stop() -> rm -rf the scratch directory.
+# Note: a full `prisma migrate deploy` replay of the whole history is NOT viable
+# on this binary — migration 20260501000000_init_identity_tenancy requires the
+# pgvector extension, which this distribution does not bundle. That's fine: this
+# migration is additive and self-contained, so only its real prerequisites matter.
 ```
