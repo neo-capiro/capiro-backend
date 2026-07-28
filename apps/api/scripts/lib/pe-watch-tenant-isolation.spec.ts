@@ -36,7 +36,7 @@ describe('Phase C PE-watch expand/contract safety', () => {
     );
   });
 
-  test('expansion migration aborts duplicates, adds only the new key, and never weakens RLS', () => {
+  test('key expansion aborts duplicates and only adds the tenant-aware index', () => {
     const sql = apiFile(
       'prisma/migrations/20260728230000_add_tenant_scoped_pe_watch_key/migration.sql',
     );
@@ -45,7 +45,26 @@ describe('Phase C PE-watch expand/contract safety', () => {
     expect(sql).toContain('program_element_watch_tenant_user_pe_code_key');
     expect(sql).toMatch(/CREATE UNIQUE INDEX/);
     expect(sql).not.toMatch(/DROP (INDEX|CONSTRAINT)/i);
-    expect(sql).not.toMatch(/DISABLE ROW LEVEL SECURITY/i);
+    expect(sql).not.toMatch(/ROW LEVEL SECURITY|CREATE POLICY/i);
+  });
+
+  test('separate RLS correction is fail-closed and installs the canonical tenant policy', () => {
+    const sql = apiFile(
+      'prisma/migrations/20260728230100_enable_program_element_watch_rls/migration.sql',
+    );
+    expect(sql).toMatch(/FROM pg_policies/);
+    expect(sql).toMatch(/RAISE EXCEPTION/);
+    expect(sql).toMatch(
+      /ALTER TABLE "program_element_watch" ENABLE ROW LEVEL SECURITY/,
+    );
+    expect(sql).toMatch(
+      /ALTER TABLE "program_element_watch" FORCE ROW LEVEL SECURITY/,
+    );
+    expect(sql).toMatch(
+      /CREATE POLICY "program_element_watch_isolation" ON "program_element_watch"/,
+    );
+    expect(sql).toContain('rls_bypass() OR tenant_id = current_tenant_id()');
+    expect(sql).not.toMatch(/DISABLE ROW LEVEL SECURITY|DROP POLICY/i);
   });
 
   test('all application watch paths use explicit tenant predicates and never move tenant_id', () => {
@@ -62,7 +81,7 @@ describe('Phase C PE-watch expand/contract safety', () => {
     );
   });
 
-  test('existing migrations still enable and force tenant RLS for the watch table', () => {
+  test('the migration set enables and forces RLS for the watch table', () => {
     const sql = migrationSql();
     expect(sql).toMatch(
       /ALTER TABLE\s+"?program_element_watch"?\s+ENABLE ROW LEVEL SECURITY/i,
