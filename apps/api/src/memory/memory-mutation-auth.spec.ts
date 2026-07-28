@@ -65,16 +65,19 @@ describe('evaluateMemoryMutation', () => {
   });
 
   it.each(['standard_user', 'user_admin', 'capiro_admin'] as const)(
-    'legal hold overrides otherwise permitted mutation for %s',
+    'legal hold overrides correction and deletion for %s',
     (role) => {
       const subject =
         role === 'standard_user'
           ? { visibility: 'user', ownerUserId: USER, legalHold: true }
           : { visibility: 'tenant', ownerUserId: null, legalHold: true };
-      expect(evaluateMemoryMutation(ctx(role), subject)).toEqual({
-        allowed: false,
-        reason: 'legal_hold',
-      });
+      for (const operation of ['correct', 'forget'] as const) {
+        expect(evaluateMemoryMutation(ctx(role), subject, operation)).toEqual({
+          allowed: false,
+          reason: 'legal_hold',
+        });
+      }
+      expect(evaluateMemoryMutation(ctx(role), subject, 'confirm').allowed).toBe(true);
     },
   );
 
