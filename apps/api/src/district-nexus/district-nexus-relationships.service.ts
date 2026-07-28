@@ -94,6 +94,25 @@ const AWARD_SELECT = {
 
 type AwardRow = Prisma.FederalAssistanceAwardGetPayload<{ select: typeof AWARD_SELECT }>;
 
+interface AwardLike {
+  id: string;
+  awardUniqueId: string;
+  fain: string | null;
+  recipientName: string | null;
+  recipientUei: string | null;
+  assistanceListingNumber: string | null;
+  assistanceListingTitle: string | null;
+  awardingAgency: string | null;
+  totalObligatedAmount: Prisma.Decimal | number | null;
+  totalOutlayedAmount: Prisma.Decimal | number | null;
+  startDate: Date | null;
+  endDate: Date | null;
+  popState: string | null;
+  popCongressionalDistrict: string | null;
+  recipientState: string | null;
+  recipientCongressionalDistrict: string | null;
+}
+
 const FACILITY_SELECT = {
   id: true,
   name: true,
@@ -164,6 +183,20 @@ interface MutationActor {
   role: TenantRole;
 }
 
+interface NormalizedRelationshipValues {
+  assistanceAwardId: string;
+  relationshipType: DistrictNexusAwardRelationshipType;
+  facilityId: string | null;
+  relationshipDescription: string | null;
+  attributableAmount: number | null;
+  beneficiaryCount: number | null;
+  evidenceSourceRef: string | null;
+  verificationStatus: DistrictNexusRelationshipStatus;
+  externalUseApproved: boolean;
+  effectiveStart: Date | null;
+  effectiveEnd: Date | null;
+}
+
 function money(value: Prisma.Decimal | number | null): number | null {
   return value == null ? null : Number(value);
 }
@@ -196,7 +229,13 @@ function parseDate(value: string | null | undefined, field: string): Date | null
   return date;
 }
 
-function awardOption(row: AwardRow): DistrictNexusAssistanceAwardOption {
+function confidenceFor(status: DistrictNexusRelationshipStatus): number {
+  if (status === 'verified') return 1;
+  if (status === 'rejected') return 0;
+  return 0.5;
+}
+
+function awardOption(row: AwardLike): DistrictNexusAssistanceAwardOption {
   const usesPlaceOfPerformance = !!row.popState;
   const usesRecipient = !usesPlaceOfPerformance && !!row.recipientState;
   return {
@@ -239,10 +278,13 @@ function serializeRelationship(
   award: AwardRow,
   facility: FacilityRow | null,
 ): DistrictNexusRelationshipRecord {
+  if (!row.assistanceAwardId) {
+    throw new Error(`ClientGrantNexus ${row.id} has no assistance award id.`);
+  }
   return {
     id: row.id,
     clientId: row.clientId,
-    assistanceAwardId: row.assistanceAwardId!,
+    assistanceAwardId: row.assistanceAwardId,
     facilityId: row.facilityId,
     relationshipType: row.relationshipType as DistrictNexusAwardRelationshipType,
     relationshipDescription: row.relationshipDescription,
@@ -264,7 +306,7 @@ function serializeRelationship(
   };
 }
 
-function auditSnapshot(row: RelationshipRow): Record<string, unknown> {
+function auditSnapshot(row: RelationshipRow): Prisma.InputJsonObject {
   return {
     id: row.id,
     clientId: row.clientId,
@@ -283,7 +325,7 @@ function auditSnapshot(row: RelationshipRow): Record<string, unknown> {
     verifiedByUserId: row.verifiedByUserId,
     effectiveStart: isoDate(row.effectiveStart),
     effectiveEnd: isoDate(row.effectiveEnd),
-  };
+  } as Prisma.InputJsonObject;
 }
 
 @Injectable()
@@ -465,7 +507,7 @@ export class DistrictNexusRelationshipsService {
           beneficiaryCount: normalized.beneficiaryCount,
           evidenceSourceType: MANUAL_EVIDENCE_SOURCE,
           evidenceSourceRef: normalized.evidenceSourceRef,
-          confidence: normalized.verificationStatus === 'verified' ? 1 : 0.5,
+          confidence: confidenceFor(normalized.verificationStatus),
           verificationStatus: normalized.verificationStatus,
           externalUseApproved: normalized.externalUseApproved,
           verifiedAt: normalized.verificationStatus === 'verified' ? new Date() : null,
@@ -484,7 +526,6 @@ export class DistrictNexusRelationshipsService {
           action: 'district_nexus.grant_relationship.create',
           entityType: 'client_grant_nexus',
           entityId: row.id,
-          before: null,
           after: auditSnapshot(row),
         },
       });
@@ -535,7 +576,7 @@ export class DistrictNexusRelationshipsService {
           attributableAmount: normalized.attributableAmount,
           beneficiaryCount: normalized.beneficiaryCount,
           evidenceSourceRef: normalized.evidenceSourceRef,
-          confidence: normalized.verificationStatus === 'verified' ? 1 : 0.5,
+          confidence: confidenceFor(normalized.verificationStatus),
           verificationStatus: normalized.verificationStatus,
           externalUseApproved: normalized.externalUseApproved,
           verifiedAt: normalized.verificationStatus === 'verified' ? new Date() : null,
@@ -635,7 +676,10 @@ export class DistrictNexusRelationshipsService {
     return facility;
   }
 
-  private normalizeCreate(input: DistrictNexusRelationshipMutationInput, award: AwardRow) {
+  private normalizeCreate(
+    input: DistrictNexusRelationshipMutationInput,
+    award: AwardRow,
+  ): NormalizedRelationshipValues {
     return this.normalizeValues(
       {
         assistanceAwardId: input.assistanceAwardId,
@@ -658,7 +702,7 @@ export class DistrictNexusRelationshipsService {
     existing: RelationshipRow,
     input: DistrictNexusRelationshipUpdateInput,
     award: AwardRow,
-  ) {
+  ): NormalizedRelationshipValues {
     return this.normalizeValues(
       {
         assistanceAwardId: input.assistanceAwardId ?? existing.assistanceAwardId!,
@@ -703,21 +747,9 @@ export class DistrictNexusRelationshipsService {
   }
 
   private normalizeValues(
-    values: {
-      assistanceAwardId: string;
-      relationshipType: DistrictNexusAwardRelationshipType;
-      facilityId: string | null;
-      relationshipDescription: string | null;
-      attributableAmount: number | null;
-      beneficiaryCount: number | null;
-      evidenceSourceRef: string | null;
-      verificationStatus: DistrictNexusRelationshipStatus;
-      externalUseApproved: boolean;
-      effectiveStart: Date | null;
-      effectiveEnd: Date | null;
-    },
+    values: NormalizedRelationshipValues,
     award: AwardRow,
-  ) {
+  ): NormalizedRelationshipValues {
     if (!DISTRICT_NEXUS_AWARD_RELATIONSHIP_TYPES.includes(values.relationshipType)) {
       throw new BadRequestException('Unsupported grant relationship type.');
     }
@@ -743,6 +775,9 @@ export class DistrictNexusRelationshipsService {
       (!Number.isInteger(values.beneficiaryCount) || values.beneficiaryCount < 0)
     ) {
       throw new BadRequestException('Beneficiary count must be a non-negative integer.');
+    }
+    if (values.verificationStatus === 'verified' && !values.evidenceSourceRef) {
+      throw new BadRequestException('Verified relationships require an evidence source.');
     }
     if (values.externalUseApproved && values.verificationStatus !== 'verified') {
       throw new BadRequestException(
