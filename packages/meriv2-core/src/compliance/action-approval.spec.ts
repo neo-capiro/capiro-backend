@@ -70,13 +70,24 @@ describe('computeActionFingerprintV2', () => {
     const a = computeActionFingerprintV2(base);
     const b = computeActionFingerprintV2({
       ...base,
-      input: { clientId: base.input.clientId, body: 'Body', subject: 'Subject', to: ['a@example.com'] },
+      input: {
+        clientId: base.input.clientId,
+        body: 'Body',
+        subject: 'Subject',
+        to: ['a@example.com'],
+      },
     });
     expect(a).toBe(b);
     expect(
-      computeActionFingerprintV2({ ...base, input: { ...base.input, to: ['b@example.com', 'a@example.com'] } }),
+      computeActionFingerprintV2({
+        ...base,
+        input: { ...base.input, to: ['b@example.com', 'a@example.com'] },
+      }),
     ).not.toBe(
-      computeActionFingerprintV2({ ...base, input: { ...base.input, to: ['a@example.com', 'b@example.com'] } }),
+      computeActionFingerprintV2({
+        ...base,
+        input: { ...base.input, to: ['a@example.com', 'b@example.com'] },
+      }),
     );
   });
 
