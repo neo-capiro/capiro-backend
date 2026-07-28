@@ -1,11 +1,11 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-path = (
+migration_path = (
     ROOT
     / 'apps/api/prisma/migrations/20260728230000_add_tenant_scoped_pe_watch_key/migration.sql'
 )
-source = path.read_text(encoding='utf-8')
+source = migration_path.read_text(encoding='utf-8')
 
 policy_sql = '''
 
@@ -31,5 +31,30 @@ if any(found) and not all(found):
 if not any(found):
     source = source.rstrip() + policy_sql
 
-path.write_text(source.rstrip() + '\n', encoding='utf-8')
-print('PHASE_C_RLS_CONTROLS_APPLIED')
+migration_path.write_text(source.rstrip() + '\n', encoding='utf-8')
+
+# The pre-existing service spec counted every global $queryRaw call as an MV
+# lookup even though getProgramElement also queries the catalog-wide current FY.
+# Phase C now runs this suite as a release gate. Make the fixture classify the
+# query by SQL text so the original bill-count assertions measure what they say.
+spec_path = ROOT / 'apps/api/src/program-element/program-element-read.service.spec.ts'
+spec = spec_path.read_text(encoding='utf-8')
+old = '''    $queryRaw: jest.fn(async () => {
+      mock.mvQueryRawCalls += 1;
+      return options.mvRows ?? [];
+    }),'''
+new = '''    $queryRaw: jest.fn(async (query: unknown) => {
+      const sql = query as { strings?: readonly string[] };
+      const text = [...(sql.strings ?? [])].join('?');
+      if (text.includes('FROM program_element_detail_mv')) {
+        mock.mvQueryRawCalls += 1;
+        return options.mvRows ?? [];
+      }
+      return [];
+    }),'''
+count = spec.count(old)
+if count != 1:
+    raise RuntimeError(f'expected one global-query mock block, found {count}')
+spec_path.write_text(spec.replace(old, new, 1), encoding='utf-8')
+
+print('PHASE_C_POST_GENERATION_CONTROLS_APPLIED')
