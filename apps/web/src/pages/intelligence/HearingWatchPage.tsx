@@ -473,8 +473,8 @@ function SessionsView() {
         <span className="hico">
           <Ic n="layers" size={13} />
         </span>
-        Every hearing you’ve watched or transcribed. The recaps you save to a client live in that
-        client’s profile under <b>Saved</b>.
+        Every hearing you’ve watched or transcribed. Recaps saved to a client are filed in that
+        client’s <b>Documents</b> and indexed into Meri knowledge.
       </span>
       {sessions.data.map((s) => {
         const live = s.status === 'live';
@@ -530,14 +530,14 @@ export function HearingWatchPage() {
     >
       {!enabled ? (
         <div className="guide plain">
-          <h4>Hearing Watch is not enabled</h4>
-          <p>This workspace doesn’t have Hearing Watch turned on yet.</p>
+          <h4>LegiWatch Hearings is not enabled</h4>
+          <p>This workspace doesn’t have the LegiWatch hearing capability turned on yet.</p>
         </div>
       ) : (
         <>
           <div className="pg-head">
             <h1 className="pg-title">
-              <AudioOutlined /> Hearing Watch
+              <AudioOutlined /> LegiWatch Hearings
             </h1>
             <p className="pg-desc">
               Client-ready intelligence from public hearings — track terms, watch hearings live, and
@@ -643,11 +643,10 @@ function NewHearingModal({
             // connect. Show provenance only; leave the URL field untouched.
             if (normalized.media.ipBound) {
               setProvenance(
-                normalized.note ??
-                  `via ${normalized.media.provider} — resolves at connect time (not persisted)`,
+                `via ${normalized.media.provider} — short-lived source; open it and share that tab’s audio`,
               );
               message.warning(
-                'This source is IP-bound and short-lived; it is not saved. It resolves at connect time (not yet wired) — see the note.',
+                'This source is IP-bound and short-lived, so its media URL is not saved. Open the source from the Live Hearing Room and share that tab’s audio.',
               );
             } else {
               form.setFieldsValue({ sourceUrl: normalized.media.url });
@@ -681,10 +680,10 @@ function NewHearingModal({
           if (r.status === 'resolved' && r.media) {
             if (r.media.ipBound) {
               setProvenance(
-                r.note ?? `via ${r.media.provider} — resolves at connect time (not persisted)`,
+                `via ${r.media.provider} — short-lived source; open it and share that tab’s audio`,
               );
               message.warning(
-                'This source is IP-bound and short-lived; it is not saved. It resolves at connect time (not yet wired) — see the note.',
+                'This source is IP-bound and short-lived, so its media URL is not saved. Open the source from the Live Hearing Room and share that tab’s audio.',
               );
             } else {
               form.setFieldsValue({ sourceUrl: r.media.url });

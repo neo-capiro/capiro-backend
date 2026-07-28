@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App as AntApp, Button, Empty, Select, Spin } from 'antd';
 import {
   AimOutlined,
@@ -617,7 +617,13 @@ type TenantBoardCard = {
   clientId: string;
   clientName: string | null;
 };
-type TenantBoard = { columns: Array<{ id: string; label: string; cards: TenantBoardCard[] }> };
+type TenantBoard = {
+  columns: Array<{ id: string; label: string; cards: TenantBoardCard[] }>;
+  nextCursor?: string | null;
+  hasMore?: boolean;
+  total?: number;
+  withheld?: number;
+};
 
 /**
  * L2b — the ALL-CLIENTS Bills board roll-up (U4 / Gherkin "All-clients board").
@@ -635,11 +641,47 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
     clientName: string;
   } | null>(null);
   const [filter, setFilter] = useState<'all' | 'hifit' | 'hiprob'>('all');
-  const board = useQuery<TenantBoard>({
+  const board = useInfiniteQuery<TenantBoard>({
     queryKey: ['radar-tenant-board'],
-    queryFn: async () => (await api.get<TenantBoard>(intelTrackerPaths.board('_all'))).data,
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) =>
+      (
+        await api.get<TenantBoard>(
+          intelTrackerPaths.board('_all', typeof pageParam === 'string' ? pageParam : undefined),
+        )
+      ).data,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore && lastPage.nextCursor ? lastPage.nextCursor : undefined,
     staleTime: 30_000,
   });
+
+  // The tenant board is keyset-paginated at the API. The old surface consumed
+  // only page 1 (200 rows by default) and silently presented it as the complete
+  // all-client portfolio. Merge pages by stage and de-duplicate on the true card
+  // identity (client + bill), preserving the server's page/stage order.
+  const columns = useMemo(() => {
+    const byStage = new Map<string, TenantBoard['columns'][number]>();
+    for (const page of board.data?.pages ?? []) {
+      for (const column of page.columns) {
+        const existing = byStage.get(column.id);
+        if (!existing) {
+          byStage.set(column.id, { ...column, cards: [...column.cards] });
+          continue;
+        }
+        const seen = new Set(existing.cards.map((card) => `${card.clientId}:${card.billId}`));
+        for (const card of column.cards) {
+          const key = `${card.clientId}:${card.billId}`;
+          if (!seen.has(key)) {
+            existing.cards.push(card);
+            seen.add(key);
+          }
+        }
+      }
+    }
+    return [...byStage.values()];
+  }, [board.data]);
+  const loadedTotal = columns.reduce((n, c) => n + c.cards.length, 0);
+  const availableTotal = board.data?.pages[0]?.total ?? loadedTotal;
 
   if (board.isPending) return <PanelLoading />;
   if (board.isError)
@@ -650,9 +692,7 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
       </div>
     );
 
-  const columns = board.data?.columns ?? [];
-  const total = columns.reduce((n, c) => n + c.cards.length, 0);
-  if (total === 0) {
+  if (loadedTotal === 0) {
     return (
       <div className="guide">
         <div className="gico">
@@ -767,6 +807,21 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
             </div>
           );
         })}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10 }}>
+        <span className="muted mini">
+          Showing {loadedTotal.toLocaleString()} of {availableTotal.toLocaleString()} tracked bills
+        </span>
+        {board.hasNextPage ? (
+          <Button
+            size="small"
+            loading={board.isFetchingNextPage}
+            disabled={board.isFetchingNextPage}
+            onClick={() => void board.fetchNextPage()}
+          >
+            Load more tracked bills
+          </Button>
+        ) : null}
       </div>
       <BillDrawer
         open={drawer !== null}

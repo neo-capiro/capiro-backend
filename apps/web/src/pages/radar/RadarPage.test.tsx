@@ -50,32 +50,65 @@ function mockApi(flags: Record<string, boolean>) {
     if (url.startsWith('/intel-api/upcoming-hearings/browse')) {
       return { data: { items: [], total: 0 } };
     }
-    // L2b all-clients board roll-up: client-labelled cards across the tenant.
-    if (url.endsWith('/_all/tracker/board')) {
+    // L2b all-clients board roll-up: client-labelled, keyset-paginated cards.
+    if (url.includes('/_all/tracker/board')) {
+      const secondPage = url.includes('cursor=page-2');
       return {
-        data: {
-          columns: [
-            { id: 'introduced', label: 'Introduced', cards: [] },
-            {
-              id: 'committee',
-              label: 'In committee',
-              cards: [
+        data: secondPage
+          ? {
+              columns: [
+                { id: 'introduced', label: 'Introduced', cards: [] },
                 {
-                  billId: 'hr-1',
-                  displayNum: 'H.R. 1',
-                  title: 'Test Roll-up Act',
-                  passageProbability: 80,
-                  unread: false,
-                  matchedTags: [],
-                  changeChip: null,
-                  hearingCount: 0,
-                  clientId: 'c1',
-                  clientName: 'Acme Aerospace',
+                  id: 'committee',
+                  label: 'In committee',
+                  cards: [
+                    {
+                      billId: 'hr-2',
+                      displayNum: 'H.R. 2',
+                      title: 'Second Page Act',
+                      passageProbability: 65,
+                      unread: false,
+                      matchedTags: ['Defense'],
+                      changeChip: null,
+                      hearingCount: 1,
+                      clientId: 'c1',
+                      clientName: 'Acme Aerospace',
+                    },
+                  ],
                 },
               ],
+              nextCursor: null,
+              hasMore: false,
+              total: 2,
+              withheld: 0,
+            }
+          : {
+              columns: [
+                { id: 'introduced', label: 'Introduced', cards: [] },
+                {
+                  id: 'committee',
+                  label: 'In committee',
+                  cards: [
+                    {
+                      billId: 'hr-1',
+                      displayNum: 'H.R. 1',
+                      title: 'Test Roll-up Act',
+                      passageProbability: 80,
+                      unread: false,
+                      matchedTags: [],
+                      changeChip: null,
+                      hearingCount: 0,
+                      clientId: 'c1',
+                      clientName: 'Acme Aerospace',
+                    },
+                  ],
+                },
+              ],
+              nextCursor: 'page-2',
+              hasMore: true,
+              total: 2,
+              withheld: 1,
             },
-          ],
-        },
       };
     }
     if (url.endsWith('/tracker/board')) return { data: { columns: [], total: 0 } };
@@ -233,6 +266,26 @@ describe('RadarPage', () => {
     // It fetches the tenant-wide board, not a per-client one.
     expect(
       apiGetMock.mock.calls.some((args: unknown[]) => String(args[0]).includes('/_all/tracker/board')),
+    ).toBe(true);
+  });
+
+  test('L2b: all-clients Bills loads every keyset page instead of silently stopping at page one', async () => {
+    mockApi({ tracker_v2: true });
+    renderRadar('/radar?tab=bills');
+
+    await waitFor(() => expect(screen.getByText('H.R. 1')).toBeInTheDocument());
+    expect(screen.queryByText('H.R. 2')).not.toBeInTheDocument();
+    expect(screen.getByText(/Showing 1 of 2 tracked bills/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Load more tracked bills/i }));
+
+    await waitFor(() => expect(screen.getByText('H.R. 2')).toBeInTheDocument());
+    expect(screen.getByText('Second Page Act')).toBeInTheDocument();
+    expect(screen.getByText(/Showing 2 of 2 tracked bills/i)).toBeInTheDocument();
+    expect(
+      apiGetMock.mock.calls.some((args: unknown[]) =>
+        String(args[0]).includes('/_all/tracker/board?cursor=page-2'),
+      ),
     ).toBe(true);
   });
 

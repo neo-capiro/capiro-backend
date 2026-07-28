@@ -352,9 +352,12 @@ describe('HearingWatchPage — New Hearing modal (P8)', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /Resolve stream/i }));
 
-    // The provenance + "not saved" note appears…
+    // The UI explains the real browser-capture fallback; it must not claim
+    // a connect-time re-resolver that does not exist.
     await waitFor(() => expect(screen.getByText(/Source found — not saved/i)).toBeInTheDocument());
-    // …but the expiring googlevideo URL is NOT written into the field.
+    expect(screen.getByText(/open it and share that tab’s audio/i)).toBeInTheDocument();
+    expect(screen.queryByText(/resolves at connect time/i)).not.toBeInTheDocument();
+    // The expiring googlevideo URL is NOT written into the field.
     expect(urlInput.value).not.toContain('googlevideo.com');
     expect(urlInput.value).not.toContain('expiring.m3u8');
   }, 15000);
