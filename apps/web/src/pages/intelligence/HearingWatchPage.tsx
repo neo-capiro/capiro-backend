@@ -72,6 +72,20 @@ function watchSearchQuery(r: UpcomingHearing): string {
   return [r.committee, r.title].filter(Boolean).join(' ').slice(0, 160);
 }
 
+/**
+ * The schedule row's free-text `type` ("Markup", "Hearing", "Committee Meeting")
+ * mapped onto the two PUBLIC session source types. A markup used to be filed as a
+ * plain `hearing`, which silently lost the distinction the recap and the
+ * bill-linking pass both read back. `committee` is deliberately NOT derived here:
+ * the schedule feed carries a committee NAME only (upcoming-hearings.service.ts
+ * returns `committee: r.committeeName`), never a committee id, and inventing one
+ * would be worse than the honest null. The persisted `hearingId` is what lets the
+ * server rejoin the full committee row.
+ */
+function normalizedSourceType(type?: string | null): 'hearing' | 'markup' {
+  return (type ?? '').toLowerCase().includes('markup') ? 'markup' : 'hearing';
+}
+
 /** Matches CreateSessionDto's `@MaxLength(300)` on `title` (intel-api). */
 const HEARING_TITLE_MAX = 300;
 
@@ -143,6 +157,7 @@ export function HearingWatchPanel() {
     presetUrl?: string;
     presetSearch?: string;
     presetHearingId?: string;
+    presetSourceType?: 'hearing' | 'markup';
   } | null>(null);
 
   const onWatch = (r: UpcomingHearing) =>
@@ -151,6 +166,7 @@ export function HearingWatchPanel() {
       presetUrl: r.url ?? undefined,
       presetSearch: watchSearchQuery(r),
       presetHearingId: r.id,
+      presetSourceType: normalizedSourceType(r.type),
     });
 
   return (
@@ -179,6 +195,7 @@ export function HearingWatchPanel() {
         presetUrl={manual?.presetUrl}
         presetSearchQuery={manual?.presetSearch}
         presetHearingId={manual?.presetHearingId}
+        presetSourceType={manual?.presetSourceType}
       />
     </div>
   );
@@ -541,6 +558,7 @@ function NewHearingModal({
   presetUrl,
   presetSearchQuery,
   presetHearingId,
+  presetSourceType,
 }: {
   open: boolean;
   onClose: () => void;
@@ -548,10 +566,12 @@ function NewHearingModal({
   presetUrl?: string;
   presetSearchQuery?: string;
   presetHearingId?: string;
+  presetSourceType?: 'hearing' | 'markup';
 }) {
   const [form] = Form.useForm();
   const create = useCreateHearing();
   const resolve = useResolveStream();
+  const navigate = useNavigate();
   const { message } = AntApp.useApp();
 
   // Consent (P8/D11) is shown/required only for PRIVATE source types.
@@ -584,8 +604,7 @@ function NewHearingModal({
     setProvenance(undefined);
     form.setFieldsValue({
       title: presetTitle,
-      sourceType: 'hearing',
-      audioSource: 'stream_url',
+      sourceType: presetSourceType ?? 'hearing',
       recordingPolicy: 'transcript_only',
       sourceUrl: presetIsMedia ? presetUrl : undefined,
       consentAttestation: undefined,
@@ -597,7 +616,7 @@ function NewHearingModal({
     // an already-usable media URL needs no resolve.
     if (!presetIsMedia && (presetUrl || presetHearingId)) runResolve();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, presetTitle, presetUrl, presetHearingId]);
+  }, [open, presetTitle, presetUrl, presetHearingId, presetSourceType]);
 
   const runResolve = () => {
     const pageUrl = (form.getFieldValue('sourceUrl') as string | undefined)?.trim() || presetUrl;
@@ -688,7 +707,7 @@ function NewHearingModal({
       title="Start a hearing session"
       open={open}
       onCancel={onClose}
-      okText="Create"
+      okText="Create and open"
       confirmLoading={create.isPending}
       onOk={() => {
         form.validateFields().then((v) => {
@@ -696,8 +715,15 @@ function NewHearingModal({
             {
               title: v.title,
               sourceType: v.sourceType,
-              audioSource: v.audioSource,
+              // Browser-tab audio is the only implemented capture path, so this is
+              // no longer a user choice (see the removed "Audio source" field).
+              audioSource: 'browser_mic',
               recordingPolicy: v.recordingPolicy,
+              // Persist the schedule row's id so the session keeps its link back
+              // to the committee_hearing row — the recap, the bill-hearing linker
+              // and the Meri session context all read it, and it used to be
+              // dropped the moment this modal closed.
+              hearingId: presetHearingId,
               // No ingestible media URL? Persist whatever reference link we DO
               // have (event page / C-SPAN search) so the Live Hearing Room can
               // surface it as an "open + capture" link — otherwise that link
@@ -708,10 +734,14 @@ function NewHearingModal({
                 : undefined,
             },
             {
-              onSuccess: () => {
+              // Creating a session used to leave the analyst on the schedule with
+              // a toast, so they had to switch to My Sessions and find the row
+              // they just made before they could capture anything. Open the room.
+              onSuccess: (created) => {
                 message.success('Hearing session created');
                 form.resetFields();
                 onClose();
+                navigate(`/intelligence/hearing-watch/${created.id}`);
               },
               onError: (e: unknown) => {
                 // Surface the server's actual validation reason (class-validator
@@ -734,8 +764,7 @@ function NewHearingModal({
         layout="vertical"
         initialValues={{
           title: presetTitle,
-          sourceType: 'hearing',
-          audioSource: 'stream_url',
+          sourceType: presetSourceType ?? 'hearing',
           recordingPolicy: 'transcript_only',
         }}
       >
@@ -744,7 +773,7 @@ function NewHearingModal({
             type="success"
             showIcon
             style={{ marginBottom: 12 }}
-            message="Stream URL pre-filled from the hearing — it will play in the Live Hearing Room, ready to transcribe."
+            message="Playable media pre-filled from the hearing — it plays in the Live Hearing Room, and you share that tab's audio to transcribe it."
           />
         ) : null}
 
@@ -907,34 +936,36 @@ function NewHearingModal({
             ]}
           />
         </Form.Item>
-        <Form.Item name="audioSource" label="Audio source" rules={[{ required: true }]}>
-          <Select
-            options={[
-              { value: 'stream_url', label: 'Live stream URL' },
-              { value: 'browser_mic', label: 'Microphone / device' },
-              { value: 'uploaded_audio', label: 'Uploaded recording' },
-              { value: 'conference_bridge', label: 'Conference bridge' },
-            ]}
-          />
-        </Form.Item>
+        {/* The "Audio source" Select used to offer Live stream URL / Microphone /
+            Uploaded recording / Conference bridge. NONE of those are implemented:
+            there is no ffmpeg ingestion path, no upload transcription path and no
+            bridge dial-in, so every value except browser tab capture produced a
+            session that could never transcribe anything. Transcription is always
+            the tab audio the analyst explicitly shares, so the choice is gone and
+            `browser_mic` is sent for every session. The DTO still ACCEPTS the old
+            values (an older cached bundle keeps working) and intel-api normalizes
+            them — see hearing-session.service.ts. */}
         <Form.Item
           name="recordingPolicy"
-          label="Recording policy"
+          label="Transcript retention"
           rules={[{ required: true }]}
-          tooltip="Controls what is stored. Transcript-only never persists audio."
+          tooltip="Browser tab audio is streamed to the transcription service and is never stored by this workflow, so there is no store-the-audio option."
         >
           <Select
             options={[
-              { value: 'transcript_only', label: 'Transcript only (no audio stored)' },
-              { value: 'audio_and_transcript', label: 'Store transcript + audio' },
-              { value: 'no_storage', label: 'No storage (live only)' },
+              // `audio_and_transcript` is deliberately NOT offered: no audio sink
+              // or retention lifecycle exists, so choosing it promised a recording
+              // that was never written. The server normalizes it to
+              // transcript_only for older clients rather than 400ing them.
+              { value: 'transcript_only', label: 'Save transcript (audio is never stored)' },
+              { value: 'no_storage', label: 'Live only — save neither transcript nor audio' },
             ]}
           />
         </Form.Item>
         <Form.Item
           name="sourceUrl"
-          label="Stream / recording URL (optional)"
-          tooltip="Direct media URL — HLS .m3u8, MP3/AAC, or MP4 (e.g. a C-SPAN or committee stream). Or paste an event/committee page and click Resolve stream."
+          label="Hearing page or playable media URL (optional)"
+          tooltip="What the analyst will PLAY in a browser tab — an HLS .m3u8, MP4, MP3/AAC, YouTube link, or the event/committee page. The server never pulls this URL itself; transcription comes from the tab audio you share."
         >
           <Input
             placeholder="https://…/hearing.m3u8 or an event page — then Resolve"

@@ -47,12 +47,20 @@ export class OrchestratorClient {
      *  MeriV2, which resolves the Capiro user from it and 401s without one. */
     clerkUserId: string;
     segment: FinalSegment;
+    /**
+     * The government-affairs frame the analyst set up the session with. Meri gets
+     * only what the session actually carries — a null committee or an empty
+     * agency list is passed through as-is rather than guessed at.
+     */
     sessionContext: {
       clientId?: string | null;
       issueIds: string[];
       billIds: string[];
       programElementIds: string[];
+      agencyIds: string[];
       committeeId?: string | null;
+      /** The scheduled committee_hearing row this session was created from. */
+      hearingId?: string | null;
     };
   }): Promise<ExtractionResult> {
     const empty: ExtractionResult = { entityMentions: [], issueTags: [] };

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import Hls from 'hls.js';
 import {
@@ -25,22 +25,34 @@ import '../radar/legiwatch.css';
 import {
   briefToMarkdown,
   isMediaUrl,
+  mediaKindOf,
+  mintWsTicket,
   useConfirmConsent,
   useGenerateBrief,
   useHearingSession,
+  useHearingTranscript,
   useSaveRecap,
   type HearingBrief,
-  mintWsTicket,
+  type HearingTranscriptItem,
 } from '../../lib/hearing-watch-api.js';
 
 const { Title, Text, Paragraph } = Typography;
+const RECORDER_MIME = 'audio/webm;codecs=opus';
+const CAPTURE_READY_TIMEOUT_MS = 15_000;
+const SERVER_END_TIMEOUT_MS = 8_000;
+const MAX_WS_BUFFERED_BYTES = 2 * 1024 * 1024;
 
-interface Segment {
-  startMs: number;
-  endMs: number;
-  text: string;
-  speakerLabel?: string;
-}
+type Phase =
+  | 'idle'
+  | 'connecting'
+  | 'connected'
+  | 'requesting_share'
+  | 'preparing'
+  | 'capturing'
+  | 'stopping'
+  | 'ended';
+
+interface LiveSegment extends HearingTranscriptItem {}
 interface Card_ {
   id: string;
   cardType: string;
@@ -49,13 +61,13 @@ interface Card_ {
   startMs?: number;
 }
 
+const YOUTUBE_ID_RE = /^[a-zA-Z0-9_-]{6,}$/;
+
 /** youtube.com/watch?v=, youtube.com/live/, youtube.com/embed/, or youtu.be/
  *  short links — anything else returns null (not embeddable via this path).
  *  Parses the URL properly rather than pattern-matching the raw string: a
  *  watch URL shared from a playlist commonly has `list=` before `v=`
  *  (`?list=PL...&v=ID`), which a "watch?v=" prefix match would miss. */
-const YOUTUBE_ID_RE = /^[a-zA-Z0-9_-]{6,}$/;
-
 function extractYouTubeVideoId(url: string): string | null {
   let u: URL;
   try {
@@ -78,18 +90,16 @@ function extractYouTubeVideoId(url: string): string | null {
 }
 
 /** Plays an HLS (.m3u8) stream in a plain <video> — native on Safari, hls.js
- *  everywhere else (same library-free-until-needed approach as the rest of
- *  this app). Unmuted, no autoplay: this IS the audio source for
- *  transcription now (there is no server-side ingestion), so the analyst
- *  presses play, then shares THIS TAB's audio via "Start transcription"
- *  below — autoplay-with-sound is browser-blocked without a user gesture
- *  anyway, and the native play button doubles as that gesture.
+ *  everywhere else. Unmuted, no autoplay: this IS the audio source for
+ *  transcription (there is no server-side ingestion), so the analyst presses
+ *  play, then shares THIS TAB's audio via "Start transcription" below —
+ *  autoplay-with-sound is browser-blocked without a user gesture anyway, and the
+ *  native play button doubles as that gesture.
  *
- *  A browser's own fetch of this URL is CORS-gated even though a raw server
- *  pull isn't — government/committee CDNs commonly lack permissive CORS for
- *  playback. Surface that as a clear message rather than a silently-black
- *  video box. */
-function HlsVideoPlayer({ src }: { src: string }) {
+ *  A browser's own fetch of this URL is CORS-gated even though a raw server pull
+ *  isn't — government/committee CDNs commonly lack permissive CORS for playback.
+ *  Surface that as a clear message rather than a silently-black video box. */
+function HlsPlayer({ src }: { src: string }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [unavailable, setUnavailable] = useState(false);
 
@@ -110,28 +120,19 @@ function HlsVideoPlayer({ src }: { src: string }) {
     } else {
       setUnavailable(true);
     }
-    return () => {
-      hls?.destroy();
-    };
+    return () => hls?.destroy();
   }, [src]);
 
   if (unavailable) {
     return (
-      <div
-        style={{
-          padding: '32px 16px',
-          textAlign: 'center',
-          background: '#000',
-          borderRadius: 8,
-          color: 'rgba(255,255,255,0.65)',
-          fontSize: 12,
-        }}
-      >
-        Video preview unavailable for this stream — open the source link below instead.
-      </div>
+      <Alert
+        type="warning"
+        showIcon
+        message="Preview unavailable"
+        description="Open the source in another tab and share that tab's audio instead."
+      />
     );
   }
-
   return (
     <video
       ref={videoRef}
@@ -143,211 +144,471 @@ function HlsVideoPlayer({ src }: { src: string }) {
   );
 }
 
+/** Routes by media KIND. A progressive MP4 or an MP3 pushed through hls.js dies
+ *  on a manifest parse error, so only real HLS goes to HlsPlayer. */
+function MediaPlayer({ src }: { src: string }) {
+  const kind = mediaKindOf(src);
+  if (kind === 'hls') return <HlsPlayer src={src} />;
+  if (kind === 'audio') {
+    return <audio src={src} controls style={{ width: '100%', display: 'block' }} />;
+  }
+  return (
+    <video
+      src={src}
+      controls
+      playsInline
+      style={{ width: '100%', maxHeight: 320, background: '#000', borderRadius: 8, display: 'block' }}
+    />
+  );
+}
+
+// Gateway listens at /intel-api/live. A WebSocket cannot set an Authorization
+// header, so the browser presents a SINGLE-USE, 60-second ticket minted over
+// authenticated HTTPS (POST /intel-api/hearings/:id/ws-ticket) instead of the
+// Clerk JWT. Query strings end up in ALB access logs, proxies and browser
+// history — a ticket that dies on first use is safe there; a session token valid
+// for the whole socket lifetime was not.
 function wsUrl(sessionId: string, ticket: string): string {
-  // Gateway listens at /intel-api/live. A WebSocket cannot set an Authorization
-  // header, so the browser presents a SINGLE-USE, 60-second ticket minted over
-  // authenticated HTTPS (POST /intel-api/hearings/:id/ws-ticket) instead of the
-  // Clerk JWT. Query strings end up in ALB access logs, proxies and browser
-  // history — a ticket that dies on first use is safe there; a session token
-  // valid for the whole socket lifetime was not.
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${proto}//${window.location.host}/intel-api/live?sessionId=${encodeURIComponent(sessionId)}&ticket=${encodeURIComponent(ticket)}`;
+  return `${proto}//${window.location.host}/intel-api/live?sessionId=${encodeURIComponent(
+    sessionId,
+  )}&ticket=${encodeURIComponent(ticket)}`;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMessage: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(timeoutMessage)), ms);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        window.clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
+/**
+ * Reopening a session hydrates its persisted transcript, and a resumed capture
+ * then streams new finals on top. Keying by segment id (falling back to the
+ * start:end pair the server's unique index is built on) means a segment that
+ * appears in BOTH sources renders once, and the sort keeps the reading order
+ * deterministic regardless of which source arrived first.
+ */
+function mergeSegments(persisted: HearingTranscriptItem[], live: LiveSegment[]): LiveSegment[] {
+  const map = new Map<string, LiveSegment>();
+  for (const s of persisted) map.set(s.id || `${s.startMs}:${s.endMs}`, s);
+  for (const s of live) map.set(s.id || `${s.startMs}:${s.endMs}`, s);
+  return [...map.values()].sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs);
 }
 
 export function LiveHearingRoomPage() {
   const enabled = useIntelFeatureEnabled('hearing_watch');
   const { id = '' } = useParams();
+  const navigate = useNavigate();
   const { message } = AntApp.useApp();
-  const confirmConsent = useConfirmConsent();
-
-  const session = useHearingSession(id);
   const api = useApi();
+  const confirmConsent = useConfirmConsent();
+  const session = useHearingSession(id);
+  const transcript = useHearingTranscript(id);
   // Clients (id→name) to resolve the recap's target client + label the picker.
   const clientsQuery = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['clients'],
     queryFn: async () => (await api.get<Array<{ id: string; name: string }>>('/api/clients')).data,
     staleTime: 60_000,
   });
-  // Post-session (L6): once the session has ended (server status or a local Stop),
-  // surface "Save recap" → files a client Document + indexes into Meri's knowledge.
-  const [stopped, setStopped] = useState(false);
+
+  const [phase, setPhase] = useState<Phase>('idle');
+  const phaseRef = useRef<Phase>('idle');
+  const setPhaseNow = useCallback((next: Phase) => {
+    phaseRef.current = next;
+    setPhase(next);
+  }, []);
+
   const [recapOpen, setRecapOpen] = useState(false);
-  const [connected, setConnected] = useState(false);
-  const [capturing, setCapturing] = useState(false);
-  const [segments, setSegments] = useState<Segment[]>([]);
-  const [interim, setInterim] = useState<string>('');
+  const [liveSegments, setLiveSegments] = useState<LiveSegment[]>([]);
+  const [interim, setInterim] = useState('');
   const [cards, setCards] = useState<Card_[]>([]);
   const [error, setError] = useState<string | null>(null);
-  // Human-readable progress from the server's `status` frames (connecting,
-  // transcribing, reconnecting, ended). Without surfacing these the room
-  // looked identical whether transcription was working, still starting, or
-  // had failed — the "nothing happens" report.
   const [statusText, setStatusText] = useState<string | null>(null);
+  const [bytesSent, setBytesSent] = useState(0);
+  const [lastTranscriptAt, setLastTranscriptAt] = useState<number | null>(null);
+
   const wsRef = useRef<WebSocket | null>(null);
-  const transcriptEndRef = useRef<HTMLDivElement | null>(null);
+  const socketGenerationRef = useRef(0);
   const displayStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const sendChainRef = useRef<Promise<void>>(Promise.resolve());
+  const captureReadyRef = useRef<{ resolve: () => void; reject: (err: Error) => void } | null>(null);
+  const serverEndedRef = useRef<{ resolve: () => void } | null>(null);
+  const stoppingRef = useRef(false);
+  const transcriptEndRef = useRef<HTMLDivElement | null>(null);
 
-  // A non-media sourceUrl is a reference (event page / C-SPAN search / YouTube
-  // watch page) carried over from hearing creation — the source to embed or
-  // open in a tab so the analyst can share its audio.
-  const referenceUrl =
-    session.data?.sourceUrl && !isMediaUrl(session.data.sourceUrl)
-      ? session.data.sourceUrl
-      : undefined;
-  // A directly-embeddable media URL (HLS/MP4/audio) — played right here via
-  // HlsVideoPlayer instead of needing a separate tab. There is no server-side
-  // ingestion of this anymore: it's just the audio source for "Start
-  // transcription" below, same as the YouTube-embed and open-in-tab cases.
-  const embeddableUrl =
-    session.data?.sourceUrl && isMediaUrl(session.data.sourceUrl)
-      ? session.data.sourceUrl
-      : undefined;
+  const persistedSegments = useMemo(
+    () => transcript.data?.pages.flatMap((p) => p.items) ?? [],
+    [transcript.data],
+  );
+  const segments = useMemo(
+    () => mergeSegments(persistedSegments, liveSegments),
+    [persistedSegments, liveSegments],
+  );
+
+  const sourceUrl = session.data?.sourceUrl ?? undefined;
+  const referenceUrl = sourceUrl && !isMediaUrl(sourceUrl) ? sourceUrl : undefined;
+  const embeddableUrl = sourceUrl && isMediaUrl(sourceUrl) ? sourceUrl : undefined;
   const youtubeVideoId = referenceUrl ? extractYouTubeVideoId(referenceUrl) : null;
-
-  const connect = useCallback(async () => {
-    let ticket: string;
-    try {
-      ticket = (await mintWsTicket(api, id)).ticket;
-    } catch {
-      setError('Not authenticated');
-      return;
-    }
-    const ws = new WebSocket(wsUrl(id, ticket));
-    wsRef.current = ws;
-    ws.onopen = () => {
-      setConnected(true);
-      setStatusText('Connected — starting transcription…');
-    };
-    ws.onclose = () => {
-      setConnected(false);
-      setStatusText(null);
-      // A drop for any reason (max-duration cutoff, network blip, auth expiry)
-      // must tear down browser capture too — otherwise a running MediaRecorder
-      // keeps sending chunks (silently dropped since wsRef is now closed) and
-      // the browser's "sharing this tab" indicator stays on. Without this, a
-      // stale recorder from a dead connection would also start bleeding into
-      // whatever WS a subsequent reconnect creates.
-      mediaRecorderRef.current?.stop();
-      mediaRecorderRef.current = null;
-      displayStreamRef.current?.getTracks().forEach((t) => t.stop());
-      displayStreamRef.current = null;
-      setCapturing(false);
-    };
-    ws.onerror = () => setError('WebSocket connection error');
-
-    // Map the server's free-form `status` frames to a readable line.
-    const handleStatus = (s: string) => {
-      if (s === 'connected') setStatusText('Connected — starting transcription…');
-      else if (s === 'transcribing') setStatusText('Listening for audio…');
-      else if (s.startsWith('reconnecting')) setStatusText('Reconnecting to transcription…');
-      else if (s === 'max_duration_reached')
-        setStatusText('Session reached the maximum duration and was stopped.');
-      else if (s) setStatusText(s);
-    };
-
-    ws.onmessage = (ev) => {
-      try {
-        const msg = JSON.parse(ev.data);
-        if (msg.type === 'interim') setInterim(msg.segment?.text ?? '');
-        else if (msg.type === 'final') {
-          setInterim('');
-          if (msg.segment) setSegments((s) => [...s, msg.segment]);
-        } else if (msg.type === 'card' && msg.card) setCards((c) => [msg.card, ...c]);
-        else if (msg.type === 'error') {
-          // A hard failure (e.g. ffmpeg couldn't open the stream). Show it and
-          // clear the transient status so the room doesn't look stuck "starting".
-          setError(msg.message ?? 'stream error');
-          setStatusText(null);
-        } else if (msg.type === 'status') {
-          handleStatus(String(msg.status ?? ''));
-        }
-      } catch {
-        /* ignore malformed frame */
-      }
-    };
-  }, [api, id]);
-
-  useEffect(() => {
-    return () => {
-      wsRef.current?.close();
-      mediaRecorderRef.current?.stop();
-      displayStreamRef.current?.getTracks().forEach((t) => t.stop());
-    };
-  }, []);
-
-  /** Stop an in-progress browser-audio capture (recorder + shared-tab tracks). */
-  const stopBrowserCapture = useCallback(() => {
-    mediaRecorderRef.current?.stop();
-    mediaRecorderRef.current = null;
-    displayStreamRef.current?.getTracks().forEach((t) => t.stop());
-    displayStreamRef.current = null;
-    setCapturing(false);
-  }, []);
+  const sessionEnded =
+    phase === 'ended' || session.data?.status === 'ended' || session.data?.status === 'failed';
+  const captureActive = ['requesting_share', 'preparing', 'capturing', 'stopping'].includes(phase);
 
   /**
-   * Chamber-agnostic capture path: the analyst opens/plays the hearing (the
-   * embed above, or a separate tab for anything that can't be embedded),
-   * picks that tab here with "Share tab audio" checked, and MediaRecorder
-   * streams opus chunks over the WS's default Deepgram connection. This
-   * captures audio already being rendered on the analyst's own machine; it
-   * never touches the source platform's servers, and there is no server-side
-   * stream ingestion — this is the only transcription path now.
+   * Tear down everything that can still produce or hold audio. Dropping the
+   * recorder reference alone is not enough: an un-stopped MediaRecorder keeps
+   * firing `dataavailable` (and keeps the tab's recording indicator lit) until
+   * its tracks happen to end, so a terminal failure could leave the microphone
+   * chip showing after the UI claimed the capture was over. Stop the recorder
+   * first, then the tracks.
+   */
+  const cleanupCaptureTracks = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+    mediaRecorderRef.current = null;
+    if (recorder && recorder.state !== 'inactive') {
+      try {
+        recorder.stop();
+      } catch {
+        // A recorder that already ended throws InvalidStateError — nothing to do.
+      }
+    }
+    displayStreamRef.current?.getTracks().forEach((t) => t.stop());
+    displayStreamRef.current = null;
+  }, []);
+
+  const disconnectSocket = useCallback(() => {
+    const ws = wsRef.current;
+    wsRef.current = null;
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+      ws.close();
+    }
+  }, []);
+
+  const stopRecorderAndFlush = useCallback(async () => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder) {
+      await sendChainRef.current;
+      return;
+    }
+    await new Promise<void>((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        resolve();
+      };
+      recorder.addEventListener('stop', finish, { once: true });
+      window.setTimeout(finish, 1_500);
+      try {
+        if (recorder.state === 'recording' || recorder.state === 'paused') {
+          recorder.requestData();
+          recorder.stop();
+        } else {
+          finish();
+        }
+      } catch {
+        finish();
+      }
+    });
+    await sendChainRef.current;
+  }, []);
+
+  const endSession = useCallback(async () => {
+    if (stoppingRef.current || phaseRef.current === 'ended') return;
+    stoppingRef.current = true;
+    setPhaseNow('stopping');
+    setStatusText('Finishing transcript…');
+    try {
+      await stopRecorderAndFlush();
+      cleanupCaptureTracks();
+      const ws = wsRef.current;
+      if (ws?.readyState === WebSocket.OPEN) {
+        const ended = new Promise<void>((resolve) => {
+          serverEndedRef.current = { resolve: () => resolve() };
+        });
+        ws.send(JSON.stringify({ type: 'capture_stop' }));
+        await withTimeout(
+          ended,
+          SERVER_END_TIMEOUT_MS,
+          'The server did not confirm the session end.',
+        ).catch(() => undefined);
+      }
+    } finally {
+      disconnectSocket();
+      captureReadyRef.current = null;
+      serverEndedRef.current = null;
+      setInterim('');
+      setStatusText('Session ended');
+      setPhaseNow('ended');
+      stoppingRef.current = false;
+    }
+  }, [cleanupCaptureTracks, disconnectSocket, setPhaseNow, stopRecorderAndFlush]);
+
+  const connect = useCallback(async () => {
+    if (phaseRef.current !== 'idle' && phaseRef.current !== 'ended') return;
+    setError(null);
+    setStatusText('Authorizing connection…');
+    setPhaseNow('connecting');
+    const generation = ++socketGenerationRef.current;
+    try {
+      const ticket = (await mintWsTicket(api, id)).ticket;
+      if (generation !== socketGenerationRef.current) return;
+      const ws = new WebSocket(wsUrl(id, ticket));
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        if (wsRef.current !== ws) return;
+        setPhaseNow('connected');
+        setStatusText('Connected — ready to choose the hearing tab.');
+      };
+      // A drop for any reason (max-duration cutoff, network blip, auth expiry,
+      // lost lease) must tear down browser capture too — otherwise a running
+      // MediaRecorder keeps producing chunks with nowhere to send them and the
+      // browser's "sharing this tab" indicator stays on. A stale recorder from a
+      // dead connection would also bleed into whatever socket a later reconnect
+      // creates.
+      ws.onclose = () => {
+        if (wsRef.current !== ws) return;
+        wsRef.current = null;
+        captureReadyRef.current?.reject(new Error('Connection closed before capture became ready.'));
+        captureReadyRef.current = null;
+        cleanupCaptureTracks();
+        if (phaseRef.current !== 'ended' && phaseRef.current !== 'stopping') {
+          setStatusText(null);
+          setPhaseNow('idle');
+        }
+      };
+      ws.onerror = () => {
+        if (wsRef.current === ws) setError('WebSocket connection error');
+      };
+      ws.onmessage = (ev) => {
+        if (wsRef.current !== ws) return;
+        try {
+          const msg = JSON.parse(String(ev.data));
+          if (msg.type === 'interim') {
+            setInterim(msg.segment?.text ?? '');
+          } else if (msg.type === 'final' && msg.segment) {
+            setInterim('');
+            setLastTranscriptAt(Date.now());
+            setLiveSegments((current) => {
+              const next: LiveSegment = {
+                id: msg.segmentId || `${msg.segment.startMs}:${msg.segment.endMs}`,
+                ...msg.segment,
+              };
+              return mergeSegments(current, [next]);
+            });
+          } else if (msg.type === 'card' && msg.card) {
+            setCards((current) => [msg.card, ...current.filter((c) => c.id !== msg.card.id)]);
+          } else if (msg.type === 'error') {
+            const err = new Error(msg.message ?? 'Transcription error');
+            setError(err.message);
+            captureReadyRef.current?.reject(err);
+            captureReadyRef.current = null;
+            if (msg.code === 'TRANSCRIPTION_RESTART_REQUIRED') cleanupCaptureTracks();
+          } else if (msg.type === 'status') {
+            const status = String(msg.status ?? '');
+            if (status === 'connected') {
+              setStatusText('Connected — ready to choose the hearing tab.');
+            } else if (status === 'preparing_transcription') {
+              setStatusText('Preparing transcription…');
+            } else if (status === 'capture_ready') {
+              setStatusText('Transcription ready — starting browser audio capture…');
+              captureReadyRef.current?.resolve();
+              captureReadyRef.current = null;
+            } else if (status === 'capturing') {
+              setStatusText('Capturing and transcribing browser-tab audio…');
+            } else if (status === 'capture_restart_required') {
+              setStatusText('Capture stopped — reconnect and start again to resume safely.');
+              cleanupCaptureTracks();
+            } else if (status === 'max_duration_reached') {
+              setStatusText('Session reached the maximum duration and is being finalized.');
+            } else if (status === 'ended' || status === 'failed') {
+              serverEndedRef.current?.resolve();
+              serverEndedRef.current = null;
+              setPhaseNow('ended');
+              setStatusText(status === 'ended' ? 'Session ended' : 'Session ended with an error');
+            } else if (status) {
+              setStatusText(status);
+            }
+          }
+        } catch {
+          // Ignore a malformed server frame; the next valid status remains usable.
+        }
+      };
+    } catch (err) {
+      setError((err as Error).message || 'Not authenticated');
+      setStatusText(null);
+      setPhaseNow('idle');
+    }
+  }, [api, cleanupCaptureTracks, id, setPhaseNow]);
+
+  /**
+   * Chamber-agnostic capture path: the analyst opens/plays the hearing (the embed
+   * above, or a separate tab for anything that can't be embedded), picks that tab
+   * here with "Share tab audio" checked, and MediaRecorder streams WebM/Opus
+   * chunks over the WebSocket. This captures audio already being rendered on the
+   * analyst's own machine; it never touches the source platform's servers, and
+   * there is no server-side stream ingestion — this is the only transcription
+   * path.
+   *
+   * The recorder is NOT started when the picker resolves. It starts only after
+   * the server has claimed the session lease, opened Deepgram and answered
+   * `capture_ready` — audio sent before that was accepted by the socket and then
+   * dropped on the floor, which looked exactly like a working capture producing
+   * no transcript.
    */
   const startBrowserCapture = useCallback(async () => {
+    if (phaseRef.current !== 'connected') return;
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      setError('Connect first, then capture browser audio.');
+      setError('Connect first, then start transcription.');
       return;
     }
-    if (!MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-      setError('This browser cannot record opus audio — try Chrome or Edge.');
+    if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported(RECORDER_MIME)) {
+      setError('This browser cannot record WebM/Opus audio. Use current Chrome or Edge.');
       return;
     }
+
+    setError(null);
+    setPhaseNow('requesting_share');
+    setStatusText('Choose the browser tab playing the hearing and enable Share tab audio.');
     try {
       // video:true is required by the browser to offer a "Tab" source with a
       // "Share tab audio" checkbox; the video track is discarded immediately.
       const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-      // Re-check live state: the browser's picker can sit open for a while,
-      // and a disconnect may have happened while we waited on the user.
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      // Re-check live state: the browser's picker can sit open for a while, and a
+      // disconnect (or a second Start attempt) may have happened while we waited.
+      const phaseAfterPicker = phaseRef.current as Phase;
+      if (phaseAfterPicker !== 'requesting_share' || wsRef.current?.readyState !== WebSocket.OPEN) {
         display.getTracks().forEach((t) => t.stop());
-        setError('Connection state changed while waiting for the capture picker — try again.');
-        return;
+        throw new Error('Connection state changed while the share picker was open. Try again.');
+      }
+
+      const videoTrack = display.getVideoTracks()[0];
+      const displaySurface = videoTrack?.getSettings().displaySurface;
+      if (displaySurface && displaySurface !== 'browser') {
+        display.getTracks().forEach((t) => t.stop());
+        throw new Error('Choose a browser tab, not an entire screen or application window.');
       }
       const audioTracks = display.getAudioTracks();
-      if (audioTracks.length === 0) {
+      if (!audioTracks.length) {
         display.getTracks().forEach((t) => t.stop());
-        setError(
-          'No audio was shared — when picking the tab/window, check "Share tab audio" (or "Share system audio").',
-        );
-        return;
+        throw new Error('No audio was shared. Check Share tab audio in the browser picker.');
       }
-      display.getVideoTracks().forEach((t) => t.stop());
+
       displayStreamRef.current = display;
-      const recorder = new MediaRecorder(new MediaStream(audioTracks), {
-        mimeType: 'audio/webm;codecs=opus',
+      setPhaseNow('preparing');
+      const ready = new Promise<void>((resolve, reject) => {
+        captureReadyRef.current = { resolve: () => resolve(), reject };
       });
-      recorder.ondataavailable = (e) => {
-        if (e.data.size === 0) return;
-        void e.data.arrayBuffer().then((buf) => {
-          if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.send(buf);
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'capture_start',
+          mimeType: RECORDER_MIME,
+          displaySurface: displaySurface ?? 'unknown',
+        }),
+      );
+      await withTimeout(
+        ready,
+        CAPTURE_READY_TIMEOUT_MS,
+        'Transcription did not become ready. Try again.',
+      );
+
+      display.getVideoTracks().forEach((t) => t.stop());
+      const recorder = new MediaRecorder(new MediaStream(audioTracks), { mimeType: RECORDER_MIME });
+      mediaRecorderRef.current = recorder;
+      sendChainRef.current = Promise.resolve();
+
+      recorder.ondataavailable = (event) => {
+        if (!event.data.size) return;
+        sendChainRef.current = sendChainRef.current.then(async () => {
+          const ws = wsRef.current;
+          // 'stopping' is still a sending phase — that is the final flushed chunk,
+          // which must reach the server before capture_stop. 'ended' is not.
+          if (phaseRef.current === 'ended') return;
+          if (!ws || ws.readyState !== WebSocket.OPEN) return;
+          if (ws.bufferedAmount > MAX_WS_BUFFERED_BYTES) {
+            throw new Error('Network upload is falling behind. The capture was stopped to prevent data loss.');
+          }
+          const buffer = await event.data.arrayBuffer();
+          ws.send(buffer);
+          setBytesSent((n) => n + buffer.byteLength);
+        });
+        sendChainRef.current.catch((err) => {
+          setError((err as Error).message);
+          cleanupCaptureTracks();
+          disconnectSocket();
+          setPhaseNow('idle');
         });
       };
-      // The browser's own "Stop sharing" control ends the track directly.
-      audioTracks[0]?.addEventListener('ended', stopBrowserCapture);
-      recorder.start(250);
-      mediaRecorderRef.current = recorder;
-      setCapturing(true);
-      setError(null);
-      setStatusText("Capturing this browser's audio…");
+      recorder.onerror = () => {
+        setError('The browser audio recorder stopped unexpectedly.');
+        void endSession();
+      };
+      // The browser's own "Stop sharing" control ends the track directly — treat
+      // it as an intentional end so the tail utterance still gets finalized.
+      audioTracks[0]?.addEventListener('ended', () => {
+        if (!stoppingRef.current && phaseRef.current === 'capturing') void endSession();
+      });
+      recorder.start(500);
+      setPhaseNow('capturing');
+      setStatusText('Capturing and transcribing browser-tab audio…');
     } catch (err) {
+      captureReadyRef.current = null;
+      cleanupCaptureTracks();
       setError(`Could not start browser capture: ${(err as Error).message}`);
+      setStatusText(
+        wsRef.current?.readyState === WebSocket.OPEN ? 'Connected — ready to try again.' : null,
+      );
+      setPhaseNow(wsRef.current?.readyState === WebSocket.OPEN ? 'connected' : 'idle');
     }
-  }, [stopBrowserCapture]);
+  }, [cleanupCaptureTracks, disconnectSocket, endSession, setPhaseNow]);
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [segments, interim]);
+  }, [segments.length, interim]);
+
+  useEffect(() => {
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!['requesting_share', 'preparing', 'capturing', 'stopping'].includes(phaseRef.current)) {
+        return;
+      }
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      // Bump the generation so an in-flight ticket mint cannot open a socket
+      // into an unmounted component.
+      socketGenerationRef.current += 1;
+      cleanupCaptureTracks();
+      disconnectSocket();
+    };
+  }, [cleanupCaptureTracks, disconnectSocket]);
+
+  const goBack = useCallback(async () => {
+    if (captureActive) {
+      const confirmed = window.confirm('Leaving will end this live hearing transcription. Continue?');
+      if (!confirmed) return;
+      await endSession();
+    } else {
+      disconnectSocket();
+    }
+    navigate('/intelligence/hearing-watch');
+  }, [captureActive, disconnectSocket, endSession, navigate]);
 
   const cardColor = useMemo(
     () =>
@@ -363,10 +624,7 @@ export function LiveHearingRoomPage() {
 
   if (!enabled) {
     return (
-      <div
-        className="lw-root redesign"
-        style={{ padding: '22px 32px 80px', background: 'var(--bg-canvas)', minHeight: '100%' }}
-      >
+      <div className="lw-root redesign" style={{ padding: '22px 32px 80px', minHeight: '100%' }}>
         <div className="guide plain">
           <h4>Hearing Watch is not enabled</h4>
           <p>This workspace doesn’t have Hearing Watch turned on yet.</p>
@@ -380,58 +638,72 @@ export function LiveHearingRoomPage() {
       className="lw-root redesign"
       style={{ padding: '22px 32px 80px', background: 'var(--bg-canvas)', minHeight: '100%' }}
     >
-      <Space style={{ marginBottom: 12 }}>
-        <Link to="/intelligence/hearing-watch">
-          <Button icon={<ArrowLeftOutlined />} size="small">
-            Back
-          </Button>
-        </Link>
+      <Space style={{ marginBottom: 12 }} wrap>
+        <Button icon={<ArrowLeftOutlined />} size="small" onClick={() => void goBack()}>
+          Back
+        </Button>
         <Title level={4} style={{ margin: 0 }}>
           <AudioOutlined /> Live Hearing Room
         </Title>
-        <Badge status={connected ? 'processing' : 'default'} text={connected ? 'Live' : 'Disconnected'} />
+        <Badge
+          status={
+            phase === 'capturing'
+              ? 'processing'
+              : phase === 'idle' || phase === 'ended'
+                ? 'default'
+                : 'warning'
+          }
+          text={phase === 'capturing' ? 'Transcribing' : phase.replace('_', ' ')}
+        />
       </Space>
 
-      {error && (
-        <Alert type="error" showIcon closable message={error} style={{ marginBottom: 12 }} onClose={() => setError(null)} />
-      )}
+      {error ? (
+        <Alert
+          type="error"
+          showIcon
+          closable
+          message={error}
+          style={{ marginBottom: 12 }}
+          onClose={() => setError(null)}
+        />
+      ) : null}
 
-      <Space style={{ marginBottom: 12 }}>
-        {!connected ? (
-          <Button type="primary" onClick={connect}>
-            Connect & start transcription
-          </Button>
-        ) : (
+      <Space style={{ marginBottom: 12 }} wrap>
+        {(phase === 'idle' || phase === 'ended' || phase === 'connecting') && (
           <Button
-            danger
-            onClick={() => {
-              wsRef.current?.close();
-              stopBrowserCapture();
-              setConnected(false);
-              setStatusText(null);
-              setStopped(true);
-            }}
+            type="primary"
+            onClick={() => void connect()}
+            loading={phase === 'connecting'}
+            disabled={phase === 'connecting'}
           >
-            Stop
+            {sessionEnded ? 'Connect to resume' : 'Connect'}
           </Button>
         )}
-        <Button
-          onClick={() =>
-            confirmConsent.mutate(
-              { id, attestation: 'Confirmed recording consent for this hearing.' },
-              {
-                onSuccess: () => message.success('Consent confirmed'),
-                onError: (e: unknown) => message.error((e as Error).message),
-              },
-            )
-          }
-          loading={confirmConsent.isPending}
-        >
-          Confirm consent
-        </Button>
+        {phase === 'connected' && <Button onClick={() => disconnectSocket()}>Disconnect</Button>}
+        {captureActive && (
+          <Button danger loading={phase === 'stopping'} onClick={() => void endSession()}>
+            End session
+          </Button>
+        )}
+        {session.data?.consentStatus === 'needs_review' && (
+          <Button
+            onClick={() =>
+              confirmConsent.mutate(
+                { id, attestation: 'Confirmed recording consent for this hearing.' },
+                {
+                  onSuccess: () => message.success('Consent confirmed'),
+                  onError: (e: unknown) => message.error((e as Error).message),
+                },
+              )
+            }
+            loading={confirmConsent.isPending}
+          >
+            Confirm consent
+          </Button>
+        )}
       </Space>
 
-      {(stopped || session.data?.status === 'ended') && (
+      {sessionEnded && segments.length > 0 && (
         <Space style={{ marginBottom: 12 }} wrap>
           <Text type="secondary">Session ended — act on it:</Text>
           <Button type="primary" icon={<SaveOutlined />} onClick={() => setRecapOpen(true)}>
@@ -441,15 +713,12 @@ export function LiveHearingRoomPage() {
       )}
 
       {(embeddableUrl || referenceUrl) && (
-        <Card size="small" title="Hearing video" style={{ marginBottom: 12, maxWidth: 720 }}>
+        <Card size="small" title="Hearing source" style={{ marginBottom: 12, maxWidth: 760 }}>
           {embeddableUrl ? (
             <>
-              <HlsVideoPlayer src={embeddableUrl} />
+              <MediaPlayer src={embeddableUrl} />
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-                Press play above, connect (if you haven&apos;t already), then click{' '}
-                <Text strong>&quot;Start transcription&quot;</Text> below and choose{' '}
-                <Text strong>&quot;This tab&quot;</Text> when sharing — the video is right here, no
-                need to switch tabs.
+                Press play, connect, then start transcription and choose <Text strong>This tab</Text>.
               </Text>
             </>
           ) : youtubeVideoId ? (
@@ -462,8 +731,7 @@ export function LiveHearingRoomPage() {
                   allowFullScreen
                   style={{
                     position: 'absolute',
-                    top: 0,
-                    left: 0,
+                    inset: 0,
                     width: '100%',
                     height: '100%',
                     border: 0,
@@ -472,74 +740,72 @@ export function LiveHearingRoomPage() {
                 />
               </div>
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-                Press play above, connect (if you haven&apos;t already), then click{' '}
-                <Text strong>&quot;Start transcription&quot;</Text> below and choose{' '}
-                <Text strong>&quot;This tab&quot;</Text> when sharing — the video is right here, no
-                need to switch tabs.
+                Press play, connect, then start transcription and choose <Text strong>This tab</Text>.
               </Text>
             </>
           ) : (
             <>
-              <Text type="secondary">This source can&apos;t be embedded here.</Text>{' '}
-              <Button type="link" href={referenceUrl} target="_blank" rel="noreferrer" style={{ padding: 0 }}>
+              <Text type="secondary">This source opens outside Capiro.</Text>{' '}
+              <Button
+                type="link"
+                href={referenceUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{ padding: 0 }}
+              >
                 Open hearing source in a new tab ↗
               </Button>
-              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-                Then come back, connect (if you haven&apos;t already), and click{' '}
-                <Text strong>&quot;Start transcription&quot;</Text> below — pick that tab and check
-                &quot;Share tab audio&quot;.
-              </Text>
             </>
           )}
         </Card>
       )}
 
-      <Space direction="vertical" size={2} style={{ marginBottom: 12 }}>
-        <Space>
-          {!referenceUrl && !embeddableUrl && (
-            <Text type="secondary">Play the hearing in another tab, then:</Text>
-          )}
-          {!capturing ? (
-            <Tooltip title={!connected ? 'Connect first.' : undefined}>
-              <span>
-                <Button type="primary" onClick={startBrowserCapture} disabled={!connected}>
-                  Start transcription
-                </Button>
-              </span>
-            </Tooltip>
-          ) : (
-            <Button danger onClick={stopBrowserCapture}>
-              Stop transcription
-            </Button>
-          )}
+      <Card size="small" title="Capture" style={{ marginBottom: 12, maxWidth: 760 }}>
+        <Space direction="vertical" size={6}>
+          <Tooltip title={phase !== 'connected' ? 'Connect first.' : undefined}>
+            <span>
+              <Button
+                type="primary"
+                onClick={() => void startBrowserCapture()}
+                disabled={phase !== 'connected'}
+                loading={phase === 'requesting_share' || phase === 'preparing'}
+              >
+                Start transcription
+              </Button>
+            </span>
+          </Tooltip>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Choose the browser tab playing the hearing and enable Share tab audio. Chrome or Edge is required.
+          </Text>
+          {statusText && <Badge status="processing" text={statusText} />}
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            Uploaded {(bytesSent / 1024 / 1024).toFixed(2)} MB
+            {lastTranscriptAt
+              ? ` · last transcript ${Math.max(0, Math.round((Date.now() - lastTranscriptAt) / 1000))}s ago`
+              : ''}
+          </Text>
         </Space>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          Share the tab playing the hearing (this one, or another) and check &quot;Share tab
-          audio&quot;. Chrome/Edge only.
-        </Text>
-      </Space>
+      </Card>
 
-      {statusText && !error && (
-        <div style={{ marginBottom: 12 }}>
-          <Badge status="processing" text={statusText} />
-        </div>
-      )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 16 }}>
         <Card title="Transcript" size="small" style={{ minHeight: 420 }}>
-          {segments.length === 0 && !interim ? (
+          {transcript.isLoading && segments.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 24 }}>
+              <Spin />
+            </div>
+          ) : segments.length === 0 && !interim ? (
             <Empty
               description={
-                error
-                  ? 'Stream could not be transcribed — see the error above.'
-                  : statusText ?? 'No transcript yet. Connect to begin.'
+                statusText ?? 'No transcript yet. Connect, play the hearing, and start transcription.'
               }
             />
           ) : (
-            <div style={{ maxHeight: 520, overflowY: 'auto' }}>
-              {segments.map((s, i) => (
-                <Paragraph key={i} style={{ marginBottom: 8 }}>
-                  {s.speakerLabel && <Text strong>{s.speakerLabel}: </Text>}
+            <div style={{ maxHeight: 560, overflowY: 'auto' }}>
+              {segments.map((s) => (
+                <Paragraph key={s.id || `${s.startMs}:${s.endMs}`} style={{ marginBottom: 8 }}>
+                  {(s.resolvedSpeakerName || s.speakerLabel) && (
+                    <Text strong>{s.resolvedSpeakerName ?? s.speakerLabel}: </Text>
+                  )}
                   <Text>{s.text}</Text>{' '}
                   <Text type="secondary" style={{ fontSize: 11 }}>
                     [{Math.floor(s.startMs / 1000)}s]
@@ -554,13 +820,23 @@ export function LiveHearingRoomPage() {
               <div ref={transcriptEndRef} />
             </div>
           )}
+          {transcript.hasNextPage && (
+            <Button
+              size="small"
+              style={{ marginTop: 8 }}
+              loading={transcript.isFetchingNextPage}
+              onClick={() => void transcript.fetchNextPage()}
+            >
+              Load more transcript
+            </Button>
+          )}
         </Card>
 
         <Card title="Intelligence cards" size="small" style={{ minHeight: 420 }}>
           {cards.length === 0 ? (
             <Empty description="Relevant moments will appear here." />
           ) : (
-            <div style={{ maxHeight: 520, overflowY: 'auto' }}>
+            <div style={{ maxHeight: 560, overflowY: 'auto' }}>
               {cards.map((c) => (
                 <Card key={c.id} size="small" style={{ marginBottom: 8 }}>
                   <Space direction="vertical" size={2}>
@@ -595,7 +871,9 @@ export function LiveHearingRoomPage() {
 
 /**
  * L6 — Save Recap. Generates the post-hearing brief, previews it, and files it to
- * a client's Documents (which auto-indexes into that client's Meri knowledge).
+ * a client's Documents (which auto-indexes into that client's Meri knowledge)
+ * through the dedicated hearing-recap endpoint, carrying the sessionId so the
+ * server can prove tenant ownership and private-session access.
  */
 function SaveRecapModal({
   sessionId,
@@ -619,7 +897,7 @@ function SaveRecapModal({
 
   useEffect(() => {
     gen.mutate(sessionId, {
-      onSuccess: (b) => (b ? setBrief(b) : setFailed(true)),
+      onSuccess: (value) => (value ? setBrief(value) : setFailed(true)),
       onError: () => setFailed(true),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -629,15 +907,21 @@ function SaveRecapModal({
   const onSave = () => {
     if (!brief || !clientId) return;
     save.mutate(
-      { clientId, clientName, title: `Hearing recap — ${sessionTitle}`, markdown: briefToMarkdown(brief) },
+      {
+        sessionId,
+        clientId,
+        clientName,
+        title: `Hearing recap — ${sessionTitle}`,
+        markdown: briefToMarkdown(brief),
+      },
       {
         onSuccess: () => {
           message.success(`Recap saved to ${clientName}'s Documents and added to Meri's knowledge`);
           onClose();
         },
         onError: (e: unknown) => {
-          const detail = (e as { response?: { data?: { message?: string | string[] } } })?.response?.data
-            ?.message;
+          const detail = (e as { response?: { data?: { message?: string | string[] } } })?.response
+            ?.data?.message;
           message.error(
             `Could not save recap: ${
               Array.isArray(detail) ? detail.join('; ') : detail ?? (e as Error).message
@@ -682,11 +966,13 @@ function SaveRecapModal({
           type="warning"
           showIcon
           message="No recap available yet"
-          description="This session has no transcribed content to summarize. Connect and transcribe the hearing first."
+          description="This session has no transcribed content to summarize."
         />
       ) : (
         <div>
-          <div style={{ marginBottom: 4, fontSize: 12, color: 'var(--muted, #8a8a96)' }}>Save to client</div>
+          <div style={{ marginBottom: 4, fontSize: 12, color: 'var(--muted, #8a8a96)' }}>
+            Save to client
+          </div>
           <Select
             style={{ minWidth: 300 }}
             placeholder="Choose a client"
@@ -707,7 +993,7 @@ function SaveRecapModal({
             {briefToMarkdown(brief!)}
           </Paragraph>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            Saving files this into the client&rsquo;s Documents and adds it to Meri&rsquo;s knowledge.
+            Saving files this recap into the client’s Documents and indexes it for Meri.
           </Text>
         </div>
       )}

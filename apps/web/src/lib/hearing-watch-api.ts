@@ -1,31 +1,36 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useApi } from './use-api.js';
-
-// ---- types (mirror intel-api responses) ------------------------------------
-//
-// NOTE: the term-watchlist CRUD hooks/types (useWatchlists, useCreateWatchlist,
-// useAddTerm, useRemoveTerm, useSetWatchlistActive, Watchlist, WatchlistTerm,
-// TERM_TYPES) were removed in P5 — the unified editor (TrackerConfigPanel) now
-// owns watchlist CRUD through the tracker intel-api path. This lib is purely the
-// hearing schedule/session client now.
 
 export interface LiveHearingSession {
   id: string;
   title: string;
   status: string;
   sourceType: string;
+  audioSource: string;
   sourceUrl?: string | null;
   startedAt?: string | null;
   endedAt?: string | null;
   clientId?: string | null;
-  consentState?: string | null;
+  hearingId?: string | null;
+  committeeId?: string | null;
+  issueIds?: string[];
+  billIds?: string[];
+  programElementIds?: string[];
+  agencyIds?: string[];
+  consentStatus?: string | null;
+  recordingPolicy?: string | null;
 }
 
 /** A directly-embeddable media URL (HLS/MP4/audio) vs. an event/committee page.
- *  A media URL is played right in the Live Hearing Room via its own <video>
- *  player; a page URL (or a YouTube watch link) is embedded via iframe or
- *  opened in a new tab instead. Either way, transcription is always via
- *  browser-tab audio capture — there is no server-side stream ingestion.
+ *  A media URL is played right in the Live Hearing Room via its own player; a
+ *  page URL (or a YouTube watch link) is embedded via iframe or opened in a new
+ *  tab instead. Either way, transcription is always via browser-tab audio
+ *  capture — there is no server-side stream ingestion.
  *
  *  `stream`/`manifest`/`playlist` must appear as their own path segment (bounded
  *  by `/`, `.`, `-`, `_`, or start/end) — a bare substring match would also hit
@@ -39,19 +44,35 @@ export function isMediaUrl(u?: string | null): boolean {
   );
 }
 
+/**
+ * Which PLAYER a media URL needs. `isMediaUrl` only says "this is media"; sending
+ * a progressive MP4 or an MP3 through hls.js produces a fatal manifest-parse
+ * error and a dead black box, so the room has to route by kind:
+ *   hls   -> native HLS or hls.js
+ *   video -> a plain <video src>
+ *   audio -> a plain <audio src>
+ */
+export function mediaKindOf(u?: string | null): 'hls' | 'video' | 'audio' | 'unknown' {
+  if (!u) return 'unknown';
+  if (/\.(m3u8|m3u|ts)(\?|#|$)/i.test(u) || /(?:^|[/._-])(?:manifest|playlist)(?:[/._-]|$)/i.test(u)) {
+    return 'hls';
+  }
+  if (/\.mp4(\?|#|$)/i.test(u)) return 'video';
+  if (/\.(mp3|aac)(\?|#|$)/i.test(u)) return 'audio';
+  return 'unknown';
+}
+
 export interface UpcomingHearing {
   id: string;
   title: string;
   committee: string;
   chamber: string;
-  scheduledAt: string; // date-only 'YYYY-MM-DD'
-  time?: string | null; // display string, e.g. "10:00 AM"
-  type?: string | null; // hearing, markup, meeting
+  scheduledAt: string;
+  time?: string | null;
+  type?: string | null;
   url?: string | null;
   location?: string | null;
 }
-
-// ---- hearing sessions ------------------------------------------------------
 
 export function useHearingSessions() {
   const api = useApi();
@@ -75,15 +96,17 @@ export function useCreateHearing() {
       sourceUrl?: string;
       consentAttestation?: string;
       clientId?: string;
+      matterId?: string;
+      hearingId?: string;
       issueIds?: string[];
       billIds?: string[];
       committeeId?: string;
+      programElementIds?: string[];
+      agencyIds?: string[];
     }) => (await api.post<LiveHearingSession>('/intel-api/hearings', input)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['intel', 'hearings'] }),
   });
 }
-
-// ---- stream resolver (P8) --------------------------------------------------
 
 export type ResolveStatus = 'resolved' | 'candidates' | 'pending' | 'unresolvable';
 
@@ -111,11 +134,12 @@ export interface ResolveStreamResult {
 }
 
 /**
- * One-click stream resolver: POST a page URL and/or hearing id, get back an
- * ingestible media URL (`resolved`), a pick-list (`candidates`), a not-live-yet
+ * One-click source resolver: POST a page URL and/or hearing id, get back a
+ * playable media URL (`resolved`), a pick-list (`candidates`), a not-live-yet
  * signal (`pending`), or a `reference` fallback (`unresolvable`) for the
  * assisted-paste path. Server-side SSRF-guarded; counsel-gated adapters return a
- * reference instead of auto-extracting.
+ * reference instead of auto-extracting. Whatever comes back is played in the
+ * analyst's browser — the server never ingests it.
  */
 export function useResolveStream() {
   const api = useApi();
@@ -125,7 +149,6 @@ export function useResolveStream() {
   });
 }
 
-/** Single session (used by the Live Hearing Room to pre-fill the stream URL). */
 export function useHearingSession(id: string) {
   const api = useApi();
   return useQuery<LiveHearingSession>({
@@ -133,7 +156,43 @@ export function useHearingSession(id: string) {
     queryFn: async () => (await api.get<LiveHearingSession>(`/intel-api/hearings/${id}`)).data,
     enabled: Boolean(id),
     retry: false,
-    staleTime: 30_000,
+    staleTime: 15_000,
+  });
+}
+
+export interface HearingTranscriptItem {
+  id: string;
+  startMs: number;
+  endMs: number;
+  text: string;
+  speakerLabel?: string;
+  resolvedSpeakerName?: string;
+  confidence?: number;
+}
+
+export interface HearingTranscriptPage {
+  items: HearingTranscriptItem[];
+  nextOffset: number | null;
+  hasMore: boolean;
+}
+
+/** Persisted transcript pages for reopening an ended or interrupted session. */
+export function useHearingTranscript(id: string) {
+  const api = useApi();
+  return useInfiniteQuery<HearingTranscriptPage>({
+    queryKey: ['intel', 'hearing', id, 'transcript'],
+    queryFn: async ({ pageParam }) => {
+      const offset = Number(pageParam ?? 0);
+      return (
+        await api.get<HearingTranscriptPage>(
+          `/intel-api/hearings/${encodeURIComponent(id)}/transcript?offset=${offset}&limit=500`,
+        )
+      ).data;
+    },
+    initialPageParam: 0,
+    getNextPageParam: (last) => (last.hasMore ? last.nextOffset ?? undefined : undefined),
+    enabled: Boolean(id),
+    retry: false,
   });
 }
 
@@ -177,8 +236,6 @@ export function useConfirmConsent() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['intel', 'hearings'] }),
   });
 }
-
-// ---- upcoming hearings -----------------------------------------------------
 
 export function useUpcomingHearings() {
   const api = useApi();
@@ -236,21 +293,24 @@ export function useBrowseHearings(params: {
   });
 }
 
-// ---- Post-session recap (L6) -----------------------------------------------
-//
-// Save Recap = generate the post-hearing brief (intel-api synthesizes it), then
-// file it as a client Document via apps/api's alert-memo/save path — which ALSO
-// fire-and-forget indexes the doc into the client's Meri knowledge
-// (createAttachmentFromBuffer → indexAttachmentFireAndForget → client_doc_chunk).
-// So one save satisfies both "client Documents" and "Meri knowledge" (decision #2).
-
 export interface HearingBrief {
   sessionId: string;
   title: string;
   generatedAt: string;
   executiveSummary: string;
-  keyMoments: Array<{ segmentId: string; timestampMs: number; speakerName?: string; text: string }>;
-  relevantQuotes: Array<{ segmentId: string; timestampMs: number; speakerName?: string; text: string }>;
+  keyMoments: Array<{
+    segmentId: string;
+    timestampMs: number;
+    speakerName?: string;
+    text: string;
+    issueTags?: string[];
+  }>;
+  relevantQuotes: Array<{
+    segmentId: string;
+    timestampMs: number;
+    speakerName?: string;
+    text: string;
+  }>;
   supporters: string[];
   opponents: string[];
   tone: string;
@@ -258,6 +318,7 @@ export interface HearingBrief {
   opportunities: string[];
   recommendedNextSteps: string[];
   draftClientEmail: { subject: string; body: string };
+  claimMap?: Array<{ claimId: string; segmentId: string; timestampMs: number }>;
   synthesisSource: 'orchestrator' | 'deterministic';
 }
 
@@ -266,8 +327,7 @@ const fmtBriefTs = (ms: number): string => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 };
 
-/** Render a HearingBrief to a client-ready Markdown recap (filed as the Document
- *  and ingested into Meri's knowledge). */
+/** Render the server brief while preserving segment/timestamp evidence anchors. */
 export function briefToMarkdown(brief: HearingBrief): string {
   const L: string[] = [];
   L.push(`# Hearing recap — ${brief.title}`, '');
@@ -283,29 +343,33 @@ export function briefToMarkdown(brief: HearingBrief): string {
   if (brief.tone) L.push(`**Tone:** ${brief.tone}`, '');
   if (brief.keyMoments.length) {
     L.push('## Key moments');
-    for (const m of brief.keyMoments)
-      L.push(`- **${fmtBriefTs(m.timestampMs)}** ${m.speakerName ? `${m.speakerName}: ` : ''}${m.text}`);
+    for (const m of brief.keyMoments) {
+      L.push(
+        `- **${fmtBriefTs(m.timestampMs)}** ${m.speakerName ? `${m.speakerName}: ` : ''}${m.text} ` +
+          `[segment:${m.segmentId}]`,
+      );
+    }
     L.push('');
   }
   if (brief.risks.length) {
-    L.push('## Risks');
-    for (const r of brief.risks) L.push(`- ${r}`);
-    L.push('');
+    L.push('## Risks', ...brief.risks.map((r) => `- ${r}`), '');
   }
   if (brief.opportunities.length) {
-    L.push('## Opportunities');
-    for (const o of brief.opportunities) L.push(`- ${o}`);
-    L.push('');
+    L.push('## Opportunities', ...brief.opportunities.map((o) => `- ${o}`), '');
   }
   if (brief.recommendedNextSteps.length) {
-    L.push('## Recommended next steps');
-    for (const n of brief.recommendedNextSteps) L.push(`- ${n}`);
+    L.push('## Recommended next steps', ...brief.recommendedNextSteps.map((n) => `- ${n}`), '');
+  }
+  if (brief.claimMap?.length) {
+    L.push('## Source anchors');
+    for (const c of brief.claimMap) {
+      L.push(`- [${c.claimId}] segment ${c.segmentId} at ${fmtBriefTs(c.timestampMs)}`);
+    }
     L.push('');
   }
   return L.join('\n').trim();
 }
 
-/** Generate the post-hearing brief on demand. */
 export function useGenerateBrief() {
   const api = useApi();
   return useMutation({
@@ -315,22 +379,41 @@ export function useGenerateBrief() {
   });
 }
 
-/** Save a recap as a client Document (+ auto Meri-knowledge index). Reuses the
- *  alert-memo save path; title is capped at the DTO's 300-char limit. */
+/**
+ * Save Recap = generate the post-hearing brief (intel-api synthesizes it), then
+ * file it as a client Document through the DEDICATED hearing-recap endpoint —
+ * which ALSO fire-and-forget indexes the doc into the client's Meri knowledge
+ * (createAttachmentFromBuffer → indexAttachmentFireAndForget → client_doc_chunk).
+ * So one save satisfies both "client Documents" and "Meri knowledge".
+ *
+ * This used to POST to `alert-memo/save`, whose DTO REQUIRES an `alertId` — with
+ * `whitelist + forbidNonWhitelisted` on the global pipe, every hearing recap was
+ * rejected before reaching any handler. A recap is not an alert memo and carries
+ * none of its governance, so it gets its own session-shaped contract.
+ */
 export function useSaveRecap() {
   const api = useApi();
   return useMutation({
     mutationFn: async (input: {
+      sessionId: string;
       clientId: string;
       clientName: string;
       title: string;
       markdown: string;
+      replaceAttachmentId?: string;
     }) =>
       (
-        await api.post<{ document: { attachmentId: string; fileName: string } | null; title: string }>(
-          `/api/intelligence/clients/${encodeURIComponent(input.clientId)}/alert-memo/save`,
-          { title: input.title.slice(0, 300), markdown: input.markdown, clientName: input.clientName },
-        )
+        await api.post<{
+          sessionId: string;
+          document: { attachmentId: string; fileName: string };
+          title: string;
+        }>(`/api/intelligence/clients/${encodeURIComponent(input.clientId)}/hearing-recaps`, {
+          sessionId: input.sessionId,
+          title: input.title.slice(0, 300),
+          markdown: input.markdown,
+          clientName: input.clientName,
+          replaceAttachmentId: input.replaceAttachmentId,
+        })
       ).data,
   });
 }

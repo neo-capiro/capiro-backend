@@ -2,6 +2,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntApp } from 'antd';
+// The New-Hearing modal navigates straight into the Live Hearing Room after a
+// create, so this panel now needs router context wherever it is mounted.
+import { MemoryRouter } from 'react-router-dom';
 import { HearingWatchPanel } from './HearingWatchPage.js';
 import { hearingCapability, CAPABILITY_LABEL, type HearingCapability } from './HearingWatchPage.js';
 import type { UpcomingHearing } from '../../lib/hearing-watch-api.js';
@@ -69,7 +72,9 @@ function renderArchive() {
   render(
     <QueryClientProvider client={queryClient}>
       <AntApp>
-        <HearingWatchPanel />
+        <MemoryRouter>
+          <HearingWatchPanel />
+        </MemoryRouter>
       </AntApp>
     </QueryClientProvider>,
   );
@@ -220,7 +225,9 @@ describe('HearingWatchPage row rendering (Gate E phase d, P2-14 lock)', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <AntApp>
-          <HearingWatchPanel />
+          <MemoryRouter>
+            <HearingWatchPanel />
+          </MemoryRouter>
         </AntApp>
       </QueryClientProvider>,
     );
@@ -254,7 +261,9 @@ describe('HearingWatchPage row rendering (Gate E phase d, P2-14 lock)', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <AntApp>
-          <HearingWatchPanel />
+          <MemoryRouter>
+            <HearingWatchPanel />
+          </MemoryRouter>
         </AntApp>
       </QueryClientProvider>,
     );
