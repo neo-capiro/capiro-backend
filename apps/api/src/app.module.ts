@@ -17,6 +17,7 @@ import { BrandingModule } from './branding/branding.module.js';
 import { HelpModule } from './help/help.module.js';
 import { DirectoryModule } from './directory/directory.module.js';
 import { DistrictNexusModule } from './district-nexus/district-nexus.module.js';
+import { FundingOpportunitiesModule } from './funding-opportunities/funding-opportunities.module.js';
 import { EngagementModule } from './engagement/engagement.module.js';
 import { DemoRequestsModule } from './demo-requests/demo-requests.module.js';
 import { MeriModule } from './meri/meri.module.js';
@@ -84,6 +85,19 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     DirectoryModule,
     // Ships dark — every route 404s until the tenant has district_nexus_v2.
     DistrictNexusModule,
+    // Ships dark — every route 404s until the tenant has an EXPLICIT enabled
+    // funding_opportunities row. No internal-tenant fallback, so merging this
+    // enables it for nobody.
+    //
+    // This controller shares the `intelligence` prefix with IntelligenceController
+    // and is registered first, so its paths must not shadow any of that
+    // controller's — a shadowed route would start 404ing for every tenant, since
+    // this module is flag-gated and that one is not. Checked at the time of
+    // writing: every path here is under `opportunities` or
+    // `clients/:clientId/opportunities`, and IntelligenceController owns no
+    // `opportunities` segment. Adding a broader pattern here (e.g. a bare
+    // `clients/:clientId/:something`) would break that and must not be done.
+    FundingOpportunitiesModule,
     EngagementModule,
     DemoRequestsModule,
     MeriModule,
