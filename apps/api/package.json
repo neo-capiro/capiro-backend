@@ -7,7 +7,7 @@
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.pe-phase-a.json --noEmit",
     "test": "jest --detectOpenHandles --forceExit",
     "eval:clio": "tsx scripts/eval-clio.ts",
     "eval:clio:attachments": "tsx scripts/eval-clio-attachments.ts",
