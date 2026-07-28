@@ -1,0 +1,1 @@
+This temporary trigger is deleted after the one-shot session history patch runs.
