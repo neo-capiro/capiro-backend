@@ -42,6 +42,7 @@ import { AuthorStyleProfileService } from './generation/author-style-profile.ser
 import { MessagePlanService } from './generation/message-plan.service.js';
 import { GenerationVerifierService } from './generation/generation-verifier.service.js';
 import { GenerationGatewayService } from './generation/generation-gateway.service.js';
+import { AlertPacketClientService } from './generation/alert-packet-client.service.js';
 
 @Module({
   imports: [
@@ -102,6 +103,7 @@ import { GenerationGatewayService } from './generation/generation-gateway.servic
     MessagePlanService,
     GenerationVerifierService,
     GenerationGatewayService,
+    AlertPacketClientService,
   ],
   exports: [
     OutcomeService,

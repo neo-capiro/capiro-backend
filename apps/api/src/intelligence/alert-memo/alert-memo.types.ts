@@ -9,6 +9,7 @@
  * the client's Documents, and return it. The alert↔memo link/state is owned by
  * intel-api (intel_draft).
  */
+import type { SourceVerification } from '@capiro/shared';
 
 /**
  * Program Element funding-movement facts (P0-08). Present only for
@@ -123,7 +124,7 @@ export interface AlertMemoResult {
     label: string;
     url?: string | null;
     retrievedAt?: string;
-    verification?: 'official' | 'verified' | 'extracted' | 'unverified';
+    verification?: SourceVerification;
     page?: number;
   }>;
   /** the EngagementAttachment (client Documents) the memo was auto-filed as */

@@ -10,6 +10,8 @@ import {
   recordAiUsageEvent,
   parseProviderUsage,
   billStatusLabel,
+  classifySourceVerification,
+  type SourceVerification,
   type TenantContext,
 } from '@capiro/shared';
 import { runAuditor, type LedgerEntry } from '@capiro/meriv2-core';
@@ -1057,14 +1059,18 @@ function buildClaims(
 }
 
 /**
- * §4.6. Deliberately NEVER returns 'verified': nothing verifies these claims today, and
- * an inflated verification label is worse than none. An absolute http(s) url is a public
- * official record (congress.gov / a committee site / the Federal Register); a relative
- * path is an INTERNAL deep link (e.g. a Program Element dossier), which is extracted
- * data, not an official document.
+ * MP-11 (Gate L phase d): delegates to the shared classifier so this memo, the
+ * district brief, and intel-api's packet agree. Deliberately NEVER returns
+ * 'verified': nothing verifies these claims today, and an inflated
+ * verification label is worse than none. An absolute http(s) url is 'official'
+ * ONLY on an allowlisted government domain (congress.gov / a .gov committee
+ * site / the Federal Register); a relative path is an INTERNAL deep link
+ * (e.g. a Program Element dossier), which is extracted data; any other
+ * absolute URL is 'unverified', not 'official'. Previously ANY absolute URL —
+ * including a firm's own site or a news article — was labelled 'official'.
  */
-function verificationFor(url: string | null | undefined): 'official' | 'extracted' {
-  return url && /^https?:\/\//i.test(url) ? 'official' : 'extracted';
+function verificationFor(url: string | null | undefined): SourceVerification {
+  return classifySourceVerification(url);
 }
 
 function buildUserPrompt(

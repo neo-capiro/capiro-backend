@@ -312,19 +312,24 @@ describe('feedItemToDistrictBriefAlert', () => {
   });
 
   /**
-   * The district-brief DTO's @IsIn (district-brief.controller.ts:30) was NOT widened, so
-   * every sourceType the memo mapper now passes through must be downgraded here. For a
-   * STATE BILL this is not hypothetical: recommendedActionsFor DOES offer district_brief
-   * for a state bill, so leaving the old alias in place would have 400'd a reachable,
-   * user-facing action the moment the memo mapper stopped downgrading.
+   * HP-03 (Gate L phase a): the district-brief DTO's @IsIn (district-brief.controller.ts:30)
+   * now accepts state_bill, so a state bill's jurisdiction + deadline facts reach
+   * buildClaims instead of being stripped here. This is not hypothetical:
+   * recommendedActionsFor DOES offer district_brief for a state bill, so a widened
+   * mapper that still downgraded would silently degrade a reachable, user-facing brief
+   * to a federal-shaped one.
    */
-  test('downgrades a STATE BILL to bill and strips the state-only blocks (reachable path)', () => {
+  test('keeps a STATE BILL as state_bill and preserves its deadline + jurisdiction (reachable path)', () => {
     const item = stateBillItem();
     expect(feedItemToMemoAlert(item).sourceType).toBe('state_bill');
     const brief = feedItemToDistrictBriefAlert(item);
-    expect(brief.sourceType).toBe('bill');
-    expect(brief.deadline).toBeUndefined();
-    expect(brief.jurisdiction).toBeUndefined();
+    expect(brief.sourceType).toBe('state_bill');
+    expect(brief.deadline).toEqual({
+      cutoffType: 'committeeCutoff',
+      cutoffDate: '2026-08-01',
+      daysUntil: 5,
+    });
+    expect(brief.jurisdiction).toBe('CA');
     // The bill facts the brief actually grounds on are preserved.
     expect(brief.billDisplayNum).toBe('CA AB 1234');
   });
@@ -336,7 +341,7 @@ describe('feedItemToDistrictBriefAlert', () => {
   });
 
   test('only ever sends a sourceType the district-brief DTO accepts', () => {
-    const accepted = new Set(['bill', 'hearing', 'combined']);
+    const accepted = new Set(['bill', 'hearing', 'combined', 'state_bill']);
     for (const item of [
       stateBillItem(),
       regulationItem(),

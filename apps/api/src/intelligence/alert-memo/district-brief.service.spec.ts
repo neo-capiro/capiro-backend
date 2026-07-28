@@ -93,6 +93,21 @@ const STATE_ALERT: AlertMemoAlertInput = {
   url: 'https://flsenate.gov/hb123',
 };
 
+/** HP-03 (Gate L phase a): a FIRST-CLASS state_bill alert, jurisdiction + deadline set. */
+const STATE_BILL_ALERT: AlertMemoAlertInput = {
+  alertId: 'alert-3',
+  sourceType: 'state_bill',
+  title: 'CA AB 1234: 5 day(s) until its committeeCutoff (2026-08-01)',
+  whyItMatters: 'Sets a new state manufacturing tax credit the client would qualify for.',
+  billDisplayNum: 'CA AB 1234',
+  billTitle: 'Advanced Manufacturing Incentive Act',
+  actionText: 'Referred to Assembly Appropriations.',
+  actionDate: '2026-07-20',
+  jurisdiction: 'CA',
+  deadline: { cutoffType: 'committeeCutoff', cutoffDate: '2026-08-01', daysUntil: 5 },
+  url: 'https://leginfo.legislature.ca.gov/ab1234',
+};
+
 function makeDeps(opts: {
   facility?: typeof FACILITY_ROW | null;
   representation?: RepresentationResult;
@@ -257,6 +272,34 @@ describe('DistrictBriefService.generate', () => {
         outputTokens: 120,
       }),
     });
+    // MP-11 (Gate L phase d): congress.gov is an allowlisted government domain.
+    const c1 = result.sources.find((s) => s.url === FEDERAL_ALERT.url);
+    expect(c1?.verification).toBe('official');
+  });
+
+  // MP-11 (Gate L phase d): previously ANY absolute http(s) URL was labelled
+  // 'official' regardless of domain. Only an allowlisted government domain
+  // earns 'official' now; every other absolute URL is 'unverified'.
+  it('labels a non-government absolute URL "unverified", never "official"', async () => {
+    const { service } = makeDeps({ facility: FACILITY_ROW, representation: RESOLVED_REP });
+    global.fetch = jest.fn(async () =>
+      anthropicTextResponse([
+        {
+          heading: 'The bill/rule at stake',
+          paragraphs: [{ text: 'Grounded.', claimIds: ['c1'] }],
+        },
+      ]),
+    ) as never;
+
+    const result = await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      'fac-1',
+      { ...FEDERAL_ALERT, alertId: 'a-news', url: 'https://www.defensenews.com/story/hr8800' },
+    );
+
+    const c1 = result.sources.find((s) => s.url === 'https://www.defensenews.com/story/hr8800');
+    expect(c1?.verification).toBe('unverified');
   });
 
   it('generates identically for a STATE bill alert — same code path, state legislators in the fact sheet (M1-F)', async () => {
@@ -285,6 +328,59 @@ describe('DistrictBriefService.generate', () => {
     expect(result.title).toContain('FL HB 123');
     const allText = result.sections.flatMap((s) => s.paragraphs.map((p) => p.text)).join(' ');
     expect(allText).toContain('State Rep X');
+  });
+
+  it('HP-03 (Gate L phase a): grounds a state_bill brief in the jurisdiction + procedural-deadline claims — not just an accepted DTO', async () => {
+    const { service } = makeDeps({ facility: FACILITY_ROW, representation: RESOLVED_REP });
+    let capturedBody: string | undefined;
+    global.fetch = jest.fn(async (_url: unknown, init?: { body?: string }) => {
+      capturedBody = init?.body;
+      return anthropicTextResponse([
+        {
+          heading: 'The bill/rule at stake',
+          paragraphs: [{ text: 'CA AB 1234 was referred to Appropriations.', claimIds: ['c1'] }],
+        },
+      ]);
+    }) as never;
+
+    await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      'fac-1',
+      STATE_BILL_ALERT,
+    );
+
+    expect(capturedBody).toBeDefined();
+    const prompt = (JSON.parse(capturedBody!) as { messages: Array<{ content: string }> })
+      .messages[0]!.content;
+    expect(prompt).toContain('Jurisdiction: this is STATE legislation in CA, not federal legislation.');
+    expect(prompt).toContain(
+      'Procedural deadline: deadline type committeeCutoff, date 2026-08-01, 5 day(s) remaining as of this alert.',
+    );
+  });
+
+  it('HP-03 (Gate L phase a): a state bill with no deadline data grounds jurisdiction only — no fabricated deadline claim', async () => {
+    const { service } = makeDeps({ facility: FACILITY_ROW, representation: RESOLVED_REP });
+    const { deadline: _deadline, ...noDeadlineAlert } = STATE_BILL_ALERT;
+    let capturedBody: string | undefined;
+    global.fetch = jest.fn(async (_url: unknown, init?: { body?: string }) => {
+      capturedBody = init?.body;
+      return anthropicTextResponse([
+        { heading: 'The bill/rule at stake', paragraphs: [{ text: 'CA AB 1234.', claimIds: ['c1'] }] },
+      ]);
+    }) as never;
+
+    await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      'fac-1',
+      noDeadlineAlert as AlertMemoAlertInput,
+    );
+
+    const prompt = (JSON.parse(capturedBody!) as { messages: Array<{ content: string }> })
+      .messages[0]!.content;
+    expect(prompt).toContain('Jurisdiction: this is STATE legislation in CA, not federal legislation.');
+    expect(prompt).not.toContain('Procedural deadline');
   });
 
   it('under ENFORCE, a grounding finding HOLDS the brief — not auto-filed, emits a district-brief review_request (G4)', async () => {

@@ -114,6 +114,7 @@ import { editRatio } from '../common/text-distance.js';
 import {
   billIdFromItemId,
   peCodeFromItemId,
+  intelAlertIdFromItemId,
   formatBillTruth,
   formatPeTruth,
   renderClientRelationshipSnapshot,
@@ -126,6 +127,11 @@ import {
   type PeYearFunding,
   type TargetOfficeLite,
 } from './outreach-context-enrichment.js';
+import {
+  AlertPacketClientService,
+  renderAlertPacketForOutreach,
+  overlayClientRelationshipContext,
+} from './generation/alert-packet-client.service.js';
 import { outreachClientProfileEnabled } from '../common/tenant-flags.js';
 // Wave-2 post-hoc grounding auditor (dark/shadow by default via MERI_AUDITOR_MODE):
 // extends the same deterministic post-generation check to the outreach batch
@@ -1020,6 +1026,7 @@ export class EngagementService {
     private readonly attachmentContent: AttachmentContentService,
     private readonly scanner: AttachmentScannerService,
     private readonly evidenceSources: EvidenceSourceService,
+    private readonly alertPacketClient: AlertPacketClientService,
     config: ConfigService<AppConfig, true>,
   ) {
     this.bucket = config.get('ASSETS_BUCKET', { infer: true });
@@ -3261,7 +3268,18 @@ export class EngagementService {
     return { talkingPoints };
   }
 
-  async generateBatchEmails(ctx: TenantContext, input: GenerateBatchEmailInput) {
+  async generateBatchEmails(
+    ctx: TenantContext,
+    input: GenerateBatchEmailInput,
+    /**
+     * HP-05 (Gate L): the inbound request's own Authorization header, forwarded
+     * unmodified so an 'intel' context item can be rehydrated from intel-api's
+     * packet endpoint under the SAME identity that authenticated this call — see
+     * AlertPacketClientService. Not part of GenerateBatchEmailInput's validated
+     * body; threaded as its own parameter from the controller.
+     */
+    authHeader?: string,
+  ) {
     const {
       templateId,
       insights,
@@ -3313,6 +3331,7 @@ export class EngagementService {
         budgetWarning: budget.softWarn
           ? `Your organization has used ${Math.round(budget.ratio * 100)}% of today's outreach AI limit.`
           : undefined,
+        authHeader,
       });
     }
 
@@ -3399,7 +3418,7 @@ export class EngagementService {
     // funding direction, omitted chamber cuts, and "stalled bill read as
     // advancing". Best-effort per item; a lookup miss keeps the original body.
     const { items: enrichedContextItems, truthByItemId: outreachTruthByItemId } =
-      await this.enrichOutreachContextItems(contextItems ?? []);
+      await this.enrichOutreachContextItems(contextItems ?? [], ctx, clientId ?? null, authHeader);
 
     // Bucket the v2 wizard's scoped context items so we can hand the AI
     // shared-context-vs-recipient-context distinctly per draft below.
@@ -4060,7 +4079,22 @@ export class EngagementService {
   private async generateBatchEmailsViaGateway(
     ctx: TenantContext,
     input: GenerateBatchEmailInput,
-    opts: { versionedRecordId: string | null; budgetWarning?: string },
+    opts: {
+      versionedRecordId: string | null;
+      budgetWarning?: string;
+      /**
+       * HP-05 (Gate L): the inbound request's Authorization header. Accepted here
+       * for the caller's convenience but NOT YET threaded into
+       * GenerationGatewayService.generate() / EvidencePacketService — that call
+       * chain is a further 2 hops (generate() -> compileOutreachPacket ->
+       * resolveSelectedItems) through a class whose own generation-request
+       * contract this change didn't touch. ENGAGEMENT_GENERATION_GATEWAY defaults
+       * off, so this is a documented gap, not a live one: EvidenceSourceService's
+       * 'intel' resolver (c-1) is built and unit-tested, ready to wire up as part
+       * of turning the gateway on.
+       */
+      authHeader?: string;
+    },
   ): Promise<{ results: OutreachBatchDraftResult[]; budgetWarning?: string }> {
     const {
       templateId,
@@ -8024,13 +8058,66 @@ export class EngagementService {
    * bare): the post-hoc grounding auditor (shadow by default) uses the raw truth
    * to build ground-truth LedgerEntrys for whichever items a given recipient's
    * draft actually used — see generateBatchEmails.
+   *
+   * HP-05 (Gate L): also rewrites an `intel` item's body from intel-api's alert
+   * packet, the SAME accuracy fix extended to LegiWatch alert context — before
+   * this, an `intel` item's body was never touched here, so it reached the
+   * prompt as the literal string `- [intel] undefined` (the wizard's Generate
+   * request sends id-only; nothing ever filled `body` back in). `clientId` is
+   * required — an alert packet is meaningless without one, and
+   * AlertPacketService.build enforces the client belongs to the tenant.
+   * `authHeader` forwards the caller's own already-verified identity to
+   * intel-api (see AlertPacketClientService); a missing header or any fetch
+   * failure degrades to an honest gap, never a guess, matching every other
+   * channel in this method.
+   *
+   * HP-04 (Gate L phase b): a fetched intel packet's client-relationship fields
+   * (people/target offices/recent meetings) are always empty by construction —
+   * intel-api cannot reach apps/api's schema (a layering rule, not an
+   * inability). Resolved ONCE per batch (not per item — same pattern
+   * generateBatchEmails already uses for its own OUTREACH_CLIENT_PROFILE
+   * blocks) and overlaid onto every intel packet fetched below, with
+   * `missingFields` recomputed to honestly reflect what got filled.
    */
-  private async enrichOutreachContextItems(items: OutreachSelectedContextItemInput[]): Promise<{
+  private async enrichOutreachContextItems(
+    items: OutreachSelectedContextItemInput[],
+    ctx: TenantContext,
+    clientId: string | null,
+    authHeader?: string,
+  ): Promise<{
     items: OutreachSelectedContextItemInput[];
     truthByItemId: Map<string, OutreachContextTruth>;
   }> {
     const truthByItemId = new Map<string, OutreachContextTruth>();
     if (!items.length) return { items, truthByItemId };
+
+    let relationshipOverlay: {
+      existingRelationships?: string[];
+      targetOffices?: string[];
+      recentMeetings?: string[];
+    } = {};
+    if (clientId && items.some((i) => i.kind === 'intel')) {
+      const tenantRow = await this.prisma
+        .withTenant(ctx.tenantId, (tx) =>
+          tx.tenant.findFirst({ where: { id: ctx.tenantId }, select: { settings: true } }),
+        )
+        .catch(() => null);
+      if (outreachClientProfileEnabled(tenantRow?.settings)) {
+        const [peopleBlock, targetOfficesBlock, recentMeetings] = await Promise.all([
+          this.outreachClientPeopleBlock(ctx, clientId).catch(() => null),
+          this.outreachClientTargetOfficesBlock(ctx, clientId).catch(() => null),
+          this.recentClientMeetingsForOutreach(ctx, clientId).catch(() => []),
+        ]);
+        relationshipOverlay = {
+          existingRelationships: peopleBlock ? [peopleBlock] : [],
+          targetOffices: targetOfficesBlock ? [targetOfficesBlock] : [],
+          recentMeetings: recentMeetings
+            .map((m) => `${m.subject || 'Meeting'}${m.startsAt ? ` (${new Date(m.startsAt).toISOString().slice(0, 10)})` : ''}`)
+            .slice(0, 8),
+        };
+      }
+    }
+
     const enriched = await Promise.all(
       items.map(async (item) => {
         try {
@@ -8058,6 +8145,24 @@ export class EngagementService {
               body: `No budget-funding record is available in Capiro's data for program element ${
                 peCode ?? item.id
               }. Do NOT state or estimate any dollar figure for it.`,
+            };
+          }
+          if (item.kind === 'intel') {
+            const alertId = intelAlertIdFromItemId(item.id);
+            const packet =
+              alertId && clientId
+                ? await this.alertPacketClient.fetchAlertPacket(authHeader, clientId, alertId)
+                : null;
+            if (packet) {
+              const enrichedPacket = overlayClientRelationshipContext(packet, relationshipOverlay);
+              return { ...item, body: renderAlertPacketForOutreach(enrichedPacket) };
+            }
+            // Never a bare "undefined": an alert Capiro cannot verify server-side
+            // is named as an honest gap, exactly like the PE lookup-miss above.
+            return {
+              ...item,
+              body:
+                'This LegiWatch alert could not be verified against Capiro’s records, so no detail from it is included. Do NOT state or infer any fact about it.',
             };
           }
         } catch (err) {

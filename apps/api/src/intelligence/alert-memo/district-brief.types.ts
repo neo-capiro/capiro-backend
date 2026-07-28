@@ -1,3 +1,5 @@
+import type { SourceVerification } from '@capiro/shared';
+
 /**
  * District-impact one-pager (Phase 1 M1.5, PD6) — an alert-memo variant
  * grounded in the District Impact Engine (M1's `RepresentationResolverService`)
@@ -17,7 +19,7 @@ export interface DistrictBriefResult {
     label: string;
     url?: string | null;
     retrievedAt?: string;
-    verification?: 'official' | 'verified' | 'extracted' | 'unverified';
+    verification?: SourceVerification;
     page?: number;
   }>;
   /** the EngagementAttachment (client Documents) the brief was auto-filed as */

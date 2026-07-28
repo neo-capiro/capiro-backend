@@ -2,6 +2,7 @@ import { describe, it, expect } from '@jest/globals';
 import {
   billIdFromItemId,
   peCodeFromItemId,
+  intelAlertIdFromItemId,
   fmtM,
   formatBillTruth,
   formatPeTruth,
@@ -18,6 +19,12 @@ describe('outreach-context-enrichment id parsing', () => {
     expect(peCodeFromItemId('pe-0603851F')).toBe('0603851F');
     expect(billIdFromItemId('pe-0603851F')).toBeNull();
     expect(peCodeFromItemId('bill-119-hr-8800')).toBeNull();
+  });
+
+  it('HP-05 (Gate L): extracts an intel_alert id from the wizard item id', () => {
+    expect(intelAlertIdFromItemId('alert-abc123')).toBe('abc123');
+    expect(intelAlertIdFromItemId('bill-119-hr-8800')).toBeNull();
+    expect(intelAlertIdFromItemId('pe-0603851F')).toBeNull();
   });
 });
 

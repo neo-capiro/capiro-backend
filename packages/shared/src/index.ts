@@ -3833,3 +3833,55 @@ export const FUNDING_VERIFICATION_STATUS_LABELS: Record<FundingVerificationStatu
   verified: 'Verified',
   superseded: 'Superseded',
 };
+
+// ---------------------------------------------------------------------------
+// Source verification (MP-11, Gate L phase d)
+//
+// Three near-identical `verificationFor`/`packetVerificationFor` twins
+// (apps/intel-api/src/feed/alert-packet.ts, apps/api's alert-memo.service.ts
+// and district-brief.service.ts) each labelled ANY absolute http(s) URL
+// 'official', regardless of domain — a self-published PDF and a congress.gov
+// page were indistinguishable. This is the one shared classifier all three
+// import instead. 'verified' was a fourth value the type admitted that no
+// code path could ever produce (nothing in this codebase runs a review step);
+// it has been deleted rather than left dead — see FUNDING_VERIFICATION_STATUSES
+// above for the pattern a REAL review ladder would follow if one is ever built.
+// ---------------------------------------------------------------------------
+
+export type SourceVerification = 'official' | 'extracted' | 'unverified';
+
+/**
+ * Government-domain allowlist, by TLD suffix rather than an enumerated
+ * hostname list: `.gov` and `.mil` are themselves gated, verified-registration
+ * TLDs (a domain cannot end in `.gov` without being an actual government
+ * entity), so a suffix check already covers Congress, every federal agency,
+ * congress.gov / federalregister.gov / regulations.gov, and — since the
+ * post-2020 federal push for state/local governments to migrate onto `.gov` —
+ * effectively every current state legislature site, with no 50-state
+ * enumeration to maintain or fall out of date.
+ */
+function isAllowlistedGovernmentHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  return h.endsWith('.gov') || h.endsWith('.mil');
+}
+
+/**
+ * Classify a source URL exactly the way a reader of a memo/brief/packet would
+ * need to trust it: `unverified` when there is nothing to check (no URL),
+ * `extracted` for a relative/internal link (not a public record on its own),
+ * `official` only for an allowlisted government domain, and `unverified` —
+ * NOT `official` — for every other absolute URL (a firm's own site, a news
+ * article, a lobbying-disclosure aggregator). Never returns `verified`: no
+ * caller in this codebase runs a review step that would earn that label.
+ */
+export function classifySourceVerification(url: string | null | undefined): SourceVerification {
+  if (!url) return 'unverified';
+  if (!/^https?:\/\//i.test(url)) return 'extracted';
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname;
+  } catch {
+    return 'unverified';
+  }
+  return isAllowlistedGovernmentHost(hostname) ? 'official' : 'unverified';
+}
