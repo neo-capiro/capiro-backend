@@ -255,10 +255,10 @@ in `final-closeout-matrix.md` §H with its gate and owner:
 
 | Item | Kind |
 | --- | --- |
-| Two unapplied migrations (`20260806010000` on main, `20260808010000` here) | Rollout gate |
+| ~~Two unapplied migrations~~ — **both applied and DB-verified 2026-07-28**. Only `20260808010000` was ever pending; the `20260806010000` claim came from a stale CDK comment | Closed |
 | Stale assistance-recipient cleanup not yet run | Rollout gate |
 | Assistance enrichment backlog (~238,619 rows) | Rollout gate |
-| Grants.gov reconcile incomplete (~12%/run, ~8 passes) | Rollout gate |
+| Grants.gov reconcile — the "~12%/run, ~8 passes" model was **wrong**: `offset` is ignored by search2 so it re-read page 0 forever. Fixed (`startRecordNum` + `--from-page`) | Rollout gate |
 | No live EventBridge rule for the candidate producer | Rollout gate |
 | `ApiTaskRole` lacks `s3:PutObject` on `district-boundaries/*` | Rollout gate |
 | Browser canary walk | Rollout gate |

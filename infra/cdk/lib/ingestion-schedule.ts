@@ -418,10 +418,17 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
   // holds emit-changes-daily AND sync-congress, and :00 is hourly-busy
   // (emit-clio-alerts).
   //
-  // KNOWN LIMITATION on SyncGrantsReconcile: MAX_PAGES=100 caps a run at 10,000
-  // upserts against a reported hitCount of 82,982 — 12% per run, ~8 Sundays to
-  // walk the corpus. It legitimately reports success_with_errors on cap
-  // exhaustion (verified live 2026-07-27), so do not treat that as an alarm.
+  // SyncGrantsReconcile: the old note here said MAX_PAGES=100 caps a run at
+  // 10,000 upserts, "12% per run, ~8 Sundays to walk the corpus". That was
+  // WRONG and the walk could never advance: sync-grants.ts sent `offset`, but
+  // search2's pagination parameter is `startRecordNum` and it silently ignores
+  // unknown keys, so every page of every run re-read the same first 100
+  // records. Measured 2026-07-28: a 100-page run "upserted 10,000" while
+  // federal_grant grew 852 -> 864 (+12) against hitCount ~83,000.
+  // Fixed: correct parameter, MAX_PAGES 100 -> 1000, plus a --from-page flag so
+  // a capped walk can resume. A page costs ~0.8s, so the full ~830-page corpus
+  // is one ~11-minute run. It still reports success_with_errors on genuine cap
+  // exhaustion, which is honest incompleteness, not an alarm.
   {
     id: 'SyncGrantsReconcile',
     command: ['sync-grants', '--all-statuses'],
@@ -451,12 +458,18 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
   //   2. A 5-column unique index (migration
   //      20260806010000_client_grant_nexus_producer_unique) closes the
   //      concurrent-double-run duplicate-row risk.
-  // NEITHER is live yet: the migration has not been applied to capiro-dev, and
-  // — like every entry in this file — enabled:true here is a declared desired
-  // state, not a deploy; this repo's EventBridge rules are managed out-of-band
-  // (`aws events put-rule`/`enable-rule`), not via `cdk deploy Capiro-dev-
-  // Compute` (see the hard boundary on that stack). No live rule exists for
-  // this job yet — apply the migration FIRST, then create/enable the rule.
+  // BOTH are now live (verified 2026-07-28): the migration IS applied and
+  // client_grant_nexus_producer_unique_idx exists in capiro-dev, and the live
+  // rule capiro-dev-generate-grant-opportunity-candidates is ENABLED at
+  // cron(35 11 * * ? *) with a target verified structurally identical to a
+  // known-good rule. An earlier version of THIS comment claimed the migration
+  // was unapplied; it was already applied, and that stale claim propagated into
+  // the closeout runbook and matrix before being caught. Do not record live
+  // database state in a code comment — query _prisma_migrations.
+  // As with every entry in this file, enabled:true here is a declared desired
+  // state, not a deploy; EventBridge rules are managed out-of-band
+  // (`aws events put-rule`/`enable-rule`), never via `cdk deploy
+  // Capiro-dev-Compute` (see the hard boundary on that stack).
   //
   // Also note the producer only lights up F3. F4's seven award-bearing
   // relationship types have NO producer and no entry UI — reviewer-entered by
