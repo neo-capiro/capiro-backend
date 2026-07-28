@@ -56,12 +56,17 @@ export class ChangeSetsService {
    * create must land inside that same tx or the dedup is read-then-create and
    * races a concurrent proposer. The caller owns scoping (it opened the tx
    * under its own withTenant/withTenantUser) and commit/rollback.
+   *
+   * opts.watchKey (Phase 3): the stable (code + sorted nodeIds) identity a
+   * Watch-originated proposal carries — set ONLY by WatcherService, never
+   * client-controllable via the DTO (mirrors opts.risk). null/absent for a
+   * person-authored change-set, which is not a Watch proposal.
    */
   async create(
     tenantId: string,
     userId: string | null,
     dto: CreateChangeSetDto,
-    opts: { risk?: ChangeSetRiskValue; tx?: Prisma.TransactionClient } = {},
+    opts: { risk?: ChangeSetRiskValue; watchKey?: string; tx?: Prisma.TransactionClient } = {},
   ) {
     const risk = opts.risk ?? dto.risk;
     const run = (fn: (tx: Prisma.TransactionClient) => Promise<unknown>) =>
@@ -119,6 +124,7 @@ export class ChangeSetsService {
           status: 'proposed',
           strategyVersionId: head.id,
           createdByUserId: userId,
+          watchKey: opts.watchKey ?? null,
         },
       });
       await this.versioning.logActivity(tx, {

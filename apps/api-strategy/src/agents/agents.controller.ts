@@ -11,9 +11,11 @@ import { MissionsService } from './missions.service.js';
 import { RunsService } from './runs.service.js';
 import { ChangeSetsService } from './change-sets.service.js';
 import { WatcherService } from './watcher.service.js';
+import { WatchReviewService } from './watch-review.service.js';
 import { ExecutionService } from './execution.service.js';
 import { RunReconcilerService } from './run-reconciler.service.js';
 import {
+  AcceptAllDto,
   ApproveChangeSetDto,
   CreateChangeSetDto,
   CreateMissionDto,
@@ -50,6 +52,7 @@ export class AgentsController {
     private readonly runs: RunsService,
     private readonly changeSets: ChangeSetsService,
     private readonly watcher: WatcherService,
+    private readonly watchReview: WatchReviewService,
     private readonly execution: ExecutionService,
     private readonly reconciler: RunReconcilerService,
   ) {}
@@ -359,5 +362,64 @@ export class AgentsController {
   @Post('change-sets/:id/undo')
   undoChangeSet(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
     return this.changeSets.undo(tc.tenantId, tc.clerkUserId, id);
+  }
+
+  // ---- Watch review (Phase 3) ----
+  //
+  // Method-level StrategyWatcherGuard on top of the class stack, matching
+  // missions/:id/run-check — the Watch surface needs strategyWatcher.enabled
+  // in ADDITION to the umbrella agentic opt-in. These routes are additive:
+  // the generic change-set endpoints above are untouched and still serve
+  // person-authored / firm-level proposals exactly as before.
+
+  /** The panel's read state: current-head Watch proposals only, sorted, with
+   *  dismissed and deleted-target findings already excluded. */
+  @Get('watch/strategies/:strategyId')
+  @UseGuards(StrategyWatcherGuard)
+  getWatchState(@CurrentTenant() tc: AuthTenantContext, @Param('strategyId') strategyId: string) {
+    return this.watchReview.getState(tc.tenantId, strategyId);
+  }
+
+  /** Panel-open (or manual "Check now") revalidation: fast no-op when
+   *  nothing moved, otherwise a fresh check + unchanged/updated/dropped
+   *  reconciliation against the current head. */
+  @Post('watch/strategies/:strategyId/revalidate')
+  @UseGuards(StrategyWatcherGuard)
+  revalidateWatch(@CurrentTenant() tc: AuthTenantContext, @Param('strategyId') strategyId: string) {
+    return this.watchReview.revalidate(tc.tenantId, tc.clerkUserId, strategyId, 'panel-open');
+  }
+
+  /** Accept ONE proposal: this call IS the approval, applies it, cuts one
+   *  version, and immediately revalidates against the new head. */
+  @Post('watch/proposals/:id/accept')
+  @UseGuards(StrategyWatcherGuard)
+  acceptWatchProposal(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
+    return this.watchReview.acceptOne(tc.tenantId, tc.clerkUserId, id);
+  }
+
+  /** Permanently dismiss a Watch finding — the SAME finding never reappears,
+   *  unlike a plain reject. */
+  @Post('watch/proposals/:id/dismiss')
+  @UseGuards(StrategyWatcherGuard)
+  dismissWatchProposal(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
+    return this.watchReview.dismiss(tc.tenantId, tc.clerkUserId, id);
+  }
+
+  /** Accept a batch atomically: one dependency-ordered edit-set, one version,
+   *  one visible History event. */
+  @Post('watch/strategies/:strategyId/accept-all')
+  @UseGuards(StrategyWatcherGuard)
+  acceptAllWatchProposals(
+    @CurrentTenant() tc: AuthTenantContext,
+    @Param('strategyId') strategyId: string,
+    @Body() dto: AcceptAllDto,
+  ) {
+    return this.watchReview.acceptAll(
+      tc.tenantId,
+      tc.clerkUserId,
+      strategyId,
+      dto.expectedVersionId,
+      dto.proposalIds,
+    );
   }
 }

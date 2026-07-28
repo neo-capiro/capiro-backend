@@ -4,6 +4,7 @@ import { MissionsService } from './missions.service.js';
 import { RunsService } from './runs.service.js';
 import { ChangeSetsService } from './change-sets.service.js';
 import { WatcherService } from './watcher.service.js';
+import { WatchReviewService } from './watch-review.service.js';
 import { WatcherSchedulerService } from './watcher-scheduler.service.js';
 import { OutboxConsumerService } from './outbox-consumer.service.js';
 import { ExecutionArtifactClient } from './execution-artifact.client.js';
@@ -48,6 +49,7 @@ import { ReferenceModule } from '../reference/reference.module.js';
     ChangeSetsService,
     VersioningService,
     WatcherService,
+    WatchReviewService,
     WatcherSchedulerService,
     OutboxConsumerService,
     ExecutionArtifactClient,
