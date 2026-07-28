@@ -1,8 +1,8 @@
 name: pe-phase-c-rls-diagnostic
 
 on:
-  push:
-    branches: [agent/pe-trust-phase-c]
+  pull_request:
+    branches: [agent/pe-trust-phase-b]
 
 permissions:
   contents: read
