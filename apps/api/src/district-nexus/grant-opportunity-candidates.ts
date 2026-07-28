@@ -17,6 +17,13 @@ export interface ClientRelevanceProfileRows {
   facilityStates: Array<string | null>;
   priorAssistanceListings: Array<string | null>;
   priorAgencies: Array<string | null>;
+  /**
+   * `Client.applicantTypes` — Grants.gov applicant-type codes, set deliberately
+   * per client. Optional on this interface so an existing caller that has not
+   * been taught to select the column degrades to the honest empty profile
+   * rather than failing to compile into a wrong one.
+   */
+  applicantTypes?: Array<string | null>;
 }
 
 function dedupeStrings(values: Array<string | null | undefined>): string[] {
@@ -47,9 +54,10 @@ export function shapeClientRelevanceProfile(
     ]),
     priorAssistanceListings: dedupeStrings(rows.priorAssistanceListings),
     priorAgencies: dedupeStrings(rows.priorAgencies),
-    // No applicant-type column exists on Client today. Honestly empty, which
-    // computeEligibility reports as needs_review — never as eligible.
-    applicantTypes: [],
+    // `Client.applicantTypes`, verbatim — never inferred from the sector. An
+    // empty array is honest and computeEligibility reports it as needs_review;
+    // guessing here would tell a user they can apply for something they cannot.
+    applicantTypes: dedupeStrings(rows.applicantTypes ?? []),
     states: dedupeStrings(rows.facilityStates),
     knownPartnerNames: [],
   };

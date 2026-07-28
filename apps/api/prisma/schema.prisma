@@ -501,6 +501,20 @@ model Client {
   cageCode            String?   @map("cage_code") @db.VarChar(5)
   naicsCodes          String[]  @default([]) @map("naics_codes")
   pscCodes            String[]  @default([]) @map("psc_codes")
+  /// Grants.gov "Eligible Applicants" values this client qualifies as, e.g.
+  /// "Small businesses" or "State governments".
+  ///
+  /// LABELS, not the numeric Grants.gov codes — `federal_grant.eligibility`
+  /// stores labels (verified live 2026-07-28: 17 distinct label strings across
+  /// 816 of 866 rows), and District Nexus F3 eligibility compares the two by
+  /// string. A client populated with codes would match nothing. The canonical
+  /// list is `GRANTS_GOV_APPLICANT_TYPES` in @capiro/shared.
+  ///
+  /// Until this is populated, `computeEligibility` can only return
+  /// `needs_review` or `unknown`, never `eligible`. Empty is the honest default:
+  /// it says "we do not know", which is true, rather than guessing a type from
+  /// the sector and telling a user they can apply for something they cannot.
+  applicantTypes      String[]  @default([]) @map("applicant_types")
   // Client→data association overhaul: the confirmed set of Senate LDA client_ids
   // this client resolves to (one id per lobbying-firm relationship — a real
   // company can have many, e.g. Boeing = 27). Denormalized read-cache of the

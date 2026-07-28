@@ -3885,3 +3885,55 @@ export function classifySourceVerification(url: string | null | undefined): Sour
   }
   return isAllowlistedGovernmentHost(hostname) ? 'official' : 'unverified';
 }
+
+/**
+ * Grants.gov "Eligible Applicants" values, EXACTLY as our own ingestion stores
+ * them in `federal_grant.eligibility`.
+ *
+ * These are LABELS, not the numeric Grants.gov codes. That distinction is the
+ * whole reason this list is pinned here: District Nexus F3 eligibility compares
+ * `Client.applicantTypes` against `federal_grant.eligibility` by string, so a
+ * client populated with codes ("12", "22") would match nothing and F3 would
+ * remain unable to return `eligible` — while LOOKING configured, which is worse
+ * than the honest empty state it replaced.
+ *
+ * Measured against live `capiro-dev` on 2026-07-28: these are the 17 distinct
+ * values present across 816 of 866 `federal_grant` rows. Ordered by frequency
+ * in that snapshot, so the most commonly required types sort first in a picker.
+ *
+ * Note "For profit organizations other than small businesses" has NO hyphen in
+ * "For profit" — that is how the vendor sends it, and an exact-match comparison
+ * cares. Do not tidy the punctuation in these strings.
+ */
+export const GRANTS_GOV_APPLICANT_TYPES = [
+  'Others (see text field entitled "Additional Information on Eligibility" for clarification)',
+  'Nonprofits having a 501(c)(3) status with the IRS, other than institutions of higher education',
+  'Native American tribal governments (Federally recognized)',
+  'State governments',
+  'Public and State controlled institutions of higher education',
+  'Private institutions of higher education',
+  'Native American tribal organizations (other than Federally recognized tribal governments)',
+  'City or township governments',
+  'County governments',
+  'Nonprofits that do not have a 501(c)(3) status with the IRS, other than institutions of higher education',
+  'Special district governments',
+  'Independent school districts',
+  'For profit organizations other than small businesses',
+  'Small businesses',
+  'Public housing authorities/Indian housing authorities',
+  'Unrestricted (i.e., open to any type of entity above), subject to any clarification in text field entitled "Additional Information on Eligibility"',
+  'Individuals',
+] as const;
+
+export type GrantsGovApplicantType = (typeof GRANTS_GOV_APPLICANT_TYPES)[number];
+
+/**
+ * Compare-key for an applicant type. Both sides of the F3 eligibility check go
+ * through this, so trailing whitespace or a case difference between a stored
+ * client value and a vendor string cannot silently produce "ineligible" for a
+ * client that actually qualifies. Only normalizes case and whitespace — it never
+ * rewrites punctuation, so two genuinely different types stay different.
+ */
+export function applicantTypeKey(value: string): string {
+  return value.trim().replace(/\s+/g, ' ').toLowerCase();
+}

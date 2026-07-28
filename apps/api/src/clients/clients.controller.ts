@@ -20,6 +20,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import type { TenantContext } from '@capiro/shared';
+import { GRANTS_GOV_APPLICANT_TYPES } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
@@ -198,6 +199,23 @@ class UpdateClientDto {
   @IsArray()
   @IsString({ each: true })
   pscCodes?: string[];
+
+  /**
+   * Grants.gov "Eligible Applicants" values. Drives District Nexus F3
+   * eligibility, which can only return `eligible` once this is set — an empty
+   * array honestly reads as `needs_review`, so leaving it unset degrades rather
+   * than misleads.
+   *
+   * Constrained to the exact label strings `federal_grant.eligibility` carries,
+   * because F3 compares the two by string. A free-text field here would let a
+   * plausible-looking value ("Small Business", "23") be saved that can never
+   * match anything — a client that looks configured and still never evaluates as
+   * eligible, which is worse than an empty column.
+   */
+  @IsOptional()
+  @IsArray()
+  @IsIn(GRANTS_GOV_APPLICANT_TYPES as unknown as string[], { each: true })
+  applicantTypes?: string[];
 }
 
 class ListClientsQueryDto {
