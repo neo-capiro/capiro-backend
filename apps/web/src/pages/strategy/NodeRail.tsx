@@ -1,21 +1,28 @@
 /*
- * Editor rail — ported from the prototype sp-app MeriRail. G3 builds the MANUAL
- * subset (Meri flag off): node summary (NOD-2), applied-confirmation flash
- * (NOD-3), deterministic quick actions (NOD-5), the manual field editor
- * (NOD-7), and delete (NOD-8). The Meri "Ask Meri" box + suggestion chips
- * (NOD-4) and the "Available actions in Capiro" routing block (NOD-6) are
- * gated off here and land in G5/G6. 344px slide-in panel, prototype-faithful.
+ * The strategy panel — ported from the prototype sp-app MeriRail. G3 built the
+ * MANUAL subset (Meri flag off): node summary (NOD-2), applied-confirmation
+ * flash (NOD-3), deterministic quick actions (NOD-5), the manual field editor
+ * (NOD-7), and delete (NOD-8); G5/G6 added Meri and the "Available actions in
+ * Capiro" routing block. 344px slide-in panel, prototype-faithful.
+ *
+ * Phase 2 restructures it into a real chat surface:
+ *   header · persistent drafted-plan note · ONE scrolling body (content, then
+ *   the durable thread) · pinned footer (composer, suggestions, helper).
+ * The composer moved OUT of the scroll container — it used to sit inline in the
+ * body and scroll away — and the transcript is now server-persisted per context
+ * instead of dying with the component.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App } from 'antd';
-import { Icon, Ava, iconBtn, fieldS, fieldLbl, chipBtn } from './strategy-ui.js';
+import { Icon, iconBtn, fieldS, fieldLbl, chipBtn } from './strategy-ui.js';
 import { OwnerPicker } from './OwnerPicker.js';
 import { TargetPicker } from './TargetPicker.js';
 import { useClientTargetsLite, targetDisplayLabel } from './client-targets-lite.js';
-import { AskMeri } from './AskMeri.js';
+import { StrategyChatComposer } from './StrategyChatComposer.js';
+import { StrategyChatThread, type PendingChatMessage } from './StrategyChatThread.js';
 import { WatchRail } from './agents/WatchRail.js';
-import { useAssistant } from './api.js';
+import { useAssistant, useStrategyConversation } from './api.js';
 import {
   NODE_KIND_META,
   NODE_SUBJECTS,
@@ -26,7 +33,61 @@ import { qOfDate, parseDbDate, nodeRangeLabel, monthLabel, shiftNodeMonths } fro
 import type { FiscalCalendar } from './fiscal.js';
 import { useUpdateNode, useDeleteNode } from './api.js';
 import { memberName, type TenantMember } from './members.js';
-import type { NodeSubject, StrategyNode, StrategyNodeArtifact, UpdateNodeInput } from './types.js';
+import type {
+  NodeSubject,
+  StrategyChatAttachment,
+  StrategyChatMessage,
+  StrategyNode,
+  StrategyNodeArtifact,
+  UpdateNodeInput,
+} from './types.js';
+
+/** The prototype's exact drafted-plan copy. Persistent and non-dismissible. */
+export const DRAFTED_NOTE =
+  'Meri drafted this plan. Every step is editable — drag to re-time, click to open, or just ask here.';
+
+/**
+ * Footer suggestion pills. Strategy-scope copy is the shipped MRI-4 set (real
+ * instructions Meri can execute); node-scope copy is the prototype's three.
+ * Both go through the assistant, so each one produces a durable exchange in the
+ * thread rather than a silent mutation.
+ */
+const STRATEGY_SUGGESTIONS = [
+  'Add a coalition sign-on letter',
+  // The prototype's literal, adopted over MRI-4's longer "Flag a CR risk before
+  // final bills": the short form is an equally complete instruction and the long
+  // one wrapped the pill row to three lines instead of the prototype's two.
+  'Flag a CR risk',
+  // NOT the prototype's "Push markup defense" — that names a step that only
+  // exists in the prototype's fixture. This is MRI-4's shipped copy, and it sits
+  // alone on the second row in both, so the row geometry is unaffected.
+  'Push the latest action a quarter',
+];
+
+/**
+ * The node-scope pills are NOD-5's deterministic quick actions, relocated from
+ * the panel body to the footer where the prototype puts them. They stay
+ * deterministic — routing "Push a quarter" through the model would cost a
+ * round-trip to do what a single PATCH already does exactly.
+ */
+type NodeQuickAction = 'push' | 'assign' | 'gate';
+const NODE_SUGGESTIONS: Array<{ id: NodeQuickAction; label: string }> = [
+  { id: 'push', label: 'Push a quarter' },
+  { id: 'assign', label: 'Reassign to me' },
+  { id: 'gate', label: 'Make it a gate' },
+];
+
+/** A UUID for the send's idempotency key. crypto.randomUUID is unavailable in
+ *  jsdom and on http:// origins, so fall back to a v4-shaped random string. */
+function newClientMessageId(): string {
+  const c = globalThis.crypto;
+  if (c && typeof c.randomUUID === 'function') return c.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
+    const r = Math.floor(Math.random() * 16);
+    const v = ch === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 /** Subjects a real target (a specific person/office) makes sense for — mirrors
  *  api-strategy's OUTREACH_SUBJECTS (execution-eligibility.ts); other subjects
@@ -34,7 +95,7 @@ import type { NodeSubject, StrategyNode, StrategyNodeArtifact, UpdateNodeInput }
  *  concepts, not a counterparty to target. */
 const TARGETABLE_SUBJECTS: NodeSubject[] = ['member', 'committee', 'agency'];
 
-export function EditorRail({
+export function StrategyMeriPanel({
   strategyId,
   clientId,
   node,
@@ -46,8 +107,8 @@ export function EditorRail({
   focusWatch,
   onWatchFocused,
   meriSummary,
+  draftedByMeri,
   currentUserId,
-  existingNodeIds,
   nodeArtifacts,
   staging,
   applied,
@@ -87,8 +148,13 @@ export function EditorRail({
   /** Acknowledges a focusWatch request so it fires once per click. */
   onWatchFocused?: () => void;
   meriSummary?: string | null;
+  /**
+   * SHL-5 provenance: true ONLY for a plan Meri drafted from a goal. Drives the
+   * persistent note — a manually created strategy renders nothing rather than
+   * claiming Meri authored it.
+   */
+  draftedByMeri?: boolean;
   currentUserId: string | undefined;
-  existingNodeIds: string[];
   nodeArtifacts: StrategyNodeArtifact[];
   /** Stage G: which agent-staging plan is in flight (null = none). */
   staging?: 'workspace_draft' | 'outreach_record' | null;
@@ -106,28 +172,125 @@ export function EditorRail({
   const del = useDeleteNode(strategyId);
   const assistant = useAssistant(strategyId);
 
+  // The chat context: a selected step's thread, or the strategy thread. Each has
+  // its own query key, so switching contexts renders that context's persisted
+  // history rather than whichever one was fetched last.
+  const contextNodeId = node?.id ?? null;
+  const conversation = useStrategyConversation(strategyId, contextNodeId, meriEnabled);
+  // The user's own message, echoed while the send is in flight. Scoped to the
+  // context it was sent from so switching away mid-send does not show it under
+  // the wrong thread.
+  const [pending, setPending] = useState<{ contextNodeId: string | null; msg: PendingChatMessage } | null>(
+    null,
+  );
+
+  /**
+   * Strategies drafted before this phase have a `meriSummary` but no stored
+   * conversation. Render it as Meri's opening line so their panel is not empty —
+   * display-only, never written back.
+   */
+  const messages = useMemo<StrategyChatMessage[]>(() => {
+    const rows = conversation.data ?? [];
+    // A dismissed context gap is resolved as far as the user is concerned.
+    const visible = rows.filter((m) => m.state !== 'dismissed');
+    if (visible.length > 0 || contextNodeId || !conversation.isSuccess) return visible;
+    if (!draftedByMeri || !meriSummary) return visible;
+    return [
+      {
+        id: 'legacy-summary',
+        strategyId,
+        nodeId: null,
+        role: 'meri',
+        kind: 'message',
+        body: meriSummary,
+        attachments: [],
+        action: null,
+        state: 'active',
+        createdByUserId: null,
+        createdAt: '',
+      },
+    ];
+  }, [conversation.data, conversation.isSuccess, contextNodeId, draftedByMeri, meriSummary, strategyId]);
+
   const runAssistant = (
     scope: 'node' | 'strategy',
     nodeId: string | undefined,
     instruction: string,
-    attachmentIds: string[],
+    attachments: StrategyChatAttachment[],
   ) => {
-    const before = new Set(existingNodeIds);
+    const sentFrom = scope === 'node' ? (nodeId ?? null) : null;
+    setPending({ contextNodeId: sentFrom, msg: { body: instruction, attachments } });
     assistant.mutate(
-      { scope, ...(nodeId ? { nodeId } : {}), instruction, attachmentIds },
+      {
+        scope,
+        ...(nodeId ? { nodeId } : {}),
+        instruction,
+        attachmentIds: attachments.map((a) => a.id),
+        attachments,
+        // Idempotency key: a retried POST reuses the stored user message rather
+        // than posting a second bubble.
+        clientMessageId: newClientMessageId(),
+      },
       {
         onSuccess: (resp) => {
           onFlash(trimFlash(resp.reply) || 'Meri updated the plan.');
-          // MRI-3 / MRI-4: for an add, open the newly-created node in the rail
-          // (same behaviour as the manual + Add step path).
-          const added = resp.strategy.nodes.filter((n) => !before.has(n.id));
-          const newest = added[added.length - 1];
-          if (newest) onSelectNode(newest.id);
+          // Phase 2 §5 Step 7: a send NEVER auto-opens a created step. The
+          // reply's explicit `Open "<step>"` button is the only way in.
         },
         onError: () => message.error('Meri could not apply that — please try again.'),
+        // Cleared on BOTH outcomes: the refetch has been queued by then, and on
+        // failure the server-side `assistant_error` line is what should show.
+        onSettled: () => setPending(null),
       },
     );
   };
+
+  /** One field edit on the selected step, with its confirmation flash. */
+  const commitNode = (input: UpdateNodeInput, flash: string) => {
+    if (!node) return;
+    update.mutate(
+      { nodeId: node.id, input: { ...input, changeNote: flash } },
+      {
+        onSuccess: () => onFlash(flash),
+        onError: () => message.error('Could not save that change.'),
+      },
+    );
+  };
+
+  const runQuickAction = (action: NodeQuickAction) => {
+    if (!node) return;
+    if (action === 'push') {
+      const shifted = shiftNodeMonths(node.startsOn, node.endsOn, 3, calendar);
+      if (shifted.applied === 0) {
+        onFlash('Already at the end of the window.');
+        return;
+      }
+      commitNode({ startsOn: shifted.startsOn, endsOn: shifted.endsOn ?? null }, 'Pushed one quarter.');
+      return;
+    }
+    if (action === 'assign') {
+      if (currentUserId) commitNode({ ownerUserId: currentUserId }, 'Reassigned to you.');
+      return;
+    }
+    commitNode({ kind: 'gate' }, 'Converted to a gate.');
+  };
+
+  const quickActionDisabled = (action: NodeQuickAction): boolean => {
+    if (update.isPending || del.isPending || assistant.isPending) return true;
+    if (action === 'assign') return !currentUserId;
+    if (action === 'gate') return node?.kind === 'gate';
+    return false;
+  };
+
+  // Auto-scroll to newest: on context switch, on send, and when the reply lands.
+  // Writing scrollTop on the panel body (rather than scrollIntoView) is the
+  // prototype's own behaviour and cannot reach the timeline or the page.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const visibleCount = messages.length + (pending && pending.contextNodeId === contextNodeId ? 1 : 0);
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [visibleCount, contextNodeId]);
 
   return (
     <div
@@ -141,6 +304,17 @@ export function EditorRail({
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
+        // The prototype's global reset is border-box, so its 344px INCLUDES the
+        // left border. Without this the panel is 344 + border wide and every
+        // child inside it sits a subpixel off the prototype's geometry.
+        boxSizing: 'border-box',
+        // The prototype's body sets no line-height, so everything here resolves
+        // to `normal`. Capiro renders inside antd's <App>, which sets an
+        // absolute 22px on its wrapper — that inherits straight through and made
+        // every unstyled line in this panel 6-8px taller than the prototype's.
+        // Scoped to the panel rather than .sp-root so it cannot disturb the
+        // header and timeline Phase 1 already signed off.
+        lineHeight: 'normal',
       }}
     >
       <div
@@ -194,10 +368,42 @@ export function EditorRail({
         </button>
       </div>
 
+      {/* Persistent drafted-plan note. Sits between the header and the scroll
+          area, so it never scrolls away, and carries no close control — this is
+          standing provenance, not a notification. Replaces the one-time blue
+          page card. */}
+      {draftedByMeri && (
+        <div
+          data-testid="sp-drafted-note"
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 7,
+            padding: '8px 14px',
+            background: 'var(--accent-soft)',
+            borderBottom: '1px solid #C6D4F4',
+            flexShrink: 0,
+          }}
+        >
+          <Icon name="spark" size={12} color="var(--accent-ink)" />
+          <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--accent-ink)', lineHeight: 1.45 }}>
+            {DRAFTED_NOTE}
+          </span>
+        </div>
+      )}
+
+      {/* THE scroll container. One vertical block: content sections, then the
+          thread. `minHeight: 0` lets it actually shrink inside the column, and
+          every direct child is `flexShrink: 0` so a long thread grows the
+          scroll height instead of compressing the cards and fields above it. */}
       <div
+        ref={bodyRef}
+        data-testid="sp-panel-body"
         style={{
           flex: 1,
-          overflow: 'auto',
+          minHeight: 0,
+          overflowY: 'auto',
+          overflowX: 'hidden',
           padding: 16,
           display: 'flex',
           flexDirection: 'column',
@@ -210,6 +416,7 @@ export function EditorRail({
               display: 'flex',
               alignItems: 'center',
               gap: 7,
+              flexShrink: 0,
               background: 'var(--success-soft)',
               border: '1px solid var(--success)',
               borderRadius: 8,
@@ -223,35 +430,11 @@ export function EditorRail({
           </div>
         )}
 
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0 }}>
         {node ? (
           <>
-            {meriEnabled && (
-              <div
-                style={{
-                  background: 'var(--accent-soft)',
-                  border: '1px solid #C6D4F4',
-                  borderRadius: 10,
-                  padding: '12px 13px',
-                }}
-              >
-                <div
-                  style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 9 }}
-                >
-                  <Icon name="spark" size={14} color="var(--accent-ink)" />
-                  <span
-                    style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--accent-ink)' }}
-                  >
-                    Ask Meri to change this step
-                  </span>
-                </div>
-                <AskMeri
-                  placeholder="e.g. push this a month and reassign to me…"
-                  busy={assistant.isPending}
-                  onSubmit={(t, ids) => runAssistant('node', node.id, t, ids)}
-                  tall
-                />
-              </div>
-            )}
+            {/* The node composer moved to the pinned footer (§5 Step 7) — the
+                inline accent box used to scroll away with the fields. */}
             <NodeEditor
               node={node}
               calendar={calendar}
@@ -259,15 +442,7 @@ export function EditorRail({
               currentUserId={currentUserId}
               clientId={clientId}
               busy={update.isPending || del.isPending || assistant.isPending}
-            onCommit={(input, flash) => {
-              update.mutate(
-                { nodeId: node.id, input: { ...input, changeNote: flash } },
-                {
-                  onSuccess: () => onFlash(flash),
-                  onError: () => message.error('Could not save that change.'),
-                },
-              );
-            }}
+            onCommit={commitNode}
             onDelete={() => {
               modal.confirm({
                 title: 'Delete this step?',
@@ -299,13 +474,27 @@ export function EditorRail({
               onOpenArtifact={onOpenArtifact}
             />
           </>
-        ) : meriEnabled ? (
+        ) : (
           <>
-            <StrategyMeriRail
-              summary={meriSummary}
-              busy={assistant.isPending}
-              onAsk={(t, ids) => runAssistant('strategy', undefined, t, ids)}
-            />
+            {/* The strategy-level Meri summary card is gone: the draft now seeds
+                that summary as Meri's opening message in the thread below, and
+                the prototype has no such card. */}
+            {!meriEnabled && (
+              <div
+                style={{
+                  background: 'var(--bg-surface-2)',
+                  border: '1px solid var(--border-1)',
+                  borderRadius: 9,
+                  padding: '11px 13px',
+                  fontSize: 'var(--text-sm)',
+                  color: 'var(--ink-2)',
+                  lineHeight: 1.5,
+                }}
+              >
+                Select a step on the timeline to edit its fields, re-time it, or delete it. Use{' '}
+                <b>+ Add step</b> in the header to create one.
+              </div>
+            )}
             {/* Stage F: Watch-mode affordance (agenticMeri+strategyWatcher UI belt). */}
             {watcherEnabled && (
               <WatchRail
@@ -315,32 +504,75 @@ export function EditorRail({
               />
             )}
           </>
-        ) : (
-          <>
-            <div
-              style={{
-                background: 'var(--bg-surface-2)',
-                border: '1px solid var(--border-1)',
-                borderRadius: 9,
-                padding: '11px 13px',
-                fontSize: 'var(--text-sm)',
-                color: 'var(--ink-2)',
-                lineHeight: 1.5,
-              }}
-            >
-              Select a step on the timeline to edit its fields, re-time it, or delete it. Use{' '}
-              <b>+ Add step</b> in the header to create one.
-            </div>
-            {watcherEnabled && (
-              <WatchRail
-                strategyId={strategyId}
-                focus={focusWatch}
-                onFocused={onWatchFocused}
-              />
-            )}
-          </>
+        )}
+        </div>
+
+        {meriEnabled && (
+          <StrategyChatThread
+            messages={messages}
+            pending={pending && pending.contextNodeId === contextNodeId ? pending.msg : null}
+            onOpenNode={onSelectNode}
+          />
         )}
       </div>
+
+      {/* Pinned footer — OUTSIDE the scroll container, so the composer and its
+          suggestions stay put however long the thread grows. */}
+      {meriEnabled && (
+        <div
+          data-testid="sp-panel-footer"
+          style={{
+            padding: '11px 14px 12px',
+            borderTop: '1px solid var(--border-1)',
+            background: 'var(--bg-surface)',
+            flexShrink: 0,
+          }}
+        >
+          <StrategyChatComposer
+            placeholder={node ? 'Ask Meri to change this step…' : 'Ask Meri to change anything…'}
+            busy={assistant.isPending}
+            onSubmit={(text, attachments) =>
+              runAssistant(node ? 'node' : 'strategy', node?.id, text, attachments)
+            }
+          />
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 9 }}>
+            {node
+              ? NODE_SUGGESTIONS.map((a) => (
+                  <button
+                    key={a.id}
+                    style={chipBtn}
+                    disabled={quickActionDisabled(a.id)}
+                    onClick={() => runQuickAction(a.id)}
+                  >
+                    {a.label}
+                  </button>
+                ))
+              : STRATEGY_SUGGESTIONS.map((s) => (
+                  <button
+                    key={s}
+                    style={chipBtn}
+                    disabled={assistant.isPending}
+                    onClick={() => runAssistant('strategy', undefined, s, [])}
+                  >
+                    {s}
+                  </button>
+                ))}
+          </div>
+          <div
+            style={{
+              fontSize: 'var(--text-2xs)',
+              color: 'var(--ink-4)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              marginTop: 9,
+            }}
+          >
+            <Icon name="check" size={11} color="var(--ink-4)" /> Meri applies changes instantly. Edits
+            are logged.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -385,18 +617,6 @@ function NodeEditor({
       ? `${monthLabel(startQ, calendar)} · Ongoing`
       : nodeRangeLabel(startQ, endQ, calendar);
 
-  const pushQuarter = () => {
-    const shifted = shiftNodeMonths(node.startsOn, node.endsOn, 3, calendar);
-    if (shifted.applied === 0) {
-      onCommit({}, 'Already at the end of the window.');
-      return;
-    }
-    onCommit(
-      { startsOn: shifted.startsOn, endsOn: shifted.endsOn ?? null },
-      'Pushed one quarter.',
-    );
-  };
-
   return (
     <>
       {/* node summary (NOD-2) */}
@@ -433,31 +653,10 @@ function NodeEditor({
         </div>
       </div>
 
-      {/* quick actions (NOD-5, deterministic) */}
-      <div>
-        <div style={{ ...fieldLbl, marginBottom: 7 }}>Quick actions</div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <button style={chipBtn} disabled={busy} onClick={pushQuarter}>
-            Push a quarter
-          </button>
-          <button
-            style={chipBtn}
-            disabled={busy || !currentUserId}
-            onClick={() =>
-              currentUserId && onCommit({ ownerUserId: currentUserId }, 'Reassigned to you.')
-            }
-          >
-            Reassign to me
-          </button>
-          <button
-            style={chipBtn}
-            disabled={busy || node.kind === 'gate'}
-            onClick={() => onCommit({ kind: 'gate' }, 'Converted to a gate.')}
-          >
-            Make it a gate
-          </button>
-        </div>
-      </div>
+      {/* NOD-5's quick actions moved to the panel footer as this context's
+          suggestion pills (§5 Step 7) — the prototype's node body has no
+          quick-actions block, and keeping both would put the same three
+          controls on screen twice. Same deterministic handlers, one home. */}
 
       {/* edit fields (NOD-7) — collapsible, default open with Meri off */}
       <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 12 }}>
@@ -927,73 +1126,5 @@ function NodeActions({
         </div>
       )}
     </div>
-  );
-}
-
-/** Preset strategy-level Meri prompts (MRI-4, static templates — plan D10). */
-const MERI_CHIPS = [
-  'Add a coalition sign-on letter',
-  'Flag a CR risk before final bills',
-  'Push the latest action a quarter',
-];
-
-/** Strategy-level Meri rail (MRI): plan summary + free-text assist + suggestion chips. */
-function StrategyMeriRail({
-  summary,
-  busy,
-  onAsk,
-}: {
-  summary?: string | null;
-  busy: boolean;
-  onAsk: (text: string, attachmentIds: string[]) => void;
-}) {
-  return (
-    <>
-      {summary && (
-        <div
-          style={{
-            background: 'var(--bg-surface-2)',
-            border: '1px solid var(--border-1)',
-            borderRadius: 9,
-            padding: '11px 13px',
-            fontSize: 'var(--text-sm)',
-            color: 'var(--ink-2)',
-            lineHeight: 1.5,
-          }}
-        >
-          <b style={{ color: 'var(--accent)' }}>Meri:</b> {summary}
-        </div>
-      )}
-      <div
-        style={{
-          background: 'var(--accent-soft)',
-          border: '1px solid #C6D4F4',
-          borderRadius: 10,
-          padding: '12px 13px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 9 }}>
-          <Icon name="spark" size={14} color="var(--accent-ink)" />
-          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--accent-ink)' }}>
-            Ask Meri to change anything
-          </span>
-        </div>
-        <AskMeri placeholder="Ask Meri to change anything…" busy={busy} onSubmit={onAsk} tall />
-      </div>
-      <div>
-        <div style={{ ...fieldLbl, marginBottom: 7 }}>Meri suggests</div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {MERI_CHIPS.map((c) => (
-            <button key={c} style={chipBtn} disabled={busy} onClick={() => onAsk(c, [])}>
-              {c}
-            </button>
-          ))}
-        </div>
-      </div>
-      {/* MRI-6 footer (rail order: summary → chat → chips → footer, MRI-5). */}
-      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--ink-4)', lineHeight: 1.5, marginTop: 2 }}>
-        Meri applies changes instantly. Edits are logged.
-      </div>
-    </>
   );
 }

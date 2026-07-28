@@ -126,9 +126,10 @@ model SpStrategy {
   createdAt          DateTime       @default(now()) @map("created_at")
   updatedAt          DateTime       @updatedAt @map("updated_at")
 
-  nodes     SpNode[]
-  versions  SpVersion[]
-  artifacts SpNodeArtifact[]
+  nodes        SpNode[]
+  versions     SpVersion[]
+  artifacts    SpNodeArtifact[]
+  chatMessages SpStrategyChatMessage[]
 
   @@index([tenantId, clientId])
   @@index([tenantId, archivedAt])
@@ -310,6 +311,47 @@ model SpActivityLog {
 
   @@index([tenantId, entityType, entityId, occurredAt])
   @@map("sp_activity_log")
+}
+
+// The durable Meri conversation attached to a strategy (Phase 2). ONE thread per
+// context: the strategy itself (nodeId null) and one per step (nodeId set).
+//
+// Deliberately NOT stored on SpActivityLog: that table is append-only audit with
+// a fixed actor/action/entity shape and a BEFORE UPDATE/DELETE trigger, so it can
+// neither carry a mutable `state` nor be read as an ordered conversation without
+// abusing its semantics.
+model SpStrategyChatMessage {
+  id         String  @id @default(uuid()) @db.Uuid
+  tenantId   String  @map("tenant_id") @db.Uuid
+  strategyId String  @map("strategy_id") @db.Uuid
+  // NO relation/FK on purpose: a step archived by a version restore (P0-1 soft
+  // delete) — or one hard-deleted — must not take its conversation with it. The
+  // thread stays readable; only LIVE steps are selectable from the timeline.
+  nodeId     String? @map("node_id") @db.Uuid
+  // Closed sets validated in StrategyConversationService, not DB enums: Phase 4
+  // adds Watch kinds and Phase 5 adds gap kinds, and an ALTER TYPE per phase buys
+  // nothing here (no index or constraint keys off these).
+  role       String // user | meri | system | watch
+  kind       String  @default("message") // message | context_gap | watch_applied | assistant_error
+  body       String  @db.Text
+  // Immutable DISPLAY snapshots ({id, filename, kind, status}) — never file bytes.
+  // Snapshotted so a later attachment delete/rename cannot rewrite chat history.
+  attachmentRefs  Json?    @map("attachment_refs")
+  // The prototype's `Open "<step>"` affordance: {type:'open_node', nodeId, title}.
+  action          Json?
+  // active | resolved | dismissed — only context_gap uses anything but 'active'.
+  state           String   @default("active")
+  // Client-minted per user send: makes a retried POST idempotent instead of
+  // double-posting the user's message.
+  clientMessageId String?  @map("client_message_id") @db.Uuid
+  createdByUserId String?  @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  strategy SpStrategy @relation(fields: [strategyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([tenantId, clientMessageId])
+  @@index([tenantId, strategyId, nodeId, createdAt])
+  @@map("sp_strategy_chat_message")
 }
 
 // ---- Phase 2 agent runtime (Stage C) --------------------------------------------

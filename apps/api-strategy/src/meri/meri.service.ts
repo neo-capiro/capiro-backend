@@ -23,8 +23,14 @@ import { StewardService } from '../context/steward.service.js';
 import { StrategyAiCredentialResolver } from './strategy-ai-credential.resolver.js';
 import { StrategyAttachmentResolver } from './strategy-attachment.resolver.js';
 import { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
+import {
+  StrategyConversationService,
+  type ChatAttachmentSnapshot,
+  type ChatOpenNodeAction,
+} from './strategy-conversation.service.js';
 import type {
   DraftNode,
+  GroundingHealth,
   NodeDocumentDraftResponse,
   PlanEdit,
   StewardFactLine,
@@ -71,6 +77,22 @@ const FACT_REF_RE = /^fact:(.+)$/;
  *  (and would P2023 the `in` query if passed through). */
 const FACT_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * Phase 2: plain-language names for the Steward's REQUIRED_TEMPLATE_KEYS, used
+ * in the seeded `context_gap` conversation message.
+ *
+ * `groundingHealth.missingRequired` carries INTERNAL template keys
+ * ('strategy_brief', 'client_constraints'). The page banner this message
+ * replaces printed them raw; a chat line from Meri must not. Unknown keys fall
+ * back to a generic phrase rather than leaking the key — and
+ * meri.service.spec.ts asserts every REQUIRED_TEMPLATE_KEYS entry has an entry
+ * here, so adding a required doc without a label fails the build, not prod.
+ */
+export const CONTEXT_GAP_LABELS: Record<string, string> = {
+  strategy_brief: 'the strategy brief',
+  client_constraints: "this client's constraints",
+};
+
 const TYPE_LABEL: Record<StrategyTypeValue, string> = {
   appropriations: 'Appropriations',
   authorization: 'Authorization',
@@ -109,6 +131,7 @@ export class MeriService {
     private readonly reference: ReferenceService,
     private readonly attachments: StrategyAttachmentResolver,
     private readonly steward: StewardService,
+    private readonly conversations: StrategyConversationService,
   ) {}
 
   /**
@@ -271,6 +294,34 @@ export class MeriService {
       // to the violations plan.verified logs below).
       violations.push(...(await this.factCheckProvenance(tx, detail.nodes, dto.clientId)));
       await this.logVerification(tx, tenantId, clerkUserId, strategy.id, violations);
+
+      // Phase 2: seed the strategy thread so a drafted plan opens with Meri's
+      // own account of it rather than an empty panel. Same tx as the plan
+      // itself — a strategy that exists always has its opening message.
+      await this.conversations.appendIn(tx, tenantId, {
+        strategyId: strategy.id,
+        nodeId: null,
+        role: 'meri',
+        kind: 'message',
+        body:
+          resp.summary?.trim() ||
+          `Drafted ${nodeData.length} step${nodeData.length === 1 ? '' : 's'} from your goal.`,
+        createdByUserId: null,
+      });
+      // ONE gap message, not one per missing field — a list of five bullet
+      // points reads as a system dump, and the user's next action is the same
+      // either way. Phase 5 adds the repair/retry affordance on top of it.
+      const gap = contextGapBody(resp.groundingHealth);
+      if (gap) {
+        await this.conversations.appendIn(tx, tenantId, {
+          strategyId: strategy.id,
+          nodeId: null,
+          role: 'meri',
+          kind: 'context_gap',
+          body: gap,
+          createdByUserId: null,
+        });
+      }
       return { ...detail, violations, groundingHealth: resp.groundingHealth };
     });
   }
@@ -297,44 +348,89 @@ export class MeriService {
       throw new BadRequestException('nodeId is required for node-scope assist');
     }
 
-    const [aiProvider, ground, docs, stewardCtx] = await Promise.all([
-      this.resolver.resolve(tenantId),
-      this.grounding(tenantId),
-      this.attachments.resolve(bearer, dto.attachmentIds),
-      this.stewardContext(tenantId, strategy.clientId),
-    ]);
-    const resp = await this.orchestrator.assistant(
-      {
-        scope: dto.scope,
-        nodeId: dto.nodeId ?? null,
-        instruction: dto.instruction,
-        attachmentIds: dto.attachmentIds ?? [],
-        attachments: docs,
-        clientId: strategy.clientId,
-        strategy: serializeStrategy(strategy),
-        ...ground,
-        ...stewardCtx,
-      },
-      bearer,
-      aiProvider,
-    );
+    // Phase 2: which conversation this send belongs to. A node-scoped send lives
+    // in that step's thread; a strategy-scoped send lives in the strategy thread.
+    // The two are never merged.
+    const contextNodeId = dto.scope === 'node' ? (dto.nodeId ?? null) : null;
+
+    // Persist the user's message BEFORE the model call, keyed on the client's
+    // idempotency id. Two things fall out of that ordering: what the user typed
+    // survives an orchestrator failure, and a retried POST (dropped response,
+    // double-click) reuses the stored row instead of posting a second bubble.
+    const userMessage = await this.conversations.appendUserMessage(tenantId, clerkUserId, {
+      strategyId,
+      nodeId: contextNodeId,
+      body: dto.instruction,
+      attachments: snapshotAttachments(dto),
+      clientMessageId: dto.clientMessageId,
+    });
+
+    // Declared out here because the post-apply verifier (`ground`) and the
+    // version note (`docs.length`) both need them AFTER the try block.
+    let ground: Grounding;
+    let docs: Awaited<ReturnType<StrategyAttachmentResolver['resolve']>>;
+    let resp: Awaited<ReturnType<StrategyOrchestratorClient['assistant']>>;
+    try {
+      const [aiProvider, g, d, stewardCtx] = await Promise.all([
+        this.resolver.resolve(tenantId),
+        this.grounding(tenantId),
+        this.attachments.resolve(bearer, dto.attachmentIds),
+        this.stewardContext(tenantId, strategy.clientId),
+      ]);
+      ground = g;
+      docs = d;
+      resp = await this.orchestrator.assistant(
+        {
+          scope: dto.scope,
+          nodeId: dto.nodeId ?? null,
+          instruction: dto.instruction,
+          attachmentIds: dto.attachmentIds ?? [],
+          attachments: docs,
+          clientId: strategy.clientId,
+          strategy: serializeStrategy(strategy),
+          ...ground,
+          ...stewardCtx,
+        },
+        bearer,
+        aiProvider,
+      );
+    } catch (err) {
+      // The user's message is already stored, so the thread must say what
+      // happened to it. Plain copy only — no stack trace, no provider name.
+      // The plan is NOT mutated on this path.
+      await this.recordAssistantError(tenantId, strategyId, contextNodeId, err);
+      throw err;
+    }
     const edits = (resp.edits ?? []).slice(0, 60);
 
     // A pure question / no-op (empty edit-set) is NOT a mutation batch: do not
     // cut a version, bump lastEdited, or log a mutation (plan §4/§7 — one version
     // per applied set). Return the reply against the current, unchanged state.
     if (edits.length === 0) {
-      const current = await this.prisma.withTenant(tenantId, (tx) =>
-        loadStrategyDetail(tx, strategyId),
-      );
+      const { current, meriMessage } = await this.prisma.withTenant(tenantId, async (tx) => {
+        const loaded = await loadStrategyDetail(tx, strategyId);
+        const msg = await this.conversations.appendIn(tx, tenantId, {
+          strategyId,
+          nodeId: contextNodeId,
+          role: 'meri',
+          kind: 'message',
+          body: replyBody(resp.reply, dto.scope, 0),
+        });
+        return { current: loaded, meriMessage: msg };
+      });
       return {
         reply: resp.reply ?? '',
         summary: strategy.meriSummary ?? null,
         strategy: { ...current, groundingHealth: resp.groundingHealth },
+        messages: [userMessage, meriMessage],
       };
     }
 
-    const { detail, violations } = await this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
+    // Step 4: which steps this edit-set CREATED. Compared against the pre-edit
+    // LIVE ids, so a revived (un-archived) node does not read as new.
+    const beforeNodeIds = new Set(strategy.nodes.map((n) => n.id));
+
+    const { detail, violations, meriMessage } = await this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
       for (const edit of edits) {
         await this.applyEdit(tx, tenantId, strategyId, clerkUserId, edit);
       }
@@ -380,14 +476,60 @@ export class MeriService {
         );
       }
       await this.logVerification(tx, tenantId, clerkUserId, strategyId, v);
-      return { detail: d, violations: v };
+
+      // Phase 2: Meri's reply commits in the SAME transaction as the plan edit.
+      // If the edit-set rolls back (a verifier error, a malformed op), the reply
+      // claiming it happened rolls back with it — the thread can never assert a
+      // change the plan does not have.
+      const created = d.nodes.filter((n) => !beforeNodeIds.has(n.id));
+      const msg = await this.conversations.appendIn(tx, tenantId, {
+        strategyId,
+        nodeId: contextNodeId,
+        role: 'meri',
+        kind: 'message',
+        body: replyBody(resp.reply, dto.scope, edits.length),
+        // Exactly one new step gets the prototype's `Open "<step>"` affordance.
+        // Zero or several: reply text only — a list here would be a UI this
+        // phase does not have, and picking one arbitrarily would be a guess.
+        action: openNodeAction(created),
+      });
+      return { detail: d, violations: v, meriMessage: msg };
     });
 
     return {
       reply: resp.reply ?? '',
       summary: resp.summary ?? null,
       strategy: { ...detail, violations, groundingHealth: resp.groundingHealth },
+      messages: [userMessage, meriMessage],
     };
+  }
+
+  /**
+   * Append the one plain-language failure line after the orchestrator/model
+   * threw. Deliberately swallows its own errors: this runs on an already-failing
+   * path, and a write failure here must not replace the real cause the caller is
+   * about to throw. The correlation stays in the server log.
+   */
+  private async recordAssistantError(
+    tenantId: string,
+    strategyId: string,
+    nodeId: string | null,
+    cause: unknown,
+  ): Promise<void> {
+    this.logger.warn(
+      `assistant failed for strategy ${strategyId}: ${(cause as Error)?.message ?? String(cause)}`,
+    );
+    try {
+      await this.conversations.append(tenantId, {
+        strategyId,
+        nodeId,
+        role: 'meri',
+        kind: 'assistant_error',
+        body: "I couldn't complete that change. Your message is saved—try again.",
+      });
+    } catch (err) {
+      this.logger.warn(`could not record the assistant error message: ${(err as Error).message}`);
+    }
   }
 
   /** REF-4: Meri edits the reference editor's working rows — returned, NOT persisted. */
@@ -825,6 +967,91 @@ export class MeriService {
       after: { errorCount, warningCount: violations.length - errorCount, violations },
     });
   }
+}
+
+/**
+ * The DISPLAY snapshots to store on the user's chat message. `attachmentIds` is
+ * the authority for what Meri actually grounded on, so a snapshot whose id is
+ * not in that list is dropped — the bubble can never claim a document the model
+ * never saw. When the client sends ids but no snapshots (an older web build),
+ * the ids are still recorded so the chip count stays truthful.
+ */
+function snapshotAttachments(dto: AssistantDto): ChatAttachmentSnapshot[] {
+  const ids = dto.attachmentIds ?? [];
+  if (ids.length === 0) return [];
+  const allowed = new Set(ids);
+  const provided = new Map(
+    (dto.attachments ?? [])
+      .filter((a) => allowed.has(a.id))
+      .map((a) => [a.id, a] as const),
+  );
+  return ids.map((id) => {
+    const snap = provided.get(id);
+    return {
+      id,
+      filename: snap?.filename ?? 'Attachment',
+      kind: snap?.kind ?? 'unsupported',
+      status: snap?.status ?? 'attached',
+    };
+  });
+}
+
+/**
+ * The bubble text for a Meri reply. The orchestrator's `reply` is normally
+ * present; when it is blank the fallback states only what the server itself
+ * knows happened, rather than inventing a sentence Meri did not say.
+ */
+function replyBody(reply: string | undefined, scope: string, editCount: number): string {
+  const text = reply?.trim();
+  if (text) return text;
+  if (editCount === 0) return 'No changes were needed.';
+  return scope === 'node' ? 'Updated this step.' : 'Updated the plan.';
+}
+
+/** Step 4: exactly one created step earns an `open_node` action; otherwise none. */
+function openNodeAction(created: Array<{ id: string; title: string }>): ChatOpenNodeAction | null {
+  if (created.length !== 1) return null;
+  const node = created[0]!;
+  return { type: 'open_node', nodeId: node.id, title: node.title };
+}
+
+/**
+ * The seeded `context_gap` body for a degraded/conflicted draft, in the user's
+ * language. Returns null when grounding was clean — no message is better than a
+ * reassuring one nobody needs.
+ *
+ * 'conflicted' names the two disagreeing facts verbatim (clipped), matching what
+ * the page banner said; that banner stays until Phase 5 ships the repair flow.
+ */
+function contextGapBody(health: GroundingHealth | undefined): string | null {
+  if (!health) return null;
+  if (health.status === 'conflicted') {
+    const first = health.openMaterialConflicts?.[0];
+    const detail = first
+      ? `“${clipFact(first.factA)}” and “${clipFact(first.factB)}” disagree.`
+      : 'Some facts in this client’s context materially disagree.';
+    return `I drafted this with unresolved conflicts in your client context. ${detail} Resolve which one controls, then ask me to revisit the plan.`;
+  }
+  if (health.status === 'degraded') {
+    const labels = (health.missingRequired ?? []).map(
+      (key) => CONTEXT_GAP_LABELS[key] ?? 'some client context',
+    );
+    const missing = [...new Set(labels)];
+    const what =
+      missing.length === 0
+        ? 'some client context'
+        : missing.length === 1
+          ? missing[0]!
+          : `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]!}`;
+    return `I drafted this without ${what}, so the client-specific details are my best guess. Check them before you rely on this plan.`;
+  }
+  return null;
+}
+
+/** Keep a quoted fact short enough to read inside a chat bubble. */
+function clipFact(text: string, max = 120): string {
+  const t = (text ?? '').trim();
+  return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
 
 function deriveTitle(goal: string | undefined, type: StrategyTypeValue): string {
