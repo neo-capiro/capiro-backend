@@ -159,15 +159,6 @@ jobs:
           src/pages/clients/intelligence-v1/components/TopAlertsList
           src/pages/clients/intelligence-v1/components/HearingsMarkupList
 
-      - name: Upload web failure diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: legiwatch-web-summary
-          path: ${{ github.workspace }}/web-summary.json
-          if-no-files-found: error
-          retention-days: 1
-
       - name: Assert apps/web scope is clean
         if: always()
         run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 100 371
