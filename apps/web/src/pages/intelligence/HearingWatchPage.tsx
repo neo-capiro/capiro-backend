@@ -8,7 +8,7 @@ import {
   isMediaUrl,
   useBrowseHearings,
   useCreateHearing,
-  useHearingSessions,
+  useHearingSessionHistory,
   useResolveStream,
   useUpcomingHearings,
   type ResolveStreamResult,
@@ -443,16 +443,21 @@ function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
 /** Watch history — every hearing session (transcribed / live). */
 function SessionsView() {
   const navigate = useNavigate();
-  const sessions = useHearingSessions();
+  const history = useHearingSessionHistory();
+  const sessions = useMemo(
+    () => history.data?.pages.flatMap((page) => page.items) ?? [],
+    [history.data],
+  );
+  const total = history.data?.pages[0]?.total ?? sessions.length;
 
-  if (sessions.isLoading) {
+  if (history.isLoading) {
     return (
       <div style={{ padding: '48px 0', textAlign: 'center' }}>
         <Spin />
       </div>
     );
   }
-  if (!sessions.data || sessions.data.length === 0) {
+  if (sessions.length === 0) {
     return (
       <div className="guide">
         <div className="gico">
@@ -476,7 +481,7 @@ function SessionsView() {
         Every hearing you’ve watched or transcribed. Recaps saved to a client are filed in that
         client’s <b>Documents</b> and indexed into Meri knowledge.
       </span>
-      {sessions.data.map((s) => {
+      {sessions.map((s) => {
         const live = s.status === 'live';
         return (
           <div
@@ -516,6 +521,20 @@ function SessionsView() {
           </div>
         );
       })}
+      <div style={{ textAlign: 'center' }}>
+        <div className="muted mini" style={{ marginBottom: history.hasNextPage ? 6 : 0 }}>
+          Showing {sessions.length.toLocaleString()} of {total.toLocaleString()} sessions
+        </div>
+        {history.hasNextPage ? (
+          <button
+            className="btn"
+            disabled={history.isFetchingNextPage}
+            onClick={() => void history.fetchNextPage()}
+          >
+            {history.isFetchingNextPage ? 'Loading…' : 'Load more sessions'}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

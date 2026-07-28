@@ -103,11 +103,14 @@ function feedItem(over: Partial<FeedItem> = {}): FeedItem {
   };
 }
 
-function feedPage(items: FeedItem[]) {
+function feedPage(
+  items: FeedItem[],
+  opts: { nextCursor?: string | null; hasMore?: boolean } = {},
+) {
   return {
     items,
-    nextCursor: null,
-    hasMore: false,
+    nextCursor: opts.nextCursor ?? null,
+    hasMore: opts.hasMore ?? false,
     counts: { bill: items.length },
     severityCounts: { critical: items.length },
   };
@@ -144,13 +147,20 @@ function mockApi(items: FeedItem[]) {
   });
 }
 
-function renderPanel() {
+function renderPanel(
+  props: { focusAlertId?: string; onFocused?: () => void } = {},
+) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
       <MemoryRouter>
         <AntApp>
-          <TrackerFeedPanel clientId="c1" clientName="Acme Aerospace" />
+          <TrackerFeedPanel
+            clientId="c1"
+            clientName="Acme Aerospace"
+            focusAlertId={props.focusAlertId}
+            onFocused={props.onFocused}
+          />
         </AntApp>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -162,6 +172,48 @@ beforeEach(() => {
   feedUrls = [];
   apiPostMock.mockResolvedValue({ data: { ok: true, updated: 0 } });
   setupBrowserMocks();
+});
+
+describe('alert email deep links', () => {
+  test('widens to All and keyset-pages until an older focused alert is loaded', async () => {
+    const onFocused = vi.fn();
+    const target = feedItem({
+      id: 'older-alert',
+      title: 'Older linked alert',
+      workState: {
+        state: 'dismissed',
+        assignedTo: null,
+        assignedToName: null,
+        snoozedUntil: null,
+        note: null,
+      },
+    });
+    apiGetMock.mockImplementation(async (url: string) => {
+      if (url.includes('/feed')) {
+        feedUrls.push(url);
+        if (url.includes('cursor=page-2')) return { data: feedPage([target]) };
+        return {
+          data: feedPage([feedItem({ id: 'newer-alert', title: 'Newer alert' })], {
+            nextCursor: 'page-2',
+            hasMore: true,
+          }),
+        };
+      }
+      return { data: {} };
+    });
+
+    const { container } = renderPanel({ focusAlertId: 'older-alert', onFocused });
+
+    await waitFor(() =>
+      expect(feedUrls.some((url) => url.includes('workState=all'))).toBe(true),
+    );
+    await waitFor(() =>
+      expect(feedUrls.some((url) => url.includes('cursor=page-2'))).toBe(true),
+    );
+    expect(await screen.findByText('Older linked alert')).toBeInTheDocument();
+    await waitFor(() => expect(onFocused).toHaveBeenCalledTimes(1));
+    expect(container.querySelector('[data-alert-id="older-alert"]')).toHaveClass('open');
+  });
 });
 
 describe('P1-10 — priority ordering is a control', () => {

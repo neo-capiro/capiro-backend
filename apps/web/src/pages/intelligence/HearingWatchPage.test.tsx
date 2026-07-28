@@ -110,6 +110,49 @@ describe('HearingWatchPage — New Hearing modal (P8)', () => {
     await waitFor(() => expect((urlInput as HTMLInputElement).value).toContain('master.m3u8'));
   }, 15000);
 
+  test('My Sessions pages past the former 100-row cap', async () => {
+    apiGetMock.mockImplementation(async (url: string) => {
+      if (url.startsWith('/intel-api/hearings/history')) {
+        const second = url.includes('offset=50');
+        return {
+          data: second
+            ? {
+                items: [{ id: 's2', title: 'Older session', status: 'ended', sourceType: 'hearing' }],
+                total: 51,
+                nextOffset: null,
+                hasMore: false,
+              }
+            : {
+                items: [{ id: 's1', title: 'Newest session', status: 'ended', sourceType: 'markup' }],
+                total: 51,
+                nextOffset: 50,
+                hasMore: true,
+              },
+        };
+      }
+      if (url === '/intel-api/upcoming-hearings') return { data: [] };
+      if (url.startsWith('/intel-api/upcoming-hearings/browse')) {
+        return { data: { items: [], total: 0 } };
+      }
+      return { data: [] };
+    });
+
+    renderPanel();
+    fireEvent.click(await screen.findByText('My Sessions'));
+
+    expect(await screen.findByText('Newest session')).toBeInTheDocument();
+    expect(screen.getByText(/Showing 1 of 51 sessions/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Load more sessions/i }));
+
+    expect(await screen.findByText('Older session')).toBeInTheDocument();
+    expect(screen.getByText(/Showing 2 of 51 sessions/i)).toBeInTheDocument();
+    expect(
+      apiGetMock.mock.calls.some((args: unknown[]) =>
+        String(args[0]).includes('/intel-api/hearings/history?offset=50&limit=50'),
+      ),
+    ).toBe(true);
+  }, 15000);
+
   test('consent field appears only for a private source type', async () => {
     renderPanel();
     await openNewHearingModal();

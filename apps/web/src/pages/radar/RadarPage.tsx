@@ -63,8 +63,8 @@ function LegiWatchIntro({ open, onClose }: { open: boolean; onClose: () => void 
     },
     {
       icon: <FileTextOutlined />,
-      title: 'LegiWatch finds matching bills',
-      body: 'It scores new legislation against that watchlist and lists the matches. You choose which to track; tracked bills go on a board that shows each one’s current status.',
+      title: 'LegiWatch finds matching policy and funding developments',
+      body: 'It scores federal and state legislation, regulations, and Program Element funding changes against the client’s priorities. You choose which bills to track on the board.',
     },
     {
       icon: <AudioOutlined />,
@@ -74,7 +74,7 @@ function LegiWatchIntro({ open, onClose }: { open: boolean; onClose: () => void 
     {
       icon: <BellOutlined />,
       title: 'Everything that changed shows up in the Feed',
-      body: 'Bill moves and hearing moments land in one list. From there you can save a recap, draft a memo, or start outreach.',
+      body: 'Bill moves, hearing moments, regulations, and funding changes land in one list. From there you can save a recap, draft a memo, or start outreach.',
     },
   ];
   return (
@@ -84,8 +84,8 @@ function LegiWatchIntro({ open, onClose }: { open: boolean; onClose: () => void 
           <div className="k">Intelligence · LegiWatch</div>
           <h2>What LegiWatch does</h2>
           <p>
-            It tracks bills and congressional hearings for each of your clients and shows you what
-            changed. Here’s the flow, start to finish.
+            It tracks legislation, hearings, regulations, and defense-budget changes for each client
+            and shows you what changed. Here’s the flow, start to finish.
           </p>
         </div>
         <div className="intro-body">

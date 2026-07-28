@@ -295,6 +295,7 @@ describe('RadarPage', () => {
     renderRadar('/radar');
 
     await waitFor(() => expect(screen.getByText('What LegiWatch does')).toBeInTheDocument());
+    expect(screen.getByText(/legislation, hearings, regulations, and defense-budget changes/i)).toBeInTheDocument();
     // The permanent reopen control is present in the top bar.
     expect(screen.getByRole('button', { name: /How it works/i })).toBeInTheDocument();
     // Dismiss ("Got it") persists the per-user seen-flag so it won't reappear.

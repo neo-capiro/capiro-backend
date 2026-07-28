@@ -60,6 +60,19 @@ export class HearingController {
     return this.sessions.list(ctx.tenantId, ctx.clerkUserId);
   }
 
+  /** Paginated history for My Sessions; declared before :id so `history` is not treated as an id. */
+  @Get('history')
+  history(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Query('offset') offset?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.sessions.listPage(ctx.tenantId, ctx.clerkUserId, {
+      offset: parseNonNegativeInt(offset),
+      limit: parsePositiveInt(limit),
+    });
+  }
+
   @Get(':id')
   get(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('id') id: string) {
     return this.sessions.getAccessible(ctx.tenantId, id, ctx.clerkUserId);

@@ -101,6 +101,28 @@ describe('G3: hearing module Prisma calls are tenant-scoped via withTenant', () 
         }),
       );
     });
+
+    it('listPage() preserves private-session scope and returns a truthful next offset', async () => {
+      const { prisma, withTenant, model } = makeFakePrisma();
+      model('liveHearingSession').findMany.mockResolvedValue([{ id: 's2' }, { id: 's1' }]);
+      model('liveHearingSession').count.mockResolvedValue(5);
+      const service = new HearingSessionService(prisma);
+
+      await expect(
+        service.listPage('tenant-1', 'user-1', { offset: 2, limit: 2 }),
+      ).resolves.toEqual({ items: [{ id: 's2' }, { id: 's1' }], total: 5, nextOffset: 4, hasMore: true });
+      expect(withTenant).toHaveBeenCalledWith('tenant-1', expect.any(Function));
+      expect(model('liveHearingSession').findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 2,
+          take: 2,
+          where: expect.objectContaining({
+            tenantId: 'tenant-1',
+            OR: [{ sourceType: { in: ['hearing', 'markup'] } }, { createdBy: 'user-1' }],
+          }),
+        }),
+      );
+    });
   });
 
   describe('SegmentCommitService', () => {
