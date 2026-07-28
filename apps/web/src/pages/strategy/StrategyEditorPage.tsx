@@ -27,7 +27,7 @@ import {
   useMissions,
   useCreateMission,
   useUpdateMission,
-  useChangeSets,
+  useWatchReviewState,
 } from './api.js';
 import { useClientsLite } from './clients-lite.js';
 import { useTenantMembers } from './members.js';
@@ -38,7 +38,6 @@ import { STRATEGY_TYPE_LABEL } from './constants.js';
 import {
   canShowWatchRail,
   findExecutionMission,
-  findWatchMission,
   EXECUTION_MISSION_NAME,
   classifyWaitingReason,
 } from './agents/agent-utils.js';
@@ -120,20 +119,23 @@ export function StrategyEditorPage() {
   // flags). Optional so an older cached /me shape degrades to hidden.
   const agenticEnabled = Boolean(me.data?.features?.agenticMeri);
 
-  // Step 3 (interim Watch chip). Both reads reuse queries the Watch panel
-  // already makes — same React Query keys, so this costs no extra request, and
-  // both are gated on watcherEnabled (⊆ agenticMeri) so a non-canaried tenant
-  // never fires a request the server would 403.
+  // Header Watch chip. Phase 6 §3 (Scenarios D/E/G): the chip now reads the
+  // SAME authoritative state the in-editor panel does
+  // (GET /agents/watch/strategies/:id, identical React Query key — so with the
+  // panel open this costs no extra request), not Phase 1's interim
+  // `status=proposed` change-set list.
   //
-  // "Current-head" caveat: StrategyDetail exposes no head version id, and
-  // nothing client-side resolves one (the review queue discovers staleness
-  // lazily from apply's 409). So the count is the strategy's `proposed`
-  // change-sets — what the app currently treats as actionable. Phase 3 adds the
-  // version-aware revalidation that makes this exact.
-  const watchProposals = useChangeSets({ strategyId: id ?? undefined, status: 'proposed' }, watcherEnabled);
-  const watchMission = findWatchMission(missions.data ?? [], id ?? '');
+  // That list was a superset of what is actionable: it still counted proposals
+  // pinned to a superseded version and proposals whose target step had been
+  // deleted, both of which loadState() filters out. The chip could therefore
+  // read "2" over a panel that says "Nothing to review", and after Scenario G's
+  // permanent dismissal the badge only cleared because dismissal happens to
+  // also reject the row. pendingCount is that same filtered set, so header and
+  // panel can no longer disagree. Gated on watcherEnabled (⊆ agenticMeri) so a
+  // non-canaried tenant never fires a request the server would 403.
+  const watchState = useWatchReviewState(id, watcherEnabled);
   const watchChip = watcherEnabled
-    ? { on: watchMission?.state === 'active', pending: watchProposals.data?.length ?? 0 }
+    ? { on: watchState.data?.mission?.state === 'active', pending: watchState.data?.pendingCount ?? 0 }
     : null;
 
   // Step 10: every open starts at the top of the plan. Keyed on the strategy id

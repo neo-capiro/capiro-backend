@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -100,6 +100,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  */
 @Injectable()
 export class StrategyConversationService {
+  private readonly logger = new Logger(StrategyConversationService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -169,6 +171,13 @@ export class StrategyConversationService {
           where: { clientMessageId: input.clientMessageId },
         });
         if (!existing) throw err;
+        // Phase 6 §6 ("conversation send success/failure/idempotent replay"):
+        // a replay is a SUCCESS that did no work — invisible in request logs
+        // otherwise, and the number that tells you whether clients are
+        // retrying. Ids only; never the message body.
+        this.logger.log(
+          `[strategy:${input.strategyId}] conversation send replayed idempotently (message ${existing.id})`,
+        );
         return toPublic(existing);
       }
     });

@@ -506,11 +506,20 @@ export class WatchReviewService {
         detail,
         strategyId: cs.strategyId,
         created,
+        appliedVersionId,
+        opCount: edits.length,
         summaryText: stripWatchMarker(cs.summary),
       };
     });
 
     if (result.stale) {
+      // Phase 6 §6 ("stale-head prevented action count"): the 409 the user sees
+      // is the panel reconciling itself; without this line a plan whose head
+      // moves faster than people review it looks identical to one nobody
+      // touches.
+      this.logger.warn(
+        `Watch accept prevented on a stale head (change-set ${proposalId}) — the proposal was superseded`,
+      );
       throw new ConflictException('This plan changed since the proposal was made — refresh and try again.');
     }
 
@@ -521,7 +530,12 @@ export class WatchReviewService {
       body: `Accepted a Watch proposal: ${result.summaryText}. ${summarizeRecheck(state.lastRecheck!)}`,
       created: result.created,
     });
-    this.logger.log(`[strategy:${result.strategyId}] Watch change applied (change-set ${proposalId})`);
+    // Phase 6 §6 ("accept/accept-all version IDs and batch size"): the applied
+    // version id is what ties this action to a History entry and to a restore.
+    this.logger.log(
+      `[strategy:${result.strategyId} version:${result.appliedVersionId}] Watch change applied ` +
+        `(change-set ${proposalId}, ${result.opCount} op${result.opCount === 1 ? '' : 's'})`,
+    );
     return { strategy: result.detail, state, recheck: state.lastRecheck! };
   }
 
@@ -613,6 +627,12 @@ export class WatchReviewService {
         select: { id: true },
       });
       if (!head || head.id !== expectedVersionId) {
+        // Phase 6 §6 ("stale-head prevented action count") — the batch twin of
+        // acceptOne's stale-head warning.
+        this.logger.warn(
+          `[strategy:${strategyId}] Watch accept-all prevented on a stale head ` +
+            `(expected ${expectedVersionId}, head ${head?.id ?? 'none'}, ${uniqueIds.length} proposals)`,
+        );
         throw new ConflictException('expectedVersionId is not the current head — refresh and try again');
       }
 
@@ -682,7 +702,7 @@ export class WatchReviewService {
       const created = detail.nodes
         .filter((n) => !beforeNodeIds.has(n.id))
         .map((n) => ({ id: n.id, title: n.title }));
-      return { detail, created };
+      return { detail, created, appliedVersionId, opCount: orderResult.ops.length };
     });
 
     const state = await this.revalidate(tenantId, userId, strategyId, 'post-accept-all');
@@ -690,7 +710,10 @@ export class WatchReviewService {
       body: `Accepted ${uniqueIds.length} Watch proposal${uniqueIds.length === 1 ? '' : 's'}. ${summarizeRecheck(state.lastRecheck!)}`,
       created: applied.created,
     });
-    this.logger.log(`[strategy:${strategyId}] Watch batch applied (${uniqueIds.length} proposals)`);
+    this.logger.log(
+      `[strategy:${strategyId} version:${applied.appliedVersionId}] Watch batch applied ` +
+        `(${uniqueIds.length} proposals, ${applied.opCount} ops)`,
+    );
     return { strategy: applied.detail, state, recheck: state.lastRecheck! };
   }
 

@@ -66,7 +66,7 @@ vi.mock('./api.js', () => ({
   useMissions: () => ({ ...idle, data: [], refetch: vi.fn() }),
   useCreateMission: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateMission: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useChangeSets: () => ({ ...idle, data: [] }),
+  useWatchReviewState: () => ({ ...idle, data: null }),
 }));
 vi.mock('@clerk/clerk-react', () => ({ useUser: () => ({ user: { id: 'user-1' } }) }));
 vi.mock('../../lib/me.js', () => ({

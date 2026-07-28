@@ -378,6 +378,7 @@ export class MeriService {
     strategyId: string,
     dto: AssistantDto,
   ) {
+    const startedAt = Date.now();
     const strategy = await this.prisma.withTenant(tenantId, (tx) =>
       tx.spStrategy.findFirst({
         where: { id: strategyId },
@@ -490,6 +491,12 @@ export class MeriService {
         });
         return { current: loaded, meriMessage: msg };
       });
+      // Phase 6 §6 ("conversation send success"). Counts and ids only — never
+      // the instruction, the reply, or any source text.
+      this.logger.log(
+        `[strategy:${strategyId}] assistant complete (${dto.scope} scope, 0 edits, ` +
+          `grounding ${resp.groundingHealth?.status ?? 'unknown'}) in ${Date.now() - startedAt}ms`,
+      );
       return {
         reply: resp.reply ?? '',
         summary: strategy.meriSummary ?? null,
@@ -590,6 +597,11 @@ export class MeriService {
       return { detail: d, violations: v, meriMessage: msg };
     });
 
+    this.logger.log(
+      `[strategy:${strategyId}] assistant complete (${dto.scope} scope, ${edits.length} edits, ` +
+        `${violations.length} violation(s), grounding ${resp.groundingHealth?.status ?? 'unknown'}) ` +
+        `in ${Date.now() - startedAt}ms`,
+    );
     return {
       reply: resp.reply ?? '',
       summary: resp.summary ?? null,

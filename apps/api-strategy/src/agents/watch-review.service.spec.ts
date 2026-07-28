@@ -1,14 +1,14 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { WatchReviewService } from './watch-review.service.js';
+import { StrategyConversationService } from '../meri/strategy-conversation.service.js';
 import { WatcherService } from './watcher.service.js';
 import { RunsService } from './runs.service.js';
 import { ChangeSetsService } from './change-sets.service.js';
 import { VersioningService } from '../strategy/versioning.service.js';
 import type { VersionService } from '../strategy/version.service.js';
 import type { MeriService } from '../meri/meri.service.js';
-import type { StrategyConversationService } from '../meri/strategy-conversation.service.js';
 import type { StewardService } from '../context/steward.service.js';
 import type { StrategyFlagsService } from '../flags/strategy-flags.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -283,6 +283,10 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
   const spNode = {
     findMany: async ({ where }: { where?: Record<string, unknown> }) =>
       [...store.nodes.values()].filter((n) => matches(n, where)),
+    // Used by StrategyConversationService.assertContext when a STEP thread is
+    // addressed (Phase 6's cross-stage test asserts the step thread is empty).
+    findFirst: async (args: { where?: Record<string, unknown> }) =>
+      findFirstGeneric([...store.nodes.values()], args),
   };
 
   const spVersion = {
@@ -437,6 +441,39 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
     },
   };
 
+  // Phase 6 §4: the cross-stage test wires the REAL StrategyConversationService
+  // (rather than the append stub the Phase 4 tests use), so the fake tx needs
+  // the chat table too. Same generic engine as every other model here.
+  const spStrategyChatMessage = {
+    findMany: async (args: { where?: Record<string, unknown>; orderBy?: OrderSpec | OrderSpec[] }) => {
+      let rows = store.chatMessages.filter((r) => matches(r, args.where));
+      if (args.orderBy) rows = applyOrderBy(rows, args.orderBy);
+      return rows;
+    },
+    findFirst: async (args: { where?: Record<string, unknown>; orderBy?: OrderSpec | OrderSpec[] }) =>
+      findFirstGeneric(store.chatMessages, args),
+    create: async ({ data }: { data: Rec }) => {
+      const rec: Rec = {
+        attachmentRefs: null,
+        action: null,
+        clientMessageId: null,
+        createdByUserId: null,
+        ...data,
+        id: store.nextId('chat'),
+        createdAt: new Date(),
+      };
+      store.chatMessages.push(rec);
+      return rec;
+    },
+    update: async ({ where, data }: { where: { id: string }; data: Rec }) => {
+      const idx = store.chatMessages.findIndex((r) => r.id === where.id);
+      if (idx < 0) throw new Error('chat message not found');
+      const merged = { ...store.chatMessages[idx]!, ...data };
+      store.chatMessages[idx] = merged;
+      return merged;
+    },
+  };
+
   const spActivityLog = {
     create: async ({ data }: { data: Rec }) => {
       store.activity.push({ ...data, id: store.nextId('activity') });
@@ -480,6 +517,7 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
     spAgentRun,
     spChangeSet,
     spWatchDismissal,
+    spStrategyChatMessage,
     spActivityLog,
     spEventOutbox,
     $queryRaw,
@@ -488,7 +526,7 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
 
 // ---- service wiring ------------------------------------------------------------
 
-function makeService(store: Store) {
+function makeService(store: Store, opts: { realConversation?: boolean } = {}) {
   const snapshot = () => ({
     strategies: new Map(store.strategies),
     nodes: new Map(store.nodes),
@@ -626,7 +664,13 @@ function makeService(store: Store) {
     store.chatMessages.push(rec);
     return rec;
   });
-  const conversation = { append: conversationAppend } as unknown as StrategyConversationService;
+  // Phase 6 §4's cross-stage test asks the REAL conversation service instead,
+  // so the chat leg of the chain exercises its actual validation/normalization
+  // (including the rule that an `open_node` action needs a UUID node id).
+  const realConversation = new StrategyConversationService(prisma);
+  const conversation = (
+    opts.realConversation ? realConversation : { append: conversationAppend }
+  ) as unknown as StrategyConversationService;
 
   const watcher = new WatcherService(prisma, versioning, flags, runs, changeSets, meri, steward);
   const svc = new WatchReviewService(prisma, versioning, meri, watcher, conversation);
@@ -640,6 +684,7 @@ function makeService(store: Store) {
     withTenant,
     withTenantUser,
     conversationAppend,
+    conversations: realConversation,
   };
 }
 
@@ -1407,5 +1452,282 @@ describe('WatchReviewService.getPendingCounts', () => {
     expect(versionsSpy).toHaveBeenCalledTimes(1);
     expect(nodesSpy).toHaveBeenCalledTimes(1);
     expect(dismissalsSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* ============================================================================
+ * Phase 6 §4 — integration QA
+ *
+ * Phases 3/4 already proved accept and accept-all serialize (scenarios 16/17).
+ * Phase 6's automated-test list also names DISMISS and REVALIDATE, the two
+ * write paths no concurrency test covered, plus one end-to-end chain across
+ * every stage and a tenant-crossing probe on the two tables this rollout
+ * added (sp_watch_dismissal, sp_strategy_chat_message).
+ *
+ * Note on store assertions under contention: the fake tx restores a whole-store
+ * snapshot when a transaction body throws, which models single-transaction
+ * rollback but not MVCC — a loser's rollback also reverts the winner's already
+ * committed write. So every test below where one side is EXPECTED to throw
+ * asserts promise outcomes and call counts (which are unaffected) rather than
+ * final store state, exactly as scenarios 16/17 documented.
+ * ==========================================================================*/
+
+describe('Phase 6 §4 — dismiss under concurrency', () => {
+  it('a dismiss racing an accept on the SAME proposal cannot both land: the loser sees a clean 409 and the edit applies exactly once', async () => {
+    const store = makeStore();
+    const { csId } = await seedOneOpenProposal(store, { id: 'N1' });
+    const { svc, applyEditSet } = makeService(store);
+
+    let entered!: () => void;
+    const entered$ = new Promise<void>((r) => (entered = r));
+    let releaseGate!: () => void;
+    const gate = new Promise<void>((r) => (releaseGate = r));
+    applyEditSet.mockImplementationOnce(async () => {
+      entered();
+      await gate;
+    });
+
+    const accept = svc.acceptOne(T, U, csId);
+    await entered$;
+    const dismiss = svc.dismiss(T, U, csId).catch((e: unknown) => e);
+    await new Promise((r) => setTimeout(r, 0)); // let the dismiss park on the row lock
+    releaseGate();
+
+    await accept;
+    const dismissResult = await dismiss;
+
+    // The dismiss woke on an APPLIED row: only a `proposed` finding can be
+    // dismissed, so it refuses rather than rejecting an applied change-set.
+    expect(dismissResult).toBeInstanceOf(ConflictException);
+    expect((dismissResult as ConflictException).message).toMatch(/only a proposed Watch finding/);
+    expect(applyEditSet).toHaveBeenCalledTimes(1);
+  });
+
+  it('two concurrent dismisses of the same proposal: one succeeds, the other 409s — never two dismissal rows', async () => {
+    const store = makeStore();
+    const { csId } = await seedOneOpenProposal(store, { id: 'N1' });
+    const { svc } = makeService(store);
+
+    const results = await Promise.all([
+      svc.dismiss(T, U, csId).catch((e: unknown) => e),
+      svc.dismiss(T, U, csId).catch((e: unknown) => e),
+    ]);
+
+    const failures = results.filter((r) => r instanceof ConflictException);
+    expect(failures).toHaveLength(1);
+    expect(results.filter((r) => !(r instanceof Error))).toHaveLength(1);
+  });
+});
+
+describe('Phase 6 §4 — revalidate under concurrency', () => {
+  it('two concurrent revalidates never reissue the same finding twice: at most one open proposal per watch key survives, and the supersede is logged once', async () => {
+    const store = makeStore();
+    const { svc, csId, watchKey } = await seedOneOpenProposal(store, { id: 'N1' });
+    // Move the head so the open proposal is stale — this is the path that
+    // actually supersedes/reissues (a current-head proposal is a no-op).
+    seedVersion(store, 'v2', new Date('2026-07-20T00:00:00.000Z'));
+
+    const [a, b] = await Promise.all([
+      svc.revalidate(T, U, SID, 'panel-open').catch((e: unknown) => e),
+      svc.revalidate(T, U, SID, 'panel-open').catch((e: unknown) => e),
+    ]);
+    // Neither call is allowed to blow up in the user's face: a losing recheck
+    // reports state 'failed', it does not throw.
+    expect(a).not.toBeInstanceOf(Error);
+    expect(b).not.toBeInstanceOf(Error);
+
+    const open = [...store.changeSets.values()].filter(
+      (cs) => cs.status === 'proposed' && cs.watchKey === watchKey,
+    );
+    expect(open.length).toBeLessThanOrEqual(1);
+    // The CAS on `status: 'proposed'` means only the first transaction to reach
+    // the old row supersedes it — the second sees count 0 and logs nothing.
+    const supersedeEvents = store.activity.filter(
+      (e) => e.action === 'watch.proposal_reissued' || e.action === 'watch.proposal_dropped',
+    );
+    expect(supersedeEvents.filter((e) => e.entityId === csId || (e.after as Rec)?.watchKey === watchKey).length)
+      .toBeLessThanOrEqual(1);
+  });
+
+  it('a revalidate racing an accept still applies the edit exactly once and leaves a consistent state', async () => {
+    const store = makeStore();
+    const { csId } = await seedOneOpenProposal(store, { id: 'N1' });
+    const { svc, applyEditSet } = makeService(store);
+
+    let entered!: () => void;
+    const entered$ = new Promise<void>((r) => (entered = r));
+    let releaseGate!: () => void;
+    const gate = new Promise<void>((r) => (releaseGate = r));
+    applyEditSet.mockImplementationOnce(async () => {
+      entered();
+      await gate;
+    });
+
+    const accept = svc.acceptOne(T, U, csId);
+    await entered$;
+    const revalidate = svc.revalidate(T, U, SID, 'panel-open').catch((e: unknown) => e);
+    await new Promise((r) => setTimeout(r, 0));
+    releaseGate();
+
+    const accepted = await accept;
+    const revalidated = await revalidate;
+
+    expect(accepted.recheck.state).toBe('complete');
+    expect(revalidated).not.toBeInstanceOf(Error);
+    expect(applyEditSet).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Phase 6 §4 — cross-stage chain: plan → chat → Watch → accept → recheck → history', () => {
+  it('runs the whole chain against the REAL conversation, watcher, change-set, version and activity services', async () => {
+    // Phase 6 §6: nothing on this path may log a message body. Captured across
+    // the whole chain and asserted at the end.
+    const logged: string[] = [];
+    const capture = (msg: unknown) => {
+      logged.push(String(msg));
+    };
+    const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation(capture);
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(capture);
+
+    const store = makeStore();
+    seedStrategy(store, { meriSummary: 'A tight FY27 push, front-loaded before markup.' });
+    seedMission(store);
+    seedNode(store, {
+      id: 'N1',
+      title: 'Coalition sign-on letter',
+      startsOn: daysFromToday(-14),
+      endsOn: daysFromToday(-7),
+      status: 'in_progress',
+    });
+    const { svc, watcher, conversations } = makeService(store, { realConversation: true });
+
+    // ── stage 1: the drafted plan's opening line lands on the STRATEGY thread.
+    // (The orchestrator hop that produces it is meri.service.spec.ts's subject;
+    // what matters here is that this rollout's chain starts from a persisted
+    // thread rather than an in-memory one.)
+    await conversations.append(T, {
+      strategyId: SID,
+      nodeId: null,
+      role: 'meri',
+      body: 'A tight FY27 push, front-loaded before markup.',
+    });
+
+    // ── stage 2: the user asks a question in that same thread.
+    await conversations.appendUserMessage(T, U, {
+      strategyId: SID,
+      nodeId: null,
+      body: 'Is the letter still on time?',
+      clientMessageId: '11111111-1111-4111-8111-111111111111',
+    });
+
+    // ── stage 3: Watch's deterministic check proposes a change.
+    const run = await watcher.runCheckNow(T, U, MID);
+    expect(run.changeSetsProposed).toHaveLength(1);
+    const csId = run.changeSetsProposed[0]!;
+    const state0 = await svc.getState(T, SID);
+    expect(state0.pendingCount).toBe(1);
+    // Nothing has been applied yet — the node still holds its original dates.
+    expect(store.nodes.get('N1')!.startsOn).toBe(daysFromToday(-14));
+
+    // ── stage 4 + 5: accept, which applies, cuts ONE version and rechecks.
+    const versionsBefore = store.versions.size;
+    const { state, recheck } = await svc.acceptOne(T, U, csId);
+    expect(store.changeSets.get(csId)!.status).toBe('applied');
+    expect(store.versions.size).toBe(versionsBefore + 1);
+    expect(recheck.state).toBe('complete');
+    expect(state.pendingCount).toBe(0);
+
+    // ── stage 6a: history — exactly one visible Watch event for the accept,
+    // and none of the generic change-set approve/apply pair.
+    const actions = store.activity.map((a) => a.action);
+    expect(actions.filter((a) => a === 'watch.change_applied')).toHaveLength(1);
+    expect(actions).not.toContain('changeset.approved');
+    expect(actions).not.toContain('changeset.applied');
+
+    // ── stage 6b: the chat thread carries the whole story, in order, on the
+    // strategy context — and the step thread stays empty.
+    const thread = await conversations.list(T, SID, null);
+    expect(thread.map((m) => [m.role, m.kind])).toEqual([
+      ['meri', 'message'],
+      ['user', 'message'],
+      ['meri', 'watch_applied'],
+    ]);
+    expect(thread.at(-1)!.body).toMatch(/^Accepted a Watch proposal:/);
+    expect(thread.at(-1)!.body).toContain('No other open proposals needed a recheck.');
+    // A retime creates no step, so there is no `Open "<step>"` affordance.
+    expect(thread.at(-1)!.action).toBeNull();
+    expect(await conversations.list(T, SID, 'N1')).toEqual([]);
+
+    // ── stage 6c: observability. The applied version id is in the log (so an
+    // operator can join a Watch accept to a History entry), and no user or
+    // Meri message body ever is.
+    expect(logged.some((l) => l.includes('Watch change applied'))).toBe(true);
+    expect(logged.some((l) => /version:[a-z0-9-]+/i.test(l))).toBe(true);
+    expect(logged.filter((l) => l.includes('Is the letter still on time?'))).toEqual([]);
+    expect(logged.filter((l) => l.includes('front-loaded before markup'))).toEqual([]);
+
+    logSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+});
+
+describe('Phase 6 §5 — performance budget: the deterministic recheck', () => {
+  /**
+   * Budget: "deterministic recheck target <2,000ms under normal fixtures".
+   *
+   * What this measures honestly: the CHECK + reconcile computation over a plan
+   * far larger than a real one (60 steps, a third of them overdue, in a
+   * dependency chain), with storage as in-memory maps. It is therefore an
+   * upper bound on the algorithm and a lower bound on the round-trip — the
+   * database time it excludes is real and is reported separately as
+   * unmeasured. If this ever approaches the budget on its own, the endpoint
+   * cannot possibly meet it.
+   */
+  it('checks + reconciles a 60-step plan well inside the 2,000ms budget', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    for (let i = 0; i < 60; i++) {
+      seedNode(store, {
+        id: `N${i}`,
+        title: `Step ${i}`,
+        // Every third step is overdue (a finding); the rest are future work.
+        startsOn: i % 3 === 0 ? daysFromToday(-20 + i) : daysFromToday(10 + i),
+        endsOn: i % 3 === 0 ? daysFromToday(-10 + i) : daysFromToday(20 + i),
+        status: 'in_progress',
+        dependsOnIds: i > 0 ? [`N${i - 1}`] : [],
+      });
+    }
+    const { svc, watcher } = makeService(store);
+
+    const t0 = Date.now();
+    await watcher.runCheckNow(T, U, MID);
+    // Move the head so revalidate takes the FULL reconcile path, not the no-op.
+    seedVersion(store, 'v2', new Date());
+    const state = await svc.revalidate(T, U, SID, 'perf');
+    const elapsed = Date.now() - t0;
+
+    expect(state.lastRecheck!.state).toBe('complete');
+    expect(elapsed).toBeLessThan(2_000);
+    // Surfaced so the phase report quotes a measured number, not a claim.
+    // eslint-disable-next-line no-console
+    console.log(`[perf] 60-step check + full reconcile: ${elapsed}ms (budget 2000ms)`);
+  });
+});
+
+describe('Phase 6 §4 — tenant-crossing probes on the Watch write paths', () => {
+  it('another tenant cannot accept or dismiss this tenant’s proposal, and nothing is applied', async () => {
+    const store = makeStore();
+    const { svc, csId } = await seedOneOpenProposal(store, { id: 'N1' });
+    const OTHER = 'tenant-2';
+
+    // Both paths take a tenant-scoped `SELECT ... FOR UPDATE` FIRST, so a
+    // cross-tenant id is indistinguishable from a missing one.
+    await expect(svc.acceptOne(OTHER, 'user-2', csId)).rejects.toThrow(/Proposal not found/);
+    await expect(svc.dismiss(OTHER, 'user-2', csId)).rejects.toThrow(/Proposal not found/);
+
+    expect(store.changeSets.get(csId)!.status).toBe('proposed');
+    expect(store.dismissals.size).toBe(0);
+    expect(store.nodes.get('N1')!.startsOn).toBe(daysFromToday(-14));
   });
 });

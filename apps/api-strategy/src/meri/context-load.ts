@@ -58,7 +58,15 @@ function sleep(ms: number): Promise<void> {
 export async function withContextRetry<T>(source: string, fn: () => Promise<T>): Promise<T> {
   for (let attempt = 0; ; attempt += 1) {
     try {
-      return await fn();
+      const value = await fn();
+      // Phase 6 §6 ("context-load retry count / source class"): the per-attempt
+      // warnings above say a retry HAPPENED; without this line nothing says
+      // whether it worked, so a source that is chronically flaky-but-recovering
+      // is indistinguishable from one that never retries at all.
+      if (attempt > 0) {
+        logger.log(`${source}: recovered after ${attempt} retr${attempt === 1 ? 'y' : 'ies'}`);
+      }
+      return value;
     } catch (err) {
       if (!isTransientLoadError(err) || attempt >= MAX_RETRIES) throw err;
       const message = err instanceof Error ? err.message : String(err);

@@ -330,6 +330,10 @@ export function StrategyMeriPanel({
         {node ? (
           <button
             onClick={onDeselect}
+            // Phase 6 §4 (a11y): every icon-only control in the panel carries an
+            // accessible name — without one axe reports a serious `button-name`
+            // violation and a screen reader announces only "button".
+            aria-label="Back to the strategy"
             style={{ ...iconBtn, border: '1px solid var(--border-2)', width: 28, height: 28 }}
           >
             <Icon name="chevleft" size={15} color="var(--ink-2)" />
@@ -363,7 +367,7 @@ export function StrategyMeriPanel({
                 : 'Select a step to edit'}
           </div>
         </div>
-        <button onClick={onClose} style={iconBtn}>
+        <button onClick={onClose} aria-label="Close the panel" style={iconBtn}>
           <Icon name="x" size={15} color="var(--ink-3)" />
         </button>
       </div>
@@ -686,9 +690,17 @@ function NodeEditor({
         {showFields && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
           <div style={{ display: 'flex', gap: 10 }}>
+            {/* Phase 6 §4 (a11y): these were <span> captions sitting next to an
+                unlabelled control — axe's `label`/`select-name` rules, and a
+                screen reader announcing "combo box" with no idea of what. A
+                <label htmlFor> is block-level with the same fieldLbl styles, so
+                the prototype's geometry is unchanged. */}
             <div style={{ flex: 1 }}>
-              <span style={fieldLbl}>Type</span>
+              <label htmlFor="sp-node-kind" style={fieldLbl}>
+                Type
+              </label>
               <select
+                id="sp-node-kind"
                 value={node.kind}
                 disabled={busy}
                 onChange={(e) => onCommit({ kind: e.target.value as StrategyNode['kind'] }, 'Type updated.')}
@@ -702,8 +714,11 @@ function NodeEditor({
               </select>
             </div>
             <div style={{ flex: 1 }}>
-              <span style={fieldLbl}>Subject</span>
+              <label htmlFor="sp-node-subject" style={fieldLbl}>
+                Subject
+              </label>
               <select
+                id="sp-node-subject"
                 value={node.subject}
                 disabled={busy}
                 onChange={(e) =>
@@ -721,8 +736,11 @@ function NodeEditor({
           </div>
 
           <div>
-            <span style={fieldLbl}>Title</span>
+            <label htmlFor="sp-node-title" style={fieldLbl}>
+              Title
+            </label>
             <textarea
+              id="sp-node-title"
               value={titleBuf}
               disabled={busy}
               onChange={(e) => setTitleBuf(e.target.value)}
@@ -766,8 +784,11 @@ function NodeEditor({
 
           <div style={{ display: 'flex', gap: 10 }}>
             <div style={{ flex: 1 }}>
-              <span style={fieldLbl}>Starts</span>
+              <label htmlFor="sp-node-starts" style={fieldLbl}>
+                Starts
+              </label>
               <input
+                id="sp-node-starts"
                 type="date"
                 value={node.startsOn.slice(0, 10)}
                 disabled={busy}
@@ -776,8 +797,11 @@ function NodeEditor({
               />
             </div>
             <div style={{ flex: 1 }}>
-              <span style={fieldLbl}>Ends</span>
+              <label htmlFor="sp-node-ends" style={fieldLbl}>
+                Ends
+              </label>
               <input
+                id="sp-node-ends"
                 type="date"
                 value={node.endsOn ? node.endsOn.slice(0, 10) : ''}
                 disabled={busy || (node.openEnded && node.kind === 'risk')}
@@ -815,8 +839,11 @@ function NodeEditor({
           )}
 
           <div>
-            <span style={fieldLbl}>Status</span>
+            <label htmlFor="sp-node-status" style={fieldLbl}>
+              Status
+            </label>
             <select
+              id="sp-node-status"
               value={node.status}
               disabled={busy}
               onChange={(e) =>
@@ -833,8 +860,11 @@ function NodeEditor({
           </div>
 
           <div>
-            <span style={fieldLbl}>Notes</span>
+            <label htmlFor="sp-node-note" style={fieldLbl}>
+              Notes
+            </label>
             <textarea
+              id="sp-node-note"
               value={noteBuf}
               disabled={busy}
               onChange={(e) => setNoteBuf(e.target.value)}

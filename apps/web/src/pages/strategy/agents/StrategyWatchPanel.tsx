@@ -65,7 +65,7 @@ function DroppedNotice({
       </div>
       <button
         onClick={onClear}
-        aria-label="Dismiss"
+        aria-label="Dismiss this notice"
         style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}
       >
         <Icon name="x" size={12} color="var(--ink-4)" />
@@ -215,6 +215,11 @@ export function StrategyWatchPanel({
     <div
       ref={blockRef}
       data-testid="sp-watch-panel"
+      // Phase 6 §4 (a11y): while a recheck is in flight every action in here is
+      // disabled — and a disabled button is not focusable, so the visible
+      // "Re-checking…" line is the ONLY explanation a sighted user gets.
+      // aria-busy gives assistive tech the same explanation.
+      aria-busy={revalidating}
       style={{
         border: pending ? '1.5px solid var(--accent)' : '1px solid var(--border-1)',
         borderRadius: 11,

@@ -355,7 +355,9 @@ describe('dropped-proposal notice (§9.11)', () => {
     expect(notice).toHaveTextContent('The step this was about is no longer in the plan.');
     expect(notice).not.toHaveStyle({ color: 'var(--critical)' });
     expect(notice.style.background).not.toMatch(/FDECEC|FCEDE6/);
-    fireEvent.click(within(notice).getByRole('button', { name: 'Dismiss' }));
+    // Phase 6 §4 (a11y): renamed from the bare "Dismiss" this shared with a
+    // proposal's own Dismiss button — the two are now distinguishable by name.
+    fireEvent.click(within(notice).getByRole('button', { name: 'Dismiss this notice' }));
     expect(screen.queryByRole('status')).toBeNull();
   });
 });
