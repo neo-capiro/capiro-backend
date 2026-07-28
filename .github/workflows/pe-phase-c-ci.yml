@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [agent/pe-trust-phase-b]
 
+concurrency:
+  group: pe-phase-c-implementation
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
