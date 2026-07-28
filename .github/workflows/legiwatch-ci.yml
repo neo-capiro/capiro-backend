@@ -73,35 +73,14 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      # The api and intel-api suites import their generated Prisma clients.
-      # `generate` never connects to a database, so no DATABASE_URL is needed —
-      # and every suite below is mock-backed, which is what lets this whole gate
-      # run without a Postgres service.
       - name: Generate Prisma clients
         run: |
           pnpm --filter @capiro/api exec prisma generate
           pnpm --filter @capiro/intel-api exec prisma generate
 
-      # Scoped to the three packages LegiWatch spans, deliberately NOT repo-wide.
-      # ci-pr.yml already runs `turbo run typecheck` across all 14 packages on
-      # every PR, so a second whole-repo pass here buys no signal and costs ~2min.
-      #
-      # It also has to be scoped to stay CORRECT: a whole-repo typecheck requires
-      # all FIVE Prisma clients generated (ci-pr.yml generates api, workspace,
-      # intel-api, onboard-api, api-strategy). With only the two above, every raw
-      # query in the ungenerated packages collapses to `{}` and apps/onboard-api
-      # fails outright on `Cannot find module '../../generated/prisma-client'` —
-      # 100+ errors in code this gate does not own. Generated clients and
-      # typechecked packages must agree; these two lists are that agreement.
       - name: Typecheck (apps/api, apps/intel-api, apps/web)
         run: pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/intel-api --filter=@capiro/web
 
-      # ---------------------------------------------------------------- api --
-      # Gate H (memo lifecycle), Gate I (entailment/filing), Gate J (integrity),
-      # Gate L (packet enrichment), the legacy digest rail, and Gate V's own
-      # deploy-truth scripts. `src/intelligence/alert-memo/` also covers the
-      # dedicated hearing-recap contract (hearing-recap.spec.ts) — recaps live on
-      # that Documents boundary but must never reuse alert-memo/save.
       - name: Tests — apps/api LegiWatch scope
         run: >
           pnpm --filter @capiro/api exec jest --ci --silent
@@ -119,12 +98,6 @@ jobs:
         if: always()
         run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 21 248
 
-      # ---------------------------------------------------------- intel-api --
-      # Gate F (feed worklist truth), Gate G (delivery), Gate K (scoring and
-      # watchlist topics), the packet builder, the email-CTA route contract, the
-      # watchlist-match → hearing-alert promoter, and the browser-audio hearing
-      # capture lifecycle (session lease, gateway protocol, Deepgram WebM safety,
-      # segment persistence, transcript reads).
       - name: Tests — apps/intel-api LegiWatch scope
         run: >
           pnpm --filter @capiro/intel-api exec jest --ci --silent
@@ -172,12 +145,6 @@ jobs:
         if: always()
         run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 38 558
 
-      # ---------------------------------------------------------------- web --
-      # Web interaction + accessibility (tracker-a11y.test.tsx) + the packet and
-      # generation contract tests. ci-pr.yml runs NO web tests at all, so this is
-      # the only gate that exercises the LegiWatch UI — including the Live Hearing
-      # Room capture lifecycle, which is pure browser-API choreography (share
-      # picker, MediaRecorder, WebSocket ordering) that no server test can cover.
       - name: Tests — apps/web LegiWatch scope
         run: >
           pnpm --filter @capiro/web exec vitest run
@@ -192,11 +159,15 @@ jobs:
           src/pages/clients/intelligence-v1/components/TopAlertsList
           src/pages/clients/intelligence-v1/components/HearingsMarkupList
 
-      # NOTE the suite floor: vitest counts `describe` BLOCKS in
-      # numTotalTestSuites (128 today across these 38 files), where jest counts
-      # files. 100 is a deliberate floor well below the real number but far
-      # above anything a broken path filter would produce — the test count is
-      # the tight signal here, the suite count is the coarse one.
+      - name: Upload web failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legiwatch-web-summary
+          path: ${{ github.workspace }}/web-summary.json
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Assert apps/web scope is clean
         if: always()
         run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 100 371
