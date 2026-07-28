@@ -250,3 +250,19 @@ export class RejectApprovalDto {
   @MaxLength(2000)
   reason?: string;
 }
+
+/**
+ * Phase 3 (Watch consistency): accept a batch of Watch proposals atomically.
+ * expectedVersionId is the head EVERY row must be pinned to (re-checked
+ * against the live head server-side) — the client's stale-guard assertion,
+ * not a trust boundary the server skips. proposalIds max 100 per the plan.
+ */
+export class AcceptAllDto {
+  @IsUUID()
+  expectedVersionId!: string;
+
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID(undefined, { each: true })
+  proposalIds!: string[];
+}

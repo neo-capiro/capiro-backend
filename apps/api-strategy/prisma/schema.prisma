@@ -408,6 +408,11 @@ enum SpChangeSetStatus {
   applied
   undone
   stale
+  // Phase 3 (Watch consistency): a Watch-originated proposal invalidated by a
+  // head move (reissued as a new pinned proposal) or by a finding that no
+  // longer holds (dropped). Distinct from `stale`, which apply()'s existing
+  // head-guard still uses for the generic/person-authored change-set path.
+  superseded
 
   @@map("sp_change_set_status")
 }
@@ -599,9 +604,58 @@ model SpChangeSet {
   createdByUserId   String?           @map("created_by_user_id") // null => watcher/system
   createdAt         DateTime          @default(now()) @map("created_at")
   updatedAt         DateTime          @updatedAt @map("updated_at")
+  // ---- Phase 3 (Watch consistency backend) — lineage across a revalidate's
+  // reissue. Plain audit pointers, deliberately NOT Prisma relations: a
+  // replaces/supersedes chain must keep resolving after historical cleanup of
+  // either endpoint, which a required/cascading relation would fight.
+  //
+  // watchKey: the SAME stable (code + sorted nodeIds) identity WatcherService
+  // already embeds in `summary` as `[watch:<code>:<ids>]` (parsed via
+  // parseWatchMarker) — promoted to a real column so getState can JOIN a
+  // proposal to its source run finding without regex-parsing prose. Null for
+  // person-authored change-sets (they are not Watch proposals).
+  watchKey                String? @map("watch_key")
+  // The OLD proposal this row reissues (set on the NEW row).
+  replacesChangeSetId     String? @map("replaces_change_set_id") @db.Uuid
+  // The NEW proposal that reissued this row (set on the OLD row, alongside
+  // status: superseded).
+  supersededByChangeSetId String? @map("superseded_by_change_set_id") @db.Uuid
+  // 'unchanged' | 'updated' — set on a newly reissued row only; null otherwise
+  // (in particular, null on the very first proposal for a watchKey).
+  recheckStatus           String? @map("recheck_status")
+  // Plain-language reason a dropped (superseded, no reissue) proposal no
+  // longer applies — surfaced to the user instead of a bare status flip.
+  supersededReason        String? @map("superseded_reason")
 
   @@index([tenantId, strategyId, status])
+  // Phase 3: getState's proposal lookup and revalidate's reconciliation both
+  // key off (strategy, watchKey, status) — e.g. "the open proposal for this
+  // finding" or "every proposed Watch row for this strategy".
+  @@index([tenantId, strategyId, watchKey, status])
   @@map("sp_change_set")
+}
+
+// Phase 3 (Watch consistency backend): a PERMANENT suppression of one Watch
+// finding for one strategy. Distinct from a rejected sp_change_set — current
+// Watcher logic may re-propose a rejected finding on the next run; a dismissal
+// must survive that and suppress the SAME watchKey forever (until the user
+// un-dismisses, which this plan does not add a path for — see the Phase 3
+// plan's own scope: "Dismiss permanently suppresses").
+model SpWatchDismissal {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  strategyId        String   @map("strategy_id") @db.Uuid
+  watchKey          String   @map("watch_key")
+  dismissedByUserId String   @map("dismissed_by_user_id")
+  dismissedAt       DateTime @default(now()) @map("dismissed_at")
+  // The proposal row that was on-screen when the user dismissed it — audit
+  // provenance only; not a relation for the same reason as the ChangeSet
+  // lineage pointers above.
+  sourceChangeSetId String?  @map("source_change_set_id") @db.Uuid
+
+  @@unique([tenantId, strategyId, watchKey])
+  @@index([tenantId, strategyId])
+  @@map("sp_watch_dismissal")
 }
 
 // Per-tenant agent permission knobs (risk-ladder overrides, caps). Key-value

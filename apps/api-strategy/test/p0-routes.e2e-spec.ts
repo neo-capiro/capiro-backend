@@ -9,6 +9,7 @@ import { MissionsService } from '../src/agents/missions.service.js';
 import { RunsService } from '../src/agents/runs.service.js';
 import { ChangeSetsService } from '../src/agents/change-sets.service.js';
 import { WatcherService } from '../src/agents/watcher.service.js';
+import { WatchReviewService } from '../src/agents/watch-review.service.js';
 import { ExecutionService } from '../src/agents/execution.service.js';
 import { RunReconcilerService } from '../src/agents/run-reconciler.service.js';
 import { StrategyService } from '../src/strategy/strategy.service.js';
@@ -92,6 +93,7 @@ describe('P0 route wiring (e2e)', () => {
         { provide: RunsService, useValue: runs },
         { provide: ChangeSetsService, useValue: {} },
         { provide: WatcherService, useValue: {} },
+        { provide: WatchReviewService, useValue: {} },
         { provide: ExecutionService, useValue: execution },
         { provide: RunReconcilerService, useValue: reconciler },
         { provide: StrategyService, useValue: {} },
@@ -323,6 +325,7 @@ describe('P0 route wiring (e2e)', () => {
         { provide: RunsService, useValue: runs },
         { provide: ChangeSetsService, useValue: {} },
         { provide: WatcherService, useValue: {} },
+        { provide: WatchReviewService, useValue: {} },
         { provide: ExecutionService, useValue: execution },
         { provide: RunReconcilerService, useValue: reconciler },
       ],

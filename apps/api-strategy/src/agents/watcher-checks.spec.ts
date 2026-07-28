@@ -429,3 +429,108 @@ describe('dedup on (code + sorted nodeIds)', () => {
     );
   });
 });
+
+describe('Phase 3 — presentation metadata', () => {
+  it('every finding carries category/title/impact/whyCompared/sortRank, and dependency-slippage sorts above calendar and deadline findings', () => {
+    const nodes = [
+      node({ id: 'D', startsOn: '2026-08-20', endsOn: '2026-09-01' }),
+      node({ id: 'N', startsOn: '2026-08-25', endsOn: '2026-08-30', dependsOnIds: ['D'] }), // dependency-slippage
+      node({ id: 'O', startsOn: '2026-07-10', endsOn: '2026-07-20', status: 'in_progress' }), // overdue
+      node({ id: 'ASK', subject: 'ask', startsOn: '2026-08-20', endsOn: null }), // hard-deadline-risk
+    ];
+    const congress = [{ label: 'HAC-D markup', fy: 2026, startsOn: '2026-08-26', endsOn: null }];
+
+    const findings = runWatcherChecks(input({ nodes, congress }));
+
+    const dep = findings.find((f) => f.code === 'dependency-slippage')!;
+    const cal = findings.find((f) => f.code === 'overdue')!;
+    const dead = findings.find((f) => f.code === 'hard-deadline-risk')!;
+    expect(dep).toBeDefined();
+    expect(cal).toBeDefined();
+    expect(dead).toBeDefined();
+    expect(dep.category).toBe('dependency');
+    expect(cal.category).toBe('calendar');
+    expect(dead.category).toBe('deadline');
+    expect(dep.sortRank).toBeLessThan(cal.sortRank);
+    expect(dep.sortRank).toBeLessThan(dead.sortRank);
+    for (const f of findings) {
+      expect(typeof f.title).toBe('string');
+      expect(f.title.length).toBeGreaterThan(0);
+      expect(typeof f.impact).toBe('string');
+      expect(f.impact.length).toBeGreaterThan(0);
+      expect(Array.isArray(f.whyCompared)).toBe(true);
+      expect(f.whyCompared.length).toBeGreaterThan(0);
+      expect(typeof f.sortRank).toBe('number');
+    }
+  });
+
+  it('dependency-slippage sets sourceLabel/sourceDate to the slipped dependency actually driving the retime', () => {
+    const nodes = [
+      node({ id: 'D', title: 'Committee markup prep', startsOn: '2026-08-20', endsOn: '2026-09-01' }),
+      node({ id: 'N', startsOn: '2026-08-25', endsOn: '2026-08-30', dependsOnIds: ['D'] }),
+    ];
+    const [f] = byCode(runWatcherChecks(input({ nodes })), 'dependency-slippage');
+    expect(f!.sourceLabel).toBe('Committee markup prep');
+    expect(f!.sourceDate).toBe('2026-09-01');
+  });
+
+  it('hard-deadline-risk sets sourceLabel/sourceDate to the markup row', () => {
+    const MARKUP = { label: 'HAC-D subcommittee markup', fy: 2027, startsOn: '2027-06-05', endsOn: null };
+    const nodes = [node({ id: 'N', subject: 'submission', startsOn: '2027-05-25', endsOn: null })];
+    const [f] = byCode(runWatcherChecks(input({ nodes, congress: [MARKUP] })), 'hard-deadline-risk');
+    expect(f!.sourceLabel).toBe('HAC-D subcommittee markup');
+    expect(f!.sourceDate).toBe('2027-06-05');
+  });
+
+  it('a verifier fold always categorizes as verifier (never dependency), even for a dep-order code', () => {
+    const violations: Violation[] = [
+      { code: 'dep-order', severity: 'error', nodeIds: ['n1', 'n2'], message: 'starts before its dependency' },
+    ];
+    const [f] = byCode(runWatcherChecks(input({ verifierViolations: violations })), 'verifier:dep-order');
+    expect(f!.category).toBe('verifier');
+    expect(f!.title).toBe('Out of order');
+  });
+});
+
+describe('Phase 3 — dependency/verifier fold dedup (the actionable finding wins)', () => {
+  it('drops a folded verifier:dep-order finding when an actionable dependency-slippage finding covers the SAME edge', () => {
+    const violations: Violation[] = [
+      { code: 'dep-order', severity: 'error', nodeIds: ['N', 'D'], message: 'starts before its dependency' },
+    ];
+    const nodes = [
+      node({ id: 'D', startsOn: '2026-08-20', endsOn: '2026-09-01' }),
+      node({ id: 'N', startsOn: '2026-08-25', endsOn: '2026-08-30', dependsOnIds: ['D'] }),
+    ];
+    const findings = runWatcherChecks(input({ nodes, verifierViolations: violations }));
+    expect(findings.some((f) => f.code === 'verifier:dep-order')).toBe(false);
+    expect(findings.some((f) => f.code === 'dependency-slippage')).toBe(true);
+  });
+
+  it('keeps a folded verifier:dep-order finding when no actionable dependency-slippage covers that edge', () => {
+    const violations: Violation[] = [
+      { code: 'dep-order', severity: 'error', nodeIds: ['N', 'D'], message: 'starts before its dependency' },
+    ];
+    // N and D share no dependsOnIds edge in this plan, so checkDependencySlippage
+    // produces nothing for the pair — the verifier fold must survive untouched.
+    const nodes = [node({ id: 'D' }), node({ id: 'N' })];
+    const findings = runWatcherChecks(input({ nodes, verifierViolations: violations }));
+    expect(findings.some((f) => f.code === 'verifier:dep-order')).toBe(true);
+  });
+
+  it('only suppresses the SPECIFIC (node, dependency) pair — an unrelated verifier:dep-order edge on a different node survives', () => {
+    const violations: Violation[] = [
+      { code: 'dep-order', severity: 'error', nodeIds: ['N', 'D'], message: 'N before D' },
+      { code: 'dep-order', severity: 'error', nodeIds: ['X', 'Y'], message: 'X before Y' },
+    ];
+    const nodes = [
+      node({ id: 'D', startsOn: '2026-08-20', endsOn: '2026-09-01' }),
+      node({ id: 'N', startsOn: '2026-08-25', endsOn: '2026-08-30', dependsOnIds: ['D'] }),
+      node({ id: 'X' }),
+      node({ id: 'Y' }),
+    ];
+    const findings = runWatcherChecks(input({ nodes, verifierViolations: violations }));
+    const survivors = byCode(findings, 'verifier:dep-order');
+    expect(survivors).toHaveLength(1);
+    expect(survivors[0]!.nodeIds).toEqual(['X', 'Y']);
+  });
+});
