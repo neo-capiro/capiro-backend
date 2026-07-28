@@ -8,7 +8,6 @@
   "include": [
     "scripts/audit-llamaparse-pe-units.ts",
     "scripts/audit-llamaparse-pe-units.spec.ts",
-    "scripts/diag-program-element-trust-baseline.ts",
     "scripts/ingest-defense-budget-pdf.ts",
     "scripts/lib/defense-budget-commit.ts",
     "scripts/lib/defense-budget-commit.spec.ts",
