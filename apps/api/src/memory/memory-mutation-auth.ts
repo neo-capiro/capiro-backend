@@ -25,7 +25,7 @@ export function isMemoryAdmin(role: string | null | undefined): boolean {
  * Phase 0 memory mutation policy shared by canonical memory_items and legacy
  * clio_memory surfaces. Read visibility is deliberately absent from this
  * decision: tenant-visible content is not writable by every tenant member.
- * Legal hold blocks correction/deletion but does not prevent re-confirmation.
+ * Legal hold blocks correction/edit/deletion but does not prevent confirmation.
  */
 export function evaluateMemoryMutation(
   ctx: Pick<TenantContext, 'userId' | 'role'>,
@@ -36,7 +36,8 @@ export function evaluateMemoryMutation(
 
   const privateMemory = subject.visibility === 'user' || subject.scope === 'user_private';
   const legalHoldBlocks =
-    Boolean(subject.legalHold) && (operation === 'correct' || operation === 'forget');
+    Boolean(subject.legalHold) &&
+    (operation === 'edit' || operation === 'correct' || operation === 'forget');
 
   if (privateMemory) {
     if (subject.ownerUserId === ctx.userId) {
