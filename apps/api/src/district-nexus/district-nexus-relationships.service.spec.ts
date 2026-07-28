@@ -1,5 +1,5 @@
 import { describe, expect, jest, test } from '@jest/globals';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { DistrictNexusRelationshipsService } from './district-nexus-relationships.service.js';
 
@@ -84,7 +84,12 @@ function harness(options?: {
   });
 
   const clientFindFirst = jest.fn(async () => ({ id: CLIENT_ID }));
-  const facilityFindFirst = jest.fn(async () => options?.facility ?? facility());
+  // `?? facility()` would swallow an explicit `facility: null`, making the
+  // "facility belongs to another client" case impossible to express. Presence
+  // check, like the award mock below.
+  const facilityFindFirst = jest.fn(async () =>
+    options && 'facility' in options ? options.facility : facility(),
+  );
   const grantFindFirst = jest.fn(async (args: unknown) => {
     const where = (args as { where?: { id?: string } }).where;
     if (where?.id === RELATIONSHIP_ID) return options?.existing ?? relationship();
@@ -260,5 +265,261 @@ describe('DistrictNexusRelationshipsService', () => {
     });
     expect(auditArgs.data.before).toBeDefined();
     expect(auditArgs.data.after).toBeDefined();
+  });
+});
+
+/**
+ * The remaining review rules from the closeout contract. Each one is a claim a
+ * reviewer could otherwise make about federal money that the data does not
+ * support, so each gets its own pin rather than being folded into a happy path.
+ */
+describe('DistrictNexusRelationshipsService review rules', () => {
+  test('external-use approval is impossible unless the relationship is verified', async () => {
+    const h = harness();
+
+    await expect(
+      h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+        assistanceAwardId: AWARD_ID,
+        relationshipType: 'coalition_partner',
+        verificationStatus: 'unverified',
+        externalUseApproved: true,
+      }),
+    ).rejects.toThrow('External-use approval requires a verified relationship.');
+
+    expect(h.withTenant).not.toHaveBeenCalled();
+  });
+
+  test('an explicitly rejected relationship can never be approved for external use', async () => {
+    const h = harness();
+
+    await expect(
+      h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+        assistanceAwardId: AWARD_ID,
+        relationshipType: 'beneficiary',
+        verificationStatus: 'rejected',
+        externalUseApproved: true,
+      }),
+    ).rejects.toThrow('External-use approval requires a verified relationship.');
+  });
+
+  test('a rejected relationship is persisted with zero confidence, not deleted', async () => {
+    const h = harness();
+
+    await h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+      assistanceAwardId: AWARD_ID,
+      relationshipType: 'beneficiary',
+      verificationStatus: 'rejected',
+    });
+
+    const createArgs = h.grantCreate.mock.calls[0]![0];
+    expect(createArgs.data).toMatchObject({
+      verificationStatus: 'rejected',
+      confidence: 0,
+      externalUseApproved: false,
+      verifiedAt: null,
+      verifiedByUserId: null,
+    });
+  });
+
+  test('an unverified relationship is stored at half confidence — reduced credit, not zero', async () => {
+    const h = harness();
+
+    await h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+      assistanceAwardId: AWARD_ID,
+      relationshipType: 'research_partner',
+    });
+
+    const createArgs = h.grantCreate.mock.calls[0]![0];
+    expect(createArgs.data).toMatchObject({
+      verificationStatus: 'unverified',
+      confidence: 0.5,
+      externalUseApproved: false,
+    });
+  });
+
+  test('a negative attributable amount is refused', async () => {
+    const h = harness();
+
+    await expect(
+      h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+        assistanceAwardId: AWARD_ID,
+        relationshipType: 'subrecipient',
+        attributableAmount: -1,
+      }),
+    ).rejects.toThrow('Attributable amount must be a non-negative number.');
+  });
+
+  test('an attributable amount exactly equal to the obligation is allowed', async () => {
+    const h = harness();
+
+    await h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+      assistanceAwardId: AWARD_ID,
+      relationshipType: 'direct_recipient',
+      attributableAmount: 1_000_000,
+    });
+
+    expect(h.grantCreate).toHaveBeenCalledTimes(1);
+  });
+
+  test('an award with no stated obligation cannot be used to smuggle an unbounded amount past a null check', async () => {
+    // A null total means "unknown", so the upper-bound check cannot fire. The
+    // non-negative floor must still apply — this pins that the null branch
+    // skips only the ceiling, not all validation.
+    const h = harness({ award: award({ totalObligatedAmount: null }) });
+
+    await expect(
+      h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+        assistanceAwardId: AWARD_ID,
+        relationshipType: 'subrecipient',
+        attributableAmount: -5,
+      }),
+    ).rejects.toThrow('Attributable amount must be a non-negative number.');
+  });
+
+  test('a fractional beneficiary count is refused', async () => {
+    const h = harness();
+
+    await expect(
+      h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+        assistanceAwardId: AWARD_ID,
+        relationshipType: 'beneficiary',
+        beneficiaryCount: 12.5,
+      }),
+    ).rejects.toThrow('Beneficiary count must be a non-negative integer.');
+  });
+
+  test('a negative beneficiary count is refused', async () => {
+    const h = harness();
+
+    await expect(
+      h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+        assistanceAwardId: AWARD_ID,
+        relationshipType: 'beneficiary',
+        beneficiaryCount: -3,
+      }),
+    ).rejects.toThrow('Beneficiary count must be a non-negative integer.');
+  });
+
+  test('an effective window that ends before it starts is refused', async () => {
+    const h = harness();
+
+    await expect(
+      h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+        assistanceAwardId: AWARD_ID,
+        relationshipType: 'subrecipient',
+        effectiveStart: '2026-06-01',
+        effectiveEnd: '2026-01-01',
+      }),
+    ).rejects.toThrow('effectiveStart must be on or before effectiveEnd.');
+  });
+
+  test('a same-day effective window is allowed', async () => {
+    const h = harness();
+
+    await h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+      assistanceAwardId: AWARD_ID,
+      relationshipType: 'subrecipient',
+      effectiveStart: '2026-06-01',
+      effectiveEnd: '2026-06-01',
+    });
+
+    expect(h.grantCreate).toHaveBeenCalledTimes(1);
+  });
+
+  test('a non-calendar date is refused rather than silently rolled over', async () => {
+    const h = harness();
+
+    await expect(
+      h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+        assistanceAwardId: AWARD_ID,
+        relationshipType: 'subrecipient',
+        effectiveStart: '2026-02-30',
+      }),
+    ).rejects.toThrow('effectiveStart is not a valid calendar date.');
+  });
+
+  test('an unknown assistance award is a 404, and nothing is written', async () => {
+    const h = harness({ award: null });
+
+    await expect(
+      h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+        assistanceAwardId: AWARD_ID,
+        relationshipType: 'subrecipient',
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(h.withTenant).not.toHaveBeenCalled();
+    expect(h.grantCreate).not.toHaveBeenCalled();
+  });
+
+  test('a facility that does not belong to this active client is refused', async () => {
+    const h = harness({ facility: null });
+
+    await expect(
+      h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+        assistanceAwardId: AWARD_ID,
+        relationshipType: 'project_site',
+        facilityId: FACILITY_ID,
+      }),
+    ).rejects.toThrow('The selected facility does not belong to this active client.');
+
+    expect(h.grantCreate).not.toHaveBeenCalled();
+  });
+
+  test('a duplicate active relationship for the same award/type/facility is a conflict', async () => {
+    const h = harness({ duplicate: { id: 'existing-row' } });
+
+    await expect(
+      h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+        assistanceAwardId: AWARD_ID,
+        relationshipType: 'project_site',
+        facilityId: FACILITY_ID,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(h.grantCreate).not.toHaveBeenCalled();
+  });
+
+  test('the duplicate probe ignores rejected rows, so a rejected claim can be re-entered', async () => {
+    const h = harness({ duplicate: null });
+
+    await h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+      assistanceAwardId: AWARD_ID,
+      relationshipType: 'project_site',
+      facilityId: FACILITY_ID,
+    });
+
+    const probe = h.grantFindFirst.mock.calls[0]![0] as {
+      where: { verificationStatus?: unknown };
+    };
+    expect(probe.where.verificationStatus).toEqual({ not: 'rejected' });
+  });
+
+  test('an update writes BOTH a before and an after snapshot in the same transaction', async () => {
+    const h = harness();
+
+    await h.service.update(TENANT_ID, CLIENT_ID, RELATIONSHIP_ID, ACTOR, {
+      relationshipDescription: 'Revised scope statement.',
+    });
+
+    const auditArgs = h.auditCreate.mock.calls[0]![0];
+    expect(auditArgs.data).toMatchObject({
+      action: 'district_nexus.grant_relationship.update',
+      entityId: RELATIONSHIP_ID,
+    });
+    expect(auditArgs.data.before).toBeDefined();
+    expect(auditArgs.data.after).toBeDefined();
+  });
+
+  test('an update cannot downgrade a verified row into an externally-approved unverified one', async () => {
+    const h = harness({
+      existing: relationship({ verificationStatus: 'verified', externalUseApproved: true }),
+    });
+
+    await expect(
+      h.service.update(TENANT_ID, CLIENT_ID, RELATIONSHIP_ID, ACTOR, {
+        verificationStatus: 'unverified',
+      }),
+    ).rejects.toThrow('External-use approval requires a verified relationship.');
   });
 });
