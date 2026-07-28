@@ -11,6 +11,8 @@ export interface MemoryMutationSubject {
   legalHold?: boolean | null;
 }
 
+export type MemoryMutationOperation = 'confirm' | 'edit' | 'correct' | 'forget';
+
 export type MemoryMutationDecision =
   | { allowed: true; kind: 'private' | 'shared' }
   | { allowed: false; reason: 'unauthorized' | 'revoked' | 'legal_hold' | 'unknown_scope' };
@@ -23,17 +25,22 @@ export function isMemoryAdmin(role: string | null | undefined): boolean {
  * Phase 0 memory mutation policy shared by canonical memory_items and legacy
  * clio_memory surfaces. Read visibility is deliberately absent from this
  * decision: tenant-visible content is not writable by every tenant member.
+ * Legal hold blocks correction/deletion but does not prevent re-confirmation.
  */
 export function evaluateMemoryMutation(
   ctx: Pick<TenantContext, 'userId' | 'role'>,
   subject: MemoryMutationSubject,
+  operation: MemoryMutationOperation = 'edit',
 ): MemoryMutationDecision {
   if (subject.status === 'revoked') return { allowed: false, reason: 'revoked' };
 
   const privateMemory = subject.visibility === 'user' || subject.scope === 'user_private';
+  const legalHoldBlocks =
+    Boolean(subject.legalHold) && (operation === 'correct' || operation === 'forget');
+
   if (privateMemory) {
     if (subject.ownerUserId === ctx.userId) {
-      if (subject.legalHold) return { allowed: false, reason: 'legal_hold' };
+      if (legalHoldBlocks) return { allowed: false, reason: 'legal_hold' };
       return { allowed: true, kind: 'private' };
     }
     return { allowed: false, reason: 'unauthorized' };
@@ -43,7 +50,7 @@ export function evaluateMemoryMutation(
     subject.visibility === 'tenant' || subject.scope === 'firm' || subject.scope === 'client';
   if (sharedMemory) {
     if (!isMemoryAdmin(ctx.role)) return { allowed: false, reason: 'unauthorized' };
-    if (subject.legalHold) return { allowed: false, reason: 'legal_hold' };
+    if (legalHoldBlocks) return { allowed: false, reason: 'legal_hold' };
     return { allowed: true, kind: 'shared' };
   }
 
