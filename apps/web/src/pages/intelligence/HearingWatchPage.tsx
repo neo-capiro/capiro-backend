@@ -810,8 +810,8 @@ function NewHearingModal({
         {/* Resolver outcomes ------------------------------------------------- */}
         {resolved?.status === 'resolved' && provenance ? (
           <Alert
-            // An IP-bound / short-lived source (YouTube-live) is NOT persisted and
-            // resolves at connect time; surface it as a warning, not a success.
+            // An IP-bound / short-lived source (YouTube-live) is not persisted.
+            // Surface the real browser-tab fallback as a warning, not a success.
             type={resolved.media?.ipBound ? 'warning' : 'success'}
             showIcon
             style={{ marginBottom: 12 }}
@@ -825,10 +825,9 @@ function NewHearingModal({
                     <Tag color="orange">IP-bound / short-lived</Tag>
                     <br />
                     <Text type="secondary">
-                      This stream URL is IP-bound and expires (~6h). It is NOT saved with
-                      the session; it resolves at connect time. That path isn&apos;t wired
-                      yet — this source is a known limitation while YouTube-live is gated
-                      off.
+                      This media URL is short-lived and is not saved with the session. Open
+                      the original source from the Live Hearing Room, play it, and share that
+                      browser tab&apos;s audio to transcribe it.
                     </Text>
                   </>
                 ) : null}
