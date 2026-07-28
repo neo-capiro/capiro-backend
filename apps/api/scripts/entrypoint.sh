@@ -1,9 +1,9 @@
 #!/bin/sh
-# Phase-A safety wrapper for the API container entrypoint.
+# Program Elements trust-safety wrapper for the API container entrypoint.
 #
-# It owns the two trust-critical verbs that must not pass through the legacy
+# It owns the trust-critical verbs that must not pass through the legacy
 # entrypoint behavior: migration deployment (fail closed; never edits Prisma's
-# migration ledger) and the read-only PE trust diagnostic. Every other command
+# migration ledger) and SELECT-only PE diagnostics. Every other command
 # delegates byte-for-byte to the existing dispatcher.
 set -e
 
@@ -16,7 +16,7 @@ compose_database_url() {
   export DATABASE_URL="postgresql://${DB_USER}:${ENCODED_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public&sslmode=require&connection_limit=10"
   : "${TMPDIR:=/dev/shm}"
   export TMPDIR
-  # The diagnostic must never substitute an ECS metadata URI for a Git commit.
+  # Diagnostics must never substitute an ECS metadata URI for a Git commit.
   # Deployment automation may set a real GIT_SHA; otherwise report UNVERIFIED.
   : "${GIT_SHA:=UNVERIFIED}"
   export GIT_SHA
@@ -35,6 +35,12 @@ case "${1:-serve}" in
     compose_database_url
     echo "Running diag-pe-trust (SELECT-only Program Elements trust baseline)"
     exec ./node_modules/.bin/tsx scripts/diag-program-element-trust-baseline.ts "$@"
+    ;;
+  audit-llamaparse-pe-units)
+    shift
+    compose_database_url
+    echo "Running audit-llamaparse-pe-units (SELECT-only historical money-unit evidence report)"
+    exec ./node_modules/.bin/tsx scripts/audit-llamaparse-pe-units.ts "$@"
     ;;
   *)
     exec /bin/sh /usr/local/lib/capiro/entrypoint-legacy.sh "$@"

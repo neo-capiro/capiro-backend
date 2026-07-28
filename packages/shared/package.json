@@ -10,6 +10,12 @@
       "require": "./dist/index.js",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./money": {
+      "types": "./dist/money.d.ts",
+      "require": "./dist/money.js",
+      "import": "./dist/money.js",
+      "default": "./dist/money.js"
     }
   },
   "scripts": {

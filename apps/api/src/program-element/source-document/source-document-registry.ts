@@ -120,6 +120,7 @@ function buildData(input: UpsertSourceDocumentInput): Record<string, unknown> {
 export async function upsertSourceDocument(
   client: SourceDocumentClient,
   input: UpsertSourceDocumentInput,
+  options: { deferSupersede?: boolean } = {},
 ): Promise<UpsertSourceDocumentResult> {
   const sd = client.sourceDocument;
 
@@ -141,9 +142,32 @@ export async function upsertSourceDocument(
   const document = await sd.create({ data: buildData(input) });
 
   // 4. Chain the prior live head to the new version.
-  if (head && head.id !== document.id) {
+  //
+  // `deferSupersede` exists for callers that register a document BEFORE a separate
+  // canonical transaction. Superseding here would be committed immediately, so a
+  // later promotion failure would leave a previously valid head superseded by a
+  // document whose values were never promoted. Such callers pass deferSupersede
+  // and must apply `supersedeSourceDocumentHead` inside their transaction.
+  // Default behavior is unchanged for every existing caller.
+  if (!options.deferSupersede && head && head.id !== document.id) {
     await sd.update({ where: { id: head.id }, data: { supersededByDocumentId: document.id } });
   }
 
   return { document, created: true, supersededDocument: head ?? null };
+}
+
+/**
+ * Apply the deferred head chaining. Safe to call inside a transaction so the head
+ * flip commits atomically with the promotion that justifies it.
+ */
+export async function supersedeSourceDocumentHead(
+  client: SourceDocumentClient,
+  previousHeadId: string,
+  newDocumentId: string,
+): Promise<void> {
+  if (previousHeadId === newDocumentId) return;
+  await client.sourceDocument.update({
+    where: { id: previousHeadId },
+    data: { supersededByDocumentId: newDocumentId },
+  });
 }
