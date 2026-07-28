@@ -18,10 +18,28 @@ describe('audit-llamaparse-pe-units safety contract', () => {
     expect(text).not.toContain('normalize-pe-units');
   });
 
-  test('requires documentary and same-field evidence before provenAffected', () => {
+  test('declares its SELECT-only, no-automatic-division policy in the report', () => {
+    expect(source()).toContain('SELECT_ONLY_NO_AUTOMATIC_DIVISION');
+  });
+
+  test('performs no automatic scale division and exposes no repair flag', () => {
     const text = source();
-    expect(text).toContain('canonicalIsLlama && thousandScale && hasArchiveProof && hasMatchingParseProof');
-    expect(text).toContain('same-PE/FY/field deterministic observation');
-    expect(text).toContain('SELECT_ONLY_NO_AUTOMATIC_DIVISION');
+    // The defect is a ~1000x inflation; dividing here is exactly what Phase B forbids.
+    expect(text).not.toMatch(/\/\s*1_?000\b/);
+    expect(text).not.toMatch(/--repair|allowRepair|applyRepair/);
+  });
+
+  // The proof rule itself is verified by executing classifyUnitAuditFinding in
+  // defense-budget-commit.spec.ts. This asserts only that the audit DELEGATES to
+  // that tested function instead of re-implementing the rule inline, which is what
+  // makes the executable tests meaningful for this script's behavior.
+  test('delegates the proof rule to the unit-tested classifier', () => {
+    const text = source();
+    expect(text).toContain('classifyUnitAuditFinding({');
+    expect(text).not.toMatch(/const\s+thousandScale\s*=/);
+  });
+
+  test('reports a recommended replay source so repair never re-runs a paid parse', () => {
+    expect(source()).toContain('recommendedReplaySource');
   });
 });

@@ -38,6 +38,22 @@ describe('toMillions', () => {
       );
     },
   );
+
+  // Extractor units originate in parsed PDF/vendor text, so an unrecognized unit
+  // is reachable at runtime even though the type forbids it. It must throw rather
+  // than yield `undefined`, which a caller could turn into a canonical value.
+  it.each(['billions', 'THOUSANDS', '', 'dollar'])(
+    'refuses to convert unsupported unit %p instead of returning undefined',
+    (unit) => {
+      const money = { value: 100, unit } as unknown as Parameters<typeof toMillions>[0];
+      expect(() => toMillions(money)).toThrow('Unsupported money unit');
+    },
+  );
+
+  it('does not silently produce a canonical value for a missing unit', () => {
+    const money = { value: 100 } as unknown as Parameters<typeof toMillions>[0];
+    expect(() => toMillions(money)).toThrow('Unsupported money unit');
+  });
 });
 
 describe('mapAssertionsToPeWriter', () => {
@@ -148,6 +164,35 @@ describe('mapAssertionsToPeWriter', () => {
     const mapped = mapAssertionsToPeWriter(extraction());
     expect(mapped.sourceValues.some((value) => value.peCode === '12')).toBe(false);
     expect(mapped.sourceValues.some((value) => value.peCode === '131')).toBe(false);
+  });
+
+  // The mapper skips values with `v.money == null`. A truthiness check there would
+  // silently drop a real, printed 0 — which for a PE/FY field means "no funding",
+  // not "no data". This proves 0 survives all the way onto the canonical row.
+  it('keeps a printed zero as a real canonical value on the PE-year row', () => {
+    const mapped = mapAssertionsToPeWriter({
+      lineAssertions: [
+        { lineKind: 'RDTE_PE', code: '0602308A', title: 'Zeroed', provenance: prov() },
+      ],
+      yearValues: [
+        {
+          lineKind: 'RDTE_PE',
+          code: '0602308A',
+          fy: 2027,
+          fieldName: 'request',
+          money: { value: 0, unit: 'thousands' },
+          provenance: prov(),
+        },
+      ],
+      warnings: [],
+    });
+
+    expect(mapped.years).toHaveLength(1);
+    const year = mapped.years[0]! as unknown as Record<string, unknown>;
+    expect(year.request).toBe(0);
+    expect(mapped.sourceValues).toHaveLength(1);
+    expect(mapped.sourceValues[0]!.valueM).toBe(0);
+    expect(mapped.sourceValues[0]!.originalValue).toBe(0);
   });
 
   it('preserves exact source values when the printed unit is millions', () => {

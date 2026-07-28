@@ -129,7 +129,7 @@
     "comp:existing-tenants": "tsx scripts/comp-existing-tenants.ts",
     "load:defense-budget": "tsx scripts/sync-comptroller-jbooks.ts --commit && tsx scripts/sync-jbook-r2.ts --commit && tsx scripts/sync-jbook-performers.ts --commit && tsx scripts/parse-hasc-sasc-reports.ts --artifact scripts/__data__/armed_services_hasc_fy2026.json --chamber HASC --fy 2026 && tsx scripts/parse-hasc-sasc-reports.ts --artifact scripts/__data__/armed_services_hasc_fy2027.json --chamber HASC --fy 2027 && tsx scripts/parse-hasc-sasc-reports.ts --artifact scripts/__data__/armed_services_sasc_fy2026.json --chamber SASC --fy 2026 && tsx scripts/sync-peo-rosters.ts --commit && tsx scripts/seed-programs.ts --commit && tsx scripts/match-pe-program.ts --apply && tsx scripts/backfill-program-offices.ts --commit && tsx scripts/sync-sam-opportunities.ts --commit && tsx scripts/compute-budget-deltas.ts --commit && tsx scripts/generate-actions.ts --commit",
     "verify:pe-phase-a": "tsx scripts/verify-pe-phase-a-safety.ts",
-    "verify:pe-phase-b": "jest --runInBand src/defense-budget/assertion-mapper.spec.ts scripts/lib/defense-budget-commit.spec.ts scripts/audit-llamaparse-pe-units.spec.ts"
+    "verify:pe-phase-b": "jest --runInBand --forceExit src/defense-budget/assertion-mapper.spec.ts scripts/lib/defense-budget-commit.spec.ts scripts/audit-llamaparse-pe-units.spec.ts scripts/lib/pe-ingestion-mode.spec.ts scripts/lib/pe-phase-a-safety.spec.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.665.0",

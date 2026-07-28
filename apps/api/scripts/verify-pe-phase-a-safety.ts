@@ -11,6 +11,7 @@ import {
 } from './lib/defense-budget-ingest-mode.js';
 import {
   assertApprovedShaMatches,
+  classifyUnitAuditFinding,
   classifyUnitRatio,
   requireApprovedSha256,
 } from './lib/defense-budget-commit.js';
@@ -66,6 +67,9 @@ function verifyMoneyAndApprovalHelpers(): void {
   assert.equal(classifyUnitRatio(13_500, 13.5), 'candidate_1000x_reference');
   assert.equal(classifyUnitRatio(13.5, 13.5), 'same_scale');
   assert.equal(classifyUnitRatio(0, 13.5), 'not_comparable');
+  // Opposite signs are different facts, not one figure at another scale.
+  assert.equal(classifyUnitRatio(13_500, -13.5), 'sign_mismatch');
+  assert.equal(classifyUnitRatio(-13_500, -13.5), 'candidate_1000x_reference');
 }
 
 function verifyMigrationGuard(): void {
@@ -90,8 +94,16 @@ function verifyMigrationGuard(): void {
     /migrate deploy/.test(executableLines(source)),
   );
   assert.equal(executes.length, 1, 'exactly one entrypoint may execute prisma migrate deploy');
-  assert.match(dispatcher, /Unknown command[^\n]*diag-pe-trust/);
-  assert.match(active, /audit-llamaparse-pe-units/);
+  // Every verb the wrapper handles must also be discoverable from the usage output
+  // the dispatcher prints for an unknown command, or operators cannot find it.
+  for (const verb of ['diag-pe-trust', 'audit-llamaparse-pe-units']) {
+    assert.match(active, new RegExp(`^\\s+${verb}\\)`, 'm'), `${verb} must be dispatched`);
+    assert.match(
+      dispatcher,
+      new RegExp(`Unknown command[^\\n]*${verb}`),
+      `${verb} must appear in the supported-command usage output`,
+    );
+  }
 }
 
 function verifyPromotionSafety(): void {
@@ -106,6 +118,12 @@ function verifyPromotionSafety(): void {
   assert.match(source, /registered\.document\.supersededByDocumentId/);
   assert.match(source, /const preExistingObservationIds = new Set/);
   assert.match(source, /function listLocalPdfsRequired/);
+  // Artifact replay must PROVE the bytes are the ones originally parsed, not merely
+  // recompute a digest, and the head flip must be deferred into the transaction.
+  assert.match(source, /recordedArtifactSha256 !== actualArtifactSha256/);
+  assert.match(source, /has no recorded output checksum/);
+  assert.match(source, /deferSupersede: true/);
+  assert.match(source, /supersedeSourceDocumentHead\(/);
 
   const mainStart = source.indexOf('async function main(): Promise<void>');
   const approvalParse = source.indexOf(
@@ -129,6 +147,32 @@ function verifyPromotionSafety(): void {
     'runCommit() must compare source bytes before constructing Prisma',
   );
 
+  // Phase A guaranteed the default posture touches no database. Phase B adds a
+  // guarded writer, so that guarantee now has to be stated as: Prisma is
+  // constructed exactly once, and only inside runCommit(). Without this a future
+  // edit could open a connection during preflight and nothing would catch it.
+  const constructions = source.match(/new PrismaClient\(/g) ?? [];
+  assert.equal(
+    constructions.length,
+    1,
+    'PrismaClient must be constructed exactly once (inside runCommit)',
+  );
+  assert(
+    prismaConstruction > runCommitStart,
+    'the only PrismaClient construction must be inside runCommit()',
+  );
+  const preflightStart = source.indexOf('function runPreflight(');
+  const preflightEnd = source.indexOf('\n}', preflightStart);
+  assert(preflightStart >= 0 && preflightEnd > preflightStart);
+  const preflightBody = source.slice(preflightStart, preflightEnd);
+  for (const forbidden of ['PrismaClient', 'ProgramElementWriterService', 'await ']) {
+    assert.equal(
+      preflightBody.includes(forbidden),
+      false,
+      `runPreflight() must remain synchronous and database-free; found ${forbidden}`,
+    );
+  }
+
   const loaderStart = source.indexOf('function loadVendorParseEnvironment');
   assert(loaderStart >= 0, 'loadVendorParseEnvironment must exist');
   assert.equal(source.slice(0, loaderStart).includes('dotenvConfig('), false);
@@ -144,10 +188,47 @@ function verifyAuditIsReadOnly(): void {
   assert.doesNotMatch(source, /\.(create|createMany|update|updateMany|delete|deleteMany|upsert)\s*\(/);
   assert.doesNotMatch(source, /\$executeRaw|\$executeRawUnsafe|\$queryRawUnsafe/);
   assert.match(source, /SELECT_ONLY_NO_AUTOMATIC_DIVISION/);
-  assert.match(
-    source,
-    /canonicalIsLlama && thousandScale && hasArchiveProof && hasMatchingParseProof/,
+  // The audit must not perform the 1,000x division itself, and must expose the
+  // preserved artifact to replay from so a repair never re-runs a paid parse.
+  assert.doesNotMatch(source, /\/\s*1_?000\b/);
+  assert.match(source, /recommendedReplaySource/);
+  // Execute the proof rule instead of asserting the text of a boolean expression:
+  // a formatting change must not pass or fail this gate, and an unreachable rule
+  // must not pass it. Nothing is "proven affected" without every piece of evidence.
+  assert.match(source, /classifyUnitAuditFinding\(\{/);
+  const documented = { hasArchiveProof: true, hasMatchingParseProof: true } as const;
+  assert.equal(
+    classifyUnitAuditFinding({
+      canonicalIsLlama: true,
+      classifications: ['candidate_1000x_reference'],
+      ...documented,
+    }).bucket,
+    'provenAffected',
   );
+  for (const weakened of [
+    { canonicalIsLlama: false, classifications: ['candidate_1000x_reference'] as const, ...documented },
+    {
+      canonicalIsLlama: true,
+      classifications: ['candidate_1000x_reference'] as const,
+      hasArchiveProof: false,
+      hasMatchingParseProof: true,
+    },
+    {
+      canonicalIsLlama: true,
+      classifications: ['candidate_1000x_reference'] as const,
+      hasArchiveProof: true,
+      hasMatchingParseProof: false,
+    },
+    { canonicalIsLlama: true, classifications: ['sign_mismatch'] as const, ...documented },
+    { canonicalIsLlama: true, classifications: ['different_scale'] as const, ...documented },
+    { canonicalIsLlama: true, classifications: [] as const, ...documented },
+  ]) {
+    assert.notEqual(
+      classifyUnitAuditFinding(weakened).bucket,
+      'provenAffected',
+      `incomplete evidence must never prove affection: ${JSON.stringify(weakened)}`,
+    );
+  }
 }
 
 verifyPostures();

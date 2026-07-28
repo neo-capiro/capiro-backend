@@ -8,7 +8,11 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
-import { classifyUnitRatio, type UnitRatioClassification } from './lib/defense-budget-commit.js';
+import {
+  classifyUnitAuditFinding,
+  classifyUnitRatio,
+  type UnitRatioClassification,
+} from './lib/defense-budget-commit.js';
 
 dotenvConfig();
 
@@ -28,7 +32,8 @@ type MoneyField = (typeof MONEY_FIELDS)[number];
 
 interface ComparatorEvidence {
   source: string;
-  valueM: number;
+  /** Null when the stored decimal does not parse to a finite number. */
+  valueM: number | null;
   classification: UnitRatioClassification;
   sourceDocumentId: string | null;
 }
@@ -57,6 +62,19 @@ interface AuditFinding {
     completedAt: string | null;
   }>;
   deterministicComparators: ComparatorEvidence[];
+  /**
+   * The exact preserved artifact an approved repair should replay from, so an
+   * operator never re-runs a paid vendor parse to reconstruct a known value.
+   * Null when no succeeded parse job matches the source SHA.
+   */
+  recommendedReplaySource: {
+    parseJobId: string;
+    inputSha256: string;
+    outputJsonS3Key: string;
+    archiveBucket: string | null;
+    archiveS3Key: string | null;
+    archiveVersionId: string | null;
+  } | null;
   reason: string;
 }
 
@@ -232,12 +250,18 @@ async function main(): Promise<void> {
           (observation) =>
             !isLlamaSource(observation.source, observation.sourceDocument?.extractionMethod),
         );
-        const deterministicComparators: ComparatorEvidence[] = deterministic.map((observation) => ({
-          source: observation.source,
-          valueM: toNumber(observation.valueDecimal)!,
-          classification: classifyUnitRatio(llamaValue, toNumber(observation.valueDecimal)),
-          sourceDocumentId: observation.sourceDocumentId,
-        }));
+        // No non-null assertion here: `valueDecimal` is non-null in the query, but
+        // toNumber() also returns null for a value that does not parse finitely, and
+        // claiming `number` for that would put a null into a numeric report field.
+        const deterministicComparators: ComparatorEvidence[] = deterministic.map((observation) => {
+          const comparatorValue = toNumber(observation.valueDecimal);
+          return {
+            source: observation.source,
+            valueM: comparatorValue,
+            classification: classifyUnitRatio(llamaValue, comparatorValue),
+            sourceDocumentId: observation.sourceDocumentId,
+          };
+        });
         const sourceDocument = llama.sourceDocument
           ? {
               id: llama.sourceDocument.id,
@@ -267,11 +291,8 @@ async function main(): Promise<void> {
               (job) => job.inputSha256 === sourceDocument.sha256 && job.outputJsonS3Key,
             ),
         );
-        const thousandScale = deterministicComparators.some(
-          (comparator) => comparator.classification === 'candidate_1000x_reference',
-        );
-        const sameScale = deterministicComparators.some(
-          (comparator) => comparator.classification === 'same_scale',
+        const replayJob = successfulParseJobs.find(
+          (job) => job.inputSha256 === sourceDocument?.sha256 && job.outputJsonS3Key,
         );
 
         const common = {
@@ -285,37 +306,31 @@ async function main(): Promise<void> {
           sourceDocument,
           successfulParseJobs,
           deterministicComparators,
+          recommendedReplaySource:
+            replayJob && replayJob.outputJsonS3Key
+              ? {
+                  parseJobId: replayJob.id,
+                  inputSha256: replayJob.inputSha256,
+                  outputJsonS3Key: replayJob.outputJsonS3Key,
+                  archiveBucket: sourceDocument?.archiveBucket ?? null,
+                  archiveS3Key: sourceDocument?.archiveS3Key ?? null,
+                  archiveVersionId: sourceDocument?.archiveVersionId ?? null,
+                }
+              : null,
         };
 
-        if (canonicalIsLlama && thousandScale && hasArchiveProof && hasMatchingParseProof) {
-          provenAffected.push({
-            ...common,
-            reason:
-              'Canonical winner is LlamaParse, exact source/archive/parse linkage exists, and a same-field deterministic observation is approximately 1,000x smaller. Repair still requires exact artifact replay or human verification; this report does not mutate data.',
-          });
-        } else if (canonicalIsLlama && sameScale && hasArchiveProof && hasMatchingParseProof) {
-          notAffected.push({
-            ...common,
-            reason:
-              'Canonical winner is LlamaParse and at least one deterministic same-field observation is on the same scale with complete archive/parse linkage.',
-          });
-        } else if (!canonicalIsLlama) {
-          notAffected.push({
-            ...common,
-            reason:
-              'A LlamaParse observation exists, but it is not the recorded canonical field winner. No canonical repair is indicated by this observation.',
-          });
-        } else {
-          needsHumanReview.push({
-            ...common,
-            reason:
-              deterministicComparators.length === 0
-                ? 'LlamaParse is canonical but no same-field deterministic comparator exists.'
-                : !hasArchiveProof || !hasMatchingParseProof
-                  ? 'LlamaParse is canonical but exact archive/parse provenance is incomplete.'
-                  : 'LlamaParse is canonical, but comparator ratios are ambiguous or inconsistent; magnitude alone is not proof.',
-          });
-        }
+        // The proof rule lives in a pure, unit-tested function so it is verified by
+        // execution rather than by asserting the text of this condition.
+        const verdict = classifyUnitAuditFinding({
+          canonicalIsLlama,
+          classifications: deterministicComparators.map((comparator) => comparator.classification),
+          hasArchiveProof,
+          hasMatchingParseProof,
+        });
+        const finding: AuditFinding = { ...common, reason: verdict.reason };
+        if (verdict.bucket === 'provenAffected') provenAffected.push(finding);
+        else if (verdict.bucket === 'notAffected') notAffected.push(finding);
+        else needsHumanReview.push(finding);
       }
     }
 

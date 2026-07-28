@@ -1,6 +1,7 @@
 import {
   sha256OfBuffer,
   readDocumentToolVersion,
+  supersedeSourceDocumentHead,
   upsertSourceDocument,
   type SourceDocumentClient,
   type SourceDocumentRow,
@@ -128,5 +129,61 @@ describe('upsertSourceDocument', () => {
     await upsertSourceDocument(client, input({ sourceKey: 'jbook_performers_dw_darpa', documentType: 'r3' }));
     expect(rows).toHaveLength(2);
     expect(rows.every((r) => r.supersededByDocumentId === null)).toBe(true);
+  });
+});
+
+// A caller that registers a document BEFORE a separate canonical transaction must
+// be able to keep the previous head live until that transaction succeeds. Without
+// this, a promotion that fails after registration leaves a valid head superseded
+// by a document whose values were never promoted.
+describe('deferred head supersession', () => {
+  it('leaves the prior head live when supersession is deferred', async () => {
+    const { client } = makeClient();
+    const v1 = await upsertSourceDocument(client, input({ sha256: 'a'.repeat(64) }));
+    const v2 = await upsertSourceDocument(
+      client,
+      input({ sha256: 'b'.repeat(64) }),
+      { deferSupersede: true },
+    );
+
+    expect(v2.created).toBe(true);
+    expect(v2.supersededDocument?.id).toBe(v1.document.id);
+    // The whole point: v1 is still the live head until promotion succeeds.
+    const head = await client.sourceDocument.findFirst({
+      where: { sourceKey: 'jbook_r1_fy2027', supersededByDocumentId: null },
+      orderBy: { ingestedAt: 'desc' },
+    });
+    expect(head?.supersededByDocumentId).toBeNull();
+    expect(v1.document.supersededByDocumentId).toBeNull();
+  });
+
+  it('retires the prior head only when the deferred update is applied', async () => {
+    const { client, rows } = makeClient();
+    const v1 = await upsertSourceDocument(client, input({ sha256: 'a'.repeat(64) }));
+    const v2 = await upsertSourceDocument(
+      client,
+      input({ sha256: 'b'.repeat(64) }),
+      { deferSupersede: true },
+    );
+
+    await supersedeSourceDocumentHead(client, v1.document.id, v2.document.id);
+
+    expect(rows.find((r) => r.id === v1.document.id)?.supersededByDocumentId).toBe(v2.document.id);
+    expect(rows.find((r) => r.id === v2.document.id)?.supersededByDocumentId).toBeNull();
+  });
+
+  it('still supersedes eagerly by default so existing callers are unchanged', async () => {
+    const { client, rows } = makeClient();
+    const v1 = await upsertSourceDocument(client, input({ sha256: 'a'.repeat(64) }));
+    const v2 = await upsertSourceDocument(client, input({ sha256: 'b'.repeat(64) }));
+
+    expect(rows.find((r) => r.id === v1.document.id)?.supersededByDocumentId).toBe(v2.document.id);
+  });
+
+  it('never chains a document to itself', async () => {
+    const { client, rows } = makeClient();
+    const v1 = await upsertSourceDocument(client, input({ sha256: 'a'.repeat(64) }));
+    await supersedeSourceDocumentHead(client, v1.document.id, v1.document.id);
+    expect(rows.find((r) => r.id === v1.document.id)?.supersededByDocumentId).toBeNull();
   });
 });

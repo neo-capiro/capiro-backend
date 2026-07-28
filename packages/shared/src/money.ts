@@ -53,5 +53,16 @@ export function normalizeMoneyToMillions(
         originalUnit: unit,
         conversion: 'identity',
       };
+    default: {
+      // TypeScript proves this unreachable for typed callers, but extractor units
+      // originate in parsed PDF/vendor text. Without this branch an unrecognized
+      // unit fell out of the switch and returned `undefined`, so a caller using
+      // optional chaining or a default could turn an unconvertible figure into a
+      // canonical funding value. Unknown units must fail loudly instead.
+      const unrecognized: never = unit;
+      throw new TypeError(
+        `Unsupported money unit: ${JSON.stringify(unrecognized)}. Expected 'dollars', 'thousands', or 'millions'.`,
+      );
+    }
   }
 }

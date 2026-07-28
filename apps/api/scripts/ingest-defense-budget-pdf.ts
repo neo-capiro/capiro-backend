@@ -29,6 +29,7 @@ import { ProgramElementWriterService } from '../src/program-element/program-elem
 import type { PrismaService } from '../src/prisma/prisma.service.js';
 import {
   upsertSourceDocument,
+  supersedeSourceDocumentHead,
   sha256OfBuffer,
   sha256OfFile,
   type SourceDocumentClient,
@@ -48,6 +49,7 @@ import {
   assertApprovedShaMatches,
   buildNormalizedValueManifest,
   requireApprovedSha256,
+  selectPromotedObservationId,
 } from './lib/defense-budget-commit.js';
 
 const ALLOWED_MODES = new Set(['pdf_fast', 'pdf_premium', 'pdf_ocr'] as const);
@@ -482,6 +484,24 @@ async function loadExistingParseArtifact(
 
   const bytes = await makeCorpusS3(region).getObject(bucket, existing.outputJsonS3Key);
   const jsonText = Buffer.from(bytes).toString('utf8');
+  const actualArtifactSha256 = sha256OfBuffer(Buffer.from(jsonText));
+
+  // Replay is only safe if these are provably the same bytes that were parsed and
+  // recorded. Recomputing the digest without comparing it to the recorded one would
+  // make "checksummed artifact reuse" a claim rather than a check: a replaced or
+  // truncated-but-still-valid-JSON object in S3 would be promoted as canonical.
+  const recordedArtifactSha256 = asRecord(existing.metadata).outputJsonSha256;
+  if (typeof recordedArtifactSha256 !== 'string' || recordedArtifactSha256.length === 0) {
+    throw new Error(
+      `Parse job ${existing.id} has no recorded output checksum, so its artifact cannot be proven intact; re-parse explicitly with ${ALLOW_VENDOR_PARSE} instead of replaying it.`,
+    );
+  }
+  if (recordedArtifactSha256 !== actualArtifactSha256) {
+    throw new Error(
+      `Stored parse artifact does not match its recorded checksum (recorded=${recordedArtifactSha256} actual=${actualArtifactSha256}) at s3://${bucket}/${existing.outputJsonS3Key}; refusing to promote it.`,
+    );
+  }
+
   let json: unknown;
   try {
     json = JSON.parse(jsonText);
@@ -495,7 +515,7 @@ async function loadExistingParseArtifact(
     parseJobId: existing.id,
     providerJobId: existing.providerJobId,
     outputJsonS3Key: existing.outputJsonS3Key,
-    outputJsonSha256: sha256OfBuffer(Buffer.from(jsonText)),
+    outputJsonSha256: actualArtifactSha256,
     reusedArtifact: true,
   };
 }
@@ -688,6 +708,12 @@ async function promoteMappedArtifact(input: {
   cls: DocClassification;
   artifactPath: string;
   warnings: string[];
+  /**
+   * Prior live SourceDocument head, retired only on success. Registration happens
+   * before this transaction because the parse needs the new document id, so the
+   * head flip is deferred to here to keep it atomic with the promotion.
+   */
+  previousHeadId: string | null;
 }): Promise<LoadOutcome> {
   const guardRows = buildGuardRows(input.mapped);
   const audit = auditRows(guardRows);
@@ -733,24 +759,26 @@ async function promoteMappedArtifact(input: {
         else if (result.changed) outcome.changed += 1;
 
         for (const value of values) {
+          // ReconciliationService logs per-field observations under the base source
+          // (`_fy<NN>` stripped), while `__row__` below is logged under the raw
+          // source, so the two queries deliberately differ.
           const newObservations = await tx.programElementYearSourceValue.findMany({
             where: {
               peCode: value.peCode,
               fy: value.fy,
               fieldName: String(value.fieldName),
               source: { in: [input.source, baseSource] },
-              sourceDocumentId: null,
               id: { notIn: [...preExistingObservationIds] },
             },
-            select: { id: true },
+            select: { id: true, sourceDocumentId: true },
           });
-          if (newObservations.length !== 1) {
-            throw new Error(
-              `Expected exactly one new canonical observation for ${value.peCode} FY${value.fy} ${String(value.fieldName)}; found ${newObservations.length}`,
-            );
-          }
+          const observationId = selectPromotedObservationId({
+            preExistingIds: preExistingObservationIds,
+            candidates: newObservations,
+            label: `${value.peCode} FY${value.fy} ${String(value.fieldName)}`,
+          });
           await tx.programElementYearSourceValue.update({
-            where: { id: newObservations[0]!.id },
+            where: { id: observationId },
             data: {
               sourceDocumentId: input.sourceDocumentId,
               valueJsonb: {
@@ -769,20 +797,29 @@ async function promoteMappedArtifact(input: {
             fy: year.fy,
             fieldName: '__row__',
             source: input.source,
-            sourceDocumentId: null,
             id: { notIn: [...preExistingObservationIds] },
           },
-          select: { id: true },
+          select: { id: true, sourceDocumentId: true },
         });
-        if (newRowObservations.length !== 1) {
-          throw new Error(
-            `Expected exactly one new row observation for ${year.peCode} FY${year.fy}; found ${newRowObservations.length}`,
-          );
-        }
+        const rowObservationId = selectPromotedObservationId({
+          preExistingIds: preExistingObservationIds,
+          candidates: newRowObservations,
+          label: `${year.peCode} FY${year.fy} __row__`,
+        });
         await tx.programElementYearSourceValue.update({
-          where: { id: newRowObservations[0]!.id },
+          where: { id: rowObservationId },
           data: { sourceDocumentId: input.sourceDocumentId },
         });
+      }
+
+      // Retire the previous head only now that every canonical row, observation
+      // link, and provenance write for this PDF has succeeded in this transaction.
+      if (input.previousHeadId) {
+        await supersedeSourceDocumentHead(
+          tx as unknown as SourceDocumentClient,
+          input.previousHeadId,
+          input.sourceDocumentId,
+        );
       }
 
       await recordIngestRun(tx as unknown as IngestRunClient, {
@@ -858,7 +895,13 @@ async function runCommit(
   const prisma = new PrismaClient();
   await prisma.$connect();
   try {
-    const registered = await upsertSourceDocument(prisma as unknown as SourceDocumentClient, {
+    // deferSupersede: the prior live head must not be retired until this PDF is
+    // actually promoted. Registration commits immediately (the parse needs the
+    // document id), so superseding here would strand a valid head behind an
+    // unpromoted document if extraction, validation, or linking later fails.
+    const registered = await upsertSourceDocument(
+      prisma as unknown as SourceDocumentClient,
+      {
       sourceKey: cls.sourceKey,
       sha256: sourceSha256,
       fiscalYear: cls.fiscalYear,
@@ -881,7 +924,9 @@ async function runCommit(
         classification: cls,
         canonicalMoneyUnit: 'USD millions',
       },
-    });
+      },
+      { deferSupersede: true },
+    );
     if (registered.document.supersededByDocumentId) {
       throw new Error(
         `Approved source document ${registered.document.id} is superseded by ${registered.document.supersededByDocumentId}; promote the current source version instead.`,
@@ -953,6 +998,10 @@ async function runCommit(
       cls,
       artifactPath: prepared.outputJsonS3Key,
       warnings: extraction.warnings,
+      previousHeadId:
+        registered.supersededDocument && registered.supersededDocument.id !== sourceDocumentId
+          ? registered.supersededDocument.id
+          : null,
     });
 
     return {
@@ -977,6 +1026,11 @@ async function runCommit(
       parse: prepared,
       normalizedValues,
       nonPeLinesExcluded: mapped.nonPeLines.length,
+      // State the exclusion, not just its count: a reader seeing 0 should still
+      // learn that procurement/O&M were never eligible for the PE writer.
+      nonPeLineExclusionPolicy:
+        'PROCUREMENT_BLIN and OM_SAG lines are excluded from the generalized Program Element writer and from PE-year rows; only RDTE_PE lines are promoted.',
+      nonPeLineKindsExcluded: [...new Set(mapped.nonPeLines.map((line) => line.lineKind))].sort(),
       warnings: extraction.warnings,
       loadOutcome,
       transaction: {
