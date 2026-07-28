@@ -11,8 +11,13 @@ import {
   usesDeprecatedDryRunAlias,
 } from './lib/defense-budget-ingest-mode.js';
 
+function apiRoot(): string {
+  const cwd = process.cwd();
+  return cwd.replace(/\\/g, '/').endsWith('/apps/api') ? cwd : resolve(cwd, 'apps/api');
+}
+
 function apiFile(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), 'utf8');
+  return readFileSync(resolve(apiRoot(), relativePath), 'utf8');
 }
 
 function expectThrow(fn: () => unknown, messagePart: string): void {
