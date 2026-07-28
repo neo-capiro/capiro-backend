@@ -54,6 +54,7 @@ import {
   renderOutreachBody,
 } from './outreach-email-renderer.js';
 import {
+  canTransitionOutreachDelivery,
   isDraftVersionSendable,
   type DraftApprovalStatus,
   type DraftAuditStatus,
@@ -68,6 +69,8 @@ import { AttachmentScannerService } from './attachment-scanner.service.js';
 /** Graph/Gmail simple-send inline attachment ceiling. */
 const INLINE_ATTACHMENT_MAX_BYTES = 3 * 1024 * 1024;
 const MAX_DRAFT_VERSIONS_PER_INTENT = 500;
+/** §g4 — reconcileStale's per-tick ceiling, so a large backlog cannot turn one sweep into an unbounded write. */
+const RECONCILE_STALE_BATCH = 500;
 const MAX_ATTACHMENTS_PER_INTENT = 25;
 
 export interface CreateSendIntentInput {
@@ -234,6 +237,14 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     }
 
     const testMode = input.testMode === true;
+    // §f1 — a test send previews exactly ONE explicitly selected version. Prior
+    // to this, test mode placed no ceiling on draftVersionIds, so a client bug
+    // (or a stale "preview all" call) could [TEST]-send every campaign
+    // recipient's draft to the sender's own inbox instead of the one preview
+    // the feature is meant to offer.
+    if (testMode && versionIds.length !== 1) {
+      throw new BadRequestException('A test send must select exactly one draft version.');
+    }
 
     // 1. The parent record must be a draft this user owns.
     const outreachRecordId = await this.assertOwnedRecord(ctx, input.outreachRecordId);
@@ -710,6 +721,13 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
    * Persist provider acceptance. Retried a few times because the message is
    * already gone: losing the record would be worse than a slow write, and the
    * provider is deliberately NOT called again.
+   *
+   * §g2 — guarded to `sending` rows only. If reconciliation already aged this
+   * delivery to `unknown` (the worker looked abandoned before this call
+   * finally returned), that write must NOT be clobbered back to `sent`:
+   * `unknown` is terminal-for-automation, and only an explicit
+   * reconciliation operation may move it (Open Decision §6.2), never a late
+   * acceptance racing the sweep. Returns whether the transition applied.
    */
   private async persistAcceptance(
     deliveryId: string,
@@ -719,13 +737,13 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
       providerDraftId: string | null;
       providerInternetMessageId: string | null;
     },
-  ): Promise<void> {
+  ): Promise<boolean> {
     let lastErr: unknown;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        await this.prisma.withSystem((tx) =>
+        const result = await this.prisma.withSystem((tx) =>
           tx.outreachDelivery.updateMany({
-            where: { id: deliveryId },
+            where: { id: deliveryId, status: 'sending' },
             data: {
               status: 'sent',
               acceptedAt: new Date(),
@@ -739,7 +757,14 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
             },
           }),
         );
-        return;
+        if (result.count === 0) {
+          this.logger.warn(
+            `delivery ${deliveryId} was accepted by the provider, but it had already left ` +
+              `'sending' (e.g. aged to 'unknown' by reconciliation) — the acceptance is logged, ` +
+              `not applied over whatever terminal status it already has.`,
+          );
+        }
+        return result.count === 1;
       } catch (e) {
         lastErr = e;
         await sleep(250 * (attempt + 1));
@@ -749,8 +774,16 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
       `delivery ${deliveryId} WAS ACCEPTED by the provider but its result could not be ` +
         `persisted after 3 attempts — the provider was NOT called again: ${(lastErr as Error)?.message}`,
     );
+    return false;
   }
 
+  /**
+   * §g3 — guarded to `sending` rows only, and reports whether the transition
+   * actually applied. `status` is always 'failed' or 'unknown' here (the only
+   * two legal targets from 'sending' besides 'sent', which persistAcceptance
+   * owns) — asserted against the state machine rather than trusted blindly,
+   * so a future caller cannot silently widen what this function will write.
+   */
   private async finishDelivery(
     deliveryId: string,
     status: OutreachDeliveryStatus,
@@ -759,11 +792,17 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
       errorMessage?: string | null;
       providerDraftId?: string | null;
     },
-  ): Promise<void> {
-    await this.prisma
+  ): Promise<boolean> {
+    if (!canTransitionOutreachDelivery('sending', status)) {
+      this.logger.error(
+        `finishDelivery(${deliveryId}, ${status}) is not an allowed transition from 'sending' — refusing`,
+      );
+      return false;
+    }
+    const result = await this.prisma
       .withSystem((tx) =>
         tx.outreachDelivery.updateMany({
-          where: { id: deliveryId },
+          where: { id: deliveryId, status: 'sending' },
           data: {
             status,
             errorCode: extra.errorCode ?? null,
@@ -772,9 +811,17 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
           },
         }),
       )
-      .catch((e) =>
-        this.logger.error(`could not finish delivery ${deliveryId}: ${(e as Error).message}`),
+      .catch((e) => {
+        this.logger.error(`could not finish delivery ${deliveryId}: ${(e as Error).message}`);
+        return { count: 0 };
+      });
+    if (result.count === 0) {
+      this.logger.warn(
+        `finishDelivery(${deliveryId}, ${status}) found no 'sending' row to transition — a ` +
+          `later write already decided this delivery's outcome.`,
       );
+    }
+    return result.count === 1;
   }
 
   /**
@@ -784,19 +831,40 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
    * may or may not have reached the provider, so re-sending it would risk a
    * duplicate external email. This is the one place the difference between
    * at-least-once and at-most-once actually gets decided.
+   *
+   * §g4 — the ONLY transition this performs is `sending → unknown` (matching
+   * the state machine above — never back to `pending`). BOUNDED to
+   * RECONCILE_STALE_BATCH rows per tick, via the same claim-and-return
+   * raw-SQL pattern as claimNextDelivery, so a large backlog ages over
+   * several ticks rather than one unbounded UPDATE. LOGGED, because this
+   * firing at all means a worker crashed or a provider call hung past
+   * staleMs — that is an operational signal, not routine.
    */
   private async reconcileStale(): Promise<void> {
     const cutoff = new Date(Date.now() - this.staleMs);
-    await this.prisma.withSystem((tx) =>
-      tx.outreachDelivery.updateMany({
-        where: { status: 'sending', claimedAt: { lt: cutoff } },
-        data: {
-          status: 'unknown',
-          errorCode: 'WORKER_ABANDONED_CLAIM',
-          errorMessage: 'The sender restarted while this delivery was in flight.',
-        },
-      }),
+    const aged = await this.prisma.withSystem((tx) =>
+      tx.$queryRaw<Array<{ id: string }>>`
+        UPDATE outreach_deliveries SET
+          status = 'unknown',
+          error_code = 'WORKER_ABANDONED_CLAIM',
+          error_message = 'The sender restarted while this delivery was in flight.',
+          updated_at = NOW()
+        WHERE id IN (
+          SELECT id FROM outreach_deliveries
+          WHERE status = 'sending' AND claimed_at < ${cutoff}
+          ORDER BY claimed_at
+          LIMIT ${RECONCILE_STALE_BATCH}
+          FOR UPDATE SKIP LOCKED
+        )
+        RETURNING id
+      `,
     );
+    if (aged.length > 0) {
+      this.logger.warn(
+        `reconcileStale aged ${aged.length} delivery(ies) sending → unknown ` +
+          `(claimed more than ${this.staleMs}ms ago)`,
+      );
+    }
   }
 
   /**
@@ -842,7 +910,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     // Mirror onto the campaign record so Outreach → Sent reflects reality.
     try {
       const { intent, totals } = summary;
-      const anySent = (totals.sent ?? 0) > 0;
+      const parentStatus = deriveParentOutreachStatus(totals);
       const result = await this.prisma.withSystem((tx) =>
         tx.outreachRecord.updateMany({
           // The parent record must still belong to the intent's own creator —
@@ -854,8 +922,10 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
             ...ownOutreachRecordWhere(intent.userId),
           },
           data: {
-            status: anySent ? 'sent' : 'failed',
-            ...(anySent ? { sentAt: new Date() } : {}),
+            // §f4 — omitted entirely (not forced back to 'draft') when nothing
+            // definitive happened: see deriveParentOutreachStatus.
+            ...(parentStatus ? { status: parentStatus } : {}),
+            ...(parentStatus === 'sent' ? { sentAt: new Date() } : {}),
             stats: {
               provider: 'send_intent',
               sendIntentId: intent.id,
@@ -1327,6 +1397,37 @@ export function rollUpStatus(
   if (failed === 0 && unknown === 0 && skipped === 0) return 'complete';
   if (sent === 0 && unknown === 0 && skipped === 0) return 'failed';
   return 'partial';
+}
+
+/**
+ * Derive the PARENT OutreachRecord's status from a finished intent's delivery
+ * tallies (plan §f3/f4). Distinct from {@link rollUpStatus} above (the
+ * INTENT's own five-way status): the campaign record only ever shows one of
+ * three delivery outcomes, or is left untouched.
+ *
+ *   - ANY delivery sent → 'sent'. A partial send (some sent, some unknown or
+ *     failed) is still reported as sent — the per-recipient breakdown lives in
+ *     `stats`, not in a second status value ("sent + unknown → sent").
+ *   - Nothing sent, but at least one outcome is undetermined → 'delivery_unknown'.
+ *     Reporting this as flatly 'failed' would claim certainty the provider
+ *     itself does not have.
+ *   - Nothing sent, nothing unknown, at least one genuine failure → 'failed'.
+ *   - Nothing sent, unknown, or failed — every delivery was skipped (or held)
+ *     → null. There is no delivery OUTCOME to report, so the record is not
+ *     forced off 'draft' (Open Decision §6.4: OutreachRecord has no existing
+ *     'canceled' status to reuse, so cancellation is recorded in `stats`
+ *     rather than inventing a new terminal status here). The caller must omit
+ *     `status` from its update entirely when this returns null, not set it to
+ *     some default — an explicit write of 'draft' would be indistinguishable
+ *     from a record that was never sent from in the first place.
+ */
+export function deriveParentOutreachStatus(
+  totals: Record<string, number>,
+): 'sent' | 'delivery_unknown' | 'failed' | null {
+  if ((totals.sent ?? 0) > 0) return 'sent';
+  if ((totals.unknown ?? 0) > 0) return 'delivery_unknown';
+  if ((totals.failed ?? 0) > 0) return 'failed';
+  return null;
 }
 
 /** v2, v2.1, v3… pass; v1 does not. Prefix-safe, not a string compare. */

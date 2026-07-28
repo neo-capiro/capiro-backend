@@ -1523,6 +1523,43 @@ export function NewOutreachWizard({
   const [sendIntentId, setSendIntentId] = useState<string | null>(null);
   const { intent: sendIntent, isPolling: intentPolling } = useSendIntent(api, sendIntentId);
 
+  // ── Phase e/f §f1/f2 — one explicit test preview, never "every recipient" ──
+  //
+  // A test send now previews exactly ONE campaign version (the server rejects
+  // a test intent carrying more than one). testPreviewGenerationKey is which
+  // slot the picker in StepSend has selected; testPreviewOptions is the set of
+  // currently-sendable slots it may choose from — the SAME projection Send
+  // itself uses, so a slot that is not actually sendable can never be offered.
+  const [testPreviewGenerationKey, setTestPreviewGenerationKey] = useState<string | null>(null);
+  const testPreviewSendableGenKeys = useMemo(
+    () => new Set(projectVersionIdsForSend(state.targets, state.generatedEmails).map((u) => u.genKey)),
+    [state.targets, state.generatedEmails],
+  );
+  const testPreviewOptions = useMemo(
+    () =>
+      genModel.slots
+        .filter((s) => testPreviewSendableGenKeys.has(s.genKey))
+        .map((s) => ({
+          genKey: s.genKey,
+          label:
+            s.genRecipients[0]?.name || s.genRecipients[0]?.email || s.genKey,
+        })),
+    [genModel.slots, testPreviewSendableGenKeys],
+  );
+  // Keep the selection valid as the sendable set changes (context edits,
+  // regeneration, a candidate accepted/discarded) — default to the first
+  // sendable slot rather than leaving a stale or empty selection behind.
+  useEffect(() => {
+    if (
+      testPreviewGenerationKey &&
+      testPreviewOptions.some((o) => o.genKey === testPreviewGenerationKey)
+    ) {
+      return;
+    }
+    setTestPreviewGenerationKey(testPreviewOptions[0]?.genKey ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testPreviewOptions]);
+
   /**
    * Submit a durable send intent (§3.g6).
    *
@@ -1535,11 +1572,20 @@ export function NewOutreachWizard({
       const testMode = vars?.testMode === true;
       const recordId = draftId ?? (await ensureDraftRecord());
 
+      // §f1/f2 — a test send previews exactly ONE explicitly selected version;
+      // the server rejects a test intent carrying more than one. Checked here
+      // too so the failure is immediate rather than a round-trip 400 — the
+      // defect this closes was "Send test" silently previewing EVERY campaign
+      // recipient instead of the one the user meant to check.
+      if (testMode && (vars?.onlyGenKeys?.length ?? 0) !== 1) {
+        throw new Error('Choose one recipient to preview before sending a test.');
+      }
+
       // A retry of specific failed rows must submit ONLY those. Re-submitting the
       // whole set would hit the server's (tenant, idempotencyKey) unique index on
       // the first already-delivered draft, which rolls the new intent back
       // entirely — so a partial-failure retry would 409 instead of working.
-      const isRetry = !!vars?.onlyGenKeys?.length;
+      const isRetry = !testMode && !!vars?.onlyGenKeys?.length;
       const units = scopeUnitsToGenKeys(
         projectVersionIdsForSend(state.targets, state.generatedEmails),
         vars?.onlyGenKeys,
@@ -1548,7 +1594,9 @@ export function NewOutreachWizard({
         throw new Error(
           isRetry
             ? 'Those drafts are no longer ready to resend. Reopen Generate & Review to check them.'
-            : 'No verified drafts are ready to send. Resolve the flagged drafts in Generate & Review.',
+            : testMode
+              ? 'That draft is no longer ready to preview. Check it in Generate & Review.'
+              : 'No verified drafts are ready to send. Resolve the flagged drafts in Generate & Review.',
         );
       }
       if (!selectedInboxId) {
@@ -2315,7 +2363,7 @@ export function NewOutreachWizard({
   const canSaveDraft = Object.keys(state.generatedEmails).length > 0 || state.recipients.length > 0;
   // Distinguish the real send from a test send so only the clicked button spins.
   /** One dispatcher so every Send/Test control picks the right path. */
-  const submitSend = (vars?: { testMode?: boolean }) => {
+  const submitSend = (vars?: { testMode?: boolean; onlyGenKeys?: string[] }) => {
     if (versionedOutreach) sendIntentMutation.mutate(vars);
     else sendMutation.mutate(vars);
   };
@@ -2528,7 +2576,15 @@ export function NewOutreachWizard({
               appendSignature={appendSignature}
               onToggleSignature={setAppendSigOverride}
               onSend={() => submitSend(undefined)}
-              onTest={() => submitSend({ testMode: true })}
+              onTest={() =>
+                submitSend({
+                  testMode: true,
+                  onlyGenKeys: testPreviewGenerationKey ? [testPreviewGenerationKey] : undefined,
+                })
+              }
+              testPreviewOptions={testPreviewOptions}
+              testPreviewGenerationKey={testPreviewGenerationKey}
+              onSelectTestPreview={setTestPreviewGenerationKey}
               sending={realSending}
               testing={testSending}
               sentResult={sentResult}
@@ -3051,6 +3107,9 @@ function StepSend({
   onToggleSignature,
   onSend,
   onTest,
+  testPreviewOptions,
+  testPreviewGenerationKey,
+  onSelectTestPreview,
   sending,
   testing,
   sentResult,
@@ -3078,6 +3137,10 @@ function StepSend({
   onToggleSignature: (next: boolean) => void;
   onSend: () => void;
   onTest: () => void;
+  /** §f2 — the currently-sendable slots a test preview may choose from. */
+  testPreviewOptions: Array<{ genKey: string; label: string }>;
+  testPreviewGenerationKey: string | null;
+  onSelectTestPreview: (genKey: string) => void;
   sending: boolean;
   testing: boolean;
   sentResult: { sent: number; failed: number } | null;
@@ -3355,12 +3418,35 @@ function StepSend({
         </label>
       </div>
 
+      {/* §f2 — a test send previews exactly ONE explicitly selected recipient's
+          draft (the server rejects a test intent carrying more than one). Only
+          meaningful under versioned outreach — the legacy path predates
+          per-version test sends and is unaffected. */}
+      {versionedOutreach && testPreviewOptions.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontSize: 12.5, color: 'var(--ov2-ink-2)', marginBottom: 6 }}>
+            Preview recipient
+          </div>
+          <Select
+            value={testPreviewGenerationKey ?? undefined}
+            onChange={onSelectTestPreview}
+            style={{ minWidth: 280, maxWidth: 440, textAlign: 'left' }}
+            options={testPreviewOptions.map((o) => ({ value: o.genKey, label: o.label }))}
+          />
+        </div>
+      )}
+
       <Space style={{ marginTop: 16 }}>
         <Button
           icon={<EyeOutlined />}
           loading={testing && !sending}
           onClick={onTest}
-          disabled={!emailConnected || nothingToSend || sendLocked}
+          disabled={
+            !emailConnected ||
+            nothingToSend ||
+            sendLocked ||
+            (versionedOutreach && !testPreviewGenerationKey)
+          }
         >
           Send test email to myself
         </Button>
@@ -3375,8 +3461,8 @@ function StepSend({
         </Button>
       </Space>
       <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginTop: 14 }}>
-        “Send test email” delivers one copy to your own inbox so you can preview formatting before
-        the real send.
+        “Send test email” delivers one copy to your own inbox, previewing the recipient selected
+        above, so you can check formatting before the real send.
       </Typography.Paragraph>
     </div>
   );

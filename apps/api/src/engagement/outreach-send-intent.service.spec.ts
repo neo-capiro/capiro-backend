@@ -17,6 +17,7 @@ import {
   buildEnvelope,
   countByStatus,
   deliveryIdempotencyKey,
+  deriveParentOutreachStatus,
   isPromptSpecV2OrLater,
   rollUpStatus,
   sendIntentRequestFingerprint,
@@ -24,6 +25,7 @@ import {
 } from './outreach-send-intent.service.js';
 import { AmbiguousMailSendError } from './mail-send-result.js';
 import { AttachmentContentService } from './attachment-content.service.js';
+import type { OutreachDeliveryStatus } from './outreach-draft.types.js';
 
 /** A real (dependency-free) hash for a default attachment fixture's bytes ('bytes'). */
 const DEFAULT_ATTACHMENT_SHA256 = new AttachmentContentService().sha256(Buffer.from('bytes'));
@@ -136,6 +138,40 @@ describe('rollUpStatus', () => {
     expect(rollUpStatus(countByStatus(['pending', 'pending']))).toBe('queued');
     expect(rollUpStatus(countByStatus(['sent', 'pending']))).toBe('running');
     expect(rollUpStatus(countByStatus(['sending']))).toBe('queued');
+  });
+});
+
+describe('deriveParentOutreachStatus (plan §f3/f4)', () => {
+  test('any sent delivery → sent, even mixed with unknown or failed', () => {
+    expect(deriveParentOutreachStatus(countByStatus(['sent']))).toBe('sent');
+    expect(deriveParentOutreachStatus(countByStatus(['sent', 'unknown']))).toBe('sent');
+    expect(deriveParentOutreachStatus(countByStatus(['sent', 'failed']))).toBe('sent');
+    expect(deriveParentOutreachStatus(countByStatus(['sent', 'unknown', 'failed', 'skipped']))).toBe(
+      'sent',
+    );
+  });
+
+  test('no sent, but an undetermined outcome → delivery_unknown, never failed', () => {
+    expect(deriveParentOutreachStatus(countByStatus(['unknown']))).toBe('delivery_unknown');
+    expect(deriveParentOutreachStatus(countByStatus(['unknown', 'unknown']))).toBe(
+      'delivery_unknown',
+    );
+    // Mixed with a genuine failure — uncertainty still wins over a flat 'failed'
+    // claim, because the provider itself never confirmed anything failed for
+    // the unknown row.
+    expect(deriveParentOutreachStatus(countByStatus(['unknown', 'failed']))).toBe(
+      'delivery_unknown',
+    );
+  });
+
+  test('no sent, no unknown, at least one real failure → failed', () => {
+    expect(deriveParentOutreachStatus(countByStatus(['failed', 'failed']))).toBe('failed');
+    expect(deriveParentOutreachStatus(countByStatus(['failed', 'skipped']))).toBe('failed');
+  });
+
+  test('all skipped (nothing sent/unknown/failed) → null — the record is not forced off draft', () => {
+    expect(deriveParentOutreachStatus(countByStatus(['skipped', 'skipped']))).toBeNull();
+    expect(deriveParentOutreachStatus(countByStatus([]))).toBeNull();
   });
 });
 
@@ -549,6 +585,55 @@ describe('createIntent — versions must belong to the requested campaign (plan 
   });
 });
 
+describe('createIntent — test mode previews exactly ONE version (plan §f1)', () => {
+  const secondValidVersion = {
+    id: 'v-2',
+    version: 1,
+    subject: 'Subject 2',
+    body: 'Body 2',
+    auditStatus: 'passed',
+    approvalStatus: 'not_required',
+    promptSpecVersion: 'v2.1',
+    artifact: {
+      id: 'art-2',
+      currentVersion: 1,
+      generationKey: 'individual:b@x.com',
+      recipientKey: 'b@x.com',
+      recipientSnapshot: { email: 'b@x.com', name: 'B', cc: [], bcc: [] },
+      createdByUserId: 'u1',
+      outreachRecordId: 'rec-1',
+    },
+  };
+
+  test('test mode with more than one version is rejected before any commit', async () => {
+    const h = makeIntentHarness({ secondVersion: secondValidVersion });
+    await expect(
+      h.service.createIntent(ctx, {
+        ...intentInput,
+        draftVersionIds: ['v-1', 'v-2'],
+        testMode: true,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(h.createdIntents).toHaveLength(0);
+    expect(h.providerCalls).toBe(0);
+  });
+
+  test('test mode with exactly one version is unaffected', async () => {
+    const h = makeIntentHarness({});
+    await expect(
+      h.service.createIntent(ctx, { ...intentInput, testMode: true }),
+    ).resolves.toMatchObject({ deduped: false });
+  });
+
+  test('a REAL (non-test) send with multiple versions is unaffected — the ceiling is test-mode-only', async () => {
+    const h = makeIntentHarness({ secondVersion: secondValidVersion });
+    await expect(
+      h.service.createIntent(ctx, { ...intentInput, draftVersionIds: ['v-1', 'v-2'] }),
+    ).resolves.toMatchObject({ deduped: false });
+    expect(h.createdDeliveries).toHaveLength(2);
+  });
+});
+
 describe('createIntent — TOCTOU recheck inside the transaction (plan §3.c3)', () => {
   test('a version that vanished between load and commit (row-count mismatch) rejects', async () => {
     const h = makeIntentHarness({ toctouVersions: [] });
@@ -828,6 +913,112 @@ function makeWorkerHarness(opts: {
   } as WorkerHarness;
 }
 
+describe('persistAcceptance / finishDelivery — guarded to sending rows only (plan §g2/g3)', () => {
+  function makeGuardHarness(matchCount: number) {
+    const updates: Array<{ where: Record<string, unknown>; data: Record<string, unknown> }> = [];
+    const warnings: string[] = [];
+    const service = Object.create(OutreachSendIntentService.prototype) as OutreachSendIntentService;
+    const patch = service as unknown as Record<string, unknown>;
+    patch.logger = { warn: (m: string) => warnings.push(m), error: (m: string) => warnings.push(m) };
+    patch.prisma = {
+      withSystem: (fn: (t: unknown) => unknown) =>
+        fn({
+          outreachDelivery: {
+            updateMany: async ({
+              where,
+              data,
+            }: {
+              where: Record<string, unknown>;
+              data: Record<string, unknown>;
+            }) => {
+              updates.push({ where, data });
+              return { count: matchCount };
+            },
+          },
+        }),
+    };
+    return { service, updates, warnings };
+  }
+
+  const NO_IDS = {
+    providerMessageId: 'gm-1',
+    providerThreadId: null,
+    providerDraftId: null,
+    providerInternetMessageId: null,
+  };
+
+  test('persistAcceptance guards its write to status=sending', async () => {
+    const h = makeGuardHarness(1);
+    const applied = await (
+      h.service as unknown as {
+        persistAcceptance(id: string, ids: typeof NO_IDS): Promise<boolean>;
+      }
+    ).persistAcceptance('del-1', NO_IDS);
+    expect(applied).toBe(true);
+    expect(h.updates[0]!.where).toMatchObject({ id: 'del-1', status: 'sending' });
+  });
+
+  test('persistAcceptance does NOT clobber a row that already left sending (e.g. aged to unknown)', async () => {
+    const h = makeGuardHarness(0);
+    const applied = await (
+      h.service as unknown as {
+        persistAcceptance(id: string, ids: typeof NO_IDS): Promise<boolean>;
+      }
+    ).persistAcceptance('del-1', NO_IDS);
+    expect(applied).toBe(false);
+    expect(h.warnings.some((w) => /already left 'sending'/.test(w))).toBe(true);
+  });
+
+  test('finishDelivery guards its write to status=sending and reports whether it applied', async () => {
+    const h = makeGuardHarness(1);
+    const applied = await (
+      h.service as unknown as {
+        finishDelivery(
+          id: string,
+          status: OutreachDeliveryStatus,
+          extra: Record<string, unknown>,
+        ): Promise<boolean>;
+      }
+    ).finishDelivery('del-1', 'failed', { errorCode: 'PROVIDER_FORBIDDEN', errorMessage: 'nope' });
+    expect(applied).toBe(true);
+    expect(h.updates[0]!.where).toMatchObject({ id: 'del-1', status: 'sending' });
+    expect(h.updates[0]!.data.status).toBe('failed');
+  });
+
+  test('finishDelivery reports false (not an error) when the row already left sending', async () => {
+    const h = makeGuardHarness(0);
+    const applied = await (
+      h.service as unknown as {
+        finishDelivery(
+          id: string,
+          status: OutreachDeliveryStatus,
+          extra: Record<string, unknown>,
+        ): Promise<boolean>;
+      }
+    ).finishDelivery('del-1', 'unknown', {
+      errorCode: 'PROVIDER_OUTCOME_UNKNOWN',
+      errorMessage: 'timeout',
+    });
+    expect(applied).toBe(false);
+    expect(h.warnings.some((w) => /already decided/.test(w))).toBe(true);
+  });
+
+  test('finishDelivery refuses an illegal target status without even attempting a write', async () => {
+    const h = makeGuardHarness(1);
+    const applied = await (
+      h.service as unknown as {
+        finishDelivery(
+          id: string,
+          status: OutreachDeliveryStatus,
+          extra: Record<string, unknown>,
+        ): Promise<boolean>;
+      }
+    ).finishDelivery('del-1', 'held', {});
+    expect(applied).toBe(false);
+    expect(h.updates).toHaveLength(0); // never even called updateMany
+  });
+});
+
 describe('worker delivery — at-most-once', () => {
   test('a successful send claims first, then persists sent + provider ids', async () => {
     const h = makeWorkerHarness({});
@@ -884,33 +1075,55 @@ describe('worker delivery — at-most-once', () => {
   });
 });
 
-describe('worker reconciliation', () => {
-  test('a stale claim becomes UNKNOWN, never pending', async () => {
-    const captured: Array<{ where: Record<string, unknown>; data: Record<string, unknown> }> = [];
+describe('worker reconciliation (plan §g4 — bounded and logged)', () => {
+  function makeReconcileHarness(rows: Array<{ id: string }>) {
+    const calls: Array<{ sql: string; values: unknown[] }> = [];
+    const warnings: string[] = [];
     const service = Object.create(OutreachSendIntentService.prototype) as OutreachSendIntentService;
     const patch = service as unknown as Record<string, unknown>;
     patch.staleMs = 1000;
-    patch.logger = { warn: () => {}, error: () => {} };
+    patch.logger = { warn: (m: string) => warnings.push(m), error: () => {} };
     patch.prisma = {
       withSystem: (fn: (t: unknown) => unknown) =>
         fn({
-          outreachDelivery: {
-            updateMany: async (a: {
-              where: Record<string, unknown>;
-              data: Record<string, unknown>;
-            }) => {
-              captured.push(a);
-              return { count: 1 };
-            },
+          $queryRaw: (strings: TemplateStringsArray, ...values: unknown[]) => {
+            calls.push({ sql: strings.join('?'), values });
+            return Promise.resolve(rows);
           },
         }),
     };
-    await (service as unknown as { reconcileStale(): Promise<void> }).reconcileStale();
-    expect(captured).toHaveLength(1);
+    return { service, calls, warnings };
+  }
+
+  test('a stale claim becomes UNKNOWN, never pending', async () => {
+    const h = makeReconcileHarness([{ id: 'del-1' }]);
+    await (h.service as unknown as { reconcileStale(): Promise<void> }).reconcileStale();
+    expect(h.calls).toHaveLength(1);
     // Only rows stuck in 'sending' are touched…
-    expect(captured[0]!.where.status).toBe('sending');
+    expect(h.calls[0]!.sql).toMatch(/status = 'sending'/);
     // …and they go to 'unknown'. 'pending' here would risk a duplicate email.
-    expect(captured[0]!.data.status).toBe('unknown');
-    expect(captured[0]!.data.status).not.toBe('pending');
+    expect(h.calls[0]!.sql).toMatch(/status = 'unknown'/);
+    expect(h.calls[0]!.sql).not.toMatch(/status = 'pending'/);
+  });
+
+  test('bounded: the query carries a cutoff date and a numeric row LIMIT', async () => {
+    const h = makeReconcileHarness([]);
+    await (h.service as unknown as { reconcileStale(): Promise<void> }).reconcileStale();
+    expect(h.calls[0]!.sql).toContain('LIMIT');
+    expect(h.calls[0]!.values).toHaveLength(2);
+    expect(h.calls[0]!.values[0]).toBeInstanceOf(Date);
+    expect(typeof h.calls[0]!.values[1]).toBe('number');
+  });
+
+  test('logs a warning naming how many deliveries were aged', async () => {
+    const h = makeReconcileHarness([{ id: 'del-1' }, { id: 'del-2' }]);
+    await (h.service as unknown as { reconcileStale(): Promise<void> }).reconcileStale();
+    expect(h.warnings.some((w) => /aged 2 delivery/.test(w))).toBe(true);
+  });
+
+  test('nothing stale logs nothing — this firing at all is an operational signal, not routine', async () => {
+    const h = makeReconcileHarness([]);
+    await (h.service as unknown as { reconcileStale(): Promise<void> }).reconcileStale();
+    expect(h.warnings).toHaveLength(0);
   });
 });
