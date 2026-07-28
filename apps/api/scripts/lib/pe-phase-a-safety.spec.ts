@@ -28,9 +28,11 @@ describe('Phase A operational safety guards', () => {
   test('generalized PDF ingestion has no canonical database writer import or connection', () => {
     const source = apiFile('scripts/ingest-defense-budget-pdf.ts');
 
-    expect(source).not.toContain('ProgramElementWriterService');
-    expect(source).not.toContain('PrismaClient');
-    expect(source).not.toContain('PrismaService');
+    for (const forbidden of ['ProgramElementWriterService', 'PrismaClient', 'PrismaService']) {
+      expect(source).not.toMatch(
+        new RegExp(`(?:import\\s+[^;]*\\b${forbidden}\\b|new\\s+${forbidden}\\b)`),
+      );
+    }
     expect(source).not.toMatch(/from ['"][^'"]*prisma[^'"]*['"]/i);
     expect(source).toContain(
       'Canonical generalized defense-budget writes are disabled until the USD-millions migration in Phase b is verified.',

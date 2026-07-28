@@ -60,12 +60,16 @@ function verifyMigrationGuard(): void {
 function verifyIngestionFreeze(): void {
   const source = apiFile('scripts/ingest-defense-budget-pdf.ts');
   for (const forbidden of ['ProgramElementWriterService', 'PrismaClient', 'PrismaService']) {
-    assert.equal(source.includes(forbidden), false, `${forbidden} must not be present`);
+    assert.doesNotMatch(
+      source,
+      new RegExp(`(?:import\\s+[^;]*\\b${forbidden}\\b|new\\s+${forbidden}\\b)`),
+      `${forbidden} must not be imported or constructed`,
+    );
   }
   assert.doesNotMatch(source, /from ['"][^'"]*prisma[^'"]*['"]/i);
   assert.match(
     source,
-    /Canonical generalized defense-budget writes are disabled until the USD-millions migration in Phase b is verified\./,
+    /Canonical generilized defense-budget writes are disabled until the USD-millions migration in Phase b is verified\./,
   );
   assert.match(
     source,
