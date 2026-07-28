@@ -2,6 +2,9 @@ import { describe, expect, test } from '@jest/globals';
 import type { MappedPeData } from '../../src/defense-budget/assertion-mapper.js';
 import {
   assertApprovedShaMatches,
+  assertImmutableArchive,
+  assertPromotableSourceDocument,
+  assertQualityAuditPassed,
   buildNormalizedValueManifest,
   classifyUnitAuditFinding,
   classifyUnitRatio,
@@ -308,5 +311,83 @@ describe('classifyUnitAuditFinding proof rule', () => {
         ...documented,
       }).bucket,
     ).toBe('provenAffected');
+  });
+
+  // `classifications` holds one entry per deterministic comparator, so a row can
+  // carry a ~1,000x comparator AND a same-scale one. That is a contradiction, not
+  // proof: the same-scale case below is itself treated as DISPROOF, so ranking the
+  // 1,000x branch first made one evidence set simultaneously proven and disproven
+  // and silently resolved it to "proven". An approved repair acting on that verdict
+  // would divide by 1,000 a value another source independently confirms.
+  test.each<[string, readonly UnitRatioClassification[]]>([
+    ['1000x first', ['candidate_1000x_reference', 'same_scale']],
+    ['same-scale first', ['same_scale', 'candidate_1000x_reference']],
+    ['with other noise', ['not_comparable', 'same_scale', 'candidate_1000x_reference']],
+  ])('never proves affection when comparators contradict each other (%s)', (_label, classifications) => {
+    const verdict = classifyUnitAuditFinding({
+      canonicalIsLlama: true,
+      classifications,
+      ...documented,
+    });
+    expect(verdict.bucket).toBe('needsHumanReview');
+    expect(verdict.reason).toContain('contradict');
+  });
+
+  test('a lone same-scale comparator is still disproof, not a contradiction', () => {
+    expect(
+      classifyUnitAuditFinding({
+        canonicalIsLlama: true,
+        classifications: ['same_scale', 'not_comparable', 'different_scale'],
+        ...documented,
+      }).bucket,
+    ).toBe('notAffected');
+  });
+
+  test('a non-llama canonical winner short-circuits before the contradiction rule', () => {
+    expect(
+      classifyUnitAuditFinding({
+        canonicalIsLlama: false,
+        classifications: ['candidate_1000x_reference', 'same_scale'],
+        ...documented,
+      }).bucket,
+    ).toBe('notAffected');
+  });
+});
+
+// These three gates each protect an irreversible step of canonical promotion. They
+// are executed here rather than asserted as the text of an `if` in the ingest
+// script, so an unreachable guard cannot pass and a reformat cannot fail.
+describe('canonical promotion gates', () => {
+  test('blocks promotion when the archive returned no immutable VersionId', () => {
+    for (const versionId of [null, undefined, '']) {
+      expect(() => assertImmutableArchive({ versionId })).toThrow(
+        'Immutable source archive did not return an S3 VersionId',
+      );
+    }
+    expect(() => assertImmutableArchive({ versionId: 'abc123' })).not.toThrow();
+  });
+
+  test('blocks promotion of a superseded source document', () => {
+    expect(() =>
+      assertPromotableSourceDocument({ id: 'doc-old', supersededByDocumentId: 'doc-new' }),
+    ).toThrow('Approved source document doc-old is superseded by doc-new');
+    for (const supersededByDocumentId of [null, undefined]) {
+      expect(() =>
+        assertPromotableSourceDocument({ id: 'doc-live', supersededByDocumentId }),
+      ).not.toThrow();
+    }
+  });
+
+  test('blocks promotion when the quality audit fails, and reports why', () => {
+    expect(() =>
+      assertQualityAuditPassed({ status: 'fail', unitsAnomalies: 4, titleTruncated: 2 }),
+    ).toThrow('unitsAnomalies=4 titleTruncated=2');
+    // 'warn' must NOT block: it exists to flag partial title truncation, and
+    // escalating it would make every slightly-noisy PDF unpromotable.
+    for (const status of ['ok', 'warn'] as const) {
+      expect(() =>
+        assertQualityAuditPassed({ status, unitsAnomalies: 0, titleTruncated: 9 }),
+      ).not.toThrow();
+    }
   });
 });

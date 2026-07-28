@@ -170,7 +170,8 @@ export interface UnitAuditVerdict {
  * function so the proof rule is executably testable rather than only asserted as
  * source text: nothing reaches `provenAffected` without a LlamaParse canonical
  * winner, immutable archive linkage, a matching parse artifact, AND a bounded
- * ~1,000x deterministic comparator. Magnitude alone is never proof.
+ * ~1,000x deterministic comparator that no other comparator contradicts.
+ * Magnitude alone is never proof.
  */
 export function classifyUnitAuditFinding(evidence: UnitAuditEvidence): UnitAuditVerdict {
   const { canonicalIsLlama, classifications, hasArchiveProof, hasMatchingParseProof } = evidence;
@@ -178,25 +179,41 @@ export function classifyUnitAuditFinding(evidence: UnitAuditEvidence): UnitAudit
   const sameScale = classifications.includes('same_scale');
   const documented = hasArchiveProof && hasMatchingParseProof;
 
-  if (canonicalIsLlama && thousandScale && documented) {
-    return {
-      bucket: 'provenAffected',
-      reason:
-        'Canonical winner is LlamaParse, exact source/archive/parse linkage exists, and a same-field deterministic observation is approximately 1,000x smaller. Repair still requires exact artifact replay or human verification; this report does not mutate data.',
-    };
-  }
-  if (canonicalIsLlama && sameScale && documented) {
-    return {
-      bucket: 'notAffected',
-      reason:
-        'Canonical winner is LlamaParse and at least one deterministic same-field observation is on the same scale with complete archive/parse linkage.',
-    };
-  }
   if (!canonicalIsLlama) {
     return {
       bucket: 'notAffected',
       reason:
         'A LlamaParse observation exists, but it is not the recorded canonical field winner. No canonical repair is indicated by this observation.',
+    };
+  }
+
+  // `classifications` carries one entry per same-PE/FY/field deterministic
+  // comparator, so a row can legitimately hold BOTH a ~1,000x comparator and a
+  // same-scale one. That is contradictory evidence, not proof: a same-scale
+  // deterministic source independently agrees with the stored canonical value, and
+  // the same-scale branch below treats exactly that agreement as DISPROOF. Ranking
+  // the 1,000x branch first would let one evidence set be simultaneously "proven"
+  // and "disproven" and silently resolve to "proven" — so an approved repair would
+  // divide by 1,000 a value another source confirms. Ambiguity is a human's call.
+  if (thousandScale && sameScale) {
+    return {
+      bucket: 'needsHumanReview',
+      reason:
+        'LlamaParse is canonical and one deterministic same-field observation is approximately 1,000x smaller, but another is on the SAME scale as the canonical value. The comparators contradict each other, so corruption is not proven and no repair is indicated without human adjudication.',
+    };
+  }
+  if (thousandScale && documented) {
+    return {
+      bucket: 'provenAffected',
+      reason:
+        'Canonical winner is LlamaParse, exact source/archive/parse linkage exists, and a same-field deterministic observation is approximately 1,000x smaller with no same-scale comparator contradicting it. Repair still requires exact artifact replay or human verification; this report does not mutate data.',
+    };
+  }
+  if (sameScale && documented) {
+    return {
+      bucket: 'notAffected',
+      reason:
+        'Canonical winner is LlamaParse and at least one deterministic same-field observation is on the same scale with complete archive/parse linkage.',
     };
   }
   return {
@@ -208,4 +225,45 @@ export function classifyUnitAuditFinding(evidence: UnitAuditEvidence): UnitAudit
           ? 'LlamaParse is canonical but exact archive/parse provenance is incomplete.'
           : 'LlamaParse is canonical, but comparator ratios are ambiguous or inconsistent; magnitude alone is not proof.',
   };
+}
+
+/**
+ * Canonical promotion requires immutable archive proof. S3 returns a VersionId
+ * only on a versioned bucket, so its absence means the promoted bytes cannot be
+ * re-fetched at the exact version this run read.
+ *
+ * These three guards are extracted so the fail-closed rules are proven by
+ * EXECUTION rather than by asserting the text of an `if` in the ingest script.
+ */
+export function assertImmutableArchive(archive: { versionId?: string | null }): void {
+  if (!archive.versionId) {
+    throw new Error(
+      'Immutable source archive did not return an S3 VersionId; canonical promotion is blocked.',
+    );
+  }
+}
+
+/** A retired document must never be promoted as the current source version. */
+export function assertPromotableSourceDocument(document: {
+  id: string;
+  supersededByDocumentId?: string | null;
+}): void {
+  if (document.supersededByDocumentId) {
+    throw new Error(
+      `Approved source document ${document.id} is superseded by ${document.supersededByDocumentId}; promote the current source version instead.`,
+    );
+  }
+}
+
+/** The quality audit must be able to block promotion BEFORE any canonical write. */
+export function assertQualityAuditPassed(audit: {
+  status: 'ok' | 'warn' | 'fail';
+  unitsAnomalies: number;
+  titleTruncated: number;
+}): void {
+  if (audit.status === 'fail') {
+    throw new Error(
+      `Quality audit failed before canonical promotion: unitsAnomalies=${audit.unitsAnomalies} titleTruncated=${audit.titleTruncated}`,
+    );
+  }
 }

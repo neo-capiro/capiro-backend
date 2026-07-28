@@ -64,9 +64,25 @@ describe('Program Elements operational safety guards', () => {
     expect(prismaConstruction).toBeGreaterThan(comparison);
     expect(source).toContain('--commit promotes exactly one processable PDF');
     expect(source).toContain('onePdfPerTransaction: true');
-    expect(source).toContain('Immutable source archive did not return an S3 VersionId');
     expect(source).toContain('const preExistingObservationIds = new Set');
     expect(source).toContain('function listLocalPdfsRequired');
+
+    // The immutable-archive, superseded-document and quality-audit gates moved into
+    // scripts/lib/defense-budget-commit.ts so they are proven by EXECUTION in
+    // defense-budget-commit.spec.ts. What still has to be asserted here is their
+    // ORDER relative to the irreversible step each one protects.
+    const archiveGate = source.indexOf('assertImmutableArchive(archive)', runCommitStart);
+    expect(archiveGate).toBeGreaterThan(comparison);
+    expect(prismaConstruction).toBeGreaterThan(archiveGate);
+    const supersedeGate = source.indexOf('assertPromotableSourceDocument(', prismaConstruction);
+    const artifactLoad = source.indexOf('await loadExistingParseArtifact(', prismaConstruction);
+    expect(supersedeGate).toBeGreaterThan(prismaConstruction);
+    expect(artifactLoad).toBeGreaterThan(supersedeGate);
+    const promoteStart = source.indexOf('async function promoteMappedArtifact(');
+    const auditGate = source.indexOf('assertQualityAuditPassed(auditRows(', promoteStart);
+    const transactionOpen = source.indexOf('input.prisma.$transaction(', promoteStart);
+    expect(auditGate).toBeGreaterThan(promoteStart);
+    expect(transactionOpen).toBeGreaterThan(auditGate);
   });
 
   test('preflight stays network-free and vendor parsing requires explicit authorization', () => {

@@ -47,6 +47,9 @@ import {
 } from './lib/defense-budget-ingest-mode.js';
 import {
   assertApprovedShaMatches,
+  assertImmutableArchive,
+  assertPromotableSourceDocument,
+  assertQualityAuditPassed,
   buildNormalizedValueManifest,
   requireApprovedSha256,
   selectPromotedObservationId,
@@ -93,6 +96,26 @@ interface PreparedParse {
   outputJsonSha256: string;
   reusedArtifact: boolean;
 }
+
+/**
+ * The parse artifact itself is megabytes of page JSON and already lives in S3 at
+ * `outputJsonS3Key`, provably as `outputJsonSha256`. Emitting the blob in the run
+ * summary would bury the per-value manifest the promotion record exists to carry
+ * (and can exceed a log event's size limit), so the summary reports the artifact's
+ * identity instead of its contents.
+ */
+function parseSummary(parse: PreparedParse): Record<string, unknown> {
+  return {
+    parseJobId: parse.parseJobId,
+    providerJobId: parse.providerJobId,
+    outputJsonS3Key: parse.outputJsonS3Key,
+    outputJsonSha256: parse.outputJsonSha256,
+    reusedArtifact: parse.reusedArtifact,
+  };
+}
+
+/** Injectable so artifact replay is testable without S3. */
+export type ObjectGetter = (bucket: string, key: string) => Promise<Uint8Array>;
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -461,12 +484,19 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
-async function loadExistingParseArtifact(
+export async function loadExistingParseArtifact(
   prisma: PrismaClient,
   sourceDocumentId: string,
   inputSha256: string,
   bucket: string,
   region: string,
+  /**
+   * Whether the operator authorized a fresh vendor parse. An artifact whose bytes
+   * cannot be PROVEN is never replayed either way; this only decides whether the
+   * run fails closed or falls through to an authorized re-parse.
+   */
+  vendorParseAllowed: boolean,
+  getObject: ObjectGetter = (b, k) => makeCorpusS3(region).getObject(b, k),
 ): Promise<PreparedParse | null> {
   const existing = await prisma.documentParseJob.findFirst({
     where: {
@@ -482,7 +512,7 @@ async function loadExistingParseArtifact(
   });
   if (!existing?.outputJsonS3Key) return null;
 
-  const bytes = await makeCorpusS3(region).getObject(bucket, existing.outputJsonS3Key);
+  const bytes = await getObject(bucket, existing.outputJsonS3Key);
   const jsonText = Buffer.from(bytes).toString('utf8');
   const actualArtifactSha256 = sha256OfBuffer(Buffer.from(jsonText));
 
@@ -492,11 +522,25 @@ async function loadExistingParseArtifact(
   // truncated-but-still-valid-JSON object in S3 would be promoted as canonical.
   const recordedArtifactSha256 = asRecord(existing.metadata).outputJsonSha256;
   if (typeof recordedArtifactSha256 !== 'string' || recordedArtifactSha256.length === 0) {
-    throw new Error(
-      `Parse job ${existing.id} has no recorded output checksum, so its artifact cannot be proven intact; re-parse explicitly with ${ALLOW_VENDOR_PARSE} instead of replaying it.`,
+    // An artifact predating checksum recording is unprovable, not necessarily
+    // corrupt. Failing closed unconditionally here would advertise a remedy that
+    // cannot be taken: the message names --allow-vendor-parse, but this throw
+    // preceded the flag's only branch, so the sole escape was hand-editing the
+    // parse-job row. With the authorization present, decline the replay and let the
+    // caller re-parse; without it, fail closed with an accurate instruction.
+    if (!vendorParseAllowed) {
+      throw new Error(
+        `Parse job ${existing.id} has no recorded output checksum, so its artifact cannot be proven intact; re-run with ${ALLOW_VENDOR_PARSE} to authorize one fresh parse instead of replaying it.`,
+      );
+    }
+    console.warn(
+      `[ingest-defense-budget] Parse job ${existing.id} has no recorded output checksum; refusing to replay an unprovable artifact and re-parsing under explicit ${ALLOW_VENDOR_PARSE} authorization.`,
     );
+    return null;
   }
   if (recordedArtifactSha256 !== actualArtifactSha256) {
+    // A mismatch is positive evidence that the stored object changed after it was
+    // recorded, so it always stops the run regardless of vendor authorization.
     throw new Error(
       `Stored parse artifact does not match its recorded checksum (recorded=${recordedArtifactSha256} actual=${actualArtifactSha256}) at s3://${bucket}/${existing.outputJsonS3Key}; refusing to promote it.`,
     );
@@ -716,12 +760,8 @@ async function promoteMappedArtifact(input: {
   previousHeadId: string | null;
 }): Promise<LoadOutcome> {
   const guardRows = buildGuardRows(input.mapped);
-  const audit = auditRows(guardRows);
-  if (audit.status === 'fail') {
-    throw new Error(
-      `Quality audit failed before canonical promotion: unitsAnomalies=${audit.unitsAnomalies} titleTruncated=${audit.titleTruncated}`,
-    );
-  }
+  // Gates BEFORE $transaction opens, so a failing audit performs zero canonical writes.
+  assertQualityAuditPassed(auditRows(guardRows));
 
   return input.prisma.$transaction(
     async (tx) => {
@@ -865,13 +905,20 @@ async function runCommit(
   // first be materialized, but still connect to no database before the exact match.
   const archiveConfig = archiveConfigFromEnvironment();
   const corpus = await materializePdfs(target, archiveConfig.region);
-  const candidates = corpus.files
-    .map((pdfPath) => ({ pdfPath, cls: classificationFor(pdfPath, fyFallback) }))
-    .filter(({ cls }) => shouldProcess(cls, only))
-    .slice(0, limit);
+  const classified = corpus.files.map((pdfPath) => ({
+    pdfPath,
+    cls: classificationFor(pdfPath, fyFallback),
+  }));
+  // Record what the target held but excluded, so the promotion is auditable: a run
+  // that silently drops unsupported classifications reads as "the target had one
+  // PDF" when it did not.
+  const excluded = classified
+    .filter(({ cls }) => !shouldProcess(cls, only))
+    .map(({ pdfPath, cls }) => ({ file: path.basename(pdfPath), skipped: `family=${cls.family}` }));
+  const candidates = classified.filter(({ cls }) => shouldProcess(cls, only)).slice(0, limit);
   if (candidates.length !== 1) {
     throw new Error(
-      `--commit promotes exactly one processable PDF; selected ${candidates.length}. Use a single file or filters/--limit 1.`,
+      `--commit promotes exactly one processable PDF; selected ${candidates.length} of ${classified.length} classified (${excluded.length} excluded). Use a single file or filters/--limit 1.`,
     );
   }
 
@@ -886,11 +933,7 @@ async function runCommit(
   const archiveSvc = makeArchiveService(archiveConfig);
   const descriptor = descriptorFor(pdfPath, cls, 'commit');
   const archive = await archiveSvc.archiveOriginal(descriptor);
-  if (!archive.versionId) {
-    throw new Error(
-      'Immutable source archive did not return an S3 VersionId; canonical promotion is blocked.',
-    );
-  }
+  assertImmutableArchive(archive);
 
   const prisma = new PrismaClient();
   await prisma.$connect();
@@ -927,11 +970,7 @@ async function runCommit(
       },
       { deferSupersede: true },
     );
-    if (registered.document.supersededByDocumentId) {
-      throw new Error(
-        `Approved source document ${registered.document.id} is superseded by ${registered.document.supersededByDocumentId}; promote the current source version instead.`,
-      );
-    }
+    assertPromotableSourceDocument(registered.document);
     const sourceDocument = await prisma.sourceDocument.update({
       where: { id: registered.document.id },
       data: {
@@ -959,6 +998,7 @@ async function runCommit(
       sourceSha256,
       archive.bucket,
       archiveConfig.region,
+      vendorParseAllowed,
     );
     if (!prepared) {
       if (!vendorParseAllowed) {
@@ -1023,8 +1063,9 @@ async function runCommit(
           created: archive.created,
         },
       },
-      parse: prepared,
+      parse: parseSummary(prepared),
       normalizedValues,
+      nonProcessableFilesExcluded: excluded,
       nonPeLinesExcluded: mapped.nonPeLines.length,
       // State the exclusion, not just its count: a reader seeing 0 should still
       // learn that procurement/O&M were never eligible for the PE writer.
@@ -1118,8 +1159,14 @@ async function main(): Promise<void> {
   );
 }
 
-void main().catch((err: unknown) => {
-  const message = err instanceof Error ? err.message : String(err);
-  console.error(`[ingest-defense-budget] ${message}`);
-  process.exit(1);
-});
+// Run only when invoked as a script, never on import. This is the same guard the
+// container-dispatched scripts in this directory already use (for example
+// backfill-assistance-awards-bulk.ts), and it is what lets the promotion helpers
+// above be exercised by an executable spec instead of asserted as source text.
+if (require.main === module) {
+  void main().catch((err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[ingest-defense-budget] ${message}`);
+    process.exit(1);
+  });
+}
