@@ -579,6 +579,17 @@ export interface OutreachBatchDraftResult {
   /** Server-computed sendability of `versionId`. */
   sendable?: boolean;
   /**
+   * Phase e — mirrors `versions[0].isCandidate`/`baseVersion`: true when this
+   * recipient's (single) generationKey result was persisted as a non-current
+   * candidate rather than advancing the artifact's current version. The async
+   * job worker keys results by recipientKey, not generationKey, and reads
+   * only these flat fields — never `versions[]` — so a candidate result must
+   * be mirrored here or it silently loses its candidate status once stored as
+   * a job item.
+   */
+  isCandidate?: boolean;
+  baseVersion?: number;
+  /**
    * Every version this generated text was persisted as — one per generationKey.
    * The flat fields above mirror `versions[0]`.
    */
@@ -3767,6 +3778,14 @@ export class EngagementService {
                 approvalStatus: primary.approvalStatus,
                 ...(primary.reviewRequestId ? { reviewRequestId: primary.reviewRequestId } : {}),
                 sendable: primary.sendable,
+                // Phase e — mirror the primary ref's candidate status flat, the
+                // same way every other version field above is mirrored. Without
+                // this, the async job worker (which reads only these flat
+                // fields, never `versions[]`) cannot tell a candidate from a
+                // normal current-advancing generation.
+                ...(primary.isCandidate
+                  ? { isCandidate: true, baseVersion: primary.baseVersion }
+                  : {}),
                 versions: refs,
                 ...(contextNoteFromVersion ? { contextNote: contextNoteFromVersion } : {}),
               },

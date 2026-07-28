@@ -18,6 +18,7 @@ import {
   BadRequestException,
   Injectable,
   Logger,
+  ServiceUnavailableException,
   type OnModuleInit,
   type OnModuleDestroy,
 } from '@nestjs/common';
@@ -33,7 +34,10 @@ import {
 } from './engagement.service.js';
 import { GenerationGatewayService } from './generation/generation-gateway.service.js';
 import type { PinnedGenerationIdentity } from './generation/generation-gateway.types.js';
-import type { GaPolicy } from './generation/government-affairs-policy.registry.js';
+import {
+  AudiencePolicyRequiredError,
+  type GaPolicy,
+} from './generation/government-affairs-policy.registry.js';
 
 export type OutreachJobKind = 'generate' | 'send';
 
@@ -163,6 +167,12 @@ const ITEM_RESULT_FIELDS = [
   // (ids, titles, counts, dates) — it carries no restricted email or document
   // content, so it is safe in this column.
   'manifest',
+  // Phase e §e4 — a regeneration the server persisted as a non-current
+  // candidate (isCandidate/baseVersion) must keep that status once stored as
+  // a job item, or the wizard cannot tell it apart from a normal generation
+  // and would overwrite the user's manually-authored draft.
+  'isCandidate',
+  'baseVersion',
 ] as const;
 
 /**
@@ -267,7 +277,7 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
       return this.submitEmpty(ctx, input);
     }
 
-    // ── Phase 1 §3.k1 — resolve provider/model ONCE, at submit ──────────────
+    // ── Phase 1 §3.k1 / Phase e §e1-e2 — resolve provider/model ONCE, at submit ──
     //
     // A generate job is claimed in chunks by a sweep that may run minutes apart
     // and, after a restart, in a different process. Resolving credentials per
@@ -277,14 +287,15 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
     //
     // Resolved OUTSIDE the transaction: it is an external call, and holding a row
     // lock across one is the pool-starvation pattern this codebase has been bitten
-    // by. Best-effort — a resolution failure leaves the job unpinned and each
-    // chunk falls back to today's behavior rather than refusing to queue.
+    // by. FAILS CLOSED under the gateway (§e1/e2): a pinning failure — including
+    // an ambiguous audience — used to be caught and queue an UNPINNED job, which
+    // is precisely the mid-campaign voice split this pin exists to prevent.
+    // resolveJobIdentity() now throws instead of returning null, and that throw
+    // is deliberately left uncaught here so the whole submission rejects before
+    // any job or item row exists.
     let pinnedIdentity: PinnedGenerationIdentity | null = null;
     if (input.kind === 'generate' && this.gateway.enabled) {
-      pinnedIdentity = await this.resolveJobIdentity(ctx, input).catch((e) => {
-        this.logger.warn(`could not pin provider/model for job: ${(e as Error).message}`);
-        return null;
-      });
+      pinnedIdentity = await this.resolveJobIdentity(ctx, input);
     }
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
@@ -353,21 +364,33 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Resolve the provider/model this whole job will use (§3.k1).
+   * Resolve the provider/model this whole job will use (§3.k1), or throw.
    *
    * Uses the FIRST recipient only to pick an audience policy for the pinning call;
    * each chunk still resolves its own policy per recipient inside the gateway, so
    * a mixed-audience campaign is not forced onto one policy. What is pinned here
    * is the VOICE (provider + model + prompt spec), which is the thing that must
    * not change partway through a single campaign.
+   *
+   * FAILS CLOSED (§e1/e2): an ambiguous audience (AudiencePolicyRequiredError)
+   * and an unavailable credential both throw a client-facing error instead of
+   * resolving to null — a null here used to mean "queue the job unpinned",
+   * exactly the fail-open behavior this closes. Mirrors the sync gateway path's
+   * (generateBatchEmailsViaGateway) handling of the same two failure modes, so
+   * a caller sees the same error shape whether generation runs sync or async.
    */
   private async resolveJobIdentity(
     ctx: TenantContext,
     input: SubmitOutreachJobInput,
-  ): Promise<PinnedGenerationIdentity | null> {
+  ): Promise<PinnedGenerationIdentity> {
     const params = input.params as Partial<GenerateBatchEmailInput>;
     const first = input.recipients[0] as OutreachRecipientInput | undefined;
-    if (!first) return null;
+    if (!first) {
+      // Unreachable in practice: submit() already routes an empty recipient
+      // list to submitEmpty() before this is ever called. Fails closed anyway
+      // rather than silently pinning nothing.
+      throw new BadRequestException('At least one recipient is required to start this campaign.');
+    }
     let policy: GaPolicy;
     try {
       policy = this.gateway.resolvePolicy({
@@ -394,13 +417,27 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
           snapshot: {},
         },
       });
-    } catch {
-      // Ambiguous audience at submit is not fatal here: the per-chunk resolution
-      // will raise it with the full recipient context and a usable message.
-      return null;
+    } catch (e) {
+      if (e instanceof AudiencePolicyRequiredError) {
+        // §e2: an ambiguous audience is a submission failure, not a "the
+        // per-chunk resolution will sort it out later" deferral — there is no
+        // per-chunk resolution once pinning is mandatory.
+        throw new BadRequestException({
+          statusCode: 400,
+          error: e.code,
+          message: e.message,
+          candidates: e.candidates,
+        });
+      }
+      throw e;
     }
     const identity = await this.gateway.resolvePinnedIdentity(ctx, { policy });
-    return identity?.pinned ?? null;
+    if (!identity?.pinned) {
+      throw new ServiceUnavailableException(
+        'Outreach drafting is not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY (or a tenant AI key).',
+      );
+    }
+    return identity.pinned;
   }
 
   private async submitEmpty(

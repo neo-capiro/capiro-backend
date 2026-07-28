@@ -68,6 +68,7 @@ import {
 import {
   buildResultIdToGenKeys,
   cancelOutreachJob,
+  extractJobCandidates,
   jobItemsProgress,
   mapJobItemsToDraftPatch,
   retryOutreachJobItem,
@@ -896,17 +897,13 @@ export function NewOutreachWizard({
   // into generatedEmails via the SAME shape the sync onSuccess writes, so Send /
   // Save / Improve need no job awareness.
   //
-  // KNOWN GAP (Phase 2 §3.f2): JobItem.result (jobs.ts) does not carry
-  // isCandidate/baseVersion, so a regeneration the server persisted as a
-  // candidate (current draft manually authored) still gets merged here as if
-  // it were the new current draft — the async path does not yet route through
-  // the compare/merge UI the sync generateMutation.onSuccess below does. The
-  // SERVER-side protection (upsertGeneratedVersionOrCandidate not advancing
-  // currentVersion) still holds regardless, so nothing is destroyed in the
-  // database — but the wizard's displayed text and the version id it would
-  // send under async-job mode can show the candidate rather than the user's
-  // edit. asyncGen is default-off (env kill-switch + per-tenant canary flag),
-  // so this does not affect the sync path most tenants use.
+  // Phase 2 §3.f2 gap CLOSED by Phase e §e4/e5: JobItem.result now carries
+  // isCandidate/baseVersion, and the merge effect below routes a candidate
+  // item to the SAME `candidates` map + DraftVersionCompare UI the sync
+  // generateMutation.onSuccess uses, instead of merging it into
+  // generatedEmails as if it were the new current draft. See
+  // extractJobCandidates (jobs.ts) and the isCandidate guard inside
+  // mapJobItemsToDraftPatch, which excludes these items from `fresh` below.
   const { byJob, anyActive: jobsPolling } = useOutreachJobs(api, activeJobIds);
   const jobMarkFreshRef = useRef<{ markFresh: boolean; sig: string | null }>({
     markFresh: false,
@@ -930,6 +927,22 @@ export function NewOutreachWizard({
     const fresh = mapJobItemsToDraftPatch(items, map, failedPlaceholder).filter(
       (p) => !mergedGenKeysRef.current.has(p.genKey),
     );
+    // Phase e §e5 — a candidate item is excluded from `fresh` above (see the
+    // isCandidate guard in mapJobItemsToDraftPatch); offer it through the SAME
+    // compare/accept UI the sync path uses instead. Guarded by the SAME
+    // mergedGenKeysRef so a later poll never re-offers a candidate the user
+    // already accepted or discarded via keepMineCandidate/acceptCandidate.
+    const freshCandidates = extractJobCandidates(items, map, (raw) =>
+      sanitizeHtml(markdownishToHtml(raw)),
+    ).filter((c) => !mergedGenKeysRef.current.has(c.genKey));
+    if (freshCandidates.length) {
+      freshCandidates.forEach((c) => mergedGenKeysRef.current.add(c.genKey));
+      setCandidates((prev) => {
+        const next = new Map(prev);
+        for (const c of freshCandidates) next.set(c.genKey, c);
+        return next;
+      });
+    }
     if (fresh.length) {
       fresh.forEach((p) => mergedGenKeysRef.current.add(p.genKey));
       setState((prev) => {
