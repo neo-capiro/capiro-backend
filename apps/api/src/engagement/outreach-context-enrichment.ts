@@ -39,6 +39,16 @@ export function peCodeFromItemId(itemId: string): string | null {
 }
 
 /**
+ * Context-item id → the intel_alert id it references, or null (HP-05, Gate L).
+ * Mirrors the exact id shape TrackerFeedPanel.tsx's draftOutreach builds:
+ * `alert-${item.id}` (alert-packet.ts / TrackerFeedPanel.tsx).
+ */
+export function intelAlertIdFromItemId(itemId: string): string | null {
+  const m = /^alert-(.+)$/.exec(itemId);
+  return m ? m[1]! : null;
+}
+
+/**
  * Canonical $M formatter — re-exported from @capiro/shared (the one funding
  * money formatter) so existing callers/tests keep importing it from here.
  */

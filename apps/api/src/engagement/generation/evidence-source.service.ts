@@ -29,7 +29,9 @@ import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { MeetingNotesCryptoService } from '../meeting-notes-crypto.service.js';
 import { AttachmentContentService } from '../attachment-content.service.js';
+import { intelAlertIdFromItemId } from '../outreach-context-enrichment.js';
 import { OutreachTruthService } from './outreach-truth.service.js';
+import { AlertPacketClientService, renderAlertPacketForOutreach } from './alert-packet-client.service.js';
 import { canReadEncryptedEntry, ownMeetingWhere } from '../engagement-access.helpers.js';
 import { activeMailMessageWhere, activeMailThreadWhere } from '../mail-message-state.js';
 import {
@@ -105,6 +107,14 @@ export interface ResolveSelectedItemsInput {
   policy: GaPolicy;
   /** Injected so resolution is deterministic in tests. */
   now: Date;
+  /**
+   * HP-05 (Gate L): the inbound request's own Authorization header, forwarded
+   * so an 'intel' item can be rehydrated from intel-api's packet endpoint under
+   * the caller's own identity — see AlertPacketClientService. Undefined is a
+   * normal, honest state (not every caller of this service has one to forward
+   * yet), and degrades exactly like a fetch failure would.
+   */
+  authHeader?: string;
 }
 
 export interface ResolveSelectedItemsResult {
@@ -122,6 +132,7 @@ export class EvidenceSourceService {
     private readonly truth: OutreachTruthService,
     private readonly notesCrypto: MeetingNotesCryptoService,
     private readonly attachments: AttachmentContentService,
+    private readonly alertPacketClient: AlertPacketClientService,
   ) {}
 
   async resolveSelectedItems(
@@ -205,22 +216,20 @@ export class EvidenceSourceService {
       case 'note':
         return this.resolveCustomNote(ctx, item);
       case 'intel':
+        // HP-05 (Gate L): 'intel' items ARE now rehydratable — from intel-api's
+        // alert packet, fetched server-side under the caller's own identity.
+        // Previously fell through to SOURCE_NOT_REHYDRATABLE unconditionally.
+        return this.resolveIntelAlert(item, input);
       case 'meeting':
-        // 'intel' pool items are derived aggregates the browser computed from
-        // already-public market data, and 'meeting' is a retired kind kept only
-        // so resuming an old saved draft does not 400. Neither has a server
-        // record to rehydrate by id, so neither can be authoritative evidence.
-        // Recorded as informational rather than dropped, so the manifest shows
-        // the user that their selection did not become grounding.
+        // 'meeting' is a retired kind kept only so resuming an old saved draft
+        // does not 400 — it has no server record to rehydrate by id.
         return {
           failures: [
             sourceFailure(
               item.kind,
               'SOURCE_NOT_REHYDRATABLE',
               'informational',
-              item.kind === 'intel'
-                ? 'Market-intelligence items cannot be verified against a source record, so this one was not used as evidence. Add the underlying bill, program element, or document instead.'
-                : 'This legacy "past meeting" item is no longer a supported source. Select the meeting’s prep or debrief instead.',
+              'This legacy "past meeting" item is no longer a supported source. Select the meeting’s prep or debrief instead.',
               item.id,
             ),
           ],
@@ -388,6 +397,78 @@ export class EvidenceSourceService {
           structuredTruth: block.raw as unknown as Record<string, unknown>,
         }),
       ],
+    };
+  }
+
+  /**
+   * HP-05 (Gate L): a LegiWatch alert, rehydrated from intel-api's alert packet
+   * rather than trusted from whatever the browser last rendered. Requires a
+   * clientId — an alert packet is meaningless without one, and
+   * AlertPacketService.build (intel-api) independently proves the alert
+   * belongs to that client within the tenant.
+   */
+  private async resolveIntelAlert(
+    item: SelectedContextItemRef,
+    input: ResolveSelectedItemsInput,
+  ): Promise<Partial<ResolveSelectedItemsResult>> {
+    const alertId = parsePrefixed(item.id, 'alert-');
+    if (!alertId) return { failures: [this.malformedId(item, 'intel')] };
+    if (!input.clientId) {
+      return {
+        failures: [
+          sourceFailure(
+            'intel',
+            'INTEL_ALERT_NO_CLIENT',
+            'critical',
+            'A LegiWatch alert item requires a client to verify against.',
+            item.id,
+          ),
+        ],
+      };
+    }
+
+    const packet = await this.alertPacketClient.fetchAlertPacket(
+      input.authHeader,
+      input.clientId,
+      alertId,
+    );
+    if (!packet) {
+      return {
+        failures: [
+          sourceFailure(
+            'intel',
+            'INTEL_ALERT_NOT_ON_RECORD',
+            'critical',
+            'Capiro could not verify the LegiWatch alert you selected, so it was not used as evidence. Remove it or try again.',
+            item.id,
+          ),
+        ],
+      };
+    }
+
+    const text = renderAlertPacketForOutreach(packet);
+    const asOf = packet.event?.occurredAt ?? packet.event?.effectiveAt ?? null;
+    const ref = this.ref({
+      sourceType: 'intel',
+      sourceId: alertId,
+      title: packet.event?.whatChanged || 'LegiWatch alert',
+      trust: 'authoritative_structured',
+      authoritativeAsOf: asOf,
+      scope: item.scope,
+      now: input.now,
+      clientId: input.clientId,
+      provenance: {
+        evidenceCount: packet.officialEvidence?.length ?? 0,
+        missingFieldCount: packet.confidence?.missingFields?.length ?? 0,
+      },
+    });
+    return {
+      evidence: [
+        this.item(ref, text, item.scope, {
+          structuredTruth: packet as unknown as Record<string, unknown>,
+        }),
+      ],
+      failures: this.freshnessFailures('intel', item.id, asOf, input),
     };
   }
 

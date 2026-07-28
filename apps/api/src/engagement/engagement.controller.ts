@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   NotFoundException,
   Param,
   Patch,
@@ -2036,8 +2037,15 @@ export class EngagementController {
   // intact so those near-simultaneous POSTs are not falsely rejected.
   @Throttle({ long: { ttl: 60_000, limit: 120 } })
   @Post('outreach/generate-batch')
-  generateBatchEmails(@CurrentTenant() ctx: TenantContext, @Body() body: GenerateBatchEmailDto) {
-    return this.service.generateBatchEmails(ctx, body);
+  generateBatchEmails(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: GenerateBatchEmailDto,
+    // HP-05 (Gate L): forwarded so an 'intel' context item can be rehydrated
+    // from intel-api's packet endpoint under the caller's own identity — see
+    // AlertPacketClientService. Never logged, never persisted.
+    @Headers('authorization') authHeader?: string,
+  ) {
+    return this.service.generateBatchEmails(ctx, body, authHeader);
   }
 
   @Post('outreach/send-batch')

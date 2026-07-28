@@ -72,12 +72,25 @@ export interface GovernmentAffairsAlertPacket {
 }
 
 /**
- * Fields this service structurally CANNOT populate, with the reason. They live in
- * apps/api (client Memory files, engagements, targets, facilities), not intel-api, and
- * reaching across the service boundary on this path was rejected in favour of an
- * honestly-incomplete packet (plan §6.1, option a). Every one of these is emitted as an
- * empty array/undefined AND listed in confidence.missingFields, so a consumer can tell
- * "we have nothing" apart from "there is nothing".
+ * Fields intel-api does not populate, with the reason. They live in apps/api (client
+ * Memory files, engagements, targets, facilities), not intel-api. Every one of these is
+ * emitted as an empty array/undefined AND listed in confidence.missingFields, so a
+ * consumer can tell "we have nothing" apart from "there is nothing".
+ *
+ * HP-04 correction (Gate L phase b): this is a LAYERING RULE, not an inability. Both
+ * services share the same Aurora cluster and secret, and intel-api already raw-SELECTs
+ * apps/api tables on this very code path (clients, tenant_memberships, users —
+ * tracker-watchlist.service.ts). "intel-api cannot reach this data" is false; the choice
+ * was to keep intel-api's schema free of apps/api's models rather than to reach across.
+ * apps/api — which already has this data loaded at outreach-generation time — overlays
+ * `relationshipContext.existingRelationships` / `.targetOffices` / `.recentMeetings` onto
+ * the packet it fetches from here (AlertPacketClientService,
+ * apps/api/src/engagement/generation/alert-packet-client.service.ts) and removes those
+ * three names from `missingFields` accordingly. The remaining fields below —
+ * `clientContext.capabilities` / `.activeStrategies` / `.redLines` / `.facilities` and
+ * `actionContext.recommendedOwner` / `.recommendedTargets` — stay genuine gaps: no
+ * overlay is built for `capabilities`/`facilities` (out of Gate L's stated scope), and
+ * `redLines`/`activeStrategies` exist in no schema anywhere in this codebase.
  */
 export const PACKET_UNAVAILABLE_IN_INTEL_API = [
   'clientContext.capabilities',

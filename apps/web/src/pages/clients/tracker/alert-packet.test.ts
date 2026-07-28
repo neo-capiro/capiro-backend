@@ -190,7 +190,17 @@ describe('buildOutreachContextPoolItem — the real DTO contract', () => {
     expect(built.title.length).toBeGreaterThan(0); // @Length(1,240) — must not be empty
   });
 
-  test('clamps a full packet summary to the DTO bound', () => {
+  /**
+   * HP-05 c-4 (Gate L): previously renderPacketSummary's evidence loop was
+   * unbounded, so a long evidence list blew past OUTREACH_SUMMARY_MAX and
+   * buildOutreachContextPoolItem's OWN bare `.slice(0, 2000)` was the only
+   * thing keeping the POST from 400ing — a slice that could just as easily land
+   * mid-evidence-list and cut `Unknowns:`/`Recommended actions:` entirely,
+   * since the old order put evidence FIRST. Now the render itself budgets
+   * evidence against what's left, so Unknowns/recommended actions always
+   * survive and the DTO-side clamp is a no-op safety net, not the real fix.
+   */
+  test('a long evidence list stays within the DTO bound, with an explicit omission marker, and never crowds out Unknowns', () => {
     const long = renderPacketSummary(
       packet({
         officialEvidence: Array.from({ length: 60 }, (_, i) => ({
@@ -202,9 +212,12 @@ describe('buildOutreachContextPoolItem — the real DTO contract', () => {
         })),
       }),
     );
-    expect(long.length).toBeGreaterThan(OUTREACH_SUMMARY_MAX);
+    expect(long.length).toBeLessThanOrEqual(OUTREACH_SUMMARY_MAX);
+    expect(long).toContain('Recommended actions: Draft client memo; Open bill');
+    expect(long).toContain('Unknowns: relationshipContext.targetOffices, clientContext.redLines');
+    expect(long).toMatch(/\(\d+ evidence line\(s\) omitted\)/);
     const built = buildOutreachContextPoolItem('alert-1', feedItem(), long);
-    expect(built.summary.length).toBe(OUTREACH_SUMMARY_MAX);
+    expect(built.summary).toBe(long); // already within bound — the DTO-side clamp is a no-op
   });
 
   test('a short body is passed through untouched', () => {

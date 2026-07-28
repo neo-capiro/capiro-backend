@@ -99,6 +99,15 @@ export interface CompileOutreachPacketRequest {
   packetId?: string;
   /** Set when recipient identity could not be resolved (delivery-critical). */
   recipientIdentityResolved?: boolean;
+  /**
+   * HP-05 (Gate L): the inbound request's own Authorization header, forwarded to
+   * EvidenceSourceService so an 'intel' item can be rehydrated from intel-api's
+   * packet endpoint under the caller's own identity. Not yet populated by
+   * GenerationGatewayService's own callers (ENGAGEMENT_GENERATION_GATEWAY
+   * defaults off) — accepted here so that wiring is a single additive change
+   * when the gateway path is turned on.
+   */
+  authHeader?: string;
 }
 
 /** Thrown when the packet cannot be persisted and the gateway is fail-closed. */
@@ -139,6 +148,7 @@ export class EvidencePacketService {
       recipientEmails: request.recipientEmails,
       policy: request.policy,
       now: request.now,
+      authHeader: request.authHeader,
     });
     evidence.push(...resolved.evidence);
     directives.push(...resolved.directives);

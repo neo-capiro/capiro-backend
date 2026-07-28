@@ -120,6 +120,19 @@ export function buildOutreachContextPoolItem(
  * The `Unknowns:` line is deliberate and required: a wizard that silently omits what the
  * server could not establish invites the model to fill the gap with something plausible.
  * Naming the gaps is the point of the packet.
+ *
+ * HP-05 c-4 (Gate L): `Unknowns:`, next steps and recommended actions come BEFORE the
+ * (potentially large) evidence list, and evidence is budgeted against whatever of
+ * OUTREACH_SUMMARY_MAX remains after everything else — never a bare, unbounded loop —
+ * with an explicit "(N evidence line(s) omitted)" marker when it doesn't all fit.
+ * Previously the evidence loop was unbounded and came FIRST, so a handful of long
+ * hearing quotes could push `Unknowns:` and the recommended actions past the 2,000-char
+ * save/generate cap entirely (the render-exceeds-2000 regression this file's own test
+ * already proved).
+ *
+ * Byte-identical in algorithm to apps/api's renderAlertPacketForOutreach
+ * (engagement/generation/alert-packet-client.service.ts) — HP-05 c-5 requires the wizard
+ * to display the same body the model receives. Keep them in lockstep.
  */
 export function renderPacketSummary(packet: GovernmentAffairsAlertPacket): string {
   const lines: string[] = [];
@@ -142,17 +155,6 @@ export function renderPacketSummary(packet: GovernmentAffairsAlertPacket): strin
   ].filter(Boolean);
   if (clientBits.length) lines.push(`Client context: ${clientBits.join('; ')}`);
 
-  if (packet.officialEvidence?.length) {
-    lines.push('', 'Official evidence:');
-    for (const e of packet.officialEvidence) {
-      lines.push(
-        `- [${e.claimId}] ${e.text}` +
-          (e.sourceUrl ? ` — ${e.sourceUrl}` : '') +
-          (e.verification ? ` (${e.verification})` : ''),
-      );
-    }
-  }
-
   const steps = packet.proceduralMeaning?.nextPossibleSteps;
   if (steps?.length) lines.push('', `Next possible steps: ${steps.join('; ')}`);
   const actions = packet.actionContext?.recommendedActions;
@@ -163,6 +165,29 @@ export function renderPacketSummary(packet: GovernmentAffairsAlertPacket): strin
     ...(packet.proceduralMeaning?.uncertainty ?? []),
   ];
   if (unknowns.length) lines.push('', `Unknowns: ${unknowns.join(', ')}`);
+
+  const evidence = packet.officialEvidence ?? [];
+  if (evidence.length) {
+    const header = 'Official evidence:';
+    const soFar = [...lines, '', header].join('\n');
+    // Headroom for the trailing omission marker line, so adding it never itself
+    // busts the budget.
+    const omissionMarkerBudget = 40;
+    let remaining = Math.max(0, OUTREACH_SUMMARY_MAX - soFar.length - omissionMarkerBudget);
+    const shown: string[] = [];
+    for (const e of evidence) {
+      const line =
+        `- [${e.claimId}] ${e.text}` +
+        (e.sourceUrl ? ` — ${e.sourceUrl}` : '') +
+        (e.verification ? ` (${e.verification})` : '');
+      if (line.length + 1 > remaining) break;
+      shown.push(line);
+      remaining -= line.length + 1;
+    }
+    if (shown.length) lines.push('', header, ...shown);
+    const omitted = evidence.length - shown.length;
+    if (omitted > 0) lines.push(`(${omitted} evidence line(s) omitted)`);
+  }
 
   return lines.join('\n');
 }

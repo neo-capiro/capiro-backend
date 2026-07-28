@@ -34,6 +34,8 @@ function makeService(opts: {
   bill?: unknown;
   stateBill?: unknown;
   pe?: unknown;
+  /** undefined = default success stub; null = simulate a fetch failure. */
+  alertPacket?: unknown;
   decrypt?: () => string;
   attachmentBytes?: Buffer | null;
   readiness?: { usable: boolean; code: string | null; disclosure: string | null };
@@ -64,11 +66,15 @@ function makeService(opts: {
         },
     ),
   };
+  const alertPacketClient = {
+    fetchAlertPacket: jest.fn(async () => ('alertPacket' in opts ? opts.alertPacket : null)),
+  };
   const svc = new EvidenceSourceService(
     prisma as never,
     truth as never,
     notesCrypto as never,
     attachments as never,
+    alertPacketClient as never,
   );
   if (opts.attachmentBytes !== undefined) {
     const bytes = opts.attachmentBytes;
@@ -77,10 +83,13 @@ function makeService(opts: {
       return bytes;
     });
   }
-  return { svc, truth, attachments };
+  return { svc, truth, attachments, alertPacketClient };
 }
 
-function resolveInput(items: SelectedContextItemRef[]) {
+function resolveInput(
+  items: SelectedContextItemRef[],
+  overrides: { clientId?: string | null; authHeader?: string } = {},
+) {
   return {
     items,
     clientId: 'c1',
@@ -91,6 +100,7 @@ function resolveInput(items: SelectedContextItemRef[]) {
     recipientEmails: ['dana@mail.house.gov'],
     policy: policyForAudience('congressional_office'),
     now: NOW,
+    ...overrides,
   };
 }
 
@@ -468,17 +478,111 @@ describe('determinism and ordering', () => {
 });
 
 describe('non-rehydratable kinds', () => {
-  test('an intel aggregate is reported, not silently dropped', async () => {
+  test('the retired "meeting" kind is reported, not silently dropped', async () => {
     const { svc } = makeService();
     const out = await svc.resolveSelectedItems(
       CTX,
-      resolveInput([{ id: 'intel-issue-DEF', kind: 'intel', scope: 'all' }]),
+      resolveInput([{ id: 'meeting-m1', kind: 'meeting', scope: 'all' }]),
     );
     expect(out.evidence).toHaveLength(0);
     expect(out.failures[0]).toMatchObject({
       code: 'SOURCE_NOT_REHYDRATABLE',
       severity: 'informational',
     });
+  });
+});
+
+/** HP-05 (Gate L): a minimal-but-shape-complete GovernmentAffairsAlertPacket. */
+const ALERT_PACKET = {
+  event: {
+    sourceType: 'bill',
+    whatChanged: 'H.R. 8800 referred to committee',
+    canonicalStatus: 'referred_to_committee',
+    occurredAt: '2026-07-20T00:00:00.000Z',
+    effectiveAt: null,
+  },
+  officialEvidence: [
+    {
+      claimId: 'c1',
+      text: 'Referred to House Armed Services Committee.',
+      sourceUrl: 'https://congress.gov/bill/hr8800',
+      retrievedAt: '2026-07-26T00:00:00.000Z',
+      verification: 'official' as const,
+    },
+  ],
+  proceduralMeaning: {
+    currentStage: 'Committee referral',
+    nextPossibleSteps: ['Committee markup'],
+    uncertainty: [],
+  },
+  clientContext: {
+    clientId: 'c1',
+    matchedTopics: ['defense manufacturing'],
+    capabilities: [],
+    activeStrategies: [],
+    redLines: [],
+    facilities: [],
+  },
+  relationshipContext: {
+    targetOffices: [],
+    existingRelationships: [],
+    recentMeetings: [],
+    openCommitments: [],
+  },
+  actionContext: { recommendedTargets: [], recommendedActions: [] },
+  confidence: { relevance: 0.8, procedural: 0.9, evidenceCoverage: 0.7, missingFields: [] },
+};
+
+describe('HP-05 (Gate L): intel alerts are rehydrated from intel-api\'s packet', () => {
+  test('a malformed id is a critical, not silently dropped', async () => {
+    const { svc } = makeService();
+    const out = await svc.resolveSelectedItems(
+      CTX,
+      resolveInput([{ id: 'not-an-alert-id', kind: 'intel', scope: 'all' }]),
+    );
+    expect(out.evidence).toHaveLength(0);
+    expect(out.failures[0]).toMatchObject({ code: 'SOURCE_ID_MALFORMED', severity: 'critical' });
+  });
+
+  test('a fetch failure (no auth header, timeout, non-2xx) is a critical failure — never a silent empty item', async () => {
+    const { svc, alertPacketClient } = makeService({ alertPacket: null });
+    const out = await svc.resolveSelectedItems(
+      CTX,
+      resolveInput([{ id: 'alert-a1', kind: 'intel', scope: 'all' }]),
+    );
+    expect(alertPacketClient.fetchAlertPacket).toHaveBeenCalledWith(undefined, 'c1', 'a1');
+    expect(out.evidence).toHaveLength(0);
+    expect(out.failures[0]).toMatchObject({
+      code: 'INTEL_ALERT_NOT_ON_RECORD',
+      severity: 'critical',
+    });
+  });
+
+  test('a resolved packet becomes authoritative_structured evidence carrying the rendered packet text', async () => {
+    const { svc, alertPacketClient } = makeService({ alertPacket: ALERT_PACKET });
+    const out = await svc.resolveSelectedItems(
+      CTX,
+      resolveInput([{ id: 'alert-a1', kind: 'intel', scope: 'all' }], { authHeader: 'Bearer tok' }),
+    );
+    expect(alertPacketClient.fetchAlertPacket).toHaveBeenCalledWith('Bearer tok', 'c1', 'a1');
+    expect(out.evidence).toHaveLength(1);
+    const [evidence] = out.evidence;
+    expect(evidence!.ref.trust).toBe('authoritative_structured');
+    expect(evidence!.ref.sourceId).toBe('a1');
+    expect(evidence!.evidenceText).toContain('H.R. 8800 referred to committee');
+    expect(evidence!.evidenceText).toContain('Referred to House Armed Services Committee');
+    expect(evidence!.structuredTruth).toBe(ALERT_PACKET);
+    expect(out.failures).toHaveLength(0);
+  });
+
+  test('requires a clientId — an alert packet is meaningless without one', async () => {
+    const { svc } = makeService({ alertPacket: ALERT_PACKET });
+    const out = await svc.resolveSelectedItems(CTX, {
+      ...resolveInput([{ id: 'alert-a1', kind: 'intel', scope: 'all' }]),
+      clientId: null,
+    });
+    expect(out.evidence).toHaveLength(0);
+    expect(out.failures[0]).toMatchObject({ code: 'INTEL_ALERT_NO_CLIENT', severity: 'critical' });
   });
 });
 
