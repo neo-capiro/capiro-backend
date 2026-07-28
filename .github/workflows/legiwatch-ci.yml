@@ -1,0 +1,196 @@
+# LegiWatch release gate (Gate V phase c, §6.3).
+#
+# WHY THIS EXISTS SEPARATELY FROM ci-pr.yml
+# -----------------------------------------
+# ci-pr.yml enforces "no new failures versus baseline", which is correct for a
+# repo carrying 40 pre-existing apps/api failures, 38 in apps/intel-api and 1 in
+# apps/web. It is the wrong bar for shipping LegiWatch: 12 apps/api suites and 9
+# apps/intel-api suites are ALREADY red, so a LegiWatch regression that lands
+# inside one of them passes that bar untouched. ci-pr.yml also never runs the
+# apps/web, apps/api or apps/intel-api suites at all.
+#
+# Inside LegiWatch scope the bar here is absolute: zero failures, zero skips.
+#
+# WHY IT IS NOT PATH-FILTERED
+# ---------------------------
+# A required check that is `paths:`-filtered never reports on a PR that misses
+# the filter, and GitHub blocks that PR forever waiting for it. The whole
+# in-scope run is ~90s, so it runs on every PR instead. Do not add `paths:`
+# without also adding a skip-job that reports the same check name.
+#
+# SCOPE IS ENUMERATED, NOT GLOBBED (c-2)
+# --------------------------------------
+# Suite lists are explicit so the bar cannot silently shrink. Because an
+# explicit list still degrades quietly if a rename stops a path from matching,
+# every step also asserts a MINIMUM suite and test count via
+# scripts/assert-test-summary.mjs. Raise the floors when you add suites.
+#
+# ONE SUITE IS DELIBERATELY OUT OF SCOPE
+# --------------------------------------
+# apps/intel-api/test/watchlist-match-promoter.spec.ts is a LegiWatch suite and
+# is PRE-EXISTING RED — all 4 tests fail with `this.prisma.withTenant is not a
+# function`, a mock gap unrelated to any gate in this program. MASTER §3.6.8
+# puts pre-existing failures out of scope and says explicitly not to fix them,
+# so it is excluded here rather than quietly counted. It should be fixed and
+# folded in by whoever owns that mock harness.
+#
+# THE apps/web VITEST FLAKE IS NOT IN SCOPE EITHER (c-5)
+# ------------------------------------------------------
+# The `Cannot find package '@vitest/utils'` / `[vitest-worker]: Timeout calling
+# "onUnhandledError"` crash originates in
+# src/pages/strategy/agents/ReviewQueue.stale-notice.test.tsx — a STRATEGY test,
+# not a LegiWatch one, so the explicit list below never executes it and it
+# cannot make this required check flaky.
+#
+# Root cause, diagnosed 2026-07-28 and no longer a mystery: `@vitest/utils` is
+# NOT resolvable from apps/web. It exists only in pnpm's virtual store
+# (node_modules/.pnpm/@vitest+utils@2.1.9) and is not a declared dependency of
+# apps/web, so under pnpm's strict layout it resolves from vitest's own context
+# but not from the test root. When a worker hits an unhandled error and tries to
+# report it through onUnhandledError, that import fails, the reporter call never
+# returns, and the worker times out. Both symptoms, one cause — and it only
+# fires when a test produces an unhandled error, which is why it looks random.
+#
+# The one-line remedy is to declare it in apps/web:
+#     pnpm --filter @capiro/web add -D @vitest/utils@2.1.9
+# (2.1.9 is already in the lockfile as a transitive dep, so nothing new enters
+# the tree.) It is NOT applied here because MASTER §3.2 makes dependency changes
+# a separate decision and this gate must not touch the lockfile every CI job
+# installs from.
+name: legiwatch-ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  legiwatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # The api and intel-api suites import their generated Prisma clients.
+      # `generate` never connects to a database, so no DATABASE_URL is needed —
+      # and every suite below is mock-backed, which is what lets this whole gate
+      # run without a Postgres service.
+      - name: Generate Prisma clients
+        run: |
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/intel-api exec prisma generate
+
+      # Scoped to the three packages LegiWatch spans, deliberately NOT repo-wide.
+      # ci-pr.yml already runs `turbo run typecheck` across all 14 packages on
+      # every PR, so a second whole-repo pass here buys no signal and costs ~2min.
+      #
+      # It also has to be scoped to stay CORRECT: a whole-repo typecheck requires
+      # all FIVE Prisma clients generated (ci-pr.yml generates api, workspace,
+      # intel-api, onboard-api, api-strategy). With only the two above, every raw
+      # query in the ungenerated packages collapses to `{}` and apps/onboard-api
+      # fails outright on `Cannot find module '../../generated/prisma-client'` —
+      # 100+ errors in code this gate does not own. Generated clients and
+      # typechecked packages must agree; these two lists are that agreement.
+      - name: Typecheck (apps/api, apps/intel-api, apps/web)
+        run: pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/intel-api --filter=@capiro/web
+
+      # ---------------------------------------------------------------- api --
+      # Gate H (memo lifecycle), Gate I (entailment/filing), Gate J (integrity),
+      # Gate L (packet enrichment), the legacy digest rail, and Gate V's own
+      # deploy-truth scripts.
+      - name: Tests — apps/api LegiWatch scope
+        run: >
+          pnpm --filter @capiro/api exec jest --ci --silent
+          --json --outputFile=$GITHUB_WORKSPACE/api-summary.json
+          src/tracker/
+          src/intelligence/alert-memo/
+          src/intelligence/canonical-alert.adapter.spec.ts
+          src/intelligence/intelligence.alerts-worklist.spec.ts
+          src/engagement/generation/alert-packet-client.service.spec.ts
+          src/reviews/reviews.service.spec.ts
+          scripts/verify-migrations.spec.ts
+          scripts/verify-image-parity.spec.ts
+
+      - name: Assert apps/api scope is clean
+        if: always()
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 20 242
+
+      # ---------------------------------------------------------- intel-api --
+      # Gate F (feed worklist truth), Gate G (delivery), Gate K (scoring and
+      # watchlist topics), the packet builder, and the email-CTA route contract.
+      - name: Tests — apps/intel-api LegiWatch scope
+        run: >
+          pnpm --filter @capiro/intel-api exec jest --ci --silent
+          --json --outputFile=$GITHUB_WORKSPACE/intel-summary.json
+          src/feed/alert-packet.spec.ts
+          src/feed/recommended-actions.util.spec.ts
+          src/intel-alert/canonical-alert.adapter.spec.ts
+          src/intel-alert/intel-alert.service.dedupe-state-alerts.spec.ts
+          src/tracker/change-detector.util.spec.ts
+          src/tracker/email-cta-routes.spec.ts
+          src/tracker/federal-bill-change-detector.spec.ts
+          src/tracker/rule-change-detector.service.spec.ts
+          src/tracker/state-bill-change-detector.spec.ts
+          src/tracker/tracker-tenant-scoping.spec.ts
+          test/alert-packet.spec.ts
+          test/alert-scorer.spec.ts
+          test/alert-scoring-v2.spec.ts
+          test/alert-work-state.spec.ts
+          test/feed.controller.spec.ts
+          test/feed.spec.ts
+          test/intel-alert-digest.spec.ts
+          test/intel-alert-shadow.spec.ts
+          test/tracker-board-feedback.spec.ts
+          test/tracker-board-guards.spec.ts
+          test/tracker-board-highfit.spec.ts
+          test/tracker-board-pagination.spec.ts
+          test/tracker-dto-validation.spec.ts
+          test/tracker-email-links.spec.ts
+          test/tracker-email-templates.spec.ts
+          test/tracker-summary.spec.ts
+          test/tracker-watchlist.spec.ts
+          test/watchlist-compiler.spec.ts
+          test/watchlist-mapping.spec.ts
+          test/watchlist-matcher.spec.ts
+          test/watchlist-weighting.spec.ts
+
+      - name: Assert apps/intel-api scope is clean
+        if: always()
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 31 479
+
+      # ---------------------------------------------------------------- web --
+      # Web interaction + accessibility (tracker-a11y.test.tsx) + the packet and
+      # generation contract tests. ci-pr.yml runs NO web tests at all, so this is
+      # the only gate that exercises the LegiWatch UI.
+      - name: Tests — apps/web LegiWatch scope
+        run: >
+          pnpm --filter @capiro/web exec vitest run
+          --testTimeout=20000 --hookTimeout=20000
+          --reporter=json --outputFile=$GITHUB_WORKSPACE/web-summary.json
+          src/pages/clients/tracker/
+          src/pages/radar/
+          src/pages/bills/
+          src/pages/intelligence/HearingWatchPage
+          src/lib/hearing-watch-api
+          src/pages/clients/intelligence-v1/components/TopAlertsList
+          src/pages/clients/intelligence-v1/components/HearingsMarkupList
+
+      # NOTE the suite floor: vitest counts `describe` BLOCKS in
+      # numTotalTestSuites (122 today across these 37 files), where jest counts
+      # files. 100 is a deliberate floor well below the real number but far
+      # above anything a broken path filter would produce — the test count is
+      # the tight signal here, the suite count is the coarse one.
+      - name: Assert apps/web scope is clean
+        if: always()
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 100 349

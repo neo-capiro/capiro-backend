@@ -2,6 +2,8 @@ import { describe, expect, jest, test } from '@jest/globals';
 import {
   buildEnrichmentUpdate,
   enrichCandidates,
+  isBlockResponse,
+  UpstreamBlockedError,
   type AwardDetailRaw,
   type EnrichPrisma,
   type ExistingAssistanceAwardRow,
@@ -197,5 +199,108 @@ describe('enrichCandidates', () => {
     expect(prisma.federalAssistanceAward.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ take: 42, where: { detailEnrichedAt: null } }),
     );
+  });
+});
+
+/**
+ * REGRESSION (2026-07-28): USAspending's edge blocked this client outright.
+ * Every request returned an HTML page titled "The URL you requested has been
+ * blocked" as a 5xx. The run treated each one as an ordinary per-award error
+ * and kept going — 214/214 then 120/121 consecutive failures, exit 0, nothing
+ * enriched. A run that accomplishes nothing must not look like a run that had
+ * a few bad awards.
+ */
+describe('isBlockResponse', () => {
+  test('recognises the edge block page by its text', () => {
+    expect(
+      isBlockResponse(500, '<html><head><title> The URL you requested has been blocked </title>', 'text/html'),
+    ).toBe(true);
+  });
+
+  test('recognises an access-denied page', () => {
+    expect(isBlockResponse(403, '<html>Access Denied</html>', 'text/html')).toBe(true);
+  });
+
+  test('treats any 5xx that returns HTML as an edge appliance, not the API', () => {
+    // A JSON API answering an award lookup with a document is not the app.
+    expect(isBlockResponse(502, '<html><body>gateway</body></html>', 'text/html; charset=utf-8')).toBe(true);
+  });
+
+  test('a genuine JSON 500 from the application is NOT a block', () => {
+    expect(isBlockResponse(500, '{"detail":"Server Error"}', 'application/json')).toBe(false);
+  });
+
+  test('a 404 for one missing award is NOT a block', () => {
+    expect(isBlockResponse(404, '{"detail":"No Award found"}', 'application/json')).toBe(false);
+  });
+});
+
+describe('enrichCandidates upstream-block circuit breaker', () => {
+  const manyRows = Array.from({ length: 200 }, (_v, i) => row({ id: `r${i}`, awardUniqueId: `ASST_${i}` }));
+
+  test('a block aborts the whole run instead of burning the remaining limit', async () => {
+    const prisma = makePrismaMock(manyRows);
+    const fetchAwardDetail = jest.fn(async (_id: string) => {
+      throw new UpstreamBlockedError('USAspending edge blocked this client (HTTP 500).');
+    }) as unknown as typeof import('./enrich-assistance-award-details.js').fetchAwardDetail;
+
+    const counts = await enrichCandidates(prisma as unknown as EnrichPrisma, 200, {
+      fetchAwardDetail,
+      sleep: noSleep,
+    });
+
+    // Stops on the FIRST block — not after 200 attempts.
+    expect(fetchAwardDetail).toHaveBeenCalledTimes(1);
+    expect(counts.errors).toBe(1);
+    expect(counts.updated).toBe(0);
+  });
+
+  test('sustained ordinary failures also trip the breaker rather than running to the end', async () => {
+    const prisma = makePrismaMock(manyRows);
+    const fetchAwardDetail = jest.fn(async (_id: string) => {
+      throw new Error('fetch failed');
+    }) as unknown as typeof import('./enrich-assistance-award-details.js').fetchAwardDetail;
+
+    const counts = await enrichCandidates(prisma as unknown as EnrichPrisma, 200, {
+      fetchAwardDetail,
+      sleep: noSleep,
+    });
+
+    expect(fetchAwardDetail).toHaveBeenCalledTimes(25);
+    expect(counts.errors).toBe(25);
+  });
+
+  test('the consecutive counter resets on success, so scattered failures do not abort', async () => {
+    const prisma = makePrismaMock(manyRows.slice(0, 60));
+    let n = 0;
+    const fetchAwardDetail = jest.fn(async (_id: string) => {
+      n += 1;
+      // Fail 2 of every 3 — never 25 in a row.
+      if (n % 3 !== 0) throw new Error('transient');
+      return MEDICAID_DETAIL;
+    }) as unknown as typeof import('./enrich-assistance-award-details.js').fetchAwardDetail;
+
+    const counts = await enrichCandidates(prisma as unknown as EnrichPrisma, 60, {
+      fetchAwardDetail,
+      sleep: noSleep,
+    });
+
+    expect(fetchAwardDetail).toHaveBeenCalledTimes(60);
+    expect(counts.updated).toBe(20);
+  });
+
+  test('the inter-request delay is configurable so the rate can be lowered without a deploy', async () => {
+    const prisma = makePrismaMock([row({ id: 'a' }), row({ id: 'b', awardUniqueId: 'ASST_B' })]);
+    const sleep = jest.fn(async (_ms: number) => {});
+    const fetchAwardDetail = jest.fn(async (_id: string) => MEDICAID_DETAIL);
+
+    await enrichCandidates(
+      prisma as unknown as EnrichPrisma,
+      10,
+      { fetchAwardDetail, sleep },
+      { delayMs: 4321 },
+    );
+
+    expect(sleep).toHaveBeenCalledWith(4321);
   });
 });

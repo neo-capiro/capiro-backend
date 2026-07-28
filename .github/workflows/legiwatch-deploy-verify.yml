@@ -1,0 +1,96 @@
+# Post-deploy truth check (Gate V phase a, §6.1 / a-3).
+#
+# This is the workflow that is allowed to say "deployed". An ECS digest is not.
+#
+# F0 is why. On 2026-07-27 Gate E was merged, its image built, deployed to
+# capiro-dev-intel-api and digest-verified — and LegiWatch Recommendations
+# returned HTTP 500 for all six tenants, because the two migrations that code
+# depended on were never applied. Every signal anyone was watching was green.
+#
+# It checks the two ways a deploy can be a lie:
+#
+#   1. MIGRATION DRIFT — the running image needs columns/indexes/tables that do
+#      not exist in the target database.
+#   2. IMAGE PARITY — the EventBridge-driven task defs all pin `:latest` rather
+#      than a SHA (capiro-dev-flush-intel-digests-{daily,weekly},
+#      capiro-dev-detect-bill-changes, capiro-dev-poll-senate-hearings via
+#      capiro-dev-intel-api-{enableflag,poll}; capiro-dev-flush-tracker-digests-
+#      {daily,weekly} and capiro-dev-detect-tracker-alerts via
+#      capiro-dev-api-migrate). So a merge to main goes live for the CRON at the
+#      next tick with no update-service, while the HTTP service keeps serving
+#      the older image. For a daily rule that window is up to 24h.
+#
+# BOTH CHECKS ARE READ-ONLY. verify-migrations runs its probe through
+# capiro-dev-api-diag, never a *-migrate task definition — this workflow can
+# detect drift, it cannot apply a migration.
+#
+# ── PERMISSIONS PREREQUISITE (verify before relying on this) ─────────────────
+# The capiro-gha-* role assumed below is currently provisioned for ECR push. The
+# drift check additionally needs:
+#     ecs:RunTask, ecs:DescribeTasks, ecs:DescribeTaskDefinition,
+#     iam:PassRole  (the diag task's execution + task roles),
+#     logs:GetLogEvents  on /capiro/dev/api
+# and the parity check needs:
+#     ecr:DescribeImages, ecs:ListTasks, ecs:DescribeTasks, ecs:DescribeServices
+# If the role lacks these, the FIRST run fails with AccessDenied rather than a
+# false green — which is the correct failure mode, but it does need fixing
+# out-of-band before this gate means anything. Until then, run both scripts
+# locally with --profile=capiro-dev; they are identical code paths.
+name: legiwatch-deploy-verify
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster:
+        description: 'ECS cluster'
+        required: false
+        default: 'capiro-dev'
+  # Fire after any image that serves LegiWatch is rebuilt. workflow_run gives
+  # the post-deploy hook the plan asks for without coupling this to the
+  # interactive `update-service` step.
+  workflow_run:
+    workflows: [api-image, intel-api-image, web-image]
+    types: [completed]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  CLUSTER: ${{ github.event.inputs.cluster || 'capiro-dev' }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The drift check compares the repo's migration tree against the
+          # database, so it needs full history-independent file state — a
+          # shallow checkout is fine, but `git ls-files` must see every tree.
+          fetch-depth: 1
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEV_GHA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Covers ALL FIVE migration trees (api, intel-api, api-strategy,
+      # onboard-api, workspace), which share one `capiro` database and therefore
+      # one _prisma_migrations table.
+      - name: Migration drift (all service trees)
+        working-directory: apps/api
+        run: pnpm exec tsx scripts/verify-migrations.ts --live --cluster=${{ env.CLUSTER }} --region=${{ env.AWS_REGION }}
+
+      - name: Image parity (services vs. the :latest the crons pull)
+        working-directory: apps/api
+        run: pnpm exec tsx scripts/verify-image-parity.ts --cluster=${{ env.CLUSTER }} --region=${{ env.AWS_REGION }}

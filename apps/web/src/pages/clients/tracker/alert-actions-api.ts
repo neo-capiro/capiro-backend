@@ -65,6 +65,9 @@ export interface AlertMemoAlertInput {
   matchedTags?: string[];
   programElement?: AlertMemoProgramElement;
   jurisdiction?: string | null;
+  /** Gate L (HP-03) followup: the state legislative session's display name
+   *  (e.g. "2026 Regular Session"). Only ever set for sourceType='state_bill'. */
+  session?: string | null;
   deadline?: AlertMemoDeadline | null;
   regulation?: AlertMemoRegulation;
 }
@@ -183,6 +186,7 @@ export function feedItemToMemoAlert(item: FeedItem): AlertMemoAlertInput {
     ...(item.evidence?.provenance?.jurisdiction
       ? { jurisdiction: item.evidence.provenance.jurisdiction }
       : {}),
+    ...(item.evidence?.provenance?.session ? { session: item.evidence.provenance.session } : {}),
     ...(deadline ? { deadline } : {}),
     ...(reg
       ? {
@@ -244,6 +248,7 @@ export function feedItemToDistrictBriefAlert(item: FeedItem): AlertMemoAlertInpu
     regulation: undefined,
     deadline: undefined,
     jurisdiction: undefined,
+    session: undefined,
   };
 }
 
