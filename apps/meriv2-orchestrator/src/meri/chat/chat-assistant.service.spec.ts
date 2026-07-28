@@ -3,17 +3,21 @@ import { ChatAssistantService } from './chat-assistant.service';
 import { MeriRegistryService } from '../meri-registry.service';
 import type { ApiClientContextRepo } from '../api-client-context.repo';
 import type { ApiToolExecutorRepo } from '../api-tool-executor.repo';
-import type { ApiApprovalRepo } from '../api-approval.repo';
 import type { ApiComplianceAuditRepo } from '../api-compliance-audit.repo';
-import type { ApiPendingActionRepo } from '../api-pending-action.repo';
+import type {
+  ApiActionProposalRepo,
+  ActionProposalResult,
+  CreateActionProposalInput,
+} from '../api-action-proposal.repo';
 import { RequestCredentialsStore } from '../../request/request-credentials.store';
-import { computeActionFingerprint, type MeriContext } from '@capiro/meriv2-core';
+import type { MeriContext } from '@capiro/meriv2-core';
 
 /**
  * The full chat loop, driven end-to-end with mocked I/O:
  * - global.fetch handles the Anthropic tool-use rounds AND the tool-schema GET.
  * - tool EXECUTION goes through the REAL registry (delegated reads → fake
- *   executor; gated writes → real gate + fake approval repo).
+ *   executor; gated writes ALWAYS hold — Phase 0 has no "already approved"
+ *   path through the registry, so every WARN write becomes a proposal).
  */
 const ctx: MeriContext = {
   tenantId: 't1',
@@ -36,7 +40,36 @@ const clientRepo = {
 } as unknown as ApiClientContextRepo;
 
 const auditRepo = { record: jest.fn() } as unknown as ApiComplianceAuditRepo;
-const pendingActionsRepo = { record: jest.fn() } as unknown as ApiPendingActionRepo;
+
+function fakeProposal(input: CreateActionProposalInput): ActionProposalResult {
+  return {
+    proposalId: 'proposal-1',
+    status: 'proposed',
+    tool: input.tool,
+    preview: {
+      label: `Proposed ${input.tool}`,
+      riskTier: 'restricted',
+      leavesFirm: false,
+      reversible: true,
+      fields: {},
+      counts: {},
+      reason: 'Requires approval',
+    },
+    expiresAt: new Date(Date.now() + 900_000).toISOString(),
+    reason: 'Requires approval',
+    ruleId: null,
+    riskTier: 'restricted',
+    policyCode: null,
+    attemptCount: 0,
+    resultSummary: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+const actionProposalsRepo = {
+  create: jest.fn(async (input: CreateActionProposalInput) => fakeProposal(input)),
+} as unknown as ApiActionProposalRepo;
 
 // Phase 1 M5.0 (H-1): the chat loop meters every round via recordAiUsageEvent,
 // which needs prisma.withTenant/withSystem. A no-op fake is enough here — the
@@ -46,16 +79,14 @@ const fakePrisma = {
   withSystem: async (fn: (tx: unknown) => Promise<unknown>) => fn({}),
 } as never;
 
-function makeService(executor: ApiToolExecutorRepo, approvals?: ApiApprovalRepo) {
-  const approvalRepo =
-    approvals ?? ({ isApproved: async () => false } as unknown as ApiApprovalRepo);
-  const registryService = new MeriRegistryService(clientRepo, executor, approvalRepo, config);
+function makeService(executor: ApiToolExecutorRepo) {
+  const registryService = new MeriRegistryService(clientRepo, executor, config);
   return new ChatAssistantService(
     registryService,
     config,
     auditRepo,
     fakePrisma,
-    pendingActionsRepo,
+    actionProposalsRepo,
   );
 }
 
@@ -165,10 +196,13 @@ describe('ChatAssistantService.run', () => {
   });
 
   it('a write tool comes back as pending_approval (gate held), NOT executed', async () => {
-    // Fail-closed approval repo → the gate holds send_email.
+    // Phase 0: EVERY WARN write holds — there is no "already approved" path
+    // through the registry anymore, so the gate always throws and the caller
+    // always creates a durable proposal instead.
     const executeSpy = jest.fn(async () => ({ ok: true }));
     const executor = { execute: executeSpy } as unknown as ApiToolExecutorRepo;
     const emailInput = { to: 'a@b.com', subject: 's', body: 'b' };
+    (actionProposalsRepo.create as jest.Mock).mockClear();
 
     let call = 0;
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
@@ -195,13 +229,19 @@ describe('ChatAssistantService.run', () => {
       true,
     );
     expect(out.pendingApprovals).toHaveLength(1);
-    // The surfaced fingerprint matches what the gate computed for this action.
-    expect(out.pendingApprovals?.[0]?.fingerprint).toBe(
-      computeActionFingerprint('send_email', emailInput, ctx),
+    // Only the opaque, server-created proposal id is surfaced — never the tool
+    // payload or a browser-computable fingerprint.
+    expect(out.pendingApprovals?.[0]).toMatchObject({
+      tool: 'send_email',
+      proposalId: 'proposal-1',
+      status: 'proposed',
+    });
+    expect(actionProposalsRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ tool: 'send_email', input: emailInput, surface: 'chat' }),
     );
   });
 
-  it('audits every write-gate decision (WARN when held) and never audits a read tool', async () => {
+  it('audits a PASS write directly, but leaves a held WARN to apps/api\'s durable proposal transaction (no duplicate row)', async () => {
     (auditRepo.record as jest.Mock).mockClear();
     const executor = {
       execute: jest.fn(async () => ({ items: [] })),
@@ -232,45 +272,12 @@ describe('ChatAssistantService.run', () => {
     );
 
     const calls = (auditRepo.record as jest.Mock).mock.calls.map((c) => c[0]);
-    // The read tool produced NO audit row; the held write produced exactly one WARN.
+    // The read tool produced NO audit row.
     expect(calls.some((c) => c.trigger === 'search_congress_bills')).toBe(false);
-    expect(calls).toContainEqual(
-      expect.objectContaining({ trigger: 'send_email', decision: 'WARN' }),
-    );
-  });
-
-  it('a write tool executes once its action is approved', async () => {
-    const executeSpy = jest.fn(async () => ({ sent: true }));
-    const executor = { execute: executeSpy } as unknown as ApiToolExecutorRepo;
-    const approveAll = { isApproved: async () => true } as unknown as ApiApprovalRepo;
-
-    let call = 0;
-    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
-      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['send_email']);
-      call += 1;
-      if (call === 1)
-        return anthropic(
-          [
-            {
-              type: 'tool_use',
-              id: 't1',
-              name: 'send_email',
-              input: { to: 'a@b.com', subject: 's', body: 'b' },
-            },
-          ],
-          'tool_use',
-        );
-      return anthropic([{ type: 'text', text: 'Sent.' }], 'end_turn');
-    });
-
-    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
-      makeService(executor, approveAll).run(ctx, {
-        messages: [{ role: 'user', text: 'email them' }],
-      }),
-    );
-    expect(executeSpy).toHaveBeenCalledTimes(1);
-    expect(out.steps?.some((s) => s.tool === 'send_email' && s.status === 'done')).toBe(true);
-    expect(out.pendingApprovals).toBeUndefined();
+    // The held write produced NO orchestrator-side audit row either — apps/api's
+    // MeriActionProposalService.create() already recorded this WARN decision
+    // durably, inside the same transaction as the proposal row itself.
+    expect(calls.some((c) => c.trigger === 'send_email')).toBe(false);
   });
 
   it('replaces a model-supplied NON-UUID clientId with the conversation focus', async () => {
@@ -698,8 +705,8 @@ describe('ChatAssistantService.run', () => {
     expect(events[4]).toMatchObject({ type: 'text', text: 'Final answer.' });
   });
 
-  it('streams pending_approval (with the gate fingerprint) for a held write', async () => {
-    (pendingActionsRepo.record as jest.Mock).mockClear();
+  it('streams pending_approval (with the durable proposal id) for a held write, only after the API call resolves', async () => {
+    (actionProposalsRepo.create as jest.Mock).mockClear();
     const executor = { execute: jest.fn() } as unknown as ApiToolExecutorRepo;
     const emailInput = { to: 'a@b.com', subject: 's', body: 'b' };
 
@@ -719,7 +726,7 @@ describe('ChatAssistantService.run', () => {
     await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
       makeService(executor).run(
         ctx,
-        { messages: [{ role: 'user', text: 'email them' }] },
+        { messages: [{ role: 'user', text: 'email them' }], conversationId: 'conv-9' },
         { onEvent: (e) => events.push(e as never) },
       ),
     );
@@ -727,20 +734,68 @@ describe('ChatAssistantService.run', () => {
     const pending = events.find((e) => e.type === 'pending_approval');
     expect(pending).toMatchObject({
       tool: 'send_email',
-      fingerprint: computeActionFingerprint('send_email', emailInput, ctx),
+      proposalId: 'proposal-1',
+      status: 'proposed',
     });
+    // Never a tool/payload/fingerprint the browser could forge or replay.
+    expect(pending).not.toHaveProperty('fingerprint');
+    expect(pending).not.toHaveProperty('input');
     // The trust-step resolution frame marks the write as held, never done.
     expect(events.find((e) => e.type === 'tool_done' && e.tool === 'send_email')).toMatchObject({
       status: 'pending_approval',
     });
-    // B4.1: the exact proposed input is cached under the SAME fingerprint the
-    // pending_approval frame carries, so approving it can replay THIS action
-    // directly instead of re-asking the model for a fresh (differently-hashed)
-    // proposal — the confirmed root cause of "approve does nothing."
-    expect(pendingActionsRepo.record).toHaveBeenCalledWith({
-      fingerprint: computeActionFingerprint('send_email', emailInput, ctx),
+    // The durable proposal is created with exactly the tool/input/conversation
+    // the model proposed — the API, not the orchestrator, computes the
+    // fingerprint/policy/tenant/user authority server-side. augmentToolInput
+    // (pre-existing behavior) also threads conversationId onto the input
+    // object itself, same as every other write tool call.
+    expect(actionProposalsRepo.create).toHaveBeenCalledWith({
       tool: 'send_email',
-      input: emailInput,
+      input: { ...emailInput, conversationId: 'conv-9' },
+      conversationId: 'conv-9',
+      surface: 'chat',
+    });
+  });
+
+  it('proposal API failure emits no usable approval card and tells the model nothing was proposed', async () => {
+    (actionProposalsRepo.create as jest.Mock).mockRejectedValueOnce(
+      new Error('Action proposal creation failed: 500 Internal Server Error'),
+    );
+    const executeSpy = jest.fn(async () => ({ ok: true }));
+    const executor = { execute: executeSpy } as unknown as ApiToolExecutorRepo;
+    const emailInput = { to: 'a@b.com', subject: 's', body: 'b' };
+
+    let call = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['send_email']);
+      call += 1;
+      if (call === 1)
+        return anthropic(
+          [{ type: 'tool_use', id: 't1', name: 'send_email', input: emailInput }],
+          'tool_use',
+        );
+      return anthropic([{ type: 'text', text: 'Something went wrong proposing that.' }], 'end_turn');
+    });
+
+    const events: Array<{ type: string; [k: string]: unknown }> = [];
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(
+        ctx,
+        { messages: [{ role: 'user', text: 'email them' }] },
+        { onEvent: (e) => events.push(e as never) },
+      ),
+    );
+
+    // No usable card was ever shown — persistence never durably succeeded.
+    expect(events.find((e) => e.type === 'pending_approval')).toBeUndefined();
+    expect(out.pendingApprovals).toBeUndefined();
+    // The tool never ran either.
+    expect(executeSpy).not.toHaveBeenCalled();
+    // A failed step is surfaced instead of a silent drop.
+    const failedStep = out.steps?.find((s) => s.tool === 'send_email');
+    expect(failedStep?.status).toBe('error');
+    expect(events.find((e) => e.type === 'tool_done' && e.tool === 'send_email')).toMatchObject({
+      status: 'error',
     });
   });
 

@@ -117,11 +117,12 @@ export interface ChatResult {
   steps?: ChatStep[];
   /**
    * Write actions the model attempted that the compliance gate held for human
-   * approval (B1-B4). Each carries the fingerprint the surface uses to approve
-   * (POST /api/clio/approvals/approve) before re-running the turn. Empty/absent
-   * when nothing was gated.
+   * approval (Phase 0). Each carries the durable, server-created proposalId
+   * the surface approves by ID only (POST /api/clio/action-proposals/:id/
+   * approve) — no fingerprint, tool, or payload the browser could forge.
+   * Empty/absent when nothing was gated.
    */
-  pendingApprovals?: Array<{ tool: string; fingerprint: string; reason: string }>;
+  pendingApprovals?: Array<{ tool: string; proposalId: string; reason: string; status: string }>;
   /** Deliverables produced + persisted this turn (documents, briefs, memos). */
   artifacts?: ChatArtifact[];
 }
@@ -143,7 +144,28 @@ export type ChatStreamEvent =
       status: ChatStep['status'];
       detail?: string;
     }
-  | { type: 'pending_approval'; tool: string; label: string; fingerprint: string; reason: string }
+  | {
+      type: 'pending_approval';
+      tool: string;
+      label: string;
+      /** Opaque server-created proposal id — the ONLY thing the browser sends back to approve. */
+      proposalId: string;
+      status: string;
+      reason: string;
+      expiresAt: string;
+      riskTier: string | null;
+      policyCode: string | null;
+      preview: {
+        label: string;
+        riskTier: string | null;
+        leavesFirm: boolean;
+        reversible: boolean;
+        client?: { id: string; name?: string };
+        fields: Record<string, string | number | boolean>;
+        counts: Record<string, number>;
+        reason: string;
+      };
+    }
   | { type: 'artifact'; artifact: ChatArtifact }
   | { type: 'text'; text: string }
   /**
