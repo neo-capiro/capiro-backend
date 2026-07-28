@@ -55,6 +55,7 @@ function makeStore() {
   const versions = new Map<string, Rec>();
   const runs = new Map<string, Rec>();
   const changeSets = new Map<string, Rec>();
+  const dismissals = new Map<string, Rec>();
   const activity: Rec[] = [];
   const outbox: Rec[] = [];
   let seq = 0;
@@ -70,6 +71,7 @@ function makeStore() {
     versions,
     runs,
     changeSets,
+    dismissals,
     activity,
     outbox,
     nextId,
@@ -108,6 +110,19 @@ function seedStrategy(store: Store): void {
     restoredFromVersionId: null,
     coalescible: false,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  });
+}
+
+function seedDismissal(store: Store, strategyId: string, watchKey: string): void {
+  const id = store.nextId('dismissal');
+  store.dismissals.set(id, {
+    id,
+    tenantId: T,
+    strategyId,
+    watchKey,
+    dismissedByUserId: U,
+    dismissedAt: new Date(),
+    sourceChangeSetId: null,
   });
 }
 
@@ -317,6 +332,12 @@ function makeTx(store: Store, lock: (key: string) => Promise<void> = async () =>
       return { count: 1 };
     },
   };
+  const spWatchDismissal = {
+    findMany: async ({ where }: { where: { strategyId?: string } }) =>
+      [...store.dismissals.values()].filter(
+        (d) => !where.strategyId || d.strategyId === where.strategyId,
+      ),
+  };
   const spActivityLog = {
     create: async ({ data }: { data: Rec }) => {
       store.activity.push({ ...data, id: store.nextId('activity') });
@@ -333,6 +354,7 @@ function makeTx(store: Store, lock: (key: string) => Promise<void> = async () =>
     spVersion,
     spAgentRun,
     spChangeSet,
+    spWatchDismissal,
     spActivityLog,
     spEventOutbox,
     $queryRaw,
@@ -348,6 +370,7 @@ function makeService(store: Store) {
     versions: new Map(store.versions),
     runs: new Map(store.runs),
     changeSets: new Map(store.changeSets),
+    dismissals: new Map(store.dismissals),
     activity: [...store.activity],
     outbox: [...store.outbox],
   });
@@ -359,6 +382,7 @@ function makeService(store: Store) {
     store.versions = snap.versions;
     store.runs = snap.runs;
     store.changeSets = snap.changeSets;
+    store.dismissals = snap.dismissals;
     store.activity = snap.activity;
     store.outbox = snap.outbox;
   };
@@ -976,5 +1000,94 @@ describe('computeArtifactMismatches (check-h seam input)', () => {
       computeArtifactMismatches([{ id: 'N1', status: 'active' }], [{ nodeId: 'N1' }]),
     ).toEqual([]);
     expect(computeArtifactMismatches([{ id: 'N1', status: 'draft' }], [])).toEqual([]);
+  });
+});
+
+describe('Phase 3 — permanent Watch dismissals', () => {
+  it('a dismissed finding is never re-proposed, even though the underlying condition is still true', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, {
+      id: 'N1',
+      title: 'File the one-pager',
+      startsOn: daysFromToday(-14),
+      endsOn: daysFromToday(-7),
+      status: 'in_progress',
+    });
+    // findingKey for the overdue finding on N1 is 'overdue:N1' — dismissed
+    // BEFORE any run ever proposed it (models: dismissed, then re-detected).
+    seedDismissal(store, SID, 'overdue:N1');
+    const { svc } = makeService(store);
+
+    const result = await svc.runCheckNow(T, U, MID);
+
+    expect(result.changeSetsProposed).toEqual([]);
+    expect(store.changeSets.size).toBe(0);
+    // The finding itself is still COMPUTED every run (dismissal suppresses
+    // the proposal, not the check) — only the change-set is missing.
+    expect(result.findings.map((f) => f.code)).toEqual(['overdue']);
+  });
+
+  it('dismissing an open proposal (reject it + record the dismissal, as WatchReviewService.dismiss does) stops every later run from reissuing it', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, {
+      id: 'N1',
+      startsOn: daysFromToday(-14),
+      endsOn: daysFromToday(-7),
+      status: 'in_progress',
+    });
+    const { svc } = makeService(store);
+    const first = await svc.runCheckNow(T, U, MID, { idempotencyKey: 'watch:M1:day-1' });
+    expect(first.changeSetsProposed).toHaveLength(1);
+    // WatchReviewService.dismiss()'s two writes, applied directly to the fake
+    // store (this spec only exercises WatcherService, not the dismiss path
+    // itself — see watch-review.service.spec.ts for the full dismiss() flow).
+    store.changeSets.get(first.changeSetsProposed[0]!)!.status = 'rejected';
+    seedDismissal(store, SID, 'overdue:N1');
+
+    const second = await svc.runCheckNow(T, U, MID, { idempotencyKey: 'watch:M1:day-2' });
+
+    expect(second.changeSetsProposed).toEqual([]);
+    expect(store.changeSets.size).toBe(1); // the old rejected row only — nothing new
+  });
+
+  it('a dismissal recorded for a DIFFERENT strategy does not suppress this strategy\'s matching finding', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, {
+      id: 'N1',
+      startsOn: daysFromToday(-14),
+      endsOn: daysFromToday(-7),
+      status: 'in_progress',
+    });
+    seedDismissal(store, 'OTHER-STRATEGY', 'overdue:N1'); // same watchKey, different strategy
+    const { svc } = makeService(store);
+
+    const result = await svc.runCheckNow(T, U, MID);
+
+    expect(result.changeSetsProposed).toHaveLength(1);
+    expect(store.changeSets.size).toBe(1);
+  });
+
+  it('every newly proposed change-set carries watchKey === findingKey(finding) — a real column, not just the bracketed summary marker', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, {
+      id: 'N1',
+      startsOn: daysFromToday(-14),
+      endsOn: daysFromToday(-7),
+      status: 'in_progress',
+    });
+    const { svc } = makeService(store);
+
+    const result = await svc.runCheckNow(T, U, MID);
+
+    const cs = store.changeSets.get(result.changeSetsProposed[0]!)!;
+    expect(cs.watchKey).toBe('overdue:N1');
   });
 });

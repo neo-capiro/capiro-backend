@@ -283,14 +283,26 @@ export class WatcherSchedulerService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    const message =
+      previous === null
+        ? 'Firm-level calendar review due: first scheduled check for this mission — verify current reference calendars against every active strategy (automated cross-strategy diff is a Stage F follow-up)'
+        : 'Firm-level calendar review due: reference calendars changed since the last scheduled check — verify the changes against every active strategy (automated cross-strategy diff is a Stage F follow-up)';
+    // Phase 3 presentation fields: this finding is firm-level (never
+    // strategy-scoped), so it never reaches WatchReviewService's per-strategy
+    // card UI — only the firm review queue (RunsService.listFirmReview) reads
+    // this run, which does not sort on sortRank. Values are still populated
+    // (never left to a type-assertion) so this stays a real Finding, not a
+    // shape that happens to typecheck.
     const finding: Finding = {
       code: 'firm-calendar-review',
       severity: 'critical',
       nodeIds: [],
-      message:
-        previous === null
-          ? 'Firm-level calendar review due: first scheduled check for this mission — verify current reference calendars against every active strategy (automated cross-strategy diff is a Stage F follow-up)'
-          : 'Firm-level calendar review due: reference calendars changed since the last scheduled check — verify the changes against every active strategy (automated cross-strategy diff is a Stage F follow-up)',
+      message,
+      category: 'calendar',
+      title: 'Firm calendar changed',
+      impact: message,
+      whyCompared: ['calendar fingerprint'],
+      sortRank: 1,
     };
     const classification = classifyRisk({
       findings: [{ code: finding.code, severity: finding.severity, message: finding.message }],

@@ -102,6 +102,37 @@
   outline: none;
 }
 
+/*
+ * Prototype `button{font-family:var(--font-sans)}`, scoped.
+ *
+ * A <button> does NOT inherit font-family — Chrome's UA stylesheet gives it the
+ * system UI font — so every ported button without an explicit fontFamily
+ * rendered in Arial while its surroundings rendered in Hanken Grotesk. Phase 1
+ * hit this on the header's layer chips and patched those three inline; this is
+ * the prototype's own rule, so it fixes the whole scope (suggestion pills, the
+ * collapsible section headers, the composer's icon buttons) instead of one
+ * screen at a time.
+ */
+.sp-root button {
+  font-family: var(--font-sans);
+}
+
+/* Prototype scrollbar, scoped. Not cosmetic-only: a 10px scrollbar leaves 5px
+   more content width than the 15px default, so every scrolling column in this
+   surface measures differently without it. */
+.sp-root ::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+.sp-root ::-webkit-scrollbar-thumb {
+  background: var(--border-2);
+  border-radius: 6px;
+  border: 2px solid var(--bg-canvas);
+}
+.sp-root ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 /* The prototype pulses the "drafting" indicator. */
 @keyframes sppulse {
   0%,

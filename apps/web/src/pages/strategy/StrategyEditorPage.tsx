@@ -12,7 +12,7 @@ import { App } from 'antd';
 import { Icon, btnGhost } from './strategy-ui.js';
 import { StrategyTimeline } from './StrategyTimeline.js';
 import { StrategyHeader, type LayerKey } from './StrategyHeader.js';
-import { EditorRail } from './NodeRail.js';
+import { StrategyMeriPanel } from './NodeRail.js';
 import { HistoryModal } from './HistoryModal.js';
 import { FirmConfig } from './FirmConfig.js';
 import { RefCalendarConfig } from './RefCalendarConfig.js';
@@ -69,7 +69,6 @@ export function StrategyEditorPage() {
   // Stage G: which agent-staging plan is in flight (null = none).
   const [staging, setStaging] = useState<'workspace_draft' | 'outreach_record' | null>(null);
   const [applied, setApplied] = useState<string | null>(null);
-  const [draftBannerClosed, setDraftBannerClosed] = useState(false);
   const flashTimer = useRef<number>();
   const [searchParams] = useSearchParams();
   // Step 3: the header's Watch chip asks the panel to reveal its Watch block.
@@ -166,29 +165,6 @@ export function StrategyEditorPage() {
   const selectedNode = s.nodes.find((n) => n.id === selectedId) ?? null;
   // NOD-6 chips: artifacts arrive as a FLAT array on the strategy — filter by node.
   const nodeArtifacts = selectedNode ? s.artifacts.filter((a) => a.nodeId === selectedNode.id) : [];
-
-  // SHL-5: one-time banner after a Meri draft. Keyed off draftedByMeri (set only
-  // by the draft path) — NOT meriSummary, which a rail assist also writes and
-  // would falsely flag a manual plan. Dismissal is per-strategy, per-browser
-  // (localStorage), and also held in state so the banner disappears immediately
-  // on click without a re-read.
-  const draftKey = `sp-draft-banner-${sid}`;
-  const draftDismissedStored = (() => {
-    try {
-      return localStorage.getItem(draftKey) === '1';
-    } catch {
-      return false;
-    }
-  })();
-  const showDraftBanner = s.draftedByMeri && !draftBannerClosed && !draftDismissedStored;
-  const dismissDraftBanner = () => {
-    try {
-      localStorage.setItem(draftKey, '1');
-    } catch {
-      /* localStorage unavailable — state still hides it this session */
-    }
-    setDraftBannerClosed(true);
-  };
 
   const selectNode = (nid: string) => {
     setSelectedId(nid);
@@ -354,64 +330,16 @@ export function StrategyEditorPage() {
             background: 'var(--bg-canvas)',
           }}
         >
-          {showDraftBanner && (
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 10,
-                background: 'var(--accent-soft)',
-                border: '1px solid #C6D4F4',
-                borderRadius: 10,
-                padding: '11px 14px',
-                marginBottom: 14,
-              }}
-            >
-              <div style={{ marginTop: 1 }}>
-                <Icon name="spark" size={15} color="var(--accent-ink)" />
-              </div>
-              <div style={{ flex: 1, fontSize: 'var(--text-sm)', color: 'var(--ink-2)', lineHeight: 1.5 }}>
-                <b style={{ color: 'var(--accent-ink)' }}>Meri drafted this plan from your goal.</b> Every step is
-                editable — drag to re-time, click to open, or ask Meri to change anything from the rail.
-              </div>
-              <button
-                onClick={dismissDraftBanner}
-                title="Dismiss"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, display: 'grid' }}
-              >
-                <Icon name="x" size={13} color="var(--ink-4)" />
-              </button>
-            </div>
-          )}
-          {/* A8: Meri drafted on incomplete context. */}
-          {s.groundingHealth?.status === 'degraded' && (
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 10,
-                background: '#FFF6E5',
-                border: '1px solid #E0A94A',
-                borderRadius: 10,
-                padding: '11px 14px',
-                marginBottom: 14,
-                fontSize: 'var(--text-sm)',
-                color: 'var(--ink-2)',
-                lineHeight: 1.5,
-              }}
-            >
-              <div style={{ marginTop: 1 }}>
-                <Icon name="spark" size={15} color="#9A6A12" />
-              </div>
-              <div style={{ flex: 1 }}>
-                <b style={{ color: '#9A6A12' }}>Drafted on partial information.</b> Meri couldn't load:{' '}
-                {s.groundingHealth.missingRequired.join(', ') || 'some client context'}. Review the plan's
-                client-specific details before relying on it.
-              </div>
-            </div>
-          )}
+          {/* Phase 2 §5 Step 8 — two page cards removed here:
+              · the blue "Meri drafted this plan" card, replaced by the panel's
+                persistent (non-dismissible) drafted-plan note; and
+              · the amber "Drafted on partial information" card, replaced by the
+                `context_gap` message the draft endpoint now persists into the
+                strategy thread. That card also printed the Steward's INTERNAL
+                template keys ("strategy_brief") straight at the user; the
+                conversation message uses plain language.
+              The harder conflicted / verifier banners below stay until Phase 5
+              ships their repair behaviour. */}
           {/* E: Meri drafted against UNRESOLVED MATERIAL Steward conflicts —
               amber-red, names the two disagreeing sources verbatim (≤120 chars
               each), links to the review surface. Annotate-only, never blocks. */}
@@ -529,7 +457,7 @@ export function StrategyEditorPage() {
         </div>
 
         {railOpen && (
-          <EditorRail
+          <StrategyMeriPanel
             strategyId={sid}
             clientId={s.clientId}
             node={selectedNode}
@@ -541,8 +469,8 @@ export function StrategyEditorPage() {
             focusWatch={focusWatch}
             onWatchFocused={() => setFocusWatch(false)}
             meriSummary={s.meriSummary}
+            draftedByMeri={s.draftedByMeri}
             currentUserId={user?.id}
-            existingNodeIds={s.nodes.map((n) => n.id)}
             nodeArtifacts={nodeArtifacts}
             staging={staging}
             applied={applied}

@@ -251,4 +251,35 @@ describe('sendMail — result contract', () => {
       h.restore();
     }
   });
+
+  // §g5 / Open Decision 6.3 — a 5xx is Gmail's OWN failure while handling the
+  // request, not a confirmed rejection of it: unlike a 4xx (Gmail answered
+  // "no"), a 5xx does not guarantee the message was never accepted. The gap
+  // this closes: EVERY non-2xx used to become a plain ServiceUnavailableException
+  // here, which the send-intent worker records as 'failed' — offering a Retry
+  // that could duplicate an email a 500 response never actually confirmed was
+  // rejected.
+  test.each([500, 502, 503, 504])(
+    'a %i response is AMBIGUOUS, not a retryable failure',
+    async (status) => {
+      const h = makeService(async () => jsonResponse({ error: 'internal' }, status));
+      try {
+        await expect(h.service.sendMail(ctx, 'conn-1', INPUT)).rejects.toBeInstanceOf(
+          AmbiguousMailSendError,
+        );
+      } finally {
+        h.restore();
+      }
+    },
+  );
+
+  test.each([400, 404, 429])('a %i response (other than 401/403) is a KNOWN failure', async (status) => {
+    const h = makeService(async () => jsonResponse({ error: 'bad request' }, status));
+    try {
+      const caught = await h.service.sendMail(ctx, 'conn-1', INPUT).catch((e: unknown) => e);
+      expect(caught).not.toBeInstanceOf(AmbiguousMailSendError);
+    } finally {
+      h.restore();
+    }
+  });
 });

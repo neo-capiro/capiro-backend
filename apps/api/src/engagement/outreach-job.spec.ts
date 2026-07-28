@@ -5,7 +5,8 @@
 
 import { describe, expect, test } from '@jest/globals';
 import type { TenantContext } from '@capiro/shared';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
+import { AudiencePolicyRequiredError } from './generation/government-affairs-policy.registry.js';
 import {
   OutreachJobService,
   buildItemResult,
@@ -78,7 +79,12 @@ const ctx: TenantContext = {
 /** Stub the withTenant tx surface submit() touches. */
 function makeService(
   existingJobId: string | null,
-  opts: { gatewayEnabled?: boolean; pinned?: Record<string, unknown> | null } = {},
+  opts: {
+    gatewayEnabled?: boolean;
+    pinned?: Record<string, unknown> | null;
+    /** §e2 — resolvePolicy throws AudiencePolicyRequiredError instead of resolving. */
+    audienceAmbiguous?: boolean;
+  } = {},
 ) {
   const created: { job?: Record<string, unknown>; items?: unknown[] } = {};
   const lookups: Array<Record<string, unknown>> = [];
@@ -90,7 +96,15 @@ function makeService(
   patch.logger = { warn: () => {}, error: () => {}, log: () => {} };
   patch.gateway = {
     enabled: opts.gatewayEnabled ?? false,
-    resolvePolicy: () => ({ policyId: 'federal.congressional_office', version: 'ga-policy-v1' }),
+    resolvePolicy: () => {
+      if (opts.audienceAmbiguous) {
+        throw new AudiencePolicyRequiredError('The audience could not be determined.', [
+          'congressional_office',
+          'federal_agency',
+        ]);
+      }
+      return { policyId: 'federal.congressional_office', version: 'ga-policy-v1' };
+    },
     resolvePinnedIdentity: async () =>
       opts.pinned === null
         ? null
@@ -617,18 +631,61 @@ describe('async provider/model pinning (Phase 1 §3.k)', () => {
     expect((created.job?.params as Record<string, unknown>).pinnedIdentity).toBeUndefined();
   });
 
-  test('a failure to resolve the identity does not block queueing', async () => {
-    // Degrades to per-chunk resolution (today's behavior) rather than refusing
-    // to accept the campaign.
+  // §e1 — a pinning failure under the gateway used to degrade to an unpinned
+  // job (per-chunk resolution, today's behavior); it now REJECTS the whole
+  // submission before any job or item row exists, because an unpinned job is
+  // exactly the mid-campaign voice split the pin exists to prevent.
+  test('with the gateway ON, no available credential REJECTS the submission — no job is created (§e1)', async () => {
     const { service, created } = makeService(null, { gatewayEnabled: true, pinned: null });
-    const out = await service.submit(ctx, {
-      requestKey: 'rk-degrade',
-      kind: 'generate',
-      params: { templateId: 'meeting_request' },
-      recipients,
+    await expect(
+      service.submit(ctx, {
+        requestKey: 'rk-nocreds',
+        kind: 'generate',
+        params: { templateId: 'meeting_request' },
+        recipients,
+      }),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(created.job).toBeUndefined();
+    expect(created.items).toBeUndefined();
+  });
+
+  // §e2 — an ambiguous audience is a submission failure, not something the
+  // (now-mandatory) pin can defer to "the per-chunk resolution will raise it
+  // later" — there is no per-chunk resolution once pinning is mandatory.
+  test('with the gateway ON, an ambiguous audience REJECTS the submission — no job is created (§e2)', async () => {
+    const { service, created } = makeService(null, { gatewayEnabled: true, audienceAmbiguous: true });
+    let caught: unknown;
+    try {
+      await service.submit(ctx, {
+        requestKey: 'rk-ambiguous',
+        kind: 'generate',
+        params: { templateId: 'meeting_request' },
+        recipients,
+      });
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(BadRequestException);
+    const body = (caught as BadRequestException).getResponse() as Record<string, unknown>;
+    expect(body.error).toBe('AUDIENCE_POLICY_REQUIRED');
+    expect(created.job).toBeUndefined();
+    expect(created.items).toBeUndefined();
+  });
+
+  test('the gateway OFF path never resolves policy, so an ambiguous audience is irrelevant', async () => {
+    const { service, created } = makeService(null, {
+      gatewayEnabled: false,
+      audienceAmbiguous: true,
     });
-    expect(out.jobId).toBe('new-job');
-    expect((created.job?.params as Record<string, unknown>).pinnedIdentity).toBeUndefined();
+    await expect(
+      service.submit(ctx, {
+        requestKey: 'rk-flag-off',
+        kind: 'generate',
+        params: { templateId: 'meeting_request' },
+        recipients,
+      }),
+    ).resolves.toMatchObject({ deduped: false });
+    expect(created.job).toBeDefined();
   });
 });
 
@@ -677,5 +734,28 @@ describe('the job item result keeps the Context Used manifest (§3.k4)', () => {
     });
     expect((out?.manifest as { contextPacketId: string }).contextPacketId).toBe('pkt-1');
     expect(out).not.toHaveProperty('error');
+  });
+});
+
+describe('the job item result preserves candidate status (§e4)', () => {
+  test('isCandidate + baseVersion survive the allowlist', () => {
+    const out = buildItemResult({
+      subject: 's',
+      body: 'b',
+      versionId: 'v-2',
+      artifactId: 'art-1',
+      version: 2,
+      auditStatus: 'passed',
+      approvalStatus: 'not_required',
+      isCandidate: true,
+      baseVersion: 1,
+    });
+    expect(out).toMatchObject({ isCandidate: true, baseVersion: 1 });
+  });
+
+  test('a normal (non-candidate) result carries neither field', () => {
+    const out = buildItemResult({ subject: 's', body: 'b', versionId: 'v-1' });
+    expect(out).not.toHaveProperty('isCandidate');
+    expect(out).not.toHaveProperty('baseVersion');
   });
 });
