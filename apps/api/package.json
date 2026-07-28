@@ -21,6 +21,7 @@
     "eval:outreach:calibrate": "tsx scripts/eval-outreach-calibrate.ts",
     "diag:outreach-usage": "tsx scripts/diag-outreach-usage.ts",
     "diag:engagement-campaigns": "tsx scripts/diag-engagement-campaigns.ts",
+    "diag:pe-trust": "tsx scripts/diag-program-element-trust-baseline.ts",
     "set:tenant-flag": "tsx scripts/set-tenant-flag.ts",
     "backfill:client-kb": "tsx scripts/backfill-client-kb.ts",
     "backfill:google-meeting-virtuality": "tsx scripts/backfill-google-meeting-virtuality.ts",
