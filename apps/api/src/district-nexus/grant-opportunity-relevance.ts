@@ -66,7 +66,12 @@ export interface ClientRelevanceProfile {
   priorAssistanceListings: string[];
   /** Agencies the client has prior awards from. */
   priorAgencies: string[];
-  /** Applicant type codes the client qualifies as, e.g. '12' (for-profit). */
+  /**
+   * Grants.gov "Eligible Applicants" values the client qualifies as, e.g.
+   * 'Small businesses'. LABELS, not the numeric codes — the opportunity side
+   * comes from `federal_grant.eligibility`, which stores labels, and the two are
+   * compared by string. See GRANTS_GOV_APPLICANT_TYPES in @capiro/shared.
+   */
   applicantTypes: string[];
   states: string[];
   knownPartnerNames: string[];
@@ -78,7 +83,10 @@ export interface OpportunityProfile {
   fundingCategory: string | null;
   title: string | null;
   description: string | null;
-  /** Applicant type codes the opportunity accepts. Empty = unspecified. */
+  /**
+   * "Eligible Applicants" values the opportunity accepts, as label strings from
+   * `federal_grant.eligibility`. Empty = the notice did not say.
+   */
   eligibleApplicantTypes: string[];
   /** State codes the opportunity is restricted to. Empty = unrestricted. */
   geographicRestrictions: string[];
