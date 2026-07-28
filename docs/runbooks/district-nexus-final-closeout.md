@@ -84,14 +84,26 @@ export NETCFG='awsvpcConfiguration={subnets=[subnet-0e38bd390f8961fef,subnet-092
 Picking the wrong one fails in a way that reads like a code bug. Verified
 2026-07-28:
 
-| Task definition | Container | Log prefix | Use it for |
+| Task definition | Container | Log stream | Use it for |
 | --- | --- | --- | --- |
-| `capiro-dev-api-sync` | `api` | `api` | Ingestion/cleanup jobs that need **no vendor key beyond the shared set** |
-| `capiro-dev-api-sync-jobs` | `api-sync-jobs` | `sync-jobs` | **Anything LegiStorm.** This is the only one carrying `LEGISTORM_API_KEY` |
-| `capiro-dev-api-diag` | `db-inspect` | `api` | Read-only DB probes (`entryPoint` is `["node","-e"]`) |
+| `capiro-dev-api-sync` | `api` | `api/api/<task-id>` | Ingestion/cleanup jobs needing **no vendor key beyond the shared set** |
+| `capiro-dev-api-sync-jobs` | `api-sync-jobs` | `sync-jobs/api-sync-jobs/<task-id>` | **Anything LegiStorm.** The only one carrying `LEGISTORM_API_KEY` |
+| `capiro-dev-api-diag` | `db-inspect` | `diag/db-inspect/<task-id>` | Read-only DB probes (`entryPoint` is `["node","-e"]`) |
 
-All three log to `/capiro/dev/api` — the stream *prefix* is what differs, so
-`filter-log-events` on the group sees all of them.
+All three log to the **same group**, `/capiro/dev/api`; only the stream prefix
+differs, so `filter-log-events` on the group alone sees all of them. If you want
+one task's output, get the stream name right — `api/db-inspect/<task-id>` does
+**not** exist and returns `ResourceNotFoundException`, which reads like the task
+produced no output. List them instead of guessing:
+
+```bash
+MSYS_NO_PATHCONV=1 aws logs describe-log-streams --profile capiro-dev \
+  --log-group-name /capiro/dev/api --order-by LastEventTime --descending \
+  --max-items 8 --query 'logStreams[].logStreamName' --output text
+```
+
+(`--order-by LastEventTime` and `--log-stream-name-prefix` are mutually
+exclusive; passing both is an `InvalidParameterException`.)
 
 **`capiro-dev-api-sync` does NOT have `LEGISTORM_API_KEY`.** Running
 `sync-legistorm-districts` (or any LegiStorm verb) there fails with
