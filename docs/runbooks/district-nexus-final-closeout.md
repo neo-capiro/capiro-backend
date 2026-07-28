@@ -757,17 +757,45 @@ Against `capiro-internal` (the only tenant with the flag on), signed in as a
 8. Open `/intelligence/district-nexus`. Map, filters, table fallback, and drawer
    all render; district counts match the widget.
 
-Then confirm the audit trail:
+Then confirm the audit trail.
+
+> **This query was wrong in four ways and returned `42P01` / `42703`.** The table
+> is **`audit_logs`** (plural), the JSON columns are **`before_jsonb`** and
+> **`after_jsonb`**, and the timestamp is **`occurred_at`**, not `created_at`.
+> Corrected below; this is the form that was actually run.
 
 ```sql
-SELECT action, entity_type, entity_id, actor_user_id, created_at
-FROM audit_log
+SELECT action, entity_type, entity_id, actor_role,
+       before_jsonb IS NOT NULL AS has_before,
+       after_jsonb  IS NOT NULL AS has_after,
+       occurred_at
+FROM audit_logs
 WHERE action LIKE 'district_nexus.grant_relationship.%'
-ORDER BY created_at DESC LIMIT 20;
+ORDER BY occurred_at DESC LIMIT 20;
 ```
 
 Every create/update/reject in steps 2–6 must appear, with `before` populated on
 update and reject.
+
+**Walked 2026-07-28 against `capiro-internal` / RTX. Result — exactly three rows
+for three successful mutations:**
+
+| Time | Action | Role | `before` | `after` |
+| --- | --- | --- | --- | --- |
+| 16:43:40 | `district_nexus.grant_relationship.create` | `capiro_admin` | — | ✓ |
+| 16:53:57 | `district_nexus.grant_relationship.update` | `capiro_admin` | **✓** | ✓ |
+| 16:59:45 | `district_nexus.grant_relationship.reject` | `capiro_admin` | **✓** | ✓ |
+
+`before` is absent on create because there is no prior state, and present on both
+update and reject — which is the actual requirement.
+
+**The absences matter as much as the rows.** The two *refused* attempts (a
+project site with no facility, and a duplicate) produced **no audit rows and no
+`client_grant_nexus` rows at all** — confirming both are rejected before any
+tenant write begins rather than being written and then undone.
+
+Actor resolves to `capiro_admin` / `neo@capiro.ai` — the caller, never anything
+client-supplied.
 
 ---
 
