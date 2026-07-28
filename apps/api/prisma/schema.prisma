@@ -3990,7 +3990,11 @@ model ProgramElementWatch {
   tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   programElement ProgramElement @relation(fields: [peCode], references: [peCode], onDelete: Cascade)
 
+  // Phase C expand step: keep the legacy user+PE key until every API/sync
+  // container runs tenant-aware code. The legacy key is removed only in a
+  // separately approved contract migration after the live smoke gate.
   @@unique([userId, peCode], map: "program_element_watch_user_pe_code_key")
+  @@unique([tenantId, userId, peCode], map: "program_element_watch_tenant_user_pe_code_key")
   @@index([tenantId, peCode], map: "program_element_watch_tenant_pe_code_idx")
   @@map("program_element_watch")
 }

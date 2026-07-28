@@ -38,6 +38,7 @@ import {
   renderPeDigestEmail,
   type PeAlertItem,
 } from '../src/program-element/pe-alerts/pe-alert-email.js';
+import { aggregateTenantScopedPeAlertWatches } from '../src/program-element/pe-alerts/tenant-watch-aggregation.js';
 import {
   lastSuccessfulWatermark,
   runWithSyncRun,
@@ -203,31 +204,21 @@ async function main(): Promise<void> {
       const prefs = await tx.peAlertEmailPref.findMany({
         select: { userId: true, tenantId: true, mode: true },
       });
-      const prefByUser = new Map(prefs.map((p) => [`${p.tenantId}:${p.userId}`, p.mode]));
-
-      interface UserAgg {
-        tenantId: string;
-        email: string;
-        watched: Set<string>;
-      }
-      const users = new Map<string, UserAgg>();
-      for (const w of watches) {
-        const key = `${w.tenantId}:${w.userId}`;
-        const agg = users.get(key) ?? {
-          tenantId: w.tenantId,
-          email: w.user.email,
-          watched: new Set<string>(),
-        };
-        agg.watched.add(w.peCode);
-        users.set(key, agg);
-      }
-      summary.users_considered = users.size;
+      const users = aggregateTenantScopedPeAlertWatches(
+        watches.map((watch) => ({
+          userId: watch.userId,
+          tenantId: watch.tenantId,
+          peCode: watch.peCode,
+          email: watch.user.email,
+        })),
+        prefs,
+        canary,
+      );
+      summary.users_considered = users.length;
 
       const queued: QueuedEmail[] = [];
-      for (const [key, agg] of users) {
-        const mode = prefByUser.get(key) ?? 'daily';
-        if (mode === 'off') continue;
-        if (!canary.all && !canary.ids.has(agg.tenantId)) continue;
+      for (const agg of users) {
+        if (!agg.enabled || !agg.canaryEligible) continue;
         const digest = digestForUser(alerts, agg.watched);
         const total = digest.critical.length + digest.regular.length;
         if (total === 0) continue;

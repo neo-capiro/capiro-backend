@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import LRUCache = require('lru-cache');
 import type { TenantContext } from '@capiro/shared';
@@ -117,6 +117,29 @@ export interface OpportunityItem {
  */
 const MAX_RELEVANCE_PROBES = 50;
 
+const LEGACY_PE_WATCH_CONSTRAINT = 'program_element_watch_user_pe_code_key';
+
+/**
+ * During the expand/contract window the legacy (user_id, pe_code) key still
+ * exists so old containers can roll back safely. A user who already watches a
+ * PE in another tenant will therefore hit that legacy key until the later
+ * contract migration. Detect only that named constraint and fail closed: never
+ * rewrite tenant_id and never reveal which other tenant owns the existing row.
+ */
+function isLegacyPeWatchConstraintConflict(error: unknown): boolean {
+  const candidates: unknown[] = [String(error)];
+  if (error && typeof error === 'object') {
+    const record = error as Record<string, unknown>;
+    candidates.push(record.message, record.code);
+    if (record.meta && typeof record.meta === 'object') {
+      candidates.push(...Object.values(record.meta as Record<string, unknown>));
+    }
+  }
+  return candidates.some(
+    (value) => typeof value === 'string' && value.includes(LEGACY_PE_WATCH_CONSTRAINT),
+  );
+}
+
 @Injectable()
 export class ProgramElementReadService {
   private readonly detailCache = new LRUCache<string, Record<string, unknown>>({
@@ -147,6 +170,7 @@ export class ProgramElementReadService {
     const hasDataOnly = query.hasData === 'true';
     const watchedOnly = query.watched === 'true';
     const userId = ctx?.userId ?? null;
+    const tenantId = ctx?.tenantId ?? null;
     // BL-1 money-graph facets: line_type filters on the intelligence cache;
     // capability filters via the auditable match table (accepted rows only).
     const lineType = query.lineType?.trim();
@@ -196,8 +220,8 @@ export class ProgramElementReadService {
 
     // Per-user watch flag. Runs inside withTenant (below) so the program_element_watch
     // RLS policy is satisfied; FALSE when there is no user context.
-    const watchedExpr = userId
-      ? Prisma.sql`EXISTS (SELECT 1 FROM program_element_watch pw WHERE pw.pe_code = pe.pe_code AND pw.user_id = ${userId}::uuid)`
+    const watchedExpr = userId && tenantId
+      ? Prisma.sql`EXISTS (SELECT 1 FROM program_element_watch pw WHERE pw.tenant_id = ${tenantId}::uuid AND pw.user_id = ${userId}::uuid AND pw.pe_code = pe.pe_code)`
       : Prisma.sql`FALSE`;
 
     // The redesigned finder shows per-row money, a 6-yr funding sparkline, a bill
@@ -551,7 +575,10 @@ export class ProgramElementReadService {
     if (ctx?.tenantId && ctx?.userId) {
       const wr = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.$queryRaw<Array<{ count: number }>>(Prisma.sql`
-          SELECT COUNT(*)::int AS count FROM program_element_watch WHERE user_id = ${ctx.userId}::uuid
+          SELECT COUNT(*)::int AS count
+          FROM program_element_watch
+          WHERE tenant_id = ${ctx.tenantId}::uuid
+            AND user_id = ${ctx.userId}::uuid
         `),
       );
       watched = wr[0]?.count ?? 0;
@@ -665,7 +692,8 @@ export class ProgramElementReadService {
       tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
         SELECT id
         FROM program_element_watch
-        WHERE user_id = ${ctx.userId}::uuid
+        WHERE tenant_id = ${ctx.tenantId}::uuid
+          AND user_id = ${ctx.userId}::uuid
           AND pe_code = ${peCode}
         LIMIT 1
       `),
@@ -1544,7 +1572,7 @@ export class ProgramElementReadService {
     const set = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const [watches, caps] = await Promise.all([
         tx.programElementWatch.findMany({
-          where: { peCode: { in: peCodes } },
+          where: { tenantId: ctx.tenantId, peCode: { in: peCodes } },
           select: { peCode: true },
         }),
         tx.clientCapability.findMany({
@@ -1678,13 +1706,26 @@ export class ProgramElementReadService {
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       if (watching) {
-        const inserted = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-          INSERT INTO program_element_watch (user_id, tenant_id, pe_code)
-          VALUES (${ctx.userId}::uuid, ${ctx.tenantId}::uuid, ${peCode})
-          ON CONFLICT (user_id, pe_code)
-          DO UPDATE SET tenant_id = EXCLUDED.tenant_id
-          RETURNING id
-        `);
+        let inserted: Array<{ id: string }>;
+        try {
+          inserted = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+            INSERT INTO program_element_watch (tenant_id, user_id, pe_code)
+            VALUES (${ctx.tenantId}::uuid, ${ctx.userId}::uuid, ${peCode})
+            ON CONFLICT (tenant_id, user_id, pe_code)
+            DO UPDATE SET pe_code = EXCLUDED.pe_code
+            RETURNING id
+          `);
+        } catch (error) {
+          if (isLegacyPeWatchConstraintConflict(error)) {
+            throw new ConflictException({
+              statusCode: 409,
+              code: 'PE_WATCH_TENANT_KEY_ROLLOUT_PENDING',
+              message:
+                'This watch cannot be added while the tenant-isolation rollout is in progress. No existing watch was changed.',
+            });
+          }
+          throw error;
+        }
 
         const watchId = inserted[0]?.id ?? null;
 
@@ -1696,7 +1737,7 @@ export class ProgramElementReadService {
             action: 'program_element.watch.set',
             entityType: 'program_element_watch',
             entityId: watchId,
-            after: { peCode, watching: true },
+            after: { tenantId: ctx.tenantId, peCode, watching: true },
           },
         });
 
@@ -1705,7 +1746,8 @@ export class ProgramElementReadService {
 
       const removed = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
         DELETE FROM program_element_watch
-        WHERE user_id = ${ctx.userId}::uuid
+        WHERE tenant_id = ${ctx.tenantId}::uuid
+          AND user_id = ${ctx.userId}::uuid
           AND pe_code = ${peCode}
         RETURNING id
       `);
@@ -1718,7 +1760,7 @@ export class ProgramElementReadService {
           action: 'program_element.watch.set',
           entityType: 'program_element_watch',
           entityId: removed[0]?.id ?? null,
-          after: { peCode, watching: false },
+          after: { tenantId: ctx.tenantId, peCode, watching: false },
         },
       });
 
