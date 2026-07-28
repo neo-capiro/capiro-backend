@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import LRUCache = require('lru-cache');
 import type { TenantContext } from '@capiro/shared';
@@ -220,9 +225,10 @@ export class ProgramElementReadService {
 
     // Per-user watch flag. Runs inside withTenant (below) so the program_element_watch
     // RLS policy is satisfied; FALSE when there is no user context.
-    const watchedExpr = userId && tenantId
-      ? Prisma.sql`EXISTS (SELECT 1 FROM program_element_watch pw WHERE pw.tenant_id = ${tenantId}::uuid AND pw.user_id = ${userId}::uuid AND pw.pe_code = pe.pe_code)`
-      : Prisma.sql`FALSE`;
+    const watchedExpr =
+      userId && tenantId
+        ? Prisma.sql`EXISTS (SELECT 1 FROM program_element_watch pw WHERE pw.tenant_id = ${tenantId}::uuid AND pw.user_id = ${userId}::uuid AND pw.pe_code = pe.pe_code)`
+        : Prisma.sql`FALSE`;
 
     // The redesigned finder shows per-row money, a 6-yr funding sparkline, a bill
     // count, the watch flag and the most-material live signal. The page of PEs is

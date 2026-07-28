@@ -102,9 +102,11 @@ function makeService(prisma: ReturnType<typeof makePrisma>) {
     prisma as never,
     { predict: jest.fn(async () => null) } as never,
   );
-  (service as unknown as {
-    detailCache: { set: (key: string, value: Record<string, unknown>) => void };
-  }).detailCache.set(PE, { peCode: PE, title: 'Test PE' });
+  (
+    service as unknown as {
+      detailCache: { set: (key: string, value: Record<string, unknown>) => void };
+    }
+  ).detailCache.set(PE, { peCode: PE, title: 'Test PE' });
   return service;
 }
 

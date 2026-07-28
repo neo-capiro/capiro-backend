@@ -54,12 +54,8 @@ describe('Phase C PE-watch expand/contract safety', () => {
     );
     expect(sql).toMatch(/FROM pg_policies/);
     expect(sql).toMatch(/RAISE EXCEPTION/);
-    expect(sql).toMatch(
-      /ALTER TABLE "program_element_watch" ENABLE ROW LEVEL SECURITY/,
-    );
-    expect(sql).toMatch(
-      /ALTER TABLE "program_element_watch" FORCE ROW LEVEL SECURITY/,
-    );
+    expect(sql).toMatch(/ALTER TABLE "program_element_watch" ENABLE ROW LEVEL SECURITY/);
+    expect(sql).toMatch(/ALTER TABLE "program_element_watch" FORCE ROW LEVEL SECURITY/);
     expect(sql).toMatch(
       /CREATE POLICY "program_element_watch_isolation" ON "program_element_watch"/,
     );
@@ -71,9 +67,7 @@ describe('Phase C PE-watch expand/contract safety', () => {
     const source = apiFile('src/program-element/program-element-read.service.ts');
     expect(source).toContain('pw.tenant_id = ${tenantId}::uuid');
     expect(source).toContain('WHERE tenant_id = ${ctx.tenantId}::uuid');
-    expect(source).toContain(
-      'where: { tenantId: ctx.tenantId, peCode: { in: peCodes } }',
-    );
+    expect(source).toContain('where: { tenantId: ctx.tenantId, peCode: { in: peCodes } }');
     expect(source).toContain('ON CONFLICT (tenant_id, user_id, pe_code)');
     expect(source).not.toContain('DO UPDATE SET tenant_id = EXCLUDED.tenant_id');
     expect(source).toMatch(
@@ -83,12 +77,8 @@ describe('Phase C PE-watch expand/contract safety', () => {
 
   test('the migration set enables and forces RLS for the watch table', () => {
     const sql = migrationSql();
-    expect(sql).toMatch(
-      /ALTER TABLE\s+"?program_element_watch"?\s+ENABLE ROW LEVEL SECURITY/i,
-    );
-    expect(sql).toMatch(
-      /ALTER TABLE\s+"?program_element_watch"?\s+FORCE ROW LEVEL SECURITY/i,
-    );
+    expect(sql).toMatch(/ALTER TABLE\s+"?program_element_watch"?\s+ENABLE ROW LEVEL SECURITY/i);
+    expect(sql).toMatch(/ALTER TABLE\s+"?program_element_watch"?\s+FORCE ROW LEVEL SECURITY/i);
     expect(sql).toMatch(/CREATE POLICY[\s\S]{0,800}program_element_watch/i);
   });
 });

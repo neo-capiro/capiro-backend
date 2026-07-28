@@ -94,9 +94,7 @@ async function main(): Promise<void> {
     const watermark = await lastSuccessfulWatermark(prisma, SYNC_SOURCE);
     const floor = new Date(Date.now() - hours * 3600 * 1000);
     const cap = new Date(Date.now() - 48 * 3600 * 1000);
-    const since = watermark
-      ? new Date(Math.max(watermark.getTime(), cap.getTime()))
-      : floor;
+    const since = watermark ? new Date(Math.max(watermark.getTime(), cap.getTime())) : floor;
 
     // Phase A — all DB reads + watchlist stamping inside one bypass-RLS
     // transaction; build the email plan but send NOTHING here. Sending is
@@ -230,7 +228,15 @@ async function main(): Promise<void> {
           critical: digest.critical.length,
         });
         const { subject, html, text } = renderPeDigestEmail(digest, { appBaseUrl });
-        queued.push({ to: agg.email, tenantId: agg.tenantId, subject, html, text, total, critical: digest.critical.length });
+        queued.push({
+          to: agg.email,
+          tenantId: agg.tenantId,
+          subject,
+          html,
+          text,
+          total,
+          critical: digest.critical.length,
+        });
       }
 
       return { summary, queued };

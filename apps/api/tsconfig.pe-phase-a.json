@@ -21,8 +21,5 @@
     "scripts/lib/pe-watch-tenant-isolation.spec.ts",
     "src/program-element/pe-alerts/tenant-watch-aggregation.ts"
   ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "exclude": ["node_modules", "dist"]
 }
