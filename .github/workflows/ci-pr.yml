@@ -17,15 +17,6 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      # TEMPORARY agent materialization step. Removed before handoff.
-      - name: Package source for implementation workspace
-        run: tar --exclude=.git -czf /tmp/capirov2-source.tgz .
-      - name: Upload implementation workspace
-        uses: actions/upload-artifact@v4
-        with:
-          name: agent-source
-          path: /tmp/capirov2-source.tgz
-          retention-days: 1
       # No `version:` — pnpm/action-setup reads it from package.json
       # `packageManager` (pnpm@9.12.0); pinning both errors with
       # "Multiple versions of pnpm specified".
@@ -127,7 +118,7 @@ jobs:
       - name: Test auth package
         run: pnpm --filter @capiro/auth test
 
-      # @capiro/api-strategy — Strategy Planner engine (G1 scaffold). G1 scaffold). The
+      # @capiro/api-strategy — Strategy Planner engine (G1 scaffold). The
       # DB-free specs run here: fiscal calendar, reference baseline builder +
       # payload validator, and the tenant-scope leak guard (static: greps src
       # for bare tenant-scoped Prisma access). The DB-backed
