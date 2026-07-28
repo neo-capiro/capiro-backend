@@ -37,6 +37,7 @@ import {
 import { useApi } from '../../../../lib/use-api.js';
 import { useMe } from '../../../../lib/me.js';
 import { intelTrackerPaths } from '../../../clients/tracker/intel-tracker-api.js';
+import { OUTREACH_SUMMARY_MAX } from '../../../clients/tracker/alert-packet.js';
 import type { Client } from '../../../clients/clientTypes.js';
 import type { OutreachRecipient, OutreachRecord } from '../../OutreachView.js';
 import { StepCampaignSetup } from './StepCampaignSetup.js';
@@ -1752,7 +1753,14 @@ export function NewOutreachWizard({
         id: item.id,
         sourceType: item.kind,
         title: item.title,
-        summary: item.body,
+        // HP-05 (Gate L) followup c-3: the DTO bounds summary at
+        // OUTREACH_SUMMARY_MAX; item.body is unclamped wizard state (it can be
+        // the FULL packet render read back from a resumed draft), so an
+        // over-length body 400s the save with no clamp here. The initial
+        // draftOutreach mutation (TrackerFeedPanel.tsx) already clamps at
+        // CREATE time via buildOutreachContextPoolItem — this is the same
+        // bound applied on every subsequent save/resume round-trip.
+        summary: item.body?.slice(0, OUTREACH_SUMMARY_MAX),
         note: item.note,
         scope: item.scope,
         recipientIds: item.scope && item.scope !== 'all' ? [item.scope] : undefined,
@@ -1837,7 +1845,10 @@ export function NewOutreachWizard({
           id: item.id,
           sourceType: item.kind,
           title: item.title,
-          summary: item.body,
+          // HP-05 (Gate L) followup c-3: same resume-and-save clamp as buildSaveBody
+          // above — item.body is unclamped wizard state, and the DTO bounds
+          // summary at OUTREACH_SUMMARY_MAX.
+          summary: item.body?.slice(0, OUTREACH_SUMMARY_MAX),
           note: item.note,
           scope: item.scope,
           recipientIds: item.scope && item.scope !== 'all' ? [item.scope] : undefined,
