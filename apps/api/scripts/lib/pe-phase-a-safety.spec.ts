@@ -21,7 +21,7 @@ describe('Phase A operational safety guards', () => {
       expect(source).not.toContain('Resolving failed migration:');
     }
 
-    expect(active).toContain('prisma migrate deploy');
+    expect(active).toMatch(/node .*prisma.* migrate deploy/);
     expect(compatibility).toContain('Refusing legacy migrate dispatch');
   });
 
