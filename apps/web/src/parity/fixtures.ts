@@ -175,8 +175,11 @@ export const LIST: StrategyListItem[] = [
     ownerUserId: 'user_parity',
     createdByUserId: 'user_parity',
     lastEditedByUserId: 'user_parity',
-    lastEditedAt: '2027-01-24T00:00:00.000Z',
-    createdAt: '2026-06-04T00:00:00.000Z',
+    // The prototype's row reads "Jan 24". A 2027 date is in the FUTURE relative
+    // to the capture date, which the relative formatter renders as "just now".
+    // Midday UTC: a midnight-UTC stamp renders as Jan 23 west of UTC.
+    lastEditedAt: '2026-01-24T12:00:00.000Z',
+    createdAt: '2025-06-04T00:00:00.000Z',
     nodeCount: 6,
   },
 ];
@@ -188,11 +191,16 @@ export const CLIENTS = [
   { id: 'client-northwind', name: 'Northwind Robotics' },
 ];
 
+/**
+ * `memberName()` resolves owners by `clerkUserId` (members.ts) — keying these
+ * on `userId` made every owner in the list fall back to "Team member" and made
+ * the list capture non-comparable with the prototype, which names them.
+ */
 export const MEMBERS = [
-  { userId: 'user_maya', name: 'Maya Reyes', email: 'maya@example.com' },
-  { userId: 'user_james', name: 'James Okafor', email: 'james@example.com' },
-  { userId: 'user_ava', name: 'Ava Lin', email: 'ava@example.com' },
-  { userId: 'user_parity', name: 'Neo Martinez', email: 'neo@capiro.ai' },
+  { id: 'm_maya', clerkUserId: 'user_maya', name: 'Maya Reyes', email: 'maya@example.com' },
+  { id: 'm_james', clerkUserId: 'user_james', name: 'James Okafor', email: 'james@example.com' },
+  { id: 'm_ava', clerkUserId: 'user_ava', name: 'Ava Lin', email: 'ava@example.com' },
+  { id: 'm_neo', clerkUserId: 'user_parity', name: 'Neo Martinez', email: 'neo@capiro.ai' },
 ];
 
 /** The current federal FY, on the same rule buildCalendar uses (Oct rollover). */

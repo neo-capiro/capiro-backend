@@ -1,18 +1,53 @@
 # Phase 7 — Strategy Planner prototype visual-parity report
 
-**Verdict: the Phase 7 gate does NOT pass yet.** The capture and measurement
-infrastructure is built and working, 12 implementation states and 4 prototype
-states are captured reproducibly, and 14 of the 18 elements measurable on both
-sides match to **0.00 CSS px**. The remaining evidence the gate requires — a
-verified geometry table for every element, image diffs, the responsive matrix,
-and the interaction pass — is not complete. Details and exact gaps below.
+**Verdict: the Phase 7 gate does NOT pass.** This revision supersedes the first
+pass. It corrects that pass's central error, records what is now measured, and
+states precisely what blocks the remaining gate criteria.
 
 Nothing in this phase was pushed, merged, deployed, or flag-enabled.
 
-- Base: `feat/strategy-proto-phase-6` @ `e102d1c9` (Phases 1–5 merged onto `main` @ `1cdd372f` in Phase 6)
-- Head: this phase's commit on the same branch
+- Base: `feat/strategy-proto-phase-6` @ `e102d1c9`
+- Prior Phase 7 commit: `9e7126d7`
 - Prototype reference: `Downloads\Capiro - Strategy Planner (PPBE) - standalone (2).html` (rendered, not recalled)
 - Artifacts: `C:\dev\parity-p7\` (outside the repo — no binaries committed)
+
+---
+
+## 0. What changed since the first pass, and why it matters
+
+The first pass reported "14 of 18 elements match to 0.00 CSS px". **Those
+implementation measurements were taken against a mis-sized surface and are
+withdrawn.**
+
+antd's `<App>` renders a wrapper `<div>` between `#parity-root` and the
+strategy surface. It defaults to `flex: 0 1 auto` with `min-height: auto`, so
+it sized to **content** and `#parity-root`'s 846px region height never reached
+the page. The measured chain was:
+
+| element | height |
+| --- | --- |
+| `#parity-root` (the region) | **846** |
+| antd `<App>` wrapper | **1288.04** ← unconstrained |
+| `.sp-root` → page root → row | 1288.04 |
+| `.sp-rail-in` (Meri panel) | **1157.75** |
+
+Consequences, all of which corrupted the first pass's evidence:
+
+- the Meri panel grew past the fold instead of scrolling internally;
+- the composer sat at **y = 1210.29**, 310px below the visible region;
+- the panel body never scrolled, so it reserved **no scrollbar** — which is the
+  entire "P1 — Watch card list is 10px wider" finding (see §3);
+- twelve implementation captures were taken of that surface.
+
+Fixed in `apps/web/parity.html` by pinning `#parity-root > *` to
+`height: 100%; min-height: 0`. After the fix the panel is **715.71px** ending
+exactly at the region bottom (900) and the composer is pinned at y = 768.25.
+
+**This is a harness fix, not a mask over a component defect** — the components
+behave correctly once an ancestor bounds them. It does, however, point at a
+real production gap; see finding **F1**.
+
+Three fixture bugs were also found and fixed (§7).
 
 ---
 
@@ -24,184 +59,336 @@ Nothing in this phase was pushed, merged, deployed, or flag-enabled.
 | Instance | dedicated, `--remote-debugging-port=9333`, own `--user-data-dir` |
 | Viewport | 1440 × 900 CSS px, `deviceScaleFactor: 1`, zoom 100% |
 | Appearance | light |
-| Fonts | `document.fonts.ready` awaited on both sides; identical families/weights |
-| Prototype | `file://` — renders standalone, 7 font faces loaded, zero console errors |
-| Implementation | the parity harness (§2) |
+| Fonts | `document.fonts.ready` awaited on both sides |
+| Prototype | `file://` — renders standalone, zero console errors |
+| Implementation | the committed parity harness (`pnpm --filter @capiro/web parity`) |
 
-Both sides are driven by the same zero-dependency CDP script
-(`C:\dev\parity-p7\cdp.mjs`, inherited from the Phase 1/2 toolkit and extended
-here with `--act`, `--zoom` and console/exception capture).
+---
 
-## 2. How the implementation is rendered (plan §1, §3)
+## 2. Findings
 
-The repository has **no browser/E2E harness** (no Playwright, no Cypress —
-confirmed again this phase), and the plan allows "the available browser-control
-tooling and a deterministic screenshot script without adding a product
-dependency". Phases 1–2 evidently did the same thing with a throwaway page; this
-phase makes it reproducible and commits it:
+### F1 — The Strategy editor is never bounded to the viewport (PRODUCT, pre-existing, live)
 
-- `apps/web/parity.html` + `apps/web/vite.parity.config.ts` + `apps/web/src/parity/*`
-- run with `pnpm --filter @capiro/web parity` (dev-only; `vite build` never sees it)
+`theme.css` sets `html, body, #root { min-height: 100% }` and `.app-shell
+{ min-height: 100vh }` — **`min-height`, not `height`** — and nothing
+constrains the antd `<App>` wrapper or `.app-content`. The Strategy editor is a
+full-height, internally-scrolling region (panel body scrolls, composer pinned,
+Watch footer pinned), but no ancestor gives it a definite height, so it sizes
+to content exactly as the harness did before the fix.
 
-What is production in that harness: the real `StrategyLibraryPage` /
-`StrategyEditorPage` and everything they mount (header, timeline, Meri panel,
-Watch panel, chat thread, composer), the real `api.ts` hooks and query cache, the
-real `strategy-ds.css`/`theme.css`, and the real antd theme — now shared from
-`src/theme-antd.ts` by both `main.tsx` and the harness so the two cannot drift.
+The codebase already contains the fix for this exact failure mode, applied to a
+different page (`theme.css:1042`):
 
-What is stubbed: **only** the axios transport (`lib/use-api.ts`) and
-`@clerk/clerk-react`. Every state is reached by driving the real UI (clicking
-*Ask Meri*, deep-linking `?node=`, clicking *Why?*, clicking *Accept* against a
-deliberately hung request) — no component takes a harness-only prop.
+> "The Workspace editor is a full-height, self-contained app region: it owns
+> its own internal scrolling … the 24px `.app-content` padding made the
+> fixed-height shell overflow the viewport, **pushing the canvas bottom
+> off-screen and breaking its internal scroll**."
 
-The harness renders the strategy surface into the prototype's own content-region
-box — **x=232, y=54, 1208 × 846**, measured from the prototype (232px sider,
-54px topbar) — so the compared region aligns without reproducing the app shell,
-whose parity is not part of this rollout.
+There is a `.app-content:has(.ws-editor-shell)` rule and a
+`.app-content:has(> .redesign)` rule. **There is no equivalent rule for the
+Strategy page.**
 
-Fixture content is the prototype's own: `WATCH_PROPOSALS` (all five, verbatim),
-the library rows, the editor eyebrow/title/goal, the firm-phase labels and the
-legislative-calendar rows, all read out of the prototype bundle's decompressed
-source rather than invented.
+`theme.css` and `strategy-ds.css` are byte-identical to `origin/main`, so this
+is pre-existing and already live — **not introduced by Phases 4–7**. It is not
+fixed here because it is a shell-level change outside this phase's scope and
+outside the branch's blast radius. **Recommend a follow-up.**
 
-## 3. Captures produced
+### F2 — Panel placement diverges from the prototype (PARITY DEFECT)
 
-### Prototype (`C:\dev\parity-p7\proto-*.png`)
+Measured on both sides, same locator, panel closed then open:
 
-| # | State | File |
+| | prototype | implementation |
 | --- | --- | --- |
-| 1 | Strategy list — default (also carries the "5 proposed changes to review" row, state 2) | `proto-01-list-default.png` |
-| 3 | Timeline — panel closed | `proto-03-editor.png` |
-| 4 | Timeline — Meri panel open (Watch proposals visible = state 7) | `proto-04-panel-strategy.png` |
-| 8 | Timeline — Why expanded | `proto-08-watch-why.png` |
+| title width, panel **closed** | 1114 | 1114 ✓ |
+| title width, panel **open** | **770** | **1114** ✗ |
+| panel `y` | **54** (region top) | **184.29** (below the header) |
+| panel height | **846** (full region) | 715.71 |
 
-### Implementation (`C:\dev\parity-p7\impl-*.png`, all 12 states)
+The prototype makes the Meri panel a **full-height right-hand column spanning
+the whole content region**; the header lives in the left column and therefore
+shrinks by exactly the 344px panel width when the panel opens. The
+implementation puts the header across the full width and starts the panel
+below it.
 
-`impl-01-list`, `impl-03-editor-closed`, `impl-04-panel-strategy`,
-`impl-05-panel-long`, `impl-06-panel-step`, `impl-07-watch`,
-`impl-08-watch-why`, `impl-09-watch-rechecking`, `impl-10-low-context`,
-`impl-11-truncation`, `impl-12-today-before`, `impl-13-today-after`.
+This is a visible structural difference and it changes where the title and goal
+truncate. `Δw = +344.00` on both `headerTitle` and `headerEyebrow`.
 
-Reproduce with `powershell -File capture-impl.ps1 -Port <vite port>`.
+### F3 — Header and today-flag line-heights differ (PARITY DEFECT)
+
+Same font-size on both sides, different box height — the port does not set an
+explicit line-height and inherits antd's 1.5714:
+
+| element | prototype | implementation | Δh |
+| --- | --- | --- | --- |
+| `headerEyebrow` (10px) | 13.33 | 15.71 | +2.38 |
+| `todayFlag` (10px) | 13.94 | 16.15 | +2.21 |
+| header title `y` | 79.33 | 81.71 | +2.38 |
+
+### F4 — Initial timeline scroll differs by 465.79px (LIA DECISION REQUIRED)
+
+| | scrollLeft at 1440×900 |
+| --- | --- |
+| prototype | **837.33** |
+| implementation | **371.54** |
+
+The prototype's only scroll logic is
+`scrollLeft = Math.max(0, mLeft(TODAY_M) - COLW * 1.5)` (`asset07` line 45).
+The product deliberately replaced that; `timeline-scroll.ts`'s own header says
+so:
+
+> "the 'center today' decision can never silently depend on an arbitrary column
+> count the way the previous mount-time approximation
+> (`mLeft(TODAY_M) - COLW * 1.5`) did."
+
+So the product centres today in the viewport and clamps. This is a deliberate,
+unit-tested, **already-live** improvement over the prototype. Under plan §6
+("no element displaced by more than 1 CSS px") every timeline element fails;
+under plan rule 5 ("do not alter functional behavior merely to make one
+screenshot pass") reverting it would be wrong. **Lia must choose.**
+
+Measured attribution: forcing the implementation's grid to the prototype's
+`scrollLeft` moves state 3's mismatch only **24.93% → 23.97%**, so the scroll
+model is *not* the dominant contributor to the image-diff numbers (§5 is).
+
+### F5 — States 12/13 are unsatisfiable as written (LIA DECISION REQUIRED)
+
+Plan states 12 and 13 ask for "today before plan range, clamped left" and
+"today after plan range, clamped right".
+
+1. **The prototype cannot produce them** — it has no clamping of any kind.
+2. **The product cannot produce them either.** `todayScrollLeft` does have
+   `todayX < rangeStartX → 0` and `todayX > rangeEndX → maxScrollLeft`
+   branches, but the call site passes the **rendered axis** range
+   (`mLeft(OFF)` .. `mLeft(OFF + NMv)`), and `buildCalendar` always builds a
+   3-fiscal-year axis anchored on today. Today is therefore always inside the
+   range and **both branches are unreachable in production**. They are covered
+   only by pure-function unit tests that pass numbers in directly
+   (`timeline-scroll.test.ts:33,37`).
+
+Related, and worth a follow-up on its own: **a plan lying entirely outside the
+3-FY axis window renders no bars at all** (verified — `today-after`'s seven
+nodes are all absent from the DOM). `timeline-scroll.ts` and `fiscal.ts` are
+byte-identical to `origin/main`, so this too is pre-existing and live.
+
+### F6 — Prototype-only content (accepted scope delta, unchanged from Phase 1/2)
+
+A third **Meetings** layer chip and a "CLIENT MEETINGS RELATED TO THIS
+STRATEGY" panel section; the third suggestion pill's wording. Carried forward,
+not defects.
+
+---
+
+## 3. P1 from the first pass — RESOLVED, not a defect
+
+The first pass flagged "Watch card list is 10px wider in the implementation
+(298.67 vs 308.67)" as a candidate defect.
+
+Cause: the prototype's panel body **scrolls** (`scrollHeight` 650 >
+`clientHeight` 582) and so reserves a **10.33px scrollbar**, making every child
+10px narrower. The implementation's panel body was not scrolling — because of
+the unbounded surface in §0. After the harness fix, `watchCardList`,
+`proposalCard`, `proposalTitle` and `whyExpansion` all match. **Closed.**
+
+---
 
 ## 4. Geometry and computed-style audit (plan §5)
 
-Both sides measured with ONE script (`measure-both.js`) that locates elements by
-their own visible text on both sides — the same locator strategy, not two
-hand-tuned selector sets. Full table: `compare-08-watch-why.md`.
+Both sides are measured by one script, `measure-v2.js`, and compared by
+`compare2.py`.
 
-**Result: 14 of 18 elements measurable on both sides match exactly (Δw = Δh = 0.00 px):**
+The first pass's "locator artifacts" had a single root cause, now fixed: **the
+prototype bundler renders off-canvas duplicate copies of the page** (elements at
+x ≈ −579 and y ≈ 1052). "Smallest element containing the text" matched a hidden
+duplicate, or the 12.5px shell breadcrumb instead of the 22px title. v2 scopes
+every locator to the visible content region and to rendered elements, and emits
+a per-key `_m` descriptor (tag, size, font-size, text) so **every row can be
+audited rather than believed**. `compare2.py` reports `SUSPECT-LOCATOR` when the
+two sides matched boxes more than 3× apart, instead of silently comparing them.
 
-| element | prototype | implementation |
+State 8 (Why expanded), 1440 × 900 — full table in
+`strategy-prototype-visual-parity-phase-7-geometry.md`:
+
+| verdict | count |
+| --- | --- |
+| PASS (Δw, Δh ≤ 1.00px) | **17** |
+| FAIL | **4** (`headerTitle`, `headerEyebrow`, `todayFlag`, `grid`) |
+| SUSPECT-LOCATOR | 1 |
+| UNRESOLVED (absent one side) | 12 |
+
+Passing at 0.00 px on both sides: every header control (`layerChipPpbe`,
+`layerChipCongress`, `watchChip`, `exportBtn`, `historyBtn`), `headerGoal`,
+`draftedNote`, and every Watch control (`acceptBtn`, `dismissBtn`, `whyBtn`,
+`acceptAllBtn`, `pauseBtn`), plus the Watch card list and proposal card.
+
+The 12 UNRESOLVED keys are states where the element is genuinely absent on one
+side (e.g. the prototype shows chat and Watch simultaneously; the port's panel
+shows one at a time). They are **not** passes.
+
+---
+
+## 5. Image comparison gate (plan §6) — BLOCKED, with measurements
+
+Built `imgdiff.py`: pure standard library (`zlib` + `struct`), since the repo
+has no image-diff facility, the plan forbids a new runtime dependency, and
+neither Pillow nor numpy is installed. It decodes 8-bit PNGs, compares inside
+the content region, and writes a 50% overlay and an absolute-difference image.
+Validated: a self-diff reports 0.0000%.
+
+| state | mismatch | largest blob | gate |
+| --- | --- | --- | --- |
+| 1 — list | 34.89% | 984 × 226 | FAIL |
+| 3 — timeline, panel closed | 24.93% | 1156 × 705 | FAIL |
+| 4 — panel open | 30.33% | 812 × 706 | FAIL |
+| 8 — Why expanded | 32.30% | 812 × 706 | FAIL |
+
+**These numbers must not be read as "the port is 25–35% wrong."** They are
+dominated by **fixture divergence**, and plan §3's prerequisite — "fixtures that
+produce the same visible content in both captures" — is not met:
+
+- the legislative-calendar rows differ outright — in **dates, labels and row
+  count**. The harness invents today-relative dates (`iso(-150)`…), so the port
+  renders "MAR–FEB President's Budget", "APR–MAY Hearings", "JUN–JUL Committee
+  markups" where the prototype renders "FEB President's Budget", "MAR–APR
+  Hearings", "MAY–JUN Committee markups". The prototype also has a **"SEP
+  Conference"** row the harness fixture does not, and names one row **"Floor &
+  amendments"** where the harness says "Floor & conference";
+- the two sides sit at different grid scroll offsets (F4), so different months
+  and different nodes are on screen;
+- state 1's remaining delta is real but small in kind: different setup-card
+  **copy** (see §6), a black vs indigo primary button, and ~16px of extra
+  vertical gap.
+
+**The §6 gate cannot return a meaningful verdict until the reference-calendar
+and node fixtures are made identical to the prototype's.** That is the single
+highest-value next step, and it is not done.
+
+---
+
+## 6. Copy divergence (plan §6 "exact visible copy") — PRE-EXISTING
+
+First-time-setup card, library page:
+
+- prototype: "Your firm's annual operating rhythm anchors every strategy
+  timeline. **We've pre-filled a standard 7-phase template — review and confirm
+  it once. You can edit it anytime from any timeline.**"
+- implementation: "… **Start from a standard 7-phase template, then adjust — it
+  applies firm-wide and is editable anytime.**"
+
+This branch's only change to `StrategyLibraryPage.tsx` is Phase 4's pending
+watch-count nudge; the card is untouched Phase 1–3 code and is **already live**.
+Not changed here — altering shipped product copy is Neo's or Lia's call.
+
+---
+
+## 7. Harness and fixture corrections made in this phase
+
+| file | correction |
+| --- | --- |
+| `apps/web/parity.html` | pin `#parity-root > *` so the region height reaches the page (§0) |
+| `src/parity/fixtures.ts` | `MEMBERS` keyed on `userId`; `memberName()` resolves by `clerkUserId`, so **every owner in the list rendered "Team member"** |
+| `src/parity/fixtures.ts` | last row's `lastEditedAt` was `2027-01-24` — in the future, so it rendered "just now" instead of the prototype's "Jan 24"; now `2026-01-24T12:00Z` (midday, so it does not shift a day west of UTC) |
+| `src/parity/state.ts`, `stubs/use-api.ts` | the library state now serves **no** firm phases, matching the prototype's default first-time-setup card; serving 6 phases rendered the shorter green "phases are set" bar and shifted every row below it |
+
+Evidence-integrity note: the first pass's twelve captures contained only nine
+distinct images (`04`/`05`/`07` and `12`/`13` byte-identical, and
+`proto-03-timeline-panel-closed.png` was actually the list page). After the
+fixes, `05` (long thread) is correctly distinct; `04`/`07` remain identical
+because `state.ts` defines `watch` identically to `editor-panel`, and `12`/`13`
+remain identical for the reason in F5.
+
+---
+
+## 8. Responsive and overflow gate (plan §2, §9) — PASS (implementation-only)
+
+25 runs — 5 environments × 5 states — **0 failures**:
+
+| environment | list | timeline closed | timeline panel | watch | long chat |
+| --- | --- | --- | --- | --- | --- |
+| 1440×900 @100% | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 1280×800 @100% | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 1920×1080 @100% | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 1440×900 @125% | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 1440×900 @150% | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+Asserted per run: `document.scrollWidth === clientWidth`; exactly one horizontal
+scroller and it is `sp-timeline-grid-scroller`; title and goal stay one line;
+the composer stays pinned inside the region; the Watch footer stays pinned; the
+panel holds 344px; no unreachable content below the fold.
+
+Two probe bugs were found and fixed before believing the result — the first run
+reported 40 failures, **all artifacts**: the harness box was pinned to the
+prototype's 1208px and overflowed any viewport narrower than 1440 (and any zoom
+above 100%), and 2px of sub-pixel text overflow on a `<span>` was being counted
+as a horizontal scroller.
+
+**Caveat:** this passes *because* the harness now bounds the page height. Given
+F1, production does not, so the composer-pinned and footer-pinned results here
+do **not** currently describe production.
+
+Raw results: `responsive-results.jsonl`; screenshots `resp-*.png`.
+
+---
+
+## 9. Not done
+
+1. **Fixture parity for the timeline** (reference calendar + node placement) —
+   the blocker for §6. Highest-value next step.
+2. **Image-diff gate** — measured but not meaningful until (1).
+3. **Prototype captures for states 5, 6, 9** — reachable in principle via
+   interaction; not captured. States 10–13 are covered by F5.
+4. **Interaction parity (§8)** — the 14-interaction matrix and the
+   hover/focus-visible/disabled captures are **not started**.
+5. **Correction loop (§7)** for F2 and F3.
+6. `test/watch-chat-isolation.int-spec.ts` still self-skips without
+   `DATABASE_URL` and has never run.
+
+---
+
+## 10. Required commands (plan §11)
+
+Run from the repository root after the harness and fixture corrections:
+
+| command | exit | result |
 | --- | --- | --- |
-| PPBE layer chip | 63.85 × 26 | 63.85 × 26 |
-| Congress layer chip | 86.06 × 26 | 86.06 × 26 |
-| Watch chip | 110.43 × 26.67 | 110.43 × 26.67 |
-| Export button | 84.43 × 34 | 84.43 × 34 |
-| History button | 87.24 × 34 | 87.24 × 34 |
-| Meri panel (rect) | 343.33 × … | 343.33 × … |
-| composer box | 315.33 × 48.67 | 315.33 × 48.67 |
-| composer input | 199.67 × 17.5 | 199.67 × 17.5 |
-| suggestion pill | 151.48 × 24.67 | 151.48 × 24.67 |
-| Accept | 60.57 × 26.67 | 60.57 × 26.67 |
-| Dismiss | 55.39 × 24.67 | 55.39 × 24.67 |
-| Why? | 25.79 × 13.33 | 25.79 × 13.33 |
-| Accept all N | 75.13 × 24.67 | 75.13 × 24.67 |
-| Pause for this strategy | 122.5 × 24.67 | 122.5 × 24.67 |
+| `pnpm --filter @capiro/web typecheck` | **0** | clean |
+| `pnpm --filter @capiro/web test` | **0** | 154 files, **1330 passed / 1330** |
+| `pnpm --filter @capiro/web build` | **0** | built in 34.72s; `dist/` contains **no** reference to the harness and no `dist/parity.html` |
+| `pnpm --filter @capiro/api-strategy typecheck` | **0** | clean |
+| `pnpm --filter @capiro/api-strategy test` | **0** | 56 passed / 4 skipped suites; **1210 passed / 17 skipped** |
+| `pnpm --filter @capiro/api-strategy build` | **0** | clean |
 
-Also verified directly:
+Identical to the branch baseline recorded at the end of Phase 6 — this phase
+changed only harness and documentation files, no product code.
 
-- **No document-level horizontal overflow on either side** at 1440 × 900
-  (`scrollWidth === clientWidth === 1440` for both).
-- Watch card list `max-height: 372px` on both.
-- Implementation header height **130.29 px** (Phase 1's measured prototype value
-  was 129; the phase budget is ≤132).
-- `btnPrimary` is byte-identical between the prototype source and
-  `strategy-ui.tsx` (`background: var(--ink-1)`), so the dark Accept button is
-  correct and not a token drift — checked because it *looked* wrong.
-- The prototype's fractional rects (26.67 where `offsetWidth` reads 26) are
-  ordinary sub-pixel text layout, not a zoom/transform: the whole ancestor chain
-  reports `zoom: 1`, `transform: none`, and the rect/offset ratio is 1.005.
+---
 
-### Findings
+## 11. Console / network errors
 
-**P1 — candidate real difference: Watch card-list content width is 10 px wider
-in the implementation** (prototype 298.67 px, implementation 308.67 px; heights
-identical at 372). The port DOES carry the prototype's
-`::-webkit-scrollbar{width:10px}` rule (`strategy-ds.css:120`), so the cause is
-more likely a padding/margin difference in the chain between the 344 px panel and
-the card list. Not yet confirmed either way — it needs one more measurement pass
-over both padding chains, and is recorded as a candidate rather than asserted as
-a defect or dismissed.
+Prototype: none (one in-browser Babel transformer notice). Implementation: two
+pre-existing app-wide React Router v7 future-flag warnings, no errors.
 
-**Four table rows are locator artifacts, not defects** — the shared
-locator matched a different element on the prototype side and the comparison is
-therefore invalid, not failing:
+---
 
-- `header` — matched `<body>` on the prototype (its header does not nest LAYERS
-  and Export under one node the way the port does).
-- `headerEyebrow`, `headerTitle` — the prototype repeats the strategy title in
-  the shell breadcrumb, and the "smallest element containing the text" rule
-  picked the breadcrumb (font-size 12.5 px, i.e. not the 22 px title).
-- `panel` computed `width` (343.333 vs 315.333) — the ancestor walk landed on
-  different nodes; the panel *rects* match exactly.
+## 11. Reproduction
 
-## 5. What the gate still requires (not done)
-
-1. **Per-side locator verification** for the ~25 keys reported UNVERIFIED in
-   `compare-08-watch-why.md` (goal line + tooltip, drafted note, user/Meri
-   bubbles, attachment chip, proposal card and badge, Why expansion, frozen
-   label column, today flag, needs-context marker, …). Every one is a real
-   element on both sides; the shared text locator simply does not resolve it on
-   one side yet. Until they are measured they are **not** passes.
-2. **Image comparison gate (§6)** — overlays, absolute-difference images and
-   mismatch percentages for every primary state. Not started. Note the two sides
-   are only diffable inside the content-region rect, which is why the harness
-   pins that box.
-3. **Prototype captures for states 5, 6, 9–13** — the prototype's fixture drives
-   states 5/6/9 through interaction (long thread, step thread, Re-checking), but
-   states 10–13 (low context, truncation, today clamped left/right) appear to
-   have **no reachable prototype state at all**, which is the same wall Phases 4
-   and 5 hit. If that is confirmed, those four rows can never have a prototype
-   half and the plan's requirement is unsatisfiable as written — a
-   `LIA DECISION REQUIRED` in the making rather than an implementation gap.
-4. **Responsive matrix (§2/§9)** — 1280 × 800, 1920 × 1080, and 1440 × 900 at
-   125% / 150% for five states. Not started; `cdp.mjs --zoom` is wired for it.
-5. **Interaction parity (§8)** and the hover/focus-visible/disabled captures.
-6. **Correction loop (§7)** for anything the above surfaces.
-
-## 6. Known prototype-vs-product scope deltas (not defects)
-
-These are prototype-only features that the product deliberately does not have,
-carried forward from Phase 1/2 and visible in any side-by-side:
-
-- a third **Meetings** layer chip, and a "CLIENT MEETINGS RELATED TO THIS
-  STRATEGY" section in the panel;
-- the third suggestion pill reads "Push markup defense" in the prototype and
-  "Push the latest action a quarter" in the product, because the prototype's pill
-  names a step that only exists in its own fixture (Phase 2 decision).
-
-## 7. Console / network errors
-
-Prototype: none. Implementation harness: two React Router v7 future-flag
-warnings (pre-existing, app-wide) and no errors. Captured automatically by
-`cdp.mjs` (`=== CONSOLE ===`).
-
-## 8. Reproduction
-
-```powershell
+```bash
 # 1. dedicated Chrome
-& "C:\Program Files\Google\Chrome\Application\chrome.exe" `
+"/c/Program Files/Google/Chrome/Application/chrome.exe" \
   --remote-debugging-port=9333 --user-data-dir="C:\dev\.chrome-p7" --no-first-run
 
 # 2. the implementation harness
-pnpm --filter @capiro/web parity     # http://127.0.0.1:5199/parity.html?state=…
+pnpm --filter @capiro/web parity        # http://127.0.0.1:5199/parity.html?state=…
 
-# 3. captures + measurements
+# 3. captures, measurements, diffs, responsive matrix
 cd C:\dev\parity-p7
-powershell -File capture-impl.ps1 -Port 5199
-node cdp.mjs --url "file:///C:/Users/neoma/Downloads/Capiro%20-%20Strategy%20Planner%20(PPBE)%20-%20standalone%20(2).html" `
-  --width 1440 --height 900 --settle 2500 --act acts\proto-why.json `
-  --eval measure-both.js --shot proto-08-watch-why.png
-python compare.py proto-08-measure.txt impl-08-measure.txt compare-08-watch-why.md
+bash capture-impl.sh 5199 1440 900 -v3
+node cdp.mjs --url "file:///C:/Users/neoma/Downloads/Capiro%20-%20Strategy%20Planner%20(PPBE)%20-%20standalone%20(2).html" \
+  --width 1440 --height 900 --settle 2500 --act acts/proto-why.json \
+  --eval measure-v2.js --shot proto-08-v2.png > proto-08-v2.txt
+python compare2.py proto-08-v2.txt impl-08-v3.txt compare2-08-v3.md "state 8"
+python imgdiff.py proto-08-watch-why.png impl-08-watch-why-v3.png diff-08-why --box 232,54,1208,846
+bash run-responsive.sh 5199
 ```
+
+`capture-impl.sh` replaces `capture-impl.ps1`: this machine's PowerShell
+execution policy refuses unsigned `.ps1`.

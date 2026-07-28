@@ -71,7 +71,7 @@ function route(url: string): unknown {
   if (url.startsWith('/api/clients/') && url.endsWith('/targets')) return [];
 
   if (url === '/strategy-api/strategies') return fx.LIST;
-  if (url === '/strategy-api/firm-phases') return fx.FIRM_PHASES;
+  if (url === '/strategy-api/firm-phases') return s.firmPhases;
   if (url === '/strategy-api/reference-calendars') return fx.REFERENCE;
   if (url.startsWith('/strategy-api/agents/missions')) return s.agentic ? fx.MISSIONS : [];
   if (url === '/strategy-api/agents/watch/pending-counts') {

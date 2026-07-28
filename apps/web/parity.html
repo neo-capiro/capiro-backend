@@ -35,6 +35,25 @@
         position: absolute;
         overflow: hidden;
       }
+      /* antd's <App> renders a wrapper <div> between #parity-root and the
+         strategy surface. It defaults to `flex: 0 1 auto` with
+         `min-height: auto`, so it sizes to CONTENT and #parity-root's height
+         never reaches the page: the Meri panel then grows past the fold
+         instead of scrolling internally, and every height-dependent
+         measurement (panel height, panel-body scrollbar, composer position)
+         is taken against the wrong surface.
+
+         Pinning it here makes the harness reproduce a shell that bounds the
+         page to the viewport. Production currently does NOT bound it — see
+         the Phase 7 report's finding on the missing
+         `.app-content:has(.sp-root)` rule — so this line is the harness
+         standing in for the shell the Strategy page should have, not a mask
+         over a component defect. */
+      #parity-root > * {
+        height: 100%;
+        min-height: 0;
+        flex: 1 1 auto;
+      }
     </style>
   </head>
   <body>

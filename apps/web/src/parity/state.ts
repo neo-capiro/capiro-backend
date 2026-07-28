@@ -6,7 +6,7 @@
  *   ?hang=<substr>  make matching requests never settle (pending treatments)
  *   ?x,?y,?w,?h     the content-region box (defaults to the prototype's)
  */
-import type { StrategyChatMessage, StrategyDetail, WatchReviewState } from '../pages/strategy/types.js';
+import type { FirmPhase, StrategyChatMessage, StrategyDetail, WatchReviewState } from '../pages/strategy/types.js';
 import * as fx from './fixtures.js';
 
 export type ParityStateName =
@@ -50,6 +50,15 @@ export interface ParityState {
   /** Panel/selection the harness should drive after mount. */
   openPanel: boolean;
   selectNodeId: string | null;
+  /**
+   * The prototype's DEFAULT library state is the un-configured one — it shows
+   * the "FIRST-TIME SETUP · Set your firm's phases" card. Serving the 6-phase
+   * roster there instead renders the green "Firm phases are set" bar, which is
+   * ~62px shorter and shifts every row below it, so the two captures of plan
+   * state 1 were not comparable. The editor states still need the real roster
+   * for the PPBE lane.
+   */
+  firmPhases: FirmPhase[];
   box: { x: number; y: number; w: number; h: number };
 }
 
@@ -88,11 +97,13 @@ export function parityState(): ParityState {
     watcher: true,
     openPanel: false,
     selectNodeId: null,
+    firmPhases: fx.FIRM_PHASES,
     box,
   };
 
   switch (name) {
     case 'list':
+      base.firmPhases = [];
       break;
     case 'editor-closed':
       break;
