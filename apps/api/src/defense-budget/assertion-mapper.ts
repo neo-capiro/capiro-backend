@@ -7,12 +7,13 @@
  *   - ONLY RDTE_PE lines feed the ProgramElement (PE) writer. PROCUREMENT_BLIN / OM_SAG
  *     lines are returned separately and MUST NOT be written into the PE table (they have
  *     their own identity — writing them as PEs would violate the core guardrail).
- *   - Money is normalized to THOUSANDS (the writer's canonical unit) for the value field,
- *     but the original unit + exact printed value are preserved in the per-field source
+ *   - Money is normalized to USD MILLIONS (the writer's canonical unit) for the value field,
+ *     while the original unit + exact printed value are preserved in the per-field source
  *     value provenance so nothing is lost.
  *   - We DO NOT pick winners here. Each assertion maps to one field on one PE-year; the
  *     writer merges and the reconciliation layer resolves conflicts.
  */
+import { normalizeMoneyToMillions } from '@capiro/shared/money';
 import type { ExtractionResult, LineAssertion, Money, YearValueAssertion } from './extractors/types.js';
 import type { PeRecordInput, PeYearInput } from '../program-element/types.js';
 
@@ -30,19 +31,9 @@ const FIELD_MAP: Record<string, keyof PeYearInput> = {
   executed: 'executed',
 };
 
-/** Normalize an exact printed Money to thousands (writer canonical unit) without float drift. */
-export function toThousands(m: Money): number {
-  switch (m.unit) {
-    case 'thousands':
-      return m.value;
-    case 'millions':
-      return m.value * 1000;
-    case 'dollars':
-      // Represent dollars as thousands; keep 3 decimals so $1,234 -> 1.234 thousands.
-      return Math.round((m.value / 1000) * 1000) / 1000;
-    default:
-      return m.value;
-  }
+/** Normalize an exact printed Money to the writer's canonical USD-millions unit. */
+export function toMillions(m: Money): number {
+  return normalizeMoneyToMillions(m.value, m.unit).valueM;
 }
 
 export interface MappedPeData {
@@ -55,7 +46,8 @@ export interface MappedPeData {
     peCode: string;
     fy: number;
     fieldName: keyof PeYearInput;
-    valueThousands: number;
+    /** Canonical value in USD millions. */
+    valueM: number;
     originalUnit: Money['unit'];
     originalValue: number;
     provenance: YearValueAssertion['provenance'];
@@ -92,19 +84,19 @@ export function mapAssertionsToPeWriter(extraction: ExtractionResult): MappedPeD
     if (v.lineKind !== 'RDTE_PE') continue; // procurement/O&M values are not PE-year rows
     const field = FIELD_MAP[v.fieldName];
     if (!field || v.money == null) continue; // only money fields land on PE-year rows here
-    const valueThousands = toThousands(v.money);
+    const valueM = toMillions(v.money);
 
     const key = `${v.code}::${v.fy}`;
     const row = yearMap.get(key) ?? { peCode: v.code, fy: v.fy };
-    // Writer accepts string|number; store the normalized thousands value.
-    (row as unknown as Record<string, unknown>)[field] = valueThousands;
+    // Writer accepts string|number; store the normalized USD-millions value.
+    (row as unknown as Record<string, unknown>)[field] = valueM;
     yearMap.set(key, row);
 
     sourceValues.push({
       peCode: v.code,
       fy: v.fy,
       fieldName: field,
-      valueThousands,
+      valueM,
       originalUnit: v.money.unit,
       originalValue: v.money.value,
       provenance: v.provenance,
