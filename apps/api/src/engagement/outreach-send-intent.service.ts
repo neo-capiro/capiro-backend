@@ -59,6 +59,11 @@ import {
   type DraftAuditStatus,
   type OutreachDeliveryStatus,
 } from './outreach-draft.types.js';
+import {
+  AttachmentContentService,
+  type AttachmentReadinessRow,
+} from './attachment-content.service.js';
+import { AttachmentScannerService } from './attachment-scanner.service.js';
 
 /** Graph/Gmail simple-send inline attachment ceiling. */
 const INLINE_ATTACHMENT_MAX_BYTES = 3 * 1024 * 1024;
@@ -115,11 +120,29 @@ interface RecipientEnvelope {
   bcc: string[];
 }
 
-interface AttachmentManifestEntry {
+/**
+ * The IMMUTABLE snapshot of one attachment's identity and readiness, captured
+ * at the moment it was verified usable (remediation plan §3.d2). Everything
+ * downstream — the request fingerprint, the delivery's stored manifest, the
+ * pre-provider reverification in {@link OutreachSendIntentService.loadManifestBytes}
+ * — trusts THIS snapshot, never a fresh, unguarded read of the attachment row.
+ */
+export interface AttachmentManifestEntry {
   id: string;
   fileName: string;
+  /** Declared (client/upload-time) MIME type — not verified on its own. */
   contentType: string;
+  /** The actual byte length of the object read at snapshot time. */
   byteSize: number;
+  /** Detected from magic bytes at snapshot time; null when the signature is unrecognized (not itself an error — e.g. plain text). */
+  verifiedContentType: string | null;
+  /** sha256 the SERVER computed over the exact bytes read at snapshot time. */
+  sha256: string;
+  lifecycleStatus: string;
+  scanStatus: string | null;
+  scanProvider: string | null;
+  /** ISO 8601, or null when never scanned. */
+  scanResultAt: string | null;
 }
 
 @Injectable()
@@ -136,6 +159,8 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     private readonly prisma: PrismaService,
     private readonly engagement: EngagementService,
     private readonly mailSender: EngagementMailSender,
+    private readonly attachmentContent: AttachmentContentService,
+    private readonly attachmentScanner: AttachmentScannerService,
     config: ConfigService<AppConfig, true>,
   ) {
     this.sweepMs = config.get('OUTREACH_JOB_SWEEP_MS', { infer: true });
@@ -961,10 +986,27 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     return rows;
   }
 
+  /** The columns {@link AttachmentContentService.readiness} needs, shared by both read sites. */
+  private static readonly ATTACHMENT_SELECT = {
+    id: true,
+    fileName: true,
+    contentType: true,
+    byteSize: true,
+    s3Key: true,
+    lifecycleStatus: true,
+    verifiedContentType: true,
+    calculatedSha256: true,
+    scanProvider: true,
+    scanStatus: true,
+    scanResultAt: true,
+  } as const;
+
   /**
-   * Resolve attachments and REJECT any file over the provider inline limit before
-   * the intent exists. The old path skipped oversized files after sending and
-   * merely reported it — recipients got mail missing its document.
+   * Resolve attachments and REJECT — never silently omit — anything not usable
+   * (remediation plan §3.d3): not ready per the centralized scan/lifecycle
+   * policy, over the provider inline limit, or whose bytes/type on disk right
+   * now disagree with what was verified. The manifest this returns is the
+   * IMMUTABLE snapshot everything downstream trusts.
    */
   private async resolveAttachments(
     ctx: TenantContext,
@@ -977,7 +1019,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.engagementAttachment.findMany({
         where: { tenantId: ctx.tenantId, id: { in: attachmentIds } },
-        select: { id: true, fileName: true, contentType: true, byteSize: true, s3Key: true },
+        select: OutreachSendIntentService.ATTACHMENT_SELECT,
       }),
     );
     if (rows.length !== attachmentIds.length) {
@@ -986,7 +1028,13 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     const manifest: AttachmentManifestEntry[] = [];
     const inlineAttachments: Array<{ name: string; contentType: string; contentBytes: string }> = [];
     const oversized: string[] = [];
+    const unusable: string[] = [];
     for (const row of rows) {
+      const verdict = this.attachmentContent.readiness(row, this.attachmentScanner.scanRequired);
+      if (!verdict.usable) {
+        unusable.push(`${row.fileName} (${verdict.disclosure ?? 'not usable'})`);
+        continue;
+      }
       if (row.byteSize != null && Number(row.byteSize) > INLINE_ATTACHMENT_MAX_BYTES) {
         oversized.push(row.fileName);
         continue;
@@ -996,17 +1044,48 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
         oversized.push(row.fileName);
         continue;
       }
+      // The bytes actually in S3 right now must agree with what was verified —
+      // a change since scan/upload time (edge cases 11/16) blocks rather than
+      // silently sending a different object under the same id.
+      const freshSha256 = this.attachmentContent.sha256(bytes);
+      if (row.calculatedSha256 && row.calculatedSha256 !== freshSha256) {
+        unusable.push(`${row.fileName} (file content changed since it was verified)`);
+        continue;
+      }
+      if (row.byteSize != null && bytes.length !== Number(row.byteSize)) {
+        unusable.push(`${row.fileName} (file size changed since it was verified)`);
+        continue;
+      }
+      const detected = this.attachmentContent.detectContentType(bytes);
+      if (this.attachmentContent.contentTypeConflicts(row.contentType, detected)) {
+        unusable.push(`${row.fileName} (file type does not match what was verified)`);
+        continue;
+      }
       manifest.push({
         id: row.id,
         fileName: row.fileName,
         contentType: row.contentType,
         byteSize: bytes.length,
+        verifiedContentType: row.verifiedContentType ?? detected,
+        sha256: freshSha256,
+        lifecycleStatus: row.lifecycleStatus,
+        scanStatus: row.scanStatus,
+        scanProvider: row.scanProvider,
+        scanResultAt: row.scanResultAt ? row.scanResultAt.toISOString() : null,
       });
       inlineAttachments.push({
         name: row.fileName,
         contentType: row.contentType,
         contentBytes: bytes.toString('base64'),
       });
+    }
+    // Plan hard boundary: "Do not silently omit an attachment." Every rejection
+    // reason refuses the WHOLE intent rather than sending a partial set.
+    if (unusable.length) {
+      throw new BadRequestException(
+        `These files cannot be sent: ${unusable.join(', ')}. ` +
+          `Remove them or wait for verification to complete.`,
+      );
     }
     if (oversized.length) {
       throw new BadRequestException(
@@ -1017,7 +1096,13 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     return { manifest, inlineAttachments };
   }
 
-  /** Re-read attachment bytes at send time from the committed manifest. */
+  /**
+   * Re-read attachment bytes at send time from the committed manifest —
+   * reverifying readiness AND identity against that immutable snapshot, not
+   * just re-fetching (remediation plan §3.d4). A clean verdict at intent
+   * creation is not a permanent clearance: a later scan callback can still
+   * flip a row to `threat`, and this is the last gate before the provider call.
+   */
   private async loadManifestBytes(
     ctx: TenantContext,
     manifest: AttachmentManifestEntry[],
@@ -1026,15 +1111,42 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     const rows = await this.prisma.withSystem((tx) =>
       tx.engagementAttachment.findMany({
         where: { tenantId: ctx.tenantId, id: { in: manifest.map((m) => m.id) } },
-        select: { id: true, fileName: true, contentType: true, s3Key: true },
+        select: OutreachSendIntentService.ATTACHMENT_SELECT,
       }),
     );
-    if (rows.length !== manifest.length) {
-      throw new Error('An attachment selected for this send no longer exists.');
-    }
+    const byId = new Map(rows.map((r) => [r.id, r]));
     const out: Array<{ name: string; contentType: string; contentBytes: string }> = [];
-    for (const row of rows) {
+    for (const entry of manifest) {
+      const row = byId.get(entry.id);
+      // Edge case 16: deleted between intent creation and send. FAIL rather
+      // than send without the document it promised.
+      if (!row) throw new Error('An attachment selected for this send no longer exists.');
+      const verdict = this.attachmentContent.readiness(row, this.attachmentScanner.scanRequired);
+      if (!verdict.usable) {
+        throw new Error(
+          `Attachment "${row.fileName}" is no longer usable (${verdict.disclosure ?? 'not usable'}); blocking send.`,
+        );
+      }
       const bytes = await this.engagement.readAttachmentBytes(row.s3Key);
+      const freshSha256 = this.attachmentContent.sha256(bytes);
+      // Compare against the IMMUTABLE manifest captured at intent creation, not
+      // merely the row's current values — a byte-for-byte swap of the S3
+      // object under the same id/name/type/size must still block.
+      if (freshSha256 !== entry.sha256) {
+        throw new Error(
+          `Attachment "${row.fileName}" content changed since this send was prepared; blocking send.`,
+        );
+      }
+      if (bytes.length !== entry.byteSize) {
+        throw new Error(
+          `Attachment "${row.fileName}" size changed since this send was prepared; blocking send.`,
+        );
+      }
+      if (row.contentType !== entry.contentType) {
+        throw new Error(
+          `Attachment "${row.fileName}" type changed since this send was prepared; blocking send.`,
+        );
+      }
       out.push({
         name: row.fileName,
         contentType: row.contentType,
@@ -1150,14 +1262,10 @@ export function deliveryIdempotencyKey(input: {
  * as one already committed" but "does a REUSED requestKey describe the SAME
  * request, or a materially different one that happens to reuse an old key."
  *
- * KNOWN GAP (tracked for plan Phase d): the attachment manifest fingerprinted
- * here is `{id, fileName, contentType, byteSize}` because that is all
- * {@link AttachmentManifestEntry} carries today — there is no persisted
- * content hash anywhere in this codebase yet. Phase d ("expand the immutable
- * attachment manifest") adds SHA-256 to the manifest; once it exists, THIS
- * function's attachment tuple must include it too, or a request that swaps an
- * attachment's bytes without changing its id/name/type/size would incorrectly
- * fingerprint as identical.
+ * The attachment tuple includes `sha256` (remediation plan §3.d2 closed the
+ * gap this function used to flag): a request that swaps an attachment's bytes
+ * without changing its id/name/type/size now fingerprints as DIFFERENT rather
+ * than incorrectly matching.
  */
 export function sendIntentRequestFingerprint(input: {
   tenantId: string;
@@ -1175,7 +1283,9 @@ export function sendIntentRequestFingerprint(input: {
     r: input.outreachRecordId,
     c: input.senderConnectionId,
     v: [...input.versionIds].sort(),
-    a: [...input.manifest.map((m) => `${m.id}:${m.fileName}:${m.contentType}:${m.byteSize}`)].sort(),
+    a: [
+      ...input.manifest.map((m) => `${m.id}:${m.fileName}:${m.contentType}:${m.byteSize}:${m.sha256}`),
+    ].sort(),
     sig: input.appendSignature,
     test: input.testMode,
   });
