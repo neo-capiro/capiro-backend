@@ -325,6 +325,52 @@ describe('provider/model pinning (§3.k)', () => {
     expect(complete).not.toHaveBeenCalled();
   });
 
+  test('a pinned prompt spec that no longer matches what this process builds FAILS rather than drafting under a different spec (§e3)', async () => {
+    const { svc, complete, upsertGeneratedVersion } = makeGateway();
+    const result = await svc.generate(
+      CTX,
+      request({
+        pinned: {
+          provider: 'anthropic',
+          model: 'claude-sonnet-4-6',
+          planModel: 'claude-haiku-4-5-20251001',
+          // Simulates a job pinned before a rolling deploy bumped the spec —
+          // this container's prompt builder no longer implements that version.
+          promptSpecVersion: 'v-stale-from-before-a-deploy',
+          policyId: 'federal.congressional_office',
+          policyVersion: 'ga-policy-v1',
+        },
+      }),
+      enrichment(),
+      [CRED],
+    );
+    expect(result.outcome).toBe('blocked');
+    expect(result.error).toBe('PINNED_PROMPT_SPEC_MISMATCH');
+    expect(complete).not.toHaveBeenCalled();
+    expect(upsertGeneratedVersion).not.toHaveBeenCalled();
+  });
+
+  test('a pinned prompt spec matching what is currently running proceeds normally', async () => {
+    const { svc, complete } = makeGateway();
+    const result = await svc.generate(
+      CTX,
+      request({
+        pinned: {
+          provider: 'anthropic',
+          model: 'claude-sonnet-4-6',
+          planModel: 'claude-haiku-4-5-20251001',
+          promptSpecVersion: GATEWAY_PROMPT_SPEC_VERSION,
+          policyId: 'federal.congressional_office',
+          policyVersion: 'ga-policy-v1',
+        },
+      }),
+      enrichment(),
+      [CRED],
+    );
+    expect(result.outcome).toBe('ready');
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
+
   test('resolvePinnedIdentity records provider, model and prompt spec once', async () => {
     const { svc } = makeGateway();
     const identity = await svc.resolvePinnedIdentity(CTX, {

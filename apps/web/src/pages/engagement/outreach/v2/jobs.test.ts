@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildResultIdToGenKeys,
+  extractJobCandidates,
   jobItemsProgress,
   mapJobItemsToDraftPatch,
   transientStatusByGenKey,
@@ -279,5 +280,197 @@ describe('async job results retain the Context Used manifest', () => {
     expect((result.manifest as { promptSpecVersion: string }).promptSpecVersion).toBe(
       'v2.2-gateway',
     );
+  });
+});
+
+// ── Phase e §e4/e5 — candidate regenerations route to compare/accept, not generatedEmails ──
+
+describe('mapJobItemsToDraftPatch excludes candidates', () => {
+  const ph = (genKey: string) => ({ subject: `PH ${genKey}`, body: 'placeholder body' });
+
+  it('a done item flagged isCandidate produces NO patch entry', () => {
+    const map = buildResultIdToGenKeys([slot('individual:a', 'a')]);
+    const patch = mapJobItemsToDraftPatch(
+      [
+        item({
+          recipientKey: 'a',
+          status: 'done',
+          result: {
+            subject: 'Regenerated',
+            body: 'New text',
+            versionId: 'v-2',
+            artifactId: 'art-1',
+            version: 2,
+            auditStatus: 'passed',
+            approvalStatus: 'not_required',
+            isCandidate: true,
+            baseVersion: 1,
+          },
+        }),
+      ],
+      map,
+      ph,
+    );
+    expect(patch).toHaveLength(0);
+  });
+
+  it('a held item flagged isCandidate ALSO produces no patch entry', () => {
+    const map = buildResultIdToGenKeys([slot('individual:a', 'a')]);
+    const patch = mapJobItemsToDraftPatch(
+      [
+        item({
+          recipientKey: 'a',
+          status: 'held',
+          result: {
+            subject: 'Regenerated',
+            body: 'New text',
+            versionId: 'v-2',
+            artifactId: 'art-1',
+            version: 2,
+            auditStatus: 'held',
+            approvalStatus: 'pending',
+            isCandidate: true,
+            baseVersion: 1,
+          },
+        }),
+      ],
+      map,
+      ph,
+    );
+    expect(patch).toHaveLength(0);
+  });
+
+  it('a normal (non-candidate) done item is unaffected', () => {
+    const map = buildResultIdToGenKeys([slot('individual:a', 'a')]);
+    const patch = mapJobItemsToDraftPatch(
+      [
+        item({
+          recipientKey: 'a',
+          status: 'done',
+          result: { subject: 'S', body: 'B', versionId: 'v-1', version: 1 },
+        }),
+      ],
+      map,
+      ph,
+    );
+    expect(patch).toHaveLength(1);
+  });
+});
+
+describe('extractJobCandidates', () => {
+  const renderBody = (raw: string) => raw.toUpperCase();
+
+  it('extracts a candidate with the fields DraftVersionCompare needs', () => {
+    const map = buildResultIdToGenKeys([slot('individual:a', 'a')]);
+    const candidates = extractJobCandidates(
+      [
+        item({
+          recipientKey: 'a',
+          status: 'done',
+          result: {
+            subject: 'Regenerated subject',
+            body: 'new text',
+            versionId: 'v-3',
+            artifactId: 'art-1',
+            version: 3,
+            isCandidate: true,
+            baseVersion: 2,
+          },
+        }),
+      ],
+      map,
+      renderBody,
+    );
+    expect(candidates).toEqual([
+      {
+        genKey: 'individual:a',
+        artifactId: 'art-1',
+        candidateVersionId: 'v-3',
+        candidateVersion: 3,
+        baseVersion: 2,
+        subject: 'Regenerated subject',
+        body: 'NEW TEXT',
+      },
+    ]);
+  });
+
+  it('fans one candidate result out to every genKey sharing its recipientKey', () => {
+    const map = buildResultIdToGenKeys([slot('individual:a', 'a'), slot('list:L:a', 'a')]);
+    const candidates = extractJobCandidates(
+      [
+        item({
+          recipientKey: 'a',
+          status: 'done',
+          result: {
+            subject: 'S',
+            body: 'b',
+            versionId: 'v-3',
+            artifactId: 'art-1',
+            version: 3,
+            isCandidate: true,
+            baseVersion: 2,
+          },
+        }),
+      ],
+      map,
+      renderBody,
+    );
+    expect(candidates.map((c) => c.genKey).sort()).toEqual(['individual:a', 'list:L:a']);
+  });
+
+  it('defaults baseVersion to version - 1 when the server omitted it', () => {
+    const map = buildResultIdToGenKeys([slot('individual:a', 'a')]);
+    const candidates = extractJobCandidates(
+      [
+        item({
+          recipientKey: 'a',
+          status: 'done',
+          result: {
+            subject: 'S',
+            body: 'b',
+            versionId: 'v-3',
+            artifactId: 'art-1',
+            version: 3,
+            isCandidate: true,
+          },
+        }),
+      ],
+      map,
+      renderBody,
+    );
+    expect(candidates[0]!.baseVersion).toBe(2);
+  });
+
+  it('ignores non-candidate items entirely', () => {
+    const map = buildResultIdToGenKeys([slot('individual:a', 'a')]);
+    const candidates = extractJobCandidates(
+      [
+        item({
+          recipientKey: 'a',
+          status: 'done',
+          result: { subject: 'S', body: 'b', versionId: 'v-1', version: 1 },
+        }),
+        item({ recipientKey: 'b', status: 'failed' }),
+      ],
+      map,
+      renderBody,
+    );
+    expect(candidates).toHaveLength(0);
+  });
+
+  it('ignores a candidate-flagged item missing the fields needed to accept it', () => {
+    const map = buildResultIdToGenKeys([slot('individual:a', 'a')]);
+    const candidates = extractJobCandidates(
+      [
+        item({
+          recipientKey: 'a',
+          status: 'done',
+          result: { subject: 'S', body: 'b', isCandidate: true }, // no artifactId/versionId/version
+        }),
+      ],
+      map,
+      renderBody,
+    );
+    expect(candidates).toHaveLength(0);
   });
 });
