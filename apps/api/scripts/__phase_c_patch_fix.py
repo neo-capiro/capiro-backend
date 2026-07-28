@@ -37,5 +37,11 @@ if source.count(old_join) != 1:
     raise RuntimeError(f'expected one migration join expression, found {source.count(old_join)}')
 source = source.replace(old_join, new_join, 1)
 
+old_map = r'''  const modeByKey = new Map(\n    preferences.map((pref) => [`${pref.tenantId}:${pref.userId}`, pref.mode] as const),\n  );'''
+new_map = r'''  const modeByKey = new Map<string, string>(\n    preferences.map((pref) => [`${pref.tenantId}:${pref.userId}`, pref.mode]),\n  );'''
+if source.count(old_map) != 1:
+    raise RuntimeError(f'expected one tenant preference map, found {source.count(old_map)}')
+source = source.replace(old_map, new_map, 1)
+
 path.write_text(source, encoding='utf-8')
 print('PHASE_C_PATCH_ANCHORS_FIXED')
