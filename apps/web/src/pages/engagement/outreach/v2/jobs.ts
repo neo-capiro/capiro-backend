@@ -14,6 +14,7 @@ import { useQueries } from '@tanstack/react-query';
 import type { AxiosInstance } from 'axios';
 import { markdownishToHtml, sanitizeHtml } from './richtext.js';
 import type { GenSlot } from './generation.js';
+import type { DraftCandidate } from './versioned-drafts.js';
 
 /** Backend OutreachJobItem.status (prisma schema.prisma). */
 export type JobItemStatus =
@@ -52,6 +53,13 @@ export interface JobItem {
     approvalStatus?: string;
     reviewRequestId?: string;
     contextNote?: string;
+    /**
+     * Phase e §e4 — true when this regeneration was persisted as a non-current
+     * candidate (see OutreachBatchDraftResult in engagement.service.ts).
+     * `baseVersion` is the artifact's currentVersion it was offered against.
+     */
+    isCandidate?: boolean;
+    baseVersion?: number;
   } | null;
   error: string | null;
   attempt: number;
@@ -182,6 +190,12 @@ export function mapJobItemsToDraftPatch(
   for (const it of items) {
     const genKeys = resultIdToGenKeys.get(it.recipientKey);
     if (!genKeys) continue;
+    // Phase e §e5 — a candidate must never become a DraftPatchEntry: applying
+    // one would silently replace whatever the slot currently shows, exactly
+    // what the server's upsertGeneratedVersionOrCandidate refused to do by not
+    // advancing currentVersion. extractJobCandidates() below surfaces it
+    // separately, for the same compare/accept UI the sync generation path uses.
+    if (it.result?.isCandidate) continue;
 
     // Version metadata rides along for both done and held items.
     const meta = {
@@ -212,6 +226,42 @@ export function mapJobItemsToDraftPatch(
       }
     }
     // skipped / pending / claimed / generating → not terminal-for-draft; skip.
+  }
+  return out;
+}
+
+/**
+ * Phase e §e4/e5 — pull candidate regenerations out of terminal job items,
+ * mirroring versioned-drafts.ts's partitionVersionedResults for the sync path.
+ * A candidate is excluded from mapJobItemsToDraftPatch's output (see the
+ * isCandidate guard above); this is where that text resurfaces, in the shape
+ * DraftVersionCompare already renders — no separate UI needed for the async
+ * path. Extracted regardless of done/held, matching the sync path: whether the
+ * candidate text itself would need further review after acceptance is a
+ * separate question from whether it should replace what the slot shows now.
+ */
+export function extractJobCandidates(
+  items: JobItem[],
+  resultIdToGenKeys: Map<string, string[]>,
+  renderBody: (raw: string) => string,
+): DraftCandidate[] {
+  const out: DraftCandidate[] = [];
+  for (const it of items) {
+    const r = it.result;
+    if (!r?.isCandidate || !r.artifactId || !r.versionId || r.version == null) continue;
+    const genKeys = resultIdToGenKeys.get(it.recipientKey);
+    if (!genKeys) continue;
+    for (const genKey of genKeys) {
+      out.push({
+        genKey,
+        artifactId: r.artifactId,
+        candidateVersionId: r.versionId,
+        candidateVersion: r.version,
+        baseVersion: r.baseVersion ?? r.version - 1,
+        subject: r.subject ?? '',
+        body: renderBody(r.body ?? ''),
+      });
+    }
   }
   return out;
 }

@@ -240,6 +240,23 @@ export class GenerationGatewayService {
           policyId: policy.policyId,
           policyVersion: policy.version,
         };
+    // §e3: an async chunk's pinned prompt spec must match what THIS process's
+    // prompt builder actually implements. A rolling deploy can have an old and
+    // a new container claiming chunks of the SAME job; without this check the
+    // new container would silently draft under its OWN prompt logic while the
+    // persisted version/manifest still carried the stale promptSpecVersion it
+    // was handed — the audit trail would misreport what was actually run.
+    // Reject the chunk (no version is created) rather than draft on a
+    // mismatched spec under a false label.
+    if (request.pinned && request.pinned.promptSpecVersion !== GATEWAY_PROMPT_SPEC_VERSION) {
+      return this.blocked(
+        request,
+        'PINNED_PROMPT_SPEC_MISMATCH',
+        'This campaign was pinned to a different generation version than is currently running. Retry shortly, or start a new campaign.',
+        now,
+        policy,
+      );
+    }
     // §3.k3: a chunk whose pinned provider is unavailable FAILS rather than
     // silently falling back — a campaign must not switch voice midway.
     const pinnedCreds = creds.filter((c) => c.provider === pinned.provider);

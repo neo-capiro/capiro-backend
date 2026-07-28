@@ -104,6 +104,18 @@ export class GmailSendService {
           'Reconnect Google Workspace in Settings to continue sending email.',
         );
       }
+      // §g5 / Open Decision 6.3 — a 5xx is Gmail's OWN failure while handling
+      // the request, not a confirmed rejection of it. Unlike the 4xx cases
+      // above (the request itself was refused — known, plain failure), a 5xx
+      // does not guarantee the message was never accepted before the response
+      // failed to complete, so it is genuinely ambiguous, the same as a
+      // transport-level failure.
+      if (response.status >= 500) {
+        throw new AmbiguousMailSendError(
+          `Gmail returned a server error (${response.status}); verify Sent Items before resending.`,
+          correlationId,
+        );
+      }
       throw new ServiceUnavailableException(
         `Gmail send failed (${response.status}): ${text.slice(0, 300)}`,
       );

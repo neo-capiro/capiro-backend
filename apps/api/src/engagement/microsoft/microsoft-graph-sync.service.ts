@@ -1605,8 +1605,14 @@ export class MicrosoftGraphSyncService {
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
-      throw new ServiceUnavailableException(
+      // §g5 carries the real status through so a SEND caller can tell a
+      // confirmed 4xx rejection apart from a 5xx Graph never definitively
+      // answered (see isAmbiguousGraphSendFailure) — every other caller of
+      // graphFetch is unaffected, since GraphHttpError IS a
+      // ServiceUnavailableException.
+      throw new GraphHttpError(
         `Microsoft Graph ${method} ${target} failed (${response.status}): ${text.slice(0, 500)}`,
+        response.status,
       );
     }
     if (!parseJson || response.status === 202 || response.status === 204) {
@@ -2028,20 +2034,44 @@ function sleep(ms: number): Promise<void> {
 /**
  * Phase 0 (§3.e3) — is a FAILED draft-send genuinely undetermined?
  *
- * An HttpException means Graph ANSWERED with a status code, so the outcome is
- * known and the delivery is a plain failure. A transport-level error (socket
- * reset, timeout, aborted request, DNS/TLS failure) means the request may have
- * been fully transmitted and acted on — that is the ambiguous case, and the only
- * safe handling is 'unknown' with no retry.
+ * §g5 / Open Decision 6.3 refines this: an HttpException means Graph ANSWERED
+ * with a status code, but that status still splits two ways.
+ *   - A 4xx means the REQUEST itself was refused (bad auth, bad payload,
+ *     rate-limited) — Graph never attempted to process it, so the outcome is
+ *     known and the delivery is a plain failure.
+ *   - A 5xx is Graph's OWN failure while handling the request. It does not
+ *     carry the same guarantee: the send may have been partially processed
+ *     before the response failed to complete. Absent provider documentation
+ *     guaranteeing "a 5xx here means nothing was accepted", this is treated
+ *     the same as a transport-level ambiguity.
+ * A transport-level error (socket reset, timeout, aborted request, DNS/TLS
+ * failure) means the request may have been fully transmitted and acted on —
+ * that is the ambiguous case, and the only safe handling is 'unknown' with no
+ * retry.
  *
  * The transport-pattern match itself lives in mail-send-result.ts so the Gmail
- * adapter classifies the identical set of failures; only the HttpException guard
- * is Graph-specific (graphFetch turns a real HTTP error response into one).
- * Behaviour is unchanged from the inline regex this replaced.
+ * adapter classifies the identical set of failures; only the HTTP-status guard
+ * is Graph-specific (graphFetch turns a real HTTP error response into a
+ * GraphHttpError carrying the status).
  */
 export function isAmbiguousGraphSendFailure(err: unknown): boolean {
+  if (err instanceof GraphHttpError) return err.graphStatus >= 500;
   if (err instanceof HttpException) return false;
   return isAmbiguousTransportFailure(err);
+}
+
+/**
+ * A Graph HTTP error response, carrying the real status (§g5). Named
+ * `graphStatus`, not `status` — HttpException already has a private field of
+ * that name (backing getStatus()), and reusing it is a TS2415 compile error.
+ */
+export class GraphHttpError extends ServiceUnavailableException {
+  constructor(
+    message: string,
+    readonly graphStatus: number,
+  ) {
+    super(message);
+  }
 }
 
 /**

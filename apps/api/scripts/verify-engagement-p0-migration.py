@@ -19,6 +19,15 @@ MODELS = [
     ('OutreachDelivery', 'outreach_deliveries'),
 ]
 
+# Fields added to one of the MODELS above by a LATER, separate migration —
+# excluded from the per-table completeness check below, or this script would
+# report them as permanently "missing" from THIS (P0) migration. Each entry
+# names the migration that actually owns the column; that migration has its
+# own verification script (verify-engagement-remediation-migration.py).
+ADDED_BY_LATER_MIGRATION = {
+    ('OutreachSendIntent', 'requestFingerprint'): '20260807020000_engagement_send_intent_fingerprint',
+}
+
 schema = io.open(SCHEMA, encoding='utf-8').read()
 sql = io.open(MIGRATION, encoding='utf-8').read()
 
@@ -62,6 +71,8 @@ for model, table in MODELS:
             continue  # the FK scalar is declared separately
         mapped = re.search(r'@map\("([^"]+)"\)', line)
         column = mapped.group(1) if mapped else field
+        if (model, field) in ADDED_BY_LATER_MIGRATION:
+            continue
         checked_columns += 1
         if column not in sql_columns:
             failures.append('%s.%s -> column "%s" MISSING from %s' % (model, field, column, table))
