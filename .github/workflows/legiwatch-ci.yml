@@ -25,15 +25,6 @@
 # every step also asserts a MINIMUM suite and test count via
 # scripts/assert-test-summary.mjs. Raise the floors when you add suites.
 #
-# ONE SUITE IS DELIBERATELY OUT OF SCOPE
-# --------------------------------------
-# apps/intel-api/test/watchlist-match-promoter.spec.ts is a LegiWatch suite and
-# is PRE-EXISTING RED — all 4 tests fail with `this.prisma.withTenant is not a
-# function`, a mock gap unrelated to any gate in this program. MASTER §3.6.8
-# puts pre-existing failures out of scope and says explicitly not to fix them,
-# so it is excluded here rather than quietly counted. It should be fixed and
-# folded in by whoever owns that mock harness.
-#
 # THE apps/web VITEST FLAKE IS NOT IN SCOPE EITHER (c-5)
 # ------------------------------------------------------
 # The `Cannot find package '@vitest/utils'` / `[vitest-worker]: Timeout calling
@@ -130,9 +121,10 @@ jobs:
 
       # ---------------------------------------------------------- intel-api --
       # Gate F (feed worklist truth), Gate G (delivery), Gate K (scoring and
-      # watchlist topics), the packet builder, the email-CTA route contract, and
-      # the browser-audio hearing capture lifecycle (session lease, gateway
-      # protocol, Deepgram WebM safety, segment persistence, transcript reads).
+      # watchlist topics), the packet builder, the email-CTA route contract, the
+      # watchlist-match → hearing-alert promoter, and the browser-audio hearing
+      # capture lifecycle (session lease, gateway protocol, Deepgram WebM safety,
+      # segment persistence, transcript reads).
       - name: Tests — apps/intel-api LegiWatch scope
         run: >
           pnpm --filter @capiro/intel-api exec jest --ci --silent
@@ -173,11 +165,12 @@ jobs:
           test/watchlist-compiler.spec.ts
           test/watchlist-mapping.spec.ts
           test/watchlist-matcher.spec.ts
+          test/watchlist-match-promoter.spec.ts
           test/watchlist-weighting.spec.ts
 
       - name: Assert apps/intel-api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 37 553
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 38 557
 
       # ---------------------------------------------------------------- web --
       # Web interaction + accessibility (tracker-a11y.test.tsx) + the packet and
