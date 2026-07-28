@@ -4,6 +4,17 @@ Every requirement in `district-nexus-grants-mcp-plan.md` (Revision 2), plus the
 review rules added by the closeout brief, reconciled against what is actually in
 the repository at the head of `agent/district-nexus-final-closeout`.
 
+> **Revised 2026-07-28, after PR #635 merged (`7adc95f4`).** This file was
+> written while #635 was still a draft, and several rows went stale the moment
+> it landed. Everything revised below was **re-measured against the live
+> `capiro-dev` database, live EventBridge, and a live authenticated browser** —
+> not re-read from a prior summary. Four rows that said **Blocked** were already
+> **Done** (H2, H3, H6, and E15); one (H4) was Blocked and *understated by two
+> orders of magnitude*. New sections **§J** (observed live) and rows **H12–H17**
+> record what this pass found, including a defect in a migration that had
+> already merged (**H17**). Where a row now contradicts what it said before, the
+> old claim is struck through rather than deleted, so the correction is visible.
+
 **Status vocabulary**
 
 | Status | Meaning |
@@ -124,7 +135,7 @@ All seven award-bearing types are supported:
 | E12 | Producer avoids per-pair database queries | Complete | Per-(client, grant) `findFirst` batched to one `findMany` per client — measured 780–960 ms → 4–6 ms | No | No |
 | E13 | Producer is idempotent | Complete | Find-then-create-or-update, keyed on the 5-column unique index | No | No — `20260806010000` **is applied**; index verified live 2026-07-28 |
 | E14 | Producer preserves human-authored rows | Complete | Only `evidenceSourceType: 'deterministic_relevance_v1'` rows are read or touched; `evidenceSourceType` is in the unique key precisely so a producer row and an analyst row can coexist | No | No |
-| E15 | Producer cannot create duplicate rows under concurrent execution | **Blocked** | The index exists in the migration but **is not applied to `capiro-dev`** (stated in `ingestion-schedule.ts:451-459`). `runWithSyncRun`'s skip-if-running remains the primary defence | No | **Yes — apply before scheduling** |
+| E15 | Producer cannot create duplicate rows under concurrent execution | **Complete** | ~~The index exists in the migration but is not applied to `capiro-dev`~~ — **that was wrong, and its only source was the stale code comment at `ingestion-schedule.ts:451-459`.** Queried directly 2026-07-28: `client_grant_nexus_producer_unique_idx` **is present in `pg_indexes`**, and `20260806010000` is `finished_at IS NOT NULL, rolled_back_at IS NULL` in `_prisma_migrations`. `runWithSyncRun`'s skip-if-running is now the second line of defence, not the only one | No | No |
 
 ---
 
@@ -161,16 +172,22 @@ All seven award-bearing types are supported:
 | # | Item | Status | Gate | Owner |
 |---|---|---|---|---|
 | H1 | ~~Apply `20260806010000_client_grant_nexus_producer_unique`~~ | **Done** — it was already applied; the "unapplied" claim came from a stale CDK comment | Verified 2026-07-28 | — |
-| H2 | Apply `20260808010000_client_grant_nexus_manual_award_unique` | **Blocked** | Runbook §3 | Neo |
-| H3 | Run the stale-candidate cleanup (dry run, then `--commit`) | **Blocked** | Runbook §4 | Neo |
-| H4 | Assistance enrichment backfill (~238,619 rows, ~5 runs) | **Blocked** | Runbook §5 | Neo |
+| H2 | ~~Apply `20260808010000_client_grant_nexus_manual_award_unique`~~ | **Done 2026-07-28** — applied and verified by querying `_prisma_migrations` (`finished`, not rolled back) **and** `pg_indexes` (`client_grant_nexus_manual_award_unique_idx` present). Runbook §2 already recorded this; this row had not been updated to match | — | — |
+| H3 | ~~Run the stale-candidate cleanup (dry run, then `--commit`)~~ | **Done 2026-07-28** — committed. The `assistance_recipient` queue is now **4 unconfirmed + 2 confirmed = 6 rows**, down from 183; the 177 junk generic-token candidates are gone | — | — |
+| H4 | Assistance enrichment backfill | **Blocked — and larger than this row previously stated** | Measured 2026-07-28: **239,118** assistance awards, of which only **1,749 (0.73 %)** have `detail_enriched_at` set. Real backlog is **237,369**, not "~238,619 rows, ~5 runs". The per-award rail **cannot** close it — USAspending's edge WAF blocks our NAT IP under sustained load (`enrich-assistance-awards` dies mid-run). The bulk-download rail in **PR #649** is the actual fix and must merge first. Runbook §5 | Neo (merge #649) |
 | H5 | Grants.gov reconcile to completion | **Was impossible** — the walk sent `offset`, which search2 ignores, so it re-read page 0 forever (10,000 upserts -> +12 rows). Fixed via `startRecordNum` + `--from-page`; now ~1 run | Runbook §6 | Neo |
-| H6 | Create the `GenerateGrantOpportunityCandidates` EventBridge rule | **Blocked** | Runbook §9.2, after H1 | Neo |
+| H6 | ~~Create the `GenerateGrantOpportunityCandidates` EventBridge rule~~ | **Done** — `aws events list-rules` 2026-07-28 shows **`capiro-dev-generate-grant-opportunity-candidates`, `ENABLED`, `cron(35 11 * * ? *)`**. Its output is live: `client_grant_nexus` holds 4 `deterministic_relevance_v1` rows. Criterion 3 for widening the flag is therefore satisfiable by observation, not by a future action | — | — |
 | H7 | Boundary artifact `--commit` | **Done 2026-07-28** — the IAM gap was already closed (`district-boundary-artifacts-s3-write`), proven by committing: 441 features, 4.90 MB gz, 0 warnings, artifact + manifest live in S3, 437 district rows updated. Current rail only; the future rail has 0 features until `sync-legistorm-districts --with-kml` runs | — |
-| H8 | Deploy api + web | **Blocked** | Runbook §12, **after** H1/H2 | Neo |
-| H9 | Browser canary walk | **Blocked** | Runbook §13 | Neo |
+| H8 | Deploy api + web | **Done 2026-07-28** — `capiro-dev-api` rolled via `--force-new-deployment`. Verified by digest, not by the deploy exiting 0: both running tasks pulled `sha256:d09d8e29…`, which byte-matches ECR `capiro/dev/api:latest`, tagged `6122a0a5` = `main` at the time. Both `RUNNING`/`HEALTHY`, old deployment drained to 0, `app.capiro.ai` 200. The API had been **three merges behind** (`sha256:5723a6a6`, tag `1bbad4934`). `capiro-dev-web` already matched its own ECR `latest`; #648 was API-only so no web build was needed | Runbook §12 | — |
+| H9 | Browser canary walk | **Partly done 2026-07-28 — steps 1 and 8 MET, 2–7 not run** | Steps 1 and 8 walked in a real authenticated browser against `capiro-internal`/RTX; see §J below for what was observed. Steps 2–6 were **authorised by Neo** but could not execute: the CDP harness lost its Chrome attachment and Chrome raised an "Allow remote debugging?" prompt that needs a human click. Step 7 still needs a second `standard_user` account | Runbook §13 | Neo (one click, then re-run) |
 | H10 | Widen `district_nexus_v2` beyond `capiro-internal` | **Blocked** | Runbook §11 criteria — all four must hold | Neo |
-| H11 | `connection_limit=10` sizing validation | Open question | Set explicitly in `entrypoint.sh:40`, replacing Prisma's CPU-derived ~3–5 default on a 0.5 vCPU task. Not load-validated | Neo |
+| H11 | `connection_limit=10` sizing validation | Open question | Set explicitly in `entrypoint.sh:40`, replacing Prisma's CPU-derived ~3–5 default on a 0.5 vCPU task. Not load-validated. Measured cause is upstream of the number: `computePortfolioAlerts` re-runs the whole 24-source profile-v1 aggregate once per client just to read `sections.snapshot.topAlerts`, so a single user request competes with a 12×24 fan-out and will starve at any plausible pool size. The fix the code already names is precomputing portfolio alerts on a cron | Neo |
+| H12 | ~~Merge **#649**~~ | **Merged 2026-07-28** (`60bcdeb6`) — the bulk-download rail is now on `main`; the backfill itself (H4) still has to be run | Prerequisite for H4; nothing else can close a 237,369-row backlog through a WAF-blocked per-award endpoint | Neo |
+| H13 | ~~Merge **#650**~~ + apply the KML `s3:PutObject` grant out-of-band | **Merged 2026-07-28** (`e2de4b1e`); the live IAM grant is still outstanding | `kml_s3_key` is NULL on **all 741** `legislative_district` rows (537 `C` + 204 `F`) because `apiTaskRole` has never held `s3:PutObject` on `UPDATED DISTRICTS/kml/` — in CDK or live. #650 codifies the grant; `cdk deploy Capiro-dev-Compute` stays forbidden, so the live grant is a separate `aws iam put-role-policy` (runbook §10.1). **Privilege change — Neo's call** | Neo |
+| H14 | ~~Merge **#651** — `Client.applicantTypes`~~ | **Merged 2026-07-28** (`2c4a0414`) — closes **E9**, which was confirmed inert live (§J4). **Its migration was broken on arrival; see H17.** | — |
+| H17 | ~~Merge **#655**~~, then apply `20260809010000_client_applicant_types` | **#655 merged 2026-07-28 (`0721c7c5`); applying the migration is still outstanding, and must happen before any api rollout past `6122a0a5`.** This was not a latent hazard — it was **actively breaking CI on every PR**: the `engagement` workflow runs `prisma migrate deploy` against a fresh database and died with `P3018 / 42P01 relation "client" does not exist`, which also blocks every migration queued behind it. #655's `engagement` check going green is the proof it clears | #651's migration shipped as `ALTER TABLE "client"`. The table is `clients` (`@@map("clients")`). `IF NOT EXISTS` guards the **column**, not the table, so `migrate deploy` fails outright with `relation "client" does not exist` and blocks everything queued behind it. Worse: #651 already updated `schema.prisma`, so the generated client selects `applicant_types` on **every** read of `clients` — rolling the API to `:latest` before a working migration 500s every client query for every tenant, not just District Nexus. Verified against `capiro-dev` (diag task `92726b3c`): `pg_tables` holds only `clients`, `applicant_types` exists nowhere, and the migration is absent from `_prisma_migrations`. **#655** fixes the SQL and adds a static guard (131 ALTER targets across the full history, 0 orphans after the fix) | Neo |
+| H15 | ~~Close **#591** as superseded~~ | **Closed 2026-07-28** with the byte-identity evidence in the comment | Verified by content hash 2026-07-28: all **6** files in #591 are **byte-for-byte identical** to `origin/main` (commit `bd31c071`, same file set, same +281/−151). Merging it is a no-op at best. See I1 | Neo |
+| H16 | Merge **#592** — codify `CAPIRO_INTERNAL_TENANT_ID` in the Compute stack | **Open — real IaC drift, not superseded** | The env var **is live** on `capiro-dev-api:59` (applied out-of-band) but is **absent from `main`'s `compute-stack.ts`**, so it is drift that a future `cdk deploy` would silently drop. Merging changes no running behaviour — the Compute stack is frozen by the DNS-revert incident — it only makes IaC honest | Neo |
 
 ---
 
@@ -182,3 +199,98 @@ All seven award-bearing types are supported:
 | I2 | Plan §4.5's `::uuid` cast on the `intel_feature_flag` read | Removed. `tenant_id` is TEXT there; the cast threw `42883`, the guard failed closed, and the feature 404'd for tenants whose flag was genuinely on. The plan was wrong |
 | I3 | Plan §3.5's "`getDistrictNexusSpend` is the profile-v1 suspect" | Exonerated by measurement: 17 ms, Bitmap Index Scan, `EXPLAIN` execution 0.201 ms, 126 matching rows. Replaced by the pool-starvation hypothesis and F6's budget |
 | I4 | Non-compounding weakness rule (the plan's tested default) | Neo's 2026-07-27 calibration: two independent weaknesses on one row now multiply (`compoundStrength`) |
+
+---
+
+## J. Observed live, 2026-07-28 — not inferred from code
+
+Everything in this section was seen in a real authenticated browser session
+against `capiro-internal` (client: RTX Corporation,
+`492ab348-6600-4fca-9d1b-5f072b4e745e`) **after** `capiro-dev-api` was rolled to
+`main`. Where a number appears, it was read off the wire, not off a summary.
+
+### J1. The profile-v1 500 is fixed — and the section still costs 21.7 s
+
+`GET /api/intelligence/clients/:id/profile-v1` returned **`200`, 21,101 bytes,
+21,688 ms**. Before #648 it returned `500` for every client, which blanked the
+whole Intelligence tab and hid District Nexus, Snapshot, Financial and
+Legislative at once. All four sections now render.
+
+**The latency is not fixed and should not be read as fixed.** #648 stops a
+degraded source turning into a 500; it does not make the aggregate fast. Two
+calls on the same tab load are far outside any reasonable budget:
+
+| Endpoint | Status | Time |
+| --- | --- | --- |
+| `…/profile-v1` | 200 | **21,688 ms** |
+| `…/pe-relevance?minScore=0.5&limit=8` | 200 | **12,384 ms** |
+| `…/client-profile/:id` | 200 | 6,298 ms |
+| `…/district-nexus-v2` | 200 | 1,222 ms |
+| `…/district-nexus-relationships` | 200 | 1,394 ms |
+
+This is the live evidence for **H11**. The pool size is downstream of the real
+cause; see that row.
+
+### J2. The published boundary artifact is consumed end-to-end
+
+`/api/intelligence/district-nexus/boundaries/C/geojson` returned **`200`,
+16,569,264 bytes** to the browser, and MapLibre drew real district polygons from
+it. Together with `boundaries?status=C` (200) and `map?view=current&clientId=…`
+(200), this is the first proof the H7 artifact is *served and rendered*, not
+merely present in S3.
+
+### J3. Surfaces confirmed rendering correctly
+
+Client widget (Intelligence → Districts): district count 2, per-facility
+representation (federal House + Senate, state upper + lower), `$68.97B` contract
+obligations, `$45.8M` grant obligations with **outlays stated separately**
+(`obligations $45.8M · outlays $34.4M`), top districts CT-01/VA-08 ordered by
+nexus score, evidence-driver chips, coverage badges, warnings, a **separate**
+"Opportunity pipeline — forecast, not awarded" rail, reviewed-relationships
+panel with **Add relationship** present for a `user_admin`, "View full map →",
+and the setup-gaps list.
+
+Map page: `Current · 119th Congress` label, client/state/colour-by/amount
+filters, district table fallback, freshness and data-quality badges, facility
+markers at real coordinates, nexus-strength legend, and
+`Boundaries · © OpenStreetMap contributors · U.S. Census Bureau, 119th Congress`.
+
+Drawer (CT-01): the full 8-component breakdown summing to 28/100, `Coverage 45%`,
+`Boundary: current, 119th`, and the honest-gap sentence — *"55 points of the
+model have no data submitted for this district — that is a gap, not a verified
+zero"* — plus both trust warnings (`client-provided claim that has not been
+independently confirmed`, `inferred entity match rather than a verified
+identifier`).
+
+Null is preserved rather than zeroed everywhere it was checked: `EMPLOYEES —`,
+`Grants —` on VA-08, `not reported` in the drawer's client table.
+
+District counts agree across all three surfaces (stat tile `2`, table
+`DISTRICTS 2`, map badge `2 districts`).
+
+### J4. E9 confirmed inert, live — and #651 is confirmed as its fix
+
+The opportunity rail rendered three candidates, each reading:
+
+> *relevance 40 · eligibility needs review · closes 9/7/2026*
+> *"The opportunity states applicant types but we hold none for this client —
+> confirm the client's applicant type to resolve."*
+
+That is exactly the behaviour E9 describes: honest, never over-claiming, and
+uninformative. It is the live justification for **H14**/#651.
+
+### J5. New defect — a raw USAspending record renders as an award title
+
+In the CT-01 drawer's **Federal contract awards** list, one row's title is the
+unparsed fixed-width source record:
+
+```
+200204!008533!1700!AF600 !NAVAL AIR SYSTEMS COMMAND !N0001902C3003 !A!N! !N! !20011026!20120430!001447952!…
+```
+
+It renders as a wall of text where an award name belongs, on a surface intended
+to be shown to clients. The underlying value is genuinely what USAspending
+returns for that legacy record, so this is a **presentation** fix, not an
+ingestion one: the award-title renderer should detect an unparsed
+delimiter-dense record and fall back to the award id plus recipient. Not a
+correctness or tenancy issue; does not block merge. **Newly found, unowned.**
