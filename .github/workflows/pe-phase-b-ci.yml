@@ -29,7 +29,23 @@ jobs:
           pnpm --filter @capiro/shared build
           pnpm --filter @capiro/shared typecheck
       - name: Typecheck API and operational scripts
-        run: pnpm --filter @capiro/api typecheck
+        id: typecheck
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm --filter @capiro/api typecheck 2>&1 | tee /tmp/pe-phase-b-typecheck.log
+      - name: Upload temporary typecheck diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pe-phase-b-typecheck-log
+          path: /tmp/pe-phase-b-typecheck.log
+          if-no-files-found: error
+          retention-days: 1
+      - name: Enforce typecheck result
+        if: steps.typecheck.outcome == 'failure'
+        run: exit 1
       - name: Run Phase B targeted tests
         run: pnpm --filter @capiro/api verify:pe-phase-b
       - name: Validate entrypoint shell
