@@ -59,7 +59,21 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/phase_c?schema=public
         run: pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
 
-      - name: Check formatting for Phase C text artifacts
+      - name: Format Phase C text artifacts
+        run: |
+          pnpm exec prettier --write \
+            apps/api/package.json \
+            apps/api/scripts/lib/pe-watch-tenant-isolation.spec.ts \
+            apps/api/scripts/send-pe-alert-emails.ts \
+            apps/api/scripts/send-pe-alert-emails.watch-isolation.spec.ts \
+            apps/api/src/program-element/pe-alerts/tenant-watch-aggregation.ts \
+            apps/api/src/program-element/program-element-read.service.spec.ts \
+            apps/api/src/program-element/program-element-read.service.ts \
+            apps/api/src/program-element/program-element-watch.tenant-isolation.spec.ts \
+            apps/api/tsconfig.pe-phase-a.json \
+            docs/runbooks/program-element-watch-tenant-isolation-rollout.md
+
+      - name: Verify formatting for Phase C text artifacts
         run: |
           pnpm exec prettier --check \
             apps/api/package.json \
@@ -244,6 +258,17 @@ jobs:
         shell: bash
         run: |
           git rm .github/workflows/pe-phase-c-final-gate.yml
+          git add \
+            apps/api/package.json \
+            apps/api/scripts/lib/pe-watch-tenant-isolation.spec.ts \
+            apps/api/scripts/send-pe-alert-emails.ts \
+            apps/api/scripts/send-pe-alert-emails.watch-isolation.spec.ts \
+            apps/api/src/program-element/pe-alerts/tenant-watch-aggregation.ts \
+            apps/api/src/program-element/program-element-read.service.spec.ts \
+            apps/api/src/program-element/program-element-read.service.ts \
+            apps/api/src/program-element/program-element-watch.tenant-isolation.spec.ts \
+            apps/api/tsconfig.pe-phase-a.json \
+            docs/runbooks/program-element-watch-tenant-isolation-rollout.md
           git config user.name 'capiro-phase-c-bot'
           git config user.email 'actions@users.noreply.github.com'
           git commit -m 'test(program-elements): verify Phase C migration rollout'
