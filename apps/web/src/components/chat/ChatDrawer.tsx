@@ -18,7 +18,7 @@ import { MeriMemoryPanel } from './MeriMemoryPanel.js';
 import { MeriInboxBanner } from './MeriInboxBanner.js';
 import { MeriEmptyState } from './MeriEmptyState.js';
 import { config } from '../../env.js';
-import { outstandingApprovals } from './meri-pending-approvals.js';
+import { describeApprovalOutcome, outstandingApprovals } from './meri-pending-approvals.js';
 import {
   useMeriChatController,
   type ChatDrawerProps,
@@ -75,7 +75,7 @@ export function MeriLegacyDrawer({
     setLearnedExpanded,
     orchestratorConflict,
     pendingApprovals,
-    approvingFingerprint,
+    approvingProposalId,
     orchestratorTemplate,
     contextLabel,
     hideMeriFab,
@@ -342,57 +342,82 @@ export function MeriLegacyDrawer({
                   <button
                     type="button"
                     className="chat-pending-approval-approve-all"
-                    disabled={Boolean(approvingFingerprint)}
+                    disabled={Boolean(approvingProposalId)}
                     onClick={() => void handleApproveAll()}
                   >
-                    {approvingFingerprint ? 'Approving…' : `Approve all (${outstanding.length})`}
+                    {approvingProposalId ? 'Approving…' : `Approve all (${outstanding.length})`}
                   </button>
                 )}
               </div>
-              {pendingApprovals.map((p) => (
-                <div
-                  key={p.fingerprint}
-                  className={`chat-pending-approval-row chat-pending-approval-row--${p.status}`}
-                >
-                  <span className="chat-pending-approval-label">
-                    <strong>{p.label || p.tool}</strong>
-                    {p.status === 'pending' && p.reason ? ` — ${p.reason}` : ''}
-                    {/* A resolved row reports its own outcome. When several were
-                        approved at once this is the only place the user can see
-                        WHICH one failed and why. */}
-                    {p.status === 'ran' && (
-                      <span className="chat-pending-approval-outcome">
-                        ✓ Ran{p.detail ? ` — ${p.detail}` : ''}
-                      </span>
-                    )}
-                    {p.status === 'failed' && (
-                      <span className="chat-pending-approval-outcome chat-pending-approval-outcome--failed">
-                        ✗ Failed{p.detail ? ` — ${p.detail}` : ''}
-                      </span>
-                    )}
-                  </span>
-                  <span className="chat-pending-approval-actions">
-                    {(p.status === 'pending' || p.status === 'running') && (
-                      <button
-                        type="button"
-                        className="chat-pending-approval-approve"
-                        disabled={Boolean(approvingFingerprint)}
-                        onClick={() => void handleApprovePending(p.fingerprint, p.tool)}
-                      >
-                        {p.status === 'running' ? 'Approving…' : 'Approve & run'}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="chat-pending-approval-dismiss"
-                      disabled={Boolean(approvingFingerprint)}
-                      onClick={() => handleDismissPending(p.fingerprint)}
-                    >
-                      {p.status === 'pending' || p.status === 'running' ? 'Dismiss' : 'Clear'}
-                    </button>
-                  </span>
-                </div>
-              ))}
+              {pendingApprovals.map((p) => {
+                const isPending = p.status === 'proposed';
+                const isExecuting = p.status === 'executing';
+                const isRetryable = p.status === 'failed_retryable';
+                const isBusy = approvingProposalId === p.proposalId;
+                const icon =
+                  p.status === 'succeeded'
+                    ? '✓'
+                    : p.status === 'outcome_unknown'
+                      ? '⚠'
+                      : p.status === 'blocked' || p.status === 'expired'
+                        ? '⛔'
+                        : '✗';
+                return (
+                  <div
+                    key={p.proposalId}
+                    className={`chat-pending-approval-row chat-pending-approval-row--${p.status}`}
+                  >
+                    <span className="chat-pending-approval-label">
+                      <strong>{p.preview.label}</strong>
+                      {isPending && p.reason ? ` — ${p.reason}` : ''}
+                      {isExecuting ? ' — executing…' : ''}
+                      {/* A resolved row reports its own honest outcome — never
+                          "approved" as if it succeeded. When several were
+                          approved at once this is the only place the user can
+                          see WHICH one failed and why. outcome_unknown warns
+                          explicitly rather than inviting a duplicate retry. */}
+                      {!isPending && !isExecuting && (
+                        <span
+                          className={`chat-pending-approval-outcome${
+                            p.status === 'succeeded'
+                              ? ''
+                              : ' chat-pending-approval-outcome--failed'
+                          }`}
+                        >
+                          {icon} {describeApprovalOutcome(p)}
+                        </span>
+                      )}
+                    </span>
+                    <span className="chat-pending-approval-actions">
+                      {isExecuting && (
+                        <button type="button" className="chat-pending-approval-approve" disabled>
+                          Approving…
+                        </button>
+                      )}
+                      {(isPending || isRetryable) && (
+                        <button
+                          type="button"
+                          className="chat-pending-approval-approve"
+                          disabled={Boolean(approvingProposalId)}
+                          onClick={() => void handleApprovePending(p.proposalId)}
+                        >
+                          {isBusy ? 'Approving…' : isRetryable ? 'Retry' : 'Approve & run'}
+                        </button>
+                      )}
+                      {!isExecuting && (
+                        <button
+                          type="button"
+                          className="chat-pending-approval-dismiss"
+                          disabled={Boolean(approvingProposalId)}
+                          onClick={() => void handleDismissPending(p.proposalId)}
+                        >
+                          {isPending ? 'Dismiss' : 'Clear'}
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
           {orchestratorTemplate && (

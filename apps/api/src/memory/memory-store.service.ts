@@ -13,6 +13,7 @@ import {
   fetchDeniedClientIds,
   wallExclusionSql,
 } from './memory-wall.helpers.js';
+import { evaluateMemoryMutation } from './memory-mutation-auth.js';
 
 /** Result shape returned by the Phase 1 (1D) user-facing memory verbs. */
 export interface MemoryVerbResult {
@@ -466,19 +467,41 @@ export class MemoryStoreService {
   async confirmMemory(itemId: string): Promise<MemoryVerbResult> {
     const ctx = this.tenantCtx.require();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      const rows = await tx.$queryRaw<Array<{ title: string }>>`
-        SELECT title FROM memory_items
+      const rows = await tx.$queryRaw<
+        Array<{
+          title: string;
+          visibility: string;
+          owner_user_id: string | null;
+          client_id: string | null;
+          status: string;
+          legal_hold: boolean;
+        }>
+      >`
+        SELECT title, visibility, owner_user_id, client_id, status, legal_hold
+        FROM memory_items
         WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
-          AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
           AND status <> 'revoked'
         LIMIT 1
       `;
-      if (!rows[0]) return { found: false };
+      const row = rows[0];
+      if (!row) return { found: false };
+      const decision = evaluateMemoryMutation(
+        ctx,
+        {
+          visibility: row.visibility,
+          ownerUserId: row.owner_user_id,
+          clientId: row.client_id,
+          status: row.status,
+          legalHold: row.legal_hold,
+        },
+        'confirm',
+      );
+      if (!decision.allowed) return { found: false };
       await tx.$executeRaw`
         UPDATE memory_items SET last_confirmed_at = now(), updated_at = now()
-        WHERE id = ${itemId}::uuid
+        WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid AND status <> 'revoked'
       `;
-      return { found: true, title: rows[0].title };
+      return { found: true, title: row.title };
     });
   }
 
@@ -493,21 +516,46 @@ export class MemoryStoreService {
   async forgetMemory(itemId: string, reason?: string): Promise<MemoryVerbResult> {
     const ctx = this.tenantCtx.require();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      const rows = await tx.$queryRaw<Array<{ title: string; slug: string; legal_hold: boolean }>>`
-        SELECT title, slug, legal_hold FROM memory_items
+      const rows = await tx.$queryRaw<
+        Array<{
+          title: string;
+          slug: string;
+          visibility: string;
+          owner_user_id: string | null;
+          client_id: string | null;
+          status: string;
+          legal_hold: boolean;
+        }>
+      >`
+        SELECT title, slug, visibility, owner_user_id, client_id, status, legal_hold
+        FROM memory_items
         WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
-          AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
           AND status <> 'revoked'
         LIMIT 1
       `;
       const row = rows[0];
       if (!row) return { found: false };
-      if (row.legal_hold) return { found: true, blockedByLegalHold: true, title: row.title };
+      const decision = evaluateMemoryMutation(
+        ctx,
+        {
+          visibility: row.visibility,
+          ownerUserId: row.owner_user_id,
+          clientId: row.client_id,
+          status: row.status,
+          legalHold: row.legal_hold,
+        },
+        'forget',
+      );
+      if (!decision.allowed) {
+        return decision.reason === 'legal_hold'
+          ? { found: true, blockedByLegalHold: true, title: row.title }
+          : { found: false };
+      }
 
       await tx.$executeRaw`
         UPDATE memory_items
         SET status = 'revoked', revoked_at = now(), revoked_by = ${ctx.userId}::uuid, updated_at = now()
-        WHERE id = ${itemId}::uuid
+        WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid AND status <> 'revoked'
       `;
       // Purge the semantic projection (no FK cascade from memory_items).
       await tx.$executeRaw`
@@ -561,19 +609,33 @@ export class MemoryStoreService {
           entity_id: string | null;
           tags: string[];
           legal_hold: boolean;
+          status: string;
         }>
       >`
-        SELECT type, slug, title, client_id, owner_user_id, visibility, entity_id, tags, legal_hold
+        SELECT type, slug, title, client_id, owner_user_id, visibility, entity_id, tags, legal_hold, status
         FROM memory_items
         WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
-          AND (visibility = 'tenant' OR owner_user_id = ${ctx.userId}::uuid)
           AND status <> 'revoked'
         LIMIT 1
       `;
       const old = rows[0];
       if (!old) return { found: false as const };
-      if (old.legal_hold)
-        return { found: true as const, blockedByLegalHold: true, title: old.title };
+      const decision = evaluateMemoryMutation(
+        ctx,
+        {
+          visibility: old.visibility,
+          ownerUserId: old.owner_user_id,
+          clientId: old.client_id,
+          status: old.status,
+          legalHold: old.legal_hold,
+        },
+        'correct',
+      );
+      if (!decision.allowed) {
+        return decision.reason === 'legal_hold'
+          ? { found: true as const, blockedByLegalHold: true, title: old.title }
+          : { found: false as const };
+      }
 
       // New slug dodges the (tenant,type,slug) unique constraint; a corrected
       // item is a distinct row so both versions coexist.
@@ -598,7 +660,8 @@ export class MemoryStoreService {
       if (!newId) throw new Error('correctMemory: insert returned no row');
 
       await tx.$executeRaw`
-        UPDATE memory_items SET status = 'superseded', updated_at = now() WHERE id = ${itemId}::uuid
+        UPDATE memory_items SET status = 'superseded', updated_at = now()
+        WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid AND status <> 'revoked'
       `;
       // Drop the old item's stale embedding + clio source so recall reflects
       // only the correction.

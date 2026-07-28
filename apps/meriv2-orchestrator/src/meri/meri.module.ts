@@ -5,9 +5,8 @@ import { MeriContextResolver } from './meri-context.resolver.js';
 import { OrchestratorContextCompilerService } from './context-compiler.service.js';
 import { ApiClientContextRepo } from './api-client-context.repo.js';
 import { ApiToolExecutorRepo } from './api-tool-executor.repo.js';
-import { ApiApprovalRepo } from './api-approval.repo.js';
+import { ApiActionProposalRepo } from './api-action-proposal.repo.js';
 import { ApiComplianceAuditRepo } from './api-compliance-audit.repo.js';
-import { ApiPendingActionRepo } from './api-pending-action.repo.js';
 import { InEditorController } from './in-editor/in-editor.controller.js';
 import { InEditorAssistantService } from './in-editor/in-editor-assistant.service.js';
 import { ChatController } from './chat/chat.controller.js';
@@ -45,9 +44,8 @@ import { StewardExtractService } from './steward/steward-extract.service.js';
     OrchestratorContextCompilerService,
     ApiClientContextRepo,
     ApiToolExecutorRepo,
-    ApiApprovalRepo,
+    ApiActionProposalRepo,
     ApiComplianceAuditRepo,
-    ApiPendingActionRepo,
     MeriRegistryService,
     InEditorAssistantService,
     ChatAssistantService,

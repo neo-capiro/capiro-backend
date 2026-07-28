@@ -65,7 +65,7 @@ export function createMeriVisualController({
     setLearnedExpanded: noop,
     orchestratorConflict: null,
     pendingApprovals: [],
-    approvingFingerprint: null,
+    approvingProposalId: null,
     orchestratorTemplate: null,
     contextLabel: 'Portfolio · C2 Strategies',
     hideMeriFab: false,

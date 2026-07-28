@@ -561,6 +561,19 @@ export class ComputeStack extends cdk.Stack {
       // defensive for the eventual maintenance window, not a live-effective
       // change until then.
       LEGISTORM_DISTRICTS_BASE_URL: 'https://api.legistorm.com/v2.023.07/legislative_districts',
+      // MeriV2 Phase 0 (fix/meriv2-p0-control-boundaries) — codified to match the
+      // LIVE prod task def, applied OUT-OF-BAND same as the block above. Forces
+      // ToolServiceSecretGuard (meri/tool-service-secret.guard.ts) to fail CLOSED
+      // on POST /api/clio/tools/:name and POST /api/clio/action-proposals even
+      // though this env's NODE_ENV is 'development' (see the ternary at the top
+      // of this object), not 'production' — the guard's own productionLike check
+      // is otherwise a no-op here. Without this line, a cdk deploy would silently
+      // DROP it and reopen the exact fail-open compliance-gate bypass Phase 0
+      // exists to close: any standard_user could call either route directly with
+      // no internal service secret and no compliance check. The stack is frozen
+      // (UPDATE_ROLLBACK_FAILED, see DRIFT-FINDINGS.md) so this is defensive for
+      // the eventual maintenance window, not a live-effective change today.
+      MERI_TOOLS_REQUIRE_SERVICE_SECRET: 'true',
     };
 
     // Identity-policy-only grant on the API task role for the assets bucket.

@@ -1,6 +1,7 @@
 import {
   canonicalize,
   computeActionFingerprint,
+  computeActionFingerprintV2,
   RepoBackedApprovalStore,
   InMemoryApprovalRepo,
 } from './action-approval';
@@ -48,6 +49,73 @@ describe('computeActionFingerprint', () => {
     expect(
       computeActionFingerprint('send_email', { to: 'x@y.com' }, { ...ctx, userId: 'u2' }),
     ).not.toBe(base); // user
+  });
+});
+
+describe('computeActionFingerprintV2', () => {
+  const base = {
+    effectiveTenantId: '11111111-1111-4111-8111-111111111111',
+    userId: '22222222-2222-4222-8222-222222222222',
+    tool: 'send_email',
+    input: {
+      to: ['a@example.com'],
+      subject: 'Subject',
+      body: 'Body',
+      clientId: '33333333-3333-4333-8333-333333333333',
+    },
+    policyVersion: 'p0.v1',
+  };
+
+  it('is stable across object-key order but keeps array order meaningful', () => {
+    const a = computeActionFingerprintV2(base);
+    const b = computeActionFingerprintV2({
+      ...base,
+      input: {
+        clientId: base.input.clientId,
+        body: 'Body',
+        subject: 'Subject',
+        to: ['a@example.com'],
+      },
+    });
+    expect(a).toBe(b);
+    expect(
+      computeActionFingerprintV2({
+        ...base,
+        input: { ...base.input, to: ['b@example.com', 'a@example.com'] },
+      }),
+    ).not.toBe(
+      computeActionFingerprintV2({
+        ...base,
+        input: { ...base.input, to: ['a@example.com', 'b@example.com'] },
+      }),
+    );
+  });
+
+  it.each([
+    ['effective tenant', { effectiveTenantId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' }],
+    ['user', { userId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' }],
+    ['tool', { tool: 'reply_email' }],
+    ['policy version', { policyVersion: 'p0.v2' }],
+  ])('changes when %s changes', (_label, patch) => {
+    expect(computeActionFingerprintV2({ ...base, ...patch })).not.toBe(
+      computeActionFingerprintV2(base),
+    );
+  });
+
+  it('changes when body, recipient, or client changes by one value', () => {
+    const fingerprint = computeActionFingerprintV2(base);
+    expect(
+      computeActionFingerprintV2({ ...base, input: { ...base.input, body: 'Bodz' } }),
+    ).not.toBe(fingerprint);
+    expect(
+      computeActionFingerprintV2({ ...base, input: { ...base.input, to: ['b@example.com'] } }),
+    ).not.toBe(fingerprint);
+    expect(
+      computeActionFingerprintV2({
+        ...base,
+        input: { ...base.input, clientId: '44444444-4444-4444-8444-444444444444' },
+      }),
+    ).not.toBe(fingerprint);
   });
 });
 

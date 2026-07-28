@@ -25,7 +25,28 @@ export type MeriV2ChatStreamEvent =
       status: 'done' | 'error' | 'pending_approval' | 'blocked';
       detail?: string;
     }
-  | { type: 'pending_approval'; tool: string; label: string; fingerprint: string; reason: string }
+  | {
+      type: 'pending_approval';
+      tool: string;
+      label: string;
+      /** Opaque server-created proposal id — the ONLY thing the browser sends back to approve. */
+      proposalId: string;
+      status: string;
+      reason: string;
+      expiresAt: string;
+      riskTier: string | null;
+      policyCode: string | null;
+      preview: {
+        label: string;
+        riskTier: string | null;
+        leavesFirm: boolean;
+        reversible: boolean;
+        client?: { id: string; name?: string };
+        fields: Record<string, string | number | boolean>;
+        counts: Record<string, number>;
+        reason: string;
+      };
+    }
   | {
       type: 'artifact';
       artifact: {
@@ -73,7 +94,7 @@ export type MeriV2ChatStreamEvent =
         detail?: string;
         status: 'done' | 'error' | 'pending_approval' | 'blocked';
       }>;
-      pendingApprovals?: Array<{ tool: string; fingerprint: string; reason: string }>;
+      pendingApprovals?: Array<{ tool: string; proposalId: string; reason: string; status: string }>;
       aborted?: boolean;
     }
   | { type: 'error'; message: string };
@@ -87,9 +108,9 @@ export type MeriV2ChatStreamEvent =
  *
  * Same conventions as the in-editor MeriV2OrchestratorClient: base URL from
  * MERIV2_ORCHESTRATOR_URL, the caller's Clerk bearer is REQUIRED (delegated
- * tools + the approval check re-authenticate with it), and the resolved tenant
- * AI credential rides the x-capiro-ai-provider header (raw key — TLS-only,
- * never logged).
+ * tool execution + action-proposal creation re-authenticate with it), and the
+ * resolved tenant AI credential rides the x-capiro-ai-provider header (raw
+ * key — TLS-only, never logged).
  */
 @Injectable()
 export class MeriV2ChatClient {
