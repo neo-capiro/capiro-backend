@@ -8,6 +8,7 @@ import { ChangeSetsService } from './change-sets.service.js';
 import { VersioningService } from '../strategy/versioning.service.js';
 import type { VersionService } from '../strategy/version.service.js';
 import type { MeriService } from '../meri/meri.service.js';
+import type { StrategyConversationService } from '../meri/strategy-conversation.service.js';
 import type { StewardService } from '../context/steward.service.js';
 import type { StrategyFlagsService } from '../flags/strategy-flags.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -122,6 +123,10 @@ function makeStore() {
   const dismissals = new Map<string, Rec>();
   const activity: Rec[] = [];
   const outbox: Rec[] = [];
+  // Phase 4: the Watch-acceptance chat confirmation. Appended OUTSIDE the fake
+  // tx (mirrors the real service calling conversation.append after the
+  // transaction commits), so it is deliberately NOT part of snapshot/restore.
+  const chatMessages: Rec[] = [];
   const locks = new Map<string, Promise<void>>();
   let seq = 0;
   const nextId = (p: string) => `${p}-${++seq}`;
@@ -137,6 +142,7 @@ function makeStore() {
     dismissals,
     activity,
     outbox,
+    chatMessages,
     locks,
     nextId,
     nodesFor,
@@ -282,6 +288,11 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
   const spVersion = {
     findFirst: async (args: { where?: Record<string, unknown>; orderBy?: OrderSpec | OrderSpec[] }) =>
       findFirstGeneric([...store.versions.values()], args),
+    findMany: async (args: { where?: Record<string, unknown>; orderBy?: OrderSpec | OrderSpec[] }) => {
+      let rows = [...store.versions.values()].filter((r) => matches(r, args.where));
+      if (args.orderBy) rows = applyOrderBy(rows, args.orderBy);
+      return rows;
+    },
     create: async ({ data }: { data: Rec }) => {
       const id = store.nextId('version');
       const rec = { ...data, id };
@@ -543,11 +554,39 @@ function makeService(store: Store) {
     async (
       _tx: unknown,
       _tenantId: string,
-      _strategyId: string,
+      strategyId: string,
       _actorUserId: string,
       edits: Array<Record<string, unknown>>,
     ) => {
       for (const edit of edits) {
+        if (edit.op === 'add') {
+          // Phase 4 §5's open_node-action test needs a real created id/title
+          // to assert against — mirrors MeriService.applyEdit's create shape
+          // just enough for that.
+          const id = store.nextId('node');
+          store.nodes.set(id, {
+            id,
+            tenantId: T,
+            strategyId,
+            kind: (edit.kind as string) ?? 'action',
+            subject: (edit.subject as string) ?? 'deliverable',
+            title: (edit.title as string) ?? 'New step',
+            note: null,
+            ownerUserId: null,
+            status: (edit.status as string) ?? 'draft',
+            startsOn: (edit.startsOn as string) ?? daysFromToday(30),
+            endsOn: (edit.endsOn as string | null) ?? null,
+            openEnded: false,
+            meriAuthored: false,
+            dependsOnIds: [],
+            provenance: null,
+            targetRef: null,
+            archivedAt: null,
+            createdByUserId: U,
+            createdAt: new Date(),
+          });
+          continue;
+        }
         if (edit.op !== 'retime' && edit.op !== 'update') continue;
         const node = store.nodes.get(edit.nodeId as string);
         if (!node) continue;
@@ -577,16 +616,43 @@ function makeService(store: Store) {
   const steward = { health: jest.fn(async () => healthValue) } as unknown as StewardService;
   const flags = { isAgenticFlagEnabled: jest.fn(async () => true) } as unknown as StrategyFlagsService;
 
-  const watcher = new WatcherService(prisma, versioning, flags, runs, changeSets, meri, steward);
-  const svc = new WatchReviewService(prisma, versioning, meri, watcher);
+  // Phase 4: the real StrategyConversationService is not wired here (no
+  // conversation/message store in this fake tx) — a plain jest.fn appending to
+  // the store is enough to assert the chat-confirmation contract without
+  // reimplementing StrategyConversationService's own (separately-tested)
+  // validation/normalization.
+  const conversationAppend = jest.fn(async (tenantId: string, input: Record<string, unknown>) => {
+    const rec = { ...input, tenantId, id: store.nextId('chat'), createdAt: new Date() };
+    store.chatMessages.push(rec);
+    return rec;
+  });
+  const conversation = { append: conversationAppend } as unknown as StrategyConversationService;
 
-  return { svc, watcher, applyEditSet, verifyAppliedPlan, grounding, withTenant, withTenantUser };
+  const watcher = new WatcherService(prisma, versioning, flags, runs, changeSets, meri, steward);
+  const svc = new WatchReviewService(prisma, versioning, meri, watcher, conversation);
+
+  return {
+    svc,
+    watcher,
+    applyEditSet,
+    verifyAppliedPlan,
+    grounding,
+    withTenant,
+    withTenantUser,
+    conversationAppend,
+  };
 }
 
 async function seedOneOpenProposal(
   store: Store,
   nodeOverrides: Partial<Rec> & { id: string },
-): Promise<{ watcher: WatcherService; svc: WatchReviewService; csId: string; watchKey: string }> {
+): Promise<{
+  watcher: WatcherService;
+  svc: WatchReviewService;
+  csId: string;
+  watchKey: string;
+  conversationAppend: ReturnType<typeof makeService>['conversationAppend'];
+}> {
   seedStrategy(store);
   seedMission(store);
   seedNode(store, {
@@ -595,10 +661,10 @@ async function seedOneOpenProposal(
     status: 'in_progress',
     ...nodeOverrides,
   });
-  const { svc, watcher } = makeService(store);
+  const { svc, watcher, conversationAppend } = makeService(store);
   const result = await watcher.runCheckNow(T, U, MID);
   const csId = result.changeSetsProposed[0]!;
-  return { watcher, svc, csId, watchKey: store.changeSets.get(csId)!.watchKey as string };
+  return { watcher, svc, csId, watchKey: store.changeSets.get(csId)!.watchKey as string, conversationAppend };
 }
 
 // ==== Scenario 5 =================================================================
@@ -1084,5 +1150,262 @@ describe('WatchReviewService.getState — display order', () => {
     expect(depIdx).toBeGreaterThanOrEqual(0);
     expect(calIdx).toBeGreaterThanOrEqual(0);
     expect(depIdx).toBeLessThan(calIdx);
+  });
+});
+
+// ==== Phase 4 §5: Watch-acceptance chat confirmation ===============================
+
+describe('WatchReviewService — Watch chat confirmation (Phase 4 §5)', () => {
+  it('acceptOne appends exactly ONE watch_applied chat message summarizing the change and recheck outcome', async () => {
+    const store = makeStore();
+    const { svc, csId } = await seedOneOpenProposal(store, { id: 'N1' });
+
+    await svc.acceptOne(T, U, csId);
+
+    expect(store.chatMessages).toHaveLength(1);
+    const msg = store.chatMessages[0]!;
+    expect(msg.strategyId).toBe(SID);
+    expect(msg.nodeId).toBeNull();
+    expect(msg.role).toBe('meri');
+    expect(msg.kind).toBe('watch_applied');
+    expect(msg.body).toContain('Accepted a Watch proposal');
+    expect(msg.body).toContain('No other open proposals needed a recheck.');
+    // The retime-only path creates no step, so no Open-node affordance.
+    expect(msg.action).toBeNull();
+  });
+
+  it('acceptAll appends exactly ONE watch_applied message for the whole batch, never one per proposal', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: 'N1', startsOn: daysFromToday(-14), endsOn: daysFromToday(-7), status: 'in_progress' });
+    seedNode(store, { id: 'N2', startsOn: daysFromToday(-20), endsOn: daysFromToday(-12), status: 'in_progress' });
+    const { svc, watcher } = makeService(store);
+    const first = await watcher.runCheckNow(T, U, MID);
+
+    await svc.acceptAll(T, U, SID, 'v1', first.changeSetsProposed);
+
+    expect(store.chatMessages).toHaveLength(1);
+    expect(store.chatMessages[0]!.body).toContain('Accepted 2 Watch proposals');
+  });
+
+  it('a proposal whose op CREATES a step attaches the open_node action, pointing at the real created id', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    store.changeSets.set('cs-add', {
+      id: 'cs-add',
+      tenantId: T,
+      strategyId: SID,
+      runId: null,
+      summary: '[watch:manual:add-step] Add a coalition letter',
+      ops: [
+        {
+          op: 'add',
+          kind: 'action',
+          subject: 'deliverable',
+          title: 'Coalition sign-on letter',
+          startsOn: daysFromToday(30),
+          status: 'draft',
+        },
+      ],
+      approvedOps: null,
+      risk: 'low',
+      status: 'proposed',
+      strategyVersionId: 'v1',
+      appliedVersionId: null,
+      approvedByUserId: null,
+      approvedAt: null,
+      rejectedByUserId: null,
+      rejectedAt: null,
+      appliedByUserId: null,
+      appliedAt: null,
+      undoneByUserId: null,
+      undoneAt: null,
+      watchKey: 'manual:add-step',
+      replacesChangeSetId: null,
+      supersededByChangeSetId: null,
+      recheckStatus: null,
+      supersededReason: null,
+      createdByUserId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const { svc } = makeService(store);
+
+    await svc.acceptOne(T, U, 'cs-add');
+
+    expect(store.chatMessages).toHaveLength(1);
+    expect(store.chatMessages[0]!.action).toEqual({
+      type: 'open_node',
+      nodeId: expect.any(String),
+      title: 'Coalition sign-on letter',
+    });
+  });
+
+  it('a chat-append failure does not fail the accept — the plan edit already committed', async () => {
+    const store = makeStore();
+    const { svc, csId, conversationAppend } = await seedOneOpenProposal(store, { id: 'N1' });
+    conversationAppend.mockRejectedValueOnce(new Error('conversation service unavailable'));
+
+    const { strategy } = await svc.acceptOne(T, U, csId);
+
+    expect(strategy).toBeTruthy();
+    expect(store.changeSets.get(csId)!.status).toBe('applied');
+    expect(store.nodes.get('N1')!.startsOn).toBe(daysFromToday(1)); // the retime still landed
+  });
+});
+
+// ==== Phase 4 §6: aggregate pending counts for the library nudge ===================
+
+describe('WatchReviewService.getPendingCounts', () => {
+  it('counts current-head open Watch proposals per strategy across the whole tenant', async () => {
+    const store = makeStore();
+    seedStrategy(store); // SID / v1
+    seedNode(store, { id: 'N1', startsOn: daysFromToday(-14), endsOn: daysFromToday(-7), status: 'in_progress' });
+    store.strategies.set('S2', { ...store.strategies.get(SID)!, id: 'S2' });
+    store.versions.set('v2-head', { ...store.versions.get('v1')!, id: 'v2-head', strategyId: 'S2' });
+    const mkCs = (id: string, strategyId: string, versionId: string, watchKey: string) =>
+      store.changeSets.set(id, {
+        id,
+        tenantId: T,
+        strategyId,
+        runId: null,
+        summary: `[watch:${watchKey}] test`,
+        ops: [],
+        approvedOps: null,
+        risk: 'low',
+        status: 'proposed',
+        strategyVersionId: versionId,
+        appliedVersionId: null,
+        approvedByUserId: null,
+        approvedAt: null,
+        rejectedByUserId: null,
+        rejectedAt: null,
+        appliedByUserId: null,
+        appliedAt: null,
+        undoneByUserId: null,
+        undoneAt: null,
+        watchKey,
+        replacesChangeSetId: null,
+        supersededByChangeSetId: null,
+        recheckStatus: null,
+        supersededReason: null,
+        createdByUserId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    mkCs('cs1', SID, 'v1', 'k1');
+    mkCs('cs2', SID, 'v1', 'k2');
+    mkCs('cs3', 'S2', 'v2-head', 'k3');
+    const { svc } = makeService(store);
+
+    const counts = await svc.getPendingCounts(T);
+
+    expect(counts).toEqual({ [SID]: 2, S2: 1 });
+  });
+
+  it('excludes a dismissed watchKey', async () => {
+    const store = makeStore();
+    const { csId, watchKey, svc } = await seedOneOpenProposal(store, { id: 'N1' });
+    await svc.dismiss(T, U, csId);
+
+    const counts = await svc.getPendingCounts(T);
+
+    expect(counts[SID]).toBeUndefined();
+    expect(store.dismissals.size).toBeGreaterThan(0);
+    void watchKey;
+  });
+
+  it('excludes a proposal pinned to a version other than the current head', async () => {
+    const store = makeStore();
+    const { svc } = await seedOneOpenProposal(store, { id: 'N1' });
+    seedVersion(store, 'v2', new Date('2026-08-01T00:00:00.000Z')); // moves the head past the proposal's pin
+
+    const counts = await svc.getPendingCounts(T);
+
+    expect(counts[SID]).toBeUndefined();
+  });
+
+  it('excludes a proposal whose target step is no longer live (deleted-target)', async () => {
+    const store = makeStore();
+    const { svc, csId } = await seedOneOpenProposal(store, { id: 'N1' });
+    store.nodes.get('N1')!.archivedAt = new Date();
+
+    const counts = await svc.getPendingCounts(T);
+
+    expect(counts[SID]).toBeUndefined();
+    void csId;
+  });
+
+  it('returns an empty object when nothing is open, without touching version/node/dismissal tables', async () => {
+    const store = makeStore();
+    const { svc } = makeService(store);
+    const versionsSpy = jest.spyOn(store.versions, 'values');
+    const nodesSpy = jest.spyOn(store.nodes, 'values');
+    const dismissalsSpy = jest.spyOn(store.dismissals, 'values');
+
+    const counts = await svc.getPendingCounts(T);
+
+    expect(counts).toEqual({});
+    // Short-circuits on the empty change-set scan — no reason to touch the rest.
+    expect(versionsSpy).not.toHaveBeenCalled();
+    expect(nodesSpy).not.toHaveBeenCalled();
+    expect(dismissalsSpy).not.toHaveBeenCalled();
+  });
+
+  it('does ONE pass over each table regardless of strategy count — never N queries per row', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedNode(store, { id: 'N1', startsOn: daysFromToday(-14), endsOn: daysFromToday(-7), status: 'in_progress' });
+    for (let i = 0; i < 5; i++) {
+      const sid = `S-extra-${i}`;
+      store.strategies.set(sid, { ...store.strategies.get(SID)!, id: sid });
+      store.versions.set(`v-${sid}`, { ...store.versions.get('v1')!, id: `v-${sid}`, strategyId: sid });
+      store.changeSets.set(`cs-${sid}`, {
+        id: `cs-${sid}`,
+        tenantId: T,
+        strategyId: sid,
+        runId: null,
+        summary: '[watch:k] test',
+        ops: [],
+        approvedOps: null,
+        risk: 'low',
+        status: 'proposed',
+        strategyVersionId: `v-${sid}`,
+        appliedVersionId: null,
+        approvedByUserId: null,
+        approvedAt: null,
+        rejectedByUserId: null,
+        rejectedAt: null,
+        appliedByUserId: null,
+        appliedAt: null,
+        undoneByUserId: null,
+        undoneAt: null,
+        watchKey: 'k',
+        replacesChangeSetId: null,
+        supersededByChangeSetId: null,
+        recheckStatus: null,
+        supersededReason: null,
+        createdByUserId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+    const { svc } = makeService(store);
+    const versionsSpy = jest.spyOn(store.versions, 'values');
+    const nodesSpy = jest.spyOn(store.nodes, 'values');
+    const dismissalsSpy = jest.spyOn(store.dismissals, 'values');
+    const changeSetsSpy = jest.spyOn(store.changeSets, 'values');
+
+    const counts = await svc.getPendingCounts(T);
+
+    // SID itself has a node but no change-set — only the 5 extra strategies
+    // (each with one open proposal) should appear.
+    expect(Object.keys(counts)).toHaveLength(5);
+    expect(changeSetsSpy).toHaveBeenCalledTimes(1);
+    expect(versionsSpy).toHaveBeenCalledTimes(1);
+    expect(nodesSpy).toHaveBeenCalledTimes(1);
+    expect(dismissalsSpy).toHaveBeenCalledTimes(1);
   });
 });
