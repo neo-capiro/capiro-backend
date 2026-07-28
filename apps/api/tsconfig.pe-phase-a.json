@@ -9,7 +9,8 @@
     "scripts/diag-program-element-trust-baseline.ts",
     "scripts/ingest-defense-budget-pdf.ts",
     "scripts/lib/defense-budget-ingest-mode.ts",
-    "scripts/lib/pe-ingestion-mode.spec.ts"
+    "scripts/lib/pe-ingestion-mode.spec.ts",
+    "scripts/lib/pe-phase-a-safety.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
