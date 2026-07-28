@@ -25,7 +25,7 @@ jobs:
       - name: Apply Phase C patch
         run: python apps/api/scripts/__phase_c_apply_patch.py
 
-      - name: Establish PE-watch RLS controls
+      - name: Establish PE-watch RLS controls and repair the SQL-aware test fixture
         run: python apps/api/scripts/__phase_c_post_patch.py
 
       - uses: pnpm/action-setup@v4
@@ -89,6 +89,7 @@ jobs:
             apps/api/scripts/send-pe-alert-emails.watch-isolation.spec.ts \
             apps/api/scripts/lib/pe-watch-tenant-isolation.spec.ts \
             apps/api/src/program-element/program-element-read.service.ts \
+            apps/api/src/program-element/program-element-read.service.spec.ts \
             apps/api/src/program-element/program-element-watch.tenant-isolation.spec.ts \
             apps/api/src/program-element/pe-alerts/tenant-watch-aggregation.ts \
             apps/api/tsconfig.pe-phase-a.json \
