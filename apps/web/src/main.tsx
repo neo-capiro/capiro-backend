@@ -2,10 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { ClerkProvider } from '@clerk/clerk-react';
-import { App as AntApp, ConfigProvider, theme } from 'antd';
+import { App as AntApp, ConfigProvider } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App.js';
 import { config } from './env.js';
+import { ANTD_THEME, CLERK_APPEARANCE } from './theme-antd.js';
 import './theme.css';
 
 const queryClient = new QueryClient({
@@ -13,16 +14,6 @@ const queryClient = new QueryClient({
     queries: { staleTime: 30_000, refetchOnWindowFocus: false, retry: 1 },
   },
 });
-
-// Brand palette - Capiro Brand Book.
-const CAPIRO_BLUE = '#1c2e4a';
-const CAPIRO_BLUE_DEEP = '#111f33';
-const SIGNAL_BLUE = '#1c2e4a';
-const SOFT_WHITE = '#F4F6F8';
-const COOL_GRAY = '#6B7280';
-const TEXT_PRIMARY = '#111827';
-const APP_FONT =
-  "'Public Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif";
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -32,67 +23,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       signUpUrl="/sign-up"
       signInFallbackRedirectUrl="/"
       signUpFallbackRedirectUrl="/"
-      appearance={{
-        variables: {
-          colorPrimary: CAPIRO_BLUE,
-          colorText: TEXT_PRIMARY,
-          colorTextSecondary: COOL_GRAY,
-          fontFamily: APP_FONT,
-        },
-      }}
+      appearance={CLERK_APPEARANCE}
     >
       <ConfigProvider
-        theme={{
-          algorithm: theme.defaultAlgorithm,
-          token: {
-            colorPrimary: CAPIRO_BLUE,
-            colorLink: SIGNAL_BLUE,
-            colorLinkHover: CAPIRO_BLUE,
-            colorTextSecondary: COOL_GRAY,
-            colorText: TEXT_PRIMARY,
-            colorBgLayout: SOFT_WHITE,
-            borderRadius: 10,
-            fontFamily: APP_FONT,
-            fontFamilyCode:
-              "'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', monospace",
-          },
-          components: {
-            Typography: {
-              titleMarginBottom: 0.5,
-            },
-            Menu: {
-              // Sider menu is rendered with theme="dark" + the Capiro Blue
-              // background. These tokens make the selected/hover states visible
-              // against that anchor color rather than blending in.
-              darkItemBg: CAPIRO_BLUE,
-              darkItemSelectedBg: CAPIRO_BLUE_DEEP,
-              darkSubMenuItemBg: CAPIRO_BLUE,
-              darkItemHoverBg: 'rgba(255,255,255,0.06)',
-              darkItemColor: 'rgba(255,255,255,0.78)',
-              darkItemSelectedColor: '#ffffff',
-              itemHeight: 44,
-              itemMarginInline: 8,
-              itemBorderRadius: 8,
-            },
-            Layout: {
-              siderBg: CAPIRO_BLUE,
-              triggerBg: CAPIRO_BLUE_DEEP,
-            },
-            Card: {
-              borderRadiusLG: 14,
-            },
-            Input: {
-              borderRadius: 10,
-            },
-            Select: {
-              borderRadius: 10,
-            },
-            Button: {
-              borderRadius: 10,
-              fontWeight: 600,
-            },
-          },
-        }}
+        theme={ANTD_THEME}
       >
         <AntApp>
           <QueryClientProvider client={queryClient}>

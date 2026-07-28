@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Capiro — Strategy parity harness</title>
+    <!--
+      Phase 7 visual-parity harness (dev only; never built or shipped).
+
+      The <head> deliberately mirrors index.html's font loading EXACTLY — same
+      Google Fonts URL, same families and weights — because a parity screenshot
+      is worthless if the two pages resolve different fonts. Everything else
+      from index.html (runtime-config, HubSpot) is irrelevant here and omitted.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Public+Sans:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* The prototype's content region sits at x=232 (sider) / y=54 (topbar) in
+         a 1440x900 viewport. The harness reproduces that geometry so a capture
+         of the Strategy content region aligns pixel-for-pixel with the
+         prototype's, without pulling in the app shell (whose own parity is not
+         part of this rollout). Overridden per state via ?x=&y=&w=&h=. */
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #ffffff;
+      }
+      #parity-root {
+        position: absolute;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="parity-root"></div>
+    <script type="module" src="/src/parity/main.tsx"></script>
+  </body>
+</html>

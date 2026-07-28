@@ -10,7 +10,8 @@
     "lint": "eslint src --ext .ts,.tsx",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --testTimeout=20000 --hookTimeout=20000",
-    "lighthouse:pe-watch": "node scripts/lighthouse-pe-watch.mjs"
+    "lighthouse:pe-watch": "node scripts/lighthouse-pe-watch.mjs",
+    "parity": "vite --config vite.parity.config.ts"
   },
   "dependencies": {
     "@ant-design/icons": "^5.5.1",
