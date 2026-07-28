@@ -138,10 +138,19 @@ describe('Phase 3 (3a) — memory private rows are fail-closed', () => {
     // clioRecall, listRecentLearnedMemories, listMemories.
     const filterGuards = meri.match(/\{\s*scope:\s*'user_private',\s*ownerUserId:/g) ?? [];
     expect(filterGuards.length).toBeGreaterThanOrEqual(3);
-    // forgetMemory, updateMemory: post-fetch app-level owner check (they load
-    // by id first, so the guard is an equality check, not a query filter).
+    // forgetMemory, updateMemory: post-fetch app-level owner check. Phase 0
+    // (memory-mutation-auth.ts) replaced the old inline
+    // `row.scope === 'user_private' && row.ownerUserId !== ctx.userId` check
+    // in both methods with a shared evaluateMemoryMutation() call, which
+    // subsumes it (private-memory non-owner is still unauthorized — proven in
+    // memory-mutation-auth.spec.ts — plus it now also gates shared-scope
+    // mutation by role and legal hold, which the old inline check never did).
+    // This guard follows the refactor: it still fails CI if a future change
+    // drops the scope/ownerUserId handoff into the shared policy function.
     const postFetchGuards =
-      meri.match(/row\.scope === 'user_private' && row\.ownerUserId !== ctx\.userId/g) ?? [];
+      meri.match(
+        /evaluateMemoryMutation\(\s*ctx,\s*\{\s*scope:\s*row\.scope,\s*ownerUserId:\s*row\.ownerUserId,\s*clientId:\s*row\.clientId,/g,
+      ) ?? [];
     expect(postFetchGuards.length).toBeGreaterThanOrEqual(2);
 
     const candidate = readFileSync(join(SRC_ROOT, 'memory', 'memory-candidate.service.ts'), 'utf8');

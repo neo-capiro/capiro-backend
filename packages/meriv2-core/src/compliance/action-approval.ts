@@ -63,6 +63,31 @@ export function computeActionFingerprint(
   return createHash('sha256').update(payload).digest('hex');
 }
 
+export interface ActionFingerprintV2Input {
+  effectiveTenantId: string;
+  userId: string;
+  tool: string;
+  input: unknown;
+  policyVersion: string;
+}
+
+/**
+ * Phase 0 approval fingerprint. Only canonical values validated and supplied by
+ * the server belong in this hash. The policy version is part of the authority:
+ * an approval created under an incompatible policy can never be replayed.
+ */
+export function computeActionFingerprintV2(args: ActionFingerprintV2Input): string {
+  const payload = canonicalize({
+    version: 2,
+    effectiveTenantId: args.effectiveTenantId,
+    userId: args.userId,
+    tool: args.tool,
+    input: args.input ?? null,
+    policyVersion: args.policyVersion,
+  });
+  return createHash('sha256').update(payload).digest('hex');
+}
+
 /**
  * Persistence port for approvals (implemented by apps/api in B4). Given a
  * fingerprint + caller, has a human approved this exact action? Kept minimal so

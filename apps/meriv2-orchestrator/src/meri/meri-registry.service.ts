@@ -6,7 +6,7 @@ import {
   PROPOSED_CAPIRO_RULES,
   registerDelegatedTools,
   ruleBasedCompliancePolicy,
-  RepoBackedApprovalStore,
+  denyAllApprovals,
   createGetClientContextTool,
   createTagLivePolicyMentionsTool,
   createGeneratePostHearingSummaryTool,
@@ -14,7 +14,6 @@ import {
 } from '@capiro/meriv2-core';
 import { ApiClientContextRepo } from './api-client-context.repo.js';
 import { ApiToolExecutorRepo } from './api-tool-executor.repo.js';
-import { ApiApprovalRepo } from './api-approval.repo.js';
 import { RequestScopedLlmClient } from './request-scoped-llm.client.js';
 import { parseCacheEnabledFlag } from './prompt-cache.helpers.js';
 import { IN_EDITOR_DELEGATED_TOOLS } from './delegated-tools.catalog.js';
@@ -46,7 +45,6 @@ export class MeriRegistryService {
   constructor(
     clientContextRepo: ApiClientContextRepo,
     toolExecutor: ApiToolExecutorRepo,
-    approvalRepo: ApiApprovalRepo,
     config: ConfigService,
   ) {
     // Write tools fail closed: the registry requires an ApprovalGate for any
@@ -54,16 +52,20 @@ export class MeriRegistryService {
     // production ruleset (PROPOSED_CAPIRO_RULES — external sends / CRM record
     // mutations, incl. create_task/update_task / standing automation => WARN;
     // internal reversible artifacts + memory verbs => PASS; anything unnamed
-    // falls back to WARN) and, on WARN, consults the
-    // ApprovalStore (B3/B4): the RepoBackedApprovalStore fingerprints the
-    // proposed action and asks apps/api (ApiApprovalRepo) whether a human
-    // approved THIS exact action. Unapproved → ApprovalPendingError (write
-    // held); approved → proceeds. The repo is fail-closed (any error → not
-    // approved), so a WARN write never slips through unapproved.
+    // falls back to WARN).
+    //
+    // Phase 0: a WARN decision ALWAYS throws ApprovalPendingError — there is no
+    // "is this fingerprint already approved" check to consult anymore.
+    // Approval now happens entirely out-of-band (the browser calls apps/api's
+    // POST /api/clio/action-proposals/:id/approve directly; apps/api executes
+    // the tool itself and never calls back into the orchestrator for that
+    // action), so `denyAllApprovals` is not a placeholder — it is permanently
+    // correct: this registry instance is never the thing that decides an
+    // action is approved.
     const registry = new InMemoryToolRegistry({
       approvalGate: new PolicyApprovalGate(
         ruleBasedCompliancePolicy([...PROPOSED_CAPIRO_RULES]),
-        new RepoBackedApprovalStore(approvalRepo),
+        denyAllApprovals,
       ),
     });
     registry.register(createGetClientContextTool(clientContextRepo));
@@ -83,13 +85,17 @@ export class MeriRegistryService {
 
     // Workstream C (write-tool porting): the side-effecting Meri tools,
     // delegated the same way, but `readOnly:false` — every invoke runs the
-    // PolicyApprovalGate above BEFORE the delegated call. The ApprovalStore IS
-    // wired (RepoBackedApprovalStore above): a WARN tool (send/reply email, CRM
-    // record + task writes, standing automation) throws ApprovalPendingError
-    // and never reaches apps/api until a human approves THIS exact action via
-    // /api/clio/approvals/approve; a PASS tool (internal artifacts + memory
-    // verbs) executes immediately. This is LIVE: the GA full-chat surface
-    // (chat-assistant.service.ts) invokes these tools through this registry.
+    // PolicyApprovalGate above BEFORE the delegated call. A WARN tool
+    // (send/reply email, CRM record + task writes, standing automation) always
+    // throws ApprovalPendingError and never reaches apps/api — the caller
+    // (chat-assistant.service.ts) catches it and creates a durable
+    // MeriActionProposal via ApiActionProposalRepo instead. A human then
+    // approves that proposal directly against apps/api
+    // (POST /api/clio/action-proposals/:id/approve), which executes the tool
+    // itself; this registry is never consulted again for that action. A PASS
+    // tool (internal artifacts + memory verbs) executes immediately. This is
+    // LIVE: the GA full-chat surface (chat-assistant.service.ts) invokes these
+    // tools through this registry.
     const writeNames = registerDelegatedTools(
       (def) => registry.register(def),
       WRITE_DELEGATED_TOOLS,

@@ -12,10 +12,9 @@ import axios from 'axios';
 import { config } from '../../env.js';
 import { detectApprovalIntent } from './meri-approval-intent.js';
 import {
-  applyApprovalOutcome,
-  describeApprovalResult,
-  mergePendingApproval,
+  describeApprovalOutcome,
   outstandingApprovals,
+  upsertProposal,
 } from './meri-pending-approvals.js';
 import { useApi } from '../../lib/use-api.js';
 import { useClientFilter } from '../../state/client-filter.js';
@@ -83,15 +82,21 @@ type SseEvent =
   | { type: 'text'; text: string }
   | { type: 'thinking'; text: string }
   // MeriV2 full chat (meriv2.fullChat): a write the compliance gate held for
-  // human approval. Rendered as an approve card; approving posts the
-  // fingerprint to /api/clio/approvals/approve then re-runs the turn. Legacy
-  // turns never emit this (unknown event types are ignored by older clients).
+  // human approval. Rendered as an approve card; approving POSTs only the
+  // opaque proposalId to /api/clio/action-proposals/:id/approve — never a
+  // tool name, payload, or fingerprint. Legacy turns never emit this (unknown
+  // event types are ignored by older clients).
   | {
       type: 'pending_approval';
       tool: string;
       label?: string;
-      fingerprint: string;
-      reason?: string;
+      proposalId: string;
+      status: MeriActionProposalStatus;
+      reason: string;
+      expiresAt: string;
+      riskTier: string | null;
+      policyCode: string | null;
+      preview: MeriActionPreview;
     }
   | { type: 'done' }
   | { type: 'error'; message: string }
@@ -203,24 +208,57 @@ export interface ChatDrawerProps {
 }
 
 /**
- * A write the MeriV2 compliance gate is holding, plus what became of it.
+ * Server-authoritative lifecycle of a MeriV2 action proposal (Phase 0). Every
+ * value here is exactly what apps/api's MeriActionProposalService returns —
+ * the browser never computes or infers a status client-side.
  *
- * `status` is what lets a card outlive its turn AND still read honestly: a row
- * that ran shows as run (and is never silently re-proposed into a second
- * write), a row that failed shows why instead of vanishing behind a one-line
- * banner. Only `pending` rows are "outstanding" — that is what the header
- * counts, what "Approve all" acts on, and what a typed approval may resolve.
+ * `proposed` is the only re-approvable "outstanding" state that counts toward
+ * the header badge and "Approve all"; `failed_retryable` is separately
+ * offered a Retry action (still server-reverified on click, same as a fresh
+ * approval). Every other state is terminal display-only: `succeeded`,
+ * `failed_terminal`, `outcome_unknown`, `blocked`, `expired`, `dismissed`.
+ * `approved` is a legacy compatibility label the UI must never treat as
+ * synonymous with `succeeded`.
  */
-export type PendingApprovalStatus = 'pending' | 'running' | 'ran' | 'failed';
+export type MeriActionProposalStatus =
+  | 'proposed'
+  | 'approved'
+  | 'executing'
+  | 'succeeded'
+  | 'failed_retryable'
+  | 'failed_terminal'
+  | 'outcome_unknown'
+  | 'blocked'
+  | 'dismissed'
+  | 'expired';
 
+/** Display-only informed-consent summary — never fed back into execution. */
+export interface MeriActionPreview {
+  label: string;
+  riskTier: string | null;
+  leavesFirm: boolean;
+  reversible: boolean;
+  client?: { id: string; name?: string };
+  fields: Record<string, string | number | boolean>;
+  counts: Record<string, number>;
+  reason: string;
+}
+
+/** Mirrors apps/api's PublicMeriActionProposal exactly. */
 export interface PendingApproval {
+  proposalId: string;
+  status: MeriActionProposalStatus;
   tool: string;
-  label?: string;
-  fingerprint: string;
-  reason?: string;
-  status: PendingApprovalStatus;
-  /** Failure text from the approve endpoint's `executionError`. */
-  detail?: string;
+  preview: MeriActionPreview;
+  expiresAt: string;
+  reason: string;
+  riskTier: string | null;
+  policyCode: string | null;
+  attemptCount: number;
+  resultSummary: unknown;
+  error?: { code: string | null; message: string | null };
+  createdAt: string;
+  updatedAt: string;
 }
 
 export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
@@ -275,15 +313,13 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   const pendingApprovalsRef = useRef<PendingApproval[]>([]);
   pendingApprovalsRef.current = pendingApprovals;
   // sendMessage needs to run an approval, but the approval helpers are declared
-  // below it and finishApprovalRound → handleRegenerate → sendMessage closes the
-  // cycle. Naming them in sendMessage's dependency array would evaluate them in
-  // the temporal dead zone and throw on first render, so the call goes through
-  // these (stable) refs, assigned once the real implementations exist.
-  const runApprovalRef = useRef<((fingerprint: string, tool: string) => Promise<void>) | null>(
-    null,
-  );
+  // below it and finishApprovalRound → sendMessage closes the cycle. Naming
+  // them in sendMessage's dependency array would evaluate them in the temporal
+  // dead zone and throw on first render, so the call goes through these
+  // (stable) refs, assigned once the real implementations exist.
+  const runApprovalRef = useRef<((proposalId: string) => Promise<void>) | null>(null);
   const finishApprovalRoundRef = useRef<(() => void) | null>(null);
-  const [approvingFingerprint, setApprovingFingerprint] = useState<string | null>(null);
+  const [approvingProposalId, setApprovingProposalId] = useState<string | null>(null);
   const [orchestratorTemplate, setOrchestratorTemplate] = useState<{
     heading: string;
     sections: string[];
@@ -873,13 +909,13 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
 
       // Typed approval of held writes. The user saying "I approve" in the box
       // used to start a normal turn, which wiped the very cards it meant to
-      // approve; the model then re-proposed under a new fingerprint and the
-      // loop never terminated. Intercept BEFORE anything else so the message
-      // never reaches the model as a fresh instruction.
+      // approve; the model then re-proposed under a new identity and the loop
+      // never terminated. Intercept BEFORE anything else so the message never
+      // reaches the model as a fresh instruction.
       //
-      // Only cards the user can currently see are eligible, and the fingerprint
-      // remains the unit of approval — nothing is re-derived, so this can never
-      // approve something they have not read.
+      // Only cards the user can currently see are eligible, and the opaque
+      // proposalId remains the unit of approval — nothing is re-derived, so
+      // this can never approve something they have not read.
       if (!mode) {
         const outstanding = outstandingApprovals(pendingApprovalsRef.current);
         if (outstanding.length > 0 && detectApprovalIntent(content).approved) {
@@ -889,16 +925,16 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
             appendChatMessage({
               id: generateId(),
               role: 'assistant',
-              content: `Approving **${card.label ?? card.tool}** and running it now.`,
+              content: `Approving **${card.preview.label}** and running it now.`,
               createdAt: new Date(),
             });
-            await runApprovalRef.current?.(card.fingerprint, card.tool);
+            await runApprovalRef.current?.(card.proposalId);
             finishApprovalRoundRef.current?.();
           } else {
             // Several actions are held. A typed "approve" does not say WHICH,
             // and guessing "all of them" would run writes off an ambiguous
             // word. Name them and let the user commit deliberately.
-            const list = outstanding.map((p) => `- ${p.label ?? p.tool}`).join('\n');
+            const list = outstanding.map((p) => `- ${p.preview.label}`).join('\n');
             appendChatMessage({
               id: generateId(),
               role: 'assistant',
@@ -1028,9 +1064,24 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
               // and nothing was ever written. Cards clear on approve, on dismiss,
               // or on a session switch, and nowhere else.
             } else if (event.type === 'pending_approval') {
-              // MeriV2 gate-held write — dedupe by fingerprint (a re-proposed
-              // identical action carries the same fingerprint).
-              setPendingApprovals((prev) => mergePendingApproval(prev, event));
+              // MeriV2 gate-held write — the server already created the durable
+              // proposal; this just renders the card the id identifies.
+              setPendingApprovals((prev) =>
+                upsertProposal(prev, {
+                  proposalId: event.proposalId,
+                  status: event.status,
+                  tool: event.tool,
+                  preview: event.preview,
+                  expiresAt: event.expiresAt,
+                  reason: event.reason,
+                  riskTier: event.riskTier,
+                  policyCode: event.policyCode,
+                  attemptCount: 0,
+                  resultSummary: null,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                }),
+              );
             } else if (event.type === 'trace') {
               if (event.policy?.tier) setOrchestratorTier(event.policy.tier);
             } else if (event.type === 'plan') {
@@ -1225,164 +1276,157 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     void sendMessage(lastUser.content, { mode: 'regenerate' });
   }, [isStreaming, messages, sendMessage]);
 
-  // Approve a MeriV2 gate-held write (meriv2.fullChat): record the approval
-  // against its fingerprint. B4.1 fix (2026-07-15): the write is now executed
-  // DIRECTLY by the approve endpoint (it replays the exact cached input from
-  // when the gate first WARNed) — no second model call, so nothing can drift
-  // between "approved" and "what actually runs". Confirmed live bug this
-  // closes: update_client_profile was approved 8 times over a week via the
-  // OLD regenerate-and-hope flow and executed zero times, because the model
-  // re-derived a fresh (differently-hashed) proposal every retry.
-  //
-  // `executed:false` in the response means this fingerprint predates the fix
-  // (no cached input) or a genuine execution error occurred — for THOSE cases
-  // only, fall back to the pre-fix regenerate behavior once the round's last
-  // card resolves. When everything this round executed directly, skip
-  // regenerate entirely and just tell the user what ran.
-  const approvedThisRoundRef = useRef(false);
-  const needsRegenerateThisRoundRef = useRef(false);
-  const executedThisRoundRef = useRef<Array<{ tool: string; label?: string; detail?: string }>>([]);
+  // Approve a MeriV2 gate-held write (Phase 0): POST the opaque proposalId
+  // only. The server revalidates the stored payload, recomputes the
+  // fingerprint, rechecks the current policy, atomically claims the proposal,
+  // and executes the EXACT stored input — there is no second model call and
+  // nothing for the browser to replay or drift. The response is the complete,
+  // authoritative updated proposal; the card just renders whatever status
+  // comes back. Per Phase 0, approval NEVER automatically regenerates the
+  // model turn — a result is shown on the card and the user decides what (if
+  // anything) to say next.
+  const executedThisRoundRef = useRef<PendingApproval[]>([]);
 
   const finishApprovalRound = useCallback(() => {
-    const needsRegenerate = needsRegenerateThisRoundRef.current;
     const executed = executedThisRoundRef.current;
-    approvedThisRoundRef.current = false;
-    needsRegenerateThisRoundRef.current = false;
     executedThisRoundRef.current = [];
-    if (needsRegenerate) {
-      handleRegenerate();
-      return;
-    }
-    if (executed.length > 0) {
-      // Include each action's own result detail. For create_client that is the
-      // freshly-minted "Name (id …)", which the model needs in history to
-      // propose the matching update_client_profile — otherwise it invents a
-      // clientId from the display name and the follow-up write 404s.
-      const names = executed
-        .map((e) => `${e.label ?? e.tool}${e.detail ? ` — ${e.detail}` : ''}`)
-        .join('; ');
-      appendChatMessage({
-        id: generateId(),
-        role: 'assistant',
-        content: `Approved and completed: ${names}.`,
-        createdAt: new Date(),
-      });
-    }
-  }, [handleRegenerate]);
-
-  const setApprovalStatus = useCallback(
-    (fingerprint: string, status: PendingApprovalStatus, detail?: string) => {
-      setPendingApprovals((prev) => applyApprovalOutcome(prev, fingerprint, status, detail));
-    },
-    [],
-  );
+    if (executed.length === 0) return;
+    // Include each action's own outcome. For create_client a succeeded result
+    // carries "Name (id …)" in its summary, which the model needs in history
+    // to propose the matching update_client_profile — otherwise it invents a
+    // clientId from the display name and the follow-up write 404s.
+    const names = executed
+      .map((p) => `${p.preview.label} — ${describeApprovalOutcome(p)}`)
+      .join('; ');
+    appendChatMessage({
+      id: generateId(),
+      role: 'assistant',
+      content: `${names}.`,
+      createdAt: new Date(),
+    });
+  }, []);
 
   /**
-   * Approve ONE held write and record the outcome on its card. Shared by the
-   * per-card button, "Approve all", and the typed-approval path so all three
-   * behave identically — the fingerprint is always the unit of approval and the
-   * server always replays its own cached input.
+   * Approve (or retry) ONE held write and record the outcome on its card.
+   * Shared by the per-card button, "Approve all", and the typed-approval path
+   * so all three behave identically — the proposalId is always the unit of
+   * approval and the server is always the sole source of the result.
    *
    * Does not itself finish the round; callers decide when the round is over
    * (Approve all finishes once, not once per card).
    */
   const runApproval = useCallback(
-    async (fingerprint: string, tool: string) => {
-      setApprovingFingerprint(fingerprint);
-      setApprovalStatus(fingerprint, 'running');
+    async (proposalId: string) => {
+      setApprovingProposalId(proposalId);
       try {
-        const res = await fetch(`${config.apiBaseUrl}/api/clio/approvals/approve`, {
-          method: 'POST',
-          headers: await authHeaders(),
-          body: JSON.stringify({ fingerprint, tool }),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const body = (await res.json().catch(() => ({}))) as {
-          executed?: boolean;
-          executionError?: string;
-          result?: unknown;
-        };
-        approvedThisRoundRef.current = true;
-        const card = pendingApprovalsRef.current.find((p) => p.fingerprint === fingerprint);
-        if (body.executionError) {
-          // A genuine failure (e.g. a stale/bad clientId 404). Keep it on the
-          // card — it is the only place the user can see WHICH action failed
-          // when several were approved together.
-          setApprovalStatus(fingerprint, 'failed', body.executionError);
-          needsRegenerateThisRoundRef.current = true;
-        } else if (body.executed) {
-          const detail = describeApprovalResult(body.result);
-          setApprovalStatus(fingerprint, 'ran', detail ?? undefined);
-          executedThisRoundRef.current = [
-            ...executedThisRoundRef.current,
-            { tool, label: card?.label, ...(detail ? { detail } : {}) },
-          ];
-        } else {
-          // No cached input for this fingerprint (predates B4.1) — fall back to
-          // the old regenerate-and-hope behavior, no worse than before.
-          setApprovalStatus(fingerprint, 'ran');
-          needsRegenerateThisRoundRef.current = true;
+        const res = await fetch(
+          `${config.apiBaseUrl}/api/clio/action-proposals/${proposalId}/approve`,
+          {
+            method: 'POST',
+            headers: await authHeaders(),
+            body: JSON.stringify({}),
+          },
+        );
+        if (!res.ok) {
+          // A network/HTTP failure talking to the approve endpoint itself — the
+          // server never even claimed the row. Leave the card in its last known
+          // state; the user can just click again.
+          return;
         }
-      } catch {
-        setApprovalStatus(fingerprint, 'failed', 'The approval did not save — please try again.');
+        const proposal = (await res.json()) as PendingApproval;
+        setPendingApprovals((prev) => upsertProposal(prev, proposal));
+        if (proposal.status !== 'proposed' && proposal.status !== 'executing') {
+          executedThisRoundRef.current = [...executedThisRoundRef.current, proposal];
+        }
       } finally {
-        setApprovingFingerprint(null);
+        setApprovingProposalId(null);
       }
     },
-    [authHeaders, setApprovalStatus],
+    [authHeaders],
   );
 
   runApprovalRef.current = runApproval;
   finishApprovalRoundRef.current = finishApprovalRound;
 
   const handleApprovePending = useCallback(
-    async (fingerprint: string, tool: string) => {
-      if (isStreaming || approvingFingerprint) return;
-      await runApproval(fingerprint, tool);
-      if (outstandingApprovals(pendingApprovalsRef.current).length === 0) {
-        finishApprovalRound();
-      }
+    async (proposalId: string) => {
+      if (isStreaming || approvingProposalId) return;
+      await runApproval(proposalId);
+      finishApprovalRound();
     },
-    [isStreaming, approvingFingerprint, runApproval, finishApprovalRound],
+    [isStreaming, approvingProposalId, runApproval, finishApprovalRound],
   );
 
   /**
    * Approve every outstanding card, in the order they were proposed.
    *
-   * Sequential on purpose: the approve endpoint replays each action for real,
-   * and a create→update pair proposed in the same round must run in order (the
-   * update needs the row the create makes). One failure does not abort the
-   * rest — each card carries its own outcome.
+   * Sequential on purpose: the approve endpoint executes each action for
+   * real, and a create→update pair proposed in the same round must run in
+   * order (the update needs the row the create makes). One failure does not
+   * abort the rest — each card carries its own outcome.
    */
   const handleApproveAll = useCallback(async () => {
-    if (isStreaming || approvingFingerprint) return;
+    if (isStreaming || approvingProposalId) return;
     const outstanding = outstandingApprovals(pendingApprovalsRef.current);
     for (const card of outstanding) {
-      await runApproval(card.fingerprint, card.tool);
+      await runApproval(card.proposalId);
     }
     finishApprovalRound();
-  }, [isStreaming, approvingFingerprint, runApproval, finishApprovalRound]);
+  }, [isStreaming, approvingProposalId, runApproval, finishApprovalRound]);
 
+  /**
+   * Dismiss is a durable server-side lifecycle transition, not a local hide —
+   * removed from view optimistically (the server call is best-effort from the
+   * UI's perspective; a resolved/expired proposal can never execute even if
+   * this request is lost).
+   */
   const handleDismissPending = useCallback(
-    (fingerprint: string) => {
-      const next = pendingApprovalsRef.current.filter((p) => p.fingerprint !== fingerprint);
-      setPendingApprovals(next);
-      // Dismissing the last outstanding card after approving others: finish the
-      // round (regenerate only if something approved this round still needs it).
-      if (outstandingApprovals(next).length === 0 && approvedThisRoundRef.current && !isStreaming) {
-        finishApprovalRound();
+    async (proposalId: string) => {
+      setPendingApprovals((prev) => prev.filter((p) => p.proposalId !== proposalId));
+      try {
+        await fetch(`${config.apiBaseUrl}/api/clio/action-proposals/${proposalId}/dismiss`, {
+          method: 'POST',
+          headers: await authHeaders(),
+          body: JSON.stringify({}),
+        });
+      } catch {
+        /* optimistic; the card is already gone locally and server-side expiry/
+           dismissal state does not depend on this request succeeding */
       }
     },
-    [isStreaming, finishApprovalRound],
+    [authHeaders],
   );
 
+  // Recover outstanding/recent proposals from the server whenever the active
+  // conversation changes (including on first load of a persisted session) —
+  // cards must survive a page reload, not just live in memory for one tab.
+  useEffect(() => {
+    if (!sessionId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `${config.apiBaseUrl}/api/clio/action-proposals?conversationId=${encodeURIComponent(sessionId)}`,
+          { headers: await authHeaders() },
+        );
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as PendingApproval[];
+        if (!cancelled && Array.isArray(data)) setPendingApprovals(data);
+      } catch {
+        /* best-effort recovery; live SSE pending_approval events still work */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, authHeaders]);
+
   // Held-approval cards belong to ONE conversation — switching sessions must
-  // not carry them over (approving would re-run the WRONG conversation's turn).
+  // not carry them over (approving would re-run the WRONG conversation's
+  // turn). The recovery effect above re-populates them for the new session.
   useEffect(() => {
     setPendingApprovals([]);
     setResearchOffers({});
-    approvedThisRoundRef.current = false;
-    needsRegenerateThisRoundRef.current = false;
     executedThisRoundRef.current = [];
   }, [sessionId]);
 
@@ -1602,7 +1646,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     setLearnedExpanded,
     orchestratorConflict,
     pendingApprovals,
-    approvingFingerprint,
+    approvingProposalId,
     orchestratorTemplate,
     contextLabel,
     hideMeriFab,

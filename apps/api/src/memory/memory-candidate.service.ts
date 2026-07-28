@@ -23,6 +23,11 @@ export interface MemorySaveRequest {
    *  for explicit human saves (unscored → neutral at recall). Flows to the
    *  candidate row, the payload, and (on commit) clio_memory.metadata.confidence. */
   confidence?: number | null;
+  /** Phase 0 governed auto-learning provenance. These fields are optional for
+   * explicit human saves and required by the auto-learn caller. */
+  sourceConversationId?: string | null;
+  sourceMessageId?: string | null;
+  sourceExcerpt?: string | null;
 }
 
 export interface MemoryCandidateRow {
@@ -117,6 +122,11 @@ export class MemoryCandidateService {
         ? Math.min(1, Math.max(0, record.confidence))
         : null;
 
+    const sourceExcerpt =
+      typeof record.sourceExcerpt === 'string' ? record.sourceExcerpt.slice(0, 4_000) : null;
+    const sourceConversationId =
+      typeof record.sourceConversationId === 'string' ? record.sourceConversationId : null;
+    const sourceMessageId = typeof record.sourceMessageId === 'string' ? record.sourceMessageId : null;
     const payload = {
       key: record.key,
       value: record.value,
@@ -126,8 +136,18 @@ export class MemoryCandidateService {
       clientId: record.clientId ?? null,
       expiresAt: record.expiresAt ? record.expiresAt.toISOString() : null,
       confidence: candidateConfidence,
+      sourceConversationId,
+      sourceMessageId,
+      sourceExcerpt,
     };
-    const provenance = { tool: 'save_memory', tenantId, userId: proposedByUserId };
+    const provenance = {
+      tool: 'save_memory',
+      tenantId,
+      userId: proposedByUserId,
+      sourceConversationId,
+      sourceMessageId,
+      sourceExcerpt,
+    };
 
     const candidateId = await this.prisma.withTenant(tenantId, async (tx) => {
       const rows = await tx.$queryRaw<Array<{ id: string }>>`
@@ -251,6 +271,9 @@ export class MemoryCandidateService {
       ...(typeof record.confidence === 'number' && Number.isFinite(record.confidence)
         ? { confidence: Math.min(1, Math.max(0, record.confidence)) }
         : {}),
+      ...(record.sourceConversationId ? { sourceConversationId: record.sourceConversationId } : {}),
+      ...(record.sourceMessageId ? { sourceMessageId: record.sourceMessageId } : {}),
+      ...(record.sourceExcerpt ? { sourceExcerpt: record.sourceExcerpt.slice(0, 4_000) } : {}),
     };
     const findExisting = () =>
       this.prisma.withTenant(tenantId, (tx) =>
@@ -355,7 +378,14 @@ function payloadToSaveRequest(payload: unknown): MemorySaveRequest {
     throw new BadRequestException('Malformed memory candidate payload.');
   }
   const scope = p.scope === 'firm' ? 'firm' : p.scope === 'client' ? 'client' : 'user_private';
-  const raw = payload as { clientId?: unknown; expiresAt?: unknown; confidence?: unknown };
+  const raw = payload as {
+    clientId?: unknown;
+    expiresAt?: unknown;
+    confidence?: unknown;
+    sourceConversationId?: unknown;
+    sourceMessageId?: unknown;
+    sourceExcerpt?: unknown;
+  };
   return {
     scope,
     ownerUserId: typeof p.ownerUserId === 'string' ? p.ownerUserId : null,
@@ -370,5 +400,9 @@ function payloadToSaveRequest(payload: unknown): MemorySaveRequest {
       typeof raw.confidence === 'number' && Number.isFinite(raw.confidence)
         ? raw.confidence
         : null,
+    sourceConversationId:
+      typeof raw.sourceConversationId === 'string' ? raw.sourceConversationId : null,
+    sourceMessageId: typeof raw.sourceMessageId === 'string' ? raw.sourceMessageId : null,
+    sourceExcerpt: typeof raw.sourceExcerpt === 'string' ? raw.sourceExcerpt.slice(0, 4_000) : null,
   };
 }

@@ -270,8 +270,8 @@ export class MeriController {
       /* swallow socket errors on client disconnect */
     });
     // The raw bearer rides along for the MeriV2 full-chat proxy branch only
-    // (delegated tools + the approval check re-authenticate with it); the
-    // legacy in-process path ignores it.
+    // (delegated tool execution + action-proposal creation re-authenticate
+    // with it); the legacy in-process path ignores it.
     //
     // IMPERSONATED turns (x-capiro-impersonate-tenant) now route to MeriV2 too
     // (Wave 2.5 gate-flip): the impersonated tenant is forwarded to the proxy →
@@ -333,13 +333,14 @@ export class MeriController {
     return this.tools.executeFromAuthenticatedUser(ctx, name, body);
   }
 
-  // ── MeriV2 write-tool approvals (Workstream B4 + B4.1) ──
-  // Backs the orchestrator's ApprovalStore: check whether a proposed write
-  // (identified by its meriv2-core fingerprint) is approved, and record an
-  // approval. Tenant+user scoped by CurrentTenant + the meri_action_approval /
-  // meri_pending_action RLS policies. `check` is called by the orchestrator
-  // (forwarding the caller bearer); `pending-actions`/`approve`/`list` are the
-  // human/surface actions.
+  // ── MeriV2 legacy write-tool approvals (Workstream B4 + B4.1) — RETIRED ──
+  // Phase 0 permanently disables this fingerprint-authorized flow: `check`
+  // always reports not-approved, and `pending-actions`/`approve` always 410.
+  // New approvals go through MeriActionProposalController
+  // (POST /api/clio/action-proposals, approve/dismiss by opaque proposal id
+  // only). These three routes stay mounted only so an old/cached browser
+  // bundle gets an explicit "expired, propose again" signal instead of a
+  // silent 404; `list` below remains live for audit access to historical rows.
   // Propose-time client check (read-only). The gate WARNs before a write runs,
   // so without this a doomed update_client_profile still renders as a clean
   // "pending approval" card and only fails after the user clicks it.
@@ -353,10 +354,6 @@ export class MeriController {
     return this.approvals.check(ctx, body?.fingerprint);
   }
 
-  // B4.1: cache the EXACT proposed action the moment the orchestrator's gate
-  // WARNs, so `approve` below can replay it directly instead of re-asking the
-  // model. Called by the orchestrator (forwarding the caller bearer), fired at
-  // the same moment as the `pending_approval` SSE frame.
   @Post('pending-actions')
   recordPendingAction(
     @CurrentTenant() ctx: TenantContext,

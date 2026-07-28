@@ -3,7 +3,6 @@ import { InEditorAssistantService } from './in-editor-assistant.service';
 import { MeriRegistryService } from '../meri-registry.service';
 import type { ApiClientContextRepo } from '../api-client-context.repo';
 import type { ApiToolExecutorRepo } from '../api-tool-executor.repo';
-import type { ApiApprovalRepo } from '../api-approval.repo';
 import { RequestCredentialsStore } from '../../request/request-credentials.store';
 import type { MeriContext } from '@capiro/meriv2-core';
 
@@ -34,10 +33,6 @@ const clientRepo = {
   loadClientContext: async () => ({ client: { id: 'c', name: 'n' } }),
 } as unknown as ApiClientContextRepo;
 
-// In-editor is a read-only surface; the approval repo is never consulted (no
-// write tool is in ASSISTANT_TOOLS). Deny-all keeps it inert either way.
-const denyApprovals = { isApproved: async () => false } as unknown as ApiApprovalRepo;
-
 // Phase 1 M5.0 (H-1): the loop meters every round via recordAiUsageEvent,
 // which needs prisma.withTenant/withSystem. A no-op fake is enough here.
 const fakePrisma = {
@@ -46,7 +41,7 @@ const fakePrisma = {
 } as never;
 
 function makeService(executor: ApiToolExecutorRepo) {
-  const registryService = new MeriRegistryService(clientRepo, executor, denyApprovals, config);
+  const registryService = new MeriRegistryService(clientRepo, executor, config);
   return new InEditorAssistantService(registryService, config, fakePrisma);
 }
 
@@ -299,12 +294,7 @@ describe('InEditorAssistantService.run', () => {
       );
     });
 
-    const registryService = new MeriRegistryService(
-      clientRepo,
-      executor,
-      denyApprovals,
-      verifierConfig,
-    );
+    const registryService = new MeriRegistryService(clientRepo, executor, verifierConfig);
     const svc = new InEditorAssistantService(registryService, verifierConfig, fakePrisma);
     const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
       svc.run(ctx, { messages: [{ role: 'user', text: 'draft it' }] }),
@@ -355,12 +345,7 @@ describe('InEditorAssistantService.run', () => {
       return { ok: false, status: 500, json: async () => ({ error: { message: 'boom' } }) };
     });
 
-    const registryService = new MeriRegistryService(
-      clientRepo,
-      executor,
-      denyApprovals,
-      verifierConfig,
-    );
+    const registryService = new MeriRegistryService(clientRepo, executor, verifierConfig);
     const svc = new InEditorAssistantService(registryService, verifierConfig, fakePrisma);
     const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
       svc.run(ctx, { messages: [{ role: 'user', text: 'draft it' }] }),

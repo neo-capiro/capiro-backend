@@ -14,9 +14,9 @@ export interface ComplianceAuditPayload {
  * Fire-and-forget bridge to apps/api's compliance audit store: posts one
  * `compliance_check` row per write-gate decision (PASS/WARN/BLOCK) via
  * `POST /api/clio/compliance-checks`, forwarding the caller's verified Bearer
- * (same bridge pattern as ApiApprovalRepo, so the row is tenant+user scoped).
+ * (same bridge pattern as ApiToolExecutorRepo, so the row is tenant+user scoped).
  *
- * FAIL-OPEN (opposite of the approval repo): auditing must NEVER block, delay,
+ * FAIL-OPEN (opposite of proposal creation): auditing must NEVER block, delay,
  * or crash a Meri turn. `record()` returns void immediately and swallows every
  * error (no bearer, network, non-2xx, timeout). A missed audit row is a
  * degraded-observability event, not a functional failure.
@@ -36,14 +36,18 @@ export class ApiComplianceAuditRepo {
 
   /** Fire-and-forget: schedule the audit write, never await it into the turn. */
   record(payload: ComplianceAuditPayload): void {
-    const bearer = RequestCredentialsStore.get()?.bearerToken;
-    if (!bearer) return; // no caller identity to scope the row — skip silently
-    void this.post(bearer, payload).catch((e) =>
+    const creds = RequestCredentialsStore.get();
+    if (!creds?.bearerToken) return; // no caller identity to scope the row — skip silently
+    void this.post(creds.bearerToken, creds.impersonateTenantId, payload).catch((e) =>
       this.logger.warn(`compliance audit write skipped (${(e as Error).message})`),
     );
   }
 
-  private async post(bearer: string, payload: ComplianceAuditPayload): Promise<void> {
+  private async post(
+    bearer: string,
+    impersonateTenantId: string | undefined,
+    payload: ComplianceAuditPayload,
+  ): Promise<void> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
@@ -53,6 +57,9 @@ export class ApiComplianceAuditRepo {
           authorization: `Bearer ${bearer}`,
           'content-type': 'application/json',
           accept: 'application/json',
+          // Impersonation passthrough (2.5): scope the audit row to the
+          // impersonated tenant, matching proposal creation + tool execution.
+          ...(impersonateTenantId ? { 'x-capiro-impersonate-tenant': impersonateTenantId } : {}),
         },
         body: JSON.stringify({
           trigger: payload.trigger,

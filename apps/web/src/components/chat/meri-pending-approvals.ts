@@ -3,59 +3,35 @@ import type { PendingApproval } from './useMeriChatController.js';
 /**
  * Pure state transitions for the held-write cards.
  *
- * Extracted from the controller because the two rules here are the ones with
- * teeth — get either wrong and you either lose a user's approval or double-run
- * a real write (creating a duplicate client, sending an email twice) — and
- * neither is reachable from a DOM test without stubbing ~90 controller fields.
+ * Extracted from the controller because these are the rules with teeth — get
+ * them wrong and either a user's approval is lost or a real write runs twice
+ * — and neither is reachable from a DOM test without stubbing ~90 controller
+ * fields.
  */
 
-/** Cards still waiting on the user. Resolved rows stay visible but don't count. */
+/** Cards still waiting on the user. Resolved/executing rows stay visible but don't count. */
 export function outstandingApprovals(cards: PendingApproval[]): PendingApproval[] {
-  return cards.filter((c) => c.status === 'pending');
+  return cards.filter((c) => c.status === 'proposed');
 }
 
 /**
- * Fold a `pending_approval` SSE frame into the current card set.
- *
- * The fingerprint is a hash of (tenant, user, tool, canonicalized input), so an
- * identical re-proposal arrives with an identical fingerprint. That gives the
- * dedupe its meaning:
- *   - unseen fingerprint  → a genuinely new proposal, append it
- *   - already RAN         → the model re-proposed something already executed
- *                           (it cannot see the approval). Approving again would
- *                           write it twice, so leave the run row alone.
- *   - already FAILED      → the user fixed whatever broke and the model is
- *                           re-offering it. Make it actionable again.
- *   - PENDING / RUNNING   → already on screen or in flight; nothing to do.
+ * Insert-or-replace a proposal by its opaque proposalId. Used for the live
+ * `pending_approval` SSE frame, the approve/dismiss response, and the
+ * recovery list fetch alike — the server is always the sole source of the
+ * card's identity and state, so there is nothing to merge or infer.
  */
-export function mergePendingApproval(
-  prev: PendingApproval[],
-  event: { tool: string; label?: string; fingerprint: string; reason?: string },
-): PendingApproval[] {
-  const existing = prev.find((p) => p.fingerprint === event.fingerprint);
-  if (!existing) {
-    return [
-      ...prev,
-      {
-        tool: event.tool,
-        label: event.label,
-        fingerprint: event.fingerprint,
-        reason: event.reason,
-        status: 'pending',
-      },
-    ];
-  }
-  if (existing.status !== 'failed') return prev;
-  return prev.map((p) =>
-    p.fingerprint === event.fingerprint
-      ? { ...p, status: 'pending' as const, detail: undefined, reason: event.reason ?? p.reason }
-      : p,
-  );
+export function upsertProposal(prev: PendingApproval[], next: PendingApproval): PendingApproval[] {
+  const index = prev.findIndex((p) => p.proposalId === next.proposalId);
+  if (index === -1) return [...prev, next];
+  const copy = [...prev];
+  copy[index] = next;
+  return copy;
 }
 
 /**
- * Human-readable detail for an executed action, pulled from the tool's own
- * return value.
+ * Human-readable detail for a succeeded action, pulled from the proposal's
+ * bounded `resultSummary` (never the tool's raw result — the server redacts
+ * and bounds it before it ever reaches the browser).
  *
  * This exists for the create→enrich chain. `create_client` mints a UUID that
  * only the server knows; the model then needs it to propose the matching
@@ -65,9 +41,9 @@ export function mergePendingApproval(
  * making it re-derive one — which is how "BryceTech" ended up proposed as a
  * clientId in the first place.
  */
-export function describeApprovalResult(result: unknown): string | null {
-  if (!result || typeof result !== 'object') return null;
-  const r = result as Record<string, unknown>;
+export function describeApprovalResult(resultSummary: unknown): string | null {
+  if (!resultSummary || typeof resultSummary !== 'object') return null;
+  const r = resultSummary as Record<string, unknown>;
   const client = r.client;
   if (client && typeof client === 'object') {
     const c = client as Record<string, unknown>;
@@ -76,29 +52,51 @@ export function describeApprovalResult(result: unknown): string | null {
     if (name && id) return `${name} (id ${id})`;
     if (name) return name;
   }
-  // update_client_profile reports what it actually wrote — worth echoing so
-  // "approved" is never mistaken for "and it did what I described".
-  const written = Array.isArray(r.fieldsWritten) ? r.fieldsWritten.length : 0;
-  const people = Array.isArray(r.peopleCreated) ? r.peopleCreated.length : 0;
-  const caps = Array.isArray(r.capabilitiesCreated) ? r.capabilitiesCreated.length : 0;
-  const facilities = Array.isArray(r.facilitiesCreated) ? r.facilitiesCreated.length : 0;
+  // update_client_profile's summary reports counts of what it actually wrote
+  // — worth echoing so "approved" is never mistaken for "and it did what I
+  // described".
+  const counts = r.counts && typeof r.counts === 'object' ? (r.counts as Record<string, unknown>) : {};
+  const written = typeof counts.fieldsWritten === 'number' ? counts.fieldsWritten : 0;
+  const people = typeof counts.peopleCreated === 'number' ? counts.peopleCreated : 0;
+  const caps = typeof counts.capabilitiesCreated === 'number' ? counts.capabilitiesCreated : 0;
+  const facilities = typeof counts.facilitiesCreated === 'number' ? counts.facilitiesCreated : 0;
   const parts: string[] = [];
   if (typeof r.clientName === 'string' && r.clientName) parts.push(r.clientName);
-  const counts: string[] = [];
-  if (written) counts.push(`${written} field${written === 1 ? '' : 's'}`);
-  if (people) counts.push(`${people} ${people === 1 ? 'person' : 'people'}`);
-  if (caps) counts.push(`${caps} capabilit${caps === 1 ? 'y' : 'ies'}`);
-  if (facilities) counts.push(`${facilities} facilit${facilities === 1 ? 'y' : 'ies'}`);
-  if (counts.length) parts.push(counts.join(', '));
+  const countParts: string[] = [];
+  if (written) countParts.push(`${written} field${written === 1 ? '' : 's'}`);
+  if (people) countParts.push(`${people} ${people === 1 ? 'person' : 'people'}`);
+  if (caps) countParts.push(`${caps} capabilit${caps === 1 ? 'y' : 'ies'}`);
+  if (facilities) countParts.push(`${facilities} facilit${facilities === 1 ? 'y' : 'ies'}`);
+  if (countParts.length) parts.push(countParts.join(', '));
   return parts.length ? parts.join(' — ') : null;
 }
 
-/** Record the outcome of an approval attempt against one card. */
-export function applyApprovalOutcome(
-  prev: PendingApproval[],
-  fingerprint: string,
-  status: PendingApproval['status'],
-  detail?: string,
-): PendingApproval[] {
-  return prev.map((p) => (p.fingerprint === fingerprint ? { ...p, status, detail } : p));
+/**
+ * One-line, honest description of a resolved proposal's outcome — the single
+ * source of phrasing shared by the card UI and the post-round chat summary.
+ * `outcome_unknown` and `blocked`/`expired` are deliberately never phrased as
+ * success, and `outcome_unknown` explicitly warns against retrying (an
+ * external send may have already happened).
+ */
+export function describeApprovalOutcome(p: PendingApproval): string {
+  switch (p.status) {
+    case 'succeeded': {
+      const detail = describeApprovalResult(p.resultSummary);
+      return detail ? `succeeded — ${detail}` : 'succeeded';
+    }
+    case 'failed_retryable':
+      return `failed, can retry${p.error?.message ? ` — ${p.error.message}` : ''}`;
+    case 'failed_terminal':
+      return `failed${p.error?.message ? ` — ${p.error.message}` : ''}`;
+    case 'outcome_unknown':
+      return 'outcome unknown — do not retry, this may have already happened';
+    case 'blocked':
+      return `blocked — ${p.reason}`;
+    case 'expired':
+      return 'expired before it could run';
+    case 'dismissed':
+      return 'dismissed';
+    default:
+      return p.status;
+  }
 }
