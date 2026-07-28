@@ -120,14 +120,19 @@ describe('StrategyAssistantService.draft — best-so-far + forced terminal tool'
    * budget. The draft path now forces the terminal tool from the first round.
    */
 
-  /** Node 0 depends on node 1 which starts LATER — a real verifier dep-order error. */
+  /**
+   * A hard 'dates' verifier error (ends before it starts) with NO dependency
+   * involved — Phase 5 §4.2's deterministic repair only retimes dependency-order
+   * violations, so this one can only ever be cleared by a model repair round,
+   * which is what these best-so-far tests actually exercise.
+   */
   const violatingNodes = [
     {
       kind: 'action',
       subject: 'deliverable',
       title: 'File the funding request memo',
-      startsOn: '2027-01-05',
-      dependsOn: [1],
+      startsOn: '2027-04-01',
+      endsOn: '2027-01-05',
     },
     {
       kind: 'action',
@@ -264,10 +269,12 @@ describe('StrategyAssistantService.draft — A5 repair loop', () => {
     expect(result.violations).toEqual([]);
   });
 
-  it('re-prompts with the verifier violation messages when the first plan has a real dep-order error', async () => {
+  it('deterministically repairs a real dep-order violation without spending a second model call (Phase 5 §4.2)', async () => {
     const { svc, completeWithTools } = build();
     // Node 0 depends on node 1, but node 1 starts LATER — a genuine dep-order
-    // violation per @capiro/strategy-verifier's checkOrdering (not mocked).
+    // violation per @capiro/strategy-verifier's checkOrdering (not mocked). Prior
+    // to Phase 5 this required a model back-prompt; the deterministic repair step
+    // now fixes it in place, so the model is never called a second time.
     const violatingNodes = [
       {
         kind: 'action',
@@ -283,57 +290,33 @@ describe('StrategyAssistantService.draft — A5 repair loop', () => {
         startsOn: '2027-04-01',
       },
     ];
-    completeWithTools
-      .mockResolvedValueOnce(
-        toolResp('propose_strategy_draft', { summary: 'First pass.', nodes: violatingNodes }),
-      )
-      .mockResolvedValueOnce(
-        toolResp('propose_strategy_draft', {
-          summary: 'Fixed pass.',
-          nodes: [
-            {
-              kind: 'action',
-              subject: 'milestone',
-              title: 'Host the strategy kickoff',
-              startsOn: '2027-04-01',
-            },
-            {
-              kind: 'action',
-              subject: 'deliverable',
-              title: 'File the funding request memo',
-              startsOn: '2027-05-01',
-              dependsOn: [0],
-            },
-          ],
-        }),
-      );
+    completeWithTools.mockResolvedValueOnce(
+      toolResp('propose_strategy_draft', { summary: 'First pass.', nodes: violatingNodes }),
+    );
 
     const result = await svc.draft(CTX, BASE_DRAFT_INPUT);
 
-    expect(completeWithTools).toHaveBeenCalledTimes(2);
-    const secondCallParams = completeWithTools.mock.calls[1]![0] as {
-      system: string | SystemPromptParts;
-    };
-    const secondCallSystem = systemText(secondCallParams.system);
-    // The repair suffix carries the ACTUAL violation message forward verbatim.
-    expect(secondCallSystem).toContain('FIX THESE PROBLEMS');
-    expect(secondCallSystem).toContain('starts before the step it depends on');
-    expect(secondCallSystem).toContain('File the funding request memo');
-    expect(secondCallSystem).toContain('Host the strategy kickoff');
-    // The repaired plan clears the verifier (dependency now precedes its dependent).
-    expect(result.summary).toBe('Fixed pass.');
+    // Fixed in place — no back-prompt, no second round-trip.
+    expect(completeWithTools).toHaveBeenCalledTimes(1);
+    expect(result.summary).toBe('First pass.');
     expect(result.violations).toEqual([]);
+    // Retimed to the kickoff's effective completion date (its own start, a point event).
+    const memo = result.nodes.find((n) => n.title === 'File the funding request memo');
+    expect(memo?.startsOn).toBe('2027-04-01');
   });
 
   it('stops after MAX_REPAIRS=2 additional attempts (≤3 total calls) even if errors never clear', async () => {
     const { svc, completeWithTools } = build();
+    // A hard 'dates' error (ends before it starts), not a dependency-order issue —
+    // Phase 5 §4.2's deterministic repair cannot touch it, so it genuinely never
+    // clears and every attempt burns a real model repair round.
     const violatingNodes = [
       {
         kind: 'action',
         subject: 'deliverable',
         title: 'Always-broken step',
-        startsOn: '2027-01-05',
-        dependsOn: [1],
+        startsOn: '2027-04-01',
+        endsOn: '2027-01-05',
       },
       { kind: 'action', subject: 'milestone', title: 'Later gate', startsOn: '2027-04-01' },
     ];
@@ -353,13 +336,15 @@ describe('StrategyAssistantService.draft — A5 repair loop', () => {
 
   it('breaks the loop early when a repaired response comes back with ZERO nodes', async () => {
     const { svc, completeWithTools } = build();
+    // A hard 'dates' error, not a dependency-order issue — deterministic repair
+    // (Phase 5 §4.2) cannot clear it, so this still needs a real repair round.
     const violatingNodes = [
       {
         kind: 'action',
         subject: 'deliverable',
         title: 'Broken step',
-        startsOn: '2027-01-05',
-        dependsOn: [1],
+        startsOn: '2027-04-01',
+        endsOn: '2027-01-05',
       },
       { kind: 'action', subject: 'milestone', title: 'Later gate', startsOn: '2027-04-01' },
     ];

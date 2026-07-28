@@ -1051,6 +1051,29 @@ body {
   padding: 0;
 }
 
+/* The Strategy editor is the same kind of region as the Workspace editor above:
+   full-height and self-contained, owning its own internal scrolling (the
+   timeline grid scrolls horizontally, the Meri panel body vertically, and the
+   composer + Watch footer are pinned to the panel's bottom).
+
+   Nothing above it ever gave it a definite height — html/body/#root and
+   .app-shell all use min-height, and .app-content is height:auto — so
+   .sp-root's `height: 100%` resolved to auto, the panel grew to its content
+   instead of scrolling, and the composer was pushed below the fold. Measured
+   at 1440x900 the panel came out 1157.75px tall in an 846px region with the
+   composer at y=1210.
+
+   Scoped to .sp-editor-shell, which ONLY the strategy EDITOR renders — the
+   library, Context and agent-review pages share .sp-root but rely on normal
+   page scrolling and must not be clipped. 52px = the .app-topbar height, and
+   the padding is zeroed so the topbar is the only chrome above the region
+   (same arithmetic as .ws-editor-shell). */
+.app-content:has(.sp-editor-shell) {
+  padding: 0;
+  height: calc(100vh - 52px);
+  overflow: hidden;
+}
+
 .app-content-alert {
   margin-bottom: 16px;
 }

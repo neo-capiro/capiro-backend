@@ -10,6 +10,7 @@ import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VersioningService } from '../strategy/versioning.service.js';
 import { MeriService } from '../meri/meri.service.js';
+import { StrategyConversationService, type ChatOpenNodeAction } from '../meri/strategy-conversation.service.js';
 import { LIVE_NODE_WHERE } from '../strategy/live-node.js';
 import { WatcherService } from './watcher.service.js';
 import { findingKey, type Finding, type FindingCategory } from './watcher-checks.js';
@@ -43,12 +44,73 @@ export class WatchReviewService {
     private readonly versioning: VersioningService,
     private readonly meri: MeriService,
     private readonly watcher: WatcherService,
+    private readonly conversation: StrategyConversationService,
   ) {}
 
   // ---- Step 1: read current review state -------------------------------------
 
   async getState(tenantId: string, strategyId: string): Promise<WatchReviewState> {
     return this.prisma.withTenant(tenantId, (tx) => this.loadState(tx, strategyId, null));
+  }
+
+  /**
+   * Phase 4 §6: per-strategy pending counts for the library's weekly nudge, in
+   * a FIXED small number of queries regardless of strategy count — never one
+   * getState()-shaped round-trip per row. Mirrors loadState's own current-head
+   * + non-dismissed + non-deleted-target filter so the nudge count matches
+   * what the panel shows when the strategy is actually opened.
+   */
+  async getPendingCounts(tenantId: string): Promise<Record<string, number>> {
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      const openRows = await tx.spChangeSet.findMany({
+        where: { status: 'proposed', watchKey: { not: null } },
+        select: { strategyId: true, watchKey: true, strategyVersionId: true, ops: true },
+      });
+      if (openRows.length === 0) return {};
+
+      const strategyIds = [...new Set(openRows.map((r) => r.strategyId))];
+
+      // Current head per strategy: Prisma has no groupBy-max, so pull every
+      // version for these strategies ordered newest-first and take the first
+      // seen per strategy — still ONE query, not one per strategy.
+      const versions = await tx.spVersion.findMany({
+        where: { strategyId: { in: strategyIds } },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: { id: true, strategyId: true },
+      });
+      const headByStrategy = new Map<string, string>();
+      for (const v of versions) {
+        if (!headByStrategy.has(v.strategyId)) headByStrategy.set(v.strategyId, v.id);
+      }
+
+      const dismissals = await tx.spWatchDismissal.findMany({
+        where: { strategyId: { in: strategyIds } },
+        select: { strategyId: true, watchKey: true },
+      });
+      const dismissedKeys = new Set(dismissals.map((d) => `${d.strategyId}:${d.watchKey}`));
+
+      const liveNodes = await tx.spNode.findMany({
+        where: { strategyId: { in: strategyIds }, ...LIVE_NODE_WHERE },
+        select: { id: true, strategyId: true },
+      });
+      const liveIdsByStrategy = new Map<string, Set<string>>();
+      for (const n of liveNodes) {
+        const set = liveIdsByStrategy.get(n.strategyId) ?? new Set<string>();
+        set.add(n.id);
+        liveIdsByStrategy.set(n.strategyId, set);
+      }
+
+      const counts: Record<string, number> = {};
+      for (const row of openRows) {
+        if (!row.watchKey || row.strategyVersionId !== headByStrategy.get(row.strategyId)) continue;
+        if (dismissedKeys.has(`${row.strategyId}:${row.watchKey}`)) continue;
+        const liveIds = liveIdsByStrategy.get(row.strategyId);
+        const targetIds = extractNodeIds(row.ops);
+        if (targetIds.some((id) => !liveIds?.has(id))) continue;
+        counts[row.strategyId] = (counts[row.strategyId] ?? 0) + 1;
+      }
+      return counts;
+    });
   }
 
   // ---- Step 2: revalidate on demand -------------------------------------------
@@ -376,6 +438,19 @@ export class WatchReviewService {
         return { stale: true as const };
       }
 
+      // Step 5 (chat): which steps this edit-set CREATED, compared against the
+      // pre-edit LIVE ids — mirrors meri.service.ts's assistant-reply rule so a
+      // Watch accept that adds a step gets the same one-step `Open "<step>"`
+      // affordance in chat.
+      const beforeNodeIds = new Set(
+        (
+          await tx.spNode.findMany({
+            where: { strategyId: cs.strategyId, ...LIVE_NODE_WHERE },
+            select: { id: true },
+          })
+        ).map((n) => n.id),
+      );
+
       const edits = cs.ops as unknown as PlanEdit[];
       // This endpoint call IS the explicit approval — Watch collapses
       // propose->approve->apply into one user action, so approval and applied
@@ -423,18 +498,73 @@ export class WatchReviewService {
         },
       });
       const { detail } = await this.meri.verifyAppliedPlan(tx, tenantId, userId, cs.strategyId, ground);
-      return { stale: false as const, detail, strategyId: cs.strategyId };
+      const created = detail.nodes
+        .filter((n) => !beforeNodeIds.has(n.id))
+        .map((n) => ({ id: n.id, title: n.title }));
+      return {
+        stale: false as const,
+        detail,
+        strategyId: cs.strategyId,
+        created,
+        appliedVersionId,
+        opCount: edits.length,
+        summaryText: stripWatchMarker(cs.summary),
+      };
     });
 
     if (result.stale) {
+      // Phase 6 §6 ("stale-head prevented action count"): the 409 the user sees
+      // is the panel reconciling itself; without this line a plan whose head
+      // moves faster than people review it looks identical to one nobody
+      // touches.
+      this.logger.warn(
+        `Watch accept prevented on a stale head (change-set ${proposalId}) — the proposal was superseded`,
+      );
       throw new ConflictException('This plan changed since the proposal was made — refresh and try again.');
     }
 
     // Immediately revalidate against the new head — old-head proposals must
     // never be returned as actionable between this commit and the recheck.
     const state = await this.revalidate(tenantId, userId, result.strategyId, 'post-accept');
-    this.logger.log(`[strategy:${result.strategyId}] Watch change applied (change-set ${proposalId})`);
+    await this.recordAcceptedChatMessage(tenantId, result.strategyId, {
+      body: `Accepted a Watch proposal: ${result.summaryText}. ${summarizeRecheck(state.lastRecheck!)}`,
+      created: result.created,
+    });
+    // Phase 6 §6 ("accept/accept-all version IDs and batch size"): the applied
+    // version id is what ties this action to a History entry and to a restore.
+    this.logger.log(
+      `[strategy:${result.strategyId} version:${result.appliedVersionId}] Watch change applied ` +
+        `(change-set ${proposalId}, ${result.opCount} op${result.opCount === 1 ? '' : 's'})`,
+    );
     return { strategy: result.detail, state, recheck: state.lastRecheck! };
+  }
+
+  /**
+   * Best-effort chat confirmation for an accept (one or batch) — the plan
+   * chat contract (`watch_applied` kind, rendered with a Meri "Watch mode"
+   * badge). The plan edit already committed by the time this runs; a failure
+   * here must never turn an already-successful accept into an error response
+   * (mirrors MeriService.recordAssistantError's own defensive swallow).
+   */
+  private async recordAcceptedChatMessage(
+    tenantId: string,
+    strategyId: string,
+    input: { body: string; created: Array<{ id: string; title: string }> },
+  ): Promise<void> {
+    try {
+      await this.conversation.append(tenantId, {
+        strategyId,
+        nodeId: null,
+        role: 'meri',
+        kind: 'watch_applied',
+        body: input.body,
+        action: openNodeAction(input.created),
+      });
+    } catch (err) {
+      this.logger.warn(
+        `[strategy:${strategyId}] could not record the Watch chat confirmation: ${(err as Error).message}`,
+      );
+    }
   }
 
   // ---- Step 6: accept all atomically ------------------------------------------
@@ -497,6 +627,12 @@ export class WatchReviewService {
         select: { id: true },
       });
       if (!head || head.id !== expectedVersionId) {
+        // Phase 6 §6 ("stale-head prevented action count") — the batch twin of
+        // acceptOne's stale-head warning.
+        this.logger.warn(
+          `[strategy:${strategyId}] Watch accept-all prevented on a stale head ` +
+            `(expected ${expectedVersionId}, head ${head?.id ?? 'none'}, ${uniqueIds.length} proposals)`,
+        );
         throw new ConflictException('expectedVersionId is not the current head — refresh and try again');
       }
 
@@ -504,6 +640,10 @@ export class WatchReviewService {
         where: { strategyId, ...LIVE_NODE_WHERE },
         select: { id: true, dependsOnIds: true },
       });
+      // Step 5 (chat): pre-edit live ids, mirroring acceptOne's rule for the
+      // batch's own `Open "<step>"` affordance (created.length === 1 across
+      // the WHOLE batch, same as the single-accept path).
+      const beforeNodeIds = new Set(liveNodes.map((n) => n.id));
       // Ordered by the CALLER's proposalIds sequence (its on-screen order,
       // itself sortRank-derived from getState) — Prisma's `in` filter makes
       // no ordering guarantee, and watch-batch-order.ts's "stable proposal
@@ -559,12 +699,22 @@ export class WatchReviewService {
         },
       });
       const { detail } = await this.meri.verifyAppliedPlan(tx, tenantId, userId, strategyId, ground);
-      return detail;
+      const created = detail.nodes
+        .filter((n) => !beforeNodeIds.has(n.id))
+        .map((n) => ({ id: n.id, title: n.title }));
+      return { detail, created, appliedVersionId, opCount: orderResult.ops.length };
     });
 
     const state = await this.revalidate(tenantId, userId, strategyId, 'post-accept-all');
-    this.logger.log(`[strategy:${strategyId}] Watch batch applied (${uniqueIds.length} proposals)`);
-    return { strategy: applied, state, recheck: state.lastRecheck! };
+    await this.recordAcceptedChatMessage(tenantId, strategyId, {
+      body: `Accepted ${uniqueIds.length} Watch proposal${uniqueIds.length === 1 ? '' : 's'}. ${summarizeRecheck(state.lastRecheck!)}`,
+      created: applied.created,
+    });
+    this.logger.log(
+      `[strategy:${strategyId} version:${applied.appliedVersionId}] Watch batch applied ` +
+        `(${uniqueIds.length} proposals, ${applied.opCount} ops)`,
+    );
+    return { strategy: applied.detail, state, recheck: state.lastRecheck! };
   }
 
   // ---- shared state builder ----------------------------------------------------
@@ -763,6 +913,28 @@ function describeOps(ops: unknown): string {
 
 function stripWatchMarker(summary: string): string {
   return summary.replace(/^\[watch:[^\]]+\]\s*/, '');
+}
+
+/** Exactly one created step earns an `open_node` action — mirrors
+ *  meri.service.ts's openNodeAction rule for the assistant's own chat reply,
+ *  duplicated (not imported) because it is a 4-line pure rule, same idiom as
+ *  this file's own stableJson mirroring watcher.service.ts's. */
+function openNodeAction(created: Array<{ id: string; title: string }>): ChatOpenNodeAction | null {
+  if (created.length !== 1) return null;
+  const node = created[0]!;
+  return { type: 'open_node', nodeId: node.id, title: node.title };
+}
+
+/** Plain-language recheck summary for the chat confirmation body (plan §5:
+ *  "message body summarizes the accepted change and recheck outcome"). */
+function summarizeRecheck(r: WatchRecheckResult): string {
+  const total = r.unchanged.length + r.updated.length + r.dropped.length;
+  if (total === 0) return 'No other open proposals needed a recheck.';
+  const parts: string[] = [];
+  if (r.unchanged.length) parts.push(`${r.unchanged.length} unchanged`);
+  if (r.updated.length) parts.push(`${r.updated.length} updated`);
+  if (r.dropped.length) parts.push(`${r.dropped.length} dropped`);
+  return `Rechecked the rest of the plan — ${parts.join(', ')}.`;
 }
 
 function extractNodeIds(ops: unknown): string[] {

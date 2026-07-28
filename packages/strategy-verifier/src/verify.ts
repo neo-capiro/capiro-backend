@@ -51,8 +51,10 @@ function axisBounds(fys: number[]): { start: string; end: string } | null {
   return { start: `${first - 1}-10-01`, end: `${last}-09-30` };
 }
 
-/** A dependency's effective completion date (end, or start for a point event). */
-function depEnd(d: VerifierNode): string {
+/** A dependency's effective completion date (end, or start for a point event).
+ *  Exported — repair.ts's deterministic retiming uses the identical threshold
+ *  so a repaired plan can never re-trip the same check it was repairing. */
+export function depEnd(d: VerifierNode): string {
   return d.endsOn && validIso(d.endsOn) ? d.endsOn : d.startsOn;
 }
 
@@ -92,33 +94,22 @@ function checkDates(nodes: VerifierNode[]): Violation[] {
   return out;
 }
 
-/** Missing / self / cyclic dependency edges (all hard errors). */
-function checkDeps(nodes: VerifierNode[], byId: Map<string, VerifierNode>): Violation[] {
-  const out: Violation[] = [];
+/**
+ * First dependency cycle over valid intra-plan edges (self/missing edges are
+ * ignored here — checkDeps reports those separately as their own violation
+ * codes), or null if acyclic. DFS with a recursion path; `found` is a holder
+ * object so TS control-flow analysis doesn't narrow the closure-assigned
+ * result back to `null` after the loop.
+ *
+ * Exported — repair.ts's deterministic retiming must refuse to touch a cyclic
+ * plan (Phase 5 §4.2: "detect cycles and refuse deterministic repair") rather
+ * than run a second, possibly-divergent cycle check.
+ */
+export function findDependencyCycle(
+  nodes: VerifierNode[],
+  byId: Map<string, VerifierNode>,
+): string[] | null {
   const ids = new Set(nodes.map((n) => n.id));
-  for (const n of nodes) {
-    for (const dep of n.dependsOnIds ?? []) {
-      if (dep === n.id) {
-        out.push({
-          code: 'dep-self',
-          severity: 'error',
-          nodeIds: [n.id],
-          message: `"${n.title}" depends on itself.`,
-        });
-      } else if (!ids.has(dep)) {
-        out.push({
-          code: 'dep-missing',
-          severity: 'error',
-          nodeIds: [n.id],
-          message: `"${n.title}" depends on a step that isn't in this plan.`,
-        });
-      }
-    }
-  }
-
-  // First cycle (if any) over valid intra-plan edges — DFS with a recursion path.
-  // `found` is a holder object so TS control-flow analysis doesn't narrow the
-  // closure-assigned result back to `null` after the loop.
   const state = new Map<string, 0 | 1 | 2>(); // 0 unvisited, 1 on-path, 2 done
   const path: string[] = [];
   const found: { cycle: string[] | null } = { cycle: null };
@@ -143,13 +134,40 @@ function checkDeps(nodes: VerifierNode[], byId: Map<string, VerifierNode>): Viol
     if (found.cycle) break;
     if ((state.get(n.id) ?? 0) === 0) visit(n.id);
   }
-  if (found.cycle) {
-    const cyc = found.cycle;
+  return found.cycle;
+}
+
+/** Missing / self / cyclic dependency edges (all hard errors). */
+function checkDeps(nodes: VerifierNode[], byId: Map<string, VerifierNode>): Violation[] {
+  const out: Violation[] = [];
+  const ids = new Set(nodes.map((n) => n.id));
+  for (const n of nodes) {
+    for (const dep of n.dependsOnIds ?? []) {
+      if (dep === n.id) {
+        out.push({
+          code: 'dep-self',
+          severity: 'error',
+          nodeIds: [n.id],
+          message: `"${n.title}" depends on itself.`,
+        });
+      } else if (!ids.has(dep)) {
+        out.push({
+          code: 'dep-missing',
+          severity: 'error',
+          nodeIds: [n.id],
+          message: `"${n.title}" depends on a step that isn't in this plan.`,
+        });
+      }
+    }
+  }
+
+  const cycle = findDependencyCycle(nodes, byId);
+  if (cycle) {
     out.push({
       code: 'dep-cycle',
       severity: 'error',
-      nodeIds: cyc,
-      message: `These steps form a dependency cycle and can't be ordered: ${cyc
+      nodeIds: cycle,
+      message: `These steps form a dependency cycle and can't be ordered: ${cycle
         .map((id) => `"${byId.get(id)?.title ?? id}"`)
         .join(' → ')}.`,
     });

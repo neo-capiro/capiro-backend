@@ -636,6 +636,10 @@ export function StrategyTimeline({
                 color: '#fff',
                 fontSize: 'var(--text-2xs)',
                 fontWeight: 700,
+                // Phase 7 §7: same inherited-line-height bug as the header
+                // eyebrow — antd's 1.5714 made this flag 16.15px tall where
+                // the prototype's is 13.94px.
+                lineHeight: 'normal',
                 padding: '2px 8px',
                 borderRadius: 5,
                 whiteSpace: 'nowrap',
@@ -1145,6 +1149,32 @@ export function StrategyTimeline({
                   >
                     {n.title}
                   </div>
+                  {/* Phase 5 §6: a small, calm inline marker — never a full
+                      card — on exactly the steps a context gap still affects.
+                      Clears the moment the gap resolves (server-driven, not a
+                      local dismiss). */}
+                  {n.provenance?.contextNeeds && n.provenance.contextNeeds.length > 0 && (
+                    <div
+                      role="status"
+                      title={`Needs context: ${n.provenance.contextNeeds.map((c) => c.label).join(', ')}`}
+                      aria-label={`Needs context: ${n.provenance.contextNeeds.map((c) => c.label).join(', ')}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        marginTop: 4,
+                        fontSize: 9.5,
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        color: 'var(--notable)',
+                        background: 'var(--notable-soft)',
+                        borderRadius: 5,
+                        padding: '2px 6px',
+                      }}
+                    >
+                      needs context
+                    </div>
+                  )}
                 </div>
               );
             })}

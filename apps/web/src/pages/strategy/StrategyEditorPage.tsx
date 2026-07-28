@@ -27,7 +27,7 @@ import {
   useMissions,
   useCreateMission,
   useUpdateMission,
-  useChangeSets,
+  useWatchReviewState,
 } from './api.js';
 import { useClientsLite } from './clients-lite.js';
 import { useTenantMembers } from './members.js';
@@ -35,11 +35,9 @@ import { useApi } from '../../lib/use-api.js';
 import { useMe } from '../../lib/me.js';
 import { errorMessage } from '../../lib/error-message.js';
 import { STRATEGY_TYPE_LABEL } from './constants.js';
-import { clip } from './context/context-utils.js';
 import {
   canShowWatchRail,
   findExecutionMission,
-  findWatchMission,
   EXECUTION_MISSION_NAME,
   classifyWaitingReason,
 } from './agents/agent-utils.js';
@@ -121,20 +119,23 @@ export function StrategyEditorPage() {
   // flags). Optional so an older cached /me shape degrades to hidden.
   const agenticEnabled = Boolean(me.data?.features?.agenticMeri);
 
-  // Step 3 (interim Watch chip). Both reads reuse queries the Watch panel
-  // already makes — same React Query keys, so this costs no extra request, and
-  // both are gated on watcherEnabled (⊆ agenticMeri) so a non-canaried tenant
-  // never fires a request the server would 403.
+  // Header Watch chip. Phase 6 §3 (Scenarios D/E/G): the chip now reads the
+  // SAME authoritative state the in-editor panel does
+  // (GET /agents/watch/strategies/:id, identical React Query key — so with the
+  // panel open this costs no extra request), not Phase 1's interim
+  // `status=proposed` change-set list.
   //
-  // "Current-head" caveat: StrategyDetail exposes no head version id, and
-  // nothing client-side resolves one (the review queue discovers staleness
-  // lazily from apply's 409). So the count is the strategy's `proposed`
-  // change-sets — what the app currently treats as actionable. Phase 3 adds the
-  // version-aware revalidation that makes this exact.
-  const watchProposals = useChangeSets({ strategyId: id ?? undefined, status: 'proposed' }, watcherEnabled);
-  const watchMission = findWatchMission(missions.data ?? [], id ?? '');
+  // That list was a superset of what is actionable: it still counted proposals
+  // pinned to a superseded version and proposals whose target step had been
+  // deleted, both of which loadState() filters out. The chip could therefore
+  // read "2" over a panel that says "Nothing to review", and after Scenario G's
+  // permanent dismissal the badge only cleared because dismissal happens to
+  // also reject the row. pendingCount is that same filtered set, so header and
+  // panel can no longer disagree. Gated on watcherEnabled (⊆ agenticMeri) so a
+  // non-canaried tenant never fires a request the server would 403.
+  const watchState = useWatchReviewState(id, watcherEnabled);
   const watchChip = watcherEnabled
-    ? { on: watchMission?.state === 'active', pending: watchProposals.data?.length ?? 0 }
+    ? { on: watchState.data?.mission?.state === 'active', pending: watchState.data?.pendingCount ?? 0 }
     : null;
 
   // Step 10: every open starts at the top of the plan. Keyed on the strategy id
@@ -286,6 +287,13 @@ export function StrategyEditorPage() {
 
   return (
     <div
+      // `sp-editor-shell` is the styling hook for the one rule that bounds this
+      // region to the viewport (theme.css, `.app-content:has(.sp-editor-shell)`).
+      // Without it `height: 100%` below resolves to auto, the Meri panel grows
+      // past the fold and the composer stops being pinned. Editor-only on
+      // purpose: the library and Context/review pages share `.sp-root` but page-
+      // scroll normally and must not be clipped.
+      className="sp-editor-shell"
       style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}
     >
       <StrategyHeader
@@ -330,112 +338,14 @@ export function StrategyEditorPage() {
             background: 'var(--bg-canvas)',
           }}
         >
-          {/* Phase 2 §5 Step 8 — two page cards removed here:
-              · the blue "Meri drafted this plan" card, replaced by the panel's
-                persistent (non-dismissible) drafted-plan note; and
-              · the amber "Drafted on partial information" card, replaced by the
-                `context_gap` message the draft endpoint now persists into the
-                strategy thread. That card also printed the Steward's INTERNAL
-                template keys ("strategy_brief") straight at the user; the
-                conversation message uses plain language.
-              The harder conflicted / verifier banners below stay until Phase 5
-              ships their repair behaviour. */}
-          {/* E: Meri drafted against UNRESOLVED MATERIAL Steward conflicts —
-              amber-red, names the two disagreeing sources verbatim (≤120 chars
-              each), links to the review surface. Annotate-only, never blocks. */}
-          {s.groundingHealth?.status === 'conflicted' &&
-            (() => {
-              const first = s.groundingHealth?.openMaterialConflicts?.[0] ?? null;
-              return (
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 10,
-                    background: '#FCEDE6',
-                    border: '1px solid #D97742',
-                    borderRadius: 10,
-                    padding: '11px 14px',
-                    marginBottom: 14,
-                    fontSize: 'var(--text-sm)',
-                    color: 'var(--ink-2)',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  <div style={{ marginTop: 1 }}>
-                    <Icon name="alert" size={15} color="#A14D12" />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <b style={{ color: '#A14D12' }}>Drafted with unresolved context conflicts.</b>{' '}
-                    {first ? (
-                      <>
-                        “{clip(first.factA)}” vs “{clip(first.factB)}” disagree in this client's
-                        context.{' '}
-                      </>
-                    ) : (
-                      <>The client context contains facts that materially disagree. </>
-                    )}
-                    Resolve which fact controls, then re-run Meri.{' '}
-                    <button
-                      onClick={() => navigate('/strategies/context/steward')}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        padding: 0,
-                        cursor: 'pointer',
-                        color: '#A14D12',
-                        fontSize: 'var(--text-sm)',
-                        fontWeight: 700,
-                        textDecoration: 'underline',
-                        fontFamily: 'var(--font-sans)',
-                      }}
-                    >
-                      Review in the Steward
-                    </button>
-                  </div>
-                </div>
-              );
-            })()}
-          {/* A6: realism-verifier findings from the last Meri draft/assist. */}
-          {s.violations && s.violations.length > 0 && (
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                background: s.violations.some((v) => v.severity === 'error') ? '#FDECEC' : '#FFF6E5',
-                border: `1px solid ${s.violations.some((v) => v.severity === 'error') ? 'var(--critical)' : '#E0A94A'}`,
-                borderRadius: 10,
-                padding: '11px 14px',
-                marginBottom: 14,
-                fontSize: 'var(--text-sm)',
-                color: 'var(--ink-2)',
-                lineHeight: 1.5,
-              }}
-            >
-              <b
-                style={{
-                  color: s.violations.some((v) => v.severity === 'error') ? 'var(--critical)' : '#9A6A12',
-                }}
-              >
-                Meri's realism check flagged {s.violations.length} item
-                {s.violations.length === 1 ? '' : 's'}
-              </b>
-              <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
-                {[...s.violations]
-                  .sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'error' ? -1 : 1))
-                  .slice(0, 6)
-                  .map((v, i) => (
-                    <li
-                      key={i}
-                      style={{ color: v.severity === 'error' ? 'var(--critical)' : 'var(--ink-2)' }}
-                    >
-                      {v.message}
-                      {v.suggestion ? ` — ${v.suggestion}` : ''}
-                    </li>
-                  ))}
-              </ul>
-            </div>
-          )}
+          {/* Phase 5 §8 — every remaining page-level warning card (the material-
+              conflict banner and the realism-verifier findings card) is removed:
+              the editor above the timeline no longer stacks warnings after a
+              generation. That information now lives in the persistent
+              `context_gap` conversation message (Phase 5 §5), the inline
+              `needs context` step marker (Phase 5 §6, rendered by
+              StrategyTimeline), and — when a draft cannot be produced at all —
+              the specific pre-timeline 422 flow in GoalModal (Phase 5 §7). */}
           <div style={{ zoom: 0.82 as unknown as number, minWidth: 0 }}>
             <StrategyTimeline
               strategyId={sid}

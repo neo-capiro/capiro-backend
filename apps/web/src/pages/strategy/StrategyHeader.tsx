@@ -105,6 +105,12 @@ export function StrategyHeader({
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.06em',
+              // Phase 7 §7: without this the eyebrow inherits antd's 1.5714
+              // body line-height (15.71px at 10px) where the prototype
+              // computes `normal` (13.33px). Measured, that 2.38px was the
+              // single root cause of the header's whole vertical drift — the
+              // title, goal and today flag all sat +2.37/+2.38px low.
+              lineHeight: 'normal',
             }}
           >
             {clientLabel} · {typeLabel}
@@ -281,9 +287,7 @@ function WatchChip({ watch, onOpen }: { watch: WatchChipState; onOpen?: () => vo
     <button
       data-testid="sp-header-watch"
       onClick={onOpen}
-      // The cadence is a per-mission server setting, so the tooltip stays
-      // cadence-free until Phase 4 surfaces the real schedule.
-      title="Watch mode — Meri's scheduled check of this strategy"
+      title="Watch mode — Meri's weekly check"
       aria-label={
         alert
           ? `${label}. ${watch.pending} proposed change${watch.pending === 1 ? '' : 's'} awaiting review.`
