@@ -47,6 +47,26 @@ names its own gate.
 3. **Never `--commit` an ingestion or cleanup script** without the dry-run
    output from the step immediately above it in hand.
 4. Do not touch auth, Clerk, Graph OAuth, or token decryption.
+5. 🚨 **Do NOT roll `capiro-dev-api` until
+   `20260809010000_client_applicant_types` is applied.** As of 2026-07-28 this is
+   the single most dangerous button in this document. From #651 (`2c4a0414`)
+   onward — **including** the #655 fix (`0721c7c5`) — `schema.prisma` declares
+   `Client.applicantTypes`, so the generated client puts `applicant_types` in
+   **every** `SELECT` on `clients`. Without the column, that is a `42703` on
+   every client query, for **every tenant** — the whole Portfolio, not just
+   District Nexus.
+
+   Current state, verified 2026-07-28 15:20 UTC:
+
+   | | |
+   | --- | --- |
+   | Running | `sha256:607ff4fc` = `9e80d0f8` — **predates #651, safe**, and does contain #648 |
+   | ECR `:latest` | `2c4a0414` and moving — **contains #651, unsafe until migrated** |
+   | Migration | **not applied** |
+
+   That the running task is safe is an accident of ordering, not a control. A
+   `--force-new-deployment` already ran once today at 10:35 EDT from another
+   session. **Apply the migration first; then deploy.**
 
 ---
 
