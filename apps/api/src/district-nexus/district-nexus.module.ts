@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { RepresentationModule } from '../clients/representation.module.js';
 import { DistrictNexusController } from './district-nexus.controller.js';
+import { DistrictNexusRelationshipsController } from './district-nexus-relationships.controller.js';
 import { DistrictNexusService } from './district-nexus.service.js';
+import { DistrictNexusRelationshipsService } from './district-nexus-relationships.service.js';
 import { DistrictNexusFlagGuard } from './district-nexus-flag.guard.js';
 
 /**
@@ -29,8 +31,12 @@ import { DistrictNexusFlagGuard } from './district-nexus-flag.guard.js';
  */
 @Module({
   imports: [RepresentationModule],
-  controllers: [DistrictNexusController],
-  providers: [DistrictNexusService, DistrictNexusFlagGuard],
-  exports: [DistrictNexusService],
+  controllers: [DistrictNexusController, DistrictNexusRelationshipsController],
+  providers: [
+    DistrictNexusService,
+    DistrictNexusRelationshipsService,
+    DistrictNexusFlagGuard,
+  ],
+  exports: [DistrictNexusService, DistrictNexusRelationshipsService],
 })
 export class DistrictNexusModule {}
