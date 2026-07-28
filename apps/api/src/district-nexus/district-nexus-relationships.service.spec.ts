@@ -90,9 +90,16 @@ function harness(options?: {
     if (where?.id === RELATIONSHIP_ID) return options?.existing ?? relationship();
     return options?.duplicate ?? null;
   });
-  const grantCreate = jest.fn(async () => created);
-  const grantUpdate = jest.fn(async () => rejected);
-  const auditCreate = jest.fn(async () => ({ id: 'audit-1' }));
+  // Declare the argument explicitly so `mock.calls[n][0]` is typed; a zero-arg
+  // jest.fn() infers `never[]` call tuples and every argument assertion fails
+  // to typecheck.
+  const grantCreate = jest.fn(async (_args: { data: Record<string, unknown> }) => created);
+  const grantUpdate = jest.fn(
+    async (_args: { where: Record<string, unknown>; data: Record<string, unknown> }) => rejected,
+  );
+  const auditCreate = jest.fn(async (_args: { data: Record<string, unknown> }) => ({
+    id: 'audit-1',
+  }));
 
   const tx = {
     client: { findFirst: clientFindFirst },
