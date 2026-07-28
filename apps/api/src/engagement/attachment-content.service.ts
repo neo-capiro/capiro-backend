@@ -123,6 +123,19 @@ export class AttachmentContentService {
       };
     }
 
+    // A real scanner has already identified malware. That verdict is authoritative
+    // regardless of whether this deployment currently REQUIRES scanning. The flag
+    // controls treatment of missing/pending/failed scans; it must never turn a
+    // known threat back into usable bytes if the lifecycle callback failed to also
+    // flip lifecycleStatus to `blocked`.
+    if (scan === 'threat') {
+      return {
+        usable: false,
+        code: 'ATTACHMENT_SCAN_THREAT',
+        disclosure: scanStatusDisclosure('threat'),
+      };
+    }
+
     if (!scanRequired) {
       // Usable, but never silently: report the honest disclosure for every state
       // that is not a real clean verdict.
