@@ -77,7 +77,7 @@ jobs:
       - name: Commit tested Phase C implementation
         shell: bash
         run: |
-          git rm \
+          git rm -f \
             .github/workflows/pe-phase-c-ci.yml \
             .github/workflows/pe-phase-c-rls-diagnostic.yml \
             apps/api/scripts/__phase_c_apply_patch.py \
