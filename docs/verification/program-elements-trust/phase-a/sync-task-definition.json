@@ -1,0 +1,31 @@
+{
+  "capturedBy": "aws ecs describe-task-definition (READ-ONLY)",
+  "note": "This is the task definition used by ALL live PE EventBridge rules; each rule overrides the container command. Environment and secret VALUES are deliberately omitted — only key names are recorded.",
+  "family": "capiro-dev-api-migrate",
+  "revision": 19,
+  "cpu": "512",
+  "memory": "1024",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "taskRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ",
+  "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/Capiro-dev-Compute-ApiTaskDefExecutionRoleE6ABB053-YlEDKuUPHjLg",
+  "containers": [
+    {
+      "name": "api",
+      "image": "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api:latest",
+      "defaultCommand": [
+        "migrate"
+      ],
+      "entryPoint": null,
+      "logConfiguration": {
+        "driver": "awslogs",
+        "group": "/capiro/dev/api",
+        "streamPrefix": "api"
+      },
+      "environmentKeyCount": 13,
+      "secretKeyCount": 20
+    }
+  ]
+}
