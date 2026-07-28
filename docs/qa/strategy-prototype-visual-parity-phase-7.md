@@ -4,6 +4,17 @@
 pass. It corrects that pass's central error, records what is now measured, and
 states precisely what blocks the remaining gate criteria.
 
+Headline of this pass: the port's **timeline geometry is pixel-exact** against
+the prototype (every month at +0.00px once the two scrollers' differing content
+origins are accounted for; identical 82.13px pitch and 144.31px frozen column).
+The first pass's contrary impression came from a mis-sized harness surface and
+from fixtures that rendered different content on the two sides. With those
+corrected and two real product fixes applied, state 3's image mismatch fell
+**24.93% → 8.19%** and the state-8 geometry table reached **18 PASS / 3 FAIL**,
+where all three failures are one cause each. What still blocks the gate is
+**F2** (panel placement), two **LIA** rulings, and a partly-done interaction
+pass — not broad drift.
+
 Nothing in this phase was pushed, merged, deployed, or flag-enabled.
 
 - Base: `feat/strategy-proto-phase-6` @ `e102d1c9`
@@ -113,16 +124,34 @@ below it.
 This is a visible structural difference and it changes where the title and goal
 truncate. `Δw = +344.00` on both `headerTitle` and `headerEyebrow`.
 
-### F3 — Header and today-flag line-heights differ (PARITY DEFECT)
+### F3 — Inherited antd line-height — **FIXED** (the only product changes in this phase)
 
-Same font-size on both sides, different box height — the port does not set an
-explicit line-height and inherits antd's 1.5714:
+The port's header eyebrow set no `line-height`, so it inherited antd's body
+1.5714 — **15.71px at a 10px font where the prototype computes `normal`
+(13.33px)**. Measured, that single 2.38px was the root cause of the entire
+header's vertical drift: the eyebrow started at the *same* y on both sides
+(66.00) and everything below it was pushed down by exactly that amount.
 
-| element | prototype | implementation | Δh |
+Vertical landmarks, before → after adding `lineHeight: 'normal'`
+(`StrategyHeader.tsx`):
+
+| row | prototype y | impl before | impl after |
 | --- | --- | --- | --- |
-| `headerEyebrow` (10px) | 13.33 | 15.71 | +2.38 |
-| `todayFlag` (10px) | 13.94 | 16.15 | +2.21 |
-| header title `y` | 79.33 | 81.71 | +2.38 |
+| eyebrow | 66.00 | 66.00 | **66.00** ✓ |
+| title | 79.33 | 81.71 (+2.38) | **79.33** ✓ |
+| goal | 107.73 | 110.10 (+2.37) | **107.73** ✓ |
+| today flag | 198.38 | 200.75 (+2.37) | **198.38** ✓ |
+
+The **today flag** carried the same bug (16.15px tall against the prototype's
+13.94px) and got the same one-line fix in `StrategyTimeline.tsx`. Both
+elements now match their prototype counterparts exactly, which took the state-8
+geometry table from 17 PASS / 4 FAIL to **18 PASS / 3 FAIL**.
+
+The header fix also *revealed* a separate ~2.4px in the timeline that the
+too-tall header had been masking (`ppbe` and `firmPhase` were coincidentally
+aligned at −0.10px before, and read −2.47px after). That residual is **not
+fixed** — it is a row-height question in already-live timeline layout and wants
+its own pass.
 
 ### F4 — Initial timeline scroll differs by 465.79px (LIA DECISION REQUIRED)
 
@@ -146,9 +175,30 @@ unit-tested, **already-live** improvement over the prototype. Under plan §6
 under plan rule 5 ("do not alter functional behavior merely to make one
 screenshot pass") reverting it would be wrong. **Lia must choose.**
 
-Measured attribution: forcing the implementation's grid to the prototype's
-`scrollLeft` moves state 3's mismatch only **24.93% → 23.97%**, so the scroll
-model is *not* the dominant contributor to the image-diff numbers (§5 is).
+**Important correction to the raw comparison:** the two `scrollLeft` values are
+**not in the same coordinate system**, so setting one to the other does not
+align the grids. The prototype's scroller starts at the frozen column's own
+left edge (x=258) and overlays it with a sticky label; the port's starts
+*after* its frozen column (x=403.65). Matching raw `scrollLeft` therefore left
+a constant **+151.34px** offset on every month.
+
+Once that content-origin offset is corrected, **the axis is pixel-exact**:
+
+| month | prototype x | implementation x | Δ |
+| --- | --- | --- | --- |
+| Jun | 245.31 | 245.31 | **+0.00** |
+| Jul | 329.07 | 329.07 | **+0.00** |
+| Aug | 408.84 | 408.84 | **+0.00** |
+| Sep | 491.27 | 491.27 | **+0.00** |
+| Oct | 573.94 | 573.94 | **+0.00** |
+| Nov | 654.73 | 654.73 | **+0.00** |
+
+Column pitch is 82.13px on both (the prototype's `zoom: 0.82` is faithfully
+ported) and the frozen label column is 144.31px on both. **The port's timeline
+geometry is not wrong — only its initial scroll position and its scroller's
+DOM structure differ.** Also worth recording: `scrollLeft` is in unscaled
+content px while the rendered pitch is scaled, so one screen pixel costs
+`1 / 0.82` of `scrollLeft`.
 
 ### F5 — States 12/13 are unsatisfiable as written (LIA DECISION REQUIRED)
 
@@ -210,10 +260,19 @@ State 8 (Why expanded), 1440 × 900 — full table in
 
 | verdict | count |
 | --- | --- |
-| PASS (Δw, Δh ≤ 1.00px) | **17** |
-| FAIL | **4** (`headerTitle`, `headerEyebrow`, `todayFlag`, `grid`) |
+| PASS (Δw, Δh ≤ 1.00px) | **18** |
+| FAIL | **3** (`headerTitle`, `headerEyebrow`, `grid`) |
 | SUSPECT-LOCATOR | 1 |
 | UNRESOLVED (absent one side) | 12 |
+
+All three failures have one cause each, and none is scattered drift:
+
+- `headerEyebrow` and `headerTitle` differ **only in width** (+344.00, the
+  panel width) — their heights now match exactly. That is F2, not a
+  typography defect.
+- `grid` compares two structurally different scrollers: the prototype's
+  contains its frozen column and overlays it with a sticky label; the port's
+  begins after it. Their *content* is pixel-identical (see F4).
 
 Passing at 0.00 px on both sides: every header control (`layerChipPpbe`,
 `layerChipCongress`, `watchChip`, `exportBtn`, `historyBtn`), `headerGoal`,
@@ -234,33 +293,46 @@ neither Pillow nor numpy is installed. It decodes 8-bit PNGs, compares inside
 the content region, and writes a 50% overlay and an absolute-difference image.
 Validated: a self-diff reports 0.0000%.
 
-| state | mismatch | largest blob | gate |
-| --- | --- | --- | --- |
-| 1 — list | 34.89% | 984 × 226 | FAIL |
-| 3 — timeline, panel closed | 24.93% | 1156 × 705 | FAIL |
-| 4 — panel open | 30.33% | 812 × 706 | FAIL |
-| 8 — Why expanded | 32.30% | 812 × 706 | FAIL |
+| state | first pass | **after fixture + header work** | largest blob | gate |
+| --- | --- | --- | --- | --- |
+| 1 — list | 34.89% | **34.89%** (no timeline; unaffected) | 984 × 226 | FAIL |
+| 3 — timeline, panel closed | 24.93% | **8.19%** | 1146 × 436 | FAIL |
+| 4 — panel open | 30.33% | **17.90%** | 802 × 438 | FAIL |
+| 8 — Why expanded | 32.30% | **19.90%** | 802 × 438 | FAIL |
 
-**These numbers must not be read as "the port is 25–35% wrong."** They are
-dominated by **fixture divergence**, and plan §3's prerequisite — "fixtures that
-produce the same visible content in both captures" — is not met:
+State 3 fell by **67%** once the fixtures matched the prototype's and the
+header line-height was corrected. States 4 and 8 stay high because of **F2** —
+the header does not shrink when the panel opens, so the whole header band and
+the 344px column beside it differ. State 1 is unchanged because it has no
+timeline and no strategy header; its residual is the setup-card copy (§6), a
+black vs indigo primary button, and ~16px of extra vertical gap.
 
-- the legislative-calendar rows differ outright — in **dates, labels and row
-  count**. The harness invents today-relative dates (`iso(-150)`…), so the port
-  renders "MAR–FEB President's Budget", "APR–MAY Hearings", "JUN–JUL Committee
-  markups" where the prototype renders "FEB President's Budget", "MAR–APR
-  Hearings", "MAY–JUN Committee markups". The prototype also has a **"SEP
-  Conference"** row the harness fixture does not, and names one row **"Floor &
-  amendments"** where the harness says "Floor & conference";
-- the two sides sit at different grid scroll offsets (F4), so different months
-  and different nodes are on screen;
-- state 1's remaining delta is real but small in kind: different setup-card
-  **copy** (see §6), a black vs indigo primary button, and ~16px of extra
-  vertical gap.
+**The earlier numbers must not be read as "the port is 25–35% wrong."** They
+were dominated by **fixture divergence** — plan §3's prerequisite, "fixtures
+that produce the same visible content in both captures", was not met. What was
+wrong, and is now fixed:
 
-**The §6 gate cannot return a meaningful verdict until the reference-calendar
-and node fixtures are made identical to the prototype's.** That is the single
-highest-value next step, and it is not done.
+- **legislative calendar** — the harness invented today-relative dates
+  (`iso(-150)`…) and only **7** rows. The prototype has **16**, positioned in
+  quarter units, including a "Conference" row the harness lacked and "Floor &
+  amendments" where the harness said "Floor & conference". Now mirrored
+  verbatim from the prototype's `CONGRESS` array;
+- **strategy nodes** — the harness invented seven *entirely different* steps
+  ("Submit the FY27 program justification", "Markup defense", …). The
+  prototype's are "White paper to House committee staff", "File HAC-D request
+  packet", "Confirm Sen. Cruz as champion", "Go / no-go on Senate companion
+  ask", "Single-company earmark optics", "Defend ask through markup" and the
+  FY27 milestone. Now mirrored from `NODES_SEED`, including kind, subject,
+  status and quarter position;
+- **firm phases** — the harness had 6 with a synthetic (fy, quarter) mapping;
+  the prototype has **7**, the last spanning two quarters. Now mirrored from
+  `FIRM_PHASES_DEFAULT`;
+- the two sides also sat at different grid scroll offsets, in **different
+  coordinate systems** (see F4).
+
+Remaining, and *not* fixture-driven: **F2** (states 4/8), the ~2.4px timeline
+row offset uncovered by the F3 fix, the strategy-lane label at +10.10px, and
+the prototype-only Meetings chip (F6).
 
 ---
 
@@ -280,11 +352,23 @@ Not changed here — altering shipped product copy is Neo's or Lia's call.
 
 ---
 
-## 7. Harness and fixture corrections made in this phase
+## 7. Corrections made in this phase
+
+**Product (two one-line changes, both the same bug):** `lineHeight: 'normal'`
+on the header eyebrow (`StrategyHeader.tsx`) and on the today flag
+(`StrategyTimeline.tsx`) — both had been inheriting antd's 1.5714 body
+line-height. See F3 for the measurements that identified the eyebrow as the
+single root cause of the header's vertical drift.
+
+**Harness and fixtures:**
 
 | file | correction |
 | --- | --- |
 | `apps/web/parity.html` | pin `#parity-root > *` so the region height reaches the page (§0) |
+| `src/parity/fixtures.ts` | `REFERENCE.congress` mirrored from the prototype's `CONGRESS` (16 rows, quarter units, tones) instead of 7 invented today-relative rows |
+| `src/parity/fixtures.ts` | `NODES` mirrored from the prototype's `NODES_SEED` — seven *different* steps had been invented |
+| `src/parity/fixtures.ts` | `FIRM_PHASES` mirrored from `FIRM_PHASES_DEFAULT` (7 phases, last spanning two quarters) instead of 6 with a synthetic mapping |
+| `src/parity/fixtures.ts` | added `qIso()` — the prototype positions everything in quarter units on an axis anchored at Oct 1 of the first shown FY |
 | `src/parity/fixtures.ts` | `MEMBERS` keyed on `userId`; `memberName()` resolves by `clerkUserId`, so **every owner in the list rendered "Team member"** |
 | `src/parity/fixtures.ts` | last row's `lastEditedAt` was `2027-01-24` — in the future, so it rendered "just now" instead of the prototype's "Jan 24"; now `2026-01-24T12:00Z` (midday, so it does not shift a day west of UTC) |
 | `src/parity/state.ts`, `stubs/use-api.ts` | the library state now serves **no** firm phases, matching the prototype's default first-time-setup card; serving 6 phases rendered the shorter green "phases are set" bar and shifted every row below it |
@@ -329,22 +413,56 @@ Raw results: `responsive-results.jsonl`; screenshots `resp-*.png`.
 
 ---
 
-## 9. Not done
+## 9. Interaction parity (plan §8) — PARTIAL, implementation side, 11/11 pass
 
-1. **Fixture parity for the timeline** (reference calendar + node placement) —
-   the blocker for §6. Highest-value next step.
-2. **Image-diff gate** — measured but not meaningful until (1).
-3. **Prototype captures for states 5, 6, 9** — reachable in principle via
-   interaction; not captured. States 10–13 are covered by F5.
-4. **Interaction parity (§8)** — the 14-interaction matrix and the
-   hover/focus-visible/disabled captures are **not started**.
-5. **Correction loop (§7)** for F2 and F3.
-6. `test/watch-chat-isolation.int-spec.ts` still self-skips without
+Driven in one page load by `probe-interactions.js`, which asserts observable
+state after each step rather than producing a screenshot to eyeball:
+
+| interaction | result |
+| --- | --- |
+| click Ask Meri → panel opens | ✓ |
+| close panel → panel closes | ✓ |
+| reopen panel | ✓ |
+| Shift+Enter inserts a newline (does not send) | ✓ |
+| Enter sends → composer clears | ✓ |
+| Watch chip → Watch panel visible | ✓ |
+| expand Why → rationale visible | ✓ |
+| grid scrolls horizontally | ✓ |
+| document never scrolls horizontally | ✓ |
+| every visible button has an accessible name (§10) | ✓ |
+| no visible enabled button removed from tab order (§10) | ✓ |
+
+**Not covered:** the prototype half of §8 (it needs its own act list); switching
+strategy thread ↔ step thread; add/remove attachment chip; accept and dismiss a
+proposal; trigger Re-checking; reopen-and-recentre; and the explicit
+hover / focus-visible / disabled / pending / selected captures.
+
+---
+
+## 10. Not done
+
+1. **F2 — panel placement.** The largest remaining parity defect and the reason
+   states 4/8 sit at ~18–20%. Restructuring already-live layout so the panel is
+   a full-height column beside the header needs Neo's sign-off.
+2. **F4 / F5** — need a Lia ruling, not code.
+3. **The ~2.4px timeline row offset** the F3 fix uncovered, and the
+   strategy-lane label at +10.10px.
+4. **Prototype captures for states 5, 6, 9.** Confirmed reachable — the
+   prototype does have a "Re-checking…" state and an "Edit with Meri" step
+   panel — but its nodes sit off-screen at the default scroll, so the act must
+   scroll the grid before clicking. Not captured. States 10–13 are covered by
+   F5.
+5. **Interaction parity (§8)** — 11 implementation-side assertions pass
+   (§9); the prototype half, six further interactions and the
+   hover/focus-visible/disabled captures remain.
+6. **State 1's residual** — setup-card copy (§6), a black vs indigo primary
+   button, ~16px of vertical gap. All already-live Phase 1–3 content.
+7. `test/watch-chat-isolation.int-spec.ts` still self-skips without
    `DATABASE_URL` and has never run.
 
 ---
 
-## 10. Required commands (plan §11)
+## 11. Required commands (plan §11)
 
 Run from the repository root after the harness and fixture corrections:
 
@@ -362,14 +480,14 @@ changed only harness and documentation files, no product code.
 
 ---
 
-## 11. Console / network errors
+## 12. Console / network errors
 
 Prototype: none (one in-browser Babel transformer notice). Implementation: two
 pre-existing app-wide React Router v7 future-flag warnings, no errors.
 
 ---
 
-## 11. Reproduction
+## 13. Reproduction
 
 ```bash
 # 1. dedicated Chrome

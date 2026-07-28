@@ -44,6 +44,33 @@ function iso(daysFromToday: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** The current federal FY, on the same rule buildCalendar uses (Oct rollover). */
+const NOW = new Date();
+export const CUR_FY = NOW.getUTCMonth() + 1 >= 10 ? NOW.getUTCFullYear() + 1 : NOW.getUTCFullYear();
+
+/**
+ * The prototype positions everything on the timeline in QUARTER UNITS
+ * (`q: 1.34`, `from: 3.7`) rather than in dates, and `buildCalendar` anchors
+ * the axis at Oct 1 of the first shown FY. A quarter unit therefore converts
+ * to a date by walking `q * 3` months from that anchor, fractional months
+ * included — the prototype's bounds are fractional.
+ *
+ * Phase 7 §3 requires both captures to show the same visible content, so every
+ * date below is derived this way instead of invented.
+ */
+const AXIS_START = new Date(CUR_FY - 1, 9, 1);
+
+function qIso(q: number): string {
+  const monthsFloat = q * 3;
+  const whole = Math.floor(monthsFloat);
+  const frac = monthsFloat - whole;
+  const d = new Date(AXIS_START.getFullYear(), AXIS_START.getMonth() + whole, 1);
+  const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(1 + Math.round(frac * daysInMonth));
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 function node(over: Partial<StrategyNode> & { id: string; title: string }): StrategyNode {
   return {
     strategyId: SID,
@@ -65,23 +92,60 @@ function node(over: Partial<StrategyNode> & { id: string; title: string }): Stra
   } as StrategyNode;
 }
 
-/** Seven steps — the prototype row says "7 nodes" — spanning three FYs, with
- *  one step near today and one milestone, so the grid needs to scroll. */
+/**
+ * The prototype's own NODES_SEED (asset05), converted from quarter units.
+ *
+ * The earlier fixture invented seven DIFFERENT steps ("Submit the FY27 program
+ * justification", "Markup defense", …). Every node title, kind, subject,
+ * status and position on screen therefore differed from the prototype's, which
+ * is a large part of why the §6 image diff could not return a verdict.
+ *
+ * `dur: 0` nodes are points (gate / decision / milestone) and carry no end
+ * date; n5 is the prototype's open-ended risk ("Ongoing").
+ */
 export const NODES: StrategyNode[] = [
-  node({ id: 'n1', title: 'Submit the FY27 program justification', startsOn: iso(-6), endsOn: iso(14) }),
-  node({ id: 'n2', title: 'Markup defense', startsOn: iso(120), endsOn: iso(160), dependsOnIds: ['n1'] }),
-  node({ id: 'n3', title: 'Coalition sign-on letter', startsOn: iso(210), endsOn: iso(240) }),
-  node({ id: 'n4', title: 'HAC-D staff briefing', kind: 'gate', startsOn: iso(300), endsOn: iso(320) }),
-  node({ id: 'n5', title: 'Continuing resolution risk', kind: 'risk', startsOn: iso(390), endsOn: null, openEnded: true }),
   node({
-    id: 'n6',
-    title: 'FY27 funding secured & authorized',
-    kind: 'milestone',
-    subject: 'outcome',
-    startsOn: iso(500),
-    endsOn: null,
+    id: 'n1', title: 'White paper to House committee staff',
+    kind: 'action', subject: 'deliverable', status: 'in_progress',
+    note: 'Grounds the ask; drafted before the Feb submission.',
+    startsOn: qIso(1.0), endsOn: qIso(1.34),
   }),
-  node({ id: 'n7', title: 'Submit asks & white papers for FY28', startsOn: iso(620), endsOn: iso(650) }),
+  node({
+    id: 'n2', title: 'File HAC-D request packet',
+    kind: 'gate', subject: 'submission', status: 'draft',
+    note: 'Portal-ready package for the Defense subcommittee. Hard deadline.',
+    startsOn: qIso(1.34), endsOn: null,
+  }),
+  node({
+    id: 'n3', title: 'Confirm Sen. Cruz as champion',
+    kind: 'action', subject: 'member', status: 'in_progress',
+    note: 'Lock a Senate-side champion before markup.',
+    startsOn: qIso(1.67), endsOn: qIso(2.01),
+  }),
+  node({
+    id: 'n4', title: 'Go / no-go on Senate companion ask',
+    kind: 'decision', subject: 'ask', status: 'active',
+    note: 'Decide whether to open a second-chamber front.',
+    startsOn: qIso(1.8), endsOn: null,
+  }),
+  node({
+    id: 'n5', title: 'Single-company earmark optics',
+    kind: 'risk', subject: 'optics', status: 'active',
+    note: 'Mitigate with coalition framing and report language.',
+    startsOn: qIso(1.67), endsOn: qIso(3.67), openEnded: true,
+  }),
+  node({
+    id: 'n6', title: 'Defend ask through markup',
+    kind: 'action', subject: 'committee', status: 'draft',
+    note: 'Markup-day talking points and rebuttal one-pager.',
+    startsOn: qIso(2.34), endsOn: qIso(3.01),
+  }),
+  node({
+    id: 'n7', title: `FY${String(CUR_FY + 1).slice(-2)} funding secured & authorized`,
+    kind: 'milestone', subject: 'outcome', status: 'suggested',
+    note: 'North-star outcome. Feeds learnings into the next cycle.',
+    startsOn: qIso(4.67), endsOn: null,
+  }),
 ];
 
 /** State 10 — the same plan with an open context gap on two steps. */
@@ -203,54 +267,68 @@ export const MEMBERS = [
   { id: 'm_neo', clerkUserId: 'user_parity', name: 'Neo Martinez', email: 'neo@capiro.ai' },
 ];
 
-/** The current federal FY, on the same rule buildCalendar uses (Oct rollover). */
-const NOW = new Date();
-export const CUR_FY = NOW.getUTCMonth() + 1 >= 10 ? NOW.getUTCFullYear() + 1 : NOW.getUTCFullYear();
-
 /**
  * The prototype's FIRM_PHASES_DEFAULT labels on the real (fy, quarter) shape the
  * app's FirmPhase carries — quarter indices 1-4, `position` for order.
  */
 export const FIRM_PHASES: FirmPhase[] = [
-  'Strategy refresh',
-  'Submit asks & white papers',
-  'Refine post-budget',
-  'Markup support',
-  'Outcomes & roll forward',
-  'Next-cycle strategy refresh',
-].map((label, i) => {
-  const startQ = (i % 4) + 1;
-  const fyOffset = Math.floor(i / 4);
+  // The prototype's FIRM_PHASES_DEFAULT verbatim (asset05), in its own quarter
+  // units. SEVEN phases, not six — and the seventh spans two quarters. The
+  // earlier fixture listed six with a synthetic (fy, quarter) mapping, so the
+  // FIRM PHASE band rendered different labels in different columns.
+  { label: 'Strategy refresh', from: 0, to: 1 },
+  { label: 'Submit asks & white papers', from: 1, to: 2 },
+  { label: 'Refine post-budget', from: 2, to: 3 },
+  { label: 'Markup support', from: 3, to: 4 },
+  { label: 'Outcomes & roll forward', from: 4, to: 5 },
+  { label: 'Next-cycle strategy refresh', from: 5, to: 6 },
+  { label: 'Submit asks & white papers', from: 6, to: 8 },
+].map(({ label, from, to }, i) => {
+  // Quarter unit q → FY offset floor(q/4), quarter (q % 4) + 1. `to` is
+  // exclusive, so the closing quarter is `to - 1`.
+  const lastQ = to - 1;
   return {
     id: `fp-${i}`,
     label,
-    startFy: CUR_FY + fyOffset,
-    startQ,
-    endFy: CUR_FY + fyOffset,
-    endQ: startQ,
+    startFy: CUR_FY + Math.floor(from / 4),
+    startQ: (from % 4) + 1,
+    endFy: CUR_FY + Math.floor(lastQ / 4),
+    endQ: (lastQ % 4) + 1,
     position: i,
   };
 });
 
 /** The prototype's legislative-calendar rows (labels + windows verbatim) on the
  *  app's ReferenceRow shape. */
+/** The prototype's CONGRESS array, verbatim (asset05, `const CONGRESS`). */
+const PROTO_CONGRESS: Array<{ label: string; from: number; to: number; tone: string }> = [
+  { label: "President's Budget", from: 1.3, to: 1.55, tone: 'ink' },
+  { label: 'Budget review', from: 1.5, to: 2.0, tone: 'info' },
+  { label: 'Hearings', from: 1.5, to: 2.3, tone: 'info' },
+  { label: 'Member requests', from: 1.4, to: 2.05, tone: 'accent' },
+  { label: 'NDAA & approps bills', from: 2.0, to: 2.6, tone: 'accent' },
+  { label: 'Committee markups', from: 2.3, to: 3.0, tone: 'notable' },
+  { label: 'Floor & amendments', from: 3.0, to: 3.5, tone: 'notable' },
+  { label: 'Conference', from: 3.5, to: 3.9, tone: 'notable' },
+  { label: 'Continuing resolution risk', from: 3.7, to: 4.05, tone: 'critical' },
+  { label: 'Final bills signed', from: 4.0, to: 4.45, tone: 'success' },
+  { label: "President's Budget", from: 5.3, to: 5.55, tone: 'ink' },
+  { label: 'Hearings', from: 5.5, to: 6.3, tone: 'info' },
+  { label: 'Member requests', from: 5.4, to: 6.05, tone: 'accent' },
+  { label: 'Committee markups', from: 6.3, to: 7.0, tone: 'notable' },
+  { label: 'Floor & conference', from: 7.0, to: 7.7, tone: 'notable' },
+  { label: 'Final bills signed', from: 8.0, to: 8.45, tone: 'success' },
+];
+
 export const REFERENCE: ReferenceCalendars = {
-  congress: [
-    { label: "President's Budget", startsOn: iso(-150), endsOn: iso(-140) },
-    { label: 'Member requests', startsOn: iso(-140), endsOn: iso(-110) },
-    { label: 'Hearings', startsOn: iso(-110), endsOn: iso(-60) },
-    { label: 'Committee markups', startsOn: iso(-60), endsOn: iso(-10) },
-    { label: 'Floor & conference', startsOn: iso(-10), endsOn: iso(40) },
-    { label: 'Final bills signed', startsOn: iso(60), endsOn: iso(70) },
-    { label: 'Continuing resolution risk', startsOn: iso(90), endsOn: iso(120) },
-  ].map((r, i) => ({
+  congress: PROTO_CONGRESS.map((r, i) => ({
     id: `c${i}`,
     kind: 'congress' as const,
     label: r.label,
     fy: null,
-    startsOn: r.startsOn,
-    endsOn: r.endsOn,
-    tone: null,
+    startsOn: qIso(r.from),
+    endsOn: qIso(r.to),
+    tone: r.tone,
     position: i,
   })),
   ppbeLanes: [

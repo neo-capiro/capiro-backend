@@ -105,6 +105,12 @@ export function StrategyHeader({
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.06em',
+              // Phase 7 §7: without this the eyebrow inherits antd's 1.5714
+              // body line-height (15.71px at 10px) where the prototype
+              // computes `normal` (13.33px). Measured, that 2.38px was the
+              // single root cause of the header's whole vertical drift — the
+              // title, goal and today flag all sat +2.37/+2.38px low.
+              lineHeight: 'normal',
             }}
           >
             {clientLabel} · {typeLabel}

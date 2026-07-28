@@ -636,6 +636,10 @@ export function StrategyTimeline({
                 color: '#fff',
                 fontSize: 'var(--text-2xs)',
                 fontWeight: 700,
+                // Phase 7 §7: same inherited-line-height bug as the header
+                // eyebrow — antd's 1.5714 made this flag 16.15px tall where
+                // the prototype's is 13.94px.
+                lineHeight: 'normal',
                 padding: '2px 8px',
                 borderRadius: 5,
                 whiteSpace: 'nowrap',
