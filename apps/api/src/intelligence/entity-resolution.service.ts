@@ -1,5 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import {
+  decideContractorCandidates,
+  // Imported rather than re-implemented: a second copy of the domain extractor
+  // would drift from the one the tiering policy actually uses.
+  domainOf,
+  type ContractorCandidate,
+  type ContractorMatchBasis,
+  type IdentityTier,
+  type MatchExplanation,
+} from './contractor-identity.js';
 
 // ── Stage A/B raw row from SQL ───────────────────────────────────────────────
 interface MatchRow {
@@ -12,6 +23,16 @@ interface MatchRow {
   // row through scoreCandidate's name-fingerprint heuristics, which have
   // nothing meaningful to say about a match that isn't name-based at all.
   preScored?: number;
+  // ── Contractor identity tiering (§8) ──────────────────────────────────────
+  // Set only for source='contracting', by decideContractorCandidates. When
+  // present these carry the verdict AND its evidence, and they are what
+  // candidateDecision consults instead of the confidence number: only tier 1
+  // (an unambiguous exact identifier) may auto-confirm, so a name — however
+  // similar — can no longer become a confirmed corporate identity.
+  matchBasis?: ContractorMatchBasis;
+  matchTier?: IdentityTier;
+  matchEvidence?: MatchExplanation;
+  autoConfirmEligible?: boolean;
 }
 
 export interface ResolutionSummary {
@@ -19,6 +40,29 @@ export interface ResolutionSummary {
   mappingsCreated: number;
   autoConfirmed: number;
   needsReview: number;
+}
+
+/** The client-scoped contractor review payload (see contractorCandidatesForClient). */
+export interface ContractorCandidateView {
+  client: { id: string; name: string; uei: string | null; cageCode: string | null };
+  candidates: Array<{
+    contractorId: string;
+    contractorName: string;
+    /** For ORDERING the queue. Never displayed as a bare percentage. */
+    confidence: number;
+    autoConfirmEligible: boolean;
+    matchBasis: ContractorMatchBasis;
+    matchTier: IdentityTier;
+    explanation: MatchExplanation | null;
+    mapping: {
+      id: string;
+      confirmed: boolean;
+      matchBasis: string;
+      matchTier: number | null;
+      relationshipType: string | null;
+      rollUpAwards: boolean | null;
+    } | null;
+  }>;
 }
 
 // Suffixes stripped during fingerprinting (word-boundary, case-insensitive).
@@ -150,12 +194,50 @@ export function candidateDecision(params: {
   confidence: number;
   isTopForSource: boolean;
   runnerUpConfidence: number | null;
+  /**
+   * Identity tier, for sources that compute one. Only 'contracting' does today
+   * (see contractor-identity.ts). When present it OVERRIDES the confidence-based
+   * auto-confirm path entirely — the tier is a statement about the KIND of
+   * evidence, and no confidence number can substitute for an identifier.
+   */
+  matchTier?: IdentityTier;
+  /**
+   * The tiering policy's own verdict on whether this candidate is unambiguous.
+   * Only consulted alongside `matchTier`.
+   */
+  autoConfirmEligible?: boolean;
 }): CandidateDecision {
-  const { source, confidence, isTopForSource, runnerUpConfidence } = params;
+  const {
+    source,
+    confidence,
+    isTopForSource,
+    runnerUpConfidence,
+    matchTier,
+    autoConfirmEligible,
+  } = params;
   const NEVER_AUTO_CONFIRM = new Set(['fec_committee', 'assistance_recipient']);
   const clearWinner =
     runnerUpConfidence === null ||
     confidence - runnerUpConfidence >= AUTO_CONFIRM_AMBIGUITY_MARGIN;
+
+  // TIERED SOURCE (contracting): the tier decides, not the score.
+  //
+  // This is a deliberate TIGHTENING of prior behaviour. A 'contracting'
+  // candidate used to auto-confirm at confidence >= 0.85, which
+  // scoreCandidate handed out for any multi-token exact-fingerprint name match —
+  // i.e. a NAME could silently become a confirmed corporate identity, and a
+  // confirmed identity is what the award footprint, the agency-history relevance
+  // signals and the District Nexus obligation rails all read. Now only tier 1
+  // (an exact, unique, unambiguous federal identifier) auto-confirms; an exact
+  // legal name routes to review. Auto-confirmation gets strictly rarer, never
+  // more common.
+  if (matchTier !== undefined) {
+    const tierAutoConfirm =
+      isTopForSource && clearWinner && matchTier === 1 && autoConfirmEligible === true;
+    if (confidence < MIN_WRITE_CONFIDENCE && !tierAutoConfirm) return 'skip';
+    return tierAutoConfirm ? 'auto_confirm' : 'review';
+  }
+
   const autoConfirm =
     isTopForSource &&
     clearWinner &&
@@ -265,6 +347,10 @@ export class EntityResolutionService {
         // A verified-identifier match (row.preScored) skips the name-fingerprint
         // heuristics entirely — see MatchRow.preScored.
         confidence: row.preScored ?? this.scoreCandidate(clientFp, row, source, { anchored }),
+        matchBasis: row.matchBasis,
+        matchTier: row.matchTier,
+        matchEvidence: row.matchEvidence,
+        autoConfirmEligible: row.autoConfirmEligible,
       }))
       .sort((a, b) => b.confidence - a.confidence);
 
@@ -279,13 +365,40 @@ export class EntityResolutionService {
         confidence: cand.confidence,
         isTopForSource: i === 0,
         runnerUpConfidence: i === 0 ? (scored[1]?.confidence ?? null) : null,
+        ...(cand.matchTier !== undefined ? { matchTier: cand.matchTier } : {}),
+        ...(cand.autoConfirmEligible !== undefined
+          ? { autoConfirmEligible: cand.autoConfirmEligible }
+          : {}),
       });
       if (decision === 'skip') continue;
       const autoConfirm = decision === 'auto_confirm';
 
-      const updateData: { externalName: string; confidence: number; confirmed?: boolean } = {
+      // Basis/tier/evidence are written whenever the source computes them. They
+      // are the match EXPLANATION — a reviewer needs the identifiers, the
+      // normalized names and (especially) the conflicting facts, none of which a
+      // confidence percentage conveys.
+      const evidence: {
+        matchBasis?: string;
+        matchTier?: number;
+        matchEvidence?: Prisma.InputJsonValue;
+      } = {};
+      if (cand.matchBasis) evidence.matchBasis = cand.matchBasis;
+      if (cand.matchTier !== undefined) evidence.matchTier = cand.matchTier;
+      if (cand.matchEvidence) {
+        evidence.matchEvidence = cand.matchEvidence as unknown as Prisma.InputJsonValue;
+      }
+
+      const updateData: {
+        externalName: string;
+        confidence: number;
+        confirmed?: boolean;
+        matchBasis?: string;
+        matchTier?: number;
+        matchEvidence?: Prisma.InputJsonValue;
+      } = {
         externalName: cand.externalName,
         confidence: cand.confidence,
+        ...evidence,
       };
       // Only ever upgrade to confirmed; never silently un-confirm a human pick.
       if (autoConfirm) updateData.confirmed = true;
@@ -304,6 +417,16 @@ export class EntityResolutionService {
             externalName: cand.externalName,
             confidence: cand.confidence,
             confirmed: autoConfirm,
+            ...evidence,
+            // 'self' is asserted ONLY for an auto-confirmed exact-identifier
+            // match, where the identifier IS the assertion that these are one
+            // entity. Everything else leaves relationshipType null: a reviewer
+            // has to say whether the federal record is the client, its parent,
+            // its subsidiary or a former name, and guessing 'self' would fabricate
+            // that answer.
+            ...(autoConfirm && cand.matchTier === 1
+              ? { relationshipType: 'self', rollUpAwards: true }
+              : {}),
           },
         }),
       );
@@ -384,16 +507,118 @@ export class EntityResolutionService {
     return { rows: await this.matchLda(clientName), anchored: false };
   }
 
-  private async matchContractor(clientName: string): Promise<MatchRow[]> {
-    return this.prisma.$queryRaw<MatchRow[]>`
-      SELECT id::text AS external_id, name AS external_name,
+  /**
+   * Contractor candidates, TIERED.
+   *
+   * Two pools are unioned in one query, deliberately:
+   *
+   *   - the EXACT-UEI pool, which the name-similarity floor would otherwise
+   *     exclude entirely. "RTX CORPORATION" and "RAYTHEON TECHNOLOGIES
+   *     CORPORATION" are the same registered entity and their trigram similarity
+   *     is far below 0.3, so the only way the identifier match is ever seen is by
+   *     querying for it directly;
+   *   - the name pool, which is what surfaces candidates for a client with no UEI
+   *     on file.
+   *
+   * The verdicts then come from decideContractorCandidates over the WHOLE set,
+   * because ambiguity is a property of the set: one exact-UEI hit is
+   * unambiguous, two rows sharing that UEI are not, and neither is judgeable
+   * alone.
+   */
+  private async matchContractor(
+    clientName: string,
+    identity: { clientId: string; uei: string | null; cageCode: string | null; website: string | null; states: string[] },
+    alreadyConfirmedByContractorId: Map<string, string[]>,
+  ): Promise<MatchRow[]> {
+    const uei = (identity.uei ?? '').trim().toUpperCase();
+    const ueiUsable = /^[A-Z0-9]{12}$/.test(uei);
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        external_id: string;
+        external_name: string;
+        similarity: number;
+        uei: string | null;
+        total_contracts: number | null;
+        last_synced_at: Date | null;
+      }>
+    >`
+      SELECT id::text AS external_id,
+             name AS external_name,
              similarity(name, ${clientName}) AS similarity,
-             NULL::text AS state
+             uei,
+             total_contracts::float AS total_contracts,
+             last_synced_at
       FROM federal_contractor
       WHERE similarity(name, ${clientName}) > 0.3
+         OR (${ueiUsable} AND uei = ${ueiUsable ? uei : null})
       ORDER BY similarity DESC
       LIMIT 50
     `;
+
+    const candidates: ContractorCandidate[] = rows.map((r) => ({
+      contractorId: r.external_id,
+      contractorName: r.external_name,
+      uei: r.uei,
+      nameSimilarity: Number(r.similarity ?? 0),
+      // federal_contractor stores an obligation TOTAL, not an award count or a
+      // latest-award date. Reported as null rather than 0 or "unknown date":
+      // null means "we hold no figure", and 0 would read as "this contractor has
+      // never been awarded anything", which is a different and false claim.
+      awardCount: null,
+      totalObligated: r.total_contracts,
+      latestAwardDate: null,
+      sourceSyncedAt: r.last_synced_at ? r.last_synced_at.toISOString() : null,
+      alreadyConfirmedForClientIds: alreadyConfirmedByContractorId.get(r.external_id) ?? [],
+    }));
+
+    const verdicts = decideContractorCandidates(
+      {
+        clientId: identity.clientId,
+        clientName,
+        uei: identity.uei,
+        cageCode: identity.cageCode,
+        domains: [domainOf(identity.website)].filter((d): d is string => d != null),
+        states: identity.states,
+      },
+      candidates,
+      (name) => this.fingerprint(name),
+    );
+
+    return verdicts.map((v) => ({
+      external_id: v.contractorId,
+      external_name: v.contractorName,
+      similarity: v.confidence,
+      state: null,
+      // The tiering policy owns the confidence for this source, so the name
+      // heuristics in scoreCandidate are bypassed entirely.
+      preScored: v.confidence,
+      matchBasis: v.explanation.basis,
+      matchTier: v.explanation.tier,
+      matchEvidence: v.explanation,
+      autoConfirmEligible: v.autoConfirmEligible,
+    }));
+  }
+
+  /**
+   * Which clients each contractor row is ALREADY confirmed against, in this
+   * tenant. One query for the whole tenant, not one per candidate — the
+   * ambiguity check needs it for every candidate of every client.
+   */
+  private async confirmedContractorClaims(tenantId: string): Promise<Map<string, string[]>> {
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.clientIntelMapping.findMany({
+        where: { source: 'contracting', confirmed: true },
+        select: { externalId: true, clientId: true },
+      }),
+    );
+    const out = new Map<string, string[]>();
+    for (const r of rows) {
+      const list = out.get(r.externalId) ?? [];
+      list.push(r.clientId);
+      out.set(r.externalId, list);
+    }
+    return out;
   }
 
   private async matchSec(clientName: string): Promise<MatchRow[]> {
@@ -566,9 +791,23 @@ export class EntityResolutionService {
     clientId: string,
     tenantId: string,
     clientName: string,
-    opts?: { ldaRegistrantId?: number | null; clientUei?: string | null },
+    opts?: {
+      ldaRegistrantId?: number | null;
+      clientUei?: string | null;
+      clientCageCode?: string | null;
+      clientWebsite?: string | null;
+      clientStates?: string[];
+      /**
+       * Pre-computed tenant-wide confirmed contractor claims. Passed in by
+       * resolveAllForTenant so a whole-tenant sweep reads them ONCE rather than
+       * once per client; omitted on a single-client call, which reads them itself.
+       */
+      confirmedContractorClaims?: Map<string, string[]>;
+    },
   ): Promise<{ created: number; autoConfirmed: number; needsReview: number }> {
     const clientFp = this.fingerprint(clientName);
+    const claims =
+      opts?.confirmedContractorClaims ?? (await this.confirmedContractorClaims(tenantId));
 
     // LDA uses the registrant-anchored pool when available (falls back to global);
     // the other sources stay on the global fuzzy pool.
@@ -583,7 +822,17 @@ export class EntityResolutionService {
       assistanceNameRows,
       assistanceUeiRows,
     ] = await Promise.all([
-      this.matchContractor(clientName),
+      this.matchContractor(
+        clientName,
+        {
+          clientId,
+          uei: opts?.clientUei ?? null,
+          cageCode: opts?.clientCageCode ?? null,
+          website: opts?.clientWebsite ?? null,
+          states: opts?.clientStates ?? [],
+        },
+        claims,
+      ),
       this.matchSec(clientName),
       this.matchFec(clientName),
       this.matchFecCommittee(clientName),
@@ -619,6 +868,172 @@ export class EntityResolutionService {
     return { created, autoConfirmed, needsReview };
   }
 
+  // ── Public: contractor identity review surface ───────────────────────────
+
+  /**
+   * Candidate contractor identities for ONE client, with the full explanation and
+   * whichever mapping row already exists for each.
+   *
+   * This is what makes the client-scoped settings flow usable: arriving from a
+   * profile CTA, the reviewer sees this client's candidates immediately, each
+   * carrying its basis, tier, exact identifiers, corroborators and — the part a
+   * confidence percentage can never convey — its CONFLICTING facts.
+   *
+   * READ-ONLY. It writes nothing, so it is safe on page load. That matters: the
+   * only pre-existing way to see contractor candidates was to press a button that
+   * wrote mappings for every client in the tenant.
+   */
+  async contractorCandidatesForClient(
+    tenantId: string,
+    clientId: string,
+  ): Promise<ContractorCandidateView> {
+    const client = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.client.findFirst({
+        where: { id: clientId },
+        select: {
+          id: true,
+          name: true,
+          uei: true,
+          cageCode: true,
+          website: true,
+          facilities: { select: { state: true } },
+        },
+      }),
+    );
+    if (!client) throw new NotFoundException('Client not found');
+
+    const existing = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.clientIntelMapping.findMany({
+        where: { clientId, source: 'contracting' },
+        select: {
+          id: true,
+          externalId: true,
+          confirmed: true,
+          matchBasis: true,
+          matchTier: true,
+          relationshipType: true,
+          rollUpAwards: true,
+        },
+      }),
+    );
+    const byExternalId = new Map(existing.map((m) => [m.externalId, m]));
+
+    const claims = await this.confirmedContractorClaims(tenantId);
+    const rows = await this.matchContractor(
+      client.name,
+      {
+        clientId: client.id,
+        uei: client.uei,
+        cageCode: client.cageCode,
+        website: client.website,
+        states: client.facilities
+          .map((f) => f.state)
+          .filter((s): s is string => s != null && s.length > 0),
+      },
+      claims,
+    );
+
+    return {
+      client: {
+        id: client.id,
+        name: client.name,
+        uei: client.uei,
+        cageCode: client.cageCode,
+      },
+      candidates: rows
+        .map((r) => {
+          const mapping = byExternalId.get(r.external_id);
+          return {
+            contractorId: r.external_id,
+            contractorName: r.external_name,
+            confidence: r.similarity,
+            autoConfirmEligible: r.autoConfirmEligible === true,
+            matchBasis: r.matchBasis ?? 'fuzzy_name',
+            matchTier: r.matchTier ?? 4,
+            explanation: r.matchEvidence ?? null,
+            mapping: mapping
+              ? {
+                  id: mapping.id,
+                  confirmed: mapping.confirmed,
+                  // A pre-existing row's basis was never recorded. Reported as
+                  // 'legacy_unrecorded' rather than back-filled with a guess.
+                  matchBasis: mapping.matchBasis ?? 'legacy_unrecorded',
+                  matchTier: mapping.matchTier ?? null,
+                  relationshipType: mapping.relationshipType ?? null,
+                  rollUpAwards: mapping.rollUpAwards ?? null,
+                }
+              : null,
+          };
+        })
+        .sort((a, b) => b.confidence - a.confidence),
+    };
+  }
+
+  /**
+   * "Find exact identifier matches" — the safe automatic action.
+   *
+   * Runs the contractor tiering for every client in the tenant and persists the
+   * candidates, auto-confirming ONLY an unambiguous tier-1 identifier match. No
+   * fuzzy name can be confirmed by it, by construction, because
+   * {@link candidateDecision} consults the tier rather than the score for this
+   * source.
+   *
+   * This is the narrow, defensible half of "Resolve All Clients": that action
+   * still exists and still covers every source, but neither can auto-confirm a
+   * contractor name any more.
+   */
+  async resolveContractorIdentifiersForTenant(tenantId: string): Promise<ResolutionSummary> {
+    const clients = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.client.findMany({
+        select: {
+          id: true,
+          name: true,
+          uei: true,
+          cageCode: true,
+          website: true,
+          facilities: { select: { state: true } },
+        },
+      }),
+    );
+    // Read ONCE for the sweep, not per client.
+    const claims = await this.confirmedContractorClaims(tenantId);
+
+    let mappingsCreated = 0;
+    let autoConfirmed = 0;
+    let needsReview = 0;
+    for (const client of clients) {
+      const rows = await this.matchContractor(
+        client.name,
+        {
+          clientId: client.id,
+          uei: client.uei,
+          cageCode: client.cageCode,
+          website: client.website,
+          states: client.facilities
+            .map((f) => f.state)
+            .filter((s): s is string => s != null && s.length > 0),
+        },
+        claims,
+      );
+      const r = await this.persistSourceCandidates(
+        client.id,
+        tenantId,
+        'contracting',
+        rows,
+        this.fingerprint(client.name),
+      );
+      mappingsCreated += r.created;
+      autoConfirmed += r.autoConfirmed;
+      needsReview += r.needsReview;
+    }
+
+    this.logger.log(
+      `resolveContractorIdentifiersForTenant(${tenantId}): ${clients.length} clients, ` +
+        `${mappingsCreated} mappings, ${autoConfirmed} auto-confirmed (tier-1 identifiers only)`,
+    );
+    return { totalClients: clients.length, mappingsCreated, autoConfirmed, needsReview };
+  }
+
   // ── Public: resolve all clients for a tenant ──────────────────────────────
 
   async resolveAllForTenant(tenantId: string): Promise<ResolutionSummary> {
@@ -631,8 +1046,21 @@ export class EntityResolutionService {
             select: { ldaRegistrantId: true },
           })
         )?.ldaRegistrantId ?? null,
-      clients: await tx.client.findMany({ select: { id: true, name: true, uei: true } }),
+      clients: await tx.client.findMany({
+        select: {
+          id: true,
+          name: true,
+          uei: true,
+          cageCode: true,
+          website: true,
+          facilities: { select: { state: true } },
+        },
+      }),
     }));
+
+    // Read ONCE for the whole sweep. Reading per client would be an N+1 over a
+    // table that grows with every confirmed mapping.
+    const claims = await this.confirmedContractorClaims(tenantId);
 
     let mappingsCreated = 0;
     let autoConfirmed = 0;
@@ -642,6 +1070,12 @@ export class EntityResolutionService {
       const result = await this.resolveClient(client.id, tenantId, client.name, {
         ldaRegistrantId,
         clientUei: client.uei,
+        clientCageCode: client.cageCode,
+        clientWebsite: client.website,
+        clientStates: client.facilities
+          .map((f) => f.state)
+          .filter((s): s is string => s != null && s.length > 0),
+        confirmedContractorClaims: claims,
       });
       mappingsCreated += result.created;
       autoConfirmed += result.autoConfirmed;

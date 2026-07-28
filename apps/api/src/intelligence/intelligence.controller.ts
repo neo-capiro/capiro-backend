@@ -87,6 +87,18 @@ class ManualMappingDto {
 
   @IsString()
   externalName!: string;
+
+  // The tier-3 corporate-identity path: pinning "RAYTHEON TECHNOLOGIES
+  // CORPORATION" to a client named "RTX" is only meaningful if the human also
+  // says WHAT the federal entity is. Optional — omitted leaves the column null,
+  // which read paths treat as "undecided", never as 'self'.
+  @IsOptional()
+  @IsIn(['self', 'alias', 'former_name', 'parent', 'subsidiary', 'operating_unit'])
+  relationshipType?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  rollUpAwards?: boolean;
 }
 
 class GenerateInsightsDto {
@@ -197,6 +209,36 @@ export class IntelligenceController {
   @Roles('user_admin')
   resolveAll(@CurrentTenant() ctx: TenantContext) {
     return this.entityResolution.resolveAllForTenant(ctx.tenantId);
+  }
+
+  /**
+   * "Find exact identifier matches" — the narrow, safe automatic action.
+   *
+   * Auto-confirms ONLY an unambiguous tier-1 identifier match (see
+   * contractor-identity.ts). It cannot confirm a fuzzy name by construction, which
+   * is what distinguishes it from `resolve-all`.
+   */
+  @Post('mappings/match-contractor-identifiers')
+  @Roles('user_admin')
+  matchContractorIdentifiers(@CurrentTenant() ctx: TenantContext) {
+    return this.entityResolution.resolveContractorIdentifiersForTenant(ctx.tenantId);
+  }
+
+  /**
+   * Contractor identity candidates for one client, with the full explanation.
+   *
+   * READ-ONLY, and gated at standard_user (the class default) rather than
+   * user_admin: seeing why a candidate matched is not a curation action, and
+   * requiring admin to LOOK is what pushed people towards pressing the
+   * writes-everything button instead. Confirming still requires user_admin, on
+   * the PATCH/manual routes below.
+   */
+  @Get('mappings/:clientId/contractor-candidates')
+  getContractorCandidates(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+  ) {
+    return this.entityResolution.contractorCandidatesForClient(ctx.tenantId, clientId);
   }
 
   @Get('changes/unread-count')
@@ -384,6 +426,8 @@ export class IntelligenceController {
       source: body.source,
       externalId: body.externalId,
       externalName: body.externalName,
+      ...(body.relationshipType !== undefined ? { relationshipType: body.relationshipType } : {}),
+      ...(body.rollUpAwards !== undefined ? { rollUpAwards: body.rollUpAwards } : {}),
     });
   }
 
