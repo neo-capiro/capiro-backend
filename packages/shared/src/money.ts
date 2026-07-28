@@ -23,10 +23,7 @@ export interface NormalizedMoneyMillions {
  * Normalize a finite source value into the Program Elements canonical unit:
  * USD millions. Zero and negative values are real values and are preserved.
  */
-export function normalizeMoneyToMillions(
-  value: number,
-  unit: MoneyUnit,
-): NormalizedMoneyMillions {
+export function normalizeMoneyToMillions(value: number, unit: MoneyUnit): NormalizedMoneyMillions {
   if (!Number.isFinite(value)) {
     throw new TypeError(`Money value must be finite; received ${String(value)}`);
   }
