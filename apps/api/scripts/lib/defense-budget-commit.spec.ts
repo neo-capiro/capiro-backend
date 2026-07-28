@@ -98,14 +98,19 @@ describe('classifyUnitRatio', () => {
     expect(classifyUnitRatio(50_000, 100)).toBe('different_scale');
   });
 
-  test.each([
+  const ambiguousCases: Array<[number | null, number | null]> = [
     [null, 100],
     [100, null],
     [0, 100],
     [100, 0],
     [Number.NaN, 100],
     [Number.POSITIVE_INFINITY, 100],
-  ] as const)('does not compare ambiguous values %p / %p', (candidate, reference) => {
-    expect(classifyUnitRatio(candidate, reference)).toBe('not_comparable');
-  });
+  ];
+
+  test.each(ambiguousCases)(
+    'does not compare ambiguous values %p / %p',
+    (candidate, reference) => {
+      expect(classifyUnitRatio(candidate, reference)).toBe('not_comparable');
+    },
+  );
 });
