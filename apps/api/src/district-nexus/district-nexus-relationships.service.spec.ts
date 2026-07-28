@@ -73,6 +73,8 @@ function harness(options?: {
   facility?: ReturnType<typeof facility> | null;
   duplicate?: { id: string } | null;
   existing?: ReturnType<typeof relationship> | null;
+  /** Thrown by clientGrantNexus.create, to simulate the DB losing a race. */
+  createError?: unknown;
 }) {
   const created = relationship();
   const rejected = relationship({
@@ -98,7 +100,10 @@ function harness(options?: {
   // Declare the argument explicitly so `mock.calls[n][0]` is typed; a zero-arg
   // jest.fn() infers `never[]` call tuples and every argument assertion fails
   // to typecheck.
-  const grantCreate = jest.fn(async (_args: { data: Record<string, unknown> }) => created);
+  const grantCreate = jest.fn(async (_args: { data: Record<string, unknown> }) => {
+    if (options && 'createError' in options) throw options.createError;
+    return created;
+  });
   const grantUpdate = jest.fn(
     async (_args: { where: Record<string, unknown>; data: Record<string, unknown> }) => rejected,
   );
@@ -509,6 +514,43 @@ describe('DistrictNexusRelationshipsService review rules', () => {
     });
     expect(auditArgs.data.before).toBeDefined();
     expect(auditArgs.data.after).toBeDefined();
+  });
+
+  test('losing the insert race surfaces as the SAME conflict, not a 500', async () => {
+    // The findFirst probe is check-then-act: two concurrent submits can both
+    // pass it, and the partial unique index
+    // (20260808010000_client_grant_nexus_manual_award_unique) is what actually
+    // decides. A caller must not be able to tell a race from a plain duplicate.
+    const h = harness({
+      duplicate: null,
+      createError: Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }),
+    });
+
+    const attempt = h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+      assistanceAwardId: AWARD_ID,
+      relationshipType: 'project_site',
+      facilityId: FACILITY_ID,
+    });
+
+    await expect(attempt).rejects.toBeInstanceOf(ConflictException);
+    await expect(attempt).rejects.toThrow(
+      'This client already has an active relationship of that type for the selected award and facility.',
+    );
+  });
+
+  test('a non-duplicate database error is NOT laundered into a conflict', async () => {
+    const h = harness({
+      duplicate: null,
+      createError: Object.assign(new Error('connection reset'), { code: 'P1001' }),
+    });
+
+    await expect(
+      h.service.create(TENANT_ID, CLIENT_ID, ACTOR, {
+        assistanceAwardId: AWARD_ID,
+        relationshipType: 'project_site',
+        facilityId: FACILITY_ID,
+      }),
+    ).rejects.toThrow('connection reset');
   });
 
   test('an update cannot downgrade a verified row into an externally-approved unverified one', async () => {

@@ -485,7 +485,8 @@ export class DistrictNexusRelationshipsService {
     const award = await this.requireAward(input.assistanceAwardId);
     const normalized = this.normalizeCreate(input, award);
 
-    const result = await this.prisma.withTenant(tenantId, async (tx) => {
+    const result = await this.withDuplicateGuard(() =>
+      this.prisma.withTenant(tenantId, async (tx) => {
       const client = await tx.client.findFirst({
         where: { id: clientId, ...VISIBLE_CLIENT_FILTER },
         select: { id: true },
@@ -530,7 +531,8 @@ export class DistrictNexusRelationshipsService {
         },
       });
       return { row, facility };
-    });
+      }),
+    );
 
     return serializeRelationship(result.row, award, result.facility);
   }
@@ -562,7 +564,8 @@ export class DistrictNexusRelationshipsService {
     const award = await this.requireAward(assistanceAwardId);
     const normalized = this.normalizeUpdate(existing, input, award);
 
-    const result = await this.prisma.withTenant(tenantId, async (tx) => {
+    const result = await this.withDuplicateGuard(() =>
+      this.prisma.withTenant(tenantId, async (tx) => {
       const facility = await this.requireFacility(tx, clientId, normalized.facilityId);
       await this.assertNoDuplicate(tx, clientId, relationshipId, normalized);
 
@@ -600,7 +603,8 @@ export class DistrictNexusRelationshipsService {
         },
       });
       return { row, facility };
-    });
+      }),
+    );
 
     return serializeRelationship(result.row, award, result.facility);
   }
@@ -799,6 +803,37 @@ export class DistrictNexusRelationshipsService {
     };
   }
 
+  /**
+   * The findFirst probe below is check-then-act and therefore advisory: two
+   * concurrent submits can both pass it. The authoritative guarantee is the
+   * partial unique index added in
+   * 20260808010000_client_grant_nexus_manual_award_unique, which mirrors this
+   * probe's predicate exactly. This maps the resulting Prisma P2002 back onto
+   * the SAME ConflictException so a race and a plain duplicate are
+   * indistinguishable to the caller — a race must not surface as a 500.
+   */
+  private static isDuplicateKeyError(error: unknown): boolean {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      (error as { code?: unknown }).code === 'P2002'
+    );
+  }
+
+  private static readonly DUPLICATE_MESSAGE =
+    'This client already has an active relationship of that type for the selected award and facility.';
+
+  private async withDuplicateGuard<T>(run: () => Promise<T>): Promise<T> {
+    try {
+      return await run();
+    } catch (error) {
+      if (DistrictNexusRelationshipsService.isDuplicateKeyError(error)) {
+        throw new ConflictException(DistrictNexusRelationshipsService.DUPLICATE_MESSAGE);
+      }
+      throw error;
+    }
+  }
+
   private async assertNoDuplicate(
     tx: Prisma.TransactionClient,
     clientId: string,
@@ -822,9 +857,7 @@ export class DistrictNexusRelationshipsService {
       select: { id: true },
     });
     if (duplicate) {
-      throw new ConflictException(
-        'This client already has an active relationship of that type for the selected award and facility.',
-      );
+      throw new ConflictException(DistrictNexusRelationshipsService.DUPLICATE_MESSAGE);
     }
   }
 }
