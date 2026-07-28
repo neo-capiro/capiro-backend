@@ -1,3 +1,5 @@
+import { classifySourceVerification, type SourceVerification } from '@capiro/shared';
+
 /**
  * §4.1 — the ONE Government Affairs Alert Packet every generator should receive instead
  * of a frontend-authored lossy summary (P1-13).
@@ -26,7 +28,7 @@ export interface GovernmentAffairsAlertPacket {
     sourceDocumentId?: string;
     page?: number;
     retrievedAt: string;
-    verification: 'official' | 'verified' | 'extracted' | 'unverified';
+    verification: SourceVerification;
   }>;
 
   proceduralMeaning: {
@@ -109,13 +111,14 @@ export const PACKET_UNAVAILABLE_IN_INTEL_API = [
 export const MAX_OFFICIAL_EVIDENCE = 20;
 
 /**
- * §4.6 / c-3's rule, restated here so the packet and the memo agree: an absolute http(s)
- * url is a public official record; a relative path is an internal deep link, which is
- * extracted data. NEVER 'verified' — nothing verifies these today.
+ * MP-11 (Gate L phase d): delegates to the shared classifier so the packet, the
+ * memo, and the brief agree — an absolute http(s) URL is 'official' ONLY on an
+ * allowlisted government domain, a relative path is an internal deep link
+ * (extracted data), and any other absolute URL (a firm's own site, a news
+ * article) is 'unverified', not 'official'. Previously ANY absolute URL was
+ * labelled 'official' regardless of domain. NEVER 'verified' — nothing
+ * verifies these today.
  */
-export function packetVerificationFor(
-  url: string | null | undefined,
-): 'official' | 'extracted' | 'unverified' {
-  if (!url) return 'unverified';
-  return /^https?:\/\//i.test(url) ? 'official' : 'extracted';
+export function packetVerificationFor(url: string | null | undefined): SourceVerification {
+  return classifySourceVerification(url);
 }

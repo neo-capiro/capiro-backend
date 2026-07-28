@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { SourceVerification } from '@capiro/shared';
 import type { AppConfig } from '../../config/config.schema.js';
 
 /**
@@ -27,7 +28,7 @@ export interface GovernmentAffairsAlertPacket {
     sourceDocumentId?: string;
     page?: number;
     retrievedAt: string;
-    verification: 'official' | 'verified' | 'extracted' | 'unverified';
+    verification: SourceVerification;
   }>;
   proceduralMeaning: {
     currentStage: string;

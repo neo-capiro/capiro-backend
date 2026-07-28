@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { SourceVerification } from '@capiro/shared';
 import { useApi } from '../../../lib/use-api.js';
 import { markdownishToHtml } from '../../engagement/outreach/v2/richtext.js';
 import type { FeedItem } from './intel-feed-api.js';
@@ -74,7 +75,7 @@ export interface AlertMemoSource {
   label: string;
   url?: string | null;
   retrievedAt?: string;
-  verification?: 'official' | 'verified' | 'extracted' | 'unverified';
+  verification?: SourceVerification;
   page?: number;
 }
 

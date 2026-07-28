@@ -272,6 +272,34 @@ describe('DistrictBriefService.generate', () => {
         outputTokens: 120,
       }),
     });
+    // MP-11 (Gate L phase d): congress.gov is an allowlisted government domain.
+    const c1 = result.sources.find((s) => s.url === FEDERAL_ALERT.url);
+    expect(c1?.verification).toBe('official');
+  });
+
+  // MP-11 (Gate L phase d): previously ANY absolute http(s) URL was labelled
+  // 'official' regardless of domain. Only an allowlisted government domain
+  // earns 'official' now; every other absolute URL is 'unverified'.
+  it('labels a non-government absolute URL "unverified", never "official"', async () => {
+    const { service } = makeDeps({ facility: FACILITY_ROW, representation: RESOLVED_REP });
+    global.fetch = jest.fn(async () =>
+      anthropicTextResponse([
+        {
+          heading: 'The bill/rule at stake',
+          paragraphs: [{ text: 'Grounded.', claimIds: ['c1'] }],
+        },
+      ]),
+    ) as never;
+
+    const result = await service.generate(
+      { tenantId: 't1', userId: 'u1' } as never,
+      'client-1',
+      'fac-1',
+      { ...FEDERAL_ALERT, alertId: 'a-news', url: 'https://www.defensenews.com/story/hr8800' },
+    );
+
+    const c1 = result.sources.find((s) => s.url === 'https://www.defensenews.com/story/hr8800');
+    expect(c1?.verification).toBe('unverified');
   });
 
   it('generates identically for a STATE bill alert — same code path, state legislators in the fact sheet (M1-F)', async () => {

@@ -4,6 +4,8 @@ import {
   recordAiUsageEvent,
   parseProviderUsage,
   DELIVERABLE_RISK_TIERS,
+  classifySourceVerification,
+  type SourceVerification,
   type TenantContext,
 } from '@capiro/shared';
 import { runAuditor, type LedgerEntry } from '@capiro/meriv2-core';
@@ -651,9 +653,14 @@ function buildDistrictClaims(
   return { claims, sources };
 }
 
-/** §4.6. Never returns 'verified'. Symmetric with alert-memo.service.ts. */
-function verificationFor(url: string | null | undefined): 'official' | 'extracted' {
-  return url && /^https?:\/\//i.test(url) ? 'official' : 'extracted';
+/**
+ * MP-11 (Gate L phase d): delegates to the shared classifier so this brief, the
+ * alert memo, and intel-api's packet agree. Never returns 'verified'. An
+ * absolute URL is 'official' ONLY on an allowlisted government domain; any
+ * other absolute URL is 'unverified', not 'official' as it was previously.
+ */
+function verificationFor(url: string | null | undefined): SourceVerification {
+  return classifySourceVerification(url);
 }
 
 function buildUserPrompt(

@@ -1,3 +1,4 @@
+import type { SourceVerification } from '@capiro/shared';
 import type { FeedItem } from './intel-feed-api.js';
 
 /**
@@ -21,7 +22,7 @@ export interface GovernmentAffairsAlertPacket {
     sourceDocumentId?: string;
     page?: number;
     retrievedAt: string;
-    verification: 'official' | 'verified' | 'extracted' | 'unverified';
+    verification: SourceVerification;
   }>;
   proceduralMeaning: {
     currentStage: string;

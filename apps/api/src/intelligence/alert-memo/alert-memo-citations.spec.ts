@@ -236,8 +236,33 @@ describe('alert memo — Sources with retrieval date + verification (§4.6)', ()
     for (const s of r.sources) {
       expect(s.verification).toBe('extracted');
     }
-    // Never inflated to 'verified' — nothing verifies these today.
-    expect(r.sources.every((s) => s.verification !== 'verified')).toBe(true);
+    // MP-11 (Gate L phase d): 'verified' is no longer even a member of
+    // SourceVerification (it was a fourth value the type admitted that no
+    // code path could ever produce) — enforced by the compiler now, not just
+    // by convention.
+  });
+
+  // MP-11 (Gate L phase d): previously ANY absolute http(s) URL was labelled
+  // 'official', regardless of domain — a firm's own site or a news article
+  // was indistinguishable from congress.gov. Only an allowlisted government
+  // domain earns 'official' now; every other absolute URL is 'unverified'.
+  it('labels a non-government absolute URL "unverified", never "official"', async () => {
+    const { service } = makeDeps();
+    global.fetch = jest.fn(async () =>
+      anthropicTextResponse([
+        { heading: 'Bottom line', paragraphs: [{ text: 'Grounded.', claimIds: ['c1'] }] },
+      ]),
+    ) as unknown as typeof fetch;
+
+    const r = await service.generate(
+      CTX,
+      'client-1',
+      { ...ALERT, alertId: 'a-news', url: 'https://www.defensenews.com/story/hr8800' },
+      'Acme Corp',
+    );
+
+    const c1 = r.sources.find((s) => s.claimId === 'c1');
+    expect(c1?.verification).toBe('unverified');
   });
 });
 
