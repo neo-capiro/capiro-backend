@@ -139,5 +139,40 @@ export function isDeliveryAutoRetryable(status: OutreachDeliveryStatus): boolean
   return false;
 }
 
+/**
+ * The explicit delivery state machine (plan §g1). THE single source of truth
+ * for which transitions are legal — every write site in
+ * OutreachSendIntentService (the claim, the terminal writes, reconciliation)
+ * must agree with this table, not invent its own.
+ *
+ *   pending → sending   (claimNextDelivery: the at-most-once claim)
+ *   pending → skipped   (cancelIntent: an unclaimed row on a cancelled intent)
+ *   sending → sent      (persistAcceptance: the provider confirmed)
+ *   sending → failed    (finishDelivery: a clear pre-acceptance rejection)
+ *   sending → unknown   (finishDelivery on an ambiguous outcome, OR
+ *                        reconcileStale aging an abandoned claim)
+ *
+ * Every OTHER pair — including any transition OUT of a terminal status
+ * (`sent`, `failed`, `unknown`, `skipped`, `held`) — is forbidden. In
+ * particular there is no `unknown → *`: an undetermined outcome is terminal
+ * for automation and only moves via an explicit, human-initiated
+ * reconciliation operation outside this table (Open Decision §6.2), never a
+ * silent worker write.
+ */
+const ALLOWED_DELIVERY_TRANSITIONS: ReadonlySet<string> = new Set([
+  'pending>sending',
+  'pending>skipped',
+  'sending>sent',
+  'sending>failed',
+  'sending>unknown',
+]);
+
+export function canTransitionOutreachDelivery(
+  from: OutreachDeliveryStatus,
+  to: OutreachDeliveryStatus,
+): boolean {
+  return ALLOWED_DELIVERY_TRANSITIONS.has(`${from}>${to}`);
+}
+
 /** review_request.subjectType for a held IMMUTABLE draft version (Phase 0). */
 export const OUTREACH_DRAFT_VERSION_SUBJECT_TYPE = 'outreach-draft-version';

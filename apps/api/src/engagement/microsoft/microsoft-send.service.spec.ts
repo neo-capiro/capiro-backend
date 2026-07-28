@@ -14,6 +14,7 @@ import { describe, expect, test } from '@jest/globals';
 import { ServiceUnavailableException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import {
+  GraphHttpError,
   MicrosoftGraphSyncService,
   isAmbiguousGraphSendFailure,
   sanitizeGraphHeaderValue,
@@ -77,7 +78,7 @@ describe('sanitizeGraphHeaderValue', () => {
 });
 
 describe('isAmbiguousGraphSendFailure', () => {
-  test('an HTTP status answer is NOT ambiguous — Graph told us what happened', () => {
+  test('a plain HttpException with no known status is NOT ambiguous (unchanged, backward-compatible default)', () => {
     expect(isAmbiguousGraphSendFailure(new ServiceUnavailableException('Graph 400 bad request'))).toBe(
       false,
     );
@@ -89,6 +90,26 @@ describe('isAmbiguousGraphSendFailure', () => {
     expect(isAmbiguousGraphSendFailure(new Error('read ECONNRESET'))).toBe(true);
     expect(isAmbiguousGraphSendFailure(new Error('request timeout'))).toBe(true);
   });
+
+  // §g5 / Open Decision 6.3 — graphFetch now carries the real status through
+  // GraphHttpError. A 4xx means Graph answered "no" to the request itself:
+  // known, plain failure. A 5xx is Graph's OWN failure while handling the
+  // request — it does not guarantee nothing was accepted, so it is treated
+  // the same as a transport-level ambiguity, not a confirmed rejection.
+  test.each([500, 502, 503, 504])('a GraphHttpError carrying status %i IS ambiguous', (status) => {
+    expect(isAmbiguousGraphSendFailure(new GraphHttpError(`Graph failed (${status})`, status))).toBe(
+      true,
+    );
+  });
+
+  test.each([400, 401, 403, 404, 429])(
+    'a GraphHttpError carrying status %i is a KNOWN failure',
+    (status) => {
+      expect(
+        isAmbiguousGraphSendFailure(new GraphHttpError(`Graph failed (${status})`, status)),
+      ).toBe(false);
+    },
+  );
 });
 
 describe('sendMail — create draft then send', () => {

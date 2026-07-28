@@ -6,6 +6,7 @@
 
 import { describe, expect, test } from '@jest/globals';
 import {
+  canTransitionOutreachDelivery,
   isDeliveryAutoRetryable,
   isDraftVersionSendable,
   OUTREACH_DRAFT_VERSION_SUBJECT_TYPE,
@@ -129,6 +130,62 @@ describe('delivery status contracts', () => {
     expect([...TERMINAL_DELIVERY_STATUSES].sort()).toEqual(
       ['failed', 'held', 'sent', 'skipped', 'unknown'].sort(),
     );
+  });
+});
+
+describe('canTransitionOutreachDelivery — the full matrix (plan §g1)', () => {
+  const ALL: OutreachDeliveryStatus[] = [
+    'pending',
+    'sending',
+    'sent',
+    'failed',
+    'unknown',
+    'skipped',
+    'held',
+  ];
+  const ALLOWED: Array<[OutreachDeliveryStatus, OutreachDeliveryStatus]> = [
+    ['pending', 'sending'],
+    ['pending', 'skipped'],
+    ['sending', 'sent'],
+    ['sending', 'failed'],
+    ['sending', 'unknown'],
+  ];
+
+  test('every named transition is allowed', () => {
+    for (const [from, to] of ALLOWED) {
+      expect(canTransitionOutreachDelivery(from, to)).toBe(true);
+    }
+  });
+
+  test('every OTHER pair in the full cross product is forbidden — including every pair not named above', () => {
+    const allowedSet = new Set(ALLOWED.map(([f, t]) => `${f}>${t}`));
+    let checked = 0;
+    for (const from of ALL) {
+      for (const to of ALL) {
+        checked++;
+        const expectedAllowed = allowedSet.has(`${from}>${to}`);
+        expect(canTransitionOutreachDelivery(from, to)).toBe(expectedAllowed);
+      }
+    }
+    expect(checked).toBe(ALL.length * ALL.length); // 49 — proves the loop actually ran
+  });
+
+  test('no terminal status ever transitions anywhere, including back to itself', () => {
+    for (const terminal of TERMINAL_DELIVERY_STATUSES) {
+      for (const to of ALL) {
+        expect(canTransitionOutreachDelivery(terminal, to)).toBe(false);
+      }
+    }
+  });
+
+  test('unknown never transitions — not even to sent — matching Open Decision §6.2', () => {
+    for (const to of ALL) {
+      expect(canTransitionOutreachDelivery('unknown', to)).toBe(false);
+    }
+  });
+
+  test('sending never returns to pending', () => {
+    expect(canTransitionOutreachDelivery('sending', 'pending')).toBe(false);
   });
 
   test('held versions get their own review subjectType, distinct from the legacy content key', () => {

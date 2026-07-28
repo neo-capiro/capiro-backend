@@ -33,7 +33,7 @@ import type { DirectoryApiResponse, DirectoryEntry } from '../directory/director
 
 type OutreachType = 'all' | 'campaign' | 'follow_up' | 'prep' | 'outbound_campaign';
 type WorkflowType = 'campaign' | 'follow_up' | 'prep' | 'outbound_campaign';
-type OutreachStatus = 'draft' | 'sent' | 'opened_in_email' | 'failed';
+type OutreachStatus = 'draft' | 'sent' | 'opened_in_email' | 'failed' | 'delivery_unknown';
 type PromptTemplate =
   | 'custom'
   | 'thank_you'
@@ -3249,6 +3249,11 @@ function statusLabel(record: OutreachRecord): string {
   if (record.status === 'draft') return 'Draft';
   if (record.status === 'sent') return 'Sent';
   if (record.status === 'opened_in_email') return 'Opened in email';
+  // §f5 — a send-intent rollup that could not confirm delivery (provider
+  // timeout, an ambiguous response) is NOT the same claim as 'Failed': the
+  // message may already have gone out. There is deliberately no Retry action
+  // anywhere this status is shown — see isDeliveryRetryable (send-intent.ts).
+  if (record.status === 'delivery_unknown') return 'Delivery unknown — verify Sent Items';
   return 'Failed';
 }
 
