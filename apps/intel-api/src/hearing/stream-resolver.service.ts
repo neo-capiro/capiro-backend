@@ -70,8 +70,10 @@ import {
  * IP deny + capped redirects/size/timeout + browser UA). Redirects are followed
  * MANUALLY, re-validating each hop, and `guardedProbe` returns the FINAL,
  * post-redirect URL — every `media.url` this resolver returns is that validated
- * URL (never the original, which could 302 off-allowlist), so ingestion points
- * ffmpeg at a validated endpoint. `googlevideo.com` is on the allowlist only when
+ * URL (never the original, which could 302 off-allowlist). The server does not
+ * ingest that URL: it is handed to the analyst's browser to PLAY, and
+ * transcription comes from the tab audio they then share. `googlevideo.com` is on
+ * the allowlist only when
  * RESOLVER_ENABLE_YOUTUBE_LIVE is set. See net-guard.ts (incl. the RESIDUAL RISK
  * note re: allowlisted-manifest segment URIs → TODO(infra) egress deny).
  *
@@ -140,8 +142,8 @@ export class StreamResolverService {
         await assertUrlAllowed(pageUrl); // host allowlist + IP deny
         const probe = await guardedProbe(pageUrl);
         if (probe.ok) {
-          // Hand ffmpeg the FINAL post-redirect URL (guardedProbe re-validated
-          // every hop) — NOT the original, which may 302 off-allowlist.
+          // Return the FINAL post-redirect URL (guardedProbe re-validated every
+          // hop) — NOT the original, which may 302 off-allowlist.
           return {
             status: 'resolved',
             media: { url: probe.url, kind, provider: 'direct-media' },

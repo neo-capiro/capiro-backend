@@ -7,7 +7,7 @@
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.pe-phase-a.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts",
     "test": "jest --detectOpenHandles --forceExit",
     "eval:clio": "tsx scripts/eval-clio.ts",
     "eval:clio:attachments": "tsx scripts/eval-clio-attachments.ts",
@@ -21,6 +21,8 @@
     "eval:outreach:calibrate": "tsx scripts/eval-outreach-calibrate.ts",
     "diag:outreach-usage": "tsx scripts/diag-outreach-usage.ts",
     "diag:engagement-campaigns": "tsx scripts/diag-engagement-campaigns.ts",
+    "diag:pe-trust": "tsx scripts/diag-program-element-trust-baseline.ts",
+    "audit:llamaparse-pe-units": "tsx scripts/audit-llamaparse-pe-units.ts",
     "set:tenant-flag": "tsx scripts/set-tenant-flag.ts",
     "backfill:client-kb": "tsx scripts/backfill-client-kb.ts",
     "backfill:google-meeting-virtuality": "tsx scripts/backfill-google-meeting-virtuality.ts",
@@ -125,7 +127,9 @@
     "report:llm-overage": "tsx scripts/report-llm-overage.ts",
     "setup:stripe": "tsx scripts/setup-stripe.ts",
     "comp:existing-tenants": "tsx scripts/comp-existing-tenants.ts",
-    "load:defense-budget": "tsx scripts/sync-comptroller-jbooks.ts --commit && tsx scripts/sync-jbook-r2.ts --commit && tsx scripts/sync-jbook-performers.ts --commit && tsx scripts/parse-hasc-sasc-reports.ts --artifact scripts/__data__/armed_services_hasc_fy2026.json --chamber HASC --fy 2026 && tsx scripts/parse-hasc-sasc-reports.ts --artifact scripts/__data__/armed_services_hasc_fy2027.json --chamber HASC --fy 2027 && tsx scripts/parse-hasc-sasc-reports.ts --artifact scripts/__data__/armed_services_sasc_fy2026.json --chamber SASC --fy 2026 && tsx scripts/sync-peo-rosters.ts --commit && tsx scripts/seed-programs.ts --commit && tsx scripts/match-pe-program.ts --apply && tsx scripts/backfill-program-offices.ts --commit && tsx scripts/sync-sam-opportunities.ts --commit && tsx scripts/compute-budget-deltas.ts --commit && tsx scripts/generate-actions.ts --commit"
+    "load:defense-budget": "tsx scripts/sync-comptroller-jbooks.ts --commit && tsx scripts/sync-jbook-r2.ts --commit && tsx scripts/sync-jbook-performers.ts --commit && tsx scripts/parse-hasc-sasc-reports.ts --artifact scripts/__data__/armed_services_hasc_fy2026.json --chamber HASC --fy 2026 && tsx scripts/parse-hasc-sasc-reports.ts --artifact scripts/__data__/armed_services_hasc_fy2027.json --chamber HASC --fy 2027 && tsx scripts/parse-hasc-sasc-reports.ts --artifact scripts/__data__/armed_services_sasc_fy2026.json --chamber SASC --fy 2026 && tsx scripts/sync-peo-rosters.ts --commit && tsx scripts/seed-programs.ts --commit && tsx scripts/match-pe-program.ts --apply && tsx scripts/backfill-program-offices.ts --commit && tsx scripts/sync-sam-opportunities.ts --commit && tsx scripts/compute-budget-deltas.ts --commit && tsx scripts/generate-actions.ts --commit",
+    "verify:pe-phase-a": "tsx scripts/verify-pe-phase-a-safety.ts",
+    "verify:pe-phase-b": "jest --runInBand --forceExit src/defense-budget/assertion-mapper.spec.ts scripts/lib/defense-budget-commit.spec.ts scripts/audit-llamaparse-pe-units.spec.ts scripts/lib/pe-ingestion-mode.spec.ts scripts/lib/pe-phase-a-safety.spec.ts scripts/ingest-defense-budget-replay.spec.ts src/program-element/source-document/source-document-registry.spec.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.665.0",

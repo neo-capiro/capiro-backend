@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntApp } from 'antd';
+import { MemoryRouter } from 'react-router-dom';
 import { HearingWatchPanel } from './HearingWatchPage.js';
 
 /**
@@ -10,10 +11,16 @@ import { HearingWatchPanel } from './HearingWatchPage.js';
  */
 const apiGetMock = vi.fn();
 const apiPostMock = vi.fn();
+const navigateMock = vi.fn();
 
 vi.mock('../../lib/use-api.js', () => ({
   useApi: () => ({ get: apiGetMock, post: apiPostMock }),
 }));
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return { ...actual, useNavigate: () => navigateMock };
+});
 
 vi.mock('../../lib/intel-feature-flags.js', () => ({
   useIntelFeatureEnabled: () => true,
@@ -49,7 +56,9 @@ function renderPanel() {
   render(
     <QueryClientProvider client={queryClient}>
       <AntApp>
-        <HearingWatchPanel />
+        <MemoryRouter>
+          <HearingWatchPanel />
+        </MemoryRouter>
       </AntApp>
     </QueryClientProvider>,
   );
@@ -65,6 +74,7 @@ describe('HearingWatchPage — New Hearing modal (P8)', () => {
   beforeEach(() => {
     apiGetMock.mockReset();
     apiPostMock.mockReset();
+    navigateMock.mockReset();
     setupBrowserMocks();
     apiGetMock.mockResolvedValue({ data: [] });
   });
@@ -186,13 +196,101 @@ describe('HearingWatchPage — New Hearing modal (P8)', () => {
     const titleInput = screen.getByPlaceholderText(/Senate Energy Committee/i);
     fireEvent.change(titleInput, { target: { value: 'Test hearing' } });
 
-    fireEvent.click(screen.getByRole('button', { name: /Create/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Create and open/i }));
 
     await waitFor(() =>
       expect(apiPostMock).toHaveBeenCalledWith(
         '/intel-api/hearings',
         expect.objectContaining({
           sourceUrl: 'https://www.c-span.org/search/?searchtype=Videos&query=armed+services',
+          // The only implemented capture path, sent unconditionally now that the
+          // dishonest stream_url/upload/bridge choices are gone from the form.
+          audioSource: 'browser_mic',
+          // `audio_and_transcript` is no longer offerable — there is no audio sink.
+          recordingPolicy: 'transcript_only',
+        }),
+      ),
+    );
+
+    // Creating a session opens the room instead of stranding the analyst on the
+    // schedule to hunt for the row they just made in My Sessions.
+    await waitFor(() =>
+      expect(navigateMock).toHaveBeenCalledWith('/intelligence/hearing-watch/s1'),
+    );
+  }, 15000);
+
+  test('the form never offers an audio-retention or non-browser capture option', async () => {
+    renderPanel();
+    await openNewHearingModal();
+
+    // No "Audio source" field at all — every value it used to offer except tab
+    // capture was unimplemented, so a chosen session could never transcribe.
+    expect(screen.queryByText('Audio source')).toBeNull();
+    expect(screen.getByText('Transcript retention')).toBeInTheDocument();
+
+    // The retention Select is the second one in the form (after Source type).
+    const selects = document.querySelectorAll('.ant-select-selector');
+    fireEvent.mouseDown(selects[1]!);
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Save transcript \(audio is never stored\)/i, {
+          selector: '.ant-select-item-option-content',
+        }),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByText(/Store transcript \+ audio/i, {
+        selector: '.ant-select-item-option-content',
+      }),
+    ).toBeNull();
+  }, 15000);
+
+  test('setting up a scheduled markup keeps its source type and hearing id', async () => {
+    apiGetMock.mockImplementation(async (url: string) => {
+      if (url === '/intel-api/upcoming-hearings') {
+        return {
+          data: [
+            {
+              id: 'ch-77',
+              title: 'Markup of H.R. 1234',
+              committee: 'House Energy and Commerce',
+              chamber: 'house',
+              scheduledAt: '2026-08-04',
+              type: 'Markup',
+              url: 'https://docs.house.gov/meetings/x',
+            },
+          ],
+        };
+      }
+      return { data: [] };
+    });
+    apiPostMock.mockImplementation(async (url: string) => {
+      if (url === '/intel-api/hearings/resolve-stream') {
+        return { data: { status: 'unresolvable', note: 'No direct media found' } };
+      }
+      if (url === '/intel-api/hearings') {
+        return { data: { id: 's-markup', title: 'Markup', status: 'scheduled' } };
+      }
+      return { data: {} };
+    });
+
+    renderPanel();
+    const setup = await screen.findByRole('button', { name: /Set up transcription/i });
+    fireEvent.click(setup);
+    await screen.findByText('Start a hearing session');
+
+    fireEvent.click(screen.getByRole('button', { name: /Create and open/i }));
+
+    await waitFor(() =>
+      expect(apiPostMock).toHaveBeenCalledWith(
+        '/intel-api/hearings',
+        expect.objectContaining({
+          // A markup used to be filed as a plain `hearing`, losing the
+          // distinction the recap and bill-linking passes read back.
+          sourceType: 'markup',
+          // The schedule row id used to be dropped when the modal closed.
+          hearingId: 'ch-77',
+          sourceUrl: 'https://docs.house.gov/meetings/x',
         }),
       ),
     );

@@ -31,7 +31,8 @@ import { isIP } from 'node:net';
  *   TODO(infra): egress deny for link-local/RFC1918 on the intel-api task —
  *   block 169.254.0.0/16 + 10.0.0.0/8 + 172.16.0.0/12 + 192.168.0.0/16 (and the
  *   IPv6 equivalents) at the security-group / NACL / egress-proxy layer so a
- *   compromised allowlisted manifest cannot reach internal services via ffmpeg.
+ *   compromised allowlisted manifest cannot reach internal services from this
+ *   task at all.
  */
 
 /** Browser UA — gov/broadcast pages 403 a bare Node/curl UA (proven for C-SPAN). */
@@ -281,11 +282,11 @@ async function readCapped(res: Response, maxBytes: number): Promise<string> {
  * through `assertUrlAllowed` (same as `guardedFetchText`). This is critical: a
  * direct-media URL on an allowlisted host that 302s OFF the allowlist (or to an
  * internal IP) must be REJECTED, not accepted as "reachable" — otherwise the
- * resolver would hand the ORIGINAL redirecting URL to ffmpeg, which would follow
- * the redirect unguarded (SSRF). On success returns `{ ok, status, contentType,
- * url }` where `url` is the FINAL, fully-validated post-redirect URL — the caller
- * MUST hand THAT url to ingestion, not the original. A redirect to a denied host
- * throws `SsrfError`; a real HTTP error status returns `ok:false`.
+ * resolver would return the ORIGINAL redirecting URL and every later consumer of
+ * it would follow that redirect unguarded (SSRF). On success returns
+ * `{ ok, status, contentType, url }` where `url` is the FINAL, fully-validated
+ * post-redirect URL — the caller MUST use THAT url, not the original. A redirect
+ * to a denied host throws `SsrfError`; a real HTTP error status returns `ok:false`.
  */
 export async function guardedProbe(
   rawUrl: string,

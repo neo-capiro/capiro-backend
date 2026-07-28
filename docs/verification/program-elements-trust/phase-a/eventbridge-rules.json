@@ -1,0 +1,83 @@
+{
+  "capturedBy": "aws events list-rules + list-targets-by-rule + describe-rule (READ-ONLY)",
+  "environment": "capiro-dev (this account is the live production environment)",
+  "region": "us-east-1",
+  "accountId": "<REDACTED>",
+  "totalRulesInAccount": 79,
+  "requiredVerbFindings": {
+    "ingest-defense-budget": {
+      "status": "VERIFIED ABSENT",
+      "rules": []
+    },
+    "run-pe-derive-chain": {
+      "status": "VERIFIED PRESENT",
+      "rules": [
+        {
+          "rule": "capiro-dev-pe-derive-chain",
+          "command": "run-pe-derive-chain --commit"
+        }
+      ]
+    },
+    "watch-budget-docs": {
+      "status": "VERIFIED PRESENT",
+      "rules": [
+        {
+          "rule": "capiro-dev-watch-budget-docs",
+          "command": "watch-budget-docs --commit"
+        }
+      ]
+    },
+    "send-pe-alert-emails": {
+      "status": "VERIFIED ABSENT",
+      "rules": []
+    },
+    "parse-hasc-report": {
+      "status": "VERIFIED ABSENT",
+      "rules": []
+    },
+    "parse-sasc-report": {
+      "status": "VERIFIED ABSENT",
+      "rules": []
+    },
+    "parse-hac-d-report": {
+      "status": "VERIFIED ABSENT",
+      "rules": []
+    },
+    "parse-sac-d-report": {
+      "status": "VERIFIED ABSENT",
+      "rules": []
+    },
+    "parse-ndaa-conference": {
+      "status": "VERIFIED ABSENT",
+      "rules": []
+    },
+    "parse-defense-approps-public-law": {
+      "status": "VERIFIED ABSENT",
+      "rules": []
+    },
+    "parse-pdoc": {
+      "status": "VERIFIED ABSENT",
+      "rules": []
+    },
+    "load-defense-budget-package": {
+      "status": "VERIFIED ABSENT",
+      "rules": []
+    }
+  },
+  "otherPeParseOrLoadVerbsDiscoveredLive": "NONE — no parse-* or load-* command override exists on any rule in this account",
+  "peAdjacentScheduledRules": [
+    {
+      "rule": "capiro-dev-enrich-award-pe",
+      "command": "enrich-award-pe --limit 5000"
+    },
+    {
+      "rule": "capiro-dev-match-pe-mentions",
+      "command": "match-pe-mentions --commit --limit 50"
+    },
+    {
+      "rule": "capiro-dev-sync-sam-opportunities",
+      "command": "sync-sam-opportunities"
+    }
+  ],
+  "note": "Status is derived from the container command override on each rule target, not from rule names."
+}

@@ -6,34 +6,41 @@ export interface DeepgramStreamCallbacks {
   onInterim: (seg: InterimSegment) => void;
   onFinal: (seg: FinalSegment) => void;
   onError: (err: Error) => void;
+  /** Kept for source compatibility. Browser WebM capture now fails closed rather
+   * than transparently reconnecting mid-container, so this callback is not used. */
   onReconnecting: (attempt: number) => void;
   onOpen: () => void;
 }
 
-const RECONNECT_MAX_ATTEMPTS = 8;
-const RECONNECT_BASE_MS = 500;
-
 /**
- * Owns ONE Deepgram live-transcription WebSocket for a single hearing session.
- *
+ * Owns ONE Deepgram live-transcription WebSocket for a single hearing capture.
  * Deepgram is STT ONLY: it returns interim then final transcript segments with
  * word-level diarization and timestamps. All policy reasoning happens elsewhere
- * (ExtractionDispatcher -> orchestrator registry). Handles reconnect/recovery
- * (SC5.9): a dropped Deepgram socket reconnects with exponential backoff;
- * already-committed final segments are untouched because commit is idempotent
- * on (sessionId,startMs,endMs) in SegmentCommitService.
+ * (ExtractionDispatcher -> orchestrator registry).
+ *
+ * Browser capture sends Opus wrapped in a WebM container. A new Deepgram socket
+ * cannot safely begin on an arbitrary later WebM cluster because it has not seen
+ * the container initialization header. The previous transparent reconnect also
+ * dropped audio during the reconnect window and reset transcript timestamps to
+ * zero. This manager therefore fails the capture explicitly when Deepgram closes
+ * unexpectedly. The browser starts a fresh MediaRecorder (and therefore a fresh
+ * WebM header) when the analyst resumes; the gateway applies a persisted timeline
+ * offset so resumed timestamps stay monotonic.
  */
 export class DeepgramStreamManager {
   private readonly logger = new Logger(DeepgramStreamManager.name);
   private connection?: ListenLiveClient;
-  private reconnectAttempts = 0;
   private closedByUs = false;
+  private opened = false;
+  private started = false;
+  private terminalErrorSent = false;
   private firstAudioLogged = false;
   private firstTranscriptLogged = false;
   private readonly model: string;
   private readonly endpointingMs: number;
   private readonly encoding: string;
   private readonly sampleRate?: number;
+  private closeWaiters = new Set<() => void>();
 
   constructor(
     private readonly apiKey: string,
@@ -47,49 +54,78 @@ export class DeepgramStreamManager {
     // path uses it). Env read intentionally dropped; re-add once DEEPGRAM_MODEL
     // is reconciled to nova-3 in infra.
     this.model = opts?.model ?? 'nova-3';
-    this.endpointingMs = opts?.endpointingMs ?? Number.parseInt(process.env.DEEPGRAM_ENDPOINTING_MS ?? '300', 10);
-    // Browser capture sends MediaRecorder's default output: opus audio
-    // wrapped in a WebM container, NOT raw/headerless opus frames. Deepgram's
-    // `encoding` param means "headerless, decode as this codec" — passing
-    // `encoding: 'opus'` for WebM-container bytes makes Deepgram try to parse
-    // Matroska framing as raw Opus and fail silently. Leaving `encoding`
-    // unset lets Deepgram auto-detect the container from its header, which is
-    // what containerized formats (WebM/WAV/Ogg) require. Server-side ffmpeg
-    // ingestion explicitly passes `encoding: 'linear16'` (headerless PCM,
-    // where sample_rate is required) — that path is unaffected.
+    this.endpointingMs =
+      opts?.endpointingMs ?? Number.parseInt(process.env.DEEPGRAM_ENDPOINTING_MS ?? '300', 10);
+    // Browser capture sends MediaRecorder's default output: opus audio wrapped in
+    // a WebM container, NOT raw/headerless opus frames. Deepgram's `encoding`
+    // param means "headerless, decode as this codec" — passing `encoding: 'opus'`
+    // for WebM-container bytes makes Deepgram try to parse Matroska framing as raw
+    // Opus and fail silently. Leaving `encoding` unset lets Deepgram auto-detect
+    // the container from its header, which is what containerized formats
+    // (WebM/WAV/Ogg) require. A headerless-PCM caller can still opt in explicitly
+    // with encoding=linear16 + sampleRate.
     this.encoding = opts?.encoding ?? '';
     this.sampleRate = opts?.sampleRate;
   }
 
+  get isOpen(): boolean {
+    return this.opened;
+  }
+
   start(): void {
+    if (this.started) return;
+    this.started = true;
     this.closedByUs = false;
     this.open();
   }
 
-  /** Forward a raw audio frame to Deepgram. No-op if the socket isn't open. */
-  sendAudio(chunk: Buffer): void {
+  /** Forward one binary audio frame. Returns false until Deepgram is ready. */
+  sendAudio(chunk: Buffer): boolean {
+    if (!this.connection || !this.opened) return false;
     try {
       if (!this.firstAudioLogged) {
         this.firstAudioLogged = true;
         this.logger.log(`deepgram first audio chunk sent (${chunk.byteLength}B)`);
       }
-      // Deepgram's send() expects an ArrayBuffer-like; pass a tightly-scoped
-      // ArrayBuffer copy of the Node Buffer (avoids SharedArrayBuffer typing).
-      const ab = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength) as ArrayBuffer;
-      this.connection?.send(ab);
+      const ab = chunk.buffer.slice(
+        chunk.byteOffset,
+        chunk.byteOffset + chunk.byteLength,
+      ) as ArrayBuffer;
+      this.connection.send(ab);
+      return true;
     } catch (err) {
-      this.logger.debug(`sendAudio failed: ${(err as Error).message}`);
+      this.logger.warn(`sendAudio failed: ${(err as Error).message}`);
+      return false;
     }
   }
 
   stop(): void {
     this.closedByUs = true;
+    this.opened = false;
     try {
       this.connection?.requestClose();
     } catch {
-      // ignore
+      this.resolveCloseWaiters();
     }
-    this.connection = undefined;
+  }
+
+  /** Request Deepgram finalization and wait briefly for its Close event. */
+  async stopAndWait(timeoutMs = 2_500): Promise<void> {
+    if (!this.connection) return;
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const waiter = () => {
+        if (settled) return;
+        settled = true;
+        if (timer) clearTimeout(timer);
+        this.closeWaiters.delete(waiter);
+        resolve();
+      };
+      this.closeWaiters.add(waiter);
+      timer = setTimeout(waiter, timeoutMs);
+      this.stop();
+    });
   }
 
   private open(): void {
@@ -107,9 +143,10 @@ export class DeepgramStreamManager {
     this.connection = connection;
 
     connection.on(LiveTranscriptionEvents.Open, () => {
-      this.reconnectAttempts = 0;
+      this.opened = true;
       this.logger.log(
-        `deepgram open model=${this.model} encoding=${this.encoding || 'auto-detect'} sampleRate=${this.sampleRate ?? 'n/a'}`,
+        `deepgram open model=${this.model} encoding=${this.encoding || 'auto-detect'} ` +
+          `sampleRate=${this.sampleRate ?? 'n/a'}`,
       );
       this.callbacks.onOpen();
     });
@@ -123,14 +160,16 @@ export class DeepgramStreamManager {
       if (!this.firstTranscriptLogged) {
         this.firstTranscriptLogged = true;
         this.logger.log(
-          `deepgram first transcript is_final=${data.is_final ?? false} textLen=${data.channel?.alternatives?.[0]?.transcript?.length ?? 0}`,
+          `deepgram first transcript is_final=${data.is_final ?? false} ` +
+            `textLen=${data.channel?.alternatives?.[0]?.transcript?.length ?? 0}`,
         );
       }
       const alt = data.channel?.alternatives?.[0];
       if (!alt || !alt.transcript) return;
       const startMs = Math.round((data.start ?? 0) * 1000);
       const endMs = Math.round(((data.start ?? 0) + (data.duration ?? 0)) * 1000);
-      const speakerLabel = alt.words?.[0]?.speaker != null ? String(alt.words[0].speaker) : undefined;
+      const speakerLabel =
+        alt.words?.[0]?.speaker != null ? String(alt.words[0].speaker) : undefined;
 
       if (data.is_final) {
         this.callbacks.onFinal({
@@ -146,30 +185,35 @@ export class DeepgramStreamManager {
     });
 
     connection.on(LiveTranscriptionEvents.Error, (err: unknown) => {
-      this.callbacks.onError(err instanceof Error ? err : new Error(String(err)));
+      this.emitTerminalError(err instanceof Error ? err : new Error(String(err)));
     });
 
     connection.on(LiveTranscriptionEvents.Close, (event: unknown) => {
+      this.opened = false;
       const e = event as { code?: number; reason?: string } | undefined;
       this.logger.warn(
-        `deepgram close code=${e?.code ?? '?'} reason=${e?.reason || '(none)'} closedByUs=${this.closedByUs} attempts=${this.reconnectAttempts}`,
+        `deepgram close code=${e?.code ?? '?'} reason=${e?.reason || '(none)'} ` +
+          `closedByUs=${this.closedByUs}`,
       );
-      if (this.closedByUs) return;
-      this.scheduleReconnect();
+      this.resolveCloseWaiters();
+      if (!this.closedByUs) {
+        this.emitTerminalError(
+          new Error('Transcription connection closed. Restart transcription to resume safely.'),
+        );
+      }
     });
   }
 
-  private scheduleReconnect(): void {
-    if (this.reconnectAttempts >= RECONNECT_MAX_ATTEMPTS) {
-      this.callbacks.onError(new Error('Deepgram reconnect attempts exhausted'));
-      return;
-    }
-    this.reconnectAttempts += 1;
-    const delay = RECONNECT_BASE_MS * 2 ** (this.reconnectAttempts - 1);
-    this.callbacks.onReconnecting(this.reconnectAttempts);
-    setTimeout(() => {
-      if (!this.closedByUs) this.open();
-    }, delay);
+  private emitTerminalError(err: Error): void {
+    if (this.terminalErrorSent || this.closedByUs) return;
+    this.terminalErrorSent = true;
+    this.callbacks.onError(err);
+  }
+
+  private resolveCloseWaiters(): void {
+    const waiters = [...this.closeWaiters];
+    this.closeWaiters.clear();
+    for (const resolve of waiters) resolve();
   }
 }
 

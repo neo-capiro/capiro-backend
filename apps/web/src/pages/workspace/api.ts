@@ -12,6 +12,7 @@ import type {
   WsDocVersion,
   WsDocument,
   WsDraft,
+  WsDraftWithGenerationRun,
   WsIndustryDatum,
   WsLockStatus,
   WsNotification,
@@ -558,14 +559,39 @@ export function useGenerateSection(draftId: string) {
 /**
  * Draft the WHOLE document (every section) with Meri. Used after the Context
  * Builder ("Open editor") and by the editor's "Regenerate All". Returns the
- * refreshed draft; callers re-hydrate from it. Invalidates the draft + checks.
+ * refreshed draft AND the durable generationRun summary — the run's `status` is
+ * the only honest source for what to report, since a run can write some sections
+ * and still not be `complete`. Invalidates the draft + checks.
  */
 export function useGenerateAll(draftId: string | null) {
   const api = useApi();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () =>
-      (await api.post<WsDraft>(`${BASE}/drafts/${draftId}/generate-all`, {})).data,
+      (await api.post<WsDraftWithGenerationRun>(`${BASE}/drafts/${draftId}/generate-all`, {})).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ws', 'draft', draftId] });
+      qc.invalidateQueries({ queryKey: ['ws', 'checks', draftId] });
+    },
+  });
+}
+
+/**
+ * Regenerate ONLY the sections the latest run recorded as failed. Sections that
+ * already succeeded are never re-drafted, so a partial run can be completed
+ * without discarding good content. Returns the same contract as generate-all.
+ */
+export function useRetryFailedSections(draftId: string | null) {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      (
+        await api.post<WsDraftWithGenerationRun>(
+          `${BASE}/drafts/${draftId}/retry-failed-sections`,
+          {},
+        )
+      ).data,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ws', 'draft', draftId] });
       qc.invalidateQueries({ queryKey: ['ws', 'checks', draftId] });

@@ -4,6 +4,9 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntApp } from 'antd';
+// The New-Hearing modal navigates straight into the Live Hearing Room after a
+// create, so this panel now needs router context wherever it is mounted.
+import { MemoryRouter } from 'react-router-dom';
 import { HearingWatchPanel } from '../intelligence/HearingWatchPage.js';
 
 // Module-scope, NOT inside a describe() — HearingWatchPage.js transitively
@@ -136,7 +139,9 @@ describe('HearingWatchPage — responsive table (P2-11 b-4)', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <AntApp>
-          <HearingWatchPanel />
+          <MemoryRouter>
+            <HearingWatchPanel />
+          </MemoryRouter>
         </AntApp>
       </QueryClientProvider>,
     );

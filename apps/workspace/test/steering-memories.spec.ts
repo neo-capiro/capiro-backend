@@ -5,6 +5,7 @@ import type { AiCredentialService } from '../src/generation/ai-credential.servic
 import type { PeResolverService } from '../src/generation/pe-resolver.service';
 import type { MeriV2FlagsService } from '../src/meriv2/meriv2-flags.service';
 import type { MeriV2OrchestratorClient } from '../src/meriv2/meriv2-orchestrator.client';
+import type { CollaboratorsService } from '../src/collaborators/collaborators.service';
 
 /**
  * Steering-memory regression locks (G1-c — history: the pre-#442 loader cast
@@ -23,6 +24,7 @@ import type { MeriV2OrchestratorClient } from '../src/meriv2/meriv2-orchestrator
  */
 const CLERK_ID = 'user_2NpQrsTuvWxYz';
 const CAPIRO_UUID = '3f7c2a44-9d1e-4b6f-8a5c-0e9d8c7b6a51';
+const CLIENT_UUID = '8b1d4c22-77aa-4f3e-9c1b-2d5e6f7a8b90';
 const human = (heading: string, body: string) => ({ owner: 'human', heading, body });
 
 const FIRM_ROW = {
@@ -130,13 +132,30 @@ describe('WorkspaceContextCompilerService (adapter contract)', () => {
 });
 
 describe('GenerationService.loadSteeringMemories (packet recomposition)', () => {
-  function makeService(rendered: unknown[]) {
+  interface SteeringOut {
+    firmContext?: string;
+    userVoiceContext?: string;
+    clientContext?: string;
+    memoryFiles: Array<{ id: string; type: string; slug: string; label: string }>;
+    contextPacketId: string | null;
+    contextTraceHash: string | null;
+    degraded: boolean;
+    degradedReasons: string[];
+  }
+
+  function makeService(
+    rendered: unknown[],
+    opts: { persisted?: boolean; resolvedClientId?: string | null } = {},
+  ) {
     const compiler = {
+      resolveClientIdByExactName: jest.fn(async () => opts.resolvedClientId ?? null),
       compileForClerkOwner: jest.fn(async () => ({
         packetId: 'pkt-1',
         rendered,
         items: [],
         exclusions: [],
+        traceHash: 'trace-hash-1',
+        persisted: opts.persisted ?? true,
       })),
     } as unknown as WorkspaceContextCompilerService;
     const service = new GenerationService(
@@ -146,22 +165,27 @@ describe('GenerationService.loadSteeringMemories (packet recomposition)', () => 
       {} as MeriV2FlagsService,
       {} as MeriV2OrchestratorClient,
       compiler,
+      {} as CollaboratorsService,
     );
     return { service, compiler };
   }
-  const call = (service: GenerationService, ownerId?: string) =>
+
+  const call = (
+    service: GenerationService,
+    ownerId?: string,
+    clientName?: string | null,
+    draftId?: string,
+  ) =>
     (
       service as unknown as {
         loadSteeringMemories: (
           t: string,
           o?: string,
-        ) => Promise<{
-          firmContext?: string;
-          userVoiceContext?: string;
-          memoryFiles: Array<{ id: string; type: string; slug: string; label: string }>;
-        }>;
+          c?: string | null,
+          d?: string,
+        ) => Promise<SteeringOut>;
       }
-    ).loadSteeringMemories('t1', ownerId);
+    ).loadSteeringMemories('t1', ownerId, clientName, draftId);
 
   it('recomposes the legacy block labels + Phase 3.3 provenance from the packet', async () => {
     const { service, compiler } = makeService([
@@ -190,27 +214,102 @@ describe('GenerationService.loadSteeringMemories (packet recomposition)', () => 
         body: 'Style: Plain, direct sentences.',
       },
     ]);
-    const out = await call(service, CLERK_ID);
+    const out = await call(service, CLERK_ID, null, 'draft-1');
 
     expect(
       (compiler as unknown as { compileForClerkOwner: jest.Mock }).compileForClerkOwner,
     ).toHaveBeenCalledWith(
-      { tenantId: 't1', surface: 'workspace-gen', layers: ['firm-identity', 'user-voice'] },
+      {
+        tenantId: 't1',
+        clientId: null,
+        surface: 'workspace-gen',
+        layers: ['firm-identity', 'user-voice'],
+        ref: { draftId: 'draft-1' },
+      },
       CLERK_ID,
     );
     expect(out.firmContext).toBe(
       'Firm identity (Firm Soul):\nWho we are: A defense-focused firm.\n\nFirm direction (Firm Compass):\nDirection: Win FY27.',
     );
     expect(out.userVoiceContext).toBe('Style: Plain, direct sentences.');
+    expect(out.clientContext).toBeUndefined();
     expect(out.memoryFiles).toEqual([
       { id: 'mi-1', type: 'firm-soul', slug: 'firm', label: 'Firm Soul' },
       { id: 'mi-3', type: 'firm-compass', slug: 'firm', label: 'Firm Compass' },
       { id: 'mi-2', type: 'user-voice', slug: 'voice', label: 'My Writing Style' },
     ]);
+    // A durable packet id + trace hash are claimed only because it persisted.
+    expect(out.contextPacketId).toBe('pkt-1');
+    expect(out.contextTraceHash).toBe('trace-hash-1');
+    expect(out.degraded).toBe(false);
+    expect(out.degradedReasons).toEqual([]);
   });
 
-  it('a compile failure is non-fatal: empty context, no throw', async () => {
+  it('adds the client layers and client blocks when the workspace client resolves', async () => {
+    const { service, compiler } = makeService(
+      [
+        {
+          layer: 'client-steering',
+          id: 'mi-4',
+          type: 'client-compass',
+          slug: 'acme',
+          title: null,
+          body: 'Lead with readiness.',
+        },
+        {
+          layer: 'client-people',
+          id: 'mi-5',
+          type: 'client-people',
+          slug: 'acme',
+          title: null,
+          body: 'GC: Jane Doe',
+        },
+      ],
+      { resolvedClientId: CLIENT_UUID },
+    );
+    const out = await call(service, CLERK_ID, 'Acme Defense', 'draft-1');
+
+    expect(
+      (compiler as unknown as { compileForClerkOwner: jest.Mock }).compileForClerkOwner,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: CLIENT_UUID,
+        layers: ['firm-identity', 'user-voice', 'client-steering', 'client-people'],
+      }),
+      CLERK_ID,
+    );
+    expect(out.clientContext).toBe(
+      'Client steering:\nLead with readiness.\n\nClient people (named principals):\nGC: Jane Doe',
+    );
+    expect(out.degraded).toBe(false);
+  });
+
+  it('degrades rather than guessing when the client name does not resolve', async () => {
+    const { service, compiler } = makeService([], { resolvedClientId: null });
+    const out = await call(service, CLERK_ID, 'Ambiguous Co', 'draft-1');
+
+    expect(
+      (compiler as unknown as { compileForClerkOwner: jest.Mock }).compileForClerkOwner,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({ clientId: null, layers: ['firm-identity', 'user-voice'] }),
+      CLERK_ID,
+    );
+    expect(out.clientContext).toBeUndefined();
+    expect(out.degraded).toBe(true);
+    expect(out.degradedReasons).toContain('client_not_resolved');
+  });
+
+  it('never claims a packet id when the trace was not persisted', async () => {
+    const { service } = makeService([], { persisted: false });
+    const out = await call(service, CLERK_ID);
+    expect(out.contextPacketId).toBeNull();
+    expect(out.degraded).toBe(true);
+    expect(out.degradedReasons).toContain('context_packet_not_persisted');
+  });
+
+  it('a compile failure is non-fatal: empty context, no throw, marked degraded', async () => {
     const compiler = {
+      resolveClientIdByExactName: jest.fn(async () => null),
       compileForClerkOwner: jest.fn().mockRejectedValue(new Error('db down')),
     } as unknown as WorkspaceContextCompilerService;
     const service = new GenerationService(
@@ -220,8 +319,15 @@ describe('GenerationService.loadSteeringMemories (packet recomposition)', () => 
       {} as MeriV2FlagsService,
       {} as MeriV2OrchestratorClient,
       compiler,
+      {} as CollaboratorsService,
     );
     const out = await call(service);
-    expect(out).toEqual({ memoryFiles: [] });
+    expect(out).toEqual({
+      memoryFiles: [],
+      contextPacketId: null,
+      contextTraceHash: null,
+      degraded: true,
+      degradedReasons: ['context_compilation_failed'],
+    });
   });
 });

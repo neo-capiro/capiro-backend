@@ -14,21 +14,19 @@ import type { CollaboratorsService } from '../src/collaborators/collaborators.se
  * reasoned by the MeriV2 orchestrator, not this service's own generateSection.
  */
 describe('GenerationService.applyGeneratedSections', () => {
-  function makeService(draft: unknown) {
-    const updateSpy = jest.fn().mockResolvedValue(undefined);
-    // The post-write refresh reads `.documents` for the "As generated" version
-    // snapshot (persistGeneratedSections), so a non-null draft must carry a
-    // documents array; the 404 test passes null and never reaches that path.
+  function makeService(draft: unknown, opts: { matched?: number } = {}) {
+    // updateMany, not update: the write is TENANT-SCOPED and reports whether a row
+    // was actually matched, so a cross-tenant or vanished draft fails loudly
+    // instead of silently no-op'ing and being reported as saved.
+    const updateSpy = jest.fn().mockResolvedValue({ count: opts.matched ?? 1 });
     const refreshed =
       draft && typeof draft === 'object'
         ? { documents: [], ...(draft as Record<string, unknown>) }
         : draft;
     const findFirstSpy = jest.fn().mockResolvedValue(refreshed);
     const prisma = {
-      wsDraft: { findFirst: findFirstSpy, update: updateSpy },
-      // Fire-and-forget "As generated" snapshot target (added to
-      // persistGeneratedSections after this test was first written).
-      wsDocVersion: { create: jest.fn().mockResolvedValue({}) },
+      wsDraft: { findFirst: findFirstSpy, updateMany: updateSpy },
+      wsDocVersion: { create: jest.fn().mockResolvedValue({ id: 'ver-1' }) },
     } as unknown as PrismaService;
     const service = new GenerationService(
       prisma,
@@ -63,7 +61,7 @@ describe('GenerationService.applyGeneratedSections', () => {
     });
 
     expect(updateSpy).toHaveBeenCalledWith({
-      where: { id: 'draft-1' },
+      where: { id: 'draft-1', tenantId: 'tenant-1' },
       data: {
         config: {
           product: 'memo',
@@ -98,7 +96,7 @@ describe('GenerationService.applyGeneratedSections', () => {
     await service.applyGeneratedSections('tenant-1', 'draft-1', {});
 
     expect(updateSpy).toHaveBeenCalledWith({
-      where: { id: 'draft-1' },
+      where: { id: 'draft-1', tenantId: 'tenant-1' },
       data: {
         config: {
           product: 'memo',
@@ -108,6 +106,17 @@ describe('GenerationService.applyGeneratedSections', () => {
         },
       },
     });
+  });
+
+  it('fails loudly when the tenant-scoped write matches no row', async () => {
+    const draft = { id: 'draft-1', config: { product: 'memo' } };
+    const { service } = makeService(draft, { matched: 0 });
+
+    // A cross-tenant id (or a draft deleted mid-flight) must not be reported as
+    // saved just because the UPDATE statement itself succeeded.
+    await expect(
+      service.applyGeneratedSections('tenant-1', 'draft-1', { sectionContent: { Summary: 'x' } }),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
 
   // An orchestrator-driven apply carries no provenance — it must NOT wipe the
@@ -162,12 +171,18 @@ describe('GenerationService.getContextUsed (Phase 3.3 "context used" panel)', ()
     expect(await service.getContextUsed('t1', 'd1')).toBeNull();
   });
 
-  it('returns the stored provenance snapshot', async () => {
+  it('returns the stored provenance snapshot including packet + model metadata', async () => {
     const prov = {
       generatedAt: '2026-07-12T00:00:00.000Z',
       contextItems: [{ id: 'ci-1', kind: 'bill', label: 'H.R. 8800' }],
       memoryFiles: [{ id: 'm-1', type: 'user-voice', slug: 'me', label: 'My Writing Style' }],
       linkedPeCodes: ['0603851F'],
+      contextPacketId: 'pkt-1',
+      contextTraceHash: 'trace-hash-1',
+      contextDegraded: false,
+      provider: 'anthropic' as const,
+      model: 'claude-sonnet-test',
+      credentialSource: 'tenant' as const,
     };
     const { service } = makeService({ config: { contextProvenance: prov } });
     expect(await service.getContextUsed('t1', 'd1')).toEqual(prov);
@@ -175,11 +190,19 @@ describe('GenerationService.getContextUsed (Phase 3.3 "context used" panel)', ()
 
   it('shape-normalizes a partial/legacy provenance (never crashes the panel)', async () => {
     const { service } = makeService({ config: { contextProvenance: { contextItems: 'oops' } } });
+    // A row written before Phase 1 has no packet/model fields. They surface as
+    // null + degraded rather than as a fabricated packet id or model label.
     expect(await service.getContextUsed('t1', 'd1')).toEqual({
       generatedAt: '',
       contextItems: [],
       memoryFiles: [],
       linkedPeCodes: [],
+      contextPacketId: null,
+      contextTraceHash: null,
+      contextDegraded: true,
+      provider: 'anthropic',
+      model: '',
+      credentialSource: 'platform',
     });
   });
 });

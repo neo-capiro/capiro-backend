@@ -172,19 +172,14 @@ describe('ContextCompilerService (apps/api adapter)', () => {
       });
       const arg = (tx.$queryRaw as jest.Mock).mock.calls[0]![0] as { strings?: string[] };
       const sql = (arg.strings ?? []).join('?');
-      // (type, slug, id) is total — id breaks any remaining tie.
-      expect(sql).toMatch(/ORDER BY\s+type ASC,\s*slug ASC,\s*id ASC/);
+      // Semantic rank first (Firm Soul before Firm Compass), then authority
+      // recency, and finally (type, slug, id) — which is total, so `id` breaks any
+      // remaining tie and the query can never depend on PostgreSQL's heap order.
+      expect(sql).toMatch(/ORDER BY/);
+      expect(sql).toMatch(/CASE type[\s\S]*'firm-soul'[\s\S]*'firm-compass'/);
+      expect(sql).toMatch(/CASE status[\s\S]*'active'/);
+      expect(sql).toMatch(/type ASC,\s*slug ASC,\s*id ASC/);
     });
-
-    /** Row shape the adapter query selects. */
-    type SteeringRowLike = { id: string; type: string; slug: string };
-
-    /** What Postgres returns once the ORDER BY is applied. */
-    const applyOrderBy = <T extends SteeringRowLike>(rows: T[]): T[] =>
-      [...rows].sort(
-        (a, b) =>
-          a.type.localeCompare(b.type) || a.slug.localeCompare(b.slug) || a.id.localeCompare(b.id),
-      );
 
     const signatureFor = async (rows: unknown[]) => {
       const { prisma } = makePrisma(rows);
@@ -198,30 +193,33 @@ describe('ContextCompilerService (apps/api adapter)', () => {
       return JSON.stringify({
         items: packet.items.map((i) => `${i.layer}:${i.type}:${i.slug}:${i.id}`),
         rendered: packet.rendered.map((r) => `${r.layer}:${r.type}:${r.body}`),
+        traceHash: packet.traceHash,
       });
     };
 
-    it('the compiler PRESERVES adapter row order — which is why the ORDER BY matters', async () => {
-      // Documents the precondition rather than asserting the fix: fed unsorted
-      // rows (what an unordered query can legitimately return), the compiled
-      // block differs. This is the failure mode §3.c2 closes, and it is why the
-      // ordering has to be enforced in SQL rather than assumed.
-      const asStored = await signatureFor(ROWS);
-      const shuffled = await signatureFor([...ROWS].reverse());
-      expect(shuffled).not.toBe(asStored);
+    it('is order-INDEPENDENT: any adapter row order compiles the same packet', async () => {
+      // Phase 1 inverted the earlier §3.c2 contract. The compiler no longer
+      // PRESERVES adapter order — it sorts independently — so a query that
+      // returned rows in a different heap order can no longer change the compiled
+      // block or its trace hash. The SQL ORDER BY is now defence-in-depth rather
+      // than the only thing standing between us and a nondeterministic prompt.
+      const base = await signatureFor(ROWS);
+      expect(await signatureFor([...ROWS].reverse())).toBe(base);
+      expect(await signatureFor([ROWS[2]!, ROWS[0]!, ROWS[1]!])).toBe(base);
+      expect(await signatureFor([ROWS[1]!, ROWS[2]!, ROWS[0]!])).toBe(base);
     });
 
-    it('WITH the ORDER BY applied, output is identical however the heap was arranged', async () => {
-      // Model the real query: whatever physical order the rows sit in, Postgres
-      // returns them per (type, slug, id) — so the compiled artifact is stable.
-      const base = await signatureFor(applyOrderBy(ROWS));
-      const fromReversedHeap = await signatureFor(applyOrderBy([...ROWS].reverse()));
-      const fromRotatedHeap = await signatureFor(applyOrderBy([ROWS[2]!, ROWS[0]!, ROWS[1]!]));
+    it('orders by canonical rank — Firm Soul before Firm Compass, not alphabetically', async () => {
+      const base = await signatureFor([...ROWS].reverse());
+      expect(base).toMatch(/firm-soul:firm:mi-1.*firm-compass:firm:mi-2.*user-voice:me:mi-3/);
+    });
 
-      expect(fromReversedHeap).toBe(base);
-      expect(fromRotatedHeap).toBe(base);
-      // And the order is the one the SQL declares: firm-compass < firm-soul < user-voice.
-      expect(base).toMatch(/firm-compass:firm:mi-2.*firm-soul:firm:mi-1.*user-voice:me:mi-3/);
+    it('produces a stable trace hash across shuffled input', async () => {
+      const hashOf = (signature: string) =>
+        (JSON.parse(signature) as { traceHash: string }).traceHash;
+      const base = hashOf(await signatureFor(ROWS));
+      expect(base).toMatch(/^[a-f0-9]{64}$/);
+      expect(hashOf(await signatureFor([...ROWS].reverse()))).toBe(base);
     });
   });
 });

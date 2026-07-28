@@ -108,7 +108,9 @@ jobs:
       # ---------------------------------------------------------------- api --
       # Gate H (memo lifecycle), Gate I (entailment/filing), Gate J (integrity),
       # Gate L (packet enrichment), the legacy digest rail, and Gate V's own
-      # deploy-truth scripts.
+      # deploy-truth scripts. `src/intelligence/alert-memo/` also covers the
+      # dedicated hearing-recap contract (hearing-recap.spec.ts) — recaps live on
+      # that Documents boundary but must never reuse alert-memo/save.
       - name: Tests — apps/api LegiWatch scope
         run: >
           pnpm --filter @capiro/api exec jest --ci --silent
@@ -124,16 +126,24 @@ jobs:
 
       - name: Assert apps/api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 20 242
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 21 248
 
       # ---------------------------------------------------------- intel-api --
       # Gate F (feed worklist truth), Gate G (delivery), Gate K (scoring and
-      # watchlist topics), the packet builder, and the email-CTA route contract.
+      # watchlist topics), the packet builder, the email-CTA route contract, and
+      # the browser-audio hearing capture lifecycle (session lease, gateway
+      # protocol, Deepgram WebM safety, segment persistence, transcript reads).
       - name: Tests — apps/intel-api LegiWatch scope
         run: >
           pnpm --filter @capiro/intel-api exec jest --ci --silent
           --json --outputFile=$GITHUB_WORKSPACE/intel-summary.json
           src/feed/alert-packet.spec.ts
+          src/hearing/deepgram-stream.manager.spec.ts
+          src/hearing/hearing-ai-credential-resolver.client.spec.ts
+          src/hearing/hearing-capture-hardening.spec.ts
+          src/hearing/hearing-gateway.capture.spec.ts
+          src/hearing/hearing-tenant-scoping.spec.ts
+          src/hearing/hearing-ws-ticket.service.spec.ts
           src/feed/recommended-actions.util.spec.ts
           src/intel-alert/canonical-alert.adapter.spec.ts
           src/intel-alert/intel-alert.service.dedupe-state-alerts.spec.ts
@@ -167,12 +177,14 @@ jobs:
 
       - name: Assert apps/intel-api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 31 479
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 37 553
 
       # ---------------------------------------------------------------- web --
       # Web interaction + accessibility (tracker-a11y.test.tsx) + the packet and
       # generation contract tests. ci-pr.yml runs NO web tests at all, so this is
-      # the only gate that exercises the LegiWatch UI.
+      # the only gate that exercises the LegiWatch UI — including the Live Hearing
+      # Room capture lifecycle, which is pure browser-API choreography (share
+      # picker, MediaRecorder, WebSocket ordering) that no server test can cover.
       - name: Tests — apps/web LegiWatch scope
         run: >
           pnpm --filter @capiro/web exec vitest run
@@ -182,15 +194,16 @@ jobs:
           src/pages/radar/
           src/pages/bills/
           src/pages/intelligence/HearingWatchPage
+          src/pages/intelligence/LiveHearingRoomPage.capture
           src/lib/hearing-watch-api
           src/pages/clients/intelligence-v1/components/TopAlertsList
           src/pages/clients/intelligence-v1/components/HearingsMarkupList
 
       # NOTE the suite floor: vitest counts `describe` BLOCKS in
-      # numTotalTestSuites (122 today across these 37 files), where jest counts
+      # numTotalTestSuites (128 today across these 38 files), where jest counts
       # files. 100 is a deliberate floor well below the real number but far
       # above anything a broken path filter would produce — the test count is
       # the tight signal here, the suite count is the coarse one.
       - name: Assert apps/web scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 100 349
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 100 366

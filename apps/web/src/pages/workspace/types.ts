@@ -49,7 +49,71 @@ export interface WsSectionMeta {
   tailor?: boolean;
   /** Live word count for this section. */
   words?: number;
+  /** Outcome of the last generation attempt for this section. */
+  generationStatus?: 'succeeded' | 'failed';
+  /**
+   * True when the visible content predates a FAILED regeneration attempt — the
+   * text is real but it is not what the last run produced, so the editor must not
+   * present it as newly generated.
+   */
+  stale?: boolean;
+  lastGeneratedAt?: string;
+  /** Bounded, non-secret failure reason for the last attempt. */
+  lastGenerationError?: { code: string; message: string };
 }
+
+// ── Generation runs (honest generate-all / retry results) ─────────────────────
+export type WsGenerationRunStatus = 'complete' | 'complete_with_warnings' | 'partial' | 'failed';
+
+export interface WsGenerationSectionFailure {
+  section: string;
+  status: 'failed';
+  errorCode: string;
+  message: string;
+  /** Whether prior content was kept (vs. the section simply never having any). */
+  staleContentPreserved: boolean;
+}
+
+export type WsGenerationSectionResult =
+  | { section: string; status: 'succeeded'; contentChars: number }
+  | WsGenerationSectionFailure;
+
+/**
+ * The durable summary of one generate-all / retry run, persisted on the draft
+ * config. `status` is the ONLY honest source for what to tell the user: a run
+ * that wrote sections but failed its snapshot is `complete_with_warnings`, and a
+ * run with any failed section is never `complete`.
+ */
+export interface WsGenerationRun {
+  id: string;
+  status: WsGenerationRunStatus;
+  requestedSections: string[];
+  succeededSections: string[];
+  failedSections: WsGenerationSectionFailure[];
+  sectionResults: WsGenerationSectionResult[];
+  invalidCitations: Array<{ section: string; token: string }>;
+  structuralFindings: unknown[];
+  groundingFindings: unknown[];
+  provider: string;
+  model: string;
+  credentialSource: 'tenant' | 'platform';
+  /** Null when the context trace could not be persisted — never a fabricated id. */
+  contextPacketId: string | null;
+  contextTraceHash: string | null;
+  contextDegraded: boolean;
+  snapshot: {
+    status: 'created' | 'failed';
+    versionId: string | null;
+    errorCode?: string;
+  };
+  startedAt: string;
+  completedAt: string;
+  /** Set when this run regenerated only a previous run's failed sections. */
+  retryOfRunId: string | null;
+}
+
+/** generate-all / retry-failed-sections response: the draft plus its run summary. */
+export type WsDraftWithGenerationRun = WsDraft & { generationRun: WsGenerationRun | null };
 
 /** The persisted engine config blob (ws-config-v4). */
 export interface WsConfig {
@@ -81,6 +145,8 @@ export interface WsConfig {
   sectionContent?: Record<string, string>;
   /** Per-section status/flags, keyed by section name. */
   sectionMeta?: Record<string, WsSectionMeta>;
+  /** Summary of the most recent generation run (absent before the first run). */
+  generationRun?: WsGenerationRun;
   [key: string]: unknown;
 }
 
@@ -273,6 +339,14 @@ export interface WsContextUsed {
   contextItems: WsContextUsedItem[];
   memoryFiles: WsContextUsedMemoryFile[];
   linkedPeCodes: string[];
+  /** Durable context_packet id; null for pre-Phase-1 rows or a non-durable trace. */
+  contextPacketId: string | null;
+  contextTraceHash: string | null;
+  contextDegraded: boolean;
+  /** The provider/model/credential that actually produced the text. */
+  provider: string;
+  model: string;
+  credentialSource: 'tenant' | 'platform';
 }
 
 // ── Version history (Phase 6b) ───────────────────────────────────────────────

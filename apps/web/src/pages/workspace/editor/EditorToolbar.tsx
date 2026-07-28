@@ -1,21 +1,17 @@
 /**
- * Editor toolbar (sub-header) — ported from the prototype `EditorToolbar`
- * (asset_07). Title + autosave indicator, Custom-letterhead pill, Anonymize
- * toggle, Version history, collaborator stack, Share, Preview & Save.
- *
- * Phase 6b: the Version-history popover is wired (the parent toggles it; this
- * just dispatches onHistory). View-only mode (someone else holds the edit lock)
- * disables the mutating actions (Anonymize) while leaving read actions (Version
- * history / Share / Preview) available.
+ * Editor toolbar (sub-header) — title, truthful autosave state, recovery,
+ * anonymization, version history, sharing, and preview.
  */
 import type { WsLetterhead } from '../types.js';
 import { AvaStack, Icon } from '../kit.js';
 
-export type SaveStatus = 'saved' | 'saving';
+export type SaveStatus = 'saved' | 'saving' | 'error';
 
 export function EditorToolbar({
   title,
   saveStatus,
+  lastSavedAt,
+  failedTargets = [],
   anonymize,
   letterhead,
   historyOpen,
@@ -27,24 +23,38 @@ export function EditorToolbar({
   onPreview,
   onRegenerateAll,
   regenerating,
+  onRetrySave,
+  onCopyUnsaved,
 }: {
   title: string;
   saveStatus: SaveStatus;
+  lastSavedAt?: number | null;
+  failedTargets?: string[];
   anonymize: boolean;
   letterhead?: WsLetterhead;
   historyOpen?: boolean;
-  /** Someone else holds the edit lock — disable mutating actions. */
   viewOnly?: boolean;
-  /** Real collaborator initials (E-17) — empty/undefined hides the stack. */
   collaborators?: string[];
   onAnonymize: () => void;
   onHistory: () => void;
   onShare: () => void;
-  onPreview: () => void;
-  /** Regenerate the entire document with Meri (main doc only). */
+  onPreview: () => void | Promise<void>;
   onRegenerateAll?: () => void;
   regenerating?: boolean;
+  /** Resolved value is intentionally discarded; the toolbar only triggers the retry. */
+  onRetrySave?: () => void | Promise<unknown>;
+  onCopyUnsaved?: () => void | Promise<unknown>;
 }) {
+  const savedLabel = lastSavedAt
+    ? `Saved · ${new Date(lastSavedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+    : 'Saved';
+  const saveLabel =
+    saveStatus === 'saving' ? 'Saving…' : saveStatus === 'error' ? 'Save failed' : savedLabel;
+  const saveTitle =
+    saveStatus === 'error' && failedTargets.length
+      ? `Save failed: ${failedTargets.join(', ')}`
+      : saveLabel;
+
   return (
     <div
       style={{
@@ -71,27 +81,44 @@ export function EditorToolbar({
         </div>
         <div
           className="num"
+          aria-live="polite"
+          title={saveTitle}
           style={{
             fontSize: 11,
-            color: 'var(--ink-3)',
+            color: saveStatus === 'error' ? 'var(--danger)' : 'var(--ink-3)',
             display: 'flex',
             alignItems: 'center',
             gap: 5,
           }}
         >
           {saveStatus === 'saving' ? (
-            <>
-              <Icon name="RefreshCw" size={10} style={{ opacity: 0.5 }} />
-              Saving…
-            </>
+            <Icon name="RefreshCw" size={10} style={{ opacity: 0.5 }} />
+          ) : saveStatus === 'error' ? (
+            <Icon name="AlertTriangle" size={10} />
           ) : (
-            <>
-              <Icon name="Check" size={10} style={{ color: 'var(--success)' }} />
-              Saved · just now
-            </>
+            <Icon name="Check" size={10} style={{ color: 'var(--success)' }} />
           )}
+          {saveLabel}
         </div>
       </div>
+
+      {saveStatus === 'error' && (
+        <>
+          <button className="btn sm" onClick={() => void onRetrySave?.()} title={saveTitle}>
+            <Icon name="RefreshCw" size={12} />
+            Retry save
+          </button>
+          <button
+            className="btn sm btn-ghost"
+            onClick={() => void onCopyUnsaved?.()}
+            title="Copy the current unsaved document as recovery JSON"
+          >
+            <Icon name="Copy" size={12} />
+            Copy unsaved content
+          </button>
+        </>
+      )}
+
       {letterhead?.custom && (
         <span className="pill info" style={{ marginLeft: 4 }}>
           Custom letterhead
@@ -126,23 +153,27 @@ export function EditorToolbar({
       {onRegenerateAll && (
         <button
           className="btn sm btn-ghost"
-          style={{ color: 'var(--ink-2)', opacity: viewOnly ? 0.5 : 1 }}
+          style={{ color: 'var(--ink-2)', opacity: viewOnly || saveStatus === 'error' ? 0.5 : 1 }}
           onClick={onRegenerateAll}
-          disabled={viewOnly || regenerating}
+          disabled={viewOnly || regenerating || saveStatus === 'error'}
           title="Have Meri re-draft every section of this document"
         >
           <Icon name="Sparkles" size={14} />
           {regenerating ? 'Regenerating…' : 'Regenerate all'}
         </button>
       )}
-      {/* E-17: real collaborators only — no seed avatars until someone's invited. */}
       {collaborators && collaborators.length > 0 && <AvaStack list={collaborators} size={26} />}
       <button className="btn sm" onClick={onShare}>
         <Icon name="UserPlus" size={13} />
         Share
       </button>
-      {/* E-20: manual "Save draft" removed — autosave (+ version checkpoints) covers it. */}
-      <button className="btn btn-accent" onClick={onPreview} style={{ fontWeight: 600 }}>
+      <button
+        className="btn btn-accent"
+        onClick={() => void onPreview()}
+        disabled={saveStatus === 'saving' || saveStatus === 'error'}
+        style={{ fontWeight: 600 }}
+        title={saveStatus === 'error' ? 'Resolve the failed save before previewing' : undefined}
+      >
         <Icon name="FileCheck" size={14} />
         Preview &amp; Save
       </button>
