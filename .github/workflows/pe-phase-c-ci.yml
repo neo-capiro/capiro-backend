@@ -19,6 +19,9 @@ jobs:
           ref: agent/pe-trust-phase-c
           fetch-depth: 0
 
+      - name: Tighten Phase C patch anchors
+        run: python apps/api/scripts/__phase_c_patch_fix.py
+
       - name: Apply Phase C patch
         run: python apps/api/scripts/__phase_c_apply_patch.py
 
@@ -67,7 +70,10 @@ jobs:
       - name: Commit tested Phase C implementation
         shell: bash
         run: |
-          git rm .github/workflows/pe-phase-c-ci.yml apps/api/scripts/__phase_c_apply_patch.py
+          git rm \
+            .github/workflows/pe-phase-c-ci.yml \
+            apps/api/scripts/__phase_c_apply_patch.py \
+            apps/api/scripts/__phase_c_patch_fix.py
           git config user.name 'capiro-phase-c-bot'
           git config user.email 'actions@users.noreply.github.com'
           git add \
