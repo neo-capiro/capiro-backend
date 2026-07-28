@@ -20,13 +20,3 @@ $$;
 
 CREATE UNIQUE INDEX "program_element_watch_tenant_user_pe_code_key"
   ON "program_element_watch"("tenant_id", "user_id", "pe_code");
-
--- The original ProgramElementWatch migration created a tenant_id column but did
--- not enable RLS or install a tenant policy. Phase C establishes the repository's
--- standard fail-closed tenant boundary while introducing the tenant-aware key.
-ALTER TABLE "program_element_watch" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "program_element_watch" FORCE ROW LEVEL SECURITY;
-
-CREATE POLICY "program_element_watch_isolation" ON "program_element_watch"
-  USING (rls_bypass() OR tenant_id = current_tenant_id())
-  WITH CHECK (rls_bypass() OR tenant_id = current_tenant_id());
