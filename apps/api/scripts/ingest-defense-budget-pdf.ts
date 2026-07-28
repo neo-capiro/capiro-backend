@@ -17,7 +17,7 @@ import * as path from 'node:path';
 import { RawArchiveService, type ArchiveDescriptor } from '../src/defense-budget/raw-archive.service.js';
 import { makeS3, awsS3Commands, makeCorpusS3 } from '../src/defense-budget/s3-aws-commands.js';
 import { parseS3Uri, materializeS3Corpus } from '../src/defense-budget/corpus-source.js';
-import { LlamaParseClient } from '../src/defense-budget/llamaparse.client.js';
+import { LlamaParseClient, type FetchLike } from '../src/defense-budget/llamaparse.client.js';
 import { classifyDocument, type DocClassification } from '../src/defense-budget/document-classifier.js';
 import { adaptLlamaParseJson } from '../src/defense-budget/extractors/llamaparse-adapter.js';
 import { extractRdte } from '../src/defense-budget/extractors/rdte.extractor.js';
@@ -261,12 +261,11 @@ async function runExtractOnly(
     kmsKeyArn: cfg.kmsKeyArn,
     retentionYears: cfg.retentionYears,
   });
+  const fetchImpl: FetchLike = (url, init) =>
+    fetch(url, init as RequestInit) as unknown as ReturnType<FetchLike>;
   const llama = new LlamaParseClient(
     { apiKey: cfg.llamaApiKey, baseUrl: cfg.llamaBaseUrl },
-    (url, init) =>
-      fetch(url, init as RequestInit) as unknown as ReturnType<
-        Parameters<typeof LlamaParseClient>[1]
-      >,
+    fetchImpl,
   );
 
   const results: Array<Record<string, unknown>> = [];
@@ -376,6 +375,12 @@ async function main(): Promise<void> {
   // attempted canonical run must never retrieve secrets, touch S3, or open a DB.
   if (posture === 'commit') throw new Error(COMMIT_DISABLED_MESSAGE);
 
+  if (usesDeprecatedDryRunAlias(argv)) {
+    console.warn(
+      '[DEPRECATED] --dry-run is an alias for --extract-only and still performs S3 and LlamaParse external calls when explicitly authorized. Use no posture flag for a no-network preflight.',
+    );
+  }
+
   const vendorParseAllowed = argv.includes(ALLOW_VENDOR_PARSE);
   if (posture === 'extract_only' && !vendorParseAllowed) {
     throw new Error(
@@ -402,12 +407,6 @@ async function main(): Promise<void> {
       .filter(Boolean),
   );
   const limit = positiveIntegerArg('limit', Number.MAX_SAFE_INTEGER);
-
-  if (usesDeprecatedDryRunAlias(argv)) {
-    console.warn(
-      '[DEPRECATED] --dry-run is an alias for --extract-only and still performs S3 and LlamaParse external calls. Use no posture flag for a no-network preflight.',
-    );
-  }
 
   const result =
     posture === 'preflight'

@@ -16,6 +16,10 @@ compose_database_url() {
   export DATABASE_URL="postgresql://${DB_USER}:${ENCODED_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public&sslmode=require&connection_limit=10"
   : "${TMPDIR:=/dev/shm}"
   export TMPDIR
+  # The diagnostic must never substitute an ECS metadata URI for a Git commit.
+  # Deployment automation may set a real GIT_SHA; otherwise report UNVERIFIED.
+  : "${GIT_SHA:=UNVERIFIED}"
+  export GIT_SHA
 }
 
 case "${1:-serve}" in
