@@ -287,6 +287,13 @@ export function StrategyEditorPage() {
 
   return (
     <div
+      // `sp-editor-shell` is the styling hook for the one rule that bounds this
+      // region to the viewport (theme.css, `.app-content:has(.sp-editor-shell)`).
+      // Without it `height: 100%` below resolves to auto, the Meri panel grows
+      // past the fold and the composer stops being pinned. Editor-only on
+      // purpose: the library and Context/review pages share `.sp-root` but page-
+      // scroll normally and must not be clipped.
+      className="sp-editor-shell"
       style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}
     >
       <StrategyHeader

@@ -54,6 +54,16 @@
         min-height: 0;
         flex: 1 1 auto;
       }
+      /* `?shell=app` reproduces PRODUCTION's chain instead: the mount is
+         wrapped in `.app-content` and the pin above is switched off, so the
+         only thing that can bound the page is the real
+         `.app-content:has(.sp-editor-shell)` rule in theme.css. That makes the
+         F1 fix verifiable here rather than only after a deploy. */
+      #parity-root.shell-app > * {
+        height: auto;
+        min-height: 0;
+        flex: 0 1 auto;
+      }
     </style>
   </head>
   <body>

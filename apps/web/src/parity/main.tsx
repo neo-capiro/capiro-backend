@@ -47,11 +47,17 @@ const queryClient = new QueryClient({
 });
 
 const root = document.getElementById('parity-root')!;
+// `?shell=app` swaps the prototype's content-region box for PRODUCTION's own
+// geometry (52px topbar, 232px sider) and wraps the tree in `.app-content`, so
+// the only thing that can bound the page is the real theme.css rule. That is
+// how the F1 fix is verified without a deploy — see parity.html.
+const shellMode = new URLSearchParams(location.search).get('shell') === 'app';
+if (shellMode) root.classList.add('shell-app');
 Object.assign(root.style, {
-  left: `${s.box.x}px`,
-  top: `${s.box.y}px`,
-  width: `${s.box.w}px`,
-  height: `${s.box.h}px`,
+  left: `${shellMode ? 232 : s.box.x}px`,
+  top: `${shellMode ? 52 : s.box.y}px`,
+  width: `${shellMode ? window.innerWidth - 232 : s.box.w}px`,
+  height: `${shellMode ? window.innerHeight - 52 : s.box.h}px`,
   // The prototype's content column background.
   background: 'var(--bg-canvas, #F4F2EC)',
   display: 'flex',
@@ -68,6 +74,20 @@ const entry =
       ? `/strategies/${SID}?node=${s.selectNodeId}`
       : `/strategies/${SID}`;
 
+/**
+ * In `?shell=app` the tree is wrapped in antd's `.app-content` class, which is
+ * the element production's `.app-content:has(.sp-editor-shell)` rule targets.
+ * Otherwise the tree mounts bare, as every other parity state expects.
+ */
+function ShellWrap({ children }: { children: React.ReactNode }) {
+  if (!shellMode) return <>{children}</>;
+  return (
+    <div className="app-content" style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+      {children}
+    </div>
+  );
+}
+
 ReactDOM.createRoot(root).render(
   // NOT StrictMode: its double-invoke makes post-layout effects (center-today)
   // run twice, which is exactly what a screenshot must not depend on.
@@ -75,12 +95,15 @@ ReactDOM.createRoot(root).render(
     <AntApp>
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={[entry]}>
-          <div className="sp-root" style={{ height: '100%', minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <Routes>
-              <Route path="/strategies" element={<StrategyLibraryPage />} />
-              <Route path="/strategies/:id" element={<StrategyEditorPage />} />
-            </Routes>
-          </div>
+          <ShellWrap>
+            {/* Exactly what StrategyRoutes renders in production. */}
+            <div className="sp-root" style={{ height: '100%', minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <Routes>
+                <Route path="/strategies" element={<StrategyLibraryPage />} />
+                <Route path="/strategies/:id" element={<StrategyEditorPage />} />
+              </Routes>
+            </div>
+          </ShellWrap>
         </MemoryRouter>
       </QueryClientProvider>
     </AntApp>
