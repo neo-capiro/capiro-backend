@@ -91,16 +91,10 @@ jobs:
           rm -f scripts/apply-legiwatch-feed-deeplink-patches.py
           rm -f scripts/legiwatch-session-history-trigger.txt
           rm -f scripts/legiwatch-session-history-repair-trigger.txt
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('.github/workflows/legiwatch-ci.yml')
-          text = path.read_text(encoding='utf-8')
-          start_marker = '  # BEGIN TEMP MATERIALIZE\n'
-          end_marker = '  # END TEMP MATERIALIZE\n'
-          start = text.index(start_marker)
-          end = text.index(end_marker, start) + len(end_marker)
-          path.write_text(text[:start] + text[end:], encoding='utf-8')
-          PY
+          # GitHub Actions' app token may update source files but not workflow
+          # files without the separate workflows permission. Revert the floor
+          # edits locally; the GitHub connector applies them after this commit.
+          git checkout -- .github/workflows/legiwatch-ci.yml
       - name: Commit audited product fixes
         run: |
           git config user.name 'github-actions[bot]'
