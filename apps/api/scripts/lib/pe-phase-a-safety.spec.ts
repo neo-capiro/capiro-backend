@@ -10,7 +10,7 @@ function apiFile(relativePath: string): string {
   return readFileSync(resolve(apiRoot, relativePath), 'utf8');
 }
 
-describe('Phase A operational safety guards', () => {
+describe('Program Elements operational safety guards', () => {
   test('supported entrypoint scripts contain no automatic Prisma migration-history mutation', () => {
     const active = apiFile('scripts/entrypoint.sh');
     const compatibility = apiFile('scripts/entrypoint-legacy.sh');
@@ -25,34 +25,38 @@ describe('Phase A operational safety guards', () => {
     expect(compatibility).toContain('Refusing legacy migrate dispatch');
   });
 
-  test('generalized PDF ingestion has no canonical database writer import or connection', () => {
+  test('canonical PDF promotion requires exact SHA approval before Prisma construction', () => {
     const source = apiFile('scripts/ingest-defense-budget-pdf.ts');
+    const approvalParse = source.indexOf("requireApprovedSha256(arg('approved-sha256'))");
+    const byteComparison = source.indexOf('assertApprovedShaMatches(sourceSha256, approvedSha256)');
+    const prismaConstruction = source.indexOf('const prisma = new PrismaClient()');
 
-    for (const forbidden of ['ProgramElementWriterService', 'PrismaClient', 'PrismaService']) {
-      expect(source).not.toMatch(
-        new RegExp(`(?:import\\s+[^;]*\\b${forbidden}\\b|new\\s+${forbidden}\\b)`),
-      );
-    }
-    expect(source).not.toMatch(/from ['"][^'"]*prisma[^'"]*['"]/i);
-    expect(source).toContain(
-      'Canonical generalized defense-budget writes are disabled until the USD-millions migration in Phase b is verified.',
-    );
-    expect(source).toContain("if (posture === 'commit') throw new Error(COMMIT_DISABLED_MESSAGE)");
+    expect(approvalParse).toBeGreaterThan(-1);
+    expect(byteComparison).toBeGreaterThan(approvalParse);
+    expect(prismaConstruction).toBeGreaterThan(byteComparison);
+    expect(source).toContain('--commit promotes exactly one processable PDF');
+    expect(source).toContain('onePdfPerTransaction: true');
+    expect(source).toContain('CANONICAL_TRANSACTION_TIMEOUT_MS');
   });
 
-  test('vendor parsing requires explicit authorization before credential environment loading', () => {
+  test('preflight stays network-free and vendor parsing remains explicitly authorized', () => {
     const source = apiFile('scripts/ingest-defense-budget-pdf.ts');
     const loaderStart = source.indexOf('function loadVendorParseEnvironment');
     const beforeLoader = source.slice(0, loaderStart);
 
     expect(loaderStart).toBeGreaterThan(-1);
     expect(beforeLoader).not.toContain('dotenvConfig(');
-    expect(source).toMatch(
-      /function loadConfig\(\): RunConfig \{\s+loadVendorParseEnvironment\(\);/,
-    );
     expect(source).toContain("const ALLOW_VENDOR_PARSE = '--allow-vendor-parse'");
     expect(source).toContain(
       '--extract-only requires explicit --allow-vendor-parse authorization before any archive or LlamaParse call.',
     );
+    expect(source).toContain('Preflight performs no S3 list/get call');
+  });
+
+  test('historical LlamaParse unit audit remains SELECT-only', () => {
+    const source = apiFile('scripts/audit-llamaparse-pe-units.ts');
+    expect(source).not.toMatch(/\.(create|createMany|update|updateMany|delete|deleteMany|upsert)\s*\(/);
+    expect(source).not.toMatch(/\$executeRaw|\$executeRawUnsafe|\$queryRawUnsafe/);
+    expect(source).toContain('SELECT_ONLY_NO_AUTOMATIC_DIVISION');
   });
 });
