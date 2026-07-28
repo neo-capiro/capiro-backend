@@ -18,7 +18,31 @@ import { OBJECTIVE_TYPES } from './constants.js';
 import { useCreateStrategy, useDraftStrategy, useUploadAttachment } from './api.js';
 import { useTenantMembers } from './members.js';
 import type { ClientLite } from './clients-lite.js';
-import type { StrategyType } from './types.js';
+import type { StrategyDraftErrorBody, StrategyType } from './types.js';
+
+const DEFAULT_DRAFT_ERROR_MESSAGE =
+  "Meri needs a little more information before it can build this timeline.";
+
+/**
+ * Phase 5 §7 — a typed draft-422 body, or null for anything else (network
+ * failure, a genuinely unexpected 5xx). Duck-typed off the axios error shape
+ * (same idiom as agents/agent-utils.ts's httpStatus) rather than importing an
+ * axios type here — this file has no other axios-shaped error handling today.
+ */
+function draftInputError(err: unknown): StrategyDraftErrorBody | null {
+  const res = (err as { response?: { status?: unknown; data?: unknown } } | null)?.response;
+  if (res?.status !== 422) return null;
+  const body = res.data as Partial<StrategyDraftErrorBody> | null | undefined;
+  if (!body || (body.code !== 'STRATEGY_DRAFT_INPUT_REQUIRED' && body.code !== 'STRATEGY_DRAFT_INVALID')) {
+    return null;
+  }
+  return {
+    code: body.code,
+    message: typeof body.message === 'string' && body.message ? body.message : DEFAULT_DRAFT_ERROR_MESSAGE,
+    requiredInputs: Array.isArray(body.requiredInputs) ? body.requiredInputs : [],
+    violations: Array.isArray(body.violations) ? body.violations : undefined,
+  };
+}
 
 interface DocChip {
   localId: string;
@@ -58,6 +82,9 @@ export function GoalModal({
   const [context, setContext] = useState('');
   const [owner, setOwner] = useState<string | null>(null);
   const [docs, setDocs] = useState<DocChip[]>([]);
+  // Phase 5 §7: a typed draft-422 — shown inline in this SAME flow, never a
+  // navigation, and cleared the moment a new draft attempt starts.
+  const [draftError, setDraftError] = useState<StrategyDraftErrorBody | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const effectiveOwner = owner ?? user?.id ?? null;
 
@@ -110,6 +137,7 @@ export function GoalModal({
 
   const submitDraft = async () => {
     if (!canDraft) return;
+    setDraftError(null);
     try {
       const created = await draft.mutateAsync({
         clientId: client,
@@ -120,8 +148,16 @@ export function GoalModal({
         targetDate: deadline || undefined,
         attachmentIds: attachmentIds.length ? attachmentIds : undefined,
       });
+      // Phase 5 §7: the timeline route only ever loads on a genuine success —
+      // a typed 422 below never calls onCreated, so there is no strategy id
+      // to navigate to and none is invented.
       onCreated(created.id);
-    } catch {
+    } catch (err) {
+      const typed = draftInputError(err);
+      if (typed) {
+        setDraftError(typed);
+        return;
+      }
       message.error('Meri could not draft a plan just now. Try again, or start from an empty timeline.');
     }
   };
@@ -412,6 +448,46 @@ export function GoalModal({
                 >
                   Set phases
                 </button>
+              )}
+            </div>
+          )}
+
+          {draftError && (
+            <div
+              data-testid="sp-goal-draft-error"
+              style={{
+                marginTop: 12,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+                background: 'var(--bg-surface-2)',
+                border: '1px solid var(--border-1)',
+                borderRadius: 9,
+                padding: '10px 13px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <span style={{ marginTop: 1, flexShrink: 0 }}>
+                  <Icon name="info" size={14} color="var(--ink-3)" />
+                </span>
+                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)', lineHeight: 1.4 }}>
+                  {draftError.message}
+                </span>
+              </div>
+              {draftError.requiredInputs.length > 0 && (
+                <ul
+                  style={{
+                    margin: 0,
+                    padding: '0 0 0 22px',
+                    fontSize: 'var(--text-sm)',
+                    color: 'var(--ink-2)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {draftError.requiredInputs.map((r) => (
+                    <li key={r.code}>{r.label}</li>
+                  ))}
+                </ul>
               )}
             </div>
           )}

@@ -118,6 +118,38 @@ export interface GroundingHealth {
   openMaterialConflicts?: StewardHealthConflict[];
 }
 
+/**
+ * Phase 5 §3.3 — one context gap in plain language, closed-mapped from an
+ * internal key/conflict so the API response and the seeded chat message can
+ * never leak a raw template key, enum identifier, or database column.
+ * `affectedNodeIds` drives the node-level `needs context` marker (§6);
+ * `canAttach` tells the web whether the composer's attachment affordance can
+ * resolve this gap (true for a missing document, false for a Steward
+ * conflict — that resolves only through the Steward review, not an upload).
+ */
+export interface PublicContextGap {
+  code: string;
+  label: string;
+  affectedNodeIds: string[];
+  canAttach: boolean;
+}
+
+/**
+ * Phase 5 §4.3 — the typed 422 a draft returns when it cannot be persisted.
+ * `STRATEGY_DRAFT_INPUT_REQUIRED`: the residual hard errors trace to missing/
+ * degraded context — more input (a document, a clarified goal) can plausibly
+ * fix it. `STRATEGY_DRAFT_INVALID`: the plan is structurally broken (a
+ * dependency cycle, or hard errors that survive even with clean grounding) —
+ * no attachment fixes that, so `requiredInputs` is empty and `violations`
+ * carries the concrete reasons instead.
+ */
+export interface StrategyDraftErrorBody {
+  code: 'STRATEGY_DRAFT_INPUT_REQUIRED' | 'STRATEGY_DRAFT_INVALID';
+  message: string;
+  requiredInputs: Array<{ code: string; label: string; canAttach: boolean }>;
+  violations?: Array<{ message: string }>;
+}
+
 // ---------------------------------------------------------------------------
 // Stage E wire-contract (1): POST /meri-api/steward-extract
 // ---------------------------------------------------------------------------

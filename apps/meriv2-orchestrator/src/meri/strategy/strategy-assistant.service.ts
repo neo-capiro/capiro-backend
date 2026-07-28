@@ -15,6 +15,7 @@ import {
   type PackProvenance,
 } from './strategy-context-pack.service.js';
 import {
+  repairDependencyOrder,
   verifyPlan,
   type VerifierNode,
   type VerifyPlanInput,
@@ -165,7 +166,26 @@ export class StrategyAssistantService {
       const rawNodes = result.input?.nodes;
       const rawNodeCount = Array.isArray(rawNodes) ? rawNodes.length : 0;
       const attemptNodes = sanitizeDraftNodes(rawNodes);
-      const check = verifyPlan(this.draftVerifierInput(input, attemptNodes));
+      let verifierInput = this.draftVerifierInput(input, attemptNodes);
+      let check = verifyPlan(verifierInput);
+      // Phase 5 §4.2: before spending another model repair attempt, deterministically
+      // correct simple dependency-order violations (dep-order / gate-before-dependents)
+      // — a pure retiming pass, never a model round. Refuses on a cycle (no valid
+      // topological order to retime along, per the plan's own instruction) or when
+      // nothing actually moved; re-verifies afterward so `check` reflects what the
+      // repair fixed, and best-so-far tracking below sees the improved count.
+      if (check.errorCount > 0 && attemptNodes.length > 0) {
+        const repair = repairDependencyOrder(verifierInput.nodes);
+        if (!repair.refused && repair.changedIds.length > 0) {
+          applyRepairedDates(attemptNodes, repair.nodes);
+          verifierInput = this.draftVerifierInput(input, attemptNodes);
+          check = verifyPlan(verifierInput);
+          this.logger.log(
+            `strategy draft attempt ${attempt + 1}: deterministic repair retimed ` +
+              `${repair.changedIds.length} node(s), ${check.errorCount} error(s) remain`,
+          );
+        }
+      }
       this.logger.log(
         `strategy draft attempt ${attempt + 1}/${MAX_REPAIRS + 1}: ${attemptNodes.length} node(s), ` +
           `${check.errorCount} error(s), ${Date.now() - roundStart}ms`,
@@ -478,6 +498,27 @@ export class StrategyAssistantService {
         usedTenantKey: resp.usedTenantKey,
       },
     );
+  }
+}
+
+/**
+ * Phase 5 §4.2: write repairDependencyOrder's retimed startsOn/endsOn back onto
+ * the sanitized draft nodes it was computed from, in place. `repaired[].id` is
+ * the synthetic index-as-string draftVerifierInput minted (`String(idx)`), so
+ * this round-trips correctly regardless of repairDependencyOrder's topological
+ * reordering of its OWN return array — every other field (kind/subject/title/
+ * dependsOn/sources) is untouched.
+ */
+function applyRepairedDates(
+  attemptNodes: Array<Record<string, unknown>>,
+  repaired: VerifierNode[],
+): void {
+  for (const r of repaired) {
+    const idx = Number(r.id);
+    const n = attemptNodes[idx];
+    if (!n) continue;
+    n.startsOn = r.startsOn;
+    n.endsOn = r.endsOn;
   }
 }
 

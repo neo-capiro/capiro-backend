@@ -41,6 +41,21 @@ export interface StrategyListItem {
 /** A9: per-node grounding — the pack section(s) a Meri-authored node cites. */
 export interface NodeProvenance {
   sources?: Array<{ section: string; ref?: string }>;
+  /** Phase 5 §6: stable public gap codes/labels this step still needs context
+   *  for — drives the timeline's "needs context" marker. Absent/empty when
+   *  the step has no open gap. */
+  contextNeeds?: Array<{ code: string; label: string }>;
+}
+
+/**
+ * Phase 5 §4.3 — the typed 422 body a failed draft returns, before any
+ * strategy/timeline exists to navigate to.
+ */
+export interface StrategyDraftErrorBody {
+  code: 'STRATEGY_DRAFT_INPUT_REQUIRED' | 'STRATEGY_DRAFT_INVALID';
+  message: string;
+  requiredInputs: Array<{ code: string; label: string; canAttach: boolean }>;
+  violations?: Array<{ message: string }>;
 }
 
 /** A4/A6: a realism finding from the shared strategy verifier. */

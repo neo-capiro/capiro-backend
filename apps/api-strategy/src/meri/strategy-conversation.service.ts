@@ -235,6 +235,51 @@ export class StrategyConversationService {
     });
   }
 
+  /**
+   * Phase 5 §5 — upsert the ONE active `context_gap` message for a strategy.
+   * `body` is deterministically derived from the current gap set (same gaps
+   * -> byte-identical body), so the body itself is the dedup key: unchanged
+   * body is a no-op, a changed body updates the SAME row in place, and there
+   * is never a second active row. `body: null` means every gap has resolved —
+   * the existing active row (if any) is marked resolved, never deleted, so
+   * the thread keeps its history. Runs in the CALLER's transaction (draft /
+   * assistant already hold one) so this commits or rolls back with the plan
+   * write it is reporting on.
+   */
+  async syncContextGap(
+    tx: Tx,
+    tenantId: string,
+    strategyId: string,
+    body: string | null,
+  ): Promise<{ wasResolved: boolean }> {
+    const existing = await tx.spStrategyChatMessage.findFirst({
+      where: { strategyId, nodeId: null, kind: 'context_gap', state: 'active' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+    if (!body) {
+      if (existing) {
+        await tx.spStrategyChatMessage.update({ where: { id: existing.id }, data: { state: 'resolved' } });
+        return { wasResolved: true };
+      }
+      return { wasResolved: false };
+    }
+    if (existing) {
+      if (existing.body !== body) {
+        await tx.spStrategyChatMessage.update({ where: { id: existing.id }, data: { body } });
+      }
+      return { wasResolved: false };
+    }
+    await this.appendIn(tx, tenantId, {
+      strategyId,
+      nodeId: null,
+      role: 'meri',
+      kind: 'context_gap',
+      body,
+      createdByUserId: null,
+    });
+    return { wasResolved: false };
+  }
+
   // ---- validation ---------------------------------------------------------
 
   /** The strategy exists for this tenant (the hook adds tenantId to the where). */
