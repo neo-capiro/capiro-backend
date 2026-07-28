@@ -273,8 +273,6 @@ export function StrategyTimeline({
       if (contentWidth + 1 < W) return;
       el.scrollLeft = todayScrollLeft({
         todayX: mLeft(TODAY_M),
-        rangeStartX: mLeft(OFF),
-        rangeEndX: mLeft(OFF + NMv),
         viewportWidth,
         contentWidth,
       });

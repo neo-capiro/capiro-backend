@@ -4,17 +4,23 @@
  * The behaviour this pins down is exactly what the old mount-time approximation
  * got wrong: it scrolled to `todayX - COLW * 1.5` (an arbitrary 1.5 columns)
  * with a single `Math.max(0, …)` guard, so today landed off-centre at every
- * viewport width and an out-of-range today produced a nonsense offset.
+ * viewport width.
+ *
+ * Phase 7: the two "today outside the rendered range" branches were removed as
+ * unreachable dead code (see timeline-scroll.ts), and the two tests that only
+ * ever exercised them by passing numbers in directly went with them. The
+ * out-of-range INPUTS are still covered — by the invariant test below, which
+ * sweeps todayX from -500 to 4100 and asserts the result stays in bounds.
  */
 import { describe, expect, test } from 'vitest';
 import { todayScrollLeft } from './timeline-scroll.js';
 
 // A 36-month window at 100px per month, viewed through 1,200px.
-const base = { rangeStartX: 0, rangeEndX: 3600, viewportWidth: 1200, contentWidth: 3600 };
+const base = { viewportWidth: 1200, contentWidth: 3600 };
 const maxScroll = base.contentWidth - base.viewportWidth; // 2400
 
 describe('todayScrollLeft', () => {
-  test('centres today when it is inside the rendered range', () => {
+  test('centres today in the viewport', () => {
     // today at 1,800px ⇒ 1800 - 1200/2 = 1200
     expect(todayScrollLeft({ ...base, todayX: 1800 })).toBe(1200);
   });
@@ -29,23 +35,13 @@ describe('todayScrollLeft', () => {
     expect(todayScrollLeft({ ...base, todayX: 3500 })).toBe(maxScroll);
   });
 
-  test('returns 0 when today is before the rendered range', () => {
-    expect(todayScrollLeft({ ...base, rangeStartX: 900, todayX: 300 })).toBe(0);
-  });
-
-  test('returns maxScrollLeft when today is after the rendered range', () => {
-    expect(todayScrollLeft({ ...base, rangeEndX: 2000, todayX: 2600 })).toBe(maxScroll);
-  });
-
   test('returns 0 when there is nothing to scroll (content <= viewport)', () => {
     expect(todayScrollLeft({ ...base, contentWidth: 1200, todayX: 600 })).toBe(0);
     expect(todayScrollLeft({ ...base, contentWidth: 800, todayX: 600 })).toBe(0);
   });
 
   test('returns 0 on a zero scroll width', () => {
-    expect(
-      todayScrollLeft({ todayX: 0, rangeStartX: 0, rangeEndX: 0, viewportWidth: 0, contentWidth: 0 }),
-    ).toBe(0);
+    expect(todayScrollLeft({ todayX: 0, viewportWidth: 0, contentWidth: 0 })).toBe(0);
   });
 
   test('a very narrow viewport still centres, never overshoots', () => {
@@ -57,6 +53,8 @@ describe('todayScrollLeft', () => {
   });
 
   test('never returns a value outside [0, maxScrollLeft] across the whole range', () => {
+    // Sweeps well past both ends of the content, so a todayX that could never
+    // occur on the live axis still cannot produce an out-of-bounds scrollLeft.
     for (let todayX = -500; todayX <= 4100; todayX += 50) {
       const v = todayScrollLeft({ ...base, todayX });
       expect(v).toBeGreaterThanOrEqual(0);
