@@ -134,6 +134,19 @@ function listLocalPdfs(target: string): string[] {
     .sort();
 }
 
+/**
+ * Top-level target resolution. A target that yields no PDF at all is an operator
+ * error (wrong path, wrong mount, already-drained directory) and must fail loudly:
+ * reporting "0 files" with exit 0 makes a mistyped path look like a successful
+ * no-op run. Nested empty subdirectories are still fine, so this check belongs
+ * here and not inside the recursive walk.
+ */
+function listLocalPdfsRequired(target: string): string[] {
+  const files = listLocalPdfs(target);
+  if (files.length === 0) throw new Error(`No PDF files found under target: ${target}`);
+  return files;
+}
+
 function runExtractor(
   cls: DocClassification,
   pages: ReturnType<typeof adaptLlamaParseJson>,
@@ -221,7 +234,7 @@ function runPreflight(
     };
   }
 
-  const files = listLocalPdfs(target)
+  const files = listLocalPdfsRequired(target)
     .map((file) => {
       const cls = classificationFor(file, fyFallback);
       return {
@@ -248,7 +261,7 @@ async function materializePdfs(
   region: string,
 ): Promise<{ files: string[]; materializedFromS3: boolean; skipped: number }> {
   const loc = parseS3Uri(target);
-  if (!loc) return { files: listLocalPdfs(target), materializedFromS3: false, skipped: 0 };
+  if (!loc) return { files: listLocalPdfsRequired(target), materializedFromS3: false, skipped: 0 };
   const mat = await materializeS3Corpus(loc, makeCorpusS3(region));
   return { files: mat.files, materializedFromS3: true, skipped: mat.skipped };
 }

@@ -14,15 +14,44 @@ describe('Phase A operational safety guards', () => {
   test('supported entrypoint scripts contain no automatic Prisma migration-history mutation', () => {
     const active = apiFile('scripts/entrypoint.sh');
     const compatibility = apiFile('scripts/entrypoint-legacy.sh');
+    // The dispatcher include is executed as `/bin/sh <path>` by the compatibility
+    // shim, so it is a supported entrypoint too. Excluding it is how the
+    // auto-resolve block survived the first Phase A pass.
+    const dispatcher = apiFile('scripts/entrypoint-dispatcher.inc');
 
-    for (const source of [active, compatibility]) {
+    for (const source of [active, compatibility, dispatcher]) {
       expect(source).not.toContain('_prisma_migrations');
       expect(source).not.toContain('rolled_back_at = NOW()');
       expect(source).not.toContain('Resolving failed migration:');
+      expect(source).not.toMatch(/prisma[^\n]*migrate\s+resolve/);
     }
 
     expect(active).toMatch(/node .*prisma.* migrate deploy/);
     expect(compatibility).toContain('Refusing legacy migrate dispatch');
+    expect(dispatcher).toContain('Refusing legacy migrate dispatch');
+  });
+
+  test('exactly one supported entrypoint can execute a migration', () => {
+    // Compare executable lines only: a prose mention of the command in a header
+    // comment is not a second execution path.
+    const executable = (source: string): string =>
+      source
+        .split('\n')
+        .filter((line) => !/^\s*#/.test(line))
+        .join('\n');
+    const sources = [
+      apiFile('scripts/entrypoint.sh'),
+      apiFile('scripts/entrypoint-legacy.sh'),
+      apiFile('scripts/entrypoint-dispatcher.inc'),
+    ].map(executable);
+
+    expect(sources.filter((source) => /migrate deploy/.test(source))).toHaveLength(1);
+  });
+
+  test('the dispatcher usage output lists diag-pe-trust as a supported verb', () => {
+    expect(apiFile('scripts/entrypoint-dispatcher.inc')).toMatch(
+      /Unknown command[^\n]*diag-pe-trust/,
+    );
   });
 
   test('generalized PDF ingestion has no canonical database writer import or connection', () => {

@@ -92,11 +92,15 @@ function databaseHost(): string {
 }
 
 function gitSha(): string {
+  // Only variables that actually carry a commit SHA are consulted. The ECS
+  // container-metadata URI is deliberately NOT a fallback: its last path segment
+  // is a container id, so using it would report a value that looks like a
+  // deployment SHA but identifies nothing reviewable. Absent a real SHA the
+  // report must say UNVERIFIED.
   return (
     process.env.GIT_SHA ??
     process.env.SOURCE_VERSION ??
     process.env.CODEBUILD_RESOLVED_SOURCE_VERSION ??
-    process.env.ECS_CONTAINER_METADATA_URI_V4?.split('/').pop() ??
     'UNVERIFIED'
   );
 }
@@ -156,7 +160,7 @@ async function main(): Promise<void> {
       for (const field of MONEY_FIELDS) {
         const numeric = toNumber(row[field]);
         if (numeric === null) continue;
-        nonNullByField[field] += 1;
+        inc(nonNullByField, field);
         if (Math.abs(numeric) > 100_000) {
           const bucket = overMagnitudeByField[field]!;
           bucket.count += 1;
@@ -165,7 +169,7 @@ async function main(): Promise<void> {
           }
         }
         if (!attribution[field]) {
-          missingAttributionByField[field] += 1;
+          inc(missingAttributionByField, field);
           missingFields.push(field);
         }
       }

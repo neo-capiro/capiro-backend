@@ -53,13 +53,38 @@ function verifyPostures(): void {
 function verifyMigrationGuard(): void {
   const active = apiFile('scripts/entrypoint.sh');
   const compatibility = apiFile('scripts/entrypoint-legacy.sh');
-  for (const source of [active, compatibility]) {
+  // The dispatcher include is reached by `/bin/sh <path>` from the compatibility
+  // shim, so it is a supported entrypoint and must be held to the same rule.
+  // Omitting it is how the auto-resolve block survived the first Phase A pass.
+  const dispatcher = apiFile('scripts/entrypoint-dispatcher.inc');
+  for (const source of [active, compatibility, dispatcher]) {
     assert.equal(source.includes('_prisma_migrations'), false);
     assert.equal(source.includes('rolled_back_at = NOW()'), false);
     assert.equal(source.includes('Resolving failed migration:'), false);
+    assert.equal(/prisma[^\n]*migrate\s+resolve/.test(source), false);
   }
   assert.match(active, /node .*prisma.* migrate deploy/);
   assert.match(compatibility, /Refusing legacy migrate dispatch/);
+  assert.match(dispatcher, /Refusing legacy migrate dispatch/);
+  // Exactly one supported path may actually execute a migration. Compare only
+  // executable lines: a prose mention of the command in a header comment is not
+  // a second execution path, and grepping raw text would miscount it as one.
+  const executableLines = (source: string): string =>
+    source
+      .split('\n')
+      .filter((line) => !/^\s*#/.test(line))
+      .join('\n');
+  const executesMigrateDeploy = [active, compatibility, dispatcher].filter((source) =>
+    /migrate deploy/.test(executableLines(source)),
+  );
+  assert.equal(
+    executesMigrateDeploy.length,
+    1,
+    'exactly one entrypoint may execute prisma migrate deploy',
+  );
+  // The diagnostic verb users are told about must be discoverable from the
+  // usage output the dispatcher prints for an unknown command.
+  assert.match(dispatcher, /Unknown command[^\n]*diag-pe-trust/);
 }
 
 function verifyIngestionFreeze(): void {
