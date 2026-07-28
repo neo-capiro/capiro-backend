@@ -38,9 +38,16 @@ describe('Phase A operational safety guards', () => {
     expect(source).toContain("if (posture === 'commit') throw new Error(COMMIT_DISABLED_MESSAGE)");
   });
 
-  test('vendor parsing requires an explicit operator authorization flag', () => {
+  test('vendor parsing requires explicit authorization before credential environment loading', () => {
     const source = apiFile('scripts/ingest-defense-budget-pdf.ts');
+    const loaderStart = source.indexOf('function loadVendorParseEnvironment');
+    const beforeLoader = source.slice(0, loaderStart);
 
+    expect(loaderStart).toBeGreaterThan(-1);
+    expect(beforeLoader).not.toContain('dotenvConfig(');
+    expect(source).toMatch(
+      /function loadConfig\(\): RunConfig \{\s+loadVendorParseEnvironment\(\);/,
+    );
     expect(source).toContain("const ALLOW_VENDOR_PARSE = '--allow-vendor-parse'");
     expect(source).toContain(
       '--extract-only requires explicit --allow-vendor-parse authorization before any archive or LlamaParse call.',

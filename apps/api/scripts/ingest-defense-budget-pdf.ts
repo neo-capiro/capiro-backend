@@ -37,13 +37,18 @@ const ALLOW_VENDOR_PARSE = '--allow-vendor-parse';
 type ParseMode = 'pdf_fast' | 'pdf_premium' | 'pdf_ocr';
 
 // Legacy local development support only. Phase E replaces direct key loading
-// with explicit Secrets Manager retrieval after --allow-vendor-parse validation.
+// with explicit Secrets Manager retrieval. Even this local fallback is loaded
+// only after --extract-only + --allow-vendor-parse has been validated; preflight
+// and blocked --commit runs never read a LlamaParse credential file.
 const SECRET_FILE = path.join(
   process.env.HOME ?? process.env.USERPROFILE ?? '.',
   '.capiro-pe-secrets.env',
 );
-if (fs.existsSync(SECRET_FILE)) dotenvConfig({ path: SECRET_FILE });
-dotenvConfig();
+
+function loadVendorParseEnvironment(): void {
+  if (fs.existsSync(SECRET_FILE)) dotenvConfig({ path: SECRET_FILE });
+  dotenvConfig();
+}
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -88,6 +93,7 @@ function parseMode(): ParseMode {
 }
 
 function loadConfig(): RunConfig {
+  loadVendorParseEnvironment();
   const bucket = process.env.DEFENSE_BUDGET_RAW_BUCKET;
   const llamaApiKey = process.env.LLAMA_CLOUD_API_KEY;
   if (!bucket) throw new Error('DEFENSE_BUDGET_RAW_BUCKET is required');
