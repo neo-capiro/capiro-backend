@@ -36,6 +36,9 @@ import {
   type MaterialEvent,
 } from './change-detector.util.js';
 import { explainMatch, humanizeBillId, type WatchlistLike } from './relevance.util.js';
+import { relevanceKindsFor } from './relevance-kinds.js';
+import type { TermMatch } from '../watchlist/term-routing.js';
+import type { Prisma } from '../../generated/prisma-client/index.js';
 import {
   evidenceCoverage,
   scoreShadowAlert,
@@ -341,11 +344,16 @@ export class BillChangeDetectorService {
               policyArea: bill.policyArea,
               subjects: bill.subjects,
               latestActionText: bill.latestActionText,
-              // P0-04: SourceBill has no sponsorName/committees — legislator
-              // and committee routing are consequently inert on this rail.
               displayNum,
               billId: row.billId,
               programElements: bill.peCodes,
+              // Gate K (HP-02, e-1/e-2): sponsorName/committees now selected
+              // by getBillsByIds; cosponsorNames were ALREADY in memory
+              // (cosponsorByBill, loaded above) and simply never threaded
+              // through — zero extra queries for either fix.
+              sponsorName: bill.sponsorName,
+              committees: bill.committees,
+              cosponsorNames: cm?.recentNames,
             },
             wl,
           );
@@ -357,6 +365,16 @@ export class BillChangeDetectorService {
             actionDate,
             ex.why,
             ex.matchedTags,
+            {
+              // Gate K (HP-01, d-4/d-5): the three plumbing gaps the audit
+              // named (matchDetails, position) plus the one it missed
+              // (clientPriority) — explainMatch now computes all three but
+              // this federal call site had NO 8th `opts` argument at all.
+              matchDetails: ex.matchDetails,
+              position: ex.primaryTopicPosition,
+              clientPriority: ex.primaryTopicPriority ?? undefined,
+              matchedTermTypes: ex.matchedTermTypes,
+            },
           );
           if (wrote) {
             alertsWritten += 1;
@@ -591,11 +609,17 @@ export class BillChangeDetectorService {
               policyArea: null,
               subjects: bill.subjects,
               latestActionText: bill.latestActionText,
-              // P0-04: SourceStateBill has no committees/PE codes — committee
-              // and program_element routing are consequently inert on this rail.
+              // P0-04/Gate K (HP-02, e-5): state_bill still has no
+              // policyArea/PE-code column at all — a genuine data gap, not
+              // fixable by a join. program_element routing stays inert here.
               displayNum,
               billId: row.billId,
               sponsorName: bill.sponsorName,
+              // Gate K (HP-02, e-3): committees now selected by
+              // getStateBillsByIds (current referral only); cosponsorNames
+              // was already in memory (sponsorByBill, loaded above).
+              committees: bill.committees,
+              cosponsorNames: sm?.recentNames,
             },
             wl,
           );
@@ -629,6 +653,12 @@ export class BillChangeDetectorService {
               jurisdiction: bill.state,
               dedupEvidenceKey,
               dedupSeverity: isDeadline ? ev.cls.severity : undefined,
+              // Gate K (HP-01, d-4/d-5): this call site already had an opts
+              // object but never supplied matchDetails or position either.
+              matchDetails: ex.matchDetails,
+              position: ex.primaryTopicPosition,
+              clientPriority: ex.primaryTopicPriority ?? undefined,
+              matchedTermTypes: ex.matchedTermTypes,
             },
           );
           if (wrote) {
@@ -975,19 +1005,26 @@ export class BillChangeDetectorService {
        */
       dedupEvidenceKey?: { path: string; value: string };
       dedupSeverity?: string;
-      /** §4.8 (Gate D d-2): per-term match records for the weighted relevance
-       *  factor, and the client's stance on the matched topic. Both optional —
-       *  a caller that has neither yields the same behaviour as before. */
-      matchDetails?: Array<{
-        termType: string;
-        matchType: string;
-        matchedText: string;
-        sourceField: string;
-        weight: number;
-        confidence: number;
-        explanation: string;
-      }>;
+      /**
+       * §4.8 (Gate D d-2) / Gate K (HP-01, d-1): per-term match records for
+       * the weighted relevance factor, and the client's stance on the
+       * matched topic. Both optional — a caller that has neither yields the
+       * same behaviour as before. Widened to the real `TermMatch` (carries
+       * termId/topicId too) now that `explainMatch` actually populates this
+       * instead of always passing `[]` (this slot has existed since Gate D
+       * with no writer — see the now-corrected test/normalize-evidence.
+       * spec.ts:223 comment).
+       */
+      matchDetails?: TermMatch[];
       position?: string | null;
+      /** Gate K (HP-01, d-5): the primary matched topic's priority — was
+       *  never passed at all, so every alert scored the constant
+       *  PRIORITY_FACTOR.med (0.66) regardless of the client's real priority. */
+      clientPriority?: string;
+      /** Gate K (HP-01, d-6): the term types that produced matchedTags, for
+       *  relevanceKindsFor. Optional — an absent value yields kinds derived
+       *  from severity/changeType alone (still correct, just term-type-blind). */
+      matchedTermTypes?: string[];
     } = {},
   ): Promise<boolean> {
     const sourceType = opts.sourceType ?? 'bill';
@@ -1049,6 +1086,21 @@ export class BillChangeDetectorService {
     );
 
     const matchDetails = opts.matchDetails ?? [];
+    // Gate K (HP-01, d-6): relevanceKindsFor/composeWhy (relevance-kinds.ts)
+    // shipped in an earlier gate with zero production callers. Wired here
+    // as an ADDITIVE evidence field only — deliberately NOT run through
+    // composeWhy into the stored `why` text, which would be a live
+    // user-visible copy change beyond what this gate's own criteria test.
+    // The two apps/api-only signals (facility/committee) are correctly
+    // false here per §6.6 — intel-api cannot derive them.
+    const relevanceKinds = relevanceKindsFor({
+      matchedTermTypes: opts.matchedTermTypes ?? [],
+      position: opts.position ?? null,
+      severity: ev.cls.severity,
+      changeType: ev.cls.changeType,
+      hasFacilityInJurisdiction: false,
+      hasTargetInCommittee: false,
+    });
     const { score, band, factors } = scoreShadowAlert({
       severity: ev.cls.severity,
       materiality,
@@ -1057,6 +1109,7 @@ export class BillChangeDetectorService {
       matchedTags,
       position: opts.position ?? null,
       matchDetails,
+      clientPriority: opts.clientPriority,
       evidenceConfidence: evidenceCoverage({
         whatChanged: `${displayNum}: ${ev.cls.label}`,
         whyItMatters: why,
@@ -1108,13 +1161,19 @@ export class BillChangeDetectorService {
             //
             // matchDetails: the per-term match records the weighted relevance
             // factor is computed from — the slot Gate C reserved and left empty.
-            matchDetails,
+            // Cast through unknown: TermMatch is a plain-data interface (every
+            // field is a JSON-safe string/number), but TS's structural check
+            // for Prisma's recursive Json input type requires an explicit
+            // index signature that a named interface never has.
+            matchDetails: matchDetails as unknown as Prisma.InputJsonValue,
             // scoreModel: FORWARD-ONLY scoring (§6.2) means v1 and v2 scores
             // sort against each other. Stamping the model makes that legible
             // instead of silent.
             scoreModel: SCORE_MODEL_VERSION,
             scoreFactors: factors.contributions,
             scoreUnavailable: factors.unavailable,
+            // Gate K (HP-01, d-6): deterministic "why it matters" classification.
+            relevanceKinds,
           },
           status: 'new',
         },
@@ -1161,7 +1220,11 @@ export class BillChangeDetectorService {
         if (!head) return null;
         const topics = await tx.watchlistTopic.findMany({
           where: { watchlistId: wlId },
-          select: { id: true, label: true, priority: true },
+          // Gate K (HP-01, d-3): `position` was the one field NOT selected
+          // here despite existing on the column since Gate B and already
+          // being read by alert-packet.service.ts/watchlist-compiler.ts —
+          // the scorer's positionMultiplier saw undefined for every alert.
+          select: { id: true, label: true, priority: true, position: true },
         });
         const terms = topics.length
           ? await tx.watchlistTerm.findMany({
@@ -1177,22 +1240,25 @@ export class BillChangeDetectorService {
           issueAreas: head.issueAreas,
           tags: topics.map((t) => ({
             tag: t.label,
-            synonyms: terms
-              .filter((x) => x.topicId === t.id && x.termType === 'synonym')
-              .map((x) => x.value),
-            relatedEntities: terms
-              .filter((x) => x.topicId === t.id && x.termType === 'entity')
-              .map((x) => x.value),
-            riskTerms: terms
-              .filter((x) => x.topicId === t.id && x.termType === 'risk')
-              .map((x) => x.value),
-            // P0-04: every OTHER typed term — the legacy three above already
-            // have their own dedicated fields, so exclude them here to avoid
-            // double-counting the same term through two match paths.
+            // Gate K (HP-02, e-6, Neo-confirmed 2026-07-27): synonym/entity/
+            // risk terms used to route into these three legacy buckets,
+            // matched only by explainMatch's bare wholeWordHit check — which
+            // produces no TermMatch, hence no weight/confidence and no entry
+            // in matchDetails. watchlist-compiler.ts (recommendations) has
+            // always routed them through TERM_ROUTES instead; the detector
+            // now does too, by folding them into typedTerms below and
+            // leaving these three permanently empty. explainMatch's legacy
+            // branch still runs (byte-identical for the topic's OWN label,
+            // still checked as an implicit entity term) — it simply never
+            // receives anything in these arrays from this producer anymore.
+            synonyms: [],
+            relatedEntities: [],
+            riskTerms: [],
             topicId: t.id,
             priority: t.priority,
+            position: t.position,
             typedTerms: terms
-              .filter((x) => x.topicId === t.id && !['synonym', 'entity', 'risk'].includes(x.termType))
+              .filter((x) => x.topicId === t.id)
               .map((x) => ({ termType: x.termType, value: x.value, id: x.id })),
           })),
         };

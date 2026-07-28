@@ -27,10 +27,28 @@ interface TrackedBillRow {
   lastSeenHearingKey: string | null;
 }
 
-function makeHarness(trackedRows: TrackedBillRow[]) {
+interface WatchlistTopicRow {
+  id: string;
+  label: string;
+  priority: string;
+  position?: string;
+}
+interface WatchlistTermRow {
+  id: string;
+  topicId: string;
+  termType: string;
+  value: string;
+}
+
+function makeHarness(
+  trackedRows: TrackedBillRow[],
+  watchlist: { issueAreas: string[]; topics: WatchlistTopicRow[]; terms: WatchlistTermRow[] } | null = null,
+) {
   const tracked = trackedRows.map((r) => ({ ...r }));
   const alerts: Array<Record<string, unknown>> = [];
-  const watchlistFindFirst = jest.fn().mockResolvedValue(null); // no watchlist -> empty WatchlistLike
+  const watchlistFindFirst = jest
+    .fn()
+    .mockResolvedValue(watchlist ? { issueAreas: watchlist.issueAreas } : null);
 
   const tx = {
     trackedBill: {
@@ -83,8 +101,30 @@ function makeHarness(trackedRows: TrackedBillRow[]) {
       }),
     },
     watchlist: { findFirst: watchlistFindFirst },
-    watchlistTopic: { findMany: jest.fn().mockResolvedValue([]) },
-    watchlistTerm: { findMany: jest.fn().mockResolvedValue([]) },
+    watchlistTopic: {
+      findMany: jest
+        .fn()
+        .mockResolvedValue(
+          (watchlist?.topics ?? []).map((t) => ({
+            id: t.id,
+            label: t.label,
+            priority: t.priority,
+            position: t.position ?? 'monitor',
+          })),
+        ),
+    },
+    watchlistTerm: {
+      findMany: jest
+        .fn()
+        .mockResolvedValue(
+          (watchlist?.terms ?? []).map((t) => ({
+            id: t.id,
+            topicId: t.topicId,
+            termType: t.termType,
+            value: t.value,
+          })),
+        ),
+    },
   };
 
   const prisma = {
@@ -322,6 +362,109 @@ describe('BillChangeDetectorService — state partition (DD3)', () => {
     );
     await svc.runDetectionCycle();
     expect(FAKE_CONGRESS_SOURCE.getBillsByIds).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Gate K (HP-02, e-3/e-9): coverage matrix for the state rail. Before this
+ * gate, SourceStateBill carried no committees field at all (state_bill.
+ * current_committee_id was never joined), so `committee` terms could only
+ * match via latestActionText — never the committee name itself. sponsorName
+ * already existed; cosponsorNames (sponsorByBill.recentNames) was already in
+ * memory but never threaded through, exactly like the federal rail's e-2 gap.
+ */
+describe('BillChangeDetectorService — state rail, Gate K (HP-02) explainMatch coverage', () => {
+  const BASELINED_STATE_ROW: TrackedBillRow = {
+    id: 'tb-cov-1',
+    tenantId: 't1',
+    clientId: 'c1',
+    billId: BASE_BILL.id,
+    source: 'state',
+    lastSeenActionText: 'Filed',
+    lastSeenActionDate: new Date('2025-01-15'),
+    lastSeenAt: new Date('2025-01-16'),
+    lastSeenStatus: 'introduced',
+    lastSeenCosponsors: 2,
+    lastSeenTextDate: null,
+    lastSeenFiscalId: null,
+    lastSeenHearingKey: null,
+  };
+
+  it('committee matches via the newly-joined committees field, not just latestActionText', async () => {
+    const movedBill = {
+      ...BASE_BILL,
+      status: 'passed_chamber', // a classified status transition
+      statusAt: new Date('2025-02-01'),
+      latestActionText: 'Passed the House', // does NOT name the committee
+      committees: ['House Appropriations'],
+    };
+    const { prisma, alerts } = makeHarness([BASELINED_STATE_ROW], {
+      issueAreas: [],
+      topics: [{ id: 'topic-state-cov', label: 'watch list', priority: 'med' }],
+      terms: [{ id: 't-state-com', topicId: 'topic-state-cov', termType: 'committee', value: 'House Appropriations' }],
+    });
+    const svc = new BillChangeDetectorService(
+      prisma,
+      FAKE_CONGRESS_SOURCE,
+      makeStateSourceRepo(movedBill),
+    );
+    await svc.runDetectionCycle();
+
+    expect(alerts).toHaveLength(1);
+    const alert = alerts[0] as { evidence: { matchDetails: Array<{ termType: string; sourceField: string }> } };
+    const committeeMatch = alert.evidence.matchDetails.find((m) => m.termType === 'committee');
+    expect(committeeMatch?.sourceField).toBe('committees');
+  });
+
+  it('legislator matches via cosponsorNames (sponsorByBill.recentNames, already in memory)', async () => {
+    const movedBill = {
+      ...BASE_BILL,
+      status: 'passed_chamber',
+      statusAt: new Date('2025-02-01'),
+      latestActionText: 'Passed the House',
+    };
+    const { prisma, alerts } = makeHarness([{ ...BASELINED_STATE_ROW, id: 'tb-cov-2' }], {
+      issueAreas: [],
+      topics: [{ id: 'topic-state-leg', label: 'watch list', priority: 'med' }],
+      terms: [{ id: 't-state-leg', topicId: 'topic-state-leg', termType: 'legislator', value: 'Alex Cosponsor' }],
+    });
+    const stateRepo = makeStateSourceRepo(movedBill);
+    (stateRepo.getStateSponsorMomentum as jest.Mock).mockResolvedValue([
+      { billKey: movedBill.id, liveCount: 1, new7d: 1, recentNames: ['Alex Cosponsor (R)'] },
+    ]);
+    const svc = new BillChangeDetectorService(prisma, FAKE_CONGRESS_SOURCE, stateRepo);
+    await svc.runDetectionCycle();
+
+    expect(alerts).toHaveLength(1);
+    const alert = alerts[0] as { evidence: { matchDetails: Array<{ termType: string; sourceField: string }> } };
+    expect(alert.evidence.matchDetails.some((m) => m.sourceField === 'cosponsorNames')).toBe(true);
+  });
+
+  it('e-5: state policyArea stays null — a genuine data gap, not silently papered over (agency/topic/keyword lose 1/4 legs on state)', async () => {
+    // No column exists on state_bill for policyArea; explainMatch is simply
+    // never given one on this rail (unlike federal, which passes bill.policyArea).
+    const movedBill = { ...BASE_BILL, status: 'passed_chamber', statusAt: new Date('2025-02-01') };
+    const { prisma, alerts } = makeHarness([{ ...BASELINED_STATE_ROW, id: 'tb-cov-3' }], {
+      issueAreas: [],
+      topics: [{ id: 'topic-state-agency', label: 'watch list', priority: 'med' }],
+      terms: [{ id: 't-state-agency', topicId: 'topic-state-agency', termType: 'agency', value: 'Texas DOT' }],
+    });
+    const svc = new BillChangeDetectorService(
+      prisma,
+      FAKE_CONGRESS_SOURCE,
+      makeStateSourceRepo(movedBill),
+    );
+    await svc.runDetectionCycle();
+    // The status transition still alerts (matching never gates whether an
+    // alert fires) — but 'Texas DOT' appears in none of title/
+    // latestActionText/subjects/committees on this fixture, and policyArea
+    // is not derivable at all on this rail, so the agency term correctly
+    // contributes NO match — matchedTags/matchDetails stay empty rather
+    // than a false hit.
+    expect(alerts).toHaveLength(1);
+    const alert = alerts[0] as { evidence: { matchedTags: string[]; matchDetails: unknown[] } };
+    expect(alert.evidence.matchedTags).toEqual([]);
+    expect(alert.evidence.matchDetails).toEqual([]);
   });
 });
 

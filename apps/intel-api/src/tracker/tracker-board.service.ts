@@ -183,6 +183,9 @@ export interface RecommendationItem {
   cosponsorsCount: number | null;
   fit: number;
   matchedTags: string[];
+  /** Gate K (MP-09): topic ids behind matchedTags's topic entries (never
+   *  issue areas) — see BillFit.matchedTopicIds. */
+  matchedTopicIds: string[];
   why: string;
   whyKind: MatchReasonKind;
   matchReasons: MatchReason[];
@@ -329,6 +332,8 @@ const toRelevanceBill = (b: {
   latestActionText: string | null;
   id?: string;
   sponsorName?: string | null;
+  /** Gate K (HP-02, e-4): only fetchRecommendationBills' row shape carries this. */
+  peCodes?: string[] | null;
 }): RelevanceBill => ({
   title: b.title ?? '',
   policyArea: b.policyArea,
@@ -338,6 +343,7 @@ const toRelevanceBill = (b: {
     ? { billId: b.id, displayNum: isStateBillKey(b.id) ? humanizeStateBillKey(b.id) : humanizeBillId(b.id) }
     : {}),
   ...(b.sponsorName !== undefined ? { sponsorName: b.sponsorName } : {}),
+  ...(b.peCodes !== undefined ? { programElements: b.peCodes } : {}),
 });
 
 @Injectable()
@@ -454,6 +460,7 @@ export class TrackerBoardService {
   }> {
     const compiled = await this.watchlists.getCompiled(tenantId, clientId);
     const topics: CompiledTopicForFit[] = compiled.billMatchSet.map((t) => ({
+      id: t.id,
       label: t.label,
       issueArea: t.issueArea,
       priority: t.priority,
@@ -578,6 +585,7 @@ export class TrackerBoardService {
           cosponsorsCount: b.cosponsorsCount,
           fit: fit.fit,
           matchedTags: fit.matchedTags,
+          matchedTopicIds: fit.matchedTopicIds,
           why: fit.why,
           whyKind: fit.whyKind,
           matchReasons: fit.matchReasons,
@@ -635,6 +643,7 @@ export class TrackerBoardService {
             cosponsorsCount: null, // state bills carry sponsorCount, not a cosponsor time series (S1.4)
             fit: fit.fit,
             matchedTags: fit.matchedTags,
+            matchedTopicIds: fit.matchedTopicIds,
             why: fit.why,
             whyKind: fit.whyKind,
             matchReasons: fit.matchReasons,
@@ -1107,6 +1116,7 @@ export class TrackerBoardService {
       const wlId = `wl:${clientId}`;
       const clientTopics = topicsByWatchlist.get(wlId) ?? [];
       const compilerTopics: CompilerTopic[] = clientTopics.map((t) => ({
+        id: t.id,
         label: t.label,
         issueArea: t.issueArea,
         position: t.position,
@@ -1154,6 +1164,7 @@ export class TrackerBoardService {
         terms: compilerTerms,
       });
       const topicsForFit: CompiledTopicForFit[] = compiled.billMatchSet.map((t) => ({
+        id: t.id,
         label: t.label,
         issueArea: t.issueArea,
         priority: t.priority,
@@ -1469,6 +1480,9 @@ export class TrackerBoardService {
       reason?: string | null;
       /** §4.10 (Gate E phase f): matched topic labels at dismissal time. */
       matchedTags?: string[];
+      /** Gate K (MP-09): the topic ids behind matchedTags's topic entries
+       *  (never issue areas) — the id-keyed twin feedbackSignal prefers. */
+      matchedTopicIds?: string[];
     },
   ) {
     // Cross-tenant guard (P1-03/P1-04) — must run before the write below.
@@ -1496,6 +1510,7 @@ export class TrackerBoardService {
           signal: input.signal,
           reason: input.reason ?? null,
           matchedTags: input.matchedTags ?? [],
+          matchedTopicIds: input.matchedTopicIds ?? [],
         },
       }),
     );
@@ -1515,6 +1530,13 @@ export class TrackerBoardService {
    * Re-deriving it retroactively would re-match against the CURRENT
    * watchlist, which has likely changed since — answering a different
    * question than "what did the analyst actually see and reject".
+   *
+   * Gate K (MP-09, c-2): the map is keyed by topic ID when a row has one
+   * (stable across a rename — see topicWeight in bill-fit.util.ts, which
+   * looks up by id first), and falls back to LABEL keys for a row written
+   * before `matched_topic_ids` existed. Also forward-only, same posture as
+   * `matchedTags` itself — never backfilled by matching labels to ids,
+   * which would risk mis-attributing a historical dismissal after a rename.
    */
   async feedbackSignal(
     tenantId: string,
@@ -1528,17 +1550,18 @@ export class TrackerBoardService {
           signal: 'marked_irrelevant',
           matchedTags: { isEmpty: false },
         },
-        select: { matchedTags: true, reason: true },
+        select: { matchedTags: true, matchedTopicIds: true, reason: true },
       }),
     );
     const out = new Map<string, { total: number; byReason: Record<string, number> }>();
     for (const row of rows) {
       const reasonKey = row.reason ?? 'unspecified';
-      for (const label of row.matchedTags) {
-        const entry = out.get(label) ?? { total: 0, byReason: {} };
+      const keys = row.matchedTopicIds.length ? row.matchedTopicIds : row.matchedTags;
+      for (const key of keys) {
+        const entry = out.get(key) ?? { total: 0, byReason: {} };
         entry.total += 1;
         entry.byReason[reasonKey] = (entry.byReason[reasonKey] ?? 0) + 1;
-        out.set(label, entry);
+        out.set(key, entry);
       }
     }
     return out;

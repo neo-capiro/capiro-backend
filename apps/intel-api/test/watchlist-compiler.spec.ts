@@ -1,6 +1,7 @@
 import { compileWatchlist, type CompilerTerm } from '../src/watchlist/watchlist-compiler.js';
 
-const topic = (label: string, issueArea: string | null = null) => ({
+const topic = (label: string, issueArea: string | null = null, id: string | null = null) => ({
+  id,
   label,
   issueArea,
   position: 'monitor',
@@ -66,6 +67,39 @@ describe('compileWatchlist', () => {
     expect(out.deepgramKeyterms).toContain('term-149');
   });
 
+  /**
+   * Gate K (MP-10, f-2): the cross-topic duplicate case. No existing test in
+   * this file (or watchlist-weighting.spec.ts) uses the SAME value across
+   * two topics with DIFFERENT weights — every prior case used distinct
+   * values or equal weights, so this failure mode had zero coverage.
+   *
+   * Before the fix, dedup kept whichever occurrence appeared FIRST in
+   * `input.terms` (Set-based, first-write-wins), freezing its weight AND
+   * topic attribution regardless of whether a later, higher-weight
+   * occurrence existed. Proven here via a deliberate cap squeeze: 'shared'
+   * is fed in at weight 0 under topic 'low' FIRST, then at weight 99 under
+   * topic 'high' second. Topic 'low' also carries 99 filler terms at
+   * weight 50 — enough that, with a 2-topic 50-each reservation split, a
+   * weight-0 'shared' attributed to 'low' would rank last among ALL 100 of
+   * low's own candidates and be squeezed out of both the per-topic
+   * reservation AND the global overflow fill (worked through below). Only
+   * the FIXED (max-weight-wins) behavior lets it survive.
+   */
+  it('Gate K (MP-10): a term appearing in both a low- and high-priority topic keeps the HIGH weight and high-priority attribution, not whichever the input array happened to list first', () => {
+    const terms: CompilerTerm[] = [
+      term('low', 'synonym', 'shared', 0),
+      ...Array.from({ length: 99 }, (_, i) => term('low', 'synonym', `low-filler-${i}`, 50)),
+      term('high', 'synonym', 'shared', 99),
+      term('high', 'synonym', 'high-filler', 1),
+    ];
+    const out = compileWatchlist({
+      issueAreas: [],
+      topics: [topic('low'), topic('high')],
+      terms,
+    });
+    expect(out.deepgramKeyterms).toContain('shared');
+  });
+
   // P5: the unified editor writes the full 11 canonical term types. Every type
   // must survive compilation and be usable by the hearing matcher (each shows up
   // as a hearingTerm); the three billMatchSet buckets (synonym/entity/risk) stay
@@ -97,5 +131,38 @@ describe('compileWatchlist', () => {
     );
     // The topic label is still the primary bill keyword.
     expect(out.billMatchSet[0].keywords).toContain('everything');
+  });
+
+  /**
+   * Gate K (MP-08/MP-09). `CompiledBillTopic.id` and each `RoutableTerm.topicId`
+   * were both hardcoded away before this gate — `id` was simply absent from
+   * the output topic, and every routable term (including the synthetic
+   * label-as-keyword entry) carried `topicId: null` regardless of the real
+   * topic id. Both are what `scoreBillFit`'s matchedTopicIds (recommendations)
+   * and `matchTerms`'s per-match provenance depend on.
+   */
+  it('carries the topic id through to CompiledBillTopic.id and every RoutableTerm.topicId (Gate K)', () => {
+    const out = compileWatchlist({
+      issueAreas: [],
+      topics: [topic('data center load', 'Energy', 'topic-abc')],
+      terms: [term('data center load', 'synonym', 'hyperscale demand')],
+    });
+    expect(out.billMatchSet[0]!.id).toBe('topic-abc');
+    // Every routable term — the synthetic label keyword AND the real term — carries the same topicId.
+    for (const rt of out.billMatchSet[0]!.routableTerms) {
+      expect(rt.topicId).toBe('topic-abc');
+    }
+  });
+
+  it('a topic with no id (not yet persisted) compiles with id: null, never throwing', () => {
+    const out = compileWatchlist({
+      issueAreas: [],
+      topics: [topic('Hearing terms')],
+      terms: [term('Hearing terms', 'agency', 'FERC')],
+    });
+    expect(out.billMatchSet[0]!.id).toBeNull();
+    for (const rt of out.billMatchSet[0]!.routableTerms) {
+      expect(rt.topicId).toBeNull();
+    }
   });
 });

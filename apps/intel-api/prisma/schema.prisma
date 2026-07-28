@@ -446,6 +446,13 @@ model IntelFeedback {
   // contribute nothing to feedbackSignal's aggregation. This is what lets a
   // dismissal be traced back to the TOPIC that over-matched.
   matchedTags String[] @default([]) @map("matched_tags")
+  // Gate K (MP-09, c-1): the TOPIC IDS behind matchedTags's topic entries
+  // (never issue areas, which have no topic id). This is the id-keyed twin
+  // of matchedTags — feedbackSignal prefers this and falls back to
+  // matchedTags/label for a row written before this column existed, so a
+  // topic rename no longer severs its accumulated dismissal signal.
+  // Forward-only, same posture as matchedTags itself.
+  matchedTopicIds String[] @default([]) @map("matched_topic_ids")
   createdAt  DateTime @default(now()) @map("created_at")
 
   @@index([tenantId, clientId])

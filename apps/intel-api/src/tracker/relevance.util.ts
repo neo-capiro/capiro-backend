@@ -6,7 +6,7 @@
  */
 import { isAcceptableTerm, isShortExactTerm, MIN_TERM_LEN } from '../watchlist/term-validation.js';
 export { MIN_TERM_LEN } from '../watchlist/term-validation.js';
-import { matchTerms, type RoutableTerm } from '../watchlist/term-routing.js';
+import { matchTerms, type RoutableTerm, type TermMatch } from '../watchlist/term-routing.js';
 import type { RelevanceKind } from './relevance-kinds.js';
 export { relevanceKindsFor, composeWhy, type RelevanceKind } from './relevance-kinds.js';
 
@@ -126,6 +126,10 @@ export interface WatchlistLike {
     typedTerms?: Array<{ termType: string; value: string; id?: string | null }>;
     topicId?: string | null;
     priority?: string;
+    /** Gate K (HP-01, d-2): the client's stance on this topic
+     *  ('support'|'oppose'|'monitor') — was selected nowhere upstream, so
+     *  the scorer's positionMultiplier always saw `undefined`. */
+    position?: string;
   }[];
 }
 
@@ -137,6 +141,25 @@ export interface MatchExplanation {
   kinds?: RelevanceKind[];
   /** The term types that produced `matchedTags`, for `relevanceKindsFor`. */
   matchedTermTypes?: string[];
+  /**
+   * Gate K (HP-01, d-1): the per-term match records `matchTerms()` already
+   * computes for every typed-term-bearing tag, accumulated across ALL tags
+   * instead of being discarded after extracting one string for `why`. This
+   * is the exact shape `scoreShadowAlert`'s `weightedRelevance` needs and
+   * `writeShadowAlert` has had an `opts.matchDetails` slot for since Gate D
+   * — nothing has ever populated it until now.
+   */
+  matchDetails: TermMatch[];
+  /**
+   * The first tag (in watchlist order) that matched anything — legacy
+   * entity/keyword hit or a typed-term match — mirrors bill-fit.util.ts's
+   * `topTagLabel` pattern for consistency between the detector and
+   * recommendations paths. `null` when nothing matched at all.
+   */
+  primaryTopicId: string | null;
+  primaryTopicLabel: string | null;
+  primaryTopicPriority: string | null;
+  primaryTopicPosition: string | null;
 }
 
 /**
@@ -149,8 +172,15 @@ export function explainMatch(bill: RelevanceBill, watchlist: WatchlistLike): Mat
   const matchedTags: string[] = [];
   // §4.4 (d-4): every term TYPE that fired, so relevanceKindsFor can classify.
   const matchedTermTypes = new Set<string>();
+  // Gate K (HP-01, d-1): accumulated across ALL tags — this IS matchDetails.
+  const matchDetails: TermMatch[] = [];
   let entityHit: string | null = null;
   let keywordHit: string | null = null;
+  let primarySet = false;
+  let primaryTopicId: string | null = null;
+  let primaryTopicLabel: string | null = null;
+  let primaryTopicPriority: string | null = null;
+  let primaryTopicPosition: string | null = null;
 
   for (const tag of watchlist.tags ?? []) {
     const entityTerms = [tag.tag, ...(tag.relatedEntities ?? [])];
@@ -179,6 +209,7 @@ export function explainMatch(bill: RelevanceBill, watchlist: WatchlistLike): Mat
       const typedMatches = matchTerms(bill, routable);
       if (typedMatches.length) {
         tagMatched = true;
+        matchDetails.push(...typedMatches);
         for (const m of typedMatches) matchedTermTypes.add(m.termType);
         const primary = typedMatches[0]!;
         if (ENTITY_KIND_TYPES.has(primary.termType)) entityHit = entityHit ?? primary.matchedText;
@@ -188,6 +219,16 @@ export function explainMatch(bill: RelevanceBill, watchlist: WatchlistLike): Mat
 
     if (tagMatched) {
       matchedTags.push(tag.tag);
+      // Gate K (HP-01): the FIRST matched tag is "primary" — same
+      // first-hit-wins convention as bill-fit.util.ts's topTagLabel, so the
+      // detector and recommendations paths attribute consistently.
+      if (!primarySet) {
+        primarySet = true;
+        primaryTopicId = tag.topicId ?? null;
+        primaryTopicLabel = tag.tag;
+        primaryTopicPriority = tag.priority ?? null;
+        primaryTopicPosition = tag.position ?? null;
+      }
     }
   }
 
@@ -213,9 +254,16 @@ export function explainMatch(bill: RelevanceBill, watchlist: WatchlistLike): Mat
   // `composeWhy` only when it holds the extra signals (position, severity,
   // facility, committee) that make a second clause factual rather than filler.
   return {
-    matchedTags: Array.from(new Set(matchedTags)).slice(0, 4),
+    // Gate K (c-5, Neo-confirmed 2026-07-27): raised from 4 to 10, matching
+    // bill-fit.util.ts's MATCHED_TAGS_CAP now that ids make each entry cheap.
+    matchedTags: Array.from(new Set(matchedTags)).slice(0, 10),
     why,
     matchedTermTypes: Array.from(matchedTermTypes),
+    matchDetails,
+    primaryTopicId,
+    primaryTopicLabel,
+    primaryTopicPriority,
+    primaryTopicPosition,
   };
 }
 

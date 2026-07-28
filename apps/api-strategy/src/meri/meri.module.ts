@@ -8,6 +8,7 @@ import { ContextModule } from '../context/context.module.js';
 import { StrategyAiCredentialResolver } from './strategy-ai-credential.resolver.js';
 import { StrategyAttachmentResolver } from './strategy-attachment.resolver.js';
 import { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
+import { StrategyConversationService } from './strategy-conversation.service.js';
 
 /**
  * Strategy Planner Meri (G5). PrismaService + FlagsModule (guards) + ConfigModule
@@ -25,8 +26,10 @@ import { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
     StrategyAiCredentialResolver,
     StrategyAttachmentResolver,
     StrategyOrchestratorClient,
+    StrategyConversationService,
   ],
   // Stage C: AgentsModule replays ChangeSet ops through MeriService.applyEditSet.
-  exports: [MeriService],
+  // Phase 4 will append Watch-acceptance messages via StrategyConversationService.
+  exports: [MeriService, StrategyConversationService],
 })
 export class MeriModule {}

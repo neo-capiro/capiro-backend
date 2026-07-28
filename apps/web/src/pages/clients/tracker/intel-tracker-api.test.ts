@@ -186,6 +186,28 @@ describe('adaptWatchlist / watchlistToIntel round-trip', () => {
     expect(watchlistToIntel(configured).expectedVersion).toBe(7);
   });
 
+  test('Gate K (MP-08): a topic id reads through and is echoed back on the PUT', () => {
+    const read = adaptWatchlist({
+      clientId: 'c1',
+      issueAreas: [],
+      topics: [
+        { id: 'topic-abc', label: 'alpha', issueArea: null, position: 'monitor', priority: 'med', terms: [] },
+      ],
+    });
+    expect(read.tags[0]!.id).toBe('topic-abc');
+    expect(watchlistToIntel(read).topics[0]).toMatchObject({ id: 'topic-abc', label: 'alpha' });
+  });
+
+  test('Gate K (MP-08): the synthetic fold-back topic (no id yet) omits id on both read and write', () => {
+    const read = adaptWatchlist({
+      clientId: 'c1',
+      issueAreas: [],
+      topics: [{ label: 'Hearing terms', issueArea: null, position: 'monitor', priority: 'med', terms: [] }],
+    });
+    expect(read.tags[0]!.id).toBeUndefined();
+    expect(watchlistToIntel(read).topics[0]).not.toHaveProperty('id');
+  });
+
   test('P0-03: renameFrom is sent only when set, and a fresh read never carries one', () => {
     const read = adaptWatchlist({
       clientId: 'c1',
