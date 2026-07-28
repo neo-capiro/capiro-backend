@@ -1,8 +1,9 @@
-import { describe, expect, jest, test } from '@jest/globals';
+import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import {
   buildOpportunityFields,
   parseGrantsDate,
   syncOpportunities,
+  MAX_PAGES,
   type Search2Hit,
 } from './sync-grants.js';
 
@@ -250,14 +251,14 @@ describe('syncOpportunities — page-cap exhaustion is never a clean success', (
       });
 
       // Walked the full bound and stopped only because of it.
-      expect(fetchSearchPage).toHaveBeenCalledTimes(100);
+      expect(fetchSearchPage).toHaveBeenCalledTimes(MAX_PAGES);
       expect(counts.capExhausted).toBe(true);
       // errors > 0 is what downgrades the SyncRun to success_with_errors.
       expect(counts.errors).toBeGreaterThan(0);
       // The real rows are still reported — a truncated walk is incomplete, not void.
-      expect(counts.inserted).toBe(10_000);
+      expect(counts.inserted).toBe(MAX_PAGES * 100);
       // Resume point is the page after the last one attempted.
-      expect(counts.resumeFromPage).toBe(100);
+      expect(counts.resumeFromPage).toBe(MAX_PAGES);
       expect(errorSpy.mock.calls.flat().join(' ')).toMatch(/CAP EXHAUSTED/);
     } finally {
       errorSpy.mockRestore();
@@ -297,5 +298,130 @@ describe('syncOpportunities — page-cap exhaustion is never a clean success', (
     expect(counts.capExhausted).toBe(false);
     expect(counts.errors).toBe(0);
     expect(counts.resumeFromPage).toBeNull();
+  });
+});
+
+/**
+ * REGRESSION (2026-07-28): the walk sent `offset`, but search2's pagination
+ * parameter is `startRecordNum`. search2 silently ignores unknown body keys, so
+ * every page of every run returned the identical first 100 records — a
+ * 100-page reconcile reported "upserted 10,000" while `federal_grant` grew by
+ * 12 rows against a hitCount of ~83,000.
+ *
+ * Nothing caught it because every other test mocks `fetchSearchPage` and so
+ * never inspects the request. These tests exercise the REAL fetcher against a
+ * stubbed global fetch, purely to pin the wire format.
+ */
+describe('fetchSearchPage wire format', () => {
+  const realFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  function stubFetch() {
+    const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
+    globalThis.fetch = (async (url: string, init: { body: string }) => {
+      calls.push({ url: String(url), body: JSON.parse(init.body) });
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { oppHits: [], hitCount: 0 } }),
+      };
+    }) as unknown as typeof globalThis.fetch;
+    return calls;
+  }
+
+  test('paginates with startRecordNum, never the ignored `offset`', async () => {
+    const calls = stubFetch();
+    const { fetchSearchPage: realPager } = await import('./sync-grants.js');
+
+    await realPager('posted|forecasted', 3);
+
+    expect(calls).toHaveLength(1);
+    // The whole bug in one assertion.
+    expect(calls[0]!.body).not.toHaveProperty('offset');
+    expect(calls[0]!.body.startRecordNum).toBe(300);
+    expect(calls[0]!.body.rows).toBe(100);
+    expect(calls[0]!.body.oppStatuses).toBe('posted|forecasted');
+  });
+
+  test('page 0 starts at record 0', async () => {
+    const calls = stubFetch();
+    const { fetchSearchPage: realPager } = await import('./sync-grants.js');
+
+    await realPager('forecasted|posted|closed|archived', 0);
+
+    expect(calls[0]!.body.startRecordNum).toBe(0);
+  });
+});
+
+describe('syncOpportunities --from-page resume', () => {
+  test('starts the walk at the requested page instead of always at 0', async () => {
+    const prisma = makePrismaMock();
+    const fetchSearchPage = jest.fn(async (_s: string, _p: number) => ({ hits: [], hitCount: 0 }));
+
+    await syncOpportunities(prisma as any, { allStatuses: true, fromPage: 100 }, {
+      fetchSearchPage,
+      sleep: noSleep,
+    });
+
+    expect(fetchSearchPage).toHaveBeenLastCalledWith('forecasted|posted|closed|archived', 100);
+  });
+
+  test('a resumed run measures hitCount coverage by cursor position, not rows upserted', async () => {
+    // Starting at page 100 means we are already 10,000 records deep. Comparing
+    // `total` (which restarts at 0) against hitCount would walk far past the
+    // end of a 10,100-record corpus.
+    const prisma = makePrismaMock();
+    const page = Array.from({ length: 100 }, (_v, i) => ({ ...POSTED_SYNOPSIS, id: String(i) }));
+    const fetchSearchPage = jest.fn(async (_s: string, _p: number) => ({
+      hits: page,
+      hitCount: 10_100,
+    }));
+
+    const counts = await syncOpportunities(prisma as any, { allStatuses: true, fromPage: 100 }, {
+      fetchSearchPage,
+      sleep: noSleep,
+    });
+
+    // Page 100 covers records 10,000-10,099, reaching the 10,100 total.
+    expect(fetchSearchPage).toHaveBeenCalledTimes(1);
+    expect(counts.capExhausted).toBe(false);
+  });
+
+  test('a capped resumed run reports a resume offset past its own start', async () => {
+    const prisma = makePrismaMock();
+    const page = Array.from({ length: 100 }, (_v, i) => ({ ...POSTED_SYNOPSIS, id: String(i) }));
+    const fetchSearchPage = jest.fn(async (_s: string, _p: number) => ({
+      hits: page,
+      hitCount: 10_000_000,
+    }));
+
+    const counts = await syncOpportunities(prisma as any, { allStatuses: true, fromPage: 5 }, {
+      fetchSearchPage,
+      sleep: noSleep,
+    });
+
+    expect(counts.capExhausted).toBe(true);
+    // Must be start + MAX_PAGES, not MAX_PAGES — otherwise a resumed run tells
+    // the operator to restart from where the FIRST run ended, looping forever.
+    expect(counts.resumeFromPage).toBe(5 + MAX_PAGES);
+  });
+
+  test('a negative or fractional --from-page is clamped rather than corrupting the walk', async () => {
+    const prisma = makePrismaMock();
+    const fetchSearchPage = jest.fn(async (_s: string, _p: number) => ({ hits: [], hitCount: 0 }));
+
+    await syncOpportunities(prisma as any, { allStatuses: false, fromPage: -7 }, {
+      fetchSearchPage,
+      sleep: noSleep,
+    });
+    expect(fetchSearchPage).toHaveBeenLastCalledWith('posted|forecasted', 0);
+
+    await syncOpportunities(prisma as any, { allStatuses: false, fromPage: 2.9 }, {
+      fetchSearchPage,
+      sleep: noSleep,
+    });
+    expect(fetchSearchPage).toHaveBeenLastCalledWith('posted|forecasted', 2);
   });
 });
