@@ -61,49 +61,6 @@ permissions:
   contents: read
 
 jobs:
-  # BEGIN TEMP MATERIALIZE
-  materialize-audit-fixes:
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.head_ref == 'agent/legiwatch-audit-fixes' &&
-      github.actor != 'github-actions[bot]'
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Apply deterministic audited patches
-        run: |
-          python scripts/fix-legiwatch-session-patch-runner.py
-          python scripts/apply-legiwatch-session-history-patches.py
-          python scripts/apply-legiwatch-feed-deeplink-patches.py
-      - name: Remove temporary patch machinery
-        run: |
-          rm -f scripts/fix-legiwatch-session-patch-runner.py
-          rm -f scripts/apply-legiwatch-session-history-patches.py
-          rm -f scripts/apply-legiwatch-feed-deeplink-patches.py
-          rm -f scripts/legiwatch-session-history-trigger.txt
-          rm -f scripts/legiwatch-session-history-repair-trigger.txt
-          # GitHub Actions' app token may update source files but not workflow
-          # files without the separate workflows permission. Revert the floor
-          # edits locally; the GitHub connector applies them after this commit.
-          git checkout -- .github/workflows/legiwatch-ci.yml
-      - name: Commit audited product fixes
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git diff --cached --check
-          git commit -m 'fix(legiwatch): finish history and deep-link closeout'
-          git push origin HEAD:agent/legiwatch-audit-fixes
-  # END TEMP MATERIALIZE
   legiwatch:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -213,7 +170,7 @@ jobs:
 
       - name: Assert apps/intel-api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 38 557
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 38 558
 
       # ---------------------------------------------------------------- web --
       # Web interaction + accessibility (tracker-a11y.test.tsx) + the packet and
@@ -242,4 +199,4 @@ jobs:
       # the tight signal here, the suite count is the coarse one.
       - name: Assert apps/web scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 100 366
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 100 371
