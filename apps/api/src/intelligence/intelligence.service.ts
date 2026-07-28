@@ -352,6 +352,54 @@ export class IntelligenceService {
    * Opinionated 4-section contract so the frontend can render a single
    * anchored surface without stitching 10+ calls client-side.
    */
+  /**
+   * Wall-clock budget for ONE profile-v1 source. Chosen to sit under the
+   * client's own request timeout so a degraded section is what the user sees,
+   * rather than a dead page.
+   *
+   * Deliberately NOT a cancellation: `Promise.race` cannot abort an in-flight
+   * Prisma query, so a timed-out source still holds its connection until the
+   * database returns. What this buys is that the REQUEST completes and the
+   * offending source is named — turning a silent hang into a diagnosable
+   * warning. The connection-pool side of the same problem is addressed by the
+   * explicit `connection_limit=10` in scripts/entrypoint.sh.
+   */
+  static readonly PROFILE_V1_SOURCE_BUDGET_MS = 20_000;
+
+  /** Log any source slower than this even when it completes inside the budget. */
+  static readonly PROFILE_V1_SLOW_SOURCE_MS = 3_000;
+
+  private withSourceBudget<T>(label: string, clientId: string, work: Promise<T>): Promise<T> {
+    const startedAt = Date.now();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const budget = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => {
+        reject(
+          new Error(
+            `exceeded its ${IntelligenceService.PROFILE_V1_SOURCE_BUDGET_MS}ms budget (still running)`,
+          ),
+        );
+      }, IntelligenceService.PROFILE_V1_SOURCE_BUDGET_MS);
+      // Never hold the process open for a budget that no longer matters — the
+      // api container and the jest run both exit on their own schedule.
+      timer.unref?.();
+    });
+
+    // race() keeps a handler attached to `work`, so a rejection arriving after
+    // the budget fired is still consumed and cannot surface as an
+    // unhandledRejection.
+    return Promise.race([work, budget]).finally(() => {
+      if (timer) clearTimeout(timer);
+      const elapsed = Date.now() - startedAt;
+      if (elapsed >= IntelligenceService.PROFILE_V1_SLOW_SOURCE_MS) {
+        this.logger.warn(
+          `profile-v1 source "${label}" took ${elapsed}ms for client ${clientId}`,
+        );
+      }
+    }) as Promise<T>;
+  }
+
   async getClientProfileV1(clientId: string, tenantId: string, userId?: string) {
     const client = await this.prisma.withTenant(tenantId, (tx) =>
       tx.client.findFirst({
@@ -387,12 +435,39 @@ export class IntelligenceService {
     // precomputed value, so their behavior is unchanged.
     const trackedBillsPromise = this.getTrackedBills(clientId, tenantId);
 
+    const settledSourceLabels = [
+      'profile',
+      'lobbyingRoi',
+      'fecMoneyFlow',
+      'districtNexus',
+      'trackedBills',
+      'billRegulationLinks',
+      'knowledgeGraph',
+      'engagementHealth',
+      'exStaffers',
+      'commentAlerts',
+      'changes',
+      'hearings',
+      'meetings',
+      'mailThreads',
+      'doneTasks',
+      'debriefs',
+      'outreachRecords',
+      'mappingRows',
+      'districtNexusSpend',
+      'overdueComments',
+      'competitorLda',
+      'contractAwards',
+      'alertStates',
+      'hearingAlerts',
+    ] as const;
+
     // Each source is resolved independently via allSettled so one failing
     // builder (a missing sync table, a tenant without a given mapping, a slow
     // query) degrades only its own section instead of rejecting the whole
     // aggregate and blanking every section at once. Failures are logged with
     // the source label so production issues are diagnosable.
-    const settled = await Promise.allSettled([
+    const sources: Array<Promise<unknown>> = [
       this.getClientProfile(clientId, tenantId),
       this.getLobbyingRoi(clientId, tenantId),
       this.getFecMoneyFlow(clientId, tenantId),
@@ -497,34 +572,23 @@ export class IntelligenceService {
       // legacy Hearings panel was removed from the UI; this surfaces the same
       // signal as time-sensitive alert rows on the Top alerts card.
       this.getHearingAlerts(clientId, tenantId, now, day21, trackedBillsPromise),
-    ]);
+    ];
 
-    const settledSourceLabels = [
-      'profile',
-      'lobbyingRoi',
-      'fecMoneyFlow',
-      'districtNexus',
-      'trackedBills',
-      'billRegulationLinks',
-      'knowledgeGraph',
-      'engagementHealth',
-      'exStaffers',
-      'commentAlerts',
-      'changes',
-      'hearings',
-      'meetings',
-      'mailThreads',
-      'doneTasks',
-      'debriefs',
-      'outreachRecords',
-      'mappingRows',
-      'districtNexusSpend',
-      'overdueComments',
-      'competitorLda',
-      'contractAwards',
-      'alertStates',
-      'hearingAlerts',
-    ] as const;
+    // Every source runs under a wall-clock budget. Without one, a single source
+    // that never settles makes `allSettled` never settle, so the HTTP handler
+    // never returns: no error, no rejected section, and no
+    // `api.endpoint_latency_ms` (that metric fires on response finish). That is
+    // exactly the profile-v1 signature investigated on 2026-07-27 — a permanent
+    // hang with nothing in the logs to explain it.
+    //
+    // This is NOT "raise the client timeout". The request still fails fast for
+    // the caller; the difference is that the slow source is NAMED in the log and
+    // degrades to its own fallback instead of taking the page down silently.
+    const settled = await Promise.allSettled(
+      sources.map((work, index) =>
+        this.withSourceBudget(settledSourceLabels[index] ?? `source_${index}`, clientId, work),
+      ),
+    );
 
     const settle = <T>(index: number, fallback: T): T => {
       const result = settled[index];
@@ -540,8 +604,11 @@ export class IntelligenceService {
 
     // `profile` is the spine of the response (drives identity + trajectory).
     // If it failed we can't build a coherent aggregate, so surface the error.
-    if (settled[0].status === 'rejected') throw settled[0].reason;
-    const profile = settled[0].value as Awaited<ReturnType<typeof this.getClientProfile>>;
+    const spine = settled[0];
+    if (!spine || spine.status === 'rejected') {
+      throw spine ? spine.reason : new Error('profile-v1 spine source did not run');
+    }
+    const profile = spine.value as Awaited<ReturnType<typeof this.getClientProfile>>;
 
     const roi = settle(1, {
       clientId,

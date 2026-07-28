@@ -5,6 +5,7 @@ import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 export const DISTRICT_NEXUS_FEATURE = 'district_nexus_v2';
+export const CAPIRO_INTERNAL_TENANT_SLUG = 'capiro-internal';
 
 /**
  * Gates every District Nexus v2 endpoint on the per-tenant
@@ -28,10 +29,13 @@ export const DISTRICT_NEXUS_FEATURE = 'district_nexus_v2';
  * the same withSystem discipline, as tracker-change-detector's
  * intelOwnedTenantIds().
  *
- * The internal tenant is always on. intel-api's FeatureFlagService treats
- * CAPIRO_INTERNAL_TENANT_ID as enabled without a row, and the web flag hook
- * inherits that. If the API didn't mirror it, the internal canary would see
- * the nav item and the page, then get a 404 from every endpoint behind it.
+ * The internal tenant is always on. The configured UUID remains the cheapest
+ * path when present. The query also resolves the canonical `capiro-internal`
+ * tenant slug under the system scope, so a missing task-definition variable can
+ * no longer make the web advertise the canary while every API call returns 404.
+ * This fallback is deliberately DB-backed rather than another hard-coded UUID:
+ * the tenant row is the identity source of truth and can be re-created without
+ * requiring a code change.
  */
 @Injectable()
 export class DistrictNexusFlagGuard implements CanActivate {
@@ -57,7 +61,7 @@ export class DistrictNexusFlagGuard implements CanActivate {
 
     let enabled = false;
     try {
-      // NO ::uuid cast. `intel_feature_flag.tenant_id` is TEXT, not uuid —
+      // NO ::uuid cast on intel_feature_flag. `tenant_id` is TEXT, not uuid —
       // intel-api owns the table and declares it `tenantId String` with no
       // @db.Uuid (apps/intel-api/prisma/schema.prisma), and its RLS policy
       // casts the other way round: `tenant_id = (current_tenant_id())::text`.
@@ -68,13 +72,26 @@ export class DistrictNexusFlagGuard implements CanActivate {
       // whose flag was genuinely enabled. It could not surface until the flag
       // was first switched on for someone (2026-07-26), because with no rows
       // anywhere the guard's answer was "denied" either way.
+      //
+      // The second EXISTS is the self-contained internal-canary fallback. It is
+      // evaluated inside the same system-scoped query, so there is no second
+      // round trip and no fail-open path if either table read errors.
       const rows = await this.prisma.withSystem((tx) =>
         tx.$queryRaw<Array<{ ok: number }>>`
           SELECT 1 AS ok
-          FROM intel_feature_flag
-          WHERE feature = ${DISTRICT_NEXUS_FEATURE}
-            AND tenant_id = ${tenantId}
-            AND enabled = true
+          WHERE EXISTS (
+            SELECT 1
+            FROM intel_feature_flag
+            WHERE feature = ${DISTRICT_NEXUS_FEATURE}
+              AND tenant_id = ${tenantId}
+              AND enabled = true
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM tenants
+            WHERE id::text = ${tenantId}
+              AND slug = ${CAPIRO_INTERNAL_TENANT_SLUG}
+          )
           LIMIT 1
         `,
       );

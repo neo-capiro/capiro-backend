@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Button, Skeleton, Space } from 'antd';
 import { useApi } from '../../../lib/use-api.js';
+import { useMe } from '../../../lib/me.js';
+import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import type { ClientIntelProfile } from '../../intelligence/types.js';
 import { SectionNav } from './components/SectionNav.js';
 import { SetupChecklist } from './components/SetupChecklist.js';
@@ -15,6 +17,7 @@ import {
 import { SnapshotSection } from './sections/SnapshotSection.js';
 import { FinancialFootprintSection } from './sections/FinancialFootprintSection.js';
 import { DistrictNexusSection } from './sections/DistrictNexusSection.js';
+import { DistrictNexusRelationshipsPanel } from './sections/DistrictNexusRelationshipsPanel.js';
 import { LegislativeRegulatorySection } from './sections/LegislativeRegulatorySection.js';
 
 interface ClientIntelV1PageProps {
@@ -24,7 +27,12 @@ interface ClientIntelV1PageProps {
 
 export function ClientIntelV1Page({ clientId, clientName }: ClientIntelV1PageProps) {
   const api = useApi();
+  const me = useMe();
+  const { enabled: districtNexusV2, ready: districtNexusFlagReady } =
+    useIntelFeature('district_nexus_v2');
   const [activeSection, setActiveSection] = useState<SectionId>('snapshot');
+  const canManageDistrictNexus =
+    me.data?.role === 'user_admin' || me.data?.role === 'capiro_admin';
 
   const profileQuery = useQuery<ClientIntelProfile>({
     queryKey: ['client-intel-v1-profile', clientId],
@@ -199,6 +207,13 @@ export function ClientIntelV1Page({ clientId, clientName }: ClientIntelV1PagePro
                 <FinancialFootprintSection clientId={clientId} />
 
                 <DistrictNexusSection clientId={clientId} />
+
+                {districtNexusFlagReady && districtNexusV2 ? (
+                  <DistrictNexusRelationshipsPanel
+                    clientId={clientId}
+                    canManage={canManageDistrictNexus}
+                  />
+                ) : null}
 
                 <LegislativeRegulatorySection
                   aggregate={profileV1Query.data ?? undefined}

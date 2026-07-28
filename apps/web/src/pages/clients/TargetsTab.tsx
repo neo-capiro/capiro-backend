@@ -264,6 +264,15 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
   const showSearching =
     debouncePending || ((congressPending || staffPending || statePending) && hits.length === 0);
 
+  // A source that errored contributes zero rows silently (the `?? []` fallbacks
+  // above), so "No results" / a plain result count would otherwise be
+  // indistinguishable from a genuinely exhaustive search. This flag lets the
+  // count line say so instead.
+  const anySourceFailed =
+    (wantCongress && congressSearch.isError) ||
+    (wantStaff && staffSearch.isError) ||
+    (wantState && stateSearch.isError);
+
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['client-targets', clientId] });
     qc.invalidateQueries({ queryKey: ['clients'] });
@@ -478,8 +487,12 @@ export function TargetsTab({ clientId, canManage, onViewIntelligence }: Props) {
                   {showSearching
                     ? 'Searching…'
                     : hits.length === 0
-                      ? `No results for "${trimmed}"`
-                      : `${hits.length} result${hits.length === 1 ? '' : 's'}`}
+                      ? anySourceFailed
+                        ? `Couldn't search all sources for "${trimmed}" — try again`
+                        : `No results for "${trimmed}"`
+                      : anySourceFailed
+                        ? `${hits.length} result${hits.length === 1 ? '' : 's'} (some sources unavailable)`
+                        : `${hits.length} result${hits.length === 1 ? '' : 's'}`}
                 </div>
                 {hits.map((m) => {
                   const added = addedIds.has(m.id);

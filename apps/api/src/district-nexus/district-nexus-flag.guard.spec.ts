@@ -2,7 +2,10 @@ import { describe, expect, jest, test } from '@jest/globals';
 import { NotFoundException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { ExecutionContext } from '@nestjs/common';
-import { DistrictNexusFlagGuard } from './district-nexus-flag.guard.js';
+import {
+  CAPIRO_INTERNAL_TENANT_SLUG,
+  DistrictNexusFlagGuard,
+} from './district-nexus-flag.guard.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 
 const TENANT = '11111111-1111-1111-1111-111111111111';
@@ -63,7 +66,7 @@ describe('DistrictNexusFlagGuard', () => {
     await expect(guard.canActivate(ctxFor(TENANT))).resolves.toBe(true);
   });
 
-  test('404s — never 403s — when no flag row exists', async () => {
+  test('404s — never 403s — when no flag row or internal tenant row exists', async () => {
     const { guard } = makeGuard({ rows: [] });
     // 403 would advertise that the feature exists and this tenant lacks it.
     await expect(guard.canActivate(ctxFor(TENANT))).rejects.toBeInstanceOf(NotFoundException);
@@ -78,7 +81,7 @@ describe('DistrictNexusFlagGuard', () => {
     expect(withTenant).not.toHaveBeenCalled();
   });
 
-  test('treats the internal tenant as always-on without touching the database', async () => {
+  test('treats the configured internal tenant as always-on without touching the database', async () => {
     // Mirrors intel-api's FeatureFlagService, which the web flag hook follows.
     // Without this the internal canary sees the nav item then 404s on every call.
     const { guard, withSystem } = makeGuard({ rows: [] }, INTERNAL);
@@ -86,7 +89,19 @@ describe('DistrictNexusFlagGuard', () => {
     expect(withSystem).not.toHaveBeenCalled();
   });
 
-  test('the internal override does not leak to other tenants', async () => {
+  test('falls back to the canonical internal tenant slug when the env id is absent', async () => {
+    // The database is the identity source of truth. The mock returns the row the
+    // EXISTS expression would produce for a tenant whose slug is capiro-internal.
+    const { guard, withSystem, captured } = makeGuard({ rows: [{ ok: 1 }] });
+    await expect(guard.canActivate(ctxFor(INTERNAL))).resolves.toBe(true);
+    expect(withSystem).toHaveBeenCalledTimes(1);
+    expect(captured.sql?.toLowerCase()).toContain('from tenants');
+    expect(captured.sql?.toLowerCase()).toContain('slug =');
+    expect(captured.values).toContain(CAPIRO_INTERNAL_TENANT_SLUG);
+    expect(captured.values).toContain(INTERNAL);
+  });
+
+  test('the configured internal override does not leak to other tenants', async () => {
     const { guard } = makeGuard({ rows: [] }, INTERNAL);
     await expect(guard.canActivate(ctxFor(TENANT))).rejects.toBeInstanceOf(NotFoundException);
   });
@@ -115,20 +130,20 @@ describe('DistrictNexusFlagGuard', () => {
    * surfaced the hour the first row was written.
    */
   describe('the flag query matches the real column types', () => {
-    test('does not cast tenant_id to uuid — the column is TEXT', async () => {
+    test('does not cast intel_feature_flag.tenant_id to uuid — the column is TEXT', async () => {
       const { guard, captured } = makeGuard({ rows: [{ ok: 1 }] });
       await guard.canActivate(ctxFor(TENANT));
-      expect(captured.sql).not.toMatch(/::\s*uuid/i);
+      expect(captured.sql).not.toMatch(/tenant_id\s*=\s*\?\s*::\s*uuid/i);
     });
 
-    test('binds the tenant id as a parameter rather than interpolating it', async () => {
+    test('binds tenant ids as parameters rather than interpolating them', async () => {
       const { guard, captured } = makeGuard({ rows: [{ ok: 1 }] });
       await guard.canActivate(ctxFor(TENANT));
-      expect(captured.values).toContain(TENANT);
+      expect(captured.values.filter((value) => value === TENANT)).toHaveLength(2);
       expect(captured.sql).not.toContain(TENANT);
     });
 
-    test('still filters on feature, tenant and enabled', async () => {
+    test('filters on feature, tenant, enabled, and the internal slug fallback', async () => {
       const { guard, captured } = makeGuard({ rows: [{ ok: 1 }] });
       await guard.canActivate(ctxFor(TENANT));
       const sql = (captured.sql ?? '').toLowerCase();
@@ -136,6 +151,9 @@ describe('DistrictNexusFlagGuard', () => {
       expect(sql).toContain('feature =');
       expect(sql).toContain('tenant_id =');
       expect(sql).toContain('enabled = true');
+      expect(sql).toContain('from tenants');
+      expect(sql).toContain('id::text =');
+      expect(captured.values).toContain(CAPIRO_INTERNAL_TENANT_SLUG);
     });
   });
 });

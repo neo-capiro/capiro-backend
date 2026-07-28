@@ -255,50 +255,46 @@ export function ClientIntelOverview({ clientId, clientName }: ClientIntelOvervie
     } | null
   >({
     queryKey: ['client-lobbying-roi', clientId],
-    queryFn: async () => {
-      try {
-        return (
-          await api.get<{
-            clientId: string;
-            clientName: string | null;
-            mappedLdaClientId: string | null;
-            mappedContractorId: string | null;
-            lobbySpend: number;
-            contractWins: number;
-            roi: number | null;
-            gap: number;
-          }>(`/api/intelligence/clients/${clientId!}/lobbying-roi`)
-        ).data;
-      } catch {
-        return null;
-      }
-    },
+    // No try/catch: a caught failure and a genuine "no ROI applicable" both
+    // used to render as `null`, so the whole card silently vanished either
+    // way — indistinguishable from "this client has no LDA/contracting
+    // mapping". `.isError` lets the render below tell them apart.
+    queryFn: async () =>
+      (
+        await api.get<{
+          clientId: string;
+          clientName: string | null;
+          mappedLdaClientId: string | null;
+          mappedContractorId: string | null;
+          lobbySpend: number;
+          contractWins: number;
+          roi: number | null;
+          gap: number;
+        }>(`/api/intelligence/clients/${clientId!}/lobbying-roi`)
+      ).data,
     enabled: !!clientId,
     staleTime: 5 * 60 * 1000,
   });
 
+  // No try/catch: meriSignalText/meriSignalTone already treat a null score as
+  // "unavailable" rather than a specific claim, so removing the swallow only
+  // lets isError be tracked correctly — no render change needed here.
   const healthScoreQuery = useQuery<HealthScore | null>({
     queryKey: ['client-health-score', clientId],
-    queryFn: async () => {
-      try {
-        return (await api.get<HealthScore>(`/api/intelligence/clients/${clientId!}/health-score`)).data;
-      } catch {
-        return null;
-      }
-    },
+    queryFn: async () =>
+      (await api.get<HealthScore>(`/api/intelligence/clients/${clientId!}/health-score`)).data,
     enabled: !!clientId,
     staleTime: 5 * 60 * 1000,
   });
 
+  // No try/catch: only consumed as trackedBillsCount below, which already
+  // falls back to profile.relevantBills.total on any falsy value, so a
+  // separate isError branch isn't needed — but the swallow still shouldn't
+  // hide the failure from TanStack Query for no reason.
   const trackedBillsQuery = useQuery<TrackedBillsResult | null>({
     queryKey: ['tracked-bills', clientId],
-    queryFn: async () => {
-      try {
-        return (await api.get<TrackedBillsResult>(`/api/intelligence/clients/${clientId!}/tracked-bills`)).data;
-      } catch {
-        return null;
-      }
-    },
+    queryFn: async () =>
+      (await api.get<TrackedBillsResult>(`/api/intelligence/clients/${clientId!}/tracked-bills`)).data,
     enabled: !!clientId,
     staleTime: 5 * 60 * 1000,
   });
@@ -480,31 +476,43 @@ export function ClientIntelOverview({ clientId, clientName }: ClientIntelOvervie
               </div>
             </Card>
 
-            {roiQuery.data && (
+            {roiQuery.isError ? (
+              // A failed request, distinct from the card simply not rendering
+              // (roiQuery.data === null with no error) — the latter means the
+              // server checked and found no LDA/contracting mapping to compute
+              // ROI from, which is a real, non-alarming state, not a failure.
               <Card size="small">
-                <Statistic
-                  title="Lobbying ROI"
-                  value={roiQuery.data.roi ?? 0}
-                  suffix="x"
-                  valueStyle={{
-                    fontSize: 20,
-                    color:
-                      (roiQuery.data.roi ?? 0) >= 1 ? '#52c41a' : '#ff4d4f',
-                  }}
-                  prefix={<DollarOutlined />}
-                />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <Text type="secondary" style={{ fontSize: 11 }}>
-                    {formatMoney(roiQuery.data.lobbySpend)} spent → {formatMoney(roiQuery.data.contractWins)} won
-                  </Text>
-                  <Text type="secondary" style={{ fontSize: 11 }}>
-                    Gap: {formatMoney(roiQuery.data.gap)}
-                  </Text>
-                  <Text type="secondary" style={{ fontSize: 11 }}>
-                    Mapping: LDA {roiQuery.data.mappedLdaClientId ?? '-'} · Contractor {roiQuery.data.mappedContractorId ?? '-'}
-                  </Text>
-                </div>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Couldn&apos;t load lobbying ROI. Try refreshing.
+                </Text>
               </Card>
+            ) : (
+              roiQuery.data && (
+                <Card size="small">
+                  <Statistic
+                    title="Lobbying ROI"
+                    value={roiQuery.data.roi ?? 0}
+                    suffix="x"
+                    valueStyle={{
+                      fontSize: 20,
+                      color:
+                        (roiQuery.data.roi ?? 0) >= 1 ? '#52c41a' : '#ff4d4f',
+                    }}
+                    prefix={<DollarOutlined />}
+                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      {formatMoney(roiQuery.data.lobbySpend)} spent → {formatMoney(roiQuery.data.contractWins)} won
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      Gap: {formatMoney(roiQuery.data.gap)}
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      Mapping: LDA {roiQuery.data.mappedLdaClientId ?? '-'} · Contractor {roiQuery.data.mappedContractorId ?? '-'}
+                    </Text>
+                  </div>
+                </Card>
+              )
             )}
           </div>
 
@@ -760,15 +768,12 @@ function ContractingTab({ profile }: { profile: ClientIntelProfile }) {
 function TrackedBillsTab({ clientId }: { clientId: string }) {
   const api = useApi();
 
+  // No try/catch: a caught failure and "genuinely zero tracked bills" both
+  // used to render the same "No relevant bills found" Empty state below.
   const query = useQuery<TrackedBillsResult | null>({
     queryKey: ['tracked-bills', clientId],
-    queryFn: async () => {
-      try {
-        return (await api.get<TrackedBillsResult>(`/api/intelligence/clients/${clientId}/tracked-bills`)).data;
-      } catch {
-        return null;
-      }
-    },
+    queryFn: async () =>
+      (await api.get<TrackedBillsResult>(`/api/intelligence/clients/${clientId}/tracked-bills`)).data,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -833,6 +838,16 @@ function TrackedBillsTab({ clientId }: { clientId: string }) {
   ];
 
   if (query.isLoading) return <Skeleton active paragraph={{ rows: 5 }} />;
+
+  if (query.isError) {
+    return (
+      <Empty
+        description="Couldn't load tracked bills. Try refreshing."
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        style={{ marginTop: 32 }}
+      />
+    );
+  }
 
   if (!data || data.bills.length === 0) {
     return <Empty description="No relevant bills found" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ marginTop: 32 }} />;
@@ -1159,22 +1174,27 @@ function CompetitorsTab({
 function CompetitorBoardSection({ clientId }: { clientId: string }) {
   const api = useApi();
 
+  // No try/catch: a caught failure used to return null, and `!data` renders
+  // NOTHING below (not even an Empty state) — so a real outage was completely
+  // invisible, indistinguishable from "this section doesn't apply here".
   const query = useQuery<CompetitorBoard | null>({
     queryKey: ['competitor-board', clientId],
-    queryFn: async () => {
-      try {
-        return (
-          await api.get<CompetitorBoard>(`/api/intelligence/clients/${clientId}/competitor-board`)
-        ).data;
-      } catch {
-        return null;
-      }
-    },
+    queryFn: async () =>
+      (
+        await api.get<CompetitorBoard>(`/api/intelligence/clients/${clientId}/competitor-board`)
+      ).data,
     staleTime: 5 * 60 * 1000,
   });
 
   if (query.isLoading) {
     return <Skeleton active paragraph={{ rows: 4 }} style={{ marginTop: 16 }} />;
+  }
+  if (query.isError) {
+    return (
+      <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 16 }}>
+        Couldn&apos;t load recent competitor activity. Try refreshing.
+      </Text>
+    );
   }
   const data = query.data;
   if (!data || !data.competitors.length) return null;
@@ -1231,19 +1251,26 @@ function CompetitorBoardSection({ clientId }: { clientId: string }) {
 export function RevolvingDoorTab({ clientId }: { clientId: string }) {
   const api = useApi();
 
+  // No try/catch: a caught failure used to fall into the SAME Empty branch as
+  // a genuine zero, whose copy states two specific reasons — "no registrant"
+  // or "no covered positions" — and a failed request is neither. Both false.
   const query = useQuery<ExStaffersResult | null>({
     queryKey: ['ex-staffers', clientId],
-    queryFn: async () => {
-      try {
-        return (await api.get<ExStaffersResult>(`/api/intelligence/clients/${clientId}/ex-staffers`)).data;
-      } catch {
-        return null;
-      }
-    },
+    queryFn: async () =>
+      (await api.get<ExStaffersResult>(`/api/intelligence/clients/${clientId}/ex-staffers`)).data,
     staleTime: 10 * 60 * 1000,
   });
 
   if (query.isLoading) return <Skeleton active paragraph={{ rows: 6 }} />;
+  if (query.isError) {
+    return (
+      <Empty
+        description="Couldn't load revolving-door coverage. Try refreshing."
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        style={{ marginTop: 32 }}
+      />
+    );
+  }
   const lobbyists = query.data?.lobbyists ?? [];
   if (!lobbyists.length) {
     return (

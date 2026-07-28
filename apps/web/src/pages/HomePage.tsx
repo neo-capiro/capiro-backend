@@ -98,17 +98,17 @@ export function HomePage() {
     staleTime: 60_000,
   });
 
+  // No try/catch: a caught failure here used to render as "0 new signals
+  // overnight" in the greeting and silently drop out of the Needs Attention
+  // merge — both read identically to "genuinely nothing happened". Letting the
+  // query fail lets GreetingRow and NeedsAttention read `.isError` and say so.
   const recentChanges = useQuery<IntelligenceChange[]>({
     queryKey: ['intel-changes-tracked'],
     queryFn: async () => {
-      try {
-        const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-        return (
-          await api.get<IntelligenceChange[]>('/api/intelligence/changes', { params: { since } })
-        ).data;
-      } catch {
-        return [];
-      }
+      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      return (
+        await api.get<IntelligenceChange[]>('/api/intelligence/changes', { params: { since } })
+      ).data;
     },
     staleTime: 2 * 60 * 1000,
   });
@@ -137,19 +137,15 @@ export function HomePage() {
   // Top Alerts (comment deadlines/overdue, competitor filings, contract awards,
   // hearings, bill movement), spanning every active client. Server-side cached
   // (2-min TTL) since it runs the per-client aggregate for each client.
+  // No try/catch: see recentChanges above for why.
   const portfolioAlerts = useQuery<PortfolioAlertsResponse>({
     queryKey: ['portfolio-alerts'],
-    queryFn: async () => {
-      try {
-        return (
-          await api.get<PortfolioAlertsResponse>('/api/intelligence/portfolio-alerts', {
-            params: { limit: 30 },
-          })
-        ).data;
-      } catch {
-        return { alerts: [], total: 0, clientCount: 0, generatedAt: new Date().toISOString() };
-      }
-    },
+    queryFn: async () =>
+      (
+        await api.get<PortfolioAlertsResponse>('/api/intelligence/portfolio-alerts', {
+          params: { limit: 30 },
+        })
+      ).data,
     staleTime: 2 * 60 * 1000,
   });
 
@@ -197,6 +193,7 @@ export function HomePage() {
         firstName={firstName}
         overnightCount={overnightCount}
         criticalToday={criticalTodayCount}
+        signalsUnknown={recentChanges.isError}
       />
 
       <NeedsAttention
@@ -206,6 +203,7 @@ export function HomePage() {
         portfolioAlerts={portfolioAlerts.data?.alerts ?? []}
         clientNameById={clientNameById}
         loading={commentAlerts.isLoading || comingUp.isLoading || portfolioAlerts.isLoading}
+        someSourcesUnavailable={recentChanges.isError || portfolioAlerts.isError}
       />
 
       <MeriBrief brief={brief.data} loading={brief.isLoading} isError={brief.isError} />
@@ -224,10 +222,13 @@ function GreetingRow({
   firstName,
   overnightCount,
   criticalToday,
+  signalsUnknown,
 }: {
   firstName: string | null;
   overnightCount: number;
   criticalToday: number;
+  /** The changes fetch behind both counts failed — say so, don't claim 0. */
+  signalsUnknown: boolean;
 }) {
   const now = new Date();
   const hour = now.getHours();
@@ -255,9 +256,18 @@ function GreetingRow({
           {firstName ? `, ${firstName}` : ''}.
         </h1>
         <p className="home-greet-meta">
-          {dateLabel} · {congress} · <b className="num">{overnightCount}</b> new signal
-          {overnightCount === 1 ? '' : 's'} overnight
-          {criticalToday > 0 ? (
+          {dateLabel} · {congress} ·{' '}
+          {signalsUnknown ? (
+            'signal count unavailable'
+          ) : (
+            <>
+              <b className="num">{overnightCount}</b> new signal{overnightCount === 1 ? '' : 's'}{' '}
+              overnight
+            </>
+          )}
+          {/* Suppressed (not "0 critical") when the fetch failed: we don't know
+              there were none, we just couldn't check. */}
+          {!signalsUnknown && criticalToday > 0 ? (
             <>
               {' · '}
               <span className="critical">
@@ -290,6 +300,7 @@ function NeedsAttention({
   portfolioAlerts,
   clientNameById,
   loading,
+  someSourcesUnavailable,
 }: {
   alerts: CommentAlertItem[];
   comingUp: ComingUpItem[];
@@ -297,6 +308,9 @@ function NeedsAttention({
   portfolioAlerts: PortfolioAlertItem[];
   clientNameById: Map<string, string>;
   loading: boolean;
+  /** At least one of the merged feeds failed to load — an empty result here
+   *  is "couldn't check everything", not "confirmed nothing needs attention". */
+  someSourcesUnavailable: boolean;
 }) {
   const items = useMemo<BannerItem[]>(() => {
     const out: BannerItem[] = [];
@@ -474,7 +488,11 @@ function NeedsAttention({
         <div style={{ padding: 24 }}>
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="Nothing needs your attention right now."
+            description={
+              someSourcesUnavailable
+                ? "Couldn't load some sources — this list may be incomplete. Try refreshing."
+                : 'Nothing needs your attention right now.'
+            }
           />
         </div>
       ) : (
