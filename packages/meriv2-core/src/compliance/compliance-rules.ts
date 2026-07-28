@@ -2,6 +2,9 @@ import type { RiskTier } from '@capiro/shared';
 import type { MeriContext } from '../registry/types';
 import type { CompliancePolicy, ComplianceDecision, ComplianceOutcome } from './approval-gate';
 
+/** Immutable identifier for the policy semantics used by Phase 0 proposals. */
+export const CAPIRO_COMPLIANCE_POLICY_VERSION = '2026-07-27.meriv2-p0.v1';
+
 /**
  * B2 — the compliance rules engine (mechanism).
  *
@@ -143,12 +146,9 @@ export const PROPOSED_CAPIRO_RULES: readonly ComplianceRule[] = [
       [
         'save_note',
         'save_memory',
-        // Memory verbs (Phase 1, 1D) — internal, reversible (forget is a soft
-        // delete; correct preserves history via supersession), user-initiated.
-        // Parity with legacy chat, where they execute with no gate.
-        'confirm_memory',
-        'correct_memory',
-        'forget_memory',
+        // Shared-memory mutation is scope/role sensitive. Phase 0 deliberately
+        // leaves confirm/correct/forget out of this unconditional PASS rule, so
+        // an unknown or shared-scope mutation fails to WARN and requires approval.
         'create_word',
         'create_excel',
         'create_powerpoint',
