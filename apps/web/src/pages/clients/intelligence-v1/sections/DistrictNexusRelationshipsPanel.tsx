@@ -233,7 +233,11 @@ export function DistrictNexusRelationshipsPanel({ clientId, canManage }: Props) 
           showIcon
           message="Grant relationships could not load"
           description="This is a request failure, not confirmation that no relationships exist."
-          action={<Button size="small" onClick={() => void relationships.refetch()}>Retry</Button>}
+          action={
+            <Button size="small" onClick={() => void relationships.refetch()}>
+              Retry
+            </Button>
+          }
         />
       ) : null}
 
@@ -269,7 +273,8 @@ export function DistrictNexusRelationshipsPanel({ clientId, canManage }: Props) 
                   : ''}
               </div>
               <div className="iv1-dnx-row-sub">
-                Geography: {row.facility
+                Geography:{' '}
+                {row.facility
                   ? `${row.facility.name}${row.facility.state ? `, ${row.facility.state}` : ''}`
                   : row.award.state && row.award.congressionalDistrict
                     ? `${row.award.state}-${row.award.congressionalDistrict} (${row.award.geographyBasis.replace(/_/g, ' ')})`
@@ -421,7 +426,15 @@ export function DistrictNexusRelationshipsPanel({ clientId, canManage }: Props) 
             </Form.Item>
           </Space>
 
-          <Form.Item label="Evidence source" name="evidenceSourceRef">
+          <Form.Item
+            label="Evidence source"
+            name="evidenceSourceRef"
+            rules={
+              verificationStatus === 'verified'
+                ? [{ required: true, message: 'Verified evidence requires a source reference.' }]
+                : undefined
+            }
+          >
             <Input
               maxLength={1_000}
               placeholder="Document URL, file reference, agreement name, or reviewer note"
@@ -443,6 +456,9 @@ export function DistrictNexusRelationshipsPanel({ clientId, canManage }: Props) 
             rules={[{ required: true }]}
           >
             <Select
+              onChange={(status: DistrictNexusRelationshipStatus) => {
+                if (status !== 'verified') form.setFieldValue('externalUseApproved', false);
+              }}
               options={[
                 { value: 'unverified', label: 'Unverified — user-provided evidence' },
                 { value: 'verified', label: 'Verified — reviewed and substantiated' },
