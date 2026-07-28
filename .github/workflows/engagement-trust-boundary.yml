@@ -37,7 +37,10 @@ jobs:
           --health-retries 10
 
     env:
+      # Prisma understands ?schema=public; libpq/psql does not, so keep a plain
+      # URI for the direct trigger assertion below.
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro_ci?schema=public
+      PSQL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro_ci
 
     steps:
       - uses: actions/checkout@v4
@@ -50,9 +53,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma clients
-        run: |
-          pnpm --filter @capiro/api exec prisma generate
-          pnpm --filter @capiro/web exec tsc --version
+        run: pnpm --filter @capiro/api exec prisma generate
 
       - name: Apply apps/api migrations to clean Postgres
         run: pnpm --filter @capiro/api exec prisma migrate deploy
@@ -67,7 +68,7 @@ jobs:
 
       - name: Prove audit finding redaction against Postgres
         run: |
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
           CREATE TEMP TABLE audit_redaction_probe (
             surface text,
             subject_type text,
