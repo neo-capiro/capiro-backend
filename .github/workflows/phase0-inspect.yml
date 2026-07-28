@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - fix/meriv2-p0-control-boundaries
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -81,5 +84,5 @@ jobs:
           ], 10, 120);
 
           show('apps/api/src/tenant/tenant-context.store.ts', ['export', 'interface', 'actorUserId', 'impersonation'], 8, 80);
-          show('packages/shared/src', ['interface TenantContext'], 8, 30);
+          show('packages/shared/src/index.ts', ['TenantContext'], 8, 30);
           NODE
