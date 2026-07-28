@@ -76,6 +76,10 @@ import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
+import {
+  validateMeriWriteToolInput,
+  type MeriJsonSchema,
+} from './meri-write-tool-input.js';
 import { buildSavedMemoryRecord } from './meri-memory.helpers.js';
 import { budgetExhibitType } from './meri-pe-structural.helpers.js';
 import { isValidPeCode, isValidProcurementCode } from '../program-element/jbook/jbook-extract.js';
@@ -1297,6 +1301,24 @@ export class MeriToolsService {
   }
 
   /**
+   * Canonical parser shared by proposal creation and actual delegated execution.
+   * It rejects unknown/internal authority fields before either persistence or use.
+   */
+  validateSideEffectingInput(name: string, rawInput: unknown): Record<string, unknown> {
+    const normalizedName = normalizeToolName(name);
+    if (!this.isSideEffecting(normalizedName)) {
+      throw new BadRequestException(`${normalizedName} is not a side-effecting Meri tool`);
+    }
+    const definition = this.anthropicToolSchemas().find((tool) => tool.name === normalizedName);
+    if (!definition) throw new BadRequestException(`Unknown Meri tool: ${normalizedName}`);
+    return validateMeriWriteToolInput(
+      normalizedName,
+      rawInput,
+      definition.input_schema as MeriJsonSchema,
+    );
+  }
+
+  /**
    * Semantic retrieval over one client's knowledge base (F5). Tenant + client
    * scoped; rows come back typed (client_profile / client_person /
    * client_facility / client_doc_chunk) and citable as `client_kb` chips.
@@ -1489,7 +1511,11 @@ export class MeriToolsService {
   }
 
   executeFromAuthenticatedUser(ctx: TenantContext, rawName: string, rawInput: unknown) {
-    return this.execute(ctx, normalizeToolName(rawName), objectInput(rawInput));
+    const name = normalizeToolName(rawName);
+    const input = this.isSideEffecting(name)
+      ? this.validateSideEffectingInput(name, rawInput)
+      : objectInput(rawInput);
+    return this.execute(ctx, name, input);
   }
 
   /**
