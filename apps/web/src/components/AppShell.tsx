@@ -21,6 +21,7 @@ import {
   RadarChartOutlined,
   DeploymentUnitOutlined,
   EnvironmentOutlined,
+  FileSearchOutlined,
   SearchOutlined,
   SettingOutlined,
   StarOutlined,
@@ -86,6 +87,7 @@ type AppSection =
   | 'intelligence'
   | 'knowledge-graph'
   | 'district-nexus'
+  | 'funding-opportunities'
   | 'actions'
   | 'reviews'
   | 'pe-group'
@@ -207,6 +209,16 @@ const NAV: NavItem[] = [
         // First production use of NavItem.featureFlag (plan §3.1/§4.5) — the
         // intel-api flag map, not the /me `features` boolean above.
         featureFlag: 'district_nexus_v2',
+      },
+      {
+        key: 'funding-opportunities',
+        label: 'Funding Opportunities',
+        path: '/intelligence/opportunities',
+        icon: <FileSearchOutlined />,
+        // Same intel-api flag map as District Nexus above. Unlike that flag,
+        // there is no implicit internal-tenant fallback on the API side, so this
+        // nav item stays hidden for EVERY tenant until a flag row is written.
+        featureFlag: 'funding_opportunities',
       },
       {
         key: 'knowledge-graph',
@@ -1141,6 +1153,9 @@ function pageKeyFor(pathname: string): AppSection {
   // District Nexus has its own nav entry too — same reasoning as Knowledge
   // Graph above, matched before the general /intelligence prefix.
   if (pathname.startsWith('/intelligence/district-nexus')) return 'district-nexus';
+  // Funding Opportunities — its own nav entry, so it must be matched before the
+  // general /intelligence prefix below or it highlights Data Explorer instead.
+  if (pathname.startsWith('/intelligence/opportunities')) return 'funding-opportunities';
   // Only the live hearing ROOM still lives here (the list redirects to Radar).
   // Highlight Radar: 'hearing-watch' is no longer a nav item, and the room is a
   // Radar child surface now (P4 review finding).
@@ -1168,6 +1183,7 @@ function pageConfigFor(pathname: string): PageConfig {
     intelligence: 'Intelligence Center',
     'knowledge-graph': 'Knowledge Graph',
     'district-nexus': 'District Nexus',
+    'funding-opportunities': 'Funding Opportunities',
     actions: 'Action Board',
     reviews: 'Review Queue',
     'pe-group': 'Program Elements',

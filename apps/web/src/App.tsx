@@ -116,6 +116,18 @@ const DistrictNexusPage = lazy(async () =>
   })),
 );
 
+// Funding Opportunities. Lazy for the same chunk-splitting reason as the routes
+// above — it is a large page with its own card/CSS surface that nothing else
+// needs, and it must never reach the initial bundle. Gated IN-PAGE by
+// `funding_opportunities` (HearingWatchPage / DistrictNexusPage precedent); the
+// route itself registers unconditionally so a deep link resolves and the page
+// decides what to show.
+const FundingOpportunitiesPage = lazy(async () =>
+  import('./pages/intelligence/opportunities/FundingOpportunitiesPage.js').then((m) => ({
+    default: m.FundingOpportunitiesPage,
+  })),
+);
+
 export function App() {
   const { isLoaded, isSignedIn } = useAuth();
 
@@ -288,6 +300,24 @@ export function App() {
               fallback={<PlaceholderPage title="Loading District Nexus" description="Loading map and district data..." />}
             >
               <DistrictNexusPage />
+            </Suspense>
+          }
+        />
+        {/* Funding Opportunities — Grants.gov + SAM.gov contract opportunities.
+            Registered BEFORE the catch-all `/intelligence/*` redirect below,
+            which would otherwise swallow it and bounce the user to /explorer. */}
+        <Route
+          path="/intelligence/opportunities"
+          element={
+            <Suspense
+              fallback={
+                <PlaceholderPage
+                  title="Loading Funding Opportunities"
+                  description="Loading grant and contract opportunities..."
+                />
+              }
+            >
+              <FundingOpportunitiesPage />
             </Suspense>
           }
         />

@@ -96,7 +96,7 @@ const WIDGET_FRESHNESS_RAILS = new Set([
 ]);
 
 const V2_DISCLAIMER =
-  'Awarded contract and grant figures are federal obligations reported by USAspending; the contract rail covers DoD prime contracts only. Grant opportunities are forecasts, never awarded money. Districts reflect current (119th Congress) boundaries; an award reports the district in effect when it was filed.';
+  'Awarded contract and grant figures are federal obligations reported by USAspending; the contract rail covers DoD prime contracts only. Grant and contract OPPORTUNITIES are forecasts, never awarded money and never district money — a future opportunity reaches a district only when someone links it to a specific project site, and pursuit discovery lives in Funding Opportunities. Districts reflect current (119th Congress) boundaries; an award reports the district in effect when it was filed.';
 
 const MAX_TOP_DISTRICTS = 5;
 
@@ -457,6 +457,20 @@ function DistrictNexusSectionV2({ clientId, onUnavailable }: DistrictNexusSectio
                   ))}
                 </ul>
               ) : null}
+              {/* Pursuit discovery lives in Funding Opportunities, not here. This
+                  rail exists only to keep forecast money visibly separate from
+                  awarded district money; it is not where a team works
+                  opportunities, and it deliberately covers only the grant
+                  candidates the nightly producer linked. */}
+              <div className="iv1-dnx-row-sub" style={{ marginTop: 6 }}>
+                These are forecasts, not district money.{' '}
+                <a href={`/intelligence/opportunities?clientId=${encodeURIComponent(clientId)}`}>
+                  Open Funding Opportunities
+                </a>{' '}
+                to discover, save and pursue grant and government-contract opportunities. An
+                opportunity only appears in a district once someone links it to a specific project
+                site.
+              </div>
             </div>
           ) : null}
 
