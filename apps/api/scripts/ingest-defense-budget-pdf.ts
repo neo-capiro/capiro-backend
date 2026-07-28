@@ -694,7 +694,6 @@ async function promoteMappedArtifact(input: {
     async (tx) => {
       const writer = new ProgramElementWriterService(tx as unknown as PrismaService);
       const outcome: LoadOutcome = { upserted: 0, changed: 0, quarantined: 0 };
-      const promotionStartedAt = new Date();
 
       for (const record of input.mapped.records) {
         const result = await writer.upsertProgramElement(record, input.source, 0.9);
@@ -703,24 +702,48 @@ async function promoteMappedArtifact(input: {
       }
 
       for (const year of input.mapped.years) {
-        const result = await writer.upsertProgramElementYear(year, input.source);
-        if (result.inserted) outcome.upserted += 1;
-        else if (result.changed) outcome.changed += 1;
-
         const baseSource = input.source.replace(/_fy\d+$/i, '');
         const values = input.mapped.sourceValues.filter(
           (value) => value.peCode === year.peCode && value.fy === year.fy,
         );
+        const observedFields = [...new Set(values.map((value) => String(value.fieldName)))];
+        const preExistingObservationIds = new Set(
+          (
+            await tx.programElementYearSourceValue.findMany({
+              where: {
+                peCode: year.peCode,
+                fy: year.fy,
+                fieldName: { in: [...observedFields, '__row__'] },
+                source: { in: [input.source, baseSource] },
+              },
+              select: { id: true },
+            })
+          ).map((row) => row.id),
+        );
+
+        const result = await writer.upsertProgramElementYear(year, input.source);
+        if (result.inserted) outcome.upserted += 1;
+        else if (result.changed) outcome.changed += 1;
+
         for (const value of values) {
-          const linked = await tx.programElementYearSourceValue.updateMany({
+          const newObservations = await tx.programElementYearSourceValue.findMany({
             where: {
               peCode: value.peCode,
               fy: value.fy,
               fieldName: String(value.fieldName),
               source: { in: [input.source, baseSource] },
               sourceDocumentId: null,
-              writtenAt: { gte: promotionStartedAt },
+              id: { notIn: [...preExistingObservationIds] },
             },
+            select: { id: true },
+          });
+          if (newObservations.length !== 1) {
+            throw new Error(
+              `Expected exactly one new canonical observation for ${value.peCode} FY${value.fy} ${String(value.fieldName)}; found ${newObservations.length}`,
+            );
+          }
+          await tx.programElementYearSourceValue.update({
+            where: { id: newObservations[0]!.id },
             data: {
               sourceDocumentId: input.sourceDocumentId,
               valueJsonb: {
@@ -728,30 +751,31 @@ async function promoteMappedArtifact(input: {
                 originalValue: value.originalValue,
                 originalUnit: value.originalUnit,
                 provenance: value.provenance,
-              } as Prisma.InputJsonValue,
+              } as unknown as Prisma.InputJsonValue,
             },
           });
-          if (linked.count < 1) {
-            throw new Error(
-              `Canonical observation was not linked for ${value.peCode} FY${value.fy} ${String(value.fieldName)}`,
-            );
-          }
         }
 
-        const linkedRows = await tx.programElementYearSourceValue.updateMany({
+        const newRowObservations = await tx.programElementYearSourceValue.findMany({
           where: {
             peCode: year.peCode,
             fy: year.fy,
             fieldName: '__row__',
             source: input.source,
             sourceDocumentId: null,
-            writtenAt: { gte: promotionStartedAt },
+            id: { notIn: [...preExistingObservationIds] },
           },
+          select: { id: true },
+        });
+        if (newRowObservations.length !== 1) {
+          throw new Error(
+            `Expected exactly one new row observation for ${year.peCode} FY${year.fy}; found ${newRowObservations.length}`,
+          );
+        }
+        await tx.programElementYearSourceValue.update({
+          where: { id: newRowObservations[0]!.id },
           data: { sourceDocumentId: input.sourceDocumentId },
         });
-        if (linkedRows.count < 1) {
-          throw new Error(`Row observation was not linked for ${year.peCode} FY${year.fy}`);
-        }
       }
 
       await recordIngestRun(tx as unknown as IngestRunClient, {
@@ -807,13 +831,22 @@ async function runCommit(
     );
   }
 
-  const [{ pdfPath, cls }] = candidates;
+  const selected = candidates[0];
+  if (!selected) {
+    throw new Error('Internal error: one-PDF guard passed without a selected candidate');
+  }
+  const { pdfPath, cls } = selected;
   const sourceSha256 = sha256OfFile(pdfPath);
   assertApprovedShaMatches(sourceSha256, approvedSha256);
 
   const archiveSvc = makeArchiveService(archiveConfig);
   const descriptor = descriptorFor(pdfPath, cls, 'commit');
   const archive = await archiveSvc.archiveOriginal(descriptor);
+  if (!archive.versionId) {
+    throw new Error(
+      'Immutable source archive did not return an S3 VersionId; canonical promotion is blocked.',
+    );
+  }
 
   const prisma = new PrismaClient();
   await prisma.$connect();
@@ -842,7 +875,31 @@ async function runCommit(
         canonicalMoneyUnit: 'USD millions',
       },
     });
-    const sourceDocumentId = registered.document.id;
+    if (registered.document.supersededByDocumentId) {
+      throw new Error(
+        `Approved source document ${registered.document.id} is superseded by ${registered.document.supersededByDocumentId}; promote the current source version instead.`,
+      );
+    }
+    const sourceDocument = await prisma.sourceDocument.update({
+      where: { id: registered.document.id },
+      data: {
+        archiveBucket: archive.bucket,
+        archiveS3Key: archive.key,
+        archiveVersionId: archive.versionId,
+        archiveKmsKeyArn: archive.kmsKeyArn ?? null,
+        retainUntil: archive.retainUntil,
+        archivedAt: new Date(),
+        byteSize: archive.byteSize,
+        metadata: {
+          ...asRecord(registered.document.metadata),
+          retrievalKey: archive.retrievalKey,
+          manifestKey: archive.manifestKey,
+          classification: cls,
+          canonicalMoneyUnit: 'USD millions',
+        } as unknown as Prisma.InputJsonValue,
+      },
+    });
+    const sourceDocumentId = sourceDocument.id;
 
     let prepared = await loadExistingParseArtifact(
       prisma,
