@@ -210,6 +210,7 @@ async function buildRelevanceProfileForClient(
   client: {
     id: string;
     sectorTag: string | null;
+    applicantTypes: string[];
     capabilities: Array<{ name: string; tags: unknown }>;
     facilities: Array<{ state: string | null }>;
   },
@@ -243,6 +244,7 @@ async function buildRelevanceProfileForClient(
     facilityStates: client.facilities.map((f) => f.state),
     priorAssistanceListings,
     priorAgencies,
+    applicantTypes: client.applicantTypes,
   };
   return shapeClientRelevanceProfile(rowsIn);
 }
@@ -291,6 +293,7 @@ export async function generateCandidates(
         select: {
           id: true,
           sectorTag: true,
+          applicantTypes: true,
           capabilities: { select: { name: true, sector: true, tags: true } },
           facilities: { select: { state: true } },
         },

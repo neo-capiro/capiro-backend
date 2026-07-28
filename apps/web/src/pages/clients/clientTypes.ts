@@ -132,6 +132,8 @@ export interface Client {
   cageCode?: string | null;
   naicsCodes?: string[];
   pscCodes?: string[];
+  /** Grants.gov "Eligible Applicants" label strings — see GRANTS_GOV_APPLICANT_TYPES. */
+  applicantTypes?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -155,6 +157,8 @@ export interface ClientPayload {
   cageCode?: string | null;
   naicsCodes?: string[];
   pscCodes?: string[];
+  /** Grants.gov "Eligible Applicants" label strings — see GRANTS_GOV_APPLICANT_TYPES. */
+  applicantTypes?: string[];
 }
 
 export interface ClientAttachment {
@@ -226,6 +230,8 @@ export interface ClientFormValues {
   // Step 2.3 — first-class NAICS / PSC code lists for relevance matching (tag inputs).
   naicsCodes?: string[];
   pscCodes?: string[];
+  /** Grants.gov "Eligible Applicants" label strings — see GRANTS_GOV_APPLICANT_TYPES. */
+  applicantTypes?: string[];
   // Sector & tracks (step 4)
   engagementStartDate?: string;
   internalNotes?: string;
