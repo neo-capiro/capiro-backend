@@ -4,7 +4,7 @@ on:
   push:
     branches: [agent/pe-trust-phase-b]
   pull_request:
-    branches: [agent/pe-trust-phase-a]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
