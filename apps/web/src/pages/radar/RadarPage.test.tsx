@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { App as AntApp } from 'antd';
-import { RadarPage } from './RadarPage.js';
+import {
+  RadarPage,
+  tenantBoardCardMatchesFilter,
+  tenantBoardChangeTone,
+  type TenantBoardCard,
+} from './RadarPage.js';
 import { BillDrawer, bill360DrawerWidth } from './BillDrawer.js';
 
 const apiGetMock = vi.fn();
@@ -69,6 +74,7 @@ function mockApi(flags: Record<string, boolean>) {
                       passageProbability: 65,
                       unread: false,
                       matchedTags: ['Defense'],
+                      matchedHighPriorityTopics: ['Defense'],
                       changeChip: null,
                       hearingCount: 1,
                       clientId: 'c1',
@@ -95,8 +101,14 @@ function mockApi(flags: Record<string, boolean>) {
                       title: 'Test Roll-up Act',
                       passageProbability: 80,
                       unread: false,
-                      matchedTags: [],
-                      changeChip: null,
+                      matchedTags: ['General relevance'],
+                      matchedHighPriorityTopics: [],
+                      changeChip: {
+                        label: 'Critical move',
+                        changeType: 'bill_failed',
+                        severity: 'critical',
+                        tone: 'critical',
+                      },
                       hearingCount: 0,
                       clientId: 'c1',
                       clientName: 'Acme Aerospace',
@@ -152,6 +164,43 @@ function renderRadar(initialEntry: string) {
     </QueryClientProvider>,
   );
 }
+
+const tenantCard = (patch: Partial<TenantBoardCard> = {}): TenantBoardCard => ({
+  billId: 'hr-1',
+  displayNum: 'H.R. 1',
+  title: 'Example',
+  passageProbability: 0.5,
+  unread: false,
+  matchedTags: [],
+  matchedHighPriorityTopics: [],
+  changeChip: null,
+  clientId: 'c1',
+  clientName: 'Acme',
+  ...patch,
+});
+
+describe('tenant board trust helpers', () => {
+  test('Priority-tag filter requires a high-priority topic, not any matched tag', () => {
+    expect(
+      tenantBoardCardMatchesFilter(
+        tenantCard({ matchedTags: ['General relevance'], matchedHighPriorityTopics: [] }),
+        'hifit',
+      ),
+    ).toBe(false);
+    expect(
+      tenantBoardCardMatchesFilter(
+        tenantCard({ matchedTags: ['Defense'], matchedHighPriorityTopics: ['Defense'] }),
+        'hifit',
+      ),
+    ).toBe(true);
+  });
+
+  test('change indicator preserves the server tone with a severity fallback', () => {
+    expect(tenantBoardChangeTone(tenantCard({ changeChip: { label: 'Failed', changeType: 'bill_failed', tone: 'critical' } }))).toBe('critical');
+    expect(tenantBoardChangeTone(tenantCard({ changeChip: { label: 'Info', changeType: 'bill_action', severity: 'info' } }))).toBe('info');
+    expect(tenantBoardChangeTone(tenantCard({ changeChip: { label: 'Unknown', changeType: null } }))).toBe('notable');
+  });
+});
 
 describe('RadarPage', () => {
   beforeEach(() => {
@@ -263,6 +312,9 @@ describe('RadarPage', () => {
     expect(screen.getByText('Test Roll-up Act')).toBeInTheDocument();
     // Each card is labelled with its client (U4 roll-up).
     expect(screen.getByText('Acme Aerospace')).toBeInTheDocument();
+    // The global card must preserve the server's critical tone instead of
+    // painting every change as ordinary/notable.
+    expect(screen.getByTitle('Critical move')).toHaveClass('critical');
     // It fetches the tenant-wide board, not a per-client one.
     expect(
       apiGetMock.mock.calls.some((args: unknown[]) => String(args[0]).includes('/_all/tracker/board')),

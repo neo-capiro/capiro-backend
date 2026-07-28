@@ -605,14 +605,20 @@ function RadarGlobalFeedTab({
 }
 
 /** One tenant-board card (per-client tracked bill) from `_all/tracker/board`. */
-type TenantBoardCard = {
+export type TenantBoardCard = {
   billId: string;
   displayNum: string;
   title: string | null;
   passageProbability: number;
   unread: boolean;
   matchedTags: string[];
-  changeChip: { label: string; changeType: string | null } | null;
+  matchedHighPriorityTopics?: string[];
+  changeChip: {
+    label: string;
+    changeType: string | null;
+    severity?: string | null;
+    tone?: string | null;
+  } | null;
   hearingCount?: number;
   clientId: string;
   clientName: string | null;
@@ -624,6 +630,30 @@ type TenantBoard = {
   total?: number;
   withheld?: number;
 };
+
+export type TenantBoardFilter = 'all' | 'hifit' | 'hiprob';
+
+/** Keep the global board's labels aligned with the server-owned scoring facts. */
+export function tenantBoardCardMatchesFilter(
+  card: TenantBoardCard,
+  filter: TenantBoardFilter,
+): boolean {
+  if (filter === 'hifit') return (card.matchedHighPriorityTopics?.length ?? 0) > 0;
+  if (filter === 'hiprob') {
+    const pct = card.passageProbability > 1 ? card.passageProbability : card.passageProbability * 100;
+    return pct >= 70;
+  }
+  return true;
+}
+
+/** Server tone wins; severity is only a compatibility fallback for cached cards. */
+export function tenantBoardChangeTone(card: TenantBoardCard): 'critical' | 'notable' | 'info' | 'success' {
+  const tone = card.changeChip?.tone;
+  if (tone === 'critical' || tone === 'notable' || tone === 'info' || tone === 'success') return tone;
+  if (card.changeChip?.severity === 'critical') return 'critical';
+  if (card.changeChip?.severity === 'info') return 'info';
+  return 'notable';
+}
 
 /**
  * L2b — the ALL-CLIENTS Bills board roll-up (U4 / Gherkin "All-clients board").
@@ -640,7 +670,7 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
     clientId: string;
     clientName: string;
   } | null>(null);
-  const [filter, setFilter] = useState<'all' | 'hifit' | 'hiprob'>('all');
+  const [filter, setFilter] = useState<TenantBoardFilter>('all');
   const board = useInfiniteQuery<TenantBoard>({
     queryKey: ['radar-tenant-board'],
     initialPageParam: null as string | null,
@@ -706,15 +736,7 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
       </div>
     );
   }
-  // GAI-07 adjacent: the API sends passageProbability on the shared 0..1 scale,
-  // so a bare `>= 70` never matched (dead filter — masked by a 0-100-scale test
-  // mock). Normalize like PassageBar does before comparing.
-  const pass = (c: TenantBoardCard) =>
-    filter === 'hifit'
-      ? c.matchedTags.length > 0
-      : filter === 'hiprob'
-        ? (c.passageProbability > 1 ? c.passageProbability : c.passageProbability * 100) >= 70
-        : true;
+  const pass = (card: TenantBoardCard) => tenantBoardCardMatchesFilter(card, filter);
 
   return (
     <div className="stack" style={{ gap: 14 }}>
@@ -725,7 +747,7 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
           size="small"
           value={filter}
           style={{ minWidth: 190 }}
-          onChange={(v) => setFilter(v as 'all' | 'hifit' | 'hiprob')}
+          onChange={(v) => setFilter(v as TenantBoardFilter)}
           options={[
             { value: 'all', label: 'All tracked bills' },
             { value: 'hifit', label: 'Priority-tag bills' },
@@ -766,7 +788,7 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
                       <span className="grow" />
                       {c.changeChip && (
                         <span
-                          className="dot notable"
+                          className={`dot ${tenantBoardChangeTone(c)}`}
                           style={{ width: 7, height: 7 }}
                           title={c.changeChip.label}
                         />
