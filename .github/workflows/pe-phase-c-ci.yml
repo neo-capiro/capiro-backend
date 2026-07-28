@@ -3,6 +3,8 @@ name: pe-phase-c-ci
 on:
   push:
     branches: [agent/pe-trust-phase-c]
+  pull_request:
+    branches: [agent/pe-trust-phase-b]
 
 permissions:
   contents: write
