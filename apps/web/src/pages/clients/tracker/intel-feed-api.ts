@@ -112,6 +112,9 @@ export interface FeedEvidence {
     tone: string | null;
     band: string | null;
     jurisdiction: string;
+    /** Gate L (HP-03) followup: the state legislative session's display name.
+     *  Absent for federal alerts and for rows written before this was added. */
+    session?: string;
     writerShape: string;
   };
   /** §4.8 (Gate D d-1): each factor's share of the score. Absent on any alert

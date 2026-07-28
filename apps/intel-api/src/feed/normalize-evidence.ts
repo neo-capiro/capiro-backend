@@ -76,6 +76,10 @@ export interface NormalizedProvenance {
   tone: string | null;
   band: string | null;
   jurisdiction: string;
+  /** Gate L (HP-03) followup: the state legislative session's display name.
+   *  Absent for federal (jurisdiction:'US') and for any row written before
+   *  the state-rail writer started stamping it. */
+  session?: string;
   /** Which writer shape this row came from — for observability, never for UI branching. */
   writerShape: 'flat_bill' | 'nested' | 'mixed' | 'empty';
 }
@@ -246,6 +250,7 @@ export function normalizeEvidence(input: NormalizeInput): NormalizedAlertEvidenc
     details: arrOfObj<NormalizedMatch['details'][number]>(ev['matchDetails']) ?? [],
   };
 
+  const sessionLabel = str(ev['session']);
   const provenance: NormalizedProvenance = {
     sourceUrl: str(ev['sourceUrl']) ?? str(ev['url']) ?? null,
     triggerKey: str(ev['triggerKey']) ?? null,
@@ -254,6 +259,7 @@ export function normalizeEvidence(input: NormalizeInput): NormalizedAlertEvidenc
     // 'US' is the established default (bill-change-detector.service.ts:978,
     // intel-alert.service.ts).
     jurisdiction: str(ev['jurisdiction']) ?? 'US',
+    ...(sessionLabel ? { session: sessionLabel } : {}),
     writerShape,
   };
 
