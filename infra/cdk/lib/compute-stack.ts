@@ -588,6 +588,26 @@ export class ComputeStack extends cdk.Stack {
     // apiTaskRole (mirrors the govinfo-cache write below); the serve task's code
     // never exercises this, and the critical no-overlay-write / no-delete guarantees
     // hold regardless of which task assumes the role.
+    // The `UPDATED DISTRICTS/kml/` prefix is a SEPARATE grant from the three
+    // directory prefixes above, and it was missing entirely until 2026-07-28.
+    //
+    // That is the whole reason `kml_s3_key` is NULL on all 741
+    // `legislative_district` rows: `sync-legistorm-districts --commit --with-kml`
+    // has never been ABLE to run, in any environment. Proven, not inferred — a
+    // real `--commit --with-kml --states=UT` run failed with
+    //   not authorized to perform: s3:PutObject on
+    //   ".../UPDATED DISTRICTS/kml/611-C.kml"
+    // Earlier notes recorded this as "the backfill has never been run", which
+    // reads as an outstanding ops step. It was an infrastructure gap.
+    //
+    // The script fetches every KML BEFORE it writes anything to the database, so
+    // the failed run left no partial state — but it also means the whole run is
+    // wasted until this grant exists.
+    //
+    // Same shape as the directory grant deliberately: PutObject only, never
+    // DeleteObject, and scoped to the one prefix. Re-hosting under our own key is
+    // the point — the vendor KML URL embeds our LegiStorm API key in its path and
+    // must never be persisted or logged.
     apiTaskRole.addToPolicy(
       new iam.PolicyStatement({
         actions: ['s3:PutObject'],
@@ -595,6 +615,7 @@ export class ComputeStack extends cdk.Stack {
           'arn:aws:s3:::updated-directory-967807252336-us-east-1/UPDATED DIRECTORY/snapshots/*',
           'arn:aws:s3:::updated-directory-967807252336-us-east-1/UPDATED DIRECTORY/pointers/*',
           'arn:aws:s3:::updated-directory-967807252336-us-east-1/UPDATED DIRECTORY/LATEST.json',
+          'arn:aws:s3:::updated-directory-967807252336-us-east-1/UPDATED DISTRICTS/kml/*',
         ],
       }),
     );

@@ -132,14 +132,28 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
   // and should see a settled table.
   //
   // Ships DISABLED for two independent reasons, BOTH still open:
-  //  1. [STILL OPEN — corrected 2026-07-26] The FUTURE ('F') rail reads each
+  //  1. [STILL OPEN — root-caused 2026-07-28] The FUTURE ('F') rail reads each
   //     district's re-hosted kmlS3Key, which only `sync-legistorm-districts
-  //     --commit --with-kml` populates. An earlier revision of this comment
-  //     recorded that backfill as done; a live read on 2026-07-26 found
-  //     kml_s3_key NULL on all 741 legislative_district rows, so it either
-  //     never ran or did not persist. Until it does, the future rail
-  //     legitimately produces zero features — run `--status=C` alone rather
-  //     than letting the 'F' rail publish an empty artifact.
+  //     --commit --with-kml` populates. `kml_s3_key` is NULL on all 741
+  //     legislative_district rows (re-confirmed 2026-07-28: 537 'C' + 204 'F',
+  //     zero with a key on either side).
+  //
+  //     WHY, definitively: apiTaskRole had no `s3:PutObject` on the
+  //     `UPDATED DISTRICTS/kml/` prefix — the grant did not exist in CDK or
+  //     live. A real `--commit --with-kml --states=UT` run failed AccessDenied
+  //     on `.../UPDATED DISTRICTS/kml/611-C.kml`. So this was never an
+  //     un-run ops step; the job could not physically succeed. The grant is
+  //     added in compute-stack.ts, and until it is applied to the live role
+  //     out-of-band this stays blocked.
+  //
+  //     Until then the future rail legitimately produces zero features — run
+  //     `--status=C` alone rather than letting the 'F' rail publish an empty
+  //     artifact.
+  //
+  //     Scope when it does run: future districts exist in only 10 states
+  //     (measured 2026-07-28 — AL 9, CA 53, FL 29, MO 10, NC 16, OH 17, TN 11,
+  //     TX 40, UT 6, VA 13 = 204 rows), so `--states=AL,CA,FL,MO,NC,OH,TN,TX,UT,VA`
+  //     covers every one of them without walking all 56 jurisdictions.
   //  2. [STILL OPEN] The first run should be a deliberate, reviewed `--commit`
   //     with its warnings read, not a cron tick. The CURRENT rail is verified:
   //     the live Census file yields 441/441 features with zero warnings at
