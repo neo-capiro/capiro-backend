@@ -15,7 +15,10 @@ where all three failures are one cause each. What still blocks the gate is
 **F2** (panel placement), two **LIA** rulings, and a partly-done interaction
 pass — not broad drift.
 
-Nothing in this phase was pushed, merged, deployed, or flag-enabled.
+**Shipping status:** Phases 4–7 were merged and deployed on Neo's explicit
+instruction *after* this report was written, with the gate open and the
+outstanding items below understood. F1 was fixed as part of that. The gate
+verdict here is unchanged by the decision to ship.
 
 - Base: `feat/strategy-proto-phase-6` @ `e102d1c9`
 - Prior Phase 7 commit: `9e7126d7`
@@ -99,10 +102,40 @@ There is a `.app-content:has(.ws-editor-shell)` rule and a
 `.app-content:has(> .redesign)` rule. **There is no equivalent rule for the
 Strategy page.**
 
-`theme.css` and `strategy-ds.css` are byte-identical to `origin/main`, so this
-is pre-existing and already live — **not introduced by Phases 4–7**. It is not
-fixed here because it is a shell-level change outside this phase's scope and
-outside the branch's blast radius. **Recommend a follow-up.**
+`strategy-ds.css` is byte-identical to `origin/main` and `theme.css` was too
+before this fix, so the gap is pre-existing and was already live — **not
+introduced by Phases 4–7**.
+
+**FIXED** (Neo's call, shipped with this branch):
+
+```css
+.app-content:has(.sp-editor-shell) {
+  padding: 0;
+  height: calc(100vh - 52px);
+  overflow: hidden;
+}
+```
+
+plus a `sp-editor-shell` class on the editor's root. Scoped to the **editor**,
+because the library, Context and agent-review pages share `.sp-root` but
+page-scroll normally and a `.sp-root`-scoped rule would clip them — the same
+trap `#125` fell into on the Workspace side.
+
+Verified by reproducing production's chain in the harness (`?shell=app`, which
+wraps the mount in `.app-content` and switches off the harness's own height
+pin, so only the real rule can bound the page). A/B in one page load, toggling
+just the class:
+
+| | rule ACTIVE | rule INERT |
+| --- | --- | --- |
+| `.app-content` height | 848 | 1333.67 |
+| panel height | 720.08 | 1157.75 |
+| panel bottom | **900** (viewport) | 1361.67 |
+| composer bottom | 785.75 | 1247.42 |
+| composer visible | **true** | **false** |
+
+The "rule INERT" column reproduces the originally-measured 1157.75px panel
+exactly, which is what confirms the rule is the operative change.
 
 ### F2 — Panel placement diverges from the prototype (PARITY DEFECT)
 
@@ -441,9 +474,9 @@ hover / focus-visible / disabled / pending / selected captures.
 
 ## 10. Not done
 
-1. **F2 — panel placement.** The largest remaining parity defect and the reason
-   states 4/8 sit at ~18–20%. Restructuring already-live layout so the panel is
-   a full-height column beside the header needs Neo's sign-off.
+1. **F2 — panel placement.** Now the largest remaining parity defect and the
+   reason states 4/8 sit at ~18–20%. Restructuring already-live layout so the
+   panel is a full-height column beside the header needs a decision.
 2. **F4 / F5** — need a Lia ruling, not code.
 3. **The ~2.4px timeline row offset** the F3 fix uncovered, and the
    strategy-lane label at +10.10px.
