@@ -47,6 +47,26 @@ names its own gate.
 3. **Never `--commit` an ingestion or cleanup script** without the dry-run
    output from the step immediately above it in hand.
 4. Do not touch auth, Clerk, Graph OAuth, or token decryption.
+5. 🚨 **Do NOT roll `capiro-dev-api` until
+   `20260809010000_client_applicant_types` is applied.** As of 2026-07-28 this is
+   the single most dangerous button in this document. From #651 (`2c4a0414`)
+   onward — **including** the #655 fix (`0721c7c5`) — `schema.prisma` declares
+   `Client.applicantTypes`, so the generated client puts `applicant_types` in
+   **every** `SELECT` on `clients`. Without the column, that is a `42703` on
+   every client query, for **every tenant** — the whole Portfolio, not just
+   District Nexus.
+
+   Current state, verified 2026-07-28 15:20 UTC:
+
+   | | |
+   | --- | --- |
+   | Running | `sha256:607ff4fc` = `9e80d0f8` — **predates #651, safe**, and does contain #648 |
+   | ECR `:latest` | `2c4a0414` and moving — **contains #651, unsafe until migrated** |
+   | Migration | **not applied** |
+
+   That the running task is safe is an accident of ordering, not a control. A
+   `--force-new-deployment` already ran once today at 10:35 EDT from another
+   session. **Apply the migration first; then deploy.**
 
 ---
 
@@ -78,6 +98,59 @@ Export these once; every `run-task` below reuses them:
 export AWS_PROFILE=capiro-dev
 export NETCFG='awsvpcConfiguration={subnets=[subnet-0e38bd390f8961fef,subnet-0920665f91c905f01,subnet-06db79cd21239de19],securityGroups=[sg-01def4e5c0fe44d4a],assignPublicIp=DISABLED}'
 ```
+
+### 0.4 🟢 There are THREE one-off task definitions, and they are not interchangeable
+
+Picking the wrong one fails in a way that reads like a code bug. Verified
+2026-07-28:
+
+| Task definition | Container | Log stream | Use it for |
+| --- | --- | --- | --- |
+| `capiro-dev-api-sync` | `api` | `api/api/<task-id>` | Ingestion/cleanup jobs needing **no vendor key beyond the shared set** |
+| `capiro-dev-api-sync-jobs` | `api-sync-jobs` | `sync-jobs/api-sync-jobs/<task-id>` | **Anything LegiStorm.** The only one carrying `LEGISTORM_API_KEY` |
+| `capiro-dev-api-diag` | `db-inspect` | `diag/db-inspect/<task-id>` | Read-only DB probes (`entryPoint` is `["node","-e"]`) |
+
+All three log to the **same group**, `/capiro/dev/api`; only the stream prefix
+differs, so `filter-log-events` on the group alone sees all of them. If you want
+one task's output, get the stream name right — `api/db-inspect/<task-id>` does
+**not** exist and returns `ResourceNotFoundException`, which reads like the task
+produced no output. List them instead of guessing:
+
+```bash
+MSYS_NO_PATHCONV=1 aws logs describe-log-streams --profile capiro-dev \
+  --log-group-name /capiro/dev/api --order-by LastEventTime --descending \
+  --max-items 8 --query 'logStreams[].logStreamName' --output text
+```
+
+(`--order-by LastEventTime` and `--log-stream-name-prefix` are mutually
+exclusive; passing both is an `InvalidParameterException`.)
+
+**`capiro-dev-api-sync` does NOT have `LEGISTORM_API_KEY`.** Running
+`sync-legistorm-districts` (or any LegiStorm verb) there fails with
+`LEGISTORM_API_KEY is required`, which looks like a missing secret in the
+environment and is actually the wrong task definition. Every live LegiStorm
+EventBridge rule targets `capiro-dev-api-sync-jobs`; confirm with
+`aws events list-targets-by-rule --rule capiro-dev-sync-legistorm-districts`.
+
+### 0.5 🟢 Probing a tenant-scoped table needs an explicit RLS bypass
+
+`capiro_app` is **not** `BYPASSRLS`. A raw read of a tenant-scoped table
+(`client_grant_nexus`, `client_intel_mapping`, `client_facilities`, …) from a
+diag task returns **zero rows** with no error — it looks exactly like an empty
+table. Global tables (`federal_assistance_award`, `legislative_district`) are
+unaffected, which makes the mix especially convincing.
+
+Wrap every tenant-scoped probe the way `PrismaService` does:
+
+```js
+await prisma.$transaction(async (tx) => {
+  await tx.$executeRawUnsafe("SELECT set_config('app.bypass_rls', 'on', true)");
+  return tx.$queryRawUnsafe(sql);
+});
+```
+
+On 2026-07-28 the unwrapped version of this probe reported `client_grant_nexus`
+and `client_intel_mapping` as empty. Both have rows.
 
 ---
 
@@ -447,12 +520,79 @@ curl -s -o /dev/null -w '%{http_code} %{size_download}\n' \
 > 437 LegislativeDistrict rows updated
 > ```
 
-⚠️ **Commit the current rail only (`--status=C`) until the future rail has
-input.** `sync-legistorm-districts --commit --with-kml` has never run, so every
-`status='F'` district lacks `kmlS3Key`: a `--status=F` commit publishes a
-**74-byte, zero-feature** artifact, which risks the UI advertising a future map
-that contains nothing. The dry run reports this honestly as 0 districts and 184
-warnings.
+⚠️ **Commit the current rail only (`--status=C`).** A `--status=F` commit
+publishes a **74-byte, zero-feature** artifact, which risks the UI advertising a
+future map that contains nothing. The dry run reports this honestly as 0
+districts and 184 warnings.
+
+**Why the future rail has no input — root-caused 2026-07-28.** Earlier revisions
+said "`sync-legistorm-districts --commit --with-kml` has never run", which reads
+as an outstanding ops step. It is an **infrastructure gap**: `apiTaskRole` had no
+`s3:PutObject` on the `UPDATED DISTRICTS/kml/` prefix, in CDK or live, so the job
+has never been *able* to succeed anywhere.
+
+Proven by execution, not by reading policy — a real
+`sync-legistorm-districts --commit --with-kml --states=UT` run failed:
+
+```
+[sync-legistorm-districts] FAILED User: …/ApiTaskRole… is not authorized to
+perform: s3:PutObject on resource:
+"arn:aws:s3:::updated-directory-967807252336-us-east-1/UPDATED DISTRICTS/kml/611-C.kml"
+because no identity-based policy allows the s3:PutObject action
+```
+
+Note this is a **different prefix** from the `district-boundaries/*` grant
+above, which does exist. Having one is not evidence of the other.
+
+The script fetches every KML *before* it writes anything to the database, so the
+failed run left no partial state — but the whole run is wasted until the grant
+exists.
+
+**Confirmed scope of the gap** (measured 2026-07-28): `kml_s3_key` is NULL on
+**all 741** rows — 537 `status='C'` and 204 `status='F'`. Not just the future
+side.
+
+### 10.1 🔴 Unblocking the future rail (out-of-band; **needs Neo** — IAM change)
+
+```bash
+# Read the existing statement first; this ADDS a resource, it must not replace one.
+MSYS_NO_PATHCONV=1 aws iam list-role-policies --profile capiro-dev \
+  --role-name Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ
+
+MSYS_NO_PATHCONV=1 aws iam put-role-policy --profile capiro-dev \
+  --role-name Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ \
+  --policy-name district-kml-s3-write \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::updated-directory-967807252336-us-east-1/UPDATED DISTRICTS/kml/*"
+    }]
+  }'
+```
+
+`PutObject` only, never `DeleteObject`, scoped to the one prefix — the same
+shape as the directory grant. The matching CDK change is in
+`infra/cdk/lib/compute-stack.ts` so IaC stays honest; **do not `cdk deploy`** to
+apply it (see Hard boundaries).
+
+Then, on `capiro-dev-api-sync-jobs` (§0.4 — **not** `capiro-dev-api-sync`):
+
+```bash
+# Future districts exist in only these 10 states (measured 2026-07-28: AL 9,
+# CA 53, FL 29, MO 10, NC 16, OH 17, TN 11, TX 40, UT 6, VA 13 = 204 rows), so
+# there is no reason to walk all 56 jurisdictions.
+MSYS_NO_PATHCONV=1 aws ecs run-task --profile capiro-dev \
+  --cluster capiro-dev --launch-type FARGATE --network-configuration "$NETCFG" \
+  --task-definition capiro-dev-api-sync-jobs \
+  --overrides '{"containerOverrides":[{"name":"api-sync-jobs","command":["sync-legistorm-districts","--commit","--with-kml","--states=UT"]}]}' \
+  --query 'tasks[0].taskArn' --output text
+```
+
+Start with `--states=UT` (6 current + 6 future = 12 KML fetches). Verify
+`kml_s3_key IS NOT NULL` for Utah, then widen to all ten. Only after that does
+a `--status=F` boundary commit have real input.
 
 If the policy ever needs recreating (do **not** `cdk deploy`):
 
@@ -485,15 +625,48 @@ Commands:
 
 **Read only. This runbook does not change any flag.**
 
+> **This block was wrong in two ways until 2026-07-28 and would have failed
+> twice before returning anything.** It named the container `api` (the diag task
+> def's container is **`db-inspect`** — §2 gotcha 1) and it assumed
+> `DATABASE_URL` exists (it does not — §2 gotcha 3). Both are corrected below,
+> and the corrected form is the one that was actually run.
+
+Write the script to a file and pass the overrides as a **file**; inline JSON
+quoting of a JS body through PowerShell/Git Bash is the trap that eats runs.
+
 ```bash
+cat > /tmp/flag.js <<'JS'
+const { PrismaClient } = require("@prisma/client");
+if (!process.env.DATABASE_URL) {
+  const u = encodeURIComponent(process.env.DB_USER);
+  const pw = encodeURIComponent(process.env.DB_PASSWORD);
+  process.env.DATABASE_URL =
+    `postgresql://${u}:${pw}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}?schema=public&connection_limit=5`;
+}
+const p = new PrismaClient();
+p.$queryRawUnsafe(
+  "SELECT t.slug, f.enabled FROM intel_feature_flag f " +
+  "JOIN tenants t ON t.id::text = f.tenant_id WHERE f.feature = 'district_nexus_v2'"
+).then(r => console.log(JSON.stringify(r, null, 1)))
+ .finally(() => p.$disconnect());
+JS
+
+python -c "import json;print(json.dumps({'containerOverrides':[{'name':'db-inspect','command':[open('/tmp/flag.js').read()]}]}))" > /tmp/ov.json
+
 MSYS_NO_PATHCONV=1 aws ecs run-task --profile capiro-dev \
   --cluster capiro-dev --launch-type FARGATE --network-configuration "$NETCFG" \
   --task-definition capiro-dev-api-diag \
-  --overrides '{"containerOverrides":[{"name":"api","command":["node","-e","const {PrismaClient}=require(\"@prisma/client\");const p=new PrismaClient();p.$queryRawUnsafe(\"SELECT f.feature, f.enabled, t.slug FROM intel_feature_flag f JOIN tenants t ON t.id::text = f.tenant_id WHERE f.feature = $$district_nexus_v2$$\").then(r=>console.log(JSON.stringify(r,null,1))).finally(()=>p.$disconnect())"]}]}' \
+  --overrides file:///tmp/ov.json \
   --query 'tasks[0].taskArn' --output text
 ```
 
-Expected today: exactly one row, `capiro-internal`, `enabled = true`.
+Reading a tenant-scoped table needs the RLS bypass first —
+`await p.$executeRawUnsafe("SELECT set_config('app.bypass_rls','on',false)")` —
+otherwise the probe returns **zero rows and looks like clean empty data**.
+`intel_feature_flag` itself is not tenant-scoped, so the query above does not
+need it; `client_grant_nexus` and `client_intel_mapping` do.
+
+**Verified 2026-07-28:** exactly one row — `capiro-internal`, `enabled = true`.
 
 Two gotchas that have each cost a session:
 
@@ -584,17 +757,45 @@ Against `capiro-internal` (the only tenant with the flag on), signed in as a
 8. Open `/intelligence/district-nexus`. Map, filters, table fallback, and drawer
    all render; district counts match the widget.
 
-Then confirm the audit trail:
+Then confirm the audit trail.
+
+> **This query was wrong in four ways and returned `42P01` / `42703`.** The table
+> is **`audit_logs`** (plural), the JSON columns are **`before_jsonb`** and
+> **`after_jsonb`**, and the timestamp is **`occurred_at`**, not `created_at`.
+> Corrected below; this is the form that was actually run.
 
 ```sql
-SELECT action, entity_type, entity_id, actor_user_id, created_at
-FROM audit_log
+SELECT action, entity_type, entity_id, actor_role,
+       before_jsonb IS NOT NULL AS has_before,
+       after_jsonb  IS NOT NULL AS has_after,
+       occurred_at
+FROM audit_logs
 WHERE action LIKE 'district_nexus.grant_relationship.%'
-ORDER BY created_at DESC LIMIT 20;
+ORDER BY occurred_at DESC LIMIT 20;
 ```
 
 Every create/update/reject in steps 2–6 must appear, with `before` populated on
 update and reject.
+
+**Walked 2026-07-28 against `capiro-internal` / RTX. Result — exactly three rows
+for three successful mutations:**
+
+| Time | Action | Role | `before` | `after` |
+| --- | --- | --- | --- | --- |
+| 16:43:40 | `district_nexus.grant_relationship.create` | `capiro_admin` | — | ✓ |
+| 16:53:57 | `district_nexus.grant_relationship.update` | `capiro_admin` | **✓** | ✓ |
+| 16:59:45 | `district_nexus.grant_relationship.reject` | `capiro_admin` | **✓** | ✓ |
+
+`before` is absent on create because there is no prior state, and present on both
+update and reject — which is the actual requirement.
+
+**The absences matter as much as the rows.** The two *refused* attempts (a
+project site with no facility, and a duplicate) produced **no audit rows and no
+`client_grant_nexus` rows at all** — confirming both are rejected before any
+tenant write begins rather than being written and then undone.
+
+Actor resolves to `capiro_admin` / `neo@capiro.ai` — the caller, never anything
+client-supplied.
 
 ---
 
@@ -658,14 +859,33 @@ WHERE source = 'assistance_recipient' GROUP BY 1;
 
 ## 16. 🟢 Performance checks
 
+> **Corrected 2026-07-28 — this block named the wrong task definition.**
+> `diag-profile-v1` is an **`entrypoint.sh` case** (`apps/api/scripts/entrypoint.sh:161`).
+> `capiro-dev-api-diag` bypasses `entrypoint.sh` entirely — its `entryPoint` is
+> `["node","-e"]`, so the command would have been evaluated as JavaScript source
+> named `diag-profile-v1` and died. Entrypoint commands must go to a task def
+> that *runs* the entrypoint, e.g. `capiro-dev-api-sync`, whose container **is**
+> named `api`.
+>
+> Rule of thumb for this whole runbook: `capiro-dev-api-diag` + container
+> `db-inspect` = **JavaScript source**. `capiro-dev-api-sync*` + container `api`
+> = **entrypoint subcommand**. Mixing the two is the single most common way to
+> waste a run here.
+
 ```bash
 # 16.1 Per-source health + latency for the client Intelligence tab.
 MSYS_NO_PATHCONV=1 aws ecs run-task --profile capiro-dev \
   --cluster capiro-dev --launch-type FARGATE --network-configuration "$NETCFG" \
-  --task-definition capiro-dev-api-diag \
+  --task-definition capiro-dev-api-sync \
   --overrides '{"containerOverrides":[{"name":"api","command":["diag-profile-v1","--client","<client-uuid>"]}]}' \
   --query 'tasks[0].taskArn' --output text
 ```
+
+**Measured in a real browser 2026-07-28** (see matrix §J1), which is cheaper than
+this task and gives the client-observed number rather than the server-side one:
+`profile-v1` **21,688 ms**, `pe-relevance` **12,384 ms**, `client-profile`
+6,298 ms, `district-nexus-v2` 1,222 ms, `district-nexus-relationships` 1,394 ms.
+The first two are the ones to chase.
 
 ```bash
 # 16.2 Any source that breached or approached its budget now says so by name.

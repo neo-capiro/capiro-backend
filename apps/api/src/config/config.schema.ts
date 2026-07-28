@@ -170,9 +170,9 @@ export const configSchema = z.object({
     .string()
     .default('false')
     .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
-  // RESERVED (consumer NOT yet built — flipping is currently a NO-OP; do not rely
-  // on it). MEMORY_AUTOLEARN_GOVERNED will route auto-learn through the candidate
-  // flow; today auto-learn still writes clio_memory directly regardless of this.
+  // Governed conversation learning. False (default) means post-turn processing
+  // performs no persistent memory write. True permits source-anchored USER-text
+  // extraction into memory_candidate only; it never auto-promotes active memory.
   MEMORY_AUTOLEARN_GOVERNED: z
     .string()
     .default('false')
@@ -573,17 +573,20 @@ export const configSchema = z.object({
   // (fail-closed), not fail-open.
   INTERNAL_SERVICE_SECRET: z.string().optional(),
 
-  // Gate-bypass hardening for POST /api/clio/tools/:name: when 'true', that
-  // endpoint (which executes WRITE tools with no compliance gate — the gate
-  // lives in the MeriV2 orchestrator) requires the INTERNAL_SERVICE_SECRET
-  // header IN ADDITION to the user JWT, so only the orchestrator (post-gate),
-  // never a rogue user bearer, can reach it. Default false = OBSERVE (log a
-  // secret-less call, allow it) so the orchestrator can be confirmed sending the
-  // secret before enforcement. See ToolServiceSecretGuard.
+  // Gate-bypass hardening for POST /api/clio/tools/:name and internal proposal
+  // creation. Staging/production ALWAYS enforce the shared secret; this switch
+  // controls explicit observe-only behavior in development/test only.
   MERI_TOOLS_REQUIRE_SERVICE_SECRET: z
     .string()
     .default('false')
     .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+  // Dark rollout gate for the new API/orchestrator/web proposal contract. The
+  // insecure legacy browser routes are disabled regardless of this value.
+  MERIV2_ACTION_PROPOSALS_ENABLED: z
+    .string()
+    .default('false')
+    .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+  MERIV2_ACTION_PROPOSAL_TTL_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
 
   // Recall.ai meeting-notetaker bot (docs/plans/meeting-notetaker-bot-plan.md).
   // RECALL_API_KEY authenticates outbound bot dispatch/poll calls (sent as the

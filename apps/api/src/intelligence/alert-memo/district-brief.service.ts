@@ -621,6 +621,11 @@ function buildDistrictClaims(
         ? `Jurisdiction: this is STATE legislation in ${jur}, not federal legislation.`
         : `Jurisdiction: this is STATE legislation, not federal legislation.`,
     );
+    // Gate L (HP-03) followup: the legislative session claim, same honest-gap
+    // posture as jurisdiction/deadline above — pushed only when the detector
+    // actually supplied one (state_bill.session, threaded through since Gate
+    // L shipped without it). No fabricated "session unknown" filler.
+    if (alert.session) push(`Legislative session: ${alert.session}.`);
   }
   const dl = alert.deadline;
   if (dl && (dl.cutoffType || dl.cutoffDate || dl.daysUntil != null)) {

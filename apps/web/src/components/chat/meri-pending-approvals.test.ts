@@ -1,90 +1,84 @@
 import { describe, expect, it } from 'vitest';
 import {
-  applyApprovalOutcome,
+  describeApprovalOutcome,
   describeApprovalResult,
-  mergePendingApproval,
   outstandingApprovals,
+  upsertProposal,
 } from './meri-pending-approvals.js';
 import type { PendingApproval } from './useMeriChatController.js';
 
 const card = (over: Partial<PendingApproval> = {}): PendingApproval => ({
+  proposalId: 'p1',
+  status: 'proposed',
   tool: 'update_client_profile',
-  label: 'Update client profile',
-  fingerprint: 'f1',
-  status: 'pending',
+  preview: {
+    label: 'Update client profile',
+    riskTier: 'high',
+    leavesFirm: false,
+    reversible: true,
+    fields: {},
+    counts: {},
+    reason: 'Requires approval',
+  },
+  expiresAt: '2026-07-28T01:00:00.000Z',
+  reason: 'Requires approval',
+  riskTier: 'high',
+  policyCode: 'crm_mutation',
+  attemptCount: 0,
+  resultSummary: null,
+  createdAt: '2026-07-28T00:45:00.000Z',
+  updatedAt: '2026-07-28T00:45:00.000Z',
   ...over,
 });
 
 describe('outstandingApprovals', () => {
-  it('counts only what still needs the user', () => {
+  it('counts only rows still awaiting a decision — not executing, not resolved', () => {
     const cards = [
-      card({ fingerprint: 'a', status: 'pending' }),
-      card({ fingerprint: 'b', status: 'ran' }),
-      card({ fingerprint: 'c', status: 'failed' }),
-      card({ fingerprint: 'd', status: 'running' }),
-      card({ fingerprint: 'e', status: 'pending' }),
+      card({ proposalId: 'a', status: 'proposed' }),
+      card({ proposalId: 'b', status: 'succeeded' }),
+      card({ proposalId: 'c', status: 'failed_retryable' }),
+      card({ proposalId: 'd', status: 'executing' }),
+      card({ proposalId: 'e', status: 'proposed' }),
+      card({ proposalId: 'f', status: 'blocked' }),
+      card({ proposalId: 'g', status: 'expired' }),
+      card({ proposalId: 'h', status: 'outcome_unknown' }),
     ];
-    expect(outstandingApprovals(cards).map((c) => c.fingerprint)).toEqual(['a', 'e']);
+    // failed_retryable is offered its own explicit Retry action, not folded
+    // into "Approve all" or the header count — retrying is a deliberate,
+    // per-card decision, not a bulk one.
+    expect(outstandingApprovals(cards).map((c) => c.proposalId)).toEqual(['a', 'e']);
   });
 });
 
-describe('mergePendingApproval', () => {
-  it('appends a genuinely new proposal', () => {
-    const next = mergePendingApproval([], {
-      tool: 'create_client',
-      label: 'Create client',
-      fingerprint: 'new',
-      reason: 'needs approval',
-    });
+describe('upsertProposal', () => {
+  it('appends a genuinely new proposal by id', () => {
+    const next = upsertProposal([], card({ proposalId: 'new' }));
     expect(next).toHaveLength(1);
-    expect(next[0]).toMatchObject({ fingerprint: 'new', status: 'pending' });
+    expect(next[0]).toMatchObject({ proposalId: 'new', status: 'proposed' });
   });
 
   it('survives across turns: an unrelated new proposal never drops the old one', () => {
-    // The whole bug: a second turn used to wipe the first turn's cards.
-    const first = mergePendingApproval([], { tool: 'create_client', fingerprint: 'a' });
-    const second = mergePendingApproval(first, { tool: 'create_client', fingerprint: 'b' });
-    expect(second.map((c) => c.fingerprint)).toEqual(['a', 'b']);
+    // The whole old bug this replaces: a second turn used to wipe the first
+    // turn's cards. Each proposal now has its own permanent server identity.
+    const first = upsertProposal([], card({ proposalId: 'a' }));
+    const second = upsertProposal(first, card({ proposalId: 'b' }));
+    expect(second.map((c) => c.proposalId)).toEqual(['a', 'b']);
   });
 
-  it('does NOT re-offer a write that already ran', () => {
-    // Identical fingerprint = identical action. The model re-proposes because it
-    // cannot see the approval; approving again would write the row twice.
-    const prev = [card({ fingerprint: 'a', status: 'ran' })];
-    const next = mergePendingApproval(prev, { tool: 'update_client_profile', fingerprint: 'a' });
-    expect(next).toBe(prev);
-    expect(outstandingApprovals(next)).toHaveLength(0);
+  it('replaces the existing row in place when the same proposalId recurs (e.g. after approve/dismiss)', () => {
+    const prev = [card({ proposalId: 'a', status: 'proposed' }), card({ proposalId: 'b' })];
+    const updated = card({ proposalId: 'a', status: 'succeeded', resultSummary: { ok: true } });
+    const next = upsertProposal(prev, updated);
+    expect(next).toHaveLength(2);
+    expect(next[0]).toEqual(updated);
+    expect(next[1]).toMatchObject({ proposalId: 'b', status: 'proposed' });
   });
 
-  it('makes a previously failed action actionable again', () => {
-    const prev = [card({ fingerprint: 'a', status: 'failed', detail: 'client not found' })];
-    const next = mergePendingApproval(prev, {
-      tool: 'update_client_profile',
-      fingerprint: 'a',
-      reason: 'needs approval',
-    });
-    expect(next[0]).toMatchObject({ status: 'pending', detail: undefined });
-    expect(outstandingApprovals(next)).toHaveLength(1);
-  });
-
-  it('is a no-op for something already pending or in flight', () => {
-    const pending = [card({ fingerprint: 'a', status: 'pending' })];
-    expect(mergePendingApproval(pending, { tool: 't', fingerprint: 'a' })).toBe(pending);
-    const running = [card({ fingerprint: 'a', status: 'running' })];
-    expect(mergePendingApproval(running, { tool: 't', fingerprint: 'a' })).toBe(running);
-  });
-});
-
-describe('applyApprovalOutcome', () => {
-  it('records success and failure per card, leaving siblings untouched', () => {
-    const cards = [card({ fingerprint: 'a' }), card({ fingerprint: 'b' })];
-    const ran = applyApprovalOutcome(cards, 'a', 'ran');
-    expect(ran[0]).toMatchObject({ status: 'ran' });
-    expect(ran[1]).toMatchObject({ status: 'pending' });
-
-    const failed = applyApprovalOutcome(ran, 'b', 'failed', 'Error creating UUID');
-    expect(failed[1]).toMatchObject({ status: 'failed', detail: 'Error creating UUID' });
-    expect(failed[0]).toMatchObject({ status: 'ran' });
+  it('never mutates the input array (pure)', () => {
+    const prev = [card({ proposalId: 'a' })];
+    const next = upsertProposal(prev, card({ proposalId: 'a', status: 'succeeded' }));
+    expect(prev[0]?.status).toBe('proposed');
+    expect(next).not.toBe(prev);
   });
 });
 
@@ -93,8 +87,10 @@ describe('describeApprovalResult', () => {
     // create_client mints a UUID only the server knows. Without this the model
     // re-derives one from the display name — which is how "BryceTech" was
     // proposed as a clientId and the follow-up update was dead on arrival.
+    // This reads from the bounded resultSummary the server sends — never the
+    // raw tool result.
     const detail = describeApprovalResult({
-      created: true,
+      ok: true,
       client: { id: 'a3f1c2d4-0000-4000-8000-000000000001', name: 'BryceTech' },
     });
     expect(detail).toBe('BryceTech (id a3f1c2d4-0000-4000-8000-000000000001)');
@@ -102,12 +98,9 @@ describe('describeApprovalResult', () => {
 
   it('reports what a profile update actually wrote, not just that it ran', () => {
     const detail = describeApprovalResult({
-      updated: true,
+      ok: true,
       clientName: 'Ballard Partners',
-      fieldsWritten: ['website', 'description'],
-      peopleCreated: ['Jason Hay'],
-      capabilitiesCreated: [],
-      facilitiesCreated: [],
+      counts: { fieldsWritten: 2, peopleCreated: 1 },
     });
     expect(detail).toBe('Ballard Partners — 2 fields, 1 person');
   });
@@ -116,5 +109,49 @@ describe('describeApprovalResult', () => {
     expect(describeApprovalResult(null)).toBeNull();
     expect(describeApprovalResult('sent')).toBeNull();
     expect(describeApprovalResult({ ok: true })).toBeNull();
+  });
+});
+
+describe('describeApprovalOutcome', () => {
+  it('describes success using the bounded result summary', () => {
+    const p = card({
+      status: 'succeeded',
+      resultSummary: { ok: true, clientName: 'Acme', counts: { fieldsWritten: 1 } },
+    });
+    expect(describeApprovalOutcome(p)).toBe('succeeded — Acme — 1 field');
+  });
+
+  it('describes success with no notable detail', () => {
+    const p = card({ status: 'succeeded', resultSummary: { ok: true } });
+    expect(describeApprovalOutcome(p)).toBe('succeeded');
+  });
+
+  it('marks failed_retryable as retryable, distinct from a terminal failure', () => {
+    const retryable = card({
+      status: 'failed_retryable',
+      error: { code: 'transient_failure', message: 'temporarily unavailable' },
+    });
+    expect(describeApprovalOutcome(retryable)).toBe(
+      'failed, can retry — temporarily unavailable',
+    );
+    const terminal = card({
+      status: 'failed_terminal',
+      error: { code: 'http_400', message: 'clientId not found' },
+    });
+    expect(describeApprovalOutcome(terminal)).toBe('failed — clientId not found');
+  });
+
+  it('never phrases outcome_unknown as success and explicitly warns against retrying', () => {
+    const p = card({ status: 'outcome_unknown' });
+    const outcome = describeApprovalOutcome(p);
+    expect(outcome).not.toMatch(/succeed/i);
+    expect(outcome).toMatch(/do not retry/i);
+  });
+
+  it('surfaces the block/expiry reason without implying the action ran', () => {
+    expect(describeApprovalOutcome(card({ status: 'blocked', reason: 'Policy now blocks this' }))).toBe(
+      'blocked — Policy now blocks this',
+    );
+    expect(describeApprovalOutcome(card({ status: 'expired' }))).toBe('expired before it could run');
   });
 });

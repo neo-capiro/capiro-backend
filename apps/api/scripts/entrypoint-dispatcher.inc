@@ -1,20 +1,26 @@
 #!/bin/sh
-# Capiro API container entrypoint.
+# Capiro API compatibility dispatcher (Phase A include, not an entrypoint).
+#
+# Reached only via /usr/local/lib/capiro/entrypoint-legacy.sh, which is itself
+# reached only from the `*)` branch of /usr/local/bin/entrypoint.sh. This file
+# holds the historical case statement for ordinary operational verbs so they do
+# not drift; it is kept byte-comparable with the pre-Phase-A entrypoint apart
+# from the `migrate` branch below.
 #
 # Modes, selected by argv:
 #   serve           (default) -- start the NestJS HTTP server.
-#   migrate         -- run prisma migrate deploy, then seed workflow templates,
-#                      and exit. The CDK migration task definition overrides the
-#                      container command to "migrate". The data seed is
-#                      idempotent (upserts) so re-running on every deploy is
-#                      safe and keeps the workflow catalog in sync with the
-#                      seed file in git.
+#   migrate         -- REFUSED here. Migration deployment is owned solely by
+#                      /usr/local/bin/entrypoint.sh, whose branch runs
+#                      `prisma migrate deploy` and never edits Prisma's
+#                      migration ledger. Keeping a second executable migration
+#                      path here would reintroduce the auto-resolve behavior
+#                      Phase A removed, so this branch fails closed instead.
 #   seed-workflows  -- run only the workflow template seed (idempotent upserts).
 #                      Useful for one-shot reseeds without invoking migrations.
 #
-# In both modes we compose DATABASE_URL from the individual DB_* secrets
-# injected by ECS from the Aurora master credential. We require sslmode=require
-# because Aurora's parameter group has rds.force_ssl=1.
+# We compose DATABASE_URL from the individual DB_* secrets injected by ECS from
+# the Aurora master credential. We require sslmode=require because Aurora's
+# parameter group has rds.force_ssl=1.
 
 set -e
 
@@ -47,38 +53,14 @@ export TMPDIR
 
 case "${1:-serve}" in
   migrate)
-    echo "Running prisma migrate deploy"
-    # Auto-resolve any previously failed migrations before deploying.
-    # Prisma refuses to apply new migrations if a prior one is in failed state.
-    # We query the _prisma_migrations table directly for any failed entries and
-    # mark them as rolled-back so migrate deploy can proceed cleanly.
-    node -e "
-      const { PrismaClient } = require('@prisma/client');
-      const p = new PrismaClient();
-      (async () => {
-        try {
-          const failed = await p.\$queryRaw\`
-            SELECT migration_name FROM _prisma_migrations
-            WHERE finished_at IS NULL AND rolled_back_at IS NULL
-          \`;
-          for (const row of failed) {
-            console.log('Resolving failed migration:', row.migration_name);
-            await p.\$executeRaw\`
-              UPDATE _prisma_migrations
-              SET rolled_back_at = NOW()
-              WHERE migration_name = \${row.migration_name}
-            \`;
-          }
-        } catch (e) { /* table may not exist on first run */ }
-        await p.\$disconnect();
-      })();
-    "
-    node ./node_modules/prisma/build/index.js migrate deploy --schema=./prisma/schema.prisma
-    echo "Seeding workflow templates"
-    # Data seed (idempotent UPSERTs). Source of truth is prisma/seed-workflows.ts.
-    # Re-asserts the catalog on every migration deploy so prod / staging stay in
-    # sync with the file in git.
-    exec ./node_modules/.bin/tsx prisma/seed-workflows.ts
+    # Phase A: this branch previously auto-resolved failed migrations by editing
+    # Prisma's migration ledger, which silently converted a failed deployment
+    # into an apparently successful one. Migration deployment now has exactly one
+    # supported path -- /usr/local/bin/entrypoint.sh migrate -- and a failed
+    # migration must block the deploy and be handled by an operator per
+    # docs/runbooks/prisma-failed-migration-recovery.md.
+    echo "Refusing legacy migrate dispatch: use /usr/local/bin/entrypoint.sh migrate; automatic migration-history mutation is disabled." >&2
+    exit 64
     ;;
   seed-workflows)
     echo "Seeding workflow templates"
@@ -300,6 +282,11 @@ case "${1:-serve}" in
   # non-federal funding/funding-opportunity number) for federal_assistance_award
   # rows sync-federal-assistance-awards couldn't fully populate from search alone.
   enrich-assistance-awards) shift; exec ./node_modules/.bin/tsx scripts/enrich-assistance-award-details.ts "$@" ;;
+  # District Nexus: the DEPTH rail for the same fields. One server-side download
+  # per time-chunk instead of one HTTP call per award, because USAspending's edge
+  # blocked this NAT IP outright under the per-award walk (2026-07-28) and even
+  # unblocked the ~238k backlog is ~66h at 1 req/s. Dry-run by default.
+  backfill-assistance-awards-bulk) shift; exec ./node_modules/.bin/tsx scripts/backfill-assistance-awards-bulk.ts "$@" ;;
   # District Nexus: remove stale `assistance_recipient` review candidates left
   # behind by the pre-2026-07-27 matcher, which scored name similarity as a
   # graduated signal and produced 173/183 wrong suggestions (>$15B
@@ -658,7 +645,7 @@ case "${1:-serve}" in
     exec node dist/main.js
     ;;
   *)
-    echo "Unknown command: $1 (expected: serve | migrate | seed-workflows | bootstrap-capiro-admin | bootstrap-tenant | drain-identity-outbox | bootstrap-roles | emit-changes | emit-bill-alerts | emit-clio-alerts | generate-meeting-briefings | backfill-sectors | generate-briefings | compute-health-scores | check-comment-periods | embed-backfill | embed-program-elements | sync-lda | sync-congress | sync-congress-members | sync-cbo | sync-committees | sync-house-votes | sync-senate-votes | derive-bill-status | sync-federal-register | sync-regulations | sync-hearings | sync-hearing-transcripts | sync-gao | sync-crs | sync-fec | sync-federal-award | sync-federal-assistance-awards | enrich-assistance-awards | prune-stale-assistance-recipient-candidates | enrich-award-districts | enrich-award-pe | seed-acq-program-map | report-award-pe-coverage | extract-press-personnel | sync-sam-personnel | sync-fec-pac | sync-fara | sync-fara-enrichment | sync-sec-edgar | sync-rss-intel | sync-openstates | backfill-legiscan-datasets | sync-legiscan-masterlist | sync-legiscan-bills | sync-legistorm-districts | build-district-boundary-artifacts | sync-legistorm-trips | derive-state-bill-status | emit-state-changes | emit-committee-changes | emit-redistricting-alerts | crosswalk-state-people | geocode-facilities | load-state-calendars | normalize-state-committees | backtest-deadline-physics | sync-state-register | set-tenant-flag | sync-bls | sync-bea | sync-census | sync-grants | enrich-grant-details | generate-grant-opportunity-candidates | sync-openlobby |sync-openspending | sync-lobby-trending | refresh-lobby-intel-mv | refresh-kg-edge-cache | sync-comptroller-jbooks | sync-jbook-r2 | import-dow-directory | import-dow-directory-v6 | sync-dow-headshots | generate-pe-person-candidates | auto-confirm-pe-person-candidates | derive-office-program-links | sync-peo-rosters | sync-dod-orgcharts | sync-dod-press-personnel | sync-cpe-roster | recompute-conference-probability | extract-bill-pe-codes | extract-gao-interviewees | extract-hearing-witnesses | parse-hasc-report | parse-sasc-report | parse-hac-d-report | parse-sac-d-report | parse-ndaa-conference | parse-defense-approps-public-law | parse-pdoc | load-defense-budget-package | verify-defense-budget-packages | run-pe-derive-chain | watch-budget-docs | send-pe-alert-emails | match-pe-mentions | rebuild-pe-years | normalize-pe-units | diag-stale-directory | reconcile-personnel-supersede | reconcile-stale-pes | repair-person-pe-links | diag-client-resolution | diag-phantom-imports | diag-clio-memory | diag-memory-recall-parity | backfill-clio-memory-embeddings | run-clio-scheduled-tasks | run-intel-workflows | refresh-memory-graph | prepopulate-all | fill-govids-all)" >&2
+    echo "Unknown command: $1 (expected: serve | migrate | seed-workflows | bootstrap-capiro-admin | bootstrap-tenant | drain-identity-outbox | bootstrap-roles | emit-changes | emit-bill-alerts | emit-clio-alerts | generate-meeting-briefings | backfill-sectors | generate-briefings | compute-health-scores | check-comment-periods | embed-backfill | embed-program-elements | sync-lda | sync-congress | sync-congress-members | sync-cbo | sync-committees | sync-house-votes | sync-senate-votes | derive-bill-status | sync-federal-register | sync-regulations | sync-hearings | sync-hearing-transcripts | sync-gao | sync-crs | sync-fec | sync-federal-award | sync-federal-assistance-awards | enrich-assistance-awards | backfill-assistance-awards-bulk | prune-stale-assistance-recipient-candidates | enrich-award-districts | enrich-award-pe | seed-acq-program-map | report-award-pe-coverage | extract-press-personnel | sync-sam-personnel | sync-fec-pac | sync-fara | sync-fara-enrichment | sync-sec-edgar | sync-rss-intel | sync-openstates | backfill-legiscan-datasets | sync-legiscan-masterlist | sync-legiscan-bills | sync-legistorm-districts | build-district-boundary-artifacts | sync-legistorm-trips | derive-state-bill-status | emit-state-changes | emit-committee-changes | emit-redistricting-alerts | crosswalk-state-people | geocode-facilities | load-state-calendars | normalize-state-committees | backtest-deadline-physics | sync-state-register | set-tenant-flag | sync-bls | sync-bea | sync-census | sync-grants | enrich-grant-details | generate-grant-opportunity-candidates | sync-openlobby |sync-openspending | sync-lobby-trending | refresh-lobby-intel-mv | refresh-kg-edge-cache | sync-comptroller-jbooks | sync-jbook-r2 | import-dow-directory | import-dow-directory-v6 | sync-dow-headshots | generate-pe-person-candidates | auto-confirm-pe-person-candidates | derive-office-program-links | sync-peo-rosters | sync-dod-orgcharts | sync-dod-press-personnel | sync-cpe-roster | recompute-conference-probability | extract-bill-pe-codes | extract-gao-interviewees | extract-hearing-witnesses | parse-hasc-report | parse-sasc-report | parse-hac-d-report | parse-sac-d-report | parse-ndaa-conference | parse-defense-approps-public-law | parse-pdoc | load-defense-budget-package | verify-defense-budget-packages | run-pe-derive-chain | watch-budget-docs | send-pe-alert-emails | match-pe-mentions | rebuild-pe-years | normalize-pe-units | diag-pe-trust | diag-stale-directory | reconcile-personnel-supersede | reconcile-stale-pes | repair-person-pe-links | diag-client-resolution | diag-phantom-imports | diag-clio-memory | diag-memory-recall-parity | backfill-clio-memory-embeddings | run-clio-scheduled-tasks | run-intel-workflows | refresh-memory-graph | prepopulate-all | fill-govids-all)" >&2
     exit 1
     ;;
 esac

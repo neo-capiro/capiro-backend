@@ -81,6 +81,24 @@ describe('normalizeEvidence — flat bill-change-detector shape (P0-07)', () => 
     expect('jurisdiction' in (r.bill ?? {})).toBe(false);
     expect(r.provenance.jurisdiction).toBe('US'); // established default
   });
+
+  it('Gate L (HP-03) followup: carries the state legislative session onto provenance', () => {
+    const r = normalizeEvidence(
+      base({
+        sourceType: 'state_bill',
+        sourceRef: 'ca-ab-1234',
+        evidence: { ...flatBillEvidence(), jurisdiction: 'CA', session: '2026 Regular Session' },
+      }),
+    );
+    expect(r.provenance.session).toBe('2026 Regular Session');
+  });
+
+  it('Gate L (HP-03) followup: omits session from provenance when the writer never stamped one', () => {
+    const r = normalizeEvidence(
+      base({ sourceType: 'state_bill', evidence: { ...flatBillEvidence(), jurisdiction: 'CA' } }),
+    );
+    expect('session' in r.provenance).toBe(false);
+  });
 });
 
 describe('normalizeEvidence — nested shapes pass through', () => {

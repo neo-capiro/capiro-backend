@@ -32,7 +32,6 @@ import {
   pickRecallGraph,
   type MemoryRecallSource,
 } from './memory-recall-source.helpers.js';
-import { passesWriteConfidenceGate } from './memory-confidence.helpers.js';
 import { rerankByFusion, type RecalledRow } from './memory-scoring.helpers.js';
 import {
   recallOutcomeMetric,
@@ -48,6 +47,9 @@ import { resolveCacheNodeLabels, keepCacheEdge, aggSuffix } from '../memory/kg-c
 import { MeriToolsService } from './meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
+import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
+import { evaluateMemoryMutation } from '../memory/memory-mutation-auth.js';
+import { decideMemoryAutoLearn, exactUserExcerpt } from '../memory/memory-autolearn-governance.js';
 import { clioMemorySlug } from '../memory/memory-clio-adapter.helpers.js';
 import {
   addUsage,
@@ -153,6 +155,7 @@ import {
   type VerificationResult,
 } from './meri-verifier.helpers.js';
 import { planTurnRerun } from './meri-turn.helpers.js';
+import { shouldRouteMeriV2FullChat } from './meriv2-routing.helpers.js';
 
 interface CreateConversationInput {
   clientId?: string;
@@ -251,6 +254,7 @@ export class MeriService {
     private readonly firmSkills: MeriFirmSkillsService,
     private readonly aiCredentials: AiCredentialResolverService,
     private readonly memoryIngest: MemoryIngestService,
+    private readonly memoryCandidates: MemoryCandidateService,
     private readonly meriFlags: MeriFeatureFlagsService,
     private readonly meriV2Chat: MeriV2ChatClient,
     private readonly claimWriter: MeriClaimWriterService,
@@ -510,8 +514,9 @@ export class MeriService {
     mode: 'new' | 'regenerate' | 'resend' = 'new',
     attachmentIds: string[] = [],
     // The caller's raw Clerk bearer — required ONLY by the MeriV2 full-chat
-    // proxy branch (delegated tools + the approval check re-authenticate with
-    // it downstream). The legacy in-process path never touches it.
+    // proxy branch (delegated tool execution + action-proposal creation
+    // re-authenticate with it downstream). The legacy in-process path never
+    // touches it.
     bearerToken?: string,
     // Impersonation (2.5): the effective tenant a staff caller is acting AS,
     // forwarded to the MeriV2 proxy branch so its delegated apps/api calls scope
@@ -853,17 +858,27 @@ export class MeriService {
     // emits page_write output, carries native vision blocks, and propagates the
     // impersonation header (apps/api re-validates the impersonation authz on
     // every delegated call). A MISSING bearer still routes legacy: the
-    // orchestrator's delegated tools + approval check re-authenticate with it.
+    // orchestrator's delegated tool execution + action-proposal creation
+    // re-authenticate with it.
+    const meriV2FullChatEnabled =
+      bearerToken && this.meriV2Chat.configured
+        ? await this.meriFlags.isMeriV2SurfaceEnabled(ctx.tenantId, MERIV2_FLAGS.fullChat)
+        : false;
     if (
-      bearerToken &&
-      this.meriV2Chat.configured &&
-      (await this.meriFlags.isMeriV2SurfaceEnabled(ctx.tenantId, MERIV2_FLAGS.fullChat))
+      shouldRouteMeriV2FullChat({
+        bearerToken,
+        configured: this.meriV2Chat.configured,
+        enabled: meriV2FullChatEnabled,
+        impersonateTenantId,
+      }) &&
+      bearerToken
     ) {
       await this.streamMessageViaMeriV2({
         ctx,
         conversation: { clientId: conversation.clientId ?? null },
         conversationId,
         content,
+        sourceMessageId: lastUserMessage?.id ?? null,
         replayHistory,
         sse,
         bearerToken,
@@ -1780,15 +1795,20 @@ export class MeriService {
     // this turn — never learn a fact from a reply we already suspect is ungrounded
     // (closes the memory-laundering path where a fabricated claim is persisted and
     // later recalled as uncited firm knowledge).
-    if (assistantContent.length > 200 && !auditorFoundIssues) {
-      void this.maybeLearnFromConversation(
-        ctx.tenantId,
-        ctx.userId,
+    if (assistantContent.length > 200) {
+      void this.maybeLearnFromConversation({
+        ctx,
         conversationId,
-        content,
-        assistantContent,
-        ctx.role,
-      ).catch(() => {});
+        sourceMessageId: lastUserMessage?.id ?? null,
+        userMessage: content,
+        assistantResponse: assistantContent,
+        aborted,
+        complianceRefusal: complianceScreen.flagged,
+        executionError:
+          assistantContent.startsWith('Error:') ||
+          traceRounds.some((round) => round.tools.some((tool) => !tool.ok)),
+        groundingSeverity: auditorFoundIssues ? 'high' : null,
+      }).catch(() => {});
     }
 
     // After-turn maintenance (F2): index this turn's messages for history
@@ -1824,6 +1844,7 @@ export class MeriService {
     conversation: { clientId: string | null };
     conversationId: string;
     content: string;
+    sourceMessageId: string | null;
     replayHistory: Array<{ role: 'user' | 'assistant'; body: string }>;
     sse: { write: (data: string) => void };
     clientSignal?: AbortSignal;
@@ -1910,7 +1931,8 @@ export class MeriService {
     const pendingApprovals: Array<{
       tool: string;
       label?: string;
-      fingerprint: string;
+      proposalId: string;
+      status: string;
       reason: string;
     }> = [];
     // Ids of deliverables the delegated create_* tools persisted this turn (with
@@ -1922,6 +1944,7 @@ export class MeriService {
     const producedArtifacts: Array<{ id: string; title: string; bodyText: string }> = [];
     let doneFrame: Extract<MeriV2ChatStreamEvent, { type: 'done' }> | null = null;
     let errorMessage: string | null = null;
+    let groundingSeverity: string | null = null;
 
     const translate = (event: MeriV2ChatStreamEvent) => {
       switch (event.type) {
@@ -1959,13 +1982,27 @@ export class MeriService {
           return;
         }
         case 'pending_approval':
-          pendingApprovals.push(event);
+          pendingApprovals.push({
+            tool: event.tool,
+            label: event.label,
+            proposalId: event.proposalId,
+            status: event.status,
+            reason: event.reason,
+          });
+          // Forward the full proposal shape — the browser approves by opaque
+          // proposalId only and renders the preview/expiry/risk tier; it never
+          // receives a tool payload or fingerprint it could replay as authority.
           emit({
             type: 'pending_approval',
             tool: event.tool,
             label: event.label,
-            fingerprint: event.fingerprint,
+            proposalId: event.proposalId,
+            status: event.status,
             reason: event.reason,
+            expiresAt: event.expiresAt,
+            riskTier: event.riskTier,
+            policyCode: event.policyCode,
+            preview: event.preview,
           });
           return;
         case 'artifact':
@@ -2003,6 +2040,7 @@ export class MeriService {
           });
           return;
         case 'grounding_caveat':
+          groundingSeverity = event.topSeverity;
           // Chat enforce-gate (non-blocking): forward the orchestrator's caveat
           // for high/critical grounding findings — same frame the legacy loop emits.
           emit({
@@ -2218,14 +2256,17 @@ export class MeriService {
     }
 
     if (assistantContent.length > 200) {
-      void this.maybeLearnFromConversation(
-        ctx.tenantId,
-        ctx.userId,
-        args.conversationId,
-        args.content,
-        assistantContent,
-        ctx.role,
-      ).catch(() => {});
+      void this.maybeLearnFromConversation({
+        ctx,
+        conversationId: args.conversationId,
+        sourceMessageId: args.sourceMessageId,
+        userMessage: args.content,
+        assistantResponse: assistantContent,
+        aborted,
+        complianceRefusal: args.complianceScreen.flagged,
+        executionError: Boolean(errorMessage) || steps.some((step) => step.status === 'error'),
+        groundingSeverity,
+      }).catch(() => {});
     }
     setImmediate(() => {
       this.afterTurnMaintenance(ctx, args.conversationId).catch((err) => {
@@ -3915,159 +3956,159 @@ export class MeriService {
     };
   }
 
-  private async maybeLearnFromConversation(
-    tenantId: string,
-    userId: string,
-    conversationId: string,
-    userMessage: string,
-    assistantResponse: string,
-    callerRole: string,
-  ): Promise<void> {
-    if (!this.shouldAttemptMemoryLearning(userMessage, assistantResponse)) return;
+  private memoryAutolearnMetric(
+    event: 'attempted' | 'skipped' | 'candidate_created' | 'failed',
+    reason?: string,
+  ): void {
+    this.logger.log(
+      `[memory-autolearn] metric=${event}${reason ? ` reason=${reason}` : ''}`,
+    );
+  }
 
-    // BYOK: tenant key (or global fallback) via resolver; model unchanged.
-    const resolved = await this.aiCredentials.resolveProviderByTenantId(tenantId, 'anthropic');
-    if (!resolved) return;
-    const anthropicKey = resolved.apiKey;
+  private async maybeLearnFromConversation(args: {
+    ctx: TenantContext;
+    conversationId: string;
+    sourceMessageId: string | null;
+    userMessage: string;
+    assistantResponse: string;
+    aborted: boolean;
+    complianceRefusal: boolean;
+    executionError: boolean;
+    groundingSeverity: string | null;
+  }): Promise<void> {
+    const preflight = decideMemoryAutoLearn({
+      enabled: this.config.get('MEMORY_AUTOLEARN_GOVERNED', { infer: true }),
+      userMessage: args.userMessage,
+      sourceMessageId: args.sourceMessageId,
+      aborted: args.aborted,
+      complianceRefusal: args.complianceRefusal,
+      executionError: args.executionError,
+      groundingSeverity: args.groundingSeverity,
+    });
+    if (!preflight.attempt) {
+      this.memoryAutolearnMetric('skipped', preflight.reason);
+      return;
+    }
+    if (!this.shouldAttemptMemoryLearning(args.userMessage, args.assistantResponse)) {
+      this.memoryAutolearnMetric('skipped', 'not_durable');
+      return;
+    }
+    this.memoryAutolearnMetric('attempted');
+
+    const resolved = await this.aiCredentials.resolveProviderByTenantId(
+      args.ctx.tenantId,
+      'anthropic',
+    );
+    if (!resolved) {
+      this.memoryAutolearnMetric('failed', 'provider_unavailable');
+      return;
+    }
 
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
-          'x-api-key': anthropicKey,
+          'x-api-key': resolved.apiKey,
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           model: this.config.get('CLIO_INTENT_MODEL', { infer: true }),
-          max_tokens: 600,
+          max_tokens: 700,
           system:
-            'Extract 0-3 durable facts from this conversation exchange. For each, return a confidence in [0,1] (how certain this is a stable, reusable fact and not a one-off), and a scope: "firm" only for institutional facts that are TRUE FOR THE WHOLE FIRM and clearly stated by the user (clients, processes, standing relationships); "user" for the speaker\'s personal writing/tone/format preferences or anything client-specific or uncertain. When in doubt use "user". Ignore temporary statuses, one-off tasks, runtime errors, specific timestamps, speculation, and operational chatter. Return JSON: {"memories":[{"key":"short_label","value":"fact","confidence":0.0,"scope":"user|firm"}]}. Return {"memories":[]} if nothing is durable.',
+            'Extract 0-3 durable facts stated by the USER. Never use assistant wording as the factual source. ' +
+            'For each fact, copy an exact source excerpt from the user statement and return JSON only: ' +
+            '{"memories":[{"key":"short_label","value":"concise fact","excerpt":"exact user substring",' +
+            '"confidence":0.0,"scope":"user|firm"}]}. Use firm only for a clearly stated firm-wide fact; ' +
+            'otherwise use user. Return {"memories":[]} when nothing durable is explicitly stated.',
           messages: [
-            { role: 'user', content: `User: ${userMessage}\n\nAssistant: ${assistantResponse}` },
+            {
+              role: 'user',
+              content: `USER-AUTHORED STATEMENT (only factual source):\n${args.userMessage}`,
+            },
           ],
         }),
       });
-
-      if (!res.ok) return;
+      if (!res.ok) {
+        this.memoryAutolearnMetric('failed', 'extractor_http');
+        return;
+      }
       const json = (await res.json()) as Record<string, unknown>;
       const text = Array.isArray(json.content)
         ? (json.content[0] as Record<string, unknown>)?.text
         : '';
-      if (typeof text !== 'string') return;
-
+      if (typeof text !== 'string') {
+        this.memoryAutolearnMetric('failed', 'extractor_shape');
+        return;
+      }
       const match = text.match(/\{[\s\S]*\}/);
-      if (!match) return;
+      if (!match) {
+        this.memoryAutolearnMetric('failed', 'extractor_json');
+        return;
+      }
       const parsed = JSON.parse(match[0]) as {
-        memories?: Array<{ key?: unknown; value?: unknown; confidence?: unknown; scope?: unknown }>;
+        memories?: Array<{
+          key?: unknown;
+          value?: unknown;
+          excerpt?: unknown;
+          confidence?: unknown;
+          scope?: unknown;
+        }>;
       };
-      if (!Array.isArray(parsed.memories)) return;
+      if (!Array.isArray(parsed.memories)) {
+        this.memoryAutolearnMetric('failed', 'extractor_shape');
+        return;
+      }
 
-      // Confidence threshold below which we never persist a learned fact.
-      // Phase 4: config-driven (MEMORY_MIN_WRITE_CONFIDENCE, default 0.7 —
-      // preserves the previous hardcoded gate exactly) via passesWriteConfidenceGate.
-      const minWriteConfidence =
+      const minConfidence =
         (this.config.get('MEMORY_MIN_WRITE_CONFIDENCE', { infer: true }) as number | undefined) ??
         0.7;
-      // Cosine similarity above which a candidate is treated as a duplicate of
-      // an existing memory (update in place instead of inserting a near-clone).
-      const DEDUPE_SIMILARITY = 0.92;
-
-      for (const mem of parsed.memories) {
-        if (typeof mem.key !== 'string' || typeof mem.value !== 'string') continue;
-        const normalized = this.normalizeMemoryCandidate(mem.key, mem.value);
+      const isAdmin = args.ctx.role === 'user_admin' || args.ctx.role === 'capiro_admin';
+      let created = 0;
+      for (const memory of parsed.memories.slice(0, 3)) {
+        if (typeof memory.key !== 'string' || typeof memory.value !== 'string') continue;
+        const excerpt = exactUserExcerpt(args.userMessage, memory.excerpt);
+        if (!excerpt) continue;
+        const normalized = this.normalizeMemoryCandidate(memory.key, memory.value);
         if (!normalized) continue;
-
-        // (1) Confidence gate — drop low-confidence extractions entirely.
-        const confidence = typeof mem.confidence === 'number' ? mem.confidence : 0;
-        if (!passesWriteConfidenceGate(confidence, minWriteConfidence)) continue;
-
-        // (2) Default to user-private. Promote to firm scope ONLY when the
-        // extractor explicitly says "firm", confidence is high, and the heuristic
-        // classifier does not flag it as a personal style preference. This stops
-        // a single chat's guess from silently becoming firm-wide truth.
-        const extractorScope = mem.scope === 'firm' ? 'firm' : 'user';
-        const styleType = this.classifyMemoryType(normalized.key, normalized.value); // 'firm' | 'user_private'
-        const promoteToFirm =
-          extractorScope === 'firm' && confidence >= 0.85 && styleType === 'firm';
-        // Governance (Phase 4a): auto-learn may write FIRM scope only for admins.
-        // For everyone else a "firm" candidate is kept as personal memory (never
-        // dropped) so a single chat can't seed firm-wide truth.
-        const isAdmin = callerRole === 'user_admin' || callerRole === 'capiro_admin';
-        const scope: 'firm' | 'user_private' = promoteToFirm && isAdmin ? 'firm' : 'user_private';
-        const ownerUserId = scope === 'user_private' ? userId : null;
-        const storedKey =
+        const confidence =
+          typeof memory.confidence === 'number' && Number.isFinite(memory.confidence)
+            ? Math.min(1, Math.max(0, memory.confidence))
+            : 0;
+        if (confidence < minConfidence) continue;
+        const styleType = this.classifyMemoryType(normalized.key, normalized.value);
+        const firmCandidate =
+          memory.scope === 'firm' && confidence >= 0.85 && styleType === 'firm' && isAdmin;
+        const scope: 'firm' | 'user_private' = firmCandidate ? 'firm' : 'user_private';
+        const key =
           scope === 'user_private'
-            ? this.userScopedMemoryKey(userId, normalized.key)
+            ? this.userScopedMemoryKey(args.ctx.userId, normalized.key)
             : normalized.key;
-        const source = scope === 'user_private' ? 'user_style' : 'firm';
-        const memoryMetadata = {
-          conversationId,
-          updatedBy: 'auto',
-          userId,
-          visibility: scope,
-          confidence,
-        };
 
-        // (3) Semantic dedupe — if a near-identical memory already exists in the
-        // same scope, update it rather than inserting a near-clone.
-        let dedupeTargetKey: string | null = null;
-        try {
-          const similar = await this.semanticMemorySearch(tenantId, userId, normalized.value, 3);
-          const hit = similar.find((s) => s.score >= DEDUPE_SIMILARITY);
-          if (hit) dedupeTargetKey = hit.key;
-        } catch {
-          /* dedupe is best-effort */
-        }
-
-        const existing = await this.prisma.withTenant(tenantId, (tx) =>
-          tx.clioMemory.findFirst({
-            where: {
-              tenantId,
-              scope,
-              ownerUserId,
-              key: dedupeTargetKey ?? storedKey,
-            },
-          }),
+        await this.memoryCandidates.proposeSaveMemory(
+          args.ctx.tenantId,
+          args.ctx.userId,
+          {
+            scope,
+            ownerUserId: scope === 'user_private' ? args.ctx.userId : null,
+            clientId: null,
+            key,
+            value: normalized.value,
+            source: 'meri_user_statement',
+            confidence,
+            sourceConversationId: args.conversationId,
+            sourceMessageId: args.sourceMessageId,
+            sourceExcerpt: excerpt,
+          },
+          isAdmin,
+          'model_extraction',
         );
-
-        let learnedId: string;
-        if (existing) {
-          await this.prisma.withTenant(tenantId, (tx) =>
-            tx.clioMemory.update({
-              where: { id: existing.id },
-              data: {
-                value: normalized.value,
-                source,
-                metadata: memoryMetadata,
-              },
-            }),
-          );
-          learnedId = existing.id;
-        } else {
-          const created = await this.prisma.withTenant(tenantId, (tx) =>
-            tx.clioMemory.create({
-              data: {
-                tenantId,
-                scope,
-                ownerUserId,
-                key: storedKey,
-                value: normalized.value,
-                source,
-                metadata: { ...memoryMetadata, createdBy: 'auto' },
-              },
-              select: { id: true },
-            }),
-          );
-          learnedId = created.id;
-        }
-
-        void this.embedAndStoreMemory(tenantId, storedKey, normalized.value).catch(() => {});
-        // Write-through: reflect the auto-learned fact in the memory graph + index.
-        void this.memoryIngest.projectClioMemory(tenantId, learnedId);
+        created += 1;
       }
-    } catch (err) {
-      this.logger.debug(`Memory extraction failed: ${(err as Error).message}`);
+      if (created > 0) this.memoryAutolearnMetric('candidate_created', String(created));
+      else this.memoryAutolearnMetric('skipped', 'no_valid_candidate');
+    } catch {
+      this.memoryAutolearnMetric('failed', 'extractor_exception');
     }
   }
 
@@ -4592,21 +4633,45 @@ export class MeriService {
     await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const row = await tx.clioMemory.findFirst({
         where: { id: memoryId, tenantId: ctx.tenantId },
-        select: { id: true, scope: true, ownerUserId: true, key: true, value: true },
+        select: {
+          id: true,
+          scope: true,
+          ownerUserId: true,
+          clientId: true,
+          key: true,
+          value: true,
+        },
       });
       if (!row) throw new NotFoundException('Memory not found');
-      if (row.scope === 'user_private' && row.ownerUserId !== ctx.userId) {
-        throw new NotFoundException('Memory not found');
-      }
       const held = await tx.$queryRaw<Array<{ legal_hold: boolean }>>`
         SELECT legal_hold FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid AND type = 'note' AND slug = ${slug}
         LIMIT 1
       `;
-      if (held[0]?.legal_hold) {
-        throw new ForbiddenException('This memory is under legal hold and cannot be deleted.');
+      const decision = evaluateMemoryMutation(
+        ctx,
+        {
+          scope: row.scope,
+          ownerUserId: row.ownerUserId,
+          clientId: row.clientId,
+          legalHold: held[0]?.legal_hold ?? false,
+        },
+        'forget',
+      );
+      if (!decision.allowed) {
+        if (decision.reason === 'legal_hold') {
+          throw new ForbiddenException('This memory is under legal hold and cannot be deleted.');
+        }
+        throw new NotFoundException('Memory not found');
       }
-      await tx.clioMemory.deleteMany({ where: { id: memoryId, tenantId: ctx.tenantId } });
+      await tx.clioMemory.deleteMany({
+        where: {
+          id: memoryId,
+          tenantId: ctx.tenantId,
+          scope: row.scope,
+          ownerUserId: row.ownerUserId,
+        },
+      });
       await tx.auditLog.create({
         data: {
           tenantId: ctx.tenantId,
@@ -4674,29 +4739,45 @@ export class MeriService {
           id: true,
           scope: true,
           ownerUserId: true,
+          clientId: true,
           key: true,
           value: true,
           metadata: true,
         },
       });
       if (!row) throw new NotFoundException('Memory not found');
-      if (row.scope === 'user_private' && row.ownerUserId !== ctx.userId) {
-        throw new NotFoundException('Memory not found');
-      }
       const held = await tx.$queryRaw<Array<{ legal_hold: boolean }>>`
         SELECT legal_hold FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid AND type = 'note' AND slug = ${slug}
         LIMIT 1
       `;
-      if (held[0]?.legal_hold) {
-        throw new ForbiddenException('This memory is under legal hold and cannot be edited.');
+      const decision = evaluateMemoryMutation(
+        ctx,
+        {
+          scope: row.scope,
+          ownerUserId: row.ownerUserId,
+          clientId: row.clientId,
+          legalHold: held[0]?.legal_hold ?? false,
+        },
+        'edit',
+      );
+      if (!decision.allowed) {
+        if (decision.reason === 'legal_hold') {
+          throw new ForbiddenException('This memory is under legal hold and cannot be edited.');
+        }
+        throw new NotFoundException('Memory not found');
       }
       const meta =
         row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
           ? (row.metadata as Record<string, unknown>)
           : {};
       await tx.clioMemory.updateMany({
-        where: { id: memoryId, tenantId: ctx.tenantId },
+        where: {
+          id: memoryId,
+          tenantId: ctx.tenantId,
+          scope: row.scope,
+          ownerUserId: row.ownerUserId,
+        },
         data: {
           value: next,
           metadata: {

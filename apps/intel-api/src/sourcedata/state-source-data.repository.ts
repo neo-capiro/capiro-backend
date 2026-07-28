@@ -18,6 +18,13 @@ export interface SourceStateBill {
   id: string;
   state: string;
   sessionKey: string;
+  /**
+   * Gate L (HP-03) followup: the human-readable session label (e.g. "2026
+   * Regular Session") — distinct from `sessionKey`, LegiScan's machine key
+   * (e.g. "2026" or "2026x2"). A district brief names the session for a
+   * human reader; the key is only ever used for joins.
+   */
+  session: string | null;
   identifier: string;
   title: string | null;
   status: string | null;
@@ -95,6 +102,7 @@ export class StateSourceDataRepository {
       `SELECT sb.id,
               sb.state,
               sb.session_key         AS "sessionKey",
+              sb.session,
               sb.identifier,
               sb.title,
               sb.status,

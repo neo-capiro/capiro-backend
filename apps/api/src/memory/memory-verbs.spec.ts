@@ -45,10 +45,33 @@ describe('memory verbs (Phase 1, 1D)', () => {
     expect(await store.confirmMemory('m1')).toEqual({ found: false });
   });
 
+  // Phase 0 (memory-mutation-auth.ts) widened confirmMemory/forgetMemory's
+  // SELECT to also fetch visibility/owner_user_id/client_id/status (it no
+  // longer relies on the query's own WHERE clause for authorization — see
+  // memory-store.service.ts) and routes the decision through
+  // evaluateMemoryMutation. The mock's SQL-key match is a substring test, so
+  // matching on 'FROM memory_items' (present in every variant of the SELECT)
+  // instead of spelling out the old, narrower column list keeps these mocks
+  // resilient to that column list changing again. Every row fixture below
+  // adds visibility:'user' + owner_user_id matching the mock ctx's own userId
+  // so the fixture is unconditionally authorized (owner of their own private
+  // memory) — these tests are about confirm/forget SQL control flow, not
+  // authorization, which memory-mutation-auth.spec.ts covers directly.
   it('confirm: updates last_confirmed_at and returns title', async () => {
     const execs: string[] = [];
     const { store } = makeStore({
-      rows: { 'SELECT title FROM memory_items': [{ title: 'Prefers bullet points' }] },
+      rows: {
+        'FROM memory_items': [
+          {
+            title: 'Prefers bullet points',
+            visibility: 'user',
+            owner_user_id: 'user-1',
+            client_id: null,
+            status: 'active',
+            legal_hold: false,
+          },
+        ],
+      },
       captureExec: (s) => execs.push(s),
     });
     expect(await store.confirmMemory('m1')).toEqual({ found: true, title: 'Prefers bullet points' });
@@ -58,7 +81,19 @@ describe('memory verbs (Phase 1, 1D)', () => {
   it('forget: refuses an item under legal hold (no revoke, no purge)', async () => {
     const execs: string[] = [];
     const { store, auditCreate } = makeStore({
-      rows: { 'SELECT title, slug, legal_hold': [{ title: 'X', slug: 'note:x', legal_hold: true }] },
+      rows: {
+        'FROM memory_items': [
+          {
+            title: 'X',
+            slug: 'note:x',
+            visibility: 'user',
+            owner_user_id: 'user-1',
+            client_id: null,
+            status: 'active',
+            legal_hold: true,
+          },
+        ],
+      },
       captureExec: (s) => execs.push(s),
     });
     const r = await store.forgetMemory('m1');
@@ -70,7 +105,19 @@ describe('memory verbs (Phase 1, 1D)', () => {
   it('forget: revokes, purges embedding, deletes clio source, writes tombstone', async () => {
     const execs: string[] = [];
     const { store, auditCreate } = makeStore({
-      rows: { 'SELECT title, slug, legal_hold': [{ title: 'Nickname', slug: 'clio:abc-123', legal_hold: false }] },
+      rows: {
+        'FROM memory_items': [
+          {
+            title: 'Nickname',
+            slug: 'clio:abc-123',
+            visibility: 'user',
+            owner_user_id: 'user-1',
+            client_id: null,
+            status: 'active',
+            legal_hold: false,
+          },
+        ],
+      },
       captureExec: (s) => execs.push(s),
     });
     const r = await store.forgetMemory('m1', 'user asked');
@@ -85,7 +132,19 @@ describe('memory verbs (Phase 1, 1D)', () => {
   it('forget: a non-clio item does NOT touch clio_memory', async () => {
     const execs: string[] = [];
     const { store } = makeStore({
-      rows: { 'SELECT title, slug, legal_hold': [{ title: 'Y', slug: 'client-soul:acme', legal_hold: false }] },
+      rows: {
+        'FROM memory_items': [
+          {
+            title: 'Y',
+            slug: 'client-soul:acme',
+            visibility: 'user',
+            owner_user_id: 'user-1',
+            client_id: null,
+            status: 'active',
+            legal_hold: false,
+          },
+        ],
+      },
       captureExec: (s) => execs.push(s),
     });
     await store.forgetMemory('m1');
@@ -94,7 +153,22 @@ describe('memory verbs (Phase 1, 1D)', () => {
 
   it('correct: refuses under legal hold', async () => {
     const { store } = makeStore({
-      rows: { 'SELECT type, slug, title, client_id': [{ type: 'note', slug: 'clio:z', title: 'Z', client_id: null, owner_user_id: 'user-1', visibility: 'user', entity_id: null, tags: [], legal_hold: true }] },
+      rows: {
+        'FROM memory_items': [
+          {
+            type: 'note',
+            slug: 'clio:z',
+            title: 'Z',
+            client_id: null,
+            owner_user_id: 'user-1',
+            visibility: 'user',
+            entity_id: null,
+            tags: [],
+            legal_hold: true,
+            status: 'active',
+          },
+        ],
+      },
     });
     const r = await store.correctMemory('m1', 'new value');
     expect(r).toEqual({ found: true, blockedByLegalHold: true, title: 'Z' });

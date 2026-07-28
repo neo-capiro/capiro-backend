@@ -1,0 +1,172 @@
+# Engagement external-send release gate.
+#
+# ci-pr.yml typechecks the repo but deliberately does not run apps/api or web
+# Engagement suites. This workflow gives the immutable-draft/send-intent boundary
+# an absolute bar: migrations must apply to real Postgres, focused tests must have
+# zero failures and zero skips, and the enumerated test scope may not silently
+# shrink after a rename.
+name: engagement-trust-boundary
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  engagement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          # Early repository migrations intentionally reference database
+          # "capiro" by name, so a clean replay must use that exact database.
+          POSTGRES_DB: capiro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d capiro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Prisma understands ?schema=public; libpq/psql does not, so keep a plain
+      # URI for the direct trigger assertion below.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro?schema=public
+      PSQL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma clients
+        run: pnpm --filter @capiro/api exec prisma generate
+
+      - name: Apply apps/api migrations to clean Postgres
+        id: migrate
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm --filter @capiro/api exec prisma migrate deploy 2>&1 | tee migration-deploy.log
+
+      - name: Upload migration failure diagnostics
+        if: steps.migrate.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: engagement-migration-deploy-log
+          path: migration-deploy.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Stop on migration deployment failure
+        if: steps.migrate.outcome == 'failure'
+        run: |
+          echo "apps/api migrations did not replay on clean Postgres. Last 120 lines:"
+          tail -n 120 migration-deploy.log
+          exit 1
+
+      - name: Verify Engagement migration contracts
+        run: |
+          python apps/api/scripts/verify-engagement-p0-migration.py
+          python apps/api/scripts/verify-engagement-remediation-migration.py
+          test -f apps/api/prisma/migrations/20260809010000_engagement_audit_finding_redaction/migration.sql
+          grep -q "meri_audit_ledger_redact_outreach_findings" \
+            apps/api/prisma/migrations/20260809010000_engagement_audit_finding_redaction/migration.sql
+
+      - name: Prove audit finding redaction against Postgres
+        run: |
+          psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE TEMP TABLE audit_redaction_probe (
+            surface text,
+            subject_type text,
+            findings_jsonb jsonb
+          );
+
+          CREATE TRIGGER audit_redaction_probe_trigger
+          BEFORE INSERT OR UPDATE OF findings_jsonb, surface, subject_type
+          ON audit_redaction_probe
+          FOR EACH ROW
+          EXECUTE FUNCTION redact_outreach_audit_findings();
+
+          INSERT INTO audit_redaction_probe(surface, subject_type, findings_jsonb)
+          VALUES (
+            'outreach',
+            'outreach-draft-version',
+            '[{"check":"unsupported_claim","severity":"high","span":"private recipient text","detail":"private evidence excerpt"}]'::jsonb
+          );
+
+          DO $$
+          DECLARE
+            stored jsonb;
+          BEGIN
+            SELECT findings_jsonb INTO stored FROM audit_redaction_probe;
+            IF stored <> '[{"check":"unsupported_claim","severity":"high","source":"meri_auditor"}]'::jsonb THEN
+              RAISE EXCEPTION 'unexpected redacted findings: %', stored;
+            END IF;
+            IF stored::text LIKE '%private recipient text%'
+               OR stored::text LIKE '%private evidence excerpt%' THEN
+              RAISE EXCEPTION 'sensitive audit text survived redaction: %', stored;
+            END IF;
+          END;
+          $$;
+          SQL
+
+      - name: Typecheck Engagement packages
+        run: pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/web
+
+      - name: Tests — apps/api Engagement trust boundary
+        id: api_tests
+        run: >-
+          pnpm --filter @capiro/api exec jest --ci --runInBand --silent
+          --json --outputFile=$GITHUB_WORKSPACE/engagement-api-summary.json
+          src/engagement/engagement-owner-isolation.spec.ts
+          src/engagement/outreach-draft-audit.service.spec.ts
+          src/engagement/outreach-draft.service.spec.ts
+          src/engagement/outreach-draft.types.spec.ts
+          src/engagement/outreach-send-intent.service.spec.ts
+          src/engagement/outreach-send-attachment-integrity.spec.ts
+          src/engagement/outreach-job.spec.ts
+          src/engagement/engagement-legacy-send-gate.spec.ts
+          src/engagement/engagement-template-ownership.spec.ts
+          src/engagement/google/gmail-send.service.spec.ts
+          src/engagement/microsoft/microsoft-send.service.spec.ts
+          src/engagement/attachment-content-threat.spec.ts
+          src/engagement/prisma-unique-retry.spec.ts
+
+      - name: Assert apps/api scope is clean and complete
+        if: always() && steps.api_tests.outcome != 'skipped'
+        run: >-
+          node scripts/assert-test-summary.mjs
+          "$GITHUB_WORKSPACE/engagement-api-summary.json" apps/api 13 300
+
+      - name: Tests — apps/web Engagement trust boundary
+        id: web_tests
+        run: >-
+          pnpm --filter @capiro/web exec vitest run
+          --reporter=json --outputFile=$GITHUB_WORKSPACE/engagement-web-summary.json
+          src/pages/engagement/outreach/v2/generation.test.ts
+          src/pages/engagement/outreach/v2/jobs.test.ts
+          src/pages/engagement/outreach/v2/send-intent-state.test.ts
+          src/pages/engagement/outreach/v2/versioned-drafts.test.ts
+
+      - name: Assert apps/web scope is clean and complete
+        if: always() && steps.web_tests.outcome != 'skipped'
+        run: >-
+          node scripts/assert-test-summary.mjs
+          "$GITHUB_WORKSPACE/engagement-web-summary.json" apps/web 4 110

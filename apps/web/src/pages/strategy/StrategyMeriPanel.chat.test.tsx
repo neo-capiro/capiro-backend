@@ -55,7 +55,8 @@ vi.mock('./client-targets-lite.js', () => ({
   useClientTargetsLite: () => ({ ...idle, data: [] }),
   targetDisplayLabel: () => 'Target',
 }));
-vi.mock('./agents/WatchRail.js', () => ({ WatchRail: () => <div>watch</div> }));
+// watcherEnabled is never true in this file's fixtures, so StrategyWatchPanel
+// (Phase 4) never mounts here — nothing to mock.
 
 import { StrategyMeriPanel, DRAFTED_NOTE } from './NodeRail.js';
 import { buildCalendar } from './fiscal.js';
@@ -330,6 +331,19 @@ describe('the pinned composer', () => {
       scope: 'strategy',
       instruction: 'Add a coalition sign-on letter',
     });
+  });
+
+  /*
+   * Phase 7 (Lia): selecting a step opens the panel on the conversation, not on
+   * a form. The manual field editor is the fallback path and must start closed.
+   */
+  test('"Edit fields manually" starts COLLAPSED when a node is selected', () => {
+    renderPanel({ node: node({ id: 'node-1' }) });
+    const disclosure = screen.getByRole('button', { name: /edit fields manually/i });
+    expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(disclosure);
+    expect(disclosure).toHaveAttribute('aria-expanded', 'true');
   });
 
   test("the node pills are NOD-5's deterministic quick actions, and appear exactly once", () => {

@@ -236,6 +236,7 @@ model Tenant {
   clioScheduledTasks           ClioScheduledTask[]
   meriActionApprovals          MeriActionApproval[]
   meriPendingActions           MeriPendingAction[]
+  meriActionProposals          MeriActionProposal[]
   clioAttachments              ClioAttachment[]
   clioMcpServers               ClioMcpServer[]
   clioMcpOAuthCredentials      ClioMcpOAuthCredential[]
@@ -501,6 +502,20 @@ model Client {
   cageCode            String?   @map("cage_code") @db.VarChar(5)
   naicsCodes          String[]  @default([]) @map("naics_codes")
   pscCodes            String[]  @default([]) @map("psc_codes")
+  /// Grants.gov "Eligible Applicants" values this client qualifies as, e.g.
+  /// "Small businesses" or "State governments".
+  ///
+  /// LABELS, not the numeric Grants.gov codes — `federal_grant.eligibility`
+  /// stores labels (verified live 2026-07-28: 17 distinct label strings across
+  /// 816 of 866 rows), and District Nexus F3 eligibility compares the two by
+  /// string. A client populated with codes would match nothing. The canonical
+  /// list is `GRANTS_GOV_APPLICANT_TYPES` in @capiro/shared.
+  ///
+  /// Until this is populated, `computeEligibility` can only return
+  /// `needs_review` or `unknown`, never `eligible`. Empty is the honest default:
+  /// it says "we do not know", which is true, rather than guessing a type from
+  /// the sector and telling a user they can apply for something they cannot.
+  applicantTypes      String[]  @default([]) @map("applicant_types")
   // Client→data association overhaul: the confirmed set of Senate LDA client_ids
   // this client resolves to (one id per lobbying-firm relationship — a real
   // company can have many, e.g. Boeing = 27). Denormalized read-cache of the
@@ -1656,6 +1671,47 @@ model MeriPendingAction {
   @@unique([tenantId, userId, fingerprint], map: "meri_pending_action_tenant_user_fp_uniq")
   @@index([tenantId, userId, createdAt(sort: Desc)], map: "meri_pending_action_user_created_idx")
   @@map("meri_pending_action")
+}
+
+/// Immutable, server-created MeriV2 action proposal. Browser approval is by the
+/// opaque id only; tool/input/fingerprint/policy/tenant/user are server authority.
+model MeriActionProposal {
+  id                     String   @id @default(uuid()) @db.Uuid
+  tenantId               String   @map("tenant_id") @db.Uuid
+  userId                 String   @map("user_id") @db.Uuid
+  actorUserId            String?  @map("actor_user_id") @db.Uuid
+  impersonationSessionId String?  @map("impersonation_session_id") @db.VarChar(160)
+  conversationId         String?  @map("conversation_id") @db.Uuid
+  surface                String   @db.VarChar(40)
+  tool                   String   @db.VarChar(120)
+  input                  Json     @map("input_jsonb")
+  fingerprint            String   @db.VarChar(64)
+  policyVersion          String   @map("policy_version") @db.VarChar(80)
+  policyRuleId           String?  @map("policy_rule_id") @db.VarChar(160)
+  policyDecision         String   @map("policy_decision") @db.VarChar(20)
+  policyCode             String?  @map("policy_code") @db.VarChar(120)
+  riskTier               String?  @map("risk_tier") @db.VarChar(40)
+  preview                Json     @map("preview_jsonb")
+  status                 String   @db.VarChar(32)
+  expiresAt              DateTime @map("expires_at") @db.Timestamptz(6)
+  approvedAt             DateTime? @map("approved_at") @db.Timestamptz(6)
+  approvedBy             String?  @map("approved_by") @db.Uuid
+  executionStartedAt     DateTime? @map("execution_started_at") @db.Timestamptz(6)
+  executedAt             DateTime? @map("executed_at") @db.Timestamptz(6)
+  attemptCount           Int      @default(0) @map("attempt_count")
+  lastErrorCode          String?  @map("last_error_code") @db.VarChar(120)
+  lastErrorMessage       String?  @map("last_error_message") @db.VarChar(1000)
+  resultSummary          Json?    @map("result_summary_jsonb")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, status, createdAt(sort: Desc)], map: "meri_action_proposal_user_status_created_idx")
+  @@index([conversationId, status], map: "meri_action_proposal_conversation_status_idx")
+  @@index([expiresAt, status], map: "meri_action_proposal_expiry_status_idx")
+  @@index([tenantId, fingerprint], map: "meri_action_proposal_tenant_fingerprint_idx")
+  @@map("meri_action_proposals")
 }
 
 /// Clio self-scheduled recurring task (W3). A user asks Clio to run something on

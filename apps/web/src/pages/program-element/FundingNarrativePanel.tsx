@@ -28,7 +28,7 @@ export function FundingNarrativePanel({ peCode }: { peCode: string }) {
     <Card size="small" title={title}>
       {isLoading ? (
         <Skeleton active paragraph={{ rows: 3 }} />
-      ) : !data || data.steps.length === 0 ? (
+      ) : !data?.steps?.length ? (
         <Empty description="No current-cycle funding stages recorded for this program element yet." />
       ) : (
         <>
@@ -37,7 +37,7 @@ export function FundingNarrativePanel({ peCode }: { peCode: string }) {
               <NarrativeStepRow key={s.stage} step={s} first={i === 0} />
             ))}
           </div>
-          {data.materiality.length > 0 && (
+          {(data.materiality?.length ?? 0) > 0 && (
             <div style={{ marginTop: 12 }}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 Most material moves this cycle

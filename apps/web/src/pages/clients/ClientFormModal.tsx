@@ -22,6 +22,7 @@ import {
   SUBMISSION_TRACKS,
   SUBMISSION_TRACK_LABELS,
   normalizeSector,
+  GRANTS_GOV_APPLICANT_TYPES,
 } from '@capiro/shared';
 import type { Client, ClientFormSubmit, ClientFormValues, ClientPayload } from './clientTypes.js';
 import { useApi } from '../../lib/use-api.js';
@@ -78,6 +79,7 @@ const STEP_FIELDS: Array<Array<keyof ClientFormValues>> = [
     'ein',
     'naicsCodes',
     'pscCodes',
+    'applicantTypes',
   ],
   [
     'sectors',
@@ -493,6 +495,27 @@ function GovRegistrationStep({
           />
         </Form.Item>
       </Col>
+      {/* Grant eligibility. `mode="multiple"` over a fixed list, deliberately NOT
+          `mode="tags"` like the two above: District Nexus compares these strings
+          directly against federal_grant.eligibility, so a free-typed value
+          ("Small Business", "23") would save happily and then match nothing —
+          leaving a client that looks configured and still never evaluates as
+          eligible, which is worse than leaving it empty. */}
+      <Col xs={24}>
+        <Form.Item
+          name="applicantTypes"
+          label="Grant applicant types"
+          tooltip="What this client qualifies as on Grants.gov. Drives the District Nexus grant-eligibility column — until it is set, every opportunity reads “needs review” rather than eligible."
+        >
+          <Select
+            mode="multiple"
+            allowClear
+            optionFilterProp="label"
+            placeholder="Select the types this client qualifies as"
+            options={GRANTS_GOV_APPLICANT_TYPES.map((t) => ({ value: t, label: t }))}
+          />
+        </Form.Item>
+      </Col>
     </Row>
   );
 }
@@ -661,6 +684,11 @@ export function formValuesToClientPayload(
   payload.cageCode = optionalText(values.cageCode)?.toUpperCase() ?? null;
   payload.naicsCodes = normalizeCodes(values.naicsCodes);
   payload.pscCodes = normalizeCodes(values.pscCodes);
+  // NOT normalizeCodes: these are exact vendor label strings, and upper-casing or
+  // stripping punctuation would stop them matching federal_grant.eligibility.
+  payload.applicantTypes = Array.isArray(values.applicantTypes)
+    ? values.applicantTypes.filter((v: unknown): v is string => typeof v === 'string')
+    : [];
   return payload;
 }
 
@@ -711,6 +739,7 @@ export function clientToFormValues(client?: Client): ClientFormValues {
     uei: client.uei ?? readText(intake, ['uei']),
     naicsCodes: Array.isArray(client.naicsCodes) ? client.naicsCodes : [],
     pscCodes: Array.isArray(client.pscCodes) ? client.pscCodes : [],
+    applicantTypes: Array.isArray(client.applicantTypes) ? client.applicantTypes : [],
     samStatus: readText(intake, ['samStatus', 'sam_status']),
     samExpirationDate: readDate(intake, ['samExpirationDate', 'sam_expiration_date']),
     primaryNaics: readText(intake, ['primaryNaics', 'primary_naics', 'naics']),

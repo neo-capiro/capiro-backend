@@ -46,7 +46,14 @@ export interface StrategyHeaderProps {
   onExport: () => void;
   onHistory: () => void;
   onAskMeri: () => void;
-  /** The editor panel is already open — the prototype hides the CTA then. */
+  /** Collapses the panel. Required whenever `meriPanelOpen` can become true. */
+  onClosePanel?: () => void;
+  /**
+   * The editor panel is already open. The CTA does NOT hide — it turns into the
+   * panel's collapse control (Phase 7, Lia). The prototype hid it, but the
+   * prototype puts the panel BESIDE the header; here the header spans the full
+   * width above a persistent panel, so hiding the control strands the user.
+   */
   meriPanelOpen: boolean;
   /** features.strategyPlannerMeri. Off ⇒ the manual fallback replaces the CTA. */
   meriEnabled: boolean;
@@ -69,6 +76,7 @@ export function StrategyHeader({
   onExport,
   onHistory,
   onAskMeri,
+  onClosePanel,
   meriPanelOpen,
   meriEnabled,
   onAddStep,
@@ -105,6 +113,12 @@ export function StrategyHeader({
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.06em',
+              // Phase 7 §7: without this the eyebrow inherits antd's 1.5714
+              // body line-height (15.71px at 10px) where the prototype
+              // computes `normal` (13.33px). Measured, that 2.38px was the
+              // single root cause of the header's whole vertical drift — the
+              // title, goal and today flag all sat +2.37/+2.38px low.
+              lineHeight: 'normal',
             }}
           >
             {clientLabel} · {typeLabel}
@@ -229,40 +243,57 @@ export function StrategyHeader({
         >
           <Icon name="clock" size={14} color="var(--ink-2)" /> History
         </button>
-        {!meriPanelOpen &&
-          (meriEnabled ? (
-            <button
-              onClick={onAskMeri}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                whiteSpace: 'nowrap',
-                padding: '9px 18px',
-                borderRadius: 10,
-                border: 'none',
-                background: 'var(--accent)',
-                color: '#fff',
-                fontSize: 'var(--text-base)',
-                fontWeight: 700,
-                fontFamily: 'var(--font-sans)',
-                cursor: 'pointer',
-                flexShrink: 0,
-                marginLeft: 4,
-                boxShadow: '0 5px 14px var(--accent-glow)',
-              }}
-            >
-              <Icon name="spark" size={16} color="#fff" /> Ask Meri
-            </button>
-          ) : (
-            // SHL-4 fallback: the panel is the only editing surface with AI off.
-            <button
-              onClick={onAskMeri}
-              style={{ ...btnGhost, padding: '8px 12px', fontSize: 'var(--text-sm)', flexShrink: 0 }}
-            >
-              <Icon name="panel" size={14} color="var(--ink-2)" /> Edit panel
-            </button>
-          ))}
+        {/* Phase 7 (Lia): with the panel open this control does NOT disappear —
+            it becomes the collapse control for the panel it opened. The header
+            is full-width above a persistent panel, so a header slot that
+            vanishes on open leaves no way back from the header itself. */}
+        {meriEnabled ? (
+          <button
+            data-testid="sp-header-meri-toggle"
+            onClick={meriPanelOpen ? onClosePanel : onAskMeri}
+            aria-expanded={meriPanelOpen}
+            aria-label={meriPanelOpen ? 'Collapse the Meri panel' : 'Ask Meri'}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              whiteSpace: 'nowrap',
+              padding: '9px 18px',
+              borderRadius: 10,
+              fontSize: 'var(--text-base)',
+              fontWeight: 700,
+              fontFamily: 'var(--font-sans)',
+              cursor: 'pointer',
+              flexShrink: 0,
+              marginLeft: 4,
+              // Open = a quiet, outlined control; closed = the prototype's
+              // filled accent CTA, unchanged.
+              border: meriPanelOpen ? '1px solid var(--border-2)' : 'none',
+              background: meriPanelOpen ? 'var(--bg-surface)' : 'var(--accent)',
+              color: meriPanelOpen ? 'var(--ink-2)' : '#fff',
+              boxShadow: meriPanelOpen ? 'none' : '0 5px 14px var(--accent-glow)',
+            }}
+          >
+            <Icon
+              name={meriPanelOpen ? 'panel' : 'spark'}
+              size={16}
+              color={meriPanelOpen ? 'var(--ink-2)' : '#fff'}
+            />{' '}
+            {meriPanelOpen ? 'Collapse' : 'Ask Meri'}
+          </button>
+        ) : (
+          // SHL-4 fallback: the panel is the only editing surface with AI off.
+          <button
+            data-testid="sp-header-meri-toggle"
+            onClick={meriPanelOpen ? onClosePanel : onAskMeri}
+            aria-expanded={meriPanelOpen}
+            aria-label={meriPanelOpen ? 'Collapse the edit panel' : 'Edit panel'}
+            style={{ ...btnGhost, padding: '8px 12px', fontSize: 'var(--text-sm)', flexShrink: 0 }}
+          >
+            <Icon name="panel" size={14} color="var(--ink-2)" />{' '}
+            {meriPanelOpen ? 'Collapse' : 'Edit panel'}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -281,9 +312,7 @@ function WatchChip({ watch, onOpen }: { watch: WatchChipState; onOpen?: () => vo
     <button
       data-testid="sp-header-watch"
       onClick={onOpen}
-      // The cadence is a per-mission server setting, so the tooltip stays
-      // cadence-free until Phase 4 surfaces the real schedule.
-      title="Watch mode — Meri's scheduled check of this strategy"
+      title="Watch mode — Meri's weekly check"
       aria-label={
         alert
           ? `${label}. ${watch.pending} proposed change${watch.pending === 1 ? '' : 's'} awaiting review.`

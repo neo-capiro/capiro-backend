@@ -12,6 +12,7 @@ import { ClientAssociationService } from './client-association.service.js';
 import { EngagementAiService } from './engagement-ai.service.js';
 import { EngagementService } from './engagement.service.js';
 import { OutreachJobService } from './outreach-job.service.js';
+import { RaceSafeOutreachJobService } from './race-safe-outreach-job.service.js';
 import { NotetakerService } from './notetaker/notetaker.service.js';
 import { MeetingNotesCryptoService } from './meeting-notes-crypto.service.js';
 import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.service.js';
@@ -31,6 +32,7 @@ import { OutcomeController } from './outcome/outcome.controller.js';
 import { OutreachDraftService } from './outreach-draft.service.js';
 import { OutreachDraftAuditService } from './outreach-draft-audit.service.js';
 import { OutreachSendIntentService } from './outreach-send-intent.service.js';
+import { RaceSafeOutreachSendIntentService } from './race-safe-outreach-send-intent.service.js';
 // Phase 1 — governed generation gateway.
 import { LlmCompletionService } from './llm-completion.service.js';
 import { AttachmentContentService } from './attachment-content.service.js';
@@ -63,7 +65,7 @@ import { AlertPacketClientService } from './generation/alert-packet-client.servi
   ],
   providers: [
     EngagementService,
-    OutreachJobService,
+    { provide: OutreachJobService, useClass: RaceSafeOutreachJobService },
     OutcomeService,
     NotetakerService,
     ClientAssociationService,
@@ -84,7 +86,7 @@ import { AlertPacketClientService } from './generation/alert-packet-client.servi
     // OutreachDraftService is EXPORTED instead and ReviewsService injects it.
     OutreachDraftService,
     OutreachDraftAuditService,
-    OutreachSendIntentService,
+    { provide: OutreachSendIntentService, useClass: RaceSafeOutreachSendIntentService },
     // Phase 1 §3.g2 — the generation stack. All internal to this module: the
     // per-source resolvers, the truth builders, the ranker and the style
     // extractor are implementation detail of the gateway, and exporting them

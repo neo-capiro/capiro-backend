@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import {
+  repairDependencyOrder,
   verifyPlan,
   type VerifierNode,
   type VerifierRefRow,
@@ -218,5 +219,118 @@ describe('verifyPlan', () => {
       input([N({ id: 'a', startsOn: '2030-01-01', endsOn: '2029-01-01' })]), // window(warn) + dates(err)
     );
     expect(r.violations[0]?.severity).toBe('error');
+  });
+});
+
+/*
+ * Phase 5 §4.2 — repairDependencyOrder. Same N()/input() fixtures as verifyPlan
+ * above; each case re-verifies the repaired output to prove the fix actually
+ * clears the violation it was repairing, not just that dates moved.
+ */
+describe('repairDependencyOrder', () => {
+  it('retimes a step that starts before the step it depends on starts (§9.5)', () => {
+    const nodes = [
+      N({ id: 'a', startsOn: '2027-06-01' }),
+      N({ id: 'b', startsOn: '2027-05-01', dependsOnIds: ['a'] }),
+    ];
+    expect(codes(input(nodes))).toContain('dep-order');
+
+    const repair = repairDependencyOrder(nodes);
+    expect(repair.refused).toBe(false);
+    expect(repair.changedIds).toEqual(['b']);
+    const b = repair.nodes.find((n) => n.id === 'b')!;
+    expect(b.startsOn).toBe('2027-06-01');
+    expect(codes(input(repair.nodes))).not.toContain('dep-order');
+  });
+
+  it('retimes a step that begins before a gate it depends on clears', () => {
+    const nodes = [
+      N({ id: 'g', kind: 'gate', startsOn: '2027-06-01', endsOn: '2027-07-01' }),
+      N({ id: 'b', startsOn: '2027-06-15', dependsOnIds: ['g'] }),
+    ];
+    expect(codes(input(nodes))).toContain('gate-before-dependents');
+
+    const repair = repairDependencyOrder(nodes);
+    expect(repair.changedIds).toEqual(['b']);
+    expect(repair.nodes.find((n) => n.id === 'b')!.startsOn).toBe('2027-07-01');
+    expect(codes(input(repair.nodes))).not.toContain('gate-before-dependents');
+  });
+
+  it('preserves duration for a ranged step it retimes (§9.7)', () => {
+    const nodes = [
+      N({ id: 'a', startsOn: '2027-06-01' }), // 0-day point event dependency
+      N({ id: 'b', startsOn: '2027-05-01', endsOn: '2027-05-11', dependsOnIds: ['a'] }), // 10-day range
+    ];
+    const repair = repairDependencyOrder(nodes);
+    const b = repair.nodes.find((n) => n.id === 'b')!;
+    expect(b.startsOn).toBe('2027-06-01');
+    expect(b.endsOn).toBe('2027-06-11'); // same 10-day span, shifted forward
+  });
+
+  it('a retimed point event (no endsOn) stays a point event (§9.7)', () => {
+    const nodes = [
+      N({ id: 'a', startsOn: '2027-06-01', endsOn: '2027-06-30' }),
+      N({ id: 'b', kind: 'milestone', startsOn: '2027-05-01', endsOn: null, dependsOnIds: ['a'] }),
+    ];
+    const repair = repairDependencyOrder(nodes);
+    const b = repair.nodes.find((n) => n.id === 'b')!;
+    expect(b.startsOn).toBe('2027-06-30'); // a's effective completion is its END, since a is ranged
+    expect(b.endsOn).toBeNull();
+  });
+
+  it('propagates a transitive push through the DAG in one pass (A delays B delays C) (§9.6)', () => {
+    const nodes = [
+      N({ id: 'a', startsOn: '2027-08-01', endsOn: '2027-08-15' }),
+      N({ id: 'b', startsOn: '2027-06-01', endsOn: '2027-06-11', dependsOnIds: ['a'] }),
+      N({ id: 'c', startsOn: '2027-06-20', dependsOnIds: ['b'] }),
+    ];
+    const repair = repairDependencyOrder(nodes);
+    expect(new Set(repair.changedIds)).toEqual(new Set(['b', 'c']));
+    const byId = new Map(repair.nodes.map((n) => [n.id, n]));
+    expect(byId.get('b')!.startsOn).toBe('2027-08-15'); // pushed to a's end
+    expect(byId.get('b')!.endsOn).toBe('2027-08-25'); // 10-day duration preserved
+    expect(byId.get('c')!.startsOn).toBe('2027-08-25'); // pushed to b's NEW end
+    expect(codes(input(repair.nodes))).not.toContain('dep-order');
+  });
+
+  it('refuses a cyclic plan — nodes come back unchanged (§9.8)', () => {
+    const nodes = [
+      N({ id: 'a', startsOn: '2027-05-01', dependsOnIds: ['b'] }),
+      N({ id: 'b', startsOn: '2027-05-01', dependsOnIds: ['a'] }),
+    ];
+    const repair = repairDependencyOrder(nodes);
+    expect(repair.refused).toBe(true);
+    expect(repair.changedIds).toEqual([]);
+    expect(repair.nodes).toEqual(nodes);
+  });
+
+  it('never touches a node with no dependency-order problem', () => {
+    const nodes = [
+      N({ id: 'a', startsOn: '2027-06-01', endsOn: '2027-06-10' }),
+      N({ id: 'b', startsOn: '2027-07-01', dependsOnIds: ['a'] }), // already clear
+    ];
+    const repair = repairDependencyOrder(nodes);
+    expect(repair.changedIds).toEqual([]);
+    expect(repair.nodes).toEqual(nodes);
+  });
+
+  it('also clears a soft dep-overlap warning along the way (the plan\'s formula is uniform, not error-only)', () => {
+    const nodes = [
+      N({ id: 'a', kind: 'action', startsOn: '2027-06-01', endsOn: '2027-08-01' }),
+      N({ id: 'b', startsOn: '2027-07-01', dependsOnIds: ['a'] }), // starts before a FINISHES, but after a STARTS
+    ];
+    expect(codes(input(nodes))).toEqual(['dep-overlap']); // warning only, no hard error today
+    const repair = repairDependencyOrder(nodes);
+    expect(repair.changedIds).toEqual(['b']);
+    expect(repair.nodes.find((n) => n.id === 'b')!.startsOn).toBe('2027-08-01');
+    expect(codes(input(repair.nodes))).not.toContain('dep-overlap');
+  });
+
+  it('ignores a dep-missing/dep-self edge rather than crashing on it', () => {
+    const nodes = [N({ id: 'a', startsOn: '2027-06-01', dependsOnIds: ['a', 'ghost'] })];
+    expect(() => repairDependencyOrder(nodes)).not.toThrow();
+    const repair = repairDependencyOrder(nodes);
+    expect(repair.refused).toBe(false);
+    expect(repair.changedIds).toEqual([]);
   });
 });

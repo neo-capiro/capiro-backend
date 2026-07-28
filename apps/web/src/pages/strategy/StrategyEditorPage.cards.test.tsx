@@ -1,11 +1,14 @@
 /*
- * Phase 2 §5 Step 8 — the two redundant page cards are gone.
+ * Phase 2 §5 Step 8 + Phase 5 §8 — every page-level warning card above the
+ * timeline is gone.
  *
  * The blue "Meri drafted this plan" card is replaced by the panel's persistent
- * note, and the amber "Drafted on partial information" card by the `context_gap`
- * message the draft endpoint now persists into the strategy thread. The harder
- * conflicted banner deliberately stays until Phase 5 ships its repair flow —
- * pinned here so removing it early is a conscious act, not a drive-by.
+ * note; the amber "Drafted on partial information" card and the conflicted
+ * banner are replaced by the `context_gap` message the draft/assistant paths
+ * persist into the strategy thread (Phase 5 §5) plus the inline `needs
+ * context` step marker (Phase 5 §6); and the realism-verifier findings card
+ * is replaced by the same context-gap message and marker, or — when a draft
+ * cannot be produced at all — the specific pre-timeline 422 flow (Phase 5 §7).
  */
 import { render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
@@ -27,6 +30,7 @@ const groundingHealth = {
 };
 
 let health: (typeof groundingHealth)[keyof typeof groundingHealth] | null = null;
+let violations: Array<{ code: string; severity: 'error' | 'warning'; nodeIds: string[]; message: string }> = [];
 
 const strategy = () => ({
   id: 'strat-1',
@@ -49,6 +53,7 @@ const strategy = () => ({
   nodes: [],
   artifacts: [],
   groundingHealth: health,
+  violations,
 });
 
 vi.mock('./api.js', () => ({
@@ -61,7 +66,7 @@ vi.mock('./api.js', () => ({
   useMissions: () => ({ ...idle, data: [], refetch: vi.fn() }),
   useCreateMission: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateMission: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useChangeSets: () => ({ ...idle, data: [] }),
+  useWatchReviewState: () => ({ ...idle, data: null }),
 }));
 vi.mock('@clerk/clerk-react', () => ({ useUser: () => ({ user: { id: 'user-1' } }) }));
 vi.mock('../../lib/me.js', () => ({
@@ -116,9 +121,20 @@ describe('the removed page cards', () => {
     expect(document.body.textContent ?? '').not.toContain('strategy_brief');
   });
 
-  test('the conflicted banner still renders (Phase 5 owns its replacement)', () => {
+  test('the conflicted banner no longer renders — Phase 5 replaces it with the persistent context-gap message + marker', () => {
     health = groundingHealth.conflicted;
     renderPage();
-    expect(screen.getByText(/Drafted with unresolved context conflicts/i)).toBeTruthy();
+    expect(screen.queryByText(/Drafted with unresolved context conflicts/i)).toBeNull();
+    expect(screen.queryByText(/Review in the Steward/i)).toBeNull();
+  });
+
+  test('the realism-verifier findings card no longer renders above the timeline (Phase 5 §8)', () => {
+    health = null;
+    violations = [
+      { code: 'dep-order', severity: 'error', nodeIds: [], message: 'A step starts before its dependency.' },
+    ];
+    renderPage();
+    expect(screen.queryByText(/Meri's realism check flagged/i)).toBeNull();
+    violations = [];
   });
 });

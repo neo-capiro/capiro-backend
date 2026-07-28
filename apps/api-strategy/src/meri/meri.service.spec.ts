@@ -587,29 +587,57 @@ describe('MeriService.draft', () => {
     expect(a.dependsOnIds[0]).not.toBe(a.id); // never self
   });
 
-  it('rejects a plan with hard verifier errors when STRATEGY_VERIFY_BLOCK=true (A6)', async () => {
+  it('deterministically repairs a simple dep-order violation instead of blocking (Phase 5 §4.2)', async () => {
     const store = makeStore();
     const orchestrator = {
       draft: jest.fn(async () => ({
         summary: null,
         nodes: [
           // "A" depends on "B" (index 1) but is scheduled to start BEFORE B
-          // starts — a hard dep-order verifier error.
+          // starts — a hard dep-order violation that deterministic repair can
+          // now fix on its own, so this must persist rather than 422.
           { kind: 'action', subject: 'deliverable', title: 'A', startsOn: '2027-05-01', dependsOn: [1] },
           { kind: 'action', subject: 'deliverable', title: 'B', startsOn: '2027-06-01' },
         ],
       })),
     };
-    const { svc, withTenantUser } = makeService(orchestrator, store);
+    const { svc } = makeService(orchestrator, store);
 
-    const prevFlag = process.env.STRATEGY_VERIFY_BLOCK;
-    process.env.STRATEGY_VERIFY_BLOCK = 'true';
-    try {
-      await expect(svc.draft(T, U, 'bearer', draftDto)).rejects.toThrow(/can't be saved yet/);
-    } finally {
-      if (prevFlag === undefined) delete process.env.STRATEGY_VERIFY_BLOCK;
-      else process.env.STRATEGY_VERIFY_BLOCK = prevFlag;
-    }
+    const detail = (await svc.draft(T, U, 'bearer', draftDto)) as unknown as {
+      nodes: Array<{ title: string; startsOn: Date }>;
+    };
+    const a = detail.nodes.find((n) => n.title === 'A')!;
+    const b = detail.nodes.find((n) => n.title === 'B')!;
+    // Retimed to start on/after B, per the plan's uniform "effective
+    // completion date" formula (B is a point event, so its own start).
+    expect(a.startsOn.getTime()).toBeGreaterThanOrEqual(b.startsOn.getTime());
+    expect(store.strategies.size).toBe(1);
+  });
+
+  it('rejects (typed 422) a plan whose hard errors survive deterministic repair — unconditionally, no env flag (Phase 5 §4.1/§4.3)', async () => {
+    const store = makeStore();
+    const orchestrator = {
+      draft: jest.fn(async () => ({
+        summary: null,
+        nodes: [
+          // A genuine cycle (A -> B -> A): deterministic repair explicitly
+          // refuses this, and no model repair is available beyond whatever
+          // the (stubbed) orchestrator already returned — so it must survive
+          // as a hard error and 422, even with no STRATEGY_VERIFY_BLOCK set.
+          { kind: 'action', subject: 'deliverable', title: 'A', startsOn: '2027-05-01', dependsOn: [1] },
+          { kind: 'action', subject: 'deliverable', title: 'B', startsOn: '2027-06-01', dependsOn: [0] },
+        ],
+      })),
+    };
+    const { svc, withTenantUser } = makeService(orchestrator, store);
+    expect(process.env.STRATEGY_VERIFY_BLOCK).toBeUndefined();
+
+    await expect(svc.draft(T, U, 'bearer', draftDto)).rejects.toMatchObject({
+      response: {
+        code: 'STRATEGY_DRAFT_INVALID',
+        message: 'Meri needs a little more information before it can build this timeline.',
+      },
+    });
     // The gate runs before the tx opens — nothing persisted.
     expect(withTenantUser).not.toHaveBeenCalled();
     expect(store.strategies.size).toBe(0);
@@ -1202,6 +1230,231 @@ describe('MeriService — Phase 2 durable Meri conversation', () => {
     await expect(
       new StrategyConversationService(makePrisma(store).prisma).list(T, 'S2', 'N1'),
     ).rejects.toThrow(/Step not found on this strategy/);
+  });
+});
+
+/*
+ * Phase 5 §3.3/§5/§6 — context-gap classification and resync beyond what the
+ * pre-existing Phase 2 draft-path tests already cover: the OPTIONAL (Steward)
+ * failure interacting with gap creation, the NEW conflict-gap plain-language
+ * mapping, and the assistant()-path resync (dedup, per-node contextNeeds, and
+ * automatic resolution) — a genuinely different code path from draft()'s
+ * one-shot seed and from dismissContextGap's user-initiated dismissal.
+ */
+describe('MeriService — Phase 5 context gaps + repair (draft/assistant integration)', () => {
+  it('a failed (optional) Steward context load still allows the draft to complete, with exactly one context-gap message (§9.3)', async () => {
+    const store = makeStore();
+    const orchestrator = {
+      draft: jest.fn(async () => ({
+        summary: 'Drafted despite a Steward hiccup.',
+        nodes: [{ kind: 'action', subject: 'deliverable', title: 'Step', startsOn: '2027-05-01' }],
+        // The orchestrator's own assessment reflects the degraded steward input
+        // it received — resp.groundingHealth is the single source of truth
+        // computeContextGaps consumes (see grounding()/stewardContext() above).
+        groundingHealth: { status: 'degraded', missingRequired: ['strategy_brief'], omittedOptional: [] },
+      })),
+    };
+    const { svc, conversations, stewardHealthFn } = makeService(orchestrator, store, {});
+    stewardHealthFn.mockRejectedValueOnce(new Error('Steward temporarily unreachable'));
+
+    const detail = (await svc.draft(T, U, 'bearer', {
+      clientId: 'C1',
+      type: 'appropriations',
+      goal: 'Win the plus-up',
+    } as DraftStrategyDto)) as { id: string };
+
+    // Fail-soft: the draft still completed (did not throw / roll back).
+    expect(detail.id).toBeDefined();
+    const thread = await conversations.list(T, detail.id, null);
+    const gaps = thread.filter((m) => m.kind === 'context_gap');
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0]!.body).toContain('the strategy brief');
+  });
+
+  it('a conflicted groundingHealth produces a plain-language conflict gap, never a raw fact/conflict id (§9.4/§9.14)', async () => {
+    const store = makeStore();
+    const orchestrator = {
+      draft: jest.fn(async () => ({
+        summary: 'Drafted.',
+        nodes: [{ kind: 'action', subject: 'deliverable', title: 'Step', startsOn: '2027-05-01' }],
+        groundingHealth: {
+          status: 'conflicted',
+          missingRequired: [],
+          omittedOptional: [],
+          openMaterialConflicts: [
+            {
+              id: 'cf-1',
+              factAId: 'fa-1',
+              factBId: 'fb-1',
+              factA: 'The ask is $12M.',
+              factB: 'The ask is $8M.',
+            },
+          ],
+        },
+      })),
+    };
+    const { svc, conversations } = makeService(orchestrator, store);
+
+    const detail = (await svc.draft(T, U, 'bearer', {
+      clientId: 'C1',
+      type: 'appropriations',
+      goal: 'Win the plus-up',
+    } as DraftStrategyDto)) as { id: string };
+
+    const thread = await conversations.list(T, detail.id, null);
+    const gap = thread.find((m) => m.kind === 'context_gap')!;
+    expect(gap.body).toContain('disagreement');
+    expect(gap.body).toContain('$12M');
+    expect(gap.body).toContain('$8M');
+    expect(gap.body).toMatch(/Steward/); // names where to resolve it, per plan §5
+    expect(gap.body).not.toMatch(/cf-1|fa-1|fb-1/); // never the raw fact/conflict ids
+  });
+
+  it('assistant() resync creates exactly ONE deduplicated gap message and stamps contextNeeds on every affected node (§9.11/§9.13)', async () => {
+    const store = makeStore();
+    const { n1, n2 } = seedStrategy(store);
+    const orchestrator = {
+      assistant: jest.fn(async () => ({
+        reply: 'Pushed it a month.',
+        edits: [{ op: 'retime', nodeId: n1, startsOn: '2027-03-01' }],
+        groundingHealth: { status: 'degraded', missingRequired: ['strategy_brief'], omittedOptional: [] },
+      })),
+    };
+    const { svc, conversations } = makeService(orchestrator, store);
+
+    await svc.assistant(T, U, 'bearer', 'S1', {
+      scope: 'strategy',
+      instruction: 'Push node one a month',
+      clientMessageId: 'dddddddd-0000-4000-8000-000000000001',
+    } as AssistantDto);
+
+    const thread = await conversations.list(T, 'S1', null);
+    expect(thread.filter((m) => m.kind === 'context_gap')).toHaveLength(1);
+    // A missing-required-document gap has no single citation, so every LIVE
+    // node in the strategy is affected — not just the one the edit touched.
+    expect(store.nodes.get(n1)!.provenance).toMatchObject({
+      contextNeeds: [{ code: 'strategy_brief', label: 'the strategy brief' }],
+    });
+    expect(store.nodes.get(n2)!.provenance).toMatchObject({
+      contextNeeds: [{ code: 'strategy_brief', label: 'the strategy brief' }],
+    });
+
+    // A second call reporting the SAME unresolved gap must not create a second message.
+    await svc.assistant(T, U, 'bearer', 'S1', {
+      scope: 'strategy',
+      instruction: 'Anything else to flag?',
+      clientMessageId: 'dddddddd-0000-4000-8000-000000000002',
+    } as AssistantDto);
+    const threadAfter = await conversations.list(T, 'S1', null);
+    expect(threadAfter.filter((m) => m.kind === 'context_gap')).toHaveLength(1);
+  });
+
+  it('a later PURE QUESTION (no edits) with clean grounding still resolves the prior gap and confirms it (§9.12)', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    const assistantMock = jest.fn<() => Promise<Record<string, unknown>>>().mockResolvedValue({
+      reply: 'Noted.',
+      edits: [{ op: 'add', kind: 'action', subject: 'deliverable', title: 'New step', startsOn: '2027-05-01' }],
+      groundingHealth: { status: 'degraded', missingRequired: ['strategy_brief'], omittedOptional: [] },
+    });
+    const orchestrator = { assistant: assistantMock };
+    const { svc, conversations } = makeService(orchestrator, store);
+
+    await svc.assistant(T, U, 'bearer', 'S1', {
+      scope: 'strategy',
+      instruction: 'Add a step',
+      clientMessageId: 'eeeeeeee-0000-4000-8000-000000000001',
+    } as AssistantDto);
+    const gapBefore = (await conversations.list(T, 'S1', null)).find((m) => m.kind === 'context_gap')!;
+    expect(gapBefore.state).toBe('active');
+
+    // The user attaches the missing brief and just asks a question — no edits
+    // in this turn's response, so this exercises the empty-edit-set branch.
+    assistantMock.mockResolvedValueOnce({
+      reply: 'Factored in the brief.',
+      edits: [],
+      groundingHealth: { status: 'ok', missingRequired: [], omittedOptional: [] },
+    });
+    await svc.assistant(T, U, 'bearer', 'S1', {
+      scope: 'strategy',
+      instruction: 'Here is the missing brief',
+      clientMessageId: 'eeeeeeee-0000-4000-8000-000000000002',
+    } as AssistantDto);
+
+    const threadAfter = await conversations.list(T, 'S1', null);
+    expect(threadAfter.find((m) => m.id === gapBefore.id)!.state).toBe('resolved');
+    expect(
+      threadAfter.some((m) => m.role === 'meri' && m.body.includes('factored it into the plan')),
+    ).toBe(true);
+  });
+
+  it('gap/provenance sync is tenant-isolated: a second tenant gets its own independent gap state (§9.15)', async () => {
+    const store = makeStore();
+    const { n1 } = seedStrategy(store); // tenant T, strategy S1
+    const T9 = 'tenant-9';
+    store.strategies.set('S9', {
+      id: 'S9',
+      tenantId: T9,
+      clientId: 'C9',
+      title: 'Other tenant',
+      type: 'appropriations',
+      goal: null,
+      meriContext: null,
+      meriSummary: null,
+      targetDate: null,
+      ownerUserId: 'user-9',
+    });
+    store.nodes.set('N9', {
+      id: 'N9',
+      tenantId: T9,
+      strategyId: 'S9',
+      kind: 'action',
+      subject: 'deliverable',
+      title: 'Their step',
+      note: null,
+      ownerUserId: null,
+      status: 'active',
+      startsOn: new Date('2027-02-01T00:00:00.000Z'),
+      endsOn: null,
+      openEnded: false,
+      meriAuthored: false,
+      createdAt: new Date('2027-01-01T00:00:00.000Z'),
+    });
+    const degraded = {
+      assistant: jest.fn(async () => ({
+        reply: 'Noted.',
+        edits: [],
+        groundingHealth: { status: 'degraded', missingRequired: ['strategy_brief'], omittedOptional: [] },
+      })),
+    };
+    const { svc, conversations } = makeService(degraded, store);
+
+    await svc.assistant(T, U, 'bearer', 'S1', {
+      scope: 'strategy',
+      instruction: 'Anything missing?',
+      clientMessageId: 'ffffffff-0000-4000-8000-000000000001',
+    } as AssistantDto);
+    await svc.assistant(T9, 'user-9', 'bearer', 'S9', {
+      scope: 'strategy',
+      instruction: 'Anything missing?',
+      clientMessageId: 'ffffffff-0000-4000-8000-000000000002',
+    } as AssistantDto);
+
+    // Each tenant sees exactly its OWN gap message — never the other's.
+    const threadT = await conversations.list(T, 'S1', null);
+    const threadT9 = await conversations.list(T9, 'S9', null);
+    expect(threadT.filter((m) => m.kind === 'context_gap')).toHaveLength(1);
+    expect(threadT9.filter((m) => m.kind === 'context_gap')).toHaveLength(1);
+    // Cross-tenant read is still a hard 404, never a peek at the other's row.
+    await expect(conversations.list(T9, 'S1', null)).rejects.toThrow(/Strategy not found/);
+    await expect(conversations.list(T, 'S9', null)).rejects.toThrow(/Strategy not found/);
+    // Each node's contextNeeds landed on the correct tenant's own node only.
+    expect(store.nodes.get(n1)!.provenance).toMatchObject({
+      contextNeeds: [{ code: 'strategy_brief' }],
+    });
+    expect(store.nodes.get('N9')!.provenance).toMatchObject({
+      contextNeeds: [{ code: 'strategy_brief' }],
+    });
   });
 });
 

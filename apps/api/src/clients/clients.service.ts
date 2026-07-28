@@ -39,6 +39,8 @@ export interface CreateClientInput {
   cageCode?: string;
   naicsCodes?: string[];
   pscCodes?: string[];
+  /** Grants.gov applicant-type codes — the input District Nexus F3 eligibility needs. */
+  applicantTypes?: string[];
   // Pre-confirmed LDA client ids (e.g. Meri's create_client after the user
   // confirmed the registry entity). Seeded directly so LDA-filing reads and
   // duplicate guards work immediately — the async resolve/prepopulate cascade
@@ -373,6 +375,7 @@ export class ClientsService {
           ...('cageCode' in input ? { cageCode: input.cageCode ?? null } : {}),
           ...('naicsCodes' in input ? { naicsCodes: input.naicsCodes ?? [] } : {}),
           ...('pscCodes' in input ? { pscCodes: input.pscCodes ?? [] } : {}),
+          ...('applicantTypes' in input ? { applicantTypes: input.applicantTypes ?? [] } : {}),
         },
       }),
     );

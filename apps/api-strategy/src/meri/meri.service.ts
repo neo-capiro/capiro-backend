@@ -6,7 +6,12 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { verifyPlan, type VerifierNode, type Violation } from '@capiro/strategy-verifier';
+import {
+  repairDependencyOrder,
+  verifyPlan,
+  type VerifierNode,
+  type Violation,
+} from '@capiro/strategy-verifier';
 import { Prisma, SpNodeKind, SpNodeStatus, SpNodeSubject } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VersioningService } from '../strategy/versioning.service.js';
@@ -15,6 +20,7 @@ import { loadStrategyDetail } from '../strategy/detail.js';
 import { isoDate } from '../strategy/versioning.js';
 import { LIVE_NODE_WHERE } from '../strategy/live-node.js';
 import { fyOf } from '../fiscal/fiscal.js';
+import { withContextRetry } from './context-load.js';
 import { NODE_KINDS, NODE_SUBJECTS, NODE_STATUSES } from '../strategy/dto/node.dto.js';
 import type { StrategyTypeValue } from '../strategy/dto/create-strategy.dto.js';
 import { FirmPhasesService } from '../firm-phases/firm-phases.service.js';
@@ -33,8 +39,10 @@ import type {
   GroundingHealth,
   NodeDocumentDraftResponse,
   PlanEdit,
+  PublicContextGap,
   StewardFactLine,
   StewardHealth,
+  StrategyDraftErrorBody,
 } from './meri.types.js';
 import type { AssistantDto, DraftStrategyDto, ReferenceAssistDto } from './dto/meri.dto.js';
 
@@ -151,9 +159,12 @@ export class MeriService {
   // Public: Stage C change-set apply pre-fetches this (OUTSIDE its tx) to feed
   // verifyAppliedPlan — the reads below open their own withTenant txs.
   async grounding(tenantId: string): Promise<Grounding> {
+    // Phase 5 §3.2: firm phases + reference calendars are "required to attempt
+    // draft" sources — bounded retry on a transient load, never on a genuine
+    // absence (an unconfigured tenant's empty list is not an error to retry).
     const [phases, ref] = await Promise.all([
-      this.firmPhases.list(tenantId),
-      this.reference.getCalendars(tenantId),
+      withContextRetry('firm-phases', () => this.firmPhases.list(tenantId)),
+      withContextRetry('reference-calendars', () => this.reference.getCalendars(tenantId)),
     ]);
     const lite = (rows: ReferenceRow[]) =>
       rows.map((r) => ({
@@ -182,10 +193,14 @@ export class MeriService {
   async draft(tenantId: string, clerkUserId: string, bearer: string | undefined, dto: DraftStrategyDto) {
     // capiro_app is NOT RLS-bypass on `clients`; read inside withTenant (sets
     // app.current_tenant) so the clients RLS exposes this tenant's rows — a bare
-    // raw read returns 0 and false-negatives every valid client.
-    const clientRows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRaw<Array<{ ok: number }>>`
+    // raw read returns 0 and false-negatives every valid client. Phase 5 §3.2:
+    // "required to attempt draft" — bounded retry on a transient pool/connection
+    // failure, never on a genuinely unknown client (that 400s below, same as today).
+    const clientRows = await withContextRetry('client-existence', () =>
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.$queryRaw<Array<{ ok: number }>>`
         SELECT 1 AS ok FROM clients WHERE id = ${dto.clientId}::uuid AND tenant_id = ${tenantId}::uuid LIMIT 1`,
+      ),
     );
     if (clientRows.length === 0) {
       throw new BadRequestException('Unknown client for this tenant');
@@ -213,12 +228,23 @@ export class MeriService {
       aiProvider,
     );
 
-    // A7.5: never silently persist an empty draft — 422 so the goal can be rephrased.
+    // A7.5 / Phase 5 §4.3: never silently persist an empty draft — typed 422
+    // (before the timeline route ever loads) so the Goal flow can show a
+    // specific next step instead of a bare "try rephrasing" dead end.
     const rawNodes = (resp.nodes ?? []).slice(0, 60);
     if (rawNodes.length === 0) {
-      throw new UnprocessableEntityException(
-        "Meri couldn't produce a plan from that — try rephrasing the goal or attaching a document.",
-      );
+      const body: StrategyDraftErrorBody = {
+        code: 'STRATEGY_DRAFT_INPUT_REQUIRED',
+        message: 'Meri needs a little more information before it can build this timeline.',
+        requiredInputs: [
+          {
+            code: 'more-detail',
+            label: 'more detail in your goal, or a document for Meri to work from',
+            canAttach: true,
+          },
+        ],
+      };
+      throw new UnprocessableEntityException(body);
     }
     // A3: pre-generate ids so dependsOn INDEXES map to real uuids; createMany with
     // explicit ids keeps the edges valid. draftNode validates each (throws pre-write).
@@ -235,16 +261,43 @@ export class MeriService {
     const targetDate = dto.targetDate ? parseDbDate(dto.targetDate, 'targetDate') : null;
     const owner = dto.ownerUserId?.trim() || clerkUserId;
 
-    // A6: verify the plan we're about to persist (authoritative — real uuids + grounding).
-    const violations = this.verify(dto.type, nodeData, ground);
-    // A6 fail branch (dark by default — flip STRATEGY_VERIFY_BLOCK at activation
-    // once the web renders the override flow): an impossible plan is not persisted.
-    if (this.blockOnErrors()) {
-      const errs = violations.filter((v) => v.severity === 'error');
-      if (errs.length) {
-        throw new UnprocessableEntityException(
-          `This plan can't be saved yet — ${errs.map((e) => e.message).join('; ')}`,
+    // A6 / Phase 5 §4: verify the plan we're about to persist (authoritative —
+    // real uuids + grounding). The gate is now UNCONDITIONAL for a draft — no
+    // more STRATEGY_VERIFY_BLOCK env check on this path (assistant()/
+    // verifyAppliedPlan() keep the existing env-gated behavior; a draft is the
+    // one surface the prototype's "no warning stack after generation" contract
+    // covers). Before rejecting, try the SAME deterministic dependency-order
+    // repair the orchestrator already ran index-side, against the REAL uuid
+    // graph — a second, independent pass that never depends on the
+    // orchestrator having run it (or having run it correctly).
+    let violations = this.verify(dto.type, nodeData, ground);
+    let errs = violations.filter((v) => v.severity === 'error');
+    if (errs.length > 0) {
+      const repair = repairDependencyOrder(toVerifierNodes(nodeData));
+      if (!repair.refused && repair.changedIds.length > 0) {
+        applyRepairedNodeDates(nodeData, repair.nodes);
+        violations = this.verify(dto.type, nodeData, ground);
+        errs = violations.filter((v) => v.severity === 'error');
+        this.logger.log(
+          `strategy draft: deterministic repair retimed ${repair.changedIds.length} node(s), ${errs.length} error(s) remain`,
         );
+      }
+    }
+    if (errs.length > 0) {
+      throw new UnprocessableEntityException(draftErrorBody(errs, resp.groundingHealth));
+    }
+
+    // Phase 5 §3.3/§6: classify any remaining (advisory, non-blocking) gap
+    // BEFORE persisting, so the affected nodes' provenance is stamped in the
+    // SAME createMany as everything else — no separate post-create pass for
+    // the fresh-draft case (assistant() below handles the resync case, where
+    // nodes already exist).
+    const nodeIds = nodeData.map((n) => n.id as string);
+    const gaps = computeContextGaps(resp.groundingHealth, nodeIds, nodesForFactCitation(nodeData));
+    if (gaps.length > 0) {
+      const needsByNode = groupGapsByNode(gaps);
+      for (const n of nodeData) {
+        n.provenance = withContextNeeds(n.provenance, needsByNode.get(n.id as string) ?? []);
       }
     }
 
@@ -308,20 +361,12 @@ export class MeriService {
           `Drafted ${nodeData.length} step${nodeData.length === 1 ? '' : 's'} from your goal.`,
         createdByUserId: null,
       });
-      // ONE gap message, not one per missing field — a list of five bullet
-      // points reads as a system dump, and the user's next action is the same
-      // either way. Phase 5 adds the repair/retry affordance on top of it.
-      const gap = contextGapBody(resp.groundingHealth);
-      if (gap) {
-        await this.conversations.appendIn(tx, tenantId, {
-          strategyId: strategy.id,
-          nodeId: null,
-          role: 'meri',
-          kind: 'context_gap',
-          body: gap,
-          createdByUserId: null,
-        });
-      }
+      // Phase 5 §5: ONE upsert, not append — a fresh draft never has a prior
+      // active context_gap row, so this always creates on a real gap (never a
+      // duplicate), and no-ops cleanly when there is none. Same upsert path
+      // assistant() uses below, so a later edit that resolves/changes the gap
+      // set updates this SAME row rather than stacking a second one.
+      await this.conversations.syncContextGap(tx, tenantId, strategy.id, gapMessageBody(gaps));
       return { ...detail, violations, groundingHealth: resp.groundingHealth };
     });
   }
@@ -333,6 +378,7 @@ export class MeriService {
     strategyId: string,
     dto: AssistantDto,
   ) {
+    const startedAt = Date.now();
     const strategy = await this.prisma.withTenant(tenantId, (tx) =>
       tx.spStrategy.findFirst({
         where: { id: strategyId },
@@ -409,6 +455,33 @@ export class MeriService {
     if (edits.length === 0) {
       const { current, meriMessage } = await this.prisma.withTenant(tenantId, async (tx) => {
         const loaded = await loadStrategyDetail(tx, strategyId);
+        // Phase 5 §5/§6: a pure question can still be the turn that resolves a
+        // gap — e.g. the user attaches the missing document and asks a question
+        // rather than requesting a plan change. Resync against THIS call's
+        // groundingHealth exactly as the edit-bearing branch below does; a
+        // clean `resp.groundingHealth` here is otherwise never observed.
+        const gaps = computeContextGaps(
+          resp.groundingHealth,
+          loaded.nodes.map((n) => n.id),
+          nodesForFactCitation(loaded.nodes),
+        );
+        await this.syncNodeContextNeeds(tx, loaded.nodes, gaps);
+        const gapSync = await this.conversations.syncContextGap(
+          tx,
+          tenantId,
+          strategyId,
+          gapMessageBody(gaps),
+        );
+        if (gapSync.wasResolved) {
+          await this.conversations.appendIn(tx, tenantId, {
+            strategyId,
+            nodeId: null,
+            role: 'meri',
+            kind: 'message',
+            body: 'The missing context is resolved — I factored it into the plan.',
+            createdByUserId: null,
+          });
+        }
         const msg = await this.conversations.appendIn(tx, tenantId, {
           strategyId,
           nodeId: contextNodeId,
@@ -418,6 +491,12 @@ export class MeriService {
         });
         return { current: loaded, meriMessage: msg };
       });
+      // Phase 6 §6 ("conversation send success"). Counts and ids only — never
+      // the instruction, the reply, or any source text.
+      this.logger.log(
+        `[strategy:${strategyId}] assistant complete (${dto.scope} scope, 0 edits, ` +
+          `grounding ${resp.groundingHealth?.status ?? 'unknown'}) in ${Date.now() - startedAt}ms`,
+      );
       return {
         reply: resp.reply ?? '',
         summary: strategy.meriSummary ?? null,
@@ -477,6 +556,28 @@ export class MeriService {
       }
       await this.logVerification(tx, tenantId, clerkUserId, strategyId, v);
 
+      // Phase 5 §5/§6: resync the context-gap message + affected-node markers
+      // against THIS call's fresh groundingHealth — this is how an existing
+      // degraded/conflicted strategy's gap actually clears (e.g. attaching a
+      // document via chat resolves it on the very next assistant call).
+      const gaps = computeContextGaps(
+        resp.groundingHealth,
+        d.nodes.map((n) => n.id),
+        nodesForFactCitation(d.nodes),
+      );
+      await this.syncNodeContextNeeds(tx, d.nodes, gaps);
+      const gapSync = await this.conversations.syncContextGap(tx, tenantId, strategyId, gapMessageBody(gaps));
+      if (gapSync.wasResolved) {
+        await this.conversations.appendIn(tx, tenantId, {
+          strategyId,
+          nodeId: null,
+          role: 'meri',
+          kind: 'message',
+          body: 'The missing context is resolved — I factored it into the plan.',
+          createdByUserId: null,
+        });
+      }
+
       // Phase 2: Meri's reply commits in the SAME transaction as the plan edit.
       // If the edit-set rolls back (a verifier error, a malformed op), the reply
       // claiming it happened rolls back with it — the thread can never assert a
@@ -496,6 +597,11 @@ export class MeriService {
       return { detail: d, violations: v, meriMessage: msg };
     });
 
+    this.logger.log(
+      `[strategy:${strategyId}] assistant complete (${dto.scope} scope, ${edits.length} edits, ` +
+        `${violations.length} violation(s), grounding ${resp.groundingHealth?.status ?? 'unknown'}) ` +
+        `in ${Date.now() - startedAt}ms`,
+    );
     return {
       reply: resp.reply ?? '',
       summary: resp.summary ?? null,
@@ -772,9 +878,12 @@ export class MeriService {
     clientId: string | null,
   ): Promise<{ stewardFacts: StewardFactLine[]; stewardHealth: StewardHealth }> {
     try {
+      // Phase 5 §3.2: Steward facts/health are classified sources too — bounded
+      // retry sits INSIDE this fail-soft try so a transient hiccup gets its
+      // retries before this method's own degraded-fallback gives up on it.
       const [stewardFacts, health] = await Promise.all([
-        this.steward.factsForOrchestrator(tenantId, clientId),
-        this.steward.health(tenantId, clientId),
+        withContextRetry('steward-facts', () => this.steward.factsForOrchestrator(tenantId, clientId)),
+        withContextRetry('steward-health', () => this.steward.health(tenantId, clientId)),
       ]);
       return {
         stewardFacts,
@@ -948,6 +1057,32 @@ export class MeriService {
     return process.env.STRATEGY_VERIFY_BLOCK === 'true';
   }
 
+  /**
+   * Phase 5 §6 — reconcile every LIVE node's provenance.contextNeeds against
+   * the current gap set: sets it on newly affected nodes, clears it from
+   * nodes whose gap resolved, and writes NOTHING for a node whose status did
+   * not change (an unaffected, never-flagged node is never touched).
+   */
+  private async syncNodeContextNeeds(
+    tx: Tx,
+    nodes: Array<{ id: string; provenance: unknown }>,
+    gaps: PublicContextGap[],
+  ): Promise<void> {
+    const needsByNode = groupGapsByNode(gaps);
+    for (const node of nodes) {
+      const current = (node.provenance as { contextNeeds?: Array<{ code: string }> } | null)
+        ?.contextNeeds ?? [];
+      const next = needsByNode.get(node.id) ?? [];
+      const sameKeys =
+        current.length === next.length && current.every((c, i) => c.code === next[i]?.code);
+      if (sameKeys) continue;
+      await tx.spNode.update({
+        where: { id: node.id },
+        data: { provenance: withContextNeeds(node.provenance, next) },
+      });
+    }
+  }
+
   /** A6: record the verification outcome on the audit trail (plan.verified). */
   private async logVerification(
     tx: Tx,
@@ -1016,36 +1151,175 @@ function openNodeAction(created: Array<{ id: string; title: string }>): ChatOpen
 }
 
 /**
- * The seeded `context_gap` body for a degraded/conflicted draft, in the user's
- * language. Returns null when grounding was clean — no message is better than a
- * reassuring one nobody needs.
- *
- * 'conflicted' names the two disagreeing facts verbatim (clipped), matching what
- * the page banner said; that banner stays until Phase 5 ships the repair flow.
+ * Phase 5 §3.3 — classify the current groundingHealth into plain-language,
+ * closed-mapped gaps. Never a raw template key, enum identifier, or database
+ * column reaches the result. A conflict gap attributes to whichever nodes
+ * cite either disputed fact (same citation scan as factCheckProvenance); a
+ * missing-required-document gap has no single citation to point at, so it
+ * affects every node in `nodeIds` (the whole draft was made without it).
  */
-function contextGapBody(health: GroundingHealth | undefined): string | null {
-  if (!health) return null;
+function computeContextGaps(
+  health: GroundingHealth | undefined,
+  nodeIds: string[],
+  citingNodeIds: (factId: string) => string[],
+): PublicContextGap[] {
+  if (!health) return [];
   if (health.status === 'conflicted') {
-    const first = health.openMaterialConflicts?.[0];
-    const detail = first
-      ? `“${clipFact(first.factA)}” and “${clipFact(first.factB)}” disagree.`
-      : 'Some facts in this client’s context materially disagree.';
-    return `I drafted this with unresolved conflicts in your client context. ${detail} Resolve which one controls, then ask me to revisit the plan.`;
+    const conflicts = health.openMaterialConflicts ?? [];
+    return conflicts.map((c) => {
+      const affected = [...new Set([...citingNodeIds(c.factAId), ...citingNodeIds(c.factBId)])];
+      return {
+        code: `conflict:${c.id}`,
+        label: `a disagreement between “${clipFact(c.factA)}” and “${clipFact(c.factB)}”`,
+        affectedNodeIds: affected.length ? affected : nodeIds,
+        canAttach: false,
+      };
+    });
   }
   if (health.status === 'degraded') {
-    const labels = (health.missingRequired ?? []).map(
-      (key) => CONTEXT_GAP_LABELS[key] ?? 'some client context',
-    );
-    const missing = [...new Set(labels)];
-    const what =
-      missing.length === 0
-        ? 'some client context'
-        : missing.length === 1
-          ? missing[0]!
-          : `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]!}`;
-    return `I drafted this without ${what}, so the client-specific details are my best guess. Check them before you rely on this plan.`;
+    const keys = [...new Set(health.missingRequired ?? [])];
+    return keys.map((key) => ({
+      code: key,
+      label: CONTEXT_GAP_LABELS[key] ?? 'some client context',
+      affectedNodeIds: nodeIds,
+      canAttach: true,
+    }));
   }
-  return null;
+  return [];
+}
+
+/** Node ids whose provenance cites the given Steward fact id ('fact:<uuid>' —
+ *  the same ref shape factCheckProvenance resolves). Pass the current node
+ *  list once, get back a cheap repeated lookup — used for both conflict-gap
+ *  ids above. */
+function nodesForFactCitation(
+  nodes: Array<{ id?: string | null; provenance?: unknown }>,
+): (factId: string) => string[] {
+  const byFact = new Map<string, string[]>();
+  for (const node of nodes) {
+    if (!node.id) continue;
+    const prov = node.provenance as { sources?: unknown } | null | undefined;
+    const sources = Array.isArray(prov?.sources) ? (prov!.sources as Array<{ ref?: unknown }>) : [];
+    for (const s of sources) {
+      const m = typeof s?.ref === 'string' ? FACT_REF_RE.exec(s.ref) : null;
+      if (!m) continue;
+      const list = byFact.get(m[1]!) ?? [];
+      list.push(node.id);
+      byFact.set(m[1]!, list);
+    }
+  }
+  return (factId: string) => byFact.get(factId) ?? [];
+}
+
+/** Invert a gap list into per-node `contextNeeds` entries (plan §6). */
+function groupGapsByNode(gaps: PublicContextGap[]): Map<string, Array<{ code: string; label: string }>> {
+  const byNode = new Map<string, Array<{ code: string; label: string }>>();
+  for (const g of gaps) {
+    for (const nodeId of g.affectedNodeIds) {
+      const list = byNode.get(nodeId) ?? [];
+      list.push({ code: g.code, label: g.label });
+      byNode.set(nodeId, list);
+    }
+  }
+  return byNode;
+}
+
+/**
+ * Phase 5 §6 — merge/clear `contextNeeds` on a node's provenance JSON.
+ * Additive to any existing `sources` (a citation is never dropped) and
+ * removed ENTIRELY (not left as an empty array) when a node has no current
+ * gap, so a resolved node's provenance returns to exactly what it was before
+ * this phase touched it — never an unrelated status enum, per the plan.
+ */
+function withContextNeeds(
+  provenance: unknown,
+  needs: Array<{ code: string; label: string }>,
+): Prisma.InputJsonValue | typeof Prisma.DbNull | undefined {
+  const prov = provenance as { sources?: unknown } | null | undefined;
+  const sources = Array.isArray(prov?.sources) ? prov!.sources : undefined;
+  if (needs.length === 0) {
+    return sources ? ({ sources } as Prisma.InputJsonValue) : Prisma.DbNull;
+  }
+  return { ...(sources ? { sources } : {}), contextNeeds: needs } as Prisma.InputJsonValue;
+}
+
+/**
+ * The seeded `context_gap` body (plan §5): one sentence on what's missing,
+ * then the two paths forward. Null when there are no gaps — no message is
+ * better than a reassuring one nobody needs. A conflict names the plain-
+ * language disagreement (never raw fact ids) and, per the plan, does NOT link
+ * away to the Steward from a chat message — the attach/manual paths cover it.
+ */
+function gapMessageBody(gaps: PublicContextGap[]): string | null {
+  if (gaps.length === 0) return null;
+  const conflict = gaps.find((g) => !g.canAttach);
+  if (conflict) {
+    return `I drafted this with an unresolved conflict in your client context — ${conflict.label}. Resolve which fact controls in the Steward, then ask me to revisit the plan, or adjust the timeline manually.`;
+  }
+  const labels = [...new Set(gaps.map((g) => g.label))];
+  const what =
+    labels.length === 1
+      ? labels[0]!
+      : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]!}`;
+  return `I drafted this without ${what}, so those details are my best guess. Attach the missing document here, or adjust the timeline manually.`;
+}
+
+/** Phase 5 §4.3 — the typed 422 a draft returns when hard errors survive
+ *  deterministic repair. A structural defect (a cycle, or an edge to a step
+ *  that was never in the plan) is never something more input fixes — that's
+ *  always STRATEGY_DRAFT_INVALID regardless of grounding. Otherwise, if the
+ *  context was degraded/conflicted, blame the errors on the missing input
+ *  (INPUT_REQUIRED, with the concrete gaps as requiredInputs); a plan that
+ *  still fails with CLEAN grounding is a generation defect, not a context gap. */
+function draftErrorBody(errs: Violation[], health: GroundingHealth | undefined): StrategyDraftErrorBody {
+  const structural = errs.some((e) => e.code === 'dep-cycle' || e.code === 'dep-missing' || e.code === 'dep-self');
+  const message = 'Meri needs a little more information before it can build this timeline.';
+  if (health && health.status !== 'ok' && !structural) {
+    const gaps = computeContextGaps(health, [], () => []);
+    return {
+      code: 'STRATEGY_DRAFT_INPUT_REQUIRED',
+      message,
+      requiredInputs: gaps.map((g) => ({ code: g.code, label: g.label, canAttach: g.canAttach })),
+      violations: errs.map((e) => ({ message: e.message })),
+    };
+  }
+  return {
+    code: 'STRATEGY_DRAFT_INVALID',
+    message,
+    requiredInputs: [],
+    violations: errs.map((e) => ({ message: e.message })),
+  };
+}
+
+/** Draft nodeData (real uuids, Date fields) -> VerifierNode[] (ISO strings) —
+ *  the same shape MeriService.verify() builds internally, exposed here so the
+ *  Phase 5 repair pass can run against the identical representation. */
+function toVerifierNodes(nodeData: Array<Prisma.SpNodeCreateManyInput>): VerifierNode[] {
+  return nodeData.map((n) => ({
+    id: String(n.id ?? ''),
+    kind: String(n.kind ?? ''),
+    subject: String(n.subject ?? ''),
+    title: String(n.title ?? ''),
+    startsOn: isoDate(n.startsOn as Date) ?? '',
+    endsOn: isoDate((n.endsOn as Date | null | undefined) ?? null),
+    dependsOnIds: Array.isArray(n.dependsOnIds) ? (n.dependsOnIds as string[]) : [],
+  }));
+}
+
+/** Write repairDependencyOrder's retimed dates back onto the real nodeData
+ *  rows it was computed from (matched by uuid, not array position — repair
+ *  returns its own topologically-reordered array). */
+function applyRepairedNodeDates(
+  nodeData: Array<Prisma.SpNodeCreateManyInput>,
+  repaired: VerifierNode[],
+): void {
+  const byId = new Map(nodeData.map((n) => [String(n.id ?? ''), n]));
+  for (const r of repaired) {
+    const n = byId.get(r.id);
+    if (!n) continue;
+    n.startsOn = parseDbDate(r.startsOn, 'repaired startsOn');
+    n.endsOn = r.endsOn ? parseDbDate(r.endsOn, 'repaired endsOn') : null;
+  }
 }
 
 /** Keep a quoted fact short enough to read inside a chat bubble. */
