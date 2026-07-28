@@ -309,6 +309,10 @@ export function StrategyEditorPage() {
         onExport={() => setExportOpen(true)}
         onHistory={() => setHistoryOpen(true)}
         onAskMeri={() => setRailOpen(true)}
+        onClosePanel={() => {
+          setRailOpen(false);
+          setSelectedId(null);
+        }}
         meriPanelOpen={railOpen}
         meriEnabled={meriEnabled}
         // Manual creation survives ONLY as the Meri-off fallback (§3 Step 2).

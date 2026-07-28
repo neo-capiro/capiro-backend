@@ -20,8 +20,8 @@ export type ParityStateName =
   | 'watch-rechecking'
   | 'low-context'
   | 'truncation'
-  | 'today-before'
-  | 'today-after';
+  | 'thread-newest'
+  | 'thread-midway';
 
 export const PARITY_STATES: ParityStateName[] = [
   'list',
@@ -34,8 +34,14 @@ export const PARITY_STATES: ParityStateName[] = [
   'watch-rechecking',
   'low-context',
   'truncation',
-  'today-before',
-  'today-after',
+  // Phase 7 (Lia): `today-before` / `today-after` are RETIRED. They existed to
+  // capture "today clamped left/right", which is behaviour the product does not
+  // have and the prototype never had — the clamp branches that would have
+  // produced it were unreachable and have been deleted. Both rendered an empty
+  // grid and were byte-identical. Replaced by two states that are reachable and
+  // do describe real behaviour.
+  'thread-newest',
+  'thread-midway',
 ];
 
 export interface ParityState {
@@ -131,12 +137,19 @@ export function parityState(): ParityState {
     case 'truncation':
       base.detail = fx.detail({ title: fx.LONG_TITLE, goal: fx.LONG_GOAL });
       break;
-    case 'today-before':
-      // The whole plan is in the future: the today-line clamps to the left edge.
-      base.detail = fx.detail({ nodes: fx.NODES_FUTURE });
+    // The thread auto-scrolls to the newest message on open and on send
+    // (NodeRail writes `scrollTop = scrollHeight` on the panel body). This is
+    // the same view `editor-panel-long` produces — kept as its own named state
+    // because it is the behaviour Lia asked to be covered explicitly.
+    case 'thread-newest':
+      base.openPanel = true;
+      base.threads = { ...base.threads, strategy: fx.LONG_THREAD };
       break;
-    case 'today-after':
-      base.detail = fx.detail({ nodes: fx.NODES_PAST });
+    // Same thread, parked half way up: proves the thread scrolls FREELY rather
+    // than being pinned to the bottom.
+    case 'thread-midway':
+      base.openPanel = true;
+      base.threads = { ...base.threads, strategy: fx.LONG_THREAD };
       break;
     default:
       break;

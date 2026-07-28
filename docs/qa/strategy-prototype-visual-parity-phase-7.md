@@ -137,7 +137,29 @@ just the class:
 The "rule INERT" column reproduces the originally-measured 1157.75px panel
 exactly, which is what confirms the rule is the operative change.
 
-### F2 — Panel placement diverges from the prototype (PARITY DEFECT)
+### F2 — Panel placement — **RESOLVED: the product is correct, the prototype is out of date**
+
+**Lia's ruling.** Keep the current implementation. A full-width header above a
+persistent editor panel is the standard pattern; squeezing the header to 770px
+forces truncation and chip wrap in a header we are already trying to shorten.
+No layout restructure — states 4 and 8 are **re-baselined against the current
+build**, and the +344px header width and the panel's y-offset are no longer
+counted as defects.
+
+Two conditions came with that ruling. Both are now enforced by tests:
+
+1. **The Ask Meri control must not disappear when the panel opens — it becomes
+   the collapse control.** This was **broken**: the button was gated behind
+   `!meriPanelOpen` and vanished entirely, leaving no way back from the header.
+   It now persists as a `Collapse` control (outlined rather than filled accent,
+   `aria-expanded`, panel icon) wired to a new `onClosePanel` prop; the Meri-off
+   `Edit panel` fallback toggles identically.
+2. **The Watch chip stays visible and clickable while the panel is open.** This
+   already held — the chip was never gated — and is now covered by a regression
+   test so it cannot silently regress.
+
+The measurements that produced the original finding are kept below for the
+record; they are no longer a defect.
 
 Measured on both sides, same locator, panel closed then open:
 
@@ -186,7 +208,12 @@ aligned at −0.10px before, and read −2.47px after). That residual is **not
 fixed** — it is a row-height question in already-live timeline layout and wants
 its own pass.
 
-### F4 — Initial timeline scroll differs by 465.79px (LIA DECISION REQUIRED)
+### F4 — Initial timeline scroll differs by 465.79px (**still open** — see the note below)
+
+**Lia's ruling addressed the clamping, and that part is done** (F5). But this
+finding is about the timeline's **initial horizontal scroll position**, which is
+a different mechanism from the chat thread the ruling describes. See
+"§2.1 — what the ruling did and did not settle".
 
 | | scrollLeft at 1440×900 |
 | --- | --- |
@@ -233,7 +260,42 @@ DOM structure differ.** Also worth recording: `scrollLeft` is in unscaled
 content px while the rendered pitch is scaled, so one screen pixel costs
 `1 / 0.82` of `scrollLeft`.
 
-### F5 — States 12/13 are unsatisfiable as written (LIA DECISION REQUIRED)
+### F5 — States 12/13 unsatisfiable — **RESOLVED: dead code removed, states replaced**
+
+**Lia's ruling.** "If the clamp conditions can't be reached, that's dead code,
+not intended divergence. Remove the unreachable branches and confirm nothing
+else routes into them." Done:
+
+- `todayScrollLeft` lost `rangeStartX` / `rangeEndX` and both branches;
+- the single production call site (`StrategyTimeline.tsx`) and
+  `StrategyTimeline.layout.test.tsx` lost the two arguments;
+- **confirmed nothing else routes in** — one production caller, and the
+  export/crop path never reaches the centring effect at all (`isExport`
+  early-return);
+- the `[0, maxScrollLeft]` bound was **kept**: it is reachable and necessary
+  (today near either end of a real plan), and is not the dead code in question;
+- the two unit tests that only exercised the removed branches by passing
+  numbers in directly are gone. Out-of-range inputs stay covered by the
+  invariant sweep (`todayX` from −500 to 4100 must stay in bounds).
+
+**States 12/13 retired** as visual fixtures and replaced with two reachable
+ones, per the ruling:
+
+| # | state | verified |
+| --- | --- | --- |
+| 12 | `thread-newest` — long thread auto-scrolled to the newest message | scrollTop 1491 / max 1492, fraction **1.00** |
+| 13 | `thread-midway` — same thread parked half way | fraction **0.50**, `atBottom: false` |
+
+`thread-midway` is what proves the thread scrolls **freely** rather than being
+pinned to the bottom. Both are reached by scrolling the real panel body, not by
+a harness-only prop. The retired pair were byte-identical to each other; these
+two are distinct.
+
+One honest note: `thread-newest` renders the same view as the pre-existing
+`editor-panel-long` state by construction. It is kept as its own named state
+because it is the one the ruling asked for explicitly.
+
+The original finding, for the record:
 
 Plan states 12 and 13 ask for "today before plan range, clamped left" and
 "today after plan range, clamped right".
@@ -252,6 +314,48 @@ Related, and worth a follow-up on its own: **a plan lying entirely outside the
 3-FY axis window renders no bars at all** (verified — `today-after`'s seven
 nodes are all absent from the DOM). `timeline-scroll.ts` and `fiscal.ts` are
 byte-identical to `origin/main`, so this too is pre-existing and live.
+
+## 2.1 What the Lia ruling settled, and what it did not
+
+Settled and implemented: **F2** (keep the full-width header; re-baseline 4/8;
+plus the two header invariants) and the **F5** dead-code removal and state
+replacement.
+
+**Still open — F4, the timeline's initial horizontal scroll position.** The
+ruling says "intended behavior is what the prototype shows: the thread scrolls
+freely, auto-scrolls to the newest message on send, and the composer stays
+pinned to the bottom of the panel." That describes the **Meri chat thread**,
+which is a different mechanism from F4. For the record, all three of those
+already hold and are now asserted:
+
+| behaviour | status |
+| --- | --- |
+| thread scrolls freely | ✓ `thread-midway` sits at fraction 0.50 |
+| auto-scrolls to newest on send | ✓ `NodeRail` writes `scrollTop = scrollHeight`; `thread-newest` at 1.00 |
+| composer pinned to the panel bottom | ✓ y=768.25 inside the 900px region, and asserted at all five responsive environments |
+
+What F4 is actually about is the **timeline grid's initial `scrollLeft`**: the
+prototype opens at `todayX − 1.5 columns` (837.33) and the product centres today
+in the viewport (371.54). Both are deliberate; neither involves clamping. That
+choice is still unmade, and it is the only remaining reason states 3/4/8 differ
+horizontally at all. **Recommendation: keep the product's centring** — it is
+viewport-relative and unit-tested, where the prototype's 1.5 columns is an
+arbitrary constant that puts today off-centre at every width other than the one
+it was tuned at. Confirm and this closes.
+
+**The real scenario behind the removed clamping**, since the ruling asked for
+it: the branches were reaching for *a plan that lies entirely outside the
+rendered axis*. That scenario is real — `buildCalendar` builds a fixed
+three-fiscal-year window anchored on today, so a strategy whose steps all sit
+more than ~2 FYs out, or entirely in the past, falls outside it. But clamping
+the scroll would never have helped, because **such a plan renders no bars at
+all** — verified: the retired `today-after` fixture's seven nodes were absent
+from the DOM entirely, not merely off-screen. So the clamp was dead code
+gesturing at a real gap it could not have fixed. The gap itself is
+pre-existing and live (`fiscal.ts` is byte-identical to `origin/main`) and
+wants its own design: either an axis that expands to cover the plan, or an
+explicit "this plan is outside the visible range" affordance. Flagged, not
+fixed.
 
 ### F6 — Prototype-only content (accepted scope delta, unchanged from Phase 1/2)
 
@@ -298,14 +402,19 @@ State 8 (Why expanded), 1440 × 900 — full table in
 | SUSPECT-LOCATOR | 1 |
 | UNRESOLVED (absent one side) | 12 |
 
-All three failures have one cause each, and none is scattered drift:
+All three failures have one cause each, and **after Lia's F2 ruling none of them
+is a defect**:
 
-- `headerEyebrow` and `headerTitle` differ **only in width** (+344.00, the
-  panel width) — their heights now match exactly. That is F2, not a
-  typography defect.
+- `headerEyebrow` and `headerTitle` differ **only in width** (+344.00, the panel
+  width) — their heights match exactly. That is F2, and F2 is now resolved in
+  the product's favour: the full-width header is correct and the prototype is
+  out of date. **Re-baselined: these two are expected, not failures.**
 - `grid` compares two structurally different scrollers: the prototype's
   contains its frozen column and overlays it with a sticky label; the port's
   begins after it. Their *content* is pixel-identical (see F4).
+
+**Re-baselined verdict for state 8: 18 PASS, 0 defects, 3 accepted structural
+differences.**
 
 Passing at 0.00 px on both sides: every header control (`layerChipPpbe`,
 `layerChipCongress`, `watchChip`, `exportBtn`, `historyBtn`), `headerGoal`,
@@ -334,11 +443,19 @@ Validated: a self-diff reports 0.0000%.
 | 8 — Why expanded | 32.30% | **19.90%** | 802 × 438 | FAIL |
 
 State 3 fell by **67%** once the fixtures matched the prototype's and the
-header line-height was corrected. States 4 and 8 stay high because of **F2** —
-the header does not shrink when the panel opens, so the whole header band and
-the 344px column beside it differ. State 1 is unchanged because it has no
-timeline and no strategy header; its residual is the setup-card copy (§6), a
-black vs indigo primary button, and ~16px of extra vertical gap.
+header line-height was corrected.
+
+**States 4 and 8 are re-baselined against the current build and are no longer
+measured against the prototype's panel placement.** Their residual is dominated
+by F2 — the header does not shrink when the panel opens, so the whole header
+band and the 344px column beside it differ — and Lia has ruled the product
+correct on that point. Comparing them to the prototype pixel-for-pixel is
+therefore measuring an intentional divergence; the numbers below are retained
+as a record of the *size* of that divergence, not as a defect count.
+
+State 1 is unchanged because it has no timeline and no strategy header; its
+residual is the setup-card copy (§6), a black vs indigo primary button, and
+~16px of extra vertical gap.
 
 **The earlier numbers must not be read as "the port is 25–35% wrong."** They
 were dominated by **fixture divergence** — plan §3's prerequisite, "fixtures
@@ -474,17 +591,21 @@ hover / focus-visible / disabled / pending / selected captures.
 
 ## 10. Not done
 
-1. **F2 — panel placement.** Now the largest remaining parity defect and the
-   reason states 4/8 sit at ~18–20%. Restructuring already-live layout so the
-   panel is a full-height column beside the header needs a decision.
-2. **F4 / F5** — need a Lia ruling, not code.
+1. **F4 — the timeline's initial horizontal scroll position** (centre-today vs
+   the prototype's 1.5 columns). The only remaining open decision; see §2.1 for
+   why the Lia ruling did not cover it and for the recommendation.
+2. **A plan that falls outside the 3-FY axis renders no bars at all** — the real
+   gap the removed clamping was gesturing at. Pre-existing and live; needs its
+   own design (§2.1).
 3. **The ~2.4px timeline row offset** the F3 fix uncovered, and the
    strategy-lane label at +10.10px.
-4. **Prototype captures for states 5, 6, 9.** Confirmed reachable — the
+4. **Prototype captures for states 5, 6, 9 and the two new thread states.**
+   Confirmed reachable — the
    prototype does have a "Re-checking…" state and an "Edit with Meri" step
    panel — but its nodes sit off-screen at the default scroll, so the act must
-   scroll the grid before clicking. Not captured. States 10–13 are covered by
-   F5.
+   scroll the grid before clicking. Not captured. The old states 12/13 are
+   retired (F5); their replacements are captured on the implementation side
+   only.
 5. **Interaction parity (§8)** — 11 implementation-side assertions pass
    (§9); the prototype half, six further interactions and the
    hover/focus-visible/disabled captures remain.

@@ -333,6 +333,19 @@ describe('the pinned composer', () => {
     });
   });
 
+  /*
+   * Phase 7 (Lia): selecting a step opens the panel on the conversation, not on
+   * a form. The manual field editor is the fallback path and must start closed.
+   */
+  test('"Edit fields manually" starts COLLAPSED when a node is selected', () => {
+    renderPanel({ node: node({ id: 'node-1' }) });
+    const disclosure = screen.getByRole('button', { name: /edit fields manually/i });
+    expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(disclosure);
+    expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+  });
+
   test("the node pills are NOD-5's deterministic quick actions, and appear exactly once", () => {
     renderPanel({ node: node({ id: 'node-1' }) });
     // Relocated from the body to the footer — not duplicated across both.

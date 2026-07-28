@@ -158,15 +158,6 @@ export const NODES_LOW_CONTEXT: StrategyNode[] = NODES.map((n) =>
     : n,
 );
 
-/** State 12/13 — a plan entirely after / entirely before today, so the
- *  today-line clamps to an edge instead of centring. */
-export const NODES_FUTURE: StrategyNode[] = NODES.map((n, i) =>
-  node({ ...n, id: n.id, title: n.title, startsOn: iso(500 + i * 40), endsOn: iso(530 + i * 40) }),
-);
-export const NODES_PAST: StrategyNode[] = NODES.map((n, i) =>
-  node({ ...n, id: n.id, title: n.title, startsOn: iso(-700 + i * 40), endsOn: iso(-670 + i * 40) }),
-);
-
 export function detail(over: Partial<StrategyDetail> = {}): StrategyDetail {
   return {
     id: SID,

@@ -603,7 +603,10 @@ function NodeEditor({
   const navigate = useNavigate();
   const [titleBuf, setTitleBuf] = useState(node.title);
   const [noteBuf, setNoteBuf] = useState(node.note ?? '');
-  const [showFields, setShowFields] = useState(true);
+  // Phase 7 (Lia): selecting a step opens the panel on the conversation, not on
+  // a form. "Edit fields manually" starts COLLAPSED and stays a deliberate
+  // click — it is the fallback path, not the primary one.
+  const [showFields, setShowFields] = useState(false);
   const clientTargets = useClientTargetsLite(clientId);
 
   // Re-sync local text buffers whenever the committed node changes (after a
@@ -662,9 +665,10 @@ function NodeEditor({
           quick-actions block, and keeping both would put the same three
           controls on screen twice. Same deterministic handlers, one home. */}
 
-      {/* edit fields (NOD-7) — collapsible, default open with Meri off */}
+      {/* edit fields (NOD-7) — collapsible, COLLAPSED by default (Phase 7) */}
       <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 12 }}>
         <button
+          aria-expanded={showFields}
           onClick={() => setShowFields((v) => !v)}
           style={{
             display: 'flex',

@@ -167,10 +167,22 @@ async function drive(): Promise<void> {
     await waitFor(() => document.body.innerText.includes('Re-checking'));
   }
 
-  if (s.name === 'editor-panel-long') {
+  if (s.name === 'editor-panel-long' || s.name === 'thread-newest') {
     // The thread's own auto-scroll-to-newest effect has already run; give it the
     // frame it needs after the last message paints.
     await sleep(300);
+  }
+
+  if (s.name === 'thread-midway') {
+    // Park the thread half way up, by SCROLLING the real panel body rather than
+    // by feeding the component a special prop — the point of the state is that
+    // the thread scrolls freely and does not snap back to the bottom.
+    await sleep(300);
+    const body = document.querySelector('[data-testid="sp-panel-body"]') as HTMLElement | null;
+    if (body) {
+      body.scrollTop = Math.floor((body.scrollHeight - body.clientHeight) / 2);
+      await sleep(200);
+    }
   }
 
   // The timeline's centre-today runs post-layout; wait for the grid to have a
