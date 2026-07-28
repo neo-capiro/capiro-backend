@@ -151,20 +151,22 @@ function renderPanel(
   props: { focusAlertId?: string; onFocused?: () => void } = {},
 ) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const tree = (next: { focusAlertId?: string; onFocused?: () => void }) => (
     <QueryClientProvider client={qc}>
       <MemoryRouter>
         <AntApp>
           <TrackerFeedPanel
             clientId="c1"
             clientName="Acme Aerospace"
-            focusAlertId={props.focusAlertId}
-            onFocused={props.onFocused}
+            focusAlertId={next.focusAlertId}
+            onFocused={next.onFocused}
           />
         </AntApp>
       </MemoryRouter>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+  const view = render(tree(props));
+  return { ...view, rerenderPanel: (next: typeof props) => view.rerender(tree(next)) };
 }
 
 beforeEach(() => {
@@ -175,6 +177,26 @@ beforeEach(() => {
 });
 
 describe('alert email deep links', () => {
+  test('waits for the widened query when focus arrives after mount', async () => {
+    const onFocused = vi.fn();
+    const target = feedItem({ id: 'late-alert', title: 'Late linked regulation', sourceType: 'regulation' });
+    apiGetMock.mockImplementation(async (url: string) => {
+      if (!url.includes('/feed')) return { data: {} };
+      feedUrls.push(url);
+      return url.includes('workState=all')
+        ? { data: feedPage([target]) }
+        : { data: feedPage([feedItem({ id: 'active-alert', title: 'Active queue item' })]) };
+    });
+
+    const view = renderPanel();
+    expect(await screen.findByText('Active queue item')).toBeInTheDocument();
+    view.rerenderPanel({ focusAlertId: 'late-alert', onFocused });
+
+    expect(await screen.findByText('Late linked regulation')).toBeInTheDocument();
+    await waitFor(() => expect(onFocused).toHaveBeenCalledTimes(1));
+    expect(feedUrls.some((url) => url.includes('source=all') && url.includes('workState=all'))).toBe(true);
+  });
+
   test('widens to All and keyset-pages until an older focused alert is loaded', async () => {
     const onFocused = vi.fn();
     const target = feedItem({

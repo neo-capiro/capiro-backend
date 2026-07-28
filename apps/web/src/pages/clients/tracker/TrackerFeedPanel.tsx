@@ -924,6 +924,9 @@ export function TrackerFeedPanel({
   // Keep the visible work-state control honest about the widened search.
   useEffect(() => {
     if (!focusAlertId) return;
+    // The target may not belong to the source filter the analyst was using
+    // before an email link arrived in-place. Widen both controls visibly.
+    setSource('all');
     setWorkFilter('all');
     focusExhaustedRef.current = null;
   }, [focusAlertId]);
@@ -1059,7 +1062,10 @@ export function TrackerFeedPanel({
    * the ref prevents this effect from scheduling concurrent page advances.
    */
   useEffect(() => {
-    if (!focusAlertId || !query.data) return;
+    // When focusAlertId arrives after mount, the widening effect above schedules
+    // a new query. Do not declare the target missing from the OLD filtered result
+    // during that render; wait until the visible controls and query are both All.
+    if (!focusAlertId || !query.data || source !== 'all' || workFilter !== 'all') return;
     if (items.some((item) => item.id === focusAlertId)) {
       focusExhaustedRef.current = null;
       return;
@@ -1096,6 +1102,8 @@ export function TrackerFeedPanel({
     query.hasNextPage,
     query.isFetchNextPageError,
     query.isFetchingNextPage,
+    source,
+    workFilter,
   ]);
 
   // §4.8 edge case 4: how many loaded alerts predate the re-weight.
