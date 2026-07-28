@@ -261,6 +261,14 @@ describe('MeriActionProposalService', () => {
     expect(h.tools.execute).not.toHaveBeenCalled();
   });
 
+  // This simulates ONLY the losing side's outcome (forceClaimLoss hardcodes the
+  // mocked updateMany to return count:0) — it does not fire two concurrent
+  // requests, so it doesn't itself prove the claim is atomic. That guarantee
+  // rests on the real code issuing a single Postgres UPDATE with a
+  // status-in-claimable WHERE guard (meri-action-proposal.service.ts's claim
+  // step), which is atomic under Postgres row-level locking regardless of
+  // this test; what this test proves is that a lost claim correctly reads
+  // back the winner's state and skips execution.
   it('loses a double-click claim without executing twice', async () => {
     const h = harness({ forceClaimLoss: true });
     h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
@@ -327,6 +335,45 @@ describe('MeriActionProposalService', () => {
     const h = harness({ row: makeRow({ status }) });
     expect((await h.service.approveAndExecute(ctx, PROPOSAL)).status).toBe(status);
     expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  // Phase I self-review: dismiss() had zero coverage anywhere in the suite
+  // (an HTTP-level test only ever defined a jest.fn() mock for it, never
+  // called it). These exercise the real state-machine guard directly.
+  it('dismiss: transitions a proposed proposal to dismissed and records a decision', async () => {
+    const h = harness();
+    const result = await h.service.dismiss(ctx, PROPOSAL);
+    expect(result.status).toBe('dismissed');
+    expect(h.tx.complianceCheck.create).toHaveBeenCalledTimes(1);
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it('dismiss: is a no-op against an already-executing proposal (cannot un-execute)', async () => {
+    const h = harness({ row: makeRow({ status: 'executing' }) });
+    const result = await h.service.dismiss(ctx, PROPOSAL);
+    expect(result.status).toBe('executing');
+    expect(h.tx.complianceCheck.create).not.toHaveBeenCalled();
+  });
+
+  it.each<MeriActionProposalStatus>(['succeeded', 'failed_terminal', 'dismissed', 'expired'])(
+    'dismiss: is a no-op against terminal status %s (cannot resurrect it)',
+    async (status) => {
+      const h = harness({ row: makeRow({ status }) });
+      const result = await h.service.dismiss(ctx, PROPOSAL);
+      expect(result.status).toBe(status);
+      expect(h.tx.complianceCheck.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it('dismiss: does not reveal or affect another user or tenant proposal', async () => {
+    const h = harness();
+    await expect(
+      h.service.dismiss({ ...ctx, userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' }, PROPOSAL),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      h.service.dismiss({ ...ctx, tenantId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' }, PROPOSAL),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.getRow()?.status).toBe('proposed');
   });
 });
 

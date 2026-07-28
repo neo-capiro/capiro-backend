@@ -40,6 +40,19 @@ function tenantContext(headers: Record<string, unknown>): TenantContext {
   };
 }
 
+/**
+ * HTTP/controller-layer proof: real Nest wiring (ValidationPipe, guards,
+ * @CurrentTenant()) in front of a HAND-MOCKED MeriActionProposalService. This
+ * proves the DTO whitelist genuinely rejects a client-supplied tool/payload/
+ * fingerprint/tenant/status (real ValidationPipe, not mocked), that ctx flows
+ * from the authenticated request into the service call, and that whatever the
+ * service decides maps to the right HTTP status/body without leaking a
+ * different code for "not yours" vs "doesn't exist". It does NOT prove the
+ * service's own tenant/user isolation query logic is correct — `approve`'s
+ * mock reimplements that check by hand, so a regression in the real
+ * `owned()`/`approveAndExecute` scoping would not fail here. That proof lives
+ * in meri-action-proposal.service.spec.ts, against the real service.
+ */
 describe('MeriV2 Phase 0 HTTP adversarial boundary', () => {
   let app: INestApplication;
   const executeTool = jest.fn().mockResolvedValue({ ok: true });
@@ -225,7 +238,7 @@ describe('MeriV2 Phase 0 HTTP adversarial boundary', () => {
     expect(approve).not.toHaveBeenCalled();
   });
 
-  it('another user and another tenant cannot approve an opaque proposal id', async () => {
+  it('controller maps another-owner denial to a bare 404, with ctx sourced from the request', async () => {
     await request(app.getHttpServer())
       .post(`/api/clio/action-proposals/${PROPOSAL}/approve`)
       .set('x-test-user', OTHER)
