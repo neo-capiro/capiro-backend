@@ -1,7 +1,6 @@
 /**
- * DB-free executable safety gate for Program Elements trust remediation Phase A.
- * Runs in ci-pr after TypeScript compilation. Any failed invariant throws and
- * exits non-zero; success emits one stable marker for the workflow log.
+ * DB-free executable safety gate for Program Elements trust remediation.
+ * Runs during API typecheck. Any failed invariant throws and exits non-zero.
  */
 import { strict as assert } from 'node:assert';
 import { readFileSync } from 'node:fs';
@@ -10,6 +9,11 @@ import {
   resolveDefenseBudgetIngestPosture,
   usesDeprecatedDryRunAlias,
 } from './lib/defense-budget-ingest-mode.js';
+import {
+  assertApprovedShaMatches,
+  classifyUnitRatio,
+  requireApprovedSha256,
+} from './lib/defense-budget-commit.js';
 
 function apiRoot(): string {
   const cwd = process.cwd();
@@ -50,6 +54,20 @@ function verifyPostures(): void {
   );
 }
 
+function verifyMoneyAndApprovalHelpers(): void {
+  const sha = 'a'.repeat(64);
+  assert.equal(requireApprovedSha256(sha), sha);
+  assert.doesNotThrow(() => assertApprovedShaMatches(sha, sha));
+  expectThrow(() => requireApprovedSha256(undefined), '--commit requires --approved-sha256');
+  expectThrow(
+    () => assertApprovedShaMatches('b'.repeat(64), sha),
+    'Approved SHA-256 does not match source bytes',
+  );
+  assert.equal(classifyUnitRatio(13_500, 13.5), 'candidate_1000x_reference');
+  assert.equal(classifyUnitRatio(13.5, 13.5), 'same_scale');
+  assert.equal(classifyUnitRatio(0, 13.5), 'not_comparable');
+}
+
 function verifyMigrationGuard(): void {
   const active = apiFile('scripts/entrypoint.sh');
   const compatibility = apiFile('scripts/entrypoint-legacy.sh');
@@ -60,47 +78,47 @@ function verifyMigrationGuard(): void {
   }
   assert.match(active, /node .*prisma.* migrate deploy/);
   assert.match(compatibility, /Refusing legacy migrate dispatch/);
+  assert.match(active, /audit-llamaparse-pe-units/);
 }
 
-function verifyIngestionFreeze(): void {
+function verifyPromotionSafety(): void {
   const source = apiFile('scripts/ingest-defense-budget-pdf.ts');
-  for (const forbidden of ['ProgramElementWriterService', 'PrismaClient', 'PrismaService']) {
-    assert.doesNotMatch(
-      source,
-      new RegExp(`(?:import\\s+[^;]*\\b${forbidden}\\b|new\\s+${forbidden}\\b)`),
-      `${forbidden} must not be imported or constructed`,
-    );
-  }
-  assert.doesNotMatch(source, /from ['"][^'"]*prisma[^'"]*['"]/i);
-  assert.match(
-    source,
-    /Canonical generalized defense-budget writes are disabled until the USD-millions migration in Phase b is verified\./,
-  );
-  assert.match(
-    source,
-    /if \(posture === 'commit'\) throw new Error\(COMMIT_DISABLED_MESSAGE\)/,
-  );
+  assert.match(source, /requireApprovedSha256\(arg\('approved-sha256'\)\)/);
+  assert.match(source, /assertApprovedShaMatches\(sourceSha256, approvedSha256\)/);
+  assert.match(source, /--commit promotes exactly one processable PDF/);
+  assert.match(source, /onePdfPerTransaction: true/);
+  assert.match(source, /CANONICAL_TRANSACTION_TIMEOUT_MS/);
+  assert.match(source, /Do not run generalized --commit in production until Phase D/);
+
+  const approvalParse = source.indexOf("requireApprovedSha256(arg('approved-sha256'))");
+  const comparison = source.indexOf('assertApprovedShaMatches(sourceSha256, approvedSha256)');
+  const prismaConstruction = source.indexOf('const prisma = new PrismaClient()');
+  assert(approvalParse >= 0 && comparison > approvalParse && prismaConstruction > comparison);
+
+  const loaderStart = source.indexOf('function loadVendorParseEnvironment');
+  assert(loaderStart >= 0, 'loadVendorParseEnvironment must exist');
+  assert.equal(source.slice(0, loaderStart).includes('dotenvConfig('), false);
   assert.match(source, /const ALLOW_VENDOR_PARSE = '--allow-vendor-parse'/);
   assert.match(
     source,
     /--extract-only requires explicit --allow-vendor-parse authorization before any archive or LlamaParse call\./,
   );
+}
 
-  const loaderStart = source.indexOf('function loadVendorParseEnvironment');
-  assert(loaderStart >= 0, 'loadVendorParseEnvironment must exist');
-  assert.equal(source.slice(0, loaderStart).includes('dotenvConfig('), false);
+function verifyAuditIsReadOnly(): void {
+  const source = apiFile('scripts/audit-llamaparse-pe-units.ts');
+  assert.doesNotMatch(source, /\.(create|createMany|update|updateMany|delete|deleteMany|upsert)\s*\(/);
+  assert.doesNotMatch(source, /\$executeRaw|\$executeRawUnsafe|\$queryRawUnsafe/);
+  assert.match(source, /SELECT_ONLY_NO_AUTOMATIC_DIVISION/);
   assert.match(
     source,
-    /function loadConfig\(\): RunConfig \{\s+loadVendorParseEnvironment\(\);/,
+    /canonicalIsLlama && thousandScale && hasArchiveProof && hasMatchingParseProof/,
   );
-
-  const commitCheck = source.indexOf("if (posture === 'commit')");
-  const vendorFlagCheck = source.indexOf('const vendorParseAllowed');
-  const targetRead = source.indexOf("const target = arg('path')");
-  assert(commitCheck >= 0 && vendorFlagCheck > commitCheck && targetRead > vendorFlagCheck);
 }
 
 verifyPostures();
+verifyMoneyAndApprovalHelpers();
 verifyMigrationGuard();
-verifyIngestionFreeze();
-console.log('PE_PHASE_A_SAFETY_OK');
+verifyPromotionSafety();
+verifyAuditIsReadOnly();
+console.log('PE_PHASE_A_B_SAFETY_OK');
