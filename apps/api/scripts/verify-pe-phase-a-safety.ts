@@ -69,7 +69,7 @@ function verifyIngestionFreeze(): void {
   assert.doesNotMatch(source, /from ['"][^'"]*prisma[^'"]*['"]/i);
   assert.match(
     source,
-    /Canonical generilized defense-budget writes are disabled until the USD-millions migration in Phase b is verified\./,
+    /Canonical generalized defense-budget writes are disabled until the USD-millions migration in Phase b is verified\./,
   );
   assert.match(
     source,
