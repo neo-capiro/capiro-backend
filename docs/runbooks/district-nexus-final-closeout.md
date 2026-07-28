@@ -5,7 +5,18 @@ against live `capiro-dev` state verified on 2026-07-28; nothing here was run by
 the agent that wrote it.
 
 **Account** `967807252336` · **Region** `us-east-1` · **Cluster** `capiro-dev`
-· **AWS profile** `capiro-dev` · **Container name in every task def** `api`
+· **AWS profile** `capiro-dev`
+
+**Container names differ by task definition** — this is not uniform, and getting
+it wrong fails the run outright:
+
+| Task definition | Container | Entry point |
+| --- | --- | --- |
+| `capiro-dev-api-sync` / `capiro-dev-api-migrate` | `api` | image `ENTRYPOINT` -> `entrypoint.sh <kebab-verb>` |
+| `capiro-dev-api-diag` | **`db-inspect`** | **`["node","-e"]`** — the command override IS the JS source, and it bypasses `entrypoint.sh`, so it must compose `DATABASE_URL` itself |
+
+Every `aws` call needs `--profile capiro-dev` explicitly; a `!` shell starts
+fresh, so an earlier `export AWS_PROFILE` does not carry over.
 
 > `capiro-dev` **IS** production. There is no separate prod environment.
 > `capiro-prod-os-capiro` is defunct.
@@ -97,34 +108,54 @@ MSYS_NO_PATHCONV=1 aws rds describe-db-cluster-snapshots --profile capiro-dev \
 
 ## 2. 🟢 Migration status
 
-This branch adds **one** migration:
-`20260808010000_client_grant_nexus_manual_award_unique`.
+> **BOTH APPLIED 2026-07-28**, verified against `_prisma_migrations` and
+> `pg_indexes`. §3 is retained for the procedure and the rollback; it does not
+> need re-running.
+>
+> An earlier revision of this runbook claimed
+> `20260806010000_client_grant_nexus_producer_unique` had never been applied,
+> citing the source comment at `infra/cdk/lib/ingestion-schedule.ts:451-459`.
+> **That comment was stale and the claim was wrong** — only
+> `20260808010000_client_grant_nexus_manual_award_unique` was actually pending.
+> Never take live database state from a code comment. Query it.
 
-There is also **at least one older migration on `main` that has never been
-applied** — `20260806010000_client_grant_nexus_producer_unique` (the CDK entry
-for `GenerateGrantOpportunityCandidates` says so in a source comment). Confirm
-the real pending set rather than assuming it is only ours:
+| Migration | State | Index |
+| --- | --- | --- |
+| `20260806010000_client_grant_nexus_producer_unique` | applied, not rolled back | `client_grant_nexus_producer_unique_idx` ✓ |
+| `20260808010000_client_grant_nexus_manual_award_unique` | applied, not rolled back | `client_grant_nexus_manual_award_unique_idx` ✓ |
+
+To re-check the pending set at any time, run a query through
+`capiro-dev-api-diag` with an overrides FILE (inline JSON quoting is a trap):
 
 ```bash
 MSYS_NO_PATHCONV=1 aws ecs run-task --profile capiro-dev \
   --cluster capiro-dev --launch-type FARGATE --network-configuration "$NETCFG" \
   --task-definition capiro-dev-api-diag \
-  --overrides '{"containerOverrides":[{"name":"api","command":["node","-e","const {PrismaClient}=require(\"@prisma/client\");const p=new PrismaClient();p.$queryRawUnsafe(\"SELECT migration_name, finished_at, rolled_back_at FROM _prisma_migrations ORDER BY started_at DESC LIMIT 20\").then(r=>console.log(JSON.stringify(r,null,1))).finally(()=>p.$disconnect())"]}]}' \
+  --overrides file://<overrides.json> \
   --query 'tasks[0].taskArn' --output text
 ```
 
-Then read the log (note `--start-from-head`; without it you get the tail and
-silently lose the front of the payload):
+⚠️ **Three properties of `capiro-dev-api-diag` that each cost a wasted run:**
+
+1. Its container is named **`db-inspect`**, not `api`. Naming `api` fails with
+   `Override for container named api is not a container in the TaskDefinition`.
+2. Its `entryPoint` is **`["node","-e"]`**, so the `command` override is the
+   **JavaScript source itself** — not `["node","-e","…"]`.
+3. It bypasses `entrypoint.sh`, which is what composes `DATABASE_URL` from the
+   `DB_*` secrets, so **the script must compose it itself** — otherwise Prisma
+   fails with `Environment variable not found: DATABASE_URL`.
+
+Then read the log. ⚠️ **`get-log-events` PAGINATES.** `--start-from-head`
+returns only the FIRST batch; a long run's real output sits in later pages
+behind `nextForwardToken`. Reading only page one is how a job that worked gets
+misdiagnosed as a silent no-op. Prefer `filter-log-events`:
 
 ```bash
-MSYS_NO_PATHCONV=1 PYTHONUTF8=1 aws logs tail /ecs/capiro-dev-api --profile capiro-dev \
-  --since 10m --format short
+MSYS_NO_PATHCONV=1 PYTHONUTF8=1 aws logs filter-log-events --profile capiro-dev \
+  --log-group-name /capiro/dev/api \
+  --log-stream-names "diag/db-inspect/<task-id>" \
+  --query 'events[].message' --output text
 ```
-
-Record which of these are absent from `_prisma_migrations`:
-
-- `20260806010000_client_grant_nexus_producer_unique`
-- `20260808010000_client_grant_nexus_manual_award_unique`
 
 ---
 
@@ -243,19 +274,43 @@ MSYS_NO_PATHCONV=1 aws ecs run-task --profile capiro-dev \
   --query 'tasks[0].taskArn' --output text
 ```
 
-Expect ~5 runs for a full pass. Re-measure with 5.1 between runs. This is
-resumable by construction (it selects unenriched rows), so a killed run costs
-only its in-flight page.
+⚠️ **This is NOT a viable backfill route, and "~5 runs" was wrong.** Measured
+2026-07-28: USAspending's edge **blocked this client outright** under the
+script's sustained rate — 214/214 then 120/121 consecutive failures, returning
+an HTML page titled "The URL you requested has been blocked". The same award
+ids returned HTTP 200 from a workstation and from a low-volume probe in the
+same subnet, so it is a rate/reputation block on the NAT IP, not a data or
+config problem. Only 751 awards got through.
+
+The script now **aborts on a detected block** instead of burning its whole
+limit, and `--delay-ms` (default 1000, raised from 300) lets you lower the rate
+without a deploy. But even at 1 req/s the 238k backlog is ~66 hours. **Depth
+belongs to the bulk-download rail** (`/api/v2/bulk_download/awards/`), which the
+Rev 2 plan already documents. Treat this pass as "keep the recent head
+enriched", not "drain the backlog".
+
+Do **not** re-run it at the same rate after a block — that deepens the block.
 
 ---
 
 ## 6. 🔴 Grants.gov reconciliation
 
-`sync-grants --all-statuses` is capped at `MAX_PAGES=100` = 10,000 upserts
-against a reported `hitCount` of ~82,982, i.e. **~12% per run, ~8 passes**. It
-*correctly* self-reports `success_with_errors` on cap exhaustion — that is
+> ⚠️ **Corrected 2026-07-28.** An earlier revision said this covers "~12% per
+> run, ~8 passes". **That was wrong, and the reconcile could never complete**:
+> the walk sent `offset`, but search2's pagination parameter is
+> `startRecordNum`, and search2 silently ignores unknown keys. Every page of
+> every run returned the identical first 100 records. Measured: a 100-page run
+> "upserted 10,000" while `federal_grant` grew from 852 to **864 rows (+12)**
+> against a hitCount of ~83,000.
+>
+> Fixed in `sync-grants.ts` (correct parameter, `MAX_PAGES` 100 → 1000, and a
+> `--from-page` flag so a capped walk can actually resume). With real
+> pagination a page costs ~0.8s, so the whole ~830-page corpus is **one ~11
+> minute run**, not eight Sundays.
+
+It *correctly* self-reports `success_with_errors` on cap exhaustion — that is
 honest incompleteness, **not an alarm**, and the log line carries the resume
-page.
+page, which `--from-page` now consumes.
 
 ```bash
 MSYS_NO_PATHCONV=1 aws ecs run-task --profile capiro-dev \
@@ -301,8 +356,9 @@ loop regressed.
 
 ### 8.2 🔴 Commit run
 
-**Gate: §3 must have applied `20260806010000_client_grant_nexus_producer_unique`
-first.** Without that unique index a concurrent double-run can duplicate rows.
+**Gate: satisfied.** `20260806010000_client_grant_nexus_producer_unique` is
+applied and `client_grant_nexus_producer_unique_idx` exists (verified
+2026-07-28), so a concurrent double-run can no longer duplicate rows.
 
 ```bash
 MSYS_NO_PATHCONV=1 aws ecs run-task --profile capiro-dev \
@@ -371,29 +427,50 @@ curl -s -o /dev/null -w '%{http_code} %{size_download}\n' \
   https://app.capiro.ai/api/intelligence/district-nexus/boundaries
 ```
 
-### 10.2 🔴 Known IAM gap — `--commit` will fail without this
+### 10.2 ✅ IAM gap — CLOSED, and the artifact is published
 
-`ApiTaskRole` has **no `s3:PutObject` on `district-boundaries/*`**, so
-`build-district-boundary-artifacts --commit` fails `AccessDenied`. The geometry
-itself is dry-run verified (441 features, 4.90 MB gzipped, zero warnings).
+> **Corrected 2026-07-28.** An earlier revision said `ApiTaskRole` had no
+> `s3:PutObject` on `district-boundaries/*` and that `--commit` would fail
+> `AccessDenied`. **The policy already existed** — inline policy
+> `district-boundary-artifacts-s3-write` on
+> `Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ`, granting `s3:PutObject`
+> on `arn:aws:s3:::updated-directory-967807252336-us-east-1/district-boundaries/*`,
+> which covers both `artifactKey()` and `manifestKey()`.
+>
+> Proven by execution rather than by reading the policy — `--status=C --commit`
+> returned `committed: true` with no `AccessDenied`:
+>
+> ```
+> 441 districts · 4.90 MB gzipped · 0 warnings
+> district-boundaries/congress/current/119/a00b2e21….geojson   (5,137,111 B)
+> district-boundaries/congress/current/manifest.json           (242 B)
+> 437 LegislativeDistrict rows updated
+> ```
 
-Out-of-band fix (Neo runs; do not `cdk deploy`):
+⚠️ **Commit the current rail only (`--status=C`) until the future rail has
+input.** `sync-legistorm-districts --commit --with-kml` has never run, so every
+`status='F'` district lacks `kmlS3Key`: a `--status=F` commit publishes a
+**74-byte, zero-feature** artifact, which risks the UI advertising a future map
+that contains nothing. The dry run reports this honestly as 0 districts and 184
+warnings.
+
+If the policy ever needs recreating (do **not** `cdk deploy`):
 
 ```bash
 MSYS_NO_PATHCONV=1 aws iam put-role-policy --profile capiro-dev \
-  --role-name <ApiTaskRole name> \
-  --policy-name district-boundaries-put \
+  --role-name Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ \
+  --policy-name district-boundary-artifacts-s3-write \
   --policy-document '{
     "Version": "2012-10-17",
     "Statement": [{
       "Effect": "Allow",
       "Action": ["s3:PutObject"],
-      "Resource": "arn:aws:s3:::<boundary-bucket>/district-boundaries/*"
+      "Resource": "arn:aws:s3:::updated-directory-967807252336-us-east-1/district-boundaries/*"
     }]
   }'
 ```
 
-Then:
+Commands:
 
 ```bash
 # 🟢 dry run first — asserts 441 features and zero warnings
@@ -593,7 +670,7 @@ MSYS_NO_PATHCONV=1 aws ecs run-task --profile capiro-dev \
 ```bash
 # 16.2 Any source that breached or approached its budget now says so by name.
 MSYS_NO_PATHCONV=1 PYTHONUTF8=1 aws logs filter-log-events --profile capiro-dev \
-  --log-group-name /ecs/capiro-dev-api \
+  --log-group-name /capiro/dev/api \
   --filter-pattern '"profile-v1 source"' --max-items 50
 ```
 

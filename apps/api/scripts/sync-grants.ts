@@ -3,6 +3,7 @@
  *
  *   pnpm --filter @capiro/api sync:grants                  # daily: posted|forecasted
  *   tsx scripts/sync-grants.ts --all-statuses              # weekly reconcile: all four
+ *   tsx scripts/sync-grants.ts --all-statuses --from-page=100   # resume a capped walk
  *
  * Source: api.grants.gov/v1/api/search2. No auth required.
  *
@@ -26,7 +27,18 @@ dotenvConfig();
 
 const GRANTS_BASE = 'https://api.grants.gov/v1/api/search2';
 const PAGE_SIZE = 100;
-const MAX_PAGES = 100;
+
+/**
+ * 1000 pages x 100 rows = 100,000 records, comfortably above the measured
+ * all-status corpus (hitCount 82,998 on 2026-07-28).
+ *
+ * This was 100 — a cap chosen when `startRecordNum` was misspelled as `offset`
+ * (see fetchSearchPage) and every page returned the SAME 100 records, so a
+ * higher cap would only have re-upserted the same rows more times. With real
+ * pagination a page costs ~0.8s, so a full 830-page walk is roughly 11 minutes
+ * and completes in ONE run. The cap stays as a runaway bound, not a budget.
+ */
+export const MAX_PAGES = 1000;
 const DELAY_MS = 300;
 
 const DAILY_STATUSES = 'posted|forecasted';
@@ -34,6 +46,13 @@ const ALL_STATUSES = 'forecasted|posted|closed|archived';
 
 function hasFlag(name: string): boolean {
   return process.argv.includes(`--${name}`);
+}
+
+function flagValue(name: string): string | undefined {
+  const withEq = process.argv.find((a) => a.startsWith(`--${name}=`));
+  if (withEq) return withEq.slice(`--${name}=`.length);
+  const i = process.argv.indexOf(`--${name}`);
+  return i >= 0 && i + 1 < process.argv.length ? process.argv[i + 1] : undefined;
 }
 
 /**
@@ -93,6 +112,23 @@ export interface SearchPage {
   hitCount: number | null;
 }
 
+/**
+ * The pagination parameter is `startRecordNum`, NOT `offset`.
+ *
+ * search2 silently IGNORES unknown body parameters, so `offset` never
+ * paginated anything — every page of every run returned the identical first
+ * 100 records. Measured 2026-07-28: with `offset`, startRecordNum absent, all
+ * of offset=0 / 10000 / 50000 / 82000 returned the same first id (363338); a
+ * 100-page reconcile "upserted 10,000" while `federal_grant` grew by 12 rows,
+ * against a reported hitCount of ~83,000.
+ *
+ * With `startRecordNum` the walk is correct and non-overlapping — verified 0
+ * shared ids between pages at 0 / 100 / 10,000 / 40,000 / 82,900, and a natural
+ * short page at the end (82,990 -> 8 hits).
+ *
+ * Because the failure was silent and total, `sync-grants.spec.ts` pins this
+ * request body by name.
+ */
 export async function fetchSearchPage(oppStatuses: string, page: number): Promise<SearchPage> {
   const resp = await fetch(GRANTS_BASE, {
     method: 'POST',
@@ -102,7 +138,7 @@ export async function fetchSearchPage(oppStatuses: string, page: number): Promis
       oppStatuses,
       sortBy: 'openDate|desc',
       rows: PAGE_SIZE,
-      offset: page * PAGE_SIZE,
+      startRecordNum: page * PAGE_SIZE,
     }),
   });
   if (!resp.ok) throw new Error(`grants.gov search2 HTTP ${resp.status}`);
@@ -163,18 +199,22 @@ export interface SyncOpportunitiesResult extends RunCounts {
 /** Exported for unit testing with a mocked fetcher — no live calls, no real DB. */
 export async function syncOpportunities(
   prisma: GrantsPrisma,
-  opts: { allStatuses: boolean },
+  opts: { allStatuses: boolean; fromPage?: number },
   deps: SyncDeps = { fetchSearchPage, sleep: realSleep },
 ): Promise<SyncOpportunitiesResult> {
   const oppStatuses = opts.allStatuses ? ALL_STATUSES : DAILY_STATUSES;
+  // `--from-page` makes the walk resumable: the CAP EXHAUSTED log already
+  // printed a resume offset, but nothing could consume it, so a capped run had
+  // no way to continue where it left off.
+  const fromPage = Math.max(0, Math.trunc(opts.fromPage ?? 0));
   let total = 0;
   let errors = 0;
   let capExhausted = false;
   let lastHitCount: number | null = null;
-  let lastPage = -1;
+  let lastPage = fromPage - 1;
 
-  for (let page = 0; page < MAX_PAGES; page++) {
-    if (page > 0) await deps.sleep(DELAY_MS);
+  for (let page = fromPage; page < fromPage + MAX_PAGES; page++) {
+    if (page > fromPage) await deps.sleep(DELAY_MS);
     const { hits, hitCount } = await deps.fetchSearchPage(oppStatuses, page);
     lastHitCount = hitCount ?? lastHitCount;
     lastPage = page;
@@ -201,11 +241,12 @@ export async function syncOpportunities(
       `[grants-sync] page ${page + 1}: ${hits.length} opportunities (total: ${total}, hitCount: ${hitCount ?? '?'})`,
     );
     if (hits.length < PAGE_SIZE) break;
-    // grants.gov keeps returning full pages past hitCount (offset is not
-    // honored past the end), which just re-upserts the same rows. Stop once
-    // the reported total is covered.
-    if (hitCount && total >= hitCount) break;
-    if (page === MAX_PAGES - 1) {
+    // Coverage is measured against records WALKED (where the cursor now is),
+    // not `total` upserted. With `--from-page` those differ: a resumed run
+    // starts with total=0 but is already `fromPage * PAGE_SIZE` records deep,
+    // so comparing `total` to hitCount would keep walking long past the end.
+    if (hitCount && (page + 1) * PAGE_SIZE >= hitCount) break;
+    if (page === fromPage + MAX_PAGES - 1) {
       // Reached the hard bound without proving the corpus was exhausted —
       // neither a short page nor hitCount coverage stopped us. Never record a
       // clean success here.
@@ -238,15 +279,22 @@ export async function syncOpportunities(
 
 async function main() {
   const allStatuses = hasFlag('all-statuses');
+  const fromPageArg = flagValue('from-page');
+  const fromPage = fromPageArg != null && fromPageArg !== '' ? Number(fromPageArg) : 0;
+  if (!Number.isFinite(fromPage) || fromPage < 0) {
+    throw new Error(`--from-page must be a non-negative integer (got ${String(fromPageArg)})`);
+  }
   const prisma = new PrismaClient();
   const t0 = Date.now();
-  console.log(`[grants-sync] starting (statuses=${allStatuses ? ALL_STATUSES : DAILY_STATUSES})`);
+  console.log(
+    `[grants-sync] starting (statuses=${allStatuses ? ALL_STATUSES : DAILY_STATUSES}, fromPage=${fromPage})`,
+  );
 
   try {
     const counts = await runWithSyncRun(
       prisma as unknown as Parameters<typeof runWithSyncRun>[0],
       'sync-grants',
-      () => syncOpportunities(prisma as unknown as GrantsPrisma, { allStatuses }),
+      () => syncOpportunities(prisma as unknown as GrantsPrisma, { allStatuses, fromPage }),
     );
     console.log(
       `[grants-sync] DONE upserted=${counts.inserted} expired=${counts.updated} errors=${counts.errors} in ${((Date.now() - t0) / 1000).toFixed(1)}s`,

@@ -122,7 +122,7 @@ All seven award-bearing types are supported:
 | E10 | Producer evaluates every eligible grant for every eligible client | Complete | The early-`return` that exited the client loop on the first non-match is fixed to `continue`; 6,888 pairs evaluated, previously 12 | No | No |
 | E11 | Producer does not exit a client loop after the first non-match | Complete | Same | No | No |
 | E12 | Producer avoids per-pair database queries | Complete | Per-(client, grant) `findFirst` batched to one `findMany` per client — measured 780–960 ms → 4–6 ms | No | No |
-| E13 | Producer is idempotent | Complete | Find-then-create-or-update, keyed on the 5-column unique index | No | **Yes — `20260806010000` is unapplied** |
+| E13 | Producer is idempotent | Complete | Find-then-create-or-update, keyed on the 5-column unique index | No | No — `20260806010000` **is applied**; index verified live 2026-07-28 |
 | E14 | Producer preserves human-authored rows | Complete | Only `evidenceSourceType: 'deterministic_relevance_v1'` rows are read or touched; `evidenceSourceType` is in the unique key precisely so a producer row and an analyst row can coexist | No | No |
 | E15 | Producer cannot create duplicate rows under concurrent execution | **Blocked** | The index exists in the migration but **is not applied to `capiro-dev`** (stated in `ingestion-schedule.ts:451-459`). `runWithSyncRun`'s skip-if-running remains the primary defence | No | **Yes — apply before scheduling** |
 
@@ -160,13 +160,13 @@ All seven award-bearing types are supported:
 
 | # | Item | Status | Gate | Owner |
 |---|---|---|---|---|
-| H1 | Apply `20260806010000_client_grant_nexus_producer_unique` | **Blocked** | Runbook §3 | Neo |
+| H1 | ~~Apply `20260806010000_client_grant_nexus_producer_unique`~~ | **Done** — it was already applied; the "unapplied" claim came from a stale CDK comment | Verified 2026-07-28 | — |
 | H2 | Apply `20260808010000_client_grant_nexus_manual_award_unique` | **Blocked** | Runbook §3 | Neo |
 | H3 | Run the stale-candidate cleanup (dry run, then `--commit`) | **Blocked** | Runbook §4 | Neo |
 | H4 | Assistance enrichment backfill (~238,619 rows, ~5 runs) | **Blocked** | Runbook §5 | Neo |
-| H5 | Grants.gov reconcile to completion (~8 weekly passes) | **Blocked** | Runbook §6 | Neo |
+| H5 | Grants.gov reconcile to completion | **Was impossible** — the walk sent `offset`, which search2 ignores, so it re-read page 0 forever (10,000 upserts -> +12 rows). Fixed via `startRecordNum` + `--from-page`; now ~1 run | Runbook §6 | Neo |
 | H6 | Create the `GenerateGrantOpportunityCandidates` EventBridge rule | **Blocked** | Runbook §9.2, after H1 | Neo |
-| H7 | Boundary artifact `--commit` | **Blocked** | Runbook §10.2 — `ApiTaskRole` has no `s3:PutObject` on `district-boundaries/*`; geometry is dry-run verified (441 features, 4.90 MB gz, zero warnings) | Neo |
+| H7 | Boundary artifact `--commit` | **Done 2026-07-28** — the IAM gap was already closed (`district-boundary-artifacts-s3-write`), proven by committing: 441 features, 4.90 MB gz, 0 warnings, artifact + manifest live in S3, 437 district rows updated. Current rail only; the future rail has 0 features until `sync-legistorm-districts --with-kml` runs | — |
 | H8 | Deploy api + web | **Blocked** | Runbook §12, **after** H1/H2 | Neo |
 | H9 | Browser canary walk | **Blocked** | Runbook §13 | Neo |
 | H10 | Widen `district_nexus_v2` beyond `capiro-internal` | **Blocked** | Runbook §11 criteria — all four must hold | Neo |
