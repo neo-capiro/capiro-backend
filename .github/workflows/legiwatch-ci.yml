@@ -91,8 +91,19 @@ jobs:
           pnpm --filter @capiro/api exec prisma generate
           pnpm --filter @capiro/intel-api exec prisma generate
 
-      - name: Typecheck (whole repo — LegiWatch spans api, intel-api and web)
-        run: pnpm turbo run typecheck
+      # Scoped to the three packages LegiWatch spans, deliberately NOT repo-wide.
+      # ci-pr.yml already runs `turbo run typecheck` across all 14 packages on
+      # every PR, so a second whole-repo pass here buys no signal and costs ~2min.
+      #
+      # It also has to be scoped to stay CORRECT: a whole-repo typecheck requires
+      # all FIVE Prisma clients generated (ci-pr.yml generates api, workspace,
+      # intel-api, onboard-api, api-strategy). With only the two above, every raw
+      # query in the ungenerated packages collapses to `{}` and apps/onboard-api
+      # fails outright on `Cannot find module '../../generated/prisma-client'` —
+      # 100+ errors in code this gate does not own. Generated clients and
+      # typechecked packages must agree; these two lists are that agreement.
+      - name: Typecheck (apps/api, apps/intel-api, apps/web)
+        run: pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/intel-api --filter=@capiro/web
 
       # ---------------------------------------------------------------- api --
       # Gate H (memo lifecycle), Gate I (entailment/filing), Gate J (integrity),
