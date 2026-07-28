@@ -1,0 +1,85 @@
+name: MeriV2 Phase 0 Inspection
+
+on:
+  push:
+    branches:
+      - fix/meriv2-p0-control-boundaries
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print Phase 0 call sites
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          function show(file, needles, before = 18, after = 90) {
+            const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/);
+            console.log(`\n===== ${file} (${lines.length} lines) =====`);
+            for (const needle of needles) {
+              const matches = [];
+              lines.forEach((line, index) => {
+                if (line.includes(needle)) matches.push(index);
+              });
+              console.log(`\n--- needle: ${needle} matches=${matches.map(i => i + 1).join(',') || 'none'} ---`);
+              for (const index of matches) {
+                const start = Math.max(0, index - before);
+                const end = Math.min(lines.length, index + after + 1);
+                for (let i = start; i < end; i += 1) {
+                  console.log(`${String(i + 1).padStart(5)} | ${lines[i]}`);
+                }
+              }
+            }
+          }
+
+          show('apps/api/src/meri/meri.service.ts', [
+            'async streamMessage(',
+            'maybeLearnFromConversation(',
+            'async listRecentLearnedMemories(',
+            'async listMemories(',
+            'async forgetMemory(',
+            'async updateMemory(',
+            'meriV2Chat.streamChat(',
+            'MEMORY_AUTOLEARN_GOVERNED',
+          ], 24, 120);
+
+          show('apps/api/src/meri/meri-tools.service.ts', [
+            'isSideEffecting(',
+            'anthropicToolSchemas(',
+            'executeFromAuthenticatedUser(',
+            'async execute(',
+            'async saveMemory(',
+            "case 'confirm_memory'",
+            "case 'correct_memory'",
+            "case 'forget_memory'",
+          ], 20, 100);
+
+          show('apps/web/src/components/chat/useMeriChatController.ts', [
+            'pending_approval',
+            'approvals/approve',
+            'fingerprint',
+            'approve',
+          ], 18, 90);
+
+          show('apps/web/src/components/chat/ChatDrawer.tsx', [
+            'pendingApprovals',
+            'pendingApproval',
+            'Approve',
+            'fingerprint',
+          ], 18, 90);
+
+          show('apps/web/src/components/chat/meri-pending-approvals.ts', [
+            'export',
+            'fingerprint',
+            'pending',
+          ], 10, 120);
+
+          show('apps/api/src/tenant/tenant-context.store.ts', ['export', 'interface', 'actorUserId', 'impersonation'], 8, 80);
+          show('packages/shared/src', ['interface TenantContext'], 8, 30);
+          NODE
