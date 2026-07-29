@@ -85,7 +85,13 @@ import { budgetExhibitType } from './meri-pe-structural.helpers.js';
 import { isValidPeCode, isValidProcurementCode } from '../program-element/jbook/jbook-extract.js';
 import { buildWebSearchRequest, normalizeWebResults } from './meri-websearch.helpers.js';
 import { looksLikePdf } from './meri-scrape.helpers.js';
-import { buildKnowledgeGraph, walkFrom, type FkRelation } from '../memory/memory-graph.helpers.js';
+import {
+  buildKnowledgeGraph,
+  restrictGraphToClient,
+  walkFrom,
+  type FkRelation,
+} from '../memory/memory-graph.helpers.js';
+import { CLIENT_ID_UUID_RE } from './meri-prompt.helpers.js';
 import { embedText, vectorLiteral, normalize } from '../embeddings/embedder.js';
 import { ymdInZone } from '../intelligence/time-bounds.js';
 import { resolveStateName } from '../common/us-states.js';
@@ -97,6 +103,14 @@ const PRODUCT_NAME = 'Meri';
 // chokepoint.service.ts, so both recognize the same Chair/Chairman/Chairwoman/
 // Co-Chair/Vice-*/Ranking variants (the old per-site sets missed Chairwoman /
 // Co-Chair and could report chair:null when a chair existed).
+
+// Session client scope (2026-07-29): meri.service.ts pins `clientId` on EVERY
+// tool input when the conversation is assigned to a client. Tools whose schema
+// has no `clientId` therefore still receive one — the firm-wide readers below
+// (search_memory, query_knowledge_graph, find_path_to) honour it so a scoped
+// session cannot read another client's memory or graph. A caller that reaches
+// these tools directly with no session (e.g. the Strategy context pack) passes
+// no clientId and keeps the firm-wide behaviour.
 
 // Exported for the tool-registration regression spec (meri-tools.registration.spec.ts).
 export const TOOL_DEFINITIONS = [
@@ -2025,11 +2039,33 @@ export class MeriToolsService {
 
   private async queryKnowledgeGraph(ctx: TenantContext, input: Record<string, unknown>) {
     const seed = optionalString(input, 'seed', 120);
+    const scopeClientId = optionalString(input, 'clientId', 80);
+    if (scopeClientId && !CLIENT_ID_UUID_RE.test(scopeClientId)) {
+      return { error: 'clientId must be a client UUID — pass the exact id, or omit it.' };
+    }
     const depthRaw =
       typeof input.depth === 'number' ? input.depth : parseInt(String(input.depth ?? ''), 10);
     const depth = Number.isFinite(depthRaw) ? Math.min(4, Math.max(1, depthRaw)) : 2;
     const full = await this.loadGraphForCtx(ctx);
-    const g = seed ? walkFrom(full, seed, depth) : full;
+    // Client-scoped session: walk ONLY this client's subgraph. Without this an
+    // omitted seed returned the firm-wide graph — every client, their meetings
+    // and their mail threads — inside a session assigned to one client.
+    let graph = full;
+    let effectiveSeed = seed;
+    if (scopeClientId) {
+      const scopeNode = `client:${scopeClientId}`;
+      if (seed?.startsWith('client:') && seed !== scopeNode) {
+        return {
+          error:
+            "This conversation is scoped to one client, so the knowledge graph cannot be walked from another client's node here. Omit the seed to explore this client's graph, or switch the session's client.",
+        };
+      }
+      graph = restrictGraphToClient(full, scopeNode);
+      // Always seeded when scoped, so an unscoped "overview" can never fall
+      // through to the whole graph.
+      effectiveSeed = seed || scopeNode;
+    }
+    const g = effectiveSeed ? walkFrom(graph, effectiveSeed, depth) : graph;
     if (!g.nodes.length) {
       return {
         summary:
@@ -2056,30 +2092,47 @@ export class MeriToolsService {
   private async findPathTo(ctx: TenantContext, input: Record<string, unknown>) {
     const to = optionalString(input, 'to', 120);
     if (!to) return { error: "Provide a target node id, e.g. 'office:<id>' or 'person:<id>'." };
+    const scopeClientId = optionalString(input, 'clientId', 80);
+    if (scopeClientId && !CLIENT_ID_UUID_RE.test(scopeClientId)) {
+      return { error: 'clientId must be a client UUID — pass the exact id, or omit it.' };
+    }
     const depthRaw =
       typeof input.depth === 'number' ? input.depth : parseInt(String(input.depth ?? ''), 10);
     const depth = Number.isFinite(depthRaw) ? Math.min(5, Math.max(1, depthRaw)) : 3;
-    const full = await this.loadGraphForCtx(ctx);
-    if (!full.nodes.some((n) => n.id === to)) {
+    const loaded = await this.loadGraphForCtx(ctx);
+    // "Does this node exist at all" is answered against the UNrestricted graph so
+    // a scoped session reports an honest "no route from your client" instead of
+    // claiming the target was never ingested.
+    if (!loaded.nodes.some((n) => n.id === to)) {
       return {
         summary: `No node "${to}" in the knowledge graph. It may not be ingested yet, or the id is off.`,
         paths: [],
       };
     }
-    const label = new Map(full.nodes.map((n) => [n.id, `${n.label} (${n.type})`]));
+    // Client-scoped session: this tool's whole job is "which of your clients
+    // gets you there", which is firm-wide by construction. Restricting the graph
+    // narrows it to the session's client AND stops a route from hopping through
+    // another client's relationships.
+    const full = scopeClientId ? restrictGraphToClient(loaded, `client:${scopeClientId}`) : loaded;
+    const label = new Map(loaded.nodes.map((n) => [n.id, `${n.label} (${n.type})`]));
     const clients = full.nodes.filter((n) => n.type === 'client').map((n) => n.id);
     const paths: string[][] = [];
     for (const c of clients) {
       const p = shortestGraphPath(full, c, to, depth);
       if (p) paths.push(p);
     }
+    // A scoped session searched ONE client, so say so rather than implying the
+    // whole book of business was checked and came back empty.
+    const origin = scopeClientId
+      ? (label.get(`client:${scopeClientId}`) ?? 'this client')
+      : 'any client';
     if (!paths.length)
       return {
-        summary: `No connection path from any client to ${label.get(to) ?? to} within ${depth} hops.`,
+        summary: `No connection path from ${origin} to ${label.get(to) ?? to} within ${depth} hops.`,
         paths: [],
       };
     return {
-      summary: `${paths.length} route(s) from your clients to ${label.get(to) ?? to}:`,
+      summary: `${paths.length} route(s) from ${scopeClientId ? origin : 'your clients'} to ${label.get(to) ?? to}:`,
       paths: paths.map((p) => p.map((id) => label.get(id) ?? id).join(' → ')),
     };
   }
@@ -2087,6 +2140,16 @@ export class MeriToolsService {
   private async searchMemory(ctx: TenantContext, input: Record<string, unknown>) {
     const query = optionalString(input, 'query', 400);
     if (!query) return { error: 'Provide a search query.' };
+    // Session client scope: meri.service.ts pins the conversation's client onto
+    // every tool input. This read used to ignore it and return ANY active memory
+    // item in the tenant — so a session assigned to one client recalled other
+    // clients' facts, while the automatic recall path (projectionRecall) had
+    // filtered on client_id all along. Same predicate here, same fail-closed
+    // shape: firm-wide items (client_id NULL) stay visible in both cases.
+    const scopeClientId = optionalString(input, 'clientId', 80);
+    if (scopeClientId && !CLIENT_ID_UUID_RE.test(scopeClientId)) {
+      return { error: 'clientId must be a client UUID — pass the exact id, or omit it.' };
+    }
     const kRaw = typeof input.k === 'number' ? input.k : parseInt(String(input.k ?? ''), 10);
     const k = Number.isFinite(kRaw) ? Math.min(15, Math.max(1, kRaw)) : 8;
     let literal: string;
@@ -2135,11 +2198,13 @@ export class MeriToolsService {
             AND mi.tenant_id = $1::uuid
             AND (mi.owner_user_id IS NULL OR mi.owner_user_id = $2::uuid)
             AND mi.status = 'active'
-            AND (mi.expires_at IS NULL OR mi.expires_at > now())${wallExclusionSql(denied, 'mi.client_id')}
+            AND (mi.expires_at IS NULL OR mi.expires_at > now())
+            AND ($3::uuid IS NULL OR mi.client_id IS NULL OR mi.client_id = $3::uuid)${wallExclusionSql(denied, 'mi.client_id')}
           ORDER BY ce.embedding <=> '${literal}'::vector
           LIMIT ${k}`,
             ctx.tenantId,
             ctx.userId,
+            scopeClientId ?? null,
           );
         },
         // A cold 1024-dim ANN scan over context_embeddings measured 10.3s live and

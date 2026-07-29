@@ -1,5 +1,6 @@
 import {
   buildKnowledgeGraph,
+  restrictGraphToClient,
   walkFrom,
   type FkRelation,
 } from './memory-graph.helpers.js';
@@ -90,5 +91,79 @@ describe('memory graph builder (Phase 3, criterion #5)', () => {
     const g1 = buildKnowledgeGraph(fks, wikiEdges, itemNodeById);
     const g2 = buildKnowledgeGraph(fks, wikiEdges, itemNodeById);
     expect(JSON.stringify(g1)).toBe(JSON.stringify(g2));
+  });
+});
+
+// A Meri conversation assigned to a client must not surface another client's
+// relationships, and must not route a warm-intro path THROUGH another client.
+// The graph tools (query_knowledge_graph / find_path_to) previously walked the
+// firm-wide graph in a client-scoped session (reported live 2026-07-29).
+describe('restrictGraphToClient — session client scope for the graph tools', () => {
+  const twoClients: FkRelation[] = [
+    {
+      srcType: 'client',
+      srcSlug: 'acme',
+      srcLabel: 'Acme Corp',
+      dstType: 'bill',
+      dstSlug: 'hr-1',
+      dstLabel: 'HR 1',
+      relation: 'tracks',
+    },
+    {
+      srcType: 'client',
+      srcSlug: 'globex',
+      srcLabel: 'Globex',
+      dstType: 'bill',
+      dstSlug: 'hr-2',
+      dstLabel: 'HR 2',
+      relation: 'tracks',
+    },
+    // Shared target: the only route from Acme to this office runs via Globex.
+    {
+      srcType: 'client',
+      srcSlug: 'globex',
+      srcLabel: 'Globex',
+      dstType: 'office',
+      dstSlug: 'sac-d',
+      dstLabel: 'Senate Approps Defense',
+      relation: 'contact',
+    },
+  ];
+
+  const graph = () => buildKnowledgeGraph(twoClients, [], new Map());
+
+  it('drops every other client node', () => {
+    const scoped = restrictGraphToClient(graph(), 'client:acme');
+    const clients = scoped.nodes.filter((n) => n.type === 'client').map((n) => n.id);
+    expect(clients).toEqual(['client:acme']);
+  });
+
+  it('drops edges incident to another client, so nothing dangles off its label', () => {
+    const scoped = restrictGraphToClient(graph(), 'client:acme');
+    expect(scoped.edges.some((e) => e.src === 'client:globex' || e.dst === 'client:globex')).toBe(
+      false,
+    );
+    // The scoped client keeps its own edges.
+    expect(scoped.edges.some((e) => e.src === 'client:acme' && e.dst === 'bill:hr-1')).toBe(true);
+  });
+
+  it('keeps the scoped client reachable while a walk can no longer hop via another client', () => {
+    const scoped = restrictGraphToClient(graph(), 'client:acme');
+    const walked = walkFrom(scoped, 'client:acme', 4);
+    const ids = walked.nodes.map((n) => n.id);
+    expect(ids).toContain('bill:hr-1');
+    // Only Globex connected Acme's component to the office — no route survives.
+    expect(ids).not.toContain('office:sac-d');
+    expect(ids).not.toContain('bill:hr-2');
+  });
+
+  it('returns the graph unchanged when there is no other client to exclude', () => {
+    const single = buildKnowledgeGraph([twoClients[0]!], [], new Map());
+    expect(restrictGraphToClient(single, 'client:acme')).toBe(single);
+  });
+
+  it('excludes every client when the scoped id is absent (fail-closed, not fail-open)', () => {
+    const scoped = restrictGraphToClient(graph(), 'client:missing');
+    expect(scoped.nodes.filter((n) => n.type === 'client')).toEqual([]);
   });
 });

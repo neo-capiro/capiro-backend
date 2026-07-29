@@ -120,6 +120,31 @@ export function buildKnowledgeGraph(
 }
 
 /**
+ * Restrict a graph to ONE client's view: every OTHER client node, and every
+ * edge incident to one, is removed.
+ *
+ * Used by Meri's graph tools when the conversation is assigned to a client. A
+ * client-scoped session must not surface another client's relationships, and
+ * must not route a warm-intro path THROUGH another client — dropping the nodes
+ * AND their edges achieves both (an edge-only filter would leave the foreign
+ * client's label visible on a dangling node).
+ *
+ * Non-client nodes are kept as-is: callers always walk from a seed afterwards,
+ * so whatever is left unreachable is dropped by the BFS rather than here.
+ * Returns the input unchanged when there is nothing to exclude.
+ */
+export function restrictGraphToClient(graph: KnowledgeGraph, clientNodeId: string): KnowledgeGraph {
+  const excluded = new Set(
+    graph.nodes.filter((n) => n.type === 'client' && n.id !== clientNodeId).map((n) => n.id),
+  );
+  if (excluded.size === 0) return graph;
+  return {
+    nodes: graph.nodes.filter((n) => !excluded.has(n.id)),
+    edges: graph.edges.filter((e) => !excluded.has(e.src) && !excluded.has(e.dst)),
+  };
+}
+
+/**
  * Walk the graph from a seed node up to `depth` hops (BFS). Answers questions
  * like "our history with this office on this issue" by returning the connected
  * subgraph. Deterministic ordering for stable rendering + tests.

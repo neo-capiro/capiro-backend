@@ -56,6 +56,9 @@ import {
   applyRoundUsageEvent,
   applyToolCacheControl,
   buildMeriSystemBlocks,
+  clientScopeDirective,
+  clientScopeRefusal,
+  CLIENT_ID_UUID_RE,
   meriCapabilityBlock,
   emptyUsage,
   validateFormBCitations,
@@ -208,6 +211,12 @@ interface OrchestratorResult {
     heading: string;
     sections: string[];
   } | null;
+  /**
+   * The client this conversation is assigned to (null = General session).
+   * Resolved once per turn and carried out so the system prompt can state the
+   * scope as a hard constraint — the context snapshot alone never did.
+   */
+  activeClient: { id: string; name: string } | null;
 }
 
 interface StreamControl {
@@ -928,6 +937,7 @@ export class MeriService {
       promptCacheEnabled,
       conversationSummary,
       firmSkill,
+      orchestration.activeClient,
     );
 
     sse.write(
@@ -979,6 +989,26 @@ export class MeriService {
       metadata: Prisma.InputJsonValue;
     }> = [];
     const toolsUsed: string[] = [];
+    // Session client name, resolved at most once per turn and only when the
+    // client-scope check actually needs it (a model-supplied clientId that is
+    // not this conversation's). `undefined` = not looked up yet.
+    let sessionClientName: string | null | undefined;
+    const resolveSessionClientName = async (): Promise<string | null> => {
+      if (sessionClientName === undefined) {
+        sessionClientName = conversation.clientId
+          ? await this.prisma
+              .withTenant(ctx.tenantId, (tx) =>
+                tx.client.findFirst({
+                  where: { id: conversation.clientId as string },
+                  select: { name: true },
+                }),
+              )
+              .then((c) => c?.name ?? null)
+              .catch(() => null)
+          : null;
+      }
+      return sessionClientName;
+    };
     const actionsTaken: Array<{ tool: string; kind: string; ok: boolean }> = [];
     const usageTotals = emptyUsage();
     const citations: MeriCitation[] = [];
@@ -1262,7 +1292,16 @@ export class MeriService {
         // Phase 1: parse each tool's input and emit its tool_call event up front,
         // in deterministic order, so the trust timeline shows the full plan before
         // results stream back. (Not gated on #trace — the user always sees calls.)
-        const preparedTools = orderedTools.map((t, index) => {
+        // Sequential (not .map) so the client-scope check may await a name
+        // resolution while the tool_call frames still emit in index order.
+        const preparedTools: Array<{
+          index: number;
+          tool: (typeof orderedTools)[number];
+          parsedInput: Record<string, unknown>;
+          concurrencySafe: boolean;
+          scopeViolation?: string;
+        }> = [];
+        for (const [index, t] of orderedTools.entries()) {
           let parsedInput: Record<string, unknown> = {};
           const raw = t.jsonParts.join('');
           if (raw.trim()) {
@@ -1272,9 +1311,39 @@ export class MeriService {
               parsedInput = {};
             }
           }
-          // Default clientId from the conversation if the model omitted it.
-          if (conversation.clientId && parsedInput.clientId === undefined) {
-            parsedInput.clientId = conversation.clientId;
+          const isBridged = Boolean(parseBridgedToolName(t.name));
+          // Client scope is ENFORCED, not merely defaulted (2026-07-29). An
+          // omitted clientId is filled from the conversation as before; a
+          // DIFFERENT one is refused. Not silently rewritten to the session
+          // client: the model asked for client B, so handing it client A's rows
+          // invites an answer that labels A's data as B's — a wrong answer is
+          // worse than a blocked read.
+          //
+          // NATIVE tools only. A bridged MCP tool's `clientId` lives in a third-
+          // party server's parameter space (an OAuth client id, that vendor's own
+          // record id), so a Capiro client UUID is meaningless there — refusing on
+          // it would break legitimate calls without preventing any leak, since a
+          // bridged server never reads Capiro's database. Bridged inputs keep
+          // their pre-existing treatment; MCP has its own allowlist + audit.
+          let scopeViolation: string | undefined;
+          if (conversation.clientId && !isBridged) {
+            const supplied =
+              typeof parsedInput.clientId === 'string' ? parsedInput.clientId.trim() : '';
+            if (!supplied) {
+              parsedInput.clientId = conversation.clientId;
+            } else if (supplied !== conversation.clientId) {
+              // find_contacts documents an exact client NAME here, so a non-uuid
+              // value naming THIS session's client resolves to it rather than
+              // costing the user a refusal round-trip.
+              const nameToMatch = CLIENT_ID_UUID_RE.test(supplied)
+                ? null
+                : await resolveSessionClientName();
+              if (nameToMatch && supplied.toLowerCase() === nameToMatch.toLowerCase()) {
+                parsedInput.clientId = conversation.clientId;
+              } else {
+                scopeViolation = clientScopeRefusal(await resolveSessionClientName());
+              }
+            }
           }
           // Always thread the active conversationId into the tool input. The
           // model never supplies it (it isn't in any tool schema), and the
@@ -1292,11 +1361,17 @@ export class MeriService {
           );
           // Bridged MCP tools (F6a) are side-effecting (serialized) unless the
           // admin explicitly allowlisted them read-only.
-          const concurrencySafe = parseBridgedToolName(t.name)
+          const concurrencySafe = isBridged
             ? this.mcp.isBridgedToolReadOnly(ctx, t.name)
             : this.tools.isConcurrencySafe(t.name);
-          return { index, tool: t, parsedInput, concurrencySafe };
-        });
+          preparedTools.push({
+            index,
+            tool: t,
+            parsedInput,
+            concurrencySafe,
+            ...(scopeViolation ? { scopeViolation } : {}),
+          });
+        }
 
         // Phase 2: execute concurrently — read-only tools in parallel, side-effecting
         // tools serialized — with a per-tool timeout, preserving result order (P0-2).
@@ -1311,6 +1386,11 @@ export class MeriService {
         const outcomes = await runToolsConcurrently(
           preparedTools,
           (item): Promise<unknown> => {
+            // Client-scope refusal first: a blocked read must not run, must not
+            // count against the tool's circuit breaker, and must not be retried.
+            if (item.scopeViolation) {
+              return Promise.resolve({ ok: false, error: item.scopeViolation });
+            }
             if (this.toolBreaker.isOpen(`${ctx.tenantId}:${item.tool.name}`)) {
               throw new CircuitOpenError(item.tool.name);
             }
@@ -1343,6 +1423,9 @@ export class MeriService {
         // penalize a tool we skipped because its breaker was already open).
         for (const item of preparedTools) {
           if (breakerOpenAtStart.has(item.tool.name)) continue;
+          // A scope-refused call never reached the tool — recording it either way
+          // would let a refusal reset (or trip) a breaker on no evidence.
+          if (item.scopeViolation) continue;
           const key = `${ctx.tenantId}:${item.tool.name}`;
           if (outcomes[item.index]?.ok) this.toolBreaker.recordSuccess(key);
           else this.toolBreaker.recordFailure(key);
@@ -2593,6 +2676,22 @@ export class MeriService {
     const sources: MeriSourceAttribution[] = [];
     const trace: OrchestratorTraceStep[] = [];
 
+    // Resolve the session's client ONCE per turn. Consumed by the hard
+    // client-scope directive in the system prompt, the roster's reference-only
+    // note below, and query_intelligence's clientName (which used to run its
+    // own duplicate lookup). Name resolution failing must not drop the scope —
+    // the directive falls back to an unnamed phrasing.
+    let activeClient: { id: string; name: string } | null = null;
+    if (clientId) {
+      const name = await this.prisma
+        .withTenant(ctx.tenantId, (tx) =>
+          tx.client.findFirst({ where: { id: clientId }, select: { name: true } }),
+        )
+        .then((c) => c?.name ?? '')
+        .catch(() => '');
+      activeClient = { id: clientId, name };
+    }
+
     // User voice/profile (memory files): standing context so Meri always writes
     // in the caller's voice and knows their role — not just when it calls a tool.
     try {
@@ -2625,9 +2724,16 @@ export class MeriService {
           .join('\n');
         const overflow =
           roster.length > MAX_ROSTER ? `\n(+${roster.length - MAX_ROSTER} more not shown)` : '';
+        // In a client-scoped session the roster is the one deliberately
+        // firm-wide block in the snapshot (roster questions must stay
+        // answerable), so it says outright that it is a lookup list and not
+        // material to draw on — matching the hard scope directive in the prompt.
+        const scopeNote = activeClient
+          ? ` This session is scoped to ${activeClient.name ? `"${activeClient.name}"` : 'one client'}: use this list ONLY to answer questions about the roster itself, never to discuss another client's work.`
+          : '';
         contextParts.push(
           `\nYour firm's client roster (AUTHORITATIVE — from the Capiro client table; the definitive list of who this firm represents). ` +
-            `When asked who the clients are, how many there are, or whether an organization is a client, answer ONLY from this list — never from memory:\n` +
+            `When asked who the clients are, how many there are, or whether an organization is a client, answer ONLY from this list — never from memory:${scopeNote}\n` +
             `Total: ${roster.length} (${activeCount} active).\n${lines}${overflow}`,
         );
         sources.push({
@@ -2839,15 +2945,8 @@ export class MeriService {
         reason: `Intent ${intent} requests intelligence context.`,
       });
       try {
-        const clientName = clientId
-          ? await this.prisma
-              .withTenant(ctx.tenantId, (tx) =>
-                tx.client.findFirst({ where: { id: clientId }, select: { name: true } }),
-              )
-              .then((c) => c?.name ?? undefined)
-          : undefined;
         const intelResult = await this.tools.execute(ctx, 'query_intelligence' as never, {
-          clientName: clientName ?? undefined,
+          clientName: activeClient?.name || undefined,
         });
         const intelData = (intelResult as Record<string, unknown>)?.data;
         if (typeof intelData === 'string' && intelData.length > 10) {
@@ -3005,6 +3104,7 @@ export class MeriService {
       trace,
       conflict,
       template,
+      activeClient,
     };
   }
 
@@ -3173,6 +3273,7 @@ export class MeriService {
     template: { heading: string; sections: string[] } | null,
     conversationSummary: string | null = null,
     firmSkill: MeriSkill | null = null,
+    activeClient: { id: string; name: string } | null = null,
   ): { base: string; dynamic: string } {
     const base = [
       'You are Meri, an elite AI chief of staff designed exclusively for government affairs professionals.',
@@ -3242,6 +3343,11 @@ export class MeriService {
     // daily, so it must never sit in the cached base (would bust the prefix
     // cache). Closes the <meri_grounding> element opened in the base.
     const tail: string[] = [meriGroundingDateBlock(new Date().toISOString())];
+    // Client scope goes BEFORE intent guidance, the template, and the context
+    // snapshot: it constrains everything that follows, including any other
+    // client that survives in a tool result. Per-conversation, so it belongs in
+    // the uncached tail — never the shared cached base.
+    if (activeClient) tail.push(clientScopeDirective(activeClient.name));
     if (guidance) tail.push(guidance);
     if (template) {
       tail.push(`Output template: ${template.heading}`);
@@ -3265,6 +3371,7 @@ export class MeriService {
     cacheEnabled: boolean,
     conversationSummary: string | null = null,
     firmSkill: MeriSkill | null = null,
+    activeClient: { id: string; name: string } | null = null,
   ): SystemTextBlock[] {
     const { base, dynamic } = this.composeSystemParts(
       intent,
@@ -3272,6 +3379,7 @@ export class MeriService {
       template,
       conversationSummary,
       firmSkill,
+      activeClient,
     );
     return buildMeriSystemBlocks({ base, dynamic, cacheEnabled });
   }

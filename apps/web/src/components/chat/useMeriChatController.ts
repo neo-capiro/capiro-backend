@@ -466,9 +466,13 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     const active =
       conversations.find((conversation) => conversation.id === activeConversationId) ?? null;
     setSessionTitle(active?.title ?? '');
-    setSessionClientId(active?.clientId ?? selectedClientId ?? '');
+    // ONLY the conversation's own assignment. This used to fall back to the
+    // global client filter, so the scope selector could display a client the
+    // server had never been told about — the session then answered from the
+    // whole firm's data while looking client-scoped (reported 2026-07-29).
+    setSessionClientId(active?.clientId ?? '');
     setMetaError(null);
-  }, [conversations, activeConversationId, selectedClientId]);
+  }, [conversations, activeConversationId]);
 
   useEffect(() => {
     if (!messages.length) {
@@ -526,6 +530,72 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     }
   }, [activeConversationId, authHeaders, isSavingMeta, selectedClientValue, sessionTitle]);
 
+  /**
+   * Assign the session's client and PERSIST it immediately.
+   *
+   * The scope selector used to be local state that only reached the server if
+   * the user ALSO clicked the save button, and a conversation-list refresh
+   * silently reverted an unsaved pick. Every turn reads
+   * clio_conversations.client_id, so an unsaved pick meant a session that looked
+   * scoped while every tool ran across the whole firm. Writing on change is what
+   * makes the displayed scope the scope the model is actually held to; on
+   * failure the selector snaps back rather than showing a scope the server
+   * doesn't have.
+   */
+  const changeSessionClient = useCallback(
+    async (clientId: string) => {
+      const previous = sessionClientId;
+      if (clientId === previous) return;
+      // No conversation yet (the session is still being created): refuse the
+      // pick outright rather than showing a scope nothing can be written to.
+      if (!activeConversationId) {
+        setMetaError('The session is still starting — set the client scope again in a moment.');
+        return;
+      }
+      setSessionClientId(clientId);
+      setMetaError(null);
+      setIsSavingMeta(true);
+      try {
+        const res = await fetch(
+          `${config.apiBaseUrl}/api/clio/conversations/${activeConversationId}`,
+          {
+            method: 'PATCH',
+            headers: await authHeaders(),
+            body: JSON.stringify({ clientId: clientId || null }),
+          },
+        );
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(text || `HTTP ${res.status}`);
+        }
+        const updated = await res.json();
+        if (updated && typeof updated.id === 'string') {
+          upsertConversation({
+            id: updated.id,
+            title: updated.title,
+            clientId: updated.clientId ?? null,
+            client: updated.client ?? null,
+            latestMessage:
+              updated.latestMessage && typeof updated.latestMessage.body === 'string'
+                ? { body: updated.latestMessage.body, createdAt: updated.latestMessage.createdAt }
+                : null,
+            updatedAt: updated.updatedAt,
+          });
+        }
+      } catch (err) {
+        setSessionClientId(previous);
+        setMetaError(
+          err instanceof Error
+            ? `Could not change the client scope: ${err.message}`
+            : 'Could not change the client scope',
+        );
+      } finally {
+        setIsSavingMeta(false);
+      }
+    },
+    [activeConversationId, authHeaders, sessionClientId],
+  );
+
   const archiveConversation = useCallback(async () => {
     if (!activeConversationId) return;
     try {
@@ -559,7 +629,30 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         }),
       });
       if (res.ok) {
-        const data = (await res.json()) as { id: string };
+        const data = (await res.json()) as {
+          id: string;
+          title?: string;
+          clientId?: string | null;
+          updatedAt?: string;
+        };
+        // Register the row so the header's scope selector reads the session's
+        // REAL assignment. Previously nothing was stored, so the selector fell
+        // back to the global client filter and could name a client the
+        // conversation did not have — the display that made the leak invisible.
+        // The POST response carries no `client` relation; resolve the name from
+        // the loaded roster so the history rail groups it correctly too.
+        const createdClientId = data.clientId ?? null;
+        const createdClient = createdClientId
+          ? (clients.find((client) => client.id === createdClientId) ?? null)
+          : null;
+        upsertConversation({
+          id: data.id,
+          title: typeof data.title === 'string' ? data.title : 'Chat session',
+          clientId: createdClientId,
+          client: createdClient,
+          latestMessage: null,
+          updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString(),
+        });
         setChatSession(data.id);
         setActiveConversation(data.id);
         return data.id;
@@ -568,7 +661,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       // fallback
     }
     return null;
-  }, [authHeaders, selectedClientId]);
+  }, [authHeaders, selectedClientId, clients]);
 
   const handleNewSession = useCallback(async () => {
     abortRef.current?.abort();
@@ -1657,7 +1750,10 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     setSessionTitle,
     clients,
     selectedClientValue,
-    setSessionClientId,
+    // NOTE: the raw setSessionClientId setter is deliberately NOT exposed.
+    // A scope that changes without being written to the conversation is the
+    // 2026-07-29 cross-client leak — changeSessionClient is the only way in.
+    changeSessionClient,
     activeConversationId,
     isSavingMeta,
     metaError,

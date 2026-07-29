@@ -8,6 +8,7 @@ import { resolveTenantAuditorMode } from '../common/auditor-mode.js';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
+import { clientScopeRefusal, CLIENT_ID_UUID_RE } from './meri-prompt.helpers.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import { DELIVERABLE_RISK_TIERS } from '@capiro/shared';
@@ -309,6 +310,25 @@ export class MeriResearchService {
     let reportBody = '';
     const sources: SourceAttribution[] = [];
     const toolsUsed: string[] = [];
+    // Session client name for the client-scope refusal below — resolved at most
+    // once per run, and only if the model actually asks for another client.
+    let sessionClientName: string | null | undefined;
+    const resolveSessionClientName = async (): Promise<string | null> => {
+      if (sessionClientName === undefined) {
+        sessionClientName = session.clientId
+          ? await this.prisma
+              .withTenant(ctx.tenantId, (tx) =>
+                tx.client.findFirst({
+                  where: { id: session.clientId as string },
+                  select: { name: true },
+                }),
+              )
+              .then((c) => c?.name ?? null)
+              .catch(() => null)
+          : null;
+      }
+      return sessionClientName;
+    };
     // Wave-2 post-hoc auditor ledger for the research surface (the most dangerous
     // one — the S3 fabrication cluster). Accumulates successful tool results
     // across gather rounds; audited after synthesis.
@@ -477,19 +497,43 @@ export class MeriResearchService {
               parsedInput = {};
             }
           }
-          // Default clientId from the session if the model omitted it.
-          if (session.clientId && parsedInput.clientId === undefined) {
-            parsedInput.clientId = session.clientId;
+          // Client scope is ENFORCED, not merely defaulted (2026-07-29) — the
+          // same rule as the chat loop in meri.service.ts. An omitted clientId
+          // is filled from the session; a DIFFERENT one is refused rather than
+          // rewritten, so a client-scoped research report can never be built
+          // from another client's rows.
+          let scopeViolation: string | undefined;
+          if (session.clientId) {
+            const supplied =
+              typeof parsedInput.clientId === 'string' ? parsedInput.clientId.trim() : '';
+            if (!supplied) {
+              parsedInput.clientId = session.clientId;
+            } else if (supplied !== session.clientId) {
+              const name = CLIENT_ID_UUID_RE.test(supplied)
+                ? null
+                : await resolveSessionClientName();
+              if (name && supplied.toLowerCase() === name.toLowerCase()) {
+                parsedInput.clientId = session.clientId;
+              } else {
+                scopeViolation = clientScopeRefusal(await resolveSessionClientName());
+              }
+            }
           }
           toolsUsed.push(t.name);
           sse.write(sseEvent({ type: 'step', tool: t.name, label: humanToolLabel(t.name) }));
 
           let resultPayload: unknown;
           let isError = false;
-          // Defense-in-depth: never execute a side-effecting tool in the
-          // read-only research loop, even if one somehow reaches this point
-          // (schema-filter regression, model hallucinating a tool name).
-          if (!this.tools.isConcurrencySafe(t.name)) {
+          if (scopeViolation) {
+            isError = true;
+            resultPayload = { error: scopeViolation };
+            this.logger.warn(
+              `Deep Research blocked an out-of-scope client read: ${t.name} (session ${session.id})`,
+            );
+          } else if (!this.tools.isConcurrencySafe(t.name)) {
+            // Defense-in-depth: never execute a side-effecting tool in the
+            // read-only research loop, even if one somehow reaches this point
+            // (schema-filter regression, model hallucinating a tool name).
             isError = true;
             resultPayload = { error: `Tool "${t.name}" is not permitted in read-only research` };
             this.logger.warn(
