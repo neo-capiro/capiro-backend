@@ -254,7 +254,7 @@ export class ReportCardService {
       ),
       this.prisma.withTenant(tenantId, (tx) =>
         tx.clientIntelMapping.findFirst({
-          where: { clientId, source: 'contracting', confirmed: true },
+          where: { clientId, source: 'contracting', confirmed: true, reviewStatus: 'confirmed', rollUpAwards: true },
         }),
       ),
     ]);

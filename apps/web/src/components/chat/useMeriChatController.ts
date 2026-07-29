@@ -44,6 +44,7 @@ import {
   upsertConversation,
   useChatStore,
 } from './chat-store.js';
+import { MERI_CONTEXT_PROMPT_EVENT, type MeriContextPromptRequest } from './meri-prompt.js';
 import { isUsableAttachment, type StagedAttachment } from './ChatInput.js';
 import type { TrustStep } from './WorkPerformed.js';
 import type { CanvasArtifact } from './MeriCanvas.js';
@@ -1238,6 +1239,26 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       stagedAttachments,
     ],
   ); // eslint-disable-line react-hooks/exhaustive-deps
+
+
+  // Product surfaces can open Meri with a source-backed, client-scoped prompt.
+  // A ref keeps the single window listener stable while still calling the latest
+  // sendMessage closure after the client filter/session context has re-rendered.
+  const contextualPromptSenderRef = useRef(sendMessage);
+  useEffect(() => {
+    contextualPromptSenderRef.current = sendMessage;
+  }, [sendMessage]);
+  useEffect(() => {
+    const onContextPrompt = (event: Event) => {
+      const detail = (event as CustomEvent<MeriContextPromptRequest>).detail;
+      const prompt = detail?.prompt?.trim();
+      if (!prompt) return;
+      setChatOpen(true);
+      void contextualPromptSenderRef.current(prompt);
+    };
+    window.addEventListener(MERI_CONTEXT_PROMPT_EVENT, onContextPrompt);
+    return () => window.removeEventListener(MERI_CONTEXT_PROMPT_EVENT, onContextPrompt);
+  }, []);
 
   const handleClose = useCallback(() => {
     abortRef.current?.abort();

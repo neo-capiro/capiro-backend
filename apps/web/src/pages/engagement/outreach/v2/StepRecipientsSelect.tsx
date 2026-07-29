@@ -833,6 +833,24 @@ function CcBccPopover({
       ).data,
   });
 
+  /**
+   * The user's OWN team (active members of this tenant).
+   *
+   * Copying a colleague on outreach is routine, and until now the picker searched
+   * only the congressional directory and client contacts — so the one person a
+   * lobbyist most often Cc's, someone at their own firm, was the one person they
+   * had to retype by hand for every recipient. Loaded once (not per keystroke) and
+   * filtered client-side: a firm roster is small, and this keeps the teammate
+   * group responsive while the directory search debounces.
+   */
+  const teamQuery = useQuery<Array<{ id: string; email: string; name: string }>>({
+    queryKey: ['ov2-rs-team'],
+    queryFn: async () =>
+      (await api.get<Array<{ id: string; email: string; name: string }>>('/api/users/tenant-members'))
+        .data,
+    staleTime: 300_000,
+  });
+
   // Reuses the same query keys ClientsTab uses, so client people are served
   // from cache when that tab has already loaded them.
   const peopleQueries = useQueries({
@@ -854,10 +872,11 @@ function CcBccPopover({
   const excluded = (email: string) =>
     appliedEmails.has(email.toLowerCase()) || pendingEmails.has(email.toLowerCase());
 
-  const { congressResults, clientResults } = useMemo(() => {
+  const { congressResults, clientResults, teamResults } = useMemo(() => {
     const congress: ContactResult[] = [];
     const client: ContactResult[] = [];
-    if (!ql) return { congressResults: congress, clientResults: client };
+    const team: ContactResult[] = [];
+    if (!ql) return { congressResults: congress, clientResults: client, teamResults: team };
     const seen = new Set<string>();
     const push = (bucket: ContactResult[], contact: CcBccContact, sub: string) => {
       const key = contact.email.toLowerCase();
@@ -904,9 +923,15 @@ function CcBccPopover({
         }
       }
     });
-    return { congressResults: congress, clientResults: client };
+    for (const u of teamQuery.data ?? []) {
+      if (!u.email) continue;
+      if (`${u.name} ${u.email}`.toLowerCase().includes(ql)) {
+        push(team, { id: `user:${u.id}`, name: u.name, email: u.email, source: 'team' }, 'Your team');
+      }
+    }
+    return { congressResults: congress, clientResults: client, teamResults: team };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ql, dir.data, clients, peopleData, appliedEmails, pendingEmails]);
+  }, [ql, dir.data, clients, peopleData, teamQuery.data, appliedEmails, pendingEmails]);
 
   const addContact = (contact: CcBccContact) => {
     if (excluded(contact.email)) return;
@@ -964,13 +989,24 @@ function CcBccPopover({
           ? 'Apply to group'
           : `Apply to ${recipientName || 'recipient'}`;
   const applyDisabled = pending.length === 0 || (mode === 'bulk' && count === 0);
-  const hasResults = congressResults.length > 0 || clientResults.length > 0;
+  const hasResults =
+    congressResults.length > 0 || clientResults.length > 0 || teamResults.length > 0;
+
+  const SOURCE_TAG: Record<CcBccContact['source'], string> = {
+    congress: 'Congress',
+    client: 'Client',
+    team: 'Team',
+    manual: 'Manual',
+  };
 
   const renderResult = (r: ContactResult) => (
     <button
       type="button"
       key={r.contact.id}
-      className={'ov2-rs-ccbcc-result' + (r.contact.source === 'client' ? ' client' : '')}
+      className={
+        'ov2-rs-ccbcc-result' +
+        (r.contact.source === 'client' ? ' client' : r.contact.source === 'team' ? ' team' : '')
+      }
       onClick={() => addContact(r.contact)}
     >
       <span className="ov2-rs-ccbcc-avatar">{contactInitials(r.contact.name)}</span>
@@ -978,10 +1014,8 @@ function CcBccPopover({
         <span className="nm">{r.contact.name}</span>
         <span className="sub">{r.sub || r.contact.email}</span>
       </span>
-      <span
-        className={'ov2-rs-ccbcc-srctag ' + (r.contact.source === 'client' ? 'client' : 'congress')}
-      >
-        {r.contact.source === 'client' ? 'Client' : 'Congress'}
+      <span className={'ov2-rs-ccbcc-srctag ' + r.contact.source}>
+        {SOURCE_TAG[r.contact.source]}
       </span>
     </button>
   );
@@ -1081,13 +1115,18 @@ function CcBccPopover({
             allowClear
             autoFocus
             prefix={<SearchOutlined />}
-            placeholder="Search congressional & client contacts…"
+            placeholder="Search your team, congressional & client contacts…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           {ql ? (
             hasResults ? (
               <div className="ov2-rs-ccbcc-results">
+                {/* Teammates first: copying a colleague is the most common Cc, and
+                    burying them under a long directory match is what drove people
+                    to retype the same address for every recipient. */}
+                {teamResults.length > 0 && <div className="ov2-rs-ccbcc-grouplabel">Your team</div>}
+                {teamResults.map(renderResult)}
                 {congressResults.length > 0 && (
                   <div className="ov2-rs-ccbcc-grouplabel">Congressional contacts</div>
                 )}
@@ -1106,7 +1145,7 @@ function CcBccPopover({
             )
           ) : (
             <div className="ov2-rs-ccbcc-hintrow">
-              Type to search congressional and client contacts.
+              Type to search your team, congressional contacts, and client contacts.
             </div>
           )}
           <button

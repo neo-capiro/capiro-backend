@@ -310,6 +310,10 @@ export class GenerationGatewayService {
         failClosedOnPersist: this.enabled,
         now,
         ...(request.packetId ? { packetId: request.packetId } : {}),
+        // Forwarded so EvidenceSourceService can rehydrate an 'intel' item from
+        // intel-api under the caller's own identity. Spread (not passed as an
+        // explicit undefined) so a caller with no header stays byte-identical.
+        ...(request.authHeader ? { authHeader: request.authHeader } : {}),
         recipientIdentityResolved: Boolean(recipient.email || recipient.name),
       });
     } catch (e) {

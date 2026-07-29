@@ -18,8 +18,10 @@ function client(partial: Partial<SamClientProfile> = {}): SamClientProfile {
     priorAgencies: [],
     priorOffices: [],
     facilityStates: [],
+    facilitySites: [],
     sector: null,
     applicantTypes: [],
+    setAsideCertifications: [],
     ...partial,
   };
 }
@@ -72,6 +74,34 @@ describe('hard / high-confidence signals', () => {
     expect(onSub.matchedSignals.map((s) => s.signal)).toContain('agencyHistory');
   });
 
+  // The case above uses 'DEPARTMENT OF THE NAVY', which SAM does not actually
+  // emit. These use the strings the two systems really hold, measured on
+  // capiro-dev 2026-07-29:
+  //   federal_award.awarding_sub_tier -> 'Department of the Navy'
+  //   sam_opportunity.agency          -> 'DEPT OF THE NAVY'
+  // Before normAgency the abbreviation mismatch meant the agency signal never
+  // fired in production for Navy/Army/Air Force notices.
+  test.each([
+    ['Department of the Navy', 'DEPT OF THE NAVY'],
+    ['Department of the Air Force', 'DEPT OF THE AIR FORCE'],
+    ['Defense Logistics Agency', 'DEFENSE LOGISTICS AGENCY'],
+    ['Defense Health Agency', 'DEFENSE HEALTH AGENCY (DHA)'],
+  ])('agency history matches real SAM spelling: %s vs %s', (prior, samAgency) => {
+    const r = scoreSamOpportunityRelevance(
+      client({ priorAgencies: [prior] }),
+      opp({ agency: samAgency }),
+    );
+    expect(r.matchedSignals.map((s) => s.signal)).toContain('agencyHistory');
+  });
+
+  test('agency canonicalisation does not invent matches between different agencies', () => {
+    const r = scoreSamOpportunityRelevance(
+      client({ priorAgencies: ['Department of the Navy'] }),
+      opp({ agency: 'DEPT OF THE ARMY' }),
+    );
+    expect(r.matchedSignals.map((s) => s.signal)).not.toContain('agencyHistory');
+  });
+
   test('a Program Element signal needs BOTH an accepted notice link and a client PE', () => {
     const both = scoreSamOpportunityRelevance(
       client({ programElementCodes: ['0604270N'] }),
@@ -94,14 +124,29 @@ describe('hard / high-confidence signals', () => {
 });
 
 describe('geography is banded by how specific the SOURCE was', () => {
-  test('a city-level place of performance in a facility state is STRONG', () => {
+  test('an exact city-level place of performance match is STRONG', () => {
     const r = scoreSamOpportunityRelevance(
-      client({ facilityStates: ['TX'] }),
+      client({
+        facilityStates: ['TX'],
+        facilitySites: [{ city: 'El Paso', state: 'TX', zip: '79901' }],
+      }),
       opp({ placeOfPerformance: { city: 'El Paso', state: 'TX', zip: null } }),
     );
     const hit = r.matchedSignals.find((s) => s.signal === 'placeOfPerformanceSite');
     expect(hit?.strength).toBe('strong');
     expect(hit?.matchedOn).toBe('El Paso, TX');
+  });
+
+  test('a city elsewhere in the same state is only moderate', () => {
+    const r = scoreSamOpportunityRelevance(
+      client({
+        facilityStates: ['TX'],
+        facilitySites: [{ city: 'Austin', state: 'TX', zip: '78701' }],
+      }),
+      opp({ placeOfPerformance: { city: 'El Paso', state: 'TX', zip: null } }),
+    );
+    expect(r.matchedSignals.map((signal) => signal.signal)).not.toContain('placeOfPerformanceSite');
+    expect(r.matchedSignals.map((signal) => signal.signal)).toContain('facilityState');
   });
 
   test('a STATE-ONLY place of performance is only moderate', () => {
@@ -259,7 +304,16 @@ describe('set-aside is a relevance signal, never an eligibility determination', 
 });
 
 describe('contract eligibility is honest about what is not held', () => {
-  test('it NEVER returns eligible or ineligible', () => {
+  test('it returns eligible only for an explicitly recorded matching certification', () => {
+    const verified = computeSamEligibility(
+      client({ setAsideCertifications: ['SDVOSBC'] }),
+      opp({ setAsideCode: 'SDVOSBC', setAside: 'SDVOSB Set-Aside' }),
+    );
+    expect(verified.state).toBe('eligible');
+    expect(verified.reason).toContain('SDVOSBC');
+  });
+
+  test('without a recorded certification it never guesses eligible or ineligible', () => {
     const cases = [
       computeSamEligibility(client(), opp()),
       computeSamEligibility(client({ applicantTypes: ['Small businesses'] }), opp({ setAsideCode: 'SBA' })),

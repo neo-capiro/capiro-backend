@@ -134,6 +134,7 @@ export interface Client {
   pscCodes?: string[];
   /** Grants.gov "Eligible Applicants" label strings — see GRANTS_GOV_APPLICANT_TYPES. */
   applicantTypes?: string[];
+  setAsideCertifications?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -159,6 +160,7 @@ export interface ClientPayload {
   pscCodes?: string[];
   /** Grants.gov "Eligible Applicants" label strings — see GRANTS_GOV_APPLICANT_TYPES. */
   applicantTypes?: string[];
+  setAsideCertifications?: string[];
 }
 
 export interface ClientAttachment {
@@ -232,6 +234,7 @@ export interface ClientFormValues {
   pscCodes?: string[];
   /** Grants.gov "Eligible Applicants" label strings — see GRANTS_GOV_APPLICANT_TYPES. */
   applicantTypes?: string[];
+  setAsideCertifications?: string[];
   // Sector & tracks (step 4)
   engagementStartDate?: string;
   internalNotes?: string;

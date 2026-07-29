@@ -61,6 +61,8 @@ export interface ContractorCandidateView {
       matchTier: number | null;
       relationshipType: string | null;
       rollUpAwards: boolean | null;
+      reviewStatus: string;
+      rejectionReason: string | null;
     } | null;
   }>;
 }
@@ -344,8 +346,6 @@ export class EntityResolutionService {
       .map((row) => ({
         externalId: row.external_id,
         externalName: row.external_name,
-        // A verified-identifier match (row.preScored) skips the name-fingerprint
-        // heuristics entirely — see MatchRow.preScored.
         confidence: row.preScored ?? this.scoreCandidate(clientFp, row, source, { anchored }),
         matchBasis: row.matchBasis,
         matchTier: row.matchTier,
@@ -353,6 +353,20 @@ export class EntityResolutionService {
         autoConfirmEligible: row.autoConfirmEligible,
       }))
       .sort((a, b) => b.confidence - a.confidence);
+
+    const existingRows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.clientIntelMapping.findMany({
+        where: { clientId, source, externalId: { in: scored.map((c) => c.externalId) } },
+        select: {
+          id: true,
+          externalId: true,
+          confirmed: true,
+          reviewStatus: true,
+          matchBasis: true,
+        },
+      }),
+    );
+    const existingById = new Map(existingRows.map((row) => [row.externalId, row]));
 
     let created = 0;
     let autoConfirmed = 0;
@@ -372,11 +386,18 @@ export class EntityResolutionService {
       });
       if (decision === 'skip') continue;
       const autoConfirm = decision === 'auto_confirm';
+      const existing = existingById.get(cand.externalId);
 
-      // Basis/tier/evidence are written whenever the source computes them. They
-      // are the match EXPLANATION — a reviewer needs the identifiers, the
-      // normalized names and (especially) the conflicting facts, none of which a
-      // confidence percentage conveys.
+      // A reviewer rejection is durable. Only newly-arrived exact identifier
+      // evidence may supersede it; a rerun of the same name heuristic may not.
+      if (
+        existing?.reviewStatus === 'rejected' &&
+        !(autoConfirm && cand.matchTier === 1 && cand.matchBasis === 'exact_uei' && existing.matchBasis !== 'exact_uei')
+      ) {
+        continue;
+      }
+      if (existing?.reviewStatus === 'superseded') continue;
+
       const evidence: {
         matchBasis?: string;
         matchTier?: number;
@@ -388,50 +409,49 @@ export class EntityResolutionService {
         evidence.matchEvidence = cand.matchEvidence as unknown as Prisma.InputJsonValue;
       }
 
-      const updateData: {
-        externalName: string;
-        confidence: number;
-        confirmed?: boolean;
-        matchBasis?: string;
-        matchTier?: number;
-        matchEvidence?: Prisma.InputJsonValue;
-      } = {
-        externalName: cand.externalName,
-        confidence: cand.confidence,
-        ...evidence,
-      };
-      // Only ever upgrade to confirmed; never silently un-confirm a human pick.
-      if (autoConfirm) updateData.confirmed = true;
+      await this.prisma.withTenant(tenantId, async (tx) => {
+        if (existing) {
+          await tx.clientIntelMapping.update({
+            where: { id: existing.id },
+            data: {
+              externalName: cand.externalName,
+              confidence: cand.confidence,
+              ...evidence,
+              ...(autoConfirm
+                ? {
+                    confirmed: true,
+                    reviewStatus: 'confirmed',
+                    reviewedAt: new Date(),
+                    reviewedBy: null,
+                    rejectionReason: null,
+                    relationshipType: 'self',
+                    rollUpAwards: true,
+                  }
+                : {}),
+            },
+          });
+        } else {
+          await tx.clientIntelMapping.create({
+            data: {
+              tenantId,
+              clientId,
+              source,
+              externalId: cand.externalId,
+              externalName: cand.externalName,
+              confidence: cand.confidence,
+              confirmed: autoConfirm,
+              reviewStatus: autoConfirm ? 'confirmed' : 'candidate',
+              reviewedAt: autoConfirm ? new Date() : null,
+              ...evidence,
+              ...(autoConfirm && cand.matchTier === 1
+                ? { relationshipType: 'self', rollUpAwards: true }
+                : {}),
+            },
+          });
+          created++;
+        }
+      });
 
-      await this.prisma.withTenant(tenantId, (tx) =>
-        tx.clientIntelMapping.upsert({
-          where: {
-            clientId_source_externalId: { clientId, source, externalId: cand.externalId },
-          },
-          update: updateData,
-          create: {
-            tenantId,
-            clientId,
-            source,
-            externalId: cand.externalId,
-            externalName: cand.externalName,
-            confidence: cand.confidence,
-            confirmed: autoConfirm,
-            ...evidence,
-            // 'self' is asserted ONLY for an auto-confirmed exact-identifier
-            // match, where the identifier IS the assertion that these are one
-            // entity. Everything else leaves relationshipType null: a reviewer
-            // has to say whether the federal record is the client, its parent,
-            // its subsidiary or a former name, and guessing 'self' would fabricate
-            // that answer.
-            ...(autoConfirm && cand.matchTier === 1
-              ? { relationshipType: 'self', rollUpAwards: true }
-              : {}),
-          },
-        }),
-      );
-
-      created++;
       if (autoConfirm) autoConfirmed++;
       else needsReview++;
     }
@@ -552,7 +572,10 @@ export class EntityResolutionService {
       FROM federal_contractor
       WHERE similarity(name, ${clientName}) > 0.3
          OR (${ueiUsable} AND uei = ${ueiUsable ? uei : null})
-      ORDER BY similarity DESC
+      ORDER BY
+        CASE WHEN ${ueiUsable} AND uei = ${ueiUsable ? uei : null} THEN 0 ELSE 1 END,
+        similarity DESC,
+        total_contracts DESC NULLS LAST
       LIMIT 50
     `;
 
@@ -913,6 +936,8 @@ export class EntityResolutionService {
           matchTier: true,
           relationshipType: true,
           rollUpAwards: true,
+          reviewStatus: true,
+          rejectionReason: true,
         },
       }),
     );
@@ -961,6 +986,8 @@ export class EntityResolutionService {
                   matchTier: mapping.matchTier ?? null,
                   relationshipType: mapping.relationshipType ?? null,
                   rollUpAwards: mapping.rollUpAwards ?? null,
+                  reviewStatus: mapping.reviewStatus,
+                  rejectionReason: mapping.rejectionReason ?? null,
                 }
               : null,
           };

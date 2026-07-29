@@ -80,6 +80,7 @@ const STEP_FIELDS: Array<Array<keyof ClientFormValues>> = [
     'naicsCodes',
     'pscCodes',
     'applicantTypes',
+    'setAsideCertifications',
   ],
   [
     'sectors',
@@ -516,6 +517,34 @@ function GovRegistrationStep({
           />
         </Form.Item>
       </Col>
+      <Col xs={24}>
+        <Form.Item
+          name="setAsideCertifications"
+          label="Federal set-aside certifications"
+          tooltip="Verified certifications used to evaluate SAM.gov set-aside eligibility. Select only certifications the client currently holds."
+        >
+          <Select
+            mode="multiple"
+            allowClear
+            optionFilterProp="label"
+            placeholder="Select verified certifications"
+            options={[
+              { value: 'SBA', label: 'Total small business set-aside eligible' },
+              { value: 'SBP', label: 'Partial small business set-aside eligible' },
+              { value: '8A', label: '8(a)' },
+              { value: '8AN', label: '8(a) sole source' },
+              { value: 'SDVOSBC', label: 'Service-disabled veteran-owned small business' },
+              { value: 'SDVOSBS', label: 'SDVOSB sole source' },
+              { value: 'WOSB', label: 'Women-owned small business' },
+              { value: 'WOSBSS', label: 'WOSB sole source' },
+              { value: 'EDWOSB', label: 'Economically disadvantaged WOSB' },
+              { value: 'EDWOSBSS', label: 'EDWOSB sole source' },
+              { value: 'HZC', label: 'HUBZone' },
+              { value: 'HZS', label: 'HUBZone sole source' },
+            ]}
+          />
+        </Form.Item>
+      </Col>
     </Row>
   );
 }
@@ -689,6 +718,9 @@ export function formValuesToClientPayload(
   payload.applicantTypes = Array.isArray(values.applicantTypes)
     ? values.applicantTypes.filter((v: unknown): v is string => typeof v === 'string')
     : [];
+  payload.setAsideCertifications = Array.isArray(values.setAsideCertifications)
+    ? values.setAsideCertifications.filter((v: unknown): v is string => typeof v === 'string')
+    : [];
   return payload;
 }
 
@@ -740,6 +772,9 @@ export function clientToFormValues(client?: Client): ClientFormValues {
     naicsCodes: Array.isArray(client.naicsCodes) ? client.naicsCodes : [],
     pscCodes: Array.isArray(client.pscCodes) ? client.pscCodes : [],
     applicantTypes: Array.isArray(client.applicantTypes) ? client.applicantTypes : [],
+    setAsideCertifications: Array.isArray(client.setAsideCertifications)
+      ? client.setAsideCertifications
+      : [],
     samStatus: readText(intake, ['samStatus', 'sam_status']),
     samExpirationDate: readDate(intake, ['samExpirationDate', 'sam_expiration_date']),
     primaryNaics: readText(intake, ['primaryNaics', 'primary_naics', 'naics']),

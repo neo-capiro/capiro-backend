@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { toUsaSpendingDistrictCode } from '../common/district-code.util.js';
+import { dateBoundsInZone } from '../intelligence/time-bounds.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /**
@@ -399,8 +400,12 @@ export class ExplorerService {
     // backward-compat (older clients). 'all' applies no date constraint.
     // Compare against start-of-today so a hearing earlier today still counts
     // as upcoming (the column is a DATE, no time component).
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    //
+    // Must be the EASTERN day, not the server's. `setHours(0,0,0,0)` uses the
+    // process timezone, which is UTC on the ECS task (no TZ is set on any task
+    // definition or Dockerfile), so between 8 PM and midnight ET this rolled to
+    // tomorrow and dropped the rest of today's hearings out of "upcoming".
+    const startOfToday = dateBoundsInZone(new Date(), 'America/New_York').start;
     const effectiveFilter: 'upcoming' | 'past' | 'all' =
       opts.dateFilter ?? (opts.futureOnly ? 'upcoming' : 'all');
     if (effectiveFilter === 'upcoming') where.date = { gte: startOfToday };
@@ -1126,7 +1131,8 @@ export class ExplorerService {
         assistanceListingNumber: a.assistanceListingNumber,
         assistanceListingTitle: a.assistanceListingTitle,
         // Decimal(18,2) — Number() or it serializes as a Prisma Decimal object.
-        totalObligatedAmount: a.totalObligatedAmount != null ? Number(a.totalObligatedAmount) : null,
+        totalObligatedAmount:
+          a.totalObligatedAmount != null ? Number(a.totalObligatedAmount) : null,
         totalOutlayedAmount: a.totalOutlayedAmount != null ? Number(a.totalOutlayedAmount) : null,
         description: a.description,
         popState: a.popState,

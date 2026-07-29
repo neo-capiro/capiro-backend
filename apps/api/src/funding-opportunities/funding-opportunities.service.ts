@@ -89,7 +89,8 @@ export class FundingOpportunitiesService {
     // an arbitrary score. A relevance number with no client behind it is
     // meaningless, and showing one would invite a user to trust it.
     const freshness = await this.readFreshness();
-    const rows = await this.fetchSourceRows(null, query);
+    const fetched = await this.fetchSourceRows(null, query);
+    const rows = fetched.rows;
     const shaped = rows.map((r) => this.shapeUnscored(r));
     const filtered = this.applyPostFilters(shaped, query);
     const sorted = this.sortOpportunities(filtered);
@@ -98,7 +99,7 @@ export class FundingOpportunitiesService {
     return {
       opportunities: page.items,
       total: sorted.length,
-      totalIsCapped: rows.length >= SCAN_CAP_PER_SOURCE * 2,
+      totalIsCapped: fetched.capped,
       page: page.page,
       pageSize: page.pageSize,
       counts: this.countFor(sorted, []),
@@ -125,7 +126,8 @@ export class FundingOpportunitiesService {
 
     // STEP 2 — global catalogs, outside the tenant transaction.
     const freshness = await this.readFreshness();
-    const rows = await this.fetchSourceRows(facts, query);
+    const fetched = await this.fetchSourceRows(facts, query);
+    const rows = fetched.rows;
 
     // Workflow rows are tenant-scoped, so this is its own short transaction.
     const workflows = await this.readWorkflowRows(tenantId, clientId);
@@ -152,7 +154,7 @@ export class FundingOpportunitiesService {
     return {
       opportunities: paged.items,
       total: sorted.length,
-      totalIsCapped: rows.length >= SCAN_CAP_PER_SOURCE * 2,
+      totalIsCapped: fetched.capped,
       page: paged.page,
       pageSize: paged.pageSize,
       counts: this.countFor(scored, workflows),
@@ -194,7 +196,8 @@ export class FundingOpportunitiesService {
   ): Promise<ClientFundingOpportunitySummary> {
     const facts = await this.readClientFacts(tenantId, clientId);
     const freshness = await this.readFreshness();
-    const rows = await this.fetchSourceRows(facts, { ...DEFAULT_QUERY });
+    const fetched = await this.fetchSourceRows(facts, { ...DEFAULT_QUERY });
+    const rows = fetched.rows;
     const workflows = await this.readWorkflowRows(tenantId, clientId);
 
     const scored = rows.map((r) => this.shapeScored(r, facts, workflows));
@@ -267,49 +270,64 @@ export class FundingOpportunitiesService {
       await this.assertFacilityBelongsToClient(tenantId, clientId, input.facilityId);
     }
 
-    // Score once, outside the write transaction, so the snapshot recorded on the
-    // row is the same deterministic answer the read path would have produced.
     const facts = await this.readClientFacts(tenantId, clientId);
-    const snapshot = this.scoreRow(row, facts);
+    const score = this.scoreRow(row, facts);
+    const sourceSnapshot = this.sourceSnapshot(row);
+    const data = {
+      workflowStatus: input.status,
+      ...(input.ownerUserId !== undefined ? { ownerUserId: input.ownerUserId } : {}),
+      ...(input.facilityId !== undefined ? { facilityId: input.facilityId } : {}),
+      ...(input.notes !== undefined ? { notes: input.notes } : {}),
+      ...(input.dismissedReason !== undefined ? { dismissedReason: input.dismissedReason } : {}),
+      ...(input.outcomeNote !== undefined ? { outcomeNote: input.outcomeNote } : {}),
+      relevanceScore: score.relevanceScore,
+      matchSignals: score.matchedSignals as unknown as Prisma.InputJsonValue,
+      eligibilityState: score.eligibility.state,
+      eligibilityReason: score.eligibility.reason,
+      sourceStatusSnapshot: sourceSnapshot.status,
+      responseDeadlineSnapshot: sourceSnapshot.deadline,
+      sourceUpdatedAtSnapshot: sourceSnapshot.updatedAt,
+      userCreated: true,
+      staleAt: null,
+      updatedBy: input.actorUserId,
+    };
 
-    return this.prisma.withTenant(tenantId, async (tx) => {
-      const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
-      const data = {
-        workflowStatus: input.status,
-        ...(input.ownerUserId !== undefined ? { ownerUserId: input.ownerUserId } : {}),
-        ...(input.facilityId !== undefined ? { facilityId: input.facilityId } : {}),
-        ...(input.notes !== undefined ? { notes: input.notes } : {}),
-        ...(input.dismissedReason !== undefined ? { dismissedReason: input.dismissedReason } : {}),
-        ...(input.outcomeNote !== undefined ? { outcomeNote: input.outcomeNote } : {}),
-        relevanceScore: snapshot.relevanceScore,
-        matchSignals: snapshot.matchedSignals as unknown as Prisma.InputJsonValue,
-        eligibilityState: snapshot.eligibility.state,
-        eligibilityReason: snapshot.eligibility.reason,
-        // A human touching a producer-created row makes it a human row from then
-        // on, which is what stops the producer re-scoring or staling it later.
-        userCreated: true,
-        // Any human action clears a stale flag: the producer's opinion that this
-        // was no longer worth suggesting has been overruled.
-        staleAt: null,
-        updatedBy: input.actorUserId,
-      };
+    const write = async () =>
+      this.prisma.withTenant(tenantId, async (tx) => {
+        const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
+        const saved = existing
+          ? await tx.clientFundingOpportunity.update({ where: { id: existing.id }, data })
+          : await tx.clientFundingOpportunity.create({
+              data: {
+                tenantId,
+                clientId,
+                source,
+                grantOpportunityId: source === 'grants_gov' ? sourceRecordId : null,
+                samOpportunityId: source === 'sam_gov' ? sourceRecordId : null,
+                evidenceSourceType: 'user_action',
+                createdBy: input.actorUserId,
+                ...data,
+              },
+            });
+        return this.shapeWorkflow(saved, null, null);
+      });
 
-      const saved = existing
-        ? await tx.clientFundingOpportunity.update({ where: { id: existing.id }, data })
-        : await tx.clientFundingOpportunity.create({
-            data: {
-              tenantId,
-              clientId,
-              source,
-              grantOpportunityId: source === 'grants_gov' ? sourceRecordId : null,
-              samOpportunityId: source === 'sam_gov' ? sourceRecordId : null,
-              evidenceSourceType: 'user_action',
-              createdBy: input.actorUserId,
-              ...data,
-            },
-          });
-      return this.shapeWorkflow(saved, null, null);
-    });
+    try {
+      return await write();
+    } catch (error) {
+      // The partial unique indexes are the concurrency backstop. Two simultaneous
+      // first saves can both observe no row; the loser retries as an update rather
+      // than leaking a P2002 to the user.
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+        throw error;
+      }
+      return this.prisma.withTenant(tenantId, async (tx) => {
+        const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
+        if (!existing) throw error;
+        const saved = await tx.clientFundingOpportunity.update({ where: { id: existing.id }, data });
+        return this.shapeWorkflow(saved, null, null);
+      });
+    }
   }
 
   /** Patch an existing workflow row's mutable fields without changing its status. */
@@ -428,42 +446,58 @@ export class FundingOpportunitiesService {
           naicsCodes: true,
           pscCodes: true,
           applicantTypes: true,
+          setAsideCertifications: true,
           sectorTag: true,
           capabilities: { select: { name: true, tags: true, keywords: true, peNumbers: true } },
           facilities: {
-            select: { id: true, name: true, state: true, congressionalDistrict: true },
+            select: {
+              id: true,
+              name: true,
+              city: true,
+              state: true,
+              zip: true,
+              congressionalDistrict: true,
+            },
           },
         },
       });
       if (!client) throw new NotFoundException('Client not found');
 
-      // CONFIRMED identities only. An unconfirmed candidate is a guess, and
-      // scoring a client's relevance off a guessed corporate identity is how a
-      // wrong suggestion acquires a credible-looking justification.
       const mappings = await tx.clientIntelMapping.findMany({
         where: {
           clientId,
           confirmed: true,
+          reviewStatus: 'confirmed',
+          rollUpAwards: true,
           source: { in: ['contracting', 'assistance_recipient'] },
         },
-        select: { source: true, externalId: true, externalName: true, rollUpAwards: true },
+        select: { source: true, externalId: true, externalName: true },
       });
       return { client, mappings };
     });
 
     const { client, mappings } = scoped;
+    const contracting = mappings.filter((m) => m.source === 'contracting');
+    const assistance = mappings.filter((m) => m.source === 'assistance_recipient');
+    const ownUei = client.uei && isUeiShaped(client.uei) ? client.uei.toUpperCase() : null;
 
-    // Identities usable for award lookup. A parent/subsidiary mapping only
-    // contributes when a reviewer explicitly said its awards roll up — the
-    // relationship existing is not the same as the money being the client's.
-    const usable = mappings.filter((m) => m.rollUpAwards !== false);
-    const ueis = dedupe(
-      usable.map((m) => m.externalId).filter((id) => isUeiShaped(id)),
-    ).map((u) => u.toUpperCase());
-    if (client.uei && isUeiShaped(client.uei)) ueis.push(client.uei.toUpperCase());
-    const names = dedupe(usable.map((m) => m.externalName)).map((n) => n.toLowerCase());
+    const contractorUeis = dedupe([
+      ownUei,
+      ...contracting.map((m) => (isUeiShaped(m.externalId) ? m.externalId.toUpperCase() : null)),
+    ]);
+    const contractorNames = dedupe(contracting.map((m) => m.externalName)).map((n) => n.toLowerCase());
+    const assistanceUeis = dedupe([
+      ownUei,
+      ...assistance.map((m) => (isUeiShaped(m.externalId) ? m.externalId.toUpperCase() : null)),
+    ]);
+    const assistanceNames = dedupe(assistance.map((m) => m.externalName)).map((n) => n.toLowerCase());
 
-    const history = await this.readAwardHistory(dedupe(ueis), names);
+    const history = await this.readAwardHistory({
+      contractorUeis,
+      contractorNames,
+      assistanceUeis,
+      assistanceNames,
+    });
 
     const capabilityKeywords = dedupe([
       ...client.capabilities.map((c) => c.name),
@@ -476,7 +510,7 @@ export class FundingOpportunitiesService {
       capabilities: client.capabilities.map((c) => ({ name: c.name, tags: c.tags })),
       facilityStates: client.facilities.map((f) => f.state),
       priorAssistanceListings: history.assistanceListings,
-      priorAgencies: history.agencies,
+      priorAgencies: history.assistanceAgencies,
       applicantTypes: client.applicantTypes,
     });
 
@@ -485,9 +519,11 @@ export class FundingOpportunitiesService {
       pscCodes: client.pscCodes,
       capabilityKeywords,
       programElementCodes: dedupe(client.capabilities.flatMap((c) => c.peNumbers ?? [])),
-      priorAgencies: dedupe(history.agencies),
-      priorOffices: dedupe(history.offices),
+      priorAgencies: history.contractAgencies,
+      priorOffices: history.contractOffices,
       facilityStates: dedupe(client.facilities.map((f) => f.state)),
+      facilitySites: client.facilities.map((f) => ({ city: f.city, state: f.state, zip: f.zip })),
+      setAsideCertifications: client.setAsideCertifications,
       sector: client.sectorTag,
       applicantTypes: client.applicantTypes,
     };
@@ -502,9 +538,9 @@ export class FundingOpportunitiesService {
       capabilityCount: client.capabilities.length,
       facilityCount: client.facilities.length,
       hasSector: Boolean(client.sectorTag),
-      confirmedContractorMappings: mappings.filter((m) => m.source === 'contracting').length,
+      confirmedContractorMappings: contracting.length,
       priorAssistanceListingCount: dedupe(history.assistanceListings).length,
-      priorAgencyCount: dedupe(history.agencies).length,
+      priorAgencyCount: dedupe([...history.assistanceAgencies, ...history.contractAgencies]).length,
       programElementCount: samProfile.programElementCodes.length,
     };
 
@@ -517,61 +553,73 @@ export class FundingOpportunitiesService {
     };
   }
 
-  /**
-   * Prior agencies / offices / Assistance Listings for the client's confirmed
-   * identities. GLOBAL tables, read outside any tenant transaction.
-   *
-   * Two queries, never one per identity. `DISTINCT` in SQL rather than in memory
-   * because the award tables are the largest in the database and the row count
-   * before dedup is unbounded.
-   */
-  private async readAwardHistory(
-    ueis: string[],
-    lowerNames: string[],
-  ): Promise<{ assistanceListings: string[]; agencies: string[]; offices: string[] }> {
-    if (ueis.length === 0 && lowerNames.length === 0) {
-      return { assistanceListings: [], agencies: [], offices: [] };
-    }
+  private async readAwardHistory(input: {
+    contractorUeis: string[];
+    contractorNames: string[];
+    assistanceUeis: string[];
+    assistanceNames: string[];
+  }): Promise<{
+    assistanceListings: string[];
+    assistanceAgencies: string[];
+    contractAgencies: string[];
+    contractOffices: string[];
+  }> {
     try {
-      const [assistance, contracts] = await Promise.all([
-        this.prisma.$queryRaw<
-          Array<{ assistance_listing_number: string | null; awarding_agency: string | null }>
-        >`
-          SELECT DISTINCT assistance_listing_number, awarding_agency
-          FROM federal_assistance_award
-          WHERE recipient_uei = ANY(${ueis}::text[])
-             OR lower(recipient_name) = ANY(${lowerNames}::text[])
-          LIMIT ${HISTORY_ROW_CAP}
-        `,
-        this.prisma.$queryRaw<
-          Array<{ awarding_agency: string | null; awarding_office: string | null }>
-        >`
-          SELECT DISTINCT awarding_agency, awarding_office
-          FROM federal_award
-          WHERE recipient_uei = ANY(${ueis}::text[])
-             OR lower(recipient_name) = ANY(${lowerNames}::text[])
-          LIMIT ${HISTORY_ROW_CAP}
-        `,
-      ]);
+      const assistancePromise =
+        input.assistanceUeis.length || input.assistanceNames.length
+          ? this.prisma.$queryRaw<
+              Array<{ assistance_listing_number: string | null; awarding_agency: string | null }>
+            >`
+              SELECT DISTINCT assistance_listing_number, awarding_agency
+              FROM federal_assistance_award
+              WHERE recipient_uei = ANY(${input.assistanceUeis}::text[])
+                 OR lower(recipient_name) = ANY(${input.assistanceNames}::text[])
+              LIMIT ${HISTORY_ROW_CAP}
+            `
+          : Promise.resolve([]);
+      const contractPromise =
+        input.contractorUeis.length || input.contractorNames.length
+          ? this.prisma.$queryRaw<
+              Array<{ awarding_agency: string | null; awarding_sub_tier: string | null }>
+            >`
+              SELECT DISTINCT awarding_agency, awarding_sub_tier
+              FROM federal_award
+              WHERE recipient_uei = ANY(${input.contractorUeis}::text[])
+                 OR lower(contractor_name) = ANY(${input.contractorNames}::text[])
+              LIMIT ${HISTORY_ROW_CAP}
+            `
+          : Promise.resolve([]);
+      const [assistance, contracts] = await Promise.all([assistancePromise, contractPromise]);
       return {
-        assistanceListings: assistance.map((r) => r.assistance_listing_number ?? ''),
-        agencies: [
-          ...assistance.map((r) => r.awarding_agency ?? ''),
-          ...contracts.map((r) => r.awarding_agency ?? ''),
-        ],
-        offices: contracts.map((r) => r.awarding_office ?? ''),
+        assistanceListings: dedupe(assistance.map((r) => r.assistance_listing_number)),
+        assistanceAgencies: dedupe(assistance.map((r) => r.awarding_agency)),
+        // Both tiers are agency evidence, and they are needed at BOTH
+        // granularities: sam_opportunity.agency is sub-tier shaped
+        // ('DEPT OF THE NAVY'), so awarding_agency alone ('Department of
+        // Defense') never matched a single notice.
+        contractAgencies: dedupe([
+          ...contracts.map((r) => r.awarding_agency),
+          ...contracts.map((r) => r.awarding_sub_tier),
+        ]),
+        // Intentionally empty: federal_award has no contracting-office column.
+        // Feeding it the sub-tier put agency-shaped strings into an
+        // office-shaped signal, where they could never match
+        // sam_opportunity.office and were surfaced to users as "prior office"
+        // target terms. Populate this only when a real office column exists.
+        contractOffices: [],
       };
     } catch (error) {
-      // Award history is one input among several. Losing it must degrade the
-      // score, not fail the request — but it is logged, because a client whose
-      // agency signals silently stopped firing looks identical to a client with
-      // no award history.
       this.logger.warn(
-        `award-history read failed; agency/office/listing signals will not fire: ${
+        `award-history read failed; source-specific history signals will not fire: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
-      return { assistanceListings: [], agencies: [], offices: [] };
+      return {
+        assistanceListings: [],
+        assistanceAgencies: [],
+        contractAgencies: [],
+        contractOffices: [],
+      };
     }
   }
 
@@ -591,174 +639,176 @@ export class FundingOpportunitiesService {
   private async fetchSourceRows(
     facts: ClientFacts | null,
     query: OpportunityQuery,
-  ): Promise<SourceRow[]> {
+  ): Promise<SourceFetchResult> {
     const wantGrants = query.source === undefined || query.source === 'grants_gov';
     const wantSam = query.source === undefined || query.source === 'sam_gov';
     const includeClosed = query.activeState === 'closed' || query.activeState === 'all';
     const includeActive = query.activeState !== 'closed';
 
     const [grants, sam] = await Promise.all([
-      wantGrants ? this.fetchGrantRows(facts, { includeActive, includeClosed }) : Promise.resolve([]),
-      wantSam ? this.fetchSamRows(facts, { includeActive, includeClosed }) : Promise.resolve([]),
+      wantGrants
+        ? this.fetchGrantRows(facts, { includeActive, includeClosed })
+        : Promise.resolve({ rows: [] as SourceRow[], capped: false }),
+      wantSam
+        ? this.fetchSamRows(facts, { includeActive, includeClosed })
+        : Promise.resolve({ rows: [] as SourceRow[], capped: false }),
     ]);
-    return [...grants, ...sam];
+    return { rows: [...grants.rows, ...sam.rows], capped: grants.capped || sam.capped };
   }
 
   private async fetchGrantRows(
     facts: ClientFacts | null,
     opts: { includeActive: boolean; includeClosed: boolean },
-  ): Promise<SourceRow[]> {
-    const activeStatuses = ['posted', 'forecasted'];
-    const closedStatuses = ['closed', 'archived'];
+  ): Promise<SourceFetchResult> {
     const statuses = [
-      ...(opts.includeActive ? activeStatuses : []),
-      ...(opts.includeClosed ? closedStatuses : []),
+      ...(opts.includeActive ? ['posted', 'forecasted'] : []),
+      ...(opts.includeClosed ? ['closed', 'archived'] : []),
     ];
-    if (statuses.length === 0) return [];
-
-    const listings = facts ? dedupe(facts.grantProfile.priorAssistanceListings) : [];
-    const agencies = facts ? dedupe(facts.grantProfile.priorAgencies).map((a) => a.toLowerCase()) : [];
+    if (statuses.length === 0) return { rows: [], capped: false };
 
     const where: Prisma.FederalGrantWhereInput = { status: { in: statuses } };
-    const select = {
-      id: true,
-      title: true,
-      agency: true,
-      subAgency: true,
-      opportunityNumber: true,
-      category: true,
-      fundingInstrument: true,
-      eligibility: true,
-      cfdaNumbers: true,
-      awardCeiling: true,
-      awardFloor: true,
-      estimatedFunding: true,
-      expectedAwards: true,
-      openDate: true,
-      closeDate: true,
-      status: true,
-      description: true,
-      url: true,
-      costSharing: true,
-      responseDateDesc: true,
-      lastUpdatedAt: true,
-      detailSyncedAt: true,
-      syncedAt: true,
-    } as const;
-
-    // tenant-scope-exempt: federal_grant is a GLOBAL catalog with no tenant_id
-    // and no RLS (see its schema comment) — same access pattern as sync-grants.ts
-    // and district-nexus.service.ts's own federalGrant read.
+    const select = GRANT_SELECT;
     const windowRows = await this.prisma.federalGrant.findMany({
       where,
       select,
-      // Soonest close first, nulls last: a "continuous" notice is real but it is
-      // not urgent, so it must not crowd out dated ones inside the cap.
       orderBy: [{ closeDate: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }],
       take: SCAN_CAP_PER_SOURCE,
     });
 
-    let targeted: typeof windowRows = [];
-    if (listings.length > 0 || agencies.length > 0) {
-      // tenant-scope-exempt: global catalog, see above.
-      targeted = await this.prisma.federalGrant.findMany({
-        where: {
-          ...where,
-          OR: [
-            ...(listings.length ? [{ cfdaNumbers: { hasSome: listings } }] : []),
-            ...agencies.map((a) => ({ agency: { equals: a, mode: 'insensitive' as const } })),
-          ],
-        },
-        select,
-        orderBy: [{ closeDate: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }],
-        take: SCAN_CAP_PER_SOURCE,
-      });
+    const structuredOr: Prisma.FederalGrantWhereInput[] = [];
+    const textOr: Prisma.FederalGrantWhereInput[] = [];
+    if (facts) {
+      const listings = dedupe(facts.grantProfile.priorAssistanceListings);
+      const agencies = dedupe(facts.grantProfile.priorAgencies);
+      const applicantTypes = dedupe(facts.grantProfile.applicantTypes);
+      if (listings.length) structuredOr.push({ cfdaNumbers: { hasSome: listings } });
+      if (applicantTypes.length) structuredOr.push({ eligibility: { hasSome: applicantTypes } });
+      structuredOr.push(
+        ...agencies.slice(0, TARGET_TERM_CAP).map((agency) => ({
+          agency: { equals: agency, mode: 'insensitive' as const },
+        })),
+      );
+      const terms = distinctiveSearchTerms([
+        ...facts.grantProfile.capabilityKeywords,
+        facts.grantProfile.sector,
+      ]);
+      for (const term of terms) {
+        textOr.push({ title: { contains: term, mode: 'insensitive' } });
+        textOr.push({ description: { contains: term, mode: 'insensitive' } });
+        textOr.push({ category: { contains: term, mode: 'insensitive' } });
+      }
     }
 
+    const [structured, text] = await Promise.all([
+      structuredOr.length
+        ? this.prisma.federalGrant.findMany({
+            where: { ...where, OR: structuredOr },
+            select,
+            orderBy: [{ closeDate: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }],
+            take: SCAN_CAP_PER_SOURCE,
+          })
+        : Promise.resolve([]),
+      textOr.length
+        ? this.prisma.federalGrant.findMany({
+            where: { ...where, OR: textOr },
+            select,
+            orderBy: [{ closeDate: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }],
+            take: SCAN_CAP_PER_SOURCE,
+          })
+        : Promise.resolve([]),
+    ]);
+
     const byId = new Map<string, (typeof windowRows)[number]>();
-    for (const r of [...targeted, ...windowRows]) byId.set(r.id, r);
-    return [...byId.values()].map((g) => ({ kind: 'grant' as const, row: g }));
+    for (const row of [...structured, ...text, ...windowRows]) byId.set(row.id, row);
+    return {
+      rows: [...byId.values()].map((row) => ({ kind: 'grant' as const, row })),
+      capped:
+        windowRows.length >= SCAN_CAP_PER_SOURCE ||
+        structured.length >= SCAN_CAP_PER_SOURCE ||
+        text.length >= SCAN_CAP_PER_SOURCE,
+    };
   }
 
   private async fetchSamRows(
     facts: ClientFacts | null,
     opts: { includeActive: boolean; includeClosed: boolean },
-  ): Promise<SourceRow[]> {
-    const activeFilter: Prisma.SamOpportunityWhereInput[] = [];
-    if (opts.includeActive && opts.includeClosed) {
-      // no filter — both
-    } else if (opts.includeActive) {
-      activeFilter.push({ active: true });
-    } else {
-      activeFilter.push({ active: false });
-    }
-
-    const select = {
-      id: true,
-      noticeId: true,
-      solicitationNumber: true,
-      title: true,
-      noticeType: true,
-      baseType: true,
-      agency: true,
-      subAgency: true,
-      office: true,
-      pscCode: true,
-      naicsCode: true,
-      setAside: true,
-      setAsideCode: true,
-      postedDate: true,
-      responseDeadline: true,
-      archiveDate: true,
-      description: true,
-      placeOfPerformance: true,
-      sourceUrl: true,
-      active: true,
-      lastSyncedAt: true,
-      updatedAt: true,
-      matches: {
-        // ACCEPTED only. The matcher auto-accepts a verbatim PE-code hit and
-        // nothing else; a quarantined PSC/NAICS guess is not evidence of a
-        // program relationship and must not feed the programElement signal.
-        where: { reviewStatus: 'accepted' },
-        select: { peCode: true },
-      },
-    } as const;
-
-    // tenant-scope-exempt: sam_opportunity is a GLOBAL catalog with no tenant_id
-    // and no RLS — same access pattern as sync-sam-opportunities.ts.
+  ): Promise<SourceFetchResult> {
+    const activeWhere: Prisma.SamOpportunityWhereInput =
+      opts.includeActive && opts.includeClosed
+        ? {}
+        : opts.includeActive
+          ? { active: true }
+          : { active: false };
+    const select = SAM_SELECT;
     const windowRows = await this.prisma.samOpportunity.findMany({
-      where: activeFilter.length ? { AND: activeFilter } : {},
+      where: activeWhere,
       select,
       orderBy: [{ responseDeadline: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }],
       take: SCAN_CAP_PER_SOURCE,
     });
 
-    const naics = facts ? facts.samProfile.naicsCodes.filter(Boolean) : [];
-    const psc = facts ? facts.samProfile.pscCodes.filter(Boolean) : [];
-    const agencies = facts ? facts.samProfile.priorAgencies.filter(Boolean) : [];
-
-    let targeted: typeof windowRows = [];
-    if (naics.length || psc.length || agencies.length) {
-      // tenant-scope-exempt: global catalog, see above.
-      targeted = await this.prisma.samOpportunity.findMany({
-        where: {
-          ...(activeFilter.length ? { AND: activeFilter } : {}),
-          OR: [
-            ...(naics.length ? [{ naicsCode: { in: naics } }] : []),
-            ...(psc.length ? [{ pscCode: { in: psc } }] : []),
-            ...agencies.map((a) => ({ agency: { equals: a, mode: 'insensitive' as const } })),
-          ],
-        },
-        select,
-        orderBy: [{ responseDeadline: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }],
-        take: SCAN_CAP_PER_SOURCE,
-      });
+    const structuredOr: Prisma.SamOpportunityWhereInput[] = [];
+    const textOr: Prisma.SamOpportunityWhereInput[] = [];
+    if (facts) {
+      const profile = facts.samProfile;
+      if (profile.naicsCodes.length) structuredOr.push({ naicsCode: { in: profile.naicsCodes } });
+      if (profile.pscCodes.length) structuredOr.push({ pscCode: { in: profile.pscCodes } });
+      structuredOr.push(
+        ...profile.priorAgencies.slice(0, TARGET_TERM_CAP).map((agency) => ({
+          agency: { equals: agency, mode: 'insensitive' as const },
+        })),
+        ...profile.priorOffices.slice(0, TARGET_TERM_CAP).map((office) => ({
+          office: { equals: office, mode: 'insensitive' as const },
+        })),
+      );
+      if (profile.programElementCodes.length) {
+        structuredOr.push({
+          matches: {
+            some: {
+              reviewStatus: 'accepted',
+              peCode: { in: profile.programElementCodes },
+            },
+          },
+        });
+      }
+      if (profile.setAsideCertifications.length) {
+        structuredOr.push({ setAsideCode: { in: profile.setAsideCertifications } });
+      }
+      const terms = distinctiveSearchTerms([...profile.capabilityKeywords, profile.sector]);
+      for (const term of terms) {
+        textOr.push({ title: { contains: term, mode: 'insensitive' } });
+        textOr.push({ description: { contains: term, mode: 'insensitive' } });
+      }
     }
 
+    const [structured, text] = await Promise.all([
+      structuredOr.length
+        ? this.prisma.samOpportunity.findMany({
+            where: { AND: [activeWhere, { OR: structuredOr }] },
+            select,
+            orderBy: [{ responseDeadline: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }],
+            take: SCAN_CAP_PER_SOURCE,
+          })
+        : Promise.resolve([]),
+      textOr.length
+        ? this.prisma.samOpportunity.findMany({
+            where: { AND: [activeWhere, { OR: textOr }] },
+            select,
+            orderBy: [{ responseDeadline: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }],
+            take: SCAN_CAP_PER_SOURCE,
+          })
+        : Promise.resolve([]),
+    ]);
+
     const byId = new Map<string, (typeof windowRows)[number]>();
-    for (const r of [...targeted, ...windowRows]) byId.set(r.id, r);
-    return [...byId.values()].map((s) => ({ kind: 'sam' as const, row: s }));
+    for (const row of [...structured, ...text, ...windowRows]) byId.set(row.id, row);
+    return {
+      rows: [...byId.values()].map((row) => ({ kind: 'sam' as const, row })),
+      capped:
+        windowRows.length >= SCAN_CAP_PER_SOURCE ||
+        structured.length >= SCAN_CAP_PER_SOURCE ||
+        text.length >= SCAN_CAP_PER_SOURCE,
+    };
   }
 
   private async fetchOneSourceRow(
@@ -885,6 +935,21 @@ export class FundingOpportunitiesService {
   }
 
   // ── Step 3: shaping and scoring (pure, in memory) ────────────────────────
+
+  private sourceSnapshot(src: SourceRow): { status: string | null; deadline: Date | null; updatedAt: Date | null } {
+    if (src.kind === 'grant') {
+      return {
+        status: src.row.status ?? null,
+        deadline: src.row.closeDate ?? null,
+        updatedAt: src.row.lastUpdatedAt ?? src.row.detailSyncedAt ?? src.row.syncedAt,
+      };
+    }
+    return {
+      status: src.row.active ? 'active' : 'archived',
+      deadline: src.row.responseDeadline ?? null,
+      updatedAt: src.row.updatedAt ?? src.row.lastSyncedAt,
+    };
+  }
 
   private scoreRow(
     src: SourceRow,
@@ -1361,10 +1426,12 @@ export class FundingOpportunitiesService {
   private async readFreshness(): Promise<OpportunitySourceFreshness[]> {
     const rails: Array<{ source: OpportunitySource; verb: string; label: string }> = [
       { source: 'grants_gov', verb: 'sync-grants', label: 'Grants.gov opportunities' },
-      { source: 'sam_gov', verb: 'sync-sam-opportunities', label: 'SAM.gov contract opportunities' },
+      {
+        source: 'sam_gov',
+        verb: 'sync-sam-opportunities-all-federal',
+        label: 'SAM.gov all-federal contract opportunities',
+      },
     ];
-    const today = startOfUtcDay(new Date());
-
     try {
       const [runs, grantCounts, samCounts] = await Promise.all([
         this.prisma.$queryRaw<
@@ -1376,42 +1443,58 @@ export class FundingOpportunitiesService {
             AND status = ANY(${['success', 'success_with_errors']}::text[])
           ORDER BY source, started_at DESC
         `,
-        // tenant-scope-exempt: global catalog counts, no tenant dimension exists.
-        this.prisma.federalGrant.groupBy({ by: ['status'], _count: { _all: true } }),
-        // tenant-scope-exempt: global catalog counts, no tenant dimension exists.
-        this.prisma.samOpportunity.groupBy({ by: ['active'], _count: { _all: true } }),
+        this.prisma.$queryRaw<Array<{ total: bigint; active: bigint }>>`
+          SELECT
+            COUNT(*)::bigint AS total,
+            COUNT(*) FILTER (
+              WHERE status IN ('posted','forecasted')
+                AND (close_date IS NULL OR close_date >= CURRENT_DATE)
+            )::bigint AS active
+          FROM federal_grant
+        `,
+        this.prisma.$queryRaw<Array<{ total: bigint; active: bigint }>>`
+          SELECT
+            COUNT(*)::bigint AS total,
+            COUNT(*) FILTER (
+              WHERE active = true
+                AND (response_deadline IS NULL OR response_deadline >= now())
+                AND (archive_date IS NULL OR archive_date >= now())
+                AND lower(notice_type) NOT LIKE '%award%'
+                AND lower(notice_type) NOT LIKE '%special notice%'
+            )::bigint AS active
+          FROM sam_opportunity
+        `,
       ]);
       const byVerb = new Map(runs.map((r) => [r.source, r]));
-      const grantTotal = grantCounts.reduce((n, r) => n + r._count._all, 0);
-      const grantActive = grantCounts
-        .filter((r) => isGrantActive(r.status, null, today))
-        .reduce((n, r) => n + r._count._all, 0);
-      const samTotal = samCounts.reduce((n, r) => n + r._count._all, 0);
-      const samActive = samCounts
-        .filter((r) => r.active)
-        .reduce((n, r) => n + r._count._all, 0);
-
+      const counts = {
+        grants_gov: {
+          total: Number(grantCounts[0]?.total ?? 0n),
+          active: Number(grantCounts[0]?.active ?? 0n),
+        },
+        sam_gov: {
+          total: Number(samCounts[0]?.total ?? 0n),
+          active: Number(samCounts[0]?.active ?? 0n),
+        },
+      } as const;
       return rails.map((rail) => {
         const run = byVerb.get(rail.verb);
-        const isGrant = rail.source === 'grants_gov';
+        const c = counts[rail.source];
         return {
           source: rail.source,
           verb: rail.verb,
           label: rail.label,
           lastSyncedAt: run?.finished_at ? run.finished_at.toISOString() : null,
           neverSynced: !run?.finished_at,
-          lastRunDegraded: (run?.error_count ?? 0) > 0 || run?.status === 'success_with_errors',
-          recordCount: isGrant ? grantTotal : samTotal,
-          activeRecordCount: isGrant ? grantActive : samActive,
+          lastRunDegraded:
+            run == null ? null : (run.error_count ?? 0) > 0 || run.status === 'success_with_errors',
+          countsUnavailable: false,
+          recordCount: c.total,
+          activeRecordCount: c.active,
         };
       });
     } catch (error) {
-      // Freshness is context, not correctness — losing it must not fail the
-      // response. But it is reported as UNKNOWN (null + neverSynced false), never
-      // as current and never as never-synced, both of which would be claims we
-      // cannot support.
       this.logger.warn(
-        `funding-opportunity freshness read failed; reporting rails as unknown: ${
+        `funding-opportunity freshness read failed; reporting counts as unavailable: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
@@ -1421,9 +1504,10 @@ export class FundingOpportunitiesService {
         label: rail.label,
         lastSyncedAt: null,
         neverSynced: false,
-        lastRunDegraded: false,
-        recordCount: 0,
-        activeRecordCount: 0,
+        lastRunDegraded: null,
+        countsUnavailable: true,
+        recordCount: null,
+        activeRecordCount: null,
       }));
     }
   }
@@ -1460,12 +1544,13 @@ const DEFAULT_QUERY: OpportunityQuery = { activeState: 'active' };
  *
  * Sized against the measured corpora: 82,998 Grants.gov records across all
  * statuses (sync-grants.ts's own note, 2026-07-28) of which the active subset is
- * a small fraction, and a DoD SAM.gov notice population the daily job caps at
- * 5,000 rows per window. A cap this size therefore covers the active universe
- * with room to spare while still bounding the worst case, and `totalIsCapped`
- * tells the caller when it bit rather than silently truncating.
+ * a small fraction, and an all-federal SAM.gov catalog that can be much larger than the display
+ * window. Structured and text-targeted queries are UNIONed with that window, and
+ * `totalIsCapped` is driven by explicit per-query cap metadata so truncation is
+ * visible rather than inferred from the deduplicated row count.
  */
 const SCAN_CAP_PER_SOURCE = 1200;
+const TARGET_TERM_CAP = 20;
 
 /** Cap on award-history rows read per client. DISTINCT is applied in SQL first. */
 const HISTORY_ROW_CAP = 5000;
@@ -1508,6 +1593,58 @@ export const EMPTY_EXPLANATIONS: Record<EmptyReason, string> = {
 };
 
 // ── Row types ───────────────────────────────────────────────────────────────
+
+const GRANT_SELECT = {
+  id: true,
+  title: true,
+  agency: true,
+  subAgency: true,
+  opportunityNumber: true,
+  category: true,
+  fundingInstrument: true,
+  eligibility: true,
+  cfdaNumbers: true,
+  awardCeiling: true,
+  awardFloor: true,
+  estimatedFunding: true,
+  expectedAwards: true,
+  openDate: true,
+  closeDate: true,
+  status: true,
+  description: true,
+  url: true,
+  costSharing: true,
+  responseDateDesc: true,
+  lastUpdatedAt: true,
+  detailSyncedAt: true,
+  syncedAt: true,
+} as const;
+
+const SAM_SELECT = {
+  id: true,
+  noticeId: true,
+  solicitationNumber: true,
+  title: true,
+  noticeType: true,
+  baseType: true,
+  agency: true,
+  subAgency: true,
+  office: true,
+  pscCode: true,
+  naicsCode: true,
+  setAside: true,
+  setAsideCode: true,
+  postedDate: true,
+  responseDeadline: true,
+  archiveDate: true,
+  description: true,
+  placeOfPerformance: true,
+  sourceUrl: true,
+  active: true,
+  lastSyncedAt: true,
+  updatedAt: true,
+  matches: { where: { reviewStatus: 'accepted' }, select: { peCode: true } },
+} as const;
 
 type GrantRow = {
   id: string;
@@ -1561,6 +1698,8 @@ type SamRow = {
   matches?: Array<{ peCode: string | null }>;
 };
 
+type SourceFetchResult = { rows: SourceRow[]; capped: boolean };
+
 type SourceRow =
   | { kind: 'grant'; row: GrantRow }
   | { kind: 'sam'; row: SamRow };
@@ -1608,6 +1747,18 @@ function dedupe(values: Array<string | null | undefined>): string[] {
   return Array.from(
     new Set(values.map((v) => v?.trim()).filter((v): v is string => !!v && v.length > 0)),
   );
+}
+
+function distinctiveSearchTerms(values: Array<string | null | undefined>): string[] {
+  const generic = new Set([
+    'systems', 'system', 'technology', 'technologies', 'services', 'service',
+    'solutions', 'solution', 'group', 'company', 'federal', 'government',
+    'defense', 'support', 'management', 'program', 'contract', 'other',
+  ]);
+  return dedupe(values)
+    .flatMap((value) => value.toLowerCase().split(/[^a-z0-9]+/))
+    .filter((term) => term.length >= 4 && !generic.has(term))
+    .slice(0, TARGET_TERM_CAP);
 }
 
 function normCode(v: string | null | undefined): string {

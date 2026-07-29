@@ -15,7 +15,7 @@ import type { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { DirectoryService } from '../directory/directory.service.js';
 import type { AppConfig } from '../config/config.schema.js';
-import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -68,6 +68,19 @@ class ConfirmMappingDto {
   @IsBoolean()
   @Type(() => Boolean)
   confirmed!: boolean;
+
+  @IsOptional()
+  @IsIn(['self', 'alias', 'former_name', 'parent', 'subsidiary', 'operating_unit'])
+  relationshipType?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  rollUpAwards?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  rejectionReason?: string;
 }
 
 class LdaSearchQueryDto {
@@ -99,6 +112,23 @@ class ManualMappingDto {
   @IsOptional()
   @IsBoolean()
   rollUpAwards?: boolean;
+}
+
+
+class RejectMappingCandidateDto {
+  @IsIn(['contracting'])
+  source!: 'contracting';
+
+  @IsString()
+  externalId!: string;
+
+  @IsString()
+  externalName!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reason?: string;
 }
 
 class GenerateInsightsDto {
@@ -372,7 +402,17 @@ export class IntelligenceController {
     @Param('mappingId') mappingId: string,
     @Body() body: ConfirmMappingDto,
   ) {
-    return this.service.confirmMapping(mappingId, body.confirmed, ctx.tenantId);
+    return this.service.confirmMapping(
+      mappingId,
+      {
+        confirmed: body.confirmed,
+        relationshipType: body.relationshipType,
+        rollUpAwards: body.rollUpAwards,
+        rejectionReason: body.rejectionReason,
+        actorUserId: ctx.userId,
+      },
+      ctx.tenantId,
+    );
   }
 
   // Free-text / by-id search of lda_client for the manual-attach panel. Returns
@@ -428,6 +468,24 @@ export class IntelligenceController {
       externalName: body.externalName,
       ...(body.relationshipType !== undefined ? { relationshipType: body.relationshipType } : {}),
       ...(body.rollUpAwards !== undefined ? { rollUpAwards: body.rollUpAwards } : {}),
+      actorUserId: ctx.userId,
+    });
+  }
+
+
+  @Post('mappings/:clientId/reject-candidate')
+  @Roles('user_admin')
+  rejectMappingCandidate(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Body() body: RejectMappingCandidateDto,
+  ) {
+    return this.service.rejectMappingCandidate(clientId, ctx.tenantId, {
+      source: body.source,
+      externalId: body.externalId,
+      externalName: body.externalName,
+      reason: body.reason ?? null,
+      actorUserId: ctx.userId,
     });
   }
 

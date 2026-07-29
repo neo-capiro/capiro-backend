@@ -6,6 +6,7 @@ import {
   ExportOutlined,
   RollbackOutlined,
   ThunderboltOutlined,
+  MessageOutlined,
 } from '@ant-design/icons';
 import {
   ELIGIBILITY_LABELS,
@@ -46,6 +47,7 @@ export interface OpportunityCardProps {
   onNote?: (o: FundingOpportunity) => void;
   onLinkSite?: (o: FundingOpportunity) => void;
   onCreateTask?: (o: FundingOpportunity) => void;
+  onAskMeri?: (o: FundingOpportunity) => void;
   busy?: boolean;
 }
 
@@ -83,6 +85,7 @@ export function OpportunityCard({
   onNote,
   onLinkSite,
   onCreateTask,
+  onAskMeri,
   busy,
 }: OpportunityCardProps) {
   const deadline = formatDeadline(o.responseDeadline, o.responseDeadlineNote);
@@ -333,6 +336,14 @@ export function OpportunityCard({
                 onClick={() => onPursue?.(o)}
               >
                 Pursue
+              </Button>
+              <Button
+                size="small"
+                icon={<MessageOutlined />}
+                disabled={!canAct || busy}
+                onClick={() => onAskMeri?.(o)}
+              >
+                Ask Meri
               </Button>
               <Button
                 size="small"

@@ -95,6 +95,73 @@ describe('briefToMarkdown', () => {
     expect(markdown).toContain('[claim-1] segment segment-7 at 2:05');
     expect(markdown).toContain('Follow up with committee staff.');
   });
+
+  /**
+   * A real recap on 2026-07-29 carried 111 claim anchors. Rendering all of them
+   * produced a wall of opaque ids longer than the recap itself, which is what made
+   * the deliverable unusable rather than merely terse. The render is now bounded —
+   * but a cap that hides its own existence reads as "that was all of them", so the
+   * omission has to be stated.
+   */
+  test('bounds the source-anchor list and says how many it omitted', () => {
+    const claimMap = Array.from({ length: 111 }, (_, i) => ({
+      claimId: `claim-${i + 1}`,
+      segmentId: `segment-${i + 1}`,
+      timestampMs: (i + 1) * 1_000,
+    }));
+    const markdown = briefToMarkdown({
+      sessionId: 'session-2',
+      title: 'Homeland Security hearing',
+      generatedAt: '2026-07-29T15:33:03.000Z',
+      executiveSummary: 'Assembly only.',
+      keyMoments: [],
+      relevantQuotes: [],
+      supporters: [],
+      opponents: [],
+      tone: 'not assessed',
+      risks: [],
+      opportunities: [],
+      recommendedNextSteps: [],
+      draftClientEmail: { subject: 'Update', body: 'Body' },
+      claimMap,
+      synthesisSource: 'deterministic',
+    });
+
+    // The total is stated up front.
+    expect(markdown).toContain('111 claims in this recap trace to a transcript segment');
+    // A bounded preview is rendered, not the whole map.
+    expect(markdown).toContain('[claim-1] segment segment-1 at 0:01');
+    expect(markdown).toContain('[claim-10] segment segment-10 at 0:10');
+    expect(markdown).not.toContain('[claim-11]');
+    // And the omission is explicit — this is the assertion that matters.
+    expect(markdown).toContain('101 further anchors');
+    // Sanity: the anchor section must not dominate the document any more.
+    const anchorLines = markdown.split('\n').filter((l) => /^- \[claim-/.test(l));
+    expect(anchorLines).toHaveLength(10);
+  });
+
+  test('does not add an omission note when every anchor fits', () => {
+    const markdown = briefToMarkdown({
+      sessionId: 'session-3',
+      title: 'Short hearing',
+      generatedAt: '2026-07-29T15:33:03.000Z',
+      executiveSummary: 'Assembly only.',
+      keyMoments: [],
+      relevantQuotes: [],
+      supporters: [],
+      opponents: [],
+      tone: 'not assessed',
+      risks: [],
+      opportunities: [],
+      recommendedNextSteps: [],
+      draftClientEmail: { subject: 'Update', body: 'Body' },
+      claimMap: [{ claimId: 'claim-1', segmentId: 'segment-1', timestampMs: 1_000 }],
+      synthesisSource: 'deterministic',
+    });
+
+    expect(markdown).toContain('1 claim in this recap traces to a transcript segment');
+    expect(markdown).not.toContain('further anchor');
+  });
 });
 
 describe('useSaveRecap', () => {
@@ -161,7 +228,9 @@ describe('useHearingTranscript', () => {
       wrapper: withQueryClient(),
     });
     await waitFor(() => expect(result.current.data?.pages).toHaveLength(1));
-    expect(apiGet).toHaveBeenCalledWith('/intel-api/hearings/session-1/transcript?offset=0&limit=500');
+    expect(apiGet).toHaveBeenCalledWith(
+      '/intel-api/hearings/session-1/transcript?offset=0&limit=500',
+    );
     expect(result.current.hasNextPage).toBe(true);
 
     result.current.fetchNextPage();

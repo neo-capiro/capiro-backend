@@ -58,6 +58,11 @@ import {
 } from '../src/funding-opportunities/sam-opportunity-relevance.js';
 import { samNoticeKind } from '../src/funding-opportunities/opportunity-kind.js';
 import { NON_PURSUABLE_KINDS } from '../src/funding-opportunities/funding-opportunities.types.js';
+import {
+  decideProducerAction,
+  HUMAN_DECISION_STATUSES,
+  type ProducerAction,
+} from '../src/funding-opportunities/producer-decision.js';
 
 dotenvConfig();
 
@@ -77,10 +82,19 @@ const EVIDENCE_SOURCE_TYPE = 'deterministic_relevance_v1';
  */
 export const DEFAULT_MIN_RELEVANCE = 15;
 
-/** Bound on notices evaluated per run. Mirrors the read path's own scan cap. */
-export const OPPORTUNITY_SCAN_CAP = 4000;
+/**
+ * Bound on notices evaluated per run. Mirrors the read path's own scan cap.
+ *
+ * Env-overridable (same pattern as SAM_MAX_PAGES in sync-sam-opportunities.ts)
+ * because the default is genuinely binding: measured on capiro-dev 2026-07-29
+ * there were 17,915 active, in-deadline notices, so a 4,000 cap evaluates 22%
+ * of them and the run self-reports CAPPED. Ordering is soonest-deadline-first,
+ * so the covered slice is the most urgent one — raise this via
+ * SAM_OPPORTUNITY_SCAN_CAP for a full sweep rather than editing the constant.
+ */
+export const OPPORTUNITY_SCAN_CAP = Number(process.env.SAM_OPPORTUNITY_SCAN_CAP) || 4000;
 /** Bound on clients evaluated per tenant per run. */
-export const CLIENT_CAP = 500;
+export const CLIENT_CAP = Number(process.env.SAM_CANDIDATE_CLIENT_CAP) || 500;
 
 function hasFlag(argv: string[], name: string): boolean {
   return argv.includes(`--${name}`);
@@ -136,9 +150,10 @@ export interface SamCandidatesPrisma {
         naicsCodes: string[];
         pscCodes: string[];
         applicantTypes: string[];
+        setAsideCertifications: string[];
         sectorTag: string | null;
         capabilities: Array<{ name: string; tags: unknown; keywords: string[]; peNumbers: string[] }>;
-        facilities: Array<{ state: string | null }>;
+        facilities: Array<{ city: string | null; state: string | null; zip: string | null }>;
       }>
     >;
   };
@@ -168,6 +183,10 @@ export interface SamCandidatesPrisma {
         setAside: string | null;
         setAsideCode: string | null;
         placeOfPerformance: unknown;
+        active: boolean;
+        responseDeadline: Date | null;
+        updatedAt: Date;
+        lastSyncedAt: Date;
         matches: Array<{ peCode: string | null }>;
       }>
     >;
@@ -235,62 +254,7 @@ export async function resolveTenantIds(
   return dedupe(rows.map((r) => r.tenant_id));
 }
 
-/**
- * The producer's decision for one (client, notice) pair, as a pure function so
- * the human-decision protection is testable without a database.
- */
-export type ProducerAction =
-  | { action: 'create'; relevanceScore: number }
-  | { action: 'refresh'; id: string; relevanceScore: number }
-  | { action: 'mark_stale'; id: string }
-  | { action: 'skip_human_decision'; id: string }
-  | { action: 'skip_below_floor' }
-  | { action: 'noop' };
-
-export const HUMAN_DECISION_STATUSES = new Set([
-  'saved',
-  'pursuing',
-  'dismissed',
-  'won',
-  'lost',
-]);
-
-/**
- * Decide what to do with one pair.
- *
- * The first branch is the important one and it comes first on purpose: if a
- * human has touched the row AT ALL, nothing else in this function may run. That
- * covers a human-created row (`userCreated`) and a producer-created row a human
- * later acted on (status is a decision) — both are decisions, and a nightly job
- * re-running is not new information about either.
- */
-export function decideProducerAction(params: {
-  existing: {
-    id: string;
-    workflowStatus: string;
-    userCreated: boolean;
-    evidenceSourceType: string;
-    staleAt: Date | null;
-  } | null;
-  relevanceScore: number;
-  meetsSuggestionFloor: boolean;
-  minRelevance: number;
-}): ProducerAction {
-  const { existing, relevanceScore, meetsSuggestionFloor, minRelevance } = params;
-  const qualifies = meetsSuggestionFloor && relevanceScore >= minRelevance;
-
-  if (existing) {
-    if (existing.userCreated || HUMAN_DECISION_STATUSES.has(existing.workflowStatus)) {
-      return { action: 'skip_human_decision', id: existing.id };
-    }
-    // From here the row is ours: producer-created and still 'suggested'.
-    if (qualifies) return { action: 'refresh', id: existing.id, relevanceScore };
-    if (existing.staleAt != null) return { action: 'noop' };
-    return { action: 'mark_stale', id: existing.id };
-  }
-
-  return qualifies ? { action: 'create', relevanceScore } : { action: 'skip_below_floor' };
-}
+// Shared producer decision policy lives in funding-opportunities/producer-decision.ts.
 
 export interface GenerateOptions {
   tenantIds: string[];
@@ -350,6 +314,10 @@ export async function generateSamCandidates(
       setAside: true,
       setAsideCode: true,
       placeOfPerformance: true,
+      active: true,
+      responseDeadline: true,
+      updatedAt: true,
+      lastSyncedAt: true,
       matches: { where: { reviewStatus: 'accepted' }, select: { peCode: true } },
     },
     orderBy: [{ responseDeadline: 'asc' }, { id: 'asc' }],
@@ -362,8 +330,17 @@ export async function generateSamCandidates(
   // vocabulary lives in exactly one place (opportunity-kind.ts).
   const pursuable = notices.filter((n) => !NON_PURSUABLE_KINDS.has(samNoticeKind(n.noticeType)));
 
-  const noticeProfiles: Array<{ id: string; profile: SamOpportunityProfile }> = pursuable.map((n) => ({
+  const noticeProfiles: Array<{
+    id: string;
+    profile: SamOpportunityProfile;
+    status: string;
+    deadline: Date | null;
+    updatedAt: Date;
+  }> = pursuable.map((n) => ({
     id: n.id,
+    status: n.active ? 'active' : 'archived',
+    deadline: n.responseDeadline,
+    updatedAt: n.updatedAt ?? n.lastSyncedAt,
     profile: {
       title: n.title,
       description: n.description,
@@ -398,9 +375,10 @@ export async function generateSamCandidates(
           naicsCodes: true,
           pscCodes: true,
           applicantTypes: true,
+          setAsideCertifications: true,
           sectorTag: true,
           capabilities: { select: { name: true, tags: true, keywords: true, peNumbers: true } },
-          facilities: { select: { state: true } },
+          facilities: { select: { city: true, state: true, zip: true } },
         },
         take: CLIENT_CAP,
       });
@@ -411,7 +389,9 @@ export async function generateSamCandidates(
               tenantId,
               clientId: { in: clientIds },
               confirmed: true,
-              source: { in: ['contracting', 'assistance_recipient'] },
+              reviewStatus: 'confirmed',
+              rollUpAwards: true,
+              source: 'contracting',
             },
             select: {
               clientId: true,
@@ -496,6 +476,9 @@ export async function generateSamCandidates(
                       matchSignals: scored.matchedSignals,
                       eligibilityState: eligibility.state,
                       eligibilityReason: eligibility.reason,
+                      sourceStatusSnapshot: notice.status,
+                      responseDeadlineSnapshot: notice.deadline,
+                      sourceUpdatedAtSnapshot: notice.updatedAt,
                     },
                   }),
                 );
@@ -515,6 +498,9 @@ export async function generateSamCandidates(
                       matchSignals: scored.matchedSignals,
                       eligibilityState: eligibility.state,
                       eligibilityReason: eligibility.reason,
+                      sourceStatusSnapshot: notice.status,
+                      responseDeadlineSnapshot: notice.deadline,
+                      sourceUpdatedAtSnapshot: notice.updatedAt,
                       staleAt: null,
                     },
                   }),
@@ -549,6 +535,7 @@ export async function generateSamCandidates(
     }
   }
 
+  if (capped) counts.errors += 1;
   return { ...counts, evaluated, created, refreshed, markedStale, humanDecisionsPreserved, capped };
 }
 
@@ -563,34 +550,45 @@ async function buildSamProfileForClient(
     naicsCodes: string[];
     pscCodes: string[];
     applicantTypes: string[];
+    setAsideCertifications: string[];
     sectorTag: string | null;
     capabilities: Array<{ name: string; tags: unknown; keywords: string[]; peNumbers: string[] }>;
-    facilities: Array<{ state: string | null }>;
+    facilities: Array<{ city: string | null; state: string | null; zip: string | null }>;
   },
   mappings: Array<{ source: string; externalId: string | null; externalName: string | null; rollUpAwards: boolean | null }>,
 ): Promise<SamClientProfile> {
   // A parent/subsidiary mapping only contributes when a reviewer said its awards
   // roll up. The relationship existing is not the same as the money being the
   // client's.
-  const usable = mappings.filter((m) => m.rollUpAwards !== false);
+  const usable = mappings.filter((m) => m.source === 'contracting' && m.rollUpAwards === true);
   const ueis = dedupe(usable.map((m) => m.externalId)).filter(isUeiShaped).map((u) => u.toUpperCase());
   const names = dedupe(usable.map((m) => m.externalName)).map((n) => n.toLowerCase());
 
   let priorAgencies: string[] = [];
-  let priorOffices: string[] = [];
+  // Stays empty: federal_award has no contracting-office column, and
+  // sam_opportunity.office holds codes ('0413 AQ HQ  RCO-HI'). Feeding it the
+  // awarding sub-tier created an office signal that could never fire and
+  // surfaced agency names to users as "prior office" terms.
+  const priorOffices: string[] = [];
   if (ueis.length || names.length) {
     const rows = await prisma.$queryRaw<{
       awarding_agency: string | null;
-      awarding_office: string | null;
+      awarding_sub_tier: string | null;
     }>`
-      SELECT DISTINCT awarding_agency, awarding_office
+      SELECT DISTINCT awarding_agency, awarding_sub_tier
       FROM federal_award
       WHERE recipient_uei = ANY(${ueis}::text[])
-         OR lower(recipient_name) = ANY(${names}::text[])
+         OR lower(contractor_name) = ANY(${names}::text[])
       LIMIT 5000
     `;
-    priorAgencies = dedupe(rows.map((r) => r.awarding_agency));
-    priorOffices = dedupe(rows.map((r) => r.awarding_office));
+    // Both tiers count as agency history. sam_opportunity.agency is sub-tier
+    // shaped ('DEPT OF THE NAVY'), so awarding_agency on its own
+    // ('Department of Defense') matched nothing; normAgency reconciles the
+    // Dept/Department spelling.
+    priorAgencies = dedupe([
+      ...rows.map((r) => r.awarding_agency),
+      ...rows.map((r) => r.awarding_sub_tier),
+    ]);
   }
 
   return {
@@ -605,8 +603,10 @@ async function buildSamProfileForClient(
     priorAgencies,
     priorOffices,
     facilityStates: dedupe(client.facilities.map((f) => f.state)),
+    facilitySites: client.facilities.map((f) => ({ city: f.city, state: f.state, zip: f.zip })),
     sector: client.sectorTag,
     applicantTypes: client.applicantTypes,
+    setAsideCertifications: client.setAsideCertifications,
   };
 }
 
@@ -658,7 +658,7 @@ async function main(): Promise<void> {
     }
     console.log(`[sam-candidates] ${tenantIds.length} tenant(s) in scope`);
 
-    await runWithSyncRun(prisma as never, SOURCE, async (): Promise<RunCounts> => {
+    const execute = async () => {
       const result = await generateSamCandidates(duck, {
         tenantIds,
         clientId: args.clientId,
@@ -678,13 +678,13 @@ async function main(): Promise<void> {
           `in ${((Date.now() - t0) / 1000).toFixed(1)}s ` +
           `(${args.commit ? 'COMMITTED' : 'DRY-RUN, nothing written'})`,
       );
-      return {
-        inserted: result.inserted,
-        updated: result.updated,
-        skipped: result.skipped,
-        errors: result.errors,
-      };
-    });
+      return result;
+    };
+    if (args.commit) {
+      await runWithSyncRun(prisma as never, SOURCE, async (): Promise<RunCounts> => execute());
+    } else {
+      await execute();
+    }
   } finally {
     await prisma.$disconnect();
   }

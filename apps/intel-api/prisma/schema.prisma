@@ -50,31 +50,31 @@ model FeatureFlag {
 /// to that client. Tenant-scoped. The matching engine scores each final
 /// transcript segment against a tenant's active watchlist terms.
 model Watchlist {
-  id         String           @id @default(cuid())
-  tenantId   String           @map("tenant_id")
-  clientId   String           @map("client_id")
-  name       String
-  active     Boolean          @default(true)
-  createdBy  String           @map("created_by")
-  createdAt  DateTime         @default(now()) @map("created_at")
-  updatedAt  DateTime         @updatedAt @map("updated_at")
+  id            String           @id @default(cuid())
+  tenantId      String           @map("tenant_id")
+  clientId      String           @map("client_id")
+  name          String
+  active        Boolean          @default(true)
+  createdBy     String           @map("created_by")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
   // Bill-tracker unification (Phase 2): enabled issue areas carried from the
   // legacy ClientWatchlist.issue_areas. The ONLY column added to this table.
-  issueAreas String[]         @default([]) @map("issue_areas")
+  issueAreas    String[]         @default([]) @map("issue_areas")
   // State Legislation Platform (Phase 0, DD5) — additive, default-preserving:
   // empty = federal-only (today's behavior, zero migration surprise);
   // non-null entries also match the state corpus for those states.
-  jurisdictions String[]      @default([]) @map("jurisdictions")
+  jurisdictions String[]         @default([]) @map("jurisdictions")
   // LegiWatch Gate B (P1-02): targeting is SHARED across the firm, and the
   // Configure panel autosaves the whole payload 600ms after any keystroke — so
   // two analysts on the same client used to silently overwrite each other.
   // `version` is the optimistic-concurrency token (bumped on every accepted
   // PUT; a stale expectedVersion gets a 409) and `updatedBy` the attribution.
   // Starts at 0 on existing rows so the first versioned PUT sends 0 and matches.
-  version    Int              @default(0)
-  updatedBy  String?          @map("updated_by")
-  terms      WatchlistTerm[]
-  topics     WatchlistTopic[]
+  version       Int              @default(0)
+  updatedBy     String?          @map("updated_by")
+  terms         WatchlistTerm[]
+  topics        WatchlistTopic[]
 
   @@index([tenantId, clientId])
   @@index([tenantId, active])
@@ -177,51 +177,51 @@ model WatchlistMatch {
 /// A client's curated tracked bill + the lastSeen snapshot used by shadow change
 /// detection. billId is the raw congress_bill.id string (e.g. "119-hr-1234").
 model TrackedBill {
-  id                   String    @id @default(cuid())
-  tenantId             String    @map("tenant_id")
-  clientId             String    @map("client_id")
-  billId               String    @map("bill_id")
-  source               String    @default("congress") // 'congress'|'state'
-  note                 String?
+  id                    String    @id @default(cuid())
+  tenantId              String    @map("tenant_id")
+  clientId              String    @map("client_id")
+  billId                String    @map("bill_id")
+  source                String    @default("congress") // 'congress'|'state'
+  note                  String?
   // Bill 360 editable client-bill context (Release R1, §1.3). All nullable/
   // additive; analyst-owned (origin=analyst) — NEVER overwrite canonical bill
   // status. `note` above is preserved; `analystNote` is the new deliberate home.
-  position             String?   // 'support'|'oppose'|'monitor'
-  priority             String?   // 'low'|'med'|'high'
-  analystNote          String?   @map("analyst_note")
-  expectedMilestoneType String?  @map("expected_milestone_type") // @capiro/shared EXPECTED_MILESTONE_TYPES
-  expectedWindowStart  DateTime? @map("expected_window_start")
-  expectedWindowEnd    DateTime? @map("expected_window_end")
-  expectedConfidence   String?   @map("expected_confidence") // 'low'|'medium'|'high'
-  expectedRationale    String?   @map("expected_rationale")
-  expectedUpdatedBy    String?   @map("expected_updated_by") // clerk user id
-  expectedUpdatedAt    DateTime? @map("expected_updated_at")
-  isManual             Boolean   @default(false) @map("is_manual")
-  trackedBy            String?   @map("tracked_by")
-  trackedAt            DateTime  @default(now()) @map("tracked_at")
-  stage                String?
-  lastSeenActionText   String?   @map("last_seen_action_text")
-  lastSeenActionDate   DateTime? @map("last_seen_action_date")
-  lastSeenAt           DateTime? @map("last_seen_at")
+  position              String? // 'support'|'oppose'|'monitor'
+  priority              String? // 'low'|'med'|'high'
+  analystNote           String?   @map("analyst_note")
+  expectedMilestoneType String?   @map("expected_milestone_type") // @capiro/shared EXPECTED_MILESTONE_TYPES
+  expectedWindowStart   DateTime? @map("expected_window_start")
+  expectedWindowEnd     DateTime? @map("expected_window_end")
+  expectedConfidence    String?   @map("expected_confidence") // 'low'|'medium'|'high'
+  expectedRationale     String?   @map("expected_rationale")
+  expectedUpdatedBy     String?   @map("expected_updated_by") // clerk user id
+  expectedUpdatedAt     DateTime? @map("expected_updated_at")
+  isManual              Boolean   @default(false) @map("is_manual")
+  trackedBy             String?   @map("tracked_by")
+  trackedAt             DateTime  @default(now()) @map("tracked_at")
+  stage                 String?
+  lastSeenActionText    String?   @map("last_seen_action_text")
+  lastSeenActionDate    DateTime? @map("last_seen_action_date")
+  lastSeenAt            DateTime? @map("last_seen_at")
   // LegiWatch B watermarks — separate signals the action-text watermark can't
   // see: canonical status transitions (rule_failed/passed_chamber), cosponsor
   // count deltas (momentum), and text-version changes (updateDateIncludingText).
-  lastSeenStatus       String?   @map("last_seen_status")
-  lastSeenCosponsors   Int?      @map("last_seen_cosponsors")
-  lastSeenTextDate     DateTime? @map("last_seen_text_date")
+  lastSeenStatus        String?   @map("last_seen_status")
+  lastSeenCosponsors    Int?      @map("last_seen_cosponsors")
+  lastSeenTextDate      DateTime? @map("last_seen_text_date")
   // Last-alerted CBO estimate id / hearing id — gate B7 fiscal + B3 hearing to
   // fire only on a genuinely new id (else pre-existing rows false-alert on the
   // 2nd sweep and re-fire every 14 days). Baselined on the first B-sweep.
-  lastSeenFiscalId     String?   @map("last_seen_fiscal_id")
-  lastSeenHearingKey   String?   @map("last_seen_hearing_key")
-  unread               Boolean   @default(false)
+  lastSeenFiscalId      String?   @map("last_seen_fiscal_id")
+  lastSeenHearingKey    String?   @map("last_seen_hearing_key")
+  unread                Boolean   @default(false)
   // Phase 6 (§9.2 step E): Board "discussed at hearing" badge. Set by the
   // bill-hearing linker; kept SEPARATE from the lastSeenAction* congress watermark
   // (which detect-bill-changes owns — clobbering it corrupts change detection).
-  lastHearingSessionId String?   @map("last_hearing_session_id")
-  lastHearingAt        DateTime? @map("last_hearing_at")
-  createdAt            DateTime  @default(now()) @map("created_at")
-  updatedAt            DateTime  @updatedAt @map("updated_at")
+  lastHearingSessionId  String?   @map("last_hearing_session_id")
+  lastHearingAt         DateTime? @map("last_hearing_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   @@unique([clientId, billId])
   @@index([tenantId, clientId])
@@ -427,25 +427,25 @@ model IntelWsTicket {
 
 /// Feedback labels on alerts/bills/hearings/recommendations (§10 training set).
 model IntelFeedback {
-  id         String   @id @default(cuid())
-  tenantId   String   @map("tenant_id")
-  clientId   String   @map("client_id")
-  userId     String?  @map("user_id")
-  alertId    String?  @map("alert_id")
-  targetType String   @map("target_type") // 'bill'|'hearing'|'alert'|'recommendation'
-  targetRef  String   @map("target_ref")
-  signal     String //                       useful|not_useful|wrong_impact|wrong_urgency|false_positive|missed|tracked|dismissed|marked_irrelevant|opened|memo_generated|memo_heavily_edited|outreach_generated|alert_ignored
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  clientId        String   @map("client_id")
+  userId          String?  @map("user_id")
+  alertId         String?  @map("alert_id")
+  targetType      String   @map("target_type") // 'bill'|'hearing'|'alert'|'recommendation'
+  targetRef       String   @map("target_ref")
+  signal          String //                       useful|not_useful|wrong_impact|wrong_urgency|false_positive|missed|tracked|dismissed|marked_irrelevant|opened|memo_generated|memo_heavily_edited|outreach_generated|alert_ignored
   // §4.10 (Gate E phase f): a structured reason for a marked_irrelevant
   // dismissal — wrong_issue|wrong_entity|too_broad|already_handled|not_actionable.
   // Null for every other signal and for a pre-phase-f dismissal (no reason
   // picker existed yet).
-  reason     String?
+  reason          String?
   // §4.10 (Gate E phase f): the watchlist topic labels this bill matched AT
   // DISMISSAL TIME (RecommendationBill.matchedTags, already on the client).
   // Forward-only — historical rows before this column existed carry `[]` and
   // contribute nothing to feedbackSignal's aggregation. This is what lets a
   // dismissal be traced back to the TOPIC that over-matched.
-  matchedTags String[] @default([]) @map("matched_tags")
+  matchedTags     String[] @default([]) @map("matched_tags")
   // Gate K (MP-09, c-1): the TOPIC IDS behind matchedTags's topic entries
   // (never issue areas, which have no topic id). This is the id-keyed twin
   // of matchedTags — feedbackSignal prefers this and falls back to
@@ -453,7 +453,7 @@ model IntelFeedback {
   // topic rename no longer severs its accumulated dismissal signal.
   // Forward-only, same posture as matchedTags itself.
   matchedTopicIds String[] @default([]) @map("matched_topic_ids")
-  createdAt  DateTime @default(now()) @map("created_at")
+  createdAt       DateTime @default(now()) @map("created_at")
 
   @@index([tenantId, clientId])
   @@index([targetRef])
@@ -499,13 +499,13 @@ model IntelActionItem {
 /// (clientId, sourceRef, changeType): a recurrence after the 14-day dedup window
 /// is a NEW alert row and should correctly arrive un-dismissed.
 model IntelAlertWorkState {
-  id       String @id @default(cuid())
-  tenantId String @map("tenant_id")
-  clientId String @map("client_id")
-  alertId  String @map("alert_id")
-  userId   String @map("user_id")
+  id           String    @id @default(cuid())
+  tenantId     String    @map("tenant_id")
+  clientId     String    @map("client_id")
+  alertId      String    @map("alert_id")
+  userId       String    @map("user_id")
   /// new | in_review | assigned | actioned | snoozed | dismissed
-  state    String @default("new")
+  state        String    @default("new")
   /// A user id from the tenant's own team roster. Required when state='assigned'.
   assignedTo   String?   @map("assigned_to")
   snoozedUntil DateTime? @map("snoozed_until") @db.Timestamptz(6)
@@ -719,14 +719,20 @@ model KeyQuote {
 
 /// An action item / follow-up extracted from a hearing statement.
 model LiveActionItem {
-  id          String   @id @default(cuid())
-  sessionId   String   @map("session_id")
-  tenantId    String   @map("tenant_id")
-  segmentId   String?  @map("segment_id")
-  startMs     Int?     @map("start_ms")
-  description String
-  status      String   @default("open")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id             String   @id @default(cuid())
+  sessionId      String   @map("session_id")
+  tenantId       String   @map("tenant_id")
+  segmentId      String?  @map("segment_id")
+  startMs        Int?     @map("start_ms")
+  /// Prose. Null when the session is sensitive — see the encrypted quartet below.
+  description    String?
+  // Encrypted description (same AES-256-GCM scheme as KeyQuote):
+  textCiphertext String?  @map("text_ciphertext")
+  iv             String?
+  authTag        String?  @map("auth_tag")
+  keyVersion     String?  @map("key_version")
+  status         String   @default("open")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   session LiveHearingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
@@ -737,15 +743,22 @@ model LiveActionItem {
 /// A policy entity detected in a segment (bill/client/PE/agency/office/company).
 /// entityRef is the canonical id (bill_id, committee_id, UEI, PE id, etc.).
 model EntityMention {
-  id          String   @id @default(cuid())
-  sessionId   String   @map("session_id")
-  tenantId    String   @map("tenant_id")
-  segmentId   String?  @map("segment_id")
-  entityType  String   @map("entity_type")
-  entityRef   String?  @map("entity_ref") // canonical id when resolved
-  entityLabel String   @map("entity_label")
-  confidence  Float?
-  createdAt   DateTime @default(now()) @map("created_at")
+  id             String   @id @default(cuid())
+  sessionId      String   @map("session_id")
+  tenantId       String   @map("tenant_id")
+  segmentId      String?  @map("segment_id")
+  entityType     String   @map("entity_type")
+  entityRef      String?  @map("entity_ref") // canonical id when resolved
+  /// Prose. Null when the session is sensitive — the label is then in the
+  /// encrypted quartet below. Read via HearingBriefService.reveal().
+  entityLabel    String?  @map("entity_label")
+  confidence     Float?
+  // Encrypted entity label (same AES-256-GCM scheme as KeyQuote):
+  textCiphertext String?  @map("text_ciphertext")
+  iv             String?
+  authTag        String?  @map("auth_tag")
+  keyVersion     String?  @map("key_version")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   session LiveHearingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
@@ -756,15 +769,27 @@ model EntityMention {
 
 /// A live summary card pushed to the Live Hearing Room UI.
 model LiveSummaryCard {
-  id        String   @id @default(cuid())
-  sessionId String   @map("session_id")
-  tenantId  String   @map("tenant_id")
-  cardType  String   @map("card_type")
-  title     String
-  body      String?
-  segmentId String?  @map("segment_id")
-  startMs   Int?     @map("start_ms")
-  createdAt DateTime @default(now()) @map("created_at")
+  id              String   @id @default(cuid())
+  sessionId       String   @map("session_id")
+  tenantId        String   @map("tenant_id")
+  cardType        String   @map("card_type")
+  /// Prose. Null when the session is sensitive. `cardType` stays plaintext because
+  /// the supporters/opponents split matches on it.
+  title           String?
+  body            String?
+  // TWO independent payloads: title and body are separate prose fields, so one
+  // shared name set cannot hold both.
+  titleCiphertext String?  @map("title_ciphertext")
+  titleIv         String?  @map("title_iv")
+  titleAuthTag    String?  @map("title_auth_tag")
+  titleKeyVersion String?  @map("title_key_version")
+  bodyCiphertext  String?  @map("body_ciphertext")
+  bodyIv          String?  @map("body_iv")
+  bodyAuthTag     String?  @map("body_auth_tag")
+  bodyKeyVersion  String?  @map("body_key_version")
+  segmentId       String?  @map("segment_id")
+  startMs         Int?     @map("start_ms")
+  createdAt       DateTime @default(now()) @map("created_at")
 
   session LiveHearingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 

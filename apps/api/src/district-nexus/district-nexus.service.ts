@@ -252,6 +252,8 @@ export class DistrictNexusService {
               where: {
                 clientId,
                 confirmed: true,
+                reviewStatus: 'confirmed',
+                rollUpAwards: true,
                 source: { in: ['contracting', 'assistance_recipient'] },
               },
               select: { source: true, externalId: true, externalName: true },
@@ -428,6 +430,8 @@ export class DistrictNexusService {
             where: {
               clientId: { in: visibleClientIds },
               confirmed: true,
+              reviewStatus: 'confirmed',
+              rollUpAwards: true,
               source: { in: ['contracting', 'assistance_recipient'] },
             },
             select: { clientId: true, source: true, externalId: true, externalName: true },
@@ -1255,6 +1259,8 @@ export class DistrictNexusService {
         where: {
           ...(clientId ? { clientId } : {}),
           confirmed: true,
+          reviewStatus: 'confirmed',
+          rollUpAwards: true,
           source: { in: ['contracting', 'assistance_recipient'] },
         },
         select: { clientId: true, source: true, externalId: true, externalName: true },

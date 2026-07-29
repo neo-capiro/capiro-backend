@@ -24,10 +24,7 @@ import type {
   ServerWsMessage,
 } from './hearing.types.js';
 
-const MAX_SESSION_MS = Number.parseInt(
-  process.env.MAX_SESSION_MS ?? `${12 * 60 * 60 * 1000}`,
-  10,
-);
+const MAX_SESSION_MS = Number.parseInt(process.env.MAX_SESSION_MS ?? `${12 * 60 * 60 * 1000}`, 10);
 const CAPTURE_START_TIMEOUT_MS = 15_000;
 const FIRST_AUDIO_TIMEOUT_MS = 30_000;
 const HEARTBEAT_MS = 30_000;
@@ -173,7 +170,12 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   async handleDisconnect(client: WebSocket): Promise<void> {
     const conn = this.conns.get(client);
     if (!conn) return;
-    await this.finalize(conn, conn.hasAudio ? 'ended' : 'failed', false);
+    await this.finalize(
+      conn,
+      conn.hasAudio ? 'ended' : 'failed',
+      false,
+      'socket disconnected before any browser audio arrived',
+    );
     this.conns.delete(client);
   }
 
@@ -259,7 +261,12 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
               code: 'CAPTURE_LEASE_LOST',
               message: 'This capture lost ownership of the hearing session.',
             });
-            void this.finalize(conn, 'failed', true);
+            void this.finalize(
+              conn,
+              'failed',
+              true,
+              'CAPTURE_LEASE_LOST: heartbeat matched no owned live/paused row',
+            );
           }
         })
         .catch((err) => {
@@ -269,7 +276,12 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
             code: 'CAPTURE_LEASE_UNAVAILABLE',
             message: 'Capture ownership could not be verified. The session was stopped safely.',
           });
-          void this.finalize(conn, 'failed', true);
+          void this.finalize(
+            conn,
+            'failed',
+            true,
+            'CAPTURE_LEASE_UNAVAILABLE: heartbeat query threw',
+          );
         });
     }, HEARTBEAT_MS);
 
@@ -294,7 +306,12 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
               code: 'FIRST_AUDIO_TIMEOUT',
               message: 'No browser audio arrived. Start transcription again and share tab audio.',
             });
-            void this.finalize(conn, 'failed', true);
+            void this.finalize(
+              conn,
+              'failed',
+              true,
+              'FIRST_AUDIO_TIMEOUT: capture_ready but no browser audio within the window',
+            );
           }
         }, FIRST_AUDIO_TIMEOUT_MS);
       },
@@ -305,7 +322,8 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
           segment: this.withOffset(segment, conn.timelineOffsetMs),
         });
       },
-      onFinal: (segment) => this.enqueueFinal(conn, this.withOffset(segment, conn.timelineOffsetMs)),
+      onFinal: (segment) =>
+        this.enqueueFinal(conn, this.withOffset(segment, conn.timelineOffsetMs)),
       onReconnecting: () => undefined,
       onError: (err) => {
         this.logger.warn(`deepgram error session=${conn.sessionId}: ${err.message}`);
@@ -315,7 +333,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
           message: err.message,
         });
         this.send(conn.ws, { type: 'status', status: 'capture_restart_required' });
-        void this.finalize(conn, 'failed', true);
+        void this.finalize(conn, 'failed', true, `TRANSCRIPTION_RESTART_REQUIRED: ${err.message}`);
       },
     });
 
@@ -326,7 +344,12 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
           code: 'TRANSCRIPTION_START_TIMEOUT',
           message: 'The transcription service did not become ready. Try again.',
         });
-        void this.finalize(conn, 'failed', true);
+        void this.finalize(
+          conn,
+          'failed',
+          true,
+          'TRANSCRIPTION_START_TIMEOUT: deepgram never became ready',
+        );
       }
     }, CAPTURE_START_TIMEOUT_MS);
 
@@ -349,7 +372,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
         code: 'AUDIO_FRAME_TOO_LARGE',
         message: 'Audio frame exceeded the allowed size.',
       });
-      await this.finalize(conn, 'failed', true);
+      await this.finalize(conn, 'failed', true, 'AUDIO_FRAME_TOO_LARGE');
       return;
     }
 
@@ -365,7 +388,12 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
         code: 'AUDIO_RATE_EXCEEDED',
         message: 'Audio arrived faster than the supported browser capture rate.',
       });
-      await this.finalize(conn, 'failed', true);
+      await this.finalize(
+        conn,
+        'failed',
+        true,
+        'AUDIO_RATE_EXCEEDED: browser sent audio faster than the cap',
+      );
       return;
     }
 
@@ -375,7 +403,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       try {
         activated = Boolean(
           claimToken &&
-            (await this.sessions.activateCapture(conn.tenantId, conn.sessionId, claimToken)),
+          (await this.sessions.activateCapture(conn.tenantId, conn.sessionId, claimToken)),
         );
       } catch (err) {
         this.logger.warn(`capture activation failed: ${(err as Error).message}`);
@@ -386,7 +414,12 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
           code: 'CAPTURE_LEASE_LOST',
           message: 'The hearing session could not be activated for audio.',
         });
-        await this.finalize(conn, 'failed', true);
+        await this.finalize(
+          conn,
+          'failed',
+          true,
+          'CAPTURE_LEASE_LOST: activateCapture returned false',
+        );
         return;
       }
       if (conn.firstAudioTimer) clearTimeout(conn.firstAudioTimer);
@@ -398,7 +431,12 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
         code: 'TRANSCRIPTION_NOT_READY',
         message: 'The transcription service is not ready for audio.',
       });
-      await this.finalize(conn, 'failed', true);
+      await this.finalize(
+        conn,
+        'failed',
+        true,
+        'TRANSCRIPTION_NOT_READY: deepgram sendAudio refused the frame',
+      );
       return;
     }
     if (!conn.hasAudio) {
@@ -434,7 +472,9 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
         conn.pendingEnrichment.add(task);
       })
       .catch((err) => {
-        this.logger.error(`raw segment commit failed session=${conn.sessionId}: ${(err as Error).message}`);
+        this.logger.error(
+          `raw segment commit failed session=${conn.sessionId}: ${(err as Error).message}`,
+        );
         this.send(conn.ws, {
           type: 'error',
           code: 'TRANSCRIPT_PERSIST_FAILED',
@@ -443,7 +483,11 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       });
   }
 
-  private async enrichFinal(conn: LiveConn, segmentId: string, segment: FinalSegment): Promise<void> {
+  private async enrichFinal(
+    conn: LiveConn,
+    segmentId: string,
+    segment: FinalSegment,
+  ): Promise<void> {
     const extraction = await this.orchestrator.extract({
       tenantId: conn.tenantId,
       sessionId: conn.sessionId,
@@ -496,12 +540,27 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     }
   }
 
+  /**
+   * @param reason Why this capture is ending. REQUIRED for a 'failed' outcome:
+   *   six of the paths that finalize as failed previously logged nothing at all
+   *   server-side, so a capture could die mid-hearing and leave no trace. On
+   *   2026-07-29 a 62-minute Senate capture ended as `failed` and the only
+   *   evidence anywhere was the status column — every candidate path was silent,
+   *   which made the actual cause unrecoverable after the fact.
+   */
   private async finalize(
     conn: LiveConn,
     outcome: 'ended' | 'failed',
     closeClient: boolean,
+    reason?: string,
   ): Promise<void> {
     if (conn.finalizePromise) return conn.finalizePromise;
+    if (outcome === 'failed') {
+      this.logger.warn(
+        `capture finalizing as FAILED session=${conn.sessionId} ` +
+          `reason=${reason ?? 'unspecified'} state=${conn.state} hasAudio=${conn.hasAudio}`,
+      );
+    }
     conn.finalizePromise = (async () => {
       if (conn.state === 'ended') return;
       conn.state = 'stopping';
@@ -558,7 +617,9 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
           `combined=${linked.combined}`,
       );
     } catch (err) {
-      this.logger.warn(`hearing-end auto-link failed session=${sessionId}: ${(err as Error).message}`);
+      this.logger.warn(
+        `hearing-end auto-link failed session=${sessionId}: ${(err as Error).message}`,
+      );
     }
   }
 

@@ -26,6 +26,21 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { ClientsService } from './clients.service.js';
 
+const FEDERAL_SET_ASIDE_CERTIFICATION_CODES = [
+  'SBA',
+  'SBP',
+  '8A',
+  '8AN',
+  'SDVOSBC',
+  'SDVOSBS',
+  'WOSB',
+  'WOSBSS',
+  'EDWOSB',
+  'EDWOSBSS',
+  'HZC',
+  'HZS',
+] as const;
+
 class CreateClientDto {
   @IsString()
   @Length(1, 200)
@@ -105,6 +120,18 @@ class CreateClientDto {
   @IsArray()
   @IsString({ each: true })
   pscCodes?: string[];
+
+  /** Grants.gov applicant-type labels used by deterministic eligibility. */
+  @IsOptional()
+  @IsArray()
+  @IsIn(GRANTS_GOV_APPLICANT_TYPES, { each: true })
+  applicantTypes?: string[];
+
+  /** Reviewed SAM.gov set-aside certification codes. */
+  @IsOptional()
+  @IsArray()
+  @IsIn(FEDERAL_SET_ASIDE_CERTIFICATION_CODES, { each: true })
+  setAsideCertifications?: string[];
 }
 
 class BulkImportClientsDto {
@@ -199,6 +226,11 @@ class UpdateClientDto {
   @IsArray()
   @IsString({ each: true })
   pscCodes?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsIn(FEDERAL_SET_ASIDE_CERTIFICATION_CODES, { each: true })
+  setAsideCertifications?: string[];
 
   /**
    * Grants.gov "Eligible Applicants" values. Drives District Nexus F3

@@ -7,10 +7,7 @@ import {
 } from '@nestjs/common';
 import { EngagementTaskStatus, Prisma } from '@prisma/client';
 import { fetchDeniedClientIds, toUuidArrayLiteral } from '../memory/memory-wall.helpers.js';
-import {
-  pickKgIntelGraph,
-  pickKgTraversalSource,
-} from '../meri/memory-recall-source.helpers.js';
+import { pickKgIntelGraph, pickKgTraversalSource } from '../meri/memory-recall-source.helpers.js';
 import {
   AGENCY_SECTOR_MAP,
   ldaCodesForSectors,
@@ -260,7 +257,9 @@ export class IntelligenceService {
 
     const confirmedBySource = new Map<string, string>(); // source → externalId
     for (const m of existingMappings) {
-      if (m.confirmed && !confirmedBySource.has(m.source)) {
+      const identityMayAttributeAwards =
+        m.source !== 'contracting' || (m.reviewStatus === 'confirmed' && m.rollUpAwards === true);
+      if (m.confirmed && identityMayAttributeAwards && !confirmedBySource.has(m.source)) {
         confirmedBySource.set(m.source, m.externalId);
       }
     }
@@ -393,9 +392,7 @@ export class IntelligenceService {
       if (timer) clearTimeout(timer);
       const elapsed = Date.now() - startedAt;
       if (elapsed >= IntelligenceService.PROFILE_V1_SLOW_SOURCE_MS) {
-        this.logger.warn(
-          `profile-v1 source "${label}" took ${elapsed}ms for client ${clientId}`,
-        );
+        this.logger.warn(`profile-v1 source "${label}" took ${elapsed}ms for client ${clientId}`);
       }
     }) as Promise<T>;
   }
@@ -494,7 +491,11 @@ export class IntelligenceService {
       this.getCommentPeriodAlerts(tenantId),
       this.getChanges(tenantId, day7.toISOString(), clientId),
       this.prisma.committeeHearing.findMany({
-        where: { date: { gte: now, lte: day21 } },
+        // `date` is @db.Date, stored at UTC midnight of the hearing's Eastern day.
+        // `gte: now` therefore excluded TODAY's hearings for the whole working
+        // day — 00:00Z >= 13:00Z is false — so a hearing happening right now was
+        // never in this feed. Compare against the start of the Eastern day.
+        where: { date: { gte: dateBoundsInZone(now, 'America/New_York').start, lte: day21 } },
         orderBy: [{ date: 'asc' }, { time: 'asc' }],
         take: 40,
       }),
@@ -2577,7 +2578,6 @@ export class IntelligenceService {
     };
   }
 
-
   /**
    * Free-text / by-UEI search over federal_assistance_award recipients for
    * the District Nexus manual-attach panel (source 'assistance_recipient').
@@ -2676,26 +2676,35 @@ export class IntelligenceService {
       source: string;
       externalId: string;
       externalName: string;
-      /**
-       * The CORPORATE-IDENTITY relationship this pin asserts. This is the tier-3
-       * path: pinning "RAYTHEON TECHNOLOGIES CORPORATION" to a client named "RTX"
-       * is only meaningful if a human also says WHAT it is — the same entity under
-       * a former name, a subsidiary, a parent. Optional so existing callers keep
-       * working; when absent the column stays null, which read paths treat as
-       * "undecided", never as 'self'.
-       */
       relationshipType?: string | null;
-      /** Whether this entity's awards roll up to the client. Null = undecided. */
       rollUpAwards?: boolean | null;
+      actorUserId: string;
     },
   ) {
     const client = await this.prisma.withTenant(tenantId, (tx) =>
       tx.client.findFirst({ where: { id: clientId }, select: { id: true } }),
     );
     if (!client) throw new NotFoundException('Client not found');
+    if (
+      ['contracting', 'assistance_recipient'].includes(input.source) &&
+      (input.relationshipType == null || input.rollUpAwards == null)
+    ) {
+      throw new BadRequestException(
+        'Award-bearing federal mappings require a reviewed relationship type and an explicit award roll-up decision.',
+      );
+    }
 
-    const mapping = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientIntelMapping.upsert({
+    const mapping = await this.prisma.withTenant(tenantId, async (tx) => {
+      const before = await tx.clientIntelMapping.findUnique({
+        where: {
+          clientId_source_externalId: {
+            clientId,
+            source: input.source,
+            externalId: input.externalId,
+          },
+        },
+      });
+      const saved = await tx.clientIntelMapping.upsert({
         where: {
           clientId_source_externalId: {
             clientId,
@@ -2708,6 +2717,10 @@ export class IntelligenceService {
           confirmed: true,
           matchBasis: 'manual_pin',
           matchTier: 1,
+          reviewStatus: 'confirmed',
+          reviewedBy: input.actorUserId,
+          reviewedAt: new Date(),
+          rejectionReason: null,
           ...(input.relationshipType !== undefined
             ? { relationshipType: input.relationshipType }
             : {}),
@@ -2721,25 +2734,110 @@ export class IntelligenceService {
           externalName: input.externalName,
           confidence: 1,
           confirmed: true,
-          // A deliberate human pin of a specific source record IS a tier-1
-          // verified identity — the strongest thing in the system, because a
-          // person chose this exact record rather than a heuristic matching it.
           matchBasis: 'manual_pin',
           matchTier: 1,
+          reviewStatus: 'confirmed',
+          reviewedBy: input.actorUserId,
+          reviewedAt: new Date(),
+          rejectionReason: null,
           ...(input.relationshipType !== undefined
             ? { relationshipType: input.relationshipType }
             : {}),
           ...(input.rollUpAwards !== undefined ? { rollUpAwards: input.rollUpAwards } : {}),
         },
-      }),
-    );
+      });
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          actorUserId: input.actorUserId,
+          action: 'intelligence_mapping.confirmed',
+          entityType: 'client_intel_mapping',
+          entityId: saved.id,
+          before: before ? (before as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+          after: saved as unknown as Prisma.InputJsonValue,
+        },
+      });
+      return saved;
+    });
 
-    // Pinning an LDA entity changes the confirmed set → refresh the cascade
-    // (sync lda_client_ids + merge issue codes / signals).
     if (input.source === 'lda') {
       await this.prepopulation?.prepopulate(tenantId, clientId);
     }
     return mapping;
+  }
+
+  async rejectMappingCandidate(
+    clientId: string,
+    tenantId: string,
+    input: {
+      source: 'contracting';
+      externalId: string;
+      externalName: string;
+      reason: string | null;
+      actorUserId: string;
+    },
+  ) {
+    const client = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.client.findFirst({ where: { id: clientId }, select: { id: true } }),
+    );
+    if (!client) throw new NotFoundException('Client not found');
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      const before = await tx.clientIntelMapping.findUnique({
+        where: {
+          clientId_source_externalId: {
+            clientId,
+            source: input.source,
+            externalId: input.externalId,
+          },
+        },
+      });
+      const saved = await tx.clientIntelMapping.upsert({
+        where: {
+          clientId_source_externalId: {
+            clientId,
+            source: input.source,
+            externalId: input.externalId,
+          },
+        },
+        update: {
+          externalName: input.externalName,
+          confirmed: false,
+          reviewStatus: 'rejected',
+          reviewedBy: input.actorUserId,
+          reviewedAt: new Date(),
+          rejectionReason: input.reason ?? 'Rejected by reviewer',
+          rollUpAwards: false,
+        },
+        create: {
+          tenantId,
+          clientId,
+          source: input.source,
+          externalId: input.externalId,
+          externalName: input.externalName,
+          confidence: 0,
+          confirmed: false,
+          reviewStatus: 'rejected',
+          reviewedBy: input.actorUserId,
+          reviewedAt: new Date(),
+          rejectionReason: input.reason ?? 'Rejected by reviewer',
+          rollUpAwards: false,
+          matchBasis: 'fuzzy_name',
+          matchTier: 4,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          actorUserId: input.actorUserId,
+          action: 'intelligence_mapping.rejected',
+          entityType: 'client_intel_mapping',
+          entityId: saved.id,
+          before: before ? (before as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+          after: saved as unknown as Prisma.InputJsonValue,
+        },
+      });
+      return saved;
+    });
   }
 
   /**
@@ -2875,23 +2973,67 @@ export class IntelligenceService {
    * a foreign id returns null. After the flip, re-run the prepopulation cascade so
    * lda_client_ids + issue codes reflect the new confirmed set (confirm + un-confirm).
    */
-  async confirmMapping(mappingId: string, confirmed: boolean, tenantId: string) {
+  async confirmMapping(
+    mappingId: string,
+    input: {
+      confirmed: boolean;
+      relationshipType?: string;
+      rollUpAwards?: boolean;
+      rejectionReason?: string;
+      actorUserId: string;
+    },
+    tenantId: string,
+  ) {
     const mapping = await this.prisma.withTenant(tenantId, async (tx) => {
-      const existing = await tx.clientIntelMapping.findUnique({
-        where: { id: mappingId },
-        select: { id: true, clientId: true },
-      });
+      const existing = await tx.clientIntelMapping.findUnique({ where: { id: mappingId } });
       const owned = existing
         ? await tx.client.findFirst({ where: { id: existing.clientId }, select: { id: true } })
         : null;
       if (!existing || !owned) throw new NotFoundException('Mapping not found');
-      return tx.clientIntelMapping.update({
+
+      const relationshipType = input.relationshipType ?? existing.relationshipType;
+      const rollUpAwards = input.rollUpAwards ?? existing.rollUpAwards;
+      if (
+        input.confirmed &&
+        existing.source === 'contracting' &&
+        (relationshipType == null || rollUpAwards == null)
+      ) {
+        throw new BadRequestException(
+          'Confirming a federal contractor requires a relationship type and an explicit award roll-up decision.',
+        );
+      }
+
+      const saved = await tx.clientIntelMapping.update({
         where: { id: mappingId },
-        data: { confirmed },
+        data: {
+          confirmed: input.confirmed,
+          reviewStatus: input.confirmed ? 'confirmed' : 'rejected',
+          reviewedBy: input.actorUserId,
+          reviewedAt: new Date(),
+          rejectionReason: input.confirmed
+            ? null
+            : (input.rejectionReason ?? 'Rejected by reviewer'),
+          ...(input.relationshipType !== undefined
+            ? { relationshipType: input.relationshipType }
+            : {}),
+          ...(input.rollUpAwards !== undefined ? { rollUpAwards: input.rollUpAwards } : {}),
+        },
       });
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          actorUserId: input.actorUserId,
+          action: input.confirmed
+            ? 'intelligence_mapping.confirmed'
+            : 'intelligence_mapping.rejected',
+          entityType: 'client_intel_mapping',
+          entityId: saved.id,
+          before: existing as unknown as Prisma.InputJsonValue,
+          after: saved as unknown as Prisma.InputJsonValue,
+        },
+      });
+      return saved;
     });
-    // Re-run the cascade so lda_client_ids + issue codes reflect the new confirmed
-    // set (covers both confirm and un-confirm; idempotent).
     if (mapping.source === 'lda') {
       await this.prepopulation?.prepopulate(tenantId, mapping.clientId);
     }
@@ -2946,7 +3088,13 @@ export class IntelligenceService {
       ),
       this.prisma.withTenant(tenantId, (tx) =>
         tx.clientIntelMapping.findFirst({
-          where: { clientId, source: 'contracting', confirmed: true },
+          where: {
+            clientId,
+            source: 'contracting',
+            confirmed: true,
+            reviewStatus: 'confirmed',
+            rollUpAwards: true,
+          },
         }),
       ),
     ]);
@@ -3495,7 +3643,14 @@ export class IntelligenceService {
     const [confirmedMappings, caps] = await Promise.all([
       this.prisma.withTenant(tenantId, (tx) =>
         tx.clientIntelMapping.findMany({
-          where: { clientId, confirmed: true },
+          where: {
+            clientId,
+            confirmed: true,
+            OR: [
+              { source: { notIn: ['contracting', 'assistance_recipient'] } },
+              { reviewStatus: 'confirmed', rollUpAwards: true },
+            ],
+          },
           select: { source: true },
         }),
       ),
@@ -4677,7 +4832,9 @@ export class IntelligenceService {
       if (billVariants.length === 0) return [];
 
       const hearings = await this.prisma.committeeHearing.findMany({
-        where: { date: { gte: now, lte: until } },
+        // Start-of-Eastern-day, not `now`: see the note at the portfolio feed above.
+        // `date` is a UTC-midnight @db.Date, so `gte: now` dropped today's rows.
+        where: { date: { gte: dateBoundsInZone(now, 'America/New_York').start, lte: until } },
         orderBy: [{ date: 'asc' }, { time: 'asc' }],
         take: 40,
       });
@@ -4895,7 +5052,13 @@ export class IntelligenceService {
     try {
       const mapping = await this.prisma.withTenant(tenantId, (tx) =>
         tx.clientIntelMapping.findFirst({
-          where: { clientId, source: 'contracting', confirmed: true },
+          where: {
+            clientId,
+            source: 'contracting',
+            confirmed: true,
+            reviewStatus: 'confirmed',
+            rollUpAwards: true,
+          },
           select: { externalId: true },
         }),
       );
@@ -5455,7 +5618,11 @@ export class IntelligenceService {
     const [trackedBills, hearings, recentChanges, commentPeriods, healthScore] = await Promise.all([
       this.getTrackedBills(clientId, tenantId),
       this.prisma.committeeHearing.findMany({
-        where: { date: { gte: now, lte: fourteenDaysOut } },
+        // Start-of-Eastern-day, not `now` — a UTC-midnight @db.Date compared
+        // against a mid-day instant silently excluded today. Same fix as above.
+        where: {
+          date: { gte: dateBoundsInZone(now, 'America/New_York').start, lte: fourteenDaysOut },
+        },
         orderBy: { date: 'asc' },
         take: 5,
       }),
@@ -5750,7 +5917,13 @@ export class IntelligenceService {
     // 1. Resolve the client's contractor name(s) from confirmed contracting mappings.
     const mappings = await this.prisma.withTenant(tenantId, (tx) =>
       tx.clientIntelMapping.findMany({
-        where: { clientId, source: 'contracting', confirmed: true },
+        where: {
+          clientId,
+          source: 'contracting',
+          confirmed: true,
+          reviewStatus: 'confirmed',
+          rollUpAwards: true,
+        },
         select: { externalName: true },
       }),
     );
@@ -5826,9 +5999,7 @@ export class IntelligenceService {
     //    with no facility there, which the facility-based resolver never sees.
     const spendStates = Array.from(
       new Set(
-        spendRows
-          .filter((r) => r.pop_state && r.pop_district)
-          .map((r) => r.pop_state as string),
+        spendRows.filter((r) => r.pop_state && r.pop_district).map((r) => r.pop_state as string),
       ),
     );
     // CongressMember.state stores the FULL state name ("Connecticut"), but
@@ -5889,7 +6060,7 @@ export class IntelligenceService {
         const stateMembers = membersByState.get(r.pop_state);
         const houseCode = districtCodeForHouseMatch(r.pop_district);
         const house = houseCode
-          ? stateMembers?.house.find((m) => districtMatchesHouse(houseCode, m.district)) ?? null
+          ? (stateMembers?.house.find((m) => districtMatchesHouse(houseCode, m.district)) ?? null)
           : null;
         return {
           district: key,

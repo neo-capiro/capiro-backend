@@ -33,11 +33,15 @@ export type TargetType = 'individual' | 'list' | 'group';
  * Doe" pills; only `.email` reaches the actual send (see flattenTargets).
  */
 export interface CcBccContact {
-  /** Stable identity for dedupe: directory id, `clientperson:<id>`, or `manual:<email>`. */
+  /**
+   * Stable identity for dedupe: directory id, `clientperson:<id>`, `user:<id>` for
+   * a teammate, or `manual:<email>`.
+   */
   id: string;
   name: string;
   email: string;
-  source: 'congress' | 'client' | 'manual';
+  /** 'team' = a member of the user's own tenant (GET /api/users/tenant-members). */
+  source: 'congress' | 'client' | 'team' | 'manual';
 }
 
 export interface OutreachTarget {
@@ -166,7 +170,8 @@ export function sanitizeTargets(raw: unknown): OutreachTarget[] {
         id: typeof id === 'string' && id ? id : `manual:${email.toLowerCase()}`,
         name: typeof name === 'string' ? name : email,
         email,
-        source: source === 'congress' || source === 'client' ? source : 'manual',
+        source:
+          source === 'congress' || source === 'client' || source === 'team' ? source : 'manual',
       });
     }
     return out.length ? out : undefined;

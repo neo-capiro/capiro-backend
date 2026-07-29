@@ -89,3 +89,61 @@ describe('getRecipientPriorContact (W5.2)', () => {
     expect(lastWhere()).toBeNull(); // findMany never called
   });
 });
+
+/**
+ * Cross-client confidentiality.
+ *
+ * The badge above answers "has my firm emailed this person recently" inside the
+ * user's own workspace, so it may legitimately run tenant-wide. The GENERATOR must
+ * not: it renders the answer as `Your firm last emailed this recipient on <date> re:
+ * "<subject>"` straight into the prompt, so a tenant-wide match put one client's
+ * campaign subject line into another client's draft. For a lobbying firm whose
+ * congressional contacts are shared across the whole portfolio that is routine, not
+ * exotic — it is how an Omega campaign started talking about Snowbird.
+ *
+ * The two callers are therefore allowed to disagree for a no-client campaign, and
+ * these tests pin that divergence so a future refactor cannot quietly re-widen it.
+ */
+describe('the generator’s prior-outreach lookup is client-scoped or empty', () => {
+  /** The private batch query the generator calls (the badge goes through the wrapper). */
+  const generatorLookup = (service: EngagementService) =>
+    (
+      service as unknown as {
+        outreachPriorContactByEmail: (
+          c: TenantContext,
+          clientId: string | null,
+          emails: string[],
+          opts?: { requireClient?: boolean },
+        ) => Promise<Map<string, { sentAt: Date; subject: string | null }>>;
+      }
+    ).outreachPriorContactByEmail.bind(service);
+
+  test('with a client, it filters on that client', async () => {
+    const { service, lastWhere } = serviceWithRecords([]);
+    await generatorLookup(service)(ctx, 'client-9', ['a@x.com']);
+    expect(lastWhere()!.clientId).toBe('client-9');
+  });
+
+  test('with NO client it returns empty and never queries at all', async () => {
+    // Default-deny. Widening to the tenant is the leak, so the absence of a client
+    // must produce nothing rather than everything.
+    const { service, lastWhere } = serviceWithRecords([sent('dana@mail.house.gov', 3, 'Snowbird — FY27 ask')]);
+    const out = await generatorLookup(service)(ctx, null, ['dana@mail.house.gov']);
+    expect(out.size).toBe(0);
+    expect(lastWhere()).toBeNull();
+  });
+
+  test("another client's subject line cannot reach a no-client campaign's prompt", async () => {
+    const { service } = serviceWithRecords([sent('dana@mail.house.gov', 3, 'Snowbird — FY27 ask')]);
+    const out = await generatorLookup(service)(ctx, null, ['dana@mail.house.gov']);
+    expect(JSON.stringify([...out.values()])).not.toMatch(/Snowbird/);
+  });
+
+  test('the badge wrapper keeps its tenant-wide latitude via requireClient:false', async () => {
+    const { service } = serviceWithRecords([sent('dana@mail.house.gov', 3)]);
+    const out = await generatorLookup(service)(ctx, null, ['dana@mail.house.gov'], {
+      requireClient: false,
+    });
+    expect(out.size).toBe(1);
+  });
+});

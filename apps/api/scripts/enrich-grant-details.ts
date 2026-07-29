@@ -216,11 +216,39 @@ export async function enrichGrantCandidates(
   limit: number,
   deps: EnrichDeps = { fetchOpportunityDetail, sleep },
 ): Promise<RunCounts> {
+  // Pursuable grants first, then everything else.
+  //
+  // WHY: the `--all-statuses` reconcile grew federal_grant from ~5.5k to ~83k
+  // on 2026-07-29, and 72,689 of those are `archived`. A single
+  // detailSyncedAt-ordered sweep therefore draws almost entirely from archived
+  // rows, at 300/run, for roughly nine months — while the ~850 unenriched
+  // grants producers actually score wait behind them. `description` and
+  // `eligibility` come ONLY from this enrichment and
+  // generate-funding-grant-candidates reads both, so that ordering starved the
+  // live scorer.
+  //
+  // Coverage is not reduced: the archived tail is still swept, just second, and
+  // a run still costs exactly `limit` detail fetches.
+  const now = new Date();
+  const pursuable = {
+    status: { in: ['posted', 'forecasted'] },
+    OR: [{ closeDate: null }, { closeDate: { gte: now } }],
+  };
   const candidates = await prisma.federalGrant.findMany({
+    where: pursuable,
     orderBy: [{ detailSyncedAt: { sort: 'asc', nulls: 'first' } }],
     take: limit,
     select: { id: true },
   });
+  if (candidates.length < limit) {
+    const rest = await prisma.federalGrant.findMany({
+      where: { NOT: pursuable },
+      orderBy: [{ detailSyncedAt: { sort: 'asc', nulls: 'first' } }],
+      take: limit - candidates.length,
+      select: { id: true },
+    });
+    candidates.push(...rest);
+  }
 
   let updated = 0;
   let errors = 0;

@@ -21,6 +21,7 @@
 import type { OutreachRecipient } from '../../OutreachView.js';
 import {
   recipientKey,
+  type GeneratedDraft,
   type GenerationSourceManifest,
   type SelectedContextItem,
 } from './types.js';
@@ -540,6 +541,50 @@ export function buildGenerateTasks(slots: GenSlot[], batchMax: number): Generate
     });
   }
   return tasks;
+}
+
+// ── Generation failure handling ───────────────────────────────────────────────
+
+/**
+ * Apply a generation failure to ONE slot without destroying text that already
+ * exists there.
+ *
+ * The old behaviour overwrote the slot unconditionally with a "[Placeholder] …
+ * generation failed …" body. For a slot that had never produced a draft that is
+ * right — there is nothing to lose and a blank card explains nothing. For a slot
+ * that ALREADY held a draft it is data loss: the user's generated, possibly
+ * hand-edited copy was replaced by boilerplate because a LATER attempt failed,
+ * which reads to them as "the app regenerated my work and threw it away."
+ *
+ * Phase 0 §3.g2 fixed exactly this for HELD drafts, on the grounds that a held
+ * draft is real content a reviewer must read. A failed REGENERATE of existing
+ * content is the same situation and kept the destructive behaviour.
+ *
+ * The retained draft's sendability is deliberately NOT changed. It is still backed
+ * by whatever audited version it already had; the failure is of the new attempt,
+ * not a verdict on the old text. Flipping `status` to 'error' here would drop a
+ * previously-good draft out of the send projection — turning a failed retry into a
+ * second, quieter form of losing work.
+ */
+export function applyGenerationFailure(
+  prior: GeneratedDraft | undefined,
+  placeholder: { subject: string; body: string },
+  reason?: string,
+): GeneratedDraft {
+  const hasText = Boolean(prior && (prior.subject?.trim() || prior.body?.trim()));
+  if (!hasText) {
+    return {
+      ...prior,
+      subject: placeholder.subject,
+      body: placeholder.body,
+      status: 'error',
+      ...(reason ? { failureReason: reason } : {}),
+    };
+  }
+  return {
+    ...(prior as GeneratedDraft),
+    ...(reason ? { failureReason: reason } : {}),
+  };
 }
 
 // ── Draft version history (W2.6 "Improve"/Revert) ────────────────────────────

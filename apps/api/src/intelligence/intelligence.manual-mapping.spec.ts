@@ -59,6 +59,7 @@ describe('IntelligenceService — manual LDA mapping', () => {
       source: 'lda',
       externalId: '4321',
       externalName: 'RAYTHEON TECHNOLOGIES CORPORATION',
+      actorUserId: '00000000-0000-0000-0000-000000000099',
     };
 
     test('pins an exact id as a confirmed mapping (confidence=1)', async () => {
@@ -68,7 +69,11 @@ describe('IntelligenceService — manual LDA mapping', () => {
         withTenant: jest.fn(async (_t: string, run: (tx: any) => Promise<any>) =>
           run({
             client: { findFirst: jest.fn(async () => ({ id: clientId })) },
-            clientIntelMapping: { upsert },
+            clientIntelMapping: {
+              findUnique: jest.fn(async () => null),
+              upsert,
+            },
+            auditLog: { create: jest.fn(async () => ({})) },
           }),
         ),
         clientIntelMapping: { upsert },
@@ -85,6 +90,55 @@ describe('IntelligenceService — manual LDA mapping', () => {
         confidence: 1,
       });
       expect(args.update).toMatchObject({ confirmed: true });
+    });
+
+
+    test.each(['contracting', 'assistance_recipient'])(
+      '%s requires an explicit reviewed relationship and roll-up decision',
+      async (source) => {
+        const prisma: any = {
+          withTenant: jest.fn(async (_t: string, run: (tx: any) => Promise<any>) =>
+            run({ client: { findFirst: jest.fn(async () => ({ id: clientId })) } }),
+          ),
+        };
+        const service = new IntelligenceService(prisma);
+        await expect(
+          service.createManualMapping(clientId, tenantId, {
+            ...input,
+            source,
+            externalId: 'ABC123456789',
+          }),
+        ).rejects.toThrow('explicit award roll-up decision');
+      },
+    );
+
+    test('a reviewed assistance-recipient pin persists self/roll-up semantics', async () => {
+      const upsert = jest.fn(async (args: any) => ({ id: 'm-assist', ...args.create }));
+      const prisma: any = {
+        withTenant: jest.fn(async (_t: string, run: (tx: any) => Promise<any>) =>
+          run({
+            client: { findFirst: jest.fn(async () => ({ id: clientId })) },
+            clientIntelMapping: { findUnique: jest.fn(async () => null), upsert },
+            auditLog: { create: jest.fn(async () => ({})) },
+          }),
+        ),
+      };
+      const service = new IntelligenceService(prisma);
+      await service.createManualMapping(clientId, tenantId, {
+        ...input,
+        source: 'assistance_recipient',
+        externalId: 'ABC123456789',
+        relationshipType: 'self',
+        rollUpAwards: true,
+      });
+      expect(upsert.mock.calls[0]![0].create).toEqual(
+        expect.objectContaining({
+          source: 'assistance_recipient',
+          relationshipType: 'self',
+          rollUpAwards: true,
+          reviewStatus: 'confirmed',
+        }),
+      );
     });
 
     test('rejects a client outside the tenant', async () => {

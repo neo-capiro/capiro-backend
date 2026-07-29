@@ -18,6 +18,11 @@ function write(clientId: string | null) {
   notify();
 }
 
+/** Imperative bridge for source-context actions that open Meri outside React. */
+export function setGlobalClientFilter(clientId: string | null): void {
+  write(clientId);
+}
+
 export function useClientFilter() {
   const [selected, setSelected] = useState<string | null>(selectedClientId);
   const setSelectedClientId = useCallback((clientId: string | null) => write(clientId), []);

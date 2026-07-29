@@ -24,15 +24,24 @@
   },
   "include": [
     "scripts/generate-sam-opportunity-candidates.ts",
+    "scripts/generate-funding-grant-candidates.ts",
+    "scripts/generate-funding-grant-candidates.spec.ts",
+    "scripts/process-funding-opportunity-lifecycle.ts",
+    "scripts/process-funding-opportunity-lifecycle.spec.ts",
     "scripts/generate-sam-opportunity-candidates.spec.ts",
     "scripts/match-contractor-identifiers.ts",
     "scripts/backfill-sam-opportunity-fields.ts",
     "scripts/backfill-sam-opportunity-fields.spec.ts",
+    "scripts/backfill-funding-mapping-review.ts",
+    "scripts/backfill-funding-mapping-review.spec.ts",
     // Touched by this work: sync-sam-opportunities now promotes four source
     // fields through the backfill's shared extractor, and the grant producer's
     // relevance floor became derived rather than hardcoded.
     "scripts/sync-sam-opportunities.ts",
-    "scripts/generate-grant-opportunity-candidates.ts"
+    "scripts/sync-sam-opportunities.spec.ts",
+    "scripts/generate-grant-opportunity-candidates.ts",
+    "scripts/generate-report-card-docx.ts",
+    "scripts/funding-opportunities-entrypoint.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

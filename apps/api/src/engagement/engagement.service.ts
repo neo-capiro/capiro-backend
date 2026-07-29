@@ -139,6 +139,7 @@ import { outreachClientProfileEnabled } from '../common/tenant-flags.js';
 // built for the prompt (see enrichOutreachContextItems below).
 import { runAuditor, type LedgerEntry } from '@capiro/meriv2-core';
 import { resolveTenantAuditorMode } from '../common/auditor-mode.js';
+import { dateBoundsInZone } from '../intelligence/time-bounds.js';
 
 export interface CreateIntegrationInput {
   provider: EngagementProvider;
@@ -3431,8 +3432,24 @@ export class EngagementService {
     // congressional mark) BEFORE they become prompt text — the fix for reversed
     // funding direction, omitted chamber cuts, and "stalled bill read as
     // advancing". Best-effort per item; a lookup miss keeps the original body.
+    // Normalize BEFORE enrichment/rendering. The Phase 1 wire contract renamed
+    // the free-text fields (`note` -> `userInstruction`, or `customNoteText` for a
+    // custom note) and the wizard stopped sending `note`/`title`/`body` entirely
+    // (toContextItemPayload). Only the gateway branch was taught to read the new
+    // names, so on THIS path every user instruction and every custom note's text
+    // was silently dropped from the prompt and each item rendered as
+    // `- [kind] undefined`. Normalizing here makes the legacy branch understand
+    // the contract its own clients actually speak — which matters even with the
+    // gateway on, because this branch is the rollback target.
+    const normalizedContextItems = (contextItems ?? []).map(normalizeSelectedContextItem);
+
     const { items: enrichedContextItems, truthByItemId: outreachTruthByItemId } =
-      await this.enrichOutreachContextItems(contextItems ?? [], ctx, clientId ?? null, authHeader);
+      await this.enrichOutreachContextItems(
+        normalizedContextItems,
+        ctx,
+        clientId ?? null,
+        authHeader,
+      );
 
     // Bucket the v2 wizard's scoped context items so we can hand the AI
     // shared-context-vs-recipient-context distinctly per draft below.
@@ -3447,10 +3464,29 @@ export class EngagementService {
     const formatItems = (items: OutreachSelectedContextItemInput[]) =>
       items
         .map((c) => {
-          const note = c.note ? `\n  Instruction: ${c.note}` : '';
+          // A custom note IS its text — there is no server record behind it. Label
+          // it by how the user marked it: an instruction is something to DO, a fact
+          // is something that may be STATED. Defaulting to instruction is what
+          // stops "dinner went well" becoming invented narration about a dinner.
+          if (c.kind === 'note') {
+            const text = c.customNoteText?.trim();
+            if (!text) return null;
+            return c.noteUse === 'fact'
+              ? `- [note] Your note (stated by you as fact, may be used): ${text}`
+              : `- [note] Your instruction (follow it; do NOT assert it as a fact): ${text}`;
+          }
+          const instruction = c.userInstruction?.trim()
+            ? `\n  Instruction: ${c.userInstruction.trim()}`
+            : '';
           const body = c.body ? `\n  ${c.body}` : '';
-          return `- [${c.kind}] ${c.title}${body}${note}`;
+          // Titles are no longer sent by the client (Phase 1 §3.b1), and only
+          // bill/programElement/intel get a server-derived body. Fall back to the
+          // item id rather than rendering the literal string "undefined", which is
+          // what the old `${c.title}` produced for every item.
+          const label = c.title?.trim() || c.id;
+          return `- [${c.kind}] ${label}${body}${instruction}`;
         })
+        .filter((line): line is string => Boolean(line))
         .join('\n');
     const sharedContextText = sharedItems.length
       ? `Shared context (every recipient):\n${formatItems(sharedItems)}`
@@ -4097,15 +4133,18 @@ export class EngagementService {
       versionedRecordId: string | null;
       budgetWarning?: string;
       /**
-       * HP-05 (Gate L): the inbound request's Authorization header. Accepted here
-       * for the caller's convenience but NOT YET threaded into
-       * GenerationGatewayService.generate() / EvidencePacketService — that call
-       * chain is a further 2 hops (generate() -> compileOutreachPacket ->
-       * resolveSelectedItems) through a class whose own generation-request
-       * contract this change didn't touch. ENGAGEMENT_GENERATION_GATEWAY defaults
-       * off, so this is a documented gap, not a live one: EvidenceSourceService's
-       * 'intel' resolver (c-1) is built and unit-tested, ready to wire up as part
-       * of turning the gateway on.
+       * HP-05 (Gate L): the inbound request's Authorization header, threaded all
+       * the way to EvidenceSourceService so an 'intel' item is rehydrated from
+       * intel-api under the caller's own identity.
+       *
+       * This USED to stop here, which was survivable only because
+       * ENGAGEMENT_GENERATION_GATEWAY defaulted off. It is not survivable with the
+       * gateway on: AlertPacketClientService returns null without a header,
+       * resolveIntelAlert records that as a CRITICAL failure, and
+       * GenerationGatewayService blocks any draft with a critical failure — so
+       * every LegiWatch-grounded draft would have come back empty. Threaded as
+       * part of enabling the gateway (generate() -> compileOutreachPacket ->
+       * resolveSelectedItems).
        */
       authHeader?: string;
     },
@@ -4259,6 +4298,9 @@ export class EngagementService {
         isReviseSingle,
         versionedRecordId: opts.versionedRecordId,
         pinned,
+        // Only the generation request needs this: resolvePolicy above is pure and
+        // never compiles a packet, so threading it there would be dead code.
+        ...(opts.authHeader ? { authHeader: opts.authHeader } : {}),
       });
 
       const enrichment = await this.buildGatewayEnrichment(ctx, {
@@ -4312,6 +4354,13 @@ export class EngagementService {
     isReviseSingle: boolean;
     versionedRecordId: string | null;
     pinned: PinnedGenerationIdentity | null;
+    /**
+     * The caller's own already-verified Authorization header. Threaded through so
+     * an 'intel' item resolves under the gateway — without it
+     * AlertPacketClientService returns null and resolveIntelAlert raises a
+     * CRITICAL failure, which blocks the draft entirely.
+     */
+    authHeader?: string;
   }): GenerationRequest {
     const { input, recipient } = o;
     const recipientId =
@@ -4393,6 +4442,7 @@ export class EngagementService {
           }
         : {}),
       pinned: o.pinned,
+      ...(o.authHeader ? { authHeader: o.authHeader } : {}),
     };
   }
 
@@ -8432,14 +8482,31 @@ export class EngagementService {
    * W5.2 — prior-outreach dedup. For each recipient email, the most recent SENT
    * outreach in the last 90d, so the draft doesn't repeat an ask verbatim (and the
    * wizard can badge "last contacted Nd ago"). Batched (one query) + tenant-scoped.
+   *
+   * CROSS-CLIENT CONFIDENTIALITY: the client filter used to be conditional
+   * (`...(clientId ? { clientId } : {})`), so a campaign with NO client selected
+   * matched every sent record in the tenant — and the caller renders the result
+   * as `Your firm last emailed this recipient on <date> re: "<subject>"` straight
+   * into the prompt. For a lobbying firm whose congressional contacts are shared
+   * across a portfolio, that put one client's campaign subject line into another
+   * client's draft. A firm-wide "have we touched this person" answer is NOT
+   * something a no-client campaign is entitled to, so an absent clientId now
+   * returns EMPTY rather than widening the scope.
+   *
+   * `requireClient: false` is accepted only for the wizard's own "last contacted"
+   * badge, which is a UI affordance for the user's own workspace and never
+   * becomes prompt text — see getRecipientPriorContact.
    */
   private async outreachPriorContactByEmail(
     ctx: TenantContext,
     clientId: string | null,
     emailsLower: string[],
+    opts: { requireClient?: boolean } = {},
   ): Promise<Map<string, { sentAt: Date; subject: string | null }>> {
     const out = new Map<string, { sentAt: Date; subject: string | null }>();
     if (!emailsLower.length) return out;
+    // Default-deny: only an explicit opt-out (the badge) may run tenant-wide.
+    if (!clientId && opts.requireClient !== false) return out;
     const wanted = new Set(emailsLower);
     const since = new Date(Date.now() - 90 * 864e5);
     const rows = await this.prisma
@@ -8482,9 +8549,17 @@ export class EngagementService {
    * W5.2 — public read wrapper around outreachPriorContactByEmail, so the wizard's
    * Recipients step can badge "last contacted Nd ago" DURING selection (before
    * generation runs). Delegates verbatim to the private batch query the generator
-   * uses, so the badge and the prompt's priorOutreach line can never drift. Emails
-   * with no sent record in the 90-day window are simply absent from the result
-   * (never fabricated). Returns ISO date strings for the wire.
+   * uses. Emails with no sent record in the 90-day window are simply absent from
+   * the result (never fabricated). Returns ISO date strings for the wire.
+   *
+   * This is the ONE caller allowed to run without a client (`requireClient:
+   * false`): it answers "has my firm emailed this person recently" inside the
+   * user's own workspace, and its answer is rendered as a badge in the Recipients
+   * step — it never reaches a prompt or an outgoing email. The generator's
+   * priorOutreach channel deliberately does NOT get that latitude, so the badge
+   * and the prompt line can now legitimately differ for a no-client campaign:
+   * the user still sees the reminder, the model is not told another client's
+   * subject line.
    */
   async getRecipientPriorContact(
     ctx: TenantContext,
@@ -8495,6 +8570,7 @@ export class EngagementService {
       ctx,
       input.clientId ?? null,
       emailsLower,
+      { requireClient: false },
     );
     return Array.from(byEmail.entries()).map(([email, v]) => ({
       email,
@@ -8512,10 +8588,11 @@ export class EngagementService {
   private async outreachUpcomingHearings(): Promise<
     Array<{ committeeName: string; chamber: string; title: string; date: Date }>
   > {
-    const now = new Date();
-    const startOfToday = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-    );
+    // The EASTERN day, not the UTC one. Flooring to the UTC day rolled over at
+    // 8 PM ET, so an evening outreach send dropped the rest of today's hearings
+    // out of the window it hands the model — the sort of omission that reads as
+    // "there are no hearings" rather than as an error.
+    const startOfToday = dateBoundsInZone(new Date(), 'America/New_York').start;
     const in30 = new Date(startOfToday.getTime() + 30 * 864e5);
     return this.prisma.committeeHearing
       .findMany({
@@ -8754,11 +8831,24 @@ export class EngagementService {
    * Recipients' recent correspondence with the sender, resolved for the WHOLE
    * batch in two queries and bucketed by lowercased email (email is the only
    * identifier shared across the directory, meeting-attendee, and mail tables).
-   * Meetings match by attendee email (works with or without a client); mail
-   * threads are client-scoped, so they load only when clientId is set. Both
-   * reads are own-user + tenant scoped and best-effort. Dates serialize to ISO
-   * via JSON.stringify in the prompt builder. Per recipient we keep the 3 most
-   * recent of each. (Tier-1 outreach enrichment.)
+   * Meetings match by attendee email; mail threads are client-scoped, so they
+   * load only when clientId is set. Both reads are own-user + tenant scoped and
+   * best-effort. Dates serialize to ISO via JSON.stringify in the prompt builder.
+   * Per recipient we keep the 3 most recent of each. (Tier-1 outreach enrichment.)
+   *
+   * CROSS-CLIENT CONFIDENTIALITY: meetings used to match on attendee email ALONE,
+   * with no client predicate at all — even when the campaign had a client. Since
+   * the caller puts each match's `subject` into the prompt, and a lobbying firm's
+   * congressional contacts are shared across its whole portfolio, a meeting held
+   * for client A surfaced its subject line inside client B's draft. Meetings
+   * belonging to a DIFFERENT client are now excluded; untagged meetings (clientId
+   * null) are still included because they name no client and are usually the most
+   * relevant history for a bare congressional contact. This mirrors the gateway's
+   * own rule for debriefs (resolveDebrief's DEBRIEF_OTHER_CLIENT check).
+   *
+   * Known limitation, deliberately not papered over: an UNTAGGED meeting whose
+   * subject happens to name another client still passes. Scoping cannot detect
+   * that — only tagging the meeting to its client can.
    */
   private async batchRecipientCorrespondence(
     ctx: TenantContext,
@@ -8770,6 +8860,11 @@ export class EngagementService {
     if (!emailsLower.length) return { meetingsByEmail, threadsByEmail };
     const wanted = new Set(emailsLower);
     const PER_RECIPIENT = 3;
+    // A no-client campaign may only see untagged meetings: it has no client whose
+    // history it is entitled to, so widening to the whole tenant is the leak.
+    const meetingClientWhere = clientId
+      ? { OR: [{ clientId: null }, { clientId }] }
+      : { clientId: null };
 
     const [meetings, threads] = await Promise.all([
       this.prisma
@@ -8778,6 +8873,7 @@ export class EngagementService {
             where: {
               tenantId: ctx.tenantId,
               ...ownMeetingWhere(ctx.userId),
+              ...meetingClientWhere,
               attendees: { some: { email: { in: emailsLower } } },
             },
             select: {

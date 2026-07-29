@@ -56,7 +56,10 @@ function makeSessionHarness(): SessionHarness {
         created.push(data);
         return { id: 'created-session', ...data };
       }),
-      update: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...session, ...data })),
+      update: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+        ...session,
+        ...data,
+      })),
     },
     $queryRaw: jest.fn(async (strings: TemplateStringsArray) => {
       rawSql.push(strings.join('?'));
@@ -76,7 +79,10 @@ describe('HearingSessionService capture ownership', () => {
       HearingSessionService.isSensitiveSession({ sourceType: 'hearing', clientId: 'client-1' }),
     ).toBe(true);
     expect(
-      HearingSessionService.isSensitiveSession({ sourceType: 'hearing', issueIds: ['health-care'] }),
+      HearingSessionService.isSensitiveSession({
+        sourceType: 'hearing',
+        issueIds: ['health-care'],
+      }),
     ).toBe(true);
     expect(HearingSessionService.isSensitiveSession({ sourceType: 'hearing' })).toBe(false);
   });
@@ -110,10 +116,7 @@ describe('HearingSessionService capture ownership', () => {
       where: {
         id: 'session-1',
         tenantId: 'tenant-1',
-        OR: [
-          { sourceType: { in: ['hearing', 'markup'] } },
-          { createdBy: 'user-2' },
-        ],
+        OR: [{ sourceType: { in: ['hearing', 'markup'] } }, { createdBy: 'user-2' }],
       },
     });
   });
@@ -138,10 +141,7 @@ describe('HearingSessionService capture ownership', () => {
       expect.objectContaining({
         where: {
           tenantId: 'tenant-1',
-          OR: [
-            { sourceType: { in: ['hearing', 'markup'] } },
-            { createdBy: 'user-2' },
-          ],
+          OR: [{ sourceType: { in: ['hearing', 'markup'] } }, { createdBy: 'user-2' }],
         },
       }),
     );
@@ -306,7 +306,7 @@ describe('SegmentCommitService sensitive storage', () => {
     });
   });
 
-  it('does not persist sensitive action/card/entity prose into plaintext-only tables', async () => {
+  it('encrypts sensitive action/card/entity prose instead of discarding it', async () => {
     const h = makeSegmentHarness();
     h.findFirst.mockResolvedValue({
       textPlain: null,
@@ -346,9 +346,42 @@ describe('SegmentCommitService sensitive storage', () => {
       },
     });
 
-    expect(h.entityCreate).not.toHaveBeenCalled();
-    expect(h.actionCreate).not.toHaveBeenCalled();
-    expect(h.cardCreate).not.toHaveBeenCalled();
+    // These three tables gained encrypted columns in
+    // 20260803040000_hearing_derived_encrypted_text. Before that they were
+    // plaintext-only, so a sensitive session's derived prose was DISCARDED — which
+    // silently starved every post-hearing recap for a client-linked hearing.
+    // Now it is encrypted and persisted: plaintext column null, ciphertext set.
+    expect(h.entityCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          entityLabel: null,
+          textCiphertext: 'cipher:Sensitive Client Name',
+          // Category and canonical id are not free text and stay queryable.
+          entityType: 'company',
+          entityRef: 'client-1',
+        }),
+      }),
+    );
+    expect(h.actionCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          description: null,
+          textCiphertext: 'cipher:Privately contact the member.',
+        }),
+      }),
+    );
+    expect(h.cardCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          title: null,
+          titleCiphertext: 'cipher:Sensitive client ask',
+          body: null,
+          bodyCiphertext: 'cipher:Do not store this as plaintext.',
+          // cardType stays plaintext: the supporters/opponents split matches on it.
+          cardType: 'potential_ask',
+        }),
+      }),
+    );
     expect(h.keyQuoteCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -399,7 +432,10 @@ describe('SegmentCommitService sensitive storage', () => {
     const h = makeSegmentHarness();
     // The unique (sessionId,startMs,endMs) rejects the duplicate insert.
     h.create.mockRejectedValueOnce(
-      Object.assign(new Prisma.PrismaClientKnownRequestError('dup', { code: 'P2002', clientVersion: 'test' }), {}),
+      Object.assign(
+        new Prisma.PrismaClientKnownRequestError('dup', { code: 'P2002', clientVersion: 'test' }),
+        {},
+      ),
     );
     h.findFirst.mockResolvedValueOnce({ id: 'segment-existing' });
     const svc = new SegmentCommitService(h.prisma, cryptoHarness(true));
@@ -502,9 +538,7 @@ describe('persisted transcript reads', () => {
   it('never loads an unbounded page even when the client asks for one', async () => {
     const h = makeTranscriptHarness(2);
     await h.svc.transcript('tenant-1', 'session-1', { offset: -5, limit: 100_000 });
-    expect(h.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ skip: 0, take: 501 }),
-    );
+    expect(h.findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 0, take: 501 }));
   });
 
   it('authorizes the transcript endpoint through the private-session boundary', async () => {
@@ -533,7 +567,9 @@ describe('persisted transcript reads', () => {
   it('passes only sane pagination values from the query string to the service', async () => {
     const transcript = jest.fn(async () => ({ items: [], hasMore: false, nextOffset: null }));
     const controller = new HearingController(
-      { getAccessible: jest.fn(async () => ({ id: 'session-1' })) } as unknown as HearingSessionService,
+      {
+        getAccessible: jest.fn(async () => ({ id: 'session-1' })),
+      } as unknown as HearingSessionService,
       { transcript } as unknown as PostHearingService,
       {} as HearingBriefService,
       {} as StreamResolverService,
