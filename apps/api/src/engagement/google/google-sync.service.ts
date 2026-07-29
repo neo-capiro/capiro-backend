@@ -340,7 +340,12 @@ export class GoogleSyncService {
           // sync" banner (and the hidden Sync-now button) that is the reported
           // bug. A PERMANENT failure (revoked scope / forbidden) or a mail-only
           // run still surfaces via markSyncError so the user can act.
-          if (!calendarSynced || isPermanentMailFailure(err)) throw err;
+          // A reset/reclaim is an explicit state-replacement operation. Never
+          // report it successful when the mail leg failed after Calendar happened
+          // to commit: the caller must see the failure and retry the reset rather
+          // than keep an old mail baseline indefinitely. Ordinary scheduled syncs
+          // retain the prior partial-success behavior.
+          if (!calendarSynced || input.reset || isPermanentMailFailure(err)) throw err;
           this.logger.warn(
             `Google mail sync hit a transient failure for connection ${connectionId}; calendar synced OK, keeping connection connected (will retry next cycle): ${
               err instanceof Error ? err.message : err
@@ -379,15 +384,33 @@ export class GoogleSyncService {
   ): Promise<SyncStats> {
     const stats = emptyStats();
     const current = state.calendar ?? {};
-    const useSyncToken = !input.reset && Boolean(current.syncToken);
-    let pageToken: string | null = input.reset ? null : (current.pageToken ?? null);
+    // Older builds persisted `window` even for sync-token pagination and could
+    // also leave the pre-reset syncToken beside a full-window pageToken. That
+    // three-field state is ambiguous: the provider page token cannot safely be
+    // replayed without knowing which parameter set created it. Restarting the
+    // bounded full window is idempotent and is the only fail-closed recovery.
+    const hasAmbiguousLegacyContinuation = Boolean(
+      !input.reset && current.pageToken && current.syncToken && current.window,
+    );
+    if (hasAmbiguousLegacyContinuation) {
+      this.logger.warn(
+        `Google Calendar connection ${connection.id} has an ambiguous legacy continuation; discarding pageToken/syncToken and restarting the full window from page one`,
+      );
+    }
+
+    const useSyncToken =
+      !input.reset && !hasAmbiguousLegacyContinuation && Boolean(current.syncToken);
+    let pageToken: string | null =
+      input.reset || hasAmbiguousLegacyContinuation ? null : (current.pageToken ?? null);
     let syncToken: string | null = null;
 
-    let window: { from: string; to: string };
+    let window: { from: string; to: string } | undefined;
     if (useSyncToken) {
-      // Sync-token path is unchanged: window isn't sent to the API below, but
-      // a fresh value is still computed/persisted exactly as before.
-      window = calendarWindow();
+      // A Calendar page token is bound to the exact request parameter set that
+      // created it. For incremental pagination that set is syncToken+pageToken;
+      // do not persist an unrelated window, because doing so makes the state
+      // indistinguishable from the legacy reset bug above.
+      window = undefined;
     } else if (!input.reset && pageToken && current.window) {
       // Resuming a paginated full-window sync: reuse the EXACT window that
       // produced this pageToken. calendarWindow() computes from "now", so
@@ -455,11 +478,22 @@ export class GoogleSyncService {
     }
 
     stats.hasMore = Boolean(pageToken);
+    // Incremental pagination must retain its established syncToken until the
+    // provider returns a replacement at the end of the page chain. A full-window
+    // reset/backfill must do the opposite: keep syncToken null while pageToken is
+    // outstanding, then install only the replacement token returned on the final
+    // page. Mixing those two contracts is what caused both reset abandonment and
+    // invalid incremental continuation requests.
+    const persistedSyncToken = useSyncToken
+      ? (syncToken ?? current.syncToken ?? null)
+      : pageToken
+        ? null
+        : syncToken;
     state.calendar = {
-      syncToken: syncToken ?? current.syncToken ?? null,
+      syncToken: persistedSyncToken,
       pageToken,
       updatedAt: new Date().toISOString(),
-      window,
+      ...(window ? { window } : {}),
       lastStats: stats,
     };
     return stats;
@@ -617,12 +651,45 @@ export class GoogleSyncService {
     accessToken: string,
     input: { reset?: boolean },
   ): Promise<Record<string, SyncStats>> {
-    const mailState = state.mail ?? {};
+    // Reset means a genuinely new baseline. Reusing the old historyId while a
+    // capped full backfill still has pages left makes the next run jump back to
+    // history.list and abandon the saved messages.list continuation.
+    const mailState: NonNullable<GoogleSyncState['mail']> = input.reset
+      ? {}
+      : {
+          ...(state.mail ?? {}),
+          // Work on a copy so a provider/DB failure cannot partially mutate the
+          // caller's in-memory state before syncConnectionByTenant persists it.
+          labels: state.mail?.labels ? { ...state.mail.labels } : undefined,
+        };
     const results: Record<string, SyncStats> = {};
+    const pendingBackfill = mailState.labels?.[MAIL_BACKFILL_SCOPE];
+    const hasBackfillPageToken = Boolean(pendingBackfill?.backfillPageToken);
+    const hasBackfillContinuation = Boolean(
+      hasBackfillPageToken || pendingBackfill?.backfillDone === false,
+    );
+    if (hasBackfillPageToken && pendingBackfill?.backfillDone === true) {
+      // Fail safe on contradictory legacy/manual state: a provider page token is
+      // concrete unfinished work, so it wins over a stale completion boolean.
+      this.logger.warn(
+        `Gmail connection ${connection.id} has a backfill page token marked complete; treating the page token as authoritative and resuming it`,
+      );
+    }
 
-    // Incremental path: a stored historyId means we've established a baseline;
-    // pull only what changed since. A 404 means the historyId is too old
-    // (Gmail history retention is short) — fall back to a full backfill.
+    if (!input.reset && mailState.historyId && hasBackfillContinuation) {
+      // Recovery for state written by the old reset/reclaim implementation. A
+      // full messages.list page chain is authoritative until it is exhausted;
+      // the stale history baseline must not steal the next run.
+      this.logger.warn(
+        `Gmail connection ${connection.id} has an unfinished full backfill beside a stale historyId; resuming the backfill and discarding the incremental continuation`,
+      );
+      mailState.historyId = null;
+      mailState.incrementalPageToken = null;
+      mailState.incrementalLatestHistoryId = null;
+    }
+
+    // Incremental path: a stored historyId means we've established a baseline,
+    // unless the recovery block above found an unfinished full backfill.
     if (!input.reset && mailState.historyId) {
       try {
         const stats = await this.syncMailIncremental(tenantId, connection, mailState, accessToken);
@@ -653,7 +720,7 @@ export class GoogleSyncService {
     // own backfill (upserts are idempotent).
     const labelStates = input.reset ? {} : (mailState.labels ?? {});
     const current = labelStates[MAIL_BACKFILL_SCOPE] ?? {};
-    if (current.backfillDone && !input.reset) {
+    if (current.backfillDone && !current.backfillPageToken && !input.reset) {
       results[MAIL_BACKFILL_SCOPE] = emptyStats();
     } else {
       const stats = emptyStats();
@@ -726,10 +793,13 @@ export class GoogleSyncService {
     }
 
     const allDone = Boolean(labelStates[MAIL_BACKFILL_SCOPE]?.backfillDone);
-    let historyId = mailState.historyId ?? null;
+    // Never carry a pre-backfill history baseline across an unfinished reset.
+    // Once the page chain is fully exhausted, Gmail's current profile historyId
+    // becomes the only safe incremental baseline.
+    let historyId: string | null = null;
     if (allDone) {
       const profile = await this.gmailProfile(accessToken);
-      historyId = profile.historyId ?? historyId;
+      historyId = profile.historyId ?? null;
     }
 
     state.mail = {

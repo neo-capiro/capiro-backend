@@ -20,7 +20,7 @@ permissions:
 jobs:
   engagement:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -154,6 +154,39 @@ jobs:
         run: >-
           node scripts/assert-test-summary.mjs
           "$GITHUB_WORKSPACE/engagement-api-summary.json" apps/api 13 300
+
+      # The repo-wide PR gate typechecks apps/api but does not run its Jest
+      # suite. Keep the provider cursor/reset/removal/body contracts inside this
+      # existing trust-boundary status so they cannot regress behind a green
+      # typecheck or depend on a separate, easy-to-overlook workflow name.
+      - name: Tests — Google/Microsoft integration correctness
+        id: integration_tests
+        run: >-
+          pnpm --filter @capiro/api exec jest --ci --runInBand --silent
+          --json --outputFile=$GITHUB_WORKSPACE/integration-sync-summary.json
+          src/engagement/google
+          src/engagement/microsoft
+          src/engagement/mail-message-state.spec.ts
+          src/engagement/engagement-mail-threads.spec.ts
+          src/engagement/engagement-integrations.spec.ts
+          src/engagement/generation/evidence-source.service.spec.ts
+          scripts/lib/integration-smoke-state.spec.ts
+
+      - name: Assert integration scope is clean and complete
+        if: always() && steps.integration_tests.outcome != 'skipped'
+        run: >-
+          node scripts/assert-test-summary.mjs
+          "$GITHUB_WORKSPACE/integration-sync-summary.json"
+          integration-sync-correctness 25 248
+
+      - name: Upload integration test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-sync-correctness-summary
+          path: integration-sync-summary.json
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Tests — apps/web Engagement trust boundary
         id: web_tests

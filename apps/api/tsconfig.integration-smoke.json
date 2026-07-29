@@ -1,0 +1,18 @@
+{
+  // Production integration diagnostics live under scripts/, which the primary
+  // apps/api tsconfig intentionally excludes. Keep this narrow config wired to
+  // the package typecheck so the executable smoke command cannot ship with a
+  // syntax/type/import error behind otherwise-green application typechecks.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "scripts/smoke-integrations.ts",
+    "scripts/lib/integration-smoke-state.ts",
+    "scripts/lib/integration-smoke-state.spec.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

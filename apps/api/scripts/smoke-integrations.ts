@@ -26,13 +26,16 @@
  * Requires DATABASE_URL (composed from DB_* secrets in the ECS one-off task).
  */
 import 'dotenv/config';
-import { NestFactory } from '@nestjs/core';
-import { Logger } from '@nestjs/common';
 import { EngagementProvider } from '@prisma/client';
-import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { GOOGLE_SCOPES } from '../src/engagement/google/google-oauth.service.js';
 import { MICROSOFT_SCOPES } from '../src/engagement/microsoft/microsoft-oauth-constants.js';
+import {
+  googleSyncStateFields,
+  googleSyncStateProblems,
+  integrationConnectionProblems,
+  integrationInventoryProblems,
+} from './lib/integration-smoke-state.js';
 
 function flag(name: string): boolean {
   return process.argv.includes(`--${name}`);
@@ -67,47 +70,6 @@ function scopesMatch(actual: string[], canonical: readonly string[] | null): boo
   const a = [...actual].sort();
   const b = [...canonical].sort();
   return a.length === b.length && a.every((s, i) => s === b[i]);
-}
-
-interface GoogleSyncStateFields {
-  mailHistoryId: string | null;
-  mailIncrementalPageToken: string | null;
-  mailIncrementalLatestHistoryId: string | null;
-  mailBackfillPageToken: string | null;
-  mailBackfillQuery: string | null;
-  calendarPageToken: string | null;
-  calendarWindow: { from: string; to: string } | null;
-}
-
-function asString(value: unknown): string | null {
-  return typeof value === 'string' ? value : null;
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-}
-
-/** Diagnostic-only read of the multi-run pagination cursors (remaining-items
- *  plan §3.g1) -- historyId/pageToken/query/window are opaque Gmail/Calendar
- *  sync bookkeeping, never an OAuth credential. */
-function googleSyncStateFields(syncState: unknown): GoogleSyncStateFields {
-  const state = asRecord(syncState);
-  const mail = asRecord(state.mail);
-  const allLabel = asRecord(asRecord(mail.labels).ALL);
-  const calendar = asRecord(state.calendar);
-  const window = asRecord(calendar.window);
-  return {
-    mailHistoryId: asString(mail.historyId),
-    mailIncrementalPageToken: asString(mail.incrementalPageToken),
-    mailIncrementalLatestHistoryId: asString(mail.incrementalLatestHistoryId),
-    mailBackfillPageToken: asString(allLabel.backfillPageToken),
-    mailBackfillQuery: asString(allLabel.backfillQuery),
-    calendarPageToken: asString(calendar.pageToken),
-    calendarWindow:
-      typeof window.from === 'string' && typeof window.to === 'string'
-        ? { from: window.from, to: window.to }
-        : null,
-  };
 }
 
 interface MailRemovalCounts {
@@ -183,10 +145,13 @@ async function main(): Promise<void> {
     process.exit(2);
   }
 
-  const logger = new Logger('smoke-integrations');
-  const app = await NestFactory.createApplicationContext(AppModule, { logger: ['warn', 'error'] });
+  // This diagnostic depends only on PrismaService. Booting the entire Nest
+  // application makes a read-only production check vulnerable to unrelated
+  // module-construction failures and startup side effects. Match the established
+  // one-off-script pattern: open exactly one Prisma client and close it in finally.
+  const prisma = new PrismaService();
+  await prisma.onModuleInit();
   try {
-    const prisma = app.get(PrismaService);
     const tenant = await resolveTenant(prisma);
 
     const connections = await prisma.withTenant(tenant.id, (tx) =>
@@ -204,46 +169,66 @@ async function main(): Promise<void> {
           lastError: true,
           scopes: true,
           syncState: true,
-          // Selected ONLY to compute a presence boolean below -- the
-          // ciphertext itself is never read again after that check, and this
-          // script never calls TokenCryptoService.decrypt.
-          token: { select: { expiresAt: true, refreshTokenCiphertext: true } },
+          // Selected ONLY to prove the encrypted refresh-token envelope is
+          // complete. No envelope value is printed, returned, or decrypted.
+          token: {
+            select: {
+              expiresAt: true,
+              refreshTokenCiphertext: true,
+              refreshTokenIv: true,
+              refreshTokenAuthTag: true,
+            },
+          },
         },
         orderBy: [{ provider: 'asc' }, { createdAt: 'asc' }],
       }),
     );
 
-    logger.log(
+    console.log(
       `tenant ${tenant.slug} (${tenant.id}) -- ${connections.length} Google/Microsoft connection(s)`,
     );
-    if (connections.length === 0) {
-      logger.warn('No Google Workspace or Microsoft 365 connections found for this tenant.');
+    const inventoryProblems = integrationInventoryProblems(connections.length);
+    if (inventoryProblems.length > 0) {
+      for (const problem of inventoryProblems) console.error(`FAILED: ${problem}.`);
+      process.exitCode = 1;
       return;
     }
 
+    let problemCount = 0;
     for (const conn of connections) {
       const canonical = canonicalScopesFor(conn.provider);
       const scopeMatch = scopesMatch(conn.scopes, canonical);
-      const hasRefreshToken = Boolean(conn.token?.refreshTokenCiphertext);
+      const hasRefreshToken = Boolean(
+        conn.token?.refreshTokenCiphertext &&
+          conn.token?.refreshTokenIv &&
+          conn.token?.refreshTokenAuthTag,
+      );
+      const connectionProblems = integrationConnectionProblems({
+        status: conn.status,
+        scopeMatch,
+        hasRefreshToken,
+        lastSyncAtPresent: Boolean(conn.lastSyncAt),
+        lastError: conn.lastError,
+      });
 
-      logger.log('');
-      logger.log(`connection ${conn.id} [${conn.provider}]`);
-      logger.log(`  status:          ${conn.status}`);
-      logger.log(`  accountEmail:    ${conn.accountEmail ?? '(none)'}`);
-      logger.log(`  lastSyncAt:      ${conn.lastSyncAt?.toISOString() ?? 'never'}`);
-      logger.log(`  lastError:       ${conn.lastError ?? '(none)'}`);
-      logger.log(`  scopes:          ${conn.scopes.join(' ') || '(none)'}`);
-      logger.log(`  scopesMatch:     ${scopeMatch}`);
-      logger.log(`  tokenExpiresAt:  ${conn.token?.expiresAt?.toISOString() ?? '(no token row)'}`);
-      logger.log(`  hasRefreshToken: ${hasRefreshToken}`);
+      console.log('');
+      console.log(`connection ${conn.id} [${conn.provider}]`);
+      console.log(`  status:          ${conn.status}`);
+      console.log(`  accountEmail:    ${conn.accountEmail ?? '(none)'}`);
+      console.log(`  lastSyncAt:      ${conn.lastSyncAt?.toISOString() ?? 'never'}`);
+      console.log(`  lastError:       ${conn.lastError ?? '(none)'}`);
+      console.log(`  scopes:          ${conn.scopes.join(' ') || '(none)'}`);
+      console.log(`  scopesMatch:     ${scopeMatch}`);
+      console.log(`  tokenExpiresAt:  ${conn.token?.expiresAt?.toISOString() ?? '(no token row)'}`);
+      console.log(`  hasRefreshToken: ${hasRefreshToken}`);
 
       if (conn.provider === EngagementProvider.microsoft_365) {
         const subscriptions = subscriptionsFrom(conn.syncState);
         if (subscriptions.length === 0) {
-          logger.log('  subscriptions:   (none)');
+          console.log('  subscriptions:   (none)');
         } else {
           for (const sub of subscriptions) {
-            logger.log(
+            console.log(
               `  subscription:    ${sub.id} [${sub.resource}] expires ${sub.expirationDateTime}`,
             );
           }
@@ -252,27 +237,45 @@ async function main(): Promise<void> {
 
       if (conn.provider === EngagementProvider.google_workspace) {
         const sync = googleSyncStateFields(conn.syncState);
-        logger.log(`  mail.historyId:                 ${sync.mailHistoryId ?? '(none)'}`);
-        logger.log(`  mail.incrementalPageToken:      ${sync.mailIncrementalPageToken ?? '(none)'}`);
-        logger.log(`  mail.incrementalLatestHistoryId:${sync.mailIncrementalLatestHistoryId ?? ' (none)'}`);
-        logger.log(`  mail.labels.ALL.backfillPageToken: ${sync.mailBackfillPageToken ?? '(none)'}`);
-        logger.log(`  mail.labels.ALL.backfillQuery:     ${sync.mailBackfillQuery ?? '(none)'}`);
-        logger.log(`  calendar.pageToken:             ${sync.calendarPageToken ?? '(none)'}`);
-        logger.log(
+        console.log(`  mail.historyId:                 ${sync.mailHistoryId ?? '(none)'}`);
+        console.log(`  mail.incrementalPageToken:      ${sync.mailIncrementalPageToken ?? '(none)'}`);
+        console.log(`  mail.incrementalLatestHistoryId:${sync.mailIncrementalLatestHistoryId ?? ' (none)'}`);
+        console.log(`  mail.labels.ALL.backfillPageToken: ${sync.mailBackfillPageToken ?? '(none)'}`);
+        console.log(`  mail.labels.ALL.backfillQuery:     ${sync.mailBackfillQuery ?? '(none)'}`);
+        console.log(`  mail.labels.ALL.backfillDone:      ${sync.mailBackfillDone ?? '(unknown)'}`);
+        console.log(`  calendar.syncTokenPresent:      ${sync.calendarSyncTokenPresent}`);
+        console.log(`  calendar.pageToken:             ${sync.calendarPageToken ?? '(none)'}`);
+        console.log(`  calendar.continuationMode:      ${sync.calendarContinuationMode}`);
+        console.log(
           `  calendar.window:                ${sync.calendarWindow ? `${sync.calendarWindow.from} .. ${sync.calendarWindow.to}` : '(none)'}`,
         );
+        connectionProblems.push(...googleSyncStateProblems(sync));
       }
 
       const removal = await mailRemovalCounts(prisma, tenant.id, conn.id);
-      logger.log(
+      console.log(
         `  mail (active/removed):  ${removal.activeMessages}/${removal.removedMessages}`,
       );
-      logger.log(
+      console.log(
         `  threads (active/all-removed): ${removal.activeThreads}/${removal.allRemovedThreads}`,
       );
+
+      if (connectionProblems.length === 0) {
+        console.log('  health:           healthy');
+      } else {
+        problemCount += connectionProblems.length;
+        for (const problem of connectionProblems) console.error(`  ERROR: ${problem}`);
+      }
+    }
+
+    if (problemCount > 0) {
+      console.error(`\nFAILED: ${problemCount} integration health problem(s) found.`);
+      process.exitCode = 1;
+    } else {
+      console.log('\nPASS: all integration connections satisfy the read-only health checks.');
     }
   } finally {
-    await app.close();
+    await prisma.onModuleDestroy();
   }
 }
 
