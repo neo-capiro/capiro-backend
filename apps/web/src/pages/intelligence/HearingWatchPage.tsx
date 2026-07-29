@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, App as AntApp, Button, Form, Input, List, Modal, Select, Spin, Tag, Typography } from 'antd';
+import {
+  Alert,
+  App as AntApp,
+  Button,
+  Form,
+  Input,
+  List,
+  Modal,
+  Select,
+  Spin,
+  Tag,
+  Typography,
+} from 'antd';
 import { AudioOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useIntelFeatureEnabled } from '../../lib/intel-feature-flags.js';
@@ -217,6 +229,7 @@ const ARCHIVE_PAGE = 50;
 
 /** The schedule: Upcoming|Archive segmented toggle + search over an editorial table. */
 function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
+  const navigate = useNavigate();
   const [when, setWhen] = useState<'upcoming' | 'past'>('upcoming');
   const [q, setQ] = useState('');
   const [archiveOffset, setArchiveOffset] = useState(0);
@@ -302,10 +315,37 @@ function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search hearings…"
-            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, flex: 1 }}
+            style={{
+              border: 'none',
+              outline: 'none',
+              background: 'transparent',
+              fontSize: 12.5,
+              flex: 1,
+            }}
           />
         </div>
       </div>
+
+      {(when === 'upcoming' ? upcoming.isError : archive.isError) ? (
+        <Alert
+          type="error"
+          showIcon
+          message={
+            when === 'upcoming'
+              ? 'Couldn’t load the hearing schedule'
+              : 'Couldn’t load the hearing archive'
+          }
+          description="This is a service error, not an indication that no hearings exist."
+          action={
+            <Button
+              size="small"
+              onClick={() => void (when === 'upcoming' ? upcoming.refetch() : archive.refetch())}
+            >
+              Retry
+            </Button>
+          }
+        />
+      ) : null}
 
       {/* P2-11 (phase b, b-4): overflow-x:auto is the FLOOR — nothing is
           unreachable above 768px even before the card-stacking layout below
@@ -327,6 +367,12 @@ function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
               <tr>
                 <td colSpan={5} style={{ textAlign: 'center', padding: 28 }}>
                   <Spin />
+                </td>
+              </tr>
+            ) : (when === 'upcoming' ? upcoming.isError : archive.isError) ? (
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', padding: 28 }}>
+                  <span className="muted mini">Hearing data is temporarily unavailable.</span>
                 </td>
               </tr>
             ) : rows.length === 0 ? (
@@ -368,6 +414,17 @@ function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
                             {prettyType(r.type)}
                           </span>
                         ) : null}
+                        {(r.watchlistMatchCount ?? 0) > 0 ? (
+                          <span className="chip" style={{ fontSize: 10.5 }}>
+                            {r.watchlistMatchCount} watchlist match
+                            {r.watchlistMatchCount === 1 ? '' : 'es'}
+                          </span>
+                        ) : null}
+                        {r.recapSaved ? (
+                          <span className="chip" style={{ fontSize: 10.5 }}>
+                            Recap saved
+                          </span>
+                        ) : null}
                         {statusLabel ? (
                           <span
                             className="chip"
@@ -396,10 +453,26 @@ function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
                     {/* P2-14: label chosen by CAPABILITY, not tense — "Watch
                         live" no longer appears regardless of source state. */}
                     <td data-label="" style={{ textAlign: 'right' }}>
-                      {capability === 'unavailable' ? (
+                      {r.sessionId ? (
+                        <button
+                          className="btn btn-accent sm"
+                          onClick={() =>
+                            navigate(
+                              `/intelligence/hearing-watch/${encodeURIComponent(r.sessionId!)}`,
+                            )
+                          }
+                        >
+                          <Ic n="play" size={12} />{' '}
+                          {when === 'past' ? 'Open saved session' : 'Open session'}
+                        </button>
+                      ) : capability === 'unavailable' ? (
                         <span
                           className="mini muted"
-                          title={statusLabel ? `${statusLabel} — nothing to watch` : 'Recording unavailable'}
+                          title={
+                            statusLabel
+                              ? `${statusLabel} — nothing to watch`
+                              : 'Recording unavailable'
+                          }
                         >
                           {CAPABILITY_LABEL.unavailable}
                         </span>
@@ -457,6 +530,21 @@ function SessionsView() {
       </div>
     );
   }
+  if (history.isError) {
+    return (
+      <Alert
+        type="error"
+        showIcon
+        message="Couldn’t load My Sessions"
+        description="The session service is temporarily unavailable. Your history has not been erased."
+        action={
+          <Button size="small" onClick={() => void history.refetch()}>
+            Retry
+          </Button>
+        }
+      />
+    );
+  }
   if (sessions.length === 0) {
     return (
       <div className="guide">
@@ -496,6 +584,21 @@ function SessionsView() {
               <div className="t1">{s.title}</div>
               <div className="t2">
                 <span>{s.sourceType}</span>
+                {(s.watchlistMatchCount ?? 0) > 0 ? (
+                  <>
+                    <span>·</span>
+                    <span>
+                      {s.watchlistMatchCount} watchlist match
+                      {s.watchlistMatchCount === 1 ? '' : 'es'}
+                    </span>
+                  </>
+                ) : null}
+                {s.recapSaved ? (
+                  <>
+                    <span>·</span>
+                    <span>recap saved</span>
+                  </>
+                ) : null}
                 {s.startedAt ? (
                   <>
                     <span>·</span>
@@ -507,7 +610,12 @@ function SessionsView() {
             {live ? (
               <span
                 className="chip"
-                style={{ background: 'var(--critical)', color: '#fff', border: 'none', fontSize: 10.5 }}
+                style={{
+                  background: 'var(--critical)',
+                  color: '#fff',
+                  border: 'none',
+                  fontSize: 10.5,
+                }}
               >
                 <span className="dot pulse" style={{ background: '#fff' }} />
                 LIVE
@@ -676,7 +784,8 @@ function NewHearingModal({
             message.info('Pick the matching video below.');
           } else if (normalized.status === 'pending') {
             message.warning(
-              normalized.note ?? 'Scheduled — the stream is not live yet. Try again once it starts.',
+              normalized.note ??
+                'Scheduled — the stream is not live yet. Try again once it starts.',
             );
           } else {
             // unresolvable — always surface the note; the reference link renders
@@ -769,7 +878,9 @@ function NewHearingModal({
                 // way to diagnose why a create failed.
                 const data = (e as { response?: { data?: { message?: string | string[] } } })
                   ?.response?.data;
-                const detail = Array.isArray(data?.message) ? data.message.join('; ') : data?.message;
+                const detail = Array.isArray(data?.message)
+                  ? data.message.join('; ')
+                  : data?.message;
                 message.error(`Could not create session: ${detail ?? (e as Error).message}`);
               },
             },
@@ -825,9 +936,9 @@ function NewHearingModal({
                     <Tag color="orange">IP-bound / short-lived</Tag>
                     <br />
                     <Text type="secondary">
-                      This media URL is short-lived and is not saved with the session. Open
-                      the original source from the Live Hearing Room, play it, and share that
-                      browser tab&apos;s audio to transcribe it.
+                      This media URL is short-lived and is not saved with the session. Open the
+                      original source from the Live Hearing Room, play it, and share that browser
+                      tab&apos;s audio to transcribe it.
                     </Text>
                   </>
                 ) : null}
@@ -919,8 +1030,8 @@ function NewHearingModal({
                     {' — '}
                     if you find a direct <Text code>.m3u8</Text>/MP4 link there, paste it below;
                     otherwise just create the session as-is and use{' '}
-                    <Text strong>&quot;Start transcription&quot;</Text> once you&apos;re in the
-                    room — this link comes with you.
+                    <Text strong>&quot;Start transcription&quot;</Text> once you&apos;re in the room
+                    — this link comes with you.
                   </>
                 ) : null}
               </span>
@@ -933,7 +1044,10 @@ function NewHearingModal({
           label="Hearing title"
           rules={[
             { required: true },
-            { max: HEARING_TITLE_MAX, message: `Title must be ${HEARING_TITLE_MAX} characters or fewer` },
+            {
+              max: HEARING_TITLE_MAX,
+              message: `Title must be ${HEARING_TITLE_MAX} characters or fewer`,
+            },
           ]}
         >
           <Input

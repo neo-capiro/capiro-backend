@@ -5,7 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { LiveHearingSourceType } from '../../generated/prisma-client/index.js';
+import { LiveHearingSourceType, Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   CreateSessionDto,
@@ -19,10 +19,33 @@ const CAPTURE_LEASE_STALE_MS = Number.parseInt(
   10,
 );
 
-const PUBLIC_SOURCE_TYPES = [
-  LiveHearingSourceType.hearing,
-  LiveHearingSourceType.markup,
-] as const;
+const PUBLIC_SOURCE_TYPES = [LiveHearingSourceType.hearing, LiveHearingSourceType.markup] as const;
+
+interface HearingHistoryCursor {
+  t: string;
+  id: string;
+}
+
+function encodeHistoryCursor(row: { createdAt: Date; id: string }): string {
+  return Buffer.from(
+    JSON.stringify({ t: row.createdAt.toISOString(), id: row.id } satisfies HearingHistoryCursor),
+    'utf8',
+  ).toString('base64url');
+}
+
+function decodeHistoryCursor(value?: string): HearingHistoryCursor | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(value, 'base64url').toString('utf8'),
+    ) as HearingHistoryCursor;
+    if (typeof parsed.t !== 'string' || typeof parsed.id !== 'string') return null;
+    const date = new Date(parsed.t);
+    return Number.isNaN(date.getTime()) ? null : parsed;
+  } catch {
+    return null;
+  }
+}
 
 export interface HearingCaptureClaim {
   startedAt: Date;
@@ -184,10 +207,7 @@ export class HearingSessionService {
         where: {
           id: sessionId,
           tenantId,
-          OR: [
-            { sourceType: { in: [...PUBLIC_SOURCE_TYPES] } },
-            { createdBy: userId },
-          ],
+          OR: [{ sourceType: { in: [...PUBLIC_SOURCE_TYPES] } }, { createdBy: userId }],
         },
       }),
     );
@@ -201,10 +221,7 @@ export class HearingSessionService {
       tx.liveHearingSession.findMany({
         where: {
           tenantId,
-          OR: [
-            { sourceType: { in: [...PUBLIC_SOURCE_TYPES] } },
-            { createdBy: userId },
-          ],
+          OR: [{ sourceType: { in: [...PUBLIC_SOURCE_TYPES] } }, { createdBy: userId }],
         },
         orderBy: { createdAt: 'desc' },
         take: 100,
@@ -213,52 +230,84 @@ export class HearingSessionService {
   }
 
   /**
-   * Paginated My Sessions history. The old list endpoint silently stopped at
-   * 100 rows, so a mature workspace could no longer reach older transcripts.
-   * This uses the exact same public-vs-private visibility predicate as list()
-   * and returns a truthful total plus an offset cursor for the web's Load More.
+   * Keyset-paginated My Sessions history. Each row carries the two indicators the
+   * hearing UX promises: watchlist-match count and whether a current recap exists.
    */
-  async listPage(
-    tenantId: string,
-    userId: string,
-    opts?: { offset?: number; limit?: number },
-  ) {
-    const offset = Math.max(0, Math.floor(opts?.offset ?? 0));
+  async listPage(tenantId: string, userId: string, opts?: { cursor?: string; limit?: number }) {
     const limit = Math.min(Math.max(Math.floor(opts?.limit ?? 50), 1), 100);
+    const cursor = decodeHistoryCursor(opts?.cursor);
+    const visibility = {
+      OR: [{ sourceType: { in: [...PUBLIC_SOURCE_TYPES] } }, { createdBy: userId }],
+    };
     const where = {
       tenantId,
-      OR: [
-        { sourceType: { in: [...PUBLIC_SOURCE_TYPES] } },
-        { createdBy: userId },
+      AND: [
+        visibility,
+        ...(cursor
+          ? [
+              {
+                OR: [
+                  { createdAt: { lt: new Date(cursor.t) } },
+                  { createdAt: new Date(cursor.t), id: { lt: cursor.id } },
+                ],
+              },
+            ]
+          : []),
       ],
     };
-    const [items, total] = await this.prisma.withTenant(tenantId, (tx) =>
+    const [rows, total] = await this.prisma.withTenant(tenantId, (tx) =>
       Promise.all([
         tx.liveHearingSession.findMany({
           where,
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-          skip: offset,
-          take: limit,
+          take: limit + 1,
         }),
-        tx.liveHearingSession.count({ where }),
+        tx.liveHearingSession.count({ where: { tenantId, ...visibility } }),
       ]),
     );
-    const nextOffset = offset + items.length;
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const sessionIds = page.map((row) => row.id);
+    const [matchCounts, recapRows] = sessionIds.length
+      ? await this.prisma.withTenant(tenantId, (tx) =>
+          Promise.all([
+            tx.watchlistMatch.groupBy({
+              by: ['sessionId'],
+              where: { tenantId, sessionId: { in: sessionIds } },
+              _count: { _all: true },
+            }),
+            tx.$queryRaw<Array<{ sessionId: string; attachmentId: string }>>(Prisma.sql`
+              SELECT source_entity_id AS "sessionId", id::text AS "attachmentId"
+              FROM engagement_attachments
+              WHERE tenant_id::text = ${tenantId}
+                AND source = 'hearing_recap'
+                AND source_entity_type = 'hearing_session'
+                AND source_entity_id IN (${Prisma.join(sessionIds)})
+                AND superseded_by_attachment_id IS NULL
+                AND lifecycle_status NOT IN ('delete_pending', 'delete_failed', 'blocked')
+            `),
+          ]),
+        )
+      : [[], []];
+    const countBySession = new Map(matchCounts.map((row) => [row.sessionId, row._count._all]));
+    const recapBySession = new Map(recapRows.map((row) => [row.sessionId, row.attachmentId]));
+    const items = page.map((row) => ({
+      ...row,
+      watchlistMatchCount: countBySession.get(row.id) ?? 0,
+      recapSaved: recapBySession.has(row.id),
+      recapAttachmentId: recapBySession.get(row.id) ?? null,
+    }));
+    const last = page[page.length - 1];
     return {
       items,
       total,
-      nextOffset: nextOffset < total ? nextOffset : null,
-      hasMore: nextOffset < total,
+      hasMore,
+      nextCursor: hasMore && last ? encodeHistoryCursor(last) : null,
     };
   }
 
   /** Confirm consent (needs_review -> confirmed). Persists the attestation. */
-  async confirmConsent(
-    tenantId: string,
-    sessionId: string,
-    userId: string,
-    attestation: string,
-  ) {
+  async confirmConsent(tenantId: string, sessionId: string, userId: string, attestation: string) {
     const session = await this.getAccessible(tenantId, sessionId, userId);
     if (session.consentStatus === 'not_required') return session;
     const normalized = attestation.trim();
@@ -305,8 +354,10 @@ export class HearingSessionService {
    */
   async claimCapture(tenantId: string, sessionId: string): Promise<HearingCaptureClaim | null> {
     await this.assertCaptureAllowed(tenantId, sessionId);
-    const rows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRaw<Array<{ started_at: Date }>>`
+    const rows = await this.prisma.withTenant(
+      tenantId,
+      (tx) =>
+        tx.$queryRaw<Array<{ started_at: Date }>>`
         UPDATE intel_live_hearing_session
         SET status = 'paused',
             started_at = now(),
@@ -331,8 +382,10 @@ export class HearingSessionService {
     sessionId: string,
     claimStartedAt: Date,
   ): Promise<boolean> {
-    const rows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRaw<Array<{ id: string }>>`
+    const rows = await this.prisma.withTenant(
+      tenantId,
+      (tx) =>
+        tx.$queryRaw<Array<{ id: string }>>`
         UPDATE intel_live_hearing_session
         SET status = 'live', updated_at = now()
         WHERE id = ${sessionId}
@@ -351,8 +404,10 @@ export class HearingSessionService {
     sessionId: string,
     claimStartedAt: Date,
   ): Promise<boolean> {
-    const rows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRaw<Array<{ id: string }>>`
+    const rows = await this.prisma.withTenant(
+      tenantId,
+      (tx) =>
+        tx.$queryRaw<Array<{ id: string }>>`
         UPDATE intel_live_hearing_session
         SET updated_at = now()
         WHERE id = ${sessionId}
@@ -377,8 +432,10 @@ export class HearingSessionService {
   ): Promise<boolean> {
     const rows =
       outcome === 'failed'
-        ? await this.prisma.withTenant(tenantId, (tx) =>
-            tx.$queryRaw<Array<{ id: string }>>`
+        ? await this.prisma.withTenant(
+            tenantId,
+            (tx) =>
+              tx.$queryRaw<Array<{ id: string }>>`
               UPDATE intel_live_hearing_session
               SET status = 'failed', ended_at = now(), updated_at = now()
               WHERE id = ${sessionId}
@@ -387,8 +444,10 @@ export class HearingSessionService {
               RETURNING id
             `,
           )
-        : await this.prisma.withTenant(tenantId, (tx) =>
-            tx.$queryRaw<Array<{ id: string }>>`
+        : await this.prisma.withTenant(
+            tenantId,
+            (tx) =>
+              tx.$queryRaw<Array<{ id: string }>>`
               UPDATE intel_live_hearing_session
               SET status = 'ended', ended_at = now(), updated_at = now()
               WHERE id = ${sessionId}

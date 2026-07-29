@@ -1,9 +1,4 @@
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from './use-api.js';
 
 export interface LiveHearingSession {
@@ -24,6 +19,9 @@ export interface LiveHearingSession {
   agencyIds?: string[];
   consentStatus?: string | null;
   recordingPolicy?: string | null;
+  watchlistMatchCount?: number;
+  recapSaved?: boolean;
+  recapAttachmentId?: string | null;
 }
 
 /** A directly-embeddable media URL (HLS/MP4/audio) vs. an event/committee page.
@@ -54,7 +52,10 @@ export function isMediaUrl(u?: string | null): boolean {
  */
 export function mediaKindOf(u?: string | null): 'hls' | 'video' | 'audio' | 'unknown' {
   if (!u) return 'unknown';
-  if (/\.(m3u8|m3u|ts)(\?|#|$)/i.test(u) || /(?:^|[/._-])(?:manifest|playlist)(?:[/._-]|$)/i.test(u)) {
+  if (
+    /\.(m3u8|m3u|ts)(\?|#|$)/i.test(u) ||
+    /(?:^|[/._-])(?:manifest|playlist)(?:[/._-]|$)/i.test(u)
+  ) {
     return 'hls';
   }
   if (/\.mp4(\?|#|$)/i.test(u)) return 'video';
@@ -72,12 +73,16 @@ export interface UpcomingHearing {
   type?: string | null;
   url?: string | null;
   location?: string | null;
+  sessionId?: string | null;
+  sessionStatus?: string | null;
+  watchlistMatchCount?: number;
+  recapSaved?: boolean;
 }
 
 export interface HearingSessionHistoryPage {
   items: LiveHearingSession[];
   total: number;
-  nextOffset: number | null;
+  nextCursor: string | null;
   hasMore: boolean;
 }
 
@@ -86,16 +91,15 @@ export function useHearingSessionHistory() {
   const api = useApi();
   return useInfiniteQuery<HearingSessionHistoryPage>({
     queryKey: ['intel', 'hearings', 'history'],
-    initialPageParam: 0,
+    initialPageParam: null as string | null,
     queryFn: async ({ pageParam }) => {
-      const offset = Number(pageParam ?? 0);
+      const q = new URLSearchParams({ limit: '50' });
+      if (typeof pageParam === 'string' && pageParam) q.set('cursor', pageParam);
       return (
-        await api.get<HearingSessionHistoryPage>(
-          `/intel-api/hearings/history?offset=${offset}&limit=50`,
-        )
+        await api.get<HearingSessionHistoryPage>(`/intel-api/hearings/history?${q.toString()}`)
       ).data;
     },
-    getNextPageParam: (last) => (last.hasMore ? last.nextOffset ?? undefined : undefined),
+    getNextPageParam: (last) => (last.hasMore ? (last.nextCursor ?? undefined) : undefined),
     retry: false,
     staleTime: 15_000,
   });
@@ -207,7 +211,7 @@ export function useHearingTranscript(id: string) {
       ).data;
     },
     initialPageParam: 0,
-    getNextPageParam: (last) => (last.hasMore ? last.nextOffset ?? undefined : undefined),
+    getNextPageParam: (last) => (last.hasMore ? (last.nextOffset ?? undefined) : undefined),
     enabled: Boolean(id),
     retry: false,
   });
@@ -391,8 +395,11 @@ export function useGenerateBrief() {
   const api = useApi();
   return useMutation({
     mutationFn: async (sessionId: string) =>
-      (await api.get<HearingBrief | null>(`/intel-api/hearings/${encodeURIComponent(sessionId)}/brief`))
-        .data,
+      (
+        await api.get<HearingBrief | null>(
+          `/intel-api/hearings/${encodeURIComponent(sessionId)}/brief`,
+        )
+      ).data,
   });
 }
 
@@ -408,13 +415,49 @@ export function useGenerateBrief() {
  * rejected before reaching any handler. A recap is not an alert memo and carries
  * none of its governance, so it gets its own session-shaped contract.
  */
+export interface SavedHearingRecap {
+  id: string;
+  fileName: string;
+  indexedAt: string | null;
+  createdAt: string;
+  sessionId: string | null;
+  sessionTitle: string | null;
+  sourceType: string | null;
+}
+
+export interface SavedHearingRecapPage {
+  items: SavedHearingRecap[];
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+export function useSavedHearingRecaps(clientId: string) {
+  const api = useApi();
+  return useInfiniteQuery<SavedHearingRecapPage>({
+    queryKey: ['intel', 'hearing-recaps', clientId],
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) => {
+      const q = new URLSearchParams({ limit: '25' });
+      if (typeof pageParam === 'string' && pageParam) q.set('cursor', pageParam);
+      return (
+        await api.get<SavedHearingRecapPage>(
+          `/api/intelligence/clients/${encodeURIComponent(clientId)}/hearing-recaps?${q.toString()}`,
+        )
+      ).data;
+    },
+    getNextPageParam: (last) => (last.hasMore ? (last.nextCursor ?? undefined) : undefined),
+    enabled: Boolean(clientId),
+    retry: false,
+  });
+}
+
 export function useSaveRecap() {
   const api = useApi();
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: {
       sessionId: string;
       clientId: string;
-      clientName: string;
       title: string;
       markdown: string;
       replaceAttachmentId?: string;
@@ -422,15 +465,21 @@ export function useSaveRecap() {
       (
         await api.post<{
           sessionId: string;
+          reused: boolean;
           document: { attachmentId: string; fileName: string };
           title: string;
         }>(`/api/intelligence/clients/${encodeURIComponent(input.clientId)}/hearing-recaps`, {
           sessionId: input.sessionId,
           title: input.title.slice(0, 300),
           markdown: input.markdown,
-          clientName: input.clientName,
           replaceAttachmentId: input.replaceAttachmentId,
         })
       ).data,
+    onSuccess: (_result, input) => {
+      void qc.invalidateQueries({ queryKey: ['intel', 'hearing-recaps', input.clientId] });
+      void qc.invalidateQueries({ queryKey: ['intel', 'hearings', 'history'] });
+      void qc.invalidateQueries({ queryKey: ['intel', 'upcoming-hearings'] });
+      void qc.invalidateQueries({ queryKey: ['intel', 'browse-hearings'] });
+    },
   });
 }

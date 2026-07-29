@@ -16,6 +16,8 @@ export interface MeResponse {
     hasEmailSignature: boolean;
     /** Onboarding v1 (Flow 2B.4): the first-login tour was finished/skipped. */
     tourCompleted: boolean;
+    /** LegiWatch orientation was dismissed by this user on any device. */
+    legiwatchIntroSeen: boolean;
   };
   tenant: { id: string; slug: string; name: string };
   role: TenantRole;

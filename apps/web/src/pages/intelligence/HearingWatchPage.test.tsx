@@ -110,22 +110,26 @@ describe('HearingWatchPage — New Hearing modal (P8)', () => {
     await waitFor(() => expect((urlInput as HTMLInputElement).value).toContain('master.m3u8'));
   }, 15000);
 
-  test('My Sessions pages past the former 100-row cap', async () => {
+  test('My Sessions pages past the former 100-row cap with a stable cursor', async () => {
     apiGetMock.mockImplementation(async (url: string) => {
       if (url.startsWith('/intel-api/hearings/history')) {
-        const second = url.includes('offset=50');
+        const second = url.includes('cursor=cursor-50');
         return {
           data: second
             ? {
-                items: [{ id: 's2', title: 'Older session', status: 'ended', sourceType: 'hearing' }],
+                items: [
+                  { id: 's2', title: 'Older session', status: 'ended', sourceType: 'hearing' },
+                ],
                 total: 51,
-                nextOffset: null,
+                nextCursor: null,
                 hasMore: false,
               }
             : {
-                items: [{ id: 's1', title: 'Newest session', status: 'ended', sourceType: 'markup' }],
+                items: [
+                  { id: 's1', title: 'Newest session', status: 'ended', sourceType: 'markup' },
+                ],
                 total: 51,
-                nextOffset: 50,
+                nextCursor: 'cursor-50',
                 hasMore: true,
               },
         };
@@ -148,7 +152,7 @@ describe('HearingWatchPage — New Hearing modal (P8)', () => {
     expect(screen.getByText(/Showing 2 of 51 sessions/i)).toBeInTheDocument();
     expect(
       apiGetMock.mock.calls.some((args: unknown[]) =>
-        String(args[0]).includes('/intel-api/hearings/history?offset=50&limit=50'),
+        String(args[0]).includes('/intel-api/hearings/history?limit=50&cursor=cursor-50'),
       ),
     ).toBe(true);
   }, 15000);
@@ -215,7 +219,9 @@ describe('HearingWatchPage — New Hearing modal (P8)', () => {
         };
       }
       if (url === '/intel-api/hearings') {
-        return { data: { id: 's1', title: 'Test hearing', status: 'created', sourceType: 'hearing' } };
+        return {
+          data: { id: 's1', title: 'Test hearing', status: 'created', sourceType: 'hearing' },
+        };
       }
       return { data: {} };
     });

@@ -101,16 +101,19 @@ describe('useSaveRecap', () => {
   beforeEach(() => {
     apiPost.mockReset();
     apiPost.mockResolvedValue({
-      data: { sessionId: 'session-1', title: 'r', document: { attachmentId: 'att-1', fileName: 'r.docx' } },
+      data: {
+        sessionId: 'session-1',
+        title: 'r',
+        document: { attachmentId: 'att-1', fileName: 'r.docx' },
+      },
     });
   });
 
-  test('files a recap through the dedicated hearing-recap endpoint, not alert-memo/save', async () => {
+  test('files a recap through the dedicated hearing-recap endpoint without a browser-owned client name', async () => {
     const { result } = renderHook(() => useSaveRecap(), { wrapper: withQueryClient() });
     result.current.mutate({
       sessionId: 'session-1',
       clientId: 'client-9',
-      clientName: 'Acme Defense',
       title: 'Hearing recap — Armed Services',
       markdown: '# recap',
     });
@@ -121,9 +124,12 @@ describe('useSaveRecap', () => {
     // every hearing recap sent there was rejected by the global ValidationPipe.
     expect(url).toBe('/api/intelligence/clients/client-9/hearing-recaps');
     expect(url).not.toContain('alert-memo');
-    expect(body).toEqual(
-      expect.objectContaining({ sessionId: 'session-1', clientName: 'Acme Defense', markdown: '# recap' }),
-    );
+    expect(body).toEqual({
+      sessionId: 'session-1',
+      title: 'Hearing recap — Armed Services',
+      markdown: '# recap',
+    });
+    expect(body).not.toHaveProperty('clientName');
   });
 });
 
@@ -135,8 +141,20 @@ describe('useHearingTranscript', () => {
   test('reads a bounded page of persisted transcript and follows nextOffset', async () => {
     apiGet.mockImplementation(async (url: string) =>
       url.includes('offset=0')
-        ? { data: { items: [{ id: 'a', startMs: 0, endMs: 1, text: 'one' }], nextOffset: 500, hasMore: true } }
-        : { data: { items: [{ id: 'b', startMs: 2, endMs: 3, text: 'two' }], nextOffset: null, hasMore: false } },
+        ? {
+            data: {
+              items: [{ id: 'a', startMs: 0, endMs: 1, text: 'one' }],
+              nextOffset: 500,
+              hasMore: true,
+            },
+          }
+        : {
+            data: {
+              items: [{ id: 'b', startMs: 2, endMs: 3, text: 'two' }],
+              nextOffset: null,
+              hasMore: false,
+            },
+          },
     );
 
     const { result } = renderHook(() => useHearingTranscript('session-1'), {

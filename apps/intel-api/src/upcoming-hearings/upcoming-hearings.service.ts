@@ -1,4 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { LiveHearingSourceType, Prisma } from '../../generated/prisma-client/index.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import {
   SourceDataRepository,
   type UpcomingCommitteeHearing,
@@ -9,68 +11,65 @@ export interface UpcomingHearing {
   title: string;
   committee: string;
   chamber: string;
-  scheduledAt: string; // date-only ISO 'YYYY-MM-DD' (committee_hearing.date has no time)
-  time?: string | null; // display string, e.g. "10:00 AM"
-  type?: string | null; // hearing, markup, meeting
+  scheduledAt: string;
+  time?: string | null;
+  type?: string | null;
   location?: string | null;
   url?: string | null;
+  sessionId?: string | null;
+  sessionStatus?: string | null;
+  watchlistMatchCount: number;
+  recapSaved: boolean;
 }
 
-/**
- * Upcoming public hearings feed (H-C). Reads the ENRICHED, forward-looking
- * committee-meeting schedule from the GLOBAL `committee_hearing` table
- * (populated daily by apps/api `sync-hearings`, cron 06:45 UTC) via the
- * read-only SourceDataRepository.
- *
- * Why not fetch Congress.gov directly: the v3 `committee-meeting` LIST endpoint
- * is minimal (eventId, chamber, url only) — it carries NO title/committee/date.
- * The prior implementation read those absent fields off the list stub, so every
- * row collapsed to title="Committee meeting", committee="Committee",
- * scheduledAt=now(). Real values require a per-meeting detail fan-out, which
- * apps/api already does daily and stores here. Sourcing from `committee_hearing`
- * gives distinct, accurate rows and drops the CONGRESS_API_KEY dependency for
- * this feed.
- *
- * Results are cached in-process for 15 minutes; the schedule changes slowly.
- */
+type BaseHearing = Omit<
+  UpcomingHearing,
+  'sessionId' | 'sessionStatus' | 'watchlistMatchCount' | 'recapSaved'
+>;
+
+const PUBLIC_SOURCE_TYPES = [LiveHearingSourceType.hearing, LiveHearingSourceType.markup] as const;
+
 @Injectable()
 export class UpcomingHearingsService {
   private readonly logger = new Logger(UpcomingHearingsService.name);
-  private cache: { at: number; data: UpcomingHearing[] } | null = null;
+  private cache: { at: number; data: BaseHearing[] } | null = null;
   private readonly ttlMs = 15 * 60 * 1000;
   private readonly limit = 50;
 
-  constructor(private readonly source: SourceDataRepository) {}
+  constructor(
+    private readonly source: SourceDataRepository,
+    private readonly prisma: PrismaService,
+  ) {}
 
-  async list(): Promise<UpcomingHearing[]> {
+  async list(tenantId: string, userId: string): Promise<UpcomingHearing[]> {
+    let data: BaseHearing[];
     if (this.cache && Date.now() - this.cache.at < this.ttlMs) {
-      return this.cache.data;
+      data = this.cache.data;
+    } else {
+      try {
+        data = (await this.source.getUpcomingCommitteeHearings(this.limit)).map(toUpcoming);
+        this.cache = { at: Date.now(), data };
+      } catch (err) {
+        this.logger.error(`upcoming hearings read failed: ${(err as Error).message}`);
+        if (!this.cache)
+          throw new ServiceUnavailableException('Hearing schedule is temporarily unavailable');
+        data = this.cache.data;
+      }
     }
-    try {
-      const rows = await this.source.getUpcomingCommitteeHearings(this.limit);
-      const data = rows.map((r) => toUpcoming(r));
-      this.cache = { at: Date.now(), data };
-      return data;
-    } catch (err) {
-      this.logger.error(`upcoming hearings read failed: ${(err as Error).message}`);
-      // Serve stale cache if present, else empty (UI shows a graceful empty state).
-      return this.cache?.data ?? [];
-    }
+    return this.decorate(tenantId, userId, data);
   }
 
-  /**
-   * Browse ALL available hearings (past + upcoming), searchable/filterable/paged.
-   * The Upcoming feed shows only the forward window (few rows during a recess);
-   * this exposes the full enriched corpus so nothing is hidden. Not cached — it's
-   * parameterized and paged.
-   */
-  async browse(opts: {
-    search?: string | null;
-    chamber?: string | null;
-    scope?: string | null;
-    limit?: number;
-    offset?: number;
-  }): Promise<{ items: UpcomingHearing[]; total: number }> {
+  async browse(
+    tenantId: string,
+    userId: string,
+    opts: {
+      search?: string | null;
+      chamber?: string | null;
+      scope?: string | null;
+      limit?: number;
+      offset?: number;
+    },
+  ): Promise<{ items: UpcomingHearing[]; total: number }> {
     const scope = opts.scope === 'past' || opts.scope === 'all' ? opts.scope : 'upcoming';
     const limit = clamp(opts.limit ?? 25, 1, 100);
     const offset = Math.max(0, opts.offset ?? 0);
@@ -82,11 +81,71 @@ export class UpcomingHearingsService {
         limit,
         offset,
       });
-      return { items: rows.map((r) => toUpcoming(r)), total };
+      return { items: await this.decorate(tenantId, userId, rows.map(toUpcoming)), total };
     } catch (err) {
       this.logger.error(`hearings browse failed: ${(err as Error).message}`);
-      return { items: [], total: 0 };
+      throw new ServiceUnavailableException('Hearing archive is temporarily unavailable');
     }
+  }
+
+  private async decorate(
+    tenantId: string,
+    userId: string,
+    hearings: BaseHearing[],
+  ): Promise<UpcomingHearing[]> {
+    const hearingIds = hearings.map((row) => row.id);
+    if (!hearingIds.length) return [];
+    const sessions = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.liveHearingSession.findMany({
+        where: {
+          tenantId,
+          hearingId: { in: hearingIds },
+          OR: [{ sourceType: { in: [...PUBLIC_SOURCE_TYPES] } }, { createdBy: userId }],
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: { id: true, hearingId: true, status: true, createdAt: true },
+      }),
+    );
+    const latestByHearing = new Map<string, (typeof sessions)[number]>();
+    for (const session of sessions) {
+      if (session.hearingId && !latestByHearing.has(session.hearingId)) {
+        latestByHearing.set(session.hearingId, session);
+      }
+    }
+    const sessionIds = [...latestByHearing.values()].map((row) => row.id);
+    const [matchCounts, recapRows] = sessionIds.length
+      ? await this.prisma.withTenant(tenantId, (tx) =>
+          Promise.all([
+            tx.watchlistMatch.groupBy({
+              by: ['sessionId'],
+              where: { tenantId, sessionId: { in: sessionIds } },
+              _count: { _all: true },
+            }),
+            tx.$queryRaw<Array<{ sessionId: string }>>(Prisma.sql`
+              SELECT DISTINCT source_entity_id AS "sessionId"
+              FROM engagement_attachments
+              WHERE tenant_id::text = ${tenantId}
+                AND source = 'hearing_recap'
+                AND source_entity_type = 'hearing_session'
+                AND source_entity_id IN (${Prisma.join(sessionIds)})
+                AND superseded_by_attachment_id IS NULL
+                AND lifecycle_status NOT IN ('delete_pending', 'delete_failed', 'blocked')
+            `),
+          ]),
+        )
+      : [[], []];
+    const countBySession = new Map(matchCounts.map((row) => [row.sessionId, row._count._all]));
+    const recapSessions = new Set(recapRows.map((row) => row.sessionId));
+    return hearings.map((row) => {
+      const session = latestByHearing.get(row.id);
+      return {
+        ...row,
+        sessionId: session?.id ?? null,
+        sessionStatus: session?.status ?? null,
+        watchlistMatchCount: session ? (countBySession.get(session.id) ?? 0) : 0,
+        recapSaved: session ? recapSessions.has(session.id) : false,
+      };
+    });
   }
 }
 
@@ -94,7 +153,7 @@ function clamp(n: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, Math.trunc(n) || lo));
 }
 
-function toUpcoming(r: UpcomingCommitteeHearing): UpcomingHearing {
+function toUpcoming(r: UpcomingCommitteeHearing): BaseHearing {
   return {
     id: r.id,
     title: robustTitle(r),
@@ -108,15 +167,10 @@ function toUpcoming(r: UpcomingCommitteeHearing): UpcomingHearing {
   };
 }
 
-/** committee_hearing.date is a DATE (UTC midnight); render as 'YYYY-MM-DD' so the
- *  client formats a plain date without a spurious/timezone-shifted midnight time. */
 function dateOnly(d: Date): string {
   return d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
 }
 
-/** Generic single-label titles Congress.gov sometimes returns instead of a real
- *  subject (e.g. a bare "HEARING" or "Business Meeting"). These carry no signal
- *  and read as "named the same" across rows, so we treat them as placeholders. */
 const GENERIC_TITLES = new Set([
   '(untitled)',
   'hearing',
@@ -134,11 +188,6 @@ const GENERIC_TITLES = new Set([
   'organizational meeting',
 ]);
 
-/** Build a distinctive title. sync-hearings stores '(untitled)' for meetings with
- *  no title and may prefix a non-scheduled status like '[Postponed]'. When the
- *  body is missing or a generic single-label placeholder, synthesize
- *  "<Type>: <Committee>" so rows never collapse to an identical generic label.
- *  Any status prefix is preserved. */
 function robustTitle(r: UpcomingCommitteeHearing): string {
   const raw = (r.title ?? '').trim();
   const statusMatch = raw.match(/^(\[[^\]]+\]\s*)/);

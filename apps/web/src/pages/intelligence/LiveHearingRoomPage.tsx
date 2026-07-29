@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import Hls from 'hls.js';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   App as AntApp,
   Alert,
@@ -139,7 +140,13 @@ function HlsPlayer({ src }: { src: string }) {
       controls
       playsInline
       onError={() => setUnavailable(true)}
-      style={{ width: '100%', maxHeight: 320, background: '#000', borderRadius: 8, display: 'block' }}
+      style={{
+        width: '100%',
+        maxHeight: 320,
+        background: '#000',
+        borderRadius: 8,
+        display: 'block',
+      }}
     />
   );
 }
@@ -157,7 +164,13 @@ function MediaPlayer({ src }: { src: string }) {
       src={src}
       controls
       playsInline
-      style={{ width: '100%', maxHeight: 320, background: '#000', borderRadius: 8, display: 'block' }}
+      style={{
+        width: '100%',
+        maxHeight: 320,
+        background: '#000',
+        borderRadius: 8,
+        display: 'block',
+      }}
     />
   );
 }
@@ -198,6 +211,80 @@ function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMessage: string)
  * appears in BOTH sources renders once, and the sort keeps the reading order
  * deterministic regardless of which source arrived first.
  */
+export function TranscriptList({
+  segments,
+  interim,
+}: {
+  segments: LiveSegment[];
+  interim: string;
+}) {
+  const parentRef = useRef<HTMLDivElement | null>(null);
+  const shouldVirtualize = segments.length > 200;
+  const virtualizer = useVirtualizer({
+    count: segments.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 52,
+    overscan: 12,
+    enabled: shouldVirtualize,
+  });
+  const endRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [segments.length, interim]);
+  const renderSegment = (s: LiveSegment) => (
+    <Paragraph key={s.id || `${s.startMs}:${s.endMs}`} style={{ marginBottom: 8 }}>
+      {(s.resolvedSpeakerName || s.speakerLabel) && (
+        <Text strong>{s.resolvedSpeakerName ?? s.speakerLabel}: </Text>
+      )}
+      <Text>{s.text}</Text>{' '}
+      <Text type="secondary" style={{ fontSize: 11 }}>
+        [{Math.floor(s.startMs / 1000)}s]
+      </Text>
+    </Paragraph>
+  );
+  return (
+    <div
+      ref={parentRef}
+      style={{ maxHeight: 560, overflowY: 'auto' }}
+      tabIndex={0}
+      role="log"
+      aria-label="Hearing transcript"
+    >
+      {shouldVirtualize ? (
+        <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+          {virtualizer.getVirtualItems().map((item) => (
+            <div
+              key={
+                segments[item.index]!.id ||
+                `${segments[item.index]!.startMs}:${segments[item.index]!.endMs}`
+              }
+              ref={virtualizer.measureElement}
+              data-index={item.index}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${item.start}px)`,
+              }}
+            >
+              {renderSegment(segments[item.index]!)}
+            </div>
+          ))}
+        </div>
+      ) : (
+        segments.map(renderSegment)
+      )}
+      {interim ? (
+        <Paragraph style={{ marginBottom: 8, opacity: 0.6 }}>
+          <Text italic>{interim}</Text>
+        </Paragraph>
+      ) : null}
+      <div ref={endRef} />
+    </div>
+  );
+}
+
 function mergeSegments(persisted: HearingTranscriptItem[], live: LiveSegment[]): LiveSegment[] {
   const map = new Map<string, LiveSegment>();
   for (const s of persisted) map.set(s.id || `${s.startMs}:${s.endMs}`, s);
@@ -242,10 +329,11 @@ export function LiveHearingRoomPage() {
   const displayStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const sendChainRef = useRef<Promise<void>>(Promise.resolve());
-  const captureReadyRef = useRef<{ resolve: () => void; reject: (err: Error) => void } | null>(null);
+  const captureReadyRef = useRef<{ resolve: () => void; reject: (err: Error) => void } | null>(
+    null,
+  );
   const serverEndedRef = useRef<{ resolve: () => void } | null>(null);
   const stoppingRef = useRef(false);
-  const transcriptEndRef = useRef<HTMLDivElement | null>(null);
 
   const persistedSegments = useMemo(
     () => transcript.data?.pages.flatMap((p) => p.items) ?? [],
@@ -380,7 +468,9 @@ export function LiveHearingRoomPage() {
       ws.onclose = () => {
         if (wsRef.current !== ws) return;
         wsRef.current = null;
-        captureReadyRef.current?.reject(new Error('Connection closed before capture became ready.'));
+        captureReadyRef.current?.reject(
+          new Error('Connection closed before capture became ready.'),
+        );
         captureReadyRef.current = null;
         cleanupCaptureTracks();
         if (phaseRef.current !== 'ended' && phaseRef.current !== 'stopping') {
@@ -537,7 +627,9 @@ export function LiveHearingRoomPage() {
           if (phaseRef.current === 'ended') return;
           if (!ws || ws.readyState !== WebSocket.OPEN) return;
           if (ws.bufferedAmount > MAX_WS_BUFFERED_BYTES) {
-            throw new Error('Network upload is falling behind. The capture was stopped to prevent data loss.');
+            throw new Error(
+              'Network upload is falling behind. The capture was stopped to prevent data loss.',
+            );
           }
           const buffer = await event.data.arrayBuffer();
           ws.send(buffer);
@@ -574,10 +666,6 @@ export function LiveHearingRoomPage() {
   }, [cleanupCaptureTracks, disconnectSocket, endSession, setPhaseNow]);
 
   useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [segments.length, interim]);
-
-  useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!['requesting_share', 'preparing', 'capturing', 'stopping'].includes(phaseRef.current)) {
         return;
@@ -601,7 +689,9 @@ export function LiveHearingRoomPage() {
 
   const goBack = useCallback(async () => {
     if (captureActive) {
-      const confirmed = window.confirm('Leaving will end this live hearing transcription. Continue?');
+      const confirmed = window.confirm(
+        'Leaving will end this live hearing transcription. Continue?',
+      );
       if (!confirmed) return;
       await endSession();
     } else {
@@ -718,7 +808,8 @@ export function LiveHearingRoomPage() {
             <>
               <MediaPlayer src={embeddableUrl} />
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-                Press play, connect, then start transcription and choose <Text strong>This tab</Text>.
+                Press play, connect, then start transcription and choose{' '}
+                <Text strong>This tab</Text>.
               </Text>
             </>
           ) : youtubeVideoId ? (
@@ -740,7 +831,8 @@ export function LiveHearingRoomPage() {
                 />
               </div>
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-                Press play, connect, then start transcription and choose <Text strong>This tab</Text>.
+                Press play, connect, then start transcription and choose{' '}
+                <Text strong>This tab</Text>.
               </Text>
             </>
           ) : (
@@ -775,7 +867,8 @@ export function LiveHearingRoomPage() {
             </span>
           </Tooltip>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            Choose the browser tab playing the hearing and enable Share tab audio. Chrome or Edge is required.
+            Choose the browser tab playing the hearing and enable Share tab audio. Chrome or Edge is
+            required.
           </Text>
           {statusText && <Badge status="processing" text={statusText} />}
           <Text type="secondary" style={{ fontSize: 11 }}>
@@ -796,29 +889,12 @@ export function LiveHearingRoomPage() {
           ) : segments.length === 0 && !interim ? (
             <Empty
               description={
-                statusText ?? 'No transcript yet. Connect, play the hearing, and start transcription.'
+                statusText ??
+                'No transcript yet. Connect, play the hearing, and start transcription.'
               }
             />
           ) : (
-            <div style={{ maxHeight: 560, overflowY: 'auto' }}>
-              {segments.map((s) => (
-                <Paragraph key={s.id || `${s.startMs}:${s.endMs}`} style={{ marginBottom: 8 }}>
-                  {(s.resolvedSpeakerName || s.speakerLabel) && (
-                    <Text strong>{s.resolvedSpeakerName ?? s.speakerLabel}: </Text>
-                  )}
-                  <Text>{s.text}</Text>{' '}
-                  <Text type="secondary" style={{ fontSize: 11 }}>
-                    [{Math.floor(s.startMs / 1000)}s]
-                  </Text>
-                </Paragraph>
-              ))}
-              {interim && (
-                <Paragraph style={{ marginBottom: 8, opacity: 0.6 }}>
-                  <Text italic>{interim}</Text>
-                </Paragraph>
-              )}
-              <div ref={transcriptEndRef} />
-            </div>
+            <TranscriptList segments={segments} interim={interim} />
           )}
           {transcript.hasNextPage && (
             <Button
@@ -910,7 +986,6 @@ function SaveRecapModal({
       {
         sessionId,
         clientId,
-        clientName,
         title: `Hearing recap — ${sessionTitle}`,
         markdown: briefToMarkdown(brief),
       },
@@ -924,7 +999,7 @@ function SaveRecapModal({
             ?.data?.message;
           message.error(
             `Could not save recap: ${
-              Array.isArray(detail) ? detail.join('; ') : detail ?? (e as Error).message
+              Array.isArray(detail) ? detail.join('; ') : (detail ?? (e as Error).message)
             }`,
           );
         },

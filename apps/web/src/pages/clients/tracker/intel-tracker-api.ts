@@ -36,7 +36,8 @@ const enc = encodeURIComponent;
 function boardQueryString(cursor?: string, filters?: BoardFilters): string {
   const params = new URLSearchParams();
   if (cursor) params.set('cursor', cursor);
-  if (filters?.changedWithinDays) params.set('changedWithinDays', String(filters.changedWithinDays));
+  if (filters?.changedWithinDays)
+    params.set('changedWithinDays', String(filters.changedWithinDays));
   if (filters?.activeOnly) params.set('activeOnly', 'true');
   for (const s of filters?.stages ?? []) params.append('stages', s);
   for (const c of filters?.clientIds ?? []) params.append('clientIds', c);
@@ -49,6 +50,8 @@ export const intelTrackerPaths = {
     `/intel-api/clients/${enc(c)}/tracker/board${boardQueryString(cursor, filters)}`,
   // Tab-badge counts (ClientProfilePage) — legacy-identical `{ boardCount, unread }`, no adapter.
   summary: (c: string) => `/intel-api/clients/${enc(c)}/tracker/summary`,
+  trackedStatus: (c: string, billId: string) =>
+    `/intel-api/clients/${enc(c)}/tracker/bills/${enc(billId)}/status`,
   recommendations: (c: string) => `/intel-api/clients/${enc(c)}/recommendations`,
   track: (c: string) => `/intel-api/clients/${enc(c)}/tracker/track`,
   untrack: (c: string) => `/intel-api/clients/${enc(c)}/tracker/untrack`,
@@ -231,7 +234,8 @@ export function adaptBoard(b: IntelBoard): BoardResponse {
       matchedHighPriorityTopics: c.matchedHighPriorityTopics ?? [],
       matchedPosition: c.matchedPosition ?? null,
       isManual: true as const,
-      trackedAt: typeof c.trackedAt === 'string' ? c.trackedAt : new Date(c.trackedAt).toISOString(),
+      trackedAt:
+        typeof c.trackedAt === 'string' ? c.trackedAt : new Date(c.trackedAt).toISOString(),
       unread: Boolean(c.unread),
       change: changeChipToChange(c.changeChip),
       // P2-09: carry the real status + terminal-risk flag to the card.

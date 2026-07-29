@@ -251,7 +251,7 @@ export function BillDrawer({
           >
             {isState ? 'State bill' : 'Bill'}
           </span>
-          {billId && !isTracked && onTrack ? (
+          {billId && isTracked === false && onTrack ? (
             <>
               <span style={{ flex: 1 }} />
               <Button

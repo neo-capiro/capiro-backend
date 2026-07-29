@@ -5,7 +5,11 @@ import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
 import { ActionItemService } from './action-item.service.js';
 import { recommendedActionsFor } from './recommended-actions.util.js';
 import { normalizeEvidence } from './normalize-evidence.js';
-import { AlertWorkStateService, type WorkState, type WorkStateValue } from './alert-work-state.service.js';
+import {
+  AlertWorkStateService,
+  type WorkState,
+  type WorkStateValue,
+} from './alert-work-state.service.js';
 
 /**
  * Combined intel feed (Phase 6 §9.7). Reads `intel_alert` only — evidence is
@@ -49,6 +53,8 @@ export interface FeedQuery {
    * in-memory filter. Pair with sourceTypes:['bill'] for a covering lookup.
    */
   sourceRef?: string;
+  /** Direct alert-id lookup used by email deep links. */
+  alertId?: string;
   /**
    * P2-04 (Gate D e-4): the CURRENT USER, for per-user work-state decoration and
    * the dismissed/snoozed exclusion. Omitted → no work state is loaded and the
@@ -88,13 +94,33 @@ export interface FeedQuery {
 }
 
 /** The work-state filter values getFeed recognises, beyond the stored WorkStateValue set. */
-export const RECOGNISED_WORK_FILTERS = ['all', 'new', 'in_review', 'assigned', 'actioned', 'snoozed', 'dismissed'] as const;
+export const RECOGNISED_WORK_FILTERS = [
+  'all',
+  'new',
+  'in_review',
+  'assigned',
+  'actioned',
+  'snoozed',
+  'dismissed',
+] as const;
 export type WorkFilterValue = (typeof RECOGNISED_WORK_FILTERS)[number];
 
 /** States a positive `id: { in }` lookup covers one-to-one with the filter name. */
-const POSITIVE_STATE_FILTERS: ReadonlySet<string> = new Set(['in_review', 'assigned', 'actioned', 'snoozed', 'dismissed']);
+const POSITIVE_STATE_FILTERS: ReadonlySet<string> = new Set([
+  'in_review',
+  'assigned',
+  'actioned',
+  'snoozed',
+  'dismissed',
+]);
 /** Every state that disqualifies an alert from the 'new' filter (anti-join set). */
-const NOT_NEW_STATES: WorkStateValue[] = ['in_review', 'assigned', 'actioned', 'dismissed', 'snoozed'];
+const NOT_NEW_STATES: WorkStateValue[] = [
+  'in_review',
+  'assigned',
+  'actioned',
+  'dismissed',
+  'snoozed',
+];
 
 interface DateCursor {
   t: string;
@@ -204,6 +230,7 @@ export class FeedService {
       status: { in: statuses },
     };
     if (clientId) baseWhere['clientId'] = clientId;
+    if (q.alertId) baseWhere['id'] = q.alertId;
     if (q.severities?.length) baseWhere['severity'] = { in: q.severities };
     if (q.since || q.until) {
       baseWhere['createdAt'] = {
@@ -248,7 +275,12 @@ export class FeedService {
         // Anti-join: no row for this user, OR an explicit state='new' row.
         // Expired snoozes are NOT excluded here (RB-01 c-2 decision) — an
         // expired snooze is default-visible again, same as every other view.
-        const notNew = await this.workState.alertIdsInState(tenantId, q.userId, clientId ?? null, NOT_NEW_STATES);
+        const notNew = await this.workState.alertIdsInState(
+          tenantId,
+          q.userId,
+          clientId ?? null,
+          NOT_NEW_STATES,
+        );
         if (notNew.length) {
           where['id'] = { notIn: notNew };
           facetWhere['id'] = { notIn: notNew };
@@ -258,9 +290,12 @@ export class FeedService {
         // Always set `id: { in }` even when empty — an empty positive match set
         // must return ZERO rows, never fall through to "no id filter" (which
         // would silently behave like `default` — the exact RB-01 failure mode).
-        const matching = await this.workState.alertIdsInState(tenantId, q.userId, clientId ?? null, [
-          workFilter as WorkStateValue,
-        ]);
+        const matching = await this.workState.alertIdsInState(
+          tenantId,
+          q.userId,
+          clientId ?? null,
+          [workFilter as WorkStateValue],
+        );
         where['id'] = { in: matching };
         facetWhere['id'] = { in: matching };
       }

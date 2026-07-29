@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App as AntApp, Button, Empty, Select, Spin } from 'antd';
@@ -31,12 +31,11 @@ import {
   type IntelWatchlist,
 } from '../clients/tracker/intel-tracker-api.js';
 import type { Client } from '../clients/clientTypes.js';
+import { useMe, type MeResponse } from '../../lib/me.js';
 import './legiwatch.css';
 
 type RadarTab = 'feed' | 'bills' | 'hearings' | 'watchlist';
 const RADAR_TABS: readonly RadarTab[] = ['feed', 'bills', 'hearings', 'watchlist'];
-
-const INTRO_SEEN_KEY = 'legiwatch-intro-seen-v1';
 
 /** Client initials for the calm client chip (.chip.client .cdot). */
 function initials(name: string): string {
@@ -131,6 +130,9 @@ function LegiWatchIntro({ open, onClose }: { open: boolean; onClose: () => void 
  */
 export function RadarPage() {
   const api = useApi();
+  const qc = useQueryClient();
+  const { message } = AntApp.useApp();
+  const meQuery = useMe();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const tabParam = searchParams.get('tab');
@@ -207,24 +209,21 @@ export function RadarPage() {
     (coldStartQuery.data?.issueAreas.length ?? 0) === 0 &&
     (coldStartQuery.data?.tags.length ?? 0) === 0;
 
-  // LegiWatch v2 (L5): one-time, plain-language orientation on first run, plus a
-  // permanent "How it works" control. Seen-state is per-user-per-device
-  // (localStorage) — an intro doesn't warrant a server round-trip.
+  // LegiWatch orientation is a user preference, not a browser-global flag.
   const [showIntro, setShowIntro] = useState(false);
+  const introInitialized = useRef(false);
   useEffect(() => {
-    try {
-      if (!window.localStorage.getItem(INTRO_SEEN_KEY)) setShowIntro(true);
-    } catch {
-      /* private mode / no storage — just don't auto-open */
-    }
-  }, []);
+    if (introInitialized.current || !meQuery.data) return;
+    introInitialized.current = true;
+    if (!meQuery.data.user.legiwatchIntroSeen) setShowIntro(true);
+  }, [meQuery.data]);
   const dismissIntro = () => {
-    try {
-      window.localStorage.setItem(INTRO_SEEN_KEY, '1');
-    } catch {
-      /* ignore */
-    }
     setShowIntro(false);
+    if (meQuery.data?.user.legiwatchIntroSeen) return;
+    void api
+      .patch<MeResponse>('/api/me', { legiwatchIntroSeen: true })
+      .then((response) => qc.setQueryData(['me'], response.data))
+      .catch(() => message.warning('LegiWatch will show the introduction again next time.'));
   };
 
   const clientPicker = (
@@ -259,8 +258,7 @@ export function RadarPage() {
   // to scope down).
   const gateWillShow =
     !selectedClient && (tab === 'watchlist' || (tab === 'bills' && !(trackerReady && trackerV2)));
-  const showHeaderPicker =
-    (tab !== 'hearings' || HEARINGS_IS_CLIENT_FILTERED) && !gateWillShow;
+  const showHeaderPicker = (tab !== 'hearings' || HEARINGS_IS_CLIENT_FILTERED) && !gateWillShow;
 
   const TABS: Array<{ v: RadarTab; label: string; icon: ReactNode }> = [
     { v: 'feed', label: 'Feed', icon: <BellOutlined /> },
@@ -468,20 +466,26 @@ function RadarFeedTab({
   const { enabled: trackerV2, ready: flagsReady } = useIntelFeature('tracker_v2');
   const [drawerBillId, setDrawerBillId] = useState<string | null>(null);
 
-  // Shares trackerKeys.board(clientId) with the Bills tab / profile tab, so the
-  // board is one cached fetch across Radar and stays in sync after a track.
-  const boardQuery = useQuery<BoardResponse>({
-    queryKey: trackerKeys.board(clientId),
-    queryFn: async () =>
-      trackerV2
-        ? adaptBoard((await api.get<IntelBoard>(intelTrackerPaths.board(clientId))).data)
-        : (await api.get<BoardResponse>(trackerPaths.board(clientId))).data,
-    enabled: flagsReady,
+  const trackedStatus = useQuery<{ tracked: boolean }>({
+    queryKey: ['tracked-status', trackerV2 ? 'intel' : 'legacy', clientId, drawerBillId],
+    queryFn: async () => {
+      if (trackerV2) {
+        return (
+          await api.get<{ tracked: boolean }>(
+            intelTrackerPaths.trackedStatus(clientId, drawerBillId!),
+          )
+        ).data;
+      }
+      const legacy = (await api.get<BoardResponse>(trackerPaths.board(clientId))).data;
+      return {
+        tracked: legacy.columns.some((column) =>
+          column.bills.some((bill) => bill.billId === drawerBillId),
+        ),
+      };
+    },
+    enabled: flagsReady && Boolean(drawerBillId),
+    retry: false,
   });
-  const boardNums = useMemo(
-    () => new Set((boardQuery.data?.columns ?? []).flatMap((c) => c.bills.map((b) => b.billId))),
-    [boardQuery.data],
-  );
 
   const trackMutation = useMutation({
     mutationFn: async (billId: string) =>
@@ -495,6 +499,9 @@ function RadarFeedTab({
       // Feed and Bills tabs share the recommendations cache; without this the
       // just-tracked bill lingers in Bills→Recs for ~staleTime (P7/P9 review).
       void qc.invalidateQueries({ queryKey: trackerKeys.recommendations(clientId) });
+      void qc.invalidateQueries({
+        queryKey: ['tracked-status', trackerV2 ? 'intel' : 'legacy', clientId],
+      });
       message.success(`Tracking for ${clientName}`);
     },
     onError: () => message.error('Could not track bill'),
@@ -514,7 +521,7 @@ function RadarFeedTab({
         billId={drawerBillId}
         clientId={clientId}
         clientName={clientName}
-        isTracked={drawerBillId ? boardNums.has(drawerBillId) : false}
+        isTracked={trackedStatus.isSuccess ? trackedStatus.data.tracked : undefined}
         onTrack={(billId) => trackMutation.mutate(billId)}
         onClose={() => setDrawerBillId(null)}
       />
@@ -550,21 +557,26 @@ function RadarGlobalFeedTab({
   const [drawer, setDrawer] = useState<{ billId: string; clientId: string } | null>(null);
   const drawerClientId = drawer?.clientId ?? null;
 
-  // The drawer's client board (shared react-query key with that client's Bills/
-  // Feed tabs) — fetched only while a drawer is open, so the global feed itself
-  // stays a single tenant-wide request.
-  const boardQuery = useQuery<BoardResponse>({
-    queryKey: drawerClientId ? trackerKeys.board(drawerClientId) : ['radar-global-board', 'none'],
-    queryFn: async () =>
-      trackerV2
-        ? adaptBoard((await api.get<IntelBoard>(intelTrackerPaths.board(drawerClientId!))).data)
-        : (await api.get<BoardResponse>(trackerPaths.board(drawerClientId!))).data,
-    enabled: flagsReady && !!drawerClientId,
+  const trackedStatus = useQuery<{ tracked: boolean }>({
+    queryKey: ['tracked-status', trackerV2 ? 'intel' : 'legacy', drawerClientId, drawer?.billId],
+    queryFn: async () => {
+      if (trackerV2) {
+        return (
+          await api.get<{ tracked: boolean }>(
+            intelTrackerPaths.trackedStatus(drawerClientId!, drawer!.billId),
+          )
+        ).data;
+      }
+      const legacy = (await api.get<BoardResponse>(trackerPaths.board(drawerClientId!))).data;
+      return {
+        tracked: legacy.columns.some((column) =>
+          column.bills.some((bill) => bill.billId === drawer!.billId),
+        ),
+      };
+    },
+    enabled: flagsReady && Boolean(drawerClientId && drawer?.billId),
+    retry: false,
   });
-  const boardNums = useMemo(
-    () => new Set((boardQuery.data?.columns ?? []).flatMap((c) => c.bills.map((b) => b.billId))),
-    [boardQuery.data],
-  );
 
   const trackMutation = useMutation({
     mutationFn: async ({ billId, cId }: { billId: string; cId: string }) =>
@@ -575,6 +587,9 @@ function RadarGlobalFeedTab({
       void qc.invalidateQueries({ queryKey: trackerKeys.board(vars.cId) });
       void qc.invalidateQueries({ queryKey: trackerKeys.summary(vars.cId) });
       void qc.invalidateQueries({ queryKey: trackerKeys.recommendations(vars.cId) });
+      void qc.invalidateQueries({
+        queryKey: ['tracked-status', trackerV2 ? 'intel' : 'legacy', vars.cId],
+      });
       message.success(`Tracking for ${clientNameById.get(vars.cId) ?? 'client'}`);
     },
     onError: () => message.error('Could not track bill'),
@@ -594,7 +609,7 @@ function RadarGlobalFeedTab({
         billId={drawer?.billId ?? null}
         clientId={drawerClientId ?? ''}
         clientName={drawerClientId ? (clientNameById.get(drawerClientId) ?? 'Client') : ''}
-        isTracked={drawer ? boardNums.has(drawer.billId) : false}
+        isTracked={trackedStatus.isSuccess ? trackedStatus.data.tracked : undefined}
         onTrack={(billId) =>
           drawerClientId && trackMutation.mutate({ billId, cId: drawerClientId })
         }
@@ -640,16 +655,20 @@ export function tenantBoardCardMatchesFilter(
 ): boolean {
   if (filter === 'hifit') return (card.matchedHighPriorityTopics?.length ?? 0) > 0;
   if (filter === 'hiprob') {
-    const pct = card.passageProbability > 1 ? card.passageProbability : card.passageProbability * 100;
+    const pct =
+      card.passageProbability > 1 ? card.passageProbability : card.passageProbability * 100;
     return pct >= 70;
   }
   return true;
 }
 
 /** Server tone wins; severity is only a compatibility fallback for cached cards. */
-export function tenantBoardChangeTone(card: TenantBoardCard): 'critical' | 'notable' | 'info' | 'success' {
+export function tenantBoardChangeTone(
+  card: TenantBoardCard,
+): 'critical' | 'notable' | 'info' | 'success' {
   const tone = card.changeChip?.tone;
-  if (tone === 'critical' || tone === 'notable' || tone === 'info' || tone === 'success') return tone;
+  if (tone === 'critical' || tone === 'notable' || tone === 'info' || tone === 'success')
+    return tone;
   if (card.changeChip?.severity === 'critical') return 'critical';
   if (card.changeChip?.severity === 'info') return 'info';
   return 'notable';
@@ -712,6 +731,22 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
   }, [board.data]);
   const loadedTotal = columns.reduce((n, c) => n + c.cards.length, 0);
   const availableTotal = board.data?.pages[0]?.total ?? loadedTotal;
+  useEffect(() => {
+    if (
+      filter === 'all' ||
+      !board.hasNextPage ||
+      board.isFetchingNextPage ||
+      board.isFetchNextPageError
+    )
+      return;
+    void board.fetchNextPage();
+  }, [
+    filter,
+    board.hasNextPage,
+    board.isFetchingNextPage,
+    board.isFetchNextPageError,
+    board.fetchNextPage,
+  ]);
 
   if (board.isPending) return <PanelLoading />;
   if (board.isError)
@@ -830,6 +865,11 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
           );
         })}
       </div>
+      {filter !== 'all' && board.isFetchNextPageError ? (
+        <div className="hint">
+          Couldn’t finish loading the filtered board. The visible results may be incomplete.
+        </div>
+      ) : null}
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10 }}>
         <span className="muted mini">
           Showing {loadedTotal.toLocaleString()} of {availableTotal.toLocaleString()} tracked bills
@@ -841,7 +881,7 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
             disabled={board.isFetchingNextPage}
             onClick={() => void board.fetchNextPage()}
           >
-            Load more tracked bills
+            {board.isFetchNextPageError ? 'Retry loading tracked bills' : 'Load more tracked bills'}
           </Button>
         ) : null}
       </div>

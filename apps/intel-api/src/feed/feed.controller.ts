@@ -69,6 +69,31 @@ export class FeedController {
     };
   }
 
+  /** Direct, bounded lookup for an email-linked alert. */
+  @Get('_all/feed/alerts/:alertId')
+  getTenantAlert(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('alertId') alertId: string) {
+    return this.svc.getFeed(ctx.tenantId, null, {
+      alertId,
+      limit: 1,
+      userId: ctx.clerkUserId,
+      workStates: ['all'],
+    });
+  }
+
+  @Get(':clientId/feed/alerts/:alertId')
+  getAlert(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('clientId') clientId: string,
+    @Param('alertId') alertId: string,
+  ) {
+    return this.svc.getFeed(ctx.tenantId, clientId, {
+      alertId,
+      limit: 1,
+      userId: ctx.clerkUserId,
+      workStates: ['all'],
+    });
+  }
+
   // Tenant-wide roll-up. MUST precede ':clientId/feed' so '_all' isn't captured
   // as a clientId. Passes clientId=null → the service drops the clientId predicate.
   @Get('_all/feed')
@@ -85,8 +110,16 @@ export class FeedController {
     @Query('workState') workState?: string | string[],
   ) {
     const query = this.buildQuery(
-      sourceType, severity, status, since, until, order, cursor, limit,
-      ctx.clerkUserId, workState,
+      sourceType,
+      severity,
+      status,
+      since,
+      until,
+      order,
+      cursor,
+      limit,
+      ctx.clerkUserId,
+      workState,
     );
     return this.svc.getFeed(ctx.tenantId, null, query);
   }
@@ -106,8 +139,16 @@ export class FeedController {
     @Query('workState') workState?: string | string[],
   ) {
     const query = this.buildQuery(
-      sourceType, severity, status, since, until, order, cursor, limit,
-      ctx.clerkUserId, workState,
+      sourceType,
+      severity,
+      status,
+      since,
+      until,
+      order,
+      cursor,
+      limit,
+      ctx.clerkUserId,
+      workState,
     );
     return this.svc.getFeed(ctx.tenantId, clientId, query);
   }

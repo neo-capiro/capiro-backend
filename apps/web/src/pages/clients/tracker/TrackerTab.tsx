@@ -31,6 +31,7 @@ import {
 import { TrackerConfigPanel } from './TrackerConfigPanel.js';
 import { TrackerFeedPanel } from './TrackerFeedPanel.js';
 import { BillDrawer } from '../../radar/BillDrawer.js';
+import { SavedHearingRecapsPanel } from './SavedHearingRecapsPanel.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import { useMe } from '../../../lib/me.js';
 import { isTenantAdmin } from '@capiro/shared';
@@ -62,7 +63,7 @@ import {
   type IntelCompiled,
 } from './intel-tracker-api.js';
 
-type Panel = 'board' | 'recs' | 'config' | 'feed';
+type Panel = 'board' | 'recs' | 'config' | 'feed' | 'saved';
 const PANEL_KEY = 'capiro:tracker:panel';
 /** Radar Bills tab keeps its own Board|Recs selection so it never fights the profile tab's. */
 const BILLS_PANEL_KEY = 'capiro:radar:bills-panel';
@@ -70,7 +71,7 @@ const BILLS_PANEL_KEY = 'capiro:radar:bills-panel';
 function loadPanel(): Panel {
   try {
     const v = window.sessionStorage.getItem(PANEL_KEY);
-    if (v === 'board' || v === 'recs' || v === 'config' || v === 'feed') return v;
+    if (v === 'board' || v === 'recs' || v === 'config' || v === 'feed' || v === 'saved') return v;
   } catch {
     /* ignore */
   }
@@ -173,7 +174,12 @@ function ResponsiveControls({ label, children }: { label: string; children: Reac
         <Modal size="sm" onClose={() => setOpen(false)} label={label}>
           <div className="dlg-head">
             <h3>{label}</h3>
-            <button type="button" className="dlg-x" aria-label="Close" onClick={() => setOpen(false)}>
+            <button
+              type="button"
+              className="dlg-x"
+              aria-label="Close"
+              onClick={() => setOpen(false)}
+            >
               <Icon name="plus" size={15} style={{ transform: 'rotate(45deg)' }} />
             </button>
           </div>
@@ -357,8 +363,11 @@ export function TrackerSurface({
     queryFn: async ({ pageParam }: { pageParam: string }) =>
       trackerV2
         ? adaptBoard(
-            (await api.get<IntelBoard>(intelTrackerPaths.board(clientId, pageParam || undefined, boardFilters)))
-              .data,
+            (
+              await api.get<IntelBoard>(
+                intelTrackerPaths.board(clientId, pageParam || undefined, boardFilters),
+              )
+            ).data,
           )
         : (await api.get<BoardResponse>(trackerPaths.board(clientId))).data,
     initialPageParam: '',
@@ -367,6 +376,24 @@ export function TrackerSurface({
     enabled: flagsReady,
   });
   const board = useMemo(() => mergeBoardPages(boardQuery.data?.pages ?? []), [boardQuery.data]);
+  // High-fit/high-likelihood are filters over the whole board, not merely the
+  // pages already loaded. Continue keyset paging while either is active.
+  useEffect(() => {
+    if (
+      filter === 'all' ||
+      !boardQuery.hasNextPage ||
+      boardQuery.isFetchingNextPage ||
+      boardQuery.isFetchNextPageError
+    )
+      return;
+    void boardQuery.fetchNextPage();
+  }, [
+    filter,
+    boardQuery.hasNextPage,
+    boardQuery.isFetchingNextPage,
+    boardQuery.isFetchNextPageError,
+    boardQuery.fetchNextPage,
+  ]);
   const recsQuery = useQuery<RecommendationsResponse>({
     queryKey: trackerKeys.recommendations(clientId),
     queryFn: async () =>
@@ -389,7 +416,9 @@ export function TrackerSurface({
     queryKey: trackerKeys.watchlist(clientId),
     queryFn: async () =>
       trackerV2
-        ? adaptWatchlist((await api.get<IntelWatchlist>(intelTrackerPaths.watchlist(clientId))).data)
+        ? adaptWatchlist(
+            (await api.get<IntelWatchlist>(intelTrackerPaths.watchlist(clientId))).data,
+          )
         : (await api.get<WatchlistPayload>(trackerPaths.watchlist(clientId))).data,
     enabled: activePanel === 'config' && flagsReady,
   });
@@ -406,8 +435,7 @@ export function TrackerSurface({
   // legacy tracker has no equivalent), and only needed while Configure is open.
   const compiledQuery = useQuery<IntelCompiled>({
     queryKey: trackerKeys.compiled(clientId),
-    queryFn: async () =>
-      (await api.get<IntelCompiled>(intelTrackerPaths.compiled(clientId))).data,
+    queryFn: async () => (await api.get<IntelCompiled>(intelTrackerPaths.compiled(clientId))).data,
     enabled: activePanel === 'config' && flagsReady && trackerV2,
     staleTime: 60 * 60_000,
   });
@@ -541,7 +569,12 @@ export function TrackerSurface({
               ...(vars.matchedTopicIds?.length ? { matchedTopicIds: vars.matchedTopicIds } : {}),
             })
           ).data
-        : (await api.post(trackerPaths.feedback(clientId), { billId: vars.billId, signal: 'marked_irrelevant' })).data,
+        : (
+            await api.post(trackerPaths.feedback(clientId), {
+              billId: vars.billId,
+              signal: 'marked_irrelevant',
+            })
+          ).data,
     onMutate: (vars) => {
       const billId = vars.billId;
       qc.setQueryData<RecommendationsResponse>(trackerKeys.recommendations(clientId), (prev) =>
@@ -567,7 +600,12 @@ export function TrackerSurface({
   const markReadMutation = useMutation({
     mutationFn: async (billId: string) =>
       trackerV2
-        ? (await api.post(intelTrackerPaths.feedback(clientId), { targetRef: billId, signal: 'opened' })).data
+        ? (
+            await api.post(intelTrackerPaths.feedback(clientId), {
+              targetRef: billId,
+              signal: 'opened',
+            })
+          ).data
         : (await api.post(trackerPaths.feedback(clientId), { billId, signal: 'opened' })).data,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: trackerKeys.board(clientId) });
@@ -579,7 +617,12 @@ export function TrackerSurface({
     mutationFn: async (w: WatchlistPayload) =>
       trackerV2
         ? adaptWatchlist(
-            (await api.put<IntelWatchlist>(intelTrackerPaths.watchlist(clientId), watchlistToIntel(w))).data,
+            (
+              await api.put<IntelWatchlist>(
+                intelTrackerPaths.watchlist(clientId),
+                watchlistToIntel(w),
+              )
+            ).data,
           )
         : // State Legislation Platform (DD5) is intel-api-only — the legacy
           // WatchlistDto has no `jurisdictions` field and the API's global
@@ -661,7 +704,14 @@ export function TrackerSurface({
   const savePrefsMutation = useMutation({
     mutationFn: async (p: AlertPrefsPayload) =>
       trackerV2
-        ? adaptPrefs((await api.put<IntelAlertPrefs>(intelTrackerPaths.alertPrefs(clientId), prefsToIntel(p))).data)
+        ? adaptPrefs(
+            (
+              await api.put<IntelAlertPrefs>(
+                intelTrackerPaths.alertPrefs(clientId),
+                prefsToIntel(p),
+              )
+            ).data,
+          )
         : // Same DD5 rationale as saveWatchlistMutation — the legacy AlertPrefsDto
           // has no `jurisdictions` field and would 400 under forbidNonWhitelisted.
           (
@@ -791,7 +841,11 @@ export function TrackerSurface({
         // produced a success toast naming only In-app.
         pushToast({
           kind: 'test',
-          results: res.map((r) => ({ channel: label[r.channel] ?? r.channel, status: r.status, detail: r.detail })),
+          results: res.map((r) => ({
+            channel: label[r.channel] ?? r.channel,
+            status: r.status,
+            detail: r.detail,
+          })),
         });
       },
       onError: () => message.error('Could not send test alert'),
@@ -1040,6 +1094,7 @@ export function TrackerSurface({
             recCount={aboveFloorCount}
             showFeed={trackerV2}
             showConfig
+            showSaved
           />
           <div className="trk-spacer" />
           {activePanel === 'board' && boardViewToggle}
@@ -1075,7 +1130,10 @@ export function TrackerSurface({
           </span>
           <div className="st">
             <b>Recommended by Meri</b>
-            <p>Bills scored against {clientName}’s watchlist — add the ones worth following to your board.</p>
+            <p>
+              Bills scored against {clientName}’s watchlist — add the ones worth following to your
+              board.
+            </p>
           </div>
           <span className="grow" />
           <ResponsiveControls label="Recommendation filters">{recsControls}</ResponsiveControls>
@@ -1200,9 +1258,7 @@ export function TrackerSurface({
               replaced. */}
           <span className="chip muted">
             {boardCount} tracked
-            {(board.withheld ?? 0) > 0
-              ? ` · showing ${boardCount - (board.withheld ?? 0)}`
-              : ''}
+            {(board.withheld ?? 0) > 0 ? ` · showing ${boardCount - (board.withheld ?? 0)}` : ''}
           </span>
         </div>
       )}
@@ -1220,8 +1276,8 @@ export function TrackerSurface({
             </div>
             <h4>Your board is empty</h4>
             <p>
-              The board fills in as you track bills. Start from the {aboveFloorCount} recommendations
-              Capiro scored against {clientName}’s watchlist.
+              The board fills in as you track bills. Start from the {aboveFloorCount}{' '}
+              recommendations Capiro scored against {clientName}’s watchlist.
             </p>
             {!billsStacked && (
               <div className="row">
@@ -1245,11 +1301,15 @@ export function TrackerSurface({
                     four "Nothing here" columns — indistinguishable from an empty board,
                     which is exactly why the broken High-fit filter went unnoticed. Say
                     which filter is hiding the cards and offer the way out. */}
-                {filter !== 'all' && boardCount > 0 && boardColumns.every((c) => c.bills.length === 0) ? (
+                {filter !== 'all' &&
+                boardCount > 0 &&
+                boardColumns.every((c) => c.bills.length === 0) ? (
                   <div className="trk-col-empty" style={{ gridColumn: '1 / -1' }}>
                     No tracked bills match the “
-                    {filter === 'highfit' ? 'High-fit (priority tag)' : 'High passage likelihood (≥70%)'}”
-                    filter.{' '}
+                    {filter === 'highfit'
+                      ? 'High-fit (priority tag)'
+                      : 'High passage likelihood (≥70%)'}
+                    ” filter.{' '}
                     <button className="btn-link" onClick={() => setFilter('all')}>
                       Show all {boardCount}
                     </button>
@@ -1279,6 +1339,11 @@ export function TrackerSurface({
               </div>
             )}
             {/* P1-18 (a-7): Load more when the keyset cursor says more remain. */}
+            {filter !== 'all' && boardQuery.isFetchNextPageError ? (
+              <div className="hint" style={{ marginTop: 10 }}>
+                Couldn’t finish loading the filtered board. The visible results may be incomplete.
+              </div>
+            ) : null}
             {boardQuery.hasNextPage && (
               <button
                 className="btn"
@@ -1288,11 +1353,18 @@ export function TrackerSurface({
               >
                 {boardQuery.isFetchingNextPage
                   ? 'Loading…'
-                  : `Load more (${board.withheld ?? 0} more tracked)`}
+                  : boardQuery.isFetchNextPageError
+                    ? 'Retry loading remaining tracked bills'
+                    : `Load more (${board.withheld ?? 0} more tracked)`}
               </button>
             )}
           </>
         ))}
+
+      {/* ===================== SAVED HEARING RECAPS ===================== */}
+      {activePanel === 'saved' && variant === 'profile' && (
+        <SavedHearingRecapsPanel clientId={clientId} />
+      )}
 
       {/* ===================== CONFIGURE ===================== */}
       {activePanel === 'config' &&

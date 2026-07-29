@@ -103,10 +103,7 @@ function feedItem(over: Partial<FeedItem> = {}): FeedItem {
   };
 }
 
-function feedPage(
-  items: FeedItem[],
-  opts: { nextCursor?: string | null; hasMore?: boolean } = {},
-) {
+function feedPage(items: FeedItem[], opts: { nextCursor?: string | null; hasMore?: boolean } = {}) {
   return {
     items,
     nextCursor: opts.nextCursor ?? null,
@@ -128,18 +125,43 @@ function mockApi(items: FeedItem[]) {
     if (url.includes('/packet')) {
       return {
         data: {
-          event: { sourceType: 'bill', whatChanged: 'x', canonicalStatus: null, occurredAt: null, effectiveAt: null },
+          event: {
+            sourceType: 'bill',
+            whatChanged: 'x',
+            canonicalStatus: null,
+            occurredAt: null,
+            effectiveAt: null,
+          },
           officialEvidence: [],
           proceduralMeaning: {
             currentStage: 'Rule failed',
             nextPossibleSteps: ['New rule from the Rules Committee'],
-            blockedBy: ['The governing rule was rejected, so floor consideration cannot proceed under it'],
+            blockedBy: [
+              'The governing rule was rejected, so floor consideration cannot proceed under it',
+            ],
             uncertainty: [],
           },
-          clientContext: { clientId: 'c1', matchedTopics: [], capabilities: [], activeStrategies: [], redLines: [], facilities: [] },
-          relationshipContext: { targetOffices: [], existingRelationships: [], recentMeetings: [], openCommitments: [] },
+          clientContext: {
+            clientId: 'c1',
+            matchedTopics: [],
+            capabilities: [],
+            activeStrategies: [],
+            redLines: [],
+            facilities: [],
+          },
+          relationshipContext: {
+            targetOffices: [],
+            existingRelationships: [],
+            recentMeetings: [],
+            openCommitments: [],
+          },
           actionContext: { recommendedTargets: [], recommendedActions: [] },
-          confidence: { relevance: 0.8, procedural: 0.9, evidenceCoverage: 0.71, missingFields: ['whoActs'] },
+          confidence: {
+            relevance: 0.8,
+            procedural: 0.9,
+            evidenceCoverage: 0.71,
+            missingFields: ['whoActs'],
+          },
         },
       };
     }
@@ -147,9 +169,7 @@ function mockApi(items: FeedItem[]) {
   });
 }
 
-function renderPanel(
-  props: { focusAlertId?: string; onFocused?: () => void } = {},
-) {
+function renderPanel(props: { focusAlertId?: string; onFocused?: () => void } = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const tree = (next: { focusAlertId?: string; onFocused?: () => void }) => (
     <QueryClientProvider client={qc}>
@@ -177,15 +197,18 @@ beforeEach(() => {
 });
 
 describe('alert email deep links', () => {
-  test('waits for the widened query when focus arrives after mount', async () => {
+  test('uses a bounded direct lookup when focus arrives after mount', async () => {
     const onFocused = vi.fn();
-    const target = feedItem({ id: 'late-alert', title: 'Late linked regulation', sourceType: 'regulation' });
+    const target = feedItem({
+      id: 'late-alert',
+      title: 'Late linked regulation',
+      sourceType: 'regulation',
+    });
     apiGetMock.mockImplementation(async (url: string) => {
       if (!url.includes('/feed')) return { data: {} };
       feedUrls.push(url);
-      return url.includes('workState=all')
-        ? { data: feedPage([target]) }
-        : { data: feedPage([feedItem({ id: 'active-alert', title: 'Active queue item' })]) };
+      if (url.includes('/feed/alerts/late-alert')) return { data: feedPage([target]) };
+      return { data: feedPage([feedItem({ id: 'active-alert', title: 'Active queue item' })]) };
     });
 
     const view = renderPanel();
@@ -194,14 +217,13 @@ describe('alert email deep links', () => {
 
     expect(await screen.findByText('Late linked regulation')).toBeInTheDocument();
     await waitFor(() => expect(onFocused).toHaveBeenCalledTimes(1));
+    expect(feedUrls.some((url) => url.includes('/feed/alerts/late-alert'))).toBe(true);
     expect(
-      feedUrls.some(
-        (url) => url.includes('workState=all') && !url.includes('sourceType='),
-      ),
+      feedUrls.some((url) => url.includes('workState=all') && !url.includes('/feed/alerts/')),
     ).toBe(true);
   });
 
-  test('widens to All and keyset-pages until an older focused alert is loaded', async () => {
+  test('opens an older linked alert without keyset-walking the whole feed', async () => {
     const onFocused = vi.fn();
     const target = feedItem({
       id: 'older-alert',
@@ -215,30 +237,24 @@ describe('alert email deep links', () => {
       },
     });
     apiGetMock.mockImplementation(async (url: string) => {
-      if (url.includes('/feed')) {
-        feedUrls.push(url);
-        if (url.includes('cursor=page-2')) return { data: feedPage([target]) };
-        return {
-          data: feedPage([feedItem({ id: 'newer-alert', title: 'Newer alert' })], {
-            nextCursor: 'page-2',
-            hasMore: true,
-          }),
-        };
-      }
-      return { data: {} };
+      if (!url.includes('/feed')) return { data: {} };
+      feedUrls.push(url);
+      if (url.includes('/feed/alerts/older-alert')) return { data: feedPage([target]) };
+      return {
+        data: feedPage([feedItem({ id: 'newer-alert', title: 'Newer alert' })], {
+          nextCursor: 'page-2',
+          hasMore: true,
+        }),
+      };
     });
 
     const { container } = renderPanel({ focusAlertId: 'older-alert', onFocused });
 
-    await waitFor(() =>
-      expect(feedUrls.some((url) => url.includes('workState=all'))).toBe(true),
-    );
-    await waitFor(() =>
-      expect(feedUrls.some((url) => url.includes('cursor=page-2'))).toBe(true),
-    );
     expect(await screen.findByText('Older linked alert')).toBeInTheDocument();
     await waitFor(() => expect(onFocused).toHaveBeenCalledTimes(1));
     expect(container.querySelector('[data-alert-id="older-alert"]')).toHaveClass('open');
+    expect(feedUrls.some((url) => url.includes('/feed/alerts/older-alert'))).toBe(true);
+    expect(feedUrls.some((url) => url.includes('cursor=page-2'))).toBe(false);
   });
 });
 
@@ -249,10 +265,7 @@ describe('P1-10 — priority ordering is a control', () => {
     renderPanel();
     await waitFor(() => expect(feedUrls.length).toBeGreaterThan(0));
     expect(feedUrls[0]).toContain('order=date');
-    expect(screen.getByRole('button', { name: 'Newest' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    expect(screen.getByRole('button', { name: 'Newest' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   /** c-9 case 1: clicking Priority refetches with order=score. */
@@ -389,12 +402,26 @@ describe('P1-11 — internal instrumentation is out of the analyst view', () => 
     apiGetMock.mockImplementation(async (url: string) => {
       if (url.includes('/feed')) {
         feedUrls.push(url);
-        return { data: feedPage([feedItem({
-          workState: { state: 'assigned', assignedTo: 'user-42', assignedToName: 'Wrong Name — must never render', snoozedUntil: null, note: null },
-        })]) };
+        return {
+          data: feedPage([
+            feedItem({
+              workState: {
+                state: 'assigned',
+                assignedTo: 'user-42',
+                assignedToName: 'Wrong Name — must never render',
+                snoozedUntil: null,
+                note: null,
+              },
+            }),
+          ]),
+        };
       }
       if (url.includes('/tenant-admin/team')) {
-        return { data: [{ userId: 'user-42', email: 'dana@acme.test', firstName: 'Dana', lastName: 'Reyes' }] };
+        return {
+          data: [
+            { userId: 'user-42', email: 'dana@acme.test', firstName: 'Dana', lastName: 'Reyes' },
+          ],
+        };
       }
       return { data: {} };
     });
@@ -521,7 +548,10 @@ describe('P2-04 — per-user triage', () => {
   test('Mark reviewed posts to the work-state route and disables while pending', async () => {
     let resolvePost: (v: unknown) => void = () => {};
     apiPostMock.mockImplementation(
-      () => new Promise((res) => { resolvePost = res; }),
+      () =>
+        new Promise((res) => {
+          resolvePost = res;
+        }),
     );
     mockApi([feedItem()]);
     renderPanel();
@@ -638,7 +668,12 @@ describe('P2-05 — open an existing memo', () => {
 /** Renders whatever route navigate() actually lands on, as visible text. */
 function LocationProbe() {
   const location = useLocation();
-  return <div data-testid="location-probe">{location.pathname}{location.search}</div>;
+  return (
+    <div data-testid="location-probe">
+      {location.pathname}
+      {location.search}
+    </div>
+  );
 }
 
 /** MP-13 / Gate H phase b: Open memo must land on the specific attachment. */
@@ -662,7 +697,11 @@ describe('P2-05 — Open memo lands on the specific attachment (Gate H phase b)'
   test('navigates with &attachmentId= when the memo has a filed document', async () => {
     mockApi([
       feedItem({
-        actions: { inReport: false, talkingPoints: 0, memo: { documentAttachmentId: 'att-9', title: 'Client memo' } },
+        actions: {
+          inReport: false,
+          talkingPoints: 0,
+          memo: { documentAttachmentId: 'att-9', title: 'Client memo' },
+        },
       }),
     ]);
     renderPanelWithLocationProbe();
@@ -681,7 +720,11 @@ describe('P2-05 — Open memo lands on the specific attachment (Gate H phase b)'
   test('navigates WITHOUT attachmentId (not a fabricated one) when the memo has no filed document (a-4)', async () => {
     mockApi([
       feedItem({
-        actions: { inReport: false, talkingPoints: 0, memo: { documentAttachmentId: null, title: 'Client memo' } },
+        actions: {
+          inReport: false,
+          talkingPoints: 0,
+          memo: { documentAttachmentId: null, title: 'Client memo' },
+        },
       }),
     ]);
     renderPanelWithLocationProbe();
@@ -848,18 +891,26 @@ describe('P2-05 — Edit in Workspace reads saved content, never regenerates (Ga
     apiGetMock.mockImplementation(async (url: string) => {
       if (url.includes('/feed')) {
         feedUrls.push(url);
-        return { data: feedPage([
-          feedItem({
-            actions: {
-              inReport: false,
-              talkingPoints: 0,
-              memo: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200' },
-            },
-          }),
-        ]) };
+        return {
+          data: feedPage([
+            feedItem({
+              actions: {
+                inReport: false,
+                talkingPoints: 0,
+                memo: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200' },
+              },
+            }),
+          ]),
+        };
       }
       if (url.includes('/memo-link')) {
-        return { data: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200', text: 'Saved body text.' } };
+        return {
+          data: {
+            documentAttachmentId: 'att-1',
+            title: 'Client memo — H.R. 1200',
+            text: 'Saved body text.',
+          },
+        };
       }
       return { data: {} };
     });
@@ -880,9 +931,11 @@ describe('P2-05 — Edit in Workspace reads saved content, never regenerates (Ga
     expect(postCalls.some(([u]) => u.includes('/workspace-api/drafts'))).toBe(true);
     expect(postCalls.some(([u]) => u.includes('/alert-memo'))).toBe(false);
     // No replaceAttachmentId anywhere — this path never carries one at all.
-    expect(postCalls.every(([, body]) => !(body as Record<string, unknown> | undefined)?.replaceAttachmentId)).toBe(
-      true,
-    );
+    expect(
+      postCalls.every(
+        ([, body]) => !(body as Record<string, unknown> | undefined)?.replaceAttachmentId,
+      ),
+    ).toBe(true);
   });
 
   test('when there is no saved content to read, Edit in Workspace fails loudly instead of opening an empty draft', async () => {
@@ -898,18 +951,22 @@ describe('P2-05 — Edit in Workspace reads saved content, never regenerates (Ga
     apiGetMock.mockImplementation(async (url: string) => {
       if (url.includes('/feed')) {
         feedUrls.push(url);
-        return { data: feedPage([
-          feedItem({
-            actions: {
-              inReport: false,
-              talkingPoints: 0,
-              memo: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200' },
-            },
-          }),
-        ]) };
+        return {
+          data: feedPage([
+            feedItem({
+              actions: {
+                inReport: false,
+                talkingPoints: 0,
+                memo: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200' },
+              },
+            }),
+          ]),
+        };
       }
       if (url.includes('/memo-link')) {
-        return { data: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200', text: null } };
+        return {
+          data: { documentAttachmentId: 'att-1', title: 'Client memo — H.R. 1200', text: null },
+        };
       }
       return { data: {} };
     });

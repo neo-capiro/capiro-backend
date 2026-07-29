@@ -14,7 +14,11 @@ import {
   stateBillStatusRank,
 } from '@capiro/shared';
 import { embedText, normalize, vectorLiteral, EMBEDDING_MODEL } from '../embeddings/embedder.js';
-import { compileWatchlist, type CompilerTopic, type CompilerTerm } from '../watchlist/watchlist-compiler.js';
+import {
+  compileWatchlist,
+  type CompilerTopic,
+  type CompilerTerm,
+} from '../watchlist/watchlist-compiler.js';
 import {
   highPriorityMatches,
   scoreBillFit,
@@ -101,7 +105,11 @@ const b64decode = (cur: string): BoardCursor | null => {
 function encodeBoardCursor(row: { trackedAt: Date; billId: string }): string {
   return b64encode({ t: row.trackedAt.toISOString(), id: row.billId } satisfies BoardCursor);
 }
-function encodeTenantBoardCursor(row: { trackedAt: Date; billId: string; clientId: string }): string {
+function encodeTenantBoardCursor(row: {
+  trackedAt: Date;
+  billId: string;
+  clientId: string;
+}): string {
   return b64encode({
     t: row.trackedAt.toISOString(),
     id: row.billId,
@@ -350,7 +358,10 @@ const toRelevanceBill = (b: {
   subjects: b.subjects,
   latestActionText: b.latestActionText,
   ...(b.id
-    ? { billId: b.id, displayNum: isStateBillKey(b.id) ? humanizeStateBillKey(b.id) : humanizeBillId(b.id) }
+    ? {
+        billId: b.id,
+        displayNum: isStateBillKey(b.id) ? humanizeStateBillKey(b.id) : humanizeBillId(b.id),
+      }
     : {}),
   ...(b.sponsorName !== undefined ? { sponsorName: b.sponsorName } : {}),
   ...(b.peCodes !== undefined ? { programElements: b.peCodes } : {}),
@@ -735,7 +746,9 @@ export class TrackerBoardService {
     const page = hasMore ? tracked.slice(0, take) : tracked;
     const last = page[page.length - 1];
     const nextCursor =
-      hasMore && last ? encodeBoardCursor({ trackedAt: last.trackedAt, billId: last.billId }) : null;
+      hasMore && last
+        ? encodeBoardCursor({ trackedAt: last.trackedAt, billId: last.billId })
+        : null;
     const withheld = Math.max(0, total - page.length);
     if (!page.length) return { columns: empty(), nextCursor, hasMore, total, withheld };
 
@@ -807,7 +820,8 @@ export class TrackerBoardService {
       const latestActionDate = bill?.latestActionDate ?? t.lastSeenActionDate ?? null;
       const stage = (t.stage as BillStage | null) ?? billStage(latestActionText);
       const matchedTags = bill
-        ? scoreBillFit(toRelevanceBill({ ...bill, id: t.billId }), topics, issueAreas, 0, false).matchedTags
+        ? scoreBillFit(toRelevanceBill({ ...bill, id: t.billId }), topics, issueAreas, 0, false)
+            .matchedTags
         : [];
       // P0-06: from the SAME compiled topics — no extra query, no extra scoring pass.
       const hi = highPriorityMatches(matchedTags, topics);
@@ -865,13 +879,15 @@ export class TrackerBoardService {
   async getTenantBoard(
     tenantId: string,
     opts: BoardQueryOpts = {},
-  ): Promise<{
-    columns: Array<{
-      id: BillStage;
-      label: string;
-      cards: Array<BoardCard & { clientId: string; clientName: string | null }>;
-    }>;
-  } & BoardPage> {
+  ): Promise<
+    {
+      columns: Array<{
+        id: BillStage;
+        label: string;
+        cards: Array<BoardCard & { clientId: string; clientName: string | null }>;
+      }>;
+    } & BoardPage
+  > {
     type Card = BoardCard & { clientId: string; clientName: string | null };
     const empty = () => BILL_STAGES.map((s) => ({ id: s.id, label: s.label, cards: [] as Card[] }));
     const take = Math.min(opts.limit ?? BOARD_PAGE_SIZE, BOARD_PAGE_SIZE_MAX);
@@ -913,9 +929,7 @@ export class TrackerBoardService {
       pageWhere['OR'] = [
         { trackedAt: { lt: new Date(cur.t) } },
         { trackedAt: new Date(cur.t), billId: { lt: cur.id } },
-        ...(cur.c
-          ? [{ trackedAt: new Date(cur.t), billId: cur.id, clientId: { lt: cur.c } }]
-          : []),
+        ...(cur.c ? [{ trackedAt: new Date(cur.t), billId: cur.id, clientId: { lt: cur.c } }] : []),
       ];
     }
 
@@ -1019,7 +1033,13 @@ export class TrackerBoardService {
       const ct = topicsByClient.get(t.clientId);
       const matchedTags =
         bill && ct
-          ? scoreBillFit(toRelevanceBill({ ...bill, id: t.billId }), ct.topics, ct.issueAreas, 0, false).matchedTags
+          ? scoreBillFit(
+              toRelevanceBill({ ...bill, id: t.billId }),
+              ct.topics,
+              ct.issueAreas,
+              0,
+              false,
+            ).matchedTags
           : [];
       // P0-06: the `_all` roll-up already resolves each card's OWN client's compiled
       // watchlist above, so this adds no query (P1-18's batching is preserved).
@@ -1111,7 +1131,14 @@ export class TrackerBoardService {
           watchlistId: { in: watchlistIds },
           OR: [...(topicIds.length ? [{ topicId: { in: topicIds } }] : []), { topicId: null }],
         },
-        select: { watchlistId: true, topicId: true, termType: true, value: true, weight: true, id: true },
+        select: {
+          watchlistId: true,
+          topicId: true,
+          termType: true,
+          value: true,
+          weight: true,
+          id: true,
+        },
       }),
     );
 
@@ -1199,7 +1226,10 @@ export class TrackerBoardService {
         riskPhrases: t.riskPhrases,
         routableTerms: t.routableTerms,
       }));
-      out.set(clientId, { topics: topicsForFit, issueAreas: issueAreasByClient.get(clientId) ?? [] });
+      out.set(clientId, {
+        topics: topicsForFit,
+        issueAreas: issueAreasByClient.get(clientId) ?? [],
+      });
     }
     return out;
   }
@@ -1220,6 +1250,16 @@ export class TrackerBoardService {
    * "Has a watchlist" means at least one topic OR one issue area — the same
    * two-part test the cold-start copy asks the user to complete.
    */
+  async getTrackedStatus(tenantId: string, clientId: string, billId: string) {
+    const row = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.trackedBill.findFirst({
+        where: { tenantId, clientId, billId },
+        select: { id: true, trackedAt: true },
+      }),
+    );
+    return { tracked: Boolean(row), trackedAt: row?.trackedAt ?? null };
+  }
+
   async getSummary(
     tenantId: string,
     clientId: string,

@@ -28,6 +28,11 @@ class UpdateMeDto {
   @IsOptional()
   @IsBoolean()
   tourCompleted?: boolean;
+
+  /** LegiWatch orientation preference; persisted per user across devices. */
+  @IsOptional()
+  @IsBoolean()
+  legiwatchIntroSeen?: boolean;
 }
 
 class UpdateEmailSignatureDto {
@@ -91,6 +96,7 @@ export class UsersController {
             emailSignatureHtml: true,
             emailSignatureEnabled: true,
             tourCompletedAt: true,
+            legiwatchIntroSeenAt: true,
           },
         }),
         tx.tenant.findUnique({
@@ -121,6 +127,7 @@ export class UsersController {
         emailSignatureEnabled: profile.user?.emailSignatureEnabled ?? false,
         hasEmailSignature: Boolean(profile.user?.emailSignatureHtml),
         tourCompleted: Boolean(profile.user?.tourCompletedAt),
+        legiwatchIntroSeen: Boolean(profile.user?.legiwatchIntroSeenAt),
       },
       tenant: {
         id: ctx.tenantId,
@@ -181,15 +188,26 @@ export class UsersController {
   async updateMe(@CurrentTenant() ctx: TenantContext, @Body() body: UpdateMeDto) {
     // Editable from the client: `title` and the tour-completion flag.
     // firstName/lastName/email are owned by Clerk and synced on login.
-    if (body.title === undefined && body.tourCompleted === undefined) {
+    if (
+      body.title === undefined &&
+      body.tourCompleted === undefined &&
+      body.legiwatchIntroSeen === undefined
+    ) {
       throw new BadRequestException('No editable fields provided');
     }
     const normalized = body.title?.trim() ?? '';
     const next = normalized.length ? normalized : null;
-    const data: { title?: string | null; tourCompletedAt?: Date | null } = {};
+    const data: {
+      title?: string | null;
+      tourCompletedAt?: Date | null;
+      legiwatchIntroSeenAt?: Date | null;
+    } = {};
     if (body.title !== undefined) data.title = next;
     if (body.tourCompleted !== undefined) {
       data.tourCompletedAt = body.tourCompleted ? new Date() : null;
+    }
+    if (body.legiwatchIntroSeen !== undefined) {
+      data.legiwatchIntroSeenAt = body.legiwatchIntroSeen ? new Date() : null;
     }
     // Return the SAME full shape as GET /me — the client writes this straight
     // into the ['me'] cache, so a partial response would blank tenant/role and
@@ -206,6 +224,7 @@ export class UsersController {
           emailSignatureHtml: true,
           emailSignatureEnabled: true,
           tourCompletedAt: true,
+          legiwatchIntroSeenAt: true,
         },
       });
       const tenant = await tx.tenant.findUnique({
@@ -229,6 +248,7 @@ export class UsersController {
         emailSignatureEnabled: profile.user.emailSignatureEnabled,
         hasEmailSignature: Boolean(profile.user.emailSignatureHtml),
         tourCompleted: Boolean(profile.user.tourCompletedAt),
+        legiwatchIntroSeen: Boolean(profile.user.legiwatchIntroSeenAt),
       },
       tenant: {
         id: ctx.tenantId,

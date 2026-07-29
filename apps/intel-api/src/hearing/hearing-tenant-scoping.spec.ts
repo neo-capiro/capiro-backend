@@ -27,6 +27,7 @@ interface FakeModel {
   updateMany: jest.Mock;
   upsert: jest.Mock;
   count: jest.Mock;
+  groupBy: jest.Mock;
   aggregate: jest.Mock;
 }
 
@@ -43,6 +44,7 @@ function makeFakePrisma() {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         upsert: jest.fn().mockResolvedValue({ id: 'upserted-1' }),
         count: jest.fn().mockResolvedValue(0),
+        groupBy: jest.fn().mockResolvedValue([]),
         aggregate: jest.fn().mockResolvedValue({ _max: { endMs: null } }),
       };
       models.set(name, m);
@@ -52,7 +54,8 @@ function makeFakePrisma() {
   const fakeTx = new Proxy(
     {},
     {
-      get: (_target, prop: string) => model(prop),
+      get: (_target, prop: string) =>
+        prop === '$queryRaw' ? jest.fn().mockResolvedValue([]) : model(prop),
     },
   );
   const withTenant = jest.fn((_tenantId: string, fn: (tx: unknown) => unknown) => fn(fakeTx));
@@ -102,23 +105,41 @@ describe('G3: hearing module Prisma calls are tenant-scoped via withTenant', () 
       );
     });
 
-    it('listPage() preserves private-session scope and returns a truthful next offset', async () => {
+    it('listPage() preserves private-session scope and returns a truthful keyset cursor', async () => {
       const { prisma, withTenant, model } = makeFakePrisma();
-      model('liveHearingSession').findMany.mockResolvedValue([{ id: 's2' }, { id: 's1' }]);
+      const newest = new Date('2026-07-29T12:00:00.000Z');
+      const middle = new Date('2026-07-29T11:00:00.000Z');
+      const oldest = new Date('2026-07-29T10:00:00.000Z');
+      model('liveHearingSession').findMany.mockResolvedValue([
+        { id: 's3', createdAt: newest },
+        { id: 's2', createdAt: middle },
+        { id: 's1', createdAt: oldest },
+      ]);
       model('liveHearingSession').count.mockResolvedValue(5);
       const service = new HearingSessionService(prisma);
 
-      await expect(
-        service.listPage('tenant-1', 'user-1', { offset: 2, limit: 2 }),
-      ).resolves.toEqual({ items: [{ id: 's2' }, { id: 's1' }], total: 5, nextOffset: 4, hasMore: true });
+      const result = await service.listPage('tenant-1', 'user-1', { limit: 2 });
+      expect(result).toMatchObject({
+        items: [
+          { id: 's3', watchlistMatchCount: 0, recapSaved: false, recapAttachmentId: null },
+          { id: 's2', watchlistMatchCount: 0, recapSaved: false, recapAttachmentId: null },
+        ],
+        total: 5,
+        hasMore: true,
+        nextCursor: expect.any(String),
+      });
       expect(withTenant).toHaveBeenCalledWith('tenant-1', expect.any(Function));
       expect(model('liveHearingSession').findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          skip: 2,
-          take: 2,
+          take: 3,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           where: expect.objectContaining({
             tenantId: 'tenant-1',
-            OR: [{ sourceType: { in: ['hearing', 'markup'] } }, { createdBy: 'user-1' }],
+            AND: [
+              {
+                OR: [{ sourceType: { in: ['hearing', 'markup'] } }, { createdBy: 'user-1' }],
+              },
+            ],
           }),
         }),
       );

@@ -6,47 +6,53 @@ import { SaveHearingRecapDto } from './hearing-recap.controller.js';
 import { HearingRecapService } from './hearing-recap.service.js';
 
 const ctx = {
-  tenantId: 'tenant-1',
+  tenantId: '11111111-1111-1111-1111-111111111111',
   clerkUserId: 'user-1',
-  userId: 'db-user-1',
+  userId: '22222222-2222-2222-2222-222222222222',
 } as unknown as TenantContext;
 
-function makeHarness(sessionExists = true) {
-  const createAttachmentFromBuffer = jest.fn(async (_ctx: TenantContext, input: Record<string, unknown>) => ({
-    id: 'attachment-1',
-    fileName: input.fileName as string,
+function harness(opts: { session?: boolean; existing?: boolean } = {}) {
+  const createAttachmentFromBuffer = jest.fn(async (_ctx, input) => ({
+    id: '33333333-3333-3333-3333-333333333333',
+    fileName: input.fileName,
   }));
   const supersedeAttachment = jest.fn(async () => undefined);
+  const tx = {
+    client: {
+      findFirst: jest.fn(async () => ({ id: 'client-1', name: 'Canonical Client' })),
+    },
+    engagementAttachment: {
+      findFirst: jest.fn(async () =>
+        opts.existing
+          ? {
+              id: '44444444-4444-4444-4444-444444444444',
+              fileName: 'Existing.docx',
+              createdAt: new Date(),
+              indexedAt: null,
+            }
+          : null,
+      ),
+    },
+    $queryRaw: jest.fn(async () =>
+      opts.session === false ? [] : [{ id: 'session-1', title: 'Source hearing' }],
+    ),
+  };
+  const prisma = {
+    withTenant: async (_tenantId: string, fn: (scoped: typeof tx) => unknown) => fn(tx),
+  } as unknown as PrismaService;
   const engagement = {
     createAttachmentFromBuffer,
     supersedeAttachment,
   } as unknown as EngagementService;
-  const sql: string[] = [];
-  const params: unknown[][] = [];
-  const tx = {
-    $queryRaw: jest.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
-      sql.push(strings.join('?'));
-      params.push(values);
-      return sessionExists ? [{ id: 'session-1' }] : [];
-    }),
-  };
-  const prisma = {
-    withTenant: async <T>(_tenantId: string, fn: (inner: typeof tx) => Promise<T>) => fn(tx),
-  } as unknown as PrismaService;
   return {
     svc: new HearingRecapService(engagement, prisma),
+    tx,
     createAttachmentFromBuffer,
     supersedeAttachment,
-    queryRaw: tx.$queryRaw,
-    sql,
-    params,
   };
 }
 
 describe('SaveHearingRecapDto', () => {
-  // Exactly the global pipe from apps/api/src/main.ts — the previous web path
-  // posted a hearing recap to alert-memo/save, which this configuration rejected
-  // outright because that DTO requires an alertId.
   const pipe = new ValidationPipe({
     whitelist: true,
     forbidNonWhitelisted: true,
@@ -54,42 +60,23 @@ describe('SaveHearingRecapDto', () => {
     transformOptions: { enableImplicitConversion: false },
   });
 
-  it('accepts a session-shaped recap without an alertId', async () => {
+  it('accepts the session contract without trusting a browser-supplied client name', async () => {
     await expect(
       pipe.transform(
-        {
-          sessionId: 'session-1',
-          title: 'Hearing recap — Armed Services',
-          markdown: '# Hearing recap\n\nSource-anchored content.',
-          clientName: 'Acme Defense',
-        },
+        { sessionId: 'session-1', title: 'Hearing recap', markdown: 'Source anchored' },
         { type: 'body', metatype: SaveHearingRecapDto },
       ),
     ).resolves.toBeInstanceOf(SaveHearingRecapDto);
   });
 
-  it('rejects a missing sessionId instead of accepting an untraceable document', async () => {
-    await expect(
-      pipe.transform(
-        {
-          title: 'Hearing recap',
-          markdown: 'Content',
-          clientName: 'Acme Defense',
-        },
-        { type: 'body', metatype: SaveHearingRecapDto },
-      ),
-    ).rejects.toBeInstanceOf(BadRequestException);
-  });
-
-  it('rejects alert-governance fields that do not belong to the recap contract', async () => {
+  it('rejects clientName because client identity is server-owned', async () => {
     await expect(
       pipe.transform(
         {
           sessionId: 'session-1',
           title: 'Hearing recap',
           markdown: 'Content',
-          clientName: 'Acme Defense',
-          alertId: 'spoofed-alert',
+          clientName: 'Spoofed Client',
         },
         { type: 'body', metatype: SaveHearingRecapDto },
       ),
@@ -98,75 +85,77 @@ describe('SaveHearingRecapDto', () => {
 });
 
 describe('HearingRecapService', () => {
-  it('proves the hearing belongs to the tenant and files a real DOCX', async () => {
-    const h = makeHarness(true);
-
-    const result = await h.svc.save(ctx, 'client-1', {
+  it('renders with the canonical client and writes hearing-session provenance', async () => {
+    const h = harness();
+    await h.svc.save(ctx, 'client-1', {
       sessionId: 'session-1',
-      title: 'Hearing recap — Armed Services',
-      markdown: '# Hearing recap\n\n## Key moments\n\nStatement [segment:seg-1]',
-      clientName: 'Acme Defense',
+      title: 'Hearing recap',
+      markdown: '# Recap',
     });
-
-    expect(h.queryRaw).toHaveBeenCalledTimes(1);
     expect(h.createAttachmentFromBuffer).toHaveBeenCalledWith(
       ctx,
       expect.objectContaining({
         clientId: 'client-1',
-        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         source: 'hearing_recap',
-        buffer: expect.any(Buffer),
+        sourceEntityType: 'hearing_session',
+        sourceEntityId: 'session-1',
       }),
     );
-    expect(result).toMatchObject({
-      sessionId: 'session-1',
-      document: { attachmentId: 'attachment-1' },
-    });
   });
 
-  it('enforces the private-session boundary in the ownership query itself', async () => {
-    const h = makeHarness(true);
-
+  it('enforces the tenant and private-session creator boundary in SQL', async () => {
+    const h = harness();
     await h.svc.save(ctx, 'client-1', {
       sessionId: 'session-1',
       title: 'Hearing recap',
-      markdown: 'Content',
-      clientName: 'Acme Defense',
+      markdown: '# Recap',
     });
-
-    // Public proceedings are firm-visible; a private meeting/webinar/agency
-    // session is only filable by its creator, matching intel-api's read boundary.
-    // Without the created_by leg, any same-tenant user could export another
-    // user's private session into a client document.
-    expect(h.sql[0]).toContain('FROM intel_live_hearing_session');
-    expect(h.sql[0]).toContain('tenant_id =');
-    expect(h.sql[0]).toContain("source_type::text IN ('hearing', 'markup')");
-    expect(h.sql[0]).toContain('created_by =');
-    expect(h.params[0]).toEqual(['session-1', 'tenant-1', 'user-1']);
+    const call = h.tx.$queryRaw.mock.calls[0];
+    expect(call).toBeDefined();
+    const [strings, ...values] = call as unknown as [TemplateStringsArray, ...unknown[]];
+    const sql = strings.join('?');
+    expect(sql).toContain('FROM intel_live_hearing_session');
+    expect(sql).toContain('tenant_id =');
+    expect(sql).toContain("source_type::text IN ('hearing', 'markup')");
+    expect(sql).toContain('created_by =');
+    expect(values).toEqual(['session-1', ctx.tenantId, ctx.clerkUserId]);
   });
 
-  it('refuses to file a recap for a session outside the tenant', async () => {
-    const h = makeHarness(false);
+  it('is idempotent when a current recap already exists', async () => {
+    const h = harness({ existing: true });
+    const result = await h.svc.save(ctx, 'client-1', {
+      sessionId: 'session-1',
+      title: 'Hearing recap',
+      markdown: '# Recap',
+    });
+    expect(result.reused).toBe(true);
+    expect(h.createAttachmentFromBuffer).not.toHaveBeenCalled();
+  });
+
+  it('supersedes the current recap only when the caller names that exact document', async () => {
+    const h = harness({ existing: true });
+    await h.svc.save(ctx, 'client-1', {
+      sessionId: 'session-1',
+      title: 'Updated hearing recap',
+      markdown: '# Updated recap',
+      replaceAttachmentId: '44444444-4444-4444-4444-444444444444',
+    });
+    expect(h.supersedeAttachment).toHaveBeenCalledWith(
+      ctx,
+      '44444444-4444-4444-4444-444444444444',
+      '33333333-3333-3333-3333-333333333333',
+    );
+  });
+
+  it('rejects an inaccessible session before writing a document', async () => {
+    const h = harness({ session: false });
     await expect(
       h.svc.save(ctx, 'client-1', {
         sessionId: 'foreign-session',
         title: 'Hearing recap',
         markdown: 'Content',
-        clientName: 'Acme Defense',
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(h.createAttachmentFromBuffer).not.toHaveBeenCalled();
-  });
-
-  it('supersedes rather than destructively deleting an earlier recap', async () => {
-    const h = makeHarness(true);
-    await h.svc.save(ctx, 'client-1', {
-      sessionId: 'session-1',
-      title: 'Updated hearing recap',
-      markdown: 'Updated content',
-      clientName: 'Acme Defense',
-      replaceAttachmentId: 'attachment-old',
-    });
-    expect(h.supersedeAttachment).toHaveBeenCalledWith(ctx, 'attachment-old', 'attachment-1');
   });
 });

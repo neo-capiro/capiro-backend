@@ -179,7 +179,8 @@ function actionLabel(a: RecommendedAction, item: FeedItem): string {
 export function materialGaps(item: FeedItem): string[] {
   const gaps: string[] = [];
   if (!item.whyItMatters) gaps.push('client relevance');
-  if (!item.evidence?.provenance?.sourceUrl && !item.evidence?.bill?.url) gaps.push('a source link');
+  if (!item.evidence?.provenance?.sourceUrl && !item.evidence?.bill?.url)
+    gaps.push('a source link');
   if (
     item.sourceType === 'bill' ||
     item.sourceType === 'state_bill' ||
@@ -197,8 +198,7 @@ function urgencyText(item: FeedItem): string | null {
   return d ? `Action ${d}` : null;
 }
 
-const BAND_TOOLTIP =
-  'Ranked from client relevance, materiality, urgency, and client priority.';
+const BAND_TOOLTIP = 'Ranked from client relevance, materiality, urgency, and client priority.';
 
 /** P2-04: the worklist filter. 'default' hides this user's dismissed + snoozed. */
 const WORK_FILTERS: Array<{ v: string; label: string }> = [
@@ -619,9 +619,7 @@ function FeedCard({
                 </div>
               ) : null}
               {packet.proceduralMeaning?.uncertainty?.length ? (
-                <div className="muted mini">
-                  {packet.proceduralMeaning.uncertainty.join('; ')}
-                </div>
+                <div className="muted mini">{packet.proceduralMeaning.uncertainty.join('; ')}</div>
               ) : null}
             </div>
           )}
@@ -647,10 +645,7 @@ function FeedCard({
               >
                 <Ic n="doc" /> Open memo
               </button>
-              <button
-                className="btn sm btn-ghost"
-                onClick={() => onEditMemoInWorkspace(item)}
-              >
+              <button className="btn sm btn-ghost" onClick={() => onEditMemoInWorkspace(item)}>
                 <Ic n="spark" /> Edit in Workspace
               </button>
               <button
@@ -846,7 +841,13 @@ function FeedItemsList({
               key={it.id}
               data-index={vi.index}
               ref={virtualizer.measureElement}
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)` }}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${vi.start}px)`,
+              }}
             >
               {card(it)}
             </div>
@@ -917,7 +918,6 @@ export function TrackerFeedPanel({
   const [briefItem, setBriefItem] = useState<FeedItem | null>(null);
   const [tpItem, setTpItem] = useState<FeedItem | null>(null);
   const [tpText, setTpText] = useState('');
-  const focusPagingRef = useRef(false);
   const focusExhaustedRef = useRef<string | null>(null);
 
   // A focused alert can arrive after mount when URL state changes in place.
@@ -1035,6 +1035,18 @@ export function TrackerFeedPanel({
   // P11: global mode reads the tenant-wide roll-up (`_all/feed`) under a distinct
   // cache key; per-client mode is unchanged. The path/key switch is the ONLY
   // difference — filters, keyset cursor, and page shape are identical.
+  const focusedAlert = useQuery<FeedResponse>({
+    queryKey: ['intel-feed-alert', global ? '_all' : clientId, focusAlertId],
+    queryFn: async () => {
+      const base = global
+        ? '/intel-api/clients/_all/feed/alerts'
+        : `/intel-api/clients/${encodeURIComponent(clientId!)}/feed/alerts`;
+      return (await api.get<FeedResponse>(`${base}/${encodeURIComponent(focusAlertId!)}`)).data;
+    },
+    enabled: Boolean(focusAlertId),
+    retry: false,
+  });
+
   const query = useInfiniteQuery({
     queryKey: global
       ? [...intelFeedKeys.tenantFeed(source, order), workFilter]
@@ -1052,59 +1064,36 @@ export function TrackerFeedPanel({
       last.hasMore && last.nextCursor ? last.nextCursor : undefined,
   });
 
-  const items = query.data?.pages.flatMap((p) => p.items) ?? [];
+  const pageItems = query.data?.pages.flatMap((p) => p.items) ?? [];
+  const focusedItem = focusedAlert.data?.items[0];
+  const items =
+    focusedItem && !pageItems.some((item) => item.id === focusedItem.id)
+      ? [focusedItem, ...pageItems]
+      : pageItems;
 
-  /**
-   * Email links may target an alert older than page one. The old implementation
-   * only auto-expanded a target already present in `items`; a valid older link
-   * landed on an ordinary feed with no explanation. Walk the existing keyset
-   * pages until the target is loaded. TanStack still owns request de-duplication;
-   * the ref prevents this effect from scheduling concurrent page advances.
-   */
+  /** A direct alert-id lookup avoids walking an entire feed for a stale link. */
   useEffect(() => {
-    // When focusAlertId arrives after mount, the widening effect above schedules
-    // a new query. Do not declare the target missing from the OLD filtered result
-    // during that render; wait until the visible controls and query are both All.
-    if (!focusAlertId || !query.data || source !== 'all' || workFilter !== 'all') return;
-    if (items.some((item) => item.id === focusAlertId)) {
-      focusExhaustedRef.current = null;
-      return;
-    }
-    if (query.isFetchNextPageError) {
-      if (focusExhaustedRef.current !== focusAlertId) {
-        focusExhaustedRef.current = focusAlertId;
+    if (!focusAlertId || focusedAlert.isLoading) return;
+    if (focusedAlert.isError) {
+      const key = `${focusAlertId}:error`;
+      if (focusExhaustedRef.current !== key) {
+        focusExhaustedRef.current = key;
         message.warning('Could not load the linked alert. The active feed is still available.');
         onFocused?.();
       }
       return;
     }
-    if (query.hasNextPage) {
-      if (!query.isFetchingNextPage && !focusPagingRef.current) {
-        focusPagingRef.current = true;
-        void query.fetchNextPage().finally(() => {
-          focusPagingRef.current = false;
-        });
+    if (!focusedItem) {
+      const key = `${focusAlertId}:missing`;
+      if (focusExhaustedRef.current !== key) {
+        focusExhaustedRef.current = key;
+        message.warning('The linked alert is no longer available in this feed.');
+        onFocused?.();
       }
       return;
     }
-    if (focusExhaustedRef.current !== focusAlertId) {
-      focusExhaustedRef.current = focusAlertId;
-      message.warning('The linked alert is no longer available in this feed.');
-      onFocused?.();
-    }
-  }, [
-    focusAlertId,
-    items,
-    message,
-    onFocused,
-    query.data,
-    query.fetchNextPage,
-    query.hasNextPage,
-    query.isFetchNextPageError,
-    query.isFetchingNextPage,
-    source,
-    workFilter,
-  ]);
+    focusExhaustedRef.current = null;
+  }, [focusAlertId, focusedAlert.isLoading, focusedAlert.isError, focusedItem, message, onFocused]);
 
   // §4.8 edge case 4: how many loaded alerts predate the re-weight.
   const priorModelCount = items.filter(isPriorScoreModel).length;
@@ -1136,8 +1125,7 @@ export function TrackerFeedPanel({
         break;
       case 'open_program_element':
         // R4 §4.3: the PE alert deep-links to Program Element 360.
-        if (a.target?.peCode)
-          navigate(`/program-elements/${encodeURIComponent(a.target.peCode)}`);
+        if (a.target?.peCode) navigate(`/program-elements/${encodeURIComponent(a.target.peCode)}`);
         break;
       case 'pull_quotes': {
         const qs = (item.evidence?.hearing?.mentions ?? [])
@@ -1202,7 +1190,9 @@ export function TrackerFeedPanel({
     }
     const groups = [...byClient.entries()];
     void Promise.allSettled(
-      groups.map(([cid, alertIds]) => bulkWorkState.mutateAsync({ clientId: cid, alertIds, state })),
+      groups.map(([cid, alertIds]) =>
+        bulkWorkState.mutateAsync({ clientId: cid, alertIds, state }),
+      ),
     ).then((results) => {
       let ok = 0;
       let failed = 0;
@@ -1229,7 +1219,8 @@ export function TrackerFeedPanel({
           failed += [...byClient.values()][i]?.length ?? 1;
         }
       });
-      if (failed > 0) message.warning(`${label}: ${ok} of ${ok + failed} updated — ${failed} failed`);
+      if (failed > 0)
+        message.warning(`${label}: ${ok} of ${ok + failed} updated — ${failed} failed`);
       else message.success(`${label}: ${ok} updated`);
       setSelectedIds([]);
     });
@@ -1434,8 +1425,9 @@ export function TrackerFeedPanel({
           {order === 'score' && priorModelCount > 0 && (
             <div className="muted mini" style={{ marginTop: 6 }}>
               Ranked by the current model. {priorModelCount} alert
-              {priorModelCount === 1 ? '' : 's'} on this page {priorModelCount === 1 ? 'was' : 'were'}{' '}
-              scored by the prior model and may rank differently.
+              {priorModelCount === 1 ? '' : 's'} on this page{' '}
+              {priorModelCount === 1 ? 'was' : 'were'} scored by the prior model and may rank
+              differently.
             </div>
           )}
         </div>

@@ -1,4 +1,13 @@
-import { Body, Controller, Get, NotFoundException, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
@@ -64,11 +73,11 @@ export class HearingController {
   @Get('history')
   history(
     @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Query('offset') offset?: string,
+    @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
   ) {
     return this.sessions.listPage(ctx.tenantId, ctx.clerkUserId, {
-      offset: parseNonNegativeInt(offset),
+      cursor: cursor || undefined,
       limit: parsePositiveInt(limit),
     });
   }

@@ -287,6 +287,9 @@ model User {
   // or skips the first-login tour; NULL = auto-launch on next dashboard load.
   // Server-side so the choice follows the user across devices.
   tourCompletedAt       DateTime? @map("tour_completed_at") @db.Timestamptz(6)
+  // LegiWatch orientation is a per-user preference that follows the analyst
+  // across browsers and devices instead of a shared localStorage flag.
+  legiwatchIntroSeenAt  DateTime? @map("legiwatch_intro_seen_at") @db.Timestamptz(6)
   lastSeenAt            DateTime? @map("last_seen_at") @db.Timestamptz(6)
   createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -880,6 +883,10 @@ model EngagementAttachment {
   /// as proof of integrity. See calculatedSha256 for the server's own digest.
   checksumSha256   String?   @map("checksum_sha256")
   source           String    @default("manual")
+  // Generic generated-document provenance. Hearing recaps use
+  // sourceEntityType="hearing_session" plus the intel session id.
+  sourceEntityType String?   @map("source_entity_type") @db.VarChar(64)
+  sourceEntityId   String?   @map("source_entity_id") @db.VarChar(128)
   uploadedByUserId String?   @map("uploaded_by_user_id") @db.Uuid
   // Meetings v2 (2026-07): stamped by ClientKbService.indexAttachment when the
   // client-KB indexing of this document completes, so the Documents tab can show
@@ -929,7 +936,7 @@ model EngagementAttachment {
   /// contract instead of destructively deleting. The row, its S3 object, and
   /// its KB index are all left exactly as they were; only this pointer and
   /// listAttachments' default filter change.
-  supersededByAttachmentId String?               @map("superseded_by_attachment_id") @db.Uuid
+  supersededByAttachmentId String?                @map("superseded_by_attachment_id") @db.Uuid
   supersededBy             EngagementAttachment?  @relation("AttachmentSupersession", fields: [supersededByAttachmentId], references: [id], onDelete: SetNull)
   supersedes               EngagementAttachment[] @relation("AttachmentSupersession")
 
@@ -941,6 +948,7 @@ model EngagementAttachment {
   sharedBy    User?        @relation("EngagementAttachmentSharedBy", fields: [sharedByUserId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, clientId], map: "engagement_attachments_tenant_client_idx")
+  @@index([tenantId, clientId, source, sourceEntityType, createdAt], map: "engagement_attachments_generated_source_idx")
   @@index([tenantId, meetingId], map: "engagement_attachments_tenant_meeting_idx")
   @@index([tenantId, mailMessageId], map: "engagement_attachments_tenant_mail_message_idx")
   @@index([tenantId, lifecycleStatus, createdAt], map: "engagement_attachments_tenant_lifecycle_created_idx")
@@ -1678,34 +1686,34 @@ model MeriPendingAction {
 /// Immutable, server-created MeriV2 action proposal. Browser approval is by the
 /// opaque id only; tool/input/fingerprint/policy/tenant/user are server authority.
 model MeriActionProposal {
-  id                     String   @id @default(uuid()) @db.Uuid
-  tenantId               String   @map("tenant_id") @db.Uuid
-  userId                 String   @map("user_id") @db.Uuid
-  actorUserId            String?  @map("actor_user_id") @db.Uuid
-  impersonationSessionId String?  @map("impersonation_session_id") @db.VarChar(160)
-  conversationId         String?  @map("conversation_id") @db.Uuid
-  surface                String   @db.VarChar(40)
-  tool                   String   @db.VarChar(120)
-  input                  Json     @map("input_jsonb")
-  fingerprint            String   @db.VarChar(64)
-  policyVersion          String   @map("policy_version") @db.VarChar(80)
-  policyRuleId           String?  @map("policy_rule_id") @db.VarChar(160)
-  policyDecision         String   @map("policy_decision") @db.VarChar(20)
-  policyCode             String?  @map("policy_code") @db.VarChar(120)
-  riskTier               String?  @map("risk_tier") @db.VarChar(40)
-  preview                Json     @map("preview_jsonb")
-  status                 String   @db.VarChar(32)
-  expiresAt              DateTime @map("expires_at") @db.Timestamptz(6)
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenantId               String    @map("tenant_id") @db.Uuid
+  userId                 String    @map("user_id") @db.Uuid
+  actorUserId            String?   @map("actor_user_id") @db.Uuid
+  impersonationSessionId String?   @map("impersonation_session_id") @db.VarChar(160)
+  conversationId         String?   @map("conversation_id") @db.Uuid
+  surface                String    @db.VarChar(40)
+  tool                   String    @db.VarChar(120)
+  input                  Json      @map("input_jsonb")
+  fingerprint            String    @db.VarChar(64)
+  policyVersion          String    @map("policy_version") @db.VarChar(80)
+  policyRuleId           String?   @map("policy_rule_id") @db.VarChar(160)
+  policyDecision         String    @map("policy_decision") @db.VarChar(20)
+  policyCode             String?   @map("policy_code") @db.VarChar(120)
+  riskTier               String?   @map("risk_tier") @db.VarChar(40)
+  preview                Json      @map("preview_jsonb")
+  status                 String    @db.VarChar(32)
+  expiresAt              DateTime  @map("expires_at") @db.Timestamptz(6)
   approvedAt             DateTime? @map("approved_at") @db.Timestamptz(6)
-  approvedBy             String?  @map("approved_by") @db.Uuid
+  approvedBy             String?   @map("approved_by") @db.Uuid
   executionStartedAt     DateTime? @map("execution_started_at") @db.Timestamptz(6)
   executedAt             DateTime? @map("executed_at") @db.Timestamptz(6)
-  attemptCount           Int      @default(0) @map("attempt_count")
-  lastErrorCode          String?  @map("last_error_code") @db.VarChar(120)
-  lastErrorMessage       String?  @map("last_error_message") @db.VarChar(1000)
-  resultSummary          Json?    @map("result_summary_jsonb")
-  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  attemptCount           Int       @default(0) @map("attempt_count")
+  lastErrorCode          String?   @map("last_error_code") @db.VarChar(120)
+  lastErrorMessage       String?   @map("last_error_message") @db.VarChar(1000)
+  resultSummary          Json?     @map("result_summary_jsonb")
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -2069,8 +2077,8 @@ model ReviewRequest {
   decidedAt   DateTime? @map("decided_at") @db.Timestamptz(6)
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  tenant                Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  outreachDraftVersions OutreachDraftVersion[]
+  tenant                 Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  outreachDraftVersions  OutreachDraftVersion[]
   alertGenerationRecords AlertGenerationRecord[]
 
   @@index([tenantId, status, createdAt(sort: Desc)], map: "review_request_tenant_status_idx")
@@ -4213,28 +4221,28 @@ model IntelligenceInsight {
 // ─────────────────────────────────────────────────────────────────────────
 
 model ClientIntelMapping {
-  id           String   @id @default(uuid()) @db.Uuid
-  tenantId     String   @map("tenant_id") @db.Uuid
-  clientId     String   @map("client_id") @db.Uuid
-  source       String // 'lda', 'contracting', 'lobby_intel', 'fec'
-  externalId   String   @map("external_id")
-  externalName String   @map("external_name")
-  confidence   Float
-  confirmed    Boolean  @default(false)
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  clientId         String   @map("client_id") @db.Uuid
+  source           String // 'lda', 'contracting', 'lobby_intel', 'fec'
+  externalId       String   @map("external_id")
+  externalName     String   @map("external_name")
+  confidence       Float
+  confirmed        Boolean  @default(false)
   /// WHY this candidate exists, in the identity-tier vocabulary the contractor
   /// matcher uses: 'exact_uei' | 'exact_cage' | 'exact_legal_name_corroborated' |
   /// 'exact_legal_name' | 'fuzzy_name' | 'manual_pin' | 'legacy_unrecorded'.
   /// A bare confidence percentage is not a reason a user can check, and every
   /// pre-existing row predates this column — hence nullable, and hence
   /// 'legacy_unrecorded' rather than back-filling a basis nobody recorded.
-  matchBasis   String?  @map("match_basis") @db.VarChar(40)
+  matchBasis       String?  @map("match_basis") @db.VarChar(40)
   /// Identity tier 1-4 (1 = exact verified identifier … 4 = fuzzy name). Drives
   /// the auto-confirm decision; tier 4 is never auto-confirmed.
-  matchTier    Int?     @map("match_tier")
+  matchTier        Int?     @map("match_tier")
   /// The specific facts behind the basis — identifiers matched, normalized names
   /// compared, corroborating and CONFLICTING facts, award footprint. Rendered as
   /// the match explanation, so it must hold facts, never a paraphrase.
-  matchEvidence Json?   @map("match_evidence_jsonb")
+  matchEvidence    Json?    @map("match_evidence_jsonb")
   /// The CORPORATE-IDENTITY relationship this mapping asserts between the client
   /// and the federal entity: 'self' | 'alias' | 'former_name' | 'parent' |
   /// 'subsidiary' | 'operating_unit'. This is the identity gap made explicit —
@@ -4243,13 +4251,13 @@ model ClientIntelMapping {
   /// an answer to "whose money is this". NULL on every pre-existing row: the
   /// relationship was never recorded, and defaulting them all to 'self' would
   /// invent a reviewed assertion nobody made.
-  relationshipType String? @map("relationship_type") @db.VarChar(24)
+  relationshipType String?  @map("relationship_type") @db.VarChar(24)
   /// Whether awards on this federal entity should ROLL UP to the client. Only
   /// meaningful once `relationshipType` is set and `confirmed` is true; NULL
   /// means undecided, which read paths must treat as "do not roll up".
-  rollUpAwards Boolean? @map("roll_up_awards")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  rollUpAwards     Boolean? @map("roll_up_awards")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@unique([clientId, source, externalId])
   @@index([clientId])
@@ -5657,9 +5665,6 @@ model ClientGrantNexus {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  @@index([tenantId, clientId], map: "client_grant_nexus_tenant_client_idx")
-  @@index([tenantId, assistanceAwardId], map: "client_grant_nexus_tenant_award_idx")
-  @@index([tenantId, grantOpportunityId], map: "client_grant_nexus_tenant_opp_idx")
   // B3: prevents a concurrent double-run of generate-grant-opportunity-candidates.ts
   // from creating duplicate rows for the same (tenant, client, opportunity,
   // relationship) under the SAME evidence source. evidenceSourceType is part of
@@ -5668,6 +5673,9 @@ model ClientGrantNexus {
   // to coexist (see generate-grant-opportunity-candidates.spec.ts's "a
   // human-created row for the same pair is never read or touched").
   @@unique([tenantId, clientId, grantOpportunityId, relationshipType, evidenceSourceType], map: "client_grant_nexus_producer_unique_idx")
+  @@index([tenantId, clientId], map: "client_grant_nexus_tenant_client_idx")
+  @@index([tenantId, assistanceAwardId], map: "client_grant_nexus_tenant_award_idx")
+  @@index([tenantId, grantOpportunityId], map: "client_grant_nexus_tenant_opp_idx")
   @@map("client_grant_nexus")
 }
 
@@ -5699,24 +5707,24 @@ model ClientFundingOpportunity {
   clientId String @map("client_id") @db.Uuid
 
   /// 'grants_gov' | 'sam_gov'.
-  source String @db.VarChar(16)
+  source             String  @db.VarChar(16)
   /// FederalGrant.id (a Grants.gov opportunity id) — set iff source='grants_gov'.
   grantOpportunityId String? @map("grant_opportunity_id")
   /// SamOpportunity.id (uuid) — set iff source='sam_gov'.
-  samOpportunityId String? @map("sam_opportunity_id") @db.Uuid
+  samOpportunityId   String? @map("sam_opportunity_id") @db.Uuid
 
   /// 'suggested' | 'saved' | 'pursuing' | 'dismissed' | 'won' | 'lost' | 'expired'.
   /// CHECK-constrained in the migration.
-  workflowStatus String @default("suggested") @map("workflow_status") @db.VarChar(16)
+  workflowStatus String  @default("suggested") @map("workflow_status") @db.VarChar(16)
   /// Assigned owner — `users.id`. Always same-tenant; the service verifies
   /// membership before writing, because a uuid in a request body proves nothing.
-  ownerUserId String? @map("owner_user_id") @db.Uuid
+  ownerUserId    String? @map("owner_user_id") @db.Uuid
   /// Explicit, reviewable project site (`client_facilities.id`). The ONLY path
   /// from an opportunity to a congressional district — never inferred from the
   /// notice, which publishes applicant eligibility (grants) or a place of
   /// performance that may be nowhere near the client (SAM).
-  facilityId String? @map("facility_id") @db.Uuid
-  notes      String? @db.Text
+  facilityId     String? @map("facility_id") @db.Uuid
+  notes          String? @db.Text
 
   /// Deterministic snapshot from when this row was last scored. A SNAPSHOT, not
   /// the live answer: the read path recomputes relevance on every request, so
@@ -5731,17 +5739,17 @@ model ClientFundingOpportunity {
   /// 'user_action' (a human saved/pursued it). Mirrors
   /// ClientGrantNexus.evidenceSourceType, and is what lets the producer tell its
   /// own rows apart from a human's.
-  evidenceSourceType String @map("evidence_source_type") @db.VarChar(48)
+  evidenceSourceType String    @map("evidence_source_type") @db.VarChar(48)
   /// TRUE when a human created this row. The producer must never overwrite one.
-  userCreated Boolean @default(false) @map("user_created")
+  userCreated        Boolean   @default(false) @map("user_created")
   /// Stamped when the producer decides a suggestion IT created no longer clears
   /// the relevance floor. Never applied to a row a human has acted on — a
   /// dismissal or a pursuit is a decision, not a stale guess.
-  staleAt DateTime? @map("stale_at") @db.Timestamptz(6)
+  staleAt            DateTime? @map("stale_at") @db.Timestamptz(6)
 
   dismissedReason String? @map("dismissed_reason") @db.Text
   /// Free-text won/lost context. Only ever set by an explicit user action.
-  outcomeNote String? @map("outcome_note") @db.Text
+  outcomeNote     String? @map("outcome_note") @db.Text
 
   createdBy String?  @map("created_by") @db.Uuid
   updatedBy String?  @map("updated_by") @db.Uuid

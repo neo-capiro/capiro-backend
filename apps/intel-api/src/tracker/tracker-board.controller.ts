@@ -45,7 +45,11 @@ export class TrackerBoardController {
     @Query('limit') limit?: string,
   ) {
     const n = Number(limit);
-    return this.svc.getRecommendations(ctx.tenantId, clientId, Number.isFinite(n) && n > 0 ? Math.min(n, 100) : 25);
+    return this.svc.getRecommendations(
+      ctx.tenantId,
+      clientId,
+      Number.isFinite(n) && n > 0 ? Math.min(n, 100) : 25,
+    );
   }
 
   // `_all` → the LegiWatch all-clients board roll-up (L2b); any real clientId →
@@ -72,6 +76,16 @@ export class TrackerBoardController {
     return clientId === '_all'
       ? this.svc.getTenantBoard(ctx.tenantId, opts)
       : this.svc.getBoard(ctx.tenantId, clientId, opts);
+  }
+
+  /** Direct status lookup so a paginated board is never used as an existence test. */
+  @Get(':clientId/tracker/bills/:billId/status')
+  getTrackedStatus(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('clientId') clientId: string,
+    @Param('billId') billId: string,
+  ) {
+    return this.svc.getTrackedStatus(ctx.tenantId, clientId, billId);
   }
 
   // Client-profile tab badge: legacy-identical `{ boardCount, unread }`.

@@ -126,7 +126,11 @@ export function BillCard({
             a `title`. The label it already carried is now visible text. */}
         {bill.change && (
           <span className={`b-change ${bill.change.tone}`}>
-            <span className={`dot ${bill.change.tone}`} style={{ width: 7, height: 7 }} aria-hidden />
+            <span
+              className={`dot ${bill.change.tone}`}
+              style={{ width: 7, height: 7 }}
+              aria-hidden
+            />
             {bill.change.label}
           </span>
         )}
@@ -161,7 +165,11 @@ export function BillCard({
       <PassageBar prob={bill.probability} />
       <div className="b-foot">
         {(bill.tags ?? []).slice(0, 2).map((t) => (
-          <span key={t} className={`chip ${issueSet.has(t) ? 'issue' : 'muted'}`} style={{ fontSize: 10.5 }}>
+          <span
+            key={t}
+            className={`chip ${issueSet.has(t) ? 'issue' : 'muted'}`}
+            style={{ fontSize: 10.5 }}
+          >
             {t}
           </span>
         ))}
@@ -398,7 +406,9 @@ export function BoardTableView({
                   tenant-member row (removed user) renders "Former member", never
                   blank and never a raw id. Edge case 4 (never tracked / null) is
                   memberName's own "Unassigned". */}
-              <td data-label="Owner">{memberName(teamMembers.data, b.trackedBy, 'Former member')}</td>
+              <td data-label="Owner">
+                {memberName(teamMembers.data, b.trackedBy, 'Former member')}
+              </td>
             </tr>
           ))
         )}
@@ -570,14 +580,21 @@ export function RecCard({
         <div className="r-why">{bill.why}</div>
         <div className="r-foot">
           {bill.matchedTags.slice(0, 2).map((t) => (
-            <span key={t} className={`chip ${issueSet.has(t) ? 'issue' : 'muted'}`} style={{ fontSize: 10.5 }}>
+            <span
+              key={t}
+              className={`chip ${issueSet.has(t) ? 'issue' : 'muted'}`}
+              style={{ fontSize: 10.5 }}
+            >
               {t}
             </span>
           ))}
           {sponsor && <span className="mini muted num">{sponsor}</span>}
         </div>
       </div>
-      <div className="r-act" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+      <div
+        className="r-act"
+        style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}
+      >
         <button className="btn btn-accent sm" onClick={() => onTrack(bill.billId)}>
           <Icon name="plus" size={11} /> Track
         </button>
@@ -605,7 +622,9 @@ export function RecCard({
                   key={r.value}
                   className="opt"
                   role="menuitem"
-                  onClick={() => onDismiss(bill.billId, r.value, bill.matchedTags, bill.matchedTopicIds ?? [])}
+                  onClick={() =>
+                    onDismiss(bill.billId, r.value, bill.matchedTags, bill.matchedTopicIds ?? [])
+                  }
                 >
                   {r.label}
                 </div>
@@ -613,7 +632,9 @@ export function RecCard({
               <div
                 className="opt"
                 role="menuitem"
-                onClick={() => onDismiss(bill.billId, null, bill.matchedTags, bill.matchedTopicIds ?? [])}
+                onClick={() =>
+                  onDismiss(bill.billId, null, bill.matchedTags, bill.matchedTopicIds ?? [])
+                }
               >
                 Just hide it
               </div>
@@ -814,7 +835,9 @@ export function AddBillModal({
               {/* P1-17: label the rail so a state result is not mistaken for a
                   federal one with a similar number. */}
               {b.jurisdiction && (
-                <span className="sr-juris">{b.jurisdiction === 'US' ? 'Congress' : b.jurisdiction}</span>
+                <span className="sr-juris">
+                  {b.jurisdiction === 'US' ? 'Congress' : b.jurisdiction}
+                </span>
               )}
               <span className="sr-title">{b.title}</span>
               <span className="sr-stage">
@@ -833,11 +856,7 @@ export function AddBillModal({
                 disabled={pendingId === b.billId || isTracked(b.billId)}
                 onClick={() => handle(b)}
               >
-                {isTracked(b.billId)
-                  ? '✓ On board'
-                  : pendingId === b.billId
-                    ? 'Adding…'
-                    : 'Track'}
+                {isTracked(b.billId) ? '✓ On board' : pendingId === b.billId ? 'Adding…' : 'Track'}
               </button>
             </div>
           ))}
@@ -1065,14 +1084,17 @@ export function SubNav({
   recCount,
   showFeed,
   showConfig = true,
+  showSaved = false,
 }: {
   panel: string;
-  setPanel: (p: 'board' | 'recs' | 'config' | 'feed') => void;
+  setPanel: (p: 'board' | 'recs' | 'config' | 'feed' | 'saved') => void;
   recCount: number;
   /** Show the unified Feed tab — gated by the `tracker_v2` intel feature flag. */
   showFeed?: boolean;
   /** Hide Configure in the Radar Bills embedding (Watchlist is a sibling Radar tab). */
   showConfig?: boolean;
+  /** Client-profile only: saved hearing recap Documents. */
+  showSaved?: boolean;
 }) {
   return (
     <div className="trk-seg">
@@ -1085,6 +1107,11 @@ export function SubNav({
       {showFeed && (
         <button className={panel === 'feed' ? 'active' : ''} onClick={() => setPanel('feed')}>
           Feed
+        </button>
+      )}
+      {showSaved && (
+        <button className={panel === 'saved' ? 'active' : ''} onClick={() => setPanel('saved')}>
+          Saved
         </button>
       )}
       {showConfig && (

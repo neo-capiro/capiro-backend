@@ -12,10 +12,12 @@ import {
 import { BillDrawer, bill360DrawerWidth } from './BillDrawer.js';
 
 const apiGetMock = vi.fn();
+const apiPatchMock = vi.fn();
 
 vi.mock('../../lib/use-api.js', () => ({
   useApi: () => ({
     get: apiGetMock,
+    patch: apiPatchMock,
   }),
 }));
 
@@ -43,10 +45,33 @@ function setupBrowserMocks() {
   vi.stubGlobal('ResizeObserver', ResizeObserverMock);
 }
 
+function meResponse(legiwatchIntroSeen: boolean) {
+  return {
+    user: {
+      id: 'u1',
+      clerkUserId: 'clerk-u1',
+      email: 'analyst@example.com',
+      firstName: 'Ari',
+      lastName: 'Analyst',
+      title: 'Analyst',
+      emailSignatureEnabled: false,
+      hasEmailSignature: false,
+      tourCompleted: true,
+      legiwatchIntroSeen,
+    },
+    tenant: { id: 't1', slug: 'tenant', name: 'Tenant' },
+    role: 'admin',
+    billingAdmin: true,
+    features: { meetingsV2: false, meriDockUndockUi: false },
+  };
+}
+
 /** URL-keyed API stub; `flags` controls /intel-api/feature-flags. */
-function mockApi(flags: Record<string, boolean>) {
+function mockApi(flags: Record<string, boolean>, introSeen = true) {
+  apiPatchMock.mockResolvedValue({ data: meResponse(true) });
   apiGetMock.mockImplementation(async (url: string) => {
     if (url === '/intel-api/feature-flags') return { data: flags };
+    if (url === '/api/me') return { data: meResponse(introSeen) };
     if (url === '/api/clients') {
       return { data: [{ id: 'c1', name: 'Acme Aerospace', status: 'active' }] };
     }
@@ -196,21 +221,30 @@ describe('tenant board trust helpers', () => {
   });
 
   test('change indicator preserves the server tone with a severity fallback', () => {
-    expect(tenantBoardChangeTone(tenantCard({ changeChip: { label: 'Failed', changeType: 'bill_failed', tone: 'critical' } }))).toBe('critical');
-    expect(tenantBoardChangeTone(tenantCard({ changeChip: { label: 'Info', changeType: 'bill_action', severity: 'info' } }))).toBe('info');
-    expect(tenantBoardChangeTone(tenantCard({ changeChip: { label: 'Unknown', changeType: null } }))).toBe('notable');
+    expect(
+      tenantBoardChangeTone(
+        tenantCard({
+          changeChip: { label: 'Failed', changeType: 'bill_failed', tone: 'critical' },
+        }),
+      ),
+    ).toBe('critical');
+    expect(
+      tenantBoardChangeTone(
+        tenantCard({ changeChip: { label: 'Info', changeType: 'bill_action', severity: 'info' } }),
+      ),
+    ).toBe('info');
+    expect(
+      tenantBoardChangeTone(tenantCard({ changeChip: { label: 'Unknown', changeType: null } })),
+    ).toBe('notable');
   });
 });
 
 describe('RadarPage', () => {
   beforeEach(() => {
     apiGetMock.mockReset();
+    apiPatchMock.mockReset();
     window.sessionStorage.clear();
     window.localStorage.clear();
-    // Default to the returning-user state so the first-run orientation modal
-    // (L5) doesn't auto-open and collide with tab-label assertions. The intro
-    // itself is covered by its own test below.
-    window.localStorage.setItem('legiwatch-intro-seen-v1', '1');
     setupBrowserMocks();
   });
 
@@ -246,7 +280,9 @@ describe('RadarPage', () => {
     );
     // It must hit the tenant-wide roll-up endpoint, not a per-client feed.
     expect(
-      apiGetMock.mock.calls.some((args: unknown[]) => String(args[0]).includes('/clients/_all/feed')),
+      apiGetMock.mock.calls.some((args: unknown[]) =>
+        String(args[0]).includes('/clients/_all/feed'),
+      ),
     ).toBe(true);
   });
 
@@ -288,21 +324,21 @@ describe('RadarPage', () => {
     await waitFor(() => expect(screen.getByText(/Your board is empty/i)).toBeInTheDocument());
   });
 
-  test('L5: first-run orientation auto-opens, dismiss persists, and a "How it works" control exists', async () => {
-    // First run: no seen-flag → the orientation auto-opens.
-    window.localStorage.removeItem('legiwatch-intro-seen-v1');
-    mockApi({});
+  test('L5: first-run orientation auto-opens and persists to the authenticated user', async () => {
+    mockApi({}, false);
     renderRadar('/radar');
 
     await waitFor(() => expect(screen.getByText('What LegiWatch does')).toBeInTheDocument());
-    expect(screen.getByText(/legislation, hearings, regulations, and defense-budget changes/i)).toBeInTheDocument();
-    // The permanent reopen control is present in the top bar.
+    expect(
+      screen.getByText(/legislation, hearings, regulations, and defense-budget changes/i),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /How it works/i })).toBeInTheDocument();
-    // Dismiss ("Got it") persists the per-user seen-flag so it won't reappear.
+
     fireEvent.click(screen.getByRole('button', { name: /Got it/i }));
     await waitFor(() =>
-      expect(window.localStorage.getItem('legiwatch-intro-seen-v1')).toBe('1'),
+      expect(apiPatchMock).toHaveBeenCalledWith('/api/me', { legiwatchIntroSeen: true }),
     );
+    expect(window.localStorage.getItem('legiwatch-intro-seen-v1')).toBeNull();
   });
 
   test('L2b: Bills at all-clients (tracker_v2 on) shows the tenant board roll-up with client labels', async () => {
@@ -318,7 +354,9 @@ describe('RadarPage', () => {
     expect(screen.getByTitle('Critical move')).toHaveClass('critical');
     // It fetches the tenant-wide board, not a per-client one.
     expect(
-      apiGetMock.mock.calls.some((args: unknown[]) => String(args[0]).includes('/_all/tracker/board')),
+      apiGetMock.mock.calls.some((args: unknown[]) =>
+        String(args[0]).includes('/_all/tracker/board'),
+      ),
     ).toBe(true);
   });
 
@@ -351,9 +389,8 @@ describe('RadarPage', () => {
     );
   });
 
-  test('L5: returning user (seen-flag set) does not see the orientation on load', async () => {
-    window.localStorage.setItem('legiwatch-intro-seen-v1', '1');
-    mockApi({});
+  test('L5: returning user preference prevents the orientation on load', async () => {
+    mockApi({}, true);
     renderRadar('/radar');
 
     await waitFor(() => expect(screen.getByText('LegiWatch')).toBeInTheDocument());

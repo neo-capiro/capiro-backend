@@ -1077,7 +1077,9 @@ export class EngagementService {
     return {
       appendSignature: append,
       signatureHtml:
-        append && sender?.emailSignatureHtml ? sanitizeSignatureHtml(sender.emailSignatureHtml) : '',
+        append && sender?.emailSignatureHtml
+          ? sanitizeSignatureHtml(sender.emailSignatureHtml)
+          : '',
       senderEmail: sender?.email ?? null,
       senderFirstName: sender?.firstName ?? null,
     };
@@ -1786,11 +1788,23 @@ export class EngagementService {
       }),
       tx.meetingNote.findMany({
         where: { meetingId, tenantId: ctx.tenantId, sharedAt: { not: null } },
-        select: { id: true, status: true, sharedAt: true, sharedByUserId: true, authorUserId: true },
+        select: {
+          id: true,
+          status: true,
+          sharedAt: true,
+          sharedByUserId: true,
+          authorUserId: true,
+        },
       }),
       tx.meetingDebrief.findMany({
         where: { meetingId, tenantId: ctx.tenantId, sharedAt: { not: null } },
-        select: { id: true, status: true, sharedAt: true, sharedByUserId: true, authorUserId: true },
+        select: {
+          id: true,
+          status: true,
+          sharedAt: true,
+          sharedByUserId: true,
+          authorUserId: true,
+        },
       }),
       tx.engagementAttachment.findMany({
         where: { meetingId, tenantId: ctx.tenantId, sharedAt: { not: null } },
@@ -4360,7 +4374,11 @@ export class EngagementService {
         // Server-resolved: the directory match, not a browser assertion. A
         // recipient the directory knows as a congressional member cannot be
         // relabeled by the request body.
-        sourceType: match?.member ? 'congress' : (recipient.direction === 'to-clients' ? 'client' : null),
+        sourceType: match?.member
+          ? 'congress'
+          : recipient.direction === 'to-clients'
+            ? 'client'
+            : null,
         chamber: match?.member?.chamber ?? recipient.chamber ?? null,
         snapshot: pruneForAi(recipient as unknown as Record<string, unknown>) as Record<
           string,
@@ -7185,12 +7203,7 @@ export class EngagementService {
         'No readable text could be extracted from this attachment (it may be password-protected or a scanned image).',
       );
     }
-    await this.recordExtractionOutcome(
-      ctx,
-      attachment.id,
-      extraction.status,
-      extraction.metadata,
-    );
+    await this.recordExtractionOutcome(ctx, attachment.id, extraction.status, extraction.metadata);
 
     return {
       attachmentId: attachment.id,
@@ -7271,6 +7284,8 @@ export class EngagementService {
       contentType: string;
       buffer: Buffer;
       source?: string;
+      sourceEntityType?: string | null;
+      sourceEntityId?: string | null;
     },
   ): Promise<{ id: string; fileName: string; s3Key: string }> {
     if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
@@ -7308,6 +7323,8 @@ export class EngagementService {
           bucket: this.bucket!,
           s3Key,
           source: input.source ?? 'intel_memo',
+          sourceEntityType: input.sourceEntityType ?? null,
+          sourceEntityId: input.sourceEntityId ?? null,
           uploadedByUserId: ctx.userId,
         },
       }),
@@ -7362,9 +7379,7 @@ export class EngagementService {
     // 2. Delete the object OUTSIDE any transaction.
     if (this.bucket) {
       try {
-        await this.s3.send(
-          new DeleteObjectCommand({ Bucket: this.bucket, Key: attachment.s3Key }),
-        );
+        await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: attachment.s3Key }));
       } catch (e) {
         // 3b. Retain the row for reconciliation. Never expose the object.
         await this.prisma
@@ -7483,9 +7498,7 @@ export class EngagementService {
         deleted += 1;
       } catch (e) {
         stillFailing += 1;
-        this.logger.warn(
-          `attachment ${row.id} delete retry failed again: ${(e as Error).message}`,
-        );
+        this.logger.warn(`attachment ${row.id} delete retry failed again: ${(e as Error).message}`);
       }
     }
     return { retried: rows.length, deleted, stillFailing };
@@ -7892,10 +7905,7 @@ export class EngagementService {
    * reuses this exact resolution (including its `createdByUserId: ctx.userId`
    * ownership check) rather than re-implementing provider-ownership rules.
    */
-  async findCampaignSendConnection(
-    ctx: TenantContext,
-    preferredConnectionId?: string | null,
-  ) {
+  async findCampaignSendConnection(ctx: TenantContext, preferredConnectionId?: string | null) {
     // Any connected inbox the user owns can send — Outlook (Graph) or Gmail.
     // The dispatcher routes on `provider`, so it must be selected.
     const baseWhere = {
@@ -8112,7 +8122,10 @@ export class EngagementService {
           existingRelationships: peopleBlock ? [peopleBlock] : [],
           targetOffices: targetOfficesBlock ? [targetOfficesBlock] : [],
           recentMeetings: recentMeetings
-            .map((m) => `${m.subject || 'Meeting'}${m.startsAt ? ` (${new Date(m.startsAt).toISOString().slice(0, 10)})` : ''}`)
+            .map(
+              (m) =>
+                `${m.subject || 'Meeting'}${m.startsAt ? ` (${new Date(m.startsAt).toISOString().slice(0, 10)})` : ''}`,
+            )
             .slice(0, 8),
         };
       }
@@ -8161,8 +8174,7 @@ export class EngagementService {
             // is named as an honest gap, exactly like the PE lookup-miss above.
             return {
               ...item,
-              body:
-                'This LegiWatch alert could not be verified against Capiro’s records, so no detail from it is included. Do NOT state or infer any fact about it.',
+              body: 'This LegiWatch alert could not be verified against Capiro’s records, so no detail from it is included. Do NOT state or infer any fact about it.',
             };
           }
         } catch (err) {
@@ -10723,8 +10735,7 @@ async function mapWithConcurrency<T, R>(
  * data ended up in prompts.
  */
 export function renderGatewayClientBrief(client: Record<string, unknown>): string | null {
-  const str = (v: unknown): string | null =>
-    typeof v === 'string' && v.trim() ? v.trim() : null;
+  const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v.trim() : null);
   const parts: string[] = [];
   const name = str(client.name) ?? str(client.displayName);
   if (name) parts.push(`Name: ${name}`);
