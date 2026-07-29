@@ -560,16 +560,25 @@ async function buildSamProfileForClient(
   if (ueis.length || names.length) {
     const rows = await prisma.$queryRaw<{
       awarding_agency: string | null;
-      awarding_office: string | null;
+      awarding_sub_tier: string | null;
     }>`
-      SELECT DISTINCT awarding_agency, awarding_office
+      SELECT DISTINCT awarding_agency, awarding_sub_tier
       FROM federal_award
       WHERE recipient_uei = ANY(${ueis}::text[])
-         OR lower(recipient_name) = ANY(${names}::text[])
+         OR lower(contractor_name) = ANY(${names}::text[])
       LIMIT 5000
     `;
     priorAgencies = dedupe(rows.map((r) => r.awarding_agency));
-    priorOffices = dedupe(rows.map((r) => r.awarding_office));
+    // KNOWN GAP: federal_award has no contracting-office column at all, so the
+    // closest available value is the sub-tier. Measured on capiro-dev, that
+    // yields agency-shaped strings ('Department of the Navy', 'Defense
+    // Logistics Agency') while sam_opportunity.office holds office codes
+    // ('0413 AQ HQ     RCO-HI'). scoreOpportunityRelevance compares these by
+    // exact normalized equality, so the priorOffices signal cannot fire until
+    // an office-granularity column exists on federal_award. Populated anyway
+    // rather than hardcoded empty so the shape stays honest for whoever adds
+    // that column; do not read a match here as evidence the signal works.
+    priorOffices = dedupe(rows.map((r) => r.awarding_sub_tier));
   }
 
   return {

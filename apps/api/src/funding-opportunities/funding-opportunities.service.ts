@@ -580,12 +580,12 @@ export class FundingOpportunitiesService {
       const contractPromise =
         input.contractorUeis.length || input.contractorNames.length
           ? this.prisma.$queryRaw<
-              Array<{ awarding_agency: string | null; awarding_office: string | null }>
+              Array<{ awarding_agency: string | null; awarding_sub_tier: string | null }>
             >`
-              SELECT DISTINCT awarding_agency, awarding_office
+              SELECT DISTINCT awarding_agency, awarding_sub_tier
               FROM federal_award
               WHERE recipient_uei = ANY(${input.contractorUeis}::text[])
-                 OR lower(recipient_name) = ANY(${input.contractorNames}::text[])
+                 OR lower(contractor_name) = ANY(${input.contractorNames}::text[])
               LIMIT ${HISTORY_ROW_CAP}
             `
           : Promise.resolve([]);
@@ -594,7 +594,11 @@ export class FundingOpportunitiesService {
         assistanceListings: dedupe(assistance.map((r) => r.assistance_listing_number)),
         assistanceAgencies: dedupe(assistance.map((r) => r.awarding_agency)),
         contractAgencies: dedupe(contracts.map((r) => r.awarding_agency)),
-        contractOffices: dedupe(contracts.map((r) => r.awarding_office)),
+        // See generate-sam-opportunity-candidates.ts: federal_award carries no
+        // contracting-office column, so this is the sub-tier and is
+        // agency-shaped, not office-shaped. It will not match
+        // sam_opportunity.office under exact-equality comparison.
+        contractOffices: dedupe(contracts.map((r) => r.awarding_sub_tier)),
       };
     } catch (error) {
       this.logger.warn(

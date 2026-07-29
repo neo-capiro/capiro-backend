@@ -368,7 +368,11 @@ describe('grant + contract discovery works with NO producer candidate rows', () 
         },
       ],
       contractHistory: [
-        { awarding_agency: 'Department of the Army', awarding_office: 'ACC-APG' },
+        // Column names must match federal_award for real: the table has
+        // awarding_sub_tier and contractor_name, NOT awarding_office /
+        // recipient_name. This fixture previously encoded the wrong names,
+        // which is why the suite stayed green while the live query failed.
+        { awarding_agency: 'Department of the Army', awarding_sub_tier: 'ACC-APG' },
       ],
     });
     const { service, prisma } = makeService(state);
