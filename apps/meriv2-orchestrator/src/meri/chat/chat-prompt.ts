@@ -155,6 +155,14 @@ export type ChatStreamEvent =
       expiresAt: string;
       riskTier: string | null;
       policyCode: string | null;
+      /**
+       * Policy rule label behind the hold, so the card's expandable details can
+       * say *why* approval is required. Approval attribution (`approvedAt`/
+       * `approvedBy`) is deliberately absent: a freshly created proposal is always
+       * `proposed`, so those only exist on the approve response and the recovery
+       * list fetch.
+       */
+      ruleId: string | null;
       preview: {
         label: string;
         riskTier: string | null;

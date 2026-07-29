@@ -6,6 +6,15 @@ import {
   wrapToolResultForPrompt,
   runAuditor,
   ledgerToToolResultMap,
+  resolveGovernmentAffairsOperatingFrame,
+  planGovernmentAffairsEvidence,
+  buildAssurancePromptBlock,
+  buildClaimLedgerFromToolResults,
+  classifyAssuranceRisk,
+  evaluateAssuranceRelease,
+  runGovernmentAffairsChecks,
+  assuranceMetric,
+  metricLogLine,
   type LedgerEntry,
   type AuditorMode,
   type MeriContext,
@@ -140,6 +149,17 @@ export class ChatAssistantService {
     // BEFORE any vision rewrite below turns the content into a block array.
     const lastUserText = String(messages[messages.length - 1]?.content ?? '');
     const intent = new KeywordIntentRouter().classify(lastUserText);
+    const operatingFrame = resolveGovernmentAffairsOperatingFrame({
+      request: lastUserText,
+      explicit: dto.clientId ? { clientId: dto.clientId } : undefined,
+    });
+    const evidencePlan = planGovernmentAffairsEvidence({
+      request: lastUserText,
+      frame: operatingFrame,
+      surface: 'chat',
+    });
+    const assuranceRisk = classifyAssuranceRisk('chat', evidencePlan);
+    const bufferBeforeRelease = assuranceRisk.requiresBufferBeforeRelease;
 
     // Vision (2.2): attach current-turn images as native Anthropic vision blocks
     // on the last user message — images first, then the text (legacy parity, the
@@ -165,7 +185,11 @@ export class ChatAssistantService {
     // ~5-minute cache TTL) reuse that prefix. `system` (the flat string) is
     // kept only for the one-off "FINISH NOW" synthesis retry below, which is
     // never repeated and so never benefits from a breakpoint.
-    const systemParts = composeChatSystemPrompt(dto, ctx, intent);
+    const baseSystemParts = composeChatSystemPrompt(dto, ctx, intent);
+    const systemParts = {
+      ...baseSystemParts,
+      dynamic: `${baseSystemParts.dynamic}\n\n${buildAssurancePromptBlock(operatingFrame, evidencePlan)}`,
+    };
     const system = flattenSystemParts(systemParts);
     const toolSchemas = await this.fetchToolSchemas();
     const steps: ChatStep[] = [];
@@ -212,6 +236,8 @@ export class ChatAssistantService {
         );
       }
       const cleanedText = formB.sanitizedText;
+      let releasedText = cleanedText;
+      let releaseHeld = false;
       // Post-hoc auditor. runAuditor is synchronous/deterministic, so we run it
       // INLINE (negligible latency) to surface a non-blocking caveat under
       // enforce/annotate — chat can't hold an already-streamed reply (ADR-2), so
@@ -219,7 +245,7 @@ export class ChatAssistantService {
       // The DB persist stays fire-and-forget (no added latency).
       const audit = this.auditChatReply(cleanedText, ledgerEntries);
       if (audit && audit.verdict.findings.length > 0) {
-        if (audit.mode === 'enforce' || audit.mode === 'annotate') {
+        if (!bufferBeforeRelease && (audit.mode === 'enforce' || audit.mode === 'annotate')) {
           const severe = audit.verdict.findings.filter(
             (f) => f.severity === 'high' || f.severity === 'critical',
           );
@@ -237,10 +263,94 @@ export class ChatAssistantService {
         }
         void this.persistChatAudit(ctx.tenantId, audit.mode, audit.verdict, cleanedText);
       }
+
+      // Phase 4: high-risk answers were buffered, so deterministic checks and a
+      // source-resolved claim ledger run BEFORE any prose is released. A caveat
+      // cannot repair an unsupported money/status/role/deadline/legal claim after
+      // streaming; the answer is held and replaced with an explicit verification
+      // failure instead.
+      if (bufferBeforeRelease && cleanedText.trim()) {
+        try {
+          const claimLedger = buildClaimLedgerFromToolResults({
+            output: cleanedText,
+            ledgerEntries,
+            citations,
+            plan: evidencePlan,
+          });
+          const grounding = runAuditor({
+            output: cleanedText,
+            ledger: { entries: ledgerEntries },
+            surface: 'chat',
+            mode: 'enforce',
+          });
+          const domainFindings = runGovernmentAffairsChecks({
+            ledger: claimLedger,
+            facts: [],
+            outputText: cleanedText,
+          });
+          const combinedFindings = [...grounding.findings, ...domainFindings];
+          const gate = evaluateAssuranceRelease({
+            surface: 'chat',
+            plan: evidencePlan,
+            ledger: claimLedger,
+            findings: combinedFindings,
+            verificationAvailable: true,
+          });
+          this.logger.log(
+            metricLogLine(
+              assuranceMetric({
+                name: 'release_gate',
+                dimensions: {
+                  surface: 'chat',
+                  outcome: gate.decision,
+                  category: assuranceRisk.categories.join(',').slice(0, 120),
+                  severity: grounding.topSeverity ?? undefined,
+                  jurisdiction: operatingFrame.jurisdictions.join(',').slice(0, 120),
+                },
+              }),
+            ),
+          );
+          const severe = combinedFindings.filter(
+            (finding) => finding.severity === 'critical' || finding.severity === 'high',
+          );
+          if (severe.length) {
+            emit({
+              type: 'grounding_caveat',
+              topSeverity: severe.some((finding) => finding.severity === 'critical')
+                ? 'critical'
+                : 'high',
+              findings: severe.slice(0, 20).map((finding) => ({
+                check: finding.check,
+                severity: finding.severity,
+                detail: finding.detail,
+              })),
+            });
+          }
+          if (gate.decision === 'repair' || gate.decision === 'hold') {
+            releaseHeld = true;
+            const reasons = gate.blockers.slice(0, 6).map((reason) => `- ${reason}`).join('\n');
+            releasedText = [
+              'I could not safely release the requested high-stakes answer because required verification did not pass.',
+              reasons || '- One or more high-risk claims lacked authoritative same-turn support.',
+              '',
+              'I did not treat an empty result, stale memory, or model inference as proof. Refine the jurisdiction/vehicle/fiscal year or restore the missing authoritative source, then run the request again.',
+            ].join('\n');
+          }
+        } catch (error) {
+          releaseHeld = true;
+          this.logger.warn(
+            `[meri-assurance] pre-release verification failed closed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+          releasedText =
+            'Verification was unavailable, so I did not release the requested high-stakes answer. Please try again after the authoritative sources are available.';
+        }
+        emit({ type: 'text', text: releasedText });
+      }
+
       // Page-write mode: apply the produced draft to the open page (one frame,
       // last draft wins — legacy parity). Only when the caller opted in and a
       // draft actually produced a body.
-      if (dto.pageWrite && pageWritePayload) {
+      if (dto.pageWrite && pageWritePayload && !releaseHeld) {
         emit({
           type: 'page_write',
           target: 'outreach_draft',
@@ -249,7 +359,7 @@ export class ChatAssistantService {
         });
       }
       return {
-        reply: cleanedText,
+        reply: releasedText,
         intent: intent.mode,
         usage: { ...usageAcc },
         steps,
@@ -277,7 +387,9 @@ export class ChatAssistantService {
           tools: toolSchemas as AnthropicToolSchema[],
           maxTokens: MAX_TOKENS,
           timeoutMs: this.callTimeoutMs,
-          onTextDelta: (delta) => emit({ type: 'text', text: delta }),
+          ...(bufferBeforeRelease
+            ? {}
+            : { onTextDelta: (delta: string) => emit({ type: 'text' as const, text: delta }) }),
           ...(opts.signal ? { signal: opts.signal } : {}),
         });
         void this.meterRound(ctx, resp);
@@ -287,7 +399,7 @@ export class ChatAssistantService {
         usageAcc.cacheCreationTokens += resp.usage.cacheCreationTokens ?? 0;
         content = resp.content as ContentBlock[];
         stopReason = resp.stopReason;
-        streamed = resp.streamed ?? false;
+        streamed = bufferBeforeRelease ? false : (resp.streamed ?? false);
       } catch (e) {
         if (opts.signal?.aborted) {
           return finalize('');
@@ -309,14 +421,22 @@ export class ChatAssistantService {
       if (!toolUses.length || stopReason !== 'tool_use') {
         if (textOut) {
           // When streamed, the deltas already went out this round — don't double-emit.
-          if (!streamed) emit({ type: 'text', text: textOut });
+          if (!bufferBeforeRelease && !streamed) emit({ type: 'text', text: textOut });
           return finalize(textOut);
         }
         // The model ended its turn with no prose (a stray stop / whitespace-only
         // turn). Never ship a bare "Done." — force one tool-free synthesis pass
         // over the context already in `messages`.
         return finalize(
-          await this.synthesizeFinalAnswer(ctx, system, toolSchemas, messages, emit, opts),
+          await this.synthesizeFinalAnswer(
+            ctx,
+            system,
+            toolSchemas,
+            messages,
+            emit,
+            opts,
+            bufferBeforeRelease,
+          ),
         );
       }
 
@@ -324,7 +444,7 @@ export class ChatAssistantService {
       // but stays OUT of ChatResult.reply — reply remains the final round's text
       // (the non-streaming contract existing callers/tests pin). When streamed,
       // the deltas already went out; just add the round separator.
-      if (textOut) {
+      if (textOut && !bufferBeforeRelease) {
         emit({ type: 'text', text: streamed ? '\n\n' : `${textOut}\n\n` });
       }
 
@@ -373,7 +493,15 @@ export class ChatAssistantService {
     // Tool-round budget spent while the model still wanted tools. Do NOT discard
     // the research — force a final tool-free synthesis over everything gathered.
     return finalize(
-      await this.synthesizeFinalAnswer(ctx, system, toolSchemas, messages, emit, opts),
+      await this.synthesizeFinalAnswer(
+            ctx,
+            system,
+            toolSchemas,
+            messages,
+            emit,
+            opts,
+            bufferBeforeRelease,
+          ),
     );
   }
 
@@ -483,6 +611,7 @@ export class ChatAssistantService {
     messages: Array<{ role: 'user' | 'assistant'; content: unknown }>,
     emit: (event: ChatStreamEvent) => void,
     opts: ChatRunOptions,
+    suppressStreaming = false,
   ): Promise<string> {
     if (opts.signal?.aborted) return '';
     const synthesisSystem =
@@ -514,7 +643,7 @@ export class ChatAssistantService {
         .map((b) => b.text as string)
         .join('\n')
         .trim();
-      if (text) emit({ type: 'text', text });
+      if (text && !suppressStreaming) emit({ type: 'text', text });
       return (
         text || 'I gathered the context but could not compose a final answer — please ask again.'
       );
@@ -666,6 +795,7 @@ export class ChatAssistantService {
           expiresAt: proposal.expiresAt,
           riskTier: proposal.riskTier,
           policyCode: proposal.policyCode,
+          ruleId: proposal.ruleId,
           preview: proposal.preview,
         });
         // Compliance audit for this WARN decision is already durably recorded

@@ -755,6 +755,44 @@ export interface WsAssistantStep {
   detail?: string;
   status: 'done' | 'error';
 }
+export interface WsAssistantCitation {
+  n: number;
+  title: string;
+  url?: string | null;
+}
+/**
+ * The exact governed context packet the in-editor turn was given (Step 3). Body
+ * text is deliberately absent: this is safe provenance for the inspector, not the
+ * content itself, and an unauthorized item may only ever appear as a count.
+ */
+export interface WsAssistantContextPacket {
+  packetId?: string | null;
+  compiledAt?: string | null;
+  surface?: string | null;
+  clientId?: string | null;
+  items: Array<{
+    id: string;
+    label: string;
+    type: string;
+    scope?: string | null;
+    authority?: string | null;
+    clientName?: string | null;
+    userScoped?: boolean;
+    asOf?: string | null;
+    lastConfirmedAt?: string | null;
+    rationale?: string | null;
+    selection?: string | null;
+  }>;
+  exclusions?: Array<{
+    id?: string | null;
+    label?: string | null;
+    type?: string | null;
+    reason: string;
+  }>;
+  unauthorizedCount?: number;
+  degraded?: boolean;
+  degradedReason?: string | null;
+}
 export interface WsAssistantResult {
   reply: string;
   edits: WsAssistantEdit[];
@@ -762,10 +800,15 @@ export interface WsAssistantResult {
   confidence?: WsAssistantConfidence;
   /** Deterministic PE structural warnings to surface before applying edits. */
   structuralWarnings?: WsAssistantStructuralWarning[];
-  /** Thought-process steps (data lookups Meri ran) for the working view. */
+  /** Bounded data lookups/checks; never raw model reasoning. */
   steps?: WsAssistantStep[];
+  citations?: WsAssistantCitation[];
+  contextPacket?: WsAssistantContextPacket;
+  verificationState?: 'verified' | 'partially_verified' | 'not_verified' | 'unavailable';
 }
 export interface WsAssistantRequest {
+  /** Lets the composer's Stop button abort the in-flight turn. */
+  signal?: AbortSignal;
   messages: Array<{ role: 'user' | 'assistant'; text: string }>;
   document: {
     title: string;
@@ -780,8 +823,8 @@ export interface WsAssistantRequest {
 export function useWorkspaceAssistant() {
   const api = useApi();
   return useMutation({
-    mutationFn: async (body: WsAssistantRequest) =>
-      (await api.post<WsAssistantResult>(`${MAIN}/workspace/assistant`, body)).data,
+    mutationFn: async ({ signal, ...body }: WsAssistantRequest) =>
+      (await api.post<WsAssistantResult>(`${MAIN}/workspace/assistant`, body, { signal })).data,
   });
 }
 

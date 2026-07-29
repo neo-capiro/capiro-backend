@@ -306,12 +306,46 @@ export interface WsContextItem {
 // ── Pre-submission checks (Phase 6b) ─────────────────────────────────────────
 export type WsCheckStatus = 'success' | 'notable' | 'critical';
 
+/** Review severity, separate from the rule's pass/fail `status`. */
+export type WsCheckSeverity = 'critical' | 'high' | 'medium' | 'low';
+
 export interface WsCheckResult {
   id: string;
   label: string;
   status: WsCheckStatus;
   detail: string;
   fixable: boolean;
+  severity?: WsCheckSeverity;
+  /** Section this finding is anchored to, when the rule knows it. */
+  section?: string | null;
+}
+
+/**
+ * Verification verdict for the whole document. `not_verified` and "no issues
+ * found" are deliberately distinct states.
+ */
+export interface WsVerificationSummary {
+  ran: boolean;
+  state: 'verified' | 'partially_verified' | 'not_verified' | 'unavailable';
+  supportedCount: number;
+  unsupportedCount: number;
+  capturedAt: string | null;
+  detail: string;
+}
+
+export interface WsChecksContextSummary {
+  capturedAt: string | null;
+  itemCount: number;
+  memoryFileCount: number;
+  linkedPeCount: number;
+  exclusions: Array<{ label: string; reason: string }>;
+  degraded: boolean;
+}
+
+export interface WsChecksStaleness {
+  documentUpdatedAt: string;
+  verifiedAt: string | null;
+  changedAfterVerification: boolean;
 }
 
 // Workspace is gate-less (Ninja D1, 2026-07-12): checks are advisory only, no
@@ -319,6 +353,10 @@ export interface WsCheckResult {
 export interface WsChecksResponse {
   checks: WsCheckResult[];
   score: { passed: number; total: number };
+  /** Absent on a pre-Phase-2 server response; treated as "never verified". */
+  verification?: WsVerificationSummary;
+  context?: WsChecksContextSummary | null;
+  staleness?: WsChecksStaleness;
 }
 
 // ── "Context used in this draft" panel (Phase 3.3) ───────────────────────────

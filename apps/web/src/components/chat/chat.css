@@ -2002,76 +2002,6 @@
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
-/* ── Learned-memory chips ("Meri learned: …" + undo) ─────────────── */
-.chat-learned-memories {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 6px 0;
-}
-/* Collapsible header: shows the count; click to reveal/hide the pills so the
-   panel doesn't dominate the drawer. */
-.chat-learned-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: 8px;
-  padding: 5px 10px;
-  border: 1px solid var(--accent-soft);
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent-ink);
-  font-size: 11.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
-}
-.chat-learned-header:hover {
-  border-color: var(--accent);
-}
-.chat-learned-header-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.chat-learned-spark {
-  color: var(--accent);
-}
-.chat-learned-chevron {
-  font-size: 10px;
-  opacity: 0.7;
-}
-.chat-learned-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 100%;
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--accent-ink);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-soft);
-}
-.chat-learned-pill--firm {
-  background: var(--success-soft);
-  border-color: var(--success-soft);
-  color: var(--success);
-}
-.chat-learned-undo {
-  border: none;
-  background: transparent;
-  color: var(--accent-ink);
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0;
-  text-decoration: underline;
-  transition: color 0.12s;
-}
-.chat-learned-undo:hover { color: var(--accent); }
 
 /* ── Thought process / trust panel (inline, per assistant message) ──────── */
 .chat-tp {
@@ -2505,3 +2435,50 @@
   font-size: 10.5px;
   color: var(--meri-muted);
 }
+
+
+/* Phase 2 trust UX */
+.action-proposal-list { margin: 8px 0; border-top: 1px solid var(--border-1); border-bottom: 1px solid var(--border-1); padding: 10px 0; }
+.action-proposal-list__heading, .action-proposal__header, .action-proposal__actions, .action-proposal-dialog__actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.action-proposal-list__cards { display: grid; gap: 10px; margin-top: 8px; }
+.action-proposal { border: 1px solid var(--border-1); border-radius: 10px; background: var(--bg-surface); padding: 12px; }
+.action-proposal--warning { border-color: #d8a31a; }
+.action-proposal--danger { border-color: var(--danger, #b3261e); }
+.action-proposal--success { border-color: var(--success, #14633a); }
+.action-proposal h4 { margin: 0; }
+.action-proposal__badges, .action-proposal__counts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.action-proposal__badges span, .action-proposal__counts span { border-radius: 999px; background: var(--bg-sunken); padding: 2px 7px; font-size: 11px; }
+.action-proposal__summary, .action-proposal__details dl { display: grid; gap: 6px; margin: 10px 0; }
+.action-proposal__summary > div, .action-proposal__details dl > div { display: grid; grid-template-columns: minmax(90px, .6fr) 1.4fr; gap: 8px; }
+.action-proposal dt { color: var(--ink-3); }
+.action-proposal dd { margin: 0; overflow-wrap: anywhere; }
+.action-proposal__body-preview p { white-space: pre-wrap; max-height: 220px; overflow: auto; }
+.action-proposal__outcome, .action-proposal__error { margin: 8px 0; padding: 8px; border-radius: 7px; background: var(--bg-sunken); }
+.action-proposal__error { color: var(--danger, #b3261e); }
+.action-proposal__actions { justify-content: flex-start; flex-wrap: wrap; margin-top: 10px; }
+.action-proposal__approve { font-weight: 700; }
+.action-proposal-dialog-backdrop { position: fixed; inset: 0; z-index: 5000; background: rgba(0,0,0,.45); display: grid; place-items: center; padding: 16px; }
+.action-proposal-dialog { width: min(560px, 100%); max-height: min(80vh, 720px); overflow: auto; background: var(--bg-surface); border-radius: 12px; padding: 18px; box-shadow: var(--shadow-3); }
+.action-proposal-dialog__list { max-height: 260px; overflow: auto; }
+.action-proposal-dialog__warning { padding: 8px; border-left: 4px solid #d8a31a; background: #fff7d6; color: #3f3000; }
+.action-proposal-dialog__acknowledgment { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0; }
+.feedback-dialog__reasons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.feedback-dialog__reasons label { display: flex; gap: 6px; align-items: flex-start; }
+.feedback-dialog__note { display: grid; gap: 4px; margin-top: 12px; }
+.feedback-dialog__note textarea { width: 100%; resize: vertical; }
+.verification-status { margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: var(--bg-sunken); }
+.verification-status__heading { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.verification-status__badge { font-weight: 700; }
+.verification-status--verified { border-left: 4px solid var(--success, #14633a); }
+.verification-status--partially_verified { border-left: 4px solid #d8a31a; }
+.verification-status--not_verified, .verification-status--unavailable { border-left: 4px solid var(--ink-3); }
+.verification-status__findings { margin-bottom: 8px; }
+.chat-verification-summary { margin-left: 40px; }
+.trust-context { margin: 8px 0; border: 1px solid var(--border-1); border-radius: 8px; padding: 8px; }
+.trust-context summary { cursor: pointer; display: flex; gap: 6px; flex-wrap: wrap; }
+.trust-context__body section { margin-top: 10px; }
+.trust-context__body ul { margin: 6px 0; padding-left: 18px; }
+.trust-context__item-heading, .trust-context__footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.trust-context__meta { display: flex; flex-wrap: wrap; gap: 6px; color: var(--ink-3); font-size: 11px; }
+.trust-context__degraded { padding: 8px; background: #fff7d6; color: #3f3000; border-left: 4px solid #d8a31a; }
+@media (max-width: 620px) { .action-proposal__summary > div, .action-proposal__details dl > div { grid-template-columns: 1fr; gap: 2px; } .feedback-dialog__reasons { grid-template-columns: 1fr; } .chat-verification-summary { margin-left: 0; } }

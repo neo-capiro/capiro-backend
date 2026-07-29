@@ -45,8 +45,10 @@ import {
   useChatStore,
 } from './chat-store.js';
 import { isUsableAttachment, type StagedAttachment } from './ChatInput.js';
-import type { TrustStep } from './ThoughtProcess.js';
+import type { TrustStep } from './WorkPerformed.js';
 import type { CanvasArtifact } from './MeriCanvas.js';
+import type { MessageFeedbackPayload } from './MessageFeedback.js';
+import type { MeriLearnedMemory } from './MeriMemoryPanel.js';
 
 type SseEvent =
   | { type: 'start'; intent: string; tier?: 'fast' | 'deep' }
@@ -96,6 +98,8 @@ type SseEvent =
       expiresAt: string;
       riskTier: string | null;
       policyCode: string | null;
+      /** Policy rule behind the hold, rendered in the card's expandable details. */
+      ruleId: string | null;
       preview: MeriActionPreview;
     }
   | { type: 'done' }
@@ -254,6 +258,9 @@ export interface PendingApproval {
   reason: string;
   riskTier: string | null;
   policyCode: string | null;
+  ruleId?: string | null;
+  approvedAt?: string | null;
+  approvedBy?: string | null;
   attemptCount: number;
   resultSummary: unknown;
   error?: { code: string | null; message: string | null };
@@ -291,9 +298,6 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   const [orchestratorIntent, setOrchestratorIntent] = useState<string | null>(null);
   const [trustSteps, setTrustSteps] = useState<TrustStep[]>([]);
   const [planSteps, setPlanSteps] = useState<string[]>([]);
-  // Accumulated `thinking` SSE deltas for the in-flight turn (F3). Ephemeral:
-  // same lifecycle as trustSteps — cleared on each new send, never persisted.
-  const [reasoningText, setReasoningText] = useState('');
   // Files staged in the composer (F1). Lives here because sendMessage needs it.
   const [stagedAttachments, setStagedAttachments] = useState<StagedAttachment[]>([]);
   const [attachmentNotice, setAttachmentNotice] = useState<string | null>(null);
@@ -344,12 +348,8 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   const [researchOffers, setResearchOffers] = useState<
     Record<string, { topic: string; reason?: string }>
   >({});
-  const [learnedMemories, setLearnedMemories] = useState<
-    Array<{ id: string; key: string; value: string; scope: string }>
-  >([]);
-  const [forgottenMemories, setForgottenMemories] = useState<
-    Array<{ id: string; key: string; value: string; scope: string }>
-  >([]);
+  const [learnedMemories, setLearnedMemories] = useState<MeriLearnedMemory[]>([]);
+  const [forgottenMemories, setForgottenMemories] = useState<MeriLearnedMemory[]>([]);
   const forgetTimersRef = useRef(new Map<string, number>());
   // Learned-memory panel is collapsed by default so it doesn't dominate the
   // drawer; the user can expand to review/acknowledge what Meri remembers.
@@ -472,7 +472,6 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   useEffect(() => {
     if (!messages.length) {
       setTrustSteps([]);
-      setReasoningText('');
       setOrchestratorIntent(null);
       setOrchestratorTier(null);
       setOrchestratorConflict(null);
@@ -573,7 +572,6 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     abortRef.current?.abort();
     clearChatSession();
     setTrustSteps([]);
-    setReasoningText('');
     setOrchestratorIntent(null);
     setOrchestratorTier(null);
     setOrchestratorConflict(null);
@@ -726,7 +724,6 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         if (!researchSessionRef.current) {
           // ── Phase 1: topic → plan + clarifying questions ──
           setTrustSteps([]);
-          setReasoningText('');
           setOrchestratorIntent('deep_research');
           setOrchestratorTier('deep');
           const created = await fetch(`${config.apiBaseUrl}/api/clio/research`, {
@@ -750,7 +747,8 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
             } else if (e.type === 'clarify') {
               questions = e.questions;
             } else if (e.type === 'thinking') {
-              setReasoningText((prev) => prev + e.text);
+              // Raw research reasoning is discarded rather than buffered; the
+              // visible trace is built from step and source events instead.
             } else if (e.type === 'error') {
               updateChatMessage(assistantId, `Error: ${e.message}`);
             }
@@ -828,7 +826,6 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         });
       }
       setTrustSteps([]);
-      setReasoningText('');
       let report = '';
       await consumeResearchStream(`/api/clio/research/${id}/stream`, controller, (e) => {
         if (e.type === 'step') {
@@ -854,7 +851,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
             return next;
           });
         } else if (e.type === 'thinking') {
-          setReasoningText((prev) => prev + e.text);
+          // Raw research reasoning is discarded rather than buffered.
         } else if (e.type === 'text') {
           report += e.text;
           updateChatMessage(assistantId, report);
@@ -1057,7 +1054,6 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
               setOrchestratorIntent(event.intent ?? null);
               setTrustSteps([]);
               setPlanSteps([]);
-              setReasoningText('');
               // NOTE: pendingApprovals is deliberately NOT cleared here. Clearing
               // it on every turn is what made "I approve" a no-op — the new turn
               // wiped the cards, the model re-proposed under a fresh fingerprint,
@@ -1076,6 +1072,12 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
                   reason: event.reason,
                   riskTier: event.riskTier,
                   policyCode: event.policyCode,
+                  ruleId: event.ruleId,
+                  // A newly proposed action is never approved yet. Approval
+                  // attribution arrives from the server on the approve response
+                  // and the recovery list fetch — never inferred here.
+                  approvedAt: null,
+                  approvedBy: null,
                   attemptCount: 0,
                   resultSummary: null,
                   createdAt: new Date().toISOString(),
@@ -1102,8 +1104,11 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
               accumulated += event.text;
               updateChatMessage(assistantId, accumulated);
             } else if (event.type === 'thinking') {
-              // Deep-tier reasoning delta — feeds the ThoughtProcess accordion.
-              setReasoningText((prev) => prev + event.text);
+              // Deliberately discarded. Extended thinking may remain enabled
+              // server-side for answer quality, but raw chain-of-thought is never
+              // retained in browser state — holding it here would leave it one
+              // render away from disclosure. The bounded work log is built from
+              // tool and source events instead.
             } else if (event.type === 'sources') {
               const sources = Array.isArray(event.sources) ? event.sources : [];
               // Resolve the most recent running step (the tool that just finished)
@@ -1243,19 +1248,25 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   // Stop: abort the in-flight stream. The server-side handler cancels the model
   // call on disconnect (P0-4); the partial answer streamed so far is kept.
   const submitFeedback = useCallback(
-    async (messageId: string, rating: 'up' | 'down' | null) => {
-      setChatMessageFeedback(messageId, rating); // optimistic
+    async (messageId: string, feedback: MessageFeedbackPayload) => {
+      const previous = messages.find((message) => message.id === messageId)?.feedback ?? null;
+      setChatMessageFeedback(messageId, feedback.rating);
       try {
-        await fetch(`${config.apiBaseUrl}/api/clio/messages/${messageId}/feedback`, {
-          method: 'POST',
-          headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rating }),
-        });
+        const response = await fetch(
+          `${config.apiBaseUrl}/api/clio/messages/${messageId}/feedback`,
+          {
+            method: 'POST',
+            headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+            body: JSON.stringify(feedback),
+          },
+        );
+        if (!response.ok) throw new Error(`Feedback save failed (${response.status})`);
       } catch {
-        /* keep optimistic UI; feedback is best-effort */
+        setChatMessageFeedback(messageId, previous);
+        throw new Error('Feedback could not be saved. Please try again.');
       }
     },
-    [authHeaders],
+    [authHeaders, messages],
   );
 
   const handleStop = useCallback(() => {
@@ -1461,6 +1472,19 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
               key: String(m.key ?? ''),
               value: String(m.value ?? ''),
               scope: String(m.scope ?? ''),
+              // Provenance/governance metadata is passed through verbatim. It used
+              // to be dropped here, which is why the panel could only ever say
+              // "Meri learned" regardless of scope, review state, or authority.
+              clientId: typeof m.clientId === 'string' ? m.clientId : null,
+              clientName: typeof m.clientName === 'string' ? m.clientName : null,
+              source: typeof m.source === 'string' ? m.source : null,
+              state: typeof m.state === 'string' ? m.state : null,
+              confidence: typeof m.confidence === 'number' ? m.confidence : null,
+              learnedAt: typeof m.learnedAt === 'string' ? m.learnedAt : null,
+              confirmedAt: typeof m.confirmedAt === 'string' ? m.confirmedAt : null,
+              expiresAt: typeof m.expiresAt === 'string' ? m.expiresAt : null,
+              // Fail closed: only an explicit server `true` unlocks mutation.
+              canMutate: m.canMutate === true,
             })),
         );
       }
@@ -1468,6 +1492,37 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       /* ignore */
     }
   }, [authHeaders]);
+
+  /**
+   * Propose a correction to memory this user cannot edit. The server creates a
+   * PENDING candidate for admin review, so nothing is applied locally — showing
+   * the new value as if it had taken effect would be exactly the client-inferred
+   * success this phase forbids.
+   */
+  const suggestMemoryCorrection = useCallback(
+    async (id: string, value: string) => {
+      const trimmed = value.trim();
+      if (!trimmed) return;
+      try {
+        const res = await fetch(
+          `${config.apiBaseUrl}/api/clio/memory/${encodeURIComponent(id)}/suggest-correction`,
+          {
+            method: 'POST',
+            headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ value: trimmed }),
+          },
+        );
+        if (!res.ok) {
+          setMetaError('The correction could not be sent for review. Nothing was changed.');
+          return;
+        }
+        setMetaError('Correction sent for review. An administrator decides whether it applies.');
+      } catch {
+        setMetaError('The correction could not be sent for review. Nothing was changed.');
+      }
+    },
+    [authHeaders],
+  );
 
   const saveMemoryEdit = useCallback(
     async (id: string, value: string) => {
@@ -1672,7 +1727,6 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     orchestratorTier,
     trustSteps,
     planSteps,
-    reasoningText,
     drawerRef,
     drawerWidth,
     startResize,
@@ -1683,6 +1737,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     archiveConversation,
     submitMemoryEdit,
     saveMemoryEdit,
+    suggestMemoryCorrection,
     forgetMemory,
     undoForgetMemory,
     handleApprovePending,

@@ -36,6 +36,17 @@ describe('MeriContextResolver', () => {
       userId: 'user-9',
       clerkUserId: 'clerk_1',
       role: 'standard_user',
+      // Phase 2 Step 3: the resolver now returns a SAFE provenance summary so
+      // the surface can show what actually grounded the answer. It carries
+      // labels/scopes only — never rendered context bodies.
+      contextPacket: {
+        packetId: 'pkt-1',
+        surface: 'ga-chat',
+        items: [],
+        exclusions: [],
+        unauthorizedCount: 0,
+        degraded: false,
+      },
     });
   });
 
@@ -70,6 +81,7 @@ describe('MeriContextResolver', () => {
       userId: 'user-9', // the RESOLVED Capiro uuid, never the Clerk id
       surface: 'ga-chat',
       layers: ['firm-identity', 'user-voice'],
+      ref: {},
     });
     expect(ctx.firmMemory).toEqual({ soul: 'Who: Us.', compass: 'Where: Up.' });
     expect(ctx.userVoice).toContain('Direct and concise.');

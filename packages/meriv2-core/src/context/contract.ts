@@ -1,8 +1,19 @@
 /**
- * Context Compiler v1 — shared, zod-free context contract.
+ * Shared context contract.
+ *
+ * v1 remains available as a rollback contract. v2 adds governed-memory
+ * provenance, authority-aware selection, packet health and budget evidence.
+ * Mutable body text remains runtime-only in `rendered`; persisted packet items
+ * contain hashes/metadata, not confidential content.
  */
+import type {
+  GovernedMemoryStatus,
+  MemoryAuthority,
+  MemoryClass,
+  MemoryConflictStatus,
+  MemorySensitivity,
+} from '../memory/governance';
 
-/** Surfaces that compile context. Mirrors persisted surface values. */
 export type ContextSurface =
   | 'chat'
   | 'ga-chat'
@@ -42,16 +53,6 @@ export const TYPES_BY_LAYER: Readonly<Record<SteeringLayer, readonly string[]>> 
   'client-people': ['client-people'],
 };
 
-/**
- * Canonical rendering rank per steering type. Firm Soul precedes Firm Compass,
- * identity precedes steering, and client rows follow user rows — the order every
- * adapter's SQL `ORDER BY CASE type` already encodes and every prompt renders.
- *
- * The shared compiler sorts by THIS rank, not alphabetically: `type.localeCompare`
- * would put firm-compass ahead of firm-soul and client-compass ahead of
- * client-soul, silently inverting the prompt's institutional hierarchy while
- * still being "deterministic".
- */
 export const TYPE_ORDER: Readonly<Record<string, number>> = {
   'firm-soul': 10,
   'firm-compass': 20,
@@ -75,10 +76,16 @@ export function typesForLayers(layers: readonly SteeringLayer[]): string[] {
   return out;
 }
 
+export type ContextContractVersion = 1 | 2;
+
 export interface ContextRequest {
   tenantId: string;
+  /** Effective tenant after any authorized impersonation. */
+  effectiveTenantId?: string;
   /** Capiro users.id uuid, not a Clerk subject. */
   userId: string | null;
+  /** Real actor when different from userId/effective scope. */
+  actorUserId?: string | null;
   clientId?: string | null;
   surface: ContextSurface;
   layers: readonly SteeringLayer[];
@@ -87,12 +94,21 @@ export interface ContextRequest {
   tokenBudget?: number;
   budgetUnit?: 'chars' | 'tokens';
   ref?: Record<string, string | null | undefined>;
-  /**
-   * required: packet persistence must succeed before compile resolves.
-   * best-effort/default: persistence is awaited for ordering but failure is
-   * swallowed; the returned packet marks the trace non-durable.
-   */
   persistence?: 'required' | 'best-effort';
+  /** Explicit contract choice; omitted preserves v1 behavior in core. */
+  contractVersion?: ContextContractVersion;
+  traceId?: string | null;
+  promptVersion?: string | null;
+  policyVersion?: string | null;
+  compilerVersion?: string | null;
+  /** Server-validated ids selected by the user in a Context Builder. */
+  selectedItemIds?: readonly string[];
+  /** Sensitivities the caller is authorized to include. */
+  allowedSensitivities?: readonly MemorySensitivity[];
+  /** Optional four-eyes policy for classes that require approval. */
+  fourEyesEnabled?: boolean;
+  /** Injectable clock for deterministic recall scoring in tests; defaults to real time. */
+  now?: Date;
 }
 
 export interface SteeringRow {
@@ -101,42 +117,142 @@ export interface SteeringRow {
   slug: string;
   title: string | null;
   clientId: string | null;
+  ownerUserId?: string | null;
+  visibility?: string | null;
   status: string;
   expiresAt?: string | Date | null;
-  /** Optional ordering/authority fields exposed by adapters when available. */
   updatedAt?: string | Date | null;
   confirmedAt?: string | Date | null;
   authority?: string | null;
   sections: unknown;
+
+  // Governed metadata populated by v2 adapters. All optional so v1 adapters can
+  // continue operating and v2 can conservatively quarantine missing metadata.
+  memoryClass?: MemoryClass | string | null;
+  governedAuthority?: MemoryAuthority | string | null;
+  sourceType?: string | null;
+  sourceId?: string | null;
+  sourceRef?: string | null;
+  sourceContentHash?: string | null;
+  sourceVersion?: string | null;
+  assertedByUserId?: string | null;
+  approvedByUserId?: string | null;
+  approvedAt?: string | Date | null;
+  secondApprovedByUserId?: string | null;
+  secondApprovedAt?: string | Date | null;
+  asOf?: string | Date | null;
+  effectiveFrom?: string | Date | null;
+  validUntil?: string | Date | null;
+  reviewDueAt?: string | Date | null;
+  conflictStatus?: MemoryConflictStatus | string | null;
+  conflictGroupId?: string | null;
+  controllingItemId?: string | null;
+  sensitivity?: MemorySensitivity | string | null;
+  confidence?: number | null;
+  instructionsAllowed?: boolean | null;
+  reviewState?: string | null;
+  originSurface?: string | null;
+  originTraceId?: string | null;
+  originContextPacketId?: string | null;
+  originModel?: string | null;
+  originPromptVersion?: string | null;
 }
 
-export interface ContextPacketItem {
+export interface ContextPacketItemV1 {
   layer: SteeringLayer;
   id: string;
   type: string;
   slug: string;
   chars: number;
   rationale: string;
-  /** Stable SHA-256 of the exact rendered body used by the prompt. */
   contentHash: string;
-  /** Complete section labels omitted because the remaining budget was too small. */
   omittedSections?: string[];
+}
+/** Backward-compatible v1 name. */
+export type ContextPacketItem = ContextPacketItemV1;
+
+export type ContextSelectionTier =
+  | 'explicit'
+  | 'authoritative_policy'
+  | 'system_of_record'
+  | 'human_confirmed'
+  | 'source_backed_derived'
+  | 'episodic_inferred';
+
+export interface ContextPacketItemV2 {
+  layer: SteeringLayer;
+  id: string;
+  type: string;
+  slug: string;
+  title: string | null;
+  memoryClass: MemoryClass;
+  scope: 'firm' | 'client' | 'user_private';
+  clientId: string | null;
+  ownerUserId: string | null;
+  authority: MemoryAuthority;
+  status: GovernedMemoryStatus;
+  sourceType: string;
+  sourceId: string | null;
+  sourceRef: string | null;
+  sourceContentHash: string | null;
+  sourceVersion: string | null;
+  asOf: string | null;
+  effectiveFrom: string | null;
+  validUntil: string | null;
+  lastConfirmedAt: string | null;
+  reviewDueAt: string | null;
+  humanApproved: boolean;
+  approvedByUserId: string | null;
+  approvedAt: string | null;
+  secondApprovedByUserId: string | null;
+  secondApprovedAt: string | null;
+  sensitivity: MemorySensitivity;
+  instructionsAllowed: boolean;
+  includedSections: string[];
+  omittedSections: string[];
+  inclusionScore: number;
+  inclusionReason: string;
+  selectionTier: ContextSelectionTier;
+  contentHash: string;
+  chars: number;
+  tokens: number;
+  confidence: number | null;
+  conflictStatus: MemoryConflictStatus;
+  conflictGroupId: string | null;
+  controllingItemId: string | null;
+  originSurface: string | null;
+  originTraceId: string | null;
+  originContextPacketId: string | null;
+  originModel: string | null;
+  originPromptVersion: string | null;
 }
 
 export type ExclusionReason =
   | 'revoked'
   | 'superseded'
+  | 'rejected'
   | 'expired'
+  | 'stale'
+  | 'conflicted'
+  | 'unapproved'
+  | 'invalid-until'
+  | 'source-missing'
+  | 'legacy-unclassified'
+  | 'sensitivity-denied'
+  | 'wrong-client'
   | 'empty'
   | 'over-budget'
-  | 'unauthorized';
+  | 'unauthorized'
+  | 'unavailable';
 
 export interface ContextExclusion {
   layer: SteeringLayer;
-  id: string;
-  type: string;
-  slug: string;
+  /** Omitted for unauthorized rows so identity cannot be inferred. */
+  id?: string;
+  type?: string;
+  slug?: string;
   reason: ExclusionReason;
+  safeDetail?: string;
 }
 
 export interface RenderedSteeringItem {
@@ -147,27 +263,58 @@ export interface RenderedSteeringItem {
   title: string | null;
   body: string;
   contentHash: string;
+  instructionsAllowed?: boolean;
 }
 
-export interface CompiledContextPacket {
+interface CompiledContextPacketBase {
   packetId: string;
-  version: 1;
   surface: ContextSurface;
   tenantId: string;
+  effectiveTenantId: string;
+  actorUserId: string | null;
   userId: string | null;
   clientId: string | null;
   ref: Record<string, string | null | undefined>;
-  items: ContextPacketItem[];
   exclusions: ContextExclusion[];
   rendered: RenderedSteeringItem[];
-  /** Stable hash of surface/scope/included/excluded/rendered content (not id/time). */
   traceHash: string;
-  /** True only when persistPacket completed successfully before return. */
   persisted: boolean;
   compiledAt: string;
 }
 
+export interface CompiledContextPacketV1 extends CompiledContextPacketBase {
+  version: 1;
+  items: ContextPacketItemV1[];
+}
+
+export interface ContextPacketHealth {
+  status: 'healthy' | 'degraded' | 'conflicted' | 'incomplete';
+  missingRequiredLayers: SteeringLayer[];
+  conflictCount: number;
+  sourceFailureCount: number;
+  reasons: string[];
+}
+
+export interface CompiledContextPacketV2 extends CompiledContextPacketBase {
+  version: 2;
+  traceId: string | null;
+  promptVersion: string | null;
+  policyVersion: string | null;
+  compilerVersion: string;
+  requiredLayers: SteeringLayer[];
+  health: ContextPacketHealth;
+  items: ContextPacketItemV2[];
+  totalTokenBudget: number | null;
+  usedTokens: number;
+  truncated: boolean;
+  incomplete: boolean;
+}
+
+export type CompiledContextPacket = CompiledContextPacketV1 | CompiledContextPacketV2;
+
 export interface ContextStoreAdapter {
   loadSteeringRows(req: ContextRequest): Promise<SteeringRow[]>;
+  /** Optional governed query. Core falls back to v1 rows and quarantines gaps. */
+  loadGovernedSteeringRows?(req: ContextRequest): Promise<SteeringRow[]>;
   persistPacket?(packet: CompiledContextPacket): Promise<void>;
 }

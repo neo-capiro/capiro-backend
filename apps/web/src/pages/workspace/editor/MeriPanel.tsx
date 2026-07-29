@@ -1,207 +1,111 @@
-/**
- * Right rail — Meri | Comments (ported from the prototype `MeriPanel`,
- * asset_14).
- *
- * Meri tab: a document-scoped chat assistant. You prompt Meri to act across the
- * whole document; it has the setup + Context Builder context plus read-only
- * access to firm/client + congressional data, and proposes edits you preview and
- * Accept/Reject before they apply. Wired to onRunMeri (POST /api/workspace/
- * assistant) and onApplyEdits (applies accepted edits to the section model).
- *
- * Comments tab (Phase 6): the full CommentsRail — highlight-to-comment compose,
- * threaded replies, resolve (clears the highlight), and "Let Meri draft an edit".
- * The editor controls the tab via `activeTab`/`onTabChange` so a canvas
- * selection can auto-switch the rail to Comments.
- */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../kit.js';
 import type { WsComment } from '../types.js';
 import type { WsAssistantEdit, WsAssistantResult } from '../api.js';
 import { CommentsRail, type ComposingComment } from './CommentsRail.js';
 import type { CommentAnchor } from './anchors.js';
+import { ContextInspector } from '../../../components/trust/ContextInspector.js';
+import {
+  MeriEditReview,
+  type EditApplyOutcome,
+} from './MeriEditReview.js';
+import type { WorkspaceSectionState } from './edit-review.js';
 
-const QUICK_ACTIONS: Array<{ label: string; prompt: string }> = [
+interface QuickAction {
+  label: string;
+  prompt: string;
+  allTools?: string[];
+  anyTools?: string[];
+}
+
+const QUICK_ACTIONS: QuickAction[] = [
   {
     label: 'Tighten the ask',
     prompt:
-      'Tighten the ask across this document — make the request specific, quantified, and action-oriented. Propose section edits.',
+      'Tighten the ask across this document. Make the request specific, quantified, and action-oriented. Propose section edits and do not change the document until I approve them.',
   },
   {
     label: 'Expand acronyms',
     prompt:
-      'Find undefined acronyms throughout the document and expand each on first use, e.g. "NDAA (National Defense Authorization Act)". Propose section edits.',
+      'Find undefined acronyms throughout the document and expand each on first use. Propose section edits.',
   },
   {
     label: 'Strengthen the nexus',
     prompt:
-      'Strengthen the connection between the client and the relevant policy/program throughout — make the relevance explicit and evidence-backed. Propose section edits.',
+      'Strengthen the evidence-backed connection between the client and the relevant policy, program, or district. Retrieve client context before proposing edits.',
+    allTools: ['search_client_knowledge'],
+  },
+  {
+    label: 'Verify legislative status',
+    prompt:
+      'Verify every legislative status in this document against the authoritative bill-status tools. Identify stale or unsupported statements and propose corrected edits.',
+    anyTools: ['search_congress_bills', 'search_state_bills'],
+  },
+  {
+    label: 'Validate dollar figures',
+    prompt:
+      'Validate every dollar figure and fiscal year in this document against retrieved sources. Distinguish request, authorization, appropriations marks, conference, and enacted amounts. Propose corrections only where supported.',
+    anyTools: ['get_pe_budget_timeline', 'query_economic_data'],
+  },
+  {
+    label: 'Authorization vs appropriation',
+    prompt:
+      'Check the document for authorization-versus-appropriation conflation and propose precise corrections with the relevant stage named.',
+    allTools: ['get_pe_budget_timeline'],
+  },
+  {
+    label: 'Check committee jurisdiction',
+    prompt:
+      'Check whether every named committee or subcommittee has jurisdiction over the described issue. Identify uncertainty and propose corrections.',
+    anyTools: ['search_committee_hearings', 'search_congress_bills'],
+  },
+  {
+    label: 'Refresh current roles',
+    prompt:
+      'Refresh time-sensitive member, staff, office, and acquisition-personnel roles used in this document. Propose edits for stale titles and state the as-of date.',
+    anyTools: ['search_acquisition_personnel', 'get_acquisition_person'],
+  },
+  {
+    label: 'Compare with client Compass',
+    prompt:
+      'Compare this document against the approved client context and identify framing, objective, red-line, or terminology conflicts. Propose edits without changing canonical client context.',
+    anyTools: ['get_client_context', 'search_client_knowledge'],
+  },
+  {
+    label: 'Find unsupported claims',
+    prompt:
+      'Audit this document for unsupported factual claims. Separate established facts, inference, recommendations, and uncertainty. Propose edits that remove or clearly qualify unsupported claims.',
+  },
+  {
+    label: 'Add state or district impact',
+    prompt:
+      'Assess whether state legislative or district impact is relevant. Retrieve state/client evidence before proposing a bounded impact section or edits.',
+    anyTools: ['search_state_bills', 'get_state_bill_status', 'query_economic_data'],
+  },
+  {
+    label: 'Check deadlines and time zones',
+    prompt:
+      'Validate every deadline, date, and time zone in this document. Identify relative dates or ambiguous cutoffs and propose exact replacements.',
+    anyTools: ['query_regulatory_dockets', 'search_congress_bills', 'search_state_bills'],
+  },
+  {
+    label: 'Check compliance language',
+    prompt:
+      'Review this document for compliance-sensitive promises, gifts, contingent-fee language, campaign-finance implications, procurement-integrity concerns, or unsupported legal conclusions. Flag uncertainty and propose conservative wording; do not provide a definitive legal conclusion.',
   },
 ];
 
 interface ChatItem {
   role: 'user' | 'meri';
   text: string;
-  edits?: WsAssistantEdit[];
-  editsState?: 'pending' | 'applied' | 'dismissed';
-  confidence?: WsAssistantResult['confidence'];
-  structuralWarnings?: WsAssistantResult['structuralWarnings'];
-  steps?: WsAssistantResult['steps'];
+  result?: WsAssistantResult;
+  failed?: boolean;
 }
 
-const opLabel: Record<WsAssistantEdit['op'], string> = {
-  replace_section: 'Rewrite',
-  insert_section: 'Add section',
-  remove_section: 'Remove section',
-};
-
-function plainPreview(html: string | undefined, max = 220): string {
-  if (!html) return '';
-  const text = html
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return text.length > max ? `${text.slice(0, max)}…` : text;
-}
-
-/** A proposed-edits card with per-edit Reject + Apply / Dismiss (preview → accept). */
-function EditProposal({
-  edits,
-  state,
-  onApply,
-  onDismiss,
-}: {
-  edits: WsAssistantEdit[];
-  state: ChatItem['editsState'];
-  onApply: (kept: WsAssistantEdit[]) => void;
-  onDismiss: () => void;
-}) {
-  const [rejected, setRejected] = useState<Set<number>>(new Set());
-  if (state === 'applied') {
-    return (
-      <div style={{ fontSize: 11, color: 'var(--accent-ink, #1e3a8a)', marginTop: 6 }}>
-        <Icon name="Check" size={11} /> Applied to the document
-      </div>
-    );
-  }
-  if (state === 'dismissed') {
-    return (
-      <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 6 }}>Suggestion dismissed</div>
-    );
-  }
-  const kept = edits.filter((_, i) => !rejected.has(i));
-  const toggle = (i: number) =>
-    setRejected((s) => {
-      const n = new Set(s);
-      if (n.has(i)) n.delete(i);
-      else n.add(i);
-      return n;
-    });
-  return (
-    <div
-      style={{
-        marginTop: 8,
-        border: '1px solid var(--border-1)',
-        borderRadius: 9,
-        background: 'var(--bg-surface)',
-        overflow: 'hidden',
-      }}
-    >
-      <div
-        style={{
-          padding: '7px 11px',
-          fontSize: 11,
-          fontWeight: 700,
-          color: 'var(--ink-2)',
-          background: 'var(--accent-soft)',
-          borderBottom: '1px solid var(--border-1)',
-        }}
-      >
-        Proposed edits · {edits.length}
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {edits.map((e, i) => {
-          const off = rejected.has(i);
-          const target = e.op === 'insert_section' ? e.name : e.section;
-          return (
-            <div
-              key={i}
-              style={{
-                padding: '8px 11px',
-                borderBottom: '1px solid var(--border-1)',
-                opacity: off ? 0.45 : 1,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span
-                  style={{
-                    fontSize: 9.5,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.03em',
-                    color: e.op === 'remove_section' ? 'var(--danger, #b91c1c)' : 'var(--accent)',
-                  }}
-                >
-                  {opLabel[e.op]}
-                </span>
-                <span
-                  style={{
-                    fontSize: 11.5,
-                    fontWeight: 600,
-                    flex: 1,
-                    minWidth: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    textDecoration: off ? 'line-through' : 'none',
-                  }}
-                >
-                  {target ?? '(section)'}
-                </span>
-                <button
-                  className="btn sm btn-ghost"
-                  style={{ fontSize: 10.5, padding: '1px 7px', color: 'var(--ink-3)' }}
-                  onClick={() => toggle(i)}
-                >
-                  {off ? 'Restore' : 'Reject'}
-                </button>
-              </div>
-              {e.note && (
-                <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginTop: 3 }}>{e.note}</div>
-              )}
-              {e.op !== 'remove_section' && e.content && (
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: 'var(--ink-2)',
-                    marginTop: 4,
-                    lineHeight: 1.45,
-                    maxHeight: 84,
-                    overflow: 'hidden',
-                  }}
-                >
-                  {plainPreview(e.content)}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ display: 'flex', gap: 7, padding: '8px 11px' }}>
-        <button
-          className="btn sm btn-accent"
-          disabled={!kept.length}
-          onClick={() => onApply(kept)}
-          style={{ fontSize: 11 }}
-        >
-          <Icon name="Check" size={12} />
-          Apply {kept.length} edit{kept.length === 1 ? '' : 's'}
-        </button>
-        <button className="btn sm" onClick={onDismiss} style={{ fontSize: 11 }}>
-          Dismiss
-        </button>
-      </div>
-    </div>
-  );
+function actionAvailable(action: QuickAction, tools: Set<string>): boolean {
+  if (action.allTools && !action.allTools.every((tool) => tools.has(tool))) return false;
+  if (action.anyTools && !action.anyTools.some((tool) => tools.has(tool))) return false;
+  return true;
 }
 
 export function MeriPanel({
@@ -220,18 +124,19 @@ export function MeriPanel({
   onApplyEdit,
   onRunMeri,
   onApplyEdits,
+  onRetrySave,
+  onUndoLastMeri,
+  documentState,
+  availableTools,
   onEditContext,
   pendingPrompt,
   onPromptConsumed,
 }: {
   isMainDoc: boolean;
-  /** Labels of the context items Meri uses (the real Context Builder plan). */
   contextItems: string[];
   openComments: number;
-  /** Editor-controlled active rail tab (so a selection can switch to Comments). */
   activeTab: 'meri' | 'comments';
   onTabChange: (tab: 'meri' | 'comments') => void;
-  /** The active canvas document id (engine comment scope). */
   documentId: string | null;
   comments: WsComment[];
   composing: ComposingComment | null;
@@ -240,120 +145,118 @@ export function MeriPanel({
   onComposeSave: (text: string) => void;
   onComposeCancel: () => void;
   onApplyEdit: (anchor: CommentAnchor, after: string) => void;
-  /** Run one assistant turn; resolves to Meri's reply + proposed edits. */
   onRunMeri: (
     messages: Array<{ role: 'user' | 'assistant'; text: string }>,
+    signal?: AbortSignal,
   ) => Promise<WsAssistantResult>;
-  /** Apply accepted edits to the document (section model + autosave). */
-  onApplyEdits: (edits: WsAssistantEdit[]) => void;
+  onApplyEdits: (edits: WsAssistantEdit[]) => Promise<EditApplyOutcome>;
+  onRetrySave?: () => Promise<EditApplyOutcome>;
+  onUndoLastMeri?: () => Promise<EditApplyOutcome>;
+  documentState: WorkspaceSectionState;
+  availableTools?: string[];
   onEditContext: () => void;
-  /** A prompt to auto-send (e.g. a checks "Fix" → "Expand acronyms"). */
   pendingPrompt?: string | null;
-  /** Called once the pending prompt has been consumed. */
   onPromptConsumed?: () => void;
 }) {
-  const tab = activeTab;
-  const setTab = onTabChange;
   const [input, setInput] = useState('');
   const [items, setItems] = useState<ChatItem[]>([]);
   const [busy, setBusy] = useState(false);
+  const [retryText, setRetryText] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const toolSet = useMemo(() => new Set(availableTools ?? []), [availableTools]);
+  const quickActions = useMemo(
+    () => QUICK_ACTIONS.filter((action) => actionAvailable(action, toolSet)),
+    [toolSet],
+  );
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [items, busy]);
 
+  useEffect(() => () => abortRef.current?.abort(), []);
+
   const send = async (text: string) => {
-    const v = text.trim();
-    if (!v || busy) return;
+    const value = text.trim();
+    if (!value || busy) return;
     setInput('');
-    const nextItems: ChatItem[] = [...items, { role: 'user', text: v }];
+    setRetryText(null);
+    const nextItems: ChatItem[] = [...items, { role: 'user', text: value }];
     setItems(nextItems);
     setBusy(true);
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      const history = nextItems.map((it) => ({
-        role: (it.role === 'meri' ? 'assistant' : 'user') as 'user' | 'assistant',
-        text: it.text,
+      const history = nextItems.map((item) => ({
+        role: (item.role === 'meri' ? 'assistant' : 'user') as 'user' | 'assistant',
+        text: item.text,
       }));
-      const res = await onRunMeri(history);
-      setItems((prev) => [
-        ...prev,
+      const result = await onRunMeri(history, controller.signal);
+      if (controller.signal.aborted) return;
+      setItems((previous) => [
+        ...previous,
         {
           role: 'meri',
-          text: res.reply || 'Done.',
-          edits: res.edits?.length ? res.edits : undefined,
-          editsState: res.edits?.length ? 'pending' : undefined,
-          confidence: res.confidence,
-          structuralWarnings: res.structuralWarnings?.length ? res.structuralWarnings : undefined,
-          steps: res.steps?.length ? res.steps : undefined,
+          text: result.reply || 'Done.',
+          result,
         },
       ]);
-    } catch {
-      setItems((prev) => [
-        ...prev,
-        { role: 'meri', text: 'Sorry — something went wrong. Please try again.' },
-      ]);
+    } catch (error) {
+      if (controller.signal.aborted) {
+        setItems((previous) => [
+          ...previous,
+          { role: 'meri', text: 'Stopped. No proposed edits were applied.' },
+        ]);
+      } else {
+        setRetryText(value);
+        setItems((previous) => [
+          ...previous,
+          {
+            role: 'meri',
+            text: error instanceof Error ? error.message : 'The assistant turn failed.',
+            failed: true,
+          },
+        ]);
+      }
     } finally {
+      if (abortRef.current === controller) abortRef.current = null;
       setBusy(false);
     }
   };
 
-  const setEditsState = (idx: number, editsState: ChatItem['editsState']) =>
-    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, editsState } : it)));
-
-  // A checks "Fix" (or other caller) can hand Meri a prompt to run immediately.
-  // Consume it once; `send` no-ops while busy so a rapid double won't double-fire.
   useEffect(() => {
-    if (!pendingPrompt) return;
+    if (!pendingPrompt || busy) return;
     void send(pendingPrompt);
     onPromptConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingPrompt]);
+  }, [pendingPrompt, busy]);
 
-  const Tab = ({ k, label, badge }: { k: 'meri' | 'comments'; label: string; badge?: number }) => {
-    const on = tab === k;
+  const Tab = ({ kind, label, badge }: { kind: 'meri' | 'comments'; label: string; badge?: number }) => {
+    const selected = activeTab === kind;
     return (
       <button
-        onClick={() => setTab(k)}
+        type="button"
+        onClick={() => onTabChange(kind)}
+        aria-selected={selected}
+        role="tab"
         style={{
           flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 7,
           padding: '10px 8px',
           border: 'none',
           background: 'transparent',
-          borderBottom: on ? '2px solid var(--accent)' : '2px solid transparent',
-          color: on ? 'var(--ink-1)' : 'var(--ink-3)',
+          borderBottom: selected ? '2px solid var(--accent)' : '2px solid transparent',
+          color: selected ? 'var(--ink-1)' : 'var(--ink-3)',
           fontWeight: 600,
-          fontSize: 12.5,
-          cursor: 'pointer',
-          fontFamily: 'var(--font-sans)',
         }}
       >
         {label}
-        {badge != null && (
-          <span
-            className="num"
-            style={{
-              fontSize: 10.5,
-              fontWeight: 700,
-              padding: '1px 6px',
-              borderRadius: 10,
-              background: on ? 'var(--accent)' : 'var(--bg-sunken)',
-              color: on ? '#fff' : 'var(--ink-3)',
-            }}
-          >
-            {badge}
-          </span>
-        )}
+        {badge != null ? ` · ${badge}` : ''}
       </button>
     );
   };
 
   return (
-    <div
+    <aside
       style={{
         borderLeft: '1px solid var(--border-1)',
         background: 'var(--bg-surface)',
@@ -362,13 +265,14 @@ export function MeriPanel({
         overflow: 'hidden',
         minHeight: 0,
       }}
+      aria-label="Meri document assistant"
     >
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-1)', flex: 'none' }}>
-        <Tab k="meri" label="Meri" />
-        <Tab k="comments" label="Comments" badge={openComments} />
+      <div role="tablist" style={{ display: 'flex', borderBottom: '1px solid var(--border-1)' }}>
+        <Tab kind="meri" label="Meri" />
+        <Tab kind="comments" label="Comments" badge={openComments} />
       </div>
 
-      {tab === 'comments' ? (
+      {activeTab === 'comments' ? (
         documentId ? (
           <CommentsRail
             documentId={documentId}
@@ -381,48 +285,23 @@ export function MeriPanel({
             onApplyEdit={onApplyEdit}
           />
         ) : (
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              padding: 24,
-              textAlign: 'center',
-              color: 'var(--ink-3)',
-            }}
-          >
-            <Icon name="MessageSquare" size={22} style={{ color: 'var(--ink-4)' }} />
-            <div style={{ fontSize: 12, lineHeight: 1.5, maxWidth: 220 }}>
-              Comments attach to a saved document. Add content first.
-            </div>
+          <div role="status" style={{ padding: 24, textAlign: 'center', color: 'var(--ink-3)' }}>
+            Comments attach to a saved document. Add content first.
           </div>
         )
       ) : (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            flex: 1,
-            minHeight: 0,
-          }}
-        >
-          {/* Header */}
-          <div
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}>
+          <header
             style={{
               padding: '12px 16px',
               borderBottom: '1px solid var(--border-1)',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              flex: 'none',
-              background: 'linear-gradient(180deg, var(--accent-soft), var(--bg-surface))',
             }}
           >
             <span
+              aria-hidden="true"
               style={{
                 width: 26,
                 height: 26,
@@ -431,7 +310,6 @@ export function MeriPanel({
                 color: '#fff',
                 display: 'grid',
                 placeItems: 'center',
-                flex: 'none',
               }}
             >
               <Icon name="Sparkles" size={15} />
@@ -439,279 +317,162 @@ export function MeriPanel({
             <div>
               <div style={{ fontSize: 13, fontWeight: 700 }}>Meri</div>
               <div style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
-                Editing this document · {contextItems.length} context source
+                Document session · session-only chat · {contextItems.length} linked context item
                 {contextItems.length === 1 ? '' : 's'}
               </div>
             </div>
-          </div>
+          </header>
 
-          {/* Conversation */}
           <div ref={scrollRef} style={{ flex: 1, overflow: 'auto', padding: 14, minHeight: 0 }}>
             {items.length === 0 && (
-              <div
-                className="card"
-                style={{
-                  padding: '10px 12px',
-                  boxShadow: 'none',
-                  fontSize: 12,
-                  color: 'var(--ink-2)',
-                  lineHeight: 1.5,
-                }}
-              >
-                <b style={{ color: 'var(--accent)' }}>Meri:</b> I can edit this document with you —
-                rewrite or tighten sections, expand acronyms, strengthen the ask. I use your setup
-                and linked context, and can pull in firm and congressional data. Ask me anything, or
-                try a quick action below.
+              <div className="card" style={{ padding: '10px 12px', boxShadow: 'none', fontSize: 12 }}>
+                <b style={{ color: 'var(--accent)' }}>Meri:</b> I review this document with you. I
+                propose changes for you to inspect; nothing is applied or reported saved until the
+                durable save succeeds.
               </div>
             )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {items.map((it, idx) =>
-                it.role === 'user' ? (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 10 }}>
+              {items.map((item, index) =>
+                item.role === 'user' ? (
+                  <div key={index} style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <div
                       style={{
-                        maxWidth: '85%',
+                        maxWidth: '88%',
                         background: 'var(--accent)',
                         color: '#fff',
-                        fontSize: 12,
-                        lineHeight: 1.5,
                         padding: '8px 11px',
                         borderRadius: '10px 10px 2px 10px',
-                      }}
-                    >
-                      {it.text}
-                    </div>
-                  </div>
-                ) : (
-                  <div key={idx}>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        lineHeight: 1.55,
-                        color: 'var(--ink-1)',
                         whiteSpace: 'pre-wrap',
                       }}
                     >
-                      <b style={{ color: 'var(--accent)' }}>Meri:</b> {it.text}
+                      {item.text}
                     </div>
-                    {it.steps && it.steps.length > 0 && (
+                  </div>
+                ) : (
+                  <article key={index}>
+                    <div style={{ fontSize: 12, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                      <b style={{ color: 'var(--accent)' }}>Meri:</b> {item.text}
+                    </div>
+                    {item.result?.steps?.length ? (
                       <details style={{ marginTop: 6 }}>
-                        <summary
-                          style={{
-                            cursor: 'pointer',
-                            fontSize: 11,
-                            color: 'var(--ink-3)',
-                            userSelect: 'none',
-                          }}
-                        >
-                          Thought process · {it.steps.length} step{it.steps.length === 1 ? '' : 's'}
-                        </summary>
-                        <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                          {it.steps.map((s, si) => (
-                            <div
-                              key={si}
-                              style={{
-                                fontSize: 11,
-                                lineHeight: 1.45,
-                                color: s.status === 'error' ? '#8a5a00' : 'var(--ink-2)',
-                                display: 'flex',
-                                gap: 6,
-                              }}
-                            >
-                              <span aria-hidden="true">{s.status === 'error' ? '⚠' : '✓'}</span>
-                              <span>
-                                {s.label}
-                                {s.detail ? <span style={{ color: 'var(--ink-3)' }}> — {s.detail}</span> : null}
-                              </span>
-                            </div>
+                        <summary>Sources and checks · {item.result.steps.length}</summary>
+                        <ul>
+                          {item.result.steps.map((step, stepIndex) => (
+                            <li key={stepIndex}>
+                              {step.status === 'error' ? 'Issue' : 'Completed'} · {step.label}
+                              {step.detail ? ` — ${step.detail}` : ''}
+                            </li>
                           ))}
-                        </div>
+                        </ul>
                       </details>
-                    )}
-                    {it.confidence && it.confidence.level !== 'unknown' && (
-                      <div
-                        title="Grounding confidence on the proposed edits (claims checked against retrieved Capiro/federal data)."
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 5,
-                          marginTop: 6,
-                          padding: '2px 8px',
-                          borderRadius: 999,
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color:
-                            it.confidence.level === 'high'
-                              ? '#14633a'
-                              : it.confidence.level === 'medium'
-                                ? '#8a5a00'
-                                : '#8a1f1f',
-                          background:
-                            it.confidence.level === 'high'
-                              ? '#e6f4ec'
-                              : it.confidence.level === 'medium'
-                                ? '#fbf0d9'
-                                : '#fbe3e3',
-                        }}
-                      >
-                        ● {it.confidence.label}
-                      </div>
-                    )}
-                    {it.structuralWarnings && it.structuralWarnings.length > 0 && (
-                      <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        {it.structuralWarnings.map((w, wi) => (
-                          <div
-                            key={wi}
-                            style={{
-                              fontSize: 11,
-                              lineHeight: 1.45,
-                              color: '#8a1f1f',
-                              background: '#fbe3e3',
-                              border: '1px solid #f1c4c4',
-                              borderRadius: 6,
-                              padding: '5px 8px',
-                            }}
-                          >
-                            <b>⚠ Check {w.peCode}:</b> {w.message}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {it.edits && it.edits.length > 0 && (
-                      <EditProposal
-                        edits={it.edits}
-                        state={it.editsState}
-                        onApply={(kept) => {
-                          onApplyEdits(kept);
-                          setEditsState(idx, 'applied');
-                        }}
-                        onDismiss={() => setEditsState(idx, 'dismissed')}
+                    ) : null}
+                    {item.result?.contextPacket && (
+                      <ContextInspector
+                        packet={item.result.contextPacket}
+                        onReviewContext={onEditContext}
                       />
                     )}
-                  </div>
+                    {item.result?.edits?.length ? (
+                      <MeriEditReview
+                        edits={item.result.edits}
+                        document={documentState}
+                        confidence={item.result.confidence}
+                        structuralWarnings={item.result.structuralWarnings}
+                        citations={item.result.citations}
+                        onApply={onApplyEdits}
+                        onRetrySave={onRetrySave}
+                        onUndo={onUndoLastMeri}
+                        onDismiss={() =>
+                          setItems((previous) =>
+                            previous.map((entry, itemIndex) =>
+                              itemIndex === index && entry.result
+                                ? { ...entry, result: { ...entry.result, edits: [] } }
+                                : entry,
+                            ),
+                          )
+                        }
+                      />
+                    ) : null}
+                  </article>
                 ),
               )}
               {busy && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 7,
-                    fontSize: 12,
-                    color: 'var(--ink-3)',
-                  }}
-                >
-                  <b style={{ color: 'var(--accent)' }}>Meri</b> is working
-                  <span className="ws-typing" aria-label="Meri is working">
-                    <i />
-                    <i />
-                    <i />
-                  </span>
+                <div role="status" aria-live="polite" style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                  Meri is reviewing sources and the document…
                 </div>
               )}
             </div>
           </div>
 
-          {/* Composer */}
-          <div style={{ padding: 12, borderTop: '1px solid var(--border-1)', flex: 'none' }}>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-              {QUICK_ACTIONS.map((q) => (
-                <button
-                  key={q.label}
-                  className="btn sm"
-                  disabled={busy}
-                  style={{
-                    fontSize: 11,
-                    padding: '3px 9px',
-                    borderColor: 'var(--border-1)',
-                    color: 'var(--ink-2)',
-                  }}
-                  onClick={() => send(q.prompt)}
-                >
-                  {q.label}
-                </button>
-              ))}
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '9px 11px',
-                background: 'var(--bg-surface)',
-                border: '1.5px solid var(--accent)',
-                borderRadius: 9,
-                boxShadow: '0 0 0 3px var(--accent-glow)',
-              }}
-            >
-              <Icon name="Sparkles" size={15} style={{ color: 'var(--accent)', flex: 'none' }} />
-              <input
+          <footer style={{ padding: 12, borderTop: '1px solid var(--border-1)' }}>
+            {isMainDoc && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                {quickActions.map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    className="btn sm"
+                    disabled={busy}
+                    onClick={() => void send(action.prompt)}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <label style={{ display: 'grid', gap: 5 }}>
+              <span className="sr-only">Ask Meri to review this document</span>
+              <textarea
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
+                onChange={(event) => setInput(event.currentTarget.value.slice(0, 12_000))}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
                     void send(input);
                   }
                 }}
                 disabled={busy}
-                placeholder="Ask Meri to edit this document…"
-                style={{
-                  flex: 1,
-                  border: 'none',
-                  outline: 'none',
-                  background: 'transparent',
-                  fontSize: 12.5,
-                  color: 'var(--ink-1)',
-                  fontFamily: 'var(--font-sans)',
-                }}
+                rows={3}
+                maxLength={12_000}
+                placeholder="Ask Meri to review or propose edits…"
+                style={{ width: '100%', resize: 'vertical', minHeight: 72 }}
               />
-              <button
-                onClick={() => void send(input)}
-                disabled={busy || !input.trim()}
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: 7,
-                  background: 'var(--accent)',
-                  color: '#fff',
-                  display: 'grid',
-                  placeItems: 'center',
-                  border: 'none',
-                  cursor: busy ? 'wait' : 'pointer',
-                  opacity: !input.trim() ? 0.5 : 1,
-                  flex: 'none',
-                }}
-              >
-                <Icon name="ArrowUp" size={14} />
+              <span style={{ fontSize: 10.5, color: 'var(--ink-3)', display: 'flex', justifyContent: 'space-between' }}>
+                <span>Enter sends · Shift+Enter adds a line</span>
+                <span>{input.length}/12,000</span>
+              </span>
+            </label>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+              {busy ? (
+                <button
+                  type="button"
+                  className="btn sm"
+                  onClick={() => abortRef.current?.abort()}
+                >
+                  Stop
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn sm btn-accent"
+                  disabled={!input.trim()}
+                  onClick={() => void send(input)}
+                >
+                  Send
+                </button>
+              )}
+              {retryText && !busy && (
+                <button type="button" className="btn sm" onClick={() => void send(retryText)}>
+                  Retry failed turn
+                </button>
+              )}
+              <button type="button" className="btn sm btn-ghost" onClick={onEditContext}>
+                Review context ({contextItems.length})
               </button>
             </div>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginTop: 8,
-              }}
-            >
-              <span style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
-                Context Meri uses · {contextItems.length}
-              </span>
-              <a
-                onClick={onEditContext}
-                style={{
-                  fontSize: 10.5,
-                  color: 'var(--accent)',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Edit context
-              </a>
-            </div>
-          </div>
+          </footer>
         </div>
       )}
-    </div>
+    </aside>
   );
 }

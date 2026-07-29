@@ -92,7 +92,6 @@ export function createMeriVisualController({
     orchestratorTier: null,
     trustSteps: [],
     planSteps: [],
-    reasoningText: '',
     drawerRef: { current: null },
     drawerWidth: 420,
     startResize: noop,

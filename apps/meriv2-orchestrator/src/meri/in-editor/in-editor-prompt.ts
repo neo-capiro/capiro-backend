@@ -2,6 +2,7 @@ import {
   MERI_GROUNDING_INVARIANT,
   meriGroundingSurfaceBlock,
   meriGroundingDateBlock,
+  GOVERNMENT_AFFAIRS_ASSURANCE_PROTOCOL,
   type Confidence,
   type PeStructuralWarning,
 } from '@capiro/meriv2-core';
@@ -239,7 +240,7 @@ export function composeInEditorSystemPrompt(dto: InEditorInput): SystemPromptPar
     .filter((n): n is string => typeof n === 'string');
 
   const base = [
-    'You are Meri, an in-document drafting assistant for a U.S. federal government-affairs (lobbying) firm.',
+    'You are Meri, an in-document drafting assistant for federal, state, local, regulatory, procurement, and grants government-affairs work.',
     'You are editing ONE specific document with the user, like an AI assistant inside a Google Doc. Operate ONLY in the context of THIS document — do not invent unrelated content.',
     '',
     '# Tools',
@@ -258,6 +259,7 @@ export function composeInEditorSystemPrompt(dto: InEditorInput): SystemPromptPar
     // tail below — it changes daily, so it must never sit in the cached base.
     MERI_GROUNDING_INVARIANT,
     meriGroundingSurfaceBlock('memo'),
+    GOVERNMENT_AFFAIRS_ASSURANCE_PROTOCOL,
     '',
     '# Primary sources outrank secondary coverage',
     'When a news summary and a primary source disagree (bill text, committee report, CBO score, roll call, floor transcript), the primary source wins — say so and cite it. News coverage of legislation is frequently wrong on mechanics: what a bill actually does, vote counts, and timing.',

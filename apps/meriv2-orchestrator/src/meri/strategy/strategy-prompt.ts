@@ -1,4 +1,10 @@
-import { MERI_GROUNDING_INVARIANT, truncateToTokens } from '@capiro/meriv2-core';
+import {
+  MERI_GROUNDING_INVARIANT,
+  buildAssurancePromptBlock,
+  planGovernmentAffairsEvidence,
+  resolveGovernmentAffairsOperatingFrame,
+  truncateToTokens,
+} from '@capiro/meriv2-core';
 import type { SystemPromptParts } from '../prompt-cache.helpers.js';
 
 /*
@@ -236,7 +242,7 @@ export const PROPOSE_STRATEGY_DRAFT_TOOL = {
                 '0-based indexes of OTHER nodes in this list that must complete before this step (blockers). A gate/decision a step waits on belongs here. Omit or [] if none.',
             },
           },
-          required: ['kind', 'subject', 'title', 'startsOn'],
+          required: ['kind', 'subject', 'title', 'startsOn', 'sources'],
         },
       },
     },
@@ -336,7 +342,7 @@ export const PROPOSE_DOCUMENT_DRAFT_TOOL = {
             },
             sources: NODE_PROPS.sources,
           },
-          required: ['heading', 'html'],
+          required: ['heading', 'html', 'sources'],
         },
       },
     },
@@ -630,7 +636,7 @@ function stewardFactsSection(facts?: StewardFactLite[]): string {
 }
 
 const PERSONA =
-  'You are Meri, a government-affairs strategist. You turn a client goal into a concrete, date-placed plan of steps (actions, decisions, gates, milestones, risks) aligned to the federal budget (PPBE), the congressional calendar, and the firm’s own operating rhythm.';
+  'You are Meri, a cross-jurisdiction government-affairs strategist. You turn an explicitly supplied or approved client objective into a concrete, date-placed plan of actions, decisions, gates, milestones, and risks across the relevant federal, state, local, regulatory, procurement, grants, budget, legislative, and firm operating cycles. Never invent a client objective or silently default to the federal rail.';
 
 /**
  * Prompt caching (P0-1 orchestrator parity): the ONE thing genuinely
@@ -644,16 +650,47 @@ const PERSONA =
  */
 const STRATEGY_BASE = [PERSONA, MERI_GROUNDING_INVARIANT].join('\n\n');
 
+function strategyAssuranceBlock(input: {
+  request: string;
+  clientId?: string;
+  objective?: string | null;
+  fiscal?: FiscalGrounding;
+  surface: 'strategy' | 'workspace-gen' | 'outreach';
+}): string {
+  const frame = resolveGovernmentAffairsOperatingFrame({
+    request: input.request,
+    asOf: input.fiscal?.today,
+    explicit: {
+      ...(input.clientId ? { clientId: input.clientId } : {}),
+      ...(input.objective ? { clientObjective: input.objective } : {}),
+    },
+    structuredFiscalYears: input.fiscal?.fys,
+  });
+  const plan = planGovernmentAffairsEvidence({
+    request: input.request,
+    frame,
+    surface: input.surface,
+  });
+  return buildAssurancePromptBlock(frame, plan);
+}
+
 export function composeDraftSystemPrompt(
   input: StrategyDraftInput,
   packText: string,
   healthNote?: string,
 ): SystemPromptParts {
   const dynamic = [
+    strategyAssuranceBlock({
+      request: [input.type, input.goal, input.meriContext].filter(Boolean).join('\n'),
+      clientId: input.clientId,
+      objective: input.goal,
+      fiscal: input.fiscal,
+      surface: 'strategy',
+    }),
     `# Objective type\n${input.type}`,
     input.goal
       ? `# Goal\n${input.goal}`
-      : '# Goal\n(none stated — infer a reasonable objective from the client context)',
+      : '# Goal\n(none stated — do not invent one; propose a discovery step or generic options and identify the required client decision)',
     input.meriContext ? `# Extra context from the user\n${input.meriContext}` : '',
     input.targetDate ? `# Target outcome date\n${input.targetDate}` : '',
     `# Fiscal calendar\n${renderFiscal(input.fiscal)}`,
@@ -695,6 +732,13 @@ export function composeAssistantSystemPrompt(
       ? `# Focus\nThe user is editing node [${input.nodeId}]. Prefer edits to that node unless they clearly ask for more.`
       : '# Focus\nThe user may change any part of the plan.';
   const dynamic = [
+    strategyAssuranceBlock({
+      request: [input.instruction, input.strategy.type, input.strategy.goal].filter(Boolean).join('\n'),
+      clientId: input.clientId,
+      objective: input.strategy.goal,
+      fiscal: input.fiscal,
+      surface: 'strategy',
+    }),
     `# Current strategy\n${input.strategy.title} (${input.strategy.type})${input.strategy.goal ? `\nGoal: ${input.strategy.goal}` : ''}`,
     `# Current plan\n${renderPlan(input.strategy)}`,
     `# Fiscal calendar\n${renderFiscal(input.fiscal)}`,
@@ -730,6 +774,11 @@ export function composeReferenceSystemPrompt(
   const which =
     input.kind === 'congress' ? 'legislative (congressional) calendar' : 'PPBE reference';
   const dynamic = [
+    strategyAssuranceBlock({
+      request: `${which}: ${input.instruction}`,
+      fiscal: input.fiscal,
+      surface: 'strategy',
+    }),
     `# Task\nEdit the firm's ${which} per the user's instruction. This is reference data shared across strategies — be conservative and precise.`,
     `# Fiscal calendar\n${renderFiscal(input.fiscal)}`,
     `# Current rows (JSON)\n${JSON.stringify(input.rows).slice(0, 8000)}`,
@@ -770,9 +819,20 @@ export function composeDocumentDraftSystemPrompt(
     ? 'You are drafting a full internal WORKSPACE DOCUMENT (a white paper / strategy memo) for this step. Write complete, substantive sections — this is a real first draft, not an outline.'
     : 'You are drafting a full OUTREACH CAMPAIGN MESSAGE for this step — the message that will eventually go to the counterparty named by this step. Write it as a cohesive message (opening, key points, the ask, a close), split into sections. This message is STAGED ONLY — it will never be sent by you or as a result of this call.';
   const dynamic = [
+    strategyAssuranceBlock({
+      request: [input.kind, input.type, input.goal, input.node.title, input.node.note]
+        .filter(Boolean)
+        .join('\n'),
+      clientId: input.clientId,
+      objective: input.goal,
+      fiscal: input.fiscal,
+      surface: input.kind === 'outreach_record' ? 'outreach' : 'workspace-gen',
+    }),
     `# Deliverable\n${deliverableNote}`,
     `# Objective type\n${input.type}`,
-    input.goal ? `# Strategy goal\n${input.goal}` : '# Strategy goal\n(none stated)',
+    input.goal
+      ? `# Strategy goal\n${input.goal}`
+      : '# Strategy goal\n(none stated — do not manufacture an objective or ask; hold client-specific recommendations until direction is supplied)',
     `# The step this deliverable is for\n${renderDocumentNode(input.node)}`,
     `# Fiscal calendar\n${renderFiscal(input.fiscal)}`,
     `# Firm phases\n${renderFirmPhases(input.firmPhases)}`,

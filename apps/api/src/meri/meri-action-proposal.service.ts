@@ -55,6 +55,9 @@ export interface PublicMeriActionProposal {
   attemptCount: number;
   resultSummary: unknown;
   error?: { code: string | null; message: string | null };
+  /** Approval lifecycle evidence. Display metadata only, never authority. */
+  approvedAt?: string | null;
+  approvedBy?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -119,6 +122,7 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
     'recipients',
   ]) {
     if (Array.isArray(source[key])) counts[key] = source[key].length;
+    else if (typeof source[key] === 'number') counts[key] = source[key] as number;
   }
   if (Object.keys(counts).length) summary.counts = counts;
   return summary as Prisma.InputJsonValue;
@@ -201,6 +205,8 @@ export class MeriActionProposalService {
       ...(row.lastErrorCode || row.lastErrorMessage
         ? { error: { code: row.lastErrorCode, message: row.lastErrorMessage } }
         : {}),
+      approvedAt: row.approvedAt?.toISOString() ?? null,
+      approvedBy: row.approvedBy ?? null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };

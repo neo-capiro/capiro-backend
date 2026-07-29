@@ -39,6 +39,10 @@ import {
 import { evaluateEligibility, type EligibilityResult } from './execution-eligibility.js';
 import { stampRunMetrics, type RunMetricsInput } from './run-metrics.js';
 import { PENDING_ARTIFACT_REF } from './artifact-ref.js';
+import {
+  GENERATION_ASSURANCE_HOLD_REASON,
+  assessGeneratedDocumentForRelease,
+} from './execution-assurance.js';
 import { isActionAllowed, reasonForState } from './run-state.js';
 import type {
   CreateRunDto,
@@ -554,6 +558,7 @@ export class ExecutionService {
     let sendPending = false;
     let blocked = false;
     let stagingIncomplete = false;
+    let generationHeld = false;
     // Stage-G grounded generation provenance for this phase's metrics stamp —
     // set only when a generation call actually ran and returned a model.
     let generationModel: string | undefined;
@@ -575,6 +580,7 @@ export class ExecutionService {
         );
         results[key] = staged;
         if (isStagingIncomplete(staged)) stagingIncomplete = true;
+        if (isGenerationHeld(staged)) generationHeld = true;
         generationModel ??= readGeneratedModel(staged);
       } else if (task.type === 'outreach_record') {
         const constraint = await this.checkClientConstraints(
@@ -604,12 +610,20 @@ export class ExecutionService {
           stagingIncomplete = true;
           continue; // skip the dependent await_send_approval task
         }
+        if (isGenerationHeld(staged)) {
+          generationHeld = true;
+          continue; // no artifact exists and there is nothing to approve/send
+        }
       } else {
         // await_send_approval: compute the send token, park — NEVER send.
-        if (blocked || stagingIncomplete) {
+        if (blocked || stagingIncomplete || generationHeld) {
           results[key] = {
             status: 'skipped',
-            reason: blocked ? 'outreach blocked' : 'outreach staging incomplete',
+            reason: blocked
+              ? 'outreach blocked'
+              : generationHeld
+                ? 'outreach generation held by assurance'
+                : 'outreach staging incomplete',
           };
           continue;
         }
@@ -632,6 +646,26 @@ export class ExecutionService {
     const generation = generationModel
       ? { model: generationModel, promptSpecVersion: EXECUTION_DOC_PROMPT_SPEC }
       : undefined;
+
+    if (generationHeld) {
+      await this.runs.transition(tenantId, userId, runId, {
+        to: 'waiting_for_input',
+        waitingReason: GENERATION_ASSURANCE_HOLD_REASON,
+        findings: {
+          results,
+          assurance: { decision: 'hold', reason: GENERATION_ASSURANCE_HOLD_REASON },
+        },
+      } as TransitionRunDto);
+      return this.settlePhase(
+        tenantId,
+        userId,
+        runId,
+        meta.missionId,
+        'execute',
+        phaseStart,
+        generation,
+      );
+    }
 
     if (stagingIncomplete) {
       await this.runs.transition(tenantId, userId, runId, {
@@ -797,6 +831,17 @@ export class ExecutionService {
         stewardHealth,
       }),
     );
+    const assurance = assessGeneratedDocumentForRelease(doc);
+    if (!assurance.releaseable) {
+      await this.releaseArtifactReservation(tenantId, node.id, 'workspace_draft');
+      return {
+        status: 'generation_held',
+        reason: GENERATION_ASSURANCE_HOLD_REASON,
+        blockers: assurance.blockers,
+        model: doc?.model ?? undefined,
+        promptSpecVersion: EXECUTION_DOC_PROMPT_SPEC,
+      };
+    }
     const sections = this.buildWorkspaceSections(doc, node, strategy);
     // Gate title selection on the same signal buildWorkspaceSections uses for the
     // body (doc.sections.length) — a degenerate generation (title present, sections
@@ -866,6 +911,17 @@ export class ExecutionService {
         stewardHealth,
       }),
     );
+    const assurance = assessGeneratedDocumentForRelease(doc);
+    if (!assurance.releaseable) {
+      await this.releaseArtifactReservation(tenantId, node.id, 'outreach_record');
+      return {
+        status: 'generation_held',
+        reason: GENERATION_ASSURANCE_HOLD_REASON,
+        blockers: assurance.blockers,
+        model: doc?.model ?? undefined,
+        promptSpecVersion: EXECUTION_DOC_PROMPT_SPEC,
+      };
+    }
     // Gate title selection on the same signal the body uses (doc.sections.length)
     // — mirrors stageWorkspace's docTitle gating: a degenerate generation (title
     // present, sections empty/sanitized-away) must fall back to node.title for
@@ -1009,6 +1065,22 @@ export class ExecutionService {
       }
       throw err;
     }
+  }
+
+  /**
+   * Release a reservation only when assurance holds BEFORE the external create.
+   * A real artifact reference is never deleted here.
+   */
+  private async releaseArtifactReservation(
+    tenantId: string,
+    nodeId: string,
+    artifactType: 'workspace_draft' | 'outreach_record',
+  ): Promise<void> {
+    await this.prisma.withTenant(tenantId, (tx) =>
+      tx.spNodeArtifact.deleteMany({
+        where: { nodeId, artifactType, artifactRef: PENDING_ARTIFACT_REF },
+      }),
+    );
   }
 
   /**
@@ -2001,6 +2073,10 @@ function isSendPark(run: { state?: unknown; waitingReason?: unknown; findings?: 
 /** A stage result that signals a surviving write-ahead reservation (parks the run). */
 function isStagingIncomplete(result: unknown): boolean {
   return asObject(result)?.status === 'staging_incomplete';
+}
+
+function isGenerationHeld(result: unknown): boolean {
+  return asObject(result)?.status === 'generation_held';
 }
 
 function escapeHtml(value: string): string {

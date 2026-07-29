@@ -15,6 +15,7 @@ import { ContextModule } from '../context/context.module.js';
 import { ReviewsModule } from '../reviews/reviews.module.js';
 import { MeriController } from './meri.controller.js';
 import { MeriActionProposalController } from './meri-action-proposal.controller.js';
+import { MeriContextPacketController } from './meri-context-packet.controller.js';
 import { MeriActionProposalService } from './meri-action-proposal.service.js';
 import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
@@ -47,7 +48,12 @@ import { MeriV2ChatClient } from './meriv2-chat.client.js';
     ContextModule,
     ReviewsModule,
   ],
-  controllers: [MeriController, MeriActionProposalController, MeriMcpOAuthController],
+  controllers: [
+    MeriController,
+    MeriActionProposalController,
+    MeriContextPacketController,
+    MeriMcpOAuthController,
+  ],
   providers: [
     MeriService,
     MeriToolsService,
@@ -63,9 +69,6 @@ import { MeriV2ChatClient } from './meriv2-chat.client.js';
     MeriClaimWriterService,
     MeriV2ChatClient,
   ],
-  // Exported so the in-editor workspace assistant can reuse the tool harness
-  // (a constrained, read-only subset) without duplicating tool logic, and the
-  // MeriV2 surface gate (P0-T3/T4) without re-reading flags.
   exports: [MeriToolsService, MeriFeatureFlagsService],
 })
 export class MeriModule {}

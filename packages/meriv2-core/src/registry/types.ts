@@ -2,6 +2,58 @@ import type { ZodType, ZodIssue } from 'zod';
 import type { TenantContext, TenantRole } from '@capiro/shared';
 import type { ToolExecutionMetadata } from './tool-execution-metadata';
 
+export type MeriContextScope = 'personal' | 'client' | 'firm';
+
+export interface MeriContextPacketItem {
+  id: string;
+  label: string;
+  type: string;
+  scope: MeriContextScope;
+  authority: 'human-authored' | 'system-of-record' | 'derived' | 'unknown';
+  clientName?: string | null;
+  userScoped?: boolean;
+  asOf?: string | null;
+  lastConfirmedAt?: string | null;
+  rationale?: string | null;
+  selection: 'explicit' | 'automatic';
+}
+
+export interface MeriContextPacketExclusion {
+  /**
+   * Omitted for access-control exclusions. An unauthorized row must never be
+   * identifiable from the packet — it may only ever appear in unauthorizedCount.
+   */
+  id?: string;
+  label?: string;
+  type?: string;
+  reason:
+    | 'expired'
+    | 'superseded'
+    | 'revoked'
+    | 'over-budget'
+    | 'unauthorized'
+    | 'unavailable'
+    | 'empty'
+    | string;
+}
+
+/**
+ * Safe display projection of a compiled context packet. Deliberately carries NO
+ * rendered body text: this is the provenance the trust UX shows, not the content
+ * the model was given.
+ */
+export interface MeriContextPacketSummary {
+  packetId?: string | null;
+  compiledAt?: string | null;
+  surface?: string | null;
+  clientId?: string | null;
+  items: MeriContextPacketItem[];
+  exclusions: MeriContextPacketExclusion[];
+  unauthorizedCount: number;
+  degraded: boolean;
+  degradedReason?: string | null;
+}
+
 export interface MeriContext {
   tenantId: string;
   userId: string;
@@ -12,6 +64,8 @@ export interface MeriContext {
   userVoice?: string;
   clientRoster?: Array<{ name: string; status: string }>;
   clientSteering?: { soul?: string; compass?: string; people?: string };
+  /** Safe provenance summary for trust UX; never includes context body text. */
+  contextPacket?: MeriContextPacketSummary;
 }
 
 export function meriContextFromTenant(ctx: TenantContext, org?: MeriContext['org']): MeriContext {

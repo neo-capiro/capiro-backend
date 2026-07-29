@@ -8,21 +8,15 @@ import { stateRuleStatusCase } from './legislation/state-rule-status.eval';
 import { committeeRosterCase } from './legislation/committee-roster.eval';
 import { multiStateComparisonCase } from './legislation/multi-state-comparison.eval';
 import { federalStateMixedCase } from './legislation/federal-state-mixed.eval';
+import { governmentAffairsAssuranceCase } from './assurance/government-affairs-assurance.eval';
 import type { EvalCase } from './types';
 
 /**
- * MeriV2 CI eval gate (SC0.6). Runs the deterministic, DB-free safety suites —
- * cross-client-leakage (full tenant matrix), claim-grounding, and
- * compliance-gate enforcement — and exits non-zero on any regression, failing
- * the `meriv2-evals` PR check. Set MERIV2_EVAL_SEED_FAILURE=1 to inject a
- * deliberately-failing leakage case (proves the gate goes red); unset → green.
- *
- * SCOPE: this gate covers MECHANISM invariants that can be tested
- * deterministically. LLM-behavioral eval categories (hallucination,
- * tool-selection accuracy, refusal/red-team, wrong-bill-version/member) require
- * a live-LLM eval harness and CANNOT gate CI deterministically — they belong in
- * a separate, scheduled (non-blocking) eval run, tracked as a follow-up rather
- * than faked here.
+ * MeriV2 deterministic CI release gate. Mechanism invariants fail the PR:
+ * tenancy, approval, grounding, entity/jurisdiction resolution, legislative
+ * procedure, government-affairs assurance, policy-pack safety, and golden-domain
+ * coverage. Live-model quality/cost/latency remain separately versioned L3/L4
+ * runs; their category-specific report is evaluated by assurance/eval-gate.ts.
  */
 const CASES: EvalCase[] = [
   crossTenantLeakageCase,
@@ -35,6 +29,7 @@ const CASES: EvalCase[] = [
   committeeRosterCase,
   multiStateComparisonCase,
   federalStateMixedCase,
+  governmentAffairsAssuranceCase,
 ];
 
 async function main(): Promise<void> {

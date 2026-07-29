@@ -2002,6 +2002,7 @@ export class MeriService {
             expiresAt: event.expiresAt,
             riskTier: event.riskTier,
             policyCode: event.policyCode,
+            ruleId: event.ruleId,
             preview: event.preview,
           });
           return;
@@ -4216,29 +4217,124 @@ export class MeriService {
   async recordMessageFeedback(
     ctx: TenantContext,
     messageId: string,
-    input: { rating?: unknown; note?: unknown },
+    input: { rating?: unknown; reasons?: unknown; note?: unknown },
   ): Promise<NormalizedFeedback> {
     const feedback = normalizeFeedback(input);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const msg = await tx.clioMessage.findFirst({
-        where: { id: messageId, tenantId: ctx.tenantId },
+        where: { id: messageId, tenantId: ctx.tenantId, userId: ctx.userId },
       });
       if (!msg) throw new NotFoundException('Message not found');
+      if (msg.role !== 'assistant') throw new BadRequestException('Feedback applies to assistant messages only');
       const metadata =
         msg.metadata && typeof msg.metadata === 'object' && !Array.isArray(msg.metadata)
           ? (msg.metadata as Record<string, unknown>)
           : {};
+      const verification =
+        metadata.verification &&
+        typeof metadata.verification === 'object' &&
+        !Array.isArray(metadata.verification)
+          ? (metadata.verification as Record<string, unknown>)
+          : null;
+      const unsupportedCount =
+        typeof verification?.unsupportedCount === 'number' ? verification.unsupportedCount : null;
+      const totalCount = typeof verification?.totalCount === 'number' ? verification.totalCount : null;
+      const verificationState = !verification
+        ? 'not_verified'
+        : totalCount === 0
+          ? 'not_verified'
+          : unsupportedCount && unsupportedCount > 0
+            ? 'partially_verified'
+            : 'verified';
+      const contextPacketId =
+        typeof metadata.contextPacketId === 'string'
+          ? metadata.contextPacketId
+          : metadata.contextPacket &&
+              typeof metadata.contextPacket === 'object' &&
+              !Array.isArray(metadata.contextPacket) &&
+              typeof (metadata.contextPacket as Record<string, unknown>).packetId === 'string'
+            ? String((metadata.contextPacket as Record<string, unknown>).packetId)
+            : null;
+      const serverFeedback = {
+        ...feedback,
+        userId: ctx.userId,
+        at: new Date().toISOString(),
+        surface: typeof metadata.surface === 'string' ? metadata.surface : 'chat',
+        model: typeof metadata.model === 'string' ? metadata.model : null,
+        provider:
+          typeof metadata.provider === 'string'
+            ? metadata.provider
+            : typeof metadata.servedBy === 'string'
+              ? metadata.servedBy
+              : null,
+        promptVersion:
+          typeof metadata.promptVersion === 'string'
+            ? metadata.promptVersion
+            : typeof metadata.promptSpecVersion === 'string'
+              ? metadata.promptSpecVersion
+              : null,
+        contextPacketId,
+        verificationState,
+      };
       await tx.clioMessage.update({
         where: { id: messageId },
         data: {
           metadata: {
             ...metadata,
-            feedback: { ...feedback, userId: ctx.userId, at: new Date().toISOString() },
+            feedback: serverFeedback,
           } as unknown as Prisma.InputJsonValue,
         },
       });
       return feedback;
     });
+  }
+
+  /** Admin-only, bounded feedback export for future evaluation fixtures. */
+  async exportFeedbackForEvaluation(ctx: TenantContext, limit = 200) {
+    const take = Math.min(Math.max(limit, 1), 500);
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioMessage.findMany({
+        where: { tenantId: ctx.tenantId, role: 'assistant' },
+        orderBy: { createdAt: 'desc' },
+        take: Math.min(take * 5, 2000),
+        select: {
+          id: true,
+          conversationId: true,
+          clientId: true,
+          body: true,
+          metadata: true,
+          createdAt: true,
+        },
+      }),
+    );
+    return rows
+      .map((row) => {
+        const metadata =
+          row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
+            ? (row.metadata as Record<string, unknown>)
+            : {};
+        const feedback = metadata.feedback;
+        if (!feedback || typeof feedback !== 'object' || Array.isArray(feedback)) return null;
+        const record = feedback as Record<string, unknown>;
+        return {
+          messageId: row.id,
+          conversationId: row.conversationId,
+          clientId: row.clientId,
+          createdAt: row.createdAt.toISOString(),
+          responseExcerpt: row.body.replace(/\s+/g, ' ').trim().slice(0, 1200),
+          rating: record.rating ?? null,
+          reasons: Array.isArray(record.reasons) ? record.reasons.slice(0, 10) : [],
+          note: typeof record.note === 'string' ? record.note.slice(0, 1000) : null,
+          surface: record.surface ?? null,
+          model: record.model ?? null,
+          provider: record.provider ?? null,
+          promptVersion: record.promptVersion ?? null,
+          contextPacketId: record.contextPacketId ?? null,
+          verificationState: record.verificationState ?? null,
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null)
+      .slice(0, take);
   }
 
   /**
@@ -4582,33 +4678,123 @@ export class MeriService {
    * undo affordance. Only auto-created entries are surfaced (createdBy === 'auto').
    */
   async listRecentLearnedMemories(ctx: TenantContext, limit = 5) {
-    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMemory.findMany({
+    const rows = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const memories = await tx.clioMemory.findMany({
         where: {
           tenantId: ctx.tenantId,
-          OR: [{ scope: 'firm' }, { scope: 'user_private', ownerUserId: ctx.userId }],
+          OR: [
+            { scope: 'firm' },
+            { scope: 'client' },
+            { scope: 'user_private', ownerUserId: ctx.userId },
+          ],
         },
         orderBy: { updatedAt: 'desc' },
-        take: Math.min(Math.max(limit, 1), 20),
-        select: { id: true, key: true, value: true, scope: true, metadata: true, updatedAt: true },
-      }),
-    );
-    return rows
+        take: Math.min(Math.max(limit * 4, 10), 80),
+        select: {
+          id: true, key: true, value: true, scope: true, ownerUserId: true,
+          clientId: true, source: true, expiresAt: true, metadata: true, updatedAt: true,
+        },
+      });
+      const clientIds = [...new Set(memories.map((memory) => memory.clientId).filter(Boolean))] as string[];
+      const clients = clientIds.length
+        ? await tx.client.findMany({ where: { id: { in: clientIds } }, select: { id: true, name: true } })
+        : [];
+      return { memories, clients };
+    });
+    const clientNames = new Map(rows.clients.map((client) => [client.id, client.name]));
+    return rows.memories
       .filter((row) => {
         const meta = (row.metadata ?? {}) as Record<string, unknown>;
-        return meta.createdBy === 'auto' || meta.updatedBy === 'auto';
+        return meta.createdBy === 'auto' || meta.updatedBy === 'auto' || meta.reviewState === 'pending';
       })
+      .slice(0, Math.min(Math.max(limit, 1), 20))
       .map((row) => {
         const meta = (row.metadata ?? {}) as Record<string, unknown>;
+        const mutation = evaluateMemoryMutation(ctx, row, 'edit');
+        const pending = meta.reviewState === 'pending' || meta.status === 'candidate';
+        const source = pending
+          ? 'candidate_review'
+          : meta.createdBy === 'auto' || meta.updatedBy === 'auto'
+            ? 'auto_learned_legacy'
+            : row.source || 'explicit_save';
         return {
           id: row.id,
           key: row.key,
           value: row.value,
           scope: row.scope,
+          clientId: row.clientId,
+          clientName: row.clientId ? clientNames.get(row.clientId) ?? null : null,
+          source,
+          state: pending ? 'pending_review' : 'active',
           confidence: typeof meta.confidence === 'number' ? meta.confidence : null,
           learnedAt: row.updatedAt,
+          confirmedAt: typeof meta.lastConfirmedAt === 'string' ? meta.lastConfirmedAt : null,
+          expiresAt: row.expiresAt,
+          canMutate: mutation.allowed,
         };
       });
+  }
+
+  /**
+   * "Suggest correction" for a memory the caller may not mutate (Phase 2 Step 9).
+   *
+   * A standard user cannot edit firm- or client-scope memory — evaluateMemoryMutation
+   * denies it — but dead-ending them is why auto-learned mistakes used to persist.
+   * The suggestion becomes a PENDING memory_candidate through Phase 1's real
+   * candidate lifecycle, so an admin reviews it and nothing is committed here.
+   *
+   * `isAdmin: false` is passed unconditionally and on purpose: this route only
+   * ever PROPOSES. An admin who genuinely wants to write uses the normal PATCH
+   * path, so a correction suggestion can never become a silent direct write.
+   */
+  async suggestMemoryCorrection(
+    ctx: TenantContext,
+    memoryId: string,
+    input: { value?: unknown; note?: unknown },
+  ): Promise<{ ok: true; state: 'pending_review'; candidateId: string | null }> {
+    const proposed = typeof input.value === 'string' ? input.value.trim() : '';
+    if (!proposed) throw new BadRequestException('A corrected value is required.');
+    if (proposed.length > 8000) throw new BadRequestException('The correction is too long.');
+    const note =
+      typeof input.note === 'string' && input.note.trim()
+        ? input.note.trim().slice(0, 1000)
+        : null;
+
+    // Tenant-scoped read: RLS plus the explicit tenantId filter, so a caller can
+    // never propose a correction against another tenant's memory.
+    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioMemory.findFirst({
+        where: { id: memoryId, tenantId: ctx.tenantId },
+        select: { id: true, key: true, value: true, scope: true, clientId: true, ownerUserId: true },
+      }),
+    );
+    if (!row) throw new NotFoundException('Memory not found');
+
+    const scope = (row.scope === 'user_private' ? 'user_private' : row.scope === 'client' ? 'client' : 'firm') as
+      | 'firm'
+      | 'user_private'
+      | 'client';
+    const result = await this.memoryCandidates.proposeSaveMemory(
+      ctx.tenantId,
+      ctx.userId,
+      {
+        scope,
+        ownerUserId: scope === 'user_private' ? row.ownerUserId : null,
+        clientId: scope === 'client' ? row.clientId : null,
+        key: row.key,
+        value: note ? `${proposed}
+
+[Correction note] ${note}` : proposed,
+        source: 'user_correction',
+      },
+      false,
+      'user_correction',
+    );
+    const candidateId =
+      result && typeof result === 'object' && 'candidateId' in result
+        ? ((result as { candidateId?: unknown }).candidateId as string | null) ?? null
+        : null;
+    return { ok: true, state: 'pending_review', candidateId };
   }
 
   /**
@@ -4694,26 +4880,52 @@ export class MeriService {
    * inspect/edit panel (P2-6). Not limited to auto-created entries.
    */
   async listMemories(ctx: TenantContext, limit = 100) {
-    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMemory.findMany({
+    const rows = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const memories = await tx.clioMemory.findMany({
         where: {
           tenantId: ctx.tenantId,
-          OR: [{ scope: 'firm' }, { scope: 'user_private', ownerUserId: ctx.userId }],
+          OR: [
+            { scope: 'firm' },
+            { scope: 'client' },
+            { scope: 'user_private', ownerUserId: ctx.userId },
+          ],
         },
         orderBy: { updatedAt: 'desc' },
         take: Math.min(Math.max(limit, 1), 200),
-        select: { id: true, key: true, value: true, scope: true, metadata: true, updatedAt: true },
-      }),
-    );
-    return rows.map((row) => {
+        select: {
+          id: true, key: true, value: true, scope: true, ownerUserId: true,
+          clientId: true, source: true, expiresAt: true, metadata: true, updatedAt: true,
+        },
+      });
+      const clientIds = [...new Set(memories.map((memory) => memory.clientId).filter(Boolean))] as string[];
+      const clients = clientIds.length
+        ? await tx.client.findMany({ where: { id: { in: clientIds } }, select: { id: true, name: true } })
+        : [];
+      return { memories, clients };
+    });
+    const clientNames = new Map(rows.clients.map((client) => [client.id, client.name]));
+    return rows.memories.map((row) => {
       const meta = (row.metadata ?? {}) as Record<string, unknown>;
+      const mutation = evaluateMemoryMutation(ctx, row, 'edit');
+      const pending = meta.reviewState === 'pending' || meta.status === 'candidate';
       return {
         id: row.id,
         key: row.key,
         value: row.value,
         scope: row.scope,
+        clientId: row.clientId,
+        clientName: row.clientId ? clientNames.get(row.clientId) ?? null : null,
+        source: pending
+          ? 'candidate_review'
+          : meta.createdBy === 'auto' || meta.updatedBy === 'auto'
+            ? 'auto_learned_legacy'
+            : row.source || 'explicit_save',
+        state: pending ? 'pending_review' : 'active',
         confidence: typeof meta.confidence === 'number' ? meta.confidence : null,
         learnedAt: row.updatedAt,
+        confirmedAt: typeof meta.lastConfirmedAt === 'string' ? meta.lastConfirmedAt : null,
+        expiresAt: row.expiresAt,
+        canMutate: mutation.allowed,
       };
     });
   }

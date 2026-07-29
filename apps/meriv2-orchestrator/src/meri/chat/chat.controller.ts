@@ -9,21 +9,6 @@ import { parseAiProviderHeader } from '../meri.controller.js';
 import { ChatAssistantService } from './chat-assistant.service.js';
 import type { ChatInput, ChatResult } from './chat-prompt.js';
 
-/**
- * `/meri-api/chat` — the MeriV2-served full Meri chat surface (Workstream C4).
- * The agentic loop over the entire tool registry (reads + gated writes) on the
- * tenant's key. Tenant-guarded (verified Clerk JWT); the loop runs inside the
- * forwarded-credential scope so delegated tool calls (Bearer), the approval
- * check (Bearer), and the LLM (tenant credential, BYOK2) all resolve.
- *
- * Two transports over the SAME loop:
- *   - POST /meri-api/chat        → one complete ChatResult (request/response)
- *   - POST /meri-api/chat/stream → SSE-style `data: <json>\n\n` frames of
- *     ChatStreamEvent, terminated by `done` (carrying the aggregates the
- *     apps/api proxy persists) or `error`. The apps/api full-chat proxy
- *     (meriv2.fullChat flag) consumes the stream and translates to the legacy
- *     ChatDrawer event union.
- */
 @Controller('chat')
 @UseGuards(TenantGuard)
 export class ChatController {
@@ -35,14 +20,21 @@ export class ChatController {
   @Post()
   async run(
     @Body() dto: ChatInput,
-    @CurrentTenant() tc: OrchestratorTenantContext,
+    @CurrentTenant() tenant: OrchestratorTenantContext,
     @Req() req: Request,
-  ): Promise<ChatResult> {
-    const meriCtx = await this.resolver.resolve(tc, dto?.clientId ?? null);
+  ): Promise<ChatResult & { contextPacket?: unknown }> {
     const token = extractBearerToken(req);
     const aiProvider = parseAiProviderHeader(req);
     const impersonateTenantId = extractImpersonateTenant(req);
-    const exec = () => this.chat.run(meriCtx, dto ?? {});
+    const execute = async () => {
+      const meriCtx = await this.resolver.resolve(tenant, dto?.clientId ?? null, 'ga-chat', {
+        conversationId: dto?.conversationId ?? null,
+      });
+      return {
+        ...(await this.chat.run(meriCtx, dto ?? {})),
+        ...(meriCtx.contextPacket ? { contextPacket: meriCtx.contextPacket } : {}),
+      };
+    };
     return token || aiProvider || impersonateTenantId
       ? RequestCredentialsStore.run(
           {
@@ -50,19 +42,18 @@ export class ChatController {
             ...(aiProvider ? { aiProvider } : {}),
             ...(impersonateTenantId ? { impersonateTenantId } : {}),
           },
-          exec,
+          execute,
         )
-      : exec();
+      : execute();
   }
 
   @Post('stream')
   async stream(
     @Body() dto: ChatInput,
-    @CurrentTenant() tc: OrchestratorTenantContext,
+    @CurrentTenant() tenant: OrchestratorTenantContext,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    const meriCtx = await this.resolver.resolve(tc, dto?.clientId ?? null);
     const token = extractBearerToken(req);
     const aiProvider = parseAiProviderHeader(req);
     const impersonateTenantId = extractImpersonateTenant(req);
@@ -71,18 +62,19 @@ export class ChatController {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
-    // Cancel the loop when the caller disconnects — stop burning tokens for an
-    // answer nobody is reading (same P0-4 discipline as the legacy stream).
     const abort = new AbortController();
     req.on('close', () => abort.abort());
     res.on('error', () => {
-      /* swallow socket errors on client disconnect */
+      /* socket errors on disconnect are expected */
     });
     const frame = (event: unknown) => {
       if (!res.writableEnded) res.write(`data: ${JSON.stringify(event)}\n\n`);
     };
 
-    const exec = async () => {
+    const execute = async () => {
+      const meriCtx = await this.resolver.resolve(tenant, dto?.clientId ?? null, 'ga-chat', {
+        conversationId: dto?.conversationId ?? null,
+      });
       frame({ type: 'start' });
       try {
         const result = await this.chat.run(meriCtx, dto ?? {}, {
@@ -97,10 +89,11 @@ export class ChatController {
           ...(result.usage ? { usage: result.usage } : {}),
           ...(result.citations?.length ? { citations: result.citations } : {}),
           ...(result.pendingApprovals?.length ? { pendingApprovals: result.pendingApprovals } : {}),
+          ...(meriCtx.contextPacket ? { contextPacket: meriCtx.contextPacket } : {}),
           aborted: abort.signal.aborted,
         });
-      } catch (e) {
-        frame({ type: 'error', message: (e as Error).message });
+      } catch (error) {
+        frame({ type: 'error', message: error instanceof Error ? error.message : 'Chat failed' });
       }
       res.end();
     };
@@ -112,9 +105,9 @@ export class ChatController {
             ...(aiProvider ? { aiProvider } : {}),
             ...(impersonateTenantId ? { impersonateTenantId } : {}),
           },
-          exec,
+          execute,
         )
-      : exec());
+      : execute());
   }
 }
 
@@ -126,12 +119,6 @@ function extractBearerToken(req: Request): string | null {
   return token && token.length > 0 ? token : null;
 }
 
-/**
- * The effective tenant an apps/api staff caller is impersonating (2.5). The
- * orchestrator does NOT authorize impersonation — it only carries the value so
- * the delegated apps/api calls re-send it and apps/api (the authz owner)
- * re-validates + scopes to it. A single string header value; absent otherwise.
- */
 function extractImpersonateTenant(req: Request): string | null {
   const raw = req.headers['x-capiro-impersonate-tenant'];
   const value = Array.isArray(raw) ? raw[0] : raw;

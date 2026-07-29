@@ -36,6 +36,7 @@ import {
   type LedgerEntry,
 } from '@capiro/meriv2-core/grounding/auditor';
 import type { FundingYearRecord } from '@capiro/meriv2-core/grounding/evidence';
+import { compactAssurancePromptBlock } from '@capiro/meriv2-core/assurance';
 import {
   finalizeGenerationRun,
   generationFailure,
@@ -1543,6 +1544,7 @@ export class GenerationService {
       args.userVoiceContext ? `\nDraft in this author's voice:\n${args.userVoiceContext}` : '',
       '',
       DOMAIN_PRIMER,
+      compactAssurancePromptBlock(),
       '',
       `Goal of this section: ${spec.goal}`,
       `Target length: roughly ${loWords}–${hiWords} words — respect it.`,

@@ -3,6 +3,14 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { WSC } from '../cascade/cascade.config.js';
 
 export type WsCheckStatus = 'success' | 'notable' | 'critical';
+/**
+ * Review severity, kept SEPARATE from `status`. `status` is the pass/fail of the
+ * rule; severity is how much the finding matters. Grounding findings arrive with a
+ * real four-level severity and used to be collapsed into notable/critical, which
+ * lost the distinction between "tighten this phrasing" and "this misstates a
+ * funding direction".
+ */
+export type WsCheckSeverity = 'critical' | 'high' | 'medium' | 'low';
 
 export interface WsCheckResult {
   id: string;
@@ -12,11 +20,55 @@ export interface WsCheckResult {
   detail: string;
   /** Whether the popover should offer a "Fix" affordance (non-success only). */
   fixable: boolean;
+  severity: WsCheckSeverity;
+  /** The section this finding is anchored to, when the rule knows it. */
+  section?: string | null;
+}
+
+/**
+ * Verification semantics (Phase 2 Step 6/8). "No issues found" and "we never
+ * checked" are different claims and must not render identically.
+ *   verified            - the audit ran and every checkable claim was supported
+ *   partially_verified  - it ran and some claims were unsupported
+ *   not_verified        - it never ran, or ran with nothing verifiable to check
+ *   unavailable         - it was attempted and could not complete
+ */
+export interface WsVerificationSummary {
+  ran: boolean;
+  state: 'verified' | 'partially_verified' | 'not_verified' | 'unavailable';
+  supportedCount: number;
+  unsupportedCount: number;
+  /** When the evidence behind this verdict was captured (last generation). */
+  capturedAt: string | null;
+  detail: string;
+}
+
+/** Context that grounded the last generation, plus what was left out. */
+export interface WsChecksContextSummary {
+  capturedAt: string | null;
+  itemCount: number;
+  memoryFileCount: number;
+  linkedPeCount: number;
+  exclusions: Array<{ label: string; reason: string }>;
+  degraded: boolean;
+}
+
+/**
+ * Whether the document has moved on since verification/context capture. Exporting
+ * stale-verified content is the risk Step 8 requires the UI to gate on.
+ */
+export interface WsChecksStaleness {
+  documentUpdatedAt: string;
+  verifiedAt: string | null;
+  changedAfterVerification: boolean;
 }
 
 export interface WsChecksResponse {
   checks: WsCheckResult[];
   score: { passed: number; total: number };
+  verification: WsVerificationSummary;
+  context: WsChecksContextSummary | null;
+  staleness: WsChecksStaleness;
 }
 
 /**
@@ -36,6 +88,18 @@ function readGroundingFindings(
       severity: typeof g.severity === 'string' ? g.severity : 'medium',
       detail: typeof g.detail === 'string' ? g.detail : '',
     }));
+}
+
+/**
+ * The citation findings the generator emits start with `Section "X":`. Recover
+ * that name so a finding can link to the section it belongs to, matched against
+ * the document's real section list so a malformed detail cannot invent one.
+ */
+function sectionFromFindingDetail(detail: string, sections: string[]): string | null {
+  const match = /^Section\s+"([^"]+)"/.exec(detail);
+  const named = match && match[1];
+  if (!named) return null;
+  return sections.find((section) => section === named) ?? null;
 }
 
 /**
@@ -262,12 +326,24 @@ export class ChecksService {
     for (const g of readGroundingFindings(cfg)) {
       const status: WsCheckStatus =
         g.severity === 'critical' || g.severity === 'high' ? 'critical' : 'notable';
+      const severity: WsCheckSeverity =
+        g.severity === 'critical' ||
+        g.severity === 'high' ||
+        g.severity === 'medium' ||
+        g.severity === 'low'
+          ? g.severity
+          : 'medium';
       checks.push({
         id: `grounding:${g.check}:${checks.length}`,
         label: `Grounding — ${g.check}`,
         status,
         detail: g.detail.slice(0, 200),
-        fixable: false,
+        // Grounding findings ARE fixable in the editor via "Fix with Meri". They
+        // were marked unfixable, which hid the only route to resolving the most
+        // serious class of finding the auditor produces.
+        fixable: true,
+        severity,
+        section: sectionFromFindingDetail(g.detail, sections),
       });
     }
 
@@ -276,15 +352,165 @@ export class ChecksService {
     return {
       checks,
       score: { passed, total: checks.length },
+      verification: this.verificationSummary(cfg),
+      context: this.contextSummary(cfg),
+      staleness: this.staleness(cfg, draft.updatedAt),
+    };
+  }
+
+  /**
+   * Derive the verification verdict from what the last generation actually
+   * captured. A draft that was never generated (or predates the auditor) reports
+   * not_verified - never "no issues found", which would imply a passed check.
+   */
+  private verificationSummary(cfg: Record<string, unknown>): WsVerificationSummary {
+    const provenance = cfg.contextProvenance as { generatedAt?: unknown } | undefined;
+    const capturedAt =
+      provenance && typeof provenance.generatedAt === 'string' && provenance.generatedAt
+        ? provenance.generatedAt
+        : null;
+    const citations = (cfg.sectionCitations as Record<string, unknown[]> | undefined) ?? {};
+    const supportedCount = Object.values(citations).reduce(
+      (sum, list) => sum + (Array.isArray(list) ? list.length : 0),
+      0,
+    );
+    const unsupportedCount = readGroundingFindings(cfg).length;
+    // The auditor's output only exists once a generation ran it. An ABSENT
+    // groundingFindings (as opposed to an empty array) means it never ran.
+    const ran =
+      capturedAt !== null &&
+      Array.isArray((cfg as { groundingFindings?: unknown }).groundingFindings);
+
+    if (!ran) {
+      return {
+        ran: false,
+        state: 'not_verified',
+        supportedCount: 0,
+        unsupportedCount: 0,
+        capturedAt,
+        detail: 'No verification has run against this document.',
+      };
+    }
+    if (supportedCount === 0 && unsupportedCount === 0) {
+      return {
+        ran: true,
+        state: 'not_verified',
+        supportedCount: 0,
+        unsupportedCount: 0,
+        capturedAt,
+        detail: 'Verification ran but found no source-backed claims to check.',
+      };
+    }
+    if (unsupportedCount > 0) {
+      return {
+        ran: true,
+        state: 'partially_verified',
+        supportedCount,
+        unsupportedCount,
+        capturedAt,
+        detail: `${supportedCount} cited claim${supportedCount === 1 ? '' : 's'} · ${unsupportedCount} flagged`,
+      };
+    }
+    return {
+      ran: true,
+      state: 'verified',
+      supportedCount,
+      unsupportedCount: 0,
+      capturedAt,
+      detail: `${supportedCount} cited claim${supportedCount === 1 ? '' : 's'} supported by retrieved evidence.`,
+    };
+  }
+
+  /**
+   * What grounded the last generation. Exclusions carry safe reasons only: nothing
+   * here can reveal an item the caller was not authorized to see, because
+   * generation only ever received rows that already passed tenant scoping.
+   */
+  private contextSummary(cfg: Record<string, unknown>): WsChecksContextSummary | null {
+    const provenance = cfg.contextProvenance as
+      | {
+          generatedAt?: unknown;
+          contextItems?: unknown;
+          memoryFiles?: unknown;
+          linkedPeCodes?: unknown;
+        }
+      | undefined;
+    if (!provenance || typeof provenance !== 'object' || Array.isArray(provenance)) return null;
+    const items = Array.isArray(provenance.contextItems) ? provenance.contextItems : [];
+    const memoryFiles = Array.isArray(provenance.memoryFiles) ? provenance.memoryFiles : [];
+    const linkedPeCodes = Array.isArray(provenance.linkedPeCodes) ? provenance.linkedPeCodes : [];
+    // An attached item that contributed no body never grounded the text. Generation
+    // filters those out, so report the shortfall as an exclusion instead of letting
+    // it look like it was used.
+    const attached =
+      typeof cfg.contextItemCount === 'number' ? cfg.contextItemCount : items.length;
+    const exclusions: Array<{ label: string; reason: string }> = [];
+    const empty = attached - items.length;
+    if (empty > 0) {
+      exclusions.push({
+        label: `${empty} attached item${empty === 1 ? '' : 's'}`,
+        reason: 'empty',
+      });
+    }
+    const run = cfg.lastGenerationRun as { contextDegraded?: unknown } | undefined;
+    return {
+      capturedAt:
+        typeof provenance.generatedAt === 'string' && provenance.generatedAt
+          ? provenance.generatedAt
+          : null,
+      itemCount: items.length,
+      memoryFileCount: memoryFiles.length,
+      linkedPeCount: linkedPeCodes.length,
+      exclusions,
+      degraded: run?.contextDegraded === true,
+    };
+  }
+
+  /**
+   * Has the document changed since it was verified? `updatedAt` moves on every
+   * autosave, so an edit after generation makes the verdict stale - exactly the
+   * condition Step 8 gates export on. The 1s tolerance absorbs the write that
+   * generation itself performs.
+   */
+  private staleness(cfg: Record<string, unknown>, documentUpdatedAt: Date): WsChecksStaleness {
+    const provenance = cfg.contextProvenance as { generatedAt?: unknown } | undefined;
+    const verifiedAt =
+      provenance && typeof provenance.generatedAt === 'string' && provenance.generatedAt
+        ? provenance.generatedAt
+        : null;
+    const verifiedMs = verifiedAt ? new Date(verifiedAt).getTime() : Number.NaN;
+    return {
+      documentUpdatedAt: documentUpdatedAt.toISOString(),
+      verifiedAt,
+      // Only claim staleness when BOTH timestamps are real. An unverified document
+      // is reported through verification.state, not as "stale".
+      changedAfterVerification:
+        Number.isFinite(verifiedMs) && documentUpdatedAt.getTime() > verifiedMs + 1000,
     };
   }
 
   private check(
     id: string,
     label: string,
-    r: { status: WsCheckStatus; detail: string },
+    r: {
+      status: WsCheckStatus;
+      detail: string;
+      /** Explicit override; otherwise derived from status. */
+      severity?: WsCheckSeverity;
+      section?: string | null;
+    },
   ): WsCheckResult {
-    return { id, label, status: r.status, detail: r.detail, fixable: r.status !== 'success' };
+    return {
+      id,
+      label,
+      status: r.status,
+      detail: r.detail,
+      fixable: r.status !== 'success',
+      severity:
+        r.severity ??
+        (r.status === 'critical' ? 'critical' : r.status === 'notable' ? 'medium' : 'low'),
+      section: r.section ?? null,
+    };
   }
 
   private askOf(askRaw: unknown, cfg: Record<string, unknown>): WsAskShape {

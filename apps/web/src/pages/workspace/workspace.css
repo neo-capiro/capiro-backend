@@ -715,3 +715,209 @@
     margin: 1in;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Phase 2 trust surfaces in the editor: Meri's edit review and the generate-all
+   run summary. Both shipped without styles, which left the before/after diff
+   rendering as undifferentiated text — unreadable exactly where the user is
+   deciding whether to accept a change. Scoped under .ws-root like the rest of
+   the workspace DS, and built only from existing tokens.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.ws-root .meri-edit-review {
+  margin-top: 10px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  padding: 10px 12px;
+  font-size: 12px;
+}
+.ws-root .meri-edit-review > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.ws-root .meri-edit-review--saved {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-color: var(--success);
+  background: var(--success-soft);
+}
+.ws-root .meri-edit-review__error {
+  border: 1px solid var(--critical);
+  background: var(--critical-soft);
+  color: var(--critical);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+.ws-root .meri-edit-review__error > div {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.ws-root .meri-edit-review__items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ws-root .meri-edit-review__item {
+  border: 1px solid var(--border-1);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--bg-canvas);
+}
+/* A rejected edit stays visible but visibly out of the set that will apply. */
+.ws-root .meri-edit-review__item--rejected {
+  opacity: 0.55;
+}
+.ws-root .meri-edit-review__item-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ws-root .meri-edit-review__item-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.ws-root .meri-edit-review__op {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-ink, var(--accent));
+}
+.ws-root .meri-edit-review__op--remove_section {
+  background: var(--critical-soft);
+  color: var(--critical);
+}
+.ws-root .meri-edit-review__destructive {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--critical);
+  color: #fff;
+}
+.ws-root .meri-edit-review__rationale {
+  margin: 6px 0 0;
+  color: var(--ink-2);
+}
+.ws-root .meri-edit-review__expanded {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ws-root .meri-edit-review__columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+/* Narrow rails stack the before/after columns rather than truncating them. */
+@media (max-width: 900px) {
+  .ws-root .meri-edit-review__columns {
+    grid-template-columns: 1fr;
+  }
+}
+.ws-root .meri-edit-review__columns h5,
+.ws-root .meri-edit-review__diff h5 {
+  margin: 0 0 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+.ws-root .meri-edit-review__columns section > div,
+.ws-root .meri-edit-review__diff > div {
+  max-height: 190px;
+  overflow: auto;
+  white-space: pre-wrap;
+  border: 1px solid var(--border-1);
+  border-radius: 4px;
+  padding: 6px 7px;
+  background: var(--bg-surface);
+  line-height: 1.5;
+}
+.ws-root .meri-edit-review__sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--ink-3);
+}
+.ws-root .meri-edit-review__sources a {
+  color: var(--accent);
+}
+.ws-root .meri-edit-review__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+/* The diff itself. Colour alone never carries the meaning: an addition is also
+   underlined and a removal struck through, so the change survives greyscale
+   printing and colour-vision deficiency. */
+.ws-root .diff-part--added {
+  background: var(--success-soft);
+  color: var(--success);
+  text-decoration: underline;
+}
+.ws-root .diff-part--removed {
+  background: var(--critical-soft);
+  color: var(--critical);
+  text-decoration: line-through;
+}
+.ws-root .diff-part--unchanged {
+  color: var(--ink-2);
+}
+
+
+/* These two components emit plain <button> elements so they stay independent of
+   the workspace DS class names. Only .btn is styled under .ws-root, so give their
+   controls the same affordance here — including a visible focus ring, since these
+   are the recovery actions a keyboard user needs to reach after a failed run. */
+.ws-root .meri-edit-review button {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-1);
+  background: var(--bg-surface);
+  color: var(--ink-1);
+  cursor: pointer;
+}
+.ws-root .meri-edit-review button:hover:not(:disabled) {
+  border-color: var(--border-strong, var(--border-2));
+  background: var(--bg-sunken);
+}
+.ws-root .meri-edit-review button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ws-root .meri-edit-review button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* The primary action in each footer reads as primary. */
+.ws-root .meri-edit-review__actions button:first-child {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
