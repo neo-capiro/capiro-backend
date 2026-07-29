@@ -157,9 +157,52 @@ follow-up" notes remain in `chat-assistant.service.ts:133` and
 
 | Finding | Runtime path | Implementation commit | Unit/integration test | Browser/migration evidence | Status |
 | --- | --- | --- | --- | --- | --- |
-| Phase 0 branch sync | n/a | `6757d093` | baseline recorded above | n/a | done |
-| Phase 0 work recovery | n/a | `4019c5e2` | meriv2-core 441 passed | n/a | done |
-| A — shared auto-commit | `apps/api/src/memory/memory-candidate-rules.ts` | — | — | — | open |
-| B — durable projections | `apps/api/src/memory/memory-candidate.service.ts`, `apps/api/src/meri/meri.service.ts` | — | — | — | open |
-| C — server-derived wall | `packages/meriv2-core/src/context/compiler.ts` | — | — | — | open |
-| D — policy pack selection | `apps/meriv2-orchestrator/src/meri/meri-registry.service.ts` | — | — | — | open |
+| Phase 0 branch sync | n/a | `6757d093` | baseline recorded above | n/a | **done** |
+| Phase 0 work recovery | n/a | `4019c5e2` | meriv2-core 441 passed | n/a | **done** |
+| A — shared auto-commit | `apps/api/src/memory/memory-candidate-rules.ts` | `b1cf7dd6` | `memory-candidate-rules.spec.ts` (brute-forces every shared-scope input; asserts both rule ids unreachable) | none yet | **done (code+test)** |
+| B1 — embedding isolation | `apps/api/src/memory/memory-candidate.service.ts`, `apps/api/src/meri/meri.service.ts` | `b1cf7dd6` | `memory-embed-isolation.spec.ts` — **verified to fail 4/5 against the old predicate** | none yet | **done (code+test)** |
+| B2 — durable projections | `memory-candidate.service.ts:483-484` | — | — | — | **OPEN** |
+| C — server-derived wall | `compiler.ts`, `governance.ts`, `context-release-switch.ts` + all 4 adapters | `c100829d` | `compiler-v2.spec.ts`, `context-release-switch.spec.ts`, workspace walled-run test | none yet | **done (code+test)** |
+| D — policy pack selection | `apps/meriv2-orchestrator/src/meri/meri-registry.service.ts` | — | — | — | **OPEN** |
+
+---
+
+## Status against the plan's phases
+
+**Branch:** `agent/meriv2-world-class-closeout` @ `c100829d` (pushed).
+**PR #679** remains a DRAFT. No production deploy, migration, backfill, flag
+change, or external communication has occurred.
+
+| Phase | State |
+| --- | --- |
+| 0 — baseline, sync, ledger | **complete** |
+| 1 — Prisma/migration single source of truth | partial (drift closed earlier by `44709ef2`; shadow-DB diff proof **not run**) |
+| 2 — governed lifecycle | **§2.2 auto-commit closed**; atomic-transaction contract, versioned correction, duplicate/conflict activation still open |
+| 3 — authorization on every memory op | partial (existing `MemoryAuthorizationService` work predates this session; full operation matrix not verified) |
+| 4 — durable projection cleanup | **embedding isolation closed**; outbox producer for `index_memory_item` and removal of the two fire-and-forget dispatches **open** |
+| 5 — reversible backfill | **not started** (no rollback script) |
+| 6 — Context Packet v2 on live paths | **wall closed on all 4 surfaces**; `off\|shadow\|enforce` tri-state + per-tenant flag **not implemented** (current switch is two-state `CONTEXT_PACKET_V2`) |
+| 7 — truthful persistence + inspector | not started this session |
+| 8 — one assurance envelope | prior commits only; not verified this session |
+| 9 — policy packs as the real engine | persistence exists (`20260811010000`); runtime selection **open** |
+| 10 — trust/memory UX | not started |
+| 11 — disposable-Postgres rehearsal | **not started** — needs a live throwaway PG with pgvector |
+| 12 — authenticated browser acceptance | **not started** |
+| 13 — SOC 2 mapping + runbooks | **not started** (rollback runbook is referenced by a code comment and must exist before merge) |
+| 14 — final integration + PR closeout | not started |
+
+### Verification recorded this session
+
+- typecheck **6/6 PASS** (`meriv2-core`, `api`, `workspace`, `web`,
+  `meriv2-orchestrator`, `api-strategy`)
+- `meriv2-core` **445 passed / 2 todo**, 38 suites
+- `meriv2-orchestrator` **319 passed**, 29 suites
+- `api-strategy` **1,220 passed**, 58 suites
+- `workspace` **141 passed**, 15 suites (3 pre-existing failures, reproduced on
+  base `7dfed147`)
+- `web` 168 suites passing (2 pre-existing failures, reproduced on base)
+- `api` 6,036 tests / 505 suites: 37 failed in 13 suites, **all reproduced on
+  base**; the only meri-adjacent one (`meri-tools.firmdata.spec.ts`, 17 failed)
+  fails identically at `origin/main`
+- api memory + context + workspace-assistant after the changes: **42 suites /
+  399 tests, all passing**
