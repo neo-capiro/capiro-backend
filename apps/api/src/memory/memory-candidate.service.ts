@@ -10,6 +10,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
 import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
+import { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
 import { evaluateMemoryCandidate } from './memory-candidate-rules.js';
 import { fetchDeniedClientIds } from './memory-wall.helpers.js';
 import {
@@ -85,11 +86,22 @@ export interface ProposeSaveMemoryResult {
 export class MemoryCandidateService {
   private readonly logger = new Logger(MemoryCandidateService.name);
 
+  /**
+   * `cleanupOutbox` defaults to a locally constructed instance so the many
+   * existing unit tests that build this service with four arguments keep
+   * compiling. The default is given the same Prisma stub, so `enqueue` runs on
+   * the caller's transaction in tests exactly as in production; only the
+   * projector is absent there, which the index branch never needs on this path.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly memoryIngest: MemoryIngestService,
     private readonly config: ConfigService<AppConfig, true>,
     private readonly transitionAudit: MemoryTransitionAuditService = new MemoryTransitionAuditService(),
+    private readonly cleanupOutbox: MemoryCleanupOutboxService = new MemoryCleanupOutboxService(
+      prisma,
+      memoryIngest,
+    ),
   ) {}
 
   /** Entry point for MeriToolsService.saveMemory. Always creates a candidate;
@@ -144,7 +156,8 @@ export class MemoryCandidateService {
       typeof record.sourceExcerpt === 'string' ? record.sourceExcerpt.slice(0, 4_000) : null;
     const sourceConversationId =
       typeof record.sourceConversationId === 'string' ? record.sourceConversationId : null;
-    const sourceMessageId = typeof record.sourceMessageId === 'string' ? record.sourceMessageId : null;
+    const sourceMessageId =
+      typeof record.sourceMessageId === 'string' ? record.sourceMessageId : null;
     const payload = {
       key: record.key,
       value: record.value,
@@ -418,8 +431,23 @@ export class MemoryCandidateService {
       ...(record.sourceMessageId ? { sourceMessageId: record.sourceMessageId } : {}),
       ...(record.sourceExcerpt ? { sourceExcerpt: record.sourceExcerpt.slice(0, 4_000) } : {}),
     };
-    const findExisting = () =>
-      this.prisma.withTenant(tenantId, (tx) =>
+    // ONE transaction for the write AND the durable record of the indexing work
+    // it owes (closeout §4, gap B2). Previously this ran as three separate
+    // withTenant calls followed by two fire-and-forget dispatches:
+    //
+    //     void this.embedMemory(...)
+    //     void this.memoryIngest.projectClioMemory(...)
+    //
+    // If either lost its race with a container stop, a deploy or an unhandled
+    // rejection, the memory existed in clio_memory but was never projected into
+    // memory_items and never embedded. NOTHING recorded that the work was owed,
+    // so nothing retried: the memory silently never became recallable.
+    //
+    // The outbox row is now committed atomically WITH the memory, so the work
+    // cannot be lost. The fast-path attempt below keeps the latency identical to
+    // the old behaviour — see the comment there.
+    const { memoryId } = await this.prisma.withTenant(tenantId, async (tx) => {
+      const findExisting = () =>
         tx.clioMemory.findFirst({
           where: {
             tenantId,
@@ -429,10 +457,8 @@ export class MemoryCandidateService {
             key: record.key,
           },
           select: { id: true },
-        }),
-      );
-    const updateExisting = (id: string) =>
-      this.prisma.withTenant(tenantId, (tx) =>
+        });
+      const updateExisting = (id: string) =>
         tx.clioMemory.update({
           where: { id },
           data: {
@@ -441,18 +467,16 @@ export class MemoryCandidateService {
             metadata,
             expiresAt: record.expiresAt ?? null,
           },
-        }),
-      );
+        });
 
-    let memoryId: string;
-    const existing = await findExisting();
-    if (existing) {
-      await updateExisting(existing.id);
-      memoryId = existing.id;
-    } else {
-      try {
-        const created = await this.prisma.withTenant(tenantId, (tx) =>
-          tx.clioMemory.create({
+      let id: string;
+      const existing = await findExisting();
+      if (existing) {
+        await updateExisting(existing.id);
+        id = existing.id;
+      } else {
+        try {
+          const created = await tx.clioMemory.create({
             data: {
               tenantId,
               scope: record.scope,
@@ -465,23 +489,69 @@ export class MemoryCandidateService {
               expiresAt: record.expiresAt ?? null,
             },
             select: { id: true },
-          }),
-        );
-        memoryId = created.id;
-      } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-          const raced = await findExisting();
-          if (!raced) throw err;
-          await updateExisting(raced.id);
-          memoryId = raced.id;
-        } else {
-          throw err;
+          });
+          id = created.id;
+        } catch (err) {
+          if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+            const raced = await findExisting();
+            if (!raced) throw err;
+            await updateExisting(raced.id);
+            id = raced.id;
+          } else {
+            throw err;
+          }
         }
       }
-    }
 
-    void this.embedMemory(tenantId, memoryId, record.key, record.value).catch(() => {});
-    void this.memoryIngest.projectClioMemory(tenantId, memoryId);
+      // Idempotency key is the memory VERSION, not just the row: a later save to
+      // the same key must be able to owe a fresh projection. updated_at is bumped
+      // by the write above, so keying on it means one job per distinct write and a
+      // retried identical write collapses via ON CONFLICT DO NOTHING.
+      const stamp = await tx.$queryRaw<Array<{ updated_at: Date }>>`
+        SELECT updated_at FROM clio_memory
+        WHERE id = ${id}::uuid AND tenant_id = ${tenantId}::uuid
+      `;
+      const version = stamp[0]?.updated_at?.toISOString() ?? 'unstamped';
+      await this.cleanupOutbox.enqueue(tx, tenantId, {
+        clioMemoryId: id,
+        operation: 'index_memory_item',
+        idempotencyKey: `index_memory_item:${id}:${version}`,
+      });
+      return { memoryId: id };
+    });
+
+    // FAST PATH — still NON-BLOCKING, so save latency is unchanged.
+    //
+    // The projection embeds via Bedrock. That rules out two placements: it must
+    // not run inside the transaction above (holding a Prisma connection across a
+    // network round trip is the pool-starvation pattern that has already caused
+    // one production incident), and it must not be awaited here either, or every
+    // `save_memory` in a chat turn would block on an embedding round trip. So the
+    // dispatch stays exactly as fire-and-forget as it was.
+    //
+    // What changed is that it is no longer fire-and-FORGET. The work is durably
+    // owed by the outbox row committed above, so:
+    //   * success  -> close the row, and the drain never sees it;
+    //   * failure  -> the row stays pending and the drain re-projects
+    //                 (projectClioMemory upserts on a derived slug, so a repeat
+    //                 is a no-op rather than a duplicate);
+    //   * hard kill mid-flight -> identical to failure, which is the case that
+    //                 used to vanish with no record that anything was owed.
+    //
+    // A newly saved memory therefore becomes recallable in the same seconds it
+    // always did, with no dependency on the drain being scheduled — the drain is
+    // the safety net, not the mechanism.
+    void Promise.all([
+      this.embedMemory(tenantId, memoryId, record.key, record.value),
+      this.memoryIngest.projectClioMemory(tenantId, memoryId),
+    ])
+      .then(() => this.cleanupOutbox.markIndexedOnFastPath(tenantId, memoryId))
+      .catch((err: unknown) => {
+        this.logger.warn(
+          `fast-path projection failed for clio_memory ${memoryId}; left queued for the ` +
+            `cleanup drain: ${(err as Error).message}`,
+        );
+      });
     return memoryId;
   }
 
@@ -498,7 +568,12 @@ export class MemoryCandidateService {
    * user_private row with a colliding key was overwritten with another user's
    * text. Closeout §4 "Embedding fix".
    */
-  private async embedMemory(tenantId: string, memoryId: string, key: string, value: string): Promise<void> {
+  private async embedMemory(
+    tenantId: string,
+    memoryId: string,
+    key: string,
+    value: string,
+  ): Promise<void> {
     const openaiKey = this.config.get('OPENAI_API_KEY', { infer: true });
     if (!openaiKey) return;
     const res = await fetch('https://api.openai.com/v1/embeddings', {
@@ -553,9 +628,7 @@ function payloadToSaveRequest(payload: unknown): MemorySaveRequest {
     // Phase 4: round-trip confidence so an APPROVED candidate commits with the
     // extraction confidence it was reviewed at (else it would lose it on commit).
     confidence:
-      typeof raw.confidence === 'number' && Number.isFinite(raw.confidence)
-        ? raw.confidence
-        : null,
+      typeof raw.confidence === 'number' && Number.isFinite(raw.confidence) ? raw.confidence : null,
     sourceConversationId:
       typeof raw.sourceConversationId === 'string' ? raw.sourceConversationId : null,
     sourceMessageId: typeof raw.sourceMessageId === 'string' ? raw.sourceMessageId : null,

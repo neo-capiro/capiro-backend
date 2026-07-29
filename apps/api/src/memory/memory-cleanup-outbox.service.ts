@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { MemoryIngestService } from './memory-ingest.service.js';
 
 /** Vocabulary of memory_cleanup_operation_check after 20260729011000:41-49. */
 export const MEMORY_CLEANUP_OPERATIONS = [
@@ -12,8 +13,16 @@ export const MEMORY_CLEANUP_OPERATIONS = [
 ] as const;
 export type MemoryCleanupOperation = (typeof MEMORY_CLEANUP_OPERATIONS)[number];
 
-/** Operations this worker knows how to execute. */
+/**
+ * Operations this worker knows how to execute.
+ *
+ * `index_memory_item` joined this list in the gap-B2 work (closeout §4). It is
+ * the one FORWARD operation here — every other entry deletes projections — so it
+ * is the only one that needs a projector, which is injected rather than
+ * reimplemented (see the constructor).
+ */
 export const DRAINABLE_CLEANUP_OPERATIONS = [
+  'index_memory_item',
   'revoke_projections',
   'supersede_projections',
   'expire_projections',
@@ -34,7 +43,12 @@ export function cleanupBackoffSeconds(attempts: number): number {
 }
 
 export interface CleanupEnqueueInput {
-  memoryItemId: string;
+  /**
+   * Subject for DELETION jobs. Optional since
+   * 20260811040000_memory_index_outbox_subject — an index job has no
+   * memory_items row yet and names `clioMemoryId` instead.
+   */
+  memoryItemId?: string | null;
   /** The clio_memory row this item was projected from, when there is one. */
   clioMemoryId?: string | null;
   operation: DrainableCleanupOperation;
@@ -73,7 +87,26 @@ export interface CleanupDrainSummary {
 export class MemoryCleanupOutboxService {
   private readonly logger = new Logger(MemoryCleanupOutboxService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  /**
+   * `ingest` supplies the ONE projector (`projectClioMemory`) so the forward
+   * `index_memory_item` branch does not reimplement projection semantics —
+   * closeout rule 11, one implementation per invariant. Optional so the many
+   * existing unit tests that construct this service with a bare Prisma stub keep
+   * working; an index job with no projector fails loudly rather than silently
+   * completing, which would strand the memory unprojected.
+   */
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ingest?: MemoryIngestService,
+  ) {}
+
+  /** Run the injected projector, or fail the job if none was provided. */
+  private async projectClioMemory(tenantId: string, clioMemoryId: string): Promise<void> {
+    if (!this.ingest) {
+      throw new Error('no projector wired: cannot execute index_memory_item');
+    }
+    await this.ingest.projectClioMemory(tenantId, clioMemoryId);
+  }
 
   /**
    * Enqueue on the CALLER'S transaction, so the job is committed atomically with
@@ -89,11 +122,48 @@ export class MemoryCleanupOutboxService {
       INSERT INTO memory_cleanup_outbox (
         tenant_id, memory_item_id, clio_memory_id, operation, idempotency_key
       ) VALUES (
-        ${tenantId}::uuid, ${input.memoryItemId}::uuid, ${input.clioMemoryId ?? null}::uuid,
+        ${tenantId}::uuid, ${input.memoryItemId ?? null}::uuid, ${input.clioMemoryId ?? null}::uuid,
         ${input.operation}, ${input.idempotencyKey.slice(0, 192)}
       )
       ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
     `;
+  }
+
+  /**
+   * Mark an index job completed because the caller ALREADY did the projection on
+   * the fast path, immediately after its commit.
+   *
+   * This is what keeps gap B2's fix from changing observable behaviour. The
+   * producer enqueues the job inside its transaction (so the work is durably
+   * owed before anything is attempted), then attempts the projection right away
+   * exactly as the old fire-and-forget code did, then calls this. A reader sees
+   * the same latency as before. The outbox row only ever survives to be drained
+   * when that immediate attempt DIED — which is precisely the case that used to
+   * be lost silently.
+   *
+   * Deliberately best-effort: if this bookkeeping write fails, the job stays
+   * pending and the drain re-projects. `projectClioMemory` is an upsert keyed on
+   * the derived slug, so a redundant re-projection is a no-op, not a duplicate.
+   */
+  async markIndexedOnFastPath(tenantId: string, clioMemoryId: string): Promise<void> {
+    try {
+      await this.prisma.withSystem(
+        (tx) =>
+          tx.$executeRaw`
+          UPDATE memory_cleanup_outbox
+          SET status = 'completed', completed_at = now(), last_error = NULL
+          WHERE tenant_id = ${tenantId}::uuid
+            AND clio_memory_id = ${clioMemoryId}::uuid
+            AND operation = 'index_memory_item'
+            AND status IN ('pending', 'failed')
+        `,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `fast-path index bookkeeping failed for clio_memory ${clioMemoryId}; ` +
+          `the drain will re-project: ${(err as Error).message}`,
+      );
+    }
   }
 
   /**
@@ -174,11 +244,45 @@ export class MemoryCleanupOutboxService {
     if (!job) return 'skipped'; // already completed, or claimed by a concurrent drain
 
     if (!(DRAINABLE_CLEANUP_OPERATIONS as readonly string[]).includes(job.operation)) {
-      // Mirrors identity-outbox's `unknown job type` branch. 'index_memory_item'
-      // lands here on purpose: re-indexing needs an embedding provider, which this
-      // cleanup worker deliberately does not carry.
+      // Mirrors identity-outbox's `unknown job type` branch.
       await this.markFailed(jobId, `unsupported operation ${job.operation}`);
       return 'failed';
+    }
+
+    // FORWARD work: (re)project a committed clio_memory row into memory_items and
+    // embed it. Reached only when the producer's immediate attempt died, since the
+    // success path completes the row via markIndexedOnFastPath (closeout §4, B2).
+    //
+    // Runs OUTSIDE any database transaction on purpose: projectClioMemory calls
+    // Bedrock to embed, and holding a Prisma connection across that network round
+    // trip is the pool-starvation pattern that has already caused one production
+    // incident. The claim above (status='running', attempts+1) is what makes this
+    // safe to run un-transacted — a crash mid-projection burns an attempt and the
+    // upsert is idempotent on retry.
+    if (job.operation === 'index_memory_item') {
+      if (!job.clio_memory_id) {
+        await this.markFailed(jobId, 'index_memory_item job has no clio_memory_id');
+        return 'failed';
+      }
+      try {
+        await this.projectClioMemory(job.tenant_id, job.clio_memory_id);
+        await this.markCompleted(jobId);
+        this.logger.log(
+          JSON.stringify({
+            event: 'memory_cleanup_outbox.completed',
+            job_id: jobId,
+            tenant_id: job.tenant_id,
+            operation: job.operation,
+            // No key, value, title or body — bounded ids and status only.
+            clio_memory_id: job.clio_memory_id,
+            attempts: job.attempts,
+          }),
+        );
+        return 'completed';
+      } catch (err) {
+        await this.markFailed(jobId, (err as Error).message);
+        return 'failed';
+      }
     }
 
     try {

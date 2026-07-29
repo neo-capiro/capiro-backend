@@ -490,34 +490,34 @@ model TenantUsageMeter {
 }
 
 model Client {
-  id                  String    @id @default(uuid()) @db.Uuid
-  tenantId            String    @map("tenant_id") @db.Uuid
-  name                String
-  website             String?
-  description         String?
-  productDescription  String?   @map("product_description")
-  primaryContactName  String?   @map("primary_contact_name")
-  primaryContactEmail String?   @map("primary_contact_email") @db.Citext
-  primaryContactPhone String?   @map("primary_contact_phone")
-  logoS3Key           String?   @map("logo_s3_key")
-  logoContentType     String?   @map("logo_content_type")
-  logoUploadedAt      DateTime? @map("logo_uploaded_at") @db.Timestamptz(6)
-  intakeData          Json      @default("{}") @map("intake_data_jsonb")
-  status              String    @default("active")
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenantId               String    @map("tenant_id") @db.Uuid
+  name                   String
+  website                String?
+  description            String?
+  productDescription     String?   @map("product_description")
+  primaryContactName     String?   @map("primary_contact_name")
+  primaryContactEmail    String?   @map("primary_contact_email") @db.Citext
+  primaryContactPhone    String?   @map("primary_contact_phone")
+  logoS3Key              String?   @map("logo_s3_key")
+  logoContentType        String?   @map("logo_content_type")
+  logoUploadedAt         DateTime? @map("logo_uploaded_at") @db.Timestamptz(6)
+  intakeData             Json      @default("{}") @map("intake_data_jsonb")
+  status                 String    @default("active")
   // Portfolio Tab v2 additions
-  sectorTag           String?   @map("sector_tag")
-  profileType         String?   @default("CLIENT") @map("profile_type")
-  profileStatus       String    @default("ACTIVE") @map("profile_status")
-  submissionTracks    String[]  @default([]) @map("submission_tracks")
+  sectorTag              String?   @map("sector_tag")
+  profileType            String?   @default("CLIENT") @map("profile_type")
+  profileStatus          String    @default("ACTIVE") @map("profile_status")
+  submissionTracks       String[]  @default([]) @map("submission_tracks")
   // Manual client-level LDA issue-code override, set in the client summary
   // settings. Unioned with the auto codes from the confirmed LDA match to drive
   // bill/regulation matching (works even when no LDA entity is mapped).
-  issueCodes          String[]  @default([]) @map("issue_codes")
+  issueCodes             String[]  @default([]) @map("issue_codes")
   // Step 2.3 — government identifiers + code arrays for procurement matching.
-  uei                 String?   @db.VarChar(12)
-  cageCode            String?   @map("cage_code") @db.VarChar(5)
-  naicsCodes          String[]  @default([]) @map("naics_codes")
-  pscCodes            String[]  @default([]) @map("psc_codes")
+  uei                    String?   @db.VarChar(12)
+  cageCode               String?   @map("cage_code") @db.VarChar(5)
+  naicsCodes             String[]  @default([]) @map("naics_codes")
+  pscCodes               String[]  @default([]) @map("psc_codes")
   /// Grants.gov "Eligible Applicants" values this client qualifies as, e.g.
   /// "Small businesses" or "State governments".
   ///
@@ -531,18 +531,18 @@ model Client {
   /// `needs_review` or `unknown`, never `eligible`. Empty is the honest default:
   /// it says "we do not know", which is true, rather than guessing a type from
   /// the sector and telling a user they can apply for something they cannot.
-  applicantTypes      String[]  @default([]) @map("applicant_types")
+  applicantTypes         String[]  @default([]) @map("applicant_types")
   /// Self-reported federal contracting certifications used only to evaluate
   /// SAM.gov set-aside compatibility. Canonical values are SAM set-aside codes
   /// (for example 8AN, SDVOSBC, WOSB, EDWOSB, HZC, SBA, SBP). Empty means
   /// unknown, never ineligible.
-  setAsideCertifications String[] @default([]) @map("set_aside_certifications")
+  setAsideCertifications String[]  @default([]) @map("set_aside_certifications")
   // Client→data association overhaul: the confirmed set of Senate LDA client_ids
   // this client resolves to (one id per lobbying-firm relationship — a real
   // company can have many, e.g. Boeing = 27). Denormalized read-cache of the
   // confirmed source='lda' ClientIntelMapping rows; reads join
   // lda_filing.client_id = ANY(ldaClientIds) instead of fuzzy-matching the name.
-  ldaClientIds        Int[]     @default([]) @map("lda_client_ids")
+  ldaClientIds           Int[]     @default([]) @map("lda_client_ids")
   /// Ethical wall (master plan Phase 1): when true, this client's memory
   /// (clio_memory scope='client', client-linked memory_items, and their
   /// embeddings) is recallable ONLY by users granted a ClientMemoryAccess row.
@@ -550,10 +550,10 @@ model Client {
   /// column changes nothing until a wall is explicitly erected per client.
   /// Admins are NOT exempt — a real ethical screen binds seniors too; a
   /// user_admin manages grants (and any self-grant is audit-logged).
-  memoryWall          Boolean   @default(false) @map("memory_wall")
-  createdByUserId     String?   @map("created_by_user_id") @db.Uuid
-  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  memoryWall             Boolean   @default(false) @map("memory_wall")
+  createdByUserId        String?   @map("created_by_user_id") @db.Uuid
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant                  Tenant                         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   engagementContacts      EngagementContact[]
@@ -4267,28 +4267,28 @@ model IntelligenceInsight {
 // ─────────────────────────────────────────────────────────────────────────
 
 model ClientIntelMapping {
-  id               String   @id @default(uuid()) @db.Uuid
-  tenantId         String   @map("tenant_id") @db.Uuid
-  clientId         String   @map("client_id") @db.Uuid
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  clientId         String    @map("client_id") @db.Uuid
   source           String // 'lda', 'contracting', 'lobby_intel', 'fec'
-  externalId       String   @map("external_id")
-  externalName     String   @map("external_name")
+  externalId       String    @map("external_id")
+  externalName     String    @map("external_name")
   confidence       Float
-  confirmed        Boolean  @default(false)
+  confirmed        Boolean   @default(false)
   /// WHY this candidate exists, in the identity-tier vocabulary the contractor
   /// matcher uses: 'exact_uei' | 'exact_cage' | 'exact_legal_name_corroborated' |
   /// 'exact_legal_name' | 'fuzzy_name' | 'manual_pin' | 'legacy_unrecorded'.
   /// A bare confidence percentage is not a reason a user can check, and every
   /// pre-existing row predates this column — hence nullable, and hence
   /// 'legacy_unrecorded' rather than back-filling a basis nobody recorded.
-  matchBasis       String?  @map("match_basis") @db.VarChar(40)
+  matchBasis       String?   @map("match_basis") @db.VarChar(40)
   /// Identity tier 1-4 (1 = exact verified identifier … 4 = fuzzy name). Drives
   /// the auto-confirm decision; tier 4 is never auto-confirmed.
-  matchTier        Int?     @map("match_tier")
+  matchTier        Int?      @map("match_tier")
   /// The specific facts behind the basis — identifiers matched, normalized names
   /// compared, corroborating and CONFLICTING facts, award footprint. Rendered as
   /// the match explanation, so it must hold facts, never a paraphrase.
-  matchEvidence    Json?    @map("match_evidence_jsonb")
+  matchEvidence    Json?     @map("match_evidence_jsonb")
   /// The CORPORATE-IDENTITY relationship this mapping asserts between the client
   /// and the federal entity: 'self' | 'alias' | 'former_name' | 'parent' |
   /// 'subsidiary' | 'operating_unit'. This is the identity gap made explicit —
@@ -4297,20 +4297,20 @@ model ClientIntelMapping {
   /// an answer to "whose money is this". NULL on every pre-existing row: the
   /// relationship was never recorded, and defaulting them all to 'self' would
   /// invent a reviewed assertion nobody made.
-  relationshipType String?  @map("relationship_type") @db.VarChar(24)
+  relationshipType String?   @map("relationship_type") @db.VarChar(24)
   /// Whether awards on this federal entity should ROLL UP to the client. Only
   /// meaningful once `relationshipType` is set and `confirmed` is true; NULL
   /// means undecided, which read paths must treat as "do not roll up".
-  rollUpAwards     Boolean? @map("roll_up_awards")
+  rollUpAwards     Boolean?  @map("roll_up_awards")
   /// Durable reviewer lifecycle. `candidate` is machine-proposed/unreviewed;
   /// `confirmed` and `rejected` are human or exact-identifier decisions;
   /// `superseded` preserves history after a newer mapping replaces this one.
-  reviewStatus    String    @default("candidate") @map("review_status") @db.VarChar(16)
-  reviewedBy     String?   @map("reviewed_by") @db.Uuid
-  reviewedAt     DateTime? @map("reviewed_at") @db.Timestamptz(6)
-  rejectionReason String?  @map("rejection_reason") @db.Text
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  reviewStatus     String    @default("candidate") @map("review_status") @db.VarChar(16)
+  reviewedBy       String?   @map("reviewed_by") @db.Uuid
+  reviewedAt       DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  rejectionReason  String?   @map("rejection_reason") @db.Text
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@unique([clientId, source, externalId])
   @@index([clientId])
@@ -5390,13 +5390,13 @@ model MemberPressItem {
 // ─────────────────────────────────────────────────────────────────────────
 
 model CommitteeHearing {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   chamber       String // House, Senate, Joint
-  committeeName String   @map("committee_name")
-  committeeCode String?  @map("committee_code")
-  title         String   @db.Text
+  committeeName String    @map("committee_name")
+  committeeCode String?   @map("committee_code")
+  title         String    @db.Text
   /// Eastern calendar day (DISPLAY only). Derived from startsAt, not authoritative.
-  date          DateTime @db.Date
+  date          DateTime  @db.Date
   /// Eastern wall-clock for display, e.g. "10:00 AM". Zone-less by construction —
   /// never parse this back into an instant; read startsAt instead.
   time          String?
@@ -5406,9 +5406,9 @@ model CommitteeHearing {
   startsAt      DateTime? @map("starts_at") @db.Timestamptz(6)
   location      String?
   type          String? // hearing, markup, meeting
-  witnesses     String[] @default([])
+  witnesses     String[]  @default([])
   url           String?
-  syncedAt      DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
+  syncedAt      DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
 
   @@index([date])
   @@index([committeeName, date])
@@ -5801,18 +5801,18 @@ model ClientFundingOpportunity {
   /// 'user_action' (a human saved/pursued it). Mirrors
   /// ClientGrantNexus.evidenceSourceType, and is what lets the producer tell its
   /// own rows apart from a human's.
-  evidenceSourceType String    @map("evidence_source_type") @db.VarChar(48)
+  evidenceSourceType       String    @map("evidence_source_type") @db.VarChar(48)
   /// TRUE when a human created this row. The producer must never overwrite one.
-  userCreated        Boolean   @default(false) @map("user_created")
+  userCreated              Boolean   @default(false) @map("user_created")
   /// Stamped when the producer decides a suggestion IT created no longer clears
   /// the relevance floor. Never applied to a row a human has acted on — a
   /// dismissal or a pursuit is a decision, not a stale guess.
-  staleAt            DateTime? @map("stale_at") @db.Timestamptz(6)
+  staleAt                  DateTime? @map("stale_at") @db.Timestamptz(6)
   /// Source lifecycle snapshots used by the deterministic alert/expiry pass.
-  sourceStatusSnapshot String? @map("source_status_snapshot") @db.VarChar(64)
+  sourceStatusSnapshot     String?   @map("source_status_snapshot") @db.VarChar(64)
   responseDeadlineSnapshot DateTime? @map("response_deadline_snapshot") @db.Timestamptz(6)
-  sourceUpdatedAtSnapshot DateTime? @map("source_updated_at_snapshot") @db.Timestamptz(6)
-  alertState Json @default("{}") @map("alert_state_jsonb")
+  sourceUpdatedAtSnapshot  DateTime? @map("source_updated_at_snapshot") @db.Timestamptz(6)
+  alertState               Json      @default("{}") @map("alert_state_jsonb")
 
   dismissedReason String? @map("dismissed_reason") @db.Text
   /// Free-text won/lost context. Only ever set by an explicit user action.
@@ -6693,7 +6693,13 @@ model MemoryTransitionAudit {
 model MemoryCleanupOutbox {
   id             String    @id @default(uuid()) @db.Uuid
   tenantId       String    @map("tenant_id") @db.Uuid
-  memoryItemId   String    @map("memory_item_id") @db.Uuid
+  /// Subject for projection-DELETION jobs. NULLABLE as of
+  /// 20260811040000_memory_index_outbox_subject: an `index_memory_item` job is
+  /// enqueued in the same transaction as the clio_memory write, BEFORE the
+  /// memory_items row exists (projectClioMemory is what creates it), so it names
+  /// clioMemoryId instead. memory_cleanup_subject_present_check requires that at
+  /// least one of the two columns is set.
+  memoryItemId   String?   @map("memory_item_id") @db.Uuid
   clioMemoryId   String?   @map("clio_memory_id") @db.Uuid
   operation      String    @db.VarChar(32)
   idempotencyKey String    @map("idempotency_key") @db.VarChar(192)

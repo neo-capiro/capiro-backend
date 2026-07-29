@@ -47,11 +47,27 @@ function makeService(captured: Captured[]) {
       create: jest.fn(async () => ({ id: 'row-under-test' })),
       update: jest.fn(async () => ({})),
     },
-    $queryRaw: jest.fn(async () => []),
+    // commitToClioMemory now runs the write, the version-stamp read and the
+    // index_memory_item enqueue on ONE transaction (closeout §4, gap B2), so the
+    // stub has to answer all three.
+    $queryRaw: jest.fn(async (strings: unknown) => {
+      const raw = Array.isArray((strings as { raw?: string[] }).raw)
+        ? (strings as { raw: string[] }).raw.join('?')
+        : String(strings);
+      if (/updated_at\s+FROM\s+clio_memory/i.test(raw)) {
+        return [{ updated_at: new Date('2026-07-29T12:00:00.000Z') }];
+      }
+      return [];
+    }),
+    $executeRaw: jest.fn(async () => 1),
     $executeRawUnsafe: executeRawUnsafe,
   };
   const withTenant = jest.fn(async (_tenantId: string, fn: (t: unknown) => unknown) => fn(tx));
-  const prisma = { withTenant } as unknown as PrismaService;
+  // markIndexedOnFastPath closes the outbox row via withSystem.
+  const prisma = {
+    withTenant,
+    withSystem: jest.fn(async (fn: (t: unknown) => unknown) => fn(tx)),
+  } as unknown as PrismaService;
   const ingest = { projectClioMemory: jest.fn(async () => {}) } as unknown as MemoryIngestService;
   const config = {
     get: jest.fn((key: string) => (key === 'OPENAI_API_KEY' ? 'test-key' : undefined)),
@@ -126,8 +142,16 @@ describe('memory embedding writeback — row isolation', () => {
     ],
     [
       'two users in one tenant sharing a key',
-      { scope: 'user_private', ownerUserId: '44444444-4444-4444-8444-444444444444', clientId: null },
-      { scope: 'user_private', ownerUserId: '55555555-5555-4555-8555-555555555555', clientId: null },
+      {
+        scope: 'user_private',
+        ownerUserId: '44444444-4444-4444-8444-444444444444',
+        clientId: null,
+      },
+      {
+        scope: 'user_private',
+        ownerUserId: '55555555-5555-4555-8555-555555555555',
+        clientId: null,
+      },
     ],
     [
       'firm scope and client scope sharing a key',
@@ -171,11 +195,14 @@ describe('memory embedding writeback — row isolation', () => {
         create: jest.fn(async () => ({ id: 'row-x' })),
         update: jest.fn(async () => ({})),
       },
-      $queryRaw: jest.fn(async () => []),
+      $queryRaw: jest.fn(async () => [{ updated_at: new Date('2026-07-29T12:00:00.000Z') }]),
+      // The index_memory_item enqueue rides the same transaction (gap B2).
+      $executeRaw: jest.fn(async () => 1),
       $executeRawUnsafe: executeRawUnsafe,
     };
     const prisma = {
       withTenant: jest.fn(async (_t: string, fn: (t: unknown) => unknown) => fn(tx)),
+      withSystem: jest.fn(async (fn: (t: unknown) => unknown) => fn(tx)),
     } as unknown as PrismaService;
     const service = new MemoryCandidateService(
       prisma,

@@ -231,15 +231,33 @@ describe('MemoryCleanupOutboxService.drainPending', () => {
 });
 
 describe('cleanup operation vocabulary', () => {
-  /** index_memory_item exists in the DB CHECK but needs an embedding provider. */
-  it('excludes index_memory_item from what this worker claims to execute', () => {
-    expect(DRAINABLE_CLEANUP_OPERATIONS).not.toContain('index_memory_item');
+  /**
+   * `index_memory_item` was excluded here until the gap-B2 work (closeout §4):
+   * this worker only deleted projections and carried no projector, so a queued
+   * index job could never be worked off — `processJob` failed it as
+   * `unsupported operation`. It is drainable now, with the projector INJECTED
+   * rather than reimplemented, which is what lets `commitToClioMemory` stop
+   * relying on fire-and-forget dispatch for correctness.
+   */
+  it('includes index_memory_item now that a projector is injected', () => {
+    expect(DRAINABLE_CLEANUP_OPERATIONS).toContain('index_memory_item');
     expect(DRAINABLE_CLEANUP_OPERATIONS).toEqual([
+      'index_memory_item',
       'revoke_projections',
       'supersede_projections',
       'expire_projections',
       'purge_projections',
     ]);
+  });
+
+  /**
+   * The forward operation is the only entry that CREATES rather than deletes.
+   * Every other one must stay a deletion, or a "cleanup" job could resurrect the
+   * projection of a memory that was revoked.
+   */
+  it('keeps every other drainable operation a deletion', () => {
+    const others = DRAINABLE_CLEANUP_OPERATIONS.filter((op) => op !== 'index_memory_item');
+    expect(others.every((op) => /_projections$/.test(op))).toBe(true);
   });
 
   it('has a finite attempt ceiling', () => {
