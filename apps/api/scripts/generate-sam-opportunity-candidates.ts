@@ -82,10 +82,19 @@ const EVIDENCE_SOURCE_TYPE = 'deterministic_relevance_v1';
  */
 export const DEFAULT_MIN_RELEVANCE = 15;
 
-/** Bound on notices evaluated per run. Mirrors the read path's own scan cap. */
-export const OPPORTUNITY_SCAN_CAP = 4000;
+/**
+ * Bound on notices evaluated per run. Mirrors the read path's own scan cap.
+ *
+ * Env-overridable (same pattern as SAM_MAX_PAGES in sync-sam-opportunities.ts)
+ * because the default is genuinely binding: measured on capiro-dev 2026-07-29
+ * there were 17,915 active, in-deadline notices, so a 4,000 cap evaluates 22%
+ * of them and the run self-reports CAPPED. Ordering is soonest-deadline-first,
+ * so the covered slice is the most urgent one — raise this via
+ * SAM_OPPORTUNITY_SCAN_CAP for a full sweep rather than editing the constant.
+ */
+export const OPPORTUNITY_SCAN_CAP = Number(process.env.SAM_OPPORTUNITY_SCAN_CAP) || 4000;
 /** Bound on clients evaluated per tenant per run. */
-export const CLIENT_CAP = 500;
+export const CLIENT_CAP = Number(process.env.SAM_CANDIDATE_CLIENT_CAP) || 500;
 
 function hasFlag(argv: string[], name: string): boolean {
   return argv.includes(`--${name}`);
@@ -556,7 +565,11 @@ async function buildSamProfileForClient(
   const names = dedupe(usable.map((m) => m.externalName)).map((n) => n.toLowerCase());
 
   let priorAgencies: string[] = [];
-  let priorOffices: string[] = [];
+  // Stays empty: federal_award has no contracting-office column, and
+  // sam_opportunity.office holds codes ('0413 AQ HQ  RCO-HI'). Feeding it the
+  // awarding sub-tier created an office signal that could never fire and
+  // surfaced agency names to users as "prior office" terms.
+  const priorOffices: string[] = [];
   if (ueis.length || names.length) {
     const rows = await prisma.$queryRaw<{
       awarding_agency: string | null;
@@ -568,17 +581,14 @@ async function buildSamProfileForClient(
          OR lower(contractor_name) = ANY(${names}::text[])
       LIMIT 5000
     `;
-    priorAgencies = dedupe(rows.map((r) => r.awarding_agency));
-    // KNOWN GAP: federal_award has no contracting-office column at all, so the
-    // closest available value is the sub-tier. Measured on capiro-dev, that
-    // yields agency-shaped strings ('Department of the Navy', 'Defense
-    // Logistics Agency') while sam_opportunity.office holds office codes
-    // ('0413 AQ HQ     RCO-HI'). scoreOpportunityRelevance compares these by
-    // exact normalized equality, so the priorOffices signal cannot fire until
-    // an office-granularity column exists on federal_award. Populated anyway
-    // rather than hardcoded empty so the shape stays honest for whoever adds
-    // that column; do not read a match here as evidence the signal works.
-    priorOffices = dedupe(rows.map((r) => r.awarding_sub_tier));
+    // Both tiers count as agency history. sam_opportunity.agency is sub-tier
+    // shaped ('DEPT OF THE NAVY'), so awarding_agency on its own
+    // ('Department of Defense') matched nothing; normAgency reconciles the
+    // Dept/Department spelling.
+    priorAgencies = dedupe([
+      ...rows.map((r) => r.awarding_agency),
+      ...rows.map((r) => r.awarding_sub_tier),
+    ]);
   }
 
   return {

@@ -593,12 +593,20 @@ export class FundingOpportunitiesService {
       return {
         assistanceListings: dedupe(assistance.map((r) => r.assistance_listing_number)),
         assistanceAgencies: dedupe(assistance.map((r) => r.awarding_agency)),
-        contractAgencies: dedupe(contracts.map((r) => r.awarding_agency)),
-        // See generate-sam-opportunity-candidates.ts: federal_award carries no
-        // contracting-office column, so this is the sub-tier and is
-        // agency-shaped, not office-shaped. It will not match
-        // sam_opportunity.office under exact-equality comparison.
-        contractOffices: dedupe(contracts.map((r) => r.awarding_sub_tier)),
+        // Both tiers are agency evidence, and they are needed at BOTH
+        // granularities: sam_opportunity.agency is sub-tier shaped
+        // ('DEPT OF THE NAVY'), so awarding_agency alone ('Department of
+        // Defense') never matched a single notice.
+        contractAgencies: dedupe([
+          ...contracts.map((r) => r.awarding_agency),
+          ...contracts.map((r) => r.awarding_sub_tier),
+        ]),
+        // Intentionally empty: federal_award has no contracting-office column.
+        // Feeding it the sub-tier put agency-shaped strings into an
+        // office-shaped signal, where they could never match
+        // sam_opportunity.office and were surfaced to users as "prior office"
+        // target terms. Populate this only when a real office column exists.
+        contractOffices: [],
       };
     } catch (error) {
       this.logger.warn(

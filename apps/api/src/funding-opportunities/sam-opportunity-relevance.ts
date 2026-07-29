@@ -220,6 +220,32 @@ function norm(v: string | null | undefined): string {
   return (v ?? '').trim().toLowerCase();
 }
 
+/**
+ * Agency names are compared across two sources that spell the same organisation
+ * differently, so a bare `norm` never matches them. Measured on capiro-dev
+ * 2026-07-29:
+ *
+ *   federal_award.awarding_sub_tier : 'Department of the Navy', 'Defense Logistics Agency'
+ *   sam_opportunity.agency          : 'DEPT OF THE NAVY',       'DEFENSE LOGISTICS AGENCY'
+ *
+ * Case alone resolves 'Defense Logistics Agency'; 'Dept' vs 'Department' does
+ * not, so every Navy/Army/Air Force notice missed its own client's award
+ * history. SAM also suffixes acronyms — 'DEFENSE HEALTH AGENCY (DHA)' — which
+ * never appear on the award side.
+ *
+ * This is deliberately a small, closed set of rewrites rather than fuzzy
+ * matching: the agency signal is evidence that a client has won work from this
+ * organisation before, and a near-miss is not that evidence.
+ */
+export function normAgency(v: string | null | undefined): string {
+  return norm(v)
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .replace(/\bdept\b\.?/g, 'department')
+    .replace(/\bhq\b/g, 'headquarters')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
 /** NAICS/PSC codes are compared as uppercase alphanumerics — no spaces, no dots. */
 function normCode(v: string | null | undefined): string {
   return (v ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -318,10 +344,14 @@ export function scoreSamOpportunityRelevance(
   if (peHit) push(signals, 'programElement', peHit);
 
   // ── Agency / office history ──────────────────────────────────────────────
-  const priorAgencies = new Set(client.priorAgencies.map(norm).filter(Boolean));
-  const agencyHit = [opp.agency, opp.subAgency].find((a) => a && priorAgencies.has(norm(a)));
+  const priorAgencies = new Set(client.priorAgencies.map(normAgency).filter(Boolean));
+  const agencyHit = [opp.agency, opp.subAgency].find((a) => a && priorAgencies.has(normAgency(a)));
   if (agencyHit) push(signals, 'agencyHistory', agencyHit);
 
+  // Office history stays an exact compare: office designators are codes, not
+  // prose, so canonicalising them would invent matches. Note that
+  // federal_award carries no office column, so callers currently pass an empty
+  // priorOffices — see readAwardHistory.
   const priorOffices = new Set(client.priorOffices.map(norm).filter(Boolean));
   if (opp.office && priorOffices.has(norm(opp.office))) {
     push(signals, 'officeHistory', opp.office);
