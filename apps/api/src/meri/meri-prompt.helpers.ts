@@ -79,6 +79,56 @@ export function meriCapabilityBlock(): string {
   return CLIO_CAPABILITY_LINES.join('\n');
 }
 
+/** How to refer to the session's client when its name could not be resolved. */
+const UNNAMED_CLIENT = 'the client this session is assigned to';
+
+/**
+ * Tells a client UUID apart from an exact client NAME in a tool's `clientId`
+ * (find_contacts documents both forms). Shared by every surface that enforces
+ * session client scope — the chat loop, the Deep Research loop, and the
+ * firm-wide tool readers — so they agree on what "a different client" means.
+ */
+export const CLIENT_ID_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Hard client-scope directive for a conversation assigned to a client.
+ *
+ * Before this existed, the ONLY signal that a session belonged to one client
+ * was a `Client: <name>` line buried in the per-turn context snapshot — sitting
+ * directly beside the firm's full client roster and tenant-wide research. The
+ * model was never told the session was a boundary, so it happily answered a
+ * scoped session with other clients' work (reported live, 2026-07-29).
+ *
+ * Lives in the per-turn DYNAMIC tail, never the cached base: the client varies
+ * per conversation, so caching it would poison the shared prefix.
+ */
+export function clientScopeDirective(clientName: string | null | undefined): string {
+  const label = clientName?.trim() ? `"${clientName.trim()}"` : UNNAMED_CLIENT;
+  return [
+    `Active client scope (HARD CONSTRAINT): this conversation is assigned to ${label}.`,
+    `Every answer, draft, recommendation, and tool call in this session must be about ${label} and nothing else.`,
+    `Do NOT report, compare, summarize, or mention any other client's meetings, emails, tasks, outreach, documents, filings, or remembered facts — not even in passing, and not even if another client appears in the context below or in a tool result. Treat any such material as out of scope and leave it out.`,
+    `The firm's client roster is provided only so you can answer questions about the roster itself (who the clients are, how many there are, whether an organization is a client). It is not license to discuss another client's work.`,
+    `If the user asks about a different client, say plainly that this session is scoped to ${label} and ask them to switch the session's client (or open a General session). Do not answer from another client's data.`,
+    `Client-scoped tools are pinned to ${label}: they refuse a different client rather than returning it.`,
+  ].join(' ');
+}
+
+/**
+ * The result a client-scoped session returns when the model asks a tool for a
+ * DIFFERENT client. Deliberately a refusal, not a silent rewrite to the session
+ * client: swapping the id under the model would let it present client A's rows
+ * under client B's name, which is worse than reading nothing. Worded for the
+ * user, because the model relays it.
+ */
+export function clientScopeRefusal(clientName: string | null | undefined): string {
+  const label = clientName?.trim() ? `"${clientName.trim()}"` : UNNAMED_CLIENT;
+  return (
+    `Blocked: this conversation is scoped to ${label}, so nothing was read for the client you requested. ` +
+    `Tell the user this session only covers ${label}, and that switching the session's client (or opening a General session) is what lets you look at another client.`
+  );
+}
+
 /**
  * Build the `system` field as an array of content blocks. The static `base`
  * goes first and (when caching is enabled) carries the cache breakpoint; the

@@ -47,7 +47,7 @@ export function createMeriVisualController({
       { id: 'maven', name: 'Maven Advocacy Partners' },
     ],
     selectedClientValue: 'c2',
-    setSessionClientId: noop,
+    changeSessionClient: asyncNoop,
     activeConversationId: 'visual-session',
     isSavingMeta: false,
     metaError: null,

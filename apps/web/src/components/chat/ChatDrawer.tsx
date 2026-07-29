@@ -67,7 +67,7 @@ export function MeriLegacyDrawer({
     setSessionTitle,
     clients,
     selectedClientValue,
-    setSessionClientId,
+    changeSessionClient,
     activeConversationId,
     isSavingMeta,
     metaError,
@@ -218,17 +218,21 @@ export function MeriLegacyDrawer({
               placeholder="Conversation title"
               maxLength={160}
             />
+            {/* Changing the scope PERSISTS immediately (changeSessionClient) —
+                the model is scoped by the stored conversation row, so a
+                selection that only lived in local state left the session
+                answering firm-wide while displaying one client. */}
             {embedded ? (
               <MeriClientScopeSelect
                 clients={clients}
                 value={selectedClientValue}
-                onChange={setSessionClientId}
+                onChange={(value) => void changeSessionClient(value)}
               />
             ) : (
               <select
                 className="chat-session-select"
                 value={selectedClientValue}
-                onChange={(event) => setSessionClientId(event.target.value)}
+                onChange={(event) => void changeSessionClient(event.target.value)}
               >
                 <option value="">General (no client)</option>
                 {clients.map((client) => (

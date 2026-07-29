@@ -3,6 +3,9 @@ import {
   applyRoundUsageEvent,
   applyToolCacheControl,
   buildMeriSystemBlocks,
+  clientScopeDirective,
+  clientScopeRefusal,
+  CLIENT_ID_UUID_RE,
   meriCapabilityBlock,
   CLIO_CAPABILITY_LINES,
   emptyUsage,
@@ -13,6 +16,71 @@ import {
   meriGroundingDateBlock,
   validateFormBCitations,
 } from './meri-prompt.helpers.js';
+
+// A conversation assigned to a client answered with OTHER clients' work because
+// nothing in the prompt ever said the session was a boundary — the client was
+// just a `Client: <name>` line inside the context snapshot, next to the firm's
+// full roster (reported live 2026-07-29).
+describe('clientScopeDirective — the hard scope constraint for a client session', () => {
+  it('names the client and forbids other clients outright', () => {
+    const directive = clientScopeDirective('C2 Strategies');
+    expect(directive).toContain('HARD CONSTRAINT');
+    expect(directive).toContain('"C2 Strategies"');
+    expect(directive).toMatch(/Do NOT report, compare, summarize, or mention any other client's/);
+  });
+
+  it('tells the model what to do when asked about a different client (refuse, not answer)', () => {
+    const directive = clientScopeDirective('C2 Strategies');
+    expect(directive).toContain("switch the session's client");
+    expect(directive).toContain("Do not answer from another client's data");
+  });
+
+  it('keeps the roster answerable — it is scoped as a lookup list, not as material', () => {
+    expect(clientScopeDirective('C2 Strategies')).toContain(
+      'provided only so you can answer questions about the roster itself',
+    );
+  });
+
+  it('still constrains the session when the client name is missing or blank', () => {
+    for (const name of [null, undefined, '   ']) {
+      const directive = clientScopeDirective(name);
+      expect(directive).toContain('HARD CONSTRAINT');
+      expect(directive).toContain('the client this session is assigned to');
+      expect(directive).not.toContain('""');
+    }
+  });
+});
+
+describe('clientScopeRefusal — what a cross-client tool call gets back', () => {
+  it('states that nothing was read and names the session client', () => {
+    const refusal = clientScopeRefusal('C2 Strategies');
+    expect(refusal).toContain('Blocked');
+    expect(refusal).toContain('nothing was read');
+    expect(refusal).toContain('"C2 Strategies"');
+  });
+
+  it('is worded for the user, since the model relays it', () => {
+    expect(clientScopeRefusal('C2 Strategies')).toContain('Tell the user');
+  });
+
+  it('degrades to an unnamed phrasing rather than an empty quote', () => {
+    expect(clientScopeRefusal(null)).toContain('the client this session is assigned to');
+    expect(clientScopeRefusal('')).not.toContain('""');
+  });
+});
+
+describe('CLIENT_ID_UUID_RE — tells a client uuid apart from an exact client name', () => {
+  it('matches a uuid in either case', () => {
+    expect(CLIENT_ID_UUID_RE.test('3f6d5a1e-8c2b-4d7f-9a10-2b3c4d5e6f70')).toBe(true);
+    expect(CLIENT_ID_UUID_RE.test('3F6D5A1E-8C2B-4D7F-9A10-2B3C4D5E6F70')).toBe(true);
+  });
+
+  it('does not match a client name or a partial id', () => {
+    expect(CLIENT_ID_UUID_RE.test('C2 Strategies')).toBe(false);
+    expect(CLIENT_ID_UUID_RE.test('3f6d5a1e-8c2b-4d7f-9a10')).toBe(false);
+    expect(CLIENT_ID_UUID_RE.test('')).toBe(false);
+  });
+});
 
 describe('MERI_GROUNDING_INVARIANT (Wave 1 zero-trust kernel)', () => {
   it('opens the meri_grounding element and states every kernel block', () => {
