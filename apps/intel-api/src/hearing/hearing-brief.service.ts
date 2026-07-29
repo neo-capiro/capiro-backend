@@ -87,15 +87,61 @@ export class HearingBriefService {
       issueTags: q.issueTags,
     }));
 
+    // Derived prose is ENCRYPTED for a sensitive session, so it must be revealed
+    // BEFORE anything matches on it or hands it to synthesis. Matching a regex
+    // against a base64 ciphertext does not error — it just quietly never matches,
+    // which would turn the stance split into a permanently empty list.
+    const revealedCards = cards.map((c) => ({
+      cardType: c.cardType,
+      title: this.reveal({
+        textCiphertext: c.titleCiphertext,
+        iv: c.titleIv,
+        authTag: c.titleAuthTag,
+        textPlain: c.title,
+      }),
+      body:
+        c.body != null || c.bodyCiphertext
+          ? this.reveal({
+              textCiphertext: c.bodyCiphertext,
+              iv: c.bodyIv,
+              authTag: c.bodyAuthTag,
+              textPlain: c.body,
+            })
+          : null,
+    }));
+
+    const revealedMentions = mentions.map((m) => ({
+      type: m.entityType,
+      label: this.reveal({
+        textCiphertext: m.textCiphertext,
+        iv: m.iv,
+        authTag: m.authTag,
+        textPlain: m.entityLabel,
+      }),
+      ref: m.entityRef,
+    }));
+
+    const revealedActionItems = actionItems.map((a) =>
+      this.reveal({
+        textCiphertext: a.textCiphertext,
+        iv: a.iv,
+        authTag: a.authTag,
+        textPlain: a.description,
+      }),
+    );
+
     // Supporters / opponents from position-signal cards (stance lives on cards
-    // until the H3 classifier persists structured stance).
+    // until the H3 classifier persists structured stance). Unrevealable rows are
+    // dropped rather than listed — "[encrypted]" is not the name of a supporter.
     const supporters = uniq(
-      cards
+      revealedCards
+        .filter((c) => isRevealed(c.title))
         .filter((c) => /support|favorable|champion/i.test(c.cardType + ' ' + c.title))
         .map((c) => c.title),
     );
     const opponents = uniq(
-      cards
+      revealedCards
+        .filter((c) => isRevealed(c.title))
         .filter((c) => /oppos|unfavorable|concern|block/i.test(c.cardType + ' ' + c.title))
         .map((c) => c.title),
     );
@@ -104,12 +150,8 @@ export class HearingBriefService {
     const synth = await this.synthesize(tenantId, sessionId, clerkUserId, {
       title: session.title,
       quotes: revealedQuotes,
-      mentions: mentions.map((m) => ({
-        type: m.entityType,
-        label: m.entityLabel,
-        ref: m.entityRef,
-      })),
-      actionItems: actionItems.map((a) => a.description),
+      mentions: revealedMentions.filter((m) => isRevealed(m.label)),
+      actionItems: revealedActionItems.filter(isRevealed),
     });
 
     const claimMap = quotes.map((q) => ({
@@ -137,7 +179,9 @@ export class HearingBriefService {
       opportunities: synth.opportunities,
       recommendedNextSteps: synth.recommendedNextSteps.length
         ? synth.recommendedNextSteps
-        : actionItems.map((a) => a.description),
+        : // Revealed, and placeholders dropped: `description` is nullable now that
+          // a sensitive session stores the text encrypted instead.
+          revealedActionItems.filter(isRevealed),
       draftClientEmail: synth.draftClientEmail,
       claimMap,
       synthesisSource: synth.source,
@@ -163,6 +207,16 @@ export class HearingBriefService {
     draftClientEmail: { subject: string; body: string };
     source: 'orchestrator' | 'deterministic';
   }> {
+    // Log the INPUT VOLUME unconditionally. A recap can be poor for two entirely
+    // different reasons — synthesis unavailable, or synthesis starved of source
+    // material — and they are indistinguishable in the output. On 2026-07-29 both
+    // happened at once: the orchestrator aborted AND mentions was empty (every
+    // entity mention had been computed and then discarded by the sensitive-session
+    // storage rule, since EntityMention has no encrypted text column yet).
+    this.logger.log(
+      `brief inputs session=${sessionId} quotes=${data.quotes.length} ` +
+        `mentions=${data.mentions.length} actionItems=${data.actionItems.length}`,
+    );
     if (this.orchestrator.configured) {
       try {
         const out = await this.orchestrator.summarizeHearing({
@@ -175,11 +229,22 @@ export class HearingBriefService {
           actionItems: data.actionItems,
         });
         if (out) return { ...out, source: 'orchestrator' };
+        // summarizeHearing returns null on failure and logs its own reason. Record
+        // the DECISION here too, so the degradation is visible from this service's
+        // logs alone rather than only from the client's.
+        this.logger.warn(
+          `brief synthesis unavailable session=${sessionId}; using deterministic assembly`,
+        );
       } catch (err) {
         this.logger.warn(
           `brief synthesis via orchestrator failed: ${(err as Error).message}; using deterministic`,
         );
       }
+    } else {
+      this.logger.warn(
+        `brief synthesis skipped session=${sessionId}: orchestrator not configured; ` +
+          `using deterministic assembly`,
+      );
     }
     // Deterministic fallback — fully sourced, no fabricated narrative.
     const topMentions = uniq(data.mentions.map((m) => m.label)).slice(0, 8);
@@ -187,8 +252,15 @@ export class HearingBriefService {
       executiveSummary:
         `Hearing "${data.title}" produced ${data.quotes.length} flagged moment(s)` +
         (topMentions.length ? ` touching: ${topMentions.join(', ')}.` : '.') +
-        ' Full narrative synthesis pending orchestrator availability; quotes and entities below are source-verified.',
-      tone: 'undetermined (awaiting stance classifier)',
+        ' This recap is a source-verified assembly, not a narrative synthesis:' +
+        ' the summariser was unavailable when it ran, so every line below is' +
+        ' verbatim from the transcript rather than analysed. Regenerating the' +
+        ' recap retries the synthesis.',
+      // Phrasing matters: the previous strings ("pending orchestrator
+      // availability", "awaiting stance classifier") read as features that had not
+      // shipped yet, so a transient failure looked like a permanent product gap.
+      // Both are retryable failures and should say so.
+      tone: 'not assessed — no synthesis was available for this recap',
       risks: [],
       opportunities: [],
       recommendedNextSteps: data.actionItems,
@@ -230,4 +302,16 @@ export class HearingBriefService {
 
 function uniq(arr: string[]): string[] {
   return Array.from(new Set(arr.filter(Boolean)));
+}
+
+/**
+ * Placeholders `reveal()` returns when text cannot be recovered (no key, or a
+ * failed decrypt). They are honest to show inline next to a quote, but must never
+ * be treated as content — matched on, listed as a supporter, or fed to the model as
+ * if it were an entity label.
+ */
+const UNREVEALED = new Set(['[encrypted]', '[decryption unavailable]']);
+
+function isRevealed(text: string): boolean {
+  return Boolean(text) && !UNREVEALED.has(text);
 }

@@ -20,6 +20,16 @@ import { isIP } from 'node:net';
  * feature toggle. Media/pages we resolve only ever come from these gov/broadcast
  * origins; anything else is refused (analysts fall back to assisted-paste).
  *
+ * TWO NARROW EXCEPTIONS, both default-DENY and both tied to an adapter that is
+ * itself gated off: `googlevideo.com` behind RESOLVER_ENABLE_YOUTUBE_LIVE, and the
+ * C-SPAN hosts behind RESOLVER_ENABLE_CSPAN. These are additive-only — with the
+ * env unset (the deployed state) the effective allowlist is strictly the frozen
+ * array below, so a missing/garbled env can only ever DENY more, never admit more.
+ * They live here rather than in the adapters because the adapters' own flag checks
+ * are not the choke point: `StreamResolverService.resolve()` probes a direct media
+ * URL BEFORE it routes by host, so a `.m3u8` on a gated origin bypassed them
+ * entirely. See CSPAN_HOST_SUFFIXES for the exact bypass that was live.
+ *
  * ── RESIDUAL RISK (cannot be closed in-app) ──
  * This module hardens the NODE fetch path (resolver probes/page fetches follow
  * redirects manually, re-validating every hop's host + resolved IP). What it
@@ -57,17 +67,16 @@ export const BROWSER_UA =
  * Coverage rationale (see p8 resolver spec):
  *  - senate.gov + the pinned Senate Akamai hosts → Senate ISVP pages + HLS masters
  *  - *.house.gov + docs.house.gov → House committee pages / hearing docs
- *  - c-span.org + c-spanvideo.org → C-SPAN archive pages + m3u8 CDN
  *  - youtube.com / youtu.be       → YouTube watch pages (only fetched when the
  *    youtube-live adapter is enabled; the media host `googlevideo.com` is added
  *    to the allowlist ONLY behind RESOLVER_ENABLE_YOUTUBE_LIVE, below)
  *  - api.congress.gov             → congress.gov event `videos[]` (JSON API)
+ *
+ * C-SPAN is NOT here — it is gated behind RESOLVER_ENABLE_CSPAN below.
  */
 export const ALLOWED_HOST_SUFFIXES: readonly string[] = Object.freeze([
   'senate.gov',
   'house.gov',
-  'c-span.org',
-  'c-spanvideo.org',
   'youtube.com',
   'youtu.be',
   'www-senate-gov-media-srs.akamaized.net',
@@ -76,6 +85,36 @@ export const ALLOWED_HOST_SUFFIXES: readonly string[] = Object.freeze([
   'api.congress.gov',
   'docs.house.gov',
 ]);
+
+/**
+ * C-SPAN hosts, admitted ONLY when the C-SPAN adapter is enabled.
+ *
+ * These used to sit UNCONDITIONALLY on ALLOWED_HOST_SUFFIXES, which left a live
+ * hole that the adapter's own flag did not cover. StreamResolverService checks
+ * `enableCspan` inside `resolveCspan`/`searchCspan` — but its DIRECT-MEDIA
+ * PASSTHROUGH runs FIRST, before host routing and before any flag test, and
+ * `classifyMediaUrl` accepts any URL whose path ends in .m3u8/.m3u/.mp3/.aac/
+ * .mp4/.ts. So an authenticated POST /intel-api/hearings/resolve-stream with
+ *
+ *   pageUrl=https://m3u8-0.c-spanvideo.org/program/program.<id>.tsc.m3u8
+ *
+ * performed a real server-side HEAD/GET against C-SPAN's CDN with the flag off —
+ * and `cspanManifestForId()` in stream-extractors.ts hands the caller that exact
+ * template. Individual `.ts` segment URLs were admitted too, not just manifests.
+ *
+ * Gating at the allowlist closes every route at once, because `assertUrlAllowed`
+ * is the single choke point every guarded fetch and probe passes through. That
+ * matters here beyond ordinary SSRF hygiene: C-SPAN's December-2025 terms added
+ * an explicit AI-restrictions clause and their robots.txt names AI crawlers,
+ * so unattended server-side fetching is exactly what counsel gated off.
+ */
+const CSPAN_HOST_SUFFIXES: readonly string[] = Object.freeze(['c-span.org', 'c-spanvideo.org']);
+
+/** Matches StreamResolverService's RESOLVER_ENABLE_CSPAN (default false). */
+function cspanEnabled(): boolean {
+  const v = (process.env.RESOLVER_ENABLE_CSPAN ?? '').trim().toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes' || v === 'on';
+}
 
 /**
  * `googlevideo.com` (the YouTube-live HLS media host) is admitted ONLY when the
@@ -120,6 +159,9 @@ export function isHostAllowed(host: string): boolean {
   if (ALLOWED_HOST_SUFFIXES.some(matches)) return true;
   // googlevideo.com is gated behind the youtube-live flag (default OFF).
   if (youtubeLiveEnabled() && matches('googlevideo.com')) return true;
+  // C-SPAN is gated behind the cspan flag (default OFF). See CSPAN_HOST_SUFFIXES
+  // for why this cannot be left to the resolver's own flag checks.
+  if (cspanEnabled() && CSPAN_HOST_SUFFIXES.some(matches)) return true;
   return false;
 }
 
@@ -295,11 +337,7 @@ export async function guardedProbe(
   const timeoutMs = opts.timeoutMs ?? 8_000;
   const maxRedirects = opts.maxRedirects ?? 4;
 
-  const doReq = async (
-    target: URL,
-    method: 'HEAD' | 'GET',
-    extra?: Record<string, string>,
-  ) => {
+  const doReq = async (target: URL, method: 'HEAD' | 'GET', extra?: Record<string, string>) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -328,7 +366,8 @@ export async function guardedProbe(
     if (res.status >= 300 && res.status < 400) {
       const loc = res.headers.get('location');
       // A 3xx with no Location is a dead end — not reachable.
-      if (!loc) return { ok: false, status: res.status, contentType: null, url: validated.toString() };
+      if (!loc)
+        return { ok: false, status: res.status, contentType: null, url: validated.toString() };
       // Resolve relative Locations against the current URL; the next loop
       // iteration re-validates the resulting host + IP (throws if denied).
       current = new URL(loc, validated).toString();

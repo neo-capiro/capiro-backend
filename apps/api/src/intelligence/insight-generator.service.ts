@@ -588,7 +588,12 @@ export class InsightGeneratorService {
         take: 20,
       }),
       this.prisma.committeeHearing.findMany({
-        where: { date: { gte: now, lte: fourteenDaysOut } },
+        // Start-of-Eastern-day, matching the correct usage at the daily-brief query
+        // below. `date` is a UTC-midnight @db.Date, so `gte: now` compared
+        // 00:00Z >= 13:00Z and silently dropped every hearing happening today.
+        where: {
+          date: { gte: dateBoundsInZone(now, 'America/New_York').start, lte: fourteenDaysOut },
+        },
         orderBy: { date: 'asc' },
         take: 10,
       }),

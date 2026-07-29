@@ -30,11 +30,24 @@ export interface RawSegmentCommitResult {
  * relevance result can only make storage more restrictive via
  * `protectSegmentText`; it can never downgrade encrypted text to plaintext.
  *
- * KeyQuote already has encrypted columns. EntityMention, LiveActionItem and
- * LiveSummaryCard do not. For a sensitive session their plaintext prose is
- * therefore not persisted at all; the live authorized browser can still receive
- * the cards over its scoped WebSocket. This is deliberately fail-closed until a
- * future additive migration gives those tables encrypted text columns.
+ * KeyQuote, EntityMention, LiveActionItem and LiveSummaryCard ALL have encrypted
+ * text columns as of 20260803040000_hearing_derived_encrypted_text, so a sensitive
+ * session's derived prose is encrypted and persisted.
+ *
+ * It used to be DISCARDED — those three tables were plaintext-only, so the
+ * fail-closed choice was to store nothing and let the live browser render the cards
+ * over its scoped socket. The cost only became visible in the recap: because
+ * `isSensitiveSession()` is true for ANY client-linked session, essentially every
+ * hearing worth recapping lost its entities, action items and stance cards, and the
+ * post-hearing brief fell back to bare transcript fragments. Measured 2026-07-29 on
+ * a 62-minute Senate hearing: ~111 segments generated mentions and cards, none were
+ * stored.
+ *
+ * Fail-closed still holds. `buildTextFields` stores NEITHER plaintext nor ciphertext
+ * when encryption is required but unconfigured, so a missing key cannot leak — the
+ * row simply reads back as '[encrypted]'. Category-ish columns (entityType,
+ * entityRef, cardType) stay plaintext deliberately: they are not free text, they
+ * keep the rows queryable, and the supporters/opponents split matches on cardType.
  */
 @Injectable()
 export class SegmentCommitService {
@@ -117,7 +130,9 @@ export class SegmentCommitService {
         );
         return { id: existing?.id ?? null, created: false };
       }
-      this.logger.error(`commitRawFinal failed for session ${sessionId}: ${(err as Error).message}`);
+      this.logger.error(
+        `commitRawFinal failed for session ${sessionId}: ${(err as Error).message}`,
+      );
       throw err;
     }
   }
@@ -147,7 +162,7 @@ export class SegmentCommitService {
           resolvedSpeakerId: extraction.resolvedSpeakerId ?? null,
           // A resolved human name is plaintext on TranscriptSegment. Do not write
           // it for a sensitive session until that field has encrypted storage.
-          resolvedSpeakerName: sensitive ? null : extraction.resolvedSpeakerName ?? null,
+          resolvedSpeakerName: sensitive ? null : (extraction.resolvedSpeakerName ?? null),
           clientRelevanceScore: extraction.clientRelevanceScore ?? null,
           issueTags: extraction.issueTags,
         },
@@ -237,7 +252,9 @@ export class SegmentCommitService {
     }
     // Fail closed: if we must encrypt but cannot, do NOT store plaintext.
     if (encrypt && !this.crypto.configured) {
-      this.logger.error('sensitive hearing segment but encryption is unconfigured; storing no text');
+      this.logger.error(
+        'sensitive hearing segment but encryption is unconfigured; storing no text',
+      );
       return {
         textCiphertext: null,
         iv: null,
@@ -265,75 +282,100 @@ export class SegmentCommitService {
   ): Promise<void> {
     const ops: Promise<unknown>[] = [];
 
-    // These three tables currently have only plaintext prose columns. The
-    // authorized live browser still gets the extraction cards, but storage skips
-    // them for sensitive sessions instead of weakening the transcript's privacy.
-    if (!sensitive) {
-      for (const m of extraction.entityMentions) {
-        ops.push(
-          this.prisma.withTenant(tenantId, (tx) =>
-            tx.entityMention.create({
-              data: {
-                sessionId,
-                tenantId,
-                segmentId,
-                entityType: m.entityType,
-                entityRef: m.entityRef ?? null,
-                entityLabel: m.entityLabel,
-                confidence: m.confidence ?? null,
-              },
-            }),
-          ),
-        );
-      }
+    // These three tables now carry encrypted text columns (migration
+    // 20260803040000_hearing_derived_encrypted_text), so a sensitive session's
+    // derived prose is ENCRYPTED AND PERSISTED rather than discarded.
+    //
+    // Previously it was dropped on the floor: the live browser still received the
+    // cards over its scoped socket, but nothing was stored, so every post-hearing
+    // recap for a client-linked session lost its entities, action items and stance
+    // cards. Measured on 2026-07-29: ~111 segments logged mentions and cards, all
+    // generated, none stored, and the recap degraded to raw transcript fragments.
+    //
+    // Fail-closed is preserved end to end. `buildTextFields` stores NOTHING when
+    // encryption is required but unconfigured, so a missing key still cannot leak
+    // plaintext — it just yields a row with neither plaintext nor ciphertext, which
+    // reads back as '[encrypted]' rather than as the analyst's words.
+    for (const m of extraction.entityMentions) {
+      const label = this.buildTextFields(m.entityLabel, sensitive);
+      ops.push(
+        this.prisma.withTenant(tenantId, (tx) =>
+          tx.entityMention.create({
+            data: {
+              sessionId,
+              tenantId,
+              segmentId,
+              // entityType and entityRef are a category and a canonical id, not
+              // free text, so they stay plaintext and remain queryable.
+              entityType: m.entityType,
+              entityRef: m.entityRef ?? null,
+              entityLabel: label.textPlain,
+              textCiphertext: label.textCiphertext,
+              iv: label.iv,
+              authTag: label.authTag,
+              keyVersion: label.keyVersion,
+              confidence: m.confidence ?? null,
+            },
+          }),
+        ),
+      );
+    }
 
-      // Bind to a const before the closure: TypeScript discards a property
-      // narrowing inside a callback, so `extraction.actionItem.description` read
-      // as possibly-undefined even under the `if`.
-      const actionItem = extraction.actionItem;
-      if (actionItem) {
-        ops.push(
-          this.prisma.withTenant(tenantId, (tx) =>
-            tx.liveActionItem.create({
-              data: {
-                sessionId,
-                tenantId,
-                segmentId,
-                startMs,
-                description: actionItem.description,
-              },
-            }),
-          ),
-        );
-      }
+    // Bind to a const before the closure: TypeScript discards a property
+    // narrowing inside a callback, so `extraction.actionItem.description` read
+    // as possibly-undefined even under the `if`.
+    const actionItem = extraction.actionItem;
+    if (actionItem) {
+      const desc = this.buildTextFields(actionItem.description, sensitive);
+      ops.push(
+        this.prisma.withTenant(tenantId, (tx) =>
+          tx.liveActionItem.create({
+            data: {
+              sessionId,
+              tenantId,
+              segmentId,
+              startMs,
+              description: desc.textPlain,
+              textCiphertext: desc.textCiphertext,
+              iv: desc.iv,
+              authTag: desc.authTag,
+              keyVersion: desc.keyVersion,
+            },
+          }),
+        ),
+      );
+    }
 
-      const summaryCard = extraction.summaryCard;
-      if (summaryCard) {
-        ops.push(
-          this.prisma.withTenant(tenantId, (tx) =>
-            tx.liveSummaryCard.create({
-              data: {
-                sessionId,
-                tenantId,
-                segmentId,
-                startMs,
-                cardType: summaryCard.cardType,
-                title: summaryCard.title,
-                body: summaryCard.body ?? null,
-              },
-            }),
-          ),
-        );
-      }
-    } else if (
-      extraction.entityMentions.length ||
-      extraction.actionItem ||
-      extraction.summaryCard
-    ) {
-      this.logger.log(
-        `sensitive derived plaintext skipped session=${sessionId} segment=${segmentId} ` +
-          `mentions=${extraction.entityMentions.length} action=${Boolean(extraction.actionItem)} ` +
-          `card=${Boolean(extraction.summaryCard)}`,
+    const summaryCard = extraction.summaryCard;
+    if (summaryCard) {
+      // Two independent payloads: title and body are separate prose fields.
+      const title = this.buildTextFields(summaryCard.title, sensitive);
+      const body = summaryCard.body ? this.buildTextFields(summaryCard.body, sensitive) : null;
+      ops.push(
+        this.prisma.withTenant(tenantId, (tx) =>
+          tx.liveSummaryCard.create({
+            data: {
+              sessionId,
+              tenantId,
+              segmentId,
+              startMs,
+              // cardType stays plaintext — the supporters/opponents split matches
+              // on it, so encrypting it would break that read for exactly the
+              // sessions this change is meant to fix.
+              cardType: summaryCard.cardType,
+              title: title.textPlain,
+              titleCiphertext: title.textCiphertext,
+              titleIv: title.iv,
+              titleAuthTag: title.authTag,
+              titleKeyVersion: title.keyVersion,
+              body: body?.textPlain ?? null,
+              bodyCiphertext: body?.textCiphertext ?? null,
+              bodyIv: body?.iv ?? null,
+              bodyAuthTag: body?.authTag ?? null,
+              bodyKeyVersion: body?.keyVersion ?? null,
+            },
+          }),
+        ),
       );
     }
 

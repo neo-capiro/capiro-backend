@@ -1,0 +1,38 @@
+{
+  // Narrow script typecheck for the committee-hearing sync.
+  //
+  // apps/api/tsconfig.json EXCLUDES `scripts`, so `tsc --noEmit` does not see any
+  // of them. That is not a theoretical gap: PR #651 shipped an uncompilable
+  // producer script through a green CI for exactly this reason (2026-07-28).
+  //
+  // sync-hearings.ts runs in production against the live database on a daily
+  // EventBridge schedule and, until this config existed, was checked by NOTHING.
+  // The +4h Eastern-time defect it carried for months would not have been caught
+  // by a compiler either way — but the fix moved real date arithmetic into
+  // scripts/lib, and that code must not be able to break unnoticed.
+  //
+  // A blanket `include: scripts/**/*` is not the fix — it surfaces ~123
+  // pre-existing errors across unrelated scripts, trading one silent gap for a
+  // red gate on work this change does not touch. This follows the
+  // tsconfig.pe-phase-a.json / tsconfig.funding-opportunities.json precedent: an
+  // explicit file list, wired into the package's `typecheck` so CI runs it.
+  //
+  // NOTE: the broader `fix/typecheck-api-scripts` branch adds a
+  // tsconfig.scripts.json covering ~195 scripts with a 33-file quarantine, and
+  // sync-hearings.ts is NOT quarantined there. If that branch lands, this config
+  // becomes redundant and should be deleted rather than maintained alongside it.
+  //
+  // ADD EVERY NEW HEARING-SYNC SCRIPT TO THIS LIST.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "scripts/sync-hearings.ts",
+    "scripts/lib/hearing-time.ts",
+    "scripts/lib/hearing-time.spec.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

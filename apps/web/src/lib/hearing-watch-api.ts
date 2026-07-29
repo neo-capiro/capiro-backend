@@ -348,6 +348,12 @@ const fmtBriefTs = (ms: number): string => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 };
 
+/**
+ * How many claim anchors to list inline before summarising the remainder. The full
+ * map always stays on the recap record; this only bounds the human-readable render.
+ */
+const CLAIM_ANCHOR_PREVIEW = 10;
+
 /** Render the server brief while preserving segment/timestamp evidence anchors. */
 export function briefToMarkdown(brief: HearingBrief): string {
   const L: string[] = [];
@@ -382,9 +388,29 @@ export function briefToMarkdown(brief: HearingBrief): string {
     L.push('## Recommended next steps', ...brief.recommendedNextSteps.map((n) => `- ${n}`), '');
   }
   if (brief.claimMap?.length) {
+    // The claim map is PROVENANCE, not prose. Rendering every entry inline turned a
+    // real 2026-07-29 recap into a 111-line wall of opaque ids that was longer than
+    // the recap itself and told a human reader nothing — every key moment above
+    // already carries its own [segment:…] anchor. So: state the total, show a
+    // bounded preview, and say explicitly how many were omitted. Never truncate
+    // silently; a cap that hides its own existence reads as "that was all of it".
+    const total = brief.claimMap.length;
+    const shown = brief.claimMap.slice(0, CLAIM_ANCHOR_PREVIEW);
     L.push('## Source anchors');
-    for (const c of brief.claimMap) {
+    L.push(
+      `_${total} claim${total === 1 ? '' : 's'} in this recap ` +
+        `${total === 1 ? 'traces' : 'trace'} to a transcript segment. ` +
+        `Each quote above carries its own inline anchor._`,
+      '',
+    );
+    for (const c of shown) {
       L.push(`- [${c.claimId}] segment ${c.segmentId} at ${fmtBriefTs(c.timestampMs)}`);
+    }
+    if (total > shown.length) {
+      L.push(
+        `- _…and ${total - shown.length} further anchor${total - shown.length === 1 ? '' : 's'}, ` +
+          `omitted here for length. The complete map is on the recap record._`,
+      );
     }
     L.push('');
   }

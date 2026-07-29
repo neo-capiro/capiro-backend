@@ -2,6 +2,27 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /**
+ * "Today" in EASTERN time, as a SQL expression — for comparing against
+ * `committee_hearing.date`.
+ *
+ * `CURRENT_DATE` is the SESSION date, and this cluster's session timezone is UTC:
+ * verified 2026-07-29 that the `timezone` parameter on the capiro-dev Aurora
+ * cluster parameter group is `UTC` (source `system`), no `TZ` is set on any task
+ * definition or in any Dockerfile, and nothing in the codebase issues a
+ * `SET TIME ZONE` / `set_config('TimeZone', ...)`. So from 8 PM ET until
+ * midnight, `CURRENT_DATE` was already TOMORROW and every "upcoming hearings"
+ * read silently dropped the remainder of that evening's Eastern schedule.
+ *
+ * `committee_hearing.date` stores the hearing's Eastern calendar day, so the
+ * comparison must be against the Eastern day as well. A constant rather than four
+ * copies, because getting one of them wrong is invisible until 8 PM.
+ *
+ * Interpolating this is safe under the file's binding invariant: it is a
+ * compile-time literal with no caller input.
+ */
+const ET_TODAY_SQL = `(CURRENT_TIMESTAMP AT TIME ZONE 'America/New_York')::date`;
+
+/**
  * SourceDataRepository — the single, audited home for READ-ONLY cross-schema
  * access to apps/api-owned GLOBAL tables (`congress_bill`, its children, and
  * `context_embeddings`). Phase 1 of the tracker→intel-api migration.
@@ -937,7 +958,7 @@ export class SourceDataRepository {
            FROM committee_hearing_bill hb
            JOIN committee_hearing h ON h.id = hb.hearing_id
           WHERE hb.bill_id = ANY($1::text[])
-            AND h.date >= CURRENT_DATE
+            AND h.date >= ${ET_TODAY_SQL}
           ORDER BY h.date ASC`,
         billIds,
       );
@@ -998,7 +1019,7 @@ export class SourceDataRepository {
               type,
               url
          FROM committee_hearing
-        WHERE date >= CURRENT_DATE
+        WHERE date >= ${ET_TODAY_SQL}
         ORDER BY date ASC, committee_name ASC
         LIMIT $1`,
       limit,
@@ -1034,8 +1055,8 @@ export class SourceDataRepository {
       params.push(`%${search}%`);
       i++;
     }
-    if (opts.scope === 'upcoming') clauses.push(`date >= CURRENT_DATE`);
-    else if (opts.scope === 'past') clauses.push(`date < CURRENT_DATE`);
+    if (opts.scope === 'upcoming') clauses.push(`date >= ${ET_TODAY_SQL}`);
+    else if (opts.scope === 'past') clauses.push(`date < ${ET_TODAY_SQL}`);
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
     // Upcoming reads soonest-first; past/all read most-recent-first.
     const order =

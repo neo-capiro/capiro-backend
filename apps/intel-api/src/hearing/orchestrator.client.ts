@@ -142,10 +142,22 @@ export class OrchestratorClient {
     recommendedNextSteps: string[];
     draftClientEmail: { subject: string; body: string };
   } | null> {
-    if (!this.baseUrl) return null;
+    // Every `return null` below is logged. This method degrades to a
+    // deterministic recap on failure, and the caller ALSO swallows null quietly,
+    // so an unlogged null meant a recap could silently drop from Meri synthesis
+    // to bare assembly with no trace anywhere. That is exactly what happened on
+    // 2026-07-29: a 62-minute Senate hearing produced a recap whose summary was a
+    // bare flagged-moment count, and nothing in the API logs said why.
+    if (!this.baseUrl) {
+      this.logger.warn(
+        `summarizeHearing skipped session=${params.sessionId}: no orchestrator base URL configured`,
+      );
+      return null;
+    }
     const aiProvider = await this.aiCredentials.resolve(params.tenantId);
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs * 3);
+    const budgetMs = this.timeoutMs * 3;
+    const timer = setTimeout(() => controller.abort(), budgetMs);
     try {
       const res = await fetch(
         `${this.baseUrl}/meri-api/tools/generate_post_hearing_summary/invoke`,
@@ -171,7 +183,13 @@ export class OrchestratorClient {
           signal: controller.signal,
         },
       );
-      if (!res.ok) return null;
+      if (!res.ok) {
+        this.logger.warn(
+          `summarizeHearing HTTP ${res.status} session=${params.sessionId}; ` +
+            `falling back to deterministic recap`,
+        );
+        return null;
+      }
       const envelope = (await res.json()) as {
         result?: {
           executiveSummary: string;
@@ -182,8 +200,26 @@ export class OrchestratorClient {
           draftClientEmail: { subject: string; body: string };
         };
       } | null;
-      return envelope?.result ?? null;
-    } catch {
+      if (!envelope?.result) {
+        this.logger.warn(
+          `summarizeHearing returned no result envelope session=${params.sessionId}; ` +
+            `falling back to deterministic recap`,
+        );
+        return null;
+      }
+      return envelope.result;
+    } catch (err) {
+      // Distinguish OUR timeout from any other transport failure. Note an abort
+      // can also originate INSIDE the orchestrator (its own LLM failover aborts
+      // and surfaces as a 5xx/closed socket), so a timeout here does not by
+      // itself mean this budget is too small — check the orchestrator's own logs
+      // for RequestScopedLlmClient before raising it.
+      const aborted = controller.signal.aborted;
+      this.logger.warn(
+        `summarizeHearing ${aborted ? `timed out after ${budgetMs}ms` : 'failed'} ` +
+          `session=${params.sessionId}: ${(err as Error).message}; ` +
+          `falling back to deterministic recap`,
+      );
       return null;
     } finally {
       clearTimeout(timer);

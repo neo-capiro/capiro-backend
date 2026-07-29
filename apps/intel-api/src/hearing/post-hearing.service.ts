@@ -73,21 +73,49 @@ export class PostHearingService {
         issueTags: q.issueTags,
         text: this.revealText(q),
       })),
+      // These three now store their prose ENCRYPTED for a sensitive session, so
+      // each must be revealed exactly like keyQuotes above. Passing the column
+      // through raw would emit null (or base64) to the client — and because this
+      // method's return type is INFERRED, `string | null` propagated into the API
+      // response without any type error to catch it.
       actionItems: actionItems.map((a) => ({
         id: a.id,
-        description: a.description,
+        description: this.revealText({
+          textCiphertext: a.textCiphertext,
+          iv: a.iv,
+          authTag: a.authTag,
+          textPlain: a.description,
+        }),
         status: a.status,
         segmentId: a.segmentId,
       })),
       entityMentions: mentions.map((m) => ({
         entityType: m.entityType,
         entityRef: m.entityRef,
-        entityLabel: m.entityLabel,
+        entityLabel: this.revealText({
+          textCiphertext: m.textCiphertext,
+          iv: m.iv,
+          authTag: m.authTag,
+          textPlain: m.entityLabel,
+        }),
       })),
       cards: cards.map((c) => ({
         cardType: c.cardType,
-        title: c.title,
-        body: c.body,
+        title: this.revealText({
+          textCiphertext: c.titleCiphertext,
+          iv: c.titleIv,
+          authTag: c.titleAuthTag,
+          textPlain: c.title,
+        }),
+        body:
+          c.body != null || c.bodyCiphertext
+            ? this.revealText({
+                textCiphertext: c.bodyCiphertext,
+                iv: c.bodyIv,
+                authTag: c.bodyAuthTag,
+                textPlain: c.body,
+              })
+            : null,
         startMs: c.startMs,
       })),
       // Claim map: each claim anchored to a segment id + timestamp.

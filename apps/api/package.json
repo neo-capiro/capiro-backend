@@ -7,7 +7,7 @@
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts",
     "test": "jest --detectOpenHandles --forceExit",
     "eval:clio": "tsx scripts/eval-clio.ts",
     "eval:clio:attachments": "tsx scripts/eval-clio-attachments.ts",

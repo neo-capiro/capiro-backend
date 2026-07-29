@@ -7,10 +7,7 @@ import {
 } from '@nestjs/common';
 import { EngagementTaskStatus, Prisma } from '@prisma/client';
 import { fetchDeniedClientIds, toUuidArrayLiteral } from '../memory/memory-wall.helpers.js';
-import {
-  pickKgIntelGraph,
-  pickKgTraversalSource,
-} from '../meri/memory-recall-source.helpers.js';
+import { pickKgIntelGraph, pickKgTraversalSource } from '../meri/memory-recall-source.helpers.js';
 import {
   AGENCY_SECTOR_MAP,
   ldaCodesForSectors,
@@ -261,8 +258,7 @@ export class IntelligenceService {
     const confirmedBySource = new Map<string, string>(); // source → externalId
     for (const m of existingMappings) {
       const identityMayAttributeAwards =
-        m.source !== 'contracting' ||
-        (m.reviewStatus === 'confirmed' && m.rollUpAwards === true);
+        m.source !== 'contracting' || (m.reviewStatus === 'confirmed' && m.rollUpAwards === true);
       if (m.confirmed && identityMayAttributeAwards && !confirmedBySource.has(m.source)) {
         confirmedBySource.set(m.source, m.externalId);
       }
@@ -396,9 +392,7 @@ export class IntelligenceService {
       if (timer) clearTimeout(timer);
       const elapsed = Date.now() - startedAt;
       if (elapsed >= IntelligenceService.PROFILE_V1_SLOW_SOURCE_MS) {
-        this.logger.warn(
-          `profile-v1 source "${label}" took ${elapsed}ms for client ${clientId}`,
-        );
+        this.logger.warn(`profile-v1 source "${label}" took ${elapsed}ms for client ${clientId}`);
       }
     }) as Promise<T>;
   }
@@ -497,7 +491,11 @@ export class IntelligenceService {
       this.getCommentPeriodAlerts(tenantId),
       this.getChanges(tenantId, day7.toISOString(), clientId),
       this.prisma.committeeHearing.findMany({
-        where: { date: { gte: now, lte: day21 } },
+        // `date` is @db.Date, stored at UTC midnight of the hearing's Eastern day.
+        // `gte: now` therefore excluded TODAY's hearings for the whole working
+        // day — 00:00Z >= 13:00Z is false — so a hearing happening right now was
+        // never in this feed. Compare against the start of the Eastern day.
+        where: { date: { gte: dateBoundsInZone(now, 'America/New_York').start, lte: day21 } },
         orderBy: [{ date: 'asc' }, { time: 'asc' }],
         take: 40,
       }),
@@ -2580,7 +2578,6 @@ export class IntelligenceService {
     };
   }
 
-
   /**
    * Free-text / by-UEI search over federal_assistance_award recipients for
    * the District Nexus manual-attach panel (source 'assistance_recipient').
@@ -3013,8 +3010,12 @@ export class IntelligenceService {
           reviewStatus: input.confirmed ? 'confirmed' : 'rejected',
           reviewedBy: input.actorUserId,
           reviewedAt: new Date(),
-          rejectionReason: input.confirmed ? null : input.rejectionReason ?? 'Rejected by reviewer',
-          ...(input.relationshipType !== undefined ? { relationshipType: input.relationshipType } : {}),
+          rejectionReason: input.confirmed
+            ? null
+            : (input.rejectionReason ?? 'Rejected by reviewer'),
+          ...(input.relationshipType !== undefined
+            ? { relationshipType: input.relationshipType }
+            : {}),
           ...(input.rollUpAwards !== undefined ? { rollUpAwards: input.rollUpAwards } : {}),
         },
       });
@@ -3087,7 +3088,13 @@ export class IntelligenceService {
       ),
       this.prisma.withTenant(tenantId, (tx) =>
         tx.clientIntelMapping.findFirst({
-          where: { clientId, source: 'contracting', confirmed: true, reviewStatus: 'confirmed', rollUpAwards: true },
+          where: {
+            clientId,
+            source: 'contracting',
+            confirmed: true,
+            reviewStatus: 'confirmed',
+            rollUpAwards: true,
+          },
         }),
       ),
     ]);
@@ -4825,7 +4832,9 @@ export class IntelligenceService {
       if (billVariants.length === 0) return [];
 
       const hearings = await this.prisma.committeeHearing.findMany({
-        where: { date: { gte: now, lte: until } },
+        // Start-of-Eastern-day, not `now`: see the note at the portfolio feed above.
+        // `date` is a UTC-midnight @db.Date, so `gte: now` dropped today's rows.
+        where: { date: { gte: dateBoundsInZone(now, 'America/New_York').start, lte: until } },
         orderBy: [{ date: 'asc' }, { time: 'asc' }],
         take: 40,
       });
@@ -5043,7 +5052,13 @@ export class IntelligenceService {
     try {
       const mapping = await this.prisma.withTenant(tenantId, (tx) =>
         tx.clientIntelMapping.findFirst({
-          where: { clientId, source: 'contracting', confirmed: true, reviewStatus: 'confirmed', rollUpAwards: true },
+          where: {
+            clientId,
+            source: 'contracting',
+            confirmed: true,
+            reviewStatus: 'confirmed',
+            rollUpAwards: true,
+          },
           select: { externalId: true },
         }),
       );
@@ -5603,7 +5618,11 @@ export class IntelligenceService {
     const [trackedBills, hearings, recentChanges, commentPeriods, healthScore] = await Promise.all([
       this.getTrackedBills(clientId, tenantId),
       this.prisma.committeeHearing.findMany({
-        where: { date: { gte: now, lte: fourteenDaysOut } },
+        // Start-of-Eastern-day, not `now` — a UTC-midnight @db.Date compared
+        // against a mid-day instant silently excluded today. Same fix as above.
+        where: {
+          date: { gte: dateBoundsInZone(now, 'America/New_York').start, lte: fourteenDaysOut },
+        },
         orderBy: { date: 'asc' },
         take: 5,
       }),
@@ -5898,7 +5917,13 @@ export class IntelligenceService {
     // 1. Resolve the client's contractor name(s) from confirmed contracting mappings.
     const mappings = await this.prisma.withTenant(tenantId, (tx) =>
       tx.clientIntelMapping.findMany({
-        where: { clientId, source: 'contracting', confirmed: true, reviewStatus: 'confirmed', rollUpAwards: true },
+        where: {
+          clientId,
+          source: 'contracting',
+          confirmed: true,
+          reviewStatus: 'confirmed',
+          rollUpAwards: true,
+        },
         select: { externalName: true },
       }),
     );
@@ -5974,9 +5999,7 @@ export class IntelligenceService {
     //    with no facility there, which the facility-based resolver never sees.
     const spendStates = Array.from(
       new Set(
-        spendRows
-          .filter((r) => r.pop_state && r.pop_district)
-          .map((r) => r.pop_state as string),
+        spendRows.filter((r) => r.pop_state && r.pop_district).map((r) => r.pop_state as string),
       ),
     );
     // CongressMember.state stores the FULL state name ("Connecticut"), but
@@ -6037,7 +6060,7 @@ export class IntelligenceService {
         const stateMembers = membersByState.get(r.pop_state);
         const houseCode = districtCodeForHouseMatch(r.pop_district);
         const house = houseCode
-          ? stateMembers?.house.find((m) => districtMatchesHouse(houseCode, m.district)) ?? null
+          ? (stateMembers?.house.find((m) => districtMatchesHouse(houseCode, m.district)) ?? null)
           : null;
         return {
           district: key,

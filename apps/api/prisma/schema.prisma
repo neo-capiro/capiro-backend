@@ -5354,8 +5354,15 @@ model CommitteeHearing {
   committeeName String   @map("committee_name")
   committeeCode String?  @map("committee_code")
   title         String   @db.Text
+  /// Eastern calendar day (DISPLAY only). Derived from startsAt, not authoritative.
   date          DateTime @db.Date
-  time          String? // "10:00 AM"
+  /// Eastern wall-clock for display, e.g. "10:00 AM". Zone-less by construction —
+  /// never parse this back into an instant; read startsAt instead.
+  time          String?
+  /// The true UTC instant the hearing begins; null for a date-only record (one
+  /// announced without a time — never a fabricated midnight). This is the ONLY
+  /// field that time-based logic (liveness, windowing, cross-day ordering) may read.
+  startsAt      DateTime? @map("starts_at") @db.Timestamptz(6)
   location      String?
   type          String? // hearing, markup, meeting
   witnesses     String[] @default([])
@@ -5364,6 +5371,7 @@ model CommitteeHearing {
 
   @@index([date])
   @@index([committeeName, date])
+  @@index([startsAt])
   @@map("committee_hearing")
 }
 

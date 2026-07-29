@@ -29,6 +29,17 @@
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
+// Eastern-time derivation lives in ./lib so it is unit-testable without pulling
+// in PrismaClient (and therefore without a generated client). See that file's
+// header for why every one of these exists.
+import {
+  etCalendarDay,
+  formatTime,
+  hearingCalendarDate,
+  houseStartsAt,
+  isDateOnlySentinel,
+  safeDate,
+} from './lib/hearing-time.js';
 dotenvConfig();
 
 const CONGRESS_BASE = 'https://api.congress.gov/v3';
@@ -141,12 +152,6 @@ async function fetchJson<T>(url: string): Promise<T | null> {
   }
 }
 
-function safeDate(v: string | null | undefined): Date | null {
-  if (!v) return null;
-  const d = new Date(v);
-  return isNaN(d.getTime()) ? null : d;
-}
-
 /**
  * Canonical congress_bill ids for the bills on a meeting agenda (LegiWatch B3),
  * from the detail's relatedItems.bills[]. "HR"/"H.R." → "hr", so a
@@ -176,20 +181,6 @@ function relatedAgendaBills(d: MeetingDetail): Array<{ billId: string; congress:
     out.push({ billId, congress });
   }
   return out;
-}
-
-/** Format the time-of-day from an ISO datetime as "2:15 PM" (UTC). Congress.gov
- *  encodes hearing times as UTC wall-clock for the chamber; we render as-is. */
-function formatTime(iso: string | null | undefined): string | null {
-  const d = safeDate(iso);
-  if (!d) return null;
-  let h = d.getUTCHours();
-  const m = d.getUTCMinutes();
-  if (h === 0 && m === 0) return null; // date-only record, no real time
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  h = h % 12;
-  if (h === 0) h = 12;
-  return `${h}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
 function formatLocation(loc: MeetingDetail['location']): string | null {
@@ -400,8 +391,11 @@ async function syncHouseDocsMeetings(
   let upserts = 0;
   let days = 0;
   let fails = 0;
-  const base = new Date();
-  base.setUTCHours(0, 0, 0, 0);
+  // Anchor the window on the EASTERN calendar day, not the UTC one. docs.house.gov
+  // publishes an Eastern calendar, so a UTC-anchored `base` skipped the current
+  // day's page entirely between 8 PM and midnight ET (when the UTC date has
+  // already rolled over).
+  const base = etCalendarDay(new Date());
 
   for (let offset = 0; offset <= HOUSE_DOCS_DAYS_AHEAD; offset++) {
     const day = new Date(base.getTime() + offset * 86400000);
@@ -421,6 +415,11 @@ async function syncHouseDocsMeetings(
         chamber: 'House',
         committeeName: mtg.committee,
         date: day,
+        // Already an Eastern wall-clock string scraped off the page, so it is
+        // converted FORWARD to an instant rather than re-derived from one. Since
+        // Source 1 now also emits Eastern, both writers finally agree on the
+        // convention for this shared column and last-writer-wins is harmless.
+        startsAt: houseStartsAt(day, mtg.time),
         time: mtg.time,
         location: mtg.location,
         type: inferHouseType(title, mtg.committee),
@@ -480,11 +479,17 @@ async function main() {
               continue;
             }
 
-            const date = safeDate(d.date);
-            if (!date) {
+            const instant = safeDate(d.date);
+            if (!instant) {
               meetingSkippedNoDate++;
               continue;
             }
+            // `date`/`time` are ET-derived DISPLAY fields; `startsAt` is the true
+            // instant and is what any time-based logic (liveness, windows,
+            // ordering across days) must read. Null for a date-only record —
+            // never a fabricated midnight.
+            const date = hearingCalendarDate(instant);
+            const startsAt = isDateOnlySentinel(instant) ? null : instant;
 
             const chamber = normalizeChamber(d.chamber, item.chamber);
             const sysCode = d.committees?.[0]?.systemCode ?? null;
@@ -514,6 +519,7 @@ async function main() {
               committeeName,
               committeeCode: sysCode,
               date,
+              startsAt,
               time: formatTime(d.date),
               location: formatLocation(d.location),
               type: d.type?.trim() || 'Meeting',
@@ -602,9 +608,17 @@ async function main() {
               detail.associatedMeeting?.eventID,
             );
 
-            for (const date of dates) {
-              const dateKey = date.toISOString().slice(0, 10);
+            for (const instant of dates) {
+              // The id key stays on the UTC date DELIBERATELY. It is part of the
+              // primary key of already-persisted rows; re-deriving it in Eastern
+              // would mint a NEW id for every evening-timed hearing and fork a
+              // duplicate instead of updating. (In practice these transcript
+              // records are date-only, so the two agree — but the id must not
+              // depend on that.)
+              const dateKey = instant.toISOString().slice(0, 10);
               const id = `${congress}-${item.jacketNumber}-${dateKey}`;
+              const date = hearingCalendarDate(instant);
+              const startsAt = isDateOnlySentinel(instant) ? null : instant;
               const publicUrl = hearingPublicUrl(detail);
               await prisma.committeeHearing.upsert({
                 where: { id },
@@ -614,6 +628,7 @@ async function main() {
                   committeeName,
                   committeeCode: sysCode,
                   date,
+                  startsAt,
                   type: 'hearing',
                   witnesses,
                   url: publicUrl,
@@ -626,6 +641,7 @@ async function main() {
                   committeeName,
                   committeeCode: sysCode,
                   date,
+                  startsAt,
                   type: 'hearing',
                   witnesses,
                   url: publicUrl,
@@ -686,7 +702,12 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error('[hearings-sync] FAILED', err);
-  process.exit(1);
-});
+// Guarded so the pure date/time helpers above can be imported by a unit test
+// without kicking off a live Congress.gov sync. Matches the established idiom in
+// this directory (backfill-legiscan-datasets.ts, derive-bill-status.ts, et al).
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('[hearings-sync] FAILED', err);
+    process.exit(1);
+  });
+}

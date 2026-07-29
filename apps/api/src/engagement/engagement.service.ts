@@ -139,6 +139,7 @@ import { outreachClientProfileEnabled } from '../common/tenant-flags.js';
 // built for the prompt (see enrichOutreachContextItems below).
 import { runAuditor, type LedgerEntry } from '@capiro/meriv2-core';
 import { resolveTenantAuditorMode } from '../common/auditor-mode.js';
+import { dateBoundsInZone } from '../intelligence/time-bounds.js';
 
 export interface CreateIntegrationInput {
   provider: EngagementProvider;
@@ -8587,10 +8588,11 @@ export class EngagementService {
   private async outreachUpcomingHearings(): Promise<
     Array<{ committeeName: string; chamber: string; title: string; date: Date }>
   > {
-    const now = new Date();
-    const startOfToday = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-    );
+    // The EASTERN day, not the UTC one. Flooring to the UTC day rolled over at
+    // 8 PM ET, so an evening outreach send dropped the rest of today's hearings
+    // out of the window it hands the model — the sort of omission that reads as
+    // "there are no hearings" rather than as an error.
+    const startOfToday = dateBoundsInZone(new Date(), 'America/New_York').start;
     const in30 = new Date(startOfToday.getTime() + 30 * 864e5);
     return this.prisma.committeeHearing
       .findMany({
