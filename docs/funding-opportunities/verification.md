@@ -247,6 +247,50 @@ nothing.
 
 ---
 
+## Re-verification after merging current `main` (for the ship decision)
+
+Everything above was measured against `57a8a5b2`. By the time this was cleared to
+ship, `main` had moved **80 commits** to `e497c97e` (PRs #669 pe-trust-phase-c and
+#670 legiwatch-audit-fixes), which put the branch behind and re-opened MB-3. Merged
+`origin/main` in at **`72e19bd5`** — **no conflicts**, no conflict markers, clean
+tree — and re-ran the gates, because main added two migrations of its own and
+touched `apps/web` files next to these.
+
+| Gate | Result |
+| --- | --- |
+| `pnpm turbo run typecheck` | **pass**, 18/18 |
+| api targeted suites (funding-opportunities, sam-opportunity, grant-opportunity, contractor-identity, entity-resolution, tenant-scope, migration-table-names) | **all pass** |
+| `apps/web` full suite | **161 files / 1442 tests, 0 failures** (up from 1436 — main added 6) |
+| `apps/api` full suite | **10 failed suites / 33 failed tests**, 5694 passed, 478 suites |
+| api + web builds | **pass** |
+
+**The api failure count went DOWN, from 12 suites / 40 tests to 10 / 33.** The
+difference is two suites that main *fixed* — `program-element/extractors/bill-pe-extractor.spec.ts`
+and `program-element/program-element-read.service.spec.ts`, consistent with #669.
+No suite fails post-merge that did not fail pre-merge, so this feature still adds
+**zero** failures; a fresh same-SHA baseline was not needed because the delta moves
+in the only unambiguous direction.
+
+Main added `20260728230000_add_tenant_scoped_pe_watch_key` and
+`20260728230100_enable_program_element_watch_rls`. Both sort **before**
+`20260810010000_funding_opportunities`, which is still last of **189** migrations,
+so the boundaries spec's ordering assertion still holds — and it was re-run, not
+assumed.
+
+### One consequence worth flagging for whoever runs the migration
+
+`prisma migrate deploy` applies **every** pending migration, so running it will also
+apply main's two PE-watch migrations if they are not already applied. That is main's
+"Release 1", which its own runbook documents as expand-only and safe with old code
+running. Note the PE-watch **Release 2 code is already deployed** (`capiro-dev-api`
+is running image `548dea2a`, which contains it), so if those migrations were never
+applied, applying them closes an existing gap rather than opening one. The RLS
+migration is written to **abort** if it finds a pre-existing policy — if that
+happens the whole run fails and *this* migration will not apply either. Read the
+output; do not assume.
+
+---
+
 ## What the tests actually prove
 
 Mapping §20's Definition of Done onto assertions that exist and pass, rather than
