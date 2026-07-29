@@ -615,9 +615,14 @@ function makePrisma(options: {
 
   return {
     __mock: mock,
-    $queryRaw: jest.fn(async () => {
-      mock.mvQueryRawCalls += 1;
-      return options.mvRows ?? [];
+    $queryRaw: jest.fn(async (query: unknown) => {
+      const sql = query as { strings?: readonly string[] };
+      const text = [...(sql.strings ?? [])].join('?');
+      if (text.includes('FROM program_element_detail_mv')) {
+        mock.mvQueryRawCalls += 1;
+        return options.mvRows ?? [];
+      }
+      return [];
     }),
     programElement: {
       findUnique: jest.fn(async () => {

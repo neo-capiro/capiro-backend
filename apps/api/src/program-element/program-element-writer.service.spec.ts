@@ -47,6 +47,39 @@ describe('ProgramElementWriterService', () => {
     expect(change.relatedClientIds.sort()).toEqual(['client-1', 'client-2']);
   });
 
+  test('Watch-only tenant still receives the delta — watch read uses the bypass path', async () => {
+    // Regression guard for the Phase C RLS fan-out defect. program_element_watch becomes
+    // RLS-FORCED in Phase C and capiro_app is not BYPASSRLS, so reading it outside
+    // withSystem yields zero rows with NO error. tenant-a here has a watch and NO client
+    // capability, so it is reachable only through the watch signal: off the bypass path
+    // getAffectedTenants returns empty and emitForTenants silently emits nothing.
+    const service = createService();
+    await service.upsertProgramElement(basePe, 'fixture', 0.9);
+
+    service.__mock.watches.push({ tenantId: 'tenant-a', peCode: '0603270A' });
+    // Deliberately NO capability rows — the watch must carry this on its own.
+
+    await service.upsertProgramElementYear(
+      { peCode: '0603270A', fy: 2026, request: '100000000' },
+      'r_doc',
+    );
+    await service.upsertProgramElementYear(
+      { peCode: '0603270A', fy: 2026, request: '100000000', hascMark: '110000000' },
+      'conference_report',
+    );
+
+    expect(service.__mock.intelligenceChanges).toHaveLength(1);
+    const change = service.__mock.intelligenceChanges[0] as {
+      relatedPeCodes: string[];
+      relatedClientIds: string[];
+    };
+    expect(change.relatedPeCodes).toEqual(['0603270A']);
+    expect(change.relatedClientIds).toEqual([]);
+    expect(service.__mock.withSystem).toHaveBeenCalled();
+    // The non-bypass client must never be consulted for this table.
+    expect(service.__mock.programElementWatch.findMany).not.toHaveBeenCalled();
+  });
+
   test('Severity thresholds classify critical/notable/info correctly', async () => {
     const service = createService();
     await service.upsertProgramElement(basePe, 'fixture', 0.9);
@@ -489,28 +522,36 @@ function createPrismaMock() {
       }),
       count: jest.fn(async () => quarantineRows.length),
     },
+    // Model the live database, not a permissive stub. client_capabilities has been
+    // RLS-FORCED since the tenancy migration and program_element_watch is RLS-FORCED as
+    // of the Phase C tenant-isolation migration; capiro_app is NOT BYPASSRLS since the
+    // 2026-07-20 role hardening, so a read that skips withSystem returns ZERO rows with
+    // no error. These bare accessors therefore serve [] — that is what makes the
+    // watch-driven tests below able to detect a regression off the bypass path.
     programElementWatch: {
-      findMany: jest.fn(async ({ where }: { where: { peCode: string } }) =>
-        watches.filter((w) => w.peCode === where.peCode),
-      ),
+      findMany: jest.fn(async () => [] as Array<{ tenantId: string; peCode: string }>),
     },
     clientCapability: {
-      findMany: jest.fn(async ({ where }: { where: { peNumber: string } }) =>
-        capabilities.filter((c) => c.peNumber === where.peNumber),
-      ),
+      findMany: jest.fn(async () => [] as Array<{ tenantId: string; clientId: string }>),
     },
-    // client_capabilities is RLS-FORCED; getAffectedTenants reads it cross-tenant
-    // via the bypass path (withSystem). Run the callback against a stub tx backed
-    // by the same `capabilities` fixture.
+    // getAffectedTenants reads BOTH tables cross-tenant via the bypass path
+    // (withSystem). Run the callback against a stub tx backed by the fixtures.
     withSystem: jest.fn(
       async (
         fn: (tx: {
+          programElementWatch: {
+            findMany: (args: { where: { peCode: string } }) => Promise<unknown>;
+          };
           clientCapability: {
             findMany: (args: { where: { peNumber: string } }) => Promise<unknown>;
           };
         }) => unknown,
       ) =>
         fn({
+          programElementWatch: {
+            findMany: async ({ where }: { where: { peCode: string } }) =>
+              watches.filter((w) => w.peCode === where.peCode),
+          },
           clientCapability: {
             findMany: async ({ where }: { where: { peNumber: string } }) =>
               capabilities.filter((c) => c.peNumber === where.peNumber),

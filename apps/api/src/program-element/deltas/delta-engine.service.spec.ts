@@ -33,37 +33,51 @@ function makePrisma(opts: {
   capabilities?: Array<CapabilityRow>;
 }) {
   const capabilities = opts.capabilities ?? [];
-  const db = {
+  const watches = opts.watches ?? [];
+
+  // Honor the OR(peNumber, peNumbers[] has) where so a peNumbers[]-only capability is
+  // matched exactly the way Postgres would — the mock must not pass trivially.
+  const capabilityFindMany = jest.fn(
+    async ({ where }: { where?: Record<string, unknown> } = {}) => {
+      const or = (where?.OR ?? []) as Array<Record<string, unknown>>;
+      const peNumberEq = or.find((c) => 'peNumber' in c)?.peNumber as string | undefined;
+      const peNumbersHas = (
+        or.find((c) => 'peNumbers' in c)?.peNumbers as { has?: string } | undefined
+      )?.has;
+      const matched =
+        or.length === 0
+          ? capabilities
+          : capabilities.filter(
+              (c) =>
+                (peNumberEq !== undefined && c.peNumber === peNumberEq) ||
+                (peNumbersHas !== undefined && (c.peNumbers ?? []).includes(peNumbersHas)),
+            );
+      return matched.map((c) => ({ tenantId: c.tenantId, clientId: c.clientId }));
+    },
+  );
+
+  // The stub tx handed to withSystem — the ONLY path on which these rows are visible,
+  // because it is the path that sets app.bypass_rls.
+  const systemTx = {
+    programElementWatch: { findMany: jest.fn(async () => watches) },
+    clientCapability: { findMany: capabilityFindMany },
+  };
+
+  // Model the live database rather than a permissive stub. BOTH client_capabilities and
+  // (as of the Phase C tenant-isolation migration) program_element_watch are RLS-FORCED,
+  // and the runtime role capiro_app is NOT BYPASSRLS since the 2026-07-20 role hardening.
+  // So a read that skips withSystem returns ZERO rows with no error. Returning [] here —
+  // instead of the fixture — is what lets these tests detect that regression at all; a
+  // fake that serves the same rows on both paths cannot.
+  return {
     programElementWatch: {
-      findMany: jest.fn(async () => opts.watches ?? []),
+      findMany: jest.fn(async () => [] as Array<{ tenantId: string }>),
     },
     clientCapability: {
-      // Honor the OR(peNumber, peNumbers[] has) where so a peNumbers[]-only capability is
-      // matched exactly the way Postgres would — the mock must not pass trivially.
-      findMany: jest.fn(async ({ where }: { where?: Record<string, unknown> } = {}) => {
-        const or = (where?.OR ?? []) as Array<Record<string, unknown>>;
-        const peNumberEq = or.find((c) => 'peNumber' in c)?.peNumber as string | undefined;
-        const peNumbersHas = (
-          or.find((c) => 'peNumbers' in c)?.peNumbers as { has?: string } | undefined
-        )?.has;
-        const matched =
-          or.length === 0
-            ? capabilities
-            : capabilities.filter(
-                (c) =>
-                  (peNumberEq !== undefined && c.peNumber === peNumberEq) ||
-                  (peNumbersHas !== undefined && (c.peNumbers ?? []).includes(peNumbersHas)),
-              );
-        return matched.map((c) => ({ tenantId: c.tenantId, clientId: c.clientId }));
-      }),
+      findMany: jest.fn(async () => [] as Array<{ tenantId: string; clientId: string }>),
     },
-  };
-  return {
-    ...db,
-    // client_capabilities is RLS-FORCED; getAffectedTenants reads it cross-tenant
-    // via the bypass path (withSystem). The mock just runs the callback against
-    // the same stub client.
-    withSystem: jest.fn(async (fn: (tx: typeof db) => unknown) => fn(db)),
+    withSystem: jest.fn(async (fn: (tx: typeof systemTx) => unknown) => fn(systemTx)),
+    __systemTx: systemTx,
   };
 }
 
@@ -158,5 +172,25 @@ describe('DeltaEngineService.getAffectedTenants (Step 2.3 relevance union)', () 
     const affected = await callGetAffectedTenants(service, '0603270A');
 
     expect(affected).toEqual([{ tenantId: TENANT_A, relatedClientIds: [] }]);
+  });
+
+  test('reads program_element_watch on the bypass path so a WATCH-ONLY tenant is still routed', async () => {
+    // Phase C makes program_element_watch RLS-FORCED. capiro_app is not BYPASSRLS, so a
+    // read outside withSystem returns zero rows WITH NO ERROR. TENANT_B here is reachable
+    // ONLY by its watch — no capability, no relevance — so if this read stops going
+    // through the bypass path the tenant silently vanishes from delta alert routing and
+    // nothing anywhere logs a failure. Assert the row is found AND that it came from the
+    // bypass client, so the test cannot pass for the wrong reason.
+    const prisma = makePrisma({ watches: [{ tenantId: TENANT_B }], capabilities: [] });
+    const relevance = makeRelevanceService([]);
+    const service = new DeltaEngineService(prisma as never, relevance as never);
+
+    const affected = await callGetAffectedTenants(service, '0603270A');
+
+    expect(affected).toEqual([{ tenantId: TENANT_B, relatedClientIds: [] }]);
+    expect(prisma.withSystem).toHaveBeenCalled();
+    expect(prisma.__systemTx.programElementWatch.findMany).toHaveBeenCalled();
+    // The non-bypass client must never be consulted for this table.
+    expect(prisma.programElementWatch.findMany).not.toHaveBeenCalled();
   });
 });

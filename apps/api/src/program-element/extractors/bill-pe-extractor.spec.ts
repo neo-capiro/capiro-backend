@@ -56,6 +56,17 @@ function makeService(opts?: {
   const existing = new Set(opts?.existingPeCodes ?? []);
   const updates: Array<{ id: string; peCodes: string[] }> = [];
   const emitted: Array<Record<string, unknown>> = [];
+  const linkRows: string[] = [];
+
+  // Stub tx handed to withSystem — it sets app.bypass_rls, so it is the only path on
+  // which RLS-FORCED program_element_watch rows are visible to the app role.
+  const systemTx = {
+    programElementWatch: {
+      findMany: jest.fn(async ({ where }: { where: { peCode: { in: string[] } } }) =>
+        (opts?.watches ?? []).filter((w) => where.peCode.in.includes(w.peCode)),
+      ),
+    },
+  };
 
   const prisma = {
     congressBill: {
@@ -76,11 +87,28 @@ function makeService(opts?: {
       findUnique: jest.fn(async () => (opts?.cachedText ? { textContent: opts.cachedText } : null)),
       upsert: jest.fn(async () => ({})),
     },
-    programElementWatch: {
-      findMany: jest.fn(async ({ where }: { where: { peCode: { in: string[] } } }) =>
-        (opts?.watches ?? []).filter((w) => where.peCode.in.includes(w.peCode)),
-      ),
+    // processBill always calls syncLinkRows (LEG-B evidence rows) before maybeEmit, so
+    // this stub is required for ANY test in this file to reach an assertion. It was
+    // missing, which failed every test in the suite from #223 onward — including the
+    // watch/emission tests that are this file's whole point. bill_budget_line_link is a
+    // global table (no tenant_id), so no tenant scoping applies to it.
+    billBudgetLineLink: {
+      deleteMany: jest.fn(async () => ({ count: 0 })),
+      upsert: jest.fn(async ({ create }: { create: { peCode: string } }) => {
+        linkRows.push(create.peCode);
+        return {};
+      }),
     },
+    // program_element_watch is RLS-FORCED as of the Phase C tenant-isolation migration
+    // and capiro_app is NOT BYPASSRLS since the 2026-07-20 role hardening, so a read that
+    // skips withSystem returns ZERO rows with no error — and maybeEmit turns that into
+    // "nobody watches this PE" and emits nothing, permanently and silently. This bare
+    // accessor serves [] so the watch-driven tests below actually detect that.
+    programElementWatch: {
+      findMany: jest.fn(async () => [] as Array<{ tenantId: string; peCode: string }>),
+    },
+    // The bypass path is the only one on which watch rows are visible.
+    withSystem: jest.fn(async (fn: (tx: typeof systemTx) => unknown) => fn(systemTx)),
     intelligenceChange: {
       create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
         emitted.push(data);
@@ -93,7 +121,7 @@ function makeService(opts?: {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test injection
   const svc = new BillPeExtractorService(prisma as any, govInfo as any);
-  return { svc, prisma, govInfo, updates, emitted };
+  return { svc, prisma, govInfo, updates, emitted, linkRows };
 }
 
 function bill(partial: Partial<BillRow>): BillRow {
@@ -149,6 +177,27 @@ describe('BillPeExtractorService.processBill', () => {
       changeType: 'bill_pe_linked',
       relatedPeCodes: ['0603270A'],
     });
+  });
+
+  test('reads program_element_watch on the bypass path (RLS-forced as of Phase C)', async () => {
+    // Regression guard. maybeEmit early-returns false when the watch query comes back
+    // empty, so a read that skips withSystem does not fail loudly — it just stops
+    // emitting bill_pe_linked alerts for every tenant, forever, with nothing logged.
+    // Assert the emission happened AND that the bypass client is what served it.
+    const { svc, prisma, emitted } = makeService({
+      existingPeCodes: ['0603270A'],
+      watches: [{ tenantId: 't1', peCode: '0603270A' }],
+    });
+
+    const result = await svc.processBill(bill({ title: 'New ref 0603270A' }), {
+      fetchFullText: false,
+    });
+
+    expect(result.emitted).toBe(true);
+    expect(emitted).toHaveLength(1);
+    expect(prisma.withSystem).toHaveBeenCalled();
+    // The non-bypass client must never be consulted for this table.
+    expect(prisma.programElementWatch.findMany).not.toHaveBeenCalled();
   });
 
   test('does NOT emit when the new PE is not watched', async () => {

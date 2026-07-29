@@ -195,6 +195,7 @@ export class HearingSessionService {
     return session;
   }
 
+  /** Legacy bounded array response retained for existing callers. */
   async list(tenantId: string, userId: string) {
     return this.prisma.withTenant(tenantId, (tx) =>
       tx.liveHearingSession.findMany({
@@ -209,6 +210,46 @@ export class HearingSessionService {
         take: 100,
       }),
     );
+  }
+
+  /**
+   * Paginated My Sessions history. The old list endpoint silently stopped at
+   * 100 rows, so a mature workspace could no longer reach older transcripts.
+   * This uses the exact same public-vs-private visibility predicate as list()
+   * and returns a truthful total plus an offset cursor for the web's Load More.
+   */
+  async listPage(
+    tenantId: string,
+    userId: string,
+    opts?: { offset?: number; limit?: number },
+  ) {
+    const offset = Math.max(0, Math.floor(opts?.offset ?? 0));
+    const limit = Math.min(Math.max(Math.floor(opts?.limit ?? 50), 1), 100);
+    const where = {
+      tenantId,
+      OR: [
+        { sourceType: { in: [...PUBLIC_SOURCE_TYPES] } },
+        { createdBy: userId },
+      ],
+    };
+    const [items, total] = await this.prisma.withTenant(tenantId, (tx) =>
+      Promise.all([
+        tx.liveHearingSession.findMany({
+          where,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          skip: offset,
+          take: limit,
+        }),
+        tx.liveHearingSession.count({ where }),
+      ]),
+    );
+    const nextOffset = offset + items.length;
+    return {
+      items,
+      total,
+      nextOffset: nextOffset < total ? nextOffset : null,
+      hasMore: nextOffset < total,
+    };
   }
 
   /** Confirm consent (needs_review -> confirmed). Persists the attestation. */

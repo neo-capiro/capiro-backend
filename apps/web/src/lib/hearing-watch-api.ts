@@ -74,11 +74,28 @@ export interface UpcomingHearing {
   location?: string | null;
 }
 
-export function useHearingSessions() {
+export interface HearingSessionHistoryPage {
+  items: LiveHearingSession[];
+  total: number;
+  nextOffset: number | null;
+  hasMore: boolean;
+}
+
+/** Paginated My Sessions history; preserves the legacy /hearings array endpoint for other callers. */
+export function useHearingSessionHistory() {
   const api = useApi();
-  return useQuery<LiveHearingSession[]>({
-    queryKey: ['intel', 'hearings'],
-    queryFn: async () => (await api.get<LiveHearingSession[]>('/intel-api/hearings')).data,
+  return useInfiniteQuery<HearingSessionHistoryPage>({
+    queryKey: ['intel', 'hearings', 'history'],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const offset = Number(pageParam ?? 0);
+      return (
+        await api.get<HearingSessionHistoryPage>(
+          `/intel-api/hearings/history?offset=${offset}&limit=50`,
+        )
+      ).data;
+    },
+    getNextPageParam: (last) => (last.hasMore ? last.nextOffset ?? undefined : undefined),
     retry: false,
     staleTime: 15_000,
   });

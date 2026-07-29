@@ -15,10 +15,11 @@
     "scripts/lib/defense-budget-ingest-mode.ts",
     "scripts/lib/pe-ingestion-mode.spec.ts",
     "scripts/lib/pe-phase-a-safety.spec.ts",
-    "scripts/verify-pe-phase-a-safety.ts"
+    "scripts/verify-pe-phase-a-safety.ts",
+    "scripts/send-pe-alert-emails.ts",
+    "scripts/send-pe-alert-emails.watch-isolation.spec.ts",
+    "scripts/lib/pe-watch-tenant-isolation.spec.ts",
+    "src/program-element/pe-alerts/tenant-watch-aggregation.ts"
   ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "exclude": ["node_modules", "dist"]
 }

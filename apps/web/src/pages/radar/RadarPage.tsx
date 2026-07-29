@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App as AntApp, Button, Empty, Select, Spin } from 'antd';
 import {
   AimOutlined,
@@ -63,8 +63,8 @@ function LegiWatchIntro({ open, onClose }: { open: boolean; onClose: () => void 
     },
     {
       icon: <FileTextOutlined />,
-      title: 'LegiWatch finds matching bills',
-      body: 'It scores new legislation against that watchlist and lists the matches. You choose which to track; tracked bills go on a board that shows each one’s current status.',
+      title: 'LegiWatch finds matching policy and funding developments',
+      body: 'It scores federal and state legislation, regulations, and Program Element funding changes against the client’s priorities. You choose which bills to track on the board.',
     },
     {
       icon: <AudioOutlined />,
@@ -74,7 +74,7 @@ function LegiWatchIntro({ open, onClose }: { open: boolean; onClose: () => void 
     {
       icon: <BellOutlined />,
       title: 'Everything that changed shows up in the Feed',
-      body: 'Bill moves and hearing moments land in one list. From there you can save a recap, draft a memo, or start outreach.',
+      body: 'Bill moves, hearing moments, regulations, and funding changes land in one list. From there you can save a recap, draft a memo, or start outreach.',
     },
   ];
   return (
@@ -84,8 +84,8 @@ function LegiWatchIntro({ open, onClose }: { open: boolean; onClose: () => void 
           <div className="k">Intelligence · LegiWatch</div>
           <h2>What LegiWatch does</h2>
           <p>
-            It tracks bills and congressional hearings for each of your clients and shows you what
-            changed. Here’s the flow, start to finish.
+            It tracks legislation, hearings, regulations, and defense-budget changes for each client
+            and shows you what changed. Here’s the flow, start to finish.
           </p>
         </div>
         <div className="intro-body">
@@ -605,19 +605,55 @@ function RadarGlobalFeedTab({
 }
 
 /** One tenant-board card (per-client tracked bill) from `_all/tracker/board`. */
-type TenantBoardCard = {
+export type TenantBoardCard = {
   billId: string;
   displayNum: string;
   title: string | null;
   passageProbability: number;
   unread: boolean;
   matchedTags: string[];
-  changeChip: { label: string; changeType: string | null } | null;
+  matchedHighPriorityTopics?: string[];
+  changeChip: {
+    label: string;
+    changeType: string | null;
+    severity?: string | null;
+    tone?: string | null;
+  } | null;
   hearingCount?: number;
   clientId: string;
   clientName: string | null;
 };
-type TenantBoard = { columns: Array<{ id: string; label: string; cards: TenantBoardCard[] }> };
+type TenantBoard = {
+  columns: Array<{ id: string; label: string; cards: TenantBoardCard[] }>;
+  nextCursor?: string | null;
+  hasMore?: boolean;
+  total?: number;
+  withheld?: number;
+};
+
+export type TenantBoardFilter = 'all' | 'hifit' | 'hiprob';
+
+/** Keep the global board's labels aligned with the server-owned scoring facts. */
+export function tenantBoardCardMatchesFilter(
+  card: TenantBoardCard,
+  filter: TenantBoardFilter,
+): boolean {
+  if (filter === 'hifit') return (card.matchedHighPriorityTopics?.length ?? 0) > 0;
+  if (filter === 'hiprob') {
+    const pct = card.passageProbability > 1 ? card.passageProbability : card.passageProbability * 100;
+    return pct >= 70;
+  }
+  return true;
+}
+
+/** Server tone wins; severity is only a compatibility fallback for cached cards. */
+export function tenantBoardChangeTone(card: TenantBoardCard): 'critical' | 'notable' | 'info' | 'success' {
+  const tone = card.changeChip?.tone;
+  if (tone === 'critical' || tone === 'notable' || tone === 'info' || tone === 'success') return tone;
+  if (card.changeChip?.severity === 'critical') return 'critical';
+  if (card.changeChip?.severity === 'info') return 'info';
+  return 'notable';
+}
 
 /**
  * L2b — the ALL-CLIENTS Bills board roll-up (U4 / Gherkin "All-clients board").
@@ -634,12 +670,48 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
     clientId: string;
     clientName: string;
   } | null>(null);
-  const [filter, setFilter] = useState<'all' | 'hifit' | 'hiprob'>('all');
-  const board = useQuery<TenantBoard>({
+  const [filter, setFilter] = useState<TenantBoardFilter>('all');
+  const board = useInfiniteQuery<TenantBoard>({
     queryKey: ['radar-tenant-board'],
-    queryFn: async () => (await api.get<TenantBoard>(intelTrackerPaths.board('_all'))).data,
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) =>
+      (
+        await api.get<TenantBoard>(
+          intelTrackerPaths.board('_all', typeof pageParam === 'string' ? pageParam : undefined),
+        )
+      ).data,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore && lastPage.nextCursor ? lastPage.nextCursor : undefined,
     staleTime: 30_000,
   });
+
+  // The tenant board is keyset-paginated at the API. The old surface consumed
+  // only page 1 (200 rows by default) and silently presented it as the complete
+  // all-client portfolio. Merge pages by stage and de-duplicate on the true card
+  // identity (client + bill), preserving the server's page/stage order.
+  const columns = useMemo(() => {
+    const byStage = new Map<string, TenantBoard['columns'][number]>();
+    for (const page of board.data?.pages ?? []) {
+      for (const column of page.columns) {
+        const existing = byStage.get(column.id);
+        if (!existing) {
+          byStage.set(column.id, { ...column, cards: [...column.cards] });
+          continue;
+        }
+        const seen = new Set(existing.cards.map((card) => `${card.clientId}:${card.billId}`));
+        for (const card of column.cards) {
+          const key = `${card.clientId}:${card.billId}`;
+          if (!seen.has(key)) {
+            existing.cards.push(card);
+            seen.add(key);
+          }
+        }
+      }
+    }
+    return [...byStage.values()];
+  }, [board.data]);
+  const loadedTotal = columns.reduce((n, c) => n + c.cards.length, 0);
+  const availableTotal = board.data?.pages[0]?.total ?? loadedTotal;
 
   if (board.isPending) return <PanelLoading />;
   if (board.isError)
@@ -650,9 +722,7 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
       </div>
     );
 
-  const columns = board.data?.columns ?? [];
-  const total = columns.reduce((n, c) => n + c.cards.length, 0);
-  if (total === 0) {
+  if (loadedTotal === 0) {
     return (
       <div className="guide">
         <div className="gico">
@@ -666,15 +736,7 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
       </div>
     );
   }
-  // GAI-07 adjacent: the API sends passageProbability on the shared 0..1 scale,
-  // so a bare `>= 70` never matched (dead filter — masked by a 0-100-scale test
-  // mock). Normalize like PassageBar does before comparing.
-  const pass = (c: TenantBoardCard) =>
-    filter === 'hifit'
-      ? c.matchedTags.length > 0
-      : filter === 'hiprob'
-        ? (c.passageProbability > 1 ? c.passageProbability : c.passageProbability * 100) >= 70
-        : true;
+  const pass = (card: TenantBoardCard) => tenantBoardCardMatchesFilter(card, filter);
 
   return (
     <div className="stack" style={{ gap: 14 }}>
@@ -685,7 +747,7 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
           size="small"
           value={filter}
           style={{ minWidth: 190 }}
-          onChange={(v) => setFilter(v as 'all' | 'hifit' | 'hiprob')}
+          onChange={(v) => setFilter(v as TenantBoardFilter)}
           options={[
             { value: 'all', label: 'All tracked bills' },
             { value: 'hifit', label: 'Priority-tag bills' },
@@ -726,7 +788,7 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
                       <span className="grow" />
                       {c.changeChip && (
                         <span
-                          className="dot notable"
+                          className={`dot ${tenantBoardChangeTone(c)}`}
                           style={{ width: 7, height: 7 }}
                           title={c.changeChip.label}
                         />
@@ -767,6 +829,21 @@ function RadarGlobalBillsTab({ onScopeClient }: { onScopeClient: (clientId: stri
             </div>
           );
         })}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10 }}>
+        <span className="muted mini">
+          Showing {loadedTotal.toLocaleString()} of {availableTotal.toLocaleString()} tracked bills
+        </span>
+        {board.hasNextPage ? (
+          <Button
+            size="small"
+            loading={board.isFetchingNextPage}
+            disabled={board.isFetchingNextPage}
+            onClick={() => void board.fetchNextPage()}
+          >
+            Load more tracked bills
+          </Button>
+        ) : null}
       </div>
       <BillDrawer
         open={drawer !== null}

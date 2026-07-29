@@ -908,12 +908,28 @@ export function TrackerFeedPanel({
   const [group, setGroup] = useState(false);
   // P2-04: the worklist filter. 'default' = this user's active queue, which
   // EXCLUDES their dismissed and still-snoozed alerts.
-  const [workFilter, setWorkFilter] = useState('default');
+  // An alert email is an explicit request to inspect that alert. Start on
+  // All so the user's own dismissed/snoozed work state cannot make a valid
+  // deep-link target disappear before the panel has a chance to find it.
+  const [workFilter, setWorkFilter] = useState(focusAlertId ? 'all' : 'default');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [composerItem, setComposerItem] = useState<FeedItem | null>(null);
   const [briefItem, setBriefItem] = useState<FeedItem | null>(null);
   const [tpItem, setTpItem] = useState<FeedItem | null>(null);
   const [tpText, setTpText] = useState('');
+  const focusPagingRef = useRef(false);
+  const focusExhaustedRef = useRef<string | null>(null);
+
+  // A focused alert can arrive after mount when URL state changes in place.
+  // Keep the visible work-state control honest about the widened search.
+  useEffect(() => {
+    if (!focusAlertId) return;
+    // The target may not belong to the source filter the analyst was using
+    // before an email link arrived in-place. Widen both controls visibly.
+    setSource('all');
+    setWorkFilter('all');
+    focusExhaustedRef.current = null;
+  }, [focusAlertId]);
 
   const setReport = useSetReport();
   const addTalkingPoint = useAddTalkingPoint();
@@ -1037,6 +1053,59 @@ export function TrackerFeedPanel({
   });
 
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
+
+  /**
+   * Email links may target an alert older than page one. The old implementation
+   * only auto-expanded a target already present in `items`; a valid older link
+   * landed on an ordinary feed with no explanation. Walk the existing keyset
+   * pages until the target is loaded. TanStack still owns request de-duplication;
+   * the ref prevents this effect from scheduling concurrent page advances.
+   */
+  useEffect(() => {
+    // When focusAlertId arrives after mount, the widening effect above schedules
+    // a new query. Do not declare the target missing from the OLD filtered result
+    // during that render; wait until the visible controls and query are both All.
+    if (!focusAlertId || !query.data || source !== 'all' || workFilter !== 'all') return;
+    if (items.some((item) => item.id === focusAlertId)) {
+      focusExhaustedRef.current = null;
+      return;
+    }
+    if (query.isFetchNextPageError) {
+      if (focusExhaustedRef.current !== focusAlertId) {
+        focusExhaustedRef.current = focusAlertId;
+        message.warning('Could not load the linked alert. The active feed is still available.');
+        onFocused?.();
+      }
+      return;
+    }
+    if (query.hasNextPage) {
+      if (!query.isFetchingNextPage && !focusPagingRef.current) {
+        focusPagingRef.current = true;
+        void query.fetchNextPage().finally(() => {
+          focusPagingRef.current = false;
+        });
+      }
+      return;
+    }
+    if (focusExhaustedRef.current !== focusAlertId) {
+      focusExhaustedRef.current = focusAlertId;
+      message.warning('The linked alert is no longer available in this feed.');
+      onFocused?.();
+    }
+  }, [
+    focusAlertId,
+    items,
+    message,
+    onFocused,
+    query.data,
+    query.fetchNextPage,
+    query.hasNextPage,
+    query.isFetchNextPageError,
+    query.isFetchingNextPage,
+    source,
+    workFilter,
+  ]);
+
   // §4.8 edge case 4: how many loaded alerts predate the re-weight.
   const priorModelCount = items.filter(isPriorScoreModel).length;
   const counts = query.data?.pages[0]?.counts ?? {};
