@@ -4,17 +4,32 @@ import { join } from 'path';
 /**
  * REGRESSION GUARD for the cross-tenant leak class (2026-07-16).
  *
- * The runtime DB role (capiro_app) bypasses Postgres RLS, so tenant isolation is
- * NOT enforced by the database — it is enforced only by routing tenant-scoped
- * queries through PrismaService.withTenant/withTenantUser (which inject
- * where.tenantId) or, for deliberate cross-tenant work, withSystem. A bare
- * `this.prisma.<tenantModel>.<op>()` therefore silently returns EVERY tenant's
- * rows. This test fails the build if any NEW bare access to a tenant-scoped model
+ * Tenant isolation is enforced by routing tenant-scoped queries through
+ * PrismaService.withTenant/withTenantUser (which inject where.tenantId) or, for
+ * deliberate cross-tenant work, withSystem (which sets the app.bypass_rls GUC).
+ * This test fails the build if any NEW bare access to a tenant-scoped model
  * appears, so the in-query enforcement can't quietly erode.
  *
- * A genuinely-cross-tenant system read may opt out with an inline
- * `// tenant-scope-exempt: <reason>` comment within the call (justification
- * required). Prefer wrapping such reads in `withSystem` instead.
+ * A bare `this.prisma.<tenantModel>.<op>()` is wrong in BOTH directions, and which
+ * way it fails depends on whether that table has an RLS policy:
+ *
+ *  - No policy on the table → the query returns EVERY tenant's rows (the original
+ *    2026-07-16 leak class).
+ *  - Policy on the table → it returns ZERO rows with no error. Until 2026-07-20
+ *    capiro_app inherited rds_superuser via capiro_master and was RLS-exempt, so
+ *    this could not happen; the role hardening that day (REVOKE capiro_master FROM
+ *    capiro_app) made capiro_app a plain, NON-BYPASSRLS role. A bare read of an
+ *    RLS-FORCED table is now a silent empty result, indistinguishable from an
+ *    empty table.
+ *
+ * That second mode is why `// tenant-scope-exempt: <reason>` is NOT a substitute
+ * for withSystem on a cross-tenant read: the annotation silences this guard but
+ * does nothing about the policy, so the read fails closed and any caller that
+ * treats [] as "nobody matched" silently stops doing its job. Phase C hit exactly
+ * this — three annotated PE-watch alert fan-outs would have gone permanently
+ * silent the moment program_element_watch gained its policy. Use the annotation
+ * only for a cross-tenant read of a table with NO RLS policy; otherwise wrap it in
+ * withSystem.
  */
 
 // tenant-scoped model client accessors, derived from the schema (same source of
@@ -76,9 +91,13 @@ describe('tenant-scope guard: no bare tenant-scoped Prisma access', () => {
 
     if (violations.length) {
       throw new Error(
-        `Bare tenant-scoped Prisma access detected (would leak cross-tenant — capiro_app bypasses RLS).\n` +
-          `Route through this.prisma.withTenant/withTenantUser, or add "// tenant-scope-exempt: <reason>" ` +
-          `if it is a deliberate cross-tenant system read (prefer withSystem):\n\n` +
+        `Bare tenant-scoped Prisma access detected. If the table has no RLS policy this ` +
+          `leaks every tenant's rows; if it has one this silently returns ZERO rows ` +
+          `(capiro_app is NOT BYPASSRLS since the 2026-07-20 role hardening).\n` +
+          `Route through this.prisma.withTenant/withTenantUser, or this.prisma.withSystem ` +
+          `for a deliberate cross-tenant read. "// tenant-scope-exempt: <reason>" only ` +
+          `silences this guard — it does NOT bypass RLS, so it is unsafe for a table that ` +
+          `has a policy:\n\n` +
           violations.join('\n'),
       );
     }

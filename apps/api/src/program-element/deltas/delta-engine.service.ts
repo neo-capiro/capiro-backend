@@ -492,21 +492,30 @@ export class DeltaEngineService {
     //       relevance service's SYSTEM path.
     // (3) is ADDITIVE: it pulls in clients with NO watch and NO peNumber capability, so a
     // keyword/award/facility-relevant client still appears in relatedClientIds.
-    const [watches, capabilities, relevant] = await Promise.all([
-      // tenant-scope-exempt: cross-tenant fan-out — finds which tenants watch this PE to route per-tenant alerts.
-      this.prisma.programElementWatch.findMany({ where: { peCode }, select: { tenantId: true } }),
-      // Match BOTH the legacy scalar peNumber and the multi-PE peNumbers[] array directly, so
-      // a peNumbers[]-only capability is caught here (not only via the relevance leg, which
-      // has a .catch->[] fallback that could silently drop it).
-      // Cross-tenant BY DESIGN (enumerate every tenant whose capability names
-      // this PE). client_capabilities is RLS-FORCED, so this must run on the
-      // system (bypass) path or it returns zero rows for the app role.
-      this.prisma.withSystem((tx) =>
-        tx.clientCapability.findMany({
+    const [{ watches, capabilities }, relevant] = await Promise.all([
+      // Both of these enumerations are cross-tenant BY DESIGN, and BOTH tables are
+      // RLS-FORCED — client_capabilities since the tenancy migration, and
+      // program_element_watch as of the Phase C tenant-isolation migration. The
+      // runtime role (capiro_app) is NOT BYPASSRLS, so a plain read returns zero
+      // rows with no error. For the watch leg that failure is silent and total:
+      // every tenant reached ONLY by a watch would drop out of alert routing. Keep
+      // both reads on the system (bypass) path, in one transaction so the fan-out
+      // costs a single pooled connection.
+      this.prisma.withSystem(async (tx) => {
+        // Which tenants watch this PE — used to route per-tenant alerts.
+        const watchRows = await tx.programElementWatch.findMany({
+          where: { peCode },
+          select: { tenantId: true },
+        });
+        // Match BOTH the legacy scalar peNumber and the multi-PE peNumbers[] array
+        // directly, so a peNumbers[]-only capability is caught here (not only via the
+        // relevance leg, which has a .catch->[] fallback that could silently drop it).
+        const capabilityRows = await tx.clientCapability.findMany({
           where: { OR: [{ peNumber: peCode }, { peNumbers: { has: peCode } }] },
           select: { tenantId: true, clientId: true },
-        }),
-      ),
+        });
+        return { watches: watchRows, capabilities: capabilityRows };
+      }),
       this.relevanceService
         ? this.relevanceService
             .getRelevantTenantClientsForPe(peCode, { minScore: 0.5 })

@@ -330,11 +330,17 @@ export class BillPeExtractorService {
   ): Promise<boolean> {
     if (addedPeCodes.length === 0) return false;
 
-    const watches = await this.prisma.programElementWatch.findMany({
-      // tenant-scope-exempt: cross-tenant fan-out — finds which tenants watch these PEs to route per-tenant alerts.
-      where: { peCode: { in: addedPeCodes } },
-      select: { tenantId: true, peCode: true },
-    });
+    // Cross-tenant BY DESIGN: find which tenants watch these PEs so one alert can be
+    // routed per tenant. program_element_watch is RLS-FORCED as of the Phase C
+    // tenant-isolation migration and the runtime role (capiro_app) is NOT BYPASSRLS,
+    // so a plain read returns zero rows with no error — which the early return below
+    // would turn into "no tenant watches this PE", silently emitting nothing forever.
+    const watches = await this.prisma.withSystem((tx) =>
+      tx.programElementWatch.findMany({
+        where: { peCode: { in: addedPeCodes } },
+        select: { tenantId: true, peCode: true },
+      }),
+    );
     if (watches.length === 0) return false;
 
     const watchedAdded = Array.from(new Set(watches.map((w) => w.peCode)));

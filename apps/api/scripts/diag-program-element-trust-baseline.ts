@@ -277,9 +277,19 @@ async function main(): Promise<void> {
       if (hasPdoc && hasOp5) bothDetails += 1;
     }
 
-    const watches = await prisma.programElementWatch.findMany({
-      select: { tenantId: true, userId: true, peCode: true },
-      orderBy: [{ tenantId: 'asc' }, { userId: 'asc' }, { peCode: 'asc' }],
+    // program_element_watch is the ONLY tenant-scoped table this diagnostic reads, and
+    // it is RLS-FORCED as of the Phase C tenant-isolation migration. Neither role that
+    // runs this script bypasses that policy, so a plain read returns zero rows with no
+    // error — indistinguishable from "no watches exist". That would make this
+    // diagnostic report zero duplicate tenant/user/PE triples and zero cross-tenant
+    // user+PE pairs, i.e. falsely certify that the Phase C expand migration is safe to
+    // apply. Set the bypass GUC the way PrismaService.withSystem does.
+    const watches = await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe("SELECT set_config('app.bypass_rls','on',true)");
+      return tx.programElementWatch.findMany({
+        select: { tenantId: true, userId: true, peCode: true },
+        orderBy: [{ tenantId: 'asc' }, { userId: 'asc' }, { peCode: 'asc' }],
+      });
     });
     const watchesByTenant: Record<string, number> = {};
     const watchesByUser: Record<string, number> = {};
