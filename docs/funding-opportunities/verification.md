@@ -280,14 +280,18 @@ Named individually so none of it reads as covered.
 | Narrow viewport | **NOT RUN** | Same reason. No responsive assertion exists either — component tests render at jsdom's default size. This is unmeasured, not passing. It is step 15.12 of the runbook |
 | Keyboard navigation | **PARTIAL** | Every filter control has an asserted accessible name, which is a precondition for keyboard use, not proof of it. No focus-order or tab-traversal walk was performed; that is step 15.13 of the runbook |
 | Request-failure states | **COVERED** | Asserted in tests, both rails: API throws rather than returning empty, web renders an error branch. Three specs |
-| Migration applied to a database | **NOT RUN** | Forbidden by the safety boundaries. The migration is verified statically (11 assertions) and will additionally be applied against real Postgres by `engagement-trust-boundary.yml`, which runs on every PR — that is the first real-database exercise it gets |
+| Migration applied to a **live** database | **NOT RUN** | Forbidden by the safety boundaries. RB-1 |
+| Migration applied to **any** database | **DONE, in CI** | `engagement-trust-boundary.yml` ran `prisma migrate deploy` against a clean Postgres service container on this branch and logged `Applying migration 20260810010000_funding_opportunities` followed by `All migrations have been successfully applied.` — 187 migrations, check **passed** in 3m37s. So the migration is no longer only statically verified: it is known to apply, in order, to an empty database. That is not the same as applying to *production*, which has data and is still RB-1 |
 | Producer runs against real data | **NOT RUN** | Forbidden. Dry-run commands are in the runbook, unexecuted |
 | Repo-wide lint | **NOT RUNNABLE** | `pnpm lint` is non-functional repo-wide (eslint is not installed); CI substitutes `prettier --check` scoped to MeriV2 + shared, which this branch does not touch. Documented in `ci-pr.yml`'s own header |
-| CI on the branch | see below | The 6 implementation commits were unpushed until this verification pass, so no CI run existed to report on |
+| CI on the branch | **GREEN** | All three required checks pass on `50970a06`: `verify` (ci-pr) 5m32s, `legiwatch` 6m2s, `engagement` 3m37s. Read the next section for what that does and does not cover |
 
-### What CI will and will not check
+### What CI checked, and what a green PR does not mean
 
-Worth stating because a green PR here is a narrower claim than it looks:
+All three checks are **green on `50970a06`**. Worth spelling out because that is a
+narrower claim than it looks — and note the repo has **no enforced required
+checks** (branch protection is unavailable on this plan), so green CI is evidence,
+not a gate:
 
 - `ci-pr.yml` (every PR) — `pnpm audit` (advisory, `|| true`), prisma generate,
   prettier on MeriV2 + shared, a BYOK guard, `pnpm turbo run typecheck`, and the
@@ -301,10 +305,18 @@ Worth stating because a green PR here is a narrower claim than it looks:
 - `engagement-trust-boundary.yml` (every PR) — applies migrations to a real
   Postgres service container. This is the gate that turned `main` red when #651
   shipped `ALTER TABLE "client"` against a table actually mapped as `clients`, so
-  it is the one that matters most here. The prerequisites this migration needs —
+  it is the one that matters most here, and it is the only check that touches a
+  database at all. It **passed**, having applied all 187 migrations including
+  `20260810010000_funding_opportunities`. The prerequisites this migration needs —
   the `uuid-ossp` extension, `rls_bypass()` and `current_tenant_id()` — are all
   created by `20260501000000_init_identity_tenancy`, and 42 existing migrations
   already call `uuid_generate_v4()`.
+
+What green CI therefore does **not** establish: that any `apps/api` or `apps/web`
+suite passes (neither is run by any check outside LegiWatch's enumerated scope),
+that the feature behaves correctly against real data, or that the migration
+applies cleanly to a database **that already has rows**. The first is covered by
+the local full-suite comparison above; the other two are not covered anywhere yet.
 
 ---
 
@@ -313,7 +325,7 @@ Worth stating because a green PR here is a narrower claim than it looks:
 | # | Blocker | State |
 | --- | --- | --- |
 | MB-1 | `verification.md` says `Overall: PASS` | **RESOLVED** — this file |
-| MB-2 | CI green on the branch | recorded in the PR once the push produces a run; see the CI section above for what that does and does not cover |
+| MB-2 | CI green on the branch | **RESOLVED** — `verify`, `legiwatch` and `engagement` all pass on `50970a06`. See the CI section for the narrower claim that represents |
 | MB-3 | Branch behind `main` | **RESOLVED** — 0 behind `57a8a5b2` |
 | MB-4 | Temporary CI source-packaging step removed | **RESOLVED** — `git diff origin/main -- .github/workflows/ci-pr.yml` is empty, so the step and the comment corruption the scaffold commit introduced are both gone |
 | MB-5 | Manual browser walk of the new surface | **OPEN** — see "What was NOT verified". Component tests are not a substitute |

@@ -267,7 +267,7 @@ is not deployed. See [verification.md](./verification.md).
 | # | Blocker | State |
 | --- | --- | --- |
 | MB-1 | `verification.md` must say `Overall: PASS` | RESOLVED — it does, with the scope of that word stated in the file |
-| MB-2 | CI green on the branch | The 6 implementation commits were unpushed until the verification pass, so no run existed. Recorded on the PR once the push produces one. Note what CI covers: `ci-pr.yml` never runs the `apps/api` or `apps/web` suites, so the local branch-vs-baseline comparison in verification.md is the only evidence of no regression |
+| MB-2 | CI green on the branch | **RESOLVED** — all three checks pass on `50970a06`: `verify` 5m32s, `legiwatch` 6m2s, `engagement` 3m37s. `engagement` applied all 187 migrations to a clean Postgres, this one included. But `ci-pr.yml` never runs the `apps/api` or `apps/web` suites, so the local branch-vs-baseline comparison in verification.md remains the only evidence of no regression |
 | MB-3 | Branch behind main | RESOLVED — `main` merged, no conflicts |
 | MB-4 | Temporary CI step removed | RESOLVED |
 | MB-5 | Manual browser walk of the new surface | **OPEN.** The branch is not deployed and the flag is off everywhere, so no browser walk of this feature has happened. Component tests are not a substitute for it. Steps 15.1–15.14 of the runbook are that walk, including the two things nothing here measures: reflow at ~820px and tab traversal |
