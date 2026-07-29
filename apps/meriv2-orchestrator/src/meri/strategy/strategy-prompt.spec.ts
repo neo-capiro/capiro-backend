@@ -496,13 +496,14 @@ describe('strategy-prompt — Phase 4 assurance', () => {
   });
 
   it('requires provenance for fresh nodes and document sections', () => {
-    const nodeItems = PROPOSE_STRATEGY_DRAFT_TOOL.input_schema.properties.nodes as {
-      items: { required: string[] };
-    };
-    const sectionItems = PROPOSE_DOCUMENT_DRAFT_TOOL.input_schema.properties.sections as {
-      items: { required: string[] };
-    };
-    expect(nodeItems.items.required).toContain('sources');
-    expect(sectionItems.items.required).toContain('sources');
+    // Read the real `as const` schemas directly rather than asserting a shape onto
+    // them: a cast here would blind the compiler to a schema restructure, which is
+    // precisely the regression this test exists to catch.
+    expect(PROPOSE_STRATEGY_DRAFT_TOOL.input_schema.properties.nodes.items.required).toContain(
+      'sources',
+    );
+    expect(PROPOSE_DOCUMENT_DRAFT_TOOL.input_schema.properties.sections.items.required).toContain(
+      'sources',
+    );
   });
 });

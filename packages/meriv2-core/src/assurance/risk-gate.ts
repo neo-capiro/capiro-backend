@@ -15,6 +15,34 @@ export type AssuranceSurface =
 export type AssuranceRiskLevel = 'low' | 'moderate' | 'high' | 'restricted';
 export type AssuranceReleaseDecision = 'deliver' | 'deliver_with_flags' | 'repair' | 'hold';
 
+export type AssuranceReleaseMode = 'off' | 'enforce';
+
+/**
+ * Master switch for actually WITHHOLDING output on a failed release decision.
+ *
+ * `classifyAssuranceRisk` below is deliberately broad: every external/strategy
+ * artifact and any high-risk factual category buffers before release. That is the
+ * right classification, but it means enforcing the hold changes behaviour on a
+ * large share of real traffic — a plain "ndaa status?" classifies as `bill_status`
+ * and is held whenever the same turn did not resolve authoritative status +
+ * procedure evidence. So the hold ships DARK and is enabled per environment during
+ * the canary, mirroring the existing MERI_AUDITOR_MODE switch.
+ *
+ * With `off`, the pre-Phase-4 behaviour is preserved exactly: stream the reply and
+ * attach a post-hoc grounding caveat. Classification, the claim ledger, and the
+ * release metrics still run, so the gate can be observed before it is armed.
+ *
+ * Pure by design — callers pass the raw environment value so this stays testable
+ * and this package keeps no ambient environment dependency.
+ */
+export function resolveAssuranceReleaseMode(raw: string | undefined): AssuranceReleaseMode {
+  return String(raw ?? '')
+    .trim()
+    .toLowerCase() === 'enforce'
+    ? 'enforce'
+    : 'off';
+}
+
 export const HIGH_RISK_CLAIM_CATEGORIES = new Set([
   'bill_status',
   'member_vote',

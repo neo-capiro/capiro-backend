@@ -98,7 +98,7 @@ export const governmentAffairsAssuranceCase: EvalCase = {
           status: 'introduced',
         },
       ],
-    );
+    });
     if (!findings.some((finding) => finding.check === 'GA-L1-enactment-proof')) {
       failures.push('enactment-proof incident fixture did not fire');
     }

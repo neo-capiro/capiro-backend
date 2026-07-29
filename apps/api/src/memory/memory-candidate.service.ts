@@ -1,4 +1,10 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -194,6 +200,7 @@ export class MemoryCandidateService {
     approverUserId: string,
   ): Promise<{ memoryId: string }> {
     const candidate = await this.getPendingOrThrow(tenantId, candidateId);
+    this.requireIndependentReviewer(candidate, approverUserId);
     const record = payloadToSaveRequest(candidate.payload);
     const memoryId = await this.commitToClioMemory(tenantId, record);
     await this.markDecided(tenantId, candidateId, 'approved', approverUserId, memoryId);
@@ -204,6 +211,29 @@ export class MemoryCandidateService {
   async reject(tenantId: string, candidateId: string, reviewerUserId: string): Promise<void> {
     await this.getPendingOrThrow(tenantId, candidateId);
     await this.markDecided(tenantId, candidateId, 'rejected', reviewerUserId, null);
+  }
+
+  /**
+   * Segregation of duties. Approving a shared-scope candidate is what turns a
+   * proposal into firm/client memory that every other user will later be served
+   * as institutional truth, so the approver must not be the proposer. The route's
+   * `@Roles('user_admin')` guard is a role check, not an independence check — an
+   * admin's own firm-scope proposal was previously self-ratifiable in one call.
+   *
+   * Personal scope is deliberately exempt: it is the proposer's own memory and
+   * nobody else can review it. Rejection is also exempt — declining your own
+   * proposal is a withdrawal and writes no memory.
+   */
+  private requireIndependentReviewer(
+    candidate: { proposedBy: string; scope: string },
+    approverUserId: string,
+  ): void {
+    const shared = candidate.scope === 'firm' || candidate.scope === 'client';
+    if (shared && candidate.proposedBy === approverUserId) {
+      throw new ForbiddenException(
+        'Shared-scope memory must be approved by a reviewer other than the proposer.',
+      );
+    }
   }
 
   /**
@@ -227,11 +257,11 @@ export class MemoryCandidateService {
   private async getPendingOrThrow(
     tenantId: string,
     candidateId: string,
-  ): Promise<{ id: string; payload: unknown }> {
+  ): Promise<{ id: string; payload: unknown; proposedBy: string; scope: string }> {
     const row = await this.prisma.withTenant(tenantId, (tx) =>
       tx.memoryCandidate.findFirst({
         where: { id: candidateId, tenantId, status: 'pending' },
-        select: { id: true, payload: true },
+        select: { id: true, payload: true, proposedBy: true, scope: true },
       }),
     );
     if (!row) {

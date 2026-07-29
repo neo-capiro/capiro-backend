@@ -25,6 +25,12 @@ export interface MemoryAuthorizationSubject {
   clientId?: string | null;
   status?: GovernedMemoryStatus | string | null;
   legalHold?: boolean | null;
+  /**
+   * Candidate subjects only: who proposed the pending change. Shared-scope
+   * review/approval must come from somebody else (segregation of duties). Item
+   * subjects carry no proposer, so the rule stays inert for them.
+   */
+  proposedByUserId?: string | null;
 }
 
 export interface MemoryAuthorizationFacts {
@@ -52,6 +58,7 @@ export type MemoryAuthorizationDecision =
         | 'missing_grant'
         | 'admin_required'
         | 'legal_hold'
+        | 'self_review'
         | 'unsupported_operation';
     };
 
@@ -65,6 +72,19 @@ function isTerminal(status: string | null | undefined): boolean {
 
 function isDestructive(operation: MemoryOperation): boolean {
   return ['edit', 'revoke'].includes(operation);
+}
+
+/**
+ * Segregation of duties on shared memory: the reviewer must not be the proposer.
+ * Enforced only when the proposer is actually known, so item subjects (no
+ * proposer) and user-private memory (deliberately self-approvable by its owner)
+ * are unaffected. An admin proposer is not an exception — being able to write a
+ * firm-wide institutional claim and then ratify it alone is the whole hole.
+ */
+function isSelfReview(facts: MemoryAuthorizationFacts): boolean {
+  if (facts.operation !== 'approve' && facts.operation !== 'review') return false;
+  const proposer = facts.subject.proposedByUserId;
+  return Boolean(proposer) && proposer === facts.userId;
 }
 
 /**
@@ -110,6 +130,7 @@ export function evaluateGovernedMemoryAuthorization(
     if (readOnly || operation === 'propose') {
       return { allowed: true, basis: 'tenant_read' };
     }
+    if (isSelfReview(facts)) return { allowed: false, reason: 'self_review' };
     const grants = new Set(facts.grantPermissions ?? []);
     if (grants.has(operation)) return { allowed: true, basis: 'explicit_grant' };
     if (admin) return { allowed: true, basis: 'admin' };
@@ -118,6 +139,7 @@ export function evaluateGovernedMemoryAuthorization(
 
   if (subject.scope === 'firm' || subject.memoryClass === 'institutional_authoritative') {
     if (readOnly || operation === 'propose') return { allowed: true, basis: 'tenant_read' };
+    if (isSelfReview(facts)) return { allowed: false, reason: 'self_review' };
     if (admin) return { allowed: true, basis: 'admin' };
     return { allowed: false, reason: 'admin_required' };
   }

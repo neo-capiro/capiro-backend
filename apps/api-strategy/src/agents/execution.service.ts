@@ -42,6 +42,7 @@ import { PENDING_ARTIFACT_REF } from './artifact-ref.js';
 import {
   GENERATION_ASSURANCE_HOLD_REASON,
   assessGeneratedDocumentForRelease,
+  generationReleaseHoldEnforced,
 } from './execution-assurance.js';
 import { isActionAllowed, reasonForState } from './run-state.js';
 import type {
@@ -832,7 +833,7 @@ export class ExecutionService {
       }),
     );
     const assurance = assessGeneratedDocumentForRelease(doc);
-    if (!assurance.releaseable) {
+    if (generationReleaseHoldEnforced() && !assurance.releaseable) {
       await this.releaseArtifactReservation(tenantId, node.id, 'workspace_draft');
       return {
         status: 'generation_held',
@@ -912,7 +913,7 @@ export class ExecutionService {
       }),
     );
     const assurance = assessGeneratedDocumentForRelease(doc);
-    if (!assurance.releaseable) {
+    if (generationReleaseHoldEnforced() && !assurance.releaseable) {
       await this.releaseArtifactReservation(tenantId, node.id, 'outreach_record');
       return {
         status: 'generation_held',

@@ -12,6 +12,7 @@ import {
   buildClaimLedgerFromToolResults,
   classifyAssuranceRisk,
   evaluateAssuranceRelease,
+  resolveAssuranceReleaseMode,
   runGovernmentAffairsChecks,
   assuranceMetric,
   metricLogLine,
@@ -159,7 +160,15 @@ export class ChatAssistantService {
       surface: 'chat',
     });
     const assuranceRisk = classifyAssuranceRisk('chat', evidencePlan);
-    const bufferBeforeRelease = assuranceRisk.requiresBufferBeforeRelease;
+    // Phase 4's pre-release hold is DARK by default (MERI_RELEASE_GATE=enforce arms
+    // it). The classifier is broad by design — a plain "ndaa status?" is bill_status
+    // and would be withheld whenever the same turn did not resolve authoritative
+    // status + procedure evidence — so arming it is a canary decision, not a deploy
+    // side effect. With the switch off, chat keeps the pre-Phase-4 contract exactly:
+    // stream the reply, then attach a post-hoc grounding caveat.
+    const bufferBeforeRelease =
+      resolveAssuranceReleaseMode(process.env.MERI_RELEASE_GATE) === 'enforce' &&
+      assuranceRisk.requiresBufferBeforeRelease;
 
     // Vision (2.2): attach current-turn images as native Anthropic vision blocks
     // on the last user message — images first, then the text (legacy parity, the

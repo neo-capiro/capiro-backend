@@ -141,6 +141,7 @@ export class MemoryAuthorizationService {
              mc.tenant_id::text AS "tenantId",
              mc.client_id::text AS "clientId",
              mc.proposed_by::text AS "ownerUserId",
+             mc.proposed_by::text AS "proposedByUserId",
              mc.memory_class AS "memoryClass",
              mc.memory_scope AS scope,
              mc.governed_status AS status,

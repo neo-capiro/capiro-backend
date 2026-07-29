@@ -157,4 +157,122 @@ describe('evaluateGovernedMemoryAuthorization', () => {
       ),
     ).toEqual({ allowed: false, reason: 'revoked_or_terminal' });
   });
+
+  it('denies shared-scope self-review, including for an admin proposer', () => {
+    expect(
+      evaluateGovernedMemoryAuthorization(
+        facts({
+          role: 'user_admin',
+          operation: 'approve',
+          subject: {
+            memoryClass: 'client_steering',
+            scope: 'client',
+            clientId: 'client-a',
+            status: 'pending_review',
+            proposedByUserId: 'user-1',
+          },
+        }),
+      ),
+    ).toEqual({ allowed: false, reason: 'self_review' });
+    expect(
+      evaluateGovernedMemoryAuthorization(
+        facts({
+          role: 'user_admin',
+          operation: 'approve',
+          subject: {
+            memoryClass: 'institutional_authoritative',
+            scope: 'firm',
+            status: 'pending_review',
+            proposedByUserId: 'user-1',
+          },
+        }),
+      ),
+    ).toEqual({ allowed: false, reason: 'self_review' });
+  });
+
+  it('denies a proposer reviewing their own shared candidate, not just approving it', () => {
+    expect(
+      evaluateGovernedMemoryAuthorization(
+        facts({
+          role: 'user_admin',
+          operation: 'review',
+          subject: {
+            memoryClass: 'institutional_authoritative',
+            scope: 'firm',
+            status: 'pending_review',
+            proposedByUserId: 'user-1',
+          },
+        }),
+      ),
+    ).toEqual({ allowed: false, reason: 'self_review' });
+  });
+
+  it('allows an independent admin reviewer to approve the same firm candidate', () => {
+    expect(
+      evaluateGovernedMemoryAuthorization(
+        facts({
+          userId: 'reviewer-2',
+          role: 'user_admin',
+          operation: 'approve',
+          subject: {
+            memoryClass: 'institutional_authoritative',
+            scope: 'firm',
+            status: 'pending_review',
+            proposedByUserId: 'user-1',
+          },
+        }),
+      ),
+    ).toEqual({ allowed: true, basis: 'admin' });
+  });
+
+  it('allows a grant-holding reviewer who did not propose the client change', () => {
+    expect(
+      evaluateGovernedMemoryAuthorization(
+        facts({
+          operation: 'approve',
+          grantPermissions: ['approve'],
+          subject: {
+            memoryClass: 'client_steering',
+            scope: 'client',
+            clientId: 'client-a',
+            status: 'pending_review',
+            proposedByUserId: 'someone-else',
+          },
+        }),
+      ),
+    ).toEqual({ allowed: true, basis: 'explicit_grant' });
+  });
+
+  it('still lets an owner approve their own user-private memory', () => {
+    expect(
+      evaluateGovernedMemoryAuthorization(
+        facts({
+          operation: 'approve',
+          subject: {
+            memoryClass: 'user_preference',
+            scope: 'user_private',
+            ownerUserId: 'user-1',
+            proposedByUserId: 'user-1',
+            status: 'pending_review',
+          },
+        }),
+      ),
+    ).toEqual({ allowed: true, basis: 'owner' });
+  });
+
+  it('leaves item subjects (no known proposer) unaffected by the independence rule', () => {
+    expect(
+      evaluateGovernedMemoryAuthorization(
+        facts({
+          role: 'user_admin',
+          operation: 'approve',
+          subject: {
+            memoryClass: 'institutional_authoritative',
+            scope: 'firm',
+            status: 'active',
+          },
+        }),
+      ),
+    ).toEqual({ allowed: true, basis: 'admin' });
+  });
 });

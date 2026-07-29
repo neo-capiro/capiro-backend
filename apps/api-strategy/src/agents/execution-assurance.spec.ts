@@ -4,6 +4,7 @@ import { assessGeneratedDocumentForRelease } from './execution-assurance.js';
 const healthy = {
   status: 'ok' as const,
   missingRequired: [],
+  omittedOptional: [],
   openMaterialConflicts: [],
 };
 
@@ -29,6 +30,7 @@ describe('assessGeneratedDocumentForRelease', () => {
       groundingHealth: {
         status: 'conflicted',
         missingRequired: ['authorized ask'],
+        omittedOptional: [],
         openMaterialConflicts: [
           { id: 'c1', factAId: 'a', factBId: 'b', factA: 'A', factB: 'B' },
         ],
