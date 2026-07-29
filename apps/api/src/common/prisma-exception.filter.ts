@@ -54,6 +54,26 @@ export class PrismaClientExceptionFilter implements ExceptionFilter {
           .status(HttpStatus.NOT_FOUND)
           .json({ statusCode: HttpStatus.NOT_FOUND, message: 'Not found' });
         return;
+      // P2024: timed out fetching a connection from the pool.
+      // P2028: transaction API error — in practice "Unable to start a
+      // transaction in the given time", the same pool exhaustion one layer up.
+      // Neither is a fault in the request that happened to lose the race: a
+      // burst of background Graph syncs can starve the pool and make an
+      // unrelated save fail. Reporting 500 made that look like a bug in
+      // whatever the user was saving, with no hint that a retry would work.
+      case 'P2024':
+      case 'P2028':
+        // ERROR, not warn: 503 is the honest answer to the caller, but a
+        // starved pool is a real server-side condition that must stay visible
+        // in the logs and in 5xx alarms.
+        this.logger.error(
+          `Prisma ${exception.code} mapped to 503 (database capacity): ${lastLine(exception.message)}`,
+        );
+        res.status(HttpStatus.SERVICE_UNAVAILABLE).setHeader('Retry-After', '2').json({
+          statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+          message: 'The database is temporarily busy. Please retry.',
+        });
+        return;
       default:
         // Preserve the previous 500 for anything we don't explicitly map, but
         // keep the full message, meta (model/column/target), and stack that

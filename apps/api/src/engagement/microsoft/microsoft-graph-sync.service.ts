@@ -67,6 +67,31 @@ const MAX_RETRYABLE_ATTEMPTS = 3;
 // (association was moved out of it — see persistGraphEvent/persistGraphMessage).
 const GRAPH_SYNC_TX_TIMEOUT_MS = 20_000;
 
+// How many notification-driven syncs may run at once, per API task.
+//
+// Each sync opens interactive transactions against a pool sized by
+// `connection_limit=10` (set in apps/api/scripts/entrypoint-dispatcher.inc), so
+// this must stay well under that: a sync's phase-2 write txn also waits on the
+// per-tenant advisory lock, and a connection held while waiting is a connection
+// no other request can use. 2 keeps a burst of reconnecting mailboxes from
+// consuming the pool while still overlapping Graph latency.
+const MAX_CONCURRENT_NOTIFICATION_SYNCS = 2;
+
+interface NotificationSyncTask {
+  key: string;
+  connectionId: string;
+  run: () => Promise<unknown>;
+}
+
+interface NotificationSyncQueueState {
+  queue: NotificationSyncTask[];
+  /** Keys waiting to start — a second notification for one of these coalesces. */
+  queued: Set<string>;
+  /** Keys mid-flight — never start a second sync for the same key concurrently. */
+  running: Set<string>;
+  active: number;
+}
+
 interface MicrosoftSyncState {
   calendar?: {
     cursor?: string | null;
@@ -238,6 +263,25 @@ export class MicrosoftGraphSyncService {
   private readonly stateSecret?: Buffer;
   private readonly notificationUrl?: string;
   private msal?: ConfidentialClientApplication;
+
+  // Bounded notification-sync queue (see enqueueNotificationSync). Per-instance,
+  // so the bound is per API task — total concurrency is this × task count.
+  //
+  // Lazily created rather than a field initializer on purpose: this class is
+  // constructed with `Object.create(MicrosoftGraphSyncService.prototype)` in
+  // three spec files, which skips field initializers entirely. A plain `= []`
+  // here would leave the queue undefined and make handleNotifications throw
+  // only under test.
+  private notificationSyncs?: NotificationSyncQueueState;
+
+  private get notificationSyncState(): NotificationSyncQueueState {
+    return (this.notificationSyncs ??= {
+      queue: [],
+      queued: new Set<string>(),
+      running: new Set<string>(),
+      active: 0,
+    });
+  }
 
   constructor(
     private readonly prisma: PrismaService,
@@ -598,15 +642,82 @@ export class MicrosoftGraphSyncService {
       }
     }
 
-    for (const { tenantId, connectionId, syncInput } of pendingSyncs.values()) {
-      void this.syncConnectionByTenant(tenantId, connectionId, syncInput).catch((err) => {
-        this.logger.error(
-          `Graph notification sync failed for connection ${connectionId}: ${(err as Error).message}`,
-        );
-      });
+    // The coalescing above is per-REQUEST only: it coalesces notifications
+    // inside one webhook POST. Graph delivers bursts across many POSTs, and
+    // every distinct (connection, resource) pair still launched immediately and
+    // unawaited — so N mailboxes reconnecting produced unbounded concurrent
+    // syncs against a pool of `connection_limit=10` per task. That starved the
+    // pool and surfaced as P2028 ("Unable to start a transaction in the given
+    // time") on *unrelated* writes elsewhere in the API. Hand each sync to a
+    // bounded queue that coalesces across requests too.
+    let scheduledSyncs = 0;
+    for (const [key, { tenantId, connectionId, syncInput }] of pendingSyncs) {
+      const enqueued = this.enqueueNotificationSync(key, connectionId, () =>
+        this.syncConnectionByTenant(tenantId, connectionId, syncInput),
+      );
+      if (enqueued) scheduledSyncs += 1;
     }
 
-    return { accepted, scheduledSyncs: pendingSyncs.size };
+    return { accepted, scheduledSyncs };
+  }
+
+  /**
+   * Queue a notification-driven sync, bounded to MAX_CONCURRENT_NOTIFICATION_SYNCS.
+   *
+   * Returns false when an identical key is already waiting to run — that queued
+   * run will pick up the same changes, so a second entry would only duplicate
+   * Graph calls. A key that is currently RUNNING is still queued again: changes
+   * that arrived mid-sync need one more pass to be observed.
+   *
+   * Deliberately fire-and-forget. The webhook must answer Graph promptly or it
+   * retries and then drops the subscription; the caller awaiting these syncs is
+   * what the bound replaces, not what it restores.
+   */
+  private enqueueNotificationSync(
+    key: string,
+    connectionId: string,
+    run: () => Promise<unknown>,
+  ): boolean {
+    const state = this.notificationSyncState;
+    if (state.queued.has(key)) return false;
+    state.queued.add(key);
+    state.queue.push({ key, connectionId, run });
+    this.drainNotificationSyncQueue();
+    return true;
+  }
+
+  private drainNotificationSyncQueue(): void {
+    const state = this.notificationSyncState;
+    while (state.active < MAX_CONCURRENT_NOTIFICATION_SYNCS) {
+      // Skip over any task whose key is mid-flight rather than dequeuing it —
+      // two syncs of the same (connection, resource) would race on the same
+      // cursor. A finishing run re-drains, so the skipped task is not stranded.
+      const index = state.queue.findIndex((task) => !state.running.has(task.key));
+      if (index === -1) return;
+
+      const task = state.queue.splice(index, 1)[0];
+      // findIndex just proved this exists; the check satisfies
+      // noUncheckedIndexedAccess without an assertion.
+      if (!task) return;
+      state.queued.delete(task.key);
+      state.running.add(task.key);
+      state.active += 1;
+
+      void task
+        .run()
+        .catch((err: unknown) => {
+          this.logger.error(
+            `Graph notification sync failed for connection ${task.connectionId}: ${
+              err instanceof Error ? err.message : err
+            }`,
+          );
+        })
+        .finally(() => {
+          state.running.delete(task.key);
+          state.active -= 1;
+          this.drainNotificationSyncQueue();
+        });
+    }
   }
 
   /**
