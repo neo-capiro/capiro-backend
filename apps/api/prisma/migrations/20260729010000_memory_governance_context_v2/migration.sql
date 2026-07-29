@@ -340,8 +340,18 @@ CREATE POLICY memory_cleanup_outbox_tenant_isolation ON memory_cleanup_outbox
 -- ContextPacket v2 metadata. Items/exclusions remain bounded JSON metadata;
 -- rendered body text is never copied into this table.
 -- ---------------------------------------------------------------------------
+-- packet_version is OWNED by 20260803010000_engagement_generation_gateway, where
+-- 1 = legacy steering-only trace and 2 = a complete Evidence Packet. That name
+-- sorts AFTER this migration, so a freshly built environment applies this one
+-- first while prod (which already has the engagement migration) applies it last.
+-- The definition below is therefore kept BYTE-COMPATIBLE with the engagement
+-- migration's (integer NOT NULL DEFAULT 2) so whichever runs first wins
+-- identically and the other's ADD COLUMN IF NOT EXISTS is a true no-op. It was
+-- previously `smallint NOT NULL DEFAULT 1`, which meant a fresh environment got
+-- a smallint column defaulting to 1 -- diverging in BOTH type and default from
+-- prod, and silently making every new write claim to be a legacy v1 trace.
 ALTER TABLE context_packet
-  ADD COLUMN IF NOT EXISTS packet_version smallint NOT NULL DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS packet_version integer NOT NULL DEFAULT 2,
   ADD COLUMN IF NOT EXISTS effective_tenant_id uuid,
   ADD COLUMN IF NOT EXISTS actor_user_id uuid,
   ADD COLUMN IF NOT EXISTS trace_id varchar(160),
@@ -355,9 +365,15 @@ ALTER TABLE context_packet
   ADD COLUMN IF NOT EXISTS truncated boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS incomplete boolean NOT NULL DEFAULT false;
 
+-- Backfill the new tenant column only. This deliberately no longer writes
+-- packet_version: `WHERE effective_tenant_id IS NULL` matches EVERY pre-existing
+-- row (the column is created NULL just above), so `SET packet_version = 1` here
+-- stamped 1 over every row in the table -- including genuine complete Evidence
+-- Packets. The engagement migration downgrades legacy rows correctly and
+-- narrowly, with `WHERE packet_version = 2 AND packet_hash IS NULL`; relabelling
+-- a real v2 packet as a v1 trace is exactly what that predicate exists to avoid.
 UPDATE context_packet
-SET effective_tenant_id = tenant_id,
-    packet_version = 1
+SET effective_tenant_id = tenant_id
 WHERE effective_tenant_id IS NULL;
 
 ALTER TABLE context_packet ALTER COLUMN effective_tenant_id SET NOT NULL;
