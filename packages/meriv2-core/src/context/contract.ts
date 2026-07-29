@@ -112,6 +112,16 @@ export interface ContextRequest {
   compilerVersion?: string | null;
   /** Server-validated ids selected by the user in a Context Builder. */
   selectedItemIds?: readonly string[];
+  /**
+   * SERVER-DERIVED ethical-wall decision for `clientId`: may this actor be shown
+   * this client's confidential material?
+   *
+   * Fail-closed — only the literal `true` admits client-scope memory into a v2
+   * packet. Omitting it (or passing a browser-supplied value) denies. The
+   * compiler previously hardcoded `true` here, which meant every v2 surface
+   * bypassed the wall entirely.
+   */
+  ethicalWallAllowed?: boolean;
   /** Sensitivities the caller is authorized to include. */
   allowedSensitivities?: readonly MemorySensitivity[];
   /** Optional four-eyes policy for classes that require approval. */

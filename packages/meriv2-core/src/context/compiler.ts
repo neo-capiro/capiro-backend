@@ -185,7 +185,11 @@ export class ContextCompiler {
           tenantId: req.effectiveTenantId ?? req.tenantId,
           userId: req.userId ?? '',
           clientId: req.clientId ?? null,
-          ethicalWallAllowed: true,
+          // Server-derived and fail-closed (closeout §6, contract changes 3+4).
+          // This was hardcoded `true`, so EVERY v2 compile bypassed the ethical
+          // wall and served walled client memory straight into the prompt. The
+          // caller must resolve the wall server-side and say so explicitly.
+          ethicalWallAllowed: req.ethicalWallAllowed === true,
           allowedSensitivities: req.allowedSensitivities ?? ['normal'],
           fourEyesEnabled: req.fourEyesEnabled ?? false,
           now,

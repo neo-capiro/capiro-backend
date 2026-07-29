@@ -14,6 +14,7 @@ import { MeriToolsService } from '../meri/meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { DOMAIN_PRIMER, extractCitedPeCodes } from '../meri/meri-domain-fanout.helpers.js';
 import {
   collectPeStructuralWarnings,
@@ -513,13 +514,22 @@ export class WorkspaceAssistantService {
     traceId: string,
   ): Promise<CompiledContextPacket> {
     const clientId = dto.clientId?.trim() || null;
+    // Server-derived ethical-wall decision for the v2 compile (closeout §6),
+    // resolved on the same transaction as the client-existence check and for the
+    // REAL caller. Stays `false` when no client is in scope: the flag only gates
+    // client-scope rows, which a clientless request cannot match anyway.
+    let ethicalWallAllowed = false;
     if (clientId) {
-      const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.client.findFirst({
+      const client = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        const found = await tx.client.findFirst({
           where: { id: clientId, tenantId: ctx.tenantId },
           select: { id: true },
-        }),
-      );
+        });
+        if (found) {
+          ethicalWallAllowed = await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId);
+        }
+        return found;
+      });
       if (!client) throw new NotFoundException('Client was not found in this tenant');
     }
     return this.contextCompiler.compile({
@@ -541,6 +551,7 @@ export class WorkspaceAssistantService {
         surface: 'in-editor',
         traceId,
         promptVersion: PROMPT_VERSION,
+        ethicalWallAllowed,
       }),
     });
   }

@@ -56,6 +56,11 @@ const request = (over: Partial<ContextRequest> = {}): ContextRequest =>
     policyVersion: 'policy-v1',
     selectedItemIds: [],
     allowedSensitivities: ['normal'],
+    // Server-derived wall decision. The compiler is fail-closed (closeout §6.4),
+    // so client-scope rows need an explicit `true` here; the default keeps these
+    // fixtures testing selection/ranking rather than the wall. The wall's own
+    // behaviour is covered by "ethical wall is fail-closed" below.
+    ethicalWallAllowed: true,
     ...over,
   });
 
@@ -372,4 +377,64 @@ describe('cross-surface context parity', () => {
       );
     },
   );
+});
+
+/**
+ * Closeout §6, contract changes 3 and 4.
+ *
+ * `compileV2` used to pass `ethicalWallAllowed: true` as a literal, so the wall
+ * was not merely fail-open — it was not consulted at all. Every v2 surface would
+ * have rendered a walled client's confidential steering memory into the prompt.
+ * The decision is now server-derived and only the literal `true` admits
+ * client-scope memory.
+ */
+describe('ethical wall is fail-closed', () => {
+  const clientRow = () =>
+    row({
+      id: 'client-confidential',
+      type: 'client-compass',
+      slug: 'client-a',
+      title: 'Approved Client Compass',
+      clientId: 'client-a',
+      memoryClass: 'client_steering',
+      governedAuthority: 'client_approved',
+      sourceType: 'client_record',
+    });
+
+  const compileWithWall = async (ethicalWallAllowed: boolean | undefined) => {
+    const policy = contextSurfacePolicy('ga-chat');
+    return v2(
+      await compilerFor([row({ id: 'firm' }), clientRow()]).compiler.compile(
+        request({
+          layers: policy.layers,
+          tokenBudget: policy.tokenBudget,
+          ethicalWallAllowed,
+        }),
+      ),
+    );
+  };
+
+  it.each([
+    ['omitted', undefined],
+    ['explicitly denied', false],
+  ])('withholds client memory when the wall decision is %s', async (_label, decision) => {
+    const packet = await compileWithWall(decision as boolean | undefined);
+
+    expect(packet.items.find((i) => i.id === 'client-confidential')).toBeUndefined();
+    // `ethical_wall` is deliberately mapped to the generic `unauthorized`
+    // exclusion reason by suppressionToExclusion: telling the reader "a wall
+    // hid this" would itself confirm that a walled item exists for this client.
+    expect(packet.exclusions.some((e) => e.reason === 'unauthorized')).toBe(true);
+    // Withheld for access-control reasons: the excluded item's identity must not
+    // leak through the exclusion record (§6, requirement 8).
+    const leaked = JSON.stringify(packet.exclusions);
+    expect(leaked).not.toContain('Approved Client Compass');
+    // Firm-scope context is unaffected — a wall denial must not blank the packet.
+    expect(packet.items.some((i) => i.id === 'firm')).toBe(true);
+  });
+
+  it('admits client memory only on an explicit true', async () => {
+    const packet = await compileWithWall(true);
+    expect(packet.items.find((i) => i.id === 'client-confidential')).toBeDefined();
+  });
 });

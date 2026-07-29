@@ -149,6 +149,10 @@ describe('GenerationService.loadSteeringMemories (packet recomposition)', () => 
   ) {
     const compiler = {
       resolveClientIdByExactName: jest.fn(async () => opts.resolvedClientId ?? null),
+      // Server-derived ethical-wall decision (closeout §6). Allowed by default so
+      // these recomposition fixtures keep testing block/provenance assembly; the
+      // wall's fail-closed behaviour is covered in meriv2-core's compiler-v2 spec.
+      resolveEthicalWallAllowedForClerkOwner: jest.fn(async () => true),
       compileForClerkOwner: jest.fn(async () => ({
         packetId: 'pkt-1',
         rendered,

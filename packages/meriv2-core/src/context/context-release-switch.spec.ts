@@ -75,9 +75,23 @@ describe('contextPacketV2Enabled', () => {
 
 describe('contextPacketV2Overrides', () => {
   it('returns an empty object while dark, so the caller request is unchanged', () => {
-    expect(contextPacketV2Overrides(undefined, { surface: 'in-editor' })).toEqual({});
-    expect(contextPacketV2Overrides('1', { surface: 'in-editor', traceId: 't' })).toEqual({});
-    expect(contextPacketV2Overrides('enforce', { surface: 'memo', traceId: 't' })).toEqual({});
+    expect(
+      contextPacketV2Overrides(undefined, { surface: 'in-editor', ethicalWallAllowed: true }),
+    ).toEqual({});
+    expect(
+      contextPacketV2Overrides('1', {
+        surface: 'in-editor',
+        traceId: 't',
+        ethicalWallAllowed: true,
+      }),
+    ).toEqual({});
+    expect(
+      contextPacketV2Overrides('enforce', {
+        surface: 'memo',
+        traceId: 't',
+        ethicalWallAllowed: true,
+      }),
+    ).toEqual({});
   });
 
   it('opts into contract v2 with correlation + version evidence once armed', () => {
@@ -85,9 +99,11 @@ describe('contextPacketV2Overrides', () => {
       surface: 'in-editor',
       traceId: 'trace-1',
       promptVersion: 'legacy-in-editor-v2',
+      ethicalWallAllowed: true,
     });
     expect(overrides).toEqual({
       contractVersion: 2,
+      ethicalWallAllowed: true,
       traceId: 'trace-1',
       promptVersion: 'legacy-in-editor-v2',
       policyVersion: CONTEXT_POLICY_VERSION,
@@ -98,12 +114,38 @@ describe('contextPacketV2Overrides', () => {
   });
 
   /**
+   * The wall decision is required on the options type so a new v2 surface cannot
+   * be added without resolving it, and it is normalised to a strict boolean so a
+   * truthy non-boolean can never widen access (closeout §6, contract change 4).
+   */
+  it('forwards only a literal true as wall permission', () => {
+    const armed = (ethicalWallAllowed: boolean) =>
+      contextPacketV2Overrides('enforce', { surface: 'ga-chat', ethicalWallAllowed });
+
+    expect(armed(true)).toMatchObject({ ethicalWallAllowed: true });
+    expect(armed(false)).toMatchObject({ ethicalWallAllowed: false });
+    // Defence in depth against an untyped caller (plain JS, `as any`, JSON):
+    // anything that is not exactly `true` must resolve to denial.
+    for (const sneaky of ['true', 1, {}, [], 'yes']) {
+      expect(
+        contextPacketV2Overrides('enforce', {
+          surface: 'ga-chat',
+          ethicalWallAllowed: sneaky as unknown as boolean,
+        }),
+      ).toMatchObject({ ethicalWallAllowed: false });
+    }
+  });
+
+  /**
    * A trace write is diagnostics, not the answer. `persistence: 'required'` makes
    * `ContextCompiler.persist` rethrow, which would convert a fire-and-forget
    * failure into a 500 on the live in-editor route.
    */
   it('never sets persistence: a trace-write failure must stay fail-open', () => {
-    const overrides = contextPacketV2Overrides('enforce', { surface: 'ga-chat' });
+    const overrides = contextPacketV2Overrides('enforce', {
+      surface: 'ga-chat',
+      ethicalWallAllowed: true,
+    });
     expect(overrides).not.toHaveProperty('persistence');
   });
 });

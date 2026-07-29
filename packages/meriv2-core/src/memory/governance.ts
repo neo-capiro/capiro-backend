@@ -346,6 +346,13 @@ export interface MemoryRecallAccess {
   tenantId: string;
   userId: string;
   clientId?: string | null;
+  /**
+   * SERVER-DERIVED wall decision for `clientId`. **Fail-closed: only the literal
+   * `true` admits client-scope memory.** `undefined` denies, because "the caller
+   * forgot to resolve the wall" and "the caller resolved the wall and it allows
+   * this" must never be the same input. Never populate this from anything the
+   * browser sent.
+   */
   ethicalWallAllowed?: boolean;
   allowedSensitivities?: readonly MemorySensitivity[];
   fourEyesEnabled?: boolean;
@@ -369,7 +376,11 @@ export function filterGovernedMemory(
     if (!access.clientId || record.clientId !== access.clientId) {
       return { include: false, reason: 'wrong_client' };
     }
-    if (access.ethicalWallAllowed === false) return { include: false, reason: 'ethical_wall' };
+    // `!== true`, not `=== false` (closeout §6.4). An omitted decision used to be
+    // read as permission, so any adapter that had not yet been taught to resolve
+    // the wall served walled client memory into the model by default — the
+    // failure mode of an unset authorization input must be denial.
+    if (access.ethicalWallAllowed !== true) return { include: false, reason: 'ethical_wall' };
   }
   if (!['active', 'stale'].includes(record.status)) {
     return { include: false, reason: 'inactive_status' };

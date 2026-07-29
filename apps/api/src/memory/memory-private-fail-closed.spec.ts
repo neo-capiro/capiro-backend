@@ -80,7 +80,13 @@ describe('Phase 3 (3a) — memory private rows are fail-closed', () => {
 
     const meri = readFileSync(join(SRC_ROOT, 'meri', 'meri.service.ts'), 'utf8');
     // loadUserVoiceContext routes through the compiler…
-    expect(meri).toMatch(/loadUserVoiceContext[\s\S]{0,700}contextCompiler\.compile\(/);
+    //
+    // Window widened 700 → 1400 (closeout §6): the server-derived ethical-wall
+    // resolution now sits between the signature and the compile call, which put
+    // the two 1,000 chars apart. This is a proximity heuristic for "the compile
+    // happens inside this method", not a formatting rule — the guard it encodes
+    // (no hand-rolled user-voice SQL) is asserted directly on the next line.
+    expect(meri).toMatch(/loadUserVoiceContext[\s\S]{0,1400}contextCompiler\.compile\(/);
     // …and hand-rolled user-voice SQL must NOT reappear in this file.
     expect(meri).not.toMatch(/FROM memory_items[\s\S]{0,200}'user-voice'/);
     // semanticMemorySearch: user_private clio_memory rows are scoped to the owner.

@@ -3490,6 +3490,16 @@ export class MeriService {
     // the 1C owner-aware RLS gate), governance filtering and the packet trace
     // all live in ContextCompilerService now; this method only composes the
     // legacy block format from the compiled packet. Block text is unchanged.
+    //
+    // Server-derived ethical-wall decision for the v2 compile (closeout §6).
+    // Resolved here, from the database, for the REAL caller — never inferred
+    // from the request body. No client in scope ⇒ false: the flag only gates
+    // client-scope rows, which a clientless request cannot match anyway.
+    const ethicalWallAllowed = clientId
+      ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId),
+        )
+      : false;
     const packet = await this.contextCompiler.compile({
       tenantId: ctx.tenantId,
       userId: ctx.userId,
@@ -3513,6 +3523,7 @@ export class MeriService {
       ...contextPacketV2Overrides(process.env.CONTEXT_PACKET_V2, {
         surface: 'chat',
         traceId: randomUUID(),
+        ethicalWallAllowed,
       }),
     });
 

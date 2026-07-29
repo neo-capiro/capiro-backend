@@ -1557,6 +1557,17 @@ export class GenerationService {
       const clientId = await this.contextCompiler.resolveClientIdByExactName(tenantId, clientName);
       if (clientName?.trim() && !clientId) degradedReasons.push('client_not_resolved');
 
+      // Server-derived ethical-wall decision for the v2 compile (closeout §6).
+      // Read from the database for the real Clerk caller; denies on an
+      // unresolvable user or client. Only consumed when v2 is armed for this
+      // surface — contextPacketV2Overrides drops it entirely otherwise.
+      const ethicalWallAllowed = await this.contextCompiler.resolveEthicalWallAllowedForClerkOwner(
+        tenantId,
+        ownerId,
+        clientId,
+      );
+      if (clientId && !ethicalWallAllowed) degradedReasons.push('client_context_walled');
+
       const packet = await this.contextCompiler.compileForClerkOwner(
         {
           tenantId,
@@ -1572,6 +1583,7 @@ export class GenerationService {
           ...contextPacketV2Overrides(process.env.CONTEXT_PACKET_V2, {
             surface: 'workspace-gen',
             traceId: randomUUID(),
+            ethicalWallAllowed,
           }),
         },
         ownerId,

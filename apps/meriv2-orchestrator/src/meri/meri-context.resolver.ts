@@ -114,6 +114,15 @@ export class MeriContextResolver {
       const layers = clientId
         ? (['firm-identity', 'user-voice', 'client-steering', 'client-people'] as const)
         : (['firm-identity', 'user-voice'] as const);
+      // Server-derived ethical-wall decision for the v2 compile (closeout §6),
+      // resolved from the database for the REAL authenticated user — never from
+      // anything the caller sent. Only consumed when v2 is armed for this
+      // surface; contextPacketV2Overrides drops it entirely otherwise.
+      const ethicalWallAllowed = await this.resolveEthicalWallAllowed(
+        tenant.tenantId,
+        user.id,
+        clientId ?? null,
+      );
       const packet = await this.contextCompiler.compile({
         tenantId: tenant.tenantId,
         userId: user.id,
@@ -127,6 +136,7 @@ export class MeriContextResolver {
         ...contextPacketV2Overrides(process.env.CONTEXT_PACKET_V2, {
           surface,
           traceId: randomUUID(),
+          ethicalWallAllowed,
         }),
       });
       contextPacket = packetSummary(packet, surface);
@@ -192,6 +202,51 @@ export class MeriContextResolver {
       ...(clientSteering ? { clientSteering } : {}),
       ...(contextPacket ? { contextPacket } : {}),
     };
+  }
+
+  /**
+   * Server-derived ethical-wall decision: may `userId` be shown `clientId`'s
+   * confidential memory? (closeout §6, contract change 4.)
+   *
+   * Fail-closed on every uncertain input — no client, a client id that does not
+   * resolve inside this tenant, or a query error all return `false`. `compileV2`
+   * admits client-scope rows only on a literal `true`, so a wrong answer here is
+   * the difference between withholding context and rendering a walled client's
+   * material into the model prompt.
+   *
+   * Duplicated in SHAPE, not by import, from the canonical `clientMemoryAllowed`
+   * in apps/api/src/memory/memory-wall.helpers.ts: this is a separate Nest app
+   * that cannot import apps/api, but it reads the SAME physical tables
+   * (`clients.memory_wall`, `client_memory_access`) through the same generated
+   * Prisma client. The api-side helper is authoritative if they ever diverge.
+   */
+  private async resolveEthicalWallAllowed(
+    tenantId: string,
+    userId: string,
+    clientId: string | null,
+  ): Promise<boolean> {
+    if (!clientId) return false;
+    try {
+      const rows = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.$queryRaw<Array<{ allowed: boolean }>>`
+          SELECT (NOT c.memory_wall
+                  OR EXISTS (
+                        SELECT 1 FROM client_memory_access a
+                        WHERE a.tenant_id = c.tenant_id
+                          AND a.client_id = c.id
+                          AND a.user_id = ${userId}::uuid)) AS allowed
+            FROM clients c
+           WHERE c.tenant_id = ${tenantId}::uuid AND c.id = ${clientId}::uuid
+        `,
+      );
+      // No row = the client does not resolve in this tenant: deny.
+      return rows[0]?.allowed === true;
+    } catch (error) {
+      this.logger.warn(
+        `Ethical-wall resolution failed; denying client context: ${(error as Error).message}`,
+      );
+      return false;
+    }
   }
 }
 

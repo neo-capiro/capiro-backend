@@ -33,18 +33,37 @@ export class WorkspaceContextCompilerService {
     req: Omit<ContextRequest, 'userId'>,
     clerkOwnerId?: string,
   ): Promise<CompiledContextPacket> {
-    let userId: string | null = null;
-    if (clerkOwnerId) {
-      try {
-        const users = await this.prisma.$queryRaw<Array<{ id: string }>>`
-          SELECT id FROM users WHERE clerk_user_id = ${clerkOwnerId} LIMIT 1
-        `;
-        userId = users[0]?.id ?? null;
-      } catch (error) {
-        this.logger.warn(`clerk→user resolution failed (non-fatal): ${(error as Error).message}`);
-      }
-    }
+    const userId = await this.resolveUserIdByClerkId(clerkOwnerId);
     return this.compiler.compile({ ...req, userId });
+  }
+
+  /** Clerk subject → Capiro users.id. Null (not a throw) when it cannot resolve. */
+  private async resolveUserIdByClerkId(clerkOwnerId?: string): Promise<string | null> {
+    if (!clerkOwnerId) return null;
+    try {
+      const users = await this.prisma.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM users WHERE clerk_user_id = ${clerkOwnerId} LIMIT 1
+      `;
+      return users[0]?.id ?? null;
+    } catch (error) {
+      this.logger.warn(`clerk→user resolution failed (non-fatal): ${(error as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Wall decision for a Workspace caller, who is identified by a Clerk subject
+   * rather than a Capiro user id. An unresolvable Clerk subject denies, matching
+   * `fetchDeniedClientIds`'s treatment of a null user.
+   */
+  async resolveEthicalWallAllowedForClerkOwner(
+    tenantId: string,
+    clerkOwnerId: string | undefined,
+    clientId: string | null,
+  ): Promise<boolean> {
+    if (!clientId) return false;
+    const userId = await this.resolveUserIdByClerkId(clerkOwnerId);
+    return this.resolveEthicalWallAllowed(tenantId, userId, clientId);
   }
 
   /**
@@ -73,6 +92,53 @@ export class WorkspaceContextCompilerService {
       return null;
     }
     return rows[0]!.id;
+  }
+
+  /**
+   * Server-derived ethical-wall decision: may `userId` be shown `clientId`'s
+   * confidential memory? (closeout §6, contract change 4.)
+   *
+   * Fail-closed on every uncertain input — no client, no resolved user, a client
+   * id that does not exist in this tenant, or a query error all return `false`.
+   * `compileV2` only admits client-scope rows on a literal `true`, so a wrong
+   * answer here is the difference between withholding context and leaking a
+   * walled client's material into a generated deliverable.
+   *
+   * The predicate is duplicated in SHAPE, not by import, from the canonical
+   * `clientMemoryAllowed` in apps/api/src/memory/memory-wall.helpers.ts —
+   * apps/workspace is a separate Nest app with its own Prisma client and cannot
+   * import from apps/api. It reads the SAME physical tables (`clients.memory_wall`,
+   * `client_memory_access`). Keep the two in sync; the api-side helper is
+   * authoritative if they ever disagree.
+   */
+  async resolveEthicalWallAllowed(
+    tenantId: string,
+    userId: string | null,
+    clientId: string | null,
+  ): Promise<boolean> {
+    if (!clientId || !userId) return false;
+    try {
+      const rows = await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
+        return tx.$queryRaw<Array<{ allowed: boolean }>>`
+          SELECT (NOT c.memory_wall
+                  OR EXISTS (
+                        SELECT 1 FROM client_memory_access a
+                        WHERE a.tenant_id = c.tenant_id
+                          AND a.client_id = c.id
+                          AND a.user_id = ${userId}::uuid)) AS allowed
+            FROM clients c
+           WHERE c.tenant_id = ${tenantId}::uuid AND c.id = ${clientId}::uuid
+        `;
+      });
+      // No row = the client does not resolve in this tenant: deny.
+      return rows[0]?.allowed === true;
+    } catch (error) {
+      this.logger.warn(
+        `Ethical-wall resolution failed; denying client context: ${(error as Error).message}`,
+      );
+      return false;
+    }
   }
 
   private async loadSteeringRows(

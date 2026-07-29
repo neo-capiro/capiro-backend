@@ -82,6 +82,23 @@ export function contextPacketV2Enabled(raw: string | undefined, surface: Context
 
 export interface ContextPacketV2RequestOptions {
   surface: ContextSurface;
+  /**
+   * SERVER-DERIVED ethical-wall decision for the request's client.
+   *
+   * **Required, not optional, on purpose.** `compileV2` is fail-closed — it
+   * admits client-scope memory only on a literal `true` — so a call site that
+   * simply forgot this field would silently lose all client steering context
+   * rather than fail loudly. Making it required turns "somebody added a fifth v2
+   * surface and never resolved the wall" into a compile error instead of a
+   * runtime information-leak-or-blackout.
+   *
+   * Pass `false` when there is no client in scope; it only gates client-scope
+   * rows, which cannot match a clientless request anyway.
+   *
+   * In apps/api resolve it with `clientMemoryAllowed()`
+   * (apps/api/src/memory/memory-wall.helpers.ts). Never accept it from a client.
+   */
+  ethicalWallAllowed: boolean;
   /** Correlation key joining the packet to the run that consumed it. */
   traceId?: string | null;
   /** The prompt build that consumed the packet (e.g. `legacy-in-editor-v2`). */
@@ -109,6 +126,7 @@ export function contextPacketV2Overrides(
   const policy = contextSurfacePolicy(opts.surface);
   return {
     contractVersion: 2,
+    ethicalWallAllowed: opts.ethicalWallAllowed === true,
     traceId: opts.traceId ?? null,
     promptVersion: opts.promptVersion ?? null,
     policyVersion: opts.policyVersion ?? CONTEXT_POLICY_VERSION,
