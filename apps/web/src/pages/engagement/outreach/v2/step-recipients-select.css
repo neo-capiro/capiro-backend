@@ -1347,6 +1347,17 @@
   color: var(--ov2-notable);
   background: var(--ov2-notable-soft);
 }
+/* Your own firm: deliberately the NEUTRAL chip. Congress and Client are the two
+   external audiences a draft is written for, and they keep the accent colours; a
+   teammate on Cc is an internal detail and should not compete with them. */
+.ov2-rs-ccbcc-srctag.team {
+  color: var(--ov2-ink-2);
+  background: var(--ov2-bg-sunken);
+}
+.ov2-rs-ccbcc-srctag.manual {
+  color: var(--ov2-ink-2);
+  background: var(--ov2-bg-sunken);
+}
 .ov2-rs-ccbcc-hintrow {
   font-size: 12px;
   color: var(--ov2-ink-3);

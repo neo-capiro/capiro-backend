@@ -204,6 +204,16 @@ export interface GeneratedDraft {
   sendable?: boolean;
   /** Internal note for the lobbyist only — never sent to the recipient. */
   contextNote?: string;
+  /**
+   * Why the LAST generation attempt for this slot failed, in the case where the
+   * slot already held a draft and therefore KEPT it (see applyGenerationFailure).
+   *
+   * Presentation only. It deliberately says nothing about whether the retained
+   * text is sendable — the version lifecycle above decides that, and a draft whose
+   * regenerate failed is still backed by the audited version it already had.
+   * Cleared once an attempt succeeds.
+   */
+  failureReason?: string;
   history?: DraftHistoryEntry[];
   /**
    * Phase 1 §3.j — what this draft was grounded in, what was excluded, and what
