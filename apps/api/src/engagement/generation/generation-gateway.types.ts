@@ -42,6 +42,19 @@ export interface GenerationRequest {
   /** Injected for determinism in tests. */
   now?: Date;
   packetId?: string;
+  /**
+   * The inbound request's own Authorization header, forwarded so an 'intel' item
+   * can be rehydrated from intel-api's alert-packet endpoint under the caller's
+   * already-verified identity (AlertPacketClientService).
+   *
+   * This is NOT optional in practice for a caller that lets users select intel
+   * items: AlertPacketClientService returns null without it, which
+   * resolveIntelAlert records as a CRITICAL failure, which blocks the whole
+   * draft. The legacy path threaded it (enrichOutreachContextItems); the gateway
+   * accepted it two hops up and dropped it here, so every intel item became a
+   * blocked draft the moment ENGAGEMENT_GENERATION_GATEWAY was turned on.
+   */
+  authHeader?: string;
 }
 
 export interface GatewayRecipient {

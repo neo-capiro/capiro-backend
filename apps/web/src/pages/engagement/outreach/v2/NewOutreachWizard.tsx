@@ -55,6 +55,7 @@ import {
 } from './targets.js';
 import {
   appendDraftHistory,
+  applyGenerationFailure,
   buildGenerateTasks,
   buildGenerationModel,
   computeAffectedGenerationKeys,
@@ -952,6 +953,19 @@ export function NewOutreachWizard({
           const prior = generatedEmails[p.genKey];
           // Never clobber unsaved user edits (legacy 'edited' OR Phase 0 dirty).
           if (prior?.status === 'edited' || prior?.dirty) continue;
+          // A FAILED async item carries the placeholder as its subject/body. Route
+          // it through the same non-destructive path the sync branch uses, so a
+          // slot that already holds a draft keeps it instead of being overwritten
+          // with boilerplate. (The `dirty`/'edited' guard above only protects
+          // UNSAVED edits; once an edit autosaves as a version it is neither, and
+          // was previously fair game for this overwrite.)
+          if (p.status === 'error') {
+            generatedEmails[p.genKey] = applyGenerationFailure(prior, {
+              subject: p.subject,
+              body: p.body,
+            });
+            continue;
+          }
           generatedEmails[p.genKey] = {
             ...prior,
             subject: p.subject,
@@ -1329,6 +1343,10 @@ export function NewOutreachWizard({
             body: sanitizeHtml(markdownishToHtml(r.body)),
             status: 'ready',
             dirty: false,
+            // This attempt succeeded, so any note about the PREVIOUS attempt's
+            // failure is stale. Left in place it would sit under a good draft
+            // claiming generation had failed.
+            failureReason: undefined,
             ...(localHistory && localHistory.length ? { localHistory } : {}),
             // Phase 1 §3.j: the Context Used manifest travels with the draft.
             ...(res.manifests.get(r.genKey) ? { manifest: res.manifests.get(r.genKey) } : {}),
@@ -1381,20 +1399,18 @@ export function NewOutreachWizard({
           };
         }
         for (const genKey of res.failed) {
-          // A slot whose POST failed gets an editable placeholder marked 'error',
-          // NOT 'ready' — excluded from the send projection (projectDraftsForSend)
-          // so a failed draft can never be blasted out as "…generation failed…".
-          // It becomes sendable only once the user edits it (→ 'edited') or a
-          // regenerate succeeds (→ 'ready'). Succeeded slots above are untouched.
-          generatedEmails[genKey] = {
-            subject: `[Placeholder] ${state.campaignName || 'Outreach'}`,
-            body: sanitizeHtml(
-              markdownishToHtml(
-                `Hi there,\n\nThis is a placeholder draft because email generation failed. Edit this text directly, or try Regenerate — it will not be sent until you do.\n\nBest regards,\n${senderName}`,
-              ),
-            ),
-            status: 'error',
-          };
+          // A slot with NO draft yet gets an editable placeholder marked 'error' —
+          // excluded from the send projection (projectDraftsForSend) so a failed
+          // draft can never be blasted out as "…generation failed…". A slot that
+          // ALREADY holds a draft keeps it verbatim and only records why the
+          // attempt failed: overwriting real copy because a retry failed is how a
+          // user loses work they never asked to regenerate. See
+          // applyGenerationFailure. Succeeded slots above are untouched.
+          generatedEmails[genKey] = applyGenerationFailure(
+            generatedEmails[genKey],
+            failedPlaceholder(),
+            res.errorMessage,
+          );
         }
         return {
           ...prev,
@@ -1466,20 +1482,19 @@ export function NewOutreachWizard({
     },
     onError: (err, vars) => {
       // Last-resort fallback. Each POST catches its own network error inside the
-      // mutationFn, so this only fires on an unexpected pre-flight throw. Mark
-      // the requested slots 'error' (unsendable) so nothing half-generated leaks.
+      // mutationFn, so this only fires on an unexpected pre-flight throw. A slot
+      // with no draft yet is marked 'error' (unsendable) so nothing half-generated
+      // leaks; a slot that already has one keeps its text — see
+      // applyGenerationFailure.
+      const reason = apiErrorMessage(err) || undefined;
       setState((prev) => {
         const generatedEmails = { ...prev.generatedEmails };
         for (const s of vars.slots) {
-          generatedEmails[s.genKey] = {
-            subject: `[Placeholder] ${state.campaignName || 'Outreach'}`,
-            body: sanitizeHtml(
-              markdownishToHtml(
-                `Hi there,\n\nThis is a placeholder draft because email generation failed. Edit this text directly, or try Regenerate — it will not be sent until you do.\n\nBest regards,\n${senderName}`,
-              ),
-            ),
-            status: 'error',
-          };
+          generatedEmails[s.genKey] = applyGenerationFailure(
+            generatedEmails[s.genKey],
+            failedPlaceholder(),
+            reason,
+          );
         }
         return { ...prev, generatedEmails };
       });

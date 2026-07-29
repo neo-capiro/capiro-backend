@@ -463,6 +463,29 @@ export function StepGenerate({
                     />
                   );
                 }
+                // A regenerate that failed while this draft already existed: the
+                // draft below is the one that was already here, unchanged. Without
+                // this the attempt fails silently and the user cannot tell whether
+                // they are looking at new text or old.
+                if (activeDraft?.failureReason) {
+                  return (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      style={{ marginBottom: 12 }}
+                      message="The last attempt to regenerate this draft failed — your existing draft was kept"
+                      description={
+                        <>
+                          <div>{activeDraft.failureReason}</div>
+                          <div style={{ marginTop: 6, opacity: 0.75 }}>
+                            Nothing below was changed or lost. Fix the cause and regenerate, or send
+                            this draft as it stands.
+                          </div>
+                        </>
+                      }
+                    />
+                  );
+                }
                 return null;
               }
               return (
