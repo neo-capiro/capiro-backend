@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   NotFoundException,
@@ -26,7 +27,13 @@ import { MemoryIngestService } from './memory-ingest.service.js';
 import { MemoryInterviewService } from './memory-interview.service.js';
 import { MemoryCandidateService } from './memory-candidate.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
-import { governedMemoryEnforcementEnabled } from './memory-authorization.helpers.js';
+import { MemoryAccessGrantService } from './memory-access-grant.service.js';
+import { MemoryConflictService } from './memory-conflict.service.js';
+import {
+  governedMemoryEnforcementEnabled,
+  MEMORY_PERMISSIONS,
+} from './memory-authorization.helpers.js';
+import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.helpers.js';
 import type { MemoryItemType } from './memory.types.js';
 import { buildKnowledgeGraph, walkFrom } from './memory-graph.helpers.js';
 import {
@@ -79,6 +86,8 @@ export class MemoryController {
     private readonly candidates: MemoryCandidateService,
     private readonly purge: MemoryPurgeService,
     private readonly authz: MemoryAuthorizationService,
+    private readonly grants: MemoryAccessGrantService,
+    private readonly conflicts: MemoryConflictService,
     private readonly config: ConfigService<AppConfig, true>,
   ) {}
 
@@ -261,9 +270,25 @@ export class MemoryController {
     return { candidates: await this.candidates.listPending(ctx.tenantId, ctx.userId) };
   }
 
+  /**
+   * Approve a pending candidate.
+   *
+   * `listPending` already withholds candidates for walled clients, but the WALL
+   * ONLY FILTERED THE LIST — the decision routes went straight to
+   * MemoryCandidateService and never consulted it, so a non-granted admin who knew
+   * (or guessed) a candidate id could ratify a walled client's memory. `requireCandidate`
+   * closes that: it applies the ethical wall, legal hold, per-client grants, the
+   * real actor role under impersonation, and the 'self_review' rule. Dark behind
+   * MEMORY_GOVERNANCE_ENFORCE because it reads governed columns from an unapplied
+   * migration; MemoryCandidateService.requireIndependentReviewer remains the
+   * always-on segregation-of-duties gate and is deliberately NOT duplicated here.
+   */
   @Post('candidates/:id/approve')
   @Roles('user_admin')
   async approveCandidate(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    if (governedMemoryEnforcementEnabled(process.env.MEMORY_GOVERNANCE_ENFORCE)) {
+      await this.authz.requireCandidate(ctx, id, 'approve');
+    }
     const { memoryId } = await this.candidates.approve(ctx.tenantId, id, ctx.userId);
     return { ok: true, memoryId };
   }
@@ -271,8 +296,104 @@ export class MemoryController {
   @Post('candidates/:id/reject')
   @Roles('user_admin')
   async rejectCandidate(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    if (governedMemoryEnforcementEnabled(process.env.MEMORY_GOVERNANCE_ENFORCE)) {
+      // 'review' rather than 'approve': declining is a review act, and a proposer
+      // withdrawing their own proposal must stay possible (the self_review rule
+      // fires for both operations, which is why rejection independence is enforced
+      // by requireIndependentReviewer's deliberate exemption, not by the wall).
+      await this.authz.requireCandidate(ctx, id, 'review');
+    }
     await this.candidates.reject(ctx.tenantId, id, ctx.userId);
     return { ok: true };
+  }
+
+  // ── Governed memory grants (memory_access_grant) ──────────────────────────
+  //
+  // MemoryAuthorizationService has READ this table since Phase 3, but nothing
+  // could write it, so an explicit per-client edit/review/approve grant could only
+  // be created by hand-written SQL. All three routes are admin-only AND bound by
+  // the ethical wall inside MemoryAccessGrantService, so a walled admin cannot
+  // grant themselves in. Dark behind MEMORY_GOVERNANCE_LIFECYCLE: the table only
+  // exists after 20260729010000, which is unapplied everywhere.
+
+  @Get('clients/:clientId/grants')
+  @Roles('user_admin')
+  async listGrants(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
+    this.requireGovernanceArmed();
+    return { grants: await this.grants.list(ctx, clientId) };
+  }
+
+  @Post('clients/:clientId/grants')
+  @Roles('user_admin')
+  async createGrant(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Body() body: { userId?: string; permissions?: unknown; reason?: string; expiresAt?: string },
+  ) {
+    this.requireGovernanceArmed();
+    if (!body?.userId) throw new BadRequestException('userId is required.');
+    const result = await this.grants.grant(ctx, clientId, {
+      userId: body.userId,
+      permissions: body.permissions,
+      reason: body.reason ?? null,
+      expiresAt: body.expiresAt ?? null,
+    });
+    return { ok: true, ...result };
+  }
+
+  @Delete('clients/:clientId/grants/:userId')
+  @Roles('user_admin')
+  async revokeGrant(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('userId') userId: string,
+  ) {
+    this.requireGovernanceArmed();
+    return { ok: true, ...(await this.grants.revoke(ctx, clientId, userId)) };
+  }
+
+  /** The permission vocabulary the grant body must draw from (UI + API discovery). */
+  @Get('grants/permissions')
+  grantPermissions() {
+    return { permissions: MEMORY_PERMISSIONS };
+  }
+
+  /**
+   * Resolve a memory conflict by naming the controlling item. Authorized with the
+   * 'resolve_conflict' operation, which already exists in MEMORY_PERMISSIONS and in
+   * memory_access_grant_permissions_check.
+   */
+  @Post('items/:id/conflicts/resolve')
+  async resolveConflict(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: { controllingItemId?: string; reason?: string },
+  ) {
+    this.requireGovernanceArmed();
+    if (!body?.controllingItemId) {
+      throw new BadRequestException('controllingItemId is required.');
+    }
+    const result = await this.conflicts.resolve(
+      ctx,
+      id,
+      body.controllingItemId,
+      body.reason ?? '',
+    );
+    return { ok: true, ...result };
+  }
+
+  /**
+   * 503 rather than a 500 on a missing relation. These routes touch tables/columns
+   * from 20260729010000 / 20260729011000, and neither migration is applied in any
+   * environment — so until the switch is armed the honest answer is "not available
+   * here", not a Postgres error leaking through.
+   */
+  private requireGovernanceArmed(): void {
+    if (!governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)) {
+      throw new ServiceUnavailableException(
+        'Governed memory management is disabled (MEMORY_GOVERNANCE_LIFECYCLE is not "enforce").',
+      );
+    }
   }
 
   /** Interview questions for a memory type (the Meri-guided fill flow). */

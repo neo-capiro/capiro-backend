@@ -43,6 +43,12 @@ import {
   fetchDeniedClientIds,
   toUuidArrayLiteral,
 } from '../memory/memory-wall.helpers.js';
+import {
+  governedClioSuppressionSql,
+  governedRecallSuppressionEnabled,
+  governedRecallSuppressionSql,
+  TERMINAL_GOVERNED_STATUSES,
+} from '../memory/memory-recall-suppression.helpers.js';
 import { resolveCacheNodeLabels, keepCacheEdge, aggSuffix } from '../memory/kg-cache-enrich.helpers.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
@@ -3764,7 +3770,7 @@ export class MeriService {
         // this client's memory (fail-closed; firm/private arms unaffected).
         const clientArm =
           clientId !== null && (await clientMemoryAllowed(tx, tenantId, userId, clientId));
-        return tx.clioMemory.findMany({
+        const rows = await tx.clioMemory.findMany({
           where: {
             tenantId,
             // G2 ephemeral: expired working memory never reaches recall.
@@ -3777,8 +3783,24 @@ export class MeriService {
           },
           orderBy: { updatedAt: 'desc' },
           take: 20,
-          select: { key: true, value: true },
+          select: { id: true, key: true, value: true },
         });
+        // Governed suppression for the keyword fallback. This one cannot be a SQL
+        // predicate (it is a Prisma findMany), so it is a BOUNDED second query over
+        // exactly the <=20 ids just fetched, served by
+        // memory_items_tenant_type_slug_unique. Dark by default: when off, no extra
+        // query runs and `governed_status` is never referenced.
+        if (!governedRecallSuppressionEnabled() || rows.length === 0) return rows;
+        const slugs = rows.map((r) => `clio:${r.id}`);
+        const suppressed = await tx.$queryRaw<Array<{ slug: string }>>`
+          SELECT slug FROM memory_items
+          WHERE tenant_id = ${tenantId}::uuid
+            AND type = 'note'
+            AND slug = ANY(${slugs}::text[])
+            AND governed_status = ANY(${[...TERMINAL_GOVERNED_STATUSES]}::text[])
+        `;
+        const blocked = new Set(suppressed.map((s) => s.slug));
+        return blocked.size ? rows.filter((r) => !blocked.has(`clio:${r.id}`)) : rows;
       });
       // Keyword-rank with a recency fallback so a stored memory is never
       // silently invisible when embeddings are unavailable (W2 M1).
@@ -3847,7 +3869,7 @@ export class MeriService {
             AND (mi.owner_user_id IS NULL OR mi.owner_user_id = $2::uuid)
             AND mi.status = 'active'
             AND (mi.expires_at IS NULL OR mi.expires_at > now())
-            AND (mi.client_id IS NULL OR ($3::uuid IS NOT NULL AND mi.client_id = $3::uuid))
+            AND (mi.client_id IS NULL OR ($3::uuid IS NOT NULL AND mi.client_id = $3::uuid))${governedRecallSuppressionSql(governedRecallSuppressionEnabled(), 'mi')}
           ORDER BY ce.embedding <=> '${literal}'::vector
           LIMIT ${fetchN}`,
         tenantId,
@@ -4649,7 +4671,7 @@ export class MeriService {
              scope = 'firm'
              OR (scope = 'user_private' AND owner_user_id = $3::uuid)
              OR (scope = 'client' AND client_id = $5::uuid)
-           )
+           )${governedClioSuppressionSql(governedRecallSuppressionEnabled())}
          ORDER BY embedding <=> $1::vector
          LIMIT $4`,
           vecStr,

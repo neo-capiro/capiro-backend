@@ -9,8 +9,18 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
+import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
 import { evaluateMemoryCandidate } from './memory-candidate-rules.js';
 import { fetchDeniedClientIds } from './memory-wall.helpers.js';
+import {
+  candidateTransitionPath,
+  classifyCandidateForGovernance,
+  governedMemoryLifecycleEnabled,
+  governedStatusForDecision,
+  type CandidateDecision,
+  type LegacyCandidateScope,
+} from './memory-governance-lifecycle.helpers.js';
+import type { GovernedMemoryStatus } from '@capiro/meriv2-core';
 import type { AppConfig } from '../config/config.schema.js';
 
 /** The shape MeriToolsService.saveMemory already builds via buildSavedMemoryRecord. */
@@ -78,6 +88,7 @@ export class MemoryCandidateService {
     private readonly prisma: PrismaService,
     private readonly memoryIngest: MemoryIngestService,
     private readonly config: ConfigService<AppConfig, true>,
+    private readonly transitionAudit: MemoryTransitionAuditService = new MemoryTransitionAuditService(),
   ) {}
 
   /** Entry point for MeriToolsService.saveMemory. Always creates a candidate;
@@ -270,19 +281,120 @@ export class MemoryCandidateService {
     return row;
   }
 
+  /**
+   * Record the decision on the candidate row.
+   *
+   * Two shapes, chosen by MEMORY_GOVERNANCE_LIFECYCLE:
+   *
+   *  - OFF (default, and the only shape that exists in prod today): byte-identical
+   *    to the pre-governance write — one `memoryCandidate.update` of
+   *    {status, decidedBy, decidedAt, committedMemoryId} in one withTenant. It must
+   *    stay identical because both governance migrations are unapplied everywhere,
+   *    so touching a governed column would fail on a missing column.
+   *
+   *  - ON: additionally classifies the row into the v2 vocabulary
+   *    (memory_class / memory_authority / memory_scope / governed_status) and
+   *    appends one memory_transition_audit row PER state-machine hop, all inside
+   *    the SAME transaction as the status write, so evidence and state cannot
+   *    diverge.
+   */
   private async markDecided(
     tenantId: string,
     candidateId: string,
-    status: 'auto_committed' | 'approved' | 'rejected',
+    status: CandidateDecision,
     decidedBy: string,
     committedMemoryId: string | null,
   ): Promise<void> {
-    await this.prisma.withTenant(tenantId, (tx) =>
-      tx.memoryCandidate.update({
+    if (!governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)) {
+      await this.prisma.withTenant(tenantId, (tx) =>
+        tx.memoryCandidate.update({
+          where: { id: candidateId },
+          data: { status, decidedBy, decidedAt: new Date(), committedMemoryId },
+        }),
+      );
+      return;
+    }
+    await this.prisma.withTenant(tenantId, async (tx) => {
+      const rows = await tx.$queryRaw<
+        Array<{
+          scope: string;
+          source_kind: string;
+          client_id: string | null;
+          governed_status: string;
+          expires_at: string | null;
+        }>
+      >`
+        SELECT scope, source_kind, client_id::text AS client_id, governed_status,
+               payload_jsonb->>'expiresAt' AS expires_at
+        FROM memory_candidate
+        WHERE id = ${candidateId}::uuid AND tenant_id = ${tenantId}::uuid
+        LIMIT 1
+      `;
+      const row = rows[0];
+      if (!row) throw new NotFoundException('Memory candidate vanished before its decision.');
+
+      const expiresAt = row.expires_at ? new Date(row.expires_at) : null;
+      const hasTtl = expiresAt !== null && Number.isFinite(expiresAt.getTime());
+      const classification = classifyCandidateForGovernance(
+        {
+          scope: row.scope as LegacyCandidateScope,
+          sourceKind: row.source_kind,
+          hasTtl,
+        },
+        status,
+      );
+      // Every hop is validated by assertMemoryTransition, so an impossible
+      // decision (re-approving a rejected candidate) throws instead of silently
+      // rewriting terminal state.
+      const hops = candidateTransitionPath(row.governed_status as GovernedMemoryStatus, status);
+
+      await tx.memoryCandidate.update({
         where: { id: candidateId },
-        data: { status, decidedBy, decidedAt: new Date(), committedMemoryId },
-      }),
-    );
+        data: {
+          status,
+          decidedBy,
+          decidedAt: new Date(),
+          committedMemoryId,
+          memoryClass: classification.memoryClass,
+          memoryScope: classification.memoryScope,
+          governedStatus: governedStatusForDecision(status),
+          // A rejected proposal leaves review holding NO authority.
+          ...(classification.memoryAuthority
+            ? { memoryAuthority: classification.memoryAuthority }
+            : {}),
+          // 'auto_committed' is deliberately NOT recorded as approval: nobody
+          // reviewed it. Only an explicit approve stamps approved_by/approved_at,
+          // which is what hasHumanApproval()/fourEyesSatisfied() read.
+          ...(status === 'approved' ? { approvedByUserId: decidedBy, approvedAt: new Date() } : {}),
+          // memory_candidate_ephemeral_ttl_check rejects episodic_working without
+          // a TTL, so the class and the column are written together or not at all.
+          ...(classification.memoryClass === 'episodic_working' && expiresAt ? { expiresAt } : {}),
+        },
+      });
+
+      for (const hop of hops) {
+        await this.transitionAudit.record(tx, tenantId, {
+          subject: { memoryCandidateId: candidateId },
+          actorUserId: decidedBy,
+          clientId: row.client_id,
+          fromStatus: hop.from,
+          toStatus: hop.to,
+          reasonCode: hop.reasonCode,
+          reason: `memory candidate ${status} (${row.scope} scope, ${row.source_kind})`,
+          // Ids and vocabulary only — never the proposed value. committed_memory_item_id
+          // is deliberately NOT set on the row: commitToClioMemory returns a
+          // clio_memory id, and that column carries an FK to memory_items whose
+          // projection is written asynchronously by projectClioMemory.
+          metadata: {
+            legacyStatus: status,
+            memoryClass: classification.memoryClass,
+            memoryAuthority: classification.memoryAuthority,
+            clioMemoryId: committedMemoryId,
+            sourceKind: row.source_kind,
+          },
+        });
+      }
+    });
   }
 
   /**

@@ -11,6 +11,10 @@ import {
 } from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
+import {
+  governedRecallSuppressionEnabled,
+  governedRecallSuppressionSql,
+} from '../memory/memory-recall-suppression.helpers.js';
 
 /** apps/api adapter for the shared deterministic Context Compiler. */
 @Injectable()
@@ -62,6 +66,11 @@ export class ContextCompilerService {
           OR (${wantsClient} AND type = ANY(${clientTypes})
               AND client_id = ${req.clientId ?? null}::uuid)
         )
+        -- This SELECT has no status predicate: terminal filtering happens in JS in
+        -- packages/meriv2-core/src/context/compiler.ts, and only for the LEGACY
+        -- 'revoked'/'superseded' values. Pushing governed suppression into SQL is
+        -- dark by default (the column does not exist pre-migration).
+        ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled()))}
         ORDER BY
           CASE type
             WHEN 'firm-soul' THEN 10

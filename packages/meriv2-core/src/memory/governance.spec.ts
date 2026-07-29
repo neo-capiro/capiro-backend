@@ -1,10 +1,13 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   InvalidMemoryTransitionError,
+  TERMINAL_GOVERNED_STATUSES,
   assertMemoryTransition,
   classifyLegacyMemory,
   filterGovernedMemory,
   fourEyesSatisfied,
+  governedMemoryLifecycleEnabled,
+  governedRecallSuppressionSql,
   instructionsAllowedFor,
   scoreGovernedMemory,
   sourceCanAnchorCandidate,
@@ -281,5 +284,57 @@ describe('approval, source and migration governance', () => {
         confidence: 'ambiguous',
       }),
     );
+  });
+});
+
+/**
+ * Both of these gate live memory reads in TWO apps (apps/api and
+ * apps/meriv2-orchestrator), against a column that only exists after
+ * 20260729010000_memory_governance_context_v2 - which is unapplied everywhere.
+ * Default-off is the load-bearing property.
+ */
+describe('governedMemoryLifecycleEnabled', () => {
+  it('is off when unset or blank', () => {
+    expect(governedMemoryLifecycleEnabled(undefined)).toBe(false);
+    expect(governedMemoryLifecycleEnabled('')).toBe(false);
+    expect(governedMemoryLifecycleEnabled('   ')).toBe(false);
+  });
+
+  it('arms only on an explicit enforce value', () => {
+    expect(governedMemoryLifecycleEnabled('enforce')).toBe(true);
+    expect(governedMemoryLifecycleEnabled(' ENFORCE ')).toBe(true);
+  });
+
+  it('fails safe on truthy-looking values', () => {
+    for (const raw of ['on', 'true', '1', 'yes', 'enforced']) {
+      expect(governedMemoryLifecycleEnabled(raw)).toBe(false);
+    }
+  });
+});
+
+describe('governedRecallSuppressionSql', () => {
+  it('emits nothing at all when disabled', () => {
+    expect(governedRecallSuppressionSql(false)).toBe('');
+    expect(governedRecallSuppressionSql(false, 'mi')).toBe('');
+  });
+
+  it('suppresses exactly the four terminal statuses', () => {
+    const sql = governedRecallSuppressionSql(true, 'mi');
+    expect(sql).toContain('mi.governed_status NOT IN');
+    for (const status of TERMINAL_GOVERNED_STATUSES) expect(sql).toContain(`'${status}'`);
+    // stale/conflicted stay recallable on purpose.
+    expect(sql).not.toContain("'stale'");
+    expect(sql).not.toContain("'conflicted'");
+  });
+
+  it('supports an unaliased FROM memory_items', () => {
+    expect(governedRecallSuppressionSql(true)).toContain('AND governed_status NOT IN');
+  });
+
+  it('refuses an alias that is not a bare identifier', () => {
+    expect(() => governedRecallSuppressionSql(true, 'mi; DROP TABLE memory_items --')).toThrow(
+      /unsafe alias/,
+    );
+    expect(() => governedRecallSuppressionSql(true, 'mi.client_id')).toThrow(/unsafe alias/);
   });
 });

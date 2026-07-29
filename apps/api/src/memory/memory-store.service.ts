@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextStore } from '../tenant/tenant-context.store.js';
 import type { IngestContext, MemoryItem, MemoryItemType, MemorySection } from './memory.types.js';
@@ -14,6 +15,18 @@ import {
   wallExclusionSql,
 } from './memory-wall.helpers.js';
 import { evaluateMemoryMutation } from './memory-mutation-auth.js';
+import {
+  governedRecallSuppressionEnabled,
+  governedRecallSuppressionSql,
+} from './memory-recall-suppression.helpers.js';
+import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.helpers.js';
+import {
+  governedMemoryEnforcementEnabled,
+  type MemoryOperation,
+} from './memory-authorization.helpers.js';
+import { MemoryAuthorizationService } from './memory-authorization.service.js';
+import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
+import { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
 
 /** Result shape returned by the Phase 1 (1D) user-facing memory verbs. */
 export interface MemoryVerbResult {
@@ -41,10 +54,44 @@ export interface MemoryVerbResult {
 export class MemoryStoreService {
   private readonly logger = new Logger(MemoryStoreService.name);
 
+  /**
+   * The three governance collaborators carry parameter DEFAULTS so the existing
+   * hand-built call sites (scripts/refresh-memory-graph.ts and the two verb specs)
+   * keep compiling unchanged. Nest still injects the real singletons — `design:paramtypes`
+   * is emitted regardless of a default — and each default is a cheap, stateless
+   * construction, so the fallback is behaviourally identical rather than a stub.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantCtx: TenantContextStore,
+    private readonly authz: MemoryAuthorizationService = new MemoryAuthorizationService(prisma),
+    private readonly transitionAudit: MemoryTransitionAuditService = new MemoryTransitionAuditService(),
+    private readonly cleanupOutbox: MemoryCleanupOutboxService = new MemoryCleanupOutboxService(
+      prisma,
+    ),
   ) {}
+
+  /**
+   * Governed authority gate for the user-facing verbs, under the SAME switch the
+   * live edit route already uses (MemoryController.updateSections). Runs on the
+   * verb's OWN transaction, so the authority decision reads the same snapshot the
+   * mutation will write — a second transaction could authorize a row that changed
+   * underneath it. Returns a denial reason (never throws) so the verbs keep their
+   * existing "found: false" degradation contract instead of turning a tool call
+   * into a 5xx.
+   */
+  private async governedVerbDenial(
+    tx: Prisma.TransactionClient,
+    ctx: Pick<TenantContext, 'tenantId' | 'userId' | 'role'>,
+    itemId: string,
+    operation: MemoryOperation,
+  ): Promise<string | null> {
+    if (!governedMemoryEnforcementEnabled(process.env.MEMORY_GOVERNANCE_ENFORCE)) return null;
+    const subject = await this.authz.loadItemInTx(tx, ctx.tenantId, itemId);
+    if (!subject) return 'not_found';
+    const decision = await this.authz.evaluateInTx(tx, ctx, subject, operation);
+    return decision.allowed ? null : decision.reason;
+  }
 
   private rowToItem(row: MemoryItemRow): MemoryItem {
     return {
@@ -104,6 +151,8 @@ export class MemoryStoreService {
           -- G2 ephemeral: expired working memory never reaches recall
           AND (expires_at IS NULL OR expires_at > now())
           ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
+          -- Phase 3 governed suppression (dark by default; empty string when off)
+          ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled()))}
         ORDER BY type, slug
       `;
       return rows.map((r) => this.rowToItem(r));
@@ -135,6 +184,7 @@ export class MemoryStoreService {
           AND COALESCE(last_confirmed_at, created_at)
               + (review_cadence_days * INTERVAL '1 day') < now()
           ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
+          ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled()))}
         ORDER BY COALESCE(last_confirmed_at, created_at) ASC
       `;
       return rows.map((r) => this.rowToItem(r));
@@ -185,6 +235,7 @@ export class MemoryStoreService {
           AND status != 'revoked'
           AND (expires_at IS NULL OR expires_at > now())
           ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
+          ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled()))}
         LIMIT 1
       `;
       const row = rows[0];
@@ -230,6 +281,7 @@ export class MemoryStoreService {
           AND status != 'revoked'
           AND (expires_at IS NULL OR expires_at > now())
           ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
+          ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled()))}
       `;
       // Keep only edges whose source item survived the visibility + wall
       // filters — a dangling edge would otherwise leak a walled relationship
@@ -463,6 +515,99 @@ export class MemoryStoreService {
   // context_embeddings AND semanticMemorySearch over clio_memory) and the
   // nightly refresh cannot resurrect a forgotten/corrected item.
 
+  /**
+   * Governed side of `forget`: flip governed_status to 'revoked', evidence it, and
+   * enqueue durable projection cleanup. No-op (and never reads a governed column)
+   * while MEMORY_GOVERNANCE_LIFECYCLE is unarmed.
+   *
+   * The enqueue is a BACKSTOP, not the only cleanup: forgetMemory still deletes
+   * context_embeddings and the clio_memory source inline. Those inline deletes are
+   * what stops recall today; the outbox row makes the same effect retryable if a
+   * future caller suppresses without deleting, and the worker's "subject already
+   * gone → completed" branch keeps it idempotent against the inline deletes.
+   */
+  private async recordGovernedRevocation(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    itemId: string,
+    slug: string,
+    clientId: string | null,
+    reason?: string,
+  ): Promise<void> {
+    if (!governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)) return;
+    const before = await this.governedStatusOf(tx, ctx.tenantId, itemId);
+    await tx.$executeRaw`
+      UPDATE memory_items SET governed_status = 'revoked', updated_at = now()
+      WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+    `;
+    await this.transitionAudit.record(tx, ctx.tenantId, {
+      subject: { memoryItemId: itemId },
+      actorUserId: ctx.userId,
+      clientId,
+      // 'pending_review' (the column default) has no outbound edge to 'revoked' in
+      // the state machine, so a pre-classification row is recorded WITHOUT a from
+      // status rather than failing the caller's forget on an assertion.
+      fromStatus: before === 'active' || before === 'stale' || before === 'conflicted' ? before : null,
+      toStatus: 'revoked',
+      reasonCode: 'revoked',
+      reason: reason ? `forget: ${reason}` : 'forget verb',
+      metadata: { verb: 'forget', priorGovernedStatus: before },
+    });
+    await this.cleanupOutbox.enqueue(tx, ctx.tenantId, {
+      memoryItemId: itemId,
+      clioMemoryId: clioIdFromSlug(slug),
+      operation: 'revoke_projections',
+      idempotencyKey: `revoke:${itemId}`,
+    });
+  }
+
+  /** Governed side of `correct`: the old row becomes superseded, with evidence. */
+  private async recordGovernedSupersession(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    oldItemId: string,
+    newItemId: string,
+    oldSlug: string,
+    clientId: string | null,
+  ): Promise<void> {
+    if (!governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)) return;
+    const before = await this.governedStatusOf(tx, ctx.tenantId, oldItemId);
+    await tx.$executeRaw`
+      UPDATE memory_items SET governed_status = 'superseded', updated_at = now()
+      WHERE id = ${oldItemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+    `;
+    await this.transitionAudit.record(tx, ctx.tenantId, {
+      subject: { memoryItemId: oldItemId },
+      actorUserId: ctx.userId,
+      clientId,
+      fromStatus: before === 'active' || before === 'stale' || before === 'conflicted' ? before : null,
+      toStatus: 'superseded',
+      reasonCode: 'corrected',
+      reason: 'correct verb superseded this item',
+      // The replacement's ID only — never the corrected text.
+      metadata: { verb: 'correct', supersededBy: newItemId, priorGovernedStatus: before },
+    });
+    await this.cleanupOutbox.enqueue(tx, ctx.tenantId, {
+      memoryItemId: oldItemId,
+      clioMemoryId: clioIdFromSlug(oldSlug),
+      operation: 'supersede_projections',
+      idempotencyKey: `supersede:${oldItemId}:${newItemId}`,
+    });
+  }
+
+  private async governedStatusOf(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    itemId: string,
+  ): Promise<string | null> {
+    const rows = await tx.$queryRaw<Array<{ governed_status: string }>>`
+      SELECT governed_status FROM memory_items
+      WHERE id = ${itemId}::uuid AND tenant_id = ${tenantId}::uuid
+      LIMIT 1
+    `;
+    return rows[0]?.governed_status ?? null;
+  }
+
   /** confirm: re-affirm an item is still true (blueprint §3.5 "Confirm"). */
   async confirmMemory(itemId: string): Promise<MemoryVerbResult> {
     const ctx = this.tenantCtx.require();
@@ -497,6 +642,10 @@ export class MemoryStoreService {
         'confirm',
       );
       if (!decision.allowed) return { found: false };
+      // Governed authority (dark): adds legal hold, terminal governed status,
+      // per-client grants and the real actor role under impersonation — none of
+      // which evaluateMemoryMutation knows about. The ethical wall binds admins.
+      if (await this.governedVerbDenial(tx, ctx, itemId, 'confirm')) return { found: false };
       await tx.$executeRaw`
         UPDATE memory_items SET last_confirmed_at = now(), updated_at = now()
         WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid AND status <> 'revoked'
@@ -551,12 +700,22 @@ export class MemoryStoreService {
           ? { found: true, blockedByLegalHold: true, title: row.title }
           : { found: false };
       }
+      const governedDenial = await this.governedVerbDenial(tx, ctx, itemId, 'revoke');
+      if (governedDenial) {
+        return governedDenial === 'legal_hold'
+          ? { found: true, blockedByLegalHold: true, title: row.title }
+          : { found: false };
+      }
 
       await tx.$executeRaw`
         UPDATE memory_items
         SET status = 'revoked', revoked_at = now(), revoked_by = ${ctx.userId}::uuid, updated_at = now()
         WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid AND status <> 'revoked'
       `;
+      // Governed lifecycle (dark): flip the v2 status, evidence the transition and
+      // enqueue durable secondary-projection cleanup — all in THIS transaction, so
+      // suppression, evidence and cleanup intent commit or roll back together.
+      await this.recordGovernedRevocation(tx, ctx, itemId, row.slug, row.client_id, reason);
       // Purge the semantic projection (no FK cascade from memory_items).
       await tx.$executeRaw`
         DELETE FROM context_embeddings WHERE source_type = 'memory_item' AND source_id = ${itemId}
@@ -636,6 +795,16 @@ export class MemoryStoreService {
           ? { found: true as const, blockedByLegalHold: true, title: old.title }
           : { found: false as const };
       }
+      // 'edit' is the governed operation for a correction: it replaces the active
+      // content. There is no separate 'correct' permission in MEMORY_PERMISSIONS or
+      // in memory_access_grant_permissions_check, and inventing one here would put
+      // the code and the DB CHECK out of step.
+      const governedDenial = await this.governedVerbDenial(tx, ctx, itemId, 'edit');
+      if (governedDenial) {
+        return governedDenial === 'legal_hold'
+          ? { found: true as const, blockedByLegalHold: true, title: old.title }
+          : { found: false as const };
+      }
 
       // New slug dodges the (tenant,type,slug) unique constraint; a corrected
       // item is a distinct row so both versions coexist.
@@ -663,6 +832,9 @@ export class MemoryStoreService {
         UPDATE memory_items SET status = 'superseded', updated_at = now()
         WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid AND status <> 'revoked'
       `;
+      // Governed lifecycle (dark): the superseded row's v2 status, the transition
+      // evidence, and the durable cleanup job for its stale projections.
+      await this.recordGovernedSupersession(tx, ctx, itemId, newId, old.slug, old.client_id);
       // Drop the old item's stale embedding + clio source so recall reflects
       // only the correction.
       await tx.$executeRaw`
@@ -738,6 +910,18 @@ export class MemoryStoreService {
       `;
     }
   }
+}
+
+/**
+ * The clio_memory row a projected item came from, or null for a native item.
+ * `clio:<uuid>` is the projection slug convention MemoryIngestService writes and
+ * that forget/correct already parse inline; a malformed tail yields null rather
+ * than an outbox job that would fail its ::uuid cast forever.
+ */
+function clioIdFromSlug(slug: string): string | null {
+  if (!slug.startsWith('clio:')) return null;
+  const id = slug.slice('clio:'.length);
+  return /^[0-9a-fA-F-]{36}$/.test(id) ? id : null;
 }
 
 interface MemoryItemRow {

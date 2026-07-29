@@ -86,6 +86,29 @@ case "${1:-serve}" in
     echo "Running drain-identity-outbox $*"
     exec ./node_modules/.bin/tsx scripts/drain-identity-outbox.ts "$@"
     ;;
+  drain-memory-cleanup-outbox)
+    shift
+    # Remove the secondary projections (context_embeddings, clio_memory) of governed
+    # memory whose recall was already suppressed synchronously. Inert until
+    # 20260729010000_memory_governance_context_v2 is applied. Exits non-zero if any
+    # job failed, so a scheduled invocation surfaces as a task failure.
+    echo "Running drain-memory-cleanup-outbox $*"
+    exec ./node_modules/.bin/tsx scripts/drain-memory-cleanup-outbox.ts "$@"
+    ;;
+  # Governed-memory rollout operations. Neither had an ECS entry point before, so
+  # the whole Phase 3 governance rollout was unoperable from a task definition:
+  #   backfill-memory-governance  classify legacy rows into the v2 vocabulary
+  #   diag-memory-governance      SELECT-only posture report (no writes)
+  backfill-memory-governance)
+    shift
+    echo "Running backfill-memory-governance $*"
+    exec ./node_modules/.bin/tsx scripts/backfill-memory-governance-v2.ts "$@"
+    ;;
+  diag-memory-governance)
+    shift
+    echo "Running diag-memory-governance $*"
+    exec ./node_modules/.bin/tsx scripts/diag-memory-governance-v2.ts "$@"
+    ;;
   bootstrap-roles)
     shift
     echo "Running bootstrap-roles (rotate capiro_app password)"
@@ -645,7 +668,7 @@ case "${1:-serve}" in
     exec node dist/main.js
     ;;
   *)
-    echo "Unknown command: $1 (expected: serve | migrate | seed-workflows | bootstrap-capiro-admin | bootstrap-tenant | drain-identity-outbox | bootstrap-roles | emit-changes | emit-bill-alerts | emit-clio-alerts | generate-meeting-briefings | backfill-sectors | generate-briefings | compute-health-scores | check-comment-periods | embed-backfill | embed-program-elements | sync-lda | sync-congress | sync-congress-members | sync-cbo | sync-committees | sync-house-votes | sync-senate-votes | derive-bill-status | sync-federal-register | sync-regulations | sync-hearings | sync-hearing-transcripts | sync-gao | sync-crs | sync-fec | sync-federal-award | sync-federal-assistance-awards | enrich-assistance-awards | backfill-assistance-awards-bulk | prune-stale-assistance-recipient-candidates | enrich-award-districts | enrich-award-pe | seed-acq-program-map | report-award-pe-coverage | extract-press-personnel | sync-sam-personnel | sync-fec-pac | sync-fara | sync-fara-enrichment | sync-sec-edgar | sync-rss-intel | sync-openstates | backfill-legiscan-datasets | sync-legiscan-masterlist | sync-legiscan-bills | sync-legistorm-districts | build-district-boundary-artifacts | sync-legistorm-trips | derive-state-bill-status | emit-state-changes | emit-committee-changes | emit-redistricting-alerts | crosswalk-state-people | geocode-facilities | load-state-calendars | normalize-state-committees | backtest-deadline-physics | sync-state-register | set-tenant-flag | sync-bls | sync-bea | sync-census | sync-grants | enrich-grant-details | generate-grant-opportunity-candidates | sync-openlobby |sync-openspending | sync-lobby-trending | refresh-lobby-intel-mv | refresh-kg-edge-cache | sync-comptroller-jbooks | sync-jbook-r2 | import-dow-directory | import-dow-directory-v6 | sync-dow-headshots | generate-pe-person-candidates | auto-confirm-pe-person-candidates | derive-office-program-links | sync-peo-rosters | sync-dod-orgcharts | sync-dod-press-personnel | sync-cpe-roster | recompute-conference-probability | extract-bill-pe-codes | extract-gao-interviewees | extract-hearing-witnesses | parse-hasc-report | parse-sasc-report | parse-hac-d-report | parse-sac-d-report | parse-ndaa-conference | parse-defense-approps-public-law | parse-pdoc | ingest-defense-budget | load-defense-budget-package | verify-defense-budget-packages | run-pe-derive-chain | watch-budget-docs | send-pe-alert-emails | match-pe-mentions | rebuild-pe-years | normalize-pe-units | diag-pe-trust | audit-llamaparse-pe-units | diag-stale-directory | reconcile-personnel-supersede | reconcile-stale-pes | repair-person-pe-links | diag-client-resolution | diag-phantom-imports | diag-clio-memory | diag-memory-recall-parity | backfill-clio-memory-embeddings | run-clio-scheduled-tasks | run-intel-workflows | refresh-memory-graph | prepopulate-all | fill-govids-all)" >&2
+    echo "Unknown command: $1 (expected: serve | migrate | seed-workflows | bootstrap-capiro-admin | bootstrap-tenant | drain-identity-outbox | drain-memory-cleanup-outbox | backfill-memory-governance | diag-memory-governance | bootstrap-roles | emit-changes | emit-bill-alerts | emit-clio-alerts | generate-meeting-briefings | backfill-sectors | generate-briefings | compute-health-scores | check-comment-periods | embed-backfill | embed-program-elements | sync-lda | sync-congress | sync-congress-members | sync-cbo | sync-committees | sync-house-votes | sync-senate-votes | derive-bill-status | sync-federal-register | sync-regulations | sync-hearings | sync-hearing-transcripts | sync-gao | sync-crs | sync-fec | sync-federal-award | sync-federal-assistance-awards | enrich-assistance-awards | backfill-assistance-awards-bulk | prune-stale-assistance-recipient-candidates | enrich-award-districts | enrich-award-pe | seed-acq-program-map | report-award-pe-coverage | extract-press-personnel | sync-sam-personnel | sync-fec-pac | sync-fara | sync-fara-enrichment | sync-sec-edgar | sync-rss-intel | sync-openstates | backfill-legiscan-datasets | sync-legiscan-masterlist | sync-legiscan-bills | sync-legistorm-districts | build-district-boundary-artifacts | sync-legistorm-trips | derive-state-bill-status | emit-state-changes | emit-committee-changes | emit-redistricting-alerts | crosswalk-state-people | geocode-facilities | load-state-calendars | normalize-state-committees | backtest-deadline-physics | sync-state-register | set-tenant-flag | sync-bls | sync-bea | sync-census | sync-grants | enrich-grant-details | generate-grant-opportunity-candidates | sync-openlobby |sync-openspending | sync-lobby-trending | refresh-lobby-intel-mv | refresh-kg-edge-cache | sync-comptroller-jbooks | sync-jbook-r2 | import-dow-directory | import-dow-directory-v6 | sync-dow-headshots | generate-pe-person-candidates | auto-confirm-pe-person-candidates | derive-office-program-links | sync-peo-rosters | sync-dod-orgcharts | sync-dod-press-personnel | sync-cpe-roster | recompute-conference-probability | extract-bill-pe-codes | extract-gao-interviewees | extract-hearing-witnesses | parse-hasc-report | parse-sasc-report | parse-hac-d-report | parse-sac-d-report | parse-ndaa-conference | parse-defense-approps-public-law | parse-pdoc | ingest-defense-budget | load-defense-budget-package | verify-defense-budget-packages | run-pe-derive-chain | watch-budget-docs | send-pe-alert-emails | match-pe-mentions | rebuild-pe-years | normalize-pe-units | diag-pe-trust | audit-llamaparse-pe-units | diag-stale-directory | reconcile-personnel-supersede | reconcile-stale-pes | repair-person-pe-links | diag-client-resolution | diag-phantom-imports | diag-clio-memory | diag-memory-recall-parity | backfill-clio-memory-embeddings | run-clio-scheduled-tasks | run-intel-workflows | refresh-memory-graph | prepopulate-all | fill-govids-all)" >&2
     exit 1
     ;;
 esac

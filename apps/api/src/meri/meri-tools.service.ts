@@ -42,6 +42,10 @@ import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
 import { MemoryStoreService } from '../memory/memory-store.service.js';
 import { fetchDeniedClientIds, wallExclusionSql } from '../memory/memory-wall.helpers.js';
+import {
+  governedRecallSuppressionEnabled,
+  governedRecallSuppressionSql,
+} from '../memory/memory-recall-suppression.helpers.js';
 import { enrichFromKgCache } from '../memory/kg-cache-enrich.helpers.js';
 import { pickKgTraversalSource, type KgTraversalSource } from './memory-recall-source.helpers.js';
 import {
@@ -1933,6 +1937,13 @@ export class MeriToolsService {
         FROM memory_items
         WHERE (owner_user_id IS NULL OR owner_user_id = ${ctx.userId}::uuid)
           ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
+          -- Pre-existing defect this closes: query_knowledge_graph / find_path_to
+          -- filtered NO status at all, so revoked and superseded items still
+          -- surfaced to the model as graph nodes. Fixing it WITHHOLDS content that
+          -- is visible today, so it rides the same dark switch rather than shipping
+          -- armed. The legacy status column is deliberately still not filtered
+          -- here: narrowing that is a behaviour change with its own blast radius.
+          ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled()))}
       `;
         const itemNodeById = new Map(
           items.map((i) => [i.id, { type: i.type, slug: i.slug, label: i.title }]),
@@ -1945,6 +1956,7 @@ export class MeriToolsService {
         JOIN memory_items i ON i.id = e.src_item_id
         WHERE (i.owner_user_id IS NULL OR i.owner_user_id = ${ctx.userId}::uuid)
           ${Prisma.raw(wallExclusionSql(denied, 'i.client_id'))}
+          ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled(), 'i'))}
       `;
         // FK relations (structural backbone): client->bill/issue/person, meeting->client
         const fk: FkRelation[] = [];
@@ -2135,7 +2147,7 @@ export class MeriToolsService {
             AND mi.tenant_id = $1::uuid
             AND (mi.owner_user_id IS NULL OR mi.owner_user_id = $2::uuid)
             AND mi.status = 'active'
-            AND (mi.expires_at IS NULL OR mi.expires_at > now())${wallExclusionSql(denied, 'mi.client_id')}
+            AND (mi.expires_at IS NULL OR mi.expires_at > now())${wallExclusionSql(denied, 'mi.client_id')}${governedRecallSuppressionSql(governedRecallSuppressionEnabled(), 'mi')}
           ORDER BY ce.embedding <=> '${literal}'::vector
           LIMIT ${k}`,
             ctx.tenantId,

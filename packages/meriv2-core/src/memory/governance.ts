@@ -247,6 +247,64 @@ export function classRequiresApproval(memoryClass: MemoryClass): boolean {
   return MEMORY_CLASS_POLICIES[memoryClass].requiresHumanApproval;
 }
 
+/**
+ * Governed statuses that must never reach recall, a prompt, a graph node or an
+ * export.
+ *
+ * `stale` and `conflicted` are deliberately NOT terminal: stale memory is still
+ * true-until-reviewed (the review-due surface flags it rather than hiding it), and
+ * a conflict is settled by resolution, not by silently withholding both sides.
+ */
+export const TERMINAL_GOVERNED_STATUSES = ['revoked', 'superseded', 'rejected', 'expired'] as const;
+export type TerminalGovernedStatus = (typeof TERMINAL_GOVERNED_STATUSES)[number];
+
+/**
+ * Arms the governed-memory lifecycle (classification writes, transition audit,
+ * recall suppression, cleanup outbox). DARK BY DEFAULT: true only for the exact
+ * string 'enforce', case-insensitive and trimmed — same shape as
+ * `resolveAssuranceReleaseMode` (assurance/risk-gate.ts) and apps/api's
+ * `governedMemoryEnforcementEnabled`.
+ *
+ * Defined here rather than in apps/api because apps/meriv2-orchestrator gates the
+ * same behaviour off the same variable (MEMORY_GOVERNANCE_LIFECYCLE) and two
+ * parsers for one switch is how half a fleet ends up armed.
+ */
+export function governedMemoryLifecycleEnabled(raw: string | undefined): boolean {
+  return (
+    String(raw ?? '')
+      .trim()
+      .toLowerCase() === 'enforce'
+  );
+}
+
+const TERMINAL_SQL_LIST = TERMINAL_GOVERNED_STATUSES.map((s) => `'${s}'`).join(',');
+const SAFE_SQL_ALIAS = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/**
+ * The ONE definition of the governed suppression predicate for a `memory_items`
+ * read, as a raw SQL fragment. It lives here — pure and dependency-free — because
+ * apps/api and apps/meriv2-orchestrator both read memory_items directly and must
+ * not each hand-roll a security predicate that can drift.
+ *
+ * Returns the EMPTY STRING when `enabled` is false, so the caller emits SQL
+ * byte-identical to its pre-governance form and never references
+ * `governed_status`. That column is added by an UNAPPLIED migration
+ * (20260729010000_memory_governance_context_v2), so an armed-by-default predicate
+ * would fail every memory read on a missing column.
+ *
+ * `alias` is interpolated raw (call sites are $queryRawUnsafe / Prisma.raw), so it
+ * is validated against an identifier pattern and throws otherwise. Pass '' for an
+ * unaliased `FROM memory_items`.
+ */
+export function governedRecallSuppressionSql(enabled: boolean, alias = ''): string {
+  if (!enabled) return '';
+  if (alias !== '' && !SAFE_SQL_ALIAS.test(alias)) {
+    throw new Error(`governedRecallSuppressionSql: unsafe alias ${JSON.stringify(alias)}`);
+  }
+  const column = alias ? `${alias}.governed_status` : 'governed_status';
+  return `\n            AND ${column} NOT IN (${TERMINAL_SQL_LIST})`;
+}
+
 export function hasHumanApproval(
   record: Pick<GovernedMemoryRecord, 'approvedByUserId' | 'approvedAt'>,
 ): boolean {

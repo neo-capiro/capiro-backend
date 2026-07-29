@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   ContextCompiler,
+  governedMemoryLifecycleEnabled,
+  governedRecallSuppressionSql,
   typesForLayers,
   type CompiledContextPacket,
   type ContextRequest,
@@ -68,6 +70,16 @@ export class OrchestratorContextCompilerService {
         OR (${wantsClient} AND type = ANY(${clientTypes})
             AND client_id = ${req.clientId ?? null}::uuid)
       )
+      -- Governed suppression, dark by default (MEMORY_GOVERNANCE_LIFECYCLE). Like
+      -- apps/api's twin this SELECT has no status predicate of its own; terminal
+      -- filtering happens in JS in meriv2-core's compiler and only for the LEGACY
+      -- 'revoked'/'superseded' values. The predicate is the SHARED one from
+      -- meriv2-core so the two adapters cannot drift apart.
+      ${Prisma.raw(
+        governedRecallSuppressionSql(
+          governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE),
+        ),
+      )}
     `;
 
     return req.userId
