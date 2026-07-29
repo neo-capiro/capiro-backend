@@ -15,8 +15,31 @@ user, unless a step says otherwise.
 what state every connection is already in before you touch the UI.
 
 ```bash
+# Fleet sweep — prefer this for a rollout check.
+pnpm --filter @capiro/api smoke:integrations -- --all-tenants
+
+# Single tenant, when you are investigating one.
 pnpm --filter @capiro/api smoke:integrations -- --tenant=<slug>
 ```
+
+In production this runs as an ECS one-off rather than via pnpm (Aurora is in a
+private subnet), on the `capiro-dev-api-sync-jobs` task definition:
+
+```
+--overrides '{"containerOverrides":[{"name":"api-sync-jobs",
+  "command":["smoke-integrations","--all-tenants"]}]}'
+```
+
+**Use `--all-tenants` for rollout.** A single-tenant run proves nothing about
+the other tenants but reads like a fleet-wide check. On 2026-07-29 a
+`--tenant=capiro-internal` run reported 4 of 7 connections healthy while 13
+connections across five other tenants had never been examined; two of those
+tenants turned out to have broken or entirely absent integrations.
+
+Under `--all-tenants` the fail-closed "zero connections proves nothing" rule
+applies to the **total**, not per tenant — a tenant that has simply never
+connected anything is not a rollout failure. Per-tenant PASS/FAIL is printed in
+a summary at the end, and any problem in any tenant still exits non-zero.
 
 ---
 

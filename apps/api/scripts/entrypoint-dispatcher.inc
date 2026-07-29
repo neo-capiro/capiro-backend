@@ -192,7 +192,9 @@ case "${1:-serve}" in
     ;;
   smoke-integrations)
     # Read-only Google/Microsoft integration diagnostic: syncState continuation
-    # fields, active/removed mail counts. Never writes. Pass --tenant=<slug|uuid>.
+    # fields, active/removed mail counts. Never writes. Pass --tenant=<slug|uuid>
+    # for one tenant, or --all-tenants to sweep every tenant (preferred for a
+    # rollout check -- one tenant proves nothing about the others).
     shift
     echo "Running smoke-integrations $*"
     exec ./node_modules/.bin/tsx scripts/smoke-integrations.ts "$@"
