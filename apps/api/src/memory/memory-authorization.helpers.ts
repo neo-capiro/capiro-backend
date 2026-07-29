@@ -18,6 +18,24 @@ export const MEMORY_PERMISSIONS = [
 export type MemoryPermission = (typeof MEMORY_PERMISSIONS)[number];
 export type MemoryOperation = 'read' | 'export' | MemoryPermission;
 
+/**
+ * Arms governed-memory authority enforcement on live routes. Dark by default.
+ *
+ * `MemoryAuthorizationService` reads the `governed_status` / `memory_class` /
+ * `legal_hold` columns introduced by `20260729010000_memory_governance_context_v2`,
+ * so arming this before that migration is applied would make every gated request
+ * fail on a missing column. It is therefore a deliberate post-migration canary
+ * step rather than a deploy side effect. Same shape as `resolveAssuranceReleaseMode`
+ * in packages/meriv2-core/src/assurance/risk-gate.ts.
+ */
+export function governedMemoryEnforcementEnabled(raw: string | undefined): boolean {
+  return (
+    String(raw ?? '')
+      .trim()
+      .toLowerCase() === 'enforce'
+  );
+}
+
 export interface MemoryAuthorizationSubject {
   memoryClass: MemoryClass;
   scope: GovernedMemoryScope;

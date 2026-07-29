@@ -25,6 +25,8 @@ import { MemoryFkLoader } from './memory-fk-loader.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
 import { MemoryInterviewService } from './memory-interview.service.js';
 import { MemoryCandidateService } from './memory-candidate.service.js';
+import { MemoryAuthorizationService } from './memory-authorization.service.js';
+import { governedMemoryEnforcementEnabled } from './memory-authorization.helpers.js';
 import type { MemoryItemType } from './memory.types.js';
 import { buildKnowledgeGraph, walkFrom } from './memory-graph.helpers.js';
 import {
@@ -76,6 +78,7 @@ export class MemoryController {
     private readonly interview: MemoryInterviewService,
     private readonly candidates: MemoryCandidateService,
     private readonly purge: MemoryPurgeService,
+    private readonly authz: MemoryAuthorizationService,
     private readonly config: ConfigService<AppConfig, true>,
   ) {}
 
@@ -209,6 +212,16 @@ export class MemoryController {
     // upsertSystem. 403 loudly rather than silently corrupt.
     if (clientId && !(await this.store.clientMemoryAllowedForCurrentUser(clientId))) {
       throw new ForbiddenException('This client is behind an ethical wall you are not granted.');
+    }
+    // Governed-memory authority (Phase 3). The checks above cover role and the
+    // ethical wall; this adds what they do not — legal hold, terminal
+    // (revoked/superseded) status, explicit per-client edit grants, and the real
+    // actor role under impersonation. Only applied to an EXISTING item: this route
+    // also creates a file from the catalog skeleton on first save, and there is no
+    // subject to authorize yet in that case.
+    if (governedMemoryEnforcementEnabled(process.env.MEMORY_GOVERNANCE_ENFORCE)) {
+      const existing = await this.store.getByTypeSlug(type, effectiveSlug);
+      if (existing) await this.authz.requireItem(ctx, existing.id, 'edit');
     }
     const updated = await this.store.upsertSectionsForCurrentTenant(
       type,

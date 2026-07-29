@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   evaluateGovernedMemoryAuthorization,
+  governedMemoryEnforcementEnabled,
   type MemoryAuthorizationFacts,
 } from './memory-authorization.helpers.js';
 
@@ -18,6 +19,30 @@ const facts = (over: Partial<MemoryAuthorizationFacts> = {}): MemoryAuthorizatio
   clientStatus: 'active',
   grantPermissions: [],
   ...over,
+});
+
+/**
+ * This switch guards a live route, and the service behind it reads columns that
+ * only exist after 20260729010000. Defaulting to armed would 500 every memory edit
+ * on any environment that rolled the code before the migration.
+ */
+describe('governedMemoryEnforcementEnabled', () => {
+  it('is off when unset', () => {
+    expect(governedMemoryEnforcementEnabled(undefined)).toBe(false);
+    expect(governedMemoryEnforcementEnabled('')).toBe(false);
+    expect(governedMemoryEnforcementEnabled('   ')).toBe(false);
+  });
+
+  it('arms only on an explicit enforce value', () => {
+    expect(governedMemoryEnforcementEnabled('enforce')).toBe(true);
+    expect(governedMemoryEnforcementEnabled(' ENFORCE ')).toBe(true);
+  });
+
+  it('fails safe on truthy-looking values', () => {
+    for (const raw of ['on', 'true', '1', 'yes', 'enforced']) {
+      expect(governedMemoryEnforcementEnabled(raw)).toBe(false);
+    }
+  });
 });
 
 describe('evaluateGovernedMemoryAuthorization', () => {
