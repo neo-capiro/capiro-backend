@@ -176,8 +176,11 @@ describe('committing a memory owes durable indexing work', () => {
     );
     expect(close).toBeDefined();
     // Scoped to this tenant + this memory + this operation, and only from a
-    // non-terminal state, so it can never close somebody else's job.
-    expect(close!.sql).toMatch(/operation = 'index_memory_item'/);
+    // non-terminal state, so it can never close somebody else's job. The
+    // operation is a BOUND parameter (the method serves both indexing and
+    // forget's revocation), so assert the binding rather than SQL text.
+    expect(close!.params).toContain('index_memory_item');
+    expect(close!.params).toContain('mem-1');
     expect(close!.sql).toMatch(/status IN \('pending', 'failed'\)/);
   });
 
@@ -194,6 +197,66 @@ describe('committing a memory owes durable indexing work', () => {
       (c) => /UPDATE memory_cleanup_outbox/i.test(c.sql) && /'completed'/.test(c.sql),
     );
     expect(close).toBeUndefined();
+  });
+});
+
+/**
+ * The revocation half of the same defect class, and the worst one.
+ *
+ * `forgetMemory` deletes the clio_memory row in a transaction and then
+ * fire-and-forgot `removeClioMemory`. If that dispatch died, the KV row was gone
+ * but the memory_items projection AND its context_embeddings vector survived —
+ * so "forget this" silently meant "hide it from the KV read path only" and the
+ * content stayed reachable through semantic search. A staleness bug on the other
+ * paths; a disclosure bug here.
+ */
+describe('forgetting a memory owes durable revocation', () => {
+  it('marks a revoke job completed only for the revoke operation and this memory', async () => {
+    const captured: Captured[] = [];
+    const tx = {
+      $executeRaw: async (strings: unknown, ...p: unknown[]) => {
+        const raw = Array.isArray((strings as { raw?: string[] }).raw)
+          ? (strings as { raw: string[] }).raw.join('?')
+          : String(strings);
+        captured.push({ sql: raw, params: p });
+        return 1;
+      },
+    };
+    const svc = new MemoryCleanupOutboxService({
+      withSystem: async (fn: (t: unknown) => unknown) => fn(tx),
+    } as unknown as PrismaService);
+
+    await svc.markIndexedOnFastPath(TENANT, 'mem-1', 'revoke_projections');
+
+    const close = captured.find((c) => /UPDATE memory_cleanup_outbox/i.test(c.sql));
+    expect(close).toBeDefined();
+    // The operation is BOUND, not interpolated, and the update is scoped to this
+    // tenant + memory + operation from a non-terminal state — so closing a forget
+    // can never accidentally close that memory's indexing job (or anyone else's).
+    expect(close!.params).toContain('revoke_projections');
+    expect(close!.params).toContain('mem-1');
+    expect(close!.sql).toMatch(/status IN \('pending', 'failed'\)/);
+  });
+
+  it('defaults to the index operation so existing callers are unchanged', async () => {
+    const captured: Captured[] = [];
+    const tx = {
+      $executeRaw: async (strings: unknown, ...p: unknown[]) => {
+        captured.push({ sql: String(strings), params: p });
+        return 1;
+      },
+    };
+    const svc = new MemoryCleanupOutboxService({
+      withSystem: async (fn: (t: unknown) => unknown) => fn(tx),
+    } as unknown as PrismaService);
+
+    await svc.markIndexedOnFastPath(TENANT, 'mem-1');
+
+    expect(captured[0]!.params).toContain('index_memory_item');
+  });
+
+  it('keeps revoke_projections drainable, so a queued revocation is worked off', () => {
+    expect(DRAINABLE_CLEANUP_OPERATIONS).toContain('revoke_projections');
   });
 });
 

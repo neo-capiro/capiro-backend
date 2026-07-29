@@ -130,8 +130,9 @@ export class MemoryCleanupOutboxService {
   }
 
   /**
-   * Mark an index job completed because the caller ALREADY did the projection on
-   * the fast path, immediately after its commit.
+   * Mark a job completed because the caller ALREADY did the work on the fast
+   * path, immediately after its commit. Used by indexing (`index_memory_item`,
+   * the default) and by forget's revocation (`revoke_projections`).
    *
    * This is what keeps gap B2's fix from changing observable behaviour. The
    * producer enqueues the job inside its transaction (so the work is durably
@@ -145,7 +146,11 @@ export class MemoryCleanupOutboxService {
    * pending and the drain re-projects. `projectClioMemory` is an upsert keyed on
    * the derived slug, so a redundant re-projection is a no-op, not a duplicate.
    */
-  async markIndexedOnFastPath(tenantId: string, clioMemoryId: string): Promise<void> {
+  async markIndexedOnFastPath(
+    tenantId: string,
+    clioMemoryId: string,
+    operation: DrainableCleanupOperation = 'index_memory_item',
+  ): Promise<void> {
     try {
       await this.prisma.withSystem(
         (tx) =>
@@ -154,7 +159,7 @@ export class MemoryCleanupOutboxService {
           SET status = 'completed', completed_at = now(), last_error = NULL
           WHERE tenant_id = ${tenantId}::uuid
             AND clio_memory_id = ${clioMemoryId}::uuid
-            AND operation = 'index_memory_item'
+            AND operation = ${operation}
             AND status IN ('pending', 'failed')
         `,
       );
