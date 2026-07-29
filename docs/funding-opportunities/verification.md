@@ -284,11 +284,16 @@ Named individually so none of it reads as covered.
 | Migration applied to **any** database | **DONE, in CI** | `engagement-trust-boundary.yml` ran `prisma migrate deploy` against a clean Postgres service container on this branch and logged `Applying migration 20260810010000_funding_opportunities` followed by `All migrations have been successfully applied.` — 187 migrations, check **passed** in 3m37s. So the migration is no longer only statically verified: it is known to apply, in order, to an empty database. That is not the same as applying to *production*, which has data and is still RB-1 |
 | Producer runs against real data | **NOT RUN** | Forbidden. Dry-run commands are in the runbook, unexecuted |
 | Repo-wide lint | **NOT RUNNABLE** | `pnpm lint` is non-functional repo-wide (eslint is not installed); CI substitutes `prettier --check` scoped to MeriV2 + shared, which this branch does not touch. Documented in `ci-pr.yml`'s own header |
-| CI on the branch | **GREEN** | All three required checks pass on `50970a06`: `verify` (ci-pr) 5m32s, `legiwatch` 6m2s, `engagement` 3m37s. Read the next section for what that does and does not cover |
+| CI on the branch | **GREEN** | All three checks pass: `verify` (ci-pr) 5m32s, `legiwatch` 6m2s, `engagement` 3m37s. Read the next section for what that does and does not cover |
 
 ### What CI checked, and what a green PR does not mean
 
-All three checks are **green on `50970a06`**. Worth spelling out because that is a
+All three checks are **green on this branch**, first measured on `50970a06` — the
+commit that carries the complete implementation. Later commits here are
+documentation only, and every push re-runs all three, so the SHA is deliberately
+not pinned in this sentence: the code those checks validated does not change.
+
+Worth spelling out what they cover, because it is a
 narrower claim than it looks — and note the repo has **no enforced required
 checks** (branch protection is unavailable on this plan), so green CI is evidence,
 not a gate:
