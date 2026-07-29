@@ -191,6 +191,102 @@ change, or external communication has occurred.
 | 13 — SOC 2 mapping + runbooks | **not started** (rollback runbook is referenced by a code comment and must exist before merge) |
 | 14 — final integration + PR closeout | not started |
 
+### Definition-of-done checklist — actual state
+
+Source: `meriv2-world-class-closeout-executable-plan.md` lines 1526–1591
+(58,163 bytes, 1,607 lines, sha256 `d23f7a7d4ec71dcbbfc975bef8a1984f4b5efee6298301c902de9554d39f8fa5`).
+Ticked ONLY where there is code plus a test in this repository.
+
+**Governed memory**
+
+- [x] Firm/client admin saves no longer auto-commit — `b1cf7dd6`
+- [x] Shared edits create candidates — pre-existing + `b1cf7dd6`
+- [x] Proposer and approver are distinct — `requireIndependentReviewer` + `memory-candidate.approval.spec.ts`
+- [ ] Candidate approval uses canonical authorization — not verified this session
+- [ ] Ethical walls apply to list and direct-by-ID operations — list filtering exists; direct-by-ID matrix unverified
+- [ ] Client grants work — `memory-access-grant.service.ts` exists; matrix unverified
+- [ ] Archived-client and legal-hold restrictions work — unverified
+- [ ] Impersonation records actor and effective identity — unverified
+- [ ] Activation is one atomic transaction — **open**, `commitToClioMemory` still spans several `withTenant` calls
+- [ ] Corrections are immutable versions — unverified
+- [ ] Duplicate/conflict resolution is live — `memory-conflict.service.ts` exists; liveness unverified
+- [ ] Transition audit written on every lifecycle change — partial (`markDecided` under `MEMORY_GOVERNANCE_LIFECYCLE`)
+- [ ] Projection/index work is durable — **open, see blocker below**
+- [x] Embedding updates target exact IDs — `b1cf7dd6`, regression-proven
+
+**Database and operations** — all 8 unticked. Prisma drift was closed by
+`44709ef2` but the shadow-database diff proof (§1.6) has not been run, and §11
+needs a disposable PostgreSQL with pgvector.
+
+**Context Packet v2**
+
+- [ ] Live callers pass v2 contract in enforce mode — wired, but dark; no enforce run
+- [ ] All adapters load governed fields — `governed-columns.ts` exists; unverified per adapter
+- [x] Ethical-wall decision is server-derived and fail-closed — `c100829d`
+- [ ] Approval/source/sensitivity/conflict/validity affect recall — filter exists; end-to-end unverified
+- [ ] Required/optional layer health correct — unverified
+- [ ] Persistence cannot lie — §7 not started
+- [ ] Inspector shows actual metadata — §7 not started
+- [ ] Inspector IDs unique — §7 not started
+
+**Assurance and policy** — 9 unticked. Policy-pack persistence exists
+(`20260811010000_assurance_policy_packs`) but `meri-registry.service.ts:67`
+still evaluates the static `PROPOSED_CAPIRO_RULES`, so "real proposals use
+selected policy packs" is false.
+
+**Quality and readiness**
+
+- [ ] Authenticated browser matrix — §12 not started
+- [ ] Narrow-width / keyboard UX — §12 not started
+- [ ] SOC 2 control mapping — §13 not started
+- [ ] Metrics/alarms defined — §13 not started
+- [ ] Rollout and rollback runbooks executable — **rollback half written**
+      (`docs/runbooks/meriv2-memory-context-assurance-rollback.md`, which also
+      resolves the previously dangling citation in `memory-candidate-rules.ts`).
+      The §13 *rollout* runbook and the control mapping are still missing, so
+      this box stays unticked. The rollback doc records honestly that
+      `rollback-memory-governance-v2.ts` does not exist yet, which makes a
+      production backfill effectively one-way today — a reason not to run one.
+- [x] Branch synchronized with `main` — `6757d093`
+- [ ] All builds/tests/typechecks/evals/formatting/CI pass — typecheck 6/6 and
+      the touched suites pass, but `pnpm turbo run typecheck`, the full
+      `eval:meriv2`, and format/lint gates have not been run over the whole repo
+- [ ] PR body accurate — PR #679 still says "step 2 incomplete"
+- [x] No production action performed
+
+**Tally: 8 of 40 boxes true.**
+
+### Blocker recorded — B2 durable projection (§4)
+
+Not a design preference; a concrete schema/API conflict, documented per
+stop-condition 3 rather than guessed at.
+
+`memory-candidate.service.ts:483-484` still dispatches
+`void this.embedMemory(...)` and `void this.memoryIngest.projectClioMemory(...)`.
+Routing these through the existing outbox does not compose today:
+
+1. `memory_cleanup_outbox.memory_item_id` is **NOT NULL**
+   (`20260729010000_memory_governance_context_v2`), but at commit time the caller
+   holds a `clio_memory.id` — the `memory_items` row does not exist yet, because
+   `projectClioMemory` is what creates it. There is no valid subject id to
+   enqueue against, so the producer needs either a nullable subject column or a
+   separate `clio_memory_id`-keyed job type (additive migration).
+2. `index_memory_item` is deliberately excluded from
+   `DRAINABLE_CLEANUP_OPERATIONS` (`memory-cleanup-outbox.service.ts:16-22`,
+   and the explicit branch at `:176-182` fails such a job as
+   `unsupported operation`). The service is a *deletion* worker and carries no
+   embedding provider by design.
+3. `commitToClioMemory` spans several separate `withTenant` calls
+   (`findExisting` / `updateExisting` / `create`), so there is no single
+   transaction to enqueue on. It must be collapsed into one first — which is the
+   same restructure the unticked "activation is one atomic transaction" box
+   needs, so the two should be done together, not separately.
+
+Recommended order for the next session: collapse `commitToClioMemory` into one
+transaction → additive migration for a nullable/alternate outbox subject →
+teach the worker `index_memory_item` with an injected embedding provider →
+deployment wiring (§4 "Deployment wiring") → then tick both boxes at once.
+
 ### Verification recorded this session
 
 - typecheck **6/6 PASS** (`meriv2-core`, `api`, `workspace`, `web`,
