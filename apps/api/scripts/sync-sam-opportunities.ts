@@ -1,18 +1,22 @@
 /**
- * Step 3.1 — SAM.gov DoD contract-opportunities ingestion + review-gated matching.
+ * SAM.gov federal contract-opportunities ingestion + review-gated matching.
  *
  *   pnpm --filter @capiro/api sync:sam-opportunities -- --commit
  *   tsx scripts/sync-sam-opportunities.ts --since 2026-05-01 --commit
  *
- * Pulls DoD Contract Opportunities from the SAM.gov API
+ * Pulls Contract Opportunities from the SAM.gov API. The default scope remains
+ * DoD for backward compatibility; pass `--all-federal` for the complete federal
+ * opportunity catalog used by Funding Opportunities.
  * (api.sam.gov/opportunities/v2/search), upserts each notice into sam_opportunity
  * (idempotent on noticeId), derives `active` from the archive date, then runs a PURE,
  * review-gated matching pass (sam-opportunity-matcher) to propose opportunity ->
  * PE / program links into sam_opportunity_match.
  *
  * Wrapped in runWithSyncRun: the incremental window comes from the last successful
- * run's watermark (ctx.since), or an explicit `--since YYYY-MM-DD`. DoD-filtered via
- * the deptname API filter AND a client-side org-path check (defense in depth).
+ * run's watermark (ctx.since), or an explicit `--since YYYY-MM-DD`. The DoD scope
+ * uses both the API department filter and a client-side org-path check. The
+ * all-federal scope has its own SyncRun source/watermark so the two schedules can
+ * coexist safely during rollout.
  *
  * HISTORICAL BACKFILL. The daily job only pulls the last ~30 days; older/closed
  * notices need a one-off backfill. SAM.gov caps a single search's date span at ~1
@@ -56,19 +60,53 @@ import { extractPromotedFields } from './backfill-sam-opportunity-fields.js';
 dotenvConfig();
 
 const SAM_URL = 'https://api.sam.gov/opportunities/v2/search';
-const SOURCE = 'sync-sam-opportunities';
-const DEFAULT_LOOKBACK_DAYS = 30;
+const SOURCE_DOD = 'sync-sam-opportunities';
+const SOURCE_ALL_FEDERAL = 'sync-sam-opportunities-all-federal';
+const DEFAULT_DOD_LOOKBACK_DAYS = 30;
+const DEFAULT_ALL_FEDERAL_LOOKBACK_DAYS = 2;
 const PAGE_LIMIT = 100;
 // Circuit breaker on pages/run (PAGE_LIMIT rows each). Env-overridable so a dense
 // historical backfill window can pull deeper than the daily's 5,000-row default.
 const MAX_PAGES = Number(process.env.SAM_MAX_PAGES) || 50;
 
-function arg(name: string): string | undefined {
-  const i = process.argv.indexOf(`--${name}`);
-  return i >= 0 ? process.argv[i + 1] : undefined;
+function arg(name: string, argv: string[] = process.argv): string | undefined {
+  const withEq = argv.find((value) => value.startsWith(`--${name}=`));
+  if (withEq) return withEq.slice(`--${name}=`.length);
+  const i = argv.indexOf(`--${name}`);
+  return i >= 0 ? argv[i + 1] : undefined;
 }
-function flag(name: string): boolean {
-  return process.argv.includes(`--${name}`);
+function flag(name: string, argv: string[] = process.argv): boolean {
+  return argv.includes(`--${name}`);
+}
+
+export type SamIngestionScope = 'dod' | 'all_federal';
+
+export interface SamSyncArgs {
+  scope: SamIngestionScope;
+  commit: boolean;
+  backfill: boolean;
+  matchOnly: boolean;
+  since: string | null;
+  postedTo: string | null;
+}
+
+export function parseSamSyncArgs(argv: string[]): SamSyncArgs {
+  return {
+    scope: flag('all-federal', argv) ? 'all_federal' : 'dod',
+    commit: flag('commit', argv),
+    backfill: flag('backfill', argv),
+    matchOnly: flag('match-only', argv),
+    since: arg('since', argv) ?? null,
+    postedTo: arg('posted-to', argv) ?? null,
+  };
+}
+
+export function syncSourceForScope(scope: SamIngestionScope): string {
+  return scope === 'all_federal' ? SOURCE_ALL_FEDERAL : SOURCE_DOD;
+}
+
+export function defaultLookbackDaysForScope(scope: SamIngestionScope): number {
+  return scope === 'all_federal' ? DEFAULT_ALL_FEDERAL_LOOKBACK_DAYS : DEFAULT_DOD_LOOKBACK_DAYS;
 }
 
 /** MM/dd/yyyy (SAM.gov date format). */
@@ -136,7 +174,7 @@ interface SamSearchResponse {
 }
 
 /** Is this notice from DoD? (org-path / department check — mirrors the personnel sync). */
-function isDod(rec: SamOpportunityRecord): boolean {
+export function isDod(rec: SamOpportunityRecord): boolean {
   const hay =
     `${rec.fullParentPathName ?? ''} ${rec.department ?? ''} ${rec.subTier ?? ''}`.toUpperCase();
   return /DEPT OF DEFENSE|DEPARTMENT OF DEFENSE|\bDOD\b|DEPT OF THE (ARMY|NAVY|AIR FORCE)|DEFENSE/.test(
@@ -185,20 +223,36 @@ function primaryPoc(rec: SamOpportunityRecord): { name: string | null; email: st
   return { name: str(poc?.fullName), email: str(poc?.email) };
 }
 
+export function buildSamSearchParams(args: {
+  apiKey: string;
+  postedFrom: string;
+  postedTo: string;
+  offset: number;
+  scope: SamIngestionScope;
+}): URLSearchParams {
+  const params = new URLSearchParams({
+    api_key: args.apiKey,
+    postedFrom: args.postedFrom,
+    postedTo: args.postedTo,
+    limit: String(PAGE_LIMIT),
+    offset: String(args.offset),
+  });
+  if (args.scope === 'dod') params.set('deptname', 'DEPARTMENT OF DEFENSE');
+  return params;
+}
+
+export function recordInSamScope(rec: SamOpportunityRecord, scope: SamIngestionScope): boolean {
+  return scope === 'all_federal' || isDod(rec);
+}
+
 async function fetchPage(
   apiKey: string,
   postedFrom: string,
   postedTo: string,
   offset: number,
+  scope: SamIngestionScope,
 ): Promise<SamSearchResponse> {
-  const params = new URLSearchParams({
-    api_key: apiKey,
-    postedFrom,
-    postedTo,
-    limit: String(PAGE_LIMIT),
-    offset: String(offset),
-    deptname: 'DEPARTMENT OF DEFENSE',
-  });
+  const params = buildSamSearchParams({ apiKey, postedFrom, postedTo, offset, scope });
   const res = await fetch(`${SAM_URL}?${params.toString()}`);
   const json = (await res.json()) as SamSearchResponse;
   if (!res.ok) {
@@ -246,14 +300,15 @@ function buildAliasIndex(
 }
 
 async function main(): Promise<void> {
-  const commit = flag('commit');
+  const parsed = parseSamSyncArgs(process.argv.slice(2));
+  const { commit, backfill, matchOnly, scope } = parsed;
 
   // MATCH-ONLY: re-run the PURE matcher over EXISTING sam_opportunity rows WITHOUT
   // hitting the SAM.gov API. Realizes a matcher change (e.g. the procurement-BLIN
   // shape) across the already-ingested backlog — the daily sync only re-matches the
   // notices it freshly fetches. Needs no API key. Idempotent (persistMatches is a
   // find-or-create + update on the natural key).
-  if (flag('match-only')) {
+  if (matchOnly) {
     const prismaMatch = new PrismaClient();
     try {
       await rematchExisting(prismaMatch, commit);
@@ -265,25 +320,25 @@ async function main(): Promise<void> {
 
   const apiKey = process.env.SAM_GOV_API_KEY ?? '';
   if (!apiKey) throw new Error('SAM_GOV_API_KEY not configured');
-  const backfill = flag('backfill');
-  const sinceArg = arg('since');
+  const sinceArg = parsed.since ?? undefined;
   // Explicit window end for a backfill (SAM caps a search's span at ~1yr); default now.
-  const postedToArg = arg('posted-to');
+  const postedToArg = parsed.postedTo ?? undefined;
   const postedToDate = safeDate(postedToArg) ?? new Date();
   const t0 = Date.now();
   console.log(
-    `[sam-opportunities] starting (${commit ? 'COMMIT' : 'DRY-RUN'}${backfill ? ', BACKFILL' : ''}) maxPages=${MAX_PAGES}`,
+    `[sam-opportunities] starting scope=${scope} (${commit ? 'COMMIT' : 'DRY-RUN'}${backfill ? ', BACKFILL' : ''}) maxPages=${MAX_PAGES}`,
   );
 
   const prisma = new PrismaClient();
   try {
     await runWithSyncRun(
       prisma as never,
-      SOURCE,
+      syncSourceForScope(scope),
       async (ctx): Promise<RunCounts> => {
         // Incremental window: explicit --since wins; else the watermark; else lookback.
         // Window end is `now` for the daily, or an explicit --posted-to for a backfill.
-        const since = ctx.since ?? new Date(Date.now() - DEFAULT_LOOKBACK_DAYS * 86_400_000);
+        const since =
+          ctx.since ?? new Date(Date.now() - defaultLookbackDaysForScope(scope) * 86_400_000);
         const postedFrom = samDate(since);
         const postedTo = samDate(postedToDate);
         console.log(`[sam-opportunities] window postedFrom=${postedFrom} postedTo=${postedTo}`);
@@ -308,13 +363,13 @@ async function main(): Promise<void> {
         let capped = false;
 
         for (let page = 0; page < MAX_PAGES; page += 1) {
-          const resp = await fetchPage(apiKey, postedFrom, postedTo, offset);
+          const resp = await fetchPage(apiKey, postedFrom, postedTo, offset, scope);
           totalRecords = resp.totalRecords;
           const batch = resp.opportunitiesData ?? [];
           if (batch.length === 0) break;
 
           for (const rec of batch) {
-            if (!isDod(rec)) {
+            if (!recordInSamScope(rec, scope)) {
               counts.skipped += 1;
               continue;
             }
@@ -413,8 +468,9 @@ async function main(): Promise<void> {
         }
 
         if (capped) {
+          counts.errors += 1;
           console.warn(
-            `[sam-opportunities] ⚠️ CAPPED: window ${postedFrom}..${postedTo} has ${totalRecords} records but the page budget stopped at ${offset} (SAM_MAX_PAGES=${MAX_PAGES}). Narrow the window (--posted-to) or raise SAM_MAX_PAGES; the tail was NOT ingested.`,
+            `[sam-opportunities] ⚠️ CAPPED (${scope}): window ${postedFrom}..${postedTo} has ${totalRecords} records but the page budget stopped at ${offset} (SAM_MAX_PAGES=${MAX_PAGES}). Narrow the window (--posted-to) or raise SAM_MAX_PAGES; the tail was NOT ingested. The SyncRun is marked success_with_errors.`,
           );
         }
 
@@ -560,4 +616,6 @@ if (isDirectRun) {
 }
 
 // `normalizeText` re-exported so callers/tests can build hints with the same form.
-export { main, persistMatches, isDod, officeOf, buildAliasIndex, normalizeText };
+// `isDod` is NOT listed here: the all-federal rail made it a scope predicate and
+// exported it inline at its declaration, so re-exporting it is a redeclaration.
+export { main, persistMatches, officeOf, buildAliasIndex, normalizeText };

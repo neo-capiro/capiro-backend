@@ -1,5 +1,6 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import {
   FundingOpportunitiesService,
   parsePlaceOfPerformance,
@@ -28,6 +29,10 @@ interface FakeState {
   users: Array<Record<string, unknown>>;
   facilities: Array<Record<string, unknown>>;
   syncRuns: Array<Record<string, unknown>>;
+  assistanceHistory: Array<Record<string, unknown>>;
+  contractHistory: Array<Record<string, unknown>>;
+  grantCounts: Array<{ total: bigint; active: bigint }>;
+  samCounts: Array<{ total: bigint; active: bigint }>;
   /** When set, every $queryRaw rejects — the "source read failed" case. */
   queryRawThrows?: Error;
 }
@@ -105,9 +110,12 @@ function makeState(partial: Partial<FakeState> = {}): FakeState {
       naicsCodes: ['336411'],
       pscCodes: [],
       applicantTypes: ['Small businesses'],
+      setAsideCertifications: [],
       sectorTag: 'DEFENSE',
       capabilities: [{ name: 'turbofan', tags: [], keywords: [], peNumbers: [] }],
-      facilities: [{ id: FACILITY, name: 'El Paso Plant', state: 'TX', congressionalDistrict: '16' }],
+      facilities: [
+        { id: FACILITY, name: 'El Paso Plant', city: 'El Paso', state: 'TX', zip: '79906', congressionalDistrict: '16' },
+      ],
     },
     mappings: [],
     grants: [grantRow()],
@@ -115,12 +123,16 @@ function makeState(partial: Partial<FakeState> = {}): FakeState {
     workflows: [],
     users: [{ id: USER, firstName: 'Ada', lastName: 'Byron', email: 'ada@example.com' }],
     facilities: [
-      { id: FACILITY, name: 'El Paso Plant', state: 'TX', congressionalDistrict: '16', clientId: CLIENT },
+      { id: FACILITY, name: 'El Paso Plant', city: 'El Paso', state: 'TX', zip: '79906', congressionalDistrict: '16', clientId: CLIENT },
     ],
     syncRuns: [
       { source: 'sync-grants', finished_at: new Date('2026-07-28T00:00:00Z'), error_count: 0, status: 'success' },
-      { source: 'sync-sam-opportunities', finished_at: new Date('2026-07-27T00:00:00Z'), error_count: 0, status: 'success' },
+      { source: 'sync-sam-opportunities-all-federal', finished_at: new Date('2026-07-27T00:00:00Z'), error_count: 0, status: 'success' },
     ],
+    assistanceHistory: [],
+    contractHistory: [],
+    grantCounts: [{ total: 1n, active: 1n }],
+    samCounts: [{ total: 1n, active: 1n }],
     ...partial,
   };
 }
@@ -209,6 +221,10 @@ function makeFake(state: FakeState) {
       if (state.queryRawThrows) throw state.queryRawThrows;
       const sql = Array.isArray(strings) ? strings.join('?') : String(strings);
       if (sql.includes('sync_run')) return state.syncRuns;
+      if (sql.includes('FROM federal_assistance_award')) return state.assistanceHistory;
+      if (sql.includes('FROM federal_award')) return state.contractHistory;
+      if (sql.includes('FROM federal_grant')) return state.grantCounts;
+      if (sql.includes('FROM sam_opportunity')) return state.samCounts;
       return [];
     }),
     federalGrant: {
@@ -286,6 +302,81 @@ describe('grant + contract discovery works with NO producer candidate rows', () 
     await service.listClientOpportunities(TENANT, CLIENT, {});
     const call = (tx.clientIntelMapping.findMany as jest.Mock).mock.calls[0]?.[0] as any;
     expect(call.where.confirmed).toBe(true);
+    expect(call.where.reviewStatus).toBe('confirmed');
+    expect(call.where.rollUpAwards).toBe(true);
+  });
+
+  test('an undecided corporate roll-up mapping is excluded by the scoped query', async () => {
+    const state = makeState({
+      mappings: [
+        {
+          source: 'contracting',
+          externalId: 'ABC123456789',
+          externalName: 'ACME HOLDINGS',
+          confirmed: true,
+          reviewStatus: 'confirmed',
+          rollUpAwards: null,
+        },
+      ],
+    });
+    const { service, tx } = makeService(state);
+    await service.listClientOpportunities(TENANT, CLIENT, { source: 'sam_gov' });
+    const call = (tx.clientIntelMapping.findMany as jest.Mock).mock.calls[0]?.[0] as any;
+    expect(call.where).toEqual(
+      expect.objectContaining({ confirmed: true, reviewStatus: 'confirmed', rollUpAwards: true }),
+    );
+  });
+
+  test('assistance-only identities never trigger a contract-history query', async () => {
+    const baseClient = makeState().client as Record<string, unknown>;
+    const state = makeState({
+      client: { ...baseClient, uei: null },
+      mappings: [
+        {
+          source: 'assistance_recipient',
+          externalId: 'ASSIST123456',
+          externalName: 'ACME FOUNDATION',
+          confirmed: true,
+          reviewStatus: 'confirmed',
+          rollUpAwards: true,
+        },
+      ],
+      assistanceHistory: [
+        { assistance_listing_number: '81.086', awarding_agency: 'Department of Energy' },
+      ],
+    });
+    const { service, prisma } = makeService(state);
+    await service.listClientOpportunities(TENANT, CLIENT, {});
+    const contractCalls = (prisma.$queryRaw as jest.Mock).mock.calls.filter((call: unknown[]) =>
+      Array.isArray(call[0]) && (call[0] as unknown[]).join('?').includes('FROM federal_award'),
+    );
+    expect(contractCalls).toHaveLength(0);
+  });
+
+  test('contract-only identities never trigger an assistance-history query', async () => {
+    const baseClient = makeState().client as Record<string, unknown>;
+    const state = makeState({
+      client: { ...baseClient, uei: null },
+      mappings: [
+        {
+          source: 'contracting',
+          externalId: 'CONTRACT1234',
+          externalName: 'ACME CONTRACTING',
+          confirmed: true,
+          reviewStatus: 'confirmed',
+          rollUpAwards: true,
+        },
+      ],
+      contractHistory: [
+        { awarding_agency: 'Department of the Army', awarding_office: 'ACC-APG' },
+      ],
+    });
+    const { service, prisma } = makeService(state);
+    await service.listClientOpportunities(TENANT, CLIENT, {});
+    const assistanceCalls = (prisma.$queryRaw as jest.Mock).mock.calls.filter((call: unknown[]) =>
+      Array.isArray(call[0]) && (call[0] as unknown[]).join('?').includes('FROM federal_assistance_award'),
+    );
+    expect(assistanceCalls).toHaveLength(0);
   });
 });
 
@@ -560,6 +651,49 @@ describe('workflow persistence', () => {
     expect(res.opportunities).toHaveLength(1);
     expect(res.opportunities[0]?.workflow?.status).toBe('pursuing');
   });
+
+
+  test('concurrent first saves recover from the partial unique-index race', async () => {
+    const state = makeState();
+    const { service, tx } = makeService(state);
+    const create = tx.clientFundingOpportunity.create as jest.Mock;
+    let first = true;
+    create.mockImplementation(async (args: any) => {
+      if (first) {
+        first = false;
+        state.workflows.push({
+          id: 'winner',
+          clientId: CLIENT,
+          source: 'sam_gov',
+          grantOpportunityId: null,
+          samOpportunityId: SAM_ID,
+          workflowStatus: 'suggested',
+          ownerUserId: null,
+          facilityId: null,
+          notes: null,
+          dismissedReason: null,
+          outcomeNote: null,
+          userCreated: false,
+          staleAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        throw new Prisma.PrismaClientKnownRequestError('unique', {
+          code: 'P2002',
+          clientVersion: 'test',
+        });
+      }
+      return { id: 'unexpected', ...args.data, createdAt: new Date(), updatedAt: new Date() };
+    });
+
+    const saved = await service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      status: 'pursuing',
+      actorUserId: USER,
+    });
+    expect(saved.id).toBe('winner');
+    expect(state.workflows).toHaveLength(1);
+    expect(state.workflows[0]?.workflowStatus).toBe('pursuing');
+  });
 });
 
 // ── Tenant safety ────────────────────────────────────────────────────────────
@@ -733,6 +867,7 @@ describe('an empty list always says WHY', () => {
         naicsCodes: [],
         pscCodes: [],
         applicantTypes: [],
+        setAsideCertifications: [],
         sectorTag: null,
         capabilities: [],
         facilities: [],
@@ -754,6 +889,7 @@ describe('an empty list always says WHY', () => {
         naicsCodes: ['999999'],
         pscCodes: [],
         applicantTypes: [],
+        setAsideCertifications: [],
         sectorTag: null,
         capabilities: [],
         facilities: [],
@@ -775,6 +911,7 @@ describe('an empty list always says WHY', () => {
         naicsCodes: [],
         pscCodes: [],
         applicantTypes: [],
+        setAsideCertifications: [],
         sectorTag: null,
         capabilities: [],
         facilities: [],
@@ -812,7 +949,17 @@ describe('a failed source read is never rendered as an empty list', () => {
     const state = makeState({ queryRawThrows: new Error('sync_run unavailable') });
     const { service } = makeService(state);
     const res = await service.listClientOpportunities(TENANT, CLIENT, {});
-    expect(res.freshness.every((f) => f.lastSyncedAt === null && f.neverSynced === false)).toBe(true);
+    expect(
+      res.freshness.every(
+        (f) =>
+          f.lastSyncedAt === null &&
+          f.neverSynced === false &&
+          f.countsUnavailable === true &&
+          f.recordCount === null &&
+          f.activeRecordCount === null &&
+          f.lastRunDegraded === null,
+      ),
+    ).toBe(true);
     // The opportunities still came back — freshness is context, not correctness.
     expect(res.opportunities.length).toBeGreaterThan(0);
   });
@@ -826,7 +973,7 @@ describe('source freshness', () => {
     const res = await service.listClientOpportunities(TENANT, CLIENT, {});
     expect(res.freshness.map((f) => f.verb).sort()).toEqual([
       'sync-grants',
-      'sync-sam-opportunities',
+      'sync-sam-opportunities-all-federal',
     ]);
     for (const f of res.freshness) {
       expect(f.label.length).toBeGreaterThan(0);
@@ -839,7 +986,7 @@ describe('source freshness', () => {
       makeState({
         syncRuns: [
           { source: 'sync-grants', finished_at: new Date(), error_count: 12, status: 'success_with_errors' },
-          { source: 'sync-sam-opportunities', finished_at: new Date(), error_count: 0, status: 'success' },
+          { source: 'sync-sam-opportunities-all-federal', finished_at: new Date(), error_count: 0, status: 'success' },
         ],
       }),
     );

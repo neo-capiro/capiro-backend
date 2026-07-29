@@ -79,7 +79,13 @@ async function main() {
   }
 
   const contractingMapping = await prisma.clientIntelMapping.findFirst({
-    where: { clientId, source: 'contracting', confirmed: true },
+    where: {
+      clientId,
+      source: 'contracting',
+      confirmed: true,
+      reviewStatus: 'confirmed',
+      rollUpAwards: true,
+    },
   });
   let contractWins = 0;
   if (contractingMapping) {

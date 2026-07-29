@@ -520,6 +520,11 @@ model Client {
   /// it says "we do not know", which is true, rather than guessing a type from
   /// the sector and telling a user they can apply for something they cannot.
   applicantTypes      String[]  @default([]) @map("applicant_types")
+  /// Self-reported federal contracting certifications used only to evaluate
+  /// SAM.gov set-aside compatibility. Canonical values are SAM set-aside codes
+  /// (for example 8AN, SDVOSBC, WOSB, EDWOSB, HZC, SBA, SBP). Empty means
+  /// unknown, never ineligible.
+  setAsideCertifications String[] @default([]) @map("set_aside_certifications")
   // Client→data association overhaul: the confirmed set of Senate LDA client_ids
   // this client resolves to (one id per lobbying-firm relationship — a real
   // company can have many, e.g. Boeing = 27). Denormalized read-cache of the
@@ -4256,6 +4261,13 @@ model ClientIntelMapping {
   /// meaningful once `relationshipType` is set and `confirmed` is true; NULL
   /// means undecided, which read paths must treat as "do not roll up".
   rollUpAwards     Boolean? @map("roll_up_awards")
+  /// Durable reviewer lifecycle. `candidate` is machine-proposed/unreviewed;
+  /// `confirmed` and `rejected` are human or exact-identifier decisions;
+  /// `superseded` preserves history after a newer mapping replaces this one.
+  reviewStatus    String    @default("candidate") @map("review_status") @db.VarChar(16)
+  reviewedBy     String?   @map("reviewed_by") @db.Uuid
+  reviewedAt     DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  rejectionReason String?  @map("rejection_reason") @db.Text
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -4263,6 +4275,7 @@ model ClientIntelMapping {
   @@index([clientId])
   @@index([tenantId])
   @@index([source, externalId])
+  @@index([tenantId, source, reviewStatus], map: "client_intel_mapping_tenant_source_review_idx")
   @@map("client_intel_mapping")
 }
 
@@ -5746,6 +5759,11 @@ model ClientFundingOpportunity {
   /// the relevance floor. Never applied to a row a human has acted on — a
   /// dismissal or a pursuit is a decision, not a stale guess.
   staleAt            DateTime? @map("stale_at") @db.Timestamptz(6)
+  /// Source lifecycle snapshots used by the deterministic alert/expiry pass.
+  sourceStatusSnapshot String? @map("source_status_snapshot") @db.VarChar(64)
+  responseDeadlineSnapshot DateTime? @map("response_deadline_snapshot") @db.Timestamptz(6)
+  sourceUpdatedAtSnapshot DateTime? @map("source_updated_at_snapshot") @db.Timestamptz(6)
+  alertState Json @default("{}") @map("alert_state_jsonb")
 
   dismissedReason String? @map("dismissed_reason") @db.Text
   /// Free-text won/lost context. Only ever set by an explicit user action.
@@ -5774,6 +5792,7 @@ model ClientFundingOpportunity {
   @@index([tenantId, grantOpportunityId], map: "client_funding_opportunity_tenant_grant_idx")
   @@index([tenantId, samOpportunityId], map: "client_funding_opportunity_tenant_sam_idx")
   @@index([tenantId, ownerUserId], map: "client_funding_opportunity_tenant_owner_idx")
+  @@index([tenantId, workflowStatus, responseDeadlineSnapshot], map: "client_funding_opportunity_lifecycle_idx")
   @@map("client_funding_opportunity")
 }
 

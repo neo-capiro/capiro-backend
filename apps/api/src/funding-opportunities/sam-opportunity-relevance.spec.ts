@@ -18,8 +18,10 @@ function client(partial: Partial<SamClientProfile> = {}): SamClientProfile {
     priorAgencies: [],
     priorOffices: [],
     facilityStates: [],
+    facilitySites: [],
     sector: null,
     applicantTypes: [],
+    setAsideCertifications: [],
     ...partial,
   };
 }
@@ -94,14 +96,29 @@ describe('hard / high-confidence signals', () => {
 });
 
 describe('geography is banded by how specific the SOURCE was', () => {
-  test('a city-level place of performance in a facility state is STRONG', () => {
+  test('an exact city-level place of performance match is STRONG', () => {
     const r = scoreSamOpportunityRelevance(
-      client({ facilityStates: ['TX'] }),
+      client({
+        facilityStates: ['TX'],
+        facilitySites: [{ city: 'El Paso', state: 'TX', zip: '79901' }],
+      }),
       opp({ placeOfPerformance: { city: 'El Paso', state: 'TX', zip: null } }),
     );
     const hit = r.matchedSignals.find((s) => s.signal === 'placeOfPerformanceSite');
     expect(hit?.strength).toBe('strong');
     expect(hit?.matchedOn).toBe('El Paso, TX');
+  });
+
+  test('a city elsewhere in the same state is only moderate', () => {
+    const r = scoreSamOpportunityRelevance(
+      client({
+        facilityStates: ['TX'],
+        facilitySites: [{ city: 'Austin', state: 'TX', zip: '78701' }],
+      }),
+      opp({ placeOfPerformance: { city: 'El Paso', state: 'TX', zip: null } }),
+    );
+    expect(r.matchedSignals.map((signal) => signal.signal)).not.toContain('placeOfPerformanceSite');
+    expect(r.matchedSignals.map((signal) => signal.signal)).toContain('facilityState');
   });
 
   test('a STATE-ONLY place of performance is only moderate', () => {
@@ -259,7 +276,16 @@ describe('set-aside is a relevance signal, never an eligibility determination', 
 });
 
 describe('contract eligibility is honest about what is not held', () => {
-  test('it NEVER returns eligible or ineligible', () => {
+  test('it returns eligible only for an explicitly recorded matching certification', () => {
+    const verified = computeSamEligibility(
+      client({ setAsideCertifications: ['SDVOSBC'] }),
+      opp({ setAsideCode: 'SDVOSBC', setAside: 'SDVOSB Set-Aside' }),
+    );
+    expect(verified.state).toBe('eligible');
+    expect(verified.reason).toContain('SDVOSBC');
+  });
+
+  test('without a recorded certification it never guesses eligible or ineligible', () => {
     const cases = [
       computeSamEligibility(client(), opp()),
       computeSamEligibility(client({ applicantTypes: ['Small businesses'] }), opp({ setAsideCode: 'SBA' })),

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, test, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntApp } from 'antd';
@@ -33,6 +33,8 @@ const MAPPINGS = [
     matchTier: 1,
     relationshipType: 'self',
     rollUpAwards: true,
+    reviewStatus: 'confirmed',
+    rejectionReason: null,
     createdAt: '2026-07-01T00:00:00.000Z',
     updatedAt: '2026-07-02T00:00:00.000Z',
   },
@@ -50,6 +52,8 @@ const MAPPINGS = [
     matchTier: null,
     relationshipType: null,
     rollUpAwards: null,
+    reviewStatus: 'candidate',
+    rejectionReason: null,
     createdAt: '2026-07-01T00:00:00.000Z',
     updatedAt: '2026-07-02T00:00:00.000Z',
   },
@@ -66,6 +70,8 @@ const MAPPINGS = [
     matchTier: 4,
     relationshipType: null,
     rollUpAwards: null,
+    reviewStatus: 'candidate',
+    rejectionReason: null,
     createdAt: '2026-07-01T00:00:00.000Z',
     updatedAt: '2026-07-02T00:00:00.000Z',
   },
@@ -149,6 +155,8 @@ beforeEach(() => {
   apiGetMock.mockReset();
   apiPostMock.mockReset();
   apiPatchMock.mockReset();
+  apiPostMock.mockResolvedValue({ data: {} });
+  apiPatchMock.mockResolvedValue({ data: {} });
   search = '';
   apiGetMock.mockImplementation(async (url: string) => {
     if (url === '/api/intelligence/mappings') return { data: MAPPINGS };
@@ -262,6 +270,13 @@ describe('the exact-identifier action', () => {
     expect(await screen.findByRole('button', { name: /Resolve All Clients/i })).toBeInTheDocument();
   });
 
+  test('bulk confirmation is disabled for a contracting-only review queue', async () => {
+    search = '?source=contracting';
+    renderPage();
+    await screen.findByText('ACME DEFENSE LLC');
+    expect(screen.getByRole('button', { name: /Confirm All/i })).toBeDisabled();
+  });
+
   test('confirming a candidate pins it with an explicit relationship type', async () => {
     search = `?clientId=${CLIENT}`;
     apiPostMock.mockResolvedValue({ data: {} });
@@ -277,6 +292,43 @@ describe('the exact-identifier action', () => {
           externalId: CONTRACTOR,
           relationshipType: 'self',
           rollUpAwards: true,
+        }),
+      ),
+    );
+  });
+
+  test('a reviewer can confirm a subsidiary and explicitly roll its awards up', async () => {
+    search = `?clientId=${CLIENT}`;
+    renderPage();
+    await screen.findByText('ACME AEROSPACE GROUP');
+    const other = screen.getAllByRole('button', { name: 'Other…' })[0]!;
+    fireEvent.click(other);
+    const item = await screen.findByText(/Confirm as subsidiary · roll awards up/i);
+    fireEvent.click(item);
+    await waitFor(() =>
+      expect(apiPostMock).toHaveBeenCalledWith(
+        `/api/intelligence/mappings/${CLIENT}/manual`,
+        expect.objectContaining({
+          source: 'contracting',
+          relationshipType: 'subsidiary',
+          rollUpAwards: true,
+        }),
+      ),
+    );
+  });
+
+  test('rejecting a contractor candidate writes a durable rejection', async () => {
+    search = `?clientId=${CLIENT}`;
+    renderPage();
+    await screen.findByText('ACME AEROSPACE GROUP');
+    const reject = screen.getAllByRole('button', { name: 'Reject' })[0]!;
+    fireEvent.click(reject);
+    await waitFor(() =>
+      expect(apiPostMock).toHaveBeenCalledWith(
+        `/api/intelligence/mappings/${CLIENT}/reject-candidate`,
+        expect.objectContaining({
+          source: 'contracting',
+          externalId: CONTRACTOR,
         }),
       ),
     );

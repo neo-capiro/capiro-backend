@@ -315,6 +315,18 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     description: 'SAM.gov DoD contract opportunities (daily, incremental)',
   },
   {
+    id: 'SyncSamOpportunitiesAllFederal',
+    command: ['sync-sam-opportunities-all-federal'],
+    cron: { minute: '55', hour: '7' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: all-federal SAM.gov contract notices (daily, independent watermark)',
+    // Enable out-of-band only after the all-federal backfill and internal canary.
+    // The existing DoD rule may remain during canary because upserts are idempotent,
+    // but should be disabled once this complete rail is stable to avoid duplicate API use.
+    enabled: false,
+  },
+  {
     id: 'EnrichAwardDistricts',
     command: ['enrich-award-districts'],
     cron: { minute: '0', hour: '8' },
@@ -496,6 +508,36 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     description:
       'District Nexus F3: deterministic opportunity_candidate producer (daily 11:35 UTC, after the assistance sync at 11:20 supplies prior ALNs)',
     enabled: true,
+  },
+  // Funding Opportunities producers and lifecycle. These are declared disabled
+  // until the additive migrations, source-field backfill, and internal canary
+  // complete. Enable out-of-band only; never deploy the drifted Compute stack.
+  {
+    id: 'GenerateFundingGrantCandidates',
+    command: ['generate-funding-grant-candidates', '--commit'],
+    cron: { minute: '42', hour: '11' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: persist Grants.gov client suggestions after grant detail enrichment (daily 11:42 UTC)',
+    enabled: false,
+  },
+  {
+    id: 'GenerateSamOpportunityCandidates',
+    command: ['generate-sam-opportunity-candidates', '--commit'],
+    cron: { minute: '52', hour: '11' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: persist SAM.gov client suggestions after SAM ingestion and promoted-field backfill (daily 11:52 UTC)',
+    enabled: false,
+  },
+  {
+    id: 'ProcessFundingOpportunityLifecycle',
+    command: ['process-funding-opportunity-lifecycle', '--commit'],
+    cron: { minute: '20', hour: '*' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: expire machine suggestions and emit amendment/deadline/closure alerts (hourly at :20 UTC)',
+    enabled: false,
   },
   {
     id: 'SyncOpenstates',

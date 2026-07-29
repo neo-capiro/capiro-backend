@@ -3,13 +3,13 @@ import {
   CLIENT_CAP,
   DEFAULT_MIN_RELEVANCE,
   OPPORTUNITY_SCAN_CAP,
-  decideProducerAction,
   generateSamCandidates,
   parseArgs,
   readPlaceOfPerformance,
   resolveTenantIds,
   type SamCandidatesPrisma,
 } from './generate-sam-opportunity-candidates.js';
+import { decideProducerAction } from '../src/funding-opportunities/producer-decision.js';
 
 const TENANT = '00000000-0000-0000-0000-000000000001';
 const CLIENT = '00000000-0000-0000-0000-000000000010';
@@ -131,6 +131,10 @@ function noticeRow(partial: Record<string, unknown> = {}) {
     setAside: null,
     setAsideCode: null,
     placeOfPerformance: {},
+    active: true,
+    responseDeadline: new Date('2027-01-15T00:00:00Z'),
+    updatedAt: new Date('2026-07-01T00:00:00Z'),
+    lastSyncedAt: new Date('2026-07-01T00:00:00Z'),
     matches: [] as Array<{ peCode: string | null }>,
     ...partial,
   };
@@ -142,6 +146,7 @@ function clientRow(partial: Record<string, unknown> = {}) {
     naicsCodes: ['336411'],
     pscCodes: [],
     applicantTypes: [],
+    setAsideCertifications: [],
     sectorTag: 'DEFENSE',
     capabilities: [],
     facilities: [],

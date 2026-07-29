@@ -39,6 +39,7 @@ export interface CreateClientInput {
   cageCode?: string;
   naicsCodes?: string[];
   pscCodes?: string[];
+  setAsideCertifications?: string[];
   /** Grants.gov applicant-type codes — the input District Nexus F3 eligibility needs. */
   applicantTypes?: string[];
   // Pre-confirmed LDA client ids (e.g. Meri's create_client after the user
@@ -175,6 +176,8 @@ export class ClientsService {
           cageCode: input.cageCode ?? null,
           naicsCodes: input.naicsCodes ?? [],
           pscCodes: input.pscCodes ?? [],
+          applicantTypes: input.applicantTypes ?? [],
+          setAsideCertifications: input.setAsideCertifications ?? [],
           ldaClientIds: input.ldaClientIds ?? [],
           createdByUserId: ctx.userId,
         },
@@ -376,6 +379,9 @@ export class ClientsService {
           ...('naicsCodes' in input ? { naicsCodes: input.naicsCodes ?? [] } : {}),
           ...('pscCodes' in input ? { pscCodes: input.pscCodes ?? [] } : {}),
           ...('applicantTypes' in input ? { applicantTypes: input.applicantTypes ?? [] } : {}),
+          ...('setAsideCertifications' in input
+            ? { setAsideCertifications: input.setAsideCertifications ?? [] }
+            : {}),
         },
       }),
     );

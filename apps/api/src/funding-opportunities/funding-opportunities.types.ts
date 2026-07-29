@@ -144,11 +144,13 @@ export interface OpportunitySourceFreshness {
   /** True when the rail has NEVER completed a successful run. */
   neverSynced: boolean;
   /** True when the last completed run reported errors or a capped window. */
-  lastRunDegraded: boolean;
-  /** Count of source records currently in the catalog, active or not. */
-  recordCount: number;
-  /** Count of ACTIVE, pursuable source records. */
-  activeRecordCount: number;
+  lastRunDegraded: boolean | null;
+  /** True when catalog counts could not be read. */
+  countsUnavailable: boolean;
+  /** Count of source records currently in the catalog, active or not. Null = unavailable. */
+  recordCount: number | null;
+  /** Count of ACTIVE, pursuable source records. Null = unavailable. */
+  activeRecordCount: number | null;
 }
 
 // ── Matching explanation ────────────────────────────────────────────────────

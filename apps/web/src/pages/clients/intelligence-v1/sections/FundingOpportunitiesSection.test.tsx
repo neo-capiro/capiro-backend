@@ -42,6 +42,7 @@ function summary(
         lastSyncedAt: '2026-07-28T00:00:00.000Z',
         neverSynced: false,
         lastRunDegraded: false,
+        countsUnavailable: false,
         recordCount: 800,
         activeRecordCount: 120,
       },

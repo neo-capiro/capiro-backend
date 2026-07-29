@@ -47,9 +47,10 @@ export interface OpportunitySourceFreshness {
   label: string;
   lastSyncedAt: string | null;
   neverSynced: boolean;
-  lastRunDegraded: boolean;
-  recordCount: number;
-  activeRecordCount: number;
+  lastRunDegraded: boolean | null;
+  countsUnavailable: boolean;
+  recordCount: number | null;
+  activeRecordCount: number | null;
 }
 
 export interface OpportunityMatchedSignal {

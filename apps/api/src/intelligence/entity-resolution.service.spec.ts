@@ -1,4 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { candidateDecision } from './entity-resolution.service.js';
 
 describe('candidateDecision', () => {
@@ -129,5 +131,38 @@ describe('candidateDecision', () => {
     expect(
       candidateDecision({ source: 'assistance_recipient', confidence: 0.2, isTopForSource: true, runnerUpConfidence: null }),
     ).toBe('skip');
+  });
+});
+
+// Structural regression gates for the database-facing parts of the identity
+// resolver. The decision engine above is pure; these assertions pin the query
+// ordering and persistence semantics that previously bypassed it.
+describe('contractor identity persistence boundaries', () => {
+  const source = readFileSync(join(__dirname, 'entity-resolution.service.ts'), 'utf8');
+
+  test('an exact UEI candidate is ordered ahead of fuzzy-name candidates before LIMIT', () => {
+    const queryStart = source.indexOf('private async matchContractor');
+    const queryEnd = source.indexOf('const candidates:', queryStart);
+    const query = source.slice(queryStart, queryEnd);
+    expect(query).toMatch(
+      /ORDER BY[\s\S]*CASE WHEN[\s\S]*uei = [\s\S]*THEN 0 ELSE 1 END[\s\S]*similarity DESC[\s\S]*LIMIT 50/,
+    );
+  });
+
+  test('a tier-1 upgrade repairs self identity and award roll-up on existing rows', () => {
+    const persistStart = source.indexOf('private async persistSourceCandidates');
+    const persistEnd = source.indexOf('// ── Stage A:', persistStart);
+    const persist = source.slice(persistStart, persistEnd);
+    expect(persist).toMatch(/autoConfirm[\s\S]*relationshipType:\s*'self'/);
+    expect(persist).toMatch(/autoConfirm[\s\S]*rollUpAwards:\s*true/);
+    expect(persist).toMatch(/reviewStatus:\s*'confirmed'/);
+  });
+
+  test('a durable rejection is preserved unless verified identifier evidence changes', () => {
+    expect(source).toContain("reviewStatus === 'rejected'");
+    expect(source).toContain("matchBasis === 'exact_uei'");
+    expect(source).toMatch(
+      /reviewStatus === 'rejected'[\s\S]*matchTier === 1[\s\S]*matchBasis === 'exact_uei'/,
+    );
   });
 });

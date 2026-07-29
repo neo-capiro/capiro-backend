@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, test, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntApp } from 'antd';
@@ -28,10 +28,17 @@ vi.mock('react-router-dom', () => ({
   Link: ({ children, to }: { children: ReactNode; to: string }) => <a href={to}>{children}</a>,
 }));
 
+
+const requestMeriContextPromptMock = vi.fn();
+vi.mock('../../../components/chat/meri-prompt.js', () => ({
+  requestMeriContextPrompt: requestMeriContextPromptMock,
+}));
+
 const apiGetMock = vi.fn();
 const apiPostMock = vi.fn();
+const apiPatchMock = vi.fn();
 vi.mock('../../../lib/use-api.js', () => ({
-  useApi: () => ({ get: apiGetMock, post: apiPostMock }),
+  useApi: () => ({ get: apiGetMock, post: apiPostMock, patch: apiPatchMock }),
 }));
 
 function setupBrowserMocks() {
@@ -163,6 +170,7 @@ function listResponse(
         lastSyncedAt: '2026-07-28T00:00:00.000Z',
         neverSynced: false,
         lastRunDegraded: false,
+        countsUnavailable: false,
         recordCount: 800,
         activeRecordCount: 120,
       },
@@ -173,6 +181,7 @@ function listResponse(
         lastSyncedAt: '2026-07-27T00:00:00.000Z',
         neverSynced: false,
         lastRunDegraded: false,
+        countsUnavailable: false,
         recordCount: 4000,
         activeRecordCount: 900,
       },
@@ -198,6 +207,12 @@ function renderPage() {
 
 function mockApi(list: FundingOpportunityListResponse | Error) {
   apiGetMock.mockImplementation(async (url: string) => {
+    if (url === '/api/tenant-members') {
+      return { data: [{ id: 'user-1', name: 'Ada Byron', email: 'ada@example.com' }] };
+    }
+    if (url === '/api/clients/client-1/facilities') {
+      return { data: [{ id: 'facility-1', name: 'El Paso Plant', city: 'El Paso', state: 'TX' }] };
+    }
     if (url.startsWith('/api/clients')) {
       return { data: [{ id: 'client-1', name: 'Acme Defense', status: 'active' }] };
     }
@@ -213,6 +228,9 @@ beforeEach(() => {
   setupBrowserMocks();
   apiGetMock.mockReset();
   apiPostMock.mockReset();
+  apiPatchMock.mockReset();
+  apiPostMock.mockResolvedValue({ data: {} });
+  apiPatchMock.mockResolvedValue({ data: {} });
   setSearchParamsMock.mockClear();
   flag = { enabled: true, ready: true };
   search = '?clientId=client-1';
@@ -529,6 +547,90 @@ describe('workflow actions', () => {
     expect(save).toBeDisabled();
     expect(screen.getByText(/Select a client to save or pursue/i)).toBeInTheDocument();
   });
+
+  test('Ask Meri opens a new client-scoped assessment with source facts', async () => {
+    mockApi(listResponse({ opportunities: [contract()] }));
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Ask Meri' }));
+    expect(requestMeriContextPromptMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: 'client-1',
+        newSession: true,
+        prompt: expect.stringContaining('W911-26-R-0001'),
+      }),
+    );
+  });
+
+  test('assign owner opens a real modal and patches the workflow', async () => {
+    mockApi(listResponse({ opportunities: [contract()] }));
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /More actions for Turbofan/i }));
+    fireEvent.click(await screen.findByText('Assign owner'));
+    expect(await screen.findByText('Assign opportunity owner')).toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByLabelText('Opportunity owner'));
+    fireEvent.click(await screen.findByText(/Ada Byron/));
+    fireEvent.click(screen.getByRole('button', { name: 'OK' }));
+    await waitFor(() =>
+      expect(apiPatchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/opportunities/sam_gov/'),
+        { ownerUserId: 'user-1' },
+      ),
+    );
+  });
+
+  test('add note persists the note through the workflow PATCH', async () => {
+    mockApi(listResponse({ opportunities: [contract()] }));
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /More actions for Turbofan/i }));
+    fireEvent.click(await screen.findByText('Add note'));
+    fireEvent.change(await screen.findByLabelText('Opportunity note'), {
+      target: { value: 'Coordinate capture review.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'OK' }));
+    await waitFor(() =>
+      expect(apiPatchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/opportunities/sam_gov/'),
+        { notes: 'Coordinate capture review.' },
+      ),
+    );
+  });
+
+  test('link project site patches a client-owned facility', async () => {
+    mockApi(listResponse({ opportunities: [contract()] }));
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /More actions for Turbofan/i }));
+    fireEvent.click(await screen.findByText('Link project site'));
+    fireEvent.mouseDown(await screen.findByLabelText('Project site'));
+    fireEvent.click(await screen.findByText(/El Paso Plant/));
+    fireEvent.click(screen.getByRole('button', { name: 'OK' }));
+    await waitFor(() =>
+      expect(apiPatchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/opportunities/sam_gov/'),
+        { facilityId: 'facility-1' },
+      ),
+    );
+  });
+
+  test('create task uses the existing engagement task route', async () => {
+    mockApi(listResponse({ opportunities: [contract()] }));
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /More actions for Turbofan/i }));
+    fireEvent.click(await screen.findByText('Create task'));
+    fireEvent.change(await screen.findByLabelText('Task context'), {
+      target: { value: 'Prepare bid/no-bid review.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'OK' }));
+    await waitFor(() =>
+      expect(apiPostMock).toHaveBeenCalledWith(
+        '/api/engagement/tasks',
+        expect.objectContaining({
+          clientId: 'client-1',
+          title: expect.stringContaining('Pursue:'),
+          description: expect.stringContaining('Prepare bid/no-bid review.'),
+        }),
+      ),
+    );
+  });
 });
 
 describe('filters', () => {
@@ -541,6 +643,15 @@ describe('filters', () => {
       ),
     );
     expect(apiGetMock).toHaveBeenCalledWith(expect.stringContaining('activeState=active'));
+  });
+
+  test.each(['Saved', 'Pursuing'])('%s includes closed workflow history', async (tabLabel) => {
+    mockApi(listResponse());
+    renderPage();
+    fireEvent.click(await screen.findByText(tabLabel));
+    await waitFor(() =>
+      expect(apiGetMock).toHaveBeenCalledWith(expect.stringContaining('activeState=all')),
+    );
   });
 
   test('every filter control has an accessible name', async () => {

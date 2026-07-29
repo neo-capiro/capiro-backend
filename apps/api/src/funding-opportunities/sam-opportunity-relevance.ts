@@ -161,6 +161,10 @@ export interface SamClientProfile {
   priorOffices: string[];
   /** `ClientFacility.state` values. */
   facilityStates: string[];
+  /** Precise client sites used only for source-backed city/ZIP overlap. */
+  facilitySites: Array<{ city: string | null; state: string | null; zip: string | null }>;
+  /** Explicit SAM set-aside certification codes recorded on the client. */
+  setAsideCertifications: string[];
   /** `Client.sectorTag`. */
   sector: string | null;
   /**
@@ -334,11 +338,23 @@ export function scoreSamOpportunityRelevance(
     client.facilityStates.map((s) => (s ?? '').toUpperCase().trim()).filter(Boolean),
   );
   if (popState && facilityStates.has(popState)) {
-    const specific = Boolean(opp.placeOfPerformance?.city || opp.placeOfPerformance?.zip);
-    if (specific) {
-      const where = [opp.placeOfPerformance?.city, popState].filter(Boolean).join(', ');
+    const oppCity = norm(opp.placeOfPerformance?.city);
+    const oppZip = normCode(opp.placeOfPerformance?.zip);
+    const exactSite = client.facilitySites.find((site) => {
+      const sameState = (site.state ?? '').toUpperCase().trim() === popState;
+      if (!sameState) return false;
+      const siteZip = normCode(site.zip);
+      const siteCity = norm(site.city);
+      return Boolean((oppZip && siteZip && oppZip === siteZip) || (oppCity && siteCity && oppCity === siteCity));
+    });
+    if (exactSite) {
+      const where = [opp.placeOfPerformance?.city, popState, opp.placeOfPerformance?.zip]
+        .filter(Boolean)
+        .join(' ');
       push(signals, 'placeOfPerformanceSite', where);
     } else {
+      // Same-state is useful but is not a site match: California-to-California
+      // can still be hundreds of miles apart.
       push(signals, 'facilityState', popState);
     }
   }
@@ -418,28 +434,37 @@ export function scoreSamOpportunityRelevance(
  *   - Full-and-open is open to any RESPONSIBLE source, and responsibility is a
  *     contracting-officer determination, not a field.
  *
- * See docs/funding-opportunities/data-gap-audit.md for the specific column that
- * would let this return `eligible` (SAM Entity-Management set-aside
- * certifications on the client), and note that grant eligibility sat in exactly
- * this position until `Client.applicantTypes` was added.
+ * `Client.setAsideCertifications` is reviewer-entered structured evidence. Even
+ * an exact code match carries a reminder to confirm current certification and
+ * solicitation-specific size standards before submission.
  */
 export function computeSamEligibility(
   client: SamClientProfile,
   opp: SamOpportunityProfile,
-): { state: 'needs_review' | 'unknown'; reason: string } {
+): { state: 'eligible' | 'needs_review' | 'unknown'; reason: string } {
   if (opp.setAsideCode || opp.setAside) {
     const label = opp.setAside ?? opp.setAsideCode ?? 'a set-aside';
+    const code = normCode(opp.setAsideCode);
+    const certifications = new Set(client.setAsideCertifications.map(normCode).filter(Boolean));
+    if (code && certifications.has(code)) {
+      return {
+        state: 'eligible',
+        reason: `The client profile explicitly records certification ${code}, matching ${label}. Confirm current certification and the solicitation-specific size standard before submission.`,
+      };
+    }
     if (isGeneralSmallBusinessSetAside(opp.setAsideCode)) {
       return {
         state: 'needs_review',
         reason: selfReportsSmallBusiness(client.applicantTypes)
-          ? `Restricted to ${label}. This client self-reports as a small business, but the SBA size standard for NAICS ${opp.naicsCode ?? '(not stated)'} is not held here — confirm size status before bidding.`
+          ? `Restricted to ${label}. This client self-reports as a small business, but the SBA size standard for NAICS ${opp.naicsCode ?? '(not stated)'} must still be confirmed.`
           : `Restricted to ${label}, and no small-business status is recorded for this client — confirm before bidding.`,
       };
     }
     return {
       state: 'needs_review',
-      reason: `Restricted to ${label}. Capiro holds no set-aside certifications for this client, so qualification cannot be confirmed from structured fields.`,
+      reason: certifications.size
+        ? `Restricted to ${label}. The recorded certifications (${[...certifications].join(', ')}) do not include ${code || 'the required program'}; verify whether the profile is complete before treating this as ineligible.`
+        : `Restricted to ${label}. No set-aside certifications are recorded for this client, so qualification cannot be confirmed from structured fields.`,
     };
   }
   return {

@@ -41,6 +41,8 @@ interface ClientIntelMapping {
   matchTier: number | null;
   relationshipType: string | null;
   rollUpAwards: boolean | null;
+  reviewStatus: 'candidate' | 'confirmed' | 'rejected' | 'superseded';
+  rejectionReason: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -84,6 +86,8 @@ interface ContractorCandidateView {
       matchTier: number | null;
       relationshipType: string | null;
       rollUpAwards: boolean | null;
+      reviewStatus: 'candidate' | 'confirmed' | 'rejected' | 'superseded';
+      rejectionReason: string | null;
     } | null;
   }>;
 }
@@ -146,7 +150,7 @@ function asMappingSource(raw: string | null | undefined): MappingSource | undefi
  * $15B+ in wrong assistance_recipient suggestions sat at confidence a
  * confidence-only bulk action would have swept up.)
  */
-const REQUIRES_INDIVIDUAL_REVIEW = new Set<string>(['assistance_recipient', 'fec_committee']);
+const REQUIRES_INDIVIDUAL_REVIEW = new Set<string>(['assistance_recipient', 'fec_committee', 'contracting']);
 
 function confidenceColor(confidence: number): string {
   if (confidence >= 0.85) return '#52c41a';
@@ -232,8 +236,13 @@ export function IntelligenceMappingsPage() {
   });
 
   const confirmMutation = useMutation({
-    mutationFn: async ({ id, confirmed }: { id: string; confirmed: boolean }) =>
-      api.patch(`/api/intelligence/mappings/${id}`, { confirmed }),
+    mutationFn: async (input: {
+      id: string;
+      confirmed: boolean;
+      relationshipType?: string;
+      rollUpAwards?: boolean;
+      rejectionReason?: string;
+    }) => api.patch(`/api/intelligence/mappings/${input.id}`, input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['intelligence-mappings'] });
       void qc.invalidateQueries({ queryKey: ['contractor-candidates'] });
@@ -292,7 +301,7 @@ export function IntelligenceMappingsPage() {
       message: `Confirmed ${toConfirm.length} mapping(s) with ≥60% confidence`,
       description:
         skipped > 0
-          ? `${skipped} mapping(s) skipped — assistance-recipient and PAC-committee matches require individual review regardless of confidence.`
+          ? `${skipped} mapping(s) skipped — federal contractor, assistance-recipient, and PAC-committee matches require individual review regardless of confidence.`
           : undefined,
     });
   }
@@ -379,14 +388,28 @@ export function IntelligenceMappingsPage() {
       title: 'Confirmed',
       dataIndex: 'confirmed',
       width: 90,
-      render: (confirmed: boolean, record) => (
-        <Switch
-          size="small"
-          checked={confirmed}
-          loading={confirmMutation.isPending && confirmMutation.variables?.id === record.id}
-          onChange={(checked) => confirmMutation.mutate({ id: record.id, confirmed: checked })}
-        />
-      ),
+      render: (confirmed: boolean, record) => {
+        if (record.reviewStatus === 'rejected') {
+          return <Tooltip title={record.rejectionReason ?? 'Rejected by reviewer'}><Tag color="red">Rejected</Tag></Tooltip>;
+        }
+        if (record.source === 'contracting' && !confirmed) {
+          return <Tag color="orange">Review individually</Tag>;
+        }
+        return (
+          <Switch
+            size="small"
+            checked={confirmed}
+            loading={confirmMutation.isPending && confirmMutation.variables?.id === record.id}
+            onChange={(checked) =>
+              confirmMutation.mutate({
+                id: record.id,
+                confirmed: checked,
+                ...(!checked ? { rejectionReason: 'Rejected from mappings review' } : {}),
+              })
+            }
+          />
+        );
+      },
     },
     {
       title: 'Updated',
@@ -487,7 +510,7 @@ export function IntelligenceMappingsPage() {
           />
           <span style={{ flex: 1 }} />
           <Space>
-            <Tooltip title="Excludes assistance-recipient and PAC-committee mappings — those require individual review regardless of confidence.">
+            <Tooltip title="Excludes federal-contractor, assistance-recipient, and PAC-committee mappings — those require individual review regardless of confidence.">
               <Button
                 size="small"
                 icon={<CheckCircleOutlined />}
@@ -639,16 +662,14 @@ function ContractorCandidatePanel({
       contractorId: string;
       contractorName: string;
       relationshipType: string;
+      rollUpAwards: boolean;
     }) =>
       api.post(`/api/intelligence/mappings/${clientId}/manual`, {
         source: 'contracting',
         externalId: input.contractorId,
         externalName: input.contractorName,
         relationshipType: input.relationshipType,
-        // A confirmed identity is what the award footprint reads, so a 'self' pin
-        // rolls awards up. Any other relationship is left for the reviewer to
-        // decide explicitly rather than assumed.
-        rollUpAwards: input.relationshipType === 'self',
+        rollUpAwards: input.rollUpAwards,
       }),
     onSuccess: (_d, input) => {
       notification.success({
@@ -660,6 +681,23 @@ function ContractorCandidatePanel({
     },
     onError: (err) =>
       notification.error({ message: 'Confirm failed', description: apiErrorMessage(err) }),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async (input: { contractorId: string; contractorName: string }) =>
+      api.post(`/api/intelligence/mappings/${clientId}/reject-candidate`, {
+        source: 'contracting',
+        externalId: input.contractorId,
+        externalName: input.contractorName,
+        reason: 'Rejected from contractor identity review',
+      }),
+    onSuccess: () => {
+      notification.success({ message: 'Contractor candidate rejected' });
+      void candidates.refetch();
+      onChanged();
+    },
+    onError: (err) =>
+      notification.error({ message: 'Reject failed', description: apiErrorMessage(err) }),
   });
 
   const columns: ColumnsType<ContractorCandidateView['candidates'][number]> = [
@@ -754,24 +792,39 @@ function ContractorCandidatePanel({
       title: '',
       key: 'actions',
       width: 210,
-      render: (_v, r) =>
-        r.mapping?.confirmed ? (
-          <Tag color="green" icon={<CheckCircleOutlined />}>
-            Confirmed
-          </Tag>
-        ) : (
+      render: (_v, r) => {
+        if (r.mapping?.reviewStatus === 'rejected') {
+          return (
+            <Tooltip title={r.mapping.rejectionReason ?? 'Rejected by reviewer'}>
+              <Tag color="red">Rejected</Tag>
+            </Tooltip>
+          );
+        }
+        if (r.mapping?.confirmed) {
+          return <Tag color="green" icon={<CheckCircleOutlined />}>Confirmed</Tag>;
+        }
+        const relationItems = [
+          ['former_name', 'former name'],
+          ['parent', 'parent'],
+          ['subsidiary', 'subsidiary'],
+          ['operating_unit', 'operating unit'],
+          ['alias', 'alias'],
+        ].flatMap(([relationshipType, label]) => [
+          { key: `${relationshipType}:rollup`, label: `Confirm as ${label} · roll awards up` },
+          { key: `${relationshipType}:no-rollup`, label: `Confirm as ${label} · do not roll awards up` },
+        ]);
+        return (
           <Space size={4} wrap>
             <Button
               size="small"
               type="primary"
-              loading={
-                pinMutation.isPending && pinMutation.variables?.contractorId === r.contractorId
-              }
+              loading={pinMutation.isPending && pinMutation.variables?.contractorId === r.contractorId}
               onClick={() =>
                 pinMutation.mutate({
                   contractorId: r.contractorId,
                   contractorName: r.contractorName,
                   relationshipType: 'self',
+                  rollUpAwards: true,
                 })
               }
             >
@@ -780,25 +833,31 @@ function ContractorCandidatePanel({
             <Dropdown
               trigger={['click']}
               menu={{
-                items: [
-                  { key: 'former_name', label: 'Confirm as a former name' },
-                  { key: 'parent', label: 'Confirm as the parent' },
-                  { key: 'subsidiary', label: 'Confirm as a subsidiary' },
-                  { key: 'operating_unit', label: 'Confirm as an operating unit' },
-                  { key: 'alias', label: 'Confirm as an alias' },
-                ],
-                onClick: ({ key }: { key: string }) =>
+                items: relationItems,
+                onClick: ({ key }: { key: string }) => {
+                  const [relationshipType, rollup] = key.split(':');
                   pinMutation.mutate({
                     contractorId: r.contractorId,
                     contractorName: r.contractorName,
-                    relationshipType: key,
-                  }),
+                    relationshipType: relationshipType!,
+                    rollUpAwards: rollup === 'rollup',
+                  });
+                },
               }}
             >
               <Button size="small">Other…</Button>
             </Dropdown>
+            <Button
+              size="small"
+              danger
+              loading={rejectMutation.isPending && rejectMutation.variables?.contractorId === r.contractorId}
+              onClick={() => rejectMutation.mutate({ contractorId: r.contractorId, contractorName: r.contractorName })}
+            >
+              Reject
+            </Button>
           </Space>
-        ),
+        );
+      },
     },
   ];
 
@@ -956,6 +1015,8 @@ function ManualMapModal({
   const [clientId, setClientId] = useState<string | undefined>(undefined);
   const [searchInput, setSearchInput] = useState('');
   const [query, setQuery] = useState('');
+  const [relationshipType, setRelationshipType] = useState('self');
+  const [rollUpAwards, setRollUpAwards] = useState(true);
 
   // The modal stays mounted between opens, so useState's initial value only
   // applies once. Re-apply the deep-linked source each time it opens, otherwise
@@ -1030,6 +1091,9 @@ function ManualMapModal({
         source,
         externalId: r.id,
         externalName: r.name,
+        ...(['contracting', 'assistance_recipient'].includes(source)
+          ? { relationshipType, rollUpAwards }
+          : {}),
       }),
     onSuccess: (_d, r) => {
       const sourceLabel =
@@ -1048,9 +1112,13 @@ function ManualMapModal({
             : source === 'contracting'
               ? 'contract/obligation footprint'
               : 'grant/assistance footprint';
+      const awardBearing = source === 'contracting' || source === 'assistance_recipient';
       notification.success({
         message: 'Mapping attached',
-        description: `"${r.name}" is now a confirmed ${sourceLabel} mapping. It feeds this client's ${feeds} immediately.`,
+        description:
+          awardBearing && !rollUpAwards
+            ? `"${r.name}" is now a confirmed ${sourceLabel} relationship. Its awards will not be attributed to this client.`
+            : `"${r.name}" is now a confirmed ${sourceLabel} mapping. It feeds this client's ${feeds} immediately.`,
       });
       void qc.invalidateQueries({ queryKey: ['intelligence-mappings'] });
       invalidateClientIntel(qc);
@@ -1221,6 +1289,8 @@ function ManualMapModal({
       afterClose={() => {
         setSource('lda');
         setClientId(undefined);
+        setRelationshipType('self');
+        setRollUpAwards(true);
         resetSearch();
       }}
     >
@@ -1252,6 +1322,31 @@ function ManualMapModal({
           optionFilterProp="label"
           options={(clientsQuery.data ?? []).map((c) => ({ label: c.name, value: c.id }))}
         />
+
+        {source === 'contracting' || source === 'assistance_recipient' ? (
+          <Card size="small" style={{ width: '100%' }}>
+            <Space wrap>
+              <Select
+                value={relationshipType}
+                onChange={setRelationshipType}
+                style={{ width: 220 }}
+                aria-label="Federal entity relationship"
+                options={[
+                  { value: 'self', label: 'This client' },
+                  { value: 'alias', label: 'Alias' },
+                  { value: 'former_name', label: 'Former name' },
+                  { value: 'parent', label: 'Parent' },
+                  { value: 'subsidiary', label: 'Subsidiary' },
+                  { value: 'operating_unit', label: 'Operating unit' },
+                ]}
+              />
+              <Space>
+                <Switch checked={rollUpAwards} onChange={setRollUpAwards} aria-label="Roll awards up" />
+                <Text>Roll this entity’s awards up to the client</Text>
+              </Space>
+            </Space>
+          </Card>
+        ) : null}
 
         <Input.Search
           placeholder={

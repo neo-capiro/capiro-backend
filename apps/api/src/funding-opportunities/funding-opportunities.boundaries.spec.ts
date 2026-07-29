@@ -20,6 +20,10 @@ const MIGRATION = join(
   __dirname,
   '../../prisma/migrations/20260810010000_funding_opportunities/migration.sql',
 );
+const CLOSEOUT_MIGRATION = join(
+  __dirname,
+  '../../prisma/migrations/20260810020000_funding_opportunities_closeout/migration.sql',
+);
 const SCHEMA = join(__dirname, '../../prisma/schema.prisma');
 
 // ── Role matrix, against the REAL RolesGuard and the real decorator metadata ──
@@ -248,7 +252,54 @@ describe('migration: RLS, uniqueness, check constraints', () => {
       .filter((e) => e.isDirectory())
       .map((e) => e.name)
       .sort();
-    expect(names[names.length - 1]).toBe('20260810010000_funding_opportunities');
+    expect(names[names.length - 1]).toBe('20260810020000_funding_opportunities_closeout');
+  });
+  describe('closeout migration: reviewed identities and lifecycle state', () => {
+    const closeout = existsSync(CLOSEOUT_MIGRATION)
+      ? readFileSync(CLOSEOUT_MIGRATION, 'utf8')
+      : '';
+
+    test('the closeout migration exists and is additive', () => {
+      expect(closeout.length).toBeGreaterThan(0);
+      expect(closeout).not.toMatch(/\bDROP\s+(TABLE|COLUMN|CONSTRAINT)\b/i);
+    });
+
+    test('client qualification and lifecycle snapshot columns are retry-safe', () => {
+      expect(closeout).toMatch(
+        /ALTER TABLE "clients"[\s\S]*ADD COLUMN IF NOT EXISTS "set_aside_certifications" TEXT\[\] NOT NULL DEFAULT/,
+      );
+      for (const column of [
+        'source_status_snapshot',
+        'response_deadline_snapshot',
+        'source_updated_at_snapshot',
+        'alert_state_jsonb',
+      ]) {
+        expect(closeout).toContain(`ADD COLUMN IF NOT EXISTS "${column}"`);
+      }
+      expect(closeout).toContain(
+        'CREATE INDEX IF NOT EXISTS "client_funding_opportunity_lifecycle_idx"',
+      );
+    });
+
+    test('mapping review state is backfilled before NOT NULL is enforced', () => {
+      const add = closeout.indexOf('ADD COLUMN IF NOT EXISTS "review_status"');
+      const backfill = closeout.indexOf('UPDATE "client_intel_mapping"');
+      const notNull = closeout.indexOf('ALTER COLUMN "review_status" SET NOT NULL');
+      expect(add).toBeGreaterThanOrEqual(0);
+      expect(backfill).toBeGreaterThan(add);
+      expect(notNull).toBeGreaterThan(backfill);
+      expect(closeout).toContain(
+        "CHECK (\"review_status\" IN ('candidate','confirmed','rejected','superseded'))",
+      );
+    });
+
+    test('every closeout ALTER TABLE names a real mapped table', () => {
+      const schema = readFileSync(SCHEMA, 'utf8');
+      const mapped = new Set([...schema.matchAll(/@@map\("([^"]+)"\)/g)].map((m) => m[1]!));
+      for (const m of closeout.matchAll(/ALTER TABLE "([a-z_]+)"/g)) {
+        expect(mapped.has(m[1]!)).toBe(true);
+      }
+    });
   });
 });
 
@@ -276,6 +327,36 @@ describe('tenant-scope coverage', () => {
     const exemptions = (src.match(/tenant-scope-exempt:/g) ?? []).length;
     expect(globalReads).toBeGreaterThan(0);
     expect(exemptions).toBeGreaterThan(0);
+  });
+});
+
+// ── Corporate award attribution must be explicitly reviewed ────────────────
+
+describe('award attribution requires a confirmed reviewed mapping with opt-in roll-up', () => {
+  const files = [
+    join(__dirname, 'funding-opportunities.service.ts'),
+    join(__dirname, '../district-nexus/district-nexus.service.ts'),
+    join(__dirname, '../intelligence/report-card.service.ts'),
+    join(__dirname, '../intelligence/intelligence.service.ts'),
+  ];
+
+  test('no award-attribution consumer treats null roll-up as enabled', () => {
+    for (const file of files) {
+      const src = stripComments(readFileSync(file, 'utf8'));
+      expect(src).not.toMatch(/rollUpAwards\s*!==\s*false/);
+    }
+  });
+
+  test('contracting and assistance award consumers require review + roll-up', () => {
+    for (const file of files) {
+      const src = stripComments(readFileSync(file, 'utf8'));
+      for (const match of src.matchAll(/source:\s*(?:\{\s*in:\s*\[[^\]]*(?:contracting|assistance_recipient)[^\]]*\]\s*\}|['"](?:contracting|assistance_recipient)['"])/g)) {
+        const nearby = src.slice(Math.max(0, match.index! - 180), match.index! + 360);
+        if (!/confirmed:\s*true/.test(nearby)) continue;
+        expect(nearby).toMatch(/reviewStatus:\s*['"]confirmed['"]/);
+        expect(nearby).toMatch(/rollUpAwards:\s*true/);
+      }
+    }
   });
 });
 
