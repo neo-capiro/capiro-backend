@@ -84,6 +84,11 @@ export class OrchestratorContextCompilerService {
           data: {
             id: packet.packetId,
             tenantId: packet.tenantId,
+            // context_packet.effective_tenant_id is NOT NULL with no DB default
+            // (20260729010000_memory_governance_context_v2). This trace write is
+            // fire-and-forget, so a NOT NULL violation here would be swallowed
+            // into a warn log and silently cost every packet trace.
+            effectiveTenantId: packet.tenantId,
             surface: packet.surface,
             userId: packet.userId,
             clientId: packet.clientId,

@@ -257,6 +257,9 @@ model Tenant {
   memoryEdges                  MemoryEdge[]
   memoryCandidates             MemoryCandidate[]
   memoryIngestRuns             MemoryIngestRun[]
+  governedMemoryAccessGrants   MemoryAccessGrant[]
+  memoryTransitionAudits       MemoryTransitionAudit[]
+  memoryCleanupOutbox          MemoryCleanupOutbox[]
   clientMemoryAccessGrants     ClientMemoryAccess[]
   clientGrantNexuses           ClientGrantNexus[]
   clientFundingOpportunities   ClientFundingOpportunity[]
@@ -322,6 +325,7 @@ model User {
   programElementWatches         ProgramElementWatch[]
   peAlertEmailPrefs             PeAlertEmailPref[]
   clientMemoryAccessGrants      ClientMemoryAccess[]           @relation("ClientMemoryAccessUser")
+  governedMemoryAccessGrants    MemoryAccessGrant[]            @relation("MemoryAccessGrantUser")
   outreachDraftArtifacts        OutreachDraftArtifact[]        @relation("OutreachDraftArtifactAuthor")
   outreachDraftVersions         OutreachDraftVersion[]         @relation("OutreachDraftVersionAuthor")
   outreachSendIntents           OutreachSendIntent[]           @relation("OutreachSendIntentOwner")
@@ -566,6 +570,7 @@ model Client {
   clioProactiveAlerts     ClioProactiveAlert[]
   actionRecommendations   ActionRecommendation[]
   memoryAccessGrants      ClientMemoryAccess[]
+  governedMemoryGrants    MemoryAccessGrant[]
   grantNexuses            ClientGrantNexus[]
   fundingOpportunities    ClientFundingOpportunity[]
 
@@ -2212,6 +2217,34 @@ model ContextPacket {
   criticalFailureCount Int       @default(0) @map("critical_failure_count")
   freshestSourceAt     DateTime? @map("freshest_source_at") @db.Timestamptz(6)
   stalestSourceAt      DateTime? @map("stalest_source_at") @db.Timestamptz(6)
+
+  // ── ContextPacket v2 metadata (20260729010000_memory_governance_context_v2) ──
+  // `packetVersion` above is shared with (and owned by) the engagement gateway
+  // migration; everything here is new. Bodies are never copied into this table.
+  //
+  // effectiveTenantId is NOT NULL with NO default (the migration backfills it
+  // from tenant_id then does ALTER COLUMN ... SET NOT NULL), so it is REQUIRED
+  // here — every writer must supply it explicitly.
+  //
+  // SQL-ONLY (not expressible in Prisma — see the migration):
+  //   CHECK context_packet_version_check (packet_version IN (1, 2))
+  //   CHECK context_packet_budget_check (non-negative, used <= budget)
+  //   PARTIAL INDEX context_packet_v2_trace_idx
+  //     (tenant_id, trace_id, created_at DESC) WHERE packet_version = 2
+  //   PARTIAL INDEX context_packet_v2_surface_idx
+  //     (tenant_id, surface, client_id, created_at DESC) WHERE packet_version = 2
+  effectiveTenantId String   @map("effective_tenant_id") @db.Uuid
+  actorUserId       String?  @map("actor_user_id") @db.Uuid
+  traceId           String?  @map("trace_id") @db.VarChar(160)
+  promptVersion     String?  @map("prompt_version") @db.VarChar(80)
+  policyVersion     String?  @map("policy_version") @db.VarChar(80)
+  compilerVersion   String?  @map("compiler_version") @db.VarChar(80)
+  requiredLayers    String[] @default([]) @map("required_layers")
+  health            Json     @default("{}") @map("health_jsonb")
+  totalTokenBudget  Int?     @map("total_token_budget")
+  usedTokens        Int      @default(0) @map("used_tokens")
+  truncated         Boolean  @default(false)
+  incomplete        Boolean  @default(false)
 
   tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   outreachDraftVersions OutreachDraftVersion[]
@@ -6304,6 +6337,64 @@ model MemoryItem {
   ingestedAt        DateTime? @map("ingested_at") @db.Timestamptz(6)
   reviewState       String    @default("auto") @map("review_state") @db.VarChar(16)
 
+  // G2 (20260713020000_memory_client_scope_ephemeral) — ephemeral/working memory.
+  // NULL = durable (every pre-G2 row). The RLS expiry predicate that hides an
+  // expired row ships in 20260713030000_memory_items_expiry_rls.
+  //
+  // SQL-ONLY: PARTIAL INDEX memory_items_expiry_idx (tenant_id, expires_at)
+  //   WHERE expires_at IS NOT NULL.
+  expiresAt DateTime? @map("expires_at") @db.Timestamptz(6)
+
+  // ── MeriV2 Phase 3 governance (20260729010000_memory_governance_context_v2) ──
+  // Conservative defaults deliberately carry NO approval and NO authority:
+  // memoryClass/memoryAuthority default to 'legacy_unclassified' (a quarantine
+  // state, never active authority) and governedStatus to 'pending_review'.
+  // Every read/write today goes through $queryRaw; these are modelled so
+  // `prisma migrate dev` cannot propose dropping them.
+  //
+  // SQL-ONLY (not expressible in Prisma — see the migration):
+  //   CHECK memory_items_memory_class_check, _authority_check, _scope_check,
+  //     _governed_status_check, _conflict_status_check, _source_excerpt_cap_check,
+  //     _confidence_range_check, _ephemeral_ttl_check, _instruction_authority_check
+  //   PARTIAL INDEX memory_items_review_due_idx (tenant_id, review_due_at)
+  //     WHERE governed_status IN ('active','stale','conflicted')
+  //   PARTIAL INDEX memory_items_conflict_group_idx (tenant_id, conflict_group_id)
+  //     WHERE conflict_group_id IS NOT NULL
+  //   PARTIAL INDEX memory_items_source_identity_idx
+  //     (tenant_id, source_type, source_id) WHERE source_id IS NOT NULL
+  memoryClass            String    @default("legacy_unclassified") @map("memory_class") @db.VarChar(40)
+  memoryAuthority        String    @default("legacy_unclassified") @map("memory_authority") @db.VarChar(40)
+  memoryScope            String    @default("firm") @map("memory_scope") @db.VarChar(24)
+  governedStatus         String    @default("pending_review") @map("governed_status") @db.VarChar(24)
+  sourceType             String    @default("unknown") @map("source_type") @db.VarChar(40)
+  sourceId               String?   @map("source_id")
+  sourceExcerpt          String?   @map("source_excerpt")
+  sourceContentHash      String?   @map("source_content_hash") @db.VarChar(96)
+  sourceVersion          String?   @map("source_version") @db.VarChar(160)
+  assertedByUserId       String?   @map("asserted_by_user_id") @db.Uuid
+  approvedByUserId       String?   @map("approved_by_user_id") @db.Uuid
+  approvedAt             DateTime? @map("approved_at") @db.Timestamptz(6)
+  secondApprovedByUserId String?   @map("second_approved_by_user_id") @db.Uuid
+  secondApprovedAt       DateTime? @map("second_approved_at") @db.Timestamptz(6)
+  asOf                   DateTime? @map("as_of") @db.Timestamptz(6)
+  effectiveFrom          DateTime? @map("effective_from") @db.Timestamptz(6)
+  validUntil             DateTime? @map("valid_until") @db.Timestamptz(6)
+  reviewDueAt            DateTime? @map("review_due_at") @db.Timestamptz(6)
+  conflictStatus         String    @default("none") @map("conflict_status") @db.VarChar(24)
+  conflictGroupId        String?   @map("conflict_group_id") @db.Uuid
+  /// Winning row of `conflictGroupId`. Deliberately NO FK in the migration (a
+  /// conflict group is resolved by application policy, and a controlling row may
+  /// be revoked without cascading), so it stays a bare uuid here too.
+  controllingItemId      String?   @map("controlling_item_id") @db.Uuid
+  originSurface          String?   @map("origin_surface") @db.VarChar(48)
+  originTraceId          String?   @map("origin_trace_id") @db.VarChar(160)
+  /// context_packet.id this item was extracted from. No FK in the migration —
+  /// packets are prunable trace data and must not pin memory rows.
+  originContextPacketId  String?   @map("origin_context_packet_id") @db.Uuid
+  originModel            String?   @map("origin_model") @db.VarChar(160)
+  originPromptVersion    String?   @map("origin_prompt_version") @db.VarChar(80)
+  instructionsAllowed    Boolean   @default(false) @map("instructions_allowed")
+
   tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   edges     MemoryEdge[]
   ingestRun MemoryIngestRun? @relation(fields: [ingestRunId], references: [id], onDelete: SetNull)
@@ -6313,12 +6404,18 @@ model MemoryItem {
   contradicts    MemoryItem?  @relation("MemoryItemContradiction", fields: [contradictsId], references: [id], onDelete: SetNull)
   contradictedBy MemoryItem[] @relation("MemoryItemContradiction")
 
+  // Candidate lineage back-relations (20260729011000_memory_governance_lineage).
+  duplicateCandidates     MemoryCandidate[] @relation("MemoryCandidateDuplicateItem")
+  contradictingCandidates MemoryCandidate[] @relation("MemoryCandidateContradictsItem")
+  committedCandidates     MemoryCandidate[] @relation("MemoryCandidateCommittedItem")
+
   @@unique([tenantId, type, slug], map: "memory_items_tenant_type_slug_unique")
   @@index([tenantId, clientId], map: "memory_items_tenant_client_idx")
   @@index([tenantId, visibility, ownerUserId], map: "memory_items_tenant_visibility_owner_idx")
   @@index([tenantId, type], map: "memory_items_tenant_type_idx")
   @@index([entityId], map: "memory_items_entity_idx")
   @@index([tenantId, status], map: "memory_items_tenant_status_idx")
+  @@index([tenantId, governedStatus, memoryClass, memoryScope, clientId], map: "memory_items_governed_recall_idx")
   @@map("memory_items")
 }
 
@@ -6374,12 +6471,76 @@ model MemoryCandidate {
   committedMemoryId String?   @map("committed_memory_id") @db.Uuid
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
+  // ── MeriV2 Phase 3 governance (20260729010000_memory_governance_context_v2) ──
+  // The legacy `scope`/`status` columns above are RETAINED untouched for
+  // rollback; `memoryScope`/`governedStatus` are the v2 vocabulary and were
+  // backfilled from them by the migration. governedStatus defaults to
+  // 'suggested' (weaker than memory_items' 'pending_review') so a brand-new
+  // candidate is not implicitly queued for review.
+  //
+  // SQL-ONLY (not expressible in Prisma — see the migration):
+  //   CHECK memory_candidate_memory_class_check, _authority_check, _scope_check,
+  //     _governed_status_check, _conflict_status_check, _source_excerpt_cap_check,
+  //     _confidence_range_check, _ephemeral_ttl_check
+  //   PARTIAL INDEX memory_candidate_source_identity_idx
+  //     (tenant_id, source_type, source_id) WHERE source_id IS NOT NULL
+  //   PARTIAL INDEX memory_candidate_duplicate_item_idx / _contradicts_item_idx /
+  //     _committed_item_idx (tenant_id, <col>) WHERE <col> IS NOT NULL
+  memoryClass            String    @default("legacy_unclassified") @map("memory_class") @db.VarChar(40)
+  memoryAuthority        String    @default("legacy_unclassified") @map("memory_authority") @db.VarChar(40)
+  memoryScope            String    @default("firm") @map("memory_scope") @db.VarChar(24)
+  governedStatus         String    @default("suggested") @map("governed_status") @db.VarChar(24)
+  sourceType             String    @default("unknown") @map("source_type") @db.VarChar(40)
+  sourceId               String?   @map("source_id")
+  sourceRef              String?   @map("source_ref")
+  sourceExcerpt          String?   @map("source_excerpt")
+  sourceContentHash      String?   @map("source_content_hash") @db.VarChar(96)
+  sourceVersion          String?   @map("source_version") @db.VarChar(160)
+  assertedByUserId       String?   @map("asserted_by_user_id") @db.Uuid
+  approvedByUserId       String?   @map("approved_by_user_id") @db.Uuid
+  approvedAt             DateTime? @map("approved_at") @db.Timestamptz(6)
+  secondApprovedByUserId String?   @map("second_approved_by_user_id") @db.Uuid
+  secondApprovedAt       DateTime? @map("second_approved_at") @db.Timestamptz(6)
+  asOf                   DateTime? @map("as_of") @db.Timestamptz(6)
+  effectiveFrom          DateTime? @map("effective_from") @db.Timestamptz(6)
+  validUntil             DateTime? @map("valid_until") @db.Timestamptz(6)
+  expiresAt              DateTime? @map("expires_at") @db.Timestamptz(6)
+  reviewCadenceDays      Int?      @map("review_cadence_days")
+  reviewDueAt            DateTime? @map("review_due_at") @db.Timestamptz(6)
+  conflictStatus         String    @default("none") @map("conflict_status") @db.VarChar(24)
+  conflictGroupId        String?   @map("conflict_group_id") @db.Uuid
+  /// No FK in the migration — mirrors memory_items.controlling_item_id.
+  controllingItemId      String?   @map("controlling_item_id") @db.Uuid
+  sensitivity            String    @default("normal") @db.VarChar(24)
+  retentionPolicy        Json?     @map("retention_policy_jsonb")
+  legalHold              Boolean   @default(false) @map("legal_hold")
+  originSurface          String?   @map("origin_surface") @db.VarChar(48)
+  originTraceId          String?   @map("origin_trace_id") @db.VarChar(160)
+  /// No FK in the migration — mirrors memory_items.origin_context_packet_id.
+  originContextPacketId  String?   @map("origin_context_packet_id") @db.Uuid
+  originModel            String?   @map("origin_model") @db.VarChar(160)
+  originPromptVersion    String?   @map("origin_prompt_version") @db.VarChar(80)
+  instructionsAllowed    Boolean   @default(false) @map("instructions_allowed")
+
+  // ── Candidate → item lineage (20260729011000_memory_governance_lineage) ──
+  // Distinct from the legacy `duplicateOfId` (candidate → candidate) and
+  // `contradictsId` / `committedMemoryId` (bare uuids, no FK): these three DO
+  // carry real FKs to memory_items with ON DELETE SET NULL.
+  duplicateMemoryItemId   String? @map("duplicate_memory_item_id") @db.Uuid
+  contradictsMemoryItemId String? @map("contradicts_memory_item_id") @db.Uuid
+  committedMemoryItemId   String? @map("committed_memory_item_id") @db.Uuid
+
   tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   duplicateOf MemoryCandidate?  @relation("MemoryCandidateDuplicate", fields: [duplicateOfId], references: [id], onDelete: SetNull)
   duplicates  MemoryCandidate[] @relation("MemoryCandidateDuplicate")
 
+  duplicateMemoryItem   MemoryItem? @relation("MemoryCandidateDuplicateItem", fields: [duplicateMemoryItemId], references: [id], onDelete: SetNull)
+  contradictsMemoryItem MemoryItem? @relation("MemoryCandidateContradictsItem", fields: [contradictsMemoryItemId], references: [id], onDelete: SetNull)
+  committedMemoryItem   MemoryItem? @relation("MemoryCandidateCommittedItem", fields: [committedMemoryItemId], references: [id], onDelete: SetNull)
+
   @@index([tenantId, status], map: "memory_candidate_tenant_status_idx")
   @@index([tenantId, proposedBy], map: "memory_candidate_tenant_proposed_by_idx")
+  @@index([tenantId, governedStatus, memoryClass, clientId, createdAt(sort: Desc)], map: "memory_candidate_governed_queue_idx")
   @@map("memory_candidate")
 }
 
@@ -6404,6 +6565,115 @@ model MemoryIngestRun {
 
   @@index([tenantId, startedAt(sort: Desc)], map: "memory_ingest_run_tenant_started_idx")
   @@map("memory_ingest_run")
+}
+
+/// MeriV2 Phase 3 (20260729010000_memory_governance_context_v2) — fine-grained
+/// edit/review/approval grant over governed memory. Deliberately NOT an overload
+/// of `client_memory_access`, whose existing meaning is ethical-wall READ
+/// permission. clientId NULL = a firm-wide grant. RLS-FORCED on tenant_id.
+///
+/// SQL-ONLY (not expressible in Prisma — see the migration):
+///   CHECK memory_access_grant_status_check (status IN ('active','revoked','expired'))
+///   CHECK memory_access_grant_permissions_check (permissions <@ the 8-verb vocabulary:
+///     propose, review, approve, edit, confirm, mark_stale, revoke, resolve_conflict)
+///   PARTIAL UNIQUE INDEX memory_access_grant_unique_active
+///     (tenant_id, client_id, user_id) WHERE status = 'active' — deliberately
+///     NOT declared as @@unique here: a full unique key would be a lie (it would
+///     forbid an 'active' grant coexisting with a prior 'revoked' one for the
+///     same triple) and would expose an unsound findUnique/upsert on the client.
+model MemoryAccessGrant {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  clientId        String?   @map("client_id") @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  permissions     String[]  @default([])
+  status          String    @default("active") @db.VarChar(16)
+  /// Granter (plain uuid, no FK — mirrors ClientMemoryAccess.grantedBy; survives
+  /// the granter's departure).
+  grantedByUserId String?   @map("granted_by_user_id") @db.Uuid
+  reason          String?
+  expiresAt       DateTime? @map("expires_at") @db.Timestamptz(6)
+  revokedAt       DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revokedByUserId String?   @map("revoked_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user   User    @relation("MemoryAccessGrantUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, status], map: "memory_access_grant_user_idx")
+  @@map("memory_access_grant")
+}
+
+/// MeriV2 Phase 3 (20260729010000_memory_governance_context_v2) — immutable SOC 2
+/// evidence for governed-memory lifecycle transitions. Ids/status/reason ONLY;
+/// never a memory body. `effectiveTenantId` is the tenant the actor was operating
+/// as (impersonation-aware) and is NOT NULL. memoryItemId / memoryCandidateId
+/// deliberately carry NO FK so audit evidence outlives its subject.
+///
+/// SQL-ONLY (not expressible in Prisma — see the migration):
+///   CHECK memory_transition_exact_subject_check (exactly one of memory_item_id /
+///     memory_candidate_id is non-NULL)
+///   CHECK memory_transition_metadata_size_check (metadata_jsonb <= 32 KiB)
+model MemoryTransitionAudit {
+  id                     String   @id @default(uuid()) @db.Uuid
+  tenantId               String   @map("tenant_id") @db.Uuid
+  memoryItemId           String?  @map("memory_item_id") @db.Uuid
+  memoryCandidateId      String?  @map("memory_candidate_id") @db.Uuid
+  actorUserId            String?  @map("actor_user_id") @db.Uuid
+  effectiveTenantId      String   @map("effective_tenant_id") @db.Uuid
+  clientId               String?  @map("client_id") @db.Uuid
+  fromStatus             String?  @map("from_status") @db.VarChar(24)
+  toStatus               String   @map("to_status") @db.VarChar(24)
+  reasonCode             String   @map("reason_code") @db.VarChar(48)
+  reason                 String
+  sourceType             String?  @map("source_type") @db.VarChar(40)
+  sourceId               String?  @map("source_id")
+  proposalId             String?  @map("proposal_id") @db.Uuid
+  impersonationSessionId String?  @map("impersonation_session_id") @db.Uuid
+  metadata               Json     @default("{}") @map("metadata_jsonb")
+  occurredAt             DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, occurredAt(sort: Desc)], map: "memory_transition_audit_tenant_time_idx")
+  @@index([tenantId, memoryItemId, occurredAt(sort: Desc)], map: "memory_transition_audit_item_idx")
+  @@index([tenantId, memoryCandidateId, occurredAt(sort: Desc)], map: "memory_transition_audit_candidate_idx")
+  @@map("memory_transition_audit")
+}
+
+/// MeriV2 Phase 3 (20260729010000_memory_governance_context_v2) — durable,
+/// idempotent cleanup of SECONDARY projections (clio_memory rows, embeddings,
+/// vault files) after recall has already been suppressed synchronously by the
+/// governed status. memoryItemId / clioMemoryId carry no FK: the outbox row must
+/// survive long enough to delete what the item pointed at.
+///
+/// SQL-ONLY (not expressible in Prisma — see the migrations):
+///   CHECK memory_cleanup_status_check (status IN ('pending','running','completed','failed'))
+///   CHECK memory_cleanup_operation_check — widened by
+///     20260729011000_memory_governance_lineage to: index_memory_item,
+///     revoke_projections, supersede_projections, expire_projections,
+///     purge_projections
+model MemoryCleanupOutbox {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  memoryItemId   String    @map("memory_item_id") @db.Uuid
+  clioMemoryId   String?   @map("clio_memory_id") @db.Uuid
+  operation      String    @db.VarChar(32)
+  idempotencyKey String    @map("idempotency_key") @db.VarChar(192)
+  status         String    @default("pending") @db.VarChar(16)
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime  @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  lastError      String?   @map("last_error")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt    DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, idempotencyKey], map: "memory_cleanup_outbox_idempotency_key")
+  @@index([status, nextAttemptAt, createdAt], map: "memory_cleanup_outbox_pending_idx")
+  @@map("memory_cleanup_outbox")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

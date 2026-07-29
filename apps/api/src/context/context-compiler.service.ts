@@ -95,6 +95,11 @@ export class ContextCompilerService {
         data: {
           id: packet.packetId,
           tenantId: packet.tenantId,
+          // context_packet.effective_tenant_id is NOT NULL with no DB default
+          // (20260729010000_memory_governance_context_v2). The compiler always
+          // runs inside withTenant(packet.tenantId), so the effective tenant IS
+          // the packet tenant — the same equality the migration's backfill uses.
+          effectiveTenantId: packet.tenantId,
           surface: packet.surface,
           userId: packet.userId,
           clientId: packet.clientId,

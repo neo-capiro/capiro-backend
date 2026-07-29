@@ -127,12 +127,19 @@ export class WorkspaceContextCompilerService {
   private async persistPacket(packet: CompiledContextPacket): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.current_tenant', ${packet.tenantId}, true)`;
+      // effective_tenant_id is NOT NULL with no DB default once
+      // 20260729010000_memory_governance_context_v2 is applied; this raw INSERT
+      // is not typechecked, so omitting it would only fail at runtime. The
+      // effective tenant IS the packet tenant here (set_config above), which is
+      // the same equality the migration's own backfill uses.
       await tx.$executeRaw`
         INSERT INTO context_packet
-          (id, tenant_id, surface, user_id, client_id, ref_jsonb, items_jsonb,
+          (id, tenant_id, effective_tenant_id, surface, user_id, client_id,
+           ref_jsonb, items_jsonb,
            exclusions_jsonb, item_count, exclusion_count, block_chars, packet_hash)
         VALUES
-          (${packet.packetId}::uuid, ${packet.tenantId}::uuid, ${packet.surface},
+          (${packet.packetId}::uuid, ${packet.tenantId}::uuid,
+           ${packet.tenantId}::uuid, ${packet.surface},
            ${packet.userId}::uuid, ${packet.clientId}::uuid,
            ${JSON.stringify(sanitizeRef(packet.ref))}::jsonb,
            ${JSON.stringify(packet.items)}::jsonb,
