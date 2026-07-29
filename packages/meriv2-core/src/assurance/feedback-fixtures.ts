@@ -1,16 +1,58 @@
 import { createHash, randomUUID } from 'node:crypto';
 
-export type FeedbackReasonCode =
-  | 'factually_wrong'
-  | 'outdated'
-  | 'wrong_client_context'
-  | 'missed_source'
-  | 'unsupported_claim'
-  | 'too_generic'
-  | 'bad_recommendation'
-  | 'wrong_tone_format'
-  | 'compliance_concern'
-  | 'tool_action_failed';
+/**
+ * CANONICAL reason vocabulary — the LIVE apps/api spelling.
+ *
+ * These two lists had drifted: apps/api (meri-feedback.helpers.ts) persists
+ * `wrong_tone_or_format` / `tool_or_action_failed` into
+ * `clio_message.metadata.feedback`, while this module used `wrong_tone_format` /
+ * `tool_action_failed`. `isFeedbackReason` silently filtered the LIVE spellings
+ * out, so a thumbs-down carrying only one of them made
+ * `createFeedbackFixtureCandidate` throw "At least one valid feedback reason is
+ * required" instead of producing a candidate.
+ *
+ * Resolution: adopt the LIVE spelling as canonical (renaming the apps/api codes
+ * would orphan rows already persisted in clio_message.metadata) and ACCEPT the
+ * legacy meriv2-core spelling as an alias, normalizing on the way in. Nothing
+ * that was previously accepted is rejected now.
+ */
+export const CANONICAL_FEEDBACK_REASON_CODES = [
+  'factually_wrong',
+  'outdated',
+  'wrong_client_context',
+  'missed_source',
+  'unsupported_claim',
+  'too_generic',
+  'bad_recommendation',
+  'wrong_tone_or_format',
+  'compliance_concern',
+  'tool_or_action_failed',
+] as const;
+
+export type FeedbackReasonCode = (typeof CANONICAL_FEEDBACK_REASON_CODES)[number];
+
+/** Accepted-but-deprecated spellings, mapped to their canonical code. */
+export const FEEDBACK_REASON_ALIASES: Readonly<Record<string, FeedbackReasonCode>> = {
+  wrong_tone_format: 'wrong_tone_or_format',
+  tool_action_failed: 'tool_or_action_failed',
+};
+
+/** Every spelling accepted on input (canonical + alias). */
+export type FeedbackReasonCodeInput = FeedbackReasonCode | keyof typeof FEEDBACK_REASON_ALIASES;
+
+/**
+ * Normalize one reason code to its canonical spelling, or null when it is not a
+ * recognized code. Never throws — an unknown code is a filtered input, not an
+ * exception.
+ */
+export function normalizeFeedbackReason(value: unknown): FeedbackReasonCode | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if ((CANONICAL_FEEDBACK_REASON_CODES as readonly string[]).includes(trimmed)) {
+    return trimmed as FeedbackReasonCode;
+  }
+  return FEEDBACK_REASON_ALIASES[trimmed] ?? null;
+}
 
 export type FeedbackFixtureCandidateStatus = 'pending_review' | 'accepted' | 'rejected';
 
@@ -49,7 +91,8 @@ export interface AcceptedRegressionFixture {
 }
 
 export function createFeedbackFixtureCandidate(input: {
-  reasonCodes: readonly FeedbackReasonCode[];
+  /** Canonical or legacy spellings; normalized to canonical here. */
+  reasonCodes: readonly FeedbackReasonCodeInput[];
   surface: string;
   traceId?: string;
   contextPacketId?: string;
@@ -58,7 +101,15 @@ export function createFeedbackFixtureCandidate(input: {
   createdByUserId: string;
   createdAt?: string | Date;
 }): FeedbackFixtureCandidate {
-  const reasonCodes = [...new Set(input.reasonCodes)].filter(isFeedbackReason);
+  // Normalize BEFORE de-duplicating so `wrong_tone_format` and
+  // `wrong_tone_or_format` in the same payload collapse to one canonical code.
+  const reasonCodes = [
+    ...new Set(
+      input.reasonCodes
+        .map((value) => normalizeFeedbackReason(value))
+        .filter((value): value is FeedbackReasonCode => value !== null),
+    ),
+  ];
   if (!reasonCodes.length) throw new Error('At least one valid feedback reason is required.');
   return {
     id: randomUUID(),
@@ -149,19 +200,9 @@ export function reviewFeedbackFixtureCandidate(
   };
 }
 
-function isFeedbackReason(value: FeedbackReasonCode): boolean {
-  return [
-    'factually_wrong',
-    'outdated',
-    'wrong_client_context',
-    'missed_source',
-    'unsupported_claim',
-    'too_generic',
-    'bad_recommendation',
-    'wrong_tone_format',
-    'compliance_concern',
-    'tool_action_failed',
-  ].includes(value);
+/** Does this value resolve to a recognized reason code (canonical or alias)? */
+export function isFeedbackReason(value: unknown): value is FeedbackReasonCodeInput {
+  return normalizeFeedbackReason(value) !== null;
 }
 
 function bounded(value: string, max: number): string {

@@ -356,3 +356,124 @@ describe('InEditorAssistantService.run', () => {
     expect(out.confidence).toBeUndefined();
   });
 });
+
+/**
+ * The in-editor release gate.
+ *
+ * The FIRST test is the important one. A previous Phase 4 gate shipped ARMED and
+ * unflagged and silently replaced real answers with refusals; this pins that
+ * deploying this code, with no environment change at all, withholds nothing —
+ * including for a request that classifies as maximally high-risk.
+ */
+describe('InEditorAssistantService release gate', () => {
+  const HIGH_RISK_REQUEST =
+    'confirm the FY27 budget amount for PE 0604270F and whether the NDAA passed the House';
+  const UNSUPPORTED_EDIT =
+    '<p>PE 0604270F received $412.5 million in FY27 and the NDAA passed the House on July 1.</p>';
+
+  function driveProposeEdits(): jest.Mock {
+    const fetchMock = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            schemas: [
+              { name: 'search_congress_bills', description: 'x', input_schema: { type: 'object' } },
+            ],
+          }),
+        };
+      }
+      return anthropic(
+        [
+          {
+            type: 'tool_use',
+            id: 'tu1',
+            name: 'propose_document_edits',
+            input: {
+              reply: 'Applied the figures.',
+              edits: [{ op: 'replace_section', section: 'Summary', content: UNSUPPORTED_EDIT }],
+            },
+          },
+        ],
+        'tool_use',
+      );
+    });
+    (global as unknown as { fetch: unknown }).fetch = fetchMock;
+    return fetchMock as unknown as jest.Mock;
+  }
+
+  const originalSurfaces = process.env.MERI_RELEASE_GATE_SURFACES;
+  const originalGate = process.env.MERI_RELEASE_GATE;
+  afterEach(() => {
+    if (originalSurfaces === undefined) delete process.env.MERI_RELEASE_GATE_SURFACES;
+    else process.env.MERI_RELEASE_GATE_SURFACES = originalSurfaces;
+    if (originalGate === undefined) delete process.env.MERI_RELEASE_GATE;
+    else process.env.MERI_RELEASE_GATE = originalGate;
+  });
+
+  it('is DARK by default — unverified high-risk edits are returned unchanged', async () => {
+    delete process.env.MERI_RELEASE_GATE_SURFACES;
+    delete process.env.MERI_RELEASE_GATE;
+    driveProposeEdits();
+    const svc = makeService({ execute: jest.fn() } as unknown as ApiToolExecutorRepo);
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      svc.run(ctx, { messages: [{ role: 'user', text: HIGH_RISK_REQUEST }] }),
+    );
+    expect(out.reply).toBe('Applied the figures.');
+    expect(out.edits).toEqual([
+      { op: 'replace_section', section: 'Summary', content: UNSUPPORTED_EDIT },
+    ]);
+  });
+
+  it('does NOT inherit MERI_RELEASE_GATE=enforce — that arms chat, not this surface', async () => {
+    delete process.env.MERI_RELEASE_GATE_SURFACES;
+    process.env.MERI_RELEASE_GATE = 'enforce';
+    driveProposeEdits();
+    const svc = makeService({ execute: jest.fn() } as unknown as ApiToolExecutorRepo);
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      svc.run(ctx, { messages: [{ role: 'user', text: HIGH_RISK_REQUEST }] }),
+    );
+    expect(out.edits).toHaveLength(1);
+  });
+
+  it('withholds the edits once in-editor is explicitly armed', async () => {
+    process.env.MERI_RELEASE_GATE_SURFACES = 'in-editor';
+    driveProposeEdits();
+    const svc = makeService({ execute: jest.fn() } as unknown as ApiToolExecutorRepo);
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      svc.run(ctx, { messages: [{ role: 'user', text: HIGH_RISK_REQUEST }] }),
+    );
+    // No applyable edit reaches the editor, and the reply says so plainly rather
+    // than implying the document changed.
+    expect(out.edits).toEqual([]);
+    expect(out.reply).toMatch(/did not propose these edits/i);
+    expect(out.reply).toMatch(/Nothing was changed in your document/i);
+  });
+
+  it('never withholds an advice-only turn, even when armed (no edits = no document change)', async () => {
+    process.env.MERI_RELEASE_GATE_SURFACES = 'all';
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) {
+        return { ok: true, status: 200, json: async () => ({ schemas: [] }) };
+      }
+      return anthropic(
+        [
+          {
+            type: 'tool_use',
+            id: 'tu1',
+            name: 'propose_document_edits',
+            input: { reply: 'I could not confirm the FY27 amount.', edits: [] },
+          },
+        ],
+        'tool_use',
+      );
+    });
+    const svc = makeService({ execute: jest.fn() } as unknown as ApiToolExecutorRepo);
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      svc.run(ctx, { messages: [{ role: 'user', text: HIGH_RISK_REQUEST }] }),
+    );
+    expect(out.reply).toBe('I could not confirm the FY27 amount.');
+    expect(out.edits).toEqual([]);
+  });
+});

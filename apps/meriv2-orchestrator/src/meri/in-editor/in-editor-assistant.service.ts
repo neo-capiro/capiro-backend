@@ -1,14 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  assuranceMetric,
+  assuranceReleaseArmedFor,
+  buildClaimLedgerFromToolResults,
+  classifyAssuranceRisk,
   collectPeStructuralWarnings,
   confidenceLevel,
+  evaluateAssuranceRelease,
   extractCitedPeCodes,
+  metricLogLine,
   parseVerifierClaims,
+  runAuditor,
+  runGovernmentAffairsChecks,
   serializeRecordForGrounding,
   summarizeVerification,
   wrapToolResultForPrompt,
   type Confidence,
+  type LedgerEntry,
   type MeriContext,
   type PeRecordForValidation,
   type PeStructuralWarning,
@@ -27,6 +36,7 @@ import {
   ASSISTANT_TOOLS,
   PROPOSE_EDITS_TOOL,
   composeInEditorSystemPrompt,
+  resolveInEditorAssurance,
   sanitizeEdits,
   toolLabel,
   type AssistantEdit,
@@ -125,11 +135,30 @@ export class InEditorAssistantService {
     const systemParts = composeInEditorSystemPrompt(dto);
     const system = flattenSystemParts(systemParts);
     const toolSchemas = [...(await this.fetchToolSchemas()), PROPOSE_EDITS_TOOL];
+    // The SAME frame/plan the prompt above told the model to satisfy — see
+    // resolveInEditorAssurance. Computed here (not re-derived) so the gate below
+    // cannot demand evidence the prompt never asked for.
+    const assurance = resolveInEditorAssurance(dto);
+    const assuranceRisk = classifyAssuranceRisk('in-editor', assurance.plan);
+    // DARK BY DEFAULT. `MERI_RELEASE_GATE=enforce` alone does NOT arm this: it is
+    // already read by chat finalize and by api-strategy's generation hold, and
+    // withholding EDITS is a different, independently-canaried behaviour, so the
+    // in-editor hold must be named in MERI_RELEASE_GATE_SURFACES. With it unset,
+    // this surface keeps its exact previous contract: propose the edits, annotate
+    // them fail-open via verifyEdits, withhold nothing.
+    const withholdUnverifiedEdits =
+      assuranceReleaseArmedFor(process.env.MERI_RELEASE_GATE_SURFACES, 'in-editor') &&
+      assuranceRisk.requiresBufferBeforeRelease;
     const steps: AssistantStep[] = [];
     // Grounding capture for the post-turn verifier + structural pass (parity
     // with apps/api's legacy in-editor verifyEdits).
     const groundingBodies: string[] = [];
     const citedPeRecords = new Map<string, PeRecordForValidation>();
+    // Claim-ledger evidence for the release gate: the same tool results the model
+    // saw, in the shape buildClaimLedgerFromToolResults resolves citations
+    // against. groundingBodies alone is not enough — it is prose, so a FORM B
+    // token in an edit could not be proven to come from a real record.
+    const ledgerEntries: LedgerEntry[] = [];
 
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
       let content: ContentBlock[];
@@ -178,6 +207,23 @@ export class InEditorAssistantService {
           citedPeRecords,
           subjectId,
         );
+        // PRE-APPLY RELEASE GATE. verifyEdits above is fail-open ENRICHMENT: it
+        // returns {} on any error and is itself flag-gated by
+        // CLIO_VERIFIER_ENABLED, so it annotates but never withholds. That
+        // contract is left untouched. This is the separate, deterministic
+        // decision — an unsupported high-risk claim must not reach the editor as
+        // an applyable edit, because the next click makes it the document.
+        const held = withholdUnverifiedEdits
+          ? this.holdUnverifiedEdits(edits, structuralWarnings, ledgerEntries, assurance)
+          : null;
+        if (held) {
+          return {
+            reply: held,
+            edits: [],
+            ...(structuralWarnings ? { structuralWarnings } : {}),
+            steps,
+          };
+        }
         return { reply: reply || 'Done.', edits, confidence, structuralWarnings, steps };
       }
 
@@ -216,10 +262,15 @@ export class InEditorAssistantService {
               });
             }
           }
+          const serialized = wrapToolResultForPrompt(tu.name, result, TOOL_RESULT_CHARS);
+          // Ledger entry for the release gate: the EXACT bytes the model read, so
+          // a FORM B token in an edit can be proved (or disproved) against the
+          // record it claims to come from.
+          ledgerEntries.push({ tool: tu.name, serialized, result });
           return {
             type: 'tool_result' as const,
             tool_use_id: tu.id,
-            content: wrapToolResultForPrompt(tu.name, result, TOOL_RESULT_CHARS),
+            content: serialized,
           };
         }),
       );
@@ -251,6 +302,96 @@ export class InEditorAssistantService {
       this.logger.warn(`in-editor synthesis call failed: ${(e as Error).message}`);
     }
     return { reply, edits: [], steps };
+  }
+
+  /**
+   * Should these proposed edits be WITHHELD? Returns the verification-failure
+   * text to reply with, or null to release the edits unchanged.
+   *
+   * Runs the same three deterministic mechanisms chat's finalize runs, over the
+   * EDIT TEXT rather than the chat prose: the claim ledger resolved against this
+   * turn's tool results, the grounding auditor, and the government-affairs domain
+   * checks. `evaluateAssuranceRelease` returns 'repair' for the in-editor surface
+   * (risk-gate.ts), which on a document surface means "do not hand the user
+   * something applyable" — there is no partial apply.
+   *
+   * FAILS CLOSED. The caller has already decided the surface is armed and that
+   * the request is high-risk; a crash inside the verification of a high-risk
+   * document edit must not become a silent release.
+   */
+  private holdUnverifiedEdits(
+    edits: AssistantEdit[],
+    structuralWarnings: PeStructuralWarning[] | undefined,
+    ledgerEntries: readonly LedgerEntry[],
+    assurance: ReturnType<typeof resolveInEditorAssurance>,
+  ): string | null {
+    const editText = edits
+      .map((edit) =>
+        typeof edit.content === 'string' ? edit.content.replace(/<[^>]*>/g, ' ') : '',
+      )
+      .join('\n')
+      .trim();
+    // Advice-only turns (empty edits array) change no document — nothing to hold.
+    if (!editText) return null;
+    try {
+      const ledger = buildClaimLedgerFromToolResults({
+        output: editText,
+        ledgerEntries,
+        plan: assurance.plan,
+      });
+      const grounding = runAuditor({
+        output: editText,
+        ledger: { entries: [...ledgerEntries] },
+        surface: 'memo',
+        mode: 'enforce',
+      });
+      const domainFindings = runGovernmentAffairsChecks({
+        ledger,
+        facts: [],
+        outputText: editText,
+      });
+      const gate = evaluateAssuranceRelease({
+        surface: 'in-editor',
+        plan: assurance.plan,
+        ledger,
+        findings: [...grounding.findings, ...domainFindings],
+        // A structural PE warning (RDT&E-vs-procurement, mission mismatch) means
+        // the deterministic pre-release check itself did not come back clean.
+        verificationAvailable: !(structuralWarnings ?? []).length,
+      });
+      this.logger.log(
+        metricLogLine(
+          assuranceMetric({
+            name: 'release_gate',
+            dimensions: {
+              surface: 'in-editor',
+              outcome: gate.decision,
+              category: assurance.plan.requestCategories.join(',').slice(0, 120),
+              severity: grounding.topSeverity ?? undefined,
+              jurisdiction: assurance.frame.jurisdictions.join(',').slice(0, 120),
+            },
+          }),
+        ),
+      );
+      if (gate.decision !== 'repair' && gate.decision !== 'hold') return null;
+      const reasons = gate.blockers
+        .slice(0, 6)
+        .map((reason) => `- ${reason}`)
+        .join('\n');
+      return [
+        'I did not propose these edits, because required verification did not pass and an applied edit becomes the document.',
+        reasons || '- One or more high-risk claims lacked authoritative same-turn support.',
+        '',
+        'Nothing was changed in your document. I did not treat an empty result, stale memory, or my own inference as proof — name the jurisdiction/vehicle/fiscal year, or restore the missing authoritative source, and ask me again.',
+      ].join('\n');
+    } catch (error) {
+      this.logger.warn(
+        `[meri-assurance] in-editor pre-release verification failed closed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return 'Verification was unavailable, so I did not propose edits to this document. Nothing was changed. Please try again once the authoritative sources are reachable.';
+    }
   }
 
   /**

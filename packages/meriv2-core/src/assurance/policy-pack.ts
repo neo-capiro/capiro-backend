@@ -1,5 +1,23 @@
+import { createHash } from 'node:crypto';
 import type { RiskTier, TenantRole } from '@capiro/shared';
 import type { GovernmentAffairsJurisdiction } from './operating-frame';
+
+/**
+ * Every lifecycle transition a persisted pack can record. Mirrors the
+ * `compliance_policy_pack_event.action` CHECK constraint so the append-only
+ * ledger and the in-code lifecycle cannot drift.
+ */
+export const POLICY_PACK_ACTIONS = [
+  'create',
+  'submit_review',
+  'review',
+  'approve',
+  'publish',
+  'retire',
+  'rollback',
+  'simulate',
+] as const;
+export type PolicyPackAction = (typeof POLICY_PACK_ACTIONS)[number];
 
 export type PolicyPackOutcome = 'PASS' | 'WARN' | 'BLOCK';
 export type PolicyPackStatus =
@@ -465,6 +483,98 @@ export function evaluatePolicyPack(
 
 export function proposalPolicyBinding(decision: PolicyPackDecision): string {
   return `${decision.packId}@${decision.packVersion}:${decision.ruleId ?? 'fallback'}`;
+}
+
+/**
+ * Stable content hash over the ENABLED rule set + fallback.
+ *
+ * This is what makes a persisted pack tamper-evident: a row whose `rules_jsonb`
+ * was edited without going back through review has a `rules_hash` that no longer
+ * matches, and `policyPackRulesMatchHash` says so. Deliberately excludes review /
+ * publication attribution and the changelog — those legitimately change during
+ * the lifecycle without changing what the pack DECIDES.
+ */
+export function policyPackRulesHash(pack: CompliancePolicyPack): string {
+  const material = {
+    fallback: pack.fallback,
+    rules: [...pack.rules]
+      .filter((rule) => rule.enabled)
+      .map((rule) => ({
+        id: rule.id,
+        outcome: rule.outcome,
+        code: rule.code ?? null,
+        tier: rule.tier ?? null,
+        match: rule.match,
+        authorityRef: rule.authorityRef,
+      }))
+      .sort((left, right) => left.id.localeCompare(right.id)),
+  };
+  return createHash('sha256').update(stablePolicyStringify(material)).digest('hex');
+}
+
+export function policyPackRulesMatchHash(pack: CompliancePolicyPack, hash: string): boolean {
+  return policyPackRulesHash(pack) === hash;
+}
+
+/**
+ * SIMULATION: evaluate a pack that is NOT (or not yet) live and report the
+ * outcome without it ever binding a real action. `simulated: true` is carried on
+ * the decision so a persisted `compliance_policy_decision` row can never be
+ * mistaken for an enforcement event.
+ *
+ * A draft/pending_review pack is intentionally evaluated as if published so a
+ * reviewer can see what it WOULD decide — that is the whole point of a dry run —
+ * which is exactly why the result is stamped `simulated` and why
+ * `selectPolicyPack` still refuses to hand a non-published pack to live traffic.
+ */
+export function simulatePolicyPack(
+  pack: CompliancePolicyPack,
+  context: PolicySelectionContext,
+): PolicyPackDecision {
+  const validation = validatePolicyPack({ ...pack, status: 'draft', nonProduction: false });
+  if (!validation.valid) {
+    return {
+      outcome: 'WARN',
+      packId: pack.id,
+      packVersion: pack.version,
+      ruleId: null,
+      reason: `Simulation refused: the pack is structurally invalid (${validation.errors[0] ?? 'unknown error'}).`,
+      simulated: true,
+    };
+  }
+  for (const rule of pack.rules) {
+    if (!rule.enabled || !ruleMatches(rule.match, context)) continue;
+    return {
+      outcome: rule.outcome,
+      packId: pack.id,
+      packVersion: pack.version,
+      ruleId: rule.id,
+      reason: rule.reason,
+      ...(rule.code ? { code: rule.code } : {}),
+      ...(rule.tier ? { tier: rule.tier } : {}),
+      simulated: true,
+    };
+  }
+  return {
+    outcome: pack.fallback,
+    packId: pack.id,
+    packVersion: pack.version,
+    ruleId: null,
+    reason: 'Simulation: no rule matched; the pack fallback applies.',
+    simulated: true,
+  };
+}
+
+function stablePolicyStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stablePolicyStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .filter(([, item]) => item !== undefined)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stablePolicyStringify(item)}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
 }
 
 function ruleMatches(match: PolicyRuleMatch, context: PolicySelectionContext): boolean {

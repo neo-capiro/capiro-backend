@@ -12,6 +12,7 @@ import {
   buildClaimLedgerFromToolResults,
   classifyAssuranceRisk,
   evaluateAssuranceRelease,
+  assurePreToolPersist,
   resolveAssuranceReleaseMode,
   runGovernmentAffairsChecks,
   assuranceMetric,
@@ -84,6 +85,30 @@ const TOOL_RESULT_CHARS = 12_000;
 // Mirrors the legacy loop (apps/api meri.service.ts), which captures the
 // page-write payload only from these two draft producers.
 const PAGE_WRITE_DRAFT_TOOLS = new Set(['draft_policy_memo', 'create_meeting_brief']);
+
+/**
+ * Tools whose INPUT carries MODEL-AUTHORED prose that apps/api turns into a
+ * durable row. Map: tool name → the input field holding that prose.
+ *
+ * WHY THE INPUT AND NOT THE OUTPUT. Persistence for these tools happens inside
+ * apps/api (MeriToolsService.draftPolicyMemo → persistArtifact), reached over
+ * HTTP by the registry. By the time the orchestrator sees the tool RESULT the
+ * ClioArtifact row already exists and the orchestrator cannot retract it — so
+ * the chat release gate running at finalize was structurally too late. The only
+ * place the orchestrator can still refuse is BEFORE the call, and the only thing
+ * it can inspect there is the tool input. That is exactly where the fabrication
+ * lives: the model-authored body.
+ *
+ * `create_meeting_brief` is deliberately ABSENT: it accepts no body and
+ * renders its text server-side from meeting notes/debriefs/threads
+ * (renderMeetingBrief), so there is no model-authored claim to hold. Omitting a
+ * tool here is a statement that it has no model-authored persisted prose, NOT
+ * that its output is verified.
+ */
+const MODEL_AUTHORED_PERSISTED_BODY_FIELDS: ReadonlyMap<string, string> = new Map([
+  ['draft_policy_memo', 'body'],
+  ['save_note', 'body'],
+]);
 
 interface ContentBlock {
   type: string;
@@ -201,9 +226,32 @@ export class ChatAssistantService {
     };
     const system = flattenSystemParts(systemParts);
     const toolSchemas = await this.fetchToolSchemas();
+    // VERIFICATION AVAILABILITY (was hardcoded `true` at the gate call below,
+    // which permanently disabled risk-gate.ts's "required pre-release
+    // verification was unavailable" blocker). fetchToolSchemas degrades to [] on
+    // a missing bearer or an apps/api failure — that is precisely the state in
+    // which a high-risk answer CANNOT be verified this turn, because the model
+    // has no data tools to verify it with. Note the degradation is not
+    // distinguishable from "this tenant legitimately has no tools", which is why
+    // it only ever adds a blocker on a surface already classified high-risk.
+    const verificationAvailable = toolSchemas.length > 0;
     const steps: ChatStep[] = [];
     const pendingApprovals: NonNullable<ChatResult['pendingApprovals']> = [];
     const artifacts: ChatArtifact[] = [];
+    // COMPLIANCE OUTCOME for the release gate. The turn's strongest policy
+    // decision, threaded from invokeTool's catch branches: a ComplianceBlockedError
+    // is BLOCK, an ApprovalPendingError is WARN. Without this the BLOCK path
+    // (risk-gate.ts) and the WARN path were dead code on the only wired surface,
+    // even though this same service already catches both errors.
+    let complianceOutcome: 'PASS' | 'WARN' | 'BLOCK' | undefined;
+    const noteComplianceOutcome = (outcome: 'PASS' | 'WARN' | 'BLOCK'): void => {
+      // Strongest wins: BLOCK > WARN > PASS. A later PASS must never erase an
+      // earlier block.
+      const rank = { PASS: 0, WARN: 1, BLOCK: 2 } as const;
+      if (complianceOutcome === undefined || rank[outcome] > rank[complianceOutcome]) {
+        complianceOutcome = outcome;
+      }
+    };
     // Wave-2 post-hoc auditor ledger for the GA chat surface (the DEFAULT chat
     // path — most traffic). Accumulated across tool rounds; audited at finalize.
     const ledgerEntries: LedgerEntry[] = [];
@@ -226,6 +274,87 @@ export class ChatAssistantService {
     // Page-write mode (2.1): the last draft body produced this turn, applied to
     // the open page. Mirrors legacy (last draft wins); emitted once at finalize.
     let pageWritePayload: { subject: string; body: string } | null = null;
+
+    /**
+     * PRE-PERSISTENCE hold for a model-authored draft body (see
+     * MODEL_AUTHORED_PERSISTED_BODY_FIELDS). Returns a refusal string to hand
+     * back to the model as the tool result, or null to let the call through.
+     *
+     * Evaluated against the SAME-TURN evidence the model has actually gathered so
+     * far (ledgerEntries + citations from earlier rounds), which is the whole
+     * point: a memo drafted before any lookup has nothing supporting it.
+     *
+     * DARK BY DEFAULT via `bufferBeforeRelease` — the existing
+     * resolveAssuranceReleaseMode(MERI_RELEASE_GATE) read above. Deliberately NOT
+     * a second env var: this is the same surface and the same canary decision as
+     * the finalize hold, so splitting them would let one arm without the other and
+     * produce the worst state (held prose, persisted artifact).
+     */
+    const prePersistRefusal = (name: string, input: Record<string, unknown>): string | null => {
+      if (!bufferBeforeRelease) return null;
+      const field = MODEL_AUTHORED_PERSISTED_BODY_FIELDS.get(name);
+      if (!field) return null;
+      const raw = input[field];
+      const body = typeof raw === 'string' ? raw.trim() : '';
+      // No model-authored body ⇒ apps/api renders from its own records. Nothing
+      // the model asserted is being persisted, so there is nothing to hold.
+      if (!body) return null;
+      try {
+        const claimLedger = buildClaimLedgerFromToolResults({
+          output: body,
+          ledgerEntries,
+          citations,
+          plan: evidencePlan,
+        });
+        const grounding = runAuditor({
+          output: body,
+          ledger: { entries: ledgerEntries },
+          surface: 'memo',
+          mode: 'enforce',
+        });
+        const domainFindings = runGovernmentAffairsChecks({
+          ledger: claimLedger,
+          facts: [],
+          outputText: body,
+        });
+        const decision = assurePreToolPersist({
+          // The DELIVERABLE's surface, not the conversation's: a persisted memo /
+          // client note is a client-facing artifact, so it classifies as one.
+          surface: 'memo',
+          plan: evidencePlan,
+          ledger: claimLedger,
+          findings: [...grounding.findings, ...domainFindings],
+          ...(complianceOutcome ? { complianceOutcome } : {}),
+          verificationAvailable,
+          subject: `The ${toolLabel(name).toLowerCase()}`,
+        });
+        this.logger.log(
+          metricLogLine(
+            assuranceMetric({
+              name: 'release_gate',
+              dimensions: {
+                surface: 'chat',
+                domain: 'pre_persist',
+                outcome: decision.gate.decision,
+                category: name,
+                jurisdiction: operatingFrame.jurisdictions.join(',').slice(0, 120),
+              },
+            }),
+          ),
+        );
+        return decision.allowPersist ? null : decision.refusal;
+      } catch (error) {
+        // FAIL CLOSED. Unlike verifyEdits' advisory enrichment, this decides
+        // whether a durable row is created; a crash here must not become an
+        // unchecked write.
+        this.logger.warn(
+          `[meri-assurance] pre-persist verification failed closed for ${name}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        return 'Pre-persistence verification was unavailable, so this deliverable was NOT created or saved. Tell the user nothing was written and try again once verification is available.';
+      }
+    };
     const finalize = (reply: string): ChatResult => {
       // Validate [N] markers against the sources we injected: keep only real
       // ones, strip hallucinated ones from the prose, and report the citations
@@ -303,7 +432,8 @@ export class ChatAssistantService {
             plan: evidencePlan,
             ledger: claimLedger,
             findings: combinedFindings,
-            verificationAvailable: true,
+            ...(complianceOutcome ? { complianceOutcome } : {}),
+            verificationAvailable,
           });
           this.logger.log(
             metricLogLine(
@@ -377,7 +507,13 @@ export class ChatAssistantService {
         steps,
         ...(used.length ? { citations: used } : {}),
         ...(pendingApprovals.length ? { pendingApprovals } : {}),
-        ...(artifacts.length ? { artifacts } : {}),
+        // A held turn must not advertise a downloadable deliverable. `page_write`
+        // was already suppressed above; the `artifacts` array was not, so a held
+        // high-risk turn still shipped a card for a durable ClioArtifact whose
+        // body is the very content we refused to release. The row itself was
+        // persisted by apps/api inside the tool call (see the invokeTool
+        // preflight below, which is what actually prevents the write).
+        ...(artifacts.length && !releaseHeld ? { artifacts } : {}),
       };
     };
 
@@ -478,6 +614,8 @@ export class ChatAssistantService {
             pendingApprovals,
             artifacts,
             emit,
+            prePersistRefusal,
+            noteComplianceOutcome,
           ),
         })),
       );
@@ -727,12 +865,32 @@ export class ChatAssistantService {
     pendingApprovals: NonNullable<ChatResult['pendingApprovals']>,
     artifacts: ChatArtifact[],
     emit: (event: ChatStreamEvent) => void = () => {},
+    /**
+     * Pre-persistence assurance hold. Returns a refusal to hand the model, or
+     * null to proceed. Defaults to "always proceed" so the many unit tests that
+     * call invokeTool directly keep their exact previous behaviour.
+     */
+    prePersistRefusal: (name: string, input: Record<string, unknown>) => string | null = () => null,
+    /** Records the turn's strongest compliance outcome for the release gate. */
+    noteComplianceOutcome: (outcome: 'PASS' | 'WARN' | 'BLOCK') => void = () => {},
   ): Promise<unknown> {
     const label = toolLabel(name);
     // Only write tools (readOnly:false) pass through the compliance gate, so
     // only they produce an auditable decision.
     const isWrite = this.registry.get(name)?.readOnly === false;
     emit({ type: 'tool_call', tool: name, label });
+    // PRE-PERSISTENCE GATE. This must run before registry.invoke: the invoke
+    // delegates to apps/api, which persists inside the call. Reported as
+    // `blocked` (the same shape a compliance BLOCK uses) so the client renders a
+    // refused action rather than a completed one.
+    const refusal = prePersistRefusal(name, input);
+    if (refusal) {
+      const detail = 'held: pre-release verification failed';
+      steps.push({ tool: name, label, status: 'blocked', detail });
+      emit({ type: 'tool_done', tool: name, label, status: 'blocked', detail });
+      this.logger.warn(`[meri-assurance] pre-persist hold on ${name}: nothing was written`);
+      return { blocked: true, persisted: false, message: refusal };
+    }
     try {
       const result = await this.registry.invoke(name, input, ctx);
       steps.push({ tool: name, label, status: 'done' });
@@ -748,6 +906,7 @@ export class ChatAssistantService {
       }
       // A write tool that resolved passed the gate (PASS or an approved WARN).
       if (isWrite) {
+        noteComplianceOutcome('PASS');
         this.audit.record({
           trigger: name,
           decision: 'PASS',
@@ -758,6 +917,8 @@ export class ChatAssistantService {
     } catch (e) {
       const err = e as Error;
       if (err.name === 'ApprovalPendingError') {
+        // The active policy required a human — risk-gate.ts's WARN path.
+        noteComplianceOutcome('WARN');
         // Propose-time client check. The gate WARNs BEFORE the tool runs, so a
         // write naming a client that cannot be resolved used to render as a
         // perfectly clean approve card and only fail after the click. Three
@@ -831,6 +992,9 @@ export class ChatAssistantService {
         };
       }
       if (err.name === 'ComplianceBlockedError') {
+        // risk-gate.ts's BLOCK path — a blocked action in the turn is a policy
+        // signal the release gate must see, not just a per-tool error.
+        noteComplianceOutcome('BLOCK');
         const detail = err.message.slice(0, 120);
         steps.push({ tool: name, label, status: 'blocked', detail });
         emit({ type: 'tool_done', tool: name, label, status: 'blocked', detail });

@@ -10,7 +10,25 @@ export type AssuranceSurface =
   | 'research'
   | 'outreach'
   | 'memo'
-  | 'district-brief';
+  | 'district-brief'
+  // Context Steward extraction. NOT client-facing (its output becomes
+  // sp_context_* facts that api-strategy persists), so it is deliberately absent
+  // from EXTERNAL_OR_EXECUTION_SURFACES below — it is gated as a claim-ledger
+  // PRODUCER (an anchor-less high-risk fact must not be persisted), not as an
+  // external artifact.
+  | 'steward';
+
+export const ASSURANCE_SURFACES: readonly AssuranceSurface[] = [
+  'chat',
+  'in-editor',
+  'workspace-gen',
+  'strategy',
+  'research',
+  'outreach',
+  'memo',
+  'district-brief',
+  'steward',
+];
 
 export type AssuranceRiskLevel = 'low' | 'moderate' | 'high' | 'restricted';
 export type AssuranceReleaseDecision = 'deliver' | 'deliver_with_flags' | 'repair' | 'hold';
@@ -41,6 +59,47 @@ export function resolveAssuranceReleaseMode(raw: string | undefined): AssuranceR
     .toLowerCase() === 'enforce'
     ? 'enforce'
     : 'off';
+}
+
+/**
+ * PER-SURFACE arming for the pre-release hold — sibling of
+ * `resolveAssuranceReleaseMode`, read from `MERI_RELEASE_GATE_SURFACES`.
+ *
+ * WHY A SECOND SWITCH. `MERI_RELEASE_GATE` is already read by TWO
+ * independently-deployed services: the orchestrator's chat finalize and
+ * api-strategy's `generationReleaseHoldEnforced`. Hanging four MORE surfaces off
+ * the same variable would mean one flip arms six behaviours at once across three
+ * services — the opposite of a canary. So every surface added after chat is armed
+ * by NAME here, and `MERI_RELEASE_GATE=enforce` alone changes nothing about them.
+ *
+ * Format: a comma/space separated list of `AssuranceSurface` names, or the single
+ * token `all`. Unknown tokens are ignored rather than throwing — a typo must
+ * NEVER be the thing that silently arms (or disarms) a withhold. Empty, unset, or
+ * all-unknown ⇒ the empty set ⇒ every new surface stays dark.
+ *
+ * Pure by design: callers pass the raw environment value.
+ */
+export function resolveAssuranceReleaseSurfaces(
+  raw: string | undefined,
+): ReadonlySet<AssuranceSurface> {
+  const tokens = String(raw ?? '')
+    .split(/[,\s]+/)
+    .map((token) => token.trim().toLowerCase())
+    .filter((token) => token.length > 0);
+  if (!tokens.length) return new Set<AssuranceSurface>();
+  if (tokens.includes('all')) return new Set<AssuranceSurface>(ASSURANCE_SURFACES);
+  const known = new Set<string>(ASSURANCE_SURFACES);
+  return new Set<AssuranceSurface>(
+    tokens.filter((token): token is AssuranceSurface => known.has(token)),
+  );
+}
+
+/** Is the pre-release hold armed for exactly this surface? Defaults to false. */
+export function assuranceReleaseArmedFor(
+  raw: string | undefined,
+  surface: AssuranceSurface,
+): boolean {
+  return resolveAssuranceReleaseSurfaces(raw).has(surface);
 }
 
 export const HIGH_RISK_CLAIM_CATEGORIES = new Set([
@@ -188,6 +247,55 @@ export function evaluateAssuranceRelease(input: AssuranceGateInput): AssuranceGa
     warnings,
     canStreamIrreversibly: !assessment.requiresBufferBeforeRelease && decision === 'deliver',
   };
+}
+
+export interface PrePersistAssuranceResult {
+  gate: AssuranceGateResult;
+  /**
+   * May the caller perform the DURABLE write? `deliver_with_flags` still
+   * persists — the flags travel with the artifact. `repair`/`hold` must not.
+   */
+  allowPersist: boolean;
+  /** Bounded, non-fabricating explanation for the model / the run summary. */
+  refusal: string;
+}
+
+/**
+ * The ONE pre-persistence decision every surface shares.
+ *
+ * `evaluateAssuranceRelease` answers "may this be RELEASED"; on chat that runs at
+ * finalize, which is far too late for a tool that already wrote a durable row.
+ * This wrapper is the pre-write form: same classification, same blockers, plus a
+ * canonical refusal string so four call sites cannot drift into four different
+ * (and differently misleading) apology texts.
+ *
+ * It deliberately does NOT read the environment. Every caller must have already
+ * decided it is armed (`assuranceReleaseArmedFor` / `resolveAssuranceReleaseMode`)
+ * before calling, so the dark-by-default decision stays visible at the call site
+ * instead of being buried in here.
+ */
+export function assurePreToolPersist(
+  input: AssuranceGateInput & { subject?: string },
+): PrePersistAssuranceResult {
+  const gate = evaluateAssuranceRelease(input);
+  const allowPersist = gate.decision !== 'hold' && gate.decision !== 'repair';
+  const subject = String(input.subject ?? 'this deliverable')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 160);
+  const reasons = gate.blockers
+    .slice(0, 6)
+    .map((reason) => `- ${reason}`)
+    .join('\n');
+  const refusal = allowPersist
+    ? ''
+    : [
+        `${subject} was NOT created, saved, or persisted: required pre-release verification did not pass.`,
+        reasons || '- One or more high-risk claims lacked authoritative same-turn support.',
+        '',
+        'Nothing was written. Do not tell the user the deliverable exists. An empty result, stale memory, or model inference is not proof — retrieve the missing authoritative source, or say plainly which claim could not be verified.',
+      ].join('\n');
+  return { gate, allowPersist, refusal };
 }
 
 /**

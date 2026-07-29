@@ -207,6 +207,26 @@ export interface DocumentDraftSection {
   sources?: Array<{ section: string; ref?: string }>;
 }
 
+/**
+ * Orchestrator-decided CLAIM-level release verdict for a generated deliverable.
+ *
+ * Wire-compatible ADDITION: absent from an older orchestrator, in which case
+ * nothing is held and behaviour is unchanged. The orchestrator owns this decision
+ * because apps/api-strategy deliberately has no @capiro/meriv2-core dependency
+ * (see execution-assurance.ts's locally-parsed switch), so the claim ledger cannot
+ * run here. This service only ENFORCES the verdict, in
+ * assessGeneratedDocumentForRelease.
+ */
+export interface DocumentDraftAssurance {
+  /** True only when the ORCHESTRATOR was itself armed for the strategy surface. */
+  held: boolean;
+  /** Populated whether or not `held` — reported for observation before arming. */
+  blockers?: string[];
+  decision?: string;
+  unresolvedProvenanceSections?: string[];
+  ledgerHash?: string;
+}
+
 /** The full node-scoped document/message draft the orchestrator returns. */
 export interface NodeDocumentDraftResponse {
   title: string | null;
@@ -214,6 +234,7 @@ export interface NodeDocumentDraftResponse {
   sections: DocumentDraftSection[];
   provenance?: PackProvenance;
   groundingHealth?: GroundingHealth;
+  assurance?: DocumentDraftAssurance;
   /** The model that actually produced this draft (for provenance stamping —
    *  NOT reliably available from the resolved AI provider on the global-key
    *  path, so it MUST come back from the orchestrator response). */
