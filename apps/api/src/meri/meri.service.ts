@@ -93,6 +93,7 @@ import { ToolCircuitBreaker, CircuitOpenError } from './meri-circuit-breaker.js'
 import { loopBudgetExceeded, type LoopStopReason } from './meri-budget.helpers.js';
 import { parseSuggestions } from './meri-suggestions.helpers.js';
 import { normalizeFeedback, type NormalizedFeedback } from './meri-feedback.helpers.js';
+import { anonymizeFeedbackExcerpt } from './meri-feedback-anonymize.js';
 import {
   COMPLIANCE_GUARDRAILS,
   screenComplianceRisk,
@@ -4311,7 +4312,21 @@ export class MeriService {
     });
   }
 
-  /** Admin-only, bounded feedback export for future evaluation fixtures. */
+  /**
+   * Admin-only, bounded feedback export for evaluation fixtures.
+   *
+   * ANONYMIZED AND VERSIONED. This used to emit `responseExcerpt` — a raw
+   * 1200-character slab of `clio_message.body`, i.e. an un-redacted piece of a real
+   * client conversation, with no record of what redaction had been applied. It now
+   * emits `responseExcerpt` produced by `anonymizeFeedbackExcerpt` and stamps
+   * `anonymizationVersion`, which is exactly what
+   * `reviewFeedbackFixtureCandidate` requires before feedback may become an eval
+   * fixture (it refuses an empty anonymizationVersion).
+   *
+   * The client NAME is fetched per conversation so it can be redacted by name, not
+   * only by pattern — a client is far more often identified by its own name than by
+   * an email address.
+   */
   async exportFeedbackForEvaluation(ctx: TenantContext, limit = 200) {
     const take = Math.min(Math.max(limit, 1), 500);
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -4326,6 +4341,7 @@ export class MeriService {
           body: true,
           metadata: true,
           createdAt: true,
+          client: { select: { name: true } },
         },
       }),
     );
@@ -4338,12 +4354,17 @@ export class MeriService {
         const feedback = metadata.feedback;
         if (!feedback || typeof feedback !== 'object' || Array.isArray(feedback)) return null;
         const record = feedback as Record<string, unknown>;
+        const excerpt = anonymizeFeedbackExcerpt(row.body, {
+          names: [row.client?.name ?? null],
+        });
         return {
           messageId: row.id,
           conversationId: row.conversationId,
           clientId: row.clientId,
           createdAt: row.createdAt.toISOString(),
-          responseExcerpt: row.body.replace(/\s+/g, ' ').trim().slice(0, 1200),
+          responseExcerpt: excerpt.text,
+          anonymizationVersion: excerpt.anonymizationVersion,
+          redactions: excerpt.redactions,
           rating: record.rating ?? null,
           reasons: Array.isArray(record.reasons) ? record.reasons.slice(0, 10) : [],
           note: typeof record.note === 'string' ? record.note.slice(0, 1000) : null,

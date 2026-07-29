@@ -19,6 +19,12 @@ import {
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { buildMeriActionPreview, type MeriActionPreview } from './meri-action-preview.js';
+import {
+  MeriPolicyPackService,
+  policyActorRole,
+  policyChannelForTool,
+  policyRecipientTypeForTool,
+} from './meri-policy-pack.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 
 export const MERI_ACTION_PROPOSAL_STATUSES = [
@@ -130,14 +136,21 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
 
 function errorStatus(error: unknown): number | null {
   if (!error || typeof error !== 'object') return null;
-  const candidate = error as { status?: unknown; statusCode?: unknown; response?: { status?: unknown } };
+  const candidate = error as {
+    status?: unknown;
+    statusCode?: unknown;
+    response?: { status?: unknown };
+  };
   for (const value of [candidate.status, candidate.statusCode, candidate.response?.status]) {
     if (typeof value === 'number' && Number.isInteger(value)) return value;
   }
   return null;
 }
 
-function classifyExecutionFailure(tool: string, error: unknown): {
+function classifyExecutionFailure(
+  tool: string,
+  error: unknown,
+): {
   status: 'failed_retryable' | 'failed_terminal' | 'outcome_unknown';
   code: string;
   message: string;
@@ -147,10 +160,17 @@ function classifyExecutionFailure(tool: string, error: unknown): {
     error && typeof error === 'object' && typeof (error as { code?: unknown }).code === 'string'
       ? (error as { code: string }).code
       : null;
-  const message = bounded(error instanceof Error ? error.message : error, 900) ?? 'Execution failed';
+  const message =
+    bounded(error instanceof Error ? error.message : error, 900) ?? 'Execution failed';
   const terminal =
-    (httpStatus !== null && httpStatus >= 400 && httpStatus < 500 && httpStatus !== 408 && httpStatus !== 429) ||
-    /invalid|malformed|not found|forbidden|unauthorized|permission|validation|required/i.test(message);
+    (httpStatus !== null &&
+      httpStatus >= 400 &&
+      httpStatus < 500 &&
+      httpStatus !== 408 &&
+      httpStatus !== 429) ||
+    /invalid|malformed|not found|forbidden|unauthorized|permission|validation|required/i.test(
+      message,
+    );
 
   if (EXTERNAL_SEND_TOOLS.has(tool)) {
     // A network/process/provider ambiguity after a send began is never safe to retry.
@@ -180,7 +200,75 @@ export class MeriActionProposalService {
     private readonly prisma: PrismaService,
     private readonly tools: MeriToolsService,
     private readonly config: ConfigService<AppConfig, true>,
+    /**
+     * OPTIONAL so an absent injection degrades to the in-code ruleset instead of
+     * crashing. That is the same fail-safe direction the switch itself takes: no
+     * pack source ⇒ today's behaviour, never a more permissive one.
+     */
+    private readonly policyPacks?: MeriPolicyPackService,
   ) {}
+
+  /**
+   * The compliance decision for one action, preferring the tenant's PUBLISHED
+   * policy pack when persisted packs are armed.
+   *
+   * Falls back to the in-code ruleset (`this.policy`) whenever the pack path
+   * returns null — switch off, no published pack, tampered rules_hash, invalid
+   * pack, or any database error. That fallback is what makes this safe to deploy:
+   * with MERI_POLICY_PACK_SOURCE unset, every decision is byte-identical to before,
+   * and even when armed a degraded pack path cannot make an action MORE permitted
+   * than the in-code ruleset already allows.
+   *
+   * The selected pack version + rule are recorded in compliance_policy_decision, so
+   * "which policy actually applied on that date" becomes answerable after a pack is
+   * republished. Today it is not.
+   */
+  private async evaluatePolicy(
+    ctx: TenantContext,
+    tool: string,
+    input: unknown,
+    proposalId?: string,
+  ): Promise<DecisionWithRule> {
+    const packDecision = await this.policyPacks?.decide(
+      ctx.tenantId,
+      {
+        tenantId: ctx.tenantId,
+        actorUserId: ctx.userId,
+        actorRole: policyActorRole(String(ctx.role ?? 'standard_user')),
+        // Federal is the platform default jurisdiction; a pack that declares
+        // `jurisdiction: 'all'` matches regardless, and a jurisdiction-specific pack
+        // is selected by selectPolicyPack only when it matches.
+        jurisdiction: 'federal',
+        tool,
+        channel: policyChannelForTool(tool),
+        recipientType: policyRecipientTypeForTool(tool),
+        at: new Date(),
+      },
+      {
+        tool,
+        channel: policyChannelForTool(tool),
+        recipientType: policyRecipientTypeForTool(tool),
+        actorUserId: ctx.userId,
+        actorRole: String(ctx.role ?? 'standard_user'),
+        jurisdiction: 'federal',
+        ...(proposalId ? { meriActionProposalId: proposalId } : {}),
+      },
+    );
+    if (packDecision) {
+      return {
+        outcome: packDecision.outcome,
+        reasons: [packDecision.reason],
+        ...(packDecision.code ? { code: packDecision.code } : {}),
+        ...(packDecision.tier ? { tier: packDecision.tier } : {}),
+        ...(packDecision.ruleId ? { ruleId: packDecision.ruleId } : {}),
+      } as DecisionWithRule;
+    }
+    return (await this.policy.evaluate(
+      tool,
+      input,
+      meriContextFromTenant(ctx),
+    )) as DecisionWithRule;
+  }
 
   private assertEnabled(): void {
     if (!this.config.get('MERIV2_ACTION_PROPOSALS_ENABLED')) {
@@ -256,11 +344,7 @@ export class MeriActionProposalService {
     this.assertEnabled();
     const tool = request.tool.trim();
     const input = this.tools.validateSideEffectingInput(tool, request.input);
-    const decision = (await this.policy.evaluate(
-      tool,
-      input,
-      meriContextFromTenant(ctx),
-    )) as DecisionWithRule;
+    const decision = await this.evaluatePolicy(ctx, tool, input);
     if (decision.outcome === 'PASS') {
       throw new ConflictException(
         'The current policy permits this action without approval; proposal creation indicates policy/registry drift.',
@@ -328,7 +412,8 @@ export class MeriActionProposalService {
           status: 'outcome_unknown',
           executedAt: new Date(),
           lastErrorCode: 'stale_execution',
-          lastErrorMessage: 'Execution ended without a provable terminal result; reconciliation is required.',
+          lastErrorMessage:
+            'Execution ended without a provable terminal result; reconciliation is required.',
         },
       }),
     );
@@ -451,7 +536,10 @@ export class MeriActionProposalService {
     });
   }
 
-  async approveAndExecute(ctx: TenantContext, proposalId: string): Promise<PublicMeriActionProposal> {
+  async approveAndExecute(
+    ctx: TenantContext,
+    proposalId: string,
+  ): Promise<PublicMeriActionProposal> {
     this.assertEnabled();
     await this.reconcileStaleExecuting(ctx);
     let row = await this.owned(ctx, proposalId);
@@ -506,11 +594,9 @@ export class MeriActionProposalService {
       );
     }
 
-    const decision = (await this.policy.evaluate(
-      row.tool,
-      canonical,
-      meriContextFromTenant(ctx),
-    )) as DecisionWithRule;
+    // Re-evaluated at APPROVE time, not just at propose time, so a pack published
+    // (or rolled back) between the two decides the execution.
+    const decision = await this.evaluatePolicy(ctx, row.tool, canonical, row.id);
     if (decision.outcome === 'BLOCK') {
       return this.transitionWithoutExecution(
         ctx,

@@ -267,6 +267,14 @@ model Tenant {
   outreachDraftVersions        OutreachDraftVersion[]
   outreachSendIntents          OutreachSendIntent[]
   outreachDeliveries           OutreachDelivery[]
+  compliancePolicyPacks        CompliancePolicyPack[]
+  compliancePolicyPackEvents   CompliancePolicyPackEvent[]
+  compliancePolicyDecisions    CompliancePolicyDecision[]
+  assuranceEvalRuns            AssuranceEvalRun[]
+  assuranceEvalResults         AssuranceEvalResult[]
+  assuranceEvalDomainGates     AssuranceEvalDomainGate[]
+  assuranceFeedbackCandidates  AssuranceFeedbackCandidate[]
+  assuranceEvalFixtures        AssuranceEvalFixture[]
 
   @@map("tenants")
 }
@@ -7101,4 +7109,298 @@ model BudgetInterimFundingPeriod {
   @@index([domain, fiscalYear, sequence], map: "budget_interim_funding_period_domain_fy_seq_idx")
   @@index([billId], map: "budget_interim_funding_period_bill_idx")
   @@map("budget_interim_funding_period")
+}
+
+// ===========================================================================
+// ASSURANCE PERSISTENCE (migrations 20260811010000 / 20260811020000 /
+// 20260811030000). Every table below is RLS ENABLE + FORCE with a
+// <table>_tenant_isolation policy on `app.current_tenant`, and carries NO
+// explicit GRANT (capiro_app is covered by ALTER DEFAULT PRIVILEGES).
+//
+// These models exist so the assurance code can actually REACH the tables through
+// Prisma. The governance tables added by 20260729010000 spent a whole phase
+// unreachable because their models were missing; this follows the corrected
+// pattern rather than extending that drift.
+// ===========================================================================
+
+/// A versioned compliance policy pack (packages/meriv2-core/src/assurance/
+/// policy-pack.ts, CompliancePolicyPack) with its full lifecycle recorded.
+///
+/// `packKey` is the stable identity across versions; `version` is the immutable
+/// release. A partial unique index enforces AT MOST ONE `published` version per
+/// (tenant, packKey) in the database rather than in whichever code path publishes
+/// next, and DB CHECKs restate the load-bearing in-code guards: a non-production
+/// pack cannot be published, a published pack must carry review + publication
+/// attribution, and four-eyes requires two DISTINCT reviewers.
+///
+/// `rulesHash` is policyPackRulesHash(pack) — tamper evidence over the
+/// decision-bearing rule material only, so review/publication churn does not
+/// change it but an out-of-band rule edit does.
+model CompliancePolicyPack {
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenantId               String    @map("tenant_id") @db.Uuid
+  packKey                String    @map("pack_key") @db.VarChar(120)
+  version                String    @db.VarChar(80)
+  jurisdiction           String    @default("all") @db.VarChar(32)
+  /// draft | pending_review | reviewed | published | retired | disabled_example
+  status                 String    @default("draft") @db.VarChar(24)
+  /// not_required_product_policy | pending | approved | rejected
+  legalReviewStatus      String    @default("pending") @map("legal_review_status") @db.VarChar(40)
+  /// PolicyAuthority — what authorizes this pack to exist at all.
+  authorityJson          Json      @map("authority_jsonb")
+  effectiveFrom          DateTime  @map("effective_from") @db.Timestamptz(6)
+  effectiveUntil         DateTime? @map("effective_until") @db.Timestamptz(6)
+  ownerUserId            String    @map("owner_user_id") @db.Uuid
+  reviewedByUserId       String?   @map("reviewed_by_user_id") @db.Uuid
+  reviewedAt             DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  secondApprovedByUserId String?   @map("second_approved_by_user_id") @db.Uuid
+  secondApprovedAt       DateTime? @map("second_approved_at") @db.Timestamptz(6)
+  publishedByUserId      String?   @map("published_by_user_id") @db.Uuid
+  publishedAt            DateTime? @map("published_at") @db.Timestamptz(6)
+  fourEyesRequired       Boolean   @default(true) @map("four_eyes_required")
+  rulesJson              Json      @default("[]") @map("rules_jsonb")
+  /// PASS | WARN | BLOCK. Defaults to WARN so an unmatched action fails safe.
+  fallbackOutcome        String    @default("WARN") @map("fallback_outcome") @db.VarChar(8)
+  /// Defaults TRUE: a pack is non-production until someone deliberately says so.
+  nonProduction          Boolean   @default(true) @map("non_production")
+  rulesHash              String    @map("rules_hash") @db.VarChar(64)
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  events    CompliancePolicyPackEvent[]
+  decisions CompliancePolicyDecision[]
+
+  @@unique([tenantId, packKey, version], map: "compliance_policy_pack_version_unique")
+  @@index([tenantId, status, jurisdiction, effectiveFrom(sort: Desc)], map: "compliance_policy_pack_lookup_idx")
+  @@map("compliance_policy_pack")
+}
+
+/// APPEND-ONLY lifecycle ledger for a policy pack: create / submit_review /
+/// review / approve / publish / retire / rollback / simulate. There is no update
+/// path — the row IS the evidence. `metadataJson` is size-capped by a DB CHECK so
+/// this can never become a place to smuggle a payload dump.
+model CompliancePolicyPackEvent {
+  id                   String   @id @default(uuid()) @db.Uuid
+  tenantId             String   @map("tenant_id") @db.Uuid
+  policyPackId         String   @map("policy_pack_id") @db.Uuid
+  fromStatus           String?  @map("from_status") @db.VarChar(24)
+  toStatus             String?  @map("to_status") @db.VarChar(24)
+  action               String   @db.VarChar(24)
+  actorUserId          String   @map("actor_user_id") @db.Uuid
+  actorRole            String   @map("actor_role") @db.VarChar(32)
+  /// Set on a rollback: the version rolled back FROM.
+  rolledBackFromPackId String?  @map("rolled_back_from_pack_id") @db.Uuid
+  reason               String
+  note                 String?
+  metadataJson         Json     @default("{}") @map("metadata_jsonb")
+  occurredAt           DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  tenant     Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  policyPack CompliancePolicyPack @relation(fields: [policyPackId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, policyPackId, occurredAt(sort: Desc)], map: "compliance_policy_pack_event_pack_idx")
+  @@map("compliance_policy_pack_event")
+}
+
+/// The SELECTED-VERSION audit: which pack version, and which rule inside it,
+/// bound one specific action. Without this there is no way to answer "what policy
+/// actually applied on that date" once a pack has been republished.
+///
+/// `policyPackId` is NULLABLE on purpose so a no-pack-selected FAIL-SAFE decision
+/// is still recorded rather than silently unlogged, and `binding`
+/// (proposalPolicyBinding: pack@version:rule) survives deletion of the pack row.
+/// `simulated` distinguishes a dry run from an enforcement event.
+model CompliancePolicyDecision {
+  id                   String   @id @default(uuid()) @db.Uuid
+  tenantId             String   @map("tenant_id") @db.Uuid
+  policyPackId         String?  @map("policy_pack_id") @db.Uuid
+  packKey              String?  @map("pack_key") @db.VarChar(120)
+  packVersion          String?  @map("pack_version") @db.VarChar(80)
+  ruleId               String?  @map("rule_id") @db.VarChar(120)
+  /// PASS | WARN | BLOCK
+  outcome              String   @db.VarChar(8)
+  code                 String?  @db.VarChar(48)
+  tier                 String?  @db.VarChar(16)
+  simulated            Boolean  @default(false)
+  binding              String   @db.VarChar(280)
+  tool                 String   @db.VarChar(80)
+  channel              String   @db.VarChar(24)
+  recipientType        String?  @map("recipient_type") @db.VarChar(24)
+  actorUserId          String   @map("actor_user_id") @db.Uuid
+  actorRole            String   @map("actor_role") @db.VarChar(32)
+  clientId             String?  @map("client_id") @db.Uuid
+  jurisdiction         String   @db.VarChar(32)
+  meriActionProposalId String?  @map("meri_action_proposal_id") @db.Uuid
+  reason               String
+  decidedAt            DateTime @default(now()) @map("decided_at") @db.Timestamptz(6)
+
+  tenant     Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  policyPack CompliancePolicyPack? @relation(fields: [policyPackId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, decidedAt(sort: Desc)], map: "compliance_policy_decision_recent_idx")
+  @@index([tenantId, packKey, packVersion], map: "compliance_policy_decision_version_idx")
+  @@map("compliance_policy_decision")
+}
+
+/// One evaluation RUN and its category-specific release decision
+/// (packages/meriv2-core/src/assurance/eval-gate.ts, ReleaseGateReport).
+///
+/// `thresholdsJson` stores the thresholds ACTUALLY USED, so a later threshold
+/// change cannot retroactively rewrite whether a past release was allowed.
+/// `provenanceHash` is unique per tenant, making a re-run of the identical
+/// provenance tuple idempotent instead of duplicating history. The sign-off columns
+/// cover cost/latency ONLY — there is deliberately no generic override column,
+/// because a safety or scope invariant is not waivable.
+model AssuranceEvalRun {
+  id                         String   @id @default(uuid()) @db.Uuid
+  tenantId                   String   @map("tenant_id") @db.Uuid
+  gitSha                     String?  @map("git_sha") @db.VarChar(80)
+  promptVersion              String?  @map("prompt_version") @db.VarChar(120)
+  contextCompilerVersion     String?  @map("context_compiler_version") @db.VarChar(120)
+  toolManifestHash           String?  @map("tool_manifest_hash") @db.VarChar(128)
+  model                      String?  @db.VarChar(160)
+  provider                   String?  @db.VarChar(40)
+  datasetVersion             String?  @map("dataset_version") @db.VarChar(120)
+  runDate                    DateTime @map("run_date") @db.Timestamptz(6)
+  provenanceHash             String   @map("provenance_hash") @db.VarChar(64)
+  thresholdsJson             Json     @map("thresholds_jsonb")
+  baselineJson               Json?    @map("baseline_jsonb")
+  candidateJson              Json?    @map("candidate_jsonb")
+  allowed                    Boolean
+  blockersJson               Json     @default("[]") @map("blockers_jsonb")
+  warningsJson               Json     @default("[]") @map("warnings_jsonb")
+  costLatencySignoffByUserId String?  @map("cost_latency_signoff_by_user_id") @db.Uuid
+  costLatencySignoffReason   String?  @map("cost_latency_signoff_reason")
+  createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant      Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  results     AssuranceEvalResult[]
+  domainGates AssuranceEvalDomainGate[]
+
+  @@unique([tenantId, provenanceHash], map: "assurance_eval_run_provenance_unique")
+  @@index([tenantId, runDate(sort: Desc)], map: "assurance_eval_run_recent_idx")
+  @@map("assurance_eval_run")
+}
+
+/// One eval CASE outcome within a run. `caseId` is what an accepted feedback
+/// fixture key points at (AssuranceEvalFixture.fixtureKey), so a regression traces
+/// back to the feedback that created its fixture.
+model AssuranceEvalResult {
+  id        String  @id @default(uuid()) @db.Uuid
+  tenantId  String  @map("tenant_id") @db.Uuid
+  evalRunId String  @map("eval_run_id") @db.Uuid
+  caseId    String  @map("case_id") @db.VarChar(160)
+  /// L0 | L1 | L2 | L3 | L4
+  tier      String? @db.VarChar(4)
+  domain    String  @db.VarChar(32)
+  /// critical | high | medium | low
+  severity  String  @db.VarChar(12)
+  passed    Boolean
+  score     Float?
+  threshold Float?
+  metric    String? @db.VarChar(48)
+  detail    String
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  evalRun AssuranceEvalRun @relation(fields: [evalRunId], references: [id], onDelete: Cascade)
+
+  @@unique([evalRunId, caseId], map: "assurance_eval_result_case_unique")
+  @@index([tenantId, domain, passed], map: "assurance_eval_result_domain_idx")
+  @@map("assurance_eval_result")
+}
+
+/// The per-DOMAIN gate verdict, stored as immutable evidence rather than
+/// re-derived from AssuranceEvalResult later. Re-derivation would silently change
+/// if the summarizer changed; the point is that the per-domain verdict AT RELEASE
+/// TIME is a fact on the record — one critical legislative / tenancy / approval /
+/// compliance regression blocks release regardless of the average.
+model AssuranceEvalDomainGate {
+  id                 String  @id @default(uuid()) @db.Uuid
+  tenantId           String  @map("tenant_id") @db.Uuid
+  evalRunId          String  @map("eval_run_id") @db.Uuid
+  domain             String  @db.VarChar(32)
+  passed             Int
+  failed             Int
+  criticalFailed     Int     @map("critical_failed")
+  highFailed         Int     @map("high_failed")
+  minimumScore       Float?  @map("minimum_score")
+  blocked            Boolean
+  blockerReasonsJson Json    @default("[]") @map("blocker_reasons_jsonb")
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  evalRun AssuranceEvalRun @relation(fields: [evalRunId], references: [id], onDelete: Cascade)
+
+  @@unique([evalRunId, domain], map: "assurance_eval_domain_gate_unique")
+  @@map("assurance_eval_domain_gate")
+}
+
+/// A candidate regression fixture raised from real user feedback, PENDING human
+/// review (packages/meriv2-core/src/assurance/feedback-fixtures.ts).
+///
+/// Feedback never becomes golden truth automatically. DB CHECKs restate the
+/// in-code invariants: a decided candidate must name its reviewer/time/reason, an
+/// ACCEPTED candidate must be anonymized under a named anonymization version, and
+/// the reviewer must not be the creator — you cannot promote your own feedback.
+///
+/// `summary` is reviewer-facing and size-capped. Prompt/response BODIES are
+/// deliberately absent: a fixture references a trace and a claim-ledger hash, it
+/// does not store the conversation. `sourceMessageId` carries no FK so the evidence
+/// outlives a deleted conversation.
+model AssuranceFeedbackCandidate {
+  id                   String    @id @default(uuid()) @db.Uuid
+  tenantId             String    @map("tenant_id") @db.Uuid
+  /// pending_review | accepted | rejected
+  status               String    @default("pending_review") @db.VarChar(16)
+  /// Canonical codes only, enforced by a DB CHECK against the apps/api vocabulary.
+  reasonCodes          String[]  @map("reason_codes")
+  surface              String    @db.VarChar(64)
+  sourceMessageId      String?   @map("source_message_id") @db.Uuid
+  traceId              String?   @map("trace_id") @db.VarChar(160)
+  contextPacketId      String?   @map("context_packet_id") @db.Uuid
+  claimLedgerHash      String?   @map("claim_ledger_hash") @db.VarChar(128)
+  summary              String?
+  createdByUserId      String    @map("created_by_user_id") @db.Uuid
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  anonymized           Boolean   @default(false)
+  anonymizationVersion String?   @map("anonymization_version") @db.VarChar(80)
+  reviewedByUserId     String?   @map("reviewed_by_user_id") @db.Uuid
+  reviewedAt           DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  reviewReason         String?   @map("review_reason")
+  fixtureId            String?   @map("fixture_id") @db.VarChar(64)
+
+  tenant   Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fixtures AssuranceEvalFixture[]
+
+  @@index([tenantId, status, createdAt(sort: Desc)], map: "assurance_feedback_candidate_queue_idx")
+  @@map("assurance_feedback_candidate")
+}
+
+/// An ACCEPTED regression fixture. `fixtureKey` is the deterministic
+/// 'feedback-<sha>' that AssuranceEvalResult.caseId references.
+///
+/// The source candidate is ON DELETE RESTRICT: a fixture must never become
+/// unattributable by deleting its provenance.
+model AssuranceEvalFixture {
+  id                   String    @id @default(uuid()) @db.Uuid
+  tenantId             String    @map("tenant_id") @db.Uuid
+  fixtureKey           String    @map("fixture_key") @db.VarChar(64)
+  sourceCandidateId    String    @map("source_candidate_id") @db.Uuid
+  datasetVersion       String    @map("dataset_version") @db.VarChar(120)
+  category             String    @db.VarChar(40)
+  surface              String    @db.VarChar(64)
+  traceRef             String?   @map("trace_ref") @db.VarChar(160)
+  contextPacketRef     String?   @map("context_packet_ref") @db.VarChar(160)
+  claimLedgerHash      String?   @map("claim_ledger_hash") @db.VarChar(128)
+  anonymizationVersion String    @map("anonymization_version") @db.VarChar(80)
+  acceptedByUserId     String    @map("accepted_by_user_id") @db.Uuid
+  acceptedAt           DateTime  @map("accepted_at") @db.Timestamptz(6)
+  retiredAt            DateTime? @map("retired_at") @db.Timestamptz(6)
+
+  tenant          Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sourceCandidate AssuranceFeedbackCandidate @relation(fields: [sourceCandidateId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, fixtureKey], map: "assurance_eval_fixture_key_unique")
+  @@index([tenantId, datasetVersion, retiredAt], map: "assurance_eval_fixture_dataset_idx")
+  @@map("assurance_eval_fixture")
 }

@@ -17,6 +17,8 @@ import { MeriController } from './meri.controller.js';
 import { MeriActionProposalController } from './meri-action-proposal.controller.js';
 import { MeriContextPacketController } from './meri-context-packet.controller.js';
 import { MeriActionProposalService } from './meri-action-proposal.service.js';
+import { MeriPolicyPackService } from './meri-policy-pack.service.js';
+import { MeriFeedbackFixtureService } from './meri-feedback-fixture.service.js';
 import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { MeriResearchService } from './meri-research.service.js';
@@ -65,6 +67,8 @@ import { MeriV2ChatClient } from './meriv2-chat.client.js';
     MeriFeatureFlagsService,
     MeriApprovalService,
     MeriActionProposalService,
+    MeriPolicyPackService,
+    MeriFeedbackFixtureService,
     MeriComplianceAuditService,
     MeriClaimWriterService,
     MeriV2ChatClient,
