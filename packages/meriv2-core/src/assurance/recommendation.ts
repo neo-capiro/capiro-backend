@@ -40,10 +40,13 @@ export function validateGovernmentAffairsRecommendation(
   const evidenceIds = new Set(ledger.evidence.map((item) => item.id));
   const unresolved = recommendation.evidenceBasis.filter((id) => !evidenceIds.has(id));
   if (!recommendation.requestedAction.trim()) blockers.push('A requested action is required.');
-  if (!recommendation.evidenceBasis.length) blockers.push('The recommendation has no evidence basis.');
+  if (!recommendation.evidenceBasis.length)
+    blockers.push('The recommendation has no evidence basis.');
   if (unresolved.length) blockers.push(`Unresolved evidence ids: ${unresolved.join(', ')}.`);
   if (ledger.conflictedClaimIds.length) {
-    blockers.push('Conflicted claims must be resolved before a client-specific recommendation is released.');
+    blockers.push(
+      'Conflicted claims must be resolved before a client-specific recommendation is released.',
+    );
   }
   if (ledger.highRiskUnsupportedClaimIds.length) {
     blockers.push('Unsupported high-risk claims cannot support a recommendation.');
@@ -57,21 +60,28 @@ export function validateGovernmentAffairsRecommendation(
     blockers.push('A recommendation cannot be both client-specific and a generic option.');
   }
   if (!approvedDirection && !recommendation.genericOption) {
-    blockers.push('Without approved client direction, provide a generic option set rather than manufacturing an objective.');
+    blockers.push(
+      'Without approved client direction, provide a generic option set rather than manufacturing an objective.',
+    );
   }
   if (
     recommendation.clientObjectiveAdvanced &&
     frame.clientObjective &&
     normalize(recommendation.clientObjectiveAdvanced) !== normalize(frame.clientObjective)
   ) {
-    blockers.push('The recommendation names a client objective that does not match approved client direction.');
+    blockers.push(
+      'The recommendation names a client objective that does not match approved client direction.',
+    );
   }
-  if (!recommendation.target) warnings.push('No target office, committee, agency, or person is identified.');
+  if (!recommendation.target)
+    warnings.push('No target office, committee, agency, or person is identified.');
   if (!recommendation.timing?.window && !recommendation.timing?.deadline) {
     warnings.push('No procedural timing or deadline is identified.');
   }
-  if (!recommendation.nextVerificationStep) warnings.push('No next verification step is identified.');
-  if (!recommendation.dependencies.length) warnings.push('No dependencies or prerequisites are identified.');
+  if (!recommendation.nextVerificationStep)
+    warnings.push('No next verification step is identified.');
+  if (!recommendation.dependencies.length)
+    warnings.push('No dependencies or prerequisites are identified.');
   if (!recommendation.risks.length) warnings.push('No opposition or execution risk is identified.');
 
   return { valid: blockers.length === 0, blockers, warnings };
@@ -102,9 +112,7 @@ export function genericRecommendationOption(input: {
   };
 }
 
-export function recommendationPromptRequirements(
-  frame: GovernmentAffairsOperatingFrame,
-): string {
+export function recommendationPromptRequirements(frame: GovernmentAffairsOperatingFrame): string {
   const approved = Boolean(frame.clientObjective || frame.authorizedAsk);
   return [
     'For each recommendation, state the objective advanced, evidence basis, target, requested action, timing, dependencies, risks, confidence, uncertainty, and next verification step.',

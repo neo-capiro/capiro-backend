@@ -66,7 +66,8 @@ export function assuranceMetric(input: {
 }): AssuranceMetricEvent {
   const dimensions = input.dimensions ?? {};
   for (const key of Object.keys(dimensions)) {
-    if (FORBIDDEN_KEYS.has(key)) throw new Error(`Assurance metrics may not include content field: ${key}.`);
+    if (FORBIDDEN_KEYS.has(key))
+      throw new Error(`Assurance metrics may not include content field: ${key}.`);
   }
   const safe: AssuranceMetricEvent['dimensions'] = {};
   for (const key of [

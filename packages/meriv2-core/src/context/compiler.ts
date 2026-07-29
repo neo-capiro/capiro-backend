@@ -36,7 +36,7 @@ const RATIONALE: Readonly<Record<SteeringLayer, string>> = {
   'firm-identity': 'Firm Soul/Compass: firm identity always steers firm-scoped drafting',
   'firm-playbook': 'Firm playbook: approved house drafting doctrine for deliverables',
   'user-voice': "Author's writing voice/profile (private, owner-scoped)",
-  'client-steering': "Client soul/compass: approved framing for the active client only",
+  'client-steering': 'Client soul/compass: approved framing for the active client only',
   'client-people': 'Client people roster: client-scoped principals and roles',
 };
 
@@ -204,10 +204,11 @@ export class ContextCompiler {
       }
     }
 
-    eligible.sort((a, b) =>
-      tierRank(a.tier) - tierRank(b.tier) ||
-      b.score.total - a.score.total ||
-      compareSteeringRows(a.row, b.row),
+    eligible.sort(
+      (a, b) =>
+        tierRank(a.tier) - tierRank(b.tier) ||
+        b.score.total - a.score.total ||
+        compareSteeringRows(a.row, b.row),
     );
 
     const items: ContextPacketItemV2[] = [];
@@ -456,12 +457,8 @@ function governedRecord(
     expiresAt: row.expiresAt,
   });
   const memoryClass = isMemoryClass(row.memoryClass) ? row.memoryClass : legacy.memoryClass;
-  const authority = isAuthority(row.governedAuthority)
-    ? row.governedAuthority
-    : legacy.authority;
-  const status = isStatus(row.status)
-    ? row.status
-    : legacy.status;
+  const authority = isAuthority(row.governedAuthority) ? row.governedAuthority : legacy.authority;
+  const status = isStatus(row.status) ? row.status : legacy.status;
   const scope = row.clientId
     ? 'client'
     : row.visibility === 'user' || row.ownerUserId

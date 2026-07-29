@@ -181,7 +181,8 @@ export const CAPIRO_APPROVED_GENERIC_POLICY_PACK: CompliancePolicyPack = {
     },
     {
       id: 'internal_artifacts.pass',
-      description: 'Internal reversible artifacts and explicit memory saves are pre-approved and audited.',
+      description:
+        'Internal reversible artifacts and explicit memory saves are pre-approved and audited.',
       outcome: 'PASS',
       tier: 'low',
       enabled: true,
@@ -257,7 +258,8 @@ export function validatePolicyPack(pack: CompliancePolicyPack): PolicyPackValida
   if (!pack.id.trim()) errors.push('Pack id is required.');
   if (!pack.version.trim()) errors.push('Pack version is required.');
   if (!isIso(pack.effectiveFrom)) errors.push('effectiveFrom must be a valid timestamp.');
-  if (pack.effectiveUntil && !isIso(pack.effectiveUntil)) errors.push('effectiveUntil must be valid.');
+  if (pack.effectiveUntil && !isIso(pack.effectiveUntil))
+    errors.push('effectiveUntil must be valid.');
   if (pack.effectiveUntil && new Date(pack.effectiveUntil) <= new Date(pack.effectiveFrom)) {
     errors.push('effectiveUntil must be after effectiveFrom.');
   }
@@ -272,8 +274,10 @@ export function validatePolicyPack(pack: CompliancePolicyPack): PolicyPackValida
     ) {
       errors.push('A published pack must have approved review or be approved product policy.');
     }
-    if (!pack.reviewedByUserId || !pack.reviewedAt) errors.push('Published pack lacks review attribution.');
-    if (!pack.publishedByUserId || !pack.publishedAt) errors.push('Published pack lacks publication attribution.');
+    if (!pack.reviewedByUserId || !pack.reviewedAt)
+      errors.push('Published pack lacks review attribution.');
+    if (!pack.publishedByUserId || !pack.publishedAt)
+      errors.push('Published pack lacks publication attribution.');
   }
   if (pack.fourEyesRequired) {
     if (!pack.reviewedByUserId || !pack.secondApprovedByUserId) {
@@ -298,7 +302,8 @@ export function validatePolicyPack(pack: CompliancePolicyPack): PolicyPackValida
       warnings.push(`Rule ${rule.id} has a broad match; review its blast radius.`);
     }
   }
-  if (!pack.rules.length && !pack.nonProduction) warnings.push('Production pack has no rules; fallback controls every action.');
+  if (!pack.rules.length && !pack.nonProduction)
+    warnings.push('Production pack has no rules; fallback controls every action.');
   return { valid: errors.length === 0, errors, warnings };
 }
 
@@ -319,11 +324,10 @@ export function canPublishPolicyPack(
     if (!pack.reviewedByUserId || !pack.secondApprovedByUserId) {
       errors.push('Required two-person review is incomplete.');
     }
-    if (
-      actor.userId === pack.reviewedByUserId ||
-      actor.userId === pack.secondApprovedByUserId
-    ) {
-      errors.push('The publisher must be distinct from both reviewers when four-eyes publishing is enabled.');
+    if (actor.userId === pack.reviewedByUserId || actor.userId === pack.secondApprovedByUserId) {
+      errors.push(
+        'The publisher must be distinct from both reviewers when four-eyes publishing is enabled.',
+      );
     }
   }
   return { valid: errors.length === 0, errors, warnings: validation.warnings };
@@ -370,7 +374,11 @@ export function rollbackPolicyPack(
       status: 'retired',
       changelog: [
         ...current.changelog,
-        { at: timestamp, actorUserId: actor.userId, note: `Retired during rollback to ${previous.version}.` },
+        {
+          at: timestamp,
+          actorUserId: actor.userId,
+          note: `Retired during rollback to ${previous.version}.`,
+        },
       ],
     },
     restored: {
@@ -380,7 +388,11 @@ export function rollbackPolicyPack(
       publishedAt: timestamp,
       changelog: [
         ...previous.changelog,
-        { at: timestamp, actorUserId: actor.userId, note: `Restored by rollback from ${current.version}.` },
+        {
+          at: timestamp,
+          actorUserId: actor.userId,
+          note: `Restored by rollback from ${current.version}.`,
+        },
       ],
     },
   };
@@ -391,18 +403,25 @@ export function selectPolicyPack(
   context: PolicySelectionContext,
 ): CompliancePolicyPack | null {
   const at = new Date(context.at);
-  return packs
-    .filter((pack) => {
-      if (pack.status !== 'published' || pack.nonProduction) return false;
-      if (pack.jurisdiction !== 'all' && pack.jurisdiction !== context.jurisdiction) return false;
-      if (new Date(pack.effectiveFrom) > at) return false;
-      if (pack.effectiveUntil && new Date(pack.effectiveUntil) < at) return false;
-      return validatePolicyPack(pack).valid;
-    })
-    .sort((a, b) => {
-      const jurisdictionSpecific = Number(b.jurisdiction !== 'all') - Number(a.jurisdiction !== 'all');
-      return jurisdictionSpecific || new Date(b.effectiveFrom).getTime() - new Date(a.effectiveFrom).getTime() || b.version.localeCompare(a.version);
-    })[0] ?? null;
+  return (
+    packs
+      .filter((pack) => {
+        if (pack.status !== 'published' || pack.nonProduction) return false;
+        if (pack.jurisdiction !== 'all' && pack.jurisdiction !== context.jurisdiction) return false;
+        if (new Date(pack.effectiveFrom) > at) return false;
+        if (pack.effectiveUntil && new Date(pack.effectiveUntil) < at) return false;
+        return validatePolicyPack(pack).valid;
+      })
+      .sort((a, b) => {
+        const jurisdictionSpecific =
+          Number(b.jurisdiction !== 'all') - Number(a.jurisdiction !== 'all');
+        return (
+          jurisdictionSpecific ||
+          new Date(b.effectiveFrom).getTime() - new Date(a.effectiveFrom).getTime() ||
+          b.version.localeCompare(a.version)
+        );
+      })[0] ?? null
+  );
 }
 
 export function evaluatePolicyPack(
@@ -416,7 +435,8 @@ export function evaluatePolicyPack(
       packId: pack.id,
       packVersion: pack.version,
       ruleId: null,
-      reason: 'The policy pack is not an active reviewed production pack; fail-safe approval is required.',
+      reason:
+        'The policy pack is not an active reviewed production pack; fail-safe approval is required.',
       simulated,
     };
   }
@@ -449,11 +469,17 @@ export function proposalPolicyBinding(decision: PolicyPackDecision): string {
 
 function ruleMatches(match: PolicyRuleMatch, context: PolicySelectionContext): boolean {
   if (match.tools?.length && !match.tools.includes(context.tool)) return false;
-  if (match.jurisdictions?.length && !match.jurisdictions.includes(context.jurisdiction)) return false;
+  if (match.jurisdictions?.length && !match.jurisdictions.includes(context.jurisdiction))
+    return false;
   if (match.actorRoles?.length && !match.actorRoles.includes(context.actorRole)) return false;
   if (match.channels?.length && !match.channels.includes(context.channel)) return false;
-  if (match.recipientTypes?.length && !match.recipientTypes.includes(context.recipientType ?? 'unknown')) return false;
-  if (match.clientIds?.length && (!context.clientId || !match.clientIds.includes(context.clientId))) return false;
+  if (
+    match.recipientTypes?.length &&
+    !match.recipientTypes.includes(context.recipientType ?? 'unknown')
+  )
+    return false;
+  if (match.clientIds?.length && (!context.clientId || !match.clientIds.includes(context.clientId)))
+    return false;
   for (const [key, expected] of Object.entries(match.contextFlags ?? {})) {
     if (context.contextFlags?.[key] !== expected) return false;
   }

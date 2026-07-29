@@ -128,7 +128,11 @@ export const governmentAffairsAssuranceCase: EvalCase = {
         },
         true,
       );
-      if (example.status !== 'disabled_example' || example.rules.length || decision.outcome !== 'WARN') {
+      if (
+        example.status !== 'disabled_example' ||
+        example.rules.length ||
+        decision.outcome !== 'WARN'
+      ) {
         failures.push(`legal example ${example.id} is activatable or contains a substantive rule`);
       }
     }

@@ -101,7 +101,9 @@ export function buildAssuredClaimLedger(
     .map((candidate, index) => normalizeCandidate(candidate, index, evidenceById))
     .filter((claim): claim is AssuredClaim => claim !== null);
 
-  const unsupportedClaimIds = claims.filter((claim) => claim.unsupportedReason).map((claim) => claim.id);
+  const unsupportedClaimIds = claims
+    .filter((claim) => claim.unsupportedReason)
+    .map((claim) => claim.id);
   const conflictedClaimIds = claims.filter((claim) => claim.conflict).map((claim) => claim.id);
   const highRiskUnsupportedClaimIds = claims
     .filter((claim) => claim.unsupportedReason && highRisk.has(claim.category))
@@ -189,7 +191,9 @@ function normalizeCandidate(
   const text = String(candidate.text ?? '').trim();
   if (!text) return null;
   const sourceIds = orderedUnique(
-    (candidate.sourceIds ?? []).filter((id): id is string => typeof id === 'string' && id.length > 0),
+    (candidate.sourceIds ?? []).filter(
+      (id): id is string => typeof id === 'string' && id.length > 0,
+    ),
   );
   const resolved = sourceIds.map((id) => evidenceById.get(id)).filter(isDefined);
   const unresolvedCount = sourceIds.length - resolved.length;
@@ -200,7 +204,8 @@ function normalizeCandidate(
   if (candidate.type === 'fact') {
     if (!resolved.length) unsupportedReason = 'No cited evidence resolves for this factual claim.';
     else if (!resolved.some((item) => item.authoritative)) {
-      unsupportedReason = 'The cited material is not authoritative enough to support this factual claim.';
+      unsupportedReason =
+        'The cited material is not authoritative enough to support this factual claim.';
     } else if (unresolvedCount > 0) {
       unsupportedReason = 'One or more cited evidence identifiers do not resolve.';
     } else if (requiresCoverage && !evidenceSupportsNegativeClaim(resolved)) {
@@ -208,8 +213,10 @@ function normalizeCandidate(
         'This absence or exhaustive claim lacks complete, non-truncated source coverage.';
     }
   } else if (candidate.type === 'inference' || candidate.type === 'recommendation') {
-    if (!resolved.length) unsupportedReason = 'No evidence basis resolves for this analytical claim.';
-    else if (unresolvedCount > 0) unsupportedReason = 'One or more evidence identifiers do not resolve.';
+    if (!resolved.length)
+      unsupportedReason = 'No evidence basis resolves for this analytical claim.';
+    else if (unresolvedCount > 0)
+      unsupportedReason = 'One or more evidence identifiers do not resolve.';
   }
 
   const primarySourcePresent = resolved.some((item) => item.primary && item.authoritative);
@@ -227,7 +234,11 @@ function normalizeCandidate(
     category,
     sourceIds,
     primarySourcePresent,
-    ...(candidate.asOf ? { asOf: safeIso(candidate.asOf) } : latestAsOf(resolved) ? { asOf: latestAsOf(resolved)! } : {}),
+    ...(candidate.asOf
+      ? { asOf: safeIso(candidate.asOf) }
+      : latestAsOf(resolved)
+        ? { asOf: latestAsOf(resolved)! }
+        : {}),
     confidence,
     ...(candidate.conflict ? { conflict: bounded(candidate.conflict, 500) } : {}),
     ...(unsupportedReason ? { unsupportedReason } : {}),
@@ -259,7 +270,9 @@ function normalizeEvidence(input: readonly AssuredEvidence[]): AssuredEvidence[]
               description: bounded(raw.coverage.description, 500),
               complete: raw.coverage.complete === true,
               truncated: raw.coverage.truncated === true,
-              failedSources: orderedUnique(raw.coverage.failedSources ?? []).map((value) => bounded(value, 160)),
+              failedSources: orderedUnique(raw.coverage.failedSources ?? []).map((value) =>
+                bounded(value, 160),
+              ),
             },
           }
         : {}),
@@ -280,7 +293,11 @@ function calibratedConfidence(
   if (type === 'uncertainty') return 'unknown';
   const authoritative = evidence.filter((item) => item.authoritative);
   const primary = authoritative.filter((item) => item.primary);
-  const ceiling: AssuredConfidence = primary.length ? 'high' : authoritative.length ? 'medium' : 'low';
+  const ceiling: AssuredConfidence = primary.length
+    ? 'high'
+    : authoritative.length
+      ? 'medium'
+      : 'low';
   return lowerConfidence(requested ?? ceiling, ceiling);
 }
 
@@ -303,7 +320,10 @@ function safeIso(value: string): string {
 }
 
 function bounded(value: string, max: number): string {
-  return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+  return String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max);
 }
 
 function orderedUnique<T>(values: readonly T[]): T[] {

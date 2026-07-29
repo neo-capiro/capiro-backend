@@ -12,10 +12,7 @@ export type FeedbackReasonCode =
   | 'compliance_concern'
   | 'tool_action_failed';
 
-export type FeedbackFixtureCandidateStatus =
-  | 'pending_review'
-  | 'accepted'
-  | 'rejected';
+export type FeedbackFixtureCandidateStatus = 'pending_review' | 'accepted' | 'rejected';
 
 export interface FeedbackFixtureCandidate {
   id: string;
@@ -100,7 +97,8 @@ export function reviewFeedbackFixtureCandidate(
         at?: string | Date;
       },
 ): { candidate: FeedbackFixtureCandidate; fixture?: AcceptedRegressionFixture } {
-  if (candidate.status !== 'pending_review') throw new Error('Feedback candidate is already decided.');
+  if (candidate.status !== 'pending_review')
+    throw new Error('Feedback candidate is already decided.');
   if (!input.reviewerUserId) throw new Error('A named reviewer is required.');
   if (!input.reviewReason.trim()) throw new Error('A review reason is required.');
   const at = iso(input.at ?? new Date());
@@ -167,7 +165,10 @@ function isFeedbackReason(value: FeedbackReasonCode): boolean {
 }
 
 function bounded(value: string, max: number): string {
-  return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+  return String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max);
 }
 
 function iso(value: string | Date): string {

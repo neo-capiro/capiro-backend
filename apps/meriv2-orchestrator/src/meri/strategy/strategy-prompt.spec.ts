@@ -483,7 +483,6 @@ describe('buildDocumentDraftSystemPrompt (Stage-G)', () => {
   });
 });
 
-
 describe('strategy-prompt — Phase 4 assurance', () => {
   it('does not manufacture an unstated objective and includes the shared assurance contract', () => {
     const sys = buildDraftSystemPrompt(

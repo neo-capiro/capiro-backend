@@ -203,7 +203,8 @@ export const GOVERNMENT_AFFAIRS_GOLDENS: readonly GovernmentAffairsGoldenFixture
     id: 'memory-authority-conflict',
     tier: 'L2',
     domain: 'memory_context',
-    prompt: 'A newer model-inferred note conflicts with an approved client red line. Which controls?',
+    prompt:
+      'A newer model-inferred note conflicts with an approved client red line. Which controls?',
     expectedTools: ['search_memory', 'get_client_context'],
     requiredCheckIds: [],
     forbiddenClaims: ['model inference silently overrides approved client steering'],

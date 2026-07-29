@@ -93,7 +93,12 @@ const REQUIREMENTS: Readonly<Record<ClaimCategory, readonly EvidenceRequirement[
       'bill_status',
       'required',
       'official_action_vote_status',
-      ['get_bill_status', 'search_floor_votes', 'search_state_floor_votes', 'get_state_rule_status'],
+      [
+        'get_bill_status',
+        'search_floor_votes',
+        'search_state_floor_votes',
+        'get_state_rule_status',
+      ],
       'same_turn',
       'Procedural advancement requires the action, rule, or vote evidence that produced it.',
       ['actionsOrVoteEvidence'],
@@ -334,37 +339,123 @@ const REQUIREMENTS: Readonly<Record<ClaimCategory, readonly EvidenceRequirement[
 export function inferClaimCategories(request: string): ClaimCategory[] {
   const text = String(request ?? '');
   const categories: ClaimCategory[] = [];
-  addIf(categories, /\b(?:status|where\s+(?:is|does).*(?:bill|measure)|advance[sd]?|pass(?:ed|es)?|fail(?:ed|s)?|dead|alive)\b/i.test(text), 'bill_status');
-  addIf(categories, /\b(?:how\s+did|vote[sd]?|roll\s*call|yeas?|nays?)\b/i.test(text), 'member_vote');
-  addIf(categories, /\b(?:current|now|today|chair|ranking\s+member|committee\s+member|chief\s+of\s+staff|director|secretary)\b/i.test(text), 'current_role');
-  addIf(categories, /(?:\$|\bdollars?\b|\bamount\b|\bfunding\b|\bbudget\b|\brequest\b|\bmark\b)/i.test(text), 'budget_amount');
-  addIf(categories, /\b(?:delta|increase|decrease|cut|plus-?up|difference|change[sd]?\s+from|versus|vs\.)\b/i.test(text), 'budget_delta');
-  addIf(categories, /\b(?:enacted|signed\s+into\s+law|public\s+law|chaptered|became\s+law)\b/i.test(text), 'enactment');
-  addIf(categories, /\b(?:report\s+language|committee\s+report|directs|encourages|requires\s+the\s+secretary)\b/i.test(text), 'report_language');
-  addIf(categories, /\b(?:comment\s+(?:deadline|period|due)|effective\s+date|deadline|due\s+date)\b/i.test(text), 'regulatory_deadline');
-  addIf(categories, /\b(?:proposed\s+rule|final\s+rule|effective|withdrawn|rulemaking|docket)\b/i.test(text), 'regulatory_stage');
-  addIf(categories, /\b(?:district|representative|representation|facility\s+footprint|state\s+senator|state\s+representative)\b/i.test(text), 'district_representation');
-  addIf(categories, /\b(?:grant\s+opportunity|nofo|notice\s+of\s+funding|grants?\.gov|eligible\s+applicant)\b/i.test(text), 'grant_opportunity');
-  addIf(categories, /\b(?:grant\s+award|assistance\s+award|awarded\s+grant|cooperative\s+agreement\s+award)\b/i.test(text), 'grant_award');
-  addIf(categories, /\b(?:procurement\s+opportunity|solicitation|rfp|rfi|sam\.gov|contract\s+opportunity)\b/i.test(text), 'procurement_opportunity');
-  addIf(categories, /\b(?:recommend|strategy|who\s+should\s+we|what\s+should\s+we\s+ask|engage|advocacy|next\s+step)\b/i.test(text), 'client_recommendation');
-  addIf(categories, /\b(?:no|none|only|all|every|never|nothing|nobody|no\s+evidence|does\s+not\s+exist)\b/i.test(text), 'negative_or_exhaustive');
+  addIf(
+    categories,
+    /\b(?:status|where\s+(?:is|does).*(?:bill|measure)|advance[sd]?|pass(?:ed|es)?|fail(?:ed|s)?|dead|alive)\b/i.test(
+      text,
+    ),
+    'bill_status',
+  );
+  addIf(
+    categories,
+    /\b(?:how\s+did|vote[sd]?|roll\s*call|yeas?|nays?)\b/i.test(text),
+    'member_vote',
+  );
+  addIf(
+    categories,
+    /\b(?:current|now|today|chair|ranking\s+member|committee\s+member|chief\s+of\s+staff|director|secretary)\b/i.test(
+      text,
+    ),
+    'current_role',
+  );
+  addIf(
+    categories,
+    /(?:\$|\bdollars?\b|\bamount\b|\bfunding\b|\bbudget\b|\brequest\b|\bmark\b)/i.test(text),
+    'budget_amount',
+  );
+  addIf(
+    categories,
+    /\b(?:delta|increase|decrease|cut|plus-?up|difference|change[sd]?\s+from|versus|vs\.)\b/i.test(
+      text,
+    ),
+    'budget_delta',
+  );
+  addIf(
+    categories,
+    /\b(?:enacted|signed\s+into\s+law|public\s+law|chaptered|became\s+law)\b/i.test(text),
+    'enactment',
+  );
+  addIf(
+    categories,
+    /\b(?:report\s+language|committee\s+report|directs|encourages|requires\s+the\s+secretary)\b/i.test(
+      text,
+    ),
+    'report_language',
+  );
+  addIf(
+    categories,
+    /\b(?:comment\s+(?:deadline|period|due)|effective\s+date|deadline|due\s+date)\b/i.test(text),
+    'regulatory_deadline',
+  );
+  addIf(
+    categories,
+    /\b(?:proposed\s+rule|final\s+rule|effective|withdrawn|rulemaking|docket)\b/i.test(text),
+    'regulatory_stage',
+  );
+  addIf(
+    categories,
+    /\b(?:district|representative|representation|facility\s+footprint|state\s+senator|state\s+representative)\b/i.test(
+      text,
+    ),
+    'district_representation',
+  );
+  addIf(
+    categories,
+    /\b(?:grant\s+opportunity|nofo|notice\s+of\s+funding|grants?\.gov|eligible\s+applicant)\b/i.test(
+      text,
+    ),
+    'grant_opportunity',
+  );
+  addIf(
+    categories,
+    /\b(?:grant\s+award|assistance\s+award|awarded\s+grant|cooperative\s+agreement\s+award)\b/i.test(
+      text,
+    ),
+    'grant_award',
+  );
+  addIf(
+    categories,
+    /\b(?:procurement\s+opportunity|solicitation|rfp|rfi|sam\.gov|contract\s+opportunity)\b/i.test(
+      text,
+    ),
+    'procurement_opportunity',
+  );
+  addIf(
+    categories,
+    /\b(?:recommend|strategy|who\s+should\s+we|what\s+should\s+we\s+ask|engage|advocacy|next\s+step)\b/i.test(
+      text,
+    ),
+    'client_recommendation',
+  );
+  addIf(
+    categories,
+    /\b(?:no|none|only|all|every|never|nothing|nobody|no\s+evidence|does\s+not\s+exist)\b/i.test(
+      text,
+    ),
+    'negative_or_exhaustive',
+  );
   if (!categories.length) categories.push('general_background');
   return orderedUnique(categories);
 }
 
 export function planGovernmentAffairsEvidence(input: EvidencePlanInput): DomainEvidencePlan {
   const categories = inferClaimCategories(input.request);
-  const requirements = categories.flatMap((category) => REQUIREMENTS[category]).map((item) => ({
-    ...item,
-    toolFamilies: [...item.toolFamilies],
-    requiredFields: [...item.requiredFields],
-  }));
+  const requirements = categories
+    .flatMap((category) => REQUIREMENTS[category])
+    .map((item) => ({
+      ...item,
+      toolFamilies: [...item.toolFamilies],
+      requiredFields: [...item.requiredFields],
+    }));
 
   // External/client-facing surfaces require a primary/system-of-record basis for
   // every factual category. This adds an explicit requirement; it never upgrades
   // institutional memory or inference into authoritative evidence.
-  if (['outreach', 'memo', 'workspace-gen', 'in-editor', 'strategy', 'district-brief'].includes(input.surface ?? '')) {
+  if (
+    ['outreach', 'memo', 'workspace-gen', 'in-editor', 'strategy', 'district-brief'].includes(
+      input.surface ?? '',
+    )
+  ) {
     requirements.push(
       requirement(
         'surface.high-risk-primary-basis',
@@ -380,9 +471,15 @@ export function planGovernmentAffairsEvidence(input: EvidencePlanInput): DomainE
   }
 
   const deduped = dedupeRequirements(requirements);
-  const requiredRequirementIds = deduped.filter((item) => item.level === 'required').map((item) => item.id);
-  const optionalRequirementIds = deduped.filter((item) => item.level === 'optional').map((item) => item.id);
-  const supplementalRequirementIds = deduped.filter((item) => item.level === 'supplemental').map((item) => item.id);
+  const requiredRequirementIds = deduped
+    .filter((item) => item.level === 'required')
+    .map((item) => item.id);
+  const optionalRequirementIds = deduped
+    .filter((item) => item.level === 'optional')
+    .map((item) => item.id);
+  const supplementalRequirementIds = deduped
+    .filter((item) => item.level === 'supplemental')
+    .map((item) => item.id);
   return {
     version: 'ga-evidence-plan-v1',
     requestCategories: categories,
@@ -418,7 +515,16 @@ function requirement(
   reason: string,
   requiredFields: string[],
 ): EvidenceRequirement {
-  return { id, claimCategory, level, evidenceClass, toolFamilies, freshness, reason, requiredFields };
+  return {
+    id,
+    claimCategory,
+    level,
+    evidenceClass,
+    toolFamilies,
+    freshness,
+    reason,
+    requiredFields,
+  };
 }
 
 function addIf<T>(out: T[], condition: boolean, value: T): void {

@@ -733,7 +733,9 @@ export function composeAssistantSystemPrompt(
       : '# Focus\nThe user may change any part of the plan.';
   const dynamic = [
     strategyAssuranceBlock({
-      request: [input.instruction, input.strategy.type, input.strategy.goal].filter(Boolean).join('\n'),
+      request: [input.instruction, input.strategy.type, input.strategy.goal]
+        .filter(Boolean)
+        .join('\n'),
       clientId: input.clientId,
       objective: input.strategy.goal,
       fiscal: input.fiscal,

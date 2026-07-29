@@ -337,7 +337,10 @@ export class ChatAssistantService {
           }
           if (gate.decision === 'repair' || gate.decision === 'hold') {
             releaseHeld = true;
-            const reasons = gate.blockers.slice(0, 6).map((reason) => `- ${reason}`).join('\n');
+            const reasons = gate.blockers
+              .slice(0, 6)
+              .map((reason) => `- ${reason}`)
+              .join('\n');
             releasedText = [
               'I could not safely release the requested high-stakes answer because required verification did not pass.',
               reasons || '- One or more high-risk claims lacked authoritative same-turn support.',
@@ -503,14 +506,14 @@ export class ChatAssistantService {
     // the research — force a final tool-free synthesis over everything gathered.
     return finalize(
       await this.synthesizeFinalAnswer(
-            ctx,
-            system,
-            toolSchemas,
-            messages,
-            emit,
-            opts,
-            bufferBeforeRelease,
-          ),
+        ctx,
+        system,
+        toolSchemas,
+        messages,
+        emit,
+        opts,
+        bufferBeforeRelease,
+      ),
     );
   }
 

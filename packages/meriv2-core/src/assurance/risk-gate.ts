@@ -104,13 +104,18 @@ export function classifyAssuranceRisk(
   plan: DomainEvidencePlan,
 ): AssuranceRiskAssessment {
   const categories = [...plan.requestCategories];
-  const highRiskCategories = categories.filter((category) => HIGH_RISK_CLAIM_CATEGORIES.has(category));
+  const highRiskCategories = categories.filter((category) =>
+    HIGH_RISK_CLAIM_CATEGORIES.has(category),
+  );
   const external = EXTERNAL_OR_EXECUTION_SURFACES.has(surface);
   const restricted = surface === 'outreach';
   const reasons: string[] = [];
-  if (external) reasons.push('The output is an external, client-facing, or strategy-execution artifact.');
+  if (external)
+    reasons.push('The output is an external, client-facing, or strategy-execution artifact.');
   if (highRiskCategories.length) {
-    reasons.push(`The request contains high-risk factual categories: ${highRiskCategories.join(', ')}.`);
+    reasons.push(
+      `The request contains high-risk factual categories: ${highRiskCategories.join(', ')}.`,
+    );
   }
   if (plan.incomplete) reasons.push('The operating frame or required evidence plan is incomplete.');
 
@@ -143,7 +148,8 @@ export function evaluateAssuranceRelease(input: AssuranceGateInput): AssuranceGa
   const critical = findings.filter((finding) => finding.severity === 'critical');
   const high = findings.filter((finding) => finding.severity === 'high');
 
-  if (input.complianceOutcome === 'BLOCK') blockers.push('The active compliance policy blocked release.');
+  if (input.complianceOutcome === 'BLOCK')
+    blockers.push('The active compliance policy blocked release.');
   if (input.ledger.highRiskUnsupportedClaimIds.length) {
     blockers.push(
       `Unsupported high-risk claims: ${input.ledger.highRiskUnsupportedClaimIds.join(', ')}.`,
@@ -160,9 +166,12 @@ export function evaluateAssuranceRelease(input: AssuranceGateInput): AssuranceGa
     blockers.push('Required pre-release verification was unavailable.');
   }
 
-  if (input.complianceOutcome === 'WARN') warnings.push('The active policy requires human approval.');
+  if (input.complianceOutcome === 'WARN')
+    warnings.push('The active policy requires human approval.');
   if (high.length) warnings.push(`${high.length} high-severity deterministic finding(s).`);
-  const lesser = findings.filter((finding) => finding.severity === 'medium' || finding.severity === 'low');
+  const lesser = findings.filter(
+    (finding) => finding.severity === 'medium' || finding.severity === 'low',
+  );
   if (lesser.length) warnings.push(`${lesser.length} medium/low deterministic finding(s).`);
 
   let decision: AssuranceReleaseDecision = 'deliver';

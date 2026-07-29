@@ -137,7 +137,9 @@ export function evaluateReleaseGate(input: ReleaseGateInput): ReleaseGateReport 
   }
   const expert = input.candidate?.expertScore ?? latestScore(results, 'expert_quality');
   if (expert != null && expert < input.thresholds.minimumExpertScore) {
-    blockers.push(`Expert score ${format(expert)} is below ${format(input.thresholds.minimumExpertScore)}.`);
+    blockers.push(
+      `Expert score ${format(expert)} is below ${format(input.thresholds.minimumExpertScore)}.`,
+    );
   }
   if (
     expert != null &&
@@ -219,7 +221,10 @@ function metricScores(
   results: readonly AssuranceEvalResult[],
   metric: AssuranceEvalResult['metric'],
 ): number[] {
-  return results.filter((item) => item.metric === metric).map((item) => item.score).filter(isNumber);
+  return results
+    .filter((item) => item.metric === metric)
+    .map((item) => item.score)
+    .filter(isNumber);
 }
 
 function latestScore(
@@ -254,7 +259,9 @@ function isNumber(value: number | undefined): value is number {
 }
 
 function bounded(value: string, max: number): string {
-  return String(value ?? '').trim().slice(0, max);
+  return String(value ?? '')
+    .trim()
+    .slice(0, max);
 }
 
 function format(value: number): string {

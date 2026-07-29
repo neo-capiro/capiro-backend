@@ -120,7 +120,8 @@ export interface GovernedMemoryOrigin {
 }
 
 export interface GovernedMemoryRecord
-  extends GovernedMemorySource,
+  extends
+    GovernedMemorySource,
     GovernedMemoryApproval,
     GovernedMemoryTemporal,
     GovernedMemoryOrigin {
@@ -236,10 +237,7 @@ export class InvalidMemoryTransitionError extends Error {
   }
 }
 
-export function assertMemoryTransition(
-  from: GovernedMemoryStatus,
-  to: GovernedMemoryStatus,
-): void {
+export function assertMemoryTransition(from: GovernedMemoryStatus, to: GovernedMemoryStatus): void {
   if (!evaluateMemoryTransition(from, to).allowed) {
     throw new InvalidMemoryTransitionError(from, to);
   }
@@ -249,7 +247,9 @@ export function classRequiresApproval(memoryClass: MemoryClass): boolean {
   return MEMORY_CLASS_POLICIES[memoryClass].requiresHumanApproval;
 }
 
-export function hasHumanApproval(record: Pick<GovernedMemoryRecord, 'approvedByUserId' | 'approvedAt'>): boolean {
+export function hasHumanApproval(
+  record: Pick<GovernedMemoryRecord, 'approvedByUserId' | 'approvedAt'>,
+): boolean {
   return Boolean(record.approvedByUserId && record.approvedAt);
 }
 
@@ -263,10 +263,10 @@ export function fourEyesSatisfied(
   if (!enabled) return Boolean(record.approvedByUserId);
   return Boolean(
     record.approvedByUserId &&
-      record.secondApprovedByUserId &&
-      record.secondApprovedAt &&
-      record.approvedByUserId !== record.secondApprovedByUserId &&
-      record.assertedByUserId !== record.secondApprovedByUserId,
+    record.secondApprovedByUserId &&
+    record.secondApprovedAt &&
+    record.approvedByUserId !== record.secondApprovedByUserId &&
+    record.assertedByUserId !== record.secondApprovedByUserId,
   );
 }
 
@@ -326,7 +326,12 @@ export function filterGovernedMemory(
   if (policy.requiresTtl && !record.expiresAt && !record.validUntil) {
     return { include: false, reason: 'ttl_required' };
   }
-  if (policy.requiresSource && record.sourceType === 'unknown' && !record.sourceRef && !record.sourceId) {
+  if (
+    policy.requiresSource &&
+    record.sourceType === 'unknown' &&
+    !record.sourceRef &&
+    !record.sourceId
+  ) {
     return { include: false, reason: 'source_missing' };
   }
   if (record.memoryClass === 'legacy_unclassified') {
@@ -430,11 +435,7 @@ export function scoreGovernedMemory(input: RecallScoreInput): RecallScoreExplana
     approval * 100;
 
   const semantic = clamp01(input.semanticSimilarity ?? 0);
-  const freshest = newestDate(
-    record.lastConfirmedAt,
-    record.asOf,
-    record.effectiveFrom,
-  );
+  const freshest = newestDate(record.lastConfirmedAt, record.asOf, record.effectiveFrom);
   const ageDays = freshest ? Math.max(0, (now.getTime() - freshest) / 86_400_000) : 365;
   const freshness = Math.pow(2, -ageDays / 180);
   const confirmation = record.lastConfirmedAt ? Math.pow(2, -ageDays / 365) : 0.5;
@@ -568,9 +569,9 @@ export function sourceCanAnchorCandidate(sourceType: GovernedMemorySourceType): 
 export function instructionsAllowedFor(record: GovernedMemoryRecord): boolean {
   return Boolean(
     record.instructionsAllowed &&
-      record.memoryClass === 'institutional_authoritative' &&
-      record.authority === 'firm_approved' &&
-      hasHumanApproval(record),
+    record.memoryClass === 'institutional_authoritative' &&
+    record.authority === 'firm_approved' &&
+    hasHumanApproval(record),
   );
 }
 

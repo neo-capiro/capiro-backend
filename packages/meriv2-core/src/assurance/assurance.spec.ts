@@ -1,8 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import {
-  resolveGovernmentAffairsOperatingFrame,
-  operatingFrameTraceRef,
-} from './operating-frame';
+import { resolveGovernmentAffairsOperatingFrame, operatingFrameTraceRef } from './operating-frame';
 import {
   inferClaimCategories,
   planGovernmentAffairsEvidence,
@@ -145,8 +142,7 @@ describe('domain evidence planning', () => {
       'Did H.R. 100 pass, how did the member vote, and what is the FY27 enacted amount?',
     );
     const plan = planGovernmentAffairsEvidence({
-      request:
-        'Did H.R. 100 pass, how did the member vote, and what is the FY27 enacted amount?',
+      request: 'Did H.R. 100 pass, how did the member vote, and what is the FY27 enacted amount?',
       frame: operatingFrame,
       surface: 'chat',
     });
@@ -165,9 +161,9 @@ describe('domain evidence planning', () => {
   });
 
   it('requires complete coverage for no/none/all/every claims', () => {
-    expect(inferClaimCategories('There are no other awards and every relevant bill failed.')).toContain(
-      'negative_or_exhaustive',
-    );
+    expect(
+      inferClaimCategories('There are no other awards and every relevant bill failed.'),
+    ).toContain('negative_or_exhaustive');
     const operatingFrame = frame('There are no other federal awards.');
     const plan = planGovernmentAffairsEvidence({
       request: 'There are no other federal awards.',
@@ -444,7 +440,11 @@ describe('deterministic government-affairs checks', () => {
       ],
       [
         evidence({ id: 'role', sourceId: 'role', evidenceClass: 'official_government_data' }),
-        evidence({ id: 'district', sourceId: 'district', evidenceClass: 'official_government_data' }),
+        evidence({
+          id: 'district',
+          sourceId: 'district',
+          evidenceClass: 'official_government_data',
+        }),
         evidence({ id: 'docket', sourceId: 'docket', evidenceClass: 'committee_agency_guidance' }),
       ],
     );
@@ -603,9 +603,7 @@ describe('versioned compliance policy packs', () => {
     expect(decision).toEqual(
       expect.objectContaining({ outcome: 'WARN', ruleId: 'send.requires_approval' }),
     );
-    expect(proposalPolicyBinding(decision)).toContain(
-      `${selected!.id}@${selected!.version}`,
-    );
+    expect(proposalPolicyBinding(decision)).toContain(`${selected!.id}@${selected!.version}`);
     for (const tool of [
       'save_note',
       'save_memory',
@@ -633,9 +631,7 @@ describe('versioned compliance policy packs', () => {
     for (const pack of DISABLED_LEGAL_POLICY_EXAMPLES) {
       expect(pack.status).toBe('disabled_example');
       expect(pack.rules).toEqual([]);
-      expect(
-        canPublishPolicyPack(pack, { userId: 'admin', role: 'user_admin' }).valid,
-      ).toBe(false);
+      expect(canPublishPolicyPack(pack, { userId: 'admin', role: 'user_admin' }).valid).toBe(false);
       expect(
         evaluatePolicyPack(
           pack,
@@ -669,9 +665,9 @@ describe('versioned compliance policy packs', () => {
       publishedAt: undefined,
       fourEyesRequired: true,
     };
-    expect(canPublishPolicyPack(reviewed, { userId: 'standard', role: 'standard_user' }).valid).toBe(
-      false,
-    );
+    expect(
+      canPublishPolicyPack(reviewed, { userId: 'standard', role: 'standard_user' }).valid,
+    ).toBe(false);
     expect(canPublishPolicyPack(reviewed, { userId: 'reviewer-1', role: 'user_admin' }).valid).toBe(
       false,
     );

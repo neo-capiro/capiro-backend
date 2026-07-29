@@ -57,7 +57,8 @@ export function buildAssurancePromptBlock(
       assumptions: frame.assumptions,
     }),
     '# Evidence plan',
-    requirements || '- No material claim categories were detected; retrieve evidence before adding facts.',
+    requirements ||
+      '- No material claim categories were detected; retrieve evidence before adding facts.',
     plan.unresolvedFrameFields.length
       ? `# Blocking frame gaps\n${plan.unresolvedFrameFields.map((field) => `- ${field}`).join('\n')}`
       : '# Frame health\nNo required operating-frame field is missing.',

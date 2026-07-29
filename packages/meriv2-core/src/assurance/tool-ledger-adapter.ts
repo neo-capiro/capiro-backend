@@ -6,11 +6,7 @@ import {
   type ClaimCandidate,
   type ClaimLedger,
 } from './claim-ledger';
-import {
-  inferClaimCategories,
-  type DomainEvidencePlan,
-  type EvidenceClass,
-} from './evidence-plan';
+import { inferClaimCategories, type DomainEvidencePlan, type EvidenceClass } from './evidence-plan';
 
 export interface CitationLike {
   n: number;
@@ -35,11 +31,7 @@ export function buildClaimLedgerFromToolResults(input: {
   citations?: readonly CitationLike[];
   plan?: DomainEvidencePlan;
 }): ClaimLedger {
-  const evidence = evidenceFromToolResults(
-    input.ledgerEntries,
-    input.citations ?? [],
-    input.plan,
-  );
+  const evidence = evidenceFromToolResults(input.ledgerEntries, input.citations ?? [], input.plan);
   const formBByToken = new Map<string, string>();
   for (const item of evidence) {
     if (item.id.startsWith('formb:')) {
@@ -144,29 +136,47 @@ export function classifyClaimType(text: string): AssuredClaimType {
   if (/\b(?:recommend|should|consider|next\s+step|engage|ask\s+for|contact)\b/i.test(text)) {
     return 'recommendation';
   }
-  if (/\b(?:likely|unlikely|may|might|could|appears?|suggests?|we\s+infer|assessment)\b/i.test(text)) {
+  if (
+    /\b(?:likely|unlikely|may|might|could|appears?|suggests?|we\s+infer|assessment)\b/i.test(text)
+  ) {
     return 'inference';
   }
-  if (/\b(?:uncertain|unknown|not\s+verified|could\s+not\s+confirm|insufficient\s+evidence|no\s+reliable\s+source)\b/i.test(text)) {
+  if (
+    /\b(?:uncertain|unknown|not\s+verified|could\s+not\s+confirm|insufficient\s+evidence|no\s+reliable\s+source)\b/i.test(
+      text,
+    )
+  ) {
     return 'uncertainty';
   }
   return 'fact';
 }
 
 function evidenceClassForTool(tool: string): EvidenceClass {
-  if (/^(?:get_bill_status|get_state_bill_status|search_floor_votes|search_state_floor_votes|get_state_rule_status)$/.test(tool)) {
+  if (
+    /^(?:get_bill_status|get_state_bill_status|search_floor_votes|search_state_floor_votes|get_state_rule_status)$/.test(
+      tool,
+    )
+  ) {
     return 'official_action_vote_status';
   }
   if (/^(?:search_congress_bills|search_state_bills)$/.test(tool)) {
     return 'primary_legislative_legal_text';
   }
-  if (/^(?:get_pe_budget_timeline|get_program_element|get_pe_report_language|get_pe_bills|get_funding_positions)$/.test(tool)) {
+  if (
+    /^(?:get_pe_budget_timeline|get_program_element|get_pe_report_language|get_pe_bills|get_funding_positions)$/.test(
+      tool,
+    )
+  ) {
     return 'official_budget_exhibit_mark_law';
   }
   if (/^(?:query_regulatory_dockets|get_committee_roster)$/.test(tool)) {
     return 'committee_agency_guidance';
   }
-  if (/^(?:get_client_context|query_tasks|query_debriefs|query_outreach|list_emails|search_emails)$/.test(tool)) {
+  if (
+    /^(?:get_client_context|query_tasks|query_debriefs|query_outreach|list_emails|search_emails)$/.test(
+      tool,
+    )
+  ) {
     return 'capiro_system_of_record';
   }
   if (/^(?:search_memory|search_client_knowledge|read_client_documents)$/.test(tool)) {
@@ -183,7 +193,9 @@ function primaryTool(tool: string): boolean {
 }
 
 function authoritativeTool(tool: string): boolean {
-  return !/^(?:search_public_web|scrape_web_page|search_intel_articles|search_memory|query_knowledge_graph)$/.test(tool);
+  return !/^(?:search_public_web|scrape_web_page|search_intel_articles|search_memory|query_knowledge_graph)$/.test(
+    tool,
+  );
 }
 
 function requirementIdsForTool(tool: string, plan?: DomainEvidencePlan): string[] {
@@ -198,7 +210,8 @@ function requirementIdsForTool(tool: string, plan?: DomainEvidencePlan): string[
 }
 
 function confidenceFromLanguage(text: string): 'high' | 'medium' | 'low' | 'unknown' {
-  if (/\b(?:uncertain|unknown|not\s+verified|could\s+not\s+confirm)\b/i.test(text)) return 'unknown';
+  if (/\b(?:uncertain|unknown|not\s+verified|could\s+not\s+confirm)\b/i.test(text))
+    return 'unknown';
   if (/\b(?:may|might|could|appears?|likely|unlikely)\b/i.test(text)) return 'low';
   return 'high';
 }

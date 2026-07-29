@@ -66,13 +66,23 @@ describe('class-specific recall filters', () => {
     });
     expect(
       filterGovernedMemory(
-        base({ scope: 'user_private', memoryClass: 'user_preference', authority: 'user_asserted', ownerUserId: 'other' }),
+        base({
+          scope: 'user_private',
+          memoryClass: 'user_preference',
+          authority: 'user_asserted',
+          ownerUserId: 'other',
+        }),
         access,
       ),
     ).toEqual({ include: false, reason: 'wrong_user' });
     expect(
       filterGovernedMemory(
-        base({ scope: 'client', clientId: 'client-b', memoryClass: 'client_steering', authority: 'client_approved' }),
+        base({
+          scope: 'client',
+          clientId: 'client-b',
+          memoryClass: 'client_steering',
+          authority: 'client_approved',
+        }),
         access,
       ),
     ).toEqual({ include: false, reason: 'wrong_client' });
@@ -81,7 +91,12 @@ describe('class-specific recall filters', () => {
   it('enforces ethical walls even for otherwise matching client memory', () => {
     expect(
       filterGovernedMemory(
-        base({ scope: 'client', clientId: 'client-a', memoryClass: 'client_steering', authority: 'client_approved' }),
+        base({
+          scope: 'client',
+          clientId: 'client-a',
+          memoryClass: 'client_steering',
+          authority: 'client_approved',
+        }),
         { ...access, ethicalWallAllowed: false },
       ),
     ).toEqual({ include: false, reason: 'ethical_wall' });
@@ -94,9 +109,10 @@ describe('class-specific recall filters', () => {
         reason: 'inactive_status',
       });
     }
-    expect(
-      filterGovernedMemory(base({ validUntil: '2026-07-27T00:00:00.000Z' }), access),
-    ).toEqual({ include: false, reason: 'invalid_until' });
+    expect(filterGovernedMemory(base({ validUntil: '2026-07-27T00:00:00.000Z' }), access)).toEqual({
+      include: false,
+      reason: 'invalid_until',
+    });
   });
 
   it('requires approval for firm/client classes and TTL for episodic memory', () => {
@@ -183,7 +199,11 @@ describe('authority-aware ranking', () => {
 
   it('explicit user selection has the highest priority band', () => {
     const selected = scoreGovernedMemory({
-      record: base({ explicitSelection: true, memoryClass: 'user_preference', authority: 'user_asserted' }),
+      record: base({
+        explicitSelection: true,
+        memoryClass: 'user_preference',
+        authority: 'user_asserted',
+      }),
       semanticSimilarity: 0,
     });
     const doctrine = scoreGovernedMemory({ record: base(), semanticSimilarity: 1 });

@@ -9,8 +9,7 @@ export const GOVERNMENT_AFFAIRS_JURISDICTIONS = [
   'grants',
 ] as const;
 
-export type GovernmentAffairsJurisdiction =
-  (typeof GOVERNMENT_AFFAIRS_JURISDICTIONS)[number];
+export type GovernmentAffairsJurisdiction = (typeof GOVERNMENT_AFFAIRS_JURISDICTIONS)[number];
 
 export interface GovernmentAffairsOperatingFrame {
   jurisdictions: GovernmentAffairsJurisdiction[];
@@ -55,17 +54,57 @@ export interface OperatingFrameInput {
 }
 
 const STATE_NAMES: Readonly<Record<string, string>> = {
-  alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA',
-  colorado: 'CO', connecticut: 'CT', delaware: 'DE', florida: 'FL', georgia: 'GA',
-  hawaii: 'HI', idaho: 'ID', illinois: 'IL', indiana: 'IN', iowa: 'IA', kansas: 'KS',
-  kentucky: 'KY', louisiana: 'LA', maine: 'ME', maryland: 'MD', massachusetts: 'MA',
-  michigan: 'MI', minnesota: 'MN', mississippi: 'MS', missouri: 'MO', montana: 'MT',
-  nebraska: 'NE', nevada: 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
-  'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND',
-  ohio: 'OH', oklahoma: 'OK', oregon: 'OR', pennsylvania: 'PA', 'rhode island': 'RI',
-  'south carolina': 'SC', 'south dakota': 'SD', tennessee: 'TN', texas: 'TX',
-  utah: 'UT', vermont: 'VT', virginia: 'VA', washington: 'WA', 'west virginia': 'WV',
-  wisconsin: 'WI', wyoming: 'WY', 'district of columbia': 'DC',
+  alabama: 'AL',
+  alaska: 'AK',
+  arizona: 'AZ',
+  arkansas: 'AR',
+  california: 'CA',
+  colorado: 'CO',
+  connecticut: 'CT',
+  delaware: 'DE',
+  florida: 'FL',
+  georgia: 'GA',
+  hawaii: 'HI',
+  idaho: 'ID',
+  illinois: 'IL',
+  indiana: 'IN',
+  iowa: 'IA',
+  kansas: 'KS',
+  kentucky: 'KY',
+  louisiana: 'LA',
+  maine: 'ME',
+  maryland: 'MD',
+  massachusetts: 'MA',
+  michigan: 'MI',
+  minnesota: 'MN',
+  mississippi: 'MS',
+  missouri: 'MO',
+  montana: 'MT',
+  nebraska: 'NE',
+  nevada: 'NV',
+  'new hampshire': 'NH',
+  'new jersey': 'NJ',
+  'new mexico': 'NM',
+  'new york': 'NY',
+  'north carolina': 'NC',
+  'north dakota': 'ND',
+  ohio: 'OH',
+  oklahoma: 'OK',
+  oregon: 'OR',
+  pennsylvania: 'PA',
+  'rhode island': 'RI',
+  'south carolina': 'SC',
+  'south dakota': 'SD',
+  tennessee: 'TN',
+  texas: 'TX',
+  utah: 'UT',
+  vermont: 'VT',
+  virginia: 'VA',
+  washington: 'WA',
+  'west virginia': 'WV',
+  wisconsin: 'WI',
+  wyoming: 'WY',
+  'district of columbia': 'DC',
 };
 
 const STATE_CODES = new Set(Object.values(STATE_NAMES));
@@ -118,7 +157,10 @@ export function resolveGovernmentAffairsOperatingFrame(
   ]).map((code) => code.toUpperCase());
 
   // A named state tied to bill/legislature language is affirmative state evidence.
-  if (stateCodes.length && /\b(?:bill|legislat|assembly|senate|house|governor|state\s+agency|register)\b/i.test(request)) {
+  if (
+    stateCodes.length &&
+    /\b(?:bill|legislat|assembly|senate|house|governor|state\s+agency|register)\b/i.test(request)
+  ) {
     if (!jurisdictions.includes('state')) jurisdictions.push('state');
   }
 
@@ -128,20 +170,26 @@ export function resolveGovernmentAffairsOperatingFrame(
     ...extractFiscalYears(request),
   ]).sort((a, b) => a - b);
 
-  const approved = input.approvedClientDirection?.approved
-    ? input.approvedClientDirection
-    : null;
+  const approved = input.approvedClientDirection?.approved ? input.approvedClientDirection : null;
   const asOf = iso(input.asOf ?? new Date());
   const frame: GovernmentAffairsOperatingFrame = {
     jurisdictions,
     ...(stateCodes.length ? { stateCodes } : {}),
     ...(explicit.institution || input.structuredInstitution || inferInstitution(request)
-      ? { institution: explicit.institution ?? input.structuredInstitution ?? inferInstitution(request) ?? undefined }
+      ? {
+          institution:
+            explicit.institution ??
+            input.structuredInstitution ??
+            inferInstitution(request) ??
+            undefined,
+        }
       : {}),
     ...(explicit.chamber || inferChamber(request)
       ? { chamber: explicit.chamber ?? inferChamber(request) ?? undefined }
       : {}),
-    ...(explicit.committeeOrAgency || input.structuredCommitteeOrAgency || inferCommitteeOrAgency(request)
+    ...(explicit.committeeOrAgency ||
+    input.structuredCommitteeOrAgency ||
+    inferCommitteeOrAgency(request)
       ? {
           committeeOrAgency:
             explicit.committeeOrAgency ??
@@ -150,7 +198,9 @@ export function resolveGovernmentAffairsOperatingFrame(
             undefined,
         }
       : {}),
-    ...(explicit.vehicleOrAccount || input.structuredVehicleOrAccount || inferVehicleOrAccount(request)
+    ...(explicit.vehicleOrAccount ||
+    input.structuredVehicleOrAccount ||
+    inferVehicleOrAccount(request)
       ? {
           vehicleOrAccount:
             explicit.vehicleOrAccount ??
@@ -205,14 +255,23 @@ export function requiredFrameGaps(
   if (!frame.jurisdictions.length) gaps.push('jurisdiction');
   if (frame.jurisdictions.includes('state') && !frame.stateCodes?.length) gaps.push('stateCodes');
   if (frame.jurisdictions.includes('local') && !frame.institution) gaps.push('localInstitution');
-  if (/\b(?:budget|funding|appropriat|authoriz|program\s+element|procurement\s+line)\b/i.test(request) && !frame.fiscalYears?.length) {
+  if (
+    /\b(?:budget|funding|appropriat|authoriz|program\s+element|procurement\s+line)\b/i.test(
+      request,
+    ) &&
+    !frame.fiscalYears?.length
+  ) {
     gaps.push('fiscalYears');
   }
   if (/\b(?:recommend|strategy|who\s+should\s+we|advocacy|engage|ask\s+for)\b/i.test(request)) {
     if (!frame.clientObjective) gaps.push('clientObjective');
     if (!frame.authorizedAsk) gaps.push('authorizedAsk');
   }
-  if (frame.jurisdictions.includes('regulatory') && !frame.committeeOrAgency && !frame.vehicleOrAccount) {
+  if (
+    frame.jurisdictions.includes('regulatory') &&
+    !frame.committeeOrAgency &&
+    !frame.vehicleOrAccount
+  ) {
     gaps.push('agencyOrDocket');
   }
   return orderedUnique(gaps);
@@ -253,10 +312,13 @@ function extractFiscalYears(text: string): number[] {
 }
 
 function inferInstitution(text: string): string | null {
-  if (/\bu\.s\.\s+house|house\s+of\s+representatives\b/i.test(text)) return 'U.S. House of Representatives';
+  if (/\bu\.s\.\s+house|house\s+of\s+representatives\b/i.test(text))
+    return 'U.S. House of Representatives';
   if (/\bu\.s\.\s+senate|\bsenate\b/i.test(text)) return 'U.S. Senate';
   if (/\bcongress\b/i.test(text)) return 'U.S. Congress';
-  const local = text.match(/\b([A-Z][A-Za-z .'-]{2,60})\s+(City Council|County Commission|County Board)\b/);
+  const local = text.match(
+    /\b([A-Z][A-Za-z .'-]{2,60})\s+(City Council|County Commission|County Board)\b/,
+  );
   return local ? `${local[1]!.trim()} ${local[2]}` : null;
 }
 
@@ -267,9 +329,13 @@ function inferChamber(text: string): string | null {
 }
 
 function inferCommitteeOrAgency(text: string): string | null {
-  const committee = text.match(/\b((?:House|Senate|Joint|State)?\s*[A-Z][A-Za-z& ,.'-]{2,80}\s+(?:Committee|Subcommittee))\b/);
+  const committee = text.match(
+    /\b((?:House|Senate|Joint|State)?\s*[A-Z][A-Za-z& ,.'-]{2,80}\s+(?:Committee|Subcommittee))\b/,
+  );
   if (committee) return committee[1]!.trim();
-  const agency = text.match(/\b((?:Department|Agency|Commission|Administration|Board|Bureau|Office)\s+of\s+[A-Z][A-Za-z& ,.'-]{2,80})\b/);
+  const agency = text.match(
+    /\b((?:Department|Agency|Commission|Administration|Board|Bureau|Office)\s+of\s+[A-Z][A-Za-z& ,.'-]{2,80})\b/,
+  );
   return agency?.[1]?.trim() ?? null;
 }
 
@@ -291,7 +357,9 @@ function inferVehicleOrAccount(text: string): string | null {
 }
 
 function inferSession(text: string): string | null {
-  const match = text.match(/\b((?:20\d{2})(?:-20\d{2})?\s+(?:regular|special)?\s*session|\d{3}(?:st|nd|rd|th)\s+Congress)\b/i);
+  const match = text.match(
+    /\b((?:20\d{2})(?:-20\d{2})?\s+(?:regular|special)?\s*session|\d{3}(?:st|nd|rd|th)\s+Congress)\b/i,
+  );
   return match?.[1]?.replace(/\s+/g, ' ').trim() ?? null;
 }
 

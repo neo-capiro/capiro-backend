@@ -99,7 +99,9 @@ describe('ContextPacket v2 deterministic compilation', () => {
     );
     expect(packet.rendered[0]?.body).toContain('<context_item');
     expect(packet.rendered[0]?.body).toContain('instructions_allowed=false');
-    expect(packet.rendered[0]?.body).toContain('Capiro is a government-affairs operating platform.');
+    expect(packet.rendered[0]?.body).toContain(
+      'Capiro is a government-affairs operating platform.',
+    );
     expect(packet.traceHash).toMatch(/^[a-f0-9]{64}$/);
     expect(packet.health.status).toBe('degraded');
     // The fixture requested client/user layers but supplied only firm identity.
@@ -113,7 +115,9 @@ describe('ContextPacket v2 deterministic compilation', () => {
     const serializedItems = JSON.stringify(packet.items);
     expect(serializedItems).not.toContain('Capiro is a government-affairs operating platform.');
     expect(packet.items[0]?.contentHash).toMatch(/^[a-f0-9]{64}$/);
-    expect(packet.rendered[0]?.body).toContain('Capiro is a government-affairs operating platform.');
+    expect(packet.rendered[0]?.body).toContain(
+      'Capiro is a government-affairs operating platform.',
+    );
   });
 
   it('is deterministic for shuffled input apart from packet id and timestamp', async () => {
@@ -254,7 +258,10 @@ describe('ContextPacket v2 deterministic compilation', () => {
     const withheld = packet.exclusions.filter(
       (item) => item.reason === 'sensitivity-denied' || item.reason === 'wrong-client',
     );
-    expect(withheld.map((item) => item.reason).sort()).toEqual(['sensitivity-denied', 'wrong-client']);
+    expect(withheld.map((item) => item.reason).sort()).toEqual([
+      'sensitivity-denied',
+      'wrong-client',
+    ]);
     expect(withheld.every((item) => item.id === undefined)).toBe(true);
     expect(withheld.every((item) => item.type === undefined)).toBe(true);
     expect(withheld.every((item) => item.slug === undefined)).toBe(true);
@@ -264,9 +271,7 @@ describe('ContextPacket v2 deterministic compilation', () => {
     const packet = v2(
       await compilerFor([
         row({ sections: [human('Short', 'keep'), human('Long', 'x'.repeat(4_000))] }),
-      ]).compiler.compile(
-        request({ clientId: null, layers: ['firm-identity'], tokenBudget: 20 }),
-      ),
+      ]).compiler.compile(request({ clientId: null, layers: ['firm-identity'], tokenBudget: 20 })),
     );
     expect(packet.items[0]?.includedSections).toEqual(['Short']);
     expect(packet.items[0]?.omittedSections).toEqual(['Long']);
@@ -296,9 +301,7 @@ describe('ContextPacket v2 deterministic compilation', () => {
           memoryClass: 'client_steering',
           sourceType: 'client_record',
         }),
-      ]).compiler.compile(
-        request({ layers: ['firm-playbook', 'client-steering'] }),
-      ),
+      ]).compiler.compile(request({ layers: ['firm-playbook', 'client-steering'] })),
     );
     expect(packet.items.find((item) => item.id === 'playbook')?.instructionsAllowed).toBe(true);
     expect(packet.items.find((item) => item.id === 'client')?.instructionsAllowed).toBe(false);
@@ -321,9 +324,7 @@ describe('ContextPacket v2 deterministic compilation', () => {
 
     const failing = new ContextCompiler({
       loadSteeringRows: jest.fn<() => Promise<SteeringRow[]>>().mockResolvedValue([row()]),
-      loadGovernedSteeringRows: jest
-        .fn<() => Promise<SteeringRow[]>>()
-        .mockResolvedValue([row()]),
+      loadGovernedSteeringRows: jest.fn<() => Promise<SteeringRow[]>>().mockResolvedValue([row()]),
       persistPacket: jest.fn<() => Promise<void>>().mockRejectedValue(new Error('db down')),
     });
     await expect(
