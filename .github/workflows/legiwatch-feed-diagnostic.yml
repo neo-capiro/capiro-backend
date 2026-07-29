@@ -1,0 +1,27 @@
+name: legiwatch-feed-diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  feed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Focused feed test
+        run: >
+          pnpm --filter @capiro/web exec vitest run
+          --testTimeout=20000 --hookTimeout=20000
+          --reporter=verbose
+          src/pages/clients/tracker/TrackerFeedPanel.test.tsx
