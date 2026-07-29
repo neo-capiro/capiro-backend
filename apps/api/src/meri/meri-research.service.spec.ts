@@ -126,6 +126,11 @@ function makeConfig(overrides: Record<string, unknown> = {}) {
     CLIO_REQUEST_TIMEOUT_MS: 60_000,
     CLIO_RESEARCH_TIMEOUT_MS: 60_000, // research uses its own (longer) per-call timeout
     CLIO_RESEARCH_MAX_TOOL_ROUNDS: 2, // small cap so the loop exhausts fast
+    // Generous wall-clock budget so the existing specs exercise the round cap,
+    // not the budget gate (the budget specs override these).
+    CLIO_RESEARCH_TOTAL_BUDGET_MS: 420_000,
+    CLIO_RESEARCH_SYNTHESIS_RESERVE_MS: 120_000,
+    CLIO_RESEARCH_PROGRESS_INTERVAL_MS: 5_000,
     ...overrides,
   };
   return { get: (key: string) => values[key] } as unknown as ConstructorParameters<
@@ -533,5 +538,178 @@ describe('MeriResearchService — forced synthesis', () => {
     // (2) Defense-in-depth: even though the mock forced a send_email tool_use,
     //     execute() was never invoked (the guard blocked it before execution).
     expect(executeSpy).not.toHaveBeenCalled();
+  });
+
+  // ── Wall-clock budget + liveness ──────────────────────────────────────────
+  //
+  // Two production complaints, one root pair: a research run had no wall-clock
+  // ceiling (maxRounds × per-round timeout = 10 × 600s ≈ 100 minutes) and, under
+  // MERI_AUDITOR_MODE=enforce, streamed no report text at all until the audit
+  // cleared it. A live run and a hung one were indistinguishable in the drawer.
+
+  function collectSse() {
+    const events: Array<Record<string, unknown>> = [];
+    return {
+      events,
+      sse: {
+        write: (data: string) => {
+          const line = data.split('\n').find((l) => l.startsWith('data: '));
+          if (line) {
+            try {
+              events.push(JSON.parse(line.slice(6)));
+            } catch {
+              /* ignore */
+            }
+          }
+        },
+      },
+    };
+  }
+
+  it('stops opening gather rounds once the wall-clock budget is spent, and still reports', async () => {
+    const REPORT = '# Executive Summary\n\nWritten after the budget cut gathering short.';
+
+    // 50 rounds are permitted, but a 1ms total budget means the gather loop must
+    // bail almost immediately instead of burning all 50 model calls.
+    fetchMock = jest.fn(async (_url: string, init?: RequestInit) => {
+      captureBody(init);
+      const body = JSON.parse(String(init?.body ?? '{}'));
+      if (body.tools) return okResponse(sseBody(toolOnlyRound('searchBills')));
+      return okResponse(sseBody(proseRound(REPORT)));
+    }) as unknown as jest.Mock;
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const svc = new MeriResearchService(
+      makePrisma(),
+      makeConfig({
+        CLIO_RESEARCH_MAX_TOOL_ROUNDS: 50,
+        CLIO_RESEARCH_TOTAL_BUDGET_MS: 1,
+        CLIO_RESEARCH_SYNTHESIS_RESERVE_MS: 1,
+      }),
+      makeTools(),
+      makeAiCredentials(),
+      makeReviews(),
+    );
+    const { events, sse } = collectSse();
+
+    await svc.streamResearch(CTX, 'sess-1', sse);
+
+    // The budget gate — not the round cap — ended gathering. The exact count is
+    // 1-3 rather than 1: Date.now() has millisecond resolution, so several
+    // fully-mocked rounds can complete inside the same millisecond before the
+    // deadline is observably passed. The invariant that matters is that gathering
+    // stopped nowhere near the 50 permitted rounds.
+    const toolRounds = fetchBodies.filter((b) => Array.isArray(b.tools));
+    expect(toolRounds.length).toBeLessThan(10);
+    // Cutting gathering short must never mean shipping sources with no report:
+    // the forced-synthesis pass still gets a usable window (SYNTHESIS_FLOOR_MS).
+    const toolless = fetchBodies.filter((b) => !b.tools);
+    expect(toolless).toHaveLength(1);
+    const report = events.find((e) => e.type === 'report');
+    expect(String(report?.body ?? '')).toContain('Executive Summary');
+  });
+
+  it('emits progress heartbeats naming the current stage', async () => {
+    const REPORT = '# Executive Summary\n\nProgress-instrumented run.';
+    fetchMock = jest.fn(async (_url: string, init?: RequestInit) => {
+      captureBody(init);
+      const body = JSON.parse(String(init?.body ?? '{}'));
+      if (body.tools) return okResponse(sseBody(toolOnlyRound('searchBills')));
+      return okResponse(sseBody(proseRound(REPORT)));
+    }) as unknown as jest.Mock;
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const svc = new MeriResearchService(
+      makePrisma(),
+      makeConfig(),
+      makeTools(),
+      makeAiCredentials(),
+      makeReviews(),
+    );
+    const { events, sse } = collectSse();
+
+    await svc.streamResearch(CTX, 'sess-1', sse);
+
+    const progress = events.filter((e) => e.type === 'progress');
+    expect(progress.length).toBeGreaterThan(0);
+    const notes = progress.map((p) => String(p.note));
+    expect(notes.some((n) => /Gathering evidence/i.test(n))).toBe(true);
+    expect(notes.some((n) => /Writing the report/i.test(n))).toBe(true);
+    // Every heartbeat carries elapsed time so the client can render a live timer
+    // and treat prolonged silence as a stall.
+    expect(progress.every((p) => typeof p.elapsedMs === 'number')).toBe(true);
+  });
+
+  it('explains up front that enforce mode withholds the body until checks pass', async () => {
+    const prevMode = process.env.MERI_AUDITOR_MODE;
+    process.env.MERI_AUDITOR_MODE = 'enforce';
+    try {
+      const REPORT = '# Executive Summary\n\nEnforced-delivery run.';
+      fetchMock = jest.fn(async (_url: string, init?: RequestInit) => {
+        captureBody(init);
+        const body = JSON.parse(String(init?.body ?? '{}'));
+        if (body.tools) return okResponse(sseBody(toolOnlyRound('searchBills')));
+        return okResponse(sseBody(proseRound(REPORT)));
+      }) as unknown as jest.Mock;
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const svc = new MeriResearchService(
+        makePrisma(),
+        makeConfig(),
+        makeTools(),
+        makeAiCredentials(),
+        makeReviews(),
+      );
+      const { events, sse } = collectSse();
+
+      await svc.streamResearch(CTX, 'sess-1', sse);
+
+      // The reader is told WHY nothing is streaming, rather than being left to
+      // read an empty bubble as a broken run.
+      const notice = events.find((e) => e.type === 'notice');
+      expect(String(notice?.message ?? '')).toMatch(/grounding checks/i);
+      // The buffering guarantee itself is unchanged: no report prose streams
+      // token-by-token ahead of the audit, only the single post-audit delivery.
+      expect(events.filter((e) => e.type === 'text')).toHaveLength(1);
+    } finally {
+      if (prevMode === undefined) delete process.env.MERI_AUDITOR_MODE;
+      else process.env.MERI_AUDITOR_MODE = prevMode;
+    }
+  });
+
+  it('does not emit the enforce notice when grounding enforcement is off', async () => {
+    const prevMode = process.env.MERI_AUDITOR_MODE;
+    delete process.env.MERI_AUDITOR_MODE;
+    try {
+      // Long enough that proseRound() splits it into several text_deltas, so
+      // "streamed as written" is actually observable (>1 text event).
+      const REPORT =
+        '# Executive Summary\n\nUnenforced run: the report body streams to the reader ' +
+        'token-by-token because no grounding gate is withholding it. [searchBills]';
+      fetchMock = jest.fn(async (_url: string, init?: RequestInit) => {
+        captureBody(init);
+        const body = JSON.parse(String(init?.body ?? '{}'));
+        if (body.tools) return okResponse(sseBody(toolOnlyRound('searchBills')));
+        return okResponse(sseBody(proseRound(REPORT)));
+      }) as unknown as jest.Mock;
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const svc = new MeriResearchService(
+        makePrisma(),
+        makeConfig(),
+        makeTools(),
+        makeAiCredentials(),
+        makeReviews(),
+      );
+      const { events, sse } = collectSse();
+
+      await svc.streamResearch(CTX, 'sess-1', sse);
+
+      expect(events.find((e) => e.type === 'notice')).toBeUndefined();
+      // Unbuffered mode still streams prose as it is written.
+      expect(events.filter((e) => e.type === 'text').length).toBeGreaterThan(1);
+    } finally {
+      if (prevMode !== undefined) process.env.MERI_AUDITOR_MODE = prevMode;
+    }
   });
 });

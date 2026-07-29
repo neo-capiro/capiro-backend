@@ -143,8 +143,28 @@ type ResearchSseEvent =
       };
     }
   | { type: 'report'; artifactId?: string; body?: string }
+  // Liveness heartbeat. A research run takes minutes and, on a workspace with
+  // grounding enforcement on, streams no report text at all until the audit
+  // clears it — so this is what tells the reader the run is alive, and what lets
+  // the stall watchdog below distinguish "slow" from "dead".
+  | { type: 'progress'; note: string; elapsedMs?: number; budgetMs?: number }
+  // One-shot explanation of why the body will arrive all at once.
+  | { type: 'notice'; message: string }
   | { type: 'error'; message: string }
   | { type: 'done' };
+
+// No `progress` heartbeat (server cadence is 5s) for this long means the stream
+// is dead, not slow: surface a real error instead of spinning on "Working…"
+// forever. Generous enough to survive a paused laptop or a slow first byte.
+const RESEARCH_STALL_MS = 120_000;
+
+/** "1m 20s" / "45s" — elapsed time for the progress line. */
+function formatElapsed(ms: number): string {
+  const total = Math.max(0, Math.round(ms / 1000));
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
+  return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+}
 
 function generateId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
@@ -783,7 +803,36 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       const decoder = new TextDecoder();
       let buffer = '';
       outer: while (true) {
-        const { done, value } = await reader.read();
+        // Watchdog: race each read against the stall window. The server sends a
+        // `progress` heartbeat every few seconds, so silence past
+        // RESEARCH_STALL_MS means the connection died (proxy drop, container
+        // restart) — without this the reader awaits a chunk that never comes and
+        // the drawer sits on "Working…" indefinitely.
+        let stallTimer: ReturnType<typeof setTimeout> | undefined;
+        let done: boolean;
+        let value: Uint8Array | undefined;
+        try {
+          ({ done, value } = await Promise.race([
+            reader.read(),
+            new Promise<never>((_, reject) => {
+              stallTimer = setTimeout(() => {
+                // Release the socket instead of leaving a read pending forever.
+                // A user-initiated Stop tears the stream down via the
+                // AbortController, so this path is only ever a real stall.
+                void reader.cancel().catch(() => {});
+                reject(
+                  new Error(
+                    `No update from the server for ${Math.round(
+                      RESEARCH_STALL_MS / 1000,
+                    )}s — the connection dropped.`,
+                  ),
+                );
+              }, RESEARCH_STALL_MS);
+            }),
+          ]));
+        } finally {
+          if (stallTimer) clearTimeout(stallTimer);
+        }
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
@@ -835,7 +884,14 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
           let planText = '';
           let questions: string[] = [];
           await consumeResearchStream(`/api/clio/research/${id}/plan/stream`, controller, (e) => {
-            if (e.type === 'title') {
+            if (e.type === 'progress') {
+              // Only until the plan itself starts arriving.
+              if (!planText) {
+                const elapsed =
+                  typeof e.elapsedMs === 'number' ? ` · ${formatElapsed(e.elapsedMs)} elapsed` : '';
+                updateChatMessage(assistantId, `_${e.note}${elapsed}_`);
+              }
+            } else if (e.type === 'title') {
               planText = `**Research plan — ${e.title}**\n\n`;
               updateChatMessage(assistantId, planText);
             } else if (e.type === 'plan') {
@@ -924,41 +980,79 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       setTrustSteps([]);
       setReasoningText('');
       let report = '';
-      await consumeResearchStream(`/api/clio/research/${id}/stream`, controller, (e) => {
-        if (e.type === 'step') {
-          const label = e.label || e.tool;
-          setTrustSteps((prev) => [...prev, { tool: e.tool, label, status: 'running' as const }]);
-        } else if (e.type === 'source') {
-          const s = e.source;
-          setTrustSteps((prev) => {
-            const next = [...prev];
-            for (let i = next.length - 1; i >= 0; i -= 1) {
-              if (next[i]!.status === 'running' && next[i]!.tool === s.tool) {
-                next[i] = {
-                  ...next[i]!,
-                  label: s.label || next[i]!.label,
-                  detail: s.summary,
-                  count: typeof s.count === 'number' ? s.count : next[i]!.count,
-                  confidence: s.confidence,
-                  status: s.confidence === 'low' ? 'error' : 'done',
-                };
-                return next;
+      // Live status shown in the message body until the first report text lands.
+      // On a grounding-enforced workspace that's the whole run, so without it the
+      // bubble would read "Working…" for minutes with nothing else to go on.
+      let progressNote = '';
+      let deliveryNotice = '';
+      const renderProgress = () => {
+        if (report) return; // real content always wins
+        const parts = [progressNote, deliveryNotice].filter(Boolean);
+        if (parts.length > 0) updateChatMessage(assistantId, parts.join('\n\n'));
+      };
+      try {
+        await consumeResearchStream(`/api/clio/research/${id}/stream`, controller, (e) => {
+          if (e.type === 'step') {
+            const label = e.label || e.tool;
+            setTrustSteps((prev) => [...prev, { tool: e.tool, label, status: 'running' as const }]);
+          } else if (e.type === 'source') {
+            const s = e.source;
+            setTrustSteps((prev) => {
+              const next = [...prev];
+              for (let i = next.length - 1; i >= 0; i -= 1) {
+                if (next[i]!.status === 'running' && next[i]!.tool === s.tool) {
+                  next[i] = {
+                    ...next[i]!,
+                    label: s.label || next[i]!.label,
+                    detail: s.summary,
+                    count: typeof s.count === 'number' ? s.count : next[i]!.count,
+                    confidence: s.confidence,
+                    status: s.confidence === 'low' ? 'error' : 'done',
+                  };
+                  return next;
+                }
               }
-            }
-            return next;
-          });
-        } else if (e.type === 'thinking') {
-          setReasoningText((prev) => prev + e.text);
-        } else if (e.type === 'text') {
-          report += e.text;
-          updateChatMessage(assistantId, report);
-        } else if (e.type === 'report' && typeof e.body === 'string') {
-          report = e.body;
-          updateChatMessage(assistantId, report);
-        } else if (e.type === 'error') {
-          updateChatMessage(assistantId, `${report}\n\n_Error: ${e.message}_`);
+              return next;
+            });
+          } else if (e.type === 'progress') {
+            const elapsed =
+              typeof e.elapsedMs === 'number' ? ` · ${formatElapsed(e.elapsedMs)} elapsed` : '';
+            progressNote = `_${e.note}${elapsed}_`;
+            renderProgress();
+          } else if (e.type === 'notice') {
+            deliveryNotice = `_${e.message}_`;
+            renderProgress();
+          } else if (e.type === 'thinking') {
+            setReasoningText((prev) => prev + e.text);
+          } else if (e.type === 'text') {
+            report += e.text;
+            updateChatMessage(assistantId, report);
+          } else if (e.type === 'report' && typeof e.body === 'string') {
+            report = e.body;
+            updateChatMessage(assistantId, report);
+          } else if (e.type === 'error') {
+            updateChatMessage(assistantId, `${report}\n\n_Error: ${e.message}_`);
+          }
+        });
+      } catch (err) {
+        // A stalled or dropped stream must end as a readable failure, not as a
+        // message stuck on the last progress line. A user-initiated Stop keeps
+        // whatever streamed so far and is not an error.
+        if (err instanceof Error && err.name === 'AbortError') {
+          if (!report) updateChatMessage(assistantId, '_Research stopped._');
+          researchSessionRef.current = null;
+          return;
         }
-      });
+        const message = err instanceof Error ? err.message : 'unknown error';
+        updateChatMessage(
+          assistantId,
+          report
+            ? `${report}\n\n_Research interrupted: ${message}_`
+            : `_Research failed: ${message}_`,
+        );
+        researchSessionRef.current = null;
+        return;
+      }
       // Mark this message as a finished report so export actions render.
       const finishedId = researchSessionRef.current;
       if (finishedId) setResearchReports((prev) => ({ ...prev, [assistantId]: finishedId }));
@@ -1327,7 +1421,6 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       stagedAttachments,
     ],
   ); // eslint-disable-line react-hooks/exhaustive-deps
-
 
   // Product surfaces can open Meri with a source-backed, client-scoped prompt.
   // A ref keeps the single window listener stable while still calling the latest
