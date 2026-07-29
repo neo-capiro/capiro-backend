@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import {
+  Alert,
   App as AntApp,
   Button,
   Card,
+  Dropdown,
   Empty,
   Input,
   Modal,
@@ -34,6 +36,11 @@ interface ClientIntelMapping {
   externalName: string;
   confidence: number;
   confirmed: boolean;
+  /** Identity tier vocabulary; null on rows written before it was recorded. */
+  matchBasis: string | null;
+  matchTier: number | null;
+  relationshipType: string | null;
+  rollUpAwards: boolean | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -43,6 +50,69 @@ interface ResolutionSummary {
   mappingsCreated: number;
   autoConfirmed: number;
   needsReview: number;
+}
+
+/** Mirrors MatchExplanation in apps/api/src/intelligence/contractor-identity.ts. */
+interface MatchExplanation {
+  basis: string;
+  tier: number;
+  exactIdentifiers: Record<string, string>;
+  normalizedClientName: string;
+  normalizedCandidateName: string;
+  corroborators: string[];
+  conflicts: string[];
+  awardCount: number | null;
+  totalObligated: number | null;
+  latestAwardDate: string | null;
+  sourceSyncedAt: string | null;
+}
+
+interface ContractorCandidateView {
+  client: { id: string; name: string; uei: string | null; cageCode: string | null };
+  candidates: Array<{
+    contractorId: string;
+    contractorName: string;
+    confidence: number;
+    autoConfirmEligible: boolean;
+    matchBasis: string;
+    matchTier: number;
+    explanation: MatchExplanation | null;
+    mapping: {
+      id: string;
+      confirmed: boolean;
+      matchBasis: string;
+      matchTier: number | null;
+      relationshipType: string | null;
+      rollUpAwards: boolean | null;
+    } | null;
+  }>;
+}
+
+const MATCH_BASIS_LABELS: Record<string, string> = {
+  exact_uei: 'Exact UEI',
+  exact_cage: 'Exact CAGE',
+  exact_legal_name_corroborated: 'Exact legal name + corroboration',
+  exact_legal_name: 'Exact legal name',
+  fuzzy_name: 'Similar name only',
+  manual_pin: 'Pinned by a person',
+  legacy_unrecorded: 'Basis not recorded',
+};
+
+/**
+ * How a match basis reads to a reviewer. A bare confidence percentage is NOT a
+ * reason anybody can check, which is why the table shows this instead of leading
+ * with the number.
+ */
+function basisLabel(basis: string | null): string {
+  if (!basis) return MATCH_BASIS_LABELS.legacy_unrecorded!;
+  return MATCH_BASIS_LABELS[basis] ?? basis;
+}
+
+function basisColor(basis: string | null): string {
+  if (basis === 'exact_uei' || basis === 'exact_cage' || basis === 'manual_pin') return 'green';
+  if (basis === 'exact_legal_name_corroborated') return 'blue';
+  if (basis === 'exact_legal_name') return 'orange';
+  return 'default';
 }
 
 /**
@@ -89,7 +159,14 @@ export function IntelligenceMappingsPage() {
   const qc = useQueryClient();
   const { notification } = AntApp.useApp();
   const [searchParams] = useSearchParams();
+  // A client-scoped arrival (?clientId=<uuid>) must land on THAT client's rows
+  // without the user searching for them again. The previous flow only seeded
+  // ?source=, so a CTA from a client profile dropped the reviewer into the whole
+  // tenant's mapping list — the one thing they had already told us they did not
+  // want.
+  const deepLinkedClientId = searchParams.get('clientId') ?? undefined;
   const [clientSearch, setClientSearch] = useState('');
+  const [clientIdFilter, setClientIdFilter] = useState<string | undefined>(deepLinkedClientId);
   // Seed the source filter from the URL (?source=fec_employer) so deep links
   // from the intel profile panels (e.g. the FEC "Map an FEC employer →" CTA)
   // land the user directly on the rows they need to confirm.
@@ -127,11 +204,39 @@ export function IntelligenceMappingsPage() {
     },
   });
 
+  /**
+   * "Find exact identifier matches" — the SAFE automatic action.
+   *
+   * Auto-confirms only an unambiguous tier-1 identifier match. It cannot confirm a
+   * fuzzy name, by construction on the API side rather than by convention here.
+   */
+  const identifierMatchMutation = useMutation({
+    mutationFn: async () =>
+      (
+        await api.post<ResolutionSummary>(
+          '/api/intelligence/mappings/match-contractor-identifiers',
+        )
+      ).data,
+    onSuccess: (summary) => {
+      notification.success({
+        message: 'Exact identifier matching complete',
+        description: `${summary.autoConfirmed} confirmed from exact identifiers · ${summary.needsReview} need review · ${summary.totalClients} clients processed. A similar name is never confirmed automatically.`,
+        duration: 8,
+      });
+      void qc.invalidateQueries({ queryKey: ['intelligence-mappings'] });
+      void qc.invalidateQueries({ queryKey: ['contractor-candidates'] });
+      invalidateClientIntel(qc);
+    },
+    onError: (err) =>
+      notification.error({ message: 'Identifier matching failed', description: apiErrorMessage(err) }),
+  });
+
   const confirmMutation = useMutation({
     mutationFn: async ({ id, confirmed }: { id: string; confirmed: boolean }) =>
       api.patch(`/api/intelligence/mappings/${id}`, { confirmed }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['intelligence-mappings'] });
+      void qc.invalidateQueries({ queryKey: ['contractor-candidates'] });
       invalidateClientIntel(qc);
     },
     onError: (err) => {
@@ -141,6 +246,19 @@ export function IntelligenceMappingsPage() {
 
   const mappings = mappingsQuery.data ?? [];
 
+  /**
+   * All clients, for the client-scoped picker. Loaded unconditionally so the
+   * picker works whether or not a ?clientId arrived — an empty picker on a fresh
+   * visit would push people back to filtering by free text.
+   */
+  const clientsQuery = useQuery<ClientLite[]>({
+    queryKey: ['clients-lite-for-mapping'],
+    queryFn: async () => (await api.get<ClientLite[]>('/api/clients')).data,
+    staleTime: 60_000,
+  });
+
+  const selectedClientName = clientsQuery.data?.find((c) => c.id === clientIdFilter)?.name ?? null;
+
   const distinctSources = useMemo(
     () => [...new Set(mappings.map((m) => m.source))].sort(),
     [mappings],
@@ -148,6 +266,7 @@ export function IntelligenceMappingsPage() {
 
   const filtered = useMemo(() => {
     let data = mappings;
+    if (clientIdFilter) data = data.filter((m) => m.clientId === clientIdFilter);
     if (clientSearch.trim()) {
       const q = clientSearch.trim().toLowerCase();
       data = data.filter(
@@ -160,7 +279,7 @@ export function IntelligenceMappingsPage() {
     if (confirmedFilter === 'confirmed') data = data.filter((m) => m.confirmed);
     if (confirmedFilter === 'unconfirmed') data = data.filter((m) => !m.confirmed);
     return data;
-  }, [mappings, clientSearch, sourceFilter, confirmedFilter]);
+  }, [mappings, clientIdFilter, clientSearch, sourceFilter, confirmedFilter]);
 
   async function handleConfirmAll() {
     const eligible = filtered.filter((m) => m.confidence >= 0.60 && !m.confirmed);
@@ -204,6 +323,36 @@ export function IntelligenceMappingsPage() {
       dataIndex: 'externalName',
       ellipsis: true,
       render: (name: string) => <Text style={{ fontSize: 13 }}>{name}</Text>,
+    },
+    {
+      // WHY the mapping exists, ahead of the confidence bar on purpose: a basis is
+      // a reason a reviewer can check, a percentage is not.
+      title: 'Match basis',
+      dataIndex: 'matchBasis',
+      width: 190,
+      render: (basis: string | null, record) => (
+        <Space size={4} wrap>
+          <Tag color={basisColor(basis)}>{basisLabel(basis)}</Tag>
+          {record.relationshipType && record.relationshipType !== 'self' ? (
+            <Tooltip
+              title={
+                record.rollUpAwards
+                  ? 'Reviewed corporate relationship; this entity’s awards roll up to the client.'
+                  : 'Reviewed corporate relationship; awards do NOT roll up to the client.'
+              }
+            >
+              <Tag color={record.rollUpAwards ? 'geekblue' : 'default'}>
+                {record.relationshipType.replace(/_/g, ' ')}
+              </Tag>
+            </Tooltip>
+          ) : null}
+        </Space>
+      ),
+      filters: Object.keys(MATCH_BASIS_LABELS).map((k) => ({
+        text: MATCH_BASIS_LABELS[k]!,
+        value: k,
+      })),
+      onFilter: (value, record) => (record.matchBasis ?? 'legacy_unrecorded') === value,
     },
     {
       title: 'Confidence',
@@ -262,6 +411,15 @@ export function IntelligenceMappingsPage() {
           <Button icon={<PlusOutlined />} onClick={() => setManualOpen(true)}>
             Add mapping manually
           </Button>
+          <Tooltip title="Matches clients to federal contractors by exact UEI only, and confirms a match only when that identifier resolves to exactly one contractor with no conflicting facts. A similar name is never confirmed automatically.">
+            <Button
+              icon={<CheckCircleOutlined />}
+              loading={identifierMatchMutation.isPending}
+              onClick={() => identifierMatchMutation.mutate()}
+            >
+              Find exact identifier matches
+            </Button>
+          </Tooltip>
           <Button
             type="primary"
             icon={<SyncOutlined />}
@@ -273,14 +431,40 @@ export function IntelligenceMappingsPage() {
         </Space>
       </div>
 
+      {/* Client-scoped review. Rendered above the table so an arrival from a
+          profile CTA sees this client's contractor candidates immediately, with
+          the evidence, rather than a tenant-wide list to filter. */}
+      {clientIdFilter ? (
+        <ContractorCandidatePanel
+          clientId={clientIdFilter}
+          clientName={selectedClientName}
+          onChanged={() => {
+            void qc.invalidateQueries({ queryKey: ['intelligence-mappings'] });
+            invalidateClientIntel(qc);
+          }}
+        />
+      ) : null}
+
       {/* Filters + bulk actions */}
       <Card size="small" style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Select
+            allowClear
+            showSearch
+            placeholder="Client"
+            style={{ width: 220 }}
+            value={clientIdFilter}
+            loading={clientsQuery.isLoading}
+            optionFilterProp="label"
+            onChange={(v) => setClientIdFilter(v ?? undefined)}
+            options={(clientsQuery.data ?? []).map((c) => ({ label: c.name, value: c.id }))}
+            aria-label="Client"
+          />
           <Input.Search
             placeholder="Search client or external name…"
             value={clientSearch}
             onChange={(e) => setClientSearch(e.target.value)}
-            style={{ width: 260 }}
+            style={{ width: 240 }}
             allowClear
           />
           <Select
@@ -416,6 +600,269 @@ interface ClientLite {
   name: string;
 }
 
+/**
+ * Contractor identity candidates for ONE client, with the full match explanation.
+ *
+ * This panel is the answer to §8's "do not display a bare confidence percentage".
+ * For each candidate it shows the basis, the exact identifiers that matched, the
+ * normalized names actually compared, the corroborating facts and — the part a
+ * percentage can never convey — the CONFLICTING facts. Confirm is disabled for a
+ * candidate the policy judged ambiguous, with the reason shown.
+ */
+function ContractorCandidatePanel({
+  clientId,
+  clientName,
+  onChanged,
+}: {
+  clientId: string;
+  clientName: string | null;
+  onChanged: () => void;
+}) {
+  const api = useApi();
+  const { notification } = AntApp.useApp();
+
+  const candidates = useQuery<ContractorCandidateView>({
+    queryKey: ['contractor-candidates', clientId],
+    queryFn: async () =>
+      (
+        await api.get<ContractorCandidateView>(
+          `/api/intelligence/mappings/${clientId}/contractor-candidates`,
+        )
+      ).data,
+    enabled: Boolean(clientId),
+    staleTime: 30_000,
+    retry: 1,
+  });
+
+  const pinMutation = useMutation({
+    mutationFn: async (input: {
+      contractorId: string;
+      contractorName: string;
+      relationshipType: string;
+    }) =>
+      api.post(`/api/intelligence/mappings/${clientId}/manual`, {
+        source: 'contracting',
+        externalId: input.contractorId,
+        externalName: input.contractorName,
+        relationshipType: input.relationshipType,
+        // A confirmed identity is what the award footprint reads, so a 'self' pin
+        // rolls awards up. Any other relationship is left for the reviewer to
+        // decide explicitly rather than assumed.
+        rollUpAwards: input.relationshipType === 'self',
+      }),
+    onSuccess: (_d, input) => {
+      notification.success({
+        message: 'Contractor identity confirmed',
+        description: `"${input.contractorName}" is now a confirmed contracting mapping (${input.relationshipType.replace(/_/g, ' ')}).`,
+      });
+      void candidates.refetch();
+      onChanged();
+    },
+    onError: (err) =>
+      notification.error({ message: 'Confirm failed', description: apiErrorMessage(err) }),
+  });
+
+  const columns: ColumnsType<ContractorCandidateView['candidates'][number]> = [
+    {
+      title: 'Federal contractor',
+      dataIndex: 'contractorName',
+      ellipsis: true,
+      render: (name: string, r) => (
+        <div>
+          <Text strong style={{ fontSize: 13 }}>
+            {name}
+          </Text>
+          <div>
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              normalized: {r.explanation?.normalizedCandidateName ?? '—'}
+            </Text>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Basis',
+      dataIndex: 'matchBasis',
+      width: 200,
+      render: (basis: string, r) => (
+        <Space direction="vertical" size={2}>
+          <Tag color={basisColor(basis)}>
+            {basisLabel(basis)} · tier {r.matchTier}
+          </Tag>
+          {Object.entries(r.explanation?.exactIdentifiers ?? {}).map(([k, v]) => (
+            <Text key={k} code style={{ fontSize: 11 }}>
+              {k}: {v}
+            </Text>
+          ))}
+        </Space>
+      ),
+    },
+    {
+      title: 'Identifiers & obligations',
+      width: 180,
+      render: (_v, r) => (
+        <Space direction="vertical" size={0}>
+          <Text style={{ fontSize: 12 }}>
+            Obligated: {formatSpend(r.explanation?.totalObligated ?? null)}
+          </Text>
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            {/* null, not 0 — "we hold no figure" is not "there were no awards". */}
+            Awards: {r.explanation?.awardCount ?? 'not held'}
+          </Text>
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            Source synced:{' '}
+            {r.explanation?.sourceSyncedAt
+              ? new Date(r.explanation.sourceSyncedAt).toLocaleDateString()
+              : 'unknown'}
+          </Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'Evidence',
+      render: (_v, r) => (
+        <Space direction="vertical" size={2} style={{ width: '100%' }}>
+          {r.explanation?.corroborators.length ? (
+            <Text style={{ fontSize: 11 }}>
+              Corroborated by: {r.explanation.corroborators.join(', ')}
+            </Text>
+          ) : (
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              No corroborating facts beyond the name.
+            </Text>
+          )}
+          {r.explanation?.conflicts.length ? (
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              {r.explanation.conflicts.map((c) => (
+                <li key={c}>
+                  <Text type="warning" style={{ fontSize: 11 }}>
+                    {c}
+                  </Text>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {!r.autoConfirmEligible && r.explanation?.conflicts.length === 0 ? (
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              Needs a human decision.
+            </Text>
+          ) : null}
+        </Space>
+      ),
+    },
+    {
+      title: '',
+      key: 'actions',
+      width: 210,
+      render: (_v, r) =>
+        r.mapping?.confirmed ? (
+          <Tag color="green" icon={<CheckCircleOutlined />}>
+            Confirmed
+          </Tag>
+        ) : (
+          <Space size={4} wrap>
+            <Button
+              size="small"
+              type="primary"
+              loading={
+                pinMutation.isPending && pinMutation.variables?.contractorId === r.contractorId
+              }
+              onClick={() =>
+                pinMutation.mutate({
+                  contractorId: r.contractorId,
+                  contractorName: r.contractorName,
+                  relationshipType: 'self',
+                })
+              }
+            >
+              Confirm as this client
+            </Button>
+            <Dropdown
+              trigger={['click']}
+              menu={{
+                items: [
+                  { key: 'former_name', label: 'Confirm as a former name' },
+                  { key: 'parent', label: 'Confirm as the parent' },
+                  { key: 'subsidiary', label: 'Confirm as a subsidiary' },
+                  { key: 'operating_unit', label: 'Confirm as an operating unit' },
+                  { key: 'alias', label: 'Confirm as an alias' },
+                ],
+                onClick: ({ key }: { key: string }) =>
+                  pinMutation.mutate({
+                    contractorId: r.contractorId,
+                    contractorName: r.contractorName,
+                    relationshipType: key,
+                  }),
+              }}
+            >
+              <Button size="small">Other…</Button>
+            </Dropdown>
+          </Space>
+        ),
+    },
+  ];
+
+  return (
+    <Card
+      size="small"
+      style={{ marginBottom: 16 }}
+      data-testid="contractor-candidate-panel"
+      title={`Federal contractor identity — ${clientName ?? 'selected client'}`}
+      extra={
+        <Space size={8}>
+          {candidates.data?.client.uei ? (
+            <Tag color="green">UEI on file: {candidates.data.client.uei}</Tag>
+          ) : (
+            <Tooltip title="Without a UEI, no contractor identity can be confirmed automatically — every candidate needs manual review.">
+              <Tag color="orange">No UEI on file</Tag>
+            </Tooltip>
+          )}
+          <Button size="small" onClick={() => void candidates.refetch()} loading={candidates.isFetching}>
+            Refresh
+          </Button>
+        </Space>
+      }
+    >
+      {candidates.isPending ? (
+        <Skeleton active paragraph={{ rows: 3 }} />
+      ) : candidates.isError ? (
+        <Alert
+          type="error"
+          showIcon
+          data-testid="contractor-candidates-error"
+          message="Contractor candidates could not be loaded"
+          description="This is a request failure, not an empty result — no conclusion can be drawn about whether candidates exist."
+          action={
+            <Button size="small" onClick={() => void candidates.refetch()}>
+              Retry
+            </Button>
+          }
+        />
+      ) : (candidates.data?.candidates.length ?? 0) === 0 ? (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={
+            <span>
+              No federal contractor record resembles this client&apos;s name, and no UEI match was
+              found. Use <strong>Add mapping manually</strong> to pin an exact record — a renamed or
+              legacy entity will not surface by name.
+            </span>
+          }
+        />
+      ) : (
+        <Table<ContractorCandidateView['candidates'][number]>
+          rowKey="contractorId"
+          size="small"
+          dataSource={candidates.data!.candidates}
+          columns={columns}
+          pagination={false}
+          scroll={{ y: 340 }}
+        />
+      )}
+    </Card>
+  );
+}
+
 interface LdaSearchResult {
   id: string;
   name: string;
@@ -450,7 +897,24 @@ interface ContractorResult {
   category: string | null;
   totalContracts: number | null;
   rankByContracts: number | null;
+  sourceSyncedAt: string | null;
   similarity: number;
+  /** True when the query WAS the contractor's UEI — a verified identifier hit. */
+  matchedOnIdentifier: boolean;
+}
+
+/**
+ * The contractor search now returns a wrapper rather than a bare array.
+ *
+ * `unsupportedIdentifier` is the reason it does: a user can legitimately paste a
+ * CAGE code, and `federal_contractor` carries no CAGE column (its source does not
+ * publish one). Returning an empty array for that would read as "this CAGE is not
+ * a federal contractor", which the data cannot support. The wrapper lets the UI
+ * say what actually happened.
+ */
+interface ContractorSearchResponse {
+  results: ContractorResult[];
+  unsupportedIdentifier: string | null;
 }
 
 interface AssistanceRecipientResult {
@@ -529,11 +993,11 @@ function ManualMapModal({
     enabled: open && source === 'fec_employer' && query.trim().length > 0,
   });
 
-  const contractorSearch = useQuery<ContractorResult[]>({
+  const contractorSearch = useQuery<ContractorSearchResponse>({
     queryKey: ['contractor-search', query],
     queryFn: async () =>
       (
-        await api.get<ContractorResult[]>(
+        await api.get<ContractorSearchResponse>(
           `/api/intelligence/contractors/search?q=${encodeURIComponent(query)}`,
         )
       ).data,
@@ -680,7 +1144,28 @@ function ManualMapModal({
       ellipsis: true,
       render: (v: string) => <Text style={{ fontSize: 13 }}>{v}</Text>,
     },
-    { title: 'UEI', dataIndex: 'uei', width: 110, render: (v: string | null) => v ?? '—' },
+    {
+      title: 'UEI',
+      dataIndex: 'uei',
+      width: 130,
+      render: (v: string | null, r) =>
+        v ? (
+          <Space size={4}>
+            <Text code style={{ fontSize: 11 }}>
+              {v}
+            </Text>
+            {r.matchedOnIdentifier ? (
+              <Tooltip title="Your search matched this contractor's UEI exactly — a verified identifier, not a name guess.">
+                <Tag color="green" style={{ marginInlineEnd: 0 }}>
+                  exact
+                </Tag>
+              </Tooltip>
+            ) : null}
+          </Space>
+        ) : (
+          '—'
+        ),
+    },
     {
       title: 'Category',
       dataIndex: 'category',
@@ -824,23 +1309,34 @@ function ManualMapModal({
               }}
             />
           ) : source === 'contracting' ? (
-            <Table<ContractorResult>
-              rowKey="id"
-              size="small"
-              loading={contractorSearch.isFetching}
-              dataSource={contractorSearch.data ?? []}
-              columns={contractorColumns}
-              pagination={false}
-              scroll={{ y: 320 }}
-              locale={{
-                emptyText: (
-                  <Empty
-                    description="No federal contractors matched. Try a shorter or alternate spelling, or paste the contractor UUID."
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  />
-                ),
-              }}
-            />
+            <>
+              {contractorSearch.data?.unsupportedIdentifier ? (
+                <Alert
+                  type="warning"
+                  showIcon
+                  style={{ marginBottom: 8 }}
+                  data-testid="contractor-unsupported-identifier"
+                  message={contractorSearch.data.unsupportedIdentifier}
+                />
+              ) : null}
+              <Table<ContractorResult>
+                rowKey="id"
+                size="small"
+                loading={contractorSearch.isFetching}
+                dataSource={contractorSearch.data?.results ?? []}
+                columns={contractorColumns}
+                pagination={false}
+                scroll={{ y: 320 }}
+                locale={{
+                  emptyText: (
+                    <Empty
+                      description="No federal contractors matched. Try a shorter or alternate spelling, the exact UEI, or paste the contractor UUID."
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    />
+                  ),
+                }}
+              />
+            </>
           ) : (
             <Table<AssistanceRecipientResult>
               rowKey="id"

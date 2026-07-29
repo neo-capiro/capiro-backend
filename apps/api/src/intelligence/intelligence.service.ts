@@ -2515,8 +2515,17 @@ export class IntelligenceService {
    */
   async searchContractors(query: string) {
     const q = query.trim();
-    if (!q) return [];
+    if (!q) return { results: [], unsupportedIdentifier: null as null | string };
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q);
+    const upper = q.toUpperCase();
+    const isUei = /^[A-Z0-9]{12}$/.test(upper);
+    // A CAGE code is 5 alphanumerics. Detected so the caller can be TOLD that
+    // `federal_contractor` carries no CAGE column — its source does not publish
+    // one (sync-openspending.ts writes only uei/recipientId). A CAGE search that
+    // silently returned zero rows would read as "this CAGE is not a federal
+    // contractor", which is a claim the data cannot support.
+    const isCage = !isUei && /^[A-Z0-9]{5}$/.test(upper) && /\d/.test(upper);
+
     const rows = await this.prisma.$queryRaw<
       Array<{
         id: string;
@@ -2525,31 +2534,49 @@ export class IntelligenceService {
         category: string | null;
         total_contracts: number | null;
         rank_by_contracts: number | null;
+        last_synced_at: Date | null;
         similarity: number;
       }>
     >`
       SELECT id, name, uei, category,
              total_contracts::float AS total_contracts,
              rank_by_contracts,
+             last_synced_at,
              GREATEST(
                similarity(name, ${q}),
-               CASE WHEN ${isUuid} AND id::text = ${q} THEN 1 ELSE 0 END
+               CASE WHEN ${isUuid} AND id::text = ${q} THEN 1 ELSE 0 END,
+               -- An exact UEI is a verified identifier, so it must outrank every
+               -- name score — and it must be searchable at all, which it was not:
+               -- "RTX CORPORATION" and "RAYTHEON TECHNOLOGIES CORPORATION" share
+               -- no trigram overlap, so the only way to reach the right row is by
+               -- its identifier.
+               CASE WHEN ${isUei} AND uei = ${isUei ? upper : null} THEN 1 ELSE 0 END
              ) AS similarity
       FROM federal_contractor
-      WHERE similarity(name, ${q}) > 0.2 OR (${isUuid} AND id::text = ${q})
+      WHERE similarity(name, ${q}) > 0.2
+         OR (${isUuid} AND id::text = ${q})
+         OR (${isUei} AND uei = ${isUei ? upper : null})
       ORDER BY similarity DESC, total_contracts DESC NULLS LAST
       LIMIT 25
     `;
-    return rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      uei: r.uei,
-      category: r.category,
-      totalContracts: r.total_contracts,
-      rankByContracts: r.rank_by_contracts,
-      similarity: Number(r.similarity ?? 0),
-    }));
+    return {
+      results: rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        uei: r.uei,
+        category: r.category,
+        totalContracts: r.total_contracts,
+        rankByContracts: r.rank_by_contracts,
+        sourceSyncedAt: r.last_synced_at ? r.last_synced_at.toISOString() : null,
+        similarity: Number(r.similarity ?? 0),
+        matchedOnIdentifier: isUei && r.uei != null && r.uei.toUpperCase() === upper,
+      })),
+      unsupportedIdentifier: isCage
+        ? 'That looks like a CAGE code. The federal contractor catalog Capiro holds carries UEI but no CAGE code, so a CAGE cannot be looked up here — search by name or UEI instead.'
+        : null,
+    };
   }
+
 
   /**
    * Free-text / by-UEI search over federal_assistance_award recipients for
@@ -2645,7 +2672,22 @@ export class IntelligenceService {
   async createManualMapping(
     clientId: string,
     tenantId: string,
-    input: { source: string; externalId: string; externalName: string },
+    input: {
+      source: string;
+      externalId: string;
+      externalName: string;
+      /**
+       * The CORPORATE-IDENTITY relationship this pin asserts. This is the tier-3
+       * path: pinning "RAYTHEON TECHNOLOGIES CORPORATION" to a client named "RTX"
+       * is only meaningful if a human also says WHAT it is — the same entity under
+       * a former name, a subsidiary, a parent. Optional so existing callers keep
+       * working; when absent the column stays null, which read paths treat as
+       * "undecided", never as 'self'.
+       */
+      relationshipType?: string | null;
+      /** Whether this entity's awards roll up to the client. Null = undecided. */
+      rollUpAwards?: boolean | null;
+    },
   ) {
     const client = await this.prisma.withTenant(tenantId, (tx) =>
       tx.client.findFirst({ where: { id: clientId }, select: { id: true } }),
@@ -2661,7 +2703,16 @@ export class IntelligenceService {
             externalId: input.externalId,
           },
         },
-        update: { externalName: input.externalName, confirmed: true },
+        update: {
+          externalName: input.externalName,
+          confirmed: true,
+          matchBasis: 'manual_pin',
+          matchTier: 1,
+          ...(input.relationshipType !== undefined
+            ? { relationshipType: input.relationshipType }
+            : {}),
+          ...(input.rollUpAwards !== undefined ? { rollUpAwards: input.rollUpAwards } : {}),
+        },
         create: {
           tenantId,
           clientId,
@@ -2670,6 +2721,15 @@ export class IntelligenceService {
           externalName: input.externalName,
           confidence: 1,
           confirmed: true,
+          // A deliberate human pin of a specific source record IS a tier-1
+          // verified identity — the strongest thing in the system, because a
+          // person chose this exact record rather than a heuristic matching it.
+          matchBasis: 'manual_pin',
+          matchTier: 1,
+          ...(input.relationshipType !== undefined
+            ? { relationshipType: input.relationshipType }
+            : {}),
+          ...(input.rollUpAwards !== undefined ? { rollUpAwards: input.rollUpAwards } : {}),
         },
       }),
     );
@@ -2682,7 +2742,31 @@ export class IntelligenceService {
     return mapping;
   }
 
-  /** Resolve mappings by fuzzy matching a CRM client against all sources */
+  /**
+   * Resolve mappings by fuzzy matching a CRM client against all sources.
+   *
+   * ── This used to auto-confirm fuzzy name matches. It no longer does. ────────
+   *
+   * Every row it wrote was created with `confirmed: r.confidence >= 0.6`, where
+   * `confidence` was a RAW pg_trgm similarity between the client's name and a
+   * federal record's name — no fingerprinting, no distinctiveness guard, no
+   * ambiguity check, none of the protections `EntityResolutionService` applies.
+   * A trigram score of 0.6 is routinely reached by genuinely different
+   * organizations ("Santa Rosa County" / "Santa Clara County"), and a CONFIRMED
+   * mapping is what the client's award footprint, the agency-history relevance
+   * signals and the District Nexus obligation rails all read. The equivalent
+   * defect on the assistance side produced 173 wrong candidates out of 183 live,
+   * several with $B+ obligated attached.
+   *
+   * So every row this endpoint writes is now created UNCONFIRMED, whatever its
+   * similarity, and a human confirms it from the mappings review UI. Nothing
+   * about the candidate discovery changed — only that a name can no longer
+   * silently become a confirmed corporate identity.
+   *
+   * An existing confirmed row is never downgraded: the upsert's update path
+   * deliberately does not touch `confirmed`, so a human's decision survives a
+   * re-run.
+   */
   async resolveMapping(clientId: string, tenantId: string) {
     const client = await this.prisma.withTenant(tenantId, (tx) =>
       tx.client.findFirst({ where: { id: clientId } }),
@@ -2769,7 +2853,11 @@ export class IntelligenceService {
             externalId: r.externalId,
             externalName: r.externalName,
             confidence: r.confidence,
-            confirmed: r.confidence >= 0.6,
+            // NEVER auto-confirmed. See this method's docblock: `confidence` here
+            // is a bare trigram similarity, and a name is not an identity.
+            confirmed: false,
+            matchBasis: 'fuzzy_name',
+            matchTier: 4,
           },
         });
         out.push(mapping);

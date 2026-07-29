@@ -51,6 +51,7 @@ import {
   type OpportunityForMatch,
   type ProposedSamMatch,
 } from './sam-opportunity-matcher.js';
+import { extractPromotedFields } from './backfill-sam-opportunity-fields.js';
 
 dotenvConfig();
 
@@ -106,7 +107,11 @@ interface SamOpportunityRecord {
   solicitationNumber?: string;
   title?: string;
   type?: string; // notice type
+  /** The notice's ORIGINAL type before amendment. Promoted to its own column. */
   baseType?: string;
+  /** Set-aside code and its human-readable description, when the notice restricts. */
+  typeOfSetAside?: string;
+  typeOfSetAsideDescription?: string;
   fullParentPathName?: string; // org hierarchy "DEPT OF DEFENSE.DEPT OF THE ARMY..."
   department?: string;
   subTier?: string;
@@ -326,12 +331,26 @@ async function main(): Promise<void> {
                 ? rec.active.toLowerCase() !== 'no'
                 : archiveDate == null || archiveDate.getTime() > Date.now();
             const poc = primaryPoc(rec);
+            // Four source fields the notice already carries and this sync used to
+            // drop on the floor. Extracted through the SAME function
+            // backfill-sam-opportunity-fields.ts uses, so the live sync and the
+            // backfill cannot drift into disagreeing about the same payload.
+            //
+            // `baseType` is the one that matters for correctness rather than
+            // completeness: an amended notice carries type 'Solicitation' with
+            // baseType 'Presolicitation', and without it the UI cannot tell an
+            // open solicitation from an amended pre-solicitation.
+            const promoted = extractPromotedFields(rec);
             const opp = {
               noticeId,
               solicitationNumber: str(rec.solicitationNumber),
               title: str(rec.title) ?? '(untitled)',
               noticeType: (str(rec.type) ?? str(rec.baseType) ?? 'unknown').slice(0, 32),
+              baseType: promoted.baseType,
               agency: agencyOf(rec),
+              subAgency: promoted.subAgency,
+              setAside: promoted.setAside,
+              setAsideCode: promoted.setAsideCode,
               office: officeOf(rec),
               pscCode: str(rec.classificationCode)?.slice(0, 8) ?? null,
               naicsCode: str(rec.naicsCode)?.slice(0, 8) ?? null,

@@ -259,6 +259,7 @@ model Tenant {
   memoryIngestRuns             MemoryIngestRun[]
   clientMemoryAccessGrants     ClientMemoryAccess[]
   clientGrantNexuses           ClientGrantNexus[]
+  clientFundingOpportunities   ClientFundingOpportunity[]
   outreachDraftArtifacts       OutreachDraftArtifact[]
   outreachDraftVersions        OutreachDraftVersion[]
   outreachSendIntents          OutreachSendIntent[]
@@ -563,6 +564,7 @@ model Client {
   actionRecommendations   ActionRecommendation[]
   memoryAccessGrants      ClientMemoryAccess[]
   grantNexuses            ClientGrantNexus[]
+  fundingOpportunities    ClientFundingOpportunity[]
 
   @@index([tenantId], map: "clients_tenant_idx")
   @@index([tenantId, name], map: "clients_tenant_name_idx")
@@ -4219,6 +4221,33 @@ model ClientIntelMapping {
   externalName String   @map("external_name")
   confidence   Float
   confirmed    Boolean  @default(false)
+  /// WHY this candidate exists, in the identity-tier vocabulary the contractor
+  /// matcher uses: 'exact_uei' | 'exact_cage' | 'exact_legal_name_corroborated' |
+  /// 'exact_legal_name' | 'fuzzy_name' | 'manual_pin' | 'legacy_unrecorded'.
+  /// A bare confidence percentage is not a reason a user can check, and every
+  /// pre-existing row predates this column — hence nullable, and hence
+  /// 'legacy_unrecorded' rather than back-filling a basis nobody recorded.
+  matchBasis   String?  @map("match_basis") @db.VarChar(40)
+  /// Identity tier 1-4 (1 = exact verified identifier … 4 = fuzzy name). Drives
+  /// the auto-confirm decision; tier 4 is never auto-confirmed.
+  matchTier    Int?     @map("match_tier")
+  /// The specific facts behind the basis — identifiers matched, normalized names
+  /// compared, corroborating and CONFLICTING facts, award footprint. Rendered as
+  /// the match explanation, so it must hold facts, never a paraphrase.
+  matchEvidence Json?   @map("match_evidence_jsonb")
+  /// The CORPORATE-IDENTITY relationship this mapping asserts between the client
+  /// and the federal entity: 'self' | 'alias' | 'former_name' | 'parent' |
+  /// 'subsidiary' | 'operating_unit'. This is the identity gap made explicit —
+  /// a federal award may name a subsidiary, a legal entity, a historical name or
+  /// a parent that is not the CRM client's display name, and "it matched" is not
+  /// an answer to "whose money is this". NULL on every pre-existing row: the
+  /// relationship was never recorded, and defaulting them all to 'self' would
+  /// invent a reviewed assertion nobody made.
+  relationshipType String? @map("relationship_type") @db.VarChar(24)
+  /// Whether awards on this federal entity should ROLL UP to the client. Only
+  /// meaningful once `relationshipType` is set and `confirmed` is true; NULL
+  /// means undecided, which read paths must treat as "do not roll up".
+  rollUpAwards Boolean? @map("roll_up_awards")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -5642,6 +5671,104 @@ model ClientGrantNexus {
   @@map("client_grant_nexus")
 }
 
+/// Funding Opportunities — a client's durable WORKFLOW relationship to ONE future
+/// funding opportunity: either a Grants.gov NOFO (`federal_grant`) or a SAM.gov
+/// contract notice (`sam_opportunity`). TENANT-scoped, RLS FORCE-enabled.
+///
+/// ── Why this is not ClientGrantNexus ────────────────────────────────────────
+/// ClientGrantNexus answers "does this client have a defensible geographic NEXUS
+/// through federal assistance money" — it is EVIDENCE, and its
+/// 'opportunity_candidate' relationshipType was a narrow bolt-on so the District
+/// Nexus opportunity pipeline had something to read. This model answers a
+/// different question: "what is our team DOING about this opportunity". A pursuit
+/// decision is not geographic evidence. Folding the two would let saving an
+/// opportunity start contributing to a district nexus score, which is exactly the
+/// false claim the District Nexus rules forbid — a future opportunity never
+/// creates district context by itself. They stay separate tables on purpose, and
+/// nothing in the District Nexus aggregate reads this one.
+///
+/// Exactly ONE source record is referenced; `source` says which, and a CHECK
+/// constraint in the migration enforces the exclusivity rather than trusting the
+/// writer. No FK to either source table: `federal_grant` and `sam_opportunity`
+/// are GLOBAL upsert-only catalogs, and a hard FK would force cascade semantics
+/// onto tables nothing ever deletes from (same rationale as
+/// ClientGrantNexus.grantOpportunityId / .assistanceAwardId).
+model ClientFundingOpportunity {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  /// 'grants_gov' | 'sam_gov'.
+  source String @db.VarChar(16)
+  /// FederalGrant.id (a Grants.gov opportunity id) — set iff source='grants_gov'.
+  grantOpportunityId String? @map("grant_opportunity_id")
+  /// SamOpportunity.id (uuid) — set iff source='sam_gov'.
+  samOpportunityId String? @map("sam_opportunity_id") @db.Uuid
+
+  /// 'suggested' | 'saved' | 'pursuing' | 'dismissed' | 'won' | 'lost' | 'expired'.
+  /// CHECK-constrained in the migration.
+  workflowStatus String @default("suggested") @map("workflow_status") @db.VarChar(16)
+  /// Assigned owner — `users.id`. Always same-tenant; the service verifies
+  /// membership before writing, because a uuid in a request body proves nothing.
+  ownerUserId String? @map("owner_user_id") @db.Uuid
+  /// Explicit, reviewable project site (`client_facilities.id`). The ONLY path
+  /// from an opportunity to a congressional district — never inferred from the
+  /// notice, which publishes applicant eligibility (grants) or a place of
+  /// performance that may be nowhere near the client (SAM).
+  facilityId String? @map("facility_id") @db.Uuid
+  notes      String? @db.Text
+
+  /// Deterministic snapshot from when this row was last scored. A SNAPSHOT, not
+  /// the live answer: the read path recomputes relevance on every request, so
+  /// these exist for producer bookkeeping, alert diffing and audit ("what did we
+  /// think when we suggested this"), never as the number rendered to a user.
+  relevanceScore    Int?    @map("relevance_score")
+  matchSignals      Json    @default("[]") @map("match_signals_jsonb")
+  eligibilityState  String? @map("eligibility_state") @db.VarChar(16)
+  eligibilityReason String? @map("eligibility_reason") @db.Text
+
+  /// How the row came to exist: 'deterministic_relevance_v1' (producer) or
+  /// 'user_action' (a human saved/pursued it). Mirrors
+  /// ClientGrantNexus.evidenceSourceType, and is what lets the producer tell its
+  /// own rows apart from a human's.
+  evidenceSourceType String @map("evidence_source_type") @db.VarChar(48)
+  /// TRUE when a human created this row. The producer must never overwrite one.
+  userCreated Boolean @default(false) @map("user_created")
+  /// Stamped when the producer decides a suggestion IT created no longer clears
+  /// the relevance floor. Never applied to a row a human has acted on — a
+  /// dismissal or a pursuit is a decision, not a stale guess.
+  staleAt DateTime? @map("stale_at") @db.Timestamptz(6)
+
+  dismissedReason String? @map("dismissed_reason") @db.Text
+  /// Free-text won/lost context. Only ever set by an explicit user action.
+  outcomeNote String? @map("outcome_note") @db.Text
+
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // ONE workflow row per (tenant, client, source opportunity) — a saved
+  // opportunity that the producer re-scores must update in place, not accumulate
+  // a second row whose status disagrees with the first.
+  //
+  // Enforced by two PARTIAL unique indexes in the migration
+  // (…WHERE grant_opportunity_id IS NOT NULL / …WHERE sam_opportunity_id IS NOT
+  // NULL), which Prisma cannot express: Postgres treats NULLs as distinct, so a
+  // plain @@unique across the nullable pair would admit unlimited duplicates for
+  // the other source. Nothing in this file may use `upsert` against those keys
+  // for the same reason — the writers do find-then-create-or-update, matching
+  // SamOpportunityMatch and generate-grant-opportunity-candidates.ts.
+  @@index([tenantId, clientId, workflowStatus], map: "client_funding_opportunity_tenant_client_status_idx")
+  @@index([tenantId, grantOpportunityId], map: "client_funding_opportunity_tenant_grant_idx")
+  @@index([tenantId, samOpportunityId], map: "client_funding_opportunity_tenant_sam_idx")
+  @@index([tenantId, ownerUserId], map: "client_funding_opportunity_tenant_owner_idx")
+  @@map("client_funding_opportunity")
+}
+
 /// Reviewed, EXPLICIT map from a DoD Major Defense Acquisition Program (MDAP)
 /// code — as it appears on USAspending contract records
 /// (latest_transaction_contract_data.dod_acquisition_program) — to a Program
@@ -5865,8 +5992,23 @@ model SamOpportunity {
   /// SAM.gov notice type (e.g. 'Solicitation', 'Combined Synopsis/Solicitation',
   /// 'Presolicitation', 'Sources Sought', 'Award Notice').
   noticeType         String    @map("notice_type") @db.VarChar(32)
+  /// SAM.gov `baseType` — the notice's ORIGINAL type before any amendment.
+  /// Distinct from `noticeType`: an amended solicitation carries type
+  /// 'Solicitation' with baseType 'Presolicitation', and conflating them makes a
+  /// sources-sought notice read as an open solicitation. Available on every
+  /// search-v2 record; recoverable for already-ingested rows from `raw`.
+  baseType           String?   @map("base_type") @db.VarChar(64)
   agency             String?
+  /// SAM.gov `subTier` — the service/component beneath the department. Almost
+  /// always null on DoD records (the org path is what is populated), so a null
+  /// here means "the notice did not say", not "no subagency".
+  subAgency          String?   @map("sub_agency")
   office             String?
+  /// SAM.gov `typeOfSetAsideDescription` (human-readable, e.g. 'Total Small
+  /// Business Set-Aside (FAR 19.5)'). NULL = full and open, or not stated.
+  setAside           String?   @map("set_aside")
+  /// SAM.gov `typeOfSetAside` (the code, e.g. 'SBA', 'SDVOSBC', '8AN').
+  setAsideCode       String?   @map("set_aside_code") @db.VarChar(16)
   /// Product/Service Code.
   pscCode            String?   @map("psc_code") @db.VarChar(8)
   naicsCode          String?   @map("naics_code") @db.VarChar(8)
@@ -5889,6 +6031,12 @@ model SamOpportunity {
   matches SamOpportunityMatch[]
 
   @@index([active, responseDeadline], map: "sam_opportunity_active_response_deadline_idx")
+  // Funding Opportunities read path: the default view is "active, soonest
+  // deadline first" filtered by notice type, and `notice_type` alone was not
+  // selective enough to keep that off a full scan of the notice table.
+  @@index([active, noticeType, responseDeadline], map: "sam_opportunity_active_type_deadline_idx")
+  @@index([setAsideCode], map: "sam_opportunity_set_aside_code_idx")
+  @@index([solicitationNumber], map: "sam_opportunity_solicitation_number_idx")
   @@index([naicsCode], map: "sam_opportunity_naics_code_idx")
   @@index([pscCode], map: "sam_opportunity_psc_code_idx")
   @@index([office], map: "sam_opportunity_office_idx")

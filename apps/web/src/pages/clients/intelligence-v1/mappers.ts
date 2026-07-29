@@ -20,6 +20,7 @@ export type {
 export type SectionId =
   | 'snapshot'
   | 'financial-footprint'
+  | 'funding-opportunities'
   | 'district-nexus'
   | 'legislative-regulatory';
 
@@ -43,15 +44,26 @@ export const SECTION_ORDER: SectionMeta[] = [
     title: 'Financial Footprint',
     shortTitle: 'Financial',
   },
+  // Funding Opportunities sits BEFORE District Nexus deliberately. The two are
+  // adjacent in a user's head and easy to conflate, and the order makes the
+  // distinction: this section is future pursuits, the next one is money already
+  // awarded into a district. It is a separate workflow, not a District Nexus
+  // sub-panel.
+  {
+    id: 'funding-opportunities',
+    num: 3,
+    title: 'Funding Opportunities',
+    shortTitle: 'Opportunities',
+  },
   {
     id: 'district-nexus',
-    num: 3,
+    num: 4,
     title: 'District Nexus',
     shortTitle: 'Districts',
   },
   {
     id: 'legislative-regulatory',
-    num: 4,
+    num: 5,
     title: 'Legislative & Regulatory',
     shortTitle: 'Legislative',
   },

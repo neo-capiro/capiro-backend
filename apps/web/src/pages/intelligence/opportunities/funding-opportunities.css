@@ -1,0 +1,166 @@
+/*
+ * Funding Opportunities.
+ *
+ * Layout only — colour comes from Ant Design tokens so the surface follows the
+ * app theme rather than pinning its own palette (district-nexus.css precedent).
+ *
+ * Everything wraps rather than scrolls horizontally: the fact strip and the
+ * filter row both hold a variable number of items, and a horizontal scrollbar on
+ * a narrow viewport hides fields (the deadline, the eligibility badge) that are
+ * the point of the row.
+ */
+
+.fo-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fo-page__header {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.fo-page__freshness {
+  margin-top: 8px;
+}
+
+/* KPI strip. Auto-fit rather than a fixed column count so the five tiles reflow
+   to two rows on a tablet instead of squeezing to unreadable widths. */
+.fo-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.fo-kpi {
+  border: 1px solid var(--ant-color-border-secondary, rgba(5, 5, 5, 0.06));
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--ant-color-bg-container, #fff);
+}
+
+.fo-kpi__label {
+  font-size: 11px;
+  opacity: 0.65;
+  line-height: 1.3;
+}
+
+.fo-kpi__value {
+  font-size: 20px;
+  font-weight: 600;
+  margin-top: 2px;
+  /* Tabular figures so a changing count does not shift the tile width. */
+  font-variant-numeric: tabular-nums;
+}
+
+.fo-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.fo-card__head {
+  margin-bottom: 6px;
+}
+
+.fo-card__title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.fo-card__meta {
+  margin-top: 2px;
+}
+
+.fo-card__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 10px 0 8px;
+}
+
+.fo-fact {
+  display: flex;
+  flex-direction: column;
+  min-width: 96px;
+}
+
+.fo-fact__label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.fo-fact__value {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fo-card__signals,
+.fo-card__gaps {
+  margin-bottom: 6px;
+}
+
+.fo-card__actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.fo-gaps {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+}
+
+.fo-gaps li {
+  margin-bottom: 4px;
+}
+
+.fo-pager {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+/* Client-profile card. Two columns on a wide viewport, one when narrow — the
+   grant and contract lists are independent and must never be read as one list. */
+.fo-client-card__lists {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.fo-client-card__list-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.65;
+  margin-bottom: 4px;
+}
+
+.fo-mini {
+  border-top: 1px solid var(--ant-color-border-secondary, rgba(5, 5, 5, 0.06));
+  padding: 6px 0;
+  font-size: 12px;
+}
+
+.fo-mini:first-of-type {
+  border-top: none;
+}
+
+.fo-mini__meta {
+  font-size: 11px;
+  opacity: 0.7;
+}

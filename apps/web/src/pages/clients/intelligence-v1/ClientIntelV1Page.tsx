@@ -16,6 +16,7 @@ import {
 } from './mappers.js';
 import { SnapshotSection } from './sections/SnapshotSection.js';
 import { FinancialFootprintSection } from './sections/FinancialFootprintSection.js';
+import { FundingOpportunitiesSection } from './sections/FundingOpportunitiesSection.js';
 import { DistrictNexusSection } from './sections/DistrictNexusSection.js';
 import { DistrictNexusRelationshipsPanel } from './sections/DistrictNexusRelationshipsPanel.js';
 import { LegislativeRegulatorySection } from './sections/LegislativeRegulatorySection.js';
@@ -205,6 +206,12 @@ export function ClientIntelV1Page({ clientId, clientName }: ClientIntelV1PagePro
                 />
 
                 <FinancialFootprintSection clientId={clientId} />
+
+                {/* Rendered unconditionally: the section owns its own feature-flag
+                    gate AND its own empty state, and it must render at zero
+                    matches. Gating it here on data would reintroduce the
+                    disappearing-card problem it exists to fix. */}
+                <FundingOpportunitiesSection clientId={clientId} />
 
                 <DistrictNexusSection clientId={clientId} />
 
