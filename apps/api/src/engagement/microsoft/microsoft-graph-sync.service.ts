@@ -463,7 +463,10 @@ export class MicrosoftGraphSyncService {
       const accessToken = await this.getValidAccessToken(tenantId, connectionId, token);
       for (const subscription of subscriptions) {
         try {
-          await this.graphDelete(`/subscriptions/${encodeURIComponent(subscription.id)}`, accessToken);
+          await this.graphDelete(
+            `/subscriptions/${encodeURIComponent(subscription.id)}`,
+            accessToken,
+          );
           deleted += 1;
         } catch (err) {
           this.logger.warn(
@@ -545,9 +548,7 @@ export class MicrosoftGraphSyncService {
           : {}),
         ...(correlationHeader
           ? {
-              internetMessageHeaders: [
-                { name: 'X-Capiro-Delivery-Id', value: correlationHeader },
-              ],
+              internetMessageHeaders: [{ name: 'X-Capiro-Delivery-Id', value: correlationHeader }],
             }
           : {}),
       },
@@ -566,7 +567,11 @@ export class MicrosoftGraphSyncService {
 
     // 2. Send the draft. From here the outcome may be genuinely undetermined.
     try {
-      await this.graphPostNoContent(`/me/messages/${encodeURIComponent(draftId)}/send`, accessToken, undefined);
+      await this.graphPostNoContent(
+        `/me/messages/${encodeURIComponent(draftId)}/send`,
+        accessToken,
+        undefined,
+      );
     } catch (err) {
       if (isAmbiguousGraphSendFailure(err)) {
         throw new AmbiguousMailSendError(
@@ -1778,7 +1783,34 @@ export class MicrosoftGraphSyncService {
       });
     });
     if (lifecycleEvent === 'missed') {
-      void this.syncConnectionByTenant(tenantId, connectionId).catch(() => undefined);
+      // Through the SAME bound queue as notification-driven syncs.
+      //
+      // This was the one remaining unbounded launch site after the fan-out was
+      // bounded, and it is the worst-placed one: a 'missed' lifecycle event means
+      // Graph could not deliver, so it arrives precisely alongside the backlog
+      // burst the bound exists to absorb. Several mailboxes reporting 'missed'
+      // together therefore reintroduced exactly the concurrency the queue removes.
+      //
+      // The key is namespaced 'lifecycle:' rather than reusing the
+      // '<connectionId>:mail|calendar' notification keys, because this resync
+      // covers BOTH resources — collapsing it into either key would let a queued
+      // single-resource sync suppress a full one.
+      //
+      // The previous `.catch(() => undefined)` also swallowed the failure
+      // outright, so a resync that never worked left no trace anywhere. Graph has
+      // already told us notifications were lost at this point; silently losing the
+      // recovery as well is how a mailbox goes quietly stale.
+      this.enqueueNotificationSync(`lifecycle:${connectionId}`, connectionId, async () => {
+        try {
+          return await this.syncConnectionByTenant(tenantId, connectionId);
+        } catch (err) {
+          this.logger.error(
+            `Graph 'missed' lifecycle resync failed for connection ${connectionId}: ` +
+              `${(err as Error).message}`,
+          );
+          return undefined;
+        }
+      });
     }
   }
 

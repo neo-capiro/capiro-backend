@@ -183,3 +183,141 @@ describe('handleNotifications fan-out bound', () => {
     expect(errors[0]).toContain('Graph notification sync failed for connection');
   });
 });
+
+/**
+ * The lifecycle resync was the one launch site left unbounded after the fan-out
+ * bound landed, and it is the worst-placed one: a 'missed' lifecycle event means
+ * Graph could not deliver, so it arrives alongside exactly the backlog burst the
+ * bound exists to absorb. Several mailboxes reporting 'missed' together
+ * reintroduced the concurrency the queue removes.
+ */
+describe("'missed' lifecycle resync is bounded too", () => {
+  function makeLifecycleService() {
+    const service = Object.create(MicrosoftGraphSyncService.prototype) as MicrosoftGraphSyncService;
+    const patch = service as unknown as Record<string, unknown>;
+    const errors: string[] = [];
+    patch.logger = { warn: () => {}, error: (msg: string) => errors.push(msg), log: () => {} };
+    patch.prisma = {
+      withTenant: async (_t: string, fn: (tx: unknown) => unknown) =>
+        fn({
+          integrationConnection: { update: async () => undefined, findFirst: async () => ({}) },
+        }),
+      // recordLifecycleEvent reads the connection with findUnique, then updates it.
+      withSystem: async (fn: (tx: unknown) => unknown) =>
+        fn({
+          integrationConnection: {
+            findUnique: async () => ({ syncState: { webhooks: {} } }),
+            findMany: async () => [],
+            update: async () => undefined,
+          },
+        }),
+    };
+
+    const gates: Deferred[] = [];
+    let concurrent = 0;
+    let peak = 0;
+    const started: string[] = [];
+    patch.syncConnectionByTenant = async (_t: string, connectionId: string) => {
+      started.push(connectionId);
+      concurrent += 1;
+      peak = Math.max(peak, concurrent);
+      const gate = deferred();
+      gates.push(gate);
+      await gate.promise;
+      concurrent -= 1;
+      return { connectionId };
+    };
+
+    return {
+      service,
+      errors,
+      started: () => [...started],
+      peak: () => peak,
+      releaseAll: async () => {
+        while (gates.length) {
+          const wave = gates.splice(0, gates.length);
+          for (const gate of wave) gate.resolve();
+          await new Promise((r) => setImmediate(r));
+        }
+      },
+    };
+  }
+
+  /** Drive the private lifecycle recorder the webhook calls. */
+  async function recordMissed(service: MicrosoftGraphSyncService, connectionId: string) {
+    await (
+      service as unknown as {
+        recordLifecycleEvent: (t: string, c: string, e: string) => Promise<void>;
+      }
+    ).recordLifecycleEvent('t1', connectionId, 'missed');
+  }
+
+  it('never exceeds the bound when several mailboxes report missed at once', async () => {
+    const h = makeLifecycleService();
+
+    await Promise.all(Array.from({ length: 6 }, (_, i) => recordMissed(h.service, `conn-${i}`)));
+    for (let i = 0; i < 5; i += 1) await new Promise((r) => setImmediate(r));
+
+    // Pre-fix this was 6 — one unawaited sync per mailbox.
+    expect(h.peak()).toBe(EXPECTED_BOUND);
+
+    await h.releaseAll();
+    expect(h.started()).toHaveLength(6);
+  });
+
+  it('logs a failed resync instead of swallowing it', async () => {
+    const service = Object.create(MicrosoftGraphSyncService.prototype) as MicrosoftGraphSyncService;
+    const patch = service as unknown as Record<string, unknown>;
+    const errors: string[] = [];
+    patch.logger = { warn: () => {}, error: (msg: string) => errors.push(msg), log: () => {} };
+    patch.prisma = {
+      withTenant: async (_t: string, fn: (tx: unknown) => unknown) =>
+        fn({
+          integrationConnection: { update: async () => undefined, findFirst: async () => ({}) },
+        }),
+      // recordLifecycleEvent reads the connection with findUnique, then updates it.
+      withSystem: async (fn: (tx: unknown) => unknown) =>
+        fn({
+          integrationConnection: {
+            findUnique: async () => ({ syncState: { webhooks: {} } }),
+            findMany: async () => [],
+            update: async () => undefined,
+          },
+        }),
+    };
+    patch.syncConnectionByTenant = async () => {
+      throw new Error('resync boom');
+    };
+
+    await recordMissed(service, 'conn-x');
+    for (let i = 0; i < 10; i += 1) await new Promise((r) => setImmediate(r));
+
+    // The old `.catch(() => undefined)` left no trace at all — and Graph had
+    // already told us notifications were lost.
+    expect(errors.some((e) => /lifecycle resync failed/.test(e))).toBe(true);
+  });
+
+  it('does not let a queued lifecycle resync suppress a single-resource sync', async () => {
+    // The lifecycle key is namespaced, so it cannot collide with the
+    // '<connectionId>:mail' / ':calendar' notification keys.
+    const h = makeLifecycleService();
+    await recordMissed(h.service, 'conn-0');
+    await new Promise((r) => setImmediate(r));
+
+    // With a free slot the key moves straight from `queued` to `running`, so
+    // inspect both.
+    const state = (
+      h.service as unknown as {
+        notificationSyncState: { queued: Set<string>; running: Set<string> };
+      }
+    ).notificationSyncState;
+    const keys = [...state.queued, ...state.running];
+    expect(keys.some((k) => k.startsWith('lifecycle:'))).toBe(true);
+    // Namespaced, so it cannot collide with (and therefore cannot suppress) a
+    // single-resource notification sync for the same connection.
+    expect(keys).not.toContain('conn-0:mail');
+    expect(keys).not.toContain('conn-0:calendar');
+
+    await h.releaseAll();
+  });
+});
