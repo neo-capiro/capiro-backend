@@ -55,7 +55,8 @@ CREATE INDEX IF NOT EXISTS memory_cleanup_outbox_clio_pending_idx
   ON memory_cleanup_outbox (tenant_id, clio_memory_id)
   WHERE operation = 'index_memory_item' AND status IN ('pending', 'failed');
 
-COMMENT ON COLUMN memory_cleanup_outbox.memory_item_id IS
-  'Subject for projection-DELETION jobs. NULL for index_memory_item jobs, which '
-  'are enqueued before the memory_items row exists and name clio_memory_id '
-  'instead. memory_cleanup_subject_present_check requires one of the two.';
+-- ONE string literal on purpose. PostgreSQL does concatenate adjacent literals
+-- separated by a newline, but relying on that here would make the statement's
+-- validity depend on whitespace surviving every future edit — and a syntax error
+-- in a migration blocks every migration after it.
+COMMENT ON COLUMN memory_cleanup_outbox.memory_item_id IS 'Subject for projection-DELETION jobs. NULL for index_memory_item jobs, which are enqueued before the memory_items row exists and name clio_memory_id instead. memory_cleanup_subject_present_check requires one of the two.';
