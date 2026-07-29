@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { App as AntApp } from 'antd';
-import { RadarPage } from './RadarPage.js';
+import {
+  RadarPage,
+  tenantBoardCardMatchesFilter,
+  tenantBoardChangeTone,
+  type TenantBoardCard,
+} from './RadarPage.js';
 import { BillDrawer, bill360DrawerWidth } from './BillDrawer.js';
 
 const apiGetMock = vi.fn();
@@ -50,32 +55,72 @@ function mockApi(flags: Record<string, boolean>) {
     if (url.startsWith('/intel-api/upcoming-hearings/browse')) {
       return { data: { items: [], total: 0 } };
     }
-    // L2b all-clients board roll-up: client-labelled cards across the tenant.
-    if (url.endsWith('/_all/tracker/board')) {
+    // L2b all-clients board roll-up: client-labelled, keyset-paginated cards.
+    if (url.includes('/_all/tracker/board')) {
+      const secondPage = url.includes('cursor=page-2');
       return {
-        data: {
-          columns: [
-            { id: 'introduced', label: 'Introduced', cards: [] },
-            {
-              id: 'committee',
-              label: 'In committee',
-              cards: [
+        data: secondPage
+          ? {
+              columns: [
+                { id: 'introduced', label: 'Introduced', cards: [] },
                 {
-                  billId: 'hr-1',
-                  displayNum: 'H.R. 1',
-                  title: 'Test Roll-up Act',
-                  passageProbability: 80,
-                  unread: false,
-                  matchedTags: [],
-                  changeChip: null,
-                  hearingCount: 0,
-                  clientId: 'c1',
-                  clientName: 'Acme Aerospace',
+                  id: 'committee',
+                  label: 'In committee',
+                  cards: [
+                    {
+                      billId: 'hr-2',
+                      displayNum: 'H.R. 2',
+                      title: 'Second Page Act',
+                      passageProbability: 65,
+                      unread: false,
+                      matchedTags: ['Defense'],
+                      matchedHighPriorityTopics: ['Defense'],
+                      changeChip: null,
+                      hearingCount: 1,
+                      clientId: 'c1',
+                      clientName: 'Acme Aerospace',
+                    },
+                  ],
                 },
               ],
+              nextCursor: null,
+              hasMore: false,
+              total: 2,
+              withheld: 0,
+            }
+          : {
+              columns: [
+                { id: 'introduced', label: 'Introduced', cards: [] },
+                {
+                  id: 'committee',
+                  label: 'In committee',
+                  cards: [
+                    {
+                      billId: 'hr-1',
+                      displayNum: 'H.R. 1',
+                      title: 'Test Roll-up Act',
+                      passageProbability: 80,
+                      unread: false,
+                      matchedTags: ['General relevance'],
+                      matchedHighPriorityTopics: [],
+                      changeChip: {
+                        label: 'Critical move',
+                        changeType: 'bill_failed',
+                        severity: 'critical',
+                        tone: 'critical',
+                      },
+                      hearingCount: 0,
+                      clientId: 'c1',
+                      clientName: 'Acme Aerospace',
+                    },
+                  ],
+                },
+              ],
+              nextCursor: 'page-2',
+              hasMore: true,
+              total: 2,
+              withheld: 1,
             },
-          ],
-        },
       };
     }
     if (url.endsWith('/tracker/board')) return { data: { columns: [], total: 0 } };
@@ -119,6 +164,43 @@ function renderRadar(initialEntry: string) {
     </QueryClientProvider>,
   );
 }
+
+const tenantCard = (patch: Partial<TenantBoardCard> = {}): TenantBoardCard => ({
+  billId: 'hr-1',
+  displayNum: 'H.R. 1',
+  title: 'Example',
+  passageProbability: 0.5,
+  unread: false,
+  matchedTags: [],
+  matchedHighPriorityTopics: [],
+  changeChip: null,
+  clientId: 'c1',
+  clientName: 'Acme',
+  ...patch,
+});
+
+describe('tenant board trust helpers', () => {
+  test('Priority-tag filter requires a high-priority topic, not any matched tag', () => {
+    expect(
+      tenantBoardCardMatchesFilter(
+        tenantCard({ matchedTags: ['General relevance'], matchedHighPriorityTopics: [] }),
+        'hifit',
+      ),
+    ).toBe(false);
+    expect(
+      tenantBoardCardMatchesFilter(
+        tenantCard({ matchedTags: ['Defense'], matchedHighPriorityTopics: ['Defense'] }),
+        'hifit',
+      ),
+    ).toBe(true);
+  });
+
+  test('change indicator preserves the server tone with a severity fallback', () => {
+    expect(tenantBoardChangeTone(tenantCard({ changeChip: { label: 'Failed', changeType: 'bill_failed', tone: 'critical' } }))).toBe('critical');
+    expect(tenantBoardChangeTone(tenantCard({ changeChip: { label: 'Info', changeType: 'bill_action', severity: 'info' } }))).toBe('info');
+    expect(tenantBoardChangeTone(tenantCard({ changeChip: { label: 'Unknown', changeType: null } }))).toBe('notable');
+  });
+});
 
 describe('RadarPage', () => {
   beforeEach(() => {
@@ -213,6 +295,7 @@ describe('RadarPage', () => {
     renderRadar('/radar');
 
     await waitFor(() => expect(screen.getByText('What LegiWatch does')).toBeInTheDocument());
+    expect(screen.getByText(/legislation, hearings, regulations, and defense-budget changes/i)).toBeInTheDocument();
     // The permanent reopen control is present in the top bar.
     expect(screen.getByRole('button', { name: /How it works/i })).toBeInTheDocument();
     // Dismiss ("Got it") persists the per-user seen-flag so it won't reappear.
@@ -230,9 +313,32 @@ describe('RadarPage', () => {
     expect(screen.getByText('Test Roll-up Act')).toBeInTheDocument();
     // Each card is labelled with its client (U4 roll-up).
     expect(screen.getByText('Acme Aerospace')).toBeInTheDocument();
+    // The global card must preserve the server's critical tone instead of
+    // painting every change as ordinary/notable.
+    expect(screen.getByTitle('Critical move')).toHaveClass('critical');
     // It fetches the tenant-wide board, not a per-client one.
     expect(
       apiGetMock.mock.calls.some((args: unknown[]) => String(args[0]).includes('/_all/tracker/board')),
+    ).toBe(true);
+  });
+
+  test('L2b: all-clients Bills loads every keyset page instead of silently stopping at page one', async () => {
+    mockApi({ tracker_v2: true });
+    renderRadar('/radar?tab=bills');
+
+    await waitFor(() => expect(screen.getByText('H.R. 1')).toBeInTheDocument());
+    expect(screen.queryByText('H.R. 2')).not.toBeInTheDocument();
+    expect(screen.getByText(/Showing 1 of 2 tracked bills/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Load more tracked bills/i }));
+
+    await waitFor(() => expect(screen.getByText('H.R. 2')).toBeInTheDocument());
+    expect(screen.getByText('Second Page Act')).toBeInTheDocument();
+    expect(screen.getByText(/Showing 2 of 2 tracked bills/i)).toBeInTheDocument();
+    expect(
+      apiGetMock.mock.calls.some((args: unknown[]) =>
+        String(args[0]).includes('/_all/tracker/board?cursor=page-2'),
+      ),
     ).toBe(true);
   });
 

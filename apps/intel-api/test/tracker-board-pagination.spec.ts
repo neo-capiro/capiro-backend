@@ -68,20 +68,34 @@ function matchesWhere(row: FakeBillRow, where: Record<string, unknown>): boolean
   const stageNot = (where['stage'] as { not?: string } | undefined)?.not;
   if (stageNot && row.stage === stageNot) return false;
   const or = where['OR'] as
-    | [{ trackedAt: { lt: Date } }, { trackedAt: Date; billId: { lt: string } }]
+    | [
+        { trackedAt: { lt: Date } },
+        { trackedAt: Date; billId: { lt: string } },
+        { trackedAt: Date; billId: string; clientId: { lt: string } }?,
+      ]
     | undefined;
   if (or) {
     const passLt = row.trackedAt.getTime() < or[0].trackedAt.lt.getTime();
-    const passEq =
+    const passBill =
       row.trackedAt.getTime() === or[1].trackedAt.getTime() && row.billId < or[1].billId.lt;
-    if (!(passLt || passEq)) return false;
+    const clientTie = or[2];
+    const passClient = Boolean(
+      clientTie &&
+        row.trackedAt.getTime() === clientTie.trackedAt.getTime() &&
+        row.billId === clientTie.billId &&
+        row.clientId < clientTie.clientId.lt,
+    );
+    if (!(passLt || passBill || passClient)) return false;
   }
   return true;
 }
 
 function sortRows(rows: FakeBillRow[]): FakeBillRow[] {
   return [...rows].sort(
-    (a, b) => b.trackedAt.getTime() - a.trackedAt.getTime() || (a.billId < b.billId ? 1 : -1),
+    (a, b) =>
+      b.trackedAt.getTime() - a.trackedAt.getTime() ||
+      (a.billId < b.billId ? 1 : a.billId > b.billId ? -1 : 0) ||
+      (a.clientId < b.clientId ? 1 : a.clientId > b.clientId ? -1 : 0),
   );
 }
 
@@ -247,6 +261,36 @@ describe('TrackerBoardService — getTenantBoard pagination (P1-18)', () => {
     ];
     expect(allIds.filter((id) => id === 'bill-aaaa')).toHaveLength(1);
     expect(allIds.filter((id) => id === 'bill-bbbb')).toHaveLength(1);
+  });
+
+  it('a-8.3b: same bill + same timestamp across two clients is never skipped at a page boundary', async () => {
+    const tied = new Date(BASE_MS);
+    const common = {
+      billId: 'bill-shared',
+      stage: 'introduced',
+      trackedAt: tied,
+      note: null,
+      isManual: true,
+      unread: false,
+      lastSeenActionText: null,
+      lastSeenActionDate: null,
+      lastHearingSessionId: null,
+      lastHearingAt: null,
+    };
+    const rows: FakeBillRow[] = [
+      { ...common, clientId: 'client-z' },
+      { ...common, clientId: 'client-a' },
+      ...makeRows(1, 'client-older', 10_000),
+    ];
+    const h = makeHarness(rows);
+    const page1 = await h.svc.getTenantBoard(TENANT, { limit: 1 });
+    const page2 = await h.svc.getTenantBoard(TENANT, { cursor: page1.nextCursor!, limit: 1 });
+
+    const keys = [...page1.columns, ...page2.columns]
+      .flatMap((c) => c.cards)
+      .map((card) => `${card.clientId}:${card.billId}`);
+    expect(keys).toEqual(['client-z:bill-shared', 'client-a:bill-shared']);
+    expect(new Set(keys).size).toBe(2);
   });
 
   it('a-8.4 (a-6 lock): query count is CONSTANT in client count — 1 client and 50 clients issue the same number of queries', async () => {

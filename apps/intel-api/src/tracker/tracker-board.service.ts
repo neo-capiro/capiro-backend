@@ -79,6 +79,8 @@ const BOARD_PAGE_SIZE_MAX = 500;
 interface BoardCursor {
   t: string;
   id: string;
+  /** Tenant-wide board only: completes the (trackedAt,billId,clientId) key. */
+  c?: string;
 }
 const b64encode = (obj: unknown): string =>
   Buffer.from(JSON.stringify(obj), 'utf8').toString('base64url');
@@ -88,7 +90,8 @@ const b64decode = (cur: string): BoardCursor | null => {
     const parsed = JSON.parse(Buffer.from(cur, 'base64url').toString('utf8')) as unknown;
     return parsed &&
       typeof (parsed as BoardCursor).t === 'string' &&
-      typeof (parsed as BoardCursor).id === 'string'
+      typeof (parsed as BoardCursor).id === 'string' &&
+      ((parsed as BoardCursor).c === undefined || typeof (parsed as BoardCursor).c === 'string')
       ? (parsed as BoardCursor)
       : null;
   } catch {
@@ -97,6 +100,13 @@ const b64decode = (cur: string): BoardCursor | null => {
 };
 function encodeBoardCursor(row: { trackedAt: Date; billId: string }): string {
   return b64encode({ t: row.trackedAt.toISOString(), id: row.billId } satisfies BoardCursor);
+}
+function encodeTenantBoardCursor(row: { trackedAt: Date; billId: string; clientId: string }): string {
+  return b64encode({
+    t: row.trackedAt.toISOString(),
+    id: row.billId,
+    c: row.clientId,
+  } satisfies BoardCursor);
 }
 
 /**
@@ -895,9 +905,17 @@ export class TrackerBoardService {
     else if (opts.filters?.activeOnly) baseWhere['stage'] = { not: 'enacted' };
     const pageWhere: Record<string, unknown> = { ...baseWhere };
     if (cur) {
+      // The tenant board's real row identity is (clientId,billId). Two clients
+      // commonly track the same bill, and batch sync can give them the exact same
+      // trackedAt. A two-column cursor skipped the remaining client at a page
+      // boundary. New cursors carry `c`; old deployed cursors retain the legacy
+      // two-column continuation until they naturally expire from the UI.
       pageWhere['OR'] = [
         { trackedAt: { lt: new Date(cur.t) } },
         { trackedAt: new Date(cur.t), billId: { lt: cur.id } },
+        ...(cur.c
+          ? [{ trackedAt: new Date(cur.t), billId: cur.id, clientId: { lt: cur.c } }]
+          : []),
       ];
     }
 
@@ -905,7 +923,7 @@ export class TrackerBoardService {
       this.prisma.withTenant(tenantId, (tx) =>
         tx.trackedBill.findMany({
           where: pageWhere,
-          orderBy: [{ trackedAt: 'desc' }, { billId: 'desc' }],
+          orderBy: [{ trackedAt: 'desc' }, { billId: 'desc' }, { clientId: 'desc' }],
           take: take + 1,
         }),
       ),
@@ -915,7 +933,13 @@ export class TrackerBoardService {
     const page = hasMore ? tracked.slice(0, take) : tracked;
     const last = page[page.length - 1];
     const nextCursor =
-      hasMore && last ? encodeBoardCursor({ trackedAt: last.trackedAt, billId: last.billId }) : null;
+      hasMore && last
+        ? encodeTenantBoardCursor({
+            trackedAt: last.trackedAt,
+            billId: last.billId,
+            clientId: last.clientId,
+          })
+        : null;
     const withheld = Math.max(0, total - page.length);
     if (!page.length) return { columns: empty(), nextCursor, hasMore, total, withheld };
 

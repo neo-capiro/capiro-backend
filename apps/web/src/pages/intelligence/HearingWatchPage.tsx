@@ -8,7 +8,7 @@ import {
   isMediaUrl,
   useBrowseHearings,
   useCreateHearing,
-  useHearingSessions,
+  useHearingSessionHistory,
   useResolveStream,
   useUpcomingHearings,
   type ResolveStreamResult,
@@ -443,16 +443,21 @@ function ScheduleView({ onWatch }: { onWatch: (r: UpcomingHearing) => void }) {
 /** Watch history — every hearing session (transcribed / live). */
 function SessionsView() {
   const navigate = useNavigate();
-  const sessions = useHearingSessions();
+  const history = useHearingSessionHistory();
+  const sessions = useMemo(
+    () => history.data?.pages.flatMap((page) => page.items) ?? [],
+    [history.data],
+  );
+  const total = history.data?.pages[0]?.total ?? sessions.length;
 
-  if (sessions.isLoading) {
+  if (history.isLoading) {
     return (
       <div style={{ padding: '48px 0', textAlign: 'center' }}>
         <Spin />
       </div>
     );
   }
-  if (!sessions.data || sessions.data.length === 0) {
+  if (sessions.length === 0) {
     return (
       <div className="guide">
         <div className="gico">
@@ -473,10 +478,10 @@ function SessionsView() {
         <span className="hico">
           <Ic n="layers" size={13} />
         </span>
-        Every hearing you’ve watched or transcribed. The recaps you save to a client live in that
-        client’s profile under <b>Saved</b>.
+        Every hearing you’ve watched or transcribed. Recaps saved to a client are filed in that
+        client’s <b>Documents</b> and indexed into Meri knowledge.
       </span>
-      {sessions.data.map((s) => {
+      {sessions.map((s) => {
         const live = s.status === 'live';
         return (
           <div
@@ -516,6 +521,20 @@ function SessionsView() {
           </div>
         );
       })}
+      <div style={{ textAlign: 'center' }}>
+        <div className="muted mini" style={{ marginBottom: history.hasNextPage ? 6 : 0 }}>
+          Showing {sessions.length.toLocaleString()} of {total.toLocaleString()} sessions
+        </div>
+        {history.hasNextPage ? (
+          <button
+            className="btn"
+            disabled={history.isFetchingNextPage}
+            onClick={() => void history.fetchNextPage()}
+          >
+            {history.isFetchingNextPage ? 'Loading…' : 'Load more sessions'}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -530,14 +549,14 @@ export function HearingWatchPage() {
     >
       {!enabled ? (
         <div className="guide plain">
-          <h4>Hearing Watch is not enabled</h4>
-          <p>This workspace doesn’t have Hearing Watch turned on yet.</p>
+          <h4>LegiWatch Hearings is not enabled</h4>
+          <p>This workspace doesn’t have the LegiWatch hearing capability turned on yet.</p>
         </div>
       ) : (
         <>
           <div className="pg-head">
             <h1 className="pg-title">
-              <AudioOutlined /> Hearing Watch
+              <AudioOutlined /> LegiWatch Hearings
             </h1>
             <p className="pg-desc">
               Client-ready intelligence from public hearings — track terms, watch hearings live, and
@@ -643,11 +662,10 @@ function NewHearingModal({
             // connect. Show provenance only; leave the URL field untouched.
             if (normalized.media.ipBound) {
               setProvenance(
-                normalized.note ??
-                  `via ${normalized.media.provider} — resolves at connect time (not persisted)`,
+                `via ${normalized.media.provider} — short-lived source; open it and share that tab’s audio`,
               );
               message.warning(
-                'This source is IP-bound and short-lived; it is not saved. It resolves at connect time (not yet wired) — see the note.',
+                'This source is IP-bound and short-lived, so its media URL is not saved. Open the source from the Live Hearing Room and share that tab’s audio.',
               );
             } else {
               form.setFieldsValue({ sourceUrl: normalized.media.url });
@@ -681,10 +699,10 @@ function NewHearingModal({
           if (r.status === 'resolved' && r.media) {
             if (r.media.ipBound) {
               setProvenance(
-                r.note ?? `via ${r.media.provider} — resolves at connect time (not persisted)`,
+                `via ${r.media.provider} — short-lived source; open it and share that tab’s audio`,
               );
               message.warning(
-                'This source is IP-bound and short-lived; it is not saved. It resolves at connect time (not yet wired) — see the note.',
+                'This source is IP-bound and short-lived, so its media URL is not saved. Open the source from the Live Hearing Room and share that tab’s audio.',
               );
             } else {
               form.setFieldsValue({ sourceUrl: r.media.url });
@@ -792,8 +810,8 @@ function NewHearingModal({
         {/* Resolver outcomes ------------------------------------------------- */}
         {resolved?.status === 'resolved' && provenance ? (
           <Alert
-            // An IP-bound / short-lived source (YouTube-live) is NOT persisted and
-            // resolves at connect time; surface it as a warning, not a success.
+            // An IP-bound / short-lived source (YouTube-live) is not persisted.
+            // Surface the real browser-tab fallback as a warning, not a success.
             type={resolved.media?.ipBound ? 'warning' : 'success'}
             showIcon
             style={{ marginBottom: 12 }}
@@ -807,10 +825,9 @@ function NewHearingModal({
                     <Tag color="orange">IP-bound / short-lived</Tag>
                     <br />
                     <Text type="secondary">
-                      This stream URL is IP-bound and expires (~6h). It is NOT saved with
-                      the session; it resolves at connect time. That path isn&apos;t wired
-                      yet — this source is a known limitation while YouTube-live is gated
-                      off.
+                      This media URL is short-lived and is not saved with the session. Open
+                      the original source from the Live Hearing Room, play it, and share that
+                      browser tab&apos;s audio to transcribe it.
                     </Text>
                   </>
                 ) : null}
