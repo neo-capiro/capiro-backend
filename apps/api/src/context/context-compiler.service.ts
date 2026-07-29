@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   ContextCompiler,
+  GOVERNED_STEERING_COLUMNS_SQL,
   type CompiledContextPacket,
   type ContextRequest,
   type ContextStoreAdapter,
@@ -24,6 +25,12 @@ export class ContextCompilerService {
   constructor(private readonly prisma: PrismaService) {
     const adapter: ContextStoreAdapter = {
       loadSteeringRows: (req) => this.loadSteeringRows(req),
+      // Only ever called from compileV2, which only runs when a caller opted into
+      // contractVersion 2 — i.e. behind `CONTEXT_PACKET_V2=enforce`. The governed
+      // columns it SELECTs are added by an UNAPPLIED migration
+      // (20260729010000_memory_governance_context_v2), so keeping it on the v2
+      // path is what stops it failing on a missing column today.
+      loadGovernedSteeringRows: (req) => this.loadSteeringRows(req, { governed: true }),
       persistPacket: (packet) => this.persistPacket(packet),
     };
     this.compiler = new ContextCompiler(adapter);
@@ -33,7 +40,10 @@ export class ContextCompilerService {
     return this.compiler.compile(req);
   }
 
-  private async loadSteeringRows(req: ContextRequest): Promise<SteeringRow[]> {
+  private async loadSteeringRows(
+    req: ContextRequest,
+    opts: { governed?: boolean } = {},
+  ): Promise<SteeringRow[]> {
     const wantsUser = hasLayer(req.layers, 'user-voice') && !!req.userId;
     const wantsClientReq =
       (hasLayer(req.layers, 'client-steering') || hasLayer(req.layers, 'client-people')) &&
@@ -58,6 +68,7 @@ export class ContextCompilerService {
                expires_at AS "expiresAt", updated_at AS "updatedAt",
                last_confirmed_at AS "confirmedAt", provenance AS authority,
                sections_jsonb AS sections
+               ${Prisma.raw(opts.governed ? GOVERNED_STEERING_COLUMNS_SQL : '')}
         FROM memory_items
         WHERE (
           (${wantsFirm} AND type = ANY(${firmTypes}) AND slug = 'firm')
@@ -119,10 +130,46 @@ export class ContextCompilerService {
           exclusionCount: packet.exclusions.length,
           blockChars: packet.rendered.reduce((sum, item) => sum + item.body.length, 0),
           packetHash: packet.traceHash,
+          ...contextPacketVersionColumns(packet),
         },
       }),
     );
   }
+}
+
+/**
+ * The v2 provenance columns, written ONLY for a genuinely compiled v2 packet.
+ *
+ * `packet_version` is owned by `20260803010000_engagement_generation_gateway`,
+ * where 1 = legacy steering-only trace and 2 = a complete Evidence Packet. The DB
+ * default is 2, so every v1 steering trace has been stored claiming to be a v2
+ * packet. Writing the value EXPLICITLY per compiled contract makes each row say
+ * what it is: a v1 steering trace is stamped 1, a compiled v2 packet is stamped 2.
+ * No existing row is rewritten — that blanket rewrite was the high-severity bug
+ * this migration pair already had to undo once.
+ *
+ * The v2 columns are only emitted for `version === 2`, which can only happen when
+ * `CONTEXT_PACKET_V2=enforce` armed the surface, which can only be true after the
+ * governance migration has been applied.
+ */
+export function contextPacketVersionColumns(
+  packet: CompiledContextPacket,
+): Partial<Prisma.ContextPacketUncheckedCreateInput> {
+  if (packet.version !== 2) return { packetVersion: 1 };
+  return {
+    packetVersion: 2,
+    actorUserId: packet.actorUserId,
+    traceId: packet.traceId,
+    promptVersion: packet.promptVersion,
+    policyVersion: packet.policyVersion,
+    compilerVersion: packet.compilerVersion,
+    requiredLayers: [...packet.requiredLayers],
+    health: packet.health as unknown as Prisma.InputJsonValue,
+    totalTokenBudget: packet.totalTokenBudget,
+    usedTokens: packet.usedTokens,
+    truncated: packet.truncated,
+    incomplete: packet.incomplete,
+  };
 }
 
 function hasLayer(layers: readonly SteeringLayer[], layer: SteeringLayer): boolean {

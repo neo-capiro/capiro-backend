@@ -1,8 +1,11 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import type { TenantRole } from '@capiro/shared';
 import {
+  contextPacketV2Overrides,
   renderedBody,
   type CompiledContextPacket,
+  type ContextSurface,
   type MeriContext,
   type MeriContextPacketSummary,
 } from '@capiro/meriv2-core';
@@ -12,7 +15,7 @@ import type { OrchestratorTenantContext } from '../auth/tenant-context.js';
 
 function packetSummary(
   packet: CompiledContextPacket,
-  requestedSurface: 'ga-chat' | 'workspace-editor',
+  requestedSurface: ContextSurface,
 ): MeriContextPacketSummary {
   const renderedById = new Map(packet.rendered.map((item) => [item.id, item]));
   // These three reasons mean the caller isn't authorized to know the item
@@ -39,10 +42,19 @@ function packetSummary(
         label: rendered?.title || item.type,
         type: item.type,
         scope,
-        authority: 'human-authored',
+        // A v2 item knows its real governed authority and whether the user picked
+        // it. Hardcoding 'human-authored'/'automatic' over a v2 packet would print
+        // "Authority · human-authored" above a model_inferred item. v1 items have
+        // no provenance to report, so they keep the legacy label.
+        authority: 'authority' in item ? item.authority : 'human-authored',
         userScoped: scope === 'personal',
         rationale: 'rationale' in item ? item.rationale : item.inclusionReason,
-        selection: 'automatic',
+        selection:
+          'selectionTier' in item && item.selectionTier === 'explicit' ? 'explicit' : 'automatic',
+        ...('asOf' in item && item.asOf ? { asOf: item.asOf } : {}),
+        ...('lastConfirmedAt' in item && item.lastConfirmedAt
+          ? { lastConfirmedAt: item.lastConfirmedAt }
+          : {}),
       };
     }),
     exclusions: packet.exclusions
@@ -57,6 +69,9 @@ function packetSummary(
     // v1 packets have no health concept to be degraded in; v2 packets must
     // actually report their compiled health rather than claim success blindly.
     degraded: packet.version === 2 ? packet.health.status !== 'healthy' : false,
+    ...(packet.version === 2 && packet.health.reasons.length
+      ? { degradedReason: packet.health.reasons.join('; ') }
+      : {}),
   };
 }
 
@@ -69,10 +84,18 @@ export class MeriContextResolver {
     private readonly contextCompiler: OrchestratorContextCompilerService,
   ) {}
 
+  /**
+   * @param surface the surface asking for context. It is written verbatim to
+   *   `context_packet.surface`, so passing the wrong one mislabels the trace. It
+   *   used to be typed as only `'ga-chat' | 'workspace-editor'`, which meant
+   *   Strategy and Steward silently fell through to the `'ga-chat'` default and
+   *   their rows both mis-attributed themselves and competed with real chat
+   *   packets in the chat Context Inspector's lookup.
+   */
   async resolve(
     tenant: OrchestratorTenantContext,
     clientId?: string | null,
-    surface: 'ga-chat' | 'workspace-editor' = 'ga-chat',
+    surface: ContextSurface = 'ga-chat',
     ref: Record<string, string | null | undefined> = {},
   ): Promise<MeriContext> {
     const user = await this.prisma.user.findUnique({
@@ -94,10 +117,17 @@ export class MeriContextResolver {
       const packet = await this.contextCompiler.compile({
         tenantId: tenant.tenantId,
         userId: user.id,
-        surface: surface as never,
+        surface,
         layers: [...layers],
         ref,
         ...(clientId ? { clientId } : {}),
+        // ContextPacket v2, dark by default: `contextPacketV2Overrides` returns {}
+        // unless CONTEXT_PACKET_V2=enforce arms this surface, so the compiled
+        // request is byte-for-byte the pre-v2 one until it is.
+        ...contextPacketV2Overrides(process.env.CONTEXT_PACKET_V2, {
+          surface,
+          traceId: randomUUID(),
+        }),
       });
       contextPacket = packetSummary(packet, surface);
       const soul = renderedBody(packet, 'firm-soul');

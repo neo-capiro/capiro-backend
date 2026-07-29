@@ -19,6 +19,15 @@ export type ContextSurface =
   | 'ga-chat'
   | 'tool-invoke'
   | 'in-editor'
+  /**
+   * The label the MeriV2 orchestrator's in-editor route actually writes. It is a
+   * SECOND name for the same surface as `in-editor` (apps/api writes that one),
+   * kept as a distinct member rather than unified because `context_packet.surface`
+   * already holds both strings in prod and the `/document/:id/latest` reader keys
+   * off this one. Both are treated as the in-editor surface everywhere policy is
+   * resolved; unifying the two labels needs a data migration, not a rename.
+   */
+  | 'workspace-editor'
   | 'strategy'
   | 'steward'
   | 'outreach'

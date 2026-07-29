@@ -1,4 +1,4 @@
-import type { ContextRequest, ContextSurface, SteeringLayer } from './contract.js';
+import type { ContextRequest, ContextSurface, SteeringLayer } from './contract';
 
 /**
  * Explicit per-surface context policy. Surfaces may have different budgets, but
@@ -52,6 +52,17 @@ const POLICIES: Readonly<Record<ContextSurface, ContextSurfacePolicy>> = {
   },
   'in-editor': {
     surface: 'in-editor',
+    layers: DELIVERABLE_LAYERS,
+    tokenBudget: 6_000,
+    persistence: 'required',
+    externalDeliverable: true,
+  },
+  // Same surface as 'in-editor' under the label the orchestrator writes, so
+  // contextSurfacePolicy('workspace-editor') can no longer return undefined (which
+  // made applyContextSurfacePolicy throw on `policy.layers` for the one label the
+  // live orchestrator in-editor path actually uses).
+  'workspace-editor': {
+    surface: 'workspace-editor',
     layers: DELIVERABLE_LAYERS,
     tokenBudget: 6_000,
     persistence: 'required',

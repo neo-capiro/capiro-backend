@@ -40,6 +40,18 @@
       "require": "./dist/context/compiler.js",
       "import": "./dist/context/compiler.js",
       "default": "./dist/context/compiler.js"
+    },
+    "./context/governed-columns": {
+      "types": "./dist/context/governed-columns.d.ts",
+      "require": "./dist/context/governed-columns.js",
+      "import": "./dist/context/governed-columns.js",
+      "default": "./dist/context/governed-columns.js"
+    },
+    "./context/context-release-switch": {
+      "types": "./dist/context/context-release-switch.d.ts",
+      "require": "./dist/context/context-release-switch.js",
+      "import": "./dist/context/context-release-switch.js",
+      "default": "./dist/context/context-release-switch.js"
     }
   },
   "scripts": {

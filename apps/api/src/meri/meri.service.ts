@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   ForbiddenException,
@@ -15,6 +16,7 @@ import {
   type TenantContext,
 } from '@capiro/shared';
 import {
+  contextPacketV2Overrides,
   runAuditor,
   ledgerToToolResultMap,
   sanitizeToolResultText,
@@ -924,6 +926,7 @@ export class MeriService {
       conversation.clientId,
       intent,
       content,
+      conversationId,
     );
     const effectiveTemplate = firmSkill?.template ?? orchestration.template;
     const promptCacheEnabled = this.config.get('CLIO_PROMPT_CACHE_ENABLED', { infer: true });
@@ -2595,6 +2598,8 @@ export class MeriService {
     clientId: string | null,
     intent: string,
     query: string,
+    /** Anchors the compiled context_packet trace to the conversation it steered. */
+    conversationId: string | null = null,
   ): Promise<OrchestratorResult> {
     const policy = this.policyForIntent(intent, query);
     const contextParts: string[] = [];
@@ -2604,7 +2609,7 @@ export class MeriService {
     // User voice/profile (memory files): standing context so Meri always writes
     // in the caller's voice and knows their role — not just when it calls a tool.
     try {
-      const voice = await this.loadUserVoiceContext(ctx, clientId);
+      const voice = await this.loadUserVoiceContext(ctx, clientId, conversationId);
       if (voice) {
         contextParts.push(voice);
         trace.push({
@@ -3479,6 +3484,7 @@ export class MeriService {
   private async loadUserVoiceContext(
     ctx: TenantContext,
     clientId: string | null,
+    conversationId: string | null = null,
   ): Promise<string | null> {
     // Context Compiler v1 (G1): loading, tenancy discipline (withTenantUser —
     // the 1C owner-aware RLS gate), governance filtering and the packet trace
@@ -3490,6 +3496,24 @@ export class MeriService {
       clientId,
       surface: 'chat',
       layers: ['user-voice', 'firm-identity', 'client-steering'],
+      // The Context Inspector finds a packet by surface + ref key. This trace used
+      // to be written with ref = {}, so on the legacy chat path (any tenant without
+      // meriv2.fullChat) the inspector could never match the conversation and told
+      // the user "Context degraded" on every answer even though the context HAD
+      // been compiled and used.
+      ...(conversationId ? { ref: { conversationId } } : {}),
+      // ContextPacket v2, dark by default (returns {} unless
+      // CONTEXT_PACKET_V2=enforce arms the 'chat' surface).
+      //
+      // One compile per turn, so a fresh uuid here IS the per-turn trace id. The
+      // key a reader joins on for this surface is `ref.conversationId` above;
+      // trace_id distinguishes the turns within that conversation. It is logged
+      // rather than returned because the SSE chat frame has no provenance channel
+      // for it yet.
+      ...contextPacketV2Overrides(process.env.CONTEXT_PACKET_V2, {
+        surface: 'chat',
+        traceId: randomUUID(),
+      }),
     });
 
     const blocks: string[] = [];

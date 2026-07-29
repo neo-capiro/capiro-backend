@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   ContextCompiler,
+  GOVERNED_STEERING_COLUMNS_SQL,
+  STEERING_ORDER_COLUMNS_SQL,
   governedMemoryLifecycleEnabled,
   governedRecallSuppressionSql,
   typesForLayers,
@@ -34,6 +36,10 @@ export class OrchestratorContextCompilerService {
   constructor(private readonly prisma: PrismaService) {
     const adapter: ContextStoreAdapter = {
       loadSteeringRows: (req) => this.loadSteeringRows(req),
+      // v2 only (compileV2 is the sole caller), which is what keeps the governed
+      // columns — all added by the UNAPPLIED
+      // 20260729010000_memory_governance_context_v2 — off the v1 read path.
+      loadGovernedSteeringRows: (req) => this.loadSteeringRows(req, { governed: true }),
       persistPacket: (packet) => this.persistPacket(packet),
     };
     this.compiler = new ContextCompiler(adapter);
@@ -43,7 +49,10 @@ export class OrchestratorContextCompilerService {
     return this.compiler.compile(req);
   }
 
-  private async loadSteeringRows(req: ContextRequest): Promise<SteeringRow[]> {
+  private async loadSteeringRows(
+    req: ContextRequest,
+    opts: { governed?: boolean } = {},
+  ): Promise<SteeringRow[]> {
     const wantsUser = hasLayer(req.layers, 'user-voice') && !!req.userId;
     const wantsClient =
       (hasLayer(req.layers, 'client-steering') || hasLayer(req.layers, 'client-people')) &&
@@ -62,6 +71,11 @@ export class OrchestratorContextCompilerService {
     const sql = Prisma.sql`
       SELECT id, type, slug, title, client_id AS "clientId", status,
              expires_at AS "expiresAt", sections_jsonb AS sections
+             ${Prisma.raw(
+               opts.governed
+                 ? `${GOVERNED_STEERING_COLUMNS_SQL}${STEERING_ORDER_COLUMNS_SQL}`
+                 : '',
+             )}
       FROM memory_items
       WHERE (
         (${wantsFirm} AND type = ANY(${firmTypes}) AND slug = 'firm')
@@ -110,6 +124,7 @@ export class OrchestratorContextCompilerService {
             itemCount: packet.items.length,
             exclusionCount: packet.exclusions.length,
             blockChars: packet.rendered.reduce((n, r) => n + r.body.length, 0),
+            ...contextPacketVersionColumns(packet),
           },
         }),
       );
@@ -117,6 +132,36 @@ export class OrchestratorContextCompilerService {
       this.logger.warn(`context_packet trace write failed: ${(e as Error).message}`);
     }
   }
+}
+
+/**
+ * The v2 provenance columns, written ONLY for a genuinely compiled v2 packet — the
+ * exact twin of apps/api's `contextPacketVersionColumns`.
+ *
+ * `packet_version` is owned by `20260803010000_engagement_generation_gateway`
+ * (1 = legacy steering-only trace, 2 = complete Evidence Packet) and defaults to 2,
+ * so every steering trace has been stored claiming to be a complete packet. Writing
+ * it explicitly per compiled contract makes each row honest. No existing row is
+ * rewritten.
+ */
+export function contextPacketVersionColumns(
+  packet: CompiledContextPacket,
+): Partial<Prisma.ContextPacketUncheckedCreateInput> {
+  if (packet.version !== 2) return { packetVersion: 1 };
+  return {
+    packetVersion: 2,
+    actorUserId: packet.actorUserId,
+    traceId: packet.traceId,
+    promptVersion: packet.promptVersion,
+    policyVersion: packet.policyVersion,
+    compilerVersion: packet.compilerVersion,
+    requiredLayers: [...packet.requiredLayers],
+    health: packet.health as unknown as Prisma.InputJsonValue,
+    totalTokenBudget: packet.totalTokenBudget,
+    usedTokens: packet.usedTokens,
+    truncated: packet.truncated,
+    incomplete: packet.incomplete,
+  };
 }
 
 function hasLayer(layers: readonly SteeringLayer[], layer: SteeringLayer): boolean {

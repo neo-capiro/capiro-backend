@@ -32,7 +32,7 @@ export class StewardController {
     @CurrentTenant() tc: OrchestratorTenantContext,
     @Req() req: Request,
   ): Promise<StewardExtractResult> {
-    const ctx = await this.resolver.resolve(tc, dto.clientId);
+    const ctx = await this.resolver.resolve(tc, dto.clientId, 'steward');
     return this.scoped(req, () => this.steward.extract(ctx, dto));
   }
 

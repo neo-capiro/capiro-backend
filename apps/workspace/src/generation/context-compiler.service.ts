@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma-client/index.js';
 import { ContextCompiler } from '@capiro/meriv2-core/context/compiler';
 import type {
   CompiledContextPacket,
@@ -7,6 +8,7 @@ import type {
   SteeringRow,
 } from '@capiro/meriv2-core/context/contract';
 import { typesForLayers } from '@capiro/meriv2-core/context/contract';
+import { GOVERNED_STEERING_COLUMNS_SQL } from '@capiro/meriv2-core/context/governed-columns';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /** Workspace adapter for the shared deterministic Context Compiler. */
@@ -18,6 +20,10 @@ export class WorkspaceContextCompilerService {
   constructor(private readonly prisma: PrismaService) {
     const adapter: ContextStoreAdapter = {
       loadSteeringRows: (req) => this.loadSteeringRows(req),
+      // v2 only. The governed columns come from the UNAPPLIED migration
+      // 20260729010000_memory_governance_context_v2, so they must never appear on
+      // the v1 read path.
+      loadGovernedSteeringRows: (req) => this.loadSteeringRows(req, { governed: true }),
       persistPacket: (packet) => this.persistPacket(packet),
     };
     this.compiler = new ContextCompiler(adapter);
@@ -69,7 +75,10 @@ export class WorkspaceContextCompilerService {
     return rows[0]!.id;
   }
 
-  private async loadSteeringRows(req: ContextRequest): Promise<SteeringRow[]> {
+  private async loadSteeringRows(
+    req: ContextRequest,
+    opts: { governed?: boolean } = {},
+  ): Promise<SteeringRow[]> {
     const wantsUser = req.layers.includes('user-voice') && !!req.userId;
     const wantsClient =
       (req.layers.includes('client-steering') || req.layers.includes('client-people')) &&
@@ -94,6 +103,7 @@ export class WorkspaceContextCompilerService {
                expires_at AS "expiresAt", updated_at AS "updatedAt",
                last_confirmed_at AS "confirmedAt", provenance::text AS authority,
                sections_jsonb AS sections
+               ${Prisma.raw(opts.governed ? GOVERNED_STEERING_COLUMNS_SQL : '')}
         FROM memory_items
         WHERE (
           (${wantsFirm} AND type = ANY(${firmTypes}) AND slug = 'firm')
@@ -132,11 +142,20 @@ export class WorkspaceContextCompilerService {
       // is not typechecked, so omitting it would only fail at runtime. The
       // effective tenant IS the packet tenant here (set_config above), which is
       // the same equality the migration's own backfill uses.
+      // packet_version is written EXPLICITLY. It is owned by
+      // 20260803010000_engagement_generation_gateway (1 = legacy steering-only
+      // trace, 2 = complete Evidence Packet) and its DB default is 2, so omitting
+      // it stored every steering trace claiming to be a complete packet. The v2
+      // columns below are only non-null for a genuinely compiled v2 packet.
+      const v2 = packet.version === 2 ? packet : null;
       await tx.$executeRaw`
         INSERT INTO context_packet
           (id, tenant_id, effective_tenant_id, surface, user_id, client_id,
            ref_jsonb, items_jsonb,
-           exclusions_jsonb, item_count, exclusion_count, block_chars, packet_hash)
+           exclusions_jsonb, item_count, exclusion_count, block_chars, packet_hash,
+           packet_version, actor_user_id, trace_id, prompt_version, policy_version,
+           compiler_version, required_layers, health_jsonb, total_token_budget,
+           used_tokens, truncated, incomplete)
         VALUES
           (${packet.packetId}::uuid, ${packet.tenantId}::uuid,
            ${packet.tenantId}::uuid, ${packet.surface},
@@ -146,7 +165,14 @@ export class WorkspaceContextCompilerService {
            ${JSON.stringify(packet.exclusions)}::jsonb,
            ${packet.items.length}, ${packet.exclusions.length},
            ${packet.rendered.reduce((sum, item) => sum + item.body.length, 0)},
-           ${packet.traceHash})
+           ${packet.traceHash},
+           ${v2 ? 2 : 1}, ${packet.actorUserId}::uuid, ${v2?.traceId ?? null},
+           ${v2?.promptVersion ?? null}, ${v2?.policyVersion ?? null},
+           ${v2?.compilerVersion ?? null},
+           ${v2 ? [...v2.requiredLayers] : []}::text[],
+           ${JSON.stringify(v2?.health ?? {})}::jsonb,
+           ${v2?.totalTokenBudget ?? null}, ${v2?.usedTokens ?? 0},
+           ${v2?.truncated ?? false}, ${v2?.incomplete ?? false})
       `;
     });
   }

@@ -1,15 +1,31 @@
 import type { ZodType, ZodIssue } from 'zod';
 import type { TenantContext, TenantRole } from '@capiro/shared';
+import type { MemoryAuthority } from '../memory/governance';
 import type { ToolExecutionMetadata } from './tool-execution-metadata';
 
 export type MeriContextScope = 'personal' | 'client' | 'firm';
+
+/**
+ * Display vocabulary for item provenance.
+ *
+ * The four coarse values are the v1 legacy vocabulary. A ContextPacket v2 item
+ * carries its REAL governed `MemoryAuthority` instead, so the trust UI can say
+ * "Model inferred" where it previously asserted "human-authored" over an item
+ * nobody had ever approved. The UI maps both vocabularies to human labels.
+ */
+export type MeriContextAuthority =
+  | 'human-authored'
+  | 'system-of-record'
+  | 'derived'
+  | 'unknown'
+  | MemoryAuthority;
 
 export interface MeriContextPacketItem {
   id: string;
   label: string;
   type: string;
   scope: MeriContextScope;
-  authority: 'human-authored' | 'system-of-record' | 'derived' | 'unknown';
+  authority: MeriContextAuthority;
   clientName?: string | null;
   userScoped?: boolean;
   asOf?: string | null;

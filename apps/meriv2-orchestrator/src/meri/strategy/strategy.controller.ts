@@ -36,7 +36,7 @@ export class StrategyController {
     @CurrentTenant() tc: OrchestratorTenantContext,
     @Req() req: Request,
   ) {
-    const ctx = await this.resolver.resolve(tc, dto.clientId);
+    const ctx = await this.resolver.resolve(tc, dto.clientId, 'strategy');
     return this.scoped(req, () => this.assistant.draft(ctx, dto));
   }
 
@@ -46,7 +46,7 @@ export class StrategyController {
     @CurrentTenant() tc: OrchestratorTenantContext,
     @Req() req: Request,
   ) {
-    const ctx = await this.resolver.resolve(tc, dto.clientId);
+    const ctx = await this.resolver.resolve(tc, dto.clientId, 'strategy');
     return this.scoped(req, () => this.assistant.assistant(ctx, dto));
   }
 
@@ -63,7 +63,7 @@ export class StrategyController {
     @CurrentTenant() tc: OrchestratorTenantContext,
     @Req() req: Request,
   ) {
-    const ctx = await this.resolver.resolve(tc, dto.clientId);
+    const ctx = await this.resolver.resolve(tc, dto.clientId, 'strategy');
     return this.scoped(req, () => this.assistant.draftDocument(ctx, dto));
   }
 
@@ -73,7 +73,7 @@ export class StrategyController {
     @CurrentTenant() tc: OrchestratorTenantContext,
     @Req() req: Request,
   ) {
-    const ctx = await this.resolver.resolve(tc);
+    const ctx = await this.resolver.resolve(tc, null, 'strategy');
     return this.scoped(req, () => this.assistant.referenceAssist(ctx, dto));
   }
 

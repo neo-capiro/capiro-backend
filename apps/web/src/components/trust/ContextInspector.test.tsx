@@ -59,4 +59,69 @@ describe('ContextInspector', () => {
     render(<ContextInspector packet={null} />);
     expect(screen.getByRole('status')).toHaveTextContent('details unavailable');
   });
+
+  /**
+   * All three reasons mean the caller is not authorized to know the item EXISTS.
+   * Counting only `unauthorized` reported a cross-client or above-clearance
+   * withholding to the user as zero restricted items.
+   */
+  it('counts every identity-withheld reason and renders none of their identities', () => {
+    render(
+      <ContextInspector
+        packet={{
+          items: [],
+          exclusions: [
+            { id: 'a', label: 'A', type: 'firm-soul', reason: 'unauthorized' },
+            { id: 'b', label: 'Other client compass', type: 'client-compass', reason: 'wrong-client' },
+            { id: 'c', label: 'Restricted brief', type: 'firm-compass', reason: 'sensitivity-denied' },
+            { id: 'd', label: 'Old playbook', type: 'playbook', reason: 'superseded' },
+          ],
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByText(/Context used/i));
+    expect(screen.getByText(/3 restricted items/)).toBeTruthy();
+    expect(screen.queryByText('Other client compass')).toBeNull();
+    expect(screen.queryByText('Restricted brief')).toBeNull();
+    expect(screen.getByText(/Old playbook/)).toBeTruthy();
+  });
+
+  it('labels a v2 governed authority in plain English instead of printing the slug', () => {
+    render(
+      <ContextInspector
+        packet={{
+          items: [
+            {
+              id: 'mi-1',
+              label: 'Firm Soul',
+              type: 'firm-soul',
+              scope: 'firm',
+              authority: 'model_inferred',
+              selection: 'automatic',
+            },
+          ],
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByText(/Context used/i));
+    expect(screen.getByText('Authority · Model inferred')).toBeTruthy();
+    expect(screen.queryByText(/model_inferred/)).toBeNull();
+  });
+
+  it('labels the new v2 exclusion reasons rather than showing a raw slug', () => {
+    render(
+      <ContextInspector
+        packet={{
+          items: [],
+          exclusions: [
+            { id: 'x', label: 'Draft position', type: 'client-compass', reason: 'unapproved' },
+            { id: 'y', label: 'Legacy note', type: 'firm-soul', reason: 'legacy-unclassified' },
+          ],
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByText(/Context used/i));
+    expect(screen.getByText(/Not approved for use yet/)).toBeTruthy();
+    expect(screen.getByText(/Unclassified — awaiting governance review/)).toBeTruthy();
+  });
 });

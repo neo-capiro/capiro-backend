@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriV2FlagsService } from '../meriv2/meriv2-flags.service.js';
@@ -36,6 +37,7 @@ import {
   type LedgerEntry,
 } from '@capiro/meriv2-core/grounding/auditor';
 import type { FundingYearRecord } from '@capiro/meriv2-core/grounding/evidence';
+import { contextPacketV2Overrides } from '@capiro/meriv2-core/context/context-release-switch';
 import { compactAssurancePromptBlock } from '@capiro/meriv2-core/assurance';
 import {
   assessGeneratedSectionsForRelease,
@@ -1564,6 +1566,13 @@ export class GenerationService {
             ? ['firm-identity', 'user-voice', 'client-steering', 'client-people']
             : ['firm-identity', 'user-voice'],
           ref: { draftId: draftId ?? null },
+          // ContextPacket v2, dark by default. Returns {} unless
+          // CONTEXT_PACKET_V2=enforce, so the compiled request — and therefore the
+          // generation prompt — is byte-for-byte unchanged until it is armed.
+          ...contextPacketV2Overrides(process.env.CONTEXT_PACKET_V2, {
+            surface: 'workspace-gen',
+            traceId: randomUUID(),
+          }),
         },
         ownerId,
       );

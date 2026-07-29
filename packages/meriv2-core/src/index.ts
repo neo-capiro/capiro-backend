@@ -23,6 +23,8 @@ export * from './context/contract';
 export * from './context/compiler';
 export * from './context/token-budget';
 export * from './context/surface-policy';
+export * from './context/context-release-switch';
+export * from './context/governed-columns';
 export * from './memory/governance';
 export * from './assurance/index';
 export * from './llm/llm-client';
