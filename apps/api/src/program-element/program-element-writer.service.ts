@@ -786,23 +786,25 @@ export class ProgramElementWriterService {
   }
 
   private async getAffectedTenants(peCode: string): Promise<AffectedTenantContext[]> {
-    const [watches, capabilities] = await Promise.all([
-      this.prisma.programElementWatch.findMany({
-        // tenant-scope-exempt: cross-tenant fan-out — getAffectedTenants finds which tenants watch this PE to route alerts.
+    // Cross-tenant BY DESIGN: a budget delta on a PE affects every tenant that
+    // watches it or whose client capability names it, so both enumerations must
+    // bypass RLS (system path). client_capabilities has been RLS-FORCED since the
+    // tenancy migration and program_element_watch is RLS-FORCED as of the Phase C
+    // tenant-isolation migration; the non-super app role (capiro_app is NOT
+    // BYPASSRLS) reads zero rows from either without the bypass, and for the watch
+    // leg that silently drops every watch-only tenant from alert routing. One
+    // transaction keeps the fan-out at a single pooled connection.
+    const { watches, capabilities } = await this.prisma.withSystem(async (tx) => {
+      const watchRows = await tx.programElementWatch.findMany({
         where: { peCode },
         select: { tenantId: true },
-      }),
-      // Cross-tenant BY DESIGN: a budget delta on a PE affects every tenant
-      // whose client capability names it, so this enumeration must bypass RLS
-      // (system path). client_capabilities is RLS-FORCED, so a plain read here
-      // would return zero rows for the non-super app role.
-      this.prisma.withSystem((tx) =>
-        tx.clientCapability.findMany({
-          where: { peNumber: peCode },
-          select: { tenantId: true, clientId: true },
-        }),
-      ),
-    ]);
+      });
+      const capabilityRows = await tx.clientCapability.findMany({
+        where: { peNumber: peCode },
+        select: { tenantId: true, clientId: true },
+      });
+      return { watches: watchRows, capabilities: capabilityRows };
+    });
 
     const byTenant = new Map<string, Set<string>>();
 
