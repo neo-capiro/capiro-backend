@@ -192,7 +192,11 @@ export function shouldBufferRequestBeforeRelease(
 ): boolean {
   if (EXTERNAL_OR_EXECUTION_SURFACES.has(surface)) return true;
   const text = String(request ?? '');
-  return /(?:\$|\b(?:budget|funding|appropriat|authoriz|vote|passed|failed|enacted|public\s+law|current\s+(?:chair|member|official|role)|deadline|due\s+date|comment\s+period|effective\s+date|legal|compliance|recommend|strategy|who\s+should\s+we|no\s+evidence|none|only|all|every)\b)/i.test(
+  // Money phrasing must include the literal ways a dollar figure is asked for. The
+  // original list covered process words (budget/appropriat/authoriz) but missed the
+  // most direct forms — "what is the current FY27 amount", "how much did it get" —
+  // which are exactly the high-stakes numbers that must not stream unverified.
+  return /(?:\$|\b(?:budget|funding|appropriat|authoriz|amount|how\s+much|top-?line|plus-?up|cost|dollars?|fy\s?\d{2,4}|vote|passed|failed|enacted|public\s+law|current\s+(?:chair|member|official|role)|deadline|due\s+date|comment\s+period|effective\s+date|legal|compliance|recommend|strategy|who\s+should\s+we|no\s+evidence|none|only|all|every)\b)/i.test(
     text,
   );
 }

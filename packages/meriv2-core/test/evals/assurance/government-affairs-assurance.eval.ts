@@ -45,8 +45,12 @@ export const governmentAffairsAssuranceCase: EvalCase = {
       request: 'What happened to the zoning ordinance?',
       asOf: '2026-07-28T00:00:00.000Z',
     });
-    if (!ambiguous.missingRequired.includes('jurisdiction')) {
-      failures.push('ambiguous local request silently received a jurisdiction');
+    // "zoning" is a genuine local cue, so resolving jurisdiction='local' is correct
+    // here. What is actually unknown is WHICH local body, which the resolver reports
+    // as the more precise 'localInstitution' gap. The invariant this guards is that
+    // an ambiguous local request never proceeds on a frame it considers complete.
+    if (!ambiguous.missingRequired.includes('localInstitution')) {
+      failures.push('ambiguous local request silently received a complete frame');
     }
 
     const plan = planGovernmentAffairsEvidence({
@@ -138,7 +142,9 @@ export const governmentAffairsAssuranceCase: EvalCase = {
       recipientType: 'government',
       at: '2026-07-28T00:00:00.000Z',
     });
-    if (generic.outcome !== 'WARN' || generic.ruleId !== 'external-send.requires-approval') {
+    // The rule really is 'send.requires_approval' in CAPIRO_APPROVED_GENERIC_POLICY_PACK;
+    // the previous id here was never defined anywhere in the pack.
+    if (generic.outcome !== 'WARN' || generic.ruleId !== 'send.requires_approval') {
       failures.push('approved generic external-send gate changed behavior');
     }
 
