@@ -194,7 +194,11 @@ describe('alert email deep links', () => {
 
     expect(await screen.findByText('Late linked regulation')).toBeInTheDocument();
     await waitFor(() => expect(onFocused).toHaveBeenCalledTimes(1));
-    expect(feedUrls.some((url) => url.includes('source=all') && url.includes('workState=all'))).toBe(true);
+    expect(
+      feedUrls.some(
+        (url) => url.includes('workState=all') && !url.includes('sourceType='),
+      ),
+    ).toBe(true);
   });
 
   test('widens to All and keyset-pages until an older focused alert is loaded', async () => {
