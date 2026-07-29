@@ -75,10 +75,11 @@ export interface ProposeSaveMemoryResult {
  * memory-candidate-rules.ts's header comment) goes through
  * `proposeSaveMemory`: a `memory_candidate` row is always created first, then
  * `evaluateMemoryCandidate` resolves PASS (commit in the same request) or
- * WARN (stays 'pending' until `approve`/`reject`). Personal-scope and
- * admin-firm-scope saves therefore have IDENTICAL latency/behavior to before
- * Phase 1 — the candidate row is just an added audit trail alongside an
- * unchanged synchronous commit.
+ * WARN (stays 'pending' until `approve`/`reject`).
+ *
+ * Only PERSONAL scope resolves PASS. Firm and client scope always land pending
+ * for an independent reviewer (closeout §2.2) — an administrator can propose
+ * shared memory but can no longer ratify their own proposal in one request.
  */
 @Injectable()
 export class MemoryCandidateService {
@@ -479,13 +480,25 @@ export class MemoryCandidateService {
       }
     }
 
-    void this.embedMemory(tenantId, record.key, record.value).catch(() => {});
+    void this.embedMemory(tenantId, memoryId, record.key, record.value).catch(() => {});
     void this.memoryIngest.projectClioMemory(tenantId, memoryId);
     return memoryId;
   }
 
-  /** Best-effort semantic-recall embedding; unchanged from the pre-1B implementation. */
-  private async embedMemory(tenantId: string, key: string, value: string): Promise<void> {
+  /**
+   * Best-effort semantic-recall embedding for ONE committed clio_memory row.
+   *
+   * **Targets `id`, never `(tenant_id, key)`.** `clio_memory` is unique on
+   * (tenant, scope, owner, client, key) — NOT on (tenant, key) — so the same key
+   * legitimately exists many times in one tenant: once per client for
+   * client-scope rows, once per user for user_private rows, plus the firm-scope
+   * row. The previous `WHERE tenant_id = $2 AND key = $3` therefore wrote one
+   * memory's vector over EVERY same-key row in the tenant, so a save for client A
+   * silently repointed client B's semantic recall at A's content, and any
+   * user_private row with a colliding key was overwritten with another user's
+   * text. Closeout §4 "Embedding fix".
+   */
+  private async embedMemory(tenantId: string, memoryId: string, key: string, value: string): Promise<void> {
     const openaiKey = this.config.get('OPENAI_API_KEY', { infer: true });
     if (!openaiKey) return;
     const res = await fetch('https://api.openai.com/v1/embeddings', {
@@ -500,10 +513,11 @@ export class MemoryCandidateService {
     const vecStr = `[${embedding.join(',')}]`;
     await this.prisma.withTenant(tenantId, (tx) =>
       tx.$executeRawUnsafe(
-        `UPDATE clio_memory SET embedding = $1::vector WHERE tenant_id = $2::uuid AND key = $3`,
+        // tenant_id stays in the predicate as defence in depth behind RLS.
+        `UPDATE clio_memory SET embedding = $1::vector WHERE id = $2::uuid AND tenant_id = $3::uuid`,
         vecStr,
+        memoryId,
         tenantId,
-        key,
       ),
     );
   }

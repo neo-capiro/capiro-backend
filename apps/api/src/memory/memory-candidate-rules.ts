@@ -32,6 +32,11 @@ export interface MemoryCandidateDecision {
 
 export interface MemoryCandidateRuleInput {
   scope: 'personal' | 'firm' | 'client';
+  /**
+   * Recorded on the candidate for the review queue. **Intentionally does not
+   * affect the decision** — see the segregation-of-duties note on
+   * MEMORY_CANDIDATE_RULES. Do not add a rule that grants PASS on this field.
+   */
   isAdmin: boolean;
   /** Machine extraction is always review-only in Phase 0. Absent = explicit human save. */
   sourceKind?: string;
@@ -49,9 +54,28 @@ interface MemoryCandidateRule {
 }
 
 /**
- * Explicit human saves retain their existing scope behavior. Machine extraction
- * is the first rule and always remains pending: assistant/model-authored prose
- * and model confidence can never become active institutional truth by themselves.
+ * Personal saves keep their immediate behavior. Everything shared requires an
+ * independent reviewer, and machine extraction is pending for every scope.
+ *
+ * **Segregation of duties (closeout §2.2).** `memory.firm.admin_auto_commit` and
+ * `memory.client.admin_auto_commit` used to return PASS for `isAdmin`, which let
+ * a single administrator turn their own proposal into firm- or client-wide
+ * institutional truth in ONE request — the proposer and the approver were the
+ * same person, and `requireIndependentReviewer` (memory-candidate.service.ts)
+ * never ran because the candidate was never pending. Shared memory steers what
+ * every other user in the tenant is later served as fact, so it now always lands
+ * `pending` and a second authorized human has to approve it.
+ *
+ * `isAdmin` is deliberately no longer consulted anywhere in this list. An admin
+ * is authorized to PROPOSE shared memory (and, being a different person from the
+ * proposer, to REVIEW someone else's proposal) — never to ratify their own. The
+ * field stays on the input type because callers still pass it and the review
+ * queue records it; a rule that reads it again would reopen this hole.
+ *
+ * This is a deliberate behavior change with no feature flag: a flag defaulting
+ * off would leave shared truth self-ratifiable in production, which is the exact
+ * finding being closed. Rollback is a code revert, documented in
+ * docs/runbooks/meriv2-memory-context-assurance-rollback.md.
  */
 const MEMORY_CANDIDATE_RULES: readonly MemoryCandidateRule[] = [
   {
@@ -68,31 +92,23 @@ const MEMORY_CANDIDATE_RULES: readonly MemoryCandidateRule[] = [
     matches: (i) => i.scope === 'personal',
   },
   {
-    id: 'memory.firm.admin_auto_commit',
-    outcome: 'PASS',
-    reason: 'An admin proposing firm-wide memory is trusted to commit it directly.',
-    matches: (i) => i.scope === 'firm' && i.isAdmin,
-  },
-  {
     id: 'memory.firm.requires_approval',
     outcome: 'WARN',
-    reason: 'Firm-wide memory requires an authorized reviewer before it becomes shared truth.',
+    reason:
+      'Firm-wide memory requires an authorized reviewer other than the proposer before it ' +
+      'becomes shared truth.',
     matches: (i) => i.scope === 'firm',
   },
-  // G2 client scope: client strategic memory (approved positions, red lines)
-  // is shared truth for everyone serving that client — same trust posture as
-  // firm scope (blueprint §4.6.2: "client lead or authorized team;
-  // reviewable"), so admins self-commit and everyone else lands pending.
-  {
-    id: 'memory.client.admin_auto_commit',
-    outcome: 'PASS',
-    reason: 'An admin proposing client-scope memory is trusted to commit it directly.',
-    matches: (i) => i.scope === 'client' && i.isAdmin,
-  },
+  // G2 client scope: client strategic memory (approved positions, red lines) is
+  // shared truth for everyone serving that client — the same trust posture as
+  // firm scope (blueprint §4.6.2: "client lead or authorized team; reviewable"),
+  // so it takes the same independent-review path.
   {
     id: 'memory.client.requires_approval',
     outcome: 'WARN',
-    reason: 'Client-scope memory requires an authorized reviewer before it steers client work.',
+    reason:
+      'Client-scope memory requires an authorized reviewer other than the proposer before it ' +
+      'steers client work.',
     matches: (i) => i.scope === 'client',
   },
 ];

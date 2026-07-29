@@ -1701,12 +1701,11 @@ export class MeriToolsService {
   }
 
   /**
-   * Phase 1 (1B): every save now goes through a memory_candidate row first
-   * (MemoryCandidateService.proposeSaveMemory). Personal-scope and an
-   * admin's own firm-scope save still commit in this same call — same
-   * latency/behavior as before 1B. A non-admin's firm-scope save no longer
-   * dead-ends in a rejection message; it becomes a real pending candidate
-   * any admin can approve via GET/POST /memory/candidates.
+   * Phase 1 (1B): every save goes through a memory_candidate row first
+   * (MemoryCandidateService.proposeSaveMemory). Personal-scope saves commit in
+   * this same call. Firm- and client-scope saves ALWAYS become a pending
+   * candidate — including an administrator's own (closeout §2.2) — which a
+   * different authorized reviewer approves via GET/POST /memory/candidates.
    */
   private async saveMemory(ctx: TenantContext, input: Record<string, unknown>) {
     const content = requiredString(input, 'content', 4000);
@@ -1750,7 +1749,11 @@ export class MeriToolsService {
         saved: false,
         scope: pendingLabel,
         candidateId: result.candidateId,
-        message: `I've proposed this as ${pendingLabel === 'client' ? 'client-scope' : 'firm-wide'} memory; an admin needs to approve it before it becomes shared truth. I can save it as your personal memory right now instead — just say so.`,
+        // Says "another authorized reviewer", not "an admin": an administrator
+        // proposing shared memory also lands here and cannot approve their own
+        // candidate, so "an admin needs to approve it" would read as though the
+        // proposer could go do it themselves.
+        message: `I've proposed this as ${pendingLabel === 'client' ? 'client-scope' : 'firm-wide'} memory; another authorized reviewer needs to approve it before it becomes shared truth. I can save it as your personal memory right now instead — just say so.`,
       };
     }
 

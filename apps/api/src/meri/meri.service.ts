@@ -4642,38 +4642,14 @@ export class MeriService {
 
   // ── Embedding-based memory search (Phase 4 semantic) ──────────────────
 
-  async embedAndStoreMemory(tenantId: string, key: string, value: string): Promise<void> {
-    // Use OpenAI for embeddings (1536-dim text-embedding-3-small). No Anthropic
-    // call happens here (the previous ANTHROPIC_API_KEY read was dead code).
-    const openaiKey = this.config.get('OPENAI_API_KEY', { infer: true });
-    if (!openaiKey) return;
-
-    try {
-      const res = await fetch('https://api.openai.com/v1/embeddings', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'text-embedding-3-small', input: `${key}: ${value}` }),
-      });
-      if (!res.ok) return;
-      const json = (await res.json()) as { data?: Array<{ embedding?: number[] }> };
-      const embedding = json.data?.[0]?.embedding;
-      if (!embedding || embedding.length !== 1536) return;
-
-      const vecStr = `[${embedding.join(',')}]`;
-      // withTenant: clio_memory is RLS-protected; a bare write would match 0 rows
-      // under FORCE ROW LEVEL SECURITY and silently drop the embedding.
-      await this.prisma.withTenant(tenantId, (tx) =>
-        tx.$executeRawUnsafe(
-          `UPDATE clio_memory SET embedding = $1::vector WHERE tenant_id = $2::uuid AND key = $3`,
-          vecStr,
-          tenantId,
-          key,
-        ),
-      );
-    } catch (err) {
-      this.logger.debug(`Embedding failed for memory ${key}: ${(err as Error).message}`);
-    }
-  }
+  // `embedAndStoreMemory` was removed here (closeout §4). It was dead code — the
+  // only occurrence of the name in the whole repository was its own definition —
+  // and it carried the same cross-client bug as MemoryCandidateService.embedMemory:
+  // it wrote one vector to EVERY row matching `(tenant_id, key)`, but clio_memory
+  // is unique on (tenant, scope, owner, client, key), so the same key exists once
+  // per client and once per user. An unreferenced method with that predicate is a
+  // landmine for the next caller. The live path is
+  // MemoryCandidateService.embedMemory, which targets the exact row id.
 
   async semanticMemorySearch(
     tenantId: string,
