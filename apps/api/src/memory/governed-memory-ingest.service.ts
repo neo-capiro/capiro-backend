@@ -10,12 +10,21 @@ import {
   type StrictProjectionReceipt,
 } from './strict-memory-projector.service.js';
 
+interface ExactProjectionJob {
+  id: string;
+  memory_item_id: string | null;
+  idempotency_key: string;
+  expected_source_version: Date;
+  expected_content_hash: string;
+}
+
 /**
  * Live request-time projection implementation.
  *
- * `projectClioMemory()` now uses the strict projector and closes only the exact
- * version/hash-bound outbox row described by its receipt. The inherited
- * best-effort method remains exposed under an explicit rollback name.
+ * The fast path first resolves the exact durable job committed with the source
+ * mutation. That job supplies the canonical item ID, source version, content hash,
+ * and idempotency key. The inherited best-effort method remains available only as
+ * an explicit rollback path.
  */
 @Injectable()
 export class GovernedMemoryIngestService extends MemoryIngestService {
@@ -38,8 +47,18 @@ export class GovernedMemoryIngestService extends MemoryIngestService {
   }
 
   override async projectClioMemory(tenantId: string, clioMemoryId: string): Promise<void> {
-    const receipt = await this.projectClioMemoryStrict(tenantId, clioMemoryId);
-    await this.completeExactFastPath(receipt);
+    const job = await this.loadExactPendingJob(tenantId, clioMemoryId);
+    if (!job) throw new Error('memory_projection_exact_job_unavailable');
+
+    const expected: StrictProjectionExpectation = {
+      sourceVersion: job.expected_source_version.toISOString(),
+      contentHash: job.expected_content_hash,
+      memoryItemId: job.memory_item_id,
+      idempotencyKey: job.idempotency_key,
+    };
+    const receipt = await this.projectClioMemoryStrict(tenantId, clioMemoryId, expected);
+    this.assertReceiptBinding(receipt, expected);
+    await this.completeExactFastPath(job.id, receipt);
   }
 
   /** Explicit Phase 6 rollback wrapper; never used by live MemoryModule injection. */
@@ -47,14 +66,55 @@ export class GovernedMemoryIngestService extends MemoryIngestService {
     await super.projectClioMemory(tenantId, clioMemoryId);
   }
 
-  private async completeExactFastPath(receipt: StrictProjectionReceipt): Promise<void> {
+  private async loadExactPendingJob(
+    tenantId: string,
+    clioMemoryId: string,
+  ): Promise<ExactProjectionJob | null> {
+    const rows = await this.exactPrisma.withSystem(
+      (tx) =>
+        tx.$queryRaw<ExactProjectionJob[]>`
+          SELECT id::text AS id,
+                 memory_item_id::text AS memory_item_id,
+                 idempotency_key,
+                 expected_source_version,
+                 expected_content_hash
+          FROM memory_cleanup_outbox
+          WHERE tenant_id = ${tenantId}::uuid
+            AND clio_memory_id = ${clioMemoryId}::uuid
+            AND operation = 'index_memory_item'
+            AND status IN ('pending', 'failed')
+            AND expected_source_version IS NOT NULL
+            AND expected_content_hash IS NOT NULL
+          ORDER BY expected_source_version DESC, created_at DESC
+          LIMIT 1
+        `,
+    );
+    return rows[0] ?? null;
+  }
+
+  private assertReceiptBinding(
+    receipt: StrictProjectionReceipt,
+    expected: StrictProjectionExpectation,
+  ): void {
+    if (
+      receipt.sourceVersion !== expected.sourceVersion ||
+      receipt.contentHash !== expected.contentHash ||
+      receipt.idempotencyKey !== expected.idempotencyKey ||
+      receipt.memoryItemId !== (expected.memoryItemId ?? null)
+    ) {
+      throw new Error('memory_projection_receipt_binding_mismatch');
+    }
+  }
+
+  private async completeExactFastPath(
+    jobId: string,
+    receipt: StrictProjectionReceipt,
+  ): Promise<void> {
     const sourceVersion = receipt.sourceVersion;
     const contentHash = receipt.contentHash;
     const idempotencyKey = receipt.idempotencyKey;
     if (!sourceVersion || !contentHash || !idempotencyKey) {
-      // Source disappeared before a request-time expectation could be established.
-      // Leave the durable job untouched; the worker owns its exact expected version.
-      return;
+      throw new Error('memory_projection_receipt_incomplete');
     }
 
     const status = receipt.outcome === 'superseded' ? 'superseded' : 'completed';
@@ -68,7 +128,8 @@ export class GovernedMemoryIngestService extends MemoryIngestService {
               last_error = ${status === 'superseded' ? 'source_advanced' : null},
               lease_owner = NULL,
               lease_expires_at = NULL
-          WHERE tenant_id = ${receipt.tenantId}::uuid
+          WHERE id = ${jobId}::uuid
+            AND tenant_id = ${receipt.tenantId}::uuid
             AND clio_memory_id = ${receipt.clioMemoryId}::uuid
             AND operation = 'index_memory_item'
             AND idempotency_key = ${idempotencyKey}
