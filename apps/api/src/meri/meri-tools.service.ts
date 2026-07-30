@@ -7216,6 +7216,18 @@ function clampInt(value: unknown, min: number, max: number, fallback: number): n
  * dropped. List capped at 50; each string field trimmed/capped. districtSource
  * is forced to 'web_import' so these are auditable as machine-imported (and
  * distinguishable from 'user'/'geocoded' on the Facilities tab).
+ *
+ * `congressionalDistrict` is capped at 4 rather than 2 on purpose — the model
+ * sometimes emits "TX-07" or "07th" — and is NOT normalized here. Storage form is
+ * `client-facilities.service.ts`'s job (`normalizeDistrictForStorage`), which is
+ * the chokepoint every writer goes through, including this one via
+ * `createFacility`. Normalizing in both places would mean two definitions of the
+ * convention that could drift.
+ *
+ * This path is what produced the seven unpadded production rows found on
+ * 2026-07-30: the LLM's output varied between "7" and "07" for the same field, so
+ * `web_import` ended up internally inconsistent (8 padded, 7 not). The fix is at
+ * the service, so it covers whatever the model emits next.
  */
 function parseFacilityInputs(value: unknown): CreateFacilityInput[] {
   if (!Array.isArray(value)) return [];

@@ -37,8 +37,14 @@ export const AT_LARGE_FACILITY = '00';
 /**
  * USAspending codes that identify a seat we cannot resolve to a numbered
  * House district: non-voting delegate, multiple districts, undefined.
+ *
+ * EXPORTED because two of the three ('90', '98') are indistinguishable from real
+ * districts by shape — they are two-digit numbers. Any caller that needs to leave
+ * a sentinel alone must test membership here; a `/^\d{2}$/`-style guard silently
+ * treats them as districts, which is how a first draft of
+ * `normalizeDistrictForStorage` collapsed DC's '98' delegate code into '00'.
  */
-const UNRESOLVABLE_HOUSE_SENTINELS: ReadonlySet<string> = new Set(['98', '90', 'ZZ']);
+export const UNRESOLVABLE_HOUSE_SENTINELS: ReadonlySet<string> = new Set(['98', '90', 'ZZ']);
 
 /**
  * Strip cosmetic variation ("HD-3", "003", " 3 ") down to a bare digit
