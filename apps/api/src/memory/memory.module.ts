@@ -13,6 +13,8 @@ import { MemoryAccessGrantService } from './memory-access-grant.service.js';
 import { MemoryConflictService } from './memory-conflict.service.js';
 import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
 import { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
+import { MemoryProjectionWorkerService } from './memory-projection-worker.service.js';
+import { StrictMemoryProjectorService } from './strict-memory-projector.service.js';
 import { MemoryPurgeService } from './memory-purge.service.js';
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
 import { MemoryController } from './memory.controller.js';
@@ -48,6 +50,8 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     MemoryConflictService,
     MemoryTransitionAuditService,
     MemoryCleanupOutboxService,
+    StrictMemoryProjectorService,
+    MemoryProjectionWorkerService,
     MemoryPurgeService,
     MeetingNotesCryptoService,
   ],
@@ -59,6 +63,8 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     ImmutableMemoryVersionService,
     MemoryTransitionAuditService,
     MemoryCleanupOutboxService,
+    StrictMemoryProjectorService,
+    MemoryProjectionWorkerService,
     MemoryPurgeService,
   ],
 })
