@@ -1,10 +1,11 @@
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { WorkspaceContextCompilerService } from './context-compiler.service';
 import type { PrismaService } from '../prisma/prisma.service';
 
 const ROW = {
   id: '11111111-1111-4111-8111-111111111111',
   type: 'playbook',
-  slug: 'clio:22222222-2222-4222-8222-222222222222',
+  slug: 'firm',
   title: 'FY27 position',
   clientId: null,
   ownerUserId: null,
@@ -18,6 +19,7 @@ const ROW = {
   sourceVersion: 'candidate:33333333-3333-4333-8333-333333333333',
   approvedByUserId: '44444444-4444-4444-8444-444444444444',
   approvedAt: '2026-07-30T00:00:00.000Z',
+  asOf: '2026-07-30T00:00:00.000Z',
   sensitivity: 'normal',
   conflictStatus: 'none',
 };
@@ -28,8 +30,8 @@ function sqlText(strings: unknown): string {
   return (sql.strings ?? sql.raw ?? []).join('?');
 }
 
-describe('Workspace canonical governed memory', () => {
-  function harness() {
+describe('Workspace canonical governed memory — Phase 8', () => {
+  function harness(options: { canary?: boolean } = {}) {
     const sql: string[] = [];
     const executions: Array<{ sql: string; values: unknown[] }> = [];
     const tx = {
@@ -47,23 +49,31 @@ describe('Workspace canonical governed memory', () => {
     };
     const prisma = {
       $transaction: jest.fn(async (fn: (value: typeof tx) => unknown) => fn(tx)),
-      $queryRaw: jest.fn(async () => []),
+      $queryRaw: jest.fn(async (arg: unknown) => {
+        const text = sqlText(arg);
+        if (text.includes('FROM tenants')) {
+          return [
+            {
+              settings: {
+                clioFeatureFlags: { 'meriv2.contextPacketV2': options.canary !== false },
+              },
+            },
+          ];
+        }
+        return [];
+      }),
     } as unknown as PrismaService;
     return { service: new WorkspaceContextCompilerService(prisma), sql, executions };
   }
 
-  it('keeps v1 free of unapplied governed columns', async () => {
-    const h = harness();
-    const packet = await h.service.compileForClerkOwner({
-      tenantId: 't1',
-      surface: 'workspace-gen',
-      layers: ['firm-playbook'],
-    });
-    expect(packet.version).toBe(1);
-    expect(h.sql[0]).not.toContain('memory_authority');
+  const original = process.env.MERIV2_CONTEXT_PACKET_V2;
+  beforeEach(() => delete process.env.MERIV2_CONTEXT_PACKET_V2);
+  afterEach(() => {
+    if (original === undefined) delete process.env.MERIV2_CONTEXT_PACKET_V2;
+    else process.env.MERIV2_CONTEXT_PACKET_V2 = original;
   });
 
-  it('returns the exact canonical id and authority on v2', async () => {
+  it('off keeps v1 free of unapplied governed columns', async () => {
     const h = harness();
     const packet = await h.service.compileForClerkOwner({
       tenantId: 't1',
@@ -71,6 +81,19 @@ describe('Workspace canonical governed memory', () => {
       layers: ['firm-playbook'],
       contractVersion: 2,
     });
+    expect(packet.version).toBe(1);
+    expect(h.sql.find((text) => text.includes('FROM memory_items'))).not.toContain('memory_authority');
+  });
+
+  it('enforce returns the exact canonical id and authority', async () => {
+    process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
+    const h = harness();
+    const packet = await h.service.compileForClerkOwner({
+      tenantId: 't1',
+      surface: 'workspace-gen',
+      layers: ['firm-playbook'],
+    });
+    expect(packet.version).toBe(2);
     expect(packet.items).toEqual([
       expect.objectContaining({
         id: ROW.id,
@@ -80,15 +103,24 @@ describe('Workspace canonical governed memory', () => {
     ]);
   });
 
+  it('a tenant without the canary remains on v1', async () => {
+    process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
+    const packet = await harness({ canary: false }).service.compileForClerkOwner({
+      tenantId: 't1',
+      surface: 'workspace-gen',
+      layers: ['firm-playbook'],
+    });
+    expect(packet.version).toBe(1);
+  });
+
   it('persists the server-resolved effective tenant rather than replacing it with tenantId', async () => {
+    process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
     const h = harness();
     const packet = await h.service.compileForClerkOwner({
       tenantId: 'tenant-1',
       effectiveTenantId: 'effective-tenant-1',
       surface: 'workspace-gen',
       layers: ['firm-playbook'],
-      contractVersion: 2,
-      persistence: 'required',
     });
     const insert = h.executions.find((entry) => entry.sql.includes('INSERT INTO context_packet'));
     expect(insert).toBeDefined();
@@ -96,5 +128,17 @@ describe('Workspace canonical governed memory', () => {
     expect(insert!.values[2]).toBe('effective-tenant-1');
     expect(packet.effectiveTenantId).toBe('effective-tenant-1');
     expect(packet.persisted).toBe(true);
+  });
+
+  it('shadow persists both packets but returns v1', async () => {
+    process.env.MERIV2_CONTEXT_PACKET_V2 = 'shadow';
+    const h = harness();
+    const packet = await h.service.compileForClerkOwner({
+      tenantId: 't1',
+      surface: 'workspace-gen',
+      layers: ['firm-playbook'],
+    });
+    expect(packet.version).toBe(1);
+    expect(h.executions.filter((entry) => entry.sql.includes('INSERT INTO context_packet'))).toHaveLength(2);
   });
 });
