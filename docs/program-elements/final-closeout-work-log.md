@@ -194,10 +194,10 @@ See `final-closeout-traceability.md` § Adversarial review. Exit criteria checke
 
 ---
 
-## Phase 1 — Deterministic Canonical Write Foundation (session stopped mid-closeout)
+## Phase 1 — Deterministic Canonical Write Foundation (complete)
 
 **Session UTC:** 2026-07-30T11:04:33Z
-**Status at stop:** Implementation + unit gates green. Docker/WSL PG16 rehearsal deferred (host needs WSL for Docker). PGlite disposable rehearsal passed 16/16 offline.
+**Status:** Phase 1 COMPLETE (2026-07-30T11:13:32Z). Unit gates green. PGlite rehearsal 16/16. Docker `pgvector/pgvector:pg16` disposable rehearsal PASS (`PHASE_D_PG16_REHEARSAL_OK`); second apply fail-closed; prisma validate PASS against live disposable DSN.
 
 ### Done in this session
 
@@ -216,9 +216,10 @@ See `final-closeout-traceability.md` § Adversarial review. Exit criteria checke
 | tsc -p tsconfig.pe-phase-a.json --noEmit | PASS |
 | PGlite migration rehearsal (exact SQL) | PASS 16/16 PHASE_D_PGLITE_REHEARSAL_OK |
 
-### Deferred until WSL/Docker
+### Disposable migration rehearsals
 
-- pgvector/Postgres 16 docker-compose migration replay (optional confidence; PGlite already proved migration SQL)
+- PGlite in-process: PASS 16/16 (`PHASE_D_PGLITE_REHEARSAL_OK`)
+- Docker `pgvector/pgvector:pg16` ephemeral (`pe-phase-d-rehearsal` on :55432, destroyed after): exact migration SQL.apply PASS; legacy keys; zero decimal preserve; unique observation_key + outbox dedupe; recon defaults; second apply ERROR column already exists → fail-closed OK; `prisma validate` with live DATABASE_URL PASS
 
 ### Not started
 

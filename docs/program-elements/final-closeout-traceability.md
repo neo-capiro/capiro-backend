@@ -2,7 +2,7 @@
 
 **Baseline main SHA:** `057f5480a46f9ba9acf9296a9cc876b609593832`  
 **Pre-Phase-0 #705 head (void product):** `a244022648d54d9e4ac7fb071f9f438405659056`  
-**Updated (UTC):** 2026-07-30T11:04:33Z (Phase 1 code complete; PG16 docker deferred)
+**Updated (UTC):** 2026-07-30T11:13:32Z (Phase 1 complete, including Docker PG16 disposable rehearsal)
 
 Legend for **Status**:
 
@@ -41,7 +41,7 @@ Closeout **execution phase** column is the session phase from the final schedule
 | D9 | Reconciliation failure rolls back canonical | `in_branch` (Phase 1) | reconciliation.service changes in D patch | 1 |
 | D10 | Dry-run-first observation audit/backfill | `in_branch` (Phase 1) | backfill script | 1 |
 | D11 | No temporary D workflows/patch blobs in final diff | `in_branch` (Phase 1) — no transport | Phase 0 removed transport; Phase 1 must not reintroduce `.github/phase-d-*` | 1 |
-| D12 | Rehearse additive migration in disposable Postgres | `verified` PGlite; Docker PG16 deferred (WSL) | 1 |
+| D12 | Rehearse additive migration in disposable Postgres | `verified` PGlite + Docker pgvector/pgvector:pg16 disposable | 1 |
 
 **Recovery note:** Apply `phase-d-implementation.patch` onto tip after resolving fuzz against main since mid-stack base `8204a347…`. Then selectively re-home correction patches 1–5 as **new** tests against the applied tree (do not assume intermediate SHAs).
 
