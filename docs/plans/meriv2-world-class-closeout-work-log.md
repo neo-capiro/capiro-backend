@@ -397,14 +397,14 @@ Phase 1 evidence SHA are green.
 
 ## Phase 2 — canonical governed memory activation (2026-07-30)
 
-- Implementation commit: `37f0601083cef44df090bdc1950c7a1df31527ef`.
+- Implementation commit: `36b0a991f6b5f67efe2db41a29e039d1897285cd`.
 - Current `main` at promotion: `057f5480a46f9ba9acf9296a9cc876b609593832`; the closeout branch was zero commits behind before promotion.
-- Validation workflow `30516743461`: API typecheck PASS; 7 targeted suites / 50 tests PASS.
-- Candidate activation now creates or updates the authoritative governed `memory_items` version inside the Phase 1 transaction and records `committed_memory_item_id` lineage.
-- Firm/client/personal approvals map to `playbook`, `client-compass`, and `user-profile` respectively, preserving Context Packet layer eligibility without changing the dark/default legacy path.
-- Clio remains a compatibility/projection source; its governance envelope preserves authority, source, approval, validity, conflict, origin, and steering type across rebuilds.
-- Model-extracted content remains `model_inferred`; human review does not rewrite provenance into human-authored authority.
-- Full rollback includes the canonical item, candidate, Clio row, audit evidence, and outbox obligation.
-- Normal PR CI on `26c06dc5783100bd976bee84398e90681ce98c12`: `ci-pr` `30517074003`, `meriv2-evals` `30517074001`, `engagement-trust-boundary` `30517074000`, `legiwatch-ci` `30517074014`, and `funding-opportunities-ci` `30517074012` — all PASS.
-- Acceptance state: **PASS**. Approved governance is canonical on the active `memory_items` version, remains consistent through the Clio compatibility projection and Context Packet v2, and rolls back atomically with candidate/audit/outbox state.
-- Next gated phase: Phase 3 — route Settings edits through candidate review.
+- Validation workflow `30518247413`: four package typechecks PASS, including the API Program Element safety verification; API 10 suites / 88 tests PASS; orchestrator/Strategy/Steward 4 suites / 24 tests PASS; Workspace 2 suites / 13 tests PASS.
+- Candidate approval creates or updates the authoritative governed `memory_items` version inside the Phase 1 transaction and records exact `committed_memory_item_id` lineage.
+- Firm/client/personal approvals map to canonical `playbook`, `client-compass`, and `user-profile` steering identities with `firm_approved`, `client_approved`, or `user_asserted` authority.
+- A human-reviewed model extraction maps to `analyst_verified`; an unreviewed defensive machine activation remains `model_inferred` and cannot mint approved authority.
+- Candidate lineage is stable through `source_version = candidate:<id>` and is carried into the Clio compatibility envelope. Projection retry restores governed metadata only for validated active candidate lineage; generic projection SQL remains pre-migration compatible while governance is dark.
+- Approved canonical memory is returned by Context Packet v2 with the same item ID and authority; pending memory is withheld. API, orchestrator, Strategy, Steward, and Workspace consumers passed the consistency matrix.
+- Full transaction rollback covers the candidate, canonical item, Clio row, transition evidence, and outbox obligation.
+- Acceptance state: isolated implementation gate PASS; normal PR checks pending on the promoted SHA.
+- Next gated phase after normal PR CI: Phase 3 — route Settings edits through candidate review.
