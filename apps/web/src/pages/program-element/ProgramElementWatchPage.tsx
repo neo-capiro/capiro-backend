@@ -37,6 +37,7 @@ import {
   getProgramElementProvisions,
   getProgramElementOpportunities,
   getProgramElementProcurementLines,
+  getProgramElementNarrative,
 } from './api.js';
 import { FyHistoryChart } from './FyHistoryChart.js';
 import { FundingNarrativePanel } from './FundingNarrativePanel.js';
@@ -398,6 +399,14 @@ export function ProgramElementWatchPage() {
     enabled: q('billActions'),
   });
 
+  // Funding-tab only: current-cycle request→marks→enactment narrative (B12).
+  const narrativeQuery = useQuery({
+    queryKey: ['pe-narrative', normalizedPeCode],
+    queryFn: () => getProgramElementNarrative(api, normalizedPeCode),
+    staleTime: 60 * 1000,
+    enabled: q('narrative'),
+  });
+
   const errorStatus = (() => {
     const err = detailQuery.error as { response?: { status?: number }; status?: number } | null;
     if (!err) return null;
@@ -422,6 +431,7 @@ export function ProgramElementWatchPage() {
     { enabled: q('relationships'), isError: relationshipsQuery.isError },
     { enabled: q('incumbents'), isError: incumbentsQuery.isError },
     { enabled: q('billActions'), isError: billActionsQuery.isError },
+    { enabled: q('narrative'), isError: narrativeQuery.isError },
   ]);
 
   const yearRows = detailQuery.data?.years ?? [];
@@ -455,6 +465,7 @@ export function ProgramElementWatchPage() {
     if (q('relationships')) void relationshipsQuery.refetch();
     if (q('incumbents')) void incumbentsQuery.refetch();
     if (q('billActions')) void billActionsQuery.refetch();
+    if (q('narrative')) void narrativeQuery.refetch();
   };
 
   if (!pePresent) {
@@ -939,7 +950,13 @@ export function ProgramElementWatchPage() {
 
       {/* Phase 4 (4.1): assembled request→marks→enactment narrative for the current cycle. */}
       <div className="pe-surface pe-plain-surface span-2">
-        <FundingNarrativePanel peCode={normalizedPeCode} />
+        <FundingNarrativePanel
+          peCode={normalizedPeCode}
+          data={narrativeQuery.isError ? undefined : narrativeQuery.data}
+          loading={narrativeQuery.isLoading}
+          errored={narrativeQuery.isError}
+          onRetry={() => void narrativeQuery.refetch()}
+        />
       </div>
     </div>
   );

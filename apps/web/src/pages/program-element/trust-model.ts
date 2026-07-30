@@ -113,11 +113,13 @@ export type PeWatchQueryBucket =
   | 'actions'
   | 'relationships'
   | 'incumbents'
-  | 'billActions';
+  | 'billActions'
+  /** Current-cycle funding narrative (Funding tab only). */
+  | 'narrative';
 
 const TAB_QUERY_MAP: Record<PeWatchTab, readonly PeWatchQueryBucket[]> = {
   overview: ['bills', 'intelligence', 'projects', 'actions', 'relationships', 'billActions'],
-  funding: ['bills', 'intelligence'],
+  funding: ['bills', 'intelligence', 'narrative'],
   procurement: ['bills', 'intelligence', 'procurementLines'],
   legislation: ['bills', 'intelligence', 'actions', 'provisions', 'opportunities', 'billActions'],
   relationships: ['bills', 'intelligence', 'relationships', 'programs', 'related'],

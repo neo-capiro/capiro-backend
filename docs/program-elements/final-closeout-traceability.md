@@ -330,12 +330,13 @@ plus concrete findings. Do not implement fixes.
 |---|---|
 | Phase | 5 — Trust-first web |
 | Prior product tip (FAIL B1–B3) | `e7ffe8b76a8496e9846fb9a59002142d26b03546` |
-| Prior product tip (FAIL B8–B11) | `9381d154c2869e5db995f16b968d2a41422d3deb` (docs pin `e08797811`) |
-| Prior review | VERDICT: FAIL — B8–B11 overview/procurement success-Empty on isError |
-| Remediation product r2 | `4e2abed9ba5a03acdfbdef6b47ec0be1d2fe3ba3` (work-log Phase 5 r2) |
-| Remote tip (docs pin) | `391e1ca1f522c73a7274238935493c1cedb9b26b` |
+| Prior product tip (FAIL B8–B11 closed; B12 open) | `4e2abed9ba5a03acdfbdef6b47ec0be1d2fe3ba3` (docs pin `eafbfb2c0`) |
+| Prior review tip | `eafbfb2c0e848a0f692fd8b69950766a8e1277b5` |
+| Prior review | VERDICT: FAIL — **B12** FundingNarrativePanel ignores isError (stages Empty on `/narrative` 500); B8–B11 closed |
+| Remediation product r3 | _(after push — product commit SHA)_ |
+| Remote tip (docs pin after push) | _(origin/agent/program-elements-final-closeout)_ |
 | Implementer gate | IMPLEMENT PUSHED / review **REQUIRED** — **not** self-PASS |
-| Next | New session `./pe-closeout-run.sh review 5` on new tip only |
+| Next | New session `./pe-closeout-run.sh review 5` on **new** tip only |
 | MeriV2 | untouched |
 | Migrations | none |
 
@@ -346,8 +347,9 @@ plus concrete findings. Do not implement fixes.
 3. Detail with `years: [{fy, all stages null}]` → surface `complete_empty` (banner `pe-banner-complete-empty`), not `not_ingested` and not complete_with_data.
 4. Detail with year + `request: 0` → `complete_with_data` (zero is a stage).
 5. Viewport smoke file green at 1280/768/375; deep-link funding+fy restores selected tab.
-6. Initial overview still must not fetch `/sources|/personnel|/contractors|/provisions`.
+6. Initial overview still must not fetch `/sources|/personnel|/contractors|/provisions` **or** `/narrative`.
 7. **B8** Force `GET .../actions` 500 on default Overview → `pe-secondary-failed-actions` / Partial; never "No recorded budget actions".
 8. **B9** Force `GET .../relationships` 500 on Overview → `pe-secondary-failed-linked-lines`; never "No linked lines yet".
 9. **B10** Force `GET .../bills` 500 on Overview Recent activity → `pe-secondary-failed-recent-activity`; never "No dated legislative actions yet."
 10. **B11** Force `GET .../procurement-lines` 500 on Procurement detail (PROC line) → `pe-secondary-failed-procurement-lines`; never Secondary Distribution honesty Empty ("no per-recipient breakdown"). Partial banner alone is insufficient if section body still paints success Empty.
+11. **B12** Force `GET .../narrative` 500 on **Funding** tab → `pe-secondary-failed-narrative` + Retry + Partial; never "No current-cycle funding stages recorded for this program element yet." Overview cold start must not request `/narrative`.

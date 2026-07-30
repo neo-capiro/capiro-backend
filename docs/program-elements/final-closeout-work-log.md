@@ -6,7 +6,7 @@
 **Repo:** `neo-capiro/capirov2`  
 **Operator session:** Phase 4 IMPLEMENT (current-cycle track-aware read contract)  
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-30 (Phase 5 B8–B11 FAIL remediation IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-30 (Phase 5 B12 FAIL remediation IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
 
 ---
 
@@ -819,9 +819,57 @@ git reset --hard 9381d154c2869e5db995f16b968d2a41422d3deb
 
 ---
 
+## Phase 5 FAIL remediation r3 — B12 FundingNarrativePanel isError (failed ≠ stages Empty)
+
+**When:** 2026-07-30 21:12 UTC
+**Operator session:** Phase 5 IMPLEMENT only (FAIL inject B12; not review)
+**Mode:** LONG
+**Base (failed tip after B8–B11 review):** `eafbfb2c0e848a0f692fd8b69950766a8e1277b5` / product `4e2abed9ba5a03acdfbdef6b47ec0be1d2fe3ba3`
+**Product tip (this remediation):** _(record after push via origin tip)_
+**origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind)
+
+### Blocking defect closed
+
+| ID | Fix |
+|---|---|
+| B12 | Lift narrative fetch into Watch page with `q('narrative')` (funding-tab only); `FundingNarrativePanel` accepts `data/loading/errored/onRetry` and branches `isError` → `PeSecondaryFailed` testId `pe-secondary-failed-narrative` + Retry. Never stages Empty (“No current-cycle funding stages recorded…”) on failure. Fold into `anyEnabledSecondaryFailed` + Partial banner + bulk refetch. Test: Funding tab + `/narrative` 500 → failed UI; stages Empty copy ABSENT; `/narrative` not fetched on overview cold start. |
+
+### Files
+
+- `apps/web/src/pages/program-element/FundingNarrativePanel.tsx`
+- `apps/web/src/pages/program-element/ProgramElementWatchPage.tsx` (+test B12)
+- `apps/web/src/pages/program-element/trust-model.ts` (+test narrative bucket)
+- ledger docs
+
+### Gates (implement local)
+
+| Command | Result |
+|---|---|
+| vitest PE trust suite (9 files) | **77/77 PASS** (incl. B12 + prior B2/B3/B8–B11) |
+| `apps/web` `run build` (tsc + vite) | **PASS** (vite ~26s) |
+| Migrations / secrets / MeriV2 / email / LlamaParse / shared migrate | not run |
+| Scope bleed | web PE funding narrative path + trust-model bucket + ledgers only |
+
+### Migrations / data ops
+None.
+
+### Independent review status (Phase 5)
+**IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on the **new product tip after push** (not self-PASS). Close Gate #4 only if B12 cannot reproduce stages Empty on narrative 500, and prior B2/B8–B11 still hold. Do **not** start Phase 6.
+
+### Rollback
+
+```bash
+# return to tip that failed B12 review:
+git reset --hard eafbfb2c0e848a0f692fd8b69950766a8e1277b5
+# or prior B8–B11 product only:
+git reset --hard 4e2abed9ba5a03acdfbdef6b47ec0be1d2fe3ba3
+```
+
+---
+
 ## Next phase
 
-**Phase 5 independent adversarial REVIEW only** against the **new remote tip** after this B8–B11 remediation push (not Phase 6 implement).
-Prior FAIL inject for B1/B2/B3 closed on `9381d154c`; this tip closes overview/procurement body Empty leaks.
+**Phase 5 independent adversarial REVIEW only** against the **new remote tip** after this B12 remediation push (not Phase 6 implement).
+Prior FAIL tips closed: B1–B3 on `9381d154c`; B8–B11 on `4e2abed9b` (docs `eafbfb2c0`). This tip targets B12 narrative isError.
 Archive FAIL inject only after PASS names the post-fix tip.
 Do not start Phase 6 until a separate REVIEW session records `VERDICT: PASS` (or PASS WITH BLOCKERS with exit-gate bullets satisfied) against that tip SHA.

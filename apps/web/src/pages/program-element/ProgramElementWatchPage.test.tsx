@@ -497,4 +497,32 @@ describe('ProgramElementWatchPage', () => {
         expect(screen.queryByText(/No per-recipient procurement breakdown/i)).not.toBeInTheDocument();
         expect(screen.getByText(/Partial data/i)).toBeInTheDocument();
       });
+
+      test('B12 funding narrative 500 shows failed UI, not stages Empty', async () => {
+        setupApi(true, undefined, 2027);
+        const baseImpl = apiGetMock.getMockImplementation()!;
+        apiGetMock.mockImplementation(async (url: string) => {
+          if (String(url).includes('/narrative')) {
+            const err = new Error('narrative boom') as Error & { response?: { status: number } };
+            err.response = { status: 500 };
+            throw err;
+          }
+          return baseImpl(url);
+        });
+        renderPage();
+        await waitFor(() => expect(screen.getByTestId('pe-trust-header')).toBeInTheDocument());
+        // Narrative is funding-tab only (lazy); must not fire on overview.
+        expect(
+          apiGetMock.mock.calls.map((c) => String(c[0])).some((u) => u.includes('/narrative')),
+        ).toBe(false);
+        fireEvent.click(screen.getByRole('tab', { name: /Funding/i }));
+        await waitFor(() => {
+          expect(screen.getByTestId('pe-secondary-failed-narrative')).toBeInTheDocument();
+        });
+        expect(
+          screen.queryByText(/No current-cycle funding stages recorded for this program element yet/i),
+        ).not.toBeInTheDocument();
+        expect(screen.getByText(/Partial data/i)).toBeInTheDocument();
+        expect(screen.getAllByTestId('pe-secondary-retry').length).toBeGreaterThan(0);
+      });
       });

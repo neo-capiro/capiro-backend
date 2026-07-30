@@ -43,6 +43,8 @@ describe('trust-model lazy tab queries', () => {
     expect(peWatchQueryEnabled('proof', 'sources', true)).toBe(true);
     expect(peWatchQueryEnabled('team', 'personnel', true)).toBe(true);
     expect(peWatchQueriesForTab('funding').has('procurementLines')).toBe(false);
+    expect(peWatchQueryEnabled('funding', 'narrative', true)).toBe(true);
+    expect(peWatchQueryEnabled('overview', 'narrative', true)).toBe(false);
   });
 
   test('filterTabsForLineType drops procurement on RDTE', () => {
