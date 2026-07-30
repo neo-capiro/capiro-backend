@@ -10,7 +10,7 @@ permissions:
 jobs:
   patch-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -19,7 +19,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Apply exact memo persistence boundary patch
+      - name: Apply exact Phase 8 boundary and typecheck patches
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -141,21 +141,38 @@ jobs:
           if text.count(marker) != 1:
               raise SystemExit(f'spec insertion marker count={text.count(marker)}')
           spec.write_text(text.replace(marker, test + marker))
+
+          orchestrator_spec = Path(
+              'apps/meriv2-orchestrator/src/meri/context-compiler-v2.service.spec.ts'
+          )
+          text = orchestrator_spec.read_text()
+          old_jest_import = (
+              "import { afterEach, beforeEach, describe, expect, it, jest } "
+              "from '@jest/globals';\n"
+          )
+          if text.count(old_jest_import) != 1:
+              raise SystemExit(f'orchestrator jest import count={text.count(old_jest_import)}')
+          orchestrator_spec.write_text(text.replace(old_jest_import, '', 1))
           PY
-      - name: Format and run targeted memo test
+      - name: Format and run targeted checks
         run: |
           pnpm exec prettier --write \
             apps/api/src/intelligence/alert-memo/alert-memo.service.ts \
-            apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts
+            apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts \
+            apps/meriv2-orchestrator/src/meri/context-compiler-v2.service.spec.ts
           pnpm --filter @capiro/api exec prisma generate
           pnpm --filter @capiro/meriv2-core build
+          pnpm --filter @capiro/meriv2-orchestrator typecheck
           pnpm --filter @capiro/api exec jest --ci --runInBand \
             src/intelligence/alert-memo/alert-memo.service.spec.ts
+          pnpm --filter @capiro/meriv2-orchestrator exec jest --ci --runInBand \
+            src/meri/context-compiler-v2.service.spec.ts
       - name: Package exact patched files
         run: |
           tar -czf phase8-memo-boundary.tar.gz \
             apps/api/src/intelligence/alert-memo/alert-memo.service.ts \
-            apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts
+            apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts \
+            apps/meriv2-orchestrator/src/meri/context-compiler-v2.service.spec.ts
       - uses: actions/upload-artifact@v4
         with:
           name: phase8-memo-boundary
