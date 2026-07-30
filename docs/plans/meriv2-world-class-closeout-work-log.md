@@ -394,3 +394,16 @@ was performed during Phase 1.
 **Next gated phase:** Phase 2 — propagate approved governance into the canonical
 `memory_items` version. Phase 2 must not begin until the normal PR checks on the
 Phase 1 evidence SHA are green.
+
+## Phase 2 — canonical governed memory activation (2026-07-30)
+
+- Implementation commit: `37f0601083cef44df090bdc1950c7a1df31527ef`.
+- Current `main` at promotion: `057f5480a46f9ba9acf9296a9cc876b609593832`; the closeout branch was zero commits behind before promotion.
+- Validation workflow `30516743461`: API typecheck PASS; 7 targeted suites / 50 tests PASS.
+- Candidate activation now creates or updates the authoritative governed `memory_items` version inside the Phase 1 transaction and records `committed_memory_item_id` lineage.
+- Firm/client/personal approvals map to `playbook`, `client-compass`, and `user-profile` respectively, preserving Context Packet layer eligibility without changing the dark/default legacy path.
+- Clio remains a compatibility/projection source; its governance envelope preserves authority, source, approval, validity, conflict, origin, and steering type across rebuilds.
+- Model-extracted content remains `model_inferred`; human review does not rewrite provenance into human-authored authority.
+- Full rollback includes the canonical item, candidate, Clio row, audit evidence, and outbox obligation.
+- Acceptance state: implementation and isolated regression gate PASS; normal PR checks pending on the promoted SHA.
+- Next gated phase after normal PR CI: Phase 3 — route Settings edits through candidate review.
