@@ -149,7 +149,11 @@ describe('ClientFacilitiesService — CRUD', () => {
     expect(created.clientId).toBe('client-1');
     expect(created.name).toBe('Huntsville');
     expect(created.state).toBe('AL');
-    expect(created.congressionalDistrict).toBe('5');
+    // CHANGED: '5' in, '05' stored. Facility style is 2-char zero-padded, and this
+    // assertion used to pin the UNPADDED value — the defect that made a facility key
+    // as AL-5 while every award for the same seat keyed as AL-05, so the facility
+    // vanished from District Nexus entirely. See normalizeDistrictForStorage.
+    expect(created.congressionalDistrict).toBe('05');
     // districtSource defaults to 'user' when omitted on create.
     expect(created.districtSource).toBe('user');
     expect(prisma.__store.facilities).toHaveLength(1);
@@ -456,5 +460,178 @@ describe('ClientFacility DTO validation — districtSource + congressionalDistri
     const errs = props(await errorsFor(UpdateFacilityDto, { congressionalDistrict: 'abc' }));
     expect(errs).toContain('congressionalDistrict');
     expect(errs).not.toContain('name');
+  });
+});
+
+// ── District storage form ───────────────────────────────────────────────────
+
+/**
+ * Facility style is 2-char zero-padded. Nothing enforced it on write until now, and
+ * the consequence was not cosmetic: `districtKeyFor` builds its key from the code
+ * AS STORED, so a facility saved as "7" keys as `WA-7` while every award for that
+ * seat keys as `WA-07` (USAspending's `congressional_code` is stored verbatim and is
+ * padded). The facility became its own district bucket with no awards, the real
+ * district showed no facilities, and since the detail route builds `WA-07` the
+ * facility was unreachable — it vanished from District Nexus.
+ *
+ * Seven of 151 production facilities were in that state on 2026-07-30, all written
+ * by the Meri `web_import` path whose LLM payload varied between "7" and "07".
+ *
+ * INPUT stays lenient (a user may type "7"); only storage is normalized.
+ */
+describe('congressional district is normalized to storage form on write', () => {
+  test.each([
+    ['1', '01'],
+    ['5', '05'],
+    ['7', '07'],
+    ['9', '09'],
+  ])('create pads "%s" to "%s"', async (input, stored) => {
+    const prisma = makePrisma({ clients: [seedClient(TENANT_A)] });
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+    const created = (await svc.createFacility(ctx(TENANT_A), 'client-1', {
+      name: 'Plant',
+      state: 'WA',
+      congressionalDistrict: input,
+    })) as Row;
+    expect(created.congressionalDistrict).toBe(stored);
+  });
+
+  test('create leaves an already-padded district alone', async () => {
+    const prisma = makePrisma({ clients: [seedClient(TENANT_A)] });
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+    const created = (await svc.createFacility(ctx(TENANT_A), 'client-1', {
+      name: 'Plant',
+      state: 'TX',
+      congressionalDistrict: '16',
+    })) as Row;
+    expect(created.congressionalDistrict).toBe('16');
+  });
+
+  test('a single-seat jurisdiction stores 00, not 01', async () => {
+    // At-largeness is derived from apportionment, never read off the value — some
+    // sources report a sole House seat as "1", and it must key as '00' to join
+    // against a geocoded at-large facility.
+    const prisma = makePrisma({ clients: [seedClient(TENANT_A)] });
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+    for (const [state, input] of [['WY', '1'], ['VT', '01'], ['DE', '1']] as const) {
+      const created = (await svc.createFacility(ctx(TENANT_A), 'client-1', {
+        name: `${state} site`,
+        state,
+        congressionalDistrict: input,
+      })) as Row;
+      expect(created.congressionalDistrict).toBe('00');
+    }
+  });
+
+  test('an at-large facility already stored as 00 is unchanged', async () => {
+    const prisma = makePrisma({ clients: [seedClient(TENANT_A)] });
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+    const created = (await svc.createFacility(ctx(TENANT_A), 'client-1', {
+      name: 'Cheyenne',
+      state: 'WY',
+      congressionalDistrict: '00',
+    })) as Row;
+    expect(created.congressionalDistrict).toBe('00');
+  });
+
+  test('a null or absent district stays null', async () => {
+    const prisma = makePrisma({ clients: [seedClient(TENANT_A)] });
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+    const noField = (await svc.createFacility(ctx(TENANT_A), 'client-1', { name: 'A' })) as Row;
+    expect(noField.congressionalDistrict).toBeNull();
+    const explicitNull = (await svc.createFacility(ctx(TENANT_A), 'client-1', {
+      name: 'B',
+      congressionalDistrict: undefined,
+    })) as Row;
+    expect(explicitNull.congressionalDistrict).toBeNull();
+  });
+
+  test('update pads too, using the STORED state when the PATCH omits it', async () => {
+    // A district-only PATCH still has to know whether this is a single-seat
+    // jurisdiction, which it can only learn from the row.
+    const prisma = makePrisma({
+      clients: [seedClient(TENANT_A)],
+      facilities: [
+        { id: 'f1', tenantId: TENANT_A, clientId: 'client-1', name: 'Plant', state: 'WA', congressionalDistrict: '01' },
+        { id: 'f2', tenantId: TENANT_A, clientId: 'client-1', name: 'AtLarge', state: 'WY', congressionalDistrict: '00' },
+      ],
+    });
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+
+    const padded = (await svc.updateFacility(ctx(TENANT_A), 'client-1', 'f1', {
+      congressionalDistrict: '7',
+    })) as Row;
+    expect(padded.congressionalDistrict).toBe('07');
+
+    const atLarge = (await svc.updateFacility(ctx(TENANT_A), 'client-1', 'f2', {
+      congressionalDistrict: '1',
+    })) as Row;
+    expect(atLarge.congressionalDistrict).toBe('00');
+  });
+
+  test('update uses the INCOMING state when the PATCH changes both', async () => {
+    const prisma = makePrisma({
+      clients: [seedClient(TENANT_A)],
+      facilities: [
+        { id: 'f1', tenantId: TENANT_A, clientId: 'client-1', name: 'Plant', state: 'TX', congressionalDistrict: '16' },
+      ],
+    });
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+    const moved = (await svc.updateFacility(ctx(TENANT_A), 'client-1', 'f1', {
+      state: 'WY',
+      congressionalDistrict: '1',
+    })) as Row;
+    // Moved to a single-seat state in the same PATCH → at-large, not '01'.
+    expect(moved.congressionalDistrict).toBe('00');
+  });
+
+  test('clearing the district on update still clears it', async () => {
+    const seed = () => ({
+      clients: [seedClient(TENANT_A)],
+      facilities: [
+        { id: 'f1', tenantId: TENANT_A, clientId: 'client-1', name: 'Plant', state: 'WA', congressionalDistrict: '07' },
+      ],
+    });
+
+    // The type-legal spelling: the KEY is present with `undefined`, which is what
+    // `'congressionalDistrict' in input` detects. UpdateFacilityInput types the
+    // field `string | undefined`, so this is how a caller expresses "clear it".
+    const a = makePrisma(seed());
+    const clearedByUndefined = (await new ClientFacilitiesService(
+      a as never,
+      kbStub as never,
+    ).updateFacility(ctx(TENANT_A), 'client-1', 'f1', {
+      congressionalDistrict: undefined,
+    })) as Row;
+    expect(clearedByUndefined.congressionalDistrict).toBeNull();
+
+    // …and a literal JSON `null`, which the controller CAN deliver at runtime even
+    // though the TS type does not admit it (the DTO is `@IsOptional()`), must clear
+    // rather than crash or store the string "null". Cast, because the point is the
+    // runtime path the type does not describe.
+    const b = makePrisma(seed());
+    const clearedByNull = (await new ClientFacilitiesService(
+      b as never,
+      kbStub as never,
+    ).updateFacility(ctx(TENANT_A), 'client-1', 'f1', {
+      congressionalDistrict: null as unknown as string | undefined,
+    })) as Row;
+    expect(clearedByNull.congressionalDistrict).toBeNull();
+  });
+
+  test('the geocoder’s non-voting-delegate sentinel survives verbatim', async () => {
+    // '98' is a two-digit NUMBER, so a shape-based guard would pass it to the
+    // at-large collapse and invent a seat. Observed on a real geocoded row.
+    const prisma = makePrisma({ clients: [seedClient(TENANT_A)] });
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+    for (const sentinel of ['90', '98', 'ZZ']) {
+      const created = (await svc.createFacility(ctx(TENANT_A), 'client-1', {
+        name: `sentinel ${sentinel}`,
+        state: 'DC',
+        congressionalDistrict: sentinel,
+        districtSource: 'geocoded',
+      })) as Row;
+      expect(created.congressionalDistrict).toBe(sentinel);
+    }
   });
 });

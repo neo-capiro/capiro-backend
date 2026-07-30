@@ -171,12 +171,35 @@ const EMPTY_CLIENT_OPPORTUNITY_SUMMARY: ClientOpportunitySummary = Object.freeze
  * legacy representative overlay already refuses to resolve a House member for
  * them — attributing spend to them here while refusing to name a
  * representative would be internally inconsistent.
+ *
+ * ── The key is ZERO-PADDED, and that is load-bearing ────────────────────────
+ *
+ * This function used to emit the code exactly as stored, which made it the point
+ * where a storage inconsistency became a wrong answer. Facility style is 2-char
+ * zero-padded, but nothing enforced it on write, so a facility saved as `"7"`
+ * keyed as `WA-7` while every award for the same seat keyed as `WA-07`
+ * (USAspending's `congressional_code` is stored verbatim and is padded). The
+ * facility became its own bucket with no awards, the real district showed no
+ * facilities, and since the detail route builds `WA-07` the facility was
+ * unreachable — it vanished from District Nexus. Seven production rows were in
+ * that state on 2026-07-30.
+ *
+ * `client-facilities.service.ts` now normalizes on write and a repair script
+ * fixed the existing rows, so this padding is belt-and-braces. It stays because
+ * this is the single place every rail's key is minted, and one unpadded value
+ * arriving from any future writer would silently split a district again rather
+ * than merely looking untidy.
+ *
+ * Only a bare single digit is padded. Sentinels never reach here (they are
+ * already null) and any other shape is passed through untouched rather than
+ * mangled into a plausible-looking key.
  */
 export function districtKeyFor(state: string | null, district: string | null): DistrictKey | null {
   if (!state) return null;
   const code = districtCodeForHouseMatch(district);
   if (!code) return null;
-  return `${state}-${code}`;
+  const padded = /^\d$/.test(code) ? code.padStart(2, '0') : code;
+  return `${state}-${padded}`;
 }
 
 /** True when the row has a state but no district-resolvable code — statewide money. */

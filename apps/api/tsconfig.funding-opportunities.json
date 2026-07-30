@@ -49,7 +49,11 @@
     "scripts/enrich-grant-details.ts",
     "scripts/enrich-grant-details.spec.ts",
     "scripts/repair-set-aside-certifications.ts",
-    "scripts/repair-set-aside-certifications.spec.ts"
+    "scripts/repair-set-aside-certifications.spec.ts",
+    // Facility district-code normalization (2026-07-30). Typechecked here for the
+    // same reason as everything above: apps/api/tsconfig.json excludes `scripts`.
+    "scripts/repair-facility-district-codes.ts",
+    "scripts/repair-facility-district-codes.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
