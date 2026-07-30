@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
-import { TruthfulContextCompiler } from '@capiro/meriv2-core/context/truthful-compiler';
+import {
+  TruthfulContextCompiler,
+  isContextPacketPersistenceError,
+} from '@capiro/meriv2-core/context/truthful-compiler';
 import type {
   CompiledContextPacket,
   ContextRequest,
@@ -11,6 +14,10 @@ import type {
 import { typesForLayers } from '@capiro/meriv2-core/context/contract';
 import { GOVERNED_STEERING_COLUMNS_SQL } from '@capiro/meriv2-core/context/governed-columns';
 import { PrismaService } from '../prisma/prisma.service.js';
+import {
+  clearContextPersistenceHold,
+  markContextPersistenceHold,
+} from './context-persistence-hold.js';
 
 /** Workspace adapter for the shared deterministic Context Compiler. */
 @Injectable()
@@ -21,9 +28,6 @@ export class WorkspaceContextCompilerService {
   constructor(private readonly prisma: PrismaService) {
     const adapter: TruthfulContextStoreAdapter = {
       loadSteeringRows: (req) => this.loadSteeringRows(req),
-      // v2 only. The governed columns come from the UNAPPLIED migration
-      // 20260729010000_memory_governance_context_v2, so they must never appear on
-      // the v1 read path.
       loadGovernedSteeringRows: (req) => this.loadSteeringRows(req, { governed: true }),
       persistPacket: (packet) => this.persistPacket(packet),
     };
@@ -34,11 +38,19 @@ export class WorkspaceContextCompilerService {
     req: Omit<ContextRequest, 'userId'>,
     clerkOwnerId?: string,
   ): Promise<CompiledContextPacket> {
+    const draftId = typeof req.ref?.draftId === 'string' ? req.ref.draftId : null;
+    if (draftId) clearContextPersistenceHold(req.tenantId, draftId);
     const userId = await this.resolveUserIdByClerkId(clerkOwnerId);
-    return this.compiler.compile({ ...req, userId });
+    try {
+      return await this.compiler.compile({ ...req, userId });
+    } catch (error) {
+      if (draftId && isContextPacketPersistenceError(error)) {
+        markContextPersistenceHold(req.tenantId, draftId, error.code);
+      }
+      throw error;
+    }
   }
 
-  /** Clerk subject → Capiro users.id. Null (not a throw) when it cannot resolve. */
   private async resolveUserIdByClerkId(clerkOwnerId?: string): Promise<string | null> {
     if (!clerkOwnerId) return null;
     try {
@@ -52,11 +64,6 @@ export class WorkspaceContextCompilerService {
     }
   }
 
-  /**
-   * Wall decision for a Workspace caller, who is identified by a Clerk subject
-   * rather than a Capiro user id. An unresolvable Clerk subject denies, matching
-   * `fetchDeniedClientIds`'s treatment of a null user.
-   */
   async resolveEthicalWallAllowedForClerkOwner(
     tenantId: string,
     clerkOwnerId: string | undefined,
@@ -67,11 +74,6 @@ export class WorkspaceContextCompilerService {
     return this.resolveEthicalWallAllowed(tenantId, userId, clientId);
   }
 
-  /**
-   * Workspace persists the display name, not a client UUID. Resolve an exact,
-   * tenant-scoped match before compiling client steering. Zero or ambiguous
-   * matches return null rather than guessing a client.
-   */
   async resolveClientIdByExactName(
     tenantId: string,
     clientName?: string | null,
@@ -98,16 +100,6 @@ export class WorkspaceContextCompilerService {
     return rows[0]!.id;
   }
 
-  /**
-   * Server-derived ethical-wall decision: may `userId` be shown `clientId`'s
-   * confidential memory? (closeout §6, contract change 4.)
-   *
-   * Fail-closed on every uncertain input — no client, no resolved user, a client
-   * id that does not exist in this tenant, or a query error all return `false`.
-   * `compileV2` only admits client-scope rows on a literal `true`, so a wrong
-   * answer here is the difference between withholding context and leaking a
-   * walled client's material into a generated deliverable.
-   */
   async resolveEthicalWallAllowed(
     tenantId: string,
     userId: string | null,
