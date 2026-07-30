@@ -1,0 +1,43 @@
+# Institutional-memory governance release gate.
+#
+# The repo-wide PR workflow typechecks apps/api but intentionally does not run its
+# full Jest suite because of unrelated legacy failures. These mock-backed suites
+# are an absolute-zero scope for the governed-memory lifecycle and must therefore
+# execute as their own required-quality signal.
+name: memory-governance-ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  immutable-versions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate API Prisma client
+        run: pnpm --filter @capiro/api exec prisma generate
+      - name: Typecheck apps/api
+        run: pnpm --filter @capiro/api typecheck
+      - name: Test immutable memory lifecycle
+        run: >
+          pnpm --filter @capiro/api exec jest --ci --silent --runInBand
+          src/memory/memory-version.helpers.spec.ts
+          src/memory/immutable-memory-version.service.spec.ts
+          src/prisma/migration-memory-immutable-versions.spec.ts
+          src/memory/memory-candidate.atomicity.spec.ts
