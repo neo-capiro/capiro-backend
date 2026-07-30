@@ -41,6 +41,12 @@
       "import": "./dist/context/compiler.js",
       "default": "./dist/context/compiler.js"
     },
+    "./context/truthful-compiler": {
+      "types": "./dist/context/truthful-compiler.d.ts",
+      "require": "./dist/context/truthful-compiler.js",
+      "import": "./dist/context/truthful-compiler.js",
+      "default": "./dist/context/truthful-compiler.js"
+    },
     "./context/governed-columns": {
       "types": "./dist/context/governed-columns.d.ts",
       "require": "./dist/context/governed-columns.js",
