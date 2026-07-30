@@ -59,8 +59,8 @@ export class ContextCompilerService {
         tenant?.settings,
         surface,
       );
-    } catch (error) {
-      this.logger.warn(`Context Packet tenant canary lookup failed closed: ${(error as Error).message}`);
+    } catch {
+      this.logger.warn('Context Packet tenant canary lookup failed closed (context_packet_canary_lookup_failed)');
       return 'off';
     }
   }
@@ -73,8 +73,8 @@ export class ContextCompilerService {
       return req.userId
         ? await this.prisma.withTenantUser(req.tenantId, req.userId, run)
         : await this.prisma.withTenant(req.tenantId, run);
-    } catch (error) {
-      this.logger.warn(`Context Packet ethical-wall lookup failed closed: ${(error as Error).message}`);
+    } catch {
+      this.logger.warn('Context Packet ethical-wall lookup failed closed (context_packet_wall_lookup_failed)');
       return false;
     }
   }
@@ -177,7 +177,7 @@ export class ContextCompilerService {
 
   private async persistShadowComparison(input: {
     tenantId: string;
-    shadowPacketId: string;
+    comparisonPacketId: string;
     comparison: ContextPacketShadowComparison;
   }): Promise<void> {
     await this.prisma.withTenant(input.tenantId, (tx) =>
@@ -185,7 +185,7 @@ export class ContextCompilerService {
         UPDATE context_packet
         SET health_jsonb = COALESCE(health_jsonb, '{}'::jsonb)
             || jsonb_build_object('shadowComparison', ${JSON.stringify(input.comparison)}::jsonb)
-        WHERE id = ${input.shadowPacketId}::uuid AND tenant_id = ${input.tenantId}::uuid
+        WHERE id = ${input.comparisonPacketId}::uuid AND tenant_id = ${input.tenantId}::uuid
       `,
     );
   }
