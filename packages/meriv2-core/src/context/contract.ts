@@ -286,7 +286,12 @@ export interface RenderedSteeringItem {
 }
 
 interface CompiledContextPacketBase {
-  packetId: string;
+  /** Random identity created before persistence and used only for the attempted write. */
+  generatedPacketId: string;
+  /** Durable public identity. Null unless exact persistence and lookup succeeded. */
+  packetId: string | null;
+  /** Explicit durable identity, equal to packetId on success and null otherwise. */
+  persistedPacketId: string | null;
   surface: ContextSurface;
   tenantId: string;
   effectiveTenantId: string;
@@ -298,6 +303,8 @@ interface CompiledContextPacketBase {
   rendered: RenderedSteeringItem[];
   traceHash: string;
   persisted: boolean;
+  /** Bounded reason code only; never a DB/provider error message. */
+  persistenceErrorCode: string | null;
   compiledAt: string;
 }
 
@@ -335,5 +342,9 @@ export interface ContextStoreAdapter {
   loadSteeringRows(req: ContextRequest): Promise<SteeringRow[]>;
   /** Optional governed query. Core falls back to v1 rows and quarantines gaps. */
   loadGovernedSteeringRows?(req: ContextRequest): Promise<SteeringRow[]>;
-  persistPacket?(packet: CompiledContextPacket): Promise<void>;
+  /**
+   * Persist and verify the exact generated packet row, returning its durable ID.
+   * Adapters must throw on insert or read-after-write failure.
+   */
+  persistPacket?(packet: CompiledContextPacket): Promise<string>;
 }
