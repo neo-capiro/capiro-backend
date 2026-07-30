@@ -5,7 +5,8 @@
 **Primary PR:** `#679`  
 **State:** Draft, unmerged  
 **Authoritative through:** Phase 7 code acceptance  
-**Latest accepted code head:** `855455a2fa67a669d2d9a88a1b1473980a07c8fd`  
+**Latest accepted validation head:** `f8d886d4d24c6b8778c21a94e72d3bc6036267d0`  
+**Latest accepted runtime-fix head:** `a3535542318004dd5454d6efc07216844cd38936`  
 **Moving baseline at the Phase 7 acceptance check:** `main@3dcb12f823774b6fae8578dc56fc122bf9a0879e`
 
 No merge to `main`, AWS deployment, shared/production migration, production backfill, feature-flag activation, customer-data mutation, or external send has occurred during Phases 0–7.
@@ -231,15 +232,17 @@ Detailed acceptance: `docs/qa/meriv2-phase-6-exact-projection-completion.md`.
 
 ## Phase 7 — truthful Context Packet persistence
 
-### Accepted code head
+### Accepted heads
 
-`855455a2fa67a669d2d9a88a1b1473980a07c8fd`
+- accepted validation head: `f8d886d4d24c6b8778c21a94e72d3bc6036267d0`;
+- accepted runtime-fix head: `a3535542318004dd5454d6efc07216844cd38936`.
 
 ### Runtime contract
 
 - generated packet UUIDs are private attempt identities and are removed from the public contract before persistence;
 - one shared `TruthfulContextCompiler` owns the required-versus-best-effort decision;
 - API, orchestrator, and Workspace adapters await insertion and exact tenant-scoped read-after-write verification;
+- adapters persist both owning tenant and server-resolved effective tenant truthfully;
 - a public packet ID is populated only when the adapter returns the exact attempted ID;
 - best-effort failure returns `packetId: null`, `persisted: false`, a bounded error code, and degraded provenance;
 - audited editor, Strategy, and Workspace-generation surfaces require persistence and hold before release;
@@ -251,16 +254,17 @@ Detailed acceptance: `docs/qa/meriv2-phase-6-exact-projection-completion.md`.
 
 ### Final audit corrections
 
-The closeout review found and fixed two late release blockers:
+The closeout review found and fixed three late release blockers:
 
 1. a process-global Workspace hold map allowed parallel same-draft requests to interfere with each other;
-2. Context Inspector treated an absent `persisted` flag as sufficient to display a packet ID.
+2. Context Inspector treated an absent `persisted` flag as sufficient to display a packet ID;
+3. all three persistence adapters collapsed `effectiveTenantId` into `tenantId`, corrupting effective-scope/impersonation provenance in the stored trace.
 
-Both paths now fail closed and have explicit regressions.
+All three paths now fail closed or preserve truth and have explicit regressions. The third correction modified only Context Packet adapters and their tests; no Program Element or defense-budget runtime file was changed.
 
 ### Acceptance evidence
 
-On synchronized code head `855455a2`, permanent cumulative workflow `memory-governance-ci` run `30580550695` passed:
+On synchronized validation head `f8d886d4`, permanent cumulative workflow `memory-governance-ci` run `30581917284` passed:
 
 - all five Prisma clients generated;
 - full repository dependency-graph typecheck — **PASS**;
@@ -268,25 +272,25 @@ On synchronized code head `855455a2`, permanent cumulative workflow `memory-gove
 - API governed-memory Phases 1–7 — **55 suites / 480 tests PASS**;
 - Phase 7 core persistence and surface policy — **2 suites / 16 tests PASS**;
 - orchestrator Context/Strategy/Steward matrix — **6 suites / 37 tests PASS**;
-- Workspace canonical context and request-local persistence hold — **5 suites / 36 tests PASS**;
+- Workspace canonical context and request-local persistence hold — **5 suites / 37 tests PASS**;
 - Settings and Context Inspector contracts — **2 files / 10 tests PASS**.
 
-Cumulative total: **70 suites/files / 579 tests PASS**.
+Cumulative total: **70 suites/files / 580 tests PASS**.
 
-Required workflows on the same code head:
+Required workflows on the same validation head:
 
-- `memory-governance-ci` `30580550695` — **PASS**;
-- `ci-pr` `30580550705` — **PASS**;
-- `meriv2-evals` `30580550689` — **PASS**;
-- `engagement-trust-boundary` `30580550742` — **PASS**;
-- `legiwatch-ci` `30580550691` — **PASS**;
-- `funding-opportunities-ci` `30580550760` — **PASS**.
+- `memory-governance-ci` `30581917284` — **PASS**;
+- `ci-pr` `30581917248` — **PASS**;
+- `meriv2-evals` `30581917290` — **PASS**;
+- `engagement-trust-boundary` `30581917322` — **PASS**;
+- `legiwatch-ci` `30581917244` — **PASS**;
+- `funding-opportunities-ci` `30581917261` — **PASS**.
 
-Immediately before the Phase 7 evidence record, the branch was **0 commits behind** `main@3dcb12f823774b6fae8578dc56fc122bf9a0879e` and remained draft, mergeable, and unmerged.
+Immediately before the Phase 7 acceptance record, the branch was **0 commits behind** `main@3dcb12f823774b6fae8578dc56fc122bf9a0879e` and remained draft, mergeable, and unmerged.
 
 ### Acceptance
 
-**PASS.** Every packet ID displayed by the product is backed by an exact, tenant-scoped, retrievable `context_packet` row. Best-effort failure exposes no ID, and required audited generation boundaries cannot release content after a failed persistence attempt.
+**PASS.** Every packet ID displayed by the product is backed by an exact, tenant-scoped, retrievable `context_packet` row. Best-effort failure exposes no ID; required audited generation boundaries cannot release content after a failed persistence attempt; and persisted traces retain truthful effective-scope provenance.
 
 ### Phase 8 boundary
 
@@ -310,7 +314,7 @@ Detailed acceptance: `docs/qa/meriv2-phase-7-truthful-context-persistence.md`.
 
 **PHASES 1–7 CUMULATIVE CODE ACCEPTANCE: PASS.**
 
-Phase 7 does not invalidate atomic activation, canonical governance propagation, Settings review, immutable correction/restore semantics, or strict durable projection behavior. The permanent cumulative workflow proves all Phase 1–7 memory and Context Packet contracts on one synchronized exact head.
+Phase 7 does not invalidate atomic activation, canonical governance propagation, Settings review, immutable correction/restore semantics, or strict durable projection behavior. The permanent cumulative workflow proves all Phase 1–7 memory and Context Packet contracts on one synchronized exact validation head.
 
 ### Deferred boundaries
 
@@ -321,4 +325,4 @@ These remain later-phase or release-certification work and do not reopen Phases 
 - authenticated browser, narrow-width, keyboard, and screen-reader acceptance;
 - production migration, backfill, deployment, and feature-flag activation.
 
-**Next gated phase: Phase 8.** Do not merge or deploy this PR. Preserve the Phase 7 acceptance head and begin Phase 8 only after the final evidence commit is synchronized with moving `main` and all required PR checks pass successfully on that exact SHA.
+**Next gated phase: Phase 8.** Do not merge or deploy this PR. Phase 8 was not started during Phase 7 closeout.
