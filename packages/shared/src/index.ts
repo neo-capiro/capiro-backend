@@ -2156,16 +2156,18 @@ export interface FundingYearMarks {
   hacDMark?: number | null;
   sacDMark?: number | null;
   conference?: number | null;
+  /** Authorization-track NDAA conference — mark-bearing for cycle FY (Phase G B3/B6). */
+  ndaaConference?: number | null;
 }
 
 /**
  * The current budget CYCLE FY = the latest FY carrying any congressional
- * appropriations/authorization mark; else the latest request-bearing FY; else
- * null. Congress only marks the year in process, so later FYs are FYDP OUTYEAR
- * projections and earlier FYs are historical. THE shared rule so the timeline
- * tool and the outreach/memo truth block label cycles identically. (NDAA
- * conference is excluded here on purpose — the cycle tracks where the money
- * process is, and this matches the finder/timeline behavior.)
+ * mark (auth chamber, NDAA conference, approps chamber, or approps conference);
+ * else the latest request-bearing FY; else null. Congress only marks the year
+ * in process, so later FYs are FYDP OUTYEAR projections and earlier FYs are
+ * historical. Aligned with currentCycleFyPreservingZero / sqlCurrentCycleFyExpr
+ * so detail fundingSummary, timeline, and outreach/memo truth cannot disagree
+ * on NDAA-only years (Phase 4 B3 / B6).
  */
 export function currentCycleFyOf(years: readonly FundingYearMarks[]): number | null {
   const hasMark = (y: FundingYearMarks): boolean =>
@@ -2173,7 +2175,8 @@ export function currentCycleFyOf(years: readonly FundingYearMarks[]): number | n
     y.sascMark != null ||
     y.hacDMark != null ||
     y.sacDMark != null ||
-    y.conference != null;
+    y.conference != null ||
+    y.ndaaConference != null;
   const markFys = years.filter(hasMark).map((y) => y.fy);
   if (markFys.length) return Math.max(...markFys);
   const reqFys = years.filter((y) => y.request != null).map((y) => y.fy);

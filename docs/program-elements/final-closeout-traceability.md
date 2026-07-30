@@ -2,7 +2,7 @@
 
 **Baseline main SHA:** `057f5480a46f9ba9acf9296a9cc876b609593832`  
 **Pre-Phase-0 #705 head (void product):** `a244022648d54d9e4ac7fb071f9f438405659056`  
-**Updated (UTC):** 2026-07-30 (Phase 4 FAIL remediations B1–B4 on tip stack above `19936afde`; implementer gates green; **Phase 4 independent review REQUIRED on new tip**)
+**Updated (UTC):** 2026-07-30 (Phase 4 FAIL Round-2 remediations B5–B7; implementer gates green; **Phase 4 independent review REQUIRED on new tip** — no self-PASS)
 
 Legend for **Status**:
 
@@ -102,10 +102,10 @@ Closeout **execution phase** column is the session phase from the final schedule
 | G8 | Capability totals one FY + coverage disclosure | `in_branch` (Phase 4) | listCapabilities shared FY + requestCoverage | 4 |
 | G9 | Contractor evidence: accepted_direct / candidate / unmatched | `in_branch` (Phase 4) | getContractors.evidenceBuckets | 4 |
 | G10 | Missing-mark taxonomy | `in_branch` (Phase 4) | classifyMissingMark on timeline years | 4 |
-| G11 | Current request cannot be FYDP outyear | `in_branch` (Phase 4 FAIL fix) | timeline currentCycleFyPreservingZero includes ndaaConference; sqlCurrentCycleFyExpr | 4 |
+| G11 | Current request cannot be FYDP outyear | `in_branch` (Phase 4 FAIL R2 fix) | list peCurrentCycleFy + sqlCurrentCycleFyExpr; detail/timeline currentCycleFyPreservingZero + NDAA; currentCycleFyOf aligned; markup pe_cycle CTE | 4 |
 | G12 | API contract tests + verify:pe-phase-g | `in_branch` (Phase 4) | funding-claim.spec + read.service Phase G case | 4 |
 
-**Phase 4 review gate:** Round 1 on `cf87ee77a` / product `19936afde` = **FAIL** (B1 cross-track markup %, B2 list cross-FY delta base, B3 NDAA cycle FY). FAIL remediations product `2adb5581ac9151bcbd763029228b7fb5feeb2392`; requires a **new** independent REVIEW on that tip (no self-PASS). Re-attack B1/B2/B3 on the fix tip.
+**Phase 4 review gate:** Round 1 FAIL B1–B3 closed on product `2adb5581a`. Round 2 on tip `13cb22c53` = **FAIL** (B5 list cycle = latest request FY; B6 detail fundingSummary NDAA-blind `currentCycleFyOf`; B7 markup `ORDER BY fy DESC`). Round-2 remediations on this push — requires a **new** independent REVIEW on the post-fix tip (no self-PASS). Re-attack B5/B6/B7 and hold B1–B3.
 
 ---
 

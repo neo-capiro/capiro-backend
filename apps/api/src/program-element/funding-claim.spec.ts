@@ -191,6 +191,52 @@ describe('FundingClaim (Phase G)', () => {
     ).toBeNull();
   });
 
+  test('B5: outyear request is projection when cycle is mark FY', () => {
+    // Finder list must pass mark-bearing cycle (2027), not latestRequestFy (2031).
+    const claim = buildFundingClaim({
+      value: 11.53,
+      fiscalYear: 2031,
+      stage: 'request',
+      currentCycleFy: 2027,
+    });
+    expect(claim.cycleClass).toBe('outyear');
+    expect(claim.isProjection).toBe(true);
+    // Wrong anchor (latestRequestFy) would lie as current:
+    const lied = buildFundingClaim({
+      value: 11.53,
+      fiscalYear: 2031,
+      stage: 'request',
+      currentCycleFy: 2031,
+    });
+    expect(lied.cycleClass).toBe('current');
+    expect(lied.isProjection).toBe(false);
+  });
+
+  test('B6: currentCycleFyPreservingZero NDAA-only matches mark year over request outyear', () => {
+    const fy = currentCycleFyPreservingZero([
+      {
+        fy: 2027,
+        request: null,
+        hascMark: null,
+        sascMark: null,
+        hacDMark: null,
+        sacDMark: null,
+        conference: null,
+        ndaaConference: 50,
+      },
+      {
+        fy: 2028,
+        request: 60,
+        hascMark: null,
+        sascMark: null,
+        hacDMark: null,
+        sacDMark: null,
+        conference: null,
+      },
+    ]);
+    expect(fy).toBe(2027);
+  });
+
   test('current request claim cannot be an FYDP outyear', () => {
     const claim = buildFundingClaim({
       value: 11.53,

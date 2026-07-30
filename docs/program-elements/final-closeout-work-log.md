@@ -6,7 +6,7 @@
 **Repo:** `neo-capiro/capirov2`  
 **Operator session:** Phase 4 IMPLEMENT (current-cycle track-aware read contract)  
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-30 (Phase 4 FAIL remediations B1–B4 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-30 (Phase 4 FAIL Round-2 remediations B5–B7 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
 
 ---
 
@@ -580,9 +580,62 @@ git reset --hard 0a74cf9a3220cea05d0666e41a0c88e75cb99929
 
 ---
 
+### 4.8 FAIL Round 2 → remediations B5–B7 (this push)
+
+| Item | Value |
+|---|---|
+| FAIL tip (review Round 2) | `13cb22c537ab9bc8340486d88aa1c0de5a5a8e86` (docs pin) / prior product `2adb5581a` |
+| Verdict artifact | operator FAIL inject (B5 list cycle anchor, B6 detail NDAA-blind fundingSummary, B7 markup max-fy cycle) |
+| Prior Round 1 FAIL closed | B1 track-separate markup; B2 matched-pair list delta; B3 timeline NDAA; B4 empty capability null claim |
+
+**Product fixes (this push):**
+
+| ID | Fix |
+|---|---|
+| B5 | Finder list claims use SQL `peCurrentCycleFy` via `sqlCurrentCycleFyExpr` (mark-bearing, incl NDAA); never `latestCurrentFy ?? latestRequestFy`. Outyear request/current → `cycleClass: outyear`, `isProjection: true` |
+| B6 | `getProgramElement` `fundingSummary` uses `currentCycleFyPreservingZero` (incl NDAA), matching `getTimeline`. `currentCycleFyOf` aligned to include `ndaaConference` so default render/outreach cannot NDAA-blind disagree |
+| B7 | `listMarkupMonitor` `current_cycle` joins PE cycle FY from `sqlCurrentCycleFyExpr` (`pe_cycle` CTE), not `DISTINCT ON … ORDER BY fy DESC` |
+
+**Tests:** funding-claim B5/B6 pure; read.service B5 list outyear claims; B6 detail fundingSummary NDAA labels; B7 markup SQL contains `pe_cycle`/`ndaa_conference` and not bare max-fy ORDER.
+
+### 4.9 Gates (FAIL Round-2 remediation; vs tip `13cb22c53`)
+
+| Command | Result |
+|---|---|
+| `pnpm --filter @capiro/shared build` | PASS |
+| `pnpm --filter @capiro/api run verify:pe-phase-g` | PASS 5 suites / **87** tests |
+| `npx tsc -p tsconfig.pe-phase-g.json --noEmit` (apps/api) | PASS exit 0 |
+| Shared migrate / vendor / secrets / email / LlamaParse | **not run** |
+| MeriV2 product paths | untouched (only shared `currentCycleFyOf` alignment — no meriv2 source edits) |
+| Transport blobs | absent |
+
+Implementer does **not** self-PASS the Phase 4 exit gate. Independent REVIEW required on the **new** remote tip after this product commit (re-attack B5/B6/B7 and hold B1–B3).
+
+### Independent review status (Phase 4) — through Round-2 FAIL remediations
+
+| Round | Tip | Verdict |
+|---|---|---|
+| Phase 4 product (initial) | `19936afde2b8d3902902996af02fa710f7f63356` | implement |
+| Review Round 1 | `cf87ee77a1eeea3e989b4bdf80e1a8cdcd3edec4` | **FAIL** B1/B2/B3 (B4 polish) |
+| Phase 4 product (FAIL R1 remediations) | `2adb5581ac9151bcbd763029228b7fb5feeb2392` | implement |
+| Docs pin R1 product | `13cb22c537ab9bc8340486d88aa1c0de5a5a8e86` | **FAIL** Round 2 B5/B6/B7 |
+| Phase 4 product (FAIL R2 remediations B5–B7) | *(set after push)* | implement; review REQUIRED |
+
+### Rollback (includes this remediation)
+
+```bash
+# drop B5–B7 product + docs pin of this tip; return to Round-2 FAIL tip:
+git reset --hard 13cb22c537ab9bc8340486d88aa1c0de5a5a8e86
+# full drop of Phase 4 product back to Phase 3 PASS:
+git reset --hard 0a74cf9a3220cea05d0666e41a0c88e75cb99929
+```
+
+---
+
 ## Next phase
 
-**Phase 4 independent adversarial REVIEW only** against the remote tip after the FAIL-remediation product commit (not Phase 5 implement).
+**Phase 4 independent adversarial REVIEW only** against the remote tip after the B5–B7 remediation product commit (not Phase 5 implement).
 Do not start Phase 5 until a separate REVIEW session records `VERDICT: PASS` against that tip SHA.
-Re-falsify B1 (hasc=120,hacd=60 must not yield blended 60%), B2 (cross-FY bare latest pair must not drive %; ler pair holds), B3 (NDAA-only mark year = currentCycleFy).
+Re-falsify: B5 (latestRequestFy > mark FY ⇒ list requestClaim outyear/projection), B6 (NDAA-only + request outyear ⇒ detail fundingSummary tags NDAA year current), B7 (marks on 2027 + outyear 2031 ⇒ markup SQL cycle via sqlCurrentCycleFyExpr / pe_cycle not max fy), and hold B1–B3.
+
 

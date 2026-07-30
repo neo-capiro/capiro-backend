@@ -11,7 +11,6 @@ import {
   fundingCurrentCoalesceSql,
   fundingCurrentStageSql,
   currentFunding,
-  currentCycleFyOf,
   FUNDING_STAGE_LABEL,
   FUNDING_STAGE_VEHICLE,
   renderPeFundingForModel,
@@ -23,6 +22,7 @@ import {
   listEnactedVsRequestDeltaPct,
   markupMonitorTrackDivergence,
   partitionContractorEvidence,
+  sqlCurrentCycleFyExpr,
 } from '@capiro/shared/funding-claim';
 import {
   claimForYearLadder,
@@ -214,6 +214,8 @@ export class ProgramElementReadService {
       latestCurrent: number | null;
       latestCurrentFy: number | null;
       latestCurrentStage: string | null;
+      /** PE mark-bearing cycle FY (sqlCurrentCycleFyExpr) — never bare latest request FY. */
+      peCurrentCycleFy: number | null;
       deltaPct: number | null;
       spark: number[] | null;
       signalType: string | null;
@@ -302,6 +304,7 @@ export class ProgramElementReadService {
         ${Prisma.raw(fundingCurrentCoalesceSql('lc.'))}::double precision AS "latestCurrent",
         lc.fy AS "latestCurrentFy",
         ${Prisma.raw(fundingCurrentStageSql('lc.'))} AS "latestCurrentStage",
+        pcy.pe_current_cycle_fy AS "peCurrentCycleFy",
         -- Matched-pair % only: enacted vs request-at-enacted-FY (ler). Zero request → null pct.
         CASE
           WHEN le.enacted IS NOT NULL AND ler.request IS NOT NULL AND ler.request <> 0
@@ -350,6 +353,12 @@ export class ProgramElementReadService {
         LIMIT 1
       ) ler ON TRUE
       LEFT JOIN LATERAL (
+        -- Mark-bearing PE cycle (incl NDAA); request-only FYDP outyears do not win.
+        SELECT ${Prisma.raw(sqlCurrentCycleFyExpr('y'))} AS pe_current_cycle_fy
+        FROM program_element_year y
+        WHERE y.pe_code = f.pe_code
+      ) pcy ON TRUE
+      LEFT JOIN LATERAL (
         SELECT json_agg(v ORDER BY fy) AS spark
         FROM (
           SELECT y.fy AS fy, ${Prisma.raw(fundingCurrentCoalesceSql('y.'))}::double precision AS v
@@ -381,7 +390,10 @@ export class ProgramElementReadService {
       data: rows.map(({ totalCount: _ignored, ...rest }) => {
         // Phase G: every dollar headline is a FundingClaim so consumers cannot
         // invent a cross-FY / cross-track percent from bare numbers.
-        const currentCycleFy = rest.latestCurrentFy ?? rest.latestRequestFy ?? null;
+        // Cycle anchor is PE mark-bearing FY (SQL sqlCurrentCycleFyExpr), not
+        // catalog-latest request/current stage FY — a pure FYDP outyear must
+        // tag isProjection/outyear (Phase 4 B5).
+        const currentCycleFy = rest.peCurrentCycleFy ?? null;
         const currentClaim =
           rest.latestCurrent != null || rest.latestCurrentStage
             ? claimFromLadderPick({
@@ -474,8 +486,15 @@ export class ProgramElementReadService {
           FROM program_element_watch pew
           WHERE pew.tenant_id = ${ctx.tenantId}::uuid
         ),
+        pe_cycle AS (
+          -- Mark-bearing / NDAA-aware cycle FY per PE (not bare MAX(fy)).
+          SELECT pey.pe_code, ${Prisma.raw(sqlCurrentCycleFyExpr('pey'))} AS cycle_fy
+          FROM program_element_year pey
+          JOIN watched w ON w.pe_code = pey.pe_code
+          GROUP BY pey.pe_code
+        ),
         current_cycle AS (
-          SELECT DISTINCT ON (pey.pe_code)
+          SELECT
             pey.pe_code,
             pey.fy,
             pey.request,
@@ -484,8 +503,7 @@ export class ProgramElementReadService {
             pey.hac_d_mark,
             pey.sac_d_mark
           FROM program_element_year pey
-          JOIN watched w ON w.pe_code = pey.pe_code
-          ORDER BY pey.pe_code, pey.fy DESC
+          JOIN pe_cycle c ON c.pe_code = pey.pe_code AND pey.fy = c.cycle_fy
         ),
         enriched AS (
           SELECT
@@ -930,8 +948,9 @@ export class ProgramElementReadService {
       // authorization/appropriations vehicle + signed vs-request + NDAA
       // conference surfaced separately), from the SAME shared serializer the
       // timeline tool and outreach truth block use. Web ignores this field.
-      // The catalog-wide mode currentCycleFy is set below; the summary uses THIS
-      // PE's own mark-bearing cycle so its outyear tags are correct.
+      // The catalog-wide modeRequest currentCycleFy is set below (separate
+      // catalog signal). PE mark-bearing cycle for fundingSummary MUST match
+      // getTimeline / currentCycleFyPreservingZero incl NDAA (Phase 4 B6).
       // RC9: kept BEFORE the `...programElement` spread (whose `years` array is
       // the bulk of the payload) so a record-safe truncation of an oversized
       // detail keeps the funding summary intact rather than cutting it off the tail.
@@ -939,7 +958,7 @@ export class ProgramElementReadService {
         peCode: programElement.peCode,
         title: programElement.title,
         service: programElement.service,
-        currentCycleFy: currentCycleFyOf(fundingYears),
+        currentCycleFy: currentCycleFyPreservingZero(fundingYears),
         years: fundingYears,
       }),
       ...programElement,

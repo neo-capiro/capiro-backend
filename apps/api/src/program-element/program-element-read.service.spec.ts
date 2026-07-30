@@ -117,6 +117,49 @@ describe('ProgramElementReadService', () => {
           expect(row.divergencePct).not.toBe(60);
           expect(row.divergenceTrack).toBe('appropriations');
         });
+
+        test('B7: markup current_cycle SQL uses sqlCurrentCycleFyExpr, not bare max fy', async () => {
+          const prisma = makePrisma({
+            queryRawQueue: [
+              [
+                {
+                  peCode: 'OUTYEARPE',
+                  title: 'Outyear trap',
+                  service: 'Army',
+                  request: 100,
+                  hascMark: 120,
+                  sascMark: null,
+                  hacDMark: null,
+                  sacDMark: null,
+                  divergencePct: 20,
+                  authDivergencePct: 20,
+                  appropsDivergencePct: 0,
+                  divergenceTrack: 'authorization',
+                  totalCount: 1,
+                },
+              ],
+            ],
+          });
+          const service = new ProgramElementReadService(
+            prisma as never,
+            makeConferenceProbabilityService() as never,
+          );
+          const result = await service.listProgramElements({ mode: 'markup-monitor' }, ctx);
+          const row = result.data[0] as {
+            request: number;
+            hascMark: number | null;
+            divergencePct: number;
+          };
+          expect(row.request).toBe(100);
+          expect(row.hascMark).toBe(120);
+          expect(row.divergencePct).toBeCloseTo(20, 5);
+          const sqlTexts = prisma.__mock.rawSqlTexts as string[];
+          expect(sqlTexts.length).toBeGreaterThan(0);
+          const markupSql = sqlTexts.join('\n');
+          expect(markupSql).toMatch(/pe_cycle/);
+          expect(markupSql).toMatch(/ndaa_conference/);
+          expect(markupSql).not.toMatch(/ORDER BY pey\.pe_code, pey\.fy DESC/);
+        });
       });
 
   describe('getProgramElement currentUserIsWatching', () => {
@@ -770,6 +813,61 @@ describe('ProgramElementReadService', () => {
           });
         });
 
+        describe('getProgramElement B6 fundingSummary NDAA cycle', () => {
+          test('NDAA-only year is current in detail fundingSummary (not request outyear)', async () => {
+            const prisma = makePrisma({
+              queryRawQueue: [[]],
+              mvRows: [],
+              peYears: [
+                {
+                  fy: 2027,
+                  request: null,
+                  hascMark: null,
+                  sascMark: null,
+                  hacDMark: null,
+                  sacDMark: null,
+                  conference: null,
+                  ndaaConference: 12.5,
+                  enacted: null,
+                },
+                {
+                  fy: 2028,
+                  request: 14,
+                  hascMark: null,
+                  sascMark: null,
+                  hacDMark: null,
+                  sacDMark: null,
+                  conference: null,
+                  ndaaConference: null,
+                  enacted: null,
+                },
+              ],
+              peFind: {
+                peCode: 'NDAADET',
+                title: 'NDAA detail',
+                service: 'NAVY',
+                budgetActivity: 'BA2',
+                appropriationType: 'RDT&E',
+                status: 'active',
+                firstSeenFy: 2027,
+                lastSyncedAt: new Date('2026-05-28T15:00:00.000Z'),
+              },
+            });
+            const service = new ProgramElementReadService(
+              prisma as never,
+              makeConferenceProbabilityService() as never,
+            );
+            const detail = (await service.getProgramElement('NDAADET', ctx)) as unknown as {
+              fundingSummary: string;
+            };
+            expect(detail.fundingSummary).toContain('FY27 [current budget cycle]');
+            expect(detail.fundingSummary).toContain(
+              'FY28 [OUTYEAR — FYDP projection, NOT the current request]',
+            );
+            expect(detail.fundingSummary).not.toMatch(/FY28 \[current budget cycle\]/);
+          });
+        });
+
         describe('listProgramElements B2 matched-pair deltaPct', () => {
           test('cross-FY latestRequest must not become delta base; ler pair drives %', async () => {
             const prisma = makePrisma({
@@ -840,6 +938,76 @@ describe('ProgramElementReadService', () => {
             expect(row.comparableEnactedVsRequest?.request).toBe(100);
             expect(row.comparableEnactedVsRequest?.deltaPct).toBeCloseTo(10, 5);
           });
+
+          test('B5: list requestClaim outyear when latestRequestFy > pe mark-bearing cycle', async () => {
+            const prisma = makePrisma({
+              queryRawQueue: [
+                [
+                  {
+                    peCode: 'OUTYEARLIST',
+                    title: 'Outyear list',
+                    service: 'Army',
+                    budgetActivity: 'BA3',
+                    appropriationType: 'RDT&E',
+                    status: 'active',
+                    lastSyncedAt: new Date('2026-05-28T15:00:00.000Z'),
+                    hasData: true,
+                    watched: false,
+                    billCount: 0,
+                    latestRequest: 50,
+                    latestRequestFy: 2031,
+                    latestEnacted: null,
+                    latestEnactedFy: null,
+                    requestAtEnactedFy: null,
+                    latestCurrent: 50,
+                    latestCurrentFy: 2031,
+                    latestCurrentStage: 'request',
+                    peCurrentCycleFy: 2027,
+                    deltaPct: null,
+                    spark: null,
+                    signalType: null,
+                    signalScore: null,
+                    signalDeltaPct: null,
+                    lineType: null,
+                    maturity: null,
+                    appropTier: null,
+                    appropScore: null,
+                    actionSignalType: null,
+                    actionSignalTone: null,
+                    valleyOfDeath: null,
+                    totalCount: 1,
+                  },
+                ],
+              ],
+            });
+            const service = new ProgramElementReadService(
+              prisma as never,
+              makeConferenceProbabilityService() as never,
+            );
+            const result = await service.listProgramElements({ page: 1, limit: 25 });
+            const row = result.data[0] as {
+              latestRequestFy: number;
+              peCurrentCycleFy: number | null;
+              requestClaim: {
+                fiscalYear: number | null;
+                cycleClass: string;
+                isProjection: boolean;
+              } | null;
+              currentClaim: {
+                fiscalYear: number | null;
+                cycleClass: string;
+                isProjection: boolean;
+              } | null;
+            };
+            expect(row.latestRequestFy).toBe(2031);
+            expect(row.peCurrentCycleFy).toBe(2027);
+            expect(row.requestClaim?.fiscalYear).toBe(2031);
+            expect(row.requestClaim?.cycleClass).toBe('outyear');
+            expect(row.requestClaim?.isProjection).toBe(true);
+            expect(row.currentClaim?.fiscalYear).toBe(2031);
+            expect(row.currentClaim?.cycleClass).toBe('outyear');
+            expect(row.currentClaim?.isProjection).toBe(true);
+          });
         });
       });
 
@@ -865,6 +1033,8 @@ function makePrisma(options: {
   deltas?: Array<Record<string, unknown>>;
   tenantWatches?: Array<{ peCode: string }>;
   tenantCaps?: Array<{ peNumber: string | null }>;
+  peFind?: Record<string, unknown>;
+  peYears?: Array<Record<string, unknown>>;
 }) {
   const queue = [...options.queryRawQueue];
   const mock = {
@@ -872,6 +1042,7 @@ function makePrisma(options: {
     mvQueryRawCalls: 0,
     programElementFindUniqueCalls: 0,
     auditLogCalls: [] as Array<Record<string, unknown>>,
+    rawSqlTexts: [] as string[],
   };
 
   return {
@@ -899,6 +1070,12 @@ function makePrisma(options: {
       findUnique: jest.fn(async () => {
         mock.programElementFindUniqueCalls += 1;
         if (options.missingPe) return null;
+        if (options.peFind) {
+          return {
+            ...options.peFind,
+            years: options.peYears ?? [],
+          };
+        }
         return {
           peCode: '0603270A',
           title: 'Electronic Warfare Advanced Payloads',
@@ -908,7 +1085,7 @@ function makePrisma(options: {
           status: 'active',
           firstSeenFy: 2023,
           lastSyncedAt: new Date('2026-05-28T15:00:00.000Z'),
-          years: [],
+          years: options.peYears ?? [],
         };
       }),
     },
@@ -963,8 +1140,10 @@ function makePrisma(options: {
         }) => Promise<unknown>,
       ) => {
         return fn({
-          $queryRaw: jest.fn(async () => {
+          $queryRaw: jest.fn(async (query: unknown) => {
             mock.queryRawCalls += 1;
+            const sql = query as { strings?: readonly string[] };
+            mock.rawSqlTexts.push([...(sql.strings ?? [])].join('?'));
             return queue.shift() ?? [];
           }),
           auditLog: {
