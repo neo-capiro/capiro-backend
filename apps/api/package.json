@@ -138,6 +138,7 @@
     "drain:pe-change-outbox": "tsx scripts/drain-pe-change-outbox.ts",
     "backfill:pe-observation-keys": "tsx scripts/backfill-pe-observation-keys.ts",
     "verify:pe-phase-d": "jest --runInBand --detectOpenHandles --forceExit src/program-element/program-element-field-ownership.spec.ts src/program-element/program-element-raw-merge.spec.ts src/program-element/reconciliation/reconciliation.service.spec.ts src/program-element/program-element-change-outbox.service.spec.ts src/program-element/program-element-writer.service.spec.ts scripts/backfill-pe-observation-keys.spec.ts scripts/drain-pe-change-outbox.spec.ts",
+    "verify:pe-phase-e": "jest --runInBand --forceExit scripts/lib/pe-exact-sha-loader-contract.spec.ts scripts/lib/defense-budget-commit.spec.ts scripts/lib/pe-ingestion-mode.spec.ts && tsx scripts/verify-pe-phase-e-exact-sha.ts",
     "generate:funding-grant-candidates": "tsx scripts/generate-funding-grant-candidates.ts",
     "process:funding-opportunity-lifecycle": "tsx scripts/process-funding-opportunity-lifecycle.ts",
     "backfill:funding-mapping-review": "tsx scripts/backfill-funding-mapping-review.ts"

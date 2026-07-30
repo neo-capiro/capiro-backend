@@ -1,27 +1,25 @@
 /**
- * OP-5 O&M narrative loader (batch-10). Consumes the deterministic SAG-code join
- * (`build_op5_artifact.py`: O-1's stored `raw.sagBli` <-> the OP-5 exhibit's own
- * printed Subactivity-Group header, or a curated agency-title map for DW's
- * one-exhibit-per-book agencies) and attaches it to EXISTING O&M program elements:
- *   - fills the queryable `description` column
- *   - merges `raw.op5Detail` (sag, source book, page range) for citation
+ * OP-5 O&M narrative loader. Enrich-only: NEVER creates a PE.
  *
- * Enrich-only: NEVER creates a PE, NEVER nulls out an existing `description`
- * (incoming wins when present; existing survives when the artifact has none).
- * A peCode with no existing program_element is skipped (reported).
- *
- * PRESENCE-BASED raw merge (deployment-playbook gotcha #4 — load-pdoc-enrichment's
- * `raw.pDocDetail = pe.pDocDetail ?? null` nulls the key when an artifact item
- * omits it): here every artifact item DOES carry `op5Detail`, but the merge still
- * only touches that one key on the existing raw object — every other `raw.*` field
- * (the O-1 loader's own `source`/`account`) is preserved untouched, not just
- * defaulted to null.
- *
- *   load-om-op5 --artifact scripts/__data__/corrected_json/om_op5_fy2027.json
+ * Exact-SHA contract (Phase E): default inspect; --commit requires --approved-sha256.
  */
 import { config as dotenvConfig } from 'dotenv';
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { PrismaClient, Prisma } from '@prisma/client';
+import {
+  upsertSourceDocument,
+  supersedeSourceDocumentHead,
+  sha256OfFile,
+  type SourceDocumentClient,
+} from '../src/program-element/source-document/source-document-registry.js';
+import {
+  assertExactShaCommitAllowed,
+  auditArtifactQuality,
+  buildInspectReport,
+  resolvePeDollarLoaderPosture,
+  argValue as exactShaArgValue,
+} from './lib/pe-exact-sha-loader-contract.js';
 
 dotenvConfig();
 
@@ -50,10 +48,45 @@ function arg(name: string): string | undefined {
 async function main(): Promise<void> {
   const artifactPath = arg('artifact');
   if (!artifactPath) {
-    console.error('Usage: load-om-op5 --artifact <om_op5.json>');
+    console.error(
+      'Usage: load-om-op5 --artifact <om_op5.json> [--inspect | --commit --approved-sha256 <sha>]',
+    );
     process.exit(1);
   }
   const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf8')) as Artifact;
+  const posture = resolvePeDollarLoaderPosture(process.argv);
+  if (posture === 'extract_only') {
+    throw new Error(
+      'load-om-op5.ts: --extract-only/--dry-run is not valid; use default inspect or --commit --approved-sha256 <sha>.',
+    );
+  }
+  const sha256 = sha256OfFile(artifactPath);
+  const quality = auditArtifactQuality({ rowCount: (artifact.pes ?? []).length });
+  if (posture === 'inspect') {
+    console.log(
+      JSON.stringify(
+        buildInspectReport({
+          loader: 'load-om-op5.ts',
+          posture,
+          artifactPath,
+          sha256,
+          byteSize: fs.statSync(artifactPath).size,
+          quality,
+          extra: { source: artifact.source ?? 'om_op5', fy: artifact.fy },
+        }),
+        null,
+        2,
+      ),
+    );
+    console.log('INSPECT — no writes. Re-run with --commit --approved-sha256 <sha above> to promote.');
+    return;
+  }
+  assertExactShaCommitAllowed({
+    actualSha256: sha256,
+    approvedSha256Raw: exactShaArgValue(process.argv, 'approved-sha256'),
+    quality: { rowCount: (artifact.pes ?? []).length },
+  });
+
   const prisma = new PrismaClient();
   await prisma.$connect();
   let seen = 0;
@@ -62,6 +95,26 @@ async function main(): Promise<void> {
   let skippedNotOm = 0;
   const missingSamples: string[] = [];
   try {
+    const reg = await upsertSourceDocument(
+      prisma as unknown as SourceDocumentClient,
+      {
+        sourceKey: path.basename(artifactPath).replace(/\.json$/i, ''),
+        sha256,
+        fiscalYear: artifact.fy ?? null,
+        budgetCycle: 'pb',
+        component: null,
+        documentType: 'om_op5',
+        title: 'OP-5 O&M narrative enrichment (FY' + String(artifact.fy ?? '?') + ')',
+        sourceUrl: path.basename(artifactPath),
+        byteSize: fs.statSync(artifactPath).size,
+        artifactPath: path.relative(process.cwd(), artifactPath),
+        extractionMethod: 'deterministic_pdf',
+        extractionToolVersion: null,
+        metadata: { sourceTag: artifact.source ?? 'om_op5', approvedSha256: sha256 },
+      },
+      { deferSupersede: true },
+    );
+
     for (const pe of artifact.pes ?? []) {
       seen += 1;
       const existing = await prisma.programElement.findUnique({ where: { peCode: pe.peCode } });
@@ -71,7 +124,6 @@ async function main(): Promise<void> {
         continue;
       }
       if (existing.appropriationType !== 'OM') {
-        // Never write OP-5 narrative onto a non-O&M line, even if the code collides.
         skippedNotOm += 1;
         continue;
       }
@@ -79,16 +131,12 @@ async function main(): Promise<void> {
         existing.raw && typeof existing.raw === 'object' && !Array.isArray(existing.raw)
           ? (existing.raw as Record<string, unknown>)
           : {};
-      // Presence-based: only touch the op5Detail key, only when the artifact item
-      // actually carries one. Every other key on raw (source/account/sagBli from
-      // the O-1 loader) survives untouched.
       const mergedRaw =
         pe.op5Detail !== undefined ? { ...existingRaw, op5Detail: pe.op5Detail } : existingRaw;
 
       await prisma.programElement.update({
         where: { peCode: pe.peCode },
         data: {
-          // incoming enrichment wins when present; never null out an existing value
           description: pe.description ?? existing.description ?? null,
           raw: mergedRaw as Prisma.InputJsonValue,
           lastSyncedAt: new Date(),
@@ -96,16 +144,28 @@ async function main(): Promise<void> {
       });
       updated += 1;
     }
+
+    if (reg.supersededDocument) {
+      await supersedeSourceDocumentHead(
+        prisma as unknown as SourceDocumentClient,
+        reg.supersededDocument.id,
+        reg.document.id,
+      );
+    }
+
     console.log(
       JSON.stringify(
         {
+          mode: 'COMMIT',
           artifact: artifactPath,
+          sha256,
           source: artifact.source ?? 'om_op5',
           seen,
           updated,
           skippedMissing,
           skippedNotOm,
           missingSamples,
+          sourceDocument: { id: reg.document.id, action: reg.created ? 'inserted' : 'deduped' },
         },
         null,
         2,

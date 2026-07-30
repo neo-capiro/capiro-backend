@@ -31,6 +31,14 @@ import {
   FUNDING_VERIFICATION_STATUSES,
 } from '@capiro/shared';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { sha256OfFile } from '../src/program-element/source-document/source-document-registry.js';
+import {
+  assertExactShaCommitAllowed,
+  auditArtifactQuality,
+  buildInspectReport,
+  resolvePeDollarLoaderPosture,
+  argValue as exactShaArgValue,
+} from './lib/pe-exact-sha-loader-contract.js';
 
 dotenvConfig();
 
@@ -405,7 +413,14 @@ async function main(): Promise<void> {
     );
     process.exit(1);
   }
-  const commit = process.argv.includes('--commit');
+  const posture = resolvePeDollarLoaderPosture(process.argv);
+  if (posture === 'extract_only') {
+    throw new Error(
+      'load-defense-budget-package.ts: --extract-only is not valid; use default inspect or --commit --approved-sha256 <sha>.',
+    );
+  }
+  const commit = posture === 'commit';
+  const packageSha = sha256OfFile(artifactPath);
   const supersedeVerified = process.argv.includes('--supersede-verified');
   /**
    * Validate the artifact with NO database at all — every rejection rule runs
@@ -476,9 +491,29 @@ async function main(): Promise<void> {
       process.exit(1);
     }
     if (!commit) {
-      console.log('\nDry run — no writes. Re-run with --commit to apply.');
+      console.log(JSON.stringify(buildInspectReport({
+        loader: 'load-defense-budget-package.ts',
+        posture: 'inspect',
+        artifactPath,
+        sha256: packageSha,
+        byteSize: fs.statSync(artifactPath).size,
+        quality: auditArtifactQuality({
+          rowCount: Math.max(plan.positions.length, plan.vehicles.length, 1),
+          errors: plan.errors,
+        }),
+        extra: { conflicts: plan.conflicts, warnings: plan.warnings },
+      }), null, 2));
+      console.log('\nDry run — no writes. Re-run with --commit --approved-sha256 <sha above> to apply.');
       return;
     }
+    assertExactShaCommitAllowed({
+      actualSha256: packageSha,
+      approvedSha256Raw: exactShaArgValue(process.argv, 'approved-sha256'),
+      quality: {
+        rowCount: Math.max(plan.positions.length, plan.vehicles.length, 1),
+        errors: plan.errors,
+      },
+    });
 
     // ── writes ──
     const pkgRow = await prisma.budgetPackage.upsert({

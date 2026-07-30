@@ -2,7 +2,7 @@
 
 **Baseline main SHA:** `057f5480a46f9ba9acf9296a9cc876b609593832`  
 **Pre-Phase-0 #705 head (void product):** `a244022648d54d9e4ac7fb071f9f438405659056`  
-**Updated (UTC):** 2026-07-30 (Phase 1 bare-outbox durability on remote product tip `454a27f5ee1583a100c0a01761d5e6c970621c80`; **independent review PENDING**)
+**Updated (UTC):** 2026-07-30 (Phase 2 exact-SHA loader contract after main sync `6268e2f2a`; implementer gates green; **Phase 2 independent review PENDING**)
 
 Legend for **Status**:
 
@@ -53,15 +53,17 @@ Closeout **execution phase** column is the session phase from the final schedule
 
 | ID | Requirement | Status | Source | Owner phase |
 |---|---|---|---|---|
-| E0 | `agent/pe-trust-phase-e` tip == D-v2 transport tip | `recovered` name only | no distinct E product | 2 |
-| E1 | Inspect → quality audit → approve exact SHA → atomic commit → safe replay for every PE dollar loader | `missing` (B covers defense-budget package commit path only) | main loaders still heterogeneous | 2 |
-| E2 | Default invocation performs no canonical write | `missing`/partial | audit each entrypoint | 2 |
-| E3 | `--commit` without approved exact SHA fails pre-mutation | `missing`/partial | B path exists; extend | 2 |
-| E4 | LlamaParse only via extract-only + explicit auth | `partial` `in_main` | defense-budget extractors; must not regress | 2 |
-| E5 | Prefer checksummed extraction over paid re-parse | `missing`/partial | 2 |
-| E6 | Failed promotion cannot become live source head | `missing`/partial | 2 |
-| E7 | Observation carries page/span/extractor/units | `missing` beyond D foundation | depends on D | 2 |
-| E8 | Loader inventory (RDT&E P-forms, O&M OP-5, J-books, HASC/SASC, HAC-D/SAC-D, NDAA conf, public law, generalized PDF) | `missing` audit | scripts exist on main; contract not uniform | 2 |
+| E0 | `agent/pe-trust-phase-e` tip == D-v2 transport tip | `recovered` name only | no distinct E product on that branch | 2 |
+| E1 | Inspect → quality audit → approve exact SHA → atomic commit → safe replay for every PE dollar loader | `in_branch` (Phase 2) | `pe-exact-sha-loader-contract.ts` + converted loaders + `verify:pe-phase-e` | 2 |
+| E2 | Default invocation performs no canonical write | `in_branch` (Phase 2) | inspect posture default; smoke load-om | 2 |
+| E3 | `--commit` without approved exact SHA fails pre-mutation | `in_branch` (Phase 2) | `assertExactShaCommitAllowed` / Phase B PDF path | 2 |
+| E4 | LlamaParse only via extract-only + explicit auth | `in_main` + retained | `ingest-defense-budget-pdf` + pe-ingestion-mode | 2 |
+| E5 | Prefer checksummed extraction over paid re-parse | `in_main` + retained | loadExistingParseArtifact on PDF commit | 2 |
+| E6 | Failed promotion cannot become live source head | `in_branch` stronger | `deferSupersede` + post-success `supersedeSourceDocumentHead` on rewritten loaders (o1/op5/pdoc/approps/ndaa/jbook r1-r3/enrichment); PDF pack already | 2 |
+| E7 | Observation carries page/span/extractor/units | `in_branch` incremental | writeContext + originalValues on committee/pdoc/O-1; PDF Phase B | 2 |
+| E8 | Loader inventory (RDT&E P-forms, O&M OP-5, J-books, HASC/SASC, HAC-D/SAC-D, NDAA conf, public law, generalized PDF) | `in_branch` (Phase 2) | `PE_EXACT_SHA_DOLLAR_LOADERS` + static verifier (13 entrypoints) | 2 |
+
+**Phase 2 review gate:** Independent review **PENDING**. Implementer gates alone are not Phase 2 PASS. Update remote tip SHA in work log after product push.
 
 ---
 
@@ -263,4 +265,39 @@ Exit:
 
 Worktree on this machine: C:/c/Users/neoma/AppData/Local/Temp/pe-closeout-wt (MSYS may show C:/c/Users/...).
 Launcher: /c/Users/neoma/Downloads/pe-closeout/pe-closeout-run.sh review 1
+```
+
+---
+
+## Phase 2 REVIEW handoff (executable — not Phase 3)
+
+```text
+You are executing Program Elements Final Closeout Phase 2 INDEPENDENT ADVERSARIAL REVIEW only.
+
+Repository: neo-capiro/capirov2
+Branch: agent/program-elements-final-closeout
+PR: #705
+MODE: REVIEW (read-only)
+Do not edit files, commit, push, merge, deploy, or start Phase 3.
+
+Verify against remote tip:
+  git fetch origin agent/program-elements-final-closeout main
+  git rev-parse origin/agent/program-elements-final-closeout
+  git log --oneline origin/main..origin/agent/program-elements-final-closeout | head -20
+  git diff --stat origin/main...origin/agent/program-elements-final-closeout
+
+Falsify Phase 2 exit gate:
+1. Inventory every PE dollar loader; confirm default invocation cannot write canonical data.
+2. --commit without --approved-sha256 fails before Prisma mutation on each converted loader.
+3. Quality failure and SHA mismatch block promotion.
+4. Failed promotion cannot become live source head (deferSupersede / supersede after success).
+5. LlamaParse still requires --extract-only + --allow-vendor-parse; no secret retrieval in tests.
+6. verify:pe-phase-e and inheritance A/B/D gates pass on the tip; compare to base SHA if red.
+7. No MeriV2 edits; no transport patches; no shared-env ops in the diff.
+
+End with exactly:
+VERDICT: PASS
+or
+VERDICT: FAIL
+plus concrete findings. Do not implement fixes.
 ```

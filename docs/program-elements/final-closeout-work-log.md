@@ -4,9 +4,9 @@
 **PR:** https://github.com/neo-capiro/capirov2/pull/705 (draft → `main`)  
 **Plan source:** local `program-elements-final-closeout-plan-and-schedule.md`  
 **Repo:** `neo-capiro/capirov2`  
-**Operator session:** Phase 1 re-implement (post independent review FAIL)  
+**Operator session:** Phase 2 IMPLEMENT (exact-SHA atomic loader contract)  
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-30 (Phase 1 B1/B2 bare-outbox fix; independent review PENDING — implementer does not self-PASS)
+**Ledger last updated (UTC):** 2026-07-30 (Phase 2 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
 
 ---
 
@@ -267,16 +267,100 @@ git revert 850b4b7a4 b8ed28855 454a27f5ee   # or reset branch to origin/main and
 | Round | Session | Tip | Verdict |
 |---|---|---|---|
 | 1 | 20260730_072939_3c2039 | `b8ed28855` | **FAIL** (B1/B2/B3) |
-| 2 | (pending) | product tip `454a27f5ee` (+ optional later docs-only) | **PENDING** |
+| 2 | PASS artifact `prompts/phase-1-review-PASS.md` | `da36195d3` (product `454a27f5e`) | **PASS** |
 
-### Not started
+Phase 2 started after Phase 1 PASS + main sync `6268e2f2a`.
 
-- Phase 2 exact-SHA loaders
+---
+
+## Phase 2 — Exact-SHA Atomic Loader Contract
+
+### 2.0 Pre-flight
+
+| Item | Value |
+|---|---|
+| Worktree | `C:/c/Users/neoma/AppData/Local/Temp/pe-closeout-wt` |
+| Phase 1 PASS tip | `da36195d3f89c0c7f3a2d4e2e7a1fbb963041358` |
+| `origin/main` at Phase 2 base | `3dcb12f823774b6fae8578dc56fc122bf9a0879e` |
+| Sync commit before product | `6268e2f2a` — merge main onto closeout tip |
+| Base for Phase 2 product | `6268e2f2a` (= main + Phase 0–1) |
+| Status | **IMPLEMENT PUSHED / independent review REQUIRED** (no self-PASS) |
+
+### 2.1 Product work
+
+Shared exact-SHA contract + PE dollar loader conversion.
+
+**New**
+- `apps/api/scripts/lib/pe-exact-sha-loader-contract.ts` (+spec)
+- `apps/api/scripts/verify-pe-phase-e-exact-sha.ts`
+- `apps/api/package.json` → `verify:pe-phase-e`
+
+**Loader entrypoints (inspect-first + `--commit --approved-sha256`):**
+- R-1 `sync-comptroller-jbooks.ts`
+- R-2/R-2A `sync-jbook-r2.ts`
+- R-3 performers `sync-jbook-performers.ts`
+- P-doc/P-40 `parse-pdoc-army.ts`, `load-pdoc-enrichment.ts`
+- O-1/OP-5 `load-om.ts`, `load-om-op5.ts`
+- HASC/SASC `parse-hasc-sasc-reports.ts`
+- HAC-D/SAC-D `parse-defense-approps-reports.ts`
+- NDAA conference `parse-ndaa-conference.ts`
+- Public law `parse-defense-approps-public-law.ts`
+- Package JSON `load-defense-budget-package.ts`
+- Generalized PDF `ingest-defense-budget-pdf.ts` (Phase B retained; inventory + verifier)
+
+**Parser write-context plumbing:** committee-report base + HASC/SASC/approps/conference subclasses; pdoc parser (`PeYearWriteContext` + original unit values).
+
+**Rules enforced**
+- Default/`--inspect` → no canonical write; prints SHA + quality + commit requirements
+- `--commit` without matching `--approved-sha256` fails pre-mutation
+- Quality fail-closed (empty artifact / units anomalies / plan.errors)
+- Multi-artifact jbook commit requires single `--artifact`
+- `deferSupersede` + post-success `supersedeSourceDocumentHead` on rewritten register paths (failed promotion cannot become live head)
+- LlamaParse still extract-only + `--allow-vendor-parse` on PDF path
+- No broad post-write provenance stamping; register before promote with deferred supersede
+
+### 2.2 Gates (this session; base `6268e2f2a` + product)
+
+| Command | Result |
+|---|---|
+| verify:pe-phase-a | PASS `PE_PHASE_A_B_SAFETY_OK` |
+| verify:pe-phase-b | PASS 7 suites / 111 tests |
+| verify:pe-phase-c | PASS 8 suites / 61 tests |
+| verify:pe-phase-d | PASS 7 suites / 51 tests |
+| verify:pe-phase-e jest | PASS 3 suites / 71 tests |
+| verify-pe-phase-e-exact-sha.ts | PASS 13 loaders |
+| parsers + load-defense-budget-package.spec | PASS 6 suites / 67 tests |
+| Smoke load-om default | INSPECT only (exit 0) |
+| Smoke load-om --commit (no sha) | FAIL closed exit 1 (`--commit requires --approved-sha256`) |
+| Migrations / vendor / secrets / shared DB | **not run** |
+| MeriV2 product paths | untouched |
+
+No base-proven inherited failures on A–D for this tip.
+
+### 2.3 Not done / forbidden
+
+- Independent adversarial REVIEW (separate session; implementer does **not** self-PASS)
+- Phase 3+
+- Shared-env migrate, ingestion commit, live LlamaParse, merge, deploy
+
+### 2.4 Rollback
+
+```bash
+# After push, reverse the Phase 2 product commit only:
+git revert <phase-2-product-sha>
+# or hard reset closeout branch product tip to pre-Phase-2 base (destroys unpushed work):
+git reset --hard 6268e2f2a1ef3eda906c47e8721c211d95f102a4
+```
+
+### Independent review status
+
+| Round | Tip | Verdict |
+|---|---|---|
+| Phase 2 | (set after push to exact remote tip) | **PENDING** — implementer gates green ≠ PASS |
 
 ---
 
 ## Next phase
 
-**Phase 1 independent adversarial REVIEW only** (not Phase 2 implement).  
-Do not start Phase 2 until a separate REVIEW session records `VERDICT: PASS` against the remote tip SHA after this fix.  
-Executable REVIEW handoff: end of `final-closeout-traceability.md`.
+**Phase 2 independent adversarial REVIEW only** (not Phase 3 implement).
+Do not start Phase 3 until a separate REVIEW session records `VERDICT: PASS` against the remote tip SHA after this Phase 2 product commit.
