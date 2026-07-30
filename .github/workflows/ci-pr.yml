@@ -52,6 +52,10 @@ jobs:
           path = Path('scripts/tmp/meriv2-phase3-apply.py')
           text = path.read_text()
           text = text.replace('from pathlib import Path\n', 'from pathlib import Path\nimport re\n', 1)
+          text = text.replace(
+              "expect(params).toContain(expect.stringContaining('Reviewed'));",
+              "expect(params).toContainEqual(expect.stringContaining('Reviewed'));",
+          )
           old = '''def replace(path: str, old: str, new: str) -> None:
               p = Path(path)
               text = p.read_text()
@@ -91,6 +95,8 @@ jobs:
               "expect(params).toContain(expect.stringContaining('Reviewed'));",
               "expect(params).toContainEqual(expect.stringContaining('Reviewed'));",
           )
+          if "toContainEqual(expect.stringContaining('Reviewed'))" not in canonical_text:
+              raise SystemExit('Phase 3 canonical activation matcher was not repaired')
           canonical_test.write_text(canonical_text)
           PY
           forbidden=$(git diff --name-only | grep -E '(^|/)(program-element|defense-budget|program_element|pe-)' || true)
