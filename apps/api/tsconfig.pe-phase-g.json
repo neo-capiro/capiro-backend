@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "src/program-element/funding-claim.helpers.ts",
+    "src/program-element/funding-claim.spec.ts",
+    "src/program-element/program-element-read.service.ts",
+    "src/program-element/program-element-read.service.spec.ts",
+    "src/program-element/budget-lines-read.service.ts",
+    "src/program-element/pe-funding-narrative.helpers.ts",
+    "src/program-element/pe-funding-narrative.helpers.spec.ts",
+    "src/program-element/deltas/delta-compute.ts",
+    "src/program-element/deltas/delta-compute.spec.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

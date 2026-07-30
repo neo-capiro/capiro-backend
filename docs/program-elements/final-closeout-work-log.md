@@ -4,9 +4,9 @@
 **PR:** https://github.com/neo-capiro/capirov2/pull/705 (draft → `main`)  
 **Plan source:** local `program-elements-final-closeout-plan-and-schedule.md`  
 **Repo:** `neo-capiro/capirov2`  
-**Operator session:** Phase 3 IMPLEMENT (complete-window + SAM safety)  
+**Operator session:** Phase 4 IMPLEMENT (current-cycle track-aware read contract)  
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-30 (Phase 3 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-30 (Phase 4 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
 
 ---
 
@@ -436,11 +436,94 @@ git reset --hard 0f47e13f8f5335c306b7ed18b2b292bcd25f482b
 
 | Round | Tip | Verdict |
 |---|---|---|
-| Phase 3 | `1e78254725626cf623a98951222349e14750d11e` | **PENDING** — implementer gates green ≠ PASS |
+| Phase 3 | `0a74cf9a3220cea05d0666e41a0c88e75cb99929` (product `1e7825472`) | **PASS WITH BLOCKERS** — `prompts/phase-3-review-PASS.md` (B1 search size cap polish, B2 F9 TX unit lock residual; non-gating) |
+
+---
+
+## Phase 4 — Current-Cycle, Track-Aware Read Contract
+
+### 4.0 Preflight
+
+| Item | Value |
+|---|---|
+| Worktree | `C:/c/Users/neoma/AppData/Local/Temp/pe-closeout-wt` |
+| Branch | `agent/program-elements-final-closeout` |
+| Phase 3 PASS tip (start) | `0a74cf9a3220cea05d0666e41a0c88e75cb99929` |
+| `origin/main` at Phase 4 base | `3dcb12f823774b6fae8578dc56fc122bf9a0879e` |
+| Prior G product on origin | **none** (rebuild) |
+| Status | **IMPLEMENT PUSHED** (product commit below) / independent review REQUIRED (no self-PASS) |
+
+### 4.1 Product work (G1–G12)
+
+Built the missing Phase G **FundingClaim** contract (recovery branch had no G files) and wired primary PE read paths.
+
+| ID | Implementation |
+|---|---|
+| G1 shared funding claim | `packages/shared/src/funding-claim.ts` — `FundingClaim` = value, fiscalYear, stage, stageLabel, legislativeVehicle, cycleClass, isProjection, unit |
+| G2 zero preservation | `selectLatestPreservingZero`, SQL laterals drop `<> 0` on request/enacted picks; zero marks count for currentCycleFy |
+| G3 no latest-nonzero | Replaced capability `request <> 0 ORDER BY fy DESC` and finder laterals that skipped zeros |
+| G4 stage/vehicle separation | Fine vehicles: request / authorization / appropriations / authorization_conference / appropriations_conference / enacted; NDAA vs approps conference never share track |
+| G5 separate tracks on timeline | `missingMarks` + `fundingClaim` on getTimeline years; dual-track missing taxonomy |
+| G6 no cross-FY % | `percentDeltaSameFiscalYear`; list path nulls deltaPct when request FY ≠ enacted FY |
+| G7 movement KPIs + population | `getSummary.movementCoverage` {populationSize, contributedCount, missingCount, disclosure}; money pairs include zero request |
+| G8 capability one FY + coverage | `listCapabilities` pins catalog mode FY; `requestCoverage` + `requestClaim`; zeros included in SUM |
+| G9 contractor evidence classes | `getContractors.evidenceBuckets` via `partitionContractorEvidence` (accepted_direct / candidate / unmatched_dollars) |
+| G10 missing-mark taxonomy | `classifyMissingMark` → present \| not_applicable \| not_started \| candidate_gap \| unknown_coverage |
+| G11 current request ≠ outyear | `isProjection` / cycleClass on claim; outyear never `cycleClass==='current'` |
+| G12 gate | `verify:pe-phase-g` + `tsconfig.pe-phase-g.json` |
+
+**Touched paths**
+- `packages/shared/src/funding-claim.ts` (new) + `./funding-claim` package export + index pointer comment
+- `apps/api/src/program-element/funding-claim.helpers.ts` (+spec)
+- `apps/api/src/program-element/program-element-read.service.ts` (+spec Phase G case)
+- `apps/api/src/program-element/budget-lines-read.service.ts`
+- `apps/api/package.json` → `verify:pe-phase-g`
+- `apps/api/tsconfig.pe-phase-g.json`
+
+### 4.2 Gates (this session; base tip `0a74cf9a3`)
+
+| Command | Result |
+|---|---|
+| `pnpm -C packages/shared run build` | PASS (emits funding-claim.js) |
+| `pnpm run verify:pe-phase-g` | PASS 5 suites / 76 tests |
+| `pnpm exec tsc -p tsconfig.pe-phase-g.json --noEmit` | PASS exit 0 |
+| `pnpm run verify:pe-phase-a` | PASS `PE_PHASE_A_B_SAFETY_OK` |
+| `pnpm run verify:pe-phase-b` | PASS 7 suites / 111 tests |
+| `pnpm run verify:pe-phase-c` | PASS 8 suites / 62 tests |
+| `pnpm run verify:pe-phase-d` | PASS 7 suites / 51 tests |
+| `pnpm run verify:pe-phase-e` | PASS 3 suites / 71 tests + 13 loaders static |
+| `pnpm run verify:pe-phase-f` | PASS 4 suites / 89 tests |
+| Shared DB migrate / vendor / secrets / email / LlamaParse | **not run** |
+| MeriV2 product paths | untouched |
+| Transport blobs | absent |
+
+No base-proven inherited failures introduced on A–F for this tip.
+
+### 4.3 Not done / forbidden
+
+- Independent adversarial REVIEW (separate session; implementer does **not** self-PASS)
+- Phase 5+ UX trust header work
+- Phase 3 residual polish B1/B2 (search response-size / F9 TX unit lock) — optional, non-gating per Phase 3 PASS
+- Live data / migrate / merge / deploy
+
+### 4.4 Rollback
+
+```bash
+# after product SHA is known on origin — revert that commit
+git revert <phase-4-product-sha>
+# or hard reset closeout branch to Phase 3 PASS tip:
+git reset --hard 0a74cf9a3220cea05d0666e41a0c88e75cb99929
+```
+
+### Independent review status (Phase 4)
+
+| Round | Tip | Verdict |
+|---|---|---|
+| Phase 4 | *(record after push)* | **PENDING** — implementer gates green ≠ PASS |
 
 ---
 
 ## Next phase
 
-**Phase 3 independent adversarial REVIEW only** (not Phase 4 implement).
-Do not start Phase 4 until a separate REVIEW session records `VERDICT: PASS` against the remote tip SHA after this Phase 3 product commit.
+**Phase 4 independent adversarial REVIEW only** (not Phase 5 implement).
+Do not start Phase 5 until a separate REVIEW session records `VERDICT: PASS` against the remote tip SHA after this Phase 4 product commit.

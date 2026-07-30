@@ -18,6 +18,17 @@ import {
   type FundingStageValues,
   type ModelFundingYear,
 } from '@capiro/shared';
+import {
+  claimFromLadderPick,
+  percentDeltaSameFiscalYear,
+  partitionContractorEvidence,
+} from '@capiro/shared/funding-claim';
+import {
+  claimForYearLadder,
+  missingMarksForYear,
+  requestClaim,
+  enactedClaim,
+} from './funding-claim.helpers.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientPeRelevanceService } from '../intelligence/client-pe-relevance.service.js';
 import { EMBEDDING_MODEL } from '../embeddings/embedder.js';
@@ -308,14 +319,14 @@ export class ProgramElementReadService {
       LEFT JOIN LATERAL (
         SELECT y.request, y.fy
         FROM program_element_year y
-        WHERE y.pe_code = f.pe_code AND y.request IS NOT NULL AND y.request <> 0
+        WHERE y.pe_code = f.pe_code AND y.request IS NOT NULL
         ORDER BY y.fy DESC
         LIMIT 1
       ) lr ON TRUE
       LEFT JOIN LATERAL (
         SELECT y.enacted, y.fy
         FROM program_element_year y
-        WHERE y.pe_code = f.pe_code AND y.enacted IS NOT NULL AND y.enacted <> 0
+        WHERE y.pe_code = f.pe_code AND y.enacted IS NOT NULL
         ORDER BY y.fy DESC
         LIMIT 1
       ) le ON TRUE
@@ -361,7 +372,55 @@ export class ProgramElementReadService {
 
     const total = rows[0]?.totalCount ?? 0;
     return {
-      data: rows.map(({ totalCount: _ignored, ...rest }) => rest),
+      data: rows.map(({ totalCount: _ignored, ...rest }) => {
+        // Phase G: every dollar headline is a FundingClaim so consumers cannot
+        // invent a cross-FY / cross-track percent from bare numbers.
+        const currentCycleFy = rest.latestCurrentFy ?? rest.latestRequestFy ?? null;
+        const currentClaim =
+          rest.latestCurrent != null || rest.latestCurrentStage
+            ? claimFromLadderPick({
+                value: rest.latestCurrent,
+                stage: rest.latestCurrentStage ?? 'none',
+                fiscalYear: rest.latestCurrentFy,
+                currentCycleFy,
+              })
+            : null;
+        const requestClaimRow =
+          rest.latestRequest != null || rest.latestRequestFy != null
+            ? requestClaim(rest.latestRequest, rest.latestRequestFy, currentCycleFy)
+            : null;
+        const enactedClaimRow =
+          rest.latestEnacted != null || rest.latestEnactedFy != null
+            ? enactedClaim(rest.latestEnacted, rest.latestEnactedFy, currentCycleFy)
+            : null;
+        // deltaPct is already same-FY (enacted FY's request via ler join). Recompute
+        // through the contract so a zero request cannot yield Infinity, and a
+        // missing pair stays null.
+        const deltaPctClaimSafe = percentDeltaSameFiscalYear({
+          value: rest.latestEnacted,
+          base: rest.latestRequest,
+          valueFy: rest.latestEnactedFy,
+          // ler ensures request is request-at-enacted-FY only when FYs align in SQL;
+          // reclaim here: only if both FYs known and equal.
+          baseFy:
+            rest.latestEnactedFy != null && rest.latestRequestFy === rest.latestEnactedFy
+              ? rest.latestRequestFy
+              : rest.latestEnactedFy,
+        });
+        return {
+          ...rest,
+          // Prefer contract-safe pct; fall back to SQL pct only when FYs match.
+          deltaPct:
+            rest.latestEnactedFy != null &&
+            rest.latestRequestFy != null &&
+            rest.latestEnactedFy !== rest.latestRequestFy
+              ? null
+              : (deltaPctClaimSafe ?? rest.deltaPct),
+          currentClaim,
+          requestClaim: requestClaimRow,
+          enactedClaim: enactedClaimRow,
+        };
+      }),
       total,
       page,
       limit,
@@ -531,28 +590,32 @@ export class ProgramElementReadService {
           totalRequest: number | null;
           totalEnacted: number | null;
           avgDeltaPct: number | null;
+          populationSize: number | null;
+          contributedPairs: number | null;
         }>
       >(Prisma.sql`
         SELECT
-          COALESCE(SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0), 0)::double precision AS "totalRequest",
-          COALESCE(SUM(le.enacted) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0), 0)::double precision AS "totalEnacted",
+          COALESCE(SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL), 0)::double precision AS "totalRequest",
+          COALESCE(SUM(le.enacted) FILTER (WHERE ler.request IS NOT NULL AND le.enacted IS NOT NULL), 0)::double precision AS "totalEnacted",
           (
             CASE
-              WHEN SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0) > 0
+              WHEN SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND le.enacted IS NOT NULL) <> 0
               THEN (
                 (
-                  SUM(le.enacted) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0)
-                  - SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0)
+                  SUM(le.enacted) FILTER (WHERE ler.request IS NOT NULL AND le.enacted IS NOT NULL)
+                  - SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND le.enacted IS NOT NULL)
                 )
-                / SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0)
+                / SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND le.enacted IS NOT NULL)
               ) * 100
               ELSE NULL
             END
-          )::double precision AS "avgDeltaPct"
+          )::double precision AS "avgDeltaPct",
+          COUNT(*) FILTER (WHERE pe.retired_at IS NULL)::int AS "populationSize",
+          COUNT(*) FILTER (WHERE ler.request IS NOT NULL AND le.enacted IS NOT NULL)::int AS "contributedPairs"
         FROM program_element pe
         LEFT JOIN LATERAL (
           SELECT y.enacted, y.fy FROM program_element_year y
-          WHERE y.pe_code = pe.pe_code AND y.enacted IS NOT NULL AND y.enacted <> 0
+          WHERE y.pe_code = pe.pe_code AND y.enacted IS NOT NULL
           ORDER BY y.fy DESC LIMIT 1
         ) le ON TRUE
         LEFT JOIN LATERAL (
@@ -590,12 +653,15 @@ export class ProgramElementReadService {
       watched = wr[0]?.count ?? 0;
     }
 
+    const populationSize = moneyRows[0]?.populationSize ?? trackedRows[0]?.tracked ?? 0;
+    const contributedPairs = moneyRows[0]?.contributedPairs ?? 0;
     return {
       tracked: trackedRows[0]?.tracked ?? 0,
       withData: trackedRows[0]?.withData ?? 0,
       watched,
       // No single FY tag — each PE's matched pair can fall in a different year (see
-      // the query comment above), so the UI shows plain "aggregate".
+      // the query comment above), so the UI shows plain "aggregate". Cross-FY % is
+      // impossible here because each pair is same-FY by construction; zeros count.
       latestRequestFy: null,
       totalRequest: moneyRows[0]?.totalRequest ?? null,
       latestEnactedFy: null,
@@ -604,6 +670,13 @@ export class ProgramElementReadService {
       openMarkups: markupRows[0]?.count ?? 0,
       trend: trendRows.map((r) => ({ fy: r.fy, total: r.total })),
       byService: byServiceRows.map((r) => ({ service: r.service, count: r.count })),
+      // Phase G — movement KPI coverage over the FULL filtered PE population.
+      movementCoverage: {
+        populationSize,
+        contributedCount: contributedPairs,
+        missingCount: Math.max(0, populationSize - contributedPairs),
+        disclosure: `Matched request/enacted pairs: ${contributedPairs} of ${populationSize} in filtered population`,
+      },
     };
   }
 
@@ -760,7 +833,7 @@ export class ProgramElementReadService {
       this.prisma.$queryRaw<Array<{ fy: number | null }>>(Prisma.sql`
         SELECT fy
         FROM program_element_year
-        WHERE request IS NOT NULL AND request <> 0
+        WHERE request IS NOT NULL
         GROUP BY fy
         ORDER BY COUNT(*) DESC, fy DESC
         LIMIT 1
@@ -885,6 +958,18 @@ export class ProgramElementReadService {
               : year.fy === currentCycleFy
                 ? 'current'
                 : 'outyear';
+        const claim = claimForYearLadder(values, year.fy, currentCycleFy);
+        const marks = missingMarksForYear({
+          request: values.request,
+          hascMark: values.hascMark,
+          sascMark: values.sascMark,
+          ndaaConference: num(year.ndaaConference),
+          hacDMark: values.hacDMark,
+          sacDMark: values.sacDMark,
+          conference: values.conference,
+          enacted: values.enacted,
+          processInPlay: cycle === 'current' || cycle === 'historical',
+        });
         return {
           ...year,
           cycle,
@@ -899,6 +984,10 @@ export class ProgramElementReadService {
             pick.value != null && values.request != null && pick.stage !== 'request'
               ? pick.value - values.request
               : null,
+          // Phase G — shared FundingClaim (value/FY/stage/vehicle/cycle/projection).
+          fundingClaim: claim,
+          // Phase G — missing-mark taxonomy per stage cell (zeros are 'present').
+          missingMarks: marks,
           // GAI-28: `predicted` is a forecast conference DOLLAR amount (in $M),
           // NOT a probability. Exposed under an honest name so no downstream
           // surface (LLM prompt, web, client brief) can read a funding level as a
@@ -1300,12 +1389,35 @@ export class ProgramElementReadService {
         .slice(0, 25);
     }
 
+    const directAwardM = data
+      .filter((r) => r.source === 'direct')
+      .reduce((s, r) => s + (r.amount ?? 0), 0);
+    const directAwardN = data.filter((r) => r.source === 'direct').reduce((s, r) => s + (r.awards ?? 0), 0);
+    const candidateAwardM = data
+      .filter((r) => r.source === 'program')
+      .reduce((s, r) => s + (r.amount ?? 0), 0);
+    const candidateAwardN = data
+      .filter((r) => r.source === 'program')
+      .reduce((s, r) => s + (r.awards ?? 0), 0);
+    const namedPrimeM = namedPrimes.reduce((s, r) => s + (r.totalCostM ?? 0), 0);
     return {
       // Named primes from the budget exhibit (Layer 1) — the primary, precise answer.
       namedPrimes,
       // Award dollar-flow over the last 24 months (Layer 2/3 — direct pe_code,
       // MDAP-program link, or UEI-confirmed R-3 prime via enrich-award-pe-tas).
       data,
+      // Phase G — contractor/performer evidence never collides across classes.
+      evidenceBuckets: partitionContractorEvidence({
+        acceptedDirectAmountM: directAwardM + namedPrimeM,
+        acceptedDirectCount: directAwardN + namedPrimes.length,
+        candidateAmountM: candidateAwardM,
+        candidateCount: candidateAwardN,
+        // Unmatched PE-universe dollars are not inventoried on this endpoint.
+        unmatchedAmountM: 0,
+        unmatchedCount: 0,
+      }),
+      evidenceNote:
+        'accepted_direct = PE-coded awards + R-3 named primes; candidate = MDAP-program-linked awards; unmatched_dollars not inventoried here (fail closed / listed as 0).',
       todo: null,
     };
   }

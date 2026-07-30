@@ -3937,3 +3937,9 @@ export type GrantsGovApplicantType = (typeof GRANTS_GOV_APPLICANT_TYPES)[number]
 export function applicantTypeKey(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toLowerCase();
 }
+
+// PE Phase G funding-claim contract — subpath @capiro/shared/funding-claim
+// Import FundingClaim helpers from '@capiro/shared/funding-claim' (subpath export).
+// Kept out of this single-file barrel so Vite/Rollup named-export tracing for the
+// main entry stays intact (same pattern as './money').
+

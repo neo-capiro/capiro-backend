@@ -2,7 +2,7 @@
 
 **Baseline main SHA:** `057f5480a46f9ba9acf9296a9cc876b609593832`  
 **Pre-Phase-0 #705 head (void product):** `a244022648d54d9e4ac7fb071f9f438405659056`  
-**Updated (UTC):** 2026-07-30 (Phase 3 complete-window + SAM safety integrated on top of Phase 2 PASS tip `0f47e13f8`; implementer gates green; **Phase 3 independent review PENDING**)
+**Updated (UTC):** 2026-07-30 (Phase 4 FundingClaim track-aware read contract on top of Phase 3 PASS tip `0a74cf9a3`; implementer gates green; **Phase 4 independent review PENDING**)
 
 Legend for **Status**:
 
@@ -84,7 +84,7 @@ Closeout **execution phase** column is the session phase from the final schedule
 
 **Integrate note:** Path-limited port from `origin/agent/pe-trust-phase-f` product commits `107a7f5f0`/`c8ef5c3a1` **into** current-main SAM script (all-federal + dry-run hygiene + CLI validation retained). No wholesale F tip merge. No transport workflow.
 
-**Phase 3 review gate:** Independent review **PENDING** against remote tip `1e78254725626cf623a98951222349e14750d11e`. Implementer gates alone are not Phase 3 PASS.
+**Phase 3 review gate:** Independent review **PASS WITH BLOCKERS** on tip `0a74cf9a3` (product `1e7825472`); artifact `prompts/phase-3-review-PASS.md`.
 
 ---
 
@@ -92,7 +92,20 @@ Closeout **execution phase** column is the session phase from the final schedule
 
 | ID | Requirement | Status | Source | Owner phase |
 |---|---|---|---|---|
-| G1–G12 | Shared funding claim; zero preservation; no latest-nonzero; stage/vehicle separation; no cross-FY %; coverage denominators; contractor evidence classes; missing-mark taxonomy | `missing` | recovery branch has **no** G product files; PR #684 body claimed later G/H publish — **those final G/H branches are not present on origin** as of Phase 0 fetch | 4 |
+| G1 | Shared `FundingClaim` (value, FY, stage, stageLabel, legislativeVehicle, cycleClass, isProjection) | `in_branch` (Phase 4) | `packages/shared/src/funding-claim.ts` + `@capiro/shared/funding-claim` export | 4 |
+| G2 | Preserve zero-dollar values | `in_branch` (Phase 4) | selectLatestPreservingZero + SQL laterals without `<> 0` | 4 |
+| G3 | Never latest-nonzero selection | `in_branch` (Phase 4) | finder/capability request/enacted picks; cycle FY counts zero marks | 4 |
+| G4 | Separate request / auth / approps / auth conf / approps conf / enacted vehicles | `in_branch` (Phase 4) | FUNDING_CLAIM_VEHICLE + claimFromLadderPick | 4 |
+| G5 | Auth vs approps never mix in comparisons | `in_branch` (Phase 4) | canCompareClaimsForPct + delta-compute track scope (inherited) | 4 |
+| G6 | Never cross-FY % delta | `in_branch` (Phase 4) | percentDeltaSameFiscalYear; list nulls mismatched FY deltaPct | 4 |
+| G7 | Movement KPIs over full filtered population + coverage | `in_branch` (Phase 4) | getSummary.movementCoverage | 4 |
+| G8 | Capability totals one FY + coverage disclosure | `in_branch` (Phase 4) | listCapabilities shared FY + requestCoverage | 4 |
+| G9 | Contractor evidence: accepted_direct / candidate / unmatched | `in_branch` (Phase 4) | getContractors.evidenceBuckets | 4 |
+| G10 | Missing-mark taxonomy | `in_branch` (Phase 4) | classifyMissingMark on timeline years | 4 |
+| G11 | Current request cannot be FYDP outyear | `in_branch` (Phase 4) | isProjection / cycleClass on claim + timeline | 4 |
+| G12 | API contract tests + verify:pe-phase-g | `in_branch` (Phase 4) | funding-claim.spec + read.service Phase G case | 4 |
+
+**Phase 4 review gate:** Independent review **PENDING** against remote tip after Phase 4 product push. Implementer gates alone are not Phase 4 PASS.
 
 ---
 

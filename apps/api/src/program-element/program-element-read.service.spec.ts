@@ -579,6 +579,74 @@ describe('ProgramElementReadService', () => {
       // FY2025 = historical.
       expect(byFy.get(2025)?.cycle).toBe('historical');
     });
+
+    test('Phase G FundingClaim: zeros preserved; outyear flagged projection; no cross-stage mix on claim', async () => {
+      const prisma = {
+        ...airDefenseTargetsPrisma,
+        programElementYear: {
+          findMany: jest.fn(async () => [
+            {
+              fy: 2027,
+              request: 0, // real zero request
+              hascMark: 0,
+              sascMark: null,
+              hacDMark: null,
+              sacDMark: null,
+              conference: null,
+              ndaaConference: null,
+              enacted: null,
+            },
+            {
+              fy: 2030,
+              request: 50,
+              hascMark: null,
+              sascMark: null,
+              hacDMark: null,
+              sacDMark: null,
+              conference: null,
+              ndaaConference: null,
+              enacted: null,
+            },
+          ]),
+        },
+      };
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+      );
+      const t = (await service.getTimeline('ZEROPE')) as {
+        currentCycleFy: number | null;
+        years: Array<{
+          fy: number;
+          cycle: string;
+          current: number | null;
+          fundingClaim: {
+            value: number | null;
+            isProjection: boolean;
+            cycleClass: string;
+            legislativeVehicle: string;
+            stage: string;
+          };
+          missingMarks: { hascMark: string; hacDMark: string };
+        }>;
+      };
+      // Zero HASC mark makes 2027 the cycle FY (not latest-nonzero 2030).
+      expect(t.currentCycleFy).toBe(2027);
+      const cur = t.years.find((y) => y.fy === 2027)!;
+      expect(cur.current).toBe(0);
+      expect(cur.fundingClaim.value).toBe(0);
+      expect(cur.fundingClaim.isProjection).toBe(false);
+      expect(cur.fundingClaim.cycleClass).toBe('current');
+      expect(cur.missingMarks.hascMark).toBe('present');
+      const out = t.years.find((y) => y.fy === 2030)!;
+      expect(out.cycle).toBe('outyear');
+      expect(out.fundingClaim.isProjection).toBe(true);
+      expect(out.fundingClaim.cycleClass).toBe('outyear');
+      // Current request can never be the outyear claim.
+      expect(out.fundingClaim.stage === 'request' && out.fundingClaim.cycleClass === 'current').toBe(
+        false,
+      );
+    });
   });
 });
 
