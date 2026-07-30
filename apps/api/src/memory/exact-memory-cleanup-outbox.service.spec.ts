@@ -2,7 +2,10 @@ import { describe, expect, jest, test } from '@jest/globals';
 import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { MemoryIngestService } from './memory-ingest.service.js';
-import { ExactMemoryCleanupOutboxService } from './exact-memory-cleanup-outbox.service.js';
+import {
+  ExactMemoryCleanupOutboxService,
+  exactProjectionIdempotencyKey,
+} from './exact-memory-cleanup-outbox.service.js';
 import {
   canonicalProjectionSnapshot,
   projectionMaterialForClioRow,
@@ -110,18 +113,33 @@ describe('ExactMemoryCleanupOutboxService', () => {
       title: 'Firm position',
       sections: canonicalSections(),
     });
+    const expectedKey = exactProjectionIdempotencyKey(
+      CLIO,
+      material.sourceVersion,
+      canonical.contentHash,
+    );
     expect(insert!.params).toEqual(
       expect.arrayContaining([
         TENANT,
         ITEM,
         CLIO,
-        material.idempotencyKey,
+        expectedKey,
         new Date(material.sourceVersion),
         canonical.contentHash,
       ]),
     );
     expect(insert!.sql).toContain('expected_source_version');
     expect(insert!.sql).toContain('expected_content_hash');
+  });
+
+  test('keeps distinct content obligations unique even when source timestamps match', () => {
+    const sourceVersion = UPDATED_AT.toISOString();
+    const first = exactProjectionIdempotencyKey(CLIO, sourceVersion, 'a'.repeat(64));
+    const second = exactProjectionIdempotencyKey(CLIO, sourceVersion, 'b'.repeat(64));
+
+    expect(first).not.toBe(second);
+    expect(first.length).toBeLessThanOrEqual(192);
+    expect(second.length).toBeLessThanOrEqual(192);
   });
 
   test('does not run the old broad index completion update', async () => {
