@@ -1,26 +1,27 @@
 import { createHash } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { clioMemorySlug, clioMemoryToItem, type ClioMemoryRow } from './memory-clio-adapter.helpers.js';
-import { embeddableText, MemoryIngestService } from './memory-ingest.service.js';
+import { embedAndUpsert } from '../embeddings/embedder.js';
+import { clioMemoryToItem, type ClioMemoryRow } from './memory-clio-adapter.helpers.js';
+import { embeddableText } from './memory-ingest.service.js';
+import { MemoryStoreService } from './memory-store.service.js';
 
 export type StrictProjectionResult = 'projected' | 'vanished';
 
 /**
- * Failure-aware adapter for the scheduled projection worker.
+ * Strict projection chokepoint for the scheduled worker.
  *
- * MemoryIngestService.projectClioMemory intentionally preserves the historical
- * request-path contract: it is best effort and never throws. The scheduled worker
- * cannot use a swallowed error as proof of completion, so this adapter invokes that
- * ONE projector and then verifies the exact durable item + expected embedding hash.
- * Phase 6 may migrate request-time callers to a strict method; Phase 5 only gives the
- * out-of-band worker an honest completion signal.
+ * Request-time projection intentionally keeps its historical best-effort contract
+ * until Phase 6. The scheduled worker cannot accept swallowed failures or raw
+ * provider-error logging, so this service performs the same canonical projection
+ * with awaited writes, verifies the exact durable item + embedding hash, and throws
+ * only to the worker's bounded/sanitized failure path.
  */
 @Injectable()
 export class StrictMemoryProjectorService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly ingest: MemoryIngestService,
+    private readonly store: MemoryStoreService,
   ) {}
 
   async projectClioMemoryStrict(
@@ -49,22 +50,62 @@ export class StrictMemoryProjectorService {
     };
     const item = clioMemoryToItem(normalized);
     const text = embeddableText(item);
+    const itemId = await this.store.upsertSystem(item);
 
-    await this.ingest.projectClioMemory(tenantId, clioMemoryId);
+    if (text.length >= 10) {
+      await embedAndUpsert(this.prisma as never, {
+        tenantId,
+        clientId: item.clientId,
+        ownerUserId: item.ownerUserId,
+        sourceType: 'memory_item',
+        sourceId: itemId,
+        text,
+        bypassRls: true,
+      });
+    }
+
+    // The source can be edited/deleted while network embedding is in flight. Never
+    // report an old version complete. A deletion removes the projection this worker
+    // just created; an edit retries and lets the newer version's idempotency job win.
+    const current = await this.prisma.withSystem(
+      (tx) =>
+        tx.$queryRaw<Array<{ updated_at: Date }>>`
+          SELECT updated_at
+          FROM clio_memory
+          WHERE id = ${clioMemoryId}::uuid AND tenant_id = ${tenantId}::uuid
+          LIMIT 1
+        `,
+    );
+    if (!current[0]) {
+      await this.prisma.withSystem(async (tx) => {
+        await tx.$executeRaw`
+          DELETE FROM context_embeddings
+          WHERE source_type = 'memory_item' AND source_id = ${itemId}
+        `;
+        await tx.$executeRaw`
+          DELETE FROM memory_items
+          WHERE id = ${itemId}::uuid AND tenant_id = ${tenantId}::uuid
+        `;
+      });
+      return 'vanished';
+    }
+    if (current[0].updated_at.toISOString() !== normalized.updatedAt) {
+      throw new Error('memory_source_changed_during_projection');
+    }
 
     const projected = await this.prisma.withSystem(
       (tx) =>
         tx.$queryRaw<Array<{ id: string }>>`
           SELECT id::text AS id
           FROM memory_items
-          WHERE tenant_id = ${tenantId}::uuid
+          WHERE id = ${itemId}::uuid
+            AND tenant_id = ${tenantId}::uuid
             AND type = ${item.type}
-            AND slug = ${clioMemorySlug(clioMemoryId)}
+            AND slug = ${item.slug}
           LIMIT 1
         `,
     );
-    const itemId = projected[0]?.id;
-    if (!itemId) throw new Error('memory_projection_missing');
+    if (!projected[0]) throw new Error('memory_projection_missing');
 
     if (text.length >= 10) {
       const contentHash = createHash('sha256').update(text).digest('hex');
