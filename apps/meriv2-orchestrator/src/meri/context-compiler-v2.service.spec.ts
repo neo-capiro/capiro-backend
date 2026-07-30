@@ -1,17 +1,7 @@
 import { OrchestratorContextCompilerService } from './context-compiler.service';
 import type { PrismaService } from '../prisma/prisma.service';
 
-/**
- * ContextPacket v2 on the orchestrator adapter — the twin of apps/api's
- * context-compiler-v2.service.spec.
- *
- * The specific drift this locks: the orchestrator's v1 SELECT does not fetch
- * `updated_at` / `last_confirmed_at` / `provenance`, which `compareSteeringRows`
- * sorts on, so the same rows would compile to a DIFFERENTLY ORDERED packet than
- * apps/api produces. The governed (v2) read closes that. The v1 read is left alone
- * on purpose — changing it would reorder a live prompt with no switch to hide the
- * change behind.
- */
+/** ContextPacket v2 on the orchestrator adapter. */
 describe('OrchestratorContextCompilerService — ContextPacket v2', () => {
   const APPROVED_FIRM_ROW = {
     id: '11111111-1111-1111-1111-111111111111',
@@ -34,7 +24,10 @@ describe('OrchestratorContextCompilerService — ContextPacket v2', () => {
     conflictStatus: 'none',
   };
 
-  function makePrisma(rows: unknown[] = [APPROVED_FIRM_ROW]) {
+  function makePrisma(
+    rows: unknown[] = [APPROVED_FIRM_ROW],
+    options: { createFails?: boolean; readBack?: boolean } = {},
+  ) {
     const packetCreates: Array<{ data: Record<string, unknown> }> = [];
     const queries: unknown[] = [];
     const tx = {
@@ -44,9 +37,13 @@ describe('OrchestratorContextCompilerService — ContextPacket v2', () => {
       }),
       contextPacket: {
         create: jest.fn(async (args: { data: Record<string, unknown> }) => {
+          if (options.createFails) throw new Error('db down with private detail');
           packetCreates.push(args);
           return args;
         }),
+        findFirst: jest.fn(async (args: { where: { id: string } }) =>
+          options.readBack === false ? null : { id: args.where.id },
+        ),
       },
     };
     const prisma = {
@@ -63,7 +60,7 @@ describe('OrchestratorContextCompilerService — ContextPacket v2', () => {
     return sql.slice(sql.indexOf('SELECT'), sql.indexOf('FROM memory_items'));
   };
 
-  it('the v1 read references no governed column (they come from an unapplied migration)', async () => {
+  it('the v1 read references no governed column', async () => {
     const { prisma, queries } = makePrisma();
     const service = new OrchestratorContextCompilerService(prisma);
     await service.compile({
@@ -83,7 +80,7 @@ describe('OrchestratorContextCompilerService — ContextPacket v2', () => {
     }
   });
 
-  it('the v2 read adds the governed columns AND the ordering columns apps/api already had', async () => {
+  it('the v2 read adds governed and ordering columns without confidential excerpts', async () => {
     const { prisma, queries } = makePrisma();
     const service = new OrchestratorContextCompilerService(prisma);
     await service.compile({
@@ -96,29 +93,27 @@ describe('OrchestratorContextCompilerService — ContextPacket v2', () => {
     const selectList = selectListOf(queries[0]);
     expect(selectList).toContain('memory_class AS "memoryClass"');
     expect(selectList).toContain('approved_by_user_id AS "approvedByUserId"');
-    // Cross-path ordering parity with apps/api.
     expect(selectList).toContain('updated_at AS "updatedAt"');
     expect(selectList).toContain('last_confirmed_at AS "confirmedAt"');
     expect(selectList).toContain('provenance AS authority');
-    // Never the confidential body.
     expect(selectList).not.toContain('source_excerpt');
   });
 
-  it('writes packet_version 1 for a v1 trace and 2 with full provenance for a v2 packet', async () => {
-    const { prisma, packetCreates } = makePrisma();
+  it('writes packet versions with full provenance and exact readback identity', async () => {
+    const { prisma, tx, packetCreates } = makePrisma();
     const service = new OrchestratorContextCompilerService(prisma);
 
-    await service.compile({
+    const v1Packet = await service.compile({
       tenantId: 't1',
       userId: 'u1',
       surface: 'ga-chat',
       layers: ['firm-identity'],
     });
-    await new Promise((r) => setImmediate(r));
     expect(packetCreates[0]!.data.packetVersion).toBe(1);
     expect(packetCreates[0]!.data).not.toHaveProperty('health');
+    expect(v1Packet.packetId).toBe(v1Packet.generatedPacketId);
 
-    await service.compile({
+    const v2Packet = await service.compile({
       tenantId: 't1',
       userId: 'u1',
       surface: 'ga-chat',
@@ -128,7 +123,6 @@ describe('OrchestratorContextCompilerService — ContextPacket v2', () => {
       tokenBudget: 5_000,
       budgetUnit: 'tokens',
     });
-    await new Promise((r) => setImmediate(r));
     const v2 = packetCreates[1]!.data;
     expect(v2.packetVersion).toBe(2);
     expect(v2.traceId).toBe('trace-1');
@@ -137,20 +131,40 @@ describe('OrchestratorContextCompilerService — ContextPacket v2', () => {
     expect(v2.health).toEqual(expect.objectContaining({ status: 'healthy' }));
     expect(v2.totalTokenBudget).toBe(5_000);
     expect(JSON.stringify(v2.items)).not.toContain('We are a GA firm.');
+    expect(tx.contextPacket.findFirst).toHaveBeenCalled();
+    expect(v2Packet.persisted).toBe(true);
+    expect(v2Packet.packetId).toBe(v2Packet.generatedPacketId);
   });
 
-  it('a v2 trace-write failure stays fire-and-forget', async () => {
-    const { prisma, tx } = makePrisma();
-    (tx.contextPacket.create as jest.Mock).mockRejectedValue(new Error('db down'));
+  it('returns truthful degraded provenance when a best-effort v2 write fails', async () => {
+    const { prisma } = makePrisma([APPROVED_FIRM_ROW], { createFails: true });
+    const service = new OrchestratorContextCompilerService(prisma);
+    const packet = await service.compile({
+      tenantId: 't1',
+      userId: 'u1',
+      surface: 'ga-chat',
+      layers: ['firm-identity'],
+      contractVersion: 2,
+      persistence: 'best-effort',
+    });
+    expect(packet.persisted).toBe(false);
+    expect(packet.packetId).toBeNull();
+    expect(packet.persistenceErrorCode).toBe('context_packet_error');
+    expect(JSON.stringify(packet)).not.toContain('private detail');
+  });
+
+  it('holds a required strategy surface when write verification fails', async () => {
+    const { prisma } = makePrisma([APPROVED_FIRM_ROW], { readBack: false });
     const service = new OrchestratorContextCompilerService(prisma);
     await expect(
       service.compile({
         tenantId: 't1',
         userId: 'u1',
-        surface: 'ga-chat',
+        surface: 'strategy',
         layers: ['firm-identity'],
         contractVersion: 2,
+        persistence: 'required',
       }),
-    ).resolves.toBeTruthy();
+    ).rejects.toMatchObject({ name: 'ContextPacketPersistenceError' });
   });
 });
