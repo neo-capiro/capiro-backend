@@ -3,7 +3,11 @@ import { ContextCompilerService } from './context-compiler.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 
 const CANARY_SETTINGS = {
-  clioFeatureFlags: { 'meriv2.contextPacketV2': true },
+  clioFeatureFlags: {
+    'meriv2.contextPacketV2': true,
+    'meriv2.contextPacketV2.chat': true,
+    'meriv2.contextPacketV2.in-editor': true,
+  },
 };
 
 /** ContextPacket v2, tenant canaries and truthful persistence on apps/api. */
@@ -135,10 +139,10 @@ describe('ContextCompilerService — Phase 8', () => {
     expect(sql).not.toContain('source_excerpt');
   });
 
-  it('a tenant without the canary stays on v1 under a global enforce ceiling', async () => {
+  it('a tenant without the surface canary stays on v1 under a global enforce ceiling', async () => {
     process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
     const { prisma } = makePrisma([APPROVED_FIRM_ROW], {
-      settings: { clioFeatureFlags: { 'meriv2.contextPacketV2': false } },
+      settings: { clioFeatureFlags: { 'meriv2.contextPacketV2': true } },
     });
     const packet = await new ContextCompilerService(prisma).compile({
       tenantId: 't1',
@@ -173,7 +177,7 @@ describe('ContextCompilerService — Phase 8', () => {
     expect(packet.persisted).toBe(true);
   });
 
-  it('shadow persists both traces, returns v1, and records comparison evidence', async () => {
+  it('shadow persists both traces, returns unchanged v1, and records comparison evidence', async () => {
     process.env.MERIV2_CONTEXT_PACKET_V2 = 'shadow';
     const { prisma, packetCreates, executions } = makePrisma([APPROVED_FIRM_ROW]);
     const packet = await new ContextCompilerService(prisma).compile({
@@ -183,6 +187,8 @@ describe('ContextCompilerService — Phase 8', () => {
       layers: ['firm-identity'],
     });
     expect(packet.version).toBe(1);
+    expect(packet).not.toHaveProperty('rolloutMode');
+    expect(packet).not.toHaveProperty('shadowComparison');
     expect(packetCreates.map((entry) => entry.data.packetVersion)).toEqual([1, 2]);
     expect(executions).toHaveLength(1);
   });
