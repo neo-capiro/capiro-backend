@@ -31,19 +31,25 @@ function sqlText(strings: unknown): string {
 describe('Workspace canonical governed memory', () => {
   function harness() {
     const sql: string[] = [];
+    const executions: Array<{ sql: string; values: unknown[] }> = [];
     const tx = {
-      $executeRaw: jest.fn(async () => 1),
-      $queryRaw: jest.fn(async (arg: unknown) => {
+      $executeRaw: jest.fn(async (arg: unknown, ...values: unknown[]) => {
+        executions.push({ sql: sqlText(arg), values });
+        return 1;
+      }),
+      $queryRaw: jest.fn(async (arg: unknown, ...values: unknown[]) => {
         const text = sqlText(arg);
         sql.push(text);
-        return text.includes('FROM memory_items') ? [ROW] : [];
+        if (text.includes('FROM memory_items')) return [ROW];
+        if (text.includes('FROM context_packet')) return [{ id: String(values[0]) }];
+        return [];
       }),
     };
     const prisma = {
       $transaction: jest.fn(async (fn: (value: typeof tx) => unknown) => fn(tx)),
       $queryRaw: jest.fn(async () => []),
     } as unknown as PrismaService;
-    return { service: new WorkspaceContextCompilerService(prisma), sql };
+    return { service: new WorkspaceContextCompilerService(prisma), sql, executions };
   }
 
   it('keeps v1 free of unapplied governed columns', async () => {
@@ -72,5 +78,23 @@ describe('Workspace canonical governed memory', () => {
         memoryClass: 'institutional_authoritative',
       }),
     ]);
+  });
+
+  it('persists the server-resolved effective tenant rather than replacing it with tenantId', async () => {
+    const h = harness();
+    const packet = await h.service.compileForClerkOwner({
+      tenantId: 'tenant-1',
+      effectiveTenantId: 'effective-tenant-1',
+      surface: 'workspace-gen',
+      layers: ['firm-playbook'],
+      contractVersion: 2,
+      persistence: 'required',
+    });
+    const insert = h.executions.find((entry) => entry.sql.includes('INSERT INTO context_packet'));
+    expect(insert).toBeDefined();
+    expect(insert!.values[1]).toBe('tenant-1');
+    expect(insert!.values[2]).toBe('effective-tenant-1');
+    expect(packet.effectiveTenantId).toBe('effective-tenant-1');
+    expect(packet.persisted).toBe(true);
   });
 });
