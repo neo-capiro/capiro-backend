@@ -715,6 +715,7 @@ git reset --hard 7bca3b506d992d49978821fb84946eae162e8db7
 **Operator session:** Phase 5 IMPLEMENT only (FAIL inject for B1/B2/B3; not review)
 **Mode:** LONG
 **Base (failed tip):** `e7ffe8b76a8496e9846fb9a59002142d26b03546`
+**Product tip (this remediation):** `9381d154c2869e5db995f16b968d2a41422d3deb`
 **origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind / 21 ahead pre-push)
 
 ### Blocking defects closed
@@ -751,7 +752,7 @@ git reset --hard 7bca3b506d992d49978821fb84946eae162e8db7
 None.
 
 ### Independent review status (Phase 5)
-**IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on the new remote tip after this remediation commit.
+**IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on remote tip `9381d154c2869e5db995f16b968d2a41422d3deb`.
 Implementer does **not** self-PASS. Do **not** start Phase 6.
 
 ### Rollback

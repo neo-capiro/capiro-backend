@@ -332,7 +332,7 @@ plus concrete findings. Do not implement fixes.
 | Prior product tip (FAIL) | `e7ffe8b76a8496e9846fb9a59002142d26b03546` |
 | Prior review | VERDICT: FAIL — B1 smoke missing; B2 secondary isError dark; B3 complete_empty dead |
 | Remediation product | See work-log Phase 5 FAIL remediation (B1/B2/B3 + B5/B6 polish) |
-| Post-push tip | *(record after push via `git rev-parse origin/agent/program-elements-final-closeout`)* |
+| Post-push tip | `9381d154c2869e5db995f16b968d2a41422d3deb` |
 | Implementer gate | IMPLEMENT PUSHED / review **REQUIRED** — **not** self-PASS |
 | Next | New session `./pe-closeout-run.sh review 5` on new tip only |
 | MeriV2 | untouched |
