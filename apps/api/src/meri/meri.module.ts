@@ -21,6 +21,10 @@ import { MeriPolicyPackService } from './meri-policy-pack.service.js';
 import { MeriFeedbackFixtureService } from './meri-feedback-fixture.service.js';
 import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
+import {
+  createGovernedMeriToolsService,
+  RAW_MERI_TOOLS_SERVICE,
+} from './governed-meri-tools.proxy.js';
 import { MeriResearchService } from './meri-research.service.js';
 import { MeriDocgenService } from './meri-docgen.service.js';
 import { MeriMcpService } from './meri-mcp.service.js';
@@ -58,7 +62,12 @@ import { MeriV2ChatClient } from './meriv2-chat.client.js';
   ],
   providers: [
     MeriService,
-    MeriToolsService,
+    { provide: RAW_MERI_TOOLS_SERVICE, useClass: MeriToolsService },
+    {
+      provide: MeriToolsService,
+      useFactory: createGovernedMeriToolsService,
+      inject: [RAW_MERI_TOOLS_SERVICE],
+    },
     MeriResearchService,
     MeriDocgenService,
     MeriMcpService,
