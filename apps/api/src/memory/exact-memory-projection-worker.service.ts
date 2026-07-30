@@ -13,6 +13,7 @@ import {
   MEMORY_WORKER_MAX_BATCH_SIZE,
   type MemoryProjectionDrainSummary,
 } from './memory-projection-worker.service.js';
+import { exactProjectionIdempotencyKey } from './exact-memory-cleanup-outbox.service.js';
 import { StrictMemoryProjectorService } from './strict-memory-projector.service.js';
 
 interface ExactClaimedMemoryJob {
@@ -164,7 +165,11 @@ export class ExactMemoryProjectionWorkerService {
         }
 
         const sourceVersion = job.expected_source_version.toISOString();
-        const expectedKey = `index_memory_item:${job.clio_memory_id}:${sourceVersion}`;
+        const expectedKey = exactProjectionIdempotencyKey(
+          job.clio_memory_id,
+          sourceVersion,
+          job.expected_content_hash,
+        );
         if (job.idempotency_key !== expectedKey) {
           throw new ExactMemoryWorkerError('projection_idempotency_binding_mismatch');
         }
