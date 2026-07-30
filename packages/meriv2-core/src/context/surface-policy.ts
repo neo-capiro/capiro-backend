@@ -33,14 +33,14 @@ const POLICIES: Readonly<Record<ContextSurface, ContextSurfacePolicy>> = {
     surface: 'chat',
     layers: CHAT_LAYERS,
     tokenBudget: 5_000,
-    persistence: 'required',
+    persistence: 'best-effort',
     externalDeliverable: false,
   },
   'ga-chat': {
     surface: 'ga-chat',
     layers: CHAT_LAYERS,
     tokenBudget: 5_000,
-    persistence: 'required',
+    persistence: 'best-effort',
     externalDeliverable: false,
   },
   'tool-invoke': {
@@ -57,10 +57,6 @@ const POLICIES: Readonly<Record<ContextSurface, ContextSurfacePolicy>> = {
     persistence: 'required',
     externalDeliverable: true,
   },
-  // Same surface as 'in-editor' under the label the orchestrator writes, so
-  // contextSurfacePolicy('workspace-editor') can no longer return undefined (which
-  // made applyContextSurfacePolicy throw on `policy.layers` for the one label the
-  // live orchestrator in-editor path actually uses).
   'workspace-editor': {
     surface: 'workspace-editor',
     layers: DELIVERABLE_LAYERS,
@@ -79,7 +75,7 @@ const POLICIES: Readonly<Record<ContextSurface, ContextSurfacePolicy>> = {
     surface: 'steward',
     layers: ['firm-identity', 'client-steering', 'client-people'],
     tokenBudget: 5_000,
-    persistence: 'required',
+    persistence: 'best-effort',
     externalDeliverable: false,
   },
   outreach: {
@@ -132,8 +128,6 @@ export function applyContextSurfacePolicy(
 ): ContextRequest {
   const policy = contextSurfacePolicy(request.surface);
   const layers = (request.layers ?? policy.layers).filter((layer) => {
-    // Client layers are not requested when no client is in scope. This prevents
-    // a "missing layer" health warning from pretending client context should exist.
     if (!request.clientId && (layer === 'client-steering' || layer === 'client-people')) {
       return false;
     }
