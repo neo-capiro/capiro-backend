@@ -60,52 +60,16 @@ jobs:
           if text.count(old_opts) != 1:
               raise SystemExit(f'spec opts count={text.count(old_opts)}')
           text = text.replace(old_opts, new_opts)
-          old_compile = """  const contextCompiler = {
-            compile: jest.fn(async () =>
-              opts.memoryItem
-                ? {
-                    packetId: 'pkt-1',
-                    rendered: [
-                      {
-                        layer: 'client-steering',
-                        id: 'mi-1',
-                        type: 'client-soul',
-                        slug: 'client-1',
-                        title: (opts.memoryItem as { title?: string }).title ?? 'Client Soul',
-                        body: 'steering body',
-                      },
-                    ],
-                    items: [],
-                    exclusions: [],
-                  }
-                : { packetId: 'pkt-1', rendered: [], items: [], exclusions: [] },
-            ),
-          };"""
-          new_compile = """  const contextCompiler = {
-            compile: jest.fn(async () => {
-              if (opts.contextCompileError) throw opts.contextCompileError;
-              return opts.memoryItem
-                ? {
-                    packetId: 'pkt-1',
-                    rendered: [
-                      {
-                        layer: 'client-steering',
-                        id: 'mi-1',
-                        type: 'client-soul',
-                        slug: 'client-1',
-                        title: (opts.memoryItem as { title?: string }).title ?? 'Client Soul',
-                        body: 'steering body',
-                      },
-                    ],
-                    items: [],
-                    exclusions: [],
-                  }
-                : { packetId: 'pkt-1', rendered: [], items: [], exclusions: [] };
-            }),
-          };"""
-          if text.count(old_compile) != 1:
-              raise SystemExit(f'spec compiler count={text.count(old_compile)}')
-          text = text.replace(old_compile, new_compile)
+          mock_marker = """  };
+            const usageEvents:"""
+          mock_patch = """  };
+            if (opts.contextCompileError) {
+              contextCompiler.compile.mockRejectedValue(opts.contextCompileError);
+            }
+            const usageEvents:"""
+          if text.count(mock_marker) != 1:
+              raise SystemExit(f'spec mock marker count={text.count(mock_marker)}')
+          text = text.replace(mock_marker, mock_patch, 1)
           marker = """  it('throws before generating (never meters) when no Anthropic credential is available for the tenant', async () => {"""
           test = """  it('holds before generation when required Context Packet persistence fails', async () => {
             const persistenceError = new ContextPacketPersistenceError(
