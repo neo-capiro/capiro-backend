@@ -11,6 +11,35 @@
 import { geocodeAddress, type GeocodeStatus } from '../external/census-geocoder/census-geocoder.client.js';
 import { normalizeDistrictCode } from './district-code.util.js';
 
+/**
+ * Width of `client_facilities.state_house_district` / `.state_senate_district`
+ * (migration 20260810050000). Kept here because this module is the only writer
+ * of a value whose length we do not control — the Census layer BASENAME.
+ */
+export const STATE_DISTRICT_MAX_LEN = 64;
+
+/**
+ * Clamp a Census state-legislative BASENAME to the column width.
+ *
+ * These columns shipped as VARCHAR(8) against a source that returns district
+ * NAMES in ~a dozen states ('First Bristol and Plymouth' is 26 chars). Every
+ * such write threw, and because the same write carries `geocode_input_hash`,
+ * the row was never stamped and re-failed on every nightly run from 2026-07-21
+ * until the column was widened. 64 covers every real value today, but the
+ * source is a federal dataset we don't version — so clamp rather than throw,
+ * because a truncated district name is a visible data-quality problem while a
+ * throw silently wedges the whole job again.
+ */
+function clampStateDistrict(raw: string | null): string | null {
+  if (raw == null) return null;
+  if (raw.length <= STATE_DISTRICT_MAX_LEN) return raw;
+  console.warn(
+    `[facility-geocode] state district "${raw}" exceeds ` +
+      `${STATE_DISTRICT_MAX_LEN} chars — truncating`,
+  );
+  return raw.slice(0, STATE_DISTRICT_MAX_LEN);
+}
+
 export interface FacilityGeocodeInput {
   id: string;
   addressLine: string | null;
@@ -94,11 +123,17 @@ export async function computeFacilityGeocode(f: FacilityGeocodeInput): Promise<F
       ? { handEntered: f.congressionalDistrict, geocoded: result.congressionalDistrict }
       : null;
 
+  // Clamp BEFORE the idempotency comparison, not just before the write — the
+  // stored value is the clamped one, so comparing against the raw BASENAME
+  // would report "changed" on every run and re-write the row forever.
+  const stateHouseDistrict = clampStateDistrict(result.stateHouseDistrict);
+  const stateSenateDistrict = clampStateDistrict(result.stateSenateDistrict);
+
   const unchanged =
     f.latitude === result.latitude &&
     f.longitude === result.longitude &&
-    f.stateHouseDistrict === result.stateHouseDistrict &&
-    f.stateSenateDistrict === result.stateSenateDistrict &&
+    f.stateHouseDistrict === stateHouseDistrict &&
+    f.stateSenateDistrict === stateSenateDistrict &&
     f.geocodeStatus === 'matched' &&
     (f.congressionalDistrict === result.congressionalDistrict || f.districtSource !== 'geocoded');
   if (unchanged) {
@@ -116,8 +151,8 @@ export async function computeFacilityGeocode(f: FacilityGeocodeInput): Promise<F
       ...(result.congressionalDistrict
         ? { congressionalDistrict: result.congressionalDistrict, districtSource: 'geocoded' }
         : {}),
-      stateHouseDistrict: result.stateHouseDistrict,
-      stateSenateDistrict: result.stateSenateDistrict,
+      stateHouseDistrict,
+      stateSenateDistrict,
       geocodedAt: new Date(),
       geocodeStatus: 'matched',
     },

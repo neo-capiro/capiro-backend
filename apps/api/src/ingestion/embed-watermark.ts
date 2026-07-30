@@ -34,6 +34,19 @@ export interface RunCounts {
   updated: number;
   skipped: number;
   errors: number;
+  /**
+   * Why `errors > 0`, for the `sync_run` row. Optional and additive: a job that
+   * doesn't set it behaves exactly as before.
+   *
+   * Until this existed, `error_message` was written ONLY when a job threw all
+   * the way out — a job that caught per-row failures and returned `errors: N`
+   * landed as `success_with_errors` with a null message, i.e. the dashboard's
+   * single source of truth said "something failed" and nothing else. That is
+   * how `geocode-facilities` failed the same row on nine consecutive nights
+   * (2026-07-21 .. 2026-07-30) without anyone being able to see the cause
+   * without reading raw task logs.
+   */
+  errorMessage?: string | null;
 }
 
 /** Final SyncRun status from a run's error count. */

@@ -2679,8 +2679,13 @@ model ClientFacility {
   // these ride alongside the existing federal column rather than a new model.
   latitude              Float?
   longitude             Float?
-  stateHouseDistrict    String?   @map("state_house_district") @db.VarChar(8)
-  stateSenateDistrict   String?   @map("state_senate_district") @db.VarChar(8)
+  /// Census SLDL/SLDU BASENAME. In named-district states this is a NAME, not a
+  /// number ('8th Bristol', 'First Bristol and Plymouth', 'Merrimack 18'), so
+  /// the column is 64 wide, NOT the 8 it shipped as — at 8 every write for such
+  /// a state threw and poisoned the nightly geocode run (migration
+  /// 20260810050000). Longest real value is MA's 42-char senate district.
+  stateHouseDistrict    String?   @map("state_house_district") @db.VarChar(64)
+  stateSenateDistrict   String?   @map("state_senate_district") @db.VarChar(64)
   geocodedAt            DateTime? @map("geocoded_at") @db.Timestamptz(6)
   // 'matched' | 'no_match' | 'ambiguous' | 'error' — never silently absent when a geocode was attempted.
   geocodeStatus         String?   @map("geocode_status") @db.VarChar(16)

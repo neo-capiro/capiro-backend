@@ -43,6 +43,12 @@ async function main() {
     let skipped = 0;
     let errors = 0;
     let discrepancies = 0;
+    // First per-row failure, surfaced on the sync_run row. A partial failure
+    // used to land as `success_with_errors` with a null error_message — which
+    // is how the same MA facility failed nine nights running (a VARCHAR(8)
+    // overflow on a named state-legislative district) with nothing in the
+    // ingestion dashboard to say why.
+    let firstError: string | null = null;
 
     // W4.2: select by a deterministic address CHANGE-HASH, not the
     // `updated_at > geocoded_at` race. A row is a candidate only when it has
@@ -106,6 +112,7 @@ async function main() {
         }
       } catch (err) {
         errors++;
+        if (!firstError) firstError = `facility ${row.id}: ${(err as Error).message}`;
         console.error(`[geocode-facilities] facility ${row.id} failed:`, err);
       }
       await new Promise((r) => setTimeout(r, DELAY_MS));
@@ -114,7 +121,7 @@ async function main() {
     console.log(
       `[geocode-facilities] done: +${inserted} newly matched, ~${updated} updated, ${skipped} unchanged, ${discrepancies} discrepancies, ${errors} errors`,
     );
-    return { inserted, updated, skipped, errors };
+    return { inserted, updated, skipped, errors, errorMessage: firstError };
   });
 }
 
