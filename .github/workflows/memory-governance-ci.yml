@@ -8,7 +8,10 @@ name: memory-governance-ci
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      # Temporary validation base used only while PR #679 lacks a merge ref.
+      - ci/meriv2-phase4-validation-base
   push:
     branches:
       - main
