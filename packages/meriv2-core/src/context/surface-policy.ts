@@ -1,149 +1,247 @@
+import type { MemorySensitivity } from '../memory/governance';
 import type { ContextRequest, ContextSurface, SteeringLayer } from './contract';
 
-/**
- * Explicit per-surface context policy. Surfaces may have different budgets, but
- * they cannot silently invent their own layer sets or downgrade persistence.
- */
+export type ContextEnvelopeMode = 'typed' | 'plain';
+
+/** Explicit per-surface Phase 8 context policy. */
 export interface ContextSurfacePolicy {
   surface: ContextSurface;
+  /** Always required when the surface is in scope. */
+  requiredLayers: readonly SteeringLayer[];
+  /** Required only when the request has a server-resolved client. */
+  clientRequiredLayers: readonly SteeringLayer[];
+  /** Missing values never degrade packet health. */
+  optionalLayers: readonly SteeringLayer[];
+  /** Optional only when a server-resolved client is in scope. */
+  clientOptionalLayers: readonly SteeringLayer[];
+  /** Compatibility projection containing every possible layer for this surface. */
   layers: readonly SteeringLayer[];
   tokenBudget: number;
   persistence: 'required' | 'best-effort';
-  /** A deliverable may require corroboration before episodic memory is rendered. */
   externalDeliverable: boolean;
+  allowedSensitivities: readonly MemorySensitivity[];
+  /** External/body-rendering surfaces must not receive literal context_item tags. */
+  renderEnvelope: ContextEnvelopeMode;
 }
 
-const CHAT_LAYERS = [
-  'firm-identity',
-  'user-voice',
-  'client-steering',
-  'client-people',
-] as const satisfies readonly SteeringLayer[];
+export interface AppliedContextSurfacePolicy {
+  requiredLayers: readonly SteeringLayer[];
+  optionalLayers: readonly SteeringLayer[];
+  layers: readonly SteeringLayer[];
+  renderEnvelope: ContextEnvelopeMode;
+}
 
-const DELIVERABLE_LAYERS = [
-  'firm-identity',
-  'firm-playbook',
-  'user-voice',
-  'client-steering',
-  'client-people',
-] as const satisfies readonly SteeringLayer[];
+const INTERNAL_SENSITIVITIES = ['normal', 'confidential'] as const;
+const EXTERNAL_SENSITIVITIES = ['normal'] as const;
+
+function definePolicy(input: Omit<ContextSurfacePolicy, 'layers'>): ContextSurfacePolicy {
+  const layers = uniqueLayers([
+    ...input.requiredLayers,
+    ...input.clientRequiredLayers,
+    ...input.optionalLayers,
+    ...input.clientOptionalLayers,
+  ]);
+  return { ...input, layers };
+}
 
 const POLICIES: Readonly<Record<ContextSurface, ContextSurfacePolicy>> = {
-  chat: {
+  chat: definePolicy({
     surface: 'chat',
-    layers: CHAT_LAYERS,
+    requiredLayers: ['firm-identity'],
+    clientRequiredLayers: ['client-steering'],
+    optionalLayers: ['user-voice'],
+    clientOptionalLayers: ['client-people'],
     tokenBudget: 5_000,
     persistence: 'best-effort',
     externalDeliverable: false,
-  },
-  'ga-chat': {
+    allowedSensitivities: INTERNAL_SENSITIVITIES,
+    renderEnvelope: 'typed',
+  }),
+  'ga-chat': definePolicy({
     surface: 'ga-chat',
-    layers: CHAT_LAYERS,
+    requiredLayers: ['firm-identity'],
+    clientRequiredLayers: ['client-steering'],
+    optionalLayers: ['user-voice'],
+    clientOptionalLayers: ['client-people'],
     tokenBudget: 5_000,
     persistence: 'best-effort',
     externalDeliverable: false,
-  },
-  'tool-invoke': {
+    allowedSensitivities: INTERNAL_SENSITIVITIES,
+    renderEnvelope: 'typed',
+  }),
+  'tool-invoke': definePolicy({
     surface: 'tool-invoke',
-    layers: ['firm-identity', 'client-steering'],
+    requiredLayers: ['firm-identity'],
+    clientRequiredLayers: [],
+    optionalLayers: [],
+    clientOptionalLayers: ['client-steering'],
     tokenBudget: 2_000,
     persistence: 'best-effort',
     externalDeliverable: false,
-  },
-  'in-editor': {
+    allowedSensitivities: INTERNAL_SENSITIVITIES,
+    renderEnvelope: 'typed',
+  }),
+  'in-editor': definePolicy({
     surface: 'in-editor',
-    layers: DELIVERABLE_LAYERS,
+    requiredLayers: ['firm-identity'],
+    clientRequiredLayers: ['client-steering'],
+    optionalLayers: ['firm-playbook', 'user-voice'],
+    clientOptionalLayers: ['client-people'],
     tokenBudget: 6_000,
     persistence: 'required',
     externalDeliverable: true,
-  },
-  'workspace-editor': {
+    allowedSensitivities: EXTERNAL_SENSITIVITIES,
+    renderEnvelope: 'plain',
+  }),
+  'workspace-editor': definePolicy({
     surface: 'workspace-editor',
-    layers: DELIVERABLE_LAYERS,
+    requiredLayers: ['firm-identity'],
+    clientRequiredLayers: ['client-steering'],
+    optionalLayers: ['firm-playbook', 'user-voice'],
+    clientOptionalLayers: ['client-people'],
     tokenBudget: 6_000,
     persistence: 'required',
     externalDeliverable: true,
-  },
-  strategy: {
+    allowedSensitivities: EXTERNAL_SENSITIVITIES,
+    renderEnvelope: 'plain',
+  }),
+  strategy: definePolicy({
     surface: 'strategy',
-    layers: DELIVERABLE_LAYERS,
+    requiredLayers: ['firm-identity'],
+    clientRequiredLayers: ['client-steering'],
+    optionalLayers: ['firm-playbook', 'user-voice'],
+    clientOptionalLayers: ['client-people'],
     tokenBudget: 8_000,
     persistence: 'required',
     externalDeliverable: true,
-  },
-  steward: {
+    allowedSensitivities: EXTERNAL_SENSITIVITIES,
+    renderEnvelope: 'plain',
+  }),
+  steward: definePolicy({
     surface: 'steward',
-    layers: ['firm-identity', 'client-steering', 'client-people'],
+    requiredLayers: ['firm-identity'],
+    clientRequiredLayers: ['client-steering'],
+    optionalLayers: [],
+    clientOptionalLayers: ['client-people'],
     tokenBudget: 5_000,
     persistence: 'best-effort',
     externalDeliverable: false,
-  },
-  outreach: {
+    allowedSensitivities: INTERNAL_SENSITIVITIES,
+    renderEnvelope: 'typed',
+  }),
+  outreach: definePolicy({
     surface: 'outreach',
-    layers: DELIVERABLE_LAYERS,
+    requiredLayers: ['firm-identity'],
+    clientRequiredLayers: ['client-steering'],
+    optionalLayers: ['firm-playbook', 'user-voice'],
+    clientOptionalLayers: ['client-people'],
     tokenBudget: 6_000,
     persistence: 'required',
     externalDeliverable: true,
-  },
-  memo: {
+    allowedSensitivities: EXTERNAL_SENSITIVITIES,
+    renderEnvelope: 'plain',
+  }),
+  memo: definePolicy({
     surface: 'memo',
-    layers: DELIVERABLE_LAYERS,
+    requiredLayers: ['firm-identity'],
+    clientRequiredLayers: ['client-steering'],
+    optionalLayers: ['firm-playbook', 'user-voice'],
+    clientOptionalLayers: ['client-people'],
     tokenBudget: 7_000,
     persistence: 'required',
     externalDeliverable: true,
-  },
-  'district-brief': {
+    allowedSensitivities: EXTERNAL_SENSITIVITIES,
+    renderEnvelope: 'plain',
+  }),
+  'district-brief': definePolicy({
     surface: 'district-brief',
-    layers: DELIVERABLE_LAYERS,
+    requiredLayers: ['firm-identity'],
+    clientRequiredLayers: ['client-steering'],
+    optionalLayers: ['firm-playbook', 'user-voice'],
+    clientOptionalLayers: ['client-people'],
     tokenBudget: 7_000,
     persistence: 'required',
     externalDeliverable: true,
-  },
-  research: {
+    allowedSensitivities: EXTERNAL_SENSITIVITIES,
+    renderEnvelope: 'plain',
+  }),
+  research: definePolicy({
     surface: 'research',
-    layers: DELIVERABLE_LAYERS,
+    requiredLayers: ['firm-identity'],
+    clientRequiredLayers: ['client-steering'],
+    optionalLayers: ['firm-playbook', 'user-voice'],
+    clientOptionalLayers: ['client-people'],
     tokenBudget: 8_000,
     persistence: 'required',
     externalDeliverable: true,
-  },
-  'workspace-gen': {
+    allowedSensitivities: EXTERNAL_SENSITIVITIES,
+    renderEnvelope: 'plain',
+  }),
+  'workspace-gen': definePolicy({
     surface: 'workspace-gen',
-    layers: DELIVERABLE_LAYERS,
+    requiredLayers: ['firm-identity'],
+    clientRequiredLayers: ['client-steering'],
+    optionalLayers: ['firm-playbook', 'user-voice'],
+    clientOptionalLayers: ['client-people'],
     tokenBudget: 8_000,
     persistence: 'required',
     externalDeliverable: true,
-  },
+    allowedSensitivities: EXTERNAL_SENSITIVITIES,
+    renderEnvelope: 'plain',
+  }),
 };
 
 export function contextSurfacePolicy(surface: ContextSurface): ContextSurfacePolicy {
   return POLICIES[surface];
 }
 
-/**
- * Apply v2 defaults without overwriting an explicitly configured budget or
- * documented surface-specific layer exclusion.
- */
+export function appliedContextSurfacePolicy(
+  surface: ContextSurface,
+  clientId: string | null | undefined,
+): AppliedContextSurfacePolicy {
+  const policy = contextSurfacePolicy(surface);
+  const requiredLayers = uniqueLayers([
+    ...policy.requiredLayers,
+    ...(clientId ? policy.clientRequiredLayers : []),
+  ]);
+  const optionalLayers = uniqueLayers([
+    ...policy.optionalLayers,
+    ...(clientId ? policy.clientOptionalLayers : []),
+  ]).filter((layer) => !requiredLayers.includes(layer));
+  return {
+    requiredLayers,
+    optionalLayers,
+    layers: uniqueLayers([...requiredLayers, ...optionalLayers]),
+    renderEnvelope: policy.renderEnvelope,
+  };
+}
+
+/** Apply v2 defaults while retaining explicit legacy render/character budgets. */
 export function applyContextSurfacePolicy(
   request: Omit<ContextRequest, 'layers'> & { layers?: readonly SteeringLayer[] },
 ): ContextRequest {
   const policy = contextSurfacePolicy(request.surface);
-  const layers = (request.layers ?? policy.layers).filter((layer) => {
-    if (!request.clientId && (layer === 'client-steering' || layer === 'client-people')) {
-      return false;
-    }
-    return true;
-  });
+  const applied = appliedContextSurfacePolicy(request.surface, request.clientId);
+  const requestedLayers = request.layers ? uniqueLayers([...request.layers]) : [...applied.layers];
+  const layers = requestedLayers.filter(
+    (layer) => request.clientId || (layer !== 'client-steering' && layer !== 'client-people'),
+  );
   return {
     ...request,
     contractVersion: request.contractVersion ?? 2,
     layers,
+    allowedSensitivities: request.allowedSensitivities ?? [...policy.allowedSensitivities],
     tokenBudget: request.tokenBudget ?? policy.tokenBudget,
     budgetUnit: request.budgetUnit ?? 'tokens',
     persistence: request.persistence ?? policy.persistence,
-    compilerVersion: request.compilerVersion ?? 'context-compiler-v2.0',
+    compilerVersion: request.compilerVersion ?? 'context-compiler-v2.1',
   };
 }
 
 export function surfacePolicies(): readonly ContextSurfacePolicy[] {
   return Object.values(POLICIES);
+}
+
+function uniqueLayers(layers: readonly SteeringLayer[]): SteeringLayer[] {
+  return [...new Set(layers)];
 }
