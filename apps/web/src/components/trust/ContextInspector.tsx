@@ -122,9 +122,10 @@ export function ContextInspector({
     (packet?.unauthorizedCount ?? 0) +
     exclusions.filter((item) => IDENTITY_WITHHELD_REASONS.has(item.reason)).length;
   const compiledAt = dateLabel(packet?.compiledAt);
-  // New summaries always carry persisted. `!== false` preserves old stored packet
-  // responses while ensuring a failed live attempt can never display its generated UUID.
-  const durablePacketId = packet?.persisted !== false ? packet?.packetId : null;
+  // Fail closed: a packet ID is renderable only when the server explicitly proved
+  // persistence. Reloaded/stored packet views set persisted=true; legacy or partial
+  // shapes with no persistence evidence must not revive the historical false-ID bug.
+  const durablePacketId = packet?.persisted === true ? packet.packetId : null;
   const persistenceDegraded = packet?.persisted === false;
 
   if (!packet) {
