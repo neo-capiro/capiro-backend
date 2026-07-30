@@ -35,16 +35,12 @@ jobs:
           if text.count(old_import) != 1:
               raise SystemExit(f'service import count={text.count(old_import)}')
           text = text.replace(old_import, new_import)
-          old_catch = """    } catch (err) {
-            this.logger.debug(`steering compile skipped: ${(err as Error).message}`);
-          }"""
-          new_catch = """    } catch (err) {
-            if (isContextPacketPersistenceError(err)) throw err;
-            this.logger.debug('steering compile skipped (context_compile_failed)');
-          }"""
-          if text.count(old_catch) != 1:
-              raise SystemExit(f'service catch count={text.count(old_catch)}')
-          service.write_text(text.replace(old_catch, new_catch))
+          old_log = "      this.logger.debug(`steering compile skipped: ${(err as Error).message}`);"
+          new_log = """      if (isContextPacketPersistenceError(err)) throw err;
+                this.logger.debug('steering compile skipped (context_compile_failed)');"""
+          if text.count(old_log) != 1:
+              raise SystemExit(f'service log count={text.count(old_log)}')
+          service.write_text(text.replace(old_log, new_log))
 
           spec = Path('apps/api/src/intelligence/alert-memo/alert-memo.service.spec.ts')
           text = spec.read_text()
