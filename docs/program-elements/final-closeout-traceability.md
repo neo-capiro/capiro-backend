@@ -143,7 +143,7 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 | I5 | Disabled Link + server crmLinkBlocked/reason | `in_branch` (Phase 6) | ProgramTeamPanel + personnel DTO | 6 |
 | I6 | Cross-tenant / blocked-audit / other-PE role tests | `in_branch` (Phase 6) | `verify:pe-phase-i` | 6 |
 
-**Phase 6 review gate:** **IMPLEMENT PUSHED — independent REVIEW REQUIRED** (no self-PASS).
+**Phase 6 review gate:** **IMPLEMENT PUSHED — independent REVIEW REQUIRED** on remote tip `e245d5fcba4426816726a266dbe77920ed35803f` (product `85e768ee086a3e8289d3b85264aefb0fa8be7adb`) — no self-PASS.
 
 ---
 
