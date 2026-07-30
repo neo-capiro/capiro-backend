@@ -4,6 +4,7 @@ import { ContextInspector, type TrustContextPacket } from './ContextInspector.js
 
 const packet: TrustContextPacket = {
   packetId: '01234567-89ab-cdef-0123-456789abcdef',
+  persisted: true,
   compiledAt: '2026-07-28T14:00:00.000Z',
   items: [
     {
@@ -45,6 +46,28 @@ describe('ContextInspector', () => {
     expect(screen.getByText(/1 restricted item/)).toBeTruthy();
     expect(screen.queryByText('Must never render')).toBeNull();
     expect(screen.queryByText('secret-id')).toBeNull();
+    expect(screen.getByTitle(packet.packetId!)).toHaveTextContent('Packet 01234567');
+  });
+
+  it('never displays a generated id when persistence failed', () => {
+    const generatedOnly = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+    render(
+      <ContextInspector
+        packet={{
+          packetId: generatedOnly,
+          persisted: false,
+          persistenceErrorCode: 'context_packet_error',
+          items: [],
+          exclusions: [],
+          degraded: true,
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByText(/Context used/i));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('durable context provenance trace');
+    expect(screen.queryByTitle(generatedOnly)).toBeNull();
+    expect(screen.queryByText(/Packet aaaaaaaa/)).toBeNull();
   });
 
   it('links to the review surface instead of editing canonical context inline', () => {
@@ -60,11 +83,6 @@ describe('ContextInspector', () => {
     expect(screen.getByRole('status')).toHaveTextContent('details unavailable');
   });
 
-  /**
-   * All three reasons mean the caller is not authorized to know the item EXISTS.
-   * Counting only `unauthorized` reported a cross-client or above-clearance
-   * withholding to the user as zero restricted items.
-   */
   it('counts every identity-withheld reason and renders none of their identities', () => {
     render(
       <ContextInspector
