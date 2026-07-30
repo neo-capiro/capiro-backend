@@ -3,7 +3,10 @@ import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { MemoryIngestService } from './memory-ingest.service.js';
 import { ExactMemoryCleanupOutboxService } from './exact-memory-cleanup-outbox.service.js';
-import { projectionMaterialForClioRow } from './strict-memory-projector.service.js';
+import {
+  canonicalProjectionSnapshot,
+  projectionMaterialForClioRow,
+} from './strict-memory-projector.service.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const CLIO = '22222222-2222-4222-8222-222222222222';
@@ -38,12 +41,36 @@ function sourceRow() {
   };
 }
 
+function canonicalSections() {
+  return [
+    {
+      key: 'memory',
+      heading: 'Memory',
+      owner: 'human' as const,
+      body: 'Support the full authorization and appropriation request.',
+    },
+  ];
+}
+
 function harness() {
   const captured: Captured[] = [];
   const tx = {
     $queryRaw: jest.fn(async (strings: TemplateStringsArray, ...params: unknown[]) => {
-      captured.push({ sql: sqlText(strings), params });
-      return [sourceRow()];
+      const sql = sqlText(strings);
+      captured.push({ sql, params });
+      if (sql.includes('FROM clio_memory')) return [sourceRow()];
+      if (sql.includes('FROM memory_items')) {
+        return [
+          {
+            id: ITEM,
+            client_id: null,
+            owner_user_id: null,
+            title: 'Firm position',
+            sections_jsonb: canonicalSections(),
+          },
+        ];
+      }
+      return [];
     }),
     $executeRaw: jest.fn(async (strings: TemplateStringsArray, ...params: unknown[]) => {
       captured.push({ sql: sqlText(strings), params });
@@ -64,7 +91,7 @@ function harness() {
 }
 
 describe('ExactMemoryCleanupOutboxService', () => {
-  test('binds an index job to exact source version, hash, and canonical key', async () => {
+  test('binds an index job to exact source version and authoritative item hash', async () => {
     const h = harness();
     await h.service.enqueue(h.tx, TENANT, {
       memoryItemId: ITEM,
@@ -76,6 +103,13 @@ describe('ExactMemoryCleanupOutboxService', () => {
     const insert = h.captured.find((entry) => entry.sql.includes('INSERT INTO memory_cleanup_outbox'));
     expect(insert).toBeDefined();
     const material = projectionMaterialForClioRow(sourceRow());
+    const canonical = canonicalProjectionSnapshot({
+      id: ITEM,
+      clientId: null,
+      ownerUserId: null,
+      title: 'Firm position',
+      sections: canonicalSections(),
+    });
     expect(insert!.params).toEqual(
       expect.arrayContaining([
         TENANT,
@@ -83,7 +117,7 @@ describe('ExactMemoryCleanupOutboxService', () => {
         CLIO,
         material.idempotencyKey,
         new Date(material.sourceVersion),
-        material.contentHash,
+        canonical.contentHash,
       ]),
     );
     expect(insert!.sql).toContain('expected_source_version');
