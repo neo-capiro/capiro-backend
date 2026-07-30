@@ -46,3 +46,4 @@ jobs:
           src/memory/memory-projection-worker.service.spec.ts
           src/memory/strict-memory-projector.service.spec.ts
           src/prisma/migration-memory-cleanup-worker-leases.spec.ts
+          src/prisma/memory-projection-worker-infrastructure.spec.ts
