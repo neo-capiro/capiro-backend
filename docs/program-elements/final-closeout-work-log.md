@@ -874,7 +874,7 @@ git reset --hard 4e2abed9ba5a03acdfbdef6b47ec0be1d2fe3ba3
 **Mode:** LONG  
 **Base (failed tip after B8–B11 review):** `eafbfb2c0e848a0f692fd8b69950766a8e1277b5` / product `4e2abed9ba5a03acdfbdef6b47ec0be1d2fe3ba3`  
 **Prior B12 product (already on branch before this session):** `c8ac942b93d299ccb5fa7e704e76ebac2937580d` (docs pin `88921392c`)  
-**Product tip (this remediation):**   
+**Product tip (this remediation):** `af09ca8517d40b53df271e0a8ac3e6aad47bc580`  
 **origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind)
 
 ### Finding
