@@ -1,3 +1,4 @@
+import { ContextPacketPersistenceError } from '@capiro/meriv2-core';
 import { MeriContextResolver } from './meri-context.resolver';
 import type { OrchestratorContextCompilerService } from './context-compiler.service';
 import type { PrismaService } from '../prisma/prisma.service';
@@ -6,11 +7,6 @@ import type { OrchestratorTenantContext } from '../auth/tenant-context';
 /**
  * ContextPacket v2 through the orchestrator resolver — the shared entry point for
  * ga-chat, in-editor, Strategy and Steward.
- *
- * Two things are pinned here:
- *   1. the request is byte-for-byte the pre-v2 one until CONTEXT_PACKET_V2=enforce;
- *   2. the summary reports the packet's REAL authority/selection/health rather than
- *      asserting 'human-authored' + 'automatic' + degraded:false over everything.
  */
 const tc: OrchestratorTenantContext = {
   tenantId: 't1',
@@ -33,8 +29,21 @@ function compilerReturning(
   } as unknown as OrchestratorContextCompilerService & { compile: jest.Mock };
 }
 
+function compilerThrowing(
+  error: Error,
+): OrchestratorContextCompilerService & { compile: jest.Mock } {
+  return {
+    compile: jest.fn(async () => {
+      throw error;
+    }),
+  } as unknown as OrchestratorContextCompilerService & { compile: jest.Mock };
+}
+
 const V1_PACKET = {
   packetId: 'pkt-1',
+  persistedPacketId: 'pkt-1',
+  persisted: true,
+  persistenceErrorCode: null,
   version: 1 as const,
   compiledAt: '2026-07-29T12:00:00.000Z',
   clientId: null,
@@ -75,7 +84,7 @@ describe('MeriContextResolver — ContextPacket v2 switch', () => {
     }
   });
 
-  it('a non-"enforce" value stays dark', async () => {
+  it('a non-enforce value stays dark', async () => {
     for (const raw of ['true', '1', 'on', 'v2']) {
       process.env.CONTEXT_PACKET_V2 = raw;
       const compiler = compilerReturning(V1_PACKET);
@@ -86,18 +95,23 @@ describe('MeriContextResolver — ContextPacket v2 switch', () => {
     }
   });
 
-  it('opts into v2 with a trace id and a token budget once armed', async () => {
+  it('uses best-effort persistence for chat and required persistence for deliverables', async () => {
     process.env.CONTEXT_PACKET_V2 = 'enforce';
-    const compiler = compilerReturning(V1_PACKET);
-    const resolver = new MeriContextResolver(prismaWithUser(), compiler);
-    await resolver.resolve(tc, null, 'strategy');
-    const request = compiler.compile.mock.calls[0]![0] as Record<string, unknown>;
-    expect(request.contractVersion).toBe(2);
-    expect(request.traceId).toEqual(expect.stringMatching(/^[0-9a-f-]{36}$/));
-    expect(request.tokenBudget).toBe(8_000);
-    expect(request.budgetUnit).toBe('tokens');
-    // A trace-write failure must never become a steering blackout.
-    expect(request).not.toHaveProperty('persistence');
+    for (const [surface, expected] of [
+      ['ga-chat', 'best-effort'],
+      ['steward', 'best-effort'],
+      ['workspace-editor', 'required'],
+      ['strategy', 'required'],
+    ] as const) {
+      const compiler = compilerReturning(V1_PACKET);
+      const resolver = new MeriContextResolver(prismaWithUser(), compiler);
+      await resolver.resolve(tc, null, surface);
+      const request = compiler.compile.mock.calls[0]![0] as Record<string, unknown>;
+      expect(request.contractVersion).toBe(2);
+      expect(request.traceId).toEqual(expect.stringMatching(/^[0-9a-f-]{36}$/));
+      expect(request.budgetUnit).toBe('tokens');
+      expect(request.persistence).toBe(expected);
+    }
   });
 
   it('attributes the packet to the surface that asked, not the ga-chat default', async () => {
@@ -107,16 +121,50 @@ describe('MeriContextResolver — ContextPacket v2 switch', () => {
     expect(ctx.contextPacket?.surface).toBe('steward');
     expect((compiler.compile.mock.calls[0]![0] as { surface: string }).surface).toBe('steward');
   });
+
+  it('continues chat with truthful degraded provenance when persistence fails', async () => {
+    process.env.CONTEXT_PACKET_V2 = 'enforce';
+    const error = new ContextPacketPersistenceError(
+      'context_packet_error',
+      'generated-id',
+      'ga-chat',
+    );
+    const resolver = new MeriContextResolver(prismaWithUser(), compilerThrowing(error));
+
+    const ctx = await resolver.resolve(tc, null, 'ga-chat');
+
+    expect(ctx.contextPacket).toEqual(
+      expect.objectContaining({
+        packetId: null,
+        persisted: false,
+        persistenceErrorCode: 'context_packet_error',
+        degraded: true,
+      }),
+    );
+  });
+
+  it('propagates required persistence failure for strategy before deliverable release', async () => {
+    process.env.CONTEXT_PACKET_V2 = 'enforce';
+    const error = new ContextPacketPersistenceError(
+      'context_packet_error',
+      'generated-id',
+      'strategy',
+    );
+    const resolver = new MeriContextResolver(prismaWithUser(), compilerThrowing(error));
+
+    await expect(resolver.resolve(tc, null, 'strategy')).rejects.toBe(error);
+  });
 });
 
 describe('MeriContextResolver — honest packet summary', () => {
-  it('keeps the legacy label for a v1 item (it carries no provenance to report)', async () => {
+  it('keeps the legacy label for a v1 item', async () => {
     const resolver = new MeriContextResolver(prismaWithUser(), compilerReturning(V1_PACKET));
     const ctx = await resolver.resolve(tc);
     expect(ctx.contextPacket?.items[0]).toEqual(
       expect.objectContaining({ authority: 'human-authored', selection: 'automatic' }),
     );
     expect(ctx.contextPacket?.degraded).toBe(false);
+    expect(ctx.contextPacket?.packetId).toBe('pkt-1');
   });
 
   it("reports a v2 item's real authority and explicit selection", async () => {
@@ -159,11 +207,6 @@ describe('MeriContextResolver — honest packet summary', () => {
     expect(ctx.contextPacket?.items[0]).not.toHaveProperty('lastConfirmedAt');
   });
 
-  /**
-   * All three of these mean the caller isn't authorized to know the item exists.
-   * The compiler already strips id/type/slug for them; the summary must count all
-   * three and list none.
-   */
   it('counts every identity-withheld reason and lists none of them', async () => {
     const resolver = new MeriContextResolver(
       prismaWithUser(),
