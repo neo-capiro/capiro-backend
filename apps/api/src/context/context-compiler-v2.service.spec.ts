@@ -181,11 +181,12 @@ describe('ContextCompilerService — ContextPacket v2', () => {
     expect(packet.persistedPacketId).toBe(packet.generatedPacketId);
   });
 
-  it('writes v2 provenance and exposes only the read-back durable id', async () => {
+  it('writes v2 provenance and preserves the server-resolved effective tenant', async () => {
     const { prisma, packetCreates } = makePrisma([APPROVED_FIRM_ROW]);
     const service = new ContextCompilerService(prisma);
     const packet = await service.compile({
       tenantId: 't1',
+      effectiveTenantId: 'effective-t1',
       userId: 'u1',
       surface: 'in-editor',
       layers: ['firm-identity'],
@@ -211,7 +212,8 @@ describe('ContextCompilerService — ContextPacket v2', () => {
     expect(data.usedTokens).toBeGreaterThan(0);
     expect(data.truncated).toBe(false);
     expect(data.incomplete).toBe(false);
-    expect(data.effectiveTenantId).toBe('t1');
+    expect(packet.effectiveTenantId).toBe('effective-t1');
+    expect(data.effectiveTenantId).toBe('effective-t1');
     expect(data.ref).toEqual({ documentId: 'doc-1' });
     expect(JSON.stringify(data.items)).not.toContain('We are a GA firm.');
     expect(packet.persisted).toBe(true);
