@@ -135,6 +135,9 @@
     "verify:pe-phase-a": "tsx scripts/verify-pe-phase-a-safety.ts",
     "verify:pe-phase-b": "jest --runInBand --forceExit src/defense-budget/assertion-mapper.spec.ts scripts/lib/defense-budget-commit.spec.ts scripts/audit-llamaparse-pe-units.spec.ts scripts/lib/pe-ingestion-mode.spec.ts scripts/lib/pe-phase-a-safety.spec.ts scripts/ingest-defense-budget-replay.spec.ts src/program-element/source-document/source-document-registry.spec.ts",
     "verify:pe-phase-c": "jest --runInBand --detectOpenHandles --forceExit src/program-element/program-element-read.service.spec.ts src/program-element/program-element-watch.tenant-isolation.spec.ts scripts/send-pe-alert-emails.watch-isolation.spec.ts scripts/lib/pe-watch-tenant-isolation.spec.ts src/program-element/deltas/delta-engine.service.spec.ts src/program-element/extractors/bill-pe-extractor.spec.ts src/program-element/program-element-writer.service.spec.ts src/prisma/tenant-scope-guard.spec.ts",
+    "drain:pe-change-outbox": "tsx scripts/drain-pe-change-outbox.ts",
+    "backfill:pe-observation-keys": "tsx scripts/backfill-pe-observation-keys.ts",
+    "verify:pe-phase-d": "jest --runInBand --detectOpenHandles --forceExit src/program-element/program-element-field-ownership.spec.ts src/program-element/program-element-raw-merge.spec.ts src/program-element/reconciliation/reconciliation.service.spec.ts src/program-element/program-element-change-outbox.service.spec.ts src/program-element/program-element-writer.service.spec.ts scripts/backfill-pe-observation-keys.spec.ts scripts/drain-pe-change-outbox.spec.ts",
     "generate:funding-grant-candidates": "tsx scripts/generate-funding-grant-candidates.ts",
     "process:funding-opportunity-lifecycle": "tsx scripts/process-funding-opportunity-lifecycle.ts",
     "backfill:funding-mapping-review": "tsx scripts/backfill-funding-mapping-review.ts"

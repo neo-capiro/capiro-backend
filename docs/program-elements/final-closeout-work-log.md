@@ -190,6 +190,41 @@ See `final-closeout-traceability.md` § Adversarial review. Exit criteria checke
 
 ---
 
+
+
+---
+
+## Phase 1 — Deterministic Canonical Write Foundation (session stopped mid-closeout)
+
+**Session UTC:** 2026-07-30T11:04:33Z
+**Status at stop:** Implementation + unit gates green. Docker/WSL PG16 rehearsal deferred (host needs WSL for Docker). PGlite disposable rehearsal passed 16/16 offline.
+
+### Done in this session
+
+- Applied recovered Phase D patch + correction patches 1-5 onto closeout tip.
+- Hand-reconciled package.json scripts and entrypoint help string.
+- No transport .github/phase-d-* files.
+
+### Gates run
+
+| Command | Result |
+|---|---|
+| verify:pe-phase-a | PASS |
+| verify:pe-phase-b | PASS 7 suites / 111 tests |
+| verify:pe-phase-c | PASS 8 suites / 61 tests |
+| verify:pe-phase-d | PASS 7 suites / 43 tests |
+| tsc -p tsconfig.pe-phase-a.json --noEmit | PASS |
+| PGlite migration rehearsal (exact SQL) | PASS 16/16 PHASE_D_PGLITE_REHEARSAL_OK |
+
+### Deferred until WSL/Docker
+
+- pgvector/Postgres 16 docker-compose migration replay (optional confidence; PGlite already proved migration SQL)
+
+### Not started
+
+- Phase 2+
+
+
 ## Next phase
 
 **Phase 1 — Deterministic Canonical Write Foundation**  

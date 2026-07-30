@@ -7,6 +7,7 @@ import { ProgramElementWriterService } from './program-element-writer.service.js
 import { ConferenceProbabilityService } from './models/conference-probability.service.js';
 import { ProgramElementMetricsService } from './program-element-metrics.service.js';
 import { ReconciliationService } from './reconciliation/reconciliation.service.js';
+import { ProgramElementChangeOutboxService } from './program-element-change-outbox.service.js';
 import { ProgramsController } from './programs/programs.controller.js';
 import { ProgramsService } from './programs/programs.service.js';
 import { PeProgramMatcherService } from './matching/pe-program-matcher.service.js';
@@ -27,10 +28,17 @@ import { IntelligenceModule } from '../intelligence/intelligence.module.js';
     ConferenceProbabilityService,
     ProgramElementMetricsService,
     ReconciliationService,
+    ProgramElementChangeOutboxService,
     ProgramsService,
     PeProgramMatcherService,
     DeltaEngineService,
   ],
-  exports: [ProgramElementWriterService, ProgramElementReadService, ConferenceProbabilityService, ProgramsService],
+  exports: [
+    ProgramElementWriterService,
+    ProgramElementChangeOutboxService,
+    ProgramElementReadService,
+    ConferenceProbabilityService,
+    ProgramsService,
+  ],
 })
 export class ProgramElementModule {}

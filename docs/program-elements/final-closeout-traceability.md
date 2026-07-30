@@ -2,7 +2,7 @@
 
 **Baseline main SHA:** `057f5480a46f9ba9acf9296a9cc876b609593832`  
 **Pre-Phase-0 #705 head (void product):** `a244022648d54d9e4ac7fb071f9f438405659056`  
-**Updated (UTC):** 2026-07-30T10:31:22Z
+**Updated (UTC):** 2026-07-30T11:04:33Z (Phase 1 code complete; PG16 docker deferred)
 
 Legend for **Status**:
 
@@ -30,18 +30,18 @@ Closeout **execution phase** column is the session phase from the final schedule
 
 | ID | Requirement | Status | Source | Owner phase |
 |---|---|---|---|---|
-| D1 | Explicit field authority map | `recovered` | decoded D patch `program-element-field-ownership.ts` | 1 |
-| D2 | Source-document + parse-job write context | `recovered` / partial main B | D writer + main source-document registry | 1 |
-| D3 | Raw namespace preservation | `recovered` | `program-element-raw-merge.ts` | 1 |
-| D4 | Stable observation keys | `recovered` | migration + backfill script in D patch | 1 |
-| D5 | Replay idempotency | `recovered` | writer + specs in D patch | 1 |
-| D6 | Field-level winner selection | `recovered` | ownership + writer | 1 |
-| D7 | Canonical mutation + outbox one transaction | `recovered` | writer + outbox service + migration | 1 |
-| D8 | Durable outbox drain/retry | `recovered` | `drain-pe-change-outbox.ts` | 1 |
-| D9 | Reconciliation failure rolls back canonical | `recovered` | reconciliation.service changes in D patch | 1 |
-| D10 | Dry-run-first observation audit/backfill | `recovered` | backfill script | 1 |
-| D11 | No temporary D workflows/patch blobs in final diff | `missing` until applied cleanly | Phase 0 removed transport; Phase 1 must not reintroduce `.github/phase-d-*` | 1 |
-| D12 | Rehearse additive migration in disposable Postgres | `missing` | local disposable only; no shared env | 1 |
+| D1 | Explicit field authority map | `in_branch` (Phase 1) | decoded D patch `program-element-field-ownership.ts` | 1 |
+| D2 | Source-document + parse-job write context | `in_branch` (Phase 1) / main B | D writer + main source-document registry | 1 |
+| D3 | Raw namespace preservation | `in_branch` (Phase 1) | `program-element-raw-merge.ts` | 1 |
+| D4 | Stable observation keys | `in_branch` (Phase 1) | migration + backfill script in D patch | 1 |
+| D5 | Replay idempotency | `in_branch` (Phase 1) | writer + specs in D patch | 1 |
+| D6 | Field-level winner selection | `in_branch` (Phase 1) | ownership + writer | 1 |
+| D7 | Canonical mutation + outbox one transaction | `in_branch` (Phase 1) | writer + outbox service + migration | 1 |
+| D8 | Durable outbox drain/retry | `in_branch` (Phase 1) | `drain-pe-change-outbox.ts` | 1 |
+| D9 | Reconciliation failure rolls back canonical | `in_branch` (Phase 1) | reconciliation.service changes in D patch | 1 |
+| D10 | Dry-run-first observation audit/backfill | `in_branch` (Phase 1) | backfill script | 1 |
+| D11 | No temporary D workflows/patch blobs in final diff | `in_branch` (Phase 1) — no transport | Phase 0 removed transport; Phase 1 must not reintroduce `.github/phase-d-*` | 1 |
+| D12 | Rehearse additive migration in disposable Postgres | `verified` PGlite; Docker PG16 deferred (WSL) | 1 |
 
 **Recovery note:** Apply `phase-d-implementation.patch` onto tip after resolving fuzz against main since mid-stack base `8204a347…`. Then selectively re-home correction patches 1–5 as **new** tests against the applied tree (do not assume intermediate SHAs).
 

@@ -3847,22 +3847,28 @@ model ProgramElementIngestRun {
 }
 
 model ProgramElementYearSourceValue {
-  id               String   @id @default(uuid()) @db.Uuid
-  peCode           String   @map("pe_code") @db.VarChar(16)
-  fy               Int
-  fieldName        String   @map("field_name")
-  source           String
-  valueJsonb       Json     @default("null") @map("value_jsonb")
-  // Per-field reconciliation values (Step 29 §4.1). value_decimal for numeric
-  // marks/dollars, value_text for narrative fields. written_at mirrors recordedAt
-  // for the reconciliation queue's naming.
-  valueDecimal     Decimal? @map("value_decimal") @db.Decimal(18, 2)
-  valueText        String?  @map("value_text") @db.Text
-  writtenAt        DateTime @default(now()) @map("written_at") @db.Timestamptz(6)
-  isWinner         Boolean  @default(false) @map("is_winner")
-  recordedAt       DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
-  // Registry link (Step 0.1): the fingerprinted source file this per-field value came from.
-  sourceDocumentId String?  @map("source_document_id") @db.Uuid
+  id                   String   @id @default(uuid()) @db.Uuid
+  peCode               String   @map("pe_code") @db.VarChar(16)
+  fy                   Int
+  fieldName            String   @map("field_name")
+  source               String
+  observationKey       String?  @unique(map: "program_element_year_source_value_observation_key_key") @map("observation_key")
+  parseJobId           String?  @map("parse_job_id") @db.Uuid
+  pageNumber           Int?     @map("page_number")
+  sourceSpanHash       String?  @map("source_span_hash")
+  extractorVersion     String?  @map("extractor_version")
+  valueJsonb           Json     @default("null") @map("value_jsonb")
+  valueDecimal         Decimal? @map("value_decimal") @db.Decimal(18, 2)
+  originalValueDecimal Decimal? @map("original_value_decimal") @db.Decimal(20, 6)
+  originalUnit         String?  @map("original_unit")
+  canonicalValueM      Decimal? @map("canonical_value_m") @db.Decimal(18, 6)
+  valueText            String?  @map("value_text") @db.Text
+  writtenAt            DateTime @default(now()) @map("written_at") @db.Timestamptz(6)
+  isWinner             Boolean  @default(false) @map("is_winner")
+  recordedAt           DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  lastObservedAt       DateTime @default(now()) @map("last_observed_at") @db.Timestamptz(6)
+  observationCount     Int      @default(1) @map("observation_count")
+  sourceDocumentId     String?  @map("source_document_id") @db.Uuid
 
   programElement ProgramElement  @relation(fields: [peCode], references: [peCode], onDelete: Cascade)
   sourceDocument SourceDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
@@ -3870,7 +3876,25 @@ model ProgramElementYearSourceValue {
   @@index([peCode, fy, fieldName], map: "program_element_year_source_value_lookup_idx")
   @@index([peCode, fy, fieldName, isWinner], map: "program_element_year_source_value_winner_idx")
   @@index([sourceDocumentId], map: "program_element_year_source_value_source_document_idx")
+  @@index([parseJobId], map: "program_element_year_source_value_parse_job_idx")
+  @@index([sourceDocumentId, fieldName], map: "program_element_year_source_value_document_field_idx")
   @@map("program_element_year_source_value")
+}
+
+model ProgramElementChangeOutbox {
+  id          String    @id @default(uuid()) @db.Uuid
+  dedupeKey   String    @unique(map: "program_element_change_outbox_dedupe_key_key") @map("dedupe_key")
+  peCode      String    @map("pe_code") @db.VarChar(16)
+  eventType   String    @map("event_type")
+  payload     Json      @map("payload_jsonb")
+  status      String    @default("pending")
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error") @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(6)
+
+  @@index([status, createdAt], map: "program_element_change_outbox_status_created_idx")
+  @@map("program_element_change_outbox")
 }
 
 // Registry of fingerprinted, versioned source files behind extracted defense-budget
@@ -3985,19 +4009,25 @@ model DocumentParseJob {
 /// a lower-priority source conflicts with the canonical value by > 10% (non-enacted
 /// fields) or by ANY amount on the enacted field. capiro_admin resolves entries.
 model ReconciliationReviewQueue {
-  id                String    @id @default(uuid()) @db.Uuid
-  peCode            String    @map("pe_code") @db.VarChar(16)
-  fy                Int
-  fieldName         String    @map("field_name")
-  currentValue      String?   @map("current_value")
-  conflictingSource String    @map("conflicting_source")
-  conflictingValue  String?   @map("conflicting_value")
-  deltaPct          Float?    @map("delta_pct")
-  queuedAt          DateTime  @default(now()) @map("queued_at") @db.Timestamptz(6)
-  status            String    @default("open") @db.VarChar(20)
-  resolvedByUserId  String?   @map("resolved_by_user_id") @db.Uuid
-  resolvedAt        DateTime? @map("resolved_at") @db.Timestamptz(6)
-  resolutionNotes   String?   @map("resolution_notes") @db.Text
+  id                          String    @id @default(uuid()) @db.Uuid
+  peCode                      String    @map("pe_code") @db.VarChar(16)
+  fy                          Int
+  fieldName                   String    @map("field_name")
+  conflictType                String    @default("value_conflict") @map("conflict_type")
+  currentValue                String?   @map("current_value")
+  currentSource               String?   @map("current_source")
+  currentSourceDocumentId     String?   @map("current_source_document_id") @db.Uuid
+  conflictingSource           String    @map("conflicting_source")
+  conflictingValue            String?   @map("conflicting_value")
+  conflictingSourceDocumentId String?   @map("conflicting_source_document_id") @db.Uuid
+  deltaPct                    Float?    @map("delta_pct")
+  queuedAt                    DateTime  @default(now()) @map("queued_at") @db.Timestamptz(6)
+  lastObservedAt              DateTime  @default(now()) @map("last_observed_at") @db.Timestamptz(6)
+  observationCount            Int       @default(1) @map("observation_count")
+  status                      String    @default("open") @db.VarChar(20)
+  resolvedByUserId            String?   @map("resolved_by_user_id") @db.Uuid
+  resolvedAt                  DateTime? @map("resolved_at") @db.Timestamptz(6)
+  resolutionNotes             String?   @map("resolution_notes") @db.Text
 
   @@index([status, queuedAt(sort: Desc)], map: "reconciliation_review_queue_status_idx")
   @@index([peCode, fy], map: "reconciliation_review_queue_pe_fy_idx")
