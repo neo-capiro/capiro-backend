@@ -825,7 +825,7 @@ git reset --hard 9381d154c2869e5db995f16b968d2a41422d3deb
 **Operator session:** Phase 5 IMPLEMENT only (FAIL inject B12; not review)
 **Mode:** LONG
 **Base (failed tip after B8–B11 review):** `eafbfb2c0e848a0f692fd8b69950766a8e1277b5` / product `4e2abed9ba5a03acdfbdef6b47ec0be1d2fe3ba3`
-**Product tip (this remediation):** _(record after push via origin tip)_
+**Product tip (this remediation):** `c8ac942b93d299ccb5fa7e704e76ebac2937580d`
 **origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind)
 
 ### Blocking defect closed

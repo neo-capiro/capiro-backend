@@ -333,8 +333,8 @@ plus concrete findings. Do not implement fixes.
 | Prior product tip (FAIL B8–B11 closed; B12 open) | `4e2abed9ba5a03acdfbdef6b47ec0be1d2fe3ba3` (docs pin `eafbfb2c0`) |
 | Prior review tip | `eafbfb2c0e848a0f692fd8b69950766a8e1277b5` |
 | Prior review | VERDICT: FAIL — **B12** FundingNarrativePanel ignores isError (stages Empty on `/narrative` 500); B8–B11 closed |
-| Remediation product r3 | _(after push — product commit SHA)_ |
-| Remote tip (docs pin after push) | _(origin/agent/program-elements-final-closeout)_ |
+| Remediation product r3 | `c8ac942b93d299ccb5fa7e704e76ebac2937580d` |
+| Remote tip (docs pin after push) | `c8ac942b93d299ccb5fa7e704e76ebac2937580d` (product + ledger pin; may advance with pin commit) |
 | Implementer gate | IMPLEMENT PUSHED / review **REQUIRED** — **not** self-PASS |
 | Next | New session `./pe-closeout-run.sh review 5` on **new** tip only |
 | MeriV2 | untouched |
