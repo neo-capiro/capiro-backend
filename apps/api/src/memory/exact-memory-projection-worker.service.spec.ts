@@ -2,6 +2,7 @@ import { describe, expect, jest, test } from '@jest/globals';
 import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { StrictMemoryProjectorService } from './strict-memory-projector.service.js';
+import { exactProjectionIdempotencyKey } from './exact-memory-cleanup-outbox.service.js';
 import { ExactMemoryProjectionWorkerService } from './exact-memory-projection-worker.service.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
@@ -10,7 +11,7 @@ const ITEM = '33333333-3333-4333-8333-333333333333';
 const JOB = '44444444-4444-4444-8444-444444444444';
 const VERSION = new Date('2026-07-30T12:00:00.000Z');
 const HASH = 'b'.repeat(64);
-const KEY = `index_memory_item:${CLIO}:${VERSION.toISOString()}`;
+const KEY = exactProjectionIdempotencyKey(CLIO, VERSION.toISOString(), HASH);
 
 function sqlText(strings: TemplateStringsArray | unknown): string {
   return Array.isArray((strings as TemplateStringsArray).raw)
@@ -156,10 +157,18 @@ describe('ExactMemoryProjectionWorkerService', () => {
     expect(h.projector.projectClioMemoryStrict).not.toHaveBeenCalled();
   });
 
-  test('refuses an idempotency key that is not bound to the expected version', async () => {
+  test('refuses an idempotency key not bound to both expected version and hash', async () => {
     const h = harness();
     await expect(
-      h.process(job({ idempotency_key: `index_memory_item:${CLIO}:newer` })),
+      h.process(
+        job({
+          idempotency_key: exactProjectionIdempotencyKey(
+            CLIO,
+            VERSION.toISOString(),
+            'c'.repeat(64),
+          ),
+        }),
+      ),
     ).resolves.toBe('failed');
     expect(h.projector.projectClioMemoryStrict).not.toHaveBeenCalled();
   });
