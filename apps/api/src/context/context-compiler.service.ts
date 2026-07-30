@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
-  ContextCompiler,
+  TruthfulContextCompiler,
   GOVERNED_STEERING_COLUMNS_SQL,
   type CompiledContextPacket,
   type ContextRequest,
-  type ContextStoreAdapter,
   type SteeringLayer,
   type SteeringRow,
+  type TruthfulCompiledContextPacket,
+  type TruthfulContextStoreAdapter,
   typesForLayers,
 } from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -20,10 +21,10 @@ import {
 /** apps/api adapter for the shared deterministic Context Compiler. */
 @Injectable()
 export class ContextCompilerService {
-  private readonly compiler: ContextCompiler;
+  private readonly compiler: TruthfulContextCompiler;
 
   constructor(private readonly prisma: PrismaService) {
-    const adapter: ContextStoreAdapter = {
+    const adapter: TruthfulContextStoreAdapter = {
       loadSteeringRows: (req) => this.loadSteeringRows(req),
       // Only ever called from compileV2, which only runs when a caller opted into
       // contractVersion 2 — i.e. behind `CONTEXT_PACKET_V2=enforce`. The governed
@@ -33,7 +34,7 @@ export class ContextCompilerService {
       loadGovernedSteeringRows: (req) => this.loadSteeringRows(req, { governed: true }),
       persistPacket: (packet) => this.persistPacket(packet),
     };
-    this.compiler = new ContextCompiler(adapter);
+    this.compiler = new TruthfulContextCompiler(adapter);
   }
 
   compile(req: ContextRequest): Promise<CompiledContextPacket> {
@@ -77,10 +78,6 @@ export class ContextCompilerService {
           OR (${wantsClient} AND type = ANY(${clientTypes})
               AND client_id = ${req.clientId ?? null}::uuid)
         )
-        -- This SELECT has no status predicate: terminal filtering happens in JS in
-        -- packages/meriv2-core/src/context/compiler.ts, and only for the LEGACY
-        -- 'revoked'/'superseded' values. Pushing governed suppression into SQL is
-        -- dark by default (the column does not exist pre-migration).
         ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled()))}
         ORDER BY
           CASE type
@@ -109,16 +106,12 @@ export class ContextCompilerService {
       : this.prisma.withTenant(req.tenantId, run);
   }
 
-  private async persistPacket(packet: CompiledContextPacket): Promise<void> {
-    await this.prisma.withTenant(packet.tenantId, (tx) =>
-      tx.contextPacket.create({
+  private async persistPacket(packet: TruthfulCompiledContextPacket): Promise<string> {
+    return this.prisma.withTenant(packet.tenantId, async (tx) => {
+      await tx.contextPacket.create({
         data: {
-          id: packet.packetId,
+          id: packet.generatedPacketId,
           tenantId: packet.tenantId,
-          // context_packet.effective_tenant_id is NOT NULL with no DB default
-          // (20260729010000_memory_governance_context_v2). The compiler always
-          // runs inside withTenant(packet.tenantId), so the effective tenant IS
-          // the packet tenant — the same equality the migration's backfill uses.
           effectiveTenantId: packet.tenantId,
           surface: packet.surface,
           userId: packet.userId,
@@ -132,26 +125,19 @@ export class ContextCompilerService {
           packetHash: packet.traceHash,
           ...contextPacketVersionColumns(packet),
         },
-      }),
-    );
+      });
+      const verified = await tx.contextPacket.findFirst({
+        where: { id: packet.generatedPacketId, tenantId: packet.tenantId },
+        select: { id: true },
+      });
+      if (verified?.id !== packet.generatedPacketId) {
+        throw new Error('context_packet_read_after_write_missing');
+      }
+      return verified.id;
+    });
   }
 }
 
-/**
- * The v2 provenance columns, written ONLY for a genuinely compiled v2 packet.
- *
- * `packet_version` is owned by `20260803010000_engagement_generation_gateway`,
- * where 1 = legacy steering-only trace and 2 = a complete Evidence Packet. The DB
- * default is 2, so every v1 steering trace has been stored claiming to be a v2
- * packet. Writing the value EXPLICITLY per compiled contract makes each row say
- * what it is: a v1 steering trace is stamped 1, a compiled v2 packet is stamped 2.
- * No existing row is rewritten — that blanket rewrite was the high-severity bug
- * this migration pair already had to undo once.
- *
- * The v2 columns are only emitted for `version === 2`, which can only happen when
- * `CONTEXT_PACKET_V2=enforce` armed the surface, which can only be true after the
- * governance migration has been applied.
- */
 export function contextPacketVersionColumns(
   packet: CompiledContextPacket,
 ): Partial<Prisma.ContextPacketUncheckedCreateInput> {
