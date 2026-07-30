@@ -9,10 +9,7 @@ import type {
 
 const SAFE_PERSISTENCE_CODE = /^context_packet_[a-z0-9_]{1,64}$/;
 
-/**
- * Bounded failure used at release boundaries. It deliberately carries no packet
- * bodies, SQL, provider response, or raw adapter message.
- */
+/** Bounded failure carrying no packet body, SQL, provider response, or raw message. */
 export class ContextPacketPersistenceError extends Error {
   readonly code: string;
   readonly generatedPacketId: string;
@@ -45,13 +42,17 @@ export function contextPacketPersistenceErrorCode(error: unknown): string {
   return `context_packet_${normalized || 'persistence_error'}`.slice(0, 80);
 }
 
+export type ContextPacketBeforePersist = (
+  packet: TruthfulCompiledContextPacket,
+) => TruthfulCompiledContextPacket | Promise<TruthfulCompiledContextPacket>;
+
 /**
- * Phase 7 persistence owner.
+ * Phase 7 persistence owner, with one Phase 8 hook before persistence.
  *
- * The deterministic ContextCompiler still owns selection/rendering. This wrapper
- * deliberately supplies it an adapter WITHOUT persistPacket, then owns the one
- * persistence decision after compilation. That keeps v1/v2 selection byte-stable
- * while ensuring no generated UUID is exposed as a durable packet ID.
+ * Selection/rendering still belongs to ContextCompiler. The optional hook lets
+ * the rollout owner normalize required-vs-optional health and external rendering
+ * before the exact packet is persisted. It cannot claim persistence; that remains
+ * exclusively owned here.
  */
 export class TruthfulContextCompiler {
   private readonly compiler: ContextCompiler;
@@ -68,7 +69,10 @@ export class TruthfulContextCompiler {
     this.compiler = new ContextCompiler(deterministicStore);
   }
 
-  async compile(req: ContextRequest): Promise<TruthfulCompiledContextPacket> {
+  async compile(
+    req: ContextRequest,
+    beforePersist?: ContextPacketBeforePersist,
+  ): Promise<TruthfulCompiledContextPacket> {
     const compiled = await this.compiler.compile(req);
     const generatedPacketId = compiled.packetId;
     if (!generatedPacketId) {
@@ -79,12 +83,13 @@ export class TruthfulContextCompiler {
       );
     }
 
-    const packet = compiled as TruthfulCompiledContextPacket;
+    let packet = compiled as TruthfulCompiledContextPacket;
     packet.generatedPacketId = generatedPacketId;
     packet.packetId = null;
     packet.persistedPacketId = null;
     packet.persisted = false;
     packet.persistenceErrorCode = null;
+    if (beforePersist) packet = await beforePersist(packet);
 
     if (!this.store.persistPacket) {
       return this.fail(req, packet, 'context_packet_adapter_unavailable');
