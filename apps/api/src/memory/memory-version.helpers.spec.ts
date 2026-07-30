@@ -36,7 +36,7 @@ describe('immutable memory version decisions', () => {
       'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
     );
     expect(first).toBe('client:overland~v111111112222');
-    expect(second).toBe('client:overland~vaaaaaaaaaaaa');
+    expect(second).toBe('client:overland~vaaaaaaaabbbb');
     expect(first).not.toBe(second);
     expect(first.length).toBeLessThanOrEqual(200);
   });
