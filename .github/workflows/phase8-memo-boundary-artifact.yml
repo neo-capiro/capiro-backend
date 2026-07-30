@@ -61,12 +61,12 @@ jobs:
               raise SystemExit(f'spec opts count={text.count(old_opts)}')
           text = text.replace(old_opts, new_opts)
           mock_marker = """  };
-            const usageEvents:"""
+            const engagement = {"""
           mock_patch = """  };
             if (opts.contextCompileError) {
               contextCompiler.compile.mockRejectedValue(opts.contextCompileError);
             }
-            const usageEvents:"""
+            const engagement = {"""
           if text.count(mock_marker) != 1:
               raise SystemExit(f'spec mock marker count={text.count(mock_marker)}')
           text = text.replace(mock_marker, mock_patch, 1)
