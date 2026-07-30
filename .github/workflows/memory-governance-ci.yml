@@ -1,8 +1,9 @@
-# Institutional-memory governance release gate.
+# Institutional-memory governance cumulative release gate.
 #
-# The repo-wide PR workflow typechecks apps/api but intentionally does not run its
-# full Jest suite because of unrelated legacy failures. These focused suites and
-# the worker infrastructure typecheck are an absolute-zero release signal.
+# This is the durable Phase 1-5 acceptance matrix. It intentionally runs a
+# superset of the individual phase suites on one exact head so later memory,
+# context, Settings, and projection changes cannot silently invalidate an
+# earlier phase's acceptance evidence.
 name: memory-governance-ci
 
 on:
@@ -16,9 +17,9 @@ permissions:
   contents: read
 
 jobs:
-  governed-memory:
+  governed-memory-phases-1-5:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     env:
       NODE_OPTIONS: --max-old-space-size=4096
     steps:
@@ -29,22 +30,51 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Generate API Prisma client
-        run: pnpm --filter @capiro/api exec prisma generate
-      - name: Typecheck API and workspace dependencies
-        run: pnpm turbo run typecheck --filter=@capiro/api
-      - name: Typecheck worker infrastructure
+
+      - name: Generate all Prisma clients used by the repository typecheck
+        run: |
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
+          pnpm --filter @capiro/intel-api exec prisma generate
+          pnpm --filter @capiro/onboard-api exec prisma generate
+          pnpm --filter @capiro/api-strategy exec prisma generate
+
+      - name: Typecheck the full repository dependency graph
+        run: pnpm turbo run typecheck
+
+      - name: Typecheck Phase 5 worker infrastructure
         run: pnpm --filter @capiro/infra-cdk typecheck
-      - name: Test governed memory lifecycle and projection worker
+
+      - name: Test API governed-memory Phases 1-5
         run: >
           pnpm --filter @capiro/api exec jest --ci --silent --runInBand
-          src/memory/memory-version.helpers.spec.ts
-          src/memory/immutable-memory-version.service.spec.ts
-          src/prisma/migration-memory-immutable-versions.spec.ts
-          src/memory/memory-candidate.atomicity.spec.ts
+          src/memory
+          src/context/context-compiler-v2.service.spec.ts
+          src/workspace-assistant/workspace-assistant.context-v2.spec.ts
+          src/workspace-assistant/workspace-assistant.parity.spec.ts
           src/meri/governed-meri-tools.proxy.spec.ts
-          src/memory/memory-index-outbox.spec.ts
-          src/memory/memory-projection-worker.service.spec.ts
-          src/memory/strict-memory-projector.service.spec.ts
+          src/prisma/migration-memory-immutable-versions.spec.ts
           src/prisma/migration-memory-cleanup-worker-leases.spec.ts
           src/prisma/memory-projection-worker-infrastructure.spec.ts
+
+      - name: Test Phase 2 orchestrator, Strategy, and Steward context matrix
+        run: >
+          pnpm --filter @capiro/meriv2-orchestrator exec jest --ci --runInBand
+          src/meri/context-compiler-v2.service.spec.ts
+          src/meri/meri-context.resolver.v2.spec.ts
+          src/meri/strategy/strategy-assurance.spec.ts
+          src/meri/steward/steward-assurance.spec.ts
+
+      - name: Test Phase 2 Workspace canonical-context matrix
+        run: >
+          pnpm --filter @capiro/workspace exec jest --ci --runInBand
+          src/generation/context-compiler.canonical-memory.spec.ts
+          src/generation/generation-assurance.spec.ts
+          src/checks/checks.verification.spec.ts
+          test/steering-memories.spec.ts
+
+      - name: Test Phase 3 Settings shared-memory result contract
+        run: >
+          pnpm --filter @capiro/web exec vitest run
+          src/components/MemoryFileEditor.phase3.test.ts
+          --testTimeout=20000 --hookTimeout=20000
