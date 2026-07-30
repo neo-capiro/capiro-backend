@@ -1,87 +1,65 @@
 /**
- * Drain the governed-memory cleanup outbox — remove the SECONDARY projections
- * (context_embeddings rows, clio_memory KV sources) of memory whose recall was
- * already suppressed synchronously by its governed status.
+ * Drain durable governed-memory projection work.
  *
- * Run out-of-band:
- *   aws ecs run-task --cluster capiro-dev \
- *     --task-definition capiro-dev-api-sync-congress \
- *     --overrides '{"containerOverrides":[{"name":"api-migrate","command":["drain-memory-cleanup-outbox"]}]}'
+ * This is an out-of-band, lease-based worker. EventBridge starts one short-lived
+ * ECS task; concurrent invocations are safe because claims use FOR UPDATE SKIP
+ * LOCKED and an opaque expiring lease. Projection and Bedrock embedding work occur
+ * after the claim transaction commits.
  *
- * Intended to be scheduled the same way as `drain-identity-outbox` (an EventBridge
- * rule). NOTE: no EventBridge rule is created by this branch — this script is
- * runnable but NOT yet scheduled, and it is also inert until
- * 20260729010000_memory_governance_context_v2 is applied (memory_cleanup_outbox
- * does not exist before it).
+ * Usage:
+ *   drain-memory-cleanup-outbox [batch-size] [lease-seconds]
  *
- * apps/api has no in-process scheduler (@nestjs/schedule is not a dependency and
- * there are zero @Cron usages), and running one in a multi-task service would have
- * every task racing the same rows. This mirrors the existing verb pattern in
- * scripts/entrypoint.sh, and deliberately copies the shape of
- * scripts/drain-identity-outbox.ts rather than importing from
- * apps/api/src/auth (a guardrailed tree).
- *
- * NO NEST — same reasoning drain-identity-outbox documents: booting a Nest context
- * instantiates every provider in the service and they assume the SERVE task's
- * environment. A plain PrismaClient plus a hand-built withSystem stand-in is the
- * dominant pattern in this directory.
- *
- * Idempotent and safe to run concurrently: each job is claimed with an atomic
- * conditional UPDATE, so a row is processed at most once per pass, and the
- * (tenant_id, idempotency_key) unique index makes re-enqueueing a no-op.
- *
- * Exits 0 when nothing failed, 1 when any job failed — so a scheduled invocation
- * surfaces as a task failure rather than silent success.
+ * Exits non-zero when any job failed or reached dead-letter so EventBridge/ECS and
+ * CloudWatch surface the run instead of treating a partial drain as healthy.
  */
-import { PrismaClient } from '@prisma/client';
-import type { Prisma } from '@prisma/client';
-import { MemoryCleanupOutboxService } from '../src/memory/memory-cleanup-outbox.service.js';
+import { PrismaClient, type Prisma } from '@prisma/client';
+import { MemoryIngestService } from '../src/memory/memory-ingest.service.js';
+import { MemoryProjectionWorkerService } from '../src/memory/memory-projection-worker.service.js';
+import { MemoryStoreService } from '../src/memory/memory-store.service.js';
+import { StrictMemoryProjectorService } from '../src/memory/strict-memory-projector.service.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
+import { TenantContextStore } from '../src/tenant/tenant-context.store.js';
+
+function positiveInteger(raw: string | undefined, fallback: number, label: string): number {
+  if (raw === undefined) return fallback;
+  const value = Number.parseInt(raw, 10);
+  if (!Number.isFinite(value) || value <= 0) throw new Error(`Invalid ${label}`);
+  return value;
+}
 
 async function main(): Promise<void> {
-  const limitArg = process.argv[2];
-  const limit = limitArg ? Number.parseInt(limitArg, 10) : 200;
-  if (!Number.isFinite(limit) || limit <= 0) {
-    throw new Error(`Invalid limit: ${String(limitArg)}`);
-  }
-
+  const limit = positiveInteger(process.argv[2], 200, 'batch size');
+  const leaseSeconds = positiveInteger(process.argv[3], 300, 'lease seconds');
   const prisma = new PrismaClient();
 
-  /**
-   * Minimal stand-in for PrismaService.withSystem.
-   *
-   * MemoryCleanupOutboxService only ever uses withSystem, and only with raw
-   * queries, which bypass the tenant-scope client extension anyway.
-   *
-   * The GUC is `app.bypass_rls` (NOT `app.rls_bypass`). All three governance
-   * tables are FORCE ROW LEVEL SECURITY and the drain deliberately reaches across
-   * tenants, so without this every query would match zero rows — silently.
-   */
-  const prismaLike = {
+  // The worker deliberately spans tenants, so every DB unit runs in its own
+  // transaction with the exact FORCE-RLS bypass GUC used by trusted ingestion.
+  // Object.assign retains PrismaClient's real raw-query methods for embeddings.
+  const prismaLike = Object.assign(prisma, {
     withSystem: <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> =>
       prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
         return fn(tx as unknown as Prisma.TransactionClient);
       }),
-  } as unknown as PrismaService;
+  }) as unknown as PrismaService;
 
-  const outbox = new MemoryCleanupOutboxService(prismaLike);
+  const tenantContext = new TenantContextStore();
+  const store = new MemoryStoreService(prismaLike, tenantContext);
+  const ingest = new MemoryIngestService(prismaLike, store, tenantContext);
+  const projector = new StrictMemoryProjectorService(prismaLike, ingest);
+  const worker = new MemoryProjectionWorkerService(prismaLike, projector);
 
   try {
-    const summary = await outbox.drainPending(limit);
-    console.log(
-      JSON.stringify({
-        event: 'memory_cleanup_outbox.drain',
-        ...summary,
-      }),
-    );
-    if (summary.failed > 0) process.exitCode = 1;
+    const summary = await worker.drainPending(limit, leaseSeconds);
+    console.log(JSON.stringify({ event: 'memory_projection_worker.drain', ...summary }));
+    if (summary.failed > 0 || summary.deadLettered > 0) process.exitCode = 1;
   } finally {
     await prisma.$disconnect();
   }
 }
 
-main().catch((err: unknown) => {
-  console.error('drain-memory-cleanup-outbox failed:', err);
+main().catch((error: unknown) => {
+  const errorName = error instanceof Error ? error.name : 'WorkerError';
+  console.error(JSON.stringify({ event: 'memory_projection_worker.crashed', error_code: errorName }));
   process.exit(1);
 });
