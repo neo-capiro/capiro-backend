@@ -20,9 +20,10 @@ obligation is now consumable by a strict scheduled worker.
 2. `MemoryProjectionWorkerService` claims bounded batches with
    `FOR UPDATE SKIP LOCKED`, increments attempts, and records an opaque expiring lease.
 3. Projection and Bedrock embedding occur after the claim transaction commits.
-4. `StrictMemoryProjectorService` invokes the existing single projector and verifies
-   the exact canonical `memory_items` row and expected embedding content hash before
-   allowing completion.
+4. `StrictMemoryProjectorService` is the single scheduled-worker projector. It writes
+   through `MemoryStoreService`, awaits embedding, rechecks whether the source was
+   edited or deleted during the network call, and verifies the exact canonical
+   `memory_items` row plus expected embedding content hash before allowing completion.
 5. Terminal updates require the same opaque lease token. A stale worker cannot complete
    a job another invocation reclaimed.
 6. Failed jobs use bounded exponential backoff. Exhausted jobs enter `dead_letter` and
@@ -85,6 +86,8 @@ bounded separately and database leases make overlapping invocations safe.
 - stale running claims are recoverable after lease expiry;
 - final-attempt stale leases move to dead-letter;
 - missing/deleted subjects complete idempotently instead of retrying forever;
+- a source deleted during embedding removes the projection created by the worker;
+- a source edited during embedding is retried instead of marking an old version complete;
 - retry backoff is bounded and exhausted jobs are terminal;
 - completion and failure require the current lease owner;
 - canonical item and expected embedding are verified before completion;
