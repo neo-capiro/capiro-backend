@@ -6,15 +6,9 @@ import {
   contextPacketV2Overrides,
   resolveContextPacketMode,
 } from './context-release-switch';
-import { surfacePolicies } from './surface-policy';
+import { contextSurfacePolicy, surfacePolicies } from './surface-policy';
 import type { ContextSurface } from './contract';
 
-/**
- * The Context Packet v2 release switch. These tests exist to make the DEFAULT the
- * thing that is hard to break: v2 changes model input, changes what is withheld,
- * and reads columns added by an unapplied migration, so anything other than the
- * exact string `'enforce'` must leave every surface on v1.
- */
 describe('resolveContextPacketMode', () => {
   it('defaults to v1 when the environment variable is unset or empty', () => {
     expect(resolveContextPacketMode(undefined)).toBe('v1');
@@ -49,13 +43,7 @@ describe('contextPacketV2Enabled', () => {
     }
   });
 
-  /**
-   * `alert-memo.service.ts` and `district-brief.service.ts` push
-   * `## ${title}\n${body}` into DELIVERABLE text a user reads, so a v2 compile
-   * there would print the literal `<context_item …>` envelope into a memo. Those
-   * surfaces stay dark even when the switch is armed.
-   */
-  it('stays false for surfaces that render packet bodies into user-visible deliverables', () => {
+  it('stays false for unaudited body-rendering deliverable surfaces', () => {
     for (const surface of ['memo', 'district-brief', 'outreach', 'research'] as ContextSurface[]) {
       expect(contextPacketV2Enabled('enforce', surface)).toBe(false);
     }
@@ -94,7 +82,7 @@ describe('contextPacketV2Overrides', () => {
     ).toEqual({});
   });
 
-  it('opts into contract v2 with correlation + version evidence once armed', () => {
+  it('opts into contract v2 with required persistence for an editor deliverable', () => {
     const overrides = contextPacketV2Overrides('enforce', {
       surface: 'in-editor',
       traceId: 'trace-1',
@@ -110,22 +98,37 @@ describe('contextPacketV2Overrides', () => {
       compilerVersion: 'context-compiler-v2.0',
       tokenBudget: 6_000,
       budgetUnit: 'tokens',
+      persistence: 'required',
     });
   });
 
-  /**
-   * The wall decision is required on the options type so a new v2 surface cannot
-   * be added without resolving it, and it is normalised to a strict boolean so a
-   * truthy non-boolean can never widen access (closeout §6, contract change 4).
-   */
+  it('marks conversational surfaces best-effort and external surfaces required', () => {
+    expect(
+      contextPacketV2Overrides('enforce', {
+        surface: 'ga-chat',
+        ethicalWallAllowed: false,
+      }),
+    ).toMatchObject({ persistence: 'best-effort' });
+    expect(
+      contextPacketV2Overrides('enforce', {
+        surface: 'steward',
+        ethicalWallAllowed: false,
+      }),
+    ).toMatchObject({ persistence: 'best-effort' });
+    for (const surface of ['in-editor', 'workspace-editor', 'strategy', 'workspace-gen'] as const) {
+      expect(
+        contextPacketV2Overrides('enforce', { surface, ethicalWallAllowed: false }),
+      ).toMatchObject({ persistence: 'required' });
+      expect(contextSurfacePolicy(surface).externalDeliverable).toBe(true);
+    }
+  });
+
   it('forwards only a literal true as wall permission', () => {
     const armed = (ethicalWallAllowed: boolean) =>
       contextPacketV2Overrides('enforce', { surface: 'ga-chat', ethicalWallAllowed });
 
     expect(armed(true)).toMatchObject({ ethicalWallAllowed: true });
     expect(armed(false)).toMatchObject({ ethicalWallAllowed: false });
-    // Defence in depth against an untyped caller (plain JS, `as any`, JSON):
-    // anything that is not exactly `true` must resolve to denial.
     for (const sneaky of ['true', 1, {}, [], 'yes']) {
       expect(
         contextPacketV2Overrides('enforce', {
@@ -134,18 +137,5 @@ describe('contextPacketV2Overrides', () => {
         }),
       ).toMatchObject({ ethicalWallAllowed: false });
     }
-  });
-
-  /**
-   * A trace write is diagnostics, not the answer. `persistence: 'required'` makes
-   * `ContextCompiler.persist` rethrow, which would convert a fire-and-forget
-   * failure into a 500 on the live in-editor route.
-   */
-  it('never sets persistence: a trace-write failure must stay fail-open', () => {
-    const overrides = contextPacketV2Overrides('enforce', {
-      surface: 'ga-chat',
-      ethicalWallAllowed: true,
-    });
-    expect(overrides).not.toHaveProperty('persistence');
   });
 });
