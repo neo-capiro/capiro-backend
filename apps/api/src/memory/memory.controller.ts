@@ -41,6 +41,7 @@ import {
   fileDefForType,
   editableSectionKeys,
   skeletonSections,
+  mergeEditedSections,
 } from './memory-catalog.js';
 import { buildInterviewQuestions } from './memory-interview.helpers.js';
 import {
@@ -167,7 +168,19 @@ export class MemoryController {
     // GET must read the SAME slug — otherwise the saved text never reads back and
     // the editor shows the empty skeleton despite a successful save.
     const effectiveSlug = def?.scope === 'user' ? ctx.userId : slug;
+    if (def?.scope === 'client' && !(await this.store.clientMemoryAllowedForCurrentUser(slug))) {
+      throw new ForbiddenException('This client is behind an ethical wall you are not granted.');
+    }
     const item = await this.store.getByTypeSlug(type, effectiveSlug);
+    const pendingReview =
+      def?.scope === 'firm' || def?.scope === 'client'
+        ? await this.candidates.findPendingSettingsCandidate(
+            ctx.tenantId,
+            ctx.userId,
+            type,
+            effectiveSlug,
+          )
+        : null;
     const helpByKey = new Map((def?.sections ?? []).map((s) => [s.key, s]));
     const sections = item ? item.sections : skeletonSections(type);
     if (!item && !def) throw new NotFoundException('unknown memory file type');
@@ -179,6 +192,7 @@ export class MemoryController {
       clientId: item?.clientId ?? null,
       updatedAt: item?.updatedAt ?? null,
       exists: !!item,
+      pendingReview,
       sections: sections.map((s) => ({
         key: s.key,
         heading: s.heading,
@@ -214,24 +228,37 @@ export class MemoryController {
     // User files key on the caller's own id — ignore any slug spoof.
     const effectiveSlug = scope === 'user' ? ctx.userId : slug;
     const clientId = scope === 'client' ? slug : null;
-    // Ethical wall (fail-closed, binds admins too): a non-granted user must not
-    // WRITE a walled client's file. Without this, the wall hides the existing
-    // row from the read path, so upsertSections would rebuild it from the
-    // catalog skeleton and clobber the real content via the RLS-bypassing
-    // upsertSystem. 403 loudly rather than silently corrupt.
     if (clientId && !(await this.store.clientMemoryAllowedForCurrentUser(clientId))) {
       throw new ForbiddenException('This client is behind an ethical wall you are not granted.');
     }
-    // Governed-memory authority (Phase 3). The checks above cover role and the
-    // ethical wall; this adds what they do not — legal hold, terminal
-    // (revoked/superseded) status, explicit per-client edit grants, and the real
-    // actor role under impersonation. Only applied to an EXISTING item: this route
-    // also creates a file from the catalog skeleton on first save, and there is no
-    // subject to authorize yet in that case.
-    if (governedMemoryEnforcementEnabled(process.env.MEMORY_GOVERNANCE_ENFORCE)) {
-      const existing = await this.store.getByTypeSlug(type, effectiveSlug);
-      if (existing) await this.authz.requireItem(ctx, existing.id, 'edit');
+
+    const existing = await this.store.getByTypeSlug(type, effectiveSlug);
+    if (governedMemoryEnforcementEnabled(process.env.MEMORY_GOVERNANCE_ENFORCE) && existing) {
+      await this.authz.requireItem(ctx, existing.id, 'edit');
     }
+
+    if (scope === 'firm' || scope === 'client') {
+      const sections = mergeEditedSections(
+        type,
+        existing?.sections ?? null,
+        body?.sections ?? [],
+        editableSectionKeys(type),
+      );
+      const pending = await this.candidates.proposeSettingsSections(ctx, {
+        type,
+        slug: effectiveSlug,
+        title: existing?.title ?? def.label,
+        scope,
+        clientId,
+        sections,
+      });
+      return {
+        status: 'pending_review' as const,
+        candidateId: pending.candidateId,
+        activeItemUnchanged: true as const,
+      };
+    }
+
     const updated = await this.store.upsertSectionsForCurrentTenant(
       type,
       effectiveSlug,
@@ -240,7 +267,7 @@ export class MemoryController {
       body?.sections ?? [],
       editableSectionKeys(type),
     );
-    return { ok: true, updatedAt: updated.updatedAt };
+    return { ok: true as const, updatedAt: updated.updatedAt };
   }
 
   /**

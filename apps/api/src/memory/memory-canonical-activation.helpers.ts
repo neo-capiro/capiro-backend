@@ -19,6 +19,12 @@ export interface CanonicalMemoryRecord {
   sourceConversationId?: string | null;
   sourceMessageId?: string | null;
   sourceExcerpt?: string | null;
+  canonicalItem?: {
+    type: string;
+    slug: string;
+    title: string;
+    sections: Array<{ key: string; heading: string; owner: 'human' | 'engine'; body: string }>;
+  };
 }
 
 export interface CanonicalGovernance {
@@ -87,7 +93,9 @@ export function buildCanonicalGovernance(input: {
       ? 'steward_extraction'
       : sourceKind === 'explicit_user'
         ? 'user_message'
-        : 'unknown';
+        : sourceKind === 'settings_sections'
+          ? 'settings_editor'
+          : 'unknown';
 
   return {
     canonicalType: canonicalTypeForScope(classification.memoryScope),
@@ -157,9 +165,14 @@ export async function upsertCanonicalMemoryItemInTx(
   record: CanonicalMemoryRecord,
   governance: CanonicalGovernance,
 ): Promise<string> {
-  const sections = JSON.stringify([
-    { key: 'memory', heading: 'Memory', owner: 'human', body: record.value.trim() },
-  ]);
+  const canonicalItem = record.canonicalItem;
+  const canonicalType = canonicalItem?.type ?? governance.canonicalType;
+  const canonicalSlug = canonicalItem?.slug ?? clioMemorySlug(clioMemoryId);
+  const canonicalTitle = canonicalItem?.title ?? record.key;
+  const canonicalSections = canonicalItem?.sections ?? [
+    { key: 'memory', heading: 'Memory', owner: 'human' as const, body: record.value.trim() },
+  ];
+  const sections = JSON.stringify(canonicalSections);
   const visibility = record.scope === 'user_private' ? 'user' : 'tenant';
   const ownerUserId = record.scope === 'user_private' ? record.ownerUserId : null;
   const clientId = record.scope === 'client' ? (record.clientId ?? null) : null;
@@ -185,9 +198,9 @@ export async function upsertCanonicalMemoryItemInTx(
       instructions_allowed
     ) VALUES (
       ${tenantId}::uuid, ${clientId}::uuid, ${ownerUserId}::uuid,
-      ${governance.canonicalType}, ${visibility}, NULL,
-      ${clioMemorySlug(clioMemoryId)}, ${record.key}, ARRAY[]::text[],
-      ARRAY['memory', ${record.source}], 'manual', ${governance.sourceRef}, 'human',
+       ${canonicalType}, ${visibility}, NULL,
+       ${canonicalSlug}, ${canonicalTitle}, ARRAY[]::text[],
+       ARRAY['memory', ${record.source}], 'manual', ${governance.sourceRef}, 'human',
       ${sections}::jsonb, 1, 'active', ${governance.sensitivity}, false,
       true, 'excluded', ${record.expiresAt ?? null}, ${confidence},
       ${governance.memoryClass}, ${governance.memoryAuthority}, ${governance.memoryScope},

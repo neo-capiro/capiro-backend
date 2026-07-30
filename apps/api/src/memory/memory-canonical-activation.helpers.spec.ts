@@ -108,6 +108,44 @@ describe('canonical governed memory activation', () => {
     expect(params).toContain(REVIEWER);
   });
 
+  it('activates an approved Settings proposal into the exact canonical file identity', async () => {
+    let params: unknown[] = [];
+    const tx = {
+      $queryRaw: async (_strings: TemplateStringsArray, ...values: unknown[]) => {
+        params = values;
+        return [{ id: ITEM }];
+      },
+    } as unknown as Prisma.TransactionClient;
+    const settingsRecord: CanonicalMemoryRecord = {
+      ...record('firm'),
+      key: 'settings-file:firm-soul:firm',
+      value: JSON.stringify([
+        { key: 'mission', heading: 'Mission', owner: 'human', body: 'Reviewed' },
+      ]),
+      source: 'settings_memory_editor',
+      canonicalItem: {
+        type: 'firm-soul',
+        slug: 'firm',
+        title: 'Firm Soul',
+        sections: [{ key: 'mission', heading: 'Mission', owner: 'human', body: 'Reviewed' }],
+      },
+    };
+    const governance = buildCanonicalGovernance({
+      record: settingsRecord,
+      sourceKind: 'settings_sections',
+      candidateId: CANDIDATE,
+      assertedByUserId: PROPOSER,
+      approvedByUserId: REVIEWER,
+      decision: 'approved',
+    });
+    await upsertCanonicalMemoryItemInTx(tx, TENANT, CLIO, settingsRecord, governance);
+    expect(params).toContain('firm-soul');
+    expect(params).toContain('firm');
+    expect(params).toContain('Firm Soul');
+    expect(params).toContain('firm_approved');
+    expect(params).toContainEqual(expect.stringContaining('Reviewed'));
+  });
+
   it('preserves authoritative governance when rebuilding the Clio projection', () => {
     const governance = buildCanonicalGovernance({
       record: record('client'),

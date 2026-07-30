@@ -26,6 +26,7 @@ import {
 } from './memory-governance-lifecycle.helpers.js';
 import type { GovernedMemoryStatus } from '@capiro/meriv2-core';
 import type { AppConfig } from '../config/config.schema.js';
+import type { MemoryItemType, MemorySection } from './memory.types.js';
 import {
   buildCanonicalGovernance,
   governedClioMetadata,
@@ -54,6 +55,13 @@ export interface MemorySaveRequest {
   sourceConversationId?: string | null;
   sourceMessageId?: string | null;
   sourceExcerpt?: string | null;
+  /** Exact canonical file identity for Settings-originated complete-section proposals. */
+  canonicalItem?: {
+    type: MemoryItemType;
+    slug: string;
+    title: string;
+    sections: MemorySection[];
+  };
 }
 
 export interface MemoryCandidateRow {
@@ -79,6 +87,21 @@ export interface ProposeSaveMemoryResult {
 }
 
 type CandidateActorContext = Pick<TenantContext, 'tenantId' | 'userId' | 'role'>;
+
+export interface SettingsMemoryCandidateInput {
+  type: MemoryItemType;
+  slug: string;
+  title: string;
+  scope: 'firm' | 'client';
+  clientId: string | null;
+  sections: MemorySection[];
+}
+
+export interface PendingSettingsCandidate {
+  candidateId: string;
+  status: 'pending_review';
+  submittedAt: string;
+}
 
 interface LockedCandidate {
   id: string;
@@ -132,6 +155,72 @@ export class MemoryCandidateService {
     ),
   ) {}
 
+  /** Submit a complete Settings firm/client file for independent review. */
+  async proposeSettingsSections(
+    ctx: CandidateActorContext,
+    input: SettingsMemoryCandidateInput,
+  ): Promise<PendingSettingsCandidate> {
+    const record: MemorySaveRequest = {
+      scope: input.scope === 'client' ? 'client' : 'firm',
+      ownerUserId: null,
+      clientId: input.scope === 'client' ? input.clientId : null,
+      key: `settings-file:${input.type}:${input.slug}`,
+      value: JSON.stringify(input.sections),
+      source: 'settings_memory_editor',
+      canonicalItem: {
+        type: input.type,
+        slug: input.slug,
+        title: input.title,
+        sections: input.sections,
+      },
+    };
+    const result = await this.proposeSaveMemory(
+      ctx.tenantId,
+      ctx.userId,
+      record,
+      ctx.role === 'user_admin' || ctx.role === 'capiro_admin',
+      'settings_sections',
+    );
+    if (result.status !== 'pending') {
+      throw new Error('Shared Settings memory unexpectedly bypassed independent review.');
+    }
+    return {
+      candidateId: result.candidateId,
+      status: 'pending_review',
+      submittedAt: new Date().toISOString(),
+    };
+  }
+
+  /** Return the newest pending proposal for this exact Settings file. */
+  async findPendingSettingsCandidate(
+    tenantId: string,
+    viewerUserId: string,
+    type: MemoryItemType,
+    slug: string,
+  ): Promise<PendingSettingsCandidate | null> {
+    return this.prisma.withTenantUser(tenantId, viewerUserId, async (tx) => {
+      const rows = await tx.$queryRaw<Array<{ id: string; created_at: Date }>>`
+        SELECT id::text AS id, created_at
+        FROM memory_candidate
+        WHERE tenant_id = ${tenantId}::uuid
+          AND status = 'pending'
+          AND source_kind = 'settings_sections'
+          AND payload_jsonb #>> '{canonicalItem,type}' = ${type}
+          AND payload_jsonb #>> '{canonicalItem,slug}' = ${slug}
+        ORDER BY created_at DESC
+        LIMIT 1
+      `;
+      const row = rows[0];
+      return row
+        ? {
+            candidateId: row.id,
+            status: 'pending_review',
+            submittedAt: row.created_at.toISOString(),
+          }
+        : null;
+    });
+  }
+
   /** Entry point for MeriToolsService.saveMemory. Always creates a candidate;
    *  commits inline when the rule evaluates PASS. */
   async proposeSaveMemory(
@@ -175,6 +264,7 @@ export class MemoryCandidateService {
       sourceConversationId,
       sourceMessageId,
       sourceExcerpt,
+      canonicalItem: record.canonicalItem ?? null,
     };
     const provenance = {
       tool: 'save_memory',
@@ -740,6 +830,7 @@ function payloadToSaveRequest(payload: unknown): MemorySaveRequest {
     sourceConversationId?: unknown;
     sourceMessageId?: unknown;
     sourceExcerpt?: unknown;
+    canonicalItem?: unknown;
   };
   return {
     scope,
@@ -757,5 +848,42 @@ function payloadToSaveRequest(payload: unknown): MemorySaveRequest {
       typeof raw.sourceConversationId === 'string' ? raw.sourceConversationId : null,
     sourceMessageId: typeof raw.sourceMessageId === 'string' ? raw.sourceMessageId : null,
     sourceExcerpt: typeof raw.sourceExcerpt === 'string' ? raw.sourceExcerpt.slice(0, 4_000) : null,
+    canonicalItem: parseCanonicalItem(raw.canonicalItem),
+  };
+}
+
+function parseCanonicalItem(value: unknown): MemorySaveRequest['canonicalItem'] {
+  if (value == null) return undefined;
+  const item = value as { type?: unknown; slug?: unknown; title?: unknown; sections?: unknown };
+  if (
+    typeof item.type !== 'string' ||
+    typeof item.slug !== 'string' ||
+    typeof item.title !== 'string' ||
+    !Array.isArray(item.sections)
+  ) {
+    throw new BadRequestException('Malformed Settings memory candidate payload.');
+  }
+  const sections = item.sections.map((raw) => {
+    const section = raw as { key?: unknown; heading?: unknown; owner?: unknown; body?: unknown };
+    if (
+      typeof section.key !== 'string' ||
+      typeof section.heading !== 'string' ||
+      (section.owner !== 'human' && section.owner !== 'engine') ||
+      typeof section.body !== 'string'
+    ) {
+      throw new BadRequestException('Malformed Settings memory candidate sections.');
+    }
+    return {
+      key: section.key,
+      heading: section.heading,
+      owner: section.owner,
+      body: section.body,
+    } satisfies MemorySection;
+  });
+  return {
+    type: item.type as MemoryItemType,
+    slug: item.slug,
+    title: item.title,
+    sections,
   };
 }
