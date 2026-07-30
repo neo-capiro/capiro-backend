@@ -30,8 +30,8 @@ function sourceRow(updatedAt = SOURCE_UPDATED_AT) {
     value: 'Support the full authorization and appropriation request.',
     source: 'explicit_user',
     metadata: {},
-    createdAt: SOURCE_UPDATED_AT,
-    updatedAt,
+    createdAt: SOURCE_UPDATED_AT.toISOString(),
+    updatedAt: updatedAt.toISOString(),
   };
 }
 
