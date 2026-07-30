@@ -53,14 +53,12 @@ export class StrictMemoryProjectorService {
     const itemId = await this.store.upsertSystem(item);
 
     if (text.length >= 10) {
-      await embedAndUpsert(this.prisma as never, {
+      await this.writeEmbedding({
         tenantId,
         clientId: item.clientId,
         ownerUserId: item.ownerUserId,
-        sourceType: 'memory_item',
         sourceId: itemId,
         text,
-        bypassRls: true,
       });
     }
 
@@ -125,5 +123,23 @@ export class StrictMemoryProjectorService {
     }
 
     return 'projected';
+  }
+
+  private async writeEmbedding(input: {
+    tenantId: string;
+    clientId: string | null;
+    ownerUserId: string | null;
+    sourceId: string;
+    text: string;
+  }): Promise<void> {
+    await embedAndUpsert(this.prisma as never, {
+      tenantId: input.tenantId,
+      clientId: input.clientId,
+      ownerUserId: input.ownerUserId,
+      sourceType: 'memory_item',
+      sourceId: input.sourceId,
+      text: input.text,
+      bypassRls: true,
+    });
   }
 }
