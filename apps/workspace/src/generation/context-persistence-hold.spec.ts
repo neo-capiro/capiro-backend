@@ -4,6 +4,7 @@ import {
   assertContextPersistenceReleased,
   clearContextPersistenceHold,
   markContextPersistenceHold,
+  runWithContextPersistenceBoundary,
   workspaceDraftWriteTarget,
 } from './context-persistence-hold.js';
 
@@ -15,22 +16,58 @@ describe('Workspace context persistence hold', () => {
   const tenantId = 'tenant-1';
   const draftId = 'draft-1';
 
-  afterEach(() => clearContextPersistenceHold(tenantId, draftId));
+  it('holds and consumes the exact request after required packet persistence fails', async () => {
+    await runWithContextPersistenceBoundary(tenantId, draftId, async () => {
+      markContextPersistenceHold(tenantId, draftId, 'context_packet_error');
 
-  it('holds and consumes the exact draft after required packet persistence fails', () => {
-    markContextPersistenceHold(tenantId, draftId, 'context_packet_error');
-
-    expect(() => assertContextPersistenceReleased(tenantId, draftId)).toThrow(
-      ServiceUnavailableException,
-    );
-    expect(() => assertContextPersistenceReleased(tenantId, draftId)).not.toThrow();
+      expect(() => assertContextPersistenceReleased(tenantId, draftId)).toThrow(
+        ServiceUnavailableException,
+      );
+      expect(() => assertContextPersistenceReleased(tenantId, draftId)).not.toThrow();
+    });
   });
 
-  it('never blocks a different tenant or draft', () => {
-    markContextPersistenceHold(tenantId, draftId, 'context_packet_error');
+  it('never blocks a different tenant or draft', async () => {
+    await runWithContextPersistenceBoundary(tenantId, draftId, async () => {
+      markContextPersistenceHold(tenantId, draftId, 'context_packet_error');
 
-    expect(() => assertContextPersistenceReleased(tenantId, 'draft-2')).not.toThrow();
-    expect(() => assertContextPersistenceReleased('tenant-2', draftId)).not.toThrow();
+      expect(() => assertContextPersistenceReleased(tenantId, 'draft-2')).not.toThrow();
+      expect(() => assertContextPersistenceReleased('tenant-2', draftId)).not.toThrow();
+      expect(() => assertContextPersistenceReleased(tenantId, draftId)).toThrow(
+        ServiceUnavailableException,
+      );
+    });
+  });
+
+  it('isolates concurrent requests for the same tenant and draft', async () => {
+    let releaseHeldRequest!: () => void;
+    const waitForCleanRequest = new Promise<void>((resolve) => {
+      releaseHeldRequest = resolve;
+    });
+    let heldMarked!: () => void;
+    const waitForHeldMark = new Promise<void>((resolve) => {
+      heldMarked = resolve;
+    });
+
+    const heldRequest = runWithContextPersistenceBoundary(tenantId, draftId, async () => {
+      markContextPersistenceHold(tenantId, draftId, 'context_packet_error');
+      heldMarked();
+      await waitForCleanRequest;
+      expect(() => assertContextPersistenceReleased(tenantId, draftId)).toThrow(
+        ServiceUnavailableException,
+      );
+    });
+
+    const cleanRequest = runWithContextPersistenceBoundary(tenantId, draftId, async () => {
+      await waitForHeldMark;
+      // This clear occurs after the other request marked its hold. Request-local
+      // storage means it cannot clear the other request's failure state.
+      clearContextPersistenceHold(tenantId, draftId);
+      expect(() => assertContextPersistenceReleased(tenantId, draftId)).not.toThrow();
+      releaseHeldRequest();
+    });
+
+    await Promise.all([heldRequest, cleanRequest]);
   });
 
   it('identifies only tenant-scoped ws_draft writes', () => {
