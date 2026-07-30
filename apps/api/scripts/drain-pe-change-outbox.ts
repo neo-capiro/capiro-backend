@@ -1,10 +1,16 @@
 /**
  * Program Element canonical-change outbox drainer.
  * Dry-run is the default; --commit is required to deliver pending rows.
+ *
+ * NO NEST (mirrors drain-identity-outbox): bare PrismaClient + optional
+ * withSystem shim. OutboxService also falls back to $transaction +
+ * app.bypass_rls when withSystem is absent, so script runners and after-commit
+ * writer drain paths stay durable without PrismaService.
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
-import { PrismaService } from '../src/prisma/prisma.service.js';
+import type { Prisma } from '@prisma/client';
+import type { PrismaService } from '../src/prisma/prisma.service.js';
 import { ProgramElementChangeOutboxService } from '../src/program-element/program-element-change-outbox.service.js';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 
@@ -16,6 +22,19 @@ function flag(name: string): boolean {
 function arg(name: string): string | undefined {
   const index = process.argv.indexOf(`--${name}`);
   return index >= 0 ? process.argv[index + 1] : undefined;
+}
+
+/** Bare PrismaClient shaped like PrismaService for OutboxService drain. */
+export function peChangeOutboxPrismaFromClient(client: PrismaClient): PrismaService {
+  return {
+    ...client,
+    withSystem: <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> =>
+      client.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
+        return fn(tx as unknown as Prisma.TransactionClient);
+      }),
+    programElementChangeOutbox: client.programElementChangeOutbox,
+  } as unknown as PrismaService;
 }
 
 async function main(): Promise<void> {
@@ -32,7 +51,7 @@ async function main(): Promise<void> {
     console.log(JSON.stringify({ mode: commit ? 'COMMIT' : 'DRY-RUN', pending, limit }, null, 2));
     if (!commit) return;
 
-    const prisma = client as unknown as PrismaService;
+    const prisma = peChangeOutboxPrismaFromClient(client);
     const service = new ProgramElementChangeOutboxService(prisma);
     const result = await runWithSyncRun(client, 'drain-pe-change-outbox', async () => {
       const drained = await service.drain(limit);

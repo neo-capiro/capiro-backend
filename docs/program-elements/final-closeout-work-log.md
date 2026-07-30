@@ -4,8 +4,9 @@
 **PR:** https://github.com/neo-capiro/capirov2/pull/705 (draft → `main`)  
 **Plan source:** local `program-elements-final-closeout-plan-and-schedule.md`  
 **Repo:** `neo-capiro/capirov2`  
-**Operator session:** Phase 0 only  
-**Generated (UTC):** 2026-07-30T10:31:22Z
+**Operator session:** Phase 1 re-implement (post independent review FAIL)  
+**Generated (UTC):** 2026-07-30T10:31:22Z  
+**Ledger last updated (UTC):** 2026-07-30 (Phase 1 B1/B2 bare-outbox fix; independent review PENDING — implementer does not self-PASS)
 
 ---
 
@@ -194,39 +195,87 @@ See `final-closeout-traceability.md` § Adversarial review. Exit criteria checke
 
 ---
 
-## Phase 1 — Deterministic Canonical Write Foundation (complete)
+## Phase 1 — Deterministic Canonical Write Foundation
 
-**Session UTC:** 2026-07-30T11:04:33Z
-**Status:** Phase 1 COMPLETE (2026-07-30T11:13:32Z). Unit gates green. PGlite rehearsal 16/16. Docker `pgvector/pgvector:pg16` disposable rehearsal PASS (`PHASE_D_PG16_REHEARSAL_OK`); second apply fail-closed; prisma validate PASS against live disposable DSN.
+### 1.0 First implement (2026-07-30T11:04–11:13Z) — product foundation landed; review FAIL later
 
-### Done in this session
+**Implementer claimed COMPLETE; independent review 20260730_072939_3c2039 VERDICT FAIL on tip `b8ed28855`.** Unit/logic gates were green; durable script outbox path was broken (B1/B2). Ledger below was dishonest (header said Phase 0 only; Next phase still Phase 1 while body said COMPLETE).
 
-- Applied recovered Phase D patch + correction patches 1-5 onto closeout tip.
-- Hand-reconciled package.json scripts and entrypoint help string.
-- No transport .github/phase-d-* files.
+Landed on branch (commits `850b4b7a4`, `b8ed28855`):
 
-### Gates run
+- Applied recovered Phase D + correction patches 1–5; no transport `.github/phase-d-*`.
+- Field ownership, raw merge, writer/outbox/reconciliation, migration `20260729050000_pe_observation_idempotency_and_outbox`, backfill + drain scripts.
+- Gates then: verify:pe-phase-a/b/c/d PASS; tsc pe-phase-a PASS; PGlite 16/16; Docker pg16 disposable migration PASS.
+
+Independent review blocking defects (must fix before any Phase 1 PASS / Phase 2):
+
+| ID | Defect |
+|---|---|
+| B1 | `ProgramElementChangeOutboxService.processById` called `prisma.withSystem` unconditionally; bare `PrismaClient` has no `withSystem`. `drain-pe-change-outbox.ts` cast bare client with no shim. Drain greps-only masked it. |
+| B2 | Writer autowires `new OutboxService(prisma)` when `$transaction` exists; after-commit `processOutboxIds` failed on every script writer client. |
+| B3 | Work-log header/Next-phase vs COMPLETE status dishonest. |
+
+### 1.1 Re-implement after review FAIL (this session)
+
+**Status:** IMPLEMENT PUSHED — **independent adversarial review REQUIRED** (implementer does **not** self-PASS exit gate).  
+**Base tip before fix:** `b8ed288558b15a441e8465b0e1023a14423ff392`  
+**origin/main:** `010948cc3f475dd0ee47016deba5619c044d8fed` (0 behind)  
+**Worktree:** `C:/c/Users/neoma/AppData/Local/Temp/pe-closeout-wt`
+
+#### Code fixes
+
+1. **Outbox client contract** (`program-element-change-outbox.service.ts`):
+   - Exported `runPeOutboxSystemTx` / `PeOutboxPrismaLike`.
+   - Prefer `withSystem`; else `$transaction` + `set_config('app.bypass_rls','on',true)` (identity-outbox pattern).
+   - Fail closed if neither present.
+2. **Drain script** (`drain-pe-change-outbox.ts`): `peChangeOutboxPrismaFromClient` withSystem shim; no bare `as PrismaService` cast.
+3. **Tests (must fail unfixed B1):**
+   - Outbox unit: bare client without `withSystem` → `processById`/`drain` → `processed`.
+   - `runPeOutboxSystemTx` prefers withSystem / falls back / throws.
+   - Drain spec beyond greps: shim presence + bare-client runtime drain.
+
+Writer autowire path fixed by (1): same OutboxService on bare PrismaClient now drains after commit.
+
+#### Gates re-run this session (on fix tree)
 
 | Command | Result |
 |---|---|
-| verify:pe-phase-a | PASS |
+| verify:pe-phase-a | PASS (`PE_PHASE_A_B_SAFETY_OK`) |
 | verify:pe-phase-b | PASS 7 suites / 111 tests |
 | verify:pe-phase-c | PASS 8 suites / 61 tests |
-| verify:pe-phase-d | PASS 7 suites / 43 tests |
+| verify:pe-phase-d | PASS 7 suites / **51** tests (was 43; +bare-client/runtime cases) |
 | tsc -p tsconfig.pe-phase-a.json --noEmit | PASS |
-| PGlite migration rehearsal (exact SQL) | PASS 16/16 PHASE_D_PGLITE_REHEARSAL_OK |
+| Scope | only outbox + drain + ledgers; no MeriV2; no transport |
 
-### Disposable migration rehearsals
+#### Not done / forbidden
 
-- PGlite in-process: PASS 16/16 (`PHASE_D_PGLITE_REHEARSAL_OK`)
-- Docker `pgvector/pgvector:pg16` ephemeral (`pe-phase-d-rehearsal` on :55432, destroyed after): exact migration SQL.apply PASS; legacy keys; zero decimal preserve; unique observation_key + outbox dedupe; recon defaults; second apply ERROR column already exists → fail-closed OK; `prisma validate` with live DATABASE_URL PASS
+- Independent review of this tip (separate session).
+- Phase 2+ loaders.
+- Shared-env migrate, ingestion commit, merge, deploy.
+
+#### Rollback
+
+```bash
+git revert <phase1-bare-outbox-fix-sha>   # or reset --hard b8ed28855 before force-with-lease (avoid if shared)
+# Full Phase 1 product rollback to main:
+git revert 850b4b7a4 b8ed28855 <fix-sha>  # or reset branch to origin/main and reopen work
+```
+
+### Independent review status
+
+| Round | Session | Tip | Verdict |
+|---|---|---|---|
+| 1 | 20260730_072939_3c2039 | `b8ed28855` | **FAIL** (B1/B2/B3) |
+| 2 | (pending) | (this push) | **PENDING** |
 
 ### Not started
 
-- Phase 2+
+- Phase 2 exact-SHA loaders
 
+---
 
 ## Next phase
 
-**Phase 1 — Deterministic Canonical Write Foundation**  
-Executable handoff is at the end of `final-closeout-traceability.md`.
+**Phase 1 independent adversarial REVIEW only** (not Phase 2 implement).  
+Do not start Phase 2 until a separate REVIEW session records `VERDICT: PASS` against the remote tip SHA after this fix.  
+Executable REVIEW handoff: end of `final-closeout-traceability.md`.

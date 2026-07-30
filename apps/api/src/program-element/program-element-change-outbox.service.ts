@@ -28,6 +28,25 @@ interface LockedOutboxRow {
   status: string;
 }
 
+/**
+ * Minimal Prisma shape used by script runners: real Nest PrismaService has
+ * withSystem; bare PrismaClient (tsx loaders / drain scripts) only has
+ * $transaction. Scripts historically cast PrismaClient as PrismaService and
+ * autowire ProgramElementChangeOutboxService — processById must not require
+ * Nest DI.
+ */
+export type PeOutboxPrismaLike = {
+  withSystem?: <T>(
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+    opts?: { timeoutMs?: number },
+  ) => Promise<T>;
+  $transaction?: <T>(
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+    options?: { maxWait?: number; timeout?: number },
+  ) => Promise<T>;
+  programElementChangeOutbox: PrismaService['programElementChangeOutbox'];
+};
+
 function asPayload(value: unknown): OutboxPayload {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('Program Element outbox payload is malformed');
@@ -39,6 +58,29 @@ function asPayload(value: unknown): OutboxPayload {
   return payload as OutboxPayload;
 }
 
+/**
+ * System-scoped interactive transaction for outbox delivery.
+ * Prefer PrismaService.withSystem when present; otherwise fall back to
+ * bare PrismaClient.$transaction + app.bypass_rls (same GUC identity drain uses).
+ */
+export async function runPeOutboxSystemTx<T>(
+  prisma: PeOutboxPrismaLike,
+  fn: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  if (typeof prisma.withSystem === 'function') {
+    return prisma.withSystem(fn);
+  }
+  if (typeof prisma.$transaction !== 'function') {
+    throw new Error(
+      'Program Element outbox requires PrismaService.withSystem or PrismaClient.$transaction',
+    );
+  }
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
+    return fn(tx);
+  });
+}
+
 @Injectable()
 export class ProgramElementChangeOutboxService {
   private readonly logger = new Logger(ProgramElementChangeOutboxService.name);
@@ -47,7 +89,7 @@ export class ProgramElementChangeOutboxService {
 
   async processById(id: string): Promise<'processed' | 'already_processed' | 'failed'> {
     try {
-      return await this.prisma.withSystem(async (tx) => {
+      return await runPeOutboxSystemTx(this.prisma as unknown as PeOutboxPrismaLike, async (tx) => {
         const rows = await tx.$queryRaw<LockedOutboxRow[]>(Prisma.sql`
           SELECT id, dedupe_key, pe_code, event_type, payload_jsonb, status
           FROM program_element_change_outbox

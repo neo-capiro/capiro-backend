@@ -2,7 +2,7 @@
 
 **Baseline main SHA:** `057f5480a46f9ba9acf9296a9cc876b609593832`  
 **Pre-Phase-0 #705 head (void product):** `a244022648d54d9e4ac7fb071f9f438405659056`  
-**Updated (UTC):** 2026-07-30T11:13:32Z (Phase 1 complete, including Docker PG16 disposable rehearsal)
+**Updated (UTC):** 2026-07-30 (Phase 1 bare-outbox durability fix after review FAIL; remote tip record after push; **independent review PENDING**)
 
 Legend for **Status**:
 
@@ -37,11 +37,13 @@ Closeout **execution phase** column is the session phase from the final schedule
 | D5 | Replay idempotency | `in_branch` (Phase 1) | writer + specs in D patch | 1 |
 | D6 | Field-level winner selection | `in_branch` (Phase 1) | ownership + writer | 1 |
 | D7 | Canonical mutation + outbox one transaction | `in_branch` (Phase 1) | writer + outbox service + migration | 1 |
-| D8 | Durable outbox drain/retry | `in_branch` (Phase 1) | `drain-pe-change-outbox.ts` | 1 |
+| D8 | Durable outbox drain/retry | `in_branch` (Phase 1) — bare-client path fixed post review FAIL | `runPeOutboxSystemTx` fallback + `peChangeOutboxPrismaFromClient` + runtime specs (B1/B2) | 1 |
 | D9 | Reconciliation failure rolls back canonical | `in_branch` (Phase 1) | reconciliation.service changes in D patch | 1 |
 | D10 | Dry-run-first observation audit/backfill | `in_branch` (Phase 1) | backfill script | 1 |
 | D11 | No temporary D workflows/patch blobs in final diff | `in_branch` (Phase 1) — no transport | Phase 0 removed transport; Phase 1 must not reintroduce `.github/phase-d-*` | 1 |
-| D12 | Rehearse additive migration in disposable Postgres | `verified` PGlite + Docker pgvector/pgvector:pg16 disposable | 1 |
+| D12 | Rehearse additive migration in disposable Postgres | `verified` PGlite + Docker pgvector/pgvector:pg16 disposable (prior Phase 1 session) | 1 |
+
+**Phase 1 review gate:** Independent review round 1 on `b8ed28855` = **FAIL** (B1 bare `withSystem`, B2 script writers, B3 dishonest ledger). Re-implement fixed B1–B3; round 2 review still **PENDING**. Do not treat implementer gates alone as Phase 1 PASS.
 
 **Recovery note:** Apply `phase-d-implementation.patch` onto tip after resolving fuzz against main since mid-stack base `8204a347…`. Then selectively re-home correction patches 1–5 as **new** tests against the applied tree (do not assume intermediate SHAs).
 
@@ -211,43 +213,53 @@ Reviewer stance: assume transport PR lied.
 
 ---
 
-## 15. Phase 1 executable handoff prompt
+## 15. Phase 1 independent REVIEW handoff (not Phase 2 implement)
 
 ```text
-You are executing Program Elements Final Closeout Phase 1 only.
+You are the INDEPENDENT ADVERSARIAL REVIEWER for Program Elements Final Closeout Phase 1 only.
+MODE: REVIEW (read-only). Do NOT implement, commit, push, or start Phase 2.
 
 Repository: neo-capiro/capirov2
 Branch: agent/program-elements-final-closeout
 PR: #705
-Base: current main (must match or be merged-forward from SHA recorded in docs/program-elements/final-closeout-work-log.md)
-MODE: LONG
+Prior tip that FAILED review: b8ed288558b15a441e8465b0e1023a14423ff392
+Prior FAIL session: 20260730_072939_3c2039 (B1 bare withSystem / B2 script writers / B3 dishonest ledger)
+origin/main at implement: 010948cc3f475dd0ee47016deba5619c044d8fed
 
-Read:
-1. docs/program-elements/final-closeout-work-log.md
-2. docs/program-elements/final-closeout-traceability.md
-3. Phase 1 section of the final closeout plan
-4. Recovered Phase D patch at (operator path) C:/Users/neoma/AppData/Local/Temp/pe-patches/phase-d-implementation.patch
-   and correction patches in the same directory's .github/ folder — OR re-decode from origin/agent/pe-trust-phase-d-v2 .github/phase-d-implementation.patch{{,.01,.02,.03,.04}} via base64|gzip.
+Read before judging:
+1. /c/Users/neoma/Downloads/program-elements-final-closeout-plan-and-schedule.md (Phase 1 section only)
+2. docs/program-elements/final-closeout-work-log.md
+3. docs/program-elements/final-closeout-traceability.md
+4. apps/api/src/program-element/program-element-change-outbox.service.ts (+spec)
+5. apps/api/scripts/drain-pe-change-outbox.ts (+spec)
+6. apps/api/src/program-element/program-element-writer.service.ts (outbox autowire + processOutboxIds)
+7. Contrast: apps/api/scripts/drain-identity-outbox.ts withSystem shim
 
 Hard boundaries:
-- Do not begin Phase 2+.
-- Do not merge or deploy.
-- Do not run shared-environment migrations, backfills-with-commit, ingestion commits, derive-chain, email, LlamaParse, Secrets Manager, or infra changes.
-- Do not modify MeriV2 source.
-- Do not commit transport patch blobs or temporary workflows.
-- Preserve main behavior except explicit tested D changes.
+- REVIEW only — no patches, no commits, no Phase 2.
+- No MeriV2, merge, deploy, shared migrate, secrets, email, LlamaParse.
+- Do not treat implementer "gates PASS" or work-log prose as exit PASS.
+- No PASS WITH BLOCKERS.
 
-Required execution:
-1. Verify branch tip is main + Phase 0 docs (or merge main if moved).
-2. Apply/reconcile Phase D recovered implementation onto current tip; fix conflicts; drop any .github transport.
-3. Implement any D gaps still missing after patch.
-4. Add/adjust regression tests for authority, non-owner preserve, unknown authority, replay idempotency, reconciliation rollback, outbox retry, dry-run backfill.
-5. Rehearse additive migration in disposable PostgreSQL only.
-6. Run verify:pe-phase-a/b/c plus new D tests; compare failures to base SHA.
-7. Independent adversarial review.
-8. Commit: fix(program-elements): deterministic canonical write foundation
-9. Push branch; verify remote diff is product + tests + migration only.
-10. Update work log + traceability; return SHAs, commands, rollback, Phase 2 handoff.
+Required checks:
+1. git fetch; record remote tip SHA of agent/program-elements-final-closeout; ahead/behind vs origin/main.
+2. Confirm prior FAIL items B1/B2 closed in code (not docs alone):
+   - processById must not require Nest withSystem on bare PrismaClient
+   - drain script must not cast bare client without shim
+   - typescript tests exist that FAIL on unfixed tip: bare client WITHOUT withSystem completes processById/drain
+   - drain-pe-change-outbox.spec.ts exercises runtime, not greps only; dry-run remains default
+3. Writer autowire path: new ProgramElementChangeOutboxService(prisma) when only $transaction exists must be durable.
+4. Re-run locally: verify:pe-phase-a/b/c/d + tsc -p tsconfig.pe-phase-a.json --noEmit
+5. Scope: no MeriV2, no transport/.part, only Phase 1 product.
+6. Ledgers: honest Phase 1 status; Next phase must NOT claim Phase 2 implement until VERDICT PASS; no "Operator session: Phase 0 only" while Phase 1 is active; remote SHA after push recorded or recordable.
+7. Ownership/determinism still sound from prior foundation (field authority, replay, recon rollback).
 
-Stop when Phase 1 exit gate fails. Do not start Phase 2.
+Exit:
+- End with exact line: VERDICT: PASS or VERDICT: FAIL
+- List residual blockers if FAIL.
+- If PASS only: reproduce remote tip SHA and provide Phase 2 IMPLEMENT handoff prompt (do not implement Phase 2).
+- If FAIL: list minimal fix list for another Phase 1 implement session.
+
+Worktree on this machine: C:/c/Users/neoma/AppData/Local/Temp/pe-closeout-wt (MSYS may show C:/c/Users/...).
+Launcher: /c/Users/neoma/Downloads/pe-closeout/pe-closeout-run.sh review 1
 ```
