@@ -1,18 +1,7 @@
 import { ContextCompilerService } from './context-compiler.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 
-/**
- * ContextPacket v2 on the apps/api adapter.
- *
- * Three things this app owns and meriv2-core cannot test for it:
- *   1. the v1 path stays byte-for-byte identical (v2 is dark);
- *   2. the v2 path SELECTs the governed columns — without them
- *      `filterGovernedMemory` withholds every firm/client item as `unapproved`
- *      and mislabels a private item as firm scope, and the UI reports success;
- *   3. `persistPacket` writes the v2 provenance columns and an HONEST
- *      `packet_version` (1 for a legacy steering trace, 2 for a compiled v2
- *      packet), without ever rewriting an existing row.
- */
+/** ContextPacket v2 and truthful persistence on the apps/api adapter. */
 describe('ContextCompilerService — ContextPacket v2', () => {
   const APPROVED_FIRM_ROW = {
     id: '11111111-1111-1111-1111-111111111111',
@@ -22,7 +11,6 @@ describe('ContextCompilerService — ContextPacket v2', () => {
     clientId: null,
     status: 'active',
     sections: [{ owner: 'human', heading: 'Who', body: 'We are a GA firm.' }],
-    // Governed metadata, as the v2 SELECT returns it.
     visibility: 'tenant',
     ownerUserId: null,
     memoryClass: 'institutional_authoritative',
@@ -46,7 +34,10 @@ describe('ContextCompilerService — ContextPacket v2', () => {
     sensitivity: 'restricted',
   };
 
-  function makePrisma(rows: unknown[]) {
+  function makePrisma(
+    rows: unknown[],
+    options: { createFails?: boolean; readBack?: boolean } = {},
+  ) {
     const packetCreates: Array<{ data: Record<string, unknown> }> = [];
     const queries: unknown[] = [];
     const tx = {
@@ -56,9 +47,13 @@ describe('ContextCompilerService — ContextPacket v2', () => {
       }),
       contextPacket: {
         create: jest.fn(async (args: { data: Record<string, unknown> }) => {
+          if (options.createFails) throw new Error('db down with private detail');
           packetCreates.push(args);
           return args;
         }),
+        findFirst: jest.fn(async (args: { where: { id: string } }) =>
+          options.readBack === false ? null : { id: args.where.id },
+        ),
       },
     };
     const prisma = {
@@ -73,17 +68,12 @@ describe('ContextCompilerService — ContextPacket v2', () => {
   const sqlTextOf = (arg: unknown): string =>
     ((arg as { strings?: string[] }).strings ?? []).join('?');
 
-  /**
-   * Only the SELECT list. `owner_user_id` legitimately appears in the WHERE clause
-   * on both paths (it is the pre-governance owner column), so asserting on the whole
-   * statement would be asserting the wrong thing.
-   */
   const selectListOf = (arg: unknown): string => {
     const sql = sqlTextOf(arg);
     return sql.slice(sql.indexOf('SELECT'), sql.indexOf('FROM memory_items'));
   };
 
-  it('the v1 path never references a governed column (they are added by an unapplied migration)', async () => {
+  it('the v1 path never references a governed column', async () => {
     const { prisma, queries } = makePrisma([APPROVED_FIRM_ROW]);
     const service = new ContextCompilerService(prisma);
     const packet = await service.compile({
@@ -107,7 +97,7 @@ describe('ContextCompilerService — ContextPacket v2', () => {
     }
   });
 
-  it('the v2 path selects the governed columns — but never source_excerpt', async () => {
+  it('the v2 path selects governed columns but never source_excerpt', async () => {
     const { prisma, queries } = makePrisma([APPROVED_FIRM_ROW]);
     const service = new ContextCompilerService(prisma);
     await service.compile({
@@ -131,7 +121,6 @@ describe('ContextCompilerService — ContextPacket v2', () => {
     ]) {
       expect(sql).toContain(column);
     }
-    // A packet records refs, hashes and metadata — never confidential bodies.
     expect(sql).not.toContain('source_excerpt');
   });
 
@@ -154,11 +143,7 @@ describe('ContextCompilerService — ContextPacket v2', () => {
     expect(item.scope).toBe('firm');
   });
 
-  /**
-   * The privacy contract: a withholding the caller is not cleared to know about
-   * must be recorded WITHOUT its identity and without any excerpt of its content.
-   */
-  it('withholds a restricted item without leaking its identity, title or body', async () => {
+  it('withholds a restricted item without leaking identity, title or body', async () => {
     const { prisma } = makePrisma([CONFIDENTIAL_ROW]);
     const service = new ContextCompilerService(prisma);
     const packet = await service.compile({
@@ -178,23 +163,27 @@ describe('ContextCompilerService — ContextPacket v2', () => {
     expect(serialized).not.toContain('Highly confidential framing.');
   });
 
-  it('writes packet_version 1 for a v1 steering trace and no v2 columns', async () => {
-    const { prisma, packetCreates } = makePrisma([APPROVED_FIRM_ROW]);
+  it('writes packet_version 1 for a v1 trace and verifies the exact row', async () => {
+    const { prisma, tx, packetCreates } = makePrisma([APPROVED_FIRM_ROW]);
     const service = new ContextCompilerService(prisma);
-    await service.compile({
+    const packet = await service.compile({
       tenantId: 't1',
       userId: 'u1',
       surface: 'chat',
       layers: ['firm-identity'],
     });
-    await new Promise((r) => setImmediate(r));
     const data = packetCreates[0]!.data;
     expect(data.packetVersion).toBe(1);
     expect(data).not.toHaveProperty('traceId');
     expect(data).not.toHaveProperty('health');
+    expect(tx.contextPacket.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: packet.generatedPacketId, tenantId: 't1' } }),
+    );
+    expect(packet.packetId).toBe(packet.generatedPacketId);
+    expect(packet.persistedPacketId).toBe(packet.generatedPacketId);
   });
 
-  it('writes packet_version 2 plus the v2 provenance columns for a compiled v2 packet', async () => {
+  it('writes v2 provenance and exposes only the read-back durable id', async () => {
     const { prisma, packetCreates } = makePrisma([APPROVED_FIRM_ROW]);
     const service = new ContextCompilerService(prisma);
     const packet = await service.compile({
@@ -209,9 +198,10 @@ describe('ContextCompilerService — ContextPacket v2', () => {
       tokenBudget: 6_000,
       budgetUnit: 'tokens',
       ref: { documentId: 'doc-1' },
+      persistence: 'required',
     });
-    await new Promise((r) => setImmediate(r));
     const data = packetCreates[0]!.data;
+    expect(data.id).toBe(packet.generatedPacketId);
     expect(data.packetVersion).toBe(2);
     expect(data.traceId).toBe('trace-abc');
     expect(data.promptVersion).toBe('legacy-in-editor-v2');
@@ -225,22 +215,56 @@ describe('ContextCompilerService — ContextPacket v2', () => {
     expect(data.incomplete).toBe(false);
     expect(data.effectiveTenantId).toBe('t1');
     expect(data.ref).toEqual({ documentId: 'doc-1' });
-    // The persisted trace never carries body text.
     expect(JSON.stringify(data.items)).not.toContain('We are a GA firm.');
     expect(packet.persisted).toBe(true);
+    expect(packet.packetId).toBe(packet.generatedPacketId);
   });
 
-  it('a v2 trace-write failure still never rejects compile()', async () => {
-    const { prisma, tx } = makePrisma([APPROVED_FIRM_ROW]);
-    (tx.contextPacket.create as jest.Mock).mockRejectedValue(new Error('db down'));
+  it('best-effort failure returns no durable id and a bounded degraded reason', async () => {
+    const { prisma } = makePrisma([APPROVED_FIRM_ROW], { createFails: true });
     const service = new ContextCompilerService(prisma);
     const packet = await service.compile({
       tenantId: 't1',
       userId: 'u1',
-      surface: 'in-editor',
+      surface: 'chat',
       layers: ['firm-identity'],
       contractVersion: 2,
+      persistence: 'best-effort',
     });
     expect(packet.persisted).toBe(false);
+    expect(packet.packetId).toBeNull();
+    expect(packet.persistedPacketId).toBeNull();
+    expect(packet.persistenceErrorCode).toBe('context_packet_error');
+    expect(JSON.stringify(packet)).not.toContain('private detail');
+  });
+
+  it('required persistence failure holds the operation', async () => {
+    const { prisma } = makePrisma([APPROVED_FIRM_ROW], { createFails: true });
+    const service = new ContextCompilerService(prisma);
+    await expect(
+      service.compile({
+        tenantId: 't1',
+        userId: 'u1',
+        surface: 'in-editor',
+        layers: ['firm-identity'],
+        contractVersion: 2,
+        persistence: 'required',
+      }),
+    ).rejects.toMatchObject({ name: 'ContextPacketPersistenceError' });
+  });
+
+  it('missing read-after-write evidence cannot produce persisted=true', async () => {
+    const { prisma } = makePrisma([APPROVED_FIRM_ROW], { readBack: false });
+    const service = new ContextCompilerService(prisma);
+    const packet = await service.compile({
+      tenantId: 't1',
+      userId: 'u1',
+      surface: 'chat',
+      layers: ['firm-identity'],
+      contractVersion: 2,
+      persistence: 'best-effort',
+    });
+    expect(packet.persisted).toBe(false);
+    expect(packet.packetId).toBeNull();
   });
 });
