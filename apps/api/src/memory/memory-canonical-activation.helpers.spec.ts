@@ -13,6 +13,7 @@ const PROPOSER = '22222222-2222-4222-8222-222222222222';
 const REVIEWER = '33333333-3333-4333-8333-333333333333';
 const CLIO = '44444444-4444-4444-8444-444444444444';
 const ITEM = '55555555-5555-4555-8555-555555555555';
+const CANDIDATE = '77777777-7777-4777-8777-777777777777';
 
 function record(scope: CanonicalMemoryRecord['scope']): CanonicalMemoryRecord {
   return {
@@ -39,6 +40,7 @@ describe('canonical governed memory activation', () => {
       const governance = buildCanonicalGovernance({
         record: record(scope),
         sourceKind: 'explicit_user',
+        candidateId: CANDIDATE,
         assertedByUserId: PROPOSER,
         approvedByUserId: REVIEWER,
         decision: 'approved',
@@ -55,20 +57,22 @@ describe('canonical governed memory activation', () => {
         approvedByUserId: REVIEWER,
         sourceId: 'message-1',
         sourceRef: 'chat',
+        sourceVersion: `candidate:${CANDIDATE}`,
       });
       expect(governance.sourceContentHash).toMatch(/^[a-f0-9]{64}$/);
     },
   );
 
-  it('does not convert model-extracted content into approved human authority', () => {
+  it('promotes reviewed model extraction to analyst-verified authority', () => {
     const governance = buildCanonicalGovernance({
       record: record('firm'),
       sourceKind: 'model_extraction',
+      candidateId: CANDIDATE,
       assertedByUserId: PROPOSER,
       approvedByUserId: REVIEWER,
       decision: 'approved',
     });
-    expect(governance.memoryAuthority).toBe('model_inferred');
+    expect(governance.memoryAuthority).toBe('analyst_verified');
     expect(governance.approvedByUserId).toBe(REVIEWER);
   });
 
@@ -85,6 +89,7 @@ describe('canonical governed memory activation', () => {
     const governance = buildCanonicalGovernance({
       record: record('firm'),
       sourceKind: 'explicit_user',
+      candidateId: CANDIDATE,
       assertedByUserId: PROPOSER,
       approvedByUserId: REVIEWER,
       decision: 'approved',
@@ -107,6 +112,7 @@ describe('canonical governed memory activation', () => {
     const governance = buildCanonicalGovernance({
       record: record('client'),
       sourceKind: 'explicit_user',
+      candidateId: CANDIDATE,
       assertedByUserId: PROPOSER,
       approvedByUserId: REVIEWER,
       decision: 'approved',
@@ -140,6 +146,7 @@ describe('canonical governed memory activation', () => {
     const governance = buildCanonicalGovernance({
       record: record('firm'),
       sourceKind: 'explicit_user',
+      candidateId: CANDIDATE,
       assertedByUserId: PROPOSER,
       approvedByUserId: REVIEWER,
       decision: 'approved',
@@ -224,5 +231,63 @@ describe('canonical governed memory activation', () => {
       status: 'active',
       humanApproved: true,
     });
+  });
+
+  it('withholds the same canonical identity while governance is still pending review', async () => {
+    const governance = buildCanonicalGovernance({
+      record: record('firm'),
+      sourceKind: 'explicit_user',
+      candidateId: CANDIDATE,
+      assertedByUserId: PROPOSER,
+      approvedByUserId: REVIEWER,
+      decision: 'approved',
+    });
+    const item = clioMemoryToItem({
+      id: CLIO,
+      tenantId: TENANT,
+      scope: 'firm',
+      ownerUserId: null,
+      key: 'fy27-position',
+      value: 'Support the verified plus-up.',
+      source: 'chat',
+      metadata: governedClioMetadata(governance),
+      createdAt: '2026-07-30T00:00:00.000Z',
+      updatedAt: '2026-07-30T00:00:00.000Z',
+    });
+    const steering: SteeringRow = {
+      id: ITEM,
+      type: item.type,
+      slug: item.slug,
+      title: item.title,
+      clientId: item.clientId,
+      ownerUserId: item.ownerUserId,
+      visibility: item.visibility,
+      status: 'pending_review',
+      sections: item.sections,
+      memoryClass: item.memoryClass,
+      governedAuthority: item.memoryAuthority,
+      sourceType: item.sourceType,
+      sourceId: item.sourceId,
+      sourceRef: item.sourceRef,
+      sourceVersion: item.sourceVersion,
+      assertedByUserId: item.assertedByUserId,
+      approvedByUserId: null,
+      approvedAt: null,
+      sensitivity: item.sensitivity,
+      conflictStatus: item.conflictStatus,
+    };
+    const compiler = new ContextCompiler({
+      loadSteeringRows: async () => [steering],
+      loadGovernedSteeringRows: async () => [steering],
+    });
+    const packet = await compiler.compile({
+      tenantId: TENANT,
+      userId: REVIEWER,
+      surface: 'ga-chat',
+      layers: ['firm-playbook'],
+      contractVersion: 2,
+    });
+    expect(packet.items).toEqual([]);
+    expect(packet.exclusions).toEqual([expect.objectContaining({ id: ITEM, reason: 'revoked' })]);
   });
 });

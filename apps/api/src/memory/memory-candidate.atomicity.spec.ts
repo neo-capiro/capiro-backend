@@ -25,6 +25,7 @@ interface CandidateState {
   status: string;
   governedStatus: string;
   committedMemoryId: string | null;
+  committedMemoryItemId: string | null;
   decidedBy: string | null;
 }
 
@@ -80,6 +81,7 @@ function makeHarness(options: HarnessOptions = {}) {
           status: args.data.status ?? row.status,
           decidedBy: args.data.decidedBy ?? row.decidedBy,
           committedMemoryId: args.data.committedMemoryId ?? row.committedMemoryId,
+          committedMemoryItemId: args.data.committedMemoryItemId ?? row.committedMemoryItemId,
           governedStatus: args.data.governedStatus ?? row.governedStatus,
         });
         return row;
@@ -143,6 +145,7 @@ function makeHarness(options: HarnessOptions = {}) {
             payload: structuredClone(row.payload),
             proposedBy: row.proposedBy,
             scope: row.scope,
+            sourceKind: row.sourceKind,
           },
         ];
       }
@@ -161,6 +164,7 @@ function makeHarness(options: HarnessOptions = {}) {
           status: 'pending',
           governedStatus: 'suggested',
           committedMemoryId: null,
+          committedMemoryItemId: null,
           decidedBy: null,
         });
         return [{ id }];
@@ -299,6 +303,7 @@ function firmCandidate(overrides: Partial<CandidateState> = {}): CandidateState 
     status: 'pending',
     governedStatus: 'pending_review',
     committedMemoryId: null,
+    committedMemoryItemId: null,
     decidedBy: null,
     ...overrides,
   };
@@ -342,6 +347,26 @@ describe('MemoryCandidateService atomic activation', () => {
         committedMemoryId: [...h.memories.keys()][0],
       });
     });
+  });
+
+  it('records exact canonical item lineage when governed activation is armed', async () => {
+    await withEnv(
+      { MEMORY_GOVERNANCE_ENFORCE: undefined, MEMORY_GOVERNANCE_LIFECYCLE: 'enforce' },
+      async () => {
+        const h = makeHarness({ candidates: [firmCandidate()] });
+        await h.service.approve(TENANT_A, CANDIDATE, REVIEWER_A);
+
+        expect(h.canonicalItems).toHaveLength(1);
+        expect(h.candidates.get(CANDIDATE)).toMatchObject({
+          status: 'approved',
+          committedMemoryId: [...h.memories.keys()][0],
+          committedMemoryItemId: h.canonicalItems[0]?.id,
+        });
+        expect(h.outbox).toEqual([
+          expect.objectContaining({ memoryItemId: h.canonicalItems[0]?.id }),
+        ]);
+      },
+    );
   });
 
   it('rolls back candidate, memory, audit, and outbox when a post-insert audit step fails', async () => {

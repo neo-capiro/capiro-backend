@@ -238,6 +238,7 @@ export class MemoryCandidateService {
         ? buildCanonicalGovernance({
             record,
             sourceKind,
+            candidateId: candidate.id,
             assertedByUserId: proposedByUserId,
             approvedByUserId: proposedByUserId,
             decision: 'auto_committed',
@@ -308,6 +309,7 @@ export class MemoryCandidateService {
         ? buildCanonicalGovernance({
             record,
             sourceKind: candidate.sourceKind,
+            candidateId,
             assertedByUserId: candidate.proposedBy,
             approvedByUserId: approverUserId,
             decision: 'approved',

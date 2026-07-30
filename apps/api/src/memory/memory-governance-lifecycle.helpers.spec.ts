@@ -72,13 +72,15 @@ describe('classifyCandidateForGovernance', () => {
     }
   });
 
-  it('never lets a model extraction earn an approved authority, even auto-committed', () => {
-    const result = classifyCandidateForGovernance(
-      { scope: 'firm', sourceKind: 'model_extraction' },
-      'auto_committed',
+  it('keeps defensive machine activation inferred and promotes only reviewed extraction', () => {
+    const input = { scope: 'firm', sourceKind: 'model_extraction' } as const;
+    expect(classifyCandidateForGovernance(input, 'auto_committed').memoryAuthority).toBe(
+      'model_inferred',
     );
-    expect(result.memoryAuthority).toBe('model_inferred');
-    expect(result.memoryClass).toBe('institutional_authoritative');
+    expect(classifyCandidateForGovernance(input, 'approved')).toMatchObject({
+      memoryAuthority: 'analyst_verified',
+      memoryClass: 'institutional_authoritative',
+    });
   });
 
   /**

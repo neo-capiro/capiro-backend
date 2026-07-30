@@ -75,9 +75,9 @@ export function governedScopeForLegacyScope(scope: string | null | undefined): G
  *    memory_candidate_ephemeral_ttl_check / memory_items_ephemeral_ttl_check
  *    reject that class without expires_at/valid_until. Getting this wrong is a
  *    constraint violation on the approval path, not a soft mislabel.
- *  - a model extraction never receives an *_approved authority even when it
- *    auto-commits; it records `model_inferred`, which CLASS_PRIORITY /
- *    AUTHORITY_PRIORITY in meriv2-core rank below every human authority.
+ *  - a model extraction never receives an *_approved authority. A defensive
+ *    auto-commit remains `model_inferred`; only the explicit human-review path
+ *    may promote it to `analyst_verified`.
  */
 export function classifyCandidateForGovernance(
   input: CandidateClassificationInput,
@@ -95,7 +95,13 @@ export function classifyCandidateForGovernance(
           : 'user_preference';
 
   if (decision === 'rejected') return { memoryClass, memoryScope, memoryAuthority: null };
-  if (machine) return { memoryClass, memoryScope, memoryAuthority: 'model_inferred' };
+  if (machine) {
+    return {
+      memoryClass,
+      memoryScope,
+      memoryAuthority: decision === 'approved' ? 'analyst_verified' : 'model_inferred',
+    };
+  }
   const memoryAuthority: MemoryAuthority =
     memoryScope === 'client'
       ? 'client_approved'

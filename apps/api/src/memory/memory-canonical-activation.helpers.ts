@@ -36,6 +36,9 @@ export interface CanonicalGovernance {
   assertedByUserId: string;
   approvedByUserId: string;
   approvedAt: Date;
+  secondApprovedByUserId: string | null;
+  secondApprovedAt: Date | null;
+  reviewDueAt: Date | null;
   asOf: Date;
   effectiveFrom: Date;
   validUntil: Date | null;
@@ -54,6 +57,7 @@ export interface CanonicalGovernance {
 export function buildCanonicalGovernance(input: {
   record: CanonicalMemoryRecord;
   sourceKind: string;
+  candidateId: string;
   assertedByUserId: string;
   approvedByUserId: string;
   decision: Exclude<CandidateDecision, 'rejected'>;
@@ -76,7 +80,14 @@ export function buildCanonicalGovernance(input: {
     .update('\0')
     .update(input.record.value)
     .digest('hex');
-  const sourceId = input.record.sourceMessageId ?? input.record.sourceConversationId ?? null;
+  const sourceId =
+    input.record.sourceMessageId ?? input.record.sourceConversationId ?? input.candidateId;
+  const sourceType =
+    sourceKind === 'model_extraction'
+      ? 'steward_extraction'
+      : sourceKind === 'explicit_user'
+        ? 'user_message'
+        : 'unknown';
 
   return {
     canonicalType: canonicalTypeForScope(classification.memoryScope),
@@ -84,19 +95,18 @@ export function buildCanonicalGovernance(input: {
     memoryAuthority: classification.memoryAuthority,
     memoryScope: classification.memoryScope,
     governedStatus: 'active',
-    sourceType: sourceKind.slice(0, 40) || 'unknown',
+    sourceType,
     sourceId,
     sourceRef: input.record.source || null,
     sourceExcerpt: truncateUtf8(input.record.sourceExcerpt ?? null, 8_000),
     sourceContentHash,
-    sourceVersion: (
-      input.record.sourceMessageId ??
-      input.record.sourceConversationId ??
-      sourceContentHash
-    ).slice(0, 160),
+    sourceVersion: `candidate:${input.candidateId}`.slice(0, 160),
     assertedByUserId: input.assertedByUserId,
     approvedByUserId: input.approvedByUserId,
     approvedAt,
+    secondApprovedByUserId: null,
+    secondApprovedAt: null,
+    reviewDueAt: null,
     asOf: approvedAt,
     effectiveFrom: approvedAt,
     validUntil: input.record.expiresAt ?? null,
@@ -104,8 +114,12 @@ export function buildCanonicalGovernance(input: {
     conflictGroupId: null,
     controllingItemId: null,
     sensitivity: 'normal',
-    originSurface: sourceKind.slice(0, 48) || 'unknown',
-    originTraceId: input.record.sourceConversationId?.slice(0, 160) ?? null,
+    originSurface: input.record.source.slice(0, 48) || 'unknown',
+    originTraceId: (
+      input.record.sourceMessageId ??
+      input.record.sourceConversationId ??
+      input.candidateId
+    ).slice(0, 160),
     originContextPacketId: null,
     originModel: sourceKind === 'model_extraction' ? 'unknown-model' : null,
     originPromptVersion: null,
@@ -163,6 +177,8 @@ export async function upsertCanonicalMemoryItemInTx(
       memory_class, memory_authority, memory_scope, governed_status,
       source_type, source_id, source_excerpt, source_content_hash, source_version,
       asserted_by_user_id, approved_by_user_id, approved_at,
+      second_approved_by_user_id, second_approved_at, last_confirmed_at,
+      review_state, review_due_at, retention_policy_jsonb,
       as_of, effective_from, valid_until, conflict_status, conflict_group_id,
       controlling_item_id, origin_surface, origin_trace_id,
       origin_context_packet_id, origin_model, origin_prompt_version,
@@ -178,7 +194,9 @@ export async function upsertCanonicalMemoryItemInTx(
       ${governance.governedStatus}, ${governance.sourceType}, ${governance.sourceId},
       ${governance.sourceExcerpt}, ${governance.sourceContentHash}, ${governance.sourceVersion},
       ${governance.assertedByUserId}::uuid, ${governance.approvedByUserId}::uuid,
-      ${governance.approvedAt}, ${governance.asOf}, ${governance.effectiveFrom},
+      ${governance.approvedAt}, ${governance.secondApprovedByUserId}::uuid,
+      ${governance.secondApprovedAt}, ${governance.approvedAt}, 'confirmed',
+      ${governance.reviewDueAt}, NULL, ${governance.asOf}, ${governance.effectiveFrom},
       ${governance.validUntil}, ${governance.conflictStatus}, ${governance.conflictGroupId}::uuid,
       ${governance.controllingItemId}::uuid, ${governance.originSurface},
       ${governance.originTraceId}, ${governance.originContextPacketId}::uuid,
@@ -211,6 +229,12 @@ export async function upsertCanonicalMemoryItemInTx(
       asserted_by_user_id = EXCLUDED.asserted_by_user_id,
       approved_by_user_id = EXCLUDED.approved_by_user_id,
       approved_at = EXCLUDED.approved_at,
+      second_approved_by_user_id = EXCLUDED.second_approved_by_user_id,
+      second_approved_at = EXCLUDED.second_approved_at,
+      last_confirmed_at = EXCLUDED.last_confirmed_at,
+      review_state = 'confirmed',
+      review_due_at = EXCLUDED.review_due_at,
+      retention_policy_jsonb = EXCLUDED.retention_policy_jsonb,
       as_of = EXCLUDED.as_of,
       effective_from = EXCLUDED.effective_from,
       valid_until = EXCLUDED.valid_until,

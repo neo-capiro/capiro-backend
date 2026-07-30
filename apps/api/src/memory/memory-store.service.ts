@@ -125,6 +125,33 @@ export class MemoryStoreService {
       revokedBy: row.revoked_by,
       exportable: row.exportable ?? true,
       trainingUse: (row.training_use ?? 'excluded') as MemoryItem['trainingUse'],
+      memoryClass: row.memory_class ?? undefined,
+      memoryAuthority: row.memory_authority ?? undefined,
+      memoryScope: row.memory_scope ?? undefined,
+      governedStatus: row.governed_status ?? undefined,
+      sourceType: row.source_type ?? undefined,
+      sourceId: row.source_id,
+      sourceExcerpt: row.source_excerpt,
+      sourceContentHash: row.source_content_hash,
+      sourceVersion: row.source_version,
+      assertedByUserId: row.asserted_by_user_id,
+      approvedByUserId: row.approved_by_user_id,
+      approvedAt: row.approved_at?.toISOString() ?? null,
+      secondApprovedByUserId: row.second_approved_by_user_id,
+      secondApprovedAt: row.second_approved_at?.toISOString() ?? null,
+      asOf: row.as_of?.toISOString() ?? null,
+      effectiveFrom: row.effective_from?.toISOString() ?? null,
+      validUntil: row.valid_until?.toISOString() ?? null,
+      reviewDueAt: row.review_due_at?.toISOString() ?? null,
+      conflictStatus: row.conflict_status ?? undefined,
+      conflictGroupId: row.conflict_group_id,
+      controllingItemId: row.controlling_item_id,
+      originSurface: row.origin_surface,
+      originTraceId: row.origin_trace_id,
+      originContextPacketId: row.origin_context_packet_id,
+      originModel: row.origin_model,
+      originPromptVersion: row.origin_prompt_version,
+      instructionsAllowed: row.instructions_allowed ?? false,
     };
   }
 
@@ -398,9 +425,77 @@ export class MemoryStoreService {
         throw new Error('memory_items upsert returned no row');
       }
       const id = row.id;
+      if (hasAuthoritativeProjectionGovernance(item)) {
+        await this.restoreProjectionGovernanceInTx(tx, id, item);
+      }
       await this.deriveEdges(tx, item, id);
       return id;
     });
+  }
+
+  /**
+   * Restore governed metadata from the server-owned Clio projection. Generic
+   * projection writes remain byte-compatible with the pre-migration SQL shape;
+   * this UPDATE runs only when the metadata carries active candidate lineage.
+   */
+  private async restoreProjectionGovernanceInTx(
+    tx: Prisma.TransactionClient,
+    itemId: string,
+    item: MemoryItem,
+  ): Promise<void> {
+    const assertedBy = uuidOrNull(item.assertedByUserId);
+    const approvedBy = uuidOrNull(item.approvedByUserId);
+    const secondApprovedBy = uuidOrNull(item.secondApprovedByUserId);
+    const originPacketId = uuidOrNull(item.originContextPacketId);
+    const conflictGroupId = uuidOrNull(item.conflictGroupId);
+    const controllingItemId = uuidOrNull(item.controllingItemId);
+    const approvedAt = optionalDate(item.approvedAt);
+    const secondApprovedAt = optionalDate(item.secondApprovedAt);
+    const asOf = optionalDate(item.asOf);
+    const effectiveFrom = optionalDate(item.effectiveFrom);
+    const validUntil = optionalDate(item.validUntil);
+    const reviewDueAt = optionalDate(item.reviewDueAt);
+    if (!assertedBy || !approvedBy || !approvedAt) {
+      throw new Error('authoritative projection governance is missing approval identity');
+    }
+
+    await tx.$executeRaw`
+      UPDATE memory_items
+      SET memory_class = ${item.memoryClass},
+          memory_authority = ${item.memoryAuthority},
+          memory_scope = ${item.memoryScope},
+          governed_status = 'active',
+          source_type = ${item.sourceType ?? 'unknown'},
+          source_id = ${item.sourceId ?? null},
+          source_excerpt = ${item.sourceExcerpt?.slice(0, 4_000) ?? null},
+          source_content_hash = ${item.sourceContentHash ?? null},
+          source_version = ${item.sourceVersion ?? null},
+          asserted_by_user_id = ${assertedBy}::uuid,
+          approved_by_user_id = ${approvedBy}::uuid,
+          approved_at = ${approvedAt},
+          second_approved_by_user_id = ${secondApprovedBy}::uuid,
+          second_approved_at = ${secondApprovedAt},
+          as_of = ${asOf},
+          effective_from = ${effectiveFrom},
+          valid_until = ${validUntil},
+          last_confirmed_at = ${approvedAt},
+          review_due_at = ${reviewDueAt},
+          review_state = 'confirmed',
+          conflict_status = ${item.conflictStatus ?? 'none'},
+          conflict_group_id = ${conflictGroupId}::uuid,
+          controlling_item_id = ${controllingItemId}::uuid,
+          sensitivity = ${item.sensitivity ?? 'normal'},
+          retention_policy_jsonb = ${JSON.stringify(item.retentionPolicy ?? null)}::jsonb,
+          legal_hold = ${item.legalHold ?? false},
+          origin_surface = ${item.originSurface ?? null},
+          origin_trace_id = ${item.originTraceId ?? null},
+          origin_context_packet_id = ${originPacketId}::uuid,
+          origin_model = ${item.originModel ?? null},
+          origin_prompt_version = ${item.originPromptVersion ?? null},
+          instructions_allowed = ${item.instructionsAllowed ?? false},
+          updated_at = now()
+      WHERE id = ${itemId}::uuid AND tenant_id = ${item.tenantId}::uuid
+    `;
   }
 
   /**
@@ -547,7 +642,8 @@ export class MemoryStoreService {
       // 'pending_review' (the column default) has no outbound edge to 'revoked' in
       // the state machine, so a pre-classification row is recorded WITHOUT a from
       // status rather than failing the caller's forget on an assertion.
-      fromStatus: before === 'active' || before === 'stale' || before === 'conflicted' ? before : null,
+      fromStatus:
+        before === 'active' || before === 'stale' || before === 'conflicted' ? before : null,
       toStatus: 'revoked',
       reasonCode: 'revoked',
       reason: reason ? `forget: ${reason}` : 'forget verb',
@@ -580,7 +676,8 @@ export class MemoryStoreService {
       subject: { memoryItemId: oldItemId },
       actorUserId: ctx.userId,
       clientId,
-      fromStatus: before === 'active' || before === 'stale' || before === 'conflicted' ? before : null,
+      fromStatus:
+        before === 'active' || before === 'stale' || before === 'conflicted' ? before : null,
       toStatus: 'superseded',
       reasonCode: 'corrected',
       reason: 'correct verb superseded this item',
@@ -918,6 +1015,39 @@ export class MemoryStoreService {
  * that forget/correct already parse inline; a malformed tail yields null rather
  * than an outbox job that would fail its ::uuid cast forever.
  */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function uuidOrNull(value: string | null | undefined): string | null {
+  return typeof value === 'string' && UUID_RE.test(value) ? value : null;
+}
+
+function optionalDate(value: string | Date | null | undefined): Date | null {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function hasAuthoritativeProjectionGovernance(item: MemoryItem): boolean {
+  return (
+    item.governedStatus === 'active' &&
+    [
+      'institutional_authoritative',
+      'client_steering',
+      'user_preference',
+      'episodic_working',
+    ].includes(item.memoryClass ?? '') &&
+    ['firm_approved', 'client_approved', 'user_asserted', 'analyst_verified'].includes(
+      item.memoryAuthority ?? '',
+    ) &&
+    ['firm', 'client', 'user_private'].includes(item.memoryScope ?? '') &&
+    typeof item.sourceVersion === 'string' &&
+    item.sourceVersion.startsWith('candidate:') &&
+    uuidOrNull(item.assertedByUserId) !== null &&
+    uuidOrNull(item.approvedByUserId) !== null &&
+    optionalDate(item.approvedAt) !== null
+  );
+}
+
 function clioIdFromSlug(slug: string): string | null {
   if (!slug.startsWith('clio:')) return null;
   const id = slug.slice('clio:'.length);
@@ -955,4 +1085,31 @@ interface MemoryItemRow {
   revoked_by: string | null;
   exportable: boolean | null;
   training_use: string | null;
+  memory_class: string | null;
+  memory_authority: string | null;
+  memory_scope: 'firm' | 'client' | 'user_private' | null;
+  governed_status: string | null;
+  source_type: string | null;
+  source_id: string | null;
+  source_excerpt: string | null;
+  source_content_hash: string | null;
+  source_version: string | null;
+  asserted_by_user_id: string | null;
+  approved_by_user_id: string | null;
+  approved_at: Date | null;
+  second_approved_by_user_id: string | null;
+  second_approved_at: Date | null;
+  as_of: Date | null;
+  effective_from: Date | null;
+  valid_until: Date | null;
+  review_due_at: Date | null;
+  conflict_status: string | null;
+  conflict_group_id: string | null;
+  controlling_item_id: string | null;
+  origin_surface: string | null;
+  origin_trace_id: string | null;
+  origin_context_packet_id: string | null;
+  origin_model: string | null;
+  origin_prompt_version: string | null;
+  instructions_allowed: boolean | null;
 }
