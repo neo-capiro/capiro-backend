@@ -27,14 +27,6 @@ jobs:
           from pathlib import Path
           import re
 
-          def replace_once(path, old, new, label):
-              p = Path(path)
-              text = p.read_text()
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'{label} replacement count={count}')
-              p.write_text(text.replace(old, new, 1))
-
           helper_import = "import { rethrowRequiredContextPersistence } from '../../context/context-required-persistence.js';"
           for path in [
               'apps/api/src/intelligence/alert-memo/alert-memo.service.ts',
@@ -150,7 +142,7 @@ jobs:
                   this.logger.warn('Research context compile skipped (context_compile_failed)');
                 }
               }
-              return parts.join('\n');
+              return parts.join('\\n');
             }
 
             /** Single non-streaming Anthropic completion"""
