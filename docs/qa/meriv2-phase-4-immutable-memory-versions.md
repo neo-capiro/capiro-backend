@@ -93,8 +93,25 @@ They cover:
 - truthful Meri pending-review and duplicate outcomes;
 - generic approval bypass guards.
 
-GitHub Actions results for the exact final Phase 4 SHA must be recorded in PR #679 before
-this phase is marked green.
+## Accepted validation
+
+Accepted code/scaffolding-cleanup SHA: `30cad17a9ca382af26e90cbcc0f88d7401685d06`.
+
+- `memory-governance-ci` `30546024134` — **PASS**; API dependency-graph typecheck plus 5 suites / 31 tests.
+- `ci-pr` `30546024138` — **PASS**.
+- `meriv2-evals` `30546024142` — **PASS**.
+- `engagement-trust-boundary` `30546024217` — **PASS**.
+- `funding-opportunities-ci` `30546024216` — **PASS**.
+- `legiwatch-ci` `30546024224` — **PASS**.
+
+The branch was synchronized through PR #717 at merge commit
+`6c8f32d946388a2a1e0b7f3233a2e80a26de9a3a`, preserving current-main
+District Nexus/facility-geocoding behavior and the current-main Funding
+Opportunities migration-ordering guard. No Program Element or defense-budget
+file required conflict resolution. Immediately before acceptance, the branch
+was zero commits behind `main@3dcb12f823774b6fae8578dc56fc122bf9a0879e`.
+
+**PASS.** Shared corrections and restores now preserve immutable history and cannot change controlling firm/client memory without independent review. Personal correction is transactional; shared approval is target-bound and row-locked; restores create new IDs; exact duplicates do not create a second truth; contradictions retain both versions until explicit resolution; and the moving-main integration plus all required CI gates are green.
 
 ## Explicit downstream boundary
 

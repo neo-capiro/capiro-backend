@@ -474,3 +474,75 @@ Revert runtime commit `51bcb642` if the Settings review behavior must be withdra
 | Truthful shared-save UX | `MemoryFileEditor` result contract | `51bcb642` | 2/2 web tests | **complete** |
 
 **Next gated phase:** Phase 4 — route shared corrections and restores through immutable reviewed versions.
+
+## Phase 4 — immutable reviewed corrections and restores (2026-07-30)
+
+### Current baseline and implementation
+
+- Initial immutable-version implementation: `700dc2fc62aced7ec126a57d014f428318aa2d6c`.
+- Re-audited code-bearing SHA: `04b9b1050d64bec3cbe47b24973e6cff70cfd2fe`.
+- Current-main synchronization merge: `6c8f32d946388a2a1e0b7f3233a2e80a26de9a3a`, bringing in `main@3dcb12f823774b6fae8578dc56fc122bf9a0879e`.
+- The synchronization preserved current-main District Nexus/facility-geocoding behavior and the corrected Funding Opportunities migration-ordering guard. No Program Element or defense-budget file required conflict resolution.
+- Permanent Phase 4 workflow restored in `30cad17a9ca382af26e90cbcc0f88d7401685d06`; temporary synchronization scaffolding is absent.
+- PR #679 remains a draft and unmerged.
+
+### Runtime contract
+
+- Personal correction creates a new private active version and supersedes exactly one prior version in the same transaction.
+- Firm/client correction creates a review candidate and leaves the controlling item unchanged until independent approval.
+- Restore never reopens a revoked, superseded, rejected, or expired row; it creates a new version referencing the historical source.
+- Exact duplicate content links and confirms the existing controlling item without creating a second controlling row.
+- Contradictions retain both versions in an open conflict group; noncontrolling claims stay withheld until explicit resolution.
+- Approval is row-locked, independently authorized, bound to the exact target reviewed, and atomic with lineage, transition evidence, canonical version mutation, and cleanup intent.
+- Legal holds prevent terminal transitions and are inherited by derivative immutable versions.
+- The generic candidate approval path is database-blocked for correction, restore, and contradiction candidates.
+- Long source slugs preserve the complete version UUID suffix, and expired restores cannot silently reactivate stale validity windows.
+
+### Regression and security evidence
+
+The focused lifecycle gate covers five suites and 31 tests:
+
+- `memory-version.helpers.spec.ts`;
+- `immutable-memory-version.service.spec.ts`;
+- `migration-memory-immutable-versions.spec.ts`;
+- `memory-candidate.atomicity.spec.ts`;
+- `governed-meri-tools.proxy.spec.ts`.
+
+Coverage includes pending shared corrections, one-version supersession, rejection no-op, restore-new-ID behavior, duplicate linking, contradiction retention, legal-hold denial/inheritance, target-drift prevention, controlling-version guards, expired-restore rules, long-slug identity preservation, truthful Meri outcomes, transaction rollback, and generic-approval bypass prevention.
+
+### Current-main validation and CI
+
+Accepted code/scaffolding-cleanup SHA: `30cad17a9ca382af26e90cbcc0f88d7401685d06`.
+
+- `memory-governance-ci` `30546024134` — **PASS**; API dependency-graph typecheck plus 5 suites / 31 tests.
+- `ci-pr` `30546024138` — **PASS**.
+- `meriv2-evals` `30546024142` — **PASS**.
+- `engagement-trust-boundary` `30546024217` — **PASS**.
+- `funding-opportunities-ci` `30546024216` — **PASS**.
+- `legiwatch-ci` `30546024224` — **PASS**.
+
+The branch was zero commits behind `main@3dcb12f823774b6fae8578dc56fc122bf9a0879e` after synchronization and before this acceptance record.
+
+### Acceptance gate
+
+**PASS.** Shared corrections and restores now preserve immutable history and cannot change controlling firm/client memory without independent review. Personal correction is transactional; shared approval is target-bound and row-locked; restores create new IDs; exact duplicates do not create a second truth; contradictions retain both versions until explicit resolution; and the moving-main integration plus all required CI gates are green.
+
+### Rollback
+
+Keep `MEMORY_GOVERNANCE_LIFECYCLE` and related release flags dark. Revert the Phase 4 runtime commits or deploy the prior application image while leaving additive schema, pending candidates, immutable history, audit evidence, and cleanup obligations intact. Never reopen terminal rows, activate pending shared proposals as part of rollback, rewrite published branch history, or delete historical versions.
+
+No production deployment, migration application, backfill, feature-flag change, AWS operation, merge to `main`, or customer-data operation occurred during Phase 4.
+
+### Traceability update
+
+| Finding | Runtime path | Implementation | Test evidence | State |
+| --- | --- | --- | --- | --- |
+| Shared correction review gate | governed Meri/store adapter → immutable version candidate | `700dc2fc` + re-audit through `04b9b105` | focused lifecycle matrix | **complete** |
+| Personal immutable correction | transaction-scoped version activation | `04b9b105` | correction and rollback tests | **complete** |
+| Restore creates a new version | dedicated restore route/service | `04b9b105` | restore-new-ID and expiry tests | **complete** |
+| Duplicate confirmation/linking | deterministic duplicate branch | `04b9b105` | duplicate-no-new-row tests | **complete** |
+| Contradiction retention | conflict-group activation and recall suppression | `04b9b105` | conflict history tests | **complete** |
+| Legal hold and reviewed-target binding | service checks plus database guards | `04b9b105` | legal-hold, drift, and trigger specs | **complete** |
+| Moving-main preservation | synchronization PR #717 | `6c8f32d9` | branch 0 behind; no Program Element overlap | **complete** |
+
+**Next gated phase:** Phase 5 — durable forward projection and indexing for immutable memory versions.
