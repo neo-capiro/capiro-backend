@@ -17,6 +17,11 @@ import {
 } from './surface-policy';
 
 const settings = (flags: Record<string, unknown>) => ({ clioFeatureFlags: flags });
+const enabled = (surface: (typeof CONTEXT_PACKET_V2_SURFACES)[number]) =>
+  settings({
+    [CONTEXT_PACKET_V2_TENANT_FLAG]: true,
+    [contextPacketSurfaceFlag(surface)]: true,
+  });
 
 describe('Phase 8 Context Packet rollout switch', () => {
   it('defaults and unknown values fail closed to off', () => {
@@ -32,9 +37,20 @@ describe('Phase 8 Context Packet rollout switch', () => {
     expect(resolveContextPacketMode('ENFORCE')).toBe('enforce');
   });
 
-  it('requires a server-read tenant canary and supports surface opt-out', () => {
-    const enabled = settings({ [CONTEXT_PACKET_V2_TENANT_FLAG]: true });
-    expect(tenantContextPacketCanaryEnabled(enabled, 'ga-chat')).toBe(true);
+  it('requires both the server-read tenant canary and the exact surface opt-in', () => {
+    expect(tenantContextPacketCanaryEnabled(enabled('ga-chat'), 'ga-chat')).toBe(true);
+    expect(
+      tenantContextPacketCanaryEnabled(
+        settings({ [CONTEXT_PACKET_V2_TENANT_FLAG]: true }),
+        'ga-chat',
+      ),
+    ).toBe(false);
+    expect(
+      tenantContextPacketCanaryEnabled(
+        settings({ [contextPacketSurfaceFlag('ga-chat')]: true }),
+        'ga-chat',
+      ),
+    ).toBe(false);
     expect(
       tenantContextPacketCanaryEnabled(
         settings({
@@ -48,10 +64,14 @@ describe('Phase 8 Context Packet rollout switch', () => {
     expect(tenantContextPacketCanaryEnabled(null, 'ga-chat')).toBe(false);
   });
 
-  it('keeps tenant B off while tenant A can run shadow or enforce', () => {
-    const tenantA = settings({ [CONTEXT_PACKET_V2_TENANT_FLAG]: true });
-    const tenantB = settings({ [CONTEXT_PACKET_V2_TENANT_FLAG]: false });
+  it('keeps tenant B and every unselected surface off while tenant A can canary one surface', () => {
+    const tenantA = enabled('memo');
+    const tenantB = settings({
+      [CONTEXT_PACKET_V2_TENANT_FLAG]: true,
+      [contextPacketSurfaceFlag('memo')]: false,
+    });
     expect(resolveTenantContextPacketMode('shadow', tenantA, 'memo')).toBe('shadow');
+    expect(resolveTenantContextPacketMode('shadow', tenantA, 'outreach')).toBe('off');
     expect(resolveTenantContextPacketMode('shadow', tenantB, 'memo')).toBe('off');
     expect(resolveTenantContextPacketMode('enforce', tenantA, 'memo')).toBe('enforce');
     expect(resolveTenantContextPacketMode('off', tenantA, 'memo')).toBe('off');
