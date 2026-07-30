@@ -112,7 +112,7 @@ export class ContextCompilerService {
         data: {
           id: packet.generatedPacketId,
           tenantId: packet.tenantId,
-          effectiveTenantId: packet.tenantId,
+          effectiveTenantId: packet.effectiveTenantId,
           surface: packet.surface,
           userId: packet.userId,
           clientId: packet.clientId,
