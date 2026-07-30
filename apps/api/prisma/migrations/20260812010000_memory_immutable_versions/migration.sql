@@ -47,7 +47,9 @@ DECLARE
   expected_target_id uuid;
   actual_target_id uuid;
 BEGIN
-  IF NEW.origin_surface NOT IN ('memory_correction','memory_restore','memory_contradiction') THEN
+  IF NEW.origin_surface IS NULL
+     OR NEW.origin_surface NOT IN ('memory_correction','memory_restore','memory_contradiction')
+  THEN
     RETURN NEW;
   END IF;
 
@@ -283,9 +285,11 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
   IF (
-    NEW.status IS DISTINCT FROM OLD.status AND NEW.status = 'superseded'
-    OR NEW.governed_status IS DISTINCT FROM OLD.governed_status
+    (NEW.status IS DISTINCT FROM OLD.status AND NEW.status = 'superseded')
+    OR (
+      NEW.governed_status IS DISTINCT FROM OLD.governed_status
       AND NEW.governed_status = 'superseded'
+    )
   )
   AND OLD.governed_status = 'conflicted'
   AND NOT (
