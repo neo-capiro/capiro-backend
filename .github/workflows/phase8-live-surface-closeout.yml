@@ -1,0 +1,169 @@
+name: phase8-live-surface-closeout
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  closeout:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'agent/meriv2-world-class-closeout'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Patch all Phase 8 external-deliverable boundaries
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          helper_import = "import { rethrowRequiredContextPersistence } from '../../context/context-required-persistence.js';"
+          for file in ('alert-memo.service.ts', 'district-brief.service.ts'):
+              p = Path('apps/api/src/intelligence/alert-memo') / file
+              text = p.read_text()
+              anchor = "import { ContextCompilerService } from '../../context/context-compiler.service.js';"
+              if helper_import not in text:
+                  assert text.count(anchor) == 1, (file, 'import', text.count(anchor))
+                  text = text.replace(anchor, anchor + '\n' + helper_import, 1)
+              pattern = re.compile(r"    \} catch \(err\) \{\n\s+this\.logger\.debug\(`steering compile skipped: \$\{\(err as Error\)\.message\}`\);\n\s+\}")
+              replacement = """    } catch (err) {
+                rethrowRequiredContextPersistence(err);
+                this.logger.debug('steering compile skipped (context_compile_failed)');
+              }"""
+              text, count = pattern.subn(lambda _m: replacement, text, count=1)
+              assert count == 1, (file, 'catch', count)
+              p.write_text(text)
+
+          p = Path('apps/api/src/engagement/engagement.service.ts')
+          text = p.read_text()
+          anchor = "import { ContextCompilerService } from '../context/context-compiler.service.js';"
+          helper = "import { rethrowRequiredContextPersistence } from '../context/context-required-persistence.js';"
+          if helper not in text:
+              assert text.count(anchor) == 1, ('engagement import', text.count(anchor))
+              text = text.replace(anchor, anchor + '\n' + helper, 1)
+          pattern = re.compile(r"(  private async loadUserVoiceBlock\([\s\S]*?return parts\.length \? parts\.join\('\\n\\n'\) : null;\n)    \} catch \{\n      return null;\n    \}")
+          replacement = r"\1    } catch (error) {\n      rethrowRequiredContextPersistence(error);\n      return null;\n    }"
+          text, count = pattern.subn(replacement, text, count=1)
+          assert count == 1, ('engagement catch', count)
+          p.write_text(text)
+
+          p = Path('apps/api/src/meri/meri-research.service.ts')
+          text = p.read_text()
+          text = text.replace(
+              "import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';",
+              "import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';",
+              1,
+          )
+          anchor = "import { ReviewsService } from '../reviews/reviews.service.js';"
+          context_import = "import { ContextCompilerService } from '../context/context-compiler.service.js';"
+          boundary_import = "import { rethrowRequiredContextPersistence } from '../context/context-required-persistence.js';"
+          if context_import not in text:
+              assert text.count(anchor) == 1, ('research import', text.count(anchor))
+              text = text.replace(anchor, anchor + '\n' + context_import + '\n' + boundary_import, 1)
+          old_ctor = """    private readonly aiCredentials: AiCredentialResolverService,
+              private readonly reviews: ReviewsService,
+            ) {}"""
+          new_ctor = """    private readonly aiCredentials: AiCredentialResolverService,
+              private readonly reviews: ReviewsService,
+              @Optional() private readonly contextCompiler?: ContextCompilerService,
+            ) {}"""
+          assert text.count(old_ctor) == 1, ('research ctor', text.count(old_ctor))
+          text = text.replace(old_ctor, new_ctor, 1)
+          pattern = re.compile(r"  private async clientContext\(ctx: TenantContext, clientId: string \| null\): Promise<string \| null> \{[\s\S]*?\n  \}\n\n  /\*\* Single non-streaming Anthropic completion")
+          method = r"""  private async clientContext(ctx: TenantContext, clientId: string | null): Promise<string | null> {
+              if (!clientId) return null;
+              let client: { name: string; description: string | null; productDescription: string | null } | null;
+              try {
+                client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+                  tx.client.findFirst({
+                    where: { id: clientId },
+                    select: { name: true, description: true, productDescription: true },
+                  }),
+                );
+              } catch {
+                return null;
+              }
+              if (!client) return null;
+              const parts = [`Client: ${client.name}`];
+              if (client.description) parts.push(`Description: ${client.description}`);
+              if (client.productDescription) parts.push(`Product/service: ${client.productDescription}`);
+              if (this.contextCompiler) {
+                try {
+                  const packet = await this.contextCompiler.compile({
+                    tenantId: ctx.tenantId,
+                    userId: ctx.userId,
+                    clientId,
+                    surface: 'research',
+                    layers: ['firm-identity', 'firm-playbook', 'user-voice', 'client-steering', 'client-people'],
+                    render: 'all',
+                    ref: { clientId },
+                  });
+                  for (const item of packet.rendered) {
+                    parts.push(`Institutional context (${item.type}):\n${item.body}`);
+                  }
+                } catch (error) {
+                  rethrowRequiredContextPersistence(error);
+                  this.logger.warn('Research context compile skipped (context_compile_failed)');
+                }
+              }
+              return parts.join('\n');
+            }
+
+            /** Single non-streaming Anthropic completion"""
+          text, count = pattern.subn(lambda _m: method, text, count=1)
+          assert count == 1, ('research method', count)
+          p.write_text(text)
+
+          p = Path('infra/cdk/lib/compute-stack.ts')
+          text = p.read_text()
+          if 'MERIV2_CONTEXT_PACKET_V2' not in text:
+              replacements = [
+                ("      MERIV2_ENABLED: 'true',\n      MERIV2_ORCHESTRATOR_URL: `https://${cfg.appHost}`,", "      MERIV2_ENABLED: 'true',\n      MERIV2_CONTEXT_PACKET_V2: 'off',\n      MERIV2_ORCHESTRATOR_URL: `https://${cfg.appHost}`,"),
+                ("      WEB_ORIGIN: `https://${cfg.appHost}`,\n    };\n\n    const workspaceTaskDef", "      WEB_ORIGIN: `https://${cfg.appHost}`,\n      MERIV2_CONTEXT_PACKET_V2: 'off',\n    };\n\n    const workspaceTaskDef"),
+                ("      WEB_ORIGIN: `https://${cfg.appHost}`,\n      // Phase-0 client-context delegation target", "      WEB_ORIGIN: `https://${cfg.appHost}`,\n      MERIV2_CONTEXT_PACKET_V2: 'off',\n      // Phase-0 client-context delegation target"),
+              ]
+              for old, new in replacements:
+                  assert text.count(old) == 1, ('compute env', old[:30], text.count(old))
+                  text = text.replace(old, new, 1)
+          p.write_text(text)
+          PY
+      - name: Format and validate full repository graph
+        run: |
+          pnpm exec prettier --write \
+            apps/api/src/intelligence/alert-memo/alert-memo.service.ts \
+            apps/api/src/intelligence/alert-memo/district-brief.service.ts \
+            apps/api/src/engagement/engagement.service.ts \
+            apps/api/src/meri/meri-research.service.ts \
+            infra/cdk/lib/compute-stack.ts
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/api-strategy exec prisma generate
+          pnpm --filter @capiro/intel-api exec prisma generate
+          pnpm --filter @capiro/onboard-api exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
+          pnpm turbo run typecheck
+          rm .github/workflows/phase8-live-surface-closeout.yml
+      - name: Commit validated patch
+        run: |
+          git config user.name "Capiro Closeout Agent"
+          git config user.email "noreply@capiro.ai"
+          git add apps/api/src/intelligence/alert-memo/alert-memo.service.ts \
+                  apps/api/src/intelligence/alert-memo/district-brief.service.ts \
+                  apps/api/src/engagement/engagement.service.ts \
+                  apps/api/src/meri/meri-research.service.ts \
+                  infra/cdk/lib/compute-stack.ts \
+                  .github/workflows/phase8-live-surface-closeout.yml
+          git commit -m "fix(meriv2): enforce Phase 8 deliverable boundaries"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
