@@ -50,15 +50,13 @@ export interface ContextPacketRolloutStoreAdapter extends TruthfulContextStoreAd
   /** Persist bounded comparison metadata only; never packet bodies. */
   persistShadowComparison?(input: {
     tenantId: string;
-    shadowPacketId: string;
+    comparisonPacketId: string;
     comparison: ContextPacketShadowComparison;
   }): Promise<void>;
 }
 
 export type Phase8ContextPacket = CompiledContextPacket & {
-  rolloutMode?: ContextPacketMode;
   optionalLayers?: SteeringLayer[];
-  shadowComparison?: ContextPacketShadowComparison;
 };
 
 interface Phase8Health extends ContextPacketHealth {
@@ -69,7 +67,7 @@ interface Phase8Health extends ContextPacketHealth {
  * Phase 8 rollout owner.
  *
  * - off: one byte-compatible v1 compile; governed columns are never read.
- * - shadow: compile/persist v1, compile/persist v2 best-effort, return v1.
+ * - shadow: compile/persist v1, compile/persist v2 best-effort, return v1 unchanged.
  * - enforce: compile/persist v2 using the explicit surface policy.
  */
 export class ContextPacketRolloutCompiler {
@@ -82,16 +80,14 @@ export class ContextPacketRolloutCompiler {
   async compile(req: ContextRequest, mode: ContextPacketMode): Promise<Phase8ContextPacket> {
     const baselineRequest = stripRequestTimeV2Hints(req);
     if (mode === 'off') {
-      const packet = await this.truthful.compile(baselineRequest);
-      return Object.assign(packet, { rolloutMode: 'off' as const });
+      return this.truthful.compile(baselineRequest);
     }
 
     if (mode === 'enforce') {
       const request = v2Request(baselineRequest, 'enforce');
-      const packet = await this.truthful.compile(request, (compiled) =>
+      return this.truthful.compile(request, (compiled) =>
         finalizeV2Packet(compiled, contextSurfacePolicy(req.surface)),
       );
-      return Object.assign(packet, { rolloutMode: 'enforce' as const });
     }
 
     const baseline = await this.truthful.compile(baselineRequest);
@@ -101,30 +97,27 @@ export class ContextPacketRolloutCompiler {
       shadow = await this.truthful.compile(v2Request(baselineRequest, 'shadow'), (compiled) =>
         finalizeV2Packet(compiled, contextSurfacePolicy(req.surface)),
       );
+      shadowErrorCode = shadow.persistenceErrorCode;
     } catch (error) {
       shadowErrorCode = contextPacketPersistenceErrorCode(error);
     }
 
     const comparison = comparePackets(baseline, shadow, shadowErrorCode);
-    if (
-      shadow?.persisted === true &&
-      typeof shadow.persistedPacketId === 'string' &&
-      this.store.persistShadowComparison
-    ) {
+    const comparisonPacketId = shadow?.persistedPacketId ?? baseline.persistedPacketId;
+    if (comparisonPacketId && this.store.persistShadowComparison) {
       try {
         await this.store.persistShadowComparison({
           tenantId: req.tenantId,
-          shadowPacketId: shadow.persistedPacketId,
+          comparisonPacketId,
           comparison,
         });
       } catch {
         // Comparison persistence is observability only. It must never alter v1 output.
       }
     }
-    return Object.assign(baseline, {
-      rolloutMode: 'shadow' as const,
-      shadowComparison: comparison,
-    });
+
+    // Shadow mode must be indistinguishable from off to model and product callers.
+    return baseline;
   }
 }
 
@@ -247,8 +240,8 @@ function comparePackets(
       shadowV2 == null
         ? null
         : shadowV2.usedTokens -
-          Math.ceil(baseline.rendered.reduce((n, r) => n + r.body.length, 0) / 4),
-    confidentialityRegression: shadow ? leaksWithheldIdentity(shadow) : false,
+          Math.ceil(baseline.rendered.reduce((sum, item) => sum + item.body.length, 0) / 4),
+    confidentialityRegression: shadow ? hasConfidentialityRegression(shadow) : false,
     shadowErrorCode,
   };
 }
@@ -265,11 +258,28 @@ function conflictCount(packet: CompiledContextPacket): number {
   return packet.version === 2 ? packet.health.conflictCount : 0;
 }
 
-function leaksWithheldIdentity(packet: CompiledContextPacket): boolean {
+function hasConfidentialityRegression(packet: CompiledContextPacket): boolean {
   const withheld = new Set(['unauthorized', 'wrong-client', 'sensitivity-denied']);
-  return packet.exclusions.some(
-    (item) => withheld.has(item.reason) && Boolean(item.id || item.type || item.slug),
-  );
+  if (
+    packet.exclusions.some(
+      (item) => withheld.has(item.reason) && Boolean(item.id || item.type || item.slug),
+    )
+  ) {
+    return true;
+  }
+  if (packet.version !== 2) return false;
+
+  const allowedSensitivities = new Set(contextSurfacePolicy(packet.surface).allowedSensitivities);
+  return packet.items.some((item) => {
+    if (!allowedSensitivities.has(item.sensitivity)) return true;
+    if (item.scope === 'client' && (!packet.clientId || item.clientId !== packet.clientId)) {
+      return true;
+    }
+    if (item.scope === 'user_private' && (!packet.userId || item.ownerUserId !== packet.userId)) {
+      return true;
+    }
+    return false;
+  });
 }
 
 function removeOuterContextEnvelope(body: string): string {
@@ -328,7 +338,7 @@ function sortValue(value: unknown): unknown {
   if (!value || typeof value !== 'object') return value;
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>)
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([left], [right]) => left.localeCompare(right))
       .map(([key, child]) => [key, sortValue(child)]),
   );
 }
