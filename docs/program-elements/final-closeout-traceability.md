@@ -333,7 +333,7 @@ plus concrete findings. Do not implement fixes.
 | Prior product tip (FAIL B8–B11) | `9381d154c2869e5db995f16b968d2a41422d3deb` (docs pin `e08797811`) |
 | Prior review | VERDICT: FAIL — B8–B11 overview/procurement success-Empty on isError |
 | Remediation product r2 | See work-log Phase 5 FAIL remediation r2 (B8–B11) |
-| Post-push tip | *(record after push via `git rev-parse origin/agent/program-elements-final-closeout`)* |
+| Post-push tip | `4e2abed9ba5a03acdfbdef6b47ec0be1d2fe3ba3` |
 | Implementer gate | IMPLEMENT PUSHED / review **REQUIRED** — **not** self-PASS |
 | Next | New session `./pe-closeout-run.sh review 5` on new tip only |
 | MeriV2 | untouched |
