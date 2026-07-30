@@ -7,7 +7,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
-import { resolveContextPacketMode } from '@capiro/meriv2-core';
+import {
+  MERIV2_CONTEXT_PACKET_V2_ENV,
+  resolveContextPacketMode,
+} from '@capiro/meriv2-core';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
@@ -100,7 +103,11 @@ export class MeriContextPacketController {
   }
 
   private packetSelect() {
-    const v2 = resolveContextPacketMode(process.env.CONTEXT_PACKET_V2) === 'v2';
+    // Shadow persists v2 comparison traces even though v1 remains model-active, so
+    // both shadow and enforce must be able to read v2 metadata. Off never touches
+    // migration-added columns.
+    const v2Columns =
+      resolveContextPacketMode(process.env[MERIV2_CONTEXT_PACKET_V2_ENV]) !== 'off';
     return {
       id: true,
       surface: true,
@@ -109,7 +116,7 @@ export class MeriContextPacketController {
       items: true,
       exclusions: true,
       createdAt: true,
-      ...(v2
+      ...(v2Columns
         ? {
             packetVersion: true,
             health: true,
