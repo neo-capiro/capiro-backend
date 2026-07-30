@@ -3,6 +3,9 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import type { TenantRole } from '@capiro/shared';
 import {
   contextPacketV2Overrides,
+  contextSurfacePolicy,
+  durableContextPacketId,
+  isContextPacketPersistenceError,
   renderedBody,
   type CompiledContextPacket,
   type ContextSurface,
@@ -18,14 +21,20 @@ function packetSummary(
   requestedSurface: ContextSurface,
 ): MeriContextPacketSummary {
   const renderedById = new Map(packet.rendered.map((item) => [item.id, item]));
-  // These three reasons mean the caller isn't authorized to know the item
-  // exists at all, so they're withheld from the visible list and only ever
-  // surfaced as an aggregate count — never by id/type (matches compiler.ts's
-  // exclusionFor(), which already strips identity for the same three reasons).
   const identityWithheldReasons = new Set(['unauthorized', 'wrong-client', 'sensitivity-denied']);
   const unauthorized = packet.exclusions.filter((item) => identityWithheldReasons.has(item.reason));
+  const persistenceFailed = packet.persisted !== true;
+  const healthReasons = packet.version === 2 ? packet.health.reasons : [];
+  const degradedReasons = [
+    ...healthReasons,
+    ...(persistenceFailed
+      ? [`Context packet persistence unavailable (${packet.persistenceErrorCode ?? 'unknown'})`]
+      : []),
+  ];
   return {
-    packetId: packet.packetId,
+    packetId: durableContextPacketId(packet),
+    persisted: packet.persisted,
+    persistenceErrorCode: packet.persistenceErrorCode ?? null,
     compiledAt: packet.compiledAt,
     surface: requestedSurface,
     clientId: packet.clientId,
@@ -42,10 +51,6 @@ function packetSummary(
         label: rendered?.title || item.type,
         type: item.type,
         scope,
-        // A v2 item knows its real governed authority and whether the user picked
-        // it. Hardcoding 'human-authored'/'automatic' over a v2 packet would print
-        // "Authority · human-authored" above a model_inferred item. v1 items have
-        // no provenance to report, so they keep the legacy label.
         authority: 'authority' in item ? item.authority : 'human-authored',
         userScoped: scope === 'personal',
         rationale: 'rationale' in item ? item.rationale : item.inclusionReason,
@@ -66,12 +71,9 @@ function packetSummary(
         reason: item.reason,
       })),
     unauthorizedCount: unauthorized.length,
-    // v1 packets have no health concept to be degraded in; v2 packets must
-    // actually report their compiled health rather than claim success blindly.
-    degraded: packet.version === 2 ? packet.health.status !== 'healthy' : false,
-    ...(packet.version === 2 && packet.health.reasons.length
-      ? { degradedReason: packet.health.reasons.join('; ') }
-      : {}),
+    degraded:
+      persistenceFailed || (packet.version === 2 ? packet.health.status !== 'healthy' : false),
+    ...(degradedReasons.length ? { degradedReason: degradedReasons.join('; ') } : {}),
   };
 }
 
@@ -84,14 +86,6 @@ export class MeriContextResolver {
     private readonly contextCompiler: OrchestratorContextCompilerService,
   ) {}
 
-  /**
-   * @param surface the surface asking for context. It is written verbatim to
-   *   `context_packet.surface`, so passing the wrong one mislabels the trace. It
-   *   used to be typed as only `'ga-chat' | 'workspace-editor'`, which meant
-   *   Strategy and Steward silently fell through to the `'ga-chat'` default and
-   *   their rows both mis-attributed themselves and competed with real chat
-   *   packets in the chat Context Inspector's lookup.
-   */
   async resolve(
     tenant: OrchestratorTenantContext,
     clientId?: string | null,
@@ -114,10 +108,6 @@ export class MeriContextResolver {
       const layers = clientId
         ? (['firm-identity', 'user-voice', 'client-steering', 'client-people'] as const)
         : (['firm-identity', 'user-voice'] as const);
-      // Server-derived ethical-wall decision for the v2 compile (closeout §6),
-      // resolved from the database for the REAL authenticated user — never from
-      // anything the caller sent. Only consumed when v2 is armed for this
-      // surface; contextPacketV2Overrides drops it entirely otherwise.
       const ethicalWallAllowed = await this.resolveEthicalWallAllowed(
         tenant.tenantId,
         user.id,
@@ -130,9 +120,6 @@ export class MeriContextResolver {
         layers: [...layers],
         ref,
         ...(clientId ? { clientId } : {}),
-        // ContextPacket v2, dark by default: `contextPacketV2Overrides` returns {}
-        // unless CONTEXT_PACKET_V2=enforce arms this surface, so the compiled
-        // request is byte-for-byte the pre-v2 one until it is.
         ...contextPacketV2Overrides(process.env.CONTEXT_PACKET_V2, {
           surface,
           traceId: randomUUID(),
@@ -161,16 +148,24 @@ export class MeriContextResolver {
             : undefined;
       }
     } catch (error) {
+      if (isContextPacketPersistenceError(error) && contextSurfacePolicy(surface).externalDeliverable) {
+        throw error;
+      }
       const reason = error instanceof Error ? error.message : 'Context compilation failed';
       this.logger.warn(`context compile failed (non-fatal): ${reason}`);
       contextPacket = {
+        packetId: null,
+        persisted: false,
+        persistenceErrorCode: isContextPacketPersistenceError(error) ? error.code : null,
         surface,
         clientId: clientId ?? null,
         items: [],
         exclusions: [],
         unauthorizedCount: 0,
         degraded: true,
-        degradedReason: 'Required firm or client context could not be loaded.',
+        degradedReason: isContextPacketPersistenceError(error)
+          ? 'Context was compiled, but its durable provenance trace could not be saved.'
+          : 'Required firm or client context could not be loaded.',
       };
     }
 
@@ -204,22 +199,6 @@ export class MeriContextResolver {
     };
   }
 
-  /**
-   * Server-derived ethical-wall decision: may `userId` be shown `clientId`'s
-   * confidential memory? (closeout §6, contract change 4.)
-   *
-   * Fail-closed on every uncertain input — no client, a client id that does not
-   * resolve inside this tenant, or a query error all return `false`. `compileV2`
-   * admits client-scope rows only on a literal `true`, so a wrong answer here is
-   * the difference between withholding context and rendering a walled client's
-   * material into the model prompt.
-   *
-   * Duplicated in SHAPE, not by import, from the canonical `clientMemoryAllowed`
-   * in apps/api/src/memory/memory-wall.helpers.ts: this is a separate Nest app
-   * that cannot import apps/api, but it reads the SAME physical tables
-   * (`clients.memory_wall`, `client_memory_access`) through the same generated
-   * Prisma client. The api-side helper is authoritative if they ever diverge.
-   */
   private async resolveEthicalWallAllowed(
     tenantId: string,
     userId: string,
@@ -241,7 +220,6 @@ export class MeriContextResolver {
            WHERE c.tenant_id = ${tenantId}::uuid AND c.id = ${clientId}::uuid
         `,
       );
-      // No row = the client does not resolve in this tenant: deny.
       return rows[0]?.allowed === true;
     } catch (error) {
       this.logger.warn(
