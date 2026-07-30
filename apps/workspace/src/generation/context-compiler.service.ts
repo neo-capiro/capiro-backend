@@ -202,7 +202,7 @@ export class WorkspaceContextCompilerService {
            used_tokens, truncated, incomplete)
         VALUES
           (${packet.generatedPacketId}::uuid, ${packet.tenantId}::uuid,
-           ${packet.tenantId}::uuid, ${packet.surface},
+           ${packet.effectiveTenantId}::uuid, ${packet.surface},
            ${packet.userId}::uuid, ${packet.clientId}::uuid,
            ${JSON.stringify(sanitizeRef(packet.ref))}::jsonb,
            ${JSON.stringify(packet.items)}::jsonb,
