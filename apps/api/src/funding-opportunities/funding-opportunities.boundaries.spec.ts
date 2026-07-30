@@ -24,6 +24,10 @@ const CLOSEOUT_MIGRATION = join(
   __dirname,
   '../../prisma/migrations/20260810020000_funding_opportunities_closeout/migration.sql',
 );
+const LIFECYCLE_MIGRATION = join(
+  __dirname,
+  '../../prisma/migrations/20260810040000_funding_opportunities_lifecycle_truth/migration.sql',
+);
 const SCHEMA = join(__dirname, '../../prisma/schema.prisma');
 
 // ── Role matrix, against the REAL RolesGuard and the real decorator metadata ──
@@ -244,15 +248,86 @@ describe('migration: RLS, uniqueness, check constraints', () => {
     }
   });
 
-  test('the migration sorts AFTER every migration currently in the repo', () => {
+  test('this feature’s NEWEST migration sorts after every other migration in the repo', () => {
     // Prisma applies by directory name; a new migration stamped earlier than an
-    // applied one is never run.
+    // already-applied one is never run.
+    //
+    // Asserted against the newest FO-owned migration rather than against a
+    // hardcoded name. The hardcoded form ("the last migration in the repo IS
+    // 20260810020000_funding_opportunities_closeout") broke the moment an
+    // unrelated stream landed a later one — 20260810030000_committee_hearing_-
+    // starts_at did exactly that on 2026-07-29 and this test has been red on main
+    // since — which taught nothing about ordering and only punished whoever
+    // shipped next.
     const dir = join(__dirname, '../../prisma/migrations');
     const names = readdirSync(dir, { withFileTypes: true })
       .filter((e) => e.isDirectory())
       .map((e) => e.name)
       .sort();
-    expect(names[names.length - 1]).toBe('20260810020000_funding_opportunities_closeout');
+    const ours = names.filter((n) => /_funding_opportunities/.test(n));
+    expect(ours.length).toBeGreaterThanOrEqual(3);
+    const newestOurs = ours[ours.length - 1]!;
+    expect(newestOurs).toBe('20260810040000_funding_opportunities_lifecycle_truth');
+    // Nothing in the repo sorts after it.
+    expect(names[names.length - 1]).toBe(newestOurs);
+    // OUR migration's timestamp prefix is unique, so its apply position does not
+    // depend on the rest of the directory name. Asserted only for this feature's
+    // newest migration: the repo already contains ten same-prefix pairs from
+    // concurrent streams, and failing this branch for those would be noise about
+    // work it does not touch.
+    const prefix = newestOurs.slice(0, 14);
+    expect(names.filter((n) => n.startsWith(prefix))).toEqual([newestOurs]);
+  });
+
+  describe('lifecycle-truth migration: fingerprint, active snapshot, cursor', () => {
+    const lifecycle = existsSync(LIFECYCLE_MIGRATION) ? readFileSync(LIFECYCLE_MIGRATION, 'utf8') : '';
+
+    test('it exists and is additive', () => {
+      expect(lifecycle.length).toBeGreaterThan(0);
+      expect(lifecycle).not.toMatch(/\bDROP\s+(TABLE|COLUMN|CONSTRAINT)\b/i);
+    });
+
+    test('both snapshot columns are nullable and retry-safe', () => {
+      // NULL is load-bearing: it means "no baseline yet", which the lifecycle pass
+      // treats as a SILENT first observation. A NOT NULL default would make every
+      // legacy row look like it had been observed.
+      for (const column of ['source_fingerprint', 'source_active_snapshot']) {
+        expect(lifecycle).toMatch(
+          new RegExp(`ALTER TABLE "client_funding_opportunity"[\\s\\S]*?ADD COLUMN IF NOT EXISTS "${column}"`),
+        );
+      }
+      expect(lifecycle).not.toMatch(/ADD COLUMN IF NOT EXISTS "source_(fingerprint|active_snapshot)"[^;]*NOT\s+NULL/i);
+    });
+
+    test('the lifecycle keyset cursor index exists', () => {
+      expect(lifecycle).toMatch(
+        /CREATE INDEX IF NOT EXISTS "client_funding_opportunity_tenant_cursor_idx"[\s\S]*?\("tenant_id", "id"\)/,
+      );
+    });
+
+    test('discovery indexes cover the predicated reads', () => {
+      expect(lifecycle).toContain('federal_grant_lifecycle_enrichment_idx');
+      expect(lifecycle).toContain('sam_opportunity_lifecycle_idx');
+    });
+
+    test('every statement is retry-safe', () => {
+      const creates = lifecycle.match(/CREATE (TABLE|INDEX|UNIQUE INDEX)\s+(IF NOT EXISTS\s+)?/g) ?? [];
+      expect(creates.length).toBeGreaterThan(0);
+      for (const c of creates) expect(c).toContain('IF NOT EXISTS');
+      const adds = lifecycle.match(/ADD COLUMN\s+(IF NOT EXISTS\s+)?/g) ?? [];
+      expect(adds.length).toBeGreaterThan(0);
+      for (const a of adds) expect(a).toContain('IF NOT EXISTS');
+    });
+
+    test('every index it creates is declared in schema.prisma', () => {
+      // Drift here is invisible until someone runs `prisma migrate dev` and gets a
+      // spurious diff, or until a planner regression traces back to an index the
+      // schema never knew about.
+      const schema = readFileSync(SCHEMA, 'utf8');
+      for (const m of lifecycle.matchAll(/CREATE INDEX IF NOT EXISTS "([a-z_]+)"/g)) {
+        expect(schema).toContain(m[1]!);
+      }
+    });
   });
   describe('closeout migration: reviewed identities and lifecycle state', () => {
     const closeout = existsSync(CLOSEOUT_MIGRATION)

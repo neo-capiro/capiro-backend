@@ -28,15 +28,34 @@ vi.mock('react-router-dom', () => ({
   Link: ({ children, to }: { children: ReactNode; to: string }) => <a href={to}>{children}</a>,
 }));
 
+/**
+ * `vi.hoisted`, not a bare `const`.
+ *
+ * `vi.mock` calls are hoisted above every declaration in this file, but their
+ * FACTORIES run lazily, at the moment the mocked module is first resolved. That
+ * resolution is triggered by the static `import { FundingOpportunitiesPage }`
+ * above — which happens before the module body executes — so a factory closing
+ * over a plain `const` reads it while it is still in its temporal dead zone and
+ * the whole suite dies at collection with "Cannot access X before
+ * initialization". This file has been failing on main for exactly that reason,
+ * which is why the suite reported `(0 test)` rather than a failing assertion:
+ * nothing in it has ever run.
+ *
+ * `vi.hoisted` moves the initialization INTO the hoisted block, ahead of the
+ * factories. Both mock groups need it; `meri-prompt` merely happened to resolve
+ * first and take the blame.
+ */
+const { requestMeriContextPromptMock, apiGetMock, apiPostMock, apiPatchMock } = vi.hoisted(() => ({
+  requestMeriContextPromptMock: vi.fn(),
+  apiGetMock: vi.fn(),
+  apiPostMock: vi.fn(),
+  apiPatchMock: vi.fn(),
+}));
 
-const requestMeriContextPromptMock = vi.fn();
 vi.mock('../../../components/chat/meri-prompt.js', () => ({
   requestMeriContextPrompt: requestMeriContextPromptMock,
 }));
 
-const apiGetMock = vi.fn();
-const apiPostMock = vi.fn();
-const apiPatchMock = vi.fn();
 vi.mock('../../../lib/use-api.js', () => ({
   useApi: () => ({ get: apiGetMock, post: apiPostMock, patch: apiPatchMock }),
 }));
@@ -168,22 +187,40 @@ function listResponse(
         verb: 'sync-grants',
         label: 'Grants.gov opportunities',
         lastSyncedAt: '2026-07-28T00:00:00.000Z',
+        lastAttemptAt: '2026-07-28T00:00:00.000Z',
+        lastRunStatus: 'success',
+        lastRunErrorCount: 0,
+        lastFailureAt: null,
+        hoursSinceLastSuccess: 12,
         neverSynced: false,
         lastRunDegraded: false,
         countsUnavailable: false,
         recordCount: 800,
         activeRecordCount: 120,
+        enrichment: {
+          lastAttemptAt: '2026-07-28T02:00:00.000Z',
+          lastSuccessAt: '2026-07-28T02:00:00.000Z',
+          degraded: false,
+          detailedRecordCount: 700,
+          activeAwaitingEnrichment: 0,
+        },
       },
       {
         source: 'sam_gov',
         verb: 'sync-sam-opportunities',
         label: 'SAM.gov contract opportunities',
         lastSyncedAt: '2026-07-27T00:00:00.000Z',
+        lastAttemptAt: '2026-07-27T00:00:00.000Z',
+        lastRunStatus: 'success',
+        lastRunErrorCount: 0,
+        lastFailureAt: null,
+        hoursSinceLastSuccess: 36,
         neverSynced: false,
         lastRunDegraded: false,
         countsUnavailable: false,
         recordCount: 4000,
         activeRecordCount: 900,
+        enrichment: null,
       },
     ],
     emptyReason: null,
@@ -551,7 +588,10 @@ describe('workflow actions', () => {
   test('Ask Meri opens a new client-scoped assessment with source facts', async () => {
     mockApi(listResponse({ opportunities: [contract()] }));
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: 'Ask Meri' }));
+    // Regex, not an exact name: Ant Design's icons render as
+    // `<span role="img" aria-label="message">`, and a labelled child CONTRIBUTES to
+    // the button's accessible name — so the exact name is "message Ask Meri".
+    fireEvent.click(await screen.findByRole('button', { name: /Ask Meri/ }));
     expect(requestMeriContextPromptMock).toHaveBeenCalledWith(
       expect.objectContaining({
         clientId: 'client-1',
@@ -567,7 +607,11 @@ describe('workflow actions', () => {
     fireEvent.click(await screen.findByRole('button', { name: /More actions for Turbofan/i }));
     fireEvent.click(await screen.findByText('Assign owner'));
     expect(await screen.findByText('Assign opportunity owner')).toBeInTheDocument();
-    fireEvent.mouseDown(screen.getByLabelText('Opportunity owner'));
+    // `getByRole('combobox')`, not `getByLabelText`: Ant Design's Select carries the
+    // aria-label on BOTH its wrapper and its inner search input, so getByLabelText
+    // finds two nodes. The same reason is documented on the accessible-name test
+    // below, which uses getAllByLabelText.
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Opportunity owner' }));
     fireEvent.click(await screen.findByText(/Ada Byron/));
     fireEvent.click(screen.getByRole('button', { name: 'OK' }));
     await waitFor(() =>
@@ -600,7 +644,7 @@ describe('workflow actions', () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: /More actions for Turbofan/i }));
     fireEvent.click(await screen.findByText('Link project site'));
-    fireEvent.mouseDown(await screen.findByLabelText('Project site'));
+    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'Project site' }));
     fireEvent.click(await screen.findByText(/El Paso Plant/));
     fireEvent.click(screen.getByRole('button', { name: 'OK' }));
     await waitFor(() =>
@@ -648,7 +692,9 @@ describe('filters', () => {
   test.each(['Saved', 'Pursuing'])('%s includes closed workflow history', async (tabLabel) => {
     mockApi(listResponse());
     renderPage();
-    fireEvent.click(await screen.findByText(tabLabel));
+    // By ROLE, not by text: "Saved" and "Pursuing" are also KPI tile labels a few
+    // lines above the tab strip, so findByText matches two nodes.
+    fireEvent.click(await screen.findByRole('radio', { name: tabLabel }));
     await waitFor(() =>
       expect(apiGetMock).toHaveBeenCalledWith(expect.stringContaining('activeState=all')),
     );
@@ -683,5 +729,156 @@ describe('pagination', () => {
     mockApi(listResponse({ total: 2400, totalIsCapped: true }));
     renderPage();
     expect(await screen.findByText(/scan bound reached/i)).toBeInTheDocument();
+  });
+});
+
+describe('informational and closed notices never offer a pursuit', () => {
+  const awardNotice = () =>
+    contract({
+      kind: 'award_notice',
+      kindRaw: 'Award Notice',
+      baseKind: null,
+      isPursuable: false,
+      title: 'Award Notice: Turbofan Engine Sustainment',
+    });
+
+  test('an award notice offers Save but NOT Pursue', async () => {
+    // The card already LABELLED it ("Not a pursuit") while still offering the
+    // button next to the label, and the API accepted it — so a competition
+    // somebody else won could be marked as an active pursuit, and it would then
+    // sort to the TOP of the workflow rail above real bids.
+    mockApi(listResponse({ opportunities: [awardNotice()] }));
+    renderPage();
+    expect(await screen.findByRole('button', { name: /Save/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Pursue/ })).not.toBeInTheDocument();
+  });
+
+  test('an award notice does not offer Create task', async () => {
+    mockApi(listResponse({ opportunities: [awardNotice()] }));
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /More actions for Award Notice/i }));
+    expect(await screen.findByText('Assign owner')).toBeInTheDocument();
+    // A pursuit task is a pursuit action, so it follows Pursue.
+    expect(screen.queryByText('Create task')).not.toBeInTheDocument();
+  });
+
+  test('the three edit actions REMAIN available on an award notice', async () => {
+    // Saving a competitor's win for reference, with a note about it, is exactly how
+    // a capture team tracks the market. Only the pursuit claim is refused.
+    mockApi(listResponse({ opportunities: [awardNotice()] }));
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /More actions for Award Notice/i }));
+    for (const label of ['Assign owner', 'Add note', 'Link project site']) {
+      expect(await screen.findByText(label)).toBeInTheDocument();
+    }
+  });
+
+  test('the card explains why pursuit is unavailable', async () => {
+    mockApi(listResponse({ opportunities: [awardNotice()] }));
+    renderPage();
+    expect(
+      await screen.findByText(/informational, so it can be saved for reference but not pursued/i),
+    ).toBeInTheDocument();
+  });
+
+  test('a CLOSED but pursuable notice also hides Pursue, with a different reason', async () => {
+    mockApi(
+      listResponse({
+        opportunities: [contract({ isActive: false, isPursuable: true })],
+      }),
+    );
+    renderPage();
+    expect(await screen.findByRole('button', { name: /Save/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Pursue/ })).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/closed, so it can be saved for reference but not pursued/i),
+    ).toBeInTheDocument();
+  });
+
+  test('an open, pursuable notice still offers Pursue', async () => {
+    // The guard must not be so broad that it removes the primary action from the
+    // rows the page exists to surface.
+    mockApi(listResponse({ opportunities: [contract()] }));
+    renderPage();
+    expect(await screen.findByRole('button', { name: /Pursue/ })).toBeInTheDocument();
+  });
+});
+
+describe('a failing rail is never rendered as healthy', () => {
+  function failingGrantsRail() {
+    const base = listResponse();
+    return {
+      ...base,
+      freshness: [
+        {
+          ...base.freshness[0]!,
+          // Succeeded a week ago, has failed every night since.
+          lastSyncedAt: '2026-07-22T02:00:00.000Z',
+          lastAttemptAt: '2026-07-29T02:00:00.000Z',
+          lastRunStatus: 'error',
+          lastRunErrorCount: 1,
+          lastFailureAt: '2026-07-29T02:00:00.000Z',
+          hoursSinceLastSuccess: 168,
+          lastRunDegraded: true,
+        },
+        base.freshness[1]!,
+      ],
+    };
+  }
+
+  test('the last-good date and the failure are BOTH stated', async () => {
+    // The old API reported successful runs only, so this rail read as a plain
+    // "current to 22 Jul" — the most dangerous rendering, because it looks fine.
+    mockApi(failingGrantsRail());
+    renderPage();
+    expect(await screen.findByText(/current to .* — LAST RUN FAILED/)).toBeInTheDocument();
+  });
+
+  test('a stalled detail enricher is reported separately from the catalog rail', async () => {
+    const base = listResponse();
+    mockApi({
+      ...base,
+      freshness: [
+        {
+          ...base.freshness[0]!,
+          enrichment: {
+            lastAttemptAt: '2026-07-29T02:00:00.000Z',
+            lastSuccessAt: '2026-07-01T02:00:00.000Z',
+            degraded: true,
+            detailedRecordCount: 400,
+            activeAwaitingEnrichment: 320,
+          },
+        },
+        base.freshness[1]!,
+      ],
+    });
+    renderPage();
+    // sync-grants populates ten fields; award ceilings and eligibility text come
+    // from the detail fetch, so a green catalog rail with a dead enricher renders
+    // as "this grant has no award ceiling" rather than "we have not fetched it".
+    expect(await screen.findByText(/enrichment FAILING/)).toBeInTheDocument();
+    expect(screen.getByText(/award ceilings and eligibility text may be missing/)).toBeInTheDocument();
+  });
+
+  test('a healthy rail with a backlog says how big the backlog is', async () => {
+    const base = listResponse();
+    mockApi({
+      ...base,
+      freshness: [
+        {
+          ...base.freshness[0]!,
+          enrichment: {
+            lastAttemptAt: '2026-07-29T02:00:00.000Z',
+            lastSuccessAt: '2026-07-29T02:00:00.000Z',
+            degraded: false,
+            detailedRecordCount: 400,
+            activeAwaitingEnrichment: 42,
+          },
+        },
+        base.freshness[1]!,
+      ],
+    });
+    renderPage();
+    expect(await screen.findByText(/42 active grants awaiting detail fetch/)).toBeInTheDocument();
   });
 });

@@ -101,8 +101,86 @@ export function parseSamSyncArgs(argv: string[]): SamSyncArgs {
   };
 }
 
-export function syncSourceForScope(scope: SamIngestionScope): string {
-  return scope === 'all_federal' ? SOURCE_ALL_FEDERAL : SOURCE_DOD;
+/**
+ * The ledger source for one run.
+ *
+ * A historical backfill gets its OWN source, per scope. It previously shared the
+ * daily's source and relied on `overrideSince` to avoid reading the watermark —
+ * but writing is the problem, not reading: a successful backfill of, say,
+ * 2023-07-01..2024-06-30 closed a SyncRun under `sync-sam-opportunities`, and
+ * `runWithSyncRun` derives the incremental window from THE LAST SUCCESSFUL RUN'S
+ * `startedAt`. The backfill's startedAt is *now*, so the next daily run's window
+ * began at the moment the backfill started and every notice posted between the
+ * previous daily and that instant was skipped — permanently, because nothing ever
+ * revisits a passed window.
+ *
+ * Separate sources make the two ledgers independent, which is what the daily
+ * watermark being meaningful requires.
+ */
+export function syncSourceForScope(scope: SamIngestionScope, backfill = false): string {
+  const base = scope === 'all_federal' ? SOURCE_ALL_FEDERAL : SOURCE_DOD;
+  return backfill ? `${base}-backfill` : base;
+}
+
+/**
+ * Parse and VALIDATE a `YYYY-MM-DD` CLI date.
+ *
+ * `safeDate(x) ?? new Date()` was the old behaviour for `--posted-to`, so
+ * `--posted-to 2026-13-45` silently became "now" — turning a bounded historical
+ * window into an unbounded one that also moved the watermark. A typo must not
+ * change what a run does; it must stop the run.
+ */
+export function parseCliDate(raw: string | undefined, label: string): Date | null {
+  if (raw === undefined || raw === null || raw === '') return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    throw new Error(`${label} must be YYYY-MM-DD; received ${JSON.stringify(raw)}`);
+  }
+  const parsed = new Date(`${raw}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`${label} is not a real date: ${JSON.stringify(raw)}`);
+  }
+  // Round-trip check: `2026-02-30` parses in JS and rolls into March.
+  if (parsed.toISOString().slice(0, 10) !== raw) {
+    throw new Error(`${label} is not a real calendar date: ${JSON.stringify(raw)}`);
+  }
+  return parsed;
+}
+
+export interface ResolvedSamWindow {
+  since: Date | null;
+  postedTo: Date | null;
+}
+
+/**
+ * Validate the window before anything touches the network or the ledger.
+ *
+ * A historical backfill must state BOTH bounds explicitly. Without that rule
+ * `--backfill` alone fell through to the watermark or the default lookback, so a
+ * command whose whole purpose is "ingest this specific past year" quietly ingested
+ * the last two days instead and reported success.
+ */
+export function resolveSamWindow(args: SamSyncArgs): ResolvedSamWindow {
+  const since = parseCliDate(args.since ?? undefined, '--since');
+  const postedTo = parseCliDate(args.postedTo ?? undefined, '--posted-to');
+
+  if (args.backfill) {
+    if (!since) {
+      throw new Error(
+        '--backfill requires an explicit --since YYYY-MM-DD. Without it the run falls back to the incremental watermark and ingests the last few days instead of the historical window you asked for.',
+      );
+    }
+    if (!postedTo) {
+      throw new Error(
+        '--backfill requires an explicit --posted-to YYYY-MM-DD. SAM caps a single search span at about one year, so an open-ended backfill silently truncates.',
+      );
+    }
+  }
+  if (since && postedTo && since.getTime() > postedTo.getTime()) {
+    throw new Error(
+      `--since (${since.toISOString().slice(0, 10)}) is after --posted-to (${postedTo.toISOString().slice(0, 10)}); the window is empty.`,
+    );
+  }
+  return { since, postedTo };
 }
 
 export function defaultLookbackDaysForScope(scope: SamIngestionScope): number {
@@ -320,10 +398,11 @@ async function main(): Promise<void> {
 
   const apiKey = process.env.SAM_GOV_API_KEY ?? '';
   if (!apiKey) throw new Error('SAM_GOV_API_KEY not configured');
-  const sinceArg = parsed.since ?? undefined;
-  // Explicit window end for a backfill (SAM caps a search's span at ~1yr); default now.
-  const postedToArg = parsed.postedTo ?? undefined;
-  const postedToDate = safeDate(postedToArg) ?? new Date();
+  // Validated BEFORE the network and BEFORE the ledger, so a bad window stops the
+  // run rather than silently becoming a different window.
+  const window = resolveSamWindow(parsed);
+  const sinceArg = window.since ?? undefined;
+  const postedToDate = window.postedTo ?? new Date();
   const t0 = Date.now();
   console.log(
     `[sam-opportunities] starting scope=${scope} (${commit ? 'COMMIT' : 'DRY-RUN'}${backfill ? ', BACKFILL' : ''}) maxPages=${MAX_PAGES}`,
@@ -331,10 +410,7 @@ async function main(): Promise<void> {
 
   const prisma = new PrismaClient();
   try {
-    await runWithSyncRun(
-      prisma as never,
-      syncSourceForScope(scope),
-      async (ctx): Promise<RunCounts> => {
+    const execute = async (ctx: { since: Date | null }): Promise<RunCounts> => {
         // Incremental window: explicit --since wins; else the watermark; else lookback.
         // Window end is `now` for the daily, or an explicit --posted-to for a backfill.
         const since =
@@ -468,24 +544,77 @@ async function main(): Promise<void> {
         }
 
         if (capped) {
+          // Counted as an error so the run closes `success_with_errors` — an
+          // INCOMPLETE window must never be recorded as a clean success, because the
+          // watermark then advances past a range that was only partly ingested.
           counts.errors += 1;
           console.warn(
-            `[sam-opportunities] ⚠️ CAPPED (${scope}): window ${postedFrom}..${postedTo} has ${totalRecords} records but the page budget stopped at ${offset} (SAM_MAX_PAGES=${MAX_PAGES}). Narrow the window (--posted-to) or raise SAM_MAX_PAGES; the tail was NOT ingested. The SyncRun is marked success_with_errors.`,
+            `[sam-opportunities] ⚠️ INCOMPLETE (${scope}): window ${postedFrom}..${postedTo} has ${totalRecords} records but the page budget stopped at ${offset} (SAM_MAX_PAGES=${MAX_PAGES}). Narrow the window (--posted-to) or raise SAM_MAX_PAGES; the tail was NOT ingested. The SyncRun is marked success_with_errors, and the incremental watermark must NOT be trusted to have covered this window.`,
           );
         }
 
         const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+        // Dry-run counts are HYPOTHETICAL and say so. "inserted=412" from a run that
+        // wrote nothing is the kind of line an operator pastes into a runbook as
+        // evidence that ingestion happened.
         console.log(
-          `[sam-opportunities] inserted=${counts.inserted} updated=${counts.updated} skipped=${counts.skipped} errors=${counts.errors} matches=${matchesWritten} in ${elapsed}s`,
+          commit
+            ? `[sam-opportunities] inserted=${counts.inserted} updated=${counts.updated} skipped=${counts.skipped} errors=${counts.errors} matches=${matchesWritten} in ${elapsed}s`
+            : `[sam-opportunities] DRY RUN — would insert=${counts.inserted} would update=${counts.updated} skipped=${counts.skipped} errors=${counts.errors} would match=${matchesWritten} in ${elapsed}s (NOTHING WAS WRITTEN, no SyncRun row, watermark unchanged)`,
         );
         return counts;
-      },
-      // A manual backfill must not be skipped by an in-flight daily run.
-      { overrideSince: sinceArg ?? null, skipIfRunning: !backfill },
-    );
+    };
+
+    if (commit) {
+      await runWithSyncRun(
+        prisma as never,
+        // A backfill writes to its OWN ledger source, so closing it cannot move the
+        // daily's incremental watermark past a window the daily never read.
+        syncSourceForScope(scope, backfill),
+        execute,
+        // A manual backfill must not be skipped by an in-flight daily run.
+        { overrideSince: sinceArg ?? null, skipIfRunning: !backfill },
+      );
+    } else {
+      // ── No SyncRun row, and therefore no watermark movement, in dry-run mode.
+      //
+      // This is the most consequential fix in this file. `runWithSyncRun` was called
+      // unconditionally, so a DRY RUN opened a SyncRun row and closed it `success`.
+      // The incremental window is derived from the last successful run's
+      // `startedAt`, so a dry run — a command whose entire contract is "change
+      // nothing" — advanced the watermark to now, and the next real run silently
+      // skipped every notice posted in the window the dry run had merely LOOKED at.
+      // Nothing revisits a passed window, so those notices were lost permanently.
+      //
+      // A dry run reads the watermark (so the window it reports is the window a real
+      // run would use) but never writes one.
+      const watermark = sinceArg
+        ? sinceArg
+        : await readLastSuccessfulRunStart(prisma, syncSourceForScope(scope, backfill));
+      await execute({ since: watermark });
+    }
   } finally {
     await prisma.$disconnect();
   }
+}
+
+/**
+ * The incremental watermark, READ-ONLY.
+ *
+ * Mirrors `runWithSyncRun`'s own derivation (last successful run's `startedAt`) so a
+ * dry run reports the window a committed run would actually use, without creating
+ * the ledger row that would move it.
+ */
+async function readLastSuccessfulRunStart(
+  prisma: PrismaClient,
+  source: string,
+): Promise<Date | null> {
+  const row = await prisma.syncRun.findFirst({
+    where: { source, status: { in: ['success', 'success_with_errors'] } },
+    orderBy: { startedAt: 'desc' },
+    select: { startedAt: true },
+  });
+  return row?.startedAt ?? null;
 }
 
 /**

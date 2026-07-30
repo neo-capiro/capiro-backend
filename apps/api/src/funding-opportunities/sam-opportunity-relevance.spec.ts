@@ -304,13 +304,26 @@ describe('set-aside is a relevance signal, never an eligibility determination', 
 });
 
 describe('contract eligibility is honest about what is not held', () => {
-  test('it returns eligible only for an explicitly recorded matching certification', () => {
+  test('even a matching durable certification is needs_review, not eligible', () => {
+    // CHANGED deliberately. This used to expect `eligible`, which overclaimed in
+    // two ways at once:
+    //
+    //   - the profile value compared against was SAM's SOLICITATION code
+    //     ('SDVOSBC'), not a company certification, so recording the notice's own
+    //     restriction code on the client made the client "eligible" for it;
+    //   - an SDVOSB award is conjunctive — active certification AND small for the
+    //     notice's NAICS — and Capiro holds no size data, so one of two required
+    //     facts was being reported as the whole answer.
+    //
+    // set-aside.ts now owns this decision. `needs_review` naming the outstanding
+    // facts is the honest ceiling. See set-aside.spec.ts for the full matrix.
     const verified = computeSamEligibility(
-      client({ setAsideCertifications: ['SDVOSBC'] }),
+      client({ setAsideCertifications: ['SDVOSB'] }),
       opp({ setAsideCode: 'SDVOSBC', setAside: 'SDVOSB Set-Aside' }),
     );
-    expect(verified.state).toBe('eligible');
-    expect(verified.reason).toContain('SDVOSBC');
+    expect(verified.state).toBe('needs_review');
+    expect(verified.reason).toContain('SDVOSB');
+    expect(verified.reason).toMatch(/not a confirmation of eligibility/);
   });
 
   test('without a recorded certification it never guesses eligible or ineligible', () => {

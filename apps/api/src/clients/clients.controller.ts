@@ -24,22 +24,30 @@ import { GRANTS_GOV_APPLICANT_TYPES } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
+import { DURABLE_SET_ASIDE_CERTIFICATIONS } from '../funding-opportunities/set-aside.js';
 import { ClientsService } from './clients.service.js';
 
-const FEDERAL_SET_ASIDE_CERTIFICATION_CODES = [
-  'SBA',
-  'SBP',
-  '8A',
-  '8AN',
-  'SDVOSBC',
-  'SDVOSBS',
-  'WOSB',
-  'WOSBSS',
-  'EDWOSB',
-  'EDWOSBSS',
-  'HZC',
-  'HZS',
-] as const;
+/**
+ * Only DURABLE socioeconomic certifications — statuses the company holds.
+ *
+ * This list used to be SAM's `typeOfSetAside` vocabulary, which was the wrong
+ * vocabulary for a company profile and let two kinds of non-certification in:
+ *
+ *   - 'SBA'/'SBP' are general small-business RESTRICTIONS on a solicitation. No
+ *     firm holds an "SBA certification", so accepting the string here let a
+ *     client be recorded as certified for something that does not exist — and
+ *     the eligibility check then read it back as evidence and reported the
+ *     client eligible.
+ *   - '8AN'/'SDVOSBS'/'WOSBSS'/'EDWOSBSS'/'HZS' are SOLE-SOURCE notice codes: a
+ *     competition method, not a status. Storing one as a company certification
+ *     is a category error.
+ *
+ * `set-aside.ts` owns the mapping from these to the SAM codes each can speak to,
+ * and `repair-set-aside-certifications.ts` migrates legacy rows off the old
+ * vocabulary. Keep the two in step: a value accepted here that `set-aside.ts`
+ * does not know is a value the eligibility path will silently ignore.
+ */
+const FEDERAL_SET_ASIDE_CERTIFICATION_CODES = DURABLE_SET_ASIDE_CERTIFICATIONS;
 
 class CreateClientDto {
   @IsString()

@@ -15,6 +15,17 @@ import {
 } from './sam-opportunity-relevance.js';
 import { grantsGovKind, samNoticeKind } from './opportunity-kind.js';
 import {
+  GRANT_ACTIVE_SQL,
+  SAM_PURSUABLE_SQL,
+  grantActiveWhere,
+  grantClosedWhere,
+  isGrantActive as isGrantActiveShared,
+  isSamActive as isSamActiveShared,
+  samClosedWhere,
+  samInformationalWhere,
+  samPursuableWhere,
+} from './source-lifecycle.js';
+import {
   missingProfileFields,
   profileIsTooThin,
   type ProfileCompleteness,
@@ -25,6 +36,7 @@ import {
   WORKFLOW_SORT_PRIORITY,
   type ClientFundingOpportunitySummary,
   type EmptyReason,
+  type GrantEnrichmentHealth,
   type FundingOpportunity,
   type FundingOpportunityCounts,
   type FundingOpportunityListResponse,
@@ -269,6 +281,7 @@ export class FundingOpportunitiesService {
     if (input.facilityId != null) {
       await this.assertFacilityBelongsToClient(tenantId, clientId, input.facilityId);
     }
+    this.assertPursuable(row, input.status);
 
     const facts = await this.readClientFacts(tenantId, clientId);
     const score = this.scoreRow(row, facts);
@@ -309,6 +322,24 @@ export class FundingOpportunitiesService {
                 ...data,
               },
             });
+        await this.writeWorkflowAudit(tx, {
+          tenantId,
+          actorUserId: input.actorUserId,
+          action: `funding_opportunity.workflow.${input.status}`,
+          entityId: saved.id,
+          before: existing
+            ? {
+                workflowStatus: existing.workflowStatus,
+                ownerUserId: existing.ownerUserId ?? null,
+                facilityId: existing.facilityId ?? null,
+              }
+            : null,
+          after: {
+            workflowStatus: input.status,
+            ownerUserId: saved.ownerUserId ?? null,
+            facilityId: saved.facilityId ?? null,
+          },
+        });
         return this.shapeWorkflow(saved, null, null);
       });
 
@@ -330,7 +361,22 @@ export class FundingOpportunitiesService {
     }
   }
 
-  /** Patch an existing workflow row's mutable fields without changing its status. */
+  /**
+   * Patch a workflow row's mutable fields — CREATING the row if the edit itself
+   * is the first human action.
+   *
+   * This used to throw `NotFoundException('No saved opportunity to update — save
+   * or pursue it first.')` whenever no row existed, which made "assign an owner",
+   * "add a note" and "link a project site" impossible on a machine-suggested
+   * recommendation. Every suggestion starts with no workflow row, so the three
+   * most natural first actions a user takes on a suggestion all failed, and the
+   * error told them to perform a DIFFERENT action first. Assigning an owner IS
+   * saving it: a human has taken responsibility for the row.
+   *
+   * The created row is `saved`, never `pursuing` — pursuit is an explicit
+   * decision, and inferring it from "somebody attached a note" would overstate
+   * what happened.
+   */
   async patchWorkflow(
     tenantId: string,
     clientId: string,
@@ -346,32 +392,188 @@ export class FundingOpportunitiesService {
     },
   ): Promise<OpportunityWorkflow> {
     await this.assertClientInTenant(tenantId, clientId);
+    // The source record must exist before a workflow row can reference it. The
+    // old patch path skipped this — only setWorkflowStatus checked — so a bogus
+    // id in the URL produced a row pointing at nothing.
+    const row = await this.fetchOneSourceRow(source, sourceRecordId);
+    if (!row) throw new NotFoundException('Opportunity not found');
+
     if (input.ownerUserId != null) await this.assertUserInTenant(tenantId, input.ownerUserId);
     if (input.facilityId != null) {
       await this.assertFacilityBelongsToClient(tenantId, clientId, input.facilityId);
     }
+    if (input.status !== undefined) this.assertPursuable(row, input.status);
 
-    return this.prisma.withTenant(tenantId, async (tx) => {
-      const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
-      if (!existing) {
-        throw new NotFoundException(
-          'No saved opportunity to update — save or pursue it first.',
+    const mutable = {
+      ...(input.status !== undefined ? { workflowStatus: input.status } : {}),
+      ...(input.ownerUserId !== undefined ? { ownerUserId: input.ownerUserId } : {}),
+      ...(input.facilityId !== undefined ? { facilityId: input.facilityId } : {}),
+      ...(input.notes !== undefined ? { notes: input.notes } : {}),
+      ...(input.outcomeNote !== undefined ? { outcomeNote: input.outcomeNote } : {}),
+      // A human touched this row, so the producer may no longer overwrite it and
+      // any stale-suggestion mark it carried no longer describes it.
+      userCreated: true,
+      staleAt: null,
+      updatedBy: input.actorUserId,
+    };
+
+    const write = async (): Promise<OpportunityWorkflow> =>
+      this.prisma.withTenant(tenantId, async (tx) => {
+        const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
+        if (existing) {
+          const saved = await tx.clientFundingOpportunity.update({
+            where: { id: existing.id },
+            data: mutable,
+          });
+          await this.writeWorkflowAudit(tx, {
+            tenantId,
+            actorUserId: input.actorUserId,
+            action: 'funding_opportunity.workflow.patched',
+            entityId: existing.id,
+            before: {
+              workflowStatus: existing.workflowStatus,
+              ownerUserId: existing.ownerUserId ?? null,
+              facilityId: existing.facilityId ?? null,
+            },
+            after: mutable,
+          });
+          return this.shapeWorkflow(saved, null, null);
+        }
+
+        // First human action. Score it so the created row carries the same
+        // producer bookkeeping a save would have, and snapshot the source so the
+        // lifecycle pass has a baseline rather than treating it as brand new.
+        const facts = await this.readClientFacts(tenantId, clientId);
+        const score = this.scoreRow(row, facts);
+        const snap = this.sourceSnapshot(row);
+        const created = await tx.clientFundingOpportunity.create({
+          data: {
+            tenantId,
+            clientId,
+            source,
+            grantOpportunityId: source === 'grants_gov' ? sourceRecordId : null,
+            samOpportunityId: source === 'sam_gov' ? sourceRecordId : null,
+            evidenceSourceType: 'user_action',
+            createdBy: input.actorUserId,
+            relevanceScore: score.relevanceScore,
+            matchSignals: score.matchedSignals as unknown as Prisma.InputJsonValue,
+            eligibilityState: score.eligibility.state,
+            eligibilityReason: score.eligibility.reason,
+            sourceStatusSnapshot: snap.status,
+            responseDeadlineSnapshot: snap.deadline,
+            sourceUpdatedAtSnapshot: snap.updatedAt,
+            ...mutable,
+            // An edit is a save, not a pursuit — unless the caller asked for a
+            // status explicitly.
+            workflowStatus: input.status ?? 'saved',
+          },
+        });
+        await this.writeWorkflowAudit(tx, {
+          tenantId,
+          actorUserId: input.actorUserId,
+          action: 'funding_opportunity.workflow.created_by_edit',
+          entityId: created.id,
+          before: null,
+          after: { workflowStatus: created.workflowStatus, ...mutable },
+        });
+        return this.shapeWorkflow(created, null, null);
+      });
+
+    try {
+      return await write();
+    } catch (error) {
+      // Same concurrency backstop as setWorkflowStatus: two simultaneous first
+      // edits can both observe no row, and the loser must retry as an update
+      // rather than leaking a P2002 to the user.
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+        throw error;
+      }
+      return this.prisma.withTenant(tenantId, async (tx) => {
+        const existing = await this.findWorkflowRow(tx, clientId, source, sourceRecordId);
+        if (!existing) throw error;
+        const saved = await tx.clientFundingOpportunity.update({
+          where: { id: existing.id },
+          data: mutable,
+        });
+        return this.shapeWorkflow(saved, null, null);
+      });
+    }
+  }
+
+  /**
+   * A closed or informational notice may not be marked `pursuing`.
+   *
+   * Nothing enforced this before: `pursuing` was accepted for any notice the URL
+   * named, so an award notice announcing a competition somebody else won could be
+   * marked as an active pursuit — and it would then sort to the TOP of the
+   * workflow rail, above real bids.
+   *
+   * Every other status stays available, `saved` included. Saving an award notice
+   * for reference is legitimate and is exactly how a team tracks a competitor's
+   * win; claiming to be bidding it is not.
+   */
+  private assertPursuable(row: SourceRow, status: OpportunityWorkflowStatus): void {
+    if (status !== 'pursuing') return;
+    const now = new Date();
+    if (row.kind === 'grant') {
+      if (!isGrantActiveShared({ status: row.row.status, closeDate: row.row.closeDate }, now)) {
+        throw new BadRequestException(
+          'This grant opportunity is closed, so it cannot be marked as being pursued. Save it for reference instead.',
         );
       }
-      const saved = await tx.clientFundingOpportunity.update({
-        where: { id: existing.id },
-        data: {
-          ...(input.status !== undefined ? { workflowStatus: input.status } : {}),
-          ...(input.ownerUserId !== undefined ? { ownerUserId: input.ownerUserId } : {}),
-          ...(input.facilityId !== undefined ? { facilityId: input.facilityId } : {}),
-          ...(input.notes !== undefined ? { notes: input.notes } : {}),
-          ...(input.outcomeNote !== undefined ? { outcomeNote: input.outcomeNote } : {}),
-          userCreated: true,
-          staleAt: null,
-          updatedBy: input.actorUserId,
+      return;
+    }
+    const kind = samNoticeKind(row.row.noticeType);
+    if (NON_PURSUABLE_KINDS.has(kind)) {
+      throw new BadRequestException(
+        `A ${kind.replace(/_/g, ' ')} is informational, not a solicitation, so it cannot be marked as being pursued. Save it for reference instead.`,
+      );
+    }
+    if (
+      !isSamActiveShared(
+        {
+          active: row.row.active,
+          responseDeadline: row.row.responseDeadline,
+          archiveDate: row.row.archiveDate,
         },
-      });
-      return this.shapeWorkflow(saved, null, null);
+        now,
+      )
+    ) {
+      throw new BadRequestException(
+        'This contract opportunity is closed, so it cannot be marked as being pursued. Save it for reference instead.',
+      );
+    }
+  }
+
+  /**
+   * One audit row, in the CALLER'S transaction.
+   *
+   * Passed the `tx` rather than using `this.prisma` so the audit cannot survive a
+   * rolled-back write, and a committed write cannot lack its audit. A workflow
+   * change with no record of who made it is unauditable, which is the whole
+   * reason the table exists.
+   */
+  private async writeWorkflowAudit(
+    tx: Prisma.TransactionClient,
+    input: {
+      tenantId: string;
+      actorUserId: string;
+      action: string;
+      entityId: string;
+      before: Record<string, unknown> | null;
+      after: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    await tx.auditLog.create({
+      data: {
+        tenantId: input.tenantId,
+        actorUserId: input.actorUserId,
+        action: input.action,
+        entityType: 'client_funding_opportunity',
+        entityId: input.entityId,
+        before: (input.before ?? undefined) as Prisma.InputJsonValue | undefined,
+        after: input.after as Prisma.InputJsonValue,
+      },
     });
   }
 
@@ -421,6 +623,14 @@ export class FundingOpportunitiesService {
           userCreated: true,
           updatedBy: input.actorUserId,
         },
+      });
+      await this.writeWorkflowAudit(tx, {
+        tenantId,
+        actorUserId: input.actorUserId,
+        action: 'funding_opportunity.workflow.restored',
+        entityId: existing.id,
+        before: { workflowStatus: 'dismissed', dismissedReason: existing.dismissedReason ?? null },
+        after: { workflowStatus: 'saved', dismissedReason: null },
       });
       return this.shapeWorkflow(saved, null, null);
     });
@@ -644,13 +854,19 @@ export class FundingOpportunitiesService {
     const wantSam = query.source === undefined || query.source === 'sam_gov';
     const includeClosed = query.activeState === 'closed' || query.activeState === 'all';
     const includeActive = query.activeState !== 'closed';
+    // Informational notices (award, special notice and family) are excluded from
+    // default discovery and reachable ONLY by asking for them by kind. That is
+    // what "available only through explicit informational filtering" means: no
+    // date range and no activeState opens the door, because an award notice is not
+    // a solicitation at any date.
+    const includeInformational = (query.kind ?? []).some((kind) => NON_PURSUABLE_KINDS.has(kind));
 
     const [grants, sam] = await Promise.all([
       wantGrants
         ? this.fetchGrantRows(facts, { includeActive, includeClosed })
         : Promise.resolve({ rows: [] as SourceRow[], capped: false }),
       wantSam
-        ? this.fetchSamRows(facts, { includeActive, includeClosed })
+        ? this.fetchSamRows(facts, { includeActive, includeClosed, includeInformational })
         : Promise.resolve({ rows: [] as SourceRow[], capped: false }),
     ]);
     return { rows: [...grants.rows, ...sam.rows], capped: grants.capped || sam.capped };
@@ -660,13 +876,29 @@ export class FundingOpportunitiesService {
     facts: ClientFacts | null,
     opts: { includeActive: boolean; includeClosed: boolean },
   ): Promise<SourceFetchResult> {
-    const statuses = [
-      ...(opts.includeActive ? ['posted', 'forecasted'] : []),
-      ...(opts.includeClosed ? ['closed', 'archived'] : []),
+    // ── The lifecycle predicate goes IN the query, before the row cap.
+    //
+    // This used to read `status: { in: [...] }` and leave the close date to a
+    // TypeScript filter applied AFTER `take: SCAN_CAP_PER_SOURCE`. That is not a
+    // filter, it is a post-hoc trim of whatever the cap admitted — and because
+    // the ordering is soonest-deadline-first, the cap was consumed by the
+    // LONGEST-EXPIRED notices while genuinely open grants fell off the end.
+    // Grants.gov leaves `oppStatus` at 'posted' on notices whose close date
+    // passed months ago, so that tail is large.
+    //
+    // The status list was also wrong on the closed side: `['closed','archived']`
+    // misses the much bigger population of still-'posted' grants whose close date
+    // has passed, so the closed tab could not show them at all.
+    const now = new Date();
+    const lifecycleOr: Prisma.FederalGrantWhereInput[] = [
+      ...(opts.includeActive ? [grantActiveWhere(now) as Prisma.FederalGrantWhereInput] : []),
+      ...(opts.includeClosed ? [grantClosedWhere(now) as Prisma.FederalGrantWhereInput] : []),
     ];
-    if (statuses.length === 0) return { rows: [], capped: false };
-
-    const where: Prisma.FederalGrantWhereInput = { status: { in: statuses } };
+    if (lifecycleOr.length === 0) return { rows: [], capped: false };
+    // One clause → use it directly, so the planner sees a flat predicate rather
+    // than a single-branch OR.
+    const where: Prisma.FederalGrantWhereInput =
+      lifecycleOr.length === 1 ? lifecycleOr[0]! : { OR: lifecycleOr };
     const select = GRANT_SELECT;
     const windowRows = await this.prisma.federalGrant.findMany({
       where,
@@ -699,10 +931,14 @@ export class FundingOpportunitiesService {
       }
     }
 
+    // `AND: [lifecycle, { OR: targeted }]`, NOT `{ ...lifecycle, OR: targeted }`.
+    // The lifecycle predicate now carries its own top-level `OR` (close date is
+    // null OR in the future), so spreading it and then assigning `OR` silently
+    // DELETES the lifecycle half and returns expired grants again.
     const [structured, text] = await Promise.all([
       structuredOr.length
         ? this.prisma.federalGrant.findMany({
-            where: { ...where, OR: structuredOr },
+            where: { AND: [where, { OR: structuredOr }] },
             select,
             orderBy: [{ closeDate: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }],
             take: SCAN_CAP_PER_SOURCE,
@@ -710,7 +946,7 @@ export class FundingOpportunitiesService {
         : Promise.resolve([]),
       textOr.length
         ? this.prisma.federalGrant.findMany({
-            where: { ...where, OR: textOr },
+            where: { AND: [where, { OR: textOr }] },
             select,
             orderBy: [{ closeDate: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }],
             take: SCAN_CAP_PER_SOURCE,
@@ -731,14 +967,32 @@ export class FundingOpportunitiesService {
 
   private async fetchSamRows(
     facts: ClientFacts | null,
-    opts: { includeActive: boolean; includeClosed: boolean },
+    opts: { includeActive: boolean; includeClosed: boolean; includeInformational: boolean },
   ): Promise<SourceFetchResult> {
+    // ── Same defect, same fix, plus the notice-type half.
+    //
+    // The old predicate was `{}` / `{ active: true }` / `{ active: false }`:
+    //
+    //   * `{}` for activeState 'all' meant NO predicate before the cap at all;
+    //   * `active: true` ignores the response deadline, and `active` is derived
+    //     from the ARCHIVE date — which commonly trails the deadline by weeks — so
+    //     it admitted notices whose window to respond had already shut;
+    //   * nothing excluded award and special notices, so finished awards competed
+    //     for the cap with live solicitations and were offered as pursuable.
+    //
+    // Award/informational notices are now reachable ONLY when the caller asks for
+    // them by kind. They remain saveable for reference; they are never pursuable.
+    const now = new Date();
+    const lifecycleOr: Prisma.SamOpportunityWhereInput[] = [
+      ...(opts.includeActive ? [samPursuableWhere(now) as Prisma.SamOpportunityWhereInput] : []),
+      ...(opts.includeClosed ? [samClosedWhere(now) as Prisma.SamOpportunityWhereInput] : []),
+      ...(opts.includeInformational
+        ? [samInformationalWhere() as Prisma.SamOpportunityWhereInput]
+        : []),
+    ];
+    if (lifecycleOr.length === 0) return { rows: [], capped: false };
     const activeWhere: Prisma.SamOpportunityWhereInput =
-      opts.includeActive && opts.includeClosed
-        ? {}
-        : opts.includeActive
-          ? { active: true }
-          : { active: false };
+      lifecycleOr.length === 1 ? lifecycleOr[0]! : { OR: lifecycleOr };
     const select = SAM_SELECT;
     const windowRows = await this.prisma.samOpportunity.findMany({
       where: activeWhere,
@@ -781,6 +1035,8 @@ export class FundingOpportunitiesService {
       }
     }
 
+    // Already `AND`-composed here, which is why the SAM side did not have the
+    // spread-clobber hazard the grant side did.
     const [structured, text] = await Promise.all([
       structuredOr.length
         ? this.prisma.samOpportunity.findMany({
@@ -1432,64 +1688,122 @@ export class FundingOpportunitiesService {
         label: 'SAM.gov all-federal contract opportunities',
       },
     ];
+    // The enrichment rail is a DEPENDENCY of the Grants.gov rail, not a rail of
+    // its own: it is what populates award ceilings, eligibility text and the
+    // amendment counters. Reported inside grants_gov rather than as a third row,
+    // because "Grants.gov is current but has no terms on anything" is one fact
+    // about one rail.
+    const ENRICHMENT_VERB = 'enrich-grant-details';
     try {
       const [runs, grantCounts, samCounts] = await Promise.all([
+        // ── Latest ATTEMPT, latest SUCCESS and latest FAILURE, per source, in one
+        // pass. The previous query filtered to successful statuses only, so a rail
+        // failing every night for a week reported the last time it worked and
+        // nothing else — which reads as healthy and is the most dangerous possible
+        // presentation of a dead rail.
         this.prisma.$queryRaw<
-          Array<{ source: string; finished_at: Date | null; error_count: number; status: string }>
+          Array<{
+            source: string;
+            last_attempt_at: Date | null;
+            last_status: string | null;
+            last_error_count: number | null;
+            last_success_at: Date | null;
+            last_failure_at: Date | null;
+          }>
         >`
-          SELECT DISTINCT ON (source) source, finished_at, error_count, status
-          FROM sync_run
-          WHERE source = ANY(${rails.map((r) => r.verb)}::text[])
-            AND status = ANY(${['success', 'success_with_errors']}::text[])
-          ORDER BY source, started_at DESC
+          WITH scoped AS (
+            SELECT source, started_at, finished_at, status, error_count
+            FROM sync_run
+            WHERE source = ANY(${[...rails.map((r) => r.verb), ENRICHMENT_VERB]}::text[])
+          ),
+          latest AS (
+            SELECT DISTINCT ON (source) source, started_at, finished_at, status, error_count
+            FROM scoped
+            ORDER BY source, started_at DESC
+          )
+          SELECT
+            l.source,
+            COALESCE(l.finished_at, l.started_at) AS last_attempt_at,
+            l.status                              AS last_status,
+            l.error_count                         AS last_error_count,
+            (
+              SELECT max(s.finished_at) FROM scoped s
+              WHERE s.source = l.source
+                AND s.status = ANY(${['success', 'success_with_errors']}::text[])
+            ) AS last_success_at,
+            (
+              SELECT max(COALESCE(s.finished_at, s.started_at)) FROM scoped s
+              WHERE s.source = l.source AND s.status = 'error'
+            ) AS last_failure_at
+          FROM latest l
         `,
-        this.prisma.$queryRaw<Array<{ total: bigint; active: bigint }>>`
+        this.prisma.$queryRaw<
+          Array<{ total: bigint; active: bigint; detailed: bigint; awaiting: bigint }>
+        >`
           SELECT
             COUNT(*)::bigint AS total,
             COUNT(*) FILTER (
-              WHERE status IN ('posted','forecasted')
-                AND (close_date IS NULL OR close_date >= CURRENT_DATE)
-            )::bigint AS active
+              WHERE ${Prisma.raw(GRANT_ACTIVE_SQL)}
+            )::bigint AS active,
+            COUNT(*) FILTER (WHERE detail_synced_at IS NOT NULL)::bigint AS detailed,
+            COUNT(*) FILTER (
+              WHERE detail_synced_at IS NULL AND ${Prisma.raw(GRANT_ACTIVE_SQL)}
+            )::bigint AS awaiting
           FROM federal_grant
         `,
         this.prisma.$queryRaw<Array<{ total: bigint; active: bigint }>>`
           SELECT
             COUNT(*)::bigint AS total,
             COUNT(*) FILTER (
-              WHERE active = true
-                AND (response_deadline IS NULL OR response_deadline >= now())
-                AND (archive_date IS NULL OR archive_date >= now())
-                AND lower(notice_type) NOT LIKE '%award%'
-                AND lower(notice_type) NOT LIKE '%special notice%'
+              WHERE ${Prisma.raw(SAM_PURSUABLE_SQL)}
             )::bigint AS active
           FROM sam_opportunity
         `,
       ]);
       const byVerb = new Map(runs.map((r) => [r.source, r]));
+      const grantRow = grantCounts[0];
       const counts = {
-        grants_gov: {
-          total: Number(grantCounts[0]?.total ?? 0n),
-          active: Number(grantCounts[0]?.active ?? 0n),
-        },
+        grants_gov: { total: Number(grantRow?.total ?? 0n), active: Number(grantRow?.active ?? 0n) },
         sam_gov: {
           total: Number(samCounts[0]?.total ?? 0n),
           active: Number(samCounts[0]?.active ?? 0n),
         },
       } as const;
+
+      const enrichRun = byVerb.get(ENRICHMENT_VERB);
+      const enrichment: GrantEnrichmentHealth = {
+        lastAttemptAt: enrichRun?.last_attempt_at?.toISOString() ?? null,
+        lastSuccessAt: enrichRun?.last_success_at?.toISOString() ?? null,
+        degraded:
+          enrichRun == null ? null : isDegraded(enrichRun.last_status, enrichRun.last_error_count),
+        detailedRecordCount: Number(grantRow?.detailed ?? 0n),
+        activeAwaitingEnrichment: Number(grantRow?.awaiting ?? 0n),
+      };
+
       return rails.map((rail) => {
         const run = byVerb.get(rail.verb);
         const c = counts[rail.source];
+        const lastSuccess = run?.last_success_at ?? null;
         return {
           source: rail.source,
           verb: rail.verb,
           label: rail.label,
-          lastSyncedAt: run?.finished_at ? run.finished_at.toISOString() : null,
-          neverSynced: !run?.finished_at,
-          lastRunDegraded:
-            run == null ? null : (run.error_count ?? 0) > 0 || run.status === 'success_with_errors',
+          lastSyncedAt: lastSuccess ? lastSuccess.toISOString() : null,
+          lastAttemptAt: run?.last_attempt_at?.toISOString() ?? null,
+          lastRunStatus: run?.last_status ?? null,
+          lastRunErrorCount: run?.last_error_count ?? null,
+          lastFailureAt: run?.last_failure_at?.toISOString() ?? null,
+          hoursSinceLastSuccess: lastSuccess
+            ? Math.floor((Date.now() - lastSuccess.getTime()) / 3_600_000)
+            : null,
+          neverSynced: lastSuccess == null,
+          // Keyed on the LATEST ATTEMPT, not on the latest success. A failed run
+          // last night degrades the rail even if the night before succeeded.
+          lastRunDegraded: run == null ? null : isDegraded(run.last_status, run.last_error_count),
           countsUnavailable: false,
           recordCount: c.total,
           activeRecordCount: c.active,
+          enrichment: rail.source === 'grants_gov' ? enrichment : null,
         };
       });
     } catch (error) {
@@ -1503,11 +1817,19 @@ export class FundingOpportunitiesService {
         verb: rail.verb,
         label: rail.label,
         lastSyncedAt: null,
+        lastAttemptAt: null,
+        lastRunStatus: null,
+        lastRunErrorCount: null,
+        lastFailureAt: null,
+        hoursSinceLastSuccess: null,
+        // NOT `false`: we do not know whether it has ever synced, and claiming it
+        // has is the wrong direction to guess in.
         neverSynced: false,
         lastRunDegraded: null,
         countsUnavailable: true,
         recordCount: null,
         activeRecordCount: null,
+        enrichment: null,
       }));
     }
   }
@@ -1769,6 +2091,16 @@ function isUeiShaped(value: string): boolean {
   return /^[A-Z0-9]{12}$/.test(value.toUpperCase());
 }
 
+/**
+ * A run is degraded when it errored outright, completed with errors, or reported a
+ * non-zero error count. `running` is NOT degraded — it has not finished.
+ */
+function isDegraded(status: string | null, errorCount: number | null): boolean {
+  if (status === 'error') return true;
+  if (status === 'success_with_errors') return true;
+  return (errorCount ?? 0) > 0;
+}
+
 function stringTags(tags: unknown): string[] {
   return Array.isArray(tags) ? tags.filter((t): t is string => typeof t === 'string') : [];
 }
@@ -1786,41 +2118,25 @@ function isHttpUrl(value: string | null): boolean {
 }
 
 /**
- * Grants.gov active = the source still lists it open AND its deadline has not
- * passed. Both halves matter: `status` alone is stale between reconciliation
- * runs, and `closeDate` alone would resurrect an archived notice. A null
- * closeDate with an open status IS active — "continuous" and "TBD" deadlines are
- * real (FederalGrant.responseDateDesc), and treating them as expired hides live
- * money. Same rule as district-nexus.service.ts's isOpportunityActive, kept in
- * this file rather than imported because that one is module-private there.
+ * Local wrappers over the shared predicates in `source-lifecycle.ts`.
+ *
+ * The definitions themselves used to live here, duplicated from the producers and
+ * from the lifecycle pass, and the three copies had drifted: this file tested the
+ * close date, the read QUERY did not, and the lifecycle pass ignored the response
+ * deadline. Having exactly one definition is the point of the shared module — the
+ * wrappers exist only to keep these call sites' positional argument shape.
  */
 function isGrantActive(status: string | null, closeDate: Date | null, today: Date): boolean {
-  const s = (status ?? '').trim().toLowerCase();
-  if (s === 'closed' || s === 'archived') return false;
-  if (s !== 'posted' && s !== 'forecasted') return false;
-  if (closeDate == null) return true;
-  return startOfUtcDay(closeDate).getTime() >= today.getTime();
+  return isGrantActiveShared({ status, closeDate }, today);
 }
 
-/**
- * SAM active = the ingested `active` flag (SAM's own, else derived from the
- * archive date) AND the response deadline has not passed.
- *
- * The deadline half is added deliberately: SAM archives a notice some time AFTER
- * its response date, so a notice can be `active: true` with a deadline three
- * weeks in the past. Presenting that as an open pursuit is the same class of
- * error as showing an award notice as a bid.
- */
 function isSamActive(
   active: boolean,
   responseDeadline: Date | null,
   archiveDate: Date | null,
   now: Date,
 ): boolean {
-  if (!active) return false;
-  if (archiveDate != null && archiveDate.getTime() < now.getTime()) return false;
-  if (responseDeadline != null && responseDeadline.getTime() < now.getTime()) return false;
-  return true;
+  return isSamActiveShared({ active, responseDeadline, archiveDate }, now);
 }
 
 /** `<STATE>-<2-char district>`, or null when either half is missing. */

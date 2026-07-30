@@ -35,6 +35,10 @@
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { runWithSyncRun, type RunCounts } from '../src/ingestion/sync-run.helper.js';
+import {
+  grantActiveWhere,
+  grantClosedWhere,
+} from '../src/funding-opportunities/source-lifecycle.js';
 
 dotenvConfig();
 
@@ -210,45 +214,120 @@ export interface EnrichDeps {
   sleep: (ms: number) => Promise<void>;
 }
 
+/**
+ * Share of each run reserved for CURRENT/pursuable grants.
+ *
+ * 70/30 rather than all-or-nothing. Pursuable grants are what producers score and
+ * what users read, so they get the majority; the archived tail gets a guaranteed
+ * minority so it eventually completes instead of never starting.
+ */
+export const PURSUABLE_SHARE = 0.7;
+
+/**
+ * Validate `--limit`. Exported so the CLI and the tests agree on what is invalid.
+ *
+ * Previously `Number(arg('limit') ?? 300)` was passed straight through, so
+ * `--limit abc` became `NaN` and `take: NaN` — which Prisma rejects at query time
+ * with an opaque validation error after the run had already opened a SyncRun row —
+ * and `--limit 0` or `--limit -5` produced a run that fetched nothing and reported
+ * success.
+ */
+export function parseEnrichmentLimit(raw: string | undefined, fallback = 300): number {
+  if (raw === undefined) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(
+      `--limit must be a positive integer; received ${JSON.stringify(raw)}. A zero or negative limit would report a successful run that enriched nothing.`,
+    );
+  }
+  return parsed;
+}
+
+/**
+ * Split one run's budget between the two populations.
+ *
+ * Unused capacity on either side flows to the other, so a run always costs exactly
+ * `limit` fetches when there is that much work — reserving a share must not mean
+ * wasting it when one pool is empty.
+ */
+export function allocateEnrichmentBudget(
+  limit: number,
+  available: { pursuable: number; historical: number },
+): { pursuable: number; historical: number } {
+  const pursuableTarget = Math.max(1, Math.round(limit * PURSUABLE_SHARE));
+  const historicalTarget = Math.max(1, limit - pursuableTarget);
+
+  let pursuable = Math.min(pursuableTarget, available.pursuable);
+  let historical = Math.min(historicalTarget, available.historical);
+  // Reflow whatever the other side could not use.
+  const spare = limit - pursuable - historical;
+  if (spare > 0) {
+    const extraPursuable = Math.min(spare, available.pursuable - pursuable);
+    pursuable += extraPursuable;
+    historical += Math.min(spare - extraPursuable, available.historical - historical);
+  }
+  return { pursuable, historical };
+}
+
 /** Exported for unit testing with a mocked fetcher/sleep — no live calls, no real DB. */
 export async function enrichGrantCandidates(
   prisma: EnrichGrantsPrisma,
   limit: number,
   deps: EnrichDeps = { fetchOpportunityDetail, sleep },
 ): Promise<RunCounts> {
-  // Pursuable grants first, then everything else.
+  // ── Each run RESERVES capacity for both populations.
   //
-  // WHY: the `--all-statuses` reconcile grew federal_grant from ~5.5k to ~83k
-  // on 2026-07-29, and 72,689 of those are `archived`. A single
-  // detailSyncedAt-ordered sweep therefore draws almost entirely from archived
-  // rows, at 300/run, for roughly nine months — while the ~850 unenriched
-  // grants producers actually score wait behind them. `description` and
-  // `eligibility` come ONLY from this enrichment and
-  // generate-funding-grant-candidates reads both, so that ordering starved the
-  // live scorer.
+  // The `--all-statuses` reconcile grew federal_grant from ~5.5k to ~83k on
+  // 2026-07-29, and 72,689 of those are `archived`. A single detailSyncedAt-ordered
+  // sweep therefore drew almost entirely from archived rows at 300/run — roughly
+  // nine months — while the ~850 unenriched grants producers actually score waited
+  // behind them. `description` and `eligibility` come ONLY from this enrichment and
+  // generate-funding-grant-candidates reads both, so that ordering starved the live
+  // scorer.
   //
-  // Coverage is not reduced: the archived tail is still swept, just second, and
-  // a run still costs exactly `limit` detail fetches.
+  // The fix for THAT starvation created the opposite one: taking `limit` pursuable
+  // rows FIRST and only topping up from the archived tail meant that once the
+  // pursuable pool exceeded 300 — which it permanently does, because pursuable rows
+  // are re-enriched forever on a stalest-first cycle to catch amendments — the
+  // archived tail was never touched again. Priority is not a schedule; a
+  // continuously refreshed population with unconditional priority is a starvation
+  // loop.
+  //
+  // So both get a reserved share, and unused capacity on either side flows to the
+  // other so a run still costs exactly `limit` fetches when the work exists.
   const now = new Date();
-  const pursuable = {
-    status: { in: ['posted', 'forecasted'] },
-    OR: [{ closeDate: null }, { closeDate: { gte: now } }],
-  };
-  const candidates = await prisma.federalGrant.findMany({
-    where: pursuable,
-    orderBy: [{ detailSyncedAt: { sort: 'asc', nulls: 'first' } }],
-    take: limit,
-    select: { id: true },
-  });
-  if (candidates.length < limit) {
-    const rest = await prisma.federalGrant.findMany({
-      where: { NOT: pursuable },
-      orderBy: [{ detailSyncedAt: { sort: 'asc', nulls: 'first' } }],
-      take: limit - candidates.length,
+  const pursuableWhere = grantActiveWhere(now) as never;
+  const historicalWhere = grantClosedWhere(now) as never;
+  const order = [{ detailSyncedAt: { sort: 'asc', nulls: 'first' } }];
+
+  // Over-fetch each side to the FULL limit so the reflow has something to draw on
+  // without a second round trip.
+  const [pursuablePool, historicalPool] = await Promise.all([
+    prisma.federalGrant.findMany({
+      where: pursuableWhere,
+      orderBy: order,
+      take: limit,
       select: { id: true },
-    });
-    candidates.push(...rest);
-  }
+    }),
+    prisma.federalGrant.findMany({
+      where: historicalWhere,
+      orderBy: order,
+      take: limit,
+      select: { id: true },
+    }),
+  ]);
+
+  const budget = allocateEnrichmentBudget(limit, {
+    pursuable: pursuablePool.length,
+    historical: historicalPool.length,
+  });
+  const candidates = [
+    ...pursuablePool.slice(0, budget.pursuable),
+    ...historicalPool.slice(0, budget.historical),
+  ];
+  console.error(
+    `[enrich-grant-details] budget limit=${limit} pursuable=${budget.pursuable} historical=${budget.historical}`,
+  );
 
   let updated = 0;
   let errors = 0;
@@ -270,7 +349,9 @@ export async function enrichGrantCandidates(
 }
 
 async function main(): Promise<void> {
-  const limit = Number(arg('limit') ?? 300);
+  // Validated BEFORE the SyncRun row is opened, so an invalid limit fails loudly
+  // rather than recording a run that fetched nothing.
+  const limit = parseEnrichmentLimit(arg('limit'));
   const prisma = new PrismaClient();
   await prisma.$connect();
   console.error(`[enrich-grant-details] limit=${limit}`);

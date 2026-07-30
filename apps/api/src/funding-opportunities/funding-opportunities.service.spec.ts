@@ -33,6 +33,8 @@ interface FakeState {
   contractHistory: Array<Record<string, unknown>>;
   grantCounts: Array<{ total: bigint; active: bigint }>;
   samCounts: Array<{ total: bigint; active: bigint }>;
+  /** AuditLog rows written during the test. */
+  audits: Array<Record<string, unknown>>;
   /** When set, every $queryRaw rejects — the "source read failed" case. */
   queryRawThrows?: Error;
 }
@@ -125,14 +127,41 @@ function makeState(partial: Partial<FakeState> = {}): FakeState {
     facilities: [
       { id: FACILITY, name: 'El Paso Plant', city: 'El Paso', state: 'TX', zip: '79906', congressionalDistrict: '16', clientId: CLIENT },
     ],
+    // Shape mirrors readFreshness's query, which reports the latest ATTEMPT and
+    // the latest SUCCESS separately — the old single-row shape could not express
+    // "failed last night, succeeded the night before", which is the state the
+    // previous implementation silently rendered as healthy.
     syncRuns: [
-      { source: 'sync-grants', finished_at: new Date('2026-07-28T00:00:00Z'), error_count: 0, status: 'success' },
-      { source: 'sync-sam-opportunities-all-federal', finished_at: new Date('2026-07-27T00:00:00Z'), error_count: 0, status: 'success' },
+      {
+        source: 'sync-grants',
+        last_attempt_at: new Date('2026-07-28T00:00:00Z'),
+        last_status: 'success',
+        last_error_count: 0,
+        last_success_at: new Date('2026-07-28T00:00:00Z'),
+        last_failure_at: null,
+      },
+      {
+        source: 'sync-sam-opportunities-all-federal',
+        last_attempt_at: new Date('2026-07-27T00:00:00Z'),
+        last_status: 'success',
+        last_error_count: 0,
+        last_success_at: new Date('2026-07-27T00:00:00Z'),
+        last_failure_at: null,
+      },
+      {
+        source: 'enrich-grant-details',
+        last_attempt_at: new Date('2026-07-28T02:00:00Z'),
+        last_status: 'success',
+        last_error_count: 0,
+        last_success_at: new Date('2026-07-28T02:00:00Z'),
+        last_failure_at: null,
+      },
     ],
     assistanceHistory: [],
     contractHistory: [],
     grantCounts: [{ total: 1n, active: 1n }],
     samCounts: [{ total: 1n, active: 1n }],
+    audits: [],
     ...partial,
   };
 }
@@ -206,6 +235,14 @@ function makeFake(state: FakeState) {
               f.id === w.id && (w.clientId === undefined || f.clientId === w.clientId),
           ) ?? null
         );
+      }),
+    },
+    // Audit rows are written in the CALLER'S transaction, so the fake exposes
+    // them on `tx` and collects them into state for assertion.
+    auditLog: {
+      create: jest.fn(async (args: any) => {
+        state.audits.push(args.data);
+        return args.data;
       }),
     },
     $queryRaw: jest.fn(async () => []),
@@ -613,11 +650,74 @@ describe('workflow persistence', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  test('patching a non-existent row is a 404 with actionable wording, not a silent create', async () => {
-    const { service } = makeService(makeState());
+  test('editing an UNSAVED recommendation creates a saved workflow row', async () => {
+    // CHANGED deliberately. This used to expect a 404 —
+    // "No saved opportunity to update — save or pursue it first." Every machine
+    // suggestion starts with no workflow row, so the three most natural first
+    // actions on a suggestion (assign an owner, add a note, link a project site)
+    // all failed, and the error told the user to perform a DIFFERENT action
+    // first. Assigning an owner IS saving it: a human has taken responsibility.
+    const state = makeState();
+    const { service } = makeService(state);
+    const result = await service.patchWorkflow(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      actorUserId: USER,
+      notes: 'Reviewed with the capture team.',
+    });
+    expect(state.workflows).toHaveLength(1);
+    // `saved`, never `pursuing` — pursuit is an explicit decision, and inferring
+    // it from "somebody attached a note" would overstate what happened.
+    expect(result.status).toBe('saved');
+    expect(state.workflows[0]!.notes).toBe('Reviewed with the capture team.');
+    expect(state.workflows[0]!.userCreated).toBe(true);
+    expect(state.workflows[0]!.evidenceSourceType).toBe('user_action');
+  });
+
+  test.each([
+    ['assign an owner', { ownerUserId: USER }],
+    ['add a note', { notes: 'note' }],
+    ['link a project site', { facilityId: FACILITY }],
+  ])('%s works on an unsaved recommendation', async (_label, patch) => {
+    const state = makeState();
+    const { service } = makeService(state);
+    await service.patchWorkflow(TENANT, CLIENT, 'sam_gov', SAM_ID, { actorUserId: USER, ...patch });
+    expect(state.workflows).toHaveLength(1);
+    expect(state.workflows[0]!.workflowStatus).toBe('saved');
+  });
+
+  test('patching still 404s when the SOURCE record does not exist', async () => {
+    // The pointer is FK-less, so nothing else would catch a bogus id — and the old
+    // patch path never checked at all, only setWorkflowStatus did.
+    const { service } = makeService(makeState({ sam: [] }));
     await expect(
       service.patchWorkflow(TENANT, CLIENT, 'sam_gov', SAM_ID, { actorUserId: USER, notes: 'x' }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  test('the created-by-edit row and every workflow write are audited', async () => {
+    const state = makeState();
+    const { service } = makeService(state);
+    await service.patchWorkflow(TENANT, CLIENT, 'sam_gov', SAM_ID, { actorUserId: USER, notes: 'x' });
+    expect(state.audits).toHaveLength(1);
+    expect(state.audits[0]!.action).toBe('funding_opportunity.workflow.created_by_edit');
+    expect(state.audits[0]!.entityType).toBe('client_funding_opportunity');
+    expect(state.audits[0]!.actorUserId).toBe(USER);
+
+    await service.patchWorkflow(TENANT, CLIENT, 'sam_gov', SAM_ID, { actorUserId: USER, notes: 'y' });
+    expect(state.audits).toHaveLength(2);
+    expect(state.audits[1]!.action).toBe('funding_opportunity.workflow.patched');
+  });
+
+  test('setWorkflowStatus, dismiss and restore each write one audit row', async () => {
+    const state = makeState();
+    const { service } = makeService(state);
+    await service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, { status: 'saved', actorUserId: USER });
+    await service.dismiss(TENANT, CLIENT, 'sam_gov', SAM_ID, { actorUserId: USER, reason: 'no fit' });
+    await service.restore(TENANT, CLIENT, 'sam_gov', SAM_ID, { actorUserId: USER });
+    expect(state.audits.map((a) => a.action)).toEqual([
+      'funding_opportunity.workflow.saved',
+      'funding_opportunity.workflow.dismissed',
+      'funding_opportunity.workflow.restored',
+    ]);
   });
 
   test('a workflow row is refused for a source record that does not exist', async () => {
@@ -989,13 +1089,119 @@ describe('source freshness', () => {
     const { service } = makeService(
       makeState({
         syncRuns: [
-          { source: 'sync-grants', finished_at: new Date(), error_count: 12, status: 'success_with_errors' },
-          { source: 'sync-sam-opportunities-all-federal', finished_at: new Date(), error_count: 0, status: 'success' },
+          {
+            source: 'sync-grants',
+            last_attempt_at: new Date(),
+            last_status: 'success_with_errors',
+            last_error_count: 12,
+            last_success_at: new Date(),
+            last_failure_at: null,
+          },
+          {
+            source: 'sync-sam-opportunities-all-federal',
+            last_attempt_at: new Date(),
+            last_status: 'success',
+            last_error_count: 0,
+            last_success_at: new Date(),
+            last_failure_at: null,
+          },
         ],
       }),
     );
     const res = await service.listClientOpportunities(TENANT, CLIENT, {});
     expect(res.freshness.find((f) => f.verb === 'sync-grants')?.lastRunDegraded).toBe(true);
+  });
+
+  test('a FAILING rail is not reported as healthy just because it once succeeded', async () => {
+    // The defect this pins. The old query selected `DISTINCT ON (source) … WHERE
+    // status IN ('success','success_with_errors')`, so a rail that has failed every
+    // night for a week reported the last time it worked and nothing else — the page
+    // said "current to 3 Jul" with no sign that every attempt since had died.
+    const failedAt = new Date('2026-07-29T02:00:00Z');
+    const succeededAt = new Date('2026-07-22T02:00:00Z');
+    const { service } = makeService(
+      makeState({
+        syncRuns: [
+          {
+            source: 'sync-grants',
+            last_attempt_at: failedAt,
+            last_status: 'error',
+            last_error_count: 1,
+            last_success_at: succeededAt,
+            last_failure_at: failedAt,
+          },
+        ],
+      }),
+    );
+    const res = await service.listClientOpportunities(TENANT, CLIENT, {});
+    const rail = res.freshness.find((f) => f.verb === 'sync-grants');
+    // The last SUCCESS is still reported — that is what "current to …" means.
+    expect(rail?.lastSyncedAt).toBe(succeededAt.toISOString());
+    // …but the failure is visible at the same time, which is what was impossible.
+    expect(rail?.lastAttemptAt).toBe(failedAt.toISOString());
+    expect(rail?.lastRunStatus).toBe('error');
+    expect(rail?.lastFailureAt).toBe(failedAt.toISOString());
+    expect(rail?.lastRunDegraded).toBe(true);
+    expect(rail?.neverSynced).toBe(false);
+    expect(rail?.hoursSinceLastSuccess).toBeGreaterThan(0);
+  });
+
+  test('grant enrichment health is reported as a dependency of the grants rail', async () => {
+    // sync-grants populates ten fields from search2; award ceilings, eligibility
+    // text and the amendment counters all come from the per-opportunity detail
+    // fetch. A green catalog rail with a dead enricher renders as "this grant has
+    // no award ceiling" rather than "we have not fetched it".
+    const { service } = makeService(makeState());
+    const res = await service.listClientOpportunities(TENANT, CLIENT, {});
+    const grants = res.freshness.find((f) => f.source === 'grants_gov');
+    const sam = res.freshness.find((f) => f.source === 'sam_gov');
+    expect(grants?.enrichment).not.toBeNull();
+    expect(grants?.enrichment?.lastSuccessAt).toBe('2026-07-28T02:00:00.000Z');
+    expect(grants?.enrichment?.degraded).toBe(false);
+    // SAM has no detail-enrichment dependency, so it reports none rather than a
+    // zeroed object that would read as "enrichment is broken".
+    expect(sam?.enrichment).toBeNull();
+  });
+
+  test('a degraded enricher is flagged even when the catalog rail is clean', async () => {
+    const { service } = makeService(
+      makeState({
+        syncRuns: [
+          {
+            source: 'sync-grants',
+            last_attempt_at: new Date('2026-07-28T00:00:00Z'),
+            last_status: 'success',
+            last_error_count: 0,
+            last_success_at: new Date('2026-07-28T00:00:00Z'),
+            last_failure_at: null,
+          },
+          {
+            source: 'enrich-grant-details',
+            last_attempt_at: new Date('2026-07-29T02:00:00Z'),
+            last_status: 'error',
+            last_error_count: 3,
+            last_success_at: new Date('2026-07-01T02:00:00Z'),
+            last_failure_at: new Date('2026-07-29T02:00:00Z'),
+          },
+        ],
+      }),
+    );
+    const res = await service.listClientOpportunities(TENANT, CLIENT, {});
+    const grants = res.freshness.find((f) => f.source === 'grants_gov');
+    expect(grants?.lastRunDegraded).toBe(false);
+    expect(grants?.enrichment?.degraded).toBe(true);
+  });
+
+  test('when the freshness read fails, neverSynced is NOT claimed to be false', async () => {
+    // "We could not read the ledger" must not render as "it has synced".
+    const { service } = makeService(makeState({ queryRawThrows: new Error('boom') }));
+    const res = await service.listClientOpportunities(TENANT, CLIENT, {});
+    for (const rail of res.freshness) {
+      expect(rail.countsUnavailable).toBe(true);
+      expect(rail.recordCount).toBeNull();
+      expect(rail.lastRunDegraded).toBeNull();
+      expect(rail.enrichment).toBeNull();
+    }
   });
 });
 
@@ -1081,5 +1287,234 @@ describe('parsePlaceOfPerformance never assumes the vendor JSON shape', () => {
     expect(parsePlaceOfPerformance(null)).toBeNull();
     expect(parsePlaceOfPerformance([])).toBeNull();
     expect(parsePlaceOfPerformance('TX')).toBeNull();
+  });
+});
+
+// ── §4: the lifecycle predicate must be IN the query, before the row cap ─────
+
+/**
+ * These assert the SHAPE of the `where` argument the service hands Prisma, not
+ * the rows that come back. That is deliberate and it is the only place the defect
+ * was visible: the previous code DID produce a correct final list for a small
+ * fixture, because a TypeScript post-filter trimmed the expired rows after the
+ * fact. What it could not do was survive the cap — ordered soonest-deadline-first
+ * over a real catalog, `take: SCAN_CAP_PER_SOURCE` was consumed by the
+ * longest-expired notices and the genuinely open ones never reached the filter.
+ * A row-level test cannot see that; a predicate-level test can.
+ */
+function whereClauses(mock: { mock: { calls: unknown[][] } }): unknown[] {
+  return mock.mock.calls.map((call) => (call[0] as { where?: unknown }).where);
+}
+
+function jsonOf(value: unknown): string {
+  return JSON.stringify(value, (_key, v) => (v instanceof Date ? v.toISOString() : v));
+}
+
+describe('the active/closed lifecycle predicate reaches the database', () => {
+  test('the default grant query constrains BOTH status and close date', async () => {
+    const { service, prisma } = makeService(makeState());
+    await service.listClientOpportunities(TENANT, CLIENT, {});
+    const clauses = whereClauses(prisma.federalGrant.findMany as never);
+    expect(clauses.length).toBeGreaterThan(0);
+    for (const clause of clauses) {
+      const json = jsonOf(clause);
+      expect(json).toContain('posted');
+      expect(json).toContain('forecasted');
+      // The half that was missing: without it, a 'posted' grant that closed two
+      // years ago is a database hit that consumes the cap.
+      expect(json).toContain('closeDate');
+    }
+  });
+
+  test('the default SAM query constrains the flag, BOTH dates, and the notice type', async () => {
+    const { service, prisma } = makeService(makeState());
+    await service.listClientOpportunities(TENANT, CLIENT, {});
+    const clauses = whereClauses(prisma.samOpportunity.findMany as never);
+    expect(clauses.length).toBeGreaterThan(0);
+    for (const clause of clauses) {
+      const json = jsonOf(clause);
+      expect(json).toContain('active');
+      expect(json).toContain('responseDeadline');
+      // `active` is derived from the ARCHIVE date, which trails the response
+      // deadline — so the deadline alone is not enough and neither is the flag.
+      expect(json).toContain('archiveDate');
+      // Award and special notices are excluded from default discovery.
+      expect(json).toContain('award');
+      expect(json).toContain('special notice');
+    }
+  });
+
+  test('activeState=all still applies a predicate — it is not an unbounded scan', async () => {
+    // The old code used `{}` here, which meant NO predicate at all before the cap.
+    const { service, prisma } = makeService(makeState());
+    await service.listClientOpportunities(TENANT, CLIENT, { activeState: 'all' });
+    for (const clause of whereClauses(prisma.samOpportunity.findMany as never)) {
+      expect(jsonOf(clause)).not.toBe('{}');
+      expect(jsonOf(clause)).toContain('award');
+    }
+    for (const clause of whereClauses(prisma.federalGrant.findMany as never)) {
+      expect(jsonOf(clause)).not.toBe('{}');
+      expect(jsonOf(clause)).toContain('closeDate');
+    }
+  });
+
+  test('the closed grant query is not limited to status closed/archived', async () => {
+    // The old closed predicate was `status IN ('closed','archived')`, which missed
+    // the much larger population of still-'posted' grants whose close date has
+    // passed — so the closed tab could not show them at all.
+    const { service, prisma } = makeService(makeState());
+    await service.listClientOpportunities(TENANT, CLIENT, { activeState: 'closed' });
+    for (const clause of whereClauses(prisma.federalGrant.findMany as never)) {
+      expect(jsonOf(clause)).toContain('closeDate');
+      expect(jsonOf(clause)).toContain('notIn');
+    }
+  });
+
+  test('the grant lifecycle predicate is AND-composed with the targeted query, not overwritten', async () => {
+    // `{ ...lifecycle, OR: targeted }` would silently DELETE the lifecycle half,
+    // because the lifecycle predicate carries its own top-level OR (close date is
+    // null OR in the future). Every emitted clause must still name closeDate.
+    const state = makeState();
+    const { service, prisma } = makeService(state);
+    await service.listClientOpportunities(TENANT, CLIENT, {});
+    const clauses = whereClauses(prisma.federalGrant.findMany as never);
+    // A window query plus at least one targeted query.
+    expect(clauses.length).toBeGreaterThanOrEqual(2);
+    for (const clause of clauses) expect(jsonOf(clause)).toContain('closeDate');
+  });
+});
+
+describe('informational notices are reachable only when asked for', () => {
+  const awardState = () =>
+    makeState({
+      sam: [samRow({ noticeType: 'Award Notice', title: 'Award: Turbofan Sustainment' })],
+    });
+
+  test('an award notice does NOT appear in default discovery', async () => {
+    const { service, prisma } = makeService(awardState());
+    await service.listClientOpportunities(TENANT, CLIENT, {});
+    // The exclusion is in the predicate, so the database never returns it.
+    for (const clause of whereClauses(prisma.samOpportunity.findMany as never)) {
+      expect(jsonOf(clause)).toContain('award');
+      expect(jsonOf(clause)).toContain('NOT');
+    }
+  });
+
+  test('explicitly filtering by an informational kind opens the door', async () => {
+    const { service, prisma } = makeService(awardState());
+    await service.listClientOpportunities(TENANT, CLIENT, { kind: ['award_notice'] });
+    const json = whereClauses(prisma.samOpportunity.findMany as never).map(jsonOf).join(' ');
+    // The informational branch is an OR of the kind clauses (not a NOT of them).
+    expect(json).toContain('award');
+    const res = await service.listClientOpportunities(TENANT, CLIENT, { kind: ['award_notice'] });
+    const found = res.opportunities.find((o) => o.kind === 'award_notice');
+    expect(found).toBeDefined();
+    // …and it is still never pursuable.
+    expect(found?.isPursuable).toBe(false);
+  });
+
+  test('a date filter does NOT open the door — an award notice is not a solicitation at any date', async () => {
+    const { service, prisma } = makeService(awardState());
+    await service.listClientOpportunities(TENANT, CLIENT, {
+      activeState: 'all',
+      deadlineFrom: '2020-01-01',
+      deadlineTo: '2030-01-01',
+    });
+    for (const clause of whereClauses(prisma.samOpportunity.findMany as never)) {
+      const json = jsonOf(clause);
+      expect(json).toContain('NOT');
+    }
+  });
+});
+
+// ── §5: a closed or informational notice may not be marked `pursuing` ────────
+
+describe('pursuit is refused for notices that cannot be pursued', () => {
+  test('an award notice cannot be marked pursuing', async () => {
+    // Nothing enforced this before: `pursuing` was accepted for any notice the URL
+    // named. An award notice announces a competition somebody ELSE won, and once
+    // marked pursuing it sorts to the TOP of the workflow rail, above real bids.
+    const { service } = makeService(
+      makeState({ sam: [samRow({ noticeType: 'Award Notice' })] }),
+    );
+    await expect(
+      service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+        status: 'pursuing',
+        actorUserId: USER,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  test('a special notice cannot be marked pursuing', async () => {
+    const { service } = makeService(
+      makeState({ sam: [samRow({ noticeType: 'Justification and Approval (J&A)' })] }),
+    );
+    await expect(
+      service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+        status: 'pursuing',
+        actorUserId: USER,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  test('an award notice CAN still be saved for reference', async () => {
+    // Saving a competitor's win is how a team tracks the market. Claiming to be
+    // bidding it is the false statement; recording it is not.
+    const state = makeState({ sam: [samRow({ noticeType: 'Award Notice' })] });
+    const { service } = makeService(state);
+    const saved = await service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+      status: 'saved',
+      actorUserId: USER,
+    });
+    expect(saved.status).toBe('saved');
+    expect(state.workflows).toHaveLength(1);
+  });
+
+  test('a SAM notice past its response deadline cannot be marked pursuing', async () => {
+    const { service } = makeService(
+      makeState({
+        sam: [samRow({ responseDeadline: new Date('2020-01-01T00:00:00Z') })],
+      }),
+    );
+    await expect(
+      service.setWorkflowStatus(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+        status: 'pursuing',
+        actorUserId: USER,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  test('a CLOSED grant cannot be marked pursuing', async () => {
+    const { service } = makeService(
+      makeState({ grants: [grantRow({ closeDate: new Date('2020-01-01T00:00:00Z') })] }),
+    );
+    await expect(
+      service.setWorkflowStatus(TENANT, CLIENT, 'grants_gov', 'GRANT-1', {
+        status: 'pursuing',
+        actorUserId: USER,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  test('an OPEN grant can be marked pursuing', async () => {
+    const state = makeState();
+    const { service } = makeService(state);
+    const result = await service.setWorkflowStatus(TENANT, CLIENT, 'grants_gov', 'GRANT-1', {
+      status: 'pursuing',
+      actorUserId: USER,
+    });
+    expect(result.status).toBe('pursuing');
+  });
+
+  test('the guard also covers the patch path', async () => {
+    const { service } = makeService(
+      makeState({ sam: [samRow({ noticeType: 'Award Notice' })] }),
+    );
+    await expect(
+      service.patchWorkflow(TENANT, CLIENT, 'sam_gov', SAM_ID, {
+        actorUserId: USER,
+        status: 'pursuing',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

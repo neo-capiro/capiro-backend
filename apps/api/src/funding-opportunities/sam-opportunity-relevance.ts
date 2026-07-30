@@ -32,6 +32,7 @@
  * discarded because "defense" is generic. It simply needs a second meaningful
  * signal before it counts as a suggestion.
  */
+import { evaluateSetAsideEligibility } from './set-aside.js';
 
 /** Ordered strongest-first; the order is the tie-break for matchedSignals. */
 export const SAM_RELEVANCE_SIGNALS = [
@@ -378,9 +379,13 @@ export function scoreSamOpportunityRelevance(
       return Boolean((oppZip && siteZip && oppZip === siteZip) || (oppCity && siteCity && oppCity === siteCity));
     });
     if (exactSite) {
-      const where = [opp.placeOfPerformance?.city, popState, opp.placeOfPerformance?.zip]
-        .filter(Boolean)
-        .join(' ');
+      // "El Paso, TX 79901" — the conventional rendering, because this string is
+      // shown to an operator as the evidence for a STRONG signal. Space-joining
+      // produced "El Paso TX 79901", which reads as a malformed field; the spec
+      // has always asserted the comma form and this line had drifted from it,
+      // failing on main before this branch existed.
+      const cityState = [opp.placeOfPerformance?.city, popState].filter(Boolean).join(', ');
+      const where = [cityState, opp.placeOfPerformance?.zip].filter(Boolean).join(' ');
       push(signals, 'placeOfPerformanceSite', where);
     } else {
       // Same-state is useful but is not a site match: California-to-California
@@ -454,9 +459,9 @@ export function scoreSamOpportunityRelevance(
  * That is not a placeholder, it is the honest ceiling of what Capiro holds:
  *
  *   - A set-aside restricts who may bid, and every socioeconomic set-aside turns
- *     on a CERTIFICATION (8(a), SDVOSB, WOSB, HUBZone) that we store nowhere. An
- *     absent certification record is not evidence the client lacks one, so
- *     `ineligible` would be a guess in the dangerous direction.
+ *     on a CERTIFICATION (8(a), SDVOSB, WOSB, HUBZone) whose currency we cannot
+ *     check. An absent certification record is not evidence the client lacks
+ *     one, so `ineligible` would be a guess in the dangerous direction.
  *   - A small-business set-aside additionally turns on the SBA size standard for
  *     the notice's own NAICS, which we do not hold either. A client's
  *     self-reported "Small businesses" applicant type is a report, not a
@@ -464,42 +469,34 @@ export function scoreSamOpportunityRelevance(
  *   - Full-and-open is open to any RESPONSIBLE source, and responsibility is a
  *     contracting-officer determination, not a field.
  *
- * `Client.setAsideCertifications` is reviewer-entered structured evidence. Even
- * an exact code match carries a reminder to confirm current certification and
- * solicitation-specific size standards before submission.
+ * ── Why a MATCHING certification is still not `eligible` ─────────────────────
+ *
+ * This function used to return `eligible` when the notice's `typeOfSetAside`
+ * code appeared verbatim in `Client.setAsideCertifications`. Two things were
+ * wrong with that. It compared a SOLICITATION RESTRICTION code against a field
+ * of company certifications, so recording the string 'SBA' — SAM's code for
+ * "Total Small Business Set-Aside", a certification nobody holds — reported the
+ * client as eligible. And even a genuine 8(a) match evidences only one of the
+ * conjuncts a real 8(a) award needs (active participation AND size for the
+ * notice's NAICS AND, on a sole-source notice, being the firm the contracting
+ * officer already picked).
+ *
+ * The four facts are separated in `set-aside.ts`, which owns this decision now.
  */
 export function computeSamEligibility(
   client: SamClientProfile,
   opp: SamOpportunityProfile,
 ): { state: 'eligible' | 'needs_review' | 'unknown'; reason: string } {
-  if (opp.setAsideCode || opp.setAside) {
-    const label = opp.setAside ?? opp.setAsideCode ?? 'a set-aside';
-    const code = normCode(opp.setAsideCode);
-    const certifications = new Set(client.setAsideCertifications.map(normCode).filter(Boolean));
-    if (code && certifications.has(code)) {
-      return {
-        state: 'eligible',
-        reason: `The client profile explicitly records certification ${code}, matching ${label}. Confirm current certification and the solicitation-specific size standard before submission.`,
-      };
-    }
-    if (isGeneralSmallBusinessSetAside(opp.setAsideCode)) {
-      return {
-        state: 'needs_review',
-        reason: selfReportsSmallBusiness(client.applicantTypes)
-          ? `Restricted to ${label}. This client self-reports as a small business, but the SBA size standard for NAICS ${opp.naicsCode ?? '(not stated)'} must still be confirmed.`
-          : `Restricted to ${label}, and no small-business status is recorded for this client — confirm before bidding.`,
-      };
-    }
-    return {
-      state: 'needs_review',
-      reason: certifications.size
-        ? `Restricted to ${label}. The recorded certifications (${[...certifications].join(', ')}) do not include ${code || 'the required program'}; verify whether the profile is complete before treating this as ineligible.`
-        : `Restricted to ${label}. No set-aside certifications are recorded for this client, so qualification cannot be confirmed from structured fields.`,
-    };
-  }
-  return {
-    state: 'unknown',
-    reason:
-      'This notice records no set-aside in the fields Capiro holds. Contract eligibility also depends on a contracting officer’s responsibility determination, which is not published as data, so it is not asserted here.',
-  };
+  const evaluated = evaluateSetAsideEligibility({
+    certifications: client.setAsideCertifications,
+    selfReportsSmallBusiness: selfReportsSmallBusiness(client.applicantTypes),
+    setAsideCode: opp.setAsideCode,
+    setAsideLabel: opp.setAside,
+    naicsCode: opp.naicsCode,
+    // Capiro stores no employee-count or receipts data, so a NAICS-specific size
+    // determination is never on file. Passed explicitly rather than defaulted so
+    // that the day it exists, this call site is where it is wired.
+    hasNaicsSizeDetermination: false,
+  });
+  return { state: evaluated.state, reason: evaluated.reason };
 }

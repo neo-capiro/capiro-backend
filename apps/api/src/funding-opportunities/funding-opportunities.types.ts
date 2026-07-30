@@ -131,19 +131,70 @@ export type IsoTimestamp = string;
 export type DistrictKey = string;
 
 /**
- * When the source rail behind an opportunity last synced successfully. Surfaced
- * so a stale rail reads as "contract notices current to 3 Jul", never as "there
- * are no contract opportunities".
+ * Health of one Grants.gov detail-enrichment dependency.
+ *
+ * Reported separately from the catalog sync because they fail INDEPENDENTLY and
+ * the difference matters to a reader. `sync-grants` populates ten fields from
+ * search2; everything a user actually decides on — eligibility text, award
+ * ceiling, cost sharing, the amendment counters — comes from the per-opportunity
+ * detail fetch. A green catalog rail with a dead enricher is a page full of
+ * grants with no terms on them, which reads as "this grant has no award ceiling"
+ * rather than "we have not fetched it".
+ */
+export interface GrantEnrichmentHealth {
+  /** Last enrichment run of any outcome. */
+  lastAttemptAt: IsoTimestamp | null;
+  /** Last enrichment run that succeeded. */
+  lastSuccessAt: IsoTimestamp | null;
+  /** True when the most recent attempt failed or reported errors. */
+  degraded: boolean | null;
+  /** Catalog records that HAVE been detail-enriched. Null = unavailable. */
+  detailedRecordCount: number | null;
+  /** ACTIVE records still awaiting a detail fetch. Null = unavailable. */
+  activeAwaitingEnrichment: number | null;
+}
+
+/**
+ * When the source rail behind an opportunity last synced, and how it went.
+ * Surfaced so a stale rail reads as "contract notices current to 3 Jul", never as
+ * "there are no contract opportunities".
+ *
+ * ── Why a failed run is reported alongside the last success ──────────────────
+ *
+ * This used to select `DISTINCT ON (source) … WHERE status IN
+ * ('success','success_with_errors')`, which means a rail that has been FAILING
+ * every night for a week reported the last time it worked and nothing else. The
+ * page then said "current to 3 Jul" with no indication that every attempt since
+ * had died — the most dangerous possible reading, because it looks healthy.
+ *
+ * So the latest ATTEMPT is reported independently of the latest SUCCESS, and both
+ * are present at once. `lastRunStatus` is the attempt's status, and it being
+ * 'error' while `lastSuccessAt` holds a date is exactly the state the old query
+ * could not express.
  */
 export interface OpportunitySourceFreshness {
   source: OpportunitySource;
   /** The ingestion verb, which is what the runbook and the UI key on. */
   verb: string;
   label: string;
+  /**
+   * Last SUCCESSFUL sync. Kept under the original name because the UI's "current
+   * to …" line means exactly this and nothing else.
+   */
   lastSyncedAt: IsoTimestamp | null;
+  /** Latest run of ANY outcome, including a failure. */
+  lastAttemptAt: IsoTimestamp | null;
+  /** The latest attempt's status verbatim ('success' | 'success_with_errors' | 'error' | 'running'). */
+  lastRunStatus: string | null;
+  /** The latest attempt's error count. */
+  lastRunErrorCount: number | null;
+  /** Latest run that FAILED outright. Null when the rail has never failed. */
+  lastFailureAt: IsoTimestamp | null;
+  /** Whole hours since the last success. Null when it has never succeeded. */
+  hoursSinceLastSuccess: number | null;
   /** True when the rail has NEVER completed a successful run. */
   neverSynced: boolean;
-  /** True when the last completed run reported errors or a capped window. */
+  /** True when the LATEST ATTEMPT failed or reported errors. */
   lastRunDegraded: boolean | null;
   /** True when catalog counts could not be read. */
   countsUnavailable: boolean;
@@ -151,6 +202,8 @@ export interface OpportunitySourceFreshness {
   recordCount: number | null;
   /** Count of ACTIVE, pursuable source records. Null = unavailable. */
   activeRecordCount: number | null;
+  /** Grants.gov only: the detail-enrichment dependency this rail's data depends on. */
+  enrichment: GrantEnrichmentHealth | null;
 }
 
 // ── Matching explanation ────────────────────────────────────────────────────
