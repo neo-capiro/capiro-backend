@@ -141,7 +141,8 @@
     "verify:pe-phase-e": "jest --runInBand --forceExit scripts/lib/pe-exact-sha-loader-contract.spec.ts scripts/lib/defense-budget-commit.spec.ts scripts/lib/pe-ingestion-mode.spec.ts && tsx scripts/verify-pe-phase-e-exact-sha.ts",
     "generate:funding-grant-candidates": "tsx scripts/generate-funding-grant-candidates.ts",
     "process:funding-opportunity-lifecycle": "tsx scripts/process-funding-opportunity-lifecycle.ts",
-    "backfill:funding-mapping-review": "tsx scripts/backfill-funding-mapping-review.ts"
+    "backfill:funding-mapping-review": "tsx scripts/backfill-funding-mapping-review.ts",
+    "verify:pe-phase-f": "jest --runInBand --detectOpenHandles --forceExit src/ingestion/embed-watermark.spec.ts src/ingestion/sync-run.helper.spec.ts scripts/sam-opportunity-matcher.spec.ts scripts/sync-sam-opportunities.spec.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.665.0",

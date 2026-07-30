@@ -2,7 +2,7 @@
 
 **Baseline main SHA:** `057f5480a46f9ba9acf9296a9cc876b609593832`  
 **Pre-Phase-0 #705 head (void product):** `a244022648d54d9e4ac7fb071f9f438405659056`  
-**Updated (UTC):** 2026-07-30 (Phase 2 exact-SHA loader contract after main sync `6268e2f2a`; implementer gates green; **Phase 2 independent review PENDING**)
+**Updated (UTC):** 2026-07-30 (Phase 3 complete-window + SAM safety integrated on top of Phase 2 PASS tip `0f47e13f8`; implementer gates green; **Phase 3 independent review PENDING**)
 
 Legend for **Status**:
 
@@ -63,7 +63,7 @@ Closeout **execution phase** column is the session phase from the final schedule
 | E7 | Observation carries page/span/extractor/units | `in_branch` incremental | writeContext + originalValues on committee/pdoc/O-1; PDF Phase B | 2 |
 | E8 | Loader inventory (RDT&E P-forms, O&M OP-5, J-books, HASC/SASC, HAC-D/SAC-D, NDAA conf, public law, generalized PDF) | `in_branch` (Phase 2) | `PE_EXACT_SHA_DOLLAR_LOADERS` + static verifier (13 entrypoints) | 2 |
 
-**Phase 2 review gate:** Independent review **PENDING** against remote tip `d06601b0ac4e2f393b946df17224052f1f7933ff`. Implementer gates alone are not Phase 2 PASS.
+**Phase 2 review gate:** Independent review **PASS** on tip `0f47e13f8` (product `d06601b0a`); artifact `prompts/phase-2-review-PASS.md`.
 
 ---
 
@@ -71,27 +71,20 @@ Closeout **execution phase** column is the session phase from the final schedule
 
 | ID | Requirement | Status | Source | Owner phase |
 |---|---|---|---|---|
-| F1 | Partial runs record `partial`, not success | `recovered` | `origin/agent/pe-trust-phase-f` product | 3 |
-| F2 | Only complete runs advance success watermark | `recovered` | same + `embed-watermark.ts` | 3 |
-| F3 | Historical backfill separate source/watermark | `recovered` | commit msg + SAM script | 3 |
-| F4 | Oversized SAM ranges recursively split | `recovered` | `sync-sam-opportunities.ts` | 3 |
-| F5 | Unsplittable single-day overflow stays partial/visible | `recovered` | same | 3 |
-| F6 | Notice ID dedupe across splits | `recovered` | same | 3 |
-| F7 | SAM HTTPS, host allowlist, SSRF guard, timeouts, size limit, API key redaction | `recovered` | same + specs | 3 |
-| F8 | Match persistence preserves accept/reject human decisions | `recovered`/verify | integrate+test | 3 |
-| F9 | Opportunity + match writes atomic | `recovered`/verify | 3 |
-| F10 | Drop `.github/workflows/pe-phase-f-current-source.yml` on integrate | required | do not bring temp workflow | 3 |
+| F1 | Partial runs record `partial`, not success | `in_branch` (Phase 3) | `statusFromCounts` + incomplete RunCounts | 3 |
+| F2 | Only complete runs advance success watermark | `in_branch` (Phase 3) | `lastSuccessfulWatermark` status='success' only | 3 |
+| F3 | Historical backfill separate source/watermark | `in_branch` (Phase 3) | `syncSourceForScope(scope, backfill)` (+ main all-federal) | 3 |
+| F4 | Oversized SAM ranges recursively split | `in_branch` (Phase 3) | `collectSamWindowRecords` / `splitSamWindow` | 3 |
+| F5 | Unsplittable single-day overflow stays partial/visible | `in_branch` (Phase 3) | incompleteReason + partial SyncRun | 3 |
+| F6 | Notice ID dedupe across splits | `in_branch` (Phase 3) | seenNoticeIds in collector | 3 |
+| F7 | SAM HTTPS, host allowlist, SSRF guard, timeouts, size limit, API key redaction | `in_branch` (Phase 3) | fetchPage + resolveSamDescription | 3 |
+| F8 | Match persistence preserves accept/reject human decisions | `in_branch` (Phase 3) | persistOneMatch / persistMatches | 3 |
+| F9 | Opportunity + match writes atomic | `in_branch` (Phase 3) | `$transaction` around upsert+matches | 3 |
+| F10 | Drop `.github/workflows/pe-phase-f-current-source.yml` on integrate | `in_branch` (absent) | never introduced | 3 |
 
-**Product paths on F tip (merge these, not whole historical branch tip-with-main-delta noise):**
+**Integrate note:** Path-limited port from `origin/agent/pe-trust-phase-f` product commits `107a7f5f0`/`c8ef5c3a1` **into** current-main SAM script (all-federal + dry-run hygiene + CLI validation retained). No wholesale F tip merge. No transport workflow.
 
-- `apps/api/scripts/sync-sam-opportunities.ts`
-- `apps/api/scripts/sync-sam-opportunities.spec.ts`
-- `apps/api/src/ingestion/embed-watermark.ts` (+spec)
-- `apps/api/src/ingestion/sync-run.helper.ts` (+spec)
-- `apps/api/package.json` (script/tsconfig entries only as needed)
-- `apps/api/tsconfig.pe-phase-f.json`
-
-**Warning:** Three-dot or two-dot diff of F vs main is polluted by **main moving forward after F branched** (funding-opportunities, hearings, etc. show as deletions on older tip). Integrate by **cherry-picking path-limited commits** `107a7f5f0`, `c8ef5c3a1` (and typing follow-ups as needed) onto current main, **not** by merging the branch tip wholesale.
+**Phase 3 review gate:** Independent review **PENDING** against remote tip after Phase 3 product push. Implementer gates alone are not Phase 3 PASS.
 
 ---
 

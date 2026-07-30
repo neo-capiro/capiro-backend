@@ -4,9 +4,9 @@
 **PR:** https://github.com/neo-capiro/capirov2/pull/705 (draft → `main`)  
 **Plan source:** local `program-elements-final-closeout-plan-and-schedule.md`  
 **Repo:** `neo-capiro/capirov2`  
-**Operator session:** Phase 2 IMPLEMENT (exact-SHA atomic loader contract)  
+**Operator session:** Phase 3 IMPLEMENT (complete-window + SAM safety)  
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-30 (Phase 2 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-30 (Phase 3 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
 
 ---
 
@@ -356,11 +356,91 @@ git reset --hard 6268e2f2a1ef3eda906c47e8721c211d95f102a4
 
 | Round | Tip | Verdict |
 |---|---|---|
-| Phase 2 | `d06601b0ac4e2f393b946df17224052f1f7933ff` | **PENDING** — implementer gates green ≠ PASS |
+| Phase 2 | `0f47e13f8f5335c306b7ed18b2b292bcd25f482b` (product `d06601b0a`) | **PASS** — `prompts/phase-2-review-PASS.md` |
+
+---
+
+## Phase 3 — Complete-Window and SAM Ingestion Safety
+
+### 3.0 Preflight
+
+| Item | Value |
+|---|---|
+| Worktree | `C:/c/Users/neoma/AppData/Local/Temp/pe-closeout-wt` |
+| Branch | `agent/program-elements-final-closeout` |
+| Phase 2 PASS tip (start) | `0f47e13f8f5335c306b7ed18b2b292bcd25f482b` |
+| `origin/main` at Phase 3 base | `3dcb12f823774b6fae8578dc56fc122bf9a0879e` |
+| Recovered product source | `origin/agent/pe-trust-phase-f` @ `b13568959` (path-limited; not tip-merge) |
+| Status | **IMPLEMENT PUSHED** / independent review REQUIRED (no self-PASS) |
+
+### 3.1 Product work (F1–F10)
+
+Integrated Phase F safeguards into current tip **without** regressing main’s post-F Funding Opportunities work (`--all-federal`, CLI window validation, dry-run no SyncRun, backfill separate sources, `errorMessage` on incomplete job errors).
+
+| ID | Implementation |
+|---|---|
+| F1 | `RunCounts.complete===false` → `statusFromCounts` = `partial` |
+| F2 | `lastSuccessfulWatermark` still only reads `status='success'`; partial/success_with_errors never advance floor |
+| F3 | `syncSourceForScope(scope, backfill)` → `…-backfill` per DoD / all-federal (main naming retained, not F’s `:` form) |
+| F4–F6 | `collectSamWindowRecords` + `splitSamWindow` recursive split; noticeId global dedupe; single-day overflow = incomplete |
+| F7 | `fetchPage` / `resolveSamDescription`: timeout, HTTPS, sam.gov host allowlist, private-IP block, size limit, API-key redaction |
+| F8 | `persistMatches` leaves accepted/rejected untouched; same-basis candidate refreshes confidence only |
+| F9 | Opportunity upsert + match writes inside `prisma.$transaction` |
+| F10 | No temp `.github/workflows/pe-phase-f-current-source.yml` brought onto branch |
+
+Also retained main behavior:
+- Dry-run never opens SyncRun / never moves watermark (`lastSuccessfulWatermark` for window report only).
+- Main `RunCounts.errorMessage` (e.g. geocode-facilities) still persists on `success_with_errors`.
+- Description URLs are not scanned as PE-match text (`descriptionForMatching`).
+
+**Touched paths**
+- `apps/api/src/ingestion/embed-watermark.ts` (+spec)
+- `apps/api/src/ingestion/sync-run.helper.ts` (+spec)
+- `apps/api/scripts/sync-sam-opportunities.ts` (+spec)
+- `apps/api/tsconfig.pe-phase-f.json` (new)
+- `apps/api/package.json` → `verify:pe-phase-f`
+
+### 3.2 Gates (this session; base tip `0f47e13f8`)
+
+| Command | Result |
+|---|---|
+| `pnpm run verify:pe-phase-f` | PASS 4 suites / 89 tests |
+| `pnpm exec tsc -p tsconfig.pe-phase-f.json --noEmit` | PASS exit 0 |
+| `pnpm run verify:pe-phase-a` | PASS `PE_PHASE_A_B_SAFETY_OK` |
+| `pnpm run verify:pe-phase-b` | PASS 7 suites / 111 tests |
+| `pnpm run verify:pe-phase-d` | PASS 7 suites / 51 tests |
+| `pnpm run verify:pe-phase-e` | PASS 3 suites / 71 tests + 13 loaders static |
+| verify:pe-phase-c | not re-run this session (Phase 3 did not touch watch/read/RLS paths; A/B/D/E green) |
+| Shared DB migrate / SAM network / secrets / LlamaParse / email | **not run** |
+| MeriV2 product paths | untouched |
+| Transport / pe-phase-f-current-source workflow | absent from diff |
+
+No base-proven inherited failures introduced on A/B/D/E/F for this tip.
+
+### 3.3 Not done / forbidden
+
+- Independent adversarial REVIEW (separate session; implementer does **not** self-PASS)
+- Phase 4+
+- Live SAM.gov calls, Secrets Manager pulls, shared-env ingestion commit, merge, deploy
+
+### 3.4 Rollback
+
+```bash
+# after push, reverse the Phase 3 product commit (SHA recorded in push note):
+git revert <phase-3-product-sha>
+# or hard reset closeout branch to Phase 2 PASS tip:
+git reset --hard 0f47e13f8f5335c306b7ed18b2b292bcd25f482b
+```
+
+### Independent review status (Phase 3)
+
+| Round | Tip | Verdict |
+|---|---|---|
+| Phase 3 | (remote tip after this push) | **PENDING** — implementer gates green ≠ PASS |
 
 ---
 
 ## Next phase
 
-**Phase 2 independent adversarial REVIEW only** (not Phase 3 implement).
-Do not start Phase 3 until a separate REVIEW session records `VERDICT: PASS` against the remote tip SHA after this Phase 2 product commit.
+**Phase 3 independent adversarial REVIEW only** (not Phase 4 implement).
+Do not start Phase 4 until a separate REVIEW session records `VERDICT: PASS` against the remote tip SHA after this Phase 3 product commit.

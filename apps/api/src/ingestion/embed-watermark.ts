@@ -35,6 +35,15 @@ export interface RunCounts {
   skipped: number;
   errors: number;
   /**
+   * False when the source window was not exhausted. A partial run may still
+   * have written every row it actually received, but it must never advance the
+   * incremental watermark because an unseen tail remains retryable.
+   * (`lastSuccessfulWatermark` only reads status='success'.)
+   */
+  complete?: boolean;
+  /** Bounded operator-facing reason persisted on a partial SyncRun. */
+  incompleteReason?: string;
+  /**
    * Why `errors > 0`, for the `sync_run` row. Optional and additive: a job that
    * doesn't set it behaves exactly as before.
    *
@@ -49,7 +58,10 @@ export interface RunCounts {
   errorMessage?: string | null;
 }
 
-/** Final SyncRun status from a run's error count. */
-export function statusFromCounts(counts: RunCounts): 'success' | 'success_with_errors' {
+export type CompletedSyncRunStatus = 'success' | 'success_with_errors' | 'partial';
+
+/** Final SyncRun status from completeness first, then the run's error count. */
+export function statusFromCounts(counts: RunCounts): CompletedSyncRunStatus {
+  if (counts.complete === false) return 'partial';
   return counts.errors > 0 ? 'success_with_errors' : 'success';
 }
