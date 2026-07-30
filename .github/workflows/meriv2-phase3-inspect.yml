@@ -1,0 +1,43 @@
+name: MeriV2 Phase 3 inspection
+
+on:
+  push:
+    branches:
+      - agent/meriv2-world-class-closeout
+    paths:
+      - .github/workflows/meriv2-phase3-inspect.yml
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/meriv2-world-class-closeout
+      - name: Capture Phase 3 call sites
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '## HEAD'
+            git rev-parse HEAD
+            echo '## MAIN'
+            git fetch origin main --quiet
+            git rev-parse origin/main
+            echo '## Candidate files'
+            find apps/web/src -type f \( -iname '*memory*' -o -iname '*setting*' -o -iname '*knowledge*' \) | sort
+            echo '## Endpoint consumers'
+            rg -n --hidden --glob '!**/node_modules/**' "memory/items|items/.*/sections|upsertSectionsForCurrentTenant|updateSections\(" apps packages || true
+            echo '## UI wording and save handlers'
+            rg -n --hidden --glob '!**/node_modules/**' "Fill with Meri|Saved|Save failed|Submitted for|pending_review|activeItemUnchanged|candidateId" apps/web/src apps/api/src/memory || true
+          } | tee phase3-inspection.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: meriv2-phase3-inspection
+          path: phase3-inspection.txt
+          if-no-files-found: error
+          retention-days: 1
