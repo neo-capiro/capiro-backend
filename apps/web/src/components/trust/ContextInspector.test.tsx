@@ -72,6 +72,23 @@ describe('ContextInspector', () => {
     expect(screen.queryByText(/Packet aaaaaaaa/)).toBeNull();
   });
 
+  it('never displays an id when persistence evidence is absent', () => {
+    const unproven = 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff';
+    render(
+      <ContextInspector
+        packet={{
+          packetId: unproven,
+          items: [],
+          exclusions: [],
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByText(/Context used/i));
+
+    expect(screen.queryByTitle(unproven)).toBeNull();
+    expect(screen.queryByText(/Packet bbbbbbbb/)).toBeNull();
+  });
+
   it('links to the review surface instead of editing canonical context inline', () => {
     const review = vi.fn();
     render(<ContextInspector packet={packet} onReviewContext={review} />);
