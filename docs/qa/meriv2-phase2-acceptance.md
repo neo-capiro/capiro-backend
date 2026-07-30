@@ -5,7 +5,13 @@
 - Isolated validation run: `30516743461`
 - API typecheck: PASS
 - Targeted regression matrix: 7 suites, 50 tests, PASS
-- Normal PR CI: pending on the promoted closeout SHA
+- Normal PR CI: PASS on closeout SHA `26c06dc5783100bd976bee84398e90681ce98c12`
+  - `ci-pr` run `30517074003` — PASS
+  - `meriv2-evals` run `30517074001` — PASS
+  - `engagement-trust-boundary` run `30517074000` — PASS
+  - `legiwatch-ci` run `30517074014` — PASS
+  - `funding-opportunities-ci` run `30517074012` — PASS
+- Acceptance gate: **PASS**
 
 The governed lifecycle flag remains dark by default. When explicitly armed after the additive migrations exist, candidate activation writes the authoritative `memory_items` row, candidate lineage, Clio compatibility row, transition evidence, and durable projection obligation in the same tenant transaction. Firm, client, and personal approvals receive their canonical authority/class/scope and steering-layer type; model-extracted content remains model-inferred. A rebuilt Clio projection preserves the same governed metadata, and the approved canonical version is eligible for Context Packet v2 with the same authority. Pending candidates have no canonical active row.
 

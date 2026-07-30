@@ -405,5 +405,6 @@ Phase 1 evidence SHA are green.
 - Clio remains a compatibility/projection source; its governance envelope preserves authority, source, approval, validity, conflict, origin, and steering type across rebuilds.
 - Model-extracted content remains `model_inferred`; human review does not rewrite provenance into human-authored authority.
 - Full rollback includes the canonical item, candidate, Clio row, audit evidence, and outbox obligation.
-- Acceptance state: implementation and isolated regression gate PASS; normal PR checks pending on the promoted SHA.
-- Next gated phase after normal PR CI: Phase 3 — route Settings edits through candidate review.
+- Normal PR CI on `26c06dc5783100bd976bee84398e90681ce98c12`: `ci-pr` `30517074003`, `meriv2-evals` `30517074001`, `engagement-trust-boundary` `30517074000`, `legiwatch-ci` `30517074014`, and `funding-opportunities-ci` `30517074012` — all PASS.
+- Acceptance state: **PASS**. Approved governance is canonical on the active `memory_items` version, remains consistent through the Clio compatibility projection and Context Packet v2, and rolls back atomically with candidate/audit/outbox state.
+- Next gated phase: Phase 3 — route Settings edits through candidate review.
