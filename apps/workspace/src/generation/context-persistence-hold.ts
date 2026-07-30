@@ -1,22 +1,45 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { ServiceUnavailableException } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 
-const HOLD_TTL_MS = 5 * 60 * 1_000;
-
 interface PersistenceHold {
   errorCode: string;
-  expiresAt: number;
 }
 
-const holds = new Map<string, PersistenceHold>();
-
-function key(tenantId: string, draftId: string): string {
-  return `${tenantId}:${draftId}`;
+interface PersistenceBoundary {
+  tenantId: string;
+  draftId: string;
+  hold: PersistenceHold | null;
 }
 
-/** Start a new compile attempt without inheriting a stale failed-attempt hold. */
+const boundaries = new AsyncLocalStorage<PersistenceBoundary>();
+
+/**
+ * Run one generation request inside its own persistence boundary.
+ *
+ * The previous process-global tenant:draft map allowed two concurrent requests
+ * for the same draft to clear or consume each other's hold. Async-local state is
+ * inherited only by this request's awaited compiler, provider, and Prisma work.
+ */
+export function runWithContextPersistenceBoundary<T>(
+  tenantId: string,
+  draftId: string,
+  work: () => T,
+): T {
+  return boundaries.run({ tenantId, draftId, hold: null }, work);
+}
+
+function activeBoundary(tenantId: string, draftId: string): PersistenceBoundary | null {
+  const boundary = boundaries.getStore();
+  if (!boundary) return null;
+  if (boundary.tenantId !== tenantId || boundary.draftId !== draftId) return null;
+  return boundary;
+}
+
+/** Start a new compile attempt without inheriting an earlier attempt's hold. */
 export function clearContextPersistenceHold(tenantId: string, draftId: string): void {
-  holds.delete(key(tenantId, draftId));
+  const boundary = activeBoundary(tenantId, draftId);
+  if (boundary) boundary.hold = null;
 }
 
 /** Record only bounded identity and reason-code metadata. */
@@ -25,21 +48,19 @@ export function markContextPersistenceHold(
   draftId: string,
   errorCode: string,
 ): void {
-  holds.set(key(tenantId, draftId), {
-    errorCode: errorCode.slice(0, 80),
-    expiresAt: Date.now() + HOLD_TTL_MS,
-  });
+  const boundary = activeBoundary(tenantId, draftId);
+  if (!boundary) return;
+  boundary.hold = { errorCode: errorCode.slice(0, 80) };
 }
 
 export function consumeContextPersistenceHold(
   tenantId: string,
   draftId: string,
 ): PersistenceHold | null {
-  const holdKey = key(tenantId, draftId);
-  const hold = holds.get(holdKey);
-  if (!hold) return null;
-  holds.delete(holdKey);
-  if (hold.expiresAt <= Date.now()) return null;
+  const boundary = activeBoundary(tenantId, draftId);
+  if (!boundary?.hold) return null;
+  const hold = boundary.hold;
+  boundary.hold = null;
   return hold;
 }
 
