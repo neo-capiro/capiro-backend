@@ -34,12 +34,14 @@ describe('MeriContextPacketController', () => {
     const calls: Array<Record<string, unknown>> = [];
     const tx = {
       tenant: {
-        findFirst: jest.fn().mockResolvedValue({ settings: options.settings ?? CANARY_SETTINGS }),
+        findFirst: jest.fn(async () => ({ settings: options.settings ?? CANARY_SETTINGS })),
       },
       clioConversation: {
-        findFirst: jest.fn().mockResolvedValue(options.conversation === undefined ? { id: 'c1' } : options.conversation),
+        findFirst: jest.fn(async () =>
+          options.conversation === undefined ? { id: 'c1' } : options.conversation,
+        ),
       },
-      client: { findFirst: jest.fn().mockResolvedValue({ name: 'Acme Corp' }) },
+      client: { findFirst: jest.fn(async () => ({ name: 'Acme Corp' })) },
       contextPacket: {
         findFirst: jest.fn(async (args: Record<string, unknown>) => {
           calls.push(args);
