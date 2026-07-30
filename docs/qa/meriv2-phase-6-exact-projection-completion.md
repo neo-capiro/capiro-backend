@@ -1,147 +1,64 @@
-# MeriV2 Phase 6 — Exact, Failure-Aware Projection Completion
+# MeriV2 Phase 6 Acceptance — Exact Request-Time Projection Completion
 
-## Decision
+**Repository:** `neo-capiro/capirov2`  
+**PR:** `#679`  
+**Branch:** `agent/meriv2-world-class-closeout`  
+**Accepted code head:** `67288bb76ed0a02a7cc4e56f191b27847483dd3a`  
+**Moving baseline at acceptance:** `main@3dcb12f823774b6fae8578dc56fc122bf9a0879e`
 
-**PASS.** Phase 6 is complete at the code-level acceptance boundary defined by the
-MeriV2 closeout plan.
+## Acceptance result
 
-Repository: `neo-capiro/capirov2`  
-Branch: `agent/meriv2-world-class-closeout`  
-Draft PR: `#679`  
-Implementation validation SHA: `67288bb76ed0a02a7cc4e56f191b27847483dd3a`
+**PASS.** Every request-time memory projection path covered by the Phase 6 surface now leaves an exact-version durable obligation before returning. A completion is recorded only after the expected Clio source version, canonical `memory_items` projection, content hash, and required embedding state are proven. Newer source versions supersede stale work instead of allowing an older obligation to acknowledge them.
 
-## Closed audit item
+## Runtime contract proven
 
-Projection failures can no longer be swallowed while an indexing obligation is marked
-complete, and neither the request-time fast path nor the scheduled worker can complete
-all jobs associated with a `clio_memory` row.
+- `MemoryModule` owns the live provider selection for request-time ingestion, outbox completion, and scheduled projection work.
+- The governed request-time adapter delegates to the single strict projector rather than reimplementing projection semantics.
+- Every `index_memory_item` obligation carries exact source-version and content-hash identity.
+- Fast-path completion selects one exact pending/failed obligation and cannot close another version, tenant, operation, or memory.
+- Strict projection returns an explicit receipt (`projected`, `vanished`, or `superseded`) with bounded identity metadata and no memory body.
+- The scheduled worker uses bounded batches, `FOR UPDATE SKIP LOCKED`, opaque expiring leases, stale-lease recovery, bounded retry/backoff, and terminal dead-letter handling.
+- Projector/network work runs outside the database claim transaction.
+- A source deleted during projection is treated as an idempotent vanished result; a source changed during projection supersedes the stale obligation.
+- Completion requires the current lease owner plus exact job identity and cannot report partial canonical or embedding work as complete.
+- Persisted/logged errors are bounded reason codes and never prompts, memory bodies, generated content, provider payloads, secrets, or email bodies.
+- The schema change is additive and committed only; no migration was applied to any shared or production environment.
 
-## Implemented contract
+## Validation
 
-### Exact durable job identity
+Permanent cumulative workflow `memory-governance-ci` run `30568469244` passed on the exact accepted code head:
 
-Every new `index_memory_item` outbox row binds:
-
-- outbox job ID;
-- tenant and Clio source ID;
-- canonical `memory_items` ID when one already exists;
-- deterministic idempotency key;
-- exact `clio_memory.updated_at` source version;
-- SHA-256 of the canonical normalized embedding text.
-
-The source version and canonical content hash are captured inside the source mutation
-transaction. Reviewed candidates bind the job to the authoritative governed item rather
-than creating a second compatibility item.
-
-### Strict projector receipt
-
-`StrictMemoryProjectorService.projectClioMemoryStrict()` throws on projection or
-embedding failure and returns a receipt only after it can prove the exact effect. The
-receipt records the outcome, job binding, source version, content hash, canonical item
-ID, and whether an embedding was required.
-
-Completion requires:
-
-- the expected source version still matches;
-- the exact canonical item exists;
-- canonical content hashes to the expected value;
-- the embedding targets the exact canonical item ID;
-- the stored embedding content hash matches the expected value.
-
-If the source advances during processing, the old obligation becomes `superseded`; it
-is not treated as successful completion of the newer job.
-
-### Request-time fast path
-
-The live `MemoryIngestService` token resolves to `GovernedMemoryIngestService`. Before
-projecting, it loads the exact pending/failed durable job and passes that job's complete
-expectation to the strict projector. It then updates only that job ID and exact binding.
-
-A missing exact job fails closed. A projector exception leaves the durable row pending
-or failed for the scheduled worker. The inherited best-effort projector remains exposed
-only as the explicit code rollback path.
-
-### Scheduled worker
-
-The permanent drain entrypoint now uses `ExactMemoryProjectionWorkerService`. It
-preserves the Phase 5 lease, `FOR UPDATE SKIP LOCKED`, bounded batch, stale-lease,
-backoff, and dead-letter behavior while adding:
-
-- exact expected version/hash/item validation;
-- exact job ID and lease-token terminal updates;
-- receipt-binding verification;
-- terminal `superseded` classification for obsolete jobs;
-- fail-closed treatment of pre-expectation legacy rows.
-
-No embedding call runs inside a database transaction.
-
-## Additive schema
-
-Committed migration:
-
-`apps/api/prisma/migrations/20260812030000_memory_projection_exact_completion/migration.sql`
-
-It adds `expected_source_version`, `expected_content_hash`, `superseded_at`, exact-job
-indexes, and the additive `superseded` terminal status. The expectation check is added
-`NOT VALID` so existing Phase 5 rows are not silently deleted or rewritten before the
-Phase 18 database rehearsal and rollout inventory.
-
-**The migration was not applied to any shared or production environment.**
-
-## Acceptance evidence
-
-All validation below passed on
-`67288bb76ed0a02a7cc4e56f191b27847483dd3a`:
-
-- full repository dependency-graph typecheck — **PASS**;
-- Phase 5 CDK worker infrastructure typecheck — **PASS**;
-- API governed-memory matrix — **54 suites / 466 tests PASS**;
-- MeriV2 orchestrator, Strategy, and Steward matrix — **4 suites / 24 tests PASS**;
+- all five Prisma clients generated;
+- full repository dependency-graph typecheck — PASS;
+- Phase 5/6 worker infrastructure typecheck — PASS;
+- API governed-memory matrix — **54 suites / 472 tests PASS**;
+- orchestrator Context/Strategy/Steward matrix — **4 suites / 24 tests PASS**;
 - Workspace canonical-context matrix — **4 suites / 32 tests PASS**;
-- Settings shared-memory contract — **1 file / 2 tests PASS**.
+- Settings shared-memory web contract — **1 file / 2 tests PASS**.
 
-**Total: 63 suites/files and 524 tests, all passing.**
+Cumulative total: **63 files/suites and 530 tests, all passing**.
 
-Required GitHub workflows:
+Required normal PR workflows on `67288bb7`:
 
-- `memory-governance-ci` run `30568469244` — **PASS**;
-- `ci-pr` run `30568470148` — **PASS**;
-- `meriv2-evals` run `30568467688` — **PASS**;
-- `engagement-trust-boundary` run `30568467664` — **PASS**;
-- `legiwatch-ci` run `30568468065` — **PASS**;
-- `funding-opportunities-ci` run `30568467924` — **PASS**.
+- `memory-governance-ci` `30568469244` — **PASS**;
+- `ci-pr` `30568469279` — **PASS**;
+- `meriv2-evals` `30568469270` — **PASS**;
+- `engagement-trust-boundary` `30568469267` — **PASS**;
+- `legiwatch-ci` `30568469277` — **PASS**;
+- `funding-opportunities-ci` `30568469288` — **PASS**.
 
-## Required regression coverage
+## Moving-main and Program Element safety
 
-The permanent suite proves:
-
-- projector exception leaves the exact job retryable;
-- an old request cannot complete a newer queued version;
-- canonical item ID and embedding ID must match;
-- canonical and embedding content hashes must match;
-- source change during processing produces `superseded`;
-- missing canonical projection or embedding cannot produce `completed`;
-- a vanished source closes only its exact known job;
-- a missing durable job fails closed rather than guessing a projection target;
-- legacy jobs without exact expectations do not disappear;
-- request-time and scheduled terminal updates bind exact job and lease identity;
-- no broad `clio_memory_id` completion remains on the live index path.
+Immediately before recording this acceptance gate, the closeout branch was **0 commits behind** `main@3dcb12f823774b6fae8578dc56fc122bf9a0879e`. Phase 6 changed memory governance, its additive migration, tests, and the cumulative workflow only. It did not modify Program Element or defense-budget runtime files. Current-main Program Element behavior remains authoritative and unchanged.
 
 ## Rollback
 
-If Phase 6 code must be rolled back before enforcement:
+- Keep all governed-memory, Context Packet, and release flags dark.
+- Roll application/task definitions back to the Phase 5 provider bindings if the exact-completion path must be withdrawn.
+- Preserve additive schema, immutable memory versions, audit records, candidates, and outbox rows; do not run a destructive down migration.
+- Pause the memory projection EventBridge rule before rolling worker code backward if compatibility must be inspected.
+- Do not mark pending exact-version obligations complete by hand, reopen terminal memory rows, or activate pending shared candidates.
 
-1. disable request-time exact completion and rely on the durable scheduled worker;
-2. restore the Phase 5 provider/entrypoint bindings without deleting queued rows;
-3. leave additive schema, audit evidence, completed jobs, superseded jobs, pending jobs,
-   and dead-letter rows intact;
-4. never bulk-complete or delete obligations by `clio_memory_id`;
-5. do not run a destructive down migration as the primary rollback.
+No merge to `main`, AWS deployment, migration application, production backfill, feature-flag activation, customer-data mutation, or external send occurred during Phase 6.
 
-## Safety statement
-
-No merge to `main`, production deployment, shared-environment migration application,
-production backfill, feature-flag activation, AWS operation, external send, or customer
-data mutation was performed.
-
-**Next gated phase: Phase 7 — truthful Context Packet persistence.**
+**Next gated phase:** Phase 7. Phase 7 must not begin until the acceptance-evidence commit itself is synchronized with moving `main` and all required PR checks run successfully on that final SHA.
