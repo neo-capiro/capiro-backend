@@ -76,7 +76,9 @@ describe('OrchestratorContextCompilerService — Phase 8', () => {
   };
 
   const original = process.env.MERIV2_CONTEXT_PACKET_V2;
-  beforeEach(() => delete process.env.MERIV2_CONTEXT_PACKET_V2);
+  beforeEach(() => {
+    delete process.env.MERIV2_CONTEXT_PACKET_V2;
+  });
   afterEach(() => {
     if (original === undefined) delete process.env.MERIV2_CONTEXT_PACKET_V2;
     else process.env.MERIV2_CONTEXT_PACKET_V2 = original;
