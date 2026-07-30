@@ -8,17 +8,23 @@ import {
   type DrainableCleanupOperation,
 } from './memory-cleanup-outbox.service.js';
 import {
+  canonicalProjectionSnapshot,
   projectionMaterialForClioRow,
-  type ProjectionMaterial,
 } from './strict-memory-projector.service.js';
 import type { ClioMemoryRow } from './memory-clio-adapter.helpers.js';
+
+interface ExactProjectionExpectation {
+  sourceVersion: string;
+  contentHash: string;
+  idempotencyKey: string;
+}
 
 /**
  * Phase 6 live outbox implementation.
  *
- * Index jobs are bound to the source version and content hash captured in the
- * caller's transaction. The inherited service remains available as the rollback
- * implementation, but the MemoryModule token resolves to this exact implementation.
+ * Index jobs are bound to the source version, exact canonical item (when one already
+ * exists), and content hash captured in the caller's transaction. The inherited
+ * service remains available as the rollback implementation.
  */
 @Injectable()
 export class ExactMemoryCleanupOutboxService extends MemoryCleanupOutboxService {
@@ -44,7 +50,12 @@ export class ExactMemoryCleanupOutboxService extends MemoryCleanupOutboxService 
       throw new Error('index_memory_item requires clioMemoryId');
     }
 
-    const material = await this.loadExpectedMaterial(tx, tenantId, input.clioMemoryId);
+    const expectation = await this.loadExpectedProjection(
+      tx,
+      tenantId,
+      input.clioMemoryId,
+      input.memoryItemId ?? null,
+    );
     await tx.$executeRaw`
       INSERT INTO memory_cleanup_outbox (
         tenant_id, memory_item_id, clio_memory_id, operation, idempotency_key,
@@ -54,9 +65,9 @@ export class ExactMemoryCleanupOutboxService extends MemoryCleanupOutboxService 
         ${input.memoryItemId ?? null}::uuid,
         ${input.clioMemoryId}::uuid,
         'index_memory_item',
-        ${material.idempotencyKey.slice(0, 192)},
-        ${new Date(material.sourceVersion)},
-        ${material.contentHash}
+        ${expectation.idempotencyKey.slice(0, 192)},
+        ${new Date(expectation.sourceVersion)},
+        ${expectation.contentHash}
       )
       ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
     `;
@@ -101,11 +112,12 @@ export class ExactMemoryCleanupOutboxService extends MemoryCleanupOutboxService 
     }
   }
 
-  private async loadExpectedMaterial(
+  private async loadExpectedProjection(
     tx: Prisma.TransactionClient,
     tenantId: string,
     clioMemoryId: string,
-  ): Promise<ProjectionMaterial> {
+    memoryItemId: string | null,
+  ): Promise<ExactProjectionExpectation> {
     const rows = await tx.$queryRaw<ClioMemoryRow[]>`
       SELECT id, tenant_id AS "tenantId", scope, owner_user_id AS "ownerUserId",
              client_id AS "clientId", expires_at AS "expiresAt",
@@ -117,7 +129,45 @@ export class ExactMemoryCleanupOutboxService extends MemoryCleanupOutboxService 
     `;
     const source = rows[0];
     if (!source) throw new Error('memory_projection_source_missing_before_enqueue');
-    return projectionMaterialForClioRow(source);
+    const clioMaterial = projectionMaterialForClioRow(source);
+
+    if (!memoryItemId) {
+      return {
+        sourceVersion: clioMaterial.sourceVersion,
+        contentHash: clioMaterial.contentHash,
+        idempotencyKey: clioMaterial.idempotencyKey,
+      };
+    }
+
+    const items = await tx.$queryRaw<
+      Array<{
+        id: string;
+        client_id: string | null;
+        owner_user_id: string | null;
+        title: string;
+        sections_jsonb: unknown;
+      }>
+    >`
+      SELECT id::text AS id, client_id::text AS client_id,
+             owner_user_id::text AS owner_user_id, title, sections_jsonb
+      FROM memory_items
+      WHERE id = ${memoryItemId}::uuid AND tenant_id = ${tenantId}::uuid
+      LIMIT 1
+    `;
+    const item = items[0];
+    if (!item) throw new Error('memory_projection_target_missing_before_enqueue');
+    const canonical = canonicalProjectionSnapshot({
+      id: item.id,
+      clientId: item.client_id,
+      ownerUserId: item.owner_user_id,
+      title: item.title,
+      sections: item.sections_jsonb,
+    });
+    return {
+      sourceVersion: clioMaterial.sourceVersion,
+      contentHash: canonical.contentHash,
+      idempotencyKey: clioMaterial.idempotencyKey,
+    };
   }
 }
 
