@@ -3,17 +3,9 @@ import type { TenantContext } from '@capiro/shared';
 import { WorkspaceAssistantService } from './workspace-assistant.service.js';
 
 /**
- * The in-editor surface is the ContextPacket v2 template: it already reports honest
- * `degraded`/`degradedReasons`, only claims a `contextPacketId` when the row was
- * written, and its Context Inspector is already rendered by MeriPanel.
- *
- * What must hold:
- *   1. dark by default — the compile request is byte-for-byte the pre-v2 one;
- *   2. once armed, the request opts into contract v2 with a trace id and the
- *      surface's token budget, and NEVER sets `persistence` (a trace-write failure
- *      must not 500 this route);
- *   3. the same trace id comes back on the result, so the packet row and the answer
- *      can actually be correlated.
+ * The in-editor surface is a deliverable boundary. While v2 is dark the request
+ * remains byte-for-byte compatible; once armed, packet persistence is required
+ * before the assistant result may be released.
  */
 describe('WorkspaceAssistantService — ContextPacket v2 wiring', () => {
   const ctx = { tenantId: 't1', userId: 'u1' } as TenantContext;
@@ -28,6 +20,8 @@ describe('WorkspaceAssistantService — ContextPacket v2 wiring', () => {
         requests.push(req);
         return {
           packetId: 'pkt-1',
+          persistedPacketId: 'pkt-1',
+          persistenceErrorCode: null,
           version: req.contractVersion === 2 ? 2 : 1,
           surface: 'in-editor',
           tenantId: 't1',
@@ -110,7 +104,7 @@ describe('WorkspaceAssistantService — ContextPacket v2 wiring', () => {
     });
   });
 
-  it('stays dark for every value that is not exactly "enforce"', async () => {
+  it('stays dark for every value that is not exactly enforce', async () => {
     for (const raw of ['', 'true', '1', 'on', 'v2', 'ENFORCED']) {
       process.env.CONTEXT_PACKET_V2 = raw;
       const { service, requests } = makeService();
@@ -119,7 +113,7 @@ describe('WorkspaceAssistantService — ContextPacket v2 wiring', () => {
     }
   });
 
-  it('opts into v2 with the surface budget and the caller trace id once armed', async () => {
+  it('opts into v2 with required persistence, the surface budget, and caller trace id', async () => {
     process.env.CONTEXT_PACKET_V2 = 'enforce';
     const { service, requests } = makeService();
     await resolve(service, 'trace-1');
@@ -132,13 +126,12 @@ describe('WorkspaceAssistantService — ContextPacket v2 wiring', () => {
         compilerVersion: 'context-compiler-v2.0',
         tokenBudget: 6_000,
         budgetUnit: 'tokens',
-        // Layers stay EXPLICIT: no client in scope means the packet must not claim
+        persistence: 'required',
+        // Layers stay explicit: no client in scope means the packet must not claim
         // a missing client layer.
         layers: ['firm-identity', 'user-voice'],
       }),
     );
-    // A diagnostics trace failure must never become a 500 on this route.
-    expect(requests[0]).not.toHaveProperty('persistence');
   });
 
   it('returns the trace id only for a v2 packet, so absence is never mistaken for success', () => {
@@ -150,6 +143,8 @@ describe('WorkspaceAssistantService — ContextPacket v2 wiring', () => {
     ).finish.bind(service);
     const base = {
       packetId: 'pkt-1',
+      persistedPacketId: 'pkt-1',
+      persistenceErrorCode: null,
       traceHash: 'hash-1',
       items: [],
       exclusions: [],
