@@ -61,17 +61,25 @@ function harness(rows: SteeringRow[], options: { failV2Persistence?: boolean } =
   const compiler = new ContextPacketRolloutCompiler({
     loadSteeringRows: loadV1,
     loadGovernedSteeringRows: loadV2,
-    persistPacket: jest.fn(async (packet) => {
+    persistPacket: jest.fn(async (packet: TruthfulCompiledContextPacket) => {
       if (options.failV2Persistence && packet.version === 2) {
         throw new Error('private database detail');
       }
       persisted.push(structuredClone(packet));
       return packet.generatedPacketId;
     }),
-    persistShadowComparison: jest.fn(async ({ comparisonPacketId, comparison }) => {
-      comparisonPacketIds.push(comparisonPacketId);
-      comparisons.push(structuredClone(comparison));
-    }),
+    persistShadowComparison: jest.fn(
+      async ({
+        comparisonPacketId,
+        comparison,
+      }: {
+        comparisonPacketId: string;
+        comparison: ContextPacketShadowComparison;
+      }) => {
+        comparisonPacketIds.push(comparisonPacketId);
+        comparisons.push(structuredClone(comparison));
+      },
+    ),
   });
   return { compiler, persisted, comparisons, comparisonPacketIds, loadV1, loadV2 };
 }
