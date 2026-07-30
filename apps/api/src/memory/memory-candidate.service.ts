@@ -26,6 +26,12 @@ import {
 } from './memory-governance-lifecycle.helpers.js';
 import type { GovernedMemoryStatus } from '@capiro/meriv2-core';
 import type { AppConfig } from '../config/config.schema.js';
+import {
+  buildCanonicalGovernance,
+  governedClioMetadata,
+  upsertCanonicalMemoryItemInTx,
+  type CanonicalGovernance,
+} from './memory-canonical-activation.helpers.js';
 
 /** The shape MeriToolsService.saveMemory already builds via buildSavedMemoryRecord. */
 export interface MemorySaveRequest {
@@ -79,10 +85,12 @@ interface LockedCandidate {
   payload: unknown;
   proposedBy: string;
   scope: string;
+  sourceKind: string;
 }
 
 interface ActivatedCandidate {
   memoryId: string;
+  memoryItemId: string | null;
   record: MemorySaveRequest;
 }
 
@@ -226,16 +234,26 @@ export class MemoryCandidateService {
         return { candidateId: candidate.id, memoryId: null };
       }
 
-      const memoryId = await this.commitToClioMemoryInTx(tx, tenantId, record);
+      const governance = governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)
+        ? buildCanonicalGovernance({
+            record,
+            sourceKind,
+            assertedByUserId: proposedByUserId,
+            approvedByUserId: proposedByUserId,
+            decision: 'auto_committed',
+          })
+        : null;
+      const committed = await this.commitToClioMemoryInTx(tx, tenantId, record, governance);
       await this.markDecidedInTx(
         tx,
         tenantId,
         candidate.id,
         'auto_committed',
         proposedByUserId,
-        memoryId,
+        committed.clioMemoryId,
+        committed.memoryItemId,
       );
-      return { candidateId: candidate.id, memoryId };
+      return { candidateId: candidate.id, memoryId: committed.clioMemoryId };
     });
 
     if (decision.outcome === 'WARN') {
@@ -286,9 +304,30 @@ export class MemoryCandidateService {
       );
       this.requireIndependentReviewer(candidate, approverUserId);
       const record = payloadToSaveRequest(candidate.payload);
-      const memoryId = await this.commitToClioMemoryInTx(tx, tenantId, record);
-      await this.markDecidedInTx(tx, tenantId, candidateId, 'approved', approverUserId, memoryId);
-      return { memoryId, record } satisfies ActivatedCandidate;
+      const governance = governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)
+        ? buildCanonicalGovernance({
+            record,
+            sourceKind: candidate.sourceKind,
+            assertedByUserId: candidate.proposedBy,
+            approvedByUserId: approverUserId,
+            decision: 'approved',
+          })
+        : null;
+      const committed = await this.commitToClioMemoryInTx(tx, tenantId, record, governance);
+      await this.markDecidedInTx(
+        tx,
+        tenantId,
+        candidateId,
+        'approved',
+        approverUserId,
+        committed.clioMemoryId,
+        committed.memoryItemId,
+      );
+      return {
+        memoryId: committed.clioMemoryId,
+        memoryItemId: committed.memoryItemId,
+        record,
+      } satisfies ActivatedCandidate;
     });
 
     this.dispatchProjectionFastPath(tenantId, activated.memoryId, activated.record);
@@ -366,7 +405,8 @@ export class MemoryCandidateService {
       SELECT id::text AS id,
              payload_jsonb AS payload,
              proposed_by::text AS "proposedBy",
-             scope
+             scope,
+             source_kind AS "sourceKind"
       FROM memory_candidate
       WHERE id = ${candidateId}::uuid
         AND tenant_id = ${tenantId}::uuid
@@ -420,11 +460,18 @@ export class MemoryCandidateService {
     status: CandidateDecision,
     decidedBy: string,
     committedMemoryId: string | null,
+    committedMemoryItemId: string | null = null,
   ): Promise<void> {
     if (!governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)) {
       await tx.memoryCandidate.update({
         where: { id: candidateId },
-        data: { status, decidedBy, decidedAt: new Date(), committedMemoryId },
+        data: {
+          status,
+          decidedBy,
+          decidedAt: new Date(),
+          committedMemoryId,
+          ...(committedMemoryItemId ? { committedMemoryItemId } : {}),
+        },
       });
       return;
     }
@@ -467,6 +514,7 @@ export class MemoryCandidateService {
         decidedBy,
         decidedAt,
         committedMemoryId,
+        ...(committedMemoryItemId ? { committedMemoryItemId } : {}),
         memoryClass: classification.memoryClass,
         memoryScope: classification.memoryScope,
         governedStatus: governedStatusForDecision(status),
@@ -492,6 +540,7 @@ export class MemoryCandidateService {
           memoryClass: classification.memoryClass,
           memoryAuthority: classification.memoryAuthority,
           clioMemoryId: committedMemoryId,
+          memoryItemId: committedMemoryItemId,
           sourceKind: row.source_kind,
         },
       });
@@ -507,7 +556,8 @@ export class MemoryCandidateService {
     tx: Prisma.TransactionClient,
     tenantId: string,
     record: MemorySaveRequest,
-  ): Promise<string> {
+    governance: CanonicalGovernance | null = null,
+  ): Promise<{ clioMemoryId: string; memoryItemId: string | null }> {
     const metadata = {
       tool: 'save_memory',
       createdBy: 'user-requested',
@@ -518,6 +568,7 @@ export class MemoryCandidateService {
       ...(record.sourceConversationId ? { sourceConversationId: record.sourceConversationId } : {}),
       ...(record.sourceMessageId ? { sourceMessageId: record.sourceMessageId } : {}),
       ...(record.sourceExcerpt ? { sourceExcerpt: record.sourceExcerpt.slice(0, 4_000) } : {}),
+      ...(governance ? governedClioMetadata(governance) : {}),
     };
 
     const findExisting = () =>
@@ -576,17 +627,22 @@ export class MemoryCandidateService {
       }
     }
 
+    const memoryItemId = governance
+      ? await upsertCanonicalMemoryItemInTx(tx, tenantId, id, record, governance)
+      : null;
+
     const stamp = await tx.$queryRaw<Array<{ updated_at: Date }>>`
       SELECT updated_at FROM clio_memory
       WHERE id = ${id}::uuid AND tenant_id = ${tenantId}::uuid
     `;
     const version = stamp[0]?.updated_at?.toISOString() ?? 'unstamped';
     await this.cleanupOutbox.enqueue(tx, tenantId, {
+      memoryItemId,
       clioMemoryId: id,
       operation: 'index_memory_item',
       idempotencyKey: `index_memory_item:${id}:${version}`,
     });
-    return id;
+    return { clioMemoryId: id, memoryItemId };
   }
 
   /**
@@ -595,11 +651,11 @@ export class MemoryCandidateService {
    * memory creation and the candidate decision cannot split across commits.
    */
   private async commitToClioMemory(tenantId: string, record: MemorySaveRequest): Promise<string> {
-    const memoryId = await this.prisma.withTenant(tenantId, (tx) =>
+    const committed = await this.prisma.withTenant(tenantId, (tx) =>
       this.commitToClioMemoryInTx(tx, tenantId, record),
     );
-    this.dispatchProjectionFastPath(tenantId, memoryId, record);
-    return memoryId;
+    this.dispatchProjectionFastPath(tenantId, committed.clioMemoryId, record);
+    return committed.clioMemoryId;
   }
 
   /** Network-backed embedding/projection is deliberately post-commit. */

@@ -61,6 +61,7 @@ function makeHarness(options: HarnessOptions = {}) {
   const candidates = new Map<string, CandidateState>();
   for (const row of options.candidates ?? []) candidates.set(row.id, structuredClone(row));
   const memories = new Map<string, MemoryState>();
+  const canonicalItems: Array<{ id: string; params: unknown[] }> = [];
   const outbox: Array<Record<string, unknown>> = [];
   const audits: Array<Record<string, unknown>> = [];
   let memorySequence = 0;
@@ -168,6 +169,11 @@ function makeHarness(options: HarnessOptions = {}) {
       if (/updated_at\s+FROM\s+clio_memory/i.test(sql)) {
         return [{ updated_at: new Date('2026-07-30T00:00:00.000Z') }];
       }
+      if (/INSERT INTO memory_items/i.test(sql)) {
+        const id = '99999999-9999-4999-8999-000000000001';
+        canonicalItems.push({ id, params: structuredClone(params) });
+        return [{ id }];
+      }
       if (/governed_status/i.test(sql)) {
         const candidateId = String(params[0]);
         const tenantId = String(params[1]);
@@ -220,6 +226,7 @@ function makeHarness(options: HarnessOptions = {}) {
       const transactionId = transactionSequence;
       const candidateSnapshot = cloneCandidates(candidates);
       const memorySnapshot = cloneMemories(memories);
+      const canonicalSnapshot = structuredClone(canonicalItems);
       const outboxSnapshot = structuredClone(outbox);
       const auditSnapshot = structuredClone(audits);
       const memorySequenceSnapshot = memorySequence;
@@ -231,6 +238,7 @@ function makeHarness(options: HarnessOptions = {}) {
         for (const [id, row] of candidateSnapshot) candidates.set(id, row);
         memories.clear();
         for (const [id, row] of memorySnapshot) memories.set(id, row);
+        canonicalItems.splice(0, canonicalItems.length, ...canonicalSnapshot);
         outbox.splice(0, outbox.length, ...outboxSnapshot);
         audits.splice(0, audits.length, ...auditSnapshot);
         memorySequence = memorySequenceSnapshot;
@@ -264,6 +272,7 @@ function makeHarness(options: HarnessOptions = {}) {
     service,
     candidates,
     memories,
+    canonicalItems,
     outbox,
     audits,
     withTenantUser,
@@ -369,6 +378,7 @@ describe('MemoryCandidateService atomic activation', () => {
           decidedBy: null,
         });
         expect(h.memories.size).toBe(0);
+        expect(h.canonicalItems).toHaveLength(0);
         expect(h.outbox).toHaveLength(0);
         expect(h.audits).toHaveLength(0);
       },

@@ -77,8 +77,39 @@ export type MemoryItemStatus = 'active' | 'superseded' | 'revoked';
  */
 export type MemoryTrainingUse = 'excluded' | 'platform_improvement';
 
+/** Governed-memory fields carried by the canonical memory_items row. */
+export interface GovernedMemoryMetadata {
+  memoryClass?: string;
+  memoryAuthority?: string;
+  memoryScope?: 'firm' | 'client' | 'user_private';
+  governedStatus?: string;
+  sourceType?: string;
+  sourceId?: string | null;
+  sourceExcerpt?: string | null;
+  sourceContentHash?: string | null;
+  sourceVersion?: string | null;
+  assertedByUserId?: string | null;
+  approvedByUserId?: string | null;
+  approvedAt?: string | Date | null;
+  secondApprovedByUserId?: string | null;
+  secondApprovedAt?: string | Date | null;
+  asOf?: string | Date | null;
+  effectiveFrom?: string | Date | null;
+  validUntil?: string | Date | null;
+  reviewDueAt?: string | Date | null;
+  conflictStatus?: string;
+  conflictGroupId?: string | null;
+  controllingItemId?: string | null;
+  originSurface?: string | null;
+  originTraceId?: string | null;
+  originContextPacketId?: string | null;
+  originModel?: string | null;
+  originPromptVersion?: string | null;
+  instructionsAllowed?: boolean;
+}
+
 /** The canonical memory store item (one row in `memory_items`). */
-export interface MemoryItem {
+export interface MemoryItem extends GovernedMemoryMetadata {
   id: string;
   tenantId: string;
   /** Client scope when applicable (null for firm-level / unscoped). */
