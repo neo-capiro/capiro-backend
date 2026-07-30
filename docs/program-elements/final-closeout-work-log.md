@@ -451,7 +451,8 @@ git reset --hard 0f47e13f8f5335c306b7ed18b2b292bcd25f482b
 | Phase 3 PASS tip (start) | `0a74cf9a3220cea05d0666e41a0c88e75cb99929` |
 | `origin/main` at Phase 4 base | `3dcb12f823774b6fae8578dc56fc122bf9a0879e` |
 | Prior G product on origin | **none** (rebuild) |
-| Status | **IMPLEMENT PUSHED** (product commit below) / independent review REQUIRED (no self-PASS) |
+| Status | **IMPLEMENT PUSHED** product `19936afde` / independent review REQUIRED (no self-PASS) |
+| Remote tip after Phase 4 product push | `19936afde2b8d3902902996af02fa710f7f63356` |
 
 ### 4.1 Product work (G1–G12)
 
@@ -510,7 +511,7 @@ No base-proven inherited failures introduced on A–F for this tip.
 
 ```bash
 # after product SHA is known on origin — revert that commit
-git revert <phase-4-product-sha>
+git revert 19936afde2b8d3902902996af02fa710f7f63356
 # or hard reset closeout branch to Phase 3 PASS tip:
 git reset --hard 0a74cf9a3220cea05d0666e41a0c88e75cb99929
 ```
@@ -519,7 +520,7 @@ git reset --hard 0a74cf9a3220cea05d0666e41a0c88e75cb99929
 
 | Round | Tip | Verdict |
 |---|---|---|
-| Phase 4 | *(record after push)* | **PENDING** — implementer gates green ≠ PASS |
+| Phase 4 | `19936afde2b8d3902902996af02fa710f7f63356` | **PENDING** — implementer gates green ≠ PASS |
 
 ---
 
