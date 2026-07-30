@@ -1,37 +1,89 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
-  TruthfulContextCompiler,
+  ContextPacketRolloutCompiler,
   GOVERNED_STEERING_COLUMNS_SQL,
+  MERIV2_CONTEXT_PACKET_V2_ENV,
   STEERING_ORDER_COLUMNS_SQL,
   governedMemoryLifecycleEnabled,
   governedRecallSuppressionSql,
+  resolveContextPacketMode,
+  resolveTenantContextPacketMode,
   typesForLayers,
   type CompiledContextPacket,
+  type ContextPacketRolloutStoreAdapter,
+  type ContextPacketShadowComparison,
   type ContextRequest,
   type SteeringLayer,
   type SteeringRow,
   type TruthfulCompiledContextPacket,
-  type TruthfulContextStoreAdapter,
 } from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
 
-/** The orchestrator's tenant-scoped Context Compiler adapter. */
+/** The orchestrator's tenant-scoped Context Compiler and Phase 8 rollout owner. */
 @Injectable()
 export class OrchestratorContextCompilerService {
-  private readonly compiler: TruthfulContextCompiler;
+  private readonly logger = new Logger(OrchestratorContextCompilerService.name);
+  private readonly compiler: ContextPacketRolloutCompiler;
 
   constructor(private readonly prisma: PrismaService) {
-    const adapter: TruthfulContextStoreAdapter = {
+    const adapter: ContextPacketRolloutStoreAdapter = {
       loadSteeringRows: (req) => this.loadSteeringRows(req),
       loadGovernedSteeringRows: (req) => this.loadSteeringRows(req, { governed: true }),
       persistPacket: (packet) => this.persistPacket(packet),
+      persistShadowComparison: (input) => this.persistShadowComparison(input),
     };
-    this.compiler = new TruthfulContextCompiler(adapter);
+    this.compiler = new ContextPacketRolloutCompiler(adapter);
   }
 
-  compile(req: ContextRequest): Promise<CompiledContextPacket> {
-    return this.compiler.compile(req);
+  async compile(req: ContextRequest): Promise<CompiledContextPacket> {
+    const mode = await this.rolloutMode(req.tenantId, req.surface);
+    const ethicalWallAllowed = await this.ethicalWallAllowed(req);
+    return this.compiler.compile({ ...req, ethicalWallAllowed }, mode);
+  }
+
+  private async rolloutMode(
+    tenantId: string,
+    surface: ContextRequest['surface'],
+  ): Promise<ReturnType<typeof resolveContextPacketMode>> {
+    const ceiling = resolveContextPacketMode(process.env[MERIV2_CONTEXT_PACKET_V2_ENV]);
+    if (ceiling === 'off') return 'off';
+    try {
+      const tenant = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.tenant.findFirst({ where: { id: tenantId }, select: { settings: true } }),
+      );
+      return resolveTenantContextPacketMode(
+        process.env[MERIV2_CONTEXT_PACKET_V2_ENV],
+        tenant?.settings,
+        surface,
+      );
+    } catch (error) {
+      this.logger.warn(`Context Packet tenant canary lookup failed closed: ${(error as Error).message}`);
+      return 'off';
+    }
+  }
+
+  private async ethicalWallAllowed(req: ContextRequest): Promise<boolean> {
+    if (!req.clientId || !req.userId) return false;
+    try {
+      const rows = await this.prisma.withTenantUser(req.tenantId, req.userId, (tx) =>
+        tx.$queryRaw<Array<{ allowed: boolean }>>`
+          SELECT (NOT c.memory_wall
+                  OR EXISTS (
+                    SELECT 1 FROM client_memory_access a
+                    WHERE a.tenant_id = c.tenant_id
+                      AND a.client_id = c.id
+                      AND a.user_id = ${req.userId}::uuid
+                  )) AS allowed
+          FROM clients c
+          WHERE c.tenant_id = ${req.tenantId}::uuid AND c.id = ${req.clientId}::uuid
+        `,
+      );
+      return rows[0]?.allowed === true;
+    } catch (error) {
+      this.logger.warn(`Context Packet ethical-wall lookup failed closed: ${(error as Error).message}`);
+      return false;
+    }
   }
 
   private async loadSteeringRows(
@@ -110,6 +162,21 @@ export class OrchestratorContextCompilerService {
       }
       return verified.id;
     });
+  }
+
+  private async persistShadowComparison(input: {
+    tenantId: string;
+    shadowPacketId: string;
+    comparison: ContextPacketShadowComparison;
+  }): Promise<void> {
+    await this.prisma.withTenant(input.tenantId, (tx) =>
+      tx.$executeRaw`
+        UPDATE context_packet
+        SET health_jsonb = COALESCE(health_jsonb, '{}'::jsonb)
+            || jsonb_build_object('shadowComparison', ${JSON.stringify(input.comparison)}::jsonb)
+        WHERE id = ${input.shadowPacketId}::uuid AND tenant_id = ${input.tenantId}::uuid
+      `,
+    );
   }
 }
 
