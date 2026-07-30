@@ -1,0 +1,78 @@
+name: MeriV2 one-shot main sync before Phase 5
+
+on:
+  push:
+    branches:
+      - agent/meriv2-world-class-closeout
+    paths:
+      - .github/workflows/meriv2-sync-main-phase5.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/meriv2-world-class-closeout
+          fetch-depth: 0
+      - name: Merge current main with bounded conflict resolution
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+
+          set +e
+          git merge --no-ff --no-commit origin/main
+          merge_exit=$?
+          set -e
+
+          if [[ $merge_exit -ne 0 ]]; then
+            mapfile -t conflicts < <(git diff --name-only --diff-filter=U | sort)
+            expected=(
+              "apps/api/prisma/schema.prisma"
+              "apps/api/src/funding-opportunities/funding-opportunities.boundaries.spec.ts"
+            )
+            if [[ "${conflicts[*]}" != "${expected[*]}" ]]; then
+              printf 'Unexpected conflicts:\n%s\n' "${conflicts[*]}"
+              git merge --abort
+              exit 1
+            fi
+
+            # Preserve the governed-memory schema from this branch and apply the
+            # authoritative current-main district width. Truncate neither side.
+            git checkout --ours apps/api/prisma/schema.prisma
+            python - <<'PY'
+          from pathlib import Path
+          path = Path('apps/api/prisma/schema.prisma')
+          text = path.read_text()
+          old = '''  stateHouseDistrict    String?   @map("state_house_district") @db.VarChar(8)\n  stateSenateDistrict   String?   @map("state_senate_district") @db.VarChar(8)'''
+          new = '''  /// Census SLDL/SLDU BASENAME. Named-district states return names, not only numbers;\n  /// migration 20260810050000 widens storage to 64 characters.\n  stateHouseDistrict    String?   @map("state_house_district") @db.VarChar(64)\n  stateSenateDistrict   String?   @map("state_senate_district") @db.VarChar(64)'''
+          if old not in text:
+              raise SystemExit('Expected ClientFacility district-width block was not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+            # Current main's migration-ordering guard supersedes the older branch
+            # assertion and intentionally permits unrelated later migrations.
+            git checkout --theirs apps/api/src/funding-opportunities/funding-opportunities.boundaries.spec.ts
+            git add apps/api/prisma/schema.prisma \
+              apps/api/src/funding-opportunities/funding-opportunities.boundaries.spec.ts
+          fi
+
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo "Unresolved conflicts remain"
+            git diff --name-only --diff-filter=U
+            exit 1
+          fi
+
+          # Delete this one-shot helper in the merge commit itself.
+          git rm .github/workflows/meriv2-sync-main-phase5.yml
+          git add -A
+          git commit -m "Merge current main into MeriV2 closeout before Phase 5"
+          git push origin HEAD:agent/meriv2-world-class-closeout
