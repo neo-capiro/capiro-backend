@@ -84,7 +84,7 @@ Closeout **execution phase** column is the session phase from the final schedule
 
 **Integrate note:** Path-limited port from `origin/agent/pe-trust-phase-f` product commits `107a7f5f0`/`c8ef5c3a1` **into** current-main SAM script (all-federal + dry-run hygiene + CLI validation retained). No wholesale F tip merge. No transport workflow.
 
-**Phase 3 review gate:** Independent review **PENDING** against remote tip after Phase 3 product push. Implementer gates alone are not Phase 3 PASS.
+**Phase 3 review gate:** Independent review **PENDING** against remote tip `1e78254725626cf623a98951222349e14750d11e`. Implementer gates alone are not Phase 3 PASS.
 
 ---
 

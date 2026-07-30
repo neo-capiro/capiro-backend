@@ -371,7 +371,8 @@ git reset --hard 6268e2f2a1ef3eda906c47e8721c211d95f102a4
 | Phase 2 PASS tip (start) | `0f47e13f8f5335c306b7ed18b2b292bcd25f482b` |
 | `origin/main` at Phase 3 base | `3dcb12f823774b6fae8578dc56fc122bf9a0879e` |
 | Recovered product source | `origin/agent/pe-trust-phase-f` @ `b13568959` (path-limited; not tip-merge) |
-| Status | **IMPLEMENT PUSHED** / independent review REQUIRED (no self-PASS) |
+| Status | **IMPLEMENT PUSHED** product `1e7825472` / independent review REQUIRED (no self-PASS) |
+| Remote tip after Phase 3 product push | `1e78254725626cf623a98951222349e14750d11e` |
 
 ### 3.1 Product work (F1–F10)
 
@@ -426,8 +427,7 @@ No base-proven inherited failures introduced on A/B/D/E/F for this tip.
 ### 3.4 Rollback
 
 ```bash
-# after push, reverse the Phase 3 product commit (SHA recorded in push note):
-git revert <phase-3-product-sha>
+git revert 1e78254725626cf623a98951222349e14750d11e
 # or hard reset closeout branch to Phase 2 PASS tip:
 git reset --hard 0f47e13f8f5335c306b7ed18b2b292bcd25f482b
 ```
@@ -436,7 +436,7 @@ git reset --hard 0f47e13f8f5335c306b7ed18b2b292bcd25f482b
 
 | Round | Tip | Verdict |
 |---|---|---|
-| Phase 3 | (remote tip after this push) | **PENDING** — implementer gates green ≠ PASS |
+| Phase 3 | `1e78254725626cf623a98951222349e14750d11e` | **PENDING** — implementer gates green ≠ PASS |
 
 ---
 
