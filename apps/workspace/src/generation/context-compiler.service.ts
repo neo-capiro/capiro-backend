@@ -1,11 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
-import { ContextCompiler } from '@capiro/meriv2-core/context/compiler';
+import { TruthfulContextCompiler } from '@capiro/meriv2-core/context/truthful-compiler';
 import type {
   CompiledContextPacket,
   ContextRequest,
-  ContextStoreAdapter,
   SteeringRow,
+  TruthfulCompiledContextPacket,
+  TruthfulContextStoreAdapter,
 } from '@capiro/meriv2-core/context/contract';
 import { typesForLayers } from '@capiro/meriv2-core/context/contract';
 import { GOVERNED_STEERING_COLUMNS_SQL } from '@capiro/meriv2-core/context/governed-columns';
@@ -15,10 +16,10 @@ import { PrismaService } from '../prisma/prisma.service.js';
 @Injectable()
 export class WorkspaceContextCompilerService {
   private readonly logger = new Logger(WorkspaceContextCompilerService.name);
-  private readonly compiler: ContextCompiler;
+  private readonly compiler: TruthfulContextCompiler;
 
   constructor(private readonly prisma: PrismaService) {
-    const adapter: ContextStoreAdapter = {
+    const adapter: TruthfulContextStoreAdapter = {
       loadSteeringRows: (req) => this.loadSteeringRows(req),
       // v2 only. The governed columns come from the UNAPPLIED migration
       // 20260729010000_memory_governance_context_v2, so they must never appear on
@@ -26,7 +27,7 @@ export class WorkspaceContextCompilerService {
       loadGovernedSteeringRows: (req) => this.loadSteeringRows(req, { governed: true }),
       persistPacket: (packet) => this.persistPacket(packet),
     };
-    this.compiler = new ContextCompiler(adapter);
+    this.compiler = new TruthfulContextCompiler(adapter);
   }
 
   async compileForClerkOwner(
@@ -71,7 +72,10 @@ export class WorkspaceContextCompilerService {
    * tenant-scoped match before compiling client steering. Zero or ambiguous
    * matches return null rather than guessing a client.
    */
-  async resolveClientIdByExactName(tenantId: string, clientName?: string | null): Promise<string | null> {
+  async resolveClientIdByExactName(
+    tenantId: string,
+    clientName?: string | null,
+  ): Promise<string | null> {
     const name = clientName?.trim();
     if (!name) return null;
     const rows = await this.prisma.$transaction(async (tx) => {
@@ -103,13 +107,6 @@ export class WorkspaceContextCompilerService {
    * `compileV2` only admits client-scope rows on a literal `true`, so a wrong
    * answer here is the difference between withholding context and leaking a
    * walled client's material into a generated deliverable.
-   *
-   * The predicate is duplicated in SHAPE, not by import, from the canonical
-   * `clientMemoryAllowed` in apps/api/src/memory/memory-wall.helpers.ts —
-   * apps/workspace is a separate Nest app with its own Prisma client and cannot
-   * import from apps/api. It reads the SAME physical tables (`clients.memory_wall`,
-   * `client_memory_access`). Keep the two in sync; the api-side helper is
-   * authoritative if they ever disagree.
    */
   async resolveEthicalWallAllowed(
     tenantId: string,
@@ -131,7 +128,6 @@ export class WorkspaceContextCompilerService {
            WHERE c.tenant_id = ${tenantId}::uuid AND c.id = ${clientId}::uuid
         `;
       });
-      // No row = the client does not resolve in this tenant: deny.
       return rows[0]?.allowed === true;
     } catch (error) {
       this.logger.warn(
@@ -200,19 +196,9 @@ export class WorkspaceContextCompilerService {
     });
   }
 
-  private async persistPacket(packet: CompiledContextPacket): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+  private async persistPacket(packet: TruthfulCompiledContextPacket): Promise<string> {
+    return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.current_tenant', ${packet.tenantId}, true)`;
-      // effective_tenant_id is NOT NULL with no DB default once
-      // 20260729010000_memory_governance_context_v2 is applied; this raw INSERT
-      // is not typechecked, so omitting it would only fail at runtime. The
-      // effective tenant IS the packet tenant here (set_config above), which is
-      // the same equality the migration's own backfill uses.
-      // packet_version is written EXPLICITLY. It is owned by
-      // 20260803010000_engagement_generation_gateway (1 = legacy steering-only
-      // trace, 2 = complete Evidence Packet) and its DB default is 2, so omitting
-      // it stored every steering trace claiming to be a complete packet. The v2
-      // columns below are only non-null for a genuinely compiled v2 packet.
       const v2 = packet.version === 2 ? packet : null;
       await tx.$executeRaw`
         INSERT INTO context_packet
@@ -223,7 +209,7 @@ export class WorkspaceContextCompilerService {
            compiler_version, required_layers, health_jsonb, total_token_budget,
            used_tokens, truncated, incomplete)
         VALUES
-          (${packet.packetId}::uuid, ${packet.tenantId}::uuid,
+          (${packet.generatedPacketId}::uuid, ${packet.tenantId}::uuid,
            ${packet.tenantId}::uuid, ${packet.surface},
            ${packet.userId}::uuid, ${packet.clientId}::uuid,
            ${JSON.stringify(sanitizeRef(packet.ref))}::jsonb,
@@ -240,6 +226,17 @@ export class WorkspaceContextCompilerService {
            ${v2?.totalTokenBudget ?? null}, ${v2?.usedTokens ?? 0},
            ${v2?.truncated ?? false}, ${v2?.incomplete ?? false})
       `;
+      const verified = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id::text AS id
+        FROM context_packet
+        WHERE id = ${packet.generatedPacketId}::uuid
+          AND tenant_id = ${packet.tenantId}::uuid
+        LIMIT 1
+      `;
+      if (verified[0]?.id !== packet.generatedPacketId) {
+        throw new Error('context_packet_read_after_write_missing');
+      }
+      return verified[0].id;
     });
   }
 }
