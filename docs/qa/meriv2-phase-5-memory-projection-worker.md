@@ -51,8 +51,9 @@ Additive fields:
 The migration widens the existing status vocabulary with `dead_letter`, enforces that
 only running rows can hold leases, and adds partial indexes for due/stale claims and
 terminal dead-letter inspection. The worker deliberately accesses these operational
-fields through raw SQL; the migration and worker are validated together in the focused
-gate. The migration is committed but was not applied by this phase.
+fields through raw SQL; the migration and worker are validated together in the
+cumulative gate. The migration is committed but was not applied to production by this
+phase.
 
 ## Scheduling and operations
 
@@ -95,6 +96,44 @@ bounded separately and database leases make overlapping invocations safe.
 - the scheduled task, app credential, Titan-only IAM, retention, metrics, alarms, and
   entrypoint verb are statically gated.
 
+## Phase 5 acceptance evidence
+
+Phase 5 code-bearing acceptance SHA:
+`0f5ded51aaa74a74e09fc26256469eee263ee4ea`.
+
+The first exact-head Phase 5 gate passed API and CDK typechecks plus **10 suites / 61
+tests**. All six required PR workflows passed on that SHA.
+
+Phase 1–5 cumulative validation SHA:
+`8fdcd83aeac66f37e61c57a962ce969f1d6de2ac`.
+
+The permanent `memory-governance-ci` workflow was expanded into a cumulative matrix and
+passed:
+
+- full repository `pnpm turbo run typecheck`;
+- `@capiro/infra-cdk` typecheck;
+- API governed-memory matrix: **50 suites / 445 tests**;
+- MeriV2 orchestrator Context/Strategy/Steward matrix: **4 suites / 24 tests**;
+- Workspace canonical-context matrix: **4 suites / 32 tests**;
+- Settings shared-memory web contract: **1 file / 2 tests**.
+
+Cumulative total: **59 files/suites and 503 tests, all passing**.
+
+Required workflows on `8fdcd83aeac66f37e61c57a962ce969f1d6de2ac`:
+
+- `memory-governance-ci` run `30556617455` — **PASS**;
+- `ci-pr` run `30556617301` — **PASS**;
+- `meriv2-evals` run `30556617261` — **PASS**;
+- `engagement-trust-boundary` run `30556617425` — **PASS**;
+- `legiwatch-ci` run `30556617325` — **PASS**;
+- `funding-opportunities-ci` run `30556617342` — **PASS**.
+
+**Acceptance: PASS.** A failed fast-path projection leaves a durable obligation that a
+scheduled, lease-safe worker can claim and complete. Completion is withheld until the
+canonical memory item and exact embedding are durable, stale workers cannot overwrite a
+new lease owner, exhausted work becomes observable dead-letter state, and the Phase 5
+changes do not invalidate the accepted Phase 1–4 contracts.
+
 ## Rollback
 
 1. Disable the `capiro-<env>-memory-projection-worker` EventBridge rule.
@@ -105,8 +144,6 @@ bounded separately and database leases make overlapping invocations safe.
    disabling the schedule does not change user-facing save semantics; it pauses only
    out-of-band completion.
 
-## Release evidence
-
-Final exact-head SHA, focused suite counts, and required workflow run IDs are recorded
-on PR #679 only after all gates succeed. Until then, this document describes the
-implemented contract but is not a production release certificate.
+No merge to `main`, production deployment, production migration application, backfill,
+feature-flag change, AWS operation, or customer-data mutation occurred during Phase 5 or
+the cumulative validation pass.
