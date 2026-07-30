@@ -57,10 +57,8 @@ export class OrchestratorContextCompilerService {
         tenant?.settings,
         surface,
       );
-    } catch (error) {
-      this.logger.warn(
-        `Context Packet tenant canary lookup failed closed: ${(error as Error).message}`,
-      );
+    } catch {
+      this.logger.warn('Context Packet tenant canary lookup failed closed (context_packet_canary_lookup_failed)');
       return 'off';
     }
   }
@@ -82,10 +80,8 @@ export class OrchestratorContextCompilerService {
         `,
       );
       return rows[0]?.allowed === true;
-    } catch (error) {
-      this.logger.warn(
-        `Context Packet ethical-wall lookup failed closed: ${(error as Error).message}`,
-      );
+    } catch {
+      this.logger.warn('Context Packet ethical-wall lookup failed closed (context_packet_wall_lookup_failed)');
       return false;
     }
   }
@@ -102,11 +98,11 @@ export class OrchestratorContextCompilerService {
       hasLayer(req.layers, 'firm-identity') || hasLayer(req.layers, 'firm-playbook');
 
     const firmTypes = typesForLayers(
-      req.layers.filter((l) => l === 'firm-identity' || l === 'firm-playbook'),
+      req.layers.filter((layer) => layer === 'firm-identity' || layer === 'firm-playbook'),
     );
-    const userTypes = typesForLayers(req.layers.filter((l) => l === 'user-voice'));
+    const userTypes = typesForLayers(req.layers.filter((layer) => layer === 'user-voice'));
     const clientTypes = typesForLayers(
-      req.layers.filter((l) => l === 'client-steering' || l === 'client-people'),
+      req.layers.filter((layer) => layer === 'client-steering' || layer === 'client-people'),
     );
 
     const sql = Prisma.sql`
@@ -152,7 +148,7 @@ export class OrchestratorContextCompilerService {
           exclusions: packet.exclusions as unknown as Prisma.InputJsonValue,
           itemCount: packet.items.length,
           exclusionCount: packet.exclusions.length,
-          blockChars: packet.rendered.reduce((n, r) => n + r.body.length, 0),
+          blockChars: packet.rendered.reduce((sum, item) => sum + item.body.length, 0),
           packetHash: packet.traceHash,
           ...contextPacketVersionColumns(packet),
         },
@@ -170,7 +166,7 @@ export class OrchestratorContextCompilerService {
 
   private async persistShadowComparison(input: {
     tenantId: string;
-    shadowPacketId: string;
+    comparisonPacketId: string;
     comparison: ContextPacketShadowComparison;
   }): Promise<void> {
     await this.prisma.withTenant(input.tenantId, (tx) =>
@@ -178,7 +174,7 @@ export class OrchestratorContextCompilerService {
         UPDATE context_packet
         SET health_jsonb = COALESCE(health_jsonb, '{}'::jsonb)
             || jsonb_build_object('shadowComparison', ${JSON.stringify(input.comparison)}::jsonb)
-        WHERE id = ${input.shadowPacketId}::uuid AND tenant_id = ${input.tenantId}::uuid
+        WHERE id = ${input.comparisonPacketId}::uuid AND tenant_id = ${input.tenantId}::uuid
       `,
     );
   }
@@ -212,6 +208,6 @@ function sanitizeRef(
   ref: Record<string, string | null | undefined>,
 ): Record<string, string | null> {
   const out: Record<string, string | null> = {};
-  for (const [k, v] of Object.entries(ref)) if (v !== undefined) out[k] = v;
+  for (const [key, value] of Object.entries(ref)) if (value !== undefined) out[key] = value;
   return out;
 }
