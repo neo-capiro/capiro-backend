@@ -174,15 +174,15 @@ jobs:
           Path('apps/api/src/context/context-rollout-live-paths.spec.ts').write_text("""import { readFileSync } from 'node:fs';
           import { join } from 'node:path';
 
-          const root = join(__dirname, '..', '..', '..');
+          const root = join(__dirname, '..');
           const source = (path: string) => readFileSync(join(root, path), 'utf8');
 
           describe('Phase 8 live external-deliverable boundaries', () => {
             it.each([
-              ['memo', 'src/intelligence/alert-memo/alert-memo.service.ts'],
-              ['district-brief', 'src/intelligence/alert-memo/district-brief.service.ts'],
-              ['outreach', 'src/engagement/engagement.service.ts'],
-              ['research', 'src/meri/meri-research.service.ts'],
+              ['memo', 'intelligence/alert-memo/alert-memo.service.ts'],
+              ['district-brief', 'intelligence/alert-memo/district-brief.service.ts'],
+              ['outreach', 'engagement/engagement.service.ts'],
+              ['research', 'meri/meri-research.service.ts'],
             ])('%s uses the server compiler and preserves required persistence holds', (surface, path) => {
               const text = source(path);
               expect(text).toContain(`surface: '${surface}'`);
@@ -190,7 +190,7 @@ jobs:
             });
 
             it('the outreach batch path no longer swallows a required voice-context hold', () => {
-              const text = source('src/engagement/engagement.service.ts');
+              const text = source('engagement/engagement.service.ts');
               expect(text).not.toMatch(/loadUserVoiceBlock\([\s\S]{0,160}\)\s*\.catch\(\(\) => null\)/);
             });
           });
