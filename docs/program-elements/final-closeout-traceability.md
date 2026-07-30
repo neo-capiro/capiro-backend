@@ -113,9 +113,22 @@ Closeout **execution phase** column is the session phase from the final schedule
 
 | ID | Requirement | Status | Source | Owner phase |
 |---|---|---|---|---|
-| H1–Hn | Trust header, caveats drawer, explicit load/fail/partial/unsupported states, deep-link tab+FY, lazy tabs, no projected-enacted substitution, zero charts, copy-with-citation, proof-pack language, P-40 ids, a11y, no fabricated personnel | `missing` | no H branch/product on origin | 5 |
+| H1 | Trust header: PE mark-bearing FY, stage, vehicle, verification time, coverage, reconciliation | `in_branch` (Phase 5) | PeTrustHeader + trust-model | 5 |
+| H2 | Coverage/caveats drawer | `in_branch` (Phase 5) | PeTrustHeader Drawer | 5 |
+| H3 | Explicit states loading/failed+retry/partial/not_ingested/unsupported/complete | `in_branch` (Phase 5) | PeLoadState + resolvePeSurfaceState | 5 |
+| H4 | Deep-link + restore tab + FY | `in_branch` (Phase 5) | ?tab=&fy= serialize/parse | 5 |
+| H5 | Lazy-load hidden tabs | `in_branch` (Phase 5) | peWatchQueryEnabled; destroyOnHidden tabs | 5 |
+| H6 | No projected-enacted substitution | `in_branch` (Phase 5) | FyHistoryChart + toHistoryRow | 5 |
+| H7 | Preserve zeros in charts/sparks | `in_branch` (Phase 5) | toChartPoint null-safe; spark filter null only | 5 |
+| H8 | Copy claim with citation | `in_branch` (Phase 5) | formatClaimWithCitation | 5 |
+| H9 | Report-language match scope + attribution caveat | `in_branch` (Phase 5) | ProvisionsPanel + ProvisionItem types | 5 |
+| H10 | Proof-pack / fingerprint language honest | `in_branch` (Phase 5) | ProofPackPanel + proofFingerprintLabel | 5 |
+| H11 | P-40 related ids + source FY (not hard-coded 2027) | `in_branch` (Phase 5) | PdocDetailPanel + formatPdocSourceLine | 5 |
+| H12 | Keyboard-accessible related-line navigation | `in_branch` (Phase 5) | LinkedLinesRail + related PE buttons | 5 |
+| H13 | No fabricated personnel estimates | `in_branch` (Phase 5) | ProgramTeamPanel identified-count only | 5 |
+| H14 | Web list types claim bags (Phase 4 R2 residual) | `in_branch` (Phase 5) | ProgramElementListItem claim fields | 5 |
 
-Depends on Phase 4 read contract.
+Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REVIEW required (no self-PASS).**
 
 ---
 

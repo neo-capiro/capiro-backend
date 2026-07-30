@@ -1,4 +1,5 @@
 import { Card, Descriptions, Tag, Tooltip } from 'antd';
+import { formatPdocSourceLine } from './trust-model.js';
 
 /**
  * P-40 exhibit detail block (product plan F1 enrichment block): quantities,
@@ -7,10 +8,8 @@ import { Card, Descriptions, Tag, Tooltip } from 'antd';
  * raw.pDocDetail, written by load-pdoc-enrichment (batch-5). Renders nothing
  * until the line has been enriched, so it lights up automatically as loads land.
  *
- * The `llm` sub-object was added by the batch-5 enrichment pass but had no UI
- * home until now — every value there was independently re-validated as a
- * verbatim substring of the line's own source narrative (0 invented survivors),
- * so it renders with the same confidence as the deterministic fields above it.
+ * Phase 5: source FY is derived from exhibit metadata (not hard-coded FY2027);
+ * related PE codes are keyboard-accessible buttons.
  */
 
 export interface PdocLlmDetail {
@@ -88,15 +87,34 @@ export function PdocDetailPanel({
           </Descriptions.Item>
         ) : null}
         {relateds.length > 0 ? (
-          <Descriptions.Item label="Related RDT&E PEs">
-            {relateds.map((pe, i) => (
-              <span key={pe}>
-                {i > 0 ? ', ' : ''}
-                <a onClick={() => onOpenPe?.(pe)}>{pe}</a>
-              </span>
-            ))}
-          </Descriptions.Item>
-        ) : null}
+                  <Descriptions.Item label="Related RDT&E PEs">
+                    {relateds.map((pe, i) => (
+                      <span key={pe}>
+                        {i > 0 ? ', ' : ''}
+                        <button
+                          type="button"
+                          className="pe-related-pe-link"
+                          data-testid={`pe-pdoc-related-${pe}`}
+                          onClick={() => onOpenPe?.(pe)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              onOpenPe?.(pe);
+                            }
+                          }}
+                        >
+                          {pe}
+                        </button>
+                      </span>
+                    ))}
+                  </Descriptions.Item>
+                ) : null}
+                {detail.lineItem ? (
+                  <Descriptions.Item label="P-40 line item">{detail.lineItem}</Descriptions.Item>
+                ) : null}
+                {detail.appropriation ? (
+                  <Descriptions.Item label="P-40 appropriation">{detail.appropriation}</Descriptions.Item>
+                ) : null}
       </Descriptions>
       {hasLlm ? (
         <div className="pe-pdoc-llm">
@@ -148,8 +166,14 @@ export function PdocDetailPanel({
         </div>
       ) : null}
       {detail.sourceBook ? (
-        <div className="pe-pdoc-source">Source: FY2027 {detail.sourceBook.replace(/_/g, ' ')} P-40 exhibit</div>
-      ) : null}
+              <div className="pe-pdoc-source" data-testid="pe-pdoc-source">
+                {formatPdocSourceLine(detail.sourceBook)}
+              </div>
+            ) : (
+              <div className="pe-pdoc-source" data-testid="pe-pdoc-source">
+                Source: P-40 exhibit (source book / FY not recorded on enrichment payload)
+              </div>
+            )}
     </Card>
   );
 }

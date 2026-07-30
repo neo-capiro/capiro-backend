@@ -148,8 +148,10 @@ describe('ProgramTeamPanel', () => {
     );
 
     expect(screen.getByText('Program team')).toBeInTheDocument();
-    expect(screen.getByText('5 of ~12 known')).toBeInTheDocument();
-    expect(screen.getByText('View all sources →')).toBeInTheDocument();
+        // Phase 5: no fabricated "~12 known" roster estimate — identified count only.
+        expect(screen.getByTestId('pe-team-identified-count')).toHaveTextContent('5 identified people');
+        expect(screen.queryByText(/of ~/)).toBeNull();
+        expect(screen.getByText('View all sources →')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Link' })).toHaveLength(5);
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Link' })[0]!);

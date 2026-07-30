@@ -6,7 +6,7 @@
 **Repo:** `neo-capiro/capirov2`  
 **Operator session:** Phase 4 IMPLEMENT (current-cycle track-aware read contract)  
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-30 (Phase 4 FAIL Round-2 remediations B5–B7 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-30 (Phase 5 trust-first web IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
 
 ---
 
@@ -632,10 +632,85 @@ git reset --hard 0a74cf9a3220cea05d0666e41a0c88e75cb99929
 
 ---
 
+## Phase 5 — Trust-First Program Elements Web Experience
+
+**Operator session:** Phase 5 IMPLEMENT only (not review)  
+**Mode:** LONG  
+**Base remote tip (Phase 4 PASS WITH BLOCKERS):** `7bca3b506d992d49978821fb84946eae162e8db7`  
+**origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind)
+
+### Goal
+Complete Phase H against the Phase 4 read contract: trust header, explicit load states, deep-link tab+FY, lazy tabs, no projected-enacted substitution, zeros preserved, copy-with-citation, honest proof-pack/P-40 language, match-scope attributes, keyboard related-line nav, no fabricated personnel estimates.
+
+### Tasks completed (implementer)
+
+| ID | Work |
+|---|---|
+| H1 | `PeTrustHeader` — PE mark-bearing current FY, stage, vehicle, verification time, source coverage chips, reconciliation conflict tag, caveats drawer, copy claim with citation |
+| H2 | `PeLoadState` + `resolvePeSurfaceState` — loading / failed+retry / not_found / not_ingested / unsupported / partial / complete |
+| H3 | URL deep-link `?tab=&fy=` restore via `useSearchParams`; writing on tab/FY change |
+| H4 | Lazy secondary queries: `peWatchQueryEnabled` — hidden tabs do not fetch sources/personnel/contractors/provisions on initial overview |
+| H5 | Removed projected-enacted substitution in `toHistoryRow` + `FyHistoryChart.toChartPoint` (null enacted stays null; tooltip never "Enacted (Projected)" from request) |
+| H6 | Zero preservation in chart points + sparklines (filter null only, not `!== 0`) |
+| H7 | Proof pack: sha256 labeled as ingested-byte fingerprint, not archive receipt |
+| H8 | P-40 source FY from exhibit metadata (`formatPdocSourceLine`); line item / appropriation ids; keyboard related-PE buttons |
+| H9 | Linked lines rail: keyboard + aria-label navigation |
+| H10 | Provisions: `matchScope` + `attributionCaveat` display |
+| H11 | Program team: removed fabricated `~N known` / `estimatedTotal` inflation |
+| H12 | Web list types: Phase 4 claim bags (`currentClaim`, `requestAtEnactedClaim`, `comparableEnactedVsRequest`, …) |
+| H13 | Theme: `.pe-trust-header`, related-PE link focus styles |
+
+### Files (product)
+
+- `apps/web/src/pages/program-element/trust-model.ts` (+test)
+- `apps/web/src/pages/program-element/PeTrustHeader.tsx`
+- `apps/web/src/pages/program-element/PeLoadState.tsx`
+- `apps/web/src/pages/program-element/ProgramElementWatchPage.tsx` (+test)
+- `apps/web/src/pages/program-element/FyHistoryChart.tsx` (+test)
+- `apps/web/src/pages/program-element/ProofPackPanel.tsx` (+test)
+- `apps/web/src/pages/program-element/PdocDetailPanel.tsx`
+- `apps/web/src/pages/program-element/ProgramTeamPanel.tsx` (+test)
+- `apps/web/src/pages/program-element/ProvisionsPanel.tsx`
+- `apps/web/src/pages/program-element/BudgetLinePanels.tsx`
+- `apps/web/src/pages/program-element/types.ts`
+- `apps/web/src/theme.css`
+- ledger docs
+
+### Gates (implement local)
+
+| Command | Result |
+|---|---|
+| vitest PE trust suite (6 files, 41 tests) | PASS |
+| `pnpm --filter web run build` (production) | PASS |
+| `pnpm --filter @capiro/api run verify:pe-phase-g` | PASS 5/87 |
+| `pnpm --filter @capiro/api run verify:pe-phase-a` | PASS `PE_PHASE_A_B_SAFETY_OK` |
+| Shared migrate / vendor / secrets / email / LlamaParse / browser visual matrix | **not run** (no disposable browser matrix in this session; pure layout CSS + a11y attributes added) |
+| MeriV2 product paths | untouched |
+| Transport blobs | absent |
+
+### Migrations / data ops
+None.
+
+### Non-gating residuals / known limits
+- Browser smoke at desktop/tablet/mobile widths not executed here (no headed browser gate); CSS is responsive flex wrap — REVIEW should note if visual gate is required for PASS.
+- Catalog `detail.currentCycleFy` remains mode-request FY (Phase 4 R1); trust strip prefers PE mark-bearing cycle via shared helper and discloses catalog mismatch in caveats.
+- Open reconciliation conflict count only displays when API sets `openReconciliationConflictCount` (defaults 0 / "no open conflicts reported").
+- Phase 3 SAM B1/B2 polish still optional.
+
+### Independent review status (Phase 5)
+IMPLEMENT PUSHED — independent adversarial REVIEW **REQUIRED**. Implementer does **not** self-PASS.
+
+### Rollback
+
+```bash
+# return to Phase 4 PASS tip:
+git reset --hard 7bca3b506d992d49978821fb84946eae162e8db7
+```
+
+---
+
 ## Next phase
 
-**Phase 4 independent adversarial REVIEW only** against the remote tip after the B5–B7 remediation product commit (not Phase 5 implement).
-Do not start Phase 5 until a separate REVIEW session records `VERDICT: PASS` against that tip SHA.
-Re-falsify: B5 (latestRequestFy > mark FY ⇒ list requestClaim outyear/projection), B6 (NDAA-only + request outyear ⇒ detail fundingSummary tags NDAA year current), B7 (marks on 2027 + outyear 2031 ⇒ markup SQL cycle via sqlCurrentCycleFyExpr / pe_cycle not max fy), and hold B1–B3.
-
+**Phase 5 independent adversarial REVIEW only** against the remote tip after the Phase 5 product commit (not Phase 6 implement).
+Do not start Phase 6 until a separate REVIEW session records `VERDICT: PASS` (or PASS WITH BLOCKERS with exit-gate bullets satisfied) against that tip SHA.
 

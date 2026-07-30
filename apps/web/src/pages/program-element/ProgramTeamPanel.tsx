@@ -59,6 +59,11 @@ function sourceHost(role: PersonRoleSummary): string | null {
 export interface ProgramTeamPanelProps {
   personnel: ProgramTeamPerson[];
   loading?: boolean;
+  /**
+   * @deprecated Phase 5 — fabricated roster estimates removed. If provided and
+   * larger than the identified roster, it is ignored so the UI never invents
+   * headcount beyond identified personnel.
+   */
   estimatedTotal?: number;
   onViewAllSources?: () => void;
   onLinkCrmContact?: (personId: string) => void;
@@ -112,7 +117,7 @@ function formatDate(value: string): string {
 export function ProgramTeamPanel({
   personnel,
   loading = false,
-  estimatedTotal,
+  estimatedTotal: _estimatedTotalIgnored,
   onViewAllSources,
   onLinkCrmContact,
 }: ProgramTeamPanelProps) {
@@ -124,7 +129,8 @@ export function ProgramTeamPanel({
     );
   }
 
-  const total = estimatedTotal ?? personnel.length;
+  // Phase 5: show only identified personnel counts — never "~N known" fabrications.
+  void _estimatedTotalIgnored;
 
   return (
     <Card
@@ -132,8 +138,10 @@ export function ProgramTeamPanel({
       title="Program team"
       extra={
         <span className="pe-team-extra">
-          <Text type="secondary">
-            {personnel.length} of ~{total} known
+          <Text type="secondary" data-testid="pe-team-identified-count">
+            {personnel.length === 1
+              ? '1 identified person'
+              : `${personnel.length} identified people`}
           </Text>
           <Link onClick={onViewAllSources}>View all sources →</Link>
         </span>

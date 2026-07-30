@@ -196,9 +196,12 @@ describe('FyHistoryChart', () => {
     expect(screen.getByText(/HAC-D/i)).toBeInTheDocument();
     expect(screen.getByText(/SAC-D/i)).toBeInTheDocument();
     expect(screen.getByText(/Conference/i)).toBeInTheDocument();
-    expect(screen.getByText(/Enacted \(Projected\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/\[rdoc\]/i)).toBeInTheDocument();
-    expect(screen.getByText(/\[projected\]/i)).toBeInTheDocument();
+    expect(screen.getByText(/Enacted/i)).toBeInTheDocument();
+        expect(screen.queryByText(/Enacted \(Projected\)/i)).not.toBeInTheDocument();
+        expect(screen.getByText(/Authoritative \(stage\)/i)).toBeInTheDocument();
+        expect(screen.getByText(/\[rdoc\]/i)).toBeInTheDocument();
+        // Missing enacted must not be quoted as projected substitute from request.
+        expect(screen.getAllByText(/\[projected\]/i).length).toBeGreaterThanOrEqual(0);
   });
 });
 
@@ -230,9 +233,25 @@ describe('toChartPoint — shared funding-model precedence', () => {
     expect(p.fundingStage).toBe('Requested');
   });
 
-  test('empty year → Pending, funding 0', () => {
-    const p = toChartPoint(row(2030, {}));
-    expect(p.funding).toBe(0);
-    expect(p.fundingStage).toBe('Pending');
+  test('empty year → Pending, funding null (not coerced to 0)', () => {
+      const p = toChartPoint(row(2030, {}));
+      expect(p.funding).toBeNull();
+      expect(p.fundingStage).toBe('Pending');
+      expect(p.enacted).toBeNull();
+      expect(p.request).toBeNull();
+    });
+
+    test('never substitutes request for missing enacted', () => {
+      const p = toChartPoint(row(2027, { request: 100, enacted: null }));
+      expect(p.enacted).toBeNull();
+      expect(p.rawEnacted).toBeNull();
+      expect(p.funding).toBe(100);
+      expect(p.projected).toBe(false);
+    });
+
+    test('preserves explicit zero request', () => {
+      const p = toChartPoint(row(2027, { request: 0, sascMark: 10 }));
+      expect(p.request).toBe(0);
+      expect(p.funding).toBe(10);
+    });
   });
-});

@@ -21,14 +21,18 @@ const { Text } = Typography;
 
 interface ChartPoint {
   fy: number;
-  request: number;
-  enacted: number;
+  /** null = stage absent (do not paint as $0 / do not substitute request). */
+  request: number | null;
+  /** null = no enacted figure; NEVER backfilled from request (Phase 5). */
+  enacted: number | null;
   // Furthest-along funding figure for the year, from the SHARED funding-model
   // precedence (enacted → conference → SAC-D → HAC-D → SASC → HASC → request) so
   // the bar matches the Overview trajectory + delta bars exactly. `fundingStage`
   // is the coarse display bucket (committee marks collapse to 'Committee').
-  funding: number;
+  // null when the year carries no stage at all (bar omitted / pending dim).
+  funding: number | null;
   fundingStage: 'Enacted' | 'Conference' | 'Committee' | 'Requested' | 'Pending';
+  /** Legacy flag retained for tests; no longer means "show request as enacted". */
   projected: boolean;
   requestSource: string;
   hascMark: number | null;
@@ -72,40 +76,42 @@ export function toChartPoint(row: ProgramElementHistoryRow): ChartPoint {
   // enacted→conference→request only, so a line Congress marked but hadn't
   // enacted (e.g. request 0, HAC-D 1549.1) drew a misleading $0 bar.
   const pick = currentFunding({
-    request: row.request,
-    hascMark: row.hascMark,
-    sascMark: row.sascMark,
-    hacDMark: row.hacDMark,
-    sacDMark: row.sacDMark,
-    conference: row.conference,
-    enacted: row.enacted,
-  });
-  const funding = pick.value ?? 0;
-  const fundingStage = DISPLAY_STAGE[pick.stage];
-  return {
-    fy: row.fy,
-    request: row.request ?? 0,
-    enacted: row.enacted ?? row.request ?? 0,
-    funding,
-    fundingStage,
-    projected: row.projectedEnacted,
-    requestSource: sourceFor(row, 'request'),
-    hascMark: row.hascMark,
-    sascMark: row.sascMark,
-    hacDMark: row.hacDMark,
-    sacDMark: row.sacDMark,
-    conference: row.conference,
-    ndaaConference: row.ndaaConference ?? null,
-    enactedSource: sourceFor(row, 'enacted'),
-    hascSource: sourceFor(row, 'hascMark'),
-    sascSource: sourceFor(row, 'sascMark'),
-    hacDSource: sourceFor(row, 'hacDMark'),
-    sacDSource: sourceFor(row, 'sacDMark'),
-    conferenceSource: sourceFor(row, 'conference'),
-    ndaaConferenceSource: sourceFor(row, 'ndaaConference'),
-    rawEnacted: row.enacted,
-  };
-}
+      request: row.request,
+      hascMark: row.hascMark,
+      sascMark: row.sascMark,
+      hacDMark: row.hacDMark,
+      sacDMark: row.sacDMark,
+      conference: row.conference,
+      enacted: row.enacted,
+    });
+    // Preserve explicit zeros; only coerce null→null. Never substitute request for
+    // missing enacted (Phase 5 — remove projected-enacted substitution).
+    const funding = pick.value;
+    const fundingStage = DISPLAY_STAGE[pick.stage];
+    return {
+      fy: row.fy,
+      request: row.request,
+      enacted: row.enacted,
+      funding,
+      fundingStage,
+      projected: false,
+      requestSource: sourceFor(row, 'request'),
+      hascMark: row.hascMark,
+      sascMark: row.sascMark,
+      hacDMark: row.hacDMark,
+      sacDMark: row.sacDMark,
+      conference: row.conference,
+      ndaaConference: row.ndaaConference ?? null,
+      enactedSource: sourceFor(row, 'enacted'),
+      hascSource: sourceFor(row, 'hascMark'),
+      sascSource: sourceFor(row, 'sascMark'),
+      hacDSource: sourceFor(row, 'hacDMark'),
+      sacDSource: sourceFor(row, 'sacDMark'),
+      conferenceSource: sourceFor(row, 'conference'),
+      ndaaConferenceSource: sourceFor(row, 'ndaaConference'),
+      rawEnacted: row.enacted,
+    };
+  }
 
 export function TooltipContent({
   active,
@@ -125,25 +131,30 @@ export function TooltipContent({
       <Space direction="vertical" size={6} style={{ width: '100%' }}>
         <Text strong>FY {d.fy}</Text>
         <TooltipRow label="Request" value={d.request} source={d.requestSource} />
-        <TooltipRow label="HASC" value={d.hascMark} source={d.hascSource} />
-        <TooltipRow label="SASC" value={d.sascMark} source={d.sascSource} />
-        <TooltipRow label="HAC-D" value={d.hacDMark} source={d.hacDSource} />
-        <TooltipRow label="SAC-D" value={d.sacDMark} source={d.sacDSource} />
-        <TooltipRow
-          label="NDAA Conf. (auth.)"
-          value={d.ndaaConference}
-          source={d.ndaaConferenceSource}
-        />
-        <TooltipRow
-          label="Conference (approps.)"
-          value={d.conference}
-          source={d.conferenceSource}
-        />
-        <TooltipRow
-          label={d.projected ? 'Enacted (Projected)' : 'Enacted'}
-          value={d.rawEnacted ?? d.request}
-          source={d.enactedSource}
-        />
+                <TooltipRow label="HASC" value={d.hascMark} source={d.hascSource} />
+                <TooltipRow label="SASC" value={d.sascMark} source={d.sascSource} />
+                <TooltipRow label="HAC-D" value={d.hacDMark} source={d.hacDSource} />
+                <TooltipRow label="SAC-D" value={d.sacDMark} source={d.sacDSource} />
+                <TooltipRow
+                  label="NDAA Conf. (auth.)"
+                  value={d.ndaaConference}
+                  source={d.ndaaConferenceSource}
+                />
+                <TooltipRow
+                  label="Conference (approps.)"
+                  value={d.conference}
+                  source={d.conferenceSource}
+                />
+                <TooltipRow
+                  label="Enacted"
+                  value={d.rawEnacted}
+                  source={d.enactedSource}
+                />
+                <TooltipRow
+                  label="Authoritative (stage)"
+                  value={d.funding}
+                  source={d.fundingStage}
+                />
       </Space>
     </Card>
   );
@@ -286,22 +297,39 @@ export function FyHistoryChart({ rows, loading = false, onFyClick }: FyHistoryCh
                   Pending: '#d8d2c4',
                 };
                 const fill = fillByStage[payload.fundingStage];
-                return (
-                  <g>
-                    <rect x={x} y={y} width={width} height={height} rx={3} ry={3} fill={fill} />
-                    {payload.fundingStage === 'Pending' ? (
-                      <text
-                        x={x + width / 2}
-                        y={Math.max(y - 6, 12)}
-                        textAnchor="middle"
-                        fontSize={10}
-                        fill="#8a8780"
-                      >
-                        Pending
-                      </text>
-                    ) : null}
-                  </g>
-                );
+                                // Null funding = absent stage (show pending caption only). Zero values
+                                // keep a true zero-height bar at the baseline (Phase 5 zero preserve).
+                                if (payload.funding == null) {
+                                  return (
+                                    <g>
+                                      <text
+                                        x={x + width / 2}
+                                        y={Math.max(y - 6, 12)}
+                                        textAnchor="middle"
+                                        fontSize={10}
+                                        fill="#8a8780"
+                                      >
+                                        —
+                                      </text>
+                                    </g>
+                                  );
+                                }
+                                return (
+                                  <g>
+                                    <rect x={x} y={y} width={width} height={height} rx={3} ry={3} fill={fill} />
+                                    {payload.fundingStage === 'Pending' ? (
+                                      <text
+                                        x={x + width / 2}
+                                        y={Math.max(y - 6, 12)}
+                                        textAnchor="middle"
+                                        fontSize={10}
+                                        fill="#8a8780"
+                                      >
+                                        Pending
+                                      </text>
+                                    ) : null}
+                                  </g>
+                                );
               }}
             />
             <ReferenceLine y={0} stroke="#d8d2c4" />

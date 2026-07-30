@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Alert, Button, Card, Empty, Skeleton, Tabs, Tag, Tooltip, message } from 'antd';
 import {
   BellFilled,
@@ -58,6 +58,17 @@ import { ProcurementActivityPanel } from './ProcurementActivityPanel.js';
 import { RelatedPesPanel } from './RelatedPesPanel.js';
 import { SecondaryDistributionPanel } from './SecondaryDistributionPanel.js';
 import { LINE_TYPES, useWatchToggle } from './pe-shared.js';
+import { PeTrustHeader } from './PeTrustHeader.js';
+import { PeLoadState } from './PeLoadState.js';
+import {
+  filterTabsForLineType,
+  parsePeWatchFy,
+  parsePeWatchTab,
+  peWatchQueryEnabled,
+  resolvePeSurfaceState,
+  serializePeWatchUrlState,
+  type PeWatchTab,
+} from './trust-model.js';
 import { Sparkline, LineChart, DeltaBars, Donut, HBars, fmtMoneyM } from './charts/index.js';
 import type {
   ProgramElementBill,
@@ -97,7 +108,8 @@ function toHistoryRow(year: ProgramElementYearPoint): ProgramElementHistoryRow {
     conference: numberOrNull(year.conference),
     ndaaConference: numberOrNull(year.ndaaConference),
     enacted: numberOrNull(year.enacted),
-    projectedEnacted: year.enacted == null,
+    // Phase 5: never flag "projected enacted" — missing enacted stays null.
+    projectedEnacted: false,
     sourceAttribution: sourceFromRaw(year.raw),
   };
 }
@@ -212,66 +224,103 @@ export function ProgramElementWatchPage() {
   const { peCode = '' } = useParams<{ peCode: string }>();
   const normalizedPeCode = peCode.toUpperCase();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const api = useApi();
-  const [selectedFy, setSelectedFy] = useState<number | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const pePresent = normalizedPeCode.length > 0;
+
+  const urlTab = parsePeWatchTab(searchParams.get('tab'));
+  const urlFy = parsePeWatchFy(searchParams.get('fy'));
+  const [activeTab, setActiveTab] = useState<PeWatchTab>(urlTab);
+  const [selectedFy, setSelectedFy] = useState<number | null>(urlFy);
+  const [drawerOpen, setDrawerOpen] = useState(urlFy != null);
   const [linkTarget, setLinkTarget] = useState<{ id: string; name: string } | null>(null);
 
+  // Keep local tab/fy in sync when the user lands via a shared deep-link.
+  useEffect(() => {
+    setActiveTab(urlTab);
+  }, [urlTab]);
+  useEffect(() => {
+    if (urlFy != null) {
+      setSelectedFy(urlFy);
+      setDrawerOpen(true);
+    }
+  }, [urlFy]);
+
+  const writeUrl = useCallback(
+    (next: { tab?: PeWatchTab; fy?: number | null }) => {
+      const tab = next.tab ?? activeTab;
+      const fy = next.fy !== undefined ? next.fy : selectedFy;
+      const qs = serializePeWatchUrlState({ tab, fy });
+      setSearchParams(qs ? new URLSearchParams(qs) : new URLSearchParams(), { replace: true });
+    },
+    [activeTab, selectedFy, setSearchParams],
+  );
+
+  const onTabChange = (key: string) => {
+    const tab = parsePeWatchTab(key);
+    setActiveTab(tab);
+    writeUrl({ tab });
+  };
+
   const watch = useWatchToggle();
+
+  const q = (bucket: Parameters<typeof peWatchQueryEnabled>[1]) =>
+    peWatchQueryEnabled(activeTab, bucket, pePresent);
 
   const detailQuery = useQuery({
     queryKey: ['program-element-detail', normalizedPeCode],
     queryFn: () => getProgramElementDetail(api, normalizedPeCode),
     staleTime: 5 * 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: pePresent,
   });
 
+  // Always-on for hero BPM counts / classification when detail opens.
   const billsQuery = useQuery({
     queryKey: ['program-element-bills', normalizedPeCode],
     queryFn: () => getProgramElementBills(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('bills'),
   });
 
   const contractorsQuery = useQuery({
     queryKey: ['program-element-contractors', normalizedPeCode],
     queryFn: () => getProgramElementContractors(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('contractors'),
   });
 
   const programTeamQuery = useQuery({
     queryKey: ['program-element-personnel', normalizedPeCode],
     queryFn: () => getProgramElementPersonnel(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('personnel'),
   });
 
   const sourcesQuery = useQuery({
     queryKey: ['program-element-sources', normalizedPeCode],
     queryFn: () => getProgramElementSources(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('sources'),
   });
 
   const programsQuery = useQuery({
     queryKey: ['program-element-programs', normalizedPeCode],
     queryFn: () => getProgramsForPe(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('programs'),
   });
 
   const clientRelevanceQuery = useQuery({
     queryKey: ['program-element-client-relevance', normalizedPeCode],
     queryFn: () => getRelevantClientsForPe(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('clientRelevance'),
   });
 
   const intelligenceQuery = useQuery({
     queryKey: ['program-element-intelligence', normalizedPeCode],
     queryFn: () => getProgramElementIntelligence(api, normalizedPeCode),
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('intelligence'),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -279,105 +328,121 @@ export function ProgramElementWatchPage() {
     queryKey: ['program-element-deltas', normalizedPeCode],
     queryFn: () => getProgramElementDeltas(api, normalizedPeCode, { limit: 25 }),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('deltas'),
   });
 
   const projectsQuery = useQuery({
     queryKey: ['program-element-projects', normalizedPeCode],
     queryFn: () => getProgramElementProjects(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('projects'),
   });
 
   const relatedQuery = useQuery({
     queryKey: ['program-element-related', normalizedPeCode],
     queryFn: () => getProgramElementRelated(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('related'),
   });
 
   const provisionsQuery = useQuery({
     queryKey: ['program-element-provisions', normalizedPeCode],
     queryFn: () => getProgramElementProvisions(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('provisions'),
   });
 
   const opportunitiesQuery = useQuery({
     queryKey: ['program-element-opportunities', normalizedPeCode],
     queryFn: () => getProgramElementOpportunities(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('opportunities'),
   });
 
   const procurementLinesQuery = useQuery({
     queryKey: ['program-element-procurement-lines', normalizedPeCode],
     queryFn: () => getProgramElementProcurementLines(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('procurementLines'),
   });
 
-  // ── BL-2 money-graph reads ────────────────────────────────────────────────
   const actionsQuery = useQuery({
     queryKey: ['program-element-actions', normalizedPeCode],
     queryFn: () => getBudgetActions(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('actions'),
   });
 
   const relationshipsQuery = useQuery({
     queryKey: ['program-element-relationships', normalizedPeCode],
     queryFn: () => getBudgetLineRelationships(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('relationships'),
   });
 
   const incumbentsQuery = useQuery({
     queryKey: ['program-element-incumbents', normalizedPeCode],
     queryFn: () => getIncumbents(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('incumbents'),
   });
 
-  // LEG-A: full stage-classified action history across the PE's bills.
   const billActionsQuery = useQuery({
     queryKey: ['program-element-bill-actions', normalizedPeCode],
     queryFn: () => getProgramElementBillActions(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('billActions'),
   });
 
-  if (!normalizedPeCode) {
+  const errorStatus = (() => {
+    const err = detailQuery.error as { response?: { status?: number }; status?: number } | null;
+    if (!err) return null;
+    return err.response?.status ?? err.status ?? null;
+  })();
+
+  const surfaceState = resolvePeSurfaceState({
+    peCodePresent: pePresent,
+    isLoading: detailQuery.isLoading,
+    isError: detailQuery.isError,
+    errorStatus,
+    hasDetail: Boolean(detailQuery.data),
+    yearCount: detailQuery.data?.years?.length ?? 0,
+    unsupported: Boolean(detailQuery.data?.unsupportedSourceFamily),
+    secondaryFailed: Boolean(
+      (q('bills') && billsQuery.isError) ||
+        (q('intelligence') && intelligenceQuery.isError) ||
+        (q('sources') && sourcesQuery.isError),
+    ),
+  });
+
+  if (!pePresent) {
     return <Alert type="warning" message="Missing PE code" showIcon />;
   }
 
-  if (detailQuery.isLoading) {
+  if (surfaceState === 'loading' || surfaceState === 'failed' || surfaceState === 'not_found' || surfaceState === 'unsupported') {
     return (
-      <section className="pe-watch-page redesign">
-        <Skeleton active paragraph={{ rows: 3 }} />
-        <div className="pe-strip">
-          {[0, 1, 2, 3].map((idx) => (
-            <div className="pe-strip-cell" key={idx}>
-              <Skeleton active paragraph={{ rows: 1 }} title={false} />
-            </div>
-          ))}
-        </div>
-      </section>
-    );
-  }
-
-  if (detailQuery.isError || !detailQuery.data) {
-    return (
-      <Alert
-        type="error"
-        showIcon
-        message="Unable to load program element"
-        description="Please retry in a moment."
+      <PeLoadState
+        state={surfaceState}
+        peCode={normalizedPeCode}
+        onRetry={() => {
+          void detailQuery.refetch();
+        }}
       />
     );
   }
 
-  const detail = detailQuery.data;
+    const detail = detailQuery.data;
+  if (!detail) {
+    return (
+      <PeLoadState
+        state="failed"
+        peCode={normalizedPeCode}
+        onRetry={() => {
+          void detailQuery.refetch();
+        }}
+      />
+    );
+  }
   const detailRaw =
     (
       detail as {
@@ -457,12 +522,13 @@ export function ProgramElementWatchPage() {
   })();
 
   // ── Derived chart data ────────────────────────────────────────────────────
+  // Phase 5: keep explicit zeros in sparklines (only drop true nulls).
   const reqSpark = chartYears
     .map((y) => numberOrNull(y.request))
-    .filter((v): v is number => v != null && v !== 0);
+    .filter((v): v is number => v != null);
   const encSpark = chartYears
     .map((y) => numberOrNull(y.enacted))
-    .filter((v): v is number => v != null && v !== 0);
+    .filter((v): v is number => v != null);
 
   // Overview trajectory: the President's request (dashed baseline) vs the
   // "current" number per FY — the furthest-along stage from the shared
@@ -592,6 +658,7 @@ export function ProgramElementWatchPage() {
   const openFy = (fy: number) => {
     setSelectedFy(fy);
     setDrawerOpen(true);
+    writeUrl({ fy });
   };
 
   const reqFmt = latestRequest ? fmtMoneyM(latestRequest.value) : null;
@@ -604,6 +671,13 @@ export function ProgramElementWatchPage() {
     lineTypeFor(detail.appropriationType) ?? intelligenceQuery.data?.lineType ?? null;
   const isRdte = lineType === 'RDTE_PE' || lineType === null;
   const isProc = lineType === 'PROCUREMENT_BLIN';
+
+  // Drop procurement/incumbents tabs that do not apply; fall back to overview.
+  const allowedTabs = filterTabsForLineType(
+    ['overview', 'funding', 'procurement', 'legislation', 'relationships', 'incumbents', 'team', 'approp', 'proof'],
+    lineType,
+  );
+  const effectiveTab: PeWatchTab = allowedTabs.includes(activeTab) ? activeTab : 'overview';
 
   // ── Tab content ─────────────────────────────────────────────────────────
   const overviewTab = (
@@ -942,7 +1016,6 @@ export function ProgramElementWatchPage() {
         <ProgramTeamPanel
           personnel={programTeam}
           loading={programTeamQuery.isLoading}
-          estimatedTotal={Math.max(programTeam.length, 6)}
           onViewAllSources={() => navigate('/directory')}
           onLinkCrmContact={(personId) => {
             const person = programTeam.find((candidate) => candidate.id === personId);
@@ -1032,7 +1105,7 @@ export function ProgramElementWatchPage() {
   ];
 
   return (
-    <section className="pe-watch-page redesign">
+    <section className="pe-watch-page redesign" data-testid="pe-state-complete">
       {/* ── Navy hero banner ──────────────────────────────────────────── */}
       <header className="pe-hero">
         <div className="pe-hero-main">
@@ -1200,12 +1273,66 @@ export function ProgramElementWatchPage() {
         </div>
       </div>
 
-      {/* ── Sub-tabs ──────────────────────────────────────────────────── */}
-      <Tabs className="pe-detail-tabs" defaultActiveKey="overview" items={tabItems} />
+      <PeTrustHeader
+        peCode={detail.peCode}
+        title={detail.title}
+        years={years}
+        catalogCurrentCycleFy={detail.currentCycleFy}
+        lastSyncedAt={detail.lastSyncedAt}
+        sourceCount={detail.sourceCount}
+        projectCount={detail.projectCount}
+        billCount={detail.billCount ?? bills.length}
+        description={detail.description}
+        reconciliationConflictCount={detail.openReconciliationConflictCount ?? 0}
+        extraCaveats={
+          isHistoricalOnly
+            ? [
+                `This line's last mark-bearing year (FY${peLatestFy}) predates the catalog mode-request cycle (FY${detail.currentCycleFy}). Treat dollars as historical unless a newer ingest lands.`,
+              ]
+            : []
+        }
+      />
+
+      {surfaceState === 'partial' ? (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="Partial data"
+          description="Detail loaded but at least one secondary panel failed. Failed sections are not silent empties — retry or switch tabs after recovery."
+          action={
+            <Button size="small" onClick={() => void detailQuery.refetch()} data-testid="pe-state-retry">
+              Retry
+            </Button>
+          }
+        />
+      ) : null}
+
+      {surfaceState === 'not_ingested' ? (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="Not yet ingested"
+          description="PE identity is known, but no budget-year rows have been ingested for this code."
+        />
+      ) : null}
+
+      {/* ── Sub-tabs (lazy: only the active tab's secondary queries fire) ── */}
+      <Tabs
+        className="pe-detail-tabs"
+        activeKey={effectiveTab}
+        onChange={onTabChange}
+        destroyOnHidden
+                items={tabItems}
+      />
 
       <FyDetailDrawer
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={() => {
+          setDrawerOpen(false);
+          writeUrl({ fy: null });
+        }}
         peCode={detail.peCode}
         selectedFy={selectedFy}
         timeline={years}

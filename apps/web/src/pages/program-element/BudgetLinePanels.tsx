@@ -73,13 +73,21 @@ export function LinkedLinesRail({
         const meta = REL_META[lk.relType] ?? { label: lk.relType, color: 'var(--ink-3)' };
         return (
           <button
-            key={lk.id}
-            type="button"
-            className={`bl-linked-card${lk.status === 'candidate' ? ' cand' : ''}`}
-            style={{ ['--rel' as string]: meta.color }}
-            onClick={() => onOpen(lk.line.peCode)}
-            title={lk.evidence}
-          >
+                      key={lk.id}
+                      type="button"
+                      className={`bl-linked-card${lk.status === 'candidate' ? ' cand' : ''}`}
+                      style={{ ['--rel' as string]: meta.color }}
+                      onClick={() => onOpen(lk.line.peCode)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onOpen(lk.line.peCode);
+                        }
+                      }}
+                      title={lk.evidence}
+                      aria-label={`Open related line ${lk.line.peCode}: ${lk.line.title}`}
+                      data-testid={`pe-linked-line-${lk.line.peCode}`}
+                    >
             <div className="bl-lc-rel">
               <span className="bl-lc-dir">{lk.direction === 'in' ? '←' : '→'}</span>
               {meta.label}

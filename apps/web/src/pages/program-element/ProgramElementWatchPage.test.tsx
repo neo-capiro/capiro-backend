@@ -103,70 +103,77 @@ function setupApi(
 ) {
   apiGetMock.mockImplementation(async (url: string) => {
     if (url.includes('/personnel')) {
-      return {
-        data: [
-          {
-            id: 'person-1',
-            fullName: 'COL Jane Doe',
-            service: 'ARMY',
-            organization: 'PEO Aviation',
-            title: 'PEO Aviation',
-            role: 'PEO',
-            pePrimary: '0603270A',
-            peSecondary: [],
-            confidence: 0.96,
-            status: 'active',
-            firstSeenAt: '2026-01-01T00:00:00.000Z',
-            lastSeenAt: '2026-01-15T00:00:00.000Z',
-            sourceCount: 3,
-          },
-        ],
-      };
-    }
-    if (url.includes('/contractors')) {
-      return {
-        data: {
-          data: [
-            { contractorName: 'Acme Dynamics', amount: 1500, awards: 12, contractType: 'IDIQ', contractorIsCrmClient: true, isNewEntrant: false },
-          ],
-          todo: null,
-        },
-      };
-    }
-    if (url.includes('/bills')) {
-      return {
-        data: [
-          {
-            id: 'HR-123',
-            congress: 119,
-            billType: 'HR',
-            billNumber: '123',
-            title: 'Focused bill touching this PE',
-            policyArea: null,
-            latestActionText: null,
-            latestActionDate: null,
-            url: null,
-            sponsor: 'Rep. Doe',
-            committee: 'Armed Services',
-            passageProbability: 0.75,
-          },
-        ],
-      };
-    }
-    if (url.includes('/projects')) return { data: [] };
-    if (url.includes('/related')) return { data: { related: [], todo: null } };
-    if (url.includes('/provisions')) return { data: [] };
-    if (url.includes('/opportunities')) return { data: [] };
-    if (url.includes('/procurement-lines')) {
-      return { data: { peCode: '0603270A', years: [], recipients: [], sourceUrl: null, totalRows: 0 } };
-    }
-    // Most PEs have no computed intelligence verdicts — the endpoint returns null.
-    if (url.includes('/intelligence')) return { data: null };
-    // Finder list (defensive; the detail page does not call it).
-    if (url.includes('/api/program-elements') && !url.includes('/0603270A')) {
-      return { data: { data: [], total: 0, page: 1, limit: 25 } };
-    }
-    return { data: detailPayload(currentUserIsWatching, currentCycleFy) };
+          return {
+            data: [
+              {
+                id: 'person-1',
+                fullName: 'COL Jane Doe',
+                service: 'ARMY',
+                organization: 'PEO Aviation',
+                title: 'PEO Aviation',
+                role: 'PEO',
+                pePrimary: '0603270A',
+                peSecondary: [],
+                confidence: 0.96,
+                status: 'active',
+                firstSeenAt: '2026-01-01T00:00:00.000Z',
+                lastSeenAt: '2026-01-15T00:00:00.000Z',
+                sourceCount: 3,
+              },
+            ],
+          };
+        }
+        if (url.includes('/contractors')) {
+          return {
+            data: {
+              data: [
+                { contractorName: 'Acme Dynamics', amount: 1500, awards: 12, contractType: 'IDIQ', contractorIsCrmClient: true, isNewEntrant: false },
+              ],
+              todo: null,
+            },
+          };
+        }
+        if (url.includes('/bills')) {
+          return {
+            data: [
+              {
+                id: 'HR-123',
+                congress: 119,
+                billType: 'HR',
+                billNumber: '123',
+                title: 'Focused bill touching this PE',
+                policyArea: null,
+                latestActionText: null,
+                latestActionDate: null,
+                url: null,
+                sponsor: 'Rep. Doe',
+                committee: 'Armed Services',
+                passageProbability: 0.75,
+              },
+            ],
+          };
+        }
+        if (url.includes('/projects')) return { data: [] };
+        if (url.includes('/related')) return { data: { related: [], todo: null } };
+        if (url.includes('/provisions')) return { data: [] };
+        if (url.includes('/opportunities')) return { data: [] };
+        if (url.includes('/sources')) return { data: [] };
+        if (url.includes('/deltas')) return { data: { data: [], total: 0, page: 1, limit: 25 } };
+        if (url.includes('/narrative')) return { data: { peCode: '0603270A', currentCycleFy: 2027, steps: [], materiality: [] } };
+        if (url.includes('/actions')) return { data: [] };
+        if (url.includes('/relationships')) return { data: [] };
+        if (url.includes('/incumbents')) return { data: [] };
+        if (url.includes('/programs')) return { data: [] };
+        if (url.includes('/procurement-lines')) {
+          return { data: { peCode: '0603270A', years: [], recipients: [], sourceUrl: null, totalRows: 0 } };
+        }
+        // Most PEs have no computed intelligence verdicts — the endpoint returns null.
+        if (url.includes('/intelligence')) return { data: null };
+        // Finder list (defensive; the detail page does not call it).
+        if (url.includes('/api/program-elements') && !url.includes('/0603270A')) {
+          return { data: { data: [], total: 0, page: 1, limit: 25 } };
+        }
+        return { data: detailPayload(currentUserIsWatching, currentCycleFy) };
   });
 
   apiPostMock.mockImplementation(async (url: string, body: { watching: boolean }) => {
@@ -224,12 +231,16 @@ describe('ProgramElementWatchPage', () => {
       expect(await screen.findByTestId('bills-panel')).toHaveTextContent('bills:1');
 
       // Incumbents tab (BL-2, was Contractors): incumbent map + contractors panel.
-      fireEvent.click(screen.getByRole('tab', { name: /Incumbents/i }));
-      expect(await screen.findByTestId('contractors-panel')).toHaveTextContent('contractors:1');
+            fireEvent.click(screen.getByRole('tab', { name: /Incumbents/i }));
+            await waitFor(() => {
+              expect(screen.getByTestId('contractors-panel')).toHaveTextContent('contractors:1');
+            });
 
-      // People & office tab (BL-2, was Team): program team panel.
-      fireEvent.click(screen.getByRole('tab', { name: /People & office/i }));
-      expect(await screen.findByTestId('program-team-panel')).toHaveTextContent('program-team:1');
+            // People & office tab (BL-2, was Team): program team panel.
+            fireEvent.click(screen.getByRole('tab', { name: /People & office/i }));
+            await waitFor(() => {
+              expect(screen.getByTestId('program-team-panel')).toHaveTextContent('program-team:1');
+            });
     },
     15000,
   );
@@ -288,11 +299,54 @@ describe('ProgramElementWatchPage', () => {
   });
 
   test('does not show the historical badge when the PE is in the current cycle', async () => {
-    // currentCycleFy matches the mock PE's own latest real year (FY2027).
-    setupApi(true, undefined, 2027);
-    renderPage();
+      // currentCycleFy matches the mock PE's own latest real year (FY2027).
+      setupApi(true, undefined, 2027);
+      renderPage();
 
-    await waitFor(() => expect(screen.getByText(/0603270A/i)).toBeInTheDocument());
-    expect(screen.queryByText(/Historical —/i)).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.getByText(/0603270A/i)).toBeInTheDocument());
+      expect(screen.queryByText(/Historical —/i)).not.toBeInTheDocument();
+    });
+
+    test('trust header is present and failed load is not empty catalog', async () => {
+      setupApi(true, undefined, 2027);
+      renderPage();
+      await waitFor(() => expect(screen.getByTestId('pe-trust-header')).toBeInTheDocument());
+      expect(screen.getByTestId('pe-trust-fy')).toBeInTheDocument();
+      expect(screen.getByTestId('pe-trust-copy-claim')).toBeInTheDocument();
+
+      apiGetMock.mockReset();
+      apiGetMock.mockRejectedValue({ response: { status: 500 } });
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={['/program-elements/0603270A']}>
+            <Routes>
+              <Route path="/program-elements/:peCode" element={<ProgramElementWatchPage />} />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+      await waitFor(() => expect(screen.getByTestId('pe-state-failed')).toBeInTheDocument());
+      expect(screen.getByTestId('pe-state-retry')).toBeInTheDocument();
+      expect(screen.queryByText(/No budget-year data has been synced/i)).not.toBeInTheDocument();
+    });
+
+    test('initial overview render does not fetch hidden-tab endpoints', async () => {
+        setupApi(true, undefined, 2027);
+        renderPage();
+        await waitFor(() => expect(screen.getByTestId('pe-trust-header')).toBeInTheDocument());
+        const urls = apiGetMock.mock.calls.map((c) => String(c[0]));
+        expect(urls.some((u) => /\/api\/program-elements\/0603270A(?:\?|$)/.test(u))).toBe(true);
+        // Hidden tabs must stay cold on first paint.
+        expect(urls.some((u) => u.includes('/sources'))).toBe(false);
+        expect(urls.some((u) => u.includes('/personnel'))).toBe(false);
+        expect(urls.some((u) => u.includes('/contractors'))).toBe(false);
+        expect(urls.some((u) => u.includes('/provisions'))).toBe(false);
+
+        fireEvent.click(screen.getByRole('tab', { name: /People & office/i }));
+        await waitFor(() => {
+          const after = apiGetMock.mock.calls.map((c) => String(c[0]));
+          expect(after.some((u) => u.includes('/personnel'))).toBe(true);
+        });
+      });
   });
-});
