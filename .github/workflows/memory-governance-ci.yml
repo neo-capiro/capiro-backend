@@ -43,6 +43,7 @@ jobs:
           src/prisma/migration-memory-immutable-versions.spec.ts
           src/memory/memory-candidate.atomicity.spec.ts
           src/meri/governed-meri-tools.proxy.spec.ts
+          src/memory/memory-index-outbox.spec.ts
           src/memory/memory-projection-worker.service.spec.ts
           src/memory/strict-memory-projector.service.spec.ts
           src/prisma/migration-memory-cleanup-worker-leases.spec.ts
