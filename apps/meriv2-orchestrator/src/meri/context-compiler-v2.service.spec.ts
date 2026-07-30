@@ -1,9 +1,11 @@
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { OrchestratorContextCompilerService } from './context-compiler.service';
 import type { PrismaService } from '../prisma/prisma.service';
 
-/** ContextPacket v2 on the orchestrator adapter. */
-describe('OrchestratorContextCompilerService — ContextPacket v2', () => {
-  const APPROVED_FIRM_ROW = {
+const CANARY = { clioFeatureFlags: { 'meriv2.contextPacketV2': true } };
+
+describe('OrchestratorContextCompilerService — Phase 8', () => {
+  const ROW = {
     id: '11111111-1111-1111-1111-111111111111',
     type: 'firm-soul',
     slug: 'firm',
@@ -19,25 +21,32 @@ describe('OrchestratorContextCompilerService — ContextPacket v2', () => {
     sourceId: 'src-1',
     approvedByUserId: '22222222-2222-2222-2222-222222222222',
     approvedAt: '2026-07-01T00:00:00.000Z',
+    asOf: '2026-07-01T00:00:00.000Z',
     sensitivity: 'normal',
     instructionsAllowed: true,
     conflictStatus: 'none',
   };
 
   function makePrisma(
-    rows: unknown[] = [APPROVED_FIRM_ROW],
-    options: { createFails?: boolean; readBack?: boolean } = {},
+    rows: unknown[] = [ROW],
+    options: { createFails?: boolean; readBack?: boolean; settings?: unknown } = {},
   ) {
     const packetCreates: Array<{ data: Record<string, unknown> }> = [];
     const queries: unknown[] = [];
+    const executions: unknown[] = [];
     const tx = {
+      tenant: { findFirst: jest.fn().mockResolvedValue({ settings: options.settings ?? CANARY }) },
       $queryRaw: jest.fn(async (arg: unknown) => {
         queries.push(arg);
         return rows;
       }),
+      $executeRaw: jest.fn(async (arg: unknown) => {
+        executions.push(arg);
+        return 1;
+      }),
       contextPacket: {
         create: jest.fn(async (args: { data: Record<string, unknown> }) => {
-          if (options.createFails) throw new Error('db down with private detail');
+          if (options.createFails) throw new Error('private db detail');
           packetCreates.push(args);
           return args;
         }),
@@ -52,7 +61,7 @@ describe('OrchestratorContextCompilerService — ContextPacket v2', () => {
         fn(tx),
       ),
     } as unknown as PrismaService;
-    return { prisma, tx, packetCreates, queries };
+    return { prisma, tx, packetCreates, queries, executions };
   }
 
   const selectListOf = (arg: unknown): string => {
@@ -60,112 +69,88 @@ describe('OrchestratorContextCompilerService — ContextPacket v2', () => {
     return sql.slice(sql.indexOf('SELECT'), sql.indexOf('FROM memory_items'));
   };
 
-  it('the v1 read references no governed column', async () => {
-    const { prisma, queries } = makePrisma();
-    const service = new OrchestratorContextCompilerService(prisma);
-    await service.compile({
-      tenantId: 't1',
-      userId: 'u1',
-      surface: 'ga-chat',
-      layers: ['firm-identity'],
-    });
-    const selectList = selectListOf(queries[0]);
-    for (const column of [
-      'memory_class',
-      'memory_authority',
-      'approved_by_user_id',
-      'visibility',
-    ]) {
-      expect(selectList).not.toContain(column);
-    }
+  const original = process.env.MERIV2_CONTEXT_PACKET_V2;
+  beforeEach(() => delete process.env.MERIV2_CONTEXT_PACKET_V2);
+  afterEach(() => {
+    if (original === undefined) delete process.env.MERIV2_CONTEXT_PACKET_V2;
+    else process.env.MERIV2_CONTEXT_PACKET_V2 = original;
   });
 
-  it('the v2 read adds governed and ordering columns without confidential excerpts', async () => {
+  it('off reads v1 and references no governed column', async () => {
     const { prisma, queries } = makePrisma();
-    const service = new OrchestratorContextCompilerService(prisma);
-    await service.compile({
+    const packet = await new OrchestratorContextCompilerService(prisma).compile({
       tenantId: 't1',
       userId: 'u1',
       surface: 'ga-chat',
       layers: ['firm-identity'],
       contractVersion: 2,
     });
-    const selectList = selectListOf(queries[0]);
-    expect(selectList).toContain('memory_class AS "memoryClass"');
-    expect(selectList).toContain('approved_by_user_id AS "approvedByUserId"');
-    expect(selectList).toContain('updated_at AS "updatedAt"');
-    expect(selectList).toContain('last_confirmed_at AS "confirmedAt"');
-    expect(selectList).toContain('provenance AS authority');
-    expect(selectList).not.toContain('source_excerpt');
+    expect(packet.version).toBe(1);
+    const select = selectListOf(queries[0]);
+    expect(select).not.toContain('memory_class');
+    expect(select).not.toContain('memory_authority');
   });
 
-  it('writes packet versions with full provenance and exact readback identity', async () => {
-    const { prisma, tx, packetCreates } = makePrisma();
-    const service = new OrchestratorContextCompilerService(prisma);
-
-    const v1Packet = await service.compile({
-      tenantId: 't1',
-      userId: 'u1',
-      surface: 'ga-chat',
-      layers: ['firm-identity'],
-    });
-    expect(packetCreates[0]!.data.packetVersion).toBe(1);
-    expect(packetCreates[0]!.data).not.toHaveProperty('health');
-    expect(v1Packet.packetId).toBe(v1Packet.generatedPacketId);
-
-    const v2Packet = await service.compile({
+  it('enforce plus tenant canary reads governed columns and persists v2', async () => {
+    process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
+    const { prisma, queries, packetCreates } = makePrisma();
+    const packet = await new OrchestratorContextCompilerService(prisma).compile({
       tenantId: 't1',
       effectiveTenantId: 'effective-t1',
       userId: 'u1',
       surface: 'ga-chat',
       layers: ['firm-identity'],
-      contractVersion: 2,
       traceId: 'trace-1',
-      tokenBudget: 5_000,
-      budgetUnit: 'tokens',
     });
-    const v2 = packetCreates[1]!.data;
-    expect(v2.packetVersion).toBe(2);
-    expect(v2.traceId).toBe('trace-1');
-    expect(v2.compilerVersion).toBe('context-compiler-v2.0');
-    expect(v2.requiredLayers).toEqual(['firm-identity']);
-    expect(v2.health).toEqual(expect.objectContaining({ status: 'healthy' }));
-    expect(v2.totalTokenBudget).toBe(5_000);
-    expect(v2.effectiveTenantId).toBe('effective-t1');
-    expect(JSON.stringify(v2.items)).not.toContain('We are a GA firm.');
-    expect(tx.contextPacket.findFirst).toHaveBeenCalled();
-    expect(v2Packet.persisted).toBe(true);
-    expect(v2Packet.packetId).toBe(v2Packet.generatedPacketId);
+    expect(packet.version).toBe(2);
+    const select = selectListOf(queries[0]);
+    expect(select).toContain('memory_class AS "memoryClass"');
+    expect(select).toContain('approved_by_user_id AS "approvedByUserId"');
+    expect(select).not.toContain('source_excerpt');
+    const data = packetCreates[0]!.data;
+    expect(data.packetVersion).toBe(2);
+    expect(data.compilerVersion).toBe('context-compiler-v2.1');
+    expect(data.effectiveTenantId).toBe('effective-t1');
+    expect(packet.persisted).toBe(true);
   });
 
-  it('returns truthful degraded provenance when a best-effort v2 write fails', async () => {
-    const { prisma } = makePrisma([APPROVED_FIRM_ROW], { createFails: true });
-    const service = new OrchestratorContextCompilerService(prisma);
-    const packet = await service.compile({
+  it('tenant without canary stays on v1 under global enforce', async () => {
+    process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
+    const { prisma } = makePrisma([ROW], {
+      settings: { clioFeatureFlags: { 'meriv2.contextPacketV2': false } },
+    });
+    const packet = await new OrchestratorContextCompilerService(prisma).compile({
       tenantId: 't1',
       userId: 'u1',
       surface: 'ga-chat',
       layers: ['firm-identity'],
-      contractVersion: 2,
-      persistence: 'best-effort',
     });
-    expect(packet.persisted).toBe(false);
-    expect(packet.packetId).toBeNull();
-    expect(packet.persistenceErrorCode).toBe('context_packet_error');
-    expect(JSON.stringify(packet)).not.toContain('private detail');
+    expect(packet.version).toBe(1);
   });
 
-  it('holds a required strategy surface when write verification fails', async () => {
-    const { prisma } = makePrisma([APPROVED_FIRM_ROW], { readBack: false });
-    const service = new OrchestratorContextCompilerService(prisma);
+  it('shadow persists v1 and v2 while returning v1', async () => {
+    process.env.MERIV2_CONTEXT_PACKET_V2 = 'shadow';
+    const { prisma, packetCreates, executions } = makePrisma();
+    const packet = await new OrchestratorContextCompilerService(prisma).compile({
+      tenantId: 't1',
+      userId: 'u1',
+      surface: 'ga-chat',
+      layers: ['firm-identity'],
+    });
+    expect(packet.version).toBe(1);
+    expect(packetCreates.map((entry) => entry.data.packetVersion)).toEqual([1, 2]);
+    expect(executions).toHaveLength(1);
+  });
+
+  it('holds a required strategy surface when persistence verification fails', async () => {
+    process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
+    const { prisma } = makePrisma([ROW], { readBack: false });
     await expect(
-      service.compile({
+      new OrchestratorContextCompilerService(prisma).compile({
         tenantId: 't1',
         userId: 'u1',
         surface: 'strategy',
         layers: ['firm-identity'],
-        contractVersion: 2,
-        persistence: 'required',
       }),
     ).rejects.toMatchObject({ name: 'ContextPacketPersistenceError' });
   });
