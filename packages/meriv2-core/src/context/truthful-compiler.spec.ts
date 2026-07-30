@@ -28,7 +28,7 @@ describe('TruthfulContextCompiler', () => {
     const compiler = new TruthfulContextCompiler({
       loadSteeringRows: emptyRows,
       loadGovernedSteeringRows: emptyRows,
-      persistPacket: jest.fn(async (packet) => {
+      persistPacket: jest.fn(async (packet: TruthfulCompiledContextPacket) => {
         attempted = structuredClone(packet);
         return packet.generatedPacketId;
       }),
