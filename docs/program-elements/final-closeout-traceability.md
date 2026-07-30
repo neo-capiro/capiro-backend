@@ -335,7 +335,7 @@ plus concrete findings. Do not implement fixes.
 | Prior review | VERDICT: FAIL — **B12** FundingNarrativePanel ignores isError (stages Empty on `/narrative` 500); B8–B11 closed |
 | Remediation product r3 (B12) | `c8ac942b93d299ccb5fa7e704e76ebac2937580d` (docs pin `88921392c`) |
 | Remediation product r4 (B12 re-verify + B13) |  |
-| Remote tip (docs pin after push) | _(origin/agent/program-elements-final-closeout)_ |
+| Remote tip (docs pin after push) |  |
 | Implementer gate | IMPLEMENT PUSHED / review **REQUIRED** — **not** self-PASS |
 | Next | New session `./pe-closeout-run.sh review 5` on **new** tip only |
 | MeriV2 | untouched |
