@@ -4,6 +4,7 @@ import { TenantContextStore } from '../tenant/tenant-context.store.js';
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
 import { MemoryStoreService } from './memory-store.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
+import { exactProjectionIdempotencyKey } from './exact-memory-cleanup-outbox.service.js';
 import {
   StrictMemoryProjectorService,
   type StrictProjectionExpectation,
@@ -50,8 +51,18 @@ export class GovernedMemoryIngestService extends MemoryIngestService {
     const job = await this.loadExactPendingJob(tenantId, clioMemoryId);
     if (!job) throw new Error('memory_projection_exact_job_unavailable');
 
+    const sourceVersion = job.expected_source_version.toISOString();
+    const expectedKey = exactProjectionIdempotencyKey(
+      clioMemoryId,
+      sourceVersion,
+      job.expected_content_hash,
+    );
+    if (job.idempotency_key !== expectedKey) {
+      throw new Error('memory_projection_idempotency_binding_mismatch');
+    }
+
     const expected: StrictProjectionExpectation = {
-      sourceVersion: job.expected_source_version.toISOString(),
+      sourceVersion,
       contentHash: job.expected_content_hash,
       memoryItemId: job.memory_item_id,
       idempotencyKey: job.idempotency_key,
