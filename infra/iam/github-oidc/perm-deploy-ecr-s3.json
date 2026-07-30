@@ -1,0 +1,72 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EcrLogin",
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcrPushPullCapiroDev",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:BatchGetImage",
+        "ecr:CompleteLayerUpload",
+        "ecr:DescribeImages",
+        "ecr:DescribeRepositories",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:InitiateLayerUpload",
+        "ecr:ListImages",
+        "ecr:PutImage",
+        "ecr:UploadLayerPart"
+      ],
+      "Resource": [
+        "arn:aws:ecr:us-east-1:967807252336:repository/capiro/dev/api",
+        "arn:aws:ecr:us-east-1:967807252336:repository/capiro/dev/api-strategy",
+        "arn:aws:ecr:us-east-1:967807252336:repository/capiro/dev/clio-sandbox",
+        "arn:aws:ecr:us-east-1:967807252336:repository/capiro/dev/intel-api",
+        "arn:aws:ecr:us-east-1:967807252336:repository/capiro/dev/marketing",
+        "arn:aws:ecr:us-east-1:967807252336:repository/capiro/dev/meriv2-orchestrator",
+        "arn:aws:ecr:us-east-1:967807252336:repository/capiro/dev/onboard-api",
+        "arn:aws:ecr:us-east-1:967807252336:repository/capiro/dev/web",
+        "arn:aws:ecr:us-east-1:967807252336:repository/capiro/dev/workspace",
+        "arn:aws:ecr:us-east-1:967807252336:repository/cdk-hnb659fds-container-assets-967807252336-us-east-1"
+      ]
+    },
+    {
+      "Sid": "DeploymentBucketObjectAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:AbortMultipartUpload",
+        "s3:DeleteObject",
+        "s3:GetObject",
+        "s3:GetObjectVersion",
+        "s3:PutObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::capiro-deploy-artifacts-967807252336/*",
+        "arn:aws:s3:::cdk-hnb659fds-assets-967807252336-us-east-1/*",
+        "arn:aws:s3:::capiro-frontend-967807252336-us-east-1/*",
+        "arn:aws:s3:::capiro-landing-967807252336-us-east-1/*"
+      ]
+    },
+    {
+      "Sid": "DeploymentBucketListing",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetBucketLocation",
+        "s3:ListBucket",
+        "s3:ListBucketMultipartUploads",
+        "s3:ListMultipartUploadParts"
+      ],
+      "Resource": [
+        "arn:aws:s3:::capiro-deploy-artifacts-967807252336",
+        "arn:aws:s3:::cdk-hnb659fds-assets-967807252336-us-east-1",
+        "arn:aws:s3:::capiro-frontend-967807252336-us-east-1",
+        "arn:aws:s3:::capiro-landing-967807252336-us-east-1"
+      ]
+    }
+  ]
+}

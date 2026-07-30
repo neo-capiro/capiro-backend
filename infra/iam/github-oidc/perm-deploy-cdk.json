@@ -1,0 +1,48 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AssumeCdkBootstrapRoles",
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": [
+        "arn:aws:iam::967807252336:role/cdk-hnb659fds-deploy-role-967807252336-us-east-1",
+        "arn:aws:iam::967807252336:role/cdk-hnb659fds-file-publishing-role-967807252336-us-east-1",
+        "arn:aws:iam::967807252336:role/cdk-hnb659fds-image-publishing-role-967807252336-us-east-1",
+        "arn:aws:iam::967807252336:role/cdk-hnb659fds-lookup-role-967807252336-us-east-1"
+      ]
+    },
+    {
+      "Sid": "CloudFormationDeployAndDiff",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:CreateChangeSet",
+        "cloudformation:CreateStack",
+        "cloudformation:DeleteChangeSet",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:DescribeStackResource",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:DescribeStacks",
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:GetTemplate",
+        "cloudformation:GetTemplateSummary",
+        "cloudformation:ListChangeSets",
+        "cloudformation:ListStackResources",
+        "cloudformation:ListStacks",
+        "cloudformation:UpdateStack",
+        "cloudformation:UpdateTerminationProtection"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ReadCdkBootstrapVersionParameter",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameter",
+        "ssm:GetParameters"
+      ],
+      "Resource": "arn:aws:ssm:us-east-1:967807252336:parameter/cdk-bootstrap/*"
+    }
+  ]
+}

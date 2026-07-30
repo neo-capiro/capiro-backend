@@ -1,0 +1,97 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RegisterTaskDefinitionsNoResourceLevelSupport",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DeregisterTaskDefinition",
+        "ecs:DescribeTaskDefinition",
+        "ecs:ListTaskDefinitionFamilies",
+        "ecs:ListTaskDefinitions",
+        "ecs:RegisterTaskDefinition",
+        "ecs:TagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "UpdateOnlyCapiroDevServices",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:UpdateService"
+      ],
+      "Resource": [
+        "arn:aws:ecs:us-east-1:967807252336:service/capiro-dev/capiro-dev-api",
+        "arn:aws:ecs:us-east-1:967807252336:service/capiro-dev/capiro-dev-api-strategy",
+        "arn:aws:ecs:us-east-1:967807252336:service/capiro-dev/capiro-dev-clio-sandbox",
+        "arn:aws:ecs:us-east-1:967807252336:service/capiro-dev/capiro-dev-intel-api",
+        "arn:aws:ecs:us-east-1:967807252336:service/capiro-dev/capiro-dev-marketing",
+        "arn:aws:ecs:us-east-1:967807252336:service/capiro-dev/capiro-dev-meriv2-orchestrator",
+        "arn:aws:ecs:us-east-1:967807252336:service/capiro-dev/capiro-dev-onboard-api",
+        "arn:aws:ecs:us-east-1:967807252336:service/capiro-dev/capiro-dev-web",
+        "arn:aws:ecs:us-east-1:967807252336:service/capiro-dev/capiro-dev-workspace"
+      ]
+    },
+    {
+      "Sid": "ReadEcsStateForVerification",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DescribeClusters",
+        "ecs:DescribeServices",
+        "ecs:DescribeTasks",
+        "ecs:ListServices",
+        "ecs:ListTasks"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "RunOnlyApprovedMigrationAndDiagTasks",
+      "Effect": "Allow",
+      "Action": "ecs:RunTask",
+      "Resource": [
+        "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:*",
+        "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-intel-api-migrate:*",
+        "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-strategy-migrate:*",
+        "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-onboard-api-migrate:*",
+        "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-workspace-migrate:*",
+        "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-diag:*",
+        "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-db-inspect:*"
+      ],
+      "Condition": {
+        "ArnEquals": {
+          "ecs:cluster": "arn:aws:ecs:us-east-1:967807252336:cluster/capiro-dev"
+        }
+      }
+    },
+    {
+      "Sid": "PassOnlyCapiroDevTaskRoles",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": [
+        "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskRole12FAD4A7-szq3QeeZJSCQ",
+        "arn:aws:iam::967807252336:role/Capiro-dev-Compute-ApiTaskDefExecutionRoleE6ABB053-YlEDKuUPHjLg",
+        "arn:aws:iam::967807252336:role/Capiro-dev-Compute-WebTaskRoleA6676EAB-FCnepyflZyKH",
+        "arn:aws:iam::967807252336:role/Capiro-dev-Compute-WebTaskDefExecutionRoleA6D04B61-gTsdzEbyD0Gc",
+        "arn:aws:iam::967807252336:role/Capiro-dev-Compute-MarketingTaskRole5741ECDC-LPsdynfMCaKG",
+        "arn:aws:iam::967807252336:role/Capiro-dev-Compute-MarketingTaskDefExecutionRoleAC6-4ZFjx5LYPZfs",
+        "arn:aws:iam::967807252336:role/capiro-dev-clio-sandbox-task",
+        "arn:aws:iam::967807252336:role/capiro-dev-clio-sandbox-exec"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "ecs-tasks.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "ResolveNetworkingForRunTask",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeVpcs"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
