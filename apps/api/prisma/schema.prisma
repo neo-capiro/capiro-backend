@@ -242,6 +242,7 @@ model Tenant {
   clioMcpOAuthCredentials      ClioMcpOAuthCredential[]
   clioFirmSkills               ClioFirmSkill[]
   programElementWatches        ProgramElementWatch[]
+  programElementDataIssues     ProgramElementDataIssue[]
   peAlertEmailPrefs            PeAlertEmailPref[]
   actionRecommendations        ActionRecommendation[]
   aiUsageEvents                AiUsageEvent[]
@@ -320,6 +321,8 @@ model User {
   clioAttachments               ClioAttachment[]               @relation("ClioAttachmentUser")
   createdCampaigns              EngagementCampaign[]           @relation("CampaignCreator")
   programElementWatches         ProgramElementWatch[]
+  programElementDataIssuesReported ProgramElementDataIssue[] @relation("PeDataIssueReporter")
+  programElementDataIssuesResolved ProgramElementDataIssue[] @relation("PeDataIssueResolver")
   peAlertEmailPrefs             PeAlertEmailPref[]
   clientMemoryAccessGrants      ClientMemoryAccess[]           @relation("ClientMemoryAccessUser")
   outreachDraftArtifacts        OutreachDraftArtifact[]        @relation("OutreachDraftArtifactAuthor")
@@ -3576,6 +3579,7 @@ model ProgramElement {
   budgetPositions         ProgramElementBudgetPosition[]
   deltas                  ProgramElementDelta[]
   watches                 ProgramElementWatch[]
+  dataIssues              ProgramElementDataIssue[]
   conferenceProbabilities ConferenceProbability[]
   sources                 ProgramElementSource[]
   projects                ProgramElementProject[]
@@ -4063,6 +4067,36 @@ model ProgramElementWatch {
 /// from the /program-elements surface — Ninja decision 2026-07-06). Absence of
 /// a row means 'daily' for users with >=1 program_element_watch (opt-out model).
 /// mode: off | daily | daily_plus_critical. RLS tenant-scoped.
+/// Tenant-scoped analyst data-issue report for a Program Element (Phase I / closeout Phase 6).
+/// Resolution never mutates canonical PE rows — reconciliation/manual_override remains required.
+model ProgramElementDataIssue {
+  id                 String    @id @default(uuid()) @db.Uuid
+  tenantId           String    @map("tenant_id") @db.Uuid
+  reportedByUserId   String    @map("reported_by_user_id") @db.Uuid
+  peCode             String    @map("pe_code") @db.VarChar(16)
+  fy                 Int?
+  fieldName          String?   @map("field_name")
+  issueType          String    @map("issue_type") @db.VarChar(40)
+  description        String    @db.Text
+  suggestedSourceUrl String?   @map("suggested_source_url")
+  status             String    @default("open") @db.VarChar(20)
+  resolutionNotes    String?   @map("resolution_notes") @db.Text
+  resolvedByUserId   String?   @map("resolved_by_user_id") @db.Uuid
+  resolvedAt         DateTime? @map("resolved_at") @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reporter   User           @relation("PeDataIssueReporter", fields: [reportedByUserId], references: [id], onDelete: Restrict)
+  resolver   User?          @relation("PeDataIssueResolver", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+  programElement ProgramElement @relation(fields: [peCode], references: [peCode], onDelete: Cascade)
+
+  @@index([tenantId, status, createdAt], map: "program_element_data_issue_tenant_status_created_idx")
+  @@index([peCode, fy], map: "program_element_data_issue_pe_fy_idx")
+  @@map("program_element_data_issue")
+}
+
+
 model PeAlertEmailPref {
   id        String   @id @default(uuid()) @db.Uuid
   userId    String   @map("user_id") @db.Uuid

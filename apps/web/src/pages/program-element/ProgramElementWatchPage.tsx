@@ -52,6 +52,7 @@ import { ClientRelevancePanel } from './ClientRelevancePanel.js';
 import { getRelevantClientsForPe } from '../clients/relevance-api.js';
 import { FyDetailDrawer } from './FyDetailDrawer.js';
 import { LinkCrmContactModal } from './LinkCrmContactModal.js';
+import { ProgramElementDataIssueModal } from './ProgramElementDataIssueModal.js';
 import { ProgramTeamPanel } from './ProgramTeamPanel.js';
 import { ProjectsPanel } from './ProjectsPanel.js';
 import { ProvisionsPanel } from './ProvisionsPanel.js';
@@ -240,6 +241,7 @@ export function ProgramElementWatchPage() {
   const [selectedFy, setSelectedFy] = useState<number | null>(urlFy);
   const [drawerOpen, setDrawerOpen] = useState(urlFy != null);
   const [linkTarget, setLinkTarget] = useState<{ id: string; name: string } | null>(null);
+  const [dataIssueOpen, setDataIssueOpen] = useState(false);
 
   // Keep local tab/fy in sync when the user lands via a shared deep-link.
   useEffect(() => {
@@ -1454,6 +1456,7 @@ export function ProgramElementWatchPage() {
               ]
             : []
         }
+      onReportDataIssue={() => setDataIssueOpen(true)}
       />
 
       {surfaceState === 'partial' ? (
@@ -1524,7 +1527,14 @@ export function ProgramElementWatchPage() {
         open={linkTarget !== null}
         personId={linkTarget?.id ?? null}
         personName={linkTarget?.name ?? null}
+        peCode={normalizedPeCode}
         onClose={() => setLinkTarget(null)}
+      />
+      <ProgramElementDataIssueModal
+        open={dataIssueOpen}
+        peCode={normalizedPeCode}
+        defaultFy={selectedFy}
+        onClose={() => setDataIssueOpen(false)}
       />
     </section>
   );

@@ -4,9 +4,9 @@
 **PR:** https://github.com/neo-capiro/capirov2/pull/705 (draft → `main`)  
 **Plan source:** local `program-elements-final-closeout-plan-and-schedule.md`  
 **Repo:** `neo-capiro/capirov2`  
-**Operator session:** Phase 4 IMPLEMENT (current-cycle track-aware read contract)  
+**Operator session:** Phase 6 IMPLEMENT (analyst feedback + CRM contact controls)
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-30 (Phase 5 B14+B15 FAIL remediation r5 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-31 (Phase 6 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
 
 ---
 
@@ -1000,9 +1000,88 @@ git reset --hard 77fd4182dca94a51b68b8c9b22ac24ce3b0c9df7
 
 ---
 
+---
+
+## Phase 6 — Analyst Feedback and CRM Contact Controls
+
+**When:** 2026-07-31 (UTC session)
+**Operator session:** Phase 6 IMPLEMENT only (not review)
+**Mode:** LONG
+**Base tip (Phase 5 PASS):** `c48d30bdc2229c2c452640065402efc92551f2b1`
+**Product tip (this phase):** *(record after commit/push)*
+
+### Tasks completed (implementation)
+
+| ID | Work |
+|---|---|
+| I1 | Tenant-scoped `ProgramElementDataIssue` model + migration `20260811010000_program_element_data_issue` with FORCE RLS (`program_element_data_issue_isolation`) |
+| I2 | `ProgramElementDataIssueService` create/list/admin/resolve; PE + FY + field + http(s) URL + description validation; audit on create/resolve without description/URL PII; resolve never mutates canonical PE year marker |
+| I3 | Web `ProgramElementDataIssueModal` + Report data issue from `PeTrustHeader` |
+| I4 | `isCrmLinkBlocked` / `crmLinkBlockedReason`; `linkCrmContact` requires exact `peCode`; evaluates PE-applicable roles only; blocks procurement POC / sensitive / candidate / quarantined; no admin bypass; audits allowed+blocked without PII |
+| I5 | Personnel response carries `crmLinkBlocked` + reason; Program Team Link disabled + tooltip/aria; modal posts peCode |
+| I6 | Targeted API + web regression tests; `verify:pe-phase-i` script |
+
+### Files (product)
+
+- `apps/api/prisma/schema.prisma`
+- `apps/api/prisma/migrations/20260811010000_program_element_data_issue/migration.sql`
+- `apps/api/src/program-element/program-element-data-issue.service.ts` (+spec)
+- `apps/api/src/program-element/program-element.controller.ts` (+spec)
+- `apps/api/src/program-element/program-element.module.ts`
+- `apps/api/src/acquisition-personnel/contact-use.policy.ts` (+spec)
+- `apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts` (+spec)
+- `apps/api/src/acquisition-personnel/acquisition-personnel.controller.ts` (+spec)
+- `apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts`
+- `apps/api/package.json` (`verify:pe-phase-i`)
+- `apps/web/src/pages/program-element/ProgramElementDataIssueModal.tsx` (+test)
+- `apps/web/src/pages/program-element/ProgramTeamPanel.tsx` (+test)
+- `apps/web/src/pages/program-element/LinkCrmContactModal.tsx`
+- `apps/web/src/pages/program-element/PeTrustHeader.tsx`
+- `apps/web/src/pages/program-element/ProgramElementWatchPage.tsx`
+- `apps/web/src/pages/program-element/api.ts`
+- `apps/web/src/pages/program-element/types.ts`
+- ledger docs
+
+### Gates (implement local)
+
+| Command | Result |
+|---|---|
+| `pnpm run verify:pe-phase-i` (apps/api) | **102/102 PASS** |
+| `pnpm run verify:pe-phase-a` | **PE_PHASE_A_B_SAFETY_OK** |
+| jest watch tenant isolation + tenant-scope-guard | **4/4 PASS** |
+| vitest ProgramTeamPanel + ProgramElementDataIssueModal | **10/10 PASS** |
+| vitest `src/pages/program-element/` (after modal fix) | targeted PE suite green; build PASS |
+| `apps/web` `run build` | **PASS** (~17s vite) |
+| Migrations applied to shared env | **not run** (additive migration only) |
+| Secrets / MeriV2 / email / LlamaParse / ingestion commit | not run |
+
+### Migrations / data ops
+
+- Additive only: `program_element_data_issue` + FORCE RLS. No shared-env migrate executed in this session.
+- Resolution path reads PE year marker and fails closed if it changed (must not write PE dollars).
+
+### Independent review status (Phase 6)
+
+**IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on the remote tip after push (not self-PASS).
+Do **not** start Phase 7 until REVIEW records `VERDICT: PASS` (or PASS WITH BLOCKERS with exit-gate bullets satisfied).
+
+### Rollback
+
+```bash
+git reset --hard c48d30bdc2229c2c452640065402efc92551f2b1
+```
+
+### Exit gate bullets for REVIEW (do not self-PASS)
+
+- Cross-tenant issue and contact isolation holds
+- Blocked and allowed CRM attempts audited without PII
+- Another PE's role cannot authorize this PE
+- Canonical PE year rows unchanged after issue resolution
+- Migration + web disabled-link + report modal present
+
+---
+
 ## Next phase
 
-**Phase 5 independent adversarial REVIEW only** against the **new remote tip** after this r5 push (not Phase 6 implement).
-Prior FAIL tips: r4 docs `77fd4182d` product `af09ca851` closed B12/B13 but left B14/B15.
-Archive FAIL inject only after PASS names the post-fix tip.
-Do not start Phase 6 until a separate REVIEW session records `VERDICT: PASS` (or PASS WITH BLOCKERS with exit-gate bullets satisfied) against that tip SHA.
+**Phase 6 independent adversarial REVIEW only** against the **new remote tip** after this push (not Phase 7 implement).
+Do not start Phase 7 until a separate REVIEW session records PASS.

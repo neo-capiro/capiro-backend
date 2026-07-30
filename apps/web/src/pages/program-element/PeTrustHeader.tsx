@@ -27,6 +27,8 @@ export interface PeTrustHeaderProps {
   reconciliationConflictCount?: number | null;
   /** Caveats the operator should read before quoting (coverage, historical, etc.). */
   extraCaveats?: string[];
+  /** Opens the Report data issue modal (Phase I / closeout Phase 6). */
+  onReportDataIssue?: () => void;
   className?: string;
 }
 
@@ -99,6 +101,7 @@ export function PeTrustHeader({
   description = null,
   reconciliationConflictCount = null,
   extraCaveats = [],
+  onReportDataIssue,
   className,
 }: PeTrustHeaderProps) {
   const [caveatsOpen, setCaveatsOpen] = useState(false);
@@ -232,6 +235,16 @@ export function PeTrustHeader({
         >
           Copy claim with citation
         </Button>
+        {onReportDataIssue ? (
+          <Button
+            size="small"
+            type="default"
+            onClick={onReportDataIssue}
+            data-testid="pe-trust-report-data-issue"
+          >
+            Report data issue
+          </Button>
+        ) : null}
       </div>
 
       <Drawer

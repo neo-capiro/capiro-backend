@@ -13,6 +13,7 @@ import { ProgramsService } from './programs/programs.service.js';
 import { PeProgramMatcherService } from './matching/pe-program-matcher.service.js';
 import { DeltaEngineService } from './deltas/delta-engine.service.js';
 import { IntelligenceModule } from '../intelligence/intelligence.module.js';
+import { ProgramElementDataIssueService } from './program-element-data-issue.service.js';
 
 // Step 2.3 — the delta writer (DeltaEngineService) and the needs-attention read path
 // (ProgramElementReadService) inject ClientPeRelevanceService, exported by IntelligenceModule.
@@ -32,6 +33,7 @@ import { IntelligenceModule } from '../intelligence/intelligence.module.js';
     ProgramsService,
     PeProgramMatcherService,
     DeltaEngineService,
+    ProgramElementDataIssueService,
   ],
   exports: [
     ProgramElementWriterService,
@@ -39,6 +41,7 @@ import { IntelligenceModule } from '../intelligence/intelligence.module.js';
     ProgramElementReadService,
     ConferenceProbabilityService,
     ProgramsService,
+    ProgramElementDataIssueService,
   ],
 })
 export class ProgramElementModule {}

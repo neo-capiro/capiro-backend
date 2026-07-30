@@ -18,6 +18,11 @@ class LinkCrmContactDto {
   @IsString()
   @IsNotEmpty()
   engagementContactId!: string;
+
+  /** Exact PE code for the page that initiated the link (required for contact-use gate). */
+  @IsString()
+  @IsNotEmpty()
+  peCode!: string;
 }
 
 class MergeQueueQueryDto {
@@ -122,7 +127,7 @@ export class AcquisitionPersonnelController {
     @Param('id') id: string,
     @Body() body: LinkCrmContactDto,
   ) {
-    return this.readService.linkCrmContact(id, body.engagementContactId, ctx);
+    return this.readService.linkCrmContact(id, body.engagementContactId, body.peCode, ctx);
   }
 
   @Get('admin/acquisition-personnel/merge-queue')

@@ -2,7 +2,7 @@
 
 **Baseline main SHA:** `057f5480a46f9ba9acf9296a9cc876b609593832`  
 **Pre-Phase-0 #705 head (void product):** `a244022648d54d9e4ac7fb071f9f438405659056`  
-**Updated (UTC):** 2026-07-30 (Phase 4 FAIL Round-2 remediations B5–B7; implementer gates green; **Phase 4 independent review REQUIRED on new tip** — no self-PASS)
+**Updated (UTC):** 2026-07-31 (Phase 6 IMPLEMENT FINAL WRITE — independent review REQUIRED)
 
 Legend for **Status**:
 
@@ -136,7 +136,14 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 
 | ID | Requirement | Status | Source | Owner phase |
 |---|---|---|---|---|
-| I1–In | Tenant PE data issues + RLS; validation; audit; resolution non-mutating; exact peCode CRM link; server role matrix; block procurement POC / sensitive / candidate / quarantined; no admin bypass; accessible disabled reason | `missing` | Branch tip + CI zip have **workflows only**. Treat prior “publish” commits as non-evidence. | 6 |
+| I1 | Tenant-scoped PE data issues model + FORCE RLS | `in_branch` (Phase 6) | migration `20260811010000_program_element_data_issue` + schema `ProgramElementDataIssue` | 6 |
+| I2 | Create/list/resolve endpoints + audit | `in_branch` (Phase 6) | `program-element-data-issue.service.ts` + controller routes; resolve non-mutating | 6 |
+| I3 | Report data issue web modal | `in_branch` (Phase 6) | `ProgramElementDataIssueModal` + PeTrustHeader CTA | 6 |
+| I4 | CRM link peCode + contact-use server gate (no admin bypass) | `in_branch` (Phase 6) | `isCrmLinkBlocked` + `linkCrmContact(peCode)` PE-role matrix | 6 |
+| I5 | Disabled Link + server crmLinkBlocked/reason | `in_branch` (Phase 6) | ProgramTeamPanel + personnel DTO | 6 |
+| I6 | Cross-tenant / blocked-audit / other-PE role tests | `in_branch` (Phase 6) | `verify:pe-phase-i` | 6 |
+
+**Phase 6 review gate:** **IMPLEMENT PUSHED — independent REVIEW REQUIRED** (no self-PASS).
 
 ---
 

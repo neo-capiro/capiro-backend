@@ -583,6 +583,21 @@ export interface ProgramTeamPerson {
   // Additive (Step 2.2, plan §8). Empty array when the person has no PersonRole
   // rows yet — render the legacy display + a "role mapping pending" note.
   roles?: PersonRoleSummary[];
+  /** Server-derived PE-page CRM link gate (Phase I / closeout Phase 6). */
+  crmLinkBlocked?: boolean;
+  crmLinkBlockedReason?: string | null;
+}
+
+export interface ProgramElementDataIssue {
+  id: string;
+  peCode: string;
+  fy: number | null;
+  fieldName: string | null;
+  issueType: string;
+  description: string;
+  suggestedSourceUrl: string | null;
+  status: string;
+  createdAt: string;
 }
 
 export type ProgramElementSourceField =

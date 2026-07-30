@@ -1,4 +1,4 @@
-import { Avatar, Button, Card, Empty, Skeleton, Tag, Typography } from 'antd';
+import { Avatar, Button, Card, Empty, Skeleton, Tag, Tooltip, Typography } from 'antd';
 import { ExportOutlined } from '@ant-design/icons';
 import type { PersonRoleSummary } from './types.js';
 import { PeSecondaryFailed } from './PeSecondaryFailed.js';
@@ -21,6 +21,9 @@ export interface ProgramTeamPerson {
   // Step 2.2 (plan §8): people hang off OFFICES and ROLES, never directly off a PE.
   // Empty/absent → render the legacy display + a muted "role mapping pending" note.
   roles?: PersonRoleSummary[];
+  /** Server-derived PE-page CRM link gate. */
+  crmLinkBlocked?: boolean;
+  crmLinkBlockedReason?: string | null;
 }
 
 // contactUse → AntD Tag color. Procurement-sensitive / quarantined buckets read
@@ -239,14 +242,46 @@ export function ProgramTeamPanel({
                     Last seen {formatDate(person.lastSeenAt)} · {person.sourceCount} sources
                   </span>
                 </div>
-                <Button
-                  className="pe-link-btn"
-                  size="small"
-                  icon={<ExportOutlined aria-hidden />}
-                  onClick={() => onLinkCrmContact?.(person.id)}
-                >
-                  Link
-                </Button>
+                {(() => {
+                  const blocked = person.crmLinkBlocked === true;
+                  const reason =
+                    person.crmLinkBlockedReason?.trim() ||
+                    'CRM linking is blocked for this person on this Program Element.';
+                  const btn = (
+                    <Button
+                      className="pe-link-btn"
+                      size="small"
+                      icon={<ExportOutlined aria-hidden />}
+                      disabled={blocked || !onLinkCrmContact}
+                      aria-disabled={blocked || !onLinkCrmContact}
+                      title={blocked ? reason : 'Link to CRM contact'}
+                      aria-label={
+                        blocked
+                          ? `Link unavailable. ${reason}`
+                          : `Link ${person.fullName} to CRM contact`
+                      }
+                      data-testid={
+                        blocked
+                          ? `pe-crm-link-blocked-${person.id}`
+                          : `pe-crm-link-${person.id}`
+                      }
+                      onClick={() => {
+                        if (!blocked) onLinkCrmContact?.(person.id);
+                      }}
+                    >
+                      Link
+                    </Button>
+                  );
+                  return blocked ? (
+                    <Tooltip title={reason}>
+                      <span className="pe-crm-link-wrap" data-testid={`pe-crm-link-reason-${person.id}`}>
+                        {btn}
+                      </span>
+                    </Tooltip>
+                  ) : (
+                    btn
+                  );
+                })()}
               </div>
             );
           })}

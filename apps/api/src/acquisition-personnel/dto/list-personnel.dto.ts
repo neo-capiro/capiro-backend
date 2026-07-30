@@ -95,6 +95,13 @@ export interface PersonnelListItemDto {
   sourceCount: number;
   // Additive (plan §8). Empty array when the person has no PersonRole rows yet.
   roles?: PersonRoleSummaryDto[];
+  /**
+   * Phase I / closeout Phase 6: server-derived CRM link gate for this PE page.
+   * Present on PE personnel responses; omitted on generic directory lists.
+   */
+  crmLinkBlocked?: boolean;
+  /** Accessible reason when crmLinkBlocked is true (no PII). */
+  crmLinkBlockedReason?: string | null;
 }
 
 export interface PersonnelListResponseDto {

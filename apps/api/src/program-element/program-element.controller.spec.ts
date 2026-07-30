@@ -37,9 +37,15 @@ describe('ProgramElementController', () => {
       resolveReconciliation: jest.fn(),
     };
     const writer = { upsertProgramElementYear: jest.fn().mockResolvedValue({ inserted: false, changed: true }) };
+    const dataIssues = {
+      create: jest.fn(),
+      listForPe: jest.fn(),
+      listAdmin: jest.fn(),
+      resolve: jest.fn(),
+    };
 
-    const controller = new ProgramElementController(service as never, writer as never);
-    return { controller, service, writer };
+    const controller = new ProgramElementController(service as never, writer as never, dataIssues as never);
+    return { controller, service, writer, dataIssues };
   };
 
   test('GET /api/program-elements applies defaults and pagination shape', async () => {
@@ -454,4 +460,35 @@ describe('ProgramElementController', () => {
     expect(service.getNeedsAttention).toHaveBeenCalledWith(ctx, { minScore: 0.4, fy: 2027, limit: 100 });
     expect(result.data[0]?.materialityScore).toBe(0.8);
   });
+
+  test('POST/GET :peCode/data-issues route to dataIssues service', async () => {
+    const { controller, dataIssues } = makeController();
+    dataIssues.create.mockResolvedValueOnce({ id: 'i1', status: 'open' });
+    dataIssues.listForPe.mockResolvedValueOnce({ data: [], total: 0, page: 1, limit: 25 });
+
+    await controller.createDataIssue(ctx, '0603270a', {
+      issueType: 'other',
+      description: 'x',
+    } as never);
+    await controller.listDataIssues(ctx, '0603270a', {} as never);
+
+    expect(dataIssues.create).toHaveBeenCalledWith(
+      '0603270a',
+      expect.objectContaining({ issueType: 'other', description: 'x' }),
+      ctx,
+    );
+    expect(dataIssues.listForPe).toHaveBeenCalledWith('0603270a', ctx, expect.any(Object));
+  });
+
+  test('admin data-issue resolve is wired', async () => {
+    const { controller, dataIssues } = makeController();
+    dataIssues.resolve.mockResolvedValueOnce({ id: 'i1', status: 'resolved' });
+    await controller.resolveDataIssue(adminCtx, 'i1', { status: 'resolved' } as never);
+    expect(dataIssues.resolve).toHaveBeenCalledWith(
+      'i1',
+      { status: 'resolved', resolutionNotes: undefined },
+      adminCtx,
+    );
+  });
+
 });
