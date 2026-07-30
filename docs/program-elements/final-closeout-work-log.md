@@ -6,7 +6,7 @@
 **Repo:** `neo-capiro/capirov2`  
 **Operator session:** Phase 4 IMPLEMENT (current-cycle track-aware read contract)  
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-30 (Phase 4 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-30 (Phase 4 FAIL remediations B1–B4 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
 
 ---
 
@@ -451,7 +451,7 @@ git reset --hard 0f47e13f8f5335c306b7ed18b2b292bcd25f482b
 | Phase 3 PASS tip (start) | `0a74cf9a3220cea05d0666e41a0c88e75cb99929` |
 | `origin/main` at Phase 4 base | `3dcb12f823774b6fae8578dc56fc122bf9a0879e` |
 | Prior G product on origin | **none** (rebuild) |
-| Status | **IMPLEMENT PUSHED** product `19936afde` / independent review REQUIRED (no self-PASS) |
+| Status | **FAIL remediated IMPLEMENT** (B1–B4) / independent review REQUIRED on new tip (no self-PASS) |
 | Remote tip after Phase 4 product push | `19936afde2b8d3902902996af02fa710f7f63356` |
 
 ### 4.1 Product work (G1–G12)
@@ -465,7 +465,7 @@ Built the missing Phase G **FundingClaim** contract (recovery branch had no G fi
 | G3 no latest-nonzero | Replaced capability `request <> 0 ORDER BY fy DESC` and finder laterals that skipped zeros |
 | G4 stage/vehicle separation | Fine vehicles: request / authorization / appropriations / authorization_conference / appropriations_conference / enacted; NDAA vs approps conference never share track |
 | G5 separate tracks on timeline | `missingMarks` + `fundingClaim` on getTimeline years; dual-track missing taxonomy |
-| G6 no cross-FY % | `percentDeltaSameFiscalYear`; list path nulls deltaPct when request FY ≠ enacted FY |
+| G6 no cross-FY % | `listEnactedVsRequestDeltaPct` + `requestAtEnactedFy` matched pair; bare latestRequest never % base |
 | G7 movement KPIs + population | `getSummary.movementCoverage` {populationSize, contributedCount, missingCount, disclosure}; money pairs include zero request |
 | G8 capability one FY + coverage | `listCapabilities` pins catalog mode FY; `requestCoverage` + `requestClaim`; zeros included in SUM |
 | G9 contractor evidence classes | `getContractors.evidenceBuckets` via `partitionContractorEvidence` (accepted_direct / candidate / unmatched_dollars) |
@@ -525,7 +525,64 @@ git reset --hard 0a74cf9a3220cea05d0666e41a0c88e75cb99929
 
 ---
 
+
+### 4.5 Independent review Round 1 FAIL + remediations
+
+| Item | Value |
+|---|---|
+| FAIL tip (review Round 1) | `cf87ee77a1eeea3e989b4bdf80e1a8cdcd3edec4` (docs pin) / product `19936afde` |
+| Verdict artifact | `pe-closeout/prompts/phase-4-review-FAIL.md` |
+| Blocking | B1 markup-monitor cross-track `divergencePct`; B2 list bare latestRequest delta base + FY remap nulled correct ler %; B3 timeline `currentCycleFy` omitted `ndaaConference` |
+| Non-gating polish | B4 empty capability fabricated $0 `requestClaim` → null |
+
+**Product fixes (this push):**
+
+| ID | Fix |
+|---|---|
+| B1 | `listMarkupMonitor` per-track auth (HASC↔SASC) and approps (HAC-D↔SAC-D) %; headline `divergencePct` = max-within-track + `divergenceTrack`; pure `markupMonitorTrackDivergence` + TS remap so poisoned SQL cannot blend |
+| B2 | SQL exposes `requestAtEnactedFy` (ler); `listEnactedVsRequestDeltaPct` drives `deltaPct`; `comparableEnactedVsRequest` matched pair; no bare latestRequest as % base; correct ler % kept when catalog request FY differs |
+| B3 | `getTimeline` uses `currentCycleFyPreservingZero` including `ndaaConference`; `sqlCurrentCycleFyExpr` includes `ndaa_conference` |
+| B4 | `listCapabilities` `requestClaim` null when lineCount=0 |
+
+**Tests:** funding-claim B1/B2/B3 pure attacks; read.service B1 adversarial markup remap; B2 cross-FY list; B3 NDAA-only timeline.
+
+### 4.6 Gates (FAIL-remediation session; base fail tip `cf87ee77a`)
+
+| Command | Result |
+|---|---|
+| `pnpm --filter @capiro/shared build` | PASS |
+| `pnpm --filter @capiro/api run verify:pe-phase-g` | PASS 5 suites / **82** tests |
+| `npx tsc -p tsconfig.pe-phase-g.json --noEmit` (apps/api) | PASS exit 0 |
+| `verify:pe-phase-a` … `f` | PASS (a safety OK; b 111; c 65; d 51; e 71+13 loaders; f 89) |
+| controller program-element.spec | PASS 24 |
+| Shared migrate / vendor / secrets / email / LlamaParse | **not run** |
+| MeriV2 product paths | untouched |
+| Transport blobs | absent |
+
+Implementer does **not** self-PASS the Phase 4 exit gate. Independent REVIEW required on the new remote tip after this product commit.
+
+### Independent review status (Phase 4) — updates through FAIL remediations
+
+| Round | Tip | Verdict |
+|---|---|---|
+| Phase 4 product (initial) | `19936afde2b8d3902902996af02fa710f7f63356` | implement |
+| Review Round 1 | `cf87ee77a1eeea3e989b4bdf80e1a8cdcd3edec4` | **FAIL** B1/B2/B3 (B4 polish) |
+| Phase 4 product (FAIL remediations) | *(record remote tip SHA after push in a follow-up docs pin if needed)* | implement; review REQUIRED |
+
+### 4.7 Rollback
+
+```bash
+# after product SHA known on origin — revert that commit, or:
+git reset --hard cf87ee77a1eeea3e989b4bdf80e1a8cdcd3edec4
+# full drop of Phase 4 product back to Phase 3 PASS:
+git reset --hard 0a74cf9a3220cea05d0666e41a0c88e75cb99929
+```
+
+---
+
 ## Next phase
 
-**Phase 4 independent adversarial REVIEW only** (not Phase 5 implement).
-Do not start Phase 5 until a separate REVIEW session records `VERDICT: PASS` against the remote tip SHA after this Phase 4 product commit.
+**Phase 4 independent adversarial REVIEW only** against the remote tip after the FAIL-remediation product commit (not Phase 5 implement).
+Do not start Phase 5 until a separate REVIEW session records `VERDICT: PASS` against that tip SHA.
+Re-falsify B1 (hasc=120,hacd=60 must not yield blended 60%), B2 (cross-FY bare latest pair must not drive %; ler pair holds), B3 (NDAA-only mark year = currentCycleFy).
+

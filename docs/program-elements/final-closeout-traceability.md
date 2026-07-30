@@ -2,7 +2,7 @@
 
 **Baseline main SHA:** `057f5480a46f9ba9acf9296a9cc876b609593832`  
 **Pre-Phase-0 #705 head (void product):** `a244022648d54d9e4ac7fb071f9f438405659056`  
-**Updated (UTC):** 2026-07-30 (Phase 4 FundingClaim track-aware read contract on top of Phase 3 PASS tip `0a74cf9a3`; implementer gates green; **Phase 4 independent review PENDING**)
+**Updated (UTC):** 2026-07-30 (Phase 4 FAIL remediations B1–B4 on tip stack above `19936afde`; implementer gates green; **Phase 4 independent review REQUIRED on new tip**)
 
 Legend for **Status**:
 
@@ -96,16 +96,16 @@ Closeout **execution phase** column is the session phase from the final schedule
 | G2 | Preserve zero-dollar values | `in_branch` (Phase 4) | selectLatestPreservingZero + SQL laterals without `<> 0` | 4 |
 | G3 | Never latest-nonzero selection | `in_branch` (Phase 4) | finder/capability request/enacted picks; cycle FY counts zero marks | 4 |
 | G4 | Separate request / auth / approps / auth conf / approps conf / enacted vehicles | `in_branch` (Phase 4) | FUNDING_CLAIM_VEHICLE + claimFromLadderPick | 4 |
-| G5 | Auth vs approps never mix in comparisons | `in_branch` (Phase 4) | canCompareClaimsForPct + delta-compute track scope (inherited) | 4 |
-| G6 | Never cross-FY % delta | `in_branch` (Phase 4) | percentDeltaSameFiscalYear; list nulls mismatched FY deltaPct | 4 |
+| G5 | Auth vs approps never mix in comparisons | `in_branch` (Phase 4 FAIL fix) | canCompareClaimsForPct + **markupMonitorTrackDivergence** wired into listMarkupMonitor | 4 |
+| G6 | Never cross-FY % delta | `in_branch` (Phase 4 FAIL fix) | listEnactedVsRequestDeltaPct + requestAtEnactedFy; comparableEnactedVsRequest | 4 |
 | G7 | Movement KPIs over full filtered population + coverage | `in_branch` (Phase 4) | getSummary.movementCoverage | 4 |
 | G8 | Capability totals one FY + coverage disclosure | `in_branch` (Phase 4) | listCapabilities shared FY + requestCoverage | 4 |
 | G9 | Contractor evidence: accepted_direct / candidate / unmatched | `in_branch` (Phase 4) | getContractors.evidenceBuckets | 4 |
 | G10 | Missing-mark taxonomy | `in_branch` (Phase 4) | classifyMissingMark on timeline years | 4 |
-| G11 | Current request cannot be FYDP outyear | `in_branch` (Phase 4) | isProjection / cycleClass on claim + timeline | 4 |
+| G11 | Current request cannot be FYDP outyear | `in_branch` (Phase 4 FAIL fix) | timeline currentCycleFyPreservingZero includes ndaaConference; sqlCurrentCycleFyExpr | 4 |
 | G12 | API contract tests + verify:pe-phase-g | `in_branch` (Phase 4) | funding-claim.spec + read.service Phase G case | 4 |
 
-**Phase 4 review gate:** Independent review **PENDING** against remote tip `2657c64ac1febbf1212272374525c6f545e6c527` (product `19936afde`). Implementer gates alone are not Phase 4 PASS.
+**Phase 4 review gate:** Round 1 on `cf87ee77a` / product `19936afde` = **FAIL** (B1 cross-track markup %, B2 list cross-FY delta base, B3 NDAA cycle FY). FAIL remediations implemented; tip after this push requires a **new** independent REVIEW (no self-PASS). Re-attack B1/B2/B3 on the fix tip.
 
 ---
 

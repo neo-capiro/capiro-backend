@@ -476,13 +476,76 @@ export function sqlPresentIncludingZero(columnSql: string): string {
 
 /**
  * Catalog / PE current-cycle FY expression over program_element_year alias `y`
- * (or bare columns when alias is ''). Mirrors currentCycleFyPreservingZero.
+ * (or bare columns when alias is ''). Mirrors currentCycleFyPreservingZero —
+ * includes NDAA conference (authorization track) as a real mark year.
  */
 export function sqlCurrentCycleFyExpr(alias = 'y'): string {
   const p = alias ? `${alias}.` : '';
   return `COALESCE(
     MAX(${p}fy) FILTER (WHERE ${p}hasc_mark IS NOT NULL OR ${p}sasc_mark IS NOT NULL
+      OR ${p}ndaa_conference IS NOT NULL
       OR ${p}hac_d_mark IS NOT NULL OR ${p}sac_d_mark IS NOT NULL OR ${p}conference IS NOT NULL),
     MAX(${p}fy) FILTER (WHERE ${p}request IS NOT NULL)
   )`;
+}
+
+/**
+ * Track-aware chamber markup divergence vs request (Phase G / closeout B1).
+ * Authorization (HASC↔SASC) and appropriations (HAC-D↔SAC-D) never blend into
+ * one GREATEST/LEAST span. Missing chamber falls back to request so a single
+ * chamber mark still measures movement vs PB, not vs the other track.
+ *
+ * `divergencePct` = max within-track % (headline sort key).
+ * `divergenceTrack` tags which track produced the max (null when both 0/null).
+ */
+export function markupMonitorTrackDivergence(input: {
+  request: number | null | undefined;
+  hascMark?: number | null;
+  sascMark?: number | null;
+  hacDMark?: number | null;
+  sacDMark?: number | null;
+}): {
+  authDivergencePct: number;
+  appropsDivergencePct: number;
+  divergencePct: number;
+  divergenceTrack: 'authorization' | 'appropriations' | null;
+} {
+  const trackPct = (
+    a: number | null | undefined,
+    b: number | null | undefined,
+    request: number | null | undefined,
+  ): number => {
+    if (request == null || !Number.isFinite(request) || request === 0) return 0;
+    const lo = Math.min(a ?? request, b ?? request);
+    const hi = Math.max(a ?? request, b ?? request);
+    return ((hi - lo) / request) * 100;
+  };
+  const authDivergencePct = trackPct(input.hascMark, input.sascMark, input.request);
+  const appropsDivergencePct = trackPct(input.hacDMark, input.sacDMark, input.request);
+  const divergencePct = Math.max(authDivergencePct, appropsDivergencePct);
+  let divergenceTrack: 'authorization' | 'appropriations' | null = null;
+  if (divergencePct > 0) {
+    divergenceTrack =
+      authDivergencePct >= appropsDivergencePct ? 'authorization' : 'appropriations';
+  }
+  return { authDivergencePct, appropsDivergencePct, divergencePct, divergenceTrack };
+}
+
+/**
+ * Finder list enacted-vs-request % uses the matched FY pair only:
+ * enacted + request-at-enacted-FY. Bare latestRequest (any FY) must never be
+ * the delta base — that is cross-FY identity theft when FYs differ.
+ */
+export function listEnactedVsRequestDeltaPct(input: {
+  latestEnacted: number | null | undefined;
+  latestEnactedFy: number | null | undefined;
+  /** Request dollars at the enacted FY (SQL `ler`), not catalog-latest request. */
+  requestAtEnactedFy: number | null | undefined;
+}): number | null {
+  return percentDeltaSameFiscalYear({
+    value: input.latestEnacted,
+    base: input.requestAtEnactedFy,
+    valueFy: input.latestEnactedFy,
+    baseFy: input.latestEnactedFy,
+  });
 }

@@ -366,7 +366,11 @@ export interface ProgramElementMarkupMonitorItem {
   sascMark: number | null;
   hacDMark: number | null;
   sacDMark: number | null;
+  /** Max within-track chamber span % (auth OR approps — never blended). */
   divergencePct: number;
+  authDivergencePct?: number;
+  appropsDivergencePct?: number;
+  divergenceTrack?: 'authorization' | 'appropriations' | null;
 }
 
 export interface ProgramElementListResponse {

@@ -11,10 +11,13 @@ import {
   classifyMissingMark,
   currentCycleFyPreservingZero,
   FUNDING_CLAIM_VEHICLE,
+  listEnactedVsRequestDeltaPct,
+  markupMonitorTrackDivergence,
   percentDeltaBetweenClaims,
   percentDeltaSameFiscalYear,
   partitionContractorEvidence,
   selectLatestPreservingZero,
+  sqlCurrentCycleFyExpr,
   sqlPresentIncludingZero,
 } from '@capiro/shared/funding-claim';
 
@@ -54,14 +57,95 @@ describe('FundingClaim (Phase G)', () => {
   });
 
   test('currentCycleFyPreservingZero treats zero marks as real marks', () => {
-    const fy = currentCycleFyPreservingZero([
-      { fy: 2025, request: 10, hascMark: null, sascMark: null, hacDMark: null, sacDMark: null, conference: null },
-      { fy: 2027, request: 5, hascMark: 0, sascMark: null, hacDMark: null, sacDMark: null, conference: null },
-      { fy: 2028, request: 6, hascMark: null, sascMark: null, hacDMark: null, sacDMark: null, conference: null },
-    ]);
-    // Mark-bearing FY is 2027 even though HASC mark is $0M; 2028 is outyear request-only.
-    expect(fy).toBe(2027);
-  });
+      const fy = currentCycleFyPreservingZero([
+        { fy: 2025, request: 10, hascMark: null, sascMark: null, hacDMark: null, sacDMark: null, conference: null },
+        { fy: 2027, request: 5, hascMark: 0, sascMark: null, hacDMark: null, sacDMark: null, conference: null },
+        { fy: 2028, request: 6, hascMark: null, sascMark: null, hacDMark: null, sacDMark: null, conference: null },
+      ]);
+      // Mark-bearing FY is 2027 even though HASC mark is $0M; 2028 is outyear request-only.
+      expect(fy).toBe(2027);
+    });
+
+    test('B3: NDAA-only conference mark year is the current cycle (not ignored)', () => {
+      const fy = currentCycleFyPreservingZero([
+        { fy: 2026, request: 10, hascMark: null, sascMark: null, hacDMark: null, sacDMark: null, conference: null },
+        {
+          fy: 2027,
+          request: 12,
+          hascMark: null,
+          sascMark: null,
+          hacDMark: null,
+          sacDMark: null,
+          conference: null,
+          ndaaConference: 12,
+        },
+        { fy: 2028, request: 14, hascMark: null, sascMark: null, hacDMark: null, sacDMark: null, conference: null },
+      ]);
+      expect(fy).toBe(2027);
+      expect(sqlCurrentCycleFyExpr('y')).toMatch(/ndaa_conference/);
+    });
+
+    test('B1: markup-monitor never blends auth HASC with approps HAC-D into one %', () => {
+      // Attack: request=100, hasc=120, hacd=60 → old GREATEST/LEAST spanned 120..60 = 60%.
+      const attack = markupMonitorTrackDivergence({
+        request: 100,
+        hascMark: 120,
+        sascMark: null,
+        hacDMark: 60,
+        sacDMark: null,
+      });
+      // Auth track only: hasc 120 vs request fallback 100 → 20%; approps: 100..60 → 40%.
+      expect(attack.authDivergencePct).toBeCloseTo(20, 5);
+      expect(attack.appropsDivergencePct).toBeCloseTo(40, 5);
+      expect(attack.divergencePct).toBeCloseTo(40, 5);
+      expect(attack.divergencePct).not.toBeCloseTo(60, 5);
+      expect(attack.divergenceTrack).toBe('appropriations');
+
+      // Pure within-auth chamber span still works.
+      const auth = markupMonitorTrackDivergence({
+        request: 100,
+        hascMark: 120,
+        sascMark: 90,
+        hacDMark: null,
+        sacDMark: null,
+      });
+      expect(auth.authDivergencePct).toBeCloseTo(30, 5);
+      expect(auth.appropsDivergencePct).toBe(0);
+      expect(auth.divergencePct).toBeCloseTo(30, 5);
+      expect(auth.divergenceTrack).toBe('authorization');
+    });
+
+    test('B2: list deltaPct uses request-at-enacted-FY, never bare latestRequest across FYs', () => {
+      // Enacted FY2026 at 110 vs matched request 100 → +10%. Catalog-latest request is FY2027=200.
+      const matched = listEnactedVsRequestDeltaPct({
+        latestEnacted: 110,
+        latestEnactedFy: 2026,
+        requestAtEnactedFy: 100,
+      });
+      expect(matched).toBeCloseTo(10, 5);
+
+      // Wrong-base attack path: if caller fed latestRequest (200) as base with only enacted FY,
+      // that pair is identity theft — helper refuses different bases via requiring same FY pair
+      // (enacted FY used for both sides). Feeding a mismatched dollar is the caller's bug; the
+      // public list path never uses latestRequest as base. Cross-FY bare fields null among themselves:
+      expect(
+        percentDeltaSameFiscalYear({
+          value: 110,
+          base: 200,
+          valueFy: 2026,
+          baseFy: 2027,
+        }),
+      ).toBeNull();
+
+      // Missing matched request → null delta (not invent from latest).
+      expect(
+        listEnactedVsRequestDeltaPct({
+          latestEnacted: 110,
+          latestEnactedFy: 2026,
+          requestAtEnactedFy: null,
+        }),
+      ).toBeNull();
+    });
 
   test('authorization and appropriations vehicles never share a comparison track', () => {
     const auth = buildFundingClaim({ value: 100, fiscalYear: 2027, stage: 'hasc', currentCycleFy: 2027 });

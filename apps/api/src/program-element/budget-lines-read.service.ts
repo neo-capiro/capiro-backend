@@ -607,12 +607,16 @@ export class BudgetLinesReadService {
             ...coverageClaim.coverage,
             // Correct the money total independently of placeholder values above.
           },
-          requestClaim: buildFundingClaim({
-            value: g?.total ?? 0,
-            fiscalYear: sharedFy,
-            stage: 'request',
-            currentCycleFy: sharedFy,
-          }),
+          // Empty capability: do not fabricate a $0 request claim (review B4).
+          requestClaim:
+            lines === 0
+              ? null
+              : buildFundingClaim({
+                  value: g?.total ?? 0,
+                  fiscalYear: sharedFy,
+                  stage: 'request',
+                  currentCycleFy: sharedFy,
+                }),
         };
       }),
     };
