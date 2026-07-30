@@ -5,14 +5,6 @@ import type { ToolExecutionMetadata } from './tool-execution-metadata';
 
 export type MeriContextScope = 'personal' | 'client' | 'firm';
 
-/**
- * Display vocabulary for item provenance.
- *
- * The four coarse values are the v1 legacy vocabulary. A ContextPacket v2 item
- * carries its REAL governed `MemoryAuthority` instead, so the trust UI can say
- * "Model inferred" where it previously asserted "human-authored" over an item
- * nobody had ever approved. The UI maps both vocabularies to human labels.
- */
 export type MeriContextAuthority =
   | 'human-authored'
   | 'system-of-record'
@@ -35,10 +27,6 @@ export interface MeriContextPacketItem {
 }
 
 export interface MeriContextPacketExclusion {
-  /**
-   * Omitted for access-control exclusions. An unauthorized row must never be
-   * identifiable from the packet — it may only ever appear in unauthorizedCount.
-   */
   id?: string;
   label?: string;
   type?: string;
@@ -53,13 +41,13 @@ export interface MeriContextPacketExclusion {
     | string;
 }
 
-/**
- * Safe display projection of a compiled context packet. Deliberately carries NO
- * rendered body text: this is the provenance the trust UX shows, not the content
- * the model was given.
- */
+/** Safe display projection of a compiled context packet; never carries body text. */
 export interface MeriContextPacketSummary {
+  /** Durable ID only. Null when persistence failed or no row exists. */
   packetId?: string | null;
+  persisted?: boolean;
+  /** Bounded code only; never a database/provider message. */
+  persistenceErrorCode?: string | null;
   compiledAt?: string | null;
   surface?: string | null;
   clientId?: string | null;
@@ -80,7 +68,6 @@ export interface MeriContext {
   userVoice?: string;
   clientRoster?: Array<{ name: string; status: string }>;
   clientSteering?: { soul?: string; compass?: string; people?: string };
-  /** Safe provenance summary for trust UX; never includes context body text. */
   contextPacket?: MeriContextPacketSummary;
 }
 
@@ -100,7 +87,6 @@ export interface ToolDefinition<I, O> {
   readonly inputSchema: ZodType<I>;
   readonly handler: (input: I, ctx: MeriContext) => Promise<O>;
   readonly readOnly: boolean;
-  /** Optional explicit metadata; registry derives the canonical default otherwise. */
   readonly execution?: ToolExecutionMetadata;
 }
 
@@ -115,7 +101,6 @@ export interface ToolRegistry {
   get(name: string): AnyToolDefinition | undefined;
   list(): string[];
   executionMetadata(name: string): ToolExecutionMetadata | undefined;
-  /** Validates input, enforces scoping, runs the write gate, then the handler. */
   invoke<O>(name: string, input: unknown, ctx: MeriContext): Promise<O>;
 }
 
@@ -132,7 +117,7 @@ export class ToolInputValidationError extends Error {
     public readonly issues: ZodIssue[],
   ) {
     super(
-      `Invalid input for tool "${toolName}": ` +
+      `Invalid input for "${toolName}": ` +
         issues.map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`).join('; '),
     );
     this.name = 'ToolInputValidationError';
