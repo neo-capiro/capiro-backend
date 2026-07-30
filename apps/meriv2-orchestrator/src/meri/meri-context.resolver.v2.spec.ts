@@ -119,13 +119,19 @@ describe('MeriContextResolver — honest packet summary', () => {
     expect(ctx.contextPacket?.degraded).toBe(false);
   });
 
-  it('reports a v2 item\'s real authority and explicit selection', async () => {
+  it("reports a v2 item's real authority and explicit selection", async () => {
     const resolver = new MeriContextResolver(
       prismaWithUser(),
       compilerReturning({
         ...V1_PACKET,
         version: 2,
-        health: { status: 'healthy', missingRequiredLayers: [], conflictCount: 0, sourceFailureCount: 0, reasons: [] },
+        health: {
+          status: 'healthy',
+          missingRequiredLayers: [],
+          conflictCount: 0,
+          sourceFailureCount: 0,
+          reasons: [],
+        },
         items: [
           {
             layer: 'firm-identity',

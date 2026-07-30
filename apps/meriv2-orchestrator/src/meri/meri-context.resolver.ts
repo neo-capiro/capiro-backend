@@ -227,8 +227,10 @@ export class MeriContextResolver {
   ): Promise<boolean> {
     if (!clientId) return false;
     try {
-      const rows = await this.prisma.withTenant(tenantId, (tx) =>
-        tx.$queryRaw<Array<{ allowed: boolean }>>`
+      const rows = await this.prisma.withTenant(
+        tenantId,
+        (tx) =>
+          tx.$queryRaw<Array<{ allowed: boolean }>>`
           SELECT (NOT c.memory_wall
                   OR EXISTS (
                         SELECT 1 FROM client_memory_access a

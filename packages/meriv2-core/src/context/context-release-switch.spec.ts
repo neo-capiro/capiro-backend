@@ -16,7 +16,7 @@ import type { ContextSurface } from './contract';
  * exact string `'enforce'` must leave every surface on v1.
  */
 describe('resolveContextPacketMode', () => {
-  it("defaults to v1 when the environment variable is unset or empty", () => {
+  it('defaults to v1 when the environment variable is unset or empty', () => {
     expect(resolveContextPacketMode(undefined)).toBe('v1');
     expect(resolveContextPacketMode('')).toBe('v1');
     expect(resolveContextPacketMode('   ')).toBe('v1');

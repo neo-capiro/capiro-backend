@@ -73,7 +73,12 @@ describe('OrchestratorContextCompilerService — ContextPacket v2', () => {
       layers: ['firm-identity'],
     });
     const selectList = selectListOf(queries[0]);
-    for (const column of ['memory_class', 'memory_authority', 'approved_by_user_id', 'visibility']) {
+    for (const column of [
+      'memory_class',
+      'memory_authority',
+      'approved_by_user_id',
+      'visibility',
+    ]) {
       expect(selectList).not.toContain(column);
     }
   });

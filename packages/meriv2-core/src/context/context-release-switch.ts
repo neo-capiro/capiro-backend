@@ -75,9 +75,7 @@ export function resolveContextPacketMode(raw: string | undefined): ContextPacket
 
 /** True only when v2 is armed AND this surface is on the audited allowlist. */
 export function contextPacketV2Enabled(raw: string | undefined, surface: ContextSurface): boolean {
-  return (
-    resolveContextPacketMode(raw) === 'v2' && CONTEXT_PACKET_V2_SURFACES.includes(surface)
-  );
+  return resolveContextPacketMode(raw) === 'v2' && CONTEXT_PACKET_V2_SURFACES.includes(surface);
 }
 
 export interface ContextPacketV2RequestOptions {

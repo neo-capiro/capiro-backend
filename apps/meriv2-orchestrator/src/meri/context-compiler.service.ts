@@ -72,9 +72,7 @@ export class OrchestratorContextCompilerService {
       SELECT id, type, slug, title, client_id AS "clientId", status,
              expires_at AS "expiresAt", sections_jsonb AS sections
              ${Prisma.raw(
-               opts.governed
-                 ? `${GOVERNED_STEERING_COLUMNS_SQL}${STEERING_ORDER_COLUMNS_SQL}`
-                 : '',
+               opts.governed ? `${GOVERNED_STEERING_COLUMNS_SQL}${STEERING_ORDER_COLUMNS_SQL}` : '',
              )}
       FROM memory_items
       WHERE (
