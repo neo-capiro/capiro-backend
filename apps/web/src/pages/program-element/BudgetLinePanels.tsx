@@ -53,12 +53,25 @@ export function LinkedLinesRail({
   relationships,
   loading,
   onOpen,
+  errored = false,
+  onRetry,
 }: {
   relationships: RelationshipItem[] | undefined;
   loading: boolean;
   onOpen: (peCode: string) => void;
+  errored?: boolean;
+  onRetry?: () => void;
 }) {
   if (loading) return <Skeleton active paragraph={{ rows: 2 }} />;
+  if (errored) {
+    return (
+      <PeSecondaryFailed
+        label="linked lines"
+        testId="pe-secondary-failed-linked-lines"
+        onRetry={onRetry}
+      />
+    );
+  }
   const links = relationships ?? [];
   if (links.length === 0) {
     return (

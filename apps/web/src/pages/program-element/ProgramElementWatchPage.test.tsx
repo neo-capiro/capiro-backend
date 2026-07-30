@@ -397,4 +397,104 @@ describe('ProgramElementWatchPage', () => {
         ).not.toBeInTheDocument();
         expect(screen.getByText(/Partial data/i)).toBeInTheDocument();
       });
+
+      test('B8 overview actions 500 shows failed UI, not budget-actions Empty', async () => {
+        setupApi(true, undefined, 2027);
+        const baseImpl = apiGetMock.getMockImplementation()!;
+        apiGetMock.mockImplementation(async (url: string) => {
+          if (String(url).includes('/actions')) {
+            const err = new Error('actions boom') as Error & { response?: { status: number } };
+            err.response = { status: 500 };
+            throw err;
+          }
+          return baseImpl(url);
+        });
+        renderPage();
+        await waitFor(() => expect(screen.getByTestId('pe-trust-header')).toBeInTheDocument());
+        await waitFor(() => {
+          expect(screen.getByTestId('pe-secondary-failed-actions')).toBeInTheDocument();
+        });
+        expect(screen.queryByText(/No recorded budget actions/i)).not.toBeInTheDocument();
+        expect(screen.getByText(/Partial data/i)).toBeInTheDocument();
+        expect(screen.getAllByTestId('pe-secondary-retry').length).toBeGreaterThan(0);
+      });
+
+      test('B9 overview relationships 500 shows failed UI, not linked-lines Empty', async () => {
+        setupApi(true, undefined, 2027);
+        const baseImpl = apiGetMock.getMockImplementation()!;
+        apiGetMock.mockImplementation(async (url: string) => {
+          if (String(url).includes('/relationships')) {
+            const err = new Error('relationships boom') as Error & { response?: { status: number } };
+            err.response = { status: 500 };
+            throw err;
+          }
+          return baseImpl(url);
+        });
+        renderPage();
+        await waitFor(() => expect(screen.getByTestId('pe-trust-header')).toBeInTheDocument());
+        await waitFor(() => {
+          expect(screen.getByTestId('pe-secondary-failed-linked-lines')).toBeInTheDocument();
+        });
+        expect(screen.queryByText(/No linked lines yet/i)).not.toBeInTheDocument();
+        expect(screen.getByText(/Partial data/i)).toBeInTheDocument();
+      });
+
+      test('B10 overview bills 500 shows recent-activity failed UI, not dated Empty', async () => {
+        setupApi(true, undefined, 2027);
+        const baseImpl = apiGetMock.getMockImplementation()!;
+        apiGetMock.mockImplementation(async (url: string) => {
+          if (String(url).includes('/bills')) {
+            const err = new Error('bills boom') as Error & { response?: { status: number } };
+            err.response = { status: 500 };
+            throw err;
+          }
+          return baseImpl(url);
+        });
+        renderPage();
+        await waitFor(() => expect(screen.getByTestId('pe-trust-header')).toBeInTheDocument());
+        await waitFor(() => {
+          expect(screen.getByTestId('pe-secondary-failed-recent-activity')).toBeInTheDocument();
+        });
+        expect(screen.queryByText(/No dated legislative actions yet/i)).not.toBeInTheDocument();
+        expect(screen.getByText(/Partial data/i)).toBeInTheDocument();
+      });
+
+      test('B11 procurement-lines 500 shows failed UI, not Secondary Distribution honesty Empty', async () => {
+        setupApi(true, undefined, 2027);
+        const baseImpl = apiGetMock.getMockImplementation()!;
+        apiGetMock.mockImplementation(async (url: string) => {
+          if (String(url).includes('/procurement-lines')) {
+            const err = new Error('procurement-lines boom') as Error & {
+              response?: { status: number };
+            };
+            err.response = { status: 500 };
+            throw err;
+          }
+          // Force PROC line so Procurement detail tab mounts and enables the query.
+          if (
+            String(url).includes('/api/program-elements/0603270A') &&
+            !String(url).match(
+              /\/(personnel|contractors|bills|projects|related|provisions|opportunities|sources|deltas|narrative|actions|relationships|incumbents|programs|procurement-lines|intelligence)\b/,
+            )
+          ) {
+            const base = await baseImpl(url);
+            return {
+              ...base,
+              data: {
+                ...base.data,
+                appropriationType: 'PROC',
+              },
+            };
+          }
+          return baseImpl(url);
+        });
+        renderPage();
+        await waitFor(() => expect(screen.getByTestId('pe-trust-header')).toBeInTheDocument());
+        fireEvent.click(screen.getByRole('tab', { name: /Procurement detail/i }));
+        await waitFor(() => {
+          expect(screen.getByTestId('pe-secondary-failed-procurement-lines')).toBeInTheDocument();
+        });
+        expect(screen.queryByText(/No per-recipient procurement breakdown/i)).not.toBeInTheDocument();
+        expect(screen.getByText(/Partial data/i)).toBeInTheDocument();
+      });
       });

@@ -6,7 +6,7 @@
 **Repo:** `neo-capiro/capirov2`  
 **Operator session:** Phase 4 IMPLEMENT (current-cycle track-aware read contract)  
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-30 (Phase 5 trust-first web IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-30 (Phase 5 B8–B11 FAIL remediation IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
 
 ---
 
@@ -766,8 +766,61 @@ git reset --hard 7bca3b506d992d49978821fb84946eae162e8db7
 
 ---
 
+## Phase 5 FAIL remediation r2 — B8–B11 overview/procurement success-Empty on isError
+
+**When:** 2026-07-30 20:28 UTC
+**Operator session:** Phase 5 IMPLEMENT only (FAIL inject B8–B11; not review)
+**Mode:** LONG
+**Base (failed tip after prior review):** `e08797811cbaa1af0ae12c991aba52afd619e4c0` / product `9381d154c2869e5db995f16b968d2a41422d3deb`
+**origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind / 23 ahead pre-product)
+
+### Blocking defects closed
+
+| ID | Fix |
+|---|---|
+| B8 | Overview `BudgetActionsFeed` now gets `errored={actionsQuery.isError}` + `onRetry`; data cleared on error. Test: actions 500 → `pe-secondary-failed-actions`, no "No recorded budget actions". |
+| B9 | `LinkedLinesRail` gains `errored`/`onRetry` + `PeSecondaryFailed`; overview wires relationships isError. Test: relationships 500 → no "No linked lines yet". |
+| B10 | Overview Recent activity branches on `billsQuery.isLoading` / `isError` before empty. Test: bills 500 → `pe-secondary-failed-recent-activity`, no "No dated legislative actions yet." |
+| B11 | `SecondaryDistributionPanel` errored path + Watch page wires `procurementLinesQuery.isError`. Panel unit + page test (PROC line → Procurement detail tab). Never honesty Empty on error. |
+
+Note: Partial banner alone was already ORing secondary failures; section bodies still painted success Empty — fixed at body level.
+
+### Files
+
+- `apps/web/src/pages/program-element/BudgetLinePanels.tsx` (`LinkedLinesRail` failed path)
+- `apps/web/src/pages/program-element/SecondaryDistributionPanel.tsx` (+test)
+- `apps/web/src/pages/program-element/ProgramElementWatchPage.tsx` (+test B8–B11)
+- ledger docs
+
+### Gates (implement local)
+
+| Command | Result |
+|---|---|
+| vitest PE trust suite (7 files) | **51/51 PASS** (incl. 4 new B8–B11 + prior B2/B3) |
+| `pnpm --filter @capiro/web` / `apps/web` `run build` | **PASS** (vite ~24s) |
+| Migrations / secrets / MeriV2 / email / LlamaParse / shared migrate | not run |
+| Scope bleed | web PE overview/procurement panels + ledgers only |
+
+### Migrations / data ops
+None.
+
+### Independent review status (Phase 5)
+**IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on the **new product tip after push** (not self-PASS). Close Gate #4 only if B8–B11 cannot reproduce success-Empty on 500. Do **not** start Phase 6.
+
+### Rollback
+
+```bash
+# return to tip that failed B8–B11 review:
+git reset --hard e08797811cbaa1af0ae12c991aba52afd619e4c0
+# or prior Phase 5 product only:
+git reset --hard 9381d154c2869e5db995f16b968d2a41422d3deb
+```
+
+---
+
 ## Next phase
 
-**Phase 5 independent adversarial REVIEW only** against the **new remote tip** after this remediation push (not Phase 6 implement).
-Prior FAIL inject tip was `e7ffe8b76`; archive FAIL only after PASS names the post-fix tip.
+**Phase 5 independent adversarial REVIEW only** against the **new remote tip** after this B8–B11 remediation push (not Phase 6 implement).
+Prior FAIL inject for B1/B2/B3 closed on `9381d154c`; this tip closes overview/procurement body Empty leaks.
+Archive FAIL inject only after PASS names the post-fix tip.
 Do not start Phase 6 until a separate REVIEW session records `VERDICT: PASS` (or PASS WITH BLOCKERS with exit-gate bullets satisfied) against that tip SHA.

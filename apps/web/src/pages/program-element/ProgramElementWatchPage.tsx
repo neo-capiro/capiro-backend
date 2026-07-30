@@ -797,7 +797,15 @@ export function ProgramElementWatchPage() {
       </ChartCard>
 
       <ChartCard title="Recent activity" sub="latest actions on this PE">
-        {recentActivity.length ? (
+        {billsQuery.isLoading ? (
+          <Skeleton active paragraph={{ rows: 3 }} />
+        ) : billsQuery.isError ? (
+          <PeSecondaryFailed
+            label="recent legislative activity"
+            testId="pe-secondary-failed-recent-activity"
+            onRetry={() => void billsQuery.refetch()}
+          />
+        ) : recentActivity.length ? (
           <div className="pe-ov-activity">
             {recentActivity.map((b) => {
               const kind = classifyAction(b.latestActionText);
@@ -842,8 +850,10 @@ export function ProgramElementWatchPage() {
         </div>
         <div className="bl-panel-body">
           <LinkedLinesRail
-            relationships={relationshipsQuery.data}
+            relationships={relationshipsQuery.isError ? undefined : relationshipsQuery.data}
             loading={relationshipsQuery.isLoading}
+            errored={relationshipsQuery.isError}
+            onRetry={() => void relationshipsQuery.refetch()}
             onOpen={(pe) => navigate(`/program-elements/${pe}`)}
           />
         </div>
@@ -857,9 +867,11 @@ export function ProgramElementWatchPage() {
         </div>
         <div className="bl-panel-body">
           <BudgetActionsFeed
-            actions={actionsQuery.data}
+            actions={actionsQuery.isError ? undefined : actionsQuery.data}
             loading={actionsQuery.isLoading}
             limit={4}
+            errored={actionsQuery.isError}
+            onRetry={() => void actionsQuery.refetch()}
           />
         </div>
       </div>
@@ -939,8 +951,10 @@ export function ProgramElementWatchPage() {
     <div className="pe-dt-panel">
       <div className="pe-surface pe-plain-surface span-2">
         <SecondaryDistributionPanel
-          data={procurementLinesQuery.data}
+          data={procurementLinesQuery.isError ? undefined : procurementLinesQuery.data}
           loading={procurementLinesQuery.isLoading}
+          errored={procurementLinesQuery.isError}
+          onRetry={() => void procurementLinesQuery.refetch()}
         />
       </div>
       <div className="pe-surface pe-plain-surface span-2">

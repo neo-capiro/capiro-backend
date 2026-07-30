@@ -329,10 +329,11 @@ plus concrete findings. Do not implement fixes.
 | Field | Value |
 |---|---|
 | Phase | 5 — Trust-first web |
-| Prior product tip (FAIL) | `e7ffe8b76a8496e9846fb9a59002142d26b03546` |
-| Prior review | VERDICT: FAIL — B1 smoke missing; B2 secondary isError dark; B3 complete_empty dead |
-| Remediation product | See work-log Phase 5 FAIL remediation (B1/B2/B3 + B5/B6 polish) |
-| Post-push tip | `9381d154c2869e5db995f16b968d2a41422d3deb` |
+| Prior product tip (FAIL B1–B3) | `e7ffe8b76a8496e9846fb9a59002142d26b03546` |
+| Prior product tip (FAIL B8–B11) | `9381d154c2869e5db995f16b968d2a41422d3deb` (docs pin `e08797811`) |
+| Prior review | VERDICT: FAIL — B8–B11 overview/procurement success-Empty on isError |
+| Remediation product r2 | See work-log Phase 5 FAIL remediation r2 (B8–B11) |
+| Post-push tip | *(record after push via `git rev-parse origin/agent/program-elements-final-closeout`)* |
 | Implementer gate | IMPLEMENT PUSHED / review **REQUIRED** — **not** self-PASS |
 | Next | New session `./pe-closeout-run.sh review 5` on new tip only |
 | MeriV2 | untouched |
@@ -346,3 +347,7 @@ plus concrete findings. Do not implement fixes.
 4. Detail with year + `request: 0` → `complete_with_data` (zero is a stage).
 5. Viewport smoke file green at 1280/768/375; deep-link funding+fy restores selected tab.
 6. Initial overview still must not fetch `/sources|/personnel|/contractors|/provisions`.
+7. **B8** Force `GET .../actions` 500 on default Overview → `pe-secondary-failed-actions` / Partial; never "No recorded budget actions".
+8. **B9** Force `GET .../relationships` 500 on Overview → `pe-secondary-failed-linked-lines`; never "No linked lines yet".
+9. **B10** Force `GET .../bills` 500 on Overview Recent activity → `pe-secondary-failed-recent-activity`; never "No dated legislative actions yet."
+10. **B11** Force `GET .../procurement-lines` 500 on Procurement detail (PROC line) → `pe-secondary-failed-procurement-lines`; never Secondary Distribution honesty Empty ("no per-recipient breakdown"). Partial banner alone is insufficient if section body still paints success Empty.
