@@ -37,13 +37,17 @@ describe('MeriContextPacketController', () => {
     return { prisma, tx, calls };
   }
 
-  const originalEnv = process.env.CONTEXT_PACKET_V2;
+  const originalNewEnv = process.env.MERIV2_CONTEXT_PACKET_V2;
+  const originalLegacyEnv = process.env.CONTEXT_PACKET_V2;
   beforeEach(() => {
+    delete process.env.MERIV2_CONTEXT_PACKET_V2;
     delete process.env.CONTEXT_PACKET_V2;
   });
   afterEach(() => {
-    if (originalEnv === undefined) delete process.env.CONTEXT_PACKET_V2;
-    else process.env.CONTEXT_PACKET_V2 = originalEnv;
+    if (originalNewEnv === undefined) delete process.env.MERIV2_CONTEXT_PACKET_V2;
+    else process.env.MERIV2_CONTEXT_PACKET_V2 = originalNewEnv;
+    if (originalLegacyEnv === undefined) delete process.env.CONTEXT_PACKET_V2;
+    else process.env.CONTEXT_PACKET_V2 = originalLegacyEnv;
   });
 
   it('accepts BOTH chat surfaces, so the legacy path is no longer reported degraded', async () => {
@@ -85,7 +89,6 @@ describe('MeriContextPacketController', () => {
     const { prisma, calls } = makePrisma();
     const controller = new MeriContextPacketController(prisma);
     const view = await controller.getById(ctx, ROW.id);
-
     expect(view).toEqual(expect.objectContaining({ packetId: ROW.id, persisted: true }));
     expect(calls[0]!.where).toEqual({ id: ROW.id, tenantId: 't1', userId: 'u1' });
   });
@@ -96,7 +99,8 @@ describe('MeriContextPacketController', () => {
     await expect(controller.getById(ctx, ROW.id)).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('selects NO v2 column while the switch is dark', async () => {
+  it('selects no migration-added v2 column while the new ceiling is off', async () => {
+    process.env.CONTEXT_PACKET_V2 = 'enforce';
     const { prisma, calls } = makePrisma();
     const controller = new MeriContextPacketController(prisma);
     await controller.latestForConversation(ctx, 'c1');
@@ -115,8 +119,8 @@ describe('MeriContextPacketController', () => {
     }
   });
 
-  it('selects the v2 columns only once CONTEXT_PACKET_V2=enforce', async () => {
-    process.env.CONTEXT_PACKET_V2 = 'enforce';
+  it.each(['shadow', 'enforce'])('selects v2 trace columns under %s ceiling', async (mode) => {
+    process.env.MERIV2_CONTEXT_PACKET_V2 = mode;
     const { prisma, calls } = makePrisma();
     const controller = new MeriContextPacketController(prisma);
     await controller.latestForConversation(ctx, 'c1');
