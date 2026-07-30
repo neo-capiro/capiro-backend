@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, test } from '@jest/globals';
 
 const migration = readFileSync(
-  new URL(
-    '../../prisma/migrations/20260812010000_memory_immutable_versions/migration.sql',
-    import.meta.url,
+  resolve(
+    process.cwd(),
+    'prisma/migrations/20260812010000_memory_immutable_versions/migration.sql',
   ),
   'utf8',
 );
