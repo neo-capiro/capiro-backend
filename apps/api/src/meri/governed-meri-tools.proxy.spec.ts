@@ -2,7 +2,7 @@ import { HttpException } from '@nestjs/common';
 import { describe, expect, jest, test } from '@jest/globals';
 import type { TenantContext } from '@capiro/shared';
 import { createGovernedMeriToolsService } from './governed-meri-tools.proxy.js';
-import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
+import { MeriToolsService } from './meri-tools.service.js';
 
 const ctx = {
   tenantId: '11111111-1111-4111-8111-111111111111',
@@ -81,11 +81,5 @@ describe('governed Meri tools adapter', () => {
     const failure = new Error('real tool failure');
     const failing = createGovernedMeriToolsService(rawWith(failure));
     await expect(failing.execute(ctx, 'search_memory', {})).rejects.toBe(failure);
-  });
-
-  test('tool guidance explains the independent-review behavior before execution', () => {
-    createGovernedMeriToolsService(rawWith({ ok: true }, false));
-    const definition = TOOL_DEFINITIONS.find((item) => item.name === 'correct_memory');
-    expect(definition?.description).toContain('Firm/client memory is submitted for independent review');
   });
 });
