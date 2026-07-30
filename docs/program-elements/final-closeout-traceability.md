@@ -337,7 +337,7 @@ plus concrete findings. Do not implement fixes.
 | Remediation product r4 (B12 re-verify + B13) | `af09ca8517d40b53df271e0a8ac3e6aad47bc580` |
 | Prior FAIL tip (B14/B15) | `77fd4182dca94a51b68b8c9b22ac24ce3b0c9df7` |
 | Remediation product r5 (B14 intelligence + B15 billActions) | `3f4c19c6bba9492f82f7344bb703ec92a40cd098` |
-| Remote tip (docs pin after push) | *(after push)* |
+| Remote tip (docs pin after push) | `6528df3b6ef59d7c273bce296bafa16582ae4333` |
 | Implementer gate | IMPLEMENT PUSHED / review **REQUIRED** — **not** self-PASS |
 | Next | New session `./pe-closeout-run.sh review 5` on **new** tip only |
 | MeriV2 | untouched |
