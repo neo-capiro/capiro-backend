@@ -284,7 +284,8 @@ Phase 2 started after Phase 1 PASS + main sync `6268e2f2a`.
 | `origin/main` at Phase 2 base | `3dcb12f823774b6fae8578dc56fc122bf9a0879e` |
 | Sync commit before product | `6268e2f2a` — merge main onto closeout tip |
 | Base for Phase 2 product | `6268e2f2a` (= main + Phase 0–1) |
-| Status | **IMPLEMENT PUSHED / independent review REQUIRED** (no self-PASS) |
+| Status | **IMPLEMENT PUSHED** product `d06601b0a` / independent review REQUIRED (no self-PASS) |
+| Remote tip after Phase 2 product push | `d06601b0ac4e2f393b946df17224052f1f7933ff` |
 
 ### 2.1 Product work
 
@@ -346,8 +347,7 @@ No base-proven inherited failures on A–D for this tip.
 ### 2.4 Rollback
 
 ```bash
-# After push, reverse the Phase 2 product commit only:
-git revert <phase-2-product-sha>
+git revert d06601b0ac4e2f393b946df17224052f1f7933ff
 # or hard reset closeout branch product tip to pre-Phase-2 base (destroys unpushed work):
 git reset --hard 6268e2f2a1ef3eda906c47e8721c211d95f102a4
 ```
@@ -356,7 +356,7 @@ git reset --hard 6268e2f2a1ef3eda906c47e8721c211d95f102a4
 
 | Round | Tip | Verdict |
 |---|---|---|
-| Phase 2 | (set after push to exact remote tip) | **PENDING** — implementer gates green ≠ PASS |
+| Phase 2 | `d06601b0ac4e2f393b946df17224052f1f7933ff` | **PENDING** — implementer gates green ≠ PASS |
 
 ---
 

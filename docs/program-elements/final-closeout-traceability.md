@@ -43,9 +43,9 @@ Closeout **execution phase** column is the session phase from the final schedule
 | D11 | No temporary D workflows/patch blobs in final diff | `in_branch` (Phase 1) — no transport | Phase 0 removed transport; Phase 1 must not reintroduce `.github/phase-d-*` | 1 |
 | D12 | Rehearse additive migration in disposable Postgres | `verified` PGlite + Docker pgvector/pgvector:pg16 disposable (prior Phase 1 session) | 1 |
 
-**Phase 1 review gate:** Independent review round 1 on `b8ed28855` = **FAIL** (B1 bare `withSystem`, B2 script writers, B3 dishonest ledger). Re-implement fixed B1–B3; round 2 review still **PENDING**. Do not treat implementer gates alone as Phase 1 PASS.
+**Phase 1 review gate:** Round 1 on `b8ed28855` = **FAIL** (B1/B2/B3). Round 2 = **PASS** on tip `da36195d3` (product `454a27f5e`); artifact `prompts/phase-1-review-PASS.md`.
 
-**Recovery note:** Apply `phase-d-implementation.patch` onto tip after resolving fuzz against main since mid-stack base `8204a347…`. Then selectively re-home correction patches 1–5 as **new** tests against the applied tree (do not assume intermediate SHAs).
+**Recovery note (historical):** Phase D product was integrated in Phase 1 via recovered patch + corrections, not by remaining transport blobs.
 
 ---
 
@@ -63,7 +63,7 @@ Closeout **execution phase** column is the session phase from the final schedule
 | E7 | Observation carries page/span/extractor/units | `in_branch` incremental | writeContext + originalValues on committee/pdoc/O-1; PDF Phase B | 2 |
 | E8 | Loader inventory (RDT&E P-forms, O&M OP-5, J-books, HASC/SASC, HAC-D/SAC-D, NDAA conf, public law, generalized PDF) | `in_branch` (Phase 2) | `PE_EXACT_SHA_DOLLAR_LOADERS` + static verifier (13 entrypoints) | 2 |
 
-**Phase 2 review gate:** Independent review **PENDING**. Implementer gates alone are not Phase 2 PASS. Update remote tip SHA in work log after product push.
+**Phase 2 review gate:** Independent review **PENDING** against remote tip `d06601b0ac4e2f393b946df17224052f1f7933ff`. Implementer gates alone are not Phase 2 PASS.
 
 ---
 
