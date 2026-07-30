@@ -10,7 +10,11 @@ import {
   resolveTenantContextPacketMode,
   tenantContextPacketCanaryEnabled,
 } from './context-release-switch';
-import { appliedContextSurfacePolicy, contextSurfacePolicy, surfacePolicies } from './surface-policy';
+import {
+  appliedContextSurfacePolicy,
+  contextSurfacePolicy,
+  surfacePolicies,
+} from './surface-policy';
 
 const settings = (flags: Record<string, unknown>) => ({ clioFeatureFlags: flags });
 
@@ -56,7 +60,9 @@ describe('Phase 8 Context Packet rollout switch', () => {
 
 describe('Phase 8 surface policy', () => {
   it('defines every known surface and includes the formerly excluded deliverables', () => {
-    expect(CONTEXT_PACKET_V2_SURFACES).toEqual(surfacePolicies().map((policy) => policy.surface));
+    expect(CONTEXT_PACKET_V2_SURFACES).toEqual(
+      surfacePolicies().map((policy) => policy.surface),
+    );
     for (const surface of ['outreach', 'memo', 'district-brief', 'research'] as const) {
       expect(CONTEXT_PACKET_V2_SURFACES).toContain(surface);
       expect(contextSurfacePolicy(surface).externalDeliverable).toBe(true);
@@ -83,7 +89,9 @@ describe('Phase 8 surface policy', () => {
   });
 
   it('adds client-required layers only when a client is in scope', () => {
-    expect(appliedContextSurfacePolicy('memo', null).requiredLayers).toEqual(['firm-identity']);
+    expect(appliedContextSurfacePolicy('memo', null).requiredLayers).toEqual([
+      'firm-identity',
+    ]);
     expect(appliedContextSurfacePolicy('memo', 'client-1').requiredLayers).toEqual([
       'firm-identity',
       'client-steering',
