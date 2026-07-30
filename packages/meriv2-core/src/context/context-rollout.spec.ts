@@ -62,6 +62,7 @@ function harness(
 ) {
   const persisted: TruthfulCompiledContextPacket[] = [];
   const comparisons: ContextPacketShadowComparison[] = [];
+  const comparisonPacketIds: string[] = [];
   const loadV1 = jest.fn(async () => rows);
   const loadV2 = jest.fn(async () => rows);
   const compiler = new ContextPacketRolloutCompiler({
@@ -74,11 +75,12 @@ function harness(
       persisted.push(structuredClone(packet));
       return packet.generatedPacketId;
     }),
-    persistShadowComparison: jest.fn(async ({ comparison }) => {
+    persistShadowComparison: jest.fn(async ({ comparisonPacketId, comparison }) => {
+      comparisonPacketIds.push(comparisonPacketId);
       comparisons.push(structuredClone(comparison));
     }),
   });
-  return { compiler, persisted, comparisons, loadV1, loadV2 };
+  return { compiler, persisted, comparisons, comparisonPacketIds, loadV1, loadV2 };
 }
 
 describe('ContextPacketRolloutCompiler', () => {
@@ -86,7 +88,8 @@ describe('ContextPacketRolloutCompiler', () => {
     const h = harness([approvedFirm()]);
     const packet = await h.compiler.compile(request(), 'off');
     expect(packet.version).toBe(1);
-    expect(packet.rolloutMode).toBe('off');
+    expect(packet).not.toHaveProperty('rolloutMode');
+    expect(packet).not.toHaveProperty('shadowComparison');
     expect(h.loadV1).toHaveBeenCalledTimes(1);
     expect(h.loadV2).not.toHaveBeenCalled();
     expect(h.persisted).toHaveLength(1);
@@ -101,26 +104,34 @@ We advise government-affairs teams.`);
     const shadow = await shadowHarness.compiler.compile(request(), 'shadow');
 
     expect(shadow.version).toBe(1);
-    expect(shadow.rolloutMode).toBe('shadow');
+    expect(shadow).not.toHaveProperty('rolloutMode');
+    expect(shadow).not.toHaveProperty('shadowComparison');
     expect(shadow.rendered).toEqual(off.rendered);
     expect(shadow.items).toEqual(off.items);
     expect(shadow.traceHash).toBe(off.traceHash);
     expect(shadowHarness.persisted.map((packet) => packet.version)).toEqual([1, 2]);
-    expect(shadowHarness.comparisons).toHaveLength(1);
-    expect(shadow.shadowComparison).toEqual(
+    expect(shadowHarness.comparisons).toEqual([
       expect.objectContaining({ mode: 'shadow', shadowHealth: 'healthy' }),
-    );
+    ]);
+    expect(shadowHarness.comparisonPacketIds).toEqual([
+      shadowHarness.persisted[1]!.generatedPacketId,
+    ]);
   });
 
-  it('a failed shadow compile or write cannot change or block the v1 response', async () => {
+  it('a failed shadow write cannot change or block v1 and records a bounded error', async () => {
     const h = harness([approvedFirm()], { failV2Persistence: true });
     const packet = await h.compiler.compile(request(), 'shadow');
     expect(packet.version).toBe(1);
     expect(packet.rendered[0]?.body).toContain('We advise government-affairs teams.');
-    expect(packet.shadowComparison).toEqual(
-      expect.objectContaining({ shadowPacketId: null, shadowErrorCode: null }),
-    );
     expect(h.persisted).toHaveLength(1);
+    expect(h.comparisons).toEqual([
+      expect.objectContaining({
+        shadowPacketId: null,
+        shadowErrorCode: 'context_packet_error',
+      }),
+    ]);
+    expect(JSON.stringify(h.comparisons)).not.toContain('private database detail');
+    expect(h.comparisonPacketIds).toEqual([h.persisted[0]!.generatedPacketId]);
   });
 
   it('enforce feeds the v2 packet and optional absence does not degrade health', async () => {
@@ -129,6 +140,7 @@ We advise government-affairs teams.`);
     expect(packet.version).toBe(2);
     if (packet.version !== 2) throw new Error('expected v2');
     expect(packet.health.status).toBe('healthy');
+    expect(packet.health.sourceFailureCount).toBe(0);
     expect(packet.health.missingRequiredLayers).toEqual([]);
     expect(
       (packet.health as { missingOptionalLayers?: string[] }).missingOptionalLayers,
@@ -143,6 +155,7 @@ We advise government-affairs teams.`);
     if (packet.version !== 2) throw new Error('expected v2');
     expect(packet.health.status).toBe('degraded');
     expect(packet.health.missingRequiredLayers).toEqual(['firm-identity']);
+    expect(packet.health.sourceFailureCount).toBe(1);
     expect(packet.incomplete).toBe(true);
   });
 
@@ -166,9 +179,10 @@ We advise government-affairs teams.`);
       sensitivity: 'restricted',
       sections: [{ owner: 'human', heading: 'Secret', body: 'Never disclose this body.' }],
     });
-    const packet = await harness([restricted]).compiler.compile(request(), 'shadow');
-    expect(packet.shadowComparison?.confidentialityRegression).toBe(false);
-    expect(JSON.stringify(packet.shadowComparison)).not.toContain('Never disclose this body.');
-    expect(JSON.stringify(packet.shadowComparison)).not.toContain('Restricted doctrine');
+    const h = harness([restricted]);
+    await h.compiler.compile(request(), 'shadow');
+    expect(h.comparisons[0]?.confidentialityRegression).toBe(false);
+    expect(JSON.stringify(h.comparisons)).not.toContain('Never disclose this body.');
+    expect(JSON.stringify(h.comparisons)).not.toContain('Restricted doctrine');
   });
 });
