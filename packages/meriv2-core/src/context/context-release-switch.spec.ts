@@ -1,161 +1,151 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import {
-  CONTEXT_PACKET_V2_ENV,
-  CONTEXT_PACKET_V2_TENANT_FLAG,
-  compileContextPacketForRollout,
+  CONTEXT_PACKET_V2_SURFACES,
+  CONTEXT_POLICY_VERSION,
   contextPacketV2Enabled,
   contextPacketV2Overrides,
-  contextPacketV2TenantEnabled,
   resolveContextPacketMode,
-  resolveContextPacketRollout,
 } from './context-release-switch';
-import type { CompiledContextPacket, ContextRequest } from './contract';
+import { surfacePolicies } from './surface-policy';
+import type { ContextSurface } from './contract';
 
-const request: ContextRequest = {
-  tenantId: 'tenant-1',
-  userId: 'user-1',
-  clientId: 'client-1',
-  surface: 'chat',
-  layers: ['firm-identity', 'client-steering'],
-  contractVersion: 2,
-  ethicalWallAllowed: true,
-  tokenBudget: 999,
-  traceId: 'browser-trace',
-};
+/**
+ * The Context Packet v2 release switch. These tests exist to make the DEFAULT the
+ * thing that is hard to break: v2 changes model input, changes what is withheld,
+ * and reads columns added by an unapplied migration, so anything other than the
+ * exact string `'enforce'` must leave every surface on v1.
+ */
+describe('resolveContextPacketMode', () => {
+  it('defaults to v1 when the environment variable is unset or empty', () => {
+    expect(resolveContextPacketMode(undefined)).toBe('v1');
+    expect(resolveContextPacketMode('')).toBe('v1');
+    expect(resolveContextPacketMode('   ')).toBe('v1');
+  });
 
-function packet(version: 1 | 2): CompiledContextPacket {
-  return {
-    packetId: `packet-${version}`,
-    version,
-    surface: 'chat',
-    tenantId: 'tenant-1',
-    userId: 'user-1',
-    clientId: 'client-1',
-    ref: {},
-    items: [],
-    exclusions: [],
-    rendered: [],
-    traceHash: `hash-${version}`,
-    persisted: true,
-    compiledAt: '2026-07-30T00:00:00.000Z',
-    ...(version === 2
-      ? {
-          effectiveTenantId: 'tenant-1',
-          actorUserId: 'user-1',
-          traceId: null,
-          promptVersion: null,
-          policyVersion: 'context-policy-v2.0',
-          compilerVersion: 'context-compiler-v2',
-          requiredLayers: ['firm-identity', 'client-steering'] as const,
-          health: {
-            status: 'healthy' as const,
-            missingRequiredLayers: [],
-            conflictCount: 0,
-            sourceFailureCount: 0,
-            reasons: [],
-          },
-          totalTokenBudget: 1,
-          usedTokens: 0,
-          truncated: false,
-          incomplete: false,
-        }
-      : {}),
-  } as CompiledContextPacket;
-}
-
-describe('Context Packet v2 rollout', () => {
-  it('uses the new three-state environment and fails closed on near misses', () => {
-    expect(CONTEXT_PACKET_V2_ENV).toBe('MERIV2_CONTEXT_PACKET_V2');
-    expect(resolveContextPacketMode(undefined)).toBe('off');
-    expect(resolveContextPacketMode('shadow')).toBe('shadow');
-    expect(resolveContextPacketMode(' Enforce ')).toBe('enforce');
-    for (const raw of ['true', '1', 'on', 'v2', 'enforced', 'CONTEXT_PACKET_V2']) {
-      expect(resolveContextPacketMode(raw)).toBe('off');
+  it('returns v1 for every truthy-looking value that is not exactly "enforce"', () => {
+    for (const raw of ['true', 'TRUE', '1', 'on', 'yes', 'v2', 'V2', '2', 'enforced', 'enforce!']) {
+      expect(resolveContextPacketMode(raw)).toBe('v1');
     }
   });
 
-  it('requires an explicit per-tenant true and an audited surface', () => {
-    expect(CONTEXT_PACKET_V2_TENANT_FLAG).toBe('meriv2.contextPacketV2');
-    expect(contextPacketV2TenantEnabled({})).toBe(false);
-    expect(
-      contextPacketV2TenantEnabled({
-        clioFeatureFlags: { [CONTEXT_PACKET_V2_TENANT_FLAG]: true },
-      }),
-    ).toBe(true);
-    expect(resolveContextPacketRollout('enforce', false, 'chat')).toBe('off');
-    expect(resolveContextPacketRollout('enforce', true, 'memo')).toBe('off');
-    expect(resolveContextPacketRollout('shadow', true, 'chat')).toBe('shadow');
-    expect(contextPacketV2Enabled('enforce', 'chat', true)).toBe(true);
+  it('returns v2 only for "enforce", tolerating surrounding whitespace and case', () => {
+    expect(resolveContextPacketMode('enforce')).toBe('v2');
+    expect(resolveContextPacketMode(' Enforce ')).toBe('v2');
+    expect(resolveContextPacketMode('ENFORCE')).toBe('v2');
+  });
+});
+
+describe('contextPacketV2Enabled', () => {
+  it('is false for every surface while the switch is dark', () => {
+    for (const policy of surfacePolicies()) {
+      expect(contextPacketV2Enabled(undefined, policy.surface)).toBe(false);
+      expect(contextPacketV2Enabled('true', policy.surface)).toBe(false);
+    }
   });
 
-  it('keeps the legacy request helper dark unless the tenant is explicitly enabled', () => {
+  it('is true only for allowlisted surfaces once armed', () => {
+    for (const surface of CONTEXT_PACKET_V2_SURFACES) {
+      expect(contextPacketV2Enabled('enforce', surface)).toBe(true);
+    }
+  });
+
+  /**
+   * `alert-memo.service.ts` and `district-brief.service.ts` push
+   * `## ${title}\n${body}` into DELIVERABLE text a user reads, so a v2 compile
+   * there would print the literal `<context_item …>` envelope into a memo. Those
+   * surfaces stay dark even when the switch is armed.
+   */
+  it('stays false for surfaces that render packet bodies into user-visible deliverables', () => {
+    for (const surface of ['memo', 'district-brief', 'outreach', 'research'] as ContextSurface[]) {
+      expect(contextPacketV2Enabled('enforce', surface)).toBe(false);
+    }
+  });
+
+  it('is an allowlist: a surface absent from it is dark even when armed', () => {
+    const known = new Set<string>(CONTEXT_PACKET_V2_SURFACES);
+    const notAllowlisted = surfacePolicies()
+      .map((policy) => policy.surface)
+      .filter((surface) => !known.has(surface));
+    expect(notAllowlisted.length).toBeGreaterThan(0);
+    for (const surface of notAllowlisted) {
+      expect(contextPacketV2Enabled('enforce', surface)).toBe(false);
+    }
+  });
+});
+
+describe('contextPacketV2Overrides', () => {
+  it('returns an empty object while dark, so the caller request is unchanged', () => {
     expect(
-      contextPacketV2Overrides('enforce', {
-        surface: 'chat',
+      contextPacketV2Overrides(undefined, { surface: 'in-editor', ethicalWallAllowed: true }),
+    ).toEqual({});
+    expect(
+      contextPacketV2Overrides('1', {
+        surface: 'in-editor',
+        traceId: 't',
         ethicalWallAllowed: true,
       }),
     ).toEqual({});
     expect(
       contextPacketV2Overrides('enforce', {
-        surface: 'chat',
+        surface: 'memo',
+        traceId: 't',
         ethicalWallAllowed: true,
-        tenantEnabled: true,
       }),
-    ).toMatchObject({ contractVersion: 2, ethicalWallAllowed: true });
+    ).toEqual({});
   });
 
-  it('shadow persists both contracts but returns v1 and strips caller-supplied control fields', async () => {
-    const compile = jest.fn(async (req: ContextRequest) => packet(req.contractVersion === 2 ? 2 : 1));
-    const result = await compileContextPacketForRollout({
-      request,
-      mode: 'shadow',
-      ethicalWallAllowed: false,
-      compile,
+  it('opts into contract v2 with correlation + version evidence once armed', () => {
+    const overrides = contextPacketV2Overrides('enforce', {
+      surface: 'in-editor',
+      traceId: 'trace-1',
+      promptVersion: 'legacy-in-editor-v2',
+      ethicalWallAllowed: true,
     });
-    expect(result.version).toBe(1);
-    expect(compile).toHaveBeenCalledTimes(2);
-    expect(compile.mock.calls[0]![0]).not.toHaveProperty('contractVersion');
-    expect(compile.mock.calls[0]![0]).not.toHaveProperty('ethicalWallAllowed');
-    expect(compile.mock.calls[1]![0]).toMatchObject({
+    expect(overrides).toEqual({
       contractVersion: 2,
-      ethicalWallAllowed: false,
-      persistence: 'best-effort',
+      ethicalWallAllowed: true,
+      traceId: 'trace-1',
+      promptVersion: 'legacy-in-editor-v2',
+      policyVersion: CONTEXT_POLICY_VERSION,
+      compilerVersion: 'context-compiler-v2.0',
+      tokenBudget: 6_000,
+      budgetUnit: 'tokens',
     });
   });
 
-  it('shadow failure returns v1 and reports only a bounded error code', async () => {
-    const onShadowError = jest.fn();
-    const compile = jest
-      .fn<(req: ContextRequest) => Promise<CompiledContextPacket>>()
-      .mockResolvedValueOnce(packet(1))
-      .mockRejectedValueOnce(new Error('CLASSIFIED BODY'));
-    await expect(
-      compileContextPacketForRollout({
-        request,
-        mode: 'shadow',
-        ethicalWallAllowed: true,
-        compile,
-        onShadowError,
-      }),
-    ).resolves.toMatchObject({ version: 1 });
-    expect(onShadowError).toHaveBeenCalledWith('error');
-    expect(JSON.stringify(onShadowError.mock.calls)).not.toContain('CLASSIFIED BODY');
+  /**
+   * The wall decision is required on the options type so a new v2 surface cannot
+   * be added without resolving it, and it is normalised to a strict boolean so a
+   * truthy non-boolean can never widen access (closeout §6, contract change 4).
+   */
+  it('forwards only a literal true as wall permission', () => {
+    const armed = (ethicalWallAllowed: boolean) =>
+      contextPacketV2Overrides('enforce', { surface: 'ga-chat', ethicalWallAllowed });
+
+    expect(armed(true)).toMatchObject({ ethicalWallAllowed: true });
+    expect(armed(false)).toMatchObject({ ethicalWallAllowed: false });
+    // Defence in depth against an untyped caller (plain JS, `as any`, JSON):
+    // anything that is not exactly `true` must resolve to denial.
+    for (const sneaky of ['true', 1, {}, [], 'yes']) {
+      expect(
+        contextPacketV2Overrides('enforce', {
+          surface: 'ga-chat',
+          ethicalWallAllowed: sneaky as unknown as boolean,
+        }),
+      ).toMatchObject({ ethicalWallAllowed: false });
+    }
   });
 
-  it('enforce returns v2 and off returns v1 with one compile each', async () => {
-    for (const [mode, version] of [
-      ['off', 1],
-      ['enforce', 2],
-    ] as const) {
-      const compile = jest.fn(async (req: ContextRequest) => packet(req.contractVersion === 2 ? 2 : 1));
-      const result = await compileContextPacketForRollout({
-        request,
-        mode,
-        ethicalWallAllowed: true,
-        compile,
-      });
-      expect(result.version).toBe(version);
-      expect(compile).toHaveBeenCalledTimes(1);
-    }
+  /**
+   * A trace write is diagnostics, not the answer. `persistence: 'required'` makes
+   * `ContextCompiler.persist` rethrow, which would convert a fire-and-forget
+   * failure into a 500 on the live in-editor route.
+   */
+  it('never sets persistence: a trace-write failure must stay fail-open', () => {
+    const overrides = contextPacketV2Overrides('enforce', {
+      surface: 'ga-chat',
+      ethicalWallAllowed: true,
+    });
+    expect(overrides).not.toHaveProperty('persistence');
   });
 });
