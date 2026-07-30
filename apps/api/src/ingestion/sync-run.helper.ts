@@ -190,6 +190,11 @@ export async function runWithSyncRun(
           rowsUpdated: counts.updated,
           errorCount: counts.errors,
           status: statusFromCounts(counts),
+          // Persist the caller's reason for a PARTIAL failure. Without this a
+          // `success_with_errors` row carried a null `error_message`, so the
+          // only way to learn why was to find the raw task log — see the
+          // RunCounts.errorMessage doc comment.
+          ...(counts.errorMessage ? { errorMessage: counts.errorMessage.slice(0, 1000) } : {}),
         },
       });
       emitMetricLine(source, counts, (Date.now() - t0) / 1000);
