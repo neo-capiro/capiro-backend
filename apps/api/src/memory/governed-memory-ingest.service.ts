@@ -96,11 +96,13 @@ export class GovernedMemoryIngestService extends MemoryIngestService {
     receipt: StrictProjectionReceipt,
     expected: StrictProjectionExpectation,
   ): void {
+    const itemMismatch =
+      receipt.outcome !== 'vanished' && receipt.memoryItemId !== (expected.memoryItemId ?? null);
     if (
       receipt.sourceVersion !== expected.sourceVersion ||
       receipt.contentHash !== expected.contentHash ||
       receipt.idempotencyKey !== expected.idempotencyKey ||
-      receipt.memoryItemId !== (expected.memoryItemId ?? null)
+      itemMismatch
     ) {
       throw new Error('memory_projection_receipt_binding_mismatch');
     }
