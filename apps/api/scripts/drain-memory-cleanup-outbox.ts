@@ -13,7 +13,6 @@
  * CloudWatch surface the run instead of treating a partial drain as healthy.
  */
 import { PrismaClient, type Prisma } from '@prisma/client';
-import { MemoryIngestService } from '../src/memory/memory-ingest.service.js';
 import { MemoryProjectionWorkerService } from '../src/memory/memory-projection-worker.service.js';
 import { MemoryStoreService } from '../src/memory/memory-store.service.js';
 import { StrictMemoryProjectorService } from '../src/memory/strict-memory-projector.service.js';
@@ -45,8 +44,7 @@ async function main(): Promise<void> {
 
   const tenantContext = new TenantContextStore();
   const store = new MemoryStoreService(prismaLike, tenantContext);
-  const ingest = new MemoryIngestService(prismaLike, store, tenantContext);
-  const projector = new StrictMemoryProjectorService(prismaLike, ingest);
+  const projector = new StrictMemoryProjectorService(prismaLike, store);
   const worker = new MemoryProjectionWorkerService(prismaLike, projector);
 
   try {
