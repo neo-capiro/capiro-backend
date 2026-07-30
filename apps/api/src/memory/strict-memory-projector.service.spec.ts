@@ -43,7 +43,6 @@ function harness(
     deletedAfterProjection?: boolean;
     changedAfterProjection?: boolean;
     projectedContentMismatch?: boolean;
-    returnedItemId?: string;
   } = {},
 ) {
   const sqls: string[] = [];
@@ -67,6 +66,8 @@ function harness(
         return [
           {
             id: ITEM,
+            client_id: null,
+            owner_user_id: null,
             title: expectedMaterial.item.title,
             sections_jsonb: options.projectedContentMismatch
               ? [{ key: 'memory', heading: 'Memory', owner: 'human', body: 'Wrong text.' }]
@@ -88,7 +89,7 @@ function harness(
     withSystem: jest.fn(async <T>(fn: (arg: Prisma.TransactionClient) => Promise<T>) => fn(tx)),
   } as unknown as PrismaService;
   const store = {
-    upsertSystem: jest.fn(async () => options.returnedItemId ?? ITEM),
+    upsertSystem: jest.fn(async () => ITEM),
   } as unknown as MemoryStoreService;
   const service = new StrictMemoryProjectorService(prisma, store);
   const writeEmbedding = jest.fn(async () => undefined);
@@ -165,8 +166,8 @@ describe('StrictMemoryProjectorService', () => {
     );
   });
 
-  test('refuses a projection that resolves to a different canonical item id', async () => {
-    const h = harness({ returnedItemId: '44444444-4444-4444-8444-444444444444' });
+  test('embeds the exact authoritative item without creating a duplicate Clio projection', async () => {
+    const h = harness();
     await expect(
       h.service.projectClioMemoryStrict(TENANT, CLIO, {
         sourceVersion: h.expectedMaterial.sourceVersion,
@@ -174,10 +175,18 @@ describe('StrictMemoryProjectorService', () => {
         memoryItemId: ITEM,
         idempotencyKey: h.expectedMaterial.idempotencyKey,
       }),
-    ).rejects.toThrow('memory_projection_item_mismatch');
+    ).resolves.toMatchObject({
+      outcome: 'projected',
+      memoryItemId: ITEM,
+      contentHash: h.expectedMaterial.contentHash,
+    });
+    expect(h.store.upsertSystem).not.toHaveBeenCalled();
+    expect(h.writeEmbedding).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: TENANT, sourceId: ITEM }),
+    );
   });
 
-  test('cleans up a projection when the source disappears during embedding', async () => {
+  test('cleans up a compatibility projection when its source disappears during embedding', async () => {
     const h = harness({ deletedAfterProjection: true });
     await expect(h.service.projectClioMemoryStrict(TENANT, CLIO)).resolves.toMatchObject({
       outcome: 'vanished',
