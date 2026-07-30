@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, jest, test } from '@jest/globals';
 import type { Prisma } from '@prisma/client';
@@ -101,6 +102,7 @@ function makeHarness(options: {
   candidateBody?: string;
 } = {}) {
   const source = options.source ?? item();
+  const candidateBody = options.candidateBody ?? 'New truth.';
   const created = item({
     id: CREATED,
     slug: 'firm:positions~v555555555555',
@@ -109,7 +111,7 @@ function makeHarness(options: {
         key: 'memory',
         heading: 'Memory',
         owner: 'human',
-        body: options.candidateBody ?? 'New truth.',
+        body: candidateBody,
       },
     ],
   });
@@ -118,7 +120,7 @@ function makeHarness(options: {
     id: CANDIDATE,
     proposed_by: PROPOSER,
     source_kind: `memory_${candidateKind}`,
-    payload_jsonb: payload(candidateKind, options.candidateBody ?? 'New truth.'),
+    payload_jsonb: payload(candidateKind, candidateBody),
   };
   const executeSql: string[] = [];
   const querySql: string[] = [];
@@ -144,12 +146,19 @@ function makeHarness(options: {
     },
   } as unknown as Prisma.TransactionClient;
 
+  const expectedEmbedHash = createHash('sha256')
+    .update(`${created.title}: ${candidateBody}`)
+    .digest('hex');
   const prisma = {
     withTenantUser: jest.fn(
-      async <T>(_tenantId: string, _userId: string, fn: (arg: Prisma.TransactionClient) => Promise<T>) =>
-        fn(tx),
+      async <T>(
+        _tenantId: string,
+        _userId: string,
+        fn: (arg: Prisma.TransactionClient) => Promise<T>,
+      ) => fn(tx),
     ),
-    $queryRawUnsafe: jest.fn(async () => []),
+    // embedAndUpsert sees the exact hash and returns before any Bedrock call.
+    $queryRawUnsafe: jest.fn(async () => [{ content_hash: expectedEmbedHash }]),
   } as unknown as PrismaService;
   const tenantCtx = { require: jest.fn(() => proposerContext) } as unknown as TenantContextStore;
   const authorization = {
@@ -230,9 +239,9 @@ describe('ImmutableMemoryVersionService', () => {
         controllingItemId: CREATED,
       });
       expect(h.querySql.some((sql) => /INSERT INTO memory_items/i.test(sql))).toBe(true);
-      expect(
-        h.executeSql.filter((sql) => /SET status = 'superseded'/i.test(sql)),
-      ).toHaveLength(1);
+      expect(h.executeSql.filter((sql) => /SET status = 'superseded'/i.test(sql))).toHaveLength(
+        1,
+      );
       expect(h.outbox.enqueue).toHaveBeenCalledWith(
         expect.anything(),
         TENANT,
