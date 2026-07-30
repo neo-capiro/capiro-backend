@@ -7,12 +7,13 @@ import { DataStack } from '../lib/data-stack';
 import { DnsStack } from '../lib/dns-stack';
 import { SecretsStack } from '../lib/secrets-stack';
 import { ComputeStack } from '../lib/compute-stack';
+import { MemoryProjectionWorkerStack } from '../lib/memory-projection-worker-stack';
 import { AlarmsStack } from '../lib/alarms-stack';
 import { AssetsStack } from '../lib/assets-stack';
 
 /**
  * Capiro CDK app. Stacks are deployed in dependency order:
- *   Network → Dns → Data → Secrets → Compute
+ *   Network → Dns → Data → Secrets → Compute → MemoryProjectionWorker
  *
  * `cdk deploy --all --context env=dev --context account=<id>` will respect
  * the dependency graph below. Individual stacks can also be deployed by
@@ -71,6 +72,28 @@ compute.addDependency(dns);
 compute.addDependency(data);
 compute.addDependency(secrets);
 compute.addDependency(assets);
+
+const memoryProjectionWorker = new MemoryProjectionWorkerStack(
+  app,
+  stackName(cfg.envName, 'MemoryProjectionWorker'),
+  {
+    env,
+    tags,
+    cfg,
+    cluster: compute.cluster,
+    apiRepo: compute.apiRepo,
+    serviceSecurityGroup: network.serviceSecurityGroup,
+    dbSecret: data.secret,
+    appDbSecret: data.appSecret,
+    databaseName: data.databaseName,
+    dataKey: data.key,
+    secretsKey: secrets.secretsKey,
+  },
+);
+memoryProjectionWorker.addDependency(network);
+memoryProjectionWorker.addDependency(data);
+memoryProjectionWorker.addDependency(secrets);
+memoryProjectionWorker.addDependency(compute);
 
 const alarms = new AlarmsStack(app, stackName(cfg.envName, 'Alarms'), {
   env,
