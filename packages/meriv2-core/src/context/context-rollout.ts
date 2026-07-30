@@ -16,10 +16,7 @@ import {
 } from './surface-policy';
 import type { ContextPacketMode } from './context-release-switch';
 import { CONTEXT_POLICY_VERSION } from './context-release-switch';
-import {
-  contextPacketPersistenceErrorCode,
-  TruthfulContextCompiler,
-} from './truthful-compiler';
+import { contextPacketPersistenceErrorCode, TruthfulContextCompiler } from './truthful-compiler';
 
 export const CONTEXT_COMPILER_PHASE8_VERSION = 'context-compiler-v2.1';
 

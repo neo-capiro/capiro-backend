@@ -1,9 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import type {
-  ContextRequest,
-  SteeringRow,
-  TruthfulCompiledContextPacket,
-} from './contract';
+import type { ContextRequest, SteeringRow, TruthfulCompiledContextPacket } from './contract';
 import {
   ContextPacketRolloutCompiler,
   type ContextPacketShadowComparison,
@@ -56,10 +52,7 @@ const request = (over: Partial<ContextRequest> = {}): ContextRequest => ({
   ...over,
 });
 
-function harness(
-  rows: SteeringRow[],
-  options: { failV2Persistence?: boolean } = {},
-) {
+function harness(rows: SteeringRow[], options: { failV2Persistence?: boolean } = {}) {
   const persisted: TruthfulCompiledContextPacket[] = [];
   const comparisons: ContextPacketShadowComparison[] = [];
   const comparisonPacketIds: string[] = [];
@@ -142,9 +135,9 @@ We advise government-affairs teams.`);
     expect(packet.health.status).toBe('healthy');
     expect(packet.health.sourceFailureCount).toBe(0);
     expect(packet.health.missingRequiredLayers).toEqual([]);
-    expect(
-      (packet.health as { missingOptionalLayers?: string[] }).missingOptionalLayers,
-    ).toContain('user-voice');
+    expect((packet.health as { missingOptionalLayers?: string[] }).missingOptionalLayers).toContain(
+      'user-voice',
+    );
     expect(packet.requiredLayers).toEqual(['firm-identity']);
   });
 

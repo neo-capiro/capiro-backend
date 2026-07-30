@@ -58,7 +58,9 @@ export class OrchestratorContextCompilerService {
         surface,
       );
     } catch {
-      this.logger.warn('Context Packet tenant canary lookup failed closed (context_packet_canary_lookup_failed)');
+      this.logger.warn(
+        'Context Packet tenant canary lookup failed closed (context_packet_canary_lookup_failed)',
+      );
       return 'off';
     }
   }
@@ -66,8 +68,11 @@ export class OrchestratorContextCompilerService {
   private async ethicalWallAllowed(req: ContextRequest): Promise<boolean> {
     if (!req.clientId || !req.userId) return false;
     try {
-      const rows = await this.prisma.withTenantUser(req.tenantId, req.userId, (tx) =>
-        tx.$queryRaw<Array<{ allowed: boolean }>>`
+      const rows = await this.prisma.withTenantUser(
+        req.tenantId,
+        req.userId,
+        (tx) =>
+          tx.$queryRaw<Array<{ allowed: boolean }>>`
           SELECT (NOT c.memory_wall
                   OR EXISTS (
                     SELECT 1 FROM client_memory_access a
@@ -81,7 +86,9 @@ export class OrchestratorContextCompilerService {
       );
       return rows[0]?.allowed === true;
     } catch {
-      this.logger.warn('Context Packet ethical-wall lookup failed closed (context_packet_wall_lookup_failed)');
+      this.logger.warn(
+        'Context Packet ethical-wall lookup failed closed (context_packet_wall_lookup_failed)',
+      );
       return false;
     }
   }
@@ -169,8 +176,10 @@ export class OrchestratorContextCompilerService {
     comparisonPacketId: string;
     comparison: ContextPacketShadowComparison;
   }): Promise<void> {
-    await this.prisma.withTenant(input.tenantId, (tx) =>
-      tx.$executeRaw`
+    await this.prisma.withTenant(
+      input.tenantId,
+      (tx) =>
+        tx.$executeRaw`
         UPDATE context_packet
         SET health_jsonb = COALESCE(health_jsonb, '{}'::jsonb)
             || jsonb_build_object('shadowComparison', ${JSON.stringify(input.comparison)}::jsonb)

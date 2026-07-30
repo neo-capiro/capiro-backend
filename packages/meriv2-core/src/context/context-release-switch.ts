@@ -1,9 +1,5 @@
 import { CONTEXT_COMPILER_V2_VERSION } from './compiler';
-import {
-  applyContextSurfacePolicy,
-  contextSurfacePolicy,
-  surfacePolicies,
-} from './surface-policy';
+import { applyContextSurfacePolicy, contextSurfacePolicy, surfacePolicies } from './surface-policy';
 import type { ContextRequest, ContextSurface } from './contract';
 
 /** Phase 8 rollout modes. Unknown values fail closed to off. */
@@ -64,10 +60,7 @@ export function resolveTenantContextPacketMode(
 }
 
 /** True only when v2 is the model-steering packet for an audited surface. */
-export function contextPacketV2Enabled(
-  raw: string | undefined,
-  surface: ContextSurface,
-): boolean {
+export function contextPacketV2Enabled(raw: string | undefined, surface: ContextSurface): boolean {
   return (
     resolveContextPacketMode(raw) === 'enforce' && CONTEXT_PACKET_V2_SURFACES.includes(surface)
   );
