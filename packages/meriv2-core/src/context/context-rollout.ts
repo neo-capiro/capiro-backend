@@ -168,19 +168,28 @@ function finalizeV2Packet(
   const missingOptionalLayers = applied.optionalLayers.filter(
     (layer) => !includedLayers.has(layer),
   );
+  const requiredLayerSet = new Set(applied.requiredLayers);
+  const requiredSourceFailureCount = packet.exclusions.filter(
+    (item) =>
+      requiredLayerSet.has(item.layer) && ['source-missing', 'unavailable'].includes(item.reason),
+  ).length;
 
   const reasons = packet.health.reasons.filter(
-    (reason) => !reason.startsWith('Missing required layers:'),
+    (reason) =>
+      !reason.startsWith('Missing required layers:') && !reason.endsWith('source failure(s)'),
   );
   if (missingRequiredLayers.length) {
     reasons.push(`Missing required layers: ${missingRequiredLayers.join(', ')}`);
+  }
+  if (requiredSourceFailureCount) {
+    reasons.push(`${requiredSourceFailureCount} required source failure(s)`);
   }
 
   const status: ContextPacketHealth['status'] = packet.truncated
     ? 'incomplete'
     : packet.health.conflictCount > 0
       ? 'conflicted'
-      : packet.health.sourceFailureCount > 0 || missingRequiredLayers.length > 0
+      : requiredSourceFailureCount > 0 || missingRequiredLayers.length > 0
         ? 'degraded'
         : 'healthy';
 
@@ -189,6 +198,7 @@ function finalizeV2Packet(
     status,
     missingRequiredLayers: [...missingRequiredLayers],
     missingOptionalLayers: [...missingOptionalLayers],
+    sourceFailureCount: requiredSourceFailureCount,
     reasons,
   };
   packet.requiredLayers = [...applied.requiredLayers];
