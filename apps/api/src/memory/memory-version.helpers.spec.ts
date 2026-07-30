@@ -35,9 +35,25 @@ describe('immutable memory version decisions', () => {
       'client:overland',
       'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
     );
-    expect(first).toBe('client:overland~v111111112222');
-    expect(second).toBe('client:overland~vaaaaaaaabbbb');
+    expect(first).toBe('client:overland~v11111111222233334444555555555555');
+    expect(second).toBe('client:overland~vaaaaaaaabbbbccccddddeeeeeeeeeeee');
     expect(first).not.toBe(second);
     expect(first.length).toBeLessThanOrEqual(200);
+  });
+
+  test('a maximum-length source slug keeps the complete immutable identity suffix', () => {
+    const version = immutableMemoryVersionSlug(
+      'x'.repeat(200),
+      '11111111-2222-3333-4444-555555555555',
+    );
+    expect(version).toHaveLength(200);
+    expect(version).toEndWith('~v11111111222233334444555555555555');
+    expect(version).not.toBe('x'.repeat(200));
+  });
+
+  test('an empty candidate identity is rejected instead of producing a colliding slug', () => {
+    expect(() => immutableMemoryVersionSlug('firm:positions', '---')).toThrow(
+      'requires a stable candidate id',
+    );
   });
 });
