@@ -1,6 +1,9 @@
 name: MeriV2 one-shot main sync before Phase 5
 
 on:
+  pull_request:
+    branches:
+      - ci/meriv2-phase5-sync-base
   push:
     branches:
       - agent/meriv2-world-class-closeout
@@ -44,8 +47,6 @@ jobs:
               exit 1
             fi
 
-            # Preserve the governed-memory schema from this branch and apply the
-            # authoritative current-main district width. Truncate neither side.
             git checkout --ours apps/api/prisma/schema.prisma
             python - <<'PY'
           from pathlib import Path
@@ -58,8 +59,6 @@ jobs:
           path.write_text(text.replace(old, new, 1))
           PY
 
-            # Current main's migration-ordering guard supersedes the older branch
-            # assertion and intentionally permits unrelated later migrations.
             git checkout --theirs apps/api/src/funding-opportunities/funding-opportunities.boundaries.spec.ts
             git add apps/api/prisma/schema.prisma \
               apps/api/src/funding-opportunities/funding-opportunities.boundaries.spec.ts
@@ -71,7 +70,6 @@ jobs:
             exit 1
           fi
 
-          # Delete this one-shot helper in the merge commit itself.
           git rm .github/workflows/meriv2-sync-main-phase5.yml
           git add -A
           git commit -m "Merge current main into MeriV2 closeout before Phase 5"
