@@ -20,7 +20,10 @@ function sqlText(strings: TemplateStringsArray | unknown): string {
     : String(strings);
 }
 
-function harness(outcome: 'projected' | 'superseded' | 'vanished' = 'projected') {
+function harness(
+  outcome: 'projected' | 'superseded' | 'vanished' = 'projected',
+  failure?: Error,
+) {
   const captured: Array<{ sql: string; params: unknown[] }> = [];
   const tx = {
     $executeRaw: jest.fn(async (strings: TemplateStringsArray, ...params: unknown[]) => {
@@ -32,16 +35,19 @@ function harness(outcome: 'projected' | 'superseded' | 'vanished' = 'projected')
     withSystem: jest.fn(async <T>(fn: (arg: Prisma.TransactionClient) => Promise<T>) => fn(tx)),
   } as unknown as PrismaService;
   const projector = {
-    projectClioMemoryStrict: jest.fn(async () => ({
-      outcome,
-      tenantId: TENANT,
-      clioMemoryId: CLIO,
-      sourceVersion: outcome === 'vanished' ? null : VERSION,
-      contentHash: outcome === 'vanished' ? null : HASH,
-      idempotencyKey: outcome === 'vanished' ? null : KEY,
-      memoryItemId: ITEM,
-      embeddingRequired: true,
-    })),
+    projectClioMemoryStrict: jest.fn(async () => {
+      if (failure) throw failure;
+      return {
+        outcome,
+        tenantId: TENANT,
+        clioMemoryId: CLIO,
+        sourceVersion: outcome === 'vanished' ? null : VERSION,
+        contentHash: outcome === 'vanished' ? null : HASH,
+        idempotencyKey: outcome === 'vanished' ? null : KEY,
+        memoryItemId: ITEM,
+        embeddingRequired: true,
+      };
+    }),
   } as unknown as StrictMemoryProjectorService;
   const service = new GovernedMemoryIngestService(
     prisma,
@@ -80,10 +86,7 @@ describe('GovernedMemoryIngestService', () => {
   });
 
   test('a projector failure leaves the durable job retryable', async () => {
-    const h = harness();
-    (h.projector.projectClioMemoryStrict as unknown as jest.Mock).mockRejectedValueOnce(
-      new Error('embedding_provider_unavailable'),
-    );
+    const h = harness('projected', new Error('embedding_provider_unavailable'));
 
     await expect(h.service.projectClioMemory(TENANT, CLIO)).rejects.toThrow(
       'embedding_provider_unavailable',
