@@ -42,12 +42,13 @@ describe('immutable memory version decisions', () => {
   });
 
   test('a maximum-length source slug keeps the complete immutable identity suffix', () => {
+    const suffix = '~v11111111222233334444555555555555';
     const version = immutableMemoryVersionSlug(
       'x'.repeat(200),
       '11111111-2222-3333-4444-555555555555',
     );
     expect(version).toHaveLength(200);
-    expect(version).toEndWith('~v11111111222233334444555555555555');
+    expect(version.endsWith(suffix)).toBe(true);
     expect(version).not.toBe('x'.repeat(200));
   });
 
