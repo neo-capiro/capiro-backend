@@ -31,7 +31,7 @@ function sqlText(strings: unknown): string {
 }
 
 describe('Workspace canonical governed memory — Phase 8', () => {
-  function harness(options: { canary?: boolean } = {}) {
+  function harness(options: { canary?: boolean; surfaceCanary?: boolean } = {}) {
     const sql: string[] = [];
     const executions: Array<{ sql: string; values: unknown[] }> = [];
     const tx = {
@@ -55,7 +55,10 @@ describe('Workspace canonical governed memory — Phase 8', () => {
           return [
             {
               settings: {
-                clioFeatureFlags: { 'meriv2.contextPacketV2': options.canary !== false },
+                clioFeatureFlags: {
+                  'meriv2.contextPacketV2': options.canary !== false,
+                  'meriv2.contextPacketV2.workspace-gen': options.surfaceCanary !== false,
+                },
               },
             },
           ];
@@ -82,6 +85,7 @@ describe('Workspace canonical governed memory — Phase 8', () => {
       contractVersion: 2,
     });
     expect(packet.version).toBe(1);
+    expect(packet).not.toHaveProperty('rolloutMode');
     expect(h.sql.find((text) => text.includes('FROM memory_items'))).not.toContain('memory_authority');
   });
 
@@ -103,9 +107,9 @@ describe('Workspace canonical governed memory — Phase 8', () => {
     ]);
   });
 
-  it('a tenant without the canary remains on v1', async () => {
+  it('a tenant umbrella without the exact Workspace surface canary remains on v1', async () => {
     process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
-    const packet = await harness({ canary: false }).service.compileForClerkOwner({
+    const packet = await harness({ surfaceCanary: false }).service.compileForClerkOwner({
       tenantId: 't1',
       surface: 'workspace-gen',
       layers: ['firm-playbook'],
@@ -130,7 +134,7 @@ describe('Workspace canonical governed memory — Phase 8', () => {
     expect(packet.persisted).toBe(true);
   });
 
-  it('shadow persists both packets but returns v1', async () => {
+  it('shadow persists both packets but returns unchanged v1', async () => {
     process.env.MERIV2_CONTEXT_PACKET_V2 = 'shadow';
     const h = harness();
     const packet = await h.service.compileForClerkOwner({
@@ -139,6 +143,8 @@ describe('Workspace canonical governed memory — Phase 8', () => {
       layers: ['firm-playbook'],
     });
     expect(packet.version).toBe(1);
+    expect(packet).not.toHaveProperty('rolloutMode');
+    expect(packet).not.toHaveProperty('shadowComparison');
     expect(h.executions.filter((entry) => entry.sql.includes('INSERT INTO context_packet'))).toHaveLength(2);
   });
 });
