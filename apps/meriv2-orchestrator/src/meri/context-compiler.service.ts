@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
-  ContextCompiler,
+  TruthfulContextCompiler,
   GOVERNED_STEERING_COLUMNS_SQL,
   STEERING_ORDER_COLUMNS_SQL,
   governedMemoryLifecycleEnabled,
@@ -9,40 +9,25 @@ import {
   typesForLayers,
   type CompiledContextPacket,
   type ContextRequest,
-  type ContextStoreAdapter,
   type SteeringLayer,
   type SteeringRow,
+  type TruthfulCompiledContextPacket,
+  type TruthfulContextStoreAdapter,
 } from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
 
-/**
- * The orchestrator's Context Compiler v1 adapter (G1-b) — the GA-chat twin of
- * apps/api's ContextCompilerService. Same contract, same discipline, this
- * app's PrismaService (which shares apps/api's generated client + DB, exactly
- * like the meriAuditLedger writes):
- *
- *  - user-scoped layers ride `withTenantUser` (both GUCs — the 1C owner-aware
- *    RLS policy hides private user-voice rows otherwise; this is the exact
- *    drift that broke GA-chat voice on 2026-07-12);
- *  - the query does NOT filter on status: superseded/revoked rows must reach
- *    the compiler so the withholding is RECORDED as an exclusion;
- *  - the packet trace persists to `context_packet` fire-and-forget, fail-open.
- */
+/** The orchestrator's tenant-scoped Context Compiler adapter. */
 @Injectable()
 export class OrchestratorContextCompilerService {
-  private readonly logger = new Logger(OrchestratorContextCompilerService.name);
-  private readonly compiler: ContextCompiler;
+  private readonly compiler: TruthfulContextCompiler;
 
   constructor(private readonly prisma: PrismaService) {
-    const adapter: ContextStoreAdapter = {
+    const adapter: TruthfulContextStoreAdapter = {
       loadSteeringRows: (req) => this.loadSteeringRows(req),
-      // v2 only (compileV2 is the sole caller), which is what keeps the governed
-      // columns — all added by the UNAPPLIED
-      // 20260729010000_memory_governance_context_v2 — off the v1 read path.
       loadGovernedSteeringRows: (req) => this.loadSteeringRows(req, { governed: true }),
       persistPacket: (packet) => this.persistPacket(packet),
     };
-    this.compiler = new ContextCompiler(adapter);
+    this.compiler = new TruthfulContextCompiler(adapter);
   }
 
   compile(req: ContextRequest): Promise<CompiledContextPacket> {
@@ -82,11 +67,6 @@ export class OrchestratorContextCompilerService {
         OR (${wantsClient} AND type = ANY(${clientTypes})
             AND client_id = ${req.clientId ?? null}::uuid)
       )
-      -- Governed suppression, dark by default (MEMORY_GOVERNANCE_LIFECYCLE). Like
-      -- apps/api's twin this SELECT has no status predicate of its own; terminal
-      -- filtering happens in JS in meriv2-core's compiler and only for the LEGACY
-      -- 'revoked'/'superseded' values. The predicate is the SHARED one from
-      -- meriv2-core so the two adapters cannot drift apart.
       ${Prisma.raw(
         governedRecallSuppressionSql(
           governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE),
@@ -101,47 +81,38 @@ export class OrchestratorContextCompilerService {
       : this.prisma.withTenant(req.tenantId, (tx) => tx.$queryRaw<SteeringRow[]>(sql));
   }
 
-  private async persistPacket(packet: CompiledContextPacket): Promise<void> {
-    try {
-      await this.prisma.withTenant(packet.tenantId, (tx) =>
-        tx.contextPacket.create({
-          data: {
-            id: packet.packetId,
-            tenantId: packet.tenantId,
-            // context_packet.effective_tenant_id is NOT NULL with no DB default
-            // (20260729010000_memory_governance_context_v2). This trace write is
-            // fire-and-forget, so a NOT NULL violation here would be swallowed
-            // into a warn log and silently cost every packet trace.
-            effectiveTenantId: packet.tenantId,
-            surface: packet.surface,
-            userId: packet.userId,
-            clientId: packet.clientId,
-            ref: sanitizeRef(packet.ref) as Prisma.InputJsonValue,
-            items: packet.items as unknown as Prisma.InputJsonValue,
-            exclusions: packet.exclusions as unknown as Prisma.InputJsonValue,
-            itemCount: packet.items.length,
-            exclusionCount: packet.exclusions.length,
-            blockChars: packet.rendered.reduce((n, r) => n + r.body.length, 0),
-            ...contextPacketVersionColumns(packet),
-          },
-        }),
-      );
-    } catch (e) {
-      this.logger.warn(`context_packet trace write failed: ${(e as Error).message}`);
-    }
+  private async persistPacket(packet: TruthfulCompiledContextPacket): Promise<string> {
+    return this.prisma.withTenant(packet.tenantId, async (tx) => {
+      await tx.contextPacket.create({
+        data: {
+          id: packet.generatedPacketId,
+          tenantId: packet.tenantId,
+          effectiveTenantId: packet.tenantId,
+          surface: packet.surface,
+          userId: packet.userId,
+          clientId: packet.clientId,
+          ref: sanitizeRef(packet.ref) as Prisma.InputJsonValue,
+          items: packet.items as unknown as Prisma.InputJsonValue,
+          exclusions: packet.exclusions as unknown as Prisma.InputJsonValue,
+          itemCount: packet.items.length,
+          exclusionCount: packet.exclusions.length,
+          blockChars: packet.rendered.reduce((n, r) => n + r.body.length, 0),
+          packetHash: packet.traceHash,
+          ...contextPacketVersionColumns(packet),
+        },
+      });
+      const verified = await tx.contextPacket.findFirst({
+        where: { id: packet.generatedPacketId, tenantId: packet.tenantId },
+        select: { id: true },
+      });
+      if (verified?.id !== packet.generatedPacketId) {
+        throw new Error('context_packet_read_after_write_missing');
+      }
+      return verified.id;
+    });
   }
 }
 
-/**
- * The v2 provenance columns, written ONLY for a genuinely compiled v2 packet — the
- * exact twin of apps/api's `contextPacketVersionColumns`.
- *
- * `packet_version` is owned by `20260803010000_engagement_generation_gateway`
- * (1 = legacy steering-only trace, 2 = complete Evidence Packet) and defaults to 2,
- * so every steering trace has been stored claiming to be a complete packet. Writing
- * it explicitly per compiled contract makes each row honest. No existing row is
- * rewritten.
- */
 export function contextPacketVersionColumns(
   packet: CompiledContextPacket,
 ): Partial<Prisma.ContextPacketUncheckedCreateInput> {
@@ -166,7 +137,6 @@ function hasLayer(layers: readonly SteeringLayer[], layer: SteeringLayer): boole
   return layers.includes(layer);
 }
 
-/** Drop undefined values (Prisma Json columns reject them). */
 function sanitizeRef(
   ref: Record<string, string | null | undefined>,
 ): Record<string, string | null> {
