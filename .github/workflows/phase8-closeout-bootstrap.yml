@@ -1,0 +1,34 @@
+name: phase8-closeout-bootstrap
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'agent/meriv2-world-class-closeout'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - name: Repair generator and remove bootstrap
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/phase8-closeout.yml')
+          text = path.read_text()
+          old = '          method = """  private async clientContext'
+          new = '          method = r"""  private async clientContext'
+          assert text.count(old) == 1, text.count(old)
+          path.write_text(text.replace(old, new, 1))
+          Path('.github/workflows/phase8-closeout-bootstrap.yml').unlink()
+          PY
+          git config user.name 'Capiro Closeout Agent'
+          git config user.email 'noreply@capiro.ai'
+          git add .github/workflows/phase8-closeout.yml .github/workflows/phase8-closeout-bootstrap.yml
+          git commit -m 'ci(meriv2): fix Phase 8 closeout generator escaping'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
