@@ -286,12 +286,12 @@ export interface RenderedSteeringItem {
 }
 
 interface CompiledContextPacketBase {
-  /** Random identity created before persistence and used only for the attempted write. */
-  generatedPacketId: string;
-  /** Durable public identity. Null unless exact persistence and lookup succeeded. */
+  /** Legacy compiler identity before truthful persistence wrapping. */
   packetId: string | null;
+  /** Random identity created before persistence and used only for the attempted write. */
+  generatedPacketId?: string;
   /** Explicit durable identity, equal to packetId on success and null otherwise. */
-  persistedPacketId: string | null;
+  persistedPacketId?: string | null;
   surface: ContextSurface;
   tenantId: string;
   effectiveTenantId: string;
@@ -304,7 +304,7 @@ interface CompiledContextPacketBase {
   traceHash: string;
   persisted: boolean;
   /** Bounded reason code only; never a DB/provider error message. */
-  persistenceErrorCode: string | null;
+  persistenceErrorCode?: string | null;
   compiledAt: string;
 }
 
@@ -338,13 +338,22 @@ export interface CompiledContextPacketV2 extends CompiledContextPacketBase {
 
 export type CompiledContextPacket = CompiledContextPacketV1 | CompiledContextPacketV2;
 
+export type TruthfulCompiledContextPacket = CompiledContextPacket & {
+  generatedPacketId: string;
+  packetId: string | null;
+  persistedPacketId: string | null;
+  persistenceErrorCode: string | null;
+};
+
 export interface ContextStoreAdapter {
   loadSteeringRows(req: ContextRequest): Promise<SteeringRow[]>;
   /** Optional governed query. Core falls back to v1 rows and quarantines gaps. */
   loadGovernedSteeringRows?(req: ContextRequest): Promise<SteeringRow[]>;
-  /**
-   * Persist and verify the exact generated packet row, returning its durable ID.
-   * Adapters must throw on insert or read-after-write failure.
-   */
-  persistPacket?(packet: CompiledContextPacket): Promise<string>;
+  persistPacket?(packet: CompiledContextPacket): Promise<void>;
+}
+
+export interface TruthfulContextStoreAdapter
+  extends Omit<ContextStoreAdapter, 'persistPacket'> {
+  /** Persist and read back the exact generated packet row, returning its durable ID. */
+  persistPacket?(packet: TruthfulCompiledContextPacket): Promise<string>;
 }
