@@ -34,9 +34,10 @@ export function resolveContextPacketMode(raw: string | undefined): ContextPacket
 /**
  * Server-side tenant canary resolution over tenant.settings_jsonb.
  *
- * The tenant-wide flag must be literal true. A per-surface flag defaults to true
- * once the tenant-wide canary is enabled, but an explicit false keeps that one
- * surface dark. Browser values are never accepted here.
+ * Both the tenant-wide umbrella and the exact surface flag must be literal true.
+ * Requiring an explicit surface opt-in prevents enabling chat from silently arming
+ * memo, outreach, research, district, editor, or Workspace deliverables. Browser
+ * values are never accepted here.
  */
 export function tenantContextPacketCanaryEnabled(
   settings: unknown,
@@ -46,8 +47,10 @@ export function tenantContextPacketCanaryEnabled(
   const flags = (settings as { clioFeatureFlags?: unknown }).clioFeatureFlags;
   if (!flags || typeof flags !== 'object' || Array.isArray(flags)) return false;
   const record = flags as Record<string, unknown>;
-  if (record[CONTEXT_PACKET_V2_TENANT_FLAG] !== true) return false;
-  return record[contextPacketSurfaceFlag(surface)] !== false;
+  return (
+    record[CONTEXT_PACKET_V2_TENANT_FLAG] === true &&
+    record[contextPacketSurfaceFlag(surface)] === true
+  );
 }
 
 export function resolveTenantContextPacketMode(
@@ -97,6 +100,7 @@ export function contextPacketV2Overrides(
   const policy = contextSurfacePolicy(opts.surface);
   const applied = applyContextSurfacePolicy({
     tenantId: '',
+    userId: null,
     surface: opts.surface,
     clientId: null,
     ethicalWallAllowed: opts.ethicalWallAllowed,
