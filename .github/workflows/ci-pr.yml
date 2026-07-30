@@ -17,6 +17,17 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Phase 3 Settings memory call-site inspection
+        run: |
+          echo '::group::Phase 3 candidate files'
+          find apps/web/src -type f \( -iname '*memory*' -o -iname '*setting*' -o -iname '*knowledge*' \) | sort
+          echo '::endgroup::'
+          echo '::group::Phase 3 endpoint consumers'
+          rg -n --hidden --glob '!**/node_modules/**' "memory/items|items/.*/sections|upsertSectionsForCurrentTenant|updateSections\(" apps packages || true
+          echo '::endgroup::'
+          echo '::group::Phase 3 UI wording and handlers'
+          rg -n --hidden --glob '!**/node_modules/**' "Fill with Meri|Saved|Save failed|Submitted for|pending_review|activeItemUnchanged|candidateId" apps/web/src apps/api/src/memory || true
+          echo '::endgroup::'
       # No `version:` — pnpm/action-setup reads it from package.json
       # `packageManager` (pnpm@9.12.0); pinning both errors with
       # "Multiple versions of pnpm specified".
