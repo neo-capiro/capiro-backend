@@ -4,22 +4,10 @@ import type { TenantContext } from '@capiro/shared';
 import { MeriContextPacketController } from './meri-context-packet.controller.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 
-/**
- * The Context Inspector endpoint.
- *
- * What this controller owns:
- *   1. which surfaces answer "what context steered this conversation?" — the
- *      legacy in-process chat path writes surface='chat', only meriv2.fullChat
- *      tenants write 'ga-chat', and keying on 'ga-chat' alone told every other
- *      tenant "Context degraded" on every answer;
- *   2. finding the packet BY REF rather than scanning a fixed recent window;
- *   3. keeping the v2 column projection behind the dark switch — those columns come
- *      from an unapplied migration, so selecting them early fails the request.
- */
 describe('MeriContextPacketController', () => {
   const ctx = { tenantId: 't1', userId: 'u1' } as TenantContext;
   const ROW = {
-    id: 'packet-1',
+    id: '11111111-1111-4111-8111-111111111111',
     surface: 'chat',
     clientId: null,
     ref: { conversationId: 'c1' },
@@ -63,6 +51,8 @@ describe('MeriContextPacketController', () => {
     const controller = new MeriContextPacketController(prisma);
     const view = await controller.latestForConversation(ctx, 'c1');
     expect(view.degraded).toBe(false);
+    expect(view.persisted).toBe(true);
+    expect(view.packetId).toBe(ROW.id);
     const where = calls[0]!.where as Record<string, unknown>;
     expect(where.surface).toEqual({ in: ['ga-chat', 'chat'] });
   });
@@ -87,7 +77,22 @@ describe('MeriContextPacketController', () => {
     expect(args).not.toHaveProperty('take');
   });
 
-  it('selects NO v2 column while the switch is dark (they come from an unapplied migration)', async () => {
+  it('reloads the exact displayed packet id under tenant and user scope', async () => {
+    const { prisma, calls } = makePrisma();
+    const controller = new MeriContextPacketController(prisma);
+    const view = await controller.getById(ctx, ROW.id);
+
+    expect(view).toEqual(expect.objectContaining({ packetId: ROW.id, persisted: true }));
+    expect(calls[0]!.where).toEqual({ id: ROW.id, tenantId: 't1', userId: 'u1' });
+  });
+
+  it('404s an exact packet id that is not durably retrievable', async () => {
+    const { prisma } = makePrisma(null);
+    const controller = new MeriContextPacketController(prisma);
+    await expect(controller.getById(ctx, ROW.id)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('selects NO v2 column while the switch is dark', async () => {
     const { prisma, calls } = makePrisma();
     const controller = new MeriContextPacketController(prisma);
     await controller.latestForConversation(ctx, 'c1');
@@ -117,12 +122,18 @@ describe('MeriContextPacketController', () => {
     expect(select.traceId).toBe(true);
   });
 
-  it('honestly reports an unavailable packet instead of inventing an empty healthy one', async () => {
+  it('honestly reports an unavailable packet with no fabricated id', async () => {
     const { prisma } = makePrisma(null);
     const controller = new MeriContextPacketController(prisma);
     const view = await controller.latestForConversation(ctx, 'c1');
     expect(view).toEqual(
-      expect.objectContaining({ degraded: true, items: [], unauthorizedCount: 0 }),
+      expect.objectContaining({
+        packetId: null,
+        persisted: false,
+        degraded: true,
+        items: [],
+        unauthorizedCount: 0,
+      }),
     );
   });
 
