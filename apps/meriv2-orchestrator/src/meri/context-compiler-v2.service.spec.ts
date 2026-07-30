@@ -2,7 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals
 import { OrchestratorContextCompilerService } from './context-compiler.service';
 import type { PrismaService } from '../prisma/prisma.service';
 
-const CANARY = { clioFeatureFlags: { 'meriv2.contextPacketV2': true } };
+const CANARY = {
+  clioFeatureFlags: {
+    'meriv2.contextPacketV2': true,
+    'meriv2.contextPacketV2.ga-chat': true,
+    'meriv2.contextPacketV2.strategy': true,
+  },
+};
 
 describe('OrchestratorContextCompilerService — Phase 8', () => {
   const ROW = {
@@ -86,12 +92,13 @@ describe('OrchestratorContextCompilerService — Phase 8', () => {
       contractVersion: 2,
     });
     expect(packet.version).toBe(1);
+    expect(packet).not.toHaveProperty('rolloutMode');
     const select = selectListOf(queries[0]);
     expect(select).not.toContain('memory_class');
     expect(select).not.toContain('memory_authority');
   });
 
-  it('enforce plus tenant canary reads governed columns and persists v2', async () => {
+  it('enforce plus explicit surface canary reads governed columns and persists v2', async () => {
     process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
     const { prisma, queries, packetCreates } = makePrisma();
     const packet = await new OrchestratorContextCompilerService(prisma).compile({
@@ -114,10 +121,10 @@ describe('OrchestratorContextCompilerService — Phase 8', () => {
     expect(packet.persisted).toBe(true);
   });
 
-  it('tenant without canary stays on v1 under global enforce', async () => {
+  it('tenant umbrella without the exact surface canary stays on v1 under global enforce', async () => {
     process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
     const { prisma } = makePrisma([ROW], {
-      settings: { clioFeatureFlags: { 'meriv2.contextPacketV2': false } },
+      settings: { clioFeatureFlags: { 'meriv2.contextPacketV2': true } },
     });
     const packet = await new OrchestratorContextCompilerService(prisma).compile({
       tenantId: 't1',
@@ -128,7 +135,7 @@ describe('OrchestratorContextCompilerService — Phase 8', () => {
     expect(packet.version).toBe(1);
   });
 
-  it('shadow persists v1 and v2 while returning v1', async () => {
+  it('shadow persists v1 and v2 while returning unchanged v1', async () => {
     process.env.MERIV2_CONTEXT_PACKET_V2 = 'shadow';
     const { prisma, packetCreates, executions } = makePrisma();
     const packet = await new OrchestratorContextCompilerService(prisma).compile({
@@ -138,6 +145,8 @@ describe('OrchestratorContextCompilerService — Phase 8', () => {
       layers: ['firm-identity'],
     });
     expect(packet.version).toBe(1);
+    expect(packet).not.toHaveProperty('rolloutMode');
+    expect(packet).not.toHaveProperty('shadowComparison');
     expect(packetCreates.map((entry) => entry.data.packetVersion)).toEqual([1, 2]);
     expect(executions).toHaveLength(1);
   });
