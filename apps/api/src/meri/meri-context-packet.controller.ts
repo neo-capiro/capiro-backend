@@ -10,6 +10,9 @@ import type { TenantContext } from '@capiro/shared';
 import {
   MERIV2_CONTEXT_PACKET_V2_ENV,
   resolveContextPacketMode,
+  resolveTenantContextPacketMode,
+  type ContextPacketMode,
+  type ContextSurface,
 } from '@capiro/meriv2-core';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -17,8 +20,8 @@ import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { contextPacketView } from './meri-context-packet-view.js';
 
-const CONVERSATION_SURFACES = ['ga-chat', 'chat'] as const;
-const DOCUMENT_SURFACES = ['workspace-editor', 'in-editor'] as const;
+const CONVERSATION_SURFACES = ['ga-chat', 'chat'] as const satisfies readonly ContextSurface[];
+const DOCUMENT_SURFACES = ['workspace-editor', 'in-editor'] as const satisfies readonly ContextSurface[];
 
 @Controller('clio/context-packets')
 @UseGuards(RolesGuard)
@@ -58,10 +61,25 @@ export class MeriContextPacketController {
     @CurrentTenant() ctx: TenantContext,
     @Param('id', new ParseUUIDPipe()) packetId: string,
   ) {
+    const identity = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      tx.contextPacket.findFirst({
+        where: { id: packetId, tenantId: ctx.tenantId, userId: ctx.userId },
+        select: { id: true, surface: true, packetVersion: true },
+      }),
+    );
+    if (!identity || !isContextSurface(identity.surface)) {
+      throw new NotFoundException('Context packet not found');
+    }
+
+    const mode = await this.rolloutMode(ctx.tenantId, identity.surface);
+    if (identity.packetVersion !== visiblePacketVersion(mode)) {
+      throw new NotFoundException('Context packet not found');
+    }
+
     const row = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       tx.contextPacket.findFirst({
         where: { id: packetId, tenantId: ctx.tenantId, userId: ctx.userId },
-        select: this.packetSelect(),
+        select: this.packetSelect(mode === 'enforce'),
       }),
     );
     if (!row) throw new NotFoundException('Context packet not found');
@@ -70,20 +88,27 @@ export class MeriContextPacketController {
 
   private async latest(
     ctx: TenantContext,
-    surfaces: readonly string[],
+    surfaces: readonly ContextSurface[],
     refKey: 'conversationId' | 'documentId',
     refValue: string,
   ) {
+    const modes = await Promise.all(
+      surfaces.map(async (surface) => [surface, await this.rolloutMode(ctx.tenantId, surface)] as const),
+    );
+    const includeV2Columns = modes.some(([, mode]) => mode === 'enforce');
     const row = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       tx.contextPacket.findFirst({
         where: {
           tenantId: ctx.tenantId,
           userId: ctx.userId,
-          surface: { in: [...surfaces] },
+          OR: modes.map(([surface, mode]) => ({
+            surface,
+            packetVersion: visiblePacketVersion(mode),
+          })),
           ref: { path: [refKey], equals: refValue },
         },
         orderBy: { createdAt: 'desc' },
-        select: this.packetSelect(),
+        select: this.packetSelect(includeV2Columns),
       }),
     );
     if (!row) {
@@ -102,12 +127,24 @@ export class MeriContextPacketController {
     return contextPacketView(row, await this.clientName(ctx, row.clientId));
   }
 
-  private packetSelect() {
-    // Shadow persists v2 comparison traces even though v1 remains model-active, so
-    // both shadow and enforce must be able to read v2 metadata. Off never touches
-    // migration-added columns.
-    const v2Columns =
-      resolveContextPacketMode(process.env[MERIV2_CONTEXT_PACKET_V2_ENV]) !== 'off';
+  private async rolloutMode(tenantId: string, surface: ContextSurface): Promise<ContextPacketMode> {
+    const globalMode = resolveContextPacketMode(process.env[MERIV2_CONTEXT_PACKET_V2_ENV]);
+    if (globalMode === 'off') return 'off';
+    try {
+      const tenant = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.tenant.findFirst({ where: { id: tenantId }, select: { settings: true } }),
+      );
+      return resolveTenantContextPacketMode(
+        process.env[MERIV2_CONTEXT_PACKET_V2_ENV],
+        tenant?.settings,
+        surface,
+      );
+    } catch {
+      return 'off';
+    }
+  }
+
+  private packetSelect(includeV2Columns: boolean) {
     return {
       id: true,
       surface: true,
@@ -116,7 +153,7 @@ export class MeriContextPacketController {
       items: true,
       exclusions: true,
       createdAt: true,
-      ...(v2Columns
+      ...(includeV2Columns
         ? {
             packetVersion: true,
             health: true,
@@ -143,4 +180,25 @@ export class MeriContextPacketController {
       .then((client) => client?.name ?? null)
       .catch(() => null);
   }
+}
+
+function visiblePacketVersion(mode: ContextPacketMode): number {
+  return mode === 'enforce' ? 2 : 1;
+}
+
+function isContextSurface(value: string): value is ContextSurface {
+  return [
+    'chat',
+    'ga-chat',
+    'tool-invoke',
+    'in-editor',
+    'workspace-editor',
+    'strategy',
+    'steward',
+    'outreach',
+    'memo',
+    'district-brief',
+    'research',
+    'workspace-gen',
+  ].includes(value);
 }
