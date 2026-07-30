@@ -105,7 +105,7 @@ Closeout **execution phase** column is the session phase from the final schedule
 | G11 | Current request cannot be FYDP outyear | `in_branch` (Phase 4 FAIL R2 fix) | list peCurrentCycleFy + sqlCurrentCycleFyExpr; detail/timeline currentCycleFyPreservingZero + NDAA; currentCycleFyOf aligned; markup pe_cycle CTE | 4 |
 | G12 | API contract tests + verify:pe-phase-g | `in_branch` (Phase 4) | funding-claim.spec + read.service Phase G case | 4 |
 
-**Phase 4 review gate:** Round 1 FAIL B1–B3 closed on product `2adb5581a`. Round 2 on tip `13cb22c53` = **FAIL** (B5 list cycle = latest request FY; B6 detail fundingSummary NDAA-blind `currentCycleFyOf`; B7 markup `ORDER BY fy DESC`). Round-2 remediations on this push — requires a **new** independent REVIEW on the post-fix tip (no self-PASS). Re-attack B5/B6/B7 and hold B1–B3.
+**Phase 4 review gate:** Round 1 FAIL B1–B3 closed on product `2adb5581a`. Round 2 on tip `13cb22c53` = **FAIL** (B5 list cycle = latest request FY; B6 detail fundingSummary NDAA-blind `currentCycleFyOf`; B7 markup `ORDER BY fy DESC`). Round-2 remediations product `5e83b8946148c91977bd4da7a4888bb94f33a642` — requires a **new** independent REVIEW on that tip (no self-PASS). Re-attack B5/B6/B7 and hold B1–B3.
 
 ---
 

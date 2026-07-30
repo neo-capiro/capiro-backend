@@ -619,7 +619,7 @@ Implementer does **not** self-PASS the Phase 4 exit gate. Independent REVIEW req
 | Review Round 1 | `cf87ee77a1eeea3e989b4bdf80e1a8cdcd3edec4` | **FAIL** B1/B2/B3 (B4 polish) |
 | Phase 4 product (FAIL R1 remediations) | `2adb5581ac9151bcbd763029228b7fb5feeb2392` | implement |
 | Docs pin R1 product | `13cb22c537ab9bc8340486d88aa1c0de5a5a8e86` | **FAIL** Round 2 B5/B6/B7 |
-| Phase 4 product (FAIL R2 remediations B5–B7) | *(set after push)* | implement; review REQUIRED |
+| Phase 4 product (FAIL R2 remediations B5–B7) | `5e83b8946148c91977bd4da7a4888bb94f33a642` | implement; review REQUIRED |
 
 ### Rollback (includes this remediation)
 
