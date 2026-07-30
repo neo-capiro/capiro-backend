@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { TenantModule } from '../tenant/tenant.module.js';
 import { MemoryStoreService } from './memory-store.service.js';
+import { GovernedMemoryStoreService } from './governed-memory-store.service.js';
+import { ImmutableMemoryVersionService } from './immutable-memory-version.service.js';
 import { MemoryFkLoader } from './memory-fk-loader.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
 import { MemoryInterviewService } from './memory-interview.service.js';
@@ -14,6 +16,7 @@ import { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
 import { MemoryPurgeService } from './memory-purge.service.js';
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
 import { MemoryController } from './memory.controller.js';
+import { MemoryVersionController } from './memory-version.controller.js';
 import { InternalMemoryController } from './internal-memory.controller.js';
 
 /**
@@ -31,9 +34,11 @@ import { InternalMemoryController } from './internal-memory.controller.js';
  */
 @Module({
   imports: [PrismaModule, TenantModule],
-  controllers: [MemoryController, InternalMemoryController],
+  controllers: [MemoryController, MemoryVersionController, InternalMemoryController],
   providers: [
-    MemoryStoreService,
+    GovernedMemoryStoreService,
+    { provide: MemoryStoreService, useExisting: GovernedMemoryStoreService },
+    ImmutableMemoryVersionService,
     MemoryFkLoader,
     MemoryIngestService,
     MemoryInterviewService,
@@ -51,6 +56,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     MemoryIngestService,
     MemoryCandidateService,
     MemoryAuthorizationService,
+    ImmutableMemoryVersionService,
     MemoryTransitionAuditService,
     MemoryCleanupOutboxService,
     MemoryPurgeService,
