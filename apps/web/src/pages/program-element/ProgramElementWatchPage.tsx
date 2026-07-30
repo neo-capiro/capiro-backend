@@ -667,23 +667,30 @@ export function ProgramElementWatchPage() {
   // bills whose history hasn't been ingested. Blanket authorizers (NDAA-scale
   // peCodeCount) are capped to their most recent actions so a 700-PE bill's
   // procedural churn doesn't drown the PE-specific story.
-  const historyEvents = billActionsQuery.data ?? [];
+  // B15: never treat bill-actions request failure as "no history" via data ?? [].
+  const historyEvents = billActionsQuery.isError ? [] : (billActionsQuery.data ?? []);
 
   // LEG-A: attach the (already-fetched) stage-classified action feed to each bill
   // so the bill-timeline swimlane renders full per-bill histories rather than a
   // single latest-action dot. historyEvents is capped server-side; bills with no
   // events in the feed fall back to their latestAction inside the panel.
+  // When billActions is errored, leave actions unset so BillsTouchingPePanel can
+  // paint pe-secondary-failed-bill-actions instead of "No action history synced".
   const billsWithActions: ProgramElementBill[] = bills.map((b) => ({
     ...b,
-    actions: historyEvents
-      .filter((e) => e.billId === b.id)
-      .map((e, i) => ({
-        id: `${e.billId}-${e.date}-${i}`,
-        date: e.date,
-        text: e.text,
-        type: e.type,
-        chamber: e.chamber,
-      })),
+    ...(billActionsQuery.isError
+      ? {}
+      : {
+          actions: historyEvents
+            .filter((e) => e.billId === b.id)
+            .map((e, i) => ({
+              id: `${e.billId}-${e.date}-${i}`,
+              date: e.date,
+              text: e.text,
+              type: e.type,
+              chamber: e.chamber,
+            })),
+        }),
   }));
 
   const projects = projectsQuery.data ?? [];
@@ -994,9 +1001,11 @@ export function ProgramElementWatchPage() {
       <div className="pe-surface pe-plain-surface span-2">
         <BillsTouchingPePanel
           bills={billsWithActions}
-          loading={billsQuery.isLoading}
+          loading={billsQuery.isLoading || (q('billActions') && billActionsQuery.isLoading)}
           errored={billsQuery.isError}
           onRetry={() => void billsQuery.refetch()}
+          billActionsErrored={billActionsQuery.isError}
+          onRetryBillActions={() => void billActionsQuery.refetch()}
         />
       </div>
 
@@ -1058,7 +1067,11 @@ export function ProgramElementWatchPage() {
             <span className="pe-surface-sub">research → contracts · per-rung evidence</span>
           </div>
           <div className="bl-panel-body">
-            <MaturityLadderPanel ladder={intelligenceQuery.data?.maturityLadder} />
+            <MaturityLadderPanel
+              ladder={intelligenceQuery.isError ? undefined : intelligenceQuery.data?.maturityLadder}
+              errored={intelligenceQuery.isError}
+              onRetry={() => void intelligenceQuery.refetch()}
+            />
           </div>
         </div>
       ) : null}
@@ -1085,7 +1098,11 @@ export function ProgramElementWatchPage() {
     <div className="pe-dt-panel">
       <div className="pe-surface pe-plain-surface span-2">
         <div className="bl-panel-body">
-          <AppropriabilityPanel approp={intelligenceQuery.data?.appropriability} />
+          <AppropriabilityPanel
+            approp={intelligenceQuery.isError ? undefined : intelligenceQuery.data?.appropriability}
+            errored={intelligenceQuery.isError}
+            onRetry={() => void intelligenceQuery.refetch()}
+          />
         </div>
       </div>
     </div>

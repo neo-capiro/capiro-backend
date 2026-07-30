@@ -22,9 +22,18 @@ vi.mock('./FyHistoryChart.js', () => ({
 }));
 
 vi.mock('./BillsTouchingPePanel.js', () => ({
-  BillsTouchingPePanel: ({ bills }: { bills: Array<{ id: string }> }) => (
-    <div data-testid="bills-panel">bills:{bills.length}</div>
-  ),
+  BillsTouchingPePanel: ({
+    bills,
+    billActionsErrored,
+  }: {
+    bills: Array<{ id: string }>;
+    billActionsErrored?: boolean;
+  }) =>
+    billActionsErrored ? (
+      <div data-testid="pe-secondary-failed-bill-actions">Failed to load bill action history</div>
+    ) : (
+      <div data-testid="bills-panel">bills:{bills.length}</div>
+    ),
 }));
 
 vi.mock('./ContractorsPanel.js', () => ({
@@ -133,6 +142,7 @@ function setupApi(
             },
           };
         }
+        if (url.includes('/bill-actions')) return { data: [] };
         if (url.includes('/bills')) {
           return {
             data: [
@@ -539,5 +549,63 @@ describe('ProgramElementWatchPage', () => {
         expect(screen.queryByRole('tab', { name: /Procurement detail/i })).not.toBeInTheDocument();
         const selected = document.querySelector('.ant-tabs-tab-active');
         expect(selected?.textContent ?? '').toMatch(/Overview/i);
+      });
+
+      test('B14 intelligence 500 shows failed UI on Relationships + Appropriability, not derivation Empty', async () => {
+        setupApi(true, undefined, 2027);
+        const baseImpl = apiGetMock.getMockImplementation()!;
+        apiGetMock.mockImplementation(async (url: string) => {
+          if (String(url).includes('/intelligence')) {
+            const err = new Error('intelligence boom') as Error & { response?: { status: number } };
+            err.response = { status: 500 };
+            throw err;
+          }
+          return baseImpl(url);
+        });
+        renderPage();
+        await waitFor(() => expect(screen.getByTestId('pe-trust-header')).toBeInTheDocument());
+        expect(screen.getByText(/Partial data/i)).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('tab', { name: /Relationships/i }));
+        await waitFor(() => {
+          expect(screen.getByTestId('pe-secondary-failed-intelligence-maturity')).toBeInTheDocument();
+        });
+        expect(
+          screen.queryByText(/Transition maturity not yet computed/i),
+        ).not.toBeInTheDocument();
+        expect(screen.getAllByTestId('pe-secondary-retry').length).toBeGreaterThan(0);
+
+        fireEvent.click(screen.getByRole('tab', { name: /Appropriability/i }));
+        await waitFor(() => {
+          expect(
+            screen.getByTestId('pe-secondary-failed-intelligence-appropriability'),
+          ).toBeInTheDocument();
+        });
+        expect(screen.queryByText(/Appropriability not yet scored/i)).not.toBeInTheDocument();
+        expect(screen.getByText(/Partial data/i)).toBeInTheDocument();
+      });
+
+      test('B15 bill-actions 500 shows failed UI, not silent empty history', async () => {
+        setupApi(true, undefined, 2027);
+        const baseImpl = apiGetMock.getMockImplementation()!;
+        apiGetMock.mockImplementation(async (url: string) => {
+          if (String(url).includes('/bill-actions')) {
+            const err = new Error('bill-actions boom') as Error & { response?: { status: number } };
+            err.response = { status: 500 };
+            throw err;
+          }
+          return baseImpl(url);
+        });
+        renderPage();
+        await waitFor(() => expect(screen.getByTestId('pe-trust-header')).toBeInTheDocument());
+        await waitFor(() => {
+          expect(screen.getByText(/Partial data/i)).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByRole('tab', { name: /Legislation/i }));
+        await waitFor(() => {
+          expect(screen.getByTestId('pe-secondary-failed-bill-actions')).toBeInTheDocument();
+        });
+        expect(screen.queryByText(/No action history synced yet/i)).not.toBeInTheDocument();
+        expect(screen.getByText(/Partial data/i)).toBeInTheDocument();
       });
       });

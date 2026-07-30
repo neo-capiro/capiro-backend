@@ -376,10 +376,24 @@ export function IncumbentMapPanel({
 export function MaturityLadderPanel({
   ladder,
   compact,
+  errored = false,
+  onRetry,
 }: {
   ladder: MaturityLadderData | null | undefined;
   compact?: boolean;
+  /** Phase 5 B14 — intelligence request failed; never show derivation-pending Empty. */
+  errored?: boolean;
+  onRetry?: () => void;
 }) {
+  if (errored) {
+    return (
+      <PeSecondaryFailed
+        label="transition maturity"
+        testId="pe-secondary-failed-intelligence-maturity"
+        onRetry={onRetry}
+      />
+    );
+  }
   if (!ladder || !Array.isArray(ladder.rungs) || ladder.rungs.length === 0) {
     return (
       <Empty
@@ -404,9 +418,23 @@ export function MaturityLadderPanel({
 // ── Appropriability (F27) ────────────────────────────────────────────────────
 export function AppropriabilityPanel({
   approp,
+  errored = false,
+  onRetry,
 }: {
   approp: AppropriabilityData | null | undefined;
+  /** Phase 5 B14 — intelligence request failed; never show derivation-pending Empty. */
+  errored?: boolean;
+  onRetry?: () => void;
 }) {
+  if (errored) {
+    return (
+      <PeSecondaryFailed
+        label="appropriability"
+        testId="pe-secondary-failed-intelligence-appropriability"
+        onRetry={onRetry}
+      />
+    );
+  }
   if (!approp || (!approp.factors?.length && !approp.unscored?.length)) {
     return (
       <Empty description="Appropriability not yet scored — runs with the nightly intelligence derivation once the line has enough evidence." />

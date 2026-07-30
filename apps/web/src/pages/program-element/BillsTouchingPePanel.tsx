@@ -13,6 +13,9 @@ export interface BillsTouchingPePanelProps {
 
   errored?: boolean;
   onRetry?: () => void;
+  /** Phase 5 B15 — /bill-actions failed; must not paint "No action history synced". */
+  billActionsErrored?: boolean;
+  onRetryBillActions?: () => void;
 }
 
 type EventKind = 'reported' | 'committee' | 'passed' | 'president' | 'law' | 'procedural';
@@ -368,6 +371,8 @@ function PeLinkBasis({ bill }: { bill: ProgramElementBill }) {
 export function BillsTouchingPePanel({ bills, loading = false,
   errored = false,
   onRetry,
+  billActionsErrored = false,
+  onRetryBillActions,
 }: BillsTouchingPePanelProps) {
   const navigate = useNavigate();
   // R2 §2.5 routes a bill lane to Bill 360 — but ONLY for a tenant that has it.
@@ -536,7 +541,13 @@ export function BillsTouchingPePanel({ bills, loading = false,
 
         <div className="pe-action-history">
           <div className="pe-action-history-title">Action history</div>
-          {detailEvents.length > 0 ? (
+          {billActionsErrored ? (
+            <PeSecondaryFailed
+              label="bill action history"
+              testId="pe-secondary-failed-bill-actions"
+              onRetry={onRetryBillActions}
+            />
+          ) : detailEvents.length > 0 ? (
             <div className="pe-action-table">
               <div className="pe-action-row pe-action-head">
                 <span>Date</span>
