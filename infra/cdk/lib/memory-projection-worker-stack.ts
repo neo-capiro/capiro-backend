@@ -43,7 +43,9 @@ export class MemoryProjectionWorkerStack extends cdk.Stack {
       secretsKey,
     } = props;
 
-    commonTags(cfg).forEach((tag) => cdk.Tags.of(this).add(tag.key, tag.value));
+    for (const [key, value] of Object.entries(commonTags(cfg))) {
+      cdk.Tags.of(this).add(key, value);
+    }
 
     new ScheduledMemoryProjectionWorker(this, 'ScheduledWorker', {
       envName: cfg.envName,
