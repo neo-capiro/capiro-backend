@@ -83,6 +83,9 @@ jobs:
           text = path.read_text()
           text = text.replace("ARRAY['memory-file', ${record.scope}], 'manual'", "ARRAY['memory', ${record.source}], 'manual'")
           path.write_text(text)
+          test_path = Path('apps/api/src/memory/memory.controller.settings-review.spec.ts')
+          test_text = test_path.read_text().replace('active.sections[0].body', 'active.sections[0]?.body')
+          test_path.write_text(test_text)
           PY
           forbidden=$(git diff --name-only | grep -E '(^|/)(program-element|defense-budget|program_element|pe-)' || true)
           if [ -n "$forbidden" ]; then
