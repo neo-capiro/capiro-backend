@@ -143,8 +143,8 @@
     "process:funding-opportunity-lifecycle": "tsx scripts/process-funding-opportunity-lifecycle.ts",
     "backfill:funding-mapping-review": "tsx scripts/backfill-funding-mapping-review.ts",
     "verify:pe-phase-f": "jest --runInBand --detectOpenHandles --forceExit src/ingestion/embed-watermark.spec.ts src/ingestion/sync-run.helper.spec.ts scripts/sam-opportunity-matcher.spec.ts scripts/sync-sam-opportunities.spec.ts",
-    "verify:pe-phase-g": "jest --runInBand --forceExit src/program-element/funding-claim.spec.ts src/program-element/deltas/delta-compute.spec.ts src/program-element/pe-funding-narrative.helpers.spec.ts src/program-element/program-element-read.service.spec.ts src/program-element/budget-position.spec.ts"
-    "verify:pe-phase-i": "jest --runInBand --detectOpenHandles --forceExit src/program-element/program-element-data-issue.service.spec.ts src/acquisition-personnel/contact-use.policy.spec.ts src/acquisition-personnel/acquisition-personnel-read.service.spec.ts src/acquisition-personnel/acquisition-personnel.controller.spec.ts src/program-element/program-element.controller.spec.ts",
+    "verify:pe-phase-g": "jest --runInBand --forceExit src/program-element/funding-claim.spec.ts src/program-element/deltas/delta-compute.spec.ts src/program-element/pe-funding-narrative.helpers.spec.ts src/program-element/program-element-read.service.spec.ts src/program-element/budget-position.spec.ts",
+    "verify:pe-phase-i": "jest --runInBand --detectOpenHandles --forceExit src/program-element/program-element-data-issue.service.spec.ts src/acquisition-personnel/contact-use.policy.spec.ts src/acquisition-personnel/acquisition-personnel-read.service.spec.ts src/acquisition-personnel/acquisition-personnel.controller.spec.ts src/program-element/program-element.controller.spec.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.665.0",
