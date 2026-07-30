@@ -151,11 +151,11 @@ export class MemoryProjectionWorkerService {
     try {
       if (job.operation === 'index_memory_item') {
         if (!job.clio_memory_id) throw new MemoryWorkerError('missing_clio_memory_id');
-        const projected = await this.projector.projectClioMemoryStrict(
+        const receipt = await this.projector.projectClioMemoryStrict(
           job.tenant_id,
           job.clio_memory_id,
         );
-        if (projected === 'vanished') {
+        if (receipt.outcome === 'vanished') {
           await this.completeJob(job, true);
           return 'vanished';
         }
