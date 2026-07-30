@@ -20,6 +20,21 @@ interface ExactProjectionExpectation {
 }
 
 /**
+ * A source timestamp is not a sufficient unique effect identity by itself. Prisma
+ * DateTime values have millisecond precision at the application boundary, so two
+ * serialized mutations may legitimately share one `updated_at` while producing
+ * different canonical content. Including the expected hash prevents the second
+ * obligation from collapsing into the first unique outbox row.
+ */
+export function exactProjectionIdempotencyKey(
+  clioMemoryId: string,
+  sourceVersion: string,
+  contentHash: string,
+): string {
+  return `index_memory_item:${clioMemoryId}:${sourceVersion}:${contentHash}`;
+}
+
+/**
  * Phase 6 live outbox implementation.
  *
  * Index jobs are bound to the source version, exact canonical item (when one already
@@ -135,7 +150,11 @@ export class ExactMemoryCleanupOutboxService extends MemoryCleanupOutboxService 
       return {
         sourceVersion: clioMaterial.sourceVersion,
         contentHash: clioMaterial.contentHash,
-        idempotencyKey: clioMaterial.idempotencyKey,
+        idempotencyKey: exactProjectionIdempotencyKey(
+          clioMemoryId,
+          clioMaterial.sourceVersion,
+          clioMaterial.contentHash,
+        ),
       };
     }
 
@@ -166,7 +185,11 @@ export class ExactMemoryCleanupOutboxService extends MemoryCleanupOutboxService 
     return {
       sourceVersion: clioMaterial.sourceVersion,
       contentHash: canonical.contentHash,
-      idempotencyKey: clioMaterial.idempotencyKey,
+      idempotencyKey: exactProjectionIdempotencyKey(
+        clioMemoryId,
+        clioMaterial.sourceVersion,
+        canonical.contentHash,
+      ),
     };
   }
 }
