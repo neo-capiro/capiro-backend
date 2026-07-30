@@ -33,14 +33,24 @@ jobs:
           block = source.split(marker, 1)[1]
           lines = block.splitlines()
           script = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines) + '\n'
-          needle = 'git rm .github/workflows/meriv2-phase3-evidence.yml\n'
-          replacement = (
-              needle
+          cleanup_anchor = 'git rm .github/workflows/meriv2-phase3-evidence.yml\n'
+          cleanup_replacement = (
+              cleanup_anchor
               + 'git checkout origin/main -- .github/workflows/ci-pr.yml\n'
               + 'git add .github/workflows/ci-pr.yml\n'
           )
-          if needle not in script:
+          if cleanup_anchor not in script:
               raise SystemExit('Phase 3 evidence cleanup anchor not found')
-          Path('/tmp/record-phase3-evidence.sh').write_text(script.replace(needle, replacement, 1))
+          script = script.replace(cleanup_anchor, cleanup_replacement, 1)
+          check_anchor = 'git diff --cached --check\n'
+          check_replacement = (
+              "sed -i 's/[[:space:]]\\+$//' docs/qa/meriv2-phase3-acceptance.md\n"
+              + 'git add docs/qa/meriv2-phase3-acceptance.md\n'
+              + check_anchor
+          )
+          if check_anchor not in script:
+              raise SystemExit('Phase 3 evidence diff-check anchor not found')
+          script = script.replace(check_anchor, check_replacement, 1)
+          Path('/tmp/record-phase3-evidence.sh').write_text(script)
           PY
           bash /tmp/record-phase3-evidence.sh
