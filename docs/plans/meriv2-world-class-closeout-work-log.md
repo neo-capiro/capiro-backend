@@ -4,11 +4,11 @@
 **Primary branch:** `agent/meriv2-world-class-closeout`  
 **Primary PR:** `#679`  
 **State:** Draft, unmerged  
-**Authoritative through:** Phase 6 code acceptance  
-**Latest accepted code head:** `67288bb76ed0a02a7cc4e56f191b27847483dd3a`  
-**Moving baseline at the Phase 6 acceptance check:** `main@3dcb12f823774b6fae8578dc56fc122bf9a0879e`
+**Authoritative through:** Phase 7 code acceptance  
+**Latest accepted code head:** `855455a2fa67a669d2d9a88a1b1473980a07c8fd`  
+**Moving baseline at the Phase 7 acceptance check:** `main@3dcb12f823774b6fae8578dc56fc122bf9a0879e`
 
-No merge to `main`, AWS deployment, shared/production migration, production backfill, feature-flag activation, customer-data mutation, or external send has occurred during Phases 0–6.
+No merge to `main`, AWS deployment, shared/production migration, production backfill, feature-flag activation, customer-data mutation, or external send has occurred during Phases 0–7.
 
 ---
 
@@ -229,21 +229,96 @@ Detailed acceptance: `docs/qa/meriv2-phase-6-exact-projection-completion.md`.
 
 ---
 
-## Cumulative Phases 1–6 closure
+## Phase 7 — truthful Context Packet persistence
+
+### Accepted code head
+
+`855455a2fa67a669d2d9a88a1b1473980a07c8fd`
+
+### Runtime contract
+
+- generated packet UUIDs are private attempt identities and are removed from the public contract before persistence;
+- one shared `TruthfulContextCompiler` owns the required-versus-best-effort decision;
+- API, orchestrator, and Workspace adapters await insertion and exact tenant-scoped read-after-write verification;
+- a public packet ID is populated only when the adapter returns the exact attempted ID;
+- best-effort failure returns `packetId: null`, `persisted: false`, a bounded error code, and degraded provenance;
+- audited editor, Strategy, and Workspace-generation surfaces require persistence and hold before release;
+- Workspace generation failures are isolated per request with `AsyncLocalStorage`, so concurrent requests for the same draft cannot clear or consume each other’s hold;
+- single-section generation is held before its response leaves the controller, and generated-draft writes are held at the Prisma boundary;
+- Context Inspector displays an ID only on explicit `persisted: true` and never on absent/unproven persistence evidence;
+- exact packet reload is tenant/user scoped and missing IDs return `404`;
+- stored packet views set `persisted: true`; unavailable live summaries set `persisted: false` and no ID.
+
+### Final audit corrections
+
+The closeout review found and fixed two late release blockers:
+
+1. a process-global Workspace hold map allowed parallel same-draft requests to interfere with each other;
+2. Context Inspector treated an absent `persisted` flag as sufficient to display a packet ID.
+
+Both paths now fail closed and have explicit regressions.
+
+### Acceptance evidence
+
+On synchronized code head `855455a2`, permanent cumulative workflow `memory-governance-ci` run `30580550695` passed:
+
+- all five Prisma clients generated;
+- full repository dependency-graph typecheck — **PASS**;
+- projection-worker infrastructure typecheck — **PASS**;
+- API governed-memory Phases 1–7 — **55 suites / 480 tests PASS**;
+- Phase 7 core persistence and surface policy — **2 suites / 16 tests PASS**;
+- orchestrator Context/Strategy/Steward matrix — **6 suites / 37 tests PASS**;
+- Workspace canonical context and request-local persistence hold — **5 suites / 36 tests PASS**;
+- Settings and Context Inspector contracts — **2 files / 10 tests PASS**.
+
+Cumulative total: **70 suites/files / 579 tests PASS**.
+
+Required workflows on the same code head:
+
+- `memory-governance-ci` `30580550695` — **PASS**;
+- `ci-pr` `30580550705` — **PASS**;
+- `meriv2-evals` `30580550689` — **PASS**;
+- `engagement-trust-boundary` `30580550742` — **PASS**;
+- `legiwatch-ci` `30580550691` — **PASS**;
+- `funding-opportunities-ci` `30580550760` — **PASS**.
+
+Immediately before the Phase 7 evidence record, the branch was **0 commits behind** `main@3dcb12f823774b6fae8578dc56fc122bf9a0879e` and remained draft, mergeable, and unmerged.
+
+### Acceptance
+
+**PASS.** Every packet ID displayed by the product is backed by an exact, tenant-scoped, retrievable `context_packet` row. Best-effort failure exposes no ID, and required audited generation boundaries cannot release content after a failed persistence attempt.
+
+### Phase 8 boundary
+
+Phase 8 owns the `off | shadow | enforce` rollout, tenant canaries, optional-versus-required layer semantics, and safe v2 enablement for memo, outreach, district-brief, and research body-rendering surfaces. Those surfaces remain dark rather than printing typed v2 envelopes into deliverables. This does not reopen the Phase 7 persistence invariant.
+
+### Rollback posture
+
+- keep Context Packet v2 and tenant rollout flags dark;
+- explicitly downgrade an affected surface to best-effort only during investigation;
+- return no packet ID and preserve degraded evidence on failure;
+- do not restore fire-and-forget writes or infer persistence from UUID shape;
+- preserve packet rows and additive schema.
+
+Detailed acceptance: `docs/qa/meriv2-phase-7-truthful-context-persistence.md`.
+
+---
+
+## Cumulative Phases 1–7 closure
 
 ### Closure result
 
-**PHASES 1–6 CUMULATIVE CODE ACCEPTANCE: PASS.**
+**PHASES 1–7 CUMULATIVE CODE ACCEPTANCE: PASS.**
 
-Later phases have not invalidated atomic activation, canonical governance propagation, Settings review, immutable correction/restore semantics, or durable projection/index behavior. The permanent cumulative workflow now proves all Phase 1–6 memory tests and cross-surface context adapters on one exact head.
+Phase 7 does not invalidate atomic activation, canonical governance propagation, Settings review, immutable correction/restore semantics, or strict durable projection behavior. The permanent cumulative workflow proves all Phase 1–7 memory and Context Packet contracts on one synchronized exact head.
 
 ### Deferred boundaries
 
-These remain later-phase or release-certification work and do not reopen Phases 1–6:
+These remain later-phase or release-certification work and do not reopen Phases 1–7:
 
-- Phase 7 and later live-path context, persistence, assurance, policy, UX, migration-rehearsal, browser, SOC 2, and rollout gates;
-- disposable-PostgreSQL clean replay, production-equivalent upgrade, rollback, RLS/FORCE, and concurrency proof;
-- authenticated browser, narrow-width, and keyboard acceptance;
+- Phase 8 and later Context Packet rollout/canary, governed-status, policy, backfill, grants, withdrawal, UX, assurance, migration-rehearsal, browser, SOC 2, and production gates;
+- disposable-PostgreSQL production-equivalent upgrade, rollback, RLS/FORCE, and concurrency proof beyond the Phase 7 in-process request-isolation regression;
+- authenticated browser, narrow-width, keyboard, and screen-reader acceptance;
 - production migration, backfill, deployment, and feature-flag activation.
 
-**Next gated phase: Phase 7.** Do not begin Phase 7 until this Phase 6 acceptance-evidence commit is synchronized with moving `main` and all required PR checks run successfully on that final SHA.
+**Next gated phase: Phase 8.** Do not merge or deploy this PR. Preserve the Phase 7 acceptance head and begin Phase 8 only after the final evidence commit is synchronized with moving `main` and all required PR checks pass successfully on that exact SHA.
