@@ -10,7 +10,12 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches:
+      - main
+      # Temporary closeout branch coverage: GitHub suppresses pull_request
+      # workflows while a PR has merge conflicts. Keep this until Phase 17's
+      # synchronization merge restores the normal PR merge ref.
+      - agent/meriv2-world-class-closeout
   workflow_dispatch:
 
 permissions:
