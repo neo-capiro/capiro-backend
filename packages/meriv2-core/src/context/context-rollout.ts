@@ -169,8 +169,12 @@ function finalizeV2Packet(
   if (packet.version !== 2) return packet;
   const applied = appliedContextSurfacePolicy(packet.surface, packet.clientId);
   const includedLayers = new Set(packet.items.map((item) => item.layer));
-  const missingRequiredLayers = applied.requiredLayers.filter((layer) => !includedLayers.has(layer));
-  const missingOptionalLayers = applied.optionalLayers.filter((layer) => !includedLayers.has(layer));
+  const missingRequiredLayers = applied.requiredLayers.filter(
+    (layer) => !includedLayers.has(layer),
+  );
+  const missingOptionalLayers = applied.optionalLayers.filter(
+    (layer) => !includedLayers.has(layer),
+  );
 
   const reasons = packet.health.reasons.filter(
     (reason) => !reason.startsWith('Missing required layers:'),
@@ -242,7 +246,8 @@ function comparePackets(
     tokenDelta:
       shadowV2 == null
         ? null
-        : shadowV2.usedTokens - Math.ceil(baseline.rendered.reduce((n, r) => n + r.body.length, 0) / 4),
+        : shadowV2.usedTokens -
+          Math.ceil(baseline.rendered.reduce((n, r) => n + r.body.length, 0) / 4),
     confidentialityRegression: shadow ? leaksWithheldIdentity(shadow) : false,
     shadowErrorCode,
   };
@@ -250,7 +255,9 @@ function comparePackets(
 
 function reasonCounts(packet: CompiledContextPacket): Record<string, number> {
   const counts: Record<string, number> = {};
-  for (const exclusion of packet.exclusions) counts[exclusion.reason] = (counts[exclusion.reason] ?? 0) + 1;
+  for (const exclusion of packet.exclusions) {
+    counts[exclusion.reason] = (counts[exclusion.reason] ?? 0) + 1;
+  }
   return counts;
 }
 
