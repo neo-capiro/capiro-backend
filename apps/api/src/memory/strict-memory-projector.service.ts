@@ -36,7 +36,18 @@ export interface ProjectionMaterial {
   embeddingRequired: boolean;
 }
 
-/** Single canonical text/hash contract shared by projection and verification. */
+export interface CanonicalProjectionSnapshot {
+  id: string;
+  clientId: string | null;
+  ownerUserId: string | null;
+  title: string;
+  sections: MemorySection[];
+  text: string;
+  contentHash: string;
+  embeddingRequired: boolean;
+}
+
+/** Single canonical text/hash contract shared by producers, projection, and verification. */
 export function projectionTextForItem(
   item: Pick<MemoryItem, 'title' | 'sections'>,
 ): string {
@@ -76,12 +87,34 @@ export function projectionMaterialForClioRow(row: ClioMemoryRow): ProjectionMate
   };
 }
 
+export function canonicalProjectionSnapshot(input: {
+  id: string;
+  clientId: string | null;
+  ownerUserId: string | null;
+  title: string;
+  sections: unknown;
+}): CanonicalProjectionSnapshot {
+  const sections = asSections(input.sections);
+  const text = projectionTextForItem({ title: input.title, sections });
+  return {
+    id: input.id,
+    clientId: input.clientId,
+    ownerUserId: input.ownerUserId,
+    title: input.title,
+    sections,
+    text,
+    contentHash: projectionContentHash(text),
+    embeddingRequired: text.length >= 10,
+  };
+}
+
 /**
  * Strict projection chokepoint for both request-time fast paths and the scheduled worker.
  *
- * The caller may bind the projection to an outbox expectation. A mismatch means the
- * source advanced and the old obligation is safely superseded; it is never treated as
- * completion of the newer obligation.
+ * Governed activations bind to their already-created authoritative memory_item ID;
+ * compatibility saves without one project the stable clio:<id> item. In both cases,
+ * completion requires the exact source version, canonical content hash, item ID, and
+ * embedding hash represented by the outbox job.
  */
 @Injectable()
 export class StrictMemoryProjectorService {
@@ -100,73 +133,108 @@ export class StrictMemoryProjectorService {
       return this.receipt('vanished', tenantId, clioMemoryId, expected, null, false);
     }
 
-    const material = projectionMaterialForClioRow(source);
-    if (expected && !expectationMatches(expected, material)) {
+    const clioMaterial = projectionMaterialForClioRow(source);
+    if (expected && expected.sourceVersion !== clioMaterial.sourceVersion) {
       return this.receipt(
         'superseded',
         tenantId,
         clioMemoryId,
         expected,
         expected.memoryItemId ?? null,
-        material.embeddingRequired,
+        false,
       );
     }
 
-    const itemId = await this.store.upsertSystem(material.item);
+    const target = expected?.memoryItemId
+      ? await this.loadCanonicalSnapshot(tenantId, expected.memoryItemId)
+      : null;
+    if (expected?.memoryItemId && !target) {
+      throw new Error('memory_projection_missing');
+    }
+
+    const contentHash = target?.contentHash ?? clioMaterial.contentHash;
+    const text = target?.text ?? clioMaterial.text;
+    const embeddingRequired = target?.embeddingRequired ?? clioMaterial.embeddingRequired;
+    if (expected && expected.contentHash !== contentHash) {
+      return this.receipt(
+        'superseded',
+        tenantId,
+        clioMemoryId,
+        expected,
+        expected.memoryItemId ?? null,
+        embeddingRequired,
+      );
+    }
+
+    const itemId = target ? target.id : await this.store.upsertSystem(clioMaterial.item);
     if (expected?.memoryItemId && expected.memoryItemId !== itemId) {
       throw new Error('memory_projection_item_mismatch');
     }
 
-    if (material.embeddingRequired) {
+    if (embeddingRequired) {
       await this.writeEmbedding({
         tenantId,
-        clientId: material.item.clientId,
-        ownerUserId: material.item.ownerUserId,
+        clientId: target?.clientId ?? clioMaterial.item.clientId,
+        ownerUserId: target?.ownerUserId ?? clioMaterial.item.ownerUserId,
         sourceId: itemId,
-        text: material.text,
+        text,
       });
     }
 
     const currentSource = await this.loadSource(tenantId, clioMemoryId);
     if (!currentSource) {
-      await this.removeExactProjection(tenantId, itemId);
+      if (!expected?.memoryItemId) {
+        await this.removeExactProjection(tenantId, itemId);
+      }
       return this.receipt(
         'vanished',
         tenantId,
         clioMemoryId,
-        material,
+        expected ?? clioMaterial,
         itemId,
-        material.embeddingRequired,
+        embeddingRequired,
       );
     }
 
-    const current = projectionMaterialForClioRow(currentSource);
-    if (
-      current.sourceVersion !== material.sourceVersion ||
-      current.contentHash !== material.contentHash
-    ) {
+    const currentVersion = normalizeClioProjectionRow(currentSource).updatedAt;
+    if (currentVersion !== clioMaterial.sourceVersion) {
       return this.receipt(
         'superseded',
         tenantId,
         clioMemoryId,
-        material,
+        expected ?? clioMaterial,
         itemId,
-        material.embeddingRequired,
+        embeddingRequired,
       );
     }
 
-    await this.verifyCanonicalProjection(tenantId, itemId, material);
-    if (material.embeddingRequired) {
-      await this.verifyExactEmbedding(tenantId, itemId, material.contentHash);
+    const projected = await this.loadCanonicalSnapshot(tenantId, itemId);
+    if (!projected) throw new Error('memory_projection_missing');
+    if (projected.contentHash !== contentHash) {
+      if (expected) {
+        return this.receipt(
+          'superseded',
+          tenantId,
+          clioMemoryId,
+          expected,
+          itemId,
+          embeddingRequired,
+        );
+      }
+      throw new Error('memory_projection_content_mismatch');
+    }
+
+    if (embeddingRequired) {
+      await this.verifyExactEmbedding(tenantId, itemId, contentHash);
     }
 
     return this.receipt(
       'projected',
       tenantId,
       clioMemoryId,
-      material,
+      expected ?? clioMaterial,
       itemId,
-      material.embeddingRequired,
+      embeddingRequired,
     );
   }
 
@@ -189,39 +257,38 @@ export class StrictMemoryProjectorService {
     return rows[0] ?? null;
   }
 
-  private async verifyCanonicalProjection(
+  private async loadCanonicalSnapshot(
     tenantId: string,
     itemId: string,
-    material: ProjectionMaterial,
-  ): Promise<void> {
+  ): Promise<CanonicalProjectionSnapshot | null> {
     const rows = await this.prisma.withSystem(
       (tx) =>
         tx.$queryRaw<
           Array<{
             id: string;
+            client_id: string | null;
+            owner_user_id: string | null;
             title: string;
             sections_jsonb: unknown;
           }>
         >`
-          SELECT id::text AS id, title, sections_jsonb
+          SELECT id::text AS id, client_id::text AS client_id,
+                 owner_user_id::text AS owner_user_id, title, sections_jsonb
           FROM memory_items
-          WHERE id = ${itemId}::uuid
-            AND tenant_id = ${tenantId}::uuid
-            AND type = ${material.item.type}
-            AND slug = ${material.item.slug}
+          WHERE id = ${itemId}::uuid AND tenant_id = ${tenantId}::uuid
           LIMIT 1
         `,
     );
-    const projected = rows[0];
-    if (!projected) throw new Error('memory_projection_missing');
-
-    const projectedText = projectionTextForItem({
-      title: projected.title,
-      sections: asSections(projected.sections_jsonb),
-    });
-    if (projectionContentHash(projectedText) !== material.contentHash) {
-      throw new Error('memory_projection_content_mismatch');
-    }
+    const row = rows[0];
+    return row
+      ? canonicalProjectionSnapshot({
+          id: row.id,
+          clientId: row.client_id,
+          ownerUserId: row.owner_user_id,
+          title: row.title,
+          sections: row.sections_jsonb,
+        })
+      : null;
   }
 
   private async verifyExactEmbedding(
@@ -301,13 +368,6 @@ export class StrictMemoryProjectorService {
       bypassRls: true,
     });
   }
-}
-
-function expectationMatches(
-  expected: StrictProjectionExpectation,
-  actual: Pick<ProjectionMaterial, 'sourceVersion' | 'contentHash'>,
-): boolean {
-  return expected.sourceVersion === actual.sourceVersion && expected.contentHash === actual.contentHash;
 }
 
 function asSections(value: unknown): MemorySection[] {
