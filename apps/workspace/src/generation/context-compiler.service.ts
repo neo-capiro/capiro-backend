@@ -81,8 +81,8 @@ export class WorkspaceContextCompilerService {
         rows[0]?.settings,
         surface,
       );
-    } catch (error) {
-      this.logger.warn(`Context Packet tenant canary lookup failed closed: ${(error as Error).message}`);
+    } catch {
+      this.logger.warn('Context Packet tenant canary lookup failed closed (context_packet_canary_lookup_failed)');
       return 'off';
     }
   }
@@ -94,8 +94,8 @@ export class WorkspaceContextCompilerService {
         SELECT id FROM users WHERE clerk_user_id = ${clerkOwnerId} LIMIT 1
       `;
       return users[0]?.id ?? null;
-    } catch (error) {
-      this.logger.warn(`clerk→user resolution failed (non-fatal): ${(error as Error).message}`);
+    } catch {
+      this.logger.warn('Workspace Clerk identity resolution failed (context_packet_user_resolution_failed)');
       return null;
     }
   }
@@ -157,10 +157,8 @@ export class WorkspaceContextCompilerService {
         `;
       });
       return rows[0]?.allowed === true;
-    } catch (error) {
-      this.logger.warn(
-        `Ethical-wall resolution failed; denying client context: ${(error as Error).message}`,
-      );
+    } catch {
+      this.logger.warn('Workspace ethical-wall lookup failed closed (context_packet_wall_lookup_failed)');
       return false;
     }
   }
@@ -270,7 +268,7 @@ export class WorkspaceContextCompilerService {
 
   private async persistShadowComparison(input: {
     tenantId: string;
-    shadowPacketId: string;
+    comparisonPacketId: string;
     comparison: ContextPacketShadowComparison;
   }): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
@@ -279,7 +277,7 @@ export class WorkspaceContextCompilerService {
         UPDATE context_packet
         SET health_jsonb = COALESCE(health_jsonb, '{}'::jsonb)
             || jsonb_build_object('shadowComparison', ${JSON.stringify(input.comparison)}::jsonb)
-        WHERE id = ${input.shadowPacketId}::uuid AND tenant_id = ${input.tenantId}::uuid
+        WHERE id = ${input.comparisonPacketId}::uuid AND tenant_id = ${input.tenantId}::uuid
       `;
     });
   }
