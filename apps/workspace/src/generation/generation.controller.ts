@@ -7,7 +7,10 @@ import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { GenerationService } from './generation.service.js';
 import { MemoryPromotionService } from './memory-promotion.service.js';
 import type { PeStructuralWarning } from './domain-grounding.helpers.js';
-import { assertContextPersistenceReleased } from './context-persistence-hold.js';
+import {
+  assertContextPersistenceReleased,
+  runWithContextPersistenceBoundary,
+} from './context-persistence-hold.js';
 
 export class GenerateSectionDto {
   @IsString() @MinLength(1) section!: string;
@@ -37,22 +40,24 @@ export class GenerationController {
   ) {}
 
   @Post('generate-section')
-  async generateSection(
+  generateSection(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('draftId') draftId: string,
     @Body() dto: GenerateSectionDto,
   ) {
-    const result = await this.generation.generateSection(
-      ctx.tenantId,
-      draftId,
-      dto.section,
-      ctx.clerkUserId,
-    );
-    // generateSection returns content directly instead of writing ws_draft, so the
-    // Prisma middleware cannot enforce this boundary. Consume the same draft-scoped
-    // hold before the response leaves the service.
-    assertContextPersistenceReleased(ctx.tenantId, draftId);
-    return result;
+    return runWithContextPersistenceBoundary(ctx.tenantId, draftId, async () => {
+      const result = await this.generation.generateSection(
+        ctx.tenantId,
+        draftId,
+        dto.section,
+        ctx.clerkUserId,
+      );
+      // generateSection returns content directly instead of writing ws_draft, so the
+      // Prisma middleware cannot enforce this boundary. Consume the same request-local
+      // hold before the response leaves the service.
+      assertContextPersistenceReleased(ctx.tenantId, draftId);
+      return result;
+    });
   }
 
   @Post('generate-all')
@@ -61,14 +66,18 @@ export class GenerationController {
     @Param('draftId') draftId: string,
     @Req() req: Request,
   ) {
-    return this.generation.generateAllSections(ctx.tenantId, draftId, ctx.clerkUserId, {
-      bearerToken: extractGenBearer(req),
-    });
+    return runWithContextPersistenceBoundary(ctx.tenantId, draftId, () =>
+      this.generation.generateAllSections(ctx.tenantId, draftId, ctx.clerkUserId, {
+        bearerToken: extractGenBearer(req),
+      }),
+    );
   }
 
   @Post('retry-failed-sections')
   retryFailed(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('draftId') draftId: string) {
-    return this.generation.retryFailedSections(ctx.tenantId, draftId, ctx.clerkUserId);
+    return runWithContextPersistenceBoundary(ctx.tenantId, draftId, () =>
+      this.generation.retryFailedSections(ctx.tenantId, draftId, ctx.clerkUserId),
+    );
   }
 
   @Post('apply-generated-sections')
@@ -85,7 +94,9 @@ export class GenerationController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('draftId') draftId: string,
   ) {
-    return this.generation.generateAllSectionsInProcess(ctx.tenantId, draftId, ctx.clerkUserId);
+    return runWithContextPersistenceBoundary(ctx.tenantId, draftId, () =>
+      this.generation.generateAllSectionsInProcess(ctx.tenantId, draftId, ctx.clerkUserId),
+    );
   }
 
   @Get('context-used')
