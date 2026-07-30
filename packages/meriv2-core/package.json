@@ -47,6 +47,12 @@
       "import": "./dist/context/truthful-compiler.js",
       "default": "./dist/context/truthful-compiler.js"
     },
+    "./context/context-rollout": {
+      "types": "./dist/context/context-rollout.d.ts",
+      "require": "./dist/context/context-rollout.js",
+      "import": "./dist/context/context-rollout.js",
+      "default": "./dist/context/context-rollout.js"
+    },
     "./context/governed-columns": {
       "types": "./dist/context/governed-columns.d.ts",
       "require": "./dist/context/governed-columns.js",
