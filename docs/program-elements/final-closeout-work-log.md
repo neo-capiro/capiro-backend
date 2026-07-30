@@ -6,7 +6,7 @@
 **Repo:** `neo-capiro/capirov2`  
 **Operator session:** Phase 4 IMPLEMENT (current-cycle track-aware read contract)  
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-30 (Phase 5 B12 FAIL remediation IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-30 (Phase 5 B12+B13 FAIL remediation r4 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
 
 ---
 
@@ -867,9 +867,62 @@ git reset --hard 4e2abed9ba5a03acdfbdef6b47ec0be1d2fe3ba3
 
 ---
 
+## Phase 5 FAIL remediation r4 — re-verify B12 + optional B13 queryTab clamp
+
+**When:** 2026-07-30 22:40 UTC  
+**Operator session:** Phase 5 IMPLEMENT only (FAIL inject B12; not review)  
+**Mode:** LONG  
+**Base (failed tip after B8–B11 review):** `eafbfb2c0e848a0f692fd8b69950766a8e1277b5` / product `4e2abed9ba5a03acdfbdef6b47ec0be1d2fe3ba3`  
+**Prior B12 product (already on branch before this session):** `c8ac942b93d299ccb5fa7e704e76ebac2937580d` (docs pin `88921392c`)  
+**Product tip (this remediation):** _(after push — product commit SHA)_  
+**origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind)
+
+### Finding
+
+Independent review FAIL inject named B12 against tip `eafbfb2c0` / product `4e2abed9b`. Worktree at session start already contained B12 product `c8ac942b9` + docs pin `88921392c` on `origin/agent/program-elements-final-closeout` (0 behind main / 29 ahead). This session **re-verified** B12 gates and closed residual **B13** (non-gating alone, optional in FAIL list).
+
+### Defects closed this push
+
+| ID | Fix |
+|---|---|
+| B12 | Re-verified only (no code delta vs `c8ac942b9`): narrative query lifted to Watch page; `FundingNarrativePanel` `errored` → `PeSecondaryFailed` testId `pe-secondary-failed-narrative`; Partial OR; test ABSENT stages Empty. |
+| B13 | Secondary `q()` enablement now uses `effectivePeWatchTab(activeTab, lineTypeFromDetail)` so RDTE deep-link `?tab=procurement` does not sticky-fetch `/procurement-lines` while Tabs paint overview. Shared helper + unit + page test. |
+
+### Files
+
+- `apps/web/src/pages/program-element/trust-model.ts` (+test)
+- `apps/web/src/pages/program-element/ProgramElementWatchPage.tsx` (+test B13)
+- ledger docs
+
+### Gates (implement local)
+
+| Command | Result |
+|---|---|
+| vitest `src/pages/program-element/` | **153/153 PASS** (B12 + B13 + prior B2/B3/B8–B11 + viewport) |
+| `apps/web` `run build` (tsc + vite) | **PASS** (vite ~27s) |
+| Migrations / secrets / MeriV2 / email / LlamaParse / shared migrate | not run |
+| Scope bleed | PE web trust tab clamp + B12 re-verify + ledgers only |
+
+### Migrations / data ops
+None.
+
+### Independent review status (Phase 5)
+**IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on the **new product tip after push** (not self-PASS). Gate #4 still requires B12 cannot reproduce stages Empty on narrative 500 and prior B2/B8–B11 still hold. B13 is residual polish unless reviewer reopens lazy-tab enablement. Do **not** start Phase 6.
+
+### Rollback
+
+```bash
+# return to pre-r4 tip (B12 only, docs pin):
+git reset --hard 88921392c7e35973eb2a1f96d28c18733cd13950
+# or tip that failed B12 review:
+git reset --hard eafbfb2c0e848a0f692fd8b69950766a8e1277b5
+```
+
+---
+
 ## Next phase
 
-**Phase 5 independent adversarial REVIEW only** against the **new remote tip** after this B12 remediation push (not Phase 6 implement).
-Prior FAIL tips closed: B1–B3 on `9381d154c`; B8–B11 on `4e2abed9b` (docs `eafbfb2c0`). This tip targets B12 narrative isError.
+**Phase 5 independent adversarial REVIEW only** against the **new remote tip** after this r4 push (not Phase 6 implement).
+Prior FAIL tips closed: B1–B3 on `9381d154c`; B8–B11 on `4e2abed9b` (docs `eafbfb2c0`); B12 product on `c8ac942b9` (docs `88921392c`). This tip re-verifies B12 and adds B13 queryTab clamp.
 Archive FAIL inject only after PASS names the post-fix tip.
 Do not start Phase 6 until a separate REVIEW session records `VERDICT: PASS` (or PASS WITH BLOCKERS with exit-gate bullets satisfied) against that tip SHA.

@@ -182,14 +182,14 @@ function setupApi(
   });
 }
 
-function renderPage() {
+function renderPage(initialPath = '/program-elements/0603270A') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
 
   render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/program-elements/0603270A']}>
+      <MemoryRouter initialEntries={[initialPath]}>
         <Routes>
           <Route path="/program-elements/:peCode" element={<ProgramElementWatchPage />} />
         </Routes>
@@ -524,5 +524,20 @@ describe('ProgramElementWatchPage', () => {
         ).not.toBeInTheDocument();
         expect(screen.getByText(/Partial data/i)).toBeInTheDocument();
         expect(screen.getAllByTestId('pe-secondary-retry').length).toBeGreaterThan(0);
+      });
+
+      test('B13 disallowed deep-link tab does not sticky procurement-lines queries on RDTE', async () => {
+        setupApi(true, undefined, 2027);
+        renderPage('/program-elements/0603270A?tab=procurement');
+        await waitFor(() => expect(screen.getByTestId('pe-trust-header')).toBeInTheDocument());
+        // UI + queries clamp to overview for RDTE — no procurement-lines fetch.
+        await waitFor(() => {
+          const urls = apiGetMock.mock.calls.map((c) => String(c[0]));
+          expect(urls.some((u) => u.includes('/procurement-lines'))).toBe(false);
+        });
+        // Overview secondary on paint (actions) may run; procurement tab key not selected.
+        expect(screen.queryByRole('tab', { name: /Procurement detail/i })).not.toBeInTheDocument();
+        const selected = document.querySelector('.ant-tabs-tab-active');
+        expect(selected?.textContent ?? '').toMatch(/Overview/i);
       });
       });

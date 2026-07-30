@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
   anyEnabledSecondaryFailed,
   buildSourceCoverageSummary,
+  effectivePeWatchTab,
   filterTabsForLineType,
   formatClaimWithCitation,
   formatPdocSourceLine,
@@ -54,6 +55,18 @@ describe('trust-model lazy tab queries', () => {
     );
     expect(tabs).toEqual(['overview', 'incumbents', 'team']);
     expect(filterTabsForLineType(['procurement'], 'PROCUREMENT_BLIN')).toEqual(['procurement']);
+  });
+
+  test('B13 effectivePeWatchTab clamps disallowed deep-link tabs for query + UI parity', () => {
+    expect(effectivePeWatchTab('procurement', 'RDTE_PE')).toBe('overview');
+    expect(effectivePeWatchTab('funding', 'RDTE_PE')).toBe('funding');
+    expect(effectivePeWatchTab('procurement', 'PROCUREMENT_BLIN')).toBe('procurement');
+    expect(effectivePeWatchTab('incumbents', 'OM_BLI')).toBe('overview');
+    // Query enablement must follow clamped tab: RDTE + sticky procurement ≠ procurementLines.
+    expect(peWatchQueryEnabled(effectivePeWatchTab('procurement', 'RDTE_PE'), 'procurementLines', true)).toBe(
+      false,
+    );
+    expect(peWatchQueryEnabled(effectivePeWatchTab('procurement', 'RDTE_PE'), 'bills', true)).toBe(true);
   });
 });
 

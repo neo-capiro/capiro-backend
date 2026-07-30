@@ -333,8 +333,9 @@ plus concrete findings. Do not implement fixes.
 | Prior product tip (FAIL B8–B11 closed; B12 open) | `4e2abed9ba5a03acdfbdef6b47ec0be1d2fe3ba3` (docs pin `eafbfb2c0`) |
 | Prior review tip | `eafbfb2c0e848a0f692fd8b69950766a8e1277b5` |
 | Prior review | VERDICT: FAIL — **B12** FundingNarrativePanel ignores isError (stages Empty on `/narrative` 500); B8–B11 closed |
-| Remediation product r3 | `c8ac942b93d299ccb5fa7e704e76ebac2937580d` |
-| Remote tip (docs pin after push) | `c8ac942b93d299ccb5fa7e704e76ebac2937580d` (product + ledger pin; may advance with pin commit) |
+| Remediation product r3 (B12) | `c8ac942b93d299ccb5fa7e704e76ebac2937580d` (docs pin `88921392c`) |
+| Remediation product r4 (B12 re-verify + B13) | _(after push — product commit SHA)_ |
+| Remote tip (docs pin after push) | _(origin/agent/program-elements-final-closeout)_ |
 | Implementer gate | IMPLEMENT PUSHED / review **REQUIRED** — **not** self-PASS |
 | Next | New session `./pe-closeout-run.sh review 5` on **new** tip only |
 | MeriV2 | untouched |
@@ -353,3 +354,4 @@ plus concrete findings. Do not implement fixes.
 9. **B10** Force `GET .../bills` 500 on Overview Recent activity → `pe-secondary-failed-recent-activity`; never "No dated legislative actions yet."
 10. **B11** Force `GET .../procurement-lines` 500 on Procurement detail (PROC line) → `pe-secondary-failed-procurement-lines`; never Secondary Distribution honesty Empty ("no per-recipient breakdown"). Partial banner alone is insufficient if section body still paints success Empty.
 11. **B12** Force `GET .../narrative` 500 on **Funding** tab → `pe-secondary-failed-narrative` + Retry + Partial; never "No current-cycle funding stages recorded for this program element yet." Overview cold start must not request `/narrative`.
+12. **B13** RDTE detail deep-link `?tab=procurement` → Tabs paint Overview; do **not** fetch `/procurement-lines` under sticky disallowed activeTab (query enablement follows `effectivePeWatchTab`).

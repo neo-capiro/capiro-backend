@@ -63,6 +63,7 @@ import { PeTrustHeader } from './PeTrustHeader.js';
 import { PeLoadState } from './PeLoadState.js';
 import {
   anyEnabledSecondaryFailed,
+  effectivePeWatchTab,
   filterTabsForLineType,
   parsePeWatchFy,
   parsePeWatchTab,
@@ -269,15 +270,19 @@ export function ProgramElementWatchPage() {
 
   const watch = useWatchToggle();
 
-  const q = (bucket: Parameters<typeof peWatchQueryEnabled>[1]) =>
-    peWatchQueryEnabled(activeTab, bucket, pePresent);
-
   const detailQuery = useQuery({
     queryKey: ['program-element-detail', normalizedPeCode],
     queryFn: () => getProgramElementDetail(api, normalizedPeCode),
     staleTime: 5 * 60 * 1000,
     enabled: pePresent,
   });
+
+  // B13: secondary enablement follows the line-type-clamped tab (same as Tabs UI),
+  // not a raw activeTab that may still be a disallowed deep-link value.
+  const lineTypeForQueries = lineTypeFor(detailQuery.data?.appropriationType);
+  const queryTab = effectivePeWatchTab(activeTab, lineTypeForQueries);
+  const q = (bucket: Parameters<typeof peWatchQueryEnabled>[1]) =>
+    peWatchQueryEnabled(queryTab, bucket, pePresent);
 
   // Always-on for hero BPM counts / classification when detail opens.
   const billsQuery = useQuery({
@@ -730,7 +735,8 @@ export function ProgramElementWatchPage() {
     ['overview', 'funding', 'procurement', 'legislation', 'relationships', 'incumbents', 'team', 'approp', 'proof'],
     lineType,
   );
-  const effectiveTab: PeWatchTab = allowedTabs.includes(activeTab) ? activeTab : 'overview';
+  // Same clamp as queryTab (B13); intelligence may refine lineType after first paint.
+  const effectiveTab: PeWatchTab = effectivePeWatchTab(activeTab, lineType, allowedTabs);
 
   // ── Tab content ─────────────────────────────────────────────────────────
   const overviewTab = (

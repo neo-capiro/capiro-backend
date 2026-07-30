@@ -93,6 +93,21 @@ export function filterTabsForLineType(
 }
 
 /**
+ * Clamp the requested (URL/local) tab to one allowed for this line type.
+ * Used by both Tabs UI and secondary-query enablement so a disallowed
+ * deep-link (e.g. ?tab=procurement on RDTE) never sticks query buckets
+ * (B13 — do not fetch procurement-lines while paint falls back to overview).
+ */
+export function effectivePeWatchTab(
+  requestedTab: PeWatchTab,
+  lineType: string | null,
+  candidateTabs: readonly PeWatchTab[] = PE_WATCH_TABS,
+): PeWatchTab {
+  const allowed = filterTabsForLineType(candidateTabs, lineType);
+  return allowed.includes(requestedTab) ? requestedTab : 'overview';
+}
+
+/**
  * Which secondary fetches a tab mount is allowed to fire.
  * Detail is always on. Bills + intelligence stay on for hero/KPI strip.
  */
