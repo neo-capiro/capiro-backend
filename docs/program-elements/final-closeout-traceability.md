@@ -2,7 +2,7 @@
 
 **Baseline main SHA:** `057f5480a46f9ba9acf9296a9cc876b609593832`  
 **Pre-Phase-0 #705 head (void product):** `a244022648d54d9e4ac7fb071f9f438405659056`  
-**Updated (UTC):** 2026-07-30 (Phase 1 bare-outbox durability fix after review FAIL; remote tip record after push; **independent review PENDING**)
+**Updated (UTC):** 2026-07-30 (Phase 1 bare-outbox durability on remote product tip `454a27f5ee1583a100c0a01761d5e6c970621c80`; **independent review PENDING**)
 
 Legend for **Status**:
 
@@ -223,6 +223,7 @@ Repository: neo-capiro/capirov2
 Branch: agent/program-elements-final-closeout
 PR: #705
 Prior tip that FAILED review: b8ed288558b15a441e8465b0e1023a14423ff392
+Product tip after B1/B2 fix (review this commit or successor tip): 454a27f5ee1583a100c0a01761d5e6c970621c80
 Prior FAIL session: 20260730_072939_3c2039 (B1 bare withSystem / B2 script writers / B3 dishonest ledger)
 origin/main at implement: 010948cc3f475dd0ee47016deba5619c044d8fed
 

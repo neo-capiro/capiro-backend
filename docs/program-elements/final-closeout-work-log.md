@@ -220,6 +220,7 @@ Independent review blocking defects (must fix before any Phase 1 PASS / Phase 2)
 **Status:** IMPLEMENT PUSHED — **independent adversarial review REQUIRED** (implementer does **not** self-PASS exit gate).  
 **Base tip before fix:** `b8ed288558b15a441e8465b0e1023a14423ff392`  
 **origin/main:** `010948cc3f475dd0ee47016deba5619c044d8fed` (0 behind)  
+**Remote tip after fix push:** `454a27f5ee1583a100c0a01761d5e6c970621c80` (product + tests); ledger SHA row may trail by a docs-only follow-up  
 **Worktree:** `C:/c/Users/neoma/AppData/Local/Temp/pe-closeout-wt`
 
 #### Code fixes
@@ -256,9 +257,9 @@ Writer autowire path fixed by (1): same OutboxService on bare PrismaClient now d
 #### Rollback
 
 ```bash
-git revert <phase1-bare-outbox-fix-sha>   # or reset --hard b8ed28855 before force-with-lease (avoid if shared)
-# Full Phase 1 product rollback to main:
-git revert 850b4b7a4 b8ed28855 <fix-sha>  # or reset branch to origin/main and reopen work
+git revert 454a27f5ee1583a100c0a01761d5e6c970621c80   # bare-outbox durability fix (+ any docs-only follow-up)
+# Full Phase 1 product rollback toward main:
+git revert 850b4b7a4 b8ed28855 454a27f5ee   # or reset branch to origin/main and reopen work
 ```
 
 ### Independent review status
@@ -266,7 +267,7 @@ git revert 850b4b7a4 b8ed28855 <fix-sha>  # or reset branch to origin/main and r
 | Round | Session | Tip | Verdict |
 |---|---|---|---|
 | 1 | 20260730_072939_3c2039 | `b8ed28855` | **FAIL** (B1/B2/B3) |
-| 2 | (pending) | (this push) | **PENDING** |
+| 2 | (pending) | product tip `454a27f5ee` (+ optional later docs-only) | **PENDING** |
 
 ### Not started
 
