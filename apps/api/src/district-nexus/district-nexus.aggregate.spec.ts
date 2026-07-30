@@ -42,6 +42,33 @@ describe('districtKeyFor', () => {
     expect(districtKeyFor(null, '23')).toBeNull();
   });
 
+  test('an UNPADDED district keys the same as a padded one', () => {
+    // This is the whole bug. The key used to be minted from the code exactly as
+    // stored, so a facility saved as "7" keyed as WA-7 while every award for the
+    // same seat keyed as WA-07 (USAspending's congressional_code is stored verbatim
+    // and is padded). The facility became its own bucket with no awards, the real
+    // district showed no facilities, and because the detail route builds WA-07 the
+    // facility was unreachable — it vanished from District Nexus. Seven production
+    // rows were in that state on 2026-07-30.
+    expect(districtKeyFor('WA', '7')).toBe('WA-07');
+    expect(districtKeyFor('WA', '7')).toBe(districtKeyFor('WA', '07'));
+    for (const d of ['1', '2', '3', '5', '8', '9']) {
+      expect(districtKeyFor('FL', d)).toBe(districtKeyFor('FL', d.padStart(2, '0')));
+    }
+  });
+
+  test('padding never alters a two-character code', () => {
+    for (const d of ['00', '01', '07', '16', '23', '43', '52']) {
+      expect(districtKeyFor('CA', d)).toBe(`CA-${d}`);
+    }
+  });
+
+  test('a non-numeric code is passed through, not mangled into a plausible key', () => {
+    // Better to emit something obviously odd than to pad garbage into a key that
+    // looks real and silently joins against nothing.
+    expect(districtKeyFor('PR', 'AL')).toBe('PR-00');
+  });
+
   test('a sentinel with a state is statewide, not simply missing', () => {
     expect(isStatewide('CA', '90')).toBe(true);
     expect(isStatewide('CA', '23')).toBe(false);
