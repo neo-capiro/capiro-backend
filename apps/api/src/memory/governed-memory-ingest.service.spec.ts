@@ -5,6 +5,7 @@ import type { MemoryStoreService } from './memory-store.service.js';
 import type { TenantContextStore } from '../tenant/tenant-context.store.js';
 import type { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
 import type { StrictMemoryProjectorService } from './strict-memory-projector.service.js';
+import { exactProjectionIdempotencyKey } from './exact-memory-cleanup-outbox.service.js';
 import { GovernedMemoryIngestService } from './governed-memory-ingest.service.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
@@ -13,7 +14,7 @@ const ITEM = '33333333-3333-4333-8333-333333333333';
 const JOB = '44444444-4444-4444-8444-444444444444';
 const VERSION = '2026-07-30T12:00:00.000Z';
 const HASH = 'a'.repeat(64);
-const KEY = `index_memory_item:${CLIO}:${VERSION}`;
+const KEY = exactProjectionIdempotencyKey(CLIO, VERSION, HASH);
 
 function sqlText(strings: TemplateStringsArray | unknown): string {
   return Array.isArray((strings as TemplateStringsArray).raw)
