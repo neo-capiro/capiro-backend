@@ -27,6 +27,13 @@ describe('immutable memory version migration', () => {
     expect(migration).toContain("source_kind = 'memory_contradiction'");
   });
 
+  test('ordinary memory inserts bypass the immutable-version-only trigger', () => {
+    expect(migration).toContain('NEW.origin_surface IS NULL');
+    expect(migration).toContain(
+      "NEW.origin_surface NOT IN ('memory_correction','memory_restore','memory_contradiction')",
+    );
+  });
+
   test('approval is bound to the exact target reviewed by the proposer', () => {
     expect(migration).toContain('memory_items_immutable_version_insert_guard');
     expect(migration).toContain("payload_jsonb #>> '{versionProposal,targetItemId}'");
