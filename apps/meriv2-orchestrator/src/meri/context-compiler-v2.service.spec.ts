@@ -115,6 +115,7 @@ describe('OrchestratorContextCompilerService — ContextPacket v2', () => {
 
     const v2Packet = await service.compile({
       tenantId: 't1',
+      effectiveTenantId: 'effective-t1',
       userId: 'u1',
       surface: 'ga-chat',
       layers: ['firm-identity'],
@@ -130,6 +131,7 @@ describe('OrchestratorContextCompilerService — ContextPacket v2', () => {
     expect(v2.requiredLayers).toEqual(['firm-identity']);
     expect(v2.health).toEqual(expect.objectContaining({ status: 'healthy' }));
     expect(v2.totalTokenBudget).toBe(5_000);
+    expect(v2.effectiveTenantId).toBe('effective-t1');
     expect(JSON.stringify(v2.items)).not.toContain('We are a GA firm.');
     expect(tx.contextPacket.findFirst).toHaveBeenCalled();
     expect(v2Packet.persisted).toBe(true);
