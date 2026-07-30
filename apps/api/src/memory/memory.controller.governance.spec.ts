@@ -26,12 +26,14 @@ const CLIENT = '33333333-3333-4333-8333-333333333333';
 const ITEM = '44444444-4444-4444-8444-444444444444';
 
 function harness(opts: { candidateDenied?: boolean } = {}) {
-  const approve = jest.fn(async () => ({ memoryId: 'clio-1' }));
-  const reject = jest.fn(async () => undefined);
-  const requireCandidate = jest.fn(async () => {
+  const approve = jest.fn(async () => {
     if (opts.candidateDenied) throw new ForbiddenException('Memory operation denied: ethical_wall');
-    return {} as never;
+    return { memoryId: 'clio-1' };
   });
+  const reject = jest.fn(async () => {
+    if (opts.candidateDenied) throw new ForbiddenException('Memory operation denied: ethical_wall');
+  });
+  const requireCandidate = jest.fn(async () => ({}) as never);
   const grantList = jest.fn(async () => []);
   const grantCreate = jest.fn(async () => ({ id: 'grant-1', permissions: ['approve' as const] }));
   const grantRevoke = jest.fn(async () => ({ revoked: true }));
@@ -88,51 +90,38 @@ const DARK = {
   MEMORY_GOVERNANCE_LIFECYCLE: undefined,
 };
 
-describe('candidate decisions — ethical wall', () => {
-  it('does not consult the wall while MEMORY_GOVERNANCE_ENFORCE is dark', async () => {
+describe('candidate decisions — atomic authorization delegation', () => {
+  it('passes the server-resolved context into the atomic approval service', async () => {
     await withEnv(DARK, async () => {
-      const h = harness({ candidateDenied: true });
+      const h = harness();
       await expect(h.controller.approveCandidate(ctx, 'cand-1')).resolves.toEqual({
         ok: true,
         memoryId: 'clio-1',
       });
+      expect(h.approve).toHaveBeenCalledWith(ctx.tenantId, 'cand-1', ctx.userId, ctx);
+      // Authorization is no longer a separate preflight transaction in the
+      // controller; MemoryCandidateService evaluates it under the candidate lock.
       expect(h.requireCandidate).not.toHaveBeenCalled();
     });
   });
 
-  /**
-   * listPending already withheld walled candidates, but the DECISION routes never
-   * consulted the wall — so a non-granted admin with a candidate id could ratify a
-   * walled client's memory. This is the gap being closed.
-   */
-  it('refuses an approval on a walled candidate BEFORE any memory write', async () => {
+  it('surfaces an in-transaction ethical-wall denial before activation completes', async () => {
     await withEnv({ ...DARK, MEMORY_GOVERNANCE_ENFORCE: 'enforce' }, async () => {
       const h = harness({ candidateDenied: true });
       await expect(h.controller.approveCandidate(ctx, 'cand-1')).rejects.toBeInstanceOf(
         ForbiddenException,
       );
-      expect(h.approve).not.toHaveBeenCalled();
+      expect(h.approve).toHaveBeenCalledTimes(1);
+      expect(h.requireCandidate).not.toHaveBeenCalled();
     });
   });
 
-  it('refuses a rejection on a walled candidate too', async () => {
-    await withEnv({ ...DARK, MEMORY_GOVERNANCE_ENFORCE: 'enforce' }, async () => {
-      const h = harness({ candidateDenied: true });
-      await expect(h.controller.rejectCandidate(ctx, 'cand-1')).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
-      expect(h.reject).not.toHaveBeenCalled();
-    });
-  });
-
-  it('authorizes approve with approve and reject with review', async () => {
+  it('passes the same server context into rejection', async () => {
     await withEnv({ ...DARK, MEMORY_GOVERNANCE_ENFORCE: 'enforce' }, async () => {
       const h = harness();
-      await h.controller.approveCandidate(ctx, 'cand-1');
-      await h.controller.rejectCandidate(ctx, 'cand-2');
-      expect(h.requireCandidate).toHaveBeenCalledTimes(2);
-      expect(h.approve).toHaveBeenCalledTimes(1);
-      expect(h.reject).toHaveBeenCalledTimes(1);
+      await expect(h.controller.rejectCandidate(ctx, 'cand-2')).resolves.toEqual({ ok: true });
+      expect(h.reject).toHaveBeenCalledWith(ctx.tenantId, 'cand-2', ctx.userId, ctx);
+      expect(h.requireCandidate).not.toHaveBeenCalled();
     });
   });
 });

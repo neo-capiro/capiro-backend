@@ -276,34 +276,27 @@ export class MemoryController {
    * `listPending` already withholds candidates for walled clients, but the WALL
    * ONLY FILTERED THE LIST — the decision routes went straight to
    * MemoryCandidateService and never consulted it, so a non-granted admin who knew
-   * (or guessed) a candidate id could ratify a walled client's memory. `requireCandidate`
-   * closes that: it applies the ethical wall, legal hold, per-client grants, the
-   * real actor role under impersonation, and the 'self_review' rule. Dark behind
-   * MEMORY_GOVERNANCE_ENFORCE because it reads governed columns from an unapplied
-   * migration; MemoryCandidateService.requireIndependentReviewer remains the
-   * always-on segregation-of-duties gate and is deliberately NOT duplicated here.
+   * (or guessed) a candidate id could ratify a walled client's memory. The
+   * candidate service now evaluates the canonical authorization decision while
+   * holding the candidate row lock, in the same transaction as activation. It
+   * applies the ethical wall, legal hold, per-client grants, and self-review rule.
+   * Governed enforcement remains dark until the additive migration is applied;
+   * the independent-review check remains always on.
    */
   @Post('candidates/:id/approve')
   @Roles('user_admin')
   async approveCandidate(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    if (governedMemoryEnforcementEnabled(process.env.MEMORY_GOVERNANCE_ENFORCE)) {
-      await this.authz.requireCandidate(ctx, id, 'approve');
-    }
-    const { memoryId } = await this.candidates.approve(ctx.tenantId, id, ctx.userId);
+    // Candidate authorization now runs inside the row-locked activation
+    // transaction. This removes the pre-check/commit race while preserving the
+    // dark enforcement switch and the always-on independent-review gate.
+    const { memoryId } = await this.candidates.approve(ctx.tenantId, id, ctx.userId, ctx);
     return { ok: true, memoryId };
   }
 
   @Post('candidates/:id/reject')
   @Roles('user_admin')
   async rejectCandidate(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    if (governedMemoryEnforcementEnabled(process.env.MEMORY_GOVERNANCE_ENFORCE)) {
-      // 'review' rather than 'approve': declining is a review act, and a proposer
-      // withdrawing their own proposal must stay possible (the self_review rule
-      // fires for both operations, which is why rejection independence is enforced
-      // by requireIndependentReviewer's deliberate exemption, not by the wall).
-      await this.authz.requireCandidate(ctx, id, 'review');
-    }
-    await this.candidates.reject(ctx.tenantId, id, ctx.userId);
+    await this.candidates.reject(ctx.tenantId, id, ctx.userId, ctx);
     return { ok: true };
   }
 
@@ -373,12 +366,7 @@ export class MemoryController {
     if (!body?.controllingItemId) {
       throw new BadRequestException('controllingItemId is required.');
     }
-    const result = await this.conflicts.resolve(
-      ctx,
-      id,
-      body.controllingItemId,
-      body.reason ?? '',
-    );
+    const result = await this.conflicts.resolve(ctx, id, body.controllingItemId, body.reason ?? '');
     return { ok: true, ...result };
   }
 
@@ -492,7 +480,9 @@ export class MemoryController {
     @Body() body: { dryRun?: boolean; reason?: string; confirm?: string },
   ) {
     if (!this.config.get('MEMORY_PURGE_ENABLED', { infer: true })) {
-      throw new ServiceUnavailableException('Memory purge is disabled (MEMORY_PURGE_ENABLED=false).');
+      throw new ServiceUnavailableException(
+        'Memory purge is disabled (MEMORY_PURGE_ENABLED=false).',
+      );
     }
     if (!body?.reason || typeof body.reason !== 'string') {
       throw new BadRequestException('A reason is required for a client memory purge.');

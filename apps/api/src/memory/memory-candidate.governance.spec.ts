@@ -24,21 +24,30 @@ interface CandidateRow {
  * assertions are entirely about what the DECISION writes: the legacy columns, the
  * governed columns, and the audit rows.
  */
-function harness(row: CandidateRow, payload: unknown = { key: 'k', value: 'v', source: 'chat' }) {
+function harness(row: CandidateRow, payload?: unknown) {
+  const candidatePayload =
+    payload ??
+    ({
+      key: 'k',
+      value: 'v',
+      source: 'chat',
+      scope: row.scope === 'personal' ? 'user_private' : row.scope,
+      ownerUserId: row.scope === 'personal' ? 'proposer-1' : null,
+      clientId: row.client_id,
+    } satisfies Record<string, unknown>);
   const updates: Array<Record<string, unknown>> = [];
   const auditRows: Array<Record<string, unknown>> = [];
   const tx = {
     memoryCandidate: {
-      findFirst: async () => ({
-        id: CANDIDATE,
-        payload,
-        proposedBy: 'proposer-1',
-        scope: row.scope,
-      }),
       update: async (args: { data: Record<string, unknown> }) => {
         updates.push(args.data);
         return {};
       },
+    },
+    clioMemory: {
+      findFirst: async () => null,
+      create: async () => ({ id: CLIO }),
+      update: async () => ({}),
     },
     memoryTransitionAudit: {
       create: async (args: { data: Record<string, unknown> }) => {
@@ -46,11 +55,34 @@ function harness(row: CandidateRow, payload: unknown = { key: 'k', value: 'v', s
         return { id: `audit-${auditRows.length}` };
       },
     },
-    $queryRaw: async () => [row],
+    $queryRaw: async (strings: { raw?: string[] } | unknown) => {
+      const sql = Array.isArray((strings as { raw?: string[] }).raw)
+        ? (strings as { raw: string[] }).raw.join('?')
+        : String(strings);
+      if (/FOR UPDATE/i.test(sql)) {
+        return [
+          {
+            id: CANDIDATE,
+            payload: candidatePayload,
+            proposedBy: 'proposer-1',
+            scope: row.scope,
+          },
+        ];
+      }
+      if (/updated_at\s+FROM\s+clio_memory/i.test(sql)) {
+        return [{ updated_at: new Date('2026-07-29T12:00:00.000Z') }];
+      }
+      if (/governed_status/i.test(sql)) return [row];
+      return [];
+    },
+    $executeRaw: async () => 1,
   };
-  const withTenant = jest.fn(async (_tenantId: string, fn: (t: typeof tx) => unknown) => fn(tx));
-  const prisma = { withTenant } as unknown as PrismaService;
-  const ingest = { projectClioMemory: () => undefined } as unknown as MemoryIngestService;
+  const withTenantUser = jest.fn(
+    async (_tenantId: string, _userId: string, fn: (t: typeof tx) => unknown) => fn(tx),
+  );
+  const withSystem = jest.fn(async (fn: (t: typeof tx) => unknown) => fn(tx));
+  const prisma = { withTenantUser, withSystem } as unknown as PrismaService;
+  const ingest = { projectClioMemory: async () => undefined } as unknown as MemoryIngestService;
   const config = { get: jest.fn(() => undefined) } as unknown as ConfigService<AppConfig, true>;
   const service = new MemoryCandidateService(
     prisma,
@@ -58,11 +90,7 @@ function harness(row: CandidateRow, payload: unknown = { key: 'k', value: 'v', s
     config,
     new MemoryTransitionAuditService(),
   );
-  // commitToClioMemory is the pre-existing, separately-tested clio write path; the
-  // subject here is the DECISION bookkeeping around it.
-  (service as unknown as { commitToClioMemory: () => Promise<string> }).commitToClioMemory =
-    async () => CLIO;
-  return { service, updates, auditRows, withTenant };
+  return { service, updates, auditRows, withTenantUser };
 }
 
 const FIRM_ROW: CandidateRow = {
@@ -157,7 +185,7 @@ describe('MemoryCandidateService governed lifecycle — ARMED', () => {
       });
       // The decision update and the audit row share ONE withTenant transaction, so
       // a committed status flip cannot lose its evidence.
-      expect(h.withTenant).toHaveBeenCalledTimes(2); // getPendingOrThrow + markDecided
+      expect(h.withTenantUser).toHaveBeenCalledTimes(1); // lock + write + audit are one transaction
     });
   });
 

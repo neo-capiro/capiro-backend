@@ -17,23 +17,34 @@ import type { ConfigService } from '@nestjs/config';
  * refused *before* any memory write is attempted, which is observable as
  * `withTenant` having been called exactly once (the candidate load).
  */
-function makeService(candidate: { id: string; payload: unknown; proposedBy: string; scope: string }) {
-  const findFirst = jest.fn(async () => candidate);
-  const withTenant = jest.fn(async (_tenantId: string, fn: (tx: unknown) => unknown) =>
-    fn({ memoryCandidate: { findFirst } }),
+function makeService(candidate: {
+  id: string;
+  payload: unknown;
+  proposedBy: string;
+  scope: string;
+}) {
+  const queryRaw = jest.fn(async () => [candidate]);
+  const withTenantUser = jest.fn(
+    async (_tenantId: string, _userId: string, fn: (tx: unknown) => unknown) =>
+      fn({ $queryRaw: queryRaw }),
   );
-  const prisma = { withTenant } as unknown as PrismaService;
+  const prisma = { withTenantUser } as unknown as PrismaService;
   const ingest = {} as unknown as MemoryIngestService;
   const config = { get: jest.fn(() => undefined) } as unknown as ConfigService<AppConfig, true>;
   const service = new MemoryCandidateService(prisma, ingest, config);
-  return { service, withTenant };
+  return { service, withTenantUser };
 }
 
-const PAYLOAD = { key: 'firm-position:fy27', value: 'The firm supports the plus-up.' };
+const PAYLOAD = {
+  key: 'firm-position:fy27',
+  value: 'The firm supports the plus-up.',
+  source: 'chat',
+  scope: 'firm',
+};
 
 describe('MemoryCandidateService.approve — independent reviewer', () => {
   it('refuses a firm-scope proposer approving their own candidate, before any write', async () => {
-    const { service, withTenant } = makeService({
+    const { service, withTenantUser } = makeService({
       id: 'cand-1',
       payload: PAYLOAD,
       proposedBy: 'admin-1',
@@ -43,11 +54,11 @@ describe('MemoryCandidateService.approve — independent reviewer', () => {
     await expect(service.approve('tenant-1', 'cand-1', 'admin-1')).rejects.toBeInstanceOf(
       ForbiddenException,
     );
-    expect(withTenant).toHaveBeenCalledTimes(1); // candidate load only — no commit, no markDecided
+    expect(withTenantUser).toHaveBeenCalledTimes(1); // candidate load only — no commit, no markDecided
   });
 
   it('refuses a client-scope proposer approving their own candidate', async () => {
-    const { service, withTenant } = makeService({
+    const { service, withTenantUser } = makeService({
       id: 'cand-2',
       payload: PAYLOAD,
       proposedBy: 'admin-1',
@@ -57,7 +68,7 @@ describe('MemoryCandidateService.approve — independent reviewer', () => {
     await expect(service.approve('tenant-1', 'cand-2', 'admin-1')).rejects.toBeInstanceOf(
       ForbiddenException,
     );
-    expect(withTenant).toHaveBeenCalledTimes(1);
+    expect(withTenantUser).toHaveBeenCalledTimes(1);
   });
 
   it('lets an independent reviewer past the gate on the same firm candidate', async () => {
@@ -71,9 +82,9 @@ describe('MemoryCandidateService.approve — independent reviewer', () => {
     // A different approver must NOT be refused by the independence gate. The call
     // still fails further downstream (clio_memory is not stubbed here), so assert
     // specifically that the failure is not the independence refusal.
-    await expect(
-      service.approve('tenant-1', 'cand-3', 'admin-2'),
-    ).rejects.not.toBeInstanceOf(ForbiddenException);
+    await expect(service.approve('tenant-1', 'cand-3', 'admin-2')).rejects.not.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 
   it('leaves personal-scope self-approval alone — nobody else can review it', async () => {
@@ -84,8 +95,8 @@ describe('MemoryCandidateService.approve — independent reviewer', () => {
       scope: 'personal',
     });
 
-    await expect(
-      service.approve('tenant-1', 'cand-4', 'user-1'),
-    ).rejects.not.toBeInstanceOf(ForbiddenException);
+    await expect(service.approve('tenant-1', 'cand-4', 'user-1')).rejects.not.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 });

@@ -7,10 +7,13 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
+import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
 import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
 import { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
+import { MemoryAuthorizationService } from './memory-authorization.service.js';
+import { governedMemoryEnforcementEnabled } from './memory-authorization.helpers.js';
 import { evaluateMemoryCandidate } from './memory-candidate-rules.js';
 import { fetchDeniedClientIds } from './memory-wall.helpers.js';
 import {
@@ -69,6 +72,20 @@ export interface ProposeSaveMemoryResult {
   reason: string;
 }
 
+type CandidateActorContext = Pick<TenantContext, 'tenantId' | 'userId' | 'role'>;
+
+interface LockedCandidate {
+  id: string;
+  payload: unknown;
+  proposedBy: string;
+  scope: string;
+}
+
+interface ActivatedCandidate {
+  memoryId: string;
+  record: MemorySaveRequest;
+}
+
 /**
  * Phase 1 (1B) — candidate lifecycle for memory writes (blueprint §4.6.5).
  *
@@ -102,6 +119,9 @@ export class MemoryCandidateService {
       prisma,
       memoryIngest,
     ),
+    private readonly authorization: MemoryAuthorizationService = new MemoryAuthorizationService(
+      prisma,
+    ),
   ) {}
 
   /** Entry point for MeriToolsService.saveMemory. Always creates a candidate;
@@ -122,29 +142,6 @@ export class MemoryCandidateService {
     if (record.scope === 'client' && !record.clientId) {
       throw new BadRequestException('Client-scope memory requires a clientId.');
     }
-
-    // Duplicate detection (D3, minimal): does a candidate already own the
-    // clio_memory row this save would target? If so, this is a re-save of an
-    // existing key, not a fresh fact — record that lineage rather than
-    // silently double-writing with no trail.
-    const priorCommitted = await this.prisma.withTenant(
-      tenantId,
-      (tx) =>
-        tx.$queryRaw<Array<{ id: string; committed_memory_id: string | null }>>`
-        SELECT mc.id, mc.committed_memory_id
-        FROM memory_candidate mc
-        JOIN clio_memory cm ON cm.id = mc.committed_memory_id
-        WHERE mc.tenant_id = ${tenantId}::uuid
-          AND cm.tenant_id = ${tenantId}::uuid
-          AND cm.scope = ${record.scope}
-          AND cm.key = ${record.key}
-          AND (cm.owner_user_id IS NOT DISTINCT FROM ${record.ownerUserId}::uuid)
-          AND (cm.client_id IS NOT DISTINCT FROM ${record.clientId ?? null}::uuid)
-        ORDER BY mc.created_at DESC
-        LIMIT 1
-      `,
-    );
-    const duplicateOfId = priorCommitted[0]?.id ?? null;
 
     // Phase 4: clamp a finite confidence to [0,1]; anything else = unscored (null).
     const candidateConfidence =
@@ -180,7 +177,36 @@ export class MemoryCandidateService {
       sourceExcerpt,
     };
 
-    const candidateId = await this.prisma.withTenant(tenantId, async (tx) => {
+    // The outcome is deterministic from server-owned facts. Only personal scope
+    // may PASS; every shared scope remains pending for an independent reviewer.
+    const decision = evaluateMemoryCandidate({
+      scope,
+      isAdmin,
+      sourceKind,
+      confidence: candidateConfidence,
+    });
+
+    // Candidate insert, duplicate lineage, personal activation, candidate
+    // decision, transition audit, and durable projection obligation share ONE
+    // transaction. An exception after any mutation rolls all of them back.
+    const result = await this.prisma.withTenantUser(tenantId, proposedByUserId, async (tx) => {
+      const priorCommitted = await tx.$queryRaw<
+        Array<{ id: string; committed_memory_id: string | null }>
+      >`
+        SELECT mc.id::text AS id, mc.committed_memory_id::text AS committed_memory_id
+        FROM memory_candidate mc
+        JOIN clio_memory cm ON cm.id = mc.committed_memory_id
+        WHERE mc.tenant_id = ${tenantId}::uuid
+          AND cm.tenant_id = ${tenantId}::uuid
+          AND cm.scope = ${record.scope}
+          AND cm.key = ${record.key}
+          AND (cm.owner_user_id IS NOT DISTINCT FROM ${record.ownerUserId}::uuid)
+          AND (cm.client_id IS NOT DISTINCT FROM ${record.clientId ?? null}::uuid)
+        ORDER BY mc.created_at DESC
+        LIMIT 1
+      `;
+      const duplicateOfId = priorCommitted[0]?.id ?? null;
+
       const rows = await tx.$queryRaw<Array<{ id: string }>>`
         INSERT INTO memory_candidate (
           tenant_id, proposed_by, source_kind, scope, client_id, payload_jsonb,
@@ -191,51 +217,103 @@ export class MemoryCandidateService {
           ${JSON.stringify(payload)}::jsonb, ${JSON.stringify(provenance)}::jsonb,
           ${duplicateOfId}::uuid, 'pending', ${candidateConfidence}
         )
-        RETURNING id
+        RETURNING id::text AS id
       `;
-      const row = rows[0];
-      if (!row) throw new Error('memory_candidate insert returned no row');
-      return row.id;
+      const candidate = rows[0];
+      if (!candidate) throw new Error('memory_candidate insert returned no row');
+
+      if (decision.outcome === 'WARN') {
+        return { candidateId: candidate.id, memoryId: null };
+      }
+
+      const memoryId = await this.commitToClioMemoryInTx(tx, tenantId, record);
+      await this.markDecidedInTx(
+        tx,
+        tenantId,
+        candidate.id,
+        'auto_committed',
+        proposedByUserId,
+        memoryId,
+      );
+      return { candidateId: candidate.id, memoryId };
     });
 
-    // Phase 4: the model_extraction low-confidence rule can route a machine
-    // write to review; inert for explicit human saves (no model sourceKind).
-    const decision = evaluateMemoryCandidate({
-      scope,
-      isAdmin,
-      sourceKind,
-      confidence: candidateConfidence,
-    });
     if (decision.outcome === 'WARN') {
       this.logger.log(
-        `memory_candidate ${candidateId} pending (${decision.ruleId}), tenant ${tenantId}`,
+        `memory_candidate ${result.candidateId} pending (${decision.ruleId}), tenant ${tenantId}`,
       );
-      return { candidateId, status: 'pending', memoryId: null, ...decision };
+      return {
+        candidateId: result.candidateId,
+        status: 'pending',
+        memoryId: null,
+        ...decision,
+      };
     }
 
-    const memoryId = await this.commitToClioMemory(tenantId, record);
-    await this.markDecided(tenantId, candidateId, 'auto_committed', proposedByUserId, memoryId);
-    return { candidateId, status: 'auto_committed', memoryId, ...decision };
+    if (!result.memoryId) throw new Error('Atomic personal activation returned no memory id.');
+    this.dispatchProjectionFastPath(tenantId, result.memoryId, record);
+    return {
+      candidateId: result.candidateId,
+      status: 'auto_committed',
+      memoryId: result.memoryId,
+      ...decision,
+    };
   }
 
-  /** Admin action: commit a pending candidate's payload and mark it approved. */
+  /**
+   * Approve and activate a pending candidate atomically.
+   *
+   * `SELECT ... FOR UPDATE` serializes concurrent reviewers. The candidate is
+   * re-checked as pending after the lock is acquired, so exactly one caller can
+   * activate it; every other caller receives the same tenant-safe not-found
+   * response used for an unknown or cross-tenant id.
+   */
   async approve(
     tenantId: string,
     candidateId: string,
     approverUserId: string,
+    actorContext?: CandidateActorContext,
   ): Promise<{ memoryId: string }> {
-    const candidate = await this.getPendingOrThrow(tenantId, candidateId);
-    this.requireIndependentReviewer(candidate, approverUserId);
-    const record = payloadToSaveRequest(candidate.payload);
-    const memoryId = await this.commitToClioMemory(tenantId, record);
-    await this.markDecided(tenantId, candidateId, 'approved', approverUserId, memoryId);
-    return { memoryId };
+    const activated = await this.prisma.withTenantUser(tenantId, approverUserId, async (tx) => {
+      const candidate = await this.lockPendingCandidateInTx(tx, tenantId, candidateId);
+      await this.authorizeCandidateInTx(
+        tx,
+        tenantId,
+        approverUserId,
+        candidateId,
+        'approve',
+        actorContext,
+      );
+      this.requireIndependentReviewer(candidate, approverUserId);
+      const record = payloadToSaveRequest(candidate.payload);
+      const memoryId = await this.commitToClioMemoryInTx(tx, tenantId, record);
+      await this.markDecidedInTx(tx, tenantId, candidateId, 'approved', approverUserId, memoryId);
+      return { memoryId, record } satisfies ActivatedCandidate;
+    });
+
+    this.dispatchProjectionFastPath(tenantId, activated.memoryId, activated.record);
+    return { memoryId: activated.memoryId };
   }
 
-  /** Admin action: reject a pending candidate. No memory write ever happens. */
-  async reject(tenantId: string, candidateId: string, reviewerUserId: string): Promise<void> {
-    await this.getPendingOrThrow(tenantId, candidateId);
-    await this.markDecided(tenantId, candidateId, 'rejected', reviewerUserId, null);
+  /** Reject a pending candidate atomically. No memory write ever happens. */
+  async reject(
+    tenantId: string,
+    candidateId: string,
+    reviewerUserId: string,
+    actorContext?: CandidateActorContext,
+  ): Promise<void> {
+    await this.prisma.withTenantUser(tenantId, reviewerUserId, async (tx) => {
+      await this.lockPendingCandidateInTx(tx, tenantId, candidateId);
+      await this.authorizeCandidateInTx(
+        tx,
+        tenantId,
+        reviewerUserId,
+        candidateId,
+        'review',
+        actorContext,
+      );
+      await this.markDecidedInTx(tx, tenantId, candidateId, 'rejected', reviewerUserId, null);
+    });
   }
 
   /**
@@ -279,16 +357,23 @@ export class MemoryCandidateService {
     });
   }
 
-  private async getPendingOrThrow(
+  private async lockPendingCandidateInTx(
+    tx: Prisma.TransactionClient,
     tenantId: string,
     candidateId: string,
-  ): Promise<{ id: string; payload: unknown; proposedBy: string; scope: string }> {
-    const row = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.memoryCandidate.findFirst({
-        where: { id: candidateId, tenantId, status: 'pending' },
-        select: { id: true, payload: true, proposedBy: true, scope: true },
-      }),
-    );
+  ): Promise<LockedCandidate> {
+    const rows = await tx.$queryRaw<Array<LockedCandidate>>`
+      SELECT id::text AS id,
+             payload_jsonb AS payload,
+             proposed_by::text AS "proposedBy",
+             scope
+      FROM memory_candidate
+      WHERE id = ${candidateId}::uuid
+        AND tenant_id = ${tenantId}::uuid
+        AND status = 'pending'
+      FOR UPDATE
+    `;
+    const row = rows[0];
     if (!row) {
       throw new NotFoundException('No pending memory candidate with that id for this tenant.');
     }
@@ -296,23 +381,40 @@ export class MemoryCandidateService {
   }
 
   /**
-   * Record the decision on the candidate row.
-   *
-   * Two shapes, chosen by MEMORY_GOVERNANCE_LIFECYCLE:
-   *
-   *  - OFF (default, and the only shape that exists in prod today): byte-identical
-   *    to the pre-governance write — one `memoryCandidate.update` of
-   *    {status, decidedBy, decidedAt, committedMemoryId} in one withTenant. It must
-   *    stay identical because both governance migrations are unapplied everywhere,
-   *    so touching a governed column would fail on a missing column.
-   *
-   *  - ON: additionally classifies the row into the v2 vocabulary
-   *    (memory_class / memory_authority / memory_scope / governed_status) and
-   *    appends one memory_transition_audit row PER state-machine hop, all inside
-   *    the SAME transaction as the status write, so evidence and state cannot
-   *    diverge.
+   * Run the canonical governed authorization decision inside the same transaction
+   * that owns the row lock and activation. The controller passes server-resolved
+   * context; browser-supplied tenant, role, wall, or grant facts are never used.
    */
-  private async markDecided(
+  private async authorizeCandidateInTx(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    actorUserId: string,
+    candidateId: string,
+    operation: 'approve' | 'review',
+    actorContext?: CandidateActorContext,
+  ): Promise<void> {
+    if (!governedMemoryEnforcementEnabled(process.env.MEMORY_GOVERNANCE_ENFORCE)) return;
+    if (
+      !actorContext ||
+      actorContext.tenantId !== tenantId ||
+      actorContext.userId !== actorUserId
+    ) {
+      throw new ForbiddenException('Server-resolved actor context is required for memory review.');
+    }
+    const subject = await this.authorization.loadCandidateInTx(tx, tenantId, candidateId);
+    if (!subject) throw new NotFoundException('Memory candidate not found');
+    const decision = await this.authorization.evaluateInTx(tx, actorContext, subject, operation);
+    if (!decision.allowed) {
+      throw new ForbiddenException(`Memory operation denied: ${decision.reason}`);
+    }
+  }
+
+  /**
+   * Record the decision on the candidate row using the CALLER'S transaction.
+   * No helper in an activation path may open an independent tenant transaction.
+   */
+  private async markDecidedInTx(
+    tx: Prisma.TransactionClient,
     tenantId: string,
     candidateId: string,
     status: CandidateDecision,
@@ -320,110 +422,96 @@ export class MemoryCandidateService {
     committedMemoryId: string | null,
   ): Promise<void> {
     if (!governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)) {
-      await this.prisma.withTenant(tenantId, (tx) =>
-        tx.memoryCandidate.update({
-          where: { id: candidateId },
-          data: { status, decidedBy, decidedAt: new Date(), committedMemoryId },
-        }),
-      );
-      return;
-    }
-    await this.prisma.withTenant(tenantId, async (tx) => {
-      const rows = await tx.$queryRaw<
-        Array<{
-          scope: string;
-          source_kind: string;
-          client_id: string | null;
-          governed_status: string;
-          expires_at: string | null;
-        }>
-      >`
-        SELECT scope, source_kind, client_id::text AS client_id, governed_status,
-               payload_jsonb->>'expiresAt' AS expires_at
-        FROM memory_candidate
-        WHERE id = ${candidateId}::uuid AND tenant_id = ${tenantId}::uuid
-        LIMIT 1
-      `;
-      const row = rows[0];
-      if (!row) throw new NotFoundException('Memory candidate vanished before its decision.');
-
-      const expiresAt = row.expires_at ? new Date(row.expires_at) : null;
-      const hasTtl = expiresAt !== null && Number.isFinite(expiresAt.getTime());
-      const classification = classifyCandidateForGovernance(
-        {
-          scope: row.scope as LegacyCandidateScope,
-          sourceKind: row.source_kind,
-          hasTtl,
-        },
-        status,
-      );
-      // Every hop is validated by assertMemoryTransition, so an impossible
-      // decision (re-approving a rejected candidate) throws instead of silently
-      // rewriting terminal state.
-      const hops = candidateTransitionPath(row.governed_status as GovernedMemoryStatus, status);
-
       await tx.memoryCandidate.update({
         where: { id: candidateId },
-        data: {
-          status,
-          decidedBy,
-          decidedAt: new Date(),
-          committedMemoryId,
+        data: { status, decidedBy, decidedAt: new Date(), committedMemoryId },
+      });
+      return;
+    }
+
+    const rows = await tx.$queryRaw<
+      Array<{
+        scope: string;
+        source_kind: string;
+        client_id: string | null;
+        governed_status: string;
+        expires_at: string | null;
+      }>
+    >`
+      SELECT scope, source_kind, client_id::text AS client_id, governed_status,
+             payload_jsonb->>'expiresAt' AS expires_at
+      FROM memory_candidate
+      WHERE id = ${candidateId}::uuid AND tenant_id = ${tenantId}::uuid
+      LIMIT 1
+    `;
+    const row = rows[0];
+    if (!row) throw new NotFoundException('Memory candidate vanished before its decision.');
+
+    const expiresAt = row.expires_at ? new Date(row.expires_at) : null;
+    const hasTtl = expiresAt !== null && Number.isFinite(expiresAt.getTime());
+    const classification = classifyCandidateForGovernance(
+      {
+        scope: row.scope as LegacyCandidateScope,
+        sourceKind: row.source_kind,
+        hasTtl,
+      },
+      status,
+    );
+    const hops = candidateTransitionPath(row.governed_status as GovernedMemoryStatus, status);
+    const decidedAt = new Date();
+
+    await tx.memoryCandidate.update({
+      where: { id: candidateId },
+      data: {
+        status,
+        decidedBy,
+        decidedAt,
+        committedMemoryId,
+        memoryClass: classification.memoryClass,
+        memoryScope: classification.memoryScope,
+        governedStatus: governedStatusForDecision(status),
+        ...(classification.memoryAuthority
+          ? { memoryAuthority: classification.memoryAuthority }
+          : {}),
+        ...(status === 'approved' ? { approvedByUserId: decidedBy, approvedAt: decidedAt } : {}),
+        ...(classification.memoryClass === 'episodic_working' && expiresAt ? { expiresAt } : {}),
+      },
+    });
+
+    for (const hop of hops) {
+      await this.transitionAudit.record(tx, tenantId, {
+        subject: { memoryCandidateId: candidateId },
+        actorUserId: decidedBy,
+        clientId: row.client_id,
+        fromStatus: hop.from,
+        toStatus: hop.to,
+        reasonCode: hop.reasonCode,
+        reason: `memory candidate ${status} (${row.scope} scope, ${row.source_kind})`,
+        metadata: {
+          legacyStatus: status,
           memoryClass: classification.memoryClass,
-          memoryScope: classification.memoryScope,
-          governedStatus: governedStatusForDecision(status),
-          // A rejected proposal leaves review holding NO authority.
-          ...(classification.memoryAuthority
-            ? { memoryAuthority: classification.memoryAuthority }
-            : {}),
-          // 'auto_committed' is deliberately NOT recorded as approval: nobody
-          // reviewed it. Only an explicit approve stamps approved_by/approved_at,
-          // which is what hasHumanApproval()/fourEyesSatisfied() read.
-          ...(status === 'approved' ? { approvedByUserId: decidedBy, approvedAt: new Date() } : {}),
-          // memory_candidate_ephemeral_ttl_check rejects episodic_working without
-          // a TTL, so the class and the column are written together or not at all.
-          ...(classification.memoryClass === 'episodic_working' && expiresAt ? { expiresAt } : {}),
+          memoryAuthority: classification.memoryAuthority,
+          clioMemoryId: committedMemoryId,
+          sourceKind: row.source_kind,
         },
       });
-
-      for (const hop of hops) {
-        await this.transitionAudit.record(tx, tenantId, {
-          subject: { memoryCandidateId: candidateId },
-          actorUserId: decidedBy,
-          clientId: row.client_id,
-          fromStatus: hop.from,
-          toStatus: hop.to,
-          reasonCode: hop.reasonCode,
-          reason: `memory candidate ${status} (${row.scope} scope, ${row.source_kind})`,
-          // Ids and vocabulary only — never the proposed value. committed_memory_item_id
-          // is deliberately NOT set on the row: commitToClioMemory returns a
-          // clio_memory id, and that column carries an FK to memory_items whose
-          // projection is written asynchronously by projectClioMemory.
-          metadata: {
-            legacyStatus: status,
-            memoryClass: classification.memoryClass,
-            memoryAuthority: classification.memoryAuthority,
-            clioMemoryId: committedMemoryId,
-            sourceKind: row.source_kind,
-          },
-        });
-      }
-    });
+    }
   }
 
   /**
-   * The actual clio_memory write, moved out of MeriToolsService.saveMemory
-   * unchanged (same find→update-else-create-with-P2002-retry idiom) so both
-   * the auto-commit path and the admin-approve path share one implementation.
+   * Commit one canonical clio_memory version and enqueue its projection using
+   * the CALLER'S transaction. This helper never opens a nested transaction and
+   * never performs network work.
    */
-  private async commitToClioMemory(tenantId: string, record: MemorySaveRequest): Promise<string> {
+  private async commitToClioMemoryInTx(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    record: MemorySaveRequest,
+  ): Promise<string> {
     const metadata = {
       tool: 'save_memory',
       createdBy: 'user-requested',
       visibility: record.scope,
-      // Phase 4: carry a scored confidence so projectClioMemory → the clio
-      // adapter stamps memory_items.confidence. Omitted when unscored (human
-      // saves) so the projection confidence stays NULL/neutral.
       ...(typeof record.confidence === 'number' && Number.isFinite(record.confidence)
         ? { confidence: Math.min(1, Math.max(0, record.confidence)) }
         : {}),
@@ -431,116 +519,95 @@ export class MemoryCandidateService {
       ...(record.sourceMessageId ? { sourceMessageId: record.sourceMessageId } : {}),
       ...(record.sourceExcerpt ? { sourceExcerpt: record.sourceExcerpt.slice(0, 4_000) } : {}),
     };
-    // ONE transaction for the write AND the durable record of the indexing work
-    // it owes (closeout §4, gap B2). Previously this ran as three separate
-    // withTenant calls followed by two fire-and-forget dispatches:
-    //
-    //     void this.embedMemory(...)
-    //     void this.memoryIngest.projectClioMemory(...)
-    //
-    // If either lost its race with a container stop, a deploy or an unhandled
-    // rejection, the memory existed in clio_memory but was never projected into
-    // memory_items and never embedded. NOTHING recorded that the work was owed,
-    // so nothing retried: the memory silently never became recallable.
-    //
-    // The outbox row is now committed atomically WITH the memory, so the work
-    // cannot be lost. The fast-path attempt below keeps the latency identical to
-    // the old behaviour — see the comment there.
-    const { memoryId } = await this.prisma.withTenant(tenantId, async (tx) => {
-      const findExisting = () =>
-        tx.clioMemory.findFirst({
-          where: {
+
+    const findExisting = () =>
+      tx.clioMemory.findFirst({
+        where: {
+          tenantId,
+          scope: record.scope,
+          ownerUserId: record.ownerUserId,
+          clientId: record.clientId ?? null,
+          key: record.key,
+        },
+        select: { id: true },
+      });
+    const updateExisting = (id: string) =>
+      tx.clioMemory.update({
+        where: { id },
+        data: {
+          value: record.value,
+          source: record.source,
+          metadata,
+          expiresAt: record.expiresAt ?? null,
+        },
+      });
+
+    let id: string;
+    const existing = await findExisting();
+    if (existing) {
+      await updateExisting(existing.id);
+      id = existing.id;
+    } else {
+      try {
+        const created = await tx.clioMemory.create({
+          data: {
             tenantId,
             scope: record.scope,
             ownerUserId: record.ownerUserId,
             clientId: record.clientId ?? null,
             key: record.key,
-          },
-          select: { id: true },
-        });
-      const updateExisting = (id: string) =>
-        tx.clioMemory.update({
-          where: { id },
-          data: {
             value: record.value,
             source: record.source,
             metadata,
             expiresAt: record.expiresAt ?? null,
           },
+          select: { id: true },
         });
-
-      let id: string;
-      const existing = await findExisting();
-      if (existing) {
-        await updateExisting(existing.id);
-        id = existing.id;
-      } else {
-        try {
-          const created = await tx.clioMemory.create({
-            data: {
-              tenantId,
-              scope: record.scope,
-              ownerUserId: record.ownerUserId,
-              clientId: record.clientId ?? null,
-              key: record.key,
-              value: record.value,
-              source: record.source,
-              metadata,
-              expiresAt: record.expiresAt ?? null,
-            },
-            select: { id: true },
-          });
-          id = created.id;
-        } catch (err) {
-          if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-            const raced = await findExisting();
-            if (!raced) throw err;
-            await updateExisting(raced.id);
-            id = raced.id;
-          } else {
-            throw err;
-          }
+        id = created.id;
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          const raced = await findExisting();
+          if (!raced) throw err;
+          await updateExisting(raced.id);
+          id = raced.id;
+        } else {
+          throw err;
         }
       }
+    }
 
-      // Idempotency key is the memory VERSION, not just the row: a later save to
-      // the same key must be able to owe a fresh projection. updated_at is bumped
-      // by the write above, so keying on it means one job per distinct write and a
-      // retried identical write collapses via ON CONFLICT DO NOTHING.
-      const stamp = await tx.$queryRaw<Array<{ updated_at: Date }>>`
-        SELECT updated_at FROM clio_memory
-        WHERE id = ${id}::uuid AND tenant_id = ${tenantId}::uuid
-      `;
-      const version = stamp[0]?.updated_at?.toISOString() ?? 'unstamped';
-      await this.cleanupOutbox.enqueue(tx, tenantId, {
-        clioMemoryId: id,
-        operation: 'index_memory_item',
-        idempotencyKey: `index_memory_item:${id}:${version}`,
-      });
-      return { memoryId: id };
+    const stamp = await tx.$queryRaw<Array<{ updated_at: Date }>>`
+      SELECT updated_at FROM clio_memory
+      WHERE id = ${id}::uuid AND tenant_id = ${tenantId}::uuid
+    `;
+    const version = stamp[0]?.updated_at?.toISOString() ?? 'unstamped';
+    await this.cleanupOutbox.enqueue(tx, tenantId, {
+      clioMemoryId: id,
+      operation: 'index_memory_item',
+      idempotencyKey: `index_memory_item:${id}:${version}`,
     });
+    return id;
+  }
 
-    // FAST PATH — still NON-BLOCKING, so save latency is unchanged.
-    //
-    // The projection embeds via Bedrock. That rules out two placements: it must
-    // not run inside the transaction above (holding a Prisma connection across a
-    // network round trip is the pool-starvation pattern that has already caused
-    // one production incident), and it must not be awaited here either, or every
-    // `save_memory` in a chat turn would block on an embedding round trip. So the
-    // dispatch stays exactly as fire-and-forget as it was.
-    //
-    // What changed is that it is no longer fire-and-FORGET. The work is durably
-    // owed by the outbox row committed above, so:
-    //   * success  -> close the row, and the drain never sees it;
-    //   * failure  -> the row stays pending and the drain re-projects
-    //                 (projectClioMemory upserts on a derived slug, so a repeat
-    //                 is a no-op rather than a duplicate);
-    //   * hard kill mid-flight -> identical to failure, which is the case that
-    //                 used to vanish with no record that anything was owed.
-    //
-    // A newly saved memory therefore becomes recallable in the same seconds it
-    // always did, with no dependency on the drain being scheduled — the drain is
-    // the safety net, not the mechanism.
+  /**
+   * Compatibility wrapper for non-candidate callers and focused projection
+   * tests. Candidate activation itself calls commitToClioMemoryInTx directly so
+   * memory creation and the candidate decision cannot split across commits.
+   */
+  private async commitToClioMemory(tenantId: string, record: MemorySaveRequest): Promise<string> {
+    const memoryId = await this.prisma.withTenant(tenantId, (tx) =>
+      this.commitToClioMemoryInTx(tx, tenantId, record),
+    );
+    this.dispatchProjectionFastPath(tenantId, memoryId, record);
+    return memoryId;
+  }
+
+  /** Network-backed embedding/projection is deliberately post-commit. */
+  private dispatchProjectionFastPath(
+    tenantId: string,
+    memoryId: string,
+    record: MemorySaveRequest,
+  ): void {
     void Promise.all([
       this.embedMemory(tenantId, memoryId, record.key, record.value),
       this.memoryIngest.projectClioMemory(tenantId, memoryId),
@@ -552,7 +619,6 @@ export class MemoryCandidateService {
             `cleanup drain: ${(err as Error).message}`,
         );
       });
-    return memoryId;
   }
 
   /**
