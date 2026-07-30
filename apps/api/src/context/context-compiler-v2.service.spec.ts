@@ -47,7 +47,7 @@ describe('ContextCompilerService — Phase 8', () => {
     const executions: unknown[] = [];
     const tx = {
       tenant: {
-        findFirst: jest.fn().mockResolvedValue({ settings: options.settings ?? CANARY_SETTINGS }),
+        findFirst: jest.fn(async () => ({ settings: options.settings ?? CANARY_SETTINGS })),
       },
       $queryRaw: jest.fn(async (arg: unknown) => {
         queries.push(arg);
