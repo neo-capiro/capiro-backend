@@ -406,5 +406,6 @@ Phase 1 evidence SHA are green.
 - Candidate lineage is stable through `source_version = candidate:<id>` and is carried into the Clio compatibility envelope. Projection retry restores governed metadata only for validated active candidate lineage; generic projection SQL remains pre-migration compatible while governance is dark.
 - Approved canonical memory is returned by Context Packet v2 with the same item ID and authority; pending memory is withheld. API, orchestrator, Strategy, Steward, and Workspace consumers passed the consistency matrix.
 - Full transaction rollback covers the candidate, canonical item, Clio row, transition evidence, and outbox obligation.
-- Acceptance state: isolated implementation gate PASS; normal PR checks pending on the promoted SHA.
-- Next gated phase after normal PR CI: Phase 3 — route Settings edits through candidate review.
+- Normal PR CI on `1ebc9ce312f7ce02de8b8340b10722621d9b25f0`: `ci-pr` `30518878323`, `meriv2-evals` `30518878319`, `engagement-trust-boundary` `30518878318`, `legiwatch-ci` `30518878324`, and `funding-opportunities-ci` `30518878326` — all PASS.
+- Acceptance state: **PASS**. Approved governance is canonical on the active `memory_items` version, remains consistent through the Clio compatibility projection and Context Packet v2 across API, orchestrator, Strategy, Steward, and Workspace, and rolls back atomically with candidate/audit/outbox state.
+- Next gated phase: Phase 3 — route Settings edits through candidate review.

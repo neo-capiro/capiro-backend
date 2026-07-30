@@ -7,7 +7,13 @@
 - API Phase 1–2 matrix: **10 suites / 88 tests PASS**
 - Orchestrator Context v2, Strategy, and Steward matrix: **4 suites / 24 tests PASS**
 - Workspace canonical-context matrix: **2 suites / 13 tests PASS**
-- Normal PR CI: pending on the promoted closeout SHA
+- Normal PR CI: **PASS** on closeout SHA `1ebc9ce312f7ce02de8b8340b10722621d9b25f0`
+  - `ci-pr` run `30518878323` — PASS
+  - `meriv2-evals` run `30518878319` — PASS
+  - `engagement-trust-boundary` run `30518878318` — PASS
+  - `legiwatch-ci` run `30518878324` — PASS
+  - `funding-opportunities-ci` run `30518878326` — PASS
+- Acceptance gate: **PASS**
 
 When governed lifecycle is explicitly armed after the additive migrations exist, candidate approval creates or updates the authoritative governed `memory_items` version inside the Phase 1 transaction and records exact `committed_memory_item_id` lineage. Firm, client, and personal approvals map to canonical steering identities and authority. A human-reviewed model extraction becomes `analyst_verified`; a defensive unreviewed machine path remains `model_inferred`.
 
