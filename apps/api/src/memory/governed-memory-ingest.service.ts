@@ -48,7 +48,10 @@ export class GovernedMemoryIngestService extends MemoryIngestService {
   }
 
   private async completeExactFastPath(receipt: StrictProjectionReceipt): Promise<void> {
-    if (!receipt.sourceVersion || !receipt.contentHash || !receipt.idempotencyKey) {
+    const sourceVersion = receipt.sourceVersion;
+    const contentHash = receipt.contentHash;
+    const idempotencyKey = receipt.idempotencyKey;
+    if (!sourceVersion || !contentHash || !idempotencyKey) {
       // Source disappeared before a request-time expectation could be established.
       // Leave the durable job untouched; the worker owns its exact expected version.
       return;
@@ -68,9 +71,9 @@ export class GovernedMemoryIngestService extends MemoryIngestService {
           WHERE tenant_id = ${receipt.tenantId}::uuid
             AND clio_memory_id = ${receipt.clioMemoryId}::uuid
             AND operation = 'index_memory_item'
-            AND idempotency_key = ${receipt.idempotencyKey}
-            AND expected_source_version = ${new Date(receipt.sourceVersion)}
-            AND expected_content_hash = ${receipt.contentHash}
+            AND idempotency_key = ${idempotencyKey}
+            AND expected_source_version = ${new Date(sourceVersion)}
+            AND expected_content_hash = ${contentHash}
             AND status IN ('pending', 'failed')
         `,
     );
