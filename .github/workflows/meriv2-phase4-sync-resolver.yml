@@ -1,0 +1,134 @@
+name: MeriV2 Phase 4 main-sync resolver
+
+on:
+  push:
+    branches: [agent/meriv2-world-class-closeout]
+    paths: [.github/workflows/meriv2-phase4-sync-resolver.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  resolve:
+    if: github.repository == 'neo-capiro/capirov2'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/meriv2-world-class-closeout
+          fetch-depth: 0
+      - name: Apply exact current-main conflict resolutions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object apps/api/prisma/schema.prisma)" = "6c22048f9b4293537ff435e24d6306047f2ac458"
+          test "$(git hash-object apps/api/src/funding-opportunities/funding-opportunities.boundaries.spec.ts)" = "d8485b7ea3314e57927ac0745502ab1485fdeec3"
+          python - <<'PY'
+          from pathlib import Path
+
+          schema = Path('apps/api/prisma/schema.prisma')
+          text = schema.read_text()
+          old = '''  // these ride alongside the existing federal column rather than a new model.
+            latitude              Float?
+            longitude             Float?
+            stateHouseDistrict    String?   @map("state_house_district") @db.VarChar(8)
+            stateSenateDistrict   String?   @map("state_senate_district") @db.VarChar(8)
+          '''
+          new = '''  // these ride alongside the existing federal column rather than a new model.
+            latitude              Float?
+            longitude             Float?
+            /// Census SLDL/SLDU BASENAME. In named-district states this is a NAME, not a
+            /// number ('8th Bristol', 'First Bristol and Plymouth', 'Merrimack 18'), so
+            /// the column is 64 wide, NOT the 8 it shipped as — at 8 every write for such
+            /// a state threw and poisoned the nightly geocode run (migration
+            /// 20260810050000). Longest real value is MA's 42-char senate district.
+            stateHouseDistrict    String?   @map("state_house_district") @db.VarChar(64)
+            stateSenateDistrict   String?   @map("state_senate_district") @db.VarChar(64)
+          '''
+          if text.count(old) != 1:
+              raise SystemExit('schema conflict context changed; refusing to improvise')
+          schema.write_text(text.replace(old, new, 1))
+
+          funding = Path('apps/api/src/funding-opportunities/funding-opportunities.boundaries.spec.ts')
+          text = funding.read_text()
+          anchor = "const SCHEMA = join(__dirname, '../../prisma/schema.prisma');\n\n"
+          insertion = """const SCHEMA = join(__dirname, '../../prisma/schema.prisma');
+
+          /**
+           * Newest migration that existed BEFORE Funding Opportunities' first migration
+           * (`20260810010000_funding_opportunities`). Everything at or below this is the
+           * frozen baseline FO was stamped on top of; a NEW migration landing in that
+           * range would never apply on an environment where FO is already applied.
+           * See the migration-ordering test below.
+           */
+          const PRE_FO_BASELINE_MAX = '20260809010000_engagement_audit_finding_redaction';
+
+          """
+          if text.count(anchor) != 1:
+              raise SystemExit('funding constant context changed; refusing to improvise')
+          text = text.replace(anchor, insertion, 1)
+          start_marker = "  test('this feature’s newest migration is last among feature-owned migrations and has a unique prefix', () => {"
+          start = text.find(start_marker)
+          end = text.find("\n\n  describe('lifecycle-truth migration", start)
+          if start < 0 or end < 0:
+              raise SystemExit('funding migration guard context changed; refusing to improvise')
+          replacement = """  test('this feature’s migrations apply in order, after everything that predates them', () => {
+            // Prisma applies by directory name; a new migration stamped EARLIER than an
+            // already-applied one is the hazard this guards.
+            //
+            // Twice now this test has been written as \"nothing in the repo sorts after
+            // ours\", and twice that has made it a tripwire for whoever ships the next
+            // migration in ANY stream. The first form hardcoded the name and went red
+            // when 20260810030000_committee_hearing_starts_at landed on 2026-07-29; the
+            // rewrite kept `expect(names[names.length - 1]).toBe(newestOurs)`, which is
+            // the same assertion with the name computed, and went red again when
+            // 20260810050000_widen_facility_state_district_columns landed on 2026-07-30.
+            // A later unrelated migration is normal and harmless — it is not what
+            // breaks FO. So assert the invariant that actually protects this feature
+            // and stop asserting global maximality.
+            const dir = join(__dirname, '../../prisma/migrations');
+            const names = readdirSync(dir, { withFileTypes: true })
+              .filter((e) => e.isDirectory())
+              .map((e) => e.name)
+              .sort();
+            const ours = names.filter((n) => /_funding_opportunities/.test(n));
+            expect(ours.length).toBeGreaterThanOrEqual(3);
+            const newestOurs = ours[ours.length - 1]!;
+            expect(newestOurs).toBe('20260810040000_funding_opportunities_lifecycle_truth');
+
+            // 1. FO's own migrations are strictly ascending — an FO migration stamped
+            //    before an already-shipped FO migration would silently never apply.
+            expect([...ours].sort()).toEqual(ours);
+
+            // 2. The whole pre-FO baseline sorts before FO's first migration. This is
+            //    what a mis-stamped NEW migration would violate: anything stamped
+            //    earlier than FO's floor but authored now would be skipped on every
+            //    environment where FO is already applied.
+            const oldestOurs = ours[0]!;
+            const nonFo = names.filter((n) => !/_funding_opportunities/.test(n));
+            const strayEarlier = nonFo.filter((n) => n < oldestOurs && n > PRE_FO_BASELINE_MAX);
+            expect(strayEarlier).toEqual([]);
+
+            // 3. OUR newest migration's timestamp prefix is unique, so its apply
+            //    position does not depend on the rest of the directory name. Asserted
+            //    only for this feature's newest migration: the repo already contains
+            //    ten same-prefix pairs from concurrent streams, and failing this branch
+            //    for those would be noise about work it does not touch.
+            const prefix = newestOurs.slice(0, 14);
+            expect(names.filter((n) => n.startsWith(prefix))).toEqual([newestOurs]);
+          });"""
+          funding.write_text(text[:start] + replacement + text[end:])
+          PY
+          git diff --check
+          changed="$(git diff --name-only | sort)"
+          expected=$'apps/api/prisma/schema.prisma\napps/api/src/funding-opportunities/funding-opportunities.boundaries.spec.ts'
+          test "$changed" = "$expected"
+      - name: Commit conflict resolution
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Capiro Closeout Agent'
+          git config user.email 'noreply@capiro.ai'
+          git add apps/api/prisma/schema.prisma apps/api/src/funding-opportunities/funding-opportunities.boundaries.spec.ts
+          git commit -m 'chore(meri): resolve current-main Phase 4 sync conflicts'
+          git push origin HEAD:agent/meriv2-world-class-closeout
