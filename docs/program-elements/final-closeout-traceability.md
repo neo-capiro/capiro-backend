@@ -333,7 +333,7 @@ plus concrete findings. Do not implement fixes.
 | Prior product tip (FAIL B8–B11) | `9381d154c2869e5db995f16b968d2a41422d3deb` (docs pin `e08797811`) |
 | Prior review | VERDICT: FAIL — B8–B11 overview/procurement success-Empty on isError |
 | Remediation product r2 | `4e2abed9ba5a03acdfbdef6b47ec0be1d2fe3ba3` (work-log Phase 5 r2) |
-| Remote tip (docs pin) | `1deb654f0693aefe6bba9b1f7e66054716218c0d` |
+| Remote tip (docs pin) | `391e1ca1f522c73a7274238935493c1cedb9b26b` |
 | Implementer gate | IMPLEMENT PUSHED / review **REQUIRED** — **not** self-PASS |
 | Next | New session `./pe-closeout-run.sh review 5` on new tip only |
 | MeriV2 | untouched |
