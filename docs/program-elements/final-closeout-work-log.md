@@ -6,7 +6,7 @@
 **Repo:** `neo-capiro/capirov2`  
 **Operator session:** Phase 4 IMPLEMENT (current-cycle track-aware read contract)  
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-30 (Phase 5 B12+B13 FAIL remediation r4 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-30 (Phase 5 B14+B15 FAIL remediation r5 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
 
 ---
 
@@ -920,9 +920,89 @@ git reset --hard eafbfb2c0e848a0f692fd8b69950766a8e1277b5
 
 ---
 
+
+## Phase 5 FAIL remediation r5 — B14 intelligence body + B15 billActions failed≠empty
+
+**When:** 2026-07-30 (UTC session)  
+**Operator session:** Phase 5 IMPLEMENT only (FAIL inject B14/B15; not review)  
+**Mode:** LONG  
+**Base (FAILED review tip):** `77fd4182dca94a51b68b8c9b22ac24ce3b0c9df7` (product r4 `af09ca8517d40b53df271e0a8ac3e6aad47bc580`)  
+**Product tip (this remediation):** `3f4c19c6bba9492f82f7344bb703ec92a40cd098`  
+
+### Finding
+
+Independent review FAIL on tip `77fd4182d` closed B2/B3/B8–B13 but reopened Gate #4:
+
+- **B14:** `intelligenceQuery` featured in Partial OR and enabled nearly every tab, yet `MaturityLadderPanel` / `AppropriabilityPanel` received only data without `errored`. On `/intelligence` 500, bodies painted derivation-pending Empty ("not yet computed/scored").
+- **B15:** `historyEvents = billActionsQuery.data ?? []` silently recovered from `/bill-actions` 500; Legislation Action history showed "No action history synced yet" without `PeSecondaryFailed`.
+
+Inventory rule applied: Partial banner alone never counts when a visible secondary body still success-Empties.
+
+### All PE Watch secondary useQueries (r5 inventory)
+
+| bucket | query | enabled tabs (TAB_QUERY_MAP) | failed body path |
+|---|---|---|---|
+| bills | billsQuery | overview + most | Recent activity + BillsTouchingPePanel |
+| intelligence | intelligenceQuery | nearly all | MaturityLadder + Appropriability (B14) |
+| sources | sourcesQuery | proof | Proof sources panel |
+| contractors | contractorsQuery | incumbents | ContractorsPanel |
+| personnel | programTeamQuery | team | roster/confidence charts + ProgramTeamPanel |
+| programs | programsQuery | relationships | ProgramsPanel |
+| clientRelevance | clientRelevanceQuery | proof | ClientRelevancePanel |
+| deltas | deltasQuery | proof | deltas panel |
+| projects | projectsQuery | overview (RDTE) | ProjectsPanel |
+| related | relatedQuery | relationships | RelatedPesPanel |
+| provisions | provisionsQuery | legislation | ProvisionsPanel |
+| opportunities | opportunitiesQuery | legislation | ProcurementActivityPanel |
+| procurementLines | procurementLinesQuery | procurement | SecondaryDistributionPanel |
+| actions | actionsQuery | overview/legislation | BudgetActionsFeed |
+| relationships | relationshipsQuery | overview/relationships | LinkedLinesRail / graph |
+| incumbents | incumbentsQuery | incumbents | IncumbentMapPanel |
+| billActions | billActionsQuery | overview + legislation | Bills panel action history (B15) |
+| narrative | narrativeQuery | funding | FundingNarrativePanel |
+
+### Defects closed this push
+
+| ID | Fix |
+|---|---|
+| B14 | `MaturityLadderPanel` / `AppropriabilityPanel` gain `errored`/`onRetry`; on `intelligenceQuery.isError` mounting sites pass failed UI with testIds `pe-secondary-failed-intelligence-maturity` / `pe-secondary-failed-intelligence-appropriability`. Never derivation-pending Empty on HTTP error. Partial OR already included intelligence. |
+| B15 | Do not coalesce `billActionsQuery.data ?? []` on error; pass `billActionsErrored` + retry into `BillsTouchingPePanel`; Action history paints `pe-secondary-failed-bill-actions` instead of "No action history synced yet." Partial OR already included billActions. |
+
+### Files
+
+- `apps/web/src/pages/program-element/BudgetLinePanels.tsx`
+- `apps/web/src/pages/program-element/BillsTouchingPePanel.tsx`
+- `apps/web/src/pages/program-element/ProgramElementWatchPage.tsx`
+- `apps/web/src/pages/program-element/ProgramElementWatchPage.test.tsx` (B14/B15 + setupApi `/bill-actions` before `/bills`)
+- ledger docs
+
+### Gates (implement local)
+
+| Command | Result |
+|---|---|
+| vitest `src/pages/program-element/` | **155/155 PASS** (B14/B15 + hold B2/B8–B13) |
+| `apps/web` `run build` (tsc + vite) | **PASS** (~25s) |
+| Migrations / secrets / MeriV2 / email / LlamaParse / shared migrate | not run |
+| Scope bleed | PE Watch failed≠empty B14/B15 + tests + ledgers only |
+
+### Migrations / data ops
+None.
+
+### Independent review status (Phase 5)
+**IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on the **new product tip after push** (not self-PASS). Gate #4 requires B14/B15 cannot reproduce derivation-pending Empty or silent bill-actions empty on 500, and prior B2/B8–B13 still hold. Do **not** start Phase 6.
+
+### Rollback
+
+```bash
+# return to failure tip that named B14/B15:
+git reset --hard 77fd4182dca94a51b68b8c9b22ac24ce3b0c9df7
+```
+
+---
+
 ## Next phase
 
-**Phase 5 independent adversarial REVIEW only** against the **new remote tip** after this r4 push (not Phase 6 implement).
-Prior FAIL tips closed: B1–B3 on `9381d154c`; B8–B11 on `4e2abed9b` (docs `eafbfb2c0`); B12 product on `c8ac942b9` (docs `88921392c`). This tip re-verifies B12 and adds B13 queryTab clamp.
+**Phase 5 independent adversarial REVIEW only** against the **new remote tip** after this r5 push (not Phase 6 implement).
+Prior FAIL tips: r4 docs `77fd4182d` product `af09ca851` closed B12/B13 but left B14/B15.
 Archive FAIL inject only after PASS names the post-fix tip.
 Do not start Phase 6 until a separate REVIEW session records `VERDICT: PASS` (or PASS WITH BLOCKERS with exit-gate bullets satisfied) against that tip SHA.

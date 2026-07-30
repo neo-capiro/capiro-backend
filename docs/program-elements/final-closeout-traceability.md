@@ -335,7 +335,9 @@ plus concrete findings. Do not implement fixes.
 | Prior review | VERDICT: FAIL — **B12** FundingNarrativePanel ignores isError (stages Empty on `/narrative` 500); B8–B11 closed |
 | Remediation product r3 (B12) | `c8ac942b93d299ccb5fa7e704e76ebac2937580d` (docs pin `88921392c`) |
 | Remediation product r4 (B12 re-verify + B13) | `af09ca8517d40b53df271e0a8ac3e6aad47bc580` |
-| Remote tip (docs pin after push) | `3280a3d3c5b597807d23f2f0bda9abacbb557814` |
+| Prior FAIL tip (B14/B15) | `77fd4182dca94a51b68b8c9b22ac24ce3b0c9df7` |
+| Remediation product r5 (B14 intelligence + B15 billActions) | `3f4c19c6bba9492f82f7344bb703ec92a40cd098` |
+| Remote tip (docs pin after push) | *(after push)* |
 | Implementer gate | IMPLEMENT PUSHED / review **REQUIRED** — **not** self-PASS |
 | Next | New session `./pe-closeout-run.sh review 5` on **new** tip only |
 | MeriV2 | untouched |
@@ -355,3 +357,5 @@ plus concrete findings. Do not implement fixes.
 10. **B11** Force `GET .../procurement-lines` 500 on Procurement detail (PROC line) → `pe-secondary-failed-procurement-lines`; never Secondary Distribution honesty Empty ("no per-recipient breakdown"). Partial banner alone is insufficient if section body still paints success Empty.
 11. **B12** Force `GET .../narrative` 500 on **Funding** tab → `pe-secondary-failed-narrative` + Retry + Partial; never "No current-cycle funding stages recorded for this program element yet." Overview cold start must not request `/narrative`.
 12. **B13** RDTE detail deep-link `?tab=procurement` → Tabs paint Overview; do **not** fetch `/procurement-lines` under sticky disallowed activeTab (query enablement follows `effectivePeWatchTab`).
+13. **B14** Force `GET .../intelligence` 500 → open Relationships (RDTE) → `pe-secondary-failed-intelligence-maturity` + Partial; never "Transition maturity not yet computed". Open Appropriability → `pe-secondary-failed-intelligence-appropriability`; never "Appropriability not yet scored". Partial banner alone is insufficient if body still paints derivation Empty.
+14. **B15** Force `GET .../bill-actions` 500 → open Legislation → `pe-secondary-failed-bill-actions` + Partial; never "No action history synced yet" from silent `data ?? []`. Overview Partial may fire before tab switch (billActions enabled on overview).
