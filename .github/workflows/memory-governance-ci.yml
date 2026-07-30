@@ -32,8 +32,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Generate API Prisma client
         run: pnpm --filter @capiro/api exec prisma generate
-      - name: Typecheck apps/api
-        run: pnpm --filter @capiro/api typecheck
+      # Use the same turbo dependency graph as the repo-wide gate. Running the
+      # package script directly skips building linked workspace packages such as
+      # @capiro/shared and @capiro/meriv2-core and produces false TS2307 failures.
+      - name: Typecheck apps/api and workspace dependencies
+        run: pnpm turbo run typecheck --filter=@capiro/api
       - name: Test immutable memory lifecycle
         run: >
           pnpm --filter @capiro/api exec jest --ci --silent --runInBand
