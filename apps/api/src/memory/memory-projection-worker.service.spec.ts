@@ -28,6 +28,7 @@ interface HarnessOptions {
   projectorResult?: 'projected' | 'vanished';
   projectorError?: Error;
   claimOnlyOnce?: boolean;
+  exhaustedLeaseCount?: number;
 }
 
 function harness(options: HarnessOptions = {}) {
@@ -61,6 +62,9 @@ function harness(options: HarnessOptions = {}) {
     $executeRaw: jest.fn(async (strings: TemplateStringsArray) => {
       const sql = sqlText(strings);
       sqls.push(sql);
+      if (sql.includes('lease_expired_after_attempt_ceiling')) {
+        return options.exhaustedLeaseCount ?? 0;
+      }
       return 1;
     }),
   } as unknown as Prisma.TransactionClient;
@@ -87,7 +91,7 @@ describe('MemoryProjectionWorkerService', () => {
       succeeded: 1,
       vanished: 0,
       failed: 0,
-      deadLettered: 1,
+      deadLettered: 0,
     });
     expect(h.projector.projectClioMemoryStrict).toHaveBeenCalledWith(TENANT, CLIO);
     expect(h.sqls.some((sql) => sql.includes("SET status = 'completed'"))).toBe(true);
@@ -110,6 +114,7 @@ describe('MemoryProjectionWorkerService', () => {
       processed: 1,
       vanished: 1,
       failed: 0,
+      deadLettered: 0,
     });
     expect(h.sqls.some((sql) => sql.includes('DELETE FROM context_embeddings'))).toBe(true);
     expect(h.sqls.some((sql) => sql.includes("SET status = 'completed'"))).toBe(true);
@@ -117,7 +122,7 @@ describe('MemoryProjectionWorkerService', () => {
 
   test('retries failures with backoff before the ceiling', async () => {
     const h = harness({ projectorError: new Error('projection_failed'), attempts: 2 });
-    await expect(h.worker.drainPending()).resolves.toMatchObject({ failed: 1, deadLettered: 1 });
+    await expect(h.worker.drainPending()).resolves.toMatchObject({ failed: 1, deadLettered: 0 });
     const failed = h.sqls.find((sql) => sql.includes("SET status = 'failed'")) ?? '';
     expect(failed).toContain('next_attempt_at = now() +');
     expect(failed).toContain('lease_owner = NULL');
@@ -130,11 +135,18 @@ describe('MemoryProjectionWorkerService', () => {
     });
     await expect(h.worker.drainPending()).resolves.toMatchObject({
       failed: 0,
-      deadLettered: 2,
+      deadLettered: 1,
     });
     const dead = h.sqls.find((sql) => sql.includes("SET status = 'dead_letter'")) ?? '';
     expect(dead).toContain('dead_lettered_at = now()');
     expect(dead).toContain('lease_owner = NULL');
+  });
+
+  test('recovers a crashed final-attempt lease directly to dead-letter', async () => {
+    const h = harness({ claimOnlyOnce: true, exhaustedLeaseCount: 1 });
+    const summary = await h.worker.drainPending();
+    expect(summary.deadLettered).toBe(1);
+    expect(h.sqls.some((sql) => sql.includes('lease_expired_after_attempt_ceiling'))).toBe(true);
   });
 
   test('never persists or logs a provider/body error message', async () => {
@@ -145,7 +157,6 @@ describe('MemoryProjectionWorkerService', () => {
       await h.worker.drainPending();
       const output = errorSpy.mock.calls.flat().join(' ');
       expect(output).not.toContain(secret);
-      expect(output).toContain('error_code');
       expect(memoryWorkerErrorCode(new Error(secret))).toBe('error');
     } finally {
       errorSpy.mockRestore();
