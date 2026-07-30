@@ -1,0 +1,122 @@
+# Proves the GitHub Actions -> AWS OIDC trust chain works, without deploying anything.
+#
+# Two jobs, matching the two roles that exist in account 967807252336:
+#
+#   readonly  - assumes CapiroGitHubReadOnlyRole. Ungated: any branch may run it.
+#               Cannot write, and an explicit Deny blocks every secret value.
+#
+#   deploy    - assumes CapiroGitHubProductionDeployRole. That role's trust policy
+#               requires the OIDC `sub` claim to be exactly
+#                 repo:neo-capiro/capirov2:environment:production
+#               so this job CANNOT get credentials unless it declares
+#               `environment: production`. Branch alone is not sufficient.
+#
+# NOTE: capiro-dev IS Capiro production. os-capiro is defunct and the
+# capiro-staging ECS cluster does not exist, so there is no separate dev target.
+#
+# Role ARNs live in repository variables, not in this file:
+#   vars.AWS_READONLY_GHA_ROLE_ARN
+#   vars.AWS_PROD_GHA_ROLE_ARN
+
+name: oidc-verify
+
+on:
+  workflow_dispatch:
+    inputs:
+      check_deploy_role:
+        description: 'Also verify the production deploy role (requires environment approval)'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  readonly:
+    name: Verify read-only role
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_READONLY_GHA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Who am I
+        run: aws sts get-caller-identity
+
+      - name: Read-only probe (should succeed)
+        run: |
+          aws ecs describe-services \
+            --cluster capiro-dev \
+            --services capiro-dev-api \
+            --query 'services[0].{name:serviceName,desired:desiredCount,running:runningCount,taskDef:taskDefinition}'
+
+      - name: Confirm the role cannot read secret values (expect AccessDenied)
+        run: |
+          if aws secretsmanager get-secret-value \
+               --secret-id capiro/dev/anthropic-api-key \
+               --query 'Name' >/dev/null 2>&1; then
+            echo "::error::Read-only role was able to read a secret value. The Deny statement is not working."
+            exit 1
+          fi
+          echo "Correctly denied. Read-only role cannot read secret values."
+
+  deploy:
+    name: Verify production deploy role
+    if: inputs.check_deploy_role
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # This is the human approval gate. The AWS trust policy will reject the
+    # token if this line is removed or renamed.
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PROD_GHA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Who am I
+        run: aws sts get-caller-identity
+
+      - name: Confirm ECR login works
+        run: aws ecr get-authorization-token --query 'authorizationData[0].proxyEndpoint' --output text
+
+      - name: Confirm deploy-relevant reads work
+        run: |
+          aws ecs describe-services \
+            --cluster capiro-dev \
+            --services capiro-dev-api \
+            --query 'services[0].{name:serviceName,taskDef:taskDefinition}'
+
+      - name: Confirm the role cannot read runtime app secrets (expect AccessDenied)
+        run: |
+          if aws secretsmanager get-secret-value \
+               --secret-id capiro/dev/aurora/master \
+               --query 'Name' >/dev/null 2>&1; then
+            echo "::error::Deploy role read a runtime secret. The NotResource Deny is not working."
+            exit 1
+          fi
+          echo "Correctly denied. Deploy role is limited to capiro/dev/deploy/* secrets."
+
+      - name: Confirm the role cannot update an out-of-scope service (expect AccessDenied)
+        run: |
+          if aws ecs update-service \
+               --cluster capiro-prod-os-capiro \
+               --service capiro-prod-os-capiro-api \
+               --desired-count 1 >/dev/null 2>&1; then
+            echo "::error::Deploy role mutated a service outside capiro-dev."
+            exit 1
+          fi
+          echo "Correctly denied. Deploy role is scoped to the capiro-dev cluster."

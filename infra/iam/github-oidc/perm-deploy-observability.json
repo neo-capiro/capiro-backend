@@ -1,0 +1,61 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadCapiroDeployLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
+        "logs:FilterLogEvents",
+        "logs:GetLogEvents",
+        "logs:GetQueryResults",
+        "logs:StartQuery",
+        "logs:StopQuery"
+      ],
+      "Resource": [
+        "arn:aws:logs:us-east-1:967807252336:log-group:/capiro/*",
+        "arn:aws:logs:us-east-1:967807252336:log-group:/capiro/*:*"
+      ]
+    },
+    {
+      "Sid": "ReadDeploymentScopedSecretsOnly",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue"
+      ],
+      "Resource": [
+        "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/deploy/*",
+        "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/deploy/*"
+      ]
+    },
+    {
+      "Sid": "ListSecretNamesForVerification",
+      "Effect": "Allow",
+      "Action": "secretsmanager:ListSecrets",
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyRuntimeApplicationSecretValues",
+      "Effect": "Deny",
+      "Action": "secretsmanager:GetSecretValue",
+      "NotResource": [
+        "arn:aws:secretsmanager:us-east-1:967807252336:secret:capiro/dev/deploy/*",
+        "arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/deploy/*"
+      ]
+    },
+    {
+      "Sid": "ReadLoadBalancerHealthAfterDeploy",
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:DescribeListeners",
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "elasticloadbalancing:DescribeRules",
+        "elasticloadbalancing:DescribeTargetGroups",
+        "elasticloadbalancing:DescribeTargetHealth"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
