@@ -1,9 +1,8 @@
 # Institutional-memory governance release gate.
 #
 # The repo-wide PR workflow typechecks apps/api but intentionally does not run its
-# full Jest suite because of unrelated legacy failures. These mock-backed suites
-# are an absolute-zero scope for the governed-memory lifecycle and must therefore
-# execute as their own required-quality signal.
+# full Jest suite because of unrelated legacy failures. These focused suites and
+# the worker infrastructure typecheck are an absolute-zero release signal.
 name: memory-governance-ci
 
 on:
@@ -17,9 +16,9 @@ permissions:
   contents: read
 
 jobs:
-  immutable-versions:
+  governed-memory:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       NODE_OPTIONS: --max-old-space-size=4096
     steps:
@@ -32,12 +31,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Generate API Prisma client
         run: pnpm --filter @capiro/api exec prisma generate
-      # Use the same turbo dependency graph as the repo-wide gate. Running the
-      # package script directly skips building linked workspace packages such as
-      # @capiro/shared and @capiro/meriv2-core and produces false TS2307 failures.
-      - name: Typecheck apps/api and workspace dependencies
+      - name: Typecheck API and workspace dependencies
         run: pnpm turbo run typecheck --filter=@capiro/api
-      - name: Test immutable memory lifecycle
+      - name: Typecheck worker infrastructure
+        run: pnpm --filter @capiro/infra-cdk typecheck
+      - name: Test governed memory lifecycle and projection worker
         run: >
           pnpm --filter @capiro/api exec jest --ci --silent --runInBand
           src/memory/memory-version.helpers.spec.ts
@@ -45,3 +43,6 @@ jobs:
           src/prisma/migration-memory-immutable-versions.spec.ts
           src/memory/memory-candidate.atomicity.spec.ts
           src/meri/governed-meri-tools.proxy.spec.ts
+          src/memory/memory-projection-worker.service.spec.ts
+          src/memory/strict-memory-projector.service.spec.ts
+          src/prisma/migration-memory-cleanup-worker-leases.spec.ts
