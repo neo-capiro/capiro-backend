@@ -520,7 +520,8 @@ git reset --hard 0a74cf9a3220cea05d0666e41a0c88e75cb99929
 
 | Round | Tip | Verdict |
 |---|---|---|
-| Phase 4 | `19936afde2b8d3902902996af02fa710f7f63356` | **PENDING** — implementer gates green ≠ PASS |
+| Phase 4 product | `19936afde2b8d3902902996af02fa710f7f63356` | implement |
+| Phase 4 remote tip | `2657c64ac1febbf1212272374525c6f545e6c527` | **PENDING** review (no self-PASS) |
 
 ---
 

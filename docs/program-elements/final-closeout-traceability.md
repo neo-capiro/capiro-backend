@@ -105,7 +105,7 @@ Closeout **execution phase** column is the session phase from the final schedule
 | G11 | Current request cannot be FYDP outyear | `in_branch` (Phase 4) | isProjection / cycleClass on claim + timeline | 4 |
 | G12 | API contract tests + verify:pe-phase-g | `in_branch` (Phase 4) | funding-claim.spec + read.service Phase G case | 4 |
 
-**Phase 4 review gate:** Independent review **PENDING** against remote tip `19936afde2b8d3902902996af02fa710f7f63356`. Implementer gates alone are not Phase 4 PASS.
+**Phase 4 review gate:** Independent review **PENDING** against remote tip `2657c64ac1febbf1212272374525c6f545e6c527` (product `19936afde`). Implementer gates alone are not Phase 4 PASS.
 
 ---
 
