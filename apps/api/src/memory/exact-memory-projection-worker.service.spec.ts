@@ -47,7 +47,10 @@ function job(overrides: Partial<TestJob> = {}): TestJob {
   };
 }
 
-function harness(outcome: 'projected' | 'superseded' | 'vanished' = 'projected') {
+function harness(
+  outcome: 'projected' | 'superseded' | 'vanished' = 'projected',
+  failure?: Error,
+) {
   const captured: Array<{ sql: string; params: unknown[]; kind: 'query' | 'execute' }> = [];
   const tx = {
     $executeRaw: jest.fn(async (strings: TemplateStringsArray, ...params: unknown[]) => {
@@ -65,16 +68,19 @@ function harness(outcome: 'projected' | 'superseded' | 'vanished' = 'projected')
     withSystem: jest.fn(async <T>(fn: (arg: Prisma.TransactionClient) => Promise<T>) => fn(tx)),
   } as unknown as PrismaService;
   const projector = {
-    projectClioMemoryStrict: jest.fn(async () => ({
-      outcome,
-      tenantId: TENANT,
-      clioMemoryId: CLIO,
-      sourceVersion: VERSION.toISOString(),
-      contentHash: HASH,
-      idempotencyKey: KEY,
-      memoryItemId: ITEM,
-      embeddingRequired: true,
-    })),
+    projectClioMemoryStrict: jest.fn(async () => {
+      if (failure) throw failure;
+      return {
+        outcome,
+        tenantId: TENANT,
+        clioMemoryId: CLIO,
+        sourceVersion: VERSION.toISOString(),
+        contentHash: HASH,
+        idempotencyKey: KEY,
+        memoryItemId: ITEM,
+        embeddingRequired: true,
+      };
+    }),
   } as unknown as StrictMemoryProjectorService;
   const service = new ExactMemoryProjectionWorkerService(prisma, projector);
   const process = (value: TestJob) =>
@@ -125,10 +131,7 @@ describe('ExactMemoryProjectionWorkerService', () => {
   });
 
   test('keeps the job retryable when the projector throws', async () => {
-    const h = harness();
-    (h.projector.projectClioMemoryStrict as unknown as jest.Mock).mockRejectedValueOnce(
-      new Error('memory_embedding_missing'),
-    );
+    const h = harness('projected', new Error('memory_embedding_missing'));
 
     await expect(h.process(job())).resolves.toBe('failed');
     const failed = h.captured.find(
