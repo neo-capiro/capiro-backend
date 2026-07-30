@@ -63,6 +63,13 @@ jobs:
               "          .loadUserVoiceBlock(tenantId, campaign.createdByUserId, campaign.clientId),",
               1,
           )
+          batch_voice = "        const voiceBlock = await this.loadUserVoiceBlock(ctx, clientId ?? null).catch(() => null);"
+          assert text.count(batch_voice) == 1, ('outreach batch voice catch', text.count(batch_voice))
+          text = text.replace(
+              batch_voice,
+              "        const voiceBlock = await this.loadUserVoiceBlock(ctx, clientId ?? null);",
+              1,
+          )
           p.write_text(text)
 
           p = Path('apps/api/src/meri/meri-research.service.ts')
