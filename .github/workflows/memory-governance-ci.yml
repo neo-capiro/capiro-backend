@@ -8,22 +8,13 @@ name: memory-governance-ci
 
 on:
   pull_request:
-    branches:
-      - main
-      # Temporary validation base used only while PR #679 lacks a merge ref.
-      - ci/meriv2-phase4-validation-base
+    branches: [main]
   push:
-    branches:
-      - main
-      # Temporary closeout branch coverage: GitHub suppresses pull_request
-      # workflows while a PR has merge conflicts. Keep this until Phase 17's
-      # synchronization merge restores the normal PR merge ref.
-      - agent/meriv2-world-class-closeout
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   immutable-versions:
@@ -54,19 +45,3 @@ jobs:
           src/prisma/migration-memory-immutable-versions.spec.ts
           src/memory/memory-candidate.atomicity.spec.ts
           src/meri/governed-meri-tools.proxy.spec.ts
-      - name: Report closeout branch gate
-        if: always() && github.ref == 'refs/heads/agent/meriv2-world-class-closeout'
-        uses: actions/github-script@v7
-        env:
-          JOB_STATUS: ${{ job.status }}
-          HEAD_SHA: ${{ github.sha }}
-        with:
-          script: |
-            const status = process.env.JOB_STATUS;
-            const sha = process.env.HEAD_SHA;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: 679,
-              body: `<!-- memory-governance-branch-gate -->\n**memory-governance-ci (branch push): ${status}**\n\nHead: \`${sha}\`\n\nThis branch-push report exists because GitHub suppresses the normal pull-request merge ref while PR #679 conflicts with current main.`,
-            });
