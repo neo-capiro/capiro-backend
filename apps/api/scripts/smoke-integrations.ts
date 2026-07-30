@@ -4,6 +4,12 @@
  * printing any token material.
  *
  *   pnpm --filter @capiro/api smoke:integrations -- --tenant=<slug-or-uuid>
+ *   pnpm --filter @capiro/api smoke:integrations -- --all-tenants
+ *
+ * Prefer --all-tenants for a rollout check. A single-tenant run only proves
+ * something about that one tenant, which reads as fleet-wide verification and
+ * is not: on 2026-07-29 a one-tenant run reported 4/7 connections healthy while
+ * 13 connections across five other tenants had never been looked at.
  *
  * Completion plan (2026-07-27) Phase H, h3. This is the automated half of the
  * live-verification checklist -- the connect / send-to-self / disconnect legs
@@ -26,13 +32,16 @@
  * Requires DATABASE_URL (composed from DB_* secrets in the ECS one-off task).
  */
 import 'dotenv/config';
-import { NestFactory } from '@nestjs/core';
-import { Logger } from '@nestjs/common';
 import { EngagementProvider } from '@prisma/client';
-import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { GOOGLE_SCOPES } from '../src/engagement/google/google-oauth.service.js';
 import { MICROSOFT_SCOPES } from '../src/engagement/microsoft/microsoft-oauth-constants.js';
+import {
+  googleSyncStateFields,
+  googleSyncStateProblems,
+  integrationConnectionProblems,
+  integrationInventoryProblems,
+} from './lib/integration-smoke-state.js';
 
 function flag(name: string): boolean {
   return process.argv.includes(`--${name}`);
@@ -48,6 +57,7 @@ function arg(name: string): string | undefined {
 }
 
 const TENANT_ARG = arg('tenant');
+const ALL_TENANTS = flag('all-tenants');
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface SubscriptionState {
@@ -67,47 +77,6 @@ function scopesMatch(actual: string[], canonical: readonly string[] | null): boo
   const a = [...actual].sort();
   const b = [...canonical].sort();
   return a.length === b.length && a.every((s, i) => s === b[i]);
-}
-
-interface GoogleSyncStateFields {
-  mailHistoryId: string | null;
-  mailIncrementalPageToken: string | null;
-  mailIncrementalLatestHistoryId: string | null;
-  mailBackfillPageToken: string | null;
-  mailBackfillQuery: string | null;
-  calendarPageToken: string | null;
-  calendarWindow: { from: string; to: string } | null;
-}
-
-function asString(value: unknown): string | null {
-  return typeof value === 'string' ? value : null;
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-}
-
-/** Diagnostic-only read of the multi-run pagination cursors (remaining-items
- *  plan §3.g1) -- historyId/pageToken/query/window are opaque Gmail/Calendar
- *  sync bookkeeping, never an OAuth credential. */
-function googleSyncStateFields(syncState: unknown): GoogleSyncStateFields {
-  const state = asRecord(syncState);
-  const mail = asRecord(state.mail);
-  const allLabel = asRecord(asRecord(mail.labels).ALL);
-  const calendar = asRecord(state.calendar);
-  const window = asRecord(calendar.window);
-  return {
-    mailHistoryId: asString(mail.historyId),
-    mailIncrementalPageToken: asString(mail.incrementalPageToken),
-    mailIncrementalLatestHistoryId: asString(mail.incrementalLatestHistoryId),
-    mailBackfillPageToken: asString(allLabel.backfillPageToken),
-    mailBackfillQuery: asString(allLabel.backfillQuery),
-    calendarPageToken: asString(calendar.pageToken),
-    calendarWindow:
-      typeof window.from === 'string' && typeof window.to === 'string'
-        ? { from: window.from, to: window.to }
-        : null,
-  };
 }
 
 interface MailRemovalCounts {
@@ -160,7 +129,24 @@ function subscriptionsFrom(syncState: unknown): SubscriptionState[] {
   );
 }
 
-async function resolveTenant(prisma: PrismaService): Promise<{ id: string; slug: string }> {
+interface TenantRef {
+  id: string;
+  slug: string;
+}
+
+/**
+ * The tenants to sweep. `--all-tenants` exists because a single-tenant check
+ * silently understates coverage: run against one slug, every other tenant's
+ * connections are unexamined, and the release reads as verified when it is not.
+ * withSystem is used ONLY to enumerate — every per-tenant read below stays
+ * inside withTenant, the same split backfill-mail-removal-state uses.
+ */
+async function resolveTenants(prisma: PrismaService): Promise<TenantRef[]> {
+  if (ALL_TENANTS) {
+    return prisma.withSystem((tx) =>
+      tx.tenant.findMany({ orderBy: { slug: 'asc' }, select: { id: true, slug: true } }),
+    );
+  }
   const tenant = await prisma.withSystem((tx) =>
     tx.tenant.findFirst({
       where: UUID_RE.test(TENANT_ARG as string) ? { id: TENANT_ARG } : { slug: TENANT_ARG },
@@ -168,7 +154,7 @@ async function resolveTenant(prisma: PrismaService): Promise<{ id: string; slug:
     }),
   );
   if (!tenant) throw new Error(`tenant not found: ${TENANT_ARG}`);
-  return tenant;
+  return [tenant];
 }
 
 async function main(): Promise<void> {
@@ -178,105 +164,197 @@ async function main(): Promise<void> {
   if (flag('write')) {
     throw new Error('smoke-integrations is read-only; there is no --write mode');
   }
-  if (!TENANT_ARG) {
-    console.error('usage: smoke-integrations --tenant=<slug-or-uuid>');
+  if (!TENANT_ARG && !ALL_TENANTS) {
+    console.error(
+      'usage: smoke-integrations --tenant=<slug-or-uuid>\n' +
+        '       smoke-integrations --all-tenants',
+    );
     process.exit(2);
   }
 
-  const logger = new Logger('smoke-integrations');
-  const app = await NestFactory.createApplicationContext(AppModule, { logger: ['warn', 'error'] });
+  // This diagnostic depends only on PrismaService. Booting the entire Nest
+  // application makes a read-only production check vulnerable to unrelated
+  // module-construction failures and startup side effects. Match the established
+  // one-off-script pattern: open exactly one Prisma client and close it in finally.
+  const prisma = new PrismaService();
+  await prisma.onModuleInit();
   try {
-    const prisma = app.get(PrismaService);
-    const tenant = await resolveTenant(prisma);
+    const tenants = await resolveTenants(prisma);
+    if (ALL_TENANTS) {
+      console.log(`sweeping ${tenants.length} tenant(s): ${tenants.map((t) => t.slug).join(', ')}`);
+    }
 
-    const connections = await prisma.withTenant(tenant.id, (tx) =>
-      tx.integrationConnection.findMany({
-        where: {
-          tenantId: tenant.id,
-          provider: { in: [EngagementProvider.google_workspace, EngagementProvider.microsoft_365] },
-        },
-        select: {
-          id: true,
-          provider: true,
-          status: true,
-          accountEmail: true,
-          lastSyncAt: true,
-          lastError: true,
-          scopes: true,
-          syncState: true,
-          // Selected ONLY to compute a presence boolean below -- the
-          // ciphertext itself is never read again after that check, and this
-          // script never calls TokenCryptoService.decrypt.
-          token: { select: { expiresAt: true, refreshTokenCiphertext: true } },
-        },
-        orderBy: [{ provider: 'asc' }, { createdAt: 'asc' }],
-      }),
-    );
+    let totalProblems = 0;
+    let totalConnections = 0;
+    const perTenant: Array<{ slug: string; connections: number; problems: number }> = [];
 
-    logger.log(
-      `tenant ${tenant.slug} (${tenant.id}) -- ${connections.length} Google/Microsoft connection(s)`,
-    );
-    if (connections.length === 0) {
-      logger.warn('No Google Workspace or Microsoft 365 connections found for this tenant.');
+    for (const tenant of tenants) {
+      console.log('');
+      const problems = await checkTenant(prisma, tenant);
+      totalProblems += problems.problemCount;
+      totalConnections += problems.connectionCount;
+      perTenant.push({
+        slug: tenant.slug,
+        connections: problems.connectionCount,
+        problems: problems.problemCount,
+      });
+    }
+
+    // Fail-closed inventory rule, applied where it is meaningful. Per tenant it
+    // would be wrong under --all-tenants: a tenant that has simply never
+    // connected anything is not a rollout failure. Zero connections ANYWHERE
+    // still proves nothing and remains a failure.
+    if (totalConnections === 0) {
+      for (const problem of integrationInventoryProblems(totalConnections)) {
+        console.error(`FAILED: ${problem}.`);
+      }
+      process.exitCode = 1;
       return;
     }
 
-    for (const conn of connections) {
-      const canonical = canonicalScopesFor(conn.provider);
-      const scopeMatch = scopesMatch(conn.scopes, canonical);
-      const hasRefreshToken = Boolean(conn.token?.refreshTokenCiphertext);
-
-      logger.log('');
-      logger.log(`connection ${conn.id} [${conn.provider}]`);
-      logger.log(`  status:          ${conn.status}`);
-      logger.log(`  accountEmail:    ${conn.accountEmail ?? '(none)'}`);
-      logger.log(`  lastSyncAt:      ${conn.lastSyncAt?.toISOString() ?? 'never'}`);
-      logger.log(`  lastError:       ${conn.lastError ?? '(none)'}`);
-      logger.log(`  scopes:          ${conn.scopes.join(' ') || '(none)'}`);
-      logger.log(`  scopesMatch:     ${scopeMatch}`);
-      logger.log(`  tokenExpiresAt:  ${conn.token?.expiresAt?.toISOString() ?? '(no token row)'}`);
-      logger.log(`  hasRefreshToken: ${hasRefreshToken}`);
-
-      if (conn.provider === EngagementProvider.microsoft_365) {
-        const subscriptions = subscriptionsFrom(conn.syncState);
-        if (subscriptions.length === 0) {
-          logger.log('  subscriptions:   (none)');
-        } else {
-          for (const sub of subscriptions) {
-            logger.log(
-              `  subscription:    ${sub.id} [${sub.resource}] expires ${sub.expirationDateTime}`,
-            );
-          }
-        }
-      }
-
-      if (conn.provider === EngagementProvider.google_workspace) {
-        const sync = googleSyncStateFields(conn.syncState);
-        logger.log(`  mail.historyId:                 ${sync.mailHistoryId ?? '(none)'}`);
-        logger.log(`  mail.incrementalPageToken:      ${sync.mailIncrementalPageToken ?? '(none)'}`);
-        logger.log(`  mail.incrementalLatestHistoryId:${sync.mailIncrementalLatestHistoryId ?? ' (none)'}`);
-        logger.log(`  mail.labels.ALL.backfillPageToken: ${sync.mailBackfillPageToken ?? '(none)'}`);
-        logger.log(`  mail.labels.ALL.backfillQuery:     ${sync.mailBackfillQuery ?? '(none)'}`);
-        logger.log(`  calendar.pageToken:             ${sync.calendarPageToken ?? '(none)'}`);
-        logger.log(
-          `  calendar.window:                ${sync.calendarWindow ? `${sync.calendarWindow.from} .. ${sync.calendarWindow.to}` : '(none)'}`,
+    if (tenants.length > 1) {
+      console.log('\n--- per-tenant summary ---');
+      for (const row of perTenant) {
+        console.log(
+          `${row.problems === 0 ? 'PASS' : 'FAIL'}  ${row.slug}: ` +
+            `${row.connections} connection(s), ${row.problems} problem(s)`,
         );
       }
+    }
 
-      const removal = await mailRemovalCounts(prisma, tenant.id, conn.id);
-      logger.log(
-        `  mail (active/removed):  ${removal.activeMessages}/${removal.removedMessages}`,
+    if (totalProblems > 0) {
+      console.error(
+        `\nFAILED: ${totalProblems} integration health problem(s) found across ${tenants.length} tenant(s).`,
       );
-      logger.log(
-        `  threads (active/all-removed): ${removal.activeThreads}/${removal.allRemovedThreads}`,
-      );
+      process.exitCode = 1;
+    } else {
+      console.log('\nPASS: all integration connections satisfy the read-only health checks.');
     }
   } finally {
-    await app.close();
+    await prisma.onModuleDestroy();
   }
 }
 
+/** Per-tenant health walk. Returns counts; prints the detail as it goes. */
+async function checkTenant(
+  prisma: PrismaService,
+  tenant: TenantRef,
+): Promise<{ connectionCount: number; problemCount: number }> {
+  const connections = await prisma.withTenant(tenant.id, (tx) =>
+    tx.integrationConnection.findMany({
+      where: {
+        tenantId: tenant.id,
+        provider: { in: [EngagementProvider.google_workspace, EngagementProvider.microsoft_365] },
+      },
+      select: {
+        id: true,
+        provider: true,
+        status: true,
+        accountEmail: true,
+        lastSyncAt: true,
+        lastError: true,
+        scopes: true,
+        syncState: true,
+        // Selected ONLY to prove the encrypted refresh-token envelope is
+        // complete. No envelope value is printed, returned, or decrypted.
+        token: {
+          select: {
+            expiresAt: true,
+            refreshTokenCiphertext: true,
+            refreshTokenIv: true,
+            refreshTokenAuthTag: true,
+          },
+        },
+      },
+      orderBy: [{ provider: 'asc' }, { createdAt: 'asc' }],
+    }),
+  );
+
+  console.log(
+    `tenant ${tenant.slug} (${tenant.id}) -- ${connections.length} Google/Microsoft connection(s)`,
+  );
+
+  let problemCount = 0;
+  for (const conn of connections) {
+    const canonical = canonicalScopesFor(conn.provider);
+    const scopeMatch = scopesMatch(conn.scopes, canonical);
+    const hasRefreshToken = Boolean(
+      conn.token?.refreshTokenCiphertext &&
+      conn.token?.refreshTokenIv &&
+      conn.token?.refreshTokenAuthTag,
+    );
+    const connectionProblems = integrationConnectionProblems({
+      status: conn.status,
+      scopeMatch,
+      hasRefreshToken,
+      lastSyncAtPresent: Boolean(conn.lastSyncAt),
+      lastError: conn.lastError,
+    });
+
+    console.log('');
+    console.log(`connection ${conn.id} [${conn.provider}]`);
+    console.log(`  status:          ${conn.status}`);
+    console.log(`  accountEmail:    ${conn.accountEmail ?? '(none)'}`);
+    console.log(`  lastSyncAt:      ${conn.lastSyncAt?.toISOString() ?? 'never'}`);
+    console.log(`  lastError:       ${conn.lastError ?? '(none)'}`);
+    console.log(`  scopes:          ${conn.scopes.join(' ') || '(none)'}`);
+    console.log(`  scopesMatch:     ${scopeMatch}`);
+    console.log(`  tokenExpiresAt:  ${conn.token?.expiresAt?.toISOString() ?? '(no token row)'}`);
+    console.log(`  hasRefreshToken: ${hasRefreshToken}`);
+
+    if (conn.provider === EngagementProvider.microsoft_365) {
+      const subscriptions = subscriptionsFrom(conn.syncState);
+      if (subscriptions.length === 0) {
+        console.log('  subscriptions:   (none)');
+      } else {
+        for (const sub of subscriptions) {
+          console.log(
+            `  subscription:    ${sub.id} [${sub.resource}] expires ${sub.expirationDateTime}`,
+          );
+        }
+      }
+    }
+
+    if (conn.provider === EngagementProvider.google_workspace) {
+      const sync = googleSyncStateFields(conn.syncState);
+      console.log(`  mail.historyId:                 ${sync.mailHistoryId ?? '(none)'}`);
+      console.log(`  mail.incrementalPageToken:      ${sync.mailIncrementalPageToken ?? '(none)'}`);
+      console.log(
+        `  mail.incrementalLatestHistoryId:${sync.mailIncrementalLatestHistoryId ?? ' (none)'}`,
+      );
+      console.log(`  mail.labels.ALL.backfillPageToken: ${sync.mailBackfillPageToken ?? '(none)'}`);
+      console.log(`  mail.labels.ALL.backfillQuery:     ${sync.mailBackfillQuery ?? '(none)'}`);
+      console.log(`  mail.labels.ALL.backfillDone:      ${sync.mailBackfillDone ?? '(unknown)'}`);
+      console.log(`  calendar.syncTokenPresent:      ${sync.calendarSyncTokenPresent}`);
+      console.log(`  calendar.pageToken:             ${sync.calendarPageToken ?? '(none)'}`);
+      console.log(`  calendar.continuationMode:      ${sync.calendarContinuationMode}`);
+      console.log(
+        `  calendar.window:                ${sync.calendarWindow ? `${sync.calendarWindow.from} .. ${sync.calendarWindow.to}` : '(none)'}`,
+      );
+      connectionProblems.push(...googleSyncStateProblems(sync));
+    }
+
+    const removal = await mailRemovalCounts(prisma, tenant.id, conn.id);
+    console.log(`  mail (active/removed):  ${removal.activeMessages}/${removal.removedMessages}`);
+    console.log(
+      `  threads (active/all-removed): ${removal.activeThreads}/${removal.allRemovedThreads}`,
+    );
+
+    if (connectionProblems.length === 0) {
+      console.log('  health:           healthy');
+    } else {
+      problemCount += connectionProblems.length;
+      for (const problem of connectionProblems) console.error(`  ERROR: ${problem}`);
+    }
+  }
+
+  return { connectionCount: connections.length, problemCount };
+}
+
 void main().catch((err: unknown) => {
-  console.error('[smoke-integrations] fatal', err instanceof Error ? (err.stack ?? err.message) : err);
+  console.error(
+    '[smoke-integrations] fatal',
+    err instanceof Error ? (err.stack ?? err.message) : err,
+  );
   process.exit(1);
 });

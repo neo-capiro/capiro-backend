@@ -93,6 +93,22 @@ export function OpportunityCard({
   const dismissed = o.workflow?.status === 'dismissed';
   const canAct = Boolean(clientId);
 
+  /**
+   * Can this notice be PURSUED at all?
+   *
+   * The card already labelled informational and closed notices ("Not a pursuit",
+   * "Closed") but still offered Pursue and Create task next to the label, and the
+   * API accepted both. So an award notice — a competition somebody else has
+   * already won — could be marked as an active pursuit and would then sort to the
+   * TOP of the workflow rail, above real bids. The buttons are HIDDEN rather than
+   * disabled: a disabled Pursue invites "why can't I?", whereas the adjacent
+   * explanatory tag already answers it.
+   *
+   * Save, Dismiss and Ask Meri stay available. Saving a competitor's win for
+   * reference is legitimate; claiming to be bidding it is not.
+   */
+  const canPursue = o.isPursuable && o.isActive;
+
   // An amended notice must not read as an original one.
   const showBaseKind = o.baseKind != null && o.baseKind !== o.kind;
 
@@ -328,15 +344,17 @@ export function OpportunityCard({
               >
                 Save
               </Button>
-              <Button
-                size="small"
-                type="primary"
-                icon={<ThunderboltOutlined />}
-                disabled={!canAct || busy}
-                onClick={() => onPursue?.(o)}
-              >
-                Pursue
-              </Button>
+              {canPursue ? (
+                <Button
+                  size="small"
+                  type="primary"
+                  icon={<ThunderboltOutlined />}
+                  disabled={!canAct || busy}
+                  onClick={() => onPursue?.(o)}
+                >
+                  Pursue
+                </Button>
+              ) : null}
               <Button
                 size="small"
                 icon={<MessageOutlined />}
@@ -359,10 +377,14 @@ export function OpportunityCard({
             trigger={['click']}
             menu={{
               items: [
+                // These three work on an UNSAVED recommendation — the API creates
+                // the `saved` row as part of the edit, because assigning an owner
+                // to something is how a human takes responsibility for it.
                 { key: 'assign', label: 'Assign owner', disabled: !canAct },
                 { key: 'note', label: 'Add note', disabled: !canAct },
                 { key: 'site', label: 'Link project site', disabled: !canAct },
-                { key: 'task', label: 'Create task', disabled: !canAct },
+                // A pursuit task is a pursuit action, so it follows Pursue.
+                ...(canPursue ? [{ key: 'task', label: 'Create task', disabled: !canAct }] : []),
                 ...(o.sourceUrl ? [{ key: 'source', label: 'Open source notice' }] : []),
               ],
               onClick: ({ key }) => {
@@ -380,6 +402,12 @@ export function OpportunityCard({
         {!canAct ? (
           <Text type="secondary" style={{ fontSize: 11 }}>
             Select a client to save or pursue.
+          </Text>
+        ) : !canPursue && !dismissed ? (
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            {o.isPursuable
+              ? 'This notice is closed, so it can be saved for reference but not pursued.'
+              : 'This notice is informational, so it can be saved for reference but not pursued.'}
           </Text>
         ) : null}
       </div>

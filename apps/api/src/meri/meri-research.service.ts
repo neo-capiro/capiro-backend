@@ -35,6 +35,14 @@ import {
 
 const PRODUCT_NAME = 'Meri';
 
+/**
+ * Absolute floor for the forced-synthesis window, independent of how little of
+ * the total budget is left. Guards the degenerate case where gathering consumed
+ * everything: a 0ms window aborts the writer instantly and ships sources with no
+ * report. Clamped down to the per-call timeout at the use site.
+ */
+const SYNTHESIS_FLOOR_MS = 30_000;
+
 interface SourceAttribution {
   tool: string;
   label: string;
@@ -211,6 +219,21 @@ export class MeriResearchService {
     const system = buildPlanSystemPrompt(PRODUCT_NAME);
     const user = buildPlanUserPrompt(session.topic, clientContext);
 
+    // The planning call emits nothing until it returns, and it may take as long
+    // as CLIO_REQUEST_TIMEOUT_MS — which would otherwise be silence long enough
+    // to trip the client's stall watchdog on a legitimately slow plan.
+    const progress = createProgressReporter(sse, {
+      intervalMs: positiveNumberOr(
+        this.config.get('CLIO_RESEARCH_PROGRESS_INTERVAL_MS', { infer: true }),
+        5_000,
+      ),
+      budgetMs: positiveNumberOr(
+        this.config.get('CLIO_REQUEST_TIMEOUT_MS', { infer: true }),
+        120_000,
+      ),
+    });
+    progress.set('Planning the research…');
+
     let proposal: PlanProposal;
     try {
       const raw = await this.anthropicComplete(ctx.tenantId, system, user);
@@ -220,6 +243,8 @@ export class MeriResearchService {
       this.logger.warn(`Research plan failed: ${msg}`);
       // Fall back to a safe deterministic plan so the lobbyist is never stuck.
       proposal = parsePlanProposal('', session.topic);
+    } finally {
+      progress.stop();
     }
 
     await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -249,6 +274,35 @@ export class MeriResearchService {
    * ClioArtifact and links it to the session.
    */
   async streamResearch(ctx: TenantContext, id: string, sse: SseSink) {
+    // A research run is minutes long and — under MERI_AUDITOR_MODE=enforce — emits
+    // NO report text until the post-hoc audit clears it (see bufferReport below).
+    // Without a heartbeat the reader stares at an empty assistant bubble for the
+    // whole run with no way to tell "still gathering" from "dead stream". The
+    // heartbeat lives out here so its interval is cleared on EVERY exit path,
+    // including a throw out of the persist tail.
+    const progress = createProgressReporter(sse, {
+      intervalMs: positiveNumberOr(
+        this.config.get('CLIO_RESEARCH_PROGRESS_INTERVAL_MS', { infer: true }),
+        5_000,
+      ),
+      budgetMs: positiveNumberOr(
+        this.config.get('CLIO_RESEARCH_TOTAL_BUDGET_MS', { infer: true }),
+        420_000,
+      ),
+    });
+    try {
+      await this.runResearchStream(ctx, id, sse, progress);
+    } finally {
+      progress.stop();
+    }
+  }
+
+  private async runResearchStream(
+    ctx: TenantContext,
+    id: string,
+    sse: SseSink,
+    progress: ProgressReporter,
+  ) {
     const session = await this.ensureSession(ctx, id);
 
     const plan = asStringArray(session.plan);
@@ -282,6 +336,26 @@ export class MeriResearchService {
     // short interactive-chat one — a single gather/synthesis turn runs minutes.
     const timeoutMs = this.config.get('CLIO_RESEARCH_TIMEOUT_MS', { infer: true });
     const maxRounds = this.config.get('CLIO_RESEARCH_MAX_TOOL_ROUNDS', { infer: true });
+    // HARD wall-clock ceiling for the whole run. The per-round timeout above only
+    // bounds ONE model call, so the previous effective bound was maxRounds ×
+    // timeoutMs (10 × 600s ≈ 100 minutes) — long enough that a live run and a
+    // hung one look identical in the drawer. Gathering stops taking new rounds
+    // once the budget minus the synthesis reserve is spent, and each round's
+    // timeout is clamped to the budget that remains.
+    const totalBudgetMs = positiveNumberOr(
+      this.config.get('CLIO_RESEARCH_TOTAL_BUDGET_MS', { infer: true }),
+      420_000,
+    );
+    const synthesisReserveMs = Math.min(
+      positiveNumberOr(
+        this.config.get('CLIO_RESEARCH_SYNTHESIS_RESERVE_MS', { infer: true }),
+        120_000,
+      ),
+      // Never reserve so much that gathering gets no time at all.
+      Math.floor(totalBudgetMs / 2),
+    );
+    const deadlineAt = Date.now() + totalBudgetMs;
+    progress.set('Reviewing the research plan…');
     // Deep Research is a read-only GATHER agent: it must NOT be able to call
     // side-effecting tools (send_email/reply_email/save_memory/create_task/
     // update_client_profile/docgen/...). A long-running agentic loop over the full
@@ -342,6 +416,18 @@ export class MeriResearchService {
     // stream-as-generated behavior (the audit there never withholds anything).
     const auditorMode = await resolveTenantAuditorMode(this.prisma, ctx.tenantId);
     const bufferReport = auditorMode === 'enforce';
+    // Say so, once, instead of letting the reader interpret a silent empty bubble
+    // as a broken run. Unknown event types are ignored by older clients.
+    if (bufferReport) {
+      sse.write(
+        sseEvent({
+          type: 'notice',
+          message:
+            'Grounding checks run before delivery on this workspace, so the report arrives ' +
+            'in one piece when it passes rather than streaming as it is written.',
+        }),
+      );
+    }
     let synthesizing = false;
     // True only when the agentic loop ended because the model stopped calling
     // tools and wrote its report. If it ends any other way (tool-round budget
@@ -351,8 +437,26 @@ export class MeriResearchService {
 
     try {
       for (let round = 0; round < maxRounds; round += 1) {
+        // Budget gate: stop opening new gather rounds once the reserve is all
+        // that's left. Falling out here leaves endedCleanly === false, so the
+        // forced-synthesis pass below still writes a report from the evidence
+        // gathered so far — the run ends early, never empty.
+        const gatherRemainingMs = deadlineAt - synthesisReserveMs - Date.now();
+        if (gatherRemainingMs <= 0) {
+          this.logger.warn(
+            `Research gather budget spent after ${round} round(s) ` +
+              `(budget ${totalBudgetMs}ms, reserve ${synthesisReserveMs}ms); forcing synthesis`,
+          );
+          break;
+        }
+        progress.set(
+          `Gathering evidence — round ${round + 1} of ${maxRounds}` +
+            (sources.length > 0 ? ` · ${sources.length} source(s) so far` : ''),
+        );
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        // Clamp the per-call timeout to the budget that's actually left, so one
+        // slow round can't consume time the report needs.
+        const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, gatherRemainingMs));
         const toolUseById = new Map<number, { id: string; name: string; jsonParts: string[] }>();
         const thinkingState = createThinkingState();
         let stopReason: string | null = null;
@@ -521,6 +625,7 @@ export class MeriResearchService {
           }
           toolsUsed.push(t.name);
           sse.write(sseEvent({ type: 'step', tool: t.name, label: humanToolLabel(t.name) }));
+          progress.set(`Running ${humanToolLabel(t.name)}…`);
 
           let resultPayload: unknown;
           let isError = false;
@@ -603,8 +708,23 @@ export class MeriResearchService {
             'research report NOW, in markdown, following the report requirements: Executive Summary, ' +
             'plan-driven sections with inline source citations, Recommended Actions, and Open Questions.',
         });
+        progress.set('Writing the report…');
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        // Synthesis gets whatever budget remains, but never less than a floor: if
+        // gathering already blew through the budget, handing the writer a 0ms
+        // window would abort instantly and deliver sources with no report — the
+        // exact failure this forced pass exists to prevent. So the worst-case
+        // ceiling is budget + floor, not budget exactly. The floor itself never
+        // exceeds the configured per-call timeout.
+        const synthesisFloorMs = Math.min(
+          timeoutMs,
+          Math.max(synthesisReserveMs, SYNTHESIS_FLOOR_MS),
+        );
+        const synthesisTimeoutMs = Math.max(
+          synthesisFloorMs,
+          Math.min(timeoutMs, deadlineAt - Date.now()),
+        );
+        const timer = setTimeout(() => controller.abort(), synthesisTimeoutMs);
         try {
           const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
@@ -726,6 +846,7 @@ export class MeriResearchService {
     let held = false;
     let heldReason = '';
     if (auditorMode !== 'off' && reportBody.trim().length > 0) {
+      progress.set('Checking the report against the gathered sources…');
       try {
         const verdict = runAuditor({
           output: reportBody,
@@ -797,6 +918,7 @@ export class MeriResearchService {
     }
 
     // Persist the report artifact + link it to the session.
+    progress.set('Saving the report…');
     const artifactBody = assembleReportArtifact({
       title: session.title,
       topic: session.topic,
@@ -971,6 +1093,73 @@ export class MeriResearchService {
 
 function sseEvent(payload: Record<string, unknown>): string {
   return `data: ${JSON.stringify(payload)}\n\n`;
+}
+
+/**
+ * Config guard for the wall-clock budgets. A stubbed/partial ConfigService (unit
+ * tests, an older env) can hand back undefined, and feeding NaN to setTimeout
+ * fires it immediately — which would abort every model call instead of bounding
+ * it. Anything that isn't a finite positive number falls back to the default.
+ */
+function positiveNumberOr(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+interface ProgressReporter {
+  /** Update the current stage. Emits immediately, then on each heartbeat tick. */
+  set: (note: string) => void;
+  stop: () => void;
+}
+
+/**
+ * Liveness heartbeat for a research run.
+ *
+ * Deep Research runs for minutes, and under MERI_AUDITOR_MODE=enforce it streams
+ * NO report text at all until the post-hoc grounding audit clears it — the trust
+ * timeline moves but the message body stays empty. That made a healthy run look
+ * identical to a hung one. This emits a `progress` event on every stage change
+ * AND on a fixed interval, so the client can render what's happening and can
+ * treat prolonged silence as a genuine stall rather than waiting forever.
+ */
+function createProgressReporter(
+  sse: SseSink,
+  opts: { intervalMs: number; budgetMs: number },
+): ProgressReporter {
+  const startedAt = Date.now();
+  let note = 'Starting the research run…';
+  let stopped = false;
+
+  const emit = () => {
+    if (stopped) return;
+    // A closed/destroyed response must never take the run down with it.
+    try {
+      sse.write(
+        sseEvent({
+          type: 'progress',
+          note,
+          elapsedMs: Date.now() - startedAt,
+          budgetMs: opts.budgetMs,
+        }),
+      );
+    } catch {
+      /* client gone; the run's own completion path still persists the report */
+    }
+  };
+
+  const timer = setInterval(emit, Math.max(1_000, opts.intervalMs));
+  // Never keep the process (or a jest worker) alive on the heartbeat alone.
+  timer.unref?.();
+
+  return {
+    set: (next: string) => {
+      note = next;
+      emit();
+    },
+    stop: () => {
+      stopped = true;
+      clearInterval(timer);
+    },
+  };
 }
 
 /**

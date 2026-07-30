@@ -8,10 +8,14 @@ function makeRes(headersSent = false) {
   const res = {
     headersSent,
     status: jest.fn(),
+    setHeader: jest.fn(),
     json: jest.fn(),
     end: jest.fn(),
   };
   res.status.mockReturnValue(res as never);
+  // The 503 branch chains .status().setHeader().json() — without a chainable
+  // stub the filter would throw inside the test rather than assert.
+  res.setHeader.mockReturnValue(res as never);
   return res;
 }
 
@@ -53,6 +57,38 @@ describe('PrismaClientExceptionFilter', () => {
       statusCode: HttpStatus.NOT_FOUND,
       message: 'Not found',
     });
+  });
+
+  // Pool exhaustion: a burst of background Graph syncs starved the Prisma pool
+  // and made unrelated user writes fail. As a 500 that read as a bug in
+  // whatever the user was saving, with no hint that retrying would work.
+  test.each(['P2024', 'P2028'])('%s maps to 503 with Retry-After, not 500', (code) => {
+    const res = makeRes();
+
+    filter.catch(prismaError(code), makeHost(res));
+
+    expect(res.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
+    expect(res.setHeader).toHaveBeenCalledWith('Retry-After', '2');
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+      message: 'The database is temporarily busy. Please retry.',
+    });
+  });
+
+  test('a 503 does not leak the engine message to the caller', () => {
+    const res = makeRes();
+
+    filter.catch(
+      prismaError(
+        'P2028',
+        'Transaction API error\nUnable to start a transaction in the given time.',
+      ),
+      makeHost(res),
+    );
+
+    const body = res.json.mock.calls[0]?.[0] as { message: string };
+    expect(body.message).not.toContain('Transaction API error');
+    expect(body.message).not.toContain('Unable to start a transaction');
   });
 
   test('unmapped codes preserve the prior 500 with a generic body', () => {

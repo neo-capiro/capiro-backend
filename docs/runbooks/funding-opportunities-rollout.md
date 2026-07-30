@@ -1,14 +1,50 @@
 # Runbook — Funding Opportunities rollout
 
-**Nothing in this runbook has been executed.** Every step below is a proposal.
-No migration has been applied, no image deployed, no flag written, no producer run,
-no EventBridge rule created. Where a step is marked MUTATING it requires Neo's
-explicit approval before it is run.
+**Nothing in this runbook has been executed.** Every step below is a proposal. No
+migration has been applied by this work, no image deployed, no flag written, no
+producer run, no schedule created or enabled. Steps marked **MUTATING** require
+Neo's explicit approval before they are run.
 
-Read-only steps are safe to run at any time and are useful on their own — several
-of them answer "is this feature even going to work here" before anything is changed.
+Read-only steps are safe at any time and several are useful on their own — they
+answer "is this going to work here" before anything changes.
 
-Environment reminders (from prior incidents):
+This replaces the prior version of this file, which referenced PR #667 (long since
+merged), the pre-remediation command set, and a step numbering that no longer
+matches the work.
+
+## What this rollout covers
+
+| | |
+|---|---|
+| Branch | `agent/fo-final-remediation-v2` |
+| PR | `#692 — fix(intelligence): finish Funding Opportunities remediation` |
+| Superseded | `#680` (transport artifacts only — see §25) |
+| New migration | `20260810040000_funding_opportunities_lifecycle_truth` |
+| Already applied | `20260810010000_funding_opportunities`, `20260810020000_funding_opportunities_closeout` |
+| Feature flag | `intel_feature_flag.feature = 'funding_opportunities'` |
+| CI gate | `.github/workflows/funding-opportunities-ci.yml` |
+
+### Source rails this feature depends on
+
+| Verb | What it fills | Ledger source |
+|---|---|---|
+| `sync-grants` | `federal_grant`, the 10 fields search2 returns | `sync-grants` |
+| `enrich-grant-details` | everything a user decides on (award ceiling, eligibility text, revision, amendment count) | `enrich-grant-details` |
+| `sync-sam-opportunities` | `sam_opportunity`, DoD scope | `sync-sam-opportunities` |
+| `sync-sam-opportunities-all-federal` | `sam_opportunity`, all federal | `sync-sam-opportunities-all-federal` |
+| either scope with `--backfill` | historical windows | `…-backfill` — **separate**, see §12 |
+| `generate-funding-grant-candidates` | grant suggestions | same verb |
+| `generate-sam-opportunity-candidates` | contract suggestions | same verb |
+| `process-funding-opportunity-lifecycle` | expiry + lifecycle alerts | same verb |
+
+`enrich-grant-details` is a **dependency**, not a nice-to-have. `sync-grants`
+populates ten fields; the award ceiling, eligibility text and amendment counters
+the producers score on and the page renders come only from the detail fetch. A green
+catalog rail with a dead enricher renders as "this grant has no award ceiling"
+rather than "we have not fetched it". Since this change the freshness card reports
+the two independently.
+
+## Environment reminders (from prior incidents)
 
 - **`capiro-dev` IS production.** There is no separate prod cluster.
 - **`capiro-staging`'s ECS cluster does not actually exist**, despite CloudFormation
@@ -16,63 +52,69 @@ Environment reminders (from prior incidents):
 - **Do NOT run `cdk deploy Capiro-dev-Compute`.** That stack holds dead-ALB values;
   a rollback reverts production DNS (7-minute outage, 2026-07-2x).
 - Deploys go via CI + `aws ecs update-service`, profile `capiro-dev`.
-- One-off tasks: `capiro-dev-api-diag` (read-only, container `db-inspect`),
+- One-off task defs: `capiro-dev-api-diag` (read-only, container `db-inspect`),
   `capiro-dev-api-migrate`, `capiro-dev-api-sync-jobs`. Log group `/capiro/dev/api`.
-- A diag/one-off task must compose `DATABASE_URL` itself and, for RLS-forced tables,
-  set `app.bypass_rls`. `intel_feature_flag.tenant_id` is **TEXT** — never cast it
-  to uuid.
+- A diag/one-off task must compose `DATABASE_URL` itself and, for RLS-forced
+  tables, `SELECT set_config('app.bypass_rls','on',true)`.
+- `intel_feature_flag.tenant_id` is **TEXT** — never cast it to uuid.
+- `run-task` networking:
+  `subnets=[subnet-0e38bd390f8961fef,subnet-0920665f91c905f01,subnet-06db79cd21239de19]`,
+  `securityGroups=[sg-01def4e5c0fe44d4a]`, `assignPublicIp=DISABLED`.
+- `aws ecs run-task` / `update-service` and `gh pr merge` are classifier-blocked in
+  the agent shell; Neo runs those via `!`.
 
 ---
 
-## Part A — read-only preflight
+# Part A — read-only preflight
 
-### 1. Preflight: confirm the code is where you think it is
-
-```bash
-# READ-ONLY
-gh pr view 667 --json headRefOid,mergeable,isDraft,statusCheckRollup
-git -C <checkout> fetch origin --prune
-git -C <checkout> log --oneline origin/main..origin/agent/funding-opportunities-auto-matching
-```
-
-Expect: draft, mergeable, branch not behind `main`.
-
-### 2. DB snapshot
+## 1. Aurora snapshot
 
 ```bash
-# MUTATING (creates a snapshot; does not alter data) — Neo approval
+# MUTATING (creates a snapshot; alters no data) — Neo approval
 aws rds describe-db-clusters --profile capiro-dev --region us-east-1 \
   --query 'DBClusters[?DBClusterIdentifier==`<cluster>`].[DBClusterIdentifier,Status,EarliestRestorableTime,LatestRestorableTime]'
 
 aws rds create-db-cluster-snapshot --profile capiro-dev --region us-east-1 \
   --db-cluster-identifier <cluster> \
-  --db-cluster-snapshot-identifier pre-funding-opportunities-$(date +%Y%m%d%H%M)
+  --db-cluster-snapshot-identifier pre-fo-final-$(date +%Y%m%d%H%M)
 ```
 
-Aurora keeps continuous backups, so a point-in-time restore is available without
-this. Take it anyway: the restore window is the thing you want to be *certain*
-about before a migration, not the thing you want to look up during one.
+Aurora keeps continuous backups, so PITR exists without this. Take it anyway: the
+restore window is the thing you want to be *certain* about before a migration, not
+the thing you want to look up during one.
 
-### 3. Migration status — is the schema this code needs actually there?
+## 2. Migration preflight — is the schema this code needs actually there?
 
 ```bash
-# READ-ONLY. Runs the read-only diag task; never a *-migrate task def.
+# READ-ONLY. Uses the read-only diag task; never a *-migrate task def.
 pnpm --filter @capiro/api exec tsx scripts/verify-migrations.ts --live --service=api --profile=capiro-dev
 ```
 
-Before step 4 this MUST report `20260810010000_funding_opportunities` as
-**absent**. If it reports anything else, stop and find out why.
+Before §4 this MUST report `20260810040000_funding_opportunities_lifecycle_truth` as
+**absent**, and the two earlier funding migrations as **present**. Anything else:
+stop and find out why.
 
-This step exists because of F0 (2026-07-27): Gate E was merged, built, deployed and
-digest-verified, and still 500'd for every tenant because its migrations were never
-applied. A green ECS digest proves the right *image* is running. It does not prove
-the schema that image needs exists.
+This step exists because of F0 (2026-07-27): LegiWatch Gate E was merged, built,
+deployed and digest-verified, and still 500'd for every tenant because its
+migrations were never applied. A green ECS digest proves the right *image* is
+running. It does not prove the schema that image needs exists.
+
+## 3. Confirm the code is where you think it is
+
+```bash
+# READ-ONLY
+gh pr view 692 --json headRefOid,mergeable,isDraft,statusCheckRollup
+git fetch origin --prune
+git log --oneline origin/main..origin/agent/fo-final-remediation-v2
+```
+
+Expect: draft, `MERGEABLE`, `funding-opportunities-ci` green.
 
 ---
 
-## Part B — mutating: schema
+# Part B — mutating: schema
 
-### 4. Apply the migration
+## 4. Apply the migration
 
 ```bash
 # MUTATING — Neo approval required
@@ -83,10 +125,35 @@ aws ecs run-task --profile capiro-dev --region us-east-1 \
   --network-configuration 'awsvpcConfiguration={subnets=[subnet-0e38bd390f8961fef,subnet-0920665f91c905f01,subnet-06db79cd21239de19],securityGroups=[sg-01def4e5c0fe44d4a],assignPublicIp=DISABLED}'
 ```
 
-Then re-run step 3 and require `OK api`, and verify the objects directly:
+## 5. Schema / RLS / index verification
+
+Re-run §2 and require `OK api`, then verify the objects directly via the read-only
+diag task:
 
 ```sql
--- via the read-only diag task
+-- The two new snapshot columns. BOTH must be NULLABLE. NULL means "no baseline
+-- yet", which the lifecycle pass treats as a SILENT first observation. A NOT NULL
+-- default would make every legacy row look already-observed, and the first
+-- lifecycle run would alert on the entire corpus.
+SELECT column_name, is_nullable, data_type
+  FROM information_schema.columns
+ WHERE table_name = 'client_funding_opportunity'
+   AND column_name IN ('source_fingerprint','source_active_snapshot');
+-- expect 2 rows, both is_nullable = YES
+
+-- The lifecycle keyset cursor.
+SELECT indexname FROM pg_indexes
+ WHERE tablename = 'client_funding_opportunity'
+   AND indexname = 'client_funding_opportunity_tenant_cursor_idx';
+-- expect 1 row
+
+-- Discovery / enrichment-allocation indexes.
+SELECT indexname FROM pg_indexes
+ WHERE indexname IN ('federal_grant_lifecycle_enrichment_idx','sam_opportunity_lifecycle_idx');
+-- expect 2 rows
+
+-- RLS: unchanged by this migration, re-verified because it is cheap and the
+-- consequence of it being wrong is cross-tenant disclosure.
 SELECT relname, relrowsecurity, relforcerowsecurity
   FROM pg_class WHERE relname = 'client_funding_opportunity';
 -- expect: t, t
@@ -97,355 +164,456 @@ SELECT policyname FROM pg_policies WHERE tablename = 'client_funding_opportunity
 SELECT indexname FROM pg_indexes
  WHERE tablename = 'client_funding_opportunity' AND indexname LIKE '%_uniq';
 -- expect both partial unique indexes: _grant_uniq, _sam_uniq
-
-SELECT column_name FROM information_schema.columns
- WHERE table_name = 'sam_opportunity'
-   AND column_name IN ('base_type','sub_agency','set_aside','set_aside_code');
--- expect 4 rows
-
-SELECT column_name FROM information_schema.columns
- WHERE table_name = 'client_intel_mapping'
-   AND column_name IN ('match_basis','match_tier','match_evidence_jsonb','relationship_type','roll_up_awards');
--- expect 5 rows
 ```
 
-**Do not skip the `relforcerowsecurity` check.** A tenant table with RLS enabled
-but not FORCED leaves the table owner exempt.
-
-### 5. Promote the SAM source fields (dry run first)
-
-```bash
-# READ-ONLY (dry run) — reports what WOULD change
-aws ecs run-task ... --task-definition capiro-dev-api-sync-jobs \
-  --overrides '{"containerOverrides":[{"name":"sync","command":["pnpm","backfill:sam-opportunity-fields"]}]}'
-```
-
-Read the log: `scanned=N updated=M unchanged=K noSourceFields=J`.
-
-`noSourceFields` matters. Those rows' `raw_jsonb` never carried the four fields, so
-their `set_aside` stays NULL — and **a NULL set-aside is ambiguous**: it means
-either "full and open" or "we never captured it". That ambiguity is exactly why
-`computeSamEligibility` refuses to read a NULL set-aside as unrestricted. If `J` is
-large, expect notice-stage and set-aside filtering to be sparse until those notices
-are re-synced.
-
-```bash
-# MUTATING — Neo approval required
-... --command ["pnpm","backfill:sam-opportunity-fields","--","--commit"]
-```
-
-Idempotent: a second pass reports `updated=0`.
+**Do not skip `relforcerowsecurity`.** RLS enabled but not FORCED leaves the table
+owner exempt, and migrations run as the owner — which is how a PE Phase-C backfill
+silently no-op'd earlier this month.
 
 ---
 
-## Part C — source freshness (read-only, do this BEFORE any producer)
+# Part C — mutating: deploy
 
-### 6. Are the rails even current?
-
-```sql
-SELECT source, status, started_at, finished_at, rows_inserted, rows_updated, error_count
-  FROM sync_run
- WHERE source IN ('sync-grants','sync-sam-opportunities')
- ORDER BY started_at DESC LIMIT 10;
-
-SELECT status, count(*) FROM federal_grant GROUP BY status;
-SELECT active, count(*) FROM sam_opportunity GROUP BY active;
-SELECT count(*) FROM sam_opportunity WHERE set_aside_code IS NOT NULL;
-SELECT notice_type, count(*) FROM sam_opportunity GROUP BY notice_type ORDER BY 2 DESC LIMIT 20;
-```
-
-If either rail has never completed, **stop**. The producers and the read path will
-both correctly report "never synced", but there is nothing to roll out yet.
-
-### 7. Grants.gov sync / reconciliation (only if stale)
+## 6. Deploy the API and web
 
 ```bash
-# MUTATING — Neo approval. Daily incremental:
-... --command ["pnpm","sync:grants"]
-# Weekly all-status reconcile (~11 min for a full 830-page walk):
-... --command ["pnpm","sync:grants:reconcile"]
-# Detail enrichment — owns every field search2 does not return:
-... --command ["pnpm","enrich:grant-details"]
-```
-
-### 8. SAM.gov sync / backfill (only if stale)
-
-```bash
-# MUTATING — Neo approval. Daily (last ~30 days):
-... --command ["pnpm","sync:sam-opportunities","--","--commit"]
-
-# Historical: SAM caps a search span at ~1 year, so walk it in <=1yr windows.
-... --command ["pnpm","sync:sam-opportunities","--","--backfill","--since","2025-07-01","--posted-to","2026-06-30","--commit"]
-```
-
-Watch for `⚠️ CAPPED` in the log. A capped window means the tail was **not**
-ingested; narrow `--posted-to` or raise `SAM_MAX_PAGES`.
-
----
-
-## Part D — matching, dry runs first
-
-### 9. Exact-identifier contractor matching — DRY RUN
-
-```bash
-# READ-ONLY. This dry run writes nothing and reports the read-only verdicts.
-... --command ["pnpm","match:contractor-identifiers","--","--tenant","<tenantId>"]
-```
-
-Read every `WOULD AUTO-CONFIRM` line and check the pairing by eye. Only an exact,
-unique, unambiguous UEI reaches that line — but a UEI stored wrongly on a client
-record is still a wrong answer, and this is the only place a human sees it before
-it becomes a confirmed identity.
-
-### 10. Grant suggestion producer — DRY RUN
-
-```bash
-# READ-ONLY
-... --command ["pnpm","generate:grant-opportunity-candidates","--","--tenant","<tenantId>"]
-```
-
-Note: its default floor is now **derived** from the scorer's weights, not the old
-literal 40. Expect a different absolute number than any historical run; the rule
-("an exact prior Assistance Listing alone qualifies") is unchanged.
-
-### 11. SAM suggestion producer — DRY RUN
-
-```bash
-# READ-ONLY
-... --command ["pnpm","generate:sam-opportunity-candidates","--","--tenant","<tenantId>"]
-```
-
-Expect `evaluated=`, `created=`, `refreshed=`, `markedStale=`,
-`humanDecisionsPreserved=`. If `⚠️ CAPPED` appears, coverage for that run is
-**partial** — say so in the rollout note rather than treating it as a full pass.
-
-Without `--tenant`, this resolves tenants from the `funding_opportunities` flag and
-will correctly find **none** until step 13. That is the expected state, and it logs
-loudly rather than silently reporting a successful pass over everybody.
-
-### 12. Reviewed commit runs
-
-```bash
-# MUTATING — Neo approval, and only after the matching dry-run output has been read
-... --command ["pnpm","match:contractor-identifiers","--","--tenant","<tenantId>","--commit"]
-... --command ["pnpm","generate:grant-opportunity-candidates","--","--tenant","<tenantId>","--commit"]
-... --command ["pnpm","generate:sam-opportunity-candidates","--","--tenant","<tenantId>","--commit"]
-```
-
-Verify afterwards:
-
-```sql
-SELECT source, workflow_status, evidence_source_type, count(*)
-  FROM client_funding_opportunity
- GROUP BY 1,2,3 ORDER BY 4 DESC;
--- Expect ONLY evidence_source_type='deterministic_relevance_v1' with
--- workflow_status='suggested'. Any user_action row at this point would mean a
--- human has already used the surface, which cannot be true before step 14.
-
-SELECT match_basis, match_tier, confirmed, count(*)
-  FROM client_intel_mapping WHERE source='contracting'
- GROUP BY 1,2,3 ORDER BY 4 DESC;
--- Every confirmed row should be match_tier=1 (exact_uei or manual_pin), or a
--- legacy row whose basis was never recorded. A confirmed tier-2/4 row means
--- something confirmed a NAME — investigate before proceeding.
-```
-
----
-
-## Part E — schedules (proposal only)
-
-### 13a. Proposed EventBridge schedules — **DO NOT CREATE**
-
-No rule may be created or enabled by this rollout. Recorded here as the proposal:
-
-| Producer | Proposed cadence | Rationale |
-| --- | --- | --- |
-| `sync:grants` | daily 06:00 UTC | already scheduled; unchanged |
-| `enrich:grant-details` | daily 07:00 UTC | already scheduled; unchanged |
-| `sync:grants:reconcile` | weekly Sun 08:00 UTC | already scheduled; unchanged |
-| `sync:sam-opportunities --commit` | daily 06:30 UTC | 30-day window; unchanged |
-| `generate:grant-opportunity-candidates --commit` | daily 09:00 UTC | after both grant jobs |
-| **`generate:sam-opportunity-candidates --commit`** | **daily 09:30 UTC** | after the SAM sync; must not overlap it |
-| **`match:contractor-identifiers --commit`** | **weekly Mon 05:00 UTC** | contractor identities change slowly; a weekly pass is enough and keeps the review queue small |
-| **`backfill:sam-opportunity-fields --commit`** | **one-off, then never** | the live sync writes these fields going forward |
-
-Two ordering constraints, both real: a suggestion producer that runs *before* its
-sync scores yesterday's catalog, and two producers writing
-`client_funding_opportunity` concurrently would race the partial unique index
-(`runWithSyncRun`'s `skipIfRunning` is the primary defence; the index is the
-backstop).
-
-### 13b. Auto-expiry (not implemented)
-
-`staleAt` is set by the producer, and the read path already treats a closed source
-as not-active — so nothing false is displayed today. Flipping a *suggested* row's
-status to `expired` needs a scheduled pass that does not exist yet. Tracked as
-rollout blocker RB-6.
-
----
-
-## Part F — deploy and canary
-
-### 14. Deploy API + web
-
-```bash
-# MUTATING — Neo approval required. NEVER `cdk deploy Capiro-dev-Compute`.
-# Merge to main, let CI build, then:
+# MUTATING — Neo approval required. Ship via CI, then roll the services.
 aws ecs update-service --profile capiro-dev --region us-east-1 \
   --cluster capiro-dev --service capiro-dev-api --force-new-deployment
 aws ecs update-service --profile capiro-dev --region us-east-1 \
   --cluster capiro-dev --service capiro-dev-web --force-new-deployment
 ```
 
-Verify the running task's image **digest** matches the built digest — a tag match
-is not a deploy verification. Then re-run step 3: a green digest with a missing
-migration is exactly the F0 failure.
-
-### 15. Internal canary — enable the flag for capiro-internal only
-
-```bash
-# MUTATING — Neo approval required. This is the ONLY thing that turns the
-# feature on anywhere; there is no implicit internal-tenant fallback in this guard.
-aws ecs run-task ... --task-definition capiro-dev-api-diag \
-  --overrides '... enable-feature funding_opportunities <capiro-internal tenantId> ...'
-```
-
-`intel_feature_flag.tenant_id` is **TEXT**. Do not cast it to uuid — that cast is
-what made District Nexus 404 for a tenant whose flag was genuinely enabled.
-
-Then walk the surface as a `capiro_admin` on capiro-internal:
-
-1. `/intelligence/opportunities` — the nav item appears; the page loads.
-2. Freshness strip names both rails with plausible record counts.
-3. KPI strip: grants and contracts counted separately, **no dollar figure at all**.
-4. A grant card shows "Award ceiling" (or "Program funding"); a SAM card shows
-   "Contract value — Not stated". **No card anywhere shows `$0`.**
-5. Relevance and eligibility are two separate badges.
-6. A SAM card whose `baseType` differs shows "Was Presolicitation".
-7. Save → Pursue → Dismiss → Restore on one opportunity; reload and confirm each
-   survived.
-8. Deadlines tab shows only items within 30 days.
-9. Dismissed tab shows the dismissed one, and it is absent from All.
-10. Client Intelligence tab: the Funding Opportunities card renders **even for a
-    client with zero matches**, and its empty text names a specific reason.
-11. `/settings/intelligence-mappings?source=contracting&clientId=<id>` lands
-    preselected, with the candidate panel open and conflicts visible.
-12. Narrow the viewport to ~820px: the KPI strip reflows to two rows, the filter
-    row wraps, and nothing scrolls horizontally.
-13. Keyboard only: Tab reaches every filter and every card action; each has an
-    audible/visible name.
-14. Break it on purpose — block `/api/intelligence/opportunities` in devtools and
-    confirm an **error** renders, not an empty list.
-
-### 16. Standard-user test
-
-Sign in as a `standard_user` on the canary tenant and confirm: the page loads,
-save/pursue/dismiss/restore all work, and no mapping-management control is
-reachable. Then confirm a `client_portal_user` receives a 403 on
-`GET /api/intelligence/opportunities`.
-
-### 17. Second-tenant isolation test
-
-With the flag enabled on ONE tenant only:
+Then **verify the running digest**, not the task-definition revision. A task
+definition that *exists* with the new image is not a service that is *running* it —
+the generation gateway looked enabled for a week because rev 60 carried the flag
+while the service was still on rev 59.
 
 ```bash
-# READ-ONLY
-curl -H "Authorization: Bearer <token for tenant B>" https://<host>/api/intelligence/opportunities
-# expect 404 (the flag guard), NOT 403 and NOT data
+aws ecs describe-services --profile capiro-dev --region us-east-1 \
+  --cluster capiro-dev --services capiro-dev-api capiro-dev-web \
+  --query 'services[].{name:serviceName,taskDef:taskDefinition,running:runningCount,desired:desiredCount}'
 ```
 
-Then enable it on a second tenant and verify from tenant B that:
+API and web must roll **together**. The freshness payload gained fields
+(`lastAttemptAt`, `lastRunStatus`, `lastFailureAt`, `enrichment`, …) that the new
+card renders. An old web against a new API silently drops them; a new web against an
+old API renders `undefined`.
 
-- no opportunity carries tenant A's workflow, notes or owner;
-- `SELECT tenant_id, count(*) FROM client_funding_opportunity GROUP BY 1` matches
-  what each tenant sees.
+---
 
-### 18. Data-quality checks
+# Part D — mutating: data repair
+
+Each repair is **dry-run by default**. Run the dry run, read the counts, then commit.
+All three are idempotent — a second commit pass reports zero changes.
+
+## 7. SAM promoted-field backfill
+
+```bash
+# READ-ONLY (dry run)
+aws ecs run-task ... --task-definition capiro-dev-api-sync-jobs \
+  --overrides '{"containerOverrides":[{"name":"sync","command":["backfill-sam-opportunity-fields"]}]}'
+```
+
+Read `scanned=N updated=M unchanged=K noSourceFields=J`.
+
+`noSourceFields` matters. Those rows' `raw_jsonb` never carried the four fields, so
+their `set_aside` stays NULL — and **a NULL set-aside is ambiguous**: either "full
+and open" or "we never captured it". That ambiguity is why `evaluateSetAsideEligibility`
+refuses to read NULL as unrestricted. If `J` is large, expect notice-stage and
+set-aside filtering to be sparse until those notices are re-synced.
+
+```bash
+# MUTATING — Neo approval
+... "command":["backfill-sam-opportunity-fields","--commit"]
+```
+
+## 8. Legacy mapping repair
+
+```bash
+# READ-ONLY (dry run)
+... "command":["backfill-funding-mapping-review"]
+# MUTATING — Neo approval
+... "command":["backfill-funding-mapping-review","--commit"]
+```
+
+Only an exact client-UEI ↔ source-UEI match is repaired automatically. Name matches,
+manual pins without a relationship, parents and subsidiaries stay review-required
+and are never guessed.
+
+## 9. Set-aside certification repair
+
+```bash
+# READ-ONLY (dry run)
+... "command":["repair-set-aside-certifications"]
+# MUTATING — Neo approval
+... "command":["repair-set-aside-certifications","--commit"]
+# Optional narrowing
+... "command":["repair-set-aside-certifications","--tenant","<uuid>","--commit"]
+```
+
+Read the output carefully:
+
+- `renamed` — SAM solicitation codes mapped to the durable status they imply
+  (`SDVOSBC`/`SDVOSBS` → `SDVOSB`, `HZC`/`HZS` → `HUBZONE`, `8AN` → `8A`, …).
+- `dropped` — `SBA`/`SBP` and anything unrecognised. **This is intended.** No firm
+  holds an "SBA certification"; it is SAM's code for a restriction on a
+  solicitation. The honest home for "we are a small business" is the
+  `applicant_types` self-report. Every drop is written to `audit_logs` with the
+  original array, so nothing is unrecoverable.
+- **`⚠️ unrecognized value(s) dropped: …`** — if this line appears, read the values
+  before treating the run as complete. It means a vocabulary `set-aside.ts` does not
+  know was in use, and one of those strings might be a real certification.
+
+Verify:
 
 ```sql
--- No row may reference both sources or neither (the CHECK should make this impossible).
+-- No SAM solicitation code should remain in a certification column.
+SELECT id, name, set_aside_certifications FROM clients
+ WHERE set_aside_certifications && ARRAY['SBA','SBP','8AN','SDVOSBC','SDVOSBS','WOSBSS','EDWOSBSS','HZC','HZS'];
+-- expect 0 rows after --commit
+```
+
+---
+
+# Part E — mutating: ingestion
+
+## 10. Grants.gov all-status reconciliation
+
+```bash
+# MUTATING — Neo approval
+... "command":["sync-grants","--all-statuses"]
+```
+
+**Known limitation, not a bug to chase:** `--all-statuses` always restarts at page 0,
+so a single pass does not complete the corpus and the "~8 Sundays per pass" model in
+older notes is wrong. Treat this as "advance coverage", not "finish".
+
+## 11. Grants.gov detail enrichment
+
+```bash
+# MUTATING — Neo approval
+... "command":["enrich-grant-details","--limit","300"]
+```
+
+Since this change every run **reserves capacity for both populations** and logs the
+split:
+
+```
+[enrich-grant-details] budget limit=300 pursuable=210 historical=90
+```
+
+That line is the thing to check. Before this change the pass took `limit` pursuable
+rows first and only topped up from the archived tail if fewer existed — and because
+pursuable rows are re-enriched forever on a stalest-first cycle to catch amendments,
+that pool permanently exceeds 300, so the 72,689 archived rows were never touched
+again. **If `historical=0` while a large archived backlog exists, something has
+regressed.**
+
+`--limit` is now validated: a non-integer or non-positive value fails **before** the
+SyncRun row is opened, rather than dying inside Prisma after the ledger already
+recorded an attempt.
+
+## 12. All-federal SAM bounded backfill
+
+```bash
+# MUTATING — Neo approval. BOTH bounds are now REQUIRED.
+... "command":["sync-sam-opportunities","--all-federal","--backfill",
+               "--since","2024-07-01","--posted-to","2025-06-30","--commit"]
+```
+
+Three things changed here and all three matter operationally:
+
+1. **`--backfill` refuses to run without explicit `--since` AND `--posted-to`.** It
+   used to fall through to the watermark or the default 2-day lookback, so a command
+   whose whole purpose was "ingest this past year" quietly ingested the last two days
+   and reported success.
+2. **A backfill writes to its own ledger source** (`…-all-federal-backfill`). It
+   previously shared the daily's source, and `runWithSyncRun` derives the incremental
+   window from the last successful run's `startedAt` — which for a backfill is *now*.
+   So a completed backfill pushed the next daily window forward to the backfill's
+   start instant, and everything posted since the previous daily was skipped
+   permanently.
+3. **Dates are validated.** `--posted-to 2026-02-30` is rejected rather than silently
+   becoming "now".
+
+Watch for `⚠️ INCOMPLETE`: the page budget ran out with records left. Narrow the
+window or raise `SAM_MAX_PAGES`; the tail was **not** ingested and the run closes
+`success_with_errors` so the watermark is not trusted for that window.
+
+## 13. Exact contractor matching
+
+```bash
+# READ-ONLY (dry run)
+... "command":["match-contractor-identifiers"]
+# MUTATING — Neo approval
+... "command":["match-contractor-identifiers","--commit"]
+```
+
+---
+
+# Part F — mutating: producers and lifecycle
+
+## 14. Grant producer
+
+```bash
+# READ-ONLY (dry run) — creates NO SyncRun row
+... "command":["generate-funding-grant-candidates"]
+# MUTATING — Neo approval
+... "command":["generate-funding-grant-candidates","--commit"]
+```
+
+## 15. SAM producer
+
+```bash
+# READ-ONLY (dry run)
+... "command":["generate-sam-opportunity-candidates"]
+# MUTATING — Neo approval
+... "command":["generate-sam-opportunity-candidates","--commit"]
+```
+
+## 16. Lifecycle pass
+
+```bash
+# READ-ONLY (dry run)
+... "command":["process-funding-opportunity-lifecycle"]
+```
+
+The dry run now reports what a commit **would** create, having consulted the alert
+table — so `alerts=0 would create` genuinely means "no new alerts". It creates no
+SyncRun row.
+
+**Expect a large `baselined=` count on the first run, and `alerts=0`:**
+
+```
+[process-funding-opportunity-lifecycle] DRY RUN tenants=1 evaluated=412 alerts=0 would create expired=0 baselined=412 errors=0
+[process-funding-opportunity-lifecycle] 412 row(s) received a first-observation baseline; change detection for those starts on the next run.
+```
+
+That is the intended behaviour, not a failure. A row with no stored fingerprint has
+never been observed by this pass, so it gets a **silent** baseline — without that
+rule the first run alerts on every tracked row in every tenant, because "no previous
+value" compares unequal to every present value.
+
+```bash
+# MUTATING — Neo approval
+... "command":["process-funding-opportunity-lifecycle","--commit"]
+```
+
+**Run it twice, on separate days, and require the second run to be quiet.** The
+first commit establishes baselines; the second is the one that proves the anti-spam
+behaviour in production. A second run that emits alerts on unchanged notices is the
+old defect resurfacing, and the schedule must not be enabled.
+
+---
+
+# Part G — rollout
+
+## 17. Internal feature flag
+
+```bash
+# MUTATING — Neo approval. capiro-internal only.
+... --task-definition capiro-dev-api-diag \
+    "command":["set-tenant-flag","--tenant","<capiro-internal-uuid>","--feature","funding_opportunities","--enabled","true"]
+```
+
+`intel_feature_flag.tenant_id` is **TEXT**. Do not cast it to uuid.
+
+```sql
+SELECT tenant_id, feature, enabled FROM intel_feature_flag
+ WHERE feature = 'funding_opportunities';
+```
+
+## 18. Admin canary
+
+On `app-dev.capiro.ai`, signed in as an admin on `capiro-internal`:
+
+1. Intelligence → Funding Opportunities loads with no console error.
+2. The freshness row shows **both** rails plus a `Grant details:` tag. Read it: if it
+   says `enrichment FAILING`, §11 has not run or is broken, and the list will be
+   missing award ceilings and eligibility text.
+3. Default view shows **no** award notices and **no** expired grants. Spot-check the
+   soonest-deadline rows: every one must have a deadline in the future. Before this
+   change the row cap was consumed by long-expired notices and the open ones fell off
+   the end, so this is the single most informative check on the page.
+4. Filter Notice type → Award notice. Award notices appear. Each shows **no Pursue
+   button**, **no Create task**, and the line "This notice is informational, so it can
+   be saved for reference but not pursued."
+5. On an unsaved suggestion: ⋯ → **Assign owner**. It must succeed and the card must
+   become `Saved`. This is the fix for the 404 that made assign/note/site impossible
+   on every suggestion.
+6. ⋯ → Add note, then ⋯ → Link project site. Both succeed.
+7. Pursue a live solicitation. It moves to `Pursuing` and sorts to the top.
+8. Dismiss, then Restore. Restore lands on `Saved`, not `Suggested`.
+9. Audit trail:
+
+```sql
+SELECT action, entity_type, occurred_at FROM audit_logs
+ WHERE entity_type = 'client_funding_opportunity'
+ ORDER BY occurred_at DESC LIMIT 20;
+-- expect one row per action you just took
+```
+
+## 19. Standard-user canary
+
+Repeat 1–8 as a non-admin member of the same tenant. Everything above must work;
+nothing admin-only should appear.
+
+## 20. Portal denial
+
+As a portal user, `/intelligence/opportunities` must be **denied**, not empty. An
+empty page is indistinguishable from "there is no federal money for you".
+
+## 21. Second-tenant isolation
+
+With the flag OFF for a second tenant, confirm the route is denied there. Then, as a
+user of the second tenant, confirm no `client_funding_opportunity` row belonging to
+`capiro-internal` is reachable by id.
+
+## 22. Freshness checks
+
+```sql
+-- What the card reads. A rail that failed last night must show status='error' HERE
+-- and on the page, even though an older success exists.
+SELECT source, status, error_count, started_at, finished_at
+  FROM sync_run
+ WHERE source IN ('sync-grants','enrich-grant-details',
+                  'sync-sam-opportunities','sync-sam-opportunities-all-federal',
+                  'sync-sam-opportunities-backfill','sync-sam-opportunities-all-federal-backfill',
+                  'generate-funding-grant-candidates','generate-sam-opportunity-candidates',
+                  'process-funding-opportunity-lifecycle')
+ ORDER BY started_at DESC LIMIT 40;
+```
+
+**Confirm no SyncRun row exists for any dry run you performed.** A dry run that
+created one would have advanced that rail's watermark — the defect §12 fixes.
+
+## 23. Alert-noise checks
+
+```sql
+-- Alerts by event type since the lifecycle pass first committed.
+SELECT metadata->>'eventType' AS event_type, count(*)
+  FROM clio_proactive_alert
+ WHERE source_type = 'funding_opportunity'
+   AND created_at > now() - interval '3 days'
+ GROUP BY 1 ORDER BY 2 DESC;
+
+-- The specific regression to watch for: an `amended` alert on a row whose source did
+-- not change. Should be EMPTY after a second identical pass.
+SELECT a.title, a.created_at, w.workflow_status
+  FROM clio_proactive_alert a
+  JOIN client_funding_opportunity w ON w.id = (a.metadata->>'workflowId')::uuid
+ WHERE a.source_type = 'funding_opportunity'
+   AND a.metadata->>'eventType' = 'amended'
+   AND a.created_at > now() - interval '1 day';
+
+-- No alert may exist for a non-tracked status.
+SELECT w.workflow_status, count(*)
+  FROM clio_proactive_alert a
+  JOIN client_funding_opportunity w ON w.id = (a.metadata->>'workflowId')::uuid
+ WHERE a.source_type = 'funding_opportunity'
+ GROUP BY 1;
+-- expect ONLY 'saved' and 'pursuing'
+```
+
+## 24. Data-integrity SQL
+
+```sql
+-- Exactly one source pointer per row (CHECK-enforced; verified anyway).
 SELECT count(*) FROM client_funding_opportunity
  WHERE (grant_opportunity_id IS NULL) = (sam_opportunity_id IS NULL);
 -- expect 0
 
--- No workflow row may point at a source record that does not exist.
-SELECT count(*) FROM client_funding_opportunity c
-  LEFT JOIN federal_grant g ON g.id = c.grant_opportunity_id
- WHERE c.source='grants_gov' AND g.id IS NULL;
--- expect 0
-SELECT count(*) FROM client_funding_opportunity c
-  LEFT JOIN sam_opportunity s ON s.id = c.sam_opportunity_id
- WHERE c.source='sam_gov' AND s.id IS NULL;
+-- No workflow row points at a missing catalog record.
+SELECT count(*) FROM client_funding_opportunity w
+ LEFT JOIN federal_grant g ON g.id = w.grant_opportunity_id
+ LEFT JOIN sam_opportunity s ON s.id = w.sam_opportunity_id
+ WHERE (w.grant_opportunity_id IS NOT NULL AND g.id IS NULL)
+    OR (w.sam_opportunity_id IS NOT NULL AND s.id IS NULL);
 -- expect 0
 
--- A facility link must belong to the same client.
-SELECT count(*) FROM client_funding_opportunity c
-  JOIN client_facilities f ON f.id = c.facility_id
- WHERE f.client_id <> c.client_id;
+-- No informational notice is marked pursuing.
+SELECT count(*) FROM client_funding_opportunity w
+  JOIN sam_opportunity s ON s.id = w.sam_opportunity_id
+ WHERE w.workflow_status = 'pursuing'
+   AND (lower(s.notice_type) LIKE '%award%' OR lower(s.notice_type) LIKE '%special notice%');
 -- expect 0
 
--- An owner must be in the same tenant.
-SELECT count(*) FROM client_funding_opportunity c
-  JOIN users u ON u.id = c.owner_user_id
- WHERE u.tenant_id <> c.tenant_id;
+-- The producer never overwrote a human decision.
+SELECT count(*) FROM client_funding_opportunity
+ WHERE user_created = true AND evidence_source_type = 'deterministic_relevance_v1';
 -- expect 0
 
--- No confirmed contracting mapping should rest on a NAME.
-SELECT count(*) FROM client_intel_mapping
- WHERE source='contracting' AND confirmed=true
-   AND match_basis IN ('fuzzy_name','exact_legal_name','exact_legal_name_corroborated');
--- expect 0 for anything created after this release
+-- Baseline coverage after two lifecycle runs.
+SELECT count(*) FILTER (WHERE source_fingerprint IS NULL) AS unbaselined, count(*) AS total
+  FROM client_funding_opportunity;
+-- `unbaselined` should be 0, or only rows created since the last run
 ```
+
+## 25. Schedules, and closing #680
+
+**Create schedules DISABLED. Enable only after §16's two-run quiet test passes.**
+
+The Funding Opportunities schedules created for #675 were deliberately created
+disabled and that canary was never run. Do not enable the lifecycle schedule until a
+second consecutive committed lifecycle run has been observed to be quiet in
+production — an alert channel that fires on unchanged notices every night trains
+users to ignore it, which is worse than no channel.
+
+```bash
+# MUTATING — Neo approval, per rule
+aws events put-rule --profile capiro-dev --region us-east-1 --state DISABLED ...
+aws events enable-rule --profile capiro-dev --region us-east-1 --name <rule>
+```
+
+Order of enablement: catalog syncs → enricher → producers → lifecycle. Each layer
+depends on the one above having run at least once.
+
+**PR #680** carries only transport artifacts (`.github/remediation/*.b64` and a
+temporary source-export workflow) and no application change. Its base64 stream is
+also corrupt mid-patch, so nothing in it is salvageable. Close it as superseded by
+#692 — but only once #692 is complete; closing it earlier discards the record of what
+was attempted while the replacement is still unfinished.
 
 ---
 
-## Part G — rollback
+# Part H — rollback
 
-### 19a. Turn it off (seconds, no deploy)
+## 26. Rollback
 
-```bash
-# MUTATING — Neo approval. The fastest and safest rollback.
-... enable-feature funding_opportunities <tenantId> false
-```
-
-The flag guard 404s every route and the nav item disappears. **No data is lost** —
-`client_funding_opportunity` rows persist, so re-enabling restores every saved and
-pursued opportunity exactly as it was.
-
-### 19b. Roll back the images
+**Code** — roll the services back to the previous task-definition revision.
 
 ```bash
 # MUTATING — Neo approval
-aws ecs update-service --profile capiro-dev --cluster capiro-dev \
-  --service capiro-dev-api --task-definition <previous revision>
+aws ecs update-service --profile capiro-dev --region us-east-1 \
+  --cluster capiro-dev --service capiro-dev-api --task-definition capiro-dev-api:<previous-rev>
+aws ecs update-service --profile capiro-dev --region us-east-1 \
+  --cluster capiro-dev --service capiro-dev-web --task-definition capiro-dev-web:<previous-rev>
 ```
 
-### 19c. The migration is NOT rolled back
+Roll **both**, for the same reason they deploy together (§6).
 
-Deliberately. It is additive: one new table plus nullable columns. Rolling it back
-would drop saved pursuit decisions and, because the Prisma client selects the new
-`sam_opportunity` columns, dropping them would 500 every notice read. Leave the
-schema in place and use 19a.
+**Flag** — the fastest and safest kill switch. Setting `funding_opportunities` to
+`false` removes the surface entirely without touching data or schema. Prefer this to
+a code rollback for anything user-visible.
 
-If the table itself must go (it should not), that is a separate reviewed migration,
-not an ad-hoc `DROP`.
+**Migration** — **do not roll back.** `20260810040000` is additive and nullable: two
+columns and three indexes. The previous code ignores all five, so leaving them is
+harmless, whereas dropping `source_fingerprint` destroys every lifecycle baseline and
+makes the next run alert on the whole corpus.
 
----
+**Data repairs** — `repair-set-aside-certifications` is reversible from `audit_logs`;
+each row carries the original array.
 
-## Criteria for widening the rollout
+```sql
+SELECT entity_id, before->'setAsideCertifications' AS original
+  FROM audit_logs
+ WHERE action = 'client.set_aside_certifications.repaired'
+ ORDER BY occurred_at DESC;
+```
 
-Do not enable a second tenant until all of these hold:
+**Alerts** — lifecycle alerts are deduped on `source_id`, so deleting a batch is
+safe: the pass will not recreate them unless the source genuinely changed again.
 
-1. Steps 15-18 completed on capiro-internal with **no** finding.
-2. `set_aside_code` is populated on a meaningful share of active notices — until
-   then set-aside filtering and the small-business relevance signal are inert.
-3. At least one full week of both suggestion producers with no `⚠️ CAPPED` and no
-   growth in `error_count`.
-4. `client_intel_mapping` shows **zero** confirmed contracting rows with a
-   name-based basis.
-5. At least one client on the canary tenant has a confirmed contractor identity AND
-   resolvable award history — otherwise the agency/office signals are silent and
-   the feature is being judged with half its inputs missing.
-6. RB-7 (alert hooks) has an owner and a decision: either implemented, or
-   explicitly accepted as absent for the wider rollout.
-7. Someone other than the implementer has walked step 15.
+**Hard boundary, restated:** do not deploy the drifted `Capiro-dev-Compute` stack
+under any circumstances, including rollback.

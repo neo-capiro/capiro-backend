@@ -41,7 +41,15 @@
     "scripts/sync-sam-opportunities.spec.ts",
     "scripts/generate-grant-opportunity-candidates.ts",
     "scripts/generate-report-card-docx.ts",
-    "scripts/funding-opportunities-entrypoint.spec.ts"
+    "scripts/funding-opportunities-entrypoint.spec.ts",
+    // Added by the final remediation. enrich-grant-details is the dependency that
+    // populates every field the grant producer scores on (description, eligibility,
+    // award ceilings), and it was typechecked by NOTHING: apps/api/tsconfig.json
+    // excludes `scripts`, and this list is the only thing that reaches them.
+    "scripts/enrich-grant-details.ts",
+    "scripts/enrich-grant-details.spec.ts",
+    "scripts/repair-set-aside-certifications.ts",
+    "scripts/repair-set-aside-certifications.spec.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

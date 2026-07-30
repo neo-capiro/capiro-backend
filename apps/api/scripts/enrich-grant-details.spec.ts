@@ -1,7 +1,9 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import {
+  allocateEnrichmentBudget,
   buildDetailUpdate,
   enrichGrantCandidates,
+  parseEnrichmentLimit,
   parseVendorTimestamp,
   pickBlock,
   trimRaw,
@@ -188,17 +190,28 @@ describe('trimRaw', () => {
 });
 
 describe('enrichGrantCandidates', () => {
-  test('scans never-enriched rows first, then stalest, and updates each', async () => {
-    const updates: Array<{ where: { id: string }; data: any }> = [];
-    const prisma = {
+  /**
+   * The pass now issues TWO scans — one per population — so a fake that answers
+   * both with the same rows would double-count every candidate. `pursuableOnly`
+   * routes rows to the pursuable scan (the one that constrains `status`) and gives
+   * the historical scan nothing.
+   */
+  function singlePopulationPrisma(rows: Array<{ id: string }>) {
+    return {
       federalGrant: {
-        findMany: jest.fn(async (_args: any) => [{ id: '363306' }, { id: '355824' }]),
-        update: jest.fn(async (args: any) => {
-          updates.push(args);
-          return args;
-        }),
+        findMany: jest.fn(async (args: any) => (args.where?.status !== undefined ? rows : [])),
+        update: jest.fn(async (args: any) => args),
       },
     };
+  }
+
+  test('scans never-enriched rows first, then stalest, and updates each', async () => {
+    const updates: Array<{ where: { id: string }; data: any }> = [];
+    const prisma = singlePopulationPrisma([{ id: '363306' }, { id: '355824' }]);
+    prisma.federalGrant.update = jest.fn(async (args: any) => {
+      updates.push(args);
+      return args;
+    });
     const fetchOpportunityDetail = jest.fn(async (id: string) =>
       id === '363306' ? SYNOPSIS_DETAIL : FORECAST_DETAIL,
     );
@@ -217,12 +230,7 @@ describe('enrichGrantCandidates', () => {
   });
 
   test('one failing opportunity is counted and the sweep continues', async () => {
-    const prisma = {
-      federalGrant: {
-        findMany: jest.fn(async (_args: any) => [{ id: 'bad' }, { id: '363306' }]),
-        update: jest.fn(async (args: any) => args),
-      },
-    };
+    const prisma = singlePopulationPrisma([{ id: 'bad' }, { id: '363306' }]);
     const fetchOpportunityDetail = jest.fn(async (id: string) => {
       if (id === 'bad') throw new Error('non-numeric opportunity id');
       return SYNOPSIS_DETAIL;
@@ -249,5 +257,121 @@ describe('enrichGrantCandidates', () => {
       sleep: noSleep,
     });
     expect((prisma.federalGrant.findMany as any).mock.calls[0][0].take).toBe(42);
+  });
+});
+
+// ── §11: every run reserves capacity for BOTH populations ────────────────────
+
+describe('parseEnrichmentLimit', () => {
+  test('a valid positive integer passes through', () => {
+    expect(parseEnrichmentLimit('300')).toBe(300);
+    expect(parseEnrichmentLimit('1')).toBe(1);
+  });
+
+  test('an absent limit falls back', () => {
+    expect(parseEnrichmentLimit(undefined)).toBe(300);
+    expect(parseEnrichmentLimit(undefined, 50)).toBe(50);
+  });
+
+  test.each(['abc', '', '0', '-5', '2.5', 'Infinity', 'NaN'])('%p is rejected', (raw) => {
+    // `Number('abc')` was passed straight to `take: NaN`, which Prisma rejects with
+    // an opaque validation error AFTER the run has already opened a SyncRun row.
+    // `--limit 0` was worse: a run that fetched nothing and reported success.
+    expect(() => parseEnrichmentLimit(raw)).toThrow(/positive integer/);
+  });
+});
+
+describe('allocateEnrichmentBudget', () => {
+  test('splits the run 70/30 between current and historical', () => {
+    expect(allocateEnrichmentBudget(300, { pursuable: 10_000, historical: 70_000 })).toEqual({
+      pursuable: 210,
+      historical: 90,
+    });
+  });
+
+  test('a permanently large pursuable pool can no longer starve the archived tail', () => {
+    // The defect this pins. Pursuable rows are re-enriched forever on a
+    // stalest-first cycle to catch amendments, so the pursuable pool permanently
+    // exceeds the limit — and taking `limit` from it first meant the 72,689
+    // archived rows were never touched again. Priority is not a schedule.
+    const budget = allocateEnrichmentBudget(300, { pursuable: 5_000, historical: 72_689 });
+    expect(budget.historical).toBeGreaterThan(0);
+    expect(budget.pursuable + budget.historical).toBe(300);
+  });
+
+  test('unused capacity flows to the other side, so a run is never wasted', () => {
+    // Reserving a share must not mean burning it when one pool is empty.
+    expect(allocateEnrichmentBudget(300, { pursuable: 10_000, historical: 0 })).toEqual({
+      pursuable: 300,
+      historical: 0,
+    });
+    expect(allocateEnrichmentBudget(300, { pursuable: 0, historical: 10_000 })).toEqual({
+      pursuable: 0,
+      historical: 300,
+    });
+    expect(allocateEnrichmentBudget(300, { pursuable: 40, historical: 10_000 })).toEqual({
+      pursuable: 40,
+      historical: 260,
+    });
+  });
+
+  test('never asks for more than exists', () => {
+    expect(allocateEnrichmentBudget(300, { pursuable: 5, historical: 7 })).toEqual({
+      pursuable: 5,
+      historical: 7,
+    });
+  });
+
+  test('a limit of 1 still allocates exactly one fetch', () => {
+    const budget = allocateEnrichmentBudget(1, { pursuable: 10, historical: 10 });
+    expect(budget.pursuable + budget.historical).toBeLessThanOrEqual(2);
+    expect(budget.pursuable).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('enrichGrantCandidates queries both populations', () => {
+  function fixture(pursuableCount: number, historicalCount: number) {
+    const wheres: unknown[] = [];
+    const prisma = {
+      federalGrant: {
+        findMany: jest.fn(async (args: any) => {
+          wheres.push(args.where);
+          // The pursuable query constrains `status`; the historical one is an OR
+          // over status/closeDate. Distinguish on the presence of `status`.
+          const isPursuable = args.where?.status !== undefined;
+          const count = isPursuable ? pursuableCount : historicalCount;
+          return Array.from({ length: Math.min(count, args.take) }, (_, i) => ({
+            id: `${isPursuable ? 'P' : 'H'}${i}`,
+          }));
+        }),
+        update: jest.fn(async (args: any) => args),
+      },
+    };
+    return { prisma, wheres };
+  }
+
+  test('both a pursuable and a historical scan are issued', async () => {
+    const { prisma, wheres } = fixture(1_000, 50_000);
+    await enrichGrantCandidates(prisma as any, 100, {
+      fetchOpportunityDetail: jest.fn(async () => SYNOPSIS_DETAIL),
+      sleep: noSleep,
+    });
+    expect(wheres).toHaveLength(2);
+    // Both halves of the grant lifecycle predicate are present, from the shared
+    // module rather than a fourth inline copy.
+    expect(JSON.stringify(wheres)).toContain('closeDate');
+    expect(JSON.stringify(wheres)).toContain('posted');
+  });
+
+  test('an archived-heavy catalog still enriches archived rows every run', async () => {
+    const { prisma } = fixture(1_000, 72_689);
+    const counts = await enrichGrantCandidates(prisma as any, 100, {
+      fetchOpportunityDetail: jest.fn(async () => SYNOPSIS_DETAIL),
+      sleep: noSleep,
+    });
+    const ids = (prisma.federalGrant.update as any).mock.calls.map((c: any[]) => c[0].where.id);
+    expect(counts.updated).toBe(100);
+    expect(ids.filter((id: string) => id.startsWith('H')).length).toBeGreaterThan(0);
+    expect(ids.filter((id: string) => id.startsWith('P')).length).toBeGreaterThan(0);
   });
 });

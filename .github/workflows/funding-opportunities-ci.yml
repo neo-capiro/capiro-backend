@@ -1,0 +1,363 @@
+# Funding Opportunities release gate.
+#
+# WHY THIS EXISTS SEPARATELY FROM ci-pr.yml
+# -----------------------------------------
+# ci-pr.yml enforces "no new failures versus baseline", which is the right default
+# for a repo carrying ~40 pre-existing apps/api failures across 12 suites. It is the
+# wrong bar for shipping this feature, for three reasons that all bit this codebase
+# in the last week:
+#
+#  1. A Funding Opportunities regression that lands inside an already-red suite
+#     passes "no new failures" untouched.
+#  2. ci-pr.yml runs NO apps/web tests at all. FundingOpportunitiesPage.test.tsx
+#     was DEAD on main — a `vi.mock` hoisting error killed it at collection, vitest
+#     reported `(0 test)`, and 38 assertions had never executed a single time.
+#     Nothing in CI noticed for as long as the file has existed.
+#  3. apps/api/tsconfig.json EXCLUDES `scripts`, so no typecheck reached the
+#     producers, the lifecycle pass, the SAM sync or the enricher. PR #651 shipped
+#     an uncompilable producer through a green CI for exactly this reason, and the
+#     same PR's migration named the wrong table (`client` vs `clients`), turning
+#     main red on 2026-07-28.
+#
+# Inside Funding Opportunities scope the bar here is ABSOLUTE: zero failures, zero
+# skips, and a floor on suite and test counts so the gate cannot shrink quietly.
+#
+# PATH SCOPING IS DONE INSIDE THE JOB, NOT WITH `paths:`
+# ------------------------------------------------------
+# A workflow-level `paths:` filter does not skip the job — it skips the whole
+# WORKFLOW, so no job in it reports at all. A required check configured on a
+# path-filtered workflow therefore blocks every PR that misses the filter, forever,
+# waiting for a check that will never run. (A companion `if: false` "skipped" job
+# does NOT fix this: a job that never runs reports nothing either.)
+#
+# legiwatch-ci.yml avoids the problem by not filtering, which is affordable at ~90s.
+# This gate provisions Postgres and replays ~190 migrations, so it scopes INSIDE the
+# job instead: it always runs and always reports, and the expensive steps are gated
+# on a diff check. An out-of-scope PR gets a green check in about a minute.
+#
+# SCOPE IS ENUMERATED, NOT GLOBBED
+# --------------------------------
+# Suite lists are explicit so the bar cannot silently shrink, and every test step
+# asserts a MINIMUM suite and test count via scripts/assert-test-summary.mjs —
+# because an explicit list still degrades quietly if a rename stops a path from
+# matching. Raise the floors when you add suites; LOWERING one is indistinguishable
+# from the gate shrinking and belongs in a PR description.
+name: funding-opportunities-ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  funding-opportunities:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        # pgvector, not plain postgres: early repository migrations create vector
+        # columns, so a clean replay fails on the stock image.
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          # Early repository migrations reference database "capiro" by NAME, so a
+          # clean replay must use that exact database. Same reason as
+          # engagement-trust-boundary.yml.
+          POSTGRES_DB: capiro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d capiro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro?schema=public
+      PSQL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro
+
+    steps:
+      # fetch-depth 0 so the in-scope diff below can reach the merge base.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Decides whether this PR touches Funding Opportunities. On `push` to main and
+      # on `workflow_dispatch` the answer is always yes — main must stay green
+      # unconditionally, and a manual run is someone asking for the full gate.
+      - name: Is this change in scope?
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "in_scope=true" >> "$GITHUB_OUTPUT"
+            echo "Not a pull request — running the full gate."
+            exit 0
+          fi
+          base="${{ github.event.pull_request.base.sha }}"
+          changed=$(git diff --name-only "$base"...HEAD)
+          echo "$changed" | sed 's/^/  /'
+          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.manual-mapping|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
+            echo "in_scope=true" >> "$GITHUB_OUTPUT"
+            echo "In scope — running the full gate."
+          else
+            echo "in_scope=false" >> "$GITHUB_OUTPUT"
+            echo "Out of scope — reporting green without provisioning the database."
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: steps.scope.outputs.in_scope == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.scope.outputs.in_scope == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install with frozen lockfile
+        if: steps.scope.outputs.in_scope == 'true'
+        run: pnpm install --frozen-lockfile
+
+      # All five clients. A whole-repo typecheck needs every one of them generated:
+      # with only apps/api's, every raw query in the ungenerated packages collapses
+      # to `{}` and apps/onboard-api fails outright on a missing generated module —
+      # 100+ errors in code this gate does not own. Generated clients and
+      # typechecked packages must agree.
+      - name: Generate Prisma clients
+        if: steps.scope.outputs.in_scope == 'true'
+        run: |
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
+          pnpm --filter @capiro/intel-api exec prisma generate
+          pnpm --filter @capiro/onboard-api exec prisma generate
+          pnpm --filter @capiro/api-strategy exec prisma generate
+
+      # `packages/*` must be BUILT before anything typechecks or builds apps/api or
+      # apps/web. `@capiro/shared` resolves to its `dist/`, which does not exist in a
+      # fresh checkout — so on the first run of this gate the funding-opportunities
+      # typecheck died with three `Cannot find module '@capiro/shared'` errors.
+      #
+      # legiwatch-ci.yml gets away without this step because it only ever typechecks
+      # through `pnpm turbo run typecheck`, and turbo resolves the dependency graph and
+      # builds upstream packages itself. This gate additionally invokes `tsc` DIRECTLY
+      # for tsconfig.funding-opportunities.json (turbo has no task for a second
+      # tsconfig in the same package), which bypasses that graph entirely. Building the
+      # packages explicitly makes every later step order-independent.
+      - name: Build workspace packages
+        if: steps.scope.outputs.in_scope == 'true'
+        run: pnpm --filter "./packages/*" build
+
+      - name: Validate the Prisma schema
+        if: steps.scope.outputs.in_scope == 'true'
+        run: pnpm --filter @capiro/api exec prisma validate
+
+      # A CLEAN replay, not `migrate dev`. This is the step that would have caught
+      # PR #651's `ALTER TABLE "client"` (the model is @@map'd to `clients`), which
+      # reached main and turned it red because nothing replayed migrations against
+      # an empty database.
+      - name: Deploy migrations to clean Postgres
+        if: steps.scope.outputs.in_scope == 'true'
+        id: migrate
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm --filter @capiro/api exec prisma migrate deploy 2>&1 | tee migration-deploy.log
+
+      # `migrate deploy` exits 0 on a no-op, so a migration silently skipped for
+      # sorting reasons would pass the step above. Assert the new one actually ran.
+      - name: Assert this feature's migrations were applied
+        if: steps.scope.outputs.in_scope == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            20260810010000_funding_opportunities \
+            20260810020000_funding_opportunities_closeout \
+            20260810040000_funding_opportunities_lifecycle_truth
+          do
+            if ! grep -q "$name" migration-deploy.log; then
+              echo "::error::migration $name was NOT applied by migrate deploy."
+              echo "A migration stamped earlier than an already-applied one is never run."
+              exit 1
+            fi
+          done
+
+      # Schema-vs-database agreement, SCOPED TO THIS FEATURE'S OBJECTS.
+      #
+      # The obvious form of this check — `prisma migrate diff --from-url <migrated db>
+      # --to-schema-datamodel schema.prisma --exit-code` — is NOT usable in this repo.
+      # Measured on this branch's first CI run, it reports large PRE-EXISTING drift
+      # that has nothing to do with Funding Opportunities: `lobby_intel` and
+      # `lobby_issue_ref` exist in schema.prisma but in no migration, dozens of tables
+      # differ on whether `id` carries a `uuid_generate_v4()` DB default, and many
+      # foreign keys and indexes were renamed by Prisma convention without a migration.
+      # A gate that is red on arrival for reasons the branch does not own teaches
+      # nothing and gets ignored — the same mistake as the hardcoded migration-ordering
+      # assertion this branch had to un-brittle.
+      #
+      # Repo-wide drift is a real problem and deserves its own remediation. What this
+      # step can honestly enforce is that the objects THIS migration declares actually
+      # exist in a freshly migrated database — which is the failure mode that matters
+      # here: LegiWatch Gate E was merged, deployed and digest-verified, and still
+      # 500'd for every tenant because its migrations never ran.
+      - name: Assert this feature's schema objects exist in the migrated database
+        if: steps.scope.outputs.in_scope == 'true'
+        shell: bash
+        run: |
+          set -uo pipefail
+          fail=0
+          check() {
+            local label="$1" sql="$2" expected="$3" got
+            got=$(psql "$PSQL_DATABASE_URL" -tAc "$sql" | tr -d '[:space:]')
+            if [ "$got" != "$expected" ]; then
+              echo "::error::$label — expected '$expected', got '$got'"
+              fail=1
+            else
+              echo "ok: $label ($got)"
+            fi
+          }
+
+          # The two lifecycle snapshot columns, and BOTH must be nullable. NULL means
+          # "no baseline yet", which the lifecycle pass treats as a silent first
+          # observation; a NOT NULL default would make every legacy row look
+          # already-observed and the first run would alert on the whole corpus.
+          check "source_fingerprint is nullable" \
+            "SELECT is_nullable FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='source_fingerprint'" \
+            "YES"
+          check "source_active_snapshot is nullable" \
+            "SELECT is_nullable FROM information_schema.columns WHERE table_name='client_funding_opportunity' AND column_name='source_active_snapshot'" \
+            "YES"
+
+          # The three indexes this migration creates.
+          check "lifecycle keyset cursor index" \
+            "SELECT count(*) FROM pg_indexes WHERE indexname='client_funding_opportunity_tenant_cursor_idx'" "1"
+          check "grant discovery/enrichment index" \
+            "SELECT count(*) FROM pg_indexes WHERE indexname='federal_grant_lifecycle_enrichment_idx'" "1"
+          check "sam lifecycle index" \
+            "SELECT count(*) FROM pg_indexes WHERE indexname='sam_opportunity_lifecycle_idx'" "1"
+
+          # RLS must be ENABLED AND FORCED. Enabled-but-not-forced leaves the table
+          # owner exempt, and migrations run as the owner — which is how a PE Phase-C
+          # backfill silently no-op'd earlier this month.
+          check "client_funding_opportunity RLS enabled" \
+            "SELECT relrowsecurity FROM pg_class WHERE relname='client_funding_opportunity'" "t"
+          check "client_funding_opportunity RLS FORCED" \
+            "SELECT relforcerowsecurity FROM pg_class WHERE relname='client_funding_opportunity'" "t"
+          check "four RLS policies" \
+            "SELECT count(*) FROM pg_policies WHERE tablename='client_funding_opportunity'" "4"
+
+          # Both partial unique indexes. Postgres treats NULLs as distinct, so one
+          # unique index across the nullable source pair would admit unlimited
+          # duplicates for the other source.
+          check "both partial unique indexes" \
+            "SELECT count(*) FROM pg_indexes WHERE tablename='client_funding_opportunity' AND indexname LIKE '%\\_uniq'" "2"
+
+          exit $fail
+
+      # The narrow, enforceable half of a drift check: every index the funding
+      # migrations CREATE must also be declared in schema.prisma. An index that exists
+      # only in SQL reads as drift to anyone running `prisma migrate dev`; one declared
+      # only in Prisma never gets created at all.
+      - name: Assert this feature's indexes are declared in schema.prisma
+        if: steps.scope.outputs.in_scope == 'true'
+        shell: bash
+        run: |
+          set -uo pipefail
+          fail=0
+          names=$(grep -ho 'CREATE INDEX IF NOT EXISTS "[a-z_]*"' \
+                    apps/api/prisma/migrations/*_funding_opportunities*/migration.sql \
+                  | sed 's/.*"\(.*\)"/\1/' | sort -u)
+          if [ -z "$names" ]; then
+            echo "::error::found no CREATE INDEX statements in the funding migrations — the glob is wrong."
+            exit 1
+          fi
+          for name in $names; do
+            if grep -q "$name" apps/api/prisma/schema.prisma; then
+              echo "ok: $name declared in schema.prisma"
+            else
+              echo "::error::index $name is created by a migration but not declared in schema.prisma"
+              fail=1
+            fi
+          done
+          exit $fail
+
+      # The Funding Opportunities script typecheck. apps/api/tsconfig.json excludes
+      # `scripts`, so this config is the ONLY thing that typechecks the producers,
+      # the lifecycle pass, the SAM sync, the enricher and the repair scripts.
+      - name: Typecheck — Funding Opportunities scripts
+        if: steps.scope.outputs.in_scope == 'true'
+        run: pnpm --filter @capiro/api exec tsc -p tsconfig.funding-opportunities.json --noEmit
+
+      - name: Typecheck — apps/api and apps/web
+        if: steps.scope.outputs.in_scope == 'true'
+        run: pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/web
+
+      # ---------------------------------------------------------------- api --
+      # Every module this feature owns, enumerated. `--runInBand` because the
+      # migration service is shared and parallel workers on one Postgres make
+      # failures non-deterministic.
+      - name: Tests — apps/api Funding Opportunities scope
+        if: steps.scope.outputs.in_scope == 'true'
+        run: >
+          pnpm --filter @capiro/api exec jest --ci --silent --runInBand
+          --json --outputFile=$GITHUB_WORKSPACE/api-summary.json
+          src/funding-opportunities/
+          src/intelligence/intelligence.manual-mapping.spec.ts
+          scripts/enrich-grant-details.spec.ts
+          scripts/sync-sam-opportunities.spec.ts
+          scripts/sync-grants.spec.ts
+          scripts/generate-funding-grant-candidates.spec.ts
+          scripts/generate-sam-opportunity-candidates.spec.ts
+          scripts/process-funding-opportunity-lifecycle.spec.ts
+          scripts/backfill-funding-mapping-review.spec.ts
+          scripts/backfill-sam-opportunity-fields.spec.ts
+          scripts/repair-set-aside-certifications.spec.ts
+          scripts/funding-opportunities-entrypoint.spec.ts
+          scripts/sam-opportunity-matcher.spec.ts
+
+      # Floors: jest counts FILES in numTotalTestSuites. Measured 19 files / 509 tests
+      # on this branch; the floor sits just under so adding a test does not require
+      # editing this line, while REMOVING a suite fails the gate.
+      - name: Assert apps/api scope is clean
+        if: always() && steps.scope.outputs.in_scope == 'true'
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 19 500
+
+      # ---------------------------------------------------------------- web --
+      # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
+      # the standalone Funding Opportunities page or the Intelligence Mappings
+      # settings page.
+      - name: Tests — apps/web Funding Opportunities scope
+        if: steps.scope.outputs.in_scope == 'true'
+        run: >
+          pnpm --filter @capiro/web exec vitest run
+          --testTimeout=20000 --hookTimeout=20000
+          --reporter=json --outputFile=$GITHUB_WORKSPACE/web-summary.json
+          src/pages/intelligence/opportunities/
+          src/pages/settings/IntelligenceMappingsPage
+          src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection
+          src/App.funding-opportunities-nav
+
+      # NOTE: vitest counts `describe` BLOCKS in numTotalTestSuites, not files —
+      # measured 26 blocks / 79 tests on this branch. The test count is the tighter
+      # signal; the block count is the coarse one.
+      - name: Assert apps/web scope is clean
+        if: always() && steps.scope.outputs.in_scope == 'true'
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 25 75
+
+      # ------------------------------------------------------------- builds --
+      # A passing typecheck is not a passing build: the api build runs `nest build`
+      # (different module resolution) and the web build runs vite's production
+      # transform, and each has caught errors the other did not.
+      - name: Build apps/api
+        if: steps.scope.outputs.in_scope == 'true'
+        run: pnpm --filter @capiro/api build
+
+      - name: Build apps/web
+        if: steps.scope.outputs.in_scope == 'true'
+        run: pnpm --filter @capiro/web build

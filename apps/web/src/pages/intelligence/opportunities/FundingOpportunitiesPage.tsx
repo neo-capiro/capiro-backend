@@ -26,6 +26,7 @@ import {
   ELIGIBILITY_LABELS,
   FUNDING_OPPORTUNITIES_FEATURE,
   KIND_LABELS,
+  formatEnrichment,
   formatFreshness,
   type EligibilityState,
   type FundingOpportunity,
@@ -310,25 +311,37 @@ export function FundingOpportunitiesPage() {
           {data?.freshness?.length ? (
             <div className="fo-page__freshness">
               <Space size={8} wrap>
-                {data.freshness.map((freshness) => (
-                  <Tag
-                    key={freshness.verb}
-                    color={
-                      freshness.neverSynced
-                        ? 'red'
-                        : freshness.lastRunDegraded === true
-                          ? 'orange'
-                          : 'default'
-                    }
-                  >
-                    {formatFreshness(freshness)} ·{' '}
-                    {freshness.countsUnavailable ||
-                    freshness.activeRecordCount == null ||
-                    freshness.recordCount == null
-                      ? 'counts unavailable'
-                      : `${freshness.activeRecordCount.toLocaleString()} active of ${freshness.recordCount.toLocaleString()}`}
-                  </Tag>
-                ))}
+                {data.freshness.map((freshness) => {
+                  const enrichment = formatEnrichment(freshness);
+                  return (
+                    <span key={freshness.verb}>
+                      <Tag
+                        color={
+                          // An outright FAILED last run is red even when older data
+                          // exists — the rail is broken now, which is the fact a
+                          // reader needs before trusting the list.
+                          freshness.neverSynced || freshness.lastRunStatus === 'error'
+                            ? 'red'
+                            : freshness.lastRunDegraded === true
+                              ? 'orange'
+                              : 'default'
+                        }
+                      >
+                        {formatFreshness(freshness)} ·{' '}
+                        {freshness.countsUnavailable ||
+                        freshness.activeRecordCount == null ||
+                        freshness.recordCount == null
+                          ? 'counts unavailable'
+                          : `${freshness.activeRecordCount.toLocaleString()} active of ${freshness.recordCount.toLocaleString()}`}
+                      </Tag>
+                      {enrichment ? (
+                        <Tag color={freshness.enrichment?.degraded ? 'orange' : 'default'}>
+                          {enrichment}
+                        </Tag>
+                      ) : null}
+                    </span>
+                  );
+                })}
               </Space>
             </div>
           ) : null}
@@ -392,6 +405,10 @@ export function FundingOpportunitiesPage() {
           setPage(1);
         }}
         options={TABS}
+        // Named because two of the tab labels ("Saved", "Pursuing") are also KPI
+        // tile labels a few lines above, so neither a screen reader nor a test can
+        // tell the tab from the count without it.
+        aria-label="Opportunity workflow tab"
         style={{ marginBottom: 12 }}
       />
 

@@ -234,13 +234,24 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    * Run `fn` with the RLS bypass flag enabled. Use only for trusted server
    * paths (cross-tenant admin tooling, webhook ingestion, migrations).
    */
-  async withSystem<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  async withSystem<T>(
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+    opts?: { timeoutMs?: number },
+  ): Promise<T> {
     // bypass:true → the tenant-scope hook does NOT inject a tenant predicate,
     // preserving the intentional cross-tenant reach of system paths.
-    return this.scopedClient({ bypass: true }).$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
-      return fn(tx as unknown as Prisma.TransactionClient);
-    });
+    return this.scopedClient({ bypass: true }).$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
+        return fn(tx as unknown as Prisma.TransactionClient);
+      },
+      // Same escape hatch withTenant/withTenantUser already had. Without it a
+      // system path was hard-capped at the 5s interactive-transaction default
+      // with no way to extend it — which is how a slow-but-legitimate write
+      // (MemoryStoreService.upsertSystem, the Client Soul save) failed under
+      // pool pressure rather than merely running slowly.
+      opts?.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
+    );
   }
 }
 

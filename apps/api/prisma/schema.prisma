@@ -531,12 +531,22 @@ model Client {
   /// `needs_review` or `unknown`, never `eligible`. Empty is the honest default:
   /// it says "we do not know", which is true, rather than guessing a type from
   /// the sector and telling a user they can apply for something they cannot.
-  applicantTypes         String[]  @default([]) @map("applicant_types")
-  /// Self-reported federal contracting certifications used only to evaluate
-  /// SAM.gov set-aside compatibility. Canonical values are SAM set-aside codes
-  /// (for example 8AN, SDVOSBC, WOSB, EDWOSB, HZC, SBA, SBP). Empty means
-  /// unknown, never ineligible.
-  setAsideCertifications String[]  @default([]) @map("set_aside_certifications")
+  applicantTypes      String[]  @default([]) @map("applicant_types")
+  /// DURABLE socioeconomic certifications the company HOLDS. Canonical values are
+  /// the six in `set-aside.ts`: 8A, SDVOSB, VOSB, WOSB, EDWOSB, HUBZONE. Empty
+  /// means unknown, never ineligible.
+  ///
+  /// This comment previously named SAM's `typeOfSetAside` vocabulary (8AN,
+  /// SDVOSBC, HZC, SBA, SBP) as canonical, and the DTO accepted it. That was the
+  /// wrong vocabulary for a company profile and admitted two things that are not
+  /// certifications: SBA/SBP are general small-business RESTRICTIONS on a
+  /// solicitation (no firm holds an "SBA certification"), and the 8AN/SDVOSBS/
+  /// WOSBSS/EDWOSBSS/HZS family are SOLE-SOURCE notice codes — a competition
+  /// method, not a status. Recording either then fed the eligibility check, which
+  /// read it back as evidence and reported the client `eligible`.
+  ///
+  /// Legacy rows are migrated by `repair-set-aside-certifications.ts`.
+  setAsideCertifications String[] @default([]) @map("set_aside_certifications")
   // Client→data association overhaul: the confirmed set of Senate LDA client_ids
   // this client resolves to (one id per lobbying-firm relationship — a real
   // company can have many, e.g. Boeing = 27). Denormalized read-cache of the
@@ -4932,6 +4942,13 @@ model FederalGrant {
   // Drives enrich-grant-details.ts's candidate scan (detailSyncedAt IS NULL
   // first, then stalest-first).
   @@index([detailSyncedAt])
+  // The ACTIVE-grant predicate, which constrains status AND closeDate together,
+  // plus the enricher's two allocation scans which additionally constrain
+  // detailSyncedAt. The read path used to filter on `status` alone and trim the
+  // dates in TypeScript after a LIMIT — which, ordered by soonest deadline, spent
+  // the whole cap on long-expired notices and dropped the open ones. Postgres
+  // will not combine the two single-column btrees above as efficiently as this.
+  @@index([status, closeDate, detailSyncedAt], map: "federal_grant_lifecycle_enrichment_idx")
   @@map("federal_grant")
 }
 
@@ -5811,8 +5828,21 @@ model ClientFundingOpportunity {
   /// Source lifecycle snapshots used by the deterministic alert/expiry pass.
   sourceStatusSnapshot     String?   @map("source_status_snapshot") @db.VarChar(64)
   responseDeadlineSnapshot DateTime? @map("response_deadline_snapshot") @db.Timestamptz(6)
-  sourceUpdatedAtSnapshot  DateTime? @map("source_updated_at_snapshot") @db.Timestamptz(6)
-  alertState               Json      @default("{}") @map("alert_state_jsonb")
+  sourceUpdatedAtSnapshot DateTime? @map("source_updated_at_snapshot") @db.Timestamptz(6)
+  /// Hash of the SOURCE-PUBLISHED content at the last observation, from
+  /// `source-lifecycle.ts`. Answers "was this amended" WITHOUT consulting any
+  /// local clock: `sam_opportunity.updatedAt` is a Prisma @updatedAt column and
+  /// `federal_grant.detailSyncedAt`/`syncedAt` move whenever a job visits the
+  /// row, so keying amendment alerts on them alerted on our own syncs. NULL =
+  /// no baseline yet, which the processor establishes SILENTLY.
+  sourceFingerprint String? @map("source_fingerprint")
+  /// Whether the SOURCE considered this live at the last observation. Stored
+  /// rather than reconstructed from `sourceStatusSnapshot`: a legacy row with no
+  /// snapshot reconstructed to "active", so an already-closed opportunity fired
+  /// a spurious closure alert the first time it was seen, and a status string
+  /// cannot express the date half of the lifecycle at all.
+  sourceActiveSnapshot Boolean? @map("source_active_snapshot")
+  alertState Json @default("{}") @map("alert_state_jsonb")
 
   dismissedReason String? @map("dismissed_reason") @db.Text
   /// Free-text won/lost context. Only ever set by an explicit user action.
@@ -5842,6 +5872,11 @@ model ClientFundingOpportunity {
   @@index([tenantId, samOpportunityId], map: "client_funding_opportunity_tenant_sam_idx")
   @@index([tenantId, ownerUserId], map: "client_funding_opportunity_tenant_owner_idx")
   @@index([tenantId, workflowStatus, responseDeadlineSnapshot], map: "client_funding_opportunity_lifecycle_idx")
+  // Keyset cursor for the lifecycle processor. It used to read one capped
+  // `take: 5000` window per tenant and report the cap as an ERROR COUNT, so
+  // beyond 5,000 tracked rows the pass was silently partial — rows after the cap
+  // were never expired and never alerted. It now walks `id > cursor ORDER BY id`.
+  @@index([tenantId, id], map: "client_funding_opportunity_tenant_cursor_idx")
   @@map("client_funding_opportunity")
 }
 
@@ -6111,6 +6146,13 @@ model SamOpportunity {
   // deadline first" filtered by notice type, and `notice_type` alone was not
   // selective enough to keep that off a full scan of the notice table.
   @@index([active, noticeType, responseDeadline], map: "sam_opportunity_active_type_deadline_idx")
+  // The full pursuit predicate also constrains archiveDate: `active` is derived
+  // from the ARCHIVE date, which commonly trails the response deadline by weeks,
+  // so `active = true` admits notices whose window to respond has already shut.
+  // Added alongside sam_opportunity_active_response_deadline_idx rather than
+  // replacing it — dropping an index a live read path uses, to add one trailing
+  // column, is not worth the window.
+  @@index([active, responseDeadline, archiveDate], map: "sam_opportunity_lifecycle_idx")
   @@index([setAsideCode], map: "sam_opportunity_set_aside_code_idx")
   @@index([solicitationNumber], map: "sam_opportunity_solicitation_number_idx")
   @@index([naicsCode], map: "sam_opportunity_naics_code_idx")

@@ -547,6 +547,26 @@ export const configSchema = z.object({
   // (CLIO_REQUEST_TIMEOUT_MS) is far too short — it was aborting research runs
   // before the report was written, leaving only the "Sources consulted" list.
   CLIO_RESEARCH_TIMEOUT_MS: z.coerce.number().int().positive().default(600_000),
+  // HARD wall-clock ceiling for one research run, across ALL gather rounds plus
+  // synthesis. Without this, the only bound was MAX_TOOL_ROUNDS × TIMEOUT_MS =
+  // 10 × 600s ≈ 100 MINUTES, which on an interactive chat surface is
+  // indistinguishable from a hang (the drawer just sits on "Working…"). The
+  // gather loop stops taking new rounds once the budget minus the synthesis
+  // reserve is spent, and every round's own timeout is clamped to whatever
+  // budget is left, so a run can no longer outlive this number by more than the
+  // audit + persist tail.
+  CLIO_RESEARCH_TOTAL_BUDGET_MS: z.coerce.number().int().positive().default(420_000),
+  // Slice of the total budget held back so the forced-synthesis pass always has
+  // time to actually write the report. Gathering that eats the whole budget is
+  // the failure this prevents: evidence collected, no report. Kept as a floor
+  // too — if the budget is already blown when synthesis starts, synthesis still
+  // gets this long rather than an instantly-aborted 0ms window.
+  CLIO_RESEARCH_SYNTHESIS_RESERVE_MS: z.coerce.number().int().positive().default(120_000),
+  // Cadence of the `progress` SSE heartbeat during a research run. Under
+  // MERI_AUDITOR_MODE=enforce the report body is withheld until the post-hoc
+  // audit clears it, so this heartbeat is the ONLY thing telling the reader the
+  // run is alive; it also lets the client distinguish "slow" from "dead".
+  CLIO_RESEARCH_PROGRESS_INTERVAL_MS: z.coerce.number().int().positive().default(5_000),
 
   // 32-byte base64 or hex key used for AES-256-GCM encrypted meeting notes.
   NOTES_ENCRYPTION_KEY: z.string().optional(),

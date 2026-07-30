@@ -41,16 +41,34 @@ export type EligibilityState = 'eligible' | 'ineligible' | 'needs_review' | 'unk
 
 export type Money = number | null;
 
+/** Grants.gov detail-enrichment dependency health. Null for SAM, which has none. */
+export interface GrantEnrichmentHealth {
+  lastAttemptAt: string | null;
+  lastSuccessAt: string | null;
+  degraded: boolean | null;
+  detailedRecordCount: number | null;
+  activeAwaitingEnrichment: number | null;
+}
+
 export interface OpportunitySourceFreshness {
   source: OpportunitySource;
   verb: string;
   label: string;
+  /** Last SUCCESSFUL sync — what "current to …" means. */
   lastSyncedAt: string | null;
+  /** Latest run of ANY outcome, including a failure. */
+  lastAttemptAt: string | null;
+  lastRunStatus: string | null;
+  lastRunErrorCount: number | null;
+  lastFailureAt: string | null;
+  hoursSinceLastSuccess: number | null;
   neverSynced: boolean;
+  /** Keyed on the LATEST ATTEMPT, so last night's failure degrades the rail. */
   lastRunDegraded: boolean | null;
   countsUnavailable: boolean;
   recordCount: number | null;
   activeRecordCount: number | null;
+  enrichment: GrantEnrichmentHealth | null;
 }
 
 export interface OpportunityMatchedSignal {
@@ -268,15 +286,55 @@ export function formatDeadline(
   return { text, daysRemaining: days };
 }
 
-/** "Grants.gov current to 28 Jul" / an explicit never-synced statement. */
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/**
+ * "Grants.gov: current to 28 Jul" / an explicit never-synced statement / — and,
+ * when the rail is failing, BOTH facts at once.
+ *
+ * A rail that succeeded a week ago and has failed every night since used to read
+ * as plain "current to 22 Jul", because the API only ever reported successful
+ * runs. That is the most dangerous rendering available: it looks healthy. The
+ * failure is now stated in the same line as the last good data.
+ */
 export function formatFreshness(f: OpportunitySourceFreshness): string {
-  if (f.neverSynced) return `${f.label}: never synced`;
+  if (f.neverSynced) {
+    return f.lastRunStatus === 'error'
+      ? `${f.label}: never synced — last attempt failed${f.lastAttemptAt ? ` ${shortDate(f.lastAttemptAt)}` : ''}`
+      : `${f.label}: never synced`;
+  }
   if (!f.lastSyncedAt) return `${f.label}: freshness unknown`;
-  const when = new Date(f.lastSyncedAt).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  });
-  return `${f.label}: current to ${when}${f.lastRunDegraded ? ' (last run had errors)' : ''}`;
+  const base = `${f.label}: current to ${shortDate(f.lastSyncedAt)}`;
+  if (f.lastRunStatus === 'error') {
+    return `${base} — LAST RUN FAILED${f.lastAttemptAt ? ` ${shortDate(f.lastAttemptAt)}` : ''}`;
+  }
+  if (f.lastRunDegraded) {
+    const errors = f.lastRunErrorCount ?? 0;
+    return `${base} (last run had ${errors > 0 ? `${errors.toLocaleString()} ` : ''}errors)`;
+  }
+  return base;
+}
+
+/**
+ * The Grants.gov detail-enrichment line, or null when there is nothing to say.
+ *
+ * Separate from {@link formatFreshness} because the catalog sync and the detail
+ * enricher fail independently, and a green catalog with a dead enricher is a page
+ * of grants with no terms on them.
+ */
+export function formatEnrichment(f: OpportunitySourceFreshness): string | null {
+  const e = f.enrichment;
+  if (!e) return null;
+  if (e.degraded) {
+    return `Grant details: enrichment FAILING${e.lastSuccessAt ? ` since ${shortDate(e.lastSuccessAt)}` : ''} — award ceilings and eligibility text may be missing`;
+  }
+  if (e.activeAwaitingEnrichment != null && e.activeAwaitingEnrichment > 0) {
+    return `Grant details: ${e.activeAwaitingEnrichment.toLocaleString()} active grant${e.activeAwaitingEnrichment === 1 ? '' : 's'} awaiting detail fetch`;
+  }
+  if (e.lastSuccessAt) return `Grant details: enriched to ${shortDate(e.lastSuccessAt)}`;
+  return 'Grant details: never enriched';
 }
 
 /**
