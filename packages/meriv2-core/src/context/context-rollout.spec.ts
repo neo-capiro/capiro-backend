@@ -22,7 +22,13 @@ const approvedFirm = (over: Partial<SteeringRow> = {}): SteeringRow => ({
   updatedAt: '2026-07-30T00:00:00.000Z',
   confirmedAt: '2026-07-30T00:00:00.000Z',
   authority: 'human',
-  sections: [{ owner: 'human', heading: 'Identity', body: 'We advise government-affairs teams.' }],
+  sections: [
+    {
+      owner: 'human',
+      heading: 'Identity',
+      body: 'We advise government-affairs teams.',
+    },
+  ],
   memoryClass: 'institutional_authoritative',
   governedAuthority: 'firm_approved',
   sourceType: 'firm_playbook',
@@ -62,7 +68,9 @@ function harness(
     loadSteeringRows: loadV1,
     loadGovernedSteeringRows: loadV2,
     persistPacket: jest.fn(async (packet) => {
-      if (options.failV2Persistence && packet.version === 2) throw new Error('private database detail');
+      if (options.failV2Persistence && packet.version === 2) {
+        throw new Error('private database detail');
+      }
       persisted.push(structuredClone(packet));
       return packet.generatedPacketId;
     }),
@@ -82,7 +90,8 @@ describe('ContextPacketRolloutCompiler', () => {
     expect(h.loadV1).toHaveBeenCalledTimes(1);
     expect(h.loadV2).not.toHaveBeenCalled();
     expect(h.persisted).toHaveLength(1);
-    expect(packet.rendered[0]?.body).toBe('Identity\nWe advise government-affairs teams.');
+    expect(packet.rendered[0]?.body).toBe(`Identity
+We advise government-affairs teams.`);
   });
 
   it('shadow persists v1 and v2 but returns the exact v1 model input', async () => {
@@ -121,9 +130,9 @@ describe('ContextPacketRolloutCompiler', () => {
     if (packet.version !== 2) throw new Error('expected v2');
     expect(packet.health.status).toBe('healthy');
     expect(packet.health.missingRequiredLayers).toEqual([]);
-    expect((packet.health as { missingOptionalLayers?: string[] }).missingOptionalLayers).toContain(
-      'user-voice',
-    );
+    expect(
+      (packet.health as { missingOptionalLayers?: string[] }).missingOptionalLayers,
+    ).toContain('user-voice');
     expect(packet.requiredLayers).toEqual(['firm-identity']);
   });
 
