@@ -1,0 +1,146 @@
+name: phase8-boundary-artifact
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  patch-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply exact Phase 8 persistence boundary patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          service = Path('apps/api/src/intelligence/alert-memo/alert-memo.service.ts')
+          text = service.read_text()
+          old_import = "import { runAuditor, type LedgerEntry } from '@capiro/meriv2-core';"
+          new_import = """import {
+            isContextPacketPersistenceError,
+            runAuditor,
+            type LedgerEntry,
+          } from '@capiro/meriv2-core';"""
+          if text.count(old_import) != 1:
+              raise SystemExit(f'service import count={text.count(old_import)}')
+          text = text.replace(old_import, new_import)
+          old_log = "      this.logger.debug(`steering compile skipped: ${(err as Error).message}`);"
+          new_log = """      if (isContextPacketPersistenceError(err)) throw err;
+                this.logger.debug('steering compile skipped (context_compile_failed)');"""
+          if text.count(old_log) != 1:
+              raise SystemExit(f'service log count={text.count(old_log)}')
+          service.write_text(text.replace(old_log, new_log))
+
+          orchestrator_spec = Path(
+              'apps/meriv2-orchestrator/src/meri/context-compiler-v2.service.spec.ts'
+          )
+          text = orchestrator_spec.read_text()
+          old_jest_import = (
+              "import { afterEach, beforeEach, describe, expect, it, jest } "
+              "from '@jest/globals';\n"
+          )
+          if text.count(old_jest_import) != 1:
+              raise SystemExit(f'orchestrator jest import count={text.count(old_jest_import)}')
+          orchestrator_spec.write_text(text.replace(old_jest_import, '', 1))
+
+          test = Path(
+              'apps/api/src/intelligence/alert-memo/alert-memo.context-persistence.spec.ts'
+          )
+          test.write_text("""import { ContextPacketPersistenceError } from '@capiro/meriv2-core';
+          import { AlertMemoService } from './alert-memo.service.js';
+          import type { AlertMemoAlertInput } from './alert-memo.types.js';
+
+          describe('AlertMemoService — required Context Packet persistence', () => {
+            it('holds before provider lookup, generation, metering, or filing', async () => {
+              const persistenceError = new ContextPacketPersistenceError(
+                'context_packet_error',
+                'generated-packet-1',
+                'memo',
+              );
+              const credentials = { resolveProvider: jest.fn() };
+              const contextCompiler = { compile: jest.fn().mockRejectedValue(persistenceError) };
+              const engagement = {
+                billTruthBlock: jest.fn(),
+                createAttachmentFromBuffer: jest.fn(),
+                deleteAttachment: jest.fn(),
+                supersedeAttachment: jest.fn(),
+              };
+              const prisma = {
+                withTenant: jest.fn(),
+                withTenantUser: jest.fn(),
+                aiUsageEvent: { create: jest.fn() },
+              };
+              const reviews = { createSystem: jest.fn(), hasOpenForSubject: jest.fn() };
+              const service = new AlertMemoService(
+                credentials as never,
+                contextCompiler as never,
+                engagement as never,
+                prisma as never,
+                reviews as never,
+              );
+              const fetchSpy = jest.spyOn(global, 'fetch');
+              const alert: AlertMemoAlertInput = {
+                alertId: 'alert-1',
+                sourceType: 'bill',
+                sourceRef: null,
+                title: 'Verified development',
+                whyItMatters: 'Material to the client.',
+              };
+
+              await expect(
+                service.generate(
+                  { tenantId: 'tenant-1', userId: 'user-1' } as never,
+                  'client-1',
+                  alert,
+                  'Acme Corp',
+                ),
+              ).rejects.toBe(persistenceError);
+
+              expect(contextCompiler.compile).toHaveBeenCalledTimes(1);
+              expect(credentials.resolveProvider).not.toHaveBeenCalled();
+              expect(fetchSpy).not.toHaveBeenCalled();
+              expect(prisma.aiUsageEvent.create).not.toHaveBeenCalled();
+              expect(engagement.createAttachmentFromBuffer).not.toHaveBeenCalled();
+              expect(reviews.createSystem).not.toHaveBeenCalled();
+              fetchSpy.mockRestore();
+            });
+          });
+          """)
+          PY
+      - name: Format and run targeted checks
+        run: |
+          pnpm exec prettier --write \
+            apps/api/src/intelligence/alert-memo/alert-memo.service.ts \
+            apps/api/src/intelligence/alert-memo/alert-memo.context-persistence.spec.ts \
+            apps/meriv2-orchestrator/src/meri/context-compiler-v2.service.spec.ts
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/meriv2-core build
+          pnpm --filter @capiro/meriv2-orchestrator typecheck
+          pnpm --filter @capiro/api typecheck
+          pnpm --filter @capiro/api exec jest --ci --runInBand \
+            src/intelligence/alert-memo/alert-memo.context-persistence.spec.ts
+          pnpm --filter @capiro/meriv2-orchestrator exec jest --ci --runInBand \
+            src/meri/context-compiler-v2.service.spec.ts
+      - name: Package exact patched files
+        run: |
+          tar -czf phase8-boundary.tar.gz \
+            apps/api/src/intelligence/alert-memo/alert-memo.service.ts \
+            apps/api/src/intelligence/alert-memo/alert-memo.context-persistence.spec.ts \
+            apps/meriv2-orchestrator/src/meri/context-compiler-v2.service.spec.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase8-boundary
+          path: phase8-boundary.tar.gz
+          if-no-files-found: error
+          retention-days: 1
