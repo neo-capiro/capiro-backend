@@ -21,6 +21,7 @@ export * from './grounding/skeptic';
 export * from './grounding/skeptic-audit';
 export * from './context/contract';
 export * from './context/compiler';
+export * from './context/truthful-compiler';
 export * from './context/token-budget';
 export * from './context/surface-policy';
 export * from './context/context-release-switch';
