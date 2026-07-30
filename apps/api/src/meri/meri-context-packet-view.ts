@@ -1,11 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import type { MeriContextAuthority, MeriContextPacketSummary } from '@capiro/meriv2-core';
 
-/**
- * The governed `MemoryAuthority` vocabulary plus the legacy display values. An
- * unrecognised string is reported as `'unknown'` rather than echoed, so a future
- * authority value cannot leak an unmapped slug into the trust UI.
- */
 const AUTHORITIES: ReadonlySet<string> = new Set<MeriContextAuthority>([
   'human-authored',
   'system-of-record',
@@ -34,8 +29,6 @@ interface StoredItem {
   type?: unknown;
   layer?: unknown;
   rationale?: unknown;
-  // ContextPacketItemV2 only. A v1 item has none of these, which is exactly how
-  // this view stays byte-identical on the v1 path.
   authority?: unknown;
   selectionTier?: unknown;
   inclusionReason?: unknown;
@@ -51,17 +44,6 @@ interface StoredExclusion {
   reason?: unknown;
 }
 
-/**
- * Reasons that mean the caller is not authorized to know the item EXISTS, as
- * opposed to lifecycle/content reasons where the caller already has legitimate
- * visibility. `compiler.ts`'s `exclusionFor()` strips id/type/slug for exactly
- * these three, so they must be counted in aggregate and never listed.
- *
- * Counting only `unauthorized` (the previous behaviour) made `wrong-client` and
- * `sensitivity-denied` withholdings disappear from BOTH the list (they have no
- * `type`, so the list filter dropped them) and the count — the user was told zero
- * restricted items while confidential context had in fact been withheld.
- */
 const IDENTITY_WITHHELD_REASONS: ReadonlySet<string> = new Set([
   'unauthorized',
   'wrong-client',
@@ -80,7 +62,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 }
 
-/** The v2 columns, present only when the caller selected them (see the controller). */
 export interface ContextPacketV2Columns {
   packetVersion?: number | null;
   health?: Prisma.JsonValue | null;
@@ -101,7 +82,6 @@ export function contextPacketView(
     exclusions: Prisma.JsonValue;
     createdAt: Date;
   } & ContextPacketV2Columns,
-  /** Resolved separately by the controller; `ContextInspector` renders "Client · N". */
   clientName: string | null = null,
 ): MeriContextPacketSummary {
   const storedItems = array(row.items).filter((value): value is StoredItem => isRecord(value));
@@ -113,9 +93,6 @@ export function contextPacketView(
   );
   const health = isRecord(row.health) ? row.health : null;
   const healthStatus = health && typeof health.status === 'string' ? health.status : null;
-  // v1 rows have no health concept, so they keep reporting exactly what they
-  // reported before: not degraded. Only a v2 packet that actually recorded a
-  // non-healthy status claims degradation.
   const degraded = row.packetVersion === 2 && healthStatus !== null && healthStatus !== 'healthy';
   const healthReasons =
     health && Array.isArray(health.reasons)
@@ -123,7 +100,10 @@ export function contextPacketView(
       : [];
 
   return {
+    // This view can only be built from a row that was retrieved from context_packet.
     packetId: row.id,
+    persisted: true,
+    persistenceErrorCode: null,
     compiledAt: row.createdAt.toISOString(),
     surface: row.surface,
     clientId: row.clientId,
@@ -148,10 +128,6 @@ export function contextPacketView(
           label: text(item.title) ?? String(item.type),
           type: String(item.type),
           scope,
-          // A v2 item carries its REAL governed authority. A v1 item has no
-          // provenance in `items_jsonb` at all; the legacy 'human-authored' label
-          // is preserved verbatim there so shipped v1 output does not change, but
-          // it is an assumption, not evidence — which is why v2 replaces it.
           authority: authorityOf(item.authority) ?? 'human-authored',
           ...(scope === 'client' && clientName ? { clientName } : {}),
           userScoped: scope === 'personal',
