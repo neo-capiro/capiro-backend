@@ -1,3 +1,7 @@
+# PR gate (SC0.6). Runs on every pull request to main. Lint is intentionally
+# substituted with `prettier --check` on the MeriV2 code: `pnpm lint` is
+# non-functional repo-wide (eslint is not installed), so typecheck + prettier +
+# tests are the real quality gate (see docs/plans/2026-06-30-meriv2-DECISIONS.md D3).
 name: ci-pr
 
 on:
@@ -5,199 +9,120 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  phase3:
-    if: github.event.pull_request.head.ref == 'agent/meriv2-world-class-closeout'
+  verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: agent/meriv2-world-class-closeout
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Confirm synchronized moving baseline
-        id: state
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch origin main --quiet
-          git merge-base --is-ancestor origin/main HEAD
-          echo "main_sha=$(git rev-parse origin/main)" >> "$GITHUB_OUTPUT"
-          if grep -q "async proposeSettingsSections" apps/api/src/memory/memory-candidate.service.ts; then
-            echo "apply=false" >> "$GITHUB_OUTPUT"
-            echo "Phase 3 source is already present; this follow-up run will not mutate or push."
-          else
-            echo "apply=true" >> "$GITHUB_OUTPUT"
-          fi
-
+      # No `version:` — pnpm/action-setup reads it from package.json
+      # `packageManager` (pnpm@9.12.0); pinning both errors with
+      # "Multiple versions of pnpm specified".
       - uses: pnpm/action-setup@v4
-        if: steps.state.outputs.apply == 'true'
       - uses: actions/setup-node@v4
-        if: steps.state.outputs.apply == 'true'
         with:
           node-version: 22
           cache: pnpm
+      - run: pnpm install --frozen-lockfile
 
-      - name: Apply the reviewed Phase 3 patch
-        if: steps.state.outputs.apply == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('scripts/tmp/meriv2-phase3-apply.py')
-          text = path.read_text()
-          text = text.replace('from pathlib import Path\n', 'from pathlib import Path\nimport re\n', 1)
-          text = text.replace(
-              "expect(params).toContain(expect.stringContaining('Reviewed'));",
-              "expect(params).toContainEqual(expect.stringContaining('Reviewed'));",
-          )
-          old = '''def replace(path: str, old: str, new: str) -> None:
-              p = Path(path)
-              text = p.read_text()
-              if old not in text:
-                  raise SystemExit(f"pattern not found in {path}: {old[:120]!r}")
-              p.write_text(text.replace(old, new, 1))
-          '''
-          new = '''def replace(path: str, old: str, new: str) -> None:
-              p = Path(path)
-              text = p.read_text()
-              if old in text:
-                  p.write_text(text.replace(old, new, 1))
-                  return
-              lines = old.splitlines(keepends=True)
-              pattern = ''.join(r'[ \\t]*' + re.escape(line.lstrip(' \\t')) for line in lines)
-              match = re.search(pattern, text)
-              if not match:
-                  raise SystemExit(f"pattern not found in {path}: {old[:120]!r}")
-              p.write_text(text[:match.start()] + new + text[match.end():])
-          '''
-          if old not in text:
-              raise SystemExit('replace helper anchor not found')
-          path.write_text(text.replace(old, new, 1))
-          PY
-          python scripts/tmp/meriv2-phase3-apply.py
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('apps/api/src/memory/memory-canonical-activation.helpers.ts')
-          text = path.read_text()
-          text = text.replace("ARRAY['memory-file', ${record.scope}], 'manual'", "ARRAY['memory', ${record.source}], 'manual'")
-          path.write_text(text)
-          test_path = Path('apps/api/src/memory/memory.controller.settings-review.spec.ts')
-          test_text = test_path.read_text().replace('active.sections[0].body', 'active.sections[0]?.body')
-          test_path.write_text(test_text)
-          canonical_test = Path('apps/api/src/memory/memory-canonical-activation.helpers.spec.ts')
-          canonical_text = canonical_test.read_text().replace(
-              "expect(params).toContain(expect.stringContaining('Reviewed'));",
-              "expect(params).toContainEqual(expect.stringContaining('Reviewed'));",
-          )
-          if "toContainEqual(expect.stringContaining('Reviewed'))" not in canonical_text:
-              raise SystemExit('Phase 3 canonical activation matcher was not repaired')
-          canonical_test.write_text(canonical_text)
-          PY
-          forbidden=$(git diff --name-only | grep -E '(^|/)(program-element|defense-budget|program_element|pe-)' || true)
-          if [ -n "$forbidden" ]; then
-            echo "::error::Phase 3 unexpectedly changed Program Element paths"
-            echo "$forbidden"
-            exit 1
-          fi
+      # Supply-chain (blocker #4): advisory dependency audit. `|| true` keeps it
+      # NON-blocking for now — it surfaces known high/critical CVEs in the PR log
+      # without failing the gate on pre-existing transitive advisories. Once the
+      # baseline is triaged, drop `|| true` (and/or add `--prod`) to make it a
+      # hard gate. Runs after install so the full resolved lockfile is audited.
+      - name: Dependency audit (advisory)
+        run: pnpm audit --audit-level=high || true
 
-      - name: Install locked dependencies
-        if: steps.state.outputs.apply == 'true'
-        run: pnpm install --frozen-lockfile
-
-      - name: Generate all Prisma clients
-        if: steps.state.outputs.apply == 'true'
+      # The api + workspace typecheck/tests import their generated Prisma
+      # clients; generate them before turbo runs (the image builds do this
+      # inside Docker, but this direct CI job must do it explicitly). `generate`
+      # does not connect to a DB, so no DATABASE_URL is needed.
+      - name: Generate Prisma clients
         run: |
           pnpm --filter @capiro/api exec prisma generate
-          pnpm --filter @capiro/api-strategy exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
           pnpm --filter @capiro/intel-api exec prisma generate
           pnpm --filter @capiro/onboard-api exec prisma generate
-          pnpm --filter @capiro/workspace exec prisma generate
+          pnpm --filter @capiro/api-strategy exec prisma generate
 
-      - name: Build internal dependencies
-        if: steps.state.outputs.apply == 'true'
+      - name: Prettier (MeriV2 + shared core)
+        # W5.7: packages/shared is now gated — it holds the deterministic engines
+        # the whole platform depends on (deriveBillStatus / deriveStateBillStatus,
+        # deriveRuleLifecycleStage, isRuleCommentOpen, MERI_TOOL_MANIFEST, funding
+        # precedence). A blanket apps/api / apps/intel-api / apps/web check is
+        # intentionally NOT added here: those trees carry pre-existing formatting
+        # debt OUTSIDE the state platform (e.g. engagement/outreach files), and a
+        # blanket check would break CI on unrelated files (G7: never touch
+        # unrelated pre-existing debt). State-platform code in apps/api is
+        # formatted file-by-file at authorship; a repo-wide changed-files gate is
+        # a separate follow-up once the apps/* debt is paid down.
+        run: >
+          pnpm exec prettier --check
+          "packages/meriv2-core/**/*.ts"
+          "apps/meriv2-orchestrator/**/*.ts"
+          "packages/shared/**/*.ts"
+
+      # BYOK4 guard: no MeriV2 code may read the global Anthropic key directly.
+      # The ONLY permitted reference is the orchestrator's resolver wiring
+      # (meri-registry.service.ts injects the env fallback into
+      # RequestScopedLlmClient) and its specs. packages/meriv2-core must have
+      # ZERO references. This is what keeps "every MeriV2 LLM call is
+      # tenant-scoped" true after the initial conversion.
+      - name: BYOK guard (no direct Anthropic env keys in MeriV2 surfaces)
         run: |
-          pnpm --filter @capiro/shared build
-          pnpm --filter @capiro/auth build
-          pnpm --filter @capiro/strategy-verifier build
-          pnpm --filter @capiro/meriv2-core build
+          set -e
+          violations=$(grep -rn "ANTHROPIC_API_KEY" \
+            packages/meriv2-core/src \
+            apps/meriv2-orchestrator/src \
+            --include='*.ts' \
+            | grep -v "apps/meriv2-orchestrator/src/meri/meri-registry.service.ts" \
+            | grep -v "\.spec\.ts:" \
+            || true)
+          if [ -n "$violations" ]; then
+            echo "BYOK violation — direct ANTHROPIC_API_KEY reference outside the resolver:"
+            echo "$violations"
+            exit 1
+          fi
+          echo "BYOK guard passed."
 
-      - name: Format Phase 3 files
-        if: steps.state.outputs.apply == 'true'
-        run: |
-          pnpm exec prettier --write \
-            apps/api/src/memory/memory-candidate.service.ts \
-            apps/api/src/memory/memory-canonical-activation.helpers.ts \
-            apps/api/src/memory/memory-canonical-activation.helpers.spec.ts \
-            apps/api/src/memory/memory.controller.ts \
-            apps/api/src/memory/memory.controller.settings-review.spec.ts \
-            apps/web/src/components/MemoryFileEditor.tsx \
-            apps/web/src/components/MemoryFileEditor.phase3.test.ts
+      # Typecheck every package, api INCLUDED. The prior `@jest/globals`
+      # resolution failure in api spec files is resolved — `tsc --noEmit` is now
+      # clean across the whole api project, spec files included — so the
+      # exclusion is dropped and every PR type-gates apps/api directly, not just
+      # via the slower image build. (Follow-up: add an apps/api jest step; that
+      # needs a CI Postgres service since much of the api suite is DB-backed.)
+      - name: Typecheck (turbo)
+        run: pnpm turbo run typecheck
 
-      - name: API and Program Element safety typecheck
-        if: steps.state.outputs.apply == 'true'
-        run: pnpm --filter @capiro/api typecheck
+      # Unit tests for the new orchestrator core (DB-free). The api/workspace
+      # suites need a live Postgres and run via their own image/e2e paths; the
+      # cross-client-leakage + grounding gate is meriv2-evals.yml.
+      - name: Test meriv2-core
+        run: pnpm --filter @capiro/meriv2-core test
 
-      - name: Web typecheck
-        if: steps.state.outputs.apply == 'true'
-        run: pnpm --filter @capiro/web typecheck
+      # meriv2-orchestrator's own suite (registry wiring, delegated-tool
+      # catalogs, in-editor loop, write-tool gate proof) is ALSO DB-free — every
+      # I/O boundary (apps/api tool calls, the Anthropic API) is mocked at the
+      # fetch layer. Previously untested in CI: this workflow ran typecheck for
+      # the whole repo but only ever unit-tested meriv2-core, so a regression in
+      # the orchestrator's own logic (e.g. a write tool silently bypassing the
+      # approval gate) would type-check clean and still merge.
+      - name: Test meriv2-orchestrator
+        run: pnpm --filter @capiro/meriv2-orchestrator test
 
-      - name: Phase 3 API regression matrix
-        if: steps.state.outputs.apply == 'true'
-        run: |
-          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
-            src/memory/memory.controller.settings-review.spec.ts \
-            src/memory/memory-canonical-activation.helpers.spec.ts \
-            src/memory/memory-candidate.atomicity.spec.ts \
-            src/memory/memory-candidate.approval.spec.ts \
-            src/memory/memory.controller.governance.spec.ts
+      # @capiro/auth — the shared Clerk-verify guard (auth-extraction Option N).
+      # DB-free unit suite: guard 401/403 matrix + v1/v2 claims normalization.
+      # An auth regression here would gate every orchestrator/workspace route.
+      - name: Test auth package
+        run: pnpm --filter @capiro/auth test
 
-      - name: Phase 3 web result contract
-        if: steps.state.outputs.apply == 'true'
-        run: pnpm --filter @capiro/web exec vitest run src/components/MemoryFileEditor.phase3.test.ts --testTimeout=20000 --hookTimeout=20000
-
-      - name: Reconfirm main before promotion
-        if: steps.state.outputs.apply == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch origin main --quiet
-          latest=$(git rev-parse origin/main)
-          test "$latest" = "${{ steps.state.outputs.main_sha }}"
-          git merge-base --is-ancestor origin/main HEAD
-
-      - name: Promote validated Phase 3 implementation
-        if: steps.state.outputs.apply == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name codex
-          git config user.email 267193182+codex@users.noreply.github.com
-          git add \
-            apps/api/src/memory/memory-candidate.service.ts \
-            apps/api/src/memory/memory-canonical-activation.helpers.ts \
-            apps/api/src/memory/memory-canonical-activation.helpers.spec.ts \
-            apps/api/src/memory/memory.controller.ts \
-            apps/api/src/memory/memory.controller.settings-review.spec.ts \
-            apps/web/src/components/MemoryFileEditor.tsx \
-            apps/web/src/components/MemoryFileEditor.phase3.test.ts
-          git diff --cached --check
-          git commit -m "feat(meriv2): review-gate Settings shared memory"
-          for attempt in 1 2 3; do
-            git fetch origin agent/meriv2-world-class-closeout main --quiet
-            test "$(git rev-parse origin/main)" = "${{ steps.state.outputs.main_sha }}"
-            git rebase origin/agent/meriv2-world-class-closeout
-            git merge-base --is-ancestor origin/main HEAD
-            if git push origin HEAD:agent/meriv2-world-class-closeout; then
-              echo "Promoted $(git rev-parse HEAD)"
-              exit 0
-            fi
-            echo "Concurrent branch update during push attempt $attempt; retrying without force."
-          done
-          echo "::error::Unable to promote Phase 3 without overwriting concurrent branch work."
-          exit 1
+      # @capiro/api-strategy — Strategy Planner engine (G1 scaffold). The
+      # DB-free specs run here: fiscal calendar, reference baseline builder +
+      # payload validator, and the tenant-scope leak guard (static: greps src
+      # for bare tenant-scoped Prisma access). The DB-backed
+      # tenant-isolation.int-spec self-skips without DATABASE_URL (it runs in
+      # the image/e2e path), so the full `test` is safe here.
+      - name: Test api-strategy
+        run: pnpm --filter @capiro/api-strategy test
