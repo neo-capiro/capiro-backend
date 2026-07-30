@@ -1,6 +1,7 @@
 import { Avatar, Button, Card, Empty, Skeleton, Tag, Typography } from 'antd';
 import { ExportOutlined } from '@ant-design/icons';
 import type { PersonRoleSummary } from './types.js';
+import { PeSecondaryFailed } from './PeSecondaryFailed.js';
 
 const { Text, Link } = Typography;
 
@@ -59,6 +60,9 @@ function sourceHost(role: PersonRoleSummary): string | null {
 export interface ProgramTeamPanelProps {
   personnel: ProgramTeamPerson[];
   loading?: boolean;
+  /** True when the personnel query failed — must not look like empty roster. */
+  errored?: boolean;
+  onRetry?: () => void;
   /**
    * @deprecated Phase 5 — fabricated roster estimates removed. If provided and
    * larger than the identified roster, it is ignored so the UI never invents
@@ -117,6 +121,8 @@ function formatDate(value: string): string {
 export function ProgramTeamPanel({
   personnel,
   loading = false,
+  errored = false,
+  onRetry,
   estimatedTotal: _estimatedTotalIgnored,
   onViewAllSources,
   onLinkCrmContact,
@@ -128,6 +134,13 @@ export function ProgramTeamPanel({
       </Card>
     );
   }
+
+  if (errored) {
+    return (
+      <PeSecondaryFailed label="program team" testId="pe-secondary-failed-personnel" onRetry={onRetry} />
+    );
+  }
+
 
   // Phase 5: show only identified personnel counts — never "~N known" fabrications.
   void _estimatedTotalIgnored;

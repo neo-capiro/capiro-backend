@@ -1,12 +1,15 @@
 import { Card, Empty, Skeleton, Space, Tag, Tooltip, Typography } from 'antd';
 import type { ProgramElementSourceItem } from './types.js';
 import { proofFingerprintLabel } from './trust-model.js';
+import { PeSecondaryFailed } from './PeSecondaryFailed.js';
 
 const { Text, Paragraph } = Typography;
 
 export interface ProofPackPanelProps {
   sources: ProgramElementSourceItem[] | null | undefined;
   loading?: boolean;
+  errored?: boolean;
+  onRetry?: () => void;
 }
 
 const EXHIBIT_COLOR: Record<string, string> = {
@@ -34,7 +37,7 @@ function pageLabel(s: ProgramElementSourceItem): string | null {
  * fingerprint language. A sha256 tag means the *ingested bytes* match that hash;
  * it is not a claim that a full archival package or page image is attached.
  */
-export function ProofPackPanel({ sources, loading = false }: ProofPackPanelProps) {
+export function ProofPackPanel({ sources, loading = false, errored = false, onRetry }: ProofPackPanelProps) {
   if (loading) {
     return (
       <Card title="Sources & evidence">
@@ -42,6 +45,13 @@ export function ProofPackPanel({ sources, loading = false }: ProofPackPanelProps
       </Card>
     );
   }
+
+  if (errored) {
+    return (
+      <PeSecondaryFailed label="sources & evidence" testId="pe-secondary-failed-sources" onRetry={onRetry} />
+    );
+  }
+
 
   const rows = Array.isArray(sources) ? sources : [];
   if (rows.length === 0) {

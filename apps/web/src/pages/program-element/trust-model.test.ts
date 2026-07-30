@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  anyEnabledSecondaryFailed,
   buildSourceCoverageSummary,
   filterTabsForLineType,
   formatClaimWithCitation,
@@ -14,6 +15,7 @@ import {
   resolvePeSurfaceState,
   serializePeWatchUrlState,
   sourceFyFromPdocBook,
+  yearsHaveStageValue,
 } from './trust-model.js';
 import type { FundingClaim } from '@capiro/shared/funding-claim';
 
@@ -87,6 +89,69 @@ describe('trust-model surface states', () => {
         yearCount: 0,
       }),
     ).toBe('not_ingested');
+  });
+
+  test('years present with all-null stages → complete_empty (reachable)', () => {
+    expect(yearsHaveStageValue([{ request: null, enacted: null }])).toBe(false);
+    expect(yearsHaveStageValue([{ request: 0, enacted: null }])).toBe(true);
+    expect(yearsHaveStageValue([{ request: '12.5', enacted: null }])).toBe(true);
+    expect(
+      resolvePeSurfaceState({
+        peCodePresent: true,
+        isLoading: false,
+        isError: false,
+        hasDetail: true,
+        yearCount: 2,
+        hasStageValue: false,
+      }),
+    ).toBe('complete_empty');
+    expect(
+      resolvePeSurfaceState({
+        peCodePresent: true,
+        isLoading: false,
+        isError: false,
+        hasDetail: true,
+        yearCount: 2,
+        hasStageValue: true,
+      }),
+    ).toBe('complete_with_data');
+    // Explicit $0 is still a real stage → complete_with_data, not empty.
+    expect(
+      resolvePeSurfaceState({
+        peCodePresent: true,
+        isLoading: false,
+        isError: false,
+        hasDetail: true,
+        yearCount: 1,
+        hasStageValue: yearsHaveStageValue([{ request: 0 }]),
+      }),
+    ).toBe('complete_with_data');
+  });
+
+  test('anyEnabledSecondaryFailed ignores disabled buckets', () => {
+    expect(
+      anyEnabledSecondaryFailed([
+        { enabled: false, isError: true },
+        { enabled: true, isError: false },
+      ]),
+    ).toBe(false);
+    expect(
+      anyEnabledSecondaryFailed([
+        { enabled: true, isError: true },
+        { enabled: false, isError: false },
+      ]),
+    ).toBe(true);
+    expect(
+      resolvePeSurfaceState({
+        peCodePresent: true,
+        isLoading: false,
+        isError: false,
+        hasDetail: true,
+        yearCount: 1,
+        hasStageValue: true,
+        secondaryFailed: true,
+      }),
+    ).toBe('partial');
   });
 });
 

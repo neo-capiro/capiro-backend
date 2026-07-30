@@ -6,12 +6,16 @@ import type {
   ProgramEvidenceItem,
   ProgramsForPeResponse,
 } from './programs-api.js';
+import { PeSecondaryFailed } from './PeSecondaryFailed.js';
 
 const { Text, Paragraph } = Typography;
 
 export interface ProgramsPanelProps {
   programs: ProgramsForPeResponse | null | undefined;
   loading?: boolean;
+
+  errored?: boolean;
+  onRetry?: () => void;
 }
 
 const BAND_COLOR: Record<ProgramConfidenceBand, string> = {
@@ -128,7 +132,10 @@ function buildColumns(showCandidateBadge: boolean): ColumnsType<PeProgramMatchRo
  * Quarantined / rejected / weak-signal matches are never returned by the API, so they are
  * never shown here. Guards against non-array data with Array.isArray. Honest empty state.
  */
-export function ProgramsPanel({ programs, loading = false }: ProgramsPanelProps) {
+export function ProgramsPanel({ programs, loading = false,
+  errored = false,
+  onRetry,
+}: ProgramsPanelProps) {
   if (loading) {
     return (
       <Card title="Programs">
@@ -136,6 +143,13 @@ export function ProgramsPanel({ programs, loading = false }: ProgramsPanelProps)
       </Card>
     );
   }
+
+  if (errored) {
+    return (
+      <PeSecondaryFailed label="programs" testId="pe-secondary-failed-programs" onRetry={onRetry} />
+    );
+  }
+
 
   const accepted = Array.isArray(programs?.acceptedMatches) ? programs!.acceptedMatches : [];
   const candidates = Array.isArray(programs?.candidateMatches) ? programs!.candidateMatches : [];

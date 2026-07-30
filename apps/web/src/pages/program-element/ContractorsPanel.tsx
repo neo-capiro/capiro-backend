@@ -5,12 +5,15 @@ import type {
   ProgramElementContractorsResponse,
   ProgramElementNamedPrime,
 } from './types.js';
+import { PeSecondaryFailed } from './PeSecondaryFailed.js';
 
 const { Text } = Typography;
 
 export interface ContractorsPanelProps {
   contractors: ProgramElementContractorsResponse | null | undefined;
   loading?: boolean;
+  errored?: boolean;
+  onRetry?: () => void;
 }
 
 function dollarsCompact(amountMm: number): string {
@@ -120,7 +123,7 @@ const namedPrimeColumns: ColumnsType<ProgramElementNamedPrime> = [
   },
 ];
 
-export function ContractorsPanel({ contractors, loading = false }: ContractorsPanelProps) {
+export function ContractorsPanel({ contractors, loading = false, errored = false, onRetry }: ContractorsPanelProps) {
   if (loading) {
     return (
       <Card title="Top contractors touching this PE">
@@ -128,6 +131,13 @@ export function ContractorsPanel({ contractors, loading = false }: ContractorsPa
       </Card>
     );
   }
+
+  if (errored) {
+    return (
+      <PeSecondaryFailed label="contractors" testId="pe-secondary-failed-contractors" onRetry={onRetry} />
+    );
+  }
+
 
   const namedPrimes = contractors?.namedPrimes ?? [];
   const rows = contractors?.data ?? [];

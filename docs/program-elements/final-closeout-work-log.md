@@ -697,13 +697,69 @@ None.
 - Open reconciliation conflict count only displays when API sets `openReconciliationConflictCount` (defaults 0 / "no open conflicts reported").
 - Phase 3 SAM B1/B2 polish still optional.
 
+### Independent review status (Phase 5) — prior tip `e7ffe8b76`
+Prior independent review **VERDICT: FAIL** (B1 browser smoke, B2 secondary isError dark, B3 complete_empty dead).
+Superseded by FAIL-remediation implement below (new tip after push).
+
+### Rollback (prior Phase 5 first tip)
+
+```bash
+git reset --hard 7bca3b506d992d49978821fb84946eae162e8db7
+```
+
+---
+
+## Phase 5 FAIL remediation — Trust-first web (re-implement after review FAIL)
+
+**When:** 2026-07-30 19:49 UTC
+**Operator session:** Phase 5 IMPLEMENT only (FAIL inject for B1/B2/B3; not review)
+**Mode:** LONG
+**Base (failed tip):** `e7ffe8b76a8496e9846fb9a59002142d26b03546`
+**origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind / 21 ahead pre-push)
+
+### Blocking defects closed
+
+| ID | Fix |
+|---|---|
+| B2 | Every enabled secondary bucket `isError` participates in `secondaryFailed` via `anyEnabledSecondaryFailed`. Per-panel `errored` + `PeSecondaryFailed` (Retry) — never `data ?? []` success Empty on isError. Tests force personnel + provisions reject → failed UI + Partial banner. |
+| B3 | `resolvePeSurfaceState` + `yearsHaveStageValue`: yearCount===0 → `not_ingested`; years present all stages null → `complete_empty`; any stage incl $0 → `complete_with_data`. Unit tests; Watch banner `pe-banner-complete-empty`. |
+| B1 | Viewport smoke: `pe-watch-viewport-smoke.test.tsx` desktop 1280 / tablet 768 / mobile 375 — trust header, tabs, caveats open, deep-link `tab=funding&fy=2027`. 3/3 PASS. |
+| B5 (opt) | FyHistoryChart tooltip fixture no longer tautology; asserts null-enacted / `projected:false` never paint Enacted (Projected) or `[projected]`. |
+| B6 (opt) | `latestMeaningful` keeps explicit $0 (no longer skips `num===0`). |
+| B4 | Deferred (Finder deltaPct / claim bags UI still type-level; not exit-gating). |
+
+### Files
+
+- `apps/web/src/pages/program-element/trust-model.ts` (+test)
+- `apps/web/src/pages/program-element/PeSecondaryFailed.tsx` (new)
+- `apps/web/src/pages/program-element/ProgramElementWatchPage.tsx` (+test)
+- `apps/web/src/pages/program-element/pe-watch-viewport-smoke.test.tsx` (new)
+- Secondary panels: ProgramTeam, Contractors, Provisions, Related, Proof, Projects, Programs, ClientRelevance, WhatChanged, ProcurementActivity, Bills, BudgetLinePanels (actions/relationships/incumbents)
+- `FyHistoryChart.test.tsx`
+
+### Gates (implement local)
+
+| Command | Result |
+|---|---|
+| vitest PE trust suite (6 files) | **62/62 PASS** |
+| vitest pe-watch-viewport-smoke | **3/3 PASS** (1280 / 768 / 375) |
+| `pnpm --filter @capiro/web run build` | **PASS** (vite ~24s) |
+| Migrations / secrets / MeriV2 / email / LlamaParse / shared migrate | not run |
+| Scope bleed | web PE panels + ledgers only |
+
+### Migrations / data ops
+None.
+
 ### Independent review status (Phase 5)
-IMPLEMENT PUSHED — independent adversarial REVIEW **REQUIRED**. Implementer does **not** self-PASS.
+**IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on the new remote tip after this remediation commit.
+Implementer does **not** self-PASS. Do **not** start Phase 6.
 
 ### Rollback
 
 ```bash
-# return to Phase 4 PASS tip:
+# return to Phase 5 FAIL tip (pre-remediation):
+git reset --hard e7ffe8b76a8496e9846fb9a59002142d26b03546
+# or Phase 4 PASS tip:
 git reset --hard 7bca3b506d992d49978821fb84946eae162e8db7
 ```
 
@@ -711,6 +767,6 @@ git reset --hard 7bca3b506d992d49978821fb84946eae162e8db7
 
 ## Next phase
 
-**Phase 5 independent adversarial REVIEW only** against the remote tip after the Phase 5 product commit (not Phase 6 implement).
+**Phase 5 independent adversarial REVIEW only** against the **new remote tip** after this remediation push (not Phase 6 implement).
+Prior FAIL inject tip was `e7ffe8b76`; archive FAIL only after PASS names the post-fix tip.
 Do not start Phase 6 until a separate REVIEW session records `VERDICT: PASS` (or PASS WITH BLOCKERS with exit-gate bullets satisfied) against that tip SHA.
-

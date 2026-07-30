@@ -320,3 +320,29 @@ or
 VERDICT: FAIL
 plus concrete findings. Do not implement fixes.
 ```
+
+
+---
+
+## Phase 5 status (FAIL remediation re-implement)
+
+| Field | Value |
+|---|---|
+| Phase | 5 — Trust-first web |
+| Prior product tip (FAIL) | `e7ffe8b76a8496e9846fb9a59002142d26b03546` |
+| Prior review | VERDICT: FAIL — B1 smoke missing; B2 secondary isError dark; B3 complete_empty dead |
+| Remediation product | See work-log Phase 5 FAIL remediation (B1/B2/B3 + B5/B6 polish) |
+| Post-push tip | *(record after push via `git rev-parse origin/agent/program-elements-final-closeout`)* |
+| Implementer gate | IMPLEMENT PUSHED / review **REQUIRED** — **not** self-PASS |
+| Next | New session `./pe-closeout-run.sh review 5` on new tip only |
+| MeriV2 | untouched |
+| Migrations | none |
+
+### Exit-gate attack notes for reviewer
+
+1. Force `GET .../personnel` 500 on team tab → must render `pe-secondary-failed-*`, Partial banner; never "No identified personnel yet."
+2. Force `GET .../provisions` 503 on legislation → `pe-secondary-failed-provisions`, not Empty report-language copy.
+3. Detail with `years: [{fy, all stages null}]` → surface `complete_empty` (banner `pe-banner-complete-empty`), not `not_ingested` and not complete_with_data.
+4. Detail with year + `request: 0` → `complete_with_data` (zero is a stage).
+5. Viewport smoke file green at 1280/768/375; deep-link funding+fy restores selected tab.
+6. Initial overview still must not fetch `/sources|/personnel|/contractors|/provisions`.

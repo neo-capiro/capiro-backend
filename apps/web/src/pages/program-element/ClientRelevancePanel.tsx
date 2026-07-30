@@ -6,6 +6,7 @@ import {
   scoreBandColor,
   type RelevantClientRow,
 } from '../clients/relevance-api.js';
+import { PeSecondaryFailed } from './PeSecondaryFailed.js';
 
 const { Text, Paragraph } = Typography;
 
@@ -13,6 +14,9 @@ export interface ClientRelevancePanelProps {
   /** Tenant clients relevant to this PE (already filtered to minScore by the API). */
   clients: RelevantClientRow[] | null | undefined;
   loading?: boolean;
+
+  errored?: boolean;
+  onRetry?: () => void;
 }
 
 function buildColumns(): ColumnsType<RelevantClientRow> {
@@ -48,7 +52,10 @@ function buildColumns(): ColumnsType<RelevantClientRow> {
  * Honest empty state when no client clears the floor. Guards against non-array / malformed data
  * with Array.isArray so an error payload never throws.
  */
-export function ClientRelevancePanel({ clients, loading = false }: ClientRelevancePanelProps) {
+export function ClientRelevancePanel({ clients, loading = false,
+  errored = false,
+  onRetry,
+}: ClientRelevancePanelProps) {
   if (loading) {
     return (
       <Card title="Client relevance">
@@ -56,6 +63,13 @@ export function ClientRelevancePanel({ clients, loading = false }: ClientRelevan
       </Card>
     );
   }
+
+  if (errored) {
+    return (
+      <PeSecondaryFailed label="client relevance" testId="pe-secondary-failed-client-relevance" onRetry={onRetry} />
+    );
+  }
+
 
   const rows = Array.isArray(clients) ? clients.filter((c) => c && typeof c.clientId === 'string') : [];
 

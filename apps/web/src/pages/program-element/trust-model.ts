@@ -148,6 +148,12 @@ export interface ResolvePeSurfaceInput {
   errorStatus?: number | null;
   hasDetail: boolean;
   yearCount: number;
+  /**
+   * True when at least one year row carries a populated stage value
+   * (including explicit $0). Null-only year shells do not count.
+   * Required to reach complete_empty vs complete_with_data when years exist.
+   */
+  hasStageValue?: boolean;
   /** Catalog marks this line/type as intentionally unsupported (e.g. classified family). */
   unsupported?: boolean;
   /**
@@ -159,6 +165,46 @@ export interface ResolvePeSurfaceInput {
   isHistoricalOnly?: boolean;
 }
 
+/**
+ * Whether budget-year rows carry any real stage (request/marks/conference/enacted),
+ * including explicit zeros. Used so complete_empty is reachable.
+ */
+export function yearsHaveStageValue(
+  years: Array<{
+    request?: string | number | null;
+    hascMark?: string | number | null;
+    sascMark?: string | number | null;
+    hacDMark?: string | number | null;
+    sacDMark?: string | number | null;
+    conference?: string | number | null;
+    ndaaConference?: string | number | null;
+    enacted?: string | number | null;
+  }>,
+): boolean {
+  return years.some((y) =>
+    [
+      y.request,
+      y.hascMark,
+      y.sascMark,
+      y.hacDMark,
+      y.sacDMark,
+      y.conference,
+      y.ndaaConference,
+      y.enacted,
+    ].some((v) => toNum(v) != null),
+  );
+}
+
+/**
+ * Phase 5 gate — any *enabled* secondary bucket in isError must surface partial.
+ * Disabled (unmounted tab) errors are ignored so lazy tabs stay quiet.
+ */
+export function anyEnabledSecondaryFailed(
+  checks: ReadonlyArray<{ enabled: boolean; isError: boolean }>,
+): boolean {
+  return checks.some((c) => c.enabled && c.isError);
+}
+
 export function resolvePeSurfaceState(input: ResolvePeSurfaceInput): PeSurfaceState {
   if (!input.peCodePresent) return 'failed';
   if (input.isLoading) return 'loading';
@@ -167,10 +213,17 @@ export function resolvePeSurfaceState(input: ResolvePeSurfaceInput): PeSurfaceSt
     return 'failed';
   }
   if (input.unsupported) return 'unsupported';
+  // No year rows at all → identity without ingest.
   if (input.yearCount === 0) return 'not_ingested';
+  // Year shells present but every stage null → complete empty (reachable).
+  const hasStage = input.hasStageValue === true;
+  if (!hasStage) {
+    // Still surface partial if a secondary on the active tab failed.
+    if (input.secondaryFailed) return 'partial';
+    return 'complete_empty';
+  }
   if (input.secondaryFailed) return 'partial';
-  // Years present but every dollar null is still ingested structure — complete empty.
-  return input.yearCount > 0 ? 'complete_with_data' : 'complete_empty';
+  return 'complete_with_data';
 }
 
 export function peSurfaceFailedAsEmpty(state: PeSurfaceState): boolean {

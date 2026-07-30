@@ -1,11 +1,14 @@
 import { Card, Empty, Skeleton, Space, Tag, Typography } from 'antd';
 import type { ProvisionItem } from './types.js';
+import { PeSecondaryFailed } from './PeSecondaryFailed.js';
 
 const { Text, Paragraph } = Typography;
 
 export interface ProvisionsPanelProps {
   provisions: ProvisionItem[] | null | undefined;
   loading?: boolean;
+  errored?: boolean;
+  onRetry?: () => void;
 }
 
 const COMMITTEE_LABEL: Record<string, string> = {
@@ -71,7 +74,7 @@ function provisionHref(p: ProvisionItem): string | null {
  * extractions are never implied to be confirmed. Guards against non-array data
  * with Array.isArray. Honest empty state.
  */
-export function ProvisionsPanel({ provisions, loading = false }: ProvisionsPanelProps) {
+export function ProvisionsPanel({ provisions, loading = false, errored = false, onRetry }: ProvisionsPanelProps) {
   if (loading) {
     return (
       <Card title="Congressional activity">
@@ -79,6 +82,13 @@ export function ProvisionsPanel({ provisions, loading = false }: ProvisionsPanel
       </Card>
     );
   }
+
+  if (errored) {
+    return (
+      <PeSecondaryFailed label="congressional provisions" testId="pe-secondary-failed-provisions" onRetry={onRetry} />
+    );
+  }
+
 
   const rows = Array.isArray(provisions) ? provisions : [];
 

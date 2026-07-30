@@ -332,21 +332,69 @@ describe('ProgramElementWatchPage', () => {
     });
 
     test('initial overview render does not fetch hidden-tab endpoints', async () => {
+            setupApi(true, undefined, 2027);
+            renderPage();
+            await waitFor(() => expect(screen.getByTestId('pe-trust-header')).toBeInTheDocument());
+            const urls = apiGetMock.mock.calls.map((c) => String(c[0]));
+            expect(urls.some((u) => /\/api\/program-elements\/0603270A(?:\?|$)/.test(u))).toBe(true);
+            // Hidden tabs must stay cold on first paint.
+            expect(urls.some((u) => u.includes('/sources'))).toBe(false);
+            expect(urls.some((u) => u.includes('/personnel'))).toBe(false);
+            expect(urls.some((u) => u.includes('/contractors'))).toBe(false);
+            expect(urls.some((u) => u.includes('/provisions'))).toBe(false);
+
+            fireEvent.click(screen.getByRole('tab', { name: /People & office/i }));
+            await waitFor(() => {
+              const after = apiGetMock.mock.calls.map((c) => String(c[0]));
+              expect(after.some((u) => u.includes('/personnel'))).toBe(true);
+            });
+          });
+
+      test('personnel secondary isError shows failed UI, not success empty', async () => {
         setupApi(true, undefined, 2027);
+        const baseImpl = apiGetMock.getMockImplementation()!;
+        apiGetMock.mockImplementation(async (url: string) => {
+          if (String(url).includes('/personnel')) {
+            const err = new Error('personnel boom') as Error & { response?: { status: number } };
+            err.response = { status: 500 };
+            throw err;
+          }
+          return baseImpl(url);
+        });
         renderPage();
         await waitFor(() => expect(screen.getByTestId('pe-trust-header')).toBeInTheDocument());
-        const urls = apiGetMock.mock.calls.map((c) => String(c[0]));
-        expect(urls.some((u) => /\/api\/program-elements\/0603270A(?:\?|$)/.test(u))).toBe(true);
-        // Hidden tabs must stay cold on first paint.
-        expect(urls.some((u) => u.includes('/sources'))).toBe(false);
-        expect(urls.some((u) => u.includes('/personnel'))).toBe(false);
-        expect(urls.some((u) => u.includes('/contractors'))).toBe(false);
-        expect(urls.some((u) => u.includes('/provisions'))).toBe(false);
-
         fireEvent.click(screen.getByRole('tab', { name: /People & office/i }));
-        await waitFor(() => {
-          const after = apiGetMock.mock.calls.map((c) => String(c[0]));
-          expect(after.some((u) => u.includes('/personnel'))).toBe(true);
+            // Charts on the team tab are not mocked — they must show failed UI, not "No identified personnel".
+            await waitFor(() => {
+              expect(screen.getByTestId('pe-secondary-failed-personnel-roster')).toBeInTheDocument();
+            });
+            expect(screen.getByTestId('pe-secondary-failed-personnel-confidence')).toBeInTheDocument();
+            expect(screen.queryByText(/No identified personnel yet/i)).not.toBeInTheDocument();
+            // Partial surface banner from enabled secondary failure.
+            expect(screen.getByText(/Partial data/i)).toBeInTheDocument();
+            expect(screen.getAllByTestId('pe-secondary-retry').length).toBeGreaterThan(0);
+          });
+
+      test('provisions secondary isError shows failed UI, not empty congressional language', async () => {
+        setupApi(true, undefined, 2027);
+        const baseImpl = apiGetMock.getMockImplementation()!;
+        apiGetMock.mockImplementation(async (url: string) => {
+          if (String(url).includes('/provisions')) {
+            const err = new Error('provisions boom') as Error & { response?: { status: number } };
+            err.response = { status: 503 };
+            throw err;
+          }
+          return baseImpl(url);
         });
+        renderPage();
+        await waitFor(() => expect(screen.getByTestId('pe-trust-header')).toBeInTheDocument());
+        fireEvent.click(screen.getByRole('tab', { name: /Legislation/i }));
+        await waitFor(() => {
+          expect(screen.getByTestId('pe-secondary-failed-provisions')).toBeInTheDocument();
+        });
+        expect(
+          screen.queryByText(/No congressional report language linked to this PE yet/i),
+        ).not.toBeInTheDocument();
+        expect(screen.getByText(/Partial data/i)).toBeInTheDocument();
       });
-  });
+      });

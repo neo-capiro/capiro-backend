@@ -61,12 +61,14 @@ import { LINE_TYPES, useWatchToggle } from './pe-shared.js';
 import { PeTrustHeader } from './PeTrustHeader.js';
 import { PeLoadState } from './PeLoadState.js';
 import {
+  anyEnabledSecondaryFailed,
   filterTabsForLineType,
   parsePeWatchFy,
   parsePeWatchTab,
   peWatchQueryEnabled,
   resolvePeSurfaceState,
   serializePeWatchUrlState,
+  yearsHaveStageValue,
   type PeWatchTab,
 } from './trust-model.js';
 import { Sparkline, LineChart, DeltaBars, Donut, HBars, fmtMoneyM } from './charts/index.js';
@@ -77,6 +79,7 @@ import type {
   ProgramElementYearPoint,
   ProgramTeamPerson,
 } from './types.js';
+import { PeSecondaryFailed } from './PeSecondaryFailed.js';
 
 function numberOrNull(value: string | number | null | undefined): number | null {
   if (value == null) return null;
@@ -118,7 +121,7 @@ function toHistoryRows(years: ProgramElementYearPoint[]): ProgramElementHistoryR
   return [...years].sort((a, b) => a.fy - b.fy).map(toHistoryRow);
 }
 
-/** Most recent FY where a metric has a real (non-null, non-zero) value. */
+/** Most recent FY where a metric has a real (non-null) value — explicit $0 counts. */
 function latestMeaningful(
   years: ProgramElementYearPoint[],
   field: 'request' | 'enacted' | 'conference',
@@ -127,7 +130,8 @@ function latestMeaningful(
     const raw = y[field];
     if (raw == null) continue;
     const num = Number(raw);
-    if (Number.isFinite(num) && num !== 0) return { fy: y.fy, value: num };
+    // Phase 5 B6: do not skip num===0 — a real zero is a real stage value.
+    if (Number.isFinite(num)) return { fy: y.fy, value: num };
   }
   return undefined;
 }
@@ -400,20 +404,58 @@ export function ProgramElementWatchPage() {
     return err.response?.status ?? err.status ?? null;
   })();
 
+  const secondaryFailed = anyEnabledSecondaryFailed([
+    { enabled: q('bills'), isError: billsQuery.isError },
+    { enabled: q('intelligence'), isError: intelligenceQuery.isError },
+    { enabled: q('sources'), isError: sourcesQuery.isError },
+    { enabled: q('contractors'), isError: contractorsQuery.isError },
+    { enabled: q('personnel'), isError: programTeamQuery.isError },
+    { enabled: q('programs'), isError: programsQuery.isError },
+    { enabled: q('clientRelevance'), isError: clientRelevanceQuery.isError },
+    { enabled: q('deltas'), isError: deltasQuery.isError },
+    { enabled: q('projects'), isError: projectsQuery.isError },
+    { enabled: q('related'), isError: relatedQuery.isError },
+    { enabled: q('provisions'), isError: provisionsQuery.isError },
+    { enabled: q('opportunities'), isError: opportunitiesQuery.isError },
+    { enabled: q('procurementLines'), isError: procurementLinesQuery.isError },
+    { enabled: q('actions'), isError: actionsQuery.isError },
+    { enabled: q('relationships'), isError: relationshipsQuery.isError },
+    { enabled: q('incumbents'), isError: incumbentsQuery.isError },
+    { enabled: q('billActions'), isError: billActionsQuery.isError },
+  ]);
+
+  const yearRows = detailQuery.data?.years ?? [];
   const surfaceState = resolvePeSurfaceState({
     peCodePresent: pePresent,
     isLoading: detailQuery.isLoading,
     isError: detailQuery.isError,
     errorStatus,
     hasDetail: Boolean(detailQuery.data),
-    yearCount: detailQuery.data?.years?.length ?? 0,
+    yearCount: yearRows.length,
+    hasStageValue: yearsHaveStageValue(yearRows),
     unsupported: Boolean(detailQuery.data?.unsupportedSourceFamily),
-    secondaryFailed: Boolean(
-      (q('bills') && billsQuery.isError) ||
-        (q('intelligence') && intelligenceQuery.isError) ||
-        (q('sources') && sourcesQuery.isError),
-    ),
+    secondaryFailed,
   });
+
+  const refetchEnabledSecondaries = () => {
+    if (q('bills')) void billsQuery.refetch();
+    if (q('intelligence')) void intelligenceQuery.refetch();
+    if (q('sources')) void sourcesQuery.refetch();
+    if (q('contractors')) void contractorsQuery.refetch();
+    if (q('personnel')) void programTeamQuery.refetch();
+    if (q('programs')) void programsQuery.refetch();
+    if (q('clientRelevance')) void clientRelevanceQuery.refetch();
+    if (q('deltas')) void deltasQuery.refetch();
+    if (q('projects')) void projectsQuery.refetch();
+    if (q('related')) void relatedQuery.refetch();
+    if (q('provisions')) void provisionsQuery.refetch();
+    if (q('opportunities')) void opportunitiesQuery.refetch();
+    if (q('procurementLines')) void procurementLinesQuery.refetch();
+    if (q('actions')) void actionsQuery.refetch();
+    if (q('relationships')) void relationshipsQuery.refetch();
+    if (q('incumbents')) void incumbentsQuery.refetch();
+    if (q('billActions')) void billActionsQuery.refetch();
+  };
 
   if (!pePresent) {
     return <Alert type="warning" message="Missing PE code" showIcon />;
@@ -824,7 +866,12 @@ export function ProgramElementWatchPage() {
 
       {isRdte ? (
         <div className="pe-surface pe-plain-surface">
-          <ProjectsPanel projects={projects} loading={projectsQuery.isLoading} />
+          <ProjectsPanel
+          projects={projectsQuery.isError ? undefined : projects}
+          loading={projectsQuery.isLoading}
+          errored={projectsQuery.isError}
+          onRetry={() => void projectsQuery.refetch()}
+        />
         </div>
       ) : null}
     </div>
@@ -908,7 +955,12 @@ export function ProgramElementWatchPage() {
   const legislationTab = (
     <div className="pe-dt-panel">
       <div className="pe-surface pe-plain-surface span-2">
-        <BillsTouchingPePanel bills={billsWithActions} loading={billsQuery.isLoading} />
+        <BillsTouchingPePanel
+          bills={billsWithActions}
+          loading={billsQuery.isLoading}
+          errored={billsQuery.isError}
+          onRetry={() => void billsQuery.refetch()}
+        />
       </div>
 
       <div className="pe-surface pe-plain-surface span-2">
@@ -917,16 +969,28 @@ export function ProgramElementWatchPage() {
           <span className="pe-surface-sub">every normalized committee event on this line</span>
         </div>
         <div className="bl-panel-body">
-          <BudgetActionsFeed actions={actionsQuery.data} loading={actionsQuery.isLoading} />
+          <BudgetActionsFeed
+            actions={actionsQuery.data}
+            loading={actionsQuery.isLoading}
+            errored={actionsQuery.isError}
+            onRetry={() => void actionsQuery.refetch()}
+          />
         </div>
       </div>
       <div className="pe-surface pe-plain-surface span-2">
-        <ProvisionsPanel provisions={provisionsQuery.data} loading={provisionsQuery.isLoading} />
+        <ProvisionsPanel
+          provisions={provisionsQuery.isError ? undefined : provisionsQuery.data}
+          loading={provisionsQuery.isLoading}
+          errored={provisionsQuery.isError}
+          onRetry={() => void provisionsQuery.refetch()}
+        />
       </div>
       <div className="pe-surface pe-plain-surface span-2">
         <ProcurementActivityPanel
-          opportunities={opportunitiesQuery.data}
+          opportunities={opportunitiesQuery.isError ? undefined : opportunitiesQuery.data}
           loading={opportunitiesQuery.isLoading}
+          errored={opportunitiesQuery.isError}
+          onRetry={() => void opportunitiesQuery.refetch()}
         />
       </div>
     </div>
@@ -942,8 +1006,10 @@ export function ProgramElementWatchPage() {
         <div className="bl-panel-body">
           <RelationshipGraphPanel
             peCode={normalizedPeCode}
-            relationships={relationshipsQuery.data}
+            relationships={relationshipsQuery.isError ? undefined : relationshipsQuery.data}
             loading={relationshipsQuery.isLoading}
+            errored={relationshipsQuery.isError}
+            onRetry={() => void relationshipsQuery.refetch()}
             onOpen={(pe) => navigate(`/program-elements/${pe}`)}
           />
         </div>
@@ -960,10 +1026,20 @@ export function ProgramElementWatchPage() {
         </div>
       ) : null}
       <div className="pe-surface pe-plain-surface span-2">
-        <ProgramsPanel programs={programsQuery.data} loading={programsQuery.isLoading} />
+        <ProgramsPanel
+          programs={programsQuery.isError ? undefined : programsQuery.data}
+          loading={programsQuery.isLoading}
+          errored={programsQuery.isError}
+          onRetry={() => void programsQuery.refetch()}
+        />
       </div>
       <div className="pe-surface pe-plain-surface span-2">
-        <RelatedPesPanel related={relatedQuery.data} loading={relatedQuery.isLoading} />
+        <RelatedPesPanel
+          related={relatedQuery.isError ? undefined : relatedQuery.data}
+          loading={relatedQuery.isLoading}
+          errored={relatedQuery.isError}
+          onRetry={() => void relatedQuery.refetch()}
+        />
       </div>
     </div>
   );
@@ -981,14 +1057,26 @@ export function ProgramElementWatchPage() {
   const teamTab = (
     <div className="pe-dt-panel">
       <ChartCard title="Roster by organization" pad>
-        {byOrg.length ? (
+        {programTeamQuery.isError ? (
+          <PeSecondaryFailed
+            label="program team roster"
+            testId="pe-secondary-failed-personnel-roster"
+            onRetry={() => void programTeamQuery.refetch()}
+          />
+        ) : byOrg.length ? (
           <HBars data={byOrg} fmt={(v) => v} />
         ) : (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No identified personnel yet." />
         )}
       </ChartCard>
       <ChartCard title="Identification confidence">
-        {confData.length ? (
+        {programTeamQuery.isError ? (
+          <PeSecondaryFailed
+            label="program team confidence"
+            testId="pe-secondary-failed-personnel-confidence"
+            onRetry={() => void programTeamQuery.refetch()}
+          />
+        ) : confData.length ? (
           <div className="pe-donut-block">
             <Donut
               data={confData}
@@ -1014,8 +1102,10 @@ export function ProgramElementWatchPage() {
 
       <div className="pe-surface pe-plain-surface span-2">
         <ProgramTeamPanel
-          personnel={programTeam}
+          personnel={programTeamQuery.isError ? [] : programTeam}
           loading={programTeamQuery.isLoading}
+          errored={programTeamQuery.isError}
+          onRetry={() => void programTeamQuery.refetch()}
           onViewAllSources={() => navigate('/directory')}
           onLinkCrmContact={(personId) => {
             const person = programTeam.find((candidate) => candidate.id === personId);
@@ -1035,13 +1125,20 @@ export function ProgramElementWatchPage() {
         </div>
         <div className="bl-panel-body">
           <IncumbentMapPanel
-            incumbents={incumbentsQuery.data}
+            incumbents={incumbentsQuery.isError ? undefined : incumbentsQuery.data}
             loading={incumbentsQuery.isLoading}
+            errored={incumbentsQuery.isError}
+            onRetry={() => void incumbentsQuery.refetch()}
           />
         </div>
       </div>
       <div className="pe-surface pe-plain-surface span-2">
-        <ContractorsPanel contractors={contractors} loading={contractorsQuery.isLoading} />
+        <ContractorsPanel
+          contractors={contractorsQuery.isError ? undefined : contractors}
+          loading={contractorsQuery.isLoading}
+          errored={contractorsQuery.isError}
+          onRetry={() => void contractorsQuery.refetch()}
+        />
       </div>
     </div>
   );
@@ -1049,16 +1146,28 @@ export function ProgramElementWatchPage() {
   const proofPackTab = (
     <div className="pe-dt-panel">
       <div className="pe-surface pe-plain-surface span-2">
-        <WhatChangedPanel deltas={deltasQuery.data?.data} loading={deltasQuery.isLoading} />
-      </div>
-      <div className="pe-surface pe-plain-surface span-2">
-        <ClientRelevancePanel
-          clients={clientRelevanceQuery.data}
-          loading={clientRelevanceQuery.isLoading}
+        <WhatChangedPanel
+          deltas={deltasQuery.isError ? undefined : deltasQuery.data?.data}
+          loading={deltasQuery.isLoading}
+          errored={deltasQuery.isError}
+          onRetry={() => void deltasQuery.refetch()}
         />
       </div>
       <div className="pe-surface pe-plain-surface span-2">
-        <ProofPackPanel sources={sourcesQuery.data} loading={sourcesQuery.isLoading} />
+        <ClientRelevancePanel
+          clients={clientRelevanceQuery.isError ? undefined : clientRelevanceQuery.data}
+          loading={clientRelevanceQuery.isLoading}
+          errored={clientRelevanceQuery.isError}
+          onRetry={() => void clientRelevanceQuery.refetch()}
+        />
+      </div>
+      <div className="pe-surface pe-plain-surface span-2">
+        <ProofPackPanel
+          sources={sourcesQuery.isError ? undefined : sourcesQuery.data}
+          loading={sourcesQuery.isLoading}
+          errored={sourcesQuery.isError}
+          onRetry={() => void sourcesQuery.refetch()}
+        />
       </div>
     </div>
   );
@@ -1301,8 +1410,15 @@ export function ProgramElementWatchPage() {
           message="Partial data"
           description="Detail loaded but at least one secondary panel failed. Failed sections are not silent empties — retry or switch tabs after recovery."
           action={
-            <Button size="small" onClick={() => void detailQuery.refetch()} data-testid="pe-state-retry">
-              Retry
+            <Button
+              size="small"
+              onClick={() => {
+                void detailQuery.refetch();
+                refetchEnabledSecondaries();
+              }}
+              data-testid="pe-state-retry"
+            >
+              Retry failed panels
             </Button>
           }
         />
@@ -1315,6 +1431,18 @@ export function ProgramElementWatchPage() {
           style={{ marginBottom: 12 }}
           message="Not yet ingested"
           description="PE identity is known, but no budget-year rows have been ingested for this code."
+          data-testid="pe-banner-not-ingested"
+        />
+      ) : null}
+
+      {surfaceState === 'complete_empty' ? (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="Ingested structure without stage dollars"
+          description="Budget-year rows exist but no stage values (including $0) are populated yet. This is complete empty — not a silent failure."
+          data-testid="pe-banner-complete-empty"
         />
       ) : null}
 
