@@ -1,4 +1,8 @@
-import { computeFacilityGeocode, type FacilityGeocodeInput } from './facility-geocode.util.js';
+import {
+  computeFacilityGeocode,
+  STATE_DISTRICT_MAX_LEN,
+  type FacilityGeocodeInput,
+} from './facility-geocode.util.js';
 import * as censusClient from '../external/census-geocoder/census-geocoder.client.js';
 
 jest.mock('../external/census-geocoder/census-geocoder.client.js', () => ({
@@ -182,5 +186,77 @@ describe('computeFacilityGeocode', () => {
     expect(out.status).toBe('error');
     // First-ever attempt (geocodeStatus was null) -> status changed -> writes the attempt.
     expect(out.update?.geocodeStatus).toBe('error');
+  });
+  // ── Named state-legislative districts (the 2026-07-30 live bug) ──────────
+  //
+  // `state_house_district`/`state_senate_district` shipped as VARCHAR(8), but
+  // the Census layer BASENAME is a NAME in ~a dozen states. Writing one threw
+  // `value too long for type character varying(8)`; because that same write
+  // also carries `geocode_input_hash`, the row was never stamped and re-failed
+  // on every nightly run. Live-verified values from the geocoder on
+  // 2026-07-30 for the facility that was actually stuck.
+  describe('named state-legislative districts (MA/NH/VT)', () => {
+    const FALL_RIVER_MA = {
+      status: 'matched' as const,
+      latitude: 41.7,
+      longitude: -71.15,
+      congressionalDistrict: '04',
+      stateHouseDistrict: '8th Bristol', // 11 chars
+      stateSenateDistrict: 'First Bristol and Plymouth', // 26 chars
+      matchedAddress: '151 MARTINE ST, FALL RIVER, MA, 02723',
+    };
+
+    it('stores a named district verbatim instead of overflowing the column', async () => {
+      geocodeAddress.mockResolvedValue(FALL_RIVER_MA);
+      const out = await computeFacilityGeocode(BASE);
+      expect(out.status).toBe('matched');
+      expect(out.update?.stateHouseDistrict).toBe('8th Bristol');
+      expect(out.update?.stateSenateDistrict).toBe('First Bristol and Plymouth');
+      // Every stored value must fit the widened column.
+      expect(out.update!.stateSenateDistrict!.length).toBeLessThanOrEqual(STATE_DISTRICT_MAX_LEN);
+    });
+
+    it('a re-run over an already-stored named district is a no-op (idempotency, M1-C)', async () => {
+      geocodeAddress.mockResolvedValue(FALL_RIVER_MA);
+      const out = await computeFacilityGeocode({
+        ...BASE,
+        latitude: 41.7,
+        longitude: -71.15,
+        congressionalDistrict: '04',
+        districtSource: 'geocoded',
+        stateHouseDistrict: '8th Bristol',
+        stateSenateDistrict: 'First Bristol and Plymouth',
+        geocodeStatus: 'matched',
+      });
+      expect(out.update).toBeNull();
+    });
+
+    it('clamps a district longer than the column rather than throwing', async () => {
+      const overlong = 'X'.repeat(STATE_DISTRICT_MAX_LEN + 25);
+      geocodeAddress.mockResolvedValue({ ...FALL_RIVER_MA, stateSenateDistrict: overlong });
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const out = await computeFacilityGeocode(BASE);
+      expect(out.update?.stateSenateDistrict).toHaveLength(STATE_DISTRICT_MAX_LEN);
+      expect(warn).toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
+    it('a clamped district still compares equal on the next run (no perpetual rewrite)', async () => {
+      const overlong = 'X'.repeat(STATE_DISTRICT_MAX_LEN + 25);
+      geocodeAddress.mockResolvedValue({ ...FALL_RIVER_MA, stateSenateDistrict: overlong });
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const out = await computeFacilityGeocode({
+        ...BASE,
+        latitude: 41.7,
+        longitude: -71.15,
+        congressionalDistrict: '04',
+        districtSource: 'geocoded',
+        stateHouseDistrict: '8th Bristol',
+        stateSenateDistrict: overlong.slice(0, STATE_DISTRICT_MAX_LEN),
+        geocodeStatus: 'matched',
+      });
+      expect(out.update).toBeNull();
+      jest.restoreAllMocks();
+    });
   });
 });

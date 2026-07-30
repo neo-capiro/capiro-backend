@@ -461,6 +461,35 @@ describe('ClientFacility DTO validation — districtSource + congressionalDistri
     expect(errs).toContain('congressionalDistrict');
     expect(errs).not.toContain('name');
   });
+
+  // The manual-entry fallback exists for facilities the geocoder can't
+  // resolve — but the old `/^[A-Za-z0-9-]{1,8}$/` rejected named districts
+  // outright, so in MA/NH/VT there was no way to enter the district by hand
+  // either. These are real Census BASENAMEs, live-verified 2026-07-30.
+  test.each([
+    ['12', 'plain number'],
+    ['3A', 'alpha-suffixed'],
+    ['8th Bristol', 'MA lower'],
+    ['First Bristol and Plymouth', 'MA upper'],
+    ['Merrimack 18', 'NH lower'],
+    ['Washington-4', 'VT lower'],
+    ['Berkshire, Hampden, Franklin and Hampshire', 'MA longest'],
+  ])('accepts the state legislative district %p (%s)', async (district) => {
+    for (const field of ['stateHouseDistrict', 'stateSenateDistrict']) {
+      const errs = props(await errorsFor(CreateFacilityDto, { name: 'HQ', [field]: district }));
+      expect(errs).not.toContain(field);
+    }
+  });
+
+  test('still rejects an empty or over-long state legislative district', async () => {
+    expect(
+      props(await errorsFor(CreateFacilityDto, { name: 'HQ', stateHouseDistrict: '' })),
+    ).toContain('stateHouseDistrict');
+    // 65 chars — one past the column width.
+    expect(
+      props(await errorsFor(CreateFacilityDto, { name: 'HQ', stateHouseDistrict: 'A'.repeat(65) })),
+    ).toContain('stateHouseDistrict');
+  });
 });
 
 // ── District storage form ───────────────────────────────────────────────────

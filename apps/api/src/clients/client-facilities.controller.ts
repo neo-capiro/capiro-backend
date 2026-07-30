@@ -51,6 +51,20 @@ function IsDistrictValidForState(options?: ValidationOptions) {
   };
 }
 
+/**
+ * A state legislative district as the Census Geocoder reports it (the layer's
+ * BASENAME). NOT necessarily a number: ~a dozen states use named districts —
+ * MA '8th Bristol' / 'First Bristol and Plymouth', NH 'Merrimack 18', VT
+ * 'Washington-4'. The original `/^[A-Za-z0-9-]{1,8}$/` rejected every one of
+ * them (no spaces, no commas, 8-char cap), so the manual-entry fallback that
+ * exists precisely for facilities the geocoder can't resolve was unusable in
+ * exactly the states whose geocoded values also didn't fit the column.
+ * Bounded at 64 to match `client_facilities.state_*_district`.
+ */
+const STATE_DISTRICT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ,.'-]{0,63}$/;
+const STATE_DISTRICT_MESSAGE =
+  'must be 1-64 characters: letters, digits, spaces, commas, periods, apostrophes or hyphens (e.g. "12", "3A", "First Bristol and Plymouth")';
+
 // Normalize a 2-letter state code to uppercase before validation so "ca" and
 // "CA" are treated alike.
 const upperState = ({ value }: { value: unknown }): unknown =>
@@ -99,12 +113,12 @@ export class CreateFacilityDto {
   // (unlike US_HOUSE_SEATS for the federal side), so only format is checked.
   @IsOptional()
   @IsString()
-  @Matches(/^[A-Za-z0-9-]{1,8}$/, { message: 'stateHouseDistrict must be 1-8 alphanumeric characters' })
+  @Matches(STATE_DISTRICT_PATTERN, { message: `stateHouseDistrict ${STATE_DISTRICT_MESSAGE}` })
   stateHouseDistrict?: string;
 
   @IsOptional()
   @IsString()
-  @Matches(/^[A-Za-z0-9-]{1,8}$/, { message: 'stateSenateDistrict must be 1-8 alphanumeric characters' })
+  @Matches(STATE_DISTRICT_PATTERN, { message: `stateSenateDistrict ${STATE_DISTRICT_MESSAGE}` })
   stateSenateDistrict?: string;
 
   @IsOptional()
@@ -156,12 +170,12 @@ export class UpdateFacilityDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^[A-Za-z0-9-]{1,8}$/, { message: 'stateHouseDistrict must be 1-8 alphanumeric characters' })
+  @Matches(STATE_DISTRICT_PATTERN, { message: `stateHouseDistrict ${STATE_DISTRICT_MESSAGE}` })
   stateHouseDistrict?: string;
 
   @IsOptional()
   @IsString()
-  @Matches(/^[A-Za-z0-9-]{1,8}$/, { message: 'stateSenateDistrict must be 1-8 alphanumeric characters' })
+  @Matches(STATE_DISTRICT_PATTERN, { message: `stateSenateDistrict ${STATE_DISTRICT_MESSAGE}` })
   stateSenateDistrict?: string;
 
   @IsOptional()

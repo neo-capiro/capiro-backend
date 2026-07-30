@@ -30,6 +30,15 @@ const LIFECYCLE_MIGRATION = join(
 );
 const SCHEMA = join(__dirname, '../../prisma/schema.prisma');
 
+/**
+ * Newest migration that existed BEFORE Funding Opportunities' first migration
+ * (`20260810010000_funding_opportunities`). Everything at or below this is the
+ * frozen baseline FO was stamped on top of; a NEW migration landing in that
+ * range would never apply on an environment where FO is already applied.
+ * See the migration-ordering test below.
+ */
+const PRE_FO_BASELINE_MAX = '20260809010000_engagement_audit_finding_redaction';
+
 // ── Role matrix, against the REAL RolesGuard and the real decorator metadata ──
 
 function contextFor(role: string, handler: (...args: never[]) => unknown): ExecutionContext {
@@ -248,17 +257,20 @@ describe('migration: RLS, uniqueness, check constraints', () => {
     }
   });
 
-  test('this feature’s NEWEST migration sorts after every other migration in the repo', () => {
-    // Prisma applies by directory name; a new migration stamped earlier than an
-    // already-applied one is never run.
+  test('this feature’s migrations apply in order, after everything that predates them', () => {
+    // Prisma applies by directory name; a new migration stamped EARLIER than an
+    // already-applied one is the hazard this guards.
     //
-    // Asserted against the newest FO-owned migration rather than against a
-    // hardcoded name. The hardcoded form ("the last migration in the repo IS
-    // 20260810020000_funding_opportunities_closeout") broke the moment an
-    // unrelated stream landed a later one — 20260810030000_committee_hearing_-
-    // starts_at did exactly that on 2026-07-29 and this test has been red on main
-    // since — which taught nothing about ordering and only punished whoever
-    // shipped next.
+    // Twice now this test has been written as "nothing in the repo sorts after
+    // ours", and twice that has made it a tripwire for whoever ships the next
+    // migration in ANY stream. The first form hardcoded the name and went red
+    // when 20260810030000_committee_hearing_starts_at landed on 2026-07-29; the
+    // rewrite kept `expect(names[names.length - 1]).toBe(newestOurs)`, which is
+    // the same assertion with the name computed, and went red again when
+    // 20260810050000_widen_facility_state_district_columns landed on 2026-07-30.
+    // A later unrelated migration is normal and harmless — it is not what
+    // breaks FO. So assert the invariant that actually protects this feature
+    // and stop asserting global maximality.
     const dir = join(__dirname, '../../prisma/migrations');
     const names = readdirSync(dir, { withFileTypes: true })
       .filter((e) => e.isDirectory())
@@ -268,13 +280,25 @@ describe('migration: RLS, uniqueness, check constraints', () => {
     expect(ours.length).toBeGreaterThanOrEqual(3);
     const newestOurs = ours[ours.length - 1]!;
     expect(newestOurs).toBe('20260810040000_funding_opportunities_lifecycle_truth');
-    // Nothing in the repo sorts after it.
-    expect(names[names.length - 1]).toBe(newestOurs);
-    // OUR migration's timestamp prefix is unique, so its apply position does not
-    // depend on the rest of the directory name. Asserted only for this feature's
-    // newest migration: the repo already contains ten same-prefix pairs from
-    // concurrent streams, and failing this branch for those would be noise about
-    // work it does not touch.
+
+    // 1. FO's own migrations are strictly ascending — an FO migration stamped
+    //    before an already-shipped FO migration would silently never apply.
+    expect([...ours].sort()).toEqual(ours);
+
+    // 2. The whole pre-FO baseline sorts before FO's first migration. This is
+    //    what a mis-stamped NEW migration would violate: anything stamped
+    //    earlier than FO's floor but authored now would be skipped on every
+    //    environment where FO is already applied.
+    const oldestOurs = ours[0]!;
+    const nonFo = names.filter((n) => !/_funding_opportunities/.test(n));
+    const strayEarlier = nonFo.filter((n) => n < oldestOurs && n > PRE_FO_BASELINE_MAX);
+    expect(strayEarlier).toEqual([]);
+
+    // 3. OUR newest migration's timestamp prefix is unique, so its apply
+    //    position does not depend on the rest of the directory name. Asserted
+    //    only for this feature's newest migration: the repo already contains
+    //    ten same-prefix pairs from concurrent streams, and failing this branch
+    //    for those would be noise about work it does not touch.
     const prefix = newestOurs.slice(0, 14);
     expect(names.filter((n) => n.startsWith(prefix))).toEqual([newestOurs]);
   });
