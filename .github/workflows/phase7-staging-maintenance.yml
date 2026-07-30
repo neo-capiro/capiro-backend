@@ -1,0 +1,86 @@
+name: phase7-staging-maintenance
+
+on:
+  push:
+    branches: [agent/meriv2-phase7-staging]
+    paths: [.github/workflows/phase7-staging-maintenance.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/meriv2-phase7-staging
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Hold Workspace generation when required packet persistence fails
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('apps/workspace/src/generation/generation.service.ts')
+          text = path.read_text()
+          old_import = "import { contextPacketV2Overrides } from '@capiro/meriv2-core/context/context-release-switch';"
+          new_import = old_import + "\nimport {\n  durableContextPacketId,\n  isContextPacketPersistenceError,\n} from '@capiro/meriv2-core/context/truthful-compiler';"
+          if old_import not in text:
+              raise SystemExit('context release-switch import not found')
+          text = text.replace(old_import, new_import, 1)
+
+          old_id = '        contextPacketId: packet.persisted ? packet.packetId : null,'
+          new_id = '        contextPacketId: durableContextPacketId(packet),'
+          if old_id not in text:
+              raise SystemExit('contextPacketId assignment not found')
+          text = text.replace(old_id, new_id, 1)
+
+          old_catch = '''    } catch (e) {
+      // Institutional context is steering, not evidence: a compiler outage must
+'''
+          new_catch = '''    } catch (e) {
+      if (isContextPacketPersistenceError(e)) {
+        throw new ServiceUnavailableException(
+          'Context provenance could not be saved; generation was not started.',
+        );
+      }
+      // Institutional context is steering, not evidence: a compiler outage must
+'''
+          if old_catch not in text:
+              raise SystemExit('loadSteeringMemories catch not found')
+          text = text.replace(old_catch, new_catch, 1)
+          path.write_text(text)
+          PY
+      - name: Format Phase 7 files
+        run: |
+          pnpm exec prettier --write \
+            packages/meriv2-core/src/context/contract.ts \
+            packages/meriv2-core/src/context/truthful-compiler.ts \
+            packages/meriv2-core/src/context/truthful-compiler.spec.ts \
+            packages/meriv2-core/src/context/context-release-switch.ts \
+            packages/meriv2-core/src/context/context-release-switch.spec.ts \
+            packages/meriv2-core/src/context/surface-policy.ts \
+            packages/meriv2-core/src/registry/types.ts \
+            apps/api/src/context/context-compiler.service.ts \
+            apps/api/src/context/context-compiler-v2.service.spec.ts \
+            apps/api/src/meri/meri-context-packet-view.ts \
+            apps/api/src/meri/meri-context-packet.controller.ts \
+            apps/meriv2-orchestrator/src/meri/context-compiler.service.ts \
+            apps/meriv2-orchestrator/src/meri/meri-context.resolver.ts \
+            apps/workspace/src/generation/context-compiler.service.ts \
+            apps/workspace/src/generation/generation.service.ts \
+            apps/web/src/components/trust/ContextInspector.tsx \
+            apps/web/src/components/trust/ContextInspector.test.tsx
+      - name: Commit staged maintenance
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add packages apps
+          git commit -m "fix(meriv2): hold workspace generation on trace failure" || exit 0
+          git push origin HEAD:agent/meriv2-phase7-staging
