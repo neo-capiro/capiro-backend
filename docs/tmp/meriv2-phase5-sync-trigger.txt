@@ -1,2 +1,0 @@
-Temporary synchronization trigger. Removed by the one-shot merge workflow.
-Retriggered after the isolated base adopted pull_request_target.

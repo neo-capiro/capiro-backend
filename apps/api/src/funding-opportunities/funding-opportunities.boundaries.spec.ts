@@ -114,9 +114,7 @@ describe('role matrix (real RolesGuard, real @Roles metadata)', () => {
 describe('FundingOpportunitiesFlagGuard fails closed', () => {
   function ctx(tenantId: string | undefined): ExecutionContext {
     return {
-      switchToHttp: () => ({
-        getRequest: () => ({ tenantContext: tenantId ? { tenantId } : undefined }),
-      }),
+      switchToHttp: () => ({ getRequest: () => ({ tenantContext: tenantId ? { tenantId } : undefined }) }),
     } as unknown as ExecutionContext;
   }
 
@@ -221,12 +219,8 @@ describe('migration: RLS, uniqueness, check constraints', () => {
 
   test('exactly one source record is enforced by a CHECK, not trusted to the writer', () => {
     expect(sql).toContain('client_funding_opportunity_one_source_chk');
-    expect(sql).toMatch(
-      /"source" = 'grants_gov' AND "grant_opportunity_id" IS NOT NULL AND "sam_opportunity_id" IS NULL/,
-    );
-    expect(sql).toMatch(
-      /"source" = 'sam_gov' AND "sam_opportunity_id" IS NOT NULL AND "grant_opportunity_id" IS NULL/,
-    );
+    expect(sql).toMatch(/"source" = 'grants_gov' AND "grant_opportunity_id" IS NOT NULL AND "sam_opportunity_id" IS NULL/);
+    expect(sql).toMatch(/"source" = 'sam_gov' AND "sam_opportunity_id" IS NOT NULL AND "grant_opportunity_id" IS NULL/);
   });
 
   test('workflow status and eligibility vocabularies are CHECK-constrained', () => {
@@ -249,8 +243,7 @@ describe('migration: RLS, uniqueness, check constraints', () => {
   test('the migration is ADDITIVE — no DROP, no NOT NULL added to an existing table', () => {
     expect(sql).not.toMatch(/\bDROP\s+(TABLE|COLUMN|CONSTRAINT)\b/i);
     // Additive columns on existing tables must all be nullable.
-    const alters =
-      sql.match(/ALTER TABLE "(sam_opportunity|client_intel_mapping)"[\s\S]*?;/g) ?? [];
+    const alters = sql.match(/ALTER TABLE "(sam_opportunity|client_intel_mapping)"[\s\S]*?;/g) ?? [];
     expect(alters.length).toBe(2);
     for (const a of alters) expect(a).not.toMatch(/NOT\s+NULL/i);
   });
@@ -265,55 +258,53 @@ describe('migration: RLS, uniqueness, check constraints', () => {
   });
 
   test('this feature’s migrations apply in order, after everything that predates them', () => {
-  // Prisma applies by directory name; a new migration stamped EARLIER than an
-  // already-applied one is the hazard this guards.
-  //
-  // Twice now this test has been written as "nothing in the repo sorts after
-  // ours", and twice that has made it a tripwire for whoever ships the next
-  // migration in ANY stream. The first form hardcoded the name and went red
-  // when 20260810030000_committee_hearing_starts_at landed on 2026-07-29; the
-  // rewrite kept `expect(names[names.length - 1]).toBe(newestOurs)`, which is
-  // the same assertion with the name computed, and went red again when
-  // 20260810050000_widen_facility_state_district_columns landed on 2026-07-30.
-  // A later unrelated migration is normal and harmless — it is not what
-  // breaks FO. So assert the invariant that actually protects this feature
-  // and stop asserting global maximality.
-  const dir = join(__dirname, '../../prisma/migrations');
-  const names = readdirSync(dir, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name)
-    .sort();
-  const ours = names.filter((n) => /_funding_opportunities/.test(n));
-  expect(ours.length).toBeGreaterThanOrEqual(3);
-  const newestOurs = ours[ours.length - 1]!;
-  expect(newestOurs).toBe('20260810040000_funding_opportunities_lifecycle_truth');
+    // Prisma applies by directory name; a new migration stamped EARLIER than an
+    // already-applied one is the hazard this guards.
+    //
+    // Twice now this test has been written as "nothing in the repo sorts after
+    // ours", and twice that has made it a tripwire for whoever ships the next
+    // migration in ANY stream. The first form hardcoded the name and went red
+    // when 20260810030000_committee_hearing_starts_at landed on 2026-07-29; the
+    // rewrite kept `expect(names[names.length - 1]).toBe(newestOurs)`, which is
+    // the same assertion with the name computed, and went red again when
+    // 20260810050000_widen_facility_state_district_columns landed on 2026-07-30.
+    // A later unrelated migration is normal and harmless — it is not what
+    // breaks FO. So assert the invariant that actually protects this feature
+    // and stop asserting global maximality.
+    const dir = join(__dirname, '../../prisma/migrations');
+    const names = readdirSync(dir, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .sort();
+    const ours = names.filter((n) => /_funding_opportunities/.test(n));
+    expect(ours.length).toBeGreaterThanOrEqual(3);
+    const newestOurs = ours[ours.length - 1]!;
+    expect(newestOurs).toBe('20260810040000_funding_opportunities_lifecycle_truth');
 
-  // 1. FO's own migrations are strictly ascending — an FO migration stamped
-  //    before an already-shipped FO migration would silently never apply.
-  expect([...ours].sort()).toEqual(ours);
+    // 1. FO's own migrations are strictly ascending — an FO migration stamped
+    //    before an already-shipped FO migration would silently never apply.
+    expect([...ours].sort()).toEqual(ours);
 
-  // 2. The whole pre-FO baseline sorts before FO's first migration. This is
-  //    what a mis-stamped NEW migration would violate: anything stamped
-  //    earlier than FO's floor but authored now would be skipped on every
-  //    environment where FO is already applied.
-  const oldestOurs = ours[0]!;
-  const nonFo = names.filter((n) => !/_funding_opportunities/.test(n));
-  const strayEarlier = nonFo.filter((n) => n < oldestOurs && n > PRE_FO_BASELINE_MAX);
-  expect(strayEarlier).toEqual([]);
+    // 2. The whole pre-FO baseline sorts before FO's first migration. This is
+    //    what a mis-stamped NEW migration would violate: anything stamped
+    //    earlier than FO's floor but authored now would be skipped on every
+    //    environment where FO is already applied.
+    const oldestOurs = ours[0]!;
+    const nonFo = names.filter((n) => !/_funding_opportunities/.test(n));
+    const strayEarlier = nonFo.filter((n) => n < oldestOurs && n > PRE_FO_BASELINE_MAX);
+    expect(strayEarlier).toEqual([]);
 
-  // 3. OUR newest migration's timestamp prefix is unique, so its apply
-  //    position does not depend on the rest of the directory name. Asserted
-  //    only for this feature's newest migration: the repo already contains
-  //    ten same-prefix pairs from concurrent streams, and failing this branch
-  //    for those would be noise about work it does not touch.
-  const prefix = newestOurs.slice(0, 14);
-  expect(names.filter((n) => n.startsWith(prefix))).toEqual([newestOurs]);
-});
+    // 3. OUR newest migration's timestamp prefix is unique, so its apply
+    //    position does not depend on the rest of the directory name. Asserted
+    //    only for this feature's newest migration: the repo already contains
+    //    ten same-prefix pairs from concurrent streams, and failing this branch
+    //    for those would be noise about work it does not touch.
+    const prefix = newestOurs.slice(0, 14);
+    expect(names.filter((n) => n.startsWith(prefix))).toEqual([newestOurs]);
+  });
 
   describe('lifecycle-truth migration: fingerprint, active snapshot, cursor', () => {
-    const lifecycle = existsSync(LIFECYCLE_MIGRATION)
-      ? readFileSync(LIFECYCLE_MIGRATION, 'utf8')
-      : '';
+    const lifecycle = existsSync(LIFECYCLE_MIGRATION) ? readFileSync(LIFECYCLE_MIGRATION, 'utf8') : '';
 
     test('it exists and is additive', () => {
       expect(lifecycle.length).toBeGreaterThan(0);
@@ -326,14 +317,10 @@ describe('migration: RLS, uniqueness, check constraints', () => {
       // legacy row look like it had been observed.
       for (const column of ['source_fingerprint', 'source_active_snapshot']) {
         expect(lifecycle).toMatch(
-          new RegExp(
-            `ALTER TABLE "client_funding_opportunity"[\\s\\S]*?ADD COLUMN IF NOT EXISTS "${column}"`,
-          ),
+          new RegExp(`ALTER TABLE "client_funding_opportunity"[\\s\\S]*?ADD COLUMN IF NOT EXISTS "${column}"`),
         );
       }
-      expect(lifecycle).not.toMatch(
-        /ADD COLUMN IF NOT EXISTS "source_(fingerprint|active_snapshot)"[^;]*NOT\s+NULL/i,
-      );
+      expect(lifecycle).not.toMatch(/ADD COLUMN IF NOT EXISTS "source_(fingerprint|active_snapshot)"[^;]*NOT\s+NULL/i);
     });
 
     test('the lifecycle keyset cursor index exists', () => {
@@ -348,8 +335,7 @@ describe('migration: RLS, uniqueness, check constraints', () => {
     });
 
     test('every statement is retry-safe', () => {
-      const creates =
-        lifecycle.match(/CREATE (TABLE|INDEX|UNIQUE INDEX)\s+(IF NOT EXISTS\s+)?/g) ?? [];
+      const creates = lifecycle.match(/CREATE (TABLE|INDEX|UNIQUE INDEX)\s+(IF NOT EXISTS\s+)?/g) ?? [];
       expect(creates.length).toBeGreaterThan(0);
       for (const c of creates) expect(c).toContain('IF NOT EXISTS');
       const adds = lifecycle.match(/ADD COLUMN\s+(IF NOT EXISTS\s+)?/g) ?? [];
@@ -368,7 +354,9 @@ describe('migration: RLS, uniqueness, check constraints', () => {
     });
   });
   describe('closeout migration: reviewed identities and lifecycle state', () => {
-    const closeout = existsSync(CLOSEOUT_MIGRATION) ? readFileSync(CLOSEOUT_MIGRATION, 'utf8') : '';
+    const closeout = existsSync(CLOSEOUT_MIGRATION)
+      ? readFileSync(CLOSEOUT_MIGRATION, 'utf8')
+      : '';
 
     test('the closeout migration exists and is additive', () => {
       expect(closeout.length).toBeGreaterThan(0);
@@ -461,9 +449,7 @@ describe('award attribution requires a confirmed reviewed mapping with opt-in ro
   test('contracting and assistance award consumers require review + roll-up', () => {
     for (const file of files) {
       const src = stripComments(readFileSync(file, 'utf8'));
-      for (const match of src.matchAll(
-        /source:\s*(?:\{\s*in:\s*\[[^\]]*(?:contracting|assistance_recipient)[^\]]*\]\s*\}|['"](?:contracting|assistance_recipient)['"])/g,
-      )) {
+      for (const match of src.matchAll(/source:\s*(?:\{\s*in:\s*\[[^\]]*(?:contracting|assistance_recipient)[^\]]*\]\s*\}|['"](?:contracting|assistance_recipient)['"])/g)) {
         const nearby = src.slice(Math.max(0, match.index! - 180), match.index! + 360);
         if (!/confirmed:\s*true/.test(nearby)) continue;
         expect(nearby).toMatch(/reviewStatus:\s*['"]confirmed['"]/);
@@ -496,9 +482,7 @@ describe('a future opportunity never contributes to a District Nexus score', () 
     // until someone deleted the protection.
     const src = readFileSync(join(dnDir, 'district-nexus-scoring.ts'), 'utf8');
     expect(src).toContain('opportunityOnly');
-    expect(src).toMatch(
-      /suppressedByOpportunityOnly[\s\S]{0,400}multiplier\s*=\s*suppressedByOpportunityOnly\s*\?\s*0/,
-    );
+    expect(src).toMatch(/suppressedByOpportunityOnly[\s\S]{0,400}multiplier\s*=\s*suppressedByOpportunityOnly\s*\?\s*0/);
   });
 
   test('the Funding Opportunities service never writes District Nexus evidence', () => {
