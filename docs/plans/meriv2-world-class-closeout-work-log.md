@@ -409,3 +409,68 @@ Phase 1 evidence SHA are green.
 - Normal PR CI on `1ebc9ce312f7ce02de8b8340b10722621d9b25f0`: `ci-pr` `30518878323`, `meriv2-evals` `30518878319`, `engagement-trust-boundary` `30518878318`, `legiwatch-ci` `30518878324`, and `funding-opportunities-ci` `30518878326` — all PASS.
 - Acceptance state: **PASS**. Approved governance is canonical on the active `memory_items` version, remains consistent through the Clio compatibility projection and Context Packet v2 across API, orchestrator, Strategy, Steward, and Workspace, and rolls back atomically with candidate/audit/outbox state.
 - Next gated phase: Phase 3 — route Settings edits through candidate review.
+
+## Phase 3 — Settings shared-memory review lifecycle (2026-07-30)
+
+### Current baseline and implementation
+
+- Current `main` at implementation, promotion, and acceptance: `057f5480a46f9ba9acf9296a9cc876b609593832`.
+- The closeout branch was **0 commits behind** before promotion and again before the acceptance record.
+- Runtime implementation commit: `51bcb642851bbfcdc452908c94a830afd6a07733`.
+- Validation fixture repair: `85cba12fd745485135213d8fbe6f6dea8a77be74`.
+- Normal PR gate restored in `0a3428cade86798972124cc70639379f9fdf4a83`; temporary Phase 3 inspection and patch scaffolding removed in `ccf10823766dc204ec89a02eb9ca24cc77e9b57c` and `a3f406388cbf65d9e3ab4e023325f2711eaefe4a`.
+- PR #679 remains a draft and unmerged.
+
+### Runtime contract
+
+- User-scope files remain on the immediate owner-only save path and ignore a spoofed slug.
+- Firm/client Settings edits resolve scope, actor, client, and ethical-wall state on the server, then create a complete-state candidate rather than mutating the controlling active item.
+- A first-time shared file creates only a candidate; no quarantined or active orphan row is created.
+- The candidate carries the exact canonical type, slug, title, and complete section state.
+- Independent approval activates that exact canonical file through the Phase 1 transaction boundary.
+- Reload returns the newest pending candidate for the exact file while retaining active content.
+- The UI reports **Submitted for independent review** and never reports a shared proposal as **Saved**.
+
+### Regression and safety evidence
+
+Promotion workflow `30530501216` passed:
+
+- `pnpm --filter @capiro/api typecheck` — **PASS**;
+- `pnpm --filter @capiro/web typecheck` — **PASS**;
+- Phase 3 API matrix — **5/5 suites, 31/31 tests PASS**:
+  - `memory.controller.settings-review.spec.ts`;
+  - `memory-canonical-activation.helpers.spec.ts`;
+  - `memory-candidate.atomicity.spec.ts`;
+  - `memory-candidate.approval.spec.ts`;
+  - `memory.controller.governance.spec.ts`;
+- web result contract — **1 file, 2/2 tests PASS**;
+- moving-main reconfirmation — **PASS**;
+- Program Element forbidden-path assertion — **PASS**, with no Program Element or defense-budget source modified by Phase 3.
+
+Normal PR CI on final runtime/scaffold-cleanup SHA `a3f406388cbf65d9e3ab4e023325f2711eaefe4a`:
+
+- `ci-pr` `30530842082` — **PASS**;
+- `meriv2-evals` `30530842133` — **PASS**;
+- `engagement-trust-boundary` `30530842075` — **PASS**;
+- `funding-opportunities-ci` `30530842064` — **PASS**;
+- `legiwatch-ci` `30530842063` — **PASS**.
+
+### Acceptance gate
+
+**PASS.** No Settings route can directly change active firm/client steering context. Shared edits leave the controlling item unchanged while independent review is pending, client walls fail closed before proposal creation, first-time shared files create candidates only, personal files remain immediate and owner-only, and reload presents truthful pending state without replacing active content.
+
+### Rollback
+
+Revert runtime commit `51bcb642` if the Settings review behavior must be withdrawn. Leave pending candidate rows, additive schema, audit history, and active controlling items intact; do not convert pending proposals into active memory and do not force-push the published branch. Keep governed-memory and release flags dark. No migration, backfill, AWS deployment, flag change, or customer-data operation occurred during Phase 3.
+
+### Traceability update
+
+| Finding | Runtime path | Implementation | Test evidence | State |
+| --- | --- | --- | --- | --- |
+| Shared Settings edit review gate | `MemoryController.updateSections` → `MemoryCandidateService.proposeSettingsSections` | `51bcb642` | Settings review suite + web result contract | **complete** |
+| Active item unchanged while pending | controller candidate branch + pending reload query | `51bcb642` | firm edit, first-time file, reload tests | **complete** |
+| Client wall before proposal | server-resolved client access check | `51bcb642` | ethical-wall denial test | **complete** |
+| Exact canonical activation after review | canonical candidate envelope + Phase 1 activation | `51bcb642` | canonical activation helper test | **complete** |
+| Truthful shared-save UX | `MemoryFileEditor` result contract | `51bcb642` | 2/2 web tests | **complete** |
+
+**Next gated phase:** Phase 4 — route shared corrections and restores through immutable reviewed versions.
