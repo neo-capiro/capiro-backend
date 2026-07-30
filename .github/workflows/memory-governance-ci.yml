@@ -1,6 +1,6 @@
 # Institutional-memory governance cumulative release gate.
 #
-# This is the durable Phase 1-5 acceptance matrix. It intentionally runs a
+# This is the durable Phase 1-6 acceptance matrix. It intentionally runs a
 # superset of the individual phase suites on one exact head so later memory,
 # context, Settings, and projection changes cannot silently invalidate an
 # earlier phase's acceptance evidence.
@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 jobs:
-  governed-memory-phases-1-5:
+  governed-memory-phases-1-6:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -45,7 +45,7 @@ jobs:
       - name: Typecheck Phase 5 worker infrastructure
         run: pnpm --filter @capiro/infra-cdk typecheck
 
-      - name: Test API governed-memory Phases 1-5
+      - name: Test API governed-memory Phases 1-6
         run: >
           pnpm --filter @capiro/api exec jest --ci --silent --runInBand
           src/memory
@@ -55,6 +55,7 @@ jobs:
           src/meri/governed-meri-tools.proxy.spec.ts
           src/prisma/migration-memory-immutable-versions.spec.ts
           src/prisma/migration-memory-cleanup-worker-leases.spec.ts
+          src/prisma/migration-memory-projection-exact-completion.spec.ts
           src/prisma/memory-projection-worker-infrastructure.spec.ts
 
       - name: Test Phase 2 orchestrator, Strategy, and Steward context matrix
