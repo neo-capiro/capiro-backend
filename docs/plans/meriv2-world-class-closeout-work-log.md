@@ -302,3 +302,95 @@ deployment wiring (§4 "Deployment wiring") → then tick both boxes at once.
   fails identically at `origin/main`
 - api memory + context + workspace-assistant after the changes: **42 suites /
   399 tests, all passing**
+
+## Phase 1 — atomic candidate activation (2026-07-30)
+
+### Current baseline and implementation
+
+- Current `main` at the acceptance check: `057f5480a46f9ba9acf9296a9cc876b609593832`.
+- Closeout branch was synchronized with that SHA before implementation and was **0 commits behind** at the final comparison.
+- Phase 1 implementation commit: `dd4ce36e47b0566a53c5f98695c630a1920962aa`.
+- PR #679 remains a draft and unmerged.
+
+### Canonical transaction boundary
+
+Candidate approval now executes one server-owned, tenant-scoped transaction that:
+
+1. locks the candidate row with `FOR UPDATE`;
+2. verifies that it is still pending;
+3. derives and authorizes the real actor/effective context;
+4. enforces independent review for shared memory;
+5. creates or updates the canonical Clio memory record;
+6. records the committed memory ID on the candidate;
+7. writes the candidate terminal decision;
+8. writes the transition audit record when lifecycle auditing is enabled;
+9. enqueues the durable `index_memory_item` projection obligation; and
+10. commits or rolls every mutation back together.
+
+The controller no longer performs a separate authorization preflight before the
+service transaction. Personal immediate activation uses the same transaction
+boundary. Rejection also locks and decides inside one transaction. Compatibility
+helpers delegate to transaction-scoped helpers rather than opening an independent
+nested tenant transaction during activation.
+
+### Regression and safety evidence
+
+Exact commands ran on the synchronized source SHA with all five Prisma clients
+generated and the internal packages (`shared`, `auth`, `strategy-verifier`, and
+`meriv2-core`) built first:
+
+- `pnpm --filter @capiro/api typecheck` — **PASS**.
+- Six targeted suites — **6/6 PASS, 43/43 tests**:
+  - `memory-candidate.atomicity.spec.ts`;
+  - `memory-candidate.approval.spec.ts`;
+  - `memory-candidate.governance.spec.ts`;
+  - `memory-index-outbox.spec.ts`;
+  - `memory-embed-isolation.spec.ts`;
+  - `memory.controller.governance.spec.ts`.
+
+The coverage proves:
+
+- two simultaneous approvals produce one activation;
+- an injected failure after mutation rolls candidate, memory, audit, and outbox
+  state back together;
+- a terminal candidate cannot be re-approved;
+- a cross-tenant candidate ID returns the same not-found result as a nonexistent
+  ID and does not reveal existence;
+- personal immediate activation is one transaction;
+- a shared candidate cannot be self-approved;
+- server context, not browser-supplied tenant/actor values, reaches the canonical
+  authorization path.
+
+Validation workflow run `30505202671` and promotion workflow run `30505389837`
+both passed the same typecheck and targeted test matrix before the implementation
+commit was pushed.
+
+### Acceptance gate
+
+**PASS.** No successful path can leave an activated canonical memory while its
+candidate remains pending, and no approved candidate can commit without its
+canonical memory mutation, transition evidence, and required outbox obligation
+being in the same database transaction. Concurrent callers serialize on the
+candidate row and exactly one may decide a pending candidate.
+
+### Rollback
+
+Revert implementation commit `dd4ce36e` if the live code must be withdrawn. Keep
+all additive schema and existing audit/outbox rows intact, leave governed-memory
+and high-risk release flags dark, and do not force-push the published branch.
+No migration, backfill, flag change, AWS deployment, or customer-data operation
+was performed during Phase 1.
+
+### Traceability update
+
+| Finding | Runtime path | Implementation | Test evidence | State |
+| --- | --- | --- | --- | --- |
+| Atomic candidate activation | `apps/api/src/memory/memory-candidate.service.ts` and `memory.controller.ts` | `dd4ce36e` | 6 suites / 43 tests; API typecheck | **complete** |
+| Concurrent approval idempotency | candidate row lock + terminal-state check | `dd4ce36e` | `memory-candidate.atomicity.spec.ts` | **complete** |
+| Full rollback after partial mutation | one transaction-scoped mutation path | `dd4ce36e` | injected post-mutation failure | **complete** |
+| Cross-tenant non-disclosure | tenant transaction + canonical authorization | `dd4ce36e` | same not-found behavior | **complete** |
+| Shared self-review denial | independent-review authorization | `dd4ce36e` | approval/governance suites | **complete** |
+
+**Next gated phase:** Phase 2 — propagate approved governance into the canonical
+`memory_items` version. Phase 2 must not begin until the normal PR checks on the
+Phase 1 evidence SHA are green.
