@@ -58,7 +58,11 @@ describe('MeriContextPacketController', () => {
   });
 
   it('accepts BOTH in-editor surface labels for a document', async () => {
-    const { prisma, calls } = makePrisma({ ...ROW, surface: 'in-editor', ref: { documentId: 'd1' } });
+    const { prisma, calls } = makePrisma({
+      ...ROW,
+      surface: 'in-editor',
+      ref: { documentId: 'd1' },
+    });
     const controller = new MeriContextPacketController(prisma);
     await controller.latestForDocument(ctx, 'd1');
     const where = calls[0]!.where as Record<string, unknown>;

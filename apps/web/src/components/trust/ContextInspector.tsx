@@ -179,7 +179,9 @@ export function ContextInspector({
                     <div className="trust-context__meta">
                       {scope && <span>{scope}</span>}
                       {item.authority && (
-                        <span>Authority · {AUTHORITY_LABELS[item.authority] ?? item.authority}</span>
+                        <span>
+                          Authority · {AUTHORITY_LABELS[item.authority] ?? item.authority}
+                        </span>
                       )}
                       {item.selection && (
                         <span>

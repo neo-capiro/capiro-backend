@@ -67,10 +67,7 @@ export class GenerationController {
   }
 
   @Post('retry-failed-sections')
-  retryFailed(
-    @CurrentTenant() ctx: WorkspaceTenantContext,
-    @Param('draftId') draftId: string,
-  ) {
+  retryFailed(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('draftId') draftId: string) {
     return this.generation.retryFailedSections(ctx.tenantId, draftId, ctx.clerkUserId);
   }
 

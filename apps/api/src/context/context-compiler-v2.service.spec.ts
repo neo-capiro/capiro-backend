@@ -154,9 +154,7 @@ describe('ContextCompilerService — ContextPacket v2', () => {
       contractVersion: 2,
     });
     expect(packet.items).toEqual([]);
-    expect(packet.exclusions).toEqual([
-      { layer: 'firm-identity', reason: 'sensitivity-denied' },
-    ]);
+    expect(packet.exclusions).toEqual([{ layer: 'firm-identity', reason: 'sensitivity-denied' }]);
     const serialized = JSON.stringify(packet.exclusions);
     expect(serialized).not.toContain(CONFIDENTIAL_ROW.id);
     expect(serialized).not.toContain('firm-compass');

@@ -148,7 +148,10 @@ export class MeriContextResolver {
             : undefined;
       }
     } catch (error) {
-      if (isContextPacketPersistenceError(error) && contextSurfacePolicy(surface).externalDeliverable) {
+      if (
+        isContextPacketPersistenceError(error) &&
+        contextSurfacePolicy(surface).externalDeliverable
+      ) {
         throw error;
       }
       const reason = error instanceof Error ? error.message : 'Context compilation failed';

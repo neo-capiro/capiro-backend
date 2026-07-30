@@ -352,8 +352,7 @@ export interface ContextStoreAdapter {
   persistPacket?(packet: CompiledContextPacket): Promise<void>;
 }
 
-export interface TruthfulContextStoreAdapter
-  extends Omit<ContextStoreAdapter, 'persistPacket'> {
+export interface TruthfulContextStoreAdapter extends Omit<ContextStoreAdapter, 'persistPacket'> {
   /** Persist and read back the exact generated packet row, returning its durable ID. */
   persistPacket?(packet: TruthfulCompiledContextPacket): Promise<string>;
 }

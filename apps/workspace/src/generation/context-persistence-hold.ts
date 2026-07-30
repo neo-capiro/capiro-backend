@@ -63,7 +63,5 @@ export function workspaceDraftWriteTarget(
   const args = params.args as { where?: { tenantId?: unknown; id?: unknown } } | undefined;
   const tenantId = args?.where?.tenantId;
   const draftId = args?.where?.id;
-  return typeof tenantId === 'string' && typeof draftId === 'string'
-    ? { tenantId, draftId }
-    : null;
+  return typeof tenantId === 'string' && typeof draftId === 'string' ? { tenantId, draftId } : null;
 }

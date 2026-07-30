@@ -42,7 +42,9 @@ describe('ContextInspector', () => {
     expect(screen.getByText('Firm Compass')).toBeTruthy();
     expect(screen.getByText('Client policy position')).toBeTruthy();
     expect(screen.getByText(/Old playbook/)).toBeTruthy();
-    expect(screen.getByRole('alert')).toHaveTextContent('Client documents were temporarily unavailable');
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Client documents were temporarily unavailable',
+    );
     expect(screen.getByText(/1 restricted item/)).toBeTruthy();
     expect(screen.queryByText('Must never render')).toBeNull();
     expect(screen.queryByText('secret-id')).toBeNull();
@@ -90,8 +92,18 @@ describe('ContextInspector', () => {
           items: [],
           exclusions: [
             { id: 'a', label: 'A', type: 'firm-soul', reason: 'unauthorized' },
-            { id: 'b', label: 'Other client compass', type: 'client-compass', reason: 'wrong-client' },
-            { id: 'c', label: 'Restricted brief', type: 'firm-compass', reason: 'sensitivity-denied' },
+            {
+              id: 'b',
+              label: 'Other client compass',
+              type: 'client-compass',
+              reason: 'wrong-client',
+            },
+            {
+              id: 'c',
+              label: 'Restricted brief',
+              type: 'firm-compass',
+              reason: 'sensitivity-denied',
+            },
             { id: 'd', label: 'Old playbook', type: 'playbook', reason: 'superseded' },
           ],
         }}

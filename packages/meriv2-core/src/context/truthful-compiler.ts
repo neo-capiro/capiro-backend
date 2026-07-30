@@ -38,7 +38,10 @@ export function contextPacketPersistenceErrorCode(error: unknown): string {
   if (error instanceof ContextPacketPersistenceError) return error.code;
   if (error instanceof Error && SAFE_PERSISTENCE_CODE.test(error.message)) return error.message;
   const name = error instanceof Error ? error.name : 'PersistenceError';
-  const normalized = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  const normalized = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
   return `context_packet_${normalized || 'persistence_error'}`.slice(0, 80);
 }
 
@@ -57,7 +60,9 @@ export class TruthfulContextCompiler {
     const deterministicStore: ContextStoreAdapter = {
       loadSteeringRows: (req) => store.loadSteeringRows(req),
       ...(store.loadGovernedSteeringRows
-        ? { loadGovernedSteeringRows: (req: ContextRequest) => store.loadGovernedSteeringRows!(req) }
+        ? {
+            loadGovernedSteeringRows: (req: ContextRequest) => store.loadGovernedSteeringRows!(req),
+          }
         : {}),
     };
     this.compiler = new ContextCompiler(deterministicStore);

@@ -1,9 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import type {
-  ContextRequest,
-  SteeringRow,
-  TruthfulCompiledContextPacket,
-} from './contract';
+import type { ContextRequest, SteeringRow, TruthfulCompiledContextPacket } from './contract';
 import {
   ContextPacketPersistenceError,
   TruthfulContextCompiler,
@@ -59,7 +55,9 @@ describe('TruthfulContextCompiler', () => {
       }),
     });
 
-    const packet = await compiler.compile(request({ surface: 'ga-chat', persistence: 'best-effort' }));
+    const packet = await compiler.compile(
+      request({ surface: 'ga-chat', persistence: 'best-effort' }),
+    );
 
     expect(packet.generatedPacketId).toMatch(/^[0-9a-f-]{36}$/i);
     expect(packet.packetId).toBeNull();
