@@ -1,5 +1,5 @@
 import { HttpException } from '@nestjs/common';
-import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
+import { MeriToolsService } from './meri-tools.service.js';
 
 export const RAW_MERI_TOOLS_SERVICE = Symbol('RAW_MERI_TOOLS_SERVICE');
 
@@ -20,12 +20,6 @@ interface GovernedMemorySignal {
  * surfaced as a failed tool call because MeriToolsService.execute() has no catch.
  */
 export function createGovernedMeriToolsService(raw: MeriToolsService): MeriToolsService {
-  const definition = TOOL_DEFINITIONS.find((item) => item.name === 'correct_memory');
-  if (definition) {
-    definition.description =
-      'Correct a remembered fact while preserving immutable history. Private memory may activate immediately. Firm/client memory is submitted for independent review and remains unchanged until approval. Exact duplicate content is linked without creating another version.';
-  }
-
   const present = async <T>(run: () => Promise<T>): Promise<T | Record<string, unknown>> => {
     try {
       return await run();
