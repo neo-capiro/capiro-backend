@@ -24,9 +24,10 @@
 | Ref | Full SHA | Note |
 |---|---|---|
 | `origin/main` (Phase 0 baseline) | `057f5480a46f9ba9acf9296a9cc876b609593832` | `chore(infra): GitHub Actions OIDC read-only + production deploy roles (#702)` (2026-07-29) |
+| `origin/main` at Phase 0 push time | `010948cc3f475dd0ee47016deba5619c044d8fed` | re-fetched; sync if different from baseline row |
 | Pre-Phase-0 PR #705 head | `a244022648d54d9e4ac7fb071f9f438405659056` | Transport-only tip (base64 patch segments + source-export workflow). **Not product.** |
 | Merge-base(`main`, pre-Phase-0 tip) | `057f5480a46f9ba9acf9296a9cc876b609593832` | Branch was already based on current main (0 behind, 22 ahead of transport commits only). |
-| Post-Phase-0 head (this commit) | see `git rev-parse origin/agent/program-elements-final-closeout` after push | `main` + Phase 0 ledger docs only |
+| Post-Phase-0 head (this commit) | `d273e8cdbcf57690b5b793e19b2518199d40b57d` | `main` + Phase 0 ledger docs only |
 | `origin/agent/pe-trust-phase-d` | `fc719ff27d0249cecc8c47d6524de30b86c87bce` | Snapshot workflow only |
 | `origin/agent/pe-trust-phase-d-v2` / `phase-e` | `b2d500e7fbb81f2029ff649ce7e8247923e7732e` | Transport patches + finalize workflows; **no applied product tree** |
 | `origin/agent/pe-trust-phase-f` | `b135689593838e7e0f0ca042b9aca7599b6b0c13` | **Recoverable product** SAM complete-window work (+ temp export workflow) |
