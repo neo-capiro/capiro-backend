@@ -32,13 +32,15 @@ export interface TrustContextExclusion {
 }
 
 export interface TrustContextPacket {
+  /** Durable ID only. A failed persistence attempt must set persisted=false. */
   packetId?: string | null;
+  persisted?: boolean;
+  persistenceErrorCode?: string | null;
   compiledAt?: string | null;
   surface?: string | null;
   clientId?: string | null;
   items: TrustContextItem[];
   exclusions?: TrustContextExclusion[];
-  /** A DB-boundary denial may be counted, but its identity must never be exposed. */
   unauthorizedCount?: number;
   degraded?: boolean;
   degradedReason?: string | null;
@@ -52,8 +54,6 @@ const REASON_LABELS: Record<string, string> = {
   unauthorized: 'Not available to this user',
   unavailable: 'Temporarily unavailable',
   empty: 'No usable content',
-  // ContextPacket v2 exclusion reasons. Without these the UI would print the raw
-  // slug (e.g. "legacy-unclassified") at a user.
   rejected: 'Rejected in review',
   stale: 'Stale — awaiting review',
   conflicted: 'Withheld: unresolved conflict',
@@ -65,20 +65,8 @@ const REASON_LABELS: Record<string, string> = {
   'sensitivity-denied': 'Above your access level',
 };
 
-/**
- * Reasons that mean the caller is not authorized to know the item EXISTS. The
- * compiler strips id/type/slug for exactly these, and the API omits them from the
- * list, so they may only ever be shown as an aggregate count.
- *
- * Counting only `unauthorized` (the previous behaviour) meant a cross-client or
- * sensitivity withholding was reported to the user as zero restricted items.
- */
 const IDENTITY_WITHHELD_REASONS = new Set(['unauthorized', 'wrong-client', 'sensitivity-denied']);
 
-/**
- * Human labels for both provenance vocabularies: the coarse v1 values and the
- * governed `MemoryAuthority` a v2 packet carries.
- */
 const AUTHORITY_LABELS: Record<string, string> = {
   'human-authored': 'Human authored',
   'system-of-record': 'System of record',
@@ -126,8 +114,6 @@ export function ContextInspector({
   label?: string;
 }) {
   const exclusions = packet?.exclusions ?? [];
-  // Defence in depth: the API already omits identity-withheld exclusions, but if a
-  // caller ever hands one to this component it must not be rendered by id/type.
   const visibleExclusions = useMemo(
     () => exclusions.filter((item) => !IDENTITY_WITHHELD_REASONS.has(item.reason)),
     [exclusions],
@@ -136,6 +122,10 @@ export function ContextInspector({
     (packet?.unauthorizedCount ?? 0) +
     exclusions.filter((item) => IDENTITY_WITHHELD_REASONS.has(item.reason)).length;
   const compiledAt = dateLabel(packet?.compiledAt);
+  // New summaries always carry persisted. `!== false` preserves old stored packet
+  // responses while ensuring a failed live attempt can never display its generated UUID.
+  const durablePacketId = packet?.persisted !== false ? packet?.packetId : null;
+  const persistenceDegraded = packet?.persisted === false;
 
   if (!packet) {
     return (
@@ -160,10 +150,13 @@ export function ContextInspector({
       </summary>
 
       <div className="trust-context__body">
-        {packet.degraded && (
+        {(packet.degraded || persistenceDegraded) && (
           <div className="trust-context__degraded" role="alert">
             <strong>Context degraded.</strong>{' '}
-            {packet.degradedReason || 'One or more required context sources could not be loaded.'}
+            {packet.degradedReason ||
+              (persistenceDegraded
+                ? 'The durable context provenance trace could not be saved.'
+                : 'One or more required context sources could not be loaded.')}
           </div>
         )}
 
@@ -189,7 +182,11 @@ export function ContextInspector({
                         <span>Authority · {AUTHORITY_LABELS[item.authority] ?? item.authority}</span>
                       )}
                       {item.selection && (
-                        <span>{item.selection === 'explicit' ? 'Selected by user' : 'Retrieved automatically'}</span>
+                        <span>
+                          {item.selection === 'explicit'
+                            ? 'Selected by user'
+                            : 'Retrieved automatically'}
+                        </span>
                       )}
                       {asOf && <span>As of · {asOf}</span>}
                       {confirmed && <span>Confirmed · {confirmed}</span>}
@@ -214,7 +211,9 @@ export function ContextInspector({
               ))}
               {withheldCount > 0 && (
                 <li>
-                  <strong>{withheldCount} restricted item{withheldCount === 1 ? '' : 's'}</strong>
+                  <strong>
+                    {withheldCount} restricted item{withheldCount === 1 ? '' : 's'}
+                  </strong>
                   <span> · identity withheld by access controls</span>
                 </li>
               )}
@@ -224,7 +223,9 @@ export function ContextInspector({
 
         <div className="trust-context__footer">
           {compiledAt && <span>Compiled {compiledAt}</span>}
-          {packet.packetId && <span title={packet.packetId}>Packet {packet.packetId.slice(0, 8)}</span>}
+          {durablePacketId && (
+            <span title={durablePacketId}>Packet {durablePacketId.slice(0, 8)}</span>
+          )}
           {onReviewContext && (
             <button type="button" onClick={onReviewContext}>
               Review context
