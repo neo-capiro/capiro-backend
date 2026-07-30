@@ -14,22 +14,7 @@ import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { contextPacketView } from './meri-context-packet-view.js';
 
-/**
- * Surfaces that answer the "what context steered this conversation?" question.
- *
- * `ga-chat` is what the MeriV2 orchestrator writes; `chat` is what the in-process
- * legacy path writes. Only tenants on `meriv2.fullChat` take the first, so keying
- * the lookup on `ga-chat` alone meant every other tenant got `degraded: true` and a
- * "Context degraded" banner on every answer — while the context had in fact been
- * compiled and used.
- */
 const CONVERSATION_SURFACES = ['ga-chat', 'chat'] as const;
-
-/**
- * Two labels for the SAME in-editor surface: apps/api's own route writes
- * `in-editor`, the orchestrator's writes `workspace-editor`. Both are accepted so
- * this endpoint works whichever path served the turn.
- */
 const DOCUMENT_SURFACES = ['workspace-editor', 'in-editor'] as const;
 
 @Controller('clio/context-packets')
@@ -59,11 +44,25 @@ export class MeriContextPacketController {
 
   @Get('document/:id/latest')
   latestForDocument(@CurrentTenant() ctx: TenantContext, @Param('id') documentId: string) {
-    // Workspace ids are service-owned strings in some legacy rows, so do not
-    // force UUID parsing here. Ownership is still enforced by the packet's user.
     const bounded = documentId.trim().slice(0, 200);
     if (!bounded) throw new NotFoundException('Document context packet not found');
     return this.latest(ctx, DOCUMENT_SURFACES, 'documentId', bounded);
+  }
+
+  /** Exact reload for the durable ID displayed by Context Inspector. */
+  @Get(':id')
+  async getById(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', new ParseUUIDPipe()) packetId: string,
+  ) {
+    const row = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      tx.contextPacket.findFirst({
+        where: { id: packetId, tenantId: ctx.tenantId, userId: ctx.userId },
+        select: this.packetSelect(),
+      }),
+    );
+    if (!row) throw new NotFoundException('Context packet not found');
+    return contextPacketView(row, await this.clientName(ctx, row.clientId));
   }
 
   private async latest(
@@ -72,49 +71,23 @@ export class MeriContextPacketController {
     refKey: 'conversationId' | 'documentId',
     refValue: string,
   ) {
-    // ContextPacket v2 columns (`packet_version`, `health_jsonb`, …) are added by
-    // 20260729010000_memory_governance_context_v2. Selecting them before that
-    // migration is applied would fail the whole request with 42703, so the v2
-    // projection rides the SAME dark switch that produces v2 packets in the first
-    // place. Dark ⇒ this endpoint returns exactly what it returned before.
-    const v2 = resolveContextPacketMode(process.env.CONTEXT_PACKET_V2) === 'v2';
     const row = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       tx.contextPacket.findFirst({
         where: {
           tenantId: ctx.tenantId,
           userId: ctx.userId,
           surface: { in: [...surfaces] },
-          // Match on the ref key itself instead of scanning a fixed window of
-          // recent rows: a run of packets from another conversation (or from a
-          // mislabelled surface) could otherwise push the real one out of view.
           ref: { path: [refKey], equals: refValue },
         },
         orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          surface: true,
-          clientId: true,
-          ref: true,
-          items: true,
-          exclusions: true,
-          createdAt: true,
-          ...(v2
-            ? {
-                packetVersion: true,
-                health: true,
-                traceId: true,
-                requiredLayers: true,
-                usedTokens: true,
-                totalTokenBudget: true,
-                truncated: true,
-                incomplete: true,
-              }
-            : {}),
-        },
+        select: this.packetSelect(),
       }),
     );
     if (!row) {
       return {
+        packetId: null,
+        persisted: false,
+        persistenceErrorCode: 'context_packet_unavailable',
         surface: surfaces[0],
         items: [],
         exclusions: [],
@@ -123,19 +96,44 @@ export class MeriContextPacketController {
         degradedReason: 'The context packet for this record is unavailable.',
       };
     }
-    // The client's display name is what `ContextInspector` renders as
-    // "Client · Acme"; the packet itself only stores the id.
-    const clientName = row.clientId
-      ? await this.prisma
-          .withTenant(ctx.tenantId, (tx) =>
-            tx.client.findFirst({
-              where: { id: row.clientId as string, tenantId: ctx.tenantId },
-              select: { name: true },
-            }),
-          )
-          .then((client) => client?.name ?? null)
-          .catch(() => null)
-      : null;
-    return contextPacketView(row, clientName);
+    return contextPacketView(row, await this.clientName(ctx, row.clientId));
+  }
+
+  private packetSelect() {
+    const v2 = resolveContextPacketMode(process.env.CONTEXT_PACKET_V2) === 'v2';
+    return {
+      id: true,
+      surface: true,
+      clientId: true,
+      ref: true,
+      items: true,
+      exclusions: true,
+      createdAt: true,
+      ...(v2
+        ? {
+            packetVersion: true,
+            health: true,
+            traceId: true,
+            requiredLayers: true,
+            usedTokens: true,
+            totalTokenBudget: true,
+            truncated: true,
+            incomplete: true,
+          }
+        : {}),
+    } as const;
+  }
+
+  private async clientName(ctx: TenantContext, clientId: string | null): Promise<string | null> {
+    if (!clientId) return null;
+    return this.prisma
+      .withTenant(ctx.tenantId, (tx) =>
+        tx.client.findFirst({
+          where: { id: clientId, tenantId: ctx.tenantId },
+          select: { name: true },
+        }),
+      )
+      .then((client) => client?.name ?? null)
+      .catch(() => null);
   }
 }
