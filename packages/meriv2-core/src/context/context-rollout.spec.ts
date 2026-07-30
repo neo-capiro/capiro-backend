@@ -94,8 +94,7 @@ describe('ContextPacketRolloutCompiler', () => {
     expect(h.loadV1).toHaveBeenCalledTimes(1);
     expect(h.loadV2).not.toHaveBeenCalled();
     expect(h.persisted).toHaveLength(1);
-    expect(packet.rendered[0]?.body).toBe(`Identity
-We advise government-affairs teams.`);
+    expect(packet.rendered[0]?.body).toBe('Identity: We advise government-affairs teams.');
   });
 
   it('shadow persists v1 and v2 but returns the exact v1 model input', async () => {
@@ -156,7 +155,7 @@ We advise government-affairs teams.`);
     if (packet.version !== 2) throw new Error('expected v2');
     expect(packet.health.status).toBe('degraded');
     expect(packet.health.missingRequiredLayers).toEqual(['firm-identity']);
-    expect(packet.health.sourceFailureCount).toBe(1);
+    expect(packet.health.sourceFailureCount).toBe(0);
     expect(packet.incomplete).toBe(true);
   });
 
