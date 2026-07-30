@@ -61,8 +61,13 @@ export function resolveTenantContextPacketMode(
 }
 
 /** True only when v2 is the model-steering packet for an audited surface. */
-export function contextPacketV2Enabled(raw: string | undefined, surface: ContextSurface): boolean {
-  return resolveContextPacketMode(raw) === 'enforce' && CONTEXT_PACKET_V2_SURFACES.includes(surface);
+export function contextPacketV2Enabled(
+  raw: string | undefined,
+  surface: ContextSurface,
+): boolean {
+  return (
+    resolveContextPacketMode(raw) === 'enforce' && CONTEXT_PACKET_V2_SURFACES.includes(surface)
+  );
 }
 
 export interface ContextPacketV2RequestOptions {
