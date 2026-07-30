@@ -26,6 +26,7 @@ function harness(
   outcome: 'projected' | 'superseded' | 'vanished' = 'projected',
   failure?: Error,
   hasJob = true,
+  jobKey = KEY,
 ) {
   const captured: Array<{ sql: string; params: unknown[] }> = [];
   const tx = {
@@ -35,7 +36,7 @@ function harness(
             {
               id: JOB,
               memory_item_id: ITEM,
-              idempotency_key: KEY,
+              idempotency_key: jobKey,
               expected_source_version: new Date(VERSION),
               expected_content_hash: HASH,
             },
@@ -132,6 +133,17 @@ describe('GovernedMemoryIngestService', () => {
     const h = harness('projected', undefined, false);
     await expect(h.service.projectClioMemory(TENANT, CLIO)).rejects.toThrow(
       'memory_projection_exact_job_unavailable',
+    );
+    expect(h.projector.projectClioMemoryStrict).not.toHaveBeenCalled();
+    expect(h.captured).toHaveLength(0);
+  });
+
+  test('rejects a queued key not bound to the captured version and hash', async () => {
+    const malformed = exactProjectionIdempotencyKey(CLIO, VERSION, 'c'.repeat(64));
+    const h = harness('projected', undefined, true, malformed);
+
+    await expect(h.service.projectClioMemory(TENANT, CLIO)).rejects.toThrow(
+      'memory_projection_idempotency_binding_mismatch',
     );
     expect(h.projector.projectClioMemoryStrict).not.toHaveBeenCalled();
     expect(h.captured).toHaveLength(0);
