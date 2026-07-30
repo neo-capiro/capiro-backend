@@ -58,7 +58,9 @@ export class OrchestratorContextCompilerService {
         surface,
       );
     } catch (error) {
-      this.logger.warn(`Context Packet tenant canary lookup failed closed: ${(error as Error).message}`);
+      this.logger.warn(
+        `Context Packet tenant canary lookup failed closed: ${(error as Error).message}`,
+      );
       return 'off';
     }
   }
@@ -81,7 +83,9 @@ export class OrchestratorContextCompilerService {
       );
       return rows[0]?.allowed === true;
     } catch (error) {
-      this.logger.warn(`Context Packet ethical-wall lookup failed closed: ${(error as Error).message}`);
+      this.logger.warn(
+        `Context Packet ethical-wall lookup failed closed: ${(error as Error).message}`,
+      );
       return false;
     }
   }
