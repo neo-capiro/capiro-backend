@@ -567,7 +567,7 @@ Implementer does **not** self-PASS the Phase 4 exit gate. Independent REVIEW req
 |---|---|---|
 | Phase 4 product (initial) | `19936afde2b8d3902902996af02fa710f7f63356` | implement |
 | Review Round 1 | `cf87ee77a1eeea3e989b4bdf80e1a8cdcd3edec4` | **FAIL** B1/B2/B3 (B4 polish) |
-| Phase 4 product (FAIL remediations) | *(record remote tip SHA after push in a follow-up docs pin if needed)* | implement; review REQUIRED |
+| Phase 4 product (FAIL remediations) | `2adb5581ac9151bcbd763029228b7fb5feeb2392` | implement; review REQUIRED |
 
 ### 4.7 Rollback
 

@@ -105,7 +105,7 @@ Closeout **execution phase** column is the session phase from the final schedule
 | G11 | Current request cannot be FYDP outyear | `in_branch` (Phase 4 FAIL fix) | timeline currentCycleFyPreservingZero includes ndaaConference; sqlCurrentCycleFyExpr | 4 |
 | G12 | API contract tests + verify:pe-phase-g | `in_branch` (Phase 4) | funding-claim.spec + read.service Phase G case | 4 |
 
-**Phase 4 review gate:** Round 1 on `cf87ee77a` / product `19936afde` = **FAIL** (B1 cross-track markup %, B2 list cross-FY delta base, B3 NDAA cycle FY). FAIL remediations implemented; tip after this push requires a **new** independent REVIEW (no self-PASS). Re-attack B1/B2/B3 on the fix tip.
+**Phase 4 review gate:** Round 1 on `cf87ee77a` / product `19936afde` = **FAIL** (B1 cross-track markup %, B2 list cross-FY delta base, B3 NDAA cycle FY). FAIL remediations product `2adb5581ac9151bcbd763029228b7fb5feeb2392`; requires a **new** independent REVIEW on that tip (no self-PASS). Re-attack B1/B2/B3 on the fix tip.
 
 ---
 
