@@ -188,5 +188,16 @@ jobs:
             apps/web/src/components/MemoryFileEditor.phase3.test.ts
           git diff --cached --check
           git commit -m "feat(meriv2): review-gate Settings shared memory"
-          git push origin HEAD:agent/meriv2-world-class-closeout
-          echo "Promoted $(git rev-parse HEAD)"
+          for attempt in 1 2 3; do
+            git fetch origin agent/meriv2-world-class-closeout main --quiet
+            test "$(git rev-parse origin/main)" = "${{ steps.state.outputs.main_sha }}"
+            git rebase origin/agent/meriv2-world-class-closeout
+            git merge-base --is-ancestor origin/main HEAD
+            if git push origin HEAD:agent/meriv2-world-class-closeout; then
+              echo "Promoted $(git rev-parse HEAD)"
+              exit 0
+            fi
+            echo "Concurrent branch update during push attempt $attempt; retrying without force."
+          done
+          echo "::error::Unable to promote Phase 3 without overwriting concurrent branch work."
+          exit 1
