@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { ImmutableMemoryVersionService } from './immutable-memory-version.service.js';
 import { MemoryVersionController, versionContent } from './memory-version.controller.js';
@@ -78,14 +78,13 @@ describe('MemoryVersionController Phase 15 contract', () => {
     );
   });
 
-  it('preserves the existing found/legal-hold response shape with honest outcomes', async () => {
+  it('fails explicitly instead of presenting not-found or legal-hold as success', async () => {
     const missing = new MemoryVersionController({
       proposeRestore: jest.fn(async () => ({ status: 'not_found' as const })),
     } as unknown as ImmutableMemoryVersionService);
-    await expect(missing.proposeRestore(ctx, 'missing-item')).resolves.toEqual({
-      found: false,
-      outcome: 'not_found',
-    });
+    await expect(missing.proposeRestore(ctx, 'missing-item')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
 
     const held = new MemoryVersionController({
       proposeCorrection: jest.fn(async () => ({
@@ -95,11 +94,6 @@ describe('MemoryVersionController Phase 15 contract', () => {
     } as unknown as ImmutableMemoryVersionService);
     await expect(
       held.proposeCorrection(ctx, 'held-item', { content: 'Attempted correction' }),
-    ).resolves.toEqual({
-      found: true,
-      blockedByLegalHold: true,
-      outcome: 'legal_hold',
-      title: 'Held memory',
-    });
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
