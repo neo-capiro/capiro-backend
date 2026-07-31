@@ -178,7 +178,7 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 | K5 | Bounded cardinality metrics + alarm defs (no deploy schedules) | `in_branch` (Phase 8 defs) | pe-trust-metric-catalog + synthetic events; CDK schedule deploy OOS | 8 |
 | K6 | Human-reviewed golden set | `blocked` human workstream | grounded-field.golden.json synthetic-loud; auditor enforces | 8 + human |
 
-**Phase 8 review gate:** **PASS WITH BLOCKERS** on tip `cf9545d7e8879862a19bac4e82620eadf010c6b7` (product `e8124cc8ea96185ddb810e381e4a80bc45e19d00`). Human K6 remains blocked (draft OK with synthetic-loud). B5 upgrade dump closed in Phase 9.
+**Phase 8 review gate:** **PASS WITH BLOCKERS** on tip `cf9545d7e8879862a19bac4e82620eadf010c6b7` (product `e8124cc8ea96185ddb810e381e4a80bc45e19d00`). Human K6 remains blocked (draft OK with synthetic-loud). B5 upgrade dump targeted in Phase 9 (honest path closed on fix tip after review FAIL B1; REVIEW must re-prove).
 
 ---
 
@@ -186,7 +186,7 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 
 | Schedule phase | Goal | Status | Owner |
 |---|---|---|---|
-| 9 Integrated rehearsal | Run A–K + PE suites on remote final SHA | `in_branch` (Phase 9) — PE_PHASE_9_OK harness + evidence; REVIEW REQUIRED | 9 |
+| 9 Integrated rehearsal | Run A–K + PE suites on remote final SHA | `in_branch` (Phase 9 B1 rework) — honest upgrade replay + PE_PHASE_9_OK; REVIEW REQUIRED on post-fix tip | 9 |
 | 10 Staging acceptance | Deploy/migrate staging | `blocked` until Neo authorizes | Phase 10 |
 | 11 PR closeout | Body, supersede old PRs, ready-for-review | after 9/(10) | Phase 11 |
 
@@ -201,11 +201,11 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 | R1 | Ordered A–K + typecheck/build/web/migration rehearsal catalog | `in_branch` | pe-phase-9-rehearsal-catalog.ts | 9 |
 | R2 | branch-introduced vs base-proven classifier + transport integrity | `in_branch` | pe-phase-9-rehearsal.ts | 9 |
 | R3 | Executable orchestrator verify:pe-phase-9 | `in_branch` | verify-pe-phase-9.ts | 9 |
-| R4 | Clean + upgrade disposable migrate replay (DB=capiro) | `in_branch` local docker | pe-phase-9-migration-replay.sh | 9 |
+| R4 | Clean + upgrade disposable migrate replay (DB=capiro); MSYS git-root + hard overlay asserts | `in_branch` local docker (B1 rework) | pe-phase-9-migration-replay.sh | 9 |
 | R5 | Extended proofs mapped to phase E/D/F/I/J owners | `in_branch` | catalog EXTENDED_PROOF_OWNERS | 9 |
 | R6 | Evidence JSON/README under phase-9 verification dir | `in_branch` | docs/verification/program-elements-trust/phase-9/ | 9 |
 
-**Phase 9 review gate:** **IMPLEMENT PUSHED — independent REVIEW REQUIRED** against live `origin/agent/program-elements-final-closeout` HEAD (product `ca3f372b0abfc75e06d0b031e89c18f2cd640e01`; evidence `a21640c568dbfef01dbbce5945bf032221213414`; no self-PASS). Soft residuals: prettier PE surface debt; host psql missing for optional pe-phase-c-rls-rehearsal.sh.
+**Phase 9 review gate:** **IMPLEMENT PUSHED (B1 rework) — independent REVIEW REQUIRED** against live `origin/agent/program-elements-final-closeout` HEAD after push (must include fix product `e22423fd23cd957c165417428bf5d40f41a13848`; prior FAIL tip `255098977509c9b06e7142f0624fa4822dfadb36`; no self-PASS). Soft residuals: prettier PE surface debt; host psql → PE_PHASE_C_RLS_REHEARSAL_SKIP. Review must prove upgrade_base_applied==main migration count and tip_delta≥branch_only PE migs.
 
 Commands:
 

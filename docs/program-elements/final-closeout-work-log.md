@@ -6,7 +6,7 @@
 **Repo:** `neo-capiro/capirov2`  
 **Operator session:** Phase 9 IMPLEMENT (integrated release rehearsal)
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-31 (Phase 9 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-31 (Phase 9 B1 FAIL rework IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
 
 ---
 
@@ -1274,7 +1274,61 @@ git reset --hard cf9545d7e8879862a19bac4e82620eadf010c6b7
 
 ---
 
+
+---
+
+## Phase 9 independent review FAIL + B1 rework (IMPLEMENT)
+
+**When (UTC date):** 2026-07-31
+**Failed tip (review 9 FAIL):** `255098977509c9b06e7142f0624fa4822dfadb36`
+**Product fix tip:** `e22423fd23cd957c165417428bf5d40f41a13848`
+**origin/main at rework:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind)
+**Mode:** LONG IMPLEMENT only — close review B1 only; no self-PASS; no Phase 10
+
+### Blocking defect closed (implement claim — REVIEW must falsify)
+
+| ID | Defect | Fix |
+|---|---|---|
+| B1 | Upgrade migrate path false-green: MSYS `git -C "$(pwd)"` on `/c/c/...` failed → empty branch-only → tip applied with 0 pending PE migs while clean claimed 196 | `pe-phase-9-migration-replay.sh`: resolve Git-accepted root via `cygpath -m` / `pwd -W`; `git_req` never swallows exit 128; hard assert empty branch-only when main≠HEAD mig counts; `branch_only≥2` (exact PE names when present); `upgrade_base_applied==main (194)`; tip `applied_delta≥branch_only`; reject No pending when overlay exists; `count_lines` replaces `grep -c \|\| echo 0` → `00` footgun |
+| soft | host psql missing → rls exit 127 noise | `pe-phase-c-rls-rehearsal.sh` soft skip with `PE_PHASE_C_RLS_REHEARSAL_SKIP` when psql absent (still required:false) |
+
+### Commands (rework)
+
+```text
+bash apps/api/scripts/pe-phase-9-migration-replay.sh
+# → PE_PHASE_9_MIGRATION_REPLAY_OK ... applied=196 base_applied=194 branch_only=2 tip_delta=2
+# tip applied: 20260729050000_pe_observation_idempotency_and_outbox + 20260811010000_program_element_data_issue
+
+NODE_EXE=C:/Users/neoma/AppData/Local/hermes/node/node.exe \
+PNPM_JS=C:/Users/neoma/AppData/Local/hermes/node/node_modules/corepack/dist/pnpm.js \
+"$NODE_EXE" "$PNPM_JS" -C apps/api run verify:pe-phase-9 -- --full --skip-install
+# → PE_PHASE_9_OK (gate.ok true); soft prettier only
+```
+
+### Files changed (rework)
+
+- apps/api/scripts/pe-phase-9-migration-replay.sh
+- apps/api/scripts/pe-phase-c-rls-rehearsal.sh
+- docs/verification/program-elements-trust/phase-9/*
+- ledger docs (this section + traceability)
+
+### Independent review status (Phase 9 rework)
+
+**IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** against live origin HEAD after push (must include fix `e22423fd23cd957c165417428bf5d40f41a13848`).
+Do **not** treat implementer PE_PHASE_9_OK as REVIEW PASS.
+Do **not** start Phase 10 until new REVIEW PASS **and** Neo staging auth (`PE_CLOSEOUT_STAGING_OK=yes`).
+
+### Rollback
+
+```bash
+git reset --hard 255098977509c9b06e7142f0624fa4822dfadb36   # failed tip
+# or Phase 8 PASS:
+git reset --hard cf9545d7e8879862a19bac4e82620eadf010c6b7
+```
+
+
 ## Next phase
 
-**Phase 9 independent adversarial REVIEW only** against the **new remote tip** after this push (not Phase 10 implement).
-Do not start Phase 10 unless Neo explicitly authorizes staging.
+**Phase 9 independent adversarial REVIEW only** against the **post-fix remote tip** (not Phase 10).
+Operator: `./pe-closeout-run.sh review 9` in a NEW shell after push.
+Do not start Phase 10 unless Neo authorizes staging.
