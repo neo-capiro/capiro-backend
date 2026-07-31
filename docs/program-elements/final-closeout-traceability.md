@@ -187,7 +187,7 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 | Schedule phase | Goal | Status | Owner |
 |---|---|---|---|
 | 9 Integrated rehearsal | Run A–K + PE suites on remote final SHA | `in_branch` — Phase 9 PASS WITH BLOCKERS tip `72b299dff` | 9 |
-| 10 Staging acceptance | Pre-merge acceptance on sole live env=dev / capiro-dev | `in_branch` tip `28dbed74845a` harness PE_PHASE_10_OK; REVIEW REQUIRED | Phase 10 |
+| 10 Staging acceptance | Pre-merge acceptance on sole live env=dev / capiro-dev | `in_branch` tip `54c9d215da2d45a` harness PE_PHASE_10_OK; REVIEW REQUIRED | Phase 10 |
 | 11 PR closeout | Body, supersede old PRs, ready-for-review | after 9/(10) | Phase 11 |
 
 ---
@@ -222,7 +222,7 @@ bash apps/api/scripts/pe-phase-9-migration-replay.sh
 
 | Field | Value |
 |---|---|
-| Remote tip / origin HEAD | `28dbed74845a74f1cb432ee4e5d1577827eaf182` |
+| Remote tip / origin HEAD | `54c9d215da2d6279af1d8af02d9b8dc9c435127e` |
 | origin/main | `3dcb12f823774b6fae8578dc56fc122bf9a0879e` |
 | Plane | `capiro-dev` / workflow `env=dev` / `app.capiro.ai` (sole live = prod path) |
 | Auth | Neo phase-10-neo-dev-authorization.md + PE_CLOSEOUT_STAGING_OK=yes + MUTATE=yes |
@@ -243,12 +243,12 @@ bash apps/api/scripts/pe-phase-9-migration-replay.sh
 | S5 | Dark rails | `applied` | safety block in summary | 10 |
 | S6 | Live runtime matrix | `applied` | live-proofs full metrics + browser PE contract + alarm pulse | 10 |
 | S7 | Rollback rehearsed | `applied` | rollback-rehearsal.json | 10 |
-| S8 | Acceptance record harness-emitted | `in_branch` | phase-10-acceptance-summary.json PE_PHASE_10_OK @ `28dbed74845a74f1cb432ee4e5d1577827eaf182` | 10 |
+| S8 | Acceptance record harness-emitted | `in_branch` | phase-10-acceptance-summary.json PE_PHASE_10_OK @ `54c9d215da2d6279af1d8af02d9b8dc9c435127e` | 10 |
 
 ```bash
 export PE_CLOSEOUT_STAGING_OK=yes PE_CLOSEOUT_PROVIDER=openrouter PE_CLOSEOUT_EFFORT=high
 ./pe-closeout-run.sh review 10
-# expect tip 28dbed74845a74f1cb432ee4e5d1577827eaf182
+# expect tip 54c9d215da2d6279af1d8af02d9b8dc9c435127e
 ```
 
 

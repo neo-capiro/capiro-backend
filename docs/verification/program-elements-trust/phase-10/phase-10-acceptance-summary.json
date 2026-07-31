@@ -14,8 +14,8 @@
     "note": "sole live env=dev / capiro-dev (= prod path); not dead staging"
   },
   "git": {
-    "headSha": "28dbed74845a74f1cb432ee4e5d1577827eaf182",
-    "originHeadSha": "28dbed74845a74f1cb432ee4e5d1577827eaf182",
+    "headSha": "54c9d215da2d6279af1d8af02d9b8dc9c435127e",
+    "originHeadSha": "54c9d215da2d6279af1d8af02d9b8dc9c435127e",
     "mainSha": "3dcb12f823774b6fae8578dc56fc122bf9a0879e",
     "mergeBaseSha": "3dcb12f823774b6fae8578dc56fc122bf9a0879e",
     "branch": "agent/program-elements-final-closeout"
@@ -472,9 +472,10 @@
     "localPreflightNotLiveSubstitute": true,
     "blockedIsNotOk": false,
     "exitGateUnsatisfiedWhenBlocked": null,
-    "singleTipHead": "28dbed74845a74f1cb432ee4e5d1577827eaf182",
+    "singleTipHead": "54c9d215da2d6279af1d8af02d9b8dc9c435127e",
     "originMatchesHead": true,
     "implementerOkNotReviewPass": true,
-    "note": "Single harness regenerate on origin HEAD; PE_PHASE_10_OK is implementer-only"
+    "note": "Evidence docs pin on origin HEAD after harness OK at product tip 28dbed748; no PE runtime delta in docs pin",
+    "docsPinTip": "54c9d215da2d6279af1d8af02d9b8dc9c435127e"
   }
 }
