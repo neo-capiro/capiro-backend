@@ -33,6 +33,16 @@ APP_PW=phase_c
 
 export PGHOST PGPORT PGUSER
 
+# Soft env skip when host psql is unavailable (Phase 9 residual). Container paths
+# cover forced RLS elsewhere; this rehearsal is host-psql-oriented and optional
+# under verify:pe-phase-9 (required:false). Exit 0 with loud skip marker so the
+# orchestrator does not treat missing PATH tools as a hard red.
+if ! command -v "$PSQL_BIN" >/dev/null 2>&1 && [ ! -x "$PSQL_BIN" ]; then
+  echo "PE_PHASE_C_RLS_REHEARSAL_SKIP: host psql not on PATH (PSQL_BIN=$PSQL_BIN PGBIN=${PGBIN:-})"
+  echo "Hint: install client tools or set PGBIN=/path/to/postgres/bin; Phase C unit + disposable migrate FORCE RLS remain authoritative."
+  exit 0
+fi
+
 MIG=apps/api/prisma/migrations
 WATCH_MIG="$MIG/20260528112943_add_program_element_watch/migration.sql"
 EXPAND_MIG="$MIG/20260728230000_add_tenant_scoped_pe_watch_key/migration.sql"
