@@ -1,5 +1,9 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { MemoryAuthorizationService } from './memory-authorization.service.js';
@@ -94,7 +98,9 @@ function harness(overrides: {
   } as unknown as MemoryAuthorizationService;
   const record = jest.fn(async () => 'audit-1');
   const transitions = { record } as unknown as MemoryTransitionAuditService;
-  const forgetMemory = jest.fn(async () => overrides.forgetResult ?? { found: true, title: 'Firm Compass' });
+  const forgetMemory = jest.fn(async () =>
+    overrides.forgetResult ?? { found: true, title: 'Firm Compass' },
+  );
   const store = { forgetMemory } as unknown as MemoryStoreService;
   return {
     service: new MemoryGovernanceActionService(prisma, authorization, transitions, store),
@@ -104,12 +110,23 @@ function harness(overrides: {
   };
 }
 
-function retryHarness(input: { status?: string; wallAllowed?: boolean } = {}) {
+function retryHarness(
+  input: {
+    status?: string;
+    wallAllowed?: boolean;
+    itemBacked?: boolean;
+    clioScope?: string | null;
+    clioOwnerUserId?: string | null;
+  } = {},
+) {
+  const itemBacked = input.itemBacked !== false;
   const job = {
     id: JOB,
-    memoryItemId: ITEM,
+    memoryItemId: itemBacked ? ITEM : null,
     clioMemoryId: '66666666-6666-4666-8666-666666666666',
     clientId: CLIENT,
+    clioScope: input.clioScope ?? 'client',
+    clioOwnerUserId: input.clioOwnerUserId ?? USER,
     operation: 'index_memory_item',
     status: input.status ?? 'dead_letter',
     attempts: 7,
@@ -152,6 +169,7 @@ function retryHarness(input: { status?: string; wallAllowed?: boolean } = {}) {
     ),
     tx,
     auditCreate,
+    authorization,
   };
 }
 
@@ -190,7 +208,9 @@ describe('MemoryGovernanceActionService', () => {
   it('marks active memory stale only after a server authorization decision', async () => {
     await withCenter(true, async () => {
       const h = harness({ governedStatus: 'active' });
-      await expect(h.service.markStale(ctx, ITEM, 'Source needs reconfirmation.')).resolves.toMatchObject({
+      await expect(
+        h.service.markStale(ctx, ITEM, 'Source needs reconfirmation.'),
+      ).resolves.toMatchObject({
         outcome: 'marked_stale',
         governedStatus: 'stale',
       });
@@ -284,6 +304,31 @@ describe('MemoryGovernanceActionService', () => {
       );
       expect(h.tx.$executeRaw).not.toHaveBeenCalled();
       expect(h.auditCreate).not.toHaveBeenCalled();
+    });
+  });
+
+  it('does not expose or retry another user private Clio projection', async () => {
+    await withCenter(true, async () => {
+      const h = retryHarness({
+        itemBacked: false,
+        clioScope: 'user_private',
+        clioOwnerUserId: '77777777-7777-4777-8777-777777777777',
+      });
+      await expect(h.service.retryProjection(ctx, JOB)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(h.authorization.loadItemInTx).not.toHaveBeenCalled();
+      expect(h.tx.$executeRaw).not.toHaveBeenCalled();
+    });
+  });
+
+  it('refuses to reopen completed or superseded projection jobs', async () => {
+    await withCenter(true, async () => {
+      const h = retryHarness({ status: 'completed' });
+      await expect(h.service.retryProjection(ctx, JOB)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(h.tx.$executeRaw).not.toHaveBeenCalled();
     });
   });
 });
