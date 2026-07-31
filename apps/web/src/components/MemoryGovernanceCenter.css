@@ -1,0 +1,33 @@
+.memory-governance-center {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.memory-governance-center .ant-tabs-nav-wrap {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.memory-governance-center__row:focus-visible {
+  outline: 3px solid #2a57ce;
+  outline-offset: -3px;
+}
+
+.memory-governance-center__row:hover,
+.memory-governance-center__row:focus-visible {
+  background: #f6f8ff;
+}
+
+@media (max-width: 640px) {
+  .memory-governance-center .ant-card-body {
+    padding: 12px;
+  }
+
+  .memory-governance-center .ant-tabs-tab {
+    padding-inline: 4px;
+  }
+
+  .memory-governance-center .ant-statistic {
+    min-width: 120px;
+  }
+}
