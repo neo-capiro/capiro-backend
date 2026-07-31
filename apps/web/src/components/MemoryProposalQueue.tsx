@@ -94,6 +94,8 @@ export function MemoryProposalQueue() {
       message.success('Proposal withdrawn');
       qc.invalidateQueries({ queryKey: ['memory-own-proposals'] });
       qc.invalidateQueries({ queryKey: ['memory-review-candidates'] });
+      qc.invalidateQueries({ queryKey: ['memory-governance-overview'] });
+      qc.invalidateQueries({ queryKey: ['memory-governance-transitions'] });
       qc.invalidateQueries({ queryKey: ['memory-item'] });
     },
     onError: (error: unknown) =>
