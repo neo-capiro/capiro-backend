@@ -119,6 +119,82 @@ CREATE INDEX IF NOT EXISTS memory_governance_backfill_event_item_time_idx
   ON memory_governance_backfill_event (tenant_id, memory_item_id, occurred_at)
   WHERE memory_item_id IS NOT NULL;
 
+-- The prepared job identity and plan are immutable. Only the explicit lifecycle
+-- transitions below may change the row after creation.
+CREATE OR REPLACE FUNCTION enforce_memory_governance_backfill_job_immutability()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.id IS DISTINCT FROM OLD.id
+     OR NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
+     OR NEW.classifier_version IS DISTINCT FROM OLD.classifier_version
+     OR NEW.plan_hash IS DISTINCT FROM OLD.plan_hash
+     OR NEW.row_count IS DISTINCT FROM OLD.row_count
+     OR NEW.change_count IS DISTINCT FROM OLD.change_count
+     OR NEW.quarantine_count IS DISTINCT FROM OLD.quarantine_count
+     OR NEW.prepared_at IS DISTINCT FROM OLD.prepared_at
+     OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+    RAISE EXCEPTION 'memory_governance_backfill_job_plan_immutable'
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  IF NEW.status IS DISTINCT FROM OLD.status
+     AND NOT (
+       (OLD.status = 'prepared' AND NEW.status = 'executed')
+       OR (OLD.status = 'prepared' AND NEW.status = 'execute_blocked_drift')
+       OR (OLD.status = 'executed' AND NEW.status = 'rolled_back')
+       OR (OLD.status = 'executed' AND NEW.status = 'rollback_partial')
+     ) THEN
+    RAISE EXCEPTION 'memory_governance_backfill_job_illegal_transition:%->%',
+      OLD.status, NEW.status
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS memory_governance_backfill_job_immutability
+  ON memory_governance_backfill_job;
+CREATE TRIGGER memory_governance_backfill_job_immutability
+BEFORE UPDATE ON memory_governance_backfill_job
+FOR EACH ROW
+EXECUTE FUNCTION enforce_memory_governance_backfill_job_immutability();
+
+-- Before/expected states and their hashes are the rollback authority. Runtime
+-- status/timestamps may advance, but no writer may replace the prepared plan.
+CREATE OR REPLACE FUNCTION enforce_memory_governance_backfill_row_immutability()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.job_id IS DISTINCT FROM OLD.job_id
+     OR NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
+     OR NEW.memory_item_id IS DISTINCT FROM OLD.memory_item_id
+     OR NEW.should_update IS DISTINCT FROM OLD.should_update
+     OR NEW.quarantined IS DISTINCT FROM OLD.quarantined
+     OR NEW.reason IS DISTINCT FROM OLD.reason
+     OR NEW.before_state_jsonb IS DISTINCT FROM OLD.before_state_jsonb
+     OR NEW.expected_post_state_jsonb IS DISTINCT FROM OLD.expected_post_state_jsonb
+     OR NEW.before_hash IS DISTINCT FROM OLD.before_hash
+     OR NEW.expected_post_hash IS DISTINCT FROM OLD.expected_post_hash
+     OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+    RAISE EXCEPTION 'memory_governance_backfill_row_snapshot_immutable'
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS memory_governance_backfill_row_immutability
+  ON memory_governance_backfill_row;
+CREATE TRIGGER memory_governance_backfill_row_immutability
+BEFORE UPDATE ON memory_governance_backfill_row
+FOR EACH ROW
+EXECUTE FUNCTION enforce_memory_governance_backfill_row_immutability();
+
 CREATE OR REPLACE FUNCTION reject_memory_governance_backfill_event_mutation()
 RETURNS trigger
 LANGUAGE plpgsql
