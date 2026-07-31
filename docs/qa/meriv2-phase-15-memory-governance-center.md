@@ -71,7 +71,9 @@ The center composes existing canonical owners:
 
 Confirm, mark stale, and second approval reload and lock the tenant item, repeat authorization, update canonical columns, and append transition evidence atomically.
 
-## Immutable-version review correction
+Conflict resolution now discovers the group, locks every member in stable ID order, re-evaluates `resolve_conflict` authorization for every touched row under those locks, updates controlling and losing rows, verifies affected-row counts, and writes all transition evidence in the same transaction. A denied member or concurrent group change aborts the complete operation.
+
+## Immutable-version request and review correction
 
 Candidates with source kinds:
 
@@ -83,6 +85,10 @@ memory_contradiction
 
 are approved and rejected through `ImmutableMemoryVersionService`, never through generic canonical-upsert activation.
 
+The Governance Center historically submitted correction text as `content` while the immutable API expected `newContent`. The controller now normalizes both names at the boundary, with `newContent` taking precedence when both are supplied. The canonical service still receives one normalized string.
+
+Successful correction/restore/contradiction requests return a controlled `outcome` matching `pending_review`, `activated`, or `duplicate`. Missing items and legal-held corrections fail explicitly instead of being presented as completed actions.
+
 The server returns a controlled `candidateKind`. Immutable-version rejection requires a bounded reason. The web queue displays the type, collects the reason, and refreshes from the actual activation/rejection outcome.
 
 ## Actions and outcomes
@@ -91,7 +97,9 @@ The center supports approve, second approve, reject, withdraw, suggest correctio
 
 Browser capabilities are display-only. Every endpoint repeats authorization. Mutations invalidate overview, category lists, detail, transitions, projection health, review queues, proposal history, and active-memory queries.
 
-Success copy uses returned outcomes such as `pending_review`, `duplicate`, `already_stale`, `already_second_approved`, `projection_retry_queued`, and `already_retryable` rather than predicting success.
+Proposer withdrawal additionally invalidates Governance Center overview and transition history so pending counts and evidence refresh immediately.
+
+Success copy uses returned outcomes such as `pending_review`, `duplicate`, `conflict`, `already_stale`, `already_second_approved`, `projection_retry_queued`, and `already_retryable` rather than predicting success. Immutable duplicate and conflict decisions have distinct operator messages.
 
 ## Projection health and retry
 
@@ -132,7 +140,12 @@ Phase 15 adds or extends tests for:
 - independent second-approval segregation;
 - authorized, audited projection retry;
 - restricted-client/private-Clio/terminal-job retry refusal;
+- correction payload alias normalization and canonical-field precedence;
+- explicit not-found/legal-hold version failure;
 - immutable candidate-kind routing and required version rejection reason;
+- actual review outcome messaging for activation, duplicate, conflict, and rejection;
+- stable-order conflict-group locking and all-member authorization;
+- denied-member conflict rollback with no partial mutation/evidence;
 - Governance Center browser visibility and controlled action payloads;
 - keyboard activation and narrow-width CSS;
 - projection retry through an API route only; and
