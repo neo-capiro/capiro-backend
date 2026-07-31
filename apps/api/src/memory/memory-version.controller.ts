@@ -8,6 +8,13 @@ import {
   type MemoryVersionResult,
 } from './immutable-memory-version.service.js';
 
+interface VersionContentBody {
+  /** Canonical immutable-version API field. */
+  newContent?: string;
+  /** Governance Center compatibility field. */
+  content?: string;
+}
+
 /**
  * Dedicated immutable-version routes. They intentionally do not share the generic
  * /memory/candidates/:id/approve handler, whose canonical upsert is the behavior
@@ -23,12 +30,10 @@ export class MemoryVersionController {
   async proposeCorrection(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
-    @Body() body: { newContent?: string },
+    @Body() body: VersionContentBody,
   ) {
-    if (typeof body?.newContent !== 'string') {
-      throw new BadRequestException('newContent is required.');
-    }
-    return this.present(await this.versions.proposeCorrection(ctx, id, body.newContent));
+    const content = versionContent(body);
+    return this.present(await this.versions.proposeCorrection(ctx, id, content));
   }
 
   @Post('items/:id/restores')
@@ -40,12 +45,10 @@ export class MemoryVersionController {
   async proposeContradiction(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
-    @Body() body: { newContent?: string },
+    @Body() body: VersionContentBody,
   ) {
-    if (typeof body?.newContent !== 'string') {
-      throw new BadRequestException('newContent is required.');
-    }
-    return this.present(await this.versions.proposeContradiction(ctx, id, body.newContent));
+    const content = versionContent(body);
+    return this.present(await this.versions.proposeContradiction(ctx, id, content));
   }
 
   @Post('version-candidates/:id/approve')
@@ -86,4 +89,21 @@ export class MemoryVersionController {
       memoryItemId: result.memoryItemId,
     };
   }
+}
+
+/**
+ * The historical API uses `newContent`; the Phase 15 Governance Center shipped
+ * `content`. Accept both at the controller boundary and pass one normalized value
+ * into the immutable-version service. `newContent` remains authoritative when a
+ * caller supplies both, so browser aliases can never override the canonical field.
+ */
+export function versionContent(body: VersionContentBody | null | undefined): string {
+  const value =
+    typeof body?.newContent === 'string'
+      ? body.newContent
+      : typeof body?.content === 'string'
+        ? body.content
+        : null;
+  if (value === null) throw new BadRequestException('newContent is required.');
+  return value;
 }
