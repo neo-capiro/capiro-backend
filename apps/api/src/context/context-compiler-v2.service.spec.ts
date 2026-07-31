@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ContextCompilerService } from './context-compiler.service.js';
+import { ContextPersistenceBoundaryService } from './context-persistence-boundary.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 
 const CANARY_SETTINGS = {
@@ -204,6 +205,29 @@ describe('ContextCompilerService — Phase 8', () => {
         layers: ['firm-identity'],
       }),
     ).rejects.toMatchObject({ name: 'ContextPacketPersistenceError' });
+  });
+
+  it('records the exact required failure so a fail-soft caller cannot release output', async () => {
+    process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
+    const { prisma } = makePrisma([APPROVED_FIRM_ROW], { createFails: true });
+    const boundary = new ContextPersistenceBoundaryService();
+    const service = new ContextCompilerService(prisma, boundary);
+
+    await boundary.run(async () => {
+      let caught: unknown;
+      try {
+        await service.compile({
+          tenantId: 't1',
+          userId: 'u1',
+          surface: 'in-editor',
+          layers: ['firm-identity'],
+        });
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toMatchObject({ name: 'ContextPacketPersistenceError' });
+      expect(boundary.failure()).toBe(caught);
+    });
   });
 
   it('missing read-after-write evidence cannot produce persisted=true', async () => {
