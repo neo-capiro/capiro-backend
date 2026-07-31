@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  candidateRejectRequiresReason,
+  memoryCandidateKindLabel,
   memoryReviewCandidateTitle,
   shouldRenderMemoryReviewQueue,
   type ReviewableMemoryCandidate,
@@ -7,6 +9,7 @@ import {
 
 const candidate: ReviewableMemoryCandidate = {
   id: 'candidate-1',
+  candidateKind: 'standard',
   scope: 'client',
   clientId: 'client-1',
   proposedByUserId: 'proposer-1',
@@ -33,21 +36,31 @@ const candidate: ReviewableMemoryCandidate = {
 };
 
 describe('MemoryReviewQueue trust contract', () => {
-  it('renders only when the server says review is enabled and returns authorized candidates', () => {
+  it('renders only when the server enables review and returns authorized candidates', () => {
     expect(shouldRenderMemoryReviewQueue(undefined)).toBe(false);
     expect(shouldRenderMemoryReviewQueue({ enabled: false, candidates: [candidate] })).toBe(false);
     expect(shouldRenderMemoryReviewQueue({ enabled: true, candidates: [] })).toBe(false);
     expect(shouldRenderMemoryReviewQueue({ enabled: true, candidates: [candidate] })).toBe(true);
   });
 
-  it('uses the server-returned proposal identity rather than inventing one in the browser', () => {
+  it('uses server-returned proposal and candidate identities', () => {
     expect(memoryReviewCandidateTitle(candidate)).toBe('Client Soul');
+    expect(memoryCandidateKindLabel(candidate.candidateKind)).toBe('New memory');
     expect(
       memoryReviewCandidateTitle({
         ...candidate,
         proposal: { key: 'explicit:key', value: 'value', canonicalItem: null },
       }),
     ).toBe('explicit:key');
+  });
+
+  it('requires bounded rejection evidence for immutable version candidates only', () => {
+    expect(candidateRejectRequiresReason(candidate)).toBe(false);
+    expect(candidateRejectRequiresReason({ ...candidate, candidateKind: 'correction' })).toBe(true);
+    expect(candidateRejectRequiresReason({ ...candidate, candidateKind: 'restore' })).toBe(true);
+    expect(candidateRejectRequiresReason({ ...candidate, candidateKind: 'contradiction' })).toBe(
+      true,
+    );
   });
 
   it('keeps approve and reject capabilities distinct', () => {
