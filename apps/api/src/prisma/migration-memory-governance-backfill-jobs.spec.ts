@@ -21,6 +21,16 @@ describe('Phase 11 governance backfill migration', () => {
     expect(sql).toContain("'rollback_partial'");
   });
 
+  it('freezes the prepared job and row plan at the database boundary', () => {
+    expect(sql).toContain('enforce_memory_governance_backfill_job_immutability');
+    expect(sql).toContain('memory_governance_backfill_job_plan_immutable');
+    expect(sql).toContain('memory_governance_backfill_job_illegal_transition');
+    expect(sql).toContain('BEFORE UPDATE ON memory_governance_backfill_job');
+    expect(sql).toContain('enforce_memory_governance_backfill_row_immutability');
+    expect(sql).toContain('memory_governance_backfill_row_snapshot_immutable');
+    expect(sql).toContain('BEFORE UPDATE ON memory_governance_backfill_row');
+  });
+
   it('keeps backfill evidence append-only and bounded', () => {
     expect(sql).toContain('CREATE TABLE IF NOT EXISTS memory_governance_backfill_event');
     expect(sql).toContain('reject_memory_governance_backfill_event_mutation');
