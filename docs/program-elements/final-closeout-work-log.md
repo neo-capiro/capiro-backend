@@ -1118,7 +1118,7 @@ Do not start Phase 7 until a separate REVIEW session records PASS.
 **origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e`  
 **Mode:** LONG IMPLEMENT only — no self-PASS, no Phase 8, no MeriV2 source edits  
 **Product tip (this phase):** `a2e708271d61516b799080cfaee40de5f1c036ca`
-**Remote tip after push (review target):** `a2e708271d61516b799080cfaee40de5f1c036ca` (confirm after `git push`)
+**Remote tip after push (review target):**  (product  + docs pin)
 
 ### Tasks completed (implementation)
 
