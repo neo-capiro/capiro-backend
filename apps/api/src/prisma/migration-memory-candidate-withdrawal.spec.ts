@@ -18,13 +18,14 @@ describe('Phase 13 memory candidate withdrawal migration', () => {
   });
 
   it('drops only the legacy status check and leaves governed status untouched', () => {
+    expect(sql).toContain('DROP CONSTRAINT IF EXISTS memory_candidate_status_check');
     expect(sql).toContain("pg_get_constraintdef(oid) ILIKE '%auto_committed%'");
     expect(sql).not.toMatch(/DROP\s+CONSTRAINT\s+memory_candidate_governed_status_check/i);
   });
 
-  it('adds a proposer pending index and performs no candidate or memory rewrite', () => {
-    expect(sql).toContain('memory_candidate_proposer_pending_idx');
-    expect(sql).toContain("WHERE status = 'pending'");
+  it('adds a bounded proposer-history index and performs no candidate or memory rewrite', () => {
+    expect(sql).toContain('memory_candidate_proposer_history_idx');
+    expect(sql).toContain('tenant_id, proposed_by, created_at DESC');
     expect(sql).not.toMatch(/UPDATE\s+memory_candidate/i);
     expect(sql).not.toMatch(/UPDATE\s+memory_items/i);
   });
