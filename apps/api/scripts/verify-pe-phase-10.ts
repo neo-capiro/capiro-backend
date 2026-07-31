@@ -717,7 +717,7 @@ function main(): void {
     });
 
     console.error('PE_PHASE_10_SHIP: SYNTHETIC alarm test events…');
-    outcomes.push(runAlarmTestEvents(env, evidenceDir));
+    outcomes.push(runAlarmTestEvents(env, evidenceDir, root));
 
     // Rollback rehearse after tip deploy (priors → tip restore)
     console.error('PE_PHASE_10_SHIP: rollback rehearse (prior TD → tip TD)…');

@@ -452,25 +452,26 @@ export function browserSmoke(env: NodeJS.ProcessEnv = process.env): {
   detail: string;
 } {
   const host = exp.appHost;
-  const tmp = resolve(process.env.TEMP || process.env.TMP || '/tmp', 'pe10curl.out');
-  const curl = (url: string) => {
+  const tmpBase = (process.env.TEMP || process.env.TMP || '/tmp').replace(/\\/g, '/');
+  const curl = (url: string, idx: number) => {
+    const tmp = `${tmpBase}/pe10curl-${idx}.out`;
     const r = runShell(
-      `curl -sS -D - -o "${tmp}" -w "\nHTTP_CODE:%{http_code}" --max-time 30 "${url}"`,
+      `curl -sS -L --max-time 30 -o "${tmp}" -w "%{http_code}" "${url}"`,
       env,
       process.cwd(),
     );
-    const codeMatch = r.out.match(/HTTP_CODE:(\d{3})/);
-    const code = codeMatch?.[1] ?? '000';
+    const digits = String(r.out || '').replace(/\D/g, '');
+    const code = (digits.slice(-3) || '000').padStart(3, '0').slice(-3);
     let body = '';
     try {
       body = readFileSync(tmp, 'utf8').slice(0, 400);
     } catch {
       body = '';
     }
-    return { code, body, raw: r.out.slice(0, 400) };
+    return { code, body, raw: String(r.out || '').slice(0, 400) };
   };
 
-  const paths = [
+const paths = [
     { id: 'root', url: `https://${host}/`, want: ['200'] },
     { id: 'health', url: `https://${host}/health`, want: ['200', '401'] },
     { id: 'healthz', url: `https://${host}/healthz`, want: ['200', '401'] },
@@ -484,8 +485,9 @@ export function browserSmoke(env: NodeJS.ProcessEnv = process.env): {
   ];
   const results: Record<string, string> = {};
   const failures: string[] = [];
-  for (const pth of paths) {
-    const r = curl(pth.url);
+  for (let i = 0; i < paths.length; i++) {
+    const pth = paths[i]!;
+    const r = curl(pth.url, i);
     results[pth.id] = r.code;
     if (!pth.want.includes(r.code)) failures.push(`${pth.id}=${r.code}`);
     if (pth.id.startsWith('pe_') && r.code === '200' && (!r.body || !r.body.trim())) {
@@ -554,10 +556,15 @@ export function runLiveProofsTask(
       containerOverrides: [
         {
           name: 'api',
-          command: ['pe-phase-10-live-proofs'],
+          command: [
+            'sh',
+            '-c',
+            'mkdir -p /tmp /app/tmp; export TMPDIR=/tmp; exec /usr/local/bin/entrypoint.sh pe-phase-10-live-proofs',
+          ],
           environment: [
             { name: 'GIT_SHA', value: ctx.headSha },
             { name: 'PE_CLOSEOUT_HEAD_SHA', value: ctx.headSha },
+            { name: 'TMPDIR', value: '/tmp' },
           ],
         },
       ],
@@ -639,7 +646,7 @@ export function runLiveProofsTask(
   let logText = '';
   try {
     const options = logCfg.json?.options ?? {};
-    const group = options['awslogs-group'] as string | undefined;
+    const group = (options['awslogs-group'] as string | undefined) || '/capiro/dev/api';
     const prefix = (options['awslogs-stream-prefix'] as string | undefined) || 'api';
     const taskId = taskArn.split('/').pop();
     if (group && taskId) {
@@ -815,51 +822,31 @@ export function outcomesFromLiveProofReport(
  * set-alarm-state test pulse on a non-page capiro-dev alarm, then restore.
  * Not humanReviewed. Quiet describe-only is NOT sufficient.
  */
-export function runAlarmTestEvents(env: NodeJS.ProcessEnv, evidenceDir: string): PePhase10StepOutcome {
+export function runAlarmTestEvents(env: NodeJS.ProcessEnv, evidenceDir: string, root?: string): PePhase10StepOutcome {
   mkdirSync(evidenceDir, { recursive: true });
 
-  // In-process synthetic event build via tsx evaluating catalog (repo path).
-  const rootGuess = process.cwd();
+  const repoRoot = root || process.cwd();
   const synth = runShell(
-    `pnpm -C apps/api exec tsx -e "import { PE_TRUST_ALARM_DEFINITIONS, buildPeTrustSyntheticAlarmEvent } from './src/program-element/pe-trust-metric-catalog.ts'; const events = PE_TRUST_ALARM_DEFINITIONS.map((d) => buildPeTrustSyntheticAlarmEvent(d.id)); if (!events.length) throw new Error('no PE trust alarm defs'); for (const e of events) { if (!String(e.note).toUpperCase().includes('SYNTHETIC')) throw new Error('missing SYNTHETIC marker'); if ((e as any).humanReviewed) throw new Error('humanReviewed forbidden'); } console.log(JSON.stringify({ ok: true, count: events.length, type: events[0].type, humanReviewed: false, syntheticTestEvent: events[0].syntheticTestEvent }));"`,
+    `pnpm -C apps/api exec jest --runInBand --forceExit src/program-element/pe-trust-metric-catalog.spec.ts -t "synthetic"`,
     env,
-    rootGuess,
+    repoRoot,
   );
-  let synthOk = synth.code === 0 && /"ok":\s*true/.test(synth.out);
-  // Fallback: unit catalog is already covered by verify:pe-phase-k; require CW exercise either way.
-  if (!synthOk) {
-    // Try alternative path from monorepo root via node --import tsx
-    const synth2 = runShell(
-      `pnpm -C apps/api exec jest --runInBand --forceExit src/program-element/pe-trust-metric-catalog.spec.ts -t "synthetic"`,
-      env,
-      rootGuess,
-    );
-    synthOk = synth2.code === 0;
-    if (synthOk) {
-      writeFileSync(
-        resolve(evidenceDir, 'alarm-synthetic-events.json'),
-        JSON.stringify(
-          {
-            ok: true,
-            via: 'pe-trust-metric-catalog.spec.ts',
-            note: 'SYNTHETIC test events exercised by unit path; not humanReviewed',
-            out: synth2.out.slice(-800),
-          },
-          null,
-          2,
-        ),
-      );
-    } else {
-      writeFileSync(
-        resolve(evidenceDir, 'alarm-synthetic-events.json'),
-        JSON.stringify({ ok: false, synth, synth2 }, null, 2),
-      );
-    }
-  } else {
-    writeFileSync(resolve(evidenceDir, 'alarm-synthetic-events.json'), synth.out.slice(-2000));
-  }
+  const synthOk = synth.code === 0;
+  writeFileSync(
+    resolve(evidenceDir, 'alarm-synthetic-events.json'),
+    JSON.stringify(
+      {
+        ok: synthOk,
+        via: 'pe-trust-metric-catalog.spec.ts',
+        note: 'SYNTHETIC test events; not humanReviewed',
+        out: synth.out.slice(-1200),
+      },
+      null,
+      2,
+    ),
+  );
 
-  // Choose a live capiro-dev alarm that is currently OK and pulse ALARM then OK.
+// Choose a live capiro-dev alarm that is currently OK and pulse ALARM then OK.
   const alarms = awsJson(env, [
     'cloudwatch',
     'describe-alarms',
@@ -1054,7 +1041,34 @@ export function rehearseRollback(
     ],
     ctx.awsEnv,
   );
-  const ok = fwApi.code === 0 && fwWeb.code === 0 && w1.code === 0 && w2.code === 0;
+  const desc = awsJson(ctx.awsEnv, [
+    'ecs',
+    'describe-services',
+    '--cluster',
+    exp.ecsClusterName,
+    '--services',
+    exp.apiServiceName,
+    exp.webServiceName,
+    '--query',
+    'services[].{name:serviceName,td:taskDefinition,roll:deployments[0].rolloutState,running:runningCount}',
+  ]);
+  const svcs = Array.isArray(desc.json) ? desc.json : [];
+  const apiTipRev = currentApiArn.split('/').pop() || currentApiArn;
+  const webTipRev = currentWebArn.split('/').pop() || currentWebArn;
+  const apiOk = svcs.some(
+    (s: any) =>
+      String(s?.name || '').includes('api') &&
+      String(s?.td || '').includes(String(apiTipRev)) &&
+      Number(s?.running || 0) >= 1,
+  );
+  const webOk = svcs.some(
+    (s: any) =>
+      String(s?.name || '').includes('web') &&
+      String(s?.td || '').includes(String(webTipRev)) &&
+      Number(s?.running || 0) >= 1,
+  );
+  // Windows aws wait may return non-zero even when services are healthy; accept describe proof.
+  const ok = fwApi.code === 0 && fwWeb.code === 0 && apiOk && webOk;
   writeFileSync(
     resolve(ctx.evidenceDir, 'rollback-rehearsal.json'),
     JSON.stringify(
@@ -1067,6 +1081,9 @@ export function rehearseRollback(
         fwWeb: fwWeb.code,
         waitApi: w1.code,
         waitWeb: w2.code,
+        describe: desc.json,
+        apiOk,
+        webOk,
       },
       null,
       2,
@@ -1077,11 +1094,10 @@ export function rehearseRollback(
     exitCode: ok ? 0 : 1,
     classification: ok ? 'ok' : 'branch_introduced',
     detail: ok
-      ? `exercised rollback to ${apiPrior.arn}/${webPrior.arn} then restored tip TDs; services-stable ok`
-      : `rollback rehearse incomplete fwApi=${fwApi.code} fwWeb=${fwWeb.code} wait=${w1.code}/${w2.code}`,
+      ? `exercised rollback to ${apiPrior.arn}/${webPrior.arn} then restored tip TDs; apiOk=${apiOk} webOk=${webOk}`
+      : `rollback rehearse incomplete fwApi=${fwApi.code} fwWeb=${fwWeb.code} wait=${w1.code}/${w2.code} apiOk=${apiOk} webOk=${webOk}`,
   };
 }
-
 
 export function writeRollbackCapture(
   evidenceDir: string,

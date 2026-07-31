@@ -46,7 +46,11 @@ case "${1:-serve}" in
   pe-phase-10-live-proofs)
     shift
     compose_database_url
-    echo "Running pe-phase-10-live-proofs (sole-live Aurora; synthetic pe10_closeout domain only)"
+    # tsx needs a writable TMPDIR; some images ship without /app/tmp present at runtime
+    mkdir -p /tmp /app/tmp 2>/dev/null || true
+    export TMPDIR="${TMPDIR:-/tmp}"
+    if [ ! -d "$TMPDIR" ]; then export TMPDIR=/tmp; fi
+    echo "Running pe-phase-10-live-proofs (sole-live Aurora; synthetic pe10_closeout domain only; TMPDIR=$TMPDIR)"
     exec ./node_modules/.bin/tsx scripts/pe-phase-10-live-proofs.ts "$@"
     ;;
   *)
