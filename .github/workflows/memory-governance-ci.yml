@@ -1,9 +1,9 @@
 # Institutional-memory governance cumulative release gate.
 #
-# Durable Phase 1-9 acceptance matrix. It runs the full governed-memory,
-# projection, truthful persistence, rollout, lifecycle, and surface contract on
-# one exact head so a later phase cannot silently invalidate earlier acceptance
-# evidence.
+# Durable Phase 1-10 acceptance matrix. It runs the full governed-memory,
+# projection, truthful persistence, rollout, lifecycle, policy-authority, and
+# surface contract on one exact head so a later phase cannot silently invalidate
+# earlier acceptance evidence.
 name: memory-governance-ci
 
 on:
@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 jobs:
-  governed-memory-phases-1-9:
+  governed-memory-phases-1-10:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
@@ -45,7 +45,7 @@ jobs:
       - name: Typecheck projection-worker infrastructure
         run: pnpm --filter @capiro/infra-cdk typecheck
 
-      - name: Test API governed-memory Phases 1-9
+      - name: Test API governed-memory Phases 1-10
         run: >
           pnpm --filter @capiro/api exec jest --ci --silent --runInBand
           src/memory
@@ -63,8 +63,12 @@ jobs:
           src/prisma/migration-memory-cleanup-worker-leases.spec.ts
           src/prisma/migration-memory-projection-exact-completion.spec.ts
           src/prisma/memory-projection-worker-infrastructure.spec.ts
+          src/prisma/migration-policy-pack-action-authority.spec.ts
+          src/meri/meri-policy-pack.service.spec.ts
+          src/meri/meri-policy-pack.switch.spec.ts
+          src/meri/meri-action-proposal.service.spec.ts
 
-      - name: Test Phase 9 governed lifecycle, persistence rollout and surface policy
+      - name: Test governed lifecycle, policy authority, persistence rollout and surface policy
         run: >
           pnpm --filter @capiro/meriv2-core exec jest --ci --runInBand
           src/memory/governance.spec.ts
@@ -72,8 +76,10 @@ jobs:
           src/context/context-release-switch.spec.ts
           src/context/context-rollout.spec.ts
           src/context/compiler-v2.spec.ts
+          src/compliance/action-approval.spec.ts
+          src/assurance/assurance.spec.ts
 
-      - name: Test orchestrator Context, Strategy, and Steward matrix
+      - name: Test orchestrator Context, Strategy, Steward, and action-policy delegation
         run: >
           pnpm --filter @capiro/meriv2-orchestrator exec jest --ci --runInBand
           src/meri/context-compiler-v2.service.spec.ts
@@ -82,6 +88,8 @@ jobs:
           src/meri/meri-context.resolver.v2.spec.ts
           src/meri/strategy/strategy-assurance.spec.ts
           src/meri/steward/steward-assurance.spec.ts
+          src/meri/api-action-proposal.repo.spec.ts
+          src/meri/chat/chat-assistant.service.spec.ts
 
       - name: Test Workspace canonical context and persistence hold
         run: >
