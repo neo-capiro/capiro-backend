@@ -1,5 +1,5 @@
-import { describe, expect, it } from '@jest/globals';
-import { BadRequestException } from '@nestjs/common';
+import { describe, expect, it, jest } from '@jest/globals';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryConflictService } from './memory-conflict.service.js';
@@ -21,7 +21,7 @@ const ctx: TenantContext = {
   role: 'user_admin',
 };
 
-function harness(opts: { group: string | null; members?: string[] }) {
+function harness(opts: { group: string | null; members?: string[]; denyId?: string }) {
   const sqls: string[] = [];
   const auditRows: Array<Record<string, unknown>> = [];
   const members = (opts.members ?? [WINNER, LOSER]).map((id) => ({
@@ -34,14 +34,15 @@ function harness(opts: { group: string | null; members?: string[] }) {
       const sql = strings.join('?');
       sqls.push(sql);
       if (sql.includes('SELECT conflict_group_id::text')) {
-        return [{ conflict_group_id: opts.group, client_id: null }];
+        return [{ conflict_group_id: opts.group }];
       }
       if (sql.includes('conflict_group_id = ?::uuid')) return members;
       return [];
     }),
     $executeRaw: jest.fn(async (strings: TemplateStringsArray) => {
-      sqls.push(strings.join('?'));
-      return 1;
+      const sql = strings.join('?');
+      sqls.push(sql);
+      return sql.includes("conflict_status = 'resolved'") ? members.length - 1 : 1;
     }),
     memoryTransitionAudit: {
       create: async (args: { data: Record<string, unknown> }) => {
@@ -55,57 +56,80 @@ function harness(opts: { group: string | null; members?: string[] }) {
       fn(tx),
     ),
   } as unknown as PrismaService;
+
   const authorized: Array<{ itemId: string; operation: string }> = [];
-  const requireItem = jest.fn(async (_ctx: unknown, itemId: string, operation: string) => {
-    authorized.push({ itemId, operation });
-    return {} as never;
-  });
-  const authz = { requireItem } as unknown as MemoryAuthorizationService;
+  const loadItemInTx = jest.fn(async (_tx: unknown, _tenant: string, itemId: string) => ({
+    id: itemId,
+    tenantId: TENANT,
+    clientId: null,
+    ownerUserId: null,
+    clientStatus: null,
+    memoryClass: 'institutional_authoritative' as const,
+    scope: 'firm' as const,
+    status: 'conflicted' as const,
+    legalHold: false,
+  }));
+  const evaluateInTx = jest.fn(
+    async (_tx: unknown, _ctx: unknown, subject: { id: string }, operation: string) => {
+      authorized.push({ itemId: subject.id, operation });
+      return subject.id === opts.denyId
+        ? ({ allowed: false, reason: 'ethical_wall' } as const)
+        : ({ allowed: true, basis: 'admin' } as const);
+    },
+  );
+  const authz = { loadItemInTx, evaluateInTx } as unknown as MemoryAuthorizationService;
   const service = new MemoryConflictService(prisma, authz, new MemoryTransitionAuditService());
-  return { service, sqls, auditRows, requireItem, authorized };
+  return { service, sqls, auditRows, loadItemInTx, evaluateInTx, authorized, tx };
 }
 
 describe('MemoryConflictService.resolve', () => {
   it('names the controlling item and marks the rest of the group resolved', async () => {
     const h = harness({ group: GROUP });
     const result = await h.service.resolve(ctx, LOSER, WINNER, 'the FY27 number was restated');
-    expect(result).toMatchObject({ conflictGroupId: GROUP, controllingItemId: WINNER });
-    const controlling = h.sqls.find((s) => s.includes("conflict_status = 'controlling'"));
-    const resolved = h.sqls.find((s) => s.includes("conflict_status = 'resolved'"));
+    expect(result).toMatchObject({
+      conflictGroupId: GROUP,
+      controllingItemId: WINNER,
+      resolvedCount: 1,
+    });
+    const controlling = h.sqls.find((sql) => sql.includes("conflict_status = 'controlling'"));
+    const resolved = h.sqls.find((sql) => sql.includes("conflict_status = 'resolved'"));
     expect(controlling).toContain('controlling_item_id =');
     expect(resolved).toContain('id <> ');
   });
 
-  /**
-   * Authorizing only the anchor would let a caller promote an item they may not
-   * touch, so both the anchor AND the winner go through requireItem — which is what
-   * applies the ethical wall, legal hold and per-client grants.
-   */
-  it('authorizes both the anchor and the winner with resolve_conflict', async () => {
+  it('locks the complete group in stable order before mutation', async () => {
     const h = harness({ group: GROUP });
     await h.service.resolve(ctx, LOSER, WINNER, 'restated');
-    expect(h.requireItem).toHaveBeenCalledTimes(2);
-    expect(h.authorized.every((a) => a.operation === 'resolve_conflict')).toBe(true);
-    expect(h.authorized.map((a) => a.itemId).sort()).toEqual([WINNER, LOSER].sort());
+    const groupRead = h.sqls.find(
+      (sql) => sql.includes('conflict_group_id = ?::uuid') && sql.includes('FOR UPDATE'),
+    );
+    expect(groupRead).toContain('ORDER BY id');
   });
 
-  it('authorizes once when the anchor IS the winner', async () => {
+  it('authorizes every touched member inside the transaction', async () => {
     const h = harness({ group: GROUP });
-    await h.service.resolve(ctx, WINNER, WINNER, 'restated');
-    expect(h.requireItem).toHaveBeenCalledTimes(1);
+    await h.service.resolve(ctx, LOSER, WINNER, 'restated');
+    expect(h.loadItemInTx).toHaveBeenCalledTimes(2);
+    expect(h.evaluateInTx).toHaveBeenCalledTimes(2);
+    expect(h.authorized.every((entry) => entry.operation === 'resolve_conflict')).toBe(true);
+    expect(h.authorized.map((entry) => entry.itemId).sort()).toEqual([WINNER, LOSER].sort());
   });
 
-  /**
-   * Without the membership check a caller could name any item in the tenant as
-   * controlling, and the losing rows would point at an unrelated row — which
-   * filterGovernedMemory would then read as "resolved".
-   */
+  it('aborts the whole resolution when any group member is unauthorized', async () => {
+    const h = harness({ group: GROUP, denyId: LOSER });
+    await expect(h.service.resolve(ctx, LOSER, WINNER, 'restated')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(h.tx.$executeRaw).not.toHaveBeenCalled();
+    expect(h.auditRows).toHaveLength(0);
+  });
+
   it('refuses a controlling item from outside the conflict group', async () => {
     const h = harness({ group: GROUP });
     await expect(h.service.resolve(ctx, LOSER, OUTSIDER, 'restated')).rejects.toBeInstanceOf(
       BadRequestException,
     );
-    expect(h.sqls.some((s) => s.includes("conflict_status = 'controlling'"))).toBe(false);
+    expect(h.sqls.some((sql) => sql.includes("conflict_status = 'controlling'"))).toBe(false);
   });
 
   it('refuses when the anchor is not in a conflict group at all', async () => {
@@ -115,30 +139,25 @@ describe('MemoryConflictService.resolve', () => {
     );
   });
 
-  it('requires a reason, since the audit row carries it', async () => {
+  it('requires a reason before opening a transaction', async () => {
     const h = harness({ group: GROUP });
     await expect(h.service.resolve(ctx, LOSER, WINNER, '   ')).rejects.toBeInstanceOf(
       BadRequestException,
     );
-    expect(h.requireItem).not.toHaveBeenCalled();
+    expect(h.loadItemInTx).not.toHaveBeenCalled();
   });
 
   it('writes one audit row per touched row, with the outcome recorded', async () => {
     const h = harness({ group: GROUP });
     await h.service.resolve(ctx, LOSER, WINNER, 'the FY27 number was restated');
     expect(h.auditRows).toHaveLength(2);
-    expect(h.auditRows.every((r) => r.reasonCode === 'conflict_resolved')).toBe(true);
+    expect(h.auditRows.every((row) => row.reasonCode === 'conflict_resolved')).toBe(true);
     const outcomes = h.auditRows.map(
-      (r) => (r.metadata as Record<string, unknown>).outcome as string,
+      (row) => (row.metadata as Record<string, unknown>).outcome as string,
     );
     expect(outcomes.sort()).toEqual(['controlling', 'resolved']);
   });
 
-  /**
-   * conflict_status is a separate axis from governed_status: resolving a conflict
-   * does not move the lifecycle state, so the audit row must record the UNCHANGED
-   * status rather than invent a transition that did not happen.
-   */
   it('does not fabricate a lifecycle transition', async () => {
     const h = harness({ group: GROUP });
     await h.service.resolve(ctx, LOSER, WINNER, 'restated');
