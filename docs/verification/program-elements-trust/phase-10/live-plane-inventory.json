@@ -1,11 +1,11 @@
 {
   "accountId": "967807252336",
   "apiServiceExists": true,
-  "apiTaskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:81",
+  "apiTaskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
   "auroraClusterId": "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv",
   "auroraClusterLive": true,
   "blockers": [],
-  "capturedAt": "2026-07-31T16:11:48Z",
+  "capturedAt": "2026-07-31T17:58:06Z",
   "cfAuroraPhysicalId": "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv",
   "computeStackStatus": "UPDATE_ROLLBACK_COMPLETE",
   "dataStackStatus": "UPDATE_COMPLETE",
@@ -19,16 +19,16 @@
   "planeName": "sole-live-env-dev",
   "priorTaskDefs": [
     {
-      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:81",
+      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
       "family": "capiro-dev-api",
       "image": null,
-      "revision": 81
+      "revision": 88
     },
     {
-      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:18",
+      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22",
       "family": "capiro-dev-web",
       "image": null,
-      "revision": 18
+      "revision": 22
     }
   ],
   "probeOk": true,
@@ -46,6 +46,6 @@
     "Forbidden clusters capiro-staging / capiro-prod-os-capiro are present; Phase 10 must not deploy to them"
   ],
   "webServiceExists": true,
-  "webTaskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:18",
+  "webTaskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22",
   "workflowEnv": "dev"
 }

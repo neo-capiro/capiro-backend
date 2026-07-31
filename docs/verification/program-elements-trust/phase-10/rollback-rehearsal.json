@@ -1,11 +1,11 @@
 {
   "prior": {
-    "api": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:81",
-    "web": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:18"
+    "api": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
+    "web": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22"
   },
   "current": {
-    "api": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:82",
-    "web": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:19"
+    "api": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
+    "web": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23"
   },
   "backApi": 0,
   "backWeb": 0,
@@ -16,13 +16,13 @@
   "describe": [
     {
       "name": "capiro-dev-api",
-      "td": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:82",
+      "td": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
       "roll": "COMPLETED",
       "running": 2
     },
     {
       "name": "capiro-dev-web",
-      "td": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:19",
+      "td": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
       "roll": "COMPLETED",
       "running": 1
     }

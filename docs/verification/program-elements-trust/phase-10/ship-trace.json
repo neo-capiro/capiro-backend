@@ -1,78 +1,52 @@
 {
   "phase": 10,
-  "generatedAt": "2026-07-31T11:29:57.002339+00:00",
+  "generatedAt": "2026-07-31T18:07:39.875Z",
   "plane": {
     "workflowEnv": "dev",
     "ecsCluster": "capiro-dev",
     "appHost": "app.capiro.ai",
     "note": "sole live env=dev = prod path; Neo PE_CLOSEOUT_STAGING_OK + MUTATE authorized"
   },
-  "images": {
-    "api": {
-      "repo": "capiro/dev/api",
-      "digest": "sha256:296161701886d9cd3a8bf95b656c32f71b704ab8ff3d20af2f774b7830322f1d",
-      "tagsAtShip": [
-        "0d6d022f551cae81759932e1064bf29dd556846b",
-        "pe-phase10-0d6d022f551cae81759932e1064bf29dd556846b"
-      ]
-    },
-    "web": {
-      "repo": "capiro/dev/web",
-      "digest": "sha256:bdb777d48f522bdaa191c2bf7df6957d3a3dbbc066f67d3d5806883f212a272a",
-      "tagsAtShip": [
-        "0d6d022f551cae81759932e1064bf29dd556846b",
-        "pe-phase10-0d6d022f551cae81759932e1064bf29dd556846b"
-      ]
-    }
-  },
   "priorTaskDefs": [
     {
+      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
       "family": "capiro-dev-api",
-      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:59",
-      "revision": 59
+      "image": null,
+      "revision": 88
     },
     {
+      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22",
       "family": "capiro-dev-web",
-      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:6",
-      "revision": 6
+      "image": null,
+      "revision": 22
     }
   ],
-  "newTaskDefs": {
-    "api": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:61",
-    "web": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:7",
-    "migrate": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:24"
-  },
-  "migrateTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/0a3fc82a43fc4d8a93b12b6b108a5c9b",
-  "migrateExitCode": 0,
-  "deploy": {
-    "apiService": "capiro-dev-api",
-    "webService": "capiro-dev-web",
-    "rollout": "COMPLETED",
-    "smoke": {
-      "root": 200,
-      "health": 200,
-      "healthz": 200
+  "newApiTaskDefArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
+  "newWebTaskDefArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
+  "migrateTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8a574f6fe5004e69836876dc70c5c211",
+  "images": [
+    {
+      "repo": "capiro/dev/api",
+      "tag": "28dbed74845a74f1cb432ee4e5d1577827eaf182",
+      "digest": "sha256:74074cc59c039c847ef1db14db7ddfd466c09a15c3b815d3907aaa5a43bf4854",
+      "pushedAt": "2026-07-31T13:41:41.691000-04:00",
+      "present": true
     },
-    "runningDigestsMatch": true
-  },
-  "rls": {
-    "method": "disposable docker postgres:16 Phase C pe-phase-c-rls-rehearsal.sh",
-    "result": "23 checks PASSED"
-  },
-  "safety": {
-    "noSecretsGetValue": true,
-    "noEmailSend": true,
-    "noLlamaParse": true,
-    "noDeriveCommit": true,
-    "noMerge705": true,
-    "forbiddenClustersUntouched": [
-      "capiro-staging",
-      "capiro-prod-os-capiro"
-    ]
-  },
-  "rollback": [
-    "aws ecs update-service --cluster capiro-dev --service capiro-dev-api --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:59",
-    "aws ecs update-service --cluster capiro-dev --service capiro-dev-web --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:6",
-    "Do not hand-edit _prisma_migrations; Aurora snapshot if schema bad"
-  ]
+    {
+      "repo": "capiro/dev/web",
+      "tag": "28dbed74845a74f1cb432ee4e5d1577827eaf182",
+      "digest": "sha256:80433fa869ea4454d5b432e242755c42aeb22cddf2bf0964290bffada5ac3c56",
+      "pushedAt": "2026-07-31T13:22:26.114000-04:00",
+      "present": true
+    }
+  ],
+  "apiImageDigest": null,
+  "webImageDigest": null,
+  "deployedCluster": "capiro-dev",
+  "notes": [
+    "migrate task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8a574f6fe5004e69836876dc70c5c211 exit=0",
+    "deployed api=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89 web=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23 on capiro-dev",
+    "live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3dba59c0f1ac4d19b11348af3621296d exit=0 marker=PE_PHASE_10_LIVE_PROOFS_OK"
+  ],
+  "liveProofsTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3dba59c0f1ac4d19b11348af3621296d"
 }

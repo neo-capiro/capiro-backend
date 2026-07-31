@@ -1,2 +1,0 @@
-Phase C RLS rehearsal: 23 checks PASSED; disposable postgres:16 docker; not humanReviewed
-== Phase C RLS rehearsal: 23 checks PASSED; disposable database dropped ==

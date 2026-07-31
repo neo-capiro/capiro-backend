@@ -187,7 +187,7 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 | Schedule phase | Goal | Status | Owner |
 |---|---|---|---|
 | 9 Integrated rehearsal | Run A–K + PE suites on remote final SHA | `in_branch` — Phase 9 PASS WITH BLOCKERS tip `72b299dff` | 9 |
-| 10 Staging acceptance | Pre-merge acceptance on sole live env=dev / capiro-dev | `in_branch` tip `0ab35ad4d116` harness PE_PHASE_10_OK; REVIEW REQUIRED | Phase 10 |
+| 10 Staging acceptance | Pre-merge acceptance on sole live env=dev / capiro-dev | `in_branch` tip `28dbed74845a` harness PE_PHASE_10_OK; REVIEW REQUIRED | Phase 10 |
 | 11 PR closeout | Body, supersede old PRs, ready-for-review | after 9/(10) | Phase 11 |
 
 ---
@@ -220,29 +220,38 @@ bash apps/api/scripts/pe-phase-9-migration-replay.sh
 
 ## 10c. Phase 10 — Sole live env=dev acceptance (single current truth)
 
-| ID | Requirement | Status | Evidence | Owner |
+| Field | Value |
+|---|---|
+| Remote tip / origin HEAD | `28dbed74845a74f1cb432ee4e5d1577827eaf182` |
+| origin/main | `3dcb12f823774b6fae8578dc56fc122bf9a0879e` |
+| Plane | `capiro-dev` / workflow `env=dev` / `app.capiro.ai` (sole live = prod path) |
+| Auth | Neo phase-10-neo-dev-authorization.md + PE_CLOSEOUT_STAGING_OK=yes + MUTATE=yes |
+| Images | api `sha256:74074cc59c039c847ef1db14db7ddfd466c09a15c3b815d3907aaa5a43bf4854` · web `sha256:80433fa869ea4454d5b432e242755c42aeb22cddf2bf0964290bffada5ac3c56` @ tip tag |
+| Deploy | api `arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89` · web `arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23` |
+| Migrate | `arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8a574f6fe5004e69836876dc70c5c211` exit 0 |
+| Live proofs | `arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3dba59c0f1ac4d19b11348af3621296d` PE_PHASE_10_LIVE_PROOFS_OK (metrics in live-proofs-task.json) |
+| Harness marker | `PE_PHASE_10_OK` (implementer only) |
+| Disposable rls-phase-c-pass.txt | **absent** (purged; not evidence) |
+| Review gate | **IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on that tip. No self-PASS. No Phase 11. No #705 merge. |
+
+| ID | Requirement | Status | Evidence | Phase |
 |---|---|---|---|---|
-| S1 | Neo sole-live auth + MUTATE | `in_branch` | neo-dev-authorization.md + STAGING_OK + MUTATE | 10 |
-| S2 | Inventory healthy on capiro-dev | `in_branch` | probe healthyCompute=true; CF compute UPDATE_ROLLBACK residual | 10 |
-| S3 | Tip-pinned api+web image digests | `in_branch` | ECR tags `6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1` present | 10 |
-| S4 | Additive migrate on live Aurora | `applied` | migrate task exit 0 | 10 |
-| S5 | Deploy PE tip images api+web | `applied` | api TD :82 web TD :19 on capiro-dev | 10 |
-| S6 | Live runtime matrix (inspect/promote/replay/derive-dry/browser/RLS/alarms) | `applied` | live-proofs ECS PE_PHASE_10_LIVE_PROOFS_OK + smoke + alarm pulse | 10 |
-| S7 | Rollback rehearsed (priors captured + exercised) | `applied` | rollback-rehearsal.json prior api:81 web:18 | 10 |
-| S8 | Acceptance record harness-emitted | `in_branch` | phase-10-acceptance-summary.json marker PE_PHASE_10_OK | 10 |
-| S9 | Dark rails (no secrets GetValue/email/LlamaParse/derive --commit/merge) | `in_branch` | safety block in summary | 10 |
+| S1 | Neo sole-live auth | `applied` | auth file + env flags | 10 |
+| S2 | Image digests @ tip HEAD | `applied` | ship-trace + summary.git | 10 |
+| S3 | Additive migrate | `applied` | migrate-task-result / ship notes | 10 |
+| S4 | Deploy api+web | `applied` | deploy-result / ECS TD | 10 |
+| S5 | Dark rails | `applied` | safety block in summary | 10 |
+| S6 | Live runtime matrix | `applied` | live-proofs full metrics + browser PE contract + alarm pulse | 10 |
+| S7 | Rollback rehearsed | `applied` | rollback-rehearsal.json | 10 |
+| S8 | Acceptance record harness-emitted | `in_branch` | phase-10-acceptance-summary.json PE_PHASE_10_OK @ `28dbed74845a74f1cb432ee4e5d1577827eaf182` | 10 |
 
-**Product tip (images+proofs):** `6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1`  
-**Remote tip (after evidence pin):** `0ab35ad4d11659c9975b377ebc4df35be496a36a`  
-**Harness marker:** `PE_PHASE_10_OK` (implementer only)  
-**Phase 10 review gate:** **IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on that tip. Do not self-PASS. Do not start Phase 11. Do not merge #705. Forbidden residual clusters remain visible (capiro-staging / capiro-prod-os-capiro) and must not be targeted.
+```bash
+export PE_CLOSEOUT_STAGING_OK=yes PE_CLOSEOUT_PROVIDER=openrouter PE_CLOSEOUT_EFFORT=high
+./pe-closeout-run.sh review 10
+# expect tip 28dbed74845a74f1cb432ee4e5d1577827eaf182
+```
 
-Commands:
 
-```text
-export PE_CLOSEOUT_STAGING_OK=yes PE_CLOSEOUT_STAGING_MUTATE=yes AWS_PROFILE=capiro-dev
-pnpm -C apps/api exec jest --runInBand --forceExit scripts/lib/pe-phase-10-staging-acceptance.spec.ts
-pnpm -C apps/api exec tsx scripts/verify-pe-phase-10.ts --skip-local-gates --skip-image-build
 # expect PE_PHASE_10_OK implementer marker; then NEW shell: review 10
 ```
 

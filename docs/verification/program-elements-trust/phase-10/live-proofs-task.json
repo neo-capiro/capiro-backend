@@ -1,5 +1,5 @@
 {
-  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3ac48a46ae0048ef8136847ba9397150",
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3dba59c0f1ac4d19b11348af3621296d",
   "exitCode": 0,
   "waitCode": 0,
   "describe": {
@@ -11,63 +11,134 @@
         "reason": null
       }
     ],
-    "startedAt": "2026-07-31T12:16:18.453000-04:00",
-    "stoppedAt": "2026-07-31T12:17:44.531000-04:00"
+    "startedAt": "2026-07-31T14:02:50.956000-04:00",
+    "stoppedAt": "2026-07-31T14:04:19.639000-04:00"
   },
   "report": {
     "ok": true,
     "marker": "PE_PHASE_10_LIVE_PROOFS_OK",
+    "gitSha": "28dbed74845a74f1cb432ee4e5d1577827eaf182",
+    "generatedAt": "2026-07-31T18:02:52.761Z",
     "steps": [
       {
         "id": "inspect_only_loaders_static",
         "ok": true,
         "exitCode": 0,
-        "detail": "from SUMMARY compact ok=true"
+        "detail": "{\n  \"ok\": true,\n  \"loadersChecked\": 13,\n  \"loaders\": [\n    \"sync-comptroller-jbooks.ts\",\n    \"sync-jbook-r2.ts\",\n    \"sync-jbook-performers.ts\",\n    \"parse-pdoc-army.ts\",\n    \"load-pdoc-enrichment.ts\",\n    \"load-om.ts\",\n    \"load-om-op5.ts\"",
+        "metrics": null
       },
       {
         "id": "inspect_only_loaders",
         "ok": true,
         "exitCode": 0,
-        "detail": "from SUMMARY compact ok=true"
+        "detail": "a256\": \"d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028\",\n  \"byteSize\": 1228,\n  \"quality\": {\n    \"status\": \"ok\",\n    \"rowCount\": 1,\n    \"unitsAnomalies\": 0,\n    \"titleTruncated\": 0,\n    \"errors\": [],\n    \"warnings\": []\n  },",
+        "metrics": {
+          "artifactSha256": "d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028"
+        }
+      },
+      {
+        "id": "source_document_register",
+        "ok": true,
+        "exitCode": 0,
+        "detail": "registered source_key=pe10_phase10_internal_promotion id=1f7ce968-1a65-496b-83c9-986b53d07da6 created=true",
+        "metrics": {
+          "sourceKey": "pe10_phase10_internal_promotion",
+          "documentId": "1f7ce968-1a65-496b-83c9-986b53d07da6"
+        }
       },
       {
         "id": "exact_sha_internal_promotion",
         "ok": true,
         "exitCode": 0,
-        "detail": "from SUMMARY compact ok=true"
+        "detail": "commit1 exit=0 missingSource=false domainPositions=1 linkedSource=1 globalΔ=1 sha=d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028\nCOMMIT pe10_closeout FY2099 — /dev/shm/pe10-closeout/fy2099-package.json\nvehicles=1 positions",
+        "metrics": {
+          "preGlobal": 0,
+          "post1Global": 1,
+          "preDomain": 0,
+          "post1Domain": 1,
+          "linkedSourceRows": 1,
+          "missingSource": false,
+          "sha256": "d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028",
+          "idCount": 1
+        }
       },
       {
         "id": "identical_replay",
         "ok": true,
         "exitCode": 0,
-        "detail": "from SUMMARY compact ok=true"
+        "detail": "commit2 exit=0 domain 1→1 global 1→1 idSetEqual=true insertN=0 newRows=0\nCOMMIT pe10_closeout FY2099 — /dev/shm/pe10-closeout/fy2099-package.json\nvehicles=1 positions: insert=0 update=1 supersede=0 interimPeriods=0\n  UPDATE    pb FY2099 pre",
+        "metrics": {
+          "post1Domain": 1,
+          "post2Domain": 1,
+          "post1Global": 1,
+          "post2Global": 1,
+          "duplicateWrites": 0,
+          "idSetEqual": true,
+          "insertN": 0,
+          "newCanonicalRows": 0
+        }
       },
       {
         "id": "derive_chain_dry_run",
         "ok": true,
         "exitCode": 0,
-        "detail": "from SUMMARY compact ok=true"
+        "detail": "-chain] generate-actions (dry run)\n\u001b[32m[Nest] 514  - \u001b[39m07/31/2026, 6:03:37 PM \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[PrismaService] \u001b[39m\u001b[32mPrisma connected (tenant-scope enforcement active on 91 models)\u001b[39m\n{\n  \"mode\": \"DRY_RUN\",\n  \"tenant\": \"",
+        "metrics": {
+          "hasDryMarker": true,
+          "commitMode": false,
+          "wroteSync": false,
+          "emailSentN": 0,
+          "exit": 0
+        }
       },
       {
         "id": "rls_ethical_wall",
         "ok": true,
         "exitCode": 0,
-        "detail": "from SUMMARY compact ok=true"
+        "detail": "live Aurora dual-tenant RLS PASS: force=true policies=1 bareProbe=0 failClosedError=false own=1 leak=0 bypass=2; seeded tenants pe10-rls-a-337e636eed0d/pe10-rls-b-337e636eed0d",
+        "metrics": {
+          "bare": 0,
+          "ownN": 1,
+          "leakN": 0,
+          "bypassN": 2,
+          "policies": 1,
+          "dualTenantSeeded": true,
+          "failClosedError": false,
+          "crossTenantOk": true
+        }
       },
       {
         "id": "mutation_boundary_observe",
         "ok": true,
         "exitCode": 0,
-        "detail": "from SUMMARY compact ok=true"
+        "detail": "non-pe10 stable pre/mid; defenseFy2026=null; pe10SourceDocs=1",
+        "metrics": {
+          "preNonPe10Positions": 0,
+          "midNonPe10Positions": 0,
+          "preDefenseFy2026": null,
+          "midDefenseFy2026": null,
+          "prePackagesNonPe10": 0,
+          "midPackagesNonPe10": 0,
+          "drift": false
+        }
       },
       {
         "id": "synthetic_cleanup",
         "ok": true,
         "exitCode": 0,
-        "detail": "from SUMMARY compact ok=true"
+        "detail": "pe10_closeout FY2099 posts cleanup positions=0; nonPe10 stable=true",
+        "metrics": {
+          "afterClean": 0,
+          "postNonPe10": 0,
+          "preNonPe10": 0
+        }
       }
     ],
-    "fromSummary": true
+    "fromSummary": true,
+    "fullReport": true
   },
-  "logTail": "Running pe-phase-10-live-proofs (sole-live Aurora; synthetic pe10_closeout domain only; TMPDIR=/dev/shm)\n{\n  \"ok\": true,\n  \"marker\": \"PE_PHASE_10_LIVE_PROOFS_OK\",\n  \"generatedAt\": \"2026-07-31T16:16:20.245Z\",\n  \"gitSha\": \"6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1\",\n  \"domain\": \"pe10_closeout\",\n  \"fiscalYear\": 2099,\n  \"steps\": [\n    {\n      \"id\": \"inspect_only_loaders_static\",\n      \"ok\": true,\n      \"exitCode\": 0,\n      \"detail\": \"{\\n  \\\"ok\\\": true,\\n  \\\"loadersChecked\\\": 13,\\n  \\\"loaders\\\": [\\n    \\\"sync-comptroller-jbooks.ts\\\",\\n    \\\"sync-jbook-r2.ts\\\",\\n    \\\"sync-jbook-performers.ts\\\",\\n    \\\"parse-pdoc-army.ts\\\",\\n    \\\"load-pdoc-enrichment.ts\\\",\\n    \\\"load-om.ts\\\",\\n    \\\"load-om-op5.ts\\\",\\n    \\\"parse-hasc-sasc-reports.ts\\\",\\n    \\\"parse-defense-approps-reports.ts\\\",\\n    \\\"parse-ndaa-conference.ts\\\",\\n    \\\"parse-defense-approps-public-law.ts\\\",\\n    \\\"ingest-defense-budget-pdf.ts\\\",\\n    \\\"load-defense-budget-package.ts\\\"\\n  ]\\n}\\n\"\n    },\n    {\n      \"id\": \"inspect_only_loaders\",\n      \"ok\": true,\n      \"exitCode\": 0,\n      \"detail\": \"a256\\\": \\\"d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028\\\",\\n  \\\"byteSize\\\": 1228,\\n  \\\"quality\\\": {\\n    \\\"status\\\": \\\"ok\\\",\\n    \\\"rowCount\\\": 1,\\n    \\\"unitsAnomalies\\\": 0,\\n    \\\"titleTruncated\\\": 0,\\n    \\\"errors\\\": [],\\n    \\\"warnings\\\": []\\n  },\\n  \\\"commitRequirements\\\": {\\n    \\\"flag\\\": \\\"--commit\\\",\\n    \\\"approvedShaFlag\\\": \\\"--approved-sha256\\\",\\n    \\\"approvedSha256MustEqual\\\": \\\"d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028\\\",\\n    \\\"note\\\": \\\"Default invocation never writes. Re-run with --commit --approved-sha256 <sha above> only after inspecting the quality report.\\\"\\n  },\\n  \\\"conflicts\\\": [],\\n  \\\"warnings\\\": []\\n}\\n\\nDry run — no writes. Re-run with --commit --approved-sha256 <sha above> to apply.\\n\",\n      \"metrics\": {\n        \"artifactSha256\": \"d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028\"\n      }\n    },\n    {\n      \"id\": \"exact_sha_internal_promotion\",\n      \"ok\": true,\n      \"exitCode\": 0,\n      \"detail\": \"commit1 exit=0 domainPositions=1 globalΔ=1 sha=d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028\\nCOMMIT pe10_closeout FY2099 — /dev/shm/pe10-closeout/fy2099-package.json\\nvehicles=1 positions: insert=1 update=0 supersede=0 interimPeriods=0\\n  INSERT    pb FY2099 president/request/core_dod_discretionary = 1 $M — no live row\\n{\\n  \\\"artifact\\\": \\\"../../../dev/shm/pe10-closeout/fy2099-package.json\\\",\\n  \\\"packageId\\\": \\\"9c843b7d-882f-46b2-a7b8-2e3306494c39\\\",\\n  \\\"vehicles\\\": 1,\\n  \\\"positions\\\": {\\n    \\\"inserted\\\": 1,\\n    \\\"updated\\\": 0,\\n    \\\"superseded\\\": 0\\n  },\\n  \\\"interimFundingPeriods\\\": 0,\\n  \\\"warnings\\\": 0\\n}\\n  MISSING SOURCE  source_document.source_key \\\"pe10_phase10_internal_promotion\\\" is not registered\\n\",\n      \"metrics\": {\n        \"preGlobal\": 0,\n        \"post1Global\": 1,\n        \"preDomain\": 0,\n        \"post1Domain\": 1,\n        \"sha256\": \"d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028\"\n      }\n    },\n    {\n      \"id\": \"identical_replay\",\n      \"ok\": true,\n      \"exitCode\": 0,\n      \"detail\": \"commit2 exit=0 domain 1→1 global 1→1 (require equal)\\nhm/pe10-closeout/fy2099-package.json\\nvehicles=1 positions: insert=0 update=1 supersede=0 interimPeriods=0\\n  UPDATE    pb FY2099 president/request/core_dod_discretionary = 1 $M — same amount — refreshing source/page/note metadata only\\n{\\n  \\\"artifact\\\": \\\"../../../dev/shm/pe10-closeout/fy2099-package.json\\\",\\n  \\\"packageId\\\": \\\"9c843b7d-882f-46b2-a7b8-2e3306494c39\\\",\\n  \\\"vehicles\\\": 1,\\n  \\\"positions\\\": {\\n    \\\"inserted\\\": 0,\\n    \\\"updated\\\": 1,\\n    \\\"superseded\\\": 0\\n  },\\n  \\\"interimFundingPeriods\\\": 0,\\n  \\\"warnings\\\": 0\\n}\\n  MISSING SOURCE  source_document.source_key \\\"pe10_phase10_internal_promotion\\\" is not registered\\n\",\n      \"metrics\": {\n        \"post1Domain\": 1,\n        \"post2Domain\": 1,\n        \"post1Global\": 1,\n        \"post2Global\": 1,\n        \"duplicateWrites\": 0\n      }\n    },\n    {\n      \"id\": \"derive_chain_dry_run\",\n      \"ok\": true,\n      \"exitCode\": 0,\n      \"detail\": \"-chain] generate-actions (dry run)\\n\\u001b[32m[Nest] 514  - \\u001b[39m07/31/2026, 4:17:05 PM \\u001b[32m    LOG\\u001b[39m \\u001b[38;5;3m[PrismaService] \\u001b[39m\\u001b[32mPrisma connected (tenant-scope enforcement active on 91 models)\\u001b[39m\\n{\\n  \\\"mode\\\": \\\"DRY_RUN\\\",\\n  \\\"tenant\\\": \\\"all\\\",\\n  \\\"since\\\": \\\"all\\\",\\n  \\\"generated\\\": 84\\n}\\n<<< [pe-derive-chain] generate-actions OK (15s)\\n\\n>>> [pe-derive-chain] send-pe-alert-emails (dry run)\\n\\u001b[32m[Nest] 562  - \\u001b[39m07/31/2026, 4:17:20 PM \\u001b[32m    LOG\\u001b[39m \\u001b[38;5;3m[PrismaService] \\u001b[39m\\u001b[32mPrisma connected (tenant-scope enforcement active on 91 models)\\u001b[39m\\n{\\n  \\\"mode\\\": \\\"DRY_RUN\\\",\\n  \\\"since\\\": \\\"2026-07-31T10:32:04.959Z\\\",\\n  \\\"alerts\\\": 0,\\n  \\\"canary\\\": [],\\n  \\\"watchlist_links_added\\\": 0,\\n  \\\"users_considered\\\": 0,\\n  \\\"emails\\\": [],\\n  \\\"emails_sent\\\": 0\\n}\\nDRY RUN — re-run with --commit to stamp + send.\\n<<< [pe-derive-chain] send-pe-alert-emails OK (3s)\\n\\n[pe-derive-chain] dry run complete (no SyncRun row written)\\n\",\n      \"metrics\": {\n        \"hasDryMarker\": true,\n        \"commitMode\": false,\n        \"wroteSync\": false,\n        \"emailSentN\": 0,\n        \"exit\": 0\n      }\n    },\n    {\n      \"id\": \"rls_ethical_wall\",\n      \"ok\": true,\n      \"exitCode\": 0,\n      \"detail\": \"live Aurora RLS ethical-wall PASS: force=true policies=1 bareCount=0 bypassCount=0; insufficient multi-tenant rows for live leak probe; FORCE+fail-closed proven\",\n      \"metrics\": {\n        \"bare\": 0,\n        \"full\": 0,\n        \"policies\": 1,\n        \"crossTenantOk\": true\n      }\n    },\n    {\n      \"id\": \"mutation_boundary_observe\",\n      \"ok\": true,\n      \"exitCode\": 0,\n      \"detail\": \"defense FY2026 positions observed=n/a (pe10 domain isolated)\",\n      \"metrics\": {\n        \"defenseFy2026Positions\": null,\n        \"pe10Positions\": 1\n      }\n    },\n    {\n      \"id\": \"synthetic_cleanup\",\n      \"ok\": true,\n      \"exitCode\": 0,\n      \"detail\": \"pe10_closeout FY2099 posts cleanup positions=0\"\n    }\n  ],\n  \"notes\": [\n    \"SYNTHETIC domain pe10_closeout FY2099 only — not humanReviewed\",\n    \"No Secrets Manager GetSecretValue\",\n    \"No email / LlamaParse / derive --commit\"\n  ]\n}\nPE_PHASE_10_LIVE_PROOFS_SUMMARY {\"marker\":\"PE_PHASE_10_LIVE_PROOFS_OK\",\"ok\":true,\"inspect_only_loaders_static\":true,\"inspect_only_loaders\":true,\"exact_sha_internal_promotion\":true,\"identical_replay\":true,\"derive_chain_dry_run\":true,\"rls_ethical_wall\":true,\"mutation_boundary_observe\":true,\"synthetic_cleanup\":true}\nPE_PHASE_10_LIVE_PROOFS_OK"
+  "reportHasMetrics": true,
+  "fromSummary": true,
+  "fullReport": true,
+  "logTail": "Running pe-phase-10-live-proofs (sole-live Aurora; synthetic pe10_closeout domain only; TMPDIR=/dev/shm)\n{\"ok\":true,\"marker\":\"PE_PHASE_10_LIVE_PROOFS_OK\",\"generatedAt\":\"2026-07-31T18:02:52.761Z\",\"gitSha\":\"28dbed74845a74f1cb432ee4e5d1577827eaf182\",\"domain\":\"pe10_closeout\",\"fiscalYear\":2099,\"steps\":[{\"id\":\"inspect_only_loaders_static\",\"ok\":true,\"exitCode\":0,\"detail\":\"{\\n  \\\"ok\\\": true,\\n  \\\"loadersChecked\\\": 13,\\n  \\\"loaders\\\": [\\n    \\\"sync-comptroller-jbooks.ts\\\",\\n    \\\"sync-jbook-r2.ts\\\",\\n    \\\"sync-jbook-performers.ts\\\",\\n    \\\"parse-pdoc-army.ts\\\",\\n    \\\"load-pdoc-enrichment.ts\\\",\\n    \\\"load-om.ts\\\",\\n    \\\"load-om-op5.ts\\\",\\n    \\\"parse-hasc-sasc-reports.ts\\\",\\n    \\\"parse-defense-approps-reports.ts\\\",\\n    \\\"parse-ndaa-conference.ts\\\",\\n    \\\"parse-defense-approps-public-law.ts\\\",\\n    \\\"ingest-defense-budget-pdf.ts\\\",\\n    \\\"load-defense-budget-package.ts\\\"\\n  ]\\n}\\n\"},{\"id\":\"inspect_only_loaders\",\"ok\":true,\"exitCode\":0,\"detail\":\"a256\\\": \\\"d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028\\\",\\n  \\\"byteSize\\\": 1228,\\n  \\\"quality\\\": {\\n    \\\"status\\\": \\\"ok\\\",\\n    \\\"rowCount\\\": 1,\\n    \\\"unitsAnomalies\\\": 0,\\n    \\\"titleTruncated\\\": 0,\\n    \\\"errors\\\": [],\\n    \\\"warnings\\\": []\\n  },\\n  \\\"commitRequirements\\\": {\\n    \\\"flag\\\": \\\"--commit\\\",\\n    \\\"approvedShaFlag\\\": \\\"--approved-sha256\\\",\\n    \\\"approvedSha256MustEqual\\\": \\\"d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028\\\",\\n    \\\"note\\\": \\\"Default invocation never writes. Re-run with --commit --approved-sha256 <sha above> only after inspecting the quality report.\\\"\\n  },\\n  \\\"conflicts\\\": [],\\n  \\\"warnings\\\": []\\n}\\n\\nDry run — no writes. Re-run with --commit --approved-sha256 <sha above> to apply.\\n\",\"metrics\":{\"artifactSha256\":\"d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028\"}},{\"id\":\"source_document_register\",\"ok\":true,\"exitCode\":0,\"detail\":\"registered source_key=pe10_phase10_internal_promotion id=1f7ce968-1a65-496b-83c9-986b53d07da6 created=true\",\"metrics\":{\"sourceKey\":\"pe10_phase10_internal_promotion\",\"documentId\":\"1f7ce968-1a65-496b-83c9-986b53d07da6\"}},{\"id\":\"exact_sha_internal_promotion\",\"ok\":true,\"exitCode\":0,\"detail\":\"commit1 exit=0 missingSource=false domainPositions=1 linkedSource=1 globalΔ=1 sha=d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028\\nCOMMIT pe10_closeout FY2099 — /dev/shm/pe10-closeout/fy2099-package.json\\nvehicles=1 positions: insert=1 update=0 supersede=0 interimPeriods=0\\n  INSERT    pb FY2099 president/request/core_dod_discretionary = 1 $M — no live row\\n{\\n  \\\"artifact\\\": \\\"../../../dev/shm/pe10-closeout/fy2099-package.json\\\",\\n  \\\"packageId\\\": \\\"a25d6daf-f6ba-4c7c-ba08-3e4dba3809a9\\\",\\n  \\\"vehicles\\\": 1,\\n  \\\"positions\\\": {\\n    \\\"inserted\\\": 1,\\n    \\\"updated\\\": 0,\\n    \\\"superseded\\\": 0\\n  },\\n  \\\"interimFundingPeriods\\\": 0,\\n  \\\"warnings\\\": 0\\n}\\n\",\"metrics\":{\"preGlobal\":0,\"post1Global\":1,\"preDomain\":0,\"post1Domain\":1,\"linkedSourceRows\":1,\"missingSource\":false,\"sha256\":\"d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028\",\"idCount\":1}},{\"id\":\"identical_replay\",\"ok\":true,\"exitCode\":0,\"detail\":\"commit2 exit=0 domain 1→1 global 1→1 idSetEqual=true insertN=0 newRows=0\\nCOMMIT pe10_closeout FY2099 — /dev/shm/pe10-closeout/fy2099-package.json\\nvehicles=1 positions: insert=0 update=1 supersede=0 interimPeriods=0\\n  UPDATE    pb FY2099 president/request/core_dod_discretionary = 1 $M — same amount — refreshing source/page/note metadata only\\n{\\n  \\\"artifact\\\": \\\"../../../dev/shm/pe10-closeout/fy2099-package.json\\\",\\n  \\\"packageId\\\": \\\"a25d6daf-f6ba-4c7c-ba08-3e4dba3809a9\\\",\\n  \\\"vehicles\\\": 1,\\n  \\\"positions\\\": {\\n    \\\"inserted\\\": 0,\\n    \\\"updated\\\": 1,\\n    \\\"superseded\\\": 0\\n  },\\n  \\\"interimFundingPeriods\\\": 0,\\n  \\\"warnings\\\": 0\\n}\\n\",\"metrics\":{\"post1Domain\":1,\"post2Domain\":1,\"post1Global\":1,\"post2Global\":1,\"duplicateWrites\":0,\"idSetEqual\":true,\"insertN\":0,\"newCanonicalRows\":0}},{\"id\":\"derive_chain_dry_run\",\"ok\":true,\"exitCode\":0,\"detail\":\"-chain] generate-actions (dry run)\\n\\u001b[32m[Nest] 514  - \\u001b[39m07/31/2026, 6:03:37 PM \\u001b[32m    LOG\\u001b[39m \\u001b[38;5;3m[PrismaService] \\u001b[39m\\u001b[32mPrisma connected (tenant-scope enforcement active on 91 models)\\u001b[39m\\n{\\n  \\\"mode\\\": \\\"DRY_RUN\\\",\\n  \\\"tenant\\\": \\\"all\\\",\\n  \\\"since\\\": \\\"all\\\",\\n  \\\"generated\\\": 84\\n}\\n<<< [pe-derive-chain] generate-actions OK (15s)\\n\\n>>> [pe-derive-chain] send-pe-alert-emails (dry run)\\n\\u001b[32m[Nest] 562  - \\u001b[39m07/31/2026, 6:03:52 PM \\u001b[32m    LOG\\u001b[39m \\u001b[38;5;3m[PrismaService] \\u001b[39m\\u001b[32mPrisma connected (tenant-scope enforcement active on 91 models)\\u001b[39m\\n{\\n  \\\"mode\\\": \\\"DRY_RUN\\\",\\n  \\\"since\\\": \\\"2026-07-31T10:32:04.959Z\\\",\\n  \\\"alerts\\\": 0,\\n  \\\"canary\\\": [],\\n  \\\"watchlist_links_added\\\": 0,\\n  \\\"users_considered\\\": 0,\\n  \\\"emails\\\": [],\\n  \\\"emails_sent\\\": 0\\n}\\nDRY RUN — re-run with --commit to stamp + send.\\n<<< [pe-derive-chain] send-pe-alert-emails OK (3s)\\n\\n[pe-derive-chain] dry run complete (no SyncRun row written)\\n\",\"metrics\":{\"hasDryMarker\":true,\"commitMode\":false,\"wroteSync\":false,\"emailSentN\":0,\"exit\":0}},{\"id\":\"rls_ethical_wall\",\"ok\":true,\"exitCode\":0,\"detail\":\"live Aurora dual-tenant RLS PASS: force=true policies=1 bareProbe=0 failClosedError=false own=1 leak=0 bypass=2; seeded tenants pe10-rls-a-337e636eed0d/pe10-rls-b-337e636eed0d\",\"metrics\":{\"bare\":0,\"ownN\":1,\"leakN\":0,\"bypassN\":2,\"policies\":1,\"dualTenantSeeded\":true,\"failClosedError\":false,\"crossTenantOk\":true}},{\"id\":\"mutation_boundary_observe\",\"ok\":true,\"exitCode\":0,\"detail\":\"non-pe10 stable pre/mid; defenseFy2026=null; pe10SourceDocs=1\",\"metrics\":{\"preNonPe10Positions\":0,\"midNonPe10Positions\":0,\"preDefenseFy2026\":null,\"midDefenseFy2026\":null,\"prePackagesNonPe10\":0,\"midPackagesNonPe10\":0,\"drift\":false}},{\"id\":\"synthetic_cleanup\",\"ok\":true,\"exitCode\":0,\"detail\":\"pe10_closeout FY2099 posts cleanup positions=0; nonPe10 stable=true\",\"metrics\":{\"afterClean\":0,\"postNonPe10\":0,\"preNonPe10\":0}}],\"notes\":[\"SYNTHETIC domain pe10_closeout FY2099 only — not humanReviewed\",\"No Secrets Manager GetSecretValue\",\"No email / LlamaParse / derive --commit\",\"Disposable rls-phase-c-pass.txt is NOT evidence\"]}\nPE_PHASE_10_LIVE_PROOFS_SUMMARY {\"marker\":\"PE_PHASE_10_LIVE_PROOFS_OK\",\"ok\":true,\"gitSha\":\"28dbed74845a74f1cb432ee4e5d1577827eaf182\",\"generatedAt\":\"2026-07-31T18:02:52.761Z\",\"steps\":[{\"id\":\"inspect_only_loaders_static\",\"ok\":true,\"exitCode\":0,\"metrics\":null,\"detail\":\"{\\n  \\\"ok\\\": true,\\n  \\\"loadersChecked\\\": 13,\\n  \\\"loaders\\\": [\\n    \\\"sync-comptroller-jbooks.ts\\\",\\n    \\\"sync-jbook-r2.ts\\\",\\n    \\\"sync-jbook-performers.ts\\\",\\n    \\\"parse-pdoc-army.ts\\\",\\n    \\\"load-pdoc-enrichment.ts\\\",\\n    \\\"load-om.ts\\\",\\n    \\\"load-om-op5.ts\\\"\"},{\"id\":\"inspect_only_loaders\",\"ok\":true,\"exitCode\":0,\"metrics\":{\"artifactSha256\":\"d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028\"},\"detail\":\"a256\\\": \\\"d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028\\\",\\n  \\\"byteSize\\\": 1228,\\n  \\\"quality\\\": {\\n    \\\"status\\\": \\\"ok\\\",\\n    \\\"rowCount\\\": 1,\\n    \\\"unitsAnomalies\\\": 0,\\n    \\\"titleTruncated\\\": 0,\\n    \\\"errors\\\": [],\\n    \\\"warnings\\\": []\\n  },\"},{\"id\":\"source_document_register\",\"ok\":true,\"exitCode\":0,\"metrics\":{\"sourceKey\":\"pe10_phase10_internal_promotion\",\"documentId\":\"1f7ce968-1a65-496b-83c9-986b53d07da6\"},\"detail\":\"registered source_key=pe10_phase10_internal_promotion id=1f7ce968-1a65-496b-83c9-986b53d07da6 created=true\"},{\"id\":\"exact_sha_internal_promotion\",\"ok\":true,\"exitCode\":0,\"metrics\":{\"preGlobal\":0,\"post1Global\":1,\"preDomain\":0,\"post1Domain\":1,\"linkedSourceRows\":1,\"missingSource\":false,\"sha256\":\"d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028\",\"idCount\":1},\"detail\":\"commit1 exit=0 missingSource=false domainPositions=1 linkedSource=1 globalΔ=1 sha=d59c20e257fa8d70957f82c6fe089209101f303bd1a9034ac08bbd2bac833028\\nCOMMIT pe10_closeout FY2099 — /dev/shm/pe10-closeout/fy2099-package.json\\nvehicles=1 positions\"},{\"id\":\"identical_replay\",\"ok\":true,\"exitCode\":0,\"metrics\":{\"post1Domain\":1,\"post2Domain\":1,\"post1Global\":1,\"post2Global\":1,\"duplicateWrites\":0,\"idSetEqual\":true,\"insertN\":0,\"newCanonicalRows\":0},\"detail\":\"commit2 exit=0 domain 1→1 global 1→1 idSetEqual=true insertN=0 newRows=0\\nCOMMIT pe10_closeout FY2099 — /dev/shm/pe10-closeout/fy2099-package.json\\nvehicles=1 positions: insert=0 update=1 supersede=0 interimPeriods=0\\n  UPDATE    pb FY2099 pre\"},{\"id\":\"derive_chain_dry_run\",\"ok\":true,\"exitCode\":0,\"metrics\":{\"hasDryMarker\":true,\"commitMode\":false,\"wroteSync\":false,\"emailSentN\":0,\"exit\":0},\"detail\":\"-chain] generate-actions (dry run)\\n\\u001b[32m[Nest] 514  - \\u001b[39m07/31/2026, 6:03:37 PM \\u001b[32m    LOG\\u001b[39m \\u001b[38;5;3m[PrismaService] \\u001b[39m\\u001b[32mPrisma connected (tenant-scope enforcement active on 91 models)\\u001b[39m\\n{\\n  \\\"mode\\\": \\\"DRY_RUN\\\",\\n  \\\"tenant\\\": \\\"\"},{\"id\":\"rls_ethical_wall\",\"ok\":true,\"exitCode\":0,\"metrics\":{\"bare\":0,\"ownN\":1,\"leakN\":0,\"bypassN\":2,\"policies\":1,\"dualTenantSeeded\":true,\"failClosedError\":false,\"crossTenantOk\":true},\"detail\":\"live Aurora dual-tenant RLS PASS: force=true policies=1 bareProbe=0 failClosedError=false own=1 leak=0 bypass=2; seeded tenants pe10-rls-a-337e636eed0d/pe10-rls-b-337e636eed0d\"},{\"id\":\"mutation_boundary_observe\",\"ok\":true,\"exitCode\":0,\"metrics\":{\"preNonPe10Positions\":0,\"midNonPe10Positions\":0,\"preDefenseFy2026\":null,\"midDefenseFy2026\":null,\"prePackagesNonPe10\":0,\"midPackagesNonPe10\":0,\"drift\":false},\"detail\":\"non-pe10 stable pre/mid; defenseFy2026=null; pe10SourceDocs=1\"},{\"id\":\"synthetic_cleanup\",\"ok\":true,\"exitCode\":0,\"metrics\":{\"afterClean\":0,\"postNonPe10\":0,\"preNonPe10\":0},\"detail\":\"pe10_closeout FY2099 posts cleanup positions=0; nonPe10 stable=true\"}]}\nPE_PHASE_10_LIVE_PROOFS_OK"
 }

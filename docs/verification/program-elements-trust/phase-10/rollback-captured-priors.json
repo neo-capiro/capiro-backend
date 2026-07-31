@@ -1,49 +1,49 @@
 {
   "prior": [
     {
-      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:81",
+      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
       "family": "capiro-dev-api",
       "image": null,
-      "revision": 81
+      "revision": 88
     },
     {
-      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:18",
+      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22",
       "family": "capiro-dev-web",
       "image": null,
-      "revision": 18
+      "revision": 22
     }
   ],
   "ship": {
     "priorTaskDefs": [
       {
-        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:81",
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
         "family": "capiro-dev-api",
         "image": null,
-        "revision": 81
+        "revision": 88
       },
       {
-        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:18",
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22",
         "family": "capiro-dev-web",
         "image": null,
-        "revision": 18
+        "revision": 22
       }
     ],
-    "newApiTaskDefArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:82",
-    "newWebTaskDefArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:19",
-    "migrateTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/46537ded52d740aaa546d9caac1aea43",
+    "newApiTaskDefArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
+    "newWebTaskDefArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
+    "migrateTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8a574f6fe5004e69836876dc70c5c211",
     "images": [
       {
         "repo": "capiro/dev/api",
-        "tag": "6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1",
-        "digest": "sha256:51351903d7d2d3748b70bd88609f50b5c396ea687173e7c8c8a26e6b91905496",
-        "pushedAt": "2026-07-31T12:06:42.624000-04:00",
+        "tag": "28dbed74845a74f1cb432ee4e5d1577827eaf182",
+        "digest": "sha256:74074cc59c039c847ef1db14db7ddfd466c09a15c3b815d3907aaa5a43bf4854",
+        "pushedAt": "2026-07-31T13:41:41.691000-04:00",
         "present": true
       },
       {
         "repo": "capiro/dev/web",
-        "tag": "6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1",
-        "digest": "sha256:b563ad0e5b62533eff2af67c0f27401a2c2c0d3dca0530939874f1cca691f5eb",
-        "pushedAt": "2026-07-31T11:59:30.339000-04:00",
+        "tag": "28dbed74845a74f1cb432ee4e5d1577827eaf182",
+        "digest": "sha256:80433fa869ea4454d5b432e242755c42aeb22cddf2bf0964290bffada5ac3c56",
+        "pushedAt": "2026-07-31T13:22:26.114000-04:00",
         "present": true
       }
     ],
@@ -51,19 +51,19 @@
     "webImageDigest": null,
     "deployedCluster": "capiro-dev",
     "notes": [
-      "migrate task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/46537ded52d740aaa546d9caac1aea43 exit=0",
-      "deployed api=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:82 web=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:19 on capiro-dev",
-      "live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3ac48a46ae0048ef8136847ba9397150 exit=0 marker=PE_PHASE_10_LIVE_PROOFS_OK"
+      "migrate task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8a574f6fe5004e69836876dc70c5c211 exit=0",
+      "deployed api=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89 web=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23 on capiro-dev",
+      "live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3dba59c0f1ac4d19b11348af3621296d exit=0 marker=PE_PHASE_10_LIVE_PROOFS_OK"
     ],
-    "liveProofsTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3ac48a46ae0048ef8136847ba9397150"
+    "liveProofsTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3dba59c0f1ac4d19b11348af3621296d"
   },
   "instructions": [
     "Rollback against CAPTURED prior task definitions on authorized sole-live cluster capiro-dev:",
-    "aws ecs update-service --cluster capiro-dev --service capiro-dev-api --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:81",
-    "aws ecs update-service --cluster capiro-dev --service capiro-dev-web --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:18",
+    "aws ecs update-service --cluster capiro-dev --service capiro-dev-api --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
+    "aws ecs update-service --cluster capiro-dev --service capiro-dev-web --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22",
     "Do NOT hand-edit _prisma_migrations; schema rollback via Aurora snapshot if migrate is bad.",
-    "Captured new api TD: arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:82",
-    "Captured new web TD: arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:19",
+    "Captured new api TD: arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
+    "Captured new web TD: arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
     "Never deploy/rollback to capiro-staging or capiro-prod-os-capiro from this harness.",
     "Email/canaries/LlamaParse/derive --commit remain dark."
   ]
