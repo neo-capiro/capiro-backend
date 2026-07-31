@@ -1,9 +1,9 @@
 # Phase 10 staging acceptance record
 
-- Generated (UTC): 2026-07-31T09:57:25.553Z
+- Generated (UTC): 2026-07-31T09:58:31.096Z
 - Marker: **PE_PHASE_10_BLOCKED**
-- HEAD: `7de1d93c4ebaee3914bd8e807f1ed78d766945c4`
-- origin/agent/...: `72b299dff928f1f451e2dad231124c8c50a3d046`
+- HEAD: `01594d32a2ca99474d3f2cd3764c466e5470397b`
+- origin/agent/...: `01594d32a2ca99474d3f2cd3764c466e5470397b`
 - origin/main: `3dcb12f823774b6fae8578dc56fc122bf9a0879e`
 - merge-base: `3dcb12f823774b6fae8578dc56fc122bf9a0879e`
 - Auth PE_CLOSEOUT_STAGING_OK: true
@@ -37,22 +37,23 @@
 - inventory: Forbidden production/dev clusters are visible in the account (expected); deploy must never target them
 
 ## Image digests
-- `capiro/staging/api` tag=7de1d93c4ebaee3914bd8e807f1ed78d766945c4 present=false digest=absent (branch tip tag not present in ECR (read-only check))
+- `capiro/staging/api` tag=01594d32a2ca99474d3f2cd3764c466e5470397b present=false digest=absent (branch tip tag not present in ECR (read-only check))
 - `capiro/dev/api` tag=latest present=true digest=sha256:2f135ffb7a6fd53e7830fc352366286723072538f90aedac9ca4545b879ab5d9
-- `capiro/staging/web` tag=7de1d93c4ebaee3914bd8e807f1ed78d766945c4 present=false digest=absent (branch tip tag not present in ECR (read-only check))
+- `capiro/staging/web` tag=01594d32a2ca99474d3f2cd3764c466e5470397b present=false digest=absent (branch tip tag not present in ECR (read-only check))
 - `capiro/dev/web` tag=latest present=true digest=sha256:24b6b5f76f89050dddfc093a18b6e0616b268740b26a4e8086888845908cae85
 
 ## Outcomes
-- `git_sha_record` exit=0 class=ok head=7de1d93c4ebaee3914bd8e807f1ed78d766945c4 origin=72b299dff928f1f451e2dad231124c8c50a3d046 main=3dcb12f823774b6fae8578dc56fc122bf9a0879e mb=3dcb12f823774b6fa
+- `git_sha_record` exit=0 class=ok head=01594d32a2ca99474d3f2cd3764c466e5470397b origin=01594d32a2ca99474d3f2cd3764c466e5470397b main=3dcb12f823774b6fae8578dc56fc122bf9a0879e mb=3dcb12f823774b6fa
 - `aws_inventory_readonly` exit=0 class=ok healthyCompute=false blockers=5 probeExit=0
 - `image_digest_record` exit=0 class=ok recorded 4 repo checks; present=2
 - `transport_absent` exit=0 class=ok no forbidden paths
-- `local_pe_preflight_k` exit=0 class=ok ASS scripts/lib/pe-phase-a-safety.spec.ts
+- `local_pe_preflight_k` exit=0 class=ok production-scripts.spec.ts
 PASS scripts/lib/pe-migration-guards.spec.ts
 
 Test Suites: 9 passed, 9 total
 Tests:       85 passed, 85 total
-Snapshot
+Snapshots:   0 total
+Ti
 - `local_pe_phase9_preflight` exit=0 class=ok PE_PHASE_9_INTEGRITY_OK
 
 - `staging_migrate_additive` exit=78 class=env_blocked staging_migrate_additive: mutate not authorized or inventory unhealthy — not executed
