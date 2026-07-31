@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EngagementModule } from '../engagement/engagement.module.js';
+import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { LdaIntelModule } from '../lda-intel/lda-intel.module.js';
 import { LobbyIntelModule } from '../lobby-intel/lobby-intel.module.js';
 import { FederalSpendingModule } from '../federal-spending/federal-spending.module.js';
@@ -12,7 +14,10 @@ import { RegulatoryDocketModule } from '../regulatory-docket/regulatory-docket.m
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { MemoryModule } from '../memory/memory.module.js';
 import { ContextModule } from '../context/context.module.js';
+import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { ReviewsModule } from '../reviews/reviews.module.js';
+import { ReviewsService } from '../reviews/reviews.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriController } from './meri.controller.js';
 import { MeriActionProposalController } from './meri-action-proposal.controller.js';
 import { MeriContextPacketController } from './meri-context-packet.controller.js';
@@ -26,6 +31,7 @@ import {
   RAW_MERI_TOOLS_SERVICE,
 } from './governed-meri-tools.proxy.js';
 import { MeriResearchService } from './meri-research.service.js';
+import { createGovernedMeriResearchService } from './governed-meri-research.factory.js';
 import { MeriDocgenService } from './meri-docgen.service.js';
 import { MeriMcpService } from './meri-mcp.service.js';
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
@@ -68,7 +74,18 @@ import { MeriV2ChatClient } from './meriv2-chat.client.js';
       useFactory: createGovernedMeriToolsService,
       inject: [RAW_MERI_TOOLS_SERVICE],
     },
-    MeriResearchService,
+    {
+      provide: MeriResearchService,
+      useFactory: createGovernedMeriResearchService,
+      inject: [
+        PrismaService,
+        ConfigService,
+        MeriToolsService,
+        AiCredentialResolverService,
+        ReviewsService,
+        ContextCompilerService,
+      ],
+    },
     MeriDocgenService,
     MeriMcpService,
     MeriMcpOAuthService,
