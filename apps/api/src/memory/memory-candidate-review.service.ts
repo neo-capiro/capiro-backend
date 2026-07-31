@@ -1,13 +1,22 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ImmutableMemoryVersionService } from './immutable-memory-version.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryCandidateService } from './memory-candidate.service.js';
 import { memoryReviewSurfaceEnabled } from './memory-review-switch.js';
 import type { MemorySection } from './memory.types.js';
 
+export type MemoryCandidateKind = 'standard' | 'correction' | 'restore' | 'contradiction';
+
 export interface ReviewableMemoryCandidate {
   id: string;
+  candidateKind: MemoryCandidateKind;
   scope: string;
   clientId: string | null;
   proposedByUserId: string;
@@ -38,15 +47,30 @@ interface PendingCandidateRow {
   createdAt: Date;
 }
 
+export type MemoryReviewDecisionResult =
+  | {
+      candidateId: string;
+      candidateKind: 'standard';
+      outcome: 'activated' | 'rejected';
+      memoryId?: string;
+    }
+  | ({ candidateKind: Exclude<MemoryCandidateKind, 'standard'> } & Awaited<
+      ReturnType<ImmutableMemoryVersionService['approveCandidate']>
+    >);
+
+const VERSION_SOURCE_KIND = {
+  memory_correction: 'correction',
+  memory_restore: 'restore',
+  memory_contradiction: 'contradiction',
+} as const;
+
 /**
  * Scope-aware review facade for standard authenticated users.
  *
- * The legacy `/memory/candidates` routes remain administrator compatibility
- * aliases. This service owns the grant-aware review surface used by the product:
- * it lists only candidates for which the canonical authorization decision grants
- * `review` or `approve`, and it delegates mutations to MemoryCandidateService so
- * authorization is repeated while the candidate row is locked in the activation
- * transaction. Browser-supplied role, wall, client, or grant facts are never used.
+ * Candidate visibility and capabilities are server-owned. Generic saves delegate
+ * to MemoryCandidateService; correction/restore/contradiction candidates delegate
+ * to ImmutableMemoryVersionService so they can never fall through the legacy
+ * canonical-upsert approval path.
  */
 @Injectable()
 export class MemoryCandidateReviewService {
@@ -54,6 +78,7 @@ export class MemoryCandidateReviewService {
     private readonly prisma: PrismaService,
     private readonly authorization: MemoryAuthorizationService,
     private readonly candidates: MemoryCandidateService,
+    private readonly versions: ImmutableMemoryVersionService,
   ) {}
 
   enabled(): boolean {
@@ -66,9 +91,8 @@ export class MemoryCandidateReviewService {
     if (!this.enabled()) return { enabled: false, candidates: [] };
 
     const candidates = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      // Do not load proposal bodies before authorization. The initial pass reads
-      // identifiers and scope only; payload_jsonb is fetched for an exact row
-      // only after the canonical wall/grant decision permits inspection.
+      // Payload content is loaded only after the exact candidate passes the
+      // canonical authorization decision.
       const rows = await tx.memoryCandidate.findMany({
         where: { tenantId: ctx.tenantId, status: 'pending' },
         orderBy: { createdAt: 'asc' },
@@ -99,6 +123,7 @@ export class MemoryCandidateReviewService {
 
         visible.push({
           id: row.id,
+          candidateKind: candidateKindForSource(row.sourceKind),
           scope: row.scope,
           clientId: row.clientId,
           proposedByUserId: row.proposedBy,
@@ -117,14 +142,54 @@ export class MemoryCandidateReviewService {
     return { enabled: true, candidates };
   }
 
-  async approve(ctx: TenantContext, candidateId: string): Promise<{ memoryId: string }> {
+  async approve(ctx: TenantContext, candidateId: string): Promise<MemoryReviewDecisionResult> {
     this.requireEnabled();
-    return this.candidates.approve(ctx.tenantId, candidateId, ctx.userId, ctx);
+    const kind = await this.loadCandidateKind(ctx, candidateId);
+    if (kind !== 'standard') {
+      return { candidateKind: kind, ...(await this.versions.approveCandidate(ctx, candidateId)) };
+    }
+    const { memoryId } = await this.candidates.approve(
+      ctx.tenantId,
+      candidateId,
+      ctx.userId,
+      ctx,
+    );
+    return { candidateId, candidateKind: 'standard', outcome: 'activated', memoryId };
   }
 
-  async reject(ctx: TenantContext, candidateId: string): Promise<void> {
+  async reject(
+    ctx: TenantContext,
+    candidateId: string,
+    reason = '',
+  ): Promise<MemoryReviewDecisionResult> {
     this.requireEnabled();
+    const kind = await this.loadCandidateKind(ctx, candidateId);
+    if (kind !== 'standard') {
+      const cleanReason = reason.trim();
+      if (!cleanReason) {
+        throw new BadRequestException('A rejection reason is required for a memory version.');
+      }
+      return {
+        candidateKind: kind,
+        ...(await this.versions.rejectCandidate(ctx, candidateId, cleanReason)),
+      };
+    }
     await this.candidates.reject(ctx.tenantId, candidateId, ctx.userId, ctx);
+    return { candidateId, candidateKind: 'standard', outcome: 'rejected' };
+  }
+
+  private async loadCandidateKind(
+    ctx: TenantContext,
+    candidateId: string,
+  ): Promise<MemoryCandidateKind> {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const row = await tx.memoryCandidate.findFirst({
+        where: { id: candidateId, tenantId: ctx.tenantId, status: 'pending' },
+        select: { sourceKind: true },
+      });
+      if (!row) throw new NotFoundException('No pending memory candidate with that id.');
+      return candidateKindForSource(row.sourceKind);
+    });
   }
 
   private requireEnabled(): void {
@@ -134,6 +199,10 @@ export class MemoryCandidateReviewService {
       );
     }
   }
+}
+
+export function candidateKindForSource(sourceKind: string): MemoryCandidateKind {
+  return VERSION_SOURCE_KIND[sourceKind as keyof typeof VERSION_SOURCE_KIND] ?? 'standard';
 }
 
 function proposalFromPayload(payload: unknown): ReviewableMemoryCandidate['proposal'] {
