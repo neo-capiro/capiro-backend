@@ -2,20 +2,19 @@ import { useState } from 'react';
 import { Alert, Card, Segmented, Space, Typography } from 'antd';
 import { useMe } from '../../lib/me.js';
 import { MemoryFileEditor } from '../../components/MemoryFileEditor.js';
+import { MemoryGovernanceCenter } from '../../components/MemoryGovernanceCenter.js';
 import { MemoryProposalQueue } from '../../components/MemoryProposalQueue.js';
 import { MemoryReviewQueue } from '../../components/MemoryReviewQueue.js';
 
 const { Text, Title } = Typography;
 
 /**
- * Settings → Memory tab. Users view and edit the FIRM memory files
- * (soul/compass/playbook) and their own personal profile files. Editing firm
- * files requires user_admin (enforced server-side too). Client-granted reviewers
- * also see only the client proposals the server authorizes them to inspect, while
- * every proposer may withdraw only their own still-pending proposal.
+ * Settings → Memory.
  *
- * Per-CLIENT memory files are NOT edited here — they live on each client's
- * profile (Overview tab), configured in the context of that client.
+ * Administrators receive the dark, server-authorized Governance Center plus the
+ * existing editable memory files. Standard users retain their owner-scoped
+ * proposal queue and any grant-authorized review queue; they never receive the
+ * administration read model or grant-management controls.
  */
 export function MemorySettingsPage() {
   const me = useMe();
@@ -27,8 +26,15 @@ export function MemorySettingsPage() {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <MemoryProposalQueue />
-      <MemoryReviewQueue />
+      {isAdmin ? (
+        <MemoryGovernanceCenter isAdmin />
+      ) : (
+        <>
+          <MemoryProposalQueue />
+          <MemoryReviewQueue />
+        </>
+      )}
+
       <Card>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <div>
