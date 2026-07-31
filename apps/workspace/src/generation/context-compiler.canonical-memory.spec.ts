@@ -35,6 +35,7 @@ function sqlText(strings: unknown): string {
 describe('Workspace canonical governed memory — Phase 8', () => {
   function harness(options: { canary?: boolean; surfaceCanary?: boolean } = {}) {
     const sql: string[] = [];
+    const queries: Array<{ sql: string; values: unknown[] }> = [];
     const executions: Array<{ sql: string; values: unknown[] }> = [];
     const tx = {
       $executeRaw: jest.fn(async (arg: unknown, ...values: unknown[]) => {
@@ -44,6 +45,7 @@ describe('Workspace canonical governed memory — Phase 8', () => {
       $queryRaw: jest.fn(async (arg: unknown, ...values: unknown[]) => {
         const text = sqlText(arg);
         sql.push(text);
+        queries.push({ sql: text, values });
         if (text.includes('FROM memory_items')) return [ROW];
         if (text.includes('FROM context_packet')) return [{ id: String(values[0]) }];
         return [];
@@ -68,7 +70,12 @@ describe('Workspace canonical governed memory — Phase 8', () => {
         return [];
       }),
     } as unknown as PrismaService;
-    return { service: new WorkspaceContextCompilerService(prisma), sql, executions };
+    return {
+      service: new WorkspaceContextCompilerService(prisma),
+      sql,
+      queries,
+      executions,
+    };
   }
 
   const original = process.env.MERIV2_CONTEXT_PACKET_V2;
@@ -102,8 +109,10 @@ describe('Workspace canonical governed memory — Phase 8', () => {
       layers: ['firm-playbook'],
     });
     expect(packet.version).toBe(2);
-    expect(h.sql.find((text) => text.includes('FROM memory_items'))).toContain(
-      'governed_status AS "governedStatus"',
+    const memoryQuery = h.queries.find((entry) => entry.sql.includes('FROM memory_items'));
+    expect(memoryQuery).toBeDefined();
+    expect(memoryQuery!.values).toContainEqual(
+      expect.stringContaining('governed_status AS "governedStatus"'),
     );
     expect(packet.items).toEqual([
       expect.objectContaining({
