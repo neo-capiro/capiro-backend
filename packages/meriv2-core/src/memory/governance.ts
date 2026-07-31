@@ -266,13 +266,9 @@ export const RECALLABLE_GOVERNED_STATUSES = ['active', 'stale', 'conflicted'] as
  * controlling item for the unresolved group. Noncontrolling claims are withheld.
  */
 export function governedRecallEligible(
-  record: Pick<
-    GovernedMemoryRecord,
-    'id' | 'status' | 'conflictStatus' | 'controllingItemId'
-  >,
+  record: Pick<GovernedMemoryRecord, 'id' | 'status' | 'conflictStatus' | 'controllingItemId'>,
 ): boolean {
-  const unresolved =
-    record.conflictStatus === 'open' || record.conflictStatus === 'controlling';
+  const unresolved = record.conflictStatus === 'open' || record.conflictStatus === 'controlling';
   const controls = record.controllingItemId === record.id;
 
   if (record.status === 'active' || record.status === 'stale') {

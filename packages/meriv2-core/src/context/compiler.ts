@@ -621,8 +621,7 @@ function typedContextBlock(
 function compareSteeringRows(a: SteeringRow, b: SteeringRow): number {
   return (
     typeRank(a.type) - typeRank(b.type) ||
-    statusRank(a.governedStatus ?? a.status) -
-      statusRank(b.governedStatus ?? b.status) ||
+    statusRank(a.governedStatus ?? a.status) - statusRank(b.governedStatus ?? b.status) ||
     compareNullableText(a.governedAuthority ?? a.authority, b.governedAuthority ?? b.authority) ||
     compareDateDesc(a.confirmedAt, b.confirmedAt) ||
     compareDateDesc(a.updatedAt, b.updatedAt) ||
