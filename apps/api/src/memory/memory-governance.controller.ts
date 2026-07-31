@@ -62,6 +62,11 @@ export class MemoryGovernanceController {
     return this.governance.projectionHealth(ctx);
   }
 
+  @Post('projection-jobs/:id/retry')
+  async retryProjection(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return { ok: true, ...(await this.governance.retryProjection(ctx, id)) };
+  }
+
   @Get('clients')
   listClients(@CurrentTenant() ctx: TenantContext) {
     return this.governance.listClients(ctx);
