@@ -46,13 +46,22 @@ interface CandidateGovernanceRow {
   expires_at: string | null;
 }
 
-interface OwnPendingRow {
+export type OwnedMemoryCandidateStatus =
+  | 'pending'
+  | 'withdrawn'
+  | 'rejected'
+  | 'approved'
+  | 'auto_committed';
+
+interface OwnCandidateRow {
   id: string;
   clientId: string | null;
   proposedBy: string;
   sourceKind: string;
   scope: string;
+  status: OwnedMemoryCandidateStatus;
   createdAt: Date;
+  decidedAt: Date | null;
 }
 
 export interface OwnedMemoryCandidate {
@@ -60,7 +69,9 @@ export interface OwnedMemoryCandidate {
   scope: string;
   clientId: string | null;
   sourceKind: string;
+  status: OwnedMemoryCandidateStatus;
   createdAt: string;
+  decidedAt: string | null;
   restricted: boolean;
   proposal: {
     key: string | null;
@@ -72,7 +83,7 @@ export interface OwnedMemoryCandidate {
       sections: MemorySection[];
     } | null;
   } | null;
-  capabilities: { withdraw: true };
+  capabilities: { withdraw: boolean };
 }
 
 /**
@@ -136,10 +147,11 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
   }
 
   /**
-   * Proposer queue. A client proposal whose wall access was later removed remains
-   * withdrawable but its body is redacted from the listing response.
+   * Bounded proposer history. Client proposal bodies are redacted whenever the
+   * proposer no longer passes the current ethical wall, while status and the
+   * ability to withdraw a still-pending row remain visible.
    */
-  async listOwnPending(
+  async listOwnProposals(
     ctx: CandidateActorContext,
   ): Promise<{ enabled: boolean; candidates: OwnedMemoryCandidate[] }> {
     if (!memoryReviewSurfaceEnabled()) return { enabled: false, candidates: [] };
@@ -149,17 +161,20 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
       ctx.userId,
       async (tx) => {
         const rows = (await tx.memoryCandidate.findMany({
-          where: { tenantId: ctx.tenantId, proposedBy: ctx.userId, status: 'pending' },
-          orderBy: { createdAt: 'asc' },
+          where: { tenantId: ctx.tenantId, proposedBy: ctx.userId },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
           select: {
             id: true,
             clientId: true,
             proposedBy: true,
             sourceKind: true,
             scope: true,
+            status: true,
             createdAt: true,
+            decidedAt: true,
           },
-        })) as OwnPendingRow[];
+        })) as OwnCandidateRow[];
 
         const own: OwnedMemoryCandidate[] = [];
         for (const row of rows) {
@@ -168,7 +183,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
             : true;
           const payloadRow = contentAllowed
             ? await tx.memoryCandidate.findFirst({
-                where: { id: row.id, tenantId: ctx.tenantId, status: 'pending' },
+                where: { id: row.id, tenantId: ctx.tenantId },
                 select: { payload: true },
               })
             : null;
@@ -177,10 +192,12 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
             scope: row.scope,
             clientId: row.clientId,
             sourceKind: row.sourceKind,
+            status: row.status,
             createdAt: row.createdAt.toISOString(),
+            decidedAt: row.decidedAt?.toISOString() ?? null,
             restricted: !contentAllowed,
             proposal: payloadRow ? proposalFromPayload(payloadRow.payload) : null,
-            capabilities: { withdraw: true },
+            capabilities: { withdraw: row.status === 'pending' },
           });
         }
         return own;
