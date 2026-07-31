@@ -36,6 +36,7 @@ describe('MemoryGovernanceController', () => {
       getItem: jest.fn(async () => ({ enabled: true, item: { id: 'item-1' } })),
       listTransitions: jest.fn(async () => ({ enabled: true, transitions: [] })),
       projectionHealth: jest.fn(async () => ({ enabled: true, counts: {} })),
+      retryProjection: jest.fn(async () => ({ outcome: 'projection_retry_queued' })),
       listClients: jest.fn(async () => ({ enabled: true, clients: [] })),
       confirm: jest.fn(async () => ({ outcome: 'confirmed' })),
       markStale: jest.fn(async () => ({ outcome: 'marked_stale' })),
@@ -49,6 +50,7 @@ describe('MemoryGovernanceController', () => {
     await controller.getItem(ctx, 'item-1');
     await controller.listTransitions(ctx, '50');
     await controller.projectionHealth(ctx);
+    await controller.retryProjection(ctx, 'job-1');
     await controller.listClients(ctx);
     await controller.confirm(ctx, 'item-1');
     await controller.markStale(ctx, 'item-1', { reason: 'Needs reconfirmation.' });
@@ -60,6 +62,7 @@ describe('MemoryGovernanceController', () => {
     expect(governance.getItem).toHaveBeenCalledWith(ctx, 'item-1');
     expect(governance.listTransitions).toHaveBeenCalledWith(ctx, 50);
     expect(governance.projectionHealth).toHaveBeenCalledWith(ctx);
+    expect(governance.retryProjection).toHaveBeenCalledWith(ctx, 'job-1');
     expect(governance.listClients).toHaveBeenCalledWith(ctx);
     expect(governance.confirm).toHaveBeenCalledWith(ctx, 'item-1');
     expect(governance.markStale).toHaveBeenCalledWith(
