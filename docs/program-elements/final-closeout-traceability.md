@@ -162,7 +162,7 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 | L6 | Reserve exhibits | `unsupported` fail-closed | matrix + ownership gate | 7 |
 | L7 | Remaining P-5/P-21/P-3A or OP-5 gaps | `blocked` fail-closed | matrix `p5_p21_p3a_op5_gaps` | 7 |
 
-**Phase 7 review gate:** **IMPLEMENT PUSHED — independent REVIEW REQUIRED** on remote tip  (product ) — no self-PASS.
+**Phase 7 review gate:** **IMPLEMENT PUSHED — independent REVIEW REQUIRED** — product `a2e708271d61516b799080cfaee40de5f1c036ca`; review against `origin/agent/program-elements-final-closeout` HEAD at review time (no self-PASS).
 **Coverage authority file:** `docs/program-elements/source-coverage-matrix.md` ↔ `packages/shared/src/pe-source-coverage.ts`.
 
 ---
