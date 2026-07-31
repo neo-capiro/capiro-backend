@@ -205,7 +205,7 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 | R5 | Extended proofs mapped to phase E/D/F/I/J owners | `in_branch` | catalog EXTENDED_PROOF_OWNERS | 9 |
 | R6 | Evidence JSON/README under phase-9 verification dir | `in_branch` | docs/verification/program-elements-trust/phase-9/ | 9 |
 
-**Phase 9 review gate:** **IMPLEMENT PUSHED — independent REVIEW REQUIRED** on tip `f0702b78f08a0e37675cd65eae06755340de00c3` (product `ca3f372b0abfc75e06d0b031e89c18f2cd640e01`; evidence `a21640c568dbfef01dbbce5945bf032221213414`; no self-PASS). Soft residuals: prettier PE surface debt; host psql missing for optional pe-phase-c-rls-rehearsal.sh.
+**Phase 9 review gate:** **IMPLEMENT PUSHED — independent REVIEW REQUIRED** on tip  (product ; evidence ; no self-PASS). Soft residuals: prettier PE surface debt; host psql missing for optional pe-phase-c-rls-rehearsal.sh.
 
 Commands:
 
