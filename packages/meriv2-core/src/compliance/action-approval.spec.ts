@@ -64,6 +64,9 @@ describe('computeActionFingerprintV2', () => {
       clientId: '33333333-3333-4333-8333-333333333333',
     },
     policyVersion: 'p0.v1',
+    policyBinding: 'generic@p0.v1:send.requires_approval',
+    policyDecisionHash: 'a'.repeat(64),
+    policyContextHash: 'b'.repeat(64),
   };
 
   it('is stable across object-key order but keeps array order meaningful', () => {
@@ -96,6 +99,9 @@ describe('computeActionFingerprintV2', () => {
     ['user', { userId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' }],
     ['tool', { tool: 'reply_email' }],
     ['policy version', { policyVersion: 'p0.v2' }],
+    ['policy binding', { policyBinding: 'generic@p0.v2:send.requires_approval' }],
+    ['policy decision hash', { policyDecisionHash: 'c'.repeat(64) }],
+    ['policy context hash', { policyContextHash: 'd'.repeat(64) }],
   ])('changes when %s changes', (_label, patch) => {
     expect(computeActionFingerprintV2({ ...base, ...patch })).not.toBe(
       computeActionFingerprintV2(base),

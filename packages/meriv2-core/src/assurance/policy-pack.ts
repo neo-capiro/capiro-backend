@@ -9,6 +9,7 @@ import type { GovernmentAffairsJurisdiction } from './operating-frame';
  */
 export const POLICY_PACK_ACTIONS = [
   'create',
+  'revise',
   'submit_review',
   'review',
   'approve',
@@ -297,9 +298,9 @@ export function validatePolicyPack(pack: CompliancePolicyPack): PolicyPackValida
     if (!pack.publishedByUserId || !pack.publishedAt)
       errors.push('Published pack lacks publication attribution.');
   }
-  if (pack.fourEyesRequired) {
+  if (pack.fourEyesRequired && (pack.status === 'reviewed' || pack.status === 'published')) {
     if (!pack.reviewedByUserId || !pack.secondApprovedByUserId) {
-      errors.push('Four-eyes policy requires two named reviewers.');
+      errors.push('Four-eyes policy requires two named reviewers before review completes.');
     }
     if (
       pack.reviewedByUserId &&
@@ -483,6 +484,47 @@ export function evaluatePolicyPack(
 
 export function proposalPolicyBinding(decision: PolicyPackDecision): string {
   return `${decision.packId}@${decision.packVersion}:${decision.ruleId ?? 'fallback'}`;
+}
+
+/**
+ * Stable hash of the SERVER-RESOLVED policy context. Evaluation time is
+ * deliberately excluded: approval minutes later must remain valid when every
+ * decision-bearing dimension and selected pack are unchanged. Effective-window
+ * changes still invalidate because they select a different pack/binding.
+ */
+export function policySelectionContextHash(context: PolicySelectionContext): string {
+  const material = {
+    tenantId: context.tenantId,
+    actorUserId: context.actorUserId,
+    actorRole: context.actorRole,
+    jurisdiction: context.jurisdiction,
+    clientId: context.clientId ?? null,
+    tool: context.tool,
+    channel: context.channel,
+    recipientType: context.recipientType ?? 'unknown',
+    contextFlags: context.contextFlags ?? {},
+  };
+  return createHash('sha256').update(stablePolicyStringify(material)).digest('hex');
+}
+
+/**
+ * Stable evidence hash over the exact pack/rule/outcome and resolved context.
+ * Human-facing reason text is excluded so copy edits cannot silently invalidate
+ * an otherwise identical approval; every decision-bearing field is included.
+ */
+export function policyDecisionHash(
+  decision: PolicyPackDecision,
+  contextHash: string,
+): string {
+  const material = {
+    binding: proposalPolicyBinding(decision),
+    outcome: decision.outcome,
+    code: decision.code ?? null,
+    tier: decision.tier ?? null,
+    contextHash,
+    simulated: decision.simulated,
+  };
+  return createHash('sha256').update(stablePolicyStringify(material)).digest('hex');
 }
 
 /**

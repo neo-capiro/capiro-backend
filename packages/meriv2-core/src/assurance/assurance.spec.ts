@@ -28,6 +28,8 @@ import {
   canPublishPolicyPack,
   evaluatePolicyPack,
   proposalPolicyBinding,
+  policyDecisionHash,
+  policySelectionContextHash,
   publishPolicyPack,
   rollbackPolicyPack,
   selectPolicyPack,
@@ -603,7 +605,20 @@ describe('versioned compliance policy packs', () => {
     expect(decision).toEqual(
       expect.objectContaining({ outcome: 'WARN', ruleId: 'send.requires_approval' }),
     );
-    expect(proposalPolicyBinding(decision)).toContain(`${selected!.id}@${selected!.version}`);
+    const binding = proposalPolicyBinding(decision);
+    expect(binding).toContain(`${selected!.id}@${selected!.version}`);
+    const contextHash = policySelectionContextHash({
+      tenantId: 'tenant',
+      actorUserId: 'user',
+      actorRole: 'standard_user',
+      jurisdiction: 'federal',
+      tool: 'send_email',
+      channel: 'email',
+      recipientType: 'government',
+      at: NOW,
+    });
+    expect(contextHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(policyDecisionHash(decision, contextHash)).toMatch(/^[a-f0-9]{64}$/);
     for (const tool of [
       'save_note',
       'save_memory',

@@ -69,6 +69,12 @@ export interface ActionFingerprintV2Input {
   tool: string;
   input: unknown;
   policyVersion: string;
+  /** Exact pack@version:rule binding selected by the server. */
+  policyBinding?: string;
+  /** Hash of the decision-bearing pack outcome + server context. */
+  policyDecisionHash?: string;
+  /** Hash of tenant/actor/client/jurisdiction/channel/recipient context. */
+  policyContextHash?: string;
 }
 
 /**
@@ -84,6 +90,9 @@ export function computeActionFingerprintV2(args: ActionFingerprintV2Input): stri
     tool: args.tool,
     input: args.input ?? null,
     policyVersion: args.policyVersion,
+    policyBinding: args.policyBinding ?? null,
+    policyDecisionHash: args.policyDecisionHash ?? null,
+    policyContextHash: args.policyContextHash ?? null,
   });
   return createHash('sha256').update(payload).digest('hex');
 }

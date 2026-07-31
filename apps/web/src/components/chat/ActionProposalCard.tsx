@@ -210,6 +210,18 @@ export function ActionProposalCard({
               <dd>{proposal.ruleId || proposal.policyCode || 'Policy rule not supplied'}</dd>
             </div>
             <div>
+              <dt>Policy pack</dt>
+              <dd>{proposal.policy.packKey}@{proposal.policy.packVersion}</dd>
+            </div>
+            <div>
+              <dt>Policy binding</dt>
+              <dd><code>{proposal.policy.binding}</code></dd>
+            </div>
+            <div>
+              <dt>Decision evidence</dt>
+              <dd><code>{proposal.policy.decisionHash.slice(0, 16)}…</code></dd>
+            </div>
+            <div>
               <dt>Expires</dt>
               <dd>{expiresAt || 'Expiration unavailable'}</dd>
             </div>

@@ -865,90 +865,53 @@ export class ChatAssistantService {
     pendingApprovals: NonNullable<ChatResult['pendingApprovals']>,
     artifacts: ChatArtifact[],
     emit: (event: ChatStreamEvent) => void = () => {},
-    /**
-     * Pre-persistence assurance hold. Returns a refusal to hand the model, or
-     * null to proceed. Defaults to "always proceed" so the many unit tests that
-     * call invokeTool directly keep their exact previous behaviour.
-     */
     prePersistRefusal: (name: string, input: Record<string, unknown>) => string | null = () => null,
-    /** Records the turn's strongest compliance outcome for the release gate. */
     noteComplianceOutcome: (outcome: 'PASS' | 'WARN' | 'BLOCK') => void = () => {},
   ): Promise<unknown> {
     const label = toolLabel(name);
-    // Only write tools (readOnly:false) pass through the compliance gate, so
-    // only they produce an auditable decision.
     const isWrite = this.registry.get(name)?.readOnly === false;
     emit({ type: 'tool_call', tool: name, label });
-    // PRE-PERSISTENCE GATE. This must run before registry.invoke: the invoke
-    // delegates to apps/api, which persists inside the call. Reported as
-    // `blocked` (the same shape a compliance BLOCK uses) so the client renders a
-    // refused action rather than a completed one.
     const refusal = prePersistRefusal(name, input);
     if (refusal) {
       const detail = 'held: pre-release verification failed';
       steps.push({ tool: name, label, status: 'blocked', detail });
       emit({ type: 'tool_done', tool: name, label, status: 'blocked', detail });
-      this.logger.warn(`[meri-assurance] pre-persist hold on ${name}: nothing was written`);
       return { blocked: true, persisted: false, message: refusal };
     }
-    try {
-      const result = await this.registry.invoke(name, input, ctx);
-      steps.push({ tool: name, label, status: 'done' });
-      emit({ type: 'tool_done', tool: name, label, status: 'done' });
-      // Surface any deliverable the tool produced + persisted (a generated
-      // document, meeting brief, or policy memo) so the client can render a
-      // download / canvas card — the apps/api proxy maps this to the legacy
-      // ChatDrawer `artifact` frame. A tool that could not persist (no
-      // conversation context) returns { persisted: false } and is skipped.
-      for (const art of extractChatArtifacts(result)) {
-        artifacts.push(art);
-        emit({ type: 'artifact', artifact: art });
-      }
-      // A write tool that resolved passed the gate (PASS or an approved WARN).
-      if (isWrite) {
-        noteComplianceOutcome('PASS');
-        this.audit.record({
-          trigger: name,
-          decision: 'PASS',
-          reason: 'Passed the compliance gate.',
+
+    if (isWrite) {
+      let authority: Awaited<ReturnType<ApiActionProposalRepo['create']>>;
+      try {
+        authority = await this.actionProposals.create({
+          tool: name,
+          input,
+          ...(conversationId ? { conversationId } : {}),
+          surface: 'chat',
         });
+      } catch (error) {
+        const detail = (error as Error).message.slice(0, 160);
+        steps.push({ tool: name, label, status: 'error', detail });
+        emit({ type: 'tool_done', tool: name, label, status: 'error', detail });
+        return {
+          error: true,
+          message: 'The server-owned action authority was unavailable. Nothing was executed or proposed.',
+        };
       }
-      return result;
-    } catch (e) {
-      const err = e as Error;
-      if (err.name === 'ApprovalPendingError') {
-        // The active policy required a human — risk-gate.ts's WARN path.
-        noteComplianceOutcome('WARN');
-        // Propose-time client check. The gate WARNs BEFORE the tool runs, so a
-        // write naming a client that cannot be resolved used to render as a
-        // perfectly clean approve card and only fail after the click. Three
-        // profile fills were once proposed for clients whose create_client had
-        // never been approved; every card looked fine. Say so on the card.
-        const blocker = await this.describeClientBlocker(input);
 
-        let proposal: Awaited<ReturnType<ApiActionProposalRepo['create']>>;
-        try {
-          proposal = await this.actionProposals.create({
-            tool: name,
-            input,
-            ...(conversationId ? { conversationId } : {}),
-            surface: 'chat',
-          });
-        } catch (createErr) {
-          // Persistence failed — never fabricate a usable approval card. The
-          // model must be told plainly that nothing was proposed or queued, so
-          // it can never claim otherwise (a browser card requires a durable
-          // proposalId that does not exist here).
-          const detail = (createErr as Error).message.slice(0, 160);
-          steps.push({ tool: name, label, status: 'error', detail });
-          emit({ type: 'tool_done', tool: name, label, status: 'error', detail });
-          return {
-            error: true,
-            message:
-              'This action could not be proposed due to a system error. Tell the user it was NOT submitted, queued, or scheduled, and that they should try again.',
-          };
+      const proposal = authority.proposal;
+      if (authority.disposition === 'executed') {
+        noteComplianceOutcome('PASS');
+        steps.push({ tool: name, label, status: 'done' });
+        emit({ type: 'tool_done', tool: name, label, status: 'done' });
+        for (const art of extractChatArtifacts(authority.executionResult)) {
+          artifacts.push(art);
+          emit({ type: 'artifact', artifact: art });
         }
-
+        return authority.executionResult;
+      }
+      if (authority.disposition === 'pending_approval') {
+        noteComplianceOutcome('WARN');
+        const blocker = await this.describeClientBlocker(input);
         const reason = blocker ? `${proposal.reason} — ${blocker}` : proposal.reason;
         steps.push({ tool: name, label, status: 'pending_approval' });
         pendingApprovals.push({
@@ -956,6 +919,12 @@ export class ChatAssistantService {
           proposalId: proposal.proposalId,
           reason,
           status: proposal.status,
+          policy: {
+            packKey: proposal.policy.packKey,
+            packVersion: proposal.policy.packVersion,
+            binding: proposal.policy.binding,
+            decisionHash: proposal.policy.decisionHash,
+          },
         });
         emit({ type: 'tool_done', tool: name, label, status: 'pending_approval' });
         emit({
@@ -969,42 +938,51 @@ export class ChatAssistantService {
           riskTier: proposal.riskTier,
           policyCode: proposal.policyCode,
           ruleId: proposal.ruleId,
+          policy: proposal.policy,
           preview: proposal.preview,
         });
-        // Compliance audit for this WARN decision is already durably recorded
-        // by apps/api INSIDE the same transaction as proposal creation
-        // (MeriActionProposalService.create -> recordDecision) — recording it
-        // again here would just duplicate the row.
-        if (blocker) {
-          // Also hand it to the model as tool output, so its prose matches the
-          // card instead of promising a fill that provably cannot happen.
-          return {
-            pendingApproval: true,
-            proposalId: proposal.proposalId,
-            willFail: true,
-            message: `This action needs the user's approval, and as proposed it will FAIL: ${blocker}. Tell the user plainly and fix the reference (or create the client first) rather than repeating the same proposal.`,
-          };
-        }
-        return {
-          pendingApproval: true,
-          proposalId: proposal.proposalId,
-          message: `This action needs the user's approval before it runs: ${proposal.reason}`,
-        };
+        return blocker
+          ? {
+              pendingApproval: true,
+              proposalId: proposal.proposalId,
+              willFail: true,
+              message: `This action needs approval and will fail as proposed: ${blocker}.`,
+            }
+          : {
+              pendingApproval: true,
+              proposalId: proposal.proposalId,
+              message: `This action needs approval before it runs: ${proposal.reason}`,
+            };
       }
-      if (err.name === 'ComplianceBlockedError') {
-        // risk-gate.ts's BLOCK path — a blocked action in the turn is a policy
-        // signal the release gate must see, not just a per-tool error.
+
+      if (authority.disposition === 'blocked') {
         noteComplianceOutcome('BLOCK');
-        const detail = err.message.slice(0, 120);
+        const detail = proposal.reason.slice(0, 120);
         steps.push({ tool: name, label, status: 'blocked', detail });
         emit({ type: 'tool_done', tool: name, label, status: 'blocked', detail });
-        this.audit.record({ trigger: name, decision: 'BLOCK', reason: err.message });
-        return { blocked: true, message: `Blocked by compliance policy: ${err.message}` };
+        return { blocked: true, message: `Blocked by the authoritative policy pack: ${proposal.reason}` };
       }
-      const detail = err.message.slice(0, 120);
+
+      const detail = proposal.error?.message?.slice(0, 120) ?? 'Action execution failed';
       steps.push({ tool: name, label, status: 'error', detail });
       emit({ type: 'tool_done', tool: name, label, status: 'error', detail });
-      return { error: err.message };
+      return { error: true, message: detail };
+    }
+
+    try {
+      const result = await this.registry.invoke(name, input, ctx);
+      steps.push({ tool: name, label, status: 'done' });
+      emit({ type: 'tool_done', tool: name, label, status: 'done' });
+      for (const art of extractChatArtifacts(result)) {
+        artifacts.push(art);
+        emit({ type: 'artifact', artifact: art });
+      }
+      return result;
+    } catch (error) {
+      const detail = (error as Error).message.slice(0, 120);
+      steps.push({ tool: name, label, status: 'error', detail });
+      emit({ type: 'tool_done', tool: name, label, status: 'error', detail });
+      return { error: detail };
     }
   }
 

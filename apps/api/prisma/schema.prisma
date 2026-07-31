@@ -1725,6 +1725,20 @@ model MeriActionProposal {
   input                  Json      @map("input_jsonb")
   fingerprint            String    @db.VarChar(64)
   policyVersion          String    @map("policy_version") @db.VarChar(80)
+  policyPackId           String?   @map("policy_pack_id") @db.Uuid
+  policyPackKey          String    @map("policy_pack_key") @db.VarChar(120)
+  policyPackVersion      String    @map("policy_pack_version") @db.VarChar(80)
+  policyBinding          String    @map("policy_binding") @db.VarChar(280)
+  policyDecisionHash     String    @map("policy_decision_hash") @db.VarChar(64)
+  policyContextHash      String    @map("policy_context_hash") @db.VarChar(64)
+  policySource           String    @map("policy_source") @db.VarChar(24)
+  policyMode             String    @map("policy_mode") @db.VarChar(16)
+  policyJurisdiction     String    @map("policy_jurisdiction") @db.VarChar(32)
+  policyChannel          String    @map("policy_channel") @db.VarChar(24)
+  policyRecipientType    String?   @map("policy_recipient_type") @db.VarChar(24)
+  policyClientId         String?   @map("policy_client_id") @db.Uuid
+  policyEffectiveUserId String    @map("policy_effective_user_id") @db.Uuid
+  policyEffectiveAt     DateTime  @map("policy_effective_at") @db.Timestamptz(6)
   policyRuleId           String?   @map("policy_rule_id") @db.VarChar(160)
   policyDecision         String    @map("policy_decision") @db.VarChar(20)
   policyCode             String?   @map("policy_code") @db.VarChar(120)
@@ -1749,6 +1763,8 @@ model MeriActionProposal {
   @@index([conversationId, status], map: "meri_action_proposal_conversation_status_idx")
   @@index([expiresAt, status], map: "meri_action_proposal_expiry_status_idx")
   @@index([tenantId, fingerprint], map: "meri_action_proposal_tenant_fingerprint_idx")
+  @@index([tenantId, policyPackKey, policyPackVersion], map: "meri_action_proposals_policy_pack_idx")
+  @@index([tenantId, policyDecisionHash], map: "meri_action_proposals_policy_decision_idx")
   @@map("meri_action_proposals")
 }
 
@@ -6829,8 +6845,12 @@ model ComplianceCheck {
   trigger          String // 'send_email' | 'lda_threshold' | 'gift_travel' | 'fara_risk' | ...
   decision         String // 'PASS' | 'WARN' | 'BLOCK'
   reason           String   @db.Text
-  ruleSource       String?  @map("rule_source")
-  requiredApproval Boolean  @default(false) @map("required_approval")
+  ruleSource        String?  @map("rule_source")
+  policyPackKey      String?  @map("policy_pack_key") @db.VarChar(120)
+  policyPackVersion  String?  @map("policy_pack_version") @db.VarChar(80)
+  policyBinding      String?  @map("policy_binding") @db.VarChar(280)
+  policyDecisionHash String?  @map("policy_decision_hash") @db.VarChar(64)
+  requiredApproval   Boolean  @default(false) @map("required_approval")
   actorUserId      String?  @map("actor_user_id") // clerk user id of the actor, if any
   entityType       String?  @map("entity_type")
   entityId         String?  @map("entity_id")
@@ -7304,6 +7324,12 @@ model CompliancePolicyDecision {
   tier                 String?  @db.VarChar(16)
   simulated            Boolean  @default(false)
   binding              String   @db.VarChar(280)
+  decisionHash         String   @map("decision_hash") @db.VarChar(64)
+  contextHash          String   @map("context_hash") @db.VarChar(64)
+  policySource         String   @map("policy_source") @db.VarChar(24)
+  policyMode           String   @map("policy_mode") @db.VarChar(16)
+  effectiveUserId      String   @map("effective_user_id") @db.Uuid
+  effectiveAt          DateTime @map("effective_at") @db.Timestamptz(6)
   tool                 String   @db.VarChar(80)
   channel              String   @db.VarChar(24)
   recipientType        String?  @map("recipient_type") @db.VarChar(24)
@@ -7320,6 +7346,7 @@ model CompliancePolicyDecision {
 
   @@index([tenantId, decidedAt(sort: Desc)], map: "compliance_policy_decision_recent_idx")
   @@index([tenantId, packKey, packVersion], map: "compliance_policy_decision_version_idx")
+  @@index([tenantId, decisionHash], map: "compliance_policy_decision_hash_idx")
   @@map("compliance_policy_decision")
 }
 

@@ -607,6 +607,10 @@ export const configSchema = z.object({
     .default('false')
     .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
   MERIV2_ACTION_PROPOSAL_TTL_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
+  // Which action-policy source may bind real writes. Off/shadow retain the
+  // reviewed static baseline; enforce requires a verified tenant-published pack
+  // and fails closed when it cannot be loaded. A code deploy never arms it.
+  MERI_POLICY_PACK_SOURCE: z.enum(['off', 'shadow', 'enforce']).default('off'),
 
   // Recall.ai meeting-notetaker bot (docs/plans/meeting-notetaker-bot-plan.md).
   // RECALL_API_KEY authenticates outbound bot dispatch/poll calls (sent as the

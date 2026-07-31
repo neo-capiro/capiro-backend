@@ -1,6 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
 import {
-  ConflictException,
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
@@ -8,36 +7,19 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { MeriActionProposal, Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
-import {
-  CAPIRO_COMPLIANCE_POLICY_VERSION,
-  computeActionFingerprintV2,
-  meriContextFromTenant,
-  PROPOSED_CAPIRO_RULES,
-  ruleBasedCompliancePolicy,
-  type ComplianceDecision,
-} from '@capiro/meriv2-core';
+import { computeActionFingerprintV2 } from '@capiro/meriv2-core';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { buildMeriActionPreview, type MeriActionPreview } from './meri-action-preview.js';
 import {
   MeriPolicyPackService,
-  policyActorRole,
-  policyChannelForTool,
-  policyRecipientTypeForTool,
+  type AuthoritativePolicyDecision,
 } from './meri-policy-pack.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 
 export const MERI_ACTION_PROPOSAL_STATUSES = [
-  'proposed',
-  'approved',
-  'executing',
-  'succeeded',
-  'failed_retryable',
-  'failed_terminal',
-  'outcome_unknown',
-  'blocked',
-  'dismissed',
-  'expired',
+  'proposed', 'approved', 'executing', 'succeeded', 'failed_retryable',
+  'failed_terminal', 'outcome_unknown', 'blocked', 'dismissed', 'expired',
 ] as const;
 export type MeriActionProposalStatus = (typeof MERI_ACTION_PROPOSAL_STATUSES)[number];
 
@@ -61,22 +43,33 @@ export interface PublicMeriActionProposal {
   attemptCount: number;
   resultSummary: unknown;
   error?: { code: string | null; message: string | null };
-  /** Approval lifecycle evidence. Display metadata only, never authority. */
   approvedAt?: string | null;
   approvedBy?: string | null;
+  policy: {
+    source: string;
+    mode: string;
+    packKey: string;
+    packVersion: string;
+    binding: string;
+    decisionHash: string;
+    contextHash: string;
+    decision: string;
+    jurisdiction: string;
+    channel: string;
+    recipientType: string | null;
+  };
   createdAt: string;
   updatedAt: string;
 }
 
-type DecisionWithRule = ComplianceDecision & { ruleId?: string };
+export type MeriActionAuthorityResult =
+  | { disposition: 'executed'; proposal: PublicMeriActionProposal; executionResult: unknown }
+  | { disposition: 'pending_approval'; proposal: PublicMeriActionProposal }
+  | { disposition: 'blocked'; proposal: PublicMeriActionProposal }
+  | { disposition: 'failed'; proposal: PublicMeriActionProposal };
 
 const TERMINAL_STATUSES = new Set<MeriActionProposalStatus>([
-  'succeeded',
-  'failed_terminal',
-  'outcome_unknown',
-  'blocked',
-  'dismissed',
-  'expired',
+  'succeeded', 'failed_terminal', 'outcome_unknown', 'blocked', 'dismissed', 'expired',
 ]);
 const CLAIMABLE_STATUSES: MeriActionProposalStatus[] = ['proposed', 'failed_retryable'];
 const EXTERNAL_SEND_TOOLS = new Set(['send_email', 'reply_email']);
@@ -120,13 +113,7 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
     };
   }
   const counts: Record<string, number> = {};
-  for (const key of [
-    'fieldsWritten',
-    'peopleCreated',
-    'facilitiesCreated',
-    'capabilitiesCreated',
-    'recipients',
-  ]) {
+  for (const key of ['fieldsWritten', 'peopleCreated', 'facilitiesCreated', 'capabilitiesCreated', 'recipients']) {
     if (Array.isArray(source[key])) counts[key] = source[key].length;
     else if (typeof source[key] === 'number') counts[key] = source[key] as number;
   }
@@ -136,55 +123,32 @@ function resultSummary(result: unknown): Prisma.InputJsonValue {
 
 function errorStatus(error: unknown): number | null {
   if (!error || typeof error !== 'object') return null;
-  const candidate = error as {
-    status?: unknown;
-    statusCode?: unknown;
-    response?: { status?: unknown };
-  };
+  const candidate = error as { status?: unknown; statusCode?: unknown; response?: { status?: unknown } };
   for (const value of [candidate.status, candidate.statusCode, candidate.response?.status]) {
     if (typeof value === 'number' && Number.isInteger(value)) return value;
   }
   return null;
 }
 
-function classifyExecutionFailure(
-  tool: string,
-  error: unknown,
-): {
+function classifyExecutionFailure(tool: string, error: unknown): {
   status: 'failed_retryable' | 'failed_terminal' | 'outcome_unknown';
   code: string;
   message: string;
 } {
   const httpStatus = errorStatus(error);
-  const rawCode =
-    error && typeof error === 'object' && typeof (error as { code?: unknown }).code === 'string'
-      ? (error as { code: string }).code
-      : null;
-  const message =
-    bounded(error instanceof Error ? error.message : error, 900) ?? 'Execution failed';
+  const rawCode = error && typeof error === 'object' && typeof (error as { code?: unknown }).code === 'string'
+    ? (error as { code: string }).code : null;
+  const message = bounded(error instanceof Error ? error.message : error, 900) ?? 'Execution failed';
   const terminal =
-    (httpStatus !== null &&
-      httpStatus >= 400 &&
-      httpStatus < 500 &&
-      httpStatus !== 408 &&
-      httpStatus !== 429) ||
-    /invalid|malformed|not found|forbidden|unauthorized|permission|validation|required/i.test(
-      message,
-    );
-
+    (httpStatus !== null && httpStatus >= 400 && httpStatus < 500 && httpStatus !== 408 && httpStatus !== 429) ||
+    /invalid|malformed|not found|forbidden|unauthorized|permission|validation|required/i.test(message);
   if (EXTERNAL_SEND_TOOLS.has(tool)) {
-    // A network/process/provider ambiguity after a send began is never safe to retry.
-    if (!terminal) {
-      return { status: 'outcome_unknown', code: rawCode ?? 'external_outcome_unknown', message };
-    }
-    return { status: 'failed_terminal', code: rawCode ?? `http_${httpStatus ?? 400}`, message };
+    return terminal
+      ? { status: 'failed_terminal', code: rawCode ?? `http_${httpStatus ?? 400}`, message }
+      : { status: 'outcome_unknown', code: rawCode ?? 'external_outcome_unknown', message };
   }
-  if (terminal) {
-    return { status: 'failed_terminal', code: rawCode ?? `http_${httpStatus ?? 400}`, message };
-  }
-  const retryable =
-    httpStatus === 408 ||
-    httpStatus === 429 ||
+  if (terminal) return { status: 'failed_terminal', code: rawCode ?? `http_${httpStatus ?? 400}`, message };
+  const retryable = httpStatus === 408 || httpStatus === 429 ||
     (httpStatus !== null && httpStatus >= 500) ||
     /timeout|temporar|unavailable|rate limit|ECONNRESET|ETIMEDOUT|deadlock/i.test(message);
   return retryable
@@ -194,81 +158,12 @@ function classifyExecutionFailure(
 
 @Injectable()
 export class MeriActionProposalService {
-  private readonly policy = ruleBasedCompliancePolicy([...PROPOSED_CAPIRO_RULES]);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly tools: MeriToolsService,
     private readonly config: ConfigService<AppConfig, true>,
-    /**
-     * OPTIONAL so an absent injection degrades to the in-code ruleset instead of
-     * crashing. That is the same fail-safe direction the switch itself takes: no
-     * pack source ⇒ today's behaviour, never a more permissive one.
-     */
-    private readonly policyPacks?: MeriPolicyPackService,
+    private readonly policyPacks: MeriPolicyPackService,
   ) {}
-
-  /**
-   * The compliance decision for one action, preferring the tenant's PUBLISHED
-   * policy pack when persisted packs are armed.
-   *
-   * Falls back to the in-code ruleset (`this.policy`) whenever the pack path
-   * returns null — switch off, no published pack, tampered rules_hash, invalid
-   * pack, or any database error. That fallback is what makes this safe to deploy:
-   * with MERI_POLICY_PACK_SOURCE unset, every decision is byte-identical to before,
-   * and even when armed a degraded pack path cannot make an action MORE permitted
-   * than the in-code ruleset already allows.
-   *
-   * The selected pack version + rule are recorded in compliance_policy_decision, so
-   * "which policy actually applied on that date" becomes answerable after a pack is
-   * republished. Today it is not.
-   */
-  private async evaluatePolicy(
-    ctx: TenantContext,
-    tool: string,
-    input: unknown,
-    proposalId?: string,
-  ): Promise<DecisionWithRule> {
-    const packDecision = await this.policyPacks?.decide(
-      ctx.tenantId,
-      {
-        tenantId: ctx.tenantId,
-        actorUserId: ctx.userId,
-        actorRole: policyActorRole(String(ctx.role ?? 'standard_user')),
-        // Federal is the platform default jurisdiction; a pack that declares
-        // `jurisdiction: 'all'` matches regardless, and a jurisdiction-specific pack
-        // is selected by selectPolicyPack only when it matches.
-        jurisdiction: 'federal',
-        tool,
-        channel: policyChannelForTool(tool),
-        recipientType: policyRecipientTypeForTool(tool),
-        at: new Date(),
-      },
-      {
-        tool,
-        channel: policyChannelForTool(tool),
-        recipientType: policyRecipientTypeForTool(tool),
-        actorUserId: ctx.userId,
-        actorRole: String(ctx.role ?? 'standard_user'),
-        jurisdiction: 'federal',
-        ...(proposalId ? { meriActionProposalId: proposalId } : {}),
-      },
-    );
-    if (packDecision) {
-      return {
-        outcome: packDecision.outcome,
-        reasons: [packDecision.reason],
-        ...(packDecision.code ? { code: packDecision.code } : {}),
-        ...(packDecision.tier ? { tier: packDecision.tier } : {}),
-        ...(packDecision.ruleId ? { ruleId: packDecision.ruleId } : {}),
-      } as DecisionWithRule;
-    }
-    return (await this.policy.evaluate(
-      tool,
-      input,
-      meriContextFromTenant(ctx),
-    )) as DecisionWithRule;
-  }
 
   private assertEnabled(): void {
     if (!this.config.get('MERIV2_ACTION_PROPOSALS_ENABLED')) {
@@ -295,168 +190,226 @@ export class MeriActionProposalService {
         : {}),
       approvedAt: row.approvedAt?.toISOString() ?? null,
       approvedBy: row.approvedBy ?? null,
+      policy: {
+        source: row.policySource,
+        mode: row.policyMode,
+        packKey: row.policyPackKey,
+        packVersion: row.policyPackVersion,
+        binding: row.policyBinding,
+        decisionHash: row.policyDecisionHash,
+        contextHash: row.policyContextHash,
+        decision: row.policyDecision,
+        jurisdiction: row.policyJurisdiction,
+        channel: row.policyChannel,
+        recipientType: row.policyRecipientType,
+      },
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
   }
 
-  private async recordDecision(
+  private async recordDecisionInTx(
     tx: Prisma.TransactionClient,
     ctx: TenantContext,
     proposalId: string,
     tool: string,
-    decision: DecisionWithRule,
+    decision: AuthoritativePolicyDecision,
   ): Promise<void> {
+    await this.policyPacks.recordDecisionInTx(tx, ctx.tenantId, decision, {
+      tool,
+      channel: decision.context.channel,
+      recipientType: decision.context.recipientType,
+      actorUserId: decision.context.actorUserId,
+      actorRole: String(decision.context.actorRole),
+      clientId: decision.context.clientId,
+      jurisdiction: decision.context.jurisdiction,
+      meriActionProposalId: proposalId,
+    });
     await tx.complianceCheck.create({
       data: {
         tenantId: ctx.tenantId,
         trigger: tool.slice(0, 120),
         decision: decision.outcome,
-        reason: bounded(decision.reasons.join('; '), 4000) ?? 'Policy decision',
+        reason: bounded(decision.reason, 4000) ?? 'Policy decision',
         ruleSource: decision.ruleId?.slice(0, 120) ?? null,
-        requiredApproval: decision.outcome !== 'PASS',
-        actorUserId: ctx.userId,
+        policyPackKey: decision.packId,
+        policyPackVersion: decision.packVersion,
+        policyBinding: decision.binding,
+        policyDecisionHash: decision.decisionHash,
+        requiredApproval: decision.outcome === 'WARN',
+        actorUserId: decision.context.actorUserId,
         entityType: 'meri_action_proposal',
         entityId: proposalId,
       },
     });
   }
 
-  private async resolveClientName(
+  private async recordTransitionCheck(
+    tx: Prisma.TransactionClient,
     ctx: TenantContext,
-    input: Record<string, unknown>,
-  ): Promise<string | null> {
+    row: MeriActionProposal,
+    outcome: 'WARN' | 'BLOCK',
+    code: string,
+    message: string,
+  ): Promise<void> {
+    await tx.complianceCheck.create({
+      data: {
+        tenantId: ctx.tenantId,
+        trigger: row.tool.slice(0, 120),
+        decision: outcome,
+        reason: bounded(message, 4000) ?? code,
+        ruleSource: code,
+        policyPackKey: row.policyPackKey,
+        policyPackVersion: row.policyPackVersion,
+        policyBinding: row.policyBinding,
+        policyDecisionHash: row.policyDecisionHash,
+        requiredApproval: outcome === 'WARN',
+        actorUserId: ctx.userId,
+        entityType: 'meri_action_proposal',
+        entityId: row.id,
+      },
+    });
+  }
+
+  private async resolveClientName(ctx: TenantContext, input: Record<string, unknown>): Promise<string | null> {
     const clientId = typeof input.clientId === 'string' ? input.clientId : null;
     if (!clientId) return null;
     const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.client.findFirst({
-        where: { id: clientId, tenantId: ctx.tenantId },
-        select: { name: true },
-      }),
+      tx.client.findFirst({ where: { id: clientId, tenantId: ctx.tenantId }, select: { name: true } }),
     );
     return client?.name ?? null;
   }
 
-  async create(
-    ctx: TenantContext,
-    request: CreateMeriActionProposalInput,
-  ): Promise<PublicMeriActionProposal> {
+  async create(ctx: TenantContext, request: CreateMeriActionProposalInput): Promise<MeriActionAuthorityResult> {
     this.assertEnabled();
     const tool = request.tool.trim();
     const input = this.tools.validateSideEffectingInput(tool, request.input);
-    const decision = await this.evaluatePolicy(ctx, tool, input);
-    if (decision.outcome === 'PASS') {
-      throw new ConflictException(
-        'The current policy permits this action without approval; proposal creation indicates policy/registry drift.',
-      );
-    }
-    const status: MeriActionProposalStatus = decision.outcome === 'BLOCK' ? 'blocked' : 'proposed';
-    const expiresAt = new Date(
-      Date.now() + this.config.get('MERIV2_ACTION_PROPOSAL_TTL_MINUTES') * 60_000,
-    );
+    const decision = await this.policyPacks.decideForAction(ctx, tool, input);
+    const status: MeriActionProposalStatus = decision.outcome === 'BLOCK'
+      ? 'blocked' : decision.outcome === 'WARN' ? 'proposed' : 'executing';
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + this.config.get('MERIV2_ACTION_PROPOSAL_TTL_MINUTES') * 60_000);
     const fingerprint = computeActionFingerprintV2({
       effectiveTenantId: ctx.tenantId,
       userId: ctx.userId,
       tool,
       input,
-      policyVersion: CAPIRO_COMPLIANCE_POLICY_VERSION,
+      policyVersion: decision.packVersion,
+      policyBinding: decision.binding,
+      policyDecisionHash: decision.decisionHash,
+      policyContextHash: decision.contextHash,
     });
     const clientName = await this.resolveClientName(ctx, input);
     const preview = buildMeriActionPreview({
       tool,
       input,
       riskTier: decision.tier ?? null,
-      reason: decision.reasons.join('; '),
+      reason: decision.reason,
       clientName,
     });
 
-    const proposal = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const row = await tx.meriActionProposal.create({
+    const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const created = await tx.meriActionProposal.create({
         data: {
           tenantId: ctx.tenantId,
           userId: ctx.userId,
-          actorUserId: null,
+          actorUserId: decision.context.actorUserId,
           impersonationSessionId: null,
           conversationId: request.conversationId ?? null,
           surface: request.surface,
           tool,
           input: input as Prisma.InputJsonValue,
           fingerprint,
-          policyVersion: CAPIRO_COMPLIANCE_POLICY_VERSION,
-          policyRuleId: decision.ruleId ?? null,
+          policyVersion: decision.packVersion,
+          policyPackId: decision.policyPackRowId,
+          policyPackKey: decision.packId,
+          policyPackVersion: decision.packVersion,
+          policyBinding: decision.binding,
+          policyDecisionHash: decision.decisionHash,
+          policyContextHash: decision.contextHash,
+          policySource: decision.source,
+          policyMode: decision.mode,
+          policyJurisdiction: decision.context.jurisdiction,
+          policyChannel: decision.context.channel,
+          policyRecipientType: decision.context.recipientType ?? null,
+          policyClientId: decision.context.clientId ?? null,
+          policyEffectiveUserId: decision.context.effectiveUserId,
+          policyEffectiveAt: decision.context.effectiveAt,
+          policyRuleId: decision.ruleId,
           policyDecision: decision.outcome,
           policyCode: decision.code ?? null,
           riskTier: decision.tier ?? null,
           preview: preview as unknown as Prisma.InputJsonValue,
           status,
           expiresAt,
+          ...(decision.outcome === 'PASS'
+            ? { executionStartedAt: now, attemptCount: 1 }
+            : decision.outcome === 'BLOCK'
+              ? { executedAt: now, lastErrorCode: decision.code ?? 'policy_blocked', lastErrorMessage: decision.reason }
+              : {}),
         },
       });
-      await this.recordDecision(tx, ctx, row.id, tool, decision);
-      return row;
+      await this.recordDecisionInTx(tx, ctx, created.id, tool, decision);
+      return created;
     });
-    return this.toPublic(proposal);
+
+    if (decision.outcome === 'WARN') return { disposition: 'pending_approval', proposal: this.toPublic(row) };
+    if (decision.outcome === 'BLOCK') return { disposition: 'blocked', proposal: this.toPublic(row) };
+
+    try {
+      const result = await this.tools.executeFromAuthenticatedUser(ctx, tool, input);
+      const completed = await this.finalize(ctx, row.id, {
+        status: 'succeeded',
+        resultSummary: resultSummary(result),
+      });
+      return { disposition: 'executed', proposal: this.toPublic(completed), executionResult: result };
+    } catch (error) {
+      const failure = classifyExecutionFailure(tool, error);
+      const failed = await this.finalize(ctx, row.id, {
+        status: failure.status,
+        errorCode: bounded(failure.code, 120),
+        errorMessage: failure.message,
+      });
+      return { disposition: 'failed', proposal: this.toPublic(failed) };
+    }
   }
 
   private async reconcileStaleExecuting(ctx: TenantContext): Promise<void> {
     const cutoff = new Date(Date.now() - 5 * 60_000);
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.meriActionProposal.updateMany({
-        where: {
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
-          status: 'executing',
-          executionStartedAt: { lt: cutoff },
-        },
-        data: {
-          status: 'outcome_unknown',
-          executedAt: new Date(),
-          lastErrorCode: 'stale_execution',
-          lastErrorMessage:
-            'Execution ended without a provable terminal result; reconciliation is required.',
-        },
-      }),
-    );
+    await this.prisma.withTenant(ctx.tenantId, (tx) => tx.meriActionProposal.updateMany({
+      where: { tenantId: ctx.tenantId, userId: ctx.userId, status: 'executing', executionStartedAt: { lt: cutoff } },
+      data: {
+        status: 'outcome_unknown', executedAt: new Date(), lastErrorCode: 'stale_execution',
+        lastErrorMessage: 'Execution ended without a provable terminal result; reconciliation is required.',
+      },
+    }));
   }
 
   private async expireStale(ctx: TenantContext): Promise<void> {
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.meriActionProposal.updateMany({
-        where: {
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
-          status: { in: ['proposed', 'approved', 'failed_retryable'] },
-          expiresAt: { lte: new Date() },
-        },
-        data: { status: 'expired' },
-      }),
-    );
+    await this.prisma.withTenant(ctx.tenantId, (tx) => tx.meriActionProposal.updateMany({
+      where: {
+        tenantId: ctx.tenantId, userId: ctx.userId,
+        status: { in: ['proposed', 'approved', 'failed_retryable'] }, expiresAt: { lte: new Date() },
+      },
+      data: { status: 'expired' },
+    }));
   }
 
   async list(ctx: TenantContext, conversationId?: string): Promise<PublicMeriActionProposal[]> {
     this.assertEnabled();
     await this.reconcileStaleExecuting(ctx);
     await this.expireStale(ctx);
-    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.meriActionProposal.findMany({
-        where: {
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
-          ...(conversationId ? { conversationId } : {}),
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 100,
-      }),
-    );
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) => tx.meriActionProposal.findMany({
+      where: { tenantId: ctx.tenantId, userId: ctx.userId, ...(conversationId ? { conversationId } : {}) },
+      orderBy: { createdAt: 'desc' }, take: 100,
+    }));
     return rows.map((row) => this.toPublic(row));
   }
 
   private async owned(ctx: TenantContext, proposalId: string): Promise<MeriActionProposal> {
-    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.meriActionProposal.findFirst({
-        where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId },
-      }),
-    );
+    const row = await this.prisma.withTenant(ctx.tenantId, (tx) => tx.meriActionProposal.findFirst({
+      where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId },
+    }));
     if (!row) throw new NotFoundException('Action proposal not found.');
     return row;
   }
@@ -468,31 +421,30 @@ export class MeriActionProposalService {
     code: string,
     message: string,
   ): Promise<PublicMeriActionProposal> {
-    const decision: DecisionWithRule = {
-      outcome: status === 'blocked' ? 'BLOCK' : 'WARN',
-      reasons: [message],
-      code,
-      ruleId: code,
-    };
     const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await tx.meriActionProposal.updateMany({
-        where: {
-          id: row.id,
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
-          status: { in: CLAIMABLE_STATUSES },
-        },
-        data: {
-          status,
-          lastErrorCode: code,
-          lastErrorMessage: bounded(message, 900),
-          executedAt: new Date(),
-        },
+        where: { id: row.id, tenantId: ctx.tenantId, userId: ctx.userId, status: { in: CLAIMABLE_STATUSES } },
+        data: { status, lastErrorCode: code, lastErrorMessage: bounded(message, 900), executedAt: new Date() },
       });
-      await this.recordDecision(tx, ctx, row.id, row.tool, decision);
-      return tx.meriActionProposal.findFirstOrThrow({
-        where: { id: row.id, tenantId: ctx.tenantId, userId: ctx.userId },
+      await this.recordTransitionCheck(tx, ctx, row, status === 'blocked' ? 'BLOCK' : 'WARN', code, message);
+      return tx.meriActionProposal.findFirstOrThrow({ where: { id: row.id, tenantId: ctx.tenantId, userId: ctx.userId } });
+    });
+    return this.toPublic(updated);
+  }
+
+  private async invalidateForPolicyChange(
+    ctx: TenantContext,
+    row: MeriActionProposal,
+    current: AuthoritativePolicyDecision,
+  ): Promise<PublicMeriActionProposal> {
+    const message = 'The governing policy pack, rule, or server-resolved context changed after proposal creation. Review a new proposal.';
+    const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await tx.meriActionProposal.updateMany({
+        where: { id: row.id, tenantId: ctx.tenantId, userId: ctx.userId, status: { in: CLAIMABLE_STATUSES } },
+        data: { status: 'blocked', lastErrorCode: 'policy_binding_changed', lastErrorMessage: message, executedAt: new Date() },
       });
+      await this.recordDecisionInTx(tx, ctx, row.id, row.tool, current);
+      return tx.meriActionProposal.findFirstOrThrow({ where: { id: row.id, tenantId: ctx.tenantId, userId: ctx.userId } });
     });
     return this.toPublic(updated);
   }
@@ -508,38 +460,18 @@ export class MeriActionProposalService {
     },
   ): Promise<MeriActionProposal> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      // The claim winner is the only caller that ever reaches finalize() for this
-      // proposal, but a slow execution can outlive reconcileStaleExecuting()'s
-      // 5-minute cutoff, which flips 'executing' -> 'outcome_unknown' out from
-      // under it. Accepting that state here too lets the true terminal result
-      // still land instead of being silently discarded in favor of a premature
-      // "unknown" — this never lets a second actor finalize (only the single
-      // claim winner ever calls this method).
       await tx.meriActionProposal.updateMany({
-        where: {
-          id: proposalId,
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
-          status: { in: ['executing', 'outcome_unknown'] },
-        },
+        where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId, status: { in: ['executing', 'outcome_unknown'] } },
         data: {
-          status: data.status,
-          executedAt: new Date(),
-          resultSummary: data.resultSummary,
-          lastErrorCode: data.errorCode ?? null,
-          lastErrorMessage: data.errorMessage ?? null,
+          status: data.status, executedAt: new Date(), resultSummary: data.resultSummary,
+          lastErrorCode: data.errorCode ?? null, lastErrorMessage: data.errorMessage ?? null,
         },
       });
-      return tx.meriActionProposal.findFirstOrThrow({
-        where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId },
-      });
+      return tx.meriActionProposal.findFirstOrThrow({ where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId } });
     });
   }
 
-  async approveAndExecute(
-    ctx: TenantContext,
-    proposalId: string,
-  ): Promise<PublicMeriActionProposal> {
+  async approveAndExecute(ctx: TenantContext, proposalId: string): Promise<PublicMeriActionProposal> {
     this.assertEnabled();
     await this.reconcileStaleExecuting(ctx);
     let row = await this.owned(ctx, proposalId);
@@ -547,114 +479,69 @@ export class MeriActionProposalService {
     if (TERMINAL_STATUSES.has(status) || status === 'executing') return this.toPublic(row);
     if (!CLAIMABLE_STATUSES.includes(status)) return this.toPublic(row);
     if (row.expiresAt.getTime() <= Date.now()) {
-      return this.transitionWithoutExecution(
-        ctx,
-        row,
-        'expired',
-        'proposal_expired',
-        'This proposal expired before approval and cannot execute.',
-      );
-    }
-    if (row.policyVersion !== CAPIRO_COMPLIANCE_POLICY_VERSION) {
-      return this.transitionWithoutExecution(
-        ctx,
-        row,
-        'blocked',
-        'policy_version_changed',
-        'The compliance policy changed after this action was proposed; a new proposal is required.',
-      );
+      return this.transitionWithoutExecution(ctx, row, 'expired', 'proposal_expired',
+        'This proposal expired before approval and cannot execute.');
     }
 
     let canonical: Record<string, unknown>;
     try {
       canonical = this.tools.validateSideEffectingInput(row.tool, row.input);
     } catch {
-      return this.transitionWithoutExecution(
-        ctx,
-        row,
-        'blocked',
-        'stored_input_invalid',
-        'The stored action no longer passes the canonical write-input parser.',
-      );
+      return this.transitionWithoutExecution(ctx, row, 'blocked', 'stored_input_invalid',
+        'The stored action no longer passes the canonical write-input parser.');
     }
     const recomputed = computeActionFingerprintV2({
       effectiveTenantId: ctx.tenantId,
       userId: ctx.userId,
       tool: row.tool,
       input: canonical,
-      policyVersion: row.policyVersion,
+      policyVersion: row.policyPackVersion,
+      policyBinding: row.policyBinding,
+      policyDecisionHash: row.policyDecisionHash,
+      policyContextHash: row.policyContextHash,
     });
     if (!constantTimeHexEqual(row.fingerprint, recomputed)) {
-      return this.transitionWithoutExecution(
-        ctx,
-        row,
-        'blocked',
-        'fingerprint_mismatch',
-        'The immutable proposal payload does not match its server fingerprint.',
-      );
+      return this.transitionWithoutExecution(ctx, row, 'blocked', 'fingerprint_mismatch',
+        'The immutable proposal payload or bound policy evidence does not match its server fingerprint.');
     }
 
-    // Re-evaluated at APPROVE time, not just at propose time, so a pack published
-    // (or rolled back) between the two decides the execution.
-    const decision = await this.evaluatePolicy(ctx, row.tool, canonical, row.id);
-    if (decision.outcome === 'BLOCK') {
-      return this.transitionWithoutExecution(
-        ctx,
-        row,
-        'blocked',
-        decision.code ?? 'policy_blocked',
-        decision.reasons.join('; ') || 'Current policy blocks this action.',
-      );
-    }
+    const current = await this.policyPacks.decideForAction(ctx, row.tool, canonical);
+    const sameAuthority =
+      current.outcome === 'WARN' &&
+      row.policyBinding === current.binding &&
+      row.policyDecisionHash === current.decisionHash &&
+      row.policyContextHash === current.contextHash &&
+      row.policyPackKey === current.packId &&
+      row.policyPackVersion === current.packVersion;
+    if (!sameAuthority) return this.invalidateForPolicyChange(ctx, row, current);
 
     const claimed = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const claim = await tx.meriActionProposal.updateMany({
         where: {
-          id: row.id,
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
-          status: { in: CLAIMABLE_STATUSES },
-          expiresAt: { gt: new Date() },
+          id: row.id, tenantId: ctx.tenantId, userId: ctx.userId,
+          status: { in: CLAIMABLE_STATUSES }, expiresAt: { gt: new Date() },
         },
         data: {
-          status: 'executing',
-          approvedAt: new Date(),
-          approvedBy: ctx.userId,
-          executionStartedAt: new Date(),
-          executedAt: null,
-          attemptCount: { increment: 1 },
-          lastErrorCode: null,
-          lastErrorMessage: null,
-          resultSummary: undefined,
+          status: 'executing', approvedAt: new Date(), approvedBy: ctx.userId,
+          executionStartedAt: new Date(), executedAt: null, attemptCount: { increment: 1 },
+          lastErrorCode: null, lastErrorMessage: null, resultSummary: undefined,
         },
       });
-      if (claim.count === 1) await this.recordDecision(tx, ctx, row.id, row.tool, decision);
-      const current = await tx.meriActionProposal.findFirstOrThrow({
-        where: { id: row.id, tenantId: ctx.tenantId, userId: ctx.userId },
-      });
-      return { won: claim.count === 1, row: current };
+      if (claim.count === 1) await this.recordDecisionInTx(tx, ctx, row.id, row.tool, current);
+      const found = await tx.meriActionProposal.findFirstOrThrow({ where: { id: row.id, tenantId: ctx.tenantId, userId: ctx.userId } });
+      return { won: claim.count === 1, row: found };
     });
     if (!claimed.won) return this.toPublic(claimed.row);
     row = claimed.row;
 
     try {
-      // Exact stored, revalidated canonical payload. The model is never asked to regenerate it.
       const result = await this.tools.executeFromAuthenticatedUser(ctx, row.tool, canonical);
-      return this.toPublic(
-        await this.finalize(ctx, row.id, {
-          status: 'succeeded',
-          resultSummary: resultSummary(result),
-        }),
-      );
+      return this.toPublic(await this.finalize(ctx, row.id, { status: 'succeeded', resultSummary: resultSummary(result) }));
     } catch (error) {
       const failure = classifyExecutionFailure(row.tool, error);
-      return this.toPublic(
-        await this.finalize(ctx, row.id, {
-          status: failure.status,
-          errorCode: bounded(failure.code, 120),
-          errorMessage: failure.message,
-        }),
-      );
+      return this.toPublic(await this.finalize(ctx, row.id, {
+        status: failure.status, errorCode: bounded(failure.code, 120), errorMessage: failure.message,
+      }));
     }
   }
 
@@ -663,26 +550,14 @@ export class MeriActionProposalService {
     const row = await this.owned(ctx, proposalId);
     const status = row.status as MeriActionProposalStatus;
     if (!CLAIMABLE_STATUSES.includes(status)) return this.toPublic(row);
-    const decision: DecisionWithRule = {
-      outcome: 'WARN',
-      reasons: ['The user dismissed the proposed action; it was not executed.'],
-      code: 'user_dismissed',
-      ruleId: 'user_dismissed',
-    };
     const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const result = await tx.meriActionProposal.updateMany({
-        where: {
-          id: proposalId,
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
-          status: { in: CLAIMABLE_STATUSES },
-        },
+        where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId, status: { in: CLAIMABLE_STATUSES } },
         data: { status: 'dismissed', executedAt: new Date() },
       });
-      if (result.count === 1) await this.recordDecision(tx, ctx, proposalId, row.tool, decision);
-      return tx.meriActionProposal.findFirstOrThrow({
-        where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId },
-      });
+      if (result.count === 1) await this.recordTransitionCheck(tx, ctx, row, 'WARN', 'user_dismissed',
+        'The user dismissed the proposed action; it was not executed.');
+      return tx.meriActionProposal.findFirstOrThrow({ where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId } });
     });
     return this.toPublic(updated);
   }

@@ -280,6 +280,19 @@ export interface PendingApproval {
   riskTier: string | null;
   policyCode: string | null;
   ruleId?: string | null;
+  policy: {
+    source: string;
+    mode: string;
+    packKey: string;
+    packVersion: string;
+    binding: string;
+    decisionHash: string;
+    contextHash: string;
+    decision: string;
+    jurisdiction: string;
+    channel: string;
+    recipientType: string | null;
+  };
   approvedAt?: string | null;
   approvedBy?: string | null;
   attemptCount: number;
@@ -1261,6 +1274,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
                   riskTier: event.riskTier,
                   policyCode: event.policyCode,
                   ruleId: event.ruleId,
+                  policy: event.policy,
                   // A newly proposed action is never approved yet. Approval
                   // attribution arrives from the server on the approve response
                   // and the recovery list fetch — never inferred here.
