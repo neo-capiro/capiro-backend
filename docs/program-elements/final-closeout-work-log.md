@@ -1094,7 +1094,7 @@ git reset --hard c48d30bdc2229c2c452640065402efc92551f2b1
 **Base (Phase 7 PASS tip):** `e4f416ed574eaf222d6355b4cbdc6524cc778121`  
 **origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e`  
 **Mode:** LONG IMPLEMENT only — no self-PASS, no Phase 9, no MeriV2 source edits, no shared-env migrate/deploy  
-**Product tip (this phase):** _(record after commit)_  
+**Product tip (this phase):**   
 **Remote tip after push (review target):** use `git rev-parse origin/agent/program-elements-final-closeout` at REVIEW time  
 
 ### Tasks completed (implementation)
