@@ -1654,7 +1654,7 @@ export PE_CLOSEOUT_STAGING_OK=yes PE_CLOSEOUT_PROVIDER=openrouter PE_CLOSEOUT_EF
 ## Phase 10 — review FAIL fix (66dad47af) — IMPLEMENT
 
 **Failed review tip:** `66dad47af510d6a8a30bc54fb0d6b2fe38ad92b3`
-**Post-fix origin HEAD (review target):** `0e9338144e3d977018658fa9391a07771203e04d`
+**Post-fix origin HEAD (review target):** `1667e8ca51a7426e7bf5d6192837382b2876bf75`
 **Product/live-proofs tip (unchanged):** `28dbed74845a74f1cb432ee4e5d1577827eaf182`
 **origin/main:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e`
 

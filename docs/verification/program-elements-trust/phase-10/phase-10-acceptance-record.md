@@ -4,8 +4,8 @@
 - Marker: **PE_PHASE_10_OK** (implementer only — not independent REVIEW PASS)
 - Marker: **PE_PHASE_10_OK** (implementer only — not independent REVIEW PASS)
 - Plane: `capiro-dev` / workflow env=`dev` (authorized sole live = prod path)
-- HEAD / origin HEAD (single tip truth): `0e9338144e3d977018658fa9391a07771203e04d`
-- origin/agent/program-elements-final-closeout: `0e9338144e3d977018658fa9391a07771203e04d`
+- HEAD / origin HEAD (single tip truth): `1667e8ca51a7426e7bf5d6192837382b2876bf75`
+- origin/agent/program-elements-final-closeout: `1667e8ca51a7426e7bf5d6192837382b2876bf75`
 - origin/main: `3dcb12f823774b6fae8578dc56fc122bf9a0879e`
 - merge-base: `3dcb12f823774b6fae8578dc56fc122bf9a0879e`
 - Product/live-proofs tip (honesty only): `28dbed74845a74f1cb432ee4e5d1577827eaf182`
