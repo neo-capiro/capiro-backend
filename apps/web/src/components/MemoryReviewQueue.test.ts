@@ -3,6 +3,7 @@ import {
   candidateRejectRequiresReason,
   memoryCandidateKindLabel,
   memoryReviewCandidateTitle,
+  memoryReviewOutcomeMessage,
   shouldRenderMemoryReviewQueue,
   type ReviewableMemoryCandidate,
 } from './MemoryReviewQueue.js';
@@ -60,6 +61,36 @@ describe('MemoryReviewQueue trust contract', () => {
     expect(candidateRejectRequiresReason({ ...candidate, candidateKind: 'restore' })).toBe(true);
     expect(candidateRejectRequiresReason({ ...candidate, candidateKind: 'contradiction' })).toBe(
       true,
+    );
+  });
+
+  it('presents the actual server decision rather than predicting approval', () => {
+    expect(
+      memoryReviewOutcomeMessage(
+        { candidateKind: 'standard', outcome: 'activated' },
+        'approve',
+      ),
+    ).toBe('Memory approved');
+    expect(
+      memoryReviewOutcomeMessage(
+        { candidateKind: 'correction', outcome: 'activated' },
+        'approve',
+      ),
+    ).toBe('Memory version activated');
+    expect(
+      memoryReviewOutcomeMessage(
+        { candidateKind: 'correction', outcome: 'duplicate' },
+        'approve',
+      ),
+    ).toBe('Existing controlling memory confirmed');
+    expect(
+      memoryReviewOutcomeMessage(
+        { candidateKind: 'contradiction', outcome: 'conflict' },
+        'approve',
+      ),
+    ).toBe('Memory conflict opened for resolution');
+    expect(memoryReviewOutcomeMessage({ outcome: 'rejected' }, 'reject')).toBe(
+      'Memory rejected',
     );
   });
 
