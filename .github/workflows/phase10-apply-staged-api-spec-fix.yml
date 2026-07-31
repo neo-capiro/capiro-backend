@@ -1,0 +1,33 @@
+name: phase10-apply-staged-api-spec-fix
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - docs/tmp/phase10-fix-api-spec.py
+      - .github/workflows/phase10-apply-staged-api-spec-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-staged-api-spec-fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/meriv2-world-class-closeout
+          fetch-depth: 0
+      - name: Apply staged Phase 10 API spec correction
+        run: |
+          git config user.name "capiro-phase10-bot"
+          git config user.email "noreply@capiro.ai"
+          python docs/tmp/phase10-fix-api-spec.py
+          rm docs/tmp/phase10-fix-api-spec.py
+          pnpm exec prettier --write apps/api/src/meri/meri-action-proposal.service.spec.ts
+          git add \
+            apps/api/src/meri/meri-action-proposal.service.spec.ts \
+            docs/tmp/phase10-fix-api-spec.py
+          git commit -m "test(meriv2): align action proposal specs with policy authority"
+          git push origin HEAD:agent/meriv2-world-class-closeout
