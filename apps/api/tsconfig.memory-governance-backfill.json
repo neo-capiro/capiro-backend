@@ -1,0 +1,18 @@
+{
+  // The production governance-backfill operator lives under scripts/, which the
+  // primary API tsconfig intentionally excludes. Keep its CLI, store, and exact
+  // hash/confirmation contract in the permanent repository typecheck.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "scripts/backfill-memory-governance-v2.ts",
+    "scripts/lib/memory-governance-backfill.ts",
+    "scripts/lib/memory-governance-backfill-store.ts",
+    "scripts/lib/memory-governance-backfill.spec.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
