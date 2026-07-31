@@ -465,6 +465,12 @@ export function evaluatePePhase10Gate(args: {
   acceptanceRecordWritten: boolean;
   emailAutomationDark: boolean;
   requireFullShip?: boolean;
+  /** Plan Verify closed via authenticated PE smoke OR Neo residual on file. */
+  planVerifyClosed?: boolean;
+  /** Top-level ship digests non-null (deploy-result / ship-trace). */
+  shipTopLevelDigestsOk?: boolean;
+  /** summary.git headSha === originHeadSha === live git rev-parse. */
+  gitTipBound?: boolean;
 }): PePhase10GateResult {
   const blockers: string[] = [];
   const warnings: string[] = [];
@@ -673,6 +679,11 @@ export function evaluatePePhase10Gate(args: {
       (mutationFromOutcome.exitCode ?? 1) === 0 &&
       (mutationFromOutcome.classification ?? 'ok') !== 'branch_introduced');
 
+  const planVerifyOk = args.planVerifyClosed === true;
+  const shipDigestsOk = args.shipTopLevelDigestsOk !== false && tipPinned;
+  // Default true only when not provided (unit tests); orchestrator must pass explicit bind.
+  const gitTipBound = args.gitTipBound !== false;
+
   const fullRuntimeProofs =
     rlsOk &&
     alarmOk &&
@@ -683,7 +694,22 @@ export function evaluatePePhase10Gate(args: {
     loadersOk &&
     browserOk &&
     deriveOk &&
-    mutationOk;
+    mutationOk &&
+    planVerifyOk &&
+    shipDigestsOk &&
+    gitTipBound;
+
+  if (!planVerifyOk && args.mutateAllowed && args.inventory.healthyCompute) {
+    warnings.push(
+      'plan Verify matrix not closed — need authenticated PE smoke (failed≠empty/data-issue/CRM) or Neo residual on file',
+    );
+  }
+  if (args.shipTopLevelDigestsOk === false) {
+    warnings.push('ship-trace/deploy-result top-level api/web digests null or incomplete');
+  }
+  if (args.gitTipBound === false) {
+    warnings.push('summary.git headSha/originHeadSha not bound to single origin HEAD truth');
+  }
 
   const exitGate: PePhase10ExitGateEvaluation[] = PE_PHASE_10_EXIT_GATE_BULLETS.map((bullet) => {
     switch (bullet) {
@@ -696,20 +722,27 @@ export function evaluatePePhase10Gate(args: {
           args.mutateAllowed &&
           fullRuntimeProofs &&
           tipPinned &&
+          planVerifyOk &&
+          shipDigestsOk &&
+          gitTipBound &&
           !anyRequiredEnvBlocked &&
           !anyRequiredHardFail;
         return {
           bullet,
           satisfied,
           reason: satisfied
-            ? 'acceptance record complete with full authorized-plane proofs'
+            ? 'acceptance record complete with full authorized-plane proofs + plan Verify + tip-bound digests'
             : anyRequiredEnvBlocked || !args.inventory.healthyCompute || !args.mutateAllowed
               ? 'UNSATISFIED: acceptance incomplete — runtime/ship steps env_blocked or mutate off (not a pass)'
               : !args.acceptanceRecordWritten
                 ? 'acceptance record missing'
-                : !tipPinned
-                  ? 'UNSATISFIED: missing tip-present api+web image digests'
-                  : 'UNSATISFIED: missing full runtime proofs on authorized plane',
+                : !tipPinned || args.shipTopLevelDigestsOk === false
+                  ? 'UNSATISFIED: missing tip-present api+web image digests (incl. ship-trace top-level)'
+                  : args.gitTipBound === false
+                    ? 'UNSATISFIED: git tip multi-SHA salad — headSha must equal origin HEAD'
+                    : !planVerifyOk
+                      ? 'UNSATISFIED: plan Verify not closed (auth PE smoke or Neo residual required)'
+                      : 'UNSATISFIED: missing full runtime proofs on authorized plane',
         };
       }
       case 'rollback_rehearsed': {

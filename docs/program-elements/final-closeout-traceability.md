@@ -187,7 +187,7 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 | Schedule phase | Goal | Status | Owner |
 |---|---|---|---|
 | 9 Integrated rehearsal | Run A–K + PE suites on remote final SHA | `in_branch` — Phase 9 PASS WITH BLOCKERS tip `72b299dff` | 9 |
-| 10 Staging acceptance | Pre-merge acceptance on sole live env=dev / capiro-dev | `in_branch` tip `907e78bde055` product `28dbed74845a` harness PE_PHASE_10_OK; REVIEW REQUIRED | Phase 10 |
+| 10 Staging acceptance | Pre-merge acceptance on sole live env=dev / capiro-dev | `in_branch` harness PE_PHASE_10_OK tip-bind+digests+planVerify residual; product `28dbed74845a`; REVIEW REQUIRED | Phase 10 |
 | 11 PR closeout | Body, supersede old PRs, ready-for-review | after 9/(10) | Phase 11 |
 
 ---
@@ -222,7 +222,7 @@ bash apps/api/scripts/pe-phase-9-migration-replay.sh
 
 | Field | Value |
 |---|---|
-| Remote tip / origin HEAD (review) | `8f0e58dd0c5238ff97dc9956736c32cb3024eb2a` |
+| Remote tip / origin HEAD (review) | `0e9338144e3d977018658fa9391a07771203e04d` |
 | Product/live-proofs tip | `28dbed74845a74f1cb432ee4e5d1577827eaf182` |
 | origin/main | `3dcb12f823774b6fae8578dc56fc122bf9a0879e` |
 | Plane | `capiro-dev` / workflow `env=dev` / `app.capiro.ai` |
@@ -230,7 +230,9 @@ bash apps/api/scripts/pe-phase-9-migration-replay.sh
 | Images | api `sha256:74074cc59c039c847ef1db14db7ddfd466c09a15c3b815d3907aaa5a43bf4854` · web `sha256:80433fa869ea4454d5b432e242755c42aeb22cddf2bf0964290bffada5ac3c56` |
 | Deploy | api `arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89` · web `arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23` |
 | Migrate | `arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8a574f6fe5004e69836876dc70c5c211` exit 0 |
-| Live proofs | `arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3dba59c0f1ac4d19b11348af3621296d` PE_PHASE_10_LIVE_PROOFS_OK (metrics in live-proofs-task.json) |
+| Live proofs | prior task PE_PHASE_10_LIVE_PROOFS_OK (bind-only; metrics retained) |
+| Plan Verify | Neo residual PE_PHASE_10_PLAN_VERIFY_RESIDUAL_OK (Phase 5/6 PASS + PE 401 wall) |
+| Ship digests | top-level non-null in ship-trace + deploy-result |
 | Harness marker | `PE_PHASE_10_OK` (implementer only) |
 | rls-phase-c-pass.txt | **absent** |
 | Review gate | IMPLEMENT PUSHED — independent REVIEW REQUIRED on origin HEAD. No self-PASS. No Phase 11. No #705 merge. |
@@ -238,13 +240,13 @@ bash apps/api/scripts/pe-phase-9-migration-replay.sh
 | ID | Requirement | Status | Evidence | Phase |
 |---|---|---|---|---|
 | S1 | Neo sole-live auth | applied | auth file + env | 10 |
-| S2 | Image digests | applied | ship-trace @ product tip | 10 |
+| S2 | Image digests | applied | ship-trace top-level non-null @ product tip | 10 |
 | S3 | Additive migrate | applied | migrate task exit 0 | 10 |
 | S4 | Deploy api+web | applied | ECS TD 89/23 | 10 |
 | S5 | Dark rails | applied | summary.safety | 10 |
-| S6 | Live runtime matrix | applied | live-proofs metrics + browser PE contract + alarms | 10 |
+| S6 | Live runtime matrix | applied | live-proofs + browser PE 401 + plan Verify residual | 10 |
 | S7 | Rollback rehearsed | applied | rollback-rehearsal.json | 10 |
-| S8 | Acceptance record | in_branch | summary marker PE_PHASE_10_OK review tip `907e78bde05514dc71e7b7120cf8f7fe95ead0fa` | 10 |
+| S8 | Acceptance record | in_branch | summary tip-bound + digests + planVerify; REVIEW on origin HEAD | 10 |
 
 ```bash
 export PE_CLOSEOUT_STAGING_OK=yes PE_CLOSEOUT_PROVIDER=openrouter PE_CLOSEOUT_EFFORT=high

@@ -1,5 +1,5 @@
 {
   "migrateTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8a574f6fe5004e69836876dc70c5c211",
-  "generatedAt": "2026-07-31T18:07:39.876Z",
+  "generatedAt": "2026-07-31T19:04:06.962Z",
   "note": "ARN only; full describe may be in CloudWatch/ECS console"
 }

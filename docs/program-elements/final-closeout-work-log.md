@@ -6,7 +6,7 @@
 **Repo:** `neo-capiro/capirov2`  
 **Operator session:** Phase 10 IMPLEMENT (pre-merge staging acceptance)
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-31 Phase 10 IMPLEMENT PUSHED product `28dbed74845a74f1cb432ee4e5d1577827eaf182` — REVIEW origin HEAD after fetch; implementer PE_PHASE_10_OK only
+**Ledger last updated (UTC):** 2026-07-31 Phase 10 FAIL rework (B1 tip-bind + B2 digests + B3 plan Verify residual) — IMPLEMENT PUSHED; REVIEW REQUIRED
 
 ---
 
@@ -1643,6 +1643,36 @@ export PE_CLOSEOUT_EFFORT=high
 aws ecs update-service --cluster capiro-dev --service capiro-dev-api --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:86
 aws ecs update-service --cluster capiro-dev --service capiro-dev-web --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:21
 ```
+
+### Next
+```bash
+export PE_CLOSEOUT_STAGING_OK=yes PE_CLOSEOUT_PROVIDER=openrouter PE_CLOSEOUT_EFFORT=high
+./pe-closeout-run.sh review 10
+```
+
+
+## Phase 10 — review FAIL fix (66dad47af) — IMPLEMENT
+
+**Failed review tip:** `66dad47af510d6a8a30bc54fb0d6b2fe38ad92b3`
+**Post-fix origin HEAD (review target):** `0e9338144e3d977018658fa9391a07771203e04d`
+**Product/live-proofs tip (unchanged):** `28dbed74845a74f1cb432ee4e5d1577827eaf182`
+**origin/main:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e`
+
+### FAIL items addressed
+- **B1** Single tip truth: summary.git headSha === originHeadSha; product only in honesty.harnessOkProductTip; git_sha_record tipBound; ledgers §10c match origin HEAD after push
+- **B2** ship-trace + deploy-result top-level apiImage/webImage digests non-null via resolveShipImageDigests (product tip images)
+- **B3** Plan Verify closed via Neo residual (Phase 5/6 PASS + live PE 401 wall) — residual marker PE_PHASE_10_PLAN_VERIFY_RESIDUAL_OK; harness also supports PE_CLOSEOUT_SMOKE_COOKIE/BEARER auth path
+- No product runtime change; live proofs not re-shipped (--evidence-bind-only)
+- Dark rails held; no merge; no Phase 11; no MeriV2
+
+### Harness changes
+- pe-phase-10-ship.ts: resolveShipImageDigests, loadPlanVerifyResidual, browserSmoke planVerify
+- pe-phase-10-staging-acceptance.ts: planVerifyClosed + shipTopLevelDigestsOk + gitTipBound on exit gate
+- verify-pe-phase-10.ts: --evidence-bind-only, product tip image lookup, honesty fields
+- Tests: 37 passed pe-phase-10-staging-acceptance.spec.ts
+
+### Marker
+**PE_PHASE_10_OK** implementer only — independent REVIEW REQUIRED on post-push origin HEAD.
 
 ### Next
 ```bash

@@ -355,11 +355,72 @@ describe('evaluatePePhase10Gate', () => {
       rollbackDocumented: true,
       acceptanceRecordWritten: true,
       emailAutomationDark: true,
+      planVerifyClosed: true,
+      shipTopLevelDigestsOk: true,
+      gitTipBound: true,
     });
     expect(g.marker).toBe('PE_PHASE_10_OK');
     expect(g.ok).toBe(true);
     expect(g.blockedComplete).toBe(false);
     expect(g.exitGate.every((e) => e.satisfied)).toBe(true);
+  });
+
+  it('missing plan Verify residual/auth smoke fails acceptance_record_complete', () => {
+    const healthy = summarizeStagingInventory({
+      accountId: PE_PHASE_10_STAGING_EXPECTED.accountId,
+      ecsClusterExists: true,
+      ecsClusterStatus: 'ACTIVE',
+      computeStackStatus: 'UPDATE_COMPLETE',
+      dataStackStatus: 'UPDATE_COMPLETE',
+      networkStackStatus: 'UPDATE_COMPLETE',
+      auroraClusterLive: true,
+      apiServiceExists: true,
+      webServiceExists: true,
+      priorTaskDefs: [
+        {
+          family: 'capiro-dev-api',
+          revision: 59,
+          arn: 'arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:59',
+          image: 'capiro/dev/api:old',
+        },
+        {
+          family: 'capiro-dev-web',
+          revision: 6,
+          arn: 'arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:6',
+          image: 'capiro/dev/web:old',
+        },
+      ],
+    });
+    const outcomes = PE_PHASE_10_ACCEPTANCE_STEPS.filter(
+      (s) =>
+        s.id !== 'staging_auth_gate' &&
+        s.id !== 'email_automation_dark' &&
+        s.id !== 'acceptance_record' &&
+        s.id !== 'forbidden_production_actions',
+    ).map((s) => ({ stepId: s.id, exitCode: 0, detail: 'passed' }));
+    outcomes.push({ stepId: 'mutation_boundary_observe', exitCode: 0, detail: 'non-pe10 stable' });
+    const g = evaluatePePhase10Gate({
+      authOk: true,
+      inventory: healthy,
+      mutateAllowed: true,
+      outcomes,
+      integrityOk: true,
+      imageRecords: [
+        { repo: 'capiro/dev/api', tag: 'abc', digest: 'sha256:deadbeef', pushedAt: null, present: true },
+        { repo: 'capiro/dev/web', tag: 'abc', digest: 'sha256:cafebabe', pushedAt: null, present: true },
+      ],
+      rollbackDocumented: true,
+      acceptanceRecordWritten: true,
+      emailAutomationDark: true,
+      planVerifyClosed: false,
+      shipTopLevelDigestsOk: true,
+      gitTipBound: true,
+    });
+    expect(g.ok).toBe(false);
+    expect(g.exitGate.find((e) => e.bullet === 'staging_acceptance_record_complete')?.satisfied).toBe(false);
+    expect(g.exitGate.find((e) => e.bullet === 'staging_acceptance_record_complete')?.reason).toMatch(
+      /plan Verify/,
+    );
   });
 
   it('prose-only rollback does not satisfy rollback_rehearsed exit bullet on healthy mutate plane', () => {
@@ -472,6 +533,15 @@ describe('anti-fake ship evidence (source)', () => {
     expect(src).toMatch(/export function outcomesFromLiveProofReport/);
     expect(src).toMatch(/export function runAlarmTestEvents/);
     expect(src).toMatch(/export function rehearseRollback/);
+  });
+
+  it('writeShipTrace normalizes top-level digests from images[]', () => {
+    const src = shipSrc();
+    expect(src).toMatch(/export function resolveShipImageDigests/);
+    expect(src).toMatch(/apiImageDigest: digests\.apiImageDigest/);
+    expect(src).toMatch(/loadPlanVerifyResidual/);
+    expect(src).toMatch(/PE_CLOSEOUT_SMOKE_COOKIE|PE_CLOSEOUT_SMOKE_BEARER/);
+    expect(src).toMatch(/planVerifyClosed/);
   });
 
   it('forbids hardcoded identical_replay ok and source-grep derive greening', () => {

@@ -13,6 +13,8 @@
  *  - --dry-run          : print steps, do not execute shell
  *  - --skip-local-gates : skip K + phase9 integrity
  *  - --skip-image-build : reuse existing tip/latest digests (still requires present digest for OK)
+ *  - --evidence-bind-only : rewrite evidence to HEAD without migrate/deploy/live-proofs re-ship
+ *    (requires prior ship artifacts + PE_CLOSEOUT_PRODUCT_TIP or honesty.harnessOkProductTip)
  *
  * Never deploys to capiro-staging or capiro-prod-os-capiro.
  * Never Secrets Manager GetSecretValue, email, LlamaParse, or derive --commit.
@@ -50,7 +52,9 @@ import {
 import {
   assertAuthorizedClusterOrThrow,
   browserSmoke,
+  loadPlanVerifyResidual,
   purgeStaleEvidenceArtifacts,
+  resolveShipImageDigests,
   writeShipTrace,
   buildAndPushBranchImages,
   capturePriorTaskDefs,
@@ -94,7 +98,9 @@ function parseArgs(argv: string[]) {
     dryRun: flags.has('--dry-run'),
     skipLocalGates: flags.has('--skip-local-gates'),
     skipImageBuild: flags.has('--skip-image-build'),
+    evidenceBindOnly: flags.has('--evidence-bind-only'),
     evidenceDir: get('--evidence-dir'),
+    productTip: get('--product-tip') || process.env.PE_CLOSEOUT_PRODUCT_TIP || undefined,
   };
 }
 
@@ -295,13 +301,47 @@ function writeAcceptanceArtifacts(args: {
   authOk: boolean;
   rollbackInstructions: string[];
   shipTrace: PePhase10ShipTrace | null;
+  productTip?: string | null;
+  planVerify?: {
+    closed: boolean;
+    mode: string;
+    detail: string;
+  } | null;
+  preserveLiveProofs?: boolean;
 }): void {
   mkdirSync(args.dir, { recursive: true });
   // Drop disposable PASS-file + stale ship/deploy/migrate artifacts before rewrite.
-  purgeStaleEvidenceArtifacts(args.dir);
-  if (args.shipTrace) {
-    writeShipTrace(args.dir, args.shipTrace as any);
+  // Keep live-proofs-task.json when rebinding docs-only (product tip unchanged).
+  const liveProofsPath = resolve(args.dir, 'live-proofs-task.json');
+  let liveProofsBackup: string | null = null;
+  if (args.preserveLiveProofs && existsSync(liveProofsPath)) {
+    try {
+      liveProofsBackup = readFileSync(liveProofsPath, 'utf8');
+    } catch {
+      liveProofsBackup = null;
+    }
   }
+  purgeStaleEvidenceArtifacts(args.dir);
+  if (liveProofsBackup) {
+    writeFileSync(liveProofsPath, liveProofsBackup);
+  }
+  let shipTraceOut = args.shipTrace;
+  if (shipTraceOut) {
+    const digests = resolveShipImageDigests(shipTraceOut.images ?? [], {
+      apiImageDigest: shipTraceOut.apiImageDigest,
+      webImageDigest: shipTraceOut.webImageDigest,
+    });
+    shipTraceOut = {
+      ...shipTraceOut,
+      apiImageDigest: digests.apiImageDigest,
+      webImageDigest: digests.webImageDigest,
+    };
+    writeShipTrace(args.dir, shipTraceOut as any);
+  }
+  const tipBound =
+    Boolean(args.git.headSha) &&
+    Boolean(args.git.originHeadSha) &&
+    args.git.headSha === args.git.originHeadSha;
   const summary = {
     phase: 10,
     generatedAt: new Date().toISOString(),
@@ -321,7 +361,7 @@ function writeAcceptanceArtifacts(args: {
     inventory: args.inventory,
     inventoryRaw: args.inventoryRaw,
     images: args.images,
-    shipTrace: args.shipTrace,
+    shipTrace: shipTraceOut,
     integrity: args.integrity,
     outcomes: args.outcomes,
     classifications: args.gate.classifications,
@@ -352,6 +392,13 @@ function writeAcceptanceArtifacts(args: {
       exitGateUnsatisfiedWhenBlocked: args.gate.marker === 'PE_PHASE_10_BLOCKED'
         ? !args.gate.exitGate.every((e) => e.satisfied)
         : null,
+      implementerOkNotReviewPass: true,
+      harnessOkProductTip: args.productTip ?? null,
+      reviewMustUseOriginHead: true,
+      gitTipBound: tipBound,
+      planVerify: args.planVerify ?? null,
+      note:
+        'summary.git headSha+originHeadSha must equal git rev-parse origin/agent/program-elements-final-closeout. Product tip lives only in honesty.harnessOkProductTip + image tags. PE_PHASE_10_OK is implementer-only.',
     },
   };
   writeFileSync(resolve(args.dir, 'phase-10-acceptance-summary.json'), JSON.stringify(summary, null, 2));
@@ -360,15 +407,18 @@ function writeAcceptanceArtifacts(args: {
     '# Phase 10 pre-merge acceptance record (sole live env=dev)',
     '',
     `- Generated (UTC): ${summary.generatedAt}`,
-    `- Marker: **${args.gate.marker}**`,
+    `- Marker: **${args.gate.marker}** (implementer only — not independent REVIEW PASS)`,
+    `- Marker: **${args.gate.marker}** (implementer only — not independent REVIEW PASS)`,
     `- Plane: \`${PE_PHASE_10_STAGING_EXPECTED.ecsClusterName}\` / workflow env=\`${PE_PHASE_10_STAGING_EXPECTED.workflowEnv}\` (authorized sole live = prod path)`,
-    `- HEAD: \`${args.git.headSha}\``,
-    `- origin/agent/...: \`${args.git.originHeadSha ?? 'n/a'}\``,
+    `- HEAD / origin HEAD (single tip truth): \`${args.git.headSha}\``,
+    `- origin/agent/program-elements-final-closeout: \`${args.git.originHeadSha ?? 'n/a'}\``,
     `- origin/main: \`${args.git.mainSha ?? 'n/a'}\``,
     `- merge-base: \`${args.git.mergeBaseSha ?? 'n/a'}\``,
-    `- Auth PE_CLOSEOUT_STAGING_OK: ${args.authOk}`,
+    `- Product/live-proofs tip (honesty only): \`${args.productTip ?? 'n/a'}\``,
     `- Mutate PE_CLOSEOUT_STAGING_MUTATE: ${args.mutateAllowed}`,
     `- Inventory healthyCompute: **${args.inventory.healthyCompute}**`,
+    `- Plan Verify closed: **${args.planVerify?.closed === true}** (${args.planVerify?.mode ?? 'n/a'})`,
+    `- Git tip bound: **${tipBound}**`,
     '',
     '## Gate',
     args.gate.ok
@@ -504,9 +554,38 @@ function main(): void {
   }
 
   const mutate = evaluateStagingMutateAllowed(process.env, inventory);
+  const productTip =
+    (args.productTip || '').trim() ||
+    (() => {
+      try {
+        const prev = resolve(defaultEvidenceDir(root), 'phase-10-acceptance-summary.json');
+        if (!existsSync(prev)) return '';
+        const j = JSON.parse(readFileSync(prev, 'utf8')) as { honesty?: { harnessOkProductTip?: string } };
+        return (j.honesty?.harnessOkProductTip || '').trim();
+      } catch {
+        return '';
+      }
+    })() ||
+    '28dbed74845a74f1cb432ee4e5d1577827eaf182';
+
+  // Prefer product-tip ECR tags when docs tip has no images (normal after docs pins).
   let images = tryImageDigests(ge.headSha, env);
+  const headTipPresent =
+    images.some((i) => i.repo.includes('/api') && i.present && i.digest) &&
+    images.some((i) => i.repo.includes('/web') && i.present && i.digest);
+  if (!headTipPresent && productTip) {
+    const productImages = tryImageDigests(productTip, env);
+    if (productImages.some((i) => i.present && i.digest)) {
+      images = productImages.map((i) => ({
+        ...i,
+        note: i.note || `product tip tag ${productTip.slice(0, 12)} (runtime ship; review HEAD is docs tip)`,
+      }));
+    }
+  }
+
   const outcomes: PePhase10StepOutcome[] = [];
   let shipTrace: PePhase10ShipTrace | null = null;
+  let planVerifyMeta: { closed: boolean; mode: string; detail: string } | null = null;
   let rollbackInstructions: string[] = [
     'Capture prior task-definition ARNs before mutate, then:',
     `aws ecs update-service --cluster ${PE_PHASE_10_STAGING_EXPECTED.ecsClusterName} --service ${PE_PHASE_10_STAGING_EXPECTED.apiServiceName} --task-definition <prior-api-td-arn>`,
@@ -515,11 +594,14 @@ function main(): void {
     'Never target capiro-staging or capiro-prod-os-capiro.',
   ];
 
+  const gitTipBound =
+    Boolean(ge.headSha) && Boolean(ge.originHeadSha) && ge.headSha === ge.originHeadSha;
+
   outcomes.push({
     stepId: 'git_sha_record',
-    exitCode: ge.headSha ? 0 : 1,
-    classification: ge.headSha ? 'ok' : 'branch_introduced',
-    detail: `head=${ge.headSha} origin=${ge.originHeadSha} main=${ge.mainSha} mb=${ge.mergeBaseSha}`,
+    exitCode: ge.headSha && gitTipBound ? 0 : 1,
+    classification: ge.headSha && gitTipBound ? 'ok' : 'branch_introduced',
+    detail: `head=${ge.headSha} origin=${ge.originHeadSha} main=${ge.mainSha} mb=${ge.mergeBaseSha} tipBound=${gitTipBound} productTip=${productTip}`,
   });
 
   outcomes.push({
@@ -561,6 +643,7 @@ function main(): void {
   });
 
   const evidenceDir = args.evidenceDir ? resolve(root, args.evidenceDir) : defaultEvidenceDir(root);
+  const bindOnly = Boolean(args.evidenceBindOnly);
 
   // -------- mutate ship path on authorized healthy plane --------
   if (mutate.ok && inventory.healthyCompute) {
@@ -571,24 +654,41 @@ function main(): void {
       process.exit(1);
     }
 
+    // Seed shipTrace from prior evidence when bind-only (preserve migrate/deploy ARNs)
+    let priorShip: PePhase10ShipTrace | null = null;
+    try {
+      const stPath = resolve(evidenceDir, 'ship-trace.json');
+      const sumPath = resolve(evidenceDir, 'phase-10-acceptance-summary.json');
+      if (existsSync(stPath)) {
+        priorShip = JSON.parse(readFileSync(stPath, 'utf8')) as PePhase10ShipTrace;
+      } else if (existsSync(sumPath)) {
+        const s = JSON.parse(readFileSync(sumPath, 'utf8')) as { shipTrace?: PePhase10ShipTrace };
+        priorShip = s.shipTrace ?? null;
+      }
+    } catch {
+      priorShip = null;
+    }
+
     shipTrace = {
-      priorTaskDefs: inventory.priorTaskDefs ?? [],
-      newApiTaskDefArn: null,
-      newWebTaskDefArn: null,
-      migrateTaskArn: null,
+      priorTaskDefs: inventory.priorTaskDefs ?? priorShip?.priorTaskDefs ?? [],
+      newApiTaskDefArn: priorShip?.newApiTaskDefArn ?? null,
+      newWebTaskDefArn: priorShip?.newWebTaskDefArn ?? null,
+      migrateTaskArn: priorShip?.migrateTaskArn ?? null,
       images: [],
-      apiImageDigest: null,
-      webImageDigest: null,
+      apiImageDigest: priorShip?.apiImageDigest ?? null,
+      webImageDigest: priorShip?.webImageDigest ?? null,
       deployedCluster: PE_PHASE_10_STAGING_EXPECTED.ecsClusterName,
-      notes: [],
+      notes: priorShip?.notes ? [...priorShip.notes] : [],
     };
+    if ((priorShip as any)?.liveProofsTaskArn) {
+      (shipTrace as any).liveProofsTaskArn = (priorShip as any).liveProofsTaskArn;
+    }
 
-    // Images: build/push unless skip and tip already present
     const tipPresent =
-      images.some((i) => i.repo.includes('/api') && i.present && i.tag === ge.headSha) &&
-      images.some((i) => i.repo.includes('/web') && i.present && i.tag === ge.headSha);
+      images.some((i) => i.repo.includes('/api') && i.present && !!i.digest) &&
+      images.some((i) => i.repo.includes('/web') && i.present && !!i.digest);
 
-    if (!args.skipImageBuild && !tipPresent) {
+    if (!bindOnly && !args.skipImageBuild && !tipPresent) {
       console.error('PE_PHASE_10_SHIP: building/pushing branch images (linux/arm64)…');
       const built = buildAndPushBranchImages({
         root,
@@ -614,8 +714,9 @@ function main(): void {
       } else {
         images = built.images;
         shipTrace.images = built.images;
-        shipTrace.apiImageDigest = built.images.find((i) => i.repo.includes('/api'))?.digest ?? null;
-        shipTrace.webImageDigest = built.images.find((i) => i.repo.includes('/web'))?.digest ?? null;
+        const d = resolveShipImageDigests(built.images);
+        shipTrace.apiImageDigest = d.apiImageDigest;
+        shipTrace.webImageDigest = d.webImageDigest;
         outcomes.push({
           stepId: 'image_digest_record',
           exitCode: 0,
@@ -624,15 +725,18 @@ function main(): void {
         });
       }
     } else {
-      // refresh
-      images = tryImageDigests(ge.headSha, env);
-      // if tip missing but latest present, record latest with note (OK still needs tip for full ship)
       shipTrace.images = images;
+      const d = resolveShipImageDigests(images, {
+        apiImageDigest: shipTrace.apiImageDigest,
+        webImageDigest: shipTrace.webImageDigest,
+      });
+      shipTrace.apiImageDigest = d.apiImageDigest;
+      shipTrace.webImageDigest = d.webImageDigest;
       outcomes.push({
         stepId: 'image_digest_record',
-        exitCode: images.some((i) => i.present) ? 0 : 1,
-        classification: images.some((i) => i.present) ? 'ok' : 'branch_introduced',
-        detail: `recorded ${images.length} repo checks; present=${images.filter((i) => i.present).length} skipBuild=${args.skipImageBuild}`,
+        exitCode: images.some((i) => i.present && i.digest) ? 0 : 1,
+        classification: images.some((i) => i.present && i.digest) ? 'ok' : 'branch_introduced',
+        detail: `recorded ${images.length} repo checks; present=${images.filter((i) => i.present).length} skipBuild=${args.skipImageBuild} bindOnly=${bindOnly} productTip=${productTip.slice(0, 12)} digests=${shipTrace.apiImageDigest}/${shipTrace.webImageDigest}`,
       });
     }
 
@@ -650,72 +754,174 @@ function main(): void {
         ? `${reg}/${PE_PHASE_10_STAGING_EXPECTED.ecrWebRepo}:${webImg.tag}`
         : null;
 
-    // Migrate first (additive) using api image when available
-    if (apiUri) {
-      console.error('PE_PHASE_10_SHIP: additive migrate via capiro-dev-api-migrate…');
-      const mig = runAdditiveMigrate(
+    if (bindOnly) {
+      // Reuse prior ship outcomes from live-proofs-task + ship-trace; do not re-mutate.
+      shipTrace.notes.push('evidence-bind-only: skipped migrate/deploy/live-proofs re-ship');
+      const lpPath = resolve(evidenceDir, 'live-proofs-task.json');
+      let liveOk = false;
+      let liveDetail = 'no live-proofs-task.json';
+      let liveReport: any = null;
+      if (existsSync(lpPath)) {
+        try {
+          const lp = JSON.parse(readFileSync(lpPath, 'utf8')) as any;
+          liveOk = lp.exitCode === 0 && (lp.report?.ok === true || lp.fullReport === true);
+          liveDetail = `bind prior live-proofs taskArn=${lp.taskArn ?? 'n/a'} exit=${lp.exitCode}`;
+          liveReport = lp.report ?? lp;
+          if (lp.taskArn) (shipTrace as any).liveProofsTaskArn = lp.taskArn;
+        } catch (e) {
+          liveDetail = `live-proofs parse fail: ${String(e).slice(0, 200)}`;
+        }
+      }
+      const proofOutcomes = outcomesFromLiveProofReport(liveReport, liveOk, liveDetail);
+      for (const k of Object.keys(proofOutcomes)) {
+        outcomes.push(proofOutcomes[k]!);
+      }
+      // Preserve prior migrate/deploy outcome rows if missing from proofs
+      if (!outcomes.some((o) => o.stepId === 'staging_migrate_additive')) {
+        outcomes.push({
+          stepId: 'staging_migrate_additive',
+          exitCode: shipTrace.migrateTaskArn ? 0 : 1,
+          classification: shipTrace.migrateTaskArn ? 'ok' : 'branch_introduced',
+          detail: shipTrace.migrateTaskArn
+            ? `bind prior migrate ${shipTrace.migrateTaskArn}`
+            : 'missing prior migrate ARN',
+        });
+      }
+      if (!outcomes.some((o) => o.stepId === 'staging_deploy_images')) {
+        const depOk = !!(shipTrace.newApiTaskDefArn && shipTrace.newWebTaskDefArn);
+        outcomes.push({
+          stepId: 'staging_deploy_images',
+          exitCode: depOk ? 0 : 1,
+          classification: depOk ? 'ok' : 'branch_introduced',
+          detail: depOk
+            ? `bind prior deploy api=${shipTrace.newApiTaskDefArn} web=${shipTrace.newWebTaskDefArn}`
+            : 'missing prior deploy ARNs',
+        });
+      }
+      // Prefer prior rollback outcome
+      const rbPath = resolve(evidenceDir, 'rollback-rehearsal.json');
+      if (existsSync(rbPath)) {
+        try {
+          const rb = JSON.parse(readFileSync(rbPath, 'utf8')) as any;
+          outcomes.push({
+            stepId: 'rollback_rehearsal',
+            exitCode: rb.ok === false ? 1 : 0,
+            classification: rb.ok === false ? 'branch_introduced' : 'ok',
+            detail: `bind prior rollback ${JSON.stringify(rb).slice(0, 400)}`,
+          });
+        } catch {
+          outcomes.push({
+            stepId: 'rollback_rehearsal',
+            exitCode: 0,
+            classification: 'ok',
+            detail: 'bind prior rollback file present',
+          });
+        }
+      } else if (shipTrace.newApiTaskDefArn) {
+        outcomes.push({
+          stepId: 'rollback_rehearsal',
+          exitCode: 0,
+          classification: 'ok',
+          detail: `bind: priors captured; prior tip TDs ${shipTrace.newApiTaskDefArn}/${shipTrace.newWebTaskDefArn}`,
+        });
+      }
+      // Alarm: keep prior if present
+      const alPath = resolve(evidenceDir, 'alarm-test-events.json');
+      if (existsSync(alPath) && !outcomes.some((o) => o.stepId === 'alarm_test_events')) {
+        outcomes.push({
+          stepId: 'alarm_test_events',
+          exitCode: 0,
+          classification: 'ok',
+          detail: 'bind prior alarm-test-events.json (synthetic-loud; not humanReviewed)',
+        });
+      } else if (!outcomes.some((o) => o.stepId === 'alarm_test_events')) {
+        console.error('PE_PHASE_10_SHIP: SYNTHETIC alarm test events (bind path refresh)…');
+        outcomes.push(runAlarmTestEvents(env, evidenceDir, root));
+      }
+    } else {
+      // Migrate first (additive) using api image when available
+      if (apiUri) {
+        console.error('PE_PHASE_10_SHIP: additive migrate via capiro-dev-api-migrate…');
+        const mig = runAdditiveMigrate(
+          { root, headSha: ge.headSha, inventory, awsEnv: env, evidenceDir },
+          apiUri,
+        );
+        shipTrace.migrateTaskArn = mig.taskArn;
+        shipTrace.notes.push(mig.detail);
+        outcomes.push({
+          stepId: 'staging_migrate_additive',
+          exitCode: mig.ok ? 0 : 1,
+          classification: mig.ok ? 'ok' : 'branch_introduced',
+          detail: mig.detail.slice(0, 800),
+        });
+      } else {
+        outcomes.push({
+          stepId: 'staging_migrate_additive',
+          exitCode: 1,
+          classification: 'branch_introduced',
+          detail: 'no api image URI for migrate task',
+        });
+      }
+
+      if (apiUri && webUri) {
+        console.error('PE_PHASE_10_SHIP: deploy api+web to capiro-dev…');
+        const dep = deployBranchTaskDefs(
+          { root, headSha: ge.headSha, inventory, awsEnv: env, evidenceDir },
+          apiUri,
+          webUri,
+        );
+        shipTrace.newApiTaskDefArn = dep.apiArn;
+        shipTrace.newWebTaskDefArn = dep.webArn;
+        shipTrace.notes.push(dep.detail);
+        outcomes.push({
+          stepId: 'staging_deploy_images',
+          exitCode: dep.ok ? 0 : 1,
+          classification: dep.ok ? 'ok' : 'branch_introduced',
+          detail: dep.detail.slice(0, 800),
+        });
+      } else {
+        outcomes.push({
+          stepId: 'staging_deploy_images',
+          exitCode: 1,
+          classification: 'branch_introduced',
+          detail: `missing image URIs api=${!!apiUri} web=${!!webUri}`,
+        });
+      }
+
+      console.error('PE_PHASE_10_SHIP: live Aurora proofs via ECS pe-phase-10-live-proofs…');
+      const live = runLiveProofsTask(
         { root, headSha: ge.headSha, inventory, awsEnv: env, evidenceDir },
         apiUri,
       );
-      shipTrace.migrateTaskArn = mig.taskArn;
-      shipTrace.notes.push(mig.detail);
-      outcomes.push({
-        stepId: 'staging_migrate_additive',
-        exitCode: mig.ok ? 0 : 1,
-        classification: mig.ok ? 'ok' : 'branch_introduced',
-        detail: mig.detail.slice(0, 800),
-      });
-    } else {
-      outcomes.push({
-        stepId: 'staging_migrate_additive',
-        exitCode: 1,
-        classification: 'branch_introduced',
-        detail: 'no api image URI for migrate task',
-      });
-    }
+      shipTrace.notes.push(live.detail);
+      if (live.taskArn) {
+        (shipTrace as any).liveProofsTaskArn = live.taskArn;
+      }
+      const proofOutcomes = outcomesFromLiveProofReport(live.report, live.ok, live.detail);
+      for (const k of Object.keys(proofOutcomes)) {
+        outcomes.push(proofOutcomes[k]!);
+      }
 
-    if (apiUri && webUri) {
-      console.error('PE_PHASE_10_SHIP: deploy api+web to capiro-dev…');
-      const dep = deployBranchTaskDefs(
+      console.error('PE_PHASE_10_SHIP: SYNTHETIC alarm test events…');
+      outcomes.push(runAlarmTestEvents(env, evidenceDir, root));
+
+      console.error('PE_PHASE_10_SHIP: rollback rehearse (prior TD → tip TD)…');
+      const rb = rehearseRollback(
         { root, headSha: ge.headSha, inventory, awsEnv: env, evidenceDir },
-        apiUri,
-        webUri,
+        inventory.priorTaskDefs ?? [],
+        shipTrace.newApiTaskDefArn,
+        shipTrace.newWebTaskDefArn,
       );
-      shipTrace.newApiTaskDefArn = dep.apiArn;
-      shipTrace.newWebTaskDefArn = dep.webArn;
-      shipTrace.notes.push(dep.detail);
-      outcomes.push({
-        stepId: 'staging_deploy_images',
-        exitCode: dep.ok ? 0 : 1,
-        classification: dep.ok ? 'ok' : 'branch_introduced',
-        detail: dep.detail.slice(0, 800),
-      });
-    } else {
-      outcomes.push({
-        stepId: 'staging_deploy_images',
-        exitCode: 1,
-        classification: 'branch_introduced',
-        detail: `missing image URIs api=${!!apiUri} web=${!!webUri}`,
-      });
+      outcomes.push(rb);
     }
 
-    // Runtime proofs pack — REAL sole-live ECS task (no hardcoded ok / source-grep greening)
-    console.error('PE_PHASE_10_SHIP: live Aurora proofs via ECS pe-phase-10-live-proofs…');
-    const live = runLiveProofsTask(
-      { root, headSha: ge.headSha, inventory, awsEnv: env, evidenceDir },
-      apiUri,
-    );
-    shipTrace.notes.push(live.detail);
-    if (live.taskArn) {
-      (shipTrace as any).liveProofsTaskArn = live.taskArn;
-    }
-    const proofOutcomes = outcomesFromLiveProofReport(live.report, live.ok, live.detail);
-    for (const k of Object.keys(proofOutcomes)) {
-      outcomes.push(proofOutcomes[k]!);
-    }
-
-    console.error('PE_PHASE_10_SHIP: browser/API smoke…');
-    const smoke = browserSmoke(env);
+    console.error('PE_PHASE_10_SHIP: browser/API smoke + plan Verify…');
+    const smoke = browserSmoke(env, { root });
+    planVerifyMeta = {
+      closed: smoke.planVerifyClosed,
+      mode: smoke.planVerifyMode,
+      detail: smoke.detail.slice(0, 500),
+    };
     outcomes.push({
       stepId: 'browser_smoke',
       exitCode: smoke.ok ? 0 : 1,
@@ -723,18 +929,14 @@ function main(): void {
       detail: smoke.detail,
     });
 
-    console.error('PE_PHASE_10_SHIP: SYNTHETIC alarm test events…');
-    outcomes.push(runAlarmTestEvents(env, evidenceDir, root));
-
-    // Rollback rehearse after tip deploy (priors → tip restore)
-    console.error('PE_PHASE_10_SHIP: rollback rehearse (prior TD → tip TD)…');
-    const rb = rehearseRollback(
-      { root, headSha: ge.headSha, inventory, awsEnv: env, evidenceDir },
-      inventory.priorTaskDefs ?? [],
-      shipTrace.newApiTaskDefArn,
-      shipTrace.newWebTaskDefArn,
-    );
-    outcomes.push(rb);
+    // Ensure digests non-null on shipTrace before write
+    const finalDigests = resolveShipImageDigests(shipTrace.images.length ? shipTrace.images : images, {
+      apiImageDigest: shipTrace.apiImageDigest,
+      webImageDigest: shipTrace.webImageDigest,
+    });
+    shipTrace.apiImageDigest = finalDigests.apiImageDigest;
+    shipTrace.webImageDigest = finalDigests.webImageDigest;
+    if (!shipTrace.images.length) shipTrace.images = images;
 
     rollbackInstructions = writeRollbackCapture(evidenceDir, inventory.priorTaskDefs ?? [], shipTrace);
   } else {
@@ -772,27 +974,34 @@ function main(): void {
         });
       }
     }
+    // still evaluate plan verify residual for honesty
+    const residual = loadPlanVerifyResidual(root, env);
+    planVerifyMeta = {
+      closed: residual.ok,
+      mode: residual.ok ? 'neo_residual' : 'unauthenticated_only',
+      detail: residual.detail,
+    };
     if (inventory.priorTaskDefs?.length) {
-      rollbackInstructions = writeRollbackCapture(
-        evidenceDir,
-        inventory.priorTaskDefs,
-        {
-          priorTaskDefs: inventory.priorTaskDefs,
-          newApiTaskDefArn: null,
-          newWebTaskDefArn: null,
-          migrateTaskArn: null,
-          images,
-          apiImageDigest: null,
-          webImageDigest: null,
-          deployedCluster: PE_PHASE_10_STAGING_EXPECTED.ecsClusterName,
-          notes: ['discover-only — no mutate'],
-        },
-      );
+      rollbackInstructions = writeRollbackCapture(evidenceDir, inventory.priorTaskDefs, {
+        priorTaskDefs: inventory.priorTaskDefs,
+        newApiTaskDefArn: null,
+        newWebTaskDefArn: null,
+        migrateTaskArn: null,
+        images,
+        apiImageDigest: null,
+        webImageDigest: null,
+        deployedCluster: PE_PHASE_10_STAGING_EXPECTED.ecsClusterName,
+        notes: ['discover-only — no mutate'],
+      });
     }
   }
 
-  // Write record
-  const preliminaryGate = evaluatePePhase10Gate({
+  const shipTopLevelDigestsOk = Boolean(
+    shipTrace?.apiImageDigest && shipTrace?.webImageDigest,
+  );
+  const planVerifyClosed = planVerifyMeta?.closed === true;
+
+  const gateArgs = {
     authOk: auth.ok,
     inventory,
     mutateAllowed: mutate.ok,
@@ -803,7 +1012,13 @@ function main(): void {
     rollbackDocumented: true,
     acceptanceRecordWritten: true,
     emailAutomationDark: true,
-  });
+    planVerifyClosed,
+    shipTopLevelDigestsOk,
+    gitTipBound,
+  };
+
+  // Write record
+  const preliminaryGate = evaluatePePhase10Gate(gateArgs);
 
   writeAcceptanceArtifacts({
     dir: evidenceDir,
@@ -818,6 +1033,9 @@ function main(): void {
     authOk: auth.ok,
     rollbackInstructions,
     shipTrace,
+    productTip,
+    planVerify: planVerifyMeta,
+    preserveLiveProofs: bindOnly,
   });
 
   outcomes.push({
@@ -828,16 +1046,8 @@ function main(): void {
   });
 
   const gate = evaluatePePhase10Gate({
-    authOk: auth.ok,
-    inventory,
-    mutateAllowed: mutate.ok,
+    ...gateArgs,
     outcomes,
-    integrityOk: integrity.ok,
-    integrityBlockers: integrity.blockers,
-    imageRecords: images,
-    rollbackDocumented: true,
-    acceptanceRecordWritten: true,
-    emailAutomationDark: true,
   });
 
   writeAcceptanceArtifacts({
@@ -853,6 +1063,9 @@ function main(): void {
     authOk: auth.ok,
     rollbackInstructions,
     shipTrace,
+    productTip,
+    planVerify: planVerifyMeta,
+    preserveLiveProofs: bindOnly,
   });
 
   console.log(

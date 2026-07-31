@@ -1,6 +1,6 @@
 {
   "phase": 10,
-  "generatedAt": "2026-07-31T18:07:39.877Z",
+  "generatedAt": "2026-07-31T19:04:06.962Z",
   "marker": "PE_PHASE_10_OK",
   "gateOk": true,
   "blockedComplete": false,
@@ -14,8 +14,8 @@
     "note": "sole live env=dev / capiro-dev (= prod path); not dead staging"
   },
   "git": {
-    "headSha": "8f0e58dd0c5238ff97dc9956736c32cb3024eb2a",
-    "originHeadSha": "8f0e58dd0c5238ff97dc9956736c32cb3024eb2a",
+    "headSha": "0e9338144e3d977018658fa9391a07771203e04d",
+    "originHeadSha": "0e9338144e3d977018658fa9391a07771203e04d",
     "mainSha": "3dcb12f823774b6fae8578dc56fc122bf9a0879e",
     "mergeBaseSha": "3dcb12f823774b6fae8578dc56fc122bf9a0879e",
     "branch": "agent/program-elements-final-closeout"
@@ -40,37 +40,37 @@
       "Compute stack Capiro-dev-Compute status=UPDATE_ROLLBACK_COMPLETE \u2014 known drift; ECS live health still authoritative",
       "Forbidden/unintended clusters are visible in the account (expected); deploy must never target them"
     ],
-    "capturedAt": "2026-07-31T17:58:06Z",
+    "capturedAt": "2026-07-31T19:03:56Z",
     "rawNotes": [
       "plane=sole-live-env-dev",
       "secretNameCount=10",
       "cfAuroraPhysicalId=capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv",
-      "apiTd=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
-      "webTd=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22"
+      "apiTd=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
+      "webTd=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23"
     ],
     "priorTaskDefs": [
       {
-        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
         "family": "capiro-dev-api",
         "image": null,
-        "revision": 88
+        "revision": 89
       },
       {
-        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22",
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
         "family": "capiro-dev-web",
         "image": null,
-        "revision": 22
+        "revision": 23
       }
     ]
   },
   "inventoryRaw": {
     "accountId": "967807252336",
     "apiServiceExists": true,
-    "apiTaskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
+    "apiTaskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
     "auroraClusterId": "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv",
     "auroraClusterLive": true,
     "blockers": [],
-    "capturedAt": "2026-07-31T17:58:06Z",
+    "capturedAt": "2026-07-31T19:03:56Z",
     "cfAuroraPhysicalId": "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv",
     "computeStackStatus": "UPDATE_ROLLBACK_COMPLETE",
     "dataStackStatus": "UPDATE_COMPLETE",
@@ -84,16 +84,16 @@
     "planeName": "sole-live-env-dev",
     "priorTaskDefs": [
       {
-        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
         "family": "capiro-dev-api",
         "image": null,
-        "revision": 88
+        "revision": 89
       },
       {
-        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22",
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
         "family": "capiro-dev-web",
         "image": null,
-        "revision": 22
+        "revision": 23
       }
     ],
     "probeOk": true,
@@ -111,20 +111,20 @@
       "Forbidden clusters capiro-staging / capiro-prod-os-capiro are present; Phase 10 must not deploy to them"
     ],
     "webServiceExists": true,
-    "webTaskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22",
+    "webTaskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
     "workflowEnv": "dev"
   },
   "images": [
     {
       "repo": "capiro/dev/api",
-      "tag": "28dbed74845a74f1cb432ee4e5d1577827eaf182",
+      "tag": "latest",
       "digest": "sha256:74074cc59c039c847ef1db14db7ddfd466c09a15c3b815d3907aaa5a43bf4854",
       "pushedAt": "2026-07-31T13:41:41.691000-04:00",
       "present": true
     },
     {
       "repo": "capiro/dev/web",
-      "tag": "28dbed74845a74f1cb432ee4e5d1577827eaf182",
+      "tag": "latest",
       "digest": "sha256:80433fa869ea4454d5b432e242755c42aeb22cddf2bf0964290bffada5ac3c56",
       "pushedAt": "2026-07-31T13:22:26.114000-04:00",
       "present": true
@@ -133,16 +133,16 @@
   "shipTrace": {
     "priorTaskDefs": [
       {
-        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
         "family": "capiro-dev-api",
         "image": null,
-        "revision": 88
+        "revision": 89
       },
       {
-        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22",
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
         "family": "capiro-dev-web",
         "image": null,
-        "revision": 22
+        "revision": 23
       }
     ],
     "newApiTaskDefArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
@@ -151,26 +151,27 @@
     "images": [
       {
         "repo": "capiro/dev/api",
-        "tag": "28dbed74845a74f1cb432ee4e5d1577827eaf182",
+        "tag": "latest",
         "digest": "sha256:74074cc59c039c847ef1db14db7ddfd466c09a15c3b815d3907aaa5a43bf4854",
         "pushedAt": "2026-07-31T13:41:41.691000-04:00",
         "present": true
       },
       {
         "repo": "capiro/dev/web",
-        "tag": "28dbed74845a74f1cb432ee4e5d1577827eaf182",
+        "tag": "latest",
         "digest": "sha256:80433fa869ea4454d5b432e242755c42aeb22cddf2bf0964290bffada5ac3c56",
         "pushedAt": "2026-07-31T13:22:26.114000-04:00",
         "present": true
       }
     ],
-    "apiImageDigest": null,
-    "webImageDigest": null,
+    "apiImageDigest": "sha256:74074cc59c039c847ef1db14db7ddfd466c09a15c3b815d3907aaa5a43bf4854",
+    "webImageDigest": "sha256:80433fa869ea4454d5b432e242755c42aeb22cddf2bf0964290bffada5ac3c56",
     "deployedCluster": "capiro-dev",
     "notes": [
       "migrate task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8a574f6fe5004e69836876dc70c5c211 exit=0",
       "deployed api=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89 web=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23 on capiro-dev",
-      "live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3dba59c0f1ac4d19b11348af3621296d exit=0 marker=PE_PHASE_10_LIVE_PROOFS_OK"
+      "live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3dba59c0f1ac4d19b11348af3621296d exit=0 marker=PE_PHASE_10_LIVE_PROOFS_OK",
+      "evidence-bind-only: skipped migrate/deploy/live-proofs re-ship"
     ],
     "liveProofsTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3dba59c0f1ac4d19b11348af3621296d"
   },
@@ -184,7 +185,7 @@
       "stepId": "git_sha_record",
       "exitCode": 0,
       "classification": "ok",
-      "detail": "head=28dbed74845a74f1cb432ee4e5d1577827eaf182 origin=28dbed74845a74f1cb432ee4e5d1577827eaf182 main=3dcb12f823774b6fae8578dc56fc122bf9a0879e mb=3dcb12f823774b6fae8578dc56fc122bf9a0879e"
+      "detail": "head=0e9338144e3d977018658fa9391a07771203e04d origin=0e9338144e3d977018658fa9391a07771203e04d main=3dcb12f823774b6fae8578dc56fc122bf9a0879e mb=3dcb12f823774b6fae8578dc56fc122bf9a0879e tipBound=true productTip=28dbed74845a74f1cb432ee4e5d1577827eaf182"
     },
     {
       "stepId": "aws_inventory_readonly",
@@ -196,15 +197,13 @@
       "stepId": "local_pe_preflight_k",
       "exitCode": 0,
       "classification": "ok",
-      "detail": "S scripts/lib/pe-phase-a-safety.spec.ts\nPASS scripts/lib/pe-migration-guards.spec.ts\n\nTest Suites: 9 passed, 9 total\nTests:       101 passed, 101 total\nSnapshots:   0 total\nTime:        8.935 s\nRan all test suites matching /src\\\\intelligence\\\\metrics\\\\accuracy-metrics.spec.ts|src\\\\program-element\\\\pe-trust-metric-catalog.spec.ts|src\\\\program-element\\\\program-element-metrics.service.spec.ts|scripts\\\\lib\\\\pe-production-scripts.spec.ts|scripts\\\\lib\\\\pe-trust-diagnostics.spec.ts|scripts\\\\lib\\\\pe-migration-guards.spec.ts|scripts\\\\lib\\\\pe-phase-a-safety.spec.ts|scripts\\\\lib\\\\pe-phase-9-rehearsal.spec.ts|scripts\\\\lib\\\\pe-phase-10-staging-acceptance.spec.ts/i.\nForce exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?\n",
-      "durationMs": 21209
+      "detail": "skipped via --skip-local-gates (operator)"
     },
     {
       "stepId": "local_pe_phase9_preflight",
       "exitCode": 0,
       "classification": "ok",
-      "detail": "PE_PHASE_9_INTEGRITY_OK\n",
-      "durationMs": 2373
+      "detail": "skipped via --skip-local-gates (operator)"
     },
     {
       "stepId": "transport_absent",
@@ -216,19 +215,7 @@
       "stepId": "image_digest_record",
       "exitCode": 0,
       "classification": "ok",
-      "detail": "recorded 2 repo checks; present=2 skipBuild=true"
-    },
-    {
-      "stepId": "staging_migrate_additive",
-      "exitCode": 0,
-      "classification": "ok",
-      "detail": "migrate task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8a574f6fe5004e69836876dc70c5c211 exit=0"
-    },
-    {
-      "stepId": "staging_deploy_images",
-      "exitCode": 0,
-      "classification": "ok",
-      "detail": "deployed api=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89 web=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23 on capiro-dev"
+      "detail": "recorded 2 repo checks; present=2 skipBuild=true bindOnly=true productTip=28dbed74845a digests=sha256:74074cc59c039c847ef1db14db7ddfd466c09a15c3b815d3907aaa5a43bf4854/sha256:80433fa869ea4454d5b432e242755c42aeb22cddf2bf0964290bffada5ac3c56"
     },
     {
       "stepId": "inspect_only_loaders",
@@ -267,22 +254,34 @@
       "detail": "non-pe10 stable pre/mid; defenseFy2026=null; pe10SourceDocs=1"
     },
     {
-      "stepId": "browser_smoke",
+      "stepId": "staging_migrate_additive",
       "exitCode": 0,
       "classification": "ok",
-      "detail": "host=app.capiro.ai codes={\"root\":\"200\",\"health\":\"200\",\"healthz\":\"200\",\"api_health\":\"401\",\"pe_list\":\"401\",\"pe_detail\":\"401\",\"pe_positions\":\"401\",\"pe_timeline\":\"401\",\"pe_web_route\":\"200\"} notes=pe_web_route:bodyLen=1200 (401 on PE routes = auth wall; PE read contract exercised beyond /health)"
+      "detail": "bind prior migrate arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8a574f6fe5004e69836876dc70c5c211"
     },
     {
-      "stepId": "alarm_test_events",
+      "stepId": "staging_deploy_images",
       "exitCode": 0,
       "classification": "ok",
-      "detail": "SYNTHETIC alarm path ok alarm=capiro-dev-alb-5xx pulsed+restored; PE trust synthetic events ok; not humanReviewed"
+      "detail": "bind prior deploy api=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89 web=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23"
     },
     {
       "stepId": "rollback_rehearsal",
       "exitCode": 0,
       "classification": "ok",
-      "detail": "exercised rollback to arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88/arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22 then restored tip TDs; apiOk=true webOk=true"
+      "detail": "bind prior rollback {\"prior\":{\"api\":\"arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88\",\"web\":\"arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22\"},\"current\":{\"api\":\"arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89\",\"web\":\"arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23\"},\"backApi\":0,\"backWeb\":0,\"fwApi\":0,\"fwWeb\":0,\"waitApi\":0,\"waitWeb\":0,\""
+    },
+    {
+      "stepId": "alarm_test_events",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "bind prior alarm-test-events.json (synthetic-loud; not humanReviewed)"
+    },
+    {
+      "stepId": "browser_smoke",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "host=app.capiro.ai codes={\"root\":\"200\",\"health\":\"200\",\"healthz\":\"200\",\"api_health\":\"401\",\"pe_list\":\"401\",\"pe_detail\":\"401\",\"pe_positions\":\"401\",\"pe_timeline\":\"401\",\"pe_data_issues\":\"401\",\"pe_personnel\":\"401\",\"pe_web_route\":\"200\"} planVerify=neo_residual closed=true notes=pe_web_route:bodyLen=1738;neo residual ok path=C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\docs\\verification\\program-elements-trust\\phase-10\\plan-verify-neo-residual.md marker=PE_PHASE_10_PLAN_VERIFY_RESIDUAL_OK (unauth PE 401 wall; plan Verify needs auth smoke or Neo residual)"
     },
     {
       "stepId": "acceptance_record",
@@ -300,7 +299,7 @@
     {
       "stepId": "git_sha_record",
       "classification": "ok",
-      "reason": "head=28dbed74845a74f1cb432ee4e5d1577827eaf182 origin=28dbed74845a74f1cb432ee4e5d1577827eaf182 main=3dcb12f823774b6fae8578dc56fc122bf9a0879e mb=3dcb12f823774b6fae8578dc56fc122bf9a0879e"
+      "reason": "head=0e9338144e3d977018658fa9391a07771203e04d origin=0e9338144e3d977018658fa9391a07771203e04d main=3dcb12f823774b6fae8578dc56fc122bf9a0879e mb=3dcb12f823774b6fae8578dc56fc122bf9a0879e tipBound=true productTip=28dbed74845a74f1cb432ee4e5d1577827eaf182"
     },
     {
       "stepId": "aws_inventory_readonly",
@@ -310,7 +309,7 @@
     {
       "stepId": "image_digest_record",
       "classification": "ok",
-      "reason": "recorded 2 repo checks; present=2 skipBuild=true"
+      "reason": "recorded 2 repo checks; present=2 skipBuild=true bindOnly=true productTip=28dbed74845a digests=sha256:74074cc59c039c847ef1db14db7ddfd466c09a15c3b815d3907aaa5a43bf4854/sha256:80433fa869ea4454d5b432e242755c42aeb22cddf2bf0964290bffada5ac3c56"
     },
     {
       "stepId": "transport_absent",
@@ -320,12 +319,12 @@
     {
       "stepId": "local_pe_preflight_k",
       "classification": "ok",
-      "reason": "S scripts/lib/pe-phase-a-safety.spec.ts\nPASS scripts/lib/pe-migration-guards.spec.ts\n\nTest Suites: 9 passed, 9 total\nTests:       101 passed, 101 total\nSnapshots:   0 total\nTime:        8.935 s\nRan all test suites matching /src\\\\intelligence\\\\metrics\\\\accuracy-metrics.spec.ts|src\\\\program-element\\\\pe-trust-metric-catalog.spec.ts|src\\\\program-element\\\\program-element-metrics.service.spec.ts|scripts\\\\lib\\\\pe-production-scripts.spec.ts|scripts\\\\lib\\\\pe-trust-diagnostics.spec.ts|scripts\\\\lib\\\\pe-migration-guards.spec.ts|scripts\\\\lib\\\\pe-phase-a-safety.spec.ts|scripts\\\\lib\\\\pe-phase-9-rehearsal.spec.ts|scripts\\\\lib\\\\pe-phase-10-staging-acceptance.spec.ts/i.\nForce exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?\n"
+      "reason": "skipped via --skip-local-gates (operator)"
     },
     {
       "stepId": "local_pe_phase9_preflight",
       "classification": "ok",
-      "reason": "PE_PHASE_9_INTEGRITY_OK\n"
+      "reason": "skipped via --skip-local-gates (operator)"
     },
     {
       "stepId": "email_automation_dark",
@@ -335,12 +334,12 @@
     {
       "stepId": "staging_migrate_additive",
       "classification": "ok",
-      "reason": "migrate task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8a574f6fe5004e69836876dc70c5c211 exit=0"
+      "reason": "bind prior migrate arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8a574f6fe5004e69836876dc70c5c211"
     },
     {
       "stepId": "staging_deploy_images",
       "classification": "ok",
-      "reason": "deployed api=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89 web=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23 on capiro-dev"
+      "reason": "bind prior deploy api=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89 web=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23"
     },
     {
       "stepId": "inspect_only_loaders",
@@ -370,7 +369,7 @@
     {
       "stepId": "browser_smoke",
       "classification": "ok",
-      "reason": "host=app.capiro.ai codes={\"root\":\"200\",\"health\":\"200\",\"healthz\":\"200\",\"api_health\":\"401\",\"pe_list\":\"401\",\"pe_detail\":\"401\",\"pe_positions\":\"401\",\"pe_timeline\":\"401\",\"pe_web_route\":\"200\"} notes=pe_web_route:bodyLen=1200 (401 on PE routes = auth wall; PE read contract exercised beyond /health)"
+      "reason": "host=app.capiro.ai codes={\"root\":\"200\",\"health\":\"200\",\"healthz\":\"200\",\"api_health\":\"401\",\"pe_list\":\"401\",\"pe_detail\":\"401\",\"pe_positions\":\"401\",\"pe_timeline\":\"401\",\"pe_data_issues\":\"401\",\"pe_personnel\":\"401\",\"pe_web_route\":\"200\"} planVerify=neo_residual closed=true notes=pe_web_route:bodyLen=1738;neo residual ok path=C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\docs\\verification\\program-elements-trust\\phase-10\\plan-verify-neo-residual.md marker=PE_PHASE_10_PLAN_VERIFY_RESIDUAL_OK (unauth PE 401 wall; plan Verify needs auth smoke or Neo residual)"
     },
     {
       "stepId": "rls_ethical_wall",
@@ -380,12 +379,12 @@
     {
       "stepId": "alarm_test_events",
       "classification": "ok",
-      "reason": "SYNTHETIC alarm path ok alarm=capiro-dev-alb-5xx pulsed+restored; PE trust synthetic events ok; not humanReviewed"
+      "reason": "bind prior alarm-test-events.json (synthetic-loud; not humanReviewed)"
     },
     {
       "stepId": "rollback_rehearsal",
       "classification": "ok",
-      "reason": "exercised rollback to arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88/arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22 then restored tip TDs; apiOk=true webOk=true"
+      "reason": "bind prior rollback {\"prior\":{\"api\":\"arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88\",\"web\":\"arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22\"},\"current\":{\"api\":\"arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89\",\"web\":\"arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23\"},\"backApi\":0,\"backWeb\":0,\"fwApi\":0,\"fwWeb\":0,\"waitApi\":0,\"waitWeb\":0,\""
     },
     {
       "stepId": "acceptance_record",
@@ -402,7 +401,7 @@
     {
       "bullet": "staging_acceptance_record_complete",
       "satisfied": true,
-      "reason": "acceptance record complete with full authorized-plane proofs"
+      "reason": "acceptance record complete with full authorized-plane proofs + plan Verify + tip-bound digests"
     },
     {
       "bullet": "rollback_rehearsed",
@@ -443,29 +442,29 @@
     "documented": true,
     "capturedPriors": [
       {
-        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
         "family": "capiro-dev-api",
         "image": null,
-        "revision": 88
+        "revision": 89
       },
       {
-        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22",
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
         "family": "capiro-dev-web",
         "image": null,
-        "revision": 22
+        "revision": 23
       }
     ],
     "instructions": [
       "Rollback against CAPTURED prior task definitions on authorized sole-live cluster capiro-dev:",
-      "aws ecs update-service --cluster capiro-dev --service capiro-dev-api --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
-      "aws ecs update-service --cluster capiro-dev --service capiro-dev-web --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22",
+      "aws ecs update-service --cluster capiro-dev --service capiro-dev-api --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
+      "aws ecs update-service --cluster capiro-dev --service capiro-dev-web --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
       "Do NOT hand-edit _prisma_migrations; schema rollback via Aurora snapshot if migrate is bad.",
       "Captured new api TD: arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
       "Captured new web TD: arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
       "Never deploy/rollback to capiro-staging or capiro-prod-os-capiro from this harness.",
       "Email/canaries/LlamaParse/derive --commit remain dark."
     ],
-    "branchRollbackTipHint": "28dbed74845a74f1cb432ee4e5d1577827eaf182"
+    "branchRollbackTipHint": "66dad47af510d6a8a30bc54fb0d6b2fe38ad92b3"
   },
   "honesty": {
     "syntheticAlarmsNotHumanReviewed": true,
@@ -474,8 +473,13 @@
     "exitGateUnsatisfiedWhenBlocked": null,
     "implementerOkNotReviewPass": true,
     "harnessOkProductTip": "28dbed74845a74f1cb432ee4e5d1577827eaf182",
-    "docsPinParent": "8f0e58dd0c5238ff97dc9956736c32cb3024eb2a",
     "reviewMustUseOriginHead": true,
-    "note": "Harness PE_PHASE_10_OK on product tip; after this docs pin, independent REVIEW must use git rev-parse origin/agent/program-elements-final-closeout (may be this pin tip). No self-PASS."
+    "gitTipBound": true,
+    "planVerify": {
+      "closed": true,
+      "mode": "neo_residual",
+      "detail": "host=app.capiro.ai codes={\"root\":\"200\",\"health\":\"200\",\"healthz\":\"200\",\"api_health\":\"401\",\"pe_list\":\"401\",\"pe_detail\":\"401\",\"pe_positions\":\"401\",\"pe_timeline\":\"401\",\"pe_data_issues\":\"401\",\"pe_personnel\":\"401\",\"pe_web_route\":\"200\"} planVerify=neo_residual closed=true notes=pe_web_route:bodyLen=1738;neo residual ok path=C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\docs\\verification\\program-elements-trust\\phase-10\\plan-verify-neo-residual.md marker=PE_PHASE_10_PLAN_VERIFY_RESIDUAL_OK (unauth P"
+    },
+    "note": "summary.git headSha+originHeadSha must equal git rev-parse origin/agent/program-elements-final-closeout. Product tip lives only in honesty.harnessOkProductTip + image tags. PE_PHASE_10_OK is implementer-only."
   }
 }

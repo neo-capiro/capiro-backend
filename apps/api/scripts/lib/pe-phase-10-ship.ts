@@ -82,8 +82,35 @@ export function purgeStaleEvidenceArtifacts(evidenceDir: string): string[] {
   return removed;
 }
 
+/** Fill top-level api/web digests from images[] when callers left them null (skip-build path). */
+export function resolveShipImageDigests(
+  images: readonly PePhase10ImageDigestRecord[],
+  prior?: { apiImageDigest?: string | null; webImageDigest?: string | null },
+): { apiImageDigest: string | null; webImageDigest: string | null } {
+  const api =
+    prior?.apiImageDigest ||
+    images.find((i) => i.present && i.digest && /\/api$|\/api\b|dev\/api/.test(i.repo))?.digest ||
+    images.find((i) => i.present && i.digest && i.repo.includes('api'))?.digest ||
+    null;
+  const web =
+    prior?.webImageDigest ||
+    images.find((i) => i.present && i.digest && /\/web$|\/web\b|dev\/web/.test(i.repo))?.digest ||
+    images.find((i) => i.present && i.digest && i.repo.includes('web'))?.digest ||
+    null;
+  return { apiImageDigest: api, webImageDigest: web };
+}
+
 export function writeShipTrace(evidenceDir: string, trace: PePhase10ShipTrace & Record<string, unknown>): void {
   mkdirSync(evidenceDir, { recursive: true });
+  const digests = resolveShipImageDigests(trace.images ?? [], {
+    apiImageDigest: trace.apiImageDigest,
+    webImageDigest: trace.webImageDigest,
+  });
+  const normalized: PePhase10ShipTrace & Record<string, unknown> = {
+    ...trace,
+    apiImageDigest: digests.apiImageDigest,
+    webImageDigest: digests.webImageDigest,
+  };
   writeFileSync(
     resolve(evidenceDir, 'ship-trace.json'),
     JSON.stringify(
@@ -96,23 +123,23 @@ export function writeShipTrace(evidenceDir: string, trace: PePhase10ShipTrace & 
           appHost: exp.appHost,
           note: 'sole live env=dev = prod path; Neo PE_CLOSEOUT_STAGING_OK + MUTATE authorized',
         },
-        ...trace,
+        ...normalized,
       },
       null,
       2,
     ),
   );
-  if (trace.newApiTaskDefArn || trace.newWebTaskDefArn) {
+  if (normalized.newApiTaskDefArn || normalized.newWebTaskDefArn) {
     writeFileSync(
       resolve(evidenceDir, 'deploy-result.json'),
       JSON.stringify(
         {
           deployed: {
-            apiTaskDef: trace.newApiTaskDefArn,
-            webTaskDef: trace.newWebTaskDefArn,
-            apiImage: trace.apiImageDigest,
-            webImage: trace.webImageDigest,
-            cluster: trace.deployedCluster,
+            apiTaskDef: normalized.newApiTaskDefArn,
+            webTaskDef: normalized.newWebTaskDefArn,
+            apiImage: normalized.apiImageDigest,
+            webImage: normalized.webImageDigest,
+            cluster: normalized.deployedCluster,
           },
           generatedAt: new Date().toISOString(),
         },
@@ -596,10 +623,95 @@ export function runAdditiveMigrate(
   };
 }
 
-export function browserSmoke(env: NodeJS.ProcessEnv = process.env): {
+export interface PePhase10PlanVerifyResidual {
+  ok: boolean;
+  path: string | null;
+  detail: string;
+}
+
+/**
+ * Neo-written residual for plan Verify bullets that cannot be live-proven without
+ * authenticated session. File must include the marker token and cite Phase 5/6 + PE 401 wall.
+ * Implementer must not invent this file.
+ */
+export function loadPlanVerifyResidual(
+  root: string,
+  env: NodeJS.ProcessEnv = process.env,
+): PePhase10PlanVerifyResidual {
+  const candidates: string[] = [];
+  const envPath = (env.PE_CLOSEOUT_PLAN_VERIFY_RESIDUAL_PATH || '').trim();
+  if (envPath) candidates.push(envPath);
+  candidates.push(
+    resolve(root, 'docs/verification/program-elements-trust/phase-10/plan-verify-neo-residual.md'),
+    resolve(root, 'prompts/phase-10-plan-verify-residual.md'),
+  );
+  const downloads = (env.PE_CLOSEOUT_PROMPTS_DIR || '').trim();
+  if (downloads) candidates.push(resolve(downloads, 'phase-10-plan-verify-residual.md'));
+  // Common operator path next to pe-closeout launcher
+  const home = (env.USERPROFILE || env.HOME || '').replace(/\\/g, '/');
+  if (home) {
+    candidates.push(
+      `${home}/Downloads/pe-closeout/prompts/phase-10-plan-verify-residual.md`,
+      `${home}/Downloads/pe-closeout/prompts/phase-10-neo-plan-verify-residual.md`,
+    );
+  }
+
+  const marker = 'PE_PHASE_10_PLAN_VERIFY_RESIDUAL_OK';
+  for (const p of candidates) {
+    if (!p || !existsSync(p)) continue;
+    let text = '';
+    try {
+      text = readFileSync(p, 'utf8');
+    } catch {
+      continue;
+    }
+    const hasMarker = text.includes(marker);
+    const citesPhase56 =
+      /phase\s*5/i.test(text) &&
+      /phase\s*6/i.test(text) &&
+      (/401/.test(text) || /auth.?wall/i.test(text)) &&
+      (/failed\s*[≠!=]+\s*empty|failed.?empty|data.?issue|blocked.?crm|crm.?contact/i.test(text) ||
+        /substitut/i.test(text));
+    const neoVoice = /neo/i.test(text) || /operator/i.test(text) || /authoriz/i.test(text);
+    if (hasMarker && citesPhase56 && neoVoice) {
+      return {
+        ok: true,
+        path: p,
+        detail: `neo residual ok path=${p} marker=${marker}`,
+      };
+    }
+    return {
+      ok: false,
+      path: p,
+      detail: `residual present but invalid path=${p} marker=${hasMarker} phase56=${citesPhase56} neoVoice=${neoVoice}`,
+    };
+  }
+  return {
+    ok: false,
+    path: null,
+    detail:
+      'no Neo plan-verify residual on file (need PE_PHASE_10_PLAN_VERIFY_RESIDUAL_OK + Phase 5/6 + 401 wall language)',
+  };
+}
+
+export interface PePhase10BrowserSmokeResult {
   ok: boolean;
   detail: string;
-} {
+  /** Plan Verify closed via authenticated PE smoke OR valid Neo residual. */
+  planVerifyClosed: boolean;
+  planVerifyMode: 'authenticated_smoke' | 'neo_residual' | 'unauthenticated_only' | 'failed';
+  residual: PePhase10PlanVerifyResidual | null;
+}
+
+/**
+ * Unauthenticated PE auth-wall smoke + optional authenticated plan Verify matrix.
+ * Auth via PE_CLOSEOUT_SMOKE_COOKIE or PE_CLOSEOUT_SMOKE_BEARER (never logged in full).
+ * Without auth, planVerifyClosed only if Neo residual loads.
+ */
+export function browserSmoke(
+  env: NodeJS.ProcessEnv = process.env,
+  opts?: { root?: string },
+): PePhase10BrowserSmokeResult {
   const host = exp.appHost;
   const tmpBase = (process.env.TEMP || process.env.TMP || '/tmp').replace(/\\/g, '/');
   const curl = (url: string, idx: number, extraHeaders: string[] = []) => {
@@ -614,14 +726,14 @@ export function browserSmoke(env: NodeJS.ProcessEnv = process.env): {
     const code = (digits.slice(-3) || '000').padStart(3, '0').slice(-3);
     let body = '';
     try {
-      body = readFileSync(tmp, 'utf8').slice(0, 1200);
+      body = readFileSync(tmp, 'utf8').slice(0, 4000);
     } catch {
       body = '';
     }
     return { code, body, raw: String(r.out || '').slice(0, 400) };
   };
 
-  // Plan Verify: PE read contract + failed≠empty surface signals, not only / and /health.
+  // Base: PE read contract + auth wall beyond /health (unauthenticated).
   const paths = [
     { id: 'root', url: `https://${host}/`, want: ['200'], headers: [] as string[] },
     { id: 'health', url: `https://${host}/health`, want: ['200', '401'], headers: [] as string[] },
@@ -648,6 +760,18 @@ export function browserSmoke(env: NodeJS.ProcessEnv = process.env): {
     {
       id: 'pe_timeline',
       url: `https://${host}/api/program-elements/0603270A/timeline`,
+      want: ['200', '401', '403', '404'],
+      headers: ['Accept: application/json'],
+    },
+    {
+      id: 'pe_data_issues',
+      url: `https://${host}/api/program-elements/0603270A/data-issues`,
+      want: ['200', '401', '403', '404'],
+      headers: ['Accept: application/json'],
+    },
+    {
+      id: 'pe_personnel',
+      url: `https://${host}/api/program-elements/0603270A/personnel`,
       want: ['200', '401', '403', '404'],
       headers: ['Accept: application/json'],
     },
@@ -682,16 +806,125 @@ export function browserSmoke(env: NodeJS.ProcessEnv = process.env): {
     }
   }
   const peAuthWall =
-    ['pe_list', 'pe_detail', 'pe_positions', 'pe_timeline'].every((id) =>
+    ['pe_list', 'pe_detail', 'pe_positions', 'pe_timeline', 'pe_data_issues', 'pe_personnel'].every((id) =>
       ['401', '403', '200', '404'].includes(results[id] || ''),
-    ) && ['pe_list', 'pe_detail'].some((id) => ['401', '403', '200'].includes(results[id] || ''));
+    ) && ['pe_list', 'pe_detail'].some((id) => ['401', '403'].includes(results[id] || ''));
   if (!peAuthWall) failures.push('pe_read_contract_missing');
-  const ok = failures.length === 0 && results.root === '200';
+
+  // Authenticated plan Verify (optional): failed≠empty surfaces + data-issue + CRM personnel.
+  const cookie = (env.PE_CLOSEOUT_SMOKE_COOKIE || '').trim();
+  const bearer = (env.PE_CLOSEOUT_SMOKE_BEARER || '').trim();
+  let authOk = false;
+  const authNotes: string[] = [];
+  if (cookie || bearer) {
+    const authHeaders = ['Accept: application/json'];
+    if (cookie) authHeaders.push(`Cookie: ${cookie}`);
+    if (bearer) authHeaders.push(`Authorization: Bearer ${bearer}`);
+    const pe = (env.PE_CLOSEOUT_SMOKE_PE || '0603270A').trim();
+    const authPaths = [
+      { id: 'auth_pe_detail', url: `https://${host}/api/program-elements/${pe}`, want: ['200'] },
+      {
+        id: 'auth_pe_positions',
+        url: `https://${host}/api/program-elements/${pe}/positions`,
+        want: ['200'],
+      },
+      {
+        id: 'auth_pe_data_issues',
+        url: `https://${host}/api/program-elements/${pe}/data-issues`,
+        want: ['200'],
+      },
+      {
+        id: 'auth_pe_personnel',
+        url: `https://${host}/api/program-elements/${pe}/personnel`,
+        want: ['200'],
+      },
+      {
+        id: 'auth_pe_timeline',
+        url: `https://${host}/api/program-elements/${pe}/timeline`,
+        want: ['200'],
+      },
+    ];
+    let authFail = false;
+    for (let i = 0; i < authPaths.length; i++) {
+      const pth = authPaths[i]!;
+      const r = curl(pth.url, 100 + i, authHeaders);
+      results[pth.id] = r.code;
+      if (!pth.want.includes(r.code)) {
+        authFail = true;
+        failures.push(`${pth.id}=${r.code}`);
+        continue;
+      }
+      const body = (r.body || '').trim();
+      // failed≠empty honesty: body must not look like silent success-empty for error payloads
+      if (/\"status\"\s*:\s*\"error\"|\"failed\"\s*:\s*true/i.test(body) && /\"items\"\s*:\s*\[\s*\]/.test(body)) {
+        // error+empty items is ok as failed signal
+        authNotes.push(`${pth.id}:failed_signal`);
+      } else if (body.length < 2) {
+        authFail = true;
+        failures.push(`${pth.id}:empty_body`);
+      } else {
+        authNotes.push(`${pth.id}:ok_len=${body.length}`);
+      }
+      // data-issue surface must be structured JSON
+      if (pth.id === 'auth_pe_data_issues') {
+        if (!/[\[{]/.test(body)) {
+          authFail = true;
+          failures.push('auth_pe_data_issues:not_json');
+        } else {
+          authNotes.push('data_issue_surface_json');
+        }
+      }
+      // personnel/CRM surface present (blocked CRM is server-side; 200 JSON proves route live)
+      if (pth.id === 'auth_pe_personnel') {
+        if (!/[\[{]/.test(body)) {
+          authFail = true;
+          failures.push('auth_pe_personnel:not_json');
+        } else {
+          authNotes.push('crm_personnel_surface_json');
+        }
+      }
+      // positions: track/FY honesty — JSON must be parseable array/object (track fields when present)
+      if (pth.id === 'auth_pe_positions' && body) {
+        if (/track|fiscal|fy|vehicle|zero/i.test(body) || /[\[{]/.test(body)) {
+          authNotes.push('positions_track_fy_surface');
+        }
+      }
+    }
+    authOk = !authFail && authNotes.length > 0;
+    // Never echo cookie/bearer values
+    bodyNotes.push(`auth_headers=${cookie ? 'cookie' : ''}${bearer ? 'bearer' : ''}`);
+    bodyNotes.push(...authNotes.slice(0, 12));
+  }
+
+  const residual = loadPlanVerifyResidual(opts?.root || process.cwd(), env);
+  let planVerifyClosed = false;
+  let planVerifyMode: PePhase10BrowserSmokeResult['planVerifyMode'] = 'unauthenticated_only';
+  if (authOk) {
+    planVerifyClosed = true;
+    planVerifyMode = 'authenticated_smoke';
+  } else if (residual.ok) {
+    planVerifyClosed = true;
+    planVerifyMode = 'neo_residual';
+    bodyNotes.push(residual.detail);
+  } else {
+    planVerifyMode = cookie || bearer ? 'failed' : 'unauthenticated_only';
+    if (!residual.ok) bodyNotes.push(residual.detail);
+  }
+
+  const baseOk = failures.filter((f) => !f.startsWith('auth_')).length === 0 && results.root === '200';
+  // browser_smoke step ok = base unauth wall holds; planVerify is separate gate input
+  const ok = baseOk && (planVerifyClosed || !(cookie || bearer) || authOk);
+  // If auth credentials supplied but auth failed, step fails
+  const stepOk = baseOk && (!(cookie || bearer) || authOk);
+
   return {
-    ok,
+    ok: stepOk,
+    planVerifyClosed,
+    planVerifyMode,
+    residual,
     detail: `host=${host} codes=${JSON.stringify(results)}${
       failures.length ? ` FAIL ${failures.join(',')}` : ''
-    } notes=${bodyNotes.slice(0, 8).join(';')} (401 on PE routes = auth wall; PE read contract exercised beyond /health)`,
+    } planVerify=${planVerifyMode} closed=${planVerifyClosed} notes=${bodyNotes.slice(0, 14).join(';')} (unauth PE 401 wall; plan Verify needs auth smoke or Neo residual)`,
   };
 }
 
