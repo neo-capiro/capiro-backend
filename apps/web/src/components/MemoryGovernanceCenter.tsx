@@ -712,7 +712,9 @@ function MemoryDetailDrawer({
                   <Space wrap>
                     <Tag>{governanceStatusLabel(String(job.status ?? ''))}</Tag>
                     <Text>{humanize(String(job.operation ?? 'projection'))}</Text>
-                    {job.lastError && <Text type="danger">{String(job.lastError)}</Text>}
+                    {typeof job.lastError === 'string' && job.lastError ? (
+                      <Text type="danger">{job.lastError}</Text>
+                    ) : null}
                   </Space>
                 </List.Item>
               )}
