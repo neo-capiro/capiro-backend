@@ -221,6 +221,15 @@ export const PE_PHASE_10_ACCEPTANCE_STEPS: readonly PePhase10Step[] = [
     requiresMutate: true,
   },
   {
+    id: 'mutation_boundary_observe',
+    kind: 'runtime_check',
+    title: 'Pre/post non-pe10 mutation boundary (fail on drift)',
+    command: '',
+    required: true,
+    requiresMutate: true,
+    notes: 'Not a hard-ok observe; compare non-pe10 counts/events before and after pe10 work',
+  },
+  {
     id: 'derive_chain_dry_run',
     kind: 'runtime_check',
     title: 'Derive-chain dry run (no commit)',

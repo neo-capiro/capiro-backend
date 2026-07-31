@@ -40,6 +40,7 @@ describe('pe-phase-10 catalog', () => {
       'inspect_only_loaders',
       'exact_sha_internal_promotion',
       'identical_replay',
+      'mutation_boundary_observe',
       'derive_chain_dry_run',
       'browser_smoke',
       'rls_ethical_wall',
@@ -324,7 +325,12 @@ describe('evaluatePePhase10Gate', () => {
         s.id !== 'acceptance_record' &&
         s.id !== 'forbidden_production_actions',
     ).map((s) => ({ stepId: s.id, exitCode: 0, detail: 'passed' }));
-    const g = evaluatePePhase10Gate({
+
+    outcomes.push({
+      stepId: 'mutation_boundary_observe',
+      exitCode: 0,
+      detail: 'non-pe10 stable',
+    });    const g = evaluatePePhase10Gate({
       authOk: true,
       inventory: healthy,
       mutateAllowed: true,
@@ -472,7 +478,154 @@ describe('anti-fake ship evidence (source)', () => {
     const src = shipSrc();
     expect(src).not.toMatch(/identical_replay[\s\S]{0,200}exitCode:\s*0,\s*\n\s*classification:\s*'ok'/);
     expect(src).not.toMatch(/src\.includes\(['"]DRY RUN['"]\)/);
-    expect(src).not.toMatch(/rls-phase-c-pass\.txt/);
+    // rls-phase-c-pass.txt may appear only as a purge target, never as a soft-skip evidence reader.
+    expect(src).toMatch(/purgeStaleEvidenceArtifacts/);
+    expect(src).not.toMatch(/readFileSync\([^)]*rls-phase-c-pass/);
+    expect(src).not.toMatch(/existsSync\([^)]*rls-phase-c-pass[^)]*\)[\s\S]{0,80}classification:\s*'ok'/);
   });
 });
 
+
+describe('anti-fake live-proofs source (review FAIL locks)', () => {
+  const liveSrc = () =>
+    require('fs').readFileSync(
+      require('path').join(__dirname, '../pe-phase-10-live-proofs.ts'),
+      'utf8',
+    ) as string;
+  const entrySrc = () =>
+    require('fs').readFileSync(
+      require('path').join(__dirname, '../entrypoint.sh'),
+      'utf8',
+    ) as string;
+  const composeSrc = () =>
+    require('fs').readFileSync(
+      require('path').join(__dirname, 'pe-compose-database-url.js'),
+      'utf8',
+    ) as string;
+
+  it('ensureDatabaseUrl never embeds masked password marker in URL template', () => {
+    const src = liveSrc();
+    expect(src).toMatch(/export function ensureDatabaseUrl/);
+    // Must not contain a postgresql URL template with literal masked password.
+    expect(src).not.toMatch(/postgresql:\/\/\$\{[^}]+\}:\*\*\*@/);
+    expect(src).not.toMatch(/postgresql:\/\/.*:\*\*\*@/);
+    expect(src).toMatch(/encodeURIComponent\(env\.DB_PASSWORD/);
+    expect(src).toMatch(/maskedMarker/);
+  });
+
+  it('entrypoint compose helper builds real URL (no masked marker in shell export)', () => {
+    const src = entrySrc();
+    expect(src).toMatch(/pe-compose-database-url\.js/);
+    expect(src).not.toMatch(/postgresql:\/\/\$\{DB_USER\}:\*\*\*@/);
+    const helper = composeSrc();
+    expect(helper).toMatch(/encodeURIComponent/);
+    expect(helper).toMatch(/process\.stdout\.write\(url\)/);
+  });
+
+  it('registers pe10 source_document and fails closed when missing', () => {
+    const src = liveSrc();
+    expect(src).toMatch(/pe10_phase10_internal_promotion/);
+    expect(src).toMatch(/upsertSourceDocument|registerPromotionSource/);
+    expect(src).toMatch(/source_document_register/);
+    expect(src).toMatch(/MISSING SOURCE|source_document missing|fail closed/i);
+  });
+
+  it('identical_replay requires zero new canonical rows / id-set equality', () => {
+    const src = liveSrc();
+    expect(src).toMatch(/idSetEqual/);
+    expect(src).toMatch(/newCanonicalRows|newRows === 0/);
+    expect(src).not.toMatch(/identical_replay[\s\S]{0,120}ok:\s*true,\s*\n\s*exitCode:\s*0/);
+  });
+
+  it('mutation_boundary_observe is pre/post non-pe10 drift check (not hard-ok)', () => {
+    const src = liveSrc();
+    expect(src).toMatch(/mutation_boundary_observe/);
+    expect(src).toMatch(/nonPe10Drift|fundingPositionsNonPe10/);
+    expect(src).not.toMatch(
+      /id:\s*'mutation_boundary_observe',\s*\n\s*ok:\s*true,\s*\n\s*exitCode:\s*0,/,
+    );
+  });
+
+  it('RLS seeds dual synthetic tenants (not vacuous bare=0 bypass=0 only)', () => {
+    const src = liveSrc();
+    expect(src).toMatch(/dualTenantSeeded|pe10-rls-a-/);
+    expect(src).toMatch(/programElementWatch\.create/);
+    expect(src).toMatch(/leakN/);
+  });
+});
+
+describe('anti-fake ship evidence (review FAIL locks continued)', () => {
+  const shipSrc = () =>
+    require('fs').readFileSync(require('path').join(__dirname, 'pe-phase-10-ship.ts'), 'utf8') as string;
+
+  it('purges stale rls-phase-c-pass and ship/deploy/migrate artifacts on harness write', () => {
+    const src = shipSrc();
+    expect(src).toMatch(/purgeStaleEvidenceArtifacts/);
+    expect(src).toMatch(/rls-phase-c-pass\.txt/);
+    expect(src).toMatch(/writeShipTrace/);
+    expect(src).toMatch(/PE10_STALE_EVIDENCE_BASENAMES/);
+  });
+
+  it('stores full live-proofs report metrics not SUMMARY-only', () => {
+    const src = shipSrc();
+    expect(src).toMatch(/fullReport/);
+    expect(src).toMatch(/reportHasMetrics/);
+    expect(src).toMatch(/metricsIncomplete/);
+  });
+
+  it('browser smoke exercises PE read contract beyond health', () => {
+    const src = shipSrc();
+    expect(src).toMatch(/pe_positions/);
+    expect(src).toMatch(/pe_timeline/);
+    expect(src).toMatch(/pe_web_route|program-elements\/0603270A/);
+    expect(src).toMatch(/pe_read_contract_missing|peAuthWall/);
+  });
+
+  it('maps mutation_boundary_observe into outcomes (no hard-ok default)', () => {
+    const src = shipSrc();
+    expect(src).toMatch(/out\.mutation_boundary_observe/);
+    expect(src).toMatch(/mutation_boundary_observe missing from live proofs/);
+  });
+});
+
+describe('ensureDatabaseUrl unit', () => {
+  // Dynamic import of TS via require may not work; test pure logic inline mirror.
+  it('compose helper encodes password and rejects masked marker', () => {
+    const { spawnSync } = require('child_process');
+    const path = require('path');
+    const helper = path.join(__dirname, 'pe-compose-database-url.js');
+    const ok = spawnSync(
+      process.execPath,
+      [helper],
+      {
+        env: {
+          ...process.env,
+          DB_HOST: 'h',
+          DB_PORT: '5432',
+          DB_USER: 'u',
+          DB_PASSWORD: 'p@ss:x',
+          DB_NAME: 'capiro',
+        },
+        encoding: 'utf8',
+      },
+    );
+    expect(ok.status).toBe(0);
+    expect(ok.stdout).toContain('postgresql://u:p%40ss%3Ax@h:5432/capiro');
+    const bad = spawnSync(
+      process.execPath,
+      [helper],
+      {
+        env: {
+          ...process.env,
+          DB_HOST: 'h',
+          DB_PORT: '5432',
+          DB_USER: 'u',
+          DB_PASSWORD: String.fromCharCode(42, 42, 42),
+          DB_NAME: 'capiro',
+        },
+        encoding: 'utf8',
+      },
+    );
+    expect(bad.status).not.toBe(0);
+  });
+});

@@ -50,6 +50,8 @@ import {
 import {
   assertAuthorizedClusterOrThrow,
   browserSmoke,
+  purgeStaleEvidenceArtifacts,
+  writeShipTrace,
   buildAndPushBranchImages,
   capturePriorTaskDefs,
   deployBranchTaskDefs,
@@ -295,6 +297,11 @@ function writeAcceptanceArtifacts(args: {
   shipTrace: PePhase10ShipTrace | null;
 }): void {
   mkdirSync(args.dir, { recursive: true });
+  // Drop disposable PASS-file + stale ship/deploy/migrate artifacts before rewrite.
+  purgeStaleEvidenceArtifacts(args.dir);
+  if (args.shipTrace) {
+    writeShipTrace(args.dir, args.shipTrace as any);
+  }
   const summary = {
     phase: 10,
     generatedAt: new Date().toISOString(),

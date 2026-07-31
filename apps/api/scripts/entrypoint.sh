@@ -12,10 +12,17 @@ compose_database_url() {
     echo "Missing DB_* env vars (got DB_HOST=$DB_HOST DB_PORT=$DB_PORT DB_USER=$DB_USER DB_NAME=$DB_NAME)" >&2
     exit 1
   fi
-  ENCODED_PASSWORD=$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$DB_PASSWORD")
-  # Real password in process env for Prisma; never echo/print DATABASE_URL.
-  # Prior bug used literal "***" here which broke every DB client that only reads DATABASE_URL.
-  export DATABASE_URL="postgresql://${DB_USER}:${ENCODED_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public&sslmode=require&connection_limit=10"
+  # Real URL via node helper (image path). Never embed a masked password marker here.
+  # entrypoint is installed at /usr/local/bin; helper lives with scripts in the image.
+  COMPOSE_HELPER="${PE_COMPOSE_DATABASE_URL_JS:-/app/apps/api/scripts/lib/pe-compose-database-url.js}"
+  if [ ! -f "$COMPOSE_HELPER" ]; then
+    if [ -f "./scripts/lib/pe-compose-database-url.js" ]; then
+      COMPOSE_HELPER="./scripts/lib/pe-compose-database-url.js"
+    elif [ -f "./lib/pe-compose-database-url.js" ]; then
+      COMPOSE_HELPER="./lib/pe-compose-database-url.js"
+    fi
+  fi
+  export DATABASE_URL="$(node "$COMPOSE_HELPER")"
   # Fargate tsx IPC: prefer writable tmpfs /dev/shm (production one-off pattern).
   # Fall back to /app/tmp (Dockerfile). Never default bare /tmp (ENOENT mkdir tsx-UID).
   if [ -d /dev/shm ] && touch /dev/shm/.capiro_w 2>/dev/null; then

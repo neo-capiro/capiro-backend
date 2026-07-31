@@ -6,13 +6,13 @@
  *
  * Units (always, no Neo widen):
  *  - inspect-only PE dollar loaders (static contract + one package inspect against live DB)
- *  - one exact-SHA internal promotion on isolated domain pe10_closeout FY2099
- *  - identical second commit pass with zero duplicate position growth
+ *  - register pe10_phase10_internal_promotion source_document then exact-SHA internal promotion
+ *  - identical second commit: zero new canonical rows (id-set equality), not mere count equality
  *  - derive-chain dry run (no --commit) under live DATABASE_URL
- *  - live Aurora RLS / ethical wall on program_element_watch
- *  - SELECT baseline trust counters for zero unexplained mutation outside pe10 domain
+ *  - live Aurora dual-tenant RLS / ethical wall on program_element_watch (seed+cleanup)
+ *  - pre/post non-pe10 mutation boundary (fail on drift)
  *
- * Cleanup: always deletes pe10_closeout / FY2099 package + any residual probe watches.
+ * Cleanup: always deletes pe10_closeout / FY2099 package + synthetic pe10 RLS tenants/users.
  * Marks all synthetic loud markers as SYNTHETIC — never humanReviewed.
  *
  * Usage (container entrypoint):
@@ -20,12 +20,13 @@
  *   # or
  *   tsx scripts/pe-phase-10-live-proofs.ts
  */
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PrismaClient } from '@prisma/client';
 import { PE_EXACT_SHA_DOLLAR_LOADERS } from './lib/pe-exact-sha-loader-contract.js';
+import { upsertSourceDocument } from '../src/program-element/source-document/source-document-registry.js';
 
 const DOMAIN = 'pe10_closeout';
 const FY = 2099;
@@ -51,23 +52,34 @@ export interface Pe10LiveProofReport {
   notes: string[];
 }
 
-function ensureDatabaseUrl(): void {
+/** Exported for unit locks — never put literal "***" into DATABASE_URL. */
+export function ensureDatabaseUrl(env: NodeJS.ProcessEnv = process.env): string {
   const required = ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'] as const;
-  const hasParts = required.every((k) => !!process.env[k]);
+  const hasParts = required.every((k) => !!env[k]);
   if (hasParts) {
-    // Always recompose from parts. Never put a literal "***" password into DATABASE_URL —
-    // that string is only for redacted logs, not for Prisma.
-    const password = encodeURIComponent(process.env.DB_PASSWORD!);
-    process.env.DATABASE_URL =
-      `postgresql://${process.env.DB_USER}:${password}@${process.env.DB_HOST}:` +
-      `${process.env.DB_PORT}/${process.env.DB_NAME}?schema=public&sslmode=require&connection_limit=5`;
-    return;
+    const user = env.DB_USER!;
+    const pass = encodeURIComponent(env.DB_PASSWORD!);
+    const host = env.DB_HOST!;
+    const port = env.DB_PORT!;
+    const name = env.DB_NAME!;
+    // Concatenate segments — never embed a masked "***" marker as the password.
+    const auth = user + ':' + pass;
+    const url =
+      'postgresql://' + auth + '@' + host + ':' + port + '/' + name +
+      '?schema=public&sslmode=require&connection_limit=5';
+    const maskedMarker = ':' + '*' + '*' + '*' + '@';
+    if (url.includes(maskedMarker) || pass === '*' + '*' + '*') {
+      throw new Error('pe-phase-10-live-proofs: refused to build masked DATABASE_URL');
+    }
+    env.DATABASE_URL = url;
+    return url;
   }
-  if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes(':***@')) {
-    return;
+  const maskedMarker = ':' + '*' + '*' + '*' + '@';
+  if (env.DATABASE_URL && !env.DATABASE_URL.includes(maskedMarker)) {
+    return env.DATABASE_URL;
   }
   throw new Error(
-    'pe-phase-10-live-proofs: need DB_* parts or a real DATABASE_URL (refusing masked *** URL)',
+    'pe-phase-10-live-proofs: need DB_* parts or a real DATABASE_URL (refusing masked URL)',
   );
 }
 
@@ -76,7 +88,6 @@ function sha256OfString(s: string): string {
 }
 
 function apiRoot(): string {
-  // container WORKDIR is /app/apps/api; local may be repo root or apps/api
   const cwd = process.cwd().replace(/\\/g, '/');
   if (existsSync(resolve(cwd, 'scripts/load-defense-budget-package.ts'))) return cwd;
   if (existsSync(resolve(cwd, 'apps/api/scripts/load-defense-budget-package.ts'))) {
@@ -86,7 +97,6 @@ function apiRoot(): string {
 }
 
 function scratchDir(): string {
-  // Container FS is read-only except TMPDIR (/dev/shm or /app/tmp). Never write under scripts/.
   const candidates = [
     process.env.TMPDIR,
     process.env.TEMP,
@@ -104,6 +114,19 @@ function scratchDir(): string {
     }
   }
   throw new Error('pe-phase-10-live-proofs: no writable scratch dir for promotion artifact');
+}
+
+function childEnv(): NodeJS.ProcessEnv {
+  // Nested tsx must keep writable TMPDIR and a real DATABASE_URL (never masked).
+  const env = { ...process.env, FORCE_COLOR: '0' };
+  if (env.DATABASE_URL?.includes(':' + '*' + '*' + '*' + '@')) {
+    delete env.DATABASE_URL;
+    ensureDatabaseUrl(env);
+  }
+  for (const k of ['TMPDIR', 'TMP', 'TEMP'] as const) {
+    if (process.env[k]) env[k] = process.env[k];
+  }
+  return env;
 }
 
 function buildPromotionArtifact(): {
@@ -176,7 +199,7 @@ function runLoader(args: string[]): { code: number; out: string } {
   }
   const r = spawnSync(bin, [script, ...args], {
     cwd: root,
-    env: { ...process.env, FORCE_COLOR: '0' },
+    env: childEnv(),
     encoding: 'utf8',
     shell: false,
     maxBuffer: 8 * 1024 * 1024,
@@ -192,14 +215,13 @@ function runDeriveDry(): { code: number; out: string } {
     : existsSync(resolve(root, '../../node_modules/.bin/tsx'))
       ? resolve(root, '../../node_modules/.bin/tsx')
       : 'tsx';
-  // Explicitly NO --commit
   const argv = process.argv.slice(2).filter((a) => a !== '--commit');
   if (argv.includes('--commit')) {
     return { code: 2, out: 'refusing derive dry-run invocation that retained --commit' };
   }
   const r = spawnSync(tsx, [script], {
     cwd: root,
-    env: { ...process.env, FORCE_COLOR: '0' },
+    env: childEnv(),
     encoding: 'utf8',
     shell: false,
     maxBuffer: 12 * 1024 * 1024,
@@ -219,6 +241,21 @@ async function cleanupDomain(prisma: PrismaClient): Promise<void> {
   }
 }
 
+async function cleanupPe10SourceDocs(prisma: PrismaClient): Promise<void> {
+  // Only remove synthetic pe10 source docs that are not still referenced.
+  const docs = await prisma.sourceDocument.findMany({
+    where: { sourceKey: SOURCE_KEY },
+    select: { id: true },
+  });
+  for (const d of docs) {
+    const pos = await prisma.fundingPosition.count({ where: { sourceDocumentId: d.id } });
+    const veh = await prisma.budgetPackageVehicle.count({ where: { sourceDocumentId: d.id } });
+    if (pos === 0 && veh === 0) {
+      await prisma.sourceDocument.delete({ where: { id: d.id } }).catch(() => undefined);
+    }
+  }
+}
+
 async function countDomainPositions(prisma: PrismaClient): Promise<number> {
   const pkg = await prisma.budgetPackage.findUnique({
     where: { domain_fiscalYear: { domain: DOMAIN, fiscalYear: FY } },
@@ -228,9 +265,103 @@ async function countDomainPositions(prisma: PrismaClient): Promise<number> {
   return prisma.fundingPosition.count({ where: { packageId: pkg.id } });
 }
 
+async function domainPositionIds(prisma: PrismaClient): Promise<string[]> {
+  const pkg = await prisma.budgetPackage.findUnique({
+    where: { domain_fiscalYear: { domain: DOMAIN, fiscalYear: FY } },
+    select: { id: true },
+  });
+  if (!pkg) return [];
+  const rows = await prisma.fundingPosition.findMany({
+    where: { packageId: pkg.id },
+    select: { id: true },
+    orderBy: { id: 'asc' },
+  });
+  return rows.map((r) => r.id);
+}
+
+interface MutationSnapshot {
+  fundingPositionsNonPe10: number;
+  budgetPackagesNonPe10: number;
+  fundingPositionsGlobal: number;
+  defenseFy2026Positions: number | null;
+  pe10SourceDocs: number;
+}
+
+async function mutationSnapshot(prisma: PrismaClient): Promise<MutationSnapshot> {
+  const pe10 = await prisma.budgetPackage.findUnique({
+    where: { domain_fiscalYear: { domain: DOMAIN, fiscalYear: FY } },
+    select: { id: true },
+  });
+  const pe10Id = pe10?.id ?? null;
+  const fundingPositionsGlobal = await prisma.fundingPosition.count();
+  const fundingPositionsNonPe10 = pe10Id
+    ? await prisma.fundingPosition.count({ where: { packageId: { not: pe10Id } } })
+    : fundingPositionsGlobal;
+  const budgetPackagesNonPe10 = await prisma.budgetPackage.count({
+    where: { NOT: { domain: DOMAIN, fiscalYear: FY } },
+  });
+  const defense = await prisma.budgetPackage.findUnique({
+    where: { domain_fiscalYear: { domain: 'defense', fiscalYear: 2026 } },
+    select: { id: true, _count: { select: { positions: true } } },
+  });
+  const pe10SourceDocs = await prisma.sourceDocument.count({ where: { sourceKey: SOURCE_KEY } });
+  return {
+    fundingPositionsNonPe10,
+    budgetPackagesNonPe10,
+    fundingPositionsGlobal,
+    defenseFy2026Positions: defense?._count.positions ?? null,
+    pe10SourceDocs,
+  };
+}
+
+async function registerPromotionSource(
+  prisma: PrismaClient,
+  art: { json: string; sha256: string; path: string },
+): Promise<{ ok: boolean; detail: string; documentId: string | null }> {
+  try {
+    const result = await upsertSourceDocument(prisma, {
+      sourceKey: SOURCE_KEY,
+      sha256: art.sha256,
+      fiscalYear: FY,
+      budgetCycle: 'pb',
+      component: null,
+      documentType: 'other',
+      title: 'PE10 SYNTHETIC internal promotion artifact (auto-cleaned)',
+      sourceUrl: 'https://example.invalid/pe10-closeout-fy2099',
+      byteSize: Buffer.byteLength(art.json, 'utf8'),
+      artifactPath: art.path,
+      extractionMethod: 'manual',
+      extractionToolVersion: 'pe-phase-10-live-proofs',
+      metadata: {
+        synthetic: true,
+        syntheticTestEvent: true,
+        phase: 10,
+        note: 'SYNTHETIC — not humanReviewed; Phase 10 internal promotion only',
+      },
+    });
+    const found = await prisma.sourceDocument.findFirst({
+      where: { sourceKey: SOURCE_KEY, supersededByDocumentId: null },
+      select: { id: true, sourceKey: true },
+    });
+    if (!found) {
+      return { ok: false, detail: 'source_document missing after upsert', documentId: null };
+    }
+    return {
+      ok: true,
+      detail: `registered source_key=${SOURCE_KEY} id=${found.id} created=${result.created}`,
+      documentId: found.id,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      detail: `upsertSourceDocument failed: ${(e as Error).message.slice(0, 400)}`,
+      documentId: null,
+    };
+  }
+}
+
 async function proveRls(prisma: PrismaClient): Promise<Pe10LiveProofStep> {
   const notes: string[] = [];
-  // Prefer disposable session-level SETs against live table; never leave probe rows if tenants missing.
   const peExists = await prisma.programElement.findUnique({
     where: { peCode: PE_CODE },
     select: { peCode: true },
@@ -244,7 +375,6 @@ async function proveRls(prisma: PrismaClient): Promise<Pe10LiveProofStep> {
     };
   }
 
-  // Read policies + FORCE RLS present
   const policies: Array<{ policyname: string; cmd: string; qual: string | null }> =
     await prisma.$queryRawUnsafe(
       `SELECT policyname, cmd, qual::text AS qual
@@ -277,77 +407,172 @@ async function proveRls(prisma: PrismaClient): Promise<Pe10LiveProofStep> {
     };
   }
 
-  // Ethical wall using bypass off + tenant GUC — raw SQL with SECURITY CONTEXT of current DB role.
-  // Use a labeled probe pe_code unique marker suffix via pe watch delete by source note can't; use rare pe if dual tenants exist.
-  // Probe via COUNT under tenant GUC with bypass off. First check rls_bypass current.
-  await prisma.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'off', true)`);
-  await prisma.$executeRawUnsafe(`SELECT set_config('app.current_tenant', '', true)`);
+  // Seed two synthetic tenants + users + watches under pe10 domain, prove non-leak, cleanup.
+  const suffix = randomUUID().replace(/-/g, '').slice(0, 12);
+  const slugA = `pe10-rls-a-${suffix}`;
+  const slugB = `pe10-rls-b-${suffix}`;
+  const emailA = `pe10-rls-a-${suffix}@example.invalid`;
+  const emailB = `pe10-rls-b-${suffix}@example.invalid`;
+  const clerkA = `pe10_clerk_a_${suffix}`;
+  const clerkB = `pe10_clerk_b_${suffix}`;
+  let tenantAId: string | null = null;
+  let tenantBId: string | null = null;
+  let userAId: string | null = null;
+  let userBId: string | null = null;
+  let watchAId: string | null = null;
+  let watchBId: string | null = null;
 
-  // Without tenant: runtime-like should see 0 (fail closed) when FORCE RLS + isolation policy.
-  let countNoTenant: Array<{ c: bigint | number }>;
   try {
-    countNoTenant = await prisma.$queryRawUnsafe(
-      `SELECT COUNT(*)::bigint AS c FROM program_element_watch`,
+    await prisma.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
+
+    const tA = await prisma.tenant.create({
+      data: {
+        slug: slugA,
+        name: `PE10 RLS A ${suffix}`,
+        status: 'pending',
+        settings: { synthetic: true, phase: 10, pe10: true },
+      },
+      select: { id: true },
+    });
+    const tB = await prisma.tenant.create({
+      data: {
+        slug: slugB,
+        name: `PE10 RLS B ${suffix}`,
+        status: 'pending',
+        settings: { synthetic: true, phase: 10, pe10: true },
+      },
+      select: { id: true },
+    });
+    tenantAId = tA.id;
+    tenantBId = tB.id;
+
+    const uA = await prisma.user.create({
+      data: {
+        clerkUserId: clerkA,
+        email: emailA,
+        firstName: 'PE10',
+        lastName: 'RLS-A',
+      },
+      select: { id: true },
+    });
+    const uB = await prisma.user.create({
+      data: {
+        clerkUserId: clerkB,
+        email: emailB,
+        firstName: 'PE10',
+        lastName: 'RLS-B',
+      },
+      select: { id: true },
+    });
+    userAId = uA.id;
+    userBId = uB.id;
+
+    const wA = await prisma.programElementWatch.create({
+      data: { tenantId: tenantAId, userId: userAId, peCode: PE_CODE },
+      select: { id: true },
+    });
+    const wB = await prisma.programElementWatch.create({
+      data: { tenantId: tenantBId, userId: userBId, peCode: PE_CODE },
+      select: { id: true },
+    });
+    watchAId = wA.id;
+    watchBId = wB.id;
+
+    // Fail-closed: no tenant GUC
+    await prisma.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'off', true)`);
+    await prisma.$executeRawUnsafe(`SELECT set_config('app.current_tenant', '', true)`);
+    let bare = -1;
+    let failClosedError = false;
+    try {
+      const bareRows: Array<{ c: bigint | number }> = await prisma.$queryRawUnsafe(
+        `SELECT COUNT(*)::bigint AS c FROM program_element_watch WHERE id IN ('${watchAId}'::uuid, '${watchBId}'::uuid)`,
+      );
+      bare = Number(bareRows[0]?.c ?? -1);
+    } catch {
+      failClosedError = true;
+      bare = 0;
+    }
+
+    // Tenant A must see A watch, not B
+    await prisma.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'off', true)`);
+    await prisma.$executeRawUnsafe(
+      `SELECT set_config('app.current_tenant', '${tenantAId}', true)`,
     );
-  } catch (e) {
-    // some roles error instead of empty — also OK ethically
+    const seeOwn: Array<{ c: bigint | number }> = await prisma.$queryRawUnsafe(
+      `SELECT COUNT(*)::bigint AS c FROM program_element_watch WHERE id = '${watchAId}'::uuid`,
+    );
+    const seeOther: Array<{ c: bigint | number }> = await prisma.$queryRawUnsafe(
+      `SELECT COUNT(*)::bigint AS c FROM program_element_watch WHERE id = '${watchBId}'::uuid`,
+    );
+    const ownN = Number(seeOwn[0]?.c ?? 0);
+    const leakN = Number(seeOther[0]?.c ?? 0);
+
+    // Bypass can see both probes
+    await prisma.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
+    const bypassRows: Array<{ c: bigint | number }> = await prisma.$queryRawUnsafe(
+      `SELECT COUNT(*)::bigint AS c FROM program_element_watch WHERE id IN ('${watchAId}'::uuid, '${watchBId}'::uuid)`,
+    );
+    const bypassN = Number(bypassRows[0]?.c ?? 0);
+
+    const failClosedOk = failClosedError || bare === 0;
+    const dualTenantOk = ownN === 1 && leakN === 0 && bypassN === 2;
+    const ok = failClosedOk && dualTenantOk && force[0].relforcerowsecurity;
+
     return {
       id: 'rls_ethical_wall',
-      ok: true,
-      exitCode: 0,
-      detail: `live Aurora FORCE RLS+policy present; no-tenant SELECT failed closed: ${(e as Error).message.slice(0, 200)}; ${notes.join('; ')}`,
-      metrics: { policies: policies.length, forceRls: true },
+      ok,
+      exitCode: ok ? 0 : 1,
+      detail: ok
+        ? `live Aurora dual-tenant RLS PASS: force=true policies=${policies.length} bareProbe=${bare} failClosedError=${failClosedError} own=${ownN} leak=${leakN} bypass=${bypassN}; seeded tenants ${slugA}/${slugB}`
+        : `RLS dual-tenant FAIL bare=${bare} own=${ownN} leak=${leakN} bypass=${bypassN} failClosedError=${failClosedError}`,
+      metrics: {
+        bare,
+        ownN,
+        leakN,
+        bypassN,
+        policies: policies.length,
+        dualTenantSeeded: true,
+        failClosedError,
+        crossTenantOk: leakN === 0,
+      },
     };
-  }
-  const bare = Number(countNoTenant[0]?.c ?? -1);
-
-  // With bypass on, total should be >= bare
-  await prisma.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
-  const countBypass: Array<{ c: bigint | number }> = await prisma.$queryRawUnsafe(
-    `SELECT COUNT(*)::bigint AS c FROM program_element_watch`,
-  );
-  const full = Number(countBypass[0]?.c ?? -1);
-  await prisma.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'off', true)`);
-
-  // Cross-tenant attempt: pick two real tenant_ids if present
-  const tenants: Array<{ tenant_id: string }> = await prisma.$queryRawUnsafe(
-    `SELECT tenant_id::text AS tenant_id FROM program_element_watch GROUP BY tenant_id LIMIT 2`,
-  );
-
-  let crossTenantOk = true;
-  let crossDetail = 'insufficient multi-tenant rows for live leak probe; FORCE+fail-closed proven';
-  if (tenants.length >= 2) {
-    const tA = tenants[0]!.tenant_id;
-    const tB = tenants[1]!.tenant_id;
-    // UUID-shaped ids only — embedded after validation (never free-form input).
-    const uuidRe = /^[0-9a-fA-F-]{36}$/;
-    if (uuidRe.test(tA) && uuidRe.test(tB)) {
+  } catch (e) {
+    return {
+      id: 'rls_ethical_wall',
+      ok: false,
+      exitCode: 1,
+      detail: `RLS dual-tenant seed/probe error: ${(e as Error).message.slice(0, 500)}; ${notes.join('; ')}`,
+    };
+  } finally {
+    // Always cleanup synthetic rows with bypass on
+    try {
+      await prisma.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
+      if (watchAId) {
+        await prisma.programElementWatch.deleteMany({ where: { id: watchAId } });
+      }
+      if (watchBId) {
+        await prisma.programElementWatch.deleteMany({ where: { id: watchBId } });
+      }
+      if (userAId) await prisma.user.deleteMany({ where: { id: userAId } });
+      if (userBId) await prisma.user.deleteMany({ where: { id: userBId } });
+      if (tenantAId) await prisma.tenant.deleteMany({ where: { id: tenantAId } });
+      if (tenantBId) await prisma.tenant.deleteMany({ where: { id: tenantBId } });
+      // belt-and-suspenders slug cleanup
+      await prisma.tenant.deleteMany({
+        where: { slug: { in: [slugA, slugB] } },
+      });
+      await prisma.user.deleteMany({
+        where: { email: { in: [emailA, emailB] } },
+      });
+    } catch {
+      /* best effort cleanup */
+    }
+    try {
       await prisma.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'off', true)`);
-      await prisma.$executeRawUnsafe(
-        `SELECT set_config('app.current_tenant', '${tA}', true)`,
-      );
-      const seeA: Array<{ c: bigint | number }> = await prisma.$queryRawUnsafe(
-        `SELECT COUNT(*)::bigint AS c FROM program_element_watch WHERE tenant_id = '${tB}'::uuid`,
-      );
-      const leaked = Number(seeA[0]?.c ?? 0);
-      crossTenantOk = leaked === 0;
-      crossDetail = `tenant A=${tA.slice(0, 8)}… cannot see B=${tB.slice(0, 8)}… rows (leaked=${leaked})`;
+    } catch {
+      /* ignore */
     }
   }
-
-  // bare without tenant should be 0 under FORCE + isolation (or role error earlier)
-  const failClosedOk = bare === 0 || bare < full;
-  const ok = failClosedOk && crossTenantOk && force[0].relforcerowsecurity;
-
-  return {
-    id: 'rls_ethical_wall',
-    ok,
-    exitCode: ok ? 0 : 1,
-    detail: ok
-      ? `live Aurora RLS ethical-wall PASS: force=true policies=${policies.length} bareCount=${bare} bypassCount=${full}; ${crossDetail}`
-      : `RLS ethical-wall FAIL bare=${bare} full=${full} cross=${crossDetail}`,
-    metrics: { bare, full, policies: policies.length, crossTenantOk },
-  };
 }
 
 async function main(): Promise<void> {
@@ -364,6 +589,7 @@ async function main(): Promise<void> {
       'SYNTHETIC domain pe10_closeout FY2099 only — not humanReviewed',
       'No Secrets Manager GetSecretValue',
       'No email / LlamaParse / derive --commit',
+      'Disposable rls-phase-c-pass.txt is NOT evidence',
     ],
   };
 
@@ -376,7 +602,7 @@ async function main(): Promise<void> {
       : 'tsx';
     const r = spawnSync(tsx, [verifier], {
       cwd: root,
-      env: process.env,
+      env: childEnv(),
       encoding: 'utf8',
       shell: false,
     });
@@ -391,10 +617,11 @@ async function main(): Promise<void> {
   const prisma = new PrismaClient();
   await prisma.$connect();
   try {
-    // pre-clean isolated domain
     await cleanupDomain(prisma);
+    await cleanupPe10SourceDocs(prisma);
 
     const art = buildPromotionArtifact();
+    const preSnap = await mutationSnapshot(prisma);
 
     // 2) Inspect-only package load against live DB (no --commit)
     const inspect = runLoader(['--artifact', art.path]);
@@ -410,69 +637,127 @@ async function main(): Promise<void> {
       metrics: { artifactSha256: art.sha256 },
     });
 
-    // baseline counts (global funding positions + domain)
-    const preGlobal = await prisma.fundingPosition.count();
-    const preDomain = await countDomainPositions(prisma);
-
-    // 3) Exact-SHA internal promotion (commit #1)
-    const commit1 = runLoader([
-      '--artifact',
-      art.path,
-      '--commit',
-      '--approved-sha256',
-      art.sha256,
-    ]);
-    const post1Domain = await countDomainPositions(prisma);
-    const post1Global = await prisma.fundingPosition.count();
-    const promoOk =
-      commit1.code === 0 && post1Domain >= 1 && post1Global >= preGlobal + (post1Domain - preDomain);
+    // 2b) Fail-closed source registration BEFORE promotion
+    const reg = await registerPromotionSource(prisma, art);
     report.steps.push({
-      id: 'exact_sha_internal_promotion',
-      ok: promoOk,
-      exitCode: promoOk ? 0 : commit1.code || 1,
-      detail: `commit1 exit=${commit1.code} domainPositions=${post1Domain} globalΔ=${post1Global - preGlobal} sha=${art.sha256}\n${commit1.out.slice(-600)}`,
-      metrics: {
-        preGlobal,
-        post1Global,
-        preDomain,
-        post1Domain,
-        sha256: art.sha256,
-      },
+      id: 'source_document_register',
+      ok: reg.ok && !!reg.documentId,
+      exitCode: reg.ok && reg.documentId ? 0 : 1,
+      detail: reg.detail,
+      metrics: { sourceKey: SOURCE_KEY, documentId: reg.documentId },
     });
+    if (!reg.ok || !reg.documentId) {
+      // Cannot promote without registered source — fail closed early but still run derive/rls if possible
+      report.steps.push({
+        id: 'exact_sha_internal_promotion',
+        ok: false,
+        exitCode: 1,
+        detail: 'SKIPPED: pe10_phase10_internal_promotion source_document missing/unregistered — fail closed',
+      });
+      report.steps.push({
+        id: 'identical_replay',
+        ok: false,
+        exitCode: 1,
+        detail: 'SKIPPED: promotion blocked by missing source registration',
+      });
+    } else {
+      const preGlobal = await prisma.fundingPosition.count();
+      const preDomain = await countDomainPositions(prisma);
 
-    // 4) Identical replay (commit #2) — positions must not grow
-    const commit2 = runLoader([
-      '--artifact',
-      art.path,
-      '--commit',
-      '--approved-sha256',
-      art.sha256,
-    ]);
-    const post2Domain = await countDomainPositions(prisma);
-    const post2Global = await prisma.fundingPosition.count();
-    const replayOk =
-      commit2.code === 0 && post2Domain === post1Domain && post2Global === post1Global;
-    report.steps.push({
-      id: 'identical_replay',
-      ok: replayOk,
-      exitCode: replayOk ? 0 : commit2.code || 1,
-      detail: `commit2 exit=${commit2.code} domain ${post1Domain}→${post2Domain} global ${post1Global}→${post2Global} (require equal)\n${commit2.out.slice(-600)}`,
-      metrics: {
-        post1Domain,
-        post2Domain,
-        post1Global,
-        post2Global,
-        duplicateWrites: post2Domain - post1Domain,
-      },
-    });
+      // 3) Exact-SHA internal promotion (commit #1)
+      const commit1 = runLoader([
+        '--artifact',
+        art.path,
+        '--commit',
+        '--approved-sha256',
+        art.sha256,
+      ]);
+      const missingSource = /MISSING SOURCE/i.test(commit1.out);
+      const post1Domain = await countDomainPositions(prisma);
+      const post1Global = await prisma.fundingPosition.count();
+      const ids1 = await domainPositionIds(prisma);
+      const linked = await prisma.fundingPosition.count({
+        where: {
+          packageId: (
+            await prisma.budgetPackage.findUnique({
+              where: { domain_fiscalYear: { domain: DOMAIN, fiscalYear: FY } },
+              select: { id: true },
+            })
+          )?.id,
+          sourceDocumentId: reg.documentId,
+        },
+      });
+      const promoOk =
+        commit1.code === 0 &&
+        !missingSource &&
+        post1Domain >= 1 &&
+        ids1.length === post1Domain &&
+        linked >= 1 &&
+        post1Global >= preGlobal + (post1Domain - preDomain);
+      report.steps.push({
+        id: 'exact_sha_internal_promotion',
+        ok: promoOk,
+        exitCode: promoOk ? 0 : commit1.code || 1,
+        detail: `commit1 exit=${commit1.code} missingSource=${missingSource} domainPositions=${post1Domain} linkedSource=${linked} globalΔ=${post1Global - preGlobal} sha=${art.sha256}\n${commit1.out.slice(-600)}`,
+        metrics: {
+          preGlobal,
+          post1Global,
+          preDomain,
+          post1Domain,
+          linkedSourceRows: linked,
+          missingSource,
+          sha256: art.sha256,
+          idCount: ids1.length,
+        },
+      });
+
+      // 4) Identical replay (commit #2) — zero NEW canonical rows (id-set equality)
+      const commit2 = runLoader([
+        '--artifact',
+        art.path,
+        '--commit',
+        '--approved-sha256',
+        art.sha256,
+      ]);
+      const post2Domain = await countDomainPositions(prisma);
+      const post2Global = await prisma.fundingPosition.count();
+      const ids2 = await domainPositionIds(prisma);
+      const idSetEqual =
+        ids1.length === ids2.length && ids1.every((id, i) => id === ids2[i]);
+      const insertClaim = /positions:\s*insert=(\d+)/i.exec(commit2.out);
+      const insertN = insertClaim ? Number(insertClaim[1]) : null;
+      const newRows = post2Domain - post1Domain;
+      const replayOk =
+        commit2.code === 0 &&
+        !/MISSING SOURCE/i.test(commit2.out) &&
+        post2Domain === post1Domain &&
+        post2Global === post1Global &&
+        idSetEqual &&
+        newRows === 0 &&
+        (insertN === null || insertN === 0);
+      report.steps.push({
+        id: 'identical_replay',
+        ok: replayOk,
+        exitCode: replayOk ? 0 : commit2.code || 1,
+        detail: `commit2 exit=${commit2.code} domain ${post1Domain}→${post2Domain} global ${post1Global}→${post2Global} idSetEqual=${idSetEqual} insertN=${insertN} newRows=${newRows}\n${commit2.out.slice(-600)}`,
+        metrics: {
+          post1Domain,
+          post2Domain,
+          post1Global,
+          post2Global,
+          duplicateWrites: newRows,
+          idSetEqual,
+          insertN,
+          newCanonicalRows: newRows,
+        },
+      });
+    }
 
     // 5) Derive-chain dry run under live config
-    // stdout legitimately says "re-run with --commit" and "no SyncRun row written" —
-    // those must NOT fail. Fail only on actual commit mode / SyncRun write / email send.
     const der = runDeriveDry();
     const hasDryMarker = /\[pe-derive-chain\]\s+dry run complete/i.test(der.out);
     const commitMode =
-      /"mode"\s*:\s*"COMMIT"/i.test(der.out) || /mode=COMMIT/i.test(der.out);
+      /"mode"\s*:\s*"COMMIT"/i.test(der.out) || /\bmode=COMMIT\b/i.test(der.out);
     const wroteSync =
       /SyncRun row written/i.test(der.out) && !/no SyncRun row written/i.test(der.out);
     const emailsSent = /"emails_sent"\s*:\s*([1-9]\d*)/i.exec(der.out);
@@ -493,39 +778,59 @@ async function main(): Promise<void> {
       },
     });
 
-    // 6) RLS ethical wall on live Aurora
+    // 6) RLS ethical wall — dual-tenant seed on live Aurora
     const rls = await proveRls(prisma);
     report.steps.push(rls);
 
-    // 7) Mutation boundary: non-pe10 domains should not gain sheet noise from our commits
-    // Compare a sample defense package position count stayed constant vs pre after cleanup later.
-    const defensePre = await prisma.budgetPackage.findUnique({
-      where: { domain_fiscalYear: { domain: 'defense', fiscalYear: 2026 } },
-      select: { id: true, _count: { select: { positions: true } } },
-    });
+    // 7) Mutation boundary: non-pe10 counts must not drift vs pre-snapshot
+    const midSnap = await mutationSnapshot(prisma);
+    const nonPe10Drift =
+      midSnap.fundingPositionsNonPe10 !== preSnap.fundingPositionsNonPe10 ||
+      midSnap.budgetPackagesNonPe10 !== preSnap.budgetPackagesNonPe10 ||
+      midSnap.defenseFy2026Positions !== preSnap.defenseFy2026Positions;
     report.steps.push({
       id: 'mutation_boundary_observe',
-      ok: true,
-      exitCode: 0,
-      detail: `defense FY2026 positions observed=${defensePre?._count.positions ?? 'n/a'} (pe10 domain isolated)`,
+      ok: !nonPe10Drift,
+      exitCode: nonPe10Drift ? 1 : 0,
+      detail: nonPe10Drift
+        ? `NON-PE10 DRIFT detected pre=${JSON.stringify(preSnap)} mid=${JSON.stringify(midSnap)}`
+        : `non-pe10 stable pre/mid; defenseFy2026=${midSnap.defenseFy2026Positions}; pe10SourceDocs=${midSnap.pe10SourceDocs}`,
       metrics: {
-        defenseFy2026Positions: defensePre?._count.positions ?? null,
-        pe10Positions: post2Domain,
+        preNonPe10Positions: preSnap.fundingPositionsNonPe10,
+        midNonPe10Positions: midSnap.fundingPositionsNonPe10,
+        preDefenseFy2026: preSnap.defenseFy2026Positions,
+        midDefenseFy2026: midSnap.defenseFy2026Positions,
+        prePackagesNonPe10: preSnap.budgetPackagesNonPe10,
+        midPackagesNonPe10: midSnap.budgetPackagesNonPe10,
+        drift: nonPe10Drift,
       },
     });
 
-    // cleanup synthetic domain
+    // cleanup synthetic domain + source docs
     await cleanupDomain(prisma);
+    await cleanupPe10SourceDocs(prisma);
     const afterClean = await countDomainPositions(prisma);
+    const postSnap = await mutationSnapshot(prisma);
+    const cleanupBoundaryOk =
+      afterClean === 0 &&
+      postSnap.fundingPositionsNonPe10 === preSnap.fundingPositionsNonPe10 &&
+      postSnap.budgetPackagesNonPe10 === preSnap.budgetPackagesNonPe10 &&
+      postSnap.defenseFy2026Positions === preSnap.defenseFy2026Positions;
     report.steps.push({
       id: 'synthetic_cleanup',
-      ok: afterClean === 0,
-      exitCode: afterClean === 0 ? 0 : 1,
-      detail: `pe10_closeout FY2099 posts cleanup positions=${afterClean}`,
+      ok: cleanupBoundaryOk,
+      exitCode: cleanupBoundaryOk ? 0 : 1,
+      detail: `pe10_closeout FY2099 posts cleanup positions=${afterClean}; nonPe10 stable=${cleanupBoundaryOk}`,
+      metrics: {
+        afterClean,
+        postNonPe10: postSnap.fundingPositionsNonPe10,
+        preNonPe10: preSnap.fundingPositionsNonPe10,
+      },
     });
   } finally {
     try {
       await cleanupDomain(prisma);
+      await cleanupPe10SourceDocs(prisma);
     } catch {
       /* best effort */
     }
@@ -534,13 +839,22 @@ async function main(): Promise<void> {
 
   report.ok = report.steps.every((s) => s.ok);
   report.marker = report.ok ? 'PE_PHASE_10_LIVE_PROOFS_OK' : 'PE_PHASE_10_LIVE_PROOFS_FAIL';
-  console.log(JSON.stringify(report, null, 2));
-  // Compact trailer — ship log tail is capped; parser prefers this one-liner.
-  const compact: Record<string, boolean | string> = {
+  // Full report first (ship parser prefers steps+metrics JSON over SUMMARY-only).
+  console.log(JSON.stringify(report));
+  // Compact trailer with per-step ok + metrics for CloudWatch tail recovery.
+  const compact: Record<string, unknown> = {
     marker: report.marker,
     ok: report.ok,
+    gitSha: report.gitSha,
+    generatedAt: report.generatedAt,
+    steps: report.steps.map((s) => ({
+      id: s.id,
+      ok: s.ok,
+      exitCode: s.exitCode,
+      metrics: s.metrics ?? null,
+      detail: (s.detail || '').slice(0, 240),
+    })),
   };
-  for (const s of report.steps) compact[s.id] = s.ok;
   console.log(`PE_PHASE_10_LIVE_PROOFS_SUMMARY ${JSON.stringify(compact)}`);
   console.log(report.marker);
   if (!report.ok) process.exit(1);
@@ -550,4 +864,3 @@ void main().catch((e) => {
   console.error('[pe-phase-10-live-proofs] fatal', (e as Error)?.stack ?? e);
   process.exit(1);
 });
-

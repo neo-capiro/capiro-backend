@@ -15,7 +15,7 @@
  *  - migrate via run-task capiro-dev-api-migrate with network from API service
  */
 import { spawnSync } from 'node:child_process';
-import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, readFileSync, unlinkSync, rmSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import {
   PE_PHASE_10_STAGING_EXPECTED,
@@ -51,6 +51,92 @@ export interface PePhase10ShipTrace {
   deployedCluster: string;
   notes: string[];
 }
+
+/** Disposable PASS-file and stale ship artifacts must not survive a harness rewrite. */
+export const PE10_STALE_EVIDENCE_BASENAMES = [
+  'rls-phase-c-pass.txt',
+  'ship-trace.json',
+  'deploy-result.json',
+  'migrate-task-result.json',
+] as const;
+
+export function purgeStaleEvidenceArtifacts(evidenceDir: string): string[] {
+  mkdirSync(evidenceDir, { recursive: true });
+  const removed: string[] = [];
+  for (const name of PE10_STALE_EVIDENCE_BASENAMES) {
+    const p = resolve(evidenceDir, name);
+    if (existsSync(p)) {
+      try {
+        unlinkSync(p);
+        removed.push(name);
+      } catch {
+        try {
+          rmSync(p, { force: true });
+          removed.push(name);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }
+  return removed;
+}
+
+export function writeShipTrace(evidenceDir: string, trace: PePhase10ShipTrace & Record<string, unknown>): void {
+  mkdirSync(evidenceDir, { recursive: true });
+  writeFileSync(
+    resolve(evidenceDir, 'ship-trace.json'),
+    JSON.stringify(
+      {
+        phase: 10,
+        generatedAt: new Date().toISOString(),
+        plane: {
+          workflowEnv: exp.workflowEnv,
+          ecsCluster: exp.ecsClusterName,
+          appHost: exp.appHost,
+          note: 'sole live env=dev = prod path; Neo PE_CLOSEOUT_STAGING_OK + MUTATE authorized',
+        },
+        ...trace,
+      },
+      null,
+      2,
+    ),
+  );
+  if (trace.newApiTaskDefArn || trace.newWebTaskDefArn) {
+    writeFileSync(
+      resolve(evidenceDir, 'deploy-result.json'),
+      JSON.stringify(
+        {
+          deployed: {
+            apiTaskDef: trace.newApiTaskDefArn,
+            webTaskDef: trace.newWebTaskDefArn,
+            apiImage: trace.apiImageDigest,
+            webImage: trace.webImageDigest,
+            cluster: trace.deployedCluster,
+          },
+          generatedAt: new Date().toISOString(),
+        },
+        null,
+        2,
+      ),
+    );
+  }
+  if (trace.migrateTaskArn) {
+    writeFileSync(
+      resolve(evidenceDir, 'migrate-task-result.json'),
+      JSON.stringify(
+        {
+          migrateTaskArn: trace.migrateTaskArn,
+          generatedAt: new Date().toISOString(),
+          note: 'ARN only; full describe may be in CloudWatch/ECS console',
+        },
+        null,
+        2,
+      ),
+    );
+  }
+}
+
 
 function run(
   cmd: string,
@@ -453,10 +539,11 @@ export function browserSmoke(env: NodeJS.ProcessEnv = process.env): {
 } {
   const host = exp.appHost;
   const tmpBase = (process.env.TEMP || process.env.TMP || '/tmp').replace(/\\/g, '/');
-  const curl = (url: string, idx: number) => {
+  const curl = (url: string, idx: number, extraHeaders: string[] = []) => {
     const tmp = `${tmpBase}/pe10curl-${idx}.out`;
+    const hdr = extraHeaders.map((h) => `-H ${JSON.stringify(h)}`).join(' ');
     const r = runShell(
-      `curl -sS -L --max-time 30 -o "${tmp}" -w "%{http_code}" "${url}"`,
+      `curl -sS -L --max-time 30 -o "${tmp}" -w "%{http_code}" ${hdr} "${url}"`,
       env,
       process.cwd(),
     );
@@ -464,44 +551,87 @@ export function browserSmoke(env: NodeJS.ProcessEnv = process.env): {
     const code = (digits.slice(-3) || '000').padStart(3, '0').slice(-3);
     let body = '';
     try {
-      body = readFileSync(tmp, 'utf8').slice(0, 400);
+      body = readFileSync(tmp, 'utf8').slice(0, 1200);
     } catch {
       body = '';
     }
     return { code, body, raw: String(r.out || '').slice(0, 400) };
   };
 
-const paths = [
-    { id: 'root', url: `https://${host}/`, want: ['200'] },
-    { id: 'health', url: `https://${host}/health`, want: ['200', '401'] },
-    { id: 'healthz', url: `https://${host}/healthz`, want: ['200', '401'] },
-    { id: 'api_health', url: `https://${host}/api/health`, want: ['200', '401', '404'] },
-    { id: 'pe_list', url: `https://${host}/api/program-elements?limit=1`, want: ['200', '401', '403'] },
+  // Plan Verify: PE read contract + failed≠empty surface signals, not only / and /health.
+  const paths = [
+    { id: 'root', url: `https://${host}/`, want: ['200'], headers: [] as string[] },
+    { id: 'health', url: `https://${host}/health`, want: ['200', '401'], headers: [] as string[] },
+    { id: 'healthz', url: `https://${host}/healthz`, want: ['200', '401'], headers: [] as string[] },
+    { id: 'api_health', url: `https://${host}/api/health`, want: ['200', '401', '404'], headers: [] as string[] },
+    {
+      id: 'pe_list',
+      url: `https://${host}/api/program-elements?limit=1`,
+      want: ['200', '401', '403'],
+      headers: ['Accept: application/json'],
+    },
     {
       id: 'pe_detail',
       url: `https://${host}/api/program-elements/0603270A`,
       want: ['200', '401', '403', '404'],
+      headers: ['Accept: application/json'],
+    },
+    {
+      id: 'pe_positions',
+      url: `https://${host}/api/program-elements/0603270A/positions`,
+      want: ['200', '401', '403', '404'],
+      headers: ['Accept: application/json'],
+    },
+    {
+      id: 'pe_timeline',
+      url: `https://${host}/api/program-elements/0603270A/timeline`,
+      want: ['200', '401', '403', '404'],
+      headers: ['Accept: application/json'],
+    },
+    {
+      id: 'pe_web_route',
+      url: `https://${host}/program-elements/0603270A`,
+      want: ['200', '401', '403', '302', '301'],
+      headers: ['Accept: text/html'],
     },
   ];
   const results: Record<string, string> = {};
   const failures: string[] = [];
+  const bodyNotes: string[] = [];
   for (let i = 0; i < paths.length; i++) {
     const pth = paths[i]!;
-    const r = curl(pth.url, i);
+    const r = curl(pth.url, i, pth.headers);
     results[pth.id] = r.code;
     if (!pth.want.includes(r.code)) failures.push(`${pth.id}=${r.code}`);
-    if (pth.id.startsWith('pe_') && r.code === '200' && (!r.body || !r.body.trim())) {
-      failures.push(`${pth.id}:200 empty body`);
+    if (pth.id.startsWith('pe_') && r.code === '200') {
+      const trimmed = (r.body || '').trim();
+      if (!trimmed) {
+        failures.push(`${pth.id}:200 empty body`);
+      } else {
+        bodyNotes.push(`${pth.id}:bodyLen=${trimmed.length}`);
+      }
+    }
+    if (pth.id === 'pe_web_route' && r.code === '200') {
+      const html = r.body || '';
+      if (html && !/root|app|capiro|program/i.test(html)) {
+        bodyNotes.push('pe_web_route: atypical HTML shell');
+      }
     }
   }
+  const peAuthWall =
+    ['pe_list', 'pe_detail', 'pe_positions', 'pe_timeline'].every((id) =>
+      ['401', '403', '200', '404'].includes(results[id] || ''),
+    ) && ['pe_list', 'pe_detail'].some((id) => ['401', '403', '200'].includes(results[id] || ''));
+  if (!peAuthWall) failures.push('pe_read_contract_missing');
   const ok = failures.length === 0 && results.root === '200';
   return {
     ok,
     detail: `host=${host} codes=${JSON.stringify(results)}${
       failures.length ? ` FAIL ${failures.join(',')}` : ''
-    } (401 on PE routes = auth wall present)`,
+    } notes=${bodyNotes.slice(0, 8).join(';')} (401 on PE routes = auth wall; PE read contract exercised beyond /health)`,
   };
 }
+
 
 /**
  * ECS one-shot pe-phase-10-live-proofs on sole-live plane.
@@ -691,47 +821,18 @@ export function runLiveProofsTask(
   }
 
   let report: any = null;
-  // Prefer compact one-line summary (survives CloudWatch tail truncation).
+  // Prefer FULL report JSON (steps + metrics). SUMMARY is recovery only — must not drop metrics.
   {
-    const tag = 'PE_PHASE_10_LIVE_PROOFS_SUMMARY ';
-    const tagIdx = logText.lastIndexOf(tag);
-    if (tagIdx >= 0) {
-      const lineEnd = logText.indexOf('\n', tagIdx);
-      const jsonPart = logText
-        .slice(tagIdx + tag.length, lineEnd >= 0 ? lineEnd : undefined)
-        .trim();
-      try {
-        const compact = JSON.parse(jsonPart);
-        const steps = Object.keys(compact)
-          .filter((k) => k !== 'marker' && k !== 'ok')
-          .map((id) => ({
-            id,
-            ok: Boolean(compact[id]),
-            exitCode: compact[id] ? 0 : 1,
-            detail: `from SUMMARY compact ok=${compact[id]}`,
-          }));
-        report = {
-          ok: Boolean(compact.ok),
-          marker: compact.marker,
-          steps,
-          fromSummary: true,
-        };
-      } catch {
-        report = null;
-      }
-    }
-  }
-  if (!report) {
     const markerIdx = logText.lastIndexOf('PE_PHASE_10_LIVE_PROOFS_');
     if (markerIdx >= 0) {
-      // Prefer the report object that includes "steps".
       let searchFrom = 0;
+      let best: any = null;
       while (searchFrom < markerIdx) {
         const before = logText.indexOf('{', searchFrom);
         if (before < 0 || before >= markerIdx) break;
         let depth = 0;
         let endBrace = -1;
-        for (let i = before; i < logText.length && i < markerIdx + 80; i++) {
+        for (let i = before; i < logText.length && i < markerIdx + 120; i++) {
           const ch = logText[i];
           if (ch === '{') depth += 1;
           else if (ch === '}') {
@@ -744,16 +845,77 @@ export function runLiveProofsTask(
         }
         if (endBrace > before) {
           const slice = logText.slice(before, endBrace);
-          if (slice.includes('"steps"') && /"marker"\s*:\s*"PE_PHASE_10_LIVE_PROOFS_/.test(slice)) {
+          if (
+            slice.includes('"steps"') &&
+            /"marker"\s*:\s*"PE_PHASE_10_LIVE_PROOFS_/.test(slice) &&
+            !slice.includes('PE_PHASE_10_LIVE_PROOFS_SUMMARY')
+          ) {
             try {
-              report = JSON.parse(slice);
-              break;
+              const parsed = JSON.parse(slice);
+              if (Array.isArray(parsed.steps) && parsed.steps.some((s: any) => s && s.metrics)) {
+                best = parsed;
+                break;
+              }
+              if (!best && Array.isArray(parsed.steps)) best = parsed;
             } catch {
               /* continue */
             }
           }
         }
         searchFrom = before + 1;
+      }
+      if (best) {
+        report = { ...best, fromSummary: false, fullReport: true };
+      }
+    }
+  }
+  if (!report) {
+    const tag = 'PE_PHASE_10_LIVE_PROOFS_SUMMARY ';
+    const tagIdx = logText.lastIndexOf(tag);
+    if (tagIdx >= 0) {
+      const lineEnd = logText.indexOf('\n', tagIdx);
+      const jsonPart = logText
+        .slice(tagIdx + tag.length, lineEnd >= 0 ? lineEnd : undefined)
+        .trim();
+      try {
+        const compact = JSON.parse(jsonPart);
+        if (Array.isArray(compact.steps)) {
+          report = {
+            ok: Boolean(compact.ok),
+            marker: compact.marker,
+            gitSha: compact.gitSha ?? null,
+            generatedAt: compact.generatedAt ?? null,
+            steps: compact.steps.map((s: any) => ({
+              id: s.id,
+              ok: Boolean(s.ok),
+              exitCode: typeof s.exitCode === 'number' ? s.exitCode : s.ok ? 0 : 1,
+              detail: String(s.detail || `from SUMMARY step ok=${s.ok}`),
+              metrics: s.metrics ?? null,
+            })),
+            fromSummary: true,
+            fullReport: true,
+          };
+        } else {
+          const steps = Object.keys(compact)
+            .filter((k) => !['marker', 'ok', 'gitSha', 'generatedAt', 'steps'].includes(k))
+            .map((id) => ({
+              id,
+              ok: Boolean(compact[id]),
+              exitCode: compact[id] ? 0 : 1,
+              detail: `from SUMMARY legacy compact ok=${compact[id]}`,
+              metrics: null,
+            }));
+          report = {
+            ok: Boolean(compact.ok),
+            marker: compact.marker,
+            steps,
+            fromSummary: true,
+            fullReport: false,
+            metricsIncomplete: true,
+          };
+        }
+      } catch {
+        report = null;
       }
     }
   }
@@ -772,8 +934,14 @@ export function runLiveProofsTask(
         exitCode,
         waitCode: wait.code,
         describe: desc.json,
+        // Full live-proofs JSON report with per-step metrics (not SUMMARY-only).
         report,
-        logTail: logText.slice(-20000),
+        reportHasMetrics: Array.isArray(report?.steps)
+          ? report.steps.some((s: any) => s && s.metrics != null)
+          : false,
+        fromSummary: Boolean(report?.fromSummary),
+        fullReport: Boolean(report?.fullReport),
+        logTail: logText.slice(-40000),
       },
       null,
       2,
@@ -848,12 +1016,87 @@ export function outcomesFromLiveProofReport(
     ]);
   }
 
-  out.exact_sha_internal_promotion = mapStep('exact_sha_internal_promotion', [
-    'exact_sha_internal_promotion',
-  ]);
-  out.identical_replay = mapStep('identical_replay', ['identical_replay']);
+  const sourceReg = byId.get('source_document_register');
+  const promo = byId.get('exact_sha_internal_promotion');
+  if (sourceReg || promo) {
+    const sourceOk = sourceReg ? Boolean(sourceReg.ok) : false;
+    const promoOk = promo ? Boolean(promo.ok) : false;
+    const ok = sourceOk && promoOk;
+    out.exact_sha_internal_promotion = {
+      stepId: 'exact_sha_internal_promotion',
+      exitCode: ok ? 0 : 1,
+      classification: ok ? 'ok' : 'branch_introduced',
+      detail: [
+        sourceReg
+          ? `source_register:${sourceOk} ${String(sourceReg.detail || '').slice(0, 200)}`
+          : 'source_register:MISSING',
+        promo ? `promotion:${promoOk} ${String(promo.detail || '').slice(0, 400)}` : 'promotion:MISSING',
+      ].join(' | '),
+    };
+  } else {
+    out.exact_sha_internal_promotion = mapStep('exact_sha_internal_promotion', [
+      'exact_sha_internal_promotion',
+    ]);
+  }
+
+  const replay = byId.get('identical_replay');
+  if (replay) {
+    const metrics = (replay.metrics || {}) as Record<string, unknown>;
+    const newRows = Number(metrics.newCanonicalRows ?? metrics.duplicateWrites ?? 0);
+    const idSetEqual = metrics.idSetEqual === undefined ? true : Boolean(metrics.idSetEqual);
+    const ok = Boolean(replay.ok) && newRows === 0 && idSetEqual;
+    out.identical_replay = {
+      stepId: 'identical_replay',
+      exitCode: ok ? 0 : 1,
+      classification: ok ? 'ok' : 'branch_introduced',
+      detail: String(replay.detail || '').slice(0, 800),
+    };
+  } else {
+    out.identical_replay = mapStep('identical_replay', ['identical_replay']);
+  }
+
   out.derive_chain_dry_run = mapStep('derive_chain_dry_run', ['derive_chain_dry_run']);
-  out.rls_ethical_wall = mapStep('rls_ethical_wall', ['rls_ethical_wall']);
+
+  const rls = byId.get('rls_ethical_wall');
+  if (rls) {
+    const metrics = (rls.metrics || {}) as Record<string, unknown>;
+    const dual = metrics.dualTenantSeeded === true || metrics.crossTenantOk === true;
+    const bare = metrics.bare;
+    const bypass = metrics.bypassN ?? metrics.full;
+    const vacuous =
+      metrics.dualTenantSeeded !== true &&
+      bare === 0 &&
+      (bypass === 0 || bypass === undefined);
+    const ok = Boolean(rls.ok) && dual && !vacuous;
+    out.rls_ethical_wall = {
+      stepId: 'rls_ethical_wall',
+      exitCode: ok ? 0 : 1,
+      classification: ok ? 'ok' : 'branch_introduced',
+      detail: ok
+        ? String(rls.detail || '').slice(0, 800)
+        : `RLS unsatisfied or vacuous: ${String(rls.detail || '').slice(0, 600)}`,
+    };
+  } else {
+    out.rls_ethical_wall = mapStep('rls_ethical_wall', ['rls_ethical_wall']);
+  }
+
+  const mut = byId.get('mutation_boundary_observe');
+  if (mut) {
+    const ok = Boolean(mut.ok) && (mut.metrics as any)?.drift !== true;
+    out.mutation_boundary_observe = {
+      stepId: 'mutation_boundary_observe',
+      exitCode: ok ? 0 : 1,
+      classification: ok ? 'ok' : 'branch_introduced',
+      detail: String(mut.detail || '').slice(0, 800),
+    };
+  } else {
+    out.mutation_boundary_observe = {
+      stepId: 'mutation_boundary_observe',
+      exitCode: 1,
+      classification: 'branch_introduced',
+      detail: 'mutation_boundary_observe missing from live proofs — UNSATISFIED (no hard-ok)',
+    };
+  }
   return out;
 }
 

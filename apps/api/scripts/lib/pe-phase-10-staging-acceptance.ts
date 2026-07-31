@@ -666,6 +666,12 @@ export function evaluatePePhase10Gate(args: {
   const browserOk = classById(classifications, 'browser_smoke') === 'ok';
   const deriveOk = classById(classifications, 'derive_chain_dry_run') === 'ok';
   const rollbackOutcomeOk = classById(classifications, 'rollback_rehearsal') === 'ok';
+  const mutationFromOutcome = (args.outcomes ?? []).find((o) => o.stepId === 'mutation_boundary_observe');
+  const mutationOk =
+    classById(classifications, 'mutation_boundary_observe') === 'ok' ||
+    (mutationFromOutcome != null &&
+      (mutationFromOutcome.exitCode ?? 1) === 0 &&
+      (mutationFromOutcome.classification ?? 'ok') !== 'branch_introduced');
 
   const fullRuntimeProofs =
     rlsOk &&
@@ -676,7 +682,8 @@ export function evaluatePePhase10Gate(args: {
     replayOk &&
     loadersOk &&
     browserOk &&
-    deriveOk;
+    deriveOk &&
+    mutationOk;
 
   const exitGate: PePhase10ExitGateEvaluation[] = PE_PHASE_10_EXIT_GATE_BULLETS.map((bullet) => {
     switch (bullet) {
@@ -758,16 +765,19 @@ export function evaluatePePhase10Gate(args: {
           deployOk &&
           promotionOk &&
           replayOk &&
+          mutationOk &&
           !anyRequiredHardFail &&
           !anyRequiredEnvBlocked;
         return {
           bullet,
           satisfied,
           reason: satisfied
-            ? 'mutate path executed with explained PE apply steps + identical replay zero-dupe proof'
+            ? 'mutate path executed with explained PE apply steps + identical replay zero-dupe + non-pe10 mutation boundary'
             : !args.mutateAllowed
               ? 'UNSATISFIED: discover-only — no explained mutate proof (vacuous skip is not a pass)'
-              : 'UNSATISFIED: mutate incomplete, env_blocked, or missing promotion/replay proofs',
+              : !mutationOk
+                ? 'UNSATISFIED: mutation_boundary_observe missing or drifted (no hard-ok observe)'
+                : 'UNSATISFIED: mutate incomplete, env_blocked, or missing promotion/replay proofs',
         };
       }
       default:
