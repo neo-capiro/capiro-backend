@@ -17,8 +17,8 @@ export class MemoryProposalController {
   constructor(private readonly candidates: GovernedMemoryCandidateService) {}
 
   @Get()
-  listOwnPending(@CurrentTenant() ctx: TenantContext) {
-    return this.candidates.listOwnPending(ctx);
+  listOwnProposals(@CurrentTenant() ctx: TenantContext) {
+    return this.candidates.listOwnProposals(ctx);
   }
 
   @Post(':id/withdraw')
