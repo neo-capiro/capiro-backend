@@ -10,7 +10,10 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    # The published closeout branch is included so this cumulative gate can run
+    # independently of a stale, inactive pull_request workflow registration.
+    # This adds validation only; it does not weaken or replace the PR gate.
+    branches: [main, agent/meriv2-world-class-closeout]
   workflow_dispatch:
 
 permissions:
