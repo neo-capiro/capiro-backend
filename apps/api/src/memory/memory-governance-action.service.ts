@@ -36,6 +36,8 @@ interface LockedProjectionJob {
   memoryItemId: string | null;
   clioMemoryId: string | null;
   clientId: string | null;
+  clioScope: string | null;
+  clioOwnerUserId: string | null;
   operation: string;
   status: string;
   attempts: number;
@@ -115,7 +117,9 @@ export class MemoryGovernanceActionService {
         return { outcome: 'already_stale' as const, itemId, governedStatus: status };
       }
       if (status !== 'active') {
-        throw new BadRequestException(`Only active memory can be marked stale; current status is ${status}.`);
+        throw new BadRequestException(
+          `Only active memory can be marked stale; current status is ${status}.`,
+        );
       }
       assertMemoryTransition('active', 'stale');
 
@@ -148,9 +152,6 @@ export class MemoryGovernanceActionService {
     this.requireEnabled();
     const cleanReason = requiredReason(reason, 'A reason is required to revoke memory.');
 
-    // MemoryStoreService is the canonical revocation owner. It repeats authorization
-    // in its own row-scoped transaction, writes both lifecycle axes and evidence,
-    // removes live recall projections, and enqueues retryable cleanup.
     const result = await this.store.forgetMemory(itemId, cleanReason);
     if (!result.found) {
       throw new NotFoundException('Memory item was not found or is not revocable.');
@@ -222,18 +223,26 @@ export class MemoryGovernanceActionService {
     });
   }
 
-  /**
-   * Re-open one failed/dead-letter projection obligation for the bounded worker.
-   * The prior attempts and bounded error code are preserved in the tenant audit log.
-   */
+  /** Re-open one authorized failed/dead-letter projection obligation. */
   async retryProjection(ctx: TenantContext, jobId: string) {
     this.requireEnabled();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const job = await this.lockProjectionJob(tx, ctx.tenantId, jobId);
-      if (!['failed', 'dead_letter'].includes(job.status)) {
+      if (['pending', 'running'].includes(job.status)) {
         return { outcome: 'already_retryable' as const, jobId, status: job.status };
       }
+      if (!['failed', 'dead_letter'].includes(job.status)) {
+        throw new BadRequestException(
+          `Only failed or dead-letter projection jobs can be retried; current status is ${job.status}.`,
+        );
+      }
 
+      if (
+        job.clioScope === 'user_private' &&
+        job.clioOwnerUserId !== ctx.userId
+      ) {
+        throw new ForbiddenException('Memory operation denied: owner_only');
+      }
       if (job.clientId) {
         const allowed = await clientMemoryAllowed(
           tx,
@@ -353,6 +362,8 @@ export class MemoryGovernanceActionService {
              o.memory_item_id::text AS "memoryItemId",
              o.clio_memory_id::text AS "clioMemoryId",
              COALESCE(mi.client_id, cm.client_id)::text AS "clientId",
+             cm.scope AS "clioScope",
+             cm.owner_user_id::text AS "clioOwnerUserId",
              o.operation,
              o.status,
              o.attempts,
