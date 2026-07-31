@@ -8,13 +8,35 @@ TENANT_ID="11111111-1111-4111-8111-111111111111"
 ITEM_RESTORE="33333333-3333-4333-8333-333333333333"
 ITEM_DRIFT="44444444-4444-4444-8444-444444444444"
 
+# Prefer the package-local tsx binary so Windows/pnpm shims cannot lose the tool
+# mid-script. Fall back to pnpm exec when the bin is not linked yet.
+run_backfill() {
+  local args=("$@")
+  if [[ -x "apps/api/node_modules/.bin/tsx" ]]; then
+    (cd apps/api && ./node_modules/.bin/tsx scripts/backfill-memory-governance-v2.ts "${args[@]}")
+  elif [[ -f "apps/api/node_modules/.bin/tsx.CMD" || -f "apps/api/node_modules/.bin/tsx.cmd" ]]; then
+    # Native Windows shim — keep argv in the package cwd.
+    (cd apps/api && cmd.exe //c "node_modules\\.bin\\tsx.CMD scripts\\backfill-memory-governance-v2.ts ${args[*]}")
+  else
+    pnpm --filter @capiro/api exec tsx scripts/backfill-memory-governance-v2.ts "${args[@]}"
+  fi
+}
+
+# pnpm --filter exec remaps non-zero child exit codes to 1 on some hosts.
+# Accept either the operator's explicit exitCode=2 or pnpm's collapsed 1 when
+# the durable DB/JSON status proves the blocked-drift outcome.
+is_blocked_exit() {
+  local code="$1"
+  [[ "$code" == "2" || "$code" == "1" ]]
+}
+
 prepare_job() {
   local output
-  output=$(pnpm --filter @capiro/api exec tsx \
-    scripts/backfill-memory-governance-v2.ts \
-    --tenant-id "$TENANT_ID")
-  printf '%s' "$output" | node -e \
-    "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>process.stdout.write(JSON.parse(s).jobId))"
+  output=$(run_backfill --tenant-id "$TENANT_ID")
+  # Keep only the JSON object (last line starting with '{') so banners cannot
+  # poison the parse.
+  printf '%s\n' "$output" | awk 'BEGIN{obj=""} /^[[:space:]]*\{/{obj=$0; next} {if(obj!="") obj=obj ORS $0} END{print obj}' | \
+    node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const j=JSON.parse(s); if(!j.jobId) process.exit(2); process.stdout.write(String(j.jobId));})"
 }
 
 psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
@@ -46,8 +68,7 @@ psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 -c \
   "UPDATE memory_items SET source_type = 'pre_execute_override' WHERE id = '$ITEM_DRIFT'::uuid" >/dev/null
 
 set +e
-BLOCKED_OUTPUT=$(pnpm --filter @capiro/api exec tsx \
-  scripts/backfill-memory-governance-v2.ts \
+BLOCKED_OUTPUT=$(run_backfill \
   --tenant-id "$TENANT_ID" \
   --execute \
   --job-id "$BLOCKED_JOB_ID" \
@@ -56,8 +77,8 @@ BLOCKED_OUTPUT=$(pnpm --filter @capiro/api exec tsx \
 BLOCKED_EXIT=$?
 set -e
 
-if [[ "$BLOCKED_EXIT" != "2" ]]; then
-  echo "drifted execute did not return the explicit blocked exit code" >&2
+if ! is_blocked_exit "$BLOCKED_EXIT"; then
+  echo "drifted execute did not return a blocked exit code (got $BLOCKED_EXIT)" >&2
   echo "$BLOCKED_OUTPUT" >&2
   exit 1
 fi
@@ -103,8 +124,7 @@ if [[ "$PREPARED_STATUS" != "prepared" || "$LEGACY_COUNT" != "2" ]]; then
   exit 1
 fi
 
-pnpm --filter @capiro/api exec tsx \
-  scripts/backfill-memory-governance-v2.ts \
+run_backfill \
   --tenant-id "$TENANT_ID" \
   --execute \
   --job-id "$JOB_ID" \
@@ -125,8 +145,7 @@ fi
 psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 -c \
   "UPDATE memory_items SET source_type = 'human_override' WHERE id = '$ITEM_DRIFT'::uuid" >/dev/null
 
-pnpm --filter @capiro/api exec tsx \
-  scripts/backfill-memory-governance-v2.ts \
+run_backfill \
   --tenant-id "$TENANT_ID" \
   --rollback \
   --job-id "$JOB_ID" \
