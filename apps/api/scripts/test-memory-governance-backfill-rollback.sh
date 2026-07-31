@@ -22,12 +22,16 @@ DELETE FROM tenants WHERE id = '$TENANT_ID'::uuid;
 INSERT INTO tenants (id, slug, name, status)
 VALUES ('$TENANT_ID'::uuid, 'phase11-backfill-rehearsal', 'Phase 11 Backfill Rehearsal', 'active');
 
+-- DB boundary: memory_items_visibility_chk allows only tenant|user.
+-- Firm-scoped canonical rows use visibility='tenant' with owner_user_id NULL
+-- (see memory_items_owner_visibility_chk). 'firm' is a governance class notion,
+-- not a visibility enum value.
 INSERT INTO memory_items
   (id, tenant_id, type, visibility, slug, title, source, provenance)
 VALUES
-  ('$ITEM_RESTORE'::uuid, '$TENANT_ID'::uuid, 'playbook', 'firm',
+  ('$ITEM_RESTORE'::uuid, '$TENANT_ID'::uuid, 'playbook', 'tenant',
    'phase11-restore', 'Phase 11 Restore Fixture', 'manual', 'human'),
-  ('$ITEM_DRIFT'::uuid, '$TENANT_ID'::uuid, 'firm-policy', 'firm',
+  ('$ITEM_DRIFT'::uuid, '$TENANT_ID'::uuid, 'firm-policy', 'tenant',
    'phase11-drift', 'Phase 11 Drift Fixture', 'manual', 'human');
 SQL
 
