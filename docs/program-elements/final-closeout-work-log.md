@@ -1008,7 +1008,7 @@ git reset --hard 77fd4182dca94a51b68b8c9b22ac24ce3b0c9df7
 **Operator session:** Phase 6 IMPLEMENT only (not review)
 **Mode:** LONG
 **Base tip (Phase 5 PASS):** `c48d30bdc2229c2c452640065402efc92551f2b1`
-**Product tip (this phase):** `a2e708271d61516b799080cfaee40de5f1c036ca`
+**Product tip (this phase):** `85e768ee086a3e8289d3b85264aefb0fa8be7adb`
 **Remote tip (post-push / review target):** `ed311e883082f13b23b0d7e04fba26abc33cb451` (includes package.json repair `ed311e883` after product `85e768ee086`)
 
 ### Tasks completed (implementation)
