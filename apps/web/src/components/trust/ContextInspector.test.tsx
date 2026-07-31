@@ -128,9 +128,7 @@ describe('ContextInspector', () => {
   });
 
   it('passes automated accessibility checks in the expanded state', async () => {
-    const { container } = render(
-      <ContextInspector packet={packet} onReviewContext={() => {}} />,
-    );
+    const { container } = render(<ContextInspector packet={packet} onReviewContext={() => {}} />);
     fireEvent.keyDown(summaryFor(container), { key: 'Enter' });
     const results = await axe(container);
     expect(results.violations).toEqual([]);
