@@ -100,9 +100,10 @@ jobs:
           src/checks/checks.verification.spec.ts
           test/steering-memories.spec.ts
 
-      - name: Test Settings and Context Inspector contracts
+      - name: Test Settings, Policy Packs, and Context Inspector contracts
         run: >
           pnpm --filter @capiro/web exec vitest run
           src/components/MemoryFileEditor.phase3.test.ts
           src/components/trust/ContextInspector.test.tsx
+          src/pages/settings/PolicyPacksPage.test.tsx
           --testTimeout=20000 --hookTimeout=20000
