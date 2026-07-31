@@ -49,7 +49,7 @@ function harness(input: {
     sourceKind: 'settings_sections',
     scope,
     createdAt: new Date('2026-07-31T12:00:00.000Z'),
-    payloadJsonb: {
+    payload: {
       key: 'settings-file:client-soul:client-1',
       value: '[{"key":"priorities"}]',
       canonicalItem: {
