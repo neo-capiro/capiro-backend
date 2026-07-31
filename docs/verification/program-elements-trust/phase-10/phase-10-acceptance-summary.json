@@ -14,8 +14,8 @@
     "note": "sole live env=dev / capiro-dev (= prod path); not dead staging"
   },
   "git": {
-    "headSha": "907e78bde05514dc71e7b7120cf8f7fe95ead0fa",
-    "originHeadSha": "907e78bde05514dc71e7b7120cf8f7fe95ead0fa",
+    "headSha": "8f0e58dd0c5238ff97dc9956736c32cb3024eb2a",
+    "originHeadSha": "8f0e58dd0c5238ff97dc9956736c32cb3024eb2a",
     "mainSha": "3dcb12f823774b6fae8578dc56fc122bf9a0879e",
     "mergeBaseSha": "3dcb12f823774b6fae8578dc56fc122bf9a0879e",
     "branch": "agent/program-elements-final-closeout"
@@ -473,13 +473,9 @@
     "blockedIsNotOk": false,
     "exitGateUnsatisfiedWhenBlocked": null,
     "implementerOkNotReviewPass": true,
-    "singleTipHead": "907e78bde05514dc71e7b7120cf8f7fe95ead0fa",
-    "originMatchesHead": true,
     "harnessOkProductTip": "28dbed74845a74f1cb432ee4e5d1577827eaf182",
-    "docsPinTip": "907e78bde05514dc71e7b7120cf8f7fe95ead0fa",
-    "docsOnlyAfterProduct": true,
-    "noPeRuntimeDeltaInDocsPin": true,
-    "liveProofsAndShipOnProductTip": "28dbed74845a74f1cb432ee4e5d1577827eaf182",
-    "note": "Harness PE_PHASE_10_OK executed on product tip; docs pin is evidence/ledger only with no PE runtime delta. Review origin HEAD."
+    "docsPinParent": "8f0e58dd0c5238ff97dc9956736c32cb3024eb2a",
+    "reviewMustUseOriginHead": true,
+    "note": "Harness PE_PHASE_10_OK on product tip; after this docs pin, independent REVIEW must use git rev-parse origin/agent/program-elements-final-closeout (may be this pin tip). No self-PASS."
   }
 }

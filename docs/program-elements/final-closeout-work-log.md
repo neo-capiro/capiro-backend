@@ -6,7 +6,7 @@
 **Repo:** `neo-capiro/capirov2`  
 **Operator session:** Phase 10 IMPLEMENT (pre-merge staging acceptance)
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-31 (Phase 10 IMPLEMENT PUSHED tip `907e78bde05514dc71e7b7120cf8f7fe95ead0fa` / product `28dbed74845a74f1cb432ee4e5d1577827eaf182` / harness PE_PHASE_10_OK — independent REVIEW REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-31 Phase 10 IMPLEMENT PUSHED product `28dbed74845a74f1cb432ee4e5d1577827eaf182` — REVIEW origin HEAD after fetch; implementer PE_PHASE_10_OK only
 
 ---
 
@@ -1605,7 +1605,7 @@ export PE_CLOSEOUT_EFFORT=high
 
 ## Phase 10 — review FAIL fix round — IMPLEMENT PUSHED
 
-**Remote tip / origin HEAD (review target):** `907e78bde05514dc71e7b7120cf8f7fe95ead0fa`
+**Remote tip / origin HEAD (review target):** `8f0e58dd0c5238ff97dc9956736c32cb3024eb2a`
 **Product/live-proofs/ship tip:** `28dbed74845a74f1cb432ee4e5d1577827eaf182` (docs-only pins after; no PE runtime delta)
 **origin/main:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind)
 **Failed review tip:** `00699283e6f7c95374a9a0ecfbc04bfabf7f1a42`
