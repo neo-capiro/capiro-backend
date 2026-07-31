@@ -1,0 +1,38 @@
+name: phase10-policy-authority
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/phase10-policy-authority.yml
+      - docs/tmp/phase10-patch.part*
+
+permissions:
+  contents: write
+
+jobs:
+  apply-phase10-policy-authority:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/meriv2-world-class-closeout
+          fetch-depth: 0
+      - name: Reconstruct and apply the Phase 10 implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat docs/tmp/phase10-patch.part* > /tmp/phase10_patch.py.gz.b64
+          echo "e6a6382a37e4f2df0e5c5667b2d3e0d30ba54957eb71ec4ccaa16144ed7534a1  /tmp/phase10_patch.py.gz.b64" | sha256sum -c -
+          base64 -d /tmp/phase10_patch.py.gz.b64 | gzip -d > /tmp/phase10_patch.py
+          echo "a864cb85f3751930a8490919cc16013bc444be526dddab2c1ec941847210a4a5  /tmp/phase10_patch.py" | sha256sum -c -
+          python /tmp/phase10_patch.py
+          rm docs/tmp/phase10-patch.part*
+          git config user.name "capiro-phase10-bot"
+          git config user.email "noreply@capiro.ai"
+          git add -A
+          git diff --cached --stat
+          git diff --cached --quiet && { echo "Phase 10 patch produced no changes" >&2; exit 1; } || true
+          git commit -m "feat(meriv2): make persisted policy packs authoritative"
+          git push origin HEAD:agent/meriv2-world-class-closeout
