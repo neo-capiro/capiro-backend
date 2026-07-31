@@ -1,0 +1,12 @@
+MeriV2 Phase 8 CI retrigger evidence
+
+This file intentionally changes no production or test runtime behavior.
+
+Reason: all required pull-request workflows for head b18d520c02ead55cc629a72a2832149d76520baf created jobs that terminated before executing any steps and exposed no job logs. A failed-jobs API rerun reproduced the same no-step/no-log result. This repository-native evidence-only commit retriggers the complete required PR workflow set as directed by the closeout plan.
+
+Moving baseline checked immediately before this commit:
+- main: 3dcb12f823774b6fae8578dc56fc122bf9a0879e
+- closeout branch: b18d520c02ead55cc629a72a2832149d76520baf
+- behind main: 0 commits
+
+No branch protection, workflow definition, test expectation, production runtime, migration, flag, AWS resource, customer data, Program Element behavior, or defense-budget behavior is changed by this file.
