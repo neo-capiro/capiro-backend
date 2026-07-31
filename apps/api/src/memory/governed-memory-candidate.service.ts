@@ -147,8 +147,8 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
   }
 
   /**
-   * Bounded proposer history. Client proposal bodies are redacted whenever the
-   * proposer no longer passes the current ethical wall, while status and the
+   * Bounded shared-proposal history. Client proposal bodies are redacted whenever
+   * the proposer no longer passes the current ethical wall, while status and the
    * ability to withdraw a still-pending row remain visible.
    */
   async listOwnProposals(
@@ -161,7 +161,11 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
       ctx.userId,
       async (tx) => {
         const rows = (await tx.memoryCandidate.findMany({
-          where: { tenantId: ctx.tenantId, proposedBy: ctx.userId },
+          where: {
+            tenantId: ctx.tenantId,
+            proposedBy: ctx.userId,
+            scope: { in: ['firm', 'client'] },
+          },
           orderBy: { createdAt: 'desc' },
           take: 50,
           select: {
