@@ -47,6 +47,10 @@ interface PendingCandidateRow {
   createdAt: Date;
 }
 
+type ImmutableReviewResult =
+  | Awaited<ReturnType<ImmutableMemoryVersionService['approveCandidate']>>
+  | Awaited<ReturnType<ImmutableMemoryVersionService['rejectCandidate']>>;
+
 export type MemoryReviewDecisionResult =
   | {
       candidateId: string;
@@ -54,9 +58,7 @@ export type MemoryReviewDecisionResult =
       outcome: 'activated' | 'rejected';
       memoryId?: string;
     }
-  | ({ candidateKind: Exclude<MemoryCandidateKind, 'standard'> } & Awaited<
-      ReturnType<ImmutableMemoryVersionService['approveCandidate']>
-    >);
+  | ({ candidateKind: Exclude<MemoryCandidateKind, 'standard'> } & ImmutableReviewResult);
 
 const VERSION_SOURCE_KIND = {
   memory_correction: 'correction',
@@ -91,8 +93,6 @@ export class MemoryCandidateReviewService {
     if (!this.enabled()) return { enabled: false, candidates: [] };
 
     const candidates = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      // Payload content is loaded only after the exact candidate passes the
-      // canonical authorization decision.
       const rows = await tx.memoryCandidate.findMany({
         where: { tenantId: ctx.tenantId, status: 'pending' },
         orderBy: { createdAt: 'asc' },
