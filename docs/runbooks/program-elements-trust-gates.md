@@ -128,3 +128,30 @@ Phase 8 verifies documentation and alarm **definitions** only — no schedule de
 
 Do not claim `test:pe-trust` green as human accuracy certification when goldens are synthetic.
 Accuracy numbers from synthetic goldens are n/a or non-certifying.
+
+## Phase 9 integrated release rehearsal
+
+One-command executable chain (closeout Phase 9) — **not** a substitute for independent review:
+
+```bash
+# Fast catalog + integrity
+pnpm -C apps/api run verify:pe-phase-9 -- --catalog-only
+pnpm -C apps/api run verify:pe-phase-9 -- --integrity-only
+
+# Full ordered rehearsal (long). Prefer after frozen install:
+pnpm install --frozen-lockfile
+pnpm -C apps/api run verify:pe-phase-9:full
+# or: pnpm -C apps/api exec tsx scripts/verify-pe-phase-9.ts --full --skip-install
+```
+
+Disposable clean + upgrade migrate replay only (Docker required):
+
+```bash
+bash apps/api/scripts/pe-phase-9-migration-replay.sh
+# never shared Aurora / staging / prod
+```
+
+Evidence lands under `docs/verification/program-elements-trust/phase-9/` when the full orchestrator runs.
+`PE_PHASE_9_OK` certifies the harness on the exact HEAD SHA only. Independent adversarial REVIEW must still PASS.
+Base-proven failures require `PE_PHASE_9_BASE_RESULTS_JSON` for classification; without it, required failures fail closed as branch-introduced.
+

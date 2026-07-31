@@ -148,9 +148,12 @@
     "verify:pe-phase-j": "jest --runInBand --detectOpenHandles --forceExit src/program-element/defense-budget-grounding.spec.ts src/program-element/program-element-field-ownership.spec.ts src/meri/meri-domain-fanout.helpers.spec.ts src/meri/meri-pe-structural.helpers.spec.ts src/meri/meri-defense-budget-tool.helpers.spec.ts src/meri/meri-tools.defense-budget.spec.ts src/meri/meri-defense-budget-phase-j.eval.spec.ts",
     "typecheck:pe-scripts": "tsc -p tsconfig.pe-scripts.json --noEmit",
     "lint:pe-scripts": "tsx scripts/lint-pe-scripts.ts",
-    "test:pe-trust": "jest --runInBand --forceExit src/intelligence/metrics/accuracy-metrics.spec.ts src/program-element/pe-trust-metric-catalog.spec.ts src/program-element/program-element-metrics.service.spec.ts scripts/lib/pe-production-scripts.spec.ts scripts/lib/pe-trust-diagnostics.spec.ts scripts/lib/pe-migration-guards.spec.ts scripts/lib/pe-phase-a-safety.spec.ts && tsx scripts/verify-pe-phase-k.ts",
+    "test:pe-trust": "jest --runInBand --forceExit src/intelligence/metrics/accuracy-metrics.spec.ts src/program-element/pe-trust-metric-catalog.spec.ts src/program-element/program-element-metrics.service.spec.ts scripts/lib/pe-production-scripts.spec.ts scripts/lib/pe-trust-diagnostics.spec.ts scripts/lib/pe-migration-guards.spec.ts scripts/lib/pe-phase-a-safety.spec.ts scripts/lib/pe-phase-9-rehearsal.spec.ts && tsx scripts/verify-pe-phase-k.ts",
     "verify:pe-phase-k": "pnpm run typecheck:pe-scripts && pnpm run lint:pe-scripts && pnpm run test:pe-trust && tsx scripts/verify-pe-migration-guards.ts",
-    "verify:pe-migration-guards": "tsx scripts/verify-pe-migration-guards.ts"
+    "verify:pe-migration-guards": "tsx scripts/verify-pe-migration-guards.ts",
+    "verify:pe-phase-9": "tsx scripts/verify-pe-phase-9.ts",
+    "verify:pe-phase-9:full": "tsx scripts/verify-pe-phase-9.ts --full --skip-install",
+    "rehearse:pe-phase-9-migrations": "bash scripts/pe-phase-9-migration-replay.sh"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.665.0",

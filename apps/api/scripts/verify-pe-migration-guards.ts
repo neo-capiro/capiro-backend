@@ -15,7 +15,7 @@
  */
 import { strict as assert } from 'node:assert';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   assertNoMigrationHistoryMutation,
@@ -71,43 +71,58 @@ function main(): void {
   );
 
   if (runValidateGenerate) {
-    const env = {
-      ...process.env,
-      DATABASE_URL:
-        process.env.DATABASE_URL ??
-        'postgresql://pe_gate:pe_gate@127.0.0.1:5432/pe_gate_offline?schema=public',
-    };
-    let validateCode = 0;
-    let generateCode = 0;
-    try {
-      execFileSync('pnpm', ['exec', 'prisma', 'validate'], {
-        cwd: apiRoot(),
-        env,
-        stdio: 'pipe',
+      const env = {
+        ...process.env,
+        DATABASE_URL:
+          process.env.DATABASE_URL ??
+          'postgresql://pe_gate:***@127.0.0.1:5432/pe_gate_offline?schema=public',
+      };
+      // Avoid pnpm/MSYS path doubling: invoke node + prisma build entry directly.
+      const nodeBin =
+        process.env.PE_PHASE_9_NODE ||
+        process.env.NODE_EXE ||
+        (existsSync('C:/Users/neoma/AppData/Local/hermes/node/node.exe')
+          ? 'C:/Users/neoma/AppData/Local/hermes/node/node.exe'
+          : 'node');
+      const prismaCandidates = [
+        resolve(apiRoot(), 'node_modules/prisma/build/index.js'),
+        resolve(apiRoot(), '../../node_modules/prisma/build/index.js'),
+      ];
+      const prismaJs = prismaCandidates.find((p) => existsSync(p));
+      if (!prismaJs) {
+        throw new Error('prisma build entry not found for validate/generate');
+      }
+      let validateCode = 0;
+      let generateCode = 0;
+      try {
+        execFileSync(nodeBin, [prismaJs, 'validate'], {
+          cwd: apiRoot(),
+          env,
+          stdio: 'pipe',
+        });
+      } catch (e) {
+        validateCode = (e as { status?: number }).status ?? 1;
+      }
+      try {
+        execFileSync(nodeBin, [prismaJs, 'generate'], {
+          cwd: apiRoot(),
+          env,
+          stdio: 'pipe',
+        });
+      } catch (e) {
+        generateCode = (e as { status?: number }).status ?? 1;
+      }
+      const interpreted = interpretPrismaValidateGenerate({
+        validateExitCode: validateCode,
+        generateExitCode: generateCode,
       });
-    } catch (e) {
-      validateCode = (e as { status?: number }).status ?? 1;
+      assert.equal(
+        interpreted.ok,
+        true,
+        interpreted.findings.map((f) => f.message).join('; '),
+      );
+      console.log('PE_MIGRATION_VALIDATE_GENERATE_OK');
     }
-    try {
-      execFileSync('pnpm', ['exec', 'prisma', 'generate'], {
-        cwd: apiRoot(),
-        env,
-        stdio: 'pipe',
-      });
-    } catch (e) {
-      generateCode = (e as { status?: number }).status ?? 1;
-    }
-    const interpreted = interpretPrismaValidateGenerate({
-      validateExitCode: validateCode,
-      generateExitCode: generateCode,
-    });
-    assert.equal(
-      interpreted.ok,
-      true,
-      interpreted.findings.map((f) => f.message).join('; '),
-    );
-    console.log('PE_MIGRATION_VALIDATE_GENERATE_OK');
-  }
 
   console.log('PE_MIGRATION_GUARDS_OK');
 }

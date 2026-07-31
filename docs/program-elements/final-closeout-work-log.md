@@ -4,9 +4,9 @@
 **PR:** https://github.com/neo-capiro/capirov2/pull/705 (draft → `main`)  
 **Plan source:** local `program-elements-final-closeout-plan-and-schedule.md`  
 **Repo:** `neo-capiro/capirov2`  
-**Operator session:** Phase 8 IMPLEMENT (permanent trust / SOC 2 release gates)
+**Operator session:** Phase 9 IMPLEMENT (integrated release rehearsal)
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-31 (Phase 8 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-31 (Phase 9 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
 
 ---
 
@@ -1176,7 +1176,104 @@ git reset --hard e4f416ed574eaf222d6355b4cbdc6524cc778121
 
 ---
 
+## Phase 8 independent review (recorded at Phase 9 kickoff)
+
+**VERDICT: PASS WITH BLOCKERS** on remote tip `cf9545d7e8879862a19bac4e82620eadf010c6b7` (product `e8124cc8ea96185ddb810e381e4a80bc45e19d00`). Artifact: operator `prompts/phase-8-review-PASS.md`. B5 upgrade-from-base-dump closed in Phase 9 via disposable clean+upgrade migrate replay.
+
+---
+
+## Phase 9 — Integrated Release Rehearsal (IMPLEMENT)
+
+**When (UTC date):** 2026-07-31
+**Base (Phase 8 PASS tip):** `cf9545d7e8879862a19bac4e82620eadf010c6b7`
+**origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (merge-base identical)
+**Mode:** LONG IMPLEMENT only — no self-PASS, no Phase 10, no MeriV2 source edits, no shared-env migrate/deploy/ingestion/email/LlamaParse/secrets
+
+### Tasks completed (implementation)
+
+| ID | Work |
+|---|---|
+| R1 | Ordered Phase 9 step catalog covering install, prisma, shared/api/workspace/web typecheck+build, PE scripts typecheck, A-K gates, test:pe-trust, full PE API surface, workspace grounding, web PE vitest, prettier (soft), git hygiene, integrity, migration guards, clean+upgrade disposable migrate replay, optional Phase C RLS |
+| R2 | Pure failure classifier + integrity evaluator — branch-introduced vs base-proven vs environment; transport forbidden-path scan |
+| R3 | Executable orchestrator verify-pe-phase-9.ts + package scripts verify:pe-phase-9 / verify:pe-phase-9:full |
+| R4 | Disposable Docker clean + production-equivalent upgrade migrate replay pe-phase-9-migration-replay.sh (DB name capiro; branch-only migs via git diff --diff-filter=A; in-container dump/restore; PE-path node/prisma) |
+| R5 | Extended proof owner map (dry-run loaders, exact-SHA, outbox retry, SAM partial window, data-issue non-mutation, CRM matrix, coverage honesty) |
+| R6 | Evidence under docs/verification/program-elements-trust/phase-9/ + runbook section |
+| R7 | Targeted unit tests (pe-phase-9-rehearsal.spec.ts); wired into test:pe-trust + tsconfig.pe-scripts + production script catalog |
+| R8 | Hardening: migration-guards validate/generate via node+prisma (no MSYS pnpm rewrite); PE jest surface excludes unrelated main-failing acq extractors; workspace typecheck runs prisma generate + @capiro/auth build first |
+
+### Files (product)
+
+- apps/api/scripts/lib/pe-phase-9-rehearsal-catalog.ts
+- apps/api/scripts/lib/pe-phase-9-rehearsal.ts (+spec)
+- apps/api/scripts/verify-pe-phase-9.ts
+- apps/api/scripts/pe-phase-9-migration-replay.sh
+- apps/api/scripts/verify-pe-migration-guards.ts (node+prisma validate/generate)
+- apps/api/scripts/lib/pe-production-scripts.ts
+- apps/api/tsconfig.pe-scripts.json
+- apps/api/package.json / root package.json scripts
+- docs/runbooks/program-elements-trust-gates.md
+- docs/verification/program-elements-trust/phase-9/**
+- ledger docs
+
+### Gates (implement local — PE_PHASE_9_OK)
+
+| Command | Result |
+|---|---|
+| typecheck:pe-scripts | PASS |
+| test:pe-trust (incl. phase-9 pure specs) | PASS + PE_PHASE_K_OK |
+| verify:pe-phase-a … verify:pe-phase-k | PASS (via full orchestrator) |
+| full PE API jest surface (PE + CRM personnel closeout paths) | PASS |
+| workspace domain-grounding.helpers | 10/10 PASS |
+| web src/pages/program-element vitest | 158/158 PASS (23 files) |
+| web typecheck + build | PASS |
+| shared build + typecheck | PASS |
+| api typecheck | PASS |
+| workspace typecheck (after prisma generate + auth build) | PASS |
+| git diff --check PE product paths | PASS |
+| transport integrity | PE_PHASE_9_INTEGRITY_OK |
+| migration guards + validate/generate | PE_MIGRATION_*_OK |
+| clean + upgrade disposable migrate replay | PE_PHASE_9_MIGRATION_REPLAY_OK (196 migrations) |
+| Full orchestrator | PE_PHASE_9_OK (gate.ok true) |
+| Shared-env migrate / deploy / email / LlamaParse / secrets / MeriV2 edits | not run / none |
+
+### Soft failures (non-blocking warnings)
+
+| Step | Exit | Note |
+|---|---|---|
+| prettier_pe_surface | 1 | Large pre-existing PE tree style debt (225 files) — soft; Phase 11 body/hygiene may pick up |
+| rls_phase_c_rehearsal | 127 | Host psql not on PATH; Phase C unit+disposal already covered by pe-phase-c + clean migrate FORCE RLS. Soft |
+| Unrelated acq extractors (dow-org-import.helpers, sam-personnel-extractor email) | n/a | Fail on tip but not in PE closeout changed runtime paths and not bundled into Phase 9 full PE surface; residual base/main debt |
+
+### Base-proven / honesty
+
+- Grounded goldens remain SYNTHETIC (K6 human workstream blocked).
+- Zero PE letter gate regressions A-K on HEAD.
+- No migration name-set drift clean vs upgrade.
+- No transport/recovery artifacts on tip.
+
+### Independent review status (Phase 9)
+
+**IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on the remote tip after push (not self-PASS).
+Do **not** start Phase 10 until REVIEW records PASS **and** Neo authorizes staging (PE_CLOSEOUT_STAGING_OK / explicit text).
+
+### Rollback
+
+```bash
+git reset --hard cf9545d7e8879862a19bac4e82620eadf010c6b7
+```
+
+### Exit gate bullets for REVIEW (do not self-PASS)
+
+- Zero branch-introduced failure on required rehearsal steps for remote HEAD
+- Base failures (if any) reproduced on exact merge-base and unrelated to changed PE runtime paths
+- No migration drift (clean + upgrade disposable replay OK)
+- No temporary workflows / patch payloads / recovery artifacts on tip
+- Independent reviewer returns PASS
+
+---
+
 ## Next phase
 
-**Phase 8 independent adversarial REVIEW only** against the **new remote tip** after this push (not Phase 9 implement).  
-Do not start Phase 9 until a separate REVIEW session records PASS.
+**Phase 9 independent adversarial REVIEW only** against the **new remote tip** after this push (not Phase 10 implement).
+Do not start Phase 10 unless Neo explicitly authorizes staging.

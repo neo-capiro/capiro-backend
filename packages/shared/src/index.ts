@@ -3968,4 +3968,3 @@ export function applicantTypeKey(value: string): string {
 // Import FundingClaim helpers from '@capiro/shared/funding-claim' (subpath export).
 // Kept out of this single-file barrel so Vite/Rollup named-export tracing for the
 // main entry stays intact (same pattern as './money').
-

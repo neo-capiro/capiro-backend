@@ -814,4 +814,3 @@ describe('AcquisitionPersonnelReadService.linkCrmContact contact-use gate', () =
     expect(getLinked()).toBe(false);
   });
 });
-
