@@ -2,19 +2,15 @@ import { useState } from 'react';
 import { Alert, Card, Segmented, Space, Typography } from 'antd';
 import { useMe } from '../../lib/me.js';
 import { MemoryFileEditor } from '../../components/MemoryFileEditor.js';
-import { MemoryGovernanceCenter } from '../../components/MemoryGovernanceCenter.js';
-import { MemoryProposalQueue } from '../../components/MemoryProposalQueue.js';
-import { MemoryReviewQueue } from '../../components/MemoryReviewQueue.js';
+import { MemoryGovernanceCenterHost } from '../../components/MemoryGovernanceCenterHost.js';
 
 const { Text, Title } = Typography;
 
 /**
  * Settings → Memory.
  *
- * Administrators receive the dark, server-authorized Governance Center plus the
- * existing editable memory files. Standard users retain their owner-scoped
- * proposal queue and any grant-authorized review queue; they never receive the
- * administration read model or grant-management controls.
+ * The Governance Center host preserves standard-user queues and the pre-Phase-15
+ * administrator experience until the server explicitly arms the new center.
  */
 export function MemorySettingsPage() {
   const me = useMe();
@@ -26,14 +22,7 @@ export function MemorySettingsPage() {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      {isAdmin ? (
-        <MemoryGovernanceCenter isAdmin />
-      ) : (
-        <>
-          <MemoryProposalQueue />
-          <MemoryReviewQueue />
-        </>
-      )}
+      <MemoryGovernanceCenterHost isAdmin={isAdmin} />
 
       <Card>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
