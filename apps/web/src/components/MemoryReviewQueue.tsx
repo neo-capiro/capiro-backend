@@ -60,6 +60,21 @@ export function candidateRejectRequiresReason(candidate: ReviewableMemoryCandida
   return candidate.candidateKind !== 'standard';
 }
 
+export function memoryReviewOutcomeMessage(
+  result: Record<string, unknown>,
+  decision: 'approve' | 'reject',
+): string {
+  const outcome = String(result.outcome ?? decision);
+  const kind = String(result.candidateKind ?? 'standard');
+  if (outcome === 'activated') {
+    return kind === 'standard' ? 'Memory approved' : 'Memory version activated';
+  }
+  if (outcome === 'duplicate') return 'Existing controlling memory confirmed';
+  if (outcome === 'conflict') return 'Memory conflict opened for resolution';
+  if (outcome === 'rejected' || decision === 'reject') return 'Memory rejected';
+  return decision === 'approve' ? 'Memory approved' : 'Memory rejected';
+}
+
 export function shouldRenderMemoryReviewQueue(response: ReviewQueueResponse | undefined): boolean {
   return response?.enabled === true && response.candidates.length > 0;
 }
@@ -87,14 +102,7 @@ export function MemoryReviewQueue() {
         })
       ).data,
     onSuccess: (result: Record<string, unknown>, input) => {
-      const outcome = String(result.outcome ?? input.decision);
-      message.success(
-        outcome === 'activated'
-          ? 'Memory version activated'
-          : input.decision === 'approve'
-            ? 'Memory approved'
-            : 'Memory rejected',
-      );
+      message.success(memoryReviewOutcomeMessage(result, input.decision));
       setRejecting(null);
       setRejectReason('');
       qc.invalidateQueries({ queryKey: ['memory-review-candidates'] });
