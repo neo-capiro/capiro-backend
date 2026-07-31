@@ -9,6 +9,7 @@ import { MemoryIngestService } from './memory-ingest.service.js';
 import { GovernedMemoryIngestService } from './governed-memory-ingest.service.js';
 import { MemoryInterviewService } from './memory-interview.service.js';
 import { MemoryCandidateService } from './memory-candidate.service.js';
+import { GovernedMemoryCandidateService } from './governed-memory-candidate.service.js';
 import { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryAccessGrantService } from './memory-access-grant.service.js';
@@ -23,6 +24,7 @@ import { MemoryPurgeService } from './memory-purge.service.js';
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
 import { MemoryController } from './memory.controller.js';
 import { MemoryReviewController } from './memory-review.controller.js';
+import { MemoryProposalController } from './memory-proposal.controller.js';
 import { MemoryVersionController } from './memory-version.controller.js';
 import { InternalMemoryController } from './internal-memory.controller.js';
 
@@ -37,6 +39,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
   controllers: [
     MemoryController,
     MemoryReviewController,
+    MemoryProposalController,
     MemoryVersionController,
     InternalMemoryController,
   ],
@@ -49,7 +52,8 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     GovernedMemoryIngestService,
     { provide: MemoryIngestService, useExisting: GovernedMemoryIngestService },
     MemoryInterviewService,
-    MemoryCandidateService,
+    GovernedMemoryCandidateService,
+    { provide: MemoryCandidateService, useExisting: GovernedMemoryCandidateService },
     MemoryCandidateReviewService,
     MemoryAuthorizationService,
     MemoryAccessGrantService,
@@ -66,6 +70,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     MemoryStoreService,
     MemoryIngestService,
     MemoryCandidateService,
+    GovernedMemoryCandidateService,
     MemoryCandidateReviewService,
     MemoryAuthorizationService,
     ImmutableMemoryVersionService,
