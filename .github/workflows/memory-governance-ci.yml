@@ -61,6 +61,11 @@ jobs:
       - name: Replay all API migrations on clean Postgres
         run: pnpm --filter @capiro/api exec prisma migrate deploy
 
+      - name: Build packages required by the governance-backfill operator
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/meriv2-core build
+
       - name: Prove policy-pack reviewer concurrency and rollback transitions
         run: bash apps/api/scripts/test-policy-pack-lifecycle-concurrency.sh
 
