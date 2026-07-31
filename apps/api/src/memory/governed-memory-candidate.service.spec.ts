@@ -75,6 +75,7 @@ function harness(options: {
     clientId: options.scope === 'firm' ? null : CLIENT,
     sourceKind: 'settings_sections',
     decidedBy: null as string | null,
+    decidedAt: null as Date | null,
   };
   const audits: Array<Record<string, unknown>> = [];
   const payload = {
@@ -90,22 +91,21 @@ function harness(options: {
         state.status = String(args.data.status ?? state.status);
         state.governedStatus = String(args.data.governedStatus ?? state.governedStatus);
         state.decidedBy = (args.data.decidedBy as string | null) ?? state.decidedBy;
+        state.decidedAt = (args.data.decidedAt as Date | null) ?? state.decidedAt;
         return {};
       }),
-      findMany: jest.fn(async () =>
-        state.status === 'pending'
-          ? [
-              {
-                id: CANDIDATE,
-                clientId: state.clientId,
-                proposedBy: state.proposedBy,
-                sourceKind: state.sourceKind,
-                scope: state.scope,
-                createdAt: new Date('2026-07-31T12:00:00.000Z'),
-              },
-            ]
-          : [],
-      ),
+      findMany: jest.fn(async () => [
+        {
+          id: CANDIDATE,
+          clientId: state.clientId,
+          proposedBy: state.proposedBy,
+          sourceKind: state.sourceKind,
+          scope: state.scope,
+          status: state.status,
+          createdAt: new Date('2026-07-31T12:00:00.000Z'),
+          decidedAt: state.decidedAt,
+        },
+      ]),
       findFirst,
     },
     memoryTransitionAudit: {
@@ -205,6 +205,36 @@ describe('GovernedMemoryCandidateService Phase 13 dispositions', () => {
     });
   });
 
+  it('shows withdrawal and reviewer rejection as distinct proposer history outcomes', async () => {
+    await withReviewSurface(true, async () => {
+      const withdrawn = harness();
+      await withdrawn.service.withdraw(proposerCtx, CANDIDATE);
+      await expect(withdrawn.service.listOwnProposals(proposerCtx)).resolves.toEqual({
+        enabled: true,
+        candidates: [
+          expect.objectContaining({
+            id: CANDIDATE,
+            status: 'withdrawn',
+            capabilities: { withdraw: false },
+          }),
+        ],
+      });
+
+      const rejected = harness();
+      await rejected.service.reject(TENANT, CANDIDATE, REVIEWER, reviewerCtx);
+      await expect(rejected.service.listOwnProposals(proposerCtx)).resolves.toEqual({
+        enabled: true,
+        candidates: [
+          expect.objectContaining({
+            id: CANDIDATE,
+            status: 'rejected',
+            capabilities: { withdraw: false },
+          }),
+        ],
+      });
+    });
+  });
+
   it('denies withdrawal by anybody other than the proposer', async () => {
     await withReviewSurface(true, async () => {
       const h = harness();
@@ -255,12 +285,13 @@ describe('GovernedMemoryCandidateService Phase 13 dispositions', () => {
   it('redacts a walled proposal body but still lets its proposer withdraw it', async () => {
     await withReviewSurface(true, async () => {
       const h = harness({ wallAllowed: false });
-      const listed = await h.service.listOwnPending(proposerCtx);
+      const listed = await h.service.listOwnProposals(proposerCtx);
       expect(listed).toEqual({
         enabled: true,
         candidates: [
           expect.objectContaining({
             id: CANDIDATE,
+            status: 'pending',
             restricted: true,
             proposal: null,
             capabilities: { withdraw: true },
@@ -275,7 +306,7 @@ describe('GovernedMemoryCandidateService Phase 13 dispositions', () => {
   it('stays dark and mutation-free until the review surface is explicitly armed', async () => {
     await withReviewSurface(false, async () => {
       const h = harness();
-      await expect(h.service.listOwnPending(proposerCtx)).resolves.toEqual({
+      await expect(h.service.listOwnProposals(proposerCtx)).resolves.toEqual({
         enabled: false,
         candidates: [],
       });
