@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   ContextPacketRolloutCompiler,
@@ -7,6 +7,7 @@ import {
   resolveContextPacketMode,
   resolveTenantContextPacketMode,
   type CompiledContextPacket,
+  type ContextPacketMode,
   type ContextPacketRolloutStoreAdapter,
   type ContextPacketShadowComparison,
   type ContextRequest,
@@ -21,6 +22,7 @@ import {
   governedRecallSuppressionEnabled,
   governedRecallSuppressionSql,
 } from '../memory/memory-recall-suppression.helpers.js';
+import { ContextPersistenceBoundaryService } from './context-persistence-boundary.service.js';
 
 /** apps/api adapter and server-owned Phase 8 rollout resolver. */
 @Injectable()
@@ -28,7 +30,10 @@ export class ContextCompilerService {
   private readonly logger = new Logger(ContextCompilerService.name);
   private readonly compiler: ContextPacketRolloutCompiler;
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly persistenceBoundary?: ContextPersistenceBoundaryService,
+  ) {
     const adapter: ContextPacketRolloutStoreAdapter = {
       loadSteeringRows: (req) => this.loadSteeringRows(req),
       loadGovernedSteeringRows: (req) => this.loadSteeringRows(req, { governed: true }),
@@ -39,15 +44,28 @@ export class ContextCompilerService {
   }
 
   async compile(req: ContextRequest): Promise<CompiledContextPacket> {
-    const mode = await this.rolloutMode(req.tenantId, req.surface);
+    const mode = await this.modeFor(req.tenantId, req.surface);
     const ethicalWallAllowed = await this.ethicalWallAllowed(req);
-    return this.compiler.compile({ ...req, ethicalWallAllowed }, mode);
+    try {
+      return await this.compiler.compile({ ...req, ethicalWallAllowed }, mode);
+    } catch (error) {
+      // Preserve the exact bounded persistence error even when a legacy caller
+      // catches ordinary context failures and continues. The global boundary
+      // interceptor checks this request-local record before releasing output.
+      this.persistenceBoundary?.record(error);
+      throw error;
+    }
+  }
+
+  /** Server-owned rollout resolution for adapters that must preserve off/shadow output. */
+  modeFor(tenantId: string, surface: ContextRequest['surface']): Promise<ContextPacketMode> {
+    return this.rolloutMode(tenantId, surface);
   }
 
   private async rolloutMode(
     tenantId: string,
     surface: ContextRequest['surface'],
-  ): Promise<ReturnType<typeof resolveContextPacketMode>> {
+  ): Promise<ContextPacketMode> {
     const ceiling = resolveContextPacketMode(process.env[MERIV2_CONTEXT_PACKET_V2_ENV]);
     if (ceiling === 'off') return 'off';
     try {
@@ -60,7 +78,9 @@ export class ContextCompilerService {
         surface,
       );
     } catch {
-      this.logger.warn('Context Packet tenant canary lookup failed closed (context_packet_canary_lookup_failed)');
+      this.logger.warn(
+        'Context Packet tenant canary lookup failed closed (context_packet_canary_lookup_failed)',
+      );
       return 'off';
     }
   }
@@ -74,7 +94,9 @@ export class ContextCompilerService {
         ? await this.prisma.withTenantUser(req.tenantId, req.userId, run)
         : await this.prisma.withTenant(req.tenantId, run);
     } catch {
-      this.logger.warn('Context Packet ethical-wall lookup failed closed (context_packet_wall_lookup_failed)');
+      this.logger.warn(
+        'Context Packet ethical-wall lookup failed closed (context_packet_wall_lookup_failed)',
+      );
       return false;
     }
   }
