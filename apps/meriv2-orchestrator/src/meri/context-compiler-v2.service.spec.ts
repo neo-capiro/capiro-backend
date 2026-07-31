@@ -17,6 +17,8 @@ describe('OrchestratorContextCompilerService — Phase 8', () => {
     title: 'Firm Soul',
     clientId: null,
     status: 'active',
+    legacyStatus: 'active',
+    governedStatus: 'active',
     sections: [{ owner: 'human', heading: 'Who', body: 'We are a GA firm.' }],
     visibility: 'tenant',
     ownerUserId: null,
@@ -114,12 +116,38 @@ describe('OrchestratorContextCompilerService — Phase 8', () => {
     const select = selectListOf(queries[0]);
     expect(select).toContain('memory_class AS "memoryClass"');
     expect(select).toContain('approved_by_user_id AS "approvedByUserId"');
+    expect(select).toContain('status AS "legacyStatus"');
+    expect(select).toContain('governed_status AS "governedStatus"');
     expect(select).not.toContain('source_excerpt');
     const data = packetCreates[0]!.data;
     expect(data.packetVersion).toBe(2);
     expect(data.compilerVersion).toBe('context-compiler-v2.1');
     expect(data.effectiveTenantId).toBe('effective-t1');
     expect(packet.persisted).toBe(true);
+  });
+
+  it('Strategy uses governed lifecycle rather than legacy status', async () => {
+    process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
+    const { prisma } = makePrisma([
+      {
+        ...ROW,
+        status: 'active',
+        legacyStatus: 'active',
+        governedStatus: 'superseded',
+      },
+    ]);
+    const packet = await new OrchestratorContextCompilerService(prisma).compile({
+      tenantId: 't1',
+      userId: 'u1',
+      surface: 'strategy',
+      layers: ['firm-identity'],
+    });
+    expect(packet.version).toBe(2);
+    if (packet.version !== 2) throw new Error('expected v2');
+    expect(packet.items).toEqual([]);
+    expect(packet.exclusions).toEqual([
+      expect.objectContaining({ id: ROW.id, reason: 'superseded' }),
+    ]);
   });
 
   it('tenant umbrella without the exact surface canary stays on v1 under global enforce', async () => {

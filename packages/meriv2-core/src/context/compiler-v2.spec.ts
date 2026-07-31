@@ -20,6 +20,8 @@ const row = (over: Partial<SteeringRow> = {}): SteeringRow => ({
   ownerUserId: null,
   visibility: 'tenant',
   status: 'active',
+  legacyStatus: 'active',
+  governedStatus: 'active',
   expiresAt: null,
   updatedAt: '2026-07-20T00:00:00.000Z',
   confirmedAt: '2026-07-20T00:00:00.000Z',
@@ -91,6 +93,7 @@ describe('ContextPacket v2 deterministic compilation', () => {
         scope: 'firm',
         authority: 'firm_approved',
         status: 'active',
+        legacyStatus: 'active',
         sourceType: 'firm_playbook',
         sourceId: 'source-1',
         sourceVersion: 'v3',
@@ -104,6 +107,7 @@ describe('ContextPacket v2 deterministic compilation', () => {
     );
     expect(packet.rendered[0]?.body).toContain('<context_item');
     expect(packet.rendered[0]?.body).toContain('instructions_allowed=false');
+    expect(packet.rendered[0]?.body).toContain('status="active"');
     expect(packet.rendered[0]?.body).toContain(
       'Capiro is a government-affairs operating platform.',
     );
@@ -270,6 +274,75 @@ describe('ContextPacket v2 deterministic compilation', () => {
     expect(withheld.every((item) => item.id === undefined)).toBe(true);
     expect(withheld.every((item) => item.type === undefined)).toBe(true);
     expect(withheld.every((item) => item.slug === undefined)).toBe(true);
+  });
+
+  it('uses governed status for every lifecycle decision and never legacy status', async () => {
+    const statuses = [
+      'suggested',
+      'pending_review',
+      'active',
+      'stale',
+      'rejected',
+      'superseded',
+      'revoked',
+      'expired',
+    ] as const;
+    const rows: SteeringRow[] = statuses.map((status) =>
+      row({
+        id: status,
+        status: 'active',
+        legacyStatus: 'active',
+        governedStatus: status,
+      }),
+    );
+    rows.push(
+      row({
+        id: 'conflicted-controlling',
+        status: 'active',
+        legacyStatus: 'active',
+        governedStatus: 'conflicted',
+        conflictStatus: 'open',
+        conflictGroupId: 'group-1',
+        controllingItemId: 'conflicted-controlling',
+      }),
+      row({
+        id: 'conflicted-noncontrolling',
+        status: 'active',
+        legacyStatus: 'active',
+        governedStatus: 'conflicted',
+        conflictStatus: 'open',
+        conflictGroupId: 'group-1',
+        controllingItemId: 'conflicted-controlling',
+      }),
+    );
+    const packet = v2(
+      await compilerFor(rows).compiler.compile(
+        request({ clientId: null, layers: ['firm-identity'] }),
+      ),
+    );
+    expect(packet.items.map((item) => item.id)).toEqual([
+      'active',
+      'stale',
+      'conflicted-controlling',
+    ]);
+    expect(packet.items.map((item) => item.status)).toEqual(['active', 'stale', 'conflicted']);
+    expect(packet.items.every((item) => item.legacyStatus === 'active')).toBe(true);
+    expect(Object.fromEntries(packet.exclusions.map((item) => [item.id, item.reason]))).toEqual({
+      suggested: 'unapproved',
+      pending_review: 'unapproved',
+      rejected: 'rejected',
+      superseded: 'superseded',
+      revoked: 'revoked',
+      expired: 'expired',
+      'conflicted-noncontrolling': 'conflicted',
+    });
+    expect(packet.health.status).toBe('conflicted');
+    expect(packet.health.reasons).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('governed conflict'),
+        expect.stringContaining('stale context item'),
+      ]),
+    );
   });
 
   it('records token budgeting, omitted sections and incomplete health', async () => {

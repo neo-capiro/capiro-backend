@@ -258,6 +258,32 @@ export function classRequiresApproval(memoryClass: MemoryClass): boolean {
 export const TERMINAL_GOVERNED_STATUSES = ['revoked', 'superseded', 'rejected', 'expired'] as const;
 export type TerminalGovernedStatus = (typeof TERMINAL_GOVERNED_STATUSES)[number];
 
+export const RECALLABLE_GOVERNED_STATUSES = ['active', 'stale', 'conflicted'] as const;
+
+/**
+ * The single in-memory lifecycle predicate for v2 and direct governed recall.
+ * A conflicted row is usable only when it is the explicitly designated
+ * controlling item for the unresolved group. Noncontrolling claims are withheld.
+ */
+export function governedRecallEligible(
+  record: Pick<
+    GovernedMemoryRecord,
+    'id' | 'status' | 'conflictStatus' | 'controllingItemId'
+  >,
+): boolean {
+  const unresolved =
+    record.conflictStatus === 'open' || record.conflictStatus === 'controlling';
+  const controls = record.controllingItemId === record.id;
+
+  if (record.status === 'active' || record.status === 'stale') {
+    return !unresolved || controls;
+  }
+  if (record.status === 'conflicted') {
+    return unresolved && controls;
+  }
+  return false;
+}
+
 /**
  * Arms the governed-memory lifecycle (classification writes, transition audit,
  * recall suppression, cleanup outbox). DARK BY DEFAULT: true only for the exact
@@ -277,7 +303,6 @@ export function governedMemoryLifecycleEnabled(raw: string | undefined): boolean
   );
 }
 
-const TERMINAL_SQL_LIST = TERMINAL_GOVERNED_STATUSES.map((s) => `'${s}'`).join(',');
 const SAFE_SQL_ALIAS = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
@@ -296,13 +321,36 @@ const SAFE_SQL_ALIAS = /^[A-Za-z_][A-Za-z0-9_]*$/;
  * is validated against an identifier pattern and throws otherwise. Pass '' for an
  * unaliased `FROM memory_items`.
  */
+export function governedRecallEligibilitySql(alias = ''): string {
+  if (alias !== '' && !SAFE_SQL_ALIAS.test(alias)) {
+    throw new Error(`governedRecallEligibilitySql: unsafe alias ${JSON.stringify(alias)}`);
+  }
+  const prefix = alias ? `${alias}.` : '';
+  const status = `${prefix}governed_status`;
+  const conflict = `${prefix}conflict_status`;
+  const controlling = `${prefix}controlling_item_id`;
+  const id = `${prefix}id`;
+
+  return `(
+              (
+                ${status} IN ('active', 'stale')
+                AND (
+                  COALESCE(${conflict}, 'none') NOT IN ('open', 'controlling')
+                  OR ${controlling} = ${id}
+                )
+              )
+              OR (
+                ${status} = 'conflicted'
+                AND COALESCE(${conflict}, 'none') IN ('open', 'controlling')
+                AND ${controlling} = ${id}
+              )
+            )`;
+}
+
 export function governedRecallSuppressionSql(enabled: boolean, alias = ''): string {
   if (!enabled) return '';
-  if (alias !== '' && !SAFE_SQL_ALIAS.test(alias)) {
-    throw new Error(`governedRecallSuppressionSql: unsafe alias ${JSON.stringify(alias)}`);
-  }
-  const column = alias ? `${alias}.governed_status` : 'governed_status';
-  return `\n            AND ${column} NOT IN (${TERMINAL_SQL_LIST})`;
+  return `
+            AND ${governedRecallEligibilitySql(alias)}`;
 }
 
 export function hasHumanApproval(
@@ -382,7 +430,14 @@ export function filterGovernedMemory(
     // failure mode of an unset authorization input must be denial.
     if (access.ethicalWallAllowed !== true) return { include: false, reason: 'ethical_wall' };
   }
-  if (!['active', 'stale'].includes(record.status)) {
+  if (!governedRecallEligible(record)) {
+    if (
+      record.status === 'conflicted' ||
+      record.conflictStatus === 'open' ||
+      record.conflictStatus === 'controlling'
+    ) {
+      return { include: false, reason: 'conflict_unresolved' };
+    }
     return { include: false, reason: 'inactive_status' };
   }
   if (record.validUntil && dateMs(record.validUntil) <= now.getTime()) {
@@ -408,12 +463,6 @@ export function filterGovernedMemory(
   }
   if (policy.requiresHumanApproval && !fourEyesSatisfied(record, access.fourEyesEnabled ?? false)) {
     return { include: false, reason: 'unapproved' };
-  }
-  if (
-    record.conflictStatus === 'open' &&
-    (!record.controllingItemId || record.controllingItemId !== record.id)
-  ) {
-    return { include: false, reason: 'conflict_unresolved' };
   }
   const allowed = new Set(access.allowedSensitivities ?? ['normal']);
   if (!allowed.has(record.sensitivity ?? 'normal')) {
@@ -509,7 +558,12 @@ export function scoreGovernedMemory(input: RecallScoreInput): RecallScoreExplana
   const freshness = Math.pow(2, -ageDays / 180);
   const confirmation = record.lastConfirmedAt ? Math.pow(2, -ageDays / 365) : 0.5;
   const confidence = record.confidence == null ? 0.5 : clamp01(record.confidence);
-  const conflictPenalty = record.conflictStatus === 'open' ? 1 : 0;
+  const conflictPenalty =
+    record.status === 'conflicted' ||
+    record.conflictStatus === 'open' ||
+    record.conflictStatus === 'controlling'
+      ? 1
+      : 0;
   const withinBand =
     semantic * weights.semantic +
     freshness * weights.freshness +

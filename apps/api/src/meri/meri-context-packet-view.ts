@@ -30,6 +30,8 @@ interface StoredItem {
   layer?: unknown;
   rationale?: unknown;
   authority?: unknown;
+  status?: unknown;
+  legacyStatus?: unknown;
   selectionTier?: unknown;
   inclusionReason?: unknown;
   scope?: unknown;
@@ -129,6 +131,7 @@ export function contextPacketView(
           type: String(item.type),
           scope,
           authority: authorityOf(item.authority) ?? 'human-authored',
+          ...(text(item.status) ? { status: String(item.status) } : {}),
           ...(scope === 'client' && clientName ? { clientName } : {}),
           userScoped: scope === 'personal',
           rationale: text(item.rationale) ?? text(item.inclusionReason),

@@ -177,6 +177,8 @@ export class ContextCompiler {
       tier: ContextSelectionTier;
     }> = [];
     const now = req.now ?? new Date();
+    let staleCount = 0;
+    let conflictCount = 0;
 
     for (const layer of req.layers) {
       for (const row of grouped.get(layer) ?? []) {
@@ -195,8 +197,19 @@ export class ContextCompiler {
           now,
         });
         if (!decision.include) {
-          exclusions.push(exclusionFor(row, layer, suppressionToExclusion(decision.reason)));
+          if (decision.reason === 'conflict_unresolved') conflictCount += 1;
+          exclusions.push(
+            exclusionFor(row, layer, suppressionToExclusion(decision.reason, record.status)),
+          );
           continue;
+        }
+        if (record.status === 'stale') staleCount += 1;
+        if (
+          record.status === 'conflicted' ||
+          record.conflictStatus === 'open' ||
+          record.conflictStatus === 'controlling'
+        ) {
+          conflictCount += 1;
         }
         const tier = selectionTier(record);
         const score = scoreGovernedMemory({
@@ -270,6 +283,7 @@ export class ContextCompiler {
         ownerUserId: record.ownerUserId ?? null,
         authority: record.authority,
         status: record.status,
+        legacyStatus: row.legacyStatus ?? row.status ?? null,
         sourceType: record.sourceType,
         sourceId: record.sourceId ?? null,
         sourceRef: record.sourceRef ?? null,
@@ -319,7 +333,6 @@ export class ContextCompiler {
 
     const includedLayers = new Set(items.map((item) => item.layer));
     const missingRequiredLayers = req.layers.filter((layer) => !includedLayers.has(layer));
-    const conflictCount = exclusions.filter((item) => item.reason === 'conflicted').length;
     const sourceFailureCount = exclusions.filter((item) =>
       ['source-missing', 'unavailable'].includes(item.reason),
     ).length;
@@ -327,13 +340,14 @@ export class ContextCompiler {
       ...(missingRequiredLayers.length
         ? [`Missing required layers: ${missingRequiredLayers.join(', ')}`]
         : []),
-      ...(conflictCount ? [`${conflictCount} unresolved conflict(s) withheld`] : []),
+      ...(conflictCount ? [`${conflictCount} governed conflict(s) present or withheld`] : []),
+      ...(staleCount ? [`${staleCount} stale context item(s) included pending review`] : []),
       ...(sourceFailureCount ? [`${sourceFailureCount} source failure(s)`] : []),
       ...(truncated ? ['Context budget truncated one or more items or sections'] : []),
     ];
     const healthStatus = conflictCount
       ? 'conflicted'
-      : sourceFailureCount || missingRequiredLayers.length
+      : sourceFailureCount || missingRequiredLayers.length || staleCount
         ? 'degraded'
         : truncated
           ? 'incomplete'
@@ -462,7 +476,9 @@ function governedRecord(
   });
   const memoryClass = isMemoryClass(row.memoryClass) ? row.memoryClass : legacy.memoryClass;
   const authority = isAuthority(row.governedAuthority) ? row.governedAuthority : legacy.authority;
-  const status = isStatus(row.status) ? row.status : legacy.status;
+  // v2 lifecycle is governed_status only. Missing or invalid governed
+  // state is quarantined instead of inheriting a permissive legacy status.
+  const status = isStatus(row.governedStatus) ? row.governedStatus : 'pending_review';
   const scope = row.clientId
     ? 'client'
     : row.visibility === 'user' || row.ownerUserId
@@ -529,13 +545,24 @@ function exclusionFor(
   return { layer, id: row.id, type: row.type, slug: row.slug, reason };
 }
 
-function suppressionToExclusion(reason: string): ContextExclusion['reason'] {
+function suppressionToExclusion(
+  reason: string,
+  status: GovernedMemoryStatus,
+): ContextExclusion['reason'] {
+  if (reason === 'inactive_status') {
+    if (status === 'suggested' || status === 'pending_review') return 'unapproved';
+    if (status === 'rejected') return 'rejected';
+    if (status === 'superseded') return 'superseded';
+    if (status === 'revoked') return 'revoked';
+    if (status === 'expired') return 'expired';
+    if (status === 'conflicted') return 'conflicted';
+    return 'unavailable';
+  }
   const map: Record<string, ContextExclusion['reason']> = {
     wrong_tenant: 'unauthorized',
     wrong_user: 'unauthorized',
     wrong_client: 'wrong-client',
     ethical_wall: 'unauthorized',
-    inactive_status: 'revoked',
     invalid_until: 'invalid-until',
     unapproved: 'unapproved',
     sensitivity_denied: 'sensitivity-denied',
@@ -582,6 +609,7 @@ function typedContextBlock(
     `source_id=${JSON.stringify(record.sourceId ?? row.id)}`,
     `memory_class=${JSON.stringify(record.memoryClass)}`,
     `authority=${JSON.stringify(record.authority)}`,
+    `status=${JSON.stringify(record.status)}`,
     `scope=${JSON.stringify(record.scope)}`,
     `client_id=${JSON.stringify(record.clientId ?? '')}`,
     `as_of=${JSON.stringify(iso(record.asOf) ?? '')}`,
@@ -593,7 +621,8 @@ function typedContextBlock(
 function compareSteeringRows(a: SteeringRow, b: SteeringRow): number {
   return (
     typeRank(a.type) - typeRank(b.type) ||
-    statusRank(a.status) - statusRank(b.status) ||
+    statusRank(a.governedStatus ?? a.status) -
+      statusRank(b.governedStatus ?? b.status) ||
     compareNullableText(a.governedAuthority ?? a.authority, b.governedAuthority ?? b.authority) ||
     compareDateDesc(a.confirmedAt, b.confirmedAt) ||
     compareDateDesc(a.updatedAt, b.updatedAt) ||

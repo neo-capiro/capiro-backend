@@ -20,6 +20,8 @@ describe('ContextCompilerService — Phase 8', () => {
     title: 'Firm Soul',
     clientId: null,
     status: 'active',
+    legacyStatus: 'active',
+    governedStatus: 'active',
     sections: [{ owner: 'human', heading: 'Who', body: 'We are a GA firm.' }],
     visibility: 'tenant',
     ownerUserId: null,
@@ -137,6 +139,8 @@ describe('ContextCompilerService — Phase 8', () => {
     const sql = selectListOf(queries[0]);
     expect(sql).toContain('memory_class AS "memoryClass"');
     expect(sql).toContain('approved_by_user_id AS "approvedByUserId"');
+    expect(sql).toContain('status AS "legacyStatus"');
+    expect(sql).toContain('governed_status AS "governedStatus"');
     expect(sql).not.toContain('source_excerpt');
   });
 
@@ -176,6 +180,30 @@ describe('ContextCompilerService — Phase 8', () => {
     expect(data.effectiveTenantId).toBe('effective-t1');
     expect(JSON.stringify(data.items)).not.toContain('We are a GA firm.');
     expect(packet.persisted).toBe(true);
+  });
+
+  it('legacy active cannot override governed revoked', async () => {
+    process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
+    const { prisma } = makePrisma([
+      {
+        ...APPROVED_FIRM_ROW,
+        status: 'active',
+        legacyStatus: 'active',
+        governedStatus: 'revoked',
+      },
+    ]);
+    const packet = await new ContextCompilerService(prisma).compile({
+      tenantId: 't1',
+      userId: 'u1',
+      surface: 'in-editor',
+      layers: ['firm-identity'],
+    });
+    expect(packet.version).toBe(2);
+    if (packet.version !== 2) throw new Error('expected v2');
+    expect(packet.items).toEqual([]);
+    expect(packet.exclusions).toEqual([
+      expect.objectContaining({ id: APPROVED_FIRM_ROW.id, reason: 'revoked' }),
+    ]);
   });
 
   it('shadow persists both traces, returns unchanged v1, and records comparison evidence', async () => {

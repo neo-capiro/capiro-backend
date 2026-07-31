@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   governedClioSuppressionSql,
+  governedRecallEligibilitySql,
   governedRecallSuppressionEnabled,
   governedRecallSuppressionSql,
   TERMINAL_GOVERNED_STATUSES,
@@ -18,26 +19,23 @@ describe('governedRecallSuppressionSql', () => {
     expect(governedRecallSuppressionSql(false, 'mi')).toBe('');
   });
 
-  it('suppresses exactly the four terminal statuses when armed', () => {
+  it('uses the exact active/stale/controlling-conflict predicate when armed', () => {
     const sql = governedRecallSuppressionSql(true, 'mi');
-    expect(sql).toContain('mi.governed_status NOT IN');
+    expect(sql).toContain("mi.governed_status IN ('active', 'stale')");
+    expect(sql).toContain("mi.governed_status = 'conflicted'");
+    expect(sql).toContain('mi.controlling_item_id = mi.id');
     for (const status of TERMINAL_GOVERNED_STATUSES) {
-      expect(sql).toContain(`'${status}'`);
+      expect(sql).not.toContain(`'${status}'`);
     }
   });
 
-  /** stale/conflicted are still recalled on purpose — see the vocabulary comment. */
-  it('does not suppress stale or conflicted memory', () => {
-    const sql = governedRecallSuppressionSql(true, 'mi');
-    expect(sql).not.toContain("'stale'");
-    expect(sql).not.toContain("'conflicted'");
-  });
-
   it('supports an unaliased FROM memory_items', () => {
-    expect(governedRecallSuppressionSql(true)).toContain('AND governed_status NOT IN');
+    expect(governedRecallSuppressionSql(true)).toContain(
+      "governed_status IN ('active', 'stale')",
+    );
+    expect(governedRecallEligibilitySql()).toContain('controlling_item_id = id');
   });
 
-  /** The alias is interpolated RAW into $queryRawUnsafe / Prisma.raw call sites. */
   it('refuses an alias that is not a bare identifier', () => {
     for (const alias of ['mi; DROP TABLE memory_items --', 'mi.client_id', 'mi ', '1', '']) {
       if (alias === '') continue;
@@ -62,9 +60,9 @@ describe('governedClioSuppressionSql', () => {
     expect(sql).toContain("mi_sup.type = 'note'");
     expect(sql).toContain("mi_sup.slug = 'clio:' || clio_memory.id::text");
     expect(sql).toContain('mi_sup.tenant_id = clio_memory.tenant_id');
-    for (const status of TERMINAL_GOVERNED_STATUSES) {
-      expect(sql).toContain(`'${status}'`);
-    }
+    expect(sql).toContain('AND NOT');
+    expect(sql).toContain("mi_sup.governed_status IN ('active', 'stale')");
+    expect(sql).toContain('mi_sup.controlling_item_id = mi_sup.id');
   });
 
   it('refuses an unsafe alias', () => {

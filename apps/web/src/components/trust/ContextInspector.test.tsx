@@ -13,6 +13,7 @@ const packet: TrustContextPacket = {
       type: 'firm-compass',
       scope: 'firm',
       authority: 'human-approved',
+      status: 'active',
       rationale: 'Firm identity always steers firm-scoped drafting.',
       selection: 'automatic',
     },
@@ -22,6 +23,7 @@ const packet: TrustContextPacket = {
       type: 'client-compass',
       scope: 'client',
       clientName: 'Acme',
+      status: 'stale',
       selection: 'explicit',
       lastConfirmedAt: '2026-07-20T12:00:00.000Z',
     },
@@ -41,6 +43,8 @@ describe('ContextInspector', () => {
 
     expect(screen.getByText('Firm Compass')).toBeTruthy();
     expect(screen.getByText('Client policy position')).toBeTruthy();
+    expect(screen.getByText('Lifecycle · Active')).toBeTruthy();
+    expect(screen.getByText('Lifecycle · Stale — review due')).toBeTruthy();
     expect(screen.getByText(/Old playbook/)).toBeTruthy();
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Client documents were temporarily unavailable',
@@ -153,6 +157,27 @@ describe('ContextInspector', () => {
     fireEvent.click(screen.getByText(/Context used/i));
     expect(screen.getByText('Authority · Model inferred')).toBeTruthy();
     expect(screen.queryByText(/model_inferred/)).toBeNull();
+  });
+
+  it('renders an unknown lifecycle without echoing an internal slug', () => {
+    render(
+      <ContextInspector
+        packet={{
+          items: [
+            {
+              id: 'mi-status',
+              label: 'Unknown lifecycle',
+              type: 'firm-soul',
+              scope: 'firm',
+              status: 'future_internal_state',
+            },
+          ],
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByText(/Context used/i));
+    expect(screen.getByText('Lifecycle · Unknown')).toBeTruthy();
+    expect(screen.queryByText(/future_internal_state/)).toBeNull();
   });
 
   it('labels the new v2 exclusion reasons rather than showing a raw slug', () => {

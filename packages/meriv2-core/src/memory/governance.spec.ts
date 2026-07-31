@@ -1,12 +1,15 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   InvalidMemoryTransitionError,
+  RECALLABLE_GOVERNED_STATUSES,
   TERMINAL_GOVERNED_STATUSES,
   assertMemoryTransition,
   classifyLegacyMemory,
   filterGovernedMemory,
   fourEyesSatisfied,
   governedMemoryLifecycleEnabled,
+  governedRecallEligible,
+  governedRecallEligibilitySql,
   governedRecallSuppressionSql,
   instructionsAllowedFor,
   scoreGovernedMemory,
@@ -105,8 +108,15 @@ describe('class-specific recall filters', () => {
     ).toEqual({ include: false, reason: 'ethical_wall' });
   });
 
-  it('suppresses revoked, superseded, rejected, expired and invalid memories', () => {
-    for (const status of ['revoked', 'superseded', 'rejected', 'expired'] as const) {
+  it('suppresses every non-recallable governed status and invalid memories', () => {
+    for (const status of [
+      'suggested',
+      'pending_review',
+      'revoked',
+      'superseded',
+      'rejected',
+      'expired',
+    ] as const) {
       expect(filterGovernedMemory(base({ status }), access)).toEqual({
         include: false,
         reason: 'inactive_status',
@@ -153,6 +163,36 @@ describe('class-specific recall filters', () => {
         access,
       ),
     ).toEqual({ include: true });
+    expect(
+      filterGovernedMemory(
+        base({
+          status: 'conflicted',
+          conflictStatus: 'open',
+          conflictGroupId: 'group-1',
+          controllingItemId: 'memory-1',
+        }),
+        access,
+      ),
+    ).toEqual({ include: true });
+    expect(
+      filterGovernedMemory(
+        base({
+          id: 'memory-2',
+          status: 'conflicted',
+          conflictStatus: 'open',
+          conflictGroupId: 'group-1',
+          controllingItemId: 'memory-1',
+        }),
+        access,
+      ),
+    ).toEqual({ include: false, reason: 'conflict_unresolved' });
+  });
+
+  it('defines one exact in-memory recallability predicate', () => {
+    expect(RECALLABLE_GOVERNED_STATUSES).toEqual(['active', 'stale', 'conflicted']);
+    expect(governedRecallEligible(base({ status: 'active' }))).toBe(true);
+    expect(governedRecallEligible(base({ status: 'stale' }))).toBe(true);
+    expect(governedRecallEligible(base({ status: 'pending_review' }))).toBe(false);
   });
 });
 
@@ -318,17 +358,22 @@ describe('governedRecallSuppressionSql', () => {
     expect(governedRecallSuppressionSql(false, 'mi')).toBe('');
   });
 
-  it('suppresses exactly the four terminal statuses', () => {
+  it('admits active/stale and only the controlling unresolved conflict', () => {
     const sql = governedRecallSuppressionSql(true, 'mi');
-    expect(sql).toContain('mi.governed_status NOT IN');
-    for (const status of TERMINAL_GOVERNED_STATUSES) expect(sql).toContain(`'${status}'`);
-    // stale/conflicted stay recallable on purpose.
-    expect(sql).not.toContain("'stale'");
-    expect(sql).not.toContain("'conflicted'");
+    expect(sql).toContain("mi.governed_status IN ('active', 'stale')");
+    expect(sql).toContain("mi.governed_status = 'conflicted'");
+    expect(sql).toContain('mi.controlling_item_id = mi.id');
+    expect(sql).toContain('mi.conflict_status');
+    for (const status of TERMINAL_GOVERNED_STATUSES) {
+      expect(sql).not.toContain(`'${status}'`);
+    }
   });
 
   it('supports an unaliased FROM memory_items', () => {
-    expect(governedRecallSuppressionSql(true)).toContain('AND governed_status NOT IN');
+    expect(governedRecallSuppressionSql(true)).toContain(
+      "governed_status IN ('active', 'stale')",
+    );
+    expect(governedRecallEligibilitySql()).toContain('controlling_item_id = id');
   });
 
   it('refuses an alias that is not a bare identifier', () => {
@@ -336,5 +381,6 @@ describe('governedRecallSuppressionSql', () => {
       /unsafe alias/,
     );
     expect(() => governedRecallSuppressionSql(true, 'mi.client_id')).toThrow(/unsafe alias/);
+    expect(() => governedRecallEligibilitySql('mi.client_id')).toThrow(/unsafe alias/);
   });
 });

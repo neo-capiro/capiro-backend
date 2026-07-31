@@ -16,6 +16,7 @@ export interface TrustContextItem {
   type: string;
   scope?: 'personal' | 'client' | 'firm' | string | null;
   authority?: string | null;
+  status?: string | null;
   clientName?: string | null;
   userScoped?: boolean;
   asOf?: string | null;
@@ -66,6 +67,18 @@ const REASON_LABELS: Record<string, string> = {
 };
 
 const IDENTITY_WITHHELD_REASONS = new Set(['unauthorized', 'wrong-client', 'sensitivity-denied']);
+
+const STATUS_LABELS: Record<string, string> = {
+  suggested: 'Suggested',
+  pending_review: 'Pending review',
+  active: 'Active',
+  stale: 'Stale — review due',
+  conflicted: 'Conflicted — controlling item',
+  rejected: 'Rejected',
+  superseded: 'Superseded',
+  revoked: 'Revoked',
+  expired: 'Expired',
+};
 
 const AUTHORITY_LABELS: Record<string, string> = {
   'human-authored': 'Human authored',
@@ -183,6 +196,9 @@ export function ContextInspector({
                         <span>
                           Authority · {AUTHORITY_LABELS[item.authority] ?? item.authority}
                         </span>
+                      )}
+                      {item.status && (
+                        <span>Lifecycle · {STATUS_LABELS[item.status] ?? 'Unknown'}</span>
                       )}
                       {item.selection && (
                         <span>

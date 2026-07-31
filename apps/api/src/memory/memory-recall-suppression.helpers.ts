@@ -1,4 +1,8 @@
-import { governedRecallSuppressionSql, TERMINAL_GOVERNED_STATUSES } from '@capiro/meriv2-core';
+import {
+  governedRecallEligibilitySql,
+  governedRecallSuppressionSql,
+  TERMINAL_GOVERNED_STATUSES,
+} from '@capiro/meriv2-core';
 import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.helpers.js';
 
 /**
@@ -8,9 +12,11 @@ import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.he
  * security predicate is a drift waiting to happen. Re-exported here so apps/api
  * call sites keep a single local import.
  */
-export { governedRecallSuppressionSql, TERMINAL_GOVERNED_STATUSES };
-
-const TERMINAL_SQL_LIST = TERMINAL_GOVERNED_STATUSES.map((s) => `'${s}'`).join(',');
+export {
+  governedRecallEligibilitySql,
+  governedRecallSuppressionSql,
+  TERMINAL_GOVERNED_STATUSES,
+};
 const SAFE_ALIAS = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
@@ -39,7 +45,7 @@ export function governedClioSuppressionSql(enabled: boolean, alias = 'clio_memor
              WHERE mi_sup.tenant_id = ${alias}.tenant_id
                AND mi_sup.type = 'note'
                AND mi_sup.slug = 'clio:' || ${alias}.id::text
-               AND mi_sup.governed_status IN (${TERMINAL_SQL_LIST})
+               AND NOT ${governedRecallEligibilitySql('mi_sup')}
            )`;
 }
 

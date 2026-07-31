@@ -139,6 +139,8 @@ export interface SteeringRow {
   ownerUserId?: string | null;
   visibility?: string | null;
   status: string;
+  legacyStatus?: string | null;
+  governedStatus?: GovernedMemoryStatus | string | null;
   expiresAt?: string | Date | null;
   updatedAt?: string | Date | null;
   confirmedAt?: string | Date | null;
@@ -210,6 +212,7 @@ export interface ContextPacketItemV2 {
   ownerUserId: string | null;
   authority: MemoryAuthority;
   status: GovernedMemoryStatus;
+  legacyStatus: string | null;
   sourceType: string;
   sourceId: string | null;
   sourceRef: string | null;

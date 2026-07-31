@@ -11,6 +11,8 @@ const ROW = {
   ownerUserId: null,
   visibility: 'tenant',
   status: 'active',
+  legacyStatus: 'active',
+  governedStatus: 'active',
   sections: [{ owner: 'human', heading: 'Memory', body: 'Support the verified plus-up.' }],
   memoryClass: 'institutional_authoritative',
   governedAuthority: 'firm_approved',
@@ -100,6 +102,9 @@ describe('Workspace canonical governed memory — Phase 8', () => {
       layers: ['firm-playbook'],
     });
     expect(packet.version).toBe(2);
+    expect(h.sql.find((text) => text.includes('FROM memory_items'))).toContain(
+      'governed_status AS "governedStatus"',
+    );
     expect(packet.items).toEqual([
       expect.objectContaining({
         id: ROW.id,
@@ -107,6 +112,28 @@ describe('Workspace canonical governed memory — Phase 8', () => {
         memoryClass: 'institutional_authoritative',
       }),
     ]);
+  });
+
+  it('Workspace excludes a governed terminal row when legacy status is active', async () => {
+    process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
+    const h = harness();
+    const original = ROW.governedStatus;
+    ROW.governedStatus = 'expired';
+    try {
+      const packet = await h.service.compileForClerkOwner({
+        tenantId: 't1',
+        surface: 'workspace-gen',
+        layers: ['firm-playbook'],
+      });
+      expect(packet.version).toBe(2);
+      if (packet.version !== 2) throw new Error('expected v2');
+      expect(packet.items).toEqual([]);
+      expect(packet.exclusions).toEqual([
+        expect.objectContaining({ id: ROW.id, reason: 'expired' }),
+      ]);
+    } finally {
+      ROW.governedStatus = original;
+    }
   });
 
   it('a tenant umbrella without the exact Workspace surface canary remains on v1', async () => {

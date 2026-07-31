@@ -151,6 +151,8 @@ describe('contextPacketView — v2 evidence is real, not fabricated', () => {
         title: 'Firm Soul',
         scope: 'firm',
         authority: 'model_inferred',
+        status: 'stale',
+        legacyStatus: 'active',
         selectionTier: 'episodic_inferred',
         inclusionReason: 'Scored 0.41',
         asOf: '2026-07-01T00:00:00.000Z',
@@ -164,6 +166,8 @@ describe('contextPacketView — v2 evidence is real, not fabricated', () => {
         title: 'Acme Compass',
         scope: 'client',
         authority: 'client_approved',
+        status: 'active',
+        legacyStatus: 'active',
         selectionTier: 'explicit',
         inclusionReason: 'Selected by user',
       },
@@ -177,6 +181,7 @@ describe('contextPacketView — v2 evidence is real, not fabricated', () => {
       expect.objectContaining({
         label: 'Firm Soul',
         authority: 'model_inferred',
+        status: 'stale',
         selection: 'automatic',
         rationale: 'Scored 0.41',
         asOf: '2026-07-01T00:00:00.000Z',
@@ -192,6 +197,7 @@ describe('contextPacketView — v2 evidence is real, not fabricated', () => {
         scope: 'client',
         clientName: 'Acme Corp',
         authority: 'client_approved',
+        status: 'active',
         selection: 'explicit',
       }),
     );
