@@ -175,6 +175,97 @@ function awsJson(env: NodeJS.ProcessEnv, args: string[]): { code: number; json: 
   }
 }
 
+/** Windows aws.exe `ecs wait` often hangs after the resource is already terminal. Poll describe instead. */
+function sleepMs(ms: number): void {
+  spawnSync(process.execPath, ['-e', `setTimeout(() => {}, ${Math.max(0, ms)})`], {
+    shell: false,
+    stdio: 'ignore',
+  });
+}
+
+function waitTasksStopped(
+  env: NodeJS.ProcessEnv,
+  cluster: string,
+  taskArn: string,
+  opts: { timeoutMs?: number; intervalMs?: number } = {},
+): { code: number; out: string } {
+  const timeoutMs = opts.timeoutMs ?? 15 * 60 * 1000;
+  const intervalMs = opts.intervalMs ?? 5000;
+  const started = Date.now();
+  let last = '';
+  while (Date.now() - started < timeoutMs) {
+    const d = awsJson(env, [
+      'ecs',
+      'describe-tasks',
+      '--cluster',
+      cluster,
+      '--tasks',
+      taskArn,
+      '--query',
+      'tasks[0].{last:lastStatus,desired:desiredStatus,stop:stoppedReason,exit:containers[0].exitCode}',
+    ]);
+    last = d.out;
+    const st = String(d.json?.last || '').toUpperCase();
+    if (st === 'STOPPED') return { code: 0, out: last };
+    sleepMs(intervalMs);
+  }
+  return { code: 1, out: `waitTasksStopped timeout task=${taskArn} last=${last.slice(0, 400)}` };
+}
+
+function waitServicesStable(
+  env: NodeJS.ProcessEnv,
+  cluster: string,
+  service: string,
+  opts: { timeoutMs?: number; intervalMs?: number } = {},
+): { code: number; out: string } {
+  const timeoutMs = opts.timeoutMs ?? 20 * 60 * 1000;
+  const intervalMs = opts.intervalMs ?? 10000;
+  const started = Date.now();
+  let last = '';
+  while (Date.now() - started < timeoutMs) {
+    const d = awsJson(env, [
+      'ecs',
+      'describe-services',
+      '--cluster',
+      cluster,
+      '--services',
+      service,
+      '--query',
+      'services[0].{running:runningCount,desired:desiredCount,pending:pendingCount,deps:deployments[*].{status:status,rollout:rolloutState,running:runningCount,desired:desiredCount,pending:pendingCount,failed:failedTasks}}',
+    ]);
+    last = d.out;
+    const running = Number(d.json?.running ?? -1);
+    const desired = Number(d.json?.desired ?? -1);
+    const pending = Number(d.json?.pending ?? -1);
+    const deps = Array.isArray(d.json?.deps) ? d.json.deps : [];
+    const primary = deps.find((x: any) => String(x?.status || '').toUpperCase() === 'PRIMARY') || deps[0];
+    const roll = String(primary?.rollout || '').toUpperCase();
+    const onlyPrimary = deps.length <= 1;
+    if (
+      d.code === 0 &&
+      desired >= 0 &&
+      running === desired &&
+      pending === 0 &&
+      onlyPrimary &&
+      (roll === 'COMPLETED' || roll === 'IN_PROGRESS' || roll === '')
+    ) {
+      // Prefer COMPLETED; allow steady running==desired with single deployment even if rollout blank.
+      if (roll === 'COMPLETED' || (onlyPrimary && running === desired && pending === 0 && desired > 0)) {
+        if (roll === 'COMPLETED' || roll === '') {
+          return { code: 0, out: last };
+        }
+      }
+    }
+    // Fail fast on FAILED rollout
+    if (roll === 'FAILED') {
+      return { code: 1, out: `waitServicesStable FAILED rollout service=${service} ${last.slice(0, 600)}` };
+    }
+    sleepMs(intervalMs);
+  }
+  return { code: 1, out: `waitServicesStable timeout service=${service} last=${last.slice(0, 600)}` };
+}
+
+
 export function assertAuthorizedClusterOrThrow(cluster: string): void {
   if (isForbiddenDeployCluster(cluster)) {
     throw new Error(`refusing deploy to forbidden cluster ${cluster}`);
@@ -415,32 +506,8 @@ export function deployBranchTaskDefs(
   }
 
   // Wait stability (long)
-  const w1 = run(
-    'aws',
-    [
-      'ecs',
-      'wait',
-      'services-stable',
-      '--cluster',
-      exp.ecsClusterName,
-      '--services',
-      exp.apiServiceName,
-    ],
-    ctx.awsEnv,
-  );
-  const w2 = run(
-    'aws',
-    [
-      'ecs',
-      'wait',
-      'services-stable',
-      '--cluster',
-      exp.ecsClusterName,
-      '--services',
-      exp.webServiceName,
-    ],
-    ctx.awsEnv,
-  );
+  const w1 = waitServicesStable(ctx.awsEnv, exp.ecsClusterName, exp.apiServiceName);
+  const w2 = waitServicesStable(ctx.awsEnv, exp.ecsClusterName, exp.webServiceName);
   if (w1.code !== 0 || w2.code !== 0) {
     return {
       ok: false,
@@ -507,11 +574,7 @@ export function runAdditiveMigrate(
     };
   }
   const taskArn = rt.json.tasks[0].taskArn as string;
-  const wait = run(
-    'aws',
-    ['ecs', 'wait', 'tasks-stopped', '--cluster', exp.ecsClusterName, '--tasks', taskArn],
-    ctx.awsEnv,
-  );
+  const wait = waitTasksStopped(ctx.awsEnv, exp.ecsClusterName, taskArn);
   const desc = awsJson(ctx.awsEnv, [
     'ecs',
     'describe-tasks',
@@ -746,11 +809,7 @@ export function runLiveProofsTask(
     };
   }
 
-  const wait = run(
-    'aws',
-    ['ecs', 'wait', 'tasks-stopped', '--cluster', exp.ecsClusterName, '--tasks', taskArn],
-    ctx.awsEnv,
-  );
+  const wait = waitTasksStopped(ctx.awsEnv, exp.ecsClusterName, taskArn);
   const desc = awsJson(ctx.awsEnv, [
     'ecs',
     'describe-tasks',
@@ -1298,32 +1357,8 @@ export function rehearseRollback(
   // do not full wait long — sample describe then roll forward
   const fwApi = roll(exp.apiServiceName, currentApiArn);
   const fwWeb = roll(exp.webServiceName, currentWebArn);
-  const w1 = run(
-    'aws',
-    [
-      'ecs',
-      'wait',
-      'services-stable',
-      '--cluster',
-      exp.ecsClusterName,
-      '--services',
-      exp.apiServiceName,
-    ],
-    ctx.awsEnv,
-  );
-  const w2 = run(
-    'aws',
-    [
-      'ecs',
-      'wait',
-      'services-stable',
-      '--cluster',
-      exp.ecsClusterName,
-      '--services',
-      exp.webServiceName,
-    ],
-    ctx.awsEnv,
-  );
+  const w1 = waitServicesStable(ctx.awsEnv, exp.ecsClusterName, exp.apiServiceName);
+  const w2 = waitServicesStable(ctx.awsEnv, exp.ecsClusterName, exp.webServiceName);
   const desc = awsJson(ctx.awsEnv, [
     'ecs',
     'describe-services',
