@@ -1,9 +1,12 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   buildGovernanceActionRequest,
   governanceAuthorityLabel,
   governanceBucketForTab,
   governanceStatusLabel,
+  isGovernanceActivationKey,
   shouldRenderMemoryGovernanceCenter,
 } from './MemoryGovernanceCenter.js';
 
@@ -69,6 +72,34 @@ describe('Memory Governance Center browser boundary', () => {
       expect(request.body).not.toHaveProperty('allowed');
       expect(request.body).not.toHaveProperty('capabilities');
     }
+  });
+
+  it('supports keyboard activation with Enter and Space only', () => {
+    expect(isGovernanceActivationKey('Enter')).toBe(true);
+    expect(isGovernanceActivationKey(' ')).toBe(true);
+    expect(isGovernanceActivationKey('Spacebar')).toBe(true);
+    expect(isGovernanceActivationKey('Escape')).toBe(false);
+    expect(isGovernanceActivationKey('ArrowDown')).toBe(false);
+  });
+
+  it('contains explicit narrow-width, overflow, and visible focus rules', () => {
+    const css = readFileSync(
+      join(process.cwd(), 'src/components/MemoryGovernanceCenter.css'),
+      'utf8',
+    );
+    expect(css).toContain('overflow-x: auto');
+    expect(css).toContain('.memory-governance-center__row:focus-visible');
+    expect(css).toContain('outline: 3px solid');
+    expect(css).toContain('@media (max-width: 640px)');
+  });
+
+  it('exposes an authorized projection retry route rather than mutating jobs in the browser', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'src/components/MemoryGovernanceCenter.tsx'),
+      'utf8',
+    );
+    expect(source).toContain('/api/memory/governance/projection-jobs/${jobId}/retry');
+    expect(source).not.toMatch(/status\s*=\s*['"]pending['"]/);
   });
 
   it('never echoes unknown authority or lifecycle slugs to the administrator', () => {
