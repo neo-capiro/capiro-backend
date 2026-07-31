@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ownedMemoryCandidateStatusLabel,
   ownedMemoryCandidateTitle,
   shouldRenderMemoryProposalQueue,
   type OwnedMemoryCandidate,
@@ -10,7 +11,9 @@ const candidate: OwnedMemoryCandidate = {
   scope: 'client',
   clientId: 'client-1',
   sourceKind: 'settings_sections',
+  status: 'pending',
   createdAt: '2026-07-31T12:00:00.000Z',
+  decidedAt: null,
   restricted: false,
   proposal: {
     key: 'settings-file:client-soul:client-1',
@@ -33,7 +36,7 @@ const candidate: OwnedMemoryCandidate = {
 };
 
 describe('MemoryProposalQueue trust contract', () => {
-  it('renders only for a server-enabled nonempty proposer queue', () => {
+  it('renders only for a server-enabled nonempty proposer history', () => {
     expect(shouldRenderMemoryProposalQueue(undefined)).toBe(false);
     expect(shouldRenderMemoryProposalQueue({ enabled: false, candidates: [candidate] })).toBe(
       false,
@@ -53,8 +56,19 @@ describe('MemoryProposalQueue trust contract', () => {
     ).toBe('Restricted client memory proposal');
   });
 
-  it('exposes withdrawal capability only, never reviewer rejection', () => {
+  it('distinguishes withdrawal from reviewer rejection after reload', () => {
+    expect(ownedMemoryCandidateStatusLabel('pending')).toBe('Pending review');
+    expect(ownedMemoryCandidateStatusLabel('withdrawn')).toBe('Withdrawn');
+    expect(ownedMemoryCandidateStatusLabel('rejected')).toBe('Rejected by reviewer');
+    expect(ownedMemoryCandidateStatusLabel('approved')).toBe('Approved');
+  });
+
+  it('exposes withdrawal capability only on pending proposals, never reviewer rejection', () => {
     expect(candidate.capabilities).toEqual({ withdraw: true });
     expect(candidate.capabilities).not.toHaveProperty('reject');
+    expect({ ...candidate, status: 'withdrawn', capabilities: { withdraw: false } }).toMatchObject({
+      status: 'withdrawn',
+      capabilities: { withdraw: false },
+    });
   });
 });
