@@ -1,3 +1,4 @@
+import { describe, expect, it, jest } from '@jest/globals';
 import { ROLES_KEY } from '../auth/roles.decorator.js';
 import type { TenantContext } from '@capiro/shared';
 import type { GovernedMemoryCandidateService } from './governed-memory-candidate.service.js';
