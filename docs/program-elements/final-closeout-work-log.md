@@ -1093,9 +1093,7 @@ git reset --hard c48d30bdc2229c2c452640065402efc92551f2b1
 **When (UTC date):** 2026-07-31  
 **Base (Phase 7 PASS tip):** `e4f416ed574eaf222d6355b4cbdc6524cc778121`  
 **origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e`  
-**Mode:** LONG IMPLEMENT only — no self-PASS, no Phase 9, no MeriV2 source edits, no shared-env migrate/deploy  
-**Product tip (this phase):** `e8124cc8ea96185ddb810e381e4a80bc45e19d00`
-**Remote tip after push (review target):** `3b854f6c3d2d7bd386a9ff2e48e9a7e5c1cebfd4` (product `e8124cc8ea96185ddb810e381e4a80bc45e19d00`; REVIEW must re-resolve origin HEAD)
+**Mode:** LONG IMPLEMENT only — no self-PASS, no Phase 9, no MeriV2 source edits, no shared-env migrate/deploy   (product `e8124cc8ea96185ddb810e381e4a80bc45e19d00`; REVIEW must re-resolve origin HEAD)
 
 ### Tasks completed (implementation)
 
@@ -1188,8 +1186,9 @@ git reset --hard e4f416ed574eaf222d6355b4cbdc6524cc778121
 **Base (Phase 8 PASS tip):** `cf9545d7e8879862a19bac4e82620eadf010c6b7`
 **origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (merge-base identical)
 **Mode:** LONG IMPLEMENT only — no self-PASS, no Phase 10, no MeriV2 source edits, no shared-env migrate/deploy/ingestion/email/LlamaParse/secrets
-**Product tip (this phase):** 
-**Remote tip after push (review target):** 
+**Product tip (this phase):** `ca3f372b0abfc75e06d0b031e89c18f2cd640e01`
+**Evidence refresh tip:** `a21640c568dbfef01dbbce5945bf032221213414`
+**Remote tip after push (review target):** re-resolve origin/agent/program-elements-final-closeout HEAD after pin
 
 ### Tasks completed (implementation)
 
