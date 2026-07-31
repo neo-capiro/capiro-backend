@@ -6,7 +6,7 @@
 **Repo:** `neo-capiro/capirov2`  
 **Operator session:** Phase 10 IMPLEMENT (pre-merge staging acceptance)
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-31 (Phase 10 IMPLEMENT PUSHED tip `0ab35ad4d116` / harness PE_PHASE_10_OK — independent REVIEW REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-31 (Phase 10 IMPLEMENT PUSHED tip `6e7a9771b3d7` / harness PE_PHASE_10_OK — independent REVIEW REQUIRED — no self-PASS)
 
 ---
 

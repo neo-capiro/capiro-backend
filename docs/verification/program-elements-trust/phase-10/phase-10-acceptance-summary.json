@@ -14,8 +14,8 @@
     "note": "sole live env=dev / capiro-dev (= prod path); not dead staging"
   },
   "git": {
-    "headSha": "0ab35ad4d11659c9975b377ebc4df35be496a36a",
-    "originHeadSha": "0ab35ad4d11659c9975b377ebc4df35be496a36a",
+    "headSha": "6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1",
+    "originHeadSha": "6e7a9771b3d7e31f1f65ee71beefa97ca700d0d3",
     "mainSha": "3dcb12f823774b6fae8578dc56fc122bf9a0879e",
     "mergeBaseSha": "3dcb12f823774b6fae8578dc56fc122bf9a0879e",
     "branch": "agent/program-elements-final-closeout"
@@ -472,6 +472,9 @@
     "liveProofsRanOnProductTipImages": true,
     "imageTagStrategy": "evidence records product tip tags+digests (where live proofs/migrate/deploy ran); review tip is docs pin with no PE runtime delta",
     "apiDigest": "sha256:51351903d7d2d3748b70bd88609f50b5c396ea687173e7c8c8a26e6b91905496",
-    "webDigest": "sha256:b563ad0e5b62533eff2af67c0f27401a2c2c0d3dca0530939874f1cca691f5eb"
+    "webDigest": "sha256:b563ad0e5b62533eff2af67c0f27401a2c2c0d3dca0530939874f1cca691f5eb",
+    "harnessOkAtProductTip": "6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1",
+    "docsPinAtCommitTime": "6e7a9771b3d7e31f1f65ee71beefa97ca700d0d3",
+    "reviewMustUseOriginHead": true
   }
 }

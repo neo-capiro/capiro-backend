@@ -5,7 +5,7 @@
 - Plane: `capiro-dev` / workflow env=`dev` (authorized sole live = prod path)
 - HEAD: 
 - Image product tip (live proofs/deploy; intentional parent for docs pins): `6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1`
-- origin/agent/...: `0ab35ad4d11659c9975b377ebc4df35be496a36a`
+- origin/agent/... (docs pin at write): `6e7a9771b3d7e31f1f65ee71beefa97ca700d0d3`
 - origin/main: `3dcb12f823774b6fae8578dc56fc122bf9a0879e`
 - merge-base: `3dcb12f823774b6fae8578dc56fc122bf9a0879e`
 - Auth PE_CLOSEOUT_STAGING_OK: true
