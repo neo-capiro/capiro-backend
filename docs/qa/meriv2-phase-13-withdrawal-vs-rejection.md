@@ -17,7 +17,7 @@ withdrawn  — proposer-initiated terminal disposition
 rejected   — independent reviewer terminal disposition
 ```
 
-The additive migration `20260815010000_memory_candidate_withdrawal` expands the candidate status check and adds a tenant/proposer pending index. It performs no candidate or canonical memory rewrite.
+The additive migration `20260815010000_memory_candidate_withdrawal` expands the candidate status check and adds a tenant/proposer history index ordered by newest proposal. It performs no candidate or canonical memory rewrite.
 
 ### Governed lifecycle state
 
@@ -69,20 +69,22 @@ A proposer cannot use reviewer rejection as a withdrawal shortcut even when the 
 
 Approval remains the inherited atomic Phase 1 path and continues to deny shared self-approval.
 
-## Confidentiality
+## Confidentiality and bounded history
 
-The proposer queue selects only the authenticated user's own pending candidates. Client proposal content is shown only while the proposer still passes the ethical wall. If wall access is later removed, the row remains withdrawable but the content is returned as redacted.
+The proposer endpoint returns at most the newest 50 firm/client proposals for the authenticated proposer. Private auto-committed memories are excluded so they cannot crowd shared proposals out of the bounded history.
+
+Client proposal content is shown only while the proposer still passes the ethical wall. If wall access is later removed, status remains visible and a pending row remains withdrawable, but proposal content is returned as redacted.
 
 Audit evidence contains IDs, status, reason code, scope, source kind, and disposition actor only. Proposal content is never written into transition evidence.
 
 ## User experience
 
-Settings → Memory contains two separate queues:
+Settings → Memory contains two separate surfaces:
 
-- **Your pending proposals** — proposer-owned rows with **Withdraw**;
+- **Your proposals** — proposer-owned shared-proposal history; pending rows show **Withdraw**, terminal rows show **Withdrawn**, **Rejected by reviewer**, or **Approved**;
 - **Awaiting your review** — server-authorized reviewer rows with **Approve** and/or **Reject**.
 
-The browser cannot convert one capability into another. A restricted client proposal displays a redacted label and remains withdrawable.
+The browser cannot convert one capability into another. A restricted client proposal displays a redacted label and remains withdrawable only while pending.
 
 ## Feature boundary
 
@@ -101,7 +103,7 @@ The code deploy and migration do not activate the routes by themselves.
 Phase 13 tests cover:
 
 - migration status expansion without data rewrites;
-- proposer pending index;
+- proposer history index;
 - distinct helper reason codes;
 - no authority for withdrawal;
 - proposer withdrawal succeeds;
@@ -111,10 +113,12 @@ Phase 13 tests cover:
 - terminal candidate cannot be withdrawn twice;
 - withdrawal and rejection write distinct audit evidence;
 - proposal content does not enter audit evidence;
-- walled proposal content is redacted while withdrawal remains available;
+- bounded shared-proposal history distinguishes both terminal outcomes after reload;
+- private candidates are excluded from the shared history query;
+- walled proposal content is redacted while pending withdrawal remains available;
 - standard-authenticated proposer route metadata;
 - exact server-context delegation;
-- proposer UI exposes Withdraw only; and
+- proposer UI exposes Withdraw only on pending rows; and
 - reviewer UI continues to expose Reject only through server-derived capabilities.
 
 ## Acceptance gate
@@ -127,6 +131,7 @@ Phase 13 passes when one exact synchronized head proves:
 - a proposer cannot invoke rejection for their own shared proposal;
 - a reviewer cannot withdraw another user's proposal;
 - terminal re-disposition is denied;
+- visible proposal history distinguishes withdrawal from reviewer rejection;
 - all inherited Phase 1–12 focused and cumulative contracts remain passing; and
 - PR #679 remains draft, mergeable, synchronized, and unmerged.
 
@@ -138,9 +143,9 @@ Set:
 MEMORY_CLIENT_REVIEW=off
 ```
 
-This hides both product queues and makes proposer withdrawal unavailable without altering pending or terminal rows. Existing `withdrawn` and `rejected` evidence remains immutable. Do not convert a withdrawn proposal into rejected, reopen terminal candidates, or delete audit history as rollback.
+This hides both product surfaces and makes proposer withdrawal unavailable without altering pending or terminal rows. Existing `withdrawn` and `rejected` evidence remains immutable. Do not convert a withdrawn proposal into rejected, reopen terminal candidates, or delete audit history as rollback.
 
-Application rollback may leave the additive status check and proposer index in place.
+Application rollback may leave the additive status check and proposer history index in place.
 
 ## Production boundary
 
