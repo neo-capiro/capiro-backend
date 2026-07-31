@@ -2,7 +2,9 @@
 
 ## Status
 
-**Implemented; exact-head validation pending.**
+**Focused local/disposable-PostgreSQL acceptance passed on exact head `26db7ca83c066d4a9464e263e86650d7db0a58a1`.**
+
+GitHub-hosted replication remains blocked by the repository's deleted synthetic `BuildFailed` workflow identity. That control-plane defect is separate from the passing Phase 13 local gate.
 
 Phase 13 separates a proposer's decision to retract a pending memory proposal from an independent reviewer's decision to reject it.
 
@@ -121,19 +123,26 @@ Phase 13 tests cover:
 - proposer UI exposes Withdraw only on pending rows; and
 - reviewer UI continues to expose Reject only through server-derived capabilities.
 
-## Acceptance gate
+## Acceptance evidence
 
-Phase 13 passes when one exact synchronized head proves:
+The complete focused gate passed on `26db7ca83c066d4a9464e263e86650d7db0a58a1` after two validation-only repairs:
 
-- proposer withdrawal writes legacy `withdrawn` and audit `withdrawn_by_proposer`;
-- independent rejection writes legacy `rejected` and audit `rejected_by_reviewer`;
-- neither path creates canonical memory;
-- a proposer cannot invoke rejection for their own shared proposal;
-- a reviewer cannot withdraw another user's proposal;
-- terminal re-disposition is denied;
-- visible proposal history distinguishes withdrawal from reviewer rejection;
-- all inherited Phase 1–12 focused and cumulative contracts remain passing; and
-- PR #679 remains draft, mergeable, synchronized, and unmerged.
+- `51ffa689` — avoided private-name collisions in `GovernedMemoryCandidateService`;
+- `26db7ca8` — applied Prettier to the Phase 13 surface.
+
+Passing evidence:
+
+- 208 migrations replayed on disposable PostgreSQL, including the withdrawal migration;
+- candidate status check contains `withdrawn`;
+- proposer history index exists;
+- API and web typechecks pass;
+- API matrix: 14 suites and 110 tests pass;
+- web contracts: 2 files and 7 tests pass;
+- Prettier passes;
+- `git diff --check` passes; and
+- working tree is clean.
+
+PR #679 remained draft, open, mergeable, synchronized with `main`, and unmerged.
 
 ## Rollback
 
