@@ -205,7 +205,7 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 | R5 | Extended proofs mapped to phase E/D/F/I/J owners | `in_branch` | catalog EXTENDED_PROOF_OWNERS | 9 |
 | R6 | Evidence JSON/README under phase-9 verification dir | `in_branch` | docs/verification/program-elements-trust/phase-9/ | 9 |
 
-**Phase 9 review gate:** **IMPLEMENT PUSHED (B1 rework) — independent REVIEW REQUIRED** against live `origin/agent/program-elements-final-closeout` HEAD after push (must include fix product `e22423fd23cd957c165417428bf5d40f41a13848`; prior FAIL tip `255098977509c9b06e7142f0624fa4822dfadb36`; no self-PASS). Soft residuals: prettier PE surface debt; host psql → PE_PHASE_C_RLS_REHEARSAL_SKIP. Review must prove upgrade_base_applied==main migration count and tip_delta≥branch_only PE migs.
+**Phase 9 review gate:** **IMPLEMENT PUSHED (B1 rework) — independent REVIEW REQUIRED** against live `origin/agent/program-elements-final-closeout` HEAD after push (must include fix product `e22423fd23cd957c165417428bf5d40f41a13848` and evidence pins on live origin HEAD; prior FAIL tip `255098977509c9b06e7142f0624fa4822dfadb36`; no self-PASS). Soft residuals: prettier PE surface debt; host psql → PE_PHASE_C_RLS_REHEARSAL_SKIP. Review must prove upgrade_base_applied==main migration count and tip_delta≥branch_only PE migs.
 
 Commands:
 

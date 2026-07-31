@@ -1282,6 +1282,7 @@ git reset --hard cf9545d7e8879862a19bac4e82620eadf010c6b7
 **When (UTC date):** 2026-07-31
 **Failed tip (review 9 FAIL):** `255098977509c9b06e7142f0624fa4822dfadb36`
 **Product fix tip:** `e22423fd23cd957c165417428bf5d40f41a13848`
+**Evidence / docs pin tip (review resolves live origin HEAD):** re-run exist against that HEAD after pin push (implementer does not self-PASS)
 **origin/main at rework:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind)
 **Mode:** LONG IMPLEMENT only — close review B1 only; no self-PASS; no Phase 10
 
