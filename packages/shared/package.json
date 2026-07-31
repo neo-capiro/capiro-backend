@@ -22,6 +22,18 @@
       "require": "./dist/funding-claim.js",
       "import": "./dist/funding-claim.js",
       "default": "./dist/funding-claim.js"
+    },
+    "./defense-budget-line": {
+      "types": "./dist/defense-budget-line.d.ts",
+      "require": "./dist/defense-budget-line.js",
+      "import": "./dist/defense-budget-line.js",
+      "default": "./dist/defense-budget-line.js"
+    },
+    "./pe-source-coverage": {
+      "types": "./dist/pe-source-coverage.d.ts",
+      "require": "./dist/pe-source-coverage.js",
+      "import": "./dist/pe-source-coverage.js",
+      "default": "./dist/pe-source-coverage.js"
     }
   },
   "scripts": {

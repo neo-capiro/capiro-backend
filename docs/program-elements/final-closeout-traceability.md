@@ -143,7 +143,7 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 | I5 | Disabled Link + server crmLinkBlocked/reason | `in_branch` (Phase 6) | ProgramTeamPanel + personnel DTO | 6 |
 | I6 | Cross-tenant / blocked-audit / other-PE role tests | `in_branch` (Phase 6) | `verify:pe-phase-i` | 6 |
 
-**Phase 6 review gate:** **IMPLEMENT PUSHED — independent REVIEW REQUIRED** on remote tip `ed311e883082f13b23b0d7e04fba26abc33cb451` (product `85e768ee086a3e8289d3b85264aefb0fa8be7adb` + package.json repair `ed311e883`) — no self-PASS.
+**Phase 6 review gate:** **PASS WITH BLOCKERS** on tip `744c6774f89917c6b0a9c6b6d98b5a0387598f73` (see pe-closeout prompts/phase-6-review-PASS.md).
 
 ---
 
@@ -151,16 +151,19 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 
 | ID | Requirement | Status | Source | Owner phase |
 |---|---|---|---|---|
-| J1 | Shared defense-budget line classifier + primer for allowed consumers | `recovered` with constraint | Phase J branch implements via **shared + Meri + meriv2-core + Workspace**. Closeout may take **`packages/shared`** and PE/API/Workspace grounding **without** modifying `packages/meriv2-core/**` or free-form Meri runtime beyond compatibility checks. | 7 |
-| J2 | Do not classify RDT&E from BA4 alone; do not call procurement lines PEs | carry from J intent | 7 |
-| J3 | Preserve auth vs approps, report-language scope, contact restrictions | 7 |
-| L1 | Defense Approps conference/JES | `blocked`/document | coverage decision table Phase 7 | 7 |
-| L2 | Full FYDP projection coverage | `blocked`/document | 7 |
-| L3 | Execution/reprogramming feeds | `oos`/`blocked` | 7 |
-| L4 | Procurement performer coverage | partial main / document gaps | 7 |
-| L5 | MILCON/C-1 | `oos`/`blocked` | 7 |
-| L6 | Reserve exhibits | `oos`/`blocked` | 7 |
-| L7 | Remaining P-5/P-21/P-3A or OP-5 gaps | document | 7 |
+| J1 | Shared defense-budget line classifier + primer for allowed consumers | `in_branch` (Phase 7) | `packages/shared/src/defense-budget-line.ts` + API/WS consumers; **no** meriv2-core edits | 7 |
+| J2 | Do not classify RDT&E from BA4 alone; do not call procurement lines PEs | `in_branch` (Phase 7) | classifier + structural specs | 7 |
+| J3 | Preserve auth vs approps, report-language scope, contact restrictions | `in_branch` (Phase 7) | shared primer + report language notes | 7 |
+| L1 | Defense Approps conference/JES | `partial` (documented) | matrix `defense_approps_conference_jes` | 7 |
+| L2 | Full FYDP projection coverage | `partial` (documented) | matrix `full_fydp_projection` | 7 |
+| L3 | Execution/reprogramming feeds | `unsupported` fail-closed | matrix + ownership gate | 7 |
+| L4 | Procurement performer coverage | `partial` (documented) | matrix `procurement_performer_coverage` | 7 |
+| L5 | MILCON/C-1 | `unsupported` fail-closed | matrix + ownership gate | 7 |
+| L6 | Reserve exhibits | `unsupported` fail-closed | matrix + ownership gate | 7 |
+| L7 | Remaining P-5/P-21/P-3A or OP-5 gaps | `blocked` fail-closed | matrix `p5_p21_p3a_op5_gaps` | 7 |
+
+**Phase 7 review gate:** **IMPLEMENT PUSHED — independent REVIEW REQUIRED** on remote tip after push (base `744c6774f89917c6b0a9c6b6d98b5a0387598f73`) — no self-PASS.
+**Coverage authority file:** `docs/program-elements/source-coverage-matrix.md` ↔ `packages/shared/src/pe-source-coverage.ts`.
 
 ---
 

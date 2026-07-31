@@ -1,9 +1,7 @@
 /**
- * Domain grounding for the Workspace generation engine — PARITY with the
- * in-editor Meri assistant (apps/api/src/meri). This engine is a separate
- * deployable that depends only on @capiro/shared (not apps/api), so the pure
- * primer + PE structural rules are copied here verbatim. Keep in sync with
- * apps/api/src/meri/meri-domain-fanout.helpers.ts and meri-pe-structural.helpers.ts.
+ * Domain grounding for the Workspace generation engine. The defense-budget
+ * primer and line classifier come from @capiro/shared so Workspace, Meri, and
+ * MeriV2 cannot drift.
  *
  * Three concerns:
  *  1. DOMAIN_PRIMER — budget-structure invariants (RDT&E vs procurement, NDAA vs
@@ -19,19 +17,16 @@
  *     canonical funding precedence, since this engine's PE view carries only
  *     request/enacted/hascMark/sascMark, not the full appropriations ladder).
  */
-import { fmtFundingMillions } from '@capiro/shared';
+import {
+  DEFENSE_BUDGET_DOMAIN_PRIMER,
+  defenseBudgetExhibitLabel,
+  fmtFundingMillions,
+  isProcurementBudgetLine,
+  isRdteBudgetLine,
+} from '@capiro/shared';
 
-/** Kept ≤ ~1.2k chars so it never blows the prompt budget. */
-export const DOMAIN_PRIMER = [
-  'DEFENSE BUDGET STRUCTURE — validate, never assume:',
-  '• A Program Element (PE) is a typed record, not just a number. Before citing one, confirm its appropriation type and budget activity match the ask.',
-  '• RDT&E (Budget Activity 4) funds research, prototyping, evaluation and demonstration — NOT end-item procurement. Do not propose "directed procurement" of a system through an RDT&E line; use "directed requirement" or "evaluation/demonstration" framing, or cite a Procurement (BA 2) line.',
-  '• Procurement (BA 2) funds buying fielded end items.',
-  '• Authorization (NDAA) sets policy, requirements and ceilings; Appropriations bills provide the money. They are different bills, committees (HASC/SASC vs HAC-D/SAC-D) and staff. Company-specific directed language lives in the NDAA, not an appropriations bill.',
-  '• A PE\'s title states its mission. A "Computer/Fire-Control/Ballistics Computer" line is software/hardware for crews, not a missile. Match capability to mission.',
-  '• Do not call a PE the "primary" vehicle without checking that no materially larger sibling PE exists in the same portfolio.',
-  '• Markup status (HASC/SASC marks) changes weekly. If a mark is absent from the data, say so explicitly and date it — do not imply the committee has not acted.',
-].join('\n');
+/** Canonical primer re-exported for existing generation-service imports. */
+export const DOMAIN_PRIMER = DEFENSE_BUDGET_DOMAIN_PRIMER;
 
 /** A PE record as carried on the draft config's linkedProgramElements. */
 export interface PeRecordForValidation {
@@ -41,6 +36,8 @@ export interface PeRecordForValidation {
   appropriationType?: string | null;
   budgetActivity?: string | null;
   budgetActivityName?: string | null;
+  /** Explicit exhibit/line classification when the source provides one. */
+  lineType?: string | null;
 }
 
 export type PeWarningCode =
@@ -55,16 +52,11 @@ export interface PeStructuralWarning {
 }
 
 export function isRdtePe(pe: PeRecordForValidation): boolean {
-  const appro = (pe.appropriationType ?? '').toLowerCase();
-  if (appro.includes('rdt') || appro.includes('research') || appro.includes('r&d')) return true;
-  const ba = (pe.budgetActivity ?? '').toLowerCase().replace(/[^0-9]/g, '');
-  if (ba === '4' || ba === '04') return true;
-  return false;
+  return isRdteBudgetLine(pe);
 }
 
 export function isProcurementPe(pe: PeRecordForValidation): boolean {
-  const appro = (pe.appropriationType ?? '').toLowerCase();
-  return appro.includes('procurement') || appro.includes('proc');
+  return isProcurementBudgetLine(pe);
 }
 
 const PROCUREMENT_INTENT_RE =
@@ -88,10 +80,12 @@ export function validatePeAgainstDeliverable(
       code: 'rdte_procurement_mismatch',
       peCode: pe.peCode,
       message:
-        `PE ${pe.peCode} (${pe.title ?? 'untitled'}) is an RDT&E account` +
-        `${pe.budgetActivity ? ` (Budget Activity ${pe.budgetActivity})` : ''}, not a procurement line. ` +
+        `Budget line ${pe.peCode} (${pe.title ?? 'untitled'}) is classified as ` +
+        `${defenseBudgetExhibitLabel(pe)}` +
+        `${pe.appropriationType ? ` under ${pe.appropriationType}` : ''}, not as a procurement line. ` +
         `The deliverable uses end-item procurement language against it. Use "directed requirement" ` +
-        `or "evaluation/demonstration" framing for an RDT&E PE, or cite a procurement (BA 2) line.`,
+        `or "evaluation/demonstration" framing for an RDT&E Program Element, or cite a ` +
+        `P-1/P-40 procurement line item.`,
     });
   }
 
@@ -105,10 +99,10 @@ export function validatePeAgainstDeliverable(
       code: 'capability_mission_mismatch',
       peCode: pe.peCode,
       message:
-        `PE ${pe.peCode} is titled "${title}", which is a fire-control / computer / software ` +
-        `line — not a kinetic interceptor or missile program. The deliverable's capability ` +
-        `(missile/interceptor/kinetic) does not match this PE's mission. Verify this is the ` +
-        `correct program before anchoring strategy to it.`,
+        `Budget line ${pe.peCode} (${defenseBudgetExhibitLabel(pe)}) is titled "${title}", ` +
+        `which is a fire-control / computer / software line — not a kinetic interceptor or ` +
+        `missile program. The deliverable's capability (missile/interceptor/kinetic) does not ` +
+        `match this line's mission. Verify the correct budget line before anchoring strategy to it.`,
     });
   }
 
@@ -138,6 +132,22 @@ export interface PeAmountForComparison {
   stageLabel?: string | null;
   /** Legislative vehicle: 'authorization' | 'appropriations' | 'request'. */
   vehicleLabel?: string | null;
+  identifierKind?: 'pe' | 'procurement_line_item' | 'other' | null;
+  budgetExhibitType?: string | null;
+}
+
+function comparisonLineLabel(p: PeAmountForComparison): string {
+  const exhibit = (p.budgetExhibitType ?? '').toLowerCase();
+  if (p.identifierKind === 'procurement_line_item' || exhibit.includes('procurement')) {
+    return `procurement line item ${p.peCode}`;
+  }
+  if (p.identifierKind === 'pe' || /^\d{7}[A-Z][A-Z0-9]*$/i.test(p.peCode)) {
+    return `PE ${p.peCode}`;
+  }
+  if (/^\d{4}[A-Z]{1,2}[0-9A-Z]{2,14}$/i.test(p.peCode)) {
+    return `procurement line item ${p.peCode}`;
+  }
+  return `budget line ${p.peCode}`;
 }
 
 /** "$57.2M (FY27 HAC-D mark — appropriations)" — the labeled figure for messages. */
@@ -186,8 +196,8 @@ export function validatePrimaryVehicleClaim(
     code: 'primary_vehicle_overclaim',
     peCode: citedPe.peCode,
     message:
-      `The deliverable frames PE ${citedPe.peCode} as the "primary" vehicle, but PE ${top.peCode}` +
-      `${top.title ? ` (${top.title})` : ''} is materially larger in the same fiscal year ` +
+      `The deliverable frames ${comparisonLineLabel(citedPe)} as the "primary" vehicle, but ` +
+      `${comparisonLineLabel(top)}${top.title ? ` (${top.title})` : ''} is materially larger in the same fiscal year ` +
       `(${describeComparisonAmount(top)} vs ${describeComparisonAmount(citedPe)}). Drop the ` +
       `"primary" framing or re-anchor to the larger line.`,
   };

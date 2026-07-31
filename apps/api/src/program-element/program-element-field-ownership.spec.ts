@@ -33,6 +33,16 @@ describe('Program Element canonical field ownership', () => {
     expect(mayOwnCanonicalField('unknown', 'request')).toBe(false);
   });
 
+  test('unsupported Phase L source families cannot own canonical fields', () => {
+    expect(authorityForSource('milcon_army_fy27')).toBe('unknown');
+    expect(authorityForSource('execution_feed_q1')).toBe('unknown');
+    expect(authorityForSource('p5_unreviewed_blob')).toBe('unknown');
+    expect(mayOwnCanonicalField('unknown', 'request')).toBe(false);
+    expect(
+      mayOwnCanonicalField('presidents_budget_request', 'request', 'production', 'milcon_fy27'),
+    ).toBe(false);
+  });
+
   test('fixture ownership is allowed only in NODE_ENV=test', () => {
     expect(mayOwnCanonicalField('fixture', 'request', 'test')).toBe(true);
     expect(mayOwnCanonicalField('fixture', 'request', 'production')).toBe(false);

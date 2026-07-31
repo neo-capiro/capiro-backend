@@ -1,3 +1,5 @@
+import { sourceKeyForbiddenForCanonical } from '@capiro/shared';
+
 /**
  * Canonical ProgramElementYear fields are owned by the government source that
  * actually controls that legislative/budget stage. A source may still be
@@ -56,6 +58,11 @@ function normalizedSource(source: string): string {
 export function authorityForSource(source: string): PeSourceAuthority {
   const value = normalizedSource(source);
 
+  // Phase L / Phase 7: unsupported & blocked source families never gain authority.
+  if (sourceKeyForbiddenForCanonical(source) || sourceKeyForbiddenForCanonical(value)) {
+    return 'unknown';
+  }
+
   if (value === 'manual_override' || value.startsWith('manual_override_')) return 'manual_override';
   if (value === 'fixture' || value.startsWith('fixture_')) return 'fixture';
 
@@ -102,7 +109,9 @@ export function mayOwnCanonicalField(
   authority: PeSourceAuthority,
   field: CanonicalPeYearField,
   nodeEnv: string | undefined = process.env.NODE_ENV,
+  sourceKey?: string | null,
 ): boolean {
+  if (sourceKey && sourceKeyForbiddenForCanonical(sourceKey)) return false;
   if (authority === 'unknown') return false;
   if (authority === 'fixture') return nodeEnv === 'test';
   return AUTHORITY_FIELDS[authority].includes(field);

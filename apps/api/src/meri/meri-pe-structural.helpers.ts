@@ -11,7 +11,7 @@
  * Concretely, these rules catch the two error classes from the Perseus Defense
  * memo forensics:
  *   1. RDT&E-vs-procurement category error — a deliverable that proposes
- *      "directed procurement" of an end item through an RDT&E (BA 4) line.
+ *      "directed procurement" of an end item through an RDT&E Program Element.
  *   2. Capability-vs-mission mismatch — a deliverable that anchors a missile/
  *      interceptor strategy to a fire-control-computer PE (the XM32 / LHMBC
  *      "Computer Ballistics" line is a mortar ballistic computer, not a missile).
@@ -20,11 +20,14 @@
  * unit-tests under the repo's `src/**.spec.ts` matcher; the orchestrating
  * service supplies the cited PEs + deliverable text.
  *
- * SYNC NOTE: packages/meriv2-core keeps an identical copy in
- * `packages/meriv2-core/src/verifier/pe-structural.ts` — edit one, edit the other.
  */
 
-import { fmtFundingMillions } from '@capiro/shared';
+import {
+  defenseBudgetExhibitLabel,
+  fmtFundingMillions,
+  isProcurementBudgetLine,
+  isRdteBudgetLine,
+} from '@capiro/shared';
 
 /** A PE record as returned by the `get_program_element` / search tools. */
 export interface PeRecordForValidation {
@@ -36,6 +39,8 @@ export interface PeRecordForValidation {
   /** e.g. '02', '04', or 'BA 04' — the budget-activity code. */
   budgetActivity?: string | null;
   budgetActivityName?: string | null;
+  /** Explicit exhibit/line classification when the source provides one. */
+  lineType?: string | null;
 }
 
 export type PeWarningCode =
@@ -52,31 +57,16 @@ export interface PeStructuralWarning {
 
 /** True when the PE's appropriation/budget-activity marks it an RDT&E line. */
 export function isRdtePe(pe: PeRecordForValidation): boolean {
-  const appro = (pe.appropriationType ?? '').toLowerCase();
-  if (appro.includes('rdt') || appro.includes('research') || appro.includes('r&d')) return true;
-  // Budget Activity 4 (and the R-prefixed names) are RDT&E in the DoD taxonomy.
-  const ba = (pe.budgetActivity ?? '').toLowerCase().replace(/[^0-9]/g, '');
-  if (ba === '4' || ba === '04') return true;
-  return false;
+  return isRdteBudgetLine(pe);
 }
 
-/** True when the PE is an explicit procurement line. */
 export function isProcurementPe(pe: PeRecordForValidation): boolean {
-  const appro = (pe.appropriationType ?? '').toLowerCase();
-  return appro.includes('procurement') || appro.includes('proc');
+  return isProcurementBudgetLine(pe);
 }
 
-/**
- * Human budget-EXHIBIT label — the distinction Meri kept collapsing (calling a
- * P-1 procurement line item a "Program Element"). Procurement lines come from
- * the P-1/P-40 exhibits and are line items, NOT Program Elements (which are the
- * R-1/R-2 RDT&E construct). Surfaced verbatim in every PE tool's output so the
- * model states the right noun instead of inferring it from the code shape.
- */
+/** Canonical human exhibit label from @capiro/shared. */
 export function budgetExhibitType(pe: PeRecordForValidation): string {
-  if (isProcurementPe(pe)) return 'P-1 procurement line item (NOT a Program Element)';
-  if (isRdtePe(pe)) return 'R-1 RDT&E Program Element';
-  return 'budget line (exhibit type not classified)';
+  return defenseBudgetExhibitLabel(pe);
 }
 
 /**
@@ -114,10 +104,12 @@ export function validatePeAgainstDeliverable(
       code: 'rdte_procurement_mismatch',
       peCode: pe.peCode,
       message:
-        `PE ${pe.peCode} (${pe.title ?? 'untitled'}) is an RDT&E account` +
-        `${pe.budgetActivity ? ` (Budget Activity ${pe.budgetActivity})` : ''}, not a procurement line. ` +
+        `Budget line ${pe.peCode} (${pe.title ?? 'untitled'}) is classified as ` +
+        `${defenseBudgetExhibitLabel(pe)}` +
+        `${pe.appropriationType ? ` under ${pe.appropriationType}` : ''}, not as a procurement line. ` +
         `The deliverable uses end-item procurement language against it. Use "directed requirement" ` +
-        `or "evaluation/demonstration" framing for an RDT&E PE, or cite a procurement (BA 2) line.`,
+        `or "evaluation/demonstration" framing for an RDT&E Program Element, or cite a ` +
+        `P-1/P-40 procurement line item.`,
     });
   }
 
@@ -133,10 +125,10 @@ export function validatePeAgainstDeliverable(
       code: 'capability_mission_mismatch',
       peCode: pe.peCode,
       message:
-        `PE ${pe.peCode} is titled "${title}", which is a fire-control / computer / software ` +
-        `line — not a kinetic interceptor or missile program. The deliverable's capability ` +
-        `(missile/interceptor/kinetic) does not match this PE's mission. Verify this is the ` +
-        `correct program before anchoring strategy to it.`,
+        `Budget line ${pe.peCode} (${defenseBudgetExhibitLabel(pe)}) is titled "${title}", ` +
+        `which is a fire-control / computer / software line — not a kinetic interceptor or ` +
+        `missile program. The deliverable's capability (missile/interceptor/kinetic) does not ` +
+        `match this line's mission. Verify the correct budget line before anchoring strategy to it.`,
     });
   }
 
@@ -160,6 +152,22 @@ export interface PeAmountForComparison {
   stageLabel?: string | null;
   /** Legislative vehicle: 'authorization' | 'appropriations' | 'request'. */
   vehicleLabel?: string | null;
+  identifierKind?: 'pe' | 'procurement_line_item' | 'other' | null;
+  budgetExhibitType?: string | null;
+}
+
+function comparisonLineLabel(p: PeAmountForComparison): string {
+  const exhibit = (p.budgetExhibitType ?? '').toLowerCase();
+  if (p.identifierKind === 'procurement_line_item' || exhibit.includes('procurement')) {
+    return `procurement line item ${p.peCode}`;
+  }
+  if (p.identifierKind === 'pe' || /^\d{7}[A-Z][A-Z0-9]*$/i.test(p.peCode)) {
+    return `PE ${p.peCode}`;
+  }
+  if (/^\d{4}[A-Z]{1,2}[0-9A-Z]{2,14}$/i.test(p.peCode)) {
+    return `procurement line item ${p.peCode}`;
+  }
+  return `budget line ${p.peCode}`;
 }
 
 /** "$57.2M (FY27 HAC-D mark — appropriations)" — the labeled figure for messages. */
@@ -211,8 +219,8 @@ export function validatePrimaryVehicleClaim(
     code: 'primary_vehicle_overclaim',
     peCode: citedPe.peCode,
     message:
-      `The deliverable frames PE ${citedPe.peCode} as the "primary" vehicle, but PE ${top.peCode}` +
-      `${top.title ? ` (${top.title})` : ''} is materially larger in the same fiscal year ` +
+      `The deliverable frames ${comparisonLineLabel(citedPe)} as the "primary" vehicle, but ` +
+      `${comparisonLineLabel(top)}${top.title ? ` (${top.title})` : ''} is materially larger in the same fiscal year ` +
       `(${describeComparisonAmount(top)} vs ${describeComparisonAmount(citedPe)}). Drop the ` +
       `"primary" framing or re-anchor to the larger line.`,
   };

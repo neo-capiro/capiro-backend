@@ -46,9 +46,22 @@ describe('isRdtePe / isProcurementPe', () => {
     expect(isRdtePe(ACP_RDTE)).toBe(true);
     expect(isProcurementPe(ACP_RDTE)).toBe(false);
   });
-  it('classifies RDT&E by Budget Activity 4 even if appro is blank', () => {
-    expect(isRdtePe({ peCode: 'x', budgetActivity: 'BA 04' })).toBe(true);
-    expect(isRdtePe({ peCode: 'x', budgetActivity: '4' })).toBe(true);
+  it('does not classify an unknown line from Budget Activity 4 alone', () => {
+    expect(isRdtePe({ peCode: 'x', budgetActivity: 'BA 04' })).toBe(false);
+    expect(isRdtePe({ peCode: 'x', budgetActivity: '4' })).toBe(false);
+  });
+  it('classifies by validated code shape when explicit type and appropriation are absent', () => {
+    expect(isRdtePe({ peCode: '0604999A', budgetActivity: '01' })).toBe(true);
+    expect(isProcurementPe({ peCode: '1507N2280', budgetActivity: '07' })).toBe(true);
+  });
+  it('gives explicit lineType precedence over conflicting lower-priority signals', () => {
+    expect(
+      isRdtePe({
+        peCode: '1507N2280',
+        appropriationType: 'Procurement',
+        lineType: 'RDTE_PE',
+      }),
+    ).toBe(true);
   });
   it('classifies a procurement line', () => {
     expect(isProcurementPe(TRUE_PROCUREMENT)).toBe(true);
@@ -126,6 +139,28 @@ describe('validatePrimaryVehicleClaim (Rule 3)', () => {
     expect(w?.message).toContain('same fiscal year');
   });
 
+  it('calls a procurement sibling a line item rather than a PE', () => {
+    const w = validatePrimaryVehicleClaim(
+      {
+        peCode: '0604041F',
+        amountM: 10,
+        fy: 2027,
+        identifierKind: 'pe',
+      },
+      'PE 0604041F is the primary funding vehicle.',
+      [
+        {
+          peCode: '1507N2280',
+          amountM: 100,
+          fy: 2027,
+          identifierKind: 'procurement_line_item',
+        },
+      ],
+    );
+    expect(w?.message).toContain('procurement line item 1507N2280');
+    expect(w?.message).not.toContain('PE 1507N2280');
+  });
+
   it('returns null when no "primary" claim is made', () => {
     const text = 'PE 0207179F is a secondary experimentation pathway.';
     expect(
@@ -185,15 +220,15 @@ describe('budgetExhibitType', () => {
   it('labels a procurement line a P-1 line item, NOT a Program Element (the Boresight error)', () => {
     // 1242C93000 "Air Defense Targets" is appropriationType 'PROC'.
     expect(budgetExhibitType({ peCode: '1242C93000', appropriationType: 'PROC' })).toMatch(
-      /P-1 procurement line item .*NOT a Program Element/,
+      /P-1\/P-40 procurement line item .*NOT a Program Element/,
     );
-    expect(budgetExhibitType(TRUE_PROCUREMENT)).toMatch(/P-1 procurement line item/);
+    expect(budgetExhibitType(TRUE_PROCUREMENT)).toMatch(/P-1\/P-40 procurement line item/);
   });
   it('labels an RDT&E line an R-1 Program Element', () => {
-    expect(budgetExhibitType(ACP_RDTE)).toBe('R-1 RDT&E Program Element');
-    // BA-4 with no appropriation string still resolves via budget activity.
-    expect(budgetExhibitType({ peCode: '0604999A', budgetActivity: '04' })).toBe(
-      'R-1 RDT&E Program Element',
+    expect(budgetExhibitType(ACP_RDTE)).toBe('R-1/R-2 RDT&E Program Element');
+    // A validated R-1/R-2 code shape resolves even when no appropriation string exists.
+    expect(budgetExhibitType({ peCode: '0604999A', budgetActivity: '01' })).toBe(
+      'R-1/R-2 RDT&E Program Element',
     );
   });
   it('falls back (never guesses) when the type is unclassifiable', () => {

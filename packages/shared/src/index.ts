@@ -1920,6 +1920,29 @@ function matchSubcommittee(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// Defense-budget line identity + Phase L coverage (Phase 7 / Phase J port).
+// Implementation lives in dedicated modules; re-exported here for @capiro/shared.
+// ─────────────────────────────────────────────────────────────────────────
+export {
+  DEFENSE_BUDGET_DOMAIN_PRIMER,
+  defenseBudgetExhibitLabel,
+  defenseBudgetLineKind,
+  isProcurementBudgetLine,
+  isRdteBudgetLine,
+  type DefenseBudgetLineIdentity,
+  type DefenseBudgetLineKind,
+} from './defense-budget-line.js';
+export {
+  PE_SOURCE_FAMILY_COVERAGE,
+  getPeSourceFamilyCoverage,
+  peSourceCoverageModelCaveat,
+  sourceKeyForbiddenForCanonical,
+  unsupportedOrBlockedSourceFamilies,
+  type PeSourceFamilyCoverage,
+  type PeSourceFamilyStatus,
+} from './pe-source-coverage.js';
+
+// ─────────────────────────────────────────────────────────────────────────
 // PE funding lifecycle — THE canonical per-FY "which stage counts" precedence.
 // The PE detail page (apps/web funding-model.ts) and every server-side funding
 // figure (finder list current, spark, summary trend, capability current) MUST
@@ -2193,7 +2216,7 @@ export interface ModelFundingInput {
   peCode: string;
   title?: string | null;
   service?: string | null;
-  /** From budgetExhibitType(): "R-1 RDT&E Program Element" / "P-1 procurement line item…". */
+  /** From defenseBudgetExhibitLabel(): the explicit RDT&E/procurement/unknown noun. */
   budgetExhibitType?: string | null;
   /** Latest mark-bearing FY; computed via currentCycleFyOf when omitted. */
   currentCycleFy?: number | null;

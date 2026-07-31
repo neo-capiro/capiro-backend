@@ -4,9 +4,9 @@
 **PR:** https://github.com/neo-capiro/capirov2/pull/705 (draft → `main`)  
 **Plan source:** local `program-elements-final-closeout-plan-and-schedule.md`  
 **Repo:** `neo-capiro/capirov2`  
-**Operator session:** Phase 6 IMPLEMENT (analyst feedback + CRM contact controls)
+**Operator session:** Phase 7 IMPLEMENT (grounding + coverage boundary closeout)
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-31 (Phase 6 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-31 (Phase 7 IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
 
 ---
 
@@ -1108,3 +1108,101 @@ Do not start Phase 7 until a separate REVIEW session records PASS.
 
 **Independent review status:** still REQUIRED — no self-PASS. Do not start Phase 7.
 
+
+---
+
+## Phase 7 — Grounding and Coverage Boundary Closeout (IMPLEMENT)
+
+**When (UTC date):** 2026-07-31  
+**Base (Phase 6 PASS tip):** `744c6774f89917c6b0a9c6b6d98b5a0387598f73`  
+**origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e`  
+**Mode:** LONG IMPLEMENT only — no self-PASS, no Phase 8, no MeriV2 source edits  
+**Product tip (this phase):** _{PENDING_COMMIT}_  
+**Remote tip after push (review target):** _{PENDING_PUSH}_
+
+### Tasks completed (implementation)
+
+| ID | Work |
+|---|---|
+| J1 | Shared defense-budget line classifier + primer in `@capiro/shared` (`defense-budget-line.ts`); re-exported from package index + subpath export |
+| J2 | Do not classify RDT&E from BA4 alone; procurement lines never labeled Program Elements — enforced in classifier + API/Workspace structural helpers |
+| J3 | Auth vs approps, report-language scope, contact restrictions preserved in shared primer + Meri tool helpers (report note + coverage caveat) |
+| L1–L7 | Phase L coverage matrix documented (`docs/program-elements/source-coverage-matrix.md` + `pe-source-coverage.ts`) with loaded/partial/unsupported/blocked |
+| L-fail-closed | `sourceKeyForbiddenForCanonical` gates PE field ownership (`authorityForSource` / `mayOwnCanonicalField`) so unsupported families cannot become canonical |
+| API↔WS | Meri fanout/structural helpers + Workspace `domain-grounding.helpers` both consume shared primer/classifier (no hand-synced BA4 shortcut) |
+| Tools | Meri PE search/detail/timeline/report-language attach `modelBudgetLineMetadata` + Phase G `FundingClaim` (`value`/`fiscalYear`/`legislativeVehicle`) |
+| MeriV2 | **No** `packages/meriv2-core/**` source edits (local `dist` build only for test typecheck) |
+| Tests | `verify:pe-phase-j` + Workspace domain-grounding + inherited A/D/G |
+
+### Files (product)
+
+- `packages/shared/src/defense-budget-line.ts` (new)
+- `packages/shared/src/pe-source-coverage.ts` (new)
+- `packages/shared/src/index.ts` (re-exports)
+- `packages/shared/package.json` (subpath exports)
+- `apps/api/src/meri/meri-defense-budget-tool.helpers.ts` (+specs, eval)
+- `apps/api/src/meri/meri-tools.service.ts`
+- `apps/api/src/meri/meri-pe-structural.helpers.ts` (+spec)
+- `apps/api/src/meri/meri-domain-fanout.helpers.ts` (+spec)
+- `apps/api/src/meri/evals/grounding-mechanisms.spec.ts` (label strings)
+- `apps/api/src/program-element/program-element-field-ownership.ts` (+spec)
+- `apps/api/src/program-element/defense-budget-grounding.spec.ts` (new)
+- `apps/api/package.json` (`verify:pe-phase-j`)
+- `apps/workspace/src/generation/domain-grounding.helpers.ts` (+spec)
+- `docs/program-elements/source-coverage-matrix.md` (new)
+- ledger docs
+
+### Gates (implement local)
+
+| Command | Result |
+|---|---|
+| `pnpm -C packages/shared run build` | **PASS** |
+| `pnpm -C apps/api run verify:pe-phase-j` | **77/77 PASS** (7 suites) |
+| `pnpm -C apps/workspace exec jest … domain-grounding.helpers.spec.ts` | **10/10 PASS** |
+| `pnpm -C apps/api run verify:pe-phase-a` | **PE_PHASE_A_B_SAFETY_OK** |
+| `pnpm -C apps/api run verify:pe-phase-d` | **52/52 PASS** |
+| `pnpm -C apps/api run verify:pe-phase-g` | **87/87 PASS** |
+| `jest … grounding-mechanisms.spec.ts` | **23/23 PASS** |
+| MeriV2 source edits | **none** |
+| Shared-env migrate / ingestion / secrets / email / LlamaParse | **not run** |
+
+### Migrations / data ops
+
+- None. No Prisma schema change. Fail-closed is pure TypeScript ownership + docs/matrix.
+
+### Base-proven failures
+
+- Pre-Phase-7 tip still classified RDT&E from BA4 alone in Meri/Workspace structural helpers (intentional Phase 7 fix).
+- Tools suite typecheck requires existing `@capiro/meriv2-core` dist when importing `meri-tools.service` (dependency of engagement import) — local package build only; no meriv2-core source change.
+
+### Cascade residual
+
+- MeriV2-core still has its own hand-synced primer/structural copies on main; **out of scope** under “no MeriV2 source edits”. Shared package is the forward contract for PE API + Workspace; MeriV2 import of shared is a future non-#705 follow-up.
+- Full FYDP / JES narrative completeness remains `partial` by design.
+- Human-reviewed goldens remain Phase 8 / human workstream.
+
+### Independent review status (Phase 7)
+
+**IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on the remote tip after push (not self-PASS).  
+Do **not** start Phase 8 until REVIEW records `VERDICT: PASS` (or PASS WITH BLOCKERS with exit-gate bullets satisfied).
+
+### Rollback
+
+```bash
+git reset --hard 744c6774f89917c6b0a9c6b6d98b5a0387598f73
+```
+
+### Exit gate bullets for REVIEW (do not self-PASS)
+
+- Model-facing and user-facing text cannot imply unavailable coverage (primer + report-language note + matrix)
+- No unsupported source can become canonical (`sourceKeyForbiddenForCanonical` + ownership tests)
+- API/Workspace grounding tests pass (`verify:pe-phase-j`, Workspace domain-grounding)
+- Shared package compatibility passes without MeriV2 edits
+- Future source-family backlog explicit and non-blocking
+
+---
+
+## Next phase
+
+**Phase 7 independent adversarial REVIEW only** against the **new remote tip** after this push (not Phase 8 implement).  
+Do not start Phase 8 until a separate REVIEW session records PASS.

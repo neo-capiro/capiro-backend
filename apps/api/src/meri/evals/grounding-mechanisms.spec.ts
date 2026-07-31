@@ -130,10 +130,10 @@ describe('G1 identifier identity — a PE is not a procurement line item', () =>
 
   it('budgetExhibitType names the exhibit, never inferring "PE" from a code shape', () => {
     expect(budgetExhibitType({ peCode: '0603851F', appropriationType: 'RDT&E' })).toBe(
-      'R-1 RDT&E Program Element',
+      'R-1/R-2 RDT&E Program Element',
     );
     expect(budgetExhibitType({ peCode: '1507N2280', appropriationType: 'Procurement' })).toBe(
-      'P-1 procurement line item (NOT a Program Element)',
+      'P-1/P-40 procurement line item (NOT a Program Element)',
     );
   });
 
