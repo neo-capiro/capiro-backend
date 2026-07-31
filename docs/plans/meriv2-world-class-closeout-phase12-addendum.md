@@ -30,7 +30,15 @@ POST /api/memory/review/candidates/:id/reject
 
 The route accepts no browser authority facts. `MemoryCandidateReviewService` resolves visibility and capabilities through `MemoryAuthorizationService`, and `MemoryCandidateService` repeats the decision while holding the candidate row lock in the atomic activation/rejection transaction.
 
-The surface is fail-closed unless both governed lifecycle and authorization are explicitly armed. Existing administrator compatibility routes remain available for the inherited dark-mode behavior; the product queue uses the new scope-aware surface.
+The surface is fail-closed unless all three controls are explicitly armed:
+
+```text
+MEMORY_CLIENT_REVIEW=enforce
+MEMORY_GOVERNANCE_LIFECYCLE=enforce
+MEMORY_GOVERNANCE_ENFORCE=enforce
+```
+
+`MEMORY_CLIENT_REVIEW` is an independent Phase 12 kill switch and defaults off. Existing administrator compatibility routes remain available for the inherited dark-mode behavior; the product queue uses the new scope-aware surface.
 
 ### Confidentiality and scope
 
@@ -64,7 +72,7 @@ Settings → Memory now contains an **Awaiting your review** queue. It renders o
 Phase 12 adds or extends tests for:
 
 - standard-user route access;
-- dark-state behavior;
+- exact client-review switch parsing and dark-state behavior;
 - grant-scoped list visibility;
 - no pre-authorization payload fetch;
 - approve/reject delegation with server context;
@@ -82,7 +90,7 @@ Detailed acceptance contract: `docs/qa/meriv2-phase-12-client-review-grants.md`.
 
 ### Rollback
 
-Disable either governed-memory authorization or lifecycle enforcement, or revoke an individual client grant. The queue becomes unavailable while pending candidates and grant/audit history remain intact.
+Set `MEMORY_CLIENT_REVIEW=off` or revoke an individual client grant. This disables only the new grant-scoped queue and decision routes while leaving other governed-memory behavior unchanged. Pending candidates and grant/audit history remain intact.
 
 Do not delete grants, hand-promote candidates, or overwrite later memory versions as rollback.
 
