@@ -193,18 +193,27 @@ describe('ContextPacketRolloutCompiler', () => {
     expect(internal.rendered[0]?.body).toContain('<context_item');
   });
 
-  it('bounded shadow evidence detects no identity leak or relevance loss for governed withholding', async () => {
-    const restricted = approvedFirm({
+  it('bounded shadow evidence treats optional governed withholding as confidentiality-safe and relevance-safe', async () => {
+    const restrictedVoice = approvedFirm({
       id: '44444444-4444-4444-8444-444444444444',
-      title: 'Restricted doctrine',
+      type: 'user-voice',
+      slug: 'voice',
+      title: 'Restricted writing sample',
+      ownerUserId: 'user-1',
+      visibility: 'user',
+      memoryClass: 'user_private',
+      governedAuthority: 'user_asserted',
+      sourceType: 'explicit_user',
       sensitivity: 'restricted',
+      approvedByUserId: null,
+      approvedAt: null,
       sections: [{ owner: 'human', heading: 'Secret', body: 'Never disclose this body.' }],
     });
-    const h = harness([restricted]);
+    const h = harness([approvedFirm(), restrictedVoice]);
     await h.compiler.compile(request(), 'shadow');
     expect(h.comparisons[0]?.confidentialityRegression).toBe(false);
     expect(h.comparisons[0]?.relevanceRegression).toBe(false);
     expect(JSON.stringify(h.comparisons)).not.toContain('Never disclose this body.');
-    expect(JSON.stringify(h.comparisons)).not.toContain('Restricted doctrine');
+    expect(JSON.stringify(h.comparisons)).not.toContain('Restricted writing sample');
   });
 });
