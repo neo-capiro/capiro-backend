@@ -85,14 +85,33 @@ function apiRoot(): string {
   return cwd;
 }
 
+function scratchDir(): string {
+  // Container FS is read-only except TMPDIR (/dev/shm or /app/tmp). Never write under scripts/.
+  const candidates = [
+    process.env.TMPDIR,
+    process.env.TEMP,
+    '/dev/shm',
+    '/app/tmp',
+    '/tmp',
+  ].filter((x): x is string => !!x);
+  for (const c of candidates) {
+    try {
+      const dir = resolve(c, 'pe10-closeout');
+      mkdirSync(dir, { recursive: true });
+      return dir;
+    } catch {
+      /* try next */
+    }
+  }
+  throw new Error('pe-phase-10-live-proofs: no writable scratch dir for promotion artifact');
+}
+
 function buildPromotionArtifact(): {
   json: string;
   path: string;
   sha256: string;
 } {
-  const root = apiRoot();
-  const dir = resolve(root, 'scripts/__data__/pe10-closeout');
-  mkdirSync(dir, { recursive: true });
+  const dir = scratchDir();
   const artifact = {
     _provenance: {
       note: 'SYNTHETIC PE Phase 10 internal promotion — isolated domain pe10_closeout FY2099; not human-reviewed; auto-cleaned',
