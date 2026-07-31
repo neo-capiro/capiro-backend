@@ -3,8 +3,7 @@ import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryCandidateService } from './memory-candidate.service.js';
-import { governedMemoryEnforcementEnabled } from './memory-authorization.helpers.js';
-import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.helpers.js';
+import { memoryReviewSurfaceEnabled } from './memory-review-switch.js';
 import type { MemorySection } from './memory.types.js';
 
 export interface ReviewableMemoryCandidate {
@@ -39,11 +38,6 @@ interface PendingCandidateRow {
   createdAt: Date;
 }
 
-/** Exact parser for the Phase 12 surface switch. Truthy-looking values stay off. */
-export function clientMemoryReviewEnabled(raw: string | undefined): boolean {
-  return raw?.trim().toLowerCase() === 'enforce';
-}
-
 /**
  * Scope-aware review facade for standard authenticated users.
  *
@@ -63,11 +57,7 @@ export class MemoryCandidateReviewService {
   ) {}
 
   enabled(): boolean {
-    return (
-      clientMemoryReviewEnabled(process.env.MEMORY_CLIENT_REVIEW) &&
-      governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE) &&
-      governedMemoryEnforcementEnabled(process.env.MEMORY_GOVERNANCE_ENFORCE)
-    );
+    return memoryReviewSurfaceEnabled();
   }
 
   async listReviewable(
