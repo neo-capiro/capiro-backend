@@ -1,0 +1,34 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "scripts/lib/pe-production-scripts.ts",
+    "scripts/lib/pe-production-scripts.spec.ts",
+    "scripts/lib/pe-exact-sha-loader-contract.ts",
+    "scripts/lib/defense-budget-commit.ts",
+    "scripts/lib/defense-budget-ingest-mode.ts",
+    "scripts/lib/pe-trust-diagnostics.ts",
+    "scripts/lib/pe-trust-diagnostics.spec.ts",
+    "scripts/lib/pe-migration-guards.ts",
+    "scripts/lib/pe-migration-guards.spec.ts",
+    "scripts/lint-pe-scripts.ts",
+    "scripts/verify-pe-phase-k.ts",
+    "scripts/verify-pe-migration-guards.ts",
+    "scripts/verify-pe-phase-a-safety.ts",
+    "scripts/verify-pe-phase-e-exact-sha.ts",
+    "src/intelligence/metrics/accuracy-metrics.ts",
+    "src/intelligence/metrics/accuracy-metrics.spec.ts",
+    "src/program-element/pe-trust-metric-catalog.ts",
+    "src/program-element/pe-trust-metric-catalog.spec.ts",
+    "src/program-element/program-element-metrics.service.ts",
+    "src/program-element/program-element-metrics.service.spec.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

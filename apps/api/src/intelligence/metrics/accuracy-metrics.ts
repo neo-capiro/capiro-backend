@@ -57,7 +57,110 @@ export const TARGETS = {
   PERSON_ROLE_PRECISION: 0.97,
   /** Delta classification accuracy — §22 ≥ 0.98. */
   DELTA_ACCURACY: 0.98,
+  /**
+   * Grounded field-row accuracy (identity + FY + field/stage + source SHA + page/span)
+   * — Phase K permanent gate ≥ 0.99 when measured against human-reviewed goldens.
+   */
+  GROUNDED_FIELD_ACCURACY: 0.99,
+  /** Current vs outyear / classification accuracy ≥ 0.98. */
+  CLASSIFICATION_ACCURACY: 0.98,
 } as const;
+
+/**
+ * Named metric families kept SEPARATE under Phase K. Dashboards and gates must
+ * not collapse these into a single opaque score.
+ */
+export const METRIC_FAMILIES = [
+  'precision',
+  'recall',
+  'coverage',
+  'classification_accuracy',
+  'false_positives',
+  'false_negatives',
+  'grounded_field_accuracy',
+  'identity_accuracy',
+  'funding_value_accuracy',
+] as const;
+
+export type MetricFamily = (typeof METRIC_FAMILIES)[number];
+
+/** A row identifiable by `id`, the join key between golden and actual. */
+export interface Identified {
+  id: string;
+}
+
+/** Tokens for grounded PE golden rows (Phase K exact query keys). */
+export interface GroundedFieldGolden extends Identified {
+  peCode: string;
+  fy: number;
+  /** Canonical money/report field or narrative stage key. */
+  field: string;
+  /** Optional budget/legislative stage (request, hascMark, enacted, …). */
+  stage?: string | null;
+  /** Exact source document SHA-256 (lowercase hex). */
+  sourceSha256: string;
+  /** Human-verified page number (1-indexed) when known. */
+  page?: number | null;
+  /** Byte or char span inside the page/article, opaque to the metric math. */
+  span?: string | null;
+  /** Expected canonical value (stringified); optional when only provenance is scored. */
+  expectedValue?: string | null;
+  /**
+   * Review provenance. Synthetic placeholders MUST set humanReviewed=false and
+   * keep a loud syntheticWarning. Human rows require reviewer + reviewedAt.
+   */
+  humanReviewed: boolean;
+  reviewer?: string | null;
+  reviewedAt?: string | null;
+  syntheticWarning?: string | null;
+}
+
+export interface GroundedFieldActual extends Identified {
+  peCode: string | null;
+  fy: number | null;
+  field: string | null;
+  stage?: string | null;
+  sourceSha256: string | null;
+  page?: number | null;
+  span?: string | null;
+  actualValue?: string | null;
+}
+
+export interface BinaryClassGolden extends Identified {
+  /** Human label, e.g. 'current' | 'outyear' | 'rdt_e' | 'procurement'. */
+  label: string;
+}
+
+export interface BinaryClassActual extends Identified {
+  label: string | null;
+}
+
+/** Confusion counts kept as separate SaaS/SOC metrics — never blended. */
+export interface ConfusionCounts {
+  truePositives: number;
+  trueNegatives: number;
+  falsePositives: number;
+  falseNegatives: number;
+}
+
+export interface SeparatedMetricBundle {
+  precision: MetricResult;
+  recall: MetricResult;
+  /** Share of golden rows for which an actual decision existed. */
+  coverage: MetricResult;
+  classificationAccuracy: MetricResult;
+  falsePositives: number;
+  falseNegatives: number;
+  confusion: ConfusionCounts;
+}
+
+function normSha(s: string | null | undefined): string {
+  return (s ?? '').trim().toLowerCase();
+}
+
+function normToken(s: string | null | undefined): string {
+  return (s ?? '').trim().toLowerCase();
+}
 
 /**
  * Default tolerance (in $ MILLIONS) for `fundingValueAccuracy`. Two amounts count as
@@ -71,11 +174,6 @@ export const FUNDING_TOLERANCE_M = 0.001;
 // Golden / actual row shapes. Kept deliberately minimal — only the fields each
 // metric compares. The CLI maps DB rows into these.
 // ---------------------------------------------------------------------------
-
-/** A row identifiable by `id`, the join key between golden and actual. */
-export interface Identified {
-  id: string;
-}
 
 export interface R1IdentityGolden extends Identified {
   peCode: string;
@@ -266,3 +364,181 @@ export function summarize(results: readonly MetricResult[]): AccuracySummary {
     allPass: results.length > 0 && results.every((r) => r.pass),
   };
 }
+
+
+// ---------------------------------------------------------------------------
+// Phase K — grounded field rows + separated precision/recall/coverage
+// ---------------------------------------------------------------------------
+
+/**
+ * Exact grounded-field accuracy: a row hits only when identity (peCode), FY,
+ * field, optional stage, source SHA-256, and page/span ALL match the golden.
+ * Missing actual rows are misses. underlying values are compared only when the
+ * golden supplies expectedValue.
+ */
+export function groundedFieldAccuracy(
+  golden: readonly GroundedFieldGolden[],
+  actual: readonly GroundedFieldActual[],
+): MetricResult {
+  const index = byId(actual);
+  let hits = 0;
+  for (const g of golden) {
+    const a = index.get(g.id);
+    if (!a) continue;
+    const identity =
+      normToken(a.peCode) === normToken(g.peCode) &&
+      a.fy === g.fy &&
+      normToken(a.field) === normToken(g.field);
+    const stageOk =
+      g.stage === undefined || g.stage === null
+        ? true
+        : normToken(a.stage) === normToken(g.stage);
+    const shaOk = normSha(a.sourceSha256) === normSha(g.sourceSha256) && normSha(g.sourceSha256) !== '';
+    const pageOk =
+      g.page === undefined || g.page === null ? true : a.page === g.page;
+    const spanOk =
+      g.span === undefined || g.span === null || g.span === ''
+        ? true
+        : (a.span ?? '') === g.span;
+    const valueOk =
+      g.expectedValue === undefined || g.expectedValue === null
+        ? true
+        : (a.actualValue ?? '') === g.expectedValue;
+    if (identity && stageOk && shaOk && pageOk && spanOk && valueOk) hits++;
+  }
+  return ratioResult(
+    'grounded_field_accuracy',
+    hits,
+    golden.length,
+    TARGETS.GROUNDED_FIELD_ACCURACY,
+  );
+}
+
+/**
+ * Require loud synthetic labelling. Returns blockers when any row claims
+ * humanReviewed without reviewer/date, or when synthetic rows omit the warning.
+ */
+export function auditGoldenReviewProvenance(
+  rows: readonly GroundedFieldGolden[],
+): { ok: boolean; blockers: string[] } {
+  const blockers: string[] = [];
+  for (const row of rows) {
+    if (row.humanReviewed) {
+      if (!row.reviewer || !String(row.reviewer).trim()) {
+        blockers.push(`${row.id}: humanReviewed=true requires reviewer`);
+      }
+      if (!row.reviewedAt || !String(row.reviewedAt).trim()) {
+        blockers.push(`${row.id}: humanReviewed=true requires reviewedAt`);
+      }
+      if (row.syntheticWarning) {
+        blockers.push(`${row.id}: human-reviewed row must not carry syntheticWarning`);
+      }
+    } else {
+      const warn = (row.syntheticWarning ?? '').toUpperCase();
+      if (!warn.includes('SYNTHETIC') && !warn.includes('NOT HUMAN')) {
+        blockers.push(
+          `${row.id}: synthetic row requires loud syntheticWarning (must mention SYNTHETIC or NOT HUMAN)`,
+        );
+      }
+    }
+    if (!row.sourceSha256 || normSha(row.sourceSha256).length !== 64) {
+      // Allow placeholder 64-char hex OR explicit empty only when synthetic and warned.
+      if (row.humanReviewed) {
+        blockers.push(`${row.id}: human-reviewed row requires 64-char sourceSha256`);
+      }
+    }
+  }
+  return { ok: blockers.length === 0, blockers };
+}
+
+/**
+ * Multi-class classification accuracy (current/outyear, PE vs non-PE line, …).
+ */
+export function classificationAccuracy(
+  golden: readonly BinaryClassGolden[],
+  actual: readonly BinaryClassActual[],
+): MetricResult {
+  const index = byId(actual);
+  let hits = 0;
+  for (const g of golden) {
+    const a = index.get(g.id);
+    if (!a || a.label == null) continue;
+    if (normToken(a.label) === normToken(g.label)) hits++;
+  }
+  return ratioResult(
+    'classification_accuracy',
+    hits,
+    golden.length,
+    TARGETS.CLASSIFICATION_ACCURACY,
+  );
+}
+
+/**
+ * Separated precision / recall / coverage / FP / FN for a positive class label.
+ * Metrics remain independent MetricResult objects — never averaged silently.
+ */
+export function separatedBinaryMetrics(
+  golden: readonly BinaryClassGolden[],
+  actual: readonly BinaryClassActual[],
+  positiveLabel: string,
+  targets?: {
+    precision?: number;
+    recall?: number;
+    coverage?: number;
+    classification?: number;
+  },
+): SeparatedMetricBundle {
+  const pos = normToken(positiveLabel);
+  const index = byId(actual);
+  let tp = 0;
+  let tn = 0;
+  let fp = 0;
+  let fn = 0;
+  let covered = 0;
+
+  for (const g of golden) {
+    const a = index.get(g.id);
+    if (!a || a.label == null || a.label === '') {
+      // No system decision → uncovered; also counts as FN if golden is positive.
+      if (normToken(g.label) === pos) fn++;
+      continue;
+    }
+    covered++;
+    const gPos = normToken(g.label) === pos;
+    const aPos = normToken(a.label) === pos;
+    if (gPos && aPos) tp++;
+    else if (!gPos && !aPos) tn++;
+    else if (!gPos && aPos) fp++;
+    else fn++;
+  }
+
+  const precisionTarget = targets?.precision ?? TARGETS.PROGRAM_MATCH_PRECISION;
+  const recallTarget = targets?.recall ?? TARGETS.PROGRAM_MATCH_PRECISION;
+  const coverageTarget = targets?.coverage ?? 0.95;
+  const classTarget = targets?.classification ?? TARGETS.CLASSIFICATION_ACCURACY;
+
+  const precisionDenom = tp + fp;
+  const recallDenom = tp + fn;
+  const classDenom = tp + tn + fp + fn;
+
+  return {
+    precision: ratioResult('precision', tp, precisionDenom, precisionTarget),
+    recall: ratioResult('recall', tp, recallDenom, recallTarget),
+    coverage: ratioResult('coverage', covered, golden.length, coverageTarget),
+    classificationAccuracy: ratioResult(
+      'classification_accuracy',
+      tp + tn,
+      classDenom,
+      classTarget,
+    ),
+    falsePositives: fp,
+    falseNegatives: fn,
+    confusion: {
+      truePositives: tp,
+      trueNegatives: tn,
+      falsePositives: fp,
+      falseNegatives: fn,
+    },
+  };
+}
+

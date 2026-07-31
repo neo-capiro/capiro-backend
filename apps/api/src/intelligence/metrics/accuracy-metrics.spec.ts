@@ -1,12 +1,17 @@
 import {
   TARGETS,
   FUNDING_TOLERANCE_M,
+  METRIC_FAMILIES,
   peIdentityAccuracy,
   fundingValueAccuracy,
   programMatchPrecision,
   personRolePrecision,
   deltaAccuracy,
   summarize,
+  groundedFieldAccuracy,
+  auditGoldenReviewProvenance,
+  classificationAccuracy,
+  separatedBinaryMetrics,
   type R1IdentityGolden,
   type R1IdentityActual,
   type FundingGolden,
@@ -15,6 +20,10 @@ import {
   type DecisionActual,
   type DeltaGolden,
   type DeltaActual,
+  type GroundedFieldGolden,
+  type GroundedFieldActual,
+  type BinaryClassGolden,
+  type BinaryClassActual,
 } from './accuracy-metrics.js';
 
 /**
@@ -224,5 +233,191 @@ describe('summarize', () => {
   test('an n/a (null-value) metric blocks allPass', () => {
     const naMetric = peIdentityAccuracy([], []);
     expect(summarize([naMetric]).allPass).toBe(false);
+  });
+});
+
+const SHA_A = 'a'.repeat(64);
+const SHA_B = 'b'.repeat(64);
+
+describe('groundedFieldAccuracy (Phase K)', () => {
+  test('requires identity + FY + field + SHA + page/span', () => {
+    const golden: GroundedFieldGolden[] = [
+      {
+        id: '1',
+        peCode: '0604123A',
+        fy: 2027,
+        field: 'request',
+        stage: 'request',
+        sourceSha256: SHA_A,
+        page: 12,
+        span: 'p12:100-140',
+        expectedValue: '12.5',
+        humanReviewed: false,
+        syntheticWarning: 'SYNTHETIC — NOT HUMAN REVIEWED',
+      },
+      {
+        id: '2',
+        peCode: '0604999B',
+        fy: 2027,
+        field: 'hascMark',
+        sourceSha256: SHA_B,
+        page: 3,
+        humanReviewed: false,
+        syntheticWarning: 'SYNTHETIC placeholder',
+      },
+    ];
+    const actual: GroundedFieldActual[] = [
+      {
+        id: '1',
+        peCode: '0604123a',
+        fy: 2027,
+        field: 'request',
+        stage: 'request',
+        sourceSha256: SHA_A,
+        page: 12,
+        span: 'p12:100-140',
+        actualValue: '12.5',
+      },
+      {
+        id: '2',
+        peCode: '0604999B',
+        fy: 2027,
+        field: 'hascMark',
+        sourceSha256: SHA_A, // wrong SHA → miss
+        page: 3,
+      },
+    ];
+    const r = groundedFieldAccuracy(golden, actual);
+    expect(r.value).toBe(0.5);
+    expect(r.target).toBe(TARGETS.GROUNDED_FIELD_ACCURACY);
+    expect(r.sampleSize).toBe(2);
+  });
+
+  test('missing actual is a miss; empty golden is n/a', () => {
+    const golden: GroundedFieldGolden[] = [
+      {
+        id: 'x',
+        peCode: '0604000A',
+        fy: 2026,
+        field: 'enacted',
+        sourceSha256: SHA_A,
+        humanReviewed: false,
+        syntheticWarning: 'SYNTHETIC',
+      },
+    ];
+    expect(groundedFieldAccuracy(golden, []).value).toBe(0);
+    expect(groundedFieldAccuracy([], []).value).toBeNull();
+    expect(groundedFieldAccuracy([], []).pass).toBe(false);
+  });
+});
+
+describe('auditGoldenReviewProvenance', () => {
+  test('synthetic rows need loud warning; human rows need reviewer+date+sha', () => {
+    const badSynth: GroundedFieldGolden[] = [
+      {
+        id: 's',
+        peCode: '0604000A',
+        fy: 2026,
+        field: 'request',
+        sourceSha256: SHA_A,
+        humanReviewed: false,
+      },
+    ];
+    expect(auditGoldenReviewProvenance(badSynth).ok).toBe(false);
+
+    const badHuman: GroundedFieldGolden[] = [
+      {
+        id: 'h',
+        peCode: '0604000A',
+        fy: 2026,
+        field: 'request',
+        sourceSha256: 'abc',
+        humanReviewed: true,
+      },
+    ];
+    const h = auditGoldenReviewProvenance(badHuman);
+    expect(h.ok).toBe(false);
+    expect(h.blockers.length).toBeGreaterThanOrEqual(3);
+
+    const good: GroundedFieldGolden[] = [
+      {
+        id: 'ok-s',
+        peCode: '0604000A',
+        fy: 2026,
+        field: 'request',
+        sourceSha256: SHA_A,
+        humanReviewed: false,
+        syntheticWarning: 'SYNTHETIC — NOT human reviewed',
+      },
+      {
+        id: 'ok-h',
+        peCode: '0604000B',
+        fy: 2026,
+        field: 'request',
+        sourceSha256: SHA_B,
+        humanReviewed: true,
+        reviewer: 'analyst@example.com',
+        reviewedAt: '2026-07-01',
+      },
+    ];
+    expect(auditGoldenReviewProvenance(good).ok).toBe(true);
+  });
+});
+
+describe('classificationAccuracy + separatedBinaryMetrics', () => {
+  test('classification accuracy matches labels case-insensitively', () => {
+    const golden: BinaryClassGolden[] = [
+      { id: 'a', label: 'current' },
+      { id: 'b', label: 'outyear' },
+    ];
+    const actual: BinaryClassActual[] = [
+      { id: 'a', label: 'CURRENT' },
+      { id: 'b', label: 'current' }, // wrong
+    ];
+    const r = classificationAccuracy(golden, actual);
+    expect(r.value).toBe(0.5);
+    expect(r.target).toBe(TARGETS.CLASSIFICATION_ACCURACY);
+  });
+
+  test('precision/recall/coverage/FP/FN stay separate', () => {
+    // golden positives: a,b,c  negatives: d,e
+    // actual: a TP, b FN(missing), c FN(predicted neg), d TN, e FP
+    const golden: BinaryClassGolden[] = [
+      { id: 'a', label: 'hit' },
+      { id: 'b', label: 'hit' },
+      { id: 'c', label: 'hit' },
+      { id: 'd', label: 'miss' },
+      { id: 'e', label: 'miss' },
+    ];
+    const actual: BinaryClassActual[] = [
+      { id: 'a', label: 'hit' },
+      // b missing
+      { id: 'c', label: 'miss' },
+      { id: 'd', label: 'miss' },
+      { id: 'e', label: 'hit' },
+    ];
+    const m = separatedBinaryMetrics(golden, actual, 'hit');
+    expect(m.confusion).toEqual({
+      truePositives: 1,
+      trueNegatives: 1,
+      falsePositives: 1,
+      falseNegatives: 2,
+    });
+    expect(m.falsePositives).toBe(1);
+    expect(m.falseNegatives).toBe(2);
+    expect(m.precision.value).toBeCloseTo(1 / 2, 5);
+    expect(m.recall.value).toBeCloseTo(1 / 3, 5);
+    expect(m.coverage.value).toBeCloseTo(4 / 5, 5);
+    // families list is the permanent catalog contract
+    expect(METRIC_FAMILIES).toEqual(
+      expect.arrayContaining([
+        'precision',
+        'recall',
+        'coverage',
+        'classification_accuracy',
+        'false_positives',
+        'false_negatives',
+      ]),
+    );
   });
 });

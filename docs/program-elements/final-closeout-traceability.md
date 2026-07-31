@@ -162,7 +162,7 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 | L6 | Reserve exhibits | `unsupported` fail-closed | matrix + ownership gate | 7 |
 | L7 | Remaining P-5/P-21/P-3A or OP-5 gaps | `blocked` fail-closed | matrix `p5_p21_p3a_op5_gaps` | 7 |
 
-**Phase 7 review gate:** **IMPLEMENT PUSHED — independent REVIEW REQUIRED** — product `a2e708271d61516b799080cfaee40de5f1c036ca`; review against `origin/agent/program-elements-final-closeout` HEAD at review time (no self-PASS).
+**Phase 7 review gate:** **PASS WITH BLOCKERS** on tip `e4f416ed574eaf222d6355b4cbdc6524cc778121` (product `a2e708271`); artifact `prompts/phase-7-review-PASS.md` (pe-closeout Downloads).
 **Coverage authority file:** `docs/program-elements/source-coverage-matrix.md` ↔ `packages/shared/src/pe-source-coverage.ts`.
 
 ---
@@ -171,12 +171,14 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 
 | ID | Requirement | Status | Source | Owner phase |
 |---|---|---|---|---|
-| K1 | `typecheck:pe-scripts`, `lint:pe-scripts`, `test:pe-trust` naming exact scripts/tests | `missing` | phase-k tip is stubs + J tree | 8 |
-| K2 | Accuracy harness identity/FY/field/SHA/span metrics separation | `missing` | 8 |
-| K3 | Diagnostics fail-closed sizes | partial `diag:pe-trust` on main | 8 |
-| K4 | Migration guards (validate/generate/clean replay; no hand-edit `_prisma_migrations`) | `missing` as permanent gate | 8 |
-| K5 | Bounded cardinality metrics + alarm defs (no deploy schedules) | `missing` | 8 |
-| K6 | Human-reviewed golden set | `blocked` human workstream | 8 + human |
+| K1 | `typecheck:pe-scripts`, `lint:pe-scripts`, `test:pe-trust` naming exact scripts/tests | `in_branch` (Phase 8) | tsconfig.pe-scripts + package scripts + lint-pe-scripts | 8 |
+| K2 | Accuracy harness identity/FY/field/SHA/span metrics separation | `in_branch` (Phase 8) | groundedFieldAccuracy + separatedBinaryMetrics | 8 |
+| K3 | Diagnostics fail-closed sizes | `in_branch` (Phase 8) | pe-trust-diagnostics + diag --fail-closed | 8 |
+| K4 | Migration guards (validate/generate/clean replay; no hand-edit `_prisma_migrations`) | `in_branch` (Phase 8 offline) | pe-migration-guards + verify-pe-migration-guards; disposable replay runbook | 8 |
+| K5 | Bounded cardinality metrics + alarm defs (no deploy schedules) | `in_branch` (Phase 8 defs) | pe-trust-metric-catalog + synthetic events; CDK schedule deploy OOS | 8 |
+| K6 | Human-reviewed golden set | `blocked` human workstream | grounded-field.golden.json synthetic-loud; auditor enforces | 8 + human |
+
+**Phase 8 review gate:** **IMPLEMENT PUSHED — independent REVIEW REQUIRED** — product SHA after Phase 8 commit; review against `origin/agent/program-elements-final-closeout` HEAD at review time (no self-PASS). Human K6 remains blocked (draft blocker unless Neo accepts synthetic-loud honestly).
 
 ---
 
@@ -217,6 +219,11 @@ pnpm -C apps/api run verify:pe-phase-a
 pnpm -C apps/api run verify:pe-phase-b
 pnpm -C apps/api run verify:pe-phase-c
 pnpm -C apps/api run diag:pe-trust   # read-only if DATABASE_URL set; do not point at prod without auth
+pnpm -C apps/api run typecheck:pe-scripts
+pnpm -C apps/api run lint:pe-scripts
+pnpm -C apps/api run test:pe-trust
+pnpm -C apps/api run verify:pe-phase-k
+pnpm -C apps/api run verify:pe-migration-guards
 ```
 
 Phase 0 did not re-execute these (no install in disposable worktree). Phase 1 must establish command log against base SHA before/after D.
