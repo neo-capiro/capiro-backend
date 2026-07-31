@@ -66,9 +66,10 @@ describe('classifyCandidateForGovernance', () => {
     });
   });
 
-  it('grants NO authority to a rejected proposal at any scope', () => {
+  it('grants NO authority to a rejected or withdrawn proposal at any scope', () => {
     for (const scope of ['firm', 'client', 'personal'] as const) {
       expect(classifyCandidateForGovernance({ scope }, 'rejected').memoryAuthority).toBeNull();
+      expect(classifyCandidateForGovernance({ scope }, 'withdrawn').memoryAuthority).toBeNull();
     }
   });
 
@@ -100,10 +101,11 @@ describe('classifyCandidateForGovernance', () => {
 });
 
 describe('governedStatusForDecision', () => {
-  it('lands committing decisions on active and rejections on rejected', () => {
+  it('lands committing decisions on active and non-approvals on rejected', () => {
     expect(governedStatusForDecision('approved')).toBe('active');
     expect(governedStatusForDecision('auto_committed')).toBe('active');
     expect(governedStatusForDecision('rejected')).toBe('rejected');
+    expect(governedStatusForDecision('withdrawn')).toBe('rejected');
   });
 });
 
@@ -126,18 +128,22 @@ describe('candidateTransitionPath', () => {
     ]);
   });
 
-  it('rejects from either pre-decision state in one hop', () => {
+  it('records reviewer rejection and proposer withdrawal as distinct terminal reasons', () => {
     expect(candidateTransitionPath('suggested', 'rejected')).toEqual([
-      { from: 'suggested', to: 'rejected', reasonCode: 'rejected' },
+      { from: 'suggested', to: 'rejected', reasonCode: 'rejected_by_reviewer' },
     ]);
     expect(candidateTransitionPath('pending_review', 'rejected')).toEqual([
-      { from: 'pending_review', to: 'rejected', reasonCode: 'rejected' },
+      { from: 'pending_review', to: 'rejected', reasonCode: 'rejected_by_reviewer' },
+    ]);
+    expect(candidateTransitionPath('pending_review', 'withdrawn')).toEqual([
+      { from: 'pending_review', to: 'rejected', reasonCode: 'withdrawn_by_proposer' },
     ]);
   });
 
   it('is a no-op when the candidate is already in the target state', () => {
     expect(candidateTransitionPath('active', 'approved')).toEqual([]);
     expect(candidateTransitionPath('rejected', 'rejected')).toEqual([]);
+    expect(candidateTransitionPath('rejected', 'withdrawn')).toEqual([]);
   });
 
   it('refuses to resurrect terminal state instead of silently rewriting it', () => {
