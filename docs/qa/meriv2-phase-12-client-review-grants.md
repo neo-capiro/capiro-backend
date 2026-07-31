@@ -20,14 +20,15 @@ POST /api/memory/review/candidates/:id/reject
 
 The controller requires standard authenticated access. It does not accept tenant, role, client, ethical-wall, grant, approval, or capability facts from the browser.
 
-The review surface is enabled only when both server-owned controls are explicitly armed:
+The review surface is enabled only when all three server-owned controls are explicitly armed:
 
 ```text
+MEMORY_CLIENT_REVIEW=enforce
 MEMORY_GOVERNANCE_LIFECYCLE=enforce
 MEMORY_GOVERNANCE_ENFORCE=enforce
 ```
 
-When either control is off, candidate listing returns an empty disabled queue and decision mutations fail closed. Existing candidates remain pending.
+`MEMORY_CLIENT_REVIEW` is the independent Phase 12 kill switch. Only the exact value `enforce` arms it; truthy-looking values remain off. When any control is off, candidate listing returns an empty disabled queue and decision mutations fail closed. Existing candidates remain pending.
 
 ### Candidate visibility
 
@@ -73,7 +74,8 @@ The queue is available to a standard user with a qualifying client grant without
 Phase 12 tests cover:
 
 - standard-authenticated route metadata;
-- queue dark state while governance controls are off;
+- exact parsing of the independent client-review switch;
+- queue dark state while any required control is off;
 - standard user with client approval grant can inspect and approve;
 - same user without a grant is withheld and denied;
 - unauthorized proposal bodies are never fetched;
@@ -98,11 +100,10 @@ Phase 12 passes when the exact remote head proves:
 
 ## Rollback
 
-Either of the following disables the new review surface without deleting data:
+Set the dedicated surface switch off without disabling other governed-memory behavior:
 
 ```text
-MEMORY_GOVERNANCE_ENFORCE=off
-MEMORY_GOVERNANCE_LIFECYCLE=off
+MEMORY_CLIENT_REVIEW=off
 ```
 
 Administrators may also revoke an individual grant. Pending candidates and immutable grant/audit history remain intact. Do not hand-promote candidates or delete grant history as a rollback mechanism.
