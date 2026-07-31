@@ -19,8 +19,18 @@ describe('MemoryReviewController', () => {
 
   it('delegates list and decisions without accepting browser authority facts', async () => {
     const listReviewable = jest.fn(async () => ({ enabled: true, candidates: [] }));
-    const approve = jest.fn(async () => ({ memoryId: 'memory-1' }));
-    const reject = jest.fn(async () => undefined);
+    const approve = jest.fn(async () => ({
+      candidateId: 'candidate-1',
+      candidateKind: 'correction' as const,
+      outcome: 'activated' as const,
+      memoryItemId: 'item-2',
+      controllingItemId: 'item-2',
+    }));
+    const reject = jest.fn(async () => ({
+      candidateId: 'candidate-1',
+      candidateKind: 'correction' as const,
+      outcome: 'rejected' as const,
+    }));
     const controller = new MemoryReviewController({
       listReviewable,
       approve,
@@ -33,12 +43,23 @@ describe('MemoryReviewController', () => {
     });
     await expect(controller.approveCandidate(ctx, 'candidate-1')).resolves.toEqual({
       ok: true,
-      memoryId: 'memory-1',
+      candidateId: 'candidate-1',
+      candidateKind: 'correction',
+      outcome: 'activated',
+      memoryItemId: 'item-2',
+      controllingItemId: 'item-2',
     });
-    await expect(controller.rejectCandidate(ctx, 'candidate-1')).resolves.toEqual({ ok: true });
+    await expect(
+      controller.rejectCandidate(ctx, 'candidate-1', { reason: 'Unsupported source.' }),
+    ).resolves.toEqual({
+      ok: true,
+      candidateId: 'candidate-1',
+      candidateKind: 'correction',
+      outcome: 'rejected',
+    });
 
     expect(listReviewable).toHaveBeenCalledWith(ctx);
     expect(approve).toHaveBeenCalledWith(ctx, 'candidate-1');
-    expect(reject).toHaveBeenCalledWith(ctx, 'candidate-1');
+    expect(reject).toHaveBeenCalledWith(ctx, 'candidate-1', 'Unsupported source.');
   });
 });
