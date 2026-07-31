@@ -232,7 +232,8 @@ bash apps/api/scripts/pe-phase-9-migration-replay.sh
 | S8 | Acceptance record harness-emitted | `in_branch` | phase-10-acceptance-summary.json marker PE_PHASE_10_OK | 10 |
 | S9 | Dark rails (no secrets GetValue/email/LlamaParse/derive --commit/merge) | `in_branch` | safety block in summary | 10 |
 
-**Remote tip:** `6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1`  
+**Product tip (images+proofs):** `6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1`  
+**Remote tip (after evidence pin):** see origin HEAD after push  
 **Harness marker:** `PE_PHASE_10_OK` (implementer only)  
 **Phase 10 review gate:** **IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on that tip. Do not self-PASS. Do not start Phase 11. Do not merge #705. Forbidden residual clusters remain visible (capiro-staging / capiro-prod-os-capiro) and must not be targeted.
 

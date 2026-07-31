@@ -1537,7 +1537,8 @@ export PE_CLOSEOUT_EFFORT=high
 ## Phase 10 — sole-live proofs OK (implementer harness; REVIEW REQUIRED)
 
 **When (UTC):** 2026-07-31T16:23Z  
-**Remote tip:** `6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1`  
+**Product tip (images+proofs):** `6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1`  
+**Remote tip (after evidence pin):** see origin HEAD after push  
 **origin/main:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind)  
 **FAIL inject tip closed by this work:** `e21875ee1` (and intermediate salvage/fail tips)  
 **Auth:** `prompts/phase-10-neo-dev-authorization.md` + `PE_CLOSEOUT_STAGING_OK=yes` + `PE_CLOSEOUT_STAGING_MUTATE=yes`  
