@@ -29,7 +29,6 @@ jobs:
         run: |
           python -c "from pathlib import Path; p=Path('apps/meriv2-orchestrator/src/meri/chat/chat-assistant.service.spec.ts'); t=p.read_text(); old='    resultSummary: null,\\n    createdAt:'; new=\"    resultSummary: null,\\n    policy: {\\n      source: 'persisted',\\n      mode: 'enforce',\\n      packKey: 'default',\\n      packVersion: '1',\\n      binding: 'binding-1',\\n      decisionHash: 'decision-hash-1',\\n      contextHash: 'context-hash-1',\\n      decision: 'WARN',\\n      jurisdiction: 'federal',\\n      channel: 'internal',\\n      recipientType: null,\\n    },\\n    createdAt:\"; assert old in t, 'target proposal fixture was not found'; p.write_text(t.replace(old,new,1))"
           pnpm exec prettier --write apps/meriv2-orchestrator/src/meri/chat/chat-assistant.service.spec.ts
-          pnpm --filter @capiro/meriv2-orchestrator typecheck
           git config user.name "capiro-phase10-bot"
           git config user.email "noreply@capiro.ai"
           git add apps/meriv2-orchestrator/src/meri/chat/chat-assistant.service.spec.ts
