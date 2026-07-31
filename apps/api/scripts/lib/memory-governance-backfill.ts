@@ -43,6 +43,10 @@ export interface PlanHashRow {
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+function lexicalCompare(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function valueAfter(argv: string[], flag: string): string | null {
   const at = argv.indexOf(flag);
   return at >= 0 ? argv[at + 1] ?? null : null;
@@ -133,7 +137,7 @@ function canonicalize(value: unknown): unknown {
   if (value && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
-        .sort(([left], [right]) => left.localeCompare(right))
+        .sort(([left], [right]) => lexicalCompare(left, right))
         .map(([key, nested]) => [key, canonicalize(nested)]),
     );
   }
@@ -154,7 +158,7 @@ export function hashGovernanceState(state: GovernanceState): string {
 
 export function hashBackfillPlan(rows: PlanHashRow[]): string {
   return sha256Canonical(
-    [...rows].sort((left, right) => left.memoryItemId.localeCompare(right.memoryItemId)),
+    [...rows].sort((left, right) => lexicalCompare(left.memoryItemId, right.memoryItemId)),
   );
 }
 
