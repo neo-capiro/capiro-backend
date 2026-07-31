@@ -215,6 +215,7 @@ export class MemoryGovernanceReadService {
           ON cm.id = o.clio_memory_id AND cm.tenant_id = o.tenant_id
         WHERE o.tenant_id = ${ctx.tenantId}::uuid
           AND o.status IN ('failed','dead_letter')
+          ${privateProjectionSql(ctx.userId)}
           ${Prisma.raw(
             wallExclusionSql(denied, 'COALESCE(mi.client_id, cm.client_id)'),
           )}
@@ -382,7 +383,6 @@ export class MemoryGovernanceReadService {
       const read = await this.authorization.evaluateInTx(tx, ctx, subject, 'read');
       if (!read.allowed) throw new ForbiddenException(`Memory operation denied: ${read.reason}`);
 
-      // Sequential by design: Prisma interactive transactions use one connection.
       const versions = await this.versionLineage(tx, ctx.tenantId, itemId);
       const transitions = await this.itemTransitions(tx, ctx.tenantId, itemId);
       const projection = await this.itemProjection(tx, ctx.tenantId, itemId);
@@ -490,6 +490,7 @@ export class MemoryGovernanceReadService {
         LEFT JOIN memory_candidate mc
           ON mc.id = a.memory_candidate_id AND mc.tenant_id = a.tenant_id
         WHERE a.tenant_id = ${ctx.tenantId}::uuid
+          ${privateTransitionSql(ctx.userId)}
           ${Prisma.raw(
             wallExclusionSql(denied, 'COALESCE(a.client_id, mi.client_id, mc.client_id)'),
           )}
@@ -502,7 +503,12 @@ export class MemoryGovernanceReadService {
 
   async projectionHealth(ctx: TenantContext) {
     if (!memoryGovernanceCenterEnabled()) {
-      return { enabled: false, counts: emptyProjectionCounts(), oldestDueAt: null, recentFailures: [] };
+      return {
+        enabled: false,
+        counts: emptyProjectionCounts(),
+        oldestDueAt: null,
+        recentFailures: [],
+      };
     }
 
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
@@ -533,6 +539,7 @@ export class MemoryGovernanceReadService {
         LEFT JOIN clio_memory cm
           ON cm.id = o.clio_memory_id AND cm.tenant_id = o.tenant_id
         WHERE o.tenant_id = ${ctx.tenantId}::uuid
+          ${privateProjectionSql(ctx.userId)}
           ${Prisma.raw(
             wallExclusionSql(denied, 'COALESCE(mi.client_id, cm.client_id)'),
           )}
@@ -560,6 +567,7 @@ export class MemoryGovernanceReadService {
           ON cm.id = o.clio_memory_id AND cm.tenant_id = o.tenant_id
         WHERE o.tenant_id = ${ctx.tenantId}::uuid
           AND o.status IN ('failed','dead_letter')
+          ${privateProjectionSql(ctx.userId)}
           ${Prisma.raw(
             wallExclusionSql(denied, 'COALESCE(mi.client_id, cm.client_id)'),
           )}
@@ -620,8 +628,8 @@ export class MemoryGovernanceReadService {
     const approve = await this.authorization.evaluateInTx(tx, ctx, subject, 'approve');
     const read = await this.authorization.evaluateInTx(tx, ctx, subject, 'read');
 
-    const terminal = TERMINAL.has(row.governedStatus) ||
-      ['revoked', 'superseded'].includes(row.legacyStatus);
+    const terminal =
+      TERMINAL.has(row.governedStatus) || ['revoked', 'superseded'].includes(row.legacyStatus);
     return {
       confirm: confirm.allowed && ['active', 'stale', 'conflicted'].includes(row.governedStatus),
       markStale: stale.allowed && row.governedStatus === 'active',
@@ -769,6 +777,36 @@ export class MemoryGovernanceReadService {
       ]),
     );
   }
+}
+
+function privateTransitionSql(userId: string): Prisma.Sql {
+  return Prisma.sql`
+    AND (
+      a.memory_item_id IS NULL
+      OR mi.visibility = 'tenant'
+      OR mi.owner_user_id = ${userId}::uuid
+    )
+    AND (
+      a.memory_candidate_id IS NULL
+      OR mc.scope NOT IN ('personal','user_private')
+      OR mc.proposed_by = ${userId}::uuid
+    )
+  `;
+}
+
+function privateProjectionSql(userId: string): Prisma.Sql {
+  return Prisma.sql`
+    AND (
+      o.memory_item_id IS NULL
+      OR mi.visibility = 'tenant'
+      OR mi.owner_user_id = ${userId}::uuid
+    )
+    AND (
+      o.clio_memory_id IS NULL
+      OR cm.scope <> 'user_private'
+      OR cm.owner_user_id = ${userId}::uuid
+    )
+  `;
 }
 
 function bucketSql(bucket: MemoryGovernanceBucket): Prisma.Sql {
