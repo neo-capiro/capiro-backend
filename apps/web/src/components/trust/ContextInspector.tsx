@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useId, useMemo, useState, type KeyboardEvent } from 'react';
+import './ContextInspector.css';
 
 export type ContextExclusionReason =
   | 'expired'
@@ -117,6 +118,11 @@ function scopeLabel(item: TrustContextItem): string | null {
   return null;
 }
 
+function authorityLabel(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return AUTHORITY_LABELS[value] ?? 'Unknown';
+}
+
 export function ContextInspector({
   packet,
   onReviewContext,
@@ -126,6 +132,14 @@ export function ContextInspector({
   onReviewContext?: () => void;
   label?: string;
 }) {
+  const instanceId = useId();
+  const summaryId = `${instanceId}-summary`;
+  const bodyId = `${instanceId}-body`;
+  const includedHeadingId = `${instanceId}-included`;
+  const excludedHeadingId = `${instanceId}-excluded`;
+  const degradedId = `${instanceId}-degraded`;
+  const [open, setOpen] = useState(false);
+
   const exclusions = packet?.exclusions ?? [];
   const visibleExclusions = useMemo(
     () => exclusions.filter((item) => !IDENTITY_WITHHELD_REASONS.has(item.reason)),
@@ -134,38 +148,68 @@ export function ContextInspector({
   const withheldCount =
     (packet?.unauthorizedCount ?? 0) +
     exclusions.filter((item) => IDENTITY_WITHHELD_REASONS.has(item.reason)).length;
+  const exclusionCount = visibleExclusions.length + withheldCount;
   const compiledAt = dateLabel(packet?.compiledAt);
   // Fail closed: a packet ID is renderable only when the server explicitly proved
   // persistence. Reloaded/stored packet views set persisted=true; legacy or partial
   // shapes with no persistence evidence must not revive the historical false-ID bug.
   const durablePacketId = packet?.persisted === true ? packet.packetId : null;
   const persistenceDegraded = packet?.persisted === false;
+  const degraded = Boolean(packet?.degraded || persistenceDegraded);
+
+  const handleSummaryKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'Spacebar') return;
+    event.preventDefault();
+    setOpen((current) => !current);
+  };
 
   if (!packet) {
     return (
-      <div className="trust-context trust-context--missing" role="status">
+      <div className="trust-context trust-context--missing" role="status" aria-live="polite">
         <strong>{label}:</strong> details unavailable for this response.
       </div>
     );
   }
 
+  const summaryLabel = [
+    label,
+    `${packet.items.length} included context item${packet.items.length === 1 ? '' : 's'}`,
+    exclusionCount > 0
+      ? `${exclusionCount} excluded context item${exclusionCount === 1 ? '' : 's'}`
+      : null,
+    degraded ? 'Context degraded' : null,
+  ]
+    .filter(Boolean)
+    .join('. ');
+
   return (
-    <details className="trust-context">
-      <summary>
+    <details
+      className="trust-context"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+      aria-labelledby={summaryId}
+    >
+      <summary
+        id={summaryId}
+        aria-label={summaryLabel}
+        aria-controls={bodyId}
+        aria-expanded={open}
+        onKeyDown={handleSummaryKeyDown}
+      >
         <span>{label}</span>
-        <span aria-label={`${packet.items.length} included context items`}>
-          {packet.items.length} included
-        </span>
-        {visibleExclusions.length + withheldCount > 0 && (
-          <span aria-label={`${visibleExclusions.length + withheldCount} excluded context items`}>
-            · {visibleExclusions.length + withheldCount} excluded
-          </span>
-        )}
+        <span aria-hidden="true">{packet.items.length} included</span>
+        {exclusionCount > 0 && <span aria-hidden="true">· {exclusionCount} excluded</span>}
       </summary>
 
-      <div className="trust-context__body">
-        {(packet.degraded || persistenceDegraded) && (
-          <div className="trust-context__degraded" role="alert">
+      <div id={bodyId} className="trust-context__body">
+        {degraded && (
+          <div
+            id={degradedId}
+            className="trust-context__degraded"
+            role="alert"
+            aria-live="assertive"
+            aria-atomic="true"
+          >
             <strong>Context degraded.</strong>{' '}
             {packet.degradedReason ||
               (persistenceDegraded
@@ -174,14 +218,15 @@ export function ContextInspector({
           </div>
         )}
 
-        <section aria-labelledby="trust-context-included">
-          <h4 id="trust-context-included">Included</h4>
+        <section aria-labelledby={includedHeadingId}>
+          <h4 id={includedHeadingId}>Included</h4>
           {packet.items.length === 0 ? (
             <p>No firm, client, or user context was included.</p>
           ) : (
             <ul>
               {packet.items.map((item) => {
                 const scope = scopeLabel(item);
+                const authority = authorityLabel(item.authority);
                 const asOf = dateLabel(item.asOf);
                 const confirmed = dateLabel(item.lastConfirmedAt);
                 return (
@@ -192,11 +237,7 @@ export function ContextInspector({
                     </div>
                     <div className="trust-context__meta">
                       {scope && <span>{scope}</span>}
-                      {item.authority && (
-                        <span>
-                          Authority · {AUTHORITY_LABELS[item.authority] ?? item.authority}
-                        </span>
-                      )}
+                      {authority && <span>Authority · {authority}</span>}
                       {item.status && (
                         <span>Lifecycle · {STATUS_LABELS[item.status] ?? 'Unknown'}</span>
                       )}
@@ -218,9 +259,9 @@ export function ContextInspector({
           )}
         </section>
 
-        {(visibleExclusions.length > 0 || withheldCount > 0) && (
-          <section aria-labelledby="trust-context-excluded">
-            <h4 id="trust-context-excluded">Excluded</h4>
+        {exclusionCount > 0 && (
+          <section aria-labelledby={excludedHeadingId}>
+            <h4 id={excludedHeadingId}>Excluded</h4>
             <ul>
               {visibleExclusions.map((item, index) => (
                 <li key={item.id ?? `${item.reason}-${index}`}>
