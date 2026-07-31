@@ -1188,7 +1188,7 @@ git reset --hard e4f416ed574eaf222d6355b4cbdc6524cc778121
 **Mode:** LONG IMPLEMENT only — no self-PASS, no Phase 10, no MeriV2 source edits, no shared-env migrate/deploy/ingestion/email/LlamaParse/secrets
 **Product tip (this phase):** `ca3f372b0abfc75e06d0b031e89c18f2cd640e01`
 **Evidence refresh tip:** `a21640c568dbfef01dbbce5945bf032221213414`
-**Remote tip after push (review target):** `dfa9db121df7125b493bd807258f13c89ecde3d8`
+**Remote tip after push (review target):** `git rev-parse origin/agent/program-elements-final-closeout` (must include product `ca3f372b0abfc75e06d0b031e89c18f2cd640e01` and evidence `a21640c568dbfef01dbbce5945bf032221213414` ancestry; implementer does not self-PASS)
 
 ### Tasks completed (implementation)
 
