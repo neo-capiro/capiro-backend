@@ -187,7 +187,7 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 | Schedule phase | Goal | Status | Owner |
 |---|---|---|---|
 | 9 Integrated rehearsal | Run A–K + PE suites on remote final SHA | `in_branch` — Phase 9 PASS WITH BLOCKERS tip `72b299dff` | 9 |
-| 10 Staging acceptance | Pre-merge acceptance on sole live env=dev / capiro-dev | `in_branch` rework retarget + live ship (api:61/web:7); REVIEW REQUIRED | Phase 10 |
+| 10 Staging acceptance | Pre-merge acceptance on sole live env=dev / capiro-dev | `in_branch` tip `6205d46392b7` harness PE_PHASE_10_OK; REVIEW REQUIRED | Phase 10 |
 | 11 PR closeout | Body, supersede old PRs, ready-for-review | after 9/(10) | Phase 11 |
 
 ---
@@ -218,29 +218,33 @@ bash apps/api/scripts/pe-phase-9-migration-replay.sh
 
 
 
-## 10c. Phase 10 — Staging acceptance details
+## 10c. Phase 10 — Sole live env=dev acceptance (single current truth)
 
-| ID | Requirement | Status | Source | Owner |
+| ID | Requirement | Status | Evidence | Owner |
 |---|---|---|---|---|
-| S1 | Neo staging auth gate | `in_branch` | PE_CLOSEOUT_STAGING_OK + verify-pe-phase-10 | 10 |
-| S2 | Read-only staging inventory | `in_branch` | pe-phase-10-staging-probe.sh | 10 |
-| S3 | Image digest record for branch SHA | `in_branch` (absent on tip — honest) | verify-pe-phase-10 | 10 |
-| S4 | Additive migrate + deploy on staging | `blocked` env — no healthy plane | requires MUTATE + healthyCompute | 10 + Neo infra |
-| S5 | Runtime matrix (loaders/promotion/replay/derive-dry/browser/RLS/alarms) | `blocked` env | catalog env_blocked | 10 + Neo infra |
-| S6 | Acceptance record + rollback text | `in_branch` | docs/verification/.../phase-10/ | 10 |
-| S7 | Refuse secrets pull / email / LlamaParse / forbidden clusters | `in_branch` | gate safety rails | 10 |
+| S1 | Neo sole-live auth + MUTATE | `in_branch` | neo-dev-authorization.md + STAGING_OK + MUTATE | 10 |
+| S2 | Inventory healthy on capiro-dev | `in_branch` | probe healthyCompute=true; CF compute UPDATE_ROLLBACK residual | 10 |
+| S3 | Tip-pinned api+web image digests | `in_branch` | ECR tags `6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1` present | 10 |
+| S4 | Additive migrate on live Aurora | `applied` | migrate task exit 0 | 10 |
+| S5 | Deploy PE tip images api+web | `applied` | api TD :82 web TD :19 on capiro-dev | 10 |
+| S6 | Live runtime matrix (inspect/promote/replay/derive-dry/browser/RLS/alarms) | `applied` | live-proofs ECS PE_PHASE_10_LIVE_PROOFS_OK + smoke + alarm pulse | 10 |
+| S7 | Rollback rehearsed (priors captured + exercised) | `applied` | rollback-rehearsal.json prior api:81 web:18 | 10 |
+| S8 | Acceptance record harness-emitted | `in_branch` | phase-10-acceptance-summary.json marker PE_PHASE_10_OK | 10 |
+| S9 | Dark rails (no secrets GetValue/email/LlamaParse/derive --commit/merge) | `in_branch` | safety block in summary | 10 |
 
-**Phase 10 review gate:** **IMPLEMENT PUSHED — independent REVIEW REQUIRED** against live origin HEAD after push. Harness marker **`PE_PHASE_10_BLOCKED`** (not OK). Inventory proves Compute rollback, no ECS cluster, phantom Aurora. No shared migrate/deploy performed. Do not self-PASS.
+**Remote tip:** `6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1`  
+**Harness marker:** `PE_PHASE_10_OK` (implementer only)  
+**Phase 10 review gate:** **IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on that tip. Do not self-PASS. Do not start Phase 11. Do not merge #705. Forbidden residual clusters remain visible (capiro-staging / capiro-prod-os-capiro) and must not be targeted.
 
 Commands:
 
 ```text
-export PE_CLOSEOUT_STAGING_OK=yes AWS_PROFILE=capiro-dev
-pnpm -C apps/api run probe:pe-phase-10-staging -- --json
-pnpm -C apps/api run verify:pe-phase-10
-# expect PE_PHASE_10_BLOCKED exit 78 while plane down
-pnpm -C apps/api run verify:pe-phase-k
+export PE_CLOSEOUT_STAGING_OK=yes PE_CLOSEOUT_STAGING_MUTATE=yes AWS_PROFILE=capiro-dev
+pnpm -C apps/api exec jest --runInBand --forceExit scripts/lib/pe-phase-10-staging-acceptance.spec.ts
+pnpm -C apps/api exec tsx scripts/verify-pe-phase-10.ts --skip-local-gates --skip-image-build
+# expect PE_PHASE_10_OK implementer marker; then NEW shell: review 10
 ```
+
 
 ## 11. MeriV2 boundary
 
@@ -428,16 +432,3 @@ plus concrete findings. Do not implement fixes.
 14. **B15** Force `GET .../bill-actions` 500 → open Legislation → `pe-secondary-failed-bill-actions` + Partial; never "No action history synced yet" from silent `data ?? []`. Overview Partial may fire before tab switch (billActions enabled on overview).
 
 
-## 10c (FAIL rework) — Sole live env=dev acceptance
-
-| ID | Task | Status | Evidence | Owner |
-|---|---|---|---|---|
-| S1 | Neo sole-live auth gate | in_branch | PE_CLOSEOUT_STAGING_OK + neo-dev-authorization.md | 10 |
-| S2 | Inventory healthy on capiro-dev | in_branch | pe-phase-10-staging-probe healthyCompute=true | 10 |
-| S3 | Exit gate no N/A green-wash | in_branch | evaluatePePhase10Gate UNSATISFIED deferred bullets | 10 |
-| S4 | Additive migrate on live Aurora | applied | migrate task exit 0 TD migrate:24 | 10 |
-| S5 | Deploy PE tip images api+web | applied | api:61 web:7 digests in ship-trace.json | 10 |
-| S6 | Browser smoke + RLS + alarms | in_branch | app.capiro.ai 200s; Phase C 23 PASS; CW alarms | 10 |
-| S7 | Rollback captured priors | in_branch | api:59 web:6 ARNs | 10 |
-
-**Phase 10 review gate:** IMPLEMENT PUSHED — independent REVIEW REQUIRED against live origin HEAD after push. Forbidden clusters residual: capiro-staging + capiro-prod-os-capiro only. Merge #705 still separate.

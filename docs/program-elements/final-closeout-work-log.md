@@ -6,7 +6,7 @@
 **Repo:** `neo-capiro/capirov2`  
 **Operator session:** Phase 10 IMPLEMENT (pre-merge staging acceptance)
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-31 (Phase 10 IMPLEMENT PUSHED / PE_PHASE_10_BLOCKED — independent review REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-31 (Phase 10 IMPLEMENT PUSHED tip `6205d46392b7` / harness PE_PHASE_10_OK — independent REVIEW REQUIRED — no self-PASS)
 
 ---
 
@@ -1532,3 +1532,71 @@ export PE_CLOSEOUT_EFFORT=high
 2. Re-run live proofs only + harness → aim `PE_PHASE_10_OK` implementer marker with real outcomes.
 3. Push → **new** shell `review 10`.
 
+---
+
+## Phase 10 — sole-live proofs OK (implementer harness; REVIEW REQUIRED)
+
+**When (UTC):** 2026-07-31T16:23Z  
+**Remote tip:** `6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1`  
+**origin/main:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind)  
+**FAIL inject tip closed by this work:** `e21875ee1` (and intermediate salvage/fail tips)  
+**Auth:** `prompts/phase-10-neo-dev-authorization.md` + `PE_CLOSEOUT_STAGING_OK=yes` + `PE_CLOSEOUT_STAGING_MUTATE=yes`  
+**Plane:** sole live `env=dev` / ECS `capiro-dev` / host `app.capiro.ai` (= prod path)
+
+### Product + evidence commits (this rework chain)
+- `5d104d2ff` drop hard-ok fakes (prior)
+- `43df79fe9` real DATABASE_URL + TMPDIR preference
+- `8082a7119` TMPDIR=/dev/shm Fargate tsx fix
+- `1bafa89d6` promotion artifact under TMPDIR
+- `6205d4639` derive dry-run accept + LIVE_PROOFS_SUMMARY trailer + ship parse
+- **evidence pin (this commit):** harness-regenerated phase-10 docs on tip `6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1`
+
+### Harness result (not independent REVIEW PASS)
+- Marker: **`PE_PHASE_10_OK`** / gateOk=true / all exit-gate bullets satisfied
+- Evidence: `docs/verification/program-elements-trust/phase-10/phase-10-acceptance-summary.json`
+- Inventory: healthyCompute=true, cluster ACTIVE, Aurora live
+- Images tip-tagged: api `sha256:51351903…`, web `sha256:b563ad0e…`
+- Migrate task exit 0; deploy api TD `:82` web TD `:19`
+- Live proofs ECS task exit 0 marker `PE_PHASE_10_LIVE_PROOFS_OK` (SUMMARY compact + full steps)
+  - inspect-only loaders (static contract + live inspect)
+  - exact-SHA internal promotion pe10_closeout FY2099 (SYNTHETIC; cleaned)
+  - identical replay zero duplicate position growth
+  - derive-chain dry run (marker dry run complete; no COMMIT mode; emails_sent=0)
+  - live Aurora RLS ethical-wall FORCE+fail-closed
+- Browser/API smoke: root/health 200; PE routes 401 auth wall
+- Alarm: SYNTHETIC set-alarm-state pulse+restore on capiro-dev-alb-5xx + PE trust synthetic jest; not humanReviewed
+- Rollback: exercised prior TD → tip restore (api:81/web:18 → tip)
+
+### Dark rails held
+No Secrets Manager GetSecretValue from harness; no email/canary send; no LlamaParse; no derive --commit; no #705 merge; no MeriV2 core; no Phase 11.
+
+### Commands
+```bash
+export AWS_PROFILE=capiro-dev AWS_DEFAULT_REGION=us-east-1
+export PE_CLOSEOUT_STAGING_OK=yes PE_CLOSEOUT_STAGING_MUTATE=yes
+pnpm -C apps/api exec jest --runInBand --forceExit scripts/lib/pe-phase-10-staging-acceptance.spec.ts
+pnpm -C apps/api exec tsx scripts/verify-pe-phase-10.ts --skip-local-gates --skip-image-build
+# expect PE_PHASE_10_OK (implementer only)
+```
+
+### Independent review status
+**IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on remote tip `6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1`.  
+Implementer PE_PHASE_10_OK ≠ REVIEW PASS. Do **not** start Phase 11. Do **not** merge #705.
+
+### Rollback (captured on tip run)
+```bash
+aws ecs update-service --cluster capiro-dev --service capiro-dev-api \
+  --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:81
+aws ecs update-service --cluster capiro-dev --service capiro-dev-web \
+  --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:18
+# tip restore after rehearse: api:82 web:19
+# schema: do not hand-edit _prisma_migrations; Aurora snapshot if needed
+```
+
+### Next (operator only)
+```bash
+export PE_CLOSEOUT_STAGING_OK=yes
+export PE_CLOSEOUT_PROVIDER=openrouter
+export PE_CLOSEOUT_EFFORT=high
+./pe-closeout-run.sh review 10
+```
