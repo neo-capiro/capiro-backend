@@ -40,7 +40,7 @@ Migration:
 It:
 
 - expands the candidate status check to permit `withdrawn`;
-- adds a tenant/proposer index for pending proposals;
+- adds a tenant/proposer history index ordered by newest proposal;
 - does not update existing candidates;
 - does not update canonical memory; and
 - leaves governed status vocabulary unchanged.
@@ -51,14 +51,14 @@ The proposer route is standard authenticated access but is owner-scoped under a 
 
 Reviewer rejection continues to resolve role, scope, ethical-wall, current grant, expiration, revocation, and segregation-of-duties facts on the server inside the deciding transaction.
 
-The proposer queue reads only the current user's pending candidates. Client proposal content is redacted if the proposer no longer passes the wall, but withdrawal remains available because it removes no active truth and reveals no protected content.
+The proposer surface returns at most the newest 50 firm/client proposals for the authenticated proposer. Private auto-committed candidates are excluded. Client proposal content is redacted if the proposer no longer passes the wall, but a pending row remains withdrawable because withdrawal removes no active truth and reveals no protected content.
 
 ### Product experience
 
 Settings → Memory now separates:
 
-- **Your pending proposals** with **Withdraw**;
-- **Awaiting your review** with server-derived **Approve** and **Reject**.
+- **Your proposals** — bounded shared-proposal history; pending rows expose **Withdraw**, while terminal rows display **Withdrawn**, **Rejected by reviewer**, or **Approved**;
+- **Awaiting your review** — server-derived **Approve** and **Reject** actions for authorized reviewers.
 
 The browser receives no authority to reinterpret one action as the other.
 
@@ -70,7 +70,7 @@ The browser receives no authority to reinterpret one action as the other.
 - the migration contract suite;
 - all memory tests, including transaction-level withdrawal/rejection tests;
 - proposer and reviewer controller contracts;
-- proposer and reviewer web contracts; and
+- proposer and reviewer web contracts, including distinct disposition history labels; and
 - every inherited Phase 1–12 typecheck, migration, worker, backfill, policy, context, Workspace, and web gate.
 
 Detailed Phase 13 acceptance contract:
@@ -81,7 +81,7 @@ docs/qa/meriv2-phase-13-withdrawal-vs-rejection.md
 
 ### Rollback
 
-Set `MEMORY_CLIENT_REVIEW=off`. Both product queues become unavailable while pending and terminal candidate rows and transition evidence remain intact. Leave the additive schema in place. Do not reopen, relabel, delete, or hand-promote terminal candidates.
+Set `MEMORY_CLIENT_REVIEW=off`. Both product surfaces become unavailable while pending and terminal candidate rows and transition evidence remain intact. Leave the additive schema in place. Do not reopen, relabel, delete, or hand-promote terminal candidates.
 
 ---
 
