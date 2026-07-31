@@ -19,6 +19,13 @@ Governed-memory capabilities existed across several correct server services, but
 
 An inherited defect also routed correction/restore/contradiction candidates through generic candidate approval even though immutable-version activation already existed.
 
+The Phase 15 action-by-action audit additionally found and closed four release-boundary defects:
+
+1. The Governance Center sent correction text as `content` while the immutable API required `newContent`.
+2. Immutable version responses exposed `status` while Governance Center success copy inspected `outcome`, allowing a pending proposal to look completed.
+3. Conflict authorization ran before the mutation transaction and the conflict group was not row-locked.
+4. Withdrawal and immutable review decisions did not refresh or describe the Governance Center state precisely enough.
+
 ### Implemented center
 
 Settings → Memory now has a dark administrator-only Governance Center with:
@@ -66,9 +73,17 @@ Phase 15 composes, rather than replaces:
 
 The new action service owns direct confirm, mark-stale, independent second-approval, and projection-retry transactions. Revoke delegates to the canonical forget path.
 
-### Version-candidate routing
+Conflict resolution now locks the complete group in stable ID order, repeats canonical authorization for every touched member under the locks, verifies both update counts, and writes every resolution audit row in the same transaction. A denied group member or concurrent membership drift rolls the operation back.
 
-`memory_correction`, `memory_restore`, and `memory_contradiction` candidates now route to immutable-version activation/rejection. Version rejection requires bounded evidence. The review queue displays candidate type and refreshes from the actual server result.
+### Version-candidate routing and request contract
+
+`memory_correction`, `memory_restore`, and `memory_contradiction` candidates route to immutable-version activation/rejection. Version rejection requires bounded evidence.
+
+The immutable controller accepts the canonical `newContent` field and the Governance Center `content` alias, while preserving `newContent` precedence. It emits controlled outcomes for successful requests and explicit HTTP errors for missing or legal-held items.
+
+The review queue displays candidate type and presents the actual server result: activation, duplicate confirmation, conflict creation, or rejection. It does not predict generic approval.
+
+A successful proposer withdrawal refreshes proposal history, review queues, Governance Center overview counts, and transition history.
 
 ### Projection retry
 
@@ -88,7 +103,7 @@ The center reads transition time from immutable `memory_transition_audit.occurre
 
 ### Permanent gate
 
-`memory-governance-ci` covers Phases 1–15. The API memory sweep includes all new service/controller/switch/security tests. The web matrix includes `MemoryGovernanceCenter.test.ts` and the extended version-aware review contract.
+`memory-governance-ci` covers Phases 1–15. The API memory sweep includes all new service/controller/switch/security tests, including the immutable controller and conflict transaction regressions. The web matrix includes `MemoryGovernanceCenter.test.ts`, proposer history, and the extended version-aware review contract.
 
 Detailed contract:
 
