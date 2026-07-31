@@ -9,6 +9,7 @@ import { MemoryIngestService } from './memory-ingest.service.js';
 import { GovernedMemoryIngestService } from './governed-memory-ingest.service.js';
 import { MemoryInterviewService } from './memory-interview.service.js';
 import { MemoryCandidateService } from './memory-candidate.service.js';
+import { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryAccessGrantService } from './memory-access-grant.service.js';
 import { MemoryConflictService } from './memory-conflict.service.js';
@@ -21,6 +22,7 @@ import { StrictMemoryProjectorService } from './strict-memory-projector.service.
 import { MemoryPurgeService } from './memory-purge.service.js';
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
 import { MemoryController } from './memory.controller.js';
+import { MemoryReviewController } from './memory-review.controller.js';
 import { MemoryVersionController } from './memory-version.controller.js';
 import { InternalMemoryController } from './internal-memory.controller.js';
 
@@ -32,7 +34,12 @@ import { InternalMemoryController } from './internal-memory.controller.js';
  */
 @Module({
   imports: [PrismaModule, TenantModule],
-  controllers: [MemoryController, MemoryVersionController, InternalMemoryController],
+  controllers: [
+    MemoryController,
+    MemoryReviewController,
+    MemoryVersionController,
+    InternalMemoryController,
+  ],
   providers: [
     GovernedMemoryStoreService,
     { provide: MemoryStoreService, useExisting: GovernedMemoryStoreService },
@@ -43,6 +50,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     { provide: MemoryIngestService, useExisting: GovernedMemoryIngestService },
     MemoryInterviewService,
     MemoryCandidateService,
+    MemoryCandidateReviewService,
     MemoryAuthorizationService,
     MemoryAccessGrantService,
     MemoryConflictService,
@@ -58,6 +66,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     MemoryStoreService,
     MemoryIngestService,
     MemoryCandidateService,
+    MemoryCandidateReviewService,
     MemoryAuthorizationService,
     ImmutableMemoryVersionService,
     MemoryTransitionAuditService,
