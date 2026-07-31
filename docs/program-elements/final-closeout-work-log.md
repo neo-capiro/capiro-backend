@@ -1419,6 +1419,7 @@ Operator: `./pe-closeout-run.sh review 10` in a NEW shell after push.
 
 **When (UTC date):** 2026-07-31
 **Failed tip (review FAIL):** `0d6d022f551cae81759932e1064bf29dd556846b`
+**Product tip (phase 10 FAIL rework):** `e2a3f0f29863038ad9bae1167c91c47231334b03`
 **Base / prior Phase 9 PASS tip:** `72b299dff928f1f451e2dad231124c8c50a3d046`
 **Auth:** `prompts/phase-10-neo-dev-authorization.md` + `PE_CLOSEOUT_STAGING_OK=yes` + `PE_CLOSEOUT_STAGING_MUTATE=yes`
 **AWS:** profile `capiro-dev` account `967807252336` / `us-east-1`
