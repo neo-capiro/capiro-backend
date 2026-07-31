@@ -27,30 +27,7 @@ jobs:
       - name: Add policy evidence to the orchestrator proposal fixture
         shell: bash
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('apps/meriv2-orchestrator/src/meri/chat/chat-assistant.service.spec.ts')
-          text = path.read_text()
-          old = "    resultSummary: null,\n    createdAt:"
-          new = """    resultSummary: null,
-    policy: {
-      source: 'persisted',
-      mode: 'enforce',
-      packKey: 'default',
-      packVersion: '1',
-      binding: 'binding-1',
-      decisionHash: 'decision-hash-1',
-      contextHash: 'context-hash-1',
-      decision: 'WARN',
-      jurisdiction: 'federal',
-      channel: 'internal',
-      recipientType: null,
-    },
-    createdAt:"""
-          if old not in text:
-              raise SystemExit('target proposal fixture was not found')
-          path.write_text(text.replace(old, new, 1))
-          PY
+          python -c "from pathlib import Path; p=Path('apps/meriv2-orchestrator/src/meri/chat/chat-assistant.service.spec.ts'); t=p.read_text(); old='    resultSummary: null,\\n    createdAt:'; new=\"    resultSummary: null,\\n    policy: {\\n      source: 'persisted',\\n      mode: 'enforce',\\n      packKey: 'default',\\n      packVersion: '1',\\n      binding: 'binding-1',\\n      decisionHash: 'decision-hash-1',\\n      contextHash: 'context-hash-1',\\n      decision: 'WARN',\\n      jurisdiction: 'federal',\\n      channel: 'internal',\\n      recipientType: null,\\n    },\\n    createdAt:\"; assert old in t, 'target proposal fixture was not found'; p.write_text(t.replace(old,new,1))"
           pnpm exec prettier --write apps/meriv2-orchestrator/src/meri/chat/chat-assistant.service.spec.ts
           pnpm --filter @capiro/meriv2-orchestrator typecheck
           git config user.name "capiro-phase10-bot"
