@@ -6,7 +6,7 @@
 **State:** Draft, open, unmerged  
 **Accepted baseline:** Phases 0–9 on GitHub-hosted gates; Phase 11 on exact-head local/disposable PostgreSQL evidence  
 **Phase 10:** Implemented; GitHub-hosted acceptance blocked by repository Actions control-plane failure  
-**Phase 12:** Implemented; exact-head validation pending
+**Phase 12:** Focused local acceptance passed on `104d7dcdbb7502c8fdbf9e3befc374cef136954a`
 
 This ledger continues the accepted work log and the Phases 10–11 addendum. It does not authorize merge, migration, flag activation, grant creation, candidate review, customer-data changes, AWS deployment, or production rollout.
 
@@ -65,7 +65,7 @@ Replacement revokes the prior active row and inserts the new row transactionally
 
 ### User experience
 
-Settings → Memory now contains an **Awaiting your review** queue. It renders only when the server enables review and returns at least one authorized proposal. The UI uses server-derived approve/reject capabilities and cannot widen scope.
+Settings → Memory contains an **Awaiting your review** queue. It renders only when the server enables review and returns at least one authorized proposal. The UI uses server-derived approve/reject capabilities and cannot widen scope.
 
 ### Regression coverage
 
@@ -84,13 +84,28 @@ Phase 12 adds or extends tests for:
 - required grant reason, expiration, active membership, retained history, and idempotent revocation; and
 - review queue rendering and capability separation.
 
-The permanent `memory-governance-ci` matrix is extended through Phase 12. Because GitHub Actions currently routes repository events into the deleted synthetic `BuildFailed` identity, exact-head validation must first be reproduced locally using the same permanent matrix.
+### Exact-head acceptance evidence
+
+The focused Phase 12 gate passed after one style-only Prettier repair:
+
+- exact head: `104d7dcdbb7502c8fdbf9e3befc374cef136954a`;
+- API typecheck: pass;
+- web typecheck: pass;
+- API matrix: 9 suites, 69 tests, all pass;
+- web contract: 1 file, 3 tests, all pass;
+- Prettier: pass;
+- `git diff --check`: pass;
+- working tree: clean.
+
+Operator log: `C:\Users\neoma\phase12-focused-validation.log`.
+
+The permanent `memory-governance-ci` matrix includes Phase 12. GitHub-hosted replication remains blocked by the deleted synthetic `BuildFailed` identity.
 
 Detailed acceptance contract: `docs/qa/meriv2-phase-12-client-review-grants.md`.
 
 ### Rollback
 
-Set `MEMORY_CLIENT_REVIEW=off` or revoke an individual client grant. This disables only the new grant-scoped queue and decision routes while leaving other governed-memory behavior unchanged. Pending candidates and grant/audit history remain intact.
+Set `MEMORY_CLIENT_REVIEW=off` or revoke an individual client grant. This disables only the grant-scoped queue and decision routes while leaving other governed-memory behavior unchanged. Pending candidates and grant/audit history remain intact.
 
 Do not delete grants, hand-promote candidates, or overwrite later memory versions as rollback.
 
@@ -98,4 +113,4 @@ Do not delete grants, hand-promote candidates, or overwrite later memory version
 
 ## Current gate
 
-Phase 13 has not started. PR #679 must remain draft and unmerged. No production or shared-environment operation occurred during Phase 12 implementation.
+Phase 13 implementation is recorded separately in `docs/plans/meriv2-world-class-closeout-phase13-addendum.md`. PR #679 must remain draft and unmerged. No production or shared-environment operation occurred during Phase 12.
