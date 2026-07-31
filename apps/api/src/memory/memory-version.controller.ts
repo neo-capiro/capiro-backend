@@ -1,4 +1,13 @@
-import { BadRequestException, Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  ForbiddenException,
+  NotFoundException,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -69,14 +78,17 @@ export class MemoryVersionController {
   }
 
   private present(result: MemoryVersionResult) {
-    if (result.status === 'not_found') return { found: false };
+    if (result.status === 'not_found') {
+      throw new NotFoundException('Memory item not found.');
+    }
     if (result.status === 'legal_hold') {
-      return { found: true, blockedByLegalHold: true, title: result.title };
+      throw new ForbiddenException('Memory operation denied: legal_hold');
     }
     if (result.status === 'pending_review') {
       return {
         found: true,
         status: result.status,
+        outcome: result.status,
         title: result.title,
         candidateId: result.candidateId,
         activeItemUnchanged: result.activeItemUnchanged,
@@ -85,6 +97,7 @@ export class MemoryVersionController {
     return {
       found: true,
       status: result.status,
+      outcome: result.status,
       title: result.title,
       memoryItemId: result.memoryItemId,
     };
