@@ -22,20 +22,21 @@ While the center is off or unavailable, `MemoryGovernanceCenterHost` preserves t
 
 ## Access and confidentiality
 
-The Governance Center API is administrator-only through `@Roles('user_admin')`.
+The Governance Center API is administrator-only through `@Roles('user_admin')`; the existing role hierarchy also permits `capiro_admin`.
 
 Every read:
 
 - executes inside `withTenantUser`;
-- uses the authenticated tenant and effective user from server context;
+- uses authenticated tenant/effective-user context;
 - applies tenant RLS;
-- excludes clients denied by the ethical wall;
-- re-evaluates item read authorization before returning an item; and
-- derives action capabilities from canonical server facts.
+- excludes ethical-wall-denied clients;
+- re-evaluates canonical item read authorization;
+- excludes another user's private `memory_items`, candidates, and `clio_memory`; and
+- derives capabilities from server-owned facts.
 
 The browser never supplies tenant, role, client scope, wall decision, grant, lifecycle state, approval identity, legal hold, or capability claims.
 
-Restricted-client identity is withheld from item, transition, grant, and projection-health views. Private memory remains owner-only even for tenant administrators.
+Restricted-client identity is withheld from item, transition, grant, and projection-health views. Private memory remains owner-only even for tenant administrators. A private Clio projection hidden by RLS is not retryable merely because its outbox row is tenant-visible; an unresolved Clio subject fails closed.
 
 ## Administration views
 
@@ -51,50 +52,28 @@ The center provides:
 - Transition history; and
 - Projection/outbox health.
 
-The item detail drawer exposes:
-
-- scope and client;
-- class and authority;
-- status and review state;
-- confidence;
-- provenance and source references;
-- approval identities and timestamps;
-- temporal validity and review cadence;
-- legal hold and retention metadata;
-- origin surface, trace, packet, model, and prompt version;
-- immutable version lineage;
-- conflict members and controlling item;
-- transition evidence; and
-- projection obligations and failures.
+The item drawer exposes scope/client, class/authority, provenance, approvals, temporal validity, confidence, legal hold, retention, origin trace, immutable versions, conflict control, transition evidence, and projection state.
 
 Unknown lifecycle or authority values render as `Unknown`, not raw internal slugs.
 
 ## Mutation ownership
 
-The center does not duplicate existing lifecycle writers.
-
-Existing canonical owners remain responsible for:
+The center composes existing canonical owners:
 
 - candidate approval/rejection — `MemoryCandidateReviewService`;
 - proposer withdrawal — `GovernedMemoryCandidateService`;
 - correction/restore/contradiction — `ImmutableMemoryVersionService`;
 - conflict resolution — `MemoryConflictService`;
-- access grants — `MemoryAccessGrantService`; and
+- grants — `MemoryAccessGrantService`; and
 - revocation/projection cleanup — `MemoryStoreService.forgetMemory`.
 
-`MemoryGovernanceActionService` owns only direct item actions that previously lacked a complete administration route:
+`MemoryGovernanceActionService` owns direct confirm, mark-stale, independent second-approval, and authorized projection-retry transactions. Revoke delegates to the canonical forget path.
 
-- confirm;
-- mark stale; and
-- independent second approval.
-
-It also exposes revoke by delegating to the canonical forget path.
-
-Confirm, mark stale, and second approval reload and lock the exact tenant item, re-evaluate authorization inside the transaction, update canonical columns, and append transition evidence atomically.
+Confirm, mark stale, and second approval reload and lock the tenant item, repeat authorization, update canonical columns, and append transition evidence atomically.
 
 ## Immutable-version review correction
 
-Phase 15 closes an inherited review-routing defect. Candidates with source kinds:
+Candidates with source kinds:
 
 ```text
 memory_correction
@@ -102,37 +81,40 @@ memory_restore
 memory_contradiction
 ```
 
-are now approved and rejected through `ImmutableMemoryVersionService`, never through generic candidate canonical-upsert activation.
+are approved and rejected through `ImmutableMemoryVersionService`, never through generic canonical-upsert activation.
 
-The server returns a controlled `candidateKind`. Immutable version rejection requires a bounded reason. The web queue displays the candidate type, collects the reason, and refreshes from the actual server outcome.
+The server returns a controlled `candidateKind`. Immutable-version rejection requires a bounded reason. The web queue displays the type, collects the reason, and refreshes from the actual activation/rejection outcome.
 
 ## Actions and outcomes
 
-The center supports:
+The center supports approve, second approve, reject, withdraw, suggest correction, mark stale, confirm, revoke, restore as a new version, resolve conflicts, grant/revoke client access, and retry failed projection work.
 
-- approve;
-- second approve;
-- reject;
-- withdraw;
-- suggest correction;
-- mark stale;
-- confirm;
-- revoke;
-- restore as a new version;
-- resolve conflicts; and
-- create, replace, review, and revoke client grants.
+Browser capabilities are display-only. Every endpoint repeats authorization. Mutations invalidate overview, category lists, detail, transitions, projection health, review queues, proposal history, and active-memory queries.
 
-Browser capabilities are display-only. Every endpoint repeats authorization. After every mutation, the UI invalidates overview, category lists, detail, transitions, projection health, review queues, proposal history, and active memory queries.
+Success copy uses returned outcomes such as `pending_review`, `duplicate`, `already_stale`, `already_second_approved`, `projection_retry_queued`, and `already_retryable` rather than predicting success.
 
-The success message uses the returned outcome, including `pending_review`, `duplicate`, `already_stale`, and `already_second_approved`, rather than claiming a predicted result.
+## Projection health and retry
 
-## Projection health
+The center reports pending, running, completed, failed, dead-letter, and superseded jobs from `memory_cleanup_outbox`.
 
-The center shows status counts and recent failed/dead-letter jobs from `memory_cleanup_outbox`.
+Only `failed` and `dead_letter` jobs can be reopened. Pending/running jobs return an idempotent already-queued outcome; completed/superseded jobs are refused.
 
-Projection failure does not change canonical authority. The UI states that canonical memory remains authoritative while secondary projection work is retained for retry or investigation.
+Retry:
 
-Transition history uses immutable `memory_transition_audit.occurred_at`; it does not invent or substitute a `created_at` timestamp.
+- locks the outbox row;
+- enforces private ownership and ethical walls;
+- rechecks item read authorization when item-backed;
+- resets operational retry fields transactionally;
+- preserves prior attempts, operation, subject IDs, and a bounded error code in `AuditLog`; and
+- exposes no browser-side job mutation.
+
+Projection failure never changes canonical authority. The UI explicitly states that canonical memory remains authoritative while secondary projections are retained for retry or investigation.
+
+Transition history uses immutable `memory_transition_audit.occurred_at`, not an invented `created_at` timestamp.
+
+## Accessibility and responsive behavior
+
+Item rows are keyboard-operable with Enter and Space and receive a visible focus outline. Tables use horizontal containment, tabs can scroll, cards reduce padding at narrow widths, and the detail drawer is capped to the viewport.
 
 ## Automated coverage
 
@@ -140,22 +122,21 @@ Phase 15 adds or extends tests for:
 
 - exact release-switch parsing and prerequisites;
 - dark-state reads with zero governed-table access;
-- ethical-wall filtering contract and `occurred_at` evidence ordering;
+- ethical-wall and private-owner filtering;
+- immutable `occurred_at` ordering;
 - administrator-only route metadata;
-- controlled bucket and limit parsing;
-- exact controller delegation;
-- stale → active confirmation with evidence;
-- active → stale transition with bounded reason;
-- canonical revocation delegation and legal-hold refusal;
+- controlled bucket/limit parsing and exact delegation;
+- stale → active confirmation;
+- active → stale transition with bounded evidence;
+- canonical revocation and legal-hold refusal;
 - independent second-approval segregation;
-- immutable candidate-kind mapping;
-- generic versus immutable candidate routing;
-- required immutable rejection reason;
-- Governance Center browser visibility;
-- controlled tab-to-bucket mapping;
-- browser action payloads without authority claims;
-- human-readable status and authority labels; and
-- immutable review UI affordances.
+- authorized, audited projection retry;
+- restricted-client/private-Clio/terminal-job retry refusal;
+- immutable candidate-kind routing and required version rejection reason;
+- Governance Center browser visibility and controlled action payloads;
+- keyboard activation and narrow-width CSS;
+- projection retry through an API route only; and
+- human-readable status/authority labels.
 
 The permanent `memory-governance-ci` workflow is extended through Phase 15.
 
@@ -167,22 +148,13 @@ Phase 15 passes only when one exact synchronized head proves:
 - clean migration replay passes;
 - full repository typecheck passes;
 - API and web production builds pass;
-- the Phase 15 API and web focused matrices pass;
+- focused API/web matrices pass;
 - inherited Phase 1–14 cumulative gates remain passing;
 - Prettier and `git diff --check` pass;
-- the working tree is clean; and
+- working tree is clean; and
 - PR #679 remains draft, open, mergeable, synchronized with `main`, and unmerged.
 
-A manual UI pass must verify:
-
-- center-off fallback preserves existing queues;
-- standard users do not receive the center;
-- all nine center views render;
-- an item drawer shows the required governance metadata;
-- action buttons match server capabilities;
-- version rejection requires a reason;
-- grant create/revoke refreshes real history; and
-- projection failures do not read as canonical-memory failure.
+A manual UI pass must verify center-off fallback, standard-user denial, all nine views, complete item detail, server-capability actions, version rejection reason, grant history refresh, failed projection visibility/retry, keyboard navigation, and narrow-width usability.
 
 ## Rollback
 
@@ -192,12 +164,10 @@ Set:
 MEMORY_GOVERNANCE_CENTER=off
 ```
 
-This immediately restores the pre-Phase-15 queue experience. It does not disable governed memory itself and does not alter candidates, items, versions, grants, transition evidence, conflicts, or projection jobs.
+This immediately restores the pre-Phase-15 queue experience. It does not disable governed memory and does not alter candidates, items, versions, grants, transition evidence, conflicts, or projection jobs.
 
-Application rollback may leave no schema residue because Phase 15 adds no migration.
-
-Do not delete grants, rewrite lifecycle status, reopen terminal candidates, remove transition evidence, or mutate projection jobs as a UI rollback mechanism.
+Phase 15 adds no migration. Do not delete grants, rewrite lifecycle status, reopen terminal candidates, remove evidence, or mutate jobs as a UI rollback mechanism.
 
 ## Production boundary
 
-Phase 15 does not authorize merge, AWS deployment, migration, feature activation, grant creation, real candidate/item mutation, customer-data change, secret retrieval, external send, or production rollout.
+Phase 15 does not authorize merge, AWS deployment, migration, flag activation, grant creation, real memory decisions, customer-data mutation, secret retrieval, external send, or production rollout.
