@@ -467,11 +467,18 @@ async function main(): Promise<void> {
     });
 
     // 5) Derive-chain dry run under live config
+    // stdout legitimately says "re-run with --commit" and "no SyncRun row written" —
+    // those must NOT fail. Fail only on actual commit mode / SyncRun write / email send.
     const der = runDeriveDry();
     const hasDryMarker = /\[pe-derive-chain\]\s+dry run complete/i.test(der.out);
-    const mentionsCommitFlag = /(^|\s)--commit(\s|$)/m.test(der.out);
-    const wroteSync = /SyncRun row written/i.test(der.out);
-    const derOk = der.code === 0 && hasDryMarker && !mentionsCommitFlag && !wroteSync;
+    const commitMode =
+      /"mode"\s*:\s*"COMMIT"/i.test(der.out) || /mode=COMMIT/i.test(der.out);
+    const wroteSync =
+      /SyncRun row written/i.test(der.out) && !/no SyncRun row written/i.test(der.out);
+    const emailsSent = /"emails_sent"\s*:\s*([1-9]\d*)/i.exec(der.out);
+    const emailSentN = emailsSent ? Number(emailsSent[1]) : 0;
+    const derOk =
+      der.code === 0 && hasDryMarker && !commitMode && !wroteSync && emailSentN === 0;
     report.steps.push({
       id: 'derive_chain_dry_run',
       ok: derOk,
@@ -479,8 +486,9 @@ async function main(): Promise<void> {
       detail: der.out.slice(-900),
       metrics: {
         hasDryMarker,
-        mentionsCommitFlag,
+        commitMode,
         wroteSync,
+        emailSentN,
         exit: der.code,
       },
     });
@@ -527,6 +535,13 @@ async function main(): Promise<void> {
   report.ok = report.steps.every((s) => s.ok);
   report.marker = report.ok ? 'PE_PHASE_10_LIVE_PROOFS_OK' : 'PE_PHASE_10_LIVE_PROOFS_FAIL';
   console.log(JSON.stringify(report, null, 2));
+  // Compact trailer — ship log tail is capped; parser prefers this one-liner.
+  const compact: Record<string, boolean | string> = {
+    marker: report.marker,
+    ok: report.ok,
+  };
+  for (const s of report.steps) compact[s.id] = s.ok;
+  console.log(`PE_PHASE_10_LIVE_PROOFS_SUMMARY ${JSON.stringify(compact)}`);
   console.log(report.marker);
   if (!report.ok) process.exit(1);
 }

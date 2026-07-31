@@ -664,7 +664,7 @@ export function runLiveProofsTask(
             '--log-stream-name',
             stream,
             '--limit',
-            '250',
+            '500',
             '--output',
             'json',
           ],
@@ -691,35 +691,77 @@ export function runLiveProofsTask(
   }
 
   let report: any = null;
-  const markerIdx = logText.lastIndexOf('PE_PHASE_10_LIVE_PROOFS_');
-  if (markerIdx >= 0) {
-    const before = logText.lastIndexOf('{', markerIdx);
-    if (before >= 0) {
-      let depth = 0;
-      let end = -1;
-      for (let i = before; i < logText.length; i++) {
-        const ch = logText[i];
-        if (ch === '{') depth += 1;
-        else if (ch === '}') {
-          depth -= 1;
-          if (depth === 0) {
-            end = i + 1;
-            break;
+  // Prefer compact one-line summary (survives CloudWatch tail truncation).
+  {
+    const tag = 'PE_PHASE_10_LIVE_PROOFS_SUMMARY ';
+    const tagIdx = logText.lastIndexOf(tag);
+    if (tagIdx >= 0) {
+      const lineEnd = logText.indexOf('\n', tagIdx);
+      const jsonPart = logText
+        .slice(tagIdx + tag.length, lineEnd >= 0 ? lineEnd : undefined)
+        .trim();
+      try {
+        const compact = JSON.parse(jsonPart);
+        const steps = Object.keys(compact)
+          .filter((k) => k !== 'marker' && k !== 'ok')
+          .map((id) => ({
+            id,
+            ok: Boolean(compact[id]),
+            exitCode: compact[id] ? 0 : 1,
+            detail: `from SUMMARY compact ok=${compact[id]}`,
+          }));
+        report = {
+          ok: Boolean(compact.ok),
+          marker: compact.marker,
+          steps,
+          fromSummary: true,
+        };
+      } catch {
+        report = null;
+      }
+    }
+  }
+  if (!report) {
+    const markerIdx = logText.lastIndexOf('PE_PHASE_10_LIVE_PROOFS_');
+    if (markerIdx >= 0) {
+      // Prefer the report object that includes "steps".
+      let searchFrom = 0;
+      while (searchFrom < markerIdx) {
+        const before = logText.indexOf('{', searchFrom);
+        if (before < 0 || before >= markerIdx) break;
+        let depth = 0;
+        let endBrace = -1;
+        for (let i = before; i < logText.length && i < markerIdx + 80; i++) {
+          const ch = logText[i];
+          if (ch === '{') depth += 1;
+          else if (ch === '}') {
+            depth -= 1;
+            if (depth === 0) {
+              endBrace = i + 1;
+              break;
+            }
           }
         }
-      }
-      if (end > before) {
-        try {
-          report = JSON.parse(logText.slice(before, end));
-        } catch {
-          report = null;
+        if (endBrace > before) {
+          const slice = logText.slice(before, endBrace);
+          if (slice.includes('"steps"') && /"marker"\s*:\s*"PE_PHASE_10_LIVE_PROOFS_/.test(slice)) {
+            try {
+              report = JSON.parse(slice);
+              break;
+            } catch {
+              /* continue */
+            }
+          }
         }
+        searchFrom = before + 1;
       }
     }
   }
 
   const markerOk =
-    /PE_PHASE_10_LIVE_PROOFS_OK/.test(logText) || report?.marker === 'PE_PHASE_10_LIVE_PROOFS_OK';
+    /PE_PHASE_10_LIVE_PROOFS_OK(?:\s|$)/.test(logText) ||
+    report?.marker === 'PE_PHASE_10_LIVE_PROOFS_OK' ||
+    (report?.ok === true && report?.fromSummary === true);
   const ok = wait.code === 0 && exitCode === 0 && markerOk;
   mkdirSync(ctx.evidenceDir, { recursive: true });
   writeFileSync(
@@ -731,7 +773,7 @@ export function runLiveProofsTask(
         waitCode: wait.code,
         describe: desc.json,
         report,
-        logTail: logText.slice(-6000),
+        logTail: logText.slice(-20000),
       },
       null,
       2,
@@ -744,7 +786,7 @@ export function runLiveProofsTask(
     logText,
     detail: ok
       ? `live proofs task ${taskArn} exit=0 marker=PE_PHASE_10_LIVE_PROOFS_OK`
-      : `live proofs task ${taskArn} failed wait=${wait.code} exit=${exitCode} markerOk=${markerOk} body=${JSON.stringify(desc.json).slice(0, 400)} log=${logText.slice(-500)}`,
+      : `live proofs task ${taskArn} failed wait=${wait.code} exit=${exitCode} markerOk=${markerOk} body=${JSON.stringify(desc.json).slice(0, 400)} log=${logText.slice(-800)}`,
   };
 }
 
