@@ -556,9 +556,9 @@ export function runLiveProofsTask(
       containerOverrides: [
         {
           name: 'api',
+          // Override entryPoint so shell runs directly (command-only override becomes args to entrypoint.sh).
+          entryPoint: ['/usr/bin/dumb-init', '--', '/bin/sh', '-c'],
           command: [
-            'sh',
-            '-c',
             'mkdir -p /tmp /app/tmp; export TMPDIR=/tmp; exec /usr/local/bin/entrypoint.sh pe-phase-10-live-proofs',
           ],
           environment: [
