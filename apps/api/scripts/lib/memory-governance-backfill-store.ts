@@ -261,9 +261,7 @@ async function setTenant(tx: Tx, tenantId: string): Promise<void> {
   await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
 }
 
-export async function requireGovernanceBackfillMigration(
-  prisma: PrismaClient,
-): Promise<void> {
+export async function requireGovernanceBackfillMigration(prisma: PrismaClient): Promise<void> {
   const rows = await prisma.$queryRaw<
     Array<{ governanceColumns: boolean; jobTable: boolean; rowTable: boolean; eventTable: boolean }>
   >(Prisma.sql`
@@ -277,12 +275,7 @@ export async function requireGovernanceBackfillMigration(
     to_regclass('public.memory_governance_backfill_event') IS NOT NULL AS "eventTable"
   `);
   const state = rows[0];
-  if (
-    !state?.governanceColumns ||
-    !state.jobTable ||
-    !state.rowTable ||
-    !state.eventTable
-  ) {
+  if (!state?.governanceColumns || !state.jobTable || !state.rowTable || !state.eventTable) {
     throw new Error(
       'Phase 11 governance backfill migrations are not applied; no operation was performed',
     );
@@ -365,7 +358,8 @@ async function insertPreparedRows(
   for (let offset = 0; offset < rows.length; offset += SNAPSHOT_INSERT_CHUNK) {
     const chunk = rows.slice(offset, offset + SNAPSHOT_INSERT_CHUNK);
     if (!chunk.length) continue;
-    const values = chunk.map((row) => Prisma.sql`(
+    const values = chunk.map(
+      (row) => Prisma.sql`(
       ${jobId}::uuid,
       ${tenantId}::uuid,
       ${row.memoryItemId}::uuid,
@@ -378,7 +372,8 @@ async function insertPreparedRows(
       ${row.expectedPostHash},
       ${row.shouldUpdate ? 'planned' : 'not_needed'},
       ${row.shouldUpdate ? 'pending' : 'not_applied'}
-    )`);
+    )`,
+    );
     await tx.$executeRaw(Prisma.sql`
       INSERT INTO memory_governance_backfill_row
         (job_id, tenant_id, memory_item_id, should_update, quarantined, reason,
@@ -462,23 +457,17 @@ function uuidList(ids: string[]): Prisma.Sql {
   return Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`));
 }
 
-export async function prepareGovernanceBackfill(
-  prisma: PrismaClient,
-  tenantId: string,
-) {
+export async function prepareGovernanceBackfill(prisma: PrismaClient, tenantId: string) {
   const jobId = randomUUID();
-  return prisma.$transaction(
-    async (tx) => {
-      await setTenant(tx, tenantId);
-      const rows = await selectLegacyRows(tx, tenantId, 'share');
-      const duplicateIds = await selectDuplicateIds(tx, tenantId);
-      const preparedRows = rows.map((row) =>
-        preparedRowFor(row, buildPlan(row, duplicateIds)),
-      );
-      const planHash = hashBackfillPlan(planHashRows(preparedRows));
-      const changeCount = preparedRows.filter((row) => row.shouldUpdate).length;
-      const quarantineCount = preparedRows.filter((row) => row.quarantined).length;
-      await tx.$executeRaw(Prisma.sql`
+  return prisma.$transaction(async (tx) => {
+    await setTenant(tx, tenantId);
+    const rows = await selectLegacyRows(tx, tenantId, 'share');
+    const duplicateIds = await selectDuplicateIds(tx, tenantId);
+    const preparedRows = rows.map((row) => preparedRowFor(row, buildPlan(row, duplicateIds)));
+    const planHash = hashBackfillPlan(planHashRows(preparedRows));
+    const changeCount = preparedRows.filter((row) => row.shouldUpdate).length;
+    const quarantineCount = preparedRows.filter((row) => row.quarantined).length;
+    await tx.$executeRaw(Prisma.sql`
         INSERT INTO memory_governance_backfill_job
           (id, tenant_id, classifier_version, status, plan_hash,
            row_count, change_count, quarantine_count, metadata_jsonb)
@@ -506,42 +495,40 @@ export async function prepareGovernanceBackfill(
           })} AS jsonb)
         )
       `);
-      await insertPreparedRows(tx, tenantId, jobId, preparedRows);
-      await insertEvent(tx, {
-        tenantId,
-        jobId,
-        eventType: 'prepared',
-        reasonCode: 'dry_run_snapshot_created',
-        expectedHash: planHash,
-        metadata: {
-          rowCount: preparedRows.length,
-          changeCount,
-          quarantineCount,
-          canonicalRowsMutated: 0,
-        },
-      });
-      return {
-        ok: true,
-        job: 'backfill-memory-governance-v2',
-        mode: 'prepare',
-        tenantId,
-        jobId,
-        classifierVersion: MEMORY_GOVERNANCE_BACKFILL_CLASSIFIER_VERSION,
-        status: 'prepared',
-        planHash,
-        totalRows: preparedRows.length,
-        wouldUpdate: changeCount,
+    await insertPreparedRows(tx, tenantId, jobId, preparedRows);
+    await insertEvent(tx, {
+      tenantId,
+      jobId,
+      eventType: 'prepared',
+      reasonCode: 'dry_run_snapshot_created',
+      expectedHash: planHash,
+      metadata: {
+        rowCount: preparedRows.length,
+        changeCount,
         quarantineCount,
         canonicalRowsMutated: 0,
-        nextCommand: {
-          action: 'execute',
-          required: ['--execute', '--job-id', '--confirm-tenant', '--confirm-job'],
-        },
-        productionExecutedByThisTask: false,
-      };
-    },
-    TRANSACTION_OPTIONS,
-  );
+      },
+    });
+    return {
+      ok: true,
+      job: 'backfill-memory-governance-v2',
+      mode: 'prepare',
+      tenantId,
+      jobId,
+      classifierVersion: MEMORY_GOVERNANCE_BACKFILL_CLASSIFIER_VERSION,
+      status: 'prepared',
+      planHash,
+      totalRows: preparedRows.length,
+      wouldUpdate: changeCount,
+      quarantineCount,
+      canonicalRowsMutated: 0,
+      nextCommand: {
+        action: 'execute',
+        required: ['--execute', '--job-id', '--confirm-tenant', '--confirm-job'],
+      },
+      productionExecutedByThisTask: false,
+    };
+  }, TRANSACTION_OPTIONS);
 }
 
 export async function executeGovernanceBackfill(
@@ -549,48 +536,47 @@ export async function executeGovernanceBackfill(
   tenantId: string,
   jobId: string,
 ) {
-  return prisma.$transaction(
-    async (tx) => {
-      await setTenant(tx, tenantId);
-      const job = await lockJob(tx, tenantId, jobId);
-      if (job.status === 'executed') {
-        return {
-          ok: true,
-          job: 'backfill-memory-governance-v2',
-          mode: 'execute',
-          tenantId,
-          jobId,
-          status: 'executed',
-          idempotent: true,
-          productionExecutedByThisTask: false,
-        };
-      }
-      if (job.status !== 'prepared') {
-        throw new Error(`backfill job cannot execute from terminal status ${job.status}`);
-      }
-      const storedRows = await selectStoredRows(tx, tenantId, jobId);
-      verifyStoredPlan(job, storedRows);
-      await insertEvent(tx, {
+  return prisma.$transaction(async (tx) => {
+    await setTenant(tx, tenantId);
+    const job = await lockJob(tx, tenantId, jobId);
+    if (job.status === 'executed') {
+      return {
+        ok: true,
+        job: 'backfill-memory-governance-v2',
+        mode: 'execute',
         tenantId,
         jobId,
-        eventType: 'execute_started',
-        reasonCode: 'explicit_job_confirmation_accepted',
-        expectedHash: job.planHash,
-        metadata: { changeCount: job.changeCount },
-      });
-      const currentRows = await selectJobMemoryRows(tx, tenantId, jobId);
-      const currentById = new Map(currentRows.map((row) => [row.id, row]));
-      const drifts: Array<{ row: StoredRow; observedHash: string }> = [];
-      for (const row of storedRows.filter((candidate) => candidate.shouldUpdate)) {
-        const current = currentById.get(row.memoryItemId);
-        const observedHash = current
-          ? hashGovernanceState(governanceStateFromRow(current))
-          : 'missing';
-        if (observedHash !== row.beforeHash) drifts.push({ row, observedHash });
-      }
-      if (drifts.length) {
-        for (const drift of drifts) {
-          await tx.$executeRaw(Prisma.sql`
+        status: 'executed',
+        idempotent: true,
+        productionExecutedByThisTask: false,
+      };
+    }
+    if (job.status !== 'prepared') {
+      throw new Error(`backfill job cannot execute from terminal status ${job.status}`);
+    }
+    const storedRows = await selectStoredRows(tx, tenantId, jobId);
+    verifyStoredPlan(job, storedRows);
+    await insertEvent(tx, {
+      tenantId,
+      jobId,
+      eventType: 'execute_started',
+      reasonCode: 'explicit_job_confirmation_accepted',
+      expectedHash: job.planHash,
+      metadata: { changeCount: job.changeCount },
+    });
+    const currentRows = await selectJobMemoryRows(tx, tenantId, jobId);
+    const currentById = new Map(currentRows.map((row) => [row.id, row]));
+    const drifts: Array<{ row: StoredRow; observedHash: string }> = [];
+    for (const row of storedRows.filter((candidate) => candidate.shouldUpdate)) {
+      const current = currentById.get(row.memoryItemId);
+      const observedHash = current
+        ? hashGovernanceState(governanceStateFromRow(current))
+        : 'missing';
+      if (observedHash !== row.beforeHash) drifts.push({ row, observedHash });
+    }
+    if (drifts.length) {
+      for (const drift of drifts) {
+        await tx.$executeRaw(Prisma.sql`
             UPDATE memory_governance_backfill_row
             SET apply_status = 'blocked_drift',
                 rollback_status = 'not_applied',
@@ -599,17 +585,17 @@ export async function executeGovernanceBackfill(
               AND job_id = ${jobId}::uuid
               AND memory_item_id = ${drift.row.memoryItemId}::uuid
           `);
-          await insertEvent(tx, {
-            tenantId,
-            jobId,
-            memoryItemId: drift.row.memoryItemId,
-            eventType: 'execute_blocked_drift',
-            reasonCode: 'before_state_changed_after_prepare',
-            expectedHash: drift.row.beforeHash,
-            observedHash: drift.observedHash,
-          });
-        }
-        await tx.$executeRaw(Prisma.sql`
+        await insertEvent(tx, {
+          tenantId,
+          jobId,
+          memoryItemId: drift.row.memoryItemId,
+          eventType: 'execute_blocked_drift',
+          reasonCode: 'before_state_changed_after_prepare',
+          expectedHash: drift.row.beforeHash,
+          observedHash: drift.observedHash,
+        });
+      }
+      await tx.$executeRaw(Prisma.sql`
           UPDATE memory_governance_backfill_job
           SET status = 'execute_blocked_drift', updated_at = now(),
               metadata_jsonb = metadata_jsonb || CAST(${JSON.stringify({
@@ -617,21 +603,21 @@ export async function executeGovernanceBackfill(
               })} AS jsonb)
           WHERE tenant_id = ${tenantId}::uuid AND id = ${jobId}::uuid
         `);
-        return {
-          ok: false,
-          job: 'backfill-memory-governance-v2',
-          mode: 'execute',
-          tenantId,
-          jobId,
-          status: 'execute_blocked_drift',
-          driftCount: drifts.length,
-          mutatedRows: 0,
-          productionExecutedByThisTask: false,
-        };
-      }
+      return {
+        ok: false,
+        job: 'backfill-memory-governance-v2',
+        mode: 'execute',
+        tenantId,
+        jobId,
+        status: 'execute_blocked_drift',
+        driftCount: drifts.length,
+        mutatedRows: 0,
+        productionExecutedByThisTask: false,
+      };
+    }
 
-      if (job.changeCount > 0) {
-        const applied = await tx.$executeRaw(Prisma.sql`
+    if (job.changeCount > 0) {
+      const applied = await tx.$executeRaw(Prisma.sql`
           UPDATE memory_items m
           SET memory_class = r.expected_post_state_jsonb->>'memoryClass',
               memory_authority = r.expected_post_state_jsonb->>'memoryAuthority',
@@ -648,10 +634,10 @@ export async function executeGovernanceBackfill(
             AND m.tenant_id = r.tenant_id
             AND m.id = r.memory_item_id
         `);
-        if (applied !== job.changeCount) {
-          throw new Error('backfill execution did not mutate the exact prepared row count');
-        }
-        await tx.$executeRaw(Prisma.sql`
+      if (applied !== job.changeCount) {
+        throw new Error('backfill execution did not mutate the exact prepared row count');
+      }
+      await tx.$executeRaw(Prisma.sql`
           INSERT INTO memory_transition_audit
             (tenant_id, memory_item_id, effective_tenant_id, client_id,
              from_status, to_status, reason_code, reason, source_type, source_id,
@@ -681,7 +667,7 @@ export async function executeGovernanceBackfill(
             AND r.should_update = true
             AND r.apply_status = 'planned'
         `);
-        await tx.$executeRaw(Prisma.sql`
+      await tx.$executeRaw(Prisma.sql`
           INSERT INTO memory_governance_backfill_event
             (tenant_id, job_id, memory_item_id, event_type, reason_code,
              expected_hash, observed_hash, metadata_jsonb)
@@ -700,7 +686,7 @@ export async function executeGovernanceBackfill(
             AND should_update = true
             AND apply_status = 'planned'
         `);
-        await tx.$executeRaw(Prisma.sql`
+      await tx.$executeRaw(Prisma.sql`
           UPDATE memory_governance_backfill_row
           SET apply_status = 'applied', applied_at = now(), updated_at = now()
           WHERE tenant_id = ${tenantId}::uuid
@@ -708,38 +694,36 @@ export async function executeGovernanceBackfill(
             AND should_update = true
             AND apply_status = 'planned'
         `);
-      }
-      await tx.$executeRaw(Prisma.sql`
+    }
+    await tx.$executeRaw(Prisma.sql`
         UPDATE memory_governance_backfill_job
         SET status = 'executed', executed_at = now(), updated_at = now()
         WHERE tenant_id = ${tenantId}::uuid AND id = ${jobId}::uuid
       `);
-      await insertEvent(tx, {
-        tenantId,
-        jobId,
-        eventType: 'execute_completed',
-        reasonCode: 'exact_prepared_snapshot_applied',
-        expectedHash: job.planHash,
-        metadata: {
-          applied: job.changeCount,
-          notNeeded: job.rowCount - job.changeCount,
-        },
-      });
-      return {
-        ok: true,
-        job: 'backfill-memory-governance-v2',
-        mode: 'execute',
-        tenantId,
-        jobId,
-        status: 'executed',
-        planHash: job.planHash,
+    await insertEvent(tx, {
+      tenantId,
+      jobId,
+      eventType: 'execute_completed',
+      reasonCode: 'exact_prepared_snapshot_applied',
+      expectedHash: job.planHash,
+      metadata: {
         applied: job.changeCount,
         notNeeded: job.rowCount - job.changeCount,
-        productionExecutedByThisTask: false,
-      };
-    },
-    TRANSACTION_OPTIONS,
-  );
+      },
+    });
+    return {
+      ok: true,
+      job: 'backfill-memory-governance-v2',
+      mode: 'execute',
+      tenantId,
+      jobId,
+      status: 'executed',
+      planHash: job.planHash,
+      applied: job.changeCount,
+      notNeeded: job.rowCount - job.changeCount,
+      productionExecutedByThisTask: false,
+    };
+  }, TRANSACTION_OPTIONS);
 }
 
 export async function rollbackGovernanceBackfill(
@@ -747,52 +731,51 @@ export async function rollbackGovernanceBackfill(
   tenantId: string,
   jobId: string,
 ) {
-  return prisma.$transaction(
-    async (tx) => {
-      await setTenant(tx, tenantId);
-      const job = await lockJob(tx, tenantId, jobId);
-      if (job.status === 'rolled_back' || job.status === 'rollback_partial') {
-        return {
-          ok: true,
-          job: 'backfill-memory-governance-v2',
-          mode: 'rollback',
-          tenantId,
-          jobId,
-          status: job.status,
-          idempotent: true,
-          terminal: true,
-          productionExecutedByThisTask: false,
-        };
-      }
-      if (job.status !== 'executed') {
-        throw new Error(`backfill job cannot roll back from status ${job.status}`);
-      }
-      const allStoredRows = await selectStoredRows(tx, tenantId, jobId);
-      verifyStoredPlan(job, allStoredRows);
-      const storedRows = allStoredRows.filter((row) => row.applyStatus === 'applied');
-      await insertEvent(tx, {
+  return prisma.$transaction(async (tx) => {
+    await setTenant(tx, tenantId);
+    const job = await lockJob(tx, tenantId, jobId);
+    if (job.status === 'rolled_back' || job.status === 'rollback_partial') {
+      return {
+        ok: true,
+        job: 'backfill-memory-governance-v2',
+        mode: 'rollback',
         tenantId,
         jobId,
-        eventType: 'rollback_started',
-        reasonCode: 'explicit_job_confirmation_accepted',
-        expectedHash: job.planHash,
-        metadata: { appliedRows: storedRows.length },
-      });
-      const currentRows = await selectJobMemoryRows(tx, tenantId, jobId);
-      const currentById = new Map(currentRows.map((row) => [row.id, row]));
-      const restorableIds: string[] = [];
-      const skipped: Array<{ row: StoredRow; observedHash: string; missing: boolean }> = [];
-      for (const row of storedRows) {
-        const current = currentById.get(row.memoryItemId);
-        const observedHash = current
-          ? hashGovernanceState(governanceStateFromRow(current))
-          : 'missing';
-        if (observedHash === row.expectedPostHash) restorableIds.push(row.memoryItemId);
-        else skipped.push({ row, observedHash, missing: !current });
-      }
+        status: job.status,
+        idempotent: true,
+        terminal: true,
+        productionExecutedByThisTask: false,
+      };
+    }
+    if (job.status !== 'executed') {
+      throw new Error(`backfill job cannot roll back from status ${job.status}`);
+    }
+    const allStoredRows = await selectStoredRows(tx, tenantId, jobId);
+    verifyStoredPlan(job, allStoredRows);
+    const storedRows = allStoredRows.filter((row) => row.applyStatus === 'applied');
+    await insertEvent(tx, {
+      tenantId,
+      jobId,
+      eventType: 'rollback_started',
+      reasonCode: 'explicit_job_confirmation_accepted',
+      expectedHash: job.planHash,
+      metadata: { appliedRows: storedRows.length },
+    });
+    const currentRows = await selectJobMemoryRows(tx, tenantId, jobId);
+    const currentById = new Map(currentRows.map((row) => [row.id, row]));
+    const restorableIds: string[] = [];
+    const skipped: Array<{ row: StoredRow; observedHash: string; missing: boolean }> = [];
+    for (const row of storedRows) {
+      const current = currentById.get(row.memoryItemId);
+      const observedHash = current
+        ? hashGovernanceState(governanceStateFromRow(current))
+        : 'missing';
+      if (observedHash === row.expectedPostHash) restorableIds.push(row.memoryItemId);
+      else skipped.push({ row, observedHash, missing: !current });
+    }
 
-      if (restorableIds.length) {
-        const restored = await tx.$executeRaw(Prisma.sql`
+    if (restorableIds.length) {
+      const restored = await tx.$executeRaw(Prisma.sql`
           UPDATE memory_items m
           SET memory_class = r.before_state_jsonb->>'memoryClass',
               memory_authority = r.before_state_jsonb->>'memoryAuthority',
@@ -808,10 +791,10 @@ export async function rollbackGovernanceBackfill(
             AND m.tenant_id = r.tenant_id
             AND m.id = r.memory_item_id
         `);
-        if (restored !== restorableIds.length) {
-          throw new Error('rollback did not restore the exact unchanged row count');
-        }
-        await tx.$executeRaw(Prisma.sql`
+      if (restored !== restorableIds.length) {
+        throw new Error('rollback did not restore the exact unchanged row count');
+      }
+      await tx.$executeRaw(Prisma.sql`
           INSERT INTO memory_transition_audit
             (tenant_id, memory_item_id, effective_tenant_id, client_id,
              from_status, to_status, reason_code, reason, source_type, source_id,
@@ -839,7 +822,7 @@ export async function rollbackGovernanceBackfill(
             AND r.job_id = ${jobId}::uuid
             AND r.memory_item_id IN (${uuidList(restorableIds)})
         `);
-        await tx.$executeRaw(Prisma.sql`
+      await tx.$executeRaw(Prisma.sql`
           INSERT INTO memory_governance_backfill_event
             (tenant_id, job_id, memory_item_id, event_type, reason_code,
              expected_hash, observed_hash, metadata_jsonb)
@@ -856,7 +839,7 @@ export async function rollbackGovernanceBackfill(
             AND job_id = ${jobId}::uuid
             AND memory_item_id IN (${uuidList(restorableIds)})
         `);
-        await tx.$executeRaw(Prisma.sql`
+      await tx.$executeRaw(Prisma.sql`
           UPDATE memory_governance_backfill_row
           SET rollback_status = 'restored',
               rollback_checked_at = now(),
@@ -866,10 +849,10 @@ export async function rollbackGovernanceBackfill(
             AND job_id = ${jobId}::uuid
             AND memory_item_id IN (${uuidList(restorableIds)})
         `);
-      }
+    }
 
-      for (const drift of skipped) {
-        await tx.$executeRaw(Prisma.sql`
+    for (const drift of skipped) {
+      await tx.$executeRaw(Prisma.sql`
           UPDATE memory_governance_backfill_row
           SET rollback_status = 'skipped_drift',
               rollback_checked_at = now(),
@@ -879,21 +862,21 @@ export async function rollbackGovernanceBackfill(
             AND job_id = ${jobId}::uuid
             AND memory_item_id = ${drift.row.memoryItemId}::uuid
         `);
-        await insertEvent(tx, {
-          tenantId,
-          jobId,
-          memoryItemId: drift.row.memoryItemId,
-          eventType: 'row_skipped_drift',
-          reasonCode: drift.missing
-            ? 'memory_item_missing_after_execute'
-            : 'post_state_changed_after_execute',
-          expectedHash: drift.row.expectedPostHash,
-          observedHash: drift.observedHash,
-        });
-      }
+      await insertEvent(tx, {
+        tenantId,
+        jobId,
+        memoryItemId: drift.row.memoryItemId,
+        eventType: 'row_skipped_drift',
+        reasonCode: drift.missing
+          ? 'memory_item_missing_after_execute'
+          : 'post_state_changed_after_execute',
+        expectedHash: drift.row.expectedPostHash,
+        observedHash: drift.observedHash,
+      });
+    }
 
-      const status = skipped.length === 0 ? 'rolled_back' : 'rollback_partial';
-      await tx.$executeRaw(Prisma.sql`
+    const status = skipped.length === 0 ? 'rolled_back' : 'rollback_partial';
+    await tx.$executeRaw(Prisma.sql`
         UPDATE memory_governance_backfill_job
         SET status = ${status}, rolled_back_at = now(), updated_at = now(),
             metadata_jsonb = metadata_jsonb || CAST(${JSON.stringify({
@@ -902,32 +885,29 @@ export async function rollbackGovernanceBackfill(
             })} AS jsonb)
         WHERE tenant_id = ${tenantId}::uuid AND id = ${jobId}::uuid
       `);
-      await insertEvent(tx, {
-        tenantId,
-        jobId,
-        eventType: 'rollback_completed',
-        reasonCode:
-          skipped.length === 0 ? 'all_unchanged_rows_restored' : 'later_changes_preserved',
-        expectedHash: job.planHash,
-        metadata: {
-          restored: restorableIds.length,
-          skippedDrift: skipped.length,
-          status,
-        },
-      });
-      return {
-        ok: true,
-        job: 'backfill-memory-governance-v2',
-        mode: 'rollback',
-        tenantId,
-        jobId,
-        status,
+    await insertEvent(tx, {
+      tenantId,
+      jobId,
+      eventType: 'rollback_completed',
+      reasonCode: skipped.length === 0 ? 'all_unchanged_rows_restored' : 'later_changes_preserved',
+      expectedHash: job.planHash,
+      metadata: {
         restored: restorableIds.length,
         skippedDrift: skipped.length,
-        laterHumanChangesOverwritten: 0,
-        productionExecutedByThisTask: false,
-      };
-    },
-    TRANSACTION_OPTIONS,
-  );
+        status,
+      },
+    });
+    return {
+      ok: true,
+      job: 'backfill-memory-governance-v2',
+      mode: 'rollback',
+      tenantId,
+      jobId,
+      status,
+      restored: restorableIds.length,
+      skippedDrift: skipped.length,
+      laterHumanChangesOverwritten: 0,
+      productionExecutedByThisTask: false,
+    };
+  }, TRANSACTION_OPTIONS);
 }

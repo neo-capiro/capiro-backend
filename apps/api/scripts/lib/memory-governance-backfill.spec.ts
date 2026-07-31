@@ -76,28 +76,16 @@ describe('Phase 11 governance backfill state contract', () => {
 
   it('rejects mixed actions and confirmation flags in prepare mode', () => {
     expect(() =>
-      parseMemoryGovernanceBackfillArgs([
-        '--tenant-id',
-        TENANT_ID,
-        '--execute',
-        '--rollback',
-      ]),
+      parseMemoryGovernanceBackfillArgs(['--tenant-id', TENANT_ID, '--execute', '--rollback']),
     ).toThrow('--execute and --rollback are mutually exclusive');
 
     expect(() =>
-      parseMemoryGovernanceBackfillArgs([
-        '--tenant-id',
-        TENANT_ID,
-        '--job-id',
-        JOB_ID,
-      ]),
+      parseMemoryGovernanceBackfillArgs(['--tenant-id', TENANT_ID, '--job-id', JOB_ID]),
     ).toThrow('prepare mode does not accept');
   });
 
   it('canonicalizes object keys and produces stable exact-state hashes', () => {
-    expect(canonicalJson({ z: 1, a: { y: 2, b: 3 } })).toBe(
-      '{"a":{"b":3,"y":2},"z":1}',
-    );
+    expect(canonicalJson({ z: 1, a: { y: 2, b: 3 } })).toBe('{"a":{"b":3,"y":2},"z":1}');
     expect(hashGovernanceState({ ...state })).toBe(
       hashGovernanceState({
         governedStatus: 'pending_review',
@@ -109,9 +97,7 @@ describe('Phase 11 governance backfill state contract', () => {
         sourceType: 'unknown',
       }),
     );
-    expect(
-      governanceStatesEqual(state, { ...state, sourceType: 'firm_playbook' }),
-    ).toBe(false);
+    expect(governanceStatesEqual(state, { ...state, sourceType: 'firm_playbook' })).toBe(false);
   });
 
   it('normalizes timestamps before hashing and detects every rollback field', () => {
@@ -130,9 +116,7 @@ describe('Phase 11 governance backfill state contract', () => {
       { sourceId: 'source-1' },
       { reviewDueAt: '2026-08-02T00:00:00.000Z' },
     ]) {
-      expect(hashGovernanceState({ ...state, ...changed })).not.toBe(
-        hashGovernanceState(state),
-      );
+      expect(hashGovernanceState({ ...state, ...changed })).not.toBe(hashGovernanceState(state));
     }
   });
 
@@ -153,9 +137,7 @@ describe('Phase 11 governance backfill state contract', () => {
       beforeHash: 'c'.repeat(64),
       expectedPostHash: 'c'.repeat(64),
     };
-    expect(hashBackfillPlan([first, second])).toBe(
-      hashBackfillPlan([second, first]),
-    );
+    expect(hashBackfillPlan([first, second])).toBe(hashBackfillPlan([second, first]));
     expect(hashBackfillPlan([first, second])).not.toBe(
       hashBackfillPlan([{ ...first, shouldUpdate: false }, second]),
     );

@@ -49,7 +49,7 @@ function lexicalCompare(left: string, right: string): number {
 
 function valueAfter(argv: string[], flag: string): string | null {
   const at = argv.indexOf(flag);
-  return at >= 0 ? argv[at + 1] ?? null : null;
+  return at >= 0 ? (argv[at + 1] ?? null) : null;
 }
 
 function requireUuid(value: string | null, message: string): string {
@@ -57,13 +57,8 @@ function requireUuid(value: string | null, message: string): string {
   return value.toLowerCase();
 }
 
-export function parseMemoryGovernanceBackfillArgs(
-  argv: string[],
-): MemoryGovernanceBackfillArgs {
-  const tenantId = requireUuid(
-    valueAfter(argv, '--tenant-id'),
-    '--tenant-id <uuid> is required',
-  );
+export function parseMemoryGovernanceBackfillArgs(argv: string[]): MemoryGovernanceBackfillArgs {
+  const tenantId = requireUuid(valueAfter(argv, '--tenant-id'), '--tenant-id <uuid> is required');
   const execute = argv.includes('--execute');
   const rollback = argv.includes('--rollback');
   if (execute && rollback) {
@@ -75,8 +70,7 @@ export function parseMemoryGovernanceBackfillArgs(
       ? 'execute'
       : 'prepare';
   const jobIdValue = valueAfter(argv, '--job-id');
-  const confirmTenantValue =
-    valueAfter(argv, '--confirm-tenant') ?? valueAfter(argv, '--confirm');
+  const confirmTenantValue = valueAfter(argv, '--confirm-tenant') ?? valueAfter(argv, '--confirm');
   const confirmJobValue = valueAfter(argv, '--confirm-job');
 
   if (action === 'prepare') {
@@ -99,10 +93,7 @@ export function parseMemoryGovernanceBackfillArgs(
     confirmTenantValue,
     `${action} requires --confirm-tenant <tenant uuid>`,
   );
-  const confirmJob = requireUuid(
-    confirmJobValue,
-    `${action} requires --confirm-job <job uuid>`,
-  );
+  const confirmJob = requireUuid(confirmJobValue, `${action} requires --confirm-job <job uuid>`);
   if (confirmTenant !== tenantId) {
     throw new Error('--confirm-tenant must exactly equal --tenant-id');
   }
@@ -162,9 +153,6 @@ export function hashBackfillPlan(rows: PlanHashRow[]): string {
   );
 }
 
-export function governanceStatesEqual(
-  left: GovernanceState,
-  right: GovernanceState,
-): boolean {
+export function governanceStatesEqual(left: GovernanceState, right: GovernanceState): boolean {
   return hashGovernanceState(left) === hashGovernanceState(right);
 }
