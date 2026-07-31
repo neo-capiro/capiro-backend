@@ -39,6 +39,11 @@ interface PendingCandidateRow {
   createdAt: Date;
 }
 
+/** Exact parser for the Phase 12 surface switch. Truthy-looking values stay off. */
+export function clientMemoryReviewEnabled(raw: string | undefined): boolean {
+  return raw?.trim().toLowerCase() === 'enforce';
+}
+
 /**
  * Scope-aware review facade for standard authenticated users.
  *
@@ -59,6 +64,7 @@ export class MemoryCandidateReviewService {
 
   enabled(): boolean {
     return (
+      clientMemoryReviewEnabled(process.env.MEMORY_CLIENT_REVIEW) &&
       governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE) &&
       governedMemoryEnforcementEnabled(process.env.MEMORY_GOVERNANCE_ENFORCE)
     );
