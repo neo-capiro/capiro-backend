@@ -4,10 +4,11 @@ import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { MemoryAuthorizationService } from './memory-authorization.service.js';
 import type { MemoryCandidateService } from './memory-candidate.service.js';
+import { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
 import {
   clientMemoryReviewEnabled,
-  MemoryCandidateReviewService,
-} from './memory-candidate-review.service.js';
+  memoryReviewSurfaceEnabled,
+} from './memory-review-switch.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
@@ -122,13 +123,27 @@ function harness(input: {
   };
 }
 
-describe('clientMemoryReviewEnabled', () => {
-  it('arms only on the exact enforce value', () => {
+describe('memory review switch', () => {
+  it('arms only on exact values and requires all three server controls', () => {
     expect(clientMemoryReviewEnabled('enforce')).toBe(true);
     expect(clientMemoryReviewEnabled(' ENFORCE ')).toBe(true);
     for (const value of [undefined, '', 'true', 'on', '1', 'enabled']) {
       expect(clientMemoryReviewEnabled(value)).toBe(false);
     }
+    expect(
+      memoryReviewSurfaceEnabled({
+        MEMORY_CLIENT_REVIEW: 'enforce',
+        MEMORY_GOVERNANCE_LIFECYCLE: 'enforce',
+        MEMORY_GOVERNANCE_ENFORCE: 'enforce',
+      }),
+    ).toBe(true);
+    expect(
+      memoryReviewSurfaceEnabled({
+        MEMORY_CLIENT_REVIEW: 'enforce',
+        MEMORY_GOVERNANCE_LIFECYCLE: 'off',
+        MEMORY_GOVERNANCE_ENFORCE: 'enforce',
+      }),
+    ).toBe(false);
   });
 });
 
