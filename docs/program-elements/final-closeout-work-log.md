@@ -1095,7 +1095,7 @@ git reset --hard c48d30bdc2229c2c452640065402efc92551f2b1
 **origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e`  
 **Mode:** LONG IMPLEMENT only — no self-PASS, no Phase 9, no MeriV2 source edits, no shared-env migrate/deploy  
 **Product tip (this phase):** `e8124cc8ea96185ddb810e381e4a80bc45e19d00`
-**Remote tip after push (review target):**  (product )
+**Remote tip after push (review target):** `1ac2a6e91e6aeebb52cc4253025ff6e254a00f70` at pin time; REVIEW must `git rev-parse origin/agent/program-elements-final-closeout` (product `e8124cc8ea96185ddb810e381e4a80bc45e19d00`)
 
 ### Tasks completed (implementation)
 
