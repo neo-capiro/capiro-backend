@@ -42,6 +42,23 @@ function harness(input: {
   scope?: 'client' | 'firm';
 }) {
   const scope = input.scope ?? 'client';
+  const payload = {
+    key: 'settings-file:client-soul:client-1',
+    value: '[{"key":"priorities"}]',
+    canonicalItem: {
+      type: 'client-soul',
+      slug: 'client-1',
+      title: 'Client Soul',
+      sections: [
+        {
+          key: 'priorities',
+          heading: 'Priorities',
+          owner: 'human',
+          body: 'Protect the FY27 request.',
+        },
+      ],
+    },
+  };
   const row = {
     id: 'candidate-1',
     clientId: scope === 'client' ? CLIENT : null,
@@ -49,27 +66,11 @@ function harness(input: {
     sourceKind: 'settings_sections',
     scope,
     createdAt: new Date('2026-07-31T12:00:00.000Z'),
-    payload: {
-      key: 'settings-file:client-soul:client-1',
-      value: '[{"key":"priorities"}]',
-      canonicalItem: {
-        type: 'client-soul',
-        slug: 'client-1',
-        title: 'Client Soul',
-        sections: [
-          {
-            key: 'priorities',
-            heading: 'Priorities',
-            owner: 'human',
-            body: 'Protect the FY27 request.',
-          },
-        ],
-      },
-    },
   };
   const tx = {
     memoryCandidate: {
       findMany: jest.fn(async () => [row]),
+      findFirst: jest.fn(async () => ({ payload })),
     },
   };
   const prisma = {
@@ -122,6 +123,7 @@ describe('MemoryCandidateReviewService', () => {
         candidates: [],
       });
       expect(h.tx.memoryCandidate.findMany).not.toHaveBeenCalled();
+      expect(h.tx.memoryCandidate.findFirst).not.toHaveBeenCalled();
       await expect(h.service.approve(ctx, 'candidate-1')).rejects.toBeInstanceOf(
         ServiceUnavailableException,
       );
@@ -145,16 +147,18 @@ describe('MemoryCandidateReviewService', () => {
           }),
         }),
       ]);
+      expect(h.tx.memoryCandidate.findFirst).toHaveBeenCalledTimes(1);
     });
   });
 
-  it('withholds candidates for which the server grants neither review nor approval', async () => {
+  it('withholds candidates and never loads their proposal bodies when unauthorized', async () => {
     await withGovernance(true, async () => {
       const h = harness({ approveAllowed: false, reviewAllowed: false });
       await expect(h.service.listReviewable(ctx)).resolves.toEqual({
         enabled: true,
         candidates: [],
       });
+      expect(h.tx.memoryCandidate.findFirst).not.toHaveBeenCalled();
     });
   });
 
