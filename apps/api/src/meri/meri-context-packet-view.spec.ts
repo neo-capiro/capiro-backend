@@ -33,6 +33,8 @@ describe('contextPacketView — v1 output is unchanged', () => {
     const view = contextPacketView(V1_ROW);
     expect(view).toEqual({
       packetId: 'packet-1',
+      persisted: true,
+      persistenceErrorCode: null,
       compiledAt: '2026-07-29T12:00:00.000Z',
       surface: 'chat',
       clientId: null,

@@ -211,6 +211,8 @@ describe('canonical governed memory activation', () => {
       ownerUserId: item.ownerUserId,
       visibility: item.visibility,
       status: item.status,
+      legacyStatus: item.status,
+      governedStatus: item.governedStatus,
       expiresAt: item.expiresAt ?? null,
       updatedAt: item.updatedAt,
       confirmedAt: item.lastConfirmedAt,
@@ -300,7 +302,9 @@ describe('canonical governed memory activation', () => {
       clientId: item.clientId,
       ownerUserId: item.ownerUserId,
       visibility: item.visibility,
-      status: 'pending_review',
+      status: item.status,
+      legacyStatus: item.status,
+      governedStatus: 'pending_review',
       sections: item.sections,
       memoryClass: item.memoryClass,
       governedAuthority: item.memoryAuthority,
@@ -326,6 +330,8 @@ describe('canonical governed memory activation', () => {
       contractVersion: 2,
     });
     expect(packet.items).toEqual([]);
-    expect(packet.exclusions).toEqual([expect.objectContaining({ id: ITEM, reason: 'revoked' })]);
+    expect(packet.exclusions).toEqual([
+      expect.objectContaining({ id: ITEM, reason: 'unapproved' }),
+    ]);
   });
 });
