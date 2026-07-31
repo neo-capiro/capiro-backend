@@ -24,6 +24,7 @@ import { MicrosoftOAuthController } from './microsoft/microsoft-oauth.controller
 import { MicrosoftOAuthService } from './microsoft/microsoft-oauth.service.js';
 import { TokenCryptoService } from './microsoft/token-crypto.service.js';
 import { ContextModule } from '../context/context.module.js';
+import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { ContextPersistenceBoundaryService } from '../context/context-persistence-boundary.service.js';
 import { GoogleOAuthController } from './google/google-oauth.controller.js';
 import { GoogleOAuthService } from './google/google-oauth.service.js';
@@ -73,7 +74,11 @@ import { AlertPacketClientService } from './generation/alert-packet-client.servi
     {
       provide: EngagementService,
       useFactory: createGovernedEngagementService,
-      inject: [RAW_ENGAGEMENT_SERVICE, ContextPersistenceBoundaryService],
+      inject: [
+        RAW_ENGAGEMENT_SERVICE,
+        ContextPersistenceBoundaryService,
+        ContextCompilerService,
+      ],
     },
     { provide: OutreachJobService, useClass: RaceSafeOutreachJobService },
     OutcomeService,
