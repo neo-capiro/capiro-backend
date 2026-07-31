@@ -171,6 +171,7 @@ function finalizeV2Packet(
     (item) =>
       requiredLayerSet.has(item.layer) && ['source-missing', 'unavailable'].includes(item.reason),
   ).length;
+  const staleCount = packet.items.filter((item) => item.status === 'stale').length;
 
   const reasons = packet.health.reasons.filter(
     (reason) =>
@@ -187,7 +188,7 @@ function finalizeV2Packet(
     ? 'incomplete'
     : packet.health.conflictCount > 0
       ? 'conflicted'
-      : requiredSourceFailureCount > 0 || missingRequiredLayers.length > 0
+      : requiredSourceFailureCount > 0 || missingRequiredLayers.length > 0 || staleCount > 0
         ? 'degraded'
         : 'healthy';
 

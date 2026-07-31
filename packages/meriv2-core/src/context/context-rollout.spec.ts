@@ -14,6 +14,8 @@ const approvedFirm = (over: Partial<SteeringRow> = {}): SteeringRow => ({
   ownerUserId: null,
   visibility: 'tenant',
   status: 'active',
+  legacyStatus: 'active',
+  governedStatus: 'active',
   expiresAt: null,
   updatedAt: '2026-07-30T00:00:00.000Z',
   confirmedAt: '2026-07-30T00:00:00.000Z',
@@ -167,6 +169,24 @@ describe('ContextPacketRolloutCompiler', () => {
       'user-voice',
     );
     expect(packet.requiredLayers).toEqual(['firm-identity']);
+  });
+
+  it('keeps stale governed context degraded after the rollout finalizer', async () => {
+    const h = harness([approvedFirm({ governedStatus: 'stale' })]);
+    const packet = await h.compiler.compile(request(), 'enforce');
+    expect(packet.version).toBe(2);
+    if (packet.version !== 2) throw new Error('expected v2');
+    expect(packet.items).toEqual([
+      expect.objectContaining({
+        status: 'stale',
+        legacyStatus: 'active',
+      }),
+    ]);
+    expect(packet.health.status).toBe('degraded');
+    expect(packet.health.reasons).toEqual(
+      expect.arrayContaining([expect.stringContaining('stale context item')]),
+    );
+    expect(packet.incomplete).toBe(true);
   });
 
   it('missing required context degrades and identifies the required layer', async () => {
