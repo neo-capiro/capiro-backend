@@ -557,12 +557,12 @@ export function runLiveProofsTask(
         {
           name: 'api',
           // command becomes args to image ENTRYPOINT (entrypoint.sh).
-          // TMPDIR must be /app/tmp (Dockerfile + entrypoint). /tmp breaks tsx IPC on Fargate uid 1001.
+          // TMPDIR=/dev/shm is the production Fargate tsx IPC fix (see set-tenant-flag). /tmp and /app/tmp ENOENT on mkdir tsx-UID.
           command: ['pe-phase-10-live-proofs'],
           environment: [
             { name: 'GIT_SHA', value: ctx.headSha },
             { name: 'PE_CLOSEOUT_HEAD_SHA', value: ctx.headSha },
-            { name: 'TMPDIR', value: '/app/tmp' },
+            { name: 'TMPDIR', value: '/dev/shm' },
           ],
         },
       ],

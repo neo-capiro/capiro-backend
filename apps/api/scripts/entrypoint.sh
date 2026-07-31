@@ -16,9 +16,12 @@ compose_database_url() {
   # Real password in process env for Prisma; never echo/print DATABASE_URL.
   # Prior bug used literal "***" here which broke every DB client that only reads DATABASE_URL.
   export DATABASE_URL="postgresql://${DB_USER}:${ENCODED_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public&sslmode=require&connection_limit=10"
-  # Prefer image-owned scratch dir (Dockerfile: /app/tmp, uid 1001). Fargate /tmp often
-  # cannot mkdir /tmp/tsx-1001 (ENOENT) — do not default to bare /tmp.
-  if [ -d /app/tmp ] || mkdir -p /app/tmp 2>/dev/null; then
+  # Fargate tsx IPC: prefer writable tmpfs /dev/shm (production one-off pattern).
+  # Fall back to /app/tmp (Dockerfile). Never default bare /tmp (ENOENT mkdir tsx-UID).
+  if [ -d /dev/shm ] && touch /dev/shm/.capiro_w 2>/dev/null; then
+    rm -f /dev/shm/.capiro_w 2>/dev/null || true
+    export TMPDIR=/dev/shm
+  elif [ -d /app/tmp ] || mkdir -p /app/tmp 2>/dev/null; then
     export TMPDIR=/app/tmp
   else
     : "${TMPDIR:=/dev/shm}"
@@ -53,16 +56,17 @@ case "${1:-serve}" in
   pe-phase-10-live-proofs)
     shift
     compose_database_url
-    # Force image scratch dir. ECS containerOverrides historically set TMPDIR=/tmp which
-    # breaks tsx IPC (ENOENT mkdir /tmp/tsx-1001) on Fargate non-root.
-    mkdir -p /app/tmp 2>/dev/null || true
-    if [ -d /app/tmp ]; then
-      export TMPDIR=/app/tmp
-    elif [ -d /dev/shm ]; then
+    # Fargate non-root: tsx IPC needs a real tmpfs. Production one-offs use TMPDIR=/dev/shm
+    # (see set-tenant-flag / sync-hearing-transcripts). /tmp and even baked /app/tmp can
+    # ENOENT on mkdir $TMPDIR/tsx-1001 under some Fargate mounts.
+    if [ -d /dev/shm ] && touch /dev/shm/.pe10_w 2>/dev/null; then
+      rm -f /dev/shm/.pe10_w 2>/dev/null || true
       export TMPDIR=/dev/shm
     else
-      export TMPDIR="${TMPDIR:-/tmp}"
+      mkdir -p /app/tmp 2>/dev/null || true
+      export TMPDIR=/app/tmp
     fi
+    export TSX_TSCONFIG_PATH="${TSX_TSCONFIG_PATH:-./tsconfig.json}"
     echo "Running pe-phase-10-live-proofs (sole-live Aurora; synthetic pe10_closeout domain only; TMPDIR=$TMPDIR)"
     exec ./node_modules/.bin/tsx scripts/pe-phase-10-live-proofs.ts "$@"
     ;;
