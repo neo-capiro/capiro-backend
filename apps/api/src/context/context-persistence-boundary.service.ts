@@ -10,11 +10,12 @@ interface ContextPersistenceBoundaryState {
 }
 
 /**
- * Request-local record of a required Context Packet persistence failure.
+ * Request/job-local record of a required Context Packet persistence failure.
  *
  * Some legacy generators intentionally fail soft around optional context. Phase 8
  * keeps that compatibility for ordinary failures, but a required persistence
- * error must survive those catches and block the HTTP result before release.
+ * error must survive those catches and block the result before release or job
+ * completion.
  */
 @Injectable()
 export class ContextPersistenceBoundaryService {
@@ -28,6 +29,15 @@ export class ContextPersistenceBoundaryService {
     if (!isContextPacketPersistenceError(error)) return;
     const state = this.storage.getStore();
     if (state && !state.failure) state.failure = error;
+  }
+
+  async guard<T>(operation: () => T | Promise<T>): Promise<T> {
+    return this.run(async () => {
+      const result = await operation();
+      const failure = this.failure();
+      if (failure) throw failure;
+      return result;
+    });
   }
 
   failure(): ContextPacketPersistenceError | null {
