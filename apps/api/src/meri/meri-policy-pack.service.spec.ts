@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
+import type { TenantContext, TenantRole } from '@capiro/shared';
 import {
   CAPIRO_APPROVED_GENERIC_POLICY_PACK,
   policyPackRulesHash,
@@ -17,8 +18,14 @@ const SECOND = '44444444-4444-4444-8444-444444444444';
 const PUBLISHER = '55555555-5555-4555-8555-555555555555';
 const PACK_ROW = '66666666-6666-4666-8666-666666666666';
 
-function context(userId = OWNER, role = 'user_admin') {
-  return { tenantId: TENANT, userId, role } as never;
+function context(userId = OWNER, role: TenantRole = 'user_admin'): TenantContext {
+  return {
+    tenantId: TENANT,
+    tenantSlug: 'test',
+    userId,
+    clerkUserId: `clerk-${userId}`,
+    role,
+  };
 }
 
 function row(over: Record<string, unknown> = {}) {
@@ -178,8 +185,9 @@ describe('Phase 10 authoritative policy source', () => {
       resolveActionPolicyContext(context(), 'send_email', { to: 'staff@mail.house.gov' })
         .recipientType,
     ).toBe('government');
+    const impersonatedContext = { ...context(), actorUserId: REVIEWER };
     const impersonated = resolveActionPolicyContext(
-      { ...context(), actorUserId: REVIEWER } as never,
+      impersonatedContext,
       'create_task',
       {},
     );
