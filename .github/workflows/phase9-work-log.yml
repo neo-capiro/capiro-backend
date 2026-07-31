@@ -1,0 +1,32 @@
+name: phase9-work-log
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - docs/tmp/apply-meriv2-phase9-work-log.py
+      - .github/workflows/phase9-work-log.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-phase9-work-log:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/meriv2-world-class-closeout
+          fetch-depth: 0
+      - name: Apply Phase 9 work-log update
+        run: |
+          git config user.name "capiro-phase9-bot"
+          git config user.email "noreply@capiro.ai"
+          python docs/tmp/apply-meriv2-phase9-work-log.py
+          rm docs/tmp/apply-meriv2-phase9-work-log.py
+          git add \
+            docs/plans/meriv2-world-class-closeout-work-log.md \
+            docs/tmp/apply-meriv2-phase9-work-log.py
+          git commit -m "docs(meriv2): close Phase 9 governed lifecycle gate"
+          git push origin HEAD:agent/meriv2-world-class-closeout
