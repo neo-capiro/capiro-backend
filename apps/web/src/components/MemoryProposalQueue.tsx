@@ -5,12 +5,21 @@ import { useApi } from '../lib/use-api.js';
 
 const { Paragraph, Text, Title } = Typography;
 
+export type OwnedMemoryCandidateStatus =
+  | 'pending'
+  | 'withdrawn'
+  | 'rejected'
+  | 'approved'
+  | 'auto_committed';
+
 export interface OwnedMemoryCandidate {
   id: string;
   scope: string;
   clientId: string | null;
   sourceKind: string;
+  status: OwnedMemoryCandidateStatus;
   createdAt: string;
+  decidedAt: string | null;
   restricted: boolean;
   proposal: {
     key: string | null;
@@ -27,7 +36,7 @@ export interface OwnedMemoryCandidate {
       }>;
     } | null;
   } | null;
-  capabilities: { withdraw: true };
+  capabilities: { withdraw: boolean };
 }
 
 interface ProposalQueueResponse {
@@ -40,6 +49,20 @@ export function ownedMemoryCandidateTitle(candidate: OwnedMemoryCandidate): stri
   return candidate.proposal?.canonicalItem?.title ?? candidate.proposal?.key ?? 'Memory proposal';
 }
 
+export function ownedMemoryCandidateStatusLabel(status: OwnedMemoryCandidateStatus): string {
+  switch (status) {
+    case 'pending':
+      return 'Pending review';
+    case 'withdrawn':
+      return 'Withdrawn';
+    case 'rejected':
+      return 'Rejected by reviewer';
+    case 'approved':
+    case 'auto_committed':
+      return 'Approved';
+  }
+}
+
 export function shouldRenderMemoryProposalQueue(
   response: ProposalQueueResponse | undefined,
 ): boolean {
@@ -47,9 +70,10 @@ export function shouldRenderMemoryProposalQueue(
 }
 
 /**
- * Proposer-owned queue. The server returns only the current user's candidates;
- * a client proposal whose wall access was removed is redacted but remains safely
- * withdrawable. The browser never converts Withdraw into reviewer rejection.
+ * Proposer-owned history. The server returns only the current user's candidates;
+ * a client proposal whose wall access was removed is redacted but a pending row
+ * remains safely withdrawable. The browser never converts Withdraw into reviewer
+ * rejection, and terminal labels preserve who made the disposition.
  */
 export function MemoryProposalQueue() {
   const api = useApi();
@@ -79,14 +103,15 @@ export function MemoryProposalQueue() {
   if (!shouldRenderMemoryProposalQueue(queue.data)) return null;
 
   return (
-    <Card aria-label="Your pending memory proposals">
+    <Card aria-label="Your memory proposal history">
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         <div>
           <Title level={4} style={{ marginBottom: 4 }}>
-            Your pending proposals
+            Your proposals
           </Title>
           <Text type="secondary">
-            Withdraw a proposal you no longer want reviewed. Withdrawal is not a reviewer rejection.
+            Withdraw a pending proposal you no longer want reviewed. History distinguishes your
+            withdrawal from a reviewer rejection.
           </Text>
         </div>
 
@@ -96,15 +121,22 @@ export function MemoryProposalQueue() {
               <Space wrap>
                 <Text strong>{ownedMemoryCandidateTitle(candidate)}</Text>
                 <Tag>{candidate.scope === 'client' ? 'Client memory' : 'Firm memory'}</Tag>
+                <Tag>{ownedMemoryCandidateStatusLabel(candidate.status)}</Tag>
                 <Text type="secondary">
                   Submitted {new Date(candidate.createdAt).toLocaleString()}
                 </Text>
+                {candidate.decidedAt && (
+                  <Text type="secondary">
+                    Decided {new Date(candidate.decidedAt).toLocaleString()}
+                  </Text>
+                )}
               </Space>
 
               {candidate.restricted && (
                 <Paragraph type="secondary" style={{ marginBottom: 4 }}>
-                  Proposal content is hidden because you no longer have access to this client's memory.
-                  You may still withdraw it.
+                  Proposal content is hidden because you no longer have access to this client's
+                  memory.
+                  {candidate.capabilities.withdraw ? ' You may still withdraw it.' : ''}
                 </Paragraph>
               )}
 
