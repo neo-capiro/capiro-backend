@@ -19,9 +19,25 @@ permissions:
 jobs:
   governed-memory-phases-1-10:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 50
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: capiro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d capiro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     env:
       NODE_OPTIONS: --max-old-space-size=4096
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro?schema=public
+      PSQL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -38,6 +54,12 @@ jobs:
           pnpm --filter @capiro/intel-api exec prisma generate
           pnpm --filter @capiro/onboard-api exec prisma generate
           pnpm --filter @capiro/api-strategy exec prisma generate
+
+      - name: Replay all API migrations on clean Postgres
+        run: pnpm --filter @capiro/api exec prisma migrate deploy
+
+      - name: Prove policy-pack reviewer concurrency and rollback transitions
+        run: bash apps/api/scripts/test-policy-pack-lifecycle-concurrency.sh
 
       - name: Typecheck the full repository dependency graph
         run: pnpm turbo run typecheck
@@ -64,6 +86,7 @@ jobs:
           src/prisma/migration-memory-projection-exact-completion.spec.ts
           src/prisma/memory-projection-worker-infrastructure.spec.ts
           src/prisma/migration-policy-pack-action-authority.spec.ts
+          src/prisma/migration-policy-pack-lifecycle-concurrency.spec.ts
           src/meri/meri-policy-pack.service.spec.ts
           src/meri/meri-policy-pack.switch.spec.ts
           src/meri/meri-action-proposal.service.spec.ts
