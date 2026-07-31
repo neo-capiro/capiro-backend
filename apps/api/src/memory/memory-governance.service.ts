@@ -65,6 +65,10 @@ export class MemoryGovernanceService {
   secondApprove(ctx: TenantContext, itemId: string) {
     return this.actions.secondApprove(ctx, itemId);
   }
+
+  retryProjection(ctx: TenantContext, jobId: string) {
+    return this.actions.retryProjection(ctx, jobId);
+  }
 }
 
 export type { MemoryGovernanceBucket } from './memory-governance-read.service.js';
