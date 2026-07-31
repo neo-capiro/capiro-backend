@@ -1,8 +1,9 @@
 # Institutional-memory governance cumulative release gate.
 #
-# Durable Phase 1-8 acceptance matrix. It runs the full governed-memory,
-# projection, truthful persistence, rollout, and surface contract on one exact
-# head so a later phase cannot silently invalidate earlier acceptance evidence.
+# Durable Phase 1-9 acceptance matrix. It runs the full governed-memory,
+# projection, truthful persistence, rollout, lifecycle, and surface contract on
+# one exact head so a later phase cannot silently invalidate earlier acceptance
+# evidence.
 name: memory-governance-ci
 
 on:
@@ -16,7 +17,7 @@ permissions:
   contents: read
 
 jobs:
-  governed-memory-phases-1-8:
+  governed-memory-phases-1-9:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
@@ -44,7 +45,7 @@ jobs:
       - name: Typecheck projection-worker infrastructure
         run: pnpm --filter @capiro/infra-cdk typecheck
 
-      - name: Test API governed-memory Phases 1-8
+      - name: Test API governed-memory Phases 1-9
         run: >
           pnpm --filter @capiro/api exec jest --ci --silent --runInBand
           src/memory
@@ -56,15 +57,17 @@ jobs:
           src/workspace-assistant/workspace-assistant.parity.spec.ts
           src/meri/governed-meri-research.factory.spec.ts
           src/meri/governed-meri-tools.proxy.spec.ts
+          src/meri/meri-context-packet-view.spec.ts
           src/meri/meri-context-packet.controller.spec.ts
           src/prisma/migration-memory-immutable-versions.spec.ts
           src/prisma/migration-memory-cleanup-worker-leases.spec.ts
           src/prisma/migration-memory-projection-exact-completion.spec.ts
           src/prisma/memory-projection-worker-infrastructure.spec.ts
 
-      - name: Test Phase 8 core persistence rollout and surface policy
+      - name: Test Phase 9 governed lifecycle, persistence rollout and surface policy
         run: >
           pnpm --filter @capiro/meriv2-core exec jest --ci --runInBand
+          src/memory/governance.spec.ts
           src/context/truthful-compiler.spec.ts
           src/context/context-release-switch.spec.ts
           src/context/context-rollout.spec.ts
