@@ -30,9 +30,8 @@ ALTER TABLE memory_candidate
   ADD CONSTRAINT memory_candidate_status_check
   CHECK (status IN ('pending', 'approved', 'rejected', 'auto_committed', 'withdrawn'));
 
-CREATE INDEX IF NOT EXISTS memory_candidate_proposer_pending_idx
-  ON memory_candidate (tenant_id, proposed_by, created_at ASC)
-  WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS memory_candidate_proposer_history_idx
+  ON memory_candidate (tenant_id, proposed_by, created_at DESC);
 
 COMMENT ON CONSTRAINT memory_candidate_status_check ON memory_candidate IS
   'withdrawn is proposer-initiated; rejected is an independent reviewer decision';
