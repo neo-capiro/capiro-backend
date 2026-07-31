@@ -1,9 +1,12 @@
 -- MeriV2 Phase 13 — proposer withdrawal is distinct from reviewer rejection.
 -- Additive lifecycle expansion only. No existing candidate or memory row is rewritten.
 
--- The original candidate table may carry a generated or explicitly named CHECK.
--- Drop only the legacy-status CHECK that contains the known auto_committed value;
--- the governed_status CHECK does not contain that value and is therefore untouched.
+-- Prefer the canonical name when present, then discover any older generated
+-- status CHECK by its known legacy vocabulary. The governed_status CHECK does
+-- not contain auto_committed and is therefore never selected.
+ALTER TABLE memory_candidate
+  DROP CONSTRAINT IF EXISTS memory_candidate_status_check;
+
 DO $$
 DECLARE
   constraint_row record;
