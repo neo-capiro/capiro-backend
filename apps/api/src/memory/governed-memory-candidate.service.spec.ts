@@ -61,12 +61,14 @@ function sqlText(strings: TemplateStringsArray | unknown): string {
     : String(strings);
 }
 
-function harness(options: {
-  proposedBy?: string;
-  scope?: 'firm' | 'client';
-  wallAllowed?: boolean;
-  reviewerAllowed?: boolean;
-} = {}) {
+function harness(
+  options: {
+    proposedBy?: string;
+    scope?: 'firm' | 'client';
+    wallAllowed?: boolean;
+    reviewerAllowed?: boolean;
+  } = {},
+) {
   const state = {
     status: 'pending',
     governedStatus: 'pending_review',
@@ -148,8 +150,8 @@ function harness(options: {
   };
 
   const prisma = {
-    withTenantUser: jest.fn(async (_tenant: string, _user: string, fn: (value: typeof tx) => unknown) =>
-      fn(tx),
+    withTenantUser: jest.fn(
+      async (_tenant: string, _user: string, fn: (value: typeof tx) => unknown) => fn(tx),
     ),
   } as unknown as PrismaService;
   const authorization = {

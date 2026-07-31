@@ -123,13 +123,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
     await this.governedPrisma.withTenantUser(tenantId, reviewerUserId, async (tx) => {
       const candidate = await this.lockPendingDispositionCandidateInTx(tx, tenantId, candidateId);
       this.requireGovernedIndependentReviewer(candidate, reviewerUserId);
-      await this.authorizeReviewerInTx(
-        tx,
-        tenantId,
-        reviewerUserId,
-        candidateId,
-        actorContext,
-      );
+      await this.authorizeReviewerInTx(tx, tenantId, reviewerUserId, candidateId, actorContext);
       await this.decideTerminalInTx(tx, tenantId, candidateId, 'rejected', reviewerUserId);
     });
   }
@@ -138,9 +132,15 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
   async withdraw(ctx: CandidateActorContext, candidateId: string): Promise<void> {
     this.requireWithdrawalEnabled();
     await this.governedPrisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      const candidate = await this.lockPendingDispositionCandidateInTx(tx, ctx.tenantId, candidateId);
+      const candidate = await this.lockPendingDispositionCandidateInTx(
+        tx,
+        ctx.tenantId,
+        candidateId,
+      );
       if (candidate.proposedBy !== ctx.userId) {
-        throw new ForbiddenException('Only the proposer may withdraw this pending memory proposal.');
+        throw new ForbiddenException(
+          'Only the proposer may withdraw this pending memory proposal.',
+        );
       }
       await this.decideTerminalInTx(tx, ctx.tenantId, candidateId, 'withdrawn', ctx.userId);
     });
@@ -270,11 +270,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
     ) {
       throw new ForbiddenException('Server-resolved actor context is required for memory review.');
     }
-    const subject = await this.governedAuthorization.loadCandidateInTx(
-      tx,
-      tenantId,
-      candidateId,
-    );
+    const subject = await this.governedAuthorization.loadCandidateInTx(tx, tenantId, candidateId);
     if (!subject) throw new NotFoundException('Memory candidate not found');
     const decision = await this.governedAuthorization.evaluateInTx(
       tx,

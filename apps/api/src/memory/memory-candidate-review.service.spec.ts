@@ -5,10 +5,7 @@ import type { PrismaService } from '../prisma/prisma.service.js';
 import type { MemoryAuthorizationService } from './memory-authorization.service.js';
 import type { MemoryCandidateService } from './memory-candidate.service.js';
 import { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
-import {
-  clientMemoryReviewEnabled,
-  memoryReviewSurfaceEnabled,
-} from './memory-review-switch.js';
+import { clientMemoryReviewEnabled, memoryReviewSurfaceEnabled } from './memory-review-switch.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
