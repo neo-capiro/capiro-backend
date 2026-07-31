@@ -1,10 +1,15 @@
 import { Module } from '@nestjs/common';
 import { EngagementModule } from '../../engagement/engagement.module.js';
 import { ContextModule } from '../../context/context.module.js';
+import { ContextCompilerService } from '../../context/context-compiler.service.js';
 import { ReviewsModule } from '../../reviews/reviews.module.js';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { AlertMemoController } from './alert-memo.controller.js';
 import { AlertMemoService } from './alert-memo.service.js';
+import {
+  createGovernedAlertMemoService,
+  RAW_ALERT_MEMO_SERVICE,
+} from './governed-alert-deliverables.factory.js';
 import { HearingRecapController } from './hearing-recap.controller.js';
 import { HearingRecapService } from './hearing-recap.service.js';
 
@@ -26,6 +31,14 @@ import { HearingRecapService } from './hearing-recap.service.js';
 @Module({
   imports: [EngagementModule, ContextModule, PrismaModule, ReviewsModule],
   controllers: [AlertMemoController, HearingRecapController],
-  providers: [AlertMemoService, HearingRecapService],
+  providers: [
+    { provide: RAW_ALERT_MEMO_SERVICE, useClass: AlertMemoService },
+    {
+      provide: AlertMemoService,
+      useFactory: createGovernedAlertMemoService,
+      inject: [RAW_ALERT_MEMO_SERVICE, ContextCompilerService],
+    },
+    HearingRecapService,
+  ],
 })
 export class AlertMemoModule {}
