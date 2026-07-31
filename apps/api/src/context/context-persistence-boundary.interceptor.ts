@@ -8,9 +8,11 @@ import { Observable, type Subscription } from 'rxjs';
 import { ContextPersistenceBoundaryService } from './context-persistence-boundary.service.js';
 
 /**
- * Buffers normal HTTP handler results until the request-local context boundary is
- * known to be clean. A swallowed required persistence error therefore cannot
- * release a memo, district brief, outreach draft, or other audited deliverable.
+ * Checks the request-local persistence boundary before forwarding any normal HTTP
+ * value. Promise-backed Nest handlers emit only after their generator finishes,
+ * so a swallowed required persistence failure is converted back into the exact
+ * bounded error before a memo, district brief, outreach draft, or other audited
+ * result reaches the response adapter.
  */
 @Injectable()
 export class ContextPersistenceBoundaryInterceptor implements NestInterceptor {
@@ -22,19 +24,22 @@ export class ContextPersistenceBoundaryInterceptor implements NestInterceptor {
     return new Observable((subscriber) => {
       let subscription: Subscription | undefined;
       this.boundary.run(() => {
-        const buffered: unknown[] = [];
         try {
           subscription = next.handle().subscribe({
-            next: (value) => buffered.push(value),
-            error: (error) => subscriber.error(error),
-            complete: () => {
+            next: (value) => {
               const failure = this.boundary.failure();
               if (failure) {
                 subscriber.error(failure);
+                subscription?.unsubscribe();
                 return;
               }
-              for (const value of buffered) subscriber.next(value);
-              subscriber.complete();
+              subscriber.next(value);
+            },
+            error: (error) => subscriber.error(error),
+            complete: () => {
+              const failure = this.boundary.failure();
+              if (failure) subscriber.error(failure);
+              else subscriber.complete();
             },
           });
         } catch (error) {
