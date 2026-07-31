@@ -17,15 +17,15 @@ describe('MemoryProposalController', () => {
     expect(Reflect.getMetadata(ROLES_KEY, MemoryProposalController)).toEqual(['standard_user']);
   });
 
-  it('delegates listing and withdrawal with only server-resolved context', async () => {
-    const listOwnPending = jest.fn(async () => ({ enabled: true, candidates: [] }));
+  it('delegates history and withdrawal with only server-resolved context', async () => {
+    const listOwnProposals = jest.fn(async () => ({ enabled: true, candidates: [] }));
     const withdraw = jest.fn(async () => undefined);
     const controller = new MemoryProposalController({
-      listOwnPending,
+      listOwnProposals,
       withdraw,
     } as unknown as GovernedMemoryCandidateService);
 
-    await expect(controller.listOwnPending(ctx)).resolves.toEqual({
+    await expect(controller.listOwnProposals(ctx)).resolves.toEqual({
       enabled: true,
       candidates: [],
     });
@@ -33,7 +33,7 @@ describe('MemoryProposalController', () => {
       ok: true,
       status: 'withdrawn',
     });
-    expect(listOwnPending).toHaveBeenCalledWith(ctx);
+    expect(listOwnProposals).toHaveBeenCalledWith(ctx);
     expect(withdraw).toHaveBeenCalledWith(ctx, 'candidate-1');
   });
 });
