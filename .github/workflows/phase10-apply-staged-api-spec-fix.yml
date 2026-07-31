@@ -1,0 +1,88 @@
+# Focused Phase 10 policy-authority gate.
+#
+# This filename is retained because GitHub assigned the workflow identity while
+# the closeout branch was applying a staged spec correction. The workflow is now
+# a permanent read-only validation gate; it performs no branch mutation.
+name: meriv2-phase10-policy-authority
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy-authority:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: capiro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d capiro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro?schema=public
+      PSQL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate Prisma clients
+        run: |
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
+          pnpm --filter @capiro/intel-api exec prisma generate
+          pnpm --filter @capiro/onboard-api exec prisma generate
+          pnpm --filter @capiro/api-strategy exec prisma generate
+      - name: Replay migrations on clean Postgres
+        run: pnpm --filter @capiro/api exec prisma migrate deploy
+      - name: Prove reviewer concurrency and rollback
+        run: bash apps/api/scripts/test-policy-pack-lifecycle-concurrency.sh
+      - name: Typecheck affected dependency graph
+        run: >-
+          pnpm turbo run typecheck
+          --filter=@capiro/api
+          --filter=@capiro/web
+          --filter=@capiro/meriv2-core
+          --filter=@capiro/meriv2-orchestrator
+      - name: Test API policy authority and immutable proposal binding
+        run: >-
+          pnpm --filter @capiro/api exec jest --ci --runInBand
+          src/meri/meri-policy-pack.service.spec.ts
+          src/meri/meri-policy-pack.switch.spec.ts
+          src/meri/meri-action-proposal.service.spec.ts
+          src/prisma/migration-policy-pack-action-authority.spec.ts
+          src/prisma/migration-policy-pack-lifecycle-concurrency.spec.ts
+      - name: Test core policy lifecycle and approval binding
+        run: >-
+          pnpm --filter @capiro/meriv2-core exec jest --ci --runInBand
+          src/assurance/assurance.spec.ts
+          src/compliance/action-approval.spec.ts
+      - name: Test orchestrator API-owned action delegation
+        run: >-
+          pnpm --filter @capiro/meriv2-orchestrator exec jest --ci --runInBand
+          src/meri/api-action-proposal.repo.spec.ts
+          src/meri/chat/chat-assistant.service.spec.ts
+      - name: Test administrator policy-pack UX trust boundary
+        run: >-
+          pnpm --filter @capiro/web exec vitest run
+          src/pages/settings/PolicyPacksPage.test.tsx
+          --testTimeout=20000 --hookTimeout=20000
