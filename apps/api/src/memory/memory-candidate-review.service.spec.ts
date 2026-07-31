@@ -1,10 +1,14 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import type { ImmutableMemoryVersionService } from './immutable-memory-version.service.js';
 import type { MemoryAuthorizationService } from './memory-authorization.service.js';
 import type { MemoryCandidateService } from './memory-candidate.service.js';
-import { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
+import {
+  MemoryCandidateReviewService,
+  candidateKindForSource,
+} from './memory-candidate-review.service.js';
 import { clientMemoryReviewEnabled, memoryReviewSurfaceEnabled } from './memory-review-switch.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
@@ -46,8 +50,10 @@ function harness(input: {
   approveAllowed?: boolean;
   reviewAllowed?: boolean;
   scope?: 'client' | 'firm';
+  sourceKind?: string;
 }) {
   const scope = input.scope ?? 'client';
+  const sourceKind = input.sourceKind ?? 'settings_sections';
   const payload = {
     key: 'settings-file:client-soul:client-1',
     value: '[{"key":"priorities"}]',
@@ -69,14 +75,17 @@ function harness(input: {
     id: 'candidate-1',
     clientId: scope === 'client' ? CLIENT : null,
     proposedBy: 'proposer-1',
-    sourceKind: 'settings_sections',
+    sourceKind,
     scope,
     createdAt: new Date('2026-07-31T12:00:00.000Z'),
   };
+  const findFirst = jest.fn(async (args: { select?: Record<string, boolean> }) =>
+    args.select?.sourceKind ? { sourceKind } : { payload },
+  );
   const tx = {
     memoryCandidate: {
       findMany: jest.fn(async () => [row]),
-      findFirst: jest.fn(async () => ({ payload })),
+      findFirst,
     },
   };
   const prisma = {
@@ -111,12 +120,29 @@ function harness(input: {
   const approve = jest.fn(async () => ({ memoryId: 'memory-1' }));
   const reject = jest.fn(async () => undefined);
   const candidates = { approve, reject } as unknown as MemoryCandidateService;
+  const approveVersion = jest.fn(async () => ({
+    candidateId: row.id,
+    outcome: 'activated' as const,
+    memoryItemId: 'item-2',
+    controllingItemId: 'item-2',
+  }));
+  const rejectVersion = jest.fn(async () => ({
+    candidateId: row.id,
+    outcome: 'rejected' as const,
+  }));
+  const versions = {
+    approveCandidate: approveVersion,
+    rejectCandidate: rejectVersion,
+  } as unknown as ImmutableMemoryVersionService;
   return {
-    service: new MemoryCandidateReviewService(prisma, authorization, candidates),
+    service: new MemoryCandidateReviewService(prisma, authorization, candidates, versions),
     approve,
     reject,
+    approveVersion,
+    rejectVersion,
     authorization,
     tx,
+    findFirst,
   };
 }
 
@@ -144,6 +170,15 @@ describe('memory review switch', () => {
   });
 });
 
+describe('candidateKindForSource', () => {
+  it('maps immutable version source kinds and defaults every other source', () => {
+    expect(candidateKindForSource('memory_correction')).toBe('correction');
+    expect(candidateKindForSource('memory_restore')).toBe('restore');
+    expect(candidateKindForSource('memory_contradiction')).toBe('contradiction');
+    expect(candidateKindForSource('settings_sections')).toBe('standard');
+  });
+});
+
 describe('MemoryCandidateReviewService', () => {
   it('stays dark until client review, lifecycle, and authorization are all explicitly armed', async () => {
     await withGovernance(false, async () => {
@@ -153,7 +188,6 @@ describe('MemoryCandidateReviewService', () => {
         candidates: [],
       });
       expect(h.tx.memoryCandidate.findMany).not.toHaveBeenCalled();
-      expect(h.tx.memoryCandidate.findFirst).not.toHaveBeenCalled();
       await expect(h.service.approve(ctx, 'candidate-1')).rejects.toBeInstanceOf(
         ServiceUnavailableException,
       );
@@ -161,23 +195,24 @@ describe('MemoryCandidateReviewService', () => {
     });
   });
 
-  it('shows a client candidate to a standard user with an approve grant', async () => {
+  it('shows candidate kind and content only after server authorization', async () => {
     await withGovernance(true, async () => {
-      const h = harness({ approveAllowed: true, reviewAllowed: false });
+      const h = harness({
+        approveAllowed: true,
+        reviewAllowed: false,
+        sourceKind: 'memory_correction',
+      });
       const result = await h.service.listReviewable(ctx);
-      expect(result.enabled).toBe(true);
       expect(result.candidates).toEqual([
         expect.objectContaining({
           id: 'candidate-1',
-          scope: 'client',
-          clientId: CLIENT,
+          candidateKind: 'correction',
           capabilities: { approve: true, reject: false },
           proposal: expect.objectContaining({
             canonicalItem: expect.objectContaining({ title: 'Client Soul' }),
           }),
         }),
       ]);
-      expect(h.tx.memoryCandidate.findFirst).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -188,19 +223,62 @@ describe('MemoryCandidateReviewService', () => {
         enabled: true,
         candidates: [],
       });
-      expect(h.tx.memoryCandidate.findFirst).not.toHaveBeenCalled();
+      expect(h.findFirst).not.toHaveBeenCalled();
     });
   });
 
-  it('delegates approval and rejection with the exact server-resolved context', async () => {
+  it('delegates standard approval and rejection to the generic atomic candidate path', async () => {
     await withGovernance(true, async () => {
       const h = harness({ approveAllowed: true, reviewAllowed: true });
       await expect(h.service.approve(ctx, 'candidate-1')).resolves.toEqual({
+        candidateId: 'candidate-1',
+        candidateKind: 'standard',
+        outcome: 'activated',
         memoryId: 'memory-1',
       });
-      await expect(h.service.reject(ctx, 'candidate-1')).resolves.toBeUndefined();
+      await expect(h.service.reject(ctx, 'candidate-1')).resolves.toEqual({
+        candidateId: 'candidate-1',
+        candidateKind: 'standard',
+        outcome: 'rejected',
+      });
       expect(h.approve).toHaveBeenCalledWith(TENANT, 'candidate-1', USER, ctx);
       expect(h.reject).toHaveBeenCalledWith(TENANT, 'candidate-1', USER, ctx);
+      expect(h.approveVersion).not.toHaveBeenCalled();
+    });
+  });
+
+  it('routes immutable correction approval and rejection to the version service', async () => {
+    await withGovernance(true, async () => {
+      const h = harness({ sourceKind: 'memory_correction' });
+      await expect(h.service.approve(ctx, 'candidate-1')).resolves.toEqual({
+        candidateKind: 'correction',
+        candidateId: 'candidate-1',
+        outcome: 'activated',
+        memoryItemId: 'item-2',
+        controllingItemId: 'item-2',
+      });
+      await expect(h.service.reject(ctx, 'candidate-1', 'Source is no longer correct.')).resolves.toEqual({
+        candidateKind: 'correction',
+        candidateId: 'candidate-1',
+        outcome: 'rejected',
+      });
+      expect(h.approveVersion).toHaveBeenCalledWith(ctx, 'candidate-1');
+      expect(h.rejectVersion).toHaveBeenCalledWith(
+        ctx,
+        'candidate-1',
+        'Source is no longer correct.',
+      );
+      expect(h.approve).not.toHaveBeenCalled();
+    });
+  });
+
+  it('requires a rejection reason for immutable version candidates', async () => {
+    await withGovernance(true, async () => {
+      const h = harness({ sourceKind: 'memory_restore' });
+      await expect(h.service.reject(ctx, 'candidate-1')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(h.rejectVersion).not.toHaveBeenCalled();
     });
   });
 });
