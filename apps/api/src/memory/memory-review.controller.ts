@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
@@ -10,8 +10,8 @@ import { MemoryCandidateReviewService } from './memory-candidate-review.service.
  *
  * Route access is standard authenticated access; all scope, role, ethical-wall,
  * grant, expiration, revocation, and segregation-of-duties decisions are made by
- * the server-owned memory authorization path. Mutations delegate to the atomic
- * candidate transaction, which repeats the decision under the row lock.
+ * the server-owned memory authorization path. Version candidates are routed to
+ * immutable activation rather than the generic canonical-upsert path.
  */
 @Controller('memory/review')
 @UseGuards(RolesGuard)
@@ -26,13 +26,15 @@ export class MemoryReviewController {
 
   @Post('candidates/:id/approve')
   async approveCandidate(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    const { memoryId } = await this.review.approve(ctx, id);
-    return { ok: true, memoryId };
+    return { ok: true, ...(await this.review.approve(ctx, id)) };
   }
 
   @Post('candidates/:id/reject')
-  async rejectCandidate(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    await this.review.reject(ctx, id);
-    return { ok: true };
+  async rejectCandidate(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: { reason?: string },
+  ) {
+    return { ok: true, ...(await this.review.reject(ctx, id, body?.reason ?? '')) };
   }
 }
