@@ -52,12 +52,15 @@ const request = (over: Partial<ContextRequest> = {}): ContextRequest => ({
   ...over,
 });
 
-function harness(rows: SteeringRow[], options: { failV2Persistence?: boolean } = {}) {
+function harness(
+  rows: SteeringRow[],
+  options: { failV2Persistence?: boolean; v2Rows?: SteeringRow[] } = {},
+) {
   const persisted: TruthfulCompiledContextPacket[] = [];
   const comparisons: ContextPacketShadowComparison[] = [];
   const comparisonPacketIds: string[] = [];
   const loadV1 = jest.fn(async () => rows);
-  const loadV2 = jest.fn(async () => rows);
+  const loadV2 = jest.fn(async () => options.v2Rows ?? rows);
   const compiler = new ContextPacketRolloutCompiler({
     loadSteeringRows: loadV1,
     loadGovernedSteeringRows: loadV2,
@@ -111,14 +114,19 @@ describe('ContextPacketRolloutCompiler', () => {
     expect(shadow.traceHash).toBe(off.traceHash);
     expect(shadowHarness.persisted.map((packet) => packet.version)).toEqual([1, 2]);
     expect(shadowHarness.comparisons).toEqual([
-      expect.objectContaining({ mode: 'shadow', shadowHealth: 'healthy' }),
+      expect.objectContaining({
+        mode: 'shadow',
+        shadowHealth: 'healthy',
+        confidentialityRegression: false,
+        relevanceRegression: false,
+      }),
     ]);
     expect(shadowHarness.comparisonPacketIds).toEqual([
       shadowHarness.persisted[1]!.generatedPacketId,
     ]);
   });
 
-  it('a failed shadow write cannot change or block v1 and records a bounded error', async () => {
+  it('a failed shadow write cannot change or block v1 and records bounded regression evidence', async () => {
     const h = harness([approvedFirm()], { failV2Persistence: true });
     const packet = await h.compiler.compile(request(), 'shadow');
     expect(packet.version).toBe(1);
@@ -128,10 +136,23 @@ describe('ContextPacketRolloutCompiler', () => {
       expect.objectContaining({
         shadowPacketId: null,
         shadowErrorCode: 'context_packet_error',
+        relevanceRegression: true,
       }),
     ]);
     expect(JSON.stringify(h.comparisons)).not.toContain('private database detail');
     expect(h.comparisonPacketIds).toEqual([h.persisted[0]!.generatedPacketId]);
+  });
+
+  it('marks a missing required v2 item as a relevance regression', async () => {
+    const h = harness([approvedFirm()], { v2Rows: [] });
+    await h.compiler.compile(request(), 'shadow');
+    expect(h.comparisons[0]).toEqual(
+      expect.objectContaining({
+        shadowHealth: 'degraded',
+        missingRequiredLayers: ['firm-identity'],
+        relevanceRegression: true,
+      }),
+    );
   });
 
   it('enforce feeds the v2 packet and optional absence does not degrade health', async () => {
@@ -172,7 +193,7 @@ describe('ContextPacketRolloutCompiler', () => {
     expect(internal.rendered[0]?.body).toContain('<context_item');
   });
 
-  it('bounded shadow evidence detects no identity leak for withheld rows', async () => {
+  it('bounded shadow evidence detects no identity leak or relevance loss for governed withholding', async () => {
     const restricted = approvedFirm({
       id: '44444444-4444-4444-8444-444444444444',
       title: 'Restricted doctrine',
@@ -182,6 +203,7 @@ describe('ContextPacketRolloutCompiler', () => {
     const h = harness([restricted]);
     await h.compiler.compile(request(), 'shadow');
     expect(h.comparisons[0]?.confidentialityRegression).toBe(false);
+    expect(h.comparisons[0]?.relevanceRegression).toBe(false);
     expect(JSON.stringify(h.comparisons)).not.toContain('Never disclose this body.');
     expect(JSON.stringify(h.comparisons)).not.toContain('Restricted doctrine');
   });
