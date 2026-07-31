@@ -122,14 +122,15 @@ describe('WorkspaceAssistantService — ContextPacket v2 wiring', () => {
         contractVersion: 2,
         traceId: 'trace-1',
         promptVersion: 'legacy-in-editor-v2',
-        policyVersion: 'context-policy-v2.0',
+        policyVersion: 'context-policy-v2.1',
         compilerVersion: 'context-compiler-v2.0',
         tokenBudget: 6_000,
         budgetUnit: 'tokens',
         persistence: 'required',
+        allowedSensitivities: ['normal'],
         // Layers stay explicit: no client in scope means the packet must not claim
         // a missing client layer.
-        layers: ['firm-identity', 'user-voice'],
+        layers: ['firm-identity', 'firm-playbook', 'user-voice'],
       }),
     );
   });
