@@ -1,3 +1,4 @@
+import { describe, expect, it, jest } from '@jest/globals';
 import { ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { TenantContext } from '@capiro/shared';
