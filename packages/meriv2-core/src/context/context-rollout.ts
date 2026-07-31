@@ -40,6 +40,7 @@ export interface ContextPacketShadowComparison {
   conflictDelta: number;
   tokenDelta: number | null;
   confidentialityRegression: boolean;
+  relevanceRegression: boolean;
   shadowErrorCode: string | null;
 }
 
@@ -225,6 +226,9 @@ function comparePackets(
   const shadowSet = new Set(shadowIds);
   const shadowV2 = shadow?.version === 2 ? shadow : null;
   const shadowHealth = shadowV2?.health as Phase8Health | undefined;
+  const onlyInBaseline = baselineIds.filter((id) => !shadowSet.has(id));
+  const onlyInShadow = shadowIds.filter((id) => !baselineSet.has(id));
+  const conflictDelta = (shadowV2?.health.conflictCount ?? 0) - conflictCount(baseline);
   return {
     mode: 'shadow',
     surface: baseline.surface,
@@ -234,21 +238,28 @@ function comparePackets(
     shadowTraceHash: shadow?.traceHash ?? null,
     baselineItemIds: baselineIds,
     shadowItemIds: shadowIds,
-    onlyInBaseline: baselineIds.filter((id) => !shadowSet.has(id)),
-    onlyInShadow: shadowIds.filter((id) => !baselineSet.has(id)),
+    onlyInBaseline,
+    onlyInShadow,
     orderingChanged: JSON.stringify(baselineIds) !== JSON.stringify(shadowIds),
     baselineExclusionReasons: reasonCounts(baseline),
     shadowExclusionReasons: shadow ? reasonCounts(shadow) : {},
     shadowHealth: shadowV2?.health.status ?? null,
     missingRequiredLayers: [...(shadowV2?.health.missingRequiredLayers ?? [])],
     missingOptionalLayers: [...(shadowHealth?.missingOptionalLayers ?? [])],
-    conflictDelta: (shadowV2?.health.conflictCount ?? 0) - conflictCount(baseline),
+    conflictDelta,
     tokenDelta:
       shadowV2 == null
         ? null
         : shadowV2.usedTokens -
           Math.ceil(baseline.rendered.reduce((sum, item) => sum + item.body.length, 0) / 4),
     confidentialityRegression: shadow ? hasConfidentialityRegression(shadow) : false,
+    relevanceRegression: hasRelevanceRegression({
+      baseline,
+      shadow,
+      shadowErrorCode,
+      onlyInBaseline,
+      conflictDelta,
+    }),
     shadowErrorCode,
   };
 }
@@ -287,6 +298,43 @@ function hasConfidentialityRegression(packet: CompiledContextPacket): boolean {
     }
     return false;
   });
+}
+
+function hasRelevanceRegression(input: {
+  baseline: TruthfulCompiledContextPacket;
+  shadow: TruthfulCompiledContextPacket | null;
+  shadowErrorCode: string | null;
+  onlyInBaseline: string[];
+  conflictDelta: number;
+}): boolean {
+  const { shadow, shadowErrorCode, onlyInBaseline, conflictDelta } = input;
+  if (!shadow || shadowErrorCode || shadow.version !== 2) return true;
+  if (shadow.health.missingRequiredLayers.length > 0) return true;
+  if (shadow.health.sourceFailureCount > 0 || conflictDelta > 0) return true;
+
+  // A governed exclusion can intentionally remove a legacy item without being a
+  // relevance regression. Count only bounded reason codes; never copy titles or
+  // bodies into comparison evidence. Any unexplained v1 omission remains a
+  // conservative regression signal for canary review.
+  const expectedOmissionReasons = new Set([
+    'unauthorized',
+    'wrong-client',
+    'sensitivity-denied',
+    'revoked',
+    'superseded',
+    'expired',
+    'rejected',
+    'stale',
+    'conflicted',
+    'unapproved',
+    'invalid-until',
+    'legacy-unclassified',
+    'empty',
+  ]);
+  const explainedOmissions = shadow.exclusions.filter((item) =>
+    expectedOmissionReasons.has(item.reason),
+  ).length;
+  return onlyInBaseline.length > explainedOmissions;
 }
 
 function removeOuterContextEnvelope(body: string): string {
