@@ -5,6 +5,8 @@ import { clientMemoryAllowed } from './memory-wall.helpers.js';
 import { normalizeGrantPermissions } from './memory-governance-lifecycle.helpers.js';
 import type { MemoryPermission } from './memory-authorization.helpers.js';
 
+const MAX_GRANT_REASON_CHARS = 500;
+
 export interface MemoryAccessGrantRow {
   id: string;
   clientId: string | null;
@@ -15,7 +17,9 @@ export interface MemoryAccessGrantRow {
   reason: string | null;
   expiresAt: Date | null;
   revokedAt: Date | null;
+  revokedByUserId: string | null;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface GrantUpsertInput {
@@ -27,23 +31,14 @@ export interface GrantUpsertInput {
 
 /**
  * Write side of `memory_access_grant` — the fine-grained edit/review/approve grant
- * MemoryAuthorizationService already READS but that nothing could create except by
- * hand-written SQL.
+ * consumed by MemoryAuthorizationService.
  *
- * Two invariants this class exists to hold:
- *
- *  1. A grant must not be a way around the ethical wall. Every mutation is bound
- *     by `clientMemoryAllowed` for the ACTING admin, mirroring
- *     MemoryController.updateSections — the wall binds admins (see
- *     memory-authorization.helpers.spec.ts), so a walled admin cannot grant
- *     themselves, or anyone else, access to a client they are not on.
- *  2. The permission vocabulary is validated in code against MEMORY_PERMISSIONS
- *     before insert, so memory_access_grant_permissions_check
- *     (20260729010000:250-252) is a backstop and not the first line of defence —
- *     a CHECK violation would surface as an opaque 500.
- *
- * Revocation is a status flip (+ revoked_at / revoked_by_user_id), never a DELETE:
- * who held what access when is exactly the question an audit asks.
+ * Client grants are explicit, time-bounded audit records. Every active grant has
+ * a validated permission set, non-empty reason, issuing user, future expiration,
+ * and a target user with an active membership in this tenant. Replacement and
+ * revocation preserve prior rows; there is no destructive grant history path.
+ * The acting administrator must already pass the client's ethical wall, so a
+ * grant can never be used to grant through a wall the issuer lacks.
  */
 @Injectable()
 export class MemoryAccessGrantService {
@@ -62,7 +57,9 @@ export class MemoryAccessGrantService {
                reason,
                expires_at AS "expiresAt",
                revoked_at AS "revokedAt",
-               created_at AS "createdAt"
+               revoked_by_user_id::text AS "revokedByUserId",
+               created_at AS "createdAt",
+               updated_at AS "updatedAt"
         FROM memory_access_grant
         WHERE tenant_id = ${ctx.tenantId}::uuid AND client_id = ${clientId}::uuid
         ORDER BY created_at DESC
@@ -73,18 +70,15 @@ export class MemoryAccessGrantService {
   /**
    * Grant (or replace) one user's permissions on one client's governed memory.
    *
-   * memory_access_grant_unique_active is a PARTIAL unique index
-   * (WHERE status='active'), which Postgres will not accept as an ON CONFLICT
-   * arbiter target unless the statement repeats the predicate — and Prisma's
-   * `upsert` cannot express a partial index at all. So a replacement is an explicit
-   * revoke-then-insert inside ONE transaction: the old row is retained as evidence
-   * and the unique index can never see two active rows.
+   * memory_access_grant_unique_active is a partial unique index. A replacement
+   * therefore revokes the prior active row and inserts the new auditable grant in
+   * one transaction, preserving the full history while preventing two active rows.
    */
   async grant(
     ctx: TenantContext,
     clientId: string,
     input: GrantUpsertInput,
-  ): Promise<{ id: string; permissions: MemoryPermission[] }> {
+  ): Promise<{ id: string; permissions: MemoryPermission[]; expiresAt: string }> {
     const permissions = normalizeGrantPermissions(input.permissions);
     if (!permissions) {
       throw new BadRequestException(
@@ -94,13 +88,33 @@ export class MemoryAccessGrantService {
     if (!input.userId || typeof input.userId !== 'string') {
       throw new BadRequestException('userId is required.');
     }
+    const reason = typeof input.reason === 'string' ? input.reason.trim() : '';
+    if (!reason) throw new BadRequestException('reason is required for a client memory grant.');
+    if (reason.length > MAX_GRANT_REASON_CHARS) {
+      throw new BadRequestException(`reason must be ${MAX_GRANT_REASON_CHARS} characters or fewer.`);
+    }
     const expiresAt = parseOptionalDate(input.expiresAt);
-    if (input.expiresAt && !expiresAt) {
-      throw new BadRequestException('expiresAt must be an ISO-8601 timestamp.');
+    if (!expiresAt) {
+      throw new BadRequestException('expiresAt is required and must be an ISO-8601 timestamp.');
+    }
+    if (expiresAt.getTime() <= Date.now()) {
+      throw new BadRequestException('expiresAt must be in the future.');
     }
 
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       await this.requireWall(tx, ctx, clientId);
+      const memberships = await tx.$queryRaw<Array<{ allowed: boolean }>>`
+        SELECT true AS allowed
+        FROM tenant_memberships
+        WHERE tenant_id = ${ctx.tenantId}::uuid
+          AND user_id = ${input.userId}::uuid
+          AND status = 'active'
+        LIMIT 1
+      `;
+      if (memberships[0]?.allowed !== true) {
+        throw new BadRequestException('The grant recipient must be an active member of this tenant.');
+      }
+
       await tx.$executeRaw`
         UPDATE memory_access_grant
         SET status = 'revoked', revoked_at = now(), revoked_by_user_id = ${ctx.userId}::uuid,
@@ -117,13 +131,13 @@ export class MemoryAccessGrantService {
         ) VALUES (
           ${ctx.tenantId}::uuid, ${clientId}::uuid, ${input.userId}::uuid,
           ${permissions}::text[], 'active',
-          ${ctx.userId}::uuid, ${input.reason ?? null}, ${expiresAt}
+          ${ctx.userId}::uuid, ${reason}, ${expiresAt}
         )
         RETURNING id::text AS id
       `;
       const id = rows[0]?.id;
       if (!id) throw new Error('memory_access_grant insert returned no row');
-      return { id, permissions };
+      return { id, permissions, expiresAt: expiresAt.toISOString() };
     });
   }
 
@@ -148,11 +162,6 @@ export class MemoryAccessGrantService {
     });
   }
 
-  /**
-   * Fail-closed wall check on the ACTING user, inside the caller's transaction.
-   * `clientMemoryAllowed` also returns false when the client does not resolve in
-   * this tenant, so this doubles as tenant-scoping for the :clientId path param.
-   */
   private async requireWall(
     tx: Parameters<typeof clientMemoryAllowed>[0],
     ctx: TenantContext,
