@@ -1,5 +1,11 @@
 /**
- * Phase 10 pre-merge staging acceptance — step catalog (closeout).
+ * Phase 10 pre-merge acceptance — step catalog (closeout).
+ *
+ * Operator reality (2026-07-31): sole shared app env is workflow env=dev /
+ * ECS cluster `capiro-dev` (serves live app = prod path). There is no usable
+ * separate staging cluster. Plan language “staging acceptance” means pre-merge
+ * acceptance on that authorized live plane when Neo sets PE_CLOSEOUT_STAGING_OK
+ * and (for mutate) PE_CLOSEOUT_STAGING_MUTATE.
  *
  * Live shared-environment mutate/deploy/migrate is NEVER implied by listing a
  * step here. Mutating steps require PE_CLOSEOUT_STAGING_MUTATE=yes AND a healthy
@@ -41,7 +47,8 @@ export interface PePhase10Step {
   /**
    * Required for PE_PHASE_10_OK (full gate). Soft steps contribute warnings.
    * Env-blocked required steps refuse PE_PHASE_10_OK but allow a complete
-   * blocked acceptance record (exit PE_PHASE_10_BLOCKED).
+   * blocked acceptance record (exit PE_PHASE_10_BLOCKED) only when the
+   * authorized plane is actually unavailable — not when Neo authorized dev.
    */
   required: boolean;
   /**
@@ -50,8 +57,7 @@ export interface PePhase10Step {
    */
   requiresMutate?: boolean;
   /**
-   * Safety rail: these never run even with mutate flag (email/LlamaParse/prod).
-   * Catalog honesty rejects requiresMutate=false with highRiskAction.
+   * Safety rail: these never run even with mutate flag (email/LlamaParse/prod-os).
    */
   forbiddenAlways?: boolean;
   notes?: string;
@@ -66,25 +72,40 @@ export const PE_PHASE_10_FORBIDDEN_PATH_SUBSTRINGS = [
 ] as const;
 
 /**
- * Live staging for this account (967807252336 / us-east-1) when healthy.
- * Names match infra/cdk env=staging conventions + historical CF stacks.
+ * Authorized Phase 10 acceptance plane = sole live env (env=dev / capiro-dev).
+ * Names match infra/cdk env=dev conventions + live ECS/ECR.
+ *
+ * Forbidden clusters are unintended/multi-account targets only — NOT capiro-dev.
+ * Dead staging names must never become the expected plane.
  */
 export const PE_PHASE_10_STAGING_EXPECTED = {
+  /** Historical launcher env name; target is sole live env=dev. */
+  planeName: 'sole-live-env-dev',
+  workflowEnv: 'dev',
   accountId: '967807252336',
   region: 'us-east-1',
-  ecsClusterName: 'capiro-staging',
-  apiServiceName: 'capiro-staging-api',
-  webServiceName: 'capiro-staging-web',
-  computeStackName: 'Capiro-staging-Compute',
-  dataStackName: 'Capiro-staging-Data',
-  networkStackName: 'Capiro-staging-Network',
-  secretsStackName: 'Capiro-staging-Secrets',
-  appHost: 'app.staging.capiro.ai',
-  /** ECR repos for staging when present; may fall back to absence code. */
-  ecrApiRepoCandidates: ['capiro/staging/api', 'capiro/dev/api'] as const,
-  ecrWebRepoCandidates: ['capiro/staging/web', 'capiro/dev/web'] as const,
-  /** Forbidden deploy targets for PE Phase 10 (capiro-dev serves live app). */
-  forbiddenEcsClusters: ['capiro-dev', 'capiro-prod-os-capiro'] as const,
+  ecsClusterName: 'capiro-dev',
+  apiServiceName: 'capiro-dev-api',
+  webServiceName: 'capiro-dev-web',
+  apiTaskDefinitionFamily: 'capiro-dev-api',
+  webTaskDefinitionFamily: 'capiro-dev-web',
+  migrateTaskDefinitionFamily: 'capiro-dev-api-migrate',
+  computeStackName: 'Capiro-dev-Compute',
+  dataStackName: 'Capiro-dev-Data',
+  networkStackName: 'Capiro-dev-Network',
+  secretsStackName: 'Capiro-dev-Secrets',
+  appHost: 'app.capiro.ai',
+  ecrApiRepo: 'capiro/dev/api',
+  ecrWebRepo: 'capiro/dev/web',
+  ecrApiRepoCandidates: ['capiro/dev/api'] as const,
+  ecrWebRepoCandidates: ['capiro/dev/web'] as const,
+  /** Dead / unintended planes — must never receive PE Phase 10 deploy. */
+  forbiddenEcsClusters: ['capiro-staging', 'capiro-prod-os-capiro'] as const,
+  /**
+   * CF Compute may be UPDATE_ROLLBACK_COMPLETE while out-of-band ECS is healthy.
+   * Live health is ECS+services+Aurora; CF is advisory unless FORCE_CF_HEALTH=yes.
+   */
+  allowCfComputeRollbackWithLiveEcs: true,
 } as const;
 
 /**
@@ -96,10 +117,11 @@ export const PE_PHASE_10_ACCEPTANCE_STEPS: readonly PePhase10Step[] = [
   {
     id: 'staging_auth_gate',
     kind: 'auth',
-    title: 'Neo staging authorization (PE_CLOSEOUT_STAGING_OK)',
+    title: 'Neo live-env authorization (PE_CLOSEOUT_STAGING_OK + sole env=dev)',
     command: '',
     required: true,
-    notes: 'Implement refuses without PE_CLOSEOUT_STAGING_OK=yes',
+    notes:
+      'PE_CLOSEOUT_STAGING_OK=yes after Neo auth text; target is workflow env=dev / capiro-dev characteristics, not dead staging',
   },
   {
     id: 'git_sha_record',
@@ -111,15 +133,15 @@ export const PE_PHASE_10_ACCEPTANCE_STEPS: readonly PePhase10Step[] = [
   {
     id: 'aws_inventory_readonly',
     kind: 'aws_inventory',
-    title: 'Read-only AWS inventory of Capiro-staging* + ECS + RDS',
+    title: 'Read-only AWS inventory of Capiro-dev* + ECS + RDS (sole live plane)',
     command: 'bash apps/api/scripts/pe-phase-10-staging-probe.sh',
     required: true,
-    notes: 'No Secrets Manager GetSecretValue; no ecs update-service',
+    notes: 'No Secrets Manager GetSecretValue; no ecs update-service in probe',
   },
   {
     id: 'image_digest_record',
     kind: 'image',
-    title: 'Record ECR digests for branch SHA (or prove absent)',
+    title: 'Record ECR digests for branch SHA (or build/push under mutate)',
     command: '',
     required: true,
   },
@@ -133,15 +155,15 @@ export const PE_PHASE_10_ACCEPTANCE_STEPS: readonly PePhase10Step[] = [
   {
     id: 'local_pe_preflight_k',
     kind: 'local_preflight',
-    title: 'Local PE Phase K trust gate (not a staging substitute)',
+    title: 'Local PE Phase K trust gate (not a live-env substitute)',
     command: 'pnpm -C apps/api run verify:pe-phase-k',
     required: true,
-    notes: 'Discloses local-only; cannot satisfy staging exit gate alone',
+    notes: 'Discloses local-only; cannot satisfy Phase 10 exit gate alone',
   },
   {
     id: 'local_pe_phase9_preflight',
     kind: 'local_preflight',
-    title: 'Local PE Phase 9 catalog+integrity (not a staging substitute)',
+    title: 'Local PE Phase 9 catalog+integrity (not a live-env substitute)',
     command: 'pnpm -C apps/api exec tsx scripts/verify-pe-phase-9.ts --integrity-only',
     required: true,
   },
@@ -151,39 +173,41 @@ export const PE_PHASE_10_ACCEPTANCE_STEPS: readonly PePhase10Step[] = [
     title: 'Email canaries and new automation remain dark (policy)',
     command: '',
     required: true,
-    notes: 'Prove no PE Phase 10 path enables send-pe-alert-emails / LlamaParse / derive --commit',
+    notes:
+      'Prove no PE Phase 10 path enables send-pe-alert-emails / LlamaParse / derive --commit',
   },
   {
     id: 'staging_migrate_additive',
     kind: 'migrate',
-    title: 'Apply additive migrations to staging Aurora',
+    title: 'Apply additive PE migrations to sole-live Aurora (env=dev)',
     command: '',
     required: true,
     requiresMutate: true,
-    notes: 'Blocked unless healthy staging DB + mutate flag; never hand-edit _prisma_migrations',
+    notes:
+      'run-task capiro-dev-api-migrate; never hand-edit _prisma_migrations; secrets stay in task def',
   },
   {
     id: 'staging_deploy_images',
     kind: 'deploy',
-    title: 'Deploy branch images to staging ECS (api+web)',
+    title: 'Deploy branch images to sole-live ECS api+web (capiro-dev)',
     command: '',
     required: true,
     requiresMutate: true,
-    notes: 'Forbidden clusters: capiro-dev, capiro-prod-os-capiro',
+    notes: 'Forbidden clusters: capiro-staging, capiro-prod-os-capiro',
   },
   {
     id: 'inspect_only_loaders',
     kind: 'runtime_check',
-    title: 'Inspect-only PE loaders against staging',
+    title: 'Inspect-only PE loaders against sole-live env',
     command: '',
     required: true,
     requiresMutate: false,
-    notes: 'Needs reachable staging API/task; fails closed if missing',
+    notes: 'Needs reachable API/task; fails closed if missing',
   },
   {
     id: 'exact_sha_internal_promotion',
     kind: 'runtime_check',
-    title: 'One exact-SHA internal promotion (staging)',
+    title: 'One exact-SHA internal promotion (sole-live env)',
     command: '',
     required: true,
     requiresMutate: true,
@@ -207,15 +231,15 @@ export const PE_PHASE_10_ACCEPTANCE_STEPS: readonly PePhase10Step[] = [
   {
     id: 'browser_smoke',
     kind: 'runtime_check',
-    title: 'Browser smoke against staging app host',
+    title: 'Browser/HTTP smoke against sole-live app host',
     command: '',
     required: true,
-    notes: 'app.staging.capiro.ai when healthy',
+    notes: 'app.capiro.ai when healthy',
   },
   {
     id: 'rls_ethical_wall',
     kind: 'security',
-    title: 'RLS and ethical-wall checks on staging data plane',
+    title: 'RLS and ethical-wall checks on live data plane',
     command: '',
     required: true,
     notes: 'No cross-tenant disclosure',
@@ -231,21 +255,21 @@ export const PE_PHASE_10_ACCEPTANCE_STEPS: readonly PePhase10Step[] = [
   {
     id: 'rollback_rehearsal',
     kind: 'rollback',
-    title: 'Rollback procedure recorded and dry-rehearsed',
+    title: 'Rollback procedure recorded against captured prior task defs',
     command: '',
     required: true,
   },
   {
     id: 'acceptance_record',
     kind: 'evidence',
-    title: 'Write staging acceptance record under docs/verification',
+    title: 'Write acceptance record under docs/verification',
     command: '',
     required: true,
   },
   {
     id: 'forbidden_production_actions',
     kind: 'security',
-    title: 'Refuse secrets pull / LlamaParse / email send / prod deploy',
+    title: 'Refuse secrets pull / LlamaParse / email send / unintended-cluster deploy',
     command: '',
     required: true,
     forbiddenAlways: true,

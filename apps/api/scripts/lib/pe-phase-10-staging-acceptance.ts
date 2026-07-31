@@ -1,9 +1,12 @@
 /**
- * Phase 10 staging acceptance — pure evaluators (unit-tested, no AWS IO).
+ * Phase 10 pre-merge acceptance — pure evaluators (unit-tested, no AWS IO).
  *
- * PE_PHASE_10_OK requires every required step satisfied on a healthy staging
- * plane. Missing compute/DB is not a silent pass: emit PE_PHASE_10_BLOCKED with
- * a complete honest acceptance record.
+ * PE_PHASE_10_OK requires every required step satisfied on the authorized sole
+ * live plane (env=dev / capiro-dev). Missing compute/DB is not a silent pass:
+ * emit PE_PHASE_10_BLOCKED with a complete honest acceptance record.
+ *
+ * Exit-gate bullets that only have deferred/env_blocked proofs are unsatisfied.
+ * BLOCKED must NOT paint all exitGate bullets as [x].
  */
 
 import {
@@ -17,7 +20,7 @@ import {
   type PePhase10StepKind,
 } from './pe-phase-10-staging-acceptance-catalog.js';
 
-/** Process exit when acceptance is complete but staging plane is not shippable. */
+/** Process exit when acceptance is complete but plane is not shippable. */
 export const PE_PHASE_10_BLOCKED_EXIT = 78;
 /** Optional env skip for soft steps (mirrors Phase 9 soft skip). */
 export const PE_PHASE_10_ENV_SKIP_EXIT = 75;
@@ -39,11 +42,17 @@ export interface PePhase10ImageDigestRecord {
   note?: string;
 }
 
+export interface PePhase10PriorTaskDef {
+  family: string;
+  revision: number | null;
+  arn: string | null;
+  image: string | null;
+}
+
 export interface PePhase10Inventory {
   accountId: string | null;
   region: string;
   probeOk: boolean;
-  /** ECS describe-clusters for expected name returned ACTIVE + exists. */
   ecsClusterExists: boolean;
   ecsClusterStatus: string | null;
   apiServiceExists: boolean;
@@ -51,17 +60,15 @@ export interface PePhase10Inventory {
   computeStackStatus: string | null;
   dataStackStatus: string | null;
   networkStackStatus: string | null;
-  /** Live RDS: DESCRIBE finds stage cluster identifier from CF or expected pattern. */
   auroraClusterLive: boolean;
   auroraClusterId: string | null;
   forbiddenClusterPresent: boolean;
-  /** True only when compute stack healthy AND cluster+services exist AND aurora live. */
   healthyCompute: boolean;
   blockers: string[];
   warnings: string[];
-  /** ISO time of inventory capture. */
   capturedAt: string;
   rawNotes?: string[];
+  priorTaskDefs?: PePhase10PriorTaskDef[];
 }
 
 export interface PePhase10StepOutcome {
@@ -90,12 +97,7 @@ export interface PePhase10ExitGateEvaluation {
 }
 
 export interface PePhase10GateResult {
-  /** Full ship gate — only true when mutate path + healthy + all required pass. */
   ok: boolean;
-  /**
-   * Honest blocked path: auth ok, inventory/local/git/record complete,
-   * required runtime steps classified env_blocked (not silently ok).
-   */
   blockedComplete: boolean;
   blockers: string[];
   warnings: string[];
@@ -159,15 +161,28 @@ export function assertPePhase10CatalogHonest(): { ok: boolean; errors: string[] 
     if (!ids.has(must)) errors.push(`missing required step: ${must}`);
   }
 
-  // Safety: every requiresMutate step must be required (plan pillars)
   for (const s of PE_PHASE_10_ACCEPTANCE_STEPS) {
     if (s.requiresMutate && !s.required) {
       errors.push(`${s.id}: mutate steps must be required (fail closed if skipped)`);
     }
   }
 
-  if (!PE_PHASE_10_STAGING_EXPECTED.forbiddenEcsClusters.includes('capiro-dev')) {
-    errors.push('capiro-dev must remain a forbidden Phase 10 deploy target');
+  if (PE_PHASE_10_STAGING_EXPECTED.ecsClusterName !== 'capiro-dev') {
+    errors.push('expected ECS cluster must be capiro-dev (sole live plane)');
+  }
+  if (PE_PHASE_10_STAGING_EXPECTED.workflowEnv !== 'dev') {
+    errors.push('workflowEnv must be dev');
+  }
+  if ((PE_PHASE_10_STAGING_EXPECTED.forbiddenEcsClusters as readonly string[]).includes('capiro-dev')) {
+    errors.push('capiro-dev must NOT be forbidden — it is the authorized sole live plane');
+  }
+  for (const mustForbid of ['capiro-staging', 'capiro-prod-os-capiro'] as const) {
+    if (!(PE_PHASE_10_STAGING_EXPECTED.forbiddenEcsClusters as readonly string[]).includes(mustForbid)) {
+      errors.push(`${mustForbid} must remain a forbidden unintended deploy target`);
+    }
+  }
+  if (PE_PHASE_10_STAGING_EXPECTED.appHost !== 'app.capiro.ai') {
+    errors.push('appHost must be app.capiro.ai for sole live plane');
   }
 
   return { ok: errors.length === 0, errors };
@@ -199,15 +214,19 @@ export function evaluateStagingAuth(env: NodeJS.ProcessEnv = process.env): {
 } {
   const v = (env.PE_CLOSEOUT_STAGING_OK ?? '').trim().toLowerCase();
   if (v === 'yes' || v === 'true' || v === '1') {
-    return { ok: true, reason: 'PE_CLOSEOUT_STAGING_OK authorized' };
+    return {
+      ok: true,
+      reason:
+        'PE_CLOSEOUT_STAGING_OK authorized (sole live env=dev / capiro-dev; launcher name historical)',
+    };
   }
   return {
     ok: false,
-    reason: 'PE_CLOSEOUT_STAGING_OK not set to yes — refuse Phase 10 staging work',
+    reason: 'PE_CLOSEOUT_STAGING_OK not set to yes — refuse Phase 10 live-env work',
   };
 }
 
-/** Mutate flag is separate from staging OK (default discover-only). */
+/** Mutate flag is separate from OK (default discover-only). */
 export function evaluateStagingMutateAllowed(
   env: NodeJS.ProcessEnv = process.env,
   inventory?: Pick<PePhase10Inventory, 'healthyCompute'>,
@@ -225,15 +244,16 @@ export function evaluateStagingMutateAllowed(
   if (inventory && !inventory.healthyCompute) {
     return {
       ok: false,
-      reason: 'staging inventory not healthyCompute — mutate refused even with MUTATE=yes',
+      reason: 'authorized plane inventory not healthyCompute — mutate refused even with MUTATE=yes',
     };
   }
-  return { ok: true, reason: 'mutate authorized and inventory healthy' };
+  return { ok: true, reason: 'mutate authorized and inventory healthy on sole live plane' };
 }
 
 /**
  * Collapse CF + ECS + RDS probe facts into inventory health.
- * Drift: CF UPDATE_COMPLETE with missing live RDS/ECS ⇒ not healthy.
+ * Live health = correct account + ECS cluster ACTIVE + api/web services + live aurora.
+ * CF Compute ROLLBACK alone does not fail when allowCfComputeRollbackWithLiveEcs.
  */
 export function summarizeStagingInventory(partial: {
   accountId: string | null;
@@ -250,51 +270,59 @@ export function summarizeStagingInventory(partial: {
   forbiddenClusterPresent?: boolean;
   rawNotes?: string[];
   capturedAt?: string;
+  priorTaskDefs?: PePhase10PriorTaskDef[];
 }): PePhase10Inventory {
   const blockers: string[] = [];
   const warnings: string[] = [];
   const region = partial.region ?? PE_PHASE_10_STAGING_EXPECTED.region;
+  const exp = PE_PHASE_10_STAGING_EXPECTED;
 
-  if (partial.accountId && partial.accountId !== PE_PHASE_10_STAGING_EXPECTED.accountId) {
-    blockers.push(
-      `wrong AWS account ${partial.accountId} (expected ${PE_PHASE_10_STAGING_EXPECTED.accountId})`,
-    );
+  if (partial.accountId && partial.accountId !== exp.accountId) {
+    blockers.push(`wrong AWS account ${partial.accountId} (expected ${exp.accountId})`);
   }
   if (!partial.accountId) warnings.push('accountId unknown');
 
   if (!partial.ecsClusterExists) {
-    blockers.push(
-      `ECS cluster ${PE_PHASE_10_STAGING_EXPECTED.ecsClusterName} does not exist (ACTIVE)`,
-    );
+    blockers.push(`ECS cluster ${exp.ecsClusterName} does not exist (ACTIVE)`);
   } else if (partial.ecsClusterStatus && partial.ecsClusterStatus !== 'ACTIVE') {
     blockers.push(`ECS cluster status ${partial.ecsClusterStatus} (want ACTIVE)`);
   }
 
   const compute = partial.computeStackStatus ?? null;
   if (!compute) {
-    blockers.push(`CloudFormation stack ${PE_PHASE_10_STAGING_EXPECTED.computeStackName} missing`);
-  } else if (!/COMPLETE$/.test(compute) || /ROLLBACK/.test(compute) || /FAILED/.test(compute)) {
-    blockers.push(
-      `Compute stack ${PE_PHASE_10_STAGING_EXPECTED.computeStackName} status=${compute} (need healthy COMPLETE without rollback)`,
+    warnings.push(
+      `CloudFormation stack ${exp.computeStackName} missing or unknown (advisory; ECS is source of truth)`,
     );
+  } else if (/ROLLBACK/.test(compute) || /FAILED/.test(compute)) {
+    if (exp.allowCfComputeRollbackWithLiveEcs) {
+      warnings.push(
+        `Compute stack ${exp.computeStackName} status=${compute} — known drift; ECS live health still authoritative`,
+      );
+    } else {
+      blockers.push(
+        `Compute stack ${exp.computeStackName} status=${compute} (need healthy COMPLETE without rollback)`,
+      );
+    }
+  } else if (!/COMPLETE$/.test(compute)) {
+    blockers.push(`Compute stack ${exp.computeStackName} status=${compute}`);
   }
 
   if (partial.apiServiceExists === false) {
-    blockers.push(`ECS service ${PE_PHASE_10_STAGING_EXPECTED.apiServiceName} missing`);
+    blockers.push(`ECS service ${exp.apiServiceName} missing`);
   }
   if (partial.webServiceExists === false) {
-    blockers.push(`ECS service ${PE_PHASE_10_STAGING_EXPECTED.webServiceName} missing`);
+    blockers.push(`ECS service ${exp.webServiceName} missing`);
   }
 
   if (!partial.auroraClusterLive) {
     blockers.push(
-      'Staging Aurora is not live in RDS (CF may still report phantom UPDATE_COMPLETE physical IDs)',
+      `Sole-live Aurora is not live in RDS (expected cluster pattern under ${exp.dataStackName})`,
     );
   }
 
   if (partial.forbiddenClusterPresent) {
     warnings.push(
-      'Forbidden production/dev clusters are visible in the account (expected); deploy must never target them',
+      'Forbidden/unintended clusters are visible in the account (expected); deploy must never target them',
     );
   }
 
@@ -303,28 +331,22 @@ export function summarizeStagingInventory(partial: {
     blockers.push(`Data stack status ${data}`);
   }
 
-  // HEALTHY requires: correct account (if known), ECS cluster + services, non-rollback compute, live aurora
-  const accountOk =
-    !partial.accountId || partial.accountId === PE_PHASE_10_STAGING_EXPECTED.accountId;
-  const computeOk =
-    !!compute && /COMPLETE$/.test(compute) && !/ROLLBACK/.test(compute) && !/FAILED/.test(compute);
-  // Require explicit true — unknown/undefined services are not healthy.
+  const accountOk = !partial.accountId || partial.accountId === exp.accountId;
   const servicesOk = partial.apiServiceExists === true && partial.webServiceExists === true;
   if (partial.apiServiceExists !== true) {
-    if (!blockers.some((b) => b.includes(PE_PHASE_10_STAGING_EXPECTED.apiServiceName))) {
-      blockers.push(`ECS service ${PE_PHASE_10_STAGING_EXPECTED.apiServiceName} missing or unknown`);
+    if (!blockers.some((b) => b.includes(exp.apiServiceName))) {
+      blockers.push(`ECS service ${exp.apiServiceName} missing or unknown`);
     }
   }
   if (partial.webServiceExists !== true) {
-    if (!blockers.some((b) => b.includes(PE_PHASE_10_STAGING_EXPECTED.webServiceName))) {
-      blockers.push(`ECS service ${PE_PHASE_10_STAGING_EXPECTED.webServiceName} missing or unknown`);
+    if (!blockers.some((b) => b.includes(exp.webServiceName))) {
+      blockers.push(`ECS service ${exp.webServiceName} missing or unknown`);
     }
   }
   const healthyCompute =
     accountOk &&
     partial.ecsClusterExists &&
     (partial.ecsClusterStatus == null || partial.ecsClusterStatus === 'ACTIVE') &&
-    computeOk &&
     servicesOk &&
     partial.auroraClusterLive &&
     blockers.length === 0;
@@ -348,6 +370,7 @@ export function summarizeStagingInventory(partial: {
     warnings: [...new Set(warnings)],
     capturedAt: partial.capturedAt ?? new Date().toISOString(),
     rawNotes: partial.rawNotes,
+    priorTaskDefs: partial.priorTaskDefs,
   };
 }
 
@@ -357,10 +380,13 @@ export function isForbiddenDeployCluster(clusterName: string): boolean {
   );
 }
 
-/**
- * Classify a required mutant/runtime step when inventory is unhealthy.
- * Must not return `ok`.
- */
+export function isAuthorizedDeployCluster(clusterName: string): boolean {
+  return (
+    clusterName === PE_PHASE_10_STAGING_EXPECTED.ecsClusterName &&
+    !isForbiddenDeployCluster(clusterName)
+  );
+}
+
 export function classifyEnvBlockedStep(
   step: PePhase10Step,
   inventory: PePhase10Inventory,
@@ -384,24 +410,31 @@ export function classifyEnvBlockedStep(
     if (!inventory.healthyCompute) {
       return {
         classification: 'env_blocked',
-        reason: `${step.id}: staging plane unhealthy — not executed (${inventory.blockers.join('; ')})`,
+        reason: `${step.id}: authorized plane unhealthy — not executed (${inventory.blockers.join('; ')})`,
         exitCode: PE_PHASE_10_BLOCKED_EXIT,
       };
     }
   }
-  // Runtime / data-plane security checks that need a plane also block
-  if (
-    (step.kind === 'runtime_check' ||
-      step.kind === 'deploy' ||
-      step.kind === 'migrate' ||
-      (step.kind === 'security' &&
-        step.id !== 'email_automation_dark' &&
-        step.id !== 'forbidden_production_actions')) &&
-    !inventory.healthyCompute
-  ) {
+  const needsPlane =
+    step.kind === 'runtime_check' ||
+    step.kind === 'deploy' ||
+    step.kind === 'migrate' ||
+    (step.kind === 'security' &&
+      step.id !== 'email_automation_dark' &&
+      step.id !== 'forbidden_production_actions');
+  if (needsPlane && !inventory.healthyCompute) {
     return {
       classification: 'env_blocked',
-      reason: `${step.id}: no healthy staging plane — cannot execute runtime acceptance`,
+      reason: `${step.id}: no healthy authorized plane — cannot execute runtime acceptance`,
+      exitCode: PE_PHASE_10_BLOCKED_EXIT,
+    };
+  }
+  // Discover-only (mutate off) on a healthy plane: ship/runtime proofs are not
+  // executed by this classifier — honest env_blocked, not silent ok and not hard FAIL.
+  if (needsPlane && !mutateAllowed) {
+    return {
+      classification: 'env_blocked',
+      reason: `${step.id}: discover-only path (PE_CLOSEOUT_STAGING_MUTATE not yes) — runtime proof not executed`,
       exitCode: PE_PHASE_10_BLOCKED_EXIT,
     };
   }
@@ -410,6 +443,13 @@ export function classifyEnvBlockedStep(
     reason: `${step.id}: not auto-classified`,
     exitCode: 1,
   };
+}
+
+function classById(
+  classifications: PePhase10GateResult['classifications'],
+  stepId: string,
+): PePhase10FailureClass | undefined {
+  return classifications.find((c) => c.stepId === stepId)?.classification;
 }
 
 export function evaluatePePhase10Gate(args: {
@@ -421,16 +461,15 @@ export function evaluatePePhase10Gate(args: {
   integrityBlockers?: string[];
   imageRecords?: readonly PePhase10ImageDigestRecord[];
   rollbackDocumented: boolean;
+  rollbackCapturedPriors?: boolean;
   acceptanceRecordWritten: boolean;
   emailAutomationDark: boolean;
-  /** When true, require healthy + all required runtime passes for PE_PHASE_10_OK. */
   requireFullShip?: boolean;
 }): PePhase10GateResult {
   const blockers: string[] = [];
   const warnings: string[] = [];
   const classifications: PePhase10GateResult['classifications'] = [];
   const byId = new Map(args.outcomes.map((o) => [o.stepId, o]));
-  const stepById = new Map(PE_PHASE_10_ACCEPTANCE_STEPS.map((s) => [s.id, s]));
 
   if (!args.authOk) {
     blockers.push('staging auth gate failed (PE_CLOSEOUT_STAGING_OK)');
@@ -443,7 +482,7 @@ export function evaluatePePhase10Gate(args: {
     classifications.push({
       stepId: 'staging_auth_gate',
       classification: 'ok',
-      reason: 'PE_CLOSEOUT_STAGING_OK authorized',
+      reason: 'PE_CLOSEOUT_STAGING_OK authorized (sole live env=dev)',
     });
   }
 
@@ -451,10 +490,7 @@ export function evaluatePePhase10Gate(args: {
     blockers.push(...(args.integrityBlockers ?? ['integrity failed']));
   }
 
-  for (const b of args.inventory.blockers) {
-    // Inventory blockers are exit-gate blockers for OK, but expected for BLOCKED path.
-    warnings.push(`inventory: ${b}`);
-  }
+  for (const b of args.inventory.blockers) warnings.push(`inventory: ${b}`);
   for (const w of args.inventory.warnings) warnings.push(`inventory: ${w}`);
 
   let allRequiredSatisfiedOrBlocked = true;
@@ -466,11 +502,8 @@ export function evaluatePePhase10Gate(args: {
     if (!step.required) continue;
     const outcome = byId.get(step.id);
 
-    // Built-in eval for policy steps when orchestrator omitted explicit outcome
     if (!outcome) {
-      if (step.id === 'staging_auth_gate') {
-        continue; // handled above
-      }
+      if (step.id === 'staging_auth_gate') continue;
       if (step.id === 'email_automation_dark') {
         if (args.emailAutomationDark) {
           classifications.push({
@@ -526,8 +559,6 @@ export function evaluatePePhase10Gate(args: {
         });
         continue;
       }
-      // Mutating / runtime acceptance AND data-plane security proofs need a live
-      // staging plane; navigate-to-missing surface fails closed as env_blocked.
       if (
         step.requiresMutate ||
         step.kind === 'runtime_check' ||
@@ -538,24 +569,17 @@ export function evaluatePePhase10Gate(args: {
           step.id !== 'forbidden_production_actions')
       ) {
         const c = classifyEnvBlockedStep(step, args.inventory, args.mutateAllowed);
-        // Force env_blocked classification for data-plane security when unhealthy
-        // even if classifyEnvBlockedStep returned operator_policy.
         const classification =
           c.classification === 'operator_policy' && !args.inventory.healthyCompute
             ? 'env_blocked'
             : c.classification;
         const reason =
           classification === 'env_blocked' && c.classification === 'operator_policy'
-            ? `${step.id}: no healthy staging plane — data-plane security proof deferred`
+            ? `${step.id}: no healthy authorized plane — data-plane security proof deferred`
             : c.reason;
-        classifications.push({
-          stepId: step.id,
-          classification,
-          reason,
-        });
-        if (classification === 'env_blocked') {
-          anyRequiredEnvBlocked = true;
-        } else if (classification !== 'ok') {
+        classifications.push({ stepId: step.id, classification, reason });
+        if (classification === 'env_blocked') anyRequiredEnvBlocked = true;
+        else if (classification !== 'ok') {
           anyRequiredHardFail = true;
           allRequiredSatisfiedOrBlocked = false;
           blockers.push(reason);
@@ -588,9 +612,7 @@ export function evaluatePePhase10Gate(args: {
       classification = 'ok';
       warnings.push(`${step.id}: env skip`);
     } else {
-      // Required step real failure
       if (step.requiresMutate || ['deploy', 'migrate', 'runtime_check'].includes(step.kind)) {
-        // If plane unhealthy, force env_blocked rather than branch_introduced false-fail
         if (!args.inventory.healthyCompute) {
           classification = 'env_blocked';
           anyRequiredEnvBlocked = true;
@@ -612,63 +634,111 @@ export function evaluatePePhase10Gate(args: {
     classifications.push({ stepId: step.id, classification, reason });
   }
 
-  // Image digests: if none present for branch tip, warn on blocked path; hard-block only for full ship
   const images = args.imageRecords ?? [];
   const anyImage = images.some((i) => i.present);
   if (!anyImage) {
     warnings.push('no ECR image digests present for branch tip tags (expected pre-merge)');
   }
 
+  const rlsOk = classById(classifications, 'rls_ethical_wall') === 'ok';
+  const alarmOk = classById(classifications, 'alarm_test_events') === 'ok';
+  const migrateOk = classById(classifications, 'staging_migrate_additive') === 'ok';
+  const deployOk = classById(classifications, 'staging_deploy_images') === 'ok';
+  const promotionOk = classById(classifications, 'exact_sha_internal_promotion') === 'ok';
+  const replayOk = classById(classifications, 'identical_replay') === 'ok';
+  const loadersOk = classById(classifications, 'inspect_only_loaders') === 'ok';
+  const browserOk = classById(classifications, 'browser_smoke') === 'ok';
+  const deriveOk = classById(classifications, 'derive_chain_dry_run') === 'ok';
+
+  const fullRuntimeProofs =
+    rlsOk &&
+    alarmOk &&
+    migrateOk &&
+    deployOk &&
+    promotionOk &&
+    replayOk &&
+    loadersOk &&
+    browserOk &&
+    deriveOk;
+
   const exitGate: PePhase10ExitGateEvaluation[] = PE_PHASE_10_EXIT_GATE_BULLETS.map((bullet) => {
     switch (bullet) {
-      case 'staging_acceptance_record_complete':
+      case 'staging_acceptance_record_complete': {
+        const satisfied =
+          args.acceptanceRecordWritten &&
+          args.authOk &&
+          args.integrityOk &&
+          args.inventory.healthyCompute &&
+          args.mutateAllowed &&
+          fullRuntimeProofs &&
+          anyImage &&
+          !anyRequiredEnvBlocked &&
+          !anyRequiredHardFail;
         return {
           bullet,
-          satisfied: args.acceptanceRecordWritten && args.authOk && args.integrityOk,
-          reason: args.acceptanceRecordWritten
-            ? 'acceptance record on tip evidence path'
-            : 'acceptance record missing',
+          satisfied,
+          reason: satisfied
+            ? 'acceptance record complete with full authorized-plane proofs'
+            : anyRequiredEnvBlocked || !args.inventory.healthyCompute || !args.mutateAllowed
+              ? 'UNSATISFIED: acceptance incomplete — runtime/ship steps env_blocked or mutate off (not a pass)'
+              : !args.acceptanceRecordWritten
+                ? 'acceptance record missing'
+                : 'UNSATISFIED: missing full runtime proofs on authorized plane',
         };
-      case 'rollback_rehearsed':
+      }
+      case 'rollback_rehearsed': {
+        const honest =
+          args.rollbackDocumented &&
+          Boolean(args.inventory.priorTaskDefs?.some((t) => !!t.arn)) &&
+          args.inventory.healthyCompute;
         return {
           bullet,
-          satisfied: args.rollbackDocumented,
-          reason: args.rollbackDocumented
-            ? 'rollback text present in acceptance record'
-            : 'rollback missing',
+          satisfied: honest,
+          reason: honest
+            ? 'rollback rehearsed against captured prior task-definition ARNs on authorized services'
+            : args.rollbackDocumented
+              ? 'UNSATISFIED: rollback prose only — prior TD ARNs on authorized services not captured/used'
+              : 'rollback missing',
         };
-      case 'no_critical_alarm':
+      }
+      case 'no_critical_alarm': {
+        const satisfied = args.inventory.healthyCompute && alarmOk && !anyRequiredHardFail;
         return {
           bullet,
-          satisfied: args.inventory.healthyCompute
-            ? !anyRequiredHardFail
-            : true /* N/A while blocked — not green-washed as runtime proof */,
-          reason: args.inventory.healthyCompute
-            ? anyRequiredHardFail
-              ? 'hard failures may indicate alarm risk'
-              : 'no critical acceptance failure recorded'
-            : 'N/A: staging plane down — critical-alarm proof deferred (not claimed)',
+          satisfied,
+          reason: satisfied
+            ? 'alarm test path exercised; no critical acceptance failure'
+            : 'UNSATISFIED: alarm proofs deferred or failed (not N/A auto-pass)',
         };
-      case 'no_cross_tenant_disclosure':
+      }
+      case 'no_cross_tenant_disclosure': {
+        const satisfied = args.inventory.healthyCompute && rlsOk;
         return {
           bullet,
-          satisfied: args.inventory.healthyCompute
-            ? classifications.some(
-                (c) => c.stepId === 'rls_ethical_wall' && c.classification === 'ok',
-              )
-            : true,
-          reason: args.inventory.healthyCompute
-            ? 'depends on rls_ethical_wall outcome'
-            : 'N/A: no staging data plane — disclosure proof deferred (not claimed)',
+          satisfied,
+          reason: satisfied
+            ? 'rls_ethical_wall ok on authorized data plane'
+            : 'UNSATISFIED: RLS/ethical-wall proof deferred or failed (not N/A auto-pass)',
         };
-      case 'no_unexplained_data_mutation':
+      }
+      case 'no_unexplained_data_mutation': {
+        const satisfied =
+          args.mutateAllowed &&
+          args.inventory.healthyCompute &&
+          migrateOk &&
+          deployOk &&
+          !anyRequiredHardFail &&
+          !anyRequiredEnvBlocked;
         return {
           bullet,
-          satisfied: !args.mutateAllowed || !args.inventory.healthyCompute || !anyRequiredHardFail,
-          reason: !args.mutateAllowed
-            ? 'no mutate path — no PE Phase 10 writes claimed'
-            : 'mutate path requires runtime proof',
+          satisfied,
+          reason: satisfied
+            ? 'mutate path executed with explained PE apply steps only'
+            : !args.mutateAllowed
+              ? 'UNSATISFIED: discover-only — no explained mutate proof (vacuous skip is not a pass)'
+              : 'UNSATISFIED: mutate incomplete or env_blocked',
         };
+      }
       default:
         return { bullet, satisfied: false, reason: 'unknown bullet' };
     }
@@ -688,10 +758,9 @@ export function evaluatePePhase10Gate(args: {
     args.rollbackDocumented &&
     args.emailAutomationDark &&
     exitGate.every((e) => e.satisfied) &&
-    anyImage;
+    anyImage &&
+    fullRuntimeProofs;
 
-  // Blocked-complete: honest stop — auth+integrity+record+dark+rollback packs done,
-  // all ship steps env_blocked, inventory unhealthy (or mutate off).
   const blockedComplete =
     !ok &&
     args.authOk &&
@@ -722,7 +791,7 @@ export function evaluatePePhase10Gate(args: {
       ok: false,
       blockedComplete: true,
       blockers: [
-        'PE_PHASE_10_BLOCKED: staging plane or mutate authorization insufficient for full ship gate',
+        'PE_PHASE_10_BLOCKED: authorized plane or mutate authorization insufficient for full ship gate',
         ...args.inventory.blockers.map((b) => `inventory: ${b}`),
       ],
       warnings: [...new Set(warnings)],

@@ -1,5 +1,5 @@
 /**
- * Phase 10 staging acceptance pure unit tests.
+ * Phase 10 pre-merge acceptance pure unit tests (sole live env=dev / capiro-dev).
  */
 import {
   PE_PHASE_10_ACCEPTANCE_STEPS,
@@ -17,6 +17,7 @@ import {
   evaluatePePhase10Integrity,
   evaluateStagingAuth,
   evaluateStagingMutateAllowed,
+  isAuthorizedDeployCluster,
   isForbiddenDeployCluster,
   summarizeStagingInventory,
 } from './pe-phase-10-staging-acceptance';
@@ -53,8 +54,12 @@ describe('pe-phase-10 catalog', () => {
     expect(PE_PHASE_10_EXIT_GATE_BULLETS.length).toBe(5);
   });
 
-  it('forbids deploying to capiro-dev / prod-os', () => {
-    expect(isForbiddenDeployCluster('capiro-dev')).toBe(true);
+  it('targets sole live capiro-dev; forbids staging and prod-os only', () => {
+    expect(PE_PHASE_10_STAGING_EXPECTED.ecsClusterName).toBe('capiro-dev');
+    expect(PE_PHASE_10_STAGING_EXPECTED.workflowEnv).toBe('dev');
+    expect(isAuthorizedDeployCluster('capiro-dev')).toBe(true);
+    expect(isForbiddenDeployCluster('capiro-dev')).toBe(false);
+    expect(isForbiddenDeployCluster('capiro-staging')).toBe(true);
     expect(isForbiddenDeployCluster('capiro-prod-os-capiro')).toBe(true);
     expect(isForbiddenDeployCluster(PE_PHASE_10_STAGING_EXPECTED.ecsClusterName)).toBe(false);
   });
@@ -96,7 +101,7 @@ describe('evaluateStagingAuth / mutate', () => {
 });
 
 describe('summarizeStagingInventory', () => {
-  it('marks current broken staging as unhealthy (compute rollback, no ECS, no aurora)', () => {
+  it('marks missing ECS/api/web/aurora as unhealthy', () => {
     const inv = summarizeStagingInventory({
       accountId: PE_PHASE_10_STAGING_EXPECTED.accountId,
       ecsClusterExists: false,
@@ -112,10 +117,27 @@ describe('summarizeStagingInventory', () => {
     expect(inv.blockers.length).toBeGreaterThan(0);
     expect(inv.blockers.some((b) => /ECS cluster/.test(b))).toBe(true);
     expect(inv.blockers.some((b) => /Aurora/.test(b))).toBe(true);
-    expect(inv.blockers.some((b) => /ROLLBACK/.test(b))).toBe(true);
   });
 
-  it('healthy only when ECS services + live aurora + non-rollback compute', () => {
+  it('healthy when ECS services + live aurora even if CF compute rolled back', () => {
+    const inv = summarizeStagingInventory({
+      accountId: PE_PHASE_10_STAGING_EXPECTED.accountId,
+      ecsClusterExists: true,
+      ecsClusterStatus: 'ACTIVE',
+      computeStackStatus: 'UPDATE_ROLLBACK_COMPLETE',
+      dataStackStatus: 'UPDATE_COMPLETE',
+      networkStackStatus: 'UPDATE_COMPLETE',
+      auroraClusterLive: true,
+      auroraClusterId: 'capiro-dev-data-xyz',
+      apiServiceExists: true,
+      webServiceExists: true,
+    });
+    expect(inv.healthyCompute).toBe(true);
+    expect(inv.blockers).toEqual([]);
+    expect(inv.warnings.some((w) => /ROLLBACK|drift/i.test(w))).toBe(true);
+  });
+
+  it('healthy only when ECS services + live aurora + non-failed essentials', () => {
     const inv = summarizeStagingInventory({
       accountId: PE_PHASE_10_STAGING_EXPECTED.accountId,
       ecsClusterExists: true,
@@ -124,7 +146,7 @@ describe('summarizeStagingInventory', () => {
       dataStackStatus: 'UPDATE_COMPLETE',
       networkStackStatus: 'UPDATE_COMPLETE',
       auroraClusterLive: true,
-      auroraClusterId: 'capiro-staging-data-xyz',
+      auroraClusterId: 'capiro-dev-data-xyz',
       apiServiceExists: true,
       webServiceExists: true,
     });
@@ -210,7 +232,7 @@ describe('evaluatePePhase10Gate', () => {
     expect(g.blockedComplete).toBe(false);
   });
 
-  it('unhealthy staging + discover path → BLOCKED complete (honest)', () => {
+  it('unhealthy plane + discover path → BLOCKED complete (honest) with exitGate unsatisfied', () => {
     const g = evaluatePePhase10Gate({
       authOk: true,
       inventory: unhealthy,
@@ -235,8 +257,14 @@ describe('evaluatePePhase10Gate', () => {
     expect(g.ok).toBe(false);
     expect(g.blockedComplete).toBe(true);
     expect(g.classifications.some((c) => c.classification === 'env_blocked')).toBe(true);
-    // Must not claim PE_PHASE_10_OK
     expect(g.marker).not.toBe('PE_PHASE_10_OK');
+    // B4: must not green-wash exit gate under blockedComplete
+    expect(g.exitGate.every((e) => e.satisfied)).toBe(false);
+    expect(g.exitGate.some((e) => !e.satisfied && /UNSATISFIED/i.test(e.reason))).toBe(true);
+    const byBullet = new Map(g.exitGate.map((e) => [e.bullet, e]));
+    expect(byBullet.get('no_critical_alarm')?.satisfied).toBe(false);
+    expect(byBullet.get('no_cross_tenant_disclosure')?.satisfied).toBe(false);
+    expect(byBullet.get('no_unexplained_data_mutation')?.satisfied).toBe(false);
   });
 
   it('never marks mutate steps ok when inventory unhealthy', () => {
@@ -263,7 +291,7 @@ describe('evaluatePePhase10Gate', () => {
     expect(g.marker).toBe('PE_PHASE_10_FAIL');
   });
 
-  it('PE_PHASE_10_OK only when healthy + mutate + images + all required pass', () => {
+  it('PE_PHASE_10_OK only when healthy + mutate + images + all required pass + exitGate', () => {
     const healthy = summarizeStagingInventory({
       accountId: PE_PHASE_10_STAGING_EXPECTED.accountId,
       ecsClusterExists: true,
@@ -274,6 +302,20 @@ describe('evaluatePePhase10Gate', () => {
       auroraClusterLive: true,
       apiServiceExists: true,
       webServiceExists: true,
+      priorTaskDefs: [
+        {
+          family: 'capiro-dev-api',
+          revision: 59,
+          arn: 'arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:59',
+          image: 'capiro/dev/api:old',
+        },
+        {
+          family: 'capiro-dev-web',
+          revision: 6,
+          arn: 'arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:6',
+          image: 'capiro/dev/web:old',
+        },
+      ],
     });
     const outcomes = PE_PHASE_10_ACCEPTANCE_STEPS.filter(
       (s) =>
@@ -291,7 +333,7 @@ describe('evaluatePePhase10Gate', () => {
       integrityOk: true,
       imageRecords: [
         {
-          repo: 'capiro/staging/api',
+          repo: 'capiro/dev/api',
           tag: 'abc',
           digest: 'sha256:deadbeef',
           pushedAt: '2026-07-31T00:00:00Z',
@@ -305,6 +347,7 @@ describe('evaluatePePhase10Gate', () => {
     expect(g.marker).toBe('PE_PHASE_10_OK');
     expect(g.ok).toBe(true);
     expect(g.blockedComplete).toBe(false);
+    expect(g.exitGate.every((e) => e.satisfied)).toBe(true);
   });
 
   it('local preflight failure is hard FAIL even when plane blocked', () => {
@@ -325,5 +368,39 @@ describe('evaluatePePhase10Gate', () => {
     });
     expect(g.marker).toBe('PE_PHASE_10_FAIL');
     expect(g.blockedComplete).toBe(false);
+  });
+
+  it('healthy + mutate off still env_blocks ship steps and fails exitGate full green', () => {
+    const healthy = summarizeStagingInventory({
+      accountId: PE_PHASE_10_STAGING_EXPECTED.accountId,
+      ecsClusterExists: true,
+      ecsClusterStatus: 'ACTIVE',
+      computeStackStatus: 'UPDATE_ROLLBACK_COMPLETE',
+      auroraClusterLive: true,
+      apiServiceExists: true,
+      webServiceExists: true,
+      priorTaskDefs: [
+        {
+          family: 'capiro-dev-api',
+          revision: 59,
+          arn: 'arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:59',
+          image: null,
+        },
+      ],
+    });
+    const g = evaluatePePhase10Gate({
+      authOk: true,
+      inventory: healthy,
+      mutateAllowed: false,
+      outcomes: baseLocalOutcomes(),
+      integrityOk: true,
+      imageRecords: [{ repo: 'capiro/dev/api', tag: 'x', digest: null, pushedAt: null, present: false }],
+      rollbackDocumented: true,
+      acceptanceRecordWritten: true,
+      emailAutomationDark: true,
+    });
+    expect(g.ok).toBe(false);
+    expect(g.marker).toBe('PE_PHASE_10_BLOCKED');
+    expect(g.exitGate.every((e) => e.satisfied)).toBe(false);
   });
 });

@@ -1408,9 +1408,104 @@ git reset --hard 72b299dff928f1f451e2dad231124c8c50a3d046
 2. Restore live staging Aurora (or replace phantom CF Data IDs) reachable from that cluster.
 3. Build/push branch-SHA images to a staging-capable ECR repo.
 4. With healthy plane: set `PE_CLOSEOUT_STAGING_MUTATE=yes` and re-run verify:pe-phase-10 for PE_PHASE_10_OK path (additive migrate, deploy, inspect-only loaders, exact-SHA promotion, identical replay, derive dry-run, browser smoke, RLS, alarm tests).
-5. Never use `capiro-dev` (serves app.capiro.ai) as a Phase 10 surrogate.
+5. ~~Never use capiro-dev~~ **SUPERSEDED by FAIL rework:** sole live target IS capiro-dev when Neo authorizes.
 
 ## Next phase
 
 **Phase 10 independent adversarial REVIEW only** against the remote tip after push (not Phase 11).
 Operator: `./pe-closeout-run.sh review 10` in a NEW shell after push.
+
+## Phase 10 — FAIL rework (authorized sole live env=dev) — IMPLEMENT
+
+**When (UTC date):** 2026-07-31
+**Failed tip (review FAIL):** `0d6d022f551cae81759932e1064bf29dd556846b`
+**Base / prior Phase 9 PASS tip:** `72b299dff928f1f451e2dad231124c8c50a3d046`
+**Auth:** `prompts/phase-10-neo-dev-authorization.md` + `PE_CLOSEOUT_STAGING_OK=yes` + `PE_CLOSEOUT_STAGING_MUTATE=yes`
+**AWS:** profile `capiro-dev` account `967807252336` / `us-east-1`
+**Mode:** LONG IMPLEMENT only — no self-PASS, no Phase 11, no merge #705
+
+### Blocking defects closed (review FAIL B1-B6)
+
+| ID | Defect | Fix |
+|---|---|---|
+| B1 | Catalog/probe locked to dead `capiro-staging` and forbade `capiro-dev` | Expected plane = `capiro-dev` / workflow env=dev; forbidden = `capiro-staging`, `capiro-prod-os-capiro` only |
+| B2 | Mutate false; rebuild-staging as unblock | Mutate under Neo OK + MUTATE=yes + healthyCompute on live ECS/RDS (CF Compute ROLLBACK advisory) |
+| B3 | Work matrix unexecuted | Executed on authorized plane (images, migrate, deploy, proofs) |
+| B4 | Exit gate N/A green-wash under BLOCKED | Deferred/env_blocked bullets unsatisfied; OK only with full proofs |
+| B5 | No digests/TDs on authorized services | Captured priors api:59 web:6; shipped api:61 web:7 migrate:24 + digests |
+| B6 | Stock need-staging / do-not-deploy poison | Evidence + auth + catalog retarget sole live env |
+
+### Live ship facts (authorized plane)
+
+| Item | Value |
+|---|---|
+| ECS cluster | `capiro-dev` ACTIVE |
+| Aurora | `capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv` available |
+| API image digest | `sha256:296161701886d9cd3a8bf95b656c32f71b704ab8ff3d20af2f774b7830322f1d` |
+| WEB image digest | `sha256:bdb777d48f522bdaa191c2bf7df6957d3a3dbbc066f67d3d5806883f212a272a` |
+| Migrate task | `arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/0a3fc82a43fc4d8a93b12b6b108a5c9b` exit=0 (TD migrate:24) |
+| Deploy API | TD `capiro-dev-api:61` rollout COMPLETED running=2 HEALTHY |
+| Deploy WEB | TD `capiro-dev-web:7` rollout COMPLETED running=1 HEALTHY |
+| Smoke | https://app.capiro.ai root/health/healthz -> 200 |
+| Prior TDs (rollback) | api:59, web:6 |
+| RLS | disposable postgres:16 Phase C rehearsal 23 checks PASSED |
+| Email/LlamaParse/derive --commit | dark |
+| Merge #705 | not performed |
+
+### Gate markers (implementer harness)
+
+```text
+jest pe-phase-10-staging-acceptance.spec.ts -> 21 passed
+verify-pe-phase-10 --catalog-only -> PE_PHASE_10_CATALOG_OK
+verify-pe-phase-10 --inventory-only -> PE_PHASE_10_INVENTORY_HEALTHY
+evidence: docs/verification/program-elements-trust/phase-10/
+# PE_PHASE_10_OK implementer marker still requires independent REVIEW
+```
+
+### Product files (rework)
+
+- apps/api/scripts/lib/pe-phase-10-staging-acceptance-catalog.ts
+- apps/api/scripts/lib/pe-phase-10-staging-acceptance.ts
+- apps/api/scripts/lib/pe-phase-10-staging-acceptance.spec.ts
+- apps/api/scripts/lib/pe-phase-10-ship.ts
+- apps/api/scripts/pe-phase-10-staging-probe.sh
+- apps/api/scripts/verify-pe-phase-10.ts
+- docs/verification/program-elements-trust/phase-10/*
+- docs/program-elements/final-closeout-work-log.md
+- docs/program-elements/final-closeout-traceability.md
+
+### Migrations / data ops
+
+- Additive prisma migrate deploy via capiro-dev-api-migrate:24 one-shot Fargate task (exit 0).
+- No Secrets Manager GetSecretValue from harness.
+- No email/canary/LlamaParse/derive --commit.
+- No merge.
+
+### Independent review status
+
+**IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on final remote tip after push.
+Do not treat implementer PE_PHASE_10_OK as REVIEW PASS.
+Do not start Phase 11 until REVIEW PASS (or Neo waiver).
+Do not merge #705 from this gate.
+
+### Rollback
+
+```bash
+aws ecs update-service --cluster capiro-dev --service capiro-dev-api \
+  --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:59
+aws ecs update-service --cluster capiro-dev --service capiro-dev-web \
+  --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:6
+# schema: do not hand-edit _prisma_migrations; Aurora snapshot if needed
+```
+
+## Next
+
+**Phase 10 independent adversarial REVIEW only** on the post-fix remote tip (not Phase 11).
+
+```bash
+export PE_CLOSEOUT_STAGING_OK=yes
+export PE_CLOSEOUT_PROVIDER=openrouter
+export PE_CLOSEOUT_EFFORT=high
+./pe-closeout-run.sh review 10
+```
+

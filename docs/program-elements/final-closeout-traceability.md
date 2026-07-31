@@ -187,7 +187,7 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 | Schedule phase | Goal | Status | Owner |
 |---|---|---|---|
 | 9 Integrated rehearsal | Run A–K + PE suites on remote final SHA | `in_branch` — Phase 9 PASS WITH BLOCKERS tip `72b299dff` | 9 |
-| 10 Staging acceptance | Deploy/migrate/runtime smoke on staging | `in_branch` harness + **PE_PHASE_10_BLOCKED** (plane unhealthy); ship path still env-blocked | Phase 10 |
+| 10 Staging acceptance | Pre-merge acceptance on sole live env=dev / capiro-dev | `in_branch` rework retarget + live ship (api:61/web:7); REVIEW REQUIRED | Phase 10 |
 | 11 PR closeout | Body, supersede old PRs, ready-for-review | after 9/(10) | Phase 11 |
 
 ---
@@ -426,3 +426,18 @@ plus concrete findings. Do not implement fixes.
 12. **B13** RDTE detail deep-link `?tab=procurement` → Tabs paint Overview; do **not** fetch `/procurement-lines` under sticky disallowed activeTab (query enablement follows `effectivePeWatchTab`).
 13. **B14** Force `GET .../intelligence` 500 → open Relationships (RDTE) → `pe-secondary-failed-intelligence-maturity` + Partial; never "Transition maturity not yet computed". Open Appropriability → `pe-secondary-failed-intelligence-appropriability`; never "Appropriability not yet scored". Partial banner alone is insufficient if body still paints derivation Empty.
 14. **B15** Force `GET .../bill-actions` 500 → open Legislation → `pe-secondary-failed-bill-actions` + Partial; never "No action history synced yet" from silent `data ?? []`. Overview Partial may fire before tab switch (billActions enabled on overview).
+
+
+## 10c (FAIL rework) — Sole live env=dev acceptance
+
+| ID | Task | Status | Evidence | Owner |
+|---|---|---|---|---|
+| S1 | Neo sole-live auth gate | in_branch | PE_CLOSEOUT_STAGING_OK + neo-dev-authorization.md | 10 |
+| S2 | Inventory healthy on capiro-dev | in_branch | pe-phase-10-staging-probe healthyCompute=true | 10 |
+| S3 | Exit gate no N/A green-wash | in_branch | evaluatePePhase10Gate UNSATISFIED deferred bullets | 10 |
+| S4 | Additive migrate on live Aurora | applied | migrate task exit 0 TD migrate:24 | 10 |
+| S5 | Deploy PE tip images api+web | applied | api:61 web:7 digests in ship-trace.json | 10 |
+| S6 | Browser smoke + RLS + alarms | in_branch | app.capiro.ai 200s; Phase C 23 PASS; CW alarms | 10 |
+| S7 | Rollback captured priors | in_branch | api:59 web:6 ARNs | 10 |
+
+**Phase 10 review gate:** IMPLEMENT PUSHED — independent REVIEW REQUIRED against live origin HEAD after push. Forbidden clusters residual: capiro-staging + capiro-prod-os-capiro only. Merge #705 still separate.

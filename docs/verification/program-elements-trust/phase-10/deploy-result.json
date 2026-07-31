@@ -1,0 +1,16 @@
+{
+  "deployed": {
+    "apiTaskDef": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:61",
+    "webTaskDef": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:7",
+    "apiPrior": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:59",
+    "webPrior": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:6",
+    "apiImage": "sha256:296161701886d9cd3a8bf95b656c32f71b704ab8ff3d20af2f774b7830322f1d",
+    "webImage": "sha256:bdb777d48f522bdaa191c2bf7df6957d3a3dbbc066f67d3d5806883f212a272a",
+    "cluster": "capiro-dev",
+    "head": "0d6d022f551cae81759932e1064bf29dd556846b"
+  },
+  "rollback": [
+    "aws ecs update-service --cluster capiro-dev --service capiro-dev-api --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:59",
+    "aws ecs update-service --cluster capiro-dev --service capiro-dev-web --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:6"
+  ]
+}

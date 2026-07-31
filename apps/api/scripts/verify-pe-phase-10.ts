@@ -1,21 +1,22 @@
 /**
- * Phase 10 pre-merge staging acceptance orchestrator (closeout).
+ * Phase 10 pre-merge acceptance orchestrator (closeout).
+ *
+ * Authorized plane: sole live env=dev / ECS `capiro-dev` (serves live app).
+ * Neo auth: PE_CLOSEOUT_STAGING_OK=yes
+ * Mutate:   PE_CLOSEOUT_STAGING_MUTATE=yes (+ healthy inventory)
  *
  * Modes:
- *  - default            : auth + inventory + local preflight + acceptance record
+ *  - default            : auth + inventory + local preflight + (mutate ship if allowed) + record
  *  - --catalog-only     : catalog honesty
  *  - --integrity-only   : tip path transport scan
- *  - --inventory-only   : run staging probe + summarize (no local PE gates)
+ *  - --inventory-only   : run plane probe + summarize
  *  - --dry-run          : print steps, do not execute shell
+ *  - --skip-local-gates : skip K + phase9 integrity
+ *  - --skip-image-build : reuse existing tip/latest digests (still requires present digest for OK)
  *
- * Full PE_PHASE_10_OK requires healthy staging compute + PE_CLOSEOUT_STAGING_MUTATE=yes
- * + branch images + runtime proofs. Current account reality (2026-07): staging
- * Compute UPDATE_ROLLBACK_COMPLETE, no ECS cluster, phantom CF Aurora — discover
- * path emits PE_PHASE_10_BLOCKED with a complete honest record (not OK).
- *
- * Never deploys to capiro-dev or capiro-prod-os-capiro.
+ * Never deploys to capiro-staging or capiro-prod-os-capiro.
  * Never Secrets Manager GetSecretValue, email, LlamaParse, or derive --commit.
- * Does not self-PASS adversarial REVIEW.
+ * Does not self-PASS adversarial REVIEW. Does not merge #705.
  */
 import { spawnSync } from 'node:child_process';
 import {
@@ -43,8 +44,21 @@ import {
   summarizeStagingInventory,
   type PePhase10ImageDigestRecord,
   type PePhase10Inventory,
+  type PePhase10PriorTaskDef,
   type PePhase10StepOutcome,
 } from './lib/pe-phase-10-staging-acceptance.js';
+import {
+  assertAuthorizedClusterOrThrow,
+  browserSmoke,
+  buildAndPushBranchImages,
+  capturePriorTaskDefs,
+  deployBranchTaskDefs,
+  ecrDigestForTag,
+  runAdditiveMigrate,
+  runLocalVerifyEvidenceSteps,
+  writeRollbackCapture,
+  type PePhase10ShipTrace,
+} from './lib/pe-phase-10-ship.js';
 
 function repoRootFromCwd(): string {
   const cwd = process.cwd().replace(/\\/g, '/');
@@ -57,10 +71,6 @@ function repoRootFromCwd(): string {
     dir = parent;
   }
   return process.cwd();
-}
-
-function apiRoot(): string {
-  return resolve(repoRootFromCwd(), 'apps/api');
 }
 
 function parseArgs(argv: string[]) {
@@ -78,6 +88,7 @@ function parseArgs(argv: string[]) {
     inventoryOnly: flags.has('--inventory-only'),
     dryRun: flags.has('--dry-run'),
     skipLocalGates: flags.has('--skip-local-gates'),
+    skipImageBuild: flags.has('--skip-image-build'),
     evidenceDir: get('--evidence-dir'),
   };
 }
@@ -129,7 +140,7 @@ function runCmd(
   const t0 = Date.now();
   const r = spawnSync(command, {
     cwd,
-    env: { ...env, FORCE_COLOR: '0' },
+    env: { ...env, FORCE_COLOR: '0', MSYS_NO_PATHCONV: '1' },
     encoding: 'utf8',
     shell: true,
     maxBuffer: 12 * 1024 * 1024,
@@ -156,6 +167,15 @@ function gitEvidence(root: string) {
   };
 }
 
+function awsEnv(): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    AWS_PROFILE: process.env.AWS_PROFILE || process.env.PE_CLOSEOUT_AWS_PROFILE || 'capiro-dev',
+    AWS_DEFAULT_REGION: process.env.AWS_DEFAULT_REGION || PE_PHASE_10_STAGING_EXPECTED.region,
+    MSYS_NO_PATHCONV: '1',
+  };
+}
+
 function runInventoryProbe(root: string): {
   inventory: PePhase10Inventory;
   raw: Record<string, unknown> | null;
@@ -163,12 +183,7 @@ function runInventoryProbe(root: string): {
   probeOut: string;
 } {
   const script = resolve(root, 'apps/api/scripts/pe-phase-10-staging-probe.sh');
-  const env = {
-    ...process.env,
-    AWS_PROFILE: process.env.AWS_PROFILE || process.env.PE_CLOSEOUT_AWS_PROFILE || 'capiro-dev',
-    AWS_DEFAULT_REGION: process.env.AWS_DEFAULT_REGION || PE_PHASE_10_STAGING_EXPECTED.region,
-    MSYS_NO_PATHCONV: '1',
-  };
+  const env = awsEnv();
   const r = runCmd(`bash "${script}" --json`, root, env);
   let raw: Record<string, unknown> | null = null;
   try {
@@ -195,12 +210,13 @@ function runInventoryProbe(root: string): {
     inv.blockers.push(
       r.code === 3
         ? 'wrong AWS account'
-        : 'AWS staging probe failed (credentials or CLI) — cannot claim healthy staging',
+        : 'AWS plane probe failed (credentials or CLI) — cannot claim healthy authorized plane',
     );
     inv.healthyCompute = false;
     return { inventory: inv, raw, probeExit: r.code, probeOut: r.out };
   }
 
+  const priorTaskDefs = (raw.priorTaskDefs as PePhase10PriorTaskDef[] | undefined) ?? [];
   const inv = summarizeStagingInventory({
     accountId: (raw.accountId as string) ?? null,
     region: (raw.region as string) ?? PE_PHASE_10_STAGING_EXPECTED.region,
@@ -215,68 +231,44 @@ function runInventoryProbe(root: string): {
     auroraClusterId: (raw.auroraClusterId as string) ?? null,
     forbiddenClusterPresent: Boolean(raw.forbiddenClusterPresent),
     capturedAt: (raw.capturedAt as string) ?? new Date().toISOString(),
+    priorTaskDefs,
     rawNotes: [
-      `secretNameCount=${raw.stagingSecretNameCount ?? '?'}`,
+      `plane=${raw.planeName ?? 'sole-live-env-dev'}`,
+      `secretNameCount=${raw.devSecretNameCount ?? raw.stagingSecretNameCount ?? '?'}`,
       `cfAuroraPhysicalId=${raw.cfAuroraPhysicalId ?? 'n/a'}`,
+      `apiTd=${raw.apiTaskDefinitionArn ?? 'n/a'}`,
+      `webTd=${raw.webTaskDefinitionArn ?? 'n/a'}`,
     ],
   });
   return { inventory: inv, raw, probeExit: r.code, probeOut: r.out };
 }
 
-function tryImageDigests(headSha: string): PePhase10ImageDigestRecord[] {
+function tryImageDigests(headSha: string, env: NodeJS.ProcessEnv): PePhase10ImageDigestRecord[] {
   const records: PePhase10ImageDigestRecord[] = [];
   const tags = [headSha, headSha.slice(0, 12), headSha.slice(0, 7), 'latest'];
   const repos = [
     ...PE_PHASE_10_STAGING_EXPECTED.ecrApiRepoCandidates,
     ...PE_PHASE_10_STAGING_EXPECTED.ecrWebRepoCandidates,
   ];
-  const env = {
-    ...process.env,
-    AWS_PROFILE: process.env.AWS_PROFILE || process.env.PE_CLOSEOUT_AWS_PROFILE || 'capiro-dev',
-    AWS_DEFAULT_REGION: process.env.AWS_DEFAULT_REGION || PE_PHASE_10_STAGING_EXPECTED.region,
-    MSYS_NO_PATHCONV: '1',
-  };
-
   for (const repo of repos) {
-    let found = false;
+    let found: PePhase10ImageDigestRecord | null = null;
     for (const tag of tags) {
-      const q = runCmd(
-        `aws ecr describe-images --repository-name ${repo} --image-ids imageTag=${tag} --query "imageDetails[0].{digest:imageDigest,pushed:imagePushedAt,tags:imageTags}" --output json`,
-        process.cwd(),
-        env,
-      );
-      if (q.code !== 0) continue;
-      try {
-        const j = JSON.parse(q.out.trim() || 'null') as {
-          digest?: string;
-          pushed?: string;
-          tags?: string[];
-        } | null;
-        if (j?.digest) {
-          records.push({
-            repo,
-            tag,
-            digest: j.digest,
-            pushedAt: j.pushed ?? null,
-            present: true,
-          });
-          found = true;
-          break;
-        }
-      } catch {
-        /* continue */
+      const rec = ecrDigestForTag(env, repo, tag);
+      if (rec.present) {
+        found = rec;
+        break;
       }
     }
-    if (!found) {
-      records.push({
+    records.push(
+      found ?? {
         repo,
         tag: headSha,
         digest: null,
         pushedAt: null,
         present: false,
-        note: 'branch tip tag not present in ECR (read-only check)',
-      });
-    }
+        note: 'branch tip tag not present in ECR',
+      },
+    );
   }
   return records;
 }
@@ -296,6 +288,8 @@ function writeAcceptanceArtifacts(args: {
   integrity: ReturnType<typeof evaluatePePhase10Integrity>;
   mutateAllowed: boolean;
   authOk: boolean;
+  rollbackInstructions: string[];
+  shipTrace: PePhase10ShipTrace | null;
 }): void {
   mkdirSync(args.dir, { recursive: true });
   const summary = {
@@ -306,10 +300,18 @@ function writeAcceptanceArtifacts(args: {
     blockedComplete: args.gate.blockedComplete,
     authOk: args.authOk,
     mutateAllowed: args.mutateAllowed,
+    plane: {
+      name: PE_PHASE_10_STAGING_EXPECTED.planeName,
+      workflowEnv: PE_PHASE_10_STAGING_EXPECTED.workflowEnv,
+      ecsCluster: PE_PHASE_10_STAGING_EXPECTED.ecsClusterName,
+      appHost: PE_PHASE_10_STAGING_EXPECTED.appHost,
+      note: 'sole live env=dev / capiro-dev (= prod path); not dead staging',
+    },
     git: args.git,
     inventory: args.inventory,
     inventoryRaw: args.inventoryRaw,
     images: args.images,
+    shipTrace: args.shipTrace,
     integrity: args.integrity,
     outcomes: args.outcomes,
     classifications: args.gate.classifications,
@@ -321,36 +323,35 @@ function writeAcceptanceArtifacts(args: {
       noEmailSend: true,
       noLlamaParse: true,
       noDeriveCommit: true,
-      noForbiddenClusterDeploy: PE_PHASE_10_STAGING_EXPECTED.forbiddenEcsClusters.every(
-        (c) => isForbiddenDeployCluster(c),
+      noForbiddenClusterDeploy: PE_PHASE_10_STAGING_EXPECTED.forbiddenEcsClusters.every((c) =>
+        isForbiddenDeployCluster(c),
       ),
-      roast: 'PE_PHASE_10_OK is not independent REVIEW PASS',
+      authorizedCluster: PE_PHASE_10_STAGING_EXPECTED.ecsClusterName,
+      roast: 'PE_PHASE_10_OK is not independent REVIEW PASS; merge #705 still separate',
     },
     rollback: {
       documented: true,
-      instructions: [
-        'If a future healthy staging mutate/deploy is authorized and must be rolled back:',
-        '1. aws ecs update-service --cluster capiro-staging --service capiro-staging-api --task-definition <prior-td-arn>',
-        '2. aws ecs update-service --cluster capiro-staging --service capiro-staging-web --task-definition <prior-td-arn>',
-        '3. Do NOT hand-edit migration history tables or run migrate resolve; restore from Aurora snapshot if schema is bad.',
-        '4. Git branch rollback of unmerged PE tip: git reset --hard <prior-phase-9-pass-tip> (local only; never force prod).',
-        '5. Never point rollback at capiro-dev or capiro-prod-os-capiro from this harness.',
-      ],
+      capturedPriors: (args.inventory.priorTaskDefs ?? []).filter((t) => !!t.arn),
+      instructions: args.rollbackInstructions,
       branchRollbackTipHint: args.git.originHeadSha ?? args.git.headSha,
     },
     honesty: {
       syntheticAlarmsNotHumanReviewed: true,
-      localPreflightNotStagingSubstitute: true,
+      localPreflightNotLiveSubstitute: true,
       blockedIsNotOk: args.gate.marker === 'PE_PHASE_10_BLOCKED',
+      exitGateUnsatisfiedWhenBlocked: args.gate.marker === 'PE_PHASE_10_BLOCKED'
+        ? !args.gate.exitGate.every((e) => e.satisfied)
+        : null,
     },
   };
   writeFileSync(resolve(args.dir, 'phase-10-acceptance-summary.json'), JSON.stringify(summary, null, 2));
 
   const md = [
-    '# Phase 10 staging acceptance record',
+    '# Phase 10 pre-merge acceptance record (sole live env=dev)',
     '',
     `- Generated (UTC): ${summary.generatedAt}`,
     `- Marker: **${args.gate.marker}**`,
+    `- Plane: \`${PE_PHASE_10_STAGING_EXPECTED.ecsClusterName}\` / workflow env=\`${PE_PHASE_10_STAGING_EXPECTED.workflowEnv}\` (authorized sole live = prod path)`,
     `- HEAD: \`${args.git.headSha}\``,
     `- origin/agent/...: \`${args.git.originHeadSha ?? 'n/a'}\``,
     `- origin/main: \`${args.git.mainSha ?? 'n/a'}\``,
@@ -361,9 +362,9 @@ function writeAcceptanceArtifacts(args: {
     '',
     '## Gate',
     args.gate.ok
-      ? '- Full PE_PHASE_10_OK (ship path) — STILL requires independent REVIEW'
+      ? '- Full PE_PHASE_10_OK (ship path) — STILL requires independent REVIEW; merge #705 separate'
       : args.gate.blockedComplete
-        ? '- **PE_PHASE_10_BLOCKED** — acceptance record complete; staging plane not shippable; not a green ship gate'
+        ? '- **PE_PHASE_10_BLOCKED** — packaging complete; exit-gate bullets that lack proofs are unsatisfied; not a green ship gate'
         : '- **PE_PHASE_10_FAIL** — see blockers',
     '',
     '## Inventory blockers',
@@ -377,6 +378,13 @@ function writeAcceptanceArtifacts(args: {
     '## Warnings',
     ...(args.gate.warnings.length ? args.gate.warnings.map((w) => `- ${w}`) : ['- (none)']),
     '',
+    '## Captured prior task defs (rollback)',
+    ...((args.inventory.priorTaskDefs ?? []).length
+      ? (args.inventory.priorTaskDefs ?? []).map(
+          (t) => `- \`${t.family}\` rev=${t.revision ?? '?'} arn=\`${t.arn ?? 'n/a'}\` image=${t.image ?? 'n/a'}`,
+        )
+      : ['- (none captured)']),
+    '',
     '## Image digests',
     ...args.images.map(
       (i) =>
@@ -385,37 +393,36 @@ function writeAcceptanceArtifacts(args: {
     '',
     '## Outcomes',
     ...args.outcomes.map(
-      (o) => `- \`${o.stepId}\` exit=${o.exitCode} class=${o.classification ?? '?'} ${(o.detail ?? '').slice(0, 160)}`,
+      (o) =>
+        `- \`${o.stepId}\` exit=${o.exitCode} class=${o.classification ?? '?'} ${(o.detail ?? '').slice(0, 160)}`,
     ),
     '',
     '## Exit-gate bullets',
-    ...args.gate.exitGate.map(
-      (e) => `- [${e.satisfied ? 'x' : ' '}] ${e.bullet}: ${e.reason}`,
-    ),
+    ...args.gate.exitGate.map((e) => `- [${e.satisfied ? 'x' : ' '}] ${e.bullet}: ${e.reason}`),
     '',
-    '## Rollback (rehearsed / documented)',
-    ...summary.rollback.instructions.map((l) => `- ${l}`),
+    '## Rollback (captured priors on authorized services)',
+    ...args.rollbackInstructions.map((l) => `- ${l}`),
     '',
     '## Safety (this run)',
     '- No Secrets Manager GetSecretValue',
     '- No email send / LlamaParse / derive --commit',
-    '- No deploy to capiro-dev or capiro-prod-os-capiro',
+    `- Deploy target authorized only: \`${PE_PHASE_10_STAGING_EXPECTED.ecsClusterName}\``,
+    `- Forbidden clusters: ${PE_PHASE_10_STAGING_EXPECTED.forbiddenEcsClusters.join(', ')}`,
     '- Email automation remains dark (policy)',
-    '- Synthetic alarm events (if any later) must stay synthetic-loud, never humanReviewed',
+    '- Synthetic alarm events stay synthetic-loud, never humanReviewed',
     '',
     '## Honesty',
     '- This file is implementer evidence, **not** independent REVIEW PASS.',
-    '- Local `verify:pe-phase-k` / Phase 9 integrity are preflight, not staging substitutes.',
-    '- PE_PHASE_10_BLOCKED means the work stopped for infrastructure — not a pass.',
+    '- Local `verify:pe-phase-k` / Phase 9 integrity are preflight, not live-env substitutes.',
+    '- PE_PHASE_10_BLOCKED means the work stopped honestly — not a pass.',
+    '- Exit-gate bullets without proofs are unchecked (no N/A auto-pass).',
     '',
   ].join('\n');
   writeFileSync(resolve(args.dir, 'README.md'), md);
   writeFileSync(resolve(args.dir, 'phase-10-acceptance-record.md'), md);
   if (args.inventoryRaw) {
-    writeFileSync(
-      resolve(args.dir, 'staging-inventory.json'),
-      JSON.stringify(args.inventoryRaw, null, 2),
-    );
+    writeFileSync(resolve(args.dir, 'staging-inventory.json'), JSON.stringify(args.inventoryRaw, null, 2));
+    writeFileSync(resolve(args.dir, 'live-plane-inventory.json'), JSON.stringify(args.inventoryRaw, null, 2));
   }
 }
 
@@ -448,7 +455,9 @@ function main(): void {
   const auth = evaluateStagingAuth(process.env);
   if (!auth.ok && !args.dryRun) {
     console.error('PE_PHASE_10_AUTH_REFUSED', auth.reason);
-    console.error('Set PE_CLOSEOUT_STAGING_OK=yes only after Neo explicit staging authorization.');
+    console.error(
+      'Set PE_CLOSEOUT_STAGING_OK=yes only after Neo explicit sole-live env=dev authorization.',
+    );
     process.exit(1);
   }
 
@@ -458,12 +467,22 @@ function main(): void {
         `- ${s.id} [${s.kind}] required=${s.required} mutate=${!!s.requiresMutate} :: ${s.command || '(in-process)'}`,
       );
     }
-    console.log('PE_PHASE_10_DRY_RUN_OK');
+    console.log('PE_PHASE_10_DRY_RUN_OK plane=capiro-dev');
     process.exit(0);
   }
 
   const ge = gitEvidence(root);
+  const env = awsEnv();
   const { inventory, raw, probeExit, probeOut } = runInventoryProbe(root);
+
+  // Always enrich priors
+  try {
+    const priors = capturePriorTaskDefs(env, inventory);
+    if (priors.length) inventory.priorTaskDefs = priors;
+  } catch (e) {
+    inventory.warnings.push(`prior TD capture: ${(e as Error).message}`);
+  }
+
   if (args.inventoryOnly) {
     console.log(JSON.stringify({ inventory, probeExit, raw }, null, 2));
     console.log(
@@ -475,10 +494,17 @@ function main(): void {
   }
 
   const mutate = evaluateStagingMutateAllowed(process.env, inventory);
-  const images = tryImageDigests(ge.headSha);
+  let images = tryImageDigests(ge.headSha, env);
   const outcomes: PePhase10StepOutcome[] = [];
+  let shipTrace: PePhase10ShipTrace | null = null;
+  let rollbackInstructions: string[] = [
+    'Capture prior task-definition ARNs before mutate, then:',
+    `aws ecs update-service --cluster ${PE_PHASE_10_STAGING_EXPECTED.ecsClusterName} --service ${PE_PHASE_10_STAGING_EXPECTED.apiServiceName} --task-definition <prior-api-td-arn>`,
+    `aws ecs update-service --cluster ${PE_PHASE_10_STAGING_EXPECTED.ecsClusterName} --service ${PE_PHASE_10_STAGING_EXPECTED.webServiceName} --task-definition <prior-web-td-arn>`,
+    'Do NOT hand-edit migration history; Aurora snapshot if schema is bad.',
+    'Never target capiro-staging or capiro-prod-os-capiro.',
+  ];
 
-  // git_sha_record
   outcomes.push({
     stepId: 'git_sha_record',
     exitCode: ge.headSha ? 0 : 1,
@@ -486,28 +512,11 @@ function main(): void {
     detail: `head=${ge.headSha} origin=${ge.originHeadSha} main=${ge.mainSha} mb=${ge.mergeBaseSha}`,
   });
 
-  // aws inventory
   outcomes.push({
     stepId: 'aws_inventory_readonly',
     exitCode: inventory.probeOk || probeExit === 0 ? 0 : probeExit || 1,
     classification: inventory.probeOk || probeExit === 0 ? 'ok' : 'branch_introduced',
-    detail: `healthyCompute=${inventory.healthyCompute} blockers=${inventory.blockers.length} probeExit=${probeExit}`,
-  });
-
-  // images
-  outcomes.push({
-    stepId: 'image_digest_record',
-    exitCode: 0,
-    classification: 'ok',
-    detail: `recorded ${images.length} repo checks; present=${images.filter((i) => i.present).length}`,
-  });
-
-  // integrity step
-  outcomes.push({
-    stepId: 'transport_absent',
-    exitCode: integrity.ok ? 0 : 1,
-    classification: integrity.ok ? 'ok' : 'branch_introduced',
-    detail: integrity.ok ? 'no forbidden paths' : integrity.blockers.join('; '),
+    detail: `healthyCompute=${inventory.healthyCompute} plane=${PE_PHASE_10_STAGING_EXPECTED.ecsClusterName} blockers=${inventory.blockers.length} probeExit=${probeExit}`,
   });
 
   // local preflights
@@ -534,40 +543,222 @@ function main(): void {
     }
   }
 
-  // Policy / env-blocked mutants and runtime
-  for (const step of PE_PHASE_10_ACCEPTANCE_STEPS) {
-    if (outcomes.some((o) => o.stepId === step.id)) continue;
-    if (
-      step.id === 'staging_auth_gate' ||
-      step.id === 'email_automation_dark' ||
-      step.id === 'rollback_rehearsal' ||
-      step.id === 'acceptance_record' ||
-      step.id === 'forbidden_production_actions'
-    ) {
-      continue; // gate.eval handles
+  outcomes.push({
+    stepId: 'transport_absent',
+    exitCode: integrity.ok ? 0 : 1,
+    classification: integrity.ok ? 'ok' : 'branch_introduced',
+    detail: integrity.ok ? 'no forbidden paths' : integrity.blockers.join('; '),
+  });
+
+  const evidenceDir = args.evidenceDir ? resolve(root, args.evidenceDir) : defaultEvidenceDir(root);
+
+  // -------- mutate ship path on authorized healthy plane --------
+  if (mutate.ok && inventory.healthyCompute) {
+    try {
+      assertAuthorizedClusterOrThrow(PE_PHASE_10_STAGING_EXPECTED.ecsClusterName);
+    } catch (e) {
+      console.error(String(e));
+      process.exit(1);
     }
-    if (
-      step.requiresMutate ||
-      ['runtime_check', 'deploy', 'migrate'].includes(step.kind) ||
-      (step.kind === 'security' &&
-        step.id !== 'email_automation_dark' &&
-        step.id !== 'forbidden_production_actions')
-    ) {
-      const c = classifyEnvBlockedStep(step, inventory, mutate.ok);
-      outcomes.push({
-        stepId: step.id,
-        exitCode: c.exitCode,
-        classification: c.classification,
-        detail: c.reason,
+
+    shipTrace = {
+      priorTaskDefs: inventory.priorTaskDefs ?? [],
+      newApiTaskDefArn: null,
+      newWebTaskDefArn: null,
+      migrateTaskArn: null,
+      images: [],
+      apiImageDigest: null,
+      webImageDigest: null,
+      deployedCluster: PE_PHASE_10_STAGING_EXPECTED.ecsClusterName,
+      notes: [],
+    };
+
+    // Images: build/push unless skip and tip already present
+    const tipPresent =
+      images.some((i) => i.repo.includes('/api') && i.present && i.tag === ge.headSha) &&
+      images.some((i) => i.repo.includes('/web') && i.present && i.tag === ge.headSha);
+
+    if (!args.skipImageBuild && !tipPresent) {
+      console.error('PE_PHASE_10_SHIP: building/pushing branch images (linux/arm64)…');
+      const built = buildAndPushBranchImages({
+        root,
+        headSha: ge.headSha,
+        inventory,
+        awsEnv: env,
+        evidenceDir,
       });
+      shipTrace.notes.push(built.detail);
+      if (!built.ok) {
+        outcomes.push({
+          stepId: 'image_digest_record',
+          exitCode: 1,
+          classification: 'branch_introduced',
+          detail: built.detail.slice(0, 800),
+        });
+        outcomes.push({
+          stepId: 'staging_deploy_images',
+          exitCode: 1,
+          classification: 'branch_introduced',
+          detail: 'deploy skipped — image build failed',
+        });
+      } else {
+        images = built.images;
+        shipTrace.images = built.images;
+        shipTrace.apiImageDigest = built.images.find((i) => i.repo.includes('/api'))?.digest ?? null;
+        shipTrace.webImageDigest = built.images.find((i) => i.repo.includes('/web'))?.digest ?? null;
+        outcomes.push({
+          stepId: 'image_digest_record',
+          exitCode: 0,
+          classification: 'ok',
+          detail: built.detail.slice(0, 800),
+        });
+      }
+    } else {
+      // refresh
+      images = tryImageDigests(ge.headSha, env);
+      // if tip missing but latest present, record latest with note (OK still needs tip for full ship)
+      shipTrace.images = images;
+      outcomes.push({
+        stepId: 'image_digest_record',
+        exitCode: images.some((i) => i.present) ? 0 : 1,
+        classification: images.some((i) => i.present) ? 'ok' : 'branch_introduced',
+        detail: `recorded ${images.length} repo checks; present=${images.filter((i) => i.present).length} skipBuild=${args.skipImageBuild}`,
+      });
+    }
+
+    const apiImg = images.find((i) => i.repo.includes('/api') && i.present);
+    const webImg = images.find((i) => i.repo.includes('/web') && i.present);
+    const reg = `${PE_PHASE_10_STAGING_EXPECTED.accountId}.dkr.ecr.${PE_PHASE_10_STAGING_EXPECTED.region}.amazonaws.com`;
+    const apiUri = apiImg?.digest
+      ? `${reg}/${PE_PHASE_10_STAGING_EXPECTED.ecrApiRepo}@${apiImg.digest}`
+      : apiImg
+        ? `${reg}/${PE_PHASE_10_STAGING_EXPECTED.ecrApiRepo}:${apiImg.tag}`
+        : null;
+    const webUri = webImg?.digest
+      ? `${reg}/${PE_PHASE_10_STAGING_EXPECTED.ecrWebRepo}@${webImg.digest}`
+      : webImg
+        ? `${reg}/${PE_PHASE_10_STAGING_EXPECTED.ecrWebRepo}:${webImg.tag}`
+        : null;
+
+    // Migrate first (additive) using api image when available
+    if (apiUri) {
+      console.error('PE_PHASE_10_SHIP: additive migrate via capiro-dev-api-migrate…');
+      const mig = runAdditiveMigrate(
+        { root, headSha: ge.headSha, inventory, awsEnv: env, evidenceDir },
+        apiUri,
+      );
+      shipTrace.migrateTaskArn = mig.taskArn;
+      shipTrace.notes.push(mig.detail);
+      outcomes.push({
+        stepId: 'staging_migrate_additive',
+        exitCode: mig.ok ? 0 : 1,
+        classification: mig.ok ? 'ok' : 'branch_introduced',
+        detail: mig.detail.slice(0, 800),
+      });
+    } else {
+      outcomes.push({
+        stepId: 'staging_migrate_additive',
+        exitCode: 1,
+        classification: 'branch_introduced',
+        detail: 'no api image URI for migrate task',
+      });
+    }
+
+    if (apiUri && webUri) {
+      console.error('PE_PHASE_10_SHIP: deploy api+web to capiro-dev…');
+      const dep = deployBranchTaskDefs(
+        { root, headSha: ge.headSha, inventory, awsEnv: env, evidenceDir },
+        apiUri,
+        webUri,
+      );
+      shipTrace.newApiTaskDefArn = dep.apiArn;
+      shipTrace.newWebTaskDefArn = dep.webArn;
+      shipTrace.notes.push(dep.detail);
+      outcomes.push({
+        stepId: 'staging_deploy_images',
+        exitCode: dep.ok ? 0 : 1,
+        classification: dep.ok ? 'ok' : 'branch_introduced',
+        detail: dep.detail.slice(0, 800),
+      });
+    } else {
+      outcomes.push({
+        stepId: 'staging_deploy_images',
+        exitCode: 1,
+        classification: 'branch_introduced',
+        detail: `missing image URIs api=${!!apiUri} web=${!!webUri}`,
+      });
+    }
+
+    // Runtime proofs pack
+    const proofs = runLocalVerifyEvidenceSteps(root, env);
+    for (const k of Object.keys(proofs)) {
+      outcomes.push(proofs[k]!);
+    }
+
+    const smoke = browserSmoke(env);
+    outcomes.push({
+      stepId: 'browser_smoke',
+      exitCode: smoke.ok ? 0 : 1,
+      classification: smoke.ok ? 'ok' : 'branch_introduced',
+      detail: smoke.detail,
+    });
+
+    rollbackInstructions = writeRollbackCapture(evidenceDir, inventory.priorTaskDefs ?? [], shipTrace);
+  } else {
+    // Discover / env_blocked packing
+    outcomes.push({
+      stepId: 'image_digest_record',
+      exitCode: 0,
+      classification: 'ok',
+      detail: `recorded ${images.length} repo checks; present=${images.filter((i) => i.present).length}`,
+    });
+    for (const step of PE_PHASE_10_ACCEPTANCE_STEPS) {
+      if (outcomes.some((o) => o.stepId === step.id)) continue;
+      if (
+        step.id === 'staging_auth_gate' ||
+        step.id === 'email_automation_dark' ||
+        step.id === 'rollback_rehearsal' ||
+        step.id === 'acceptance_record' ||
+        step.id === 'forbidden_production_actions'
+      ) {
+        continue;
+      }
+      if (
+        step.requiresMutate ||
+        ['runtime_check', 'deploy', 'migrate'].includes(step.kind) ||
+        (step.kind === 'security' &&
+          step.id !== 'email_automation_dark' &&
+          step.id !== 'forbidden_production_actions')
+      ) {
+        const c = classifyEnvBlockedStep(step, inventory, mutate.ok);
+        outcomes.push({
+          stepId: step.id,
+          exitCode: c.exitCode,
+          classification: c.classification,
+          detail: c.reason,
+        });
+      }
+    }
+    if (inventory.priorTaskDefs?.length) {
+      rollbackInstructions = writeRollbackCapture(
+        evidenceDir,
+        inventory.priorTaskDefs,
+        {
+          priorTaskDefs: inventory.priorTaskDefs,
+          newApiTaskDefArn: null,
+          newWebTaskDefArn: null,
+          migrateTaskArn: null,
+          images,
+          apiImageDigest: null,
+          webImageDigest: null,
+          deployedCluster: PE_PHASE_10_STAGING_EXPECTED.ecsClusterName,
+          notes: ['discover-only — no mutate'],
+        },
+      );
     }
   }
 
-  const evidenceDir = args.evidenceDir
-    ? resolve(root, args.evidenceDir)
-    : defaultEvidenceDir(root);
-
-  // Write record first so gate sees acceptanceRecordWritten
+  // Write record
   const preliminaryGate = evaluatePePhase10Gate({
     authOk: auth.ok,
     inventory,
@@ -592,6 +783,8 @@ function main(): void {
     integrity,
     mutateAllowed: mutate.ok,
     authOk: auth.ok,
+    rollbackInstructions,
+    shipTrace,
   });
 
   outcomes.push({
@@ -614,7 +807,6 @@ function main(): void {
     emailAutomationDark: true,
   });
 
-  // refresh summary with final gate
   writeAcceptanceArtifacts({
     dir: evidenceDir,
     git: ge,
@@ -626,9 +818,25 @@ function main(): void {
     integrity,
     mutateAllowed: mutate.ok,
     authOk: auth.ok,
+    rollbackInstructions,
+    shipTrace,
   });
 
-  console.log(JSON.stringify({ marker: gate.marker, blockers: gate.blockers, warnings: gate.warnings.slice(0, 20) }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        marker: gate.marker,
+        plane: PE_PHASE_10_STAGING_EXPECTED.ecsClusterName,
+        healthyCompute: inventory.healthyCompute,
+        mutateAllowed: mutate.ok,
+        blockers: gate.blockers,
+        exitGate: gate.exitGate,
+        warnings: gate.warnings.slice(0, 20),
+      },
+      null,
+      2,
+    ),
+  );
   console.log(gate.marker);
   console.log(`evidence=${evidenceDir}`);
   if (probeOut && process.env.PE_PHASE_10_VERBOSE) {
