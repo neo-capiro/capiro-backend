@@ -82,30 +82,54 @@ The raw internal slug is never echoed to the user. Unknown lifecycle values cont
 
 The permanent `memory-governance-ci` web matrix includes this test file.
 
+## Manual accessibility fixture
+
+A development-only fixture is available at:
+
+```text
+http://127.0.0.1:5173/context-inspector-a11y-fixture.html
+```
+
+It renders two inspectors without authentication or an API dependency:
+
+- a normal inspector with included/excluded items, one restricted aggregate, a known authority, an unknown authority, an unknown lifecycle, and **Review context**; and
+- a degraded inspector with assertive announcement content.
+
+The fixture files are:
+
+```text
+apps/web/context-inspector-a11y-fixture.html
+apps/web/src/components/trust/ContextInspector.a11y-fixture.tsx
+```
+
+They exist only to make the manual gate deterministic and are not linked from the application.
+
 ## Manual acceptance checklist
 
-On the exact validation head:
+On the exact validation head, start the Vite development server and open the fixture URL above:
 
-1. Render at least two inspectors on one page.
+1. Confirm exactly two inspectors are visible.
 2. Tab to each summary and verify a clearly visible focus outline.
 3. Press Enter to expand and collapse each inspector.
 4. Press Space to expand and collapse each inspector.
 5. Confirm focus does not move unexpectedly.
-6. With a screen reader, verify the summary announces the inspector label, included count, excluded count, and degraded state when present.
-7. Expand a degraded inspector and verify the degraded message is announced.
-8. Confirm Included and Excluded headings are navigable and uniquely identified.
-9. Confirm restricted exclusions expose only an aggregate count.
-10. Confirm an unknown authority is spoken and displayed as “Unknown,” not as its internal slug.
+6. With NVDA or Windows Narrator, verify the primary summary announces its label, two included items, two excluded items, and collapsed/expanded state.
+7. Verify the degraded summary announces its label and degraded state.
+8. Expand the degraded inspector and verify the degraded message is announced.
+9. Navigate by heading and confirm Included and Excluded headings are distinct for each inspector.
+10. Confirm the restricted exclusion exposes only `1 restricted item`; its fixture ID and label must not appear.
+11. Confirm unknown authority and lifecycle values display and are spoken as `Unknown`, not as internal slugs.
+12. Tab to **Review context** and verify the same visible focus treatment.
 
 ## Acceptance gate
 
 Phase 14 passes only when:
 
-- web typecheck passes;
+- web typecheck and production build pass;
 - the Context Inspector test suite passes, including axe;
 - multiple-instance ID and ARIA reference tests pass;
-- keyboard and focus checks pass manually;
-- screen-reader checks pass manually;
+- keyboard and focus checks pass manually using the fixture;
+- screen-reader checks pass manually using the fixture;
 - formatting and diff integrity pass;
 - the working tree is clean; and
 - PR #679 remains draft, open, mergeable, synchronized with `main`, and unmerged.
@@ -114,7 +138,7 @@ Phase 14 passes only when:
 
 No data rollback exists or is required.
 
-If the inspector has a rendering regression, revert the Phase 14 component, test, and component-scoped stylesheet changes. Context packets, governed memory, audit evidence, and authorization records remain untouched.
+If the inspector has a rendering regression, revert the Phase 14 component, test, component-scoped stylesheet, and manual fixture changes. Context packets, governed memory, audit evidence, and authorization records remain untouched.
 
 Do not alter packet data or restricted exclusion evidence as a UI rollback mechanism.
 
