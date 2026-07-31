@@ -1,0 +1,43 @@
+name: phase9-format
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/phase9-format.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format-phase9:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/meriv2-world-class-closeout
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Format exact Phase 9 core files
+        run: |
+          pnpm exec prettier --write \
+            packages/meriv2-core/src/context/compiler.ts \
+            packages/meriv2-core/src/memory/governance.ts \
+            packages/meriv2-core/src/memory/governance.spec.ts
+      - name: Commit formatting only
+        run: |
+          git config user.name "capiro-phase9-bot"
+          git config user.email "noreply@capiro.ai"
+          git add \
+            packages/meriv2-core/src/context/compiler.ts \
+            packages/meriv2-core/src/memory/governance.ts \
+            packages/meriv2-core/src/memory/governance.spec.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "style(meriv2): format governed lifecycle implementation"
+          git push origin HEAD:agent/meriv2-world-class-closeout
