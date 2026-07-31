@@ -51,6 +51,7 @@ jobs:
           src/context/context-compiler-v2.service.spec.ts
           src/context/context-persistence-boundary.spec.ts
           src/engagement/governed-engagement.factory.spec.ts
+          src/intelligence/alert-memo/governed-alert-deliverables.factory.spec.ts
           src/workspace-assistant/workspace-assistant.context-v2.spec.ts
           src/workspace-assistant/workspace-assistant.parity.spec.ts
           src/meri/governed-meri-research.factory.spec.ts
