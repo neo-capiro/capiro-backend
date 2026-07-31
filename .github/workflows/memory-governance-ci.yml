@@ -1,9 +1,9 @@
 # Institutional-memory governance cumulative release gate.
 #
-# Durable Phase 1-10 acceptance matrix. It runs the full governed-memory,
-# projection, truthful persistence, rollout, lifecycle, policy-authority, and
-# surface contract on one exact head so a later phase cannot silently invalidate
-# earlier acceptance evidence.
+# Durable Phase 1-11 acceptance matrix. It runs the full governed-memory,
+# projection, truthful persistence, rollout, lifecycle, policy-authority,
+# reversible backfill, and surface contract on one exact head so a later phase
+# cannot silently invalidate earlier acceptance evidence.
 name: memory-governance-ci
 
 on:
@@ -11,7 +11,7 @@ on:
     branches: [main]
   push:
     # The published closeout branch is included so this cumulative gate can run
-    # independently of a stale, inactive pull_request workflow registration.
+    # independently of the current GitHub Actions BuildFailed registration defect.
     # This adds validation only; it does not weaken or replace the PR gate.
     branches: [main, agent/meriv2-world-class-closeout]
   workflow_dispatch:
@@ -20,9 +20,9 @@ permissions:
   contents: read
 
 jobs:
-  governed-memory-phases-1-10:
+  governed-memory-phases-1-11:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 55
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -64,16 +64,20 @@ jobs:
       - name: Prove policy-pack reviewer concurrency and rollback transitions
         run: bash apps/api/scripts/test-policy-pack-lifecycle-concurrency.sh
 
+      - name: Prove governance backfill prepare, execute, drift preservation, and rollback
+        run: bash apps/api/scripts/test-memory-governance-backfill-rollback.sh
+
       - name: Typecheck the full repository dependency graph
         run: pnpm turbo run typecheck
 
       - name: Typecheck projection-worker infrastructure
         run: pnpm --filter @capiro/infra-cdk typecheck
 
-      - name: Test API governed-memory Phases 1-10
+      - name: Test API governed-memory Phases 1-11
         run: >
           pnpm --filter @capiro/api exec jest --ci --silent --runInBand
           src/memory
+          scripts/lib/memory-governance-backfill.spec.ts
           src/context/context-compiler-v2.service.spec.ts
           src/context/context-persistence-boundary.spec.ts
           src/engagement/governed-engagement.factory.spec.ts
@@ -90,6 +94,7 @@ jobs:
           src/prisma/memory-projection-worker-infrastructure.spec.ts
           src/prisma/migration-policy-pack-action-authority.spec.ts
           src/prisma/migration-policy-pack-lifecycle-concurrency.spec.ts
+          src/prisma/migration-memory-governance-backfill-jobs.spec.ts
           src/meri/meri-policy-pack.service.spec.ts
           src/meri/meri-policy-pack.switch.spec.ts
           src/meri/meri-action-proposal.service.spec.ts
