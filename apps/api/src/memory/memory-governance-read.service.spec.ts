@@ -79,4 +79,17 @@ describe('MemoryGovernanceReadService', () => {
     expect(source).toContain('wallExclusionSql');
     expect(source).not.toContain('a.created_at AS "occurredAt"');
   });
+
+  it('filters another user private item, candidate, and Clio projection identities', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'src/memory/memory-governance-read.service.ts'),
+      'utf8',
+    );
+    expect(source).toContain("mi.visibility = 'tenant'");
+    expect(source).toContain("mc.scope NOT IN ('personal','user_private')");
+    expect(source).toContain('mc.proposed_by = ${userId}::uuid');
+    expect(source).toContain("cm.scope <> 'user_private'");
+    expect(source).toContain('cm.owner_user_id = ${userId}::uuid');
+    expect(source.match(/privateProjectionSql\(ctx\.userId\)/g)?.length).toBeGreaterThanOrEqual(3);
+  });
 });
