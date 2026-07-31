@@ -1,9 +1,9 @@
 # Institutional-memory governance cumulative release gate.
 #
-# Durable Phase 1-11 acceptance matrix. It runs the full governed-memory,
+# Durable Phase 1-12 acceptance matrix. It runs the full governed-memory,
 # projection, truthful persistence, rollout, lifecycle, policy-authority,
-# reversible backfill, and surface contract on one exact head so a later phase
-# cannot silently invalidate earlier acceptance evidence.
+# reversible backfill, grant-scoped review, and surface contract on one exact
+# head so a later phase cannot silently invalidate earlier acceptance evidence.
 name: memory-governance-ci
 
 on:
@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 jobs:
-  governed-memory-phases-1-11:
+  governed-memory-phases-1-12:
     runs-on: ubuntu-latest
     timeout-minutes: 55
     services:
@@ -81,7 +81,7 @@ jobs:
       - name: Typecheck projection-worker infrastructure
         run: pnpm --filter @capiro/infra-cdk typecheck
 
-      - name: Test API governed-memory Phases 1-11
+      - name: Test API governed-memory Phases 1-12
         run: >
           pnpm --filter @capiro/api exec jest --ci --silent --runInBand
           src/memory
@@ -140,10 +140,11 @@ jobs:
           src/checks/checks.verification.spec.ts
           test/steering-memories.spec.ts
 
-      - name: Test Settings, Policy Packs, and Context Inspector contracts
+      - name: Test Settings, client review, Policy Packs, and Context Inspector contracts
         run: >
           pnpm --filter @capiro/web exec vitest run
           src/components/MemoryFileEditor.phase3.test.ts
+          src/components/MemoryReviewQueue.test.ts
           src/components/trust/ContextInspector.test.tsx
           src/pages/settings/PolicyPacksPage.test.tsx
           --testTimeout=20000 --hookTimeout=20000
