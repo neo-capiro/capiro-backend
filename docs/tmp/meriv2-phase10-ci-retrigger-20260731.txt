@@ -1,0 +1,7 @@
+MeriV2 Phase 10 CI retrigger evidence only.
+
+Reason: workflow id 324351375 is already inactive (GitHub API returns "Unable to disable a workflow that is not active"). This commit makes no production-runtime, schema, migration, feature-flag, Program Element, customer-data, or deployment change. It exists solely to request a fresh pull_request check set on the current closeout branch after confirming the stale temporary workflow is inactive.
+
+Branch before retrigger: agent/meriv2-world-class-closeout@9a97afb825fda7b38a1f0960c35affc7896236df
+Current main baseline: 3dcb12f823774b6fae8578dc56fc122bf9a0879e
+Moving-main comparison before retrigger: 0 commits behind.
