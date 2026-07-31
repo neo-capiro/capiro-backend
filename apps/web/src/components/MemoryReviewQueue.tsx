@@ -80,11 +80,7 @@ export function MemoryReviewQueue() {
   });
 
   const decision = useMutation({
-    mutationFn: async (input: {
-      id: string;
-      decision: 'approve' | 'reject';
-      reason?: string;
-    }) =>
+    mutationFn: async (input: { id: string; decision: 'approve' | 'reject'; reason?: string }) =>
       (
         await api.post(`/api/memory/review/candidates/${input.id}/${input.decision}`, {
           ...(input.reason ? { reason: input.reason } : {}),
@@ -210,7 +206,8 @@ export function MemoryReviewQueue() {
         destroyOnClose
       >
         <Paragraph type="secondary">
-          The reason becomes bounded transition evidence; proposal content is not copied into the audit ledger.
+          The reason becomes bounded transition evidence; proposal content is not copied into the
+          audit ledger.
         </Paragraph>
         <Input.TextArea
           aria-label="Rejection reason"

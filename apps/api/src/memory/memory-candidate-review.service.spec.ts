@@ -257,7 +257,9 @@ describe('MemoryCandidateReviewService', () => {
         memoryItemId: 'item-2',
         controllingItemId: 'item-2',
       });
-      await expect(h.service.reject(ctx, 'candidate-1', 'Source is no longer correct.')).resolves.toEqual({
+      await expect(
+        h.service.reject(ctx, 'candidate-1', 'Source is no longer correct.'),
+      ).resolves.toEqual({
         candidateKind: 'correction',
         candidateId: 'candidate-1',
         outcome: 'rejected',

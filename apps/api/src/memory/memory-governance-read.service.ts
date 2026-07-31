@@ -7,12 +7,7 @@ import { MemoryCandidateReviewService } from './memory-candidate-review.service.
 import { memoryGovernanceCenterEnabled } from './memory-governance-center.switch.js';
 import { fetchDeniedClientIds, wallExclusionSql } from './memory-wall.helpers.js';
 
-export type MemoryGovernanceBucket =
-  | 'all'
-  | 'active'
-  | 'review_due'
-  | 'conflicts'
-  | 'history';
+export type MemoryGovernanceBucket = 'all' | 'active' | 'review_due' | 'conflicts' | 'history';
 
 interface ItemRow {
   id: string;
@@ -204,9 +199,7 @@ export class MemoryGovernanceReadService {
           AND g.expires_at > now()
           ${Prisma.raw(wallExclusionSql(denied, 'g.client_id'))}
       `);
-      const projectionRows = await tx.$queryRaw<
-        Array<{ projectionAttention: bigint }>
-      >(Prisma.sql`
+      const projectionRows = await tx.$queryRaw<Array<{ projectionAttention: bigint }>>(Prisma.sql`
         SELECT count(*) AS "projectionAttention"
         FROM memory_cleanup_outbox o
         LEFT JOIN memory_items mi
@@ -216,9 +209,7 @@ export class MemoryGovernanceReadService {
         WHERE o.tenant_id = ${ctx.tenantId}::uuid
           AND o.status IN ('failed','dead_letter')
           ${privateProjectionSql(ctx.userId)}
-          ${Prisma.raw(
-            wallExclusionSql(denied, 'COALESCE(mi.client_id, cm.client_id)'),
-          )}
+          ${Prisma.raw(wallExclusionSql(denied, 'COALESCE(mi.client_id, cm.client_id)'))}
       `);
       const item = itemRows[0];
       return {
@@ -540,9 +531,7 @@ export class MemoryGovernanceReadService {
           ON cm.id = o.clio_memory_id AND cm.tenant_id = o.tenant_id
         WHERE o.tenant_id = ${ctx.tenantId}::uuid
           ${privateProjectionSql(ctx.userId)}
-          ${Prisma.raw(
-            wallExclusionSql(denied, 'COALESCE(mi.client_id, cm.client_id)'),
-          )}
+          ${Prisma.raw(wallExclusionSql(denied, 'COALESCE(mi.client_id, cm.client_id)'))}
       `);
       const failures = await tx.$queryRaw<
         Array<ProjectionJobRow & { memoryItemId: string | null; title: string | null }>
@@ -568,9 +557,7 @@ export class MemoryGovernanceReadService {
         WHERE o.tenant_id = ${ctx.tenantId}::uuid
           AND o.status IN ('failed','dead_letter')
           ${privateProjectionSql(ctx.userId)}
-          ${Prisma.raw(
-            wallExclusionSql(denied, 'COALESCE(mi.client_id, cm.client_id)'),
-          )}
+          ${Prisma.raw(wallExclusionSql(denied, 'COALESCE(mi.client_id, cm.client_id)'))}
         ORDER BY COALESCE(o.dead_lettered_at, o.next_attempt_at, o.created_at) DESC
         LIMIT 50
       `);
@@ -738,11 +725,7 @@ export class MemoryGovernanceReadService {
     `);
   }
 
-  private conflictMembers(
-    tx: Prisma.TransactionClient,
-    tenantId: string,
-    conflictGroupId: string,
-  ) {
+  private conflictMembers(tx: Prisma.TransactionClient, tenantId: string, conflictGroupId: string) {
     return tx.$queryRaw<ConflictMemberRow[]>(Prisma.sql`
       SELECT id::text AS id,
              title,

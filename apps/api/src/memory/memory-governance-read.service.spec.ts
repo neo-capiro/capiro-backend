@@ -90,8 +90,8 @@ describe('MemoryGovernanceReadService', () => {
     expect(source).toContain('mc.proposed_by = ${userId}::uuid');
     expect(source).toContain("cm.scope <> 'user_private'");
     expect(source).toContain('cm.owner_user_id = ${userId}::uuid');
-    expect((source.match(/privateProjectionSql\(ctx\.userId\)/g) ?? []).length).toBeGreaterThanOrEqual(
-      3,
-    );
+    expect(
+      (source.match(/privateProjectionSql\(ctx\.userId\)/g) ?? []).length,
+    ).toBeGreaterThanOrEqual(3);
   });
 });

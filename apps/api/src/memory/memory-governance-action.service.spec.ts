@@ -47,14 +47,16 @@ function withCenter<T>(enabled: boolean, fn: () => Promise<T>): Promise<T> {
   });
 }
 
-function harness(overrides: {
-  governedStatus?: string;
-  assertedByUserId?: string | null;
-  approvedByUserId?: string | null;
-  secondApprovedByUserId?: string | null;
-  operationAllowed?: boolean;
-  forgetResult?: { found: boolean; blockedByLegalHold?: boolean; title?: string };
-} = {}) {
+function harness(
+  overrides: {
+    governedStatus?: string;
+    assertedByUserId?: string | null;
+    approvedByUserId?: string | null;
+    secondApprovedByUserId?: string | null;
+    operationAllowed?: boolean;
+    forgetResult?: { found: boolean; blockedByLegalHold?: boolean; title?: string };
+  } = {},
+) {
   const locked = {
     id: ITEM,
     title: 'Firm Compass',
@@ -74,8 +76,8 @@ function harness(overrides: {
     $queryRawUnsafe: jest.fn(async () => [{ allowed: true }]),
   };
   const prisma = {
-    withTenantUser: jest.fn(async (_tenant: string, _user: string, fn: (value: typeof tx) => unknown) =>
-      fn(tx),
+    withTenantUser: jest.fn(
+      async (_tenant: string, _user: string, fn: (value: typeof tx) => unknown) => fn(tx),
     ),
   } as unknown as PrismaService;
   const authorization = {
@@ -98,8 +100,8 @@ function harness(overrides: {
   } as unknown as MemoryAuthorizationService;
   const record = jest.fn(async () => 'audit-1');
   const transitions = { record } as unknown as MemoryTransitionAuditService;
-  const forgetMemory = jest.fn(async () =>
-    overrides.forgetResult ?? { found: true, title: 'Firm Compass' },
+  const forgetMemory = jest.fn(
+    async () => overrides.forgetResult ?? { found: true, title: 'Firm Compass' },
   );
   const store = { forgetMemory } as unknown as MemoryStoreService;
   return {
@@ -135,15 +137,13 @@ function retryHarness(
   const auditCreate = jest.fn(async () => ({ id: 'audit-retry' }));
   const tx = {
     $queryRaw: jest.fn(async () => [job]),
-    $queryRawUnsafe: jest.fn(async () =>
-      input.wallAllowed === false ? [] : [{ allowed: true }],
-    ),
+    $queryRawUnsafe: jest.fn(async () => (input.wallAllowed === false ? [] : [{ allowed: true }])),
     $executeRaw: jest.fn(async () => 1),
     auditLog: { create: auditCreate },
   };
   const prisma = {
-    withTenantUser: jest.fn(async (_tenant: string, _user: string, fn: (value: typeof tx) => unknown) =>
-      fn(tx),
+    withTenantUser: jest.fn(
+      async (_tenant: string, _user: string, fn: (value: typeof tx) => unknown) => fn(tx),
     ),
   } as unknown as PrismaService;
   const authorization = {
@@ -299,9 +299,7 @@ describe('MemoryGovernanceActionService', () => {
   it('does not requeue a restricted client projection', async () => {
     await withCenter(true, async () => {
       const h = retryHarness({ wallAllowed: false });
-      await expect(h.service.retryProjection(ctx, JOB)).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      await expect(h.service.retryProjection(ctx, JOB)).rejects.toBeInstanceOf(ForbiddenException);
       expect(h.tx.$executeRaw).not.toHaveBeenCalled();
       expect(h.auditCreate).not.toHaveBeenCalled();
     });
@@ -314,9 +312,7 @@ describe('MemoryGovernanceActionService', () => {
         clioScope: 'user_private',
         clioOwnerUserId: '77777777-7777-4777-8777-777777777777',
       });
-      await expect(h.service.retryProjection(ctx, JOB)).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      await expect(h.service.retryProjection(ctx, JOB)).rejects.toBeInstanceOf(ForbiddenException);
       expect(h.authorization.loadItemInTx).not.toHaveBeenCalled();
       expect(h.tx.$executeRaw).not.toHaveBeenCalled();
     });
@@ -325,9 +321,7 @@ describe('MemoryGovernanceActionService', () => {
   it('refuses to reopen completed or superseded projection jobs', async () => {
     await withCenter(true, async () => {
       const h = retryHarness({ status: 'completed' });
-      await expect(h.service.retryProjection(ctx, JOB)).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(h.service.retryProjection(ctx, JOB)).rejects.toBeInstanceOf(BadRequestException);
       expect(h.tx.$executeRaw).not.toHaveBeenCalled();
     });
   });

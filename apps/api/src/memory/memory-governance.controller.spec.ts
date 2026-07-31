@@ -24,9 +24,7 @@ describe('MemoryGovernanceController', () => {
   it('accepts only the controlled bucket vocabulary', () => {
     expect(normalizeMemoryGovernanceBucket(undefined)).toBe('all');
     expect(normalizeMemoryGovernanceBucket('review_due')).toBe('review_due');
-    expect(() => normalizeMemoryGovernanceBucket('restricted-client')).toThrow(
-      BadRequestException,
-    );
+    expect(() => normalizeMemoryGovernanceBucket('restricted-client')).toThrow(BadRequestException);
   });
 
   it('delegates only server context, ids, and bounded user reasons', async () => {
@@ -65,11 +63,7 @@ describe('MemoryGovernanceController', () => {
     expect(governance.retryProjection).toHaveBeenCalledWith(ctx, 'job-1');
     expect(governance.listClients).toHaveBeenCalledWith(ctx);
     expect(governance.confirm).toHaveBeenCalledWith(ctx, 'item-1');
-    expect(governance.markStale).toHaveBeenCalledWith(
-      ctx,
-      'item-1',
-      'Needs reconfirmation.',
-    );
+    expect(governance.markStale).toHaveBeenCalledWith(ctx, 'item-1', 'Needs reconfirmation.');
     expect(governance.revoke).toHaveBeenCalledWith(ctx, 'item-1', 'No longer applicable.');
     expect(governance.secondApprove).toHaveBeenCalledWith(ctx, 'item-1');
   });

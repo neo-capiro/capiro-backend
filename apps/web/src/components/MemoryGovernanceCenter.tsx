@@ -127,21 +127,23 @@ interface GovernanceConflictMember {
 
 interface GovernanceDetailResponse {
   enabled: boolean;
-  item: (GovernanceItem & {
-    slug: string;
-    sections: Array<{ key?: string; heading?: string; owner?: string; body?: string }>;
-    provenance: Record<string, unknown>;
-    temporal: Record<string, unknown>;
-    approvals: Record<string, unknown>;
-    governance: Record<string, unknown>;
-    origin: Record<string, unknown>;
-    actors: Record<string, { name: string; email: string }>;
-    versions: Array<Record<string, unknown> & { id: string; createdAt: string }>;
-    transitions: Array<Record<string, unknown> & { id: string; occurredAt: string }>;
-    projection: Array<Record<string, unknown> & { id: string; createdAt: string }>;
-    conflictMembers: GovernanceConflictMember[];
-    createdAt: string;
-  }) | null;
+  item:
+    | (GovernanceItem & {
+        slug: string;
+        sections: Array<{ key?: string; heading?: string; owner?: string; body?: string }>;
+        provenance: Record<string, unknown>;
+        temporal: Record<string, unknown>;
+        approvals: Record<string, unknown>;
+        governance: Record<string, unknown>;
+        origin: Record<string, unknown>;
+        actors: Record<string, { name: string; email: string }>;
+        versions: Array<Record<string, unknown> & { id: string; createdAt: string }>;
+        transitions: Array<Record<string, unknown> & { id: string; occurredAt: string }>;
+        projection: Array<Record<string, unknown> & { id: string; createdAt: string }>;
+        conflictMembers: GovernanceConflictMember[];
+        createdAt: string;
+      })
+    | null;
 }
 
 interface GovernanceTransition {
@@ -360,11 +362,7 @@ export function MemoryGovernanceCenter({ isAdmin }: { isAdmin: boolean }) {
   const detail = useQuery<GovernanceDetailResponse>({
     queryKey: ['memory-governance-item', selectedId],
     queryFn: async () =>
-      (
-        await api.get<GovernanceDetailResponse>(
-          `/api/memory/governance/items/${selectedId}`,
-        )
-      ).data,
+      (await api.get<GovernanceDetailResponse>(`/api/memory/governance/items/${selectedId}`)).data,
     enabled: Boolean(selectedId),
   });
 
@@ -453,7 +451,10 @@ export function MemoryGovernanceCenter({ isAdmin }: { isAdmin: boolean }) {
       ) : item.key === 'grants' ? (
         <MemoryGrantManager />
       ) : item.key === 'transitions' ? (
-        <TransitionPanel data={transitions.data?.transitions ?? []} loading={transitions.isLoading} />
+        <TransitionPanel
+          data={transitions.data?.transitions ?? []}
+          loading={transitions.isLoading}
+        />
       ) : item.key === 'projection' ? (
         <ProjectionPanel
           data={projection.data}
@@ -482,7 +483,11 @@ export function MemoryGovernanceCenter({ isAdmin }: { isAdmin: boolean }) {
             Every action is re-authorized by the server.
           </Text>
         </div>
-        <Tabs activeKey={tab} onChange={(key) => setTab(key as GovernanceTabKey)} items={tabItems} />
+        <Tabs
+          activeKey={tab}
+          onChange={(key) => setTab(key as GovernanceTabKey)}
+          items={tabItems}
+        />
       </Space>
 
       <MemoryDetailDrawer
@@ -626,12 +631,22 @@ function MemoryDetailDrawer({
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <Space wrap>{renderActions(data, onAction)}</Space>
           <Descriptions bordered size="small" column={{ xs: 1, sm: 1, md: 2 }}>
-            <Descriptions.Item label="Scope">{data.clientName ?? humanize(data.memoryScope)}</Descriptions.Item>
-            <Descriptions.Item label="Status">{governanceStatusLabel(data.governedStatus)}</Descriptions.Item>
+            <Descriptions.Item label="Scope">
+              {data.clientName ?? humanize(data.memoryScope)}
+            </Descriptions.Item>
+            <Descriptions.Item label="Status">
+              {governanceStatusLabel(data.governedStatus)}
+            </Descriptions.Item>
             <Descriptions.Item label="Class">{humanize(data.memoryClass)}</Descriptions.Item>
-            <Descriptions.Item label="Authority">{governanceAuthorityLabel(data.memoryAuthority)}</Descriptions.Item>
-            <Descriptions.Item label="Confidence">{data.confidence ?? 'Unscored'}</Descriptions.Item>
-            <Descriptions.Item label="Legal hold">{data.legalHold ? 'Yes' : 'No'}</Descriptions.Item>
+            <Descriptions.Item label="Authority">
+              {governanceAuthorityLabel(data.memoryAuthority)}
+            </Descriptions.Item>
+            <Descriptions.Item label="Confidence">
+              {data.confidence ?? 'Unscored'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Legal hold">
+              {data.legalHold ? 'Yes' : 'No'}
+            </Descriptions.Item>
             <Descriptions.Item label="Conflict">{humanize(data.conflictStatus)}</Descriptions.Item>
             <Descriptions.Item label="Review state">{humanize(data.reviewState)}</Descriptions.Item>
           </Descriptions>
@@ -649,9 +664,15 @@ function MemoryDetailDrawer({
             )}
           </DetailBlock>
           <ObjectDescriptions title="Provenance" value={data.provenance} />
-          <ObjectDescriptions title="Approvals" value={withActorNames(data.approvals, data.actors)} />
+          <ObjectDescriptions
+            title="Approvals"
+            value={withActorNames(data.approvals, data.actors)}
+          />
           <ObjectDescriptions title="Temporal validity" value={data.temporal} />
-          <ObjectDescriptions title="Governance" value={withActorNames(data.governance, data.actors)} />
+          <ObjectDescriptions
+            title="Governance"
+            value={withActorNames(data.governance, data.actors)}
+          />
           <ObjectDescriptions title="Origin trace" value={data.origin} />
 
           <DetailBlock title="Versions">
@@ -663,7 +684,8 @@ function MemoryDetailDrawer({
                   <Space direction="vertical" size={0}>
                     <Text strong>{String(version.title ?? version.id)}</Text>
                     <Text type="secondary">
-                      {governanceStatusLabel(String(version.governedStatus ?? ''))} · {dateText(String(version.createdAt))}
+                      {governanceStatusLabel(String(version.governedStatus ?? ''))} ·{' '}
+                      {dateText(String(version.createdAt))}
                     </Text>
                   </Space>
                 </List.Item>
@@ -733,10 +755,20 @@ function renderActions(
   const actions: Array<[boolean, GovernanceItemAction, string, ReactNode, boolean?]> = [
     [item.capabilities.confirm, 'confirm', 'Confirm', <CheckOutlined />],
     [item.capabilities.markStale, 'mark_stale', 'Mark stale', <HistoryOutlined />],
-    [item.capabilities.secondApprove, 'second_approve', 'Second approve', <SafetyCertificateOutlined />],
+    [
+      item.capabilities.secondApprove,
+      'second_approve',
+      'Second approve',
+      <SafetyCertificateOutlined />,
+    ],
     [item.capabilities.proposeCorrection, 'correction', 'Suggest correction', <EditOutlined />],
     [item.capabilities.restore, 'restore', 'Restore as new version', <SyncOutlined />],
-    [item.capabilities.resolveConflict, 'resolve_conflict', 'Resolve conflict', <SafetyCertificateOutlined />],
+    [
+      item.capabilities.resolveConflict,
+      'resolve_conflict',
+      'Resolve conflict',
+      <SafetyCertificateOutlined />,
+    ],
     [item.capabilities.revoke, 'revoke', 'Revoke', <StopOutlined />, true],
   ];
   return actions
@@ -780,7 +812,9 @@ function GovernanceActionModal({
           <Form.Item
             name="content"
             label="Corrected memory"
-            rules={[{ required: true, whitespace: true, message: 'Corrected content is required.' }]}
+            rules={[
+              { required: true, whitespace: true, message: 'Corrected content is required.' },
+            ]}
           >
             <Input.TextArea rows={8} maxLength={20_000} showCount />
           </Form.Item>
@@ -843,7 +877,8 @@ function MemoryGrantManager() {
     mutationFn: async (values: GrantFormValues) => {
       if (!clientId) throw new Error('Select a client.');
       const expiresAt = new Date(values.expiresAt);
-      if (!Number.isFinite(expiresAt.getTime())) throw new Error('Expiration must be a valid date.');
+      if (!Number.isFinite(expiresAt.getTime()))
+        throw new Error('Expiration must be a valid date.');
       return (
         await api.post(`/api/memory/clients/${clientId}/grants`, {
           ...values,
@@ -906,11 +941,23 @@ function MemoryGrantManager() {
               title: 'Permissions',
               dataIndex: 'permissions',
               render: (values: string[]) => (
-                <Space wrap>{values.map((value) => <Tag key={value}>{humanize(value)}</Tag>)}</Space>
+                <Space wrap>
+                  {values.map((value) => (
+                    <Tag key={value}>{humanize(value)}</Tag>
+                  ))}
+                </Space>
               ),
             },
-            { title: 'Status', dataIndex: 'status', render: (value: string) => <Tag>{humanize(value)}</Tag> },
-            { title: 'Expires', dataIndex: 'expiresAt', render: (value: string | null) => dateText(value) },
+            {
+              title: 'Status',
+              dataIndex: 'status',
+              render: (value: string) => <Tag>{humanize(value)}</Tag>,
+            },
+            {
+              title: 'Expires',
+              dataIndex: 'expiresAt',
+              render: (value: string | null) => dateText(value),
+            },
             { title: 'Reason', dataIndex: 'reason' },
             {
               title: 'Action',
@@ -1000,7 +1047,9 @@ function ProjectionPanel({
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <Space wrap>
         {Object.entries(data.counts).map(([key, value]) => (
-          <Card key={key} size="small"><Statistic title={humanize(key)} value={value} /></Card>
+          <Card key={key} size="small">
+            <Statistic title={humanize(key)} value={value} />
+          </Card>
         ))}
       </Space>
       {(data.counts.failed > 0 || data.counts.deadLetter > 0) && (
@@ -1029,7 +1078,9 @@ function ProjectionPanel({
           >
             <Space direction="vertical" size={0}>
               <Text strong>{failure.title ?? failure.memoryItemId ?? failure.id}</Text>
-              <Text>{humanize(failure.operation)} · {governanceStatusLabel(failure.status)}</Text>
+              <Text>
+                {humanize(failure.operation)} · {governanceStatusLabel(failure.status)}
+              </Text>
               <Text type="danger">{failure.lastError ?? 'Unknown projection error'}</Text>
             </Space>
           </List.Item>
@@ -1049,7 +1100,9 @@ function DetailBlock({ title, children }: { title: string; children: ReactNode }
 }
 
 function ObjectDescriptions({ title, value }: { title: string; value: Record<string, unknown> }) {
-  const entries = Object.entries(value).filter(([, item]) => item !== null && item !== undefined && item !== '');
+  const entries = Object.entries(value).filter(
+    ([, item]) => item !== null && item !== undefined && item !== '',
+  );
   return (
     <DetailBlock title={title}>
       {entries.length === 0 ? (

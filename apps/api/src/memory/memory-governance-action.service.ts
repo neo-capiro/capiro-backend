@@ -7,10 +7,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
-import {
-  assertMemoryTransition,
-  type GovernedMemoryStatus,
-} from '@capiro/meriv2-core';
+import { assertMemoryTransition, type GovernedMemoryStatus } from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { memoryGovernanceCenterEnabled } from './memory-governance-center.switch.js';
@@ -178,7 +175,9 @@ export class MemoryGovernanceActionService {
         throw new BadRequestException('Private memory does not require a second approval.');
       }
       if (!row.approvedByUserId || !row.approvedAt) {
-        throw new BadRequestException('The first approval must be recorded before second approval.');
+        throw new BadRequestException(
+          'The first approval must be recorded before second approval.',
+        );
       }
       if (row.assertedByUserId === ctx.userId || row.approvedByUserId === ctx.userId) {
         throw new ForbiddenException(
@@ -241,20 +240,11 @@ export class MemoryGovernanceActionService {
         throw new ForbiddenException('Memory operation denied: owner_only');
       }
       if (job.clientId) {
-        const allowed = await clientMemoryAllowed(
-          tx,
-          ctx.tenantId,
-          ctx.userId,
-          job.clientId,
-        );
+        const allowed = await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, job.clientId);
         if (!allowed) throw new ForbiddenException('Memory operation denied: ethical_wall');
       }
       if (job.memoryItemId) {
-        const subject = await this.authorization.loadItemInTx(
-          tx,
-          ctx.tenantId,
-          job.memoryItemId,
-        );
+        const subject = await this.authorization.loadItemInTx(tx, ctx.tenantId, job.memoryItemId);
         if (!subject) throw new NotFoundException('Projection memory item not found.');
         const decision = await this.authorization.evaluateInTx(tx, ctx, subject, 'read');
         if (!decision.allowed) {
@@ -384,7 +374,9 @@ function normalizeStatus(value: string): GovernedMemoryStatus {
 }
 
 function requiredReason(value: string, message: string): string {
-  const reason = String(value ?? '').replace(/\s+/g, ' ').trim();
+  const reason = String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (!reason) throw new BadRequestException(message);
   return reason.slice(0, 500);
 }

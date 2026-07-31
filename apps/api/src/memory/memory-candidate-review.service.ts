@@ -148,12 +148,7 @@ export class MemoryCandidateReviewService {
     if (kind !== 'standard') {
       return { candidateKind: kind, ...(await this.versions.approveCandidate(ctx, candidateId)) };
     }
-    const { memoryId } = await this.candidates.approve(
-      ctx.tenantId,
-      candidateId,
-      ctx.userId,
-      ctx,
-    );
+    const { memoryId } = await this.candidates.approve(ctx.tenantId, candidateId, ctx.userId, ctx);
     return { candidateId, candidateKind: 'standard', outcome: 'activated', memoryId };
   }
 

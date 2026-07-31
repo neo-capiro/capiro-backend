@@ -108,7 +108,9 @@ export function normalizeMemoryGovernanceBucket(raw: string | undefined): Memory
 function normalizeBucket(raw: string | undefined): MemoryGovernanceBucket {
   const value = String(raw ?? 'all').trim() as MemoryGovernanceBucket;
   if (!BUCKETS.has(value)) {
-    throw new BadRequestException('bucket must be one of: all, active, review_due, conflicts, history.');
+    throw new BadRequestException(
+      'bucket must be one of: all, active, review_due, conflicts, history.',
+    );
   }
   return value;
 }
