@@ -31,7 +31,12 @@ const packet: TrustContextPacket = {
   ],
   exclusions: [
     { id: 'old-1', label: 'Old playbook', type: 'playbook', reason: 'superseded' },
-    { id: 'secret-id', label: 'Must never render', type: 'client-compass', reason: 'unauthorized' },
+    {
+      id: 'secret-id',
+      label: 'Must never render',
+      type: 'client-compass',
+      reason: 'unauthorized',
+    },
   ],
   degraded: true,
   degradedReason: 'Client documents were temporarily unavailable.',
@@ -80,7 +85,8 @@ describe('ContextInspector', () => {
     );
     expect(labelledElements.length).toBeGreaterThan(0);
     for (const element of labelledElements) {
-      const references = element.getAttribute('aria-labelledby')?.split(/\s+/).filter(Boolean) ?? [];
+      const references =
+        element.getAttribute('aria-labelledby')?.split(/\s+/).filter(Boolean) ?? [];
       expect(references.length).toBeGreaterThan(0);
       for (const reference of references) {
         expect(idElements.filter((candidate) => candidate.id === reference)).toHaveLength(1);
@@ -114,11 +120,17 @@ describe('ContextInspector', () => {
     );
     const bodyId = summary.getAttribute('aria-controls');
     expect(bodyId).toBeTruthy();
-    expect(Array.from(container.querySelectorAll<HTMLElement>('[id]')).filter((node) => node.id === bodyId)).toHaveLength(1);
+    expect(
+      Array.from(container.querySelectorAll<HTMLElement>('[id]')).filter(
+        (node) => node.id === bodyId,
+      ),
+    ).toHaveLength(1);
   });
 
   it('passes automated accessibility checks in the expanded state', async () => {
-    const { container } = render(<ContextInspector packet={packet} onReviewContext={() => {}} />);
+    const { container } = render(
+      <ContextInspector packet={packet} onReviewContext={() => {}} />,
+    );
     fireEvent.keyDown(summaryFor(container), { key: 'Enter' });
     const results = await axe(container);
     expect(results.violations).toEqual([]);
@@ -177,37 +189,42 @@ describe('ContextInspector', () => {
   });
 
   it('counts every identity-withheld reason and renders none of their identities', () => {
-    render(
+    const { container } = render(
       <ContextInspector
         packet={{
           items: [],
           exclusions: [
-            { id: 'a', label: 'A', type: 'firm-soul', reason: 'unauthorized' },
             {
-              id: 'b',
+              id: 'restricted-id-alpha',
+              label: 'Restricted Alpha',
+              type: 'firm-soul',
+              reason: 'unauthorized',
+            },
+            {
+              id: 'restricted-id-beta',
               label: 'Other client compass',
               type: 'client-compass',
               reason: 'wrong-client',
             },
             {
-              id: 'c',
+              id: 'restricted-id-gamma',
               label: 'Restricted brief',
               type: 'firm-compass',
               reason: 'sensitivity-denied',
             },
-            { id: 'd', label: 'Old playbook', type: 'playbook', reason: 'superseded' },
+            { id: 'visible-id', label: 'Old playbook', type: 'playbook', reason: 'superseded' },
           ],
         }}
       />,
     );
     fireEvent.click(screen.getByText(/Context used/i));
     expect(screen.getByText(/3 restricted items/)).toBeTruthy();
-    expect(screen.queryByText('A')).toBeNull();
+    expect(screen.queryByText('Restricted Alpha')).toBeNull();
     expect(screen.queryByText('Other client compass')).toBeNull();
     expect(screen.queryByText('Restricted brief')).toBeNull();
-    expect(screen.queryByText('a')).toBeNull();
-    expect(screen.queryByText('b')).toBeNull();
-    expect(screen.queryByText('c')).toBeNull();
+    expect(container.textContent).not.toContain('restricted-id-alpha');
+    expect(container.textContent).not.toContain('restricted-id-beta');
+    expect(container.textContent).not.toContain('restricted-id-gamma');
     expect(screen.getByText(/Old playbook/)).toBeTruthy();
   });
 
