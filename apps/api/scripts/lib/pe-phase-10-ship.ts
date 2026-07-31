@@ -556,11 +556,8 @@ export function runLiveProofsTask(
       containerOverrides: [
         {
           name: 'api',
-          // Override entryPoint so shell runs directly (command-only override becomes args to entrypoint.sh).
-          entryPoint: ['/usr/bin/dumb-init', '--', '/bin/sh', '-c'],
-          command: [
-            'mkdir -p /tmp /app/tmp; export TMPDIR=/tmp; exec /usr/local/bin/entrypoint.sh pe-phase-10-live-proofs',
-          ],
+          // command becomes args to image ENTRYPOINT (entrypoint.sh). Tip image includes pe-phase-10-live-proofs + TMPDIR guard.
+          command: ['pe-phase-10-live-proofs'],
           environment: [
             { name: 'GIT_SHA', value: ctx.headSha },
             { name: 'PE_CLOSEOUT_HEAD_SHA', value: ctx.headSha },
