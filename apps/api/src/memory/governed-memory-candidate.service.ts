@@ -121,8 +121,8 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
     actorContext?: CandidateActorContext,
   ): Promise<void> {
     await this.governedPrisma.withTenantUser(tenantId, reviewerUserId, async (tx) => {
-      const candidate = await this.lockPendingCandidateInTx(tx, tenantId, candidateId);
-      this.requireIndependentReviewer(candidate, reviewerUserId);
+      const candidate = await this.lockPendingDispositionCandidateInTx(tx, tenantId, candidateId);
+      this.requireGovernedIndependentReviewer(candidate, reviewerUserId);
       await this.authorizeReviewerInTx(
         tx,
         tenantId,
@@ -138,7 +138,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
   async withdraw(ctx: CandidateActorContext, candidateId: string): Promise<void> {
     this.requireWithdrawalEnabled();
     await this.governedPrisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      const candidate = await this.lockPendingCandidateInTx(tx, ctx.tenantId, candidateId);
+      const candidate = await this.lockPendingDispositionCandidateInTx(tx, ctx.tenantId, candidateId);
       if (candidate.proposedBy !== ctx.userId) {
         throw new ForbiddenException('Only the proposer may withdraw this pending memory proposal.');
       }
@@ -219,7 +219,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
     }
   }
 
-  private async lockPendingCandidateInTx(
+  private async lockPendingDispositionCandidateInTx(
     tx: Prisma.TransactionClient,
     tenantId: string,
     candidateId: string,
@@ -243,7 +243,7 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
     return row;
   }
 
-  private requireIndependentReviewer(
+  private requireGovernedIndependentReviewer(
     candidate: Pick<LockedDispositionCandidate, 'proposedBy' | 'scope'>,
     reviewerUserId: string,
   ): void {
