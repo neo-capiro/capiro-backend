@@ -37,7 +37,7 @@ interface PendingCandidateRow {
   sourceKind: string;
   scope: string;
   createdAt: Date;
-  payloadJsonb: unknown;
+  payload: unknown;
 }
 
 /**
@@ -84,7 +84,7 @@ export class MemoryCandidateReviewService {
             sourceKind: true,
             scope: true,
             createdAt: true,
-            payloadJsonb: true,
+            payload: true,
           },
         });
 
@@ -114,7 +114,7 @@ export class MemoryCandidateReviewService {
             proposedByUserId: row.proposedBy,
             sourceKind: row.sourceKind,
             createdAt: row.createdAt.toISOString(),
-            proposal: proposalFromPayload(row.payloadJsonb),
+            proposal: proposalFromPayload(row.payload),
             capabilities: {
               approve: approve.allowed,
               reject: review.allowed,
