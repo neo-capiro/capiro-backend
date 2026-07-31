@@ -1,31 +1,35 @@
 {
   "prior": [
     {
-      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
+      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
       "family": "capiro-dev-api",
       "image": null,
-      "revision": 89
+      "revision": 88
     },
     {
-      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
+      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22",
       "family": "capiro-dev-web",
       "image": null,
-      "revision": 23
+      "revision": 22
     }
   ],
+  "currentTip": {
+    "api": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
+    "web": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23"
+  },
   "ship": {
     "priorTaskDefs": [
       {
-        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
         "family": "capiro-dev-api",
         "image": null,
-        "revision": 89
+        "revision": 88
       },
       {
-        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22",
         "family": "capiro-dev-web",
         "image": null,
-        "revision": 23
+        "revision": 22
       }
     ],
     "newApiTaskDefArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
@@ -59,13 +63,16 @@
     "liveProofsTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3dba59c0f1ac4d19b11348af3621296d"
   },
   "instructions": [
-    "Rollback against CAPTURED prior task definitions on authorized sole-live cluster capiro-dev:",
-    "aws ecs update-service --cluster capiro-dev --service capiro-dev-api --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
-    "aws ecs update-service --cluster capiro-dev --service capiro-dev-web --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
+    "Rollback against CAPTURED prior task definitions (pre-ship), NOT current tip TDs, on authorized sole-live cluster capiro-dev:",
+    "aws ecs update-service --cluster capiro-dev --service capiro-dev-api --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
+    "aws ecs update-service --cluster capiro-dev --service capiro-dev-web --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22",
     "Do NOT hand-edit _prisma_migrations; schema rollback via Aurora snapshot if migrate is bad.",
+    "Current tip api TD (post-ship / restore target after rehearse): arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
+    "Current tip web TD (post-ship / restore target after rehearse): arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
     "Captured new api TD: arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
     "Captured new web TD: arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
     "Never deploy/rollback to capiro-staging or capiro-prod-os-capiro from this harness.",
     "Email/canaries/LlamaParse/derive --commit remain dark."
-  ]
+  ],
+  "note": "prior = rehearsal.prior pre-ship (:88/:22); currentTip = post-ship (:89/:23) NOT prior"
 }

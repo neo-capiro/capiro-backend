@@ -1,24 +1,24 @@
 {
   "phase": 10,
-  "generatedAt": "2026-07-31T19:04:06.961Z",
+  "generatedAt": "2026-07-31T19:04:06.962Z",
   "plane": {
     "workflowEnv": "dev",
     "ecsCluster": "capiro-dev",
     "appHost": "app.capiro.ai",
-    "note": "sole live env=dev = prod path; Neo PE_CLOSEOUT_STAGING_OK + MUTATE authorized"
+    "note": "sole live env=dev = prod path"
   },
   "priorTaskDefs": [
     {
-      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
+      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
       "family": "capiro-dev-api",
       "image": null,
-      "revision": 89
+      "revision": 88
     },
     {
-      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
+      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22",
       "family": "capiro-dev-web",
       "image": null,
-      "revision": 23
+      "revision": 22
     }
   ],
   "newApiTaskDefArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",

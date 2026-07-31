@@ -54,6 +54,7 @@ import {
   browserSmoke,
   loadPlanVerifyResidual,
   purgeStaleEvidenceArtifacts,
+  resolveRollbackPriorsFromEvidence,
   resolveShipImageDigests,
   writeShipTrace,
   buildAndPushBranchImages,
@@ -381,8 +382,21 @@ function writeAcceptanceArtifacts(args: {
     },
     rollback: {
       documented: true,
-      capturedPriors: (args.inventory.priorTaskDefs ?? []).filter((t) => !!t.arn),
+      // Prefer rehearsal.prior (pre-ship) — never label live current tip as prior.
+      capturedPriors: (() => {
+        const fromInstr = resolveRollbackPriorsFromEvidence(
+          args.dir,
+          args.inventory.priorTaskDefs,
+          args.shipTrace?.priorTaskDefs,
+        );
+        return fromInstr.filter((t) => !!t.arn);
+      })(),
+      currentTip: {
+        api: args.shipTrace?.newApiTaskDefArn ?? null,
+        web: args.shipTrace?.newWebTaskDefArn ?? null,
+      },
       instructions: args.rollbackInstructions,
+      // Branch tip for this evidence bind (must equal origin HEAD after final push).
       branchRollbackTipHint: args.git.originHeadSha ?? args.git.headSha,
     },
     honesty: {
@@ -398,7 +412,7 @@ function writeAcceptanceArtifacts(args: {
       gitTipBound: tipBound,
       planVerify: args.planVerify ?? null,
       note:
-        'summary.git headSha+originHeadSha must equal git rev-parse origin/agent/program-elements-final-closeout. Product tip lives only in honesty.harnessOkProductTip + image tags. PE_PHASE_10_OK is implementer-only.',
+        'summary.git.headSha === summary.git.originHeadSha === git rev-parse origin/agent/program-elements-final-closeout (single tip truth after FINAL push; no further docs pin). Product tip only in honesty.harnessOkProductTip + image tags. PE_PHASE_10_OK is implementer-only — not independent REVIEW PASS.',
     },
   };
   writeFileSync(resolve(args.dir, 'phase-10-acceptance-summary.json'), JSON.stringify(summary, null, 2));
@@ -407,7 +421,6 @@ function writeAcceptanceArtifacts(args: {
     '# Phase 10 pre-merge acceptance record (sole live env=dev)',
     '',
     `- Generated (UTC): ${summary.generatedAt}`,
-    `- Marker: **${args.gate.marker}** (implementer only — not independent REVIEW PASS)`,
     `- Marker: **${args.gate.marker}** (implementer only — not independent REVIEW PASS)`,
     `- Plane: \`${PE_PHASE_10_STAGING_EXPECTED.ecsClusterName}\` / workflow env=\`${PE_PHASE_10_STAGING_EXPECTED.workflowEnv}\` (authorized sole live = prod path)`,
     `- HEAD / origin HEAD (single tip truth): \`${args.git.headSha}\``,
@@ -438,12 +451,24 @@ function writeAcceptanceArtifacts(args: {
     '## Warnings',
     ...(args.gate.warnings.length ? args.gate.warnings.map((w) => `- ${w}`) : ['- (none)']),
     '',
-    '## Captured prior task defs (rollback)',
-    ...((args.inventory.priorTaskDefs ?? []).length
-      ? (args.inventory.priorTaskDefs ?? []).map(
-          (t) => `- \`${t.family}\` rev=${t.revision ?? '?'} arn=\`${t.arn ?? 'n/a'}\` image=${t.image ?? 'n/a'}`,
-        )
-      : ['- (none captured)']),
+    '## Captured prior task defs (rollback — pre-ship, from rehearsal.prior when present)',
+    ...(() => {
+      const priors = resolveRollbackPriorsFromEvidence(
+        args.dir,
+        args.inventory.priorTaskDefs,
+        args.shipTrace?.priorTaskDefs,
+      );
+      return priors.length
+        ? priors.map(
+            (t) =>
+              `- \`${t.family}\` rev=${t.revision ?? '?'} arn=\`${t.arn ?? 'n/a'}\` image=${t.image ?? 'n/a'}`,
+          )
+        : ['- (none captured)'];
+    })(),
+    '',
+    '## Current tip task defs (post-ship — NOT prior)',
+    `- api: \`${args.shipTrace?.newApiTaskDefArn ?? 'n/a'}\``,
+    `- web: \`${args.shipTrace?.newWebTaskDefArn ?? 'n/a'}\``,
     '',
     '## Image digests',
     ...args.images.map(
@@ -669,10 +694,27 @@ function main(): void {
       priorShip = null;
     }
 
+    // Resolve true pre-ship priors BEFORE overwriting with live current TDs.
+    const bindPriors = resolveRollbackPriorsFromEvidence(
+      evidenceDir,
+      // Prefer ship-trace historical priors / rehearsal over live inventory (current tip).
+      priorShip?.priorTaskDefs ?? inventory.priorTaskDefs,
+      priorShip?.priorTaskDefs,
+    );
+    // If rehearsal says :88/:22, keep those; live inventory is CURRENT tip only.
+    const liveCurrentAsTip = inventory.priorTaskDefs ?? [];
     shipTrace = {
-      priorTaskDefs: inventory.priorTaskDefs ?? priorShip?.priorTaskDefs ?? [],
-      newApiTaskDefArn: priorShip?.newApiTaskDefArn ?? null,
-      newWebTaskDefArn: priorShip?.newWebTaskDefArn ?? null,
+      priorTaskDefs: bindPriors.length
+        ? bindPriors
+        : priorShip?.priorTaskDefs ?? inventory.priorTaskDefs ?? [],
+      newApiTaskDefArn:
+        priorShip?.newApiTaskDefArn ??
+        liveCurrentAsTip.find((t) => t.family?.includes('api'))?.arn ??
+        null,
+      newWebTaskDefArn:
+        priorShip?.newWebTaskDefArn ??
+        liveCurrentAsTip.find((t) => t.family?.includes('web'))?.arn ??
+        null,
       migrateTaskArn: priorShip?.migrateTaskArn ?? null,
       images: [],
       apiImageDigest: priorShip?.apiImageDigest ?? null,
@@ -680,6 +722,10 @@ function main(): void {
       deployedCluster: PE_PHASE_10_STAGING_EXPECTED.ecsClusterName,
       notes: priorShip?.notes ? [...priorShip.notes] : [],
     };
+    // Keep inventory.priorTaskDefs as the rollback targets (pre-ship), not live current.
+    if (bindPriors.length) {
+      inventory.priorTaskDefs = bindPriors;
+    }
     if ((priorShip as any)?.liveProofsTaskArn) {
       (shipTrace as any).liveProofsTaskArn = (priorShip as any).liveProofsTaskArn;
     }

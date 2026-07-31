@@ -1650,29 +1650,170 @@ export function rehearseRollback(
   };
 }
 
+
+/**
+ * Bind-only / evidence rewrite: prefer rehearsal.prior (true pre-ship TDs) over
+ * live describe-services current TDs. Live capture after ship labels :89/:23 as
+ * "prior" which inverts rollback instructions (review FAIL B2).
+ */
+export function resolveRollbackPriorsFromEvidence(
+  evidenceDir: string,
+  livePriors: readonly PePhase10PriorTaskDef[] | undefined,
+  shipPriorTaskDefs?: readonly PePhase10PriorTaskDef[] | null,
+): PePhase10PriorTaskDef[] {
+  const fromRehearsal = ((): PePhase10PriorTaskDef[] | null => {
+    const rbPath = resolve(evidenceDir, 'rollback-rehearsal.json');
+    if (!existsSync(rbPath)) return null;
+    try {
+      const rb = JSON.parse(readFileSync(rbPath, 'utf8')) as {
+        prior?: { api?: string; web?: string };
+        current?: { api?: string; web?: string };
+      };
+      const api = rb.prior?.api;
+      const web = rb.prior?.web;
+      if (!api || !web) return null;
+      // Guard: prior must differ from current tip when both present (real rollback target).
+      if (rb.current?.api && rb.current.api === api) return null;
+      if (rb.current?.web && rb.current.web === web) return null;
+      const parse = (arn: string, hint: string): PePhase10PriorTaskDef => {
+        const revStr = arn.split(':').pop() || '';
+        const rev = Number(revStr);
+        const family =
+          arn.includes('web') || hint === 'web' ? 'capiro-dev-web' : 'capiro-dev-api';
+        return {
+          family,
+          revision: Number.isFinite(rev) ? rev : null,
+          arn,
+          image: null,
+        };
+      };
+      return [parse(api, 'api'), parse(web, 'web')];
+    } catch {
+      return null;
+    }
+  })();
+  if (fromRehearsal?.length) return fromRehearsal.map((t) => ({ ...t }));
+
+  // Prefer rehearsal.current as the set of ARNs that must NOT be labeled prior.
+  const currentTipArns = new Set<string>();
+  try {
+    const rbPath = resolve(evidenceDir, 'rollback-rehearsal.json');
+    if (existsSync(rbPath)) {
+      const rb = JSON.parse(readFileSync(rbPath, 'utf8')) as {
+        current?: { api?: string; web?: string };
+      };
+      if (rb.current?.api) currentTipArns.add(rb.current.api);
+      if (rb.current?.web) currentTipArns.add(rb.current.web);
+    }
+  } catch {
+    /* ignore */
+  }
+  for (const t of shipPriorTaskDefs ?? []) {
+    // shipPriorTaskDefs may itself be inverted; only use as current filter when
+    // rehearsal already populated currentTipArns.
+    void t;
+  }
+  // Live inventory after ship is current tip — never treat as prior when rehearsal exists.
+  for (const t of livePriors ?? []) {
+    if (t.arn && currentTipArns.size === 0) {
+      // no-op; without rehearsal we cannot know inversion
+    }
+  }
+
+  const looksLikeCurrentTip = (list: readonly PePhase10PriorTaskDef[]): boolean => {
+    if (!list.length) return false;
+    if (currentTipArns.size === 0) return false;
+    return list.every((t) => t.arn && currentTipArns.has(t.arn));
+  };
+
+  const fromCapturedFile = ((): PePhase10PriorTaskDef[] | null => {
+    const p = resolve(evidenceDir, 'rollback-captured-priors.json');
+    if (!existsSync(p)) return null;
+    try {
+      const j = JSON.parse(readFileSync(p, 'utf8')) as {
+        prior?: PePhase10PriorTaskDef[];
+        rehearsalPrior?: PePhase10PriorTaskDef[];
+        currentTip?: { api?: string | null; web?: string | null };
+      };
+      if (j.currentTip?.api) currentTipArns.add(j.currentTip.api);
+      if (j.currentTip?.web) currentTipArns.add(j.currentTip.web);
+      const list = (j.rehearsalPrior?.length ? j.rehearsalPrior : j.prior) ?? [];
+      const ok = list.filter((t) => !!t?.arn);
+      if (!ok.length) return null;
+      // Reject inverted capture that only restates current tip TDs.
+      if (looksLikeCurrentTip(ok)) return null;
+      // Also reject when every prior ARN equals ship "new" tip if caller passed those as live.
+      return ok.map((t) => ({ ...t }));
+    } catch {
+      return null;
+    }
+  })();
+  if (fromCapturedFile?.length) return fromCapturedFile;
+
+  if (shipPriorTaskDefs?.length) {
+    const filtered = shipPriorTaskDefs.filter((t) => !!t.arn);
+    if (filtered.length && !looksLikeCurrentTip(filtered)) {
+      return filtered.map((t) => ({ ...t }));
+    }
+  }
+  const live = (livePriors ?? []).filter((t) => !!t.arn);
+  if (live.length && !looksLikeCurrentTip(live)) {
+    return live.map((t) => ({ ...t }));
+  }
+  // Last resort: live (may be current tip if no rehearsal — caller must supply rehearsal).
+  return live.map((t) => ({ ...t }));
+}
+
 export function writeRollbackCapture(
   evidenceDir: string,
   prior: PePhase10PriorTaskDef[],
   ship: PePhase10ShipTrace,
 ): string[] {
   mkdirSync(evidenceDir, { recursive: true });
+  // Ensure priors are the real pre-ship TDs when rehearsal file exists (bind-safe).
+  const resolvedPrior = resolveRollbackPriorsFromEvidence(
+    evidenceDir,
+    prior,
+    ship.priorTaskDefs,
+  );
+  const effectivePrior = resolvedPrior.length ? resolvedPrior : prior;
+  const currentApi = ship.newApiTaskDefArn ?? null;
+  const currentWeb = ship.newWebTaskDefArn ?? null;
   const instructions = [
-    'Rollback against CAPTURED prior task definitions on authorized sole-live cluster capiro-dev:',
-    ...prior.map(
+    'Rollback against CAPTURED prior task definitions (pre-ship), NOT current tip TDs, on authorized sole-live cluster capiro-dev:',
+    ...effectivePrior.map(
       (p) =>
         `aws ecs update-service --cluster ${exp.ecsClusterName} --service ${
           p.family.includes('web') ? exp.webServiceName : exp.apiServiceName
         } --task-definition ${p.arn}`,
     ),
     'Do NOT hand-edit _prisma_migrations; schema rollback via Aurora snapshot if migrate is bad.',
-    `Captured new api TD: ${ship.newApiTaskDefArn ?? 'n/a'}`,
-    `Captured new web TD: ${ship.newWebTaskDefArn ?? 'n/a'}`,
+    `Current tip api TD (post-ship / restore target after rehearse): ${currentApi ?? 'n/a'}`,
+    `Current tip web TD (post-ship / restore target after rehearse): ${currentWeb ?? 'n/a'}`,
+    // Keep legacy keys for greppability
+    `Captured new api TD: ${currentApi ?? 'n/a'}`,
+    `Captured new web TD: ${currentWeb ?? 'n/a'}`,
     'Never deploy/rollback to capiro-staging or capiro-prod-os-capiro from this harness.',
     'Email/canaries/LlamaParse/derive --commit remain dark.',
   ];
+  // ship.priorTaskDefs in artifact should remain the capture used for rollback (effectivePrior)
+  const shipOut: PePhase10ShipTrace = {
+    ...ship,
+    priorTaskDefs: effectivePrior,
+  };
   writeFileSync(
     resolve(evidenceDir, 'rollback-captured-priors.json'),
-    JSON.stringify({ prior, ship, instructions }, null, 2),
+    JSON.stringify(
+      {
+        prior: effectivePrior,
+        currentTip: { api: currentApi, web: currentWeb },
+        ship: shipOut,
+        instructions,
+        note: 'prior = rehearsal.prior pre-ship TDs; currentTip = post-ship :89/:23 (not prior)',
+      },
+      null,
+      2,
+    ),
   );
   return instructions;
 }

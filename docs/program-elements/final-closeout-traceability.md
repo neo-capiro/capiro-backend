@@ -222,7 +222,7 @@ bash apps/api/scripts/pe-phase-9-migration-replay.sh
 
 | Field | Value |
 |---|---|
-| Remote tip / origin HEAD (review) | `1667e8ca51a7426e7bf5d6192837382b2876bf75` |
+| Remote tip / origin HEAD (review) | `0000000000000000000000000000000000000000` |
 | Product/live-proofs tip | `28dbed74845a74f1cb432ee4e5d1577827eaf182` |
 | origin/main | `3dcb12f823774b6fae8578dc56fc122bf9a0879e` |
 | Plane | `capiro-dev` / workflow `env=dev` / `app.capiro.ai` |

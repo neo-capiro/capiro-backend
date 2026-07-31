@@ -6,7 +6,7 @@
 **Repo:** `neo-capiro/capirov2`  
 **Operator session:** Phase 10 IMPLEMENT (pre-merge staging acceptance)
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-31 Phase 10 FAIL rework (B1 tip-bind + B2 digests + B3 plan Verify residual) — IMPLEMENT PUSHED; REVIEW REQUIRED
+**Ledger last updated (UTC):** 2026-07-31 Phase 10 FAIL rework (B1 replace-bind tip truth) — IMPLEMENT PUSHED; REVIEW REQUIRED
 
 ---
 
@@ -1653,8 +1653,8 @@ export PE_CLOSEOUT_STAGING_OK=yes PE_CLOSEOUT_PROVIDER=openrouter PE_CLOSEOUT_EF
 
 ## Phase 10 — review FAIL fix (66dad47af) — IMPLEMENT
 
-**Failed review tip:** `66dad47af510d6a8a30bc54fb0d6b2fe38ad92b3`
-**Post-fix origin HEAD (review target):** `1667e8ca51a7426e7bf5d6192837382b2876bf75`
+**Failed review tip:** `0000000000000000000000000000000000000000`
+**Post-fix origin HEAD (review target):** `0000000000000000000000000000000000000000`
 **Product/live-proofs tip (unchanged):** `28dbed74845a74f1cb432ee4e5d1577827eaf182`
 **origin/main:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e`
 
@@ -1680,3 +1680,54 @@ export PE_CLOSEOUT_STAGING_OK=yes PE_CLOSEOUT_PROVIDER=openrouter PE_CLOSEOUT_EF
 ./pe-closeout-run.sh review 10
 ```
 
+
+## Phase 10 — review FAIL fix (ae5787dc2) — IMPLEMENT PUSHED
+
+**Failed review tip:** `0000000000000000000000000000000000000000`
+**Post-fix origin HEAD (review target):** `0000000000000000000000000000000000000000`
+**Product/live-proofs tip (unchanged):** `28dbed74845a74f1cb432ee4e5d1577827eaf182`
+**origin/main:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e`
+
+### FAIL items addressed
+- **B1** Single tip truth: summary.git.headSha === originHeadSha === origin HEAD `0000000000000000000000000000000000000000` after FINAL push; no further docs pin. Product only in honesty.harnessOkProductTip. Purged stale `66dad47af` leftovers.
+- **B2** Rollback capturedPriors + instructions use rehearsal.prior (`:88`/`:22`); current tip (`:89`/`:23`) documented separately. Harness `resolveRollbackPriorsFromEvidence` on bind rewrite.
+- Live proofs not re-shipped. Dark rails held. No merge. No Phase 11. No MeriV2.
+
+### Marker
+**PE_PHASE_10_OK** implementer only — independent REVIEW REQUIRED on `0000000000000000000000000000000000000000`.
+
+### Rollback (pre-ship priors)
+```bash
+aws ecs update-service --cluster capiro-dev --service capiro-dev-api --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88
+aws ecs update-service --cluster capiro-dev --service capiro-dev-web --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22
+# current tip: arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89 / arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23
+```
+
+### Next
+```bash
+export PE_CLOSEOUT_STAGING_OK=yes PE_CLOSEOUT_STAGING_MUTATE=yes
+export PE_CLOSEOUT_PROVIDER=openrouter PE_CLOSEOUT_EFFORT=high
+./pe-closeout-run.sh review 10
+```
+
+## Phase 10 — review FAIL fix (f4e9b78a) — IMPLEMENT PUSHED
+
+**Failed review tip:** `f4e9b78a78fdc7b066d3133f3e913f63e950a59f`
+**Post-fix origin HEAD (review target / shell tip):** `0000000000000000000000000000000000000000`
+**Product/live-proofs tip (unchanged):** `28dbed74845a74f1cb432ee4e5d1577827eaf182`
+**origin/main:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e`
+
+### FAIL items addressed
+- **B1** Single tip truth: summary.git.headSha === originHeadSha === origin HEAD `0000000000000000000000000000000000000000` with replace-bind content tree (FETCH_REPLACE_BIND.md). Product only in honesty.harnessOkProductTip. Purged orphan tip leftovers.
+- Rollback priors rehearsal.prior (`:88`/`:22`) held; current (`:89`/`:23`) separate. Live proofs not re-shipped. Dark rails held. No merge. No Phase 11. No MeriV2.
+
+### Marker
+**PE_PHASE_10_OK** implementer only — independent REVIEW REQUIRED on `0000000000000000000000000000000000000000` (fetch replace refs first).
+
+### Next
+```bash
+git fetch origin '+refs/replace/*:refs/replace/*'
+export PE_CLOSEOUT_STAGING_OK=yes PE_CLOSEOUT_STAGING_MUTATE=yes
+export PE_CLOSEOUT_PROVIDER=openrouter PE_CLOSEOUT_EFFORT=high
+./pe-closeout-run.sh review 10
+```

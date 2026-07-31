@@ -544,6 +544,25 @@ describe('anti-fake ship evidence (source)', () => {
     expect(src).toMatch(/planVerifyClosed/);
   });
 
+  it('resolveRollbackPriorsFromEvidence prefers rehearsal.prior over live current tip', () => {
+    const src = shipSrc();
+    expect(src).toMatch(/export function resolveRollbackPriorsFromEvidence/);
+    expect(src).toMatch(/rollback-rehearsal\.json/);
+    // writeRollbackCapture must not label current tip as prior
+    expect(src).toMatch(/NOT current tip TDs/);
+    expect(src).toMatch(/Current tip api TD \(post-ship/);
+    // verify orchestrator imports and uses resolver on bind path
+    const fs = require('fs') as typeof import('fs');
+    const path = require('path') as typeof import('path');
+    const verifySrc = fs.readFileSync(
+      path.join(__dirname, '../verify-pe-phase-10.ts'),
+      'utf8',
+    );
+    expect(verifySrc).toMatch(/resolveRollbackPriorsFromEvidence/);
+    expect(verifySrc).toMatch(/bindPriors/);
+    expect(verifySrc).toMatch(/Current tip task defs \(post-ship — NOT prior\)/);
+  });
+
   it('forbids hardcoded identical_replay ok and source-grep derive greening', () => {
     const src = shipSrc();
     expect(src).not.toMatch(/identical_replay[\s\S]{0,200}exitCode:\s*0,\s*\n\s*classification:\s*'ok'/);
