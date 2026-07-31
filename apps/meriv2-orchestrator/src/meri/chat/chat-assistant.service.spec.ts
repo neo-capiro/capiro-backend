@@ -80,9 +80,19 @@ function fakeProposal(input: CreateActionProposalInput): ActionProposalResult {
   };
 }
 
+// Module-level spy so individual tests can assert on create() without depending
+// on a single fixed disposition. makeService rebinds the implementation so PASS
+// tools execute (via the test executor) and WARN tools stay held.
 const actionProposalsRepo = {
-  create: jest.fn(async (input: CreateActionProposalInput) => fakeProposal(input)),
+  create: jest.fn(),
 } as unknown as ApiActionProposalRepo;
+
+/** Tools the product holds for human approval (WARN / external) in these tests. */
+const HELD_WRITE_TOOLS = new Set([
+  'send_email',
+  'reply_email',
+  'update_client_profile',
+]);
 
 // Phase 1 M5.0 (H-1): the chat loop meters every round via recordAiUsageEvent,
 // which needs prisma.withTenant/withSystem. A no-op fake is enough here — the
@@ -93,6 +103,25 @@ const fakePrisma = {
 } as never;
 
 function makeService(executor: ApiToolExecutorRepo) {
+  (actionProposalsRepo.create as jest.Mock).mockImplementation(
+    async (input: CreateActionProposalInput) => {
+      if (HELD_WRITE_TOOLS.has(input.tool)) {
+        return {
+          disposition: 'pending_approval' as const,
+          proposal: fakeProposal(input),
+        };
+      }
+      // PASS / internal-artifact tools: apps/api executes immediately under
+      // server-owned authority. Mirror that by running the local test executor
+      // and returning disposition/executed with its result.
+      const executionResult = await executor.execute(ctx, input.tool, input.input);
+      return {
+        disposition: 'executed' as const,
+        proposal: { ...fakeProposal(input), status: 'succeeded' },
+        executionResult,
+      };
+    },
+  );
   const registryService = new MeriRegistryService(clientRepo, executor, config);
   return new ChatAssistantService(
     registryService,

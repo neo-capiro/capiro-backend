@@ -137,7 +137,7 @@ describe('ApiActionProposalRepo', () => {
       RequestCredentialsStore.run({ bearerToken: 'user-tok' }, () =>
         repo.create({ tool: 'send_email', input: {}, surface: 'chat' }),
       ),
-    ).rejects.toThrow(/Action proposal creation failed: 403/);
+    ).rejects.toThrow(/Action authority failed: 403/);
   });
 
   it('propagates a network failure (never swallows it into a fake success)', async () => {

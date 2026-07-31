@@ -958,16 +958,20 @@ export class ChatAssistantService {
 
       if (authority.disposition === 'blocked') {
         noteComplianceOutcome('BLOCK');
-        const detail = proposal.reason.slice(0, 120);
+        const detail = (proposal?.reason ?? 'Blocked by policy').slice(0, 120);
         steps.push({ tool: name, label, status: 'blocked', detail });
         emit({ type: 'tool_done', tool: name, label, status: 'blocked', detail });
         return {
           blocked: true,
-          message: `Blocked by the authoritative policy pack: ${proposal.reason}`,
+          message: `Blocked by the authoritative policy pack: ${proposal?.reason ?? 'blocked'}`,
         };
       }
 
-      const detail = proposal.error?.message?.slice(0, 120) ?? 'Action execution failed';
+      const detail =
+        proposal?.error?.message?.slice(0, 120) ??
+        (typeof authority.disposition === 'string'
+          ? `Action authority returned ${authority.disposition}`
+          : 'Action execution failed');
       steps.push({ tool: name, label, status: 'error', detail });
       emit({ type: 'tool_done', tool: name, label, status: 'error', detail });
       return { error: true, message: detail };
