@@ -1,13 +1,13 @@
 {
   "phase": 10,
-  "generatedAt": "2026-07-31T09:54:03.502Z",
+  "generatedAt": "2026-07-31T09:57:25.553Z",
   "marker": "PE_PHASE_10_BLOCKED",
   "gateOk": false,
   "blockedComplete": true,
   "authOk": true,
   "mutateAllowed": false,
   "git": {
-    "headSha": "72b299dff928f1f451e2dad231124c8c50a3d046",
+    "headSha": "7de1d93c4ebaee3914bd8e807f1ed78d766945c4",
     "originHeadSha": "72b299dff928f1f451e2dad231124c8c50a3d046",
     "mainSha": "3dcb12f823774b6fae8578dc56fc122bf9a0879e",
     "mergeBaseSha": "3dcb12f823774b6fae8578dc56fc122bf9a0879e",
@@ -38,7 +38,7 @@
     "warnings": [
       "Forbidden production/dev clusters are visible in the account (expected); deploy must never target them"
     ],
-    "capturedAt": "2026-07-31T09:53:27Z",
+    "capturedAt": "2026-07-31T09:56:52Z",
     "rawNotes": [
       "secretNameCount=6",
       "cfAuroraPhysicalId=capiro-staging-data-auroracluster23d869c0-klkzactvs5q5"
@@ -56,7 +56,7 @@
       "WEB service capiro-staging-web missing",
       "Staging Aurora not live in RDS (CF physical id may be phantom: capiro-staging-data-auroracluster23d869c0-klkzactvs5q5)"
     ],
-    "capturedAt": "2026-07-31T09:53:27Z",
+    "capturedAt": "2026-07-31T09:56:52Z",
     "cfAuroraPhysicalId": "capiro-staging-data-auroracluster23d869c0-klkzactvs5q5",
     "computeStackStatus": "UPDATE_ROLLBACK_COMPLETE",
     "dataStackStatus": "UPDATE_COMPLETE",
@@ -83,7 +83,7 @@
   "images": [
     {
       "repo": "capiro/staging/api",
-      "tag": "72b299dff928f1f451e2dad231124c8c50a3d046",
+      "tag": "7de1d93c4ebaee3914bd8e807f1ed78d766945c4",
       "digest": null,
       "pushedAt": null,
       "present": false,
@@ -98,7 +98,7 @@
     },
     {
       "repo": "capiro/staging/web",
-      "tag": "72b299dff928f1f451e2dad231124c8c50a3d046",
+      "tag": "7de1d93c4ebaee3914bd8e807f1ed78d766945c4",
       "digest": null,
       "pushedAt": null,
       "present": false,
@@ -122,7 +122,7 @@
       "stepId": "git_sha_record",
       "exitCode": 0,
       "classification": "ok",
-      "detail": "head=72b299dff928f1f451e2dad231124c8c50a3d046 origin=72b299dff928f1f451e2dad231124c8c50a3d046 main=3dcb12f823774b6fae8578dc56fc122bf9a0879e mb=3dcb12f823774b6fae8578dc56fc122bf9a0879e"
+      "detail": "head=7de1d93c4ebaee3914bd8e807f1ed78d766945c4 origin=72b299dff928f1f451e2dad231124c8c50a3d046 main=3dcb12f823774b6fae8578dc56fc122bf9a0879e mb=3dcb12f823774b6fae8578dc56fc122bf9a0879e"
     },
     {
       "stepId": "aws_inventory_readonly",
@@ -146,15 +146,15 @@
       "stepId": "local_pe_preflight_k",
       "exitCode": 0,
       "classification": "ok",
-      "detail": "ASS scripts/lib/pe-migration-guards.spec.ts\nPASS scripts/lib/pe-phase-a-safety.spec.ts\n\nTest Suites: 9 passed, 9 total\nTests:       85 passed, 85 total\nSnapshots:   0 total\nTime:        8.072 s\nRan all test suites matching /src\\\\intelligence\\\\metrics\\\\accuracy-metrics.spec.ts|src\\\\program-element\\\\pe-trust-metric-catalog.spec.ts|src\\\\program-element\\\\program-element-metrics.service.spec.ts|scripts\\\\lib\\\\pe-production-scripts.spec.ts|scripts\\\\lib\\\\pe-trust-diagnostics.spec.ts|scripts\\\\lib\\\\pe-migration-guards.spec.ts|scripts\\\\lib\\\\pe-phase-a-safety.spec.ts|scripts\\\\lib\\\\pe-phase-9-rehearsal.spec.ts|scripts\\\\lib\\\\pe-phase-10-staging-acceptance.spec.ts/i.\nForce exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?\n",
-      "durationMs": 17596
+      "detail": "ASS scripts/lib/pe-phase-a-safety.spec.ts\nPASS scripts/lib/pe-migration-guards.spec.ts\n\nTest Suites: 9 passed, 9 total\nTests:       85 passed, 85 total\nSnapshots:   0 total\nTime:        6.606 s\nRan all test suites matching /src\\\\intelligence\\\\metrics\\\\accuracy-metrics.spec.ts|src\\\\program-element\\\\pe-trust-metric-catalog.spec.ts|src\\\\program-element\\\\program-element-metrics.service.spec.ts|scripts\\\\lib\\\\pe-production-scripts.spec.ts|scripts\\\\lib\\\\pe-trust-diagnostics.spec.ts|scripts\\\\lib\\\\pe-migration-guards.spec.ts|scripts\\\\lib\\\\pe-phase-a-safety.spec.ts|scripts\\\\lib\\\\pe-phase-9-rehearsal.spec.ts|scripts\\\\lib\\\\pe-phase-10-staging-acceptance.spec.ts/i.\nForce exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?\n",
+      "durationMs": 15756
     },
     {
       "stepId": "local_pe_phase9_preflight",
       "exitCode": 0,
       "classification": "ok",
       "detail": "PE_PHASE_9_INTEGRITY_OK\n",
-      "durationMs": 2210
+      "durationMs": 2149
     },
     {
       "stepId": "staging_migrate_additive",
@@ -226,7 +226,7 @@
     {
       "stepId": "git_sha_record",
       "classification": "ok",
-      "reason": "head=72b299dff928f1f451e2dad231124c8c50a3d046 origin=72b299dff928f1f451e2dad231124c8c50a3d046 main=3dcb12f823774b6fae8578dc56fc122bf9a0879e mb=3dcb12f823774b6fae8578dc56fc122bf9a0879e"
+      "reason": "head=7de1d93c4ebaee3914bd8e807f1ed78d766945c4 origin=72b299dff928f1f451e2dad231124c8c50a3d046 main=3dcb12f823774b6fae8578dc56fc122bf9a0879e mb=3dcb12f823774b6fae8578dc56fc122bf9a0879e"
     },
     {
       "stepId": "aws_inventory_readonly",
@@ -246,7 +246,7 @@
     {
       "stepId": "local_pe_preflight_k",
       "classification": "ok",
-      "reason": "ASS scripts/lib/pe-migration-guards.spec.ts\nPASS scripts/lib/pe-phase-a-safety.spec.ts\n\nTest Suites: 9 passed, 9 total\nTests:       85 passed, 85 total\nSnapshots:   0 total\nTime:        8.072 s\nRan all test suites matching /src\\\\intelligence\\\\metrics\\\\accuracy-metrics.spec.ts|src\\\\program-element\\\\pe-trust-metric-catalog.spec.ts|src\\\\program-element\\\\program-element-metrics.service.spec.ts|scripts\\\\lib\\\\pe-production-scripts.spec.ts|scripts\\\\lib\\\\pe-trust-diagnostics.spec.ts|scripts\\\\lib\\\\pe-migration-guards.spec.ts|scripts\\\\lib\\\\pe-phase-a-safety.spec.ts|scripts\\\\lib\\\\pe-phase-9-rehearsal.spec.ts|scripts\\\\lib\\\\pe-phase-10-staging-acceptance.spec.ts/i.\nForce exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?\n"
+      "reason": "ASS scripts/lib/pe-phase-a-safety.spec.ts\nPASS scripts/lib/pe-migration-guards.spec.ts\n\nTest Suites: 9 passed, 9 total\nTests:       85 passed, 85 total\nSnapshots:   0 total\nTime:        6.606 s\nRan all test suites matching /src\\\\intelligence\\\\metrics\\\\accuracy-metrics.spec.ts|src\\\\program-element\\\\pe-trust-metric-catalog.spec.ts|src\\\\program-element\\\\program-element-metrics.service.spec.ts|scripts\\\\lib\\\\pe-production-scripts.spec.ts|scripts\\\\lib\\\\pe-trust-diagnostics.spec.ts|scripts\\\\lib\\\\pe-migration-guards.spec.ts|scripts\\\\lib\\\\pe-phase-a-safety.spec.ts|scripts\\\\lib\\\\pe-phase-9-rehearsal.spec.ts|scripts\\\\lib\\\\pe-phase-10-staging-acceptance.spec.ts/i.\nForce exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?\n"
     },
     {
       "stepId": "local_pe_phase9_preflight",

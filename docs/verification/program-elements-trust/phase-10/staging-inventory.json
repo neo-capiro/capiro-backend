@@ -10,7 +10,7 @@
     "WEB service capiro-staging-web missing",
     "Staging Aurora not live in RDS (CF physical id may be phantom: capiro-staging-data-auroracluster23d869c0-klkzactvs5q5)"
   ],
-  "capturedAt": "2026-07-31T09:53:27Z",
+  "capturedAt": "2026-07-31T09:56:52Z",
   "cfAuroraPhysicalId": "capiro-staging-data-auroracluster23d869c0-klkzactvs5q5",
   "computeStackStatus": "UPDATE_ROLLBACK_COMPLETE",
   "dataStackStatus": "UPDATE_COMPLETE",

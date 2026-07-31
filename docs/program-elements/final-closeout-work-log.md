@@ -1338,6 +1338,7 @@ git reset --hard cf9545d7e8879862a19bac4e82620eadf010c6b7
 
 **When (UTC date):** 2026-07-31
 **Base / prior PASS tip:** `72b299dff928f1f451e2dad231124c8c50a3d046`
+**Product tip (phase 10 harness):** `7de1d93c4ebaee3914bd8e807f1ed78d766945c4`
 **origin/main:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind)
 **Mode:** LONG IMPLEMENT only — no self-PASS, no Phase 11, no merge/deploy, no Secrets Manager GetSecretValue, no email/LlamaParse/derive --commit
 **Auth:** `PE_CLOSEOUT_STAGING_OK=yes` present in session; mutate flag **not** set (`PE_CLOSEOUT_STAGING_MUTATE` unset) — discover path only
