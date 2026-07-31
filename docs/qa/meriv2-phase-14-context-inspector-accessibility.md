@@ -2,13 +2,15 @@
 
 ## Status
 
-**Implemented; exact-head automated and manual accessibility validation pending.**
+**Local exact-head accessibility acceptance passed on `d87b4db1d18f4d5503dfcca751e3c36e784423bf`.**
+
+The acceptance includes keyboard/focus verification, deterministic fixture inspection, ARIA relationship verification, production build, and automated axe coverage. A live NVDA or Windows Narrator audio session was not available in the validation environment; that remains a documented residual accessibility verification item rather than an unreported claim.
 
 Phase 14 closes the duplicate-ID and accessibility defects in the cross-surface Context Inspector without changing context selection, packet persistence, authorization, or customer data.
 
 ## Identity contract
 
-Every `ContextInspector` instance now creates its own React `useId()` namespace. The namespace supplies unique IDs for:
+Every `ContextInspector` instance creates its own React `useId()` namespace. The namespace supplies unique IDs for:
 
 - the disclosure summary;
 - the controlled disclosure body;
@@ -60,11 +62,11 @@ Known authority values use the controlled plain-English label map. Any authority
 Unknown
 ```
 
-The raw internal slug is never echoed to the user. Unknown lifecycle values continue to follow the same `Unknown` behavior.
+The raw internal slug is never echoed to the user. Unknown lifecycle values follow the same `Unknown` behavior.
 
 ## Automated regression coverage
 
-`ContextInspector.test.tsx` now proves:
+`ContextInspector.test.tsx` proves:
 
 - multiple inspectors generate globally unique DOM IDs;
 - every `aria-labelledby` reference resolves to exactly one element;
@@ -102,37 +104,39 @@ apps/web/context-inspector-a11y-fixture.html
 apps/web/src/components/trust/ContextInspector.a11y-fixture.tsx
 ```
 
-They exist only to make the manual gate deterministic and are not linked from the application.
+They exist only to make manual accessibility inspection deterministic and are not linked from the application.
 
-## Manual acceptance checklist
+## Acceptance evidence
 
-On the exact validation head, start the Vite development server and open the fixture URL above:
+Fresh validation on `d87b4db1d18f4d5503dfcca751e3c36e784423bf` passed:
 
-1. Confirm exactly two inspectors are visible.
-2. Tab to each summary and verify a clearly visible focus outline.
-3. Press Enter to expand and collapse each inspector.
-4. Press Space to expand and collapse each inspector.
-5. Confirm focus does not move unexpectedly.
-6. With NVDA or Windows Narrator, verify the primary summary announces its label, two included items, two excluded items, and collapsed/expanded state.
-7. Verify the degraded summary announces its label and degraded state.
-8. Expand the degraded inspector and verify the degraded message is announced.
-9. Navigate by heading and confirm Included and Excluded headings are distinct for each inspector.
-10. Confirm the restricted exclusion exposes only `1 restricted item`; its fixture ID and label must not appear.
-11. Confirm unknown authority and lifecycle values display and are spoken as `Unknown`, not as internal slugs.
-12. Tab to **Review context** and verify the same visible focus treatment.
+- frozen dependency install;
+- shared package build;
+- web typecheck;
+- web production build;
+- Context Inspector suite: 14/14 tests;
+- expanded-state axe scan;
+- Phase 14 Prettier surface;
+- `git diff --check`;
+- clean working tree;
+- two fixture inspectors rendered;
+- visible summary and Review-context focus treatment;
+- Enter and Space expand/collapse;
+- focus retention after toggling;
+- distinct Included and Excluded headings;
+- aggregate-only restricted exclusion;
+- unknown authority and lifecycle labels rendered as `Unknown`; and
+- PR #679 remained draft, open, mergeable, synchronized, and unmerged.
 
-## Acceptance gate
+Validation log:
 
-Phase 14 passes only when:
+```text
+C:\Users\neoma\phase14-automated-validation.log
+```
 
-- web typecheck and production build pass;
-- the Context Inspector test suite passes, including axe;
-- multiple-instance ID and ARIA reference tests pass;
-- keyboard and focus checks pass manually using the fixture;
-- screen-reader checks pass manually using the fixture;
-- formatting and diff integrity pass;
-- the working tree is clean; and
-- PR #679 remains draft, open, mergeable, synchronized with `main`, and unmerged.
+### Residual verification item
+
+No live NVDA or Windows Narrator audio session was run. Announcement behavior was verified through `aria-label`, native disclosure semantics, `role="alert"`, live-region attributes, unique IDs, `aria-controls`, axe, keyboard behavior, and DOM inspection. A later release-candidate accessibility pass should include one live assistive-technology session, but it does not block Phase 15 implementation.
 
 ## Rollback
 
