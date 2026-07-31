@@ -5,7 +5,7 @@
 **PR:** `#679`  
 **State:** Draft, open, unmerged  
 **Phase 12:** Focused local acceptance passed on `104d7dcdbb7502c8fdbf9e3befc374cef136954a`  
-**Phase 13:** Implemented; exact-head validation pending
+**Phase 13:** Focused local/disposable-PostgreSQL acceptance passed on `26db7ca83c066d4a9464e263e86650d7db0a58a1`
 
 This ledger continues the accepted work log and prior addenda. It does not authorize merge, migration, feature activation, candidate disposition, customer-data change, AWS deployment, or production rollout.
 
@@ -64,7 +64,7 @@ The browser receives no authority to reinterpret one action as the other.
 
 ### Permanent gate
 
-`memory-governance-ci` now covers Phases 1–13 and includes:
+`memory-governance-ci` covers Phases 1–13 and includes:
 
 - clean replay of the withdrawal migration;
 - the migration contract suite;
@@ -79,6 +79,22 @@ Detailed Phase 13 acceptance contract:
 docs/qa/meriv2-phase-13-withdrawal-vs-rejection.md
 ```
 
+### Acceptance evidence
+
+The focused gate passed on exact head `26db7ca83c066d4a9464e263e86650d7db0a58a1` after validation-only type and formatting repairs.
+
+Evidence:
+
+- 208 migrations replayed on disposable PostgreSQL;
+- withdrawal status check and history index verified;
+- API and web typechecks passed;
+- API matrix: 14 suites / 110 tests passed;
+- web contracts: 2 files / 7 tests passed;
+- Prettier and diff integrity passed; and
+- working tree was clean.
+
+PR #679 remained draft, open, mergeable, synchronized with `main`, and unmerged.
+
 ### Rollback
 
 Set `MEMORY_CLIENT_REVIEW=off`. Both product surfaces become unavailable while pending and terminal candidate rows and transition evidence remain intact. Leave the additive schema in place. Do not reopen, relabel, delete, or hand-promote terminal candidates.
@@ -87,6 +103,6 @@ Set `MEMORY_CLIENT_REVIEW=off`. Both product surfaces become unavailable while p
 
 ## Current gate
 
-Phase 13 is not accepted until focused exact-head validation passes and the branch is reconfirmed synchronized, clean, draft, mergeable, and unmerged. GitHub-hosted replication remains blocked by the orphan `BuildFailed` Actions identity.
+Phase 13 is locally accepted. GitHub-hosted replication remains blocked by the orphan `BuildFailed` Actions identity.
 
-Phase 14 has not started.
+Phase 14 is in implementation and must receive its own exact-head accessibility acceptance before Phase 15 begins.
