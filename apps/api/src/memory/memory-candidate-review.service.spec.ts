@@ -4,7 +4,10 @@ import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { MemoryAuthorizationService } from './memory-authorization.service.js';
 import type { MemoryCandidateService } from './memory-candidate.service.js';
-import { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
+import {
+  clientMemoryReviewEnabled,
+  MemoryCandidateReviewService,
+} from './memory-candidate-review.service.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
@@ -19,16 +22,21 @@ const ctx: TenantContext = {
 };
 
 function withGovernance<T>(enabled: boolean, fn: () => Promise<T>): Promise<T> {
+  const priorClientReview = process.env.MEMORY_CLIENT_REVIEW;
   const priorLifecycle = process.env.MEMORY_GOVERNANCE_LIFECYCLE;
   const priorEnforce = process.env.MEMORY_GOVERNANCE_ENFORCE;
   if (enabled) {
+    process.env.MEMORY_CLIENT_REVIEW = 'enforce';
     process.env.MEMORY_GOVERNANCE_LIFECYCLE = 'enforce';
     process.env.MEMORY_GOVERNANCE_ENFORCE = 'enforce';
   } else {
+    delete process.env.MEMORY_CLIENT_REVIEW;
     delete process.env.MEMORY_GOVERNANCE_LIFECYCLE;
     delete process.env.MEMORY_GOVERNANCE_ENFORCE;
   }
   return fn().finally(() => {
+    if (priorClientReview === undefined) delete process.env.MEMORY_CLIENT_REVIEW;
+    else process.env.MEMORY_CLIENT_REVIEW = priorClientReview;
     if (priorLifecycle === undefined) delete process.env.MEMORY_GOVERNANCE_LIFECYCLE;
     else process.env.MEMORY_GOVERNANCE_LIFECYCLE = priorLifecycle;
     if (priorEnforce === undefined) delete process.env.MEMORY_GOVERNANCE_ENFORCE;
@@ -114,8 +122,18 @@ function harness(input: {
   };
 }
 
+describe('clientMemoryReviewEnabled', () => {
+  it('arms only on the exact enforce value', () => {
+    expect(clientMemoryReviewEnabled('enforce')).toBe(true);
+    expect(clientMemoryReviewEnabled(' ENFORCE ')).toBe(true);
+    for (const value of [undefined, '', 'true', 'on', '1', 'enabled']) {
+      expect(clientMemoryReviewEnabled(value)).toBe(false);
+    }
+  });
+});
+
 describe('MemoryCandidateReviewService', () => {
-  it('stays dark until lifecycle and authorization are both explicitly armed', async () => {
+  it('stays dark until client review, lifecycle, and authorization are all explicitly armed', async () => {
     await withGovernance(false, async () => {
       const h = harness({ approveAllowed: true });
       await expect(h.service.listReviewable(ctx)).resolves.toEqual({
