@@ -44,15 +44,14 @@ EXECUTE FUNCTION enforce_policy_pack_lifecycle_concurrency();
 SQL
 
 seed_pending() {
-  psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 \
-    -v probe_id="$PROBE_ID" -v owner_id="$OWNER" <<'SQL'
+  psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
 TRUNCATE policy_pack_concurrency_probe;
 INSERT INTO policy_pack_concurrency_probe (
   id, tenant_id, pack_key, version, jurisdiction, status,
   legal_review_status, authority_jsonb, effective_from, owner_user_id,
   four_eyes_required, rules_jsonb, fallback_outcome, non_production, rules_hash
 ) VALUES (
-  :'probe_id'::uuid,
+  '$PROBE_ID'::uuid,
   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid,
   'probe-policy',
   'v1',
@@ -61,7 +60,7 @@ INSERT INTO policy_pack_concurrency_probe (
   'pending',
   '{"type":"approved_product_policy","title":"Probe"}'::jsonb,
   now(),
-  :'owner_id'::uuid,
+  '$OWNER'::uuid,
   true,
   '[{"id":"probe"}]'::jsonb,
   'WARN',
@@ -75,9 +74,10 @@ expect_failure() {
   local expected="$1"
   shift
   local output
+  local code
   set +e
-  output="$($@ 2>&1)"
-  local code=$?
+  output=$("$@" 2>&1)
+  code=$?
   set -e
   if [[ $code -eq 0 ]]; then
     echo "Expected command to fail with ${expected}, but it succeeded" >&2
@@ -95,14 +95,13 @@ seed_pending
 # Two independent first reviewers race. Reviewer A takes the row lock and holds it;
 # reviewer B must not overwrite A after the lock is released.
 (
-  psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 \
-    -v probe_id="$PROBE_ID" -v reviewer="$REVIEWER_A" <<'SQL'
+  psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
 BEGIN;
 UPDATE policy_pack_concurrency_probe
-SET reviewed_by_user_id = :'reviewer'::uuid,
+SET reviewed_by_user_id = '$REVIEWER_A'::uuid,
     reviewed_at = clock_timestamp(),
     legal_review_status = 'approved'
-WHERE id = :'probe_id'::uuid;
+WHERE id = '$PROBE_ID'::uuid;
 SELECT pg_sleep(2);
 COMMIT;
 SQL
@@ -110,13 +109,12 @@ SQL
 reviewer_a_pid=$!
 sleep 0.5
 set +e
-psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 \
-  -v probe_id="$PROBE_ID" -v reviewer="$REVIEWER_B" <<'SQL' >policy-reviewer-b.log 2>&1
+psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL >policy-reviewer-b.log 2>&1
 UPDATE policy_pack_concurrency_probe
-SET reviewed_by_user_id = :'reviewer'::uuid,
+SET reviewed_by_user_id = '$REVIEWER_B'::uuid,
     reviewed_at = clock_timestamp(),
     legal_review_status = 'approved'
-WHERE id = :'probe_id'::uuid;
+WHERE id = '$PROBE_ID'::uuid;
 SQL
 reviewer_b_code=$?
 set -e
@@ -127,59 +125,49 @@ if [[ $reviewer_b_code -eq 0 ]]; then
   exit 1
 fi
 grep -q 'policy_pack_first_reviewer_immutable' policy-reviewer-b.log
-psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 \
-  -v probe_id="$PROBE_ID" -v reviewer="$REVIEWER_A" <<'SQL'
-DO $$
-DECLARE winner uuid;
-BEGIN
-  SELECT reviewed_by_user_id INTO winner
-  FROM policy_pack_concurrency_probe
-  WHERE id = :'probe_id'::uuid;
-  IF winner IS DISTINCT FROM :'reviewer'::uuid THEN
-    RAISE EXCEPTION 'unexpected winning reviewer: %', winner;
-  END IF;
-END;
-$$;
-SQL
+winner=$(psql "$PSQL_DATABASE_URL" -At -v ON_ERROR_STOP=1 \
+  -c "SELECT reviewed_by_user_id FROM policy_pack_concurrency_probe WHERE id = '$PROBE_ID'::uuid")
+if [[ "$winner" != "$REVIEWER_A" ]]; then
+  echo "Unexpected winning reviewer: $winner" >&2
+  exit 1
+fi
 
 # The owner cannot review, and the second approver must be independent.
 seed_pending
 expect_failure policy_pack_owner_cannot_review \
-  psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 -v probe_id="$PROBE_ID" -v owner_id="$OWNER" \
-  -c "UPDATE policy_pack_concurrency_probe SET reviewed_by_user_id = :'owner_id'::uuid, reviewed_at = now() WHERE id = :'probe_id'::uuid"
+  psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 \
+  -c "UPDATE policy_pack_concurrency_probe SET reviewed_by_user_id = '$OWNER'::uuid, reviewed_at = now() WHERE id = '$PROBE_ID'::uuid"
 
-psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 \
-  -v probe_id="$PROBE_ID" -v reviewer="$REVIEWER_A" <<'SQL'
+psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
 UPDATE policy_pack_concurrency_probe
-SET reviewed_by_user_id = :'reviewer'::uuid,
+SET reviewed_by_user_id = '$REVIEWER_A'::uuid,
     reviewed_at = now(),
     legal_review_status = 'approved'
-WHERE id = :'probe_id'::uuid;
+WHERE id = '$PROBE_ID'::uuid;
 SQL
 expect_failure policy_pack_second_reviewer_not_independent \
-  psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 -v probe_id="$PROBE_ID" -v reviewer="$REVIEWER_A" \
-  -c "UPDATE policy_pack_concurrency_probe SET second_approved_by_user_id = :'reviewer'::uuid, second_approved_at = now(), status = 'reviewed' WHERE id = :'probe_id'::uuid"
-psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 \
-  -v probe_id="$PROBE_ID" -v second_id="$SECOND" <<'SQL'
+  psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 \
+  -c "UPDATE policy_pack_concurrency_probe SET second_approved_by_user_id = '$REVIEWER_A'::uuid, second_approved_at = now(), status = 'reviewed' WHERE id = '$PROBE_ID'::uuid"
+psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
 UPDATE policy_pack_concurrency_probe
-SET second_approved_by_user_id = :'second_id'::uuid,
+SET second_approved_by_user_id = '$SECOND'::uuid,
     second_approved_at = now(),
     status = 'reviewed'
-WHERE id = :'probe_id'::uuid;
+WHERE id = '$PROBE_ID'::uuid;
 SQL
 
 # Reviewed decision material and lifecycle cannot be rewritten or jumped.
 expect_failure policy_pack_reviewed_material_immutable \
-  psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 -v probe_id="$PROBE_ID" \
-  -c "UPDATE policy_pack_concurrency_probe SET rules_jsonb = '[{\"id\":\"tampered\"}]'::jsonb WHERE id = :'probe_id'::uuid"
+  psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 \
+  -c "UPDATE policy_pack_concurrency_probe SET rules_jsonb = '[{\"id\":\"tampered\"}]'::jsonb WHERE id = '$PROBE_ID'::uuid"
 
 seed_pending
 expect_failure policy_pack_illegal_lifecycle_transition \
-  psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 -v probe_id="$PROBE_ID" \
-  -c "UPDATE policy_pack_concurrency_probe SET status = 'published' WHERE id = :'probe_id'::uuid"
+  psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 \
+  -c "UPDATE policy_pack_concurrency_probe SET status = 'published' WHERE id = '$PROBE_ID'::uuid"
 expect_failure policy_pack_stale_or_noop_transition \
-  psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 -v probe_id="$PROBE_ID" \
-  -c "UPDATE policy_pack_concurrency_probe SET status = 'pending_review' WHERE id = :'probe_id'::uuid"
+  psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 \
+  -c "UPDATE policy_pack_concurrency_probe SET status = 'pending_review' WHERE id = '$PROBE_ID'::uuid"
 
 # Rollback is an explicit published -> retired plus retired -> published pair.
 psql "$PSQL_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
