@@ -14,30 +14,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply-phase10-staged-fix:
-    if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: agent/meriv2-world-class-closeout
-          fetch-depth: 0
-      - name: Apply staged Phase 10 API spec correction
-        run: |
-          git config user.name "capiro-phase10-bot"
-          git config user.email "noreply@capiro.ai"
-          python docs/tmp/phase10-fix-api-spec.py
-          rm docs/tmp/phase10-fix-api-spec.py
-          git add \
-            apps/api/src/meri/meri-action-proposal.service.spec.ts \
-            docs/tmp/phase10-fix-api-spec.py
-          git commit -m "test(meriv2): align action proposal specs with policy authority"
-          git push origin HEAD:agent/meriv2-world-class-closeout
-
   governed-memory-phases-1-10:
     runs-on: ubuntu-latest
     timeout-minutes: 40
