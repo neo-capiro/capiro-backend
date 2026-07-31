@@ -1,19 +1,15 @@
 # Institutional-memory governance cumulative release gate.
 #
-# Durable Phase 1-14 acceptance matrix. It runs the full governed-memory,
+# Durable Phase 1-15 acceptance matrix. It runs the full governed-memory,
 # projection, truthful persistence, rollout, lifecycle, policy-authority,
 # reversible backfill, grant-scoped review, proposer withdrawal, accessible
-# Context Inspector, and surface contract on one exact head so a later phase
-# cannot silently invalidate earlier acceptance evidence.
+# Context Inspector, Governance Center, and surface contracts on one exact head.
 name: memory-governance-ci
 
 on:
   pull_request:
     branches: [main]
   push:
-    # The published closeout branch is included so this cumulative gate can run
-    # independently of the current GitHub Actions BuildFailed registration defect.
-    # This adds validation only; it does not weaken or replace the PR gate.
     branches: [main, agent/meriv2-world-class-closeout]
   workflow_dispatch:
 
@@ -21,9 +17,9 @@ permissions:
   contents: read
 
 jobs:
-  governed-memory-phases-1-14:
+  governed-memory-phases-1-15:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 60
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -62,7 +58,7 @@ jobs:
       - name: Replay all API migrations on clean Postgres
         run: pnpm --filter @capiro/api exec prisma migrate deploy
 
-      - name: Build packages required by the governance-backfill operator
+      - name: Build packages required by governance operators
         run: |
           pnpm --filter @capiro/shared build
           pnpm --filter @capiro/meriv2-core build
@@ -82,7 +78,7 @@ jobs:
       - name: Typecheck projection-worker infrastructure
         run: pnpm --filter @capiro/infra-cdk typecheck
 
-      - name: Test API governed-memory Phases 1-14
+      - name: Test API governed-memory Phases 1-15
         run: >
           pnpm --filter @capiro/api exec jest --ci --silent --runInBand
           src/memory
@@ -142,10 +138,11 @@ jobs:
           src/checks/checks.verification.spec.ts
           test/steering-memories.spec.ts
 
-      - name: Test Settings, review, withdrawal, accessible Context Inspector, and Policy Packs
+      - name: Test Settings, Governance Center, review, withdrawal, Context Inspector, and Policy Packs
         run: >
           pnpm --filter @capiro/web exec vitest run
           src/components/MemoryFileEditor.phase3.test.ts
+          src/components/MemoryGovernanceCenter.test.ts
           src/components/MemoryProposalQueue.test.ts
           src/components/MemoryReviewQueue.test.ts
           src/components/trust/ContextInspector.test.tsx
