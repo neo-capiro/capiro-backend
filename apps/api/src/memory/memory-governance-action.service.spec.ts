@@ -11,6 +11,7 @@ const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
 const CLIENT = '33333333-3333-4333-8333-333333333333';
 const ITEM = '44444444-4444-4444-8444-444444444444';
+const JOB = '55555555-5555-4555-8555-555555555555';
 
 const ctx: TenantContext = {
   tenantId: TENANT,
@@ -65,6 +66,8 @@ function harness(overrides: {
   const tx = {
     $queryRaw: jest.fn(async () => [locked]),
     $executeRaw: jest.fn(async () => 1),
+    auditLog: { create: jest.fn(async () => ({ id: 'audit-1' })) },
+    $queryRawUnsafe: jest.fn(async () => [{ allowed: true }]),
   };
   const prisma = {
     withTenantUser: jest.fn(async (_tenant: string, _user: string, fn: (value: typeof tx) => unknown) =>
@@ -98,6 +101,57 @@ function harness(overrides: {
     tx,
     record,
     forgetMemory,
+  };
+}
+
+function retryHarness(input: { status?: string; wallAllowed?: boolean } = {}) {
+  const job = {
+    id: JOB,
+    memoryItemId: ITEM,
+    clioMemoryId: '66666666-6666-4666-8666-666666666666',
+    clientId: CLIENT,
+    operation: 'index_memory_item',
+    status: input.status ?? 'dead_letter',
+    attempts: 7,
+    lastError: 'Permanent Error: upstream timed out',
+  };
+  const auditCreate = jest.fn(async () => ({ id: 'audit-retry' }));
+  const tx = {
+    $queryRaw: jest.fn(async () => [job]),
+    $queryRawUnsafe: jest.fn(async () =>
+      input.wallAllowed === false ? [] : [{ allowed: true }],
+    ),
+    $executeRaw: jest.fn(async () => 1),
+    auditLog: { create: auditCreate },
+  };
+  const prisma = {
+    withTenantUser: jest.fn(async (_tenant: string, _user: string, fn: (value: typeof tx) => unknown) =>
+      fn(tx),
+    ),
+  } as unknown as PrismaService;
+  const authorization = {
+    loadItemInTx: jest.fn(async () => ({
+      id: ITEM,
+      tenantId: TENANT,
+      clientId: CLIENT,
+      ownerUserId: null,
+      clientStatus: 'active',
+      memoryClass: 'institutional_authoritative',
+      scope: 'client',
+      status: 'active',
+      legalHold: false,
+    })),
+    evaluateInTx: jest.fn(async () => ({ allowed: true, basis: 'admin' })),
+  } as unknown as MemoryAuthorizationService;
+  return {
+    service: new MemoryGovernanceActionService(
+      prisma,
+      authorization,
+      { record: jest.fn() } as unknown as MemoryTransitionAuditService,
+      {} as MemoryStoreService,
+    ),
+    tx,
+    auditCreate,
   };
 }
 
@@ -193,6 +247,43 @@ describe('MemoryGovernanceActionService', () => {
         ForbiddenException,
       );
       expect(self.tx.$executeRaw).not.toHaveBeenCalled();
+    });
+  });
+
+  it('requeues a failed projection atomically and records bounded audit evidence', async () => {
+    await withCenter(true, async () => {
+      const h = retryHarness();
+      await expect(h.service.retryProjection(ctx, JOB)).resolves.toEqual({
+        outcome: 'projection_retry_queued',
+        jobId: JOB,
+        status: 'pending',
+      });
+      expect(h.tx.$executeRaw).toHaveBeenCalledTimes(1);
+      expect(h.auditCreate).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          tenantId: TENANT,
+          actorUserId: USER,
+          action: 'memory.projection.retry',
+          entityId: JOB,
+          before: expect.objectContaining({
+            status: 'dead_letter',
+            attempts: 7,
+            errorCode: 'permanent_error_upstream_timed_out',
+          }),
+          after: { status: 'pending', attempts: 0 },
+        }),
+      });
+    });
+  });
+
+  it('does not requeue a restricted client projection', async () => {
+    await withCenter(true, async () => {
+      const h = retryHarness({ wallAllowed: false });
+      await expect(h.service.retryProjection(ctx, JOB)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(h.tx.$executeRaw).not.toHaveBeenCalled();
+      expect(h.auditCreate).not.toHaveBeenCalled();
     });
   });
 });
