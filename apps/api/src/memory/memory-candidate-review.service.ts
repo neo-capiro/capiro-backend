@@ -37,7 +37,6 @@ interface PendingCandidateRow {
   sourceKind: string;
   scope: string;
   createdAt: Date;
-  payload: unknown;
 }
 
 /**
@@ -74,6 +73,9 @@ export class MemoryCandidateReviewService {
       ctx.tenantId,
       ctx.userId,
       async (tx) => {
+        // Do not load proposal bodies before authorization. The initial pass reads
+        // identifiers and scope only; payload_jsonb is fetched for an exact row
+        // only after the canonical wall/grant decision permits inspection.
         const rows = await tx.memoryCandidate.findMany({
           where: { tenantId: ctx.tenantId, status: 'pending' },
           orderBy: { createdAt: 'asc' },
@@ -84,7 +86,6 @@ export class MemoryCandidateReviewService {
             sourceKind: true,
             scope: true,
             createdAt: true,
-            payload: true,
           },
         });
 
@@ -107,6 +108,12 @@ export class MemoryCandidateReviewService {
           );
           if (!approve.allowed && !review.allowed) continue;
 
+          const authorizedRow = await tx.memoryCandidate.findFirst({
+            where: { id: row.id, tenantId: ctx.tenantId, status: 'pending' },
+            select: { payload: true },
+          });
+          if (!authorizedRow) continue;
+
           visible.push({
             id: row.id,
             scope: row.scope,
@@ -114,7 +121,7 @@ export class MemoryCandidateReviewService {
             proposedByUserId: row.proposedBy,
             sourceKind: row.sourceKind,
             createdAt: row.createdAt.toISOString(),
-            proposal: proposalFromPayload(row.payload),
+            proposal: proposalFromPayload(authorizedRow.payload),
             capabilities: {
               approve: approve.allowed,
               reject: review.allowed,
