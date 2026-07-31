@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useState, type KeyboardEvent, type ReactNode } from 'react';
+import type { FormInstance } from 'antd';
 import {
   Alert,
   App,
@@ -21,17 +22,18 @@ import {
 } from 'antd';
 import {
   CheckOutlined,
-  CloseCircleOutlined,
   EditOutlined,
   HistoryOutlined,
+  RedoOutlined,
   SafetyCertificateOutlined,
   StopOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useApi } from '../lib/use-api.js';
 import { MemoryProposalQueue } from './MemoryProposalQueue.js';
 import { MemoryReviewQueue } from './MemoryReviewQueue.js';
+import './MemoryGovernanceCenter.css';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -114,6 +116,15 @@ export interface GovernanceItem {
   capabilities: GovernanceCapabilities;
 }
 
+interface GovernanceConflictMember {
+  id: string;
+  title: string;
+  governedStatus: string;
+  conflictStatus: string;
+  controllingItemId: string | null;
+  updatedAt: string;
+}
+
 interface GovernanceDetailResponse {
   enabled: boolean;
   item: (GovernanceItem & {
@@ -128,14 +139,7 @@ interface GovernanceDetailResponse {
     versions: Array<Record<string, unknown> & { id: string; createdAt: string }>;
     transitions: Array<Record<string, unknown> & { id: string; occurredAt: string }>;
     projection: Array<Record<string, unknown> & { id: string; createdAt: string }>;
-    conflictMembers: Array<{
-      id: string;
-      title: string;
-      governedStatus: string;
-      conflictStatus: string;
-      controllingItemId: string | null;
-      updatedAt: string;
-    }>;
+    conflictMembers: GovernanceConflictMember[];
     createdAt: string;
   }) | null;
 }
@@ -153,6 +157,17 @@ interface GovernanceTransition {
   occurredAt: string;
 }
 
+interface ProjectionFailure {
+  id: string;
+  memoryItemId: string | null;
+  title: string | null;
+  operation: string;
+  status: string;
+  attempts: number;
+  lastError: string | null;
+  createdAt: string;
+}
+
 interface ProjectionHealth {
   enabled: boolean;
   counts: {
@@ -164,16 +179,7 @@ interface ProjectionHealth {
     superseded: number;
   };
   oldestDueAt: string | null;
-  recentFailures: Array<{
-    id: string;
-    memoryItemId: string | null;
-    title: string | null;
-    operation: string;
-    status: string;
-    attempts: number;
-    lastError: string | null;
-    createdAt: string;
-  }>;
+  recentFailures: ProjectionFailure[];
 }
 
 interface GovernanceClient {
@@ -207,6 +213,13 @@ interface ActionValues {
   reason?: string;
   content?: string;
   controllingItemId?: string;
+}
+
+interface GrantFormValues {
+  userId: string;
+  permissions: string[];
+  reason: string;
+  expiresAt: string;
 }
 
 export function governanceBucketForTab(
@@ -251,6 +264,10 @@ export function governanceAuthorityLabel(value: string | null | undefined): stri
     legacy_unclassified: 'Unclassified',
   };
   return labels[String(value ?? '')] ?? 'Unknown';
+}
+
+export function isGovernanceActivationKey(key: string): boolean {
+  return key === 'Enter' || key === ' ' || key === 'Spacebar';
 }
 
 export function buildGovernanceActionRequest(
@@ -387,6 +404,26 @@ export function MemoryGovernanceCenter({ isAdmin }: { isAdmin: boolean }) {
     onError: (error: unknown) => message.error(errorMessage(error)),
   });
 
+  const retryProjection = useMutation({
+    mutationFn: async (jobId: string) =>
+      (
+        await api.post<Record<string, unknown>>(
+          `/api/memory/governance/projection-jobs/${jobId}/retry`,
+          {},
+        )
+      ).data,
+    onSuccess: (result) => {
+      message.success(
+        result.outcome === 'already_retryable'
+          ? 'Projection job is already queued or running'
+          : 'Projection retry queued',
+      );
+      qc.invalidateQueries({ queryKey: ['memory-governance-overview'] });
+      qc.invalidateQueries({ queryKey: ['memory-governance-projection'] });
+    },
+    onError: (error: unknown) => message.error(errorMessage(error)),
+  });
+
   const openAction = (kind: GovernanceItemAction, item: GovernanceItem) => {
     if (kind === 'confirm' || kind === 'second_approve' || kind === 'restore') {
       actionMutation.mutate({ state: { kind, item } });
@@ -418,7 +455,12 @@ export function MemoryGovernanceCenter({ isAdmin }: { isAdmin: boolean }) {
       ) : item.key === 'transitions' ? (
         <TransitionPanel data={transitions.data?.transitions ?? []} loading={transitions.isLoading} />
       ) : item.key === 'projection' ? (
-        <ProjectionPanel data={projection.data} loading={projection.isLoading} />
+        <ProjectionPanel
+          data={projection.data}
+          loading={projection.isLoading}
+          retryingId={retryProjection.variables ?? null}
+          onRetry={(id) => retryProjection.mutate(id)}
+        />
       ) : (
         <MemoryItemTable
           items={items.data?.items ?? []}
@@ -429,7 +471,7 @@ export function MemoryGovernanceCenter({ isAdmin }: { isAdmin: boolean }) {
   }));
 
   return (
-    <Card aria-label="Memory Governance Center">
+    <Card className="memory-governance-center" aria-label="Memory Governance Center">
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <div>
           <Title level={3} style={{ marginBottom: 4 }}>
@@ -499,14 +541,27 @@ function MemoryItemTable({
   loading: boolean;
   onOpen: (id: string) => void;
 }) {
+  const activate = (event: KeyboardEvent<HTMLElement>, id: string) => {
+    if (!isGovernanceActivationKey(event.key)) return;
+    event.preventDefault();
+    onOpen(id);
+  };
   return (
     <Table<GovernanceItem>
       rowKey="id"
       loading={loading}
       dataSource={items}
+      scroll={{ x: 900 }}
       locale={{ emptyText: <Empty description="No memory in this category" /> }}
       pagination={{ pageSize: 25, showSizeChanger: true }}
-      onRow={(record) => ({ onClick: () => onOpen(record.id), style: { cursor: 'pointer' } })}
+      onRow={(record) => ({
+        onClick: () => onOpen(record.id),
+        onKeyDown: (event) => activate(event, record.id),
+        tabIndex: 0,
+        role: 'button',
+        'aria-label': `Open memory ${record.title}`,
+        className: 'memory-governance-center__row',
+      })}
       columns={[
         {
           title: 'Memory',
@@ -560,12 +615,17 @@ function MemoryDetailDrawer({
   onAction: (kind: GovernanceItemAction, item: GovernanceItem) => void;
 }) {
   return (
-    <Drawer title={data?.title ?? 'Memory detail'} width={720} open={Boolean(data) || loading} onClose={onClose}>
+    <Drawer
+      title={data?.title ?? 'Memory detail'}
+      width="min(720px, 100vw)"
+      open={Boolean(data) || loading}
+      onClose={onClose}
+    >
       {loading && <Card loading />}
       {!loading && data && (
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <Space wrap>{renderActions(data, onAction)}</Space>
-          <Descriptions bordered size="small" column={2}>
+          <Descriptions bordered size="small" column={{ xs: 1, sm: 1, md: 2 }}>
             <Descriptions.Item label="Scope">{data.clientName ?? humanize(data.memoryScope)}</Descriptions.Item>
             <Descriptions.Item label="Status">{governanceStatusLabel(data.governedStatus)}</Descriptions.Item>
             <Descriptions.Item label="Class">{humanize(data.memoryClass)}</Descriptions.Item>
@@ -617,7 +677,7 @@ function MemoryDetailDrawer({
               locale={{ emptyText: 'No conflict group' }}
               renderItem={(member) => (
                 <List.Item>
-                  <Space>
+                  <Space wrap>
                     <Text>{member.title}</Text>
                     <Tag>{humanize(member.conflictStatus)}</Tag>
                     {member.controllingItemId === member.id && <Tag color="green">Controlling</Tag>}
@@ -649,7 +709,7 @@ function MemoryDetailDrawer({
               locale={{ emptyText: 'No projection obligations' }}
               renderItem={(job) => (
                 <List.Item>
-                  <Space>
+                  <Space wrap>
                     <Tag>{governanceStatusLabel(String(job.status ?? ''))}</Tag>
                     <Text>{humanize(String(job.operation ?? 'projection'))}</Text>
                     {job.lastError && <Text type="danger">{String(job.lastError)}</Text>}
@@ -668,7 +728,7 @@ function renderActions(
   item: GovernanceItem,
   onAction: (kind: GovernanceItemAction, item: GovernanceItem) => void,
 ) {
-  const actions: Array<[boolean, GovernanceItemAction, string, React.ReactNode, boolean?]> = [
+  const actions: Array<[boolean, GovernanceItemAction, string, ReactNode, boolean?]> = [
     [item.capabilities.confirm, 'confirm', 'Confirm', <CheckOutlined />],
     [item.capabilities.markStale, 'mark_stale', 'Mark stale', <HistoryOutlined />],
     [item.capabilities.secondApprove, 'second_approve', 'Second approve', <SafetyCertificateOutlined />],
@@ -695,15 +755,11 @@ function GovernanceActionModal({
   conflictMembers,
 }: {
   state: ActionState | null;
-  form: ReturnType<typeof Form.useForm<ActionValues>>[0];
+  form: FormInstance<ActionValues>;
   pending: boolean;
   onCancel: () => void;
   onSubmit: () => void;
-  conflictMembers: GovernanceDetailResponse['item'] extends infer T
-    ? T extends { conflictMembers: infer M }
-      ? M
-      : never
-    : never;
+  conflictMembers: GovernanceConflictMember[];
 }) {
   const kind = state?.kind;
   return (
@@ -734,7 +790,7 @@ function GovernanceActionModal({
             rules={[{ required: true, message: 'Select the controlling memory.' }]}
           >
             <Select
-              options={(conflictMembers ?? []).map((member) => ({ value: member.id, label: member.title }))}
+              options={conflictMembers.map((member) => ({ value: member.id, label: member.title }))}
             />
           </Form.Item>
         )}
@@ -758,12 +814,7 @@ function MemoryGrantManager() {
   const { message } = App.useApp();
   const [clientId, setClientId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  const [form] = Form.useForm<{
-    userId: string;
-    permissions: string[];
-    reason: string;
-    expiresAt: string;
-  }>();
+  const [form] = Form.useForm<GrantFormValues>();
 
   const clients = useQuery<{ enabled: boolean; clients: GovernanceClient[] }>({
     queryKey: ['memory-governance-clients'],
@@ -787,7 +838,7 @@ function MemoryGrantManager() {
   });
 
   const createGrant = useMutation({
-    mutationFn: async (values: Awaited<ReturnType<typeof form.validateFields>>) => {
+    mutationFn: async (values: GrantFormValues) => {
       if (!clientId) throw new Error('Select a client.');
       const expiresAt = new Date(values.expiresAt);
       if (!Number.isFinite(expiresAt.getTime())) throw new Error('Expiration must be a valid date.');
@@ -825,7 +876,7 @@ function MemoryGrantManager() {
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <Space wrap>
         <Select
-          style={{ minWidth: 280 }}
+          style={{ minWidth: 280, maxWidth: '100%' }}
           placeholder="Select a client"
           value={clientId}
           onChange={setClientId}
@@ -845,16 +896,19 @@ function MemoryGrantManager() {
           rowKey="id"
           loading={grants.isLoading}
           dataSource={grants.data?.grants ?? []}
+          scroll={{ x: 900 }}
           pagination={{ pageSize: 20 }}
           columns={[
             { title: 'User ID', dataIndex: 'userId' },
             {
               title: 'Permissions',
               dataIndex: 'permissions',
-              render: (values: string[]) => <Space wrap>{values.map((v) => <Tag key={v}>{humanize(v)}</Tag>)}</Space>,
+              render: (values: string[]) => (
+                <Space wrap>{values.map((value) => <Tag key={value}>{humanize(value)}</Tag>)}</Space>
+              ),
             },
-            { title: 'Status', dataIndex: 'status', render: (v: string) => <Tag>{humanize(v)}</Tag> },
-            { title: 'Expires', dataIndex: 'expiresAt', render: (v: string | null) => dateText(v) },
+            { title: 'Status', dataIndex: 'status', render: (value: string) => <Tag>{humanize(value)}</Tag> },
+            { title: 'Expires', dataIndex: 'expiresAt', render: (value: string | null) => dateText(value) },
             { title: 'Reason', dataIndex: 'reason' },
             {
               title: 'Action',
@@ -884,7 +938,7 @@ function MemoryGrantManager() {
           >
             <Input />
           </Form.Item>
-          <Form.Item name="permissions" label="Permissions" rules={[{ required: true }]}> 
+          <Form.Item name="permissions" label="Permissions" rules={[{ required: true }]}>
             <Select
               mode="multiple"
               options={(permissions.data?.permissions ?? []).map((value) => ({
@@ -893,10 +947,10 @@ function MemoryGrantManager() {
               }))}
             />
           </Form.Item>
-          <Form.Item name="reason" label="Reason" rules={[{ required: true, whitespace: true }]}> 
+          <Form.Item name="reason" label="Reason" rules={[{ required: true, whitespace: true }]}>
             <Input.TextArea rows={3} maxLength={500} showCount />
           </Form.Item>
-          <Form.Item name="expiresAt" label="Expires at" rules={[{ required: true }]}> 
+          <Form.Item name="expiresAt" label="Expires at" rules={[{ required: true }]}>
             <Input type="datetime-local" />
           </Form.Item>
         </Form>
@@ -927,7 +981,17 @@ function TransitionPanel({ data, loading }: { data: GovernanceTransition[]; load
   );
 }
 
-function ProjectionPanel({ data, loading }: { data: ProjectionHealth | undefined; loading: boolean }) {
+function ProjectionPanel({
+  data,
+  loading,
+  retryingId,
+  onRetry,
+}: {
+  data: ProjectionHealth | undefined;
+  loading: boolean;
+  retryingId: string | null;
+  onRetry: (id: string) => void;
+}) {
   if (loading) return <Card loading />;
   if (!data) return <Empty description="Projection health unavailable" />;
   return (
@@ -942,14 +1006,25 @@ function ProjectionPanel({ data, loading }: { data: ProjectionHealth | undefined
           type="error"
           showIcon
           message="Projection work needs attention"
-          description="Canonical memory remains authoritative; failed secondary projections are retained for retry or investigation."
+          description="Canonical memory remains authoritative; failed secondary projections are retained for authorized retry or investigation."
         />
       )}
       <List
         dataSource={data.recentFailures}
         locale={{ emptyText: 'No recent projection failures' }}
         renderItem={(failure) => (
-          <List.Item>
+          <List.Item
+            actions={[
+              <Button
+                key="retry"
+                icon={<RedoOutlined />}
+                loading={retryingId === failure.id}
+                onClick={() => onRetry(failure.id)}
+              >
+                Retry
+              </Button>,
+            ]}
+          >
             <Space direction="vertical" size={0}>
               <Text strong>{failure.title ?? failure.memoryItemId ?? failure.id}</Text>
               <Text>{humanize(failure.operation)} · {governanceStatusLabel(failure.status)}</Text>
@@ -962,7 +1037,7 @@ function ProjectionPanel({ data, loading }: { data: ProjectionHealth | undefined
   );
 }
 
-function DetailBlock({ title, children }: { title: string; children: React.ReactNode }) {
+function DetailBlock({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section>
       <Title level={5}>{title}</Title>
@@ -1026,7 +1101,7 @@ function actionOutcomeMessage(kind: GovernanceItemAction, result: Record<string,
   return `${actionTitle(kind)} completed`;
 }
 
-function invalidateGovernance(qc: ReturnType<typeof useQueryClient>, itemId: string): void {
+function invalidateGovernance(qc: QueryClient, itemId: string): void {
   qc.invalidateQueries({ queryKey: ['memory-governance-overview'] });
   qc.invalidateQueries({ queryKey: ['memory-governance-items'] });
   qc.invalidateQueries({ queryKey: ['memory-governance-item', itemId] });
