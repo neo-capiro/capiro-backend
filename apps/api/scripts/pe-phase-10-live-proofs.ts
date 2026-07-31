@@ -118,8 +118,9 @@ function scratchDir(): string {
 
 function childEnv(): NodeJS.ProcessEnv {
   // Nested tsx must keep writable TMPDIR and a real DATABASE_URL (never masked).
-  const env = { ...process.env, FORCE_COLOR: '0' };
-  if (env.DATABASE_URL?.includes(':' + '*' + '*' + '*' + '@')) {
+  const env: NodeJS.ProcessEnv = { ...process.env, FORCE_COLOR: '0' };
+  const maskedMarker = ':' + '*' + '*' + '*' + '@';
+  if (env.DATABASE_URL && env.DATABASE_URL.includes(maskedMarker)) {
     delete env.DATABASE_URL;
     ensureDatabaseUrl(env);
   }
@@ -407,7 +408,9 @@ async function proveRls(prisma: PrismaClient): Promise<Pe10LiveProofStep> {
     };
   }
 
-  // Seed two synthetic tenants + users + watches under pe10 domain, prove non-leak, cleanup.
+  // Seed two synthetic tenants + users + watches under pe10 domain.
+  // Critical: set_config bypass MUST be inside the same transaction as creates
+  // (session GUC is local to the tx on FORCE RLS tables like tenants).
   const suffix = randomUUID().replace(/-/g, '').slice(0, 12);
   const slugA = `pe10-rls-a-${suffix}`;
   const slugB = `pe10-rls-b-${suffix}`;
@@ -423,96 +426,100 @@ async function proveRls(prisma: PrismaClient): Promise<Pe10LiveProofStep> {
   let watchBId: string | null = null;
 
   try {
-    await prisma.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
+    const seeded = await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
+      const tA = await tx.tenant.create({
+        data: {
+          slug: slugA,
+          name: `PE10 RLS A ${suffix}`,
+          status: 'pending',
+          settings: { synthetic: true, phase: 10, pe10: true },
+        },
+        select: { id: true },
+      });
+      const tB = await tx.tenant.create({
+        data: {
+          slug: slugB,
+          name: `PE10 RLS B ${suffix}`,
+          status: 'pending',
+          settings: { synthetic: true, phase: 10, pe10: true },
+        },
+        select: { id: true },
+      });
+      const uA = await tx.user.create({
+        data: { clerkUserId: clerkA, email: emailA, firstName: 'PE10', lastName: 'RLS-A' },
+        select: { id: true },
+      });
+      const uB = await tx.user.create({
+        data: { clerkUserId: clerkB, email: emailB, firstName: 'PE10', lastName: 'RLS-B' },
+        select: { id: true },
+      });
+      const wA = await tx.programElementWatch.create({
+        data: { tenantId: tA.id, userId: uA.id, peCode: PE_CODE },
+        select: { id: true },
+      });
+      const wB = await tx.programElementWatch.create({
+        data: { tenantId: tB.id, userId: uB.id, peCode: PE_CODE },
+        select: { id: true },
+      });
+      return {
+        tA: tA.id,
+        tB: tB.id,
+        uA: uA.id,
+        uB: uB.id,
+        wA: wA.id,
+        wB: wB.id,
+      };
+    });
+    tenantAId = seeded.tA;
+    tenantBId = seeded.tB;
+    userAId = seeded.uA;
+    userBId = seeded.uB;
+    watchAId = seeded.wA;
+    watchBId = seeded.wB;
 
-    const tA = await prisma.tenant.create({
-      data: {
-        slug: slugA,
-        name: `PE10 RLS A ${suffix}`,
-        status: 'pending',
-        settings: { synthetic: true, phase: 10, pe10: true },
-      },
-      select: { id: true },
-    });
-    const tB = await prisma.tenant.create({
-      data: {
-        slug: slugB,
-        name: `PE10 RLS B ${suffix}`,
-        status: 'pending',
-        settings: { synthetic: true, phase: 10, pe10: true },
-      },
-      select: { id: true },
-    });
-    tenantAId = tA.id;
-    tenantBId = tB.id;
-
-    const uA = await prisma.user.create({
-      data: {
-        clerkUserId: clerkA,
-        email: emailA,
-        firstName: 'PE10',
-        lastName: 'RLS-A',
-      },
-      select: { id: true },
-    });
-    const uB = await prisma.user.create({
-      data: {
-        clerkUserId: clerkB,
-        email: emailB,
-        firstName: 'PE10',
-        lastName: 'RLS-B',
-      },
-      select: { id: true },
-    });
-    userAId = uA.id;
-    userBId = uB.id;
-
-    const wA = await prisma.programElementWatch.create({
-      data: { tenantId: tenantAId, userId: userAId, peCode: PE_CODE },
-      select: { id: true },
-    });
-    const wB = await prisma.programElementWatch.create({
-      data: { tenantId: tenantBId, userId: userBId, peCode: PE_CODE },
-      select: { id: true },
-    });
-    watchAId = wA.id;
-    watchBId = wB.id;
-
-    // Fail-closed: no tenant GUC
-    await prisma.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'off', true)`);
-    await prisma.$executeRawUnsafe(`SELECT set_config('app.current_tenant', '', true)`);
+    // Fail-closed probe in its own short transaction (bypass off).
     let bare = -1;
     let failClosedError = false;
     try {
-      const bareRows: Array<{ c: bigint | number }> = await prisma.$queryRawUnsafe(
-        `SELECT COUNT(*)::bigint AS c FROM program_element_watch WHERE id IN ('${watchAId}'::uuid, '${watchBId}'::uuid)`,
-      );
-      bare = Number(bareRows[0]?.c ?? -1);
+      bare = await prisma.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'off', true)`);
+        await tx.$executeRawUnsafe(`SELECT set_config('app.current_tenant', '', true)`);
+        const bareRows: Array<{ c: bigint | number }> = await tx.$queryRawUnsafe(
+          `SELECT COUNT(*)::bigint AS c FROM program_element_watch WHERE id IN ('${watchAId}'::uuid, '${watchBId}'::uuid)`,
+        );
+        return Number(bareRows[0]?.c ?? -1);
+      });
     } catch {
       failClosedError = true;
       bare = 0;
     }
 
-    // Tenant A must see A watch, not B
-    await prisma.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'off', true)`);
-    await prisma.$executeRawUnsafe(
-      `SELECT set_config('app.current_tenant', '${tenantAId}', true)`,
-    );
-    const seeOwn: Array<{ c: bigint | number }> = await prisma.$queryRawUnsafe(
-      `SELECT COUNT(*)::bigint AS c FROM program_element_watch WHERE id = '${watchAId}'::uuid`,
-    );
-    const seeOther: Array<{ c: bigint | number }> = await prisma.$queryRawUnsafe(
-      `SELECT COUNT(*)::bigint AS c FROM program_element_watch WHERE id = '${watchBId}'::uuid`,
-    );
-    const ownN = Number(seeOwn[0]?.c ?? 0);
-    const leakN = Number(seeOther[0]?.c ?? 0);
+    // Tenant A sees own, not other — UUID constants only (seeded above).
+    const { ownN, leakN } = await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'off', true)`);
+      await tx.$executeRawUnsafe(
+        `SELECT set_config('app.current_tenant', '${tenantAId}', true)`,
+      );
+      const seeOwn: Array<{ c: bigint | number }> = await tx.$queryRawUnsafe(
+        `SELECT COUNT(*)::bigint AS c FROM program_element_watch WHERE id = '${watchAId}'::uuid`,
+      );
+      const seeOther: Array<{ c: bigint | number }> = await tx.$queryRawUnsafe(
+        `SELECT COUNT(*)::bigint AS c FROM program_element_watch WHERE id = '${watchBId}'::uuid`,
+      );
+      return {
+        ownN: Number(seeOwn[0]?.c ?? 0),
+        leakN: Number(seeOther[0]?.c ?? 0),
+      };
+    });
 
-    // Bypass can see both probes
-    await prisma.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
-    const bypassRows: Array<{ c: bigint | number }> = await prisma.$queryRawUnsafe(
-      `SELECT COUNT(*)::bigint AS c FROM program_element_watch WHERE id IN ('${watchAId}'::uuid, '${watchBId}'::uuid)`,
-    );
-    const bypassN = Number(bypassRows[0]?.c ?? 0);
+    const bypassN = await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
+      const bypassRows: Array<{ c: bigint | number }> = await tx.$queryRawUnsafe(
+        `SELECT COUNT(*)::bigint AS c FROM program_element_watch WHERE id IN ('${watchAId}'::uuid, '${watchBId}'::uuid)`,
+      );
+      return Number(bypassRows[0]?.c ?? 0);
+    });
 
     const failClosedOk = failClosedError || bare === 0;
     const dualTenantOk = ownN === 1 && leakN === 0 && bypassN === 2;
@@ -541,36 +548,23 @@ async function proveRls(prisma: PrismaClient): Promise<Pe10LiveProofStep> {
       id: 'rls_ethical_wall',
       ok: false,
       exitCode: 1,
-      detail: `RLS dual-tenant seed/probe error: ${(e as Error).message.slice(0, 500)}; ${notes.join('; ')}`,
+      detail: `RLS dual-tenant seed/probe error: ${(e as Error).message.slice(0, 800)}; ${notes.join('; ')}`,
     };
   } finally {
-    // Always cleanup synthetic rows with bypass on
     try {
-      await prisma.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
-      if (watchAId) {
-        await prisma.programElementWatch.deleteMany({ where: { id: watchAId } });
-      }
-      if (watchBId) {
-        await prisma.programElementWatch.deleteMany({ where: { id: watchBId } });
-      }
-      if (userAId) await prisma.user.deleteMany({ where: { id: userAId } });
-      if (userBId) await prisma.user.deleteMany({ where: { id: userBId } });
-      if (tenantAId) await prisma.tenant.deleteMany({ where: { id: tenantAId } });
-      if (tenantBId) await prisma.tenant.deleteMany({ where: { id: tenantBId } });
-      // belt-and-suspenders slug cleanup
-      await prisma.tenant.deleteMany({
-        where: { slug: { in: [slugA, slugB] } },
-      });
-      await prisma.user.deleteMany({
-        where: { email: { in: [emailA, emailB] } },
+      await prisma.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', true)`);
+        if (watchAId) await tx.programElementWatch.deleteMany({ where: { id: watchAId } });
+        if (watchBId) await tx.programElementWatch.deleteMany({ where: { id: watchBId } });
+        if (userAId) await tx.user.deleteMany({ where: { id: userAId } });
+        if (userBId) await tx.user.deleteMany({ where: { id: userBId } });
+        if (tenantAId) await tx.tenant.deleteMany({ where: { id: tenantAId } });
+        if (tenantBId) await tx.tenant.deleteMany({ where: { id: tenantBId } });
+        await tx.tenant.deleteMany({ where: { slug: { in: [slugA, slugB] } } });
+        await tx.user.deleteMany({ where: { email: { in: [emailA, emailB] } } });
       });
     } catch {
       /* best effort cleanup */
-    }
-    try {
-      await prisma.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'off', true)`);
-    } catch {
-      /* ignore */
     }
   }
 }
