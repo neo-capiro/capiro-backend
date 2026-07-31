@@ -1188,6 +1188,8 @@ git reset --hard e4f416ed574eaf222d6355b4cbdc6524cc778121
 **Base (Phase 8 PASS tip):** `cf9545d7e8879862a19bac4e82620eadf010c6b7`
 **origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (merge-base identical)
 **Mode:** LONG IMPLEMENT only — no self-PASS, no Phase 10, no MeriV2 source edits, no shared-env migrate/deploy/ingestion/email/LlamaParse/secrets
+**Product tip (this phase):** 
+**Remote tip after push (review target):** 
 
 ### Tasks completed (implementation)
 
