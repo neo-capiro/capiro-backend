@@ -1009,7 +1009,7 @@ git reset --hard 77fd4182dca94a51b68b8c9b22ac24ce3b0c9df7
 **Mode:** LONG
 **Base tip (Phase 5 PASS):** `c48d30bdc2229c2c452640065402efc92551f2b1`
 **Product tip (this phase):** `85e768ee086a3e8289d3b85264aefb0fa8be7adb`
-**Remote tip (post-push / review target):** `e245d5fcba4426816726a266dbe77920ed35803f`
+**Remote tip (post-push / review target):** `ed311e883082f13b23b0d7e04fba26abc33cb451` (includes package.json repair `ed311e883` after product `85e768ee086`)
 
 ### Tasks completed (implementation)
 
@@ -1061,6 +1061,9 @@ git reset --hard 77fd4182dca94a51b68b8c9b22ac24ce3b0c9df7
 - Additive only: `program_element_data_issue` + FORCE RLS. No shared-env migrate executed in this session.
 - Resolution path reads PE year marker and fails closed if it changed (must not write PE dollars).
 
+### Tip pin (package.json repair)
+After product commit `85e768ee086a3e8289d3b85264aefb0fa8be7adb`, commit `ed311e883` repaired `apps/api/package.json` JSON after a corrupt `verify:pe-phase-i` script insert. **Review target tip:** `ed311e883082f13b23b0d7e04fba26abc33cb451`.
+
 ### Independent review status (Phase 6)
 
 **IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on the remote tip after push (not self-PASS).
@@ -1086,3 +1089,22 @@ git reset --hard c48d30bdc2229c2c452640065402efc92551f2b1
 
 **Phase 6 independent adversarial REVIEW only** against the **new remote tip** after this push (not Phase 7 implement).
 Do not start Phase 7 until a separate REVIEW session records PASS.
+
+---
+
+## Phase 6 gate re-verify (implement finalization)
+
+**When:** 2026-07-31  
+**Tip:** `ed311e883082f13b23b0d7e04fba26abc33cb451`  
+**Result:** implementer re-ran local gates; green. No product code changes in this pin commit beyond ledger tip correction to the actual remote HEAD (package.json already repaired in `ed311e883`).
+
+| Command | Result |
+|---|---|
+| `pnpm run verify:pe-phase-i` | **102/102 PASS** |
+| `pnpm run verify:pe-phase-a` | **PE_PHASE_A_B_SAFETY_OK** |
+| jest PE watch tenant-isolation | **3/3 PASS** |
+| vitest `src/pages/program-element/` | **158/158 PASS** (23 files) |
+| `apps/web` build | see session output |
+
+**Independent review status:** still REQUIRED — no self-PASS. Do not start Phase 7.
+
