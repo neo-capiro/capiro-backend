@@ -64,13 +64,17 @@ export class ApiActionProposalRepo {
 
   async create(input: CreateActionProposalInput): Promise<ActionAuthorityResult> {
     const credentials = RequestCredentialsStore.get();
-    if (!credentials?.bearerToken) throw new Error('No forwarded credential is available for action authority.');
+    if (!credentials?.bearerToken)
+      throw new Error('No forwarded credential is available for action authority.');
     const env = this.config.get<string>('NODE_ENV') ?? process.env.NODE_ENV ?? 'development';
-    const secret = this.config.get<string>('INTERNAL_SERVICE_SECRET') ?? process.env.INTERNAL_SERVICE_SECRET;
+    const secret =
+      this.config.get<string>('INTERNAL_SERVICE_SECRET') ?? process.env.INTERNAL_SERVICE_SECRET;
     if ((env === 'staging' || env === 'production') && !secret) {
       throw new Error('INTERNAL_SERVICE_SECRET is not configured for action authority.');
     }
-    const base = (this.config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000').replace(/\/+$/, '');
+    const base = (
+      this.config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000'
+    ).replace(/\/+$/, '');
     const response = await fetch(`${base}/api/clio/action-proposals`, {
       method: 'POST',
       headers: {

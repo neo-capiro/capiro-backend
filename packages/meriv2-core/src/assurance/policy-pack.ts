@@ -512,10 +512,7 @@ export function policySelectionContextHash(context: PolicySelectionContext): str
  * Human-facing reason text is excluded so copy edits cannot silently invalidate
  * an otherwise identical approval; every decision-bearing field is included.
  */
-export function policyDecisionHash(
-  decision: PolicyPackDecision,
-  contextHash: string,
-): string {
+export function policyDecisionHash(decision: PolicyPackDecision, contextHash: string): string {
   const material = {
     binding: proposalPolicyBinding(decision),
     outcome: decision.outcome,

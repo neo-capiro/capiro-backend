@@ -894,7 +894,8 @@ export class ChatAssistantService {
         emit({ type: 'tool_done', tool: name, label, status: 'error', detail });
         return {
           error: true,
-          message: 'The server-owned action authority was unavailable. Nothing was executed or proposed.',
+          message:
+            'The server-owned action authority was unavailable. Nothing was executed or proposed.',
         };
       }
 
@@ -960,7 +961,10 @@ export class ChatAssistantService {
         const detail = proposal.reason.slice(0, 120);
         steps.push({ tool: name, label, status: 'blocked', detail });
         emit({ type: 'tool_done', tool: name, label, status: 'blocked', detail });
-        return { blocked: true, message: `Blocked by the authoritative policy pack: ${proposal.reason}` };
+        return {
+          blocked: true,
+          message: `Blocked by the authoritative policy pack: ${proposal.reason}`,
+        };
       }
 
       const detail = proposal.error?.message?.slice(0, 120) ?? 'Action execution failed';
