@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
@@ -12,16 +17,19 @@ export interface ConflictResolutionResult {
   resolvedCount: number;
 }
 
+interface ConflictMember {
+  id: string;
+  governed_status: string;
+  client_id: string | null;
+}
+
 /**
  * Conflict resolution for governed memory.
  *
- * `conflict_status` / `conflict_group_id` / `controlling_item_id` and the index
- * memory_items_conflict_group_idx have existed since 20260729010000 but NO
- * application code ever wrote them, so meriv2-core's recall filter — which
- * suppresses an `open` conflict with no controlling item
- * (filterGovernedMemory → 'conflict_unresolved') — had no way to ever be satisfied.
- * This is the write side: it names ONE controlling item and marks the rest of the
- * group resolved, in one transaction, with one audit row per row it touches.
+ * The complete group is locked in stable ID order before authorization or mutation.
+ * This keeps ethical-wall/grant decisions, the controlling selection, both sides of
+ * the update, and immutable evidence in one transaction and prevents two reviewers
+ * from mutating an unlocked group concurrently.
  */
 @Injectable()
 export class MemoryConflictService {
@@ -37,53 +45,69 @@ export class MemoryConflictService {
     controllingItemId: string,
     reason: string,
   ): Promise<ConflictResolutionResult> {
-    if (!reason || typeof reason !== 'string' || !reason.trim()) {
+    const cleanReason = typeof reason === 'string' ? reason.trim() : '';
+    if (!cleanReason) {
       throw new BadRequestException('A reason is required to resolve a memory conflict.');
-    }
-    // Authority + ethical wall + legal hold, on BOTH the anchor and the winner —
-    // the winner is the row that gains authority, so authorizing only the anchor
-    // would let a caller promote an item they may not touch.
-    await this.authz.requireItem(ctx, itemId, 'resolve_conflict');
-    if (controllingItemId !== itemId) {
-      await this.authz.requireItem(ctx, controllingItemId, 'resolve_conflict');
     }
 
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      const anchors = await tx.$queryRaw<
-        Array<{ conflict_group_id: string | null; client_id: string | null }>
-      >`
-        SELECT conflict_group_id::text AS conflict_group_id, client_id::text AS client_id
+      // Discover the group without taking an anchor-first lock. Every resolver then
+      // locks the complete group in the same ID order, avoiding opposite-anchor
+      // deadlocks while still rechecking membership under the locks.
+      const anchors = await tx.$queryRaw<Array<{ conflict_group_id: string | null }>>`
+        SELECT conflict_group_id::text AS conflict_group_id
         FROM memory_items
         WHERE id = ${itemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
         LIMIT 1
       `;
-      const anchor = anchors[0];
-      if (!anchor) throw new NotFoundException('Memory item not found');
-      if (!anchor.conflict_group_id) {
+      const groupId = anchors[0]?.conflict_group_id;
+      if (!anchors[0]) throw new NotFoundException('Memory item not found');
+      if (!groupId) {
         throw new BadRequestException('This memory item is not part of a conflict group.');
       }
-      const groupId = anchor.conflict_group_id;
 
-      // The winner must be in the SAME group. Without this a caller could name any
-      // item in the tenant as controlling and the losing rows would point at an
-      // unrelated row — which filterGovernedMemory would then read as "resolved".
-      const members = await tx.$queryRaw<
-        Array<{ id: string; governed_status: string; client_id: string | null }>
-      >`
+      const members = await tx.$queryRaw<ConflictMember[]>`
         SELECT id::text AS id, governed_status, client_id::text AS client_id
         FROM memory_items
         WHERE tenant_id = ${ctx.tenantId}::uuid AND conflict_group_id = ${groupId}::uuid
+        ORDER BY id
+        FOR UPDATE
       `;
-      if (!members.some((m) => m.id === controllingItemId)) {
+      if (!members.some((member) => member.id === itemId)) {
+        throw new BadRequestException('The anchor is no longer in this conflict group.');
+      }
+      if (!members.some((member) => member.id === controllingItemId)) {
         throw new BadRequestException('controllingItemId is not in this conflict group.');
       }
 
-      await tx.$executeRaw`
+      // Every row is touched by the resolution, not only the anchor and winner.
+      // Re-evaluate canonical authorization after the locks so a wall/grant change
+      // cannot race the mutation and a corrupted cross-client group fails closed.
+      for (const member of members) {
+        const subject = await this.authz.loadItemInTx(tx, ctx.tenantId, member.id);
+        if (!subject) throw new NotFoundException('Memory item not found');
+        const decision = await this.authz.evaluateInTx(
+          tx,
+          ctx,
+          subject,
+          'resolve_conflict',
+        );
+        if (!decision.allowed) {
+          throw new ForbiddenException(`Memory operation denied: ${decision.reason}`);
+        }
+      }
+
+      const controllingChanged = await tx.$executeRaw`
         UPDATE memory_items
         SET conflict_status = 'controlling', controlling_item_id = ${controllingItemId}::uuid,
             updated_at = now()
         WHERE id = ${controllingItemId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+          AND conflict_group_id = ${groupId}::uuid
       `;
+      if (controllingChanged !== 1) {
+        throw new Error('Conflict controlling-item update was not atomic.');
+      }
+
       const resolvedCount = await tx.$executeRaw`
         UPDATE memory_items
         SET conflict_status = 'resolved', controlling_item_id = ${controllingItemId}::uuid,
@@ -92,20 +116,20 @@ export class MemoryConflictService {
           AND conflict_group_id = ${groupId}::uuid
           AND id <> ${controllingItemId}::uuid
       `;
+      if (resolvedCount !== members.length - 1) {
+        throw new Error('Conflict group changed while resolution was in progress.');
+      }
 
       for (const member of members) {
         await this.transitionAudit.record(tx, ctx.tenantId, {
           subject: { memoryItemId: member.id },
           actorUserId: ctx.userId,
           clientId: member.client_id,
-          // conflict_status is a SEPARATE axis from governed_status: resolving a
-          // conflict does not move the lifecycle state, so from === to and the
-          // state machine is not consulted. Recording the unchanged status keeps
-          // the audit row's to_status NOT NULL contract honest rather than
-          // inventing a transition that did not happen.
+          // conflict_status is a separate axis from governed_status. Record the
+          // unchanged lifecycle state rather than inventing a lifecycle transition.
           toStatus: normalizeStatus(member.governed_status),
           reasonCode: 'conflict_resolved',
-          reason,
+          reason: cleanReason,
           metadata: {
             conflictGroupId: groupId,
             controllingItemId,
