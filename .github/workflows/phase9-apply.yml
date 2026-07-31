@@ -4,14 +4,12 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - docs/tmp/apply-meriv2-phase9.py
-      - docs/tmp/fix-and-run-meriv2-phase9.py
+      - docs/tmp/apply-meriv2-phase9-followup.py
       - .github/workflows/phase9-apply.yml
   push:
     branches: [agent/meriv2-world-class-closeout]
     paths:
-      - docs/tmp/apply-meriv2-phase9.py
-      - docs/tmp/fix-and-run-meriv2-phase9.py
+      - docs/tmp/apply-meriv2-phase9-followup.py
 
 permissions:
   contents: write
@@ -25,18 +23,12 @@ jobs:
         with:
           ref: agent/meriv2-world-class-closeout
           fetch-depth: 0
-      - name: Apply reviewed Phase 9 changes
+      - name: Apply reviewed Phase 9 stale-health followup
         run: |
           git config user.name "capiro-phase9-bot"
           git config user.email "noreply@capiro.ai"
-          python docs/tmp/fix-and-run-meriv2-phase9.py
-          rm docs/tmp/fix-and-run-meriv2-phase9.py
-          rm docs/tmp/apply-meriv2-phase9.py
-          rm docs/tmp/meriv2-phase9.patch
-          # The workflow-scoped GITHUB_TOKEN may not mutate workflow files.
-          # Restore the cumulative gate here; the authorized connector updates
-          # it in a separate commit after source/tests land.
-          git restore --source=HEAD -- .github/workflows/memory-governance-ci.yml
+          python docs/tmp/apply-meriv2-phase9-followup.py
+          rm docs/tmp/apply-meriv2-phase9-followup.py
           git add -A
-          git commit -m "feat(meriv2): make governed status authoritative for v2 recall"
+          git commit -m "fix(meriv2): preserve stale lifecycle health through rollout"
           git push origin HEAD:agent/meriv2-world-class-closeout
