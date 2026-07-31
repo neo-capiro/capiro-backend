@@ -101,6 +101,20 @@ type SseEvent =
       policyCode: string | null;
       /** Policy rule behind the hold, rendered in the card's expandable details. */
       ruleId: string | null;
+      /** Durable pack-authority binding that held the write (mirrors PublicMeriActionProposal.policy). */
+      policy: {
+        source: string;
+        mode: string;
+        packKey: string;
+        packVersion: string;
+        binding: string;
+        decisionHash: string;
+        contextHash: string;
+        decision: string;
+        jurisdiction: string;
+        channel: string;
+        recipientType: string | null;
+      };
       preview: MeriActionPreview;
     }
   | { type: 'done' }
