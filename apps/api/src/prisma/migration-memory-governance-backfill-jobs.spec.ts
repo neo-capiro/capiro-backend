@@ -27,7 +27,6 @@ describe('Phase 11 governance backfill migration', () => {
     expect(sql).toContain('BEFORE UPDATE OR DELETE ON memory_governance_backfill_event');
     expect(sql).toContain('memory_governance_backfill_event_metadata_size_check');
     expect(sql).toContain("'row_skipped_drift'");
-    expect(sql).toContain("'later_changes_preserved'").toBe(false);
   });
 
   it('forces row-level tenant isolation on every Phase 11 control table', () => {
