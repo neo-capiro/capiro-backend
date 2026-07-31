@@ -5,7 +5,7 @@
 **PR:** `#679`  
 **State:** Draft, open, unmerged  
 **Phase 13:** Focused local/disposable-PostgreSQL acceptance passed on `26db7ca83c066d4a9464e263e86650d7db0a58a1`  
-**Phase 14:** Implemented; exact-head automated and manual accessibility validation pending
+**Phase 14:** Local exact-head accessibility acceptance passed on `d87b4db1d18f4d5503dfcca751e3c36e784423bf`
 
 This ledger continues the accepted work log and prior addenda. It does not authorize merge, deployment, migration, feature activation, customer-data change, external send, or production rollout.
 
@@ -21,7 +21,7 @@ Unknown authority values also fell through to raw internal slugs, and focus trea
 
 ### Implemented identity boundary
 
-`ContextInspector` now uses React `useId()` to create one unique namespace per mounted instance. The namespace covers:
+`ContextInspector` uses React `useId()` to create one unique namespace per mounted instance. The namespace covers:
 
 - disclosure summary;
 - disclosure body;
@@ -33,7 +33,7 @@ Every `aria-labelledby` and `aria-controls` reference is instance-local and uniq
 
 ### Disclosure and assistive-technology behavior
 
-The component retains native `<details>/<summary>` semantics while explicitly synchronizing:
+The component retains native `<details>/<summary>` semantics while synchronizing:
 
 - `open` state;
 - `aria-expanded`;
@@ -54,7 +54,7 @@ Known authority values use controlled plain-English labels. Unknown authority va
 
 ### Automated gate
 
-The existing Context Inspector suite is expanded to cover:
+The Context Inspector suite covers:
 
 - multiple-instance ID uniqueness;
 - exact `aria-labelledby` resolution;
@@ -69,7 +69,7 @@ The existing Context Inspector suite is expanded to cover:
 - unknown lifecycle rendering; and
 - durable packet-ID fail-closed behavior.
 
-`memory-governance-ci` is extended through Phase 14 and retains this test in the cumulative web matrix.
+`memory-governance-ci` covers the Phase 14 test in the cumulative web matrix.
 
 Detailed contract:
 
@@ -85,9 +85,22 @@ A development-only fixture renders two inspectors without authentication or API 
 http://127.0.0.1:5173/context-inspector-a11y-fixture.html
 ```
 
-It includes normal, degraded, restricted, known-authority, unknown-authority, unknown-lifecycle, and **Review context** states. This makes the keyboard, focus, heading, confidentiality, and screen-reader checks repeatable on the exact validation head.
+It includes normal, degraded, restricted, known-authority, unknown-authority, unknown-lifecycle, and **Review context** states. The fixture is not linked from the product and exists only for manual QA.
 
-The fixture is not linked from the product and exists only for manual QA.
+### Acceptance evidence
+
+Fresh exact-head validation passed on `d87b4db1d18f4d5503dfcca751e3c36e784423bf`:
+
+- shared build, web typecheck, and web production build;
+- 14/14 Context Inspector tests, including expanded-state axe;
+- formatting, diff integrity, and clean tree;
+- visible focus treatment;
+- Enter/Space disclosure behavior and focus retention;
+- unique heading/ARIA identities;
+- aggregate-only restricted exclusions; and
+- plain-English unknown authority/lifecycle labels.
+
+No live NVDA/Narrator audio session was available. The residual release-candidate item is explicitly recorded in the QA document; semantic announcement behavior was verified through ARIA, native disclosure behavior, axe, and DOM inspection.
 
 ### Rollback
 
@@ -97,8 +110,6 @@ There is no data rollback. Revert the Phase 14 component, test, component-scoped
 
 ## Current gate
 
-Phase 14 is not accepted until its focused automated suite and manual accessibility checklist pass on one exact synchronized head.
+Phase 14 is locally accepted. GitHub-hosted replication remains separately blocked by the orphan `BuildFailed` Actions identity.
 
-GitHub-hosted replication remains separately blocked by the orphan `BuildFailed` Actions identity.
-
-Phase 15 has not started.
+Phase 15 implementation is authorized on the same draft branch. Phase 16 has not started.
