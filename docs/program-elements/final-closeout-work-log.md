@@ -6,7 +6,7 @@
 **Repo:** `neo-capiro/capirov2`  
 **Operator session:** Phase 10 IMPLEMENT (pre-merge staging acceptance)
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-31 18:09 UTC (Phase 10 IMPLEMENT PUSHED tip `54c9d215da2d45a` / harness PE_PHASE_10_OK — independent REVIEW REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-31 (Phase 10 IMPLEMENT PUSHED tip `907e78bde05514dc71e7b7120cf8f7fe95ead0fa` / product `28dbed74845a74f1cb432ee4e5d1577827eaf182` / harness PE_PHASE_10_OK — independent REVIEW REQUIRED — no self-PASS)
 
 ---
 
@@ -1602,44 +1602,41 @@ export PE_CLOSEOUT_EFFORT=high
 ./pe-closeout-run.sh review 10
 ```
 
-## Phase 10 — review FAIL fix round (tip 54c9d215da2d45a) — IMPLEMENT PUSHED
 
-**When:** 2026-07-31 18:09 UTC
-**Remote tip / origin HEAD:** `54c9d215da2d6279af1d8af02d9b8dc9c435127e`
+## Phase 10 — review FAIL fix round — IMPLEMENT PUSHED
+
+**Remote tip / origin HEAD (review target):** `907e78bde05514dc71e7b7120cf8f7fe95ead0fa`
+**Product/live-proofs/ship tip:** `28dbed74845a74f1cb432ee4e5d1577827eaf182` (docs-only pins after; no PE runtime delta)
 **origin/main:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind)
 **Failed review tip:** `00699283e6f7c95374a9a0ecfbc04bfabf7f1a42`
-**Product commits on tip path:**
-- `09a3fc439` live-proofs fail-closed (DB URL, source register, dual-tenant RLS, mutation boundary, full metrics, browser PE contract, stale artifact purge)
+
+### Product commits
+- `09a3fc439` live-proofs fail-closed (DB URL compose helper, source register, dual-tenant RLS, mutation boundary, full metrics, PE browser contract, stale artifact purge)
 - `fa8636a58` RLS seed inside bypass transaction + childEnv typing
-- `54c9d215da2d` Windows ECS wait → describe poll (aws wait hang)
+- `28dbed748` Windows ECS wait → describe poll
+- `54c9d215d` / `907e78bde055` evidence + ledger pins
 
-### Review FAIL items closed in product
-1. ensureDatabaseUrl / entrypoint: real encoded password via pe-compose-database-url.js — never masked password marker in DATABASE_URL
-2. Stale R2 artifacts purged every harness write (rls-phase-c-pass.txt, ship-trace/deploy/migrate rewritten to current ship only)
-3. live-proofs-task.json stores full report steps+metrics (fullReport/reportHasMetrics)
-4. Promotion fail-closed: register pe10_phase10_internal_promotion source_document before commit
-5. mutation_boundary_observe pre/post non-pe10 counts; fail on drift (no hard-ok)
-6. identical_replay: id-set equality + zero new canonical rows
-7. RLS: dual synthetic tenants seeded under pe10 domain + cleanup on live Aurora
-8. Browser/API smoke: PE list/detail/positions/timeline + web PE route
-9. Single harness regenerate on final origin HEAD 54c9d215da2d6279af1d8af02d9b8dc9c435127e — git.headSha == originHeadSha
-10. Dark rails held
+### FAIL items addressed
+1. Real DATABASE_URL (entrypoint + ensureDatabaseUrl + pe-compose-database-url.js)
+2. Purge rls-phase-c-pass.txt; rewrite ship-trace/deploy/migrate to current ship
+3. live-proofs-task.json full steps+metrics
+4. Register pe10_phase10_internal_promotion before promotion (fail closed)
+5. mutation_boundary_observe pre/post non-pe10 drift
+6. identical_replay id-set + zero new rows
+7. Dual-tenant RLS seed+cleanup on live Aurora
+8. Browser PE read contract beyond /health
+9. Single origin HEAD in harness record (non-blank)
+10. Dark rails held; no merge; no Phase 11
 
-### Live sole-plane ship (capiro-dev)
-- Images: api sha256:74074cc59c039c847ef1db14db7ddfd466c09a15c3b815d3907aaa5a43bf4854 web sha256:80433fa869ea4454d5b432e242755c42aeb22cddf2bf0964290bffada5ac3c56 tagged 54c9d215da2d6279af1d8af02d9b8dc9c435127e
-- Migrate: arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8a574f6fe5004e69836876dc70c5c211 exit 0
-- Deploy: api arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89 web arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23
-- Live proofs: arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3dba59c0f1ac4d19b11348af3621296d exit 0 PE_PHASE_10_LIVE_PROOFS_OK
-- Browser: root/health 200; PE API 401; pe_web_route 200
-- Alarm: ALB pulse+restore + PE trust synthetic jest
-- Rollback: exercised prior → tip restore
+### Live ship (capiro-dev)
+- Images api `sha256:74074cc59c039c847ef1db14db7ddfd466c09a15c3b815d3907aaa5a43bf4854` web `sha256:80433fa869ea4454d5b432e242755c42aeb22cddf2bf0964290bffada5ac3c56` @ product tip tag
+- Migrate `arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8a574f6fe5004e69836876dc70c5c211` exit 0
+- Deploy api `arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89` web `arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23`
+- Live proofs `arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3dba59c0f1ac4d19b11348af3621296d` PE_PHASE_10_LIVE_PROOFS_OK
+- Browser PE 401 wall + pe_web_route 200; alarm pulse; rollback rehearsed
 
-### Harness marker
-**PE_PHASE_10_OK / gateOk true** — implementer only. Independent adversarial REVIEW REQUIRED.
-
-### Independent review status
-IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED on remote tip `54c9d215da2d6279af1d8af02d9b8dc9c435127e` only.
-Do not rubber-stamp implementer PE_PHASE_10_OK. Do not start Phase 11. Do not merge #705.
+### Marker
+**PE_PHASE_10_OK** implementer only — independent REVIEW REQUIRED on `907e78bde05514dc71e7b7120cf8f7fe95ead0fa`.
 
 ### Rollback
 ```bash
@@ -1647,11 +1644,9 @@ aws ecs update-service --cluster capiro-dev --service capiro-dev-api --task-defi
 aws ecs update-service --cluster capiro-dev --service capiro-dev-web --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:21
 ```
 
-### Next (operator — NEW shell)
+### Next
 ```bash
-export PE_CLOSEOUT_STAGING_OK=yes
-export PE_CLOSEOUT_PROVIDER=openrouter
-export PE_CLOSEOUT_EFFORT=high
+export PE_CLOSEOUT_STAGING_OK=yes PE_CLOSEOUT_PROVIDER=openrouter PE_CLOSEOUT_EFFORT=high
 ./pe-closeout-run.sh review 10
 ```
 
