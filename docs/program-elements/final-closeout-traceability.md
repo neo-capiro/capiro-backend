@@ -178,7 +178,7 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 | K5 | Bounded cardinality metrics + alarm defs (no deploy schedules) | `in_branch` (Phase 8 defs) | pe-trust-metric-catalog + synthetic events; CDK schedule deploy OOS | 8 |
 | K6 | Human-reviewed golden set | `blocked` human workstream | grounded-field.golden.json synthetic-loud; auditor enforces | 8 + human |
 
-**Phase 8 review gate:** **IMPLEMENT PUSHED — independent REVIEW REQUIRED** — product SHA after Phase 8 commit; review against `origin/agent/program-elements-final-closeout` HEAD at review time (no self-PASS). Human K6 remains blocked (draft blocker unless Neo accepts synthetic-loud honestly).
+**Phase 8 review gate:** **IMPLEMENT PUSHED — independent REVIEW REQUIRED** — product `e8124cc8ea96185ddb810e381e4a80bc45e19d00`; review against `origin/agent/program-elements-final-closeout` HEAD at review time (no self-PASS). Human K6 remains blocked (draft blocker unless Neo accepts synthetic-loud honestly).
 
 ---
 
