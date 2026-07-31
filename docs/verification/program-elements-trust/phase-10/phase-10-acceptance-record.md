@@ -5,7 +5,7 @@
 - Plane: `capiro-dev` / workflow env=`dev` (authorized sole live = prod path)
 - HEAD: 
 - Image product tip (identical digests): `5368e3f33bd03c7b76fb4d2921373029fc34c2df`
-- origin/agent/...: `5368e3f33bd03c7b76fb4d2921373029fc34c2df`
+- origin/agent/...: `70ff77e6f2c5b1bc3070579463f389f3290fd425`
 - origin/main: `3dcb12f823774b6fae8578dc56fc122bf9a0879e`
 - merge-base: `3dcb12f823774b6fae8578dc56fc122bf9a0879e`
 - Auth PE_CLOSEOUT_STAGING_OK: true
@@ -30,8 +30,8 @@
 - `capiro-dev-web` rev=18 arn=`arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:18` image=n/a
 
 ## Image digests
-- `capiro/dev/api` tag=5368e3f33bd03c7b76fb4d2921373029fc34c2df present=true digest=sha256:51351903d7d2d3748b70bd88609f50b5c396ea687173e7c8c8a26e6b91905496
-- `capiro/dev/web` tag=5368e3f33bd03c7b76fb4d2921373029fc34c2df present=true digest=sha256:b563ad0e5b62533eff2af67c0f27401a2c2c0d3dca0530939874f1cca691f5eb
+- `capiro/dev/api` tag=70ff77e6f2c5b1bc3070579463f389f3290fd425 present=true digest=sha256:51351903d7d2d3748b70bd88609f50b5c396ea687173e7c8c8a26e6b91905496
+- `capiro/dev/web` tag=70ff77e6f2c5b1bc3070579463f389f3290fd425 present=true digest=sha256:38d159beb4518295c2f554b6e233c594a0302addde47564b44f528c16bb49520
 
 ## Outcomes
 - `git_sha_record` exit=0 class=ok head=5368e3f33bd03c7b76fb4d2921373029fc34c2df origin=5368e3f33bd03c7b76fb4d2921373029fc34c2df main=3dcb12f823774b6fae8578dc56fc122bf9a0879e mb=3dcb12f823774b6fa
