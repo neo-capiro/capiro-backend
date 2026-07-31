@@ -220,7 +220,10 @@ describe('MemoryCandidateService governed lifecycle — ARMED', () => {
       expect(data.governedStatus).toBe('rejected');
       expect(data).not.toHaveProperty('memoryAuthority');
       expect(data).not.toHaveProperty('approvedByUserId');
-      expect(h.auditRows[0]).toMatchObject({ toStatus: 'rejected', reasonCode: 'rejected' });
+      expect(h.auditRows[0]).toMatchObject({
+        toStatus: 'rejected',
+        reasonCode: 'rejected_by_reviewer',
+      });
     });
   });
 
