@@ -321,7 +321,6 @@ describe('evaluatePePhase10Gate', () => {
       (s) =>
         s.id !== 'staging_auth_gate' &&
         s.id !== 'email_automation_dark' &&
-        s.id !== 'rollback_rehearsal' &&
         s.id !== 'acceptance_record' &&
         s.id !== 'forbidden_production_actions',
     ).map((s) => ({ stepId: s.id, exitCode: 0, detail: 'passed' }));
@@ -339,6 +338,13 @@ describe('evaluatePePhase10Gate', () => {
           pushedAt: '2026-07-31T00:00:00Z',
           present: true,
         },
+        {
+          repo: 'capiro/dev/web',
+          tag: 'abc',
+          digest: 'sha256:cafebabe',
+          pushedAt: '2026-07-31T00:00:00Z',
+          present: true,
+        },
       ],
       rollbackDocumented: true,
       acceptanceRecordWritten: true,
@@ -348,6 +354,50 @@ describe('evaluatePePhase10Gate', () => {
     expect(g.ok).toBe(true);
     expect(g.blockedComplete).toBe(false);
     expect(g.exitGate.every((e) => e.satisfied)).toBe(true);
+  });
+
+  it('prose-only rollback does not satisfy rollback_rehearsed exit bullet on healthy mutate plane', () => {
+    const healthy = summarizeStagingInventory({
+      accountId: PE_PHASE_10_STAGING_EXPECTED.accountId,
+      ecsClusterExists: true,
+      ecsClusterStatus: 'ACTIVE',
+      computeStackStatus: 'UPDATE_COMPLETE',
+      auroraClusterLive: true,
+      apiServiceExists: true,
+      webServiceExists: true,
+      priorTaskDefs: [
+        {
+          family: 'capiro-dev-api',
+          revision: 59,
+          arn: 'arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:59',
+          image: null,
+        },
+      ],
+    });
+    const outcomes = PE_PHASE_10_ACCEPTANCE_STEPS.filter(
+      (s) =>
+        s.id !== 'staging_auth_gate' &&
+        s.id !== 'email_automation_dark' &&
+        s.id !== 'rollback_rehearsal' &&
+        s.id !== 'acceptance_record' &&
+        s.id !== 'forbidden_production_actions',
+).map((s) => ({ stepId: s.id, exitCode: 0, detail: 'passed' }));
+    const g = evaluatePePhase10Gate({
+      authOk: true,
+      inventory: healthy,
+      mutateAllowed: true,
+      outcomes,
+      integrityOk: true,
+      imageRecords: [
+        { repo: 'capiro/dev/api', tag: 'x', digest: 'sha256:a', pushedAt: null, present: true },
+        { repo: 'capiro/dev/web', tag: 'x', digest: 'sha256:b', pushedAt: null, present: true },
+      ],
+      rollbackDocumented: true,
+      acceptanceRecordWritten: true,
+      emailAutomationDark: true,
+    });
+    expect(g.marker).not.toBe('PE_PHASE_10_OK');
+    expect(g.exitGate.find((e) => e.bullet === 'rollback_rehearsed')?.satisfied).toBe(false);
   });
 
   it('local preflight failure is hard FAIL even when plane blocked', () => {
@@ -404,3 +454,25 @@ describe('evaluatePePhase10Gate', () => {
     expect(g.exitGate.every((e) => e.satisfied)).toBe(false);
   });
 });
+
+describe('anti-fake ship evidence (source)', () => {
+  const shipSrc = () =>
+    require('fs').readFileSync(require('path').join(__dirname, 'pe-phase-10-ship.ts'), 'utf8') as string;
+
+  it('does not export runLocalVerifyEvidenceSteps hard-ok pack', () => {
+    const src = shipSrc();
+    expect(src).not.toMatch(/export function runLocalVerifyEvidenceSteps/);
+    expect(src).toMatch(/export function runLiveProofsTask/);
+    expect(src).toMatch(/export function outcomesFromLiveProofReport/);
+    expect(src).toMatch(/export function runAlarmTestEvents/);
+    expect(src).toMatch(/export function rehearseRollback/);
+  });
+
+  it('forbids hardcoded identical_replay ok and source-grep derive greening', () => {
+    const src = shipSrc();
+    expect(src).not.toMatch(/identical_replay[\s\S]{0,200}exitCode:\s*0,\s*\n\s*classification:\s*'ok'/);
+    expect(src).not.toMatch(/src\.includes\(['"]DRY RUN['"]\)/);
+    expect(src).not.toMatch(/rls-phase-c-pass\.txt/);
+  });
+});
+

@@ -33,7 +33,9 @@
     "src/program-element/pe-trust-metric-catalog.ts",
     "src/program-element/pe-trust-metric-catalog.spec.ts",
     "src/program-element/program-element-metrics.service.ts",
-    "src/program-element/program-element-metrics.service.spec.ts"
+    "src/program-element/program-element-metrics.service.spec.ts",
+    "scripts/pe-phase-10-live-proofs.ts",
+    "scripts/lib/pe-phase-10-ship.ts"
   ],
   "exclude": [
     "node_modules",

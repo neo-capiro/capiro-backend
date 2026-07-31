@@ -54,8 +54,11 @@ import {
   capturePriorTaskDefs,
   deployBranchTaskDefs,
   ecrDigestForTag,
+  outcomesFromLiveProofReport,
+  rehearseRollback,
   runAdditiveMigrate,
-  runLocalVerifyEvidenceSteps,
+  runAlarmTestEvents,
+  runLiveProofsTask,
   writeRollbackCapture,
   type PePhase10ShipTrace,
 } from './lib/pe-phase-10-ship.js';
@@ -689,12 +692,22 @@ function main(): void {
       });
     }
 
-    // Runtime proofs pack
-    const proofs = runLocalVerifyEvidenceSteps(root, env);
-    for (const k of Object.keys(proofs)) {
-      outcomes.push(proofs[k]!);
+    // Runtime proofs pack — REAL sole-live ECS task (no hardcoded ok / source-grep greening)
+    console.error('PE_PHASE_10_SHIP: live Aurora proofs via ECS pe-phase-10-live-proofs…');
+    const live = runLiveProofsTask(
+      { root, headSha: ge.headSha, inventory, awsEnv: env, evidenceDir },
+      apiUri,
+    );
+    shipTrace.notes.push(live.detail);
+    if (live.taskArn) {
+      (shipTrace as any).liveProofsTaskArn = live.taskArn;
+    }
+    const proofOutcomes = outcomesFromLiveProofReport(live.report, live.ok, live.detail);
+    for (const k of Object.keys(proofOutcomes)) {
+      outcomes.push(proofOutcomes[k]!);
     }
 
+    console.error('PE_PHASE_10_SHIP: browser/API smoke…');
     const smoke = browserSmoke(env);
     outcomes.push({
       stepId: 'browser_smoke',
@@ -702,6 +715,19 @@ function main(): void {
       classification: smoke.ok ? 'ok' : 'branch_introduced',
       detail: smoke.detail,
     });
+
+    console.error('PE_PHASE_10_SHIP: SYNTHETIC alarm test events…');
+    outcomes.push(runAlarmTestEvents(env, evidenceDir));
+
+    // Rollback rehearse after tip deploy (priors → tip restore)
+    console.error('PE_PHASE_10_SHIP: rollback rehearse (prior TD → tip TD)…');
+    const rb = rehearseRollback(
+      { root, headSha: ge.headSha, inventory, awsEnv: env, evidenceDir },
+      inventory.priorTaskDefs ?? [],
+      shipTrace.newApiTaskDefArn,
+      shipTrace.newWebTaskDefArn,
+    );
+    outcomes.push(rb);
 
     rollbackInstructions = writeRollbackCapture(evidenceDir, inventory.priorTaskDefs ?? [], shipTrace);
   } else {

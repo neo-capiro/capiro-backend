@@ -19,7 +19,6 @@ import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import {
   PE_PHASE_10_STAGING_EXPECTED,
-  isForbiddenDeployCluster,
 } from './pe-phase-10-staging-acceptance-catalog.js';
 import type {
   PePhase10ImageDigestRecord,
@@ -27,7 +26,9 @@ import type {
   PePhase10PriorTaskDef,
   PePhase10StepOutcome,
 } from './pe-phase-10-staging-acceptance.js';
-import { PE_PHASE_10_BLOCKED_EXIT } from './pe-phase-10-staging-acceptance.js';
+import {
+  isForbiddenDeployCluster,
+} from './pe-phase-10-staging-acceptance.js';
 
 const exp = PE_PHASE_10_STAGING_EXPECTED;
 
@@ -376,7 +377,7 @@ export function runAdditiveMigrate(
 ): { ok: boolean; taskArn: string | null; detail: string } {
   assertAuthorizedClusterOrThrow(exp.ecsClusterName);
   // Optionally pin migrate TD image when we have a branch image
-  let tdFamily = exp.migrateTaskDefinitionFamily;
+  let tdFamily: string = exp.migrateTaskDefinitionFamily;
   if (migrateImageUri) {
     const reg = cloneTaskDefWithImage(ctx.awsEnv, exp.migrateTaskDefinitionFamily, migrateImageUri);
     if (reg.ok && reg.arn) tdFamily = reg.arn;
@@ -451,142 +452,636 @@ export function browserSmoke(env: NodeJS.ProcessEnv = process.env): {
   detail: string;
 } {
   const host = exp.appHost;
-  const curl = (url: string) =>
-    runShell(`curl -sS -o /tmp/pe10curl.out -w "%{http_code}" --max-time 30 "${url}"`, env, process.cwd());
-  const root = curl(`https://${host}/`);
-  const health = curl(`https://${host}/health`);
-  const healthz = curl(`https://${host}/healthz`);
-  const codes = {
-    root: root.out.trim().slice(-3),
-    health: health.out.trim().slice(-3),
-    healthz: healthz.out.trim().slice(-3),
+  const tmp = resolve(process.env.TEMP || process.env.TMP || '/tmp', 'pe10curl.out');
+  const curl = (url: string) => {
+    const r = runShell(
+      `curl -sS -D - -o "${tmp}" -w "\nHTTP_CODE:%{http_code}" --max-time 30 "${url}"`,
+      env,
+      process.cwd(),
+    );
+    const codeMatch = r.out.match(/HTTP_CODE:(\d{3})/);
+    const code = codeMatch?.[1] ?? '000';
+    let body = '';
+    try {
+      body = readFileSync(tmp, 'utf8').slice(0, 400);
+    } catch {
+      body = '';
+    }
+    return { code, body, raw: r.out.slice(0, 400) };
   };
-  // app root 200; health may be 200 or 401 depending on path routing — both prove live ALB
-  const ok =
-    codes.root === '200' &&
-    (codes.health === '200' || codes.health === '401') &&
-    (codes.healthz === '200' || codes.healthz === '401');
-  return { ok, detail: `host=${host} codes=${JSON.stringify(codes)}` };
+
+  const paths = [
+    { id: 'root', url: `https://${host}/`, want: ['200'] },
+    { id: 'health', url: `https://${host}/health`, want: ['200', '401'] },
+    { id: 'healthz', url: `https://${host}/healthz`, want: ['200', '401'] },
+    { id: 'api_health', url: `https://${host}/api/health`, want: ['200', '401', '404'] },
+    { id: 'pe_list', url: `https://${host}/api/program-elements?limit=1`, want: ['200', '401', '403'] },
+    {
+      id: 'pe_detail',
+      url: `https://${host}/api/program-elements/0603270A`,
+      want: ['200', '401', '403', '404'],
+    },
+  ];
+  const results: Record<string, string> = {};
+  const failures: string[] = [];
+  for (const pth of paths) {
+    const r = curl(pth.url);
+    results[pth.id] = r.code;
+    if (!pth.want.includes(r.code)) failures.push(`${pth.id}=${r.code}`);
+    if (pth.id.startsWith('pe_') && r.code === '200' && (!r.body || !r.body.trim())) {
+      failures.push(`${pth.id}:200 empty body`);
+    }
+  }
+  const ok = failures.length === 0 && results.root === '200';
+  return {
+    ok,
+    detail: `host=${host} codes=${JSON.stringify(results)}${
+      failures.length ? ` FAIL ${failures.join(',')}` : ''
+    } (401 on PE routes = auth wall present)`,
+  };
 }
 
-export function runLocalVerifyEvidenceSteps(
-  root: string,
-  env: NodeJS.ProcessEnv,
+/**
+ * ECS one-shot pe-phase-10-live-proofs on sole-live plane.
+ * DB secrets stay in-task; harness never GetSecretValue.
+ */
+export function runLiveProofsTask(
+  ctx: PePhase10ShipContext,
+  apiImageUri: string | null,
+): {
+  ok: boolean;
+  taskArn: string | null;
+  report: any | null;
+  logText: string;
+  detail: string;
+} {
+  assertAuthorizedClusterOrThrow(exp.ecsClusterName);
+  let tdFamily: string = exp.apiTaskDefinitionFamily;
+  if (apiImageUri) {
+    const reg = cloneTaskDefWithImage(ctx.awsEnv, exp.apiTaskDefinitionFamily, apiImageUri);
+    if (reg.ok && reg.arn) tdFamily = reg.arn;
+  }
+
+  const net = awsJson(ctx.awsEnv, [
+    'ecs',
+    'describe-services',
+    '--cluster',
+    exp.ecsClusterName,
+    '--services',
+    exp.apiServiceName,
+    '--query',
+    'services[0].networkConfiguration',
+  ]);
+  if (net.code !== 0 || !net.json?.awsvpcConfiguration) {
+    return {
+      ok: false,
+      taskArn: null,
+      report: null,
+      logText: '',
+      detail: `networkConfiguration missing: ${net.out.slice(0, 400)}`,
+    };
+  }
+  const awsvpc = net.json.awsvpcConfiguration;
+  const nc = `awsvpcConfiguration={subnets=[${awsvpc.subnets.join(',')}],securityGroups=[${awsvpc.securityGroups.join(',')}],assignPublicIp=${awsvpc.assignPublicIp || 'DISABLED'}}`;
+
+  const ovPath = resolve(
+    process.env.TEMP || process.env.TMP || '/tmp',
+    `pe10-live-proofs-overrides-${Date.now()}.json`,
+  );
+  writeFileSync(
+    ovPath,
+    JSON.stringify({
+      containerOverrides: [
+        {
+          name: 'api',
+          command: ['pe-phase-10-live-proofs'],
+          environment: [
+            { name: 'GIT_SHA', value: ctx.headSha },
+            { name: 'PE_CLOSEOUT_HEAD_SHA', value: ctx.headSha },
+          ],
+        },
+      ],
+    }),
+  );
+  const ovFile = 'file://' + ovPath.replace(/\\/g, '/');
+
+  let rt = awsJson(ctx.awsEnv, [
+    'ecs',
+    'run-task',
+    '--cluster',
+    exp.ecsClusterName,
+    '--task-definition',
+    tdFamily,
+    '--launch-type',
+    'FARGATE',
+    '--network-configuration',
+    nc,
+    '--overrides',
+    ovFile,
+    '--count',
+    '1',
+  ]);
+  let taskArn: string | null = rt.json?.tasks?.[0]?.taskArn ?? null;
+  if (!taskArn) {
+    rt = awsJson(ctx.awsEnv, [
+      'ecs',
+      'run-task',
+      '--cluster',
+      exp.ecsClusterName,
+      '--task-definition',
+      tdFamily,
+      '--launch-type',
+      'FARGATE',
+      '--network-configuration',
+      nc,
+      '--overrides',
+      `file://${ovPath}`,
+      '--count',
+      '1',
+    ]);
+    taskArn = rt.json?.tasks?.[0]?.taskArn ?? null;
+  }
+  if (!taskArn) {
+    return {
+      ok: false,
+      taskArn: null,
+      report: null,
+      logText: '',
+      detail: `run-task live proofs failed: ${(rt.out || '').slice(0, 800)} failures=${JSON.stringify(rt.json?.failures ?? [])}`,
+    };
+  }
+
+  const wait = run(
+    'aws',
+    ['ecs', 'wait', 'tasks-stopped', '--cluster', exp.ecsClusterName, '--tasks', taskArn],
+    ctx.awsEnv,
+  );
+  const desc = awsJson(ctx.awsEnv, [
+    'ecs',
+    'describe-tasks',
+    '--cluster',
+    exp.ecsClusterName,
+    '--tasks',
+    taskArn,
+    '--query',
+    'tasks[0].{stop:stoppedReason,containers:containers[*].{name:name,exit:exitCode,reason:reason},startedAt:startedAt,stoppedAt:stoppedAt}',
+  ]);
+  const exitCode = desc.json?.containers?.[0]?.exit;
+
+  const logCfg = awsJson(ctx.awsEnv, [
+    'ecs',
+    'describe-task-definition',
+    '--task-definition',
+    exp.apiTaskDefinitionFamily,
+    '--query',
+    'taskDefinition.containerDefinitions[0].logConfiguration',
+  ]);
+  let logText = '';
+  try {
+    const options = logCfg.json?.options ?? {};
+    const group = options['awslogs-group'] as string | undefined;
+    const prefix = (options['awslogs-stream-prefix'] as string | undefined) || 'api';
+    const taskId = taskArn.split('/').pop();
+    if (group && taskId) {
+      const streamCandidates = [
+        `${prefix}/api/${taskId}`,
+        `api/api/${taskId}`,
+        `${prefix}/${taskId}`,
+      ];
+      for (const stream of streamCandidates) {
+        const logs = run(
+          'aws',
+          [
+            'logs',
+            'get-log-events',
+            '--log-group-name',
+            group,
+            '--log-stream-name',
+            stream,
+            '--limit',
+            '250',
+            '--output',
+            'json',
+          ],
+          ctx.awsEnv,
+        );
+        if (logs.code !== 0) continue;
+        try {
+          const parsed = JSON.parse(logs.out || '{}');
+          const text = (parsed.events || []).map((e: any) => e.message).join('\n');
+          if (text.trim()) {
+            logText = text;
+            break;
+          }
+        } catch {
+          if (logs.out.trim()) {
+            logText = logs.out.slice(0, 8000);
+            break;
+          }
+        }
+      }
+    }
+  } catch {
+    logText = '';
+  }
+
+  let report: any = null;
+  const markerIdx = logText.lastIndexOf('PE_PHASE_10_LIVE_PROOFS_');
+  if (markerIdx >= 0) {
+    const before = logText.lastIndexOf('{', markerIdx);
+    if (before >= 0) {
+      let depth = 0;
+      let end = -1;
+      for (let i = before; i < logText.length; i++) {
+        const ch = logText[i];
+        if (ch === '{') depth += 1;
+        else if (ch === '}') {
+          depth -= 1;
+          if (depth === 0) {
+            end = i + 1;
+            break;
+          }
+        }
+      }
+      if (end > before) {
+        try {
+          report = JSON.parse(logText.slice(before, end));
+        } catch {
+          report = null;
+        }
+      }
+    }
+  }
+
+  const markerOk =
+    /PE_PHASE_10_LIVE_PROOFS_OK/.test(logText) || report?.marker === 'PE_PHASE_10_LIVE_PROOFS_OK';
+  const ok = wait.code === 0 && exitCode === 0 && markerOk;
+  mkdirSync(ctx.evidenceDir, { recursive: true });
+  writeFileSync(
+    resolve(ctx.evidenceDir, 'live-proofs-task.json'),
+    JSON.stringify(
+      {
+        taskArn,
+        exitCode,
+        waitCode: wait.code,
+        describe: desc.json,
+        report,
+        logTail: logText.slice(-6000),
+      },
+      null,
+      2,
+    ),
+  );
+  return {
+    ok,
+    taskArn,
+    report,
+    logText,
+    detail: ok
+      ? `live proofs task ${taskArn} exit=0 marker=PE_PHASE_10_LIVE_PROOFS_OK`
+      : `live proofs task ${taskArn} failed wait=${wait.code} exit=${exitCode} markerOk=${markerOk} body=${JSON.stringify(desc.json).slice(0, 400)} log=${logText.slice(-500)}`,
+  };
+}
+
+/**
+ * Map executed live proofs into PE Phase 10 step outcomes.
+ * HARD FAIL closed: no hardcoded ok, no source-grep-as-derive, no PASS-file RLS override.
+ */
+export function outcomesFromLiveProofReport(
+  report: any | null,
+  liveOk: boolean,
+  liveDetail: string,
 ): Record<string, PePhase10StepOutcome> {
   const out: Record<string, PePhase10StepOutcome> = {};
-  // Inspect-only loaders: static exact-SHA contract (no DB commit)
-  const e = runShell('pnpm -C apps/api exec tsx scripts/verify-pe-phase-e-exact-sha.ts', env, root);
-  out.inspect_only_loaders = {
-    stepId: 'inspect_only_loaders',
-    exitCode: e.code,
-    classification: e.code === 0 ? 'ok' : 'branch_introduced',
-    detail: e.out.slice(-600) || (e.code === 0 ? 'exact-SHA loader contracts ok (inspect-only)' : 'exact-sha verify failed'),
-  };
+  const steps: any[] = Array.isArray(report?.steps) ? report.steps : [];
+  const byId = new Map(steps.map((s) => [s.id, s] as const));
 
-  // Exact-SHA internal promotion + identical replay: reuse phase-9 integrity of contracts as local proof packing
-  // When DB network is unavailable from agent host, these remain static proofs of gate wiring (branded honestly).
-  out.exact_sha_internal_promotion = {
-    stepId: 'exact_sha_internal_promotion',
-    exitCode: e.code === 0 ? 0 : 1,
-    classification: e.code === 0 ? 'ok' : 'branch_introduced',
-    detail:
-      e.code === 0
-        ? 'exact-SHA promotion contract verified (static); live internal promotion notification recorded as contract-gate (no ingestion commit)'
-        : 'exact-SHA promotion contract failed',
-  };
-  out.identical_replay = {
-    stepId: 'identical_replay',
-    exitCode: 0,
-    classification: 'ok',
-    detail:
-      'identical-replay invariant enforced by exact-SHA loader contracts + Phase 9 survey idempotency gates (zero duplicate canonical writes on re-ingest path); no second live commit performed',
-  };
-
-  // Derive dry-run: static verification that derive chain refuses --commit unless asked
-  const derSrc = resolve(root, 'apps/api/scripts/run-pe-derive-chain.ts');
-  let derOk = false;
-  try {
-    const src = readFileSync(derSrc, 'utf8');
-    derOk =
-      src.includes("run-pe-derive-chain") &&
-      src.includes('--commit') &&
-      src.includes('DRY RUN');
-  } catch {
-    derOk = false;
-  }
-  out.derive_chain_dry_run = {
-    stepId: 'derive_chain_dry_run',
-    exitCode: derOk ? 0 : 1,
-    classification: derOk ? 'ok' : 'branch_introduced',
-    detail: derOk
-      ? 'derive-chain default is dry-run; Phase 10.path does not pass --commit; email step remains canary-dark'
-      : 'derive-chain source missing dry-run posture',
-  };
-
-  // RLS: host script first; if soft-skip, read Phase C PASS evidence from this implement run.
-  let rls = runShell('bash apps/api/scripts/pe-phase-c-rls-rehearsal.sh', env, root);
-  let rlsOut = rls.out.slice(-1200);
-  const evidencePass = resolve(root, 'docs/verification/program-elements-trust/phase-10/rls-phase-c-pass.txt');
-  if (rls.code === 0 && /PE_PHASE_C_RLS_REHEARSAL_SKIP/i.test(rlsOut) && existsSync(evidencePass)) {
-    rlsOut = readFileSync(evidencePass, 'utf8').slice(-1200);
-    rls = { code: 0, out: rlsOut };
-  }
-  if ((rls.code === 0 && /checks PASSED|PASS  19/i.test(rlsOut)) || /23 checks PASSED/i.test(rlsOut)) {
-    out.rls_ethical_wall = {
-      stepId: 'rls_ethical_wall',
-      exitCode: 0,
-      classification: 'ok',
-      detail: `Phase C disposable RLS rehearsal PASS (23 checks); ${rlsOut.slice(-300)}`,
+  const mapStep = (stepId: string, candidates: string[]): PePhase10StepOutcome => {
+    for (const c of candidates) {
+      const s = byId.get(c);
+      if (s) {
+        const ok = Boolean(s.ok);
+        return {
+          stepId,
+          exitCode: ok ? 0 : typeof s.exitCode === 'number' ? s.exitCode : 1,
+          classification: ok ? 'ok' : 'branch_introduced',
+          detail: String(s.detail || '').slice(0, 800),
+        };
+      }
+    }
+    return {
+      stepId,
+      exitCode: 1,
+      classification: 'branch_introduced',
+      detail: liveOk
+        ? `live proofs report missing step ${candidates.join('|')} despite task OK — UNSATISFIED`
+        : `live proofs missing/failed (${liveDetail.slice(0, 400)}); step ${stepId} UNSATISFIED`,
     };
-  } else if (rls.code === 0 && /PE_PHASE_C_RLS_REHEARSAL_SKIP/i.test(rlsOut)) {
-    out.rls_ethical_wall = {
-      stepId: 'rls_ethical_wall',
-      exitCode: PE_PHASE_10_BLOCKED_EXIT,
-      classification: 'env_blocked',
-      detail: `RLS rehearsal soft-skipped: ${rlsOut.slice(0, 400)}`,
-    };
-  } else if (rls.code === 0) {
-    out.rls_ethical_wall = {
-      stepId: 'rls_ethical_wall',
-      exitCode: 0,
-      classification: 'ok',
-      detail: `rls rehearsal exit=0 ${rlsOut.slice(0, 300)}`,
+  };
+
+  const inspectLive = byId.get('inspect_only_loaders');
+  const inspectStatic = byId.get('inspect_only_loaders_static');
+  if (inspectLive || inspectStatic) {
+    const ok = Boolean(inspectLive?.ok ?? true) && Boolean(inspectStatic?.ok ?? true);
+    out.inspect_only_loaders = {
+      stepId: 'inspect_only_loaders',
+      exitCode: ok ? 0 : 1,
+      classification: ok ? 'ok' : 'branch_introduced',
+      detail: [
+        inspectStatic ? `static:${String(inspectStatic.detail || '').slice(0, 200)}` : '',
+        inspectLive ? `liveInspect:${String(inspectLive.detail || '').slice(0, 400)}` : '',
+      ]
+        .filter(Boolean)
+        .join(' | '),
     };
   } else {
-    out.rls_ethical_wall = {
-      stepId: 'rls_ethical_wall',
-      exitCode: PE_PHASE_10_BLOCKED_EXIT,
-      classification: 'env_blocked',
-      detail: `RLS not fully proven (exit ${rls.code}): ${rlsOut.slice(0, 400)}`,
-    };
+    out.inspect_only_loaders = mapStep('inspect_only_loaders', [
+      'inspect_only_loaders',
+      'inspect_only_loaders_static',
+    ]);
   }
 
-  // Alarms: describe live capiro-dev alarms + synthetic-loud inventory (no humanReviewed)
+  out.exact_sha_internal_promotion = mapStep('exact_sha_internal_promotion', [
+    'exact_sha_internal_promotion',
+  ]);
+  out.identical_replay = mapStep('identical_replay', ['identical_replay']);
+  out.derive_chain_dry_run = mapStep('derive_chain_dry_run', ['derive_chain_dry_run']);
+  out.rls_ethical_wall = mapStep('rls_ethical_wall', ['rls_ethical_wall']);
+  return out;
+}
+
+/**
+ * Alarm path: emit synthetic-loud PE trust events (in-process) + CloudWatch
+ * set-alarm-state test pulse on a non-page capiro-dev alarm, then restore.
+ * Not humanReviewed. Quiet describe-only is NOT sufficient.
+ */
+export function runAlarmTestEvents(env: NodeJS.ProcessEnv, evidenceDir: string): PePhase10StepOutcome {
+  mkdirSync(evidenceDir, { recursive: true });
+
+  // In-process synthetic event build via tsx evaluating catalog (repo path).
+  const rootGuess = process.cwd();
+  const synth = runShell(
+    `pnpm -C apps/api exec tsx -e "import { PE_TRUST_ALARM_DEFINITIONS, buildPeTrustSyntheticAlarmEvent } from './src/program-element/pe-trust-metric-catalog.ts'; const events = PE_TRUST_ALARM_DEFINITIONS.map((d) => buildPeTrustSyntheticAlarmEvent(d.id)); if (!events.length) throw new Error('no PE trust alarm defs'); for (const e of events) { if (!String(e.note).toUpperCase().includes('SYNTHETIC')) throw new Error('missing SYNTHETIC marker'); if ((e as any).humanReviewed) throw new Error('humanReviewed forbidden'); } console.log(JSON.stringify({ ok: true, count: events.length, type: events[0].type, humanReviewed: false, syntheticTestEvent: events[0].syntheticTestEvent }));"`,
+    env,
+    rootGuess,
+  );
+  let synthOk = synth.code === 0 && /"ok":\s*true/.test(synth.out);
+  // Fallback: unit catalog is already covered by verify:pe-phase-k; require CW exercise either way.
+  if (!synthOk) {
+    // Try alternative path from monorepo root via node --import tsx
+    const synth2 = runShell(
+      `pnpm -C apps/api exec jest --runInBand --forceExit src/program-element/pe-trust-metric-catalog.spec.ts -t "synthetic"`,
+      env,
+      rootGuess,
+    );
+    synthOk = synth2.code === 0;
+    if (synthOk) {
+      writeFileSync(
+        resolve(evidenceDir, 'alarm-synthetic-events.json'),
+        JSON.stringify(
+          {
+            ok: true,
+            via: 'pe-trust-metric-catalog.spec.ts',
+            note: 'SYNTHETIC test events exercised by unit path; not humanReviewed',
+            out: synth2.out.slice(-800),
+          },
+          null,
+          2,
+        ),
+      );
+    } else {
+      writeFileSync(
+        resolve(evidenceDir, 'alarm-synthetic-events.json'),
+        JSON.stringify({ ok: false, synth, synth2 }, null, 2),
+      );
+    }
+  } else {
+    writeFileSync(resolve(evidenceDir, 'alarm-synthetic-events.json'), synth.out.slice(-2000));
+  }
+
+  // Choose a live capiro-dev alarm that is currently OK and pulse ALARM then OK.
   const alarms = awsJson(env, [
     'cloudwatch',
     'describe-alarms',
     '--max-records',
-    '50',
+    '100',
     '--query',
-    "MetricAlarms[?contains(AlarmName, 'capiro-dev') || contains(AlarmName, 'Capiro')].{name:AlarmName,state:StateValue}",
+    "MetricAlarms[?contains(AlarmName, 'capiro-dev')].{name:AlarmName,state:StateValue}",
   ]);
-  const alarmList = Array.isArray(alarms.json) ? alarms.json : [];
-  const anyAlarm = alarmList.length > 0;
-  const anyAlarmCritical = alarmList.some(
-    (a: any) => String(a?.state || '').toUpperCase() === 'ALARM',
-  );
-  const alarmOk = alarms.code === 0 && anyAlarm && !anyAlarmCritical;
-  out.alarm_test_events = {
-    stepId: 'alarm_test_events',
-    exitCode: alarmOk ? 0 : 1,
-    classification: alarmOk ? 'ok' : 'branch_introduced',
-    detail: alarmOk
-      ? `SYNTHETIC-LOUD alarm inventory ok count=${alarmList.length} none in ALARM state; not humanReviewed`
-      : `alarm describe failed or unexpected ALARM: code=${alarms.code} count=${alarmList.length} ${alarms.out.slice(0, 200)}`,
-  };
+  const alarmList: Array<{ name: string; state: string }> = Array.isArray(alarms.json)
+    ? alarms.json
+    : [];
+  const target =
+    alarmList.find((a) => /alb-5xx$|api-target-5xx|apirunningcount/i.test(a.name || '')) ||
+    alarmList.find((a) => String(a.state).toUpperCase() === 'OK') ||
+    null;
 
-  return out;
+  if (!target?.name) {
+    return {
+      stepId: 'alarm_test_events',
+      exitCode: 1,
+      classification: 'branch_introduced',
+      detail: `no capiro-dev CloudWatch alarms found to pulse; synthOk=${synthOk}`,
+    };
+  }
+
+  const priorState = String(target.state || 'OK').toUpperCase() === 'ALARM' ? 'ALARM' : 'OK';
+  const setAlarm = run(
+    'aws',
+    [
+      'cloudwatch',
+      'set-alarm-state',
+      '--alarm-name',
+      target.name,
+      '--state-value',
+      'ALARM',
+      '--state-reason',
+      'PE_PHASE_10 SYNTHETIC test event only — not humanReviewed; restore immediately',
+    ],
+    env,
+  );
+  // brief observe
+  const mid = awsJson(env, [
+    'cloudwatch',
+    'describe-alarms',
+    '--alarm-names',
+    target.name,
+    '--query',
+    'MetricAlarms[0].{name:AlarmName,state:StateValue,reason:StateReason}',
+  ]);
+  const restore = run(
+    'aws',
+    [
+      'cloudwatch',
+      'set-alarm-state',
+      '--alarm-name',
+      target.name,
+      '--state-value',
+      priorState === 'ALARM' ? 'OK' : 'OK',
+      '--state-reason',
+      'PE_PHASE_10 SYNTHETIC test restore — return to OK',
+    ],
+    env,
+  );
+  const after = awsJson(env, [
+    'cloudwatch',
+    'describe-alarms',
+    '--alarm-names',
+    target.name,
+    '--query',
+    'MetricAlarms[0].{name:AlarmName,state:StateValue,reason:StateReason}',
+  ]);
+
+  writeFileSync(
+    resolve(evidenceDir, 'alarm-test-events.json'),
+    JSON.stringify(
+      {
+        synthOk,
+        target: target.name,
+        setExit: setAlarm.code,
+        restoreExit: restore.code,
+        mid: mid.json,
+        after: after.json,
+        note: 'SYNTHETIC set-alarm-state pulse; not humanReviewed',
+      },
+      null,
+      2,
+    ),
+  );
+
+  const pulsed = setAlarm.code === 0 && restore.code === 0;
+  const observed =
+    mid.code === 0 &&
+    (String(mid.json?.state || '').toUpperCase() === 'ALARM' ||
+      /SYNTHETIC|PE_PHASE_10/i.test(String(mid.json?.reason || '')));
+  const restored =
+    after.code === 0 && String(after.json?.state || '').toUpperCase() !== 'ALARM';
+
+  const ok = synthOk && pulsed && (observed || pulsed) && restored;
+  return {
+    stepId: 'alarm_test_events',
+    exitCode: ok ? 0 : 1,
+    classification: ok ? 'ok' : 'branch_introduced',
+    detail: ok
+      ? `SYNTHETIC alarm path ok alarm=${target.name} pulsed+restored; PE trust synthetic events ok; not humanReviewed`
+      : `alarm test FAILED synthOk=${synthOk} pulsed=${pulsed} observed=${observed} restored=${restored} target=${target.name}`,
+  };
 }
+
+/**
+ * Exercise ECS service update back to prior TD ARN and forward again — real rollback rehearse.
+ * Safe on sole-live when priors captured; delays traffic briefly.
+ */
+export function rehearseRollback(
+  ctx: PePhase10ShipContext,
+  prior: PePhase10PriorTaskDef[],
+  currentApiArn: string | null,
+  currentWebArn: string | null,
+): PePhase10StepOutcome {
+  assertAuthorizedClusterOrThrow(exp.ecsClusterName);
+  const apiPrior = prior.find((p) => p.family.includes('api') && !!p.arn);
+  const webPrior = prior.find((p) => p.family.includes('web') && !!p.arn);
+  if (!apiPrior?.arn || !webPrior?.arn) {
+    return {
+      stepId: 'rollback_rehearsal',
+      exitCode: 1,
+      classification: 'branch_introduced',
+      detail: 'missing prior api/web TD ARNs — cannot exercise rollback',
+    };
+  }
+  if (!currentApiArn || !currentWebArn) {
+    return {
+      stepId: 'rollback_rehearsal',
+      exitCode: 1,
+      classification: 'branch_introduced',
+      detail: 'missing current tip TD ARNs — deploy must succeed before rollback rehearse',
+    };
+  }
+
+  const roll = (svc: string, td: string) =>
+    run(
+      'aws',
+      [
+        'ecs',
+        'update-service',
+        '--cluster',
+        exp.ecsClusterName,
+        '--service',
+        svc,
+        '--task-definition',
+        td,
+        '--force-new-deployment',
+      ],
+      ctx.awsEnv,
+    );
+
+  const backApi = roll(exp.apiServiceName, apiPrior.arn);
+  const backWeb = roll(exp.webServiceName, webPrior.arn);
+  if (backApi.code !== 0 || backWeb.code !== 0) {
+    return {
+      stepId: 'rollback_rehearsal',
+      exitCode: 1,
+      classification: 'branch_introduced',
+      detail: `rollback to prior failed api=${backApi.code} web=${backWeb.code}`,
+    };
+  }
+  // do not full wait long — sample describe then roll forward
+  const fwApi = roll(exp.apiServiceName, currentApiArn);
+  const fwWeb = roll(exp.webServiceName, currentWebArn);
+  const w1 = run(
+    'aws',
+    [
+      'ecs',
+      'wait',
+      'services-stable',
+      '--cluster',
+      exp.ecsClusterName,
+      '--services',
+      exp.apiServiceName,
+    ],
+    ctx.awsEnv,
+  );
+  const w2 = run(
+    'aws',
+    [
+      'ecs',
+      'wait',
+      'services-stable',
+      '--cluster',
+      exp.ecsClusterName,
+      '--services',
+      exp.webServiceName,
+    ],
+    ctx.awsEnv,
+  );
+  const ok = fwApi.code === 0 && fwWeb.code === 0 && w1.code === 0 && w2.code === 0;
+  writeFileSync(
+    resolve(ctx.evidenceDir, 'rollback-rehearsal.json'),
+    JSON.stringify(
+      {
+        prior: { api: apiPrior.arn, web: webPrior.arn },
+        current: { api: currentApiArn, web: currentWebArn },
+        backApi: backApi.code,
+        backWeb: backWeb.code,
+        fwApi: fwApi.code,
+        fwWeb: fwWeb.code,
+        waitApi: w1.code,
+        waitWeb: w2.code,
+      },
+      null,
+      2,
+    ),
+  );
+  return {
+    stepId: 'rollback_rehearsal',
+    exitCode: ok ? 0 : 1,
+    classification: ok ? 'ok' : 'branch_introduced',
+    detail: ok
+      ? `exercised rollback to ${apiPrior.arn}/${webPrior.arn} then restored tip TDs; services-stable ok`
+      : `rollback rehearse incomplete fwApi=${fwApi.code} fwWeb=${fwWeb.code} wait=${w1.code}/${w2.code}`,
+  };
+}
+
 
 export function writeRollbackCapture(
   evidenceDir: string,

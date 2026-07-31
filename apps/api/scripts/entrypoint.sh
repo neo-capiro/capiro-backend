@@ -13,6 +13,7 @@ compose_database_url() {
     exit 1
   fi
   ENCODED_PASSWORD=$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$DB_PASSWORD")
+  # Real password in process env for Prisma; never print DATABASE_URL.
   export DATABASE_URL="postgresql://${DB_USER}:${ENCODED_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public&sslmode=require&connection_limit=10"
   : "${TMPDIR:=/dev/shm}"
   export TMPDIR
@@ -41,6 +42,12 @@ case "${1:-serve}" in
     compose_database_url
     echo "Running audit-llamaparse-pe-units (SELECT-only historical money-unit evidence report)"
     exec ./node_modules/.bin/tsx scripts/audit-llamaparse-pe-units.ts "$@"
+    ;;
+  pe-phase-10-live-proofs)
+    shift
+    compose_database_url
+    echo "Running pe-phase-10-live-proofs (sole-live Aurora; synthetic pe10_closeout domain only)"
+    exec ./node_modules/.bin/tsx scripts/pe-phase-10-live-proofs.ts "$@"
     ;;
   *)
     exec /bin/sh /usr/local/lib/capiro/entrypoint-legacy.sh "$@"

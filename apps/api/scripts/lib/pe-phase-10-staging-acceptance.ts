@@ -524,16 +524,25 @@ export function evaluatePePhase10Gate(args: {
         continue;
       }
       if (step.id === 'rollback_rehearsal') {
-        if (args.rollbackDocumented) {
+        // Documented prose alone is never PE_PHASE_10_OK-class ok — need exercised outcome.
+        if (!args.inventory.healthyCompute || !args.mutateAllowed) {
+          anyRequiredEnvBlocked = true;
           classifications.push({
             stepId: step.id,
-            classification: 'ok',
-            reason: 'rollback procedure documented',
+            classification: 'env_blocked',
+            reason: args.rollbackDocumented
+              ? 'rollback documented only; plane/mutate insufficient to exercise ECS update-service rehearse'
+              : 'rollback not exercised (env_blocked)',
           });
         } else {
-          blockers.push('rollback rehearsal not documented');
           anyRequiredHardFail = true;
           allRequiredSatisfiedOrBlocked = false;
+          blockers.push('rollback_rehearsal missing exercised outcome on healthy mutate plane');
+          classifications.push({
+            stepId: step.id,
+            classification: 'branch_introduced',
+            reason: 'rollback_rehearsal required outcome missing (prose-only is UNSATISFIED)',
+          });
         }
         continue;
       }
@@ -639,6 +648,13 @@ export function evaluatePePhase10Gate(args: {
   if (!anyImage) {
     warnings.push('no ECR image digests present for branch tip tags (expected pre-merge)');
   }
+  // Prefer tip-SHA tags when provided on records (ship path pins headSha)
+  const tipPinned =
+    images.some((i) => i.present && i.digest && i.repo.includes('/api')) &&
+    images.some((i) => i.present && i.digest && i.repo.includes('/web'));
+  if (!tipPinned) {
+    warnings.push('api+web digests with present=true required for full ship');
+  }
 
   const rlsOk = classById(classifications, 'rls_ethical_wall') === 'ok';
   const alarmOk = classById(classifications, 'alarm_test_events') === 'ok';
@@ -649,6 +665,7 @@ export function evaluatePePhase10Gate(args: {
   const loadersOk = classById(classifications, 'inspect_only_loaders') === 'ok';
   const browserOk = classById(classifications, 'browser_smoke') === 'ok';
   const deriveOk = classById(classifications, 'derive_chain_dry_run') === 'ok';
+  const rollbackOutcomeOk = classById(classifications, 'rollback_rehearsal') === 'ok';
 
   const fullRuntimeProofs =
     rlsOk &&
@@ -671,7 +688,7 @@ export function evaluatePePhase10Gate(args: {
           args.inventory.healthyCompute &&
           args.mutateAllowed &&
           fullRuntimeProofs &&
-          anyImage &&
+          tipPinned &&
           !anyRequiredEnvBlocked &&
           !anyRequiredHardFail;
         return {
@@ -683,21 +700,33 @@ export function evaluatePePhase10Gate(args: {
               ? 'UNSATISFIED: acceptance incomplete — runtime/ship steps env_blocked or mutate off (not a pass)'
               : !args.acceptanceRecordWritten
                 ? 'acceptance record missing'
-                : 'UNSATISFIED: missing full runtime proofs on authorized plane',
+                : !tipPinned
+                  ? 'UNSATISFIED: missing tip-present api+web image digests'
+                  : 'UNSATISFIED: missing full runtime proofs on authorized plane',
         };
       }
       case 'rollback_rehearsed': {
         const honest =
-          args.rollbackDocumented &&
+          (rollbackOutcomeOk || args.rollbackDocumented) &&
+          Boolean(args.inventory.priorTaskDefs?.some((t) => !!t.arn)) &&
+          args.inventory.healthyCompute &&
+          // Prefer exercised outcome when present in classifications
+          (rollbackOutcomeOk ||
+            // discover-only may only document — still UNSATISFIED for OK path via fullRuntime
+            false);
+        // Require exercised rollback_rehearsal outcome for satisfied exit-gate
+        const satisfied =
+          rollbackOutcomeOk &&
           Boolean(args.inventory.priorTaskDefs?.some((t) => !!t.arn)) &&
           args.inventory.healthyCompute;
+        void honest;
         return {
           bullet,
-          satisfied: honest,
-          reason: honest
-            ? 'rollback rehearsed against captured prior task-definition ARNs on authorized services'
+          satisfied,
+          reason: satisfied
+            ? 'rollback rehearsed: prior TD ARNs captured and ECS update-service exercise recorded'
             : args.rollbackDocumented
-              ? 'UNSATISFIED: rollback prose only — prior TD ARNs on authorized services not captured/used'
+              ? 'UNSATISFIED: rollback prose only — need exercised update-service rehearse outcome'
               : 'rollback missing',
         };
       }
@@ -727,16 +756,18 @@ export function evaluatePePhase10Gate(args: {
           args.inventory.healthyCompute &&
           migrateOk &&
           deployOk &&
+          promotionOk &&
+          replayOk &&
           !anyRequiredHardFail &&
           !anyRequiredEnvBlocked;
         return {
           bullet,
           satisfied,
           reason: satisfied
-            ? 'mutate path executed with explained PE apply steps only'
+            ? 'mutate path executed with explained PE apply steps + identical replay zero-dupe proof'
             : !args.mutateAllowed
               ? 'UNSATISFIED: discover-only — no explained mutate proof (vacuous skip is not a pass)'
-              : 'UNSATISFIED: mutate incomplete or env_blocked',
+              : 'UNSATISFIED: mutate incomplete, env_blocked, or missing promotion/replay proofs',
         };
       }
       default:
@@ -758,8 +789,9 @@ export function evaluatePePhase10Gate(args: {
     args.rollbackDocumented &&
     args.emailAutomationDark &&
     exitGate.every((e) => e.satisfied) &&
-    anyImage &&
-    fullRuntimeProofs;
+    tipPinned &&
+    fullRuntimeProofs &&
+    rollbackOutcomeOk;
 
   const blockedComplete =
     !ok &&
