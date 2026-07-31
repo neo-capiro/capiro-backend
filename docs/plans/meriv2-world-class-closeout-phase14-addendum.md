@@ -77,13 +77,21 @@ Detailed contract:
 docs/qa/meriv2-phase-14-context-inspector-accessibility.md
 ```
 
-### Manual gate
+### Deterministic manual gate
 
-Exact-head acceptance also requires keyboard, focus, and screen-reader checks using at least two inspectors on one page. Those checks are documented in the QA contract and cannot be replaced by axe alone.
+A development-only fixture renders two inspectors without authentication or API dependencies:
+
+```text
+http://127.0.0.1:5173/context-inspector-a11y-fixture.html
+```
+
+It includes normal, degraded, restricted, known-authority, unknown-authority, unknown-lifecycle, and **Review context** states. This makes the keyboard, focus, heading, confidentiality, and screen-reader checks repeatable on the exact validation head.
+
+The fixture is not linked from the product and exists only for manual QA.
 
 ### Rollback
 
-There is no data rollback. Revert the Phase 14 component, test, and component-scoped stylesheet if a rendering regression appears. Do not mutate context packets, governed memory, exclusions, or audit evidence as rollback.
+There is no data rollback. Revert the Phase 14 component, test, component-scoped stylesheet, and manual fixture if a rendering regression appears. Do not mutate context packets, governed memory, exclusions, or audit evidence as rollback.
 
 ---
 
