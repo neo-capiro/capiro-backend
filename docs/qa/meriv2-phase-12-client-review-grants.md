@@ -2,7 +2,9 @@
 
 ## Status
 
-**Implemented; exact-head validation pending.**
+**Focused local acceptance passed on exact head `104d7dcdbb7502c8fdbf9e3befc374cef136954a`.**
+
+GitHub-hosted replication remains blocked by the repository's deleted synthetic `BuildFailed` workflow identity. This does not authorize merge or deployment.
 
 Phase 12 closes the route-level authorization mismatch that required every governed-memory reviewer to be a tenant administrator even though the canonical authorization engine already supported client-scoped grants.
 
@@ -88,15 +90,24 @@ Phase 12 tests cover:
 - denied approval leaves the candidate pending and creates no canonical memory; and
 - browser UI renders only a server-enabled nonempty queue.
 
+## Exact-head evidence
+
+The focused Phase 12 gate passed after one style-only Prettier repair:
+
+- exact head: `104d7dcdbb7502c8fdbf9e3befc374cef136954a`;
+- API typecheck: pass;
+- web typecheck: pass;
+- Phase 12 API matrix: 9 suites, 69 tests, all pass;
+- Phase 12 web contract: 1 file, 3 tests, all pass;
+- Prettier: pass;
+- `git diff --check`: pass;
+- working tree: clean.
+
+Operator log: `C:\Users\neoma\phase12-focused-validation.log`.
+
 ## Acceptance gate
 
-Phase 12 passes when the exact remote head proves:
-
-- a standard user with a valid client `approve` grant can approve another user's pending candidate for that client;
-- the same user cannot inspect or decide another client's candidate;
-- no grant bypasses a wall, expiration, revocation, scope, or segregation-of-duties rule;
-- all inherited Phase 1–11 gates remain passing; and
-- PR #679 remains draft, synchronized, mergeable, and unmerged.
+The focused local acceptance gate passed. Final hosted acceptance remains part of the later cumulative release gate after GitHub repairs the Actions control-plane defect.
 
 ## Rollback
 
