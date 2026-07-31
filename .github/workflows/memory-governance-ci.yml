@@ -70,6 +70,9 @@ jobs:
       - name: Typecheck the full repository dependency graph
         run: pnpm turbo run typecheck
 
+      - name: Typecheck the production governance-backfill operator
+        run: pnpm --filter @capiro/api exec tsc -p tsconfig.memory-governance-backfill.json --noEmit
+
       - name: Typecheck projection-worker infrastructure
         run: pnpm --filter @capiro/infra-cdk typecheck
 
@@ -95,6 +98,7 @@ jobs:
           src/prisma/migration-policy-pack-action-authority.spec.ts
           src/prisma/migration-policy-pack-lifecycle-concurrency.spec.ts
           src/prisma/migration-memory-governance-backfill-jobs.spec.ts
+          src/prisma/migration-memory-governance-backfill-delete-guards.spec.ts
           src/meri/meri-policy-pack.service.spec.ts
           src/meri/meri-policy-pack.switch.spec.ts
           src/meri/meri-action-proposal.service.spec.ts
