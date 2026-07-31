@@ -16,6 +16,7 @@ import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { memoryGovernanceCenterEnabled } from './memory-governance-center.switch.js';
 import { MemoryStoreService } from './memory-store.service.js';
 import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
+import { clientMemoryAllowed } from './memory-wall.helpers.js';
 
 interface LockedItem {
   id: string;
@@ -30,6 +31,17 @@ interface LockedItem {
   secondApprovedAt: Date | null;
 }
 
+interface LockedProjectionJob {
+  id: string;
+  memoryItemId: string | null;
+  clioMemoryId: string | null;
+  clientId: string | null;
+  operation: string;
+  status: string;
+  attempts: number;
+  lastError: string | null;
+}
+
 const KNOWN_STATUSES = new Set([
   'suggested',
   'pending_review',
@@ -42,7 +54,7 @@ const KNOWN_STATUSES = new Set([
   'expired',
 ]);
 
-/** Direct governed item actions exposed by the Phase 15 administration center. */
+/** Direct governed item and projection actions exposed by the administration center. */
 @Injectable()
 export class MemoryGovernanceActionService {
   constructor(
@@ -210,6 +222,80 @@ export class MemoryGovernanceActionService {
     });
   }
 
+  /**
+   * Re-open one failed/dead-letter projection obligation for the bounded worker.
+   * The prior attempts and bounded error code are preserved in the tenant audit log.
+   */
+  async retryProjection(ctx: TenantContext, jobId: string) {
+    this.requireEnabled();
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const job = await this.lockProjectionJob(tx, ctx.tenantId, jobId);
+      if (!['failed', 'dead_letter'].includes(job.status)) {
+        return { outcome: 'already_retryable' as const, jobId, status: job.status };
+      }
+
+      if (job.clientId) {
+        const allowed = await clientMemoryAllowed(
+          tx,
+          ctx.tenantId,
+          ctx.userId,
+          job.clientId,
+        );
+        if (!allowed) throw new ForbiddenException('Memory operation denied: ethical_wall');
+      }
+      if (job.memoryItemId) {
+        const subject = await this.authorization.loadItemInTx(
+          tx,
+          ctx.tenantId,
+          job.memoryItemId,
+        );
+        if (!subject) throw new NotFoundException('Projection memory item not found.');
+        const decision = await this.authorization.evaluateInTx(tx, ctx, subject, 'read');
+        if (!decision.allowed) {
+          throw new ForbiddenException(`Memory operation denied: ${decision.reason}`);
+        }
+      }
+
+      const changed = await tx.$executeRaw`
+        UPDATE memory_cleanup_outbox
+        SET status = 'pending',
+            attempts = 0,
+            next_attempt_at = now(),
+            last_error = NULL,
+            lease_owner = NULL,
+            lease_expires_at = NULL,
+            started_at = NULL,
+            completed_at = NULL,
+            dead_lettered_at = NULL,
+            superseded_at = NULL
+        WHERE tenant_id = ${ctx.tenantId}::uuid AND id = ${jobId}::uuid
+          AND status IN ('failed','dead_letter')
+      `;
+      if (changed !== 1) throw new Error('Projection retry was not atomic.');
+
+      await tx.auditLog.create({
+        data: {
+          tenantId: ctx.tenantId,
+          actorUserId: ctx.userId,
+          actorRole: ctx.role,
+          action: 'memory.projection.retry',
+          entityType: 'memory_cleanup_outbox',
+          entityId: jobId,
+          before: {
+            status: job.status,
+            attempts: job.attempts,
+            operation: job.operation,
+            errorCode: boundedErrorCode(job.lastError),
+            memoryItemId: job.memoryItemId,
+            clioMemoryId: job.clioMemoryId,
+          },
+          after: { status: 'pending', attempts: 0 },
+        },
+      });
+      return { outcome: 'projection_retry_queued' as const, jobId, status: 'pending' as const };
+    });
+  }
+
   private requireEnabled(): void {
     if (!memoryGovernanceCenterEnabled()) {
       throw new ServiceUnavailableException(
@@ -256,6 +342,33 @@ export class MemoryGovernanceActionService {
     if (!row) throw new NotFoundException('Memory item not found.');
     return row;
   }
+
+  private async lockProjectionJob(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    jobId: string,
+  ): Promise<LockedProjectionJob> {
+    const rows = await tx.$queryRaw<LockedProjectionJob[]>(Prisma.sql`
+      SELECT o.id::text AS id,
+             o.memory_item_id::text AS "memoryItemId",
+             o.clio_memory_id::text AS "clioMemoryId",
+             COALESCE(mi.client_id, cm.client_id)::text AS "clientId",
+             o.operation,
+             o.status,
+             o.attempts,
+             o.last_error AS "lastError"
+      FROM memory_cleanup_outbox o
+      LEFT JOIN memory_items mi
+        ON mi.id = o.memory_item_id AND mi.tenant_id = o.tenant_id
+      LEFT JOIN clio_memory cm
+        ON cm.id = o.clio_memory_id AND cm.tenant_id = o.tenant_id
+      WHERE o.tenant_id = ${tenantId}::uuid AND o.id = ${jobId}::uuid
+      FOR UPDATE OF o
+    `);
+    const row = rows[0];
+    if (!row) throw new NotFoundException('Projection job not found.');
+    return row;
+  }
 }
 
 function normalizeStatus(value: string): GovernedMemoryStatus {
@@ -266,6 +379,15 @@ function requiredReason(value: string, message: string): string {
   const reason = String(value ?? '').replace(/\s+/g, ' ').trim();
   if (!reason) throw new BadRequestException(message);
   return reason.slice(0, 500);
+}
+
+function boundedErrorCode(value: string | null): string | null {
+  if (!value) return null;
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_.-]+/g, '_')
+    .slice(0, 120);
 }
 
 function iso(value: Date | null): string | null {
