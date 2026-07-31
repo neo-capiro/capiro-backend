@@ -1,0 +1,19 @@
+{
+  "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc",
+  "exitCode": 1,
+  "waitCode": 0,
+  "describe": {
+    "stop": "Essential container in task exited",
+    "containers": [
+      {
+        "name": "api",
+        "exit": 1,
+        "reason": null
+      }
+    ],
+    "startedAt": "2026-07-31T10:12:17.684000-04:00",
+    "stoppedAt": "2026-07-31T10:12:44.669000-04:00"
+  },
+  "report": null,
+  "logTail": "Running pe-phase-10-live-proofs (sole-live Aurora; synthetic pe10_closeout domain only; TMPDIR=/tmp)\nnode:internal/fs/promises:858\n  return await PromisePrototypeThen(\n         ^\nError: ENOENT: no such file or directory, mkdir '/tmp/tsx-1001'\n    at async Object.mkdir (node:internal/fs/promises:858:10)\n    at async createIpcServer (file:///app/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/cli.mjs:53:31431)\n    at async file:///app/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/cli.mjs:55:459 {\n  errno: -2,\n  code: 'ENOENT',\n  syscall: 'mkdir',\n  path: '/tmp/tsx-1001'\n}\nNode.js v20.16.0"
+}

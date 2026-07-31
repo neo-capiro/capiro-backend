@@ -1,68 +1,469 @@
 {
   "phase": 10,
-  "generatedAt": "2026-07-31T11:32:45.547929+00:00",
-  "marker": "PE_PHASE_10_OK_IMPLEMENTER_ONLY",
-  "gateOk": true,
+  "generatedAt": "2026-07-31T14:16:47.386Z",
+  "marker": "PE_PHASE_10_FAIL",
+  "gateOk": false,
   "blockedComplete": false,
   "authOk": true,
   "mutateAllowed": true,
   "plane": {
-    "ecsCluster": "capiro-dev",
+    "name": "sole-live-env-dev",
     "workflowEnv": "dev",
-    "appHost": "app.capiro.ai"
+    "ecsCluster": "capiro-dev",
+    "appHost": "app.capiro.ai",
+    "note": "sole live env=dev / capiro-dev (= prod path); not dead staging"
+  },
+  "git": {
+    "headSha": "cda492c8e525896446b4e71f87f2b81f0b681fd8",
+    "originHeadSha": "cda492c8e525896446b4e71f87f2b81f0b681fd8",
+    "mainSha": "3dcb12f823774b6fae8578dc56fc122bf9a0879e",
+    "mergeBaseSha": "3dcb12f823774b6fae8578dc56fc122bf9a0879e",
+    "branch": "agent/program-elements-final-closeout"
+  },
+  "inventory": {
+    "accountId": "967807252336",
+    "region": "us-east-1",
+    "probeOk": true,
+    "ecsClusterExists": true,
+    "ecsClusterStatus": "ACTIVE",
+    "apiServiceExists": true,
+    "webServiceExists": true,
+    "computeStackStatus": "UPDATE_ROLLBACK_COMPLETE",
+    "dataStackStatus": "UPDATE_COMPLETE",
+    "networkStackStatus": "UPDATE_COMPLETE",
+    "auroraClusterLive": true,
+    "auroraClusterId": "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv",
+    "forbiddenClusterPresent": true,
+    "healthyCompute": true,
+    "blockers": [],
+    "warnings": [
+      "Compute stack Capiro-dev-Compute status=UPDATE_ROLLBACK_COMPLETE — known drift; ECS live health still authoritative",
+      "Forbidden/unintended clusters are visible in the account (expected); deploy must never target them"
+    ],
+    "capturedAt": "2026-07-31T14:07:39Z",
+    "rawNotes": [
+      "plane=sole-live-env-dev",
+      "secretNameCount=10",
+      "cfAuroraPhysicalId=capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv",
+      "apiTd=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:70",
+      "webTd=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:12"
+    ],
+    "priorTaskDefs": [
+      {
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:70",
+        "family": "capiro-dev-api",
+        "image": null,
+        "revision": 70
+      },
+      {
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:12",
+        "family": "capiro-dev-web",
+        "image": null,
+        "revision": 12
+      }
+    ]
+  },
+  "inventoryRaw": {
+    "accountId": "967807252336",
+    "apiServiceExists": true,
+    "apiTaskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:70",
+    "auroraClusterId": "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv",
+    "auroraClusterLive": true,
+    "blockers": [],
+    "capturedAt": "2026-07-31T14:07:39Z",
+    "cfAuroraPhysicalId": "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv",
+    "computeStackStatus": "UPDATE_ROLLBACK_COMPLETE",
+    "dataStackStatus": "UPDATE_COMPLETE",
+    "devSecretNameCount": 10,
+    "ecsClusterExists": true,
+    "ecsClusterName": "capiro-dev",
+    "ecsClusterStatus": "ACTIVE",
+    "forbiddenClusterPresent": true,
+    "healthyCompute": true,
+    "networkStackStatus": "UPDATE_COMPLETE",
+    "planeName": "sole-live-env-dev",
+    "priorTaskDefs": [
+      {
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:70",
+        "family": "capiro-dev-api",
+        "image": null,
+        "revision": 70
+      },
+      {
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:12",
+        "family": "capiro-dev-web",
+        "image": null,
+        "revision": 12
+      }
+    ],
+    "probeOk": true,
+    "probeVersion": 2,
+    "region": "us-east-1",
+    "safety": {
+      "cdkDeploy": false,
+      "ecsUpdateService": false,
+      "runTaskMigrate": false,
+      "secretsGetValue": false
+    },
+    "stagingSecretNameCount": 10,
+    "warnings": [
+      "Compute stack status=UPDATE_ROLLBACK_COMPLETE — known drift; ECS live health authoritative",
+      "Forbidden clusters capiro-staging / capiro-prod-os-capiro are present; Phase 10 must not deploy to them"
+    ],
+    "webServiceExists": true,
+    "webTaskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:12",
+    "workflowEnv": "dev"
   },
   "images": [
     {
       "repo": "capiro/dev/api",
-      "digest": "sha256:296161701886d9cd3a8bf95b656c32f71b704ab8ff3d20af2f774b7830322f1d",
+      "tag": "cda492c8e525896446b4e71f87f2b81f0b681fd8",
+      "digest": "sha256:8e220931729753277f5a44f22b80e05bfe5faa7e8c2d590c4265583018981054",
+      "pushedAt": "2026-07-31T09:58:38.947000-04:00",
       "present": true
     },
     {
       "repo": "capiro/dev/web",
-      "digest": "sha256:bdb777d48f522bdaa191c2bf7df6957d3a3dbbc066f67d3d5806883f212a272a",
+      "tag": "cda492c8e525896446b4e71f87f2b81f0b681fd8",
+      "digest": "sha256:277489e381aa8921ccbfd6a4b07d473d20e0083cd39fd1b55b450748d02660f4",
+      "pushedAt": "2026-07-31T10:07:01.789000-04:00",
       "present": true
     }
   ],
-  "deploy": {
-    "api": "capiro-dev-api:61",
-    "web": "capiro-dev-web:7",
-    "migrate": "capiro-dev-api-migrate:24",
-    "migrateExit": 0
+  "shipTrace": {
+    "priorTaskDefs": [
+      {
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:70",
+        "family": "capiro-dev-api",
+        "image": null,
+        "revision": 70
+      },
+      {
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:12",
+        "family": "capiro-dev-web",
+        "image": null,
+        "revision": 12
+      }
+    ],
+    "newApiTaskDefArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:72",
+    "newWebTaskDefArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:13",
+    "migrateTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/c7bb5474194946abb71b57b6b0240edd",
+    "images": [
+      {
+        "repo": "capiro/dev/api",
+        "tag": "cda492c8e525896446b4e71f87f2b81f0b681fd8",
+        "digest": "sha256:8e220931729753277f5a44f22b80e05bfe5faa7e8c2d590c4265583018981054",
+        "pushedAt": "2026-07-31T09:58:38.947000-04:00",
+        "present": true
+      },
+      {
+        "repo": "capiro/dev/web",
+        "tag": "cda492c8e525896446b4e71f87f2b81f0b681fd8",
+        "digest": "sha256:277489e381aa8921ccbfd6a4b07d473d20e0083cd39fd1b55b450748d02660f4",
+        "pushedAt": "2026-07-31T10:07:01.789000-04:00",
+        "present": true
+      }
+    ],
+    "apiImageDigest": null,
+    "webImageDigest": null,
+    "deployedCluster": "capiro-dev",
+    "notes": [
+      "migrate task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/c7bb5474194946abb71b57b6b0240edd exit=0",
+      "deployed api=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:72 web=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:13 on capiro-dev",
+      "live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc failed wait=0 exit=1 markerOk=false body={\"stop\":\"Essential container in task exited\",\"containers\":[{\"name\":\"api\",\"exit\":1,\"reason\":null}],\"startedAt\":\"2026-07-31T10:12:17.684000-04:00\",\"stoppedAt\":\"2026-07-31T10:12:44.669000-04:00\"} log=de:internal/fs/promises:858\n  return await PromisePrototypeThen(\n         ^\nError: ENOENT: no such file or directory, mkdir '/tmp/tsx-1001'\n    at async Object.mkdir (node:internal/fs/promises:858:10)\n    at async createIpcServer (file:///app/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/cli.mjs:53:31431)\n    at async file:///app/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/cli.mjs:55:459 {\n  errno: -2,\n  code: 'ENOENT',\n  syscall: 'mkdir',\n  path: '/tmp/tsx-1001'\n}\nNode.js v20.16.0"
+    ],
+    "liveProofsTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc"
   },
-  "priorTaskDefs": [
+  "integrity": {
+    "ok": true,
+    "blockers": [],
+    "forbiddenHits": []
+  },
+  "outcomes": [
     {
-      "family": "capiro-dev-api",
-      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:59"
+      "stepId": "git_sha_record",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "head=cda492c8e525896446b4e71f87f2b81f0b681fd8 origin=cda492c8e525896446b4e71f87f2b81f0b681fd8 main=3dcb12f823774b6fae8578dc56fc122bf9a0879e mb=3dcb12f823774b6fae8578dc56fc122bf9a0879e"
     },
     {
-      "family": "capiro-dev-web",
-      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:6"
+      "stepId": "aws_inventory_readonly",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "healthyCompute=true plane=capiro-dev blockers=0 probeExit=0"
+    },
+    {
+      "stepId": "local_pe_preflight_k",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "skipped via --skip-local-gates (operator)"
+    },
+    {
+      "stepId": "local_pe_phase9_preflight",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "skipped via --skip-local-gates (operator)"
+    },
+    {
+      "stepId": "transport_absent",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "no forbidden paths"
+    },
+    {
+      "stepId": "image_digest_record",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "recorded 2 repo checks; present=2 skipBuild=true"
+    },
+    {
+      "stepId": "staging_migrate_additive",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "migrate task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/c7bb5474194946abb71b57b6b0240edd exit=0"
+    },
+    {
+      "stepId": "staging_deploy_images",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "deployed api=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:72 web=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:13 on capiro-dev"
+    },
+    {
+      "stepId": "inspect_only_loaders",
+      "exitCode": 1,
+      "classification": "branch_introduced",
+      "detail": "live proofs missing/failed (live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc failed wait=0 exit=1 markerOk=false body={\"stop\":\"Essential container in task exited\",\"containers\":[{\"name\":\"api\",\"exit\":1,\"reason\":null}],\"startedAt\":\"2026-07-31T10:12:17.684000-04:00\",\"stoppedAt\":\"2026-07-31T10:12:44.669000-04:00\"} log=de:internal/fs/promises:858\n  return await PromisePrototypeTh); step inspect_only_loaders UNSATISFIED"
+    },
+    {
+      "stepId": "exact_sha_internal_promotion",
+      "exitCode": 1,
+      "classification": "branch_introduced",
+      "detail": "live proofs missing/failed (live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc failed wait=0 exit=1 markerOk=false body={\"stop\":\"Essential container in task exited\",\"containers\":[{\"name\":\"api\",\"exit\":1,\"reason\":null}],\"startedAt\":\"2026-07-31T10:12:17.684000-04:00\",\"stoppedAt\":\"2026-07-31T10:12:44.669000-04:00\"} log=de:internal/fs/promises:858\n  return await PromisePrototypeTh); step exact_sha_internal_promotion UNSATISFIED"
+    },
+    {
+      "stepId": "identical_replay",
+      "exitCode": 1,
+      "classification": "branch_introduced",
+      "detail": "live proofs missing/failed (live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc failed wait=0 exit=1 markerOk=false body={\"stop\":\"Essential container in task exited\",\"containers\":[{\"name\":\"api\",\"exit\":1,\"reason\":null}],\"startedAt\":\"2026-07-31T10:12:17.684000-04:00\",\"stoppedAt\":\"2026-07-31T10:12:44.669000-04:00\"} log=de:internal/fs/promises:858\n  return await PromisePrototypeTh); step identical_replay UNSATISFIED"
+    },
+    {
+      "stepId": "derive_chain_dry_run",
+      "exitCode": 1,
+      "classification": "branch_introduced",
+      "detail": "live proofs missing/failed (live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc failed wait=0 exit=1 markerOk=false body={\"stop\":\"Essential container in task exited\",\"containers\":[{\"name\":\"api\",\"exit\":1,\"reason\":null}],\"startedAt\":\"2026-07-31T10:12:17.684000-04:00\",\"stoppedAt\":\"2026-07-31T10:12:44.669000-04:00\"} log=de:internal/fs/promises:858\n  return await PromisePrototypeTh); step derive_chain_dry_run UNSATISFIED"
+    },
+    {
+      "stepId": "rls_ethical_wall",
+      "exitCode": 1,
+      "classification": "branch_introduced",
+      "detail": "live proofs missing/failed (live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc failed wait=0 exit=1 markerOk=false body={\"stop\":\"Essential container in task exited\",\"containers\":[{\"name\":\"api\",\"exit\":1,\"reason\":null}],\"startedAt\":\"2026-07-31T10:12:17.684000-04:00\",\"stoppedAt\":\"2026-07-31T10:12:44.669000-04:00\"} log=de:internal/fs/promises:858\n  return await PromisePrototypeTh); step rls_ethical_wall UNSATISFIED"
+    },
+    {
+      "stepId": "browser_smoke",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "host=app.capiro.ai codes={\"root\":\"200\",\"health\":\"200\",\"healthz\":\"200\",\"api_health\":\"401\",\"pe_list\":\"401\",\"pe_detail\":\"401\"} (401 on PE routes = auth wall present)"
+    },
+    {
+      "stepId": "alarm_test_events",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "SYNTHETIC alarm path ok alarm=capiro-dev-alb-5xx pulsed+restored; PE trust synthetic events ok; not humanReviewed"
+    },
+    {
+      "stepId": "rollback_rehearsal",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "exercised rollback to arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:70/arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:12 then restored tip TDs; apiOk=true webOk=true"
+    },
+    {
+      "stepId": "acceptance_record",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "wrote C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\docs\\verification\\program-elements-trust\\phase-10"
+    }
+  ],
+  "classifications": [
+    {
+      "stepId": "staging_auth_gate",
+      "classification": "ok",
+      "reason": "PE_CLOSEOUT_STAGING_OK authorized (sole live env=dev)"
+    },
+    {
+      "stepId": "git_sha_record",
+      "classification": "ok",
+      "reason": "head=cda492c8e525896446b4e71f87f2b81f0b681fd8 origin=cda492c8e525896446b4e71f87f2b81f0b681fd8 main=3dcb12f823774b6fae8578dc56fc122bf9a0879e mb=3dcb12f823774b6fae8578dc56fc122bf9a0879e"
+    },
+    {
+      "stepId": "aws_inventory_readonly",
+      "classification": "ok",
+      "reason": "healthyCompute=true plane=capiro-dev blockers=0 probeExit=0"
+    },
+    {
+      "stepId": "image_digest_record",
+      "classification": "ok",
+      "reason": "recorded 2 repo checks; present=2 skipBuild=true"
+    },
+    {
+      "stepId": "transport_absent",
+      "classification": "ok",
+      "reason": "no forbidden paths"
+    },
+    {
+      "stepId": "local_pe_preflight_k",
+      "classification": "ok",
+      "reason": "skipped via --skip-local-gates (operator)"
+    },
+    {
+      "stepId": "local_pe_phase9_preflight",
+      "classification": "ok",
+      "reason": "skipped via --skip-local-gates (operator)"
+    },
+    {
+      "stepId": "email_automation_dark",
+      "classification": "ok",
+      "reason": "email/automation remain dark"
+    },
+    {
+      "stepId": "staging_migrate_additive",
+      "classification": "ok",
+      "reason": "migrate task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/c7bb5474194946abb71b57b6b0240edd exit=0"
+    },
+    {
+      "stepId": "staging_deploy_images",
+      "classification": "ok",
+      "reason": "deployed api=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:72 web=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:13 on capiro-dev"
+    },
+    {
+      "stepId": "inspect_only_loaders",
+      "classification": "branch_introduced",
+      "reason": "live proofs missing/failed (live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc failed wait=0 exit=1 markerOk=false body={\"stop\":\"Essential container in task exited\",\"containers\":[{\"name\":\"api\",\"exit\":1,\"reason\":null}],\"startedAt\":\"2026-07-31T10:12:17.684000-04:00\",\"stoppedAt\":\"2026-07-31T10:12:44.669000-04:00\"} log=de:internal/fs/promises:858\n  return await PromisePrototypeTh); step inspect_only_loaders UNSATISFIED"
+    },
+    {
+      "stepId": "exact_sha_internal_promotion",
+      "classification": "branch_introduced",
+      "reason": "live proofs missing/failed (live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc failed wait=0 exit=1 markerOk=false body={\"stop\":\"Essential container in task exited\",\"containers\":[{\"name\":\"api\",\"exit\":1,\"reason\":null}],\"startedAt\":\"2026-07-31T10:12:17.684000-04:00\",\"stoppedAt\":\"2026-07-31T10:12:44.669000-04:00\"} log=de:internal/fs/promises:858\n  return await PromisePrototypeTh); step exact_sha_internal_promotion UNSATISFIED"
+    },
+    {
+      "stepId": "identical_replay",
+      "classification": "branch_introduced",
+      "reason": "live proofs missing/failed (live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc failed wait=0 exit=1 markerOk=false body={\"stop\":\"Essential container in task exited\",\"containers\":[{\"name\":\"api\",\"exit\":1,\"reason\":null}],\"startedAt\":\"2026-07-31T10:12:17.684000-04:00\",\"stoppedAt\":\"2026-07-31T10:12:44.669000-04:00\"} log=de:internal/fs/promises:858\n  return await PromisePrototypeTh); step identical_replay UNSATISFIED"
+    },
+    {
+      "stepId": "derive_chain_dry_run",
+      "classification": "branch_introduced",
+      "reason": "live proofs missing/failed (live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc failed wait=0 exit=1 markerOk=false body={\"stop\":\"Essential container in task exited\",\"containers\":[{\"name\":\"api\",\"exit\":1,\"reason\":null}],\"startedAt\":\"2026-07-31T10:12:17.684000-04:00\",\"stoppedAt\":\"2026-07-31T10:12:44.669000-04:00\"} log=de:internal/fs/promises:858\n  return await PromisePrototypeTh); step derive_chain_dry_run UNSATISFIED"
+    },
+    {
+      "stepId": "browser_smoke",
+      "classification": "ok",
+      "reason": "host=app.capiro.ai codes={\"root\":\"200\",\"health\":\"200\",\"healthz\":\"200\",\"api_health\":\"401\",\"pe_list\":\"401\",\"pe_detail\":\"401\"} (401 on PE routes = auth wall present)"
+    },
+    {
+      "stepId": "rls_ethical_wall",
+      "classification": "branch_introduced",
+      "reason": "live proofs missing/failed (live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc failed wait=0 exit=1 markerOk=false body={\"stop\":\"Essential container in task exited\",\"containers\":[{\"name\":\"api\",\"exit\":1,\"reason\":null}],\"startedAt\":\"2026-07-31T10:12:17.684000-04:00\",\"stoppedAt\":\"2026-07-31T10:12:44.669000-04:00\"} log=de:internal/fs/promises:858\n  return await PromisePrototypeTh); step rls_ethical_wall UNSATISFIED"
+    },
+    {
+      "stepId": "alarm_test_events",
+      "classification": "ok",
+      "reason": "SYNTHETIC alarm path ok alarm=capiro-dev-alb-5xx pulsed+restored; PE trust synthetic events ok; not humanReviewed"
+    },
+    {
+      "stepId": "rollback_rehearsal",
+      "classification": "ok",
+      "reason": "exercised rollback to arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:70/arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:12 then restored tip TDs; apiOk=true webOk=true"
+    },
+    {
+      "stepId": "acceptance_record",
+      "classification": "ok",
+      "reason": "wrote C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\docs\\verification\\program-elements-trust\\phase-10"
+    },
+    {
+      "stepId": "forbidden_production_actions",
+      "classification": "ok",
+      "reason": "forbidden actions refused by policy"
     }
   ],
   "exitGate": [
     {
       "bullet": "staging_acceptance_record_complete",
-      "satisfied": true
+      "satisfied": false,
+      "reason": "UNSATISFIED: missing full runtime proofs on authorized plane"
     },
     {
       "bullet": "rollback_rehearsed",
-      "satisfied": true
+      "satisfied": true,
+      "reason": "rollback rehearsed: prior TD ARNs captured and ECS update-service exercise recorded"
     },
     {
       "bullet": "no_critical_alarm",
-      "satisfied": true
+      "satisfied": false,
+      "reason": "UNSATISFIED: alarm proofs deferred or failed (not N/A auto-pass)"
     },
     {
       "bullet": "no_cross_tenant_disclosure",
-      "satisfied": true
+      "satisfied": false,
+      "reason": "UNSATISFIED: RLS/ethical-wall proof deferred or failed (not N/A auto-pass)"
     },
     {
       "bullet": "no_unexplained_data_mutation",
-      "satisfied": true
+      "satisfied": false,
+      "reason": "UNSATISFIED: mutate incomplete, env_blocked, or missing promotion/replay proofs"
     }
   ],
+  "blockers": [
+    "live proofs missing/failed (live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc failed wait=0 exit=1 markerOk=false body={\"stop\":\"Essential container in task exited\",\"containers\":[{\"name\":\"api\",\"exit\":1,\"reason\":null}],\"startedAt\":\"2026-07-31T10:12:17.684000-04:00\",\"stoppedAt\":\"2026-07-31T10:12:44.669000-04:00\"} log=de:internal/fs/promises:858\n  return await PromisePrototypeTh); step inspect_only_loaders UNSATISFIED",
+    "live proofs missing/failed (live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc failed wait=0 exit=1 markerOk=false body={\"stop\":\"Essential container in task exited\",\"containers\":[{\"name\":\"api\",\"exit\":1,\"reason\":null}],\"startedAt\":\"2026-07-31T10:12:17.684000-04:00\",\"stoppedAt\":\"2026-07-31T10:12:44.669000-04:00\"} log=de:internal/fs/promises:858\n  return await PromisePrototypeTh); step exact_sha_internal_promotion UNSATISFIED",
+    "live proofs missing/failed (live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc failed wait=0 exit=1 markerOk=false body={\"stop\":\"Essential container in task exited\",\"containers\":[{\"name\":\"api\",\"exit\":1,\"reason\":null}],\"startedAt\":\"2026-07-31T10:12:17.684000-04:00\",\"stoppedAt\":\"2026-07-31T10:12:44.669000-04:00\"} log=de:internal/fs/promises:858\n  return await PromisePrototypeTh); step identical_replay UNSATISFIED",
+    "live proofs missing/failed (live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc failed wait=0 exit=1 markerOk=false body={\"stop\":\"Essential container in task exited\",\"containers\":[{\"name\":\"api\",\"exit\":1,\"reason\":null}],\"startedAt\":\"2026-07-31T10:12:17.684000-04:00\",\"stoppedAt\":\"2026-07-31T10:12:44.669000-04:00\"} log=de:internal/fs/promises:858\n  return await PromisePrototypeTh); step derive_chain_dry_run UNSATISFIED",
+    "live proofs missing/failed (live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3665b7d22d33447cb1ee78f9cdbc5ddc failed wait=0 exit=1 markerOk=false body={\"stop\":\"Essential container in task exited\",\"containers\":[{\"name\":\"api\",\"exit\":1,\"reason\":null}],\"startedAt\":\"2026-07-31T10:12:17.684000-04:00\",\"stoppedAt\":\"2026-07-31T10:12:44.669000-04:00\"} log=de:internal/fs/promises:858\n  return await PromisePrototypeTh); step rls_ethical_wall UNSATISFIED"
+  ],
+  "warnings": [
+    "inventory: Compute stack Capiro-dev-Compute status=UPDATE_ROLLBACK_COMPLETE — known drift; ECS live health still authoritative",
+    "inventory: Forbidden/unintended clusters are visible in the account (expected); deploy must never target them"
+  ],
+  "safety": {
+    "noSecretsGetValue": true,
+    "noEmailSend": true,
+    "noLlamaParse": true,
+    "noDeriveCommit": true,
+    "noForbiddenClusterDeploy": true,
+    "authorizedCluster": "capiro-dev",
+    "roast": "PE_PHASE_10_OK is not independent REVIEW PASS; merge #705 still separate"
+  },
+  "rollback": {
+    "documented": true,
+    "capturedPriors": [
+      {
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:70",
+        "family": "capiro-dev-api",
+        "image": null,
+        "revision": 70
+      },
+      {
+        "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:12",
+        "family": "capiro-dev-web",
+        "image": null,
+        "revision": 12
+      }
+    ],
+    "instructions": [
+      "Rollback against CAPTURED prior task definitions on authorized sole-live cluster capiro-dev:",
+      "aws ecs update-service --cluster capiro-dev --service capiro-dev-api --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:70",
+      "aws ecs update-service --cluster capiro-dev --service capiro-dev-web --task-definition arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:12",
+      "Do NOT hand-edit _prisma_migrations; schema rollback via Aurora snapshot if migrate is bad.",
+      "Captured new api TD: arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:72",
+      "Captured new web TD: arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:13",
+      "Never deploy/rollback to capiro-staging or capiro-prod-os-capiro from this harness.",
+      "Email/canaries/LlamaParse/derive --commit remain dark."
+    ],
+    "branchRollbackTipHint": "cda492c8e525896446b4e71f87f2b81f0b681fd8"
+  },
   "honesty": {
-    "notIndependentReviewPass": true,
-    "merge705NotDone": true
+    "syntheticAlarmsNotHumanReviewed": true,
+    "localPreflightNotLiveSubstitute": true,
+    "blockedIsNotOk": false,
+    "exitGateUnsatisfiedWhenBlocked": null
   }
 }

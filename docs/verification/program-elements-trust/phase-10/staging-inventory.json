@@ -1,26 +1,38 @@
 {
   "accountId": "967807252336",
-  "apiServiceExists": false,
-  "auroraClusterId": null,
-  "auroraClusterLive": false,
-  "blockers": [
-    "ECS cluster capiro-staging does not exist (status=MISSING)",
-    "Compute stack status=UPDATE_ROLLBACK_COMPLETE",
-    "API service capiro-staging-api missing",
-    "WEB service capiro-staging-web missing",
-    "Staging Aurora not live in RDS (CF physical id may be phantom: capiro-staging-data-auroracluster23d869c0-klkzactvs5q5)"
-  ],
-  "capturedAt": "2026-07-31T09:57:58Z",
-  "cfAuroraPhysicalId": "capiro-staging-data-auroracluster23d869c0-klkzactvs5q5",
+  "apiServiceExists": true,
+  "apiTaskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:70",
+  "auroraClusterId": "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv",
+  "auroraClusterLive": true,
+  "blockers": [],
+  "capturedAt": "2026-07-31T14:07:39Z",
+  "cfAuroraPhysicalId": "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv",
   "computeStackStatus": "UPDATE_ROLLBACK_COMPLETE",
   "dataStackStatus": "UPDATE_COMPLETE",
-  "ecsClusterExists": false,
-  "ecsClusterStatus": null,
+  "devSecretNameCount": 10,
+  "ecsClusterExists": true,
+  "ecsClusterName": "capiro-dev",
+  "ecsClusterStatus": "ACTIVE",
   "forbiddenClusterPresent": true,
-  "healthyCompute": false,
+  "healthyCompute": true,
   "networkStackStatus": "UPDATE_COMPLETE",
+  "planeName": "sole-live-env-dev",
+  "priorTaskDefs": [
+    {
+      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:70",
+      "family": "capiro-dev-api",
+      "image": null,
+      "revision": 70
+    },
+    {
+      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:12",
+      "family": "capiro-dev-web",
+      "image": null,
+      "revision": 12
+    }
+  ],
   "probeOk": true,
-  "probeVersion": 1,
+  "probeVersion": 2,
   "region": "us-east-1",
   "safety": {
     "cdkDeploy": false,
@@ -28,9 +40,12 @@
     "runTaskMigrate": false,
     "secretsGetValue": false
   },
-  "stagingSecretNameCount": 6,
+  "stagingSecretNameCount": 10,
   "warnings": [
-    "Forbidden clusters capiro-dev / capiro-prod-os-capiro are present; Phase 10 must not deploy to them"
+    "Compute stack status=UPDATE_ROLLBACK_COMPLETE — known drift; ECS live health authoritative",
+    "Forbidden clusters capiro-staging / capiro-prod-os-capiro are present; Phase 10 must not deploy to them"
   ],
-  "webServiceExists": false
+  "webServiceExists": true,
+  "webTaskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:12",
+  "workflowEnv": "dev"
 }

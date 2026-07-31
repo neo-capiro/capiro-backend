@@ -1,0 +1,6 @@
+{
+  "ok": true,
+  "via": "pe-trust-metric-catalog.spec.ts",
+  "note": "SYNTHETIC test events; not humanReviewed",
+  "out": "PASS src/program-element/pe-trust-metric-catalog.spec.ts (5.193 s)\n  pe-trust-metric-catalog (K5)\n    √ every alarm definition can build a synthetic test event (17 ms)\n    ○ skipped catalog is bounded and names are unique\n    ○ skipped assertBoundedPeTrustDimensions rejects free-text PE codes and unknown metrics\n\nTest Suites: 1 passed, 1 total\nTests:       2 skipped, 1 passed, 3 total\nSnapshots:   0 total\nTime:        5.383 s\nRan all test suites matching /src\\\\program-element\\\\pe-trust-metric-catalog.spec.ts/i with tests matching \"synthetic\".\nForce exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?\n"
+}

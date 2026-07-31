@@ -1510,3 +1510,25 @@ export PE_CLOSEOUT_EFFORT=high
 ./pe-closeout-run.sh review 10
 ```
 
+---
+
+## Phase 10 — crash salvage (evidence pin)
+
+**When:** 2026-07-31 (ops salvage after implement crash-before-push)  
+**Origin tip before salvage:** `cda492c8e525896446b4e71f87f2b81f0b681fd8`  
+**Worktree had uncommitted Phase 10 evidence** from sole-live mutate run; session crashed before commit/push.
+
+### Snapshot from salvaged evidence (not REVIEW PASS)
+- Marker: **`PE_PHASE_10_FAIL`** / gateOk=false
+- Plane: `capiro-dev` / `app.capiro.ai` healthyCompute=true
+- Migrate + deploy progressed (evidence shows api TD ~72, web ~13 after ship; rollback exercise recorded back to priors then forward)
+- Smoke: app host root/health 200s
+- Alarm synthetic pulse path recorded OK (not humanReviewed)
+- **Blocker:** live-proofs Fargate task failed exit 1 — `tsx` ENOENT mkdir `/tmp/tsx-1001` (container TMPDIR/fs). Blocks inspect_only_loaders / exact_sha promotion / identical_replay / derive-related live steps.
+- Independent REVIEW still REQUIRED after next fix push. No Phase 11. No merge #705.
+
+### Next
+1. Fix live-proofs runner TMPDIR (use writable path e.g. `/tmp` ensure exists + `TMPDIR`/`TMP`/`TEMP` + avoid tsx cache under missing uid path, or use `node`/`pnpm exec` without broken tsx mkdir).
+2. Re-run live proofs only + harness → aim `PE_PHASE_10_OK` implementer marker with real outcomes.
+3. Push → **new** shell `review 10`.
+
