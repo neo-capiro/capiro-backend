@@ -1008,7 +1008,7 @@ git reset --hard 77fd4182dca94a51b68b8c9b22ac24ce3b0c9df7
 **Operator session:** Phase 6 IMPLEMENT only (not review)
 **Mode:** LONG
 **Base tip (Phase 5 PASS):** `c48d30bdc2229c2c452640065402efc92551f2b1`
-**Product tip (this phase):** `85e768ee086a3e8289d3b85264aefb0fa8be7adb`
+**Product tip (this phase):** `a2e708271d61516b799080cfaee40de5f1c036ca`
 **Remote tip (post-push / review target):** `ed311e883082f13b23b0d7e04fba26abc33cb451` (includes package.json repair `ed311e883` after product `85e768ee086`)
 
 ### Tasks completed (implementation)
@@ -1117,8 +1117,8 @@ Do not start Phase 7 until a separate REVIEW session records PASS.
 **Base (Phase 6 PASS tip):** `744c6774f89917c6b0a9c6b6d98b5a0387598f73`  
 **origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e`  
 **Mode:** LONG IMPLEMENT only — no self-PASS, no Phase 8, no MeriV2 source edits  
-**Product tip (this phase):** _{PENDING_COMMIT}_  
-**Remote tip after push (review target):** _{PENDING_PUSH}_
+**Product tip (this phase):** `a2e708271d61516b799080cfaee40de5f1c036ca`
+**Remote tip after push (review target):** `a2e708271d61516b799080cfaee40de5f1c036ca` (confirm after `git push`)
 
 ### Tasks completed (implementation)
 
