@@ -111,9 +111,11 @@ describe('Workspace canonical governed memory — Phase 8', () => {
     expect(packet.version).toBe(2);
     const memoryQuery = h.queries.find((entry) => entry.sql.includes('FROM memory_items'));
     expect(memoryQuery).toBeDefined();
-    expect(memoryQuery!.values).toContainEqual(
-      expect.stringContaining('governed_status AS "governedStatus"'),
-    );
+    expect(
+      memoryQuery!.values.some((value) =>
+        sqlText(value).includes('governed_status AS "governedStatus"'),
+      ),
+    ).toBe(true);
     expect(packet.items).toEqual([
       expect.objectContaining({
         id: ROW.id,
