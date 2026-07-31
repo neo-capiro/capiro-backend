@@ -66,22 +66,13 @@ describe('MemoryReviewQueue trust contract', () => {
 
   it('presents the actual server decision rather than predicting approval', () => {
     expect(
-      memoryReviewOutcomeMessage(
-        { candidateKind: 'standard', outcome: 'activated' },
-        'approve',
-      ),
+      memoryReviewOutcomeMessage({ candidateKind: 'standard', outcome: 'activated' }, 'approve'),
     ).toBe('Memory approved');
     expect(
-      memoryReviewOutcomeMessage(
-        { candidateKind: 'correction', outcome: 'activated' },
-        'approve',
-      ),
+      memoryReviewOutcomeMessage({ candidateKind: 'correction', outcome: 'activated' }, 'approve'),
     ).toBe('Memory version activated');
     expect(
-      memoryReviewOutcomeMessage(
-        { candidateKind: 'correction', outcome: 'duplicate' },
-        'approve',
-      ),
+      memoryReviewOutcomeMessage({ candidateKind: 'correction', outcome: 'duplicate' }, 'approve'),
     ).toBe('Existing controlling memory confirmed');
     expect(
       memoryReviewOutcomeMessage(
@@ -89,9 +80,7 @@ describe('MemoryReviewQueue trust contract', () => {
         'approve',
       ),
     ).toBe('Memory conflict opened for resolution');
-    expect(memoryReviewOutcomeMessage({ outcome: 'rejected' }, 'reject')).toBe(
-      'Memory rejected',
-    );
+    expect(memoryReviewOutcomeMessage({ outcome: 'rejected' }, 'reject')).toBe('Memory rejected');
   });
 
   it('keeps approve and reject capabilities distinct', () => {

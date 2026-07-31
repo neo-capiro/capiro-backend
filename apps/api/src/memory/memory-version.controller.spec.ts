@@ -66,11 +66,7 @@ describe('MemoryVersionController Phase 15 contract', () => {
       activeItemUnchanged: true,
     });
 
-    expect(proposeCorrection).toHaveBeenCalledWith(
-      ctx,
-      'item-1',
-      'Corrected institutional truth.',
-    );
+    expect(proposeCorrection).toHaveBeenCalledWith(ctx, 'item-1', 'Corrected institutional truth.');
     expect(proposeContradiction).toHaveBeenCalledWith(
       ctx,
       'item-1',

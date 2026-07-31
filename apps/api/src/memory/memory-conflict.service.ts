@@ -86,12 +86,7 @@ export class MemoryConflictService {
       for (const member of members) {
         const subject = await this.authz.loadItemInTx(tx, ctx.tenantId, member.id);
         if (!subject) throw new NotFoundException('Memory item not found');
-        const decision = await this.authz.evaluateInTx(
-          tx,
-          ctx,
-          subject,
-          'resolve_conflict',
-        );
+        const decision = await this.authz.evaluateInTx(tx, ctx, subject, 'resolve_conflict');
         if (!decision.allowed) {
           throw new ForbiddenException(`Memory operation denied: ${decision.reason}`);
         }
