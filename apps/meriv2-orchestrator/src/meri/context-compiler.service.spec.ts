@@ -1,6 +1,13 @@
 import { OrchestratorContextCompilerService } from './context-compiler.service';
 import type { PrismaService } from '../prisma/prisma.service';
 
+const CANARY = {
+  clioFeatureFlags: {
+    'meriv2.contextPacketV2': true,
+    'meriv2.contextPacketV2.strategy': true,
+  },
+};
+
 /** Adapter-contract tests for the orchestrator Context Compiler. */
 describe('OrchestratorContextCompilerService (adapter contract)', () => {
   const VOICE_ROW = {
@@ -28,6 +35,9 @@ describe('OrchestratorContextCompilerService (adapter contract)', () => {
   ) {
     const packetCreates: Array<{ data: Record<string, unknown> }> = [];
     const tx = {
+      tenant: {
+        findFirst: jest.fn().mockResolvedValue({ settings: CANARY }),
+      },
       $queryRaw: jest.fn().mockResolvedValue(rows),
       contextPacket: {
         create: jest.fn(async (args: { data: Record<string, unknown> }) => {
@@ -117,17 +127,23 @@ describe('OrchestratorContextCompilerService (adapter contract)', () => {
     expect(packet.persistenceErrorCode).toBe('context_packet_error');
   });
 
-  it('throws on a required persistence failure', async () => {
-    const { prisma } = makePrisma([VOICE_ROW], { readBack: false });
-    const service = new OrchestratorContextCompilerService(prisma);
-    await expect(
-      service.compile({
-        tenantId: 't1',
-        userId: 'u1',
-        surface: 'strategy',
-        layers: ['user-voice'],
-        persistence: 'required',
-      }),
-    ).rejects.toMatchObject({ name: 'ContextPacketPersistenceError' });
+  it('throws on a required persistence failure once the server-owned canary is enforced', async () => {
+    const original = process.env.MERIV2_CONTEXT_PACKET_V2;
+    process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
+    try {
+      const { prisma } = makePrisma([VOICE_ROW], { readBack: false });
+      const service = new OrchestratorContextCompilerService(prisma);
+      await expect(
+        service.compile({
+          tenantId: 't1',
+          userId: 'u1',
+          surface: 'strategy',
+          layers: ['user-voice'],
+        }),
+      ).rejects.toMatchObject({ name: 'ContextPacketPersistenceError' });
+    } finally {
+      if (original === undefined) delete process.env.MERIV2_CONTEXT_PACKET_V2;
+      else process.env.MERIV2_CONTEXT_PACKET_V2 = original;
+    }
   });
 });
