@@ -89,7 +89,10 @@ export class MemoryAuthorizationService {
           AND client_id = ${subject.clientId}::uuid
           AND user_id = ${ctx.userId}::uuid
           AND status = 'active'
-          AND (expires_at IS NULL OR expires_at > now())
+          AND expires_at IS NOT NULL
+          AND expires_at > now()
+          AND reason IS NOT NULL
+          AND btrim(reason) <> ''
         ORDER BY created_at DESC
         LIMIT 1
       `);
