@@ -55,7 +55,8 @@ function ensureDatabaseUrl(): void {
   const required = ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'] as const;
   const hasParts = required.every((k) => !!process.env[k]);
   if (hasParts) {
-    // Always recompose from parts — entrypoint historically may mask password as *** in DATABASE_URL.
+    // Always recompose from parts. Never put a literal "***" password into DATABASE_URL —
+    // that string is only for redacted logs, not for Prisma.
     const password = encodeURIComponent(process.env.DB_PASSWORD!);
     process.env.DATABASE_URL =
       `postgresql://${process.env.DB_USER}:${password}@${process.env.DB_HOST}:` +
@@ -448,18 +449,21 @@ async function main(): Promise<void> {
 
     // 5) Derive-chain dry run under live config
     const der = runDeriveDry();
-    const derOk =
-      der.code === 0 &&
-      /dry run complete|pe-derive-chain/i.test(der.out) &&
-      !/\s--commit\b/.test(der.out.split('\n').find((l) => l.includes('pe-derive-chain')) ?? '') &&
-      !/SyncRun row written/i.test(der.out);
-    // stricter: marker
-    const derMarkerOk = /\[pe-derive-chain\] dry run complete/i.test(der.out) || der.code === 0;
+    const hasDryMarker = /\[pe-derive-chain\]\s+dry run complete/i.test(der.out);
+    const mentionsCommitFlag = /(^|\s)--commit(\s|$)/m.test(der.out);
+    const wroteSync = /SyncRun row written/i.test(der.out);
+    const derOk = der.code === 0 && hasDryMarker && !mentionsCommitFlag && !wroteSync;
     report.steps.push({
       id: 'derive_chain_dry_run',
-      ok: derOk || derMarkerOk,
-      exitCode: der.code === 0 ? 0 : der.code || 1,
+      ok: derOk,
+      exitCode: derOk ? 0 : der.code || 1,
       detail: der.out.slice(-900),
+      metrics: {
+        hasDryMarker,
+        mentionsCommitFlag,
+        wroteSync,
+        exit: der.code,
+      },
     });
 
     // 6) RLS ethical wall on live Aurora
@@ -512,3 +516,4 @@ void main().catch((e) => {
   console.error('[pe-phase-10-live-proofs] fatal', (e as Error)?.stack ?? e);
   process.exit(1);
 });
+

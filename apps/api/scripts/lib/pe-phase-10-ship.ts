@@ -556,12 +556,13 @@ export function runLiveProofsTask(
       containerOverrides: [
         {
           name: 'api',
-          // command becomes args to image ENTRYPOINT (entrypoint.sh). Tip image includes pe-phase-10-live-proofs + TMPDIR guard.
+          // command becomes args to image ENTRYPOINT (entrypoint.sh).
+          // TMPDIR must be /app/tmp (Dockerfile + entrypoint). /tmp breaks tsx IPC on Fargate uid 1001.
           command: ['pe-phase-10-live-proofs'],
           environment: [
             { name: 'GIT_SHA', value: ctx.headSha },
             { name: 'PE_CLOSEOUT_HEAD_SHA', value: ctx.headSha },
-            { name: 'TMPDIR', value: '/tmp' },
+            { name: 'TMPDIR', value: '/app/tmp' },
           ],
         },
       ],

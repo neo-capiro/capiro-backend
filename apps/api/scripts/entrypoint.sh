@@ -13,10 +13,17 @@ compose_database_url() {
     exit 1
   fi
   ENCODED_PASSWORD=$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$DB_PASSWORD")
-  # Real password in process env for Prisma; never print DATABASE_URL.
+  # Real password in process env for Prisma; never echo/print DATABASE_URL.
+  # Prior bug used literal "***" here which broke every DB client that only reads DATABASE_URL.
   export DATABASE_URL="postgresql://${DB_USER}:${ENCODED_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public&sslmode=require&connection_limit=10"
-  : "${TMPDIR:=/dev/shm}"
-  export TMPDIR
+  # Prefer image-owned scratch dir (Dockerfile: /app/tmp, uid 1001). Fargate /tmp often
+  # cannot mkdir /tmp/tsx-1001 (ENOENT) — do not default to bare /tmp.
+  if [ -d /app/tmp ] || mkdir -p /app/tmp 2>/dev/null; then
+    export TMPDIR=/app/tmp
+  else
+    : "${TMPDIR:=/dev/shm}"
+    export TMPDIR
+  fi
   # Diagnostics must never substitute an ECS metadata URI for a Git commit.
   # Deployment automation may set a real GIT_SHA; otherwise report UNVERIFIED.
   : "${GIT_SHA:=UNVERIFIED}"
@@ -46,10 +53,16 @@ case "${1:-serve}" in
   pe-phase-10-live-proofs)
     shift
     compose_database_url
-    # tsx needs a writable TMPDIR; some images ship without /app/tmp present at runtime
-    mkdir -p /tmp /app/tmp 2>/dev/null || true
-    export TMPDIR="${TMPDIR:-/tmp}"
-    if [ ! -d "$TMPDIR" ]; then export TMPDIR=/tmp; fi
+    # Force image scratch dir. ECS containerOverrides historically set TMPDIR=/tmp which
+    # breaks tsx IPC (ENOENT mkdir /tmp/tsx-1001) on Fargate non-root.
+    mkdir -p /app/tmp 2>/dev/null || true
+    if [ -d /app/tmp ]; then
+      export TMPDIR=/app/tmp
+    elif [ -d /dev/shm ]; then
+      export TMPDIR=/dev/shm
+    else
+      export TMPDIR="${TMPDIR:-/tmp}"
+    fi
     echo "Running pe-phase-10-live-proofs (sole-live Aurora; synthetic pe10_closeout domain only; TMPDIR=$TMPDIR)"
     exec ./node_modules/.bin/tsx scripts/pe-phase-10-live-proofs.ts "$@"
     ;;
