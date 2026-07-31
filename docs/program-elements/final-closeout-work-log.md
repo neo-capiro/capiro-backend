@@ -6,7 +6,7 @@
 **Repo:** `neo-capiro/capirov2`  
 **Operator session:** Phase 10 IMPLEMENT (pre-merge staging acceptance)
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-31 (Phase 10 IMPLEMENT PUSHED tip `6205d46392b7` / harness PE_PHASE_10_OK — independent REVIEW REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-31 (Phase 10 IMPLEMENT PUSHED tip `0ab35ad4d116` / harness PE_PHASE_10_OK — independent REVIEW REQUIRED — no self-PASS)
 
 ---
 
@@ -1538,7 +1538,7 @@ export PE_CLOSEOUT_EFFORT=high
 
 **When (UTC):** 2026-07-31T16:23Z  
 **Product tip (images+proofs):** `6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1`  
-**Remote tip (after evidence pin):** see origin HEAD after push  
+**Remote tip (after evidence pin):** `0ab35ad4d11659c9975b377ebc4df35be496a36a`  
 **origin/main:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind)  
 **FAIL inject tip closed by this work:** `e21875ee1` (and intermediate salvage/fail tips)  
 **Auth:** `prompts/phase-10-neo-dev-authorization.md` + `PE_CLOSEOUT_STAGING_OK=yes` + `PE_CLOSEOUT_STAGING_MUTATE=yes`  

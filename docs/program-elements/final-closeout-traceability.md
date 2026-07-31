@@ -187,7 +187,7 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 | Schedule phase | Goal | Status | Owner |
 |---|---|---|---|
 | 9 Integrated rehearsal | Run A–K + PE suites on remote final SHA | `in_branch` — Phase 9 PASS WITH BLOCKERS tip `72b299dff` | 9 |
-| 10 Staging acceptance | Pre-merge acceptance on sole live env=dev / capiro-dev | `in_branch` tip `6205d46392b7` harness PE_PHASE_10_OK; REVIEW REQUIRED | Phase 10 |
+| 10 Staging acceptance | Pre-merge acceptance on sole live env=dev / capiro-dev | `in_branch` tip `0ab35ad4d116` harness PE_PHASE_10_OK; REVIEW REQUIRED | Phase 10 |
 | 11 PR closeout | Body, supersede old PRs, ready-for-review | after 9/(10) | Phase 11 |
 
 ---
@@ -233,7 +233,7 @@ bash apps/api/scripts/pe-phase-9-migration-replay.sh
 | S9 | Dark rails (no secrets GetValue/email/LlamaParse/derive --commit/merge) | `in_branch` | safety block in summary | 10 |
 
 **Product tip (images+proofs):** `6205d46392b79190a7b23e6f17dfe3d3e9bb1dd1`  
-**Remote tip (after evidence pin):** see origin HEAD after push  
+**Remote tip (after evidence pin):** `0ab35ad4d11659c9975b377ebc4df35be496a36a`  
 **Harness marker:** `PE_PHASE_10_OK` (implementer only)  
 **Phase 10 review gate:** **IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on that tip. Do not self-PASS. Do not start Phase 11. Do not merge #705. Forbidden residual clusters remain visible (capiro-staging / capiro-prod-os-capiro) and must not be targeted.
 
