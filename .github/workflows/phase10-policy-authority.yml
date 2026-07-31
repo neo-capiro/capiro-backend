@@ -28,6 +28,10 @@ jobs:
           base64 -d /tmp/phase10_patch.py.gz.b64 | gzip -d > /tmp/phase10_patch.py
           echo "a864cb85f3751930a8490919cc16013bc444be526dddab2c1ec941847210a4a5  /tmp/phase10_patch.py" | sha256sum -c -
           python /tmp/phase10_patch.py
+          # GitHub App tokens cannot update workflow files. Publish runtime,
+          # schema, tests, and docs here; the cumulative workflow is updated
+          # separately through the GitHub connector after this commit lands.
+          git checkout -- .github/workflows/memory-governance-ci.yml
           rm docs/tmp/phase10-patch.part*
           git config user.name "capiro-phase10-bot"
           git config user.email "noreply@capiro.ai"
