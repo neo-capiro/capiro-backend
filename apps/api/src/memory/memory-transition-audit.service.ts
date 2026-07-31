@@ -4,11 +4,11 @@ import {
   assertMemoryTransition,
   type GovernedMemoryStatus,
   type GovernedMemorySourceType,
-  type MemoryTransitionReasonCode,
 } from '@capiro/meriv2-core';
 import {
   normalizeAuditReason,
   sanitizeAuditMetadata,
+  type CandidateTransitionReasonCode,
 } from './memory-governance-lifecycle.helpers.js';
 
 /**
@@ -35,7 +35,7 @@ export interface MemoryTransitionAuditInput {
   /** Omit for a creation event; when present the hop is state-machine validated. */
   fromStatus?: GovernedMemoryStatus | null;
   toStatus: GovernedMemoryStatus;
-  reasonCode: MemoryTransitionReasonCode;
+  reasonCode: CandidateTransitionReasonCode;
   /** One-line human explanation. NEVER a memory body. */
   reason?: string | null;
   sourceType?: GovernedMemorySourceType | null;
