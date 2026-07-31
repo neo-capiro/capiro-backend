@@ -56,7 +56,6 @@ const KNOWN_STATUSES = new Set([
   'expired',
 ]);
 
-/** Direct governed item and projection actions exposed by the administration center. */
 @Injectable()
 export class MemoryGovernanceActionService {
   constructor(
@@ -151,7 +150,6 @@ export class MemoryGovernanceActionService {
   async revoke(ctx: TenantContext, itemId: string, reason: string) {
     this.requireEnabled();
     const cleanReason = requiredReason(reason, 'A reason is required to revoke memory.');
-
     const result = await this.store.forgetMemory(itemId, cleanReason);
     if (!result.found) {
       throw new NotFoundException('Memory item was not found or is not revocable.');
@@ -223,7 +221,6 @@ export class MemoryGovernanceActionService {
     });
   }
 
-  /** Re-open one authorized failed/dead-letter projection obligation. */
   async retryProjection(ctx: TenantContext, jobId: string) {
     this.requireEnabled();
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
@@ -237,10 +234,10 @@ export class MemoryGovernanceActionService {
         );
       }
 
-      if (
-        job.clioScope === 'user_private' &&
-        job.clioOwnerUserId !== ctx.userId
-      ) {
+      if (job.clioMemoryId && !job.clioScope) {
+        throw new ForbiddenException('Memory operation denied: private_subject_unavailable');
+      }
+      if (job.clioScope === 'user_private' && job.clioOwnerUserId !== ctx.userId) {
         throw new ForbiddenException('Memory operation denied: owner_only');
       }
       if (job.clientId) {
