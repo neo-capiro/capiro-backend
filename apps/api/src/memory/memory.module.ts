@@ -21,18 +21,23 @@ import { MemoryProjectionWorkerService } from './memory-projection-worker.servic
 import { ExactMemoryProjectionWorkerService } from './exact-memory-projection-worker.service.js';
 import { StrictMemoryProjectorService } from './strict-memory-projector.service.js';
 import { MemoryPurgeService } from './memory-purge.service.js';
+import { MemoryGovernanceReadService } from './memory-governance-read.service.js';
+import { MemoryGovernanceActionService } from './memory-governance-action.service.js';
+import { MemoryGovernanceService } from './memory-governance.service.js';
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
 import { MemoryController } from './memory.controller.js';
 import { MemoryReviewController } from './memory-review.controller.js';
 import { MemoryProposalController } from './memory-proposal.controller.js';
 import { MemoryVersionController } from './memory-version.controller.js';
+import { MemoryGovernanceController } from './memory-governance.controller.js';
 import { InternalMemoryController } from './internal-memory.controller.js';
 
 /**
  * Institutional Memory module.
  *
  * Phase 6 resolves the legacy public tokens to exact implementations while retaining
- * the inherited best-effort classes as explicit code rollback paths.
+ * the inherited best-effort classes as explicit code rollback paths. Phase 15 adds
+ * one dark, administrator-only Governance Center facade over those exact services.
  */
 @Module({
   imports: [PrismaModule, TenantModule],
@@ -41,6 +46,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     MemoryReviewController,
     MemoryProposalController,
     MemoryVersionController,
+    MemoryGovernanceController,
     InternalMemoryController,
   ],
   providers: [
@@ -59,6 +65,9 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     MemoryAccessGrantService,
     MemoryConflictService,
     MemoryTransitionAuditService,
+    MemoryGovernanceReadService,
+    MemoryGovernanceActionService,
+    MemoryGovernanceService,
     ExactMemoryCleanupOutboxService,
     { provide: MemoryCleanupOutboxService, useExisting: ExactMemoryCleanupOutboxService },
     ExactMemoryProjectionWorkerService,
@@ -78,6 +87,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     MemoryCleanupOutboxService,
     StrictMemoryProjectorService,
     MemoryProjectionWorkerService,
+    MemoryGovernanceService,
     MemoryPurgeService,
   ],
 })
