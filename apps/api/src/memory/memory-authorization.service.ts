@@ -1,11 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext, TenantRole } from '@capiro/shared';
-import type {
-  GovernedMemoryScope,
-  GovernedMemoryStatus,
-  MemoryClass,
-} from '@capiro/meriv2-core';
+import type { GovernedMemoryScope, GovernedMemoryStatus, MemoryClass } from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { clientMemoryAllowed } from './memory-wall.helpers.js';
 import {

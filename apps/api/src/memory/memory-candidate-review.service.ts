@@ -75,68 +75,54 @@ export class MemoryCandidateReviewService {
   ): Promise<{ enabled: boolean; candidates: ReviewableMemoryCandidate[] }> {
     if (!this.enabled()) return { enabled: false, candidates: [] };
 
-    const candidates = await this.prisma.withTenantUser(
-      ctx.tenantId,
-      ctx.userId,
-      async (tx) => {
-        // Do not load proposal bodies before authorization. The initial pass reads
-        // identifiers and scope only; payload_jsonb is fetched for an exact row
-        // only after the canonical wall/grant decision permits inspection.
-        const rows = await tx.memoryCandidate.findMany({
-          where: { tenantId: ctx.tenantId, status: 'pending' },
-          orderBy: { createdAt: 'asc' },
-          select: {
-            id: true,
-            clientId: true,
-            proposedBy: true,
-            sourceKind: true,
-            scope: true,
-            createdAt: true,
+    const candidates = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      // Do not load proposal bodies before authorization. The initial pass reads
+      // identifiers and scope only; payload_jsonb is fetched for an exact row
+      // only after the canonical wall/grant decision permits inspection.
+      const rows = await tx.memoryCandidate.findMany({
+        where: { tenantId: ctx.tenantId, status: 'pending' },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          clientId: true,
+          proposedBy: true,
+          sourceKind: true,
+          scope: true,
+          createdAt: true,
+        },
+      });
+
+      const visible: ReviewableMemoryCandidate[] = [];
+      for (const row of rows as PendingCandidateRow[]) {
+        const subject = await this.authorization.loadCandidateInTx(tx, ctx.tenantId, row.id);
+        if (!subject) continue;
+
+        const approve = await this.authorization.evaluateInTx(tx, ctx, subject, 'approve');
+        const review = await this.authorization.evaluateInTx(tx, ctx, subject, 'review');
+        if (!approve.allowed && !review.allowed) continue;
+
+        const authorizedRow = await tx.memoryCandidate.findFirst({
+          where: { id: row.id, tenantId: ctx.tenantId, status: 'pending' },
+          select: { payload: true },
+        });
+        if (!authorizedRow) continue;
+
+        visible.push({
+          id: row.id,
+          scope: row.scope,
+          clientId: row.clientId,
+          proposedByUserId: row.proposedBy,
+          sourceKind: row.sourceKind,
+          createdAt: row.createdAt.toISOString(),
+          proposal: proposalFromPayload(authorizedRow.payload),
+          capabilities: {
+            approve: approve.allowed,
+            reject: review.allowed,
           },
         });
-
-        const visible: ReviewableMemoryCandidate[] = [];
-        for (const row of rows as PendingCandidateRow[]) {
-          const subject = await this.authorization.loadCandidateInTx(tx, ctx.tenantId, row.id);
-          if (!subject) continue;
-
-          const approve = await this.authorization.evaluateInTx(
-            tx,
-            ctx,
-            subject,
-            'approve',
-          );
-          const review = await this.authorization.evaluateInTx(
-            tx,
-            ctx,
-            subject,
-            'review',
-          );
-          if (!approve.allowed && !review.allowed) continue;
-
-          const authorizedRow = await tx.memoryCandidate.findFirst({
-            where: { id: row.id, tenantId: ctx.tenantId, status: 'pending' },
-            select: { payload: true },
-          });
-          if (!authorizedRow) continue;
-
-          visible.push({
-            id: row.id,
-            scope: row.scope,
-            clientId: row.clientId,
-            proposedByUserId: row.proposedBy,
-            sourceKind: row.sourceKind,
-            createdAt: row.createdAt.toISOString(),
-            proposal: proposalFromPayload(authorizedRow.payload),
-            capabilities: {
-              approve: approve.allowed,
-              reject: review.allowed,
-            },
-          });
-        }
-        return visible;
-      },
-    );
+      }
+      return visible;
+    });
 
     return { enabled: true, candidates };
   }

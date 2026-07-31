@@ -91,7 +91,9 @@ export class MemoryAccessGrantService {
     const reason = typeof input.reason === 'string' ? input.reason.trim() : '';
     if (!reason) throw new BadRequestException('reason is required for a client memory grant.');
     if (reason.length > MAX_GRANT_REASON_CHARS) {
-      throw new BadRequestException(`reason must be ${MAX_GRANT_REASON_CHARS} characters or fewer.`);
+      throw new BadRequestException(
+        `reason must be ${MAX_GRANT_REASON_CHARS} characters or fewer.`,
+      );
     }
     const expiresAt = parseOptionalDate(input.expiresAt);
     if (!expiresAt) {
@@ -112,7 +114,9 @@ export class MemoryAccessGrantService {
         LIMIT 1
       `;
       if (memberships[0]?.allowed !== true) {
-        throw new BadRequestException('The grant recipient must be an active member of this tenant.');
+        throw new BadRequestException(
+          'The grant recipient must be an active member of this tenant.',
+        );
       }
 
       await tx.$executeRaw`

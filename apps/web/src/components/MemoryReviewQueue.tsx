@@ -61,17 +61,14 @@ export function MemoryReviewQueue() {
 
   const queue = useQuery<ReviewQueueResponse>({
     queryKey: ['memory-review-candidates'],
-    queryFn: async () =>
-      (await api.get<ReviewQueueResponse>('/api/memory/review/candidates')).data,
+    queryFn: async () => (await api.get<ReviewQueueResponse>('/api/memory/review/candidates')).data,
     staleTime: 15_000,
     retry: 1,
   });
 
   const decision = useMutation({
     mutationFn: async (input: { id: string; decision: 'approve' | 'reject' }) =>
-      (
-        await api.post(`/api/memory/review/candidates/${input.id}/${input.decision}`, {})
-      ).data,
+      (await api.post(`/api/memory/review/candidates/${input.id}/${input.decision}`, {})).data,
     onSuccess: (_result, input) => {
       message.success(input.decision === 'approve' ? 'Memory approved' : 'Memory rejected');
       qc.invalidateQueries({ queryKey: ['memory-review-candidates'] });

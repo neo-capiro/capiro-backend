@@ -58,23 +58,26 @@ const facts = (over: Partial<MemoryAuthorizationFacts> = {}): MemoryAuthorizatio
 describe('Phase 12 client-scoped reviewer authorization', () => {
   it('allows a standard user with an explicit client approve grant', async () => {
     const h = serviceHarness({ wallAllowed: true, permissions: ['approve'] });
-    await expect(
-      h.service.evaluateInTx(h.tx as never, ctx, subject, 'approve'),
-    ).resolves.toEqual({ allowed: true, basis: 'explicit_grant' });
+    await expect(h.service.evaluateInTx(h.tx as never, ctx, subject, 'approve')).resolves.toEqual({
+      allowed: true,
+      basis: 'explicit_grant',
+    });
   });
 
   it('denies the same user without a qualifying grant', async () => {
     const h = serviceHarness({ wallAllowed: true, permissions: [] });
-    await expect(
-      h.service.evaluateInTx(h.tx as never, ctx, subject, 'approve'),
-    ).resolves.toEqual({ allowed: false, reason: 'missing_grant' });
+    await expect(h.service.evaluateInTx(h.tx as never, ctx, subject, 'approve')).resolves.toEqual({
+      allowed: false,
+      reason: 'missing_grant',
+    });
   });
 
   it('does not let a grant bypass the ethical wall', async () => {
     const h = serviceHarness({ wallAllowed: false, permissions: ['approve'] });
-    await expect(
-      h.service.evaluateInTx(h.tx as never, ctx, subject, 'approve'),
-    ).resolves.toEqual({ allowed: false, reason: 'ethical_wall' });
+    await expect(h.service.evaluateInTx(h.tx as never, ctx, subject, 'approve')).resolves.toEqual({
+      allowed: false,
+      reason: 'ethical_wall',
+    });
   });
 
   it('loads only active, unexpired, reasoned grants', async () => {
