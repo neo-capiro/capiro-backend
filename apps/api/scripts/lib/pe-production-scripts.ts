@@ -38,6 +38,7 @@ export const PE_PRODUCTION_SCRIPTS = [
   'scripts/lint-pe-scripts.ts',
   'scripts/verify-pe-migration-guards.ts',
   'scripts/verify-pe-phase-9.ts',
+  'scripts/verify-pe-phase-10.ts',
 ] as const;
 
 export type PeProductionScript = (typeof PE_PRODUCTION_SCRIPTS)[number];
@@ -56,6 +57,9 @@ export const PE_PRODUCTION_SCRIPT_HELPERS = [
   'scripts/lib/pe-phase-9-rehearsal-catalog.ts',
   'scripts/lib/pe-phase-9-rehearsal.ts',
   'scripts/lib/pe-phase-9-rehearsal.spec.ts',
+  'scripts/lib/pe-phase-10-staging-acceptance-catalog.ts',
+  'scripts/lib/pe-phase-10-staging-acceptance.ts',
+  'scripts/lib/pe-phase-10-staging-acceptance.spec.ts',
   'scripts/lib/pe-production-scripts.spec.ts',
   'scripts/lib/pe-phase-a-safety.spec.ts',
   'scripts/audit-llamaparse-pe-units.ts',

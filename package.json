@@ -23,7 +23,8 @@
     "db:migrate": "pnpm --filter @capiro/api prisma:migrate:dev",
     "db:reset": "pnpm --filter @capiro/api prisma:reset",
     "verify:pe-phase-9": "pnpm -C apps/api run verify:pe-phase-9",
-    "verify:pe-phase-9:full": "pnpm -C apps/api run verify:pe-phase-9:full"
+    "verify:pe-phase-9:full": "pnpm -C apps/api run verify:pe-phase-9:full",
+    "verify:pe-phase-10": "pnpm -C apps/api run verify:pe-phase-10"
   },
   "devDependencies": {
     "turbo": "^2.1.3",

@@ -186,8 +186,8 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 
 | Schedule phase | Goal | Status | Owner |
 |---|---|---|---|
-| 9 Integrated rehearsal | Run A–K + PE suites on remote final SHA | `in_branch` (Phase 9 B1 rework) — honest upgrade replay + PE_PHASE_9_OK; REVIEW REQUIRED on post-fix tip | 9 |
-| 10 Staging acceptance | Deploy/migrate staging | `blocked` until Neo authorizes | Phase 10 |
+| 9 Integrated rehearsal | Run A–K + PE suites on remote final SHA | `in_branch` — Phase 9 PASS WITH BLOCKERS tip `72b299dff` | 9 |
+| 10 Staging acceptance | Deploy/migrate/runtime smoke on staging | `in_branch` harness + **PE_PHASE_10_BLOCKED** (plane unhealthy); ship path still env-blocked | Phase 10 |
 | 11 PR closeout | Body, supersede old PRs, ready-for-review | after 9/(10) | Phase 11 |
 
 ---
@@ -205,7 +205,7 @@ Depends on Phase 4 read contract. **Phase 5 implement pushed — independent REV
 | R5 | Extended proofs mapped to phase E/D/F/I/J owners | `in_branch` | catalog EXTENDED_PROOF_OWNERS | 9 |
 | R6 | Evidence JSON/README under phase-9 verification dir | `in_branch` | docs/verification/program-elements-trust/phase-9/ | 9 |
 
-**Phase 9 review gate:** **IMPLEMENT PUSHED (B1 rework) — independent REVIEW REQUIRED** against live `origin/agent/program-elements-final-closeout` HEAD after push (must include fix product `e22423fd23cd957c165417428bf5d40f41a13848` and evidence pins on live origin HEAD; prior FAIL tip `255098977509c9b06e7142f0624fa4822dfadb36`; no self-PASS). Soft residuals: prettier PE surface debt; host psql → PE_PHASE_C_RLS_REHEARSAL_SKIP. Review must prove upgrade_base_applied==main migration count and tip_delta≥branch_only PE migs.
+**Phase 9 review gate:** **PASS WITH BLOCKERS** on tip `72b299dff928f1f451e2dad231124c8c50a3d046` (fix product `e22423fd2`). Soft residuals: prettier; host psql skip.
 
 Commands:
 
@@ -214,6 +214,32 @@ pnpm -C apps/api run verify:pe-phase-9 -- --catalog-only
 pnpm -C apps/api run verify:pe-phase-9 -- --integrity-only
 pnpm -C apps/api exec tsx scripts/verify-pe-phase-9.ts --full --skip-install
 bash apps/api/scripts/pe-phase-9-migration-replay.sh
+```
+
+
+
+## 10c. Phase 10 — Staging acceptance details
+
+| ID | Requirement | Status | Source | Owner |
+|---|---|---|---|---|
+| S1 | Neo staging auth gate | `in_branch` | PE_CLOSEOUT_STAGING_OK + verify-pe-phase-10 | 10 |
+| S2 | Read-only staging inventory | `in_branch` | pe-phase-10-staging-probe.sh | 10 |
+| S3 | Image digest record for branch SHA | `in_branch` (absent on tip — honest) | verify-pe-phase-10 | 10 |
+| S4 | Additive migrate + deploy on staging | `blocked` env — no healthy plane | requires MUTATE + healthyCompute | 10 + Neo infra |
+| S5 | Runtime matrix (loaders/promotion/replay/derive-dry/browser/RLS/alarms) | `blocked` env | catalog env_blocked | 10 + Neo infra |
+| S6 | Acceptance record + rollback text | `in_branch` | docs/verification/.../phase-10/ | 10 |
+| S7 | Refuse secrets pull / email / LlamaParse / forbidden clusters | `in_branch` | gate safety rails | 10 |
+
+**Phase 10 review gate:** **IMPLEMENT PUSHED — independent REVIEW REQUIRED** against live origin HEAD after push. Harness marker **`PE_PHASE_10_BLOCKED`** (not OK). Inventory proves Compute rollback, no ECS cluster, phantom Aurora. No shared migrate/deploy performed. Do not self-PASS.
+
+Commands:
+
+```text
+export PE_CLOSEOUT_STAGING_OK=yes AWS_PROFILE=capiro-dev
+pnpm -C apps/api run probe:pe-phase-10-staging -- --json
+pnpm -C apps/api run verify:pe-phase-10
+# expect PE_PHASE_10_BLOCKED exit 78 while plane down
+pnpm -C apps/api run verify:pe-phase-k
 ```
 
 ## 11. MeriV2 boundary

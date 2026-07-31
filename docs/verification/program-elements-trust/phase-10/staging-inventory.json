@@ -1,0 +1,36 @@
+{
+  "accountId": "967807252336",
+  "apiServiceExists": false,
+  "auroraClusterId": null,
+  "auroraClusterLive": false,
+  "blockers": [
+    "ECS cluster capiro-staging does not exist (status=MISSING)",
+    "Compute stack status=UPDATE_ROLLBACK_COMPLETE",
+    "API service capiro-staging-api missing",
+    "WEB service capiro-staging-web missing",
+    "Staging Aurora not live in RDS (CF physical id may be phantom: capiro-staging-data-auroracluster23d869c0-klkzactvs5q5)"
+  ],
+  "capturedAt": "2026-07-31T09:53:27Z",
+  "cfAuroraPhysicalId": "capiro-staging-data-auroracluster23d869c0-klkzactvs5q5",
+  "computeStackStatus": "UPDATE_ROLLBACK_COMPLETE",
+  "dataStackStatus": "UPDATE_COMPLETE",
+  "ecsClusterExists": false,
+  "ecsClusterStatus": null,
+  "forbiddenClusterPresent": true,
+  "healthyCompute": false,
+  "networkStackStatus": "UPDATE_COMPLETE",
+  "probeOk": true,
+  "probeVersion": 1,
+  "region": "us-east-1",
+  "safety": {
+    "cdkDeploy": false,
+    "ecsUpdateService": false,
+    "runTaskMigrate": false,
+    "secretsGetValue": false
+  },
+  "stagingSecretNameCount": 6,
+  "warnings": [
+    "Forbidden clusters capiro-dev / capiro-prod-os-capiro are present; Phase 10 must not deploy to them"
+  ],
+  "webServiceExists": false
+}

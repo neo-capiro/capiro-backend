@@ -4,9 +4,9 @@
 **PR:** https://github.com/neo-capiro/capirov2/pull/705 (draft → `main`)  
 **Plan source:** local `program-elements-final-closeout-plan-and-schedule.md`  
 **Repo:** `neo-capiro/capirov2`  
-**Operator session:** Phase 9 IMPLEMENT (integrated release rehearsal)
+**Operator session:** Phase 10 IMPLEMENT (pre-merge staging acceptance)
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-31 (Phase 9 B1 FAIL rework IMPLEMENT PUSHED / independent review REQUIRED — no self-PASS)
+**Ledger last updated (UTC):** 2026-07-31 (Phase 10 IMPLEMENT PUSHED / PE_PHASE_10_BLOCKED — independent review REQUIRED — no self-PASS)
 
 ---
 
@@ -634,7 +634,7 @@ git reset --hard 0a74cf9a3220cea05d0666e41a0c88e75cb99929
 
 ## Phase 5 — Trust-First Program Elements Web Experience
 
-**Operator session:** Phase 5 IMPLEMENT only (not review)  
+**Operator session:** Phase 10 IMPLEMENT (pre-merge staging acceptance)
 **Mode:** LONG  
 **Base remote tip (Phase 4 PASS WITH BLOCKERS):** `7bca3b506d992d49978821fb84946eae162e8db7`  
 **origin/main at implement:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind)
@@ -712,7 +712,7 @@ git reset --hard 7bca3b506d992d49978821fb84946eae162e8db7
 ## Phase 5 FAIL remediation — Trust-first web (re-implement after review FAIL)
 
 **When:** 2026-07-30 19:49 UTC
-**Operator session:** Phase 5 IMPLEMENT only (FAIL inject for B1/B2/B3; not review)
+**Operator session:** Phase 10 IMPLEMENT (pre-merge staging acceptance)
 **Mode:** LONG
 **Base (failed tip):** `e7ffe8b76a8496e9846fb9a59002142d26b03546`
 **Product tip (this remediation):** `9381d154c2869e5db995f16b968d2a41422d3deb`
@@ -769,7 +769,7 @@ git reset --hard 7bca3b506d992d49978821fb84946eae162e8db7
 ## Phase 5 FAIL remediation r2 — B8–B11 overview/procurement success-Empty on isError
 
 **When:** 2026-07-30 20:28 UTC
-**Operator session:** Phase 5 IMPLEMENT only (FAIL inject B8–B11; not review)
+**Operator session:** Phase 10 IMPLEMENT (pre-merge staging acceptance)
 **Mode:** LONG
 **Base (failed tip after prior review):** `e08797811cbaa1af0ae12c991aba52afd619e4c0` / product `9381d154c2869e5db995f16b968d2a41422d3deb`
 **Product tip (this remediation):** `4e2abed9ba5a03acdfbdef6b47ec0be1d2fe3ba3`
@@ -822,7 +822,7 @@ git reset --hard 9381d154c2869e5db995f16b968d2a41422d3deb
 ## Phase 5 FAIL remediation r3 — B12 FundingNarrativePanel isError (failed ≠ stages Empty)
 
 **When:** 2026-07-30 21:12 UTC
-**Operator session:** Phase 5 IMPLEMENT only (FAIL inject B12; not review)
+**Operator session:** Phase 10 IMPLEMENT (pre-merge staging acceptance)
 **Mode:** LONG
 **Base (failed tip after B8–B11 review):** `eafbfb2c0e848a0f692fd8b69950766a8e1277b5` / product `4e2abed9ba5a03acdfbdef6b47ec0be1d2fe3ba3`
 **Product tip (this remediation):** `c8ac942b93d299ccb5fa7e704e76ebac2937580d`
@@ -870,7 +870,7 @@ git reset --hard 4e2abed9ba5a03acdfbdef6b47ec0be1d2fe3ba3
 ## Phase 5 FAIL remediation r4 — re-verify B12 + optional B13 queryTab clamp
 
 **When:** 2026-07-30 22:40 UTC  
-**Operator session:** Phase 5 IMPLEMENT only (FAIL inject B12; not review)  
+**Operator session:** Phase 10 IMPLEMENT (pre-merge staging acceptance)
 **Mode:** LONG  
 **Base (failed tip after B8–B11 review):** `eafbfb2c0e848a0f692fd8b69950766a8e1277b5` / product `4e2abed9ba5a03acdfbdef6b47ec0be1d2fe3ba3`  
 **Prior B12 product (already on branch before this session):** `c8ac942b93d299ccb5fa7e704e76ebac2937580d` (docs pin `88921392c`)  
@@ -924,7 +924,7 @@ git reset --hard eafbfb2c0e848a0f692fd8b69950766a8e1277b5
 ## Phase 5 FAIL remediation r5 — B14 intelligence body + B15 billActions failed≠empty
 
 **When:** 2026-07-30 (UTC session)  
-**Operator session:** Phase 5 IMPLEMENT only (FAIL inject B14/B15; not review)  
+**Operator session:** Phase 10 IMPLEMENT (pre-merge staging acceptance)
 **Mode:** LONG  
 **Base (FAILED review tip):** `77fd4182dca94a51b68b8c9b22ac24ce3b0c9df7` (product r4 `af09ca8517d40b53df271e0a8ac3e6aad47bc580`)  
 **Product tip (this remediation):** `3f4c19c6bba9492f82f7344bb703ec92a40cd098`  
@@ -1005,7 +1005,7 @@ git reset --hard 77fd4182dca94a51b68b8c9b22ac24ce3b0c9df7
 ## Phase 6 — Analyst Feedback and CRM Contact Controls
 
 **When:** 2026-07-31 (UTC session)
-**Operator session:** Phase 6 IMPLEMENT only (not review)
+**Operator session:** Phase 10 IMPLEMENT (pre-merge staging acceptance)
 **Mode:** LONG
 **Base tip (Phase 5 PASS):** `c48d30bdc2229c2c452640065402efc92551f2b1`
 **Product tip (this phase):** `85e768ee086a3e8289d3b85264aefb0fa8be7adb`
@@ -1328,8 +1328,88 @@ git reset --hard cf9545d7e8879862a19bac4e82620eadf010c6b7
 ```
 
 
+## Phase 9 independent review (recorded at Phase 10 kickoff)
+
+**VERDICT: PASS WITH BLOCKERS** on remote tip `72b299dff928f1f451e2dad231124c8c50a3d046` (product fix `e22423fd2`, rehearsal `ca3f372b0`). Artifact: operator `prompts/phase-9-review-PASS.md`.
+
+---
+
+## Phase 10 — Pre-Merge Staging Acceptance (IMPLEMENT)
+
+**When (UTC date):** 2026-07-31
+**Base / prior PASS tip:** `72b299dff928f1f451e2dad231124c8c50a3d046`
+**origin/main:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e` (0 behind)
+**Mode:** LONG IMPLEMENT only — no self-PASS, no Phase 11, no merge/deploy, no Secrets Manager GetSecretValue, no email/LlamaParse/derive --commit
+**Auth:** `PE_CLOSEOUT_STAGING_OK=yes` present in session; mutate flag **not** set (`PE_CLOSEOUT_STAGING_MUTATE` unset) — discover path only
+**AWS profile:** `capiro-dev` account `967807252336` / `us-east-1`
+
+### Inventory (read-only — probe)
+
+| Fact | Value |
+|---|---|
+| ECS cluster `capiro-staging` | **MISSING** |
+| CF `Capiro-staging-Compute` | `UPDATE_ROLLBACK_COMPLETE` (since 2026-05-18) |
+| CF `Capiro-staging-Data` / Network | UPDATE_COMPLETE (phantom Aurora physical id) |
+| Live RDS staging Aurora | **NOT FOUND** (`DBClusterNotFoundFault` on CF physical id) |
+| Staging API/Web ECS services | missing |
+| Staging secret **names** visible | 6 (`/capiro/staging/**`) — values never fetched |
+| Forbidden clusters present | `capiro-dev`, `capiro-prod-os-capiro` (must never receive PE Phase 10 deploy) |
+| Branch tip ECR images | PE tip tags **absent** on `capiro/dev/{api,web}`; no `capiro/staging/*` repos |
+
+### Product delivered (this phase)
+
+| ID | Task | Result |
+|---|---|---|
+| S1 | Auth gate PE_CLOSEOUT_STAGING_OK | enforced in verify-pe-phase-10 |
+| S2 | Read-only AWS inventory probe | `pe-phase-10-staging-probe.sh` |
+| S3 | Pure inventory/gate evaluators + unit tests | pe-phase-10-staging-acceptance*.ts (19 tests) |
+| S4 | Acceptance catalog covering plan worklist | migrate/deploy/promotion/replay/derive-dry/browser/RLS/alarms/rollback |
+| S5 | Orchestrator + evidence pack | verify-pe-phase-10 → docs/verification/.../phase-10/ |
+| S6 | Fail-closed markers | `PE_PHASE_10_OK` / `PE_PHASE_10_BLOCKED` (exit 78) / `PE_PHASE_10_FAIL` |
+| S7 | Safety rails | no mutate to capiro-dev/prod; email automation dark; no secrets GetValue |
+| S8 | Image digest record | branch tip absent (honest) |
+| S9 | Rollback instructions rehearsed on paper | in acceptance record |
+| S10 | Full ship path (migrate/deploy/runtime smoke) | **env_blocked** — plane unhealthy |
+
+### Gate markers (implementer harness only)
+
+```text
+pnpm -C apps/api run verify:pe-phase-10
+# → PE_PHASE_10_BLOCKED (exit 78)
+# gate.ok=false; blockedComplete=true
+# local verify:pe-phase-k → PE_PHASE_K_OK (85 tests incl. phase-10)
+```
+
+**Not PE_PHASE_10_OK.** Missing ECS/Aurora/images cannot be green-washed from local gates.
+
+### Migrations / data ops
+
+**None.** No shared-env migrate, no deploy, no run-task, no Secrets GetSecretValue.
+
+### Independent review status (Phase 10)
+
+**IMPLEMENT PUSHED — independent adversarial REVIEW REQUIRED** on remote tip after push.
+Do **not** treat PE_PHASE_10_BLOCKED or local K OK as REVIEW PASS.
+Do **not** start Phase 11 until REVIEW PASS (or Neo waiver).
+Do **not** merge #705 from this gate.
+
+### Rollback
+
+```bash
+# product tip undo (pre-push local):
+git reset --hard 72b299dff928f1f451e2dad231124c8c50a3d046
+# no staging infra was mutated by this phase
+```
+
+### Remaining blockers (infra — Neo)
+
+1. Restore or recreate healthy `capiro-staging` ECS cluster + API/web services (fix Compute stack rollback).
+2. Restore live staging Aurora (or replace phantom CF Data IDs) reachable from that cluster.
+3. Build/push branch-SHA images to a staging-capable ECR repo.
+4. With healthy plane: set `PE_CLOSEOUT_STAGING_MUTATE=yes` and re-run verify:pe-phase-10 for PE_PHASE_10_OK path (additive migrate, deploy, inspect-only loaders, exact-SHA promotion, identical replay, derive dry-run, browser smoke, RLS, alarm tests).
+5. Never use `capiro-dev` (serves app.capiro.ai) as a Phase 10 surrogate.
+
 ## Next phase
 
-**Phase 9 independent adversarial REVIEW only** against the **post-fix remote tip** (not Phase 10).
-Operator: `./pe-closeout-run.sh review 9` in a NEW shell after push.
-Do not start Phase 10 unless Neo authorizes staging.
+**Phase 10 independent adversarial REVIEW only** against the remote tip after push (not Phase 11).
+Operator: `./pe-closeout-run.sh review 10` in a NEW shell after push.

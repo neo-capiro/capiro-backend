@@ -37,6 +37,8 @@ const HISTORY_SCAN_EXEMPT = new Set([
   'scripts/verify-pe-phase-a-safety.ts',
   'scripts/verify-pe-phase-e-exact-sha.ts',
   'scripts/verify-pe-phase-k.ts',
+  'scripts/verify-pe-phase-9.ts',
+  'scripts/verify-pe-phase-10.ts',
   'scripts/lint-pe-scripts.ts',
   'scripts/verify-pe-migration-guards.ts',
   'scripts/measure-accuracy.ts',

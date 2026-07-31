@@ -1,0 +1,390 @@
+{
+  "phase": 10,
+  "generatedAt": "2026-07-31T09:54:03.502Z",
+  "marker": "PE_PHASE_10_BLOCKED",
+  "gateOk": false,
+  "blockedComplete": true,
+  "authOk": true,
+  "mutateAllowed": false,
+  "git": {
+    "headSha": "72b299dff928f1f451e2dad231124c8c50a3d046",
+    "originHeadSha": "72b299dff928f1f451e2dad231124c8c50a3d046",
+    "mainSha": "3dcb12f823774b6fae8578dc56fc122bf9a0879e",
+    "mergeBaseSha": "3dcb12f823774b6fae8578dc56fc122bf9a0879e",
+    "branch": "agent/program-elements-final-closeout"
+  },
+  "inventory": {
+    "accountId": "967807252336",
+    "region": "us-east-1",
+    "probeOk": true,
+    "ecsClusterExists": false,
+    "ecsClusterStatus": null,
+    "apiServiceExists": false,
+    "webServiceExists": false,
+    "computeStackStatus": "UPDATE_ROLLBACK_COMPLETE",
+    "dataStackStatus": "UPDATE_COMPLETE",
+    "networkStackStatus": "UPDATE_COMPLETE",
+    "auroraClusterLive": false,
+    "auroraClusterId": null,
+    "forbiddenClusterPresent": true,
+    "healthyCompute": false,
+    "blockers": [
+      "ECS cluster capiro-staging does not exist (ACTIVE)",
+      "Compute stack Capiro-staging-Compute status=UPDATE_ROLLBACK_COMPLETE (need healthy COMPLETE without rollback)",
+      "ECS service capiro-staging-api missing",
+      "ECS service capiro-staging-web missing",
+      "Staging Aurora is not live in RDS (CF may still report phantom UPDATE_COMPLETE physical IDs)"
+    ],
+    "warnings": [
+      "Forbidden production/dev clusters are visible in the account (expected); deploy must never target them"
+    ],
+    "capturedAt": "2026-07-31T09:53:27Z",
+    "rawNotes": [
+      "secretNameCount=6",
+      "cfAuroraPhysicalId=capiro-staging-data-auroracluster23d869c0-klkzactvs5q5"
+    ]
+  },
+  "inventoryRaw": {
+    "accountId": "967807252336",
+    "apiServiceExists": false,
+    "auroraClusterId": null,
+    "auroraClusterLive": false,
+    "blockers": [
+      "ECS cluster capiro-staging does not exist (status=MISSING)",
+      "Compute stack status=UPDATE_ROLLBACK_COMPLETE",
+      "API service capiro-staging-api missing",
+      "WEB service capiro-staging-web missing",
+      "Staging Aurora not live in RDS (CF physical id may be phantom: capiro-staging-data-auroracluster23d869c0-klkzactvs5q5)"
+    ],
+    "capturedAt": "2026-07-31T09:53:27Z",
+    "cfAuroraPhysicalId": "capiro-staging-data-auroracluster23d869c0-klkzactvs5q5",
+    "computeStackStatus": "UPDATE_ROLLBACK_COMPLETE",
+    "dataStackStatus": "UPDATE_COMPLETE",
+    "ecsClusterExists": false,
+    "ecsClusterStatus": null,
+    "forbiddenClusterPresent": true,
+    "healthyCompute": false,
+    "networkStackStatus": "UPDATE_COMPLETE",
+    "probeOk": true,
+    "probeVersion": 1,
+    "region": "us-east-1",
+    "safety": {
+      "cdkDeploy": false,
+      "ecsUpdateService": false,
+      "runTaskMigrate": false,
+      "secretsGetValue": false
+    },
+    "stagingSecretNameCount": 6,
+    "warnings": [
+      "Forbidden clusters capiro-dev / capiro-prod-os-capiro are present; Phase 10 must not deploy to them"
+    ],
+    "webServiceExists": false
+  },
+  "images": [
+    {
+      "repo": "capiro/staging/api",
+      "tag": "72b299dff928f1f451e2dad231124c8c50a3d046",
+      "digest": null,
+      "pushedAt": null,
+      "present": false,
+      "note": "branch tip tag not present in ECR (read-only check)"
+    },
+    {
+      "repo": "capiro/dev/api",
+      "tag": "latest",
+      "digest": "sha256:2f135ffb7a6fd53e7830fc352366286723072538f90aedac9ca4545b879ab5d9",
+      "pushedAt": "2026-07-30T08:39:22.882000-04:00",
+      "present": true
+    },
+    {
+      "repo": "capiro/staging/web",
+      "tag": "72b299dff928f1f451e2dad231124c8c50a3d046",
+      "digest": null,
+      "pushedAt": null,
+      "present": false,
+      "note": "branch tip tag not present in ECR (read-only check)"
+    },
+    {
+      "repo": "capiro/dev/web",
+      "tag": "latest",
+      "digest": "sha256:24b6b5f76f89050dddfc093a18b6e0616b268740b26a4e8086888845908cae85",
+      "pushedAt": "2026-07-29T20:23:01.430000-04:00",
+      "present": true
+    }
+  ],
+  "integrity": {
+    "ok": true,
+    "blockers": [],
+    "forbiddenHits": []
+  },
+  "outcomes": [
+    {
+      "stepId": "git_sha_record",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "head=72b299dff928f1f451e2dad231124c8c50a3d046 origin=72b299dff928f1f451e2dad231124c8c50a3d046 main=3dcb12f823774b6fae8578dc56fc122bf9a0879e mb=3dcb12f823774b6fae8578dc56fc122bf9a0879e"
+    },
+    {
+      "stepId": "aws_inventory_readonly",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "healthyCompute=false blockers=5 probeExit=0"
+    },
+    {
+      "stepId": "image_digest_record",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "recorded 4 repo checks; present=2"
+    },
+    {
+      "stepId": "transport_absent",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "no forbidden paths"
+    },
+    {
+      "stepId": "local_pe_preflight_k",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "ASS scripts/lib/pe-migration-guards.spec.ts\nPASS scripts/lib/pe-phase-a-safety.spec.ts\n\nTest Suites: 9 passed, 9 total\nTests:       85 passed, 85 total\nSnapshots:   0 total\nTime:        8.072 s\nRan all test suites matching /src\\\\intelligence\\\\metrics\\\\accuracy-metrics.spec.ts|src\\\\program-element\\\\pe-trust-metric-catalog.spec.ts|src\\\\program-element\\\\program-element-metrics.service.spec.ts|scripts\\\\lib\\\\pe-production-scripts.spec.ts|scripts\\\\lib\\\\pe-trust-diagnostics.spec.ts|scripts\\\\lib\\\\pe-migration-guards.spec.ts|scripts\\\\lib\\\\pe-phase-a-safety.spec.ts|scripts\\\\lib\\\\pe-phase-9-rehearsal.spec.ts|scripts\\\\lib\\\\pe-phase-10-staging-acceptance.spec.ts/i.\nForce exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?\n",
+      "durationMs": 17596
+    },
+    {
+      "stepId": "local_pe_phase9_preflight",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "PE_PHASE_9_INTEGRITY_OK\n",
+      "durationMs": 2210
+    },
+    {
+      "stepId": "staging_migrate_additive",
+      "exitCode": 78,
+      "classification": "env_blocked",
+      "detail": "staging_migrate_additive: mutate not authorized or inventory unhealthy — not executed"
+    },
+    {
+      "stepId": "staging_deploy_images",
+      "exitCode": 78,
+      "classification": "env_blocked",
+      "detail": "staging_deploy_images: mutate not authorized or inventory unhealthy — not executed"
+    },
+    {
+      "stepId": "inspect_only_loaders",
+      "exitCode": 78,
+      "classification": "env_blocked",
+      "detail": "inspect_only_loaders: no healthy staging plane — cannot execute runtime acceptance"
+    },
+    {
+      "stepId": "exact_sha_internal_promotion",
+      "exitCode": 78,
+      "classification": "env_blocked",
+      "detail": "exact_sha_internal_promotion: mutate not authorized or inventory unhealthy — not executed"
+    },
+    {
+      "stepId": "identical_replay",
+      "exitCode": 78,
+      "classification": "env_blocked",
+      "detail": "identical_replay: mutate not authorized or inventory unhealthy — not executed"
+    },
+    {
+      "stepId": "derive_chain_dry_run",
+      "exitCode": 78,
+      "classification": "env_blocked",
+      "detail": "derive_chain_dry_run: no healthy staging plane — cannot execute runtime acceptance"
+    },
+    {
+      "stepId": "browser_smoke",
+      "exitCode": 78,
+      "classification": "env_blocked",
+      "detail": "browser_smoke: no healthy staging plane — cannot execute runtime acceptance"
+    },
+    {
+      "stepId": "rls_ethical_wall",
+      "exitCode": 78,
+      "classification": "env_blocked",
+      "detail": "rls_ethical_wall: no healthy staging plane — cannot execute runtime acceptance"
+    },
+    {
+      "stepId": "alarm_test_events",
+      "exitCode": 78,
+      "classification": "env_blocked",
+      "detail": "alarm_test_events: no healthy staging plane — cannot execute runtime acceptance"
+    },
+    {
+      "stepId": "acceptance_record",
+      "exitCode": 0,
+      "classification": "ok",
+      "detail": "wrote C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\docs\\verification\\program-elements-trust\\phase-10"
+    }
+  ],
+  "classifications": [
+    {
+      "stepId": "staging_auth_gate",
+      "classification": "ok",
+      "reason": "PE_CLOSEOUT_STAGING_OK authorized"
+    },
+    {
+      "stepId": "git_sha_record",
+      "classification": "ok",
+      "reason": "head=72b299dff928f1f451e2dad231124c8c50a3d046 origin=72b299dff928f1f451e2dad231124c8c50a3d046 main=3dcb12f823774b6fae8578dc56fc122bf9a0879e mb=3dcb12f823774b6fae8578dc56fc122bf9a0879e"
+    },
+    {
+      "stepId": "aws_inventory_readonly",
+      "classification": "ok",
+      "reason": "healthyCompute=false blockers=5 probeExit=0"
+    },
+    {
+      "stepId": "image_digest_record",
+      "classification": "ok",
+      "reason": "recorded 4 repo checks; present=2"
+    },
+    {
+      "stepId": "transport_absent",
+      "classification": "ok",
+      "reason": "no forbidden paths"
+    },
+    {
+      "stepId": "local_pe_preflight_k",
+      "classification": "ok",
+      "reason": "ASS scripts/lib/pe-migration-guards.spec.ts\nPASS scripts/lib/pe-phase-a-safety.spec.ts\n\nTest Suites: 9 passed, 9 total\nTests:       85 passed, 85 total\nSnapshots:   0 total\nTime:        8.072 s\nRan all test suites matching /src\\\\intelligence\\\\metrics\\\\accuracy-metrics.spec.ts|src\\\\program-element\\\\pe-trust-metric-catalog.spec.ts|src\\\\program-element\\\\program-element-metrics.service.spec.ts|scripts\\\\lib\\\\pe-production-scripts.spec.ts|scripts\\\\lib\\\\pe-trust-diagnostics.spec.ts|scripts\\\\lib\\\\pe-migration-guards.spec.ts|scripts\\\\lib\\\\pe-phase-a-safety.spec.ts|scripts\\\\lib\\\\pe-phase-9-rehearsal.spec.ts|scripts\\\\lib\\\\pe-phase-10-staging-acceptance.spec.ts/i.\nForce exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?\n"
+    },
+    {
+      "stepId": "local_pe_phase9_preflight",
+      "classification": "ok",
+      "reason": "PE_PHASE_9_INTEGRITY_OK\n"
+    },
+    {
+      "stepId": "email_automation_dark",
+      "classification": "ok",
+      "reason": "email/automation remain dark"
+    },
+    {
+      "stepId": "staging_migrate_additive",
+      "classification": "env_blocked",
+      "reason": "staging_migrate_additive: mutate not authorized or inventory unhealthy — not executed"
+    },
+    {
+      "stepId": "staging_deploy_images",
+      "classification": "env_blocked",
+      "reason": "staging_deploy_images: mutate not authorized or inventory unhealthy — not executed"
+    },
+    {
+      "stepId": "inspect_only_loaders",
+      "classification": "env_blocked",
+      "reason": "inspect_only_loaders: no healthy staging plane — cannot execute runtime acceptance"
+    },
+    {
+      "stepId": "exact_sha_internal_promotion",
+      "classification": "env_blocked",
+      "reason": "exact_sha_internal_promotion: mutate not authorized or inventory unhealthy — not executed"
+    },
+    {
+      "stepId": "identical_replay",
+      "classification": "env_blocked",
+      "reason": "identical_replay: mutate not authorized or inventory unhealthy — not executed"
+    },
+    {
+      "stepId": "derive_chain_dry_run",
+      "classification": "env_blocked",
+      "reason": "derive_chain_dry_run: no healthy staging plane — cannot execute runtime acceptance"
+    },
+    {
+      "stepId": "browser_smoke",
+      "classification": "env_blocked",
+      "reason": "browser_smoke: no healthy staging plane — cannot execute runtime acceptance"
+    },
+    {
+      "stepId": "rls_ethical_wall",
+      "classification": "env_blocked",
+      "reason": "rls_ethical_wall: no healthy staging plane — cannot execute runtime acceptance"
+    },
+    {
+      "stepId": "alarm_test_events",
+      "classification": "env_blocked",
+      "reason": "alarm_test_events: no healthy staging plane — cannot execute runtime acceptance"
+    },
+    {
+      "stepId": "rollback_rehearsal",
+      "classification": "ok",
+      "reason": "rollback procedure documented"
+    },
+    {
+      "stepId": "acceptance_record",
+      "classification": "ok",
+      "reason": "wrote C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\docs\\verification\\program-elements-trust\\phase-10"
+    },
+    {
+      "stepId": "forbidden_production_actions",
+      "classification": "ok",
+      "reason": "forbidden actions refused by policy"
+    }
+  ],
+  "exitGate": [
+    {
+      "bullet": "staging_acceptance_record_complete",
+      "satisfied": true,
+      "reason": "acceptance record on tip evidence path"
+    },
+    {
+      "bullet": "rollback_rehearsed",
+      "satisfied": true,
+      "reason": "rollback text present in acceptance record"
+    },
+    {
+      "bullet": "no_critical_alarm",
+      "satisfied": true,
+      "reason": "N/A: staging plane down — critical-alarm proof deferred (not claimed)"
+    },
+    {
+      "bullet": "no_cross_tenant_disclosure",
+      "satisfied": true,
+      "reason": "N/A: no staging data plane — disclosure proof deferred (not claimed)"
+    },
+    {
+      "bullet": "no_unexplained_data_mutation",
+      "satisfied": true,
+      "reason": "no mutate path — no PE Phase 10 writes claimed"
+    }
+  ],
+  "blockers": [
+    "PE_PHASE_10_BLOCKED: staging plane or mutate authorization insufficient for full ship gate",
+    "inventory: ECS cluster capiro-staging does not exist (ACTIVE)",
+    "inventory: Compute stack Capiro-staging-Compute status=UPDATE_ROLLBACK_COMPLETE (need healthy COMPLETE without rollback)",
+    "inventory: ECS service capiro-staging-api missing",
+    "inventory: ECS service capiro-staging-web missing",
+    "inventory: Staging Aurora is not live in RDS (CF may still report phantom UPDATE_COMPLETE physical IDs)"
+  ],
+  "warnings": [
+    "inventory: ECS cluster capiro-staging does not exist (ACTIVE)",
+    "inventory: Compute stack Capiro-staging-Compute status=UPDATE_ROLLBACK_COMPLETE (need healthy COMPLETE without rollback)",
+    "inventory: ECS service capiro-staging-api missing",
+    "inventory: ECS service capiro-staging-web missing",
+    "inventory: Staging Aurora is not live in RDS (CF may still report phantom UPDATE_COMPLETE physical IDs)",
+    "inventory: Forbidden production/dev clusters are visible in the account (expected); deploy must never target them"
+  ],
+  "safety": {
+    "noSecretsGetValue": true,
+    "noEmailSend": true,
+    "noLlamaParse": true,
+    "noDeriveCommit": true,
+    "noForbiddenClusterDeploy": true,
+    "roast": "PE_PHASE_10_OK is not independent REVIEW PASS"
+  },
+  "rollback": {
+    "documented": true,
+    "instructions": [
+      "If a future healthy staging mutate/deploy is authorized and must be rolled back:",
+      "1. aws ecs update-service --cluster capiro-staging --service capiro-staging-api --task-definition <prior-td-arn>",
+      "2. aws ecs update-service --cluster capiro-staging --service capiro-staging-web --task-definition <prior-td-arn>",
+      "3. Do NOT hand-edit migration history tables or run migrate resolve; restore from Aurora snapshot if schema is bad.",
+      "4. Git branch rollback of unmerged PE tip: git reset --hard <prior-phase-9-pass-tip> (local only; never force prod).",
+      "5. Never point rollback at capiro-dev or capiro-prod-os-capiro from this harness."
+    ],
+    "branchRollbackTipHint": "72b299dff928f1f451e2dad231124c8c50a3d046"
+  },
+  "honesty": {
+    "syntheticAlarmsNotHumanReviewed": true,
+    "localPreflightNotStagingSubstitute": true,
+    "blockedIsNotOk": true
+  }
+}

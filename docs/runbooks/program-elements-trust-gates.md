@@ -24,7 +24,29 @@ Inherited PE gates remain:
 
 ```bash
 pnpm -C apps/api run verify:pe-phase-a   # … through … verify:pe-phase-j
+pnpm -C apps/api run verify:pe-phase-9   # integrated rehearsal
+pnpm -C apps/api run verify:pe-phase-10  # staging acceptance (auth + inventory)
 ```
+
+### Phase 10 staging acceptance (pre-merge)
+
+Requires Neo authorization: `PE_CLOSEOUT_STAGING_OK=yes`. Default path is
+**discover + evidence only** (read-only AWS). Mutate/deploy/migrate also need
+`PE_CLOSEOUT_STAGING_MUTATE=yes` **and** a healthy `capiro-staging` ECS + live
+Aurora. Never targets `capiro-dev` or `capiro-prod-os-capiro`.
+
+```bash
+export PE_CLOSEOUT_STAGING_OK=yes
+export AWS_PROFILE=capiro-dev   # or equivalent
+pnpm -C apps/api run probe:pe-phase-10-staging -- --json
+pnpm -C apps/api run verify:pe-phase-10
+# Exit 0 = PE_PHASE_10_OK (full ship path)
+# Exit 78 = PE_PHASE_10_BLOCKED (acceptance record complete; plane not shippable)
+# Exit 1 = PE_PHASE_10_FAIL
+```
+
+Evidence: `docs/verification/program-elements-trust/phase-10/`.
+Independent adversarial REVIEW is still required; implementer markers are not PASS.
 
 ## What each permanent command covers
 
