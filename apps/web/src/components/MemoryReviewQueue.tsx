@@ -1,12 +1,16 @@
-import { App, Button, Card, Empty, Space, Tag, Typography } from 'antd';
+import { useState } from 'react';
+import { App, Button, Card, Empty, Input, Modal, Space, Tag, Typography } from 'antd';
 import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../lib/use-api.js';
 
 const { Paragraph, Text, Title } = Typography;
 
+export type MemoryCandidateKind = 'standard' | 'correction' | 'restore' | 'contradiction';
+
 export interface ReviewableMemoryCandidate {
   id: string;
+  candidateKind: MemoryCandidateKind;
   scope: string;
   clientId: string | null;
   proposedByUserId: string;
@@ -42,22 +46,31 @@ export function memoryReviewCandidateTitle(candidate: ReviewableMemoryCandidate)
   return candidate.proposal.canonicalItem?.title ?? candidate.proposal.key ?? 'Memory proposal';
 }
 
+export function memoryCandidateKindLabel(kind: MemoryCandidateKind): string {
+  const labels: Record<MemoryCandidateKind, string> = {
+    standard: 'New memory',
+    correction: 'Correction',
+    restore: 'Restore',
+    contradiction: 'Contradiction',
+  };
+  return labels[kind];
+}
+
+export function candidateRejectRequiresReason(candidate: ReviewableMemoryCandidate): boolean {
+  return candidate.candidateKind !== 'standard';
+}
+
 export function shouldRenderMemoryReviewQueue(response: ReviewQueueResponse | undefined): boolean {
   return response?.enabled === true && response.candidates.length > 0;
 }
 
-/**
- * Reviewer queue shown in Settings → Memory.
- *
- * The browser does not decide candidate visibility or authority. The API returns
- * only candidates the authenticated actor may inspect and supplies server-derived
- * approve/reject capabilities. A standard user with a valid client grant sees
- * only that client's proposals; unrelated and walled clients never reach this UI.
- */
+/** Server-filtered reviewer queue used by standard reviewers and administrators. */
 export function MemoryReviewQueue() {
   const api = useApi();
   const qc = useQueryClient();
   const { message } = App.useApp();
+  const [rejecting, setRejecting] = useState<ReviewableMemoryCandidate | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const queue = useQuery<ReviewQueueResponse>({
     queryKey: ['memory-review-candidates'],
@@ -67,18 +80,46 @@ export function MemoryReviewQueue() {
   });
 
   const decision = useMutation({
-    mutationFn: async (input: { id: string; decision: 'approve' | 'reject' }) =>
-      (await api.post(`/api/memory/review/candidates/${input.id}/${input.decision}`, {})).data,
-    onSuccess: (_result, input) => {
-      message.success(input.decision === 'approve' ? 'Memory approved' : 'Memory rejected');
+    mutationFn: async (input: {
+      id: string;
+      decision: 'approve' | 'reject';
+      reason?: string;
+    }) =>
+      (
+        await api.post(`/api/memory/review/candidates/${input.id}/${input.decision}`, {
+          ...(input.reason ? { reason: input.reason } : {}),
+        })
+      ).data,
+    onSuccess: (result: Record<string, unknown>, input) => {
+      const outcome = String(result.outcome ?? input.decision);
+      message.success(
+        outcome === 'activated'
+          ? 'Memory version activated'
+          : input.decision === 'approve'
+            ? 'Memory approved'
+            : 'Memory rejected',
+      );
+      setRejecting(null);
+      setRejectReason('');
       qc.invalidateQueries({ queryKey: ['memory-review-candidates'] });
+      qc.invalidateQueries({ queryKey: ['memory-governance-overview'] });
+      qc.invalidateQueries({ queryKey: ['memory-governance-items'] });
+      qc.invalidateQueries({ queryKey: ['memory-governance-transitions'] });
       qc.invalidateQueries({ queryKey: ['memory-item'] });
     },
-    onError: (error: unknown) =>
-      message.error(error instanceof Error ? error.message : 'Review decision failed'),
+    onError: (error: unknown) => message.error(errorMessage(error)),
   });
 
   if (!shouldRenderMemoryReviewQueue(queue.data)) return null;
+
+  const rejectCandidate = (candidate: ReviewableMemoryCandidate) => {
+    if (!candidateRejectRequiresReason(candidate)) {
+      decision.mutate({ id: candidate.id, decision: 'reject' });
+      return;
+    }
+    setRejectReason('');
+    setRejecting(candidate);
+  };
 
   return (
     <Card aria-label="Memory proposals awaiting your review">
@@ -100,6 +141,7 @@ export function MemoryReviewQueue() {
               <Space wrap>
                 <Text strong>{memoryReviewCandidateTitle(candidate)}</Text>
                 <Tag>{candidate.scope === 'client' ? 'Client memory' : 'Firm memory'}</Tag>
+                <Tag>{memoryCandidateKindLabel(candidate.candidateKind)}</Tag>
                 <Text type="secondary">
                   Submitted {new Date(candidate.createdAt).toLocaleString()}
                 </Text>
@@ -136,7 +178,7 @@ export function MemoryReviewQueue() {
                     danger
                     icon={<CloseOutlined />}
                     loading={decision.isPending && decision.variables?.id === candidate.id}
-                    onClick={() => decision.mutate({ id: candidate.id, decision: 'reject' })}
+                    onClick={() => rejectCandidate(candidate)}
                   >
                     Reject
                   </Button>
@@ -146,6 +188,47 @@ export function MemoryReviewQueue() {
           </Card>
         ))}
       </Space>
+
+      <Modal
+        open={Boolean(rejecting)}
+        title={`Reject ${rejecting ? memoryCandidateKindLabel(rejecting.candidateKind).toLowerCase() : 'proposal'}`}
+        okText="Reject proposal"
+        okButtonProps={{ danger: true, disabled: rejectReason.trim().length === 0 }}
+        confirmLoading={decision.isPending}
+        onCancel={() => {
+          setRejecting(null);
+          setRejectReason('');
+        }}
+        onOk={() => {
+          if (!rejecting || !rejectReason.trim()) return;
+          decision.mutate({
+            id: rejecting.id,
+            decision: 'reject',
+            reason: rejectReason.trim(),
+          });
+        }}
+        destroyOnClose
+      >
+        <Paragraph type="secondary">
+          The reason becomes bounded transition evidence; proposal content is not copied into the audit ledger.
+        </Paragraph>
+        <Input.TextArea
+          aria-label="Rejection reason"
+          rows={4}
+          value={rejectReason}
+          maxLength={500}
+          showCount
+          onChange={(event) => setRejectReason(event.target.value)}
+        />
+      </Modal>
     </Card>
   );
+}
+
+function errorMessage(error: unknown): string {
+  if (error && typeof error === 'object') {
+    const response = (error as { response?: { data?: { message?: unknown } } }).response;
+    if (typeof response?.data?.message === 'string') return response.data.message;
+  }
+  return error instanceof Error ? error.message : 'Review decision failed';
 }
