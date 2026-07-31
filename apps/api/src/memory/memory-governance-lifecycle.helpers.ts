@@ -30,8 +30,18 @@ import {
  */
 export { governedMemoryLifecycleEnabled };
 
-/** The candidate lifecycle decisions MemoryCandidateService already records. */
-export type CandidateDecision = 'auto_committed' | 'approved' | 'rejected';
+/** The candidate lifecycle decisions MemoryCandidateService records. */
+export type CandidateDecision = 'auto_committed' | 'approved' | 'rejected' | 'withdrawn';
+
+/**
+ * Candidate-only terminal reason. Governed status remains `rejected` because no
+ * canonical memory exists, while the legacy candidate status and audit reason
+ * preserve whether the proposer withdrew or an independent reviewer rejected.
+ */
+export type CandidateTransitionReasonCode =
+  | MemoryTransitionReasonCode
+  | 'withdrawn_by_proposer'
+  | 'rejected_by_reviewer';
 
 /** Legacy `memory_candidate.scope` vocabulary (personal | firm | client). */
 export type LegacyCandidateScope = 'personal' | 'firm' | 'client';
@@ -50,8 +60,8 @@ export interface CandidateClassification {
   memoryScope: GovernedMemoryScope;
   /**
    * Authority granted only by a COMMITTING decision. `null` means "leave the
-   * column at its conservative default" — a rejected proposal must never come
-   * out of review holding authority it did not earn.
+   * column at its conservative default" — a rejected or withdrawn proposal must
+   * never come out of review holding authority it did not earn.
    */
   memoryAuthority: MemoryAuthority | null;
 }
@@ -94,7 +104,9 @@ export function classifyCandidateForGovernance(
           ? 'episodic_working'
           : 'user_preference';
 
-  if (decision === 'rejected') return { memoryClass, memoryScope, memoryAuthority: null };
+  if (decision === 'rejected' || decision === 'withdrawn') {
+    return { memoryClass, memoryScope, memoryAuthority: null };
+  }
   if (machine) {
     return {
       memoryClass,
@@ -114,7 +126,7 @@ export function classifyCandidateForGovernance(
 export interface GovernedTransitionHop {
   from: GovernedMemoryStatus;
   to: GovernedMemoryStatus;
-  reasonCode: MemoryTransitionReasonCode;
+  reasonCode: CandidateTransitionReasonCode;
 }
 
 const REASON_FOR_TARGET: Partial<Record<GovernedMemoryStatus, MemoryTransitionReasonCode>> = {
@@ -138,15 +150,18 @@ const REASON_FOR_TARGET: Partial<Record<GovernedMemoryStatus, MemoryTransitionRe
  * and then the approval. `assertMemoryTransition` validates every hop, so this is
  * the first production consumer of the state machine rather than a bypass of it.
  *
+ * Withdrawal and reviewer rejection both land in the non-recallable governed
+ * terminal state `rejected`, but carry distinct legacy status and audit reason.
+ *
  * Returns [] when the candidate is already in the target state (idempotent
- * re-decide), and throws InvalidMemoryTransitionError for an impossible path
- * (e.g. re-approving a rejected candidate).
+ * re-decide), and throws InvalidMemoryTransitionError for an impossible path.
  */
 export function candidateTransitionPath(
   from: GovernedMemoryStatus,
   decision: CandidateDecision,
 ): GovernedTransitionHop[] {
-  const target: GovernedMemoryStatus = decision === 'rejected' ? 'rejected' : 'active';
+  const target: GovernedMemoryStatus =
+    decision === 'rejected' || decision === 'withdrawn' ? 'rejected' : 'active';
   if (from === target) return [];
   const statuses: GovernedMemoryStatus[] =
     from === 'suggested' && target === 'active' ? ['pending_review', 'active'] : [target];
@@ -154,7 +169,13 @@ export function candidateTransitionPath(
   let cursor = from;
   for (const to of statuses) {
     assertMemoryTransition(cursor, to);
-    hops.push({ from: cursor, to, reasonCode: REASON_FOR_TARGET[to] ?? 'approved' });
+    const reasonCode: CandidateTransitionReasonCode =
+      to === 'rejected' && decision === 'withdrawn'
+        ? 'withdrawn_by_proposer'
+        : to === 'rejected' && decision === 'rejected'
+          ? 'rejected_by_reviewer'
+          : (REASON_FOR_TARGET[to] ?? 'approved');
+    hops.push({ from: cursor, to, reasonCode });
     cursor = to;
   }
   return hops;
@@ -162,7 +183,7 @@ export function candidateTransitionPath(
 
 /** The governed status a legacy candidate decision lands on. */
 export function governedStatusForDecision(decision: CandidateDecision): GovernedMemoryStatus {
-  return decision === 'rejected' ? 'rejected' : 'active';
+  return decision === 'rejected' || decision === 'withdrawn' ? 'rejected' : 'active';
 }
 
 // ── memory_transition_audit metadata hygiene ────────────────────────────────
