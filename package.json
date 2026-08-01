@@ -29,7 +29,8 @@
     "verify:meriv2-release": "node scripts/verify-meriv2-release.mjs --mode=release",
     "verify:meriv2-browser": "node scripts/run-meriv2-phase19-local.mjs",
     "collect:meriv2-aws-context": "node scripts/collect-meriv2-aws-context.mjs",
-    "prepare:meriv2-ecs-release": "node scripts/prepare-meriv2-ecs-release.mjs"
+    "prepare:meriv2-ecs-release": "node scripts/prepare-meriv2-ecs-release.mjs",
+    "ship:meriv2-ecs-release": "node scripts/execute-meriv2-ecs-release.mjs"
   },
   "devDependencies": {
     "turbo": "^2.1.3",
