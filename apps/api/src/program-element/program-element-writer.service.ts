@@ -268,7 +268,8 @@ export class ProgramElementWriterService {
     // lock serializes both create and update races for one PE/FY without widening
     // the lock to unrelated budget lines.
     const lockKey = `${record.peCode}:${record.fy}`;
-    await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`);
+        // $executeRaw: pg_advisory_xact_lock returns void; $queryRaw fails to deserialize void.
+        await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`);
 
     const existing = await tx.programElementYear.findUnique({
       where: { peCode_fy: { peCode: record.peCode, fy: record.fy } },

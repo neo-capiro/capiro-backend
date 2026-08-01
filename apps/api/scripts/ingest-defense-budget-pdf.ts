@@ -51,6 +51,7 @@ import {
   assertPromotableSourceDocument,
   assertQualityAuditPassed,
   buildNormalizedValueManifest,
+  buildRowObservationKey,
   requireApprovedSha256,
   selectPromotedObservationId,
 } from './lib/defense-budget-commit.js';
@@ -219,35 +220,36 @@ function runExtractor(
     ? [cls.fiscalYear - 1, cls.fiscalYear, cls.fiscalYear + 1]
     : [];
   switch (cls.family) {
-    case 'rdte':
-      return extractRdte({
-        exhibit: 'R-2',
-        component: cls.component,
-        pages,
-        fyColumns,
-      });
-    case 'procurement':
-      return extractProcurementOrOm({
-        exhibit: 'P-40',
-        account: `Procurement, ${cls.component ?? 'DoD'}`,
-        component: cls.component,
-        pages,
-      });
-    case 'om':
-      return extractProcurementOrOm({
-        exhibit: 'OP-5',
-        account: `O&M, ${cls.component ?? 'DoD'}`,
-        component: cls.component,
-        pages,
-      });
-    default:
-      return {
-        lineAssertions: [],
-        yearValues: [],
-        warnings: [`no extractor for family ${cls.family}`],
-      };
+      case 'rdte':
+        return extractRdte({
+          // Prefer classifier exhibit (R-1 master list vs R-2 volume). Default R-2.
+          exhibit: cls.exhibit === 'R-1' ? 'R-1' : 'R-2',
+          component: cls.component,
+          pages,
+          fyColumns,
+        });
+      case 'procurement':
+        return extractProcurementOrOm({
+          exhibit: 'P-40',
+          account: `Procurement, ${cls.component ?? 'DoD'}`,
+          component: cls.component,
+          pages,
+        });
+      case 'om':
+        return extractProcurementOrOm({
+          exhibit: 'OP-5',
+          account: `O&M, ${cls.component ?? 'DoD'}`,
+          component: cls.component,
+          pages,
+        });
+      default:
+        return {
+          lineAssertions: [],
+          yearValues: [],
+          warnings: [`no extractor for family ${cls.family}`],
+        };
+    }
   }
-}
 
 function classificationFor(file: string, fyFallback: number | null): DocClassification {
   const cls = classifyDocument(file);
@@ -684,6 +686,10 @@ async function parseAndRecordOutsideTransaction(input: {
 
 function buildGuardRows(mapped: MappedPeData): GuardRow[] {
   const titleByPe = new Map(mapped.records.map((record) => [record.peCode, record.title] as const));
+  // Units-anomaly guard compares request vs a *chamber mark*. Do NOT feed R-1
+  // prior-year enacted/executed into `mark` — those can legitimately differ from
+  // current-year request by >>1000x (e.g. thin discretionary enacted vs PB total)
+  // and are not the "In Thousands vs dollars" bug the guard targets.
   const markFields = [
     'hascMark',
     'sascMark',
@@ -691,7 +697,6 @@ function buildGuardRows(mapped: MappedPeData): GuardRow[] {
     'sacDMark',
     'conference',
     'ndaaConference',
-    'enacted',
   ];
   return mapped.years.map((year) => {
     const obj = year as unknown as Record<string, unknown>;
@@ -799,58 +804,80 @@ async function promoteMappedArtifact(input: {
         else if (result.changed) outcome.changed += 1;
 
         for (const value of values) {
-          // ReconciliationService logs per-field observations under the base source
-          // (`_fy<NN>` stripped), while `__row__` below is logged under the raw
-          // source, so the two queries deliberately differ.
-          const newObservations = await tx.programElementYearSourceValue.findMany({
-            where: {
-              peCode: value.peCode,
-              fy: value.fy,
-              fieldName: String(value.fieldName),
-              source: { in: [input.source, baseSource] },
-              id: { notIn: [...preExistingObservationIds] },
-            },
-            select: { id: true, sourceDocumentId: true },
-          });
-          const observationId = selectPromotedObservationId({
-            preExistingIds: preExistingObservationIds,
-            candidates: newObservations,
-            label: `${value.peCode} FY${value.fy} ${String(value.fieldName)}`,
-          });
-          await tx.programElementYearSourceValue.update({
-            where: { id: observationId },
-            data: {
-              sourceDocumentId: input.sourceDocumentId,
-              valueJsonb: {
-                canonicalValueM: value.valueM,
-                originalValue: value.originalValue,
-                originalUnit: value.originalUnit,
-                provenance: value.provenance,
-              } as unknown as Prisma.InputJsonValue,
-            },
-          });
-        }
+                  // ReconciliationService logs per-field observations under the base source
+                  // (`_fy<NN>` stripped), while `__row__` below is logged under the raw
+                  // source, so the two queries deliberately differ.
+                  const newObservations = await tx.programElementYearSourceValue.findMany({
+                    where: {
+                      peCode: value.peCode,
+                      fy: value.fy,
+                      fieldName: String(value.fieldName),
+                      source: { in: [input.source, baseSource] },
+                    },
+                    select: { id: true, sourceDocumentId: true },
+                  });
+                  const observationId = selectPromotedObservationId({
+                    preExistingIds: preExistingObservationIds,
+                    candidates: newObservations,
+                    label: `${value.peCode} FY${value.fy} ${String(value.fieldName)}`,
+                    preferredSourceDocumentId: input.sourceDocumentId,
+                  });
+                  await tx.programElementYearSourceValue.update({
+                    where: { id: observationId },
+                    data: {
+                      sourceDocumentId: input.sourceDocumentId,
+                      valueJsonb: {
+                        canonicalValueM: value.valueM,
+                        originalValue: value.originalValue,
+                        originalUnit: value.originalUnit,
+                        provenance: value.provenance,
+                      } as unknown as Prisma.InputJsonValue,
+                    },
+                  });
+                }
 
-        const newRowObservations = await tx.programElementYearSourceValue.findMany({
-          where: {
-            peCode: year.peCode,
-            fy: year.fy,
-            fieldName: '__row__',
-            source: input.source,
-            id: { notIn: [...preExistingObservationIds] },
-          },
-          select: { id: true, sourceDocumentId: true },
-        });
-        const rowObservationId = selectPromotedObservationId({
-          preExistingIds: preExistingObservationIds,
-          candidates: newRowObservations,
-          label: `${year.peCode} FY${year.fy} __row__`,
-        });
-        await tx.programElementYearSourceValue.update({
-          where: { id: rowObservationId },
-          data: { sourceDocumentId: input.sourceDocumentId },
-        });
-      }
+                // Writer/reconcile does not emit __row__; stamp a durable row audit observation
+                // keyed by source document + PE/FY + SHA so promote + replay are idempotent.
+                const rowObservationKey = buildRowObservationKey({
+                  sourceDocumentId: input.sourceDocumentId,
+                  source: input.source,
+                  peCode: year.peCode,
+                  fy: year.fy,
+                  sourceSha256: input.sourceSha256,
+                });
+                const observedAt = new Date();
+                await tx.programElementYearSourceValue.upsert({
+                  where: { observationKey: rowObservationKey },
+                  create: {
+                    peCode: year.peCode,
+                    fy: year.fy,
+                    fieldName: '__row__',
+                    source: input.source,
+                    valueJsonb: {
+                      kind: 'row_audit',
+                      sourceSha256: input.sourceSha256,
+                      sourceDocumentId: input.sourceDocumentId,
+                      parseJobId: input.parse.parseJobId,
+                    } as unknown as Prisma.InputJsonValue,
+                    sourceDocumentId: input.sourceDocumentId,
+                    observationKey: rowObservationKey,
+                    isWinner: false,
+                    lastObservedAt: observedAt,
+                    observationCount: 1,
+                  },
+                  update: {
+                    sourceDocumentId: input.sourceDocumentId,
+                    lastObservedAt: observedAt,
+                    observationCount: { increment: 1 },
+                    valueJsonb: {
+                      kind: 'row_audit',
+                      sourceSha256: input.sourceSha256,
+                      sourceDocumentId: input.sourceDocumentId,
+                      parseJobId: input.parse.parseJobId,
+                    } as unknown as Prisma.InputJsonValue,
+                  },
+                });
+              }
 
       // Retire the previous head only now that every canonical row, observation
       // link, and provenance write for this PDF has succeeded in this transaction.

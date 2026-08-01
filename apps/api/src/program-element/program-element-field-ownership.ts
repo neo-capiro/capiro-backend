@@ -67,16 +67,21 @@ export function authorityForSource(source: string): PeSourceAuthority {
   if (value === 'fixture' || value.startsWith('fixture_')) return 'fixture';
 
   if (
-    value.startsWith('r_doc') ||
-    value.startsWith('p_doc') ||
-    value.startsWith('pdoc') ||
-    value.startsWith('o1') ||
-    value.startsWith('dod_comptroller') ||
-    value.startsWith('presidents_budget') ||
-    value.startsWith('president_budget')
-  ) {
-    return 'presidents_budget_request';
-  }
+      value.startsWith('r_doc') ||
+      value.startsWith('p_doc') ||
+      value.startsWith('pdoc') ||
+      value.startsWith('o1') ||
+      value.startsWith('dod_comptroller') ||
+      value.startsWith('presidents_budget') ||
+      value.startsWith('president_budget') ||
+      value.startsWith('llamaparse') ||
+      (value.startsWith('fy20') && value.includes('_r1')) ||
+      /_r1$/.test(value) ||
+      value.includes('fy2027_r1') ||
+      value.includes('_r1_')
+    ) {
+      return 'presidents_budget_request';
+    }
 
   if (value.startsWith('hasc_report') || value.startsWith('hasc_authorization')) {
     return 'hasc_authorization';
