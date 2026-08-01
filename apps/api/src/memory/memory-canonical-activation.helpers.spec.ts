@@ -138,11 +138,13 @@ describe('canonical governed memory activation', () => {
       approvedByUserId: REVIEWER,
       decision: 'approved',
     });
+    expect(governance.sourceType).toBe('approved_document_edit');
     await upsertCanonicalMemoryItemInTx(tx, TENANT, CLIO, settingsRecord, governance);
     expect(params).toContain('firm-soul');
     expect(params).toContain('firm');
     expect(params).toContain('Firm Soul');
     expect(params).toContain('firm_approved');
+    expect(params).toContain('approved_document_edit');
     expect(params).toContainEqual(expect.stringContaining('Reviewed'));
   });
 
