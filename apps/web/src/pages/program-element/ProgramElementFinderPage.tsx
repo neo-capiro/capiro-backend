@@ -402,7 +402,7 @@ export function ProgramElementFinderPage() {
             <div className="pe-final-selection" aria-label="Selected Program Elements">
               <strong>{selectedCodes.length} selected</strong>
               <div className="pe-final-selection-codes">{selectedCodes.map((code) => <span key={code}>{code}</span>)}</div>
-              <small>Up to 4</small>
+              <small>{selectedCodes.length < 2 ? 'Select one more to compare' : selectedCodes.length >= 4 ? 'Maximum reached' : 'Up to 4'}</small>
               <button type="button" onClick={() => setSelectedCodes([])}>Clear</button>
               <button className="primary" type="button" disabled={selectedCodes.length < 2} onClick={openCompare}>Compare</button>
             </div>
@@ -446,8 +446,8 @@ function SummaryStrip({ value, loading, actionCount, actionsLoading, onPortfolio
   return <div className="pe-final-kpis">
     <button className="pe-final-kpi" type="button" onClick={onPortfolio}><span className="pe-final-kpi-label">Lines in catalog</span><span className="pe-final-kpi-value">{(value?.tracked ?? 0).toLocaleString()}</span><span className="pe-final-kpi-sub">{(value?.watched ?? 0).toLocaleString()} monitored in Portfolio</span><span className="pe-final-kpi-hint">Open Portfolio →</span></button>
     <div className="pe-final-kpi"><span className="pe-final-kpi-label">{requestLabel}</span><span className="pe-final-kpi-value">{value?.totalRequest == null ? '—' : fmtMoneyM(value.totalRequest, 0)}</span><span className="pe-final-kpi-sub">across tracked lines</span></div>
-    <button className="pe-final-kpi" type="button" onClick={onMovement}><span className="pe-final-kpi-label">Open markups</span><span className={`pe-final-kpi-value${(value?.openMarkups ?? 0) ? ' critical' : ''}`}>{(value?.openMarkups ?? 0).toLocaleString()}</span><span className="pe-final-kpi-sub">lines with active committee marks</span><span className="pe-final-kpi-hint">See movement →</span></button>
-    <button className="pe-final-kpi" type="button" onClick={onActions}><span className="pe-final-kpi-label">Open actions</span><span className="pe-final-kpi-value accent">{actionsLoading ? '—' : actionCount.toLocaleString()}</span><span className="pe-final-kpi-sub">on monitored lines</span><span className="pe-final-kpi-hint">Open actions →</span></button>
+    <button className="pe-final-kpi" type="button" onClick={onMovement}><span className="pe-final-kpi-label">Marked below request</span><span className={`pe-final-kpi-value${(value?.openMarkups ?? 0) ? ' critical' : ''}`}>{(value?.openMarkups ?? 0).toLocaleString()}</span><span className="pe-final-kpi-sub">House and Senate marks</span><span className="pe-final-kpi-hint">See movement →</span></button>
+    <button className="pe-final-kpi" type="button" onClick={onActions}><span className="pe-final-kpi-label">Open actions</span><span className="pe-final-kpi-value accent">{actionsLoading ? '—' : actionCount.toLocaleString()}</span><span className="pe-final-kpi-sub">on lines you monitor</span><span className="pe-final-kpi-hint">Open actions →</span></button>
   </div>;
 }
 
@@ -462,16 +462,20 @@ function CatalogTable({ rows, loading, selected, busyCode, onOpen, onSelect, onW
 }) {
   if (loading) return <div style={{ padding: 16 }}><Skeleton active paragraph={{ rows: 8 }} /></div>;
   if (!rows.length) return <Empty description="No budget lines match these filters." />;
-  return <table className="pe-final-table"><colgroup><col style={{ width: 38 }} /><col style={{ width: 110 }} /><col /><col style={{ width: 110 }} /><col style={{ width: 105 }} /><col style={{ width: 95 }} /><col style={{ width: 125 }} /><col style={{ width: 98 }} /></colgroup><thead><tr><th /><th>Code</th><th>Title</th><th>Service</th><th className="right">Current</th><th className="right">Δ vs req</th><th>Latest signal</th><th /></tr></thead><tbody>{rows.map((row) => {
+  const currentFy = rows.map((row) => row.latestCurrentFy).find((fy) => fy != null);
+  const currentLabel = currentFy != null ? `FY${String(currentFy).slice(-2)} current` : 'Current';
+  return <table className="pe-final-table"><colgroup><col style={{ width: 38 }} /><col style={{ width: 110 }} /><col /><col style={{ width: 100 }} /><col style={{ width: 110 }} /><col style={{ width: 90 }} /><col style={{ width: 64 }} /><col style={{ width: 140 }} /><col style={{ width: 98 }} /></colgroup><thead><tr><th /><th>Code</th><th>Title</th><th>Service</th><th className="right">{currentLabel}</th><th className="right">Δ vs req</th><th className="center">Bills</th><th>Signal</th><th>Monitor</th></tr></thead><tbody>{rows.map((row) => {
     const checked = selected.includes(row.peCode);
     const delta = rowDelta(row);
+    const bills = row.billCount;
     return <tr className={checked ? 'selected' : ''} key={row.peCode} onClick={() => onOpen(row.peCode)}>
       <td><button className={`pe-final-select${checked ? ' selected' : ''}`} type="button" aria-label={`${checked ? 'Remove' : 'Select'} ${row.peCode}`} aria-pressed={checked} onClick={(event) => { event.stopPropagation(); onSelect(row.peCode); }}>{checked ? <CheckOutlined /> : null}</button></td>
       <td><span className="pe-final-code">{row.peCode}</span></td><td className="pe-final-title-cell">{row.title}</td>
       <td><span className="pe-final-service"><i className="pe-final-dot" style={{ background: serviceColor(row.service) }} />{serviceLabel(row.service)}</span></td>
       <td className="right pe-final-money">{row.latestCurrent == null ? '—' : fmtMoneyM(row.latestCurrent)}</td>
       <td className={`right pe-final-delta${delta == null ? '' : delta < 0 ? ' down' : delta > 0 ? ' up' : ''}`}>{delta == null ? '—' : `${delta >= 0 ? '+' : ''}${delta.toFixed(1)}%`}</td>
-      <td>{row.actionSignalType ? <ActionSignalChip type={row.actionSignalType} tone={row.actionSignalTone} /> : row.signalType ? <SignalPill item={row} /> : <span className="pe-final-muted">No movement</span>}</td>
+      <td className="center pe-final-bills">{bills == null ? '—' : bills}</td>
+      <td>{row.actionSignalType ? <ActionSignalChip type={row.actionSignalType} tone={row.actionSignalTone} /> : row.signalType ? <SignalPill item={row} /> : <span className="pe-final-muted">—</span>}</td>
       <td><button className={`pe-final-btn${row.watched ? ' monitoring' : ''}`} style={{ height: 28, padding: '0 9px', fontSize: 10.5 }} type="button" disabled={busyCode === row.peCode} onClick={(event) => { event.stopPropagation(); onWatch(row); }}>{row.watched ? 'Monitoring' : 'Monitor'}</button></td>
     </tr>;
   })}</tbody></table>;
