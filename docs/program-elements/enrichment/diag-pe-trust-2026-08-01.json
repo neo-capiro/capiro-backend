@@ -1,0 +1,1303 @@
+{
+  "generatedAt": "2026-08-01T02:20:16.877Z",
+  "gitSha": "b792f2d24920d56d7addcda88a602c6282563f47",
+  "databaseHost": "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv.cluster-csryw28ai752.us-east-1.rds.amazonaws.com:5432/capiro",
+  "readOnly": true,
+  "trustEvaluation": {
+    "ok": false,
+    "blockers": [
+      {
+        "code": "null_source_document_observation",
+        "severity": "blocker",
+        "message": "24878 observation(s) lack a source document id.",
+        "count": 24878
+      },
+      {
+        "code": "duplicate_observations",
+        "severity": "blocker",
+        "message": "22677 duplicate observation group(s) detected.",
+        "count": 22677
+      },
+      {
+        "code": "stale_reconciliation",
+        "severity": "blocker",
+        "message": "1131 open reconciliation item(s); oldest ageSeconds=4527623 exceeds 172800.",
+        "count": 1131
+      }
+    ],
+    "warnings": [],
+    "findings": [
+      {
+        "code": "null_source_document_observation",
+        "severity": "blocker",
+        "message": "24878 observation(s) lack a source document id.",
+        "count": 24878
+      },
+      {
+        "code": "duplicate_observations",
+        "severity": "blocker",
+        "message": "22677 duplicate observation group(s) detected.",
+        "count": 22677
+      },
+      {
+        "code": "stale_reconciliation",
+        "severity": "blocker",
+        "message": "1131 open reconciliation item(s); oldest ageSeconds=4527623 exceeds 172800.",
+        "count": 1131
+      }
+    ]
+  },
+  "programElementYears": {
+    "total": 10312,
+    "countByFiscalYear": {
+      "2023": 1,
+      "2024": 1001,
+      "2025": 2301,
+      "2026": 2234,
+      "2027": 2036,
+      "2028": 690,
+      "2029": 686,
+      "2030": 683,
+      "2031": 680
+    },
+    "nonNullByField": {
+      "request": 8307,
+      "hascMark": 3959,
+      "sascMark": 3961,
+      "hacDMark": 1319,
+      "sacDMark": 5,
+      "conference": 0,
+      "ndaaConference": 1562,
+      "enacted": 2831,
+      "reprogrammed": 4,
+      "executed": 4
+    },
+    "absoluteValueOver100000ByField": {
+      "request": {
+        "count": 0,
+        "samples": []
+      },
+      "hascMark": {
+        "count": 0,
+        "samples": []
+      },
+      "sascMark": {
+        "count": 0,
+        "samples": []
+      },
+      "hacDMark": {
+        "count": 0,
+        "samples": []
+      },
+      "sacDMark": {
+        "count": 0,
+        "samples": []
+      },
+      "conference": {
+        "count": 0,
+        "samples": []
+      },
+      "ndaaConference": {
+        "count": 0,
+        "samples": []
+      },
+      "enacted": {
+        "count": 0,
+        "samples": []
+      },
+      "reprogrammed": {
+        "count": 0,
+        "samples": []
+      },
+      "executed": {
+        "count": 0,
+        "samples": []
+      }
+    },
+    "sourceAttributionMissing": {
+      "rows": 2309,
+      "byField": {
+        "request": 194,
+        "hascMark": 0,
+        "sascMark": 0,
+        "hacDMark": 0,
+        "sacDMark": 0,
+        "conference": 0,
+        "ndaaConference": 0,
+        "enacted": 2115,
+        "reprogrammed": 0,
+        "executed": 0
+      },
+      "samples": [
+        {
+          "peCode": "0101113F",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0101122F",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0101126F",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0101127F",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0101213F",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0101221N",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0101224N",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0101226N",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0101316F",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0101318F",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0101328F",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0101402N",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0102110F",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0102326F",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0102417F",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0202057C",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0202834F",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0203345D8Z",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0203728A",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        },
+        {
+          "peCode": "0203735A",
+          "fy": 2024,
+          "fields": [
+            "enacted"
+          ]
+        }
+      ]
+    },
+    "unknownFieldSources": {
+      "rows": 1047,
+      "bySource": {
+        "o1_fy2027": 1047
+      },
+      "samples": [
+        {
+          "peCode": "0100D010",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D020",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D030",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D040",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D050",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D060",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D070",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D080",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D090",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D100",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D110",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D120",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D130",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D140",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D150",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D160",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D170",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D180",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D190",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        },
+        {
+          "peCode": "0100D200",
+          "fy": 2025,
+          "sources": [
+            {
+              "field": "enacted",
+              "source": "o1_fy2027"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "sourceObservations": {
+    "total": 99704,
+    "countByField": {
+      "__row__": 46273,
+      "enacted": 1428,
+      "executed": 8,
+      "hacDMark": 1324,
+      "hascMark": 7795,
+      "ndaaConference": 3966,
+      "reprogrammed": 8,
+      "request": 31727,
+      "sacDMark": 10,
+      "sascMark": 7165
+    },
+    "countBySource": {
+      "conference_report": 7901,
+      "conference_report_fy26": 3956,
+      "fixture": 96,
+      "hac_d_report": 2628,
+      "hac_d_report_fy27": 1314,
+      "hasc_report": 15548,
+      "hasc_report_fy25": 823,
+      "hasc_report_fy26": 3150,
+      "hasc_report_fy27": 3812,
+      "o1": 2088,
+      "o1_fy2027": 2088,
+      "p_doc_af": 1506,
+      "p_doc_af_fy27": 1506,
+      "p_doc_army": 5620,
+      "p_doc_army_fy27": 5620,
+      "p_doc_dw": 233,
+      "p_doc_dw_fy27": 233,
+      "p_doc_navy": 2791,
+      "p_doc_navy_fy27": 2791,
+      "p_doc_sf": 255,
+      "p_doc_sf_fy27": 255,
+      "p_doc_usmc": 483,
+      "p_doc_usmc_fy27": 483,
+      "sasc_report": 14292,
+      "sasc_report_fy25": 824,
+      "sasc_report_fy26": 3956,
+      "sasc_report_fy27": 2376,
+      "stanford_pe_directory_jan2026": 13076
+    },
+    "legacyRowCount": 46273,
+    "duplicateGroups": 22677,
+    "duplicateRowsBeyondFirst": 45403,
+    "duplicateSamples": [
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0102417F",
+          "fy": 2025,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0102417F",
+          "fy": 2026,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0207110F",
+          "fy": 2025,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0207110F",
+          "fy": 2026,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0207412F",
+          "fy": 2025,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0207412F",
+          "fy": 2026,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0207701F",
+          "fy": 2025,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0207701F",
+          "fy": 2026,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0208085JCY",
+          "fy": 2025,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0208085JCY",
+          "fy": 2026,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0505167D8Z",
+          "fy": 2024,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0505167D8Z",
+          "fy": 2025,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0505167D8Z",
+          "fy": 2026,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0604011D8Z",
+          "fy": 2025,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0604011D8Z",
+          "fy": 2026,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0604122D8Z",
+          "fy": 2024,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0604122D8Z",
+          "fy": 2025,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0604122D8Z",
+          "fy": 2026,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0604201F",
+          "fy": 2024,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      },
+      {
+        "count": 8,
+        "sample": {
+          "peCode": "0604201F",
+          "fy": 2025,
+          "fieldName": "__row__",
+          "source": "stanford_pe_directory_jan2026",
+          "valueDecimal": null,
+          "sourceDocumentId": null
+        }
+      }
+    ],
+    "withoutSourceDocument": 24878
+  },
+  "reconciliation": {
+    "openCount": 1131,
+    "oldestOpenQueuedAt": "2026-06-09T16:39:52.982Z",
+    "oldestOpenAgeSeconds": 4527623,
+    "countByFieldAndConflictingSource": {
+      "conference|conference_report": 2,
+      "enacted|o1": 634,
+      "hascMark|hasc_report": 20,
+      "request|conference_report": 7,
+      "request|hac_d_report": 3,
+      "request|hasc_report": 198,
+      "request|o1": 1,
+      "request|p_doc_af": 102,
+      "request|p_doc_army": 19,
+      "request|p_doc_dw": 8,
+      "request|p_doc_navy": 102,
+      "request|p_doc_sf": 4,
+      "request|p_doc_usmc": 9,
+      "request|sasc_report": 19,
+      "sascMark|sasc_report": 3
+    }
+  },
+  "enrichmentRetention": {
+    "totalProgramElements": 2395,
+    "withPDocDetail": 314,
+    "withOp5Detail": 278,
+    "withBoth": 0,
+    "rawNotObject": 0,
+    "rawNotObjectSamples": []
+  },
+  "watches": {
+    "total": 17,
+    "countByTenant": {
+      "17b63099-bc0f-4ac5-b596-496161e9481e": 9,
+      "c60da102-8c0e-4590-a356-686784f7c51f": 8
+    },
+    "countByUser": {
+      "48b8b988-2f7e-458a-999e-9e476ed70752": 6,
+      "96b39dec-1334-406e-ac21-365e8b18de74": 2,
+      "2637c365-40fd-4c17-8b9a-5c075f1b91c9": 6,
+      "dbd80a6b-d03b-429c-a8fc-54941d188680": 2,
+      "ee9ed66e-54cd-435e-bad9-2f619ae82f12": 1
+    },
+    "duplicateTenantUserPeGroups": [],
+    "userPePairsAcrossMultipleTenants": [],
+    "schemaLimitation": "The current database unique constraint is (user_id, pe_code), so zero cross-tenant user/PE rows is not proof that multi-tenant watch intent does not exist; the schema currently prevents representing it."
+  },
+  "sourceDocuments": {
+    "total": 110,
+    "duplicateLiveHeads": [],
+    "lackingSha256": {
+      "count": 0,
+      "samples": []
+    },
+    "lackingImmutableArchiveMetadata": {
+      "count": 109,
+      "samples": [
+        {
+          "id": "4c45ce31-4b92-4b7f-83e1-ea1552eb9829",
+          "sourceKey": "armed_services_hasc_fy2025",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "61598a6c-e798-43c7-bf25-11c273119dd4",
+          "sourceKey": "armed_services_hasc_fy2026",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "4c7ccde0-a863-47d3-8077-4852eb54d05e",
+          "sourceKey": "armed_services_hasc_fy2026_corrected",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "6a951705-99ee-42db-a0af-7410a3c405c2",
+          "sourceKey": "armed_services_hasc_fy2027",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "813dcdae-cc28-41af-9c4f-73140c252062",
+          "sourceKey": "armed_services_hasc_fy2027_corrected",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "2af7b451-0adb-44c5-8409-cfb79c4d4889",
+          "sourceKey": "armed_services_sasc_fy2025",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "81d311a3-5302-4000-adf9-cc1399cd82e7",
+          "sourceKey": "armed_services_sasc_fy2026",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "f9a6eae2-4c07-47d8-98ad-d6a704b971fb",
+          "sourceKey": "armed_services_sasc_fy2026_corrected",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "40f9430b-07d6-480d-8ead-f49a3b4fcc7c",
+          "sourceKey": "armed_services_sasc_fy2027",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "7d0fc134-cf57-403c-83a9-aad18cd1d6e9",
+          "sourceKey": "armed_services_sasc_fy2027_corrected",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "ca67d676-3bc6-4cb3-b269-798383a5dacf",
+          "sourceKey": "jbook_performers_af_vol1",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "9d405842-8212-4040-bfd6-342e091e3d08",
+          "sourceKey": "jbook_performers_af_vol2",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "078143f0-ac08-42e0-88cc-a06d20360d08",
+          "sourceKey": "jbook_performers_af_vol3",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "743bfe84-1000-4609-8930-2cdd36f0f767",
+          "sourceKey": "jbook_performers_af_vol4",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "524f454e-3df7-4da1-94db-fe9fabb23ab4",
+          "sourceKey": "jbook_performers_army_vol1_ba1",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "7073f188-5c41-4277-a14f-f6248a95346e",
+          "sourceKey": "jbook_performers_army_vol1_ba2",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "48f7380e-113e-4759-af80-ec0df247f992",
+          "sourceKey": "jbook_performers_army_vol2_ba4a",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "478f6820-8b2a-472e-b5ad-0059febbd161",
+          "sourceKey": "jbook_performers_army_vol2_ba4b",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "18210858-c17b-4620-afb4-df47d41edc69",
+          "sourceKey": "jbook_performers_army_vol3_ba5b",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        },
+        {
+          "id": "7c3d1b7c-cc0d-4f48-86d0-58950bc75681",
+          "sourceKey": "jbook_performers_army_vol3_ba5c",
+          "missing": [
+            "archiveBucket",
+            "archiveS3Key",
+            "archiveVersionId",
+            "archivedAt"
+          ]
+        }
+      ]
+    },
+    "countByDocumentTypeFiscalYearBudgetCycle": {
+      "committee_report|FY2025|hasc": 1,
+      "committee_report|FY2025|sasc": 1,
+      "committee_report|FY2026|hasc": 3,
+      "committee_report|FY2026|sasc": 3,
+      "committee_report|FY2027|hac_d": 2,
+      "committee_report|FY2027|hasc": 3,
+      "committee_report|FY2027|sasc": 3,
+      "conference_report|FY2026|conference": 3,
+      "om_o1|FY2027|pb": 1,
+      "procurement_justification|FY2027|pb": 17,
+      "r1|FY2027|pb": 1,
+      "r2|FY2024|pb": 5,
+      "r2|FY2027|pb": 39,
+      "r3|FY2027|pb": 28
+    }
+  },
+  "ingestRuns": {
+    "total": 11,
+    "statusCounts": {
+      "fail": 2,
+      "ok": 9
+    },
+    "latestBySource": {
+      "hasc_report_fy25": {
+        "id": "80ee6849-f879-499e-9b99-119e89efdd47",
+        "source": "hasc_report_fy25",
+        "fy": 2025,
+        "artifactSha256": "56670cba8d07681cdca8a7ef1bbaa6c3da5196cd0c2ed7962a11bf40fc1ebf74",
+        "status": "ok",
+        "rowsEmitted": 823,
+        "upserted": 823,
+        "changed": 823,
+        "quarantined": 0,
+        "titleTruncated": 7,
+        "unitsAnomalies": 0,
+        "createdAt": "2026-06-29T18:08:39.999Z"
+      },
+      "hasc_report_fy26": {
+        "id": "3fc6eaed-e32f-4609-bc3b-63f77248f4e5",
+        "source": "hasc_report_fy26",
+        "fy": 2026,
+        "artifactSha256": "91d1aa1ef6469e4e858c03d509b22990814e07beeb62e1b78eb196606aa33a70",
+        "status": "ok",
+        "rowsEmitted": 661,
+        "upserted": 637,
+        "changed": 637,
+        "quarantined": 0,
+        "titleTruncated": 8,
+        "unitsAnomalies": 0,
+        "createdAt": "2026-07-02T21:10:12.998Z"
+      },
+      "hasc_report_fy27": {
+        "id": "ad68059a-e273-4bea-813e-c1fc273bbe8e",
+        "source": "hasc_report_fy27",
+        "fy": 2027,
+        "artifactSha256": "b76f56da7dc9f1dbe312c003e4c90b6dc9d45f60cfda98bb48dc06382f19049d",
+        "status": "ok",
+        "rowsEmitted": 676,
+        "upserted": 655,
+        "changed": 655,
+        "quarantined": 0,
+        "titleTruncated": 7,
+        "unitsAnomalies": 0,
+        "createdAt": "2026-07-02T17:02:03.273Z"
+      },
+      "sasc_report_fy25": {
+        "id": "8c818c9a-1dde-4ab6-918b-1dd851509c22",
+        "source": "sasc_report_fy25",
+        "fy": 2025,
+        "artifactSha256": "2d63bb986a29c4be0b4b5c81f7a565b19c8a1cb815adfa69bdcb108084f2f1c1",
+        "status": "ok",
+        "rowsEmitted": 824,
+        "upserted": 824,
+        "changed": 824,
+        "quarantined": 0,
+        "titleTruncated": 8,
+        "unitsAnomalies": 0,
+        "createdAt": "2026-06-29T18:08:42.968Z"
+      },
+      "sasc_report_fy26": {
+        "id": "b8772ecc-e32d-45ff-af26-3e59a3ed626f",
+        "source": "sasc_report_fy26",
+        "fy": 2026,
+        "artifactSha256": "42994dd67e93f706f38a1a0ae43deffa017cca7de17343a266fb7bf97143a45e",
+        "status": "fail",
+        "rowsEmitted": 657,
+        "upserted": 631,
+        "changed": 631,
+        "quarantined": 0,
+        "titleTruncated": 8,
+        "unitsAnomalies": 2,
+        "createdAt": "2026-07-02T21:12:50.292Z"
+      },
+      "sasc_report_fy27": {
+        "id": "ab24f8b8-e690-4738-8a14-4e62e6a1aaee",
+        "source": "sasc_report_fy27",
+        "fy": 2027,
+        "artifactSha256": "7679bfbe8bec7d6994d0c2240f3f59614f3d97dbc24eb3a6bde2769519cfe520",
+        "status": "ok",
+        "rowsEmitted": 684,
+        "upserted": 658,
+        "changed": 658,
+        "quarantined": 0,
+        "titleTruncated": 7,
+        "unitsAnomalies": 0,
+        "createdAt": "2026-07-02T17:03:30.213Z"
+      }
+    },
+    "withUnitAnomaliesOrTruncatedTitles": 10,
+    "qualitySamples": [
+      {
+        "id": "b8772ecc-e32d-45ff-af26-3e59a3ed626f",
+        "source": "sasc_report_fy26",
+        "fy": 2026,
+        "artifactSha256": "42994dd67e93f706f38a1a0ae43deffa017cca7de17343a266fb7bf97143a45e",
+        "status": "fail",
+        "rowsEmitted": 657,
+        "upserted": 631,
+        "changed": 631,
+        "quarantined": 0,
+        "titleTruncated": 8,
+        "unitsAnomalies": 2,
+        "createdAt": "2026-07-02T21:12:50.292Z"
+      },
+      {
+        "id": "3fc6eaed-e32f-4609-bc3b-63f77248f4e5",
+        "source": "hasc_report_fy26",
+        "fy": 2026,
+        "artifactSha256": "91d1aa1ef6469e4e858c03d509b22990814e07beeb62e1b78eb196606aa33a70",
+        "status": "ok",
+        "rowsEmitted": 661,
+        "upserted": 637,
+        "changed": 637,
+        "quarantined": 0,
+        "titleTruncated": 8,
+        "unitsAnomalies": 0,
+        "createdAt": "2026-07-02T21:10:12.998Z"
+      },
+      {
+        "id": "ab24f8b8-e690-4738-8a14-4e62e6a1aaee",
+        "source": "sasc_report_fy27",
+        "fy": 2027,
+        "artifactSha256": "7679bfbe8bec7d6994d0c2240f3f59614f3d97dbc24eb3a6bde2769519cfe520",
+        "status": "ok",
+        "rowsEmitted": 684,
+        "upserted": 658,
+        "changed": 658,
+        "quarantined": 0,
+        "titleTruncated": 7,
+        "unitsAnomalies": 0,
+        "createdAt": "2026-07-02T17:03:30.213Z"
+      },
+      {
+        "id": "ad68059a-e273-4bea-813e-c1fc273bbe8e",
+        "source": "hasc_report_fy27",
+        "fy": 2027,
+        "artifactSha256": "b76f56da7dc9f1dbe312c003e4c90b6dc9d45f60cfda98bb48dc06382f19049d",
+        "status": "ok",
+        "rowsEmitted": 676,
+        "upserted": 655,
+        "changed": 655,
+        "quarantined": 0,
+        "titleTruncated": 7,
+        "unitsAnomalies": 0,
+        "createdAt": "2026-07-02T17:02:03.273Z"
+      },
+      {
+        "id": "e6b90d06-4917-4801-b285-6ea7fde026f7",
+        "source": "sasc_report_fy27",
+        "fy": 2027,
+        "artifactSha256": "b985d49bb388cc44b7f99d413078810f4c38be1d63323a1b5d006dd5827f5f73",
+        "status": "ok",
+        "rowsEmitted": 929,
+        "upserted": 925,
+        "changed": 828,
+        "quarantined": 0,
+        "titleTruncated": 1,
+        "unitsAnomalies": 0,
+        "createdAt": "2026-07-02T13:46:15.570Z"
+      },
+      {
+        "id": "324cae22-7022-44f9-bef7-b389e4a1d580",
+        "source": "sasc_report_fy26",
+        "fy": 2026,
+        "artifactSha256": "f4252a783b77b839f194e5d6e6a96f129bcf28e533788424e877d049b48b409c",
+        "status": "fail",
+        "rowsEmitted": 924,
+        "upserted": 919,
+        "changed": 826,
+        "quarantined": 0,
+        "titleTruncated": 1,
+        "unitsAnomalies": 1,
+        "createdAt": "2026-07-02T13:40:24.509Z"
+      },
+      {
+        "id": "1768a268-4425-4621-b9b7-ab79ceaccb63",
+        "source": "hasc_report_fy26",
+        "fy": 2026,
+        "artifactSha256": "33343b6e3e7c79b7d9660547bf83d480d9ad1c79289f91a45405e9c836b4142b",
+        "status": "ok",
+        "rowsEmitted": 921,
+        "upserted": 917,
+        "changed": 834,
+        "quarantined": 0,
+        "titleTruncated": 1,
+        "unitsAnomalies": 0,
+        "createdAt": "2026-07-02T13:38:37.249Z"
+      },
+      {
+        "id": "8c818c9a-1dde-4ab6-918b-1dd851509c22",
+        "source": "sasc_report_fy25",
+        "fy": 2025,
+        "artifactSha256": "2d63bb986a29c4be0b4b5c81f7a565b19c8a1cb815adfa69bdcb108084f2f1c1",
+        "status": "ok",
+        "rowsEmitted": 824,
+        "upserted": 824,
+        "changed": 824,
+        "quarantined": 0,
+        "titleTruncated": 8,
+        "unitsAnomalies": 0,
+        "createdAt": "2026-06-29T18:08:42.968Z"
+      },
+      {
+        "id": "80ee6849-f879-499e-9b99-119e89efdd47",
+        "source": "hasc_report_fy25",
+        "fy": 2025,
+        "artifactSha256": "56670cba8d07681cdca8a7ef1bbaa6c3da5196cd0c2ed7962a11bf40fc1ebf74",
+        "status": "ok",
+        "rowsEmitted": 823,
+        "upserted": 823,
+        "changed": 823,
+        "quarantined": 0,
+        "titleTruncated": 7,
+        "unitsAnomalies": 0,
+        "createdAt": "2026-06-29T18:08:39.999Z"
+      },
+      {
+        "id": "ea7c70f2-38ba-418d-b141-28b7686518d7",
+        "source": "sasc_report_fy27",
+        "fy": 2027,
+        "artifactSha256": "7e3ab5417241abd5de711af1b6f5fe010e29b559e2eaddecddcc71f2b4f10ba4",
+        "status": "ok",
+        "rowsEmitted": 793,
+        "upserted": 793,
+        "changed": 793,
+        "quarantined": 0,
+        "titleTruncated": 6,
+        "unitsAnomalies": 0,
+        "createdAt": "2026-06-29T04:21:36.290Z"
+      }
+    ]
+  },
+  "syncRuns": {
+    "latestBySource": {
+      "pe-derive-chain": {
+        "source": "pe-derive-chain",
+        "status": "success",
+        "startedAt": "2026-07-31T10:31:13.169Z",
+        "finishedAt": "2026-07-31T10:32:05.058Z",
+        "rowsInserted": 0,
+        "rowsUpdated": 7,
+        "errorCount": 0,
+        "errorMessage": null,
+        "ageSeconds": 56891
+      },
+      "send-pe-alert-emails": {
+        "source": "send-pe-alert-emails",
+        "status": "success",
+        "startedAt": "2026-07-31T10:32:04.959Z",
+        "finishedAt": "2026-07-31T10:32:05.009Z",
+        "rowsInserted": 0,
+        "rowsUpdated": 0,
+        "errorCount": 0,
+        "errorMessage": null,
+        "ageSeconds": 56891
+      },
+      "sync-sam-opportunities": {
+        "source": "sync-sam-opportunities",
+        "status": "error",
+        "startedAt": "2026-07-31T07:51:01.897Z",
+        "finishedAt": "2026-07-31T07:51:02.325Z",
+        "rowsInserted": 0,
+        "rowsUpdated": 0,
+        "errorCount": 1,
+        "errorMessage": "Unexpected token '<', \"<html><bod\"... is not valid JSON",
+        "ageSeconds": 66554
+      }
+    }
+  }
+}

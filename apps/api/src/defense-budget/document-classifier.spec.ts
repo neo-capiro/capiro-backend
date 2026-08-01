@@ -2,13 +2,21 @@ import { classifyDocument } from './document-classifier.js';
 
 describe('classifyDocument (real corpus filenames)', () => {
   it('routes Army RDT&E volumes to rdte / R-2 / comptroller', () => {
-    const c = classifyDocument('RDTE - Vol 1 - Budget Activity 1.pdf');
-    expect(c.family).toBe('rdte');
-    expect(c.exhibit).toBe('R-2');
-    expect(c.authority).toBe('dod-comptroller');
-  });
+      const c = classifyDocument('RDTE - Vol 1 - Budget Activity 1.pdf');
+      expect(c.family).toBe('rdte');
+      expect(c.exhibit).toBe('R-2');
+      expect(c.authority).toBe('dod-comptroller');
+    });
 
-  it('routes AF RDT&E and detects the AF component', () => {
+    it('routes Comptroller R-1 master list to rdte / R-1 (not R-2)', () => {
+      const c = classifyDocument('FY2027_r1.pdf');
+      expect(c.family).toBe('rdte');
+      expect(c.exhibit).toBe('R-1');
+      expect(c.documentType).toBe('r1');
+      expect(c.authority).toBe('dod-comptroller');
+    });
+
+    it('routes AF RDT&E and detects the AF component', () => {
     const c = classifyDocument('AF_RDTE_Vol1.pdf');
     expect(c.family).toBe('rdte');
     expect(c.component).toBe('AF');

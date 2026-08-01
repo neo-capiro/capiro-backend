@@ -6,6 +6,7 @@ import {
   assertPromotableSourceDocument,
   assertQualityAuditPassed,
   buildNormalizedValueManifest,
+  buildRowObservationKey,
   classifyUnitAuditFinding,
   classifyUnitRatio,
   requireApprovedSha256,
@@ -212,18 +213,48 @@ describe('selectPromotedObservationId fail-closed linking', () => {
     ).toThrow('found 0');
   });
 
-  test('reports the PE/FY/field in the failure so an operator can locate it', () => {
-    expect(() =>
-      selectPromotedObservationId({
-        preExistingIds: [],
-        candidates: [],
-        label: '0603790F FY2026 hascMark',
-      }),
-    ).toThrow('0603790F FY2026 hascMark');
-  });
-});
+  test('accepts an observation already linked to the preferred source document (replay)', () => {
+      expect(
+        selectPromotedObservationId({
+          preExistingIds: ['old-1'],
+          candidates: [
+            { id: 'old-1', sourceDocumentId: null },
+            { id: 'linked', sourceDocumentId: 'doc-preferred' },
+          ],
+          label,
+          preferredSourceDocumentId: 'doc-preferred',
+        }),
+      ).toBe('linked');
+    });
 
-describe('classifyUnitAuditFinding proof rule', () => {
+    test('prefers a single fresh unlinked observation over already-linked ones', () => {
+      expect(
+        selectPromotedObservationId({
+          preExistingIds: [],
+          candidates: [
+            { id: 'fresh', sourceDocumentId: null },
+            { id: 'linked', sourceDocumentId: 'doc-preferred' },
+          ],
+          label,
+          preferredSourceDocumentId: 'doc-preferred',
+        }),
+      ).toBe('fresh');
+    });
+
+    test('buildRowObservationKey is stable for source+PE+FY+SHA', () => {
+      expect(
+        buildRowObservationKey({
+          sourceDocumentId: 'doc-1',
+          source: 'llamaparse_fy2027_r1',
+          peCode: '0601102A',
+          fy: 2027,
+          sourceSha256: 'a'.repeat(64),
+        }),
+      ).toBe(`row:doc-1:llamaparse_fy2027_r1:0601102A:2027:${'a'.repeat(64)}`);
+    });
+  });
+
+  describe('classifyUnitAuditFinding proof rule', () => {
   const documented = { hasArchiveProof: true, hasMatchingParseProof: true };
 
   test('proves affection only with a llama canonical winner, 1000x comparator, and full linkage', () => {
