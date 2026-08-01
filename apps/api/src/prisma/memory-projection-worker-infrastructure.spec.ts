@@ -12,7 +12,10 @@ const control = infra('lib/meriv2-control-stack.ts');
 const primaryApp = infra('bin/capiro.ts');
 const operationsApp = infra('bin/meriv2-operations.ts');
 const infraPackage = infra('package.json');
-const dispatcher = readFileSync(resolve(process.cwd(), 'scripts/entrypoint-dispatcher.inc'), 'utf8');
+const dispatcher = readFileSync(
+  resolve(process.cwd(), 'scripts/entrypoint-dispatcher.inc'),
+  'utf8',
+);
 
 describe('scheduled governed-memory projection infrastructure', () => {
   test('runs a bounded out-of-band worker every five minutes only after an explicit enable', () => {
@@ -71,10 +74,13 @@ describe('scheduled governed-memory projection infrastructure', () => {
   });
 
   test('deploys operations without instantiating or updating the frozen Compute stack', () => {
-    expect(stack).toContain('ecs.Cluster.fromClusterArn');
+    // The cluster must be IMPORTED, never redeclared. fromClusterAttributes is
+    // required over fromClusterArn because EventBridge EcsTask targets need
+    // cluster.vpc, which the ARN-only import leaves undefined.
+    expect(stack).toContain('ecs.Cluster.fromClusterAttributes');
     expect(stack).toContain('ec2.Subnet.fromSubnetId');
     expect(stack).toContain('ec2.SecurityGroup.fromSecurityGroupId');
-    expect(control).toContain('ecs.Cluster.fromClusterArn');
+    expect(control).toContain('ecs.Cluster.fromClusterAttributes');
     expect(control).toContain('ec2.Subnet.fromSubnetId');
     expect(control).toContain('secretsmanager.Secret.fromSecretCompleteArn');
     expect(operationsApp).not.toContain('new ComputeStack');
