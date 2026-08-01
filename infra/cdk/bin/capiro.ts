@@ -22,6 +22,11 @@ import { AssetsStack } from '../lib/assets-stack';
  * name when iterating. Both new scheduled MeriV2 tasks remain dark unless
  * their exact enable contexts are supplied. An armed schedule also requires
  * `meriv2ApiImageTag` to be the exact 40-character release SHA—not `latest`.
+ *
+ * IMPORTANT: the live `dev` Compute stack is drifted/frozen. The primary app
+ * remains synth-compatible, but operators deploy the two new MeriV2 stacks with
+ * `bin/meriv2-operations.ts`, which imports live resources by literal ARN/id and
+ * therefore does not require a Compute-stack update merely to add exports.
  */
 const app = new cdk.App();
 const cfg = loadConfig(app);
@@ -110,24 +115,29 @@ const meriv2ApiImageTag =
   'meriv2-disabled-unpinned';
 assertImageTag(meriv2ApiImageTag, memoryProjectionWorkerEnabled || controlMonitorEnabled);
 
+const sharedOperationsProps = {
+  cfg,
+  clusterArn: compute.cluster.clusterArn,
+  apiRepositoryName: compute.apiRepo.repositoryName,
+  apiImageTag: meriv2ApiImageTag,
+  privateSubnetIds: network.vpc.privateSubnets.map((subnet) => subnet.subnetId),
+  serviceSecurityGroupId: network.serviceSecurityGroup.securityGroupId,
+  dbSecretArn: data.secret.secretArn,
+  appDbSecretArn: data.appSecret.secretArn,
+  databaseName: data.databaseName,
+  dataKeyArn: data.key.keyArn,
+  secretsKeyArn: secrets.secretsKey.keyArn,
+  alertsTopicArn: alarms.alertsTopic.topicArn,
+};
+
 const memoryProjectionWorker = new MemoryProjectionWorkerStack(
   app,
   stackName(cfg.envName, 'MemoryProjectionWorker'),
   {
     env,
     tags,
-    cfg,
-    cluster: compute.cluster,
-    apiRepo: compute.apiRepo,
-    apiImageTag: meriv2ApiImageTag,
-    serviceSecurityGroup: network.serviceSecurityGroup,
-    dbSecret: data.secret,
-    appDbSecret: data.appSecret,
-    databaseName: data.databaseName,
-    dataKey: data.key,
-    secretsKey: secrets.secretsKey,
+    ...sharedOperationsProps,
     scheduleEnabled: memoryProjectionWorkerEnabled,
-    alertsTopic: alarms.alertsTopic,
   },
 );
 memoryProjectionWorker.addDependency(network);
@@ -142,17 +152,7 @@ const meriV2Control = new MeriV2ControlStack(
   {
     env,
     tags,
-    cfg,
-    cluster: compute.cluster,
-    apiRepo: compute.apiRepo,
-    apiImageTag: meriv2ApiImageTag,
-    securityGroup: network.serviceSecurityGroup,
-    dbSecret: data.secret,
-    appDbSecret: data.appSecret,
-    databaseName: data.databaseName,
-    dataKey: data.key,
-    secretsKey: secrets.secretsKey,
-    alertsTopic: alarms.alertsTopic,
+    ...sharedOperationsProps,
     monitorEnabled: controlMonitorEnabled,
   },
 );
