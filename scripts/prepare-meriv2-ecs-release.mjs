@@ -209,6 +209,10 @@ function prepareTaskDefinition(current, definition, image) {
   const proposed = Object.fromEntries(
     allowed
       .filter((key) => current[key] !== undefined)
+      // RegisterTaskDefinition rejects an empty `tags` array with
+      // "Tags can not be empty", so an untagged source task definition must omit
+      // the key entirely rather than forward `tags: []`.
+      .filter((key) => !(key === 'tags' && Array.isArray(current[key]) && !current[key].length))
       .map((key) => [key, structuredClone(current[key])]),
   );
   const containers = proposed.containerDefinitions ?? [];

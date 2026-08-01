@@ -285,6 +285,12 @@ function pinTaskImages(taskDefinition, repository, imageTag, digest) {
       `Expected exactly one ${repository}:${imageTag} container, found ${replacements}.`,
     );
   }
+  // RegisterTaskDefinition rejects an empty tag list ("Tags can not be empty").
+  // The preparer already omits it for untagged sources; drop it here too so a
+  // manifest produced before that fix cannot fail the release at registration.
+  if (Array.isArray(taskDefinition.tags) && !taskDefinition.tags.length) {
+    delete taskDefinition.tags;
+  }
   return taskDefinition;
 }
 
