@@ -155,7 +155,7 @@ async function main(): Promise<void> {
             peCode: pe.peCode,
             fy: y.fy,
             request: thousandsToMillions(y.request ?? null),
-            enacted: thousandsToMillions(y.enacted ?? null),
+            // O-1 is not the enacted_public_law authority — do not write enacted.
             raw: { source, account: (pe.raw as Record<string, unknown>)?.account },
           },
           source,
@@ -166,9 +166,6 @@ async function main(): Promise<void> {
             originalValues: {
               ...(y.request != null
                 ? { request: { value: y.request, unit: 'thousands' as const } }
-                : {}),
-              ...(y.enacted != null
-                ? { enacted: { value: y.enacted, unit: 'thousands' as const } }
                 : {}),
             },
           },
