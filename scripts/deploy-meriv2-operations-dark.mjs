@@ -4,8 +4,9 @@
  *
  * MUTATES AWS. It never synthesizes or deploys Compute, Data, DNS, Network,
  * Secrets, Assets, or the legacy Alarms stack. Existing resources are imported
- * from the read-only context document. The exact API release SHA is used as the
- * scheduled-task image tag, and both EventBridge rules are verified DISABLED.
+ * from the read-only context document. The exact API release-SHA tag is resolved
+ * to an immutable ECR digest before CDK synthesis, and both EventBridge rules are
+ * verified DISABLED after deployment.
  */
 import { execFile } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -39,11 +40,13 @@ async function main() {
   if (String(identity.Account ?? '') !== String(contexts.account)) {
     throw new Error('AWS caller account does not match the collected operations context.');
   }
+  const apiImageDigest = await imageDigest(String(contexts.existingApiRepositoryName), sha);
   await mkdir(evidenceDir, { recursive: true });
 
   const cdkContexts = {
     ...contexts,
-    meriv2ApiImageTag: sha,
+    releaseSha: sha,
+    meriv2ApiImageDigest: apiImageDigest,
     enableMemoryProjectionWorker: 'false',
     enableMeriV2ControlMonitor: 'false',
   };
@@ -92,6 +95,7 @@ async function main() {
     marker: 'MERIV2_OPERATIONS_DARK_DEPLOY_COMPLETE',
     completedAt: new Date().toISOString(),
     sha,
+    apiImageDigest,
     account: contexts.account,
     region,
     profile,
@@ -103,6 +107,22 @@ async function main() {
   };
   await writeFile(path.join(evidenceDir, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
   console.log(JSON.stringify(summary));
+}
+
+async function imageDigest(repository, imageTag) {
+  const response = await awsJson([
+    'ecr',
+    'describe-images',
+    '--repository-name',
+    repository,
+    '--image-ids',
+    `imageTag=${imageTag}`,
+  ]);
+  const digest = response.imageDetails?.[0]?.imageDigest;
+  if (!/^sha256:[0-9a-f]{64}$/i.test(String(digest ?? ''))) {
+    throw new Error(`No immutable digest resolved for ${repository}:${imageTag}.`);
+  }
+  return digest;
 }
 
 async function describeRule(name) {
