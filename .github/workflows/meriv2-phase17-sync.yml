@@ -44,7 +44,7 @@ jobs:
           grep -q '^model CompliancePolicyPack {' apps/api/prisma/schema.prisma
           grep -q 'governed_status' apps/api/prisma/schema.prisma
           grep -q 'drain-memory-cleanup-outbox)' apps/api/scripts/entrypoint-dispatcher.inc
-          grep -q 'backfill-memory-governance-v2)' apps/api/scripts/entrypoint-dispatcher.inc
+          grep -q 'backfill-memory-governance)' apps/api/scripts/entrypoint-dispatcher.inc
           test -f apps/api/src/meri/governed-meri-tools.proxy.ts
           grep -q 'governedRecallSuppressionSql' apps/api/src/meri/meri-tools.service.ts
 
