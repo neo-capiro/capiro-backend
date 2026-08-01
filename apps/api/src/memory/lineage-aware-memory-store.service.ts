@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+import { governedMemoryModeEnabledForTenant } from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextStore } from '../tenant/tenant-context.store.js';
 import { GovernedMemoryStoreService } from './governed-memory-store.service.js';
 import { ImmutableMemoryVersionService } from './immutable-memory-version.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
-import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.helpers.js';
 import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
 import type { MemoryItem, MemoryItemType } from './memory.types.js';
 
@@ -23,7 +23,8 @@ interface DescendantIdentity {
  * callers continue to address the original type/slug, so this final store layer
  * follows `supersedes_id` to the active controlling descendant before returning
  * content. A superseded root is never presented as current truth merely because
- * it still owns the stable catalog slug.
+ * it still owns the stable catalog slug. The behavior is tenant-canary scoped and
+ * byte-compatible with the inherited store for every unselected tenant.
  */
 @Injectable()
 export class LineageAwareMemoryStoreService extends GovernedMemoryStoreService {
@@ -50,7 +51,14 @@ export class LineageAwareMemoryStoreService extends GovernedMemoryStoreService {
     slug: string,
   ): Promise<MemoryItem | null> {
     const direct = await super.getByTypeSlug(type, slug);
-    if (!governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)) {
+    const ctx = this.lineageTenantCtx.require();
+    if (
+      !governedMemoryModeEnabledForTenant(
+        ctx.tenantId,
+        process.env.MEMORY_GOVERNANCE_LIFECYCLE,
+        process.env.MEMORY_GOVERNANCE_TENANTS,
+      )
+    ) {
       return direct;
     }
     if (!direct) return null;
@@ -61,7 +69,6 @@ export class LineageAwareMemoryStoreService extends GovernedMemoryStoreService {
       return direct;
     }
 
-    const ctx = this.lineageTenantCtx.require();
     const descendant = await this.lineagePrisma.withTenantUser(
       ctx.tenantId,
       ctx.userId,
