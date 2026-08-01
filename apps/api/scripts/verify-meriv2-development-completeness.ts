@@ -130,7 +130,10 @@ async function main(): Promise<void> {
       'infra/cdk/lib/constructs/scheduled-memory-projection-worker.ts',
       'alarm.addAlarmAction(action)',
     );
-    await contains('infra/cdk/lib/constructs/scheduled-memory-projection-worker.ts', 'apiImageTag');
+    await contains(
+      'infra/cdk/lib/constructs/scheduled-memory-projection-worker.ts',
+      'apiImageDigest',
+    );
   });
 
   await phase(6, 'Exact projection completion and recovery', async () => {
@@ -440,6 +443,7 @@ async function globalChecks(): Promise<void> {
     scripts?: Record<string, string>;
   };
   for (const script of [
+    'verify:meriv2-scripts',
     'verify:meriv2-development',
     'verify:meriv2-release',
     'verify:meriv2-browser',

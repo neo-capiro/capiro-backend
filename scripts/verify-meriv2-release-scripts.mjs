@@ -24,8 +24,14 @@ async function main() {
     await nodeCheck(relative);
   }
 
-  const collect = await text('scripts/collect-meriv2-aws-context.mjs');
-  assert.doesNotMatch(collect, /GetSecretValue|secretsmanager\s+get-secret-value/i);
+  // Negative (prohibition) assertions run against executable code only. Comments
+  // legitimately name the prohibited operation in order to document the ban, so a
+  // raw-text scan cannot tell a documented prohibition from an actual call.
+  const collect = code(await text('scripts/collect-meriv2-aws-context.mjs'));
+  assert.doesNotMatch(
+    collect,
+    /GetSecretValue|secretsmanager\s+get-secret-value|'get-secret-value'/i,
+  );
 
   const prepare = await text('scripts/prepare-meriv2-ecs-release.mjs');
   for (const fragment of [
@@ -37,7 +43,7 @@ async function main() {
   ]) {
     assert.ok(prepare.includes(fragment), `Dark task preparation is missing ${fragment}.`);
   }
-  assert.doesNotMatch(prepare, /register-task-definition|update-service|run-task/);
+  assert.doesNotMatch(code(prepare), /register-task-definition|update-service|run-task/);
 
   const execute = await text('scripts/execute-meriv2-ecs-release.mjs');
   for (const fragment of [
@@ -66,7 +72,7 @@ async function main() {
   ]) {
     assert.ok(operations.includes(fragment), `Dark operations deployer is missing ${fragment}.`);
   }
-  assert.doesNotMatch(operations, /ComputeStack|DataStack|NetworkStack/);
+  assert.doesNotMatch(code(operations), /ComputeStack|DataStack|NetworkStack/);
 
   const browser = await text('scripts/run-meriv2-phase19-local.mjs');
   assert.ok(browser.includes("MEMORY_GOVERNANCE_TENANTS: 'all'"));
@@ -97,6 +103,15 @@ async function nodeCheck(relative) {
 
 async function text(relative) {
   return readFile(path.join(ROOT, relative), 'utf8');
+}
+
+/**
+ * Strip line and block comments so prohibition assertions only inspect executable
+ * code. A documented ban ("never calls GetSecretValue") must not read as a call.
+ * String literals are preserved, so a real `'get-secret-value'` argument still trips.
+ */
+function code(source) {
+  return source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 }
 
 main().catch((error) => {
