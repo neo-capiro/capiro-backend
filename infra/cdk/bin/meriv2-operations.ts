@@ -1,0 +1,115 @@
+#!/usr/bin/env node
+import 'source-map-support/register';
+import * as cdk from 'aws-cdk-lib';
+import { awsEnv, loadConfig, stackName } from '../lib/config';
+import { MemoryProjectionWorkerStack } from '../lib/memory-projection-worker-stack';
+import { MeriV2ControlStack } from '../lib/meriv2-control-stack';
+
+/**
+ * Independent MeriV2 operations app.
+ *
+ * The live environment named `dev` serves production traffic and its historical
+ * Compute stack is intentionally not a safe prerequisite for this release. This
+ * app imports the already-running cluster/network/secrets/topic by literal
+ * identifiers and deploys only the two additive MeriV2 operational stacks:
+ *
+ *   - Capiro-<env>-MemoryProjectionWorker
+ *   - Capiro-<env>-MeriV2Control
+ *
+ * It never creates or updates the ALB, DNS, Aurora, long-running ECS services,
+ * ECR repositories, or existing secrets. Both EventBridge schedules default
+ * disabled. Every synthesis requires an immutable 40-character release-SHA API
+ * image tag, even while dark, so a later manual run cannot drift to `latest`.
+ */
+const app = new cdk.App();
+const cfg = loadConfig(app);
+const env = awsEnv(cfg);
+
+const apiImageTag = required(app, 'meriv2ApiImageTag');
+if (!/^[0-9a-f]{40}$/i.test(apiImageTag)) {
+  throw new Error('meriv2ApiImageTag must be the exact 40-character release SHA.');
+}
+
+const privateSubnetIds = csv(required(app, 'existingPrivateSubnetIds'));
+if (privateSubnetIds.length === 0 || privateSubnetIds.some((id) => !/^subnet-[a-z0-9]+$/i.test(id))) {
+  throw new Error('existingPrivateSubnetIds must contain one or more comma-separated subnet-* ids.');
+}
+const serviceSecurityGroupId = required(app, 'existingServiceSecurityGroupId');
+if (!/^sg-[a-z0-9]+$/i.test(serviceSecurityGroupId)) {
+  throw new Error('existingServiceSecurityGroupId must be an sg-* id.');
+}
+
+const shared = {
+  cfg,
+  clusterArn:
+    optional(app, 'existingClusterArn') ??
+    `arn:${cdk.Aws.PARTITION}:ecs:${cfg.region}:${cfg.account}:cluster/capiro-${cfg.envName}`,
+  apiRepositoryName:
+    optional(app, 'existingApiRepositoryName') ?? `capiro/${cfg.envName}/api`,
+  apiImageTag,
+  privateSubnetIds,
+  serviceSecurityGroupId,
+  dbSecretArn: completeArn(required(app, 'existingDbSecretArn'), 'existingDbSecretArn'),
+  appDbSecretArn: completeArn(
+    required(app, 'existingAppDbSecretArn'),
+    'existingAppDbSecretArn',
+  ),
+  databaseName: optional(app, 'existingDatabaseName') ?? 'capiro',
+  dataKeyArn: keyArn(required(app, 'existingDataKeyArn'), 'existingDataKeyArn'),
+  secretsKeyArn: keyArn(required(app, 'existingSecretsKeyArn'), 'existingSecretsKeyArn'),
+  alertsTopicArn:
+    optional(app, 'existingAlertsTopicArn') ??
+    `arn:${cdk.Aws.PARTITION}:sns:${cfg.region}:${cfg.account}:capiro-${cfg.envName}-alerts`,
+};
+
+const projectionWorker = new MemoryProjectionWorkerStack(
+  app,
+  stackName(cfg.envName, 'MemoryProjectionWorker'),
+  {
+    env,
+    ...shared,
+    scheduleEnabled: exactTrue(app.node.tryGetContext('enableMemoryProjectionWorker')),
+  },
+);
+
+const control = new MeriV2ControlStack(app, stackName(cfg.envName, 'MeriV2Control'), {
+  env,
+  ...shared,
+  monitorEnabled: exactTrue(app.node.tryGetContext('enableMeriV2ControlMonitor')),
+});
+control.addDependency(projectionWorker);
+
+app.synth();
+
+function required(target: cdk.App, name: string): string {
+  const value = optional(target, name);
+  if (!value) throw new Error(`Missing required CDK context: ${name}`);
+  return value;
+}
+
+function optional(target: cdk.App, name: string): string | null {
+  const value = String(target.node.tryGetContext(name) ?? '').trim();
+  return value || null;
+}
+
+function csv(value: string): string[] {
+  return [...new Set(value.split(',').map((item) => item.trim()).filter(Boolean))];
+}
+
+function exactTrue(value: unknown): boolean {
+  return String(value ?? '').trim().toLowerCase() === 'true';
+}
+
+function completeArn(value: string, name: string): string {
+  if (!/^arn:[^:]+:secretsmanager:[^:]+:\d{12}:secret:[^:]+$/.test(value)) {
+    throw new Error(`${name} must be a complete Secrets Manager ARN without a JSON-key selector.`);
+  }
+  return value;
+}
+
+function keyArn(value: string, name: string): string {
+  if (!/^arn:[^:]+:kms:[^:]+:\d{12}:key\/[a-z0-9-]+$/i.test(value)) {
+    throw new Error(`${name} must be a KMS key ARN.`);
+  }
+  return value;
+}
