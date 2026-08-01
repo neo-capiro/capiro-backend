@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { TenantContext } from '@capiro/shared';
+import { governedMemoryModeEnabledForTenant } from '@capiro/meriv2-core';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { GovernedMemoryCandidateService } from './governed-memory-candidate.service.js';
@@ -25,7 +26,8 @@ type CandidateActorContext = Pick<TenantContext, 'tenantId' | 'userId' | 'role'>
  * routing rule: edits to an existing shared Settings file are immutable version
  * candidates. Compatibility approval/rejection routes are also redirected so an
  * administrator cannot accidentally send such a candidate through the generic
- * canonical-upsert path.
+ * canonical-upsert path. Every new branch remains dark unless the exact tenant is
+ * selected by MEMORY_GOVERNANCE_TENANTS.
  */
 @Injectable()
 export class SettingsAwareMemoryCandidateService extends GovernedMemoryCandidateService {
@@ -46,6 +48,9 @@ export class SettingsAwareMemoryCandidateService extends GovernedMemoryCandidate
     ctx: CandidateActorContext,
     input: SettingsMemoryCandidateInput,
   ): Promise<PendingSettingsCandidate> {
+    if (!settingsVersioningEnabled(ctx.tenantId)) {
+      return super.proposeSettingsSections(ctx, input);
+    }
     const correction = await this.settingsVersions.proposeExistingCorrection(
       ctx as TenantContext,
       input,
@@ -59,6 +64,9 @@ export class SettingsAwareMemoryCandidateService extends GovernedMemoryCandidate
     type: MemoryItemType,
     slug: string,
   ): Promise<PendingSettingsCandidate | null> {
+    if (!settingsVersioningEnabled(tenantId)) {
+      return super.findPendingSettingsCandidate(tenantId, viewerUserId, type, slug);
+    }
     const correction = await this.settingsVersions.findPendingSettingsCorrection(
       tenantId,
       viewerUserId,
@@ -75,11 +83,12 @@ export class SettingsAwareMemoryCandidateService extends GovernedMemoryCandidate
     actorContext?: CandidateActorContext,
   ): Promise<{ memoryId: string }> {
     if (
-      await this.settingsVersions.isImmutableVersionCandidate(
+      settingsVersioningEnabled(tenantId) &&
+      (await this.settingsVersions.isImmutableVersionCandidate(
         tenantId,
         approverUserId,
         candidateId,
-      )
+      ))
     ) {
       const ctx = requireActorContext(tenantId, approverUserId, actorContext);
       const result = await this.immutableVersions.approveCandidate(ctx as TenantContext, candidateId);
@@ -99,11 +108,12 @@ export class SettingsAwareMemoryCandidateService extends GovernedMemoryCandidate
     actorContext?: CandidateActorContext,
   ): Promise<void> {
     if (
-      await this.settingsVersions.isImmutableVersionCandidate(
+      settingsVersioningEnabled(tenantId) &&
+      (await this.settingsVersions.isImmutableVersionCandidate(
         tenantId,
         reviewerUserId,
         candidateId,
-      )
+      ))
     ) {
       const ctx = requireActorContext(tenantId, reviewerUserId, actorContext);
       await this.immutableVersions.rejectCandidate(
@@ -115,6 +125,14 @@ export class SettingsAwareMemoryCandidateService extends GovernedMemoryCandidate
     }
     return super.reject(tenantId, candidateId, reviewerUserId, actorContext);
   }
+}
+
+function settingsVersioningEnabled(tenantId: string): boolean {
+  return governedMemoryModeEnabledForTenant(
+    tenantId,
+    process.env.MEMORY_GOVERNANCE_LIFECYCLE,
+    process.env.MEMORY_GOVERNANCE_TENANTS,
+  );
 }
 
 function requireActorContext(
