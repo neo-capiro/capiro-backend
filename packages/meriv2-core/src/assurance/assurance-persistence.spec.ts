@@ -243,6 +243,9 @@ describe('policy pack persistence helpers', () => {
   it('enumerates exactly the actions the append-only event ledger accepts', () => {
     expect([...POLICY_PACK_ACTIONS]).toEqual([
       'create',
+      // A revision of an existing draft is its own ledger action; the policy-pack
+      // service records it when a pack is revised before review.
+      'revise',
       'submit_review',
       'review',
       'approve',

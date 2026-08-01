@@ -13,7 +13,12 @@ function fixture() {
   const operatingFrame = resolveGovernmentAffairsOperatingFrame({
     request: 'What is the FY27 request amount for PE 0605053A?',
     asOf: '2026-07-31T20:00:00.000Z',
-    explicit: { clientId: 'client-a' },
+    // A federal program-element budget question needs its jurisdiction declared.
+    // Without it the frame reports missingRequired: ['jurisdiction'], the evidence
+    // plan is incomplete, and the risk gate correctly downgrades the release to
+    // deliver_with_flags — so an omitted jurisdiction tests the gap path, not the
+    // clean-release path this fixture is meant to exercise.
+    explicit: { clientId: 'client-a', jurisdictions: ['federal'] },
   });
   const evidencePlan = planGovernmentAffairsEvidence({
     request: 'What is the FY27 request amount for PE 0605053A?',

@@ -214,6 +214,10 @@ describe('ContextPacket v2 deterministic compilation', () => {
           clientId: null,
           layers: ['firm-identity', 'user-voice'],
           selectedItemIds: ['preference'],
+          // Pin the clock: the episodic fixture expires 2026-08-01, so without an
+          // explicit `now` this assertion silently starts dropping that row once
+          // the wall-clock date reaches the expiry. Same fixture epoch as above.
+          now: new Date('2026-07-28T00:00:00.000Z'),
         }),
       ),
     );
