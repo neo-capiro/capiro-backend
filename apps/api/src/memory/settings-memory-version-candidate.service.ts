@@ -22,6 +22,8 @@ const IMMUTABLE_SOURCE_KINDS = new Set([
   'memory_contradiction',
 ]);
 
+type SettingsCandidateContext = Pick<TenantContext, 'tenantId' | 'userId' | 'role'>;
+
 interface SettingsSourceRow {
   id: string;
   clientId: string | null;
@@ -50,7 +52,7 @@ export class SettingsMemoryVersionCandidateService {
   ) {}
 
   async proposeExistingCorrection(
-    ctx: TenantContext,
+    ctx: SettingsCandidateContext,
     input: SettingsMemoryCandidateInput,
   ): Promise<PendingSettingsCandidate | null> {
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
@@ -121,7 +123,7 @@ export class SettingsMemoryVersionCandidateService {
             stableSlug: input.slug,
           })}::jsonb,
           'pending', ${source.memoryClass}, ${source.memoryScope}, 'pending_review',
-          'settings_editor', ${source.id}, 'settings_sections', ${hash},
+          'approved_document_edit', ${source.id}, 'settings_sections', ${hash},
           ${`candidate:${id}`}, ${ctx.userId}::uuid, now(), now(),
           'none', false, 'settings_memory_editor', ${id}, false
         )
