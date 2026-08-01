@@ -70,7 +70,7 @@ function Fixture() {
           confidence={{ level: 'medium', label: 'Partially verified; review required.' }}
           structuralWarnings={[
             {
-              code: 'unsupported_high_risk_claim',
+              code: 'primary_vehicle_overclaim',
               message: 'The forecast has no supporting source.',
               peCode: 'Unverified Forecast',
             },
