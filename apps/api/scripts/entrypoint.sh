@@ -1,10 +1,10 @@
 #!/bin/sh
-# Program Elements trust-safety wrapper for the API container entrypoint.
+# Program Elements and MeriV2 trust-safety wrapper for the API container entrypoint.
 #
 # It owns the trust-critical verbs that must not pass through the legacy
-# entrypoint behavior: migration deployment (fail closed; never edits Prisma's
-# migration ledger) and SELECT-only PE diagnostics. Every other command
-# delegates byte-for-byte to the existing dispatcher.
+# entrypoint behavior: migration status/deployment (fail closed; never edits
+# Prisma's migration ledger), SELECT-only diagnostics, and bounded operational
+# monitors. Every other command delegates byte-for-byte to the existing dispatcher.
 set -e
 
 compose_database_url() {
@@ -41,6 +41,11 @@ compose_database_url() {
 }
 
 case "${1:-serve}" in
+  migration-status)
+    compose_database_url
+    echo "Running prisma migrate status (READ-ONLY; migration history is never edited)"
+    exec node ./node_modules/prisma/build/index.js migrate status --schema=./prisma/schema.prisma
+    ;;
   migrate)
     compose_database_url
     echo "Running prisma migrate deploy (failed migration history is never auto-resolved)"
