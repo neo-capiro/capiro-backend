@@ -1,0 +1,71 @@
+# MeriV2 Memory and Assurance Control Mapping
+
+## Document status
+
+- **Implementation status:** code and infrastructure definitions complete on the MeriV2 closeout branch.
+- **Operating acceptance:** **BLOCKED** until Phases 17–19 pass on one exact SHA and the alarms and rollback procedures below are demonstrated in an isolated non-production environment.
+- **Production authorization:** none. This document does not authorize deployment, migration, backfill, policy publication, feature activation, or customer-data mutation.
+
+## Control-system boundary
+
+The control system covers governed institutional memory, Context Packet v2, the government-affairs assurance envelope, persisted policy packs, durable projection recovery, reversible governance backfill, and their administrator/reviewer surfaces.
+
+Control evidence is intentionally bounded:
+
+- CloudWatch EMF uses namespace `Capiro/MeriV2Control` and the single dimension `Environment` (`dev`, `staging`, `prod`, `test`, or `unknown`).
+- Metrics never include tenant, user, client, item, proposal, policy, model, prompt, source, tool-input, tool-result, or content identifiers.
+- Runtime logs contain bounded event names, counts, decisions, and error codes only. They do not copy memory bodies, prompts, source excerpts, generated prose, or provider payloads.
+- Immutable database evidence stores subject identifiers and transition metadata, not customer prose.
+
+## Control mapping
+
+| Control | Implementation and control owner | Type | Primary evidence | Test or rehearsal | Monitoring | Retention |
+|---|---|---|---|---|---|---|
+| Tenant and user isolation | `PrismaService.withTenant`, `withTenantUser`, forced RLS migrations, tenant predicates, and private-owner policies. **Owner:** Platform/Security. | Preventive and detective | RLS policies, tenant-scoped query paths, migration records, application-role rehearsal output | Phase 18 clean/upgrade RLS rehearsal; tenant-scope and private-memory tests | `EthicalWallDenials`; API security events; RLS rehearsal artifact | Database policy/migration history retained with the application schema; Phase evidence artifact 30 days; control logs one year |
+| Ethical walls | `clientMemoryAllowed`, `ClientMemoryAccess`, canonical `MemoryAuthorizationService`; administrators are not exempt. **Owner:** Security/Product administrator. | Preventive and detective | Grant rows, authorization decision, bounded denial metric | Memory authorization tests; Phase 18/19 granted and denied-user scenarios | `EthicalWallDenials` alarm; denied-response confidentiality scan | Grant lifecycle rows and bounded transition/audit evidence; control logs one year |
+| Least-privilege grants | `memory_access_grant` with explicit permissions, reason, expiration, status, grantor, and revocation; separate from wall-read access. **Owner:** Tenant administrator/Security. | Preventive | Grant row, reason, expiry, grantor/revoker, API authorization result | Client-review grant tests; Phase 18 granted-reviewer rehearsal; Phase 19 browser scenario | Active grant counts in Governance Center; authorization denials | Grant rows retained according to tenant data policy; revocation evidence retained; no grant body is copied to metrics |
+| Segregation of duties | Shared proposals cannot be reviewed or approved by their proposer; policy packs require independent review and, where configured, second approval. **Owner:** Tenant administrator/Compliance. | Preventive and detective | Candidate proposer/reviewer fields, policy-pack reviewer fields, append-only lifecycle events | Concurrent approval tests; policy-pack lifecycle concurrency script; browser independent-review scenario | `SelfReviewDenials` alarm | Candidate/policy lifecycle evidence and append-only events retained with governed records |
+| Legal holds | Destructive governed-memory operations fail closed when `legal_hold=true`; legal-held rows remain available for authorized read/review. **Owner:** Security/Legal administrator. | Preventive | Canonical item legal-hold field, denied operation result, transition history | Memory authorization and immutable-version tests; Phase 18/19 legal-hold scenarios | Governance Center legal-hold posture; destructive-operation denials remain in request logs | Canonical row and evidence retained while hold remains active; no purge is authorized by this release |
+| Immutable version and transition history | Corrections, contradictions, restores, supersession, conflict resolution, withdrawal, rejection, and revocation use new versions or validated transitions; append-only triggers protect transition/backfill/policy event ledgers. **Owner:** Database/Security. | Preventive and detective | `memory_transition_audit`, version lineage, conflict group, candidate disposition, append-only trigger | Immutable-version, transition-audit, withdrawal/rejection, and concurrency tests; Phase 18 lifecycle rehearsal | `ConflictedMemoryCount`; Governance Center transition/history views | Canonical and transition rows retained; legal holds override destructive cleanup |
+| Policy binding and revalidation | Assurance envelopes bind pack/version/rule, decision hash, and context hash; destination-side verification rejects stale bindings. **Owner:** Compliance/Release engineering. | Preventive and detective | Assurance envelope, policy decision row, binding and decision hashes, destination verification result | Strategy/Steward/Workspace envelope tests; policy-pack lifecycle tests | `PolicyDriftInvalidations` alarm | Policy packs, decisions, and append-only events retained with the tenant policy history |
+| Context Packet provenance | Truthful compiler persists exact packet ID, compiler/policy/prompt versions, required layers, health, exclusions, effective tenant, and read-after-write evidence. **Owner:** Platform/AI assurance. | Preventive and detective | `context_packet` row and exact persisted ID; Context Inspector metadata | Context compiler/persistence-boundary tests; Phase 18 persistence rehearsal; Phase 19 Context Inspector scenario | `ContextPacketPersistenceFailures` alarm | Packet metadata retained under the application data-retention policy; no rendered memory body is copied to control metrics |
+| High-risk release verification | Government-affairs evidence planning, claim ledger, deterministic checks, buffering, repair/hold decisions, and assurance envelope prevent unsupported high-risk output from irreversible release. **Owner:** AI assurance/Product. | Preventive and detective | Assurance envelope, claim ledger summary, findings, release decision, verifier version | Cross-surface assurance tests and eval gate; Phase 19 chat/editor/Workspace/Strategy prepared states | `AssuranceHeldOutcomes`, `AssuranceDegradedOutcomes`, `UnsupportedHighRiskClaimRate` alarms | Assurance/eval records retained per application policy; CloudWatch control logs one year |
+| Migration and backfill change control | Forward-only additive migrations; clean and upgrade replay; tenant-scoped prepare/execute/rollback jobs; exact confirmation flags; plan hashes; drift-safe rollback. **Owner:** Database/Release engineering. | Preventive and detective | `_prisma_migrations`, prepared job/row/event ledgers, plan/before/post hashes | Phase 18 clean/upgrade replay; backfill rollback and idempotency scripts | `BackfillQuarantineCount`, `BackfillDriftCount` alarms | Backfill job, row, and append-only event evidence retained with database change history |
+| Durable outbox recovery | Memory projection obligations commit with canonical mutation, use exact source version/content hash/idempotency key, leases, bounded retry, stale-lease reclaim, supersession, and dead letter. **Owner:** Platform/SRE. | Preventive and detective | `memory_cleanup_outbox` state and bounded worker terminal event | Exact outbox/worker tests; Phase 18 retry, lease, mismatch, and dead-letter rehearsal | `OutboxOldestAgeSeconds`, `OutboxRetryingCount`, `OutboxDeadLetterCount`; existing worker failure/crash alarms | Dedicated worker/control log groups one year; outbox rows retained through terminal state per application policy |
+| Policy publication and rollback | Draft → pending review → reviewed → published/retired lifecycle; reviewed decision material is immutable; non-production packs cannot publish; rollback republishes an independently reviewed target. **Owner:** Compliance/Release administrator. | Preventive and detective | Pack row, rules hash, independent reviewers, publication attribution, append-only events, selected-version decisions | `test-policy-pack-lifecycle-concurrency.sh`; policy service/controller tests | `PolicyDriftInvalidations`; recent decision and event views | Packs, decisions, and append-only events retained with tenant policy history |
+| Audit confidentiality | Transition and control evidence is bounded; content-shaped fields are rejected or omitted; denied browser/API responses are scanned for confidential text. **Owner:** Security/Privacy. | Preventive and detective | Sanitizers, metadata-size checks, bounded EMF schema, denied-response evidence | Audit-metadata tests; control-metric tests; Phase 19 confidentiality scan | `ControlMonitorFailures`; security-event logs | Control log group one year; browser/CI artifact 30 days; no secret/session value is persisted in evidence |
+
+## Metric and alarm catalog
+
+All alarms are defined in `infra/cdk/lib/meriv2-control-stack.ts` and publish to the existing encrypted alerts topic. The scheduled monitor is created **disabled by default** and requires CDK context `enableMeriV2ControlMonitor=true`.
+
+| Metric | Source | Alarm condition |
+|---|---|---|
+| `PendingCandidateOldestAgeSeconds` | Read-only database monitor | oldest pending candidate ≥ 86,400 seconds |
+| `SelfReviewDenials` | Canonical memory authorization | sum ≥ 1 in 5 minutes |
+| `EthicalWallDenials` | Canonical memory authorization | sum ≥ 10 in 5 minutes |
+| `ConflictedMemoryCount` | Read-only database monitor | maximum ≥ 1 |
+| `ContextPacketPersistenceFailures` | Truthful compiler persistence boundary | sum ≥ 1 in 5 minutes |
+| `AssuranceHeldOutcomes` | Canonical assurance risk gate | sum ≥ 5 in 15 minutes |
+| `AssuranceDegradedOutcomes` | Canonical assurance risk gate | sum ≥ 10 in 15 minutes |
+| `UnsupportedHighRiskClaimRate` | Canonical assurance risk gate | average ≥ 20 percent in 15 minutes |
+| `OutboxOldestAgeSeconds` | Read-only database monitor | maximum ≥ 900 seconds |
+| `OutboxRetryingCount` | Read-only database monitor | maximum ≥ 1 |
+| `OutboxDeadLetterCount` | Read-only database monitor | maximum ≥ 1 |
+| `PolicyDriftInvalidations` | Destination assurance-envelope verification | sum ≥ 1 in 5 minutes |
+| `BackfillQuarantineCount` | Read-only database monitor | maximum ≥ 1 |
+| `BackfillDriftCount` | Read-only database monitor | maximum ≥ 1 |
+| `ControlMonitorFailures` | Scheduled monitor failure path | sum ≥ 1; missing data is treated as breaching for this metric |
+
+## Evidence locations
+
+- Source and tests: `packages/meriv2-core/src/assurance/control-metrics.ts` and `.spec.ts`.
+- Read-only snapshot operator: `apps/api/scripts/emit-meriv2-control-metrics.ts`.
+- Guarded alarm demonstration: `apps/api/scripts/demo-meriv2-control-alarms.ts`.
+- Schedule, dashboard, alarms, and one-year log retention: `infra/cdk/lib/meriv2-control-stack.ts`.
+- Database and browser evidence: `docs/qa/meriv2-database-release-rehearsal.md` and `docs/qa/meriv2-closeout-browser-acceptance.md`.
+- Release evidence: `docs/qa/meriv2-phase-20-control-system.md` and `docs/qa/meriv2-phase-21-release-authorization.md`.
+
+## Acceptance boundary
+
+This mapping is not proof that the controls operated in AWS. Phase 20 remains blocked until a non-implementer follows the runbooks successfully, the Phase 18 rollback paths pass, and every alarm is driven to `ALARM` and back to `OK` in an isolated staging/test stack with the evidence retained.
