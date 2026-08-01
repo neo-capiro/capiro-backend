@@ -4,6 +4,8 @@ import {
   ContextPacketRolloutCompiler,
   GOVERNED_STEERING_COLUMNS_SQL,
   MERIV2_CONTEXT_PACKET_V2_ENV,
+  emitMeriV2ControlMetrics,
+  isContextPacketPersistenceError,
   resolveContextPacketMode,
   resolveTenantContextPacketMode,
   type CompiledContextPacket,
@@ -53,6 +55,9 @@ export class ContextCompilerService {
       // catches ordinary context failures and continues. The global boundary
       // interceptor checks this request-local record before releasing output.
       this.persistenceBoundary?.record(error);
+      if (isContextPacketPersistenceError(error)) {
+        emitMeriV2ControlMetrics({ ContextPacketPersistenceFailures: 1 });
+      }
       throw error;
     }
   }
