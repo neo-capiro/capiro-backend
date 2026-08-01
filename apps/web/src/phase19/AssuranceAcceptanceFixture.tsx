@@ -65,6 +65,7 @@ function Fixture() {
               'Executive Summary': '<p>Existing summary.</p>',
               'Unverified Forecast': '<p>Unsupported forecast.</p>',
             },
+            meta: {},
           }}
           confidence={{ level: 'medium', label: 'Partially verified; review required.' }}
           structuralWarnings={[
