@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import type { TenantContext } from '@capiro/shared';
 import {
   CAPIRO_APPROVED_GENERIC_POLICY_PACK,
   evaluatePolicyPack,
@@ -125,4 +124,3 @@ function normalize(value: unknown): string {
 const _serviceTokenCompatibility: new (prisma: PrismaService) => MeriPolicyPackService =
   TenantCanariedMeriPolicyPackService;
 void _serviceTokenCompatibility;
-void (null as unknown as TenantContext);
