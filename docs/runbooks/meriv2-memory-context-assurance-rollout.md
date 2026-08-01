@@ -1,283 +1,313 @@
 # MeriV2 Memory, Context, and Assurance Rollout
 
-## Status and authorization boundary
+## Scope
 
-This is the operator procedure for the governed-memory and government-affairs assurance release. It is **not authorization to run it**. PR #679 must remain draft and unmerged until the Phase 21 release gate is satisfied.
+This runbook begins **after** the exact merge SHA has passed the local release preflight, additive migrations have succeeded, the five services have been deployed with all controls dark, and the two additive operations stacks exist with both EventBridge schedules disabled.
 
-The Capiro AWS environment named `dev` currently serves production traffic. Treat `dev` as production in every command, change ticket, and approval. Alarm demonstrations are expressly prohibited there.
+The end-to-end merge, image-build, migration, and dark AWS deployment procedure is:
+
+```text
+docs/runbooks/meriv2-merge-and-aws-ship.md
+```
+
+> The AWS environment named `dev` serves production traffic. Treat `dev` as production.
+
+GitHub Actions is not an acceptance dependency. The authoritative release command is:
+
+```bash
+pnpm verify:meriv2-release -- \
+  --ops-context .artifacts/meriv2-aws-context-dev.json \
+  --profile capiro-dev
+```
 
 ## Required operators
 
 | Role | Responsibility |
 |---|---|
-| Release operator | Owns command execution, timestamps, evidence capture, and stop/rollback decisions |
-| Database reviewer | Approves migration replay and each backfill job plan hash |
-| Security reviewer | Approves wall/grant, segregation-of-duties, audit-confidentiality, and alarm evidence |
-| Product/UX reviewer | Accepts browser, accessibility, and held/degraded product states |
-| Incident commander | Has authority to stop rollout and execute the rollback runbook |
+| Release operator | Executes commands, captures evidence, and controls expansion |
+| Database reviewer | Accepts migration and each exact backfill job |
+| Security reviewer | Accepts tenant, owner, wall, grant, and audit behavior |
+| Product/UX reviewer | Accepts browser, accessibility, held, and degraded states |
+| Incident commander | Can stop rollout and authorize rollback |
 
-The implementer may brief these operators but must not be the sole approver for migration, backfill, policy publication, or production release.
+No implementer may be the sole production approver.
 
-## Release prerequisites
+---
 
-Do not start unless every item is recorded in the change ticket:
+# 1. Preconditions
 
-1. One exact Git SHA passed the Phase 17 CI matrix.
-2. The same SHA passed the Phase 18 clean and upgrade database rehearsals without manual SQL repair.
-3. The same SHA passed every required Phase 19 authenticated browser/accessibility scenario.
-4. Phase 20 control-system validation passed, including an isolated non-production alarm transition to `ALARM` and recovery to `OK`.
-5. PR #679 is current with `main`, mergeable, reviewed by the four required roles, and has no unresolved blocker.
-6. Current task definitions, service desired/running counts, database migration status, alarm state, and feature values have been captured.
-7. A previous known-good API, MeriV2 orchestrator, Workspace, Strategy, and web image digest is recorded.
-8. A named incident commander and rollback decision window are recorded.
+Record in the change ticket:
 
-## Operator variables
+1. exact 40-character merge SHA;
+2. `MERIV2_LOCAL_RELEASE_PREFLIGHT_OK` evidence for that SHA;
+3. successful clean and upgrade database rehearsal;
+4. successful authenticated browser/accessibility acceptance;
+5. production migration task ARN and exit code `0`;
+6. stable API, orchestrator, Workspace, Strategy, and web services on immutable image digests;
+7. prior task-definition ARNs and database snapshot identifier;
+8. dark operations-stack deployment with both rules `DISABLED`;
+9. internal canary tenant UUID;
+10. named reviewers and incident commander.
 
-Use a new shell and set these values from the approved change ticket. Never paste secrets into the shell transcript.
+Stop if any core service is degraded, migration status is unclear, or an unexplained alarm is active.
 
-```bash
-export AWS_REGION=us-east-1
-export CAPIRO_ENV=staging             # use dev only under explicit production approval
-export AWS_ACCOUNT_ID=000000000000    # approved account
-export RELEASE_SHA=<40-character-sha>
-export EVIDENCE_DIR="evidence/meriv2-${RELEASE_SHA}"
-mkdir -p "$EVIDENCE_DIR"
-aws sts get-caller-identity | tee "$EVIDENCE_DIR/00-caller.json"
-```
+---
 
-Fail closed if the account or region is not the approved target:
+# 2. Initial dark values
 
-```bash
-test "$(aws sts get-caller-identity --query Account --output text)" = "$AWS_ACCOUNT_ID"
-test "$AWS_REGION" = "$(aws configure get region)" || export AWS_DEFAULT_REGION="$AWS_REGION"
-test "$CAPIRO_ENV" != "dev" || test "${PRODUCTION_CHANGE_APPROVED:-}" = "YES"
-```
-
-## Step 1 — Reconfirm the exact release artifact
-
-From a clean authenticated checkout:
-
-```bash
-git fetch origin main agent/meriv2-world-class-closeout
-git checkout --detach "$RELEASE_SHA"
-test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
-git status --short | tee "$EVIDENCE_DIR/01-git-status.txt"
-pnpm install --frozen-lockfile
-```
-
-Run the committed release commands rather than an improvised subset:
-
-```bash
-pnpm --filter @capiro/meriv2-core typecheck
-pnpm --filter @capiro/api typecheck
-pnpm --filter @capiro/meriv2-orchestrator typecheck
-pnpm --filter @capiro/workspace typecheck
-pnpm --filter @capiro/api-strategy typecheck
-pnpm --filter @capiro/web typecheck
-pnpm --filter @capiro/infra-cdk typecheck
-```
-
-The Phase 17 workflow remains the authoritative full command matrix. Store its run URL and artifact identifiers in the change ticket.
-
-## Step 2 — Capture the live baseline before any change
-
-```bash
-export CLUSTER="capiro-${CAPIRO_ENV}"
-for service in api web workspace meriv2-orchestrator api-strategy; do
-  aws ecs describe-services \
-    --cluster "$CLUSTER" \
-    --services "capiro-${CAPIRO_ENV}-${service}" \
-    --query 'services[0].{service:serviceName,taskDefinition:taskDefinition,desired:desiredCount,running:runningCount,pending:pendingCount,deployments:deployments}' \
-    > "$EVIDENCE_DIR/02-${service}-baseline.json"
-done
-
-aws cloudwatch describe-alarms \
-  --alarm-name-prefix "capiro-${CAPIRO_ENV}-meriv2-" \
-  > "$EVIDENCE_DIR/02-meriv2-alarm-baseline.json"
-
-aws events describe-rule \
-  --name "capiro-${CAPIRO_ENV}-memory-projection-worker" \
-  > "$EVIDENCE_DIR/02-projection-rule.json"
-
-aws events describe-rule \
-  --name "capiro-${CAPIRO_ENV}-meriv2-control-monitor" \
-  > "$EVIDENCE_DIR/02-control-monitor-rule.json" 2>&1 || true
-```
-
-Stop if any core service is already degraded, a migration is in progress, or an unexplained MeriV2 alarm is active.
-
-## Step 3 — Deploy code with every new control dark
-
-The deployment pipeline must publish images by immutable digest and update services without activating the controls. Required initial values are:
+The deployed API task definition must contain:
 
 ```text
-MEMORY_GOVERNANCE_LIFECYCLE=off or unset
-MEMORY_GOVERNANCE_ENFORCE=off or unset
-MEMORY_GOVERNANCE_CENTER=off or unset
-MEMORY_CLIENT_REVIEW=off or unset
-MERIV2_CONTEXT_PACKET_V2=off or unset
-MERI_POLICY_PACK_SOURCE=off or unset
-MERI_RELEASE_GATE=off or unset
-MERI_RELEASE_GATE_TENANTS=unset
-MERI_RELEASE_GATE_SURFACES=unset
-MEMORY_AUTOLEARN_GOVERNED=false or unset
-MERIV2_CONTROL_METRICS=on or unset (observability only; `off` is its kill switch)
+MEMORY_GOVERNANCE_TENANTS=
+MEMORY_GOVERNANCE_LIFECYCLE=off
+MEMORY_GOVERNANCE_ENFORCE=off
+MEMORY_CLIENT_REVIEW=off
+MEMORY_GOVERNANCE_CENTER=off
+MEMORY_AUTOLEARN_GOVERNED=false
+MERIV2_CONTEXT_PACKET_V2=off
+CONTEXT_PACKET_V2=
+MERI_POLICY_PACK_SOURCE=off
+MERI_POLICY_PACK_TENANTS=
+MERI_RELEASE_GATE=off
+MERI_RELEASE_GATE_TENANTS=
+MERI_RELEASE_GATE_SURFACES=
+MERIV2_CONTROL_METRICS=on
 ```
 
-The MeriV2 control stack may be deployed at this point only with the monitor schedule disabled:
+Orchestrator, Workspace, and Strategy task definitions must also have Context and assurance modes off and no stale tenant/surface selections.
+
+A global `enforce` value is not sufficient to activate governed memory, persisted policy, or assurance. Each system requires an exact server-owned tenant selection. A deploy with only one switch set remains dark.
+
+Never begin a production canary with `all` tenants or `all` surfaces.
+
+---
+
+# 3. Read-only dark smoke
+
+Before enabling a schedule or feature:
+
+- verify every service health endpoint;
+- exercise legacy chat, MeriV2 chat, In-editor, Workspace, Strategy, and Steward;
+- verify private memory remains owner-only;
+- verify shared memory still behaves as before while governance is dark;
+- inspect logs for migration errors and confidential content;
+- run the read-only control snapshot and governance diagnostic.
 
 ```bash
-pnpm --filter @capiro/infra-cdk exec cdk synth \
-  "Capiro-${CAPIRO_ENV}-MeriV2Control" \
-  --context env="$CAPIRO_ENV" \
-  --context account="$AWS_ACCOUNT_ID" \
-  --context enableMeriV2ControlMonitor=false \
-  > "$EVIDENCE_DIR/03-control-stack-synth.txt"
-```
-
-Use the repository’s authorized deployment pipeline for service/image updates. Do not deploy the full Compute stack solely to change environment variables when that stack is known to contain drifted live resources; use the approved task-definition/service-update procedure and preserve the baseline task-definition ARNs.
-
-After the dark deployment, verify existing user-visible behavior is unchanged and all services stabilize before proceeding.
-
-## Step 4 — Apply additive database migrations
-
-Run the dedicated `capiro-${CAPIRO_ENV}-api-migrate` task definition through the approved one-off ECS procedure. The container command is `migrate`; it executes `prisma migrate deploy` and does not edit failed migration history.
-
-Record:
-
-- task ARN;
-- task-definition ARN and image digest;
-- start/stop timestamps;
-- exit code;
-- `/capiro/${CAPIRO_ENV}/api-migrate` log stream;
-- `prisma migrate status` after completion.
-
-Stop immediately on any failed migration. Do not use `prisma migrate resolve`, direct `_prisma_migrations` edits, or manual SQL repair during the release. Follow the failed-migration recovery runbook under a separate approved change.
-
-## Step 5 — Run read-only post-migration diagnostics
-
-Before any backfill or feature activation, run the monitor manually once using the new task definition or a secure operator shell:
-
-```bash
-pnpm --filter @capiro/api exec tsx scripts/emit-meriv2-control-metrics.ts \
-  | tee "$EVIDENCE_DIR/05-control-snapshot.log"
-```
-
-Also run:
-
-```bash
+pnpm --filter @capiro/api exec tsx scripts/emit-meriv2-control-metrics.ts
 pnpm --filter @capiro/api exec tsx scripts/diag-memory-governance-v2.ts \
-  --tenant-id <canary-tenant-uuid> \
-  | tee "$EVIDENCE_DIR/05-canary-governance.json"
+  --tenant-id <internal-tenant-uuid>
 ```
 
-Expected state before backfill: legacy rows may be unclassified, but no migration/schema error, cross-tenant leakage, dead-letter obligation, or unexplained persistence failure may appear.
+Do not backfill during the initial smoke.
 
-## Step 6 — Prepare and approve each tenant backfill
+---
 
-Use `docs/runbooks/meriv2-memory-backfill.md`. The sequence is tenant-by-tenant:
+# 4. Enable the projection worker
 
-1. prepare/dry run;
-2. retain job ID, plan hash, counts, and quarantine list;
-3. database reviewer approves that exact job;
-4. execute with both tenant and job confirmations;
-5. verify exact convergence;
-6. do not proceed to the next tenant if drift is blocked or quarantine is unexplained.
-
-A code deployment never executes the backfill automatically.
-
-## Step 7 — Enable the control monitor before product enforcement
-
-After its task runs successfully on the migrated schema, enable only the separate control stack schedule:
-
-```bash
-pnpm --filter @capiro/infra-cdk exec cdk diff \
-  "Capiro-${CAPIRO_ENV}-MeriV2Control" \
-  --context env="$CAPIRO_ENV" \
-  --context account="$AWS_ACCOUNT_ID" \
-  --context enableMeriV2ControlMonitor=true \
-  | tee "$EVIDENCE_DIR/07-control-stack-diff.txt"
-```
-
-Deploy that one stack under the approved pipeline. Verify two consecutive successful five-minute snapshots and that all expected metrics exist with only the `Environment` dimension.
-
-## Step 8 — Activate controls in the approved order
-
-Change one layer at a time. Complete the observation window and evidence checklist before advancing.
-
-### 8.1 Governed lifecycle and recall suppression
-
-Set:
+The stack is:
 
 ```text
+Capiro-dev-MemoryProjectionWorker
+```
+
+Its EventBridge rule is:
+
+```text
+capiro-dev-memory-projection-worker
+```
+
+Run the task manually against no work or a controlled synthetic obligation. Verify:
+
+- exact source version/content-hash binding;
+- lease ownership;
+- successful Titan embedding;
+- no memory body in logs;
+- retry and stale-lease behavior;
+- no dead letter.
+
+Then deploy only the independent operations app with:
+
+```text
+enableMemoryProjectionWorker=true
+enableMeriV2ControlMonitor=false
+meriv2ApiImageTag=<exact release SHA>
+```
+
+The CDK app refuses to arm a scheduled task with `latest` or any non-SHA image tag.
+
+Observe at least two schedule intervals before continuing.
+
+---
+
+# 5. Enable the control monitor
+
+The stack is:
+
+```text
+Capiro-dev-MeriV2Control
+```
+
+Its EventBridge rule is:
+
+```text
+capiro-dev-meriv2-control-monitor
+```
+
+Run the task manually once against the migrated schema. Then deploy only the independent operations app with:
+
+```text
+enableMemoryProjectionWorker=true
+enableMeriV2ControlMonitor=true
+meriv2ApiImageTag=<exact release SHA>
+```
+
+Verify two consecutive successful snapshots and the following bounded namespace:
+
+```text
+Capiro/MeriV2Control
+```
+
+The only dimension may be `Environment`. No tenant, user, client, memory, policy, prompt, model, source, or content identifier may appear as a dimension.
+
+Do not run the deliberate alarm-breach demonstration in `dev`; `dev` is production.
+
+---
+
+# 6. Enable governed memory for one internal tenant
+
+Update the API task definition with the exact canary UUID:
+
+```text
+MEMORY_GOVERNANCE_TENANTS=<internal-tenant-uuid>
 MEMORY_GOVERNANCE_LIFECYCLE=enforce
-```
-
-Verify candidate bookkeeping, governed statuses, transition evidence, terminal-state recall suppression, and outbox enqueue behavior. Stop on any recall regression or projection backlog.
-
-### 8.2 Canonical authorization
-
-Set:
-
-```text
 MEMORY_GOVERNANCE_ENFORCE=enforce
 ```
 
-Verify private ownership, firm admin authority, client wall access, explicit review grants, archived-client denial, legal holds, and self-review denial.
+Keep review and Governance Center off initially.
 
-### 8.3 Review and administrator surfaces
+Validate:
 
-Set:
+- personal explicit memory activates atomically;
+- shared proposals remain pending;
+- proposer cannot self-approve;
+- pending/rejected/revoked/superseded/expired memory is withheld;
+- stale and controlling-conflict policy is truthful;
+- terminal states suppress recall synchronously;
+- exact projection obligation is created in the same transaction;
+- wall and private-owner denials are server-derived;
+- no other tenant changes behavior.
+
+Stop on any recall regression, cross-client disclosure, or outbox backlog.
+
+---
+
+# 7. Enable client review and Governance Center
+
+After the core lifecycle is accepted:
 
 ```text
 MEMORY_CLIENT_REVIEW=enforce
 MEMORY_GOVERNANCE_CENTER=enforce
 ```
 
-Verify standard-user proposer history, independent reviewer queues, administrator Governance Center, transitions, grants, conflicts, and projection health.
+Validate with distinct users:
 
-### 8.4 Context Packet v2 shadow canary
+- first-time shared Settings file creates a standard review proposal;
+- edit to an existing shared Settings file creates an immutable correction proposal;
+- active shared content remains unchanged while review is pending;
+- independent approval creates a new controlling version;
+- the original Settings type/slug resolves the current descendant after reload;
+- prior version remains in history;
+- proposer withdrawal and reviewer rejection are distinct;
+- standard user with an active client approval grant succeeds;
+- missing, expired, revoked, wrong-client, or wall-blocked grants fail closed;
+- legal hold blocks destructive operations;
+- correction, contradiction, conflict resolution, revoke, restore, and projection retry work through the product UI.
 
-Set global ceiling:
+Do not use direct SQL to repair a product-flow failure.
+
+---
+
+# 8. Context Packet v2 shadow
+
+Set the global ceiling:
 
 ```text
 MERIV2_CONTEXT_PACKET_V2=shadow
 ```
 
-Then enable the exact canary tenant and surface flags in server-owned tenant settings:
+Then set, in the internal tenant’s server-owned `clioFeatureFlags`:
 
 ```text
-clioFeatureFlags.meriv2.contextPacketV2=true
-clioFeatureFlags.meriv2.contextPacketV2.<surface>=true
+meriv2.contextPacketV2=true
+meriv2.contextPacketV2.chat=true
 ```
 
-Start with one internal tenant and one surface. Compare v1/v2 shadow evidence, persisted packet IDs, exclusions, health, and wall behavior. Expand surfaces only after the prior surface is accepted.
+Start with one exact surface. Shadow must:
 
-### 8.5 Persisted policy-pack shadow
+- compile and persist v1 and v2 evidence;
+- continue feeding v1 to the model;
+- record bounded inclusion, exclusion, ordering, health, token, conflict, confidentiality, and relevance differences;
+- expose no confidential bodies in comparison evidence.
 
-Set:
+Accept only after wall exclusions, required/optional layers, packet persistence, latency, and output parity are reviewed.
+
+Expand Context surfaces one at a time. Do not enable Context and assurance enforcement in the same change.
+
+---
+
+# 9. Persisted policy shadow
+
+Create, review, second-approve where required, simulate, and publish the internal tenant’s policy pack through the product lifecycle. Do not seed policy rows with SQL.
+
+Then set:
 
 ```text
 MERI_POLICY_PACK_SOURCE=shadow
+MERI_POLICY_PACK_TENANTS=<internal-tenant-uuid>
 ```
 
-The static reviewed product baseline remains authoritative. Verify selected persisted pack/version/rule, integrity rejection, shadow decision differences, and bounded decision audit before considering enforce.
+In shadow:
 
-### 8.6 Assurance release gate shadow
+- the reviewed static product baseline remains authoritative;
+- persisted selection and outcome are recorded for comparison;
+- missing, invalid, tampered, or unpublished packs never authorize an action;
+- simulation remains nonbinding.
 
-Set all three controls explicitly:
+Review exact pack key, version, rule, decision hash, context hash, actor, effective user, jurisdiction, channel, recipient type, tool, and effective time.
+
+---
+
+# 10. Assurance shadow
+
+Set all three controls:
 
 ```text
 MERI_RELEASE_GATE=shadow
 MERI_RELEASE_GATE_TENANTS=<internal-tenant-uuid>
-MERI_RELEASE_GATE_SURFACES=<one-surface>
+MERI_RELEASE_GATE_SURFACES=chat
 ```
 
-Observe release decisions, unsupported high-risk rate, held/degraded posture, verification latency, and user-visible shadow parity. Do not use `all` tenants or `all` surfaces during the first canary.
+Shadow computes the operating frame, evidence plan, claim ledger, deterministic findings, release decision, and envelope without changing output.
 
-### 8.7 Context, policy, and assurance enforcement
+Review:
 
-Only after shadow acceptance:
+- unsupported high-risk claim rate;
+- false positives and false negatives;
+- verification availability;
+- latency and cost;
+- low-risk streaming parity;
+- browser-forged envelope rejection;
+- Context Packet and policy drift rejection at destination boundaries.
+
+The standalone Workspace `generate-section` endpoint must be included when Workspace is canaried; it has its own pre-response release boundary and must not be treated as covered solely by generate-all.
+
+---
+
+# 11. Enforce in bounded order
+
+After each shadow surface is accepted, change only that surface to enforcement:
 
 ```text
 MERIV2_CONTEXT_PACKET_V2=enforce
@@ -285,45 +315,111 @@ MERI_POLICY_PACK_SOURCE=enforce
 MERI_RELEASE_GATE=enforce
 ```
 
-Keep the exact tenant and surface canary lists. Enforce expansion order:
+Keep exact tenant and surface lists.
 
-1. internal low-risk surface;
-2. internal chat/in-editor;
-3. Workspace generation;
-4. Strategy/Steward;
-5. memo/district brief;
-6. outreach or external action surfaces last.
+Recommended order:
 
-For every expansion, record the task definition, tenant/surface set, start time, dashboard screenshots, held/degraded counts, customer-impact review, and go/no-go decision.
+1. internal Chat;
+2. internal In-editor;
+3. Workspace standalone section;
+4. Workspace generate-all/retry/apply;
+5. Strategy;
+6. Steward;
+7. memo;
+8. district brief;
+9. Outreach last;
+10. one design-partner tenant;
+11. small cohort;
+12. general availability.
 
-## Stop conditions
+For each expansion record task definition, tenant/surface selection, start time, dashboard evidence, held/degraded counts, user-impact review, and go/no-go decision.
 
-Stop expansion and execute the rollback runbook when any of these occurs:
+Never expand tenant scope and surface scope simultaneously.
 
-- tenant/user or ethical-wall isolation failure;
-- a self-review or policy four-eyes bypass succeeds;
-- required Context Packet persistence fails;
-- unsupported high-risk prose is released or persisted;
-- destination verification accepts stale context/policy binding;
-- outbox oldest age exceeds 15 minutes, a job reaches dead-letter, or the worker crashes repeatedly;
-- backfill drift or quarantine is unexplained;
-- legal-held data is mutated destructively;
-- audit/control evidence includes customer prose, source excerpts, session tokens, or secrets;
-- a core ECS service does not stabilize on the new task definition;
-- any Phase 20 alarm enters `ALARM` without a documented expected cause.
+---
 
-## Completion evidence
+# 12. Backfill after stable code canary
 
-The release operator must attach:
+A code deployment does not execute governance classification.
 
-- exact base/head/release SHAs;
-- image digests and task-definition ARNs;
-- migration task and status output;
-- each backfill job/plan hash and reviewer approval;
-- feature values and tenant/surface canary lists at every stage;
-- dashboard and alarm-state exports;
-- browser and accessibility evidence;
-- Context Packet, policy-binding, and assurance summaries containing no content;
-- final service stability and rollback-readiness confirmation.
+For each tenant:
 
-A rollout is not complete while any acceptance item is described as “not executed,” “blocked,” “pending,” or “to be verified.”
+1. prepare/dry-run;
+2. review job ID, plan hash, counts, and quarantine;
+3. obtain database and tenant/security approval;
+4. execute with exact tenant and job confirmations;
+5. verify convergence;
+6. observe;
+7. retain the job for drift-safe rollback.
+
+Use:
+
+```text
+docs/runbooks/meriv2-memory-backfill.md
+```
+
+Do not proceed to another tenant while drift or quarantine is unexplained.
+
+---
+
+# 13. Stop conditions
+
+Stop expansion and follow the rollback runbook for:
+
+- tenant, owner, client, or ethical-wall disclosure;
+- successful shared self-review;
+- successful policy four-eyes bypass;
+- required Context Packet persistence failure;
+- unsupported high-risk content released or persisted;
+- stale Context or policy binding accepted;
+- existing shared Settings truth replaced in place;
+- stable Settings identity returning a superseded version;
+- outbox age over 15 minutes, repeated worker crash, or dead letter;
+- legal-held data mutated destructively;
+- unexplained backfill drift/quarantine;
+- content, source excerpts, session tokens, or secrets in logs or metrics;
+- service instability;
+- unexplained control alarm.
+
+---
+
+# 14. Rollback
+
+Use:
+
+```text
+docs/runbooks/meriv2-memory-context-assurance-rollback.md
+```
+
+The order is:
+
+1. freeze expansion;
+2. remove the smallest tenant/surface canary;
+3. move the affected subsystem to shadow/off;
+4. disable the affected schedule;
+5. restore previous service task definitions;
+6. roll back only the exact drift-safe backfill job;
+7. roll policy back through independently reviewed publication;
+8. use a separate forward-repair change for migration problems.
+
+Do not drop additive schema during an ordinary incident and do not delete governance evidence.
+
+---
+
+# 15. Completion evidence
+
+Attach:
+
+- exact merge SHA and image digests;
+- local release preflight summary;
+- migration task and status;
+- service task-definition ARNs before and after;
+- operations-stack outputs and schedule states;
+- every tenant/surface feature value;
+- browser/accessibility acceptance;
+- Context, policy, and assurance summaries containing no content;
+- dashboard/alarm exports;
+- each backfill job/plan hash and approval;
+- final rollback-readiness confirmation.
+
+A rollout is not complete while any required item is described as unexecuted, pending, blocked, or to be verified.
