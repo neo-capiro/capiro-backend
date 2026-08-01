@@ -1,4 +1,4 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import type { ConfigService } from '@nestjs/config';
 import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
@@ -20,14 +20,19 @@ const ctx: TenantContext = {
 };
 
 function harness() {
+  const proposeExistingCorrection = jest.fn();
+  const findPendingSettingsCorrection = jest.fn();
+  const isImmutableVersionCandidate = jest.fn();
+  const approveCandidate = jest.fn();
+  const rejectCandidate = jest.fn();
   const settings = {
-    proposeExistingCorrection: jest.fn(),
-    findPendingSettingsCorrection: jest.fn(),
-    isImmutableVersionCandidate: jest.fn(),
+    proposeExistingCorrection,
+    findPendingSettingsCorrection,
+    isImmutableVersionCandidate,
   } as unknown as SettingsMemoryVersionCandidateService;
   const versions = {
-    approveCandidate: jest.fn(),
-    rejectCandidate: jest.fn(),
+    approveCandidate,
+    rejectCandidate,
   } as unknown as ImmutableMemoryVersionService;
   const service = new SettingsAwareMemoryCandidateService(
     {} as PrismaService,
@@ -41,20 +46,29 @@ function harness() {
   );
   return {
     service,
-    settings: settings as unknown as {
-      proposeExistingCorrection: jest.Mock;
-      findPendingSettingsCorrection: jest.Mock;
-      isImmutableVersionCandidate: jest.Mock;
+    settings: {
+      proposeExistingCorrection,
+      findPendingSettingsCorrection,
+      isImmutableVersionCandidate,
     },
-    versions: versions as unknown as {
-      approveCandidate: jest.Mock;
-      rejectCandidate: jest.Mock;
-    },
+    versions: { approveCandidate, rejectCandidate },
   };
 }
 
+function enableForTenant(tenantId = ctx.tenantId): void {
+  process.env.MEMORY_GOVERNANCE_LIFECYCLE = 'enforce';
+  process.env.MEMORY_GOVERNANCE_TENANTS = tenantId;
+}
+
+afterEach(() => {
+  delete process.env.MEMORY_GOVERNANCE_LIFECYCLE;
+  delete process.env.MEMORY_GOVERNANCE_TENANTS;
+  jest.restoreAllMocks();
+});
+
 describe('SettingsAwareMemoryCandidateService', () => {
   it('routes an existing shared Settings file to an immutable correction candidate', async () => {
+    enableForTenant();
     const h = harness();
     h.settings.proposeExistingCorrection.mockResolvedValue({
       candidateId: 'candidate-1',
@@ -75,6 +89,7 @@ describe('SettingsAwareMemoryCandidateService', () => {
   });
 
   it('routes compatibility approval through immutable activation', async () => {
+    enableForTenant();
     const h = harness();
     h.settings.isImmutableVersionCandidate.mockResolvedValue(true);
     h.versions.approveCandidate.mockResolvedValue({
@@ -91,6 +106,7 @@ describe('SettingsAwareMemoryCandidateService', () => {
   });
 
   it('surfaces a pending immutable Settings correction on reload', async () => {
+    enableForTenant();
     const h = harness();
     h.settings.findPendingSettingsCorrection.mockResolvedValue({
       candidateId: 'candidate-1',
@@ -101,5 +117,15 @@ describe('SettingsAwareMemoryCandidateService', () => {
     await expect(
       h.service.findPendingSettingsCandidate(ctx.tenantId, ctx.userId, 'firm-soul', 'firm'),
     ).resolves.toMatchObject({ candidateId: 'candidate-1' });
+  });
+
+  it('does not enter the immutable Settings path for an unselected tenant', async () => {
+    enableForTenant('33333333-3333-4333-8333-333333333333');
+    const h = harness();
+
+    await expect(
+      h.service.findPendingSettingsCandidate(ctx.tenantId, ctx.userId, 'firm-soul', 'firm'),
+    ).resolves.toBeNull();
+    expect(h.settings.findPendingSettingsCorrection).not.toHaveBeenCalled();
   });
 });
