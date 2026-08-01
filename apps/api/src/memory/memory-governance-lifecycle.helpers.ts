@@ -1,34 +1,34 @@
 import { MEMORY_PERMISSIONS, type MemoryPermission } from './memory-authorization.helpers.js';
 import {
   assertMemoryTransition,
-  governedMemoryLifecycleEnabled,
+  governedMemoryLifecycleEnabled as globalGovernedMemoryLifecycleEnabled,
   type GovernedMemoryStatus,
   type MemoryAuthority,
   type MemoryClass,
   type MemoryTransitionReasonCode,
   type GovernedMemoryScope,
 } from '@capiro/meriv2-core';
+import { memoryGovernanceSelectedForCurrentTenant } from './memory-governance-tenant-scope.js';
 
 /**
- * Arms the governed-memory LIFECYCLE (`MEMORY_GOVERNANCE_LIFECYCLE=enforce`).
- * Dark by default; defined in packages/meriv2-core/src/memory/governance.ts so
- * apps/meriv2-orchestrator gates the same behaviour off the same parser, and
- * re-exported here so apps/api call sites keep one local import.
+ * Arms the governed-memory LIFECYCLE only when BOTH server-owned controls pass:
  *
- * Everything behind this switch WRITES or READS a column introduced by
- * 20260729010000_memory_governance_context_v2 / 20260729011000_memory_governance_lineage
- * (memory_class, memory_authority, memory_scope, governed_status,
- * approved_by_user_id, memory_transition_audit, memory_cleanup_outbox). NEITHER
- * migration is applied in any environment, so an armed-by-default code path would
- * fail on a missing column/relation for every memory write. Arming is therefore a
- * deliberate post-migration canary step.
+ * 1. `MEMORY_GOVERNANCE_LIFECYCLE=enforce`;
+ * 2. the authenticated tenant appears in `MEMORY_GOVERNANCE_TENANTS` (or the
+ *    explicitly approved GA value is `all`).
  *
- * It is a SEPARATE switch from MEMORY_GOVERNANCE_ENFORCE on purpose:
- * MEMORY_GOVERNANCE_ENFORCE decides *authority* (who may act), this one decides
- * *bookkeeping + suppression* (what the row records and what recall withholds).
- * They can be rolled independently.
+ * A background/operator path with no authenticated request scope is armed only
+ * by `all`. This prevents a global ceiling change from silently changing every
+ * tenant while preserving an explicit general-availability path. Everything
+ * behind the switch reads/writes the additive governed-memory columns and
+ * transition/outbox tables, so deploy and migration must still precede canary.
  */
-export { governedMemoryLifecycleEnabled };
+export function governedMemoryLifecycleEnabled(raw: string | undefined): boolean {
+  return (
+    globalGovernedMemoryLifecycleEnabled(raw) &&
+    memoryGovernanceSelectedForCurrentTenant(process.env.MEMORY_GOVERNANCE_TENANTS)
+  );
+}
 
 /** The candidate lifecycle decisions MemoryCandidateService records. */
 export type CandidateDecision = 'auto_committed' | 'approved' | 'rejected' | 'withdrawn';
