@@ -77,6 +77,17 @@ case "${1:-serve}" in
     echo "Running pe-phase-10-live-proofs (sole-live Aurora; synthetic pe10_closeout domain only; TMPDIR=$TMPDIR)"
     exec ./node_modules/.bin/tsx scripts/pe-phase-10-live-proofs.ts "$@"
     ;;
+  emit-meriv2-control-metrics)
+    shift
+    compose_database_url
+    echo "Running emit-meriv2-control-metrics (read-only bounded control snapshot)"
+    exec ./node_modules/.bin/tsx scripts/emit-meriv2-control-metrics.ts "$@"
+    ;;
+  demo-meriv2-control-alarms)
+    shift
+    echo "Running demo-meriv2-control-alarms (refuses dev/prod; explicit non-prod confirmation required)"
+    exec ./node_modules/.bin/tsx scripts/demo-meriv2-control-alarms.ts "$@"
+    ;;
   *)
     exec /bin/sh /usr/local/lib/capiro/entrypoint-legacy.sh "$@"
     ;;
