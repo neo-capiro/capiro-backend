@@ -217,7 +217,10 @@ function normalizeNullable(value: string | null | undefined): string | null {
 }
 
 function bounded(value: string, max: number): string {
-  return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+  return String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max);
 }
 
 function iso(value: string | Date): string {

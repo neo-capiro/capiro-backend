@@ -65,7 +65,13 @@ describe('memory graph builder (Phase 3, criterion #5)', () => {
 
   it('skips wikilink edges whose source item cannot be resolved', () => {
     const orphan: MemoryEdge[] = [
-      { tenantId: TENANT, srcItemId: 'missing', relation: 'mentions', dstType: 'bill', dstSlug: 'x' },
+      {
+        tenantId: TENANT,
+        srcItemId: 'missing',
+        relation: 'mentions',
+        dstType: 'bill',
+        dstSlug: 'x',
+      },
     ];
     const g = buildKnowledgeGraph([], orphan, itemNodeById);
     expect(g.nodes.length).toBe(0);

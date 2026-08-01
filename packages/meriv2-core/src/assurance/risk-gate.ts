@@ -303,5 +303,7 @@ function tokens(raw: string | undefined): string[] {
 }
 
 function normalize(value: unknown): string {
-  return String(value ?? '').trim().toLowerCase();
+  return String(value ?? '')
+    .trim()
+    .toLowerCase();
 }

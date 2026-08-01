@@ -48,10 +48,7 @@ function job(overrides: Partial<TestJob> = {}): TestJob {
   };
 }
 
-function harness(
-  outcome: 'projected' | 'superseded' | 'vanished' = 'projected',
-  failure?: Error,
-) {
+function harness(outcome: 'projected' | 'superseded' | 'vanished' = 'projected', failure?: Error) {
   const captured: Array<{ sql: string; params: unknown[]; kind: 'query' | 'execute' }> = [];
   const tx = {
     $executeRaw: jest.fn(async (strings: TemplateStringsArray, ...params: unknown[]) => {

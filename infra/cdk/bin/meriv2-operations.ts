@@ -47,7 +47,9 @@ if (
   privateSubnetIds.length === 0 ||
   privateSubnetIds.some((id) => !/^subnet-[a-z0-9]+$/i.test(id))
 ) {
-  throw new Error('existingPrivateSubnetIds must contain one or more comma-separated subnet-* ids.');
+  throw new Error(
+    'existingPrivateSubnetIds must contain one or more comma-separated subnet-* ids.',
+  );
 }
 const serviceSecurityGroupId = required(app, 'existingServiceSecurityGroupId');
 if (!/^sg-[a-z0-9]+$/i.test(serviceSecurityGroupId)) {
@@ -65,10 +67,7 @@ const shared = {
   privateSubnetIds,
   serviceSecurityGroupId,
   dbSecretArn: completeArn(required(app, 'existingDbSecretArn'), 'existingDbSecretArn'),
-  appDbSecretArn: completeArn(
-    required(app, 'existingAppDbSecretArn'),
-    'existingAppDbSecretArn',
-  ),
+  appDbSecretArn: completeArn(required(app, 'existingAppDbSecretArn'), 'existingAppDbSecretArn'),
   databaseName: optional(app, 'existingDatabaseName') ?? 'capiro',
   dataKeyArn: keyArn(required(app, 'existingDataKeyArn'), 'existingDataKeyArn'),
   secretsKeyArn: keyArn(required(app, 'existingSecretsKeyArn'), 'existingSecretsKeyArn'),
@@ -87,15 +86,11 @@ const projectionWorker = new MemoryProjectionWorkerStack(
   },
 );
 
-const control = new MeriV2ControlStack(
-  app,
-  stackName(operationsCfg.envName, 'MeriV2Control'),
-  {
-    env,
-    ...shared,
-    monitorEnabled: exactTrue(app.node.tryGetContext('enableMeriV2ControlMonitor')),
-  },
-);
+const control = new MeriV2ControlStack(app, stackName(operationsCfg.envName, 'MeriV2Control'), {
+  env,
+  ...shared,
+  monitorEnabled: exactTrue(app.node.tryGetContext('enableMeriV2ControlMonitor')),
+});
 control.addDependency(projectionWorker);
 
 new cdk.CfnOutput(projectionWorker, 'MeriV2OperationsReleaseSha', {
@@ -117,11 +112,22 @@ function optional(target: cdk.App, name: string): string | null {
 }
 
 function csv(value: string): string[] {
-  return [...new Set(value.split(',').map((item) => item.trim()).filter(Boolean))];
+  return [
+    ...new Set(
+      value
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
 }
 
 function exactTrue(value: unknown): boolean {
-  return String(value ?? '').trim().toLowerCase() === 'true';
+  return (
+    String(value ?? '')
+      .trim()
+      .toLowerCase() === 'true'
+  );
 }
 
 function completeArn(value: string, name: string): string {

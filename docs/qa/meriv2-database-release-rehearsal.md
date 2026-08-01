@@ -157,21 +157,21 @@ Both attempts were registered under orphan workflow identity `324351375`, the sa
 
 ## Acceptance matrix
 
-| Gate | Clean replay | Upgrade replay | Current result |
-|---|---:|---:|---|
-| Apply every migration in repository order | required | required | not executed |
-| Prisma schema validate | required | required | not executed |
-| Prisma migration status | required | required | not executed |
-| `migrate diff --exit-code` | required | required | not executed |
-| Tables/columns/defaults/indexes/checks | required | required | not executed |
-| RLS enabled and forced | required | required | not executed |
-| Actual application-role isolation | required | clean production-named DB | not executed |
-| Governed-memory lifecycle | required | required | not executed |
-| Exact outbox/retry/lease/dead-letter | required | required | not executed |
-| Backfill dry-run/execute/verify/idempotency/rollback | required | required | not executed |
-| Policy-pack lifecycle | required | required | not executed |
-| Context Packet v2 persistence | required | required | not executed |
-| No manual SQL repair | required | required | not established |
+| Gate                                                 | Clean replay |            Upgrade replay | Current result  |
+| ---------------------------------------------------- | -----------: | ------------------------: | --------------- |
+| Apply every migration in repository order            |     required |                  required | not executed    |
+| Prisma schema validate                               |     required |                  required | not executed    |
+| Prisma migration status                              |     required |                  required | not executed    |
+| `migrate diff --exit-code`                           |     required |                  required | not executed    |
+| Tables/columns/defaults/indexes/checks               |     required |                  required | not executed    |
+| RLS enabled and forced                               |     required |                  required | not executed    |
+| Actual application-role isolation                    |     required | clean production-named DB | not executed    |
+| Governed-memory lifecycle                            |     required |                  required | not executed    |
+| Exact outbox/retry/lease/dead-letter                 |     required |                  required | not executed    |
+| Backfill dry-run/execute/verify/idempotency/rollback |     required |                  required | not executed    |
+| Policy-pack lifecycle                                |     required |                  required | not executed    |
+| Context Packet v2 persistence                        |     required |                  required | not executed    |
+| No manual SQL repair                                 |     required |                  required | not established |
 
 ## Acceptance decision
 

@@ -16,7 +16,9 @@ export interface AssuranceRolloutInput {
 
 /** Exact parser. Truthy-looking, misspelled, or future values fail closed to off. */
 export function resolveAssuranceGlobalMode(raw: string | undefined): AssuranceRolloutMode {
-  const value = String(raw ?? '').trim().toLowerCase();
+  const value = String(raw ?? '')
+    .trim()
+    .toLowerCase();
   if (value === 'shadow') return 'shadow';
   if (value === 'enforce') return 'enforce';
   return 'off';
@@ -59,7 +61,9 @@ export function resolveAssuranceCanarySurfaces(
 }
 
 function tokenSelected(raw: string | undefined, expected: string): boolean {
-  const normalized = String(expected ?? '').trim().toLowerCase();
+  const normalized = String(expected ?? '')
+    .trim()
+    .toLowerCase();
   if (!normalized) return false;
   const tokens = resolveAssuranceTenantCanaries(raw);
   return tokens.has('all') || tokens.has(normalized);

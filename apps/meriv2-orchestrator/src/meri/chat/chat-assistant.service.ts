@@ -606,7 +606,9 @@ export class ChatAssistantService {
         .join('\n')
         .trim();
       if (text && !suppressStreaming) emit({ type: 'text', text });
-      return text || 'I gathered the context but could not compose a final answer — please ask again.';
+      return (
+        text || 'I gathered the context but could not compose a final answer — please ask again.'
+      );
     } catch (e) {
       if (opts.signal?.aborted) return '';
       this.logger.warn(`chat synthesis call failed: ${(e as Error).message}`);

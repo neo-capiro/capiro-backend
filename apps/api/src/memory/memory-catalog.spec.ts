@@ -16,7 +16,14 @@ describe('memory catalog', () => {
   it('defines the core firm + client files', () => {
     const types = MEMORY_CATALOG.map((f) => f.type);
     expect(types).toEqual(
-      expect.arrayContaining(['firm-soul', 'firm-compass', 'playbook', 'client-soul', 'client-compass', 'client-people']),
+      expect.arrayContaining([
+        'firm-soul',
+        'firm-compass',
+        'playbook',
+        'client-soul',
+        'client-compass',
+        'client-people',
+      ]),
     );
   });
 
@@ -45,7 +52,9 @@ describe('memory catalog', () => {
 
   it('defines user-scope files including a writing-style file with a samples section', () => {
     const userFiles = MEMORY_CATALOG.filter((f) => f.scope === 'user');
-    expect(userFiles.map((f) => f.type)).toEqual(expect.arrayContaining(['user-profile', 'user-voice']));
+    expect(userFiles.map((f) => f.type)).toEqual(
+      expect.arrayContaining(['user-profile', 'user-voice']),
+    );
     const voice = fileDefForType('user-voice');
     expect(voice?.sections.map((s) => s.key)).toContain('samples');
   });
@@ -80,7 +89,12 @@ describe('mergeEditedSections (Settings → Memory save)', () => {
     // ingestion). The old merge walked existing.sections only and silently
     // dropped edits to any absent section — this is the "some files don't save" bug.
     const staleExisting = [
-      { key: 'who-they-are', heading: 'Who they are & what they do', owner: 'human' as const, body: 'A shipbuilder.' },
+      {
+        key: 'who-they-are',
+        heading: 'Who they are & what they do',
+        owner: 'human' as const,
+        body: 'A shipbuilder.',
+      },
     ];
     const merged = mergeEditedSections(
       'client-soul',
@@ -89,14 +103,21 @@ describe('mergeEditedSections (Settings → Memory save)', () => {
       allowed,
     );
     // the previously-absent section now exists AND carries the saved edit
-    expect(merged.find((s) => s.key === 'red-lines')?.body).toBe('Never lobby against the Jones Act.');
+    expect(merged.find((s) => s.key === 'red-lines')?.body).toBe(
+      'Never lobby against the Jones Act.',
+    );
     // the existing section is preserved
     expect(merged.find((s) => s.key === 'who-they-are')?.body).toBe('A shipbuilder.');
   });
 
   it('never overwrites engine-owned sections', () => {
     const existing = [
-      { key: 'strategic-read', heading: 'Our strategic read', owner: 'engine' as const, body: 'AUTO' },
+      {
+        key: 'strategic-read',
+        heading: 'Our strategic read',
+        owner: 'engine' as const,
+        body: 'AUTO',
+      },
     ];
     const merged = mergeEditedSections(
       'client-soul',
@@ -108,7 +129,12 @@ describe('mergeEditedSections (Settings → Memory save)', () => {
   });
 
   it('ignores edits to keys not in the allowlist (write-guard)', () => {
-    const merged = mergeEditedSections('client-soul', null, [{ key: 'not-a-key', body: 'x' }], allowed);
+    const merged = mergeEditedSections(
+      'client-soul',
+      null,
+      [{ key: 'not-a-key', body: 'x' }],
+      allowed,
+    );
     expect(merged.find((s) => s.key === 'not-a-key')).toBeUndefined();
   });
 
@@ -131,7 +157,12 @@ describe('memory interview helpers', () => {
   });
 
   it('phraseQuestion turns a prompt into a single question', () => {
-    const q = phraseQuestion({ key: 'k', heading: 'Red lines', prompt: 'Hard constraints we must not cross.', example: 'x' });
+    const q = phraseQuestion({
+      key: 'k',
+      heading: 'Red lines',
+      prompt: 'Hard constraints we must not cross.',
+      example: 'x',
+    });
     expect(q.endsWith('?')).toBe(true);
     expect(q).not.toContain('??');
   });

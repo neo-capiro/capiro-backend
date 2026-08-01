@@ -51,11 +51,7 @@ describe('VerificationStatus', () => {
       findings: [{ severity: 'critical', detail: 'Unsupported enactment claim.' }],
     });
     render(
-      <VerificationStatus
-        display={display}
-        acknowledged={false}
-        onAcknowledge={onAcknowledge}
-      />,
+      <VerificationStatus display={display} acknowledged={false} onAcknowledge={onAcknowledge} />,
     );
     fireEvent.click(screen.getByRole('checkbox'));
     expect(onAcknowledge).toHaveBeenCalledWith(true);

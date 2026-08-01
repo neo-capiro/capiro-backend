@@ -48,9 +48,7 @@ export interface CanonicalProjectionSnapshot {
 }
 
 /** Single canonical text/hash contract shared by producers, projection, and verification. */
-export function projectionTextForItem(
-  item: Pick<MemoryItem, 'title' | 'sections'>,
-): string {
+export function projectionTextForItem(item: Pick<MemoryItem, 'title' | 'sections'>): string {
   const sectionText = (item.sections ?? [])
     .filter((section) => section.owner === 'human' && section.body?.trim())
     .map((section) => `${section.heading}: ${section.body}`)
@@ -238,10 +236,7 @@ export class StrictMemoryProjectorService {
     );
   }
 
-  private async loadSource(
-    tenantId: string,
-    clioMemoryId: string,
-  ): Promise<ClioMemoryRow | null> {
+  private async loadSource(tenantId: string, clioMemoryId: string): Promise<ClioMemoryRow | null> {
     const rows = await this.prisma.withSystem(
       (tx) =>
         tx.$queryRaw<ClioMemoryRow[]>`

@@ -24,17 +24,17 @@ No implementer may be the sole approver for a production rollback.
 
 ## Rollback ladder
 
-| Rung | Action | Typical blast radius | Schema action |
-|---|---|---|---|
-| 0 | Stop rollout expansion and preserve evidence | none | none |
-| 1 | Remove one tenant/surface canary | one tenant or surface | none |
-| 2 | Move enforce → shadow/off for one subsystem | one behavior family | none |
-| 3 | Disable a scheduled rule | worker/monitor only | none |
-| 4 | Restore previous service task definitions | affected services | none |
-| 5 | Roll back one confirmed backfill job | exact tenant/job rows that have not drifted | no migration |
-| 6 | Roll back a policy pack to a prior independently reviewed version | one tenant/pack key | no migration |
-| 7 | Failed-migration recovery under a separate change | deployment | forward repair only |
-| 8 | Drop columns/tables | destructive and normally prohibited | destructive |
+| Rung | Action                                                            | Typical blast radius                        | Schema action       |
+| ---- | ----------------------------------------------------------------- | ------------------------------------------- | ------------------- |
+| 0    | Stop rollout expansion and preserve evidence                      | none                                        | none                |
+| 1    | Remove one tenant/surface canary                                  | one tenant or surface                       | none                |
+| 2    | Move enforce → shadow/off for one subsystem                       | one behavior family                         | none                |
+| 3    | Disable a scheduled rule                                          | worker/monitor only                         | none                |
+| 4    | Restore previous service task definitions                         | affected services                           | none                |
+| 5    | Roll back one confirmed backfill job                              | exact tenant/job rows that have not drifted | no migration        |
+| 6    | Roll back a policy pack to a prior independently reviewed version | one tenant/pack key                         | no migration        |
+| 7    | Failed-migration recovery under a separate change                 | deployment                                  | forward repair only |
+| 8    | Drop columns/tables                                               | destructive and normally prohibited         | destructive         |
 
 Do not skip to a lower rung while a higher rung can contain the incident.
 
@@ -108,16 +108,16 @@ The global ceiling can remain `shadow` or `enforce`; a tenant without its canary
 
 Change the task-definition environment through the approved deployment mechanism, then restart only the affected services. Capture old and new task-definition ARNs.
 
-| Subsystem | Armed value | First rollback | Full rollback | Important consequence |
-|---|---|---|---|---|
-| Context Packet v2 | `MERIV2_CONTEXT_PACKET_V2=enforce` | `shadow` | `off` or unset | v1 output remains authoritative; persisted packet metadata remains for evidence |
-| Persisted policy packs | `MERI_POLICY_PACK_SOURCE=enforce` | `shadow` | `off` or unset | reviewed static product policy becomes authoritative; persisted pack remains auditable |
-| Assurance release gate | `MERI_RELEASE_GATE=enforce` | `shadow` | `off` or unset | hold/repair enforcement stops; use only when accuracy/security impact is understood |
-| Governance Center | `MEMORY_GOVERNANCE_CENTER=enforce` | n/a | `off` or unset | administrators fall back to legacy review queues |
-| Review/withdrawal surface | `MEMORY_CLIENT_REVIEW=enforce` | n/a | `off` or unset | new reviewer/proposer surface hides; canonical rows are unchanged |
-| Governed authorization | `MEMORY_GOVERNANCE_ENFORCE=enforce` | n/a | `off` or unset | governed grant/role enforcement stops; requires Security approval |
-| Governed lifecycle/suppression | `MEMORY_GOVERNANCE_LIFECYCLE=enforce` | n/a | `off` or unset | governed bookkeeping and suppression stop; **do not disable blindly** |
-| Control EMF | default on | n/a | `MERIV2_CONTROL_METRICS=off` | stops runtime metrics only; use only if logging itself is causing harm |
+| Subsystem                      | Armed value                           | First rollback | Full rollback                | Important consequence                                                                  |
+| ------------------------------ | ------------------------------------- | -------------- | ---------------------------- | -------------------------------------------------------------------------------------- |
+| Context Packet v2              | `MERIV2_CONTEXT_PACKET_V2=enforce`    | `shadow`       | `off` or unset               | v1 output remains authoritative; persisted packet metadata remains for evidence        |
+| Persisted policy packs         | `MERI_POLICY_PACK_SOURCE=enforce`     | `shadow`       | `off` or unset               | reviewed static product policy becomes authoritative; persisted pack remains auditable |
+| Assurance release gate         | `MERI_RELEASE_GATE=enforce`           | `shadow`       | `off` or unset               | hold/repair enforcement stops; use only when accuracy/security impact is understood    |
+| Governance Center              | `MEMORY_GOVERNANCE_CENTER=enforce`    | n/a            | `off` or unset               | administrators fall back to legacy review queues                                       |
+| Review/withdrawal surface      | `MEMORY_CLIENT_REVIEW=enforce`        | n/a            | `off` or unset               | new reviewer/proposer surface hides; canonical rows are unchanged                      |
+| Governed authorization         | `MEMORY_GOVERNANCE_ENFORCE=enforce`   | n/a            | `off` or unset               | governed grant/role enforcement stops; requires Security approval                      |
+| Governed lifecycle/suppression | `MEMORY_GOVERNANCE_LIFECYCLE=enforce` | n/a            | `off` or unset               | governed bookkeeping and suppression stop; **do not disable blindly**                  |
+| Control EMF                    | default on                            | n/a            | `MERIV2_CONTROL_METRICS=off` | stops runtime metrics only; use only if logging itself is causing harm                 |
 
 ### Lifecycle warning
 

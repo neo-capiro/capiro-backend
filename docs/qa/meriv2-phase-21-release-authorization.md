@@ -21,19 +21,19 @@ The exact final base/head SHAs belong in the PR description and release evidence
 
 ## Phase disposition
 
-| Phase range | Development disposition | Required final evidence |
-|---|---|---|
-| 0–4 | Complete | API/web tests, immutable Settings lifecycle, Phase 18/19 |
-| 5–6 | Complete | worker/outbox tests, operations synth/diff, Phase 18 |
-| 7–9 | Complete | Context persistence/rollout and governed recall tests |
-| 10–13 | Complete | policy, backfill, grant, withdrawal/rejection tests and rehearsals |
-| 14–16 | Complete | accessibility and cross-surface assurance tests/browser scenarios |
-| 17 | Local matrix complete as code | exact final SHA must pass `pnpm verify:meriv2-development` |
-| 18 | Database rehearsal complete as code | clean and upgrade replay must pass locally |
-| 19 | Browser rehearsal complete as code | authenticated Clerk/Chrome matrix must pass locally |
-| 20 | Control system complete as code | independent operations synth/diff and operator review |
-| 21 | Trusted PR package complete | four independent approvals and exact-head evidence |
-| 22 | Production operators/runbook complete | explicitly authorized migration, dark deploy, smoke, canary, and rollback readiness |
+| Phase range | Development disposition               | Required final evidence                                                             |
+| ----------- | ------------------------------------- | ----------------------------------------------------------------------------------- |
+| 0–4         | Complete                              | API/web tests, immutable Settings lifecycle, Phase 18/19                            |
+| 5–6         | Complete                              | worker/outbox tests, operations synth/diff, Phase 18                                |
+| 7–9         | Complete                              | Context persistence/rollout and governed recall tests                               |
+| 10–13       | Complete                              | policy, backfill, grant, withdrawal/rejection tests and rehearsals                  |
+| 14–16       | Complete                              | accessibility and cross-surface assurance tests/browser scenarios                   |
+| 17          | Local matrix complete as code         | exact final SHA must pass `pnpm verify:meriv2-development`                          |
+| 18          | Database rehearsal complete as code   | clean and upgrade replay must pass locally                                          |
+| 19          | Browser rehearsal complete as code    | authenticated Clerk/Chrome matrix must pass locally                                 |
+| 20          | Control system complete as code       | independent operations synth/diff and operator review                               |
+| 21          | Trusted PR package complete           | four independent approvals and exact-head evidence                                  |
+| 22          | Production operators/runbook complete | explicitly authorized migration, dark deploy, smoke, canary, and rollback readiness |
 
 The full phase-by-phase development review is:
 

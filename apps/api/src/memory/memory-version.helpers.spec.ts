@@ -7,10 +7,12 @@ import {
 
 describe('immutable memory version decisions', () => {
   test('exact duplicate confirms the controlling row instead of creating another truth', () => {
-    expect(classifyMemoryVersionActivation('correction', '  Ballard\nPartners  ', 'ballard partners')).toBe(
+    expect(
+      classifyMemoryVersionActivation('correction', '  Ballard\nPartners  ', 'ballard partners'),
+    ).toBe('duplicate');
+    expect(classifyMemoryVersionActivation('restore', 'Same fact', 'same   fact')).toBe(
       'duplicate',
     );
-    expect(classifyMemoryVersionActivation('restore', 'Same fact', 'same   fact')).toBe('duplicate');
   });
 
   test('a correction and restore become replacement versions when content differs', () => {

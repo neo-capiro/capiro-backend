@@ -21,9 +21,7 @@ function txReturning(rows: unknown[]): Prisma.TransactionClient {
 
 describe('toUuidArrayLiteral', () => {
   it('renders a validated uuid[] literal', () => {
-    expect(toUuidArrayLiteral([CLIENT_A, CLIENT_B])).toBe(
-      `'{${CLIENT_A},${CLIENT_B}}'::uuid[]`,
-    );
+    expect(toUuidArrayLiteral([CLIENT_A, CLIENT_B])).toBe(`'{${CLIENT_A},${CLIENT_B}}'::uuid[]`);
   });
 
   it('throws on anything that is not a canonical uuid (injection guard)', () => {

@@ -22,13 +22,13 @@ pnpm verify:meriv2-release -- \
 
 ## Required operators
 
-| Role | Responsibility |
-|---|---|
-| Release operator | Executes commands, captures evidence, and controls expansion |
-| Database reviewer | Accepts migration and each exact backfill job |
-| Security reviewer | Accepts tenant, owner, wall, grant, and audit behavior |
-| Product/UX reviewer | Accepts browser, accessibility, held, and degraded states |
-| Incident commander | Can stop rollout and authorize rollback |
+| Role                | Responsibility                                               |
+| ------------------- | ------------------------------------------------------------ |
+| Release operator    | Executes commands, captures evidence, and controls expansion |
+| Database reviewer   | Accepts migration and each exact backfill job                |
+| Security reviewer   | Accepts tenant, owner, wall, grant, and audit behavior       |
+| Product/UX reviewer | Accepts browser, accessibility, held, and degraded states    |
+| Incident commander  | Can stop rollout and authorize rollback                      |
 
 No implementer may be the sole production approver.
 

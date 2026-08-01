@@ -91,7 +91,10 @@ export class SettingsAwareMemoryCandidateService extends GovernedMemoryCandidate
       ))
     ) {
       const ctx = requireActorContext(tenantId, approverUserId, actorContext);
-      const result = await this.immutableVersions.approveCandidate(ctx as TenantContext, candidateId);
+      const result = await this.immutableVersions.approveCandidate(
+        ctx as TenantContext,
+        candidateId,
+      );
       const memoryId = result.memoryItemId ?? result.controllingItemId;
       if (!memoryId) {
         throw new Error('Immutable candidate approval returned no canonical memory item.');

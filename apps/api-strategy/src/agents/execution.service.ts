@@ -342,8 +342,7 @@ export class ExecutionService {
       openMaterialConflicts: health.openMaterialConflicts,
     };
 
-    const versionDrift =
-      meta.pinnedVersionId != null && headVersionId !== meta.pinnedVersionId;
+    const versionDrift = meta.pinnedVersionId != null && headVersionId !== meta.pinnedVersionId;
     const chain = this.chainOf(targetNode.id, strategy.nodes);
     const violations = this.verify(strategy.type, strategy.nodes, ground);
     const chainErrors = violations.filter(
@@ -429,7 +428,12 @@ export class ExecutionService {
    *    send is NEVER performed (Stage-H hard boundary);
    *  - a do-not-contact-blocked outreach => park with the block finding.
    */
-  async execute(tenantId: string, userId: string | null, bearer: string | undefined, runId: string) {
+  async execute(
+    tenantId: string,
+    userId: string | null,
+    bearer: string | undefined,
+    runId: string,
+  ) {
     const run = await this.runs.get(tenantId, runId);
     const meta = this.readExecutionMeta(run);
     await this.assertKindEnabled(tenantId, meta.kind);
@@ -440,11 +444,7 @@ export class ExecutionService {
     // P0-2/P0-3: `approved` is the approval-bound entry into staging. `executing`
     // stays accepted so a re-entered (crash-resumed) run can continue, which is
     // what the write-ahead reservation exists to make safe.
-    if (
-      run.state !== 'ready_for_review' &&
-      run.state !== 'approved' &&
-      run.state !== 'executing'
-    ) {
+    if (run.state !== 'ready_for_review' && run.state !== 'approved' && run.state !== 'executing') {
       throw new ConflictException(
         `run is ${run.state} — only a reviewed or approved run can be executed`,
       );
@@ -674,7 +674,15 @@ export class ExecutionService {
         waitingReason: STAGING_INCOMPLETE_REASON,
         findings: { results, ...(sendApproval ? { sendApproval } : {}) },
       } as TransitionRunDto);
-      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart, generation);
+      return this.settlePhase(
+        tenantId,
+        userId,
+        runId,
+        meta.missionId,
+        'execute',
+        phaseStart,
+        generation,
+      );
     }
     if (blocked) {
       await this.runs.transition(tenantId, userId, runId, {
@@ -682,7 +690,15 @@ export class ExecutionService {
         waitingReason: 'outreach blocked by a client do-not-contact constraint',
         findings: { results, ...(sendApproval ? { sendApproval } : {}) },
       } as TransitionRunDto);
-      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart, generation);
+      return this.settlePhase(
+        tenantId,
+        userId,
+        runId,
+        meta.missionId,
+        'execute',
+        phaseStart,
+        generation,
+      );
     }
     if (sendPending) {
       // The run does NOT auto-complete while a send is pending — it parks for a
@@ -692,7 +708,15 @@ export class ExecutionService {
         waitingReason: 'awaiting send approval',
         findings: { results, sendApproval },
       } as TransitionRunDto);
-      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart, generation);
+      return this.settlePhase(
+        tenantId,
+        userId,
+        runId,
+        meta.missionId,
+        'execute',
+        phaseStart,
+        generation,
+      );
     }
 
     // All non-send tasks done, nothing pending => STAGED, then complete.
@@ -711,7 +735,15 @@ export class ExecutionService {
     await this.runs.transition(tenantId, userId, runId, {
       to: 'completed',
     } as TransitionRunDto);
-    return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart, generation);
+    return this.settlePhase(
+      tenantId,
+      userId,
+      runId,
+      meta.missionId,
+      'execute',
+      phaseStart,
+      generation,
+    );
   }
 
   // ---- resume / cancel -----------------------------------------------------
@@ -1105,7 +1137,10 @@ export class ExecutionService {
     artifactRef: string,
     /** Stage-G grounded generation provenance (Task e2) — omitted on the
      *  deterministic fallback path (doc: null). */
-    generation?: { doc: { model: string | null; sections: DocumentDraftSection[] } | null; stewardFactCount: number },
+    generation?: {
+      doc: { model: string | null; sections: DocumentDraftSection[] } | null;
+      stewardFactCount: number;
+    },
   ): Promise<void> {
     const advance = node.status === 'draft' || node.status === 'suggested';
     const refs = citedFactRefs(generation?.doc?.sections ?? []);
@@ -1679,7 +1714,10 @@ export class ExecutionService {
         // read from this, so a node archived AFTER the plan was reviewed makes
         // execute() fail closed instead of staging against plan history.
         include: {
-          nodes: { where: { ...LIVE_NODE_WHERE }, orderBy: [{ startsOn: 'asc' }, { createdAt: 'asc' }] },
+          nodes: {
+            where: { ...LIVE_NODE_WHERE },
+            orderBy: [{ startsOn: 'asc' }, { createdAt: 'asc' }],
+          },
         },
       });
       if (!strategy) throw new NotFoundException('Strategy not found');
@@ -1698,8 +1736,10 @@ export class ExecutionService {
   /** Workspace expects the client NAME (unlike outreach's clientId). Tenant-scoped raw read. */
   private async resolveClientName(tenantId: string, clientId: string | null): Promise<string> {
     if (!clientId) return 'Client';
-    const rows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRaw<Array<{ name: string }>>`
+    const rows = await this.prisma.withTenant(
+      tenantId,
+      (tx) =>
+        tx.$queryRaw<Array<{ name: string }>>`
         SELECT name FROM clients WHERE id = ${clientId}::uuid AND tenant_id = ${tenantId}::uuid LIMIT 1`,
     );
     return rows[0]?.name ?? 'Client';
@@ -1885,7 +1925,13 @@ export class ExecutionService {
     if (!recipient) {
       return { lastStep: 3, metadata: { lastStepId: 'recipients' } };
     }
-    const target = { key: 'node-target', type: 'individual', recipients: [recipient], cc: [], bcc: [] };
+    const target = {
+      key: 'node-target',
+      type: 'individual',
+      recipients: [recipient],
+      cc: [],
+      bcc: [],
+    };
     if (!generated || !htmlBody) {
       return { lastStep: 3, metadata: { lastStepId: 'recipients', targets: [target] } };
     }
@@ -2063,7 +2109,11 @@ function asObject(v: unknown): Record<string, unknown> | null {
  * thing being approved is an external transmission rather than internal staging.
  * Keyed off the same waitingReason the send park writes.
  */
-function isSendPark(run: { state?: unknown; waitingReason?: unknown; findings?: unknown }): boolean {
+function isSendPark(run: {
+  state?: unknown;
+  waitingReason?: unknown;
+  findings?: unknown;
+}): boolean {
   if (run.state !== 'waiting_for_input') return false;
   if (typeof run.waitingReason === 'string' && /awaiting send approval/i.test(run.waitingReason)) {
     return true;
@@ -2129,8 +2179,8 @@ function isWellFormedSection(s: unknown): s is DocumentDraftSection {
  */
 function targetDisplayName(target: NodeTargetRef): string {
   const name = target.memberName?.trim() || target.memberId;
-  const parts = [target.party, target.state, target.chamber].filter(
-    (p): p is string => Boolean(p?.trim()),
+  const parts = [target.party, target.state, target.chamber].filter((p): p is string =>
+    Boolean(p?.trim()),
   );
   return parts.length ? `${name} (${parts.join(', ')})` : name;
 }

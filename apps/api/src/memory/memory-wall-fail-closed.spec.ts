@@ -51,15 +51,14 @@ describe('Ethical walls — every memory read surface applies the wall', () => {
     // The recall reads identify the user (withTenantUser), so the wall-aware
     // RLS policy binds them too once role hardening lands.
     expect(text).toContain('const memories = await this.prisma.withTenantUser(tenantId, userId,');
-    expect(text).toContain(
-      'const results = await this.prisma.withTenantUser(tenantId, userId,',
-    );
+    expect(text).toContain('const results = await this.prisma.withTenantUser(tenantId, userId,');
   });
 
   it('meri-tools.service.ts: search_memory and the graph loader exclude denied clients', () => {
     const text = read(join(SRC_ROOT, 'meri', 'meri-tools.service.ts'));
-    expect(text.match(/fetchDeniedClientIds\(tx, ctx\.tenantId, ctx\.userId\)/g)?.length ?? 0)
-      .toBeGreaterThanOrEqual(2);
+    expect(
+      text.match(/fetchDeniedClientIds\(tx, ctx\.tenantId, ctx\.userId\)/g)?.length ?? 0,
+    ).toBeGreaterThanOrEqual(2);
     expect(text).toContain("wallExclusionSql(denied, 'mi.client_id')");
     expect(text).toContain("wallExclusionSql(denied, 'client_id')");
     expect(text).toContain('deniedSet.has(r.srcSlug)');

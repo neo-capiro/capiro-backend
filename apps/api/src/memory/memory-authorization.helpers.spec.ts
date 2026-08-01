@@ -76,13 +76,12 @@ describe('evaluateGovernedMemoryAuthorization', () => {
   });
 
   it('requires explicit client edit permission for standard users', () => {
+    expect(evaluateGovernedMemoryAuthorization(facts({ operation: 'edit' }))).toEqual({
+      allowed: false,
+      reason: 'missing_grant',
+    });
     expect(
-      evaluateGovernedMemoryAuthorization(facts({ operation: 'edit' })),
-    ).toEqual({ allowed: false, reason: 'missing_grant' });
-    expect(
-      evaluateGovernedMemoryAuthorization(
-        facts({ operation: 'edit', grantPermissions: ['edit'] }),
-      ),
+      evaluateGovernedMemoryAuthorization(facts({ operation: 'edit', grantPermissions: ['edit'] })),
     ).toEqual({ allowed: true, basis: 'explicit_grant' });
   });
 
@@ -109,9 +108,7 @@ describe('evaluateGovernedMemoryAuthorization', () => {
 
   it('allows an admin to maintain an active unwalled client after the wall decision passes', () => {
     expect(
-      evaluateGovernedMemoryAuthorization(
-        facts({ role: 'user_admin', operation: 'approve' }),
-      ),
+      evaluateGovernedMemoryAuthorization(facts({ role: 'user_admin', operation: 'approve' })),
     ).toEqual({ allowed: true, basis: 'admin' });
   });
 
@@ -121,12 +118,14 @@ describe('evaluateGovernedMemoryAuthorization', () => {
       scope: 'firm' as const,
       status: 'active' as const,
     };
-    expect(
-      evaluateGovernedMemoryAuthorization(facts({ subject, operation: 'read' })),
-    ).toEqual({ allowed: true, basis: 'tenant_read' });
-    expect(
-      evaluateGovernedMemoryAuthorization(facts({ subject, operation: 'edit' })),
-    ).toEqual({ allowed: false, reason: 'admin_required' });
+    expect(evaluateGovernedMemoryAuthorization(facts({ subject, operation: 'read' }))).toEqual({
+      allowed: true,
+      basis: 'tenant_read',
+    });
+    expect(evaluateGovernedMemoryAuthorization(facts({ subject, operation: 'edit' }))).toEqual({
+      allowed: false,
+      reason: 'admin_required',
+    });
     expect(
       evaluateGovernedMemoryAuthorization(
         facts({ subject, operation: 'edit', role: 'user_admin' }),

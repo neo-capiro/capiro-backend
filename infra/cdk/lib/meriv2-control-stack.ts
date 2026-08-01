@@ -95,18 +95,12 @@ export class MeriV2ControlStack extends cdk.Stack {
       'ImportedApplicationDatabaseSecret',
       props.appDbSecretArn,
     );
-    const alertsTopic = sns.Topic.fromTopicArn(
-      this,
-      'ImportedAlertsTopic',
-      props.alertsTopicArn,
-    );
+    const alertsTopic = sns.Topic.fromTopicArn(this, 'ImportedAlertsTopic', props.alertsTopicArn);
 
     const logGroup = new logs.LogGroup(this, 'ControlMonitorLogs', {
       logGroupName: `/capiro/${cfg.envName}/meriv2-control-monitor`,
       retention: logs.RetentionDays.ONE_YEAR,
-      removalPolicy: cfg.protectFromDestroy
-        ? cdk.RemovalPolicy.RETAIN
-        : cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
     });
 
     this.taskDefinition = new ecs.FargateTaskDefinition(this, 'ControlMonitorTaskDef', {
@@ -318,10 +312,8 @@ export class MeriV2ControlStack extends cdk.Stack {
         evaluationPeriods: 1,
         datapointsToAlarm: 1,
         comparisonOperator:
-          definition.comparison ??
-          cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
-        treatMissingData:
-          definition.treatMissingData ?? cloudwatch.TreatMissingData.NOT_BREACHING,
+          definition.comparison ?? cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: definition.treatMissingData ?? cloudwatch.TreatMissingData.NOT_BREACHING,
       });
       alarm.addAlarmAction(action);
       alarm.addOkAction(action);

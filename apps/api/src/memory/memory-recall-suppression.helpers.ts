@@ -12,11 +12,7 @@ import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.he
  * security predicate is a drift waiting to happen. Re-exported here so apps/api
  * call sites keep a single local import.
  */
-export {
-  governedRecallEligibilitySql,
-  governedRecallSuppressionSql,
-  TERMINAL_GOVERNED_STATUSES,
-};
+export { governedRecallEligibilitySql, governedRecallSuppressionSql, TERMINAL_GOVERNED_STATUSES };
 const SAFE_ALIAS = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**

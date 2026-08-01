@@ -49,7 +49,18 @@ function makeStore() {
   // apply()'s FOR UPDATE row locks: key -> release promise of the HOLDING tx.
   // Shared across concurrent fake txs; a waiter parks until the holder settles.
   const locks = new Map<string, Promise<void>>();
-  return { strategies, nodes, versions, runs, changeSets, activity, outbox, nextId, nodesFor, locks };
+  return {
+    strategies,
+    nodes,
+    versions,
+    runs,
+    changeSets,
+    activity,
+    outbox,
+    nextId,
+    nodesFor,
+    locks,
+  };
 }
 type Store = ReturnType<typeof makeStore>;
 
@@ -204,13 +215,7 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
     },
     // refreshProposedOps' status CAS: a where.status mismatch is count 0,
     // exactly like Postgres.
-    updateMany: async ({
-      where,
-      data,
-    }: {
-      where: { id: string; status?: string };
-      data: Rec;
-    }) => {
+    updateMany: async ({ where, data }: { where: { id: string; status?: string }; data: Rec }) => {
       const rec = store.changeSets.get(where.id);
       if (!rec || (where.status !== undefined && rec.status !== where.status)) return { count: 0 };
       store.changeSets.set(where.id, { ...rec, ...data, updatedAt: now });
@@ -548,7 +553,7 @@ describe('ChangeSetsService.refreshProposedOps (F1 watcher date-staleness refres
     expect(store.activity.some((a) => a.action === 'changeset.refreshed')).toBe(false);
   });
 
-  it('skips (false) when the pinned head is no longer the live head — that row belongs to apply\'s stale path, not a rewrite', async () => {
+  it("skips (false) when the pinned head is no longer the live head — that row belongs to apply's stale path, not a rewrite", async () => {
     const store = makeStore();
     seedStrategy(store);
     seedVersion(store, 'v1', new Date('2026-01-01T00:00:00.000Z'));

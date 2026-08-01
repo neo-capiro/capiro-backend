@@ -79,7 +79,10 @@ export class WatcherSchedulerService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     const raw = Number(process.env.STRATEGY_WATCHER_POLL_MS);
-    const intervalMs = Math.max(Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_POLL_MS, MIN_POLL_MS);
+    const intervalMs = Math.max(
+      Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_POLL_MS,
+      MIN_POLL_MS,
+    );
     this.timer = setInterval(() => void this.tick(), intervalMs);
     // Never keep the process alive just for the poll loop.
     this.timer.unref?.();
@@ -137,8 +140,9 @@ export class WatcherSchedulerService implements OnModuleInit, OnModuleDestroy {
     // skipped (claim already moved nextRunAt); if a duplicate trigger for the
     // same occurrence ever races through, RunsService dedupes on
     // (tenantId, idempotencyKey).
-    const claimed = await this.prisma.withSystem((tx) =>
-      tx.$queryRaw<ClaimedMission[]>`
+    const claimed = await this.prisma.withSystem(
+      (tx) =>
+        tx.$queryRaw<ClaimedMission[]>`
         UPDATE sp_agent_mission m
            SET next_run_at = due.next_run_at +
                  (CASE due.cadence WHEN 'weekly' THEN interval '7 days' ELSE interval '1 day' END) *
@@ -256,7 +260,9 @@ export class WatcherSchedulerService implements OnModuleInit, OnModuleDestroy {
       trigger: 'scheduled',
       idempotencyKey,
     } as CreateRunDto);
-    this.logger.log(`[run:${run.id} mission:${mission.id}] firm-calendar placeholder (${run.state})`);
+    this.logger.log(
+      `[run:${run.id} mission:${mission.id}] firm-calendar placeholder (${run.state})`,
+    );
     // Idempotent replay of the same occurrence: if the run already advanced
     // past planning, this occurrence was already handled — leave it alone.
     if (run.state !== 'queued' && run.state !== 'planning') return;

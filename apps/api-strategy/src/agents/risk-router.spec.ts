@@ -52,9 +52,11 @@ describe('classifyRisk — ladder rungs', () => {
   });
 
   it('retime-only warning => medium, NOT auto-apply eligible', () => {
-    expect(
-      classifyRisk({ findings: [retimeWarning()], firmLevel: false, opCount: 2 }),
-    ).toEqual({ risk: 'medium', autoApplyEligible: false, requiresImpactSummary: false });
+    expect(classifyRisk({ findings: [retimeWarning()], firmLevel: false, opCount: 2 })).toEqual({
+      risk: 'medium',
+      autoApplyEligible: false,
+      requiresImpactSummary: false,
+    });
   });
 
   it('warning with structural flag ABSENT is treated as retime-only => medium', () => {
@@ -65,15 +67,17 @@ describe('classifyRisk — ladder rungs', () => {
   });
 
   it('warning with a structural op (add/remove) => high, NOT auto-apply eligible', () => {
-    expect(
-      classifyRisk({ findings: [structuralWarning()], firmLevel: false, opCount: 2 }),
-    ).toEqual({ risk: 'high', autoApplyEligible: false, requiresImpactSummary: false });
+    expect(classifyRisk({ findings: [structuralWarning()], firmLevel: false, opCount: 2 })).toEqual(
+      { risk: 'high', autoApplyEligible: false, requiresImpactSummary: false },
+    );
   });
 
   it('any critical finding => critical, NOT auto-apply eligible, no impact summary (strategy-scoped)', () => {
-    expect(
-      classifyRisk({ findings: [critical()], firmLevel: false, opCount: 1 }),
-    ).toEqual({ risk: 'critical', autoApplyEligible: false, requiresImpactSummary: false });
+    expect(classifyRisk({ findings: [critical()], firmLevel: false, opCount: 1 })).toEqual({
+      risk: 'critical',
+      autoApplyEligible: false,
+      requiresImpactSummary: false,
+    });
   });
 });
 
@@ -136,22 +140,22 @@ describe('classifyRisk — firm-level hard rule', () => {
   });
 
   it('firm-level NEVER auto-applies, even with zero findings and zero ops', () => {
-    expect(
-      classifyRisk({ findings: [], firmLevel: true, opCount: 0 }).autoApplyEligible,
-    ).toBe(false);
-    expect(
-      classifyRisk({ findings: [], firmLevel: true, opCount: 5 }).autoApplyEligible,
-    ).toBe(false);
+    expect(classifyRisk({ findings: [], firmLevel: true, opCount: 0 }).autoApplyEligible).toBe(
+      false,
+    );
+    expect(classifyRisk({ findings: [], firmLevel: true, opCount: 5 }).autoApplyEligible).toBe(
+      false,
+    );
   });
 
   it('impact summary is REQUIRED for firm-level and only firm-level', () => {
-    expect(
-      classifyRisk({ findings: [], firmLevel: true, opCount: 0 }).requiresImpactSummary,
-    ).toBe(true);
+    expect(classifyRisk({ findings: [], firmLevel: true, opCount: 0 }).requiresImpactSummary).toBe(
+      true,
+    );
     for (const findings of [[], [info()], [retimeWarning()], [structuralWarning()], [critical()]]) {
-      expect(
-        classifyRisk({ findings, firmLevel: false, opCount: 1 }).requiresImpactSummary,
-      ).toBe(false);
+      expect(classifyRisk({ findings, firmLevel: false, opCount: 1 }).requiresImpactSummary).toBe(
+        false,
+      );
     }
   });
 });
@@ -159,8 +163,7 @@ describe('classifyRisk — firm-level hard rule', () => {
 describe('classifyRisk — autoApplyEligible is low-risk ONLY', () => {
   it('is false for every risk above low', () => {
     expect(
-      classifyRisk({ findings: [retimeWarning()], firmLevel: false, opCount: 1 })
-        .autoApplyEligible,
+      classifyRisk({ findings: [retimeWarning()], firmLevel: false, opCount: 1 }).autoApplyEligible,
     ).toBe(false); // medium
     expect(
       classifyRisk({ findings: [structuralWarning()], firmLevel: false, opCount: 1 })
@@ -172,9 +175,9 @@ describe('classifyRisk — autoApplyEligible is low-risk ONLY', () => {
   });
 
   it('requires at least one op — an empty edit-set has nothing to auto-apply', () => {
-    expect(
-      classifyRisk({ findings: [], firmLevel: false, opCount: 0 }).autoApplyEligible,
-    ).toBe(false);
+    expect(classifyRisk({ findings: [], firmLevel: false, opCount: 0 }).autoApplyEligible).toBe(
+      false,
+    );
     // risk stays low; only eligibility is gated on opCount.
     expect(classifyRisk({ findings: [], firmLevel: false, opCount: 0 }).risk).toBe('low');
   });

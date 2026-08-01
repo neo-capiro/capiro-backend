@@ -180,7 +180,10 @@ function findingAttribution(
   span: string,
   facts: readonly ExtractedFact[],
 ): { scope: 'claim'; subjectId: string } | { scope: 'run' } {
-  const normalized = String(span ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const normalized = String(span ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
   if (normalized.length >= 12) {
     const index = facts.findIndex((fact) =>
       fact.fact.toLowerCase().includes(normalized.slice(0, Math.min(180, normalized.length))),

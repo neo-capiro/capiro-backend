@@ -59,10 +59,7 @@ export class ExactMemoryProjectionWorkerService {
     limit = 100,
     leaseSeconds = MEMORY_WORKER_DEFAULT_LEASE_SECONDS,
   ): Promise<ExactMemoryProjectionDrainSummary> {
-    const boundedLimit = Math.min(
-      MEMORY_WORKER_MAX_BATCH_SIZE,
-      Math.max(1, Math.floor(limit)),
-    );
+    const boundedLimit = Math.min(MEMORY_WORKER_MAX_BATCH_SIZE, Math.max(1, Math.floor(limit)));
     const boundedLease = Math.min(30 * 60, Math.max(30, Math.floor(leaseSeconds)));
     const leaseOwner = `memory-worker:${randomUUID()}`;
 

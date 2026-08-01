@@ -73,7 +73,9 @@ export interface EmitMeriV2ControlMetricOptions {
  * or become a shadow customer-content log.
  */
 export function normalizeMeriV2ControlEnvironment(raw: unknown): MeriV2ControlEnvironment {
-  const value = String(raw ?? '').trim().toLowerCase();
+  const value = String(raw ?? '')
+    .trim()
+    .toLowerCase();
   if (value === 'dev' || value === 'development' || value === 'local') return 'dev';
   if (value === 'stage' || value === 'staging') return 'staging';
   if (value === 'prod' || value === 'production') return 'prod';
@@ -85,7 +87,12 @@ export function meriV2ControlMetricsEnabled(
   env: Record<string, string | undefined> | undefined = runtimeEnvironment(),
 ): boolean {
   if (!env) return false;
-  if (String(env.MERIV2_CONTROL_METRICS ?? '').trim().toLowerCase() === 'off') return false;
+  if (
+    String(env.MERIV2_CONTROL_METRICS ?? '')
+      .trim()
+      .toLowerCase() === 'off'
+  )
+    return false;
   return normalizeMeriV2ControlEnvironment(env.CAPIRO_ENV ?? env.NODE_ENV) !== 'test';
 }
 
@@ -104,7 +111,8 @@ export function buildMeriV2ControlMetricEnvelope(
       unit === 'Percent' ? Math.min(100, Math.max(0, value)) : Math.max(0, value);
     metrics.push({ Name: name, Unit: unit });
   }
-  if (metrics.length === 0) throw new Error('At least one finite MeriV2 control metric is required.');
+  if (metrics.length === 0)
+    throw new Error('At least one finite MeriV2 control metric is required.');
 
   const timestamp = normalizeTimestamp(options.timestamp);
   const environment = normalizeMeriV2ControlEnvironment(

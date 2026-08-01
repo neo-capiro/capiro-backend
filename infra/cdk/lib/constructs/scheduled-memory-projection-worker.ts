@@ -50,7 +50,9 @@ export class ScheduledMemoryProjectionWorker extends Construct {
   constructor(scope: Construct, id: string, props: ScheduledMemoryProjectionWorkerProps) {
     super(scope, id);
     if (props.subnets.length === 0) {
-      throw new Error('The governed-memory projection worker requires at least one private subnet.');
+      throw new Error(
+        'The governed-memory projection worker requires at least one private subnet.',
+      );
     }
     if (!/^sha256:[0-9a-f]{64}$/i.test(props.apiImageDigest)) {
       throw new Error('The governed-memory projection worker requires an immutable ECR digest.');
@@ -169,9 +171,7 @@ export class ScheduledMemoryProjectionWorker extends Construct {
       logGroup,
       metricNamespace: 'Capiro/Memory',
       metricName: 'projection_worker.crashed',
-      filterPattern: logs.FilterPattern.literal(
-        '{ $.event = "memory_projection_worker.crashed" }',
-      ),
+      filterPattern: logs.FilterPattern.literal('{ $.event = "memory_projection_worker.crashed" }'),
       metricValue: '1',
       defaultValue: 0,
     }).metric({ statistic: 'Sum', period: cdk.Duration.minutes(5) });

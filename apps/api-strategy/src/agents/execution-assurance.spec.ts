@@ -72,9 +72,7 @@ describe('assessGeneratedDocumentForRelease', () => {
           status: 'conflicted',
           missingRequired: ['authorized ask'],
           omittedOptional: [],
-          openMaterialConflicts: [
-            { id: 'c1', factAId: 'a', factBId: 'b', factA: 'A', factB: 'B' },
-          ],
+          openMaterialConflicts: [{ id: 'c1', factAId: 'a', factBId: 'b', factA: 'A', factB: 'B' }],
         },
         sections: [
           {

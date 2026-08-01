@@ -113,11 +113,20 @@ function ensureResolvedContext(
 }
 
 function tokens(raw: string | undefined): string[] {
-  return [...new Set(String(raw ?? '').split(/[,\s]+/).map(normalize).filter(Boolean))];
+  return [
+    ...new Set(
+      String(raw ?? '')
+        .split(/[,\s]+/)
+        .map(normalize)
+        .filter(Boolean),
+    ),
+  ];
 }
 
 function normalize(value: unknown): string {
-  return String(value ?? '').trim().toLowerCase();
+  return String(value ?? '')
+    .trim()
+    .toLowerCase();
 }
 
 /** Type-only compile assertion: the replacement remains assignable to the base token. */

@@ -218,10 +218,7 @@ export class MemoryProjectionWorkerService {
     );
   }
 
-  private async failJob(
-    job: ClaimedMemoryJob,
-    error: unknown,
-  ): Promise<'failed' | 'dead_letter'> {
+  private async failJob(job: ClaimedMemoryJob, error: unknown): Promise<'failed' | 'dead_letter'> {
     const errorCode = memoryWorkerErrorCode(error);
     const exhausted = job.attempts >= MAX_CLEANUP_ATTEMPTS;
     const nextInterval = `${cleanupBackoffSeconds(job.attempts)} seconds`;
@@ -276,7 +273,10 @@ export function memoryWorkerErrorCode(error: unknown): string {
     return error.message.toLowerCase();
   }
   const name = error instanceof Error ? error.name : 'worker_error';
-  const normalized = name.toLowerCase().replace(/[^a-z0-9_.-]+/g, '_').slice(0, 80);
+  const normalized = name
+    .toLowerCase()
+    .replace(/[^a-z0-9_.-]+/g, '_')
+    .slice(0, 80);
   return normalized || 'worker_error';
 }
 

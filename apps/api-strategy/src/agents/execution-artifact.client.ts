@@ -29,11 +29,7 @@ const ARTIFACT_TIMEOUT_MS = 8_000;
 const OUTREACH_TITLE_MAX = 240;
 const DEFAULT_WORKSPACE_SECTION = 'Background';
 
-export type ExecutionArtifactErrorKind =
-  | 'missing_bearer'
-  | 'timeout'
-  | 'upstream'
-  | 'malformed';
+export type ExecutionArtifactErrorKind = 'missing_bearer' | 'timeout' | 'upstream' | 'malformed';
 
 /** Typed staging failure — the service maps this to a run failure / finding. */
 export class ExecutionArtifactError extends Error {
@@ -144,7 +140,9 @@ export class ExecutionArtifactClient {
 
     const headingList = Object.keys(input.sections);
     const sections = headingList.length ? headingList : [DEFAULT_WORKSPACE_SECTION];
-    const sectionContent = headingList.length ? input.sections : { [DEFAULT_WORKSPACE_SECTION]: '' };
+    const sectionContent = headingList.length
+      ? input.sections
+      : { [DEFAULT_WORKSPACE_SECTION]: '' };
 
     await this.doFetch(
       `${this.apiBaseUrl}/workspace-api/drafts/${encodeURIComponent(id)}`,
@@ -236,7 +234,11 @@ export class ExecutionArtifactClient {
     }
     if (!res.ok) {
       this.logger.warn(`${label} non-2xx: HTTP ${res.status}`);
-      throw new ExecutionArtifactError('upstream', `${label} failed: HTTP ${res.status}`, res.status);
+      throw new ExecutionArtifactError(
+        'upstream',
+        `${label} failed: HTTP ${res.status}`,
+        res.status,
+      );
     }
     return res;
   }

@@ -22,8 +22,11 @@ import {
 class CreatePolicyPackDto {
   @IsString() @Length(1, 120) packKey!: string;
   @IsString() @Length(1, 80) version!: string;
-  @IsIn(['all', 'federal', 'state', 'local', 'regulatory', 'procurement', 'grants']) jurisdiction!: PolicyPackDraftInput['jurisdiction'];
-  @IsOptional() @IsIn(['not_required_product_policy', 'pending', 'approved', 'rejected']) legalReviewStatus?: PolicyPackDraftInput['legalReviewStatus'];
+  @IsIn(['all', 'federal', 'state', 'local', 'regulatory', 'procurement', 'grants'])
+  jurisdiction!: PolicyPackDraftInput['jurisdiction'];
+  @IsOptional()
+  @IsIn(['not_required_product_policy', 'pending', 'approved', 'rejected'])
+  legalReviewStatus?: PolicyPackDraftInput['legalReviewStatus'];
   @IsObject() authority!: PolicyPackDraftInput['authority'];
   @IsString() effectiveFrom!: string;
   @IsOptional() @IsString() effectiveUntil?: string | null;
@@ -34,8 +37,12 @@ class CreatePolicyPackDto {
 }
 
 class RevisePolicyPackDto {
-  @IsOptional() @IsIn(['all', 'federal', 'state', 'local', 'regulatory', 'procurement', 'grants']) jurisdiction?: PolicyPackRevisionInput['jurisdiction'];
-  @IsOptional() @IsIn(['not_required_product_policy', 'pending', 'approved', 'rejected']) legalReviewStatus?: PolicyPackRevisionInput['legalReviewStatus'];
+  @IsOptional()
+  @IsIn(['all', 'federal', 'state', 'local', 'regulatory', 'procurement', 'grants'])
+  jurisdiction?: PolicyPackRevisionInput['jurisdiction'];
+  @IsOptional()
+  @IsIn(['not_required_product_policy', 'pending', 'approved', 'rejected'])
+  legalReviewStatus?: PolicyPackRevisionInput['legalReviewStatus'];
   @IsOptional() @IsObject() authority?: PolicyPackRevisionInput['authority'];
   @IsOptional() @IsString() effectiveFrom?: string;
   @IsOptional() @IsString() effectiveUntil?: string | null;
@@ -57,7 +64,9 @@ class ReviewPolicyPackDto extends ReasonDto {
 class SimulatePolicyPackDto {
   @IsString() @Length(1, 120) tool!: string;
   @IsObject() input!: Record<string, unknown>;
-  @IsOptional() @IsIn(['federal', 'state', 'local', 'regulatory', 'procurement', 'grants']) jurisdiction?: 'federal' | 'state' | 'local' | 'regulatory' | 'procurement' | 'grants';
+  @IsOptional()
+  @IsIn(['federal', 'state', 'local', 'regulatory', 'procurement', 'grants'])
+  jurisdiction?: 'federal' | 'state' | 'local' | 'regulatory' | 'procurement' | 'grants';
   @IsOptional() @IsUUID() clientId?: string;
 }
 
@@ -97,22 +106,38 @@ export class MeriPolicyPackController {
   }
 
   @Post(':packId/submit-review')
-  submitReview(@CurrentTenant() ctx: TenantContext, @Param('packId') packId: string, @Body() body: ReasonDto) {
+  submitReview(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('packId') packId: string,
+    @Body() body: ReasonDto,
+  ) {
     return this.packs.submitReview(ctx, packId, body.reason);
   }
 
   @Post(':packId/review')
-  review(@CurrentTenant() ctx: TenantContext, @Param('packId') packId: string, @Body() body: ReviewPolicyPackDto) {
+  review(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('packId') packId: string,
+    @Body() body: ReviewPolicyPackDto,
+  ) {
     return this.packs.review(ctx, packId, body.legalReviewStatus, body.reason);
   }
 
   @Post(':packId/second-approve')
-  secondApprove(@CurrentTenant() ctx: TenantContext, @Param('packId') packId: string, @Body() body: ReasonDto) {
+  secondApprove(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('packId') packId: string,
+    @Body() body: ReasonDto,
+  ) {
     return this.packs.secondApprove(ctx, packId, body.reason);
   }
 
   @Post(':packId/simulate')
-  simulate(@CurrentTenant() ctx: TenantContext, @Param('packId') packId: string, @Body() body: SimulatePolicyPackDto) {
+  simulate(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('packId') packId: string,
+    @Body() body: SimulatePolicyPackDto,
+  ) {
     return this.packs.simulateAdmin(ctx, packId, body.tool, body.input, {
       ...(body.jurisdiction ? { jurisdiction: body.jurisdiction } : {}),
       ...(body.clientId ? { clientId: body.clientId } : {}),
@@ -120,12 +145,20 @@ export class MeriPolicyPackController {
   }
 
   @Post(':packId/publish')
-  publish(@CurrentTenant() ctx: TenantContext, @Param('packId') packId: string, @Body() body: ReasonDto) {
+  publish(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('packId') packId: string,
+    @Body() body: ReasonDto,
+  ) {
     return this.packs.publish(ctx, packId, body.reason);
   }
 
   @Post(':packId/retire')
-  retire(@CurrentTenant() ctx: TenantContext, @Param('packId') packId: string, @Body() body: ReasonDto) {
+  retire(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('packId') packId: string,
+    @Body() body: ReasonDto,
+  ) {
     return this.packs.retire(ctx, packId, body.reason);
   }
 

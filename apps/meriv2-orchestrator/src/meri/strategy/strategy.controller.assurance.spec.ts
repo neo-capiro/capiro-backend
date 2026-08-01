@@ -35,7 +35,12 @@ function input(kind: 'workspace_draft' | 'outreach_record'): StrategyDocumentDra
       startsOn: '2027-01-01',
       endsOn: null,
     },
-    fiscal: { today: '2026-08-01', fys: [2026, 2027, 2028], fyLabels: ['FY26', 'FY27', 'FY28'], focalFy: 'FY27' },
+    fiscal: {
+      today: '2026-08-01',
+      fys: [2026, 2027, 2028],
+      fyLabels: ['FY26', 'FY27', 'FY28'],
+      focalFy: 'FY27',
+    },
     firmPhases: [],
     reference: { congress: [], ppbeLanes: [], ppbeCurrentPhases: [] },
     stewardFacts: [],
@@ -69,7 +74,9 @@ describe('StrategyController document assurance scope', () => {
 
   it('uses the outreach Context Packet and outreach release canary for outreach artifacts', async () => {
     const { controller, resolve } = build();
-    await expect(controller.documentDraft(input('outreach_record'), TENANT, REQUEST)).resolves.toEqual({
+    await expect(
+      controller.documentDraft(input('outreach_record'), TENANT, REQUEST),
+    ).resolves.toEqual({
       armed: true,
     });
     expect(resolve).toHaveBeenCalledWith(TENANT, 'client-a', 'outreach');
@@ -77,7 +84,9 @@ describe('StrategyController document assurance scope', () => {
 
   it('uses the strategy Context Packet and strategy release canary for Workspace artifacts', async () => {
     const { controller, resolve } = build();
-    await expect(controller.documentDraft(input('workspace_draft'), TENANT, REQUEST)).resolves.toEqual({
+    await expect(
+      controller.documentDraft(input('workspace_draft'), TENANT, REQUEST),
+    ).resolves.toEqual({
       armed: true,
     });
     expect(resolve).toHaveBeenCalledWith(TENANT, 'client-a', 'strategy');
@@ -85,7 +94,10 @@ describe('StrategyController document assurance scope', () => {
 
   it('rejects an unknown artifact kind before compiling context or calling the model', async () => {
     const { controller, resolve, draftDocument } = build();
-    const invalid = { ...input('workspace_draft'), kind: 'unknown_artifact' } as unknown as StrategyDocumentDraftInput;
+    const invalid = {
+      ...input('workspace_draft'),
+      kind: 'unknown_artifact',
+    } as unknown as StrategyDocumentDraftInput;
     await expect(controller.documentDraft(invalid, TENANT, REQUEST)).rejects.toThrow(
       'Unsupported strategy document artifact kind',
     );

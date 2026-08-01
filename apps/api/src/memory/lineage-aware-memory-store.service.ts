@@ -36,20 +36,10 @@ export class LineageAwareMemoryStoreService extends GovernedMemoryStoreService {
     cleanupOutbox: MemoryCleanupOutboxService,
     versions: ImmutableMemoryVersionService,
   ) {
-    super(
-      lineagePrisma,
-      lineageTenantCtx,
-      authz,
-      transitionAudit,
-      cleanupOutbox,
-      versions,
-    );
+    super(lineagePrisma, lineageTenantCtx, authz, transitionAudit, cleanupOutbox, versions);
   }
 
-  override async getByTypeSlug(
-    type: MemoryItemType,
-    slug: string,
-  ): Promise<MemoryItem | null> {
+  override async getByTypeSlug(type: MemoryItemType, slug: string): Promise<MemoryItem | null> {
     const ctx = this.lineageTenantCtx.require();
     if (
       !governedMemoryModeEnabledForTenant(

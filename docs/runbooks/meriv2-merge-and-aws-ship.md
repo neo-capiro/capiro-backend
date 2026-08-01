@@ -32,13 +32,13 @@ The operator’s remaining responsibilities are to run the local release gate, m
 
 Record these people in the change ticket before release:
 
-| Role | Responsibility |
-|---|---|
-| Release operator | Runs commands and captures evidence |
-| Database reviewer | Reviews migration and backfill evidence |
-| Security reviewer | Reviews tenant/wall/grant and audit behavior |
+| Role                | Responsibility                                            |
+| ------------------- | --------------------------------------------------------- |
+| Release operator    | Runs commands and captures evidence                       |
+| Database reviewer   | Reviews migration and backfill evidence                   |
+| Security reviewer   | Reviews tenant/wall/grant and audit behavior              |
 | Product/UX reviewer | Accepts browser, accessibility, hold, and degraded states |
-| Incident commander | Can stop expansion and authorize rollback |
+| Incident commander  | Can stop expansion and authorize rollback                 |
 
 The code implementer must not be the sole production approver.
 

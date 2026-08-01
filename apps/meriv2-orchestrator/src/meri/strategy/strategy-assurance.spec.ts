@@ -73,7 +73,11 @@ describe('assessStrategyDocumentClaims', () => {
     const args = {
       sections: [section()],
       provenance,
-      health: { status: 'degraded' as const, missingRequired: ['Client profile'], omittedOptional: [] },
+      health: {
+        status: 'degraded' as const,
+        missingRequired: ['Client profile'],
+        omittedOptional: [],
+      },
       kind: 'outreach_record' as const,
     };
     expect(assessStrategyDocumentClaims({ ...args, mode: 'shadow' }).held).toBe(false);

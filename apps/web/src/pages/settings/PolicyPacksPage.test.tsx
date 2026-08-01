@@ -234,8 +234,8 @@ describe('Policy Packs settings trust boundary', () => {
     expect(payload).not.toHaveProperty('binding');
     expect(payload).not.toHaveProperty('decisionHash');
     expect(payload).not.toHaveProperty('tenantId');
-    expect(() =>
-      buildSimulationPayload({ tool: 'send_email', inputJson: '{not-json' }),
-    ).toThrow('Simulation input must be valid JSON.');
+    expect(() => buildSimulationPayload({ tool: 'send_email', inputJson: '{not-json' })).toThrow(
+      'Simulation input must be valid JSON.',
+    );
   });
 });

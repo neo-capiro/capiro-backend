@@ -92,8 +92,13 @@ describe('memory ingestion renderers (Phase 2)', () => {
   // debriefBody is provided.
   it('attaches recorded debrief content as an engine section when provided', () => {
     const withBody = meetingToItem({
-      tenantId: TENANT, meetingId: 'mtg-2', clientId: 'acme-corp',
-      title: 'Debrief Test', date: '2026-07-02', prep: 'x', wikilinks: [],
+      tenantId: TENANT,
+      meetingId: 'mtg-2',
+      clientId: 'acme-corp',
+      title: 'Debrief Test',
+      date: '2026-07-02',
+      prep: 'x',
+      wikilinks: [],
       debriefBody: 'Senator was supportive of the FY supplemental.',
     });
     const rec = withBody.sections.find((s) => s.key === 'debrief-recorded');
@@ -104,8 +109,13 @@ describe('memory ingestion renderers (Phase 2)', () => {
 
   it('omits the recorded debrief section when no debriefBody is given', () => {
     const noBody = meetingToItem({
-      tenantId: TENANT, meetingId: 'mtg-3', clientId: 'acme-corp',
-      title: 'No Debrief', date: '2026-07-03', prep: 'x', wikilinks: [],
+      tenantId: TENANT,
+      meetingId: 'mtg-3',
+      clientId: 'acme-corp',
+      title: 'No Debrief',
+      date: '2026-07-03',
+      prep: 'x',
+      wikilinks: [],
     });
     expect(noBody.sections.find((s) => s.key === 'debrief-recorded')).toBeUndefined();
   });
@@ -124,7 +134,9 @@ describe('memory ingestion renderers (Phase 2)', () => {
     });
     expect(meriSessionToItem(mk('acme-corp')).visibility).toBe('user');
     expect(meriSessionToItem(mk(null)).visibility).toBe('user');
-    expect(vaultPathForItem(meriSessionToItem(mk('acme-corp')))).toBe('users/user-7/meri/sess-1.md');
+    expect(vaultPathForItem(meriSessionToItem(mk('acme-corp')))).toBe(
+      'users/user-7/meri/sess-1.md',
+    );
   });
 
   // §12.1: promotion is a distilled candidate carrying provenance, not a transcript dump.
@@ -140,7 +152,11 @@ describe('memory ingestion renderers (Phase 2)', () => {
       wikilinks: [],
     });
     item.id = 'mem-xyz';
-    const cand = buildPromotionCandidate(item, 'client-soul', 'Acme cares about markup timing, not margins.');
+    const cand = buildPromotionCandidate(
+      item,
+      'client-soul',
+      'Acme cares about markup timing, not margins.',
+    );
     expect(cand.fromItemId).toBe('mem-xyz');
     expect(cand.targetType).toBe('client-soul');
     expect(cand.targetClientId).toBe('acme-corp');

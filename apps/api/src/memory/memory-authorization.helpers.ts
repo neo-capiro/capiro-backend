@@ -1,9 +1,5 @@
 import type { TenantRole } from '@capiro/shared';
-import type {
-  GovernedMemoryScope,
-  GovernedMemoryStatus,
-  MemoryClass,
-} from '@capiro/meriv2-core';
+import type { GovernedMemoryScope, GovernedMemoryStatus, MemoryClass } from '@capiro/meriv2-core';
 import { memoryGovernanceSelectedForCurrentTenant } from './memory-governance-tenant-scope.js';
 
 export const MEMORY_PERMISSIONS = [
@@ -116,7 +112,7 @@ export function evaluateGovernedMemoryAuthorization(
   facts: MemoryAuthorizationFacts,
 ): MemoryAuthorizationDecision {
   const { operation, subject } = facts;
-  const effectiveRole = facts.impersonating ? facts.actorRole ?? facts.role : facts.role;
+  const effectiveRole = facts.impersonating ? (facts.actorRole ?? facts.role) : facts.role;
   const admin = isAdmin(effectiveRole);
   const readOnly = operation === 'read' || operation === 'export';
 

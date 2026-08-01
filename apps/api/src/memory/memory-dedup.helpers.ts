@@ -58,7 +58,11 @@ export function decideMemoryDedup(
   for (const row of existing) {
     if (normalizedMemoryIdentity(row) !== identity) continue;
     const similarity = memoryTextSimilarity(proposed.value, row.value);
-    if (!best || similarity > best.similarity || (similarity === best.similarity && row.id < best.row.id)) {
+    if (
+      !best ||
+      similarity > best.similarity ||
+      (similarity === best.similarity && row.id < best.row.id)
+    ) {
       best = { row, similarity };
     }
   }
@@ -79,7 +83,10 @@ export function decideMemoryDedup(
       reason: 'semantic_duplicate',
     };
   }
-  if (best.similarity >= conflictThreshold || ['active', 'stale', 'conflicted'].includes(best.row.status)) {
+  if (
+    best.similarity >= conflictThreshold ||
+    ['active', 'stale', 'conflicted'].includes(best.row.status)
+  ) {
     return {
       duplicateId: null,
       conflictId: best.row.id,

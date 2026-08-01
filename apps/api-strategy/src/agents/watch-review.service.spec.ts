@@ -262,11 +262,17 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
   };
 
   const spStrategy = {
-    findFirst: async (args: { where?: Record<string, unknown>; include?: { nodes?: unknown; artifacts?: unknown } }) => {
+    findFirst: async (args: {
+      where?: Record<string, unknown>;
+      include?: { nodes?: unknown; artifacts?: unknown };
+    }) => {
       const rec = findFirstGeneric([...store.strategies.values()], args);
       return rec ? attachIncludes(rec, args.include) : null;
     },
-    findFirstOrThrow: async (args: { where?: Record<string, unknown>; include?: { nodes?: unknown; artifacts?: unknown } }) => {
+    findFirstOrThrow: async (args: {
+      where?: Record<string, unknown>;
+      include?: { nodes?: unknown; artifacts?: unknown };
+    }) => {
       const rec = findFirstGeneric([...store.strategies.values()], args);
       if (!rec) throw new Error('strategy not found');
       return attachIncludes(rec, args.include);
@@ -290,9 +296,14 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
   };
 
   const spVersion = {
-    findFirst: async (args: { where?: Record<string, unknown>; orderBy?: OrderSpec | OrderSpec[] }) =>
-      findFirstGeneric([...store.versions.values()], args),
-    findMany: async (args: { where?: Record<string, unknown>; orderBy?: OrderSpec | OrderSpec[] }) => {
+    findFirst: async (args: {
+      where?: Record<string, unknown>;
+      orderBy?: OrderSpec | OrderSpec[];
+    }) => findFirstGeneric([...store.versions.values()], args),
+    findMany: async (args: {
+      where?: Record<string, unknown>;
+      orderBy?: OrderSpec | OrderSpec[];
+    }) => {
       let rows = [...store.versions.values()].filter((r) => matches(r, args.where));
       if (args.orderBy) rows = applyOrderBy(rows, args.orderBy);
       return rows;
@@ -303,7 +314,13 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
       store.versions.set(id, rec);
       return rec;
     },
-    updateMany: async ({ where, data }: { where: { id: string; coalescible?: boolean }; data: Rec }) => {
+    updateMany: async ({
+      where,
+      data,
+    }: {
+      where: { id: string; coalescible?: boolean };
+      data: Rec;
+    }) => {
       const rec = store.versions.get(where.id);
       if (!rec || (where.coalescible !== undefined && rec.coalescible !== where.coalescible)) {
         return { count: 0 };
@@ -314,13 +331,17 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
   };
 
   const spAgentMission = {
-    findFirst: async (args: { where?: Record<string, unknown>; orderBy?: OrderSpec | OrderSpec[] }) =>
-      findFirstGeneric([...store.missions.values()], args),
+    findFirst: async (args: {
+      where?: Record<string, unknown>;
+      orderBy?: OrderSpec | OrderSpec[];
+    }) => findFirstGeneric([...store.missions.values()], args),
   };
 
   const spAgentRun = {
-    findFirst: async (args: { where?: Record<string, unknown>; orderBy?: OrderSpec | OrderSpec[] }) =>
-      findFirstGeneric([...store.runs.values()], args),
+    findFirst: async (args: {
+      where?: Record<string, unknown>;
+      orderBy?: OrderSpec | OrderSpec[];
+    }) => findFirstGeneric([...store.runs.values()], args),
     create: async ({ data }: { data: Rec }) => {
       const dup = [...store.runs.values()].some(
         (r) => r.tenantId === data.tenantId && r.idempotencyKey === data.idempotencyKey,
@@ -354,19 +375,25 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
     },
     count: async ({ where = {} }: { where?: { state?: { in?: string[] } } }) => {
       const states = where.state?.in;
-      return [...store.runs.values()].filter((r) => states === undefined || states.includes(r.state as string))
-        .length;
+      return [...store.runs.values()].filter(
+        (r) => states === undefined || states.includes(r.state as string),
+      ).length;
     },
   };
 
   const spChangeSet = {
-    findMany: async (args: { where?: Record<string, unknown>; orderBy?: OrderSpec | OrderSpec[] }) => {
+    findMany: async (args: {
+      where?: Record<string, unknown>;
+      orderBy?: OrderSpec | OrderSpec[];
+    }) => {
       let rows = [...store.changeSets.values()].filter((r) => matches(r, args.where));
       if (args.orderBy) rows = applyOrderBy(rows, args.orderBy);
       return rows;
     },
-    findFirst: async (args: { where?: Record<string, unknown>; orderBy?: OrderSpec | OrderSpec[] }) =>
-      findFirstGeneric([...store.changeSets.values()], args),
+    findFirst: async (args: {
+      where?: Record<string, unknown>;
+      orderBy?: OrderSpec | OrderSpec[];
+    }) => findFirstGeneric([...store.changeSets.values()], args),
     create: async ({ data }: { data: Rec }) => {
       const id = store.nextId('cs');
       const rec: Rec = {
@@ -420,13 +447,18 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
       create,
       update,
     }: {
-      where: { tenantId_strategyId_watchKey: { tenantId: string; strategyId: string; watchKey: string } };
+      where: {
+        tenantId_strategyId_watchKey: { tenantId: string; strategyId: string; watchKey: string };
+      };
       create: Record<string, unknown>;
       update: Record<string, unknown>;
     }) => {
       const key = where.tenantId_strategyId_watchKey;
       const existing = [...store.dismissals.entries()].find(
-        ([, d]) => d.tenantId === key.tenantId && d.strategyId === key.strategyId && d.watchKey === key.watchKey,
+        ([, d]) =>
+          d.tenantId === key.tenantId &&
+          d.strategyId === key.strategyId &&
+          d.watchKey === key.watchKey,
       );
       if (existing) {
         const [id, rec] = existing;
@@ -445,13 +477,18 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
   // (rather than the append stub the Phase 4 tests use), so the fake tx needs
   // the chat table too. Same generic engine as every other model here.
   const spStrategyChatMessage = {
-    findMany: async (args: { where?: Record<string, unknown>; orderBy?: OrderSpec | OrderSpec[] }) => {
+    findMany: async (args: {
+      where?: Record<string, unknown>;
+      orderBy?: OrderSpec | OrderSpec[];
+    }) => {
       let rows = store.chatMessages.filter((r) => matches(r, args.where));
       if (args.orderBy) rows = applyOrderBy(rows, args.orderBy);
       return rows;
     },
-    findFirst: async (args: { where?: Record<string, unknown>; orderBy?: OrderSpec | OrderSpec[] }) =>
-      findFirstGeneric(store.chatMessages, args),
+    findFirst: async (args: {
+      where?: Record<string, unknown>;
+      orderBy?: OrderSpec | OrderSpec[];
+    }) => findFirstGeneric(store.chatMessages, args),
     create: async ({ data }: { data: Rec }) => {
       const rec: Rec = {
         attachmentRefs: null,
@@ -504,7 +541,9 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
     if (/FROM sp_agent_mission/.test(sql)) {
       const [missionId, tenantId] = values as [string, string];
       const m = store.missions.get(missionId);
-      return m && m.tenantId === tenantId ? [{ id: m.id, state: m.state, strategyId: m.strategyId }] : [];
+      return m && m.tenantId === tenantId
+        ? [{ id: m.id, state: m.state, strategyId: m.strategyId }]
+        : [];
     }
     throw new Error(`fake tx got an unmodelled raw query: ${sql}`);
   };
@@ -561,7 +600,9 @@ function makeService(store: Store, opts: { realConversation?: boolean } = {}) {
       for (const release of held) release();
     }
   };
-  const withTenantUser = jest.fn(async (_t: string, _u: string, fn: (tx: unknown) => Promise<unknown>) => inTx(fn));
+  const withTenantUser = jest.fn(
+    async (_t: string, _u: string, fn: (tx: unknown) => Promise<unknown>) => inTx(fn),
+  );
   const withTenant = jest.fn(async (_t: string, fn: (tx: unknown) => Promise<unknown>) => inTx(fn));
   const prisma = { withTenantUser, withTenant } as unknown as PrismaService;
 
@@ -634,13 +675,20 @@ function makeService(store: Store, opts: { realConversation?: boolean } = {}) {
       }
     },
   );
-  const verifyAppliedPlan = jest.fn(async (_tx: unknown, _t: string, _u: string, strategyId: string) => {
-    const strat = store.strategies.get(strategyId)!;
-    return {
-      detail: { id: strategyId, title: strat.title, type: strat.type, nodes: store.liveNodesFor(strategyId) },
-      violations: [] as unknown[],
-    };
-  });
+  const verifyAppliedPlan = jest.fn(
+    async (_tx: unknown, _t: string, _u: string, strategyId: string) => {
+      const strat = store.strategies.get(strategyId)!;
+      return {
+        detail: {
+          id: strategyId,
+          title: strat.title,
+          type: strat.type,
+          nodes: store.liveNodesFor(strategyId),
+        },
+        violations: [] as unknown[],
+      };
+    },
+  );
   const meri = { grounding, applyEditSet, verifyAppliedPlan } as unknown as MeriService;
 
   const healthValue = {
@@ -652,7 +700,9 @@ function makeService(store: Store, opts: { realConversation?: boolean } = {}) {
     missingRequired: [],
   };
   const steward = { health: jest.fn(async () => healthValue) } as unknown as StewardService;
-  const flags = { isAgenticFlagEnabled: jest.fn(async () => true) } as unknown as StrategyFlagsService;
+  const flags = {
+    isAgenticFlagEnabled: jest.fn(async () => true),
+  } as unknown as StrategyFlagsService;
 
   // Phase 4: the real StrategyConversationService is not wired here (no
   // conversation/message store in this fake tx) — a plain jest.fn appending to
@@ -668,9 +718,9 @@ function makeService(store: Store, opts: { realConversation?: boolean } = {}) {
   // so the chat leg of the chain exercises its actual validation/normalization
   // (including the rule that an `open_node` action needs a UUID node id).
   const realConversation = new StrategyConversationService(prisma);
-  const conversation = (
-    opts.realConversation ? realConversation : { append: conversationAppend }
-  ) as unknown as StrategyConversationService;
+  const conversation = (opts.realConversation
+    ? realConversation
+    : { append: conversationAppend }) as unknown as StrategyConversationService;
 
   const watcher = new WatcherService(prisma, versioning, flags, runs, changeSets, meri, steward);
   const svc = new WatchReviewService(prisma, versioning, meri, watcher, conversation);
@@ -709,7 +759,13 @@ async function seedOneOpenProposal(
   const { svc, watcher, conversationAppend } = makeService(store);
   const result = await watcher.runCheckNow(T, U, MID);
   const csId = result.changeSetsProposed[0]!;
-  return { watcher, svc, csId, watchKey: store.changeSets.get(csId)!.watchKey as string, conversationAppend };
+  return {
+    watcher,
+    svc,
+    csId,
+    watchKey: store.changeSets.get(csId)!.watchKey as string,
+    conversationAppend,
+  };
 }
 
 // ==== Scenario 5 =================================================================
@@ -768,13 +824,27 @@ describe('WatchReviewService — old-head proposals are superseded, never action
     const store = makeStore();
     seedStrategy(store);
     seedMission(store);
-    seedNode(store, { id: 'N1', startsOn: daysFromToday(-14), endsOn: daysFromToday(-7), status: 'in_progress' });
-    seedNode(store, { id: 'N2', startsOn: daysFromToday(-20), endsOn: daysFromToday(-12), status: 'in_progress' });
+    seedNode(store, {
+      id: 'N1',
+      startsOn: daysFromToday(-14),
+      endsOn: daysFromToday(-7),
+      status: 'in_progress',
+    });
+    seedNode(store, {
+      id: 'N2',
+      startsOn: daysFromToday(-20),
+      endsOn: daysFromToday(-12),
+      status: 'in_progress',
+    });
     const { svc, watcher } = makeService(store);
     const first = await watcher.runCheckNow(T, U, MID);
     expect(first.changeSetsProposed).toHaveLength(2);
-    const cs1 = store.changeSets.get(first.changeSetsProposed.find((id) => store.changeSets.get(id)!.watchKey === 'overdue:N1')!)!;
-    const cs2 = store.changeSets.get(first.changeSetsProposed.find((id) => store.changeSets.get(id)!.watchKey === 'overdue:N2')!)!;
+    const cs1 = store.changeSets.get(
+      first.changeSetsProposed.find((id) => store.changeSets.get(id)!.watchKey === 'overdue:N1')!,
+    )!;
+    const cs2 = store.changeSets.get(
+      first.changeSetsProposed.find((id) => store.changeSets.get(id)!.watchKey === 'overdue:N2')!,
+    )!;
 
     const { state } = await svc.acceptOne(T, U, cs1.id as string);
 
@@ -807,13 +877,28 @@ describe('WatchReviewService — recalculated dates produce Updated', () => {
     seedMission(store);
     // N1: overdue (14..7 days ago, duration 7). N2: a point event that
     // slipped against N1's ORIGINAL end (7 days ago) — before N1 is retimed.
-    seedNode(store, { id: 'N1', startsOn: daysFromToday(-14), endsOn: daysFromToday(-7), status: 'in_progress' });
-    seedNode(store, { id: 'N2', kind: 'milestone', startsOn: daysFromToday(-10), endsOn: null, dependsOnIds: ['N1'] });
+    seedNode(store, {
+      id: 'N1',
+      startsOn: daysFromToday(-14),
+      endsOn: daysFromToday(-7),
+      status: 'in_progress',
+    });
+    seedNode(store, {
+      id: 'N2',
+      kind: 'milestone',
+      startsOn: daysFromToday(-10),
+      endsOn: null,
+      dependsOnIds: ['N1'],
+    });
     const { svc, watcher } = makeService(store);
     const first = await watcher.runCheckNow(T, U, MID);
-    const cs1 = store.changeSets.get(first.changeSetsProposed.find((id) => store.changeSets.get(id)!.watchKey === 'overdue:N1')!)!;
+    const cs1 = store.changeSets.get(
+      first.changeSetsProposed.find((id) => store.changeSets.get(id)!.watchKey === 'overdue:N1')!,
+    )!;
     const cs2Before = store.changeSets.get(
-      first.changeSetsProposed.find((id) => (store.changeSets.get(id)!.watchKey as string).startsWith('dependency-slippage'))!,
+      first.changeSetsProposed.find((id) =>
+        (store.changeSets.get(id)!.watchKey as string).startsWith('dependency-slippage'),
+      )!,
     )!;
     // Before accept: N1 ends 7 days ago (past), so N2's slippage target
     // clamps to tomorrow.
@@ -850,7 +935,9 @@ describe('WatchReviewService — resolved finding is dropped with a plain-langua
     const state = await svc.revalidate(T, U, SID, 'manual');
 
     expect(state.lastRecheck!.state).toBe('complete');
-    expect(state.lastRecheck!.dropped).toEqual([{ watchKey, reason: expect.any(String), targetDeleted: false }]);
+    expect(state.lastRecheck!.dropped).toEqual([
+      { watchKey, reason: expect.any(String), targetDeleted: false },
+    ]);
     expect(store.changeSets.get(csId)!.status).toBe('superseded');
     expect(store.changeSets.get(csId)!.supersededReason).toMatch(/no longer an issue/i);
     expect(state.proposals).toEqual([]);
@@ -860,7 +947,7 @@ describe('WatchReviewService — resolved finding is dropped with a plain-langua
 // ==== Scenario 10 =================================================================
 
 describe('WatchReviewService — deleted target is dropped without a 404/error response', () => {
-  it('archiving the proposal\'s target node drops the proposal with targetDeleted:true, no exception thrown', async () => {
+  it("archiving the proposal's target node drops the proposal with targetDeleted:true, no exception thrown", async () => {
     const store = makeStore();
     const { csId, watchKey } = await seedOneOpenProposal(store, { id: 'N1' });
     store.nodes.get('N1')!.archivedAt = new Date();
@@ -869,7 +956,9 @@ describe('WatchReviewService — deleted target is dropped without a 404/error r
 
     const state = await svc.revalidate(T, U, SID, 'manual');
 
-    expect(state.lastRecheck!.dropped).toEqual([{ watchKey, reason: expect.any(String), targetDeleted: true }]);
+    expect(state.lastRecheck!.dropped).toEqual([
+      { watchKey, reason: expect.any(String), targetDeleted: true },
+    ]);
     expect(store.changeSets.get(csId)!.status).toBe('superseded');
     expect(state.proposals).toEqual([]);
   });
@@ -886,7 +975,13 @@ describe('WatchReviewService.revalidate — panel-open fast no-op vs refresh-aft
     const state = await svc.revalidate(T, U, SID, 'panel-open');
 
     expect(spy).not.toHaveBeenCalled();
-    expect(state.lastRecheck).toEqual({ state: 'complete', elapsedMs: expect.any(Number), unchanged: [], updated: [], dropped: [] });
+    expect(state.lastRecheck).toEqual({
+      state: 'complete',
+      elapsedMs: expect.any(Number),
+      unchanged: [],
+      updated: [],
+      dropped: [],
+    });
     expect(state.proposals).toHaveLength(1);
   });
 
@@ -922,8 +1017,18 @@ describe('WatchReviewService.acceptAll — atomic batch', () => {
     const store = makeStore();
     seedStrategy(store);
     seedMission(store);
-    seedNode(store, { id: 'N1', startsOn: daysFromToday(-14), endsOn: daysFromToday(-7), status: 'in_progress' });
-    seedNode(store, { id: 'N2', startsOn: daysFromToday(-20), endsOn: daysFromToday(-12), status: 'in_progress' });
+    seedNode(store, {
+      id: 'N1',
+      startsOn: daysFromToday(-14),
+      endsOn: daysFromToday(-7),
+      status: 'in_progress',
+    });
+    seedNode(store, {
+      id: 'N2',
+      startsOn: daysFromToday(-20),
+      endsOn: daysFromToday(-12),
+      status: 'in_progress',
+    });
     const { svc, watcher } = makeService(store);
     const first = await watcher.runCheckNow(T, U, MID);
     expect(first.changeSetsProposed).toHaveLength(2);
@@ -952,7 +1057,12 @@ describe('WatchReviewService.acceptAll — atomic batch', () => {
     // B depends on A; both overdue, so both get independent retime proposals
     // with NO natural ordering constraint from the finding shape alone — the
     // point is that acceptAll consults the LIVE graph, not proposal order.
-    seedNode(store, { id: 'A', startsOn: daysFromToday(-14), endsOn: daysFromToday(-7), status: 'in_progress' });
+    seedNode(store, {
+      id: 'A',
+      startsOn: daysFromToday(-14),
+      endsOn: daysFromToday(-7),
+      status: 'in_progress',
+    });
     seedNode(store, {
       id: 'B',
       startsOn: daysFromToday(-14),
@@ -963,8 +1073,12 @@ describe('WatchReviewService.acceptAll — atomic batch', () => {
     const { svc, watcher, applyEditSet } = makeService(store);
     const first = await watcher.runCheckNow(T, U, MID);
     // Submit in B-then-A order deliberately.
-    const csB = first.changeSetsProposed.find((id) => store.changeSets.get(id)!.watchKey === 'overdue:B')!;
-    const csA = first.changeSetsProposed.find((id) => store.changeSets.get(id)!.watchKey === 'overdue:A')!;
+    const csB = first.changeSetsProposed.find(
+      (id) => store.changeSets.get(id)!.watchKey === 'overdue:B',
+    )!;
+    const csA = first.changeSetsProposed.find(
+      (id) => store.changeSets.get(id)!.watchKey === 'overdue:A',
+    )!;
 
     await svc.acceptAll(T, U, SID, 'v1', [csB, csA]);
 
@@ -993,8 +1107,18 @@ describe('WatchReviewService.acceptAll — one invalid/stale proposal rolls the 
     const store = makeStore();
     seedStrategy(store);
     seedMission(store);
-    seedNode(store, { id: 'N1', startsOn: daysFromToday(-14), endsOn: daysFromToday(-7), status: 'in_progress' });
-    seedNode(store, { id: 'N2', startsOn: daysFromToday(-20), endsOn: daysFromToday(-12), status: 'in_progress' });
+    seedNode(store, {
+      id: 'N1',
+      startsOn: daysFromToday(-14),
+      endsOn: daysFromToday(-7),
+      status: 'in_progress',
+    });
+    seedNode(store, {
+      id: 'N2',
+      startsOn: daysFromToday(-20),
+      endsOn: daysFromToday(-12),
+      status: 'in_progress',
+    });
     const { svc, watcher } = makeService(store);
     const first = await watcher.runCheckNow(T, U, MID);
     const [csA, csB] = first.changeSetsProposed;
@@ -1063,8 +1187,18 @@ describe('WatchReviewService — concurrent single accept and batch accept canno
     const store = makeStore();
     seedStrategy(store);
     seedMission(store);
-    seedNode(store, { id: 'N1', startsOn: daysFromToday(-14), endsOn: daysFromToday(-7), status: 'in_progress' });
-    seedNode(store, { id: 'N2', startsOn: daysFromToday(-20), endsOn: daysFromToday(-12), status: 'in_progress' });
+    seedNode(store, {
+      id: 'N1',
+      startsOn: daysFromToday(-14),
+      endsOn: daysFromToday(-7),
+      status: 'in_progress',
+    });
+    seedNode(store, {
+      id: 'N2',
+      startsOn: daysFromToday(-20),
+      endsOn: daysFromToday(-12),
+      status: 'in_progress',
+    });
     const { svc, watcher, applyEditSet } = makeService(store);
     const first = await watcher.runCheckNow(T, U, MID);
     const [cs1, cs2] = first.changeSetsProposed;
@@ -1181,9 +1315,19 @@ describe('WatchReviewService.getState — display order', () => {
     const store = makeStore();
     seedStrategy(store);
     seedMission(store);
-    seedNode(store, { id: 'CAL', startsOn: daysFromToday(-14), endsOn: daysFromToday(-7), status: 'in_progress' });
+    seedNode(store, {
+      id: 'CAL',
+      startsOn: daysFromToday(-14),
+      endsOn: daysFromToday(-7),
+      status: 'in_progress',
+    });
     seedNode(store, { id: 'DEP-A', startsOn: daysFromToday(20), endsOn: daysFromToday(30) });
-    seedNode(store, { id: 'DEP-B', startsOn: daysFromToday(5), endsOn: daysFromToday(10), dependsOnIds: ['DEP-A'] });
+    seedNode(store, {
+      id: 'DEP-B',
+      startsOn: daysFromToday(5),
+      endsOn: daysFromToday(10),
+      dependsOnIds: ['DEP-A'],
+    });
     const { svc, watcher } = makeService(store);
     await watcher.runCheckNow(T, U, MID);
 
@@ -1223,8 +1367,18 @@ describe('WatchReviewService — Watch chat confirmation (Phase 4 §5)', () => {
     const store = makeStore();
     seedStrategy(store);
     seedMission(store);
-    seedNode(store, { id: 'N1', startsOn: daysFromToday(-14), endsOn: daysFromToday(-7), status: 'in_progress' });
-    seedNode(store, { id: 'N2', startsOn: daysFromToday(-20), endsOn: daysFromToday(-12), status: 'in_progress' });
+    seedNode(store, {
+      id: 'N1',
+      startsOn: daysFromToday(-14),
+      endsOn: daysFromToday(-7),
+      status: 'in_progress',
+    });
+    seedNode(store, {
+      id: 'N2',
+      startsOn: daysFromToday(-20),
+      endsOn: daysFromToday(-12),
+      status: 'in_progress',
+    });
     const { svc, watcher } = makeService(store);
     const first = await watcher.runCheckNow(T, U, MID);
 
@@ -1307,9 +1461,18 @@ describe('WatchReviewService.getPendingCounts', () => {
   it('counts current-head open Watch proposals per strategy across the whole tenant', async () => {
     const store = makeStore();
     seedStrategy(store); // SID / v1
-    seedNode(store, { id: 'N1', startsOn: daysFromToday(-14), endsOn: daysFromToday(-7), status: 'in_progress' });
+    seedNode(store, {
+      id: 'N1',
+      startsOn: daysFromToday(-14),
+      endsOn: daysFromToday(-7),
+      status: 'in_progress',
+    });
     store.strategies.set('S2', { ...store.strategies.get(SID)!, id: 'S2' });
-    store.versions.set('v2-head', { ...store.versions.get('v1')!, id: 'v2-head', strategyId: 'S2' });
+    store.versions.set('v2-head', {
+      ...store.versions.get('v1')!,
+      id: 'v2-head',
+      strategyId: 'S2',
+    });
     const mkCs = (id: string, strategyId: string, versionId: string, watchKey: string) =>
       store.changeSets.set(id, {
         id,
@@ -1402,11 +1565,20 @@ describe('WatchReviewService.getPendingCounts', () => {
   it('does ONE pass over each table regardless of strategy count — never N queries per row', async () => {
     const store = makeStore();
     seedStrategy(store);
-    seedNode(store, { id: 'N1', startsOn: daysFromToday(-14), endsOn: daysFromToday(-7), status: 'in_progress' });
+    seedNode(store, {
+      id: 'N1',
+      startsOn: daysFromToday(-14),
+      endsOn: daysFromToday(-7),
+      status: 'in_progress',
+    });
     for (let i = 0; i < 5; i++) {
       const sid = `S-extra-${i}`;
       store.strategies.set(sid, { ...store.strategies.get(SID)!, id: sid });
-      store.versions.set(`v-${sid}`, { ...store.versions.get('v1')!, id: `v-${sid}`, strategyId: sid });
+      store.versions.set(`v-${sid}`, {
+        ...store.versions.get('v1')!,
+        id: `v-${sid}`,
+        strategyId: sid,
+      });
       store.changeSets.set(`cs-${sid}`, {
         id: `cs-${sid}`,
         tenantId: T,
@@ -1545,8 +1717,10 @@ describe('Phase 6 §4 — revalidate under concurrency', () => {
     const supersedeEvents = store.activity.filter(
       (e) => e.action === 'watch.proposal_reissued' || e.action === 'watch.proposal_dropped',
     );
-    expect(supersedeEvents.filter((e) => e.entityId === csId || (e.after as Rec)?.watchKey === watchKey).length)
-      .toBeLessThanOrEqual(1);
+    expect(
+      supersedeEvents.filter((e) => e.entityId === csId || (e.after as Rec)?.watchKey === watchKey)
+        .length,
+    ).toBeLessThanOrEqual(1);
   });
 
   it('a revalidate racing an accept still applies the edit exactly once and leaves a consistent state', async () => {

@@ -82,7 +82,9 @@ export class WorkspaceContextCompilerService {
         surface,
       );
     } catch {
-      this.logger.warn('Context Packet tenant canary lookup failed closed (context_packet_canary_lookup_failed)');
+      this.logger.warn(
+        'Context Packet tenant canary lookup failed closed (context_packet_canary_lookup_failed)',
+      );
       return 'off';
     }
   }
@@ -95,7 +97,9 @@ export class WorkspaceContextCompilerService {
       `;
       return users[0]?.id ?? null;
     } catch {
-      this.logger.warn('Workspace Clerk identity resolution failed (context_packet_user_resolution_failed)');
+      this.logger.warn(
+        'Workspace Clerk identity resolution failed (context_packet_user_resolution_failed)',
+      );
       return null;
     }
   }
@@ -158,7 +162,9 @@ export class WorkspaceContextCompilerService {
       });
       return rows[0]?.allowed === true;
     } catch {
-      this.logger.warn('Workspace ethical-wall lookup failed closed (context_packet_wall_lookup_failed)');
+      this.logger.warn(
+        'Workspace ethical-wall lookup failed closed (context_packet_wall_lookup_failed)',
+      );
       return false;
     }
   }
@@ -286,9 +292,9 @@ export class WorkspaceContextCompilerService {
 function isPersistenceError(error: unknown): error is { code: string } {
   return Boolean(
     error &&
-      typeof error === 'object' &&
-      (error as { name?: unknown }).name === 'ContextPacketPersistenceError' &&
-      typeof (error as { code?: unknown }).code === 'string',
+    typeof error === 'object' &&
+    (error as { name?: unknown }).name === 'ContextPacketPersistenceError' &&
+    typeof (error as { code?: unknown }).code === 'string',
   );
 }
 

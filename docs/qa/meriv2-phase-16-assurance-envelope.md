@@ -16,18 +16,18 @@ The envelope contains:
 
 ```ts
 {
-  operatingFrame,
-  evidencePlan,
-  claimLedger,
-  findings,
-  releaseDecision,
-  blockers,
-  warnings,
-  verifierVersion,
-  contextPacketId,
-  policyBinding,
-  generatedAt,
-  hash
+  (operatingFrame,
+    evidencePlan,
+    claimLedger,
+    findings,
+    releaseDecision,
+    blockers,
+    warnings,
+    verifierVersion,
+    contextPacketId,
+    policyBinding,
+    generatedAt,
+    hash);
 }
 ```
 

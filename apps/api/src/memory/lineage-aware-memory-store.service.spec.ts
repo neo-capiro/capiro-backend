@@ -77,9 +77,7 @@ describe('LineageAwareMemoryStoreService', () => {
       .mockResolvedValue(active);
 
     const tx = {
-      $queryRaw: jest.fn(async () => [
-        { id: active.id, type: active.type, slug: active.slug },
-      ]),
+      $queryRaw: jest.fn(async () => [{ id: active.id, type: active.type, slug: active.slug }]),
     };
     const withTenantUser = jest.fn(
       async (_tenant: string, _user: string, work: (value: typeof tx) => unknown) => work(tx),

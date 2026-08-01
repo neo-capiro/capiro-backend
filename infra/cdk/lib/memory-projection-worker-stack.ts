@@ -67,11 +67,7 @@ export class MemoryProjectionWorkerStack extends cdk.Stack {
       'ImportedApplicationDatabaseSecret',
       props.appDbSecretArn,
     );
-    const alertsTopic = sns.Topic.fromTopicArn(
-      this,
-      'ImportedAlertsTopic',
-      props.alertsTopicArn,
-    );
+    const alertsTopic = sns.Topic.fromTopicArn(this, 'ImportedAlertsTopic', props.alertsTopicArn);
 
     const worker = new ScheduledMemoryProjectionWorker(this, 'ScheduledWorker', {
       envName: cfg.envName,

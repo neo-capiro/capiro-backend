@@ -70,7 +70,13 @@ describe('orderBatchOps — topological ordering of patches', () => {
 describe('orderBatchOps — adds precede everything', () => {
   it('adds sort before every patch and every removal, in their own original relative order', () => {
     const nodes = [n('A')];
-    const addOp: PlanEdit = { op: 'add', kind: 'action', subject: 'deliverable', title: 'New step', startsOn: '2026-08-01' };
+    const addOp: PlanEdit = {
+      op: 'add',
+      kind: 'action',
+      subject: 'deliverable',
+      title: 'New step',
+      startsOn: '2026-08-01',
+    };
     const ops = [retime('A', '2026-08-05'), addOp];
 
     const result = orderBatchOps(nodes, ops);
@@ -99,7 +105,10 @@ describe('orderBatchOps — reverse dependency order for removals', () => {
 
   it('rejects a cycle among the removals themselves', () => {
     const nodes = [n('A', ['B']), n('B', ['A'])];
-    const ops: PlanEdit[] = [{ op: 'remove', nodeId: 'A' }, { op: 'remove', nodeId: 'B' }];
+    const ops: PlanEdit[] = [
+      { op: 'remove', nodeId: 'A' },
+      { op: 'remove', nodeId: 'B' },
+    ];
 
     const result = orderBatchOps(nodes, ops);
 
@@ -124,7 +133,12 @@ describe('orderBatchOps — duplicate collapse and contradiction rejection', () 
   it('collapses identical ops regardless of jsonb-style key ordering (key-order-independent identity)', () => {
     const nodes = [n('A')];
     const a: PlanEdit = { op: 'retime', nodeId: 'A', startsOn: '2026-08-05', endsOn: '2026-08-10' };
-    const b = { endsOn: '2026-08-10', op: 'retime', startsOn: '2026-08-05', nodeId: 'A' } as PlanEdit;
+    const b = {
+      endsOn: '2026-08-10',
+      op: 'retime',
+      startsOn: '2026-08-05',
+      nodeId: 'A',
+    } as PlanEdit;
 
     const result = orderBatchOps(nodes, [a, b]);
 

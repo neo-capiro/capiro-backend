@@ -196,5 +196,10 @@ export class ExactMemoryCleanupOutboxService extends MemoryCleanupOutboxService 
 
 function boundedErrorCode(error: unknown): string {
   const value = error instanceof Error ? error.name : 'ProjectionBookkeepingError';
-  return value.toLowerCase().replace(/[^a-z0-9_.-]+/g, '_').slice(0, 80) || 'projection_error';
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9_.-]+/g, '_')
+      .slice(0, 80) || 'projection_error'
+  );
 }

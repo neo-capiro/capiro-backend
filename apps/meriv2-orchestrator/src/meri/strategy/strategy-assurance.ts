@@ -152,10 +152,15 @@ function attributionForFinding(
   span: string,
   sections: readonly DocumentDraftSection[],
 ): { scope: 'section'; subjectId: string } | { scope: 'run' } {
-  const normalized = String(span ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const normalized = String(span ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
   if (normalized.length >= 12) {
     const match = sections.find((section) =>
-      plainText(section.html).toLowerCase().includes(normalized.slice(0, Math.min(180, normalized.length))),
+      plainText(section.html)
+        .toLowerCase()
+        .includes(normalized.slice(0, Math.min(180, normalized.length))),
     );
     if (match) return { scope: 'section', subjectId: match.heading };
   }

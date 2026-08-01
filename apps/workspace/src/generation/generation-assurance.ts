@@ -231,7 +231,9 @@ export function assessGeneratedSectionsForRelease(input: {
     const domainFindings = runGovernmentAffairsChecks({ ledger, facts: [], outputText: text });
     const findings = [...runFindings, ...sectionFindings, ...structuralFindings, ...domainFindings];
     const verificationAvailable =
-      input.peEvidenceAvailable !== false && runStructural.length === 0 && sectionStructural.length === 0;
+      input.peEvidenceAvailable !== false &&
+      runStructural.length === 0 &&
+      sectionStructural.length === 0;
     const gate = evaluateAssuranceRelease({
       surface: 'workspace-gen',
       plan,
@@ -291,7 +293,10 @@ function findingBelongsToSection(
   sectionText: string,
 ): boolean {
   const normalizedText = sectionText.toLowerCase();
-  const span = String(finding.span ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const span = String(finding.span ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
   if (span.length >= 12 && normalizedText.includes(span.slice(0, Math.min(span.length, 180)))) {
     return true;
   }
@@ -309,7 +314,10 @@ function structuralWarningBelongsToSection(
     case 'rdte_procurement_mismatch':
       return hasPe && /\b(?:directed procurement|procure|buy|production procurement)\b/i.test(text);
     case 'capability_mission_mismatch':
-      return hasPe && /\b(?:missile|interceptor|munition|kinetic|warhead|projectile|rocket)\b/i.test(text);
+      return (
+        hasPe &&
+        /\b(?:missile|interceptor|munition|kinetic|warhead|projectile|rocket)\b/i.test(text)
+      );
     case 'primary_vehicle_overclaim':
       return hasPe && /\bprimary\b/i.test(text);
     default:

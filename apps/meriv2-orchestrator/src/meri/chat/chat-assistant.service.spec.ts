@@ -88,11 +88,7 @@ const actionProposalsRepo = {
 } as unknown as ApiActionProposalRepo;
 
 /** Tools the product holds for human approval (WARN / external) in these tests. */
-const HELD_WRITE_TOOLS = new Set([
-  'send_email',
-  'reply_email',
-  'update_client_profile',
-]);
+const HELD_WRITE_TOOLS = new Set(['send_email', 'reply_email', 'update_client_profile']);
 
 // Phase 1 M5.0 (H-1): the chat loop meters every round via recordAiUsageEvent,
 // which needs prisma.withTenant/withSystem. A no-op fake is enough here — the

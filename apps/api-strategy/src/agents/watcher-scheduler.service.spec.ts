@@ -88,7 +88,13 @@ function makeHarness() {
       const cadenceMs = (m.cadence === 'weekly' ? 7 : 1) * DAY;
       const steps = Math.floor((now.getTime() - dueAt.getTime()) / cadenceMs) + 1;
       m.nextRunAt = new Date(dueAt.getTime() + steps * cadenceMs);
-      return { id: m.id, tenantId: m.tenantId, strategyId: m.strategyId, cadence: m.cadence!, dueAt };
+      return {
+        id: m.id,
+        tenantId: m.tenantId,
+        strategyId: m.strategyId,
+        cadence: m.cadence!,
+        dueAt,
+      };
     });
   };
 
@@ -195,13 +201,48 @@ describe('WatcherSchedulerService.tickOnce — claim semantics', () => {
     const due1 = new Date(Date.now() - 60_000);
     const due2 = new Date(Date.now() - 30_000);
     h.missions.push(
-      { id: 'M1', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: due1 },
-      { id: 'M2', tenantId: 't2', strategyId: 'S2', state: 'active', cadence: 'weekly', nextRunAt: due2 },
+      {
+        id: 'M1',
+        tenantId: T,
+        strategyId: 'S1',
+        state: 'active',
+        cadence: 'daily',
+        nextRunAt: due1,
+      },
+      {
+        id: 'M2',
+        tenantId: 't2',
+        strategyId: 'S2',
+        state: 'active',
+        cadence: 'weekly',
+        nextRunAt: due2,
+      },
       // Every non-claimable shape:
       { id: 'M3', tenantId: T, strategyId: 'S1', state: 'active', cadence: null, nextRunAt: due1 }, // manual-only
-      { id: 'M4', tenantId: T, strategyId: 'S1', state: 'paused', cadence: 'daily', nextRunAt: due1 }, // not active
-      { id: 'M5', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: new Date(Date.now() + DAY) }, // future
-      { id: 'M6', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: null }, // never scheduled
+      {
+        id: 'M4',
+        tenantId: T,
+        strategyId: 'S1',
+        state: 'paused',
+        cadence: 'daily',
+        nextRunAt: due1,
+      }, // not active
+      {
+        id: 'M5',
+        tenantId: T,
+        strategyId: 'S1',
+        state: 'active',
+        cadence: 'daily',
+        nextRunAt: new Date(Date.now() + DAY),
+      }, // future
+      {
+        id: 'M6',
+        tenantId: T,
+        strategyId: 'S1',
+        state: 'active',
+        cadence: 'daily',
+        nextRunAt: null,
+      }, // never scheduled
     );
 
     const res = await h.svc.tickOnce();
@@ -232,8 +273,22 @@ describe('WatcherSchedulerService.tickOnce — claim semantics', () => {
     const m1Due = new Date(start - 3 * DAY);
     const m2Due = new Date(start - 1000);
     h.missions.push(
-      { id: 'M1', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: m1Due },
-      { id: 'M2', tenantId: T, strategyId: 'S2', state: 'active', cadence: 'weekly', nextRunAt: m2Due },
+      {
+        id: 'M1',
+        tenantId: T,
+        strategyId: 'S1',
+        state: 'active',
+        cadence: 'daily',
+        nextRunAt: m1Due,
+      },
+      {
+        id: 'M2',
+        tenantId: T,
+        strategyId: 'S2',
+        state: 'active',
+        cadence: 'weekly',
+        nextRunAt: m2Due,
+      },
     );
 
     await h.svc.tickOnce();
@@ -260,7 +315,12 @@ describe('WatcherSchedulerService.tickOnce — claim semantics', () => {
     // occurrence forward by the lag (and accumulate across occurrences).
     const due = new Date(Date.now() - 47_000);
     h.missions.push({
-      id: 'M1', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: due,
+      id: 'M1',
+      tenantId: T,
+      strategyId: 'S1',
+      state: 'active',
+      cadence: 'daily',
+      nextRunAt: due,
     });
 
     await h.svc.tickOnce();
@@ -272,8 +332,22 @@ describe('WatcherSchedulerService.tickOnce — claim semantics', () => {
   it('overlapping passes never double-run a mission (SKIP LOCKED simulated as claim-once)', async () => {
     const h = makeHarness();
     h.missions.push(
-      { id: 'M1', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: new Date(Date.now() - 1000) },
-      { id: 'M2', tenantId: T, strategyId: 'S2', state: 'active', cadence: 'daily', nextRunAt: new Date(Date.now() - 2000) },
+      {
+        id: 'M1',
+        tenantId: T,
+        strategyId: 'S1',
+        state: 'active',
+        cadence: 'daily',
+        nextRunAt: new Date(Date.now() - 1000),
+      },
+      {
+        id: 'M2',
+        tenantId: T,
+        strategyId: 'S2',
+        state: 'active',
+        cadence: 'daily',
+        nextRunAt: new Date(Date.now() - 2000),
+      },
     );
 
     const [a, b] = await Promise.all([h.svc.tickOnce(), h.svc.tickOnce()]);
@@ -289,7 +363,12 @@ describe('WatcherSchedulerService.tickOnce — claim semantics', () => {
     const h = makeHarness();
     const due = new Date(Date.now() - 1000);
     h.missions.push({
-      id: 'M1', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: due,
+      id: 'M1',
+      tenantId: T,
+      strategyId: 'S1',
+      state: 'active',
+      cadence: 'daily',
+      nextRunAt: due,
     });
 
     await h.svc.tickOnce(); // poll 1 claims the due occurrence
@@ -316,8 +395,22 @@ describe('WatcherSchedulerService — per-tenant flag gate', () => {
     const h = makeHarness();
     h.isAgenticFlagEnabled.mockResolvedValue(false);
     h.missions.push(
-      { id: 'M1', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: new Date(Date.now() - 1000) },
-      { id: 'M2', tenantId: T, strategyId: null, state: 'active', cadence: 'daily', nextRunAt: new Date(Date.now() - 2000) },
+      {
+        id: 'M1',
+        tenantId: T,
+        strategyId: 'S1',
+        state: 'active',
+        cadence: 'daily',
+        nextRunAt: new Date(Date.now() - 1000),
+      },
+      {
+        id: 'M2',
+        tenantId: T,
+        strategyId: null,
+        state: 'active',
+        cadence: 'daily',
+        nextRunAt: new Date(Date.now() - 2000),
+      },
     );
 
     const res = await h.svc.tickOnce();
@@ -334,7 +427,14 @@ describe('WatcherSchedulerService — firm-level calendar mission (change-detect
   it('NO baseline yet (first occurrence): one scheduled run, planning -> ready_for_review, single critical firmLevel finding + fingerprint recorded', async () => {
     const h = makeHarness();
     const due = new Date(Date.now() - 1000);
-    h.missions.push({ id: 'MF', tenantId: T, strategyId: null, state: 'active', cadence: 'weekly', nextRunAt: due });
+    h.missions.push({
+      id: 'MF',
+      tenantId: T,
+      strategyId: null,
+      state: 'active',
+      cadence: 'weekly',
+      nextRunAt: due,
+    });
 
     const res = await h.svc.tickOnce();
 
@@ -372,12 +472,17 @@ describe('WatcherSchedulerService — firm-level calendar mission (change-detect
     );
   });
 
-  it("an UNCHANGED calendar creates NO noise: findings [] + fingerprint only — no critical finding, no riskClassification (the daily-drumbeat regression)", async () => {
+  it('an UNCHANGED calendar creates NO noise: findings [] + fingerprint only — no critical finding, no riskClassification (the daily-drumbeat regression)', async () => {
     const h = makeHarness();
     const cal = makeCalendars();
     h.getCalendars.mockResolvedValue(cal);
     h.missions.push({
-      id: 'MF', tenantId: T, strategyId: null, state: 'active', cadence: 'daily', nextRunAt: new Date(Date.now() - 1000),
+      id: 'MF',
+      tenantId: T,
+      strategyId: null,
+      state: 'active',
+      cadence: 'daily',
+      nextRunAt: new Date(Date.now() - 1000),
     });
     // Yesterday's occurrence already recorded the fingerprint of the SAME calendars.
     h.runs.push({
@@ -414,7 +519,12 @@ describe('WatcherSchedulerService — firm-level calendar mission (change-detect
     const before = makeCalendars();
     before.congress[0] = { ...before.congress[0]!, startsOn: new Date('2026-04-15T00:00:00.000Z') };
     h.missions.push({
-      id: 'MF', tenantId: T, strategyId: null, state: 'active', cadence: 'daily', nextRunAt: new Date(Date.now() - 1000),
+      id: 'MF',
+      tenantId: T,
+      strategyId: null,
+      state: 'active',
+      cadence: 'daily',
+      nextRunAt: new Date(Date.now() - 1000),
     });
     h.runs.push({
       id: 'R-prev',
@@ -449,13 +559,32 @@ describe('WatcherSchedulerService — firm-level calendar mission (change-detect
     const cal = makeCalendars();
     h.getCalendars.mockResolvedValue(cal);
     h.missions.push({
-      id: 'MF', tenantId: T, strategyId: null, state: 'active', cadence: 'daily', nextRunAt: new Date(Date.now() - 1000),
+      id: 'MF',
+      tenantId: T,
+      strategyId: null,
+      state: 'active',
+      cadence: 'daily',
+      nextRunAt: new Date(Date.now() - 1000),
     });
     h.runs.push(
       // Newest prior run failed before recording anything…
-      { id: 'R-failed', state: 'failed', idempotencyKey: 'sched:MF:d2', missionId: 'MF', createdAt: new Date(Date.now() - DAY), findings: null },
+      {
+        id: 'R-failed',
+        state: 'failed',
+        idempotencyKey: 'sched:MF:d2',
+        missionId: 'MF',
+        createdAt: new Date(Date.now() - DAY),
+        findings: null,
+      },
       // …but the observation before it fingerprinted the SAME calendars.
-      { id: 'R-ok', state: 'completed', idempotencyKey: 'sched:MF:d1', missionId: 'MF', createdAt: new Date(Date.now() - 2 * DAY), findings: { findings: [], calendarFingerprint: fingerprintCalendars(cal) } },
+      {
+        id: 'R-ok',
+        state: 'completed',
+        idempotencyKey: 'sched:MF:d1',
+        missionId: 'MF',
+        createdAt: new Date(Date.now() - 2 * DAY),
+        findings: { findings: [], calendarFingerprint: fingerprintCalendars(cal) },
+      },
     );
 
     const res = await h.svc.tickOnce();
@@ -472,7 +601,12 @@ describe('WatcherSchedulerService — firm-level calendar mission (change-detect
   it('replaying an occurrence whose run already advanced past planning is a no-op', async () => {
     const h = makeHarness();
     h.missions.push({
-      id: 'MF', tenantId: T, strategyId: null, state: 'active', cadence: 'daily', nextRunAt: new Date(Date.now() - 1000),
+      id: 'MF',
+      tenantId: T,
+      strategyId: null,
+      state: 'active',
+      cadence: 'daily',
+      nextRunAt: new Date(Date.now() - 1000),
     });
     // createRun dedupes on the idempotency key and returns the EXISTING run.
     h.createRun.mockResolvedValue({ id: 'R-firm', state: 'ready_for_review' });
@@ -505,7 +639,10 @@ describe('fingerprintCalendars — stable content fingerprint', () => {
     expect(fingerprintCalendars(moved)).not.toBe(base);
 
     const relabeled = makeCalendars();
-    relabeled.ppbeCurrentPhases[0] = { ...relabeled.ppbeCurrentPhases[0]!, label: 'Execution FY27' };
+    relabeled.ppbeCurrentPhases[0] = {
+      ...relabeled.ppbeCurrentPhases[0]!,
+      label: 'Execution FY27',
+    };
     expect(fingerprintCalendars(relabeled)).not.toBe(base);
 
     const added = makeCalendars();
@@ -553,8 +690,22 @@ describe('WatcherSchedulerService — poisoned-mission isolation', () => {
     const due1 = new Date(Date.now() - 60_000);
     const due2 = new Date(Date.now() - 30_000);
     h.missions.push(
-      { id: 'M1', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: due1 },
-      { id: 'M2', tenantId: T, strategyId: 'S2', state: 'active', cadence: 'daily', nextRunAt: due2 },
+      {
+        id: 'M1',
+        tenantId: T,
+        strategyId: 'S1',
+        state: 'active',
+        cadence: 'daily',
+        nextRunAt: due1,
+      },
+      {
+        id: 'M2',
+        tenantId: T,
+        strategyId: 'S2',
+        state: 'active',
+        cadence: 'daily',
+        nextRunAt: due2,
+      },
     );
     // M1's runCheckNow got far enough to create a run, then blew up mid-check.
     h.runs.push({ id: 'R1', state: 'planning', idempotencyKey: `sched:M1:${day(due1)}` });
@@ -581,7 +732,14 @@ describe('WatcherSchedulerService — poisoned-mission isolation', () => {
   it('a run stranded in queued is canceled (queued cannot legally move to failed)', async () => {
     const h = makeHarness();
     const due = new Date(Date.now() - 1000);
-    h.missions.push({ id: 'M1', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: due });
+    h.missions.push({
+      id: 'M1',
+      tenantId: T,
+      strategyId: 'S1',
+      state: 'active',
+      cadence: 'daily',
+      nextRunAt: due,
+    });
     h.runs.push({ id: 'R1', state: 'queued', idempotencyKey: `sched:M1:${day(due)}` });
     h.runCheckNow.mockImplementation(async () => {
       throw new Error('boom');
@@ -600,7 +758,14 @@ describe('WatcherSchedulerService — poisoned-mission isolation', () => {
   it("a failed same-day re-check leaves the day's ready_for_review run UNTOUCHED (review surface survives)", async () => {
     const h = makeHarness();
     const due = new Date(Date.now() - 1000);
-    h.missions.push({ id: 'M1', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: due });
+    h.missions.push({
+      id: 'M1',
+      tenantId: T,
+      strategyId: 'S1',
+      state: 'active',
+      cadence: 'daily',
+      nextRunAt: due,
+    });
     // The day's earlier occurrence already succeeded — its run is reviewable.
     h.runs.push({ id: 'R1', state: 'ready_for_review', idempotencyKey: `sched:M1:${day(due)}` });
     // A later same-day re-claim (outbox bring-forward) blows up mid-refresh.

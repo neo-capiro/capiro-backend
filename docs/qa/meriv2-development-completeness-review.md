@@ -176,31 +176,31 @@ Both local preflight commands now parse every `.mjs` release operator and verify
 
 ## Phase-by-phase disposition
 
-| Phase | Objective | Development disposition | Final evidence owner |
-|---:|---|---|---|
-| 0 | Containment and server-owned control boundaries | Complete | Static completeness, API/orchestrator tests |
-| 1 | Atomic candidate activation | Complete | API atomicity/concurrency tests; Phase 18 |
-| 2 | Canonical governed metadata and lineage | Complete | Migration/schema tests; Context recall tests |
-| 3 | Settings shared-memory review lifecycle | Complete | Settings API/web tests; Phase 19 |
-| 4 | Immutable corrections, restores, conflicts, and legal hold | Complete | Immutable service tests; Phase 18/19 |
-| 5 | Durable deployable projection worker | Complete | Worker tests; operations-stack synth/diff |
-| 6 | Exact projection completion and failure recovery | Complete | Exact worker/outbox tests; Phase 18 |
-| 7 | Truthful Context Packet persistence | Complete | Persistence boundary tests; Phase 18/19 |
-| 8 | Context Packet v2 off/shadow/enforce rollout | Complete | Core/API/orchestrator/Workspace tests |
-| 9 | Authoritative governed lifecycle | Complete | Recall/predicate tests across surfaces |
-| 10 | Persisted policy packs as action authority | Complete | Policy concurrency/service/UI tests; Phase 18 |
-| 11 | Reversible drift-safe governance backfill | Complete | Disposable PostgreSQL execute/rollback rehearsal |
-| 12 | Explicit least-privilege client reviewers | Complete | Grant/wall/authorization matrix; Phase 19 |
-| 13 | Withdrawal distinct from rejection | Complete | Migration, service, controller, and UI tests |
-| 14 | Context Inspector identity and accessibility | Complete | Vitest, axe/ARIA fixture, Phase 19 |
-| 15 | Governed-memory administration UX | Complete | API/web tests; Phase 19 lifecycle coverage |
-| 16 | Cross-surface assurance envelope and canaries | Complete | Core and destination tests; Phase 19 prepared states |
-| 17 | One exact local final code matrix | Complete as executable gate | `pnpm verify:meriv2-development` |
-| 18 | Clean and upgrade database rehearsal | Complete as executable rehearsal | Local PostgreSQL 16 + pgvector run |
-| 19 | Authenticated browser/accessibility acceptance | Complete as executable rehearsal | Local Clerk/Chrome run |
-| 20 | SOC 2 controls, alarms, rollout, and rollback | Complete | Operations synth/diff; operator walkthrough |
-| 21 | Trusted PR and release authorization | Complete as package | PR #679 + local evidence + independent reviews |
-| 22 | Migration, deployment, canary, backfill, and GA | Complete as executable runbook/operators | Production change execution |
+| Phase | Objective                                                  | Development disposition                  | Final evidence owner                                 |
+| ----: | ---------------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------- |
+|     0 | Containment and server-owned control boundaries            | Complete                                 | Static completeness, API/orchestrator tests          |
+|     1 | Atomic candidate activation                                | Complete                                 | API atomicity/concurrency tests; Phase 18            |
+|     2 | Canonical governed metadata and lineage                    | Complete                                 | Migration/schema tests; Context recall tests         |
+|     3 | Settings shared-memory review lifecycle                    | Complete                                 | Settings API/web tests; Phase 19                     |
+|     4 | Immutable corrections, restores, conflicts, and legal hold | Complete                                 | Immutable service tests; Phase 18/19                 |
+|     5 | Durable deployable projection worker                       | Complete                                 | Worker tests; operations-stack synth/diff            |
+|     6 | Exact projection completion and failure recovery           | Complete                                 | Exact worker/outbox tests; Phase 18                  |
+|     7 | Truthful Context Packet persistence                        | Complete                                 | Persistence boundary tests; Phase 18/19              |
+|     8 | Context Packet v2 off/shadow/enforce rollout               | Complete                                 | Core/API/orchestrator/Workspace tests                |
+|     9 | Authoritative governed lifecycle                           | Complete                                 | Recall/predicate tests across surfaces               |
+|    10 | Persisted policy packs as action authority                 | Complete                                 | Policy concurrency/service/UI tests; Phase 18        |
+|    11 | Reversible drift-safe governance backfill                  | Complete                                 | Disposable PostgreSQL execute/rollback rehearsal     |
+|    12 | Explicit least-privilege client reviewers                  | Complete                                 | Grant/wall/authorization matrix; Phase 19            |
+|    13 | Withdrawal distinct from rejection                         | Complete                                 | Migration, service, controller, and UI tests         |
+|    14 | Context Inspector identity and accessibility               | Complete                                 | Vitest, axe/ARIA fixture, Phase 19                   |
+|    15 | Governed-memory administration UX                          | Complete                                 | API/web tests; Phase 19 lifecycle coverage           |
+|    16 | Cross-surface assurance envelope and canaries              | Complete                                 | Core and destination tests; Phase 19 prepared states |
+|    17 | One exact local final code matrix                          | Complete as executable gate              | `pnpm verify:meriv2-development`                     |
+|    18 | Clean and upgrade database rehearsal                       | Complete as executable rehearsal         | Local PostgreSQL 16 + pgvector run                   |
+|    19 | Authenticated browser/accessibility acceptance             | Complete as executable rehearsal         | Local Clerk/Chrome run                               |
+|    20 | SOC 2 controls, alarms, rollout, and rollback              | Complete                                 | Operations synth/diff; operator walkthrough          |
+|    21 | Trusted PR and release authorization                       | Complete as package                      | PR #679 + local evidence + independent reviews       |
+|    22 | Migration, deployment, canary, backfill, and GA            | Complete as executable runbook/operators | Production change execution                          |
 
 ---
 

@@ -187,9 +187,7 @@ describe('OutboxConsumerService.drainOnce', () => {
       cadence: 'daily',
       nextRunAt: new Date(Date.now() + DAY), // tomorrow — must come forward
     });
-    h.outbox.push(
-      event({ type: 'node.updated', payload: { entityType: 'node', entityId: 'N1' } }),
-    );
+    h.outbox.push(event({ type: 'node.updated', payload: { entityType: 'node', entityId: 'N1' } }));
 
     const res = await h.svc.drainOnce();
 
@@ -202,13 +200,30 @@ describe('OutboxConsumerService.drainOnce', () => {
   it('resolves entityType=strategy events directly, and an explicit payload.strategyId wins', async () => {
     const h = makeHarness();
     h.missions.push(
-      { id: 'M1', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: new Date(Date.now() + DAY) },
-      { id: 'M2', tenantId: T, strategyId: 'S2', state: 'active', cadence: 'weekly', nextRunAt: new Date(Date.now() + DAY) },
+      {
+        id: 'M1',
+        tenantId: T,
+        strategyId: 'S1',
+        state: 'active',
+        cadence: 'daily',
+        nextRunAt: new Date(Date.now() + DAY),
+      },
+      {
+        id: 'M2',
+        tenantId: T,
+        strategyId: 'S2',
+        state: 'active',
+        cadence: 'weekly',
+        nextRunAt: new Date(Date.now() + DAY),
+      },
     );
     h.outbox.push(
       event({ type: 'version.restored', payload: { entityType: 'strategy', entityId: 'S1' } }),
       // A future emitter that sets strategyId explicitly (entityId is NOT a strategy).
-      event({ type: 'steward.extracted', payload: { entityType: 'context_document', entityId: 'D1', strategyId: 'S2' } }),
+      event({
+        type: 'steward.extracted',
+        payload: { entityType: 'context_document', entityId: 'D1', strategyId: 'S2' },
+      }),
     );
 
     const res = await h.svc.drainOnce();
@@ -224,7 +239,12 @@ describe('OutboxConsumerService.drainOnce', () => {
     // tx that emits the event, so node -> strategy resolution can never work
     // for deletes — the emitter carries strategyId explicitly instead.
     h.missions.push({
-      id: 'M1', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: new Date(Date.now() + DAY),
+      id: 'M1',
+      tenantId: T,
+      strategyId: 'S1',
+      state: 'active',
+      cadence: 'daily',
+      nextRunAt: new Date(Date.now() + DAY),
     });
     h.outbox.push(
       event({
@@ -242,7 +262,12 @@ describe('OutboxConsumerService.drainOnce', () => {
   it('activates a cadence mission that was never scheduled (nextRunAt null => now)', async () => {
     const h = makeHarness();
     h.missions.push({
-      id: 'M1', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: null,
+      id: 'M1',
+      tenantId: T,
+      strategyId: 'S1',
+      state: 'active',
+      cadence: 'daily',
+      nextRunAt: null,
     });
     h.outbox.push(
       event({ type: 'strategy.assisted', payload: { entityType: 'strategy', entityId: 'S1' } }),
@@ -258,12 +283,20 @@ describe('OutboxConsumerService.drainOnce', () => {
     const h = makeHarness();
     const later = new Date(Date.now() + DAY);
     h.missions.push({
-      id: 'M1', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: later,
+      id: 'M1',
+      tenantId: T,
+      strategyId: 'S1',
+      state: 'active',
+      cadence: 'daily',
+      nextRunAt: later,
     });
     // Bookkeeping actions — including the watcher's own writes (no feedback loop).
     h.outbox.push(
       event({ type: 'mission.created', payload: { entityType: 'mission', entityId: 'M1' } }),
-      event({ type: 'changeset.proposed', payload: { entityType: 'change_set', entityId: 'CS1', strategyId: 'S1' } }),
+      event({
+        type: 'changeset.proposed',
+        payload: { entityType: 'change_set', entityId: 'CS1', strategyId: 'S1' },
+      }),
       event({ type: 'run.created', payload: { entityType: 'run', entityId: 'R1' } }),
     );
 
@@ -279,9 +312,30 @@ describe('OutboxConsumerService.drainOnce', () => {
     const past = new Date(Date.now() - 60_000);
     const future = new Date(Date.now() + DAY);
     h.missions.push(
-      { id: 'M1', tenantId: T, strategyId: 'S1', state: 'active', cadence: null, nextRunAt: future }, // manual-only
-      { id: 'M2', tenantId: T, strategyId: 'S1', state: 'paused', cadence: 'daily', nextRunAt: future }, // not active
-      { id: 'M3', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: past }, // already due
+      {
+        id: 'M1',
+        tenantId: T,
+        strategyId: 'S1',
+        state: 'active',
+        cadence: null,
+        nextRunAt: future,
+      }, // manual-only
+      {
+        id: 'M2',
+        tenantId: T,
+        strategyId: 'S1',
+        state: 'paused',
+        cadence: 'daily',
+        nextRunAt: future,
+      }, // not active
+      {
+        id: 'M3',
+        tenantId: T,
+        strategyId: 'S1',
+        state: 'active',
+        cadence: 'daily',
+        nextRunAt: past,
+      }, // already due
     );
     h.outbox.push(
       event({ type: 'node.deleted', payload: { entityType: 'strategy', entityId: 'S1' } }),
@@ -295,14 +349,19 @@ describe('OutboxConsumerService.drainOnce', () => {
     expect(h.missions[2]!.nextRunAt).toEqual(past); // forward-only: leave due missions alone
   });
 
-  it('does not let a cross-tenant payload bump another tenant\'s missions (node resolution pins the tenant)', async () => {
+  it("does not let a cross-tenant payload bump another tenant's missions (node resolution pins the tenant)", async () => {
     const h = makeHarness();
     const future = new Date(Date.now() + DAY);
     // The node belongs to tenant-2, but the (hypothetically confused/forged)
     // event claims tenant-1.
     h.nodes.push({ id: 'N1', tenantId: 'tenant-2', strategyId: 'S2' });
     h.missions.push({
-      id: 'M1', tenantId: 'tenant-2', strategyId: 'S2', state: 'active', cadence: 'daily', nextRunAt: future,
+      id: 'M1',
+      tenantId: 'tenant-2',
+      strategyId: 'S2',
+      state: 'active',
+      cadence: 'daily',
+      nextRunAt: future,
     });
     h.outbox.push(
       event({ type: 'node.updated', tenantId: T, payload: { entityType: 'node', entityId: 'N1' } }),
@@ -318,11 +377,14 @@ describe('OutboxConsumerService.drainOnce', () => {
     const h = makeHarness();
     h.nodes.push({ id: 'N1', tenantId: T, strategyId: 'S1' });
     h.missions.push({
-      id: 'M1', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: new Date(Date.now() + DAY),
+      id: 'M1',
+      tenantId: T,
+      strategyId: 'S1',
+      state: 'active',
+      cadence: 'daily',
+      nextRunAt: new Date(Date.now() + DAY),
     });
-    h.outbox.push(
-      event({ type: 'node.updated', payload: { entityType: 'node', entityId: 'N1' } }),
-    );
+    h.outbox.push(event({ type: 'node.updated', payload: { entityType: 'node', entityId: 'N1' } }));
 
     const first = await h.svc.drainOnce();
     expect(first).toEqual({ claimed: 1, triggering: 1, missionsBumped: 1 });
@@ -335,8 +397,13 @@ describe('OutboxConsumerService.drainOnce', () => {
 
   it('exports the watch-triggering action set (documents the meeting-completion seam by omission)', () => {
     for (const t of [
-      'node.created', 'node.updated', 'node.deleted',
-      'strategy.assisted', 'version.restored', 'reference.forked', 'steward.extracted',
+      'node.created',
+      'node.updated',
+      'node.deleted',
+      'strategy.assisted',
+      'version.restored',
+      'reference.forked',
+      'steward.extracted',
     ]) {
       expect(WATCH_TRIGGERING_TYPES.has(t)).toBe(true);
     }
@@ -356,8 +423,22 @@ describe('OutboxConsumerService — claim-tx isolation (P2028 regression)', () =
     const h = makeHarness();
     h.nodes.push({ id: 'N1', tenantId: T, strategyId: 'S1' });
     h.missions.push(
-      { id: 'M1', tenantId: T, strategyId: 'S1', state: 'active', cadence: 'daily', nextRunAt: new Date(Date.now() + DAY) },
-      { id: 'M2', tenantId: T, strategyId: 'S2', state: 'active', cadence: 'daily', nextRunAt: new Date(Date.now() + DAY) },
+      {
+        id: 'M1',
+        tenantId: T,
+        strategyId: 'S1',
+        state: 'active',
+        cadence: 'daily',
+        nextRunAt: new Date(Date.now() + DAY),
+      },
+      {
+        id: 'M2',
+        tenantId: T,
+        strategyId: 'S2',
+        state: 'active',
+        cadence: 'daily',
+        nextRunAt: new Date(Date.now() + DAY),
+      },
     );
     h.outbox.push(
       event({ type: 'node.updated', payload: { entityType: 'node', entityId: 'N1' } }),
@@ -388,12 +469,29 @@ describe('OutboxConsumerService — claim-tx isolation (P2028 regression)', () =
     const h = makeHarness({ failBumpFor: ['S-poison'] });
     const future = new Date(Date.now() + DAY);
     h.missions.push(
-      { id: 'M1', tenantId: T, strategyId: 'S-poison', state: 'active', cadence: 'daily', nextRunAt: future },
-      { id: 'M2', tenantId: T, strategyId: 'S-ok', state: 'active', cadence: 'daily', nextRunAt: future },
+      {
+        id: 'M1',
+        tenantId: T,
+        strategyId: 'S-poison',
+        state: 'active',
+        cadence: 'daily',
+        nextRunAt: future,
+      },
+      {
+        id: 'M2',
+        tenantId: T,
+        strategyId: 'S-ok',
+        state: 'active',
+        cadence: 'daily',
+        nextRunAt: future,
+      },
     );
     h.outbox.push(
       // Poisoned target FIRST: the healthy one after it must still bump.
-      event({ type: 'version.restored', payload: { entityType: 'strategy', entityId: 'S-poison' } }),
+      event({
+        type: 'version.restored',
+        payload: { entityType: 'strategy', entityId: 'S-poison' },
+      }),
       event({ type: 'node.updated', payload: { entityType: 'strategy', entityId: 'S-ok' } }),
     );
 
@@ -414,11 +512,19 @@ describe('OutboxConsumerService — claim-tx isolation (P2028 regression)', () =
   it('a failed node resolution still keeps the batch consumed and bumps the strategy-direct targets', async () => {
     const h = makeHarness();
     const future = new Date(Date.now() + DAY);
-    h.missions.push(
-      { id: 'M1', tenantId: T, strategyId: 'S-direct', state: 'active', cadence: 'daily', nextRunAt: future },
-    );
+    h.missions.push({
+      id: 'M1',
+      tenantId: T,
+      strategyId: 'S-direct',
+      state: 'active',
+      cadence: 'daily',
+      nextRunAt: future,
+    });
     h.outbox.push(
-      event({ type: 'version.restored', payload: { entityType: 'strategy', entityId: 'S-direct' } }),
+      event({
+        type: 'version.restored',
+        payload: { entityType: 'strategy', entityId: 'S-direct' },
+      }),
       event({ type: 'node.updated', payload: { entityType: 'node', entityId: 'N1' } }),
     );
     // Force the node lookup to throw: fail the SECOND withSystem call (tx #1

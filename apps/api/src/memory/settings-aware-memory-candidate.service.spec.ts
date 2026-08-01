@@ -104,9 +104,9 @@ describe('SettingsAwareMemoryCandidateService', () => {
       controllingItemId: 'memory-item-2',
     });
 
-    await expect(
-      h.service.approve(ctx.tenantId, 'candidate-1', ctx.userId, ctx),
-    ).resolves.toEqual({ memoryId: 'memory-item-2' });
+    await expect(h.service.approve(ctx.tenantId, 'candidate-1', ctx.userId, ctx)).resolves.toEqual({
+      memoryId: 'memory-item-2',
+    });
     expect(h.versions.approveCandidate).toHaveBeenCalledWith(ctx, 'candidate-1');
   });
 

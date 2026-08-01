@@ -199,7 +199,10 @@ function verifyWireEnvelope(
   if (envelope.surface !== 'strategy' && envelope.surface !== 'outreach') {
     errors.push('unexpected surface');
   }
-  if (typeof envelope.generatedAt !== 'string' || !Number.isFinite(Date.parse(envelope.generatedAt))) {
+  if (
+    typeof envelope.generatedAt !== 'string' ||
+    !Number.isFinite(Date.parse(envelope.generatedAt))
+  ) {
     errors.push('invalid timestamp');
   }
   if (typeof envelope.verifierVersion !== 'string' || !envelope.verifierVersion.trim()) {
@@ -213,7 +216,8 @@ function verifyWireEnvelope(
   }
   if (
     assurance?.ledgerHash &&
-    (typeof envelope.claimLedger?.hash !== 'string' || envelope.claimLedger.hash !== assurance.ledgerHash)
+    (typeof envelope.claimLedger?.hash !== 'string' ||
+      envelope.claimLedger.hash !== assurance.ledgerHash)
   ) {
     errors.push('claim ledger drift');
   }
@@ -228,7 +232,9 @@ function tokens(raw: string | undefined): string[] {
 }
 
 function normalize(value: unknown): string {
-  return String(value ?? '').trim().toLowerCase();
+  return String(value ?? '')
+    .trim()
+    .toLowerCase();
 }
 
 function sha256(value: string): string {

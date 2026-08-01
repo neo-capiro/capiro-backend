@@ -18,7 +18,9 @@ export function runWithAssuranceRequestScope<T>(
   surface: AssuranceSurface,
   work: () => T,
 ): T {
-  const normalized = String(tenantId ?? '').trim().toLowerCase();
+  const normalized = String(tenantId ?? '')
+    .trim()
+    .toLowerCase();
   if (!normalized) throw new Error('Assurance request scope requires a tenant id.');
   return requestScope.run({ tenantId: normalized, surface }, work);
 }

@@ -22,17 +22,17 @@ The shared governed SQL selects both lifecycle fields explicitly:
 
 The shared in-memory and SQL recall predicates implement the same policy:
 
-| Governed status | Recall result |
-| --- | --- |
-| `suggested` | excluded as unapproved |
-| `pending_review` | excluded as unapproved |
-| `active` | included when authority, source, scope, sensitivity, validity, wall, and approval checks pass |
-| `stale` | included under the same checks, surfaced as stale, and packet health remains degraded pending review |
-| `conflicted` | included only when it is the explicitly designated controlling item for the unresolved conflict group; packet health is conflicted |
-| `rejected` | excluded as rejected |
-| `superseded` | excluded as superseded |
-| `revoked` | excluded as revoked |
-| `expired` | excluded as expired |
+| Governed status  | Recall result                                                                                                                      |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `suggested`      | excluded as unapproved                                                                                                             |
+| `pending_review` | excluded as unapproved                                                                                                             |
+| `active`         | included when authority, source, scope, sensitivity, validity, wall, and approval checks pass                                      |
+| `stale`          | included under the same checks, surfaced as stale, and packet health remains degraded pending review                               |
+| `conflicted`     | included only when it is the explicitly designated controlling item for the unresolved conflict group; packet health is conflicted |
+| `rejected`       | excluded as rejected                                                                                                               |
+| `superseded`     | excluded as superseded                                                                                                             |
+| `revoked`        | excluded as revoked                                                                                                                |
+| `expired`        | excluded as expired                                                                                                                |
 
 An unresolved noncontrolling conflict member is excluded as `conflicted`. An active or stale row carrying unresolved conflict metadata is likewise usable only when its `controlling_item_id` identifies that exact row.
 

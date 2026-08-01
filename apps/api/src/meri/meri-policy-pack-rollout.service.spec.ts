@@ -37,10 +37,12 @@ describe('persisted policy-pack tenant rollout', () => {
   });
 
   it('selects only the exact server-configured tenant or an explicit all-tenant rollout', () => {
-    expect(resolvePersistedPolicyPackModeForTenant('Tenant-A', 'shadow', 'tenant-a')).toBe('shadow');
-    expect(resolvePersistedPolicyPackModeForTenant('tenant-a', 'enforce', 'tenant-b tenant-a')).toBe(
-      'enforce',
+    expect(resolvePersistedPolicyPackModeForTenant('Tenant-A', 'shadow', 'tenant-a')).toBe(
+      'shadow',
     );
+    expect(
+      resolvePersistedPolicyPackModeForTenant('tenant-a', 'enforce', 'tenant-b tenant-a'),
+    ).toBe('enforce');
     expect(resolvePersistedPolicyPackModeForTenant('tenant-b', 'enforce', 'tenant-a')).toBe('off');
     expect(resolvePersistedPolicyPackModeForTenant('tenant-z', 'enforce', 'all')).toBe('enforce');
     expect(persistedPolicyPacksEnforcedForTenant('tenant-a', 'enforce', 'tenant-a')).toBe(true);

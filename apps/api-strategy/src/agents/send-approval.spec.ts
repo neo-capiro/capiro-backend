@@ -102,7 +102,10 @@ describe('verifySendToken', () => {
 
   it('rejects a token whose hashed input was tampered with after approval', () => {
     const approved = computeSendToken(BASE);
-    const tampered: SendTokenInput = { ...BASE, recipients: [...BASE.recipients, 'attacker@x.gov'] };
+    const tampered: SendTokenInput = {
+      ...BASE,
+      recipients: [...BASE.recipients, 'attacker@x.gov'],
+    };
     const result = verifySendToken(tampered, approved, RUN, RUN);
     expect(result.valid).toBe(false);
     expect(result.reason).toMatch(/does not match/i);

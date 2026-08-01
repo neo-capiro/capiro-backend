@@ -57,13 +57,7 @@ function renderSection(section: MemorySection): string {
   const heading = `## ${section.heading}`;
   const body = section.body.trimEnd();
   if (section.owner === 'engine') {
-    return [
-      heading,
-      '',
-      GEN_BEGIN(section.key),
-      body,
-      GEN_END(section.key),
-    ].join('\n');
+    return [heading, '', GEN_BEGIN(section.key), body, GEN_END(section.key)].join('\n');
   }
   return [heading, '', body].join('\n');
 }
@@ -88,8 +82,7 @@ export function renderMemoryItem(item: MemoryItem): string {
  * client folder; user-private content under the user folder.
  */
 export function vaultPathForItem(item: MemoryItem): string {
-  const clientDir =
-    item.clientId !== null ? `clients/${slugForClient(item)}` : '';
+  const clientDir = item.clientId !== null ? `clients/${slugForClient(item)}` : '';
   switch (item.type) {
     case 'firm-soul':
       return 'soul.md';

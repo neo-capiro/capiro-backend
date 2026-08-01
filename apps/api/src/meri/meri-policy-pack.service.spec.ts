@@ -1,10 +1,7 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import type { TenantContext, TenantRole } from '@capiro/shared';
-import {
-  CAPIRO_APPROVED_GENERIC_POLICY_PACK,
-  policyPackRulesHash,
-} from '@capiro/meriv2-core';
+import { CAPIRO_APPROVED_GENERIC_POLICY_PACK, policyPackRulesHash } from '@capiro/meriv2-core';
 import {
   MeriPolicyPackService,
   resolveActionPolicyContext,
@@ -94,8 +91,8 @@ function harness(
         }
         return filter(where);
       }),
-      findFirst: jest.fn(async ({ where }: { where?: Record<string, unknown> }) =>
-        filter(where)[0] ?? null,
+      findFirst: jest.fn(
+        async ({ where }: { where?: Record<string, unknown> }) => filter(where)[0] ?? null,
       ),
       create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
         sequence += 1;
@@ -186,11 +183,7 @@ describe('Phase 10 authoritative policy source', () => {
         .recipientType,
     ).toBe('government');
     const impersonatedContext = { ...context(), actorUserId: REVIEWER };
-    const impersonated = resolveActionPolicyContext(
-      impersonatedContext,
-      'create_task',
-      {},
-    );
+    const impersonated = resolveActionPolicyContext(impersonatedContext, 'create_task', {});
     expect(impersonated.actorUserId).toBe(REVIEWER);
     expect(impersonated.effectiveUserId).toBe(OWNER);
     expect(impersonated.contextFlags).toEqual({ impersonating: true });
@@ -227,7 +220,9 @@ describe('Phase 10 authoritative policy source', () => {
 
   it('missing, tampered, and unavailable enforced policy all fail closed', async () => {
     process.env.MERI_POLICY_PACK_SOURCE = 'enforce';
-    await expect(harness([]).service.decideForAction(context(), 'create_word', {})).resolves.toEqual(
+    await expect(
+      harness([]).service.decideForAction(context(), 'create_word', {}),
+    ).resolves.toEqual(
       expect.objectContaining({
         source: 'fail_closed',
         outcome: 'BLOCK',
@@ -244,11 +239,9 @@ describe('Phase 10 authoritative policy source', () => {
       expect.objectContaining({ outcome: 'BLOCK', code: 'policy_pack_integrity' }),
     );
     await expect(
-      harness([row()], { publishedLoadError: new Error('database unavailable') }).service.decideForAction(
-        context(),
-        'create_word',
-        {},
-      ),
+      harness([row()], {
+        publishedLoadError: new Error('database unavailable'),
+      }).service.decideForAction(context(), 'create_word', {}),
     ).resolves.toEqual(
       expect.objectContaining({ outcome: 'BLOCK', code: 'policy_pack_unavailable' }),
     );
@@ -333,14 +326,7 @@ describe('Phase 10 policy-pack administration lifecycle', () => {
     const prior = h.rows().find((candidate) => candidate.id === PACK_ROW);
     expect(prior?.status).toBe('retired');
     expect(h.events.map((event) => event.action)).toEqual(
-      expect.arrayContaining([
-        'create',
-        'submit_review',
-        'review',
-        'approve',
-        'retire',
-        'publish',
-      ]),
+      expect.arrayContaining(['create', 'submit_review', 'review', 'approve', 'retire', 'publish']),
     );
   });
 

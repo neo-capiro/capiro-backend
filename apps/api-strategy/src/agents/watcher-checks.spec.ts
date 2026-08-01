@@ -259,7 +259,13 @@ describe('(e) gate-prereq', () => {
   it('silent when the gate has prerequisites, and when nothing depends on it', () => {
     const withPrereq = [
       node({ id: 'A', startsOn: '2026-08-01', endsOn: '2026-08-05' }),
-      node({ id: 'G', kind: 'decision', startsOn: '2026-08-10', endsOn: null, dependsOnIds: ['A'] }),
+      node({
+        id: 'G',
+        kind: 'decision',
+        startsOn: '2026-08-10',
+        endsOn: null,
+        dependsOnIds: ['A'],
+      }),
       node({ id: 'B', startsOn: '2026-08-15', dependsOnIds: ['G'] }),
     ];
     expect(byCode(runWatcherChecks(input({ nodes: withPrereq })), 'gate-prereq')).toEqual([]);
@@ -272,12 +278,15 @@ describe('(e) gate-prereq', () => {
 });
 
 describe('(f) hard-deadline-risk', () => {
-  const MARKUP = { label: 'HAC-D subcommittee markup', fy: 2027, startsOn: '2027-06-05', endsOn: null };
+  const MARKUP = {
+    label: 'HAC-D subcommittee markup',
+    fy: 2027,
+    startsOn: '2027-06-05',
+    endsOn: null,
+  };
 
   it('a submission starting within 14 days of a same-FY markup warns', () => {
-    const nodes = [
-      node({ id: 'N', subject: 'submission', startsOn: '2027-05-25', endsOn: null }),
-    ];
+    const nodes = [node({ id: 'N', subject: 'submission', startsOn: '2027-05-25', endsOn: null })];
     const [f] = byCode(
       runWatcherChecks(input({ nodes, congress: [MARKUP] })),
       'hard-deadline-risk',
@@ -301,7 +310,12 @@ describe('(f) hard-deadline-risk', () => {
   it('an ask starting AFTER a same-FY markup is SILENT (post-markup asks are normal; no recurring noise on clean plans)', () => {
     // The shipped default baseline has a 'Committee markups' band starting late
     // April — a clean FY27 floor ask months later must not warn on every run.
-    const band = { label: 'Committee markups', fy: 2027, startsOn: '2027-04-28', endsOn: '2027-06-30' };
+    const band = {
+      label: 'Committee markups',
+      fy: 2027,
+      startsOn: '2027-04-28',
+      endsOn: '2027-06-30',
+    };
     const nodes = [
       node({
         id: 'N',
@@ -317,11 +331,19 @@ describe('(f) hard-deadline-risk', () => {
   });
 
   it('attributes the warning to the nearest UPCOMING markup, not an earlier same-FY one', () => {
-    const earlier = { label: 'Subcommittee markup', fy: 2027, startsOn: '2027-04-28', endsOn: null };
-    const later = { label: 'Full committee markup', fy: 2027, startsOn: '2027-07-15', endsOn: null };
-    const nodes = [
-      node({ id: 'N', subject: 'submission', startsOn: '2027-07-10', endsOn: null }),
-    ];
+    const earlier = {
+      label: 'Subcommittee markup',
+      fy: 2027,
+      startsOn: '2027-04-28',
+      endsOn: null,
+    };
+    const later = {
+      label: 'Full committee markup',
+      fy: 2027,
+      startsOn: '2027-07-15',
+      endsOn: null,
+    };
+    const nodes = [node({ id: 'N', subject: 'submission', startsOn: '2027-07-10', endsOn: null })];
     const [f] = byCode(
       runWatcherChecks(input({ nodes, congress: [earlier, later] })),
       'hard-deadline-risk',
@@ -466,7 +488,12 @@ describe('Phase 3 — presentation metadata', () => {
 
   it('dependency-slippage sets sourceLabel/sourceDate to the slipped dependency actually driving the retime', () => {
     const nodes = [
-      node({ id: 'D', title: 'Committee markup prep', startsOn: '2026-08-20', endsOn: '2026-09-01' }),
+      node({
+        id: 'D',
+        title: 'Committee markup prep',
+        startsOn: '2026-08-20',
+        endsOn: '2026-09-01',
+      }),
       node({ id: 'N', startsOn: '2026-08-25', endsOn: '2026-08-30', dependsOnIds: ['D'] }),
     ];
     const [f] = byCode(runWatcherChecks(input({ nodes })), 'dependency-slippage');
@@ -475,18 +502,34 @@ describe('Phase 3 — presentation metadata', () => {
   });
 
   it('hard-deadline-risk sets sourceLabel/sourceDate to the markup row', () => {
-    const MARKUP = { label: 'HAC-D subcommittee markup', fy: 2027, startsOn: '2027-06-05', endsOn: null };
+    const MARKUP = {
+      label: 'HAC-D subcommittee markup',
+      fy: 2027,
+      startsOn: '2027-06-05',
+      endsOn: null,
+    };
     const nodes = [node({ id: 'N', subject: 'submission', startsOn: '2027-05-25', endsOn: null })];
-    const [f] = byCode(runWatcherChecks(input({ nodes, congress: [MARKUP] })), 'hard-deadline-risk');
+    const [f] = byCode(
+      runWatcherChecks(input({ nodes, congress: [MARKUP] })),
+      'hard-deadline-risk',
+    );
     expect(f!.sourceLabel).toBe('HAC-D subcommittee markup');
     expect(f!.sourceDate).toBe('2027-06-05');
   });
 
   it('a verifier fold always categorizes as verifier (never dependency), even for a dep-order code', () => {
     const violations: Violation[] = [
-      { code: 'dep-order', severity: 'error', nodeIds: ['n1', 'n2'], message: 'starts before its dependency' },
+      {
+        code: 'dep-order',
+        severity: 'error',
+        nodeIds: ['n1', 'n2'],
+        message: 'starts before its dependency',
+      },
     ];
-    const [f] = byCode(runWatcherChecks(input({ verifierViolations: violations })), 'verifier:dep-order');
+    const [f] = byCode(
+      runWatcherChecks(input({ verifierViolations: violations })),
+      'verifier:dep-order',
+    );
     expect(f!.category).toBe('verifier');
     expect(f!.title).toBe('Out of order');
   });
@@ -495,7 +538,12 @@ describe('Phase 3 — presentation metadata', () => {
 describe('Phase 3 — dependency/verifier fold dedup (the actionable finding wins)', () => {
   it('drops a folded verifier:dep-order finding when an actionable dependency-slippage finding covers the SAME edge', () => {
     const violations: Violation[] = [
-      { code: 'dep-order', severity: 'error', nodeIds: ['N', 'D'], message: 'starts before its dependency' },
+      {
+        code: 'dep-order',
+        severity: 'error',
+        nodeIds: ['N', 'D'],
+        message: 'starts before its dependency',
+      },
     ];
     const nodes = [
       node({ id: 'D', startsOn: '2026-08-20', endsOn: '2026-09-01' }),
@@ -508,7 +556,12 @@ describe('Phase 3 — dependency/verifier fold dedup (the actionable finding win
 
   it('keeps a folded verifier:dep-order finding when no actionable dependency-slippage covers that edge', () => {
     const violations: Violation[] = [
-      { code: 'dep-order', severity: 'error', nodeIds: ['N', 'D'], message: 'starts before its dependency' },
+      {
+        code: 'dep-order',
+        severity: 'error',
+        nodeIds: ['N', 'D'],
+        message: 'starts before its dependency',
+      },
     ];
     // N and D share no dependsOnIds edge in this plan, so checkDependencySlippage
     // produces nothing for the pair — the verifier fold must survive untouched.

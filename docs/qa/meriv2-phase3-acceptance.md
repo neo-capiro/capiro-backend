@@ -12,17 +12,17 @@
 
 ## Proven scenarios
 
-| Scenario | Expected | Result |
-| --- | --- | --- |
-| Firm edit | Candidate created; active item unchanged | PASS |
-| Client edit | Server-bound client and wall enforced; candidate created | PASS |
-| First shared file | Candidate only; no active orphan | PASS |
-| Personal file | Immediate owner-only save; spoofed slug ignored | PASS |
-| Approval | Exact canonical type/slug/title/sections activated atomically | PASS |
-| Reload | Pending candidate shown; active sections retained | PASS |
-| Save wording | Shared submission never labeled “Saved” | PASS |
-| Failure boundary | No success state on rejected/failed mutation | PASS |
-| Program Element isolation | No Phase 3 changes to Program Element/defense-budget paths | PASS |
+| Scenario                  | Expected                                                      | Result |
+| ------------------------- | ------------------------------------------------------------- | ------ |
+| Firm edit                 | Candidate created; active item unchanged                      | PASS   |
+| Client edit               | Server-bound client and wall enforced; candidate created      | PASS   |
+| First shared file         | Candidate only; no active orphan                              | PASS   |
+| Personal file             | Immediate owner-only save; spoofed slug ignored               | PASS   |
+| Approval                  | Exact canonical type/slug/title/sections activated atomically | PASS   |
+| Reload                    | Pending candidate shown; active sections retained             | PASS   |
+| Save wording              | Shared submission never labeled “Saved”                       | PASS   |
+| Failure boundary          | No success state on rejected/failed mutation                  | PASS   |
+| Program Element isolation | No Phase 3 changes to Program Element/defense-budget paths    | PASS   |
 
 ## Validation
 

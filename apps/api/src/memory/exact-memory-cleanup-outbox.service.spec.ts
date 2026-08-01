@@ -103,7 +103,9 @@ describe('ExactMemoryCleanupOutboxService', () => {
       idempotencyKey: 'caller-value-is-not-trusted',
     });
 
-    const insert = h.captured.find((entry) => entry.sql.includes('INSERT INTO memory_cleanup_outbox'));
+    const insert = h.captured.find((entry) =>
+      entry.sql.includes('INSERT INTO memory_cleanup_outbox'),
+    );
     expect(insert).toBeDefined();
     const material = projectionMaterialForClioRow(sourceRow());
     const canonical = canonicalProjectionSnapshot({

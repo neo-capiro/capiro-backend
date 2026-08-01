@@ -217,7 +217,9 @@ export function policyPackActionState(
     canEdit: pack.status === 'draft',
     canSubmitReview: pack.status === 'draft',
     canReview:
-      pack.status === 'pending_review' && !pack.reviewedByUserId && reviewBlockedReason === undefined,
+      pack.status === 'pending_review' &&
+      !pack.reviewedByUserId &&
+      reviewBlockedReason === undefined,
     canSecondApprove:
       pack.status === 'pending_review' &&
       pack.fourEyesRequired &&
@@ -294,9 +296,7 @@ export function buildPolicyPackPayload(
     authority: {
       type: values.authorityType,
       title: values.authorityTitle.trim(),
-      ...(values.authoritySourceRef?.trim()
-        ? { sourceRef: values.authoritySourceRef.trim() }
-        : {}),
+      ...(values.authoritySourceRef?.trim() ? { sourceRef: values.authoritySourceRef.trim() } : {}),
       ...(values.authoritySourceVersion?.trim()
         ? { sourceVersion: values.authoritySourceVersion.trim() }
         : {}),
@@ -355,9 +355,7 @@ function formValuesFor(pack: PolicyPackRow): PolicyPackFormValues {
         authorityRef: rule.authorityRef,
         reason: rule.reason,
         additionalMatchJson:
-          Object.keys(additionalMatch).length > 0
-            ? JSON.stringify(additionalMatch, null, 2)
-            : '',
+          Object.keys(additionalMatch).length > 0 ? JSON.stringify(additionalMatch, null, 2) : '',
       };
     }),
   };
@@ -390,7 +388,10 @@ function outcomeColor(outcome: PolicyOutcome): string {
 }
 
 function errorMessage(error: unknown): string {
-  const axiosError = error as { response?: { data?: { message?: string | string[] } }; message?: string };
+  const axiosError = error as {
+    response?: { data?: { message?: string | string[] } };
+    message?: string;
+  };
   const message = axiosError.response?.data?.message;
   if (Array.isArray(message)) return message.join(' ');
   return message ?? axiosError.message ?? 'The policy-pack operation failed.';
@@ -416,9 +417,7 @@ export function PolicyPacksPage() {
   const [eventsPack, setEventsPack] = useState<PolicyPackRow | null>(null);
   const [activeSection, setActiveSection] = useState('packs');
 
-  const isAdmin = Boolean(
-    me.data && ROLE_RANK[me.data.role] >= ROLE_RANK.user_admin,
-  );
+  const isAdmin = Boolean(me.data && ROLE_RANK[me.data.role] >= ROLE_RANK.user_admin);
   const currentUserId = me.data?.user.id ?? '';
 
   const packs = useQuery<PolicyPackRow[]>({
@@ -594,7 +593,9 @@ export function PolicyPacksPage() {
       render: (_, pack) => (
         <Space direction="vertical" size={0}>
           <Text>{pack.jurisdiction === 'all' ? 'All jurisdictions' : pack.jurisdiction}</Text>
-          <Text type="secondary">{pack.rules.length} rule(s) · fallback {pack.fallback}</Text>
+          <Text type="secondary">
+            {pack.rules.length} rule(s) · fallback {pack.fallback}
+          </Text>
         </Space>
       ),
     },
@@ -604,9 +605,7 @@ export function PolicyPacksPage() {
       render: (_, pack) => (
         <Space direction="vertical" size={2}>
           <Tag color={statusColor(pack.status)}>{statusLabel(pack.status)}</Tag>
-          <Text type="secondary">
-            Legal review: {pack.legalReviewStatus.replaceAll('_', ' ')}
-          </Text>
+          <Text type="secondary">Legal review: {pack.legalReviewStatus.replaceAll('_', ' ')}</Text>
           {pack.nonProduction && <Tag>Non-production</Tag>}
         </Space>
       ),
@@ -1024,7 +1023,10 @@ export function PolicyPacksPage() {
                       >
                         <Select
                           style={{ width: 110 }}
-                          options={['PASS', 'WARN', 'BLOCK'].map((value) => ({ value, label: value }))}
+                          options={['PASS', 'WARN', 'BLOCK'].map((value) => ({
+                            value,
+                            label: value,
+                          }))}
                         />
                       </Form.Item>
                       <Form.Item {...field} name={[field.name, 'tier']} label="Risk tier">
@@ -1072,7 +1074,9 @@ export function PolicyPacksPage() {
                     >
                       <Input.TextArea
                         rows={3}
-                        placeholder={'{\n  "channels": ["email"],\n  "recipientTypes": ["government"]\n}'}
+                        placeholder={
+                          '{\n  "channels": ["email"],\n  "recipientTypes": ["government"]\n}'
+                        }
                       />
                     </Form.Item>
                     <Form.Item
@@ -1129,7 +1133,11 @@ export function PolicyPacksPage() {
       </Modal>
 
       <Modal
-        title={reasonState ? `${reasonState.action.replaceAll('-', ' ')} ${reasonState.pack.version}` : ''}
+        title={
+          reasonState
+            ? `${reasonState.action.replaceAll('-', ' ')} ${reasonState.pack.version}`
+            : ''
+        }
         open={Boolean(reasonState)}
         okText="Confirm"
         confirmLoading={operation.isPending}
@@ -1232,14 +1240,9 @@ export function PolicyPacksPage() {
               <Select
                 allowClear
                 style={{ width: 180 }}
-                options={[
-                  'federal',
-                  'state',
-                  'local',
-                  'regulatory',
-                  'procurement',
-                  'grants',
-                ].map((value) => ({ value, label: value }))}
+                options={['federal', 'state', 'local', 'regulatory', 'procurement', 'grants'].map(
+                  (value) => ({ value, label: value }),
+                )}
               />
             </Form.Item>
             <Form.Item name="clientId" label="Client ID (optional)">

@@ -32,7 +32,9 @@ describe('MeriV2 control metrics', () => {
       { Name: 'ContextPacketPersistenceFailures', Unit: 'Count' },
       { Name: 'UnsupportedHighRiskClaimRate', Unit: 'Percent' },
     ]);
-    expect(JSON.stringify(envelope)).not.toMatch(/tenant|user|client|prompt|content|sourceExcerpt/i);
+    expect(JSON.stringify(envelope)).not.toMatch(
+      /tenant|user|client|prompt|content|sourceExcerpt/i,
+    );
   });
 
   it('clamps negative values and percentages without admitting arbitrary fields', () => {
@@ -49,10 +51,7 @@ describe('MeriV2 control metrics', () => {
     const log = jest.spyOn(console, 'log').mockImplementation(() => undefined);
     expect(emitMeriV2ControlMetrics({ SelfReviewDenials: 1 })).toBeNull();
     expect(
-      emitMeriV2ControlMetrics(
-        { SelfReviewDenials: 1 },
-        { force: true, environment: 'test' },
-      ),
+      emitMeriV2ControlMetrics({ SelfReviewDenials: 1 }, { force: true, environment: 'test' }),
     ).not.toBeNull();
     expect(log).toHaveBeenCalledTimes(1);
     log.mockRestore();

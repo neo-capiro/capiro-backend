@@ -95,12 +95,14 @@ function sqlText(strings: unknown): string {
     : String(strings);
 }
 
-function makeHarness(options: {
-  source?: ItemFixture;
-  descendant?: ItemFixture | null;
-  candidateKind?: 'correction' | 'restore' | 'contradiction';
-  candidateBody?: string;
-} = {}) {
+function makeHarness(
+  options: {
+    source?: ItemFixture;
+    descendant?: ItemFixture | null;
+    candidateKind?: 'correction' | 'restore' | 'contradiction';
+    candidateBody?: string;
+  } = {},
+) {
   const source = options.source ?? item();
   const candidateBody = options.candidateBody ?? 'New truth.';
   const created = item({
@@ -239,9 +241,7 @@ describe('ImmutableMemoryVersionService', () => {
         controllingItemId: CREATED,
       });
       expect(h.querySql.some((sql) => /INSERT INTO memory_items/i.test(sql))).toBe(true);
-      expect(h.executeSql.filter((sql) => /SET status = 'superseded'/i.test(sql))).toHaveLength(
-        1,
-      );
+      expect(h.executeSql.filter((sql) => /SET status = 'superseded'/i.test(sql))).toHaveLength(1);
       expect(h.outbox.enqueue).toHaveBeenCalledWith(
         expect.anything(),
         TENANT,

@@ -26,7 +26,9 @@ export interface BatchOrderError {
   nodeIds: string[];
 }
 
-export type BatchOrderResult = { ok: true; ops: PlanEdit[] } | { ok: false; error: BatchOrderError };
+export type BatchOrderResult =
+  | { ok: true; ops: PlanEdit[] }
+  | { ok: false; error: BatchOrderError };
 
 /** Key-order-independent JSON identity (mirrors watcher.service.ts's
  *  stableJson) — a stored op and a freshly recomputed twin must not read as
@@ -157,7 +159,9 @@ export function orderBatchOps(nodes: BatchOrderNode[], ops: PlanEdit[]): BatchOr
         },
       };
     }
-    const patches = group.filter((o) => o.op !== 'remove') as unknown as Array<Record<string, unknown>>;
+    const patches = group.filter((o) => o.op !== 'remove') as unknown as Array<
+      Record<string, unknown>
+    >;
     for (let i = 0; i < patches.length; i++) {
       for (let j = i + 1; j < patches.length; j++) {
         const a = patches[i]!;

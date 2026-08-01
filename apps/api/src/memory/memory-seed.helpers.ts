@@ -84,11 +84,27 @@ export function seedClientSoul(ctx: SeedCtx): MemoryItem {
     provenance: 'human',
     sections: [
       humanSection('who-they-are', 'Who they are & what they do', 'One-paragraph orientation.'),
-      humanSection('priorities', 'Stated vs. real priorities', 'What they say they want vs. what actually moves them.'),
-      humanSection('decision-makers', 'Decision-makers & how they decide', 'Who signs off; what wins internal buy-in.'),
-      humanSection('risk-posture', 'Risk tolerance & political posture', 'Aggressive/cautious; partisan constraints.'),
+      humanSection(
+        'priorities',
+        'Stated vs. real priorities',
+        'What they say they want vs. what actually moves them.',
+      ),
+      humanSection(
+        'decision-makers',
+        'Decision-makers & how they decide',
+        'Who signs off; what wins internal buy-in.',
+      ),
+      humanSection(
+        'risk-posture',
+        'Risk tolerance & political posture',
+        'Aggressive/cautious; partisan constraints.',
+      ),
       humanSection('red-lines', 'Red lines / never-do', 'Hard constraints we must not cross.'),
-      humanSection('relationship', 'Relationship temperature & trust history', 'How the relationship has trended; past friction.'),
+      humanSection(
+        'relationship',
+        'Relationship temperature & trust history',
+        'How the relationship has trended; past friction.',
+      ),
       humanSection('strategic-read', 'Our strategic read', "The lobbyist's honest assessment."),
     ],
     createdAt: ts,
@@ -117,11 +133,23 @@ export function seedClientCompass(ctx: SeedCtx): MemoryItem {
     sourceRef: null,
     provenance: 'human',
     sections: [
-      humanSection('north-star', 'North Star outcomes', 'What winning looks like over the horizon.'),
+      humanSection(
+        'north-star',
+        'North Star outcomes',
+        'What winning looks like over the horizon.',
+      ),
       humanSection('objectives', 'Active objectives', 'Link [[bill:...]] / [[issue:...]] targets.'),
-      humanSection('timeline', 'Campaign timeline & key dates', 'Markups, deadlines, recess windows.'),
+      humanSection(
+        'timeline',
+        'Campaign timeline & key dates',
+        'Markups, deadlines, recess windows.',
+      ),
       humanSection('metrics', 'Success metrics', 'Demo-defensible only — no invented stats.'),
-      humanSection('themes', 'Yearly account themes', 'The throughline for this account this year.'),
+      humanSection(
+        'themes',
+        'Yearly account themes',
+        'The throughline for this account this year.',
+      ),
     ],
     createdAt: ts,
     updatedAt: ts,
@@ -150,7 +178,11 @@ export function seedClientPeople(ctx: SeedCtx): MemoryItem {
     provenance: 'human',
     sections: [
       humanSection('their-team', 'Their team', 'Internal contacts; link [[person:...]].'),
-      humanSection('offices', 'Relevant offices & members', 'Hill offices/staffers; link [[person:...]].'),
+      humanSection(
+        'offices',
+        'Relevant offices & members',
+        'Hill offices/staffers; link [[person:...]].',
+      ),
       humanSection('commitments', 'Commitments made', 'What we promised whom, and when.'),
       humanSection('key-conversations', 'Key conversations', 'Dated notes on pivotal exchanges.'),
     ],
@@ -163,12 +195,7 @@ export function seedClientPeople(ctx: SeedCtx): MemoryItem {
 
 /** All four client identity skeletons. Criterion #8: a complete hub. */
 export function seedClientPack(ctx: SeedCtx): MemoryItem[] {
-  return [
-    seedClientHub(ctx),
-    seedClientSoul(ctx),
-    seedClientCompass(ctx),
-    seedClientPeople(ctx),
-  ];
+  return [seedClientHub(ctx), seedClientSoul(ctx), seedClientCompass(ctx), seedClientPeople(ctx)];
 }
 
 /** Firm-level identity skeletons (soul, compass, playbook). */
@@ -201,8 +228,16 @@ export function seedFirmPack(tenantId: string, firmName: string): MemoryItem[] {
         humanSection('mission', 'Mission & mandate', 'Why the firm exists.'),
         humanSection('philosophy', 'Advocacy philosophy', 'How we win.'),
         humanSection('values', 'Core values', 'Non-negotiable principles.'),
-        humanSection('compliance', 'Ethics & compliance posture', 'LDA discipline, gift rules, conflicts.'),
-        humanSection('positioning', 'Bipartisan positioning & no-go list', 'Where we will and will not play.'),
+        humanSection(
+          'compliance',
+          'Ethics & compliance posture',
+          'LDA discipline, gift rules, conflicts.',
+        ),
+        humanSection(
+          'positioning',
+          'Bipartisan positioning & no-go list',
+          'Where we will and will not play.',
+        ),
       ],
     },
     {

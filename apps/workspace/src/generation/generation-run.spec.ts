@@ -40,9 +40,9 @@ describe('finalizeGenerationRun', () => {
   });
 
   it('reports complete_with_warnings for invalid citations or a failed snapshot', () => {
-    expect(
-      run([{ section: 'Overview', status: 'succeeded', contentChars: 120 }], 1).status,
-    ).toBe('complete_with_warnings');
+    expect(run([{ section: 'Overview', status: 'succeeded', contentChars: 120 }], 1).status).toBe(
+      'complete_with_warnings',
+    );
 
     const snapshotWarning = finalizeGenerationRun({
       requestedSections: ['Overview'],
@@ -58,10 +58,7 @@ describe('finalizeGenerationRun', () => {
 
   it('reports partial and preserves the exact failed-section retry list', () => {
     const failure = generationFailure('Budget Request', new Error('HTTP 503 unavailable'));
-    const summary = run([
-      { section: 'Overview', status: 'succeeded', contentChars: 120 },
-      failure,
-    ]);
+    const summary = run([{ section: 'Overview', status: 'succeeded', contentChars: 120 }, failure]);
     expect(summary.status).toBe('partial');
     expect(summary.failedSections).toEqual([
       expect.objectContaining({

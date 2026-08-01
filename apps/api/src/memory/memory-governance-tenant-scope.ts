@@ -9,7 +9,9 @@ const tenantScope = new AsyncLocalStorage<string>();
  * req.tenantContext populated by the verified tenant middleware.
  */
 export function runWithMemoryGovernanceTenant<T>(tenantId: string, work: () => T): T {
-  const normalized = String(tenantId ?? '').trim().toLowerCase();
+  const normalized = String(tenantId ?? '')
+    .trim()
+    .toLowerCase();
   if (!normalized) throw new Error('Memory governance requires a server-resolved tenant id.');
   return tenantScope.run(normalized, work);
 }

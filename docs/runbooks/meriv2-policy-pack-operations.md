@@ -24,11 +24,11 @@ No policy pack was created, reviewed, published, retired, or rolled back by the 
 
 `MERI_POLICY_PACK_SOURCE` accepts only:
 
-| Value | Authoritative decision | Persisted behavior |
-|---|---|---|
-| unset / `off` | reviewed static product baseline | persisted packs are not selected for live actions |
-| `shadow` | reviewed static product baseline | persisted selection and outcome are evaluated for comparison only |
-| `enforce` | verified tenant-published pack | missing, invalid, tampered, or unavailable policy fails closed |
+| Value         | Authoritative decision           | Persisted behavior                                                |
+| ------------- | -------------------------------- | ----------------------------------------------------------------- |
+| unset / `off` | reviewed static product baseline | persisted packs are not selected for live actions                 |
+| `shadow`      | reviewed static product baseline | persisted selection and outcome are evaluated for comparison only |
+| `enforce`     | verified tenant-published pack   | missing, invalid, tampered, or unavailable policy fails closed    |
 
 Move `off → shadow → enforce`. Roll back `enforce → shadow → off` unless the incident requires continued fail-closed behavior.
 

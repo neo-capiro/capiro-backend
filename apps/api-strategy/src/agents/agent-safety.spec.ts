@@ -299,11 +299,7 @@ function makeTx(store: Store) {
   };
 
   const spNodeArtifact = {
-    findFirst: async ({
-      where,
-    }: {
-      where: { nodeId: string; artifactType: string };
-    }) => {
+    findFirst: async ({ where }: { where: { nodeId: string; artifactType: string } }) => {
       const a = [...store.artifacts.values()].find(
         (r) =>
           r.nodeId === where.nodeId &&
@@ -631,7 +627,10 @@ function makeChangeSetsEnv(store: Store) {
   const prisma = makePrisma(store);
   const applyEditSet = jest.fn(async (..._args: unknown[]) => undefined);
   const grounding = jest.fn(async (_t: string) => ({ fiscal: {}, firmPhases: [], reference: {} }));
-  const verifyAppliedPlan = jest.fn(async () => ({ detail: { id: SID }, violations: [] as unknown[] }));
+  const verifyAppliedPlan = jest.fn(async () => ({
+    detail: { id: SID },
+    violations: [] as unknown[],
+  }));
   const meri = { applyEditSet, grounding, verifyAppliedPlan } as unknown as MeriService;
   const restoreSpy = jest.fn(async () => ({ id: SID, title: 'restored' }));
   const versions = { restore: restoreSpy } as unknown as VersionService;
@@ -768,7 +767,7 @@ describe('agent-safety: permission-bypass', () => {
 // ===========================================================================
 
 describe('agent-safety: cross-client leakage', () => {
-  it("a client-A fact / conflict is never returned to a query scoped to client B", async () => {
+  it('a client-A fact / conflict is never returned to a query scoped to client B', async () => {
     const store = makeStore();
     seedTwoClients(store);
     const { svc } = makeStewardEnv(store);

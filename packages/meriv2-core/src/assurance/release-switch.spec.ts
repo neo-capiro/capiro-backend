@@ -42,12 +42,12 @@ describe('resolveAssuranceReleaseSurfaces', () => {
   it('arms only the surfaces actually named', () => {
     expect(assuranceReleaseArmedFor('in-editor', 'in-editor', 'enforce', 'all')).toBe(true);
     expect(assuranceReleaseArmedFor('in-editor', 'workspace-gen', 'enforce', 'all')).toBe(false);
-    expect(
-      assuranceReleaseArmedFor('workspace-gen, steward', 'steward', 'enforce', 'all'),
-    ).toBe(true);
-    expect(
-      assuranceReleaseArmedFor('workspace-gen, steward', 'strategy', 'enforce', 'all'),
-    ).toBe(false);
+    expect(assuranceReleaseArmedFor('workspace-gen, steward', 'steward', 'enforce', 'all')).toBe(
+      true,
+    );
+    expect(assuranceReleaseArmedFor('workspace-gen, steward', 'strategy', 'enforce', 'all')).toBe(
+      false,
+    );
   });
 
   it('honours the explicit all token', () => {

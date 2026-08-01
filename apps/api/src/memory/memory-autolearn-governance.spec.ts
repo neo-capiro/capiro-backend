@@ -32,9 +32,9 @@ describe('decideMemoryAutoLearn', () => {
 
 describe('exactUserExcerpt', () => {
   it('accepts only an exact user-authored substring', () => {
-    expect(exactUserExcerpt(base.userMessage, 'never supports retroactive reporting requirements')).toBe(
-      'never supports retroactive reporting requirements',
-    );
+    expect(
+      exactUserExcerpt(base.userMessage, 'never supports retroactive reporting requirements'),
+    ).toBe('never supports retroactive reporting requirements');
     expect(exactUserExcerpt(base.userMessage, 'The assistant inferred this.')).toBeNull();
   });
 

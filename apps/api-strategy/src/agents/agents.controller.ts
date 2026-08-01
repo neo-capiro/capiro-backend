@@ -152,7 +152,10 @@ export class AgentsController {
 
   @Get('execution/runs')
   @UseGuards(ExecutionAgentGuard)
-  listExecutionRuns(@CurrentTenant() tc: AuthTenantContext, @Query('strategyId') strategyId?: string) {
+  listExecutionRuns(
+    @CurrentTenant() tc: AuthTenantContext,
+    @Query('strategyId') strategyId?: string,
+  ) {
     return this.execution.listRuns(tc.tenantId, { strategyId });
   }
 

@@ -40,7 +40,10 @@ export function deriveVerificationDisplay(input: {
   unavailableReason?: string | null;
 }): VerificationDisplay {
   const findings = input.findings ?? [];
-  const total = Math.max(0, input.verification?.totalCount ?? input.verification?.claims?.length ?? 0);
+  const total = Math.max(
+    0,
+    input.verification?.totalCount ?? input.verification?.claims?.length ?? 0,
+  );
   const unsupported = Math.min(
     total,
     Math.max(

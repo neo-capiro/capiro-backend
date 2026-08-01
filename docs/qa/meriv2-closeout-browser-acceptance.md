@@ -164,22 +164,22 @@ Evidence directory:
 
 The authenticated runner requires all of the following:
 
-| Scenario | Actor | Required evidence |
-|---|---|---|
-| Private save | proposer | Save succeeds, reload retains textarea value |
-| Shared proposal | proposer | Honest pending-review state and candidate ID |
-| Independent approval | separate administrator | Candidate approved; proposer reload sees active content |
-| Client-granted reviewer | standard granted user | Client candidate visible and approvable without admin elevation |
-| Ethical-wall denial | ungranted standard user | Detail returns 403/404; queue withholds ID/title/body |
-| Withdrawal | proposer | Withdraw action succeeds; history says `Withdrawn` |
-| Rejection | reviewer | Reject succeeds; proposer history says `Rejected by reviewer` |
-| Conflict resolution | administrator | Conflict drawer and modal complete through canonical endpoint |
-| Correction | proposer + reviewer | Modal is focus-trapped, focus returns, proposal is independently approved |
-| Legal hold | administrator | Detail says `Yes`; revoke/correction controls are absent |
-| Revoke | proposer administrator | Governed revoke completes through UI |
-| Restore | proposer + reviewer | Restore creates a proposal and activates a new reviewed version |
-| Projection failure/retry | administrator | Failure is visible; authorized retry is queued |
-| Reload persistence | applicable actors | Mutated states survive authenticated reload |
+| Scenario                 | Actor                   | Required evidence                                                         |
+| ------------------------ | ----------------------- | ------------------------------------------------------------------------- |
+| Private save             | proposer                | Save succeeds, reload retains textarea value                              |
+| Shared proposal          | proposer                | Honest pending-review state and candidate ID                              |
+| Independent approval     | separate administrator  | Candidate approved; proposer reload sees active content                   |
+| Client-granted reviewer  | standard granted user   | Client candidate visible and approvable without admin elevation           |
+| Ethical-wall denial      | ungranted standard user | Detail returns 403/404; queue withholds ID/title/body                     |
+| Withdrawal               | proposer                | Withdraw action succeeds; history says `Withdrawn`                        |
+| Rejection                | reviewer                | Reject succeeds; proposer history says `Rejected by reviewer`             |
+| Conflict resolution      | administrator           | Conflict drawer and modal complete through canonical endpoint             |
+| Correction               | proposer + reviewer     | Modal is focus-trapped, focus returns, proposal is independently approved |
+| Legal hold               | administrator           | Detail says `Yes`; revoke/correction controls are absent                  |
+| Revoke                   | proposer administrator  | Governed revoke completes through UI                                      |
+| Restore                  | proposer + reviewer     | Restore creates a proposal and activates a new reviewed version           |
+| Projection failure/retry | administrator           | Failure is visible; authorized retry is queued                            |
+| Reload persistence       | applicable actors       | Mutated states survive authenticated reload                               |
 
 The denied-response scenario explicitly scans response bodies for the confidential client fixture text, candidate ID, and proposal title. A correct status code alone is insufficient.
 

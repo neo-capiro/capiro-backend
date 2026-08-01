@@ -320,13 +320,22 @@ function makeTx(store: Store) {
       where,
       create,
     }: {
-      where: { nodeId_artifactType_artifactRef: { nodeId: string; artifactType: string; artifactRef: string } };
+      where: {
+        nodeId_artifactType_artifactRef: {
+          nodeId: string;
+          artifactType: string;
+          artifactRef: string;
+        };
+      };
       create: Rec;
       update: Rec;
     }) => {
       const k = where.nodeId_artifactType_artifactRef;
       const existing = [...store.artifacts.values()].find(
-        (r) => r.nodeId === k.nodeId && r.artifactType === k.artifactType && r.artifactRef === k.artifactRef,
+        (r) =>
+          r.nodeId === k.nodeId &&
+          r.artifactType === k.artifactType &&
+          r.artifactRef === k.artifactRef,
       );
       if (existing) return { ...existing };
       const id = store.nextId('art');
@@ -468,8 +477,8 @@ function makeService(store: Store, opts: ServiceOpts = {}) {
   // Stage-G: defaults to null (deterministic fallback) — every pre-existing
   // test exercises this path unchanged; opts.draftExecutionDocument overrides
   // it for the grounded-content tests.
-  const draftExecutionDocument = jest.fn(async (_t: string, _b: string, _i: unknown) =>
-    opts.draftExecutionDocument ?? null,
+  const draftExecutionDocument = jest.fn(
+    async (_t: string, _b: string, _i: unknown) => opts.draftExecutionDocument ?? null,
   );
   const meri = { grounding, draftExecutionDocument } as unknown as MeriService;
 
@@ -484,10 +493,14 @@ function makeService(store: Store, opts: ServiceOpts = {}) {
   const health = jest.fn(async (_t: string, _c: string | null) => healthValue);
   // Stage-G: read-only grounding facts for generation — defaults to [], mirroring
   // MeriService.stewardContext's own fail-soft default.
-  const factsForOrchestrator = jest.fn(async (_t: string, _c: string | null) => opts.stewardFacts ?? []);
+  const factsForOrchestrator = jest.fn(
+    async (_t: string, _c: string | null) => opts.stewardFacts ?? [],
+  );
   const steward = { health, factsForOrchestrator } as unknown as StewardService;
 
-  const isAgenticFlagEnabled = jest.fn(async (_t: string, _flag: string) => opts.flagEnabled ?? true);
+  const isAgenticFlagEnabled = jest.fn(
+    async (_t: string, _flag: string) => opts.flagEnabled ?? true,
+  );
   const flags = { isAgenticFlagEnabled } as unknown as StrategyFlagsService;
 
   const createWorkspaceDraft = jest.fn(async (_b: string | undefined, _i: unknown) => ({
@@ -496,7 +509,10 @@ function makeService(store: Store, opts: ServiceOpts = {}) {
   const createOutreachRecord = jest.fn(async (_b: string | undefined, _i: unknown) => ({
     ref: opts.createOutreachRecordRef ?? 'or-1',
   }));
-  const artifacts = { createWorkspaceDraft, createOutreachRecord } as unknown as ExecutionArtifactClient;
+  const artifacts = {
+    createWorkspaceDraft,
+    createOutreachRecord,
+  } as unknown as ExecutionArtifactClient;
 
   const svc = new ExecutionService(prisma, versioning, runs, meri, steward, flags, artifacts);
   return {
@@ -561,7 +577,11 @@ describe('ExecutionService.plan — G0 pre-execution re-check', () => {
     expect(run.state).toBe('ready_for_review');
     const findings = run.findings as { tasks?: unknown[]; execution?: Rec; g0?: Rec };
     expect(findings.tasks).toEqual([
-      { type: 'workspace_draft', nodeId: NID, detail: { docTitle: 'File the FY27 one-pager', product: 'authorization' } },
+      {
+        type: 'workspace_draft',
+        nodeId: NID,
+        detail: { docTitle: 'File the FY27 one-pager', product: 'authorization' },
+      },
     ]);
     expect((findings.execution as Rec).kind).toBe('workspace');
     // Plan stages nothing — no external hop, no artifact rows.
@@ -669,7 +689,11 @@ describe('ExecutionService.execute — workspace staging', () => {
     // One back-link row for the unique triple.
     const arts = [...store.artifacts.values()];
     expect(arts).toHaveLength(1);
-    expect(arts[0]).toMatchObject({ nodeId: NID, artifactType: 'workspace_draft', artifactRef: 'wsd-1' });
+    expect(arts[0]).toMatchObject({
+      nodeId: NID,
+      artifactType: 'workspace_draft',
+      artifactRef: 'wsd-1',
+    });
     // Node advanced exactly to in_progress — never past it to internal_review/active.
     expect(store.nodes.get(NID)!.status).toBe('in_progress');
     // Attribution: agent-staged artifact logged authorKind meri, actor = the interactive user.
@@ -688,7 +712,11 @@ describe('ExecutionService.execute — workspace staging', () => {
       summary: 'A grounded testimony draft.',
       sections: [
         { heading: 'Background', html: '<p>Context.</p>' },
-        { heading: 'The Ask', html: '<p>We ask for $12M.</p>', sources: [{ section: 'fiscal', ref: 'fact:f1' }] },
+        {
+          heading: 'The Ask',
+          html: '<p>We ask for $12M.</p>',
+          sources: [{ section: 'fiscal', ref: 'fact:f1' }],
+        },
       ],
       model: 'claude-sonnet-5',
     };
@@ -714,7 +742,10 @@ describe('ExecutionService.execute — workspace staging', () => {
     });
     // The staged result surfaces model + groundedFactCount (cited facts) for the UI chip.
     const results = (done.findings as { results: Rec }).results;
-    const staged = results[`${NID}:workspace_draft`] as { model?: string; groundedFactCount?: number };
+    const staged = results[`${NID}:workspace_draft`] as {
+      model?: string;
+      groundedFactCount?: number;
+    };
     expect(staged.model).toBe('claude-sonnet-5');
     expect(staged.groundedFactCount).toBe(1);
   });
@@ -812,7 +843,12 @@ describe('ExecutionService.execute — workspace staging', () => {
     // A real possibility: propose_document_draft has no minItems on sections, and
     // sanitizeDocumentSections/sanitizeSectionHtml can strip every section to empty
     // — draftExecutionDocument still returns a non-null doc with a refined title.
-    const doc = { title: 'FY28 Testimony', summary: 'A grounded testimony draft.', sections: [], model: 'm' };
+    const doc = {
+      title: 'FY28 Testimony',
+      summary: 'A grounded testimony draft.',
+      sections: [],
+      model: 'm',
+    };
     const { svc, createWorkspaceDraft, draftExecutionDocument } = makeService(store, {
       draftExecutionDocument: doc,
     });
@@ -855,7 +891,10 @@ describe('ExecutionService.execute — workspace staging', () => {
     // run.findings, and from there the UI's "Grounded in N facts · <model>" chip)
     // must show no model / no grounded-fact count for a degenerate doc.
     const results = (done.findings as { results: Rec }).results;
-    const staged = results[`${NID}:workspace_draft`] as { model?: string; groundedFactCount?: number };
+    const staged = results[`${NID}:workspace_draft`] as {
+      model?: string;
+      groundedFactCount?: number;
+    };
     expect(staged.model).toBeUndefined();
     expect(staged.groundedFactCount).toBeUndefined();
 
@@ -873,7 +912,12 @@ describe('ExecutionService.execute — workspace staging', () => {
     seedStrategy(store);
     seedMission(store);
     seedNode(store, { id: NID, status: 'draft' });
-    const doc = { title: null, summary: null, sections: [{ heading: 'H', html: '<p>x</p>' }], model: 'm' };
+    const doc = {
+      title: null,
+      summary: null,
+      sections: [{ heading: 'H', html: '<p>x</p>' }],
+      model: 'm',
+    };
     const { svc, draftExecutionDocument } = makeService(store, { draftExecutionDocument: doc });
 
     const planned = await svc.plan(T, U, 'bearer-x', wsPlan());
@@ -1124,7 +1168,11 @@ describe('ExecutionService.execute — workspace staging', () => {
       createdByUserId: 'concurrent-user',
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
     });
-    jest.spyOn(svc as unknown as { findArtifact: (...a: unknown[]) => Promise<string | null> }, 'findArtifact')
+    jest
+      .spyOn(
+        svc as unknown as { findArtifact: (...a: unknown[]) => Promise<string | null> },
+        'findArtifact',
+      )
       .mockResolvedValueOnce(null);
 
     // Re-entry from 'executing' (the unguarded path).
@@ -1178,7 +1226,9 @@ describe('ExecutionService.execute — workspace staging', () => {
     const planned = await svc.plan(T, U, 'bearer-x', wsPlan());
     await svc.execute(T, U, undefined, planned.id); // park
 
-    await expect(svc.resume(T, U, undefined, planned.id)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(svc.resume(T, U, undefined, planned.id)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
     expect(createWorkspaceDraft).not.toHaveBeenCalled();
     expect(store.runs.get(planned.id)!.state).toBe('waiting_for_input');
   });
@@ -1193,10 +1243,9 @@ describe('ExecutionService.execute — outreach staging (send hard-disabled)', (
     const { svc, createOutreachRecord } = makeService(store);
 
     const planned = await svc.plan(T, U, 'bearer-x', outreachPlan());
-    expect((planned.findings as { tasks: Array<{ type: string }> }).tasks.map((t) => t.type)).toEqual([
-      'outreach_record',
-      'await_send_approval',
-    ]);
+    expect(
+      (planned.findings as { tasks: Array<{ type: string }> }).tasks.map((t) => t.type),
+    ).toEqual(['outreach_record', 'await_send_approval']);
 
     const parked = await svc.execute(T, U, 'bearer-x', planned.id);
 
@@ -1320,7 +1369,12 @@ describe('ExecutionService.execute — outreach staging (send hard-disabled)', (
     // A real possibility: propose_document_draft has no minItems on sections, and
     // sanitizeDocumentSections/sanitizeSectionHtml can strip every section to empty
     // — draftExecutionDocument still returns a non-null doc with a refined title.
-    const doc = { title: 'Urgent: co-sign the FY28 letter', summary: 's', sections: [], model: 'm' };
+    const doc = {
+      title: 'Urgent: co-sign the FY28 letter',
+      summary: 's',
+      sections: [],
+      model: 'm',
+    };
     const { svc, createOutreachRecord } = makeService(store, { draftExecutionDocument: doc });
 
     const planned = await svc.plan(T, U, 'bearer-x', outreachPlan());
@@ -1397,7 +1451,12 @@ describe('ExecutionService.execute — outreach staging (send hard-disabled)', (
     };
     // A real, named recipient — not the bare subject category.
     expect(input.recipients).toHaveLength(1);
-    expect(input.recipients![0]).toMatchObject({ id: 'M000123', name: 'Rep. Jane Doe', party: 'D', state: 'CA' });
+    expect(input.recipients![0]).toMatchObject({
+      id: 'M000123',
+      name: 'Rep. Jane Doe',
+      party: 'D',
+      state: 'CA',
+    });
     // Lands the reopened wizard on Generate & Review (index 4, 1-based 5) with
     // the grounded draft pre-seeded under the v2 genKey scheme, not step 1.
     expect(input.lastStep).toBe(5);
@@ -1405,7 +1464,10 @@ describe('ExecutionService.execute — outreach staging (send hard-disabled)', (
     const targets = input.metadata!.targets as Array<Rec>;
     expect(targets).toHaveLength(1);
     expect((targets[0]!.recipients as Rec[])[0]!.id).toBe('M000123');
-    const generatedByKey = input.metadata!.generatedByKey as Record<string, { subject: string; body: string; status: string }>;
+    const generatedByKey = input.metadata!.generatedByKey as Record<
+      string,
+      { subject: string; body: string; status: string }
+    >;
     expect(Object.keys(generatedByKey)).toEqual(['individual:M000123']);
     expect(generatedByKey['individual:M000123']!.body).toContain('Dear Rep. Doe,');
     expect(generatedByKey['individual:M000123']!.status).toBe('ready');
@@ -1621,7 +1683,9 @@ describe('ExecutionService — lifecycle guards', () => {
     const parked = await svc.plan(T, U, 'bearer-x', wsPlan());
     expect(parked.state).toBe('waiting_for_input');
     // No tasks were produced, so execute has nothing to run.
-    await expect(svc.execute(T, U, 'bearer-x', parked.id)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(svc.execute(T, U, 'bearer-x', parked.id)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('a second plan() of a MID-EXECUTION parked run (staged + awaiting send approval) is REJECTED, not re-planned — resume() owns the continuation', async () => {
@@ -1642,7 +1706,9 @@ describe('ExecutionService — lifecycle guards', () => {
 
     // A replay plan() for the SAME node+kind hits idempotency (returns the parked
     // run) — it must NOT rewind it to planning/ready_for_review.
-    await expect(svc.plan(T, U, 'bearer-x', outreachPlan())).rejects.toBeInstanceOf(ConflictException);
+    await expect(svc.plan(T, U, 'bearer-x', outreachPlan())).rejects.toBeInstanceOf(
+      ConflictException,
+    );
 
     // The parked run is untouched: still awaiting send approval, staged results +
     // token intact, no re-plan, no duplicate hop/artifact.

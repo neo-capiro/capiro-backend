@@ -207,8 +207,10 @@ export class ContextCompilerService {
     comparisonPacketId: string;
     comparison: ContextPacketShadowComparison;
   }): Promise<void> {
-    await this.prisma.withTenant(input.tenantId, (tx) =>
-      tx.$executeRaw`
+    await this.prisma.withTenant(
+      input.tenantId,
+      (tx) =>
+        tx.$executeRaw`
         UPDATE context_packet
         SET health_jsonb = COALESCE(health_jsonb, '{}'::jsonb)
             || jsonb_build_object('shadowComparison', ${JSON.stringify(input.comparison)}::jsonb)

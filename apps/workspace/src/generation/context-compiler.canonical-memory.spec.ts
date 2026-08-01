@@ -97,7 +97,9 @@ describe('Workspace canonical governed memory — Phase 8', () => {
     });
     expect(packet.version).toBe(1);
     expect(packet).not.toHaveProperty('rolloutMode');
-    expect(h.sql.find((text) => text.includes('FROM memory_items'))).not.toContain('memory_authority');
+    expect(h.sql.find((text) => text.includes('FROM memory_items'))).not.toContain(
+      'memory_authority',
+    );
   });
 
   it('enforce returns the exact canonical id and authority', async () => {
@@ -185,6 +187,8 @@ describe('Workspace canonical governed memory — Phase 8', () => {
     expect(packet.version).toBe(1);
     expect(packet).not.toHaveProperty('rolloutMode');
     expect(packet).not.toHaveProperty('shadowComparison');
-    expect(h.executions.filter((entry) => entry.sql.includes('INSERT INTO context_packet'))).toHaveLength(2);
+    expect(
+      h.executions.filter((entry) => entry.sql.includes('INSERT INTO context_packet')),
+    ).toHaveLength(2);
   });
 });

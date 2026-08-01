@@ -188,9 +188,7 @@ export class ImmutableMemoryVersionService {
       await this.authorizeSource(tx, ctx, source, kind);
 
       const target =
-        kind === 'restore'
-          ? await this.findCurrentDescendant(tx, ctx.tenantId, source.id)
-          : source;
+        kind === 'restore' ? await this.findCurrentDescendant(tx, ctx.tenantId, source.id) : source;
       if (kind !== 'restore' && !isControlling(target)) {
         throw new BadRequestException('The proposed source is no longer a controlling version.');
       }
@@ -330,10 +328,14 @@ export class ImmutableMemoryVersionService {
 
       if (kind === 'restore') {
         if (!isTerminal(source)) {
-          throw new BadRequestException('Only a revoked, superseded, rejected, or expired version can be restored.');
+          throw new BadRequestException(
+            'Only a revoked, superseded, rejected, or expired version can be restored.',
+          );
         }
       } else if (!isControlling(source)) {
-        throw new BadRequestException('Correct or contradict the current controlling memory version.');
+        throw new BadRequestException(
+          'Correct or contradict the current controlling memory version.',
+        );
       }
       if (kind === 'correction' && source.legal_hold) {
         return {
@@ -343,9 +345,7 @@ export class ImmutableMemoryVersionService {
       await this.authorizeSource(tx, ctx, source, kind);
 
       const target =
-        kind === 'restore'
-          ? await this.findCurrentDescendant(tx, ctx.tenantId, source.id)
-          : source;
+        kind === 'restore' ? await this.findCurrentDescendant(tx, ctx.tenantId, source.id) : source;
       const sections =
         kind === 'restore'
           ? parseSections(source.sections_jsonb)
@@ -469,10 +469,12 @@ export class ImmutableMemoryVersionService {
     // Restore never reopens or mutates the terminal source. Evaluate the proposal
     // against the same server-owned scope with an active synthetic lifecycle only
     // after read access to the actual historical row has succeeded.
-    const mutationSubject = kind === 'restore' ? { ...subject, status: 'active' as const } : subject;
+    const mutationSubject =
+      kind === 'restore' ? { ...subject, status: 'active' as const } : subject;
     const operation = scopeFor(source) === 'user_private' ? 'edit' : 'propose';
     const decision = await this.authorization.evaluateInTx(tx, ctx, mutationSubject, operation);
-    if (!decision.allowed) throw new ForbiddenException(`Memory operation denied: ${decision.reason}`);
+    if (!decision.allowed)
+      throw new ForbiddenException(`Memory operation denied: ${decision.reason}`);
   }
 
   private async authorizeCandidate(
@@ -484,7 +486,8 @@ export class ImmutableMemoryVersionService {
     const subject = await this.authorization.loadCandidateInTx(tx, ctx.tenantId, candidateId);
     if (!subject) throw new NotFoundException('Memory candidate not found.');
     const decision = await this.authorization.evaluateInTx(tx, ctx, subject, operation);
-    if (!decision.allowed) throw new ForbiddenException(`Memory operation denied: ${decision.reason}`);
+    if (!decision.allowed)
+      throw new ForbiddenException(`Memory operation denied: ${decision.reason}`);
   }
 
   private async insertCandidate(
@@ -962,12 +965,14 @@ function isTerminal(item: ItemRow): boolean {
 function isControlling(item: ItemRow | null): item is ItemRow {
   return Boolean(
     item &&
-      item.status === 'active' &&
-      ['active', 'stale', 'conflicted'].includes(item.governed_status),
+    item.status === 'active' &&
+    ['active', 'stale', 'conflicted'].includes(item.governed_status),
   );
 }
 
-function governedStatus(item: ItemRow):
+function governedStatus(
+  item: ItemRow,
+):
   | 'suggested'
   | 'pending_review'
   | 'active'

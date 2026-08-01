@@ -1,6 +1,10 @@
 import { describe, expect, it } from '@jest/globals';
 import { buildAssuredClaimLedger } from './claim-ledger';
-import { buildAssuranceEnvelope, summarizeAssuranceEnvelope, verifyAssuranceEnvelope } from './envelope';
+import {
+  buildAssuranceEnvelope,
+  summarizeAssuranceEnvelope,
+  verifyAssuranceEnvelope,
+} from './envelope';
 import { planGovernmentAffairsEvidence } from './evidence-plan';
 import { resolveGovernmentAffairsOperatingFrame } from './operating-frame';
 import { evaluateAssuranceRelease } from './risk-gate';

@@ -30,9 +30,7 @@ describe('governedRecallSuppressionSql', () => {
   });
 
   it('supports an unaliased FROM memory_items', () => {
-    expect(governedRecallSuppressionSql(true)).toContain(
-      "governed_status IN ('active', 'stale')",
-    );
+    expect(governedRecallSuppressionSql(true)).toContain("governed_status IN ('active', 'stale')");
     expect(governedRecallEligibilitySql()).toContain('controlling_item_id = id');
   });
 

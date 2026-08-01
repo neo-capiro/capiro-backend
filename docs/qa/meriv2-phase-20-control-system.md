@@ -225,22 +225,22 @@ This run is not control evidence.
 
 ## Acceptance matrix
 
-| Requirement | Implementation | Operating evidence | Result |
-|---|---:|---:|---|
-| Complete control mapping | committed | document inspection pending independent review | blocked |
-| Bounded dimensions | committed and unit-test contract added | workflow did not run | blocked |
-| Pending candidate metric/alarm | committed | no AWS alarm demonstration | blocked |
-| Self-review metric/alarm | committed | no AWS alarm demonstration | blocked |
-| Ethical-wall metric/alarm | committed | no AWS alarm demonstration | blocked |
-| Conflict metric/alarm | committed | no AWS alarm demonstration | blocked |
-| Context persistence metric/alarm | committed | no AWS alarm demonstration | blocked |
-| Held/degraded/unsupported metrics | committed | no AWS alarm demonstration | blocked |
-| Outbox age/retry/dead-letter metrics | committed | no AWS alarm demonstration | blocked |
-| Policy-drift metric/alarm | committed | no AWS alarm demonstration | blocked |
-| Backfill quarantine/drift metrics | committed | no AWS alarm demonstration | blocked |
-| Runbook executable by non-implementer | committed | no independent walkthrough | blocked |
-| Rollback tested in Phase 18/staging | scripts committed | Phase 18 and staging execution absent | blocked |
-| ALARM → notification → OK demonstrated | guarded operator committed | not executed | blocked |
+| Requirement                            |                         Implementation |                             Operating evidence | Result  |
+| -------------------------------------- | -------------------------------------: | ---------------------------------------------: | ------- |
+| Complete control mapping               |                              committed | document inspection pending independent review | blocked |
+| Bounded dimensions                     | committed and unit-test contract added |                           workflow did not run | blocked |
+| Pending candidate metric/alarm         |                              committed |                     no AWS alarm demonstration | blocked |
+| Self-review metric/alarm               |                              committed |                     no AWS alarm demonstration | blocked |
+| Ethical-wall metric/alarm              |                              committed |                     no AWS alarm demonstration | blocked |
+| Conflict metric/alarm                  |                              committed |                     no AWS alarm demonstration | blocked |
+| Context persistence metric/alarm       |                              committed |                     no AWS alarm demonstration | blocked |
+| Held/degraded/unsupported metrics      |                              committed |                     no AWS alarm demonstration | blocked |
+| Outbox age/retry/dead-letter metrics   |                              committed |                     no AWS alarm demonstration | blocked |
+| Policy-drift metric/alarm              |                              committed |                     no AWS alarm demonstration | blocked |
+| Backfill quarantine/drift metrics      |                              committed |                     no AWS alarm demonstration | blocked |
+| Runbook executable by non-implementer  |                              committed |                     no independent walkthrough | blocked |
+| Rollback tested in Phase 18/staging    |                      scripts committed |          Phase 18 and staging execution absent | blocked |
+| ALARM → notification → OK demonstrated |             guarded operator committed |                                   not executed | blocked |
 
 ## Remaining acceptance work
 

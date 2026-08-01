@@ -324,9 +324,7 @@ describe('GenerationService generation runs', () => {
     const run = runOf(await h.service.generateAllSectionsInProcess(TENANT, DRAFT, 'clerk_owner'));
 
     expect(run.status).toBe('complete_with_warnings');
-    expect(run.invalidCitations).toEqual([
-      { section: 'Overview', token: '[S:pe:0603851F]' },
-    ]);
+    expect(run.invalidCitations).toEqual([{ section: 'Overview', token: '[S:pe:0603851F]' }]);
   });
 
   it('records the durable context packet and the credential that actually ran', async () => {

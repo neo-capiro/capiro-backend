@@ -112,7 +112,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const ADMIN_ROLES = new Set(['user_admin', 'capiro_admin']);
 
 export function resolvePersistedPolicyPackMode(raw: string | undefined): PersistedPolicyPackMode {
-  const value = String(raw ?? '').trim().toLowerCase();
+  const value = String(raw ?? '')
+    .trim()
+    .toLowerCase();
   return value === 'enforce' ? 'enforce' : value === 'shadow' ? 'shadow' : 'off';
 }
 
@@ -133,7 +135,11 @@ export function policyChannelForTool(
   if (/^(?:schedule_task|cancel_scheduled_task)$/.test(tool)) return 'automation';
   if (/^(?:create_client|update_client_profile|create_task|update_task)$/.test(tool)) return 'crm';
   if (/^(?:submit_filing|file_comment|submit_comment)$/.test(tool)) return 'filing';
-  if (/^(?:draft_policy_memo|create_meeting_brief|create_word|create_excel|create_powerpoint)$/.test(tool)) {
+  if (
+    /^(?:draft_policy_memo|create_meeting_brief|create_word|create_excel|create_powerpoint)$/.test(
+      tool,
+    )
+  ) {
     return 'document';
   }
   return 'internal';
@@ -168,7 +174,8 @@ function policyJurisdictionForAction(
   }
   const keys = Object.keys(input).join(' ').toLowerCase();
   const material = `${tool} ${keys}`;
-  if (/state|legiscan|statebill/.test(material) || typeof input.stateCode === 'string') return 'state';
+  if (/state|legiscan|statebill/.test(material) || typeof input.stateCode === 'string')
+    return 'state';
   if (/local|county|city|municipal|district_nexus/.test(material)) return 'local';
   if (/grant|nofo|assistance_listing/.test(material)) return 'grants';
   if (/sam_|sam\.|procurement|contract|award|solicitation|rfp/.test(material)) return 'procurement';
@@ -184,10 +191,12 @@ export function resolveActionPolicyContext(
   overrides: { jurisdiction?: GovernmentAffairsJurisdiction; clientId?: string } = {},
 ): ResolvedActionPolicyContext {
   const candidateActor = (ctx as unknown as { actorUserId?: unknown }).actorUserId;
-  const actorUserId = typeof candidateActor === 'string' && UUID_RE.test(candidateActor)
-    ? candidateActor
-    : ctx.userId;
-  const rawClientId = overrides.clientId ?? (typeof input.clientId === 'string' ? input.clientId : undefined);
+  const actorUserId =
+    typeof candidateActor === 'string' && UUID_RE.test(candidateActor)
+      ? candidateActor
+      : ctx.userId;
+  const rawClientId =
+    overrides.clientId ?? (typeof input.clientId === 'string' ? input.clientId : undefined);
   const clientId = rawClientId && UUID_RE.test(rawClientId) ? rawClientId : undefined;
   const jurisdiction = overrides.jurisdiction ?? policyJurisdictionForAction(tool, input);
   const channel = policyChannelForTool(tool);
@@ -274,13 +283,25 @@ export class MeriPolicyPackService {
 
     try {
       const loaded = await this.loadPublishedPacks(tenantId);
-      const selected = selectPolicyPack(loaded.packs.map((entry) => entry.pack), resolved);
+      const selected = selectPolicyPack(
+        loaded.packs.map((entry) => entry.pack),
+        resolved,
+      );
       const selectedEntry = selected
-        ? loaded.packs.find((entry) => entry.pack.id === selected.id && entry.pack.version === selected.version)
+        ? loaded.packs.find(
+            (entry) => entry.pack.id === selected.id && entry.pack.version === selected.version,
+          )
         : undefined;
 
       if (mode === 'shadow') {
-        const authoritative = this.envelope(staticDecision, resolved, 'shadow', 'static', null, true);
+        const authoritative = this.envelope(
+          staticDecision,
+          resolved,
+          'shadow',
+          'static',
+          null,
+          true,
+        );
         if (!selected || !selectedEntry) {
           authoritative.shadowDecision = {
             source: 'unavailable',
@@ -299,10 +320,13 @@ export class MeriPolicyPackService {
 
       if (!selected || !selectedEntry) {
         const code = loaded.rowsSeen > 0 ? 'policy_pack_integrity' : 'policy_pack_missing';
-        return this.failClosed(resolved, code,
+        return this.failClosed(
+          resolved,
+          code,
           loaded.rowsSeen > 0
             ? 'Published policy rows were present but none passed integrity and lifecycle validation.'
-            : 'No verified published tenant policy pack is available.');
+            : 'No verified published tenant policy pack is available.',
+        );
       }
       return this.envelope(
         evaluatePolicyPack(selected, resolved),
@@ -412,7 +436,13 @@ export class MeriPolicyPackService {
       const created = await db.compliancePolicyPack.create({
         data: approvedGenericPolicyPackSeed(ctx.tenantId, ctx.userId),
       });
-      await this.appendEvent(db, ctx, created.id, null, 'published', 'create',
+      await this.appendEvent(
+        db,
+        ctx,
+        created.id,
+        null,
+        'published',
+        'create',
         'Installed the reviewed Capiro generic action-approval baseline.',
       );
       return created;
@@ -420,7 +450,10 @@ export class MeriPolicyPackService {
     return this.publicRow(row);
   }
 
-  async createDraft(ctx: TenantContext, input: PolicyPackDraftInput): Promise<Record<string, unknown>> {
+  async createDraft(
+    ctx: TenantContext,
+    input: PolicyPackDraftInput,
+  ): Promise<Record<string, unknown>> {
     this.assertAdmin(ctx);
     const pack = this.packFromDraft(ctx, input);
     const validation = validatePolicyPack(pack);
@@ -446,7 +479,15 @@ export class MeriPolicyPackService {
           rulesHash: policyPackRulesHash(pack),
         },
       });
-      await this.appendEvent(db, ctx, created.id, null, 'draft', 'create', 'Created policy-pack draft.');
+      await this.appendEvent(
+        db,
+        ctx,
+        created.id,
+        null,
+        'draft',
+        'create',
+        'Created policy-pack draft.',
+      );
       return created;
     });
     return this.publicRow(row);
@@ -459,7 +500,8 @@ export class MeriPolicyPackService {
   ): Promise<Record<string, unknown>> {
     this.assertAdmin(ctx);
     const current = await this.requireRow(ctx.tenantId, packId);
-    if (current.status !== 'draft') throw new ConflictException('Only a draft may be revised in place.');
+    if (current.status !== 'draft')
+      throw new ConflictException('Only a draft may be revised in place.');
     const existing = this.toPack(current);
     if (!existing) throw new BadRequestException('The stored draft is malformed.');
     const next: CompliancePolicyPack = {
@@ -469,8 +511,12 @@ export class MeriPolicyPackService {
       authority: patch.authority ?? existing.authority,
       effectiveFrom: patch.effectiveFrom ?? existing.effectiveFrom,
       ...(patch.effectiveUntil === undefined
-        ? existing.effectiveUntil ? { effectiveUntil: existing.effectiveUntil } : {}
-        : patch.effectiveUntil ? { effectiveUntil: patch.effectiveUntil } : { effectiveUntil: undefined }),
+        ? existing.effectiveUntil
+          ? { effectiveUntil: existing.effectiveUntil }
+          : {}
+        : patch.effectiveUntil
+          ? { effectiveUntil: patch.effectiveUntil }
+          : { effectiveUntil: undefined }),
       fourEyesRequired: patch.fourEyesRequired ?? existing.fourEyesRequired,
       rules: patch.rules ?? existing.rules,
       fallback: patch.fallback ?? existing.fallback,
@@ -495,13 +541,25 @@ export class MeriPolicyPackService {
           rulesHash: policyPackRulesHash(next),
         },
       });
-      await this.appendEvent(db, ctx, packId, 'draft', 'draft', 'revise', 'Revised policy-pack draft.');
+      await this.appendEvent(
+        db,
+        ctx,
+        packId,
+        'draft',
+        'draft',
+        'revise',
+        'Revised policy-pack draft.',
+      );
       return updated;
     });
     return this.publicRow(row);
   }
 
-  async submitReview(ctx: TenantContext, packId: string, reason: string): Promise<Record<string, unknown>> {
+  async submitReview(
+    ctx: TenantContext,
+    packId: string,
+    reason: string,
+  ): Promise<Record<string, unknown>> {
     this.assertAdmin(ctx);
     const current = await this.requireRow(ctx.tenantId, packId);
     if (current.status !== 'draft') throw new ConflictException('Only a draft may enter review.');
@@ -520,8 +578,10 @@ export class MeriPolicyPackService {
   ): Promise<Record<string, unknown>> {
     this.assertAdmin(ctx);
     const current = await this.requireRow(ctx.tenantId, packId);
-    if (current.status !== 'pending_review') throw new ConflictException('Pack is not pending review.');
-    if (current.ownerUserId === ctx.userId) throw new ForbiddenException('The draft owner cannot review their own policy pack.');
+    if (current.status !== 'pending_review')
+      throw new ConflictException('Pack is not pending review.');
+    if (current.ownerUserId === ctx.userId)
+      throw new ForbiddenException('The draft owner cannot review their own policy pack.');
     const toStatus = current.fourEyesRequired ? 'pending_review' : 'reviewed';
     const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const db = tx as unknown as PolicyPackTx;
@@ -540,20 +600,34 @@ export class MeriPolicyPackService {
     return this.publicRow(row);
   }
 
-  async secondApprove(ctx: TenantContext, packId: string, reason: string): Promise<Record<string, unknown>> {
+  async secondApprove(
+    ctx: TenantContext,
+    packId: string,
+    reason: string,
+  ): Promise<Record<string, unknown>> {
     this.assertAdmin(ctx);
     const current = await this.requireRow(ctx.tenantId, packId);
-    if (!current.fourEyesRequired || current.status !== 'pending_review' || !current.reviewedByUserId) {
+    if (
+      !current.fourEyesRequired ||
+      current.status !== 'pending_review' ||
+      !current.reviewedByUserId
+    ) {
       throw new ConflictException('A completed first review is required before second approval.');
     }
     if (ctx.userId === current.ownerUserId || ctx.userId === current.reviewedByUserId) {
-      throw new ForbiddenException('The second approver must be independent of the owner and first reviewer.');
+      throw new ForbiddenException(
+        'The second approver must be independent of the owner and first reviewer.',
+      );
     }
     const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const db = tx as unknown as PolicyPackTx;
       const updated = await db.compliancePolicyPack.update({
         where: { id: packId },
-        data: { secondApprovedByUserId: ctx.userId, secondApprovedAt: new Date(), status: 'reviewed' },
+        data: {
+          secondApprovedByUserId: ctx.userId,
+          secondApprovedAt: new Date(),
+          status: 'reviewed',
+        },
       });
       await this.appendEvent(db, ctx, packId, 'pending_review', 'reviewed', 'approve', reason);
       return updated;
@@ -561,12 +635,19 @@ export class MeriPolicyPackService {
     return this.publicRow(row);
   }
 
-  async publish(ctx: TenantContext, packId: string, reason: string): Promise<Record<string, unknown>> {
+  async publish(
+    ctx: TenantContext,
+    packId: string,
+    reason: string,
+  ): Promise<Record<string, unknown>> {
     this.assertAdmin(ctx);
     const current = await this.requireRow(ctx.tenantId, packId);
     const pack = this.toPack(current);
     if (!pack) throw new BadRequestException('The stored pack is malformed.');
-    const allowed = canPublishPolicyPack(pack, { userId: ctx.userId, role: policyActorRole(String(ctx.role)) });
+    const allowed = canPublishPolicyPack(pack, {
+      userId: ctx.userId,
+      role: policyActorRole(String(ctx.role)),
+    });
     if (!allowed.valid) throw new BadRequestException(allowed.errors.join(' '));
     const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const db = tx as unknown as PolicyPackTx;
@@ -574,8 +655,17 @@ export class MeriPolicyPackService {
         where: { tenantId: ctx.tenantId, packKey: current.packKey, status: 'published' },
       });
       for (const prior of live) {
-        await db.compliancePolicyPack.update({ where: { id: prior.id }, data: { status: 'retired' } });
-        await this.appendEvent(db, ctx, prior.id, 'published', 'retired', 'retire',
+        await db.compliancePolicyPack.update({
+          where: { id: prior.id },
+          data: { status: 'retired' },
+        });
+        await this.appendEvent(
+          db,
+          ctx,
+          prior.id,
+          'published',
+          'retired',
+          'retire',
           `Retired during publication of ${current.version}.`,
         );
       }
@@ -589,10 +679,15 @@ export class MeriPolicyPackService {
     return this.publicRow(row);
   }
 
-  async retire(ctx: TenantContext, packId: string, reason: string): Promise<Record<string, unknown>> {
+  async retire(
+    ctx: TenantContext,
+    packId: string,
+    reason: string,
+  ): Promise<Record<string, unknown>> {
     this.assertAdmin(ctx);
     const current = await this.requireRow(ctx.tenantId, packId);
-    if (current.status !== 'published') throw new ConflictException('Only a published pack may be retired.');
+    if (current.status !== 'published')
+      throw new ConflictException('Only a published pack may be retired.');
     return this.transition(ctx, current, 'retired', 'retire', reason);
   }
 
@@ -605,19 +700,47 @@ export class MeriPolicyPackService {
     this.assertAdmin(ctx);
     const current = await this.requireRow(ctx.tenantId, currentId);
     const target = await this.requireRow(ctx.tenantId, targetId);
-    if (current.status !== 'published' || target.status !== 'retired' || current.packKey !== target.packKey) {
-      throw new ConflictException('Rollback requires a live pack and a retired version of the same pack key.');
+    if (
+      current.status !== 'published' ||
+      target.status !== 'retired' ||
+      current.packKey !== target.packKey
+    ) {
+      throw new ConflictException(
+        'Rollback requires a live pack and a retired version of the same pack key.',
+      );
     }
-    if (target.nonProduction) throw new BadRequestException('Cannot roll back to a non-production pack.');
+    if (target.nonProduction)
+      throw new BadRequestException('Cannot roll back to a non-production pack.');
     const restored = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const db = tx as unknown as PolicyPackTx;
-      await db.compliancePolicyPack.update({ where: { id: currentId }, data: { status: 'retired' } });
-      await this.appendEvent(db, ctx, currentId, 'published', 'retired', 'rollback', reason, targetId);
+      await db.compliancePolicyPack.update({
+        where: { id: currentId },
+        data: { status: 'retired' },
+      });
+      await this.appendEvent(
+        db,
+        ctx,
+        currentId,
+        'published',
+        'retired',
+        'rollback',
+        reason,
+        targetId,
+      );
       const row = await db.compliancePolicyPack.update({
         where: { id: targetId },
         data: { status: 'published', publishedByUserId: ctx.userId, publishedAt: new Date() },
       });
-      await this.appendEvent(db, ctx, targetId, 'retired', 'published', 'rollback', reason, currentId);
+      await this.appendEvent(
+        db,
+        ctx,
+        targetId,
+        'retired',
+        'published',
+        'rollback',
+        reason,
+        currentId,
+      );
       return row;
     });
     return this.publicRow(restored);
@@ -668,7 +791,13 @@ export class MeriPolicyPackService {
           reason: decision.reason,
         },
       });
-      await this.appendEvent(db, ctx, row.id, row.status, row.status, 'simulate',
+      await this.appendEvent(
+        db,
+        ctx,
+        row.id,
+        row.status,
+        row.status,
+        'simulate',
         'Simulated policy decision; no action binding was created.',
       );
     });
@@ -754,7 +883,8 @@ export class MeriPolicyPackService {
     context: PolicySelectionContext | ResolvedActionPolicyContext,
   ): ResolvedActionPolicyContext {
     const effectiveAt = context.at instanceof Date ? context.at : new Date(context.at);
-    const effectiveUserId = (context as ResolvedActionPolicyContext).effectiveUserId ?? context.actorUserId;
+    const effectiveUserId =
+      (context as ResolvedActionPolicyContext).effectiveUserId ?? context.actorUserId;
     return { ...context, effectiveUserId, effectiveAt, at: effectiveAt };
   }
 
@@ -810,7 +940,11 @@ export class MeriPolicyPackService {
     let rejected = 0;
     for (const row of rows) {
       const pack = this.toPack(row);
-      if (!pack || !policyPackRulesMatchHash(pack, row.rulesHash) || !validatePolicyPack(pack).valid) {
+      if (
+        !pack ||
+        !policyPackRulesMatchHash(pack, row.rulesHash) ||
+        !validatePolicyPack(pack).valid
+      ) {
         rejected += 1;
         this.logger.error(`[policy-pack] refusing unverified ${row.packKey}@${row.version}`);
         continue;
@@ -821,7 +955,9 @@ export class MeriPolicyPackService {
   }
 
   private toPack(row: PolicyPackRow): CompliancePolicyPack | null {
-    const rules = Array.isArray(row.rulesJson) ? row.rulesJson as CompliancePolicyPackRule[] : null;
+    const rules = Array.isArray(row.rulesJson)
+      ? (row.rulesJson as CompliancePolicyPackRule[])
+      : null;
     const authority = row.authorityJson as PolicyAuthority | null;
     if (!rules || !authority || typeof authority.title !== 'string') return null;
     return {
@@ -896,10 +1032,15 @@ export class MeriPolicyPackService {
   }
 
   private assertAdmin(ctx: TenantContext): void {
-    if (!ADMIN_ROLES.has(String(ctx.role))) throw new ForbiddenException('Policy-pack administration requires an administrator.');
+    if (!ADMIN_ROLES.has(String(ctx.role)))
+      throw new ForbiddenException('Policy-pack administration requires an administrator.');
   }
 
-  private async requireRow(tenantId: string, id: string, throwIfMissing = true): Promise<PolicyPackRow> {
+  private async requireRow(
+    tenantId: string,
+    id: string,
+    throwIfMissing = true,
+  ): Promise<PolicyPackRow> {
     const row = await this.prisma.withTenant(tenantId, (tx) =>
       (tx as unknown as PolicyPackTx).compliancePolicyPack.findFirst({ where: { id, tenantId } }),
     );
@@ -916,7 +1057,10 @@ export class MeriPolicyPackService {
   ): Promise<Record<string, unknown>> {
     const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const db = tx as unknown as PolicyPackTx;
-      const updated = await db.compliancePolicyPack.update({ where: { id: current.id }, data: { status: toStatus } });
+      const updated = await db.compliancePolicyPack.update({
+        where: { id: current.id },
+        data: { status: toStatus },
+      });
       await this.appendEvent(db, ctx, current.id, current.status, toStatus, action, reason);
       return updated;
     });

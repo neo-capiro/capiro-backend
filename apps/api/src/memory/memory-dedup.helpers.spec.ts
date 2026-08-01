@@ -84,12 +84,9 @@ describe('memory candidate deduplication', () => {
   });
 
   it('never matches another client or user scope', () => {
-    expect(
-      decideMemoryDedup(
-        { ...existing(), clientId: 'client-b' },
-        [existing()],
-      ).reason,
-    ).toBe('none');
+    expect(decideMemoryDedup({ ...existing(), clientId: 'client-b' }, [existing()]).reason).toBe(
+      'none',
+    );
     expect(
       decideMemoryDedup(
         {
