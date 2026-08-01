@@ -77,6 +77,7 @@ const LINE_NO_HINT = /line\s*(no|num|#)|^\s*#\s*$/i;
 export function mapFyFieldColumns(
   header: string[] | undefined,
   fallback: number[],
+  exhibit?: Extract<ExhibitType, 'R-1' | 'R-2' | 'R-2A' | 'R-3'>,
 ): Map<number, FyColBinding> {
   const out = new Map<number, FyColBinding>();
   if (!header || header.length === 0) {
@@ -92,7 +93,7 @@ export function mapFyFieldColumns(
     const m = FY_ANY.exec(label);
     if (!m) return;
     const fy = 2000 + Number(m[1]);
-    const fieldName = classifyFyHeaderField(label);
+    const fieldName = classifyFyHeaderField(label, exhibit);
     if (!fieldName) return;
     const score = scoreFyHeader(label, fieldName);
     const key = `${fy}::${fieldName}`;
@@ -111,11 +112,26 @@ export function mapFyFieldColumns(
 }
 
 /** Classify a FY-bearing header into a PE-year money field, or null to skip. */
-export function classifyFyHeaderField(label: string): RdteMoneyField | null {
+export function classifyFyHeaderField(
+  label: string,
+  exhibit?: Extract<ExhibitType, 'R-1' | 'R-2' | 'R-2A' | 'R-3'>,
+): RdteMoneyField | null {
   const l = label.toLowerCase();
   if (/spend\s*plan/.test(l)) return null;
   if (/\b(base|oco|ooc)\b/.test(l) && !TOTAL_HINT.test(l)) return null;
   if (/mandatory\s+request/.test(l)) return null;
+
+  // R-1 is a President's Budget catalog: it may only own `request`.
+  // "Actuals" / "Enacted" columns on R-1 are historical context printed on the
+  // exhibit — not execution-feed or public-law ownership for PE-year.executed/enacted.
+  if (exhibit === 'R-1') {
+    if (/actual/.test(l)) return null;
+    if (/enacted/.test(l)) return null;
+    if (/reprogramm/.test(l)) return null;
+    if (/request/.test(l) || TOTAL_HINT.test(l) || FY_ANY.test(l)) return 'request';
+    return null;
+  }
+
   if (/actual/.test(l)) return 'executed';
   if (/enacted/.test(l)) return 'enacted';
   if (/reprogramm/.test(l)) return 'reprogrammed';
@@ -137,8 +153,12 @@ function scoreFyHeader(label: string, fieldName: RdteMoneyField): number {
   return s;
 }
 
-function mapFyColumns(header: string[] | undefined, fallback: number[]): Map<number, number> {
-  const rich = mapFyFieldColumns(header, fallback);
+function mapFyColumns(
+  header: string[] | undefined,
+  fallback: number[],
+  exhibit?: Extract<ExhibitType, 'R-1' | 'R-2' | 'R-2A' | 'R-3'>,
+): Map<number, number> {
+  const rich = mapFyFieldColumns(header, fallback, exhibit);
   const out = new Map<number, number>();
   for (const [idx, b] of Array.from(rich)) out.set(idx, b.fy);
   return out;
@@ -215,9 +235,9 @@ export function extractRdte(input: RdteExtractInput): ExtractionResult {
 
     for (const table of page.tables) {
       const unit = unitForPage(page, table);
-      const fyBindings = mapFyFieldColumns(table.header, input.fyColumns);
-      const fyCols = mapFyColumns(table.header, input.fyColumns);
-      const costTable = isCostTable(table);
+            const fyBindings = mapFyFieldColumns(table.header, input.fyColumns, input.exhibit);
+            const fyCols = mapFyColumns(table.header, input.fyColumns, input.exhibit);
+            const costTable = isCostTable(table);
 
       for (const row of table.rows) {
         const first = (row[0] ?? '').trim();

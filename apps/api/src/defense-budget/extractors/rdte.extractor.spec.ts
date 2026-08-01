@@ -167,44 +167,41 @@ describe('extractRdte — FY2027 Comptroller R-1 layout (PE in Program Element N
     expect(hit).toEqual({ code: '0601102A', col: 1 });
   });
 
-  it('classifies R-1 FY headers into executed/enacted/request and skips spend-plan splits', () => {
-    expect(classifyFyHeaderField('FY 2025 Actuals')).toBe('executed');
-    expect(classifyFyHeaderField('FY 2026 Discretionary Enacted')).toBe('enacted');
-    expect(classifyFyHeaderField('FY 2026 PL 119-21 Spend Plan')).toBeNull();
-    expect(classifyFyHeaderField('FY 2027 Total')).toBe('request');
-    const bindings = mapFyFieldColumns(header, [2025, 2026, 2027]);
-    const boundIdx = Array.from(bindings.keys());
-    expect(boundIdx).not.toContain(header.indexOf('FY 2026 PL 119-21 Spend Plan'));
-    const fy27 = Array.from(bindings.entries()).filter(([, b]) => b.fy === 2027 && b.fieldName === 'request');
-    expect(fy27).toHaveLength(1);
-    expect(fy27[0]![0]).toBe(header.indexOf('FY 2027 Total'));
-  });
-
-  it('emits PE lines + multi-field year values from R-1 catalog tables', () => {
-    const res = extractRdte({
-      exhibit: 'R-1',
-      component: 'ARMY',
-      pages: [page()],
-      fyColumns: [2025, 2026, 2027],
+  it('classifies R-1 FY headers into request only (not enacted/executed ownership)', () => {
+      expect(classifyFyHeaderField('FY 2025 Actuals', 'R-1')).toBeNull();
+      expect(classifyFyHeaderField('FY 2026 Discretionary Enacted', 'R-1')).toBeNull();
+      expect(classifyFyHeaderField('FY 2026 PL 119-21 Spend Plan', 'R-1')).toBeNull();
+      expect(classifyFyHeaderField('FY 2027 Total', 'R-1')).toBe('request');
+      const bindings = mapFyFieldColumns(header, [2025, 2026, 2027], 'R-1');
+      const fields = new Set(Array.from(bindings.values()).map((b) => b.fieldName));
+      expect(fields).toEqual(new Set(['request']));
+      const fy27 = Array.from(bindings.entries()).filter(([, b]) => b.fy === 2027 && b.fieldName === 'request');
+      expect(fy27).toHaveLength(1);
+      expect(fy27[0]![0]).toBe(header.indexOf('FY 2027 Total'));
     });
-    expect(res.lineAssertions.some((l) => l.code === '0601102A')).toBe(true);
-    expect(res.lineAssertions.find((l) => l.code === '0601102A')!.title).toBe(
-      'Defense Research Sciences',
-    );
-    const vals = res.yearValues.filter((v) => v.code === '0601102A');
-    const executed = vals.find((v) => v.fy === 2025 && v.fieldName === 'executed');
-    expect(executed?.money).toEqual({ value: 290464, unit: 'thousands' });
-    const enacted = vals.find((v) => v.fy === 2026 && v.fieldName === 'enacted');
-    expect(enacted?.money).toEqual({ value: 258178, unit: 'thousands' });
-    const req26 = vals.find((v) => v.fy === 2026 && v.fieldName === 'request');
-    expect(req26?.money).toEqual({ value: 259178, unit: 'thousands' });
-    const req27 = vals.find((v) => v.fy === 2027 && v.fieldName === 'request');
-    expect(req27?.money).toEqual({ value: 215322, unit: 'thousands' });
-    expect(new Set(res.lineAssertions.map((l) => l.code))).toEqual(
-      new Set(['0601102A', '0601103A']),
-    );
+
+    it('emits PE lines + request year values only from R-1 catalog tables', () => {
+      const res = extractRdte({
+        exhibit: 'R-1',
+        component: 'ARMY',
+        pages: [page()],
+        fyColumns: [2025, 2026, 2027],
+      });
+      expect(res.lineAssertions.some((l) => l.code === '0601102A')).toBe(true);
+      expect(res.lineAssertions.find((l) => l.code === '0601102A')!.title).toBe(
+        'Defense Research Sciences',
+      );
+      const vals = res.yearValues.filter((v) => v.code === '0601102A');
+      expect(vals.every((v) => v.fieldName === 'request')).toBe(true);
+      const req26 = vals.find((v) => v.fy === 2026 && v.fieldName === 'request');
+      expect(req26?.money).toEqual({ value: 259178, unit: 'thousands' });
+      const req27 = vals.find((v) => v.fy === 2027 && v.fieldName === 'request');
+      expect(req27?.money).toEqual({ value: 215322, unit: 'thousands' });
+      expect(new Set(res.lineAssertions.map((l) => l.code))).toEqual(
+        new Set(['0601102A', '0601103A']),
+      );
+    });
   });
-});
 
 describe('extractRdte — real R-2 cost table (structure B: PE code in heading, not the row)', () => {
   // Mirrors the FY2027 Army RDT&E Vol 1 structure: the PE code sits in a preceding heading,
