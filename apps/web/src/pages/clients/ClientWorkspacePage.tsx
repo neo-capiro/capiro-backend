@@ -30,14 +30,20 @@ import {
 } from 'antd';
 import { useApi } from '../../lib/use-api.js';
 import { useMe } from '../../lib/me.js';
+import { useActionsList } from '../actions/actions-api.js';
+import { getProgramElementSummary } from '../program-element/api.js';
+import type { ProgramElementSummary } from '../program-element/types.js';
 import { BulkImportClientsModal } from './BulkImportClientsModal.js';
 import { FirmOnboardingWizard } from './FirmOnboardingWizard.js';
 import { ClientFormModal } from './ClientFormModal.js';
 import { ClientProfilePage } from './ClientProfilePage.js';
+import { PortfolioProgramElementsSection } from './PortfolioProgramElementsSection.js';
 import { getClientTargets, type ClientTarget } from './targets-api.js';
 import { chamberCategory, partyShort } from './targets-normalize.js';
 import type { Client, ClientFormSubmit } from './clientTypes.js';
 import type { PortfolioSummary } from '../intelligence/types.js';
+
+const CLOSED_ACTION_STATUSES = new Set(['dismissed', 'archived']);
 
 interface ClientFilterState {
   sectors: string[];
@@ -80,6 +86,21 @@ export function ClientWorkspacePage() {
       (await api.get<PortfolioSummary>('/api/intelligence/portfolio-summary')).data,
     staleTime: 2 * 60 * 1000,
   });
+
+  const programElementSummary = useQuery<ProgramElementSummary>({
+    queryKey: ['program-element-summary', false],
+    queryFn: () => getProgramElementSummary(api),
+    staleTime: 60 * 1000,
+  });
+
+  const portfolioActions = useActionsList({ page: 1, limit: 100 });
+  const openActionCount = useMemo(
+    () =>
+      (portfolioActions.data?.data ?? []).filter(
+        (action) => !CLOSED_ACTION_STATUSES.has(action.status),
+      ).length,
+    [portfolioActions.data],
+  );
 
   const selectedClient = useQuery<Client>({
     queryKey: ['client', selectedId],
@@ -341,6 +362,7 @@ export function ClientWorkspacePage() {
 
   const activeCount = visibleClients.length;
   const totalActive = activeClients.length;
+  const monitoredProgramElements = programElementSummary.data?.watched ?? 0;
 
   /* ── List view ── */
   return (
@@ -351,6 +373,13 @@ export function ClientWorkspacePage() {
             <h1>Portfolio</h1>
             <div className="portfolio-meta">
               <b className="num">{totalActive}</b> active client{totalActive === 1 ? '' : 's'}
+              {!programElementSummary.isLoading ? (
+                <>
+                  {' · '}
+                  <b className="num">{monitoredProgramElements}</b> program element
+                  {monitoredProgramElements === 1 ? '' : 's'} monitored
+                </>
+              ) : null}
               {portfolioSummary.data ? (
                 <>
                   {' · '}
@@ -406,7 +435,16 @@ export function ClientWorkspacePage() {
           summary={portfolioSummary.data}
           loading={portfolioSummary.isLoading}
           activeClientsFallback={totalActive}
+          programElements={monitoredProgramElements}
+          programElementsLoading={programElementSummary.isLoading}
+          openActions={openActionCount}
+          actionsLoading={portfolioActions.isLoading}
         />
+
+        <div className="portfolio-client-section-heading">
+          <h2>Clients</h2>
+          <span>{activeCount}</span>
+        </div>
 
         {clients.isLoading ? (
           <div className="client-card-grid">
@@ -448,6 +486,8 @@ export function ClientWorkspacePage() {
             )}
           </div>
         )}
+
+        <PortfolioProgramElementsSection />
       </section>
 
       <ClientFormModal
@@ -614,41 +654,72 @@ function PortfolioStrip({
   summary,
   loading,
   activeClientsFallback,
+  programElements,
+  programElementsLoading,
+  openActions,
+  actionsLoading,
 }: {
   summary: PortfolioSummary | undefined;
   loading: boolean;
   activeClientsFallback: number;
+  programElements: number;
+  programElementsLoading: boolean;
+  openActions: number;
+  actionsLoading: boolean;
 }) {
-  const cells: Array<{ label: string; value: string; tone?: 'accent' | 'notable' | 'critical' }> = [
-    { label: 'Active clients', value: String(summary?.activeClients ?? activeClientsFallback) },
+  const cells: Array<{
+    label: string;
+    value: string;
+    loading?: boolean;
+    tone?: 'accent' | 'notable' | 'critical';
+  }> = [
+    {
+      label: 'Active clients',
+      value: String(summary?.activeClients ?? activeClientsFallback),
+      loading,
+    },
+    {
+      label: 'Program elements',
+      value: String(programElements),
+      loading: programElementsLoading,
+    },
     {
       label: 'Need attention',
       value: String(summary?.needAttention ?? 0),
+      loading,
       tone: (summary?.needAttention ?? 0) > 0 ? 'notable' : undefined,
     },
-    { label: 'LDA spend (QTD)', value: formatCompactMoney(summary?.ldaSpendQtd ?? 0) },
-    { label: 'Active bills tracked', value: String(summary?.billsTracked ?? 0) },
-    { label: 'Active regulations', value: String(summary?.activeRegulations ?? 0) },
+    {
+      label: 'LDA spend (QTD)',
+      value: formatCompactMoney(summary?.ldaSpendQtd ?? 0),
+      loading,
+    },
+    {
+      label: 'Open actions',
+      value: String(openActions),
+      loading: actionsLoading,
+      tone: openActions > 0 ? 'accent' : undefined,
+    },
   ];
   return (
     <div className="portfolio-strip">
-      {cells.map((c) => (
-        <div className="portfolio-strip-cell" key={c.label}>
+      {cells.map((cell) => (
+        <div className="portfolio-strip-cell" key={cell.label}>
           <span
             className="portfolio-strip-v num"
             style={
-              c.tone === 'accent'
+              cell.tone === 'accent'
                 ? { color: 'var(--accent-ink)' }
-                : c.tone === 'notable'
+                : cell.tone === 'notable'
                   ? { color: 'var(--notable)' }
-                  : c.tone === 'critical'
+                  : cell.tone === 'critical'
                     ? { color: 'var(--critical)' }
                     : undefined
             }
           >
-            {loading ? '-' : c.value}
+            {cell.loading ? '-' : cell.value}
           </span>
-          <span className="portfolio-strip-l">{c.label}</span>
+          <span className="portfolio-strip-l">{cell.label}</span>
         </div>
       ))}
     </div>
@@ -704,18 +775,18 @@ function TargetsDetailRow({ clientId }: { clientId: string }) {
     <div className="client-detail-pair">
       <Typography.Text type="secondary">Targets</Typography.Text>
       <div className="tgt-pills">
-        {shown.map((t) => {
+        {shown.map((target) => {
           // Collapse single-char AND full-word parties to R/D/I so the .tgt-pill.R/.D/.I
           // CSS matches for state targets ("Democratic") the same as congressional ones.
-          const ps = partyShort(t.party);
+          const party = partyShort(target.party);
           // Staffers aren't elected — no Rep./Sen. honorific (would mislabel them).
-          const honorific = t.sourceDirectory === 'staff' ? '' : titleFor(t.chamber);
+          const honorific = target.sourceDirectory === 'staff' ? '' : titleFor(target.chamber);
           return (
-            <span key={t.memberId} className={`tgt-pill ${ps ?? 'I'}`}>
+            <span key={target.memberId} className={`tgt-pill ${party ?? 'I'}`}>
               <span className="tgt-pill-dot" aria-hidden="true" />
               {honorific ? `${honorific} ` : ''}
-              {lastName(t.memberName, t.memberId)}
-              {ps && t.state ? ` · ${ps}-${t.state}` : ''}
+              {lastName(target.memberName, target.memberId)}
+              {party && target.state ? ` · ${party}-${target.state}` : ''}
             </span>
           );
         })}
@@ -742,7 +813,7 @@ function portfolioTags(client: Client): string[] {
     if (label) tags.push(label);
   }
   const explicit = readList(intake, ['portfolio', 'tags']);
-  for (const t of explicit) if (!tags.includes(t)) tags.push(t);
+  for (const tag of explicit) if (!tags.includes(tag)) tags.push(tag);
   if (!tags.length) {
     const fallback = [
       readText(intake, ['requestType', 'request_type']),
@@ -859,10 +930,9 @@ function relativeTime(value: string): string {
   if (diffDays === 0) return 'today';
   if (diffDays === 1) return '1d ago';
   if (diffDays < 30) return `${diffDays}d ago`;
-  const d = new Date(value);
   return new Intl.DateTimeFormat(undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }).format(d);
+  }).format(date);
 }
