@@ -102,8 +102,12 @@ const memoryProjectionWorkerEnabled = exactTrue(
   app.node.tryGetContext('enableMemoryProjectionWorker'),
 );
 const controlMonitorEnabled = exactTrue(app.node.tryGetContext('enableMeriV2ControlMonitor'));
+// A dark deployment deliberately points at a non-existent sentinel tag. An
+// operator who merely enables the EventBridge rule without redeploying a
+// release-SHA-bound task gets a visible task-pull failure, never mutable latest.
 const meriv2ApiImageTag =
-  String(app.node.tryGetContext('meriv2ApiImageTag') ?? '').trim() || 'latest';
+  String(app.node.tryGetContext('meriv2ApiImageTag') ?? '').trim() ||
+  'meriv2-disabled-unpinned';
 assertImageTag(meriv2ApiImageTag, memoryProjectionWorkerEnabled || controlMonitorEnabled);
 
 const memoryProjectionWorker = new MemoryProjectionWorkerStack(
