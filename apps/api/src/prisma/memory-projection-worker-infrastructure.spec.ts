@@ -34,8 +34,7 @@ describe('scheduled governed-memory projection infrastructure', () => {
     );
     expect(operationsApp).toContain("required(app, 'meriv2ApiImageTag')");
     expect(operationsApp).toContain('/^[0-9a-f]{40}$/i.test(apiImageTag)');
-    expect(primaryApp).toContain('meriv2-disabled-unpinned');
-    expect(primaryApp).toContain('mutable tags such as latest are refused');
+    expect(operationsApp).not.toContain("'latest'");
   });
 
   test('uses the app database credential and Titan-only model invocation', () => {
@@ -80,6 +79,9 @@ describe('scheduled governed-memory projection infrastructure', () => {
     expect(operationsApp).not.toContain('new DataStack');
     expect(operationsApp).not.toContain('new NetworkStack');
     expect(operationsApp).not.toContain('new AlarmsStack');
+    expect(primaryApp).not.toContain('new MemoryProjectionWorkerStack');
+    expect(primaryApp).not.toContain('new MeriV2ControlStack');
+    expect(primaryApp).toContain('owned only by `bin/meriv2-operations.ts`');
     expect(operationsApp).toContain("stackName(operationsCfg.envName, 'MemoryProjectionWorker')");
     expect(operationsApp).toContain("stackName(operationsCfg.envName, 'MeriV2Control')");
     expect(infraPackage).toContain('synth:meriv2-ops');
