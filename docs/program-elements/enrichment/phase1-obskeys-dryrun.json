@@ -1,0 +1,1410 @@
+{
+  "mode": "DRY-RUN",
+  "candidateCount": 0,
+  "alreadyLegacyStamped": 99704,
+  "duplicateLegacyGroups": [
+    {
+      "peCode": "0102417F",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0102417F",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0207110F",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0207110F",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0207412F",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0207412F",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0207701F",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0207701F",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0208085JCY",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0208085JCY",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0505167D8Z",
+      "fy": 2024,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0505167D8Z",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0505167D8Z",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0604011D8Z",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0604011D8Z",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0604122D8Z",
+      "fy": 2024,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0604122D8Z",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0604122D8Z",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0604201F",
+      "fy": 2024,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0604201F",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0604201F",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0604283F",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0604283F",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0604288F",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0604288F",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0604617F",
+      "fy": 2024,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0604617F",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0604617F",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0604776F",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0604776F",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0605229F",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "0605229F",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "1203154SF",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "1203154SF",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "1203622SF",
+      "fy": 2024,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "1203622SF",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "1203622SF",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "1206616SF",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "1206616SF",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "stanford_pe_directory_jan2026",
+      "count": 8
+    },
+    {
+      "peCode": "6761A12000",
+      "fy": 2027,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 6
+    },
+    {
+      "peCode": "6761A12000",
+      "fy": 2028,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 6
+    },
+    {
+      "peCode": "6761A12000",
+      "fy": 2029,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 6
+    },
+    {
+      "peCode": "6761A12000",
+      "fy": 2030,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 6
+    },
+    {
+      "peCode": "6761A12000",
+      "fy": 2031,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 6
+    },
+    {
+      "peCode": "6771AA0005",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 6
+    },
+    {
+      "peCode": "6771AA0005",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 6
+    },
+    {
+      "peCode": "6775A05101",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 6
+    },
+    {
+      "peCode": "0023A01001",
+      "fy": 2025,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "0023A01001",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "0023A01001",
+      "fy": 2027,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "0023A01001",
+      "fy": 2027,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "0023A01001",
+      "fy": 2028,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "0023A01001",
+      "fy": 2028,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "0023A01001",
+      "fy": 2029,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "0023A01001",
+      "fy": 2029,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "0023A01001",
+      "fy": 2030,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "0023A01001",
+      "fy": 2030,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "0023A01001",
+      "fy": 2031,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "0023A01001",
+      "fy": 2031,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "0756AA6601",
+      "fy": 2025,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "0756AA6601",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "0756AA6601",
+      "fy": 2026,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "0756AA6601",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "0756AA6601",
+      "fy": 2027,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "0756AA6601",
+      "fy": 2027,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "0756AA6601",
+      "fy": 2028,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "0756AA6601",
+      "fy": 2028,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "0756AA6601",
+      "fy": 2029,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "0756AA6601",
+      "fy": 2029,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "0756AA6601",
+      "fy": 2030,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "0756AA6601",
+      "fy": 2030,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "0756AA6601",
+      "fy": 2031,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "0756AA6601",
+      "fy": 2031,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "2706AA6605",
+      "fy": 2025,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "2706AA6605",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "2706AA6605",
+      "fy": 2026,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "2706AA6605",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "2706AA6605",
+      "fy": 2027,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "2706AA6605",
+      "fy": 2027,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "2706AA6605",
+      "fy": 2028,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "2706AA6605",
+      "fy": 2028,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "2706AA6605",
+      "fy": 2029,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "2706AA6605",
+      "fy": 2029,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "2706AA6605",
+      "fy": 2030,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "2706AA6605",
+      "fy": 2030,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "2706AA6605",
+      "fy": 2031,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "2706AA6605",
+      "fy": 2031,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "2724A12700",
+      "fy": 2026,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "2724A12700",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "2724A12700",
+      "fy": 2027,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "2724A12700",
+      "fy": 2027,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "2724A12700",
+      "fy": 2028,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "2724A12700",
+      "fy": 2028,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "2724A12700",
+      "fy": 2029,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "2724A12700",
+      "fy": 2029,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "2724A12700",
+      "fy": 2030,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "2724A12700",
+      "fy": 2030,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "2724A12700",
+      "fy": 2031,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "2724A12700",
+      "fy": 2031,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "3010FF015EX",
+      "fy": 2027,
+      "fieldName": "__row__",
+      "source": "p_doc_af_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "3264AA0252",
+      "fy": 2025,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "3264AA0252",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "3264AA0252",
+      "fy": 2026,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "3264AA0252",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "3264AA0252",
+      "fy": 2027,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "3264AA0252",
+      "fy": 2027,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "3264AA0252",
+      "fy": 2028,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "3264AA0252",
+      "fy": 2028,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "3264AA0252",
+      "fy": 2029,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "3264AA0252",
+      "fy": 2029,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "3264AA0252",
+      "fy": 2030,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "3264AA0252",
+      "fy": 2030,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "3264AA0252",
+      "fy": 2031,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "3264AA0252",
+      "fy": 2031,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "3632AZ3504",
+      "fy": 2025,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "3632AZ3504",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "3632AZ3504",
+      "fy": 2026,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "3632AZ3504",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "3632AZ3504",
+      "fy": 2027,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "3632AZ3504",
+      "fy": 2027,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "3632AZ3504",
+      "fy": 2028,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "3632AZ3504",
+      "fy": 2028,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "3632AZ3504",
+      "fy": 2029,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "3632AZ3504",
+      "fy": 2029,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "3632AZ3504",
+      "fy": 2030,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "3632AZ3504",
+      "fy": 2030,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "3632AZ3504",
+      "fy": 2031,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "3632AZ3504",
+      "fy": 2031,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "4742A05001",
+      "fy": 2025,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "4742A05001",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5212AZ3100",
+      "fy": 2025,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5212AZ3100",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5212AZ3100",
+      "fy": 2026,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5212AZ3100",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5212AZ3100",
+      "fy": 2027,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5212AZ3100",
+      "fy": 2027,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5212AZ3100",
+      "fy": 2028,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5212AZ3100",
+      "fy": 2028,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5212AZ3100",
+      "fy": 2029,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5212AZ3100",
+      "fy": 2029,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5212AZ3100",
+      "fy": 2030,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5212AZ3100",
+      "fy": 2030,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5212AZ3100",
+      "fy": 2031,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5212AZ3100",
+      "fy": 2031,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5397AZ3517",
+      "fy": 2025,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5397AZ3517",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5397AZ3517",
+      "fy": 2026,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5397AZ3517",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5397AZ3517",
+      "fy": 2027,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5397AZ3517",
+      "fy": 2027,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5397AZ3517",
+      "fy": 2028,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5397AZ3517",
+      "fy": 2028,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5397AZ3517",
+      "fy": 2029,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5397AZ3517",
+      "fy": 2029,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5397AZ3517",
+      "fy": 2030,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5397AZ3517",
+      "fy": 2030,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5397AZ3517",
+      "fy": 2031,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5397AZ3517",
+      "fy": 2031,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5399AZ3537",
+      "fy": 2025,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5399AZ3537",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5399AZ3537",
+      "fy": 2026,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5399AZ3537",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5399AZ3537",
+      "fy": 2027,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5399AZ3537",
+      "fy": 2027,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5399AZ3537",
+      "fy": 2028,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5399AZ3537",
+      "fy": 2028,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5399AZ3537",
+      "fy": 2029,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5399AZ3537",
+      "fy": 2029,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5399AZ3537",
+      "fy": 2030,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5399AZ3537",
+      "fy": 2030,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5399AZ3537",
+      "fy": 2031,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5399AZ3537",
+      "fy": 2031,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5757A05111",
+      "fy": 2025,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5757A05111",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5757A05111",
+      "fy": 2026,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5757A05111",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5757A05111",
+      "fy": 2027,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5757A05111",
+      "fy": 2027,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5757A05111",
+      "fy": 2028,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5757A05111",
+      "fy": 2028,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5757A05111",
+      "fy": 2029,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5757A05111",
+      "fy": 2029,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5757A05111",
+      "fy": 2030,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5757A05111",
+      "fy": 2030,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "5757A05111",
+      "fy": 2031,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "5757A05111",
+      "fy": 2031,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "6005C64400",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "6005C64400",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "6005C64400",
+      "fy": 2027,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "6005C64400",
+      "fy": 2028,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "6005C64400",
+      "fy": 2029,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "6005C64400",
+      "fy": 2030,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "6380AZ3110",
+      "fy": 2025,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "6380AZ3110",
+      "fy": 2025,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "6380AZ3110",
+      "fy": 2026,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "6380AZ3110",
+      "fy": 2026,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "6380AZ3110",
+      "fy": 2027,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "6380AZ3110",
+      "fy": 2027,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    },
+    {
+      "peCode": "6380AZ3110",
+      "fy": 2028,
+      "fieldName": "request",
+      "source": "p_doc_army",
+      "count": 5
+    },
+    {
+      "peCode": "6380AZ3110",
+      "fy": 2028,
+      "fieldName": "__row__",
+      "source": "p_doc_army_fy27",
+      "count": 5
+    }
+  ],
+  "multipleWinnerGroups": [],
+  "canonicalProgramElementYearWrites": 0,
+  "observationDeletes": 0
+}

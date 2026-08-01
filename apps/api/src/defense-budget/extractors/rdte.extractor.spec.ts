@@ -1,4 +1,11 @@
-import { extractRdte, type RdteExtractInput, type ParsedPage } from './rdte.extractor.js';
+import {
+  extractRdte,
+  findPeCodeInRow,
+  mapFyFieldColumns,
+  classifyFyHeaderField,
+  type RdteExtractInput,
+  type ParsedPage,
+} from './rdte.extractor.js';
 import { isValidPeCode, parseMoneyToken, classifyLineKind } from './types.js';
 
 describe('identity primitives', () => {
@@ -89,6 +96,113 @@ describe('extractRdte', () => {
     const codes = new Set(res.lineAssertions.map((l) => l.code));
     expect(codes.has('0602308A')).toBe(true);
     expect(codes.has('0602890A')).toBe(true);
+  });
+});
+
+
+describe('extractRdte — FY2027 Comptroller R-1 layout (PE in Program Element Number col)', () => {
+  const header = [
+    'Line No',
+    'Program Element Number',
+    'Item',
+    'Act',
+    'Sec',
+    'FY 2025 Actuals',
+    'FY 2026 Discretionary Enacted',
+    'FY 2026 PL 119-21 Spend Plan',
+    'FY 2026 Total',
+    'FY 2027 Discretionary Request',
+    'FY 2027 Mandatory Request',
+    'FY 2027 Total',
+  ];
+
+  const page = (): ParsedPage => ({
+    pdfPage: 10,
+    printedPage: 'Page 5',
+    markdown:
+      "Department of the Army\nFY 2027 President's Budget\nExhibit R-1\n(Dollars in Thousands)\n",
+    tables: [
+      {
+        label: undefined,
+        header,
+        rows: [
+          [
+            '1',
+            '0601102A',
+            'Defense Research Sciences',
+            '01',
+            'U',
+            '290,464',
+            '258,178',
+            '1,000',
+            '259,178',
+            '215,322',
+            '',
+            '215,322',
+          ],
+          [
+            '2',
+            '0601103A',
+            'University Research Initiatives',
+            '01',
+            'U',
+            '100,000',
+            '90,000',
+            '',
+            '90,000',
+            '80,000',
+            '',
+            '80,000',
+          ],
+        ],
+      },
+    ],
+  });
+
+  it('finds PE codes in the Program Element Number column, not only col 0', () => {
+    const hit = findPeCodeInRow(
+      ['1', '0601102A', 'Defense Research Sciences'],
+      header,
+    );
+    expect(hit).toEqual({ code: '0601102A', col: 1 });
+  });
+
+  it('classifies R-1 FY headers into executed/enacted/request and skips spend-plan splits', () => {
+    expect(classifyFyHeaderField('FY 2025 Actuals')).toBe('executed');
+    expect(classifyFyHeaderField('FY 2026 Discretionary Enacted')).toBe('enacted');
+    expect(classifyFyHeaderField('FY 2026 PL 119-21 Spend Plan')).toBeNull();
+    expect(classifyFyHeaderField('FY 2027 Total')).toBe('request');
+    const bindings = mapFyFieldColumns(header, [2025, 2026, 2027]);
+    const boundIdx = Array.from(bindings.keys());
+    expect(boundIdx).not.toContain(header.indexOf('FY 2026 PL 119-21 Spend Plan'));
+    const fy27 = Array.from(bindings.entries()).filter(([, b]) => b.fy === 2027 && b.fieldName === 'request');
+    expect(fy27).toHaveLength(1);
+    expect(fy27[0]![0]).toBe(header.indexOf('FY 2027 Total'));
+  });
+
+  it('emits PE lines + multi-field year values from R-1 catalog tables', () => {
+    const res = extractRdte({
+      exhibit: 'R-1',
+      component: 'ARMY',
+      pages: [page()],
+      fyColumns: [2025, 2026, 2027],
+    });
+    expect(res.lineAssertions.some((l) => l.code === '0601102A')).toBe(true);
+    expect(res.lineAssertions.find((l) => l.code === '0601102A')!.title).toBe(
+      'Defense Research Sciences',
+    );
+    const vals = res.yearValues.filter((v) => v.code === '0601102A');
+    const executed = vals.find((v) => v.fy === 2025 && v.fieldName === 'executed');
+    expect(executed?.money).toEqual({ value: 290464, unit: 'thousands' });
+    const enacted = vals.find((v) => v.fy === 2026 && v.fieldName === 'enacted');
+    expect(enacted?.money).toEqual({ value: 258178, unit: 'thousands' });
+    const req26 = vals.find((v) => v.fy === 2026 && v.fieldName === 'request');
+    expect(req26?.money).toEqual({ value: 259178, unit: 'thousands' });
+    const req27 = vals.find((v) => v.fy === 2027 && v.fieldName === 'request');
+    expect(req27?.money).toEqual({ value: 215322, unit: 'thousands' });
+    expect(new Set(res.lineAssertions.map((l) => l.code))).toEqual(
+      new Set(['0601102A', '0601103A']),
+    );
   });
 });
 
