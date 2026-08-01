@@ -74,7 +74,7 @@ run_db_gates() {
   run_gate "${label}-schema-drift" env DATABASE_URL="$prisma_url" \
     pnpm --filter @capiro/api exec prisma migrate diff \
       --from-url "$prisma_url" \
-      --to-schema-datamodel apps/api/prisma/schema.prisma \
+      --to-schema-datamodel prisma/schema.prisma \
       --exit-code
   run_gate "${label}-application-lifecycle" env DATABASE_URL="$prisma_url" \
     pnpm --filter @capiro/api exec tsx scripts/meriv2-phase18-application-rehearsal.ts
