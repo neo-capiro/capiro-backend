@@ -19,8 +19,8 @@ export interface MeriV2ControlStackProps extends cdk.StackProps {
   cfg: EnvConfig;
   clusterArn: string;
   apiRepositoryName: string;
-  /** Exact release-SHA image tag. A mutable `latest` tag is refused when the monitor is armed. */
-  apiImageTag: string;
+  /** Immutable `sha256:...` digest resolved from the exact release-SHA tag. */
+  apiImageDigest: string;
   privateSubnetIds: string[];
   serviceSecurityGroupId: string;
   dbSecretArn: string;
@@ -62,6 +62,9 @@ export class MeriV2ControlStack extends cdk.Stack {
     const { cfg } = props;
     if (props.privateSubnetIds.length === 0) {
       throw new Error('The MeriV2 control monitor requires at least one private subnet.');
+    }
+    if (!/^sha256:[0-9a-f]{64}$/i.test(props.apiImageDigest)) {
+      throw new Error('The MeriV2 control monitor requires an immutable ECR digest.');
     }
     for (const [key, value] of Object.entries(commonTags(cfg))) {
       cdk.Tags.of(this).add(key, value);
@@ -131,7 +134,7 @@ export class MeriV2ControlStack extends cdk.Stack {
     );
 
     this.taskDefinition.addContainer('meriv2-control-monitor', {
-      image: ecs.ContainerImage.fromEcrRepository(apiRepo, props.apiImageTag),
+      image: ecs.ContainerImage.fromEcrRepository(apiRepo, props.apiImageDigest),
       essential: true,
       logging: ecs.LogDrivers.awsLogs({ logGroup, streamPrefix: 'monitor' }),
       command: ['emit-meriv2-control-metrics'],
@@ -377,9 +380,9 @@ export class MeriV2ControlStack extends cdk.Stack {
       value: this.schedule.ruleName,
       description: `MeriV2 control monitor schedule (enabled=${props.monitorEnabled})`,
     });
-    new cdk.CfnOutput(this, 'ControlMonitorImageTag', {
-      value: props.apiImageTag,
-      description: 'API image tag bound to the MeriV2 control monitor task definition',
+    new cdk.CfnOutput(this, 'ControlMonitorImageDigest', {
+      value: props.apiImageDigest,
+      description: 'Immutable API image digest bound to the control monitor task definition',
     });
   }
 }
