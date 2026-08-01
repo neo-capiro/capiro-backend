@@ -14,13 +14,14 @@ import { AssetsStack } from '../lib/assets-stack';
 
 /**
  * Capiro CDK app. Stacks are deployed in dependency order:
- *   Network → Dns → Data → Secrets → Compute → MemoryProjectionWorker → Alarms
- *   → MeriV2Control
+ *   Network → Dns → Data → Secrets → Compute → Alarms
+ *   → MemoryProjectionWorker → MeriV2Control
  *
  * `cdk deploy --all --context env=dev --context account=<id>` will respect
  * the dependency graph below. Individual stacks can also be deployed by
- * name when iterating. The MeriV2 control monitor schedule remains disabled
- * unless `--context enableMeriV2ControlMonitor=true` is supplied explicitly.
+ * name when iterating. Both new scheduled MeriV2 tasks remain dark unless
+ * their exact enable contexts are supplied. An armed schedule also requires
+ * `meriv2ApiImageTag` to be the exact 40-character release SHA—not `latest`.
  */
 const app = new cdk.App();
 const cfg = loadConfig(app);
@@ -76,28 +77,6 @@ compute.addDependency(data);
 compute.addDependency(secrets);
 compute.addDependency(assets);
 
-const memoryProjectionWorker = new MemoryProjectionWorkerStack(
-  app,
-  stackName(cfg.envName, 'MemoryProjectionWorker'),
-  {
-    env,
-    tags,
-    cfg,
-    cluster: compute.cluster,
-    apiRepo: compute.apiRepo,
-    serviceSecurityGroup: network.serviceSecurityGroup,
-    dbSecret: data.secret,
-    appDbSecret: data.appSecret,
-    databaseName: data.databaseName,
-    dataKey: data.key,
-    secretsKey: secrets.secretsKey,
-  },
-);
-memoryProjectionWorker.addDependency(network);
-memoryProjectionWorker.addDependency(data);
-memoryProjectionWorker.addDependency(secrets);
-memoryProjectionWorker.addDependency(compute);
-
 const alarms = new AlarmsStack(app, stackName(cfg.envName, 'Alarms'), {
   env,
   tags,
@@ -119,10 +98,40 @@ const alarms = new AlarmsStack(app, stackName(cfg.envName, 'Alarms'), {
 alarms.addDependency(compute);
 alarms.addDependency(data);
 
-const controlMonitorEnabled =
-  String(app.node.tryGetContext('enableMeriV2ControlMonitor') ?? '')
-    .trim()
-    .toLowerCase() === 'true';
+const memoryProjectionWorkerEnabled = exactTrue(
+  app.node.tryGetContext('enableMemoryProjectionWorker'),
+);
+const controlMonitorEnabled = exactTrue(app.node.tryGetContext('enableMeriV2ControlMonitor'));
+const meriv2ApiImageTag =
+  String(app.node.tryGetContext('meriv2ApiImageTag') ?? '').trim() || 'latest';
+assertImageTag(meriv2ApiImageTag, memoryProjectionWorkerEnabled || controlMonitorEnabled);
+
+const memoryProjectionWorker = new MemoryProjectionWorkerStack(
+  app,
+  stackName(cfg.envName, 'MemoryProjectionWorker'),
+  {
+    env,
+    tags,
+    cfg,
+    cluster: compute.cluster,
+    apiRepo: compute.apiRepo,
+    apiImageTag: meriv2ApiImageTag,
+    serviceSecurityGroup: network.serviceSecurityGroup,
+    dbSecret: data.secret,
+    appDbSecret: data.appSecret,
+    databaseName: data.databaseName,
+    dataKey: data.key,
+    secretsKey: secrets.secretsKey,
+    scheduleEnabled: memoryProjectionWorkerEnabled,
+    alertsTopic: alarms.alertsTopic,
+  },
+);
+memoryProjectionWorker.addDependency(network);
+memoryProjectionWorker.addDependency(data);
+memoryProjectionWorker.addDependency(secrets);
+memoryProjectionWorker.addDependency(compute);
+memoryProjectionWorker.addDependency(alarms);
+
 const meriV2Control = new MeriV2ControlStack(
   app,
   stackName(cfg.envName, 'MeriV2Control'),
@@ -132,6 +141,7 @@ const meriV2Control = new MeriV2ControlStack(
     cfg,
     cluster: compute.cluster,
     apiRepo: compute.apiRepo,
+    apiImageTag: meriv2ApiImageTag,
     securityGroup: network.serviceSecurityGroup,
     dbSecret: data.secret,
     appDbSecret: data.appSecret,
@@ -150,3 +160,19 @@ meriV2Control.addDependency(memoryProjectionWorker);
 meriV2Control.addDependency(alarms);
 
 app.synth();
+
+function exactTrue(value: unknown): boolean {
+  return String(value ?? '').trim().toLowerCase() === 'true';
+}
+
+function assertImageTag(tag: string, scheduledTaskArmed: boolean): void {
+  const validDockerTag = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/.test(tag);
+  if (!validDockerTag) {
+    throw new Error('meriv2ApiImageTag is not a valid ECR image tag.');
+  }
+  if (scheduledTaskArmed && !/^[0-9a-f]{40}$/i.test(tag)) {
+    throw new Error(
+      'Arming a MeriV2 scheduled task requires meriv2ApiImageTag to equal the exact 40-character release SHA; mutable tags such as latest are refused.',
+    );
+  }
+}
