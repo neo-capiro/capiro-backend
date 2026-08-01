@@ -16,8 +16,8 @@ export interface ScheduledMemoryProjectionWorkerProps {
   envName: string;
   cluster: ecs.ICluster;
   apiRepo: ecr.IRepository;
-  /** Exact release-SHA image tag. A mutable `latest` tag is refused when scheduled work is armed. */
-  apiImageTag: string;
+  /** Immutable `sha256:...` digest resolved from the exact release-SHA tag. */
+  apiImageDigest: string;
   subnets: ec2.ISubnet[];
   securityGroup: ec2.ISecurityGroup;
   dbSecret: secretsmanager.ISecret;
@@ -51,6 +51,9 @@ export class ScheduledMemoryProjectionWorker extends Construct {
     super(scope, id);
     if (props.subnets.length === 0) {
       throw new Error('The governed-memory projection worker requires at least one private subnet.');
+    }
+    if (!/^sha256:[0-9a-f]{64}$/i.test(props.apiImageDigest)) {
+      throw new Error('The governed-memory projection worker requires an immutable ECR digest.');
     }
 
     const logGroup = new logs.LogGroup(this, 'Logs', {
@@ -100,7 +103,7 @@ export class ScheduledMemoryProjectionWorker extends Construct {
     );
 
     this.taskDefinition.addContainer('memory-projection-worker', {
-      image: ecs.ContainerImage.fromEcrRepository(props.apiRepo, props.apiImageTag),
+      image: ecs.ContainerImage.fromEcrRepository(props.apiRepo, props.apiImageDigest),
       essential: true,
       logging: ecs.LogDrivers.awsLogs({
         logGroup,
