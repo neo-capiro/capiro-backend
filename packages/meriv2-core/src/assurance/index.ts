@@ -12,3 +12,4 @@ export * from './eval-gate';
 export * from './feedback-fixtures';
 export * from './prompt-block';
 export * from './observability';
+export * from './control-metrics';
