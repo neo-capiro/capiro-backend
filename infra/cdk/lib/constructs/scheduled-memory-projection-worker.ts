@@ -1,5 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as cwActions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
@@ -8,12 +9,15 @@ import * as eventsTargets from 'aws-cdk-lib/aws-events-targets';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import * as sns from 'aws-cdk-lib/aws-sns';
 import { Construct } from 'constructs';
 
 export interface ScheduledMemoryProjectionWorkerProps {
   envName: string;
   cluster: ecs.ICluster;
   apiRepo: ecr.IRepository;
+  /** Exact release-SHA image tag. A mutable `latest` tag is refused when scheduled work is armed. */
+  apiImageTag: string;
   securityGroup: ec2.ISecurityGroup;
   dbSecret: secretsmanager.ISecret;
   appDbSecret: secretsmanager.ISecret;
@@ -23,15 +27,20 @@ export interface ScheduledMemoryProjectionWorkerProps {
   region: string;
   account: string;
   protectFromDestroy: boolean;
+  /** Dark by default; enabled only after one manual drain succeeds on the migrated schema. */
+  scheduleEnabled: boolean;
+  /** Existing encrypted operational alert topic. */
+  alertsTopic: sns.ITopic;
 }
 
 /**
  * Phase 5 durable projection/index worker.
  *
  * The task receives only the app DB credential and Titan embedding permission.
- * EventBridge starts one short-lived task every five minutes; database leases make
- * overlapping invocations safe. Workload failures are emitted as bounded JSON and
- * alarmed from the dedicated retained log group.
+ * EventBridge starts one short-lived task every five minutes only after an
+ * explicit release context enables it; database leases make overlapping
+ * invocations safe. Workload failures are emitted as bounded JSON and alarmed
+ * through the existing encrypted operational alert topic.
  */
 export class ScheduledMemoryProjectionWorker extends Construct {
   readonly taskDefinition: ecs.FargateTaskDefinition;
@@ -87,7 +96,7 @@ export class ScheduledMemoryProjectionWorker extends Construct {
     );
 
     this.taskDefinition.addContainer('memory-projection-worker', {
-      image: ecs.ContainerImage.fromEcrRepository(props.apiRepo, 'latest'),
+      image: ecs.ContainerImage.fromEcrRepository(props.apiRepo, props.apiImageTag),
       essential: true,
       logging: ecs.LogDrivers.awsLogs({
         logGroup,
@@ -113,7 +122,7 @@ export class ScheduledMemoryProjectionWorker extends Construct {
       ruleName: `capiro-${props.envName}-memory-projection-worker`,
       description: 'Drain governed-memory projection/index obligations every five minutes.',
       schedule: events.Schedule.rate(cdk.Duration.minutes(5)),
-      enabled: true,
+      enabled: props.scheduleEnabled,
     });
     this.rule.addTarget(
       new eventsTargets.EcsTask({
@@ -160,12 +169,13 @@ export class ScheduledMemoryProjectionWorker extends Construct {
       defaultValue: 0,
     }).metric({ statistic: 'Sum', period: cdk.Duration.minutes(5) });
 
+    const action = new cwActions.SnsAction(props.alertsTopic);
     for (const [alarmId, metric, description] of [
       ['FailedAlarm', failedMetric, 'Governed-memory projection jobs are failing and retrying.'],
       ['DeadLetterAlarm', deadLetterMetric, 'Governed-memory projection jobs reached dead-letter.'],
       ['CrashAlarm', crashMetric, 'The governed-memory projection worker crashed.'],
     ] as const) {
-      new cloudwatch.Alarm(this, alarmId, {
+      const alarm = new cloudwatch.Alarm(this, alarmId, {
         alarmName: `capiro-${props.envName}-${alarmId.replace(/Alarm$/, '').toLowerCase()}`,
         alarmDescription: description,
         metric,
@@ -175,6 +185,8 @@ export class ScheduledMemoryProjectionWorker extends Construct {
         comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
       });
+      alarm.addAlarmAction(action);
+      alarm.addOkAction(action);
     }
   }
 }
