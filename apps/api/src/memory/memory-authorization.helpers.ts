@@ -4,6 +4,7 @@ import type {
   GovernedMemoryStatus,
   MemoryClass,
 } from '@capiro/meriv2-core';
+import { memoryGovernanceSelectedForCurrentTenant } from './memory-governance-tenant-scope.js';
 
 export const MEMORY_PERMISSIONS = [
   'propose',
@@ -19,20 +20,20 @@ export type MemoryPermission = (typeof MEMORY_PERMISSIONS)[number];
 export type MemoryOperation = 'read' | 'export' | MemoryPermission;
 
 /**
- * Arms governed-memory authority enforcement on live routes. Dark by default.
+ * Arms governed-memory authority enforcement only for an authenticated tenant
+ * selected by `MEMORY_GOVERNANCE_TENANTS` (or the explicit GA value `all`).
  *
- * `MemoryAuthorizationService` reads the `governed_status` / `memory_class` /
- * `legal_hold` columns introduced by `20260729010000_memory_governance_context_v2`,
- * so arming this before that migration is applied would make every gated request
- * fail on a missing column. It is therefore a deliberate post-migration canary
- * step rather than a deploy side effect. Same shape as `resolveAssuranceReleaseMode`
- * in packages/meriv2-core/src/assurance/risk-gate.ts.
+ * The exact `enforce` parser remains fail closed. A background/operator path
+ * without tenant request scope can be armed only by `all`. This keeps lifecycle
+ * and authority on the same internal-tenant canary and prevents a global ceiling
+ * change from altering every tenant's reviewer/grant behavior.
  */
 export function governedMemoryEnforcementEnabled(raw: string | undefined): boolean {
   return (
     String(raw ?? '')
       .trim()
-      .toLowerCase() === 'enforce'
+      .toLowerCase() === 'enforce' &&
+    memoryGovernanceSelectedForCurrentTenant(process.env.MEMORY_GOVERNANCE_TENANTS)
   );
 }
 
