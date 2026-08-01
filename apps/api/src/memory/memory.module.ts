@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { TenantModule } from '../tenant/tenant.module.js';
 import { MemoryStoreService } from './memory-store.service.js';
@@ -24,6 +25,7 @@ import { MemoryPurgeService } from './memory-purge.service.js';
 import { MemoryGovernanceReadService } from './memory-governance-read.service.js';
 import { MemoryGovernanceActionService } from './memory-governance-action.service.js';
 import { MemoryGovernanceService } from './memory-governance.service.js';
+import { MemoryGovernanceTenantInterceptor } from './memory-governance-tenant.interceptor.js';
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
 import { MemoryController } from './memory.controller.js';
 import { MemoryReviewController } from './memory-review.controller.js';
@@ -38,6 +40,8 @@ import { InternalMemoryController } from './internal-memory.controller.js';
  * Phase 6 resolves the legacy public tokens to exact implementations while retaining
  * the inherited best-effort classes as explicit code rollback paths. Phase 15 adds
  * one dark, administrator-only Governance Center facade over those exact services.
+ * The application interceptor carries the verified tenant into the Phase 22
+ * `MEMORY_GOVERNANCE_TENANTS` canary without modifying auth middleware.
  */
 @Module({
   imports: [PrismaModule, TenantModule],
@@ -74,6 +78,10 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     { provide: MemoryProjectionWorkerService, useExisting: ExactMemoryProjectionWorkerService },
     MemoryPurgeService,
     MeetingNotesCryptoService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: MemoryGovernanceTenantInterceptor,
+    },
   ],
   exports: [
     MemoryStoreService,
