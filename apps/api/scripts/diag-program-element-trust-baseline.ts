@@ -9,6 +9,7 @@ import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { SOURCE_PRIORITY } from '../src/program-element/types.js';
 import { sourceBaseKey } from '../src/program-element/source-priority.js';
+import { evaluatePeTrustDiagnostics } from './lib/pe-trust-diagnostics.js';
 
 dotenvConfig();
 
@@ -441,11 +442,80 @@ async function main(): Promise<void> {
       }
     }
 
+    // Optional outbox probe — model may be absent; leave zeros if unavailable.
+    let pendingOutboxCount = 0;
+    let oldestPendingOutboxAgeSeconds: number | null = null;
+    try {
+      const outboxDelegate =
+        (prisma as unknown as {
+          peChangeOutbox?: {
+            count: (args: unknown) => Promise<number>;
+            findFirst: (args: unknown) => Promise<{ createdAt?: Date; queuedAt?: Date } | null>;
+          };
+        }).peChangeOutbox ??
+        (prisma as unknown as {
+          programElementChangeOutbox?: {
+            count: (args: unknown) => Promise<number>;
+            findFirst: (args: unknown) => Promise<{ createdAt?: Date; queuedAt?: Date } | null>;
+          };
+        }).programElementChangeOutbox;
+      if (outboxDelegate) {
+        pendingOutboxCount = await outboxDelegate.count({
+          where: { OR: [{ drainedAt: null }, { status: 'pending' }] },
+        });
+        const oldest = await outboxDelegate.findFirst({
+          where: { OR: [{ drainedAt: null }, { status: 'pending' }] },
+          orderBy: { createdAt: 'asc' },
+        });
+        const ts = oldest?.createdAt ?? oldest?.queuedAt ?? null;
+        oldestPendingOutboxAgeSeconds = ageSeconds(ts, generatedAt);
+      }
+    } catch {
+      pendingOutboxCount = 0;
+    }
+
+    const sourceAgeSeconds: Record<string, number | null> = {};
+    for (const [source, row] of latestSyncBySource.entries()) {
+      const age = (row as { ageSeconds?: number | null }).ageSeconds ?? null;
+      sourceAgeSeconds[source] = age;
+    }
+    for (const source of FIXED_SYNC_SOURCES) {
+      if (!(source in sourceAgeSeconds)) sourceAgeSeconds[source] = null;
+    }
+
+    const samPartialRunCount = syncRuns.filter((row) => {
+      const msg = (row.errorMessage ?? '').toLowerCase();
+      return (
+        row.source.includes('sam') &&
+        (row.status === 'partial' ||
+          row.status === 'incomplete' ||
+          msg.includes('partial') ||
+          msg.includes('incomplete window'))
+      );
+    }).length;
+
+    const trustEvaluation = evaluatePeTrustDiagnostics({
+      sourceAgeSeconds,
+      observationsWithoutSourceDocument,
+      duplicateObservationGroups: duplicateObservations.length,
+      openReconciliationCount: openReconciliation.length,
+      oldestOpenReconciliationAgeSeconds: ageSeconds(
+        openReconciliation[0]?.queuedAt,
+        generatedAt,
+      ),
+      pendingOutboxCount,
+      oldestPendingOutboxAgeSeconds,
+      samPartialRunCount,
+      staleCacheEntryCount: 0,
+      coverageGapCount: 0,
+    });
+
     const report = {
       generatedAt: generatedAt.toISOString(),
       gitSha: gitSha(),
       databaseHost: databaseHost(),
       readOnly: true,
+      trustEvaluation,
       programElementYears: {
         total: years.length,
         countByFiscalYear: sortCountRecord(yearCountByFy),
@@ -527,6 +597,16 @@ async function main(): Promise<void> {
     };
 
     console.log(JSON.stringify(report, null, 2));
+
+    // Fail closed when --fail-closed is passed (permanent gate / CI). Default remains
+    // report-only so ad-hoc ops can inspect a sick DB without a non-zero exit masking JSON.
+    if (process.argv.includes('--fail-closed') && !trustEvaluation.ok) {
+      console.error(
+        `[diag-pe-trust] FAIL_CLOSED blockers=${trustEvaluation.blockers.length} ` +
+          trustEvaluation.blockers.map((b) => b.code).join(','),
+      );
+      process.exitCode = 2;
+    }
   } finally {
     await prisma.$disconnect();
   }
@@ -534,6 +614,7 @@ async function main(): Promise<void> {
 
 void main().catch((error: unknown) => {
   const message = error instanceof Error ? error.stack ?? error.message : String(error);
-  console.error(`[diag-pe-trust] FAILED\n${message}`);
+  console.error(`[diag-pe-trust] FAILED
+${message}`);
   process.exit(1);
 });

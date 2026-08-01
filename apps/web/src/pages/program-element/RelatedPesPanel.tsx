@@ -1,12 +1,15 @@
 import { Card, Empty, Skeleton, Tag, Tooltip, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import type { ProgramElementRelatedResponse } from './types.js';
+import { PeSecondaryFailed } from './PeSecondaryFailed.js';
 
 const { Text } = Typography;
 
 export interface RelatedPesPanelProps {
   related: ProgramElementRelatedResponse | null | undefined;
   loading?: boolean;
+  errored?: boolean;
+  onRetry?: () => void;
 }
 
 // Similarity → color band. Kept conservative: these are suggestions, so we don't
@@ -17,7 +20,7 @@ function similarityColor(similarity: number): string {
   return 'default';
 }
 
-export function RelatedPesPanel({ related, loading = false }: RelatedPesPanelProps) {
+export function RelatedPesPanel({ related, loading = false, errored = false, onRetry }: RelatedPesPanelProps) {
   const navigate = useNavigate();
 
   if (loading) {
@@ -27,6 +30,13 @@ export function RelatedPesPanel({ related, loading = false }: RelatedPesPanelPro
       </Card>
     );
   }
+
+  if (errored) {
+    return (
+      <PeSecondaryFailed label="related program elements" testId="pe-secondary-failed-related" onRetry={onRetry} />
+    );
+  }
+
 
   const rows = related?.related ?? [];
 

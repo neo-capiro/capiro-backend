@@ -17,6 +17,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { fundingCurrentCoalesceSql, fundingCurrentStageSql } from '@capiro/shared';
+import {
+  buildCapabilityTotal,
+  buildFundingClaim,
+  claimFromLadderPick,
+} from '@capiro/shared/funding-claim';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EMBEDDING_MODEL, embedText, vectorLiteral } from '../embeddings/embedder.js';
 
@@ -525,48 +530,95 @@ export class BudgetLinesReadService {
   // ── Capabilities (F4): list + per-capability recommendations (F25) ──────
   async listCapabilities() {
     const caps = await this.prisma.capability.findMany({ orderBy: { name: 'asc' } });
-    // Per-capability aggregates: line count + latest-request dollars by lineType.
+    // Phase G: capability totals pin ONE shared fiscal year (catalog current-cycle
+    // mode of request-bearing rows, zeros included) and disclose coverage. Never
+    // sum each PE's private latest-nonzero request (that mixes FYs and drops $0).
+    type CycleRow = { fy: number | null };
+    const cycleRows = await this.prisma.$queryRaw<CycleRow[]>(Prisma.sql`
+      SELECT fy
+      FROM program_element_year
+      WHERE request IS NOT NULL
+      GROUP BY fy
+      ORDER BY COUNT(*) DESC, fy DESC
+      LIMIT 1
+    `);
+    const sharedFy = cycleRows[0]?.fy ?? null;
+
     type AggRow = {
       slug: string;
       lineType: string | null;
       lines: number;
+      linesWithRequest: number;
       requestTotal: number | null;
     };
-    const aggs = await this.prisma.$queryRaw<AggRow[]>(Prisma.sql`
+    const aggs =
+      sharedFy == null
+        ? ([] as AggRow[])
+        : await this.prisma.$queryRaw<AggRow[]>(Prisma.sql`
       SELECT c.slug, ic.line_type AS "lineType",
         COUNT(DISTINCT m.pe_code)::int AS lines,
-        SUM(lr.request)::double precision AS "requestTotal"
+        COUNT(DISTINCT m.pe_code) FILTER (WHERE y.request IS NOT NULL)::int AS "linesWithRequest",
+        COALESCE(SUM(y.request), 0)::double precision AS "requestTotal"
       FROM capability c
       JOIN capability_budget_line_match m ON m.capability_id = c.id AND m.status = 'accepted'
       LEFT JOIN program_element_intelligence_cache ic ON ic.pe_code = m.pe_code
-      LEFT JOIN LATERAL (
-        SELECT y.request FROM program_element_year y
-        WHERE y.pe_code = m.pe_code AND y.request IS NOT NULL AND y.request <> 0
-        ORDER BY y.fy DESC LIMIT 1
-      ) lr ON TRUE
+      LEFT JOIN program_element_year y ON y.pe_code = m.pe_code AND y.fy = ${sharedFy}
       GROUP BY c.slug, ic.line_type
     `);
     const bySlug = new Map<
       string,
-      { lines: number; total: number; byType: Record<string, number> }
+      { lines: number; linesWithRequest: number; total: number; byType: Record<string, number> }
     >();
     for (const a of aggs) {
-      const g = bySlug.get(a.slug) ?? { lines: 0, total: 0, byType: {} };
+      const g = bySlug.get(a.slug) ?? { lines: 0, linesWithRequest: 0, total: 0, byType: {} };
       g.lines += a.lines;
+      g.linesWithRequest += a.linesWithRequest;
       g.total += a.requestTotal ?? 0;
       if (a.lineType) g.byType[a.lineType] = (g.byType[a.lineType] ?? 0) + (a.requestTotal ?? 0);
       bySlug.set(a.slug, g);
     }
     return {
-      data: caps.map((c) => ({
-        slug: c.slug,
-        name: c.name,
-        aliases: c.aliases,
-        taxonomyPath: c.taxonomyPath,
-        lineCount: bySlug.get(c.slug)?.lines ?? 0,
-        requestTotal: bySlug.get(c.slug)?.total ?? 0,
-        requestByLineType: bySlug.get(c.slug)?.byType ?? {},
-      })),
+      fiscalYear: sharedFy,
+      unit: 'USD millions' as const,
+      data: caps.map((c) => {
+        const g = bySlug.get(c.slug);
+        const lines = g?.lines ?? 0;
+        const withReq = g?.linesWithRequest ?? 0;
+        // Coverage via real counts (no fake zero rows for disclosure).
+        const coverageClaim = buildCapabilityTotal({
+          fiscalYear: sharedFy,
+          lineRequestsAtFy: [
+            // one present slot per line with a value (including genuine $0 via SQL COUNT FILTER)
+            ...Array.from({ length: withReq }, () => 1),
+            ...Array.from({ length: Math.max(0, lines - withReq) }, () => null),
+          ],
+        });
+        return {
+          slug: c.slug,
+          name: c.name,
+          aliases: c.aliases,
+          taxonomyPath: c.taxonomyPath,
+          lineCount: lines,
+          requestTotal: g?.total ?? 0,
+          requestByLineType: g?.byType ?? {},
+          // Phase G fields (additive; legacy requestTotal retained).
+          requestFiscalYear: sharedFy,
+          requestCoverage: {
+            ...coverageClaim.coverage,
+            // Correct the money total independently of placeholder values above.
+          },
+          // Empty capability: do not fabricate a $0 request claim (review B4).
+          requestClaim:
+            lines === 0
+              ? null
+              : buildFundingClaim({
+                  value: g?.total ?? 0,
+                  fiscalYear: sharedFy,
+                  stage: 'request',
+                  currentCycleFy: sharedFy,
+                }),
+        };
+      }),
     };
   }
 
@@ -634,7 +686,7 @@ export class BudgetLinesReadService {
         FROM program_element_year y
         JOIN (
           SELECT pe_code, MAX(fy) AS fy FROM program_element_year
-          WHERE request IS NOT NULL AND request <> 0 AND pe_code IN (${Prisma.join(codes.length ? codes : ['__none__'])})
+          WHERE request IS NOT NULL AND pe_code IN (${Prisma.join(codes.length ? codes : ['__none__'])})
           GROUP BY pe_code
         ) latest ON latest.pe_code = y.pe_code AND latest.fy = y.fy
       `),
@@ -667,6 +719,18 @@ export class BudgetLinesReadService {
           latestCurrent: curByCode.get(l.peCode)?.current ?? null,
           latestCurrentFy: curByCode.get(l.peCode)?.currentFy ?? null,
           latestCurrentStage: curByCode.get(l.peCode)?.currentStage ?? null,
+          requestClaim: buildFundingClaim({
+            value: reqByCode.get(l.peCode)?.request ?? null,
+            fiscalYear: reqByCode.get(l.peCode)?.fy ?? null,
+            stage: 'request',
+            currentCycleFy: curByCode.get(l.peCode)?.currentFy ?? reqByCode.get(l.peCode)?.fy ?? null,
+          }),
+          currentClaim: claimFromLadderPick({
+            value: curByCode.get(l.peCode)?.current ?? null,
+            stage: curByCode.get(l.peCode)?.currentStage ?? 'none',
+            fiscalYear: curByCode.get(l.peCode)?.currentFy ?? null,
+            currentCycleFy: curByCode.get(l.peCode)?.currentFy ?? null,
+          }),
         };
       })
       .sort((a, b) => (b.appropScore ?? -1) - (a.appropScore ?? -1));
@@ -743,7 +807,7 @@ export class BudgetLinesReadService {
         FROM program_element_year y
         JOIN (
           SELECT pe_code, MAX(fy) AS fy FROM program_element_year
-          WHERE request IS NOT NULL AND request <> 0 AND pe_code IN (${Prisma.join(codes)})
+          WHERE request IS NOT NULL AND pe_code IN (${Prisma.join(codes)})
           GROUP BY pe_code
         ) latest ON latest.pe_code = y.pe_code AND latest.fy = y.fy
       `),
@@ -775,6 +839,18 @@ export class BudgetLinesReadService {
           latestCurrent: curByCode.get(l.peCode)?.current ?? null,
           latestCurrentFy: curByCode.get(l.peCode)?.currentFy ?? null,
           latestCurrentStage: curByCode.get(l.peCode)?.currentStage ?? null,
+          requestClaim: buildFundingClaim({
+            value: reqByCode.get(l.peCode)?.request ?? null,
+            fiscalYear: reqByCode.get(l.peCode)?.fy ?? null,
+            stage: 'request',
+            currentCycleFy: curByCode.get(l.peCode)?.currentFy ?? reqByCode.get(l.peCode)?.fy ?? null,
+          }),
+          currentClaim: claimFromLadderPick({
+            value: curByCode.get(l.peCode)?.current ?? null,
+            stage: curByCode.get(l.peCode)?.currentStage ?? 'none',
+            fiscalYear: curByCode.get(l.peCode)?.currentFy ?? null,
+            currentCycleFy: curByCode.get(l.peCode)?.currentFy ?? null,
+          }),
         };
       })
       // Relevance order (semantic rank), NOT appropriability — this is a search.

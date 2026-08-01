@@ -5,11 +5,12 @@
  * Treasury/USAspending budget-line convention used for procurement. O-1 amounts
  * are in THOUSANDS, normalized to the canonical MILLIONS unit here.
  *
- *   load-om --artifact scripts/__data__/corrected_json/om_fy2027.json
+ * Exact-SHA contract (Phase E):
+ *   default / --inspect  → no writes; prints sha256 + quality
+ *   --commit --approved-sha256 <sha> → promote only the inspected bytes
  *
- * Writes: program_element (title, appropriationType=OM, service, budgetActivity,
- * raw.account/sag/bsa) + program_element_year (request for FY2027, enacted for
- * FY2025 actuals + FY2026). Idempotent; merge-by-source-priority via the writer.
+ *   load-om --artifact scripts/__data__/corrected_json/om_fy2027.json
+ *   load-om --artifact ... --commit --approved-sha256 <sha>
  */
 import { config as dotenvConfig } from 'dotenv';
 import * as fs from 'node:fs';
@@ -19,9 +20,17 @@ import { ProgramElementWriterService } from '../src/program-element/program-elem
 import { thousandsToMillions } from '../src/program-element/jbook/jbook-extract.js';
 import {
   upsertSourceDocument,
+  supersedeSourceDocumentHead,
   sha256OfFile,
   type SourceDocumentClient,
 } from '../src/program-element/source-document/source-document-registry.js';
+import {
+  assertExactShaCommitAllowed,
+  auditArtifactQuality,
+  buildInspectReport,
+  resolvePeDollarLoaderPosture,
+  argValue as exactShaArgValue,
+} from './lib/pe-exact-sha-loader-contract.js';
 
 dotenvConfig();
 
@@ -53,11 +62,46 @@ function arg(name: string): string | undefined {
 async function main(): Promise<void> {
   const artifactPath = arg('artifact');
   if (!artifactPath) {
-    console.error('Usage: load-om --artifact <om.json>');
+    console.error(
+      'Usage: load-om --artifact <om.json> [--inspect | --commit --approved-sha256 <sha>]',
+    );
     process.exit(1);
   }
   const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf8')) as Artifact;
   const source = artifact.source ?? 'o1_fy27';
+  const posture = resolvePeDollarLoaderPosture(process.argv);
+  if (posture === 'extract_only') {
+    throw new Error(
+      'load-om.ts: --extract-only/--dry-run is not valid; use default inspect or --commit --approved-sha256 <sha>.',
+    );
+  }
+  const sha256 = sha256OfFile(artifactPath);
+  const quality = auditArtifactQuality({ rowCount: (artifact.pes ?? []).length });
+  if (posture === 'inspect') {
+    console.log(
+      JSON.stringify(
+        buildInspectReport({
+          loader: 'load-om.ts',
+          posture,
+          artifactPath,
+          sha256,
+          byteSize: fs.statSync(artifactPath).size,
+          quality,
+          extra: { source, fy: artifact.fy ?? 2027 },
+        }),
+        null,
+        2,
+      ),
+    );
+    console.log('INSPECT — no writes. Re-run with --commit --approved-sha256 <sha above> to promote.');
+    return;
+  }
+  assertExactShaCommitAllowed({
+    actualSha256: sha256,
+    approvedSha256Raw: exactShaArgValue(process.argv, 'approved-sha256'),
+    quality: { rowCount: (artifact.pes ?? []).length },
+  });
+
   const prisma = new PrismaService();
   await prisma.$connect();
   const writer = new ProgramElementWriterService(prisma);
@@ -66,6 +110,29 @@ async function main(): Promise<void> {
   let changed = 0;
   let quarantined = 0;
   try {
+    // Register with deferred supersede so a failed promotion cannot become the live head.
+    const reg = await upsertSourceDocument(
+      prisma as unknown as SourceDocumentClient,
+      {
+        sourceKey: path.basename(artifactPath).replace(/\.json$/i, ''),
+        sha256,
+        fiscalYear: artifact.fy ?? 2027,
+        budgetCycle: 'pb',
+        component: null,
+        documentType: 'om_o1',
+        title: `O-1 Operation & Maintenance (FY${artifact.fy ?? 2027})`,
+        sourceUrl:
+          'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/FY2027_o1.pdf',
+        byteSize: fs.statSync(artifactPath).size,
+        artifactPath: path.relative(process.cwd(), artifactPath),
+        extractionMethod: 'deterministic_xlsx',
+        extractionToolVersion: null,
+        metadata: { sourceTag: source, approvedSha256: sha256 },
+      },
+      { deferSupersede: true },
+    );
+    const sourceDocumentId = reg.document.id;
+
     for (const pe of artifact.pes ?? []) {
       await writer.upsertProgramElement(
         {
@@ -92,19 +159,31 @@ async function main(): Promise<void> {
             raw: { source, account: (pe.raw as Record<string, unknown>)?.account },
           },
           source,
+          {
+            authority: 'presidents_budget_request',
+            sourceDocumentId,
+            extractorVersion: 'load-om@exact-sha',
+            originalValues: {
+              ...(y.request != null
+                ? { request: { value: y.request, unit: 'thousands' as const } }
+                : {}),
+              ...(y.enacted != null
+                ? { enacted: { value: y.enacted, unit: 'thousands' as const } }
+                : {}),
+            },
+          },
         );
         yearRows += 1;
         if (r.changed) changed += 1;
       }
     }
-    // Optional cleanup: retire pe_codes superseded by re-keyed rows (e.g. the
-    // 3400F999 classified sentinel that collapsed two budget activities before
-    // BA-suffixed disambiguation; its values were ambiguous — the B01/B04 rows
-    // in this artifact replace it). Reversible (retired_at set, row kept).
     const retireArg = arg('retire-codes');
     let retired = 0;
     if (retireArg) {
-      const codes = retireArg.split(',').map((c) => c.trim().toUpperCase()).filter(Boolean);
+      const codes = retireArg
+        .split(',')
+        .map((c) => c.trim().toUpperCase())
+        .filter(Boolean);
       const res = await prisma.programElement.updateMany({
         where: { peCode: { in: codes }, retiredAt: null },
         data: { retiredAt: new Date() },
@@ -112,39 +191,27 @@ async function main(): Promise<void> {
       retired = res.count;
     }
 
-    // Provenance: register the O-1 artifact + stamp this source's year-source rows.
-    const reg = await upsertSourceDocument(prisma as unknown as SourceDocumentClient, {
-      sourceKey: path.basename(artifactPath).replace(/\.json$/i, ''),
-      sha256: sha256OfFile(artifactPath),
-      fiscalYear: artifact.fy ?? 2027,
-      budgetCycle: 'pb',
-      component: null,
-      documentType: 'om_o1',
-      title: `O-1 Operation & Maintenance (FY${artifact.fy ?? 2027})`,
-      sourceUrl:
-        'https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/FY2027_o1.pdf',
-      byteSize: fs.statSync(artifactPath).size,
-      artifactPath: path.relative(process.cwd(), artifactPath),
-      extractionMethod: 'deterministic_xlsx',
-      extractionToolVersion: null,
-      metadata: { sourceTag: source },
-    });
-    const stamped = await prisma.programElementYearSourceValue.updateMany({
-      where: { source: { in: [source, source.replace(/_fy\d+$/i, '')] } },
-      data: { sourceDocumentId: reg.document.id },
-    });
+    if (reg.supersededDocument) {
+      await supersedeSourceDocumentHead(
+        prisma as unknown as SourceDocumentClient,
+        reg.supersededDocument.id,
+        sourceDocumentId,
+      );
+    }
 
     console.log(
       JSON.stringify(
         {
+          mode: 'COMMIT',
           artifact: artifactPath,
+          sha256,
           source,
           pes,
           yearRows,
           changed,
           quarantined,
           retired,
-          sourceDocument: { id: reg.document.id, stamped_year_source_values: stamped.count },
+          sourceDocument: { id: sourceDocumentId, action: reg.created ? 'inserted' : 'deduped' },
         },
         null,
         2,

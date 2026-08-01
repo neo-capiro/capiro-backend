@@ -1,11 +1,15 @@
 import { Alert, Card, Empty, Skeleton, Space, Tag, Tooltip, Typography } from 'antd';
 import type { OpportunityItem } from './types.js';
+import { PeSecondaryFailed } from './PeSecondaryFailed.js';
 
 const { Text, Paragraph } = Typography;
 
 export interface ProcurementActivityPanelProps {
   opportunities: OpportunityItem[] | null | undefined;
   loading?: boolean;
+
+  errored?: boolean;
+  onRetry?: () => void;
 }
 
 /** Tag color for a SAM.gov notice type (best-effort; defaults to antd's default). */
@@ -76,6 +80,8 @@ function shortDate(iso: string | null): string | null {
 export function ProcurementActivityPanel({
   opportunities,
   loading = false,
+  errored = false,
+  onRetry,
 }: ProcurementActivityPanelProps) {
   if (loading) {
     return (
@@ -84,6 +90,13 @@ export function ProcurementActivityPanel({
       </Card>
     );
   }
+
+  if (errored) {
+    return (
+      <PeSecondaryFailed label="procurement opportunities" testId="pe-secondary-failed-opportunities" onRetry={onRetry} />
+    );
+  }
+
 
   const rows = Array.isArray(opportunities) ? opportunities : [];
 

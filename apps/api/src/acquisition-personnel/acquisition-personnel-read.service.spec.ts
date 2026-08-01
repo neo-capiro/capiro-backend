@@ -1,3 +1,4 @@
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import {
   AcquisitionPersonnelReadService,
@@ -417,25 +418,27 @@ describe('AcquisitionPersonnelReadService.getProgramElementPersonnel — role at
     expect(person.roles).toEqual([]);
   });
 
-  test('batches the role query: ONE personRole.findMany regardless of person count', async () => {
-    const prisma = makePrisma({
-      personnel: [makePerson({ id: 'p1' }), makePerson({ id: 'p2', fullName: 'Maj. John Roe' })],
-      offices: [{ id: 'office-1', name: 'PEO Aviation' }],
-      programs: [{ id: 'program-1', canonicalName: 'FLRAA' }],
-      personRoles: [makeRole({ id: 'r1', personId: 'p1' }), makeRole({ id: 'r2', personId: 'p2' })],
-      officeLinks: [{ officeId: 'office-1', programId: 'program-1', reviewStatus: 'accepted' }],
-      peMatches: [{ programId: 'program-1', peCode: PE, status: 'accepted' }],
+  test('batches the role query: constant personRole.findMany (not N+1) regardless of person count', async () => {
+      const prisma = makePrisma({
+        personnel: [makePerson({ id: 'p1' }), makePerson({ id: 'p2', fullName: 'Maj. John Roe' })],
+        offices: [{ id: 'office-1', name: 'PEO Aviation' }],
+        programs: [{ id: 'program-1', canonicalName: 'FLRAA' }],
+        personRoles: [makeRole({ id: 'r1', personId: 'p1' }), makeRole({ id: 'r2', personId: 'p2' })],
+        officeLinks: [{ officeId: 'office-1', programId: 'program-1', reviewStatus: 'accepted' }],
+        peMatches: [{ programId: 'program-1', peCode: PE, status: 'accepted' }],
+      });
+      const spy = jest.spyOn(prisma.personRole, 'findMany');
+      const svc = new AcquisitionPersonnelReadService(prisma as never);
+
+      const result = await svc.getProgramElementPersonnel(PE, ctx);
+
+      expect(result).toHaveLength(2);
+      expect(result[0]!.roles).toHaveLength(1);
+      expect(result[1]!.roles).toHaveLength(1);
+      //One query in resolveChainPersonIds + one in fetchRolesByPerson (attach + CRM gate inputs).
+      // Must remain constant vs person count (not N+1).
+      expect(spy).toHaveBeenCalledTimes(2);
     });
-    const spy = jest.spyOn(prisma.personRole, 'findMany');
-    const svc = new AcquisitionPersonnelReadService(prisma as never);
-
-    const result = await svc.getProgramElementPersonnel(PE, ctx);
-
-    expect(result).toHaveLength(2);
-    expect(result[0]!.roles).toHaveLength(1);
-    expect(result[1]!.roles).toHaveLength(1);
-    expect(spy).toHaveBeenCalledTimes(1);
-  });
 
   test('HIDES quarantined roles but KEEPS accepted + candidate (badged) roles', async () => {
     const prisma = makePrisma({
@@ -578,5 +581,236 @@ describe('inferRoleType', () => {
   test('passes through a canonical enum value in the role field', () => {
     expect(inferRoleType('peo', null)).toBe('peo');
     expect(inferRoleType('chief_engineer', null)).toBe('chief_engineer');
+  });
+});
+
+
+describe('AcquisitionPersonnelReadService.linkCrmContact contact-use gate', () => {
+  const PE = '0603270A';
+  const OTHER_PE = '0603250F';
+  const ctx = {
+    tenantId: 'tenant-a',
+    tenantSlug: 'a',
+    userId: 'user-a',
+    clerkUserId: 'clerk-a',
+    role: 'standard_user',
+  };
+
+  function makeLinkHarness(opts: {
+    roles?: Array<{
+      id: string;
+      contactUse: string;
+      reviewStatus: string;
+      programId: string | null;
+      officeId: string | null;
+    }>;
+    peMatches?: Array<{ programId: string; peCode: string; status: string }>;
+    contactTenantId?: string;
+    personExists?: boolean;
+  }) {
+    const roles = opts.roles ?? [];
+    const peMatches = opts.peMatches ?? [{ programId: 'program-1', peCode: PE, status: 'accepted' }];
+    const audits: Array<Record<string, unknown>> = [];
+    const contactTenantId = opts.contactTenantId ?? ctx.tenantId;
+    const personExists = opts.personExists !== false;
+    let linked = false;
+
+    const tx = {
+      engagementContact: {
+        findFirst: jest.fn(async ({ where }: { where: { id: string; tenantId: string } }) => {
+          if (where.tenantId !== contactTenantId) return null;
+          if (where.id !== 'contact-1') return null;
+          return { id: 'contact-1', tenantId: contactTenantId };
+        }),
+        update: jest.fn(async () => {
+          linked = true;
+          return { id: 'contact-1' };
+        }),
+      },
+      auditLog: {
+        create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
+          audits.push(data);
+          return data;
+        }),
+      },
+    };
+
+    const prisma = {
+      withTenant: jest.fn(async (_t: string, fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
+      acquisitionPersonnel: {
+        findUnique: jest.fn(async ({ where }: { where: { id: string } }) =>
+          personExists && where.id === 'person-1' ? { id: 'person-1' } : null,
+        ),
+      },
+      personRole: {
+        findMany: jest.fn(async () => roles),
+      },
+      peProgramMatch: {
+        findMany: jest.fn(async ({ where }: { where: { peCode?: string; programId?: { in?: string[] }; status?: string } }) => {
+          return peMatches.filter((m) => {
+            if (where.peCode && m.peCode !== where.peCode) return false;
+            if (where.status && m.status !== where.status) return false;
+            if (where.programId?.in && !where.programId.in.includes(m.programId)) return false;
+            return true;
+          });
+        }),
+      },
+      programOfficeProgramLink: {
+        findMany: jest.fn(async () => []),
+      },
+    };
+
+    // Dynamic import path preserved — construct service with mocked prisma
+    const { AcquisitionPersonnelReadService } = require('./acquisition-personnel-read.service');
+    const svc = new AcquisitionPersonnelReadService(prisma as never);
+    return { svc, audits, prisma, tx, getLinked: () => linked };
+  }
+
+  test('blocks official procurement POC and audits without PII', async () => {
+    const { svc, audits, getLinked } = makeLinkHarness({
+      roles: [
+        {
+          id: 'r1',
+          contactUse: 'official_procurement_poc',
+          reviewStatus: 'accepted',
+          programId: 'program-1',
+          officeId: null,
+        },
+      ],
+    });
+    await expect(svc.linkCrmContact('person-1', 'contact-1', PE, ctx as never)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(getLinked()).toBe(false);
+    expect(audits.some((a) => a.action === 'acquisition_personnel.crm_link.blocked')).toBe(true);
+    const blocked = audits.find((a) => a.action === 'acquisition_personnel.crm_link.blocked')!;
+    const after = blocked.after as Record<string, unknown>;
+    expect(after.adminBypass).toBe(false);
+    expect(JSON.stringify(after)).not.toMatch(/@|Jane|email/i);
+  });
+
+  test('blocks procurement-sensitive, candidate, quarantined', async () => {
+    for (const contactUse of [
+      'do_not_contact_procurement_sensitive',
+      'candidate',
+      'quarantined',
+    ]) {
+      const { svc, getLinked } = makeLinkHarness({
+        roles: [
+          {
+            id: 'r1',
+            contactUse,
+            reviewStatus: contactUse === 'quarantined' ? 'quarantined' : 'candidate',
+            programId: 'program-1',
+            officeId: null,
+          },
+        ],
+      });
+      await expect(svc.linkCrmContact('person-1', 'contact-1', PE, ctx as never)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(getLinked()).toBe(false);
+    }
+  });
+
+  test('allows program_ownership_context link and audits allowed path without PII', async () => {
+    const { svc, audits, getLinked } = makeLinkHarness({
+      roles: [
+        {
+          id: 'r1',
+          contactUse: 'program_ownership_context',
+          reviewStatus: 'accepted',
+          programId: 'program-1',
+          officeId: null,
+        },
+      ],
+    });
+    await expect(svc.linkCrmContact('person-1', 'contact-1', PE, ctx as never)).resolves.toEqual({
+      linked: true,
+    });
+    expect(getLinked()).toBe(true);
+    const ok = audits.find((a) => a.action === 'acquisition_personnel.crm_link');
+    expect(ok).toBeTruthy();
+    expect(JSON.stringify(ok!.after)).not.toMatch(/@|fullName|Smith/i);
+  });
+
+  test('role on another PE cannot authorize this PE', async () => {
+    const { svc, getLinked } = makeLinkHarness({
+      roles: [
+        {
+          id: 'r1',
+          contactUse: 'program_ownership_context',
+          reviewStatus: 'accepted',
+          programId: 'program-other',
+          officeId: null,
+        },
+      ],
+      peMatches: [{ programId: 'program-other', peCode: OTHER_PE, status: 'accepted' }],
+    });
+    await expect(svc.linkCrmContact('person-1', 'contact-1', PE, ctx as never)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(getLinked()).toBe(false);
+  });
+
+  test('mixed blocked + allowed applicable roles: allowed wins', async () => {
+    const { svc, getLinked } = makeLinkHarness({
+      roles: [
+        {
+          id: 'r-block',
+          contactUse: 'official_procurement_poc',
+          reviewStatus: 'accepted',
+          programId: 'program-1',
+          officeId: null,
+        },
+        {
+          id: 'r-allow',
+          contactUse: 'program_ownership_context',
+          reviewStatus: 'accepted',
+          programId: 'program-1',
+          officeId: null,
+        },
+      ],
+    });
+    await expect(svc.linkCrmContact('person-1', 'contact-1', PE, ctx as never)).resolves.toEqual({
+      linked: true,
+    });
+    expect(getLinked()).toBe(true);
+  });
+
+  test('cross-tenant engagement contact is rejected', async () => {
+    const { svc, getLinked } = makeLinkHarness({ contactTenantId: 'tenant-b' });
+    // personRole empty -> would block for no role, but contact missing throws NotFound first
+    // Force contact miss by different tenant
+    await expect(svc.linkCrmContact('person-1', 'contact-1', PE, ctx as never)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(getLinked()).toBe(false);
+  });
+
+  test('requires exact peCode', async () => {
+    const { svc } = makeLinkHarness({});
+    await expect(svc.linkCrmContact('person-1', 'contact-1', '   ', ctx as never)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  test('capiro_admin does not bypass the CRM link gate', async () => {
+    const adminCtx = { ...ctx, role: 'capiro_admin' };
+    const { svc, getLinked } = makeLinkHarness({
+      roles: [
+        {
+          id: 'r1',
+          contactUse: 'official_procurement_poc',
+          reviewStatus: 'accepted',
+          programId: 'program-1',
+          officeId: null,
+        },
+      ],
+    });
+    await expect(
+      svc.linkCrmContact('person-1', 'contact-1', PE, adminCtx as never),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(getLinked()).toBe(false);
   });
 });

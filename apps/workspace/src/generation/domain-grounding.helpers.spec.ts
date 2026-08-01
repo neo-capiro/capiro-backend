@@ -1,8 +1,29 @@
+import { DEFENSE_BUDGET_DOMAIN_PRIMER } from '@capiro/shared';
 import {
-  validatePrimaryVehicleClaim,
+  DOMAIN_PRIMER,
   collectPeStructuralWarnings,
+  isProcurementPe,
+  isRdtePe,
+  validatePrimaryVehicleClaim,
   type PeAmountForComparison,
 } from './domain-grounding.helpers.js';
+
+describe('canonical defense-budget grounding', () => {
+  it('uses the byte-identical shared primer', () => {
+    expect(DOMAIN_PRIMER).toBe(DEFENSE_BUDGET_DOMAIN_PRIMER);
+    expect(DOMAIN_PRIMER.length).toBeLessThanOrEqual(2000);
+  });
+
+  it('does not use Budget Activity 4 as an appropriation classifier', () => {
+    expect(isRdtePe({ peCode: 'UNKNOWN', budgetActivity: 'BA 04' })).toBe(false);
+    expect(isRdtePe({ peCode: '0604041F', appropriationType: 'RDT&E' })).toBe(true);
+  });
+
+  it('keeps a procurement line distinct from a Program Element', () => {
+    expect(isProcurementPe({ peCode: '1507N2280' })).toBe(true);
+    expect(isRdtePe({ peCode: '1507N2280' })).toBe(false);
+  });
+});
 
 /**
  * Fixes B11.3: PeWarningCode declared 'primary_vehicle_overclaim' but nothing

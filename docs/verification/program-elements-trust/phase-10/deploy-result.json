@@ -1,0 +1,10 @@
+{
+  "deployed": {
+    "apiTaskDef": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
+    "webTaskDef": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
+    "apiImage": "sha256:74074cc59c039c847ef1db14db7ddfd466c09a15c3b815d3907aaa5a43bf4854",
+    "webImage": "sha256:80433fa869ea4454d5b432e242755c42aeb22cddf2bf0964290bffada5ac3c56",
+    "cluster": "capiro-dev"
+  },
+  "generatedAt": "2026-07-31T19:04:06.962Z"
+}

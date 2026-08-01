@@ -1,3 +1,4 @@
+import { DEFENSE_BUDGET_DOMAIN_PRIMER } from '@capiro/shared';
 import {
   DOMAIN_PRIMER,
   extractCitedPeCodes,
@@ -13,7 +14,11 @@ describe('DOMAIN_PRIMER', () => {
     expect(DOMAIN_PRIMER.length).toBeLessThanOrEqual(2000);
     expect(DOMAIN_PRIMER.length).toBeGreaterThan(200);
   });
-  it('states the key structural invariants', () => {
+  it('is byte-identical to the shared canonical primer', () => {
+    expect(DOMAIN_PRIMER).toBe(DEFENSE_BUDGET_DOMAIN_PRIMER);
+  });
+
+  it('states the key structural invariants without the old BA shortcuts', () => {
     const p = DOMAIN_PRIMER.toLowerCase();
     expect(p).toContain('rdt&e');
     expect(p).toContain('procurement');
@@ -21,7 +26,11 @@ describe('DOMAIN_PRIMER', () => {
     expect(p).toContain('appropriation');
     expect(p).toContain('ndaa');
     expect(p).toContain('primary');
-    expect(p).toContain('markup');
+    expect(p).toContain('loaded source coverage');
+    expect(p).toContain('procurement poc');
+    expect(p).toContain('budget activity 4 alone');
+    expect(p).not.toContain('rdt&e (budget activity 4)');
+    expect(p).not.toContain('procurement (ba 2)');
   });
 });
 

@@ -80,13 +80,14 @@ import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
-import {
-  validateMeriWriteToolInput,
-  type MeriJsonSchema,
-} from './meri-write-tool-input.js';
+import { validateMeriWriteToolInput, type MeriJsonSchema } from './meri-write-tool-input.js';
 import { buildSavedMemoryRecord } from './meri-memory.helpers.js';
-import { budgetExhibitType } from './meri-pe-structural.helpers.js';
-import { isValidPeCode, isValidProcurementCode } from '../program-element/jbook/jbook-extract.js';
+import {
+  fundingClaimsForModel,
+  modelBudgetLineMetadata,
+  reportLanguageNoteForModel,
+  searchFundingClaimForModel,
+} from './meri-defense-budget-tool.helpers.js';
 import { buildWebSearchRequest, normalizeWebResults } from './meri-websearch.helpers.js';
 import { looksLikePdf } from './meri-scrape.helpers.js';
 import {
@@ -343,12 +344,12 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'search_program_elements',
     description:
-      'Search DoD budget lines from the Pentagon J-books. NOTE: this table holds BOTH R-1 RDT&E Program Elements AND P-1 procurement line items — each row\'s `budgetExhibitType` / `appropriationType` tells you which; a procurement line is NOT a "Program Element", so state its exhibit type accordingly. Filter by military service, budget activity, or title keyword. Returns code, title, service, budget activity, appropriation type, exhibit type, and whether it has budget/award/bill data. For near-identical sibling titles (e.g. multiple "Target Systems Development" lines) prefer scoped filters (service + budget activity) over a single keyword sweep, and raise the limit — the default may truncate. Use get_program_element / get_pe_budget_timeline for detail.',
+      'Search DoD budget lines from the Pentagon J-books. NOTE: this table holds BOTH R-1/R-2 RDT&E Program Elements AND P-1/P-40 procurement line items — each row\'s `budgetExhibitType` / `appropriationType` tells you which; a procurement line is NOT a "Program Element", so state its exhibit type accordingly. Filter by military service, budget activity, or title keyword. Returns code, title, service, budget activity, appropriation type, exhibit type, and whether it has budget/award/bill data. For near-identical sibling titles (e.g. multiple "Target Systems Development" lines) prefer scoped filters (service + budget activity) over a single keyword sweep, and raise the limit — the default may truncate. Use get_program_element / get_pe_budget_timeline for detail.',
   },
   {
     name: 'get_program_element',
     description:
-      "Get a single DoD budget line's full detail by code: title, description, service, appropriation type, `budgetExhibitType` (P-1 procurement line item vs R-1 RDT&E Program Element), status, ACAT level, program of record, source-document URLs, and complete fiscal-year budget history.",
+      "Get a single DoD budget line's full detail by code: title, description, service, appropriation type, `budgetExhibitType` (P-1/P-40 procurement line item vs R-1/R-2 RDT&E Program Element), status, ACAT level, program of record, source-document URLs, and complete fiscal-year budget history.",
   },
   {
     name: 'get_pe_budget_timeline',
@@ -964,8 +965,18 @@ export class MeriToolsService {
         limit: int('Max results (1-50)'),
         page: int('Page number'),
       }),
-      get_program_element: obj({ peCode: str('Program Element code, e.g. 0604201A') }, ['peCode']),
-      get_pe_budget_timeline: obj({ peCode: str('Program Element code') }, ['peCode']),
+      get_program_element: obj(
+        {
+          peCode: str(
+            'Program Element or procurement budget-line code, e.g. 0604201A or 1507N2280',
+          ),
+        },
+        ['peCode'],
+      ),
+      get_pe_budget_timeline: obj(
+        { peCode: str('Program Element or procurement budget-line code') },
+        ['peCode'],
+      ),
       get_pe_contractors: obj({ peCode: str('Program Element code') }, ['peCode']),
       get_pe_bills: obj({ peCode: str('Program Element code') }, ['peCode']),
       get_pe_report_language: obj({ peCode: str('Program Element or budget-line code') }, [
@@ -3334,6 +3345,7 @@ export class MeriToolsService {
       peCode?: string | null;
       appropriationType?: string | null;
       budgetActivity?: string | null;
+      lineType?: string | null;
       latestCurrent: number | null;
       latestCurrentFy: number | null;
       latestCurrentStage: string | null;
@@ -3357,27 +3369,23 @@ export class MeriToolsService {
         deltaPct,
         ...rest
       } = row;
-      // RC2: the `peCode` field holds BOTH true R-1/R-2 Program Elements AND P-1
-      // procurement line items keyed <appropriationCode><lineItemNumber> (e.g.
-      // 1507N2280) — the code SHAPE is the authoritative discriminator (the two
-      // regexes never collide). Tell the model, per row, which noun applies so it
-      // never calls a procurement line a "Program Element" (the S2-1 error) — and
-      // so it needn't spend a get_program_element call just to learn the noun.
       const code = typeof row.peCode === 'string' ? row.peCode : '';
-      const identifierKind: 'pe' | 'procurement_line_item' | 'other' =
-        isValidProcurementCode(code) && !isValidPeCode(code)
-          ? 'procurement_line_item'
-          : isValidPeCode(code)
-            ? 'pe'
-            : 'other';
+      const identity = modelBudgetLineMetadata({
+        peCode: code,
+        appropriationType: typeof row.appropriationType === 'string' ? row.appropriationType : null,
+        budgetActivity: typeof row.budgetActivity === 'string' ? row.budgetActivity : null,
+        lineType: typeof row.lineType === 'string' ? row.lineType : null,
+      });
       return {
         ...rest,
-        identifierKind,
-        budgetExhibitType: budgetExhibitType({
-          peCode: code,
-          appropriationType:
-            typeof row.appropriationType === 'string' ? row.appropriationType : null,
-          budgetActivity: typeof row.budgetActivity === 'string' ? row.budgetActivity : null,
+        ...identity,
+        // The finder has no trustworthy current-cycle FY. The shared claim is
+        // still stage/vehicle labeled, but its cycleClass remains 'unknown'; the
+        // model must call get_pe_budget_timeline before calling it current/outyear.
+        currentFundingClaim: searchFundingClaimForModel({
+          valueM: latestCurrent,
+          fy: latestCurrentFy,
+          stage: latestCurrentStage,
         }),
         funding: buildSearchRowFundingForModel({
           latestCurrent,
@@ -3406,54 +3414,67 @@ export class MeriToolsService {
       string,
       unknown
     >;
+    const identity = modelBudgetLineMetadata({
+      peCode,
+      appropriationType: (programElement.appropriationType as string | null) ?? null,
+      budgetActivity: (programElement.budgetActivity as string | null) ?? null,
+      lineType: (programElement.lineType as string | null) ?? null,
+    });
+    const years = Array.isArray(programElement.years)
+      ? (programElement.years as Array<Record<string, unknown> & { fy: unknown }>)
+      : [];
+    const suppliedCurrentCycleFy =
+      typeof programElement.currentCycleFy === 'number'
+        ? programElement.currentCycleFy
+        : programElement.currentCycleFy == null
+          ? null
+          : Number(programElement.currentCycleFy);
+    const claims = fundingClaimsForModel(
+      years,
+      Number.isInteger(suppliedCurrentCycleFy) ? suppliedCurrentCycleFy : null,
+    );
     return {
       tool: 'get_program_element',
       generatedAt: new Date().toISOString(),
-      // Tell the model the noun to use (P-1 procurement line item vs R-1 PE) so it
-      // never calls a procurement line a "Program Element".
-      budgetExhibitType: budgetExhibitType({
-        peCode,
-        appropriationType: (programElement.appropriationType as string | null) ?? null,
-        budgetActivity: (programElement.budgetActivity as string | null) ?? null,
-      }),
-      programElement,
+      ...identity,
+      currentCycleFy: claims.currentCycleFy,
+      currentFundingClaim: claims.currentFundingClaim,
+      programElement: { ...programElement, years: claims.years },
     };
   }
 
   private async getPeBudgetTimeline(input: Record<string, unknown>) {
     const peCode = requiredString(input, 'peCode', 32);
     const timeline = await this.programElement.getTimeline(peCode);
+    const identity = modelBudgetLineMetadata({
+      peCode,
+      appropriationType: timeline.appropriationType,
+      budgetActivity: timeline.budgetActivity,
+      lineType: (timeline as { lineType?: string | null }).lineType ?? null,
+    });
+    const claims = fundingClaimsForModel(timeline.years, timeline.currentCycleFy);
     return {
       tool: 'get_pe_budget_timeline',
       generatedAt: new Date().toISOString(),
-      budgetExhibitType: budgetExhibitType({
-        peCode,
-        appropriationType: timeline.appropriationType,
-        budgetActivity: timeline.budgetActivity,
-      }),
       ...timeline,
+      ...identity,
+      currentCycleFy: claims.currentCycleFy,
+      currentFundingClaim: claims.currentFundingClaim,
+      years: claims.years,
     };
   }
 
   private async getPeReportLanguage(input: Record<string, unknown>) {
     const peCode = requiredString(input, 'peCode', 32);
     const provisions = await this.programElement.getProvisionsForPe(peCode);
-    // RC7: program-level (program_alias) links may apply to sibling PEs — flag
-    // them so the model attributes program-wide language at the program level,
-    // not exclusively to this PE. Each such item also carries attributionCaveat.
-    const programLevel = provisions.filter((p) => p.matchScope === 'program_level').length;
     return {
       tool: 'get_pe_report_language',
       generatedAt: new Date().toISOString(),
       peCode,
       provisions,
-      // Make the "no grounded reason" case explicit so the model states it rather
-      // than inventing a justification for a mark from the title / dollar delta.
-      note: !provisions.length
-        ? "No committee report language is linked to this budget line in Capiro's data. Do NOT infer why a mark changed — state that the justification is not available."
-        : programLevel
-          ? `${programLevel} of ${provisions.length} linked provision(s) are PROGRAM-LEVEL matches (matched via a program alias, because FY committee reports name programs, not PE codes). They may apply to sibling PEs in the same program — attribute such language at the program level, not exclusively to this PE. Each carries matchScope:"program_level" and an attributionCaveat.`
-          : undefined,
+      // Missing coverage and program-level attribution are explicit. The provisions
+      // themselves retain matchScope and attributionCaveat from the backend.
+      note: reportLanguageNoteForModel(provisions),
     };
   }
 

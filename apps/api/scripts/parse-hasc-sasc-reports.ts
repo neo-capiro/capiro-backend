@@ -27,11 +27,19 @@ import {
 } from '../src/program-element/parsers/armed-services-report-parser.service.js';
 import {
   upsertSourceDocument,
+  supersedeSourceDocumentHead,
   sha256OfFile,
   readDocumentToolVersion,
   type SourceDocumentClient,
 } from '../src/program-element/source-document/source-document-registry.js';
 import { recordIngestRun, type IngestRunClient } from '../src/program-element/coverage/record-ingest-run.js';
+import {
+  assertExactShaCommitAllowed,
+  auditArtifactQuality,
+  buildInspectReport,
+  resolvePeDollarLoaderPosture,
+  argValue as exactShaArgValue,
+} from './lib/pe-exact-sha-loader-contract.js';
 import {
   emitToplineCandidates,
   type ArtifactTopline,
@@ -56,7 +64,9 @@ function arg(name: string): string | undefined {
 async function main(): Promise<void> {
   const artifactPath = arg('artifact');
   if (!artifactPath) {
-    console.error('Usage: parse-hasc-sasc-reports.ts --artifact <rows.json> [--chamber HASC|SASC] [--fy 2027]');
+    console.error(
+      'Usage: parse-hasc-sasc-reports.ts --artifact <rows.json> [--chamber HASC|SASC] [--fy 2027] [--inspect | --commit --approved-sha256 <sha>]',
+    );
     process.exit(1);
   }
 
@@ -64,7 +74,7 @@ async function main(): Promise<void> {
   const chamber = ((arg('chamber') ?? artifact.chamber ?? 'HASC').toUpperCase() as Chamber);
   const fy = Number(arg('fy') ?? artifact.fy);
   if (chamber !== 'HASC' && chamber !== 'SASC') {
-    console.error(`Invalid chamber: ${chamber} (expected HASC or SASC)`);
+    console.error('Invalid chamber: ' + chamber + ' (expected HASC or SASC)');
     process.exit(1);
   }
   if (!Number.isFinite(fy)) {
@@ -72,49 +82,78 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  const posture = resolvePeDollarLoaderPosture(process.argv);
+  if (posture === 'extract_only') {
+    throw new Error(
+      'parse-hasc-sasc-reports.ts: --extract-only/--dry-run is not valid; use default inspect or --commit --approved-sha256 <sha>.',
+    );
+  }
+  const sha256 = sha256OfFile(artifactPath);
+  const records = parseExtractedRows(artifact.rows ?? [], { fy });
+  const quality = auditArtifactQuality({ rowCount: records.length });
+  if (posture === 'inspect') {
+    console.log(
+      JSON.stringify(
+        buildInspectReport({
+          loader: 'parse-hasc-sasc-reports.ts',
+          posture,
+          artifactPath,
+          sha256,
+          byteSize: fs.statSync(artifactPath).size,
+          quality,
+          extra: { chamber, fy, rowCount: records.length },
+        }),
+        null,
+        2,
+      ),
+    );
+    console.log('INSPECT — no writes. Re-run with --commit --approved-sha256 <sha above> to promote.');
+    return;
+  }
+  assertExactShaCommitAllowed({
+    actualSha256: sha256,
+    approvedSha256Raw: exactShaArgValue(process.argv, 'approved-sha256'),
+    quality: { rowCount: records.length },
+  });
+
   const prisma = new PrismaService();
   await prisma.$connect();
   try {
     const writer = new ProgramElementWriterService(prisma);
     const parser = new ArmedServicesReportParserService(writer);
-
-    const records = parseExtractedRows(artifact.rows ?? [], { fy });
-    const result = await parser.load(records, chamber, fy);
-
-    // Register the fingerprinted source document and stamp it onto the per-source
-    // year-source-value rows this run wrote (matched by the canonical source tag).
     const source = reportSource(chamber, fy);
-    const reg = await upsertSourceDocument(prisma as unknown as SourceDocumentClient, {
-      sourceKey: path.basename(artifactPath).replace(/\.json$/i, ''),
-      sha256: sha256OfFile(artifactPath),
-      fiscalYear: fy,
-      budgetCycle: chamber === 'HASC' ? 'hasc' : 'sasc',
-      component: null,
-      documentType: 'committee_report',
-      title: `${chamber} report marks (FY${fy})`,
-      sourceUrl: artifact.source ?? path.basename(artifactPath),
-      byteSize: fs.statSync(artifactPath).size,
-      artifactPath: path.relative(process.cwd(), artifactPath),
-      extractionMethod: 'deterministic_pdf',
-      extractionToolVersion: readDocumentToolVersion(artifact),
-      metadata: { chamber, sourceTag: source },
-    });
-    // The writer logs rows under both the full tag (logSourceValue, '__row__') and the
-    // fy-suffix-stripped tag (reconciliation per-field rows); fy disambiguates the stripped
-    // form across fiscal years.
-    const stamped = await prisma.programElementYearSourceValue.updateMany({
-      where: { fy, source: { in: [source, source.replace(/_fy\d+$/i, '')] } },
-      data: { sourceDocumentId: reg.document.id },
+
+    const reg = await upsertSourceDocument(
+      prisma as unknown as SourceDocumentClient,
+      {
+        sourceKey: path.basename(artifactPath).replace(/\.json$/i, ''),
+        sha256,
+        fiscalYear: fy,
+        budgetCycle: chamber === 'HASC' ? 'hasc' : 'sasc',
+        component: null,
+        documentType: 'committee_report',
+        title: chamber + ' report marks (FY' + fy + ')',
+        sourceUrl: artifact.source ?? path.basename(artifactPath),
+        byteSize: fs.statSync(artifactPath).size,
+        artifactPath: path.relative(process.cwd(), artifactPath),
+        extractionMethod: 'deterministic_pdf',
+        extractionToolVersion: readDocumentToolVersion(artifact),
+        metadata: { chamber, sourceTag: source, approvedSha256: sha256 },
+      },
+      { deferSupersede: true },
+    );
+
+    const result = await parser.load(records, chamber, fy, {
+      authority: chamber === 'HASC' ? 'hasc_authorization' : 'sasc_authorization',
+      sourceDocumentId: reg.document.id,
+      extractorVersion: readDocumentToolVersion(artifact) ?? 'parse-hasc-sasc@exact-sha',
     });
 
-    // Completeness/accuracy ledger: audit the extracted rows + persist the verdict
-    // (the "denominator" the coverage report and humans use to see whether the
-    // parse extracted everything it should have).
     const ingestRun = await recordIngestRun(prisma as unknown as IngestRunClient, {
       source,
       fy,
       artifactPath: path.relative(process.cwd(), artifactPath),
-      artifactSha256: sha256OfFile(artifactPath),
+      artifactSha256: sha256,
       rows: (artifact.rows ?? []).map((r) => ({
         peCode: (r.peCode ?? null) as string | null,
         request: (r.request ?? null) as number | null,
@@ -125,10 +164,6 @@ async function main(): Promise<void> {
       metadata: { chamber, sourceDocumentId: reg.document.id },
     });
 
-    // R3 §3.3: stage any package-level TOPLINE the artifact carries as an
-    // 'extracted' funding_position candidate. Never auto-promoted to verified;
-    // ambiguous scope or units produces a review warning and NO row. The PE
-    // extraction above is untouched. Dollar writes stay opt-in behind --commit.
     const toplines = await emitToplineCandidates(
       prisma as never,
       artifact.toplines,
@@ -139,15 +174,25 @@ async function main(): Promise<void> {
         vehicleClass: 'authorization',
         sourceUrl: artifact.source ?? path.basename(artifactPath),
         sourceKey: path.basename(artifactPath).replace(/\.json$/i, ''),
-        emittedBy: `parse-hasc-sasc-reports (${chamber})`,
+        emittedBy: 'parse-hasc-sasc-reports (' + chamber + ')',
       },
-      { commit: process.argv.includes('--commit') },
+      { commit: true },
     );
+
+    if (reg.supersededDocument) {
+      await supersedeSourceDocumentHead(
+        prisma as unknown as SourceDocumentClient,
+        reg.supersededDocument.id,
+        reg.document.id,
+      );
+    }
 
     console.log(
       JSON.stringify(
         {
+          mode: 'COMMIT',
           artifact: artifactPath,
+          sha256,
           ...result,
           ingestRun,
           toplines,
@@ -155,7 +200,6 @@ async function main(): Promise<void> {
             id: reg.document.id,
             action: reg.created ? 'inserted' : 'deduped',
             superseded: reg.supersededDocument?.id ?? null,
-            stamped_year_source_values: stamped.count,
           },
         },
         null,

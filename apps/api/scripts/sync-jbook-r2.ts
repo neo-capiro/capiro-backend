@@ -5,11 +5,19 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { r2PeSnippet, r2aProjectSnippet } from '../src/program-element/jbook/jbook-extract.js';
 import {
   upsertSourceDocument,
+  supersedeSourceDocumentHead,
   sha256OfFile,
   readDocumentToolVersion,
   type SourceDocumentClient,
 } from '../src/program-element/source-document/source-document-registry.js';
 import { classifyArtifact } from '../src/program-element/source-document/source-document-classify.js';
+import {
+  assertExactShaCommitAllowed,
+  auditArtifactQuality,
+  buildInspectReport,
+  resolvePeDollarLoaderPosture,
+  argValue as exactShaArgValue,
+} from './lib/pe-exact-sha-loader-contract.js';
 
 /**
  * sync-jbook-r2.ts
@@ -88,7 +96,13 @@ function argValue(flag: string): string | undefined {
 }
 
 async function main() {
-  const commit = process.argv.includes('--commit');
+  const posture = resolvePeDollarLoaderPosture(process.argv);
+  if (posture === 'extract_only') {
+    throw new Error(
+      'sync-jbook-r2.ts: --extract-only is not valid; use default inspect or --commit --approved-sha256 <sha>.',
+    );
+  }
+  const commit = posture === 'commit';
   const artifacts = findArtifacts();
 
   const stats = {
@@ -112,6 +126,44 @@ async function main() {
   const prisma = new PrismaService();
   await prisma.onModuleInit();
 
+  if (!commit) {
+    const reports = [] as Record<string, unknown>[];
+    for (const file of artifacts) {
+      const sha = sha256OfFile(file);
+      const art = JSON.parse(fs.readFileSync(file, 'utf-8')) as {
+        programElements?: unknown[];
+        performers?: unknown[];
+        rows?: unknown[];
+      };
+      const rows =
+        art.programElements?.length ??
+        art.performers?.length ??
+        art.rows?.length ??
+        1;
+      reports.push(
+        buildInspectReport({
+          loader: 'sync-jbook-r2.ts',
+          posture: 'inspect',
+          artifactPath: file,
+          sha256: sha,
+          byteSize: fs.statSync(file).size,
+          quality: auditArtifactQuality({ rowCount: Number(rows) || 1 }),
+        }),
+      );
+    }
+    console.log(JSON.stringify({ mode: 'INSPECT', artifacts: reports }, null, 2));
+    console.log('INSPECT — no writes. Re-run with --commit --approved-sha256 <sha> and a single --artifact.');
+    return;
+  }
+  if (artifacts.length !== 1) {
+    throw new Error(
+      '--commit for sync-jbook-r2.ts requires exactly one --artifact so one --approved-sha256 can authorize it; got ' +
+        String(artifacts.length),
+    );
+  }
+
+
+  const pendingSupersedes: Array<{ prev: string; next: string }> = [];
   try {
     for (const file of artifacts) {
       const art = JSON.parse(fs.readFileSync(file, 'utf-8')) as R2Artifact;
@@ -124,23 +176,44 @@ async function main() {
       let sourceDocumentId: string | null = null;
       if (commit) {
         const cls = classifyArtifact(path.basename(file), { fy });
-        const reg = await upsertSourceDocument(prisma as unknown as SourceDocumentClient, {
-          sourceKey: cls?.sourceKey ?? path.basename(file).replace(/\.json$/i, ''),
-          sha256: sha256OfFile(file),
-          fiscalYear: cls?.fiscalYear ?? fy ?? null,
-          budgetCycle: cls?.budgetCycle ?? 'pb',
-          component: cls?.component ?? null,
-          documentType: cls?.documentType ?? 'r2',
-          title: cls?.title ?? `RDT&E R-2/R-2A justification (${art.volumeId})`,
-          sourceUrl: url,
-          pageCount: art.pageCount ?? null,
-          byteSize: fs.statSync(file).size,
-          artifactPath: path.relative(process.cwd(), file),
-          extractionMethod: 'deterministic_pdf',
-          extractionToolVersion: readDocumentToolVersion(art),
-          metadata: { volumeId: art.volumeId, exhibit: art.exhibitType },
+        const __artSha = sha256OfFile(file);
+        assertExactShaCommitAllowed({
+          actualSha256: __artSha,
+          approvedSha256Raw: exactShaArgValue(process.argv, 'approved-sha256'),
+          quality: {
+            rowCount: Array.isArray((art as { programElements?: unknown[] }).programElements)
+              ? ((art as { programElements?: unknown[] }).programElements as unknown[]).length
+              : 1,
+          },
         });
+        const reg = await upsertSourceDocument(
+          prisma as unknown as SourceDocumentClient,
+          {
+            sourceKey: cls?.sourceKey ?? path.basename(file).replace(/\.json$/i, ''),
+            sha256: __artSha,
+            fiscalYear: cls?.fiscalYear ?? fy ?? null,
+            budgetCycle: cls?.budgetCycle ?? 'pb',
+            component: cls?.component ?? null,
+            documentType: cls?.documentType ?? 'r2',
+            title: cls?.title ?? `RDT&E R-2/R-2A justification (${art.volumeId})`,
+            sourceUrl: url,
+            pageCount: art.pageCount ?? null,
+            byteSize: fs.statSync(file).size,
+            artifactPath: path.relative(process.cwd(), file),
+            extractionMethod: 'deterministic_pdf',
+            extractionToolVersion: readDocumentToolVersion(art),
+            metadata: {
+              volumeId: art.volumeId,
+              exhibit: art.exhibitType,
+              approvedSha256: __artSha,
+            },
+          },
+          { deferSupersede: true },
+        );
         sourceDocumentId = reg.document.id;
+        if (reg.supersededDocument) {
+          pendingSupersedes.push({ prev: reg.supersededDocument.id, next: reg.document.id });
+        }
         if (reg.created) stats.source_documents_inserted++;
         else stats.source_documents_deduped++;
       }
@@ -274,7 +347,24 @@ async function main() {
       }
     }
 
-    console.log(JSON.stringify(stats, null, 2));
+    for (const s of pendingSupersedes) {
+      await supersedeSourceDocumentHead(
+        prisma as unknown as SourceDocumentClient,
+        s.prev,
+        s.next,
+      );
+    }
+
+    console.log(
+      JSON.stringify(
+        {
+          ...stats,
+          sha256: artifacts.length === 1 ? sha256OfFile(artifacts[0]) : undefined,
+        },
+        null,
+        2,
+      ),
+    );
   } finally {
     await prisma.onModuleDestroy();
   }

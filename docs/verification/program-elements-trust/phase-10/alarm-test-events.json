@@ -1,0 +1,17 @@
+{
+  "synthOk": true,
+  "target": "capiro-dev-alb-5xx",
+  "setExit": 0,
+  "restoreExit": 0,
+  "mid": {
+    "name": "capiro-dev-alb-5xx",
+    "state": "ALARM",
+    "reason": "PE_PHASE_10 SYNTHETIC test event only — not humanReviewed; restore immediately"
+  },
+  "after": {
+    "name": "capiro-dev-alb-5xx",
+    "state": "OK",
+    "reason": "PE_PHASE_10 SYNTHETIC test restore — return to OK"
+  },
+  "note": "SYNTHETIC set-alarm-state pulse; not humanReviewed"
+}

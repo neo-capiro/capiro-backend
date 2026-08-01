@@ -12,6 +12,8 @@ import type { PersonDetailDto } from './dto/person-detail.dto.js';
 import {
   CONTACT_USE_LABELS,
   classifyContactUse,
+  crmLinkBlockedReason,
+  isCrmLinkBlocked,
   type ContactUse,
   type RoleType,
 } from './contact-use.policy.js';
@@ -320,6 +322,7 @@ export class AcquisitionPersonnelReadService {
       // shortcut (no PersonRole chain yet). Surface a single explanatory entry.
       const legacySource =
         roles.length === 0 ? (p.pePrimary === peCode ? 'pe_primary link' : null) : null;
+      const crm = this.evaluateCrmLinkForPeRoles(roles);
       return {
         id: p.id,
         fullName: p.fullName,
@@ -342,6 +345,8 @@ export class AcquisitionPersonnelReadService {
         lastSeenAt: p.lastSeenAt.toISOString(),
         sourceCount: p.sources.length,
         roles,
+        crmLinkBlocked: crm.blocked,
+        crmLinkBlockedReason: crm.reason,
       };
     });
   }
@@ -514,8 +519,17 @@ export class AcquisitionPersonnelReadService {
   async linkCrmContact(
     personId: string,
     engagementContactId: string,
+    peCodeRaw: string,
     ctx: TenantContext,
   ): Promise<{ linked: true }> {
+    const peCode = (peCodeRaw ?? '').trim().toUpperCase();
+    if (!peCode) {
+      throw new BadRequestException('peCode is required for CRM linking from a Program Element page');
+    }
+    if (peCode.length > 16) {
+      throw new BadRequestException('peCode is too long');
+    }
+
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const [person, contact] = await Promise.all([
         this.prisma.acquisitionPersonnel.findUnique({
@@ -535,6 +549,46 @@ export class AcquisitionPersonnelReadService {
       if (!contact)
         throw new NotFoundException(`Engagement contact ${engagementContactId} not found`);
 
+      // Applicable roles for THIS peCode only (never another PE's roles).
+      // Includes quarantined so quarantine still blocks even when UI hides them.
+      const roleRows = await this.prisma.personRole.findMany({
+        where: { personId },
+        select: {
+          id: true,
+          contactUse: true,
+          reviewStatus: true,
+          programId: true,
+          officeId: true,
+        },
+      });
+
+      const applicable = await this.filterRolesApplicableToPe(roleRows, peCode);
+      const decision = this.evaluateCrmLinkGate(applicable.map((r) => r.contactUse));
+
+      if (decision.blocked) {
+        await tx.auditLog.create({
+          data: {
+            tenantId: ctx.tenantId,
+            actorUserId: ctx.userId,
+            actorRole: ctx.role,
+            action: 'acquisition_personnel.crm_link.blocked',
+            entityType: 'acquisition_personnel',
+            entityId: personId,
+            after: {
+              peCode,
+              engagementContactIdPresent: true,
+              // No names / emails / free text — classifications only.
+              blockedContactUses: decision.blockedUses,
+              reasonCode: decision.reasonCode,
+              applicableRoleCount: applicable.length,
+              // No admin bypass exists for this gate.
+              adminBypass: false,
+            },
+          },
+        });
+        throw new BadRequestException(decision.message);
+      }
+
       const updated = await tx.engagementContact.update({
         where: { id: contact.id },
         data: { acquisitionPersonnelId: personId },
@@ -549,12 +603,137 @@ export class AcquisitionPersonnelReadService {
           action: 'acquisition_personnel.crm_link',
           entityType: 'engagement_contacts',
           entityId: updated.id,
-          after: { acquisitionPersonnelId: personId },
+          after: {
+            // No PII: ids + pe only.
+            acquisitionPersonnelId: personId,
+            peCode,
+            allowedContactUses: decision.allowedUses,
+          },
         },
       });
     });
 
     return { linked: true };
+  }
+
+  /**
+   * Roles that authorize CRM linking for a PE: accepted chain onto peCode
+   * (program match or office→program→pe), excluding nothing yet — caller may
+   * still include quarantined for block evaluation. Roles whose program maps
+   * only to a *different* PE are not applicable.
+   */
+  private async filterRolesApplicableToPe(
+    roleRows: Array<{
+      id: string;
+      contactUse: string;
+      reviewStatus: string;
+      programId: string | null;
+      officeId: string | null;
+    }>,
+    peCode: string,
+  ): Promise<Array<{ id: string; contactUse: string; reviewStatus: string }>> {
+    if (roleRows.length === 0) return [];
+
+    const programIds = Array.from(
+      new Set(roleRows.map((r) => r.programId).filter((id): id is string => Boolean(id))),
+    );
+    const acceptedMatches = programIds.length
+      ? await this.prisma.peProgramMatch.findMany({
+          where: { programId: { in: programIds }, peCode, status: 'accepted' },
+          select: { programId: true },
+        })
+      : [];
+    const programsOnPe = new Set(acceptedMatches.map((m) => m.programId));
+
+    // Office-only roles: accept when office manages a program that maps to peCode.
+    const officeIds = Array.from(
+      new Set(roleRows.map((r) => r.officeId).filter((id): id is string => Boolean(id))),
+    );
+    const officeProgramLinks = officeIds.length
+      ? await this.prisma.programOfficeProgramLink.findMany({
+          where: { officeId: { in: officeIds }, reviewStatus: 'accepted' },
+          select: { officeId: true, programId: true },
+        })
+      : [];
+    const officePrograms = new Map<string, string[]>();
+    for (const link of officeProgramLinks) {
+      const list = officePrograms.get(link.officeId) ?? [];
+      list.push(link.programId);
+      officePrograms.set(link.officeId, list);
+    }
+    const officeProgramIds = Array.from(new Set(officeProgramLinks.map((l) => l.programId)));
+    const officePeMatches = officeProgramIds.length
+      ? await this.prisma.peProgramMatch.findMany({
+          where: { programId: { in: officeProgramIds }, peCode, status: 'accepted' },
+          select: { programId: true },
+        })
+      : [];
+    const officeProgramsOnPe = new Set(officePeMatches.map((m) => m.programId));
+
+    return roleRows.filter((r) => {
+      if (r.programId && programsOnPe.has(r.programId)) return true;
+      if (r.officeId) {
+        const managed = officePrograms.get(r.officeId) ?? [];
+        if (managed.some((pid) => officeProgramsOnPe.has(pid))) return true;
+      }
+      return false;
+    });
+  }
+
+  private evaluateCrmLinkGate(contactUses: string[]): {
+    blocked: boolean;
+    message: string;
+    reasonCode: string;
+    blockedUses: string[];
+    allowedUses: string[];
+  } {
+    const blockedUses = contactUses.filter((u) => isCrmLinkBlocked(u));
+    const allowedUses = contactUses.filter((u) => !isCrmLinkBlocked(u));
+
+    // Allowed if any non-blocked applicable role exists. Blocked if every
+    // applicable role is blocked OR there are no applicable PE roles.
+    if (allowedUses.length > 0) {
+      return {
+        blocked: false,
+        message: '',
+        reasonCode: 'allowed',
+        blockedUses,
+        allowedUses,
+      };
+    }
+
+    if (contactUses.length === 0) {
+      return {
+        blocked: true,
+        message:
+          'CRM linking is blocked: no accepted role connects this person to the requested Program Element.',
+        reasonCode: 'no_applicable_role',
+        blockedUses: [],
+        allowedUses: [],
+      };
+    }
+
+    const primary = blockedUses[0] ?? contactUses[0]!;
+    return {
+      blocked: true,
+      message: crmLinkBlockedReason(primary),
+      reasonCode: primary,
+      blockedUses,
+      allowedUses: [],
+    };
+  }
+
+  private evaluateCrmLinkForPeRoles(roles: PersonRoleSummaryDto[]): {
+    blocked: boolean;
+    reason: string | null;
+  } {
+    // Display roles already exclude quarantined; treat empty as blocked pending mapping.
+    const uses = roles.map((r) => r.contactUse);
+    const decision = this.evaluateCrmLinkGate(uses);
+    return {
+      blocked: decision.blocked,
+      reason: decision.blocked ? decision.message : null,
+    };
   }
 
   async listMergeQueue(

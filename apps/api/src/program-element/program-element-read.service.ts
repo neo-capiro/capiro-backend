@@ -11,13 +11,26 @@ import {
   fundingCurrentCoalesceSql,
   fundingCurrentStageSql,
   currentFunding,
-  currentCycleFyOf,
   FUNDING_STAGE_LABEL,
   FUNDING_STAGE_VEHICLE,
   renderPeFundingForModel,
   type FundingStageValues,
   type ModelFundingYear,
 } from '@capiro/shared';
+import {
+  claimFromLadderPick,
+  listEnactedVsRequestDeltaPct,
+  markupMonitorTrackDivergence,
+  partitionContractorEvidence,
+  sqlCurrentCycleFyExpr,
+} from '@capiro/shared/funding-claim';
+import {
+  claimForYearLadder,
+  currentCycleFyPreservingZero,
+  missingMarksForYear,
+  requestClaim,
+  enactedClaim,
+} from './funding-claim.helpers.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientPeRelevanceService } from '../intelligence/client-pe-relevance.service.js';
 import { EMBEDDING_MODEL } from '../embeddings/embedder.js';
@@ -196,9 +209,13 @@ export class ProgramElementReadService {
       latestRequestFy: number | null;
       latestEnacted: number | null;
       latestEnactedFy: number | null;
+      /** Request at the enacted FY (matched pair base). Never the inspector for cross-FY %. */
+      requestAtEnactedFy: number | null;
       latestCurrent: number | null;
       latestCurrentFy: number | null;
       latestCurrentStage: string | null;
+      /** PE mark-bearing cycle FY (sqlCurrentCycleFyExpr) — never bare latest request FY. */
+      peCurrentCycleFy: number | null;
       deltaPct: number | null;
       spark: number[] | null;
       signalType: string | null;
@@ -283,9 +300,12 @@ export class ProgramElementReadService {
         lr.fy AS "latestRequestFy",
         le.enacted::double precision AS "latestEnacted",
         le.fy AS "latestEnactedFy",
+        ler.request::double precision AS "requestAtEnactedFy",
         ${Prisma.raw(fundingCurrentCoalesceSql('lc.'))}::double precision AS "latestCurrent",
         lc.fy AS "latestCurrentFy",
         ${Prisma.raw(fundingCurrentStageSql('lc.'))} AS "latestCurrentStage",
+        pcy.pe_current_cycle_fy AS "peCurrentCycleFy",
+        -- Matched-pair % only: enacted vs request-at-enacted-FY (ler). Zero request → null pct.
         CASE
           WHEN le.enacted IS NOT NULL AND ler.request IS NOT NULL AND ler.request <> 0
           THEN ((le.enacted::double precision - ler.request::double precision) / ler.request::double precision) * 100
@@ -308,14 +328,14 @@ export class ProgramElementReadService {
       LEFT JOIN LATERAL (
         SELECT y.request, y.fy
         FROM program_element_year y
-        WHERE y.pe_code = f.pe_code AND y.request IS NOT NULL AND y.request <> 0
+        WHERE y.pe_code = f.pe_code AND y.request IS NOT NULL
         ORDER BY y.fy DESC
         LIMIT 1
       ) lr ON TRUE
       LEFT JOIN LATERAL (
         SELECT y.enacted, y.fy
         FROM program_element_year y
-        WHERE y.pe_code = f.pe_code AND y.enacted IS NOT NULL AND y.enacted <> 0
+        WHERE y.pe_code = f.pe_code AND y.enacted IS NOT NULL
         ORDER BY y.fy DESC
         LIMIT 1
       ) le ON TRUE
@@ -332,6 +352,12 @@ export class ProgramElementReadService {
         WHERE y.pe_code = f.pe_code AND y.fy = le.fy
         LIMIT 1
       ) ler ON TRUE
+      LEFT JOIN LATERAL (
+        -- Mark-bearing PE cycle (incl NDAA); request-only FYDP outyears do not win.
+        SELECT ${Prisma.raw(sqlCurrentCycleFyExpr('y'))} AS pe_current_cycle_fy
+        FROM program_element_year y
+        WHERE y.pe_code = f.pe_code
+      ) pcy ON TRUE
       LEFT JOIN LATERAL (
         SELECT json_agg(v ORDER BY fy) AS spark
         FROM (
@@ -361,7 +387,65 @@ export class ProgramElementReadService {
 
     const total = rows[0]?.totalCount ?? 0;
     return {
-      data: rows.map(({ totalCount: _ignored, ...rest }) => rest),
+      data: rows.map(({ totalCount: _ignored, ...rest }) => {
+        // Phase G: every dollar headline is a FundingClaim so consumers cannot
+        // invent a cross-FY / cross-track percent from bare numbers.
+        // Cycle anchor is PE mark-bearing FY (SQL sqlCurrentCycleFyExpr), not
+        // catalog-latest request/current stage FY — a pure FYDP outyear must
+        // tag isProjection/outyear (Phase 4 B5).
+        const currentCycleFy = rest.peCurrentCycleFy ?? null;
+        const currentClaim =
+          rest.latestCurrent != null || rest.latestCurrentStage
+            ? claimFromLadderPick({
+                value: rest.latestCurrent,
+                stage: rest.latestCurrentStage ?? 'none',
+                fiscalYear: rest.latestCurrentFy,
+                currentCycleFy,
+              })
+            : null;
+        // Catalog-latest request/enacted stay as display claims; they may be
+        // different FYs and MUST NOT form a comparable %. Matched-pair delta
+        // uses requestAtEnactedFy only (join on le.fy).
+        const requestClaimRow =
+          rest.latestRequest != null || rest.latestRequestFy != null
+            ? requestClaim(rest.latestRequest, rest.latestRequestFy, currentCycleFy)
+            : null;
+        const enactedClaimRow =
+          rest.latestEnacted != null || rest.latestEnactedFy != null
+            ? enactedClaim(rest.latestEnacted, rest.latestEnactedFy, currentCycleFy)
+            : null;
+        const requestAtEnactedClaimRow =
+          rest.requestAtEnactedFy != null && rest.latestEnactedFy != null
+            ? requestClaim(rest.requestAtEnactedFy, rest.latestEnactedFy, currentCycleFy)
+            : null;
+        const deltaPctClaimSafe = listEnactedVsRequestDeltaPct({
+          latestEnacted: rest.latestEnacted,
+          latestEnactedFy: rest.latestEnactedFy,
+          requestAtEnactedFy: rest.requestAtEnactedFy,
+        });
+        return {
+          ...rest,
+          // Matched-pair only. Do not reintroduce bare latestRequest as %.
+          // Do not null a correct ler-based % merely because latestRequestFy differs.
+          deltaPct: deltaPctClaimSafe,
+          currentClaim,
+          requestClaim: requestClaimRow,
+          enactedClaim: enactedClaimRow,
+          requestAtEnactedClaim: requestAtEnactedClaimRow,
+          // Explicit comparable pair for consumers (same FY). Null base → no %.
+          comparableEnactedVsRequest:
+            rest.latestEnactedFy != null &&
+            rest.latestEnacted != null &&
+            rest.requestAtEnactedFy != null
+              ? {
+                  fiscalYear: rest.latestEnactedFy,
+                  enacted: rest.latestEnacted,
+                  request: rest.requestAtEnactedFy,
+                  deltaPct: deltaPctClaimSafe,
+                }
+              : null,
+        };
+      }),
       total,
       page,
       limit,
@@ -385,10 +469,16 @@ export class ProgramElementReadService {
       sascMark: number | null;
       hacDMark: number | null;
       sacDMark: number | null;
+      /** Max within-track chamber span % — never blends auth with approps. */
       divergencePct: number;
+      authDivergencePct: number;
+      appropsDivergencePct: number;
+      divergenceTrack: 'authorization' | 'appropriations' | null;
       totalCount: number;
     };
 
+    // Per-track divergence only (HASC↔SASC | HAC-D↔SAC-D). Cross-track
+    // GREATEST/LEAST is forbidden (Phase G gate / review B1).
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.$queryRaw<MarkupMonitorRow[]>(Prisma.sql`
         WITH watched AS (
@@ -396,8 +486,15 @@ export class ProgramElementReadService {
           FROM program_element_watch pew
           WHERE pew.tenant_id = ${ctx.tenantId}::uuid
         ),
+        pe_cycle AS (
+          -- Mark-bearing / NDAA-aware cycle FY per PE (not bare MAX(fy)).
+          SELECT pey.pe_code, ${Prisma.raw(sqlCurrentCycleFyExpr('pey'))} AS cycle_fy
+          FROM program_element_year pey
+          JOIN watched w ON w.pe_code = pey.pe_code
+          GROUP BY pey.pe_code
+        ),
         current_cycle AS (
-          SELECT DISTINCT ON (pey.pe_code)
+          SELECT
             pey.pe_code,
             pey.fy,
             pey.request,
@@ -406,8 +503,7 @@ export class ProgramElementReadService {
             pey.hac_d_mark,
             pey.sac_d_mark
           FROM program_element_year pey
-          JOIN watched w ON w.pe_code = pey.pe_code
-          ORDER BY pey.pe_code, pey.fy DESC
+          JOIN pe_cycle c ON c.pe_code = pey.pe_code AND pey.fy = c.cycle_fy
         ),
         enriched AS (
           SELECT
@@ -420,29 +516,61 @@ export class ProgramElementReadService {
             cc.hac_d_mark::double precision AS "hacDMark",
             cc.sac_d_mark::double precision AS "sacDMark",
             CASE
-              WHEN cc.request IS NULL OR cc.request = 0 THEN 0
+              WHEN cc.request IS NULL OR cc.request = 0 THEN 0::double precision
               ELSE (
                 (
                   GREATEST(
                     COALESCE(cc.hasc_mark, cc.request),
-                    COALESCE(cc.sasc_mark, cc.request),
+                    COALESCE(cc.sasc_mark, cc.request)
+                  )
+                  -
+                  LEAST(
+                    COALESCE(cc.hasc_mark, cc.request),
+                    COALESCE(cc.sasc_mark, cc.request)
+                  )
+                ) / cc.request::double precision
+              ) * 100
+            END AS "authDivergencePct",
+            CASE
+              WHEN cc.request IS NULL OR cc.request = 0 THEN 0::double precision
+              ELSE (
+                (
+                  GREATEST(
                     COALESCE(cc.hac_d_mark, cc.request),
                     COALESCE(cc.sac_d_mark, cc.request)
                   )
                   -
                   LEAST(
-                    COALESCE(cc.hasc_mark, cc.request),
-                    COALESCE(cc.sasc_mark, cc.request),
                     COALESCE(cc.hac_d_mark, cc.request),
                     COALESCE(cc.sac_d_mark, cc.request)
                   )
                 ) / cc.request::double precision
               ) * 100
-            END AS "divergencePct"
+            END AS "appropsDivergencePct"
           FROM current_cycle cc
           JOIN program_element pe ON pe.pe_code = cc.pe_code
           WHERE pe.retired_at IS NULL
             AND (${service ? Prisma.sql`pe.service ILIKE ${service}` : Prisma.sql`TRUE`})
+        ),
+        scored AS (
+          SELECT
+            "peCode",
+            title,
+            service,
+            request,
+            "hascMark",
+            "sascMark",
+            "hacDMark",
+            "sacDMark",
+            "authDivergencePct",
+            "appropsDivergencePct",
+            GREATEST("authDivergencePct", "appropsDivergencePct") AS "divergencePct",
+            CASE
+              WHEN GREATEST("authDivergencePct", "appropsDivergencePct") <= 0 THEN NULL
+              WHEN "authDivergencePct" >= "appropsDivergencePct" THEN 'authorization'
+              ELSE 'appropriations'
+            END AS "divergenceTrack"
+          FROM enriched
         )
         SELECT
           "peCode",
@@ -454,8 +582,11 @@ export class ProgramElementReadService {
           "hacDMark",
           "sacDMark",
           "divergencePct",
+          "authDivergencePct",
+          "appropsDivergencePct",
+          "divergenceTrack",
           COUNT(*) OVER()::int AS "totalCount"
-        FROM enriched
+        FROM scored
         WHERE "divergencePct" >= ${divergenceThreshold}
         ORDER BY "divergencePct" DESC, "peCode" ASC
       `),
@@ -463,7 +594,23 @@ export class ProgramElementReadService {
 
     const total = rows[0]?.totalCount ?? 0;
     return {
-      data: rows.map(({ totalCount: _ignored, ...rest }) => rest),
+      data: rows.map(({ totalCount: _ignored, ...rest }) => {
+        // Re-assert track separation in TS so a bad SQL path cannot blend tracks.
+        const track = markupMonitorTrackDivergence({
+          request: rest.request,
+          hascMark: rest.hascMark,
+          sascMark: rest.sascMark,
+          hacDMark: rest.hacDMark,
+          sacDMark: rest.sacDMark,
+        });
+        return {
+          ...rest,
+          authDivergencePct: track.authDivergencePct,
+          appropsDivergencePct: track.appropsDivergencePct,
+          divergencePct: track.divergencePct,
+          divergenceTrack: track.divergenceTrack,
+        };
+      }),
       total,
       page: 1,
       limit: rows.length,
@@ -531,28 +678,32 @@ export class ProgramElementReadService {
           totalRequest: number | null;
           totalEnacted: number | null;
           avgDeltaPct: number | null;
+          populationSize: number | null;
+          contributedPairs: number | null;
         }>
       >(Prisma.sql`
         SELECT
-          COALESCE(SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0), 0)::double precision AS "totalRequest",
-          COALESCE(SUM(le.enacted) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0), 0)::double precision AS "totalEnacted",
+          COALESCE(SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL), 0)::double precision AS "totalRequest",
+          COALESCE(SUM(le.enacted) FILTER (WHERE ler.request IS NOT NULL AND le.enacted IS NOT NULL), 0)::double precision AS "totalEnacted",
           (
             CASE
-              WHEN SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0) > 0
+              WHEN SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND le.enacted IS NOT NULL) <> 0
               THEN (
                 (
-                  SUM(le.enacted) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0)
-                  - SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0)
+                  SUM(le.enacted) FILTER (WHERE ler.request IS NOT NULL AND le.enacted IS NOT NULL)
+                  - SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND le.enacted IS NOT NULL)
                 )
-                / SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND ler.request <> 0)
+                / SUM(ler.request) FILTER (WHERE ler.request IS NOT NULL AND le.enacted IS NOT NULL)
               ) * 100
               ELSE NULL
             END
-          )::double precision AS "avgDeltaPct"
+          )::double precision AS "avgDeltaPct",
+          COUNT(*) FILTER (WHERE pe.retired_at IS NULL)::int AS "populationSize",
+          COUNT(*) FILTER (WHERE ler.request IS NOT NULL AND le.enacted IS NOT NULL)::int AS "contributedPairs"
         FROM program_element pe
         LEFT JOIN LATERAL (
           SELECT y.enacted, y.fy FROM program_element_year y
-          WHERE y.pe_code = pe.pe_code AND y.enacted IS NOT NULL AND y.enacted <> 0
+          WHERE y.pe_code = pe.pe_code AND y.enacted IS NOT NULL
           ORDER BY y.fy DESC LIMIT 1
         ) le ON TRUE
         LEFT JOIN LATERAL (
@@ -590,12 +741,15 @@ export class ProgramElementReadService {
       watched = wr[0]?.count ?? 0;
     }
 
+    const populationSize = moneyRows[0]?.populationSize ?? trackedRows[0]?.tracked ?? 0;
+    const contributedPairs = moneyRows[0]?.contributedPairs ?? 0;
     return {
       tracked: trackedRows[0]?.tracked ?? 0,
       withData: trackedRows[0]?.withData ?? 0,
       watched,
       // No single FY tag — each PE's matched pair can fall in a different year (see
-      // the query comment above), so the UI shows plain "aggregate".
+      // the query comment above), so the UI shows plain "aggregate". Cross-FY % is
+      // impossible here because each pair is same-FY by construction; zeros count.
       latestRequestFy: null,
       totalRequest: moneyRows[0]?.totalRequest ?? null,
       latestEnactedFy: null,
@@ -604,6 +758,13 @@ export class ProgramElementReadService {
       openMarkups: markupRows[0]?.count ?? 0,
       trend: trendRows.map((r) => ({ fy: r.fy, total: r.total })),
       byService: byServiceRows.map((r) => ({ service: r.service, count: r.count })),
+      // Phase G — movement KPI coverage over the FULL filtered PE population.
+      movementCoverage: {
+        populationSize,
+        contributedCount: contributedPairs,
+        missingCount: Math.max(0, populationSize - contributedPairs),
+        disclosure: `Matched request/enacted pairs: ${contributedPairs} of ${populationSize} in filtered population`,
+      },
     };
   }
 
@@ -760,7 +921,7 @@ export class ProgramElementReadService {
       this.prisma.$queryRaw<Array<{ fy: number | null }>>(Prisma.sql`
         SELECT fy
         FROM program_element_year
-        WHERE request IS NOT NULL AND request <> 0
+        WHERE request IS NOT NULL
         GROUP BY fy
         ORDER BY COUNT(*) DESC, fy DESC
         LIMIT 1
@@ -787,8 +948,9 @@ export class ProgramElementReadService {
       // authorization/appropriations vehicle + signed vs-request + NDAA
       // conference surfaced separately), from the SAME shared serializer the
       // timeline tool and outreach truth block use. Web ignores this field.
-      // The catalog-wide mode currentCycleFy is set below; the summary uses THIS
-      // PE's own mark-bearing cycle so its outyear tags are correct.
+      // The catalog-wide modeRequest currentCycleFy is set below (separate
+      // catalog signal). PE mark-bearing cycle for fundingSummary MUST match
+      // getTimeline / currentCycleFyPreservingZero incl NDAA (Phase 4 B6).
       // RC9: kept BEFORE the `...programElement` spread (whose `years` array is
       // the bulk of the payload) so a record-safe truncation of an oversized
       // detail keeps the funding summary intact rather than cutting it off the tail.
@@ -796,7 +958,7 @@ export class ProgramElementReadService {
         peCode: programElement.peCode,
         title: programElement.title,
         service: programElement.service,
-        currentCycleFy: currentCycleFyOf(fundingYears),
+        currentCycleFy: currentCycleFyPreservingZero(fundingYears),
         years: fundingYears,
       }),
       ...programElement,
@@ -839,27 +1001,23 @@ export class ProgramElementReadService {
       }),
     ]);
 
-    // The current budget CYCLE = the latest FY that carries a congressional mark
-    // (HASC/SASC/HAC-D/SAC-D/conference). Congress only marks the year currently in
-    // the appropriations process; later FYs in the book are FYDP OUTYEAR
-    // PROJECTIONS (request-only), and earlier FYs are historical/enacted. Without
-    // this label a consumer (human or LLM) can't tell a FY2031 projection from the
-    // live FY2027 request — the exact swap the Boresight analysis made. Falls back
-    // to the latest request-bearing FY when no mark exists yet.
+    // Current budget CYCLE FY via shared helper (zeros + NDAA conference count as
+    // real marks). Congress only marks the year in process; later FYs are FYDP
+    // outyear projections. Omitting ndaaConference previously failed closed-
+    // wrongly: an NDAA-only mark year was labeled outyear (review B3).
     const num = (d: unknown): number | null => (d == null ? null : Number(d));
-    const hasMark = (y: (typeof years)[number]): boolean =>
-      y.hascMark != null ||
-      y.sascMark != null ||
-      y.hacDMark != null ||
-      y.sacDMark != null ||
-      y.conference != null;
-    const markFys = years.filter(hasMark).map((y) => y.fy);
-    const requestFys = years.filter((y) => y.request != null).map((y) => y.fy);
-    const currentCycleFy = markFys.length
-      ? Math.max(...markFys)
-      : requestFys.length
-        ? Math.max(...requestFys)
-        : null;
+    const currentCycleFy = currentCycleFyPreservingZero(
+      years.map((y) => ({
+        fy: y.fy,
+        request: num(y.request),
+        hascMark: num(y.hascMark),
+        sascMark: num(y.sascMark),
+        hacDMark: num(y.hacDMark),
+        sacDMark: num(y.sacDMark),
+        conference: num(y.conference),
+        ndaaConference: num(y.ndaaConference),
+      })),
+    );
 
     const yearsWithConferenceProbability = await Promise.all(
       years.map(async (year) => {
@@ -885,6 +1043,18 @@ export class ProgramElementReadService {
               : year.fy === currentCycleFy
                 ? 'current'
                 : 'outyear';
+        const claim = claimForYearLadder(values, year.fy, currentCycleFy);
+        const marks = missingMarksForYear({
+          request: values.request,
+          hascMark: values.hascMark,
+          sascMark: values.sascMark,
+          ndaaConference: num(year.ndaaConference),
+          hacDMark: values.hacDMark,
+          sacDMark: values.sacDMark,
+          conference: values.conference,
+          enacted: values.enacted,
+          processInPlay: cycle === 'current' || cycle === 'historical',
+        });
         return {
           ...year,
           cycle,
@@ -899,6 +1069,10 @@ export class ProgramElementReadService {
             pick.value != null && values.request != null && pick.stage !== 'request'
               ? pick.value - values.request
               : null,
+          // Phase G — shared FundingClaim (value/FY/stage/vehicle/cycle/projection).
+          fundingClaim: claim,
+          // Phase G — missing-mark taxonomy per stage cell (zeros are 'present').
+          missingMarks: marks,
           // GAI-28: `predicted` is a forecast conference DOLLAR amount (in $M),
           // NOT a probability. Exposed under an honest name so no downstream
           // surface (LLM prompt, web, client brief) can read a funding level as a
@@ -1300,12 +1474,35 @@ export class ProgramElementReadService {
         .slice(0, 25);
     }
 
+    const directAwardM = data
+      .filter((r) => r.source === 'direct')
+      .reduce((s, r) => s + (r.amount ?? 0), 0);
+    const directAwardN = data.filter((r) => r.source === 'direct').reduce((s, r) => s + (r.awards ?? 0), 0);
+    const candidateAwardM = data
+      .filter((r) => r.source === 'program')
+      .reduce((s, r) => s + (r.amount ?? 0), 0);
+    const candidateAwardN = data
+      .filter((r) => r.source === 'program')
+      .reduce((s, r) => s + (r.awards ?? 0), 0);
+    const namedPrimeM = namedPrimes.reduce((s, r) => s + (r.totalCostM ?? 0), 0);
     return {
       // Named primes from the budget exhibit (Layer 1) — the primary, precise answer.
       namedPrimes,
       // Award dollar-flow over the last 24 months (Layer 2/3 — direct pe_code,
       // MDAP-program link, or UEI-confirmed R-3 prime via enrich-award-pe-tas).
       data,
+      // Phase G — contractor/performer evidence never collides across classes.
+      evidenceBuckets: partitionContractorEvidence({
+        acceptedDirectAmountM: directAwardM + namedPrimeM,
+        acceptedDirectCount: directAwardN + namedPrimes.length,
+        candidateAmountM: candidateAwardM,
+        candidateCount: candidateAwardN,
+        // Unmatched PE-universe dollars are not inventoried on this endpoint.
+        unmatchedAmountM: 0,
+        unmatchedCount: 0,
+      }),
+      evidenceNote:
+        'accepted_direct = PE-coded awards + R-3 named primes; candidate = MDAP-program-linked awards; unmatched_dollars not inventoried here (fail closed / listed as 0).',
       todo: null,
     };
   }

@@ -1,3 +1,6 @@
+import type { MoneyUnit } from '@capiro/shared/money';
+import type { CanonicalPeYearField, PeSourceAuthority } from './program-element-field-ownership.js';
+
 export interface PeRecordInput {
   peCode: string;
   service?: string | null;
@@ -34,6 +37,20 @@ export interface PeYearInput {
   notes?: string | null;
   rDocSection?: string | null;
   raw?: unknown;
+}
+
+
+export interface PeYearWriteContext {
+  authority: PeSourceAuthority;
+  sourceDocumentId?: string | null;
+  parseJobId?: string | null;
+  pageNumber?: number | null;
+  sourceSpanHash?: string | null;
+  extractorVersion?: string | null;
+  originalValues?: Partial<
+    Record<CanonicalPeYearField, { value: number; unit: MoneyUnit }>
+  >;
+  dataCorrection?: boolean;
 }
 
 export interface PeMilestoneInput {

@@ -44,5 +44,10 @@ describe('embed-backfill watermark helpers (Phase 1)', () => {
     test('any errors downgrade to success_with_errors', () => {
       expect(statusFromCounts({ ...base, inserted: 10, errors: 1 })).toBe('success_with_errors');
     });
+
+    test('incomplete wins over the error count and records partial', () => {
+      expect(statusFromCounts({ ...base, complete: false, errors: 0 })).toBe('partial');
+      expect(statusFromCounts({ ...base, complete: false, errors: 3 })).toBe('partial');
+    });
   });
 });

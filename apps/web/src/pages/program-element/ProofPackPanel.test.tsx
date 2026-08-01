@@ -45,13 +45,15 @@ function src(over: Partial<ProgramElementSourceItem> = {}): ProgramElementSource
 describe('ProofPackPanel', () => {
   beforeAll(setupAntdBrowserMocks);
 
-  it('renders citations with an open-at-page deep link + fingerprint badge', () => {
-    render(<ProofPackPanel sources={[src()]} />);
-    expect(screen.getByText('R-2A')).toBeInTheDocument();
-    const link = screen.getByRole('link', { name: 'Open at page' });
-    expect(link).toHaveAttribute('href', 'http://x/r2a.pdf#page=42');
-    expect(screen.getByText('fingerprinted')).toBeInTheDocument();
-  });
+  it('renders citations with an open-at-page deep link + honest fingerprint badge', () => {
+      render(<ProofPackPanel sources={[src()]} />);
+      expect(screen.getByText('R-2A')).toBeInTheDocument();
+      const link = screen.getByRole('link', { name: 'Open at page' });
+      expect(link).toHaveAttribute('href', 'http://x/r2a.pdf#page=42');
+      expect(screen.getByTestId('pe-proof-fingerprint')).toHaveTextContent(/sha256 /i);
+      expect(screen.queryByText('fingerprinted')).toBeNull();
+      expect(screen.getByText(/ingested source bytes only/i)).toBeInTheDocument();
+    });
 
   it('shows an honest empty state when there are no citations', () => {
     render(<ProofPackPanel sources={[]} />);
