@@ -2,6 +2,7 @@ import type { AuditFinding } from '../grounding/auditor';
 import type { ClaimLedger } from './claim-ledger';
 import type { DomainEvidencePlan } from './evidence-plan';
 import { buildAssuranceEnvelope, type AssuranceEnvelope } from './envelope';
+import { emitAssuranceGateControlMetrics } from './control-metrics';
 
 export type AssuranceSurface =
   | 'chat'
@@ -228,6 +229,13 @@ export function evaluateAssuranceRelease(input: AssuranceGateInput): AssuranceGa
     findings,
     gate: core,
   });
+
+  emitAssuranceGateControlMetrics({
+    decision,
+    claimCount: input.ledger.claims.length,
+    unsupportedHighRiskClaimCount: input.ledger.highRiskUnsupportedClaimIds.length,
+  });
+
   return { ...core, envelope };
 }
 
