@@ -12,6 +12,7 @@ import {
   runWithContextPersistenceBoundary,
 } from './context-persistence-hold.js';
 import { runWithGenerationAssuranceTenant } from './generation-assurance.js';
+import { assertSingleGeneratedSectionRelease } from './single-section-assurance.js';
 
 export class GenerateSectionDto {
   @IsString() @MinLength(1) section!: string;
@@ -54,6 +55,10 @@ export class GenerationController {
           dto.section,
           ctx.clerkUserId,
         );
+        // The standalone endpoint returns generated prose directly instead of
+        // entering generate-all's per-section persistence gate. Apply that same
+        // tenant-aware claim decision before any high-risk section leaves the API.
+        assertSingleGeneratedSectionRelease(result);
         // generateSection returns content directly instead of writing ws_draft, so the
         // Prisma middleware cannot enforce this boundary. Consume the same request-local
         // hold before the response leaves the service.
