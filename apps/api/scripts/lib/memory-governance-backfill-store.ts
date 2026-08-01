@@ -92,13 +92,48 @@ interface StoredRow {
   rollbackStatus: string;
 }
 
+/**
+ * Map a legacy row onto the canonical MEMORY_SOURCE_TYPES vocabulary.
+ *
+ * Only values in @capiro/meriv2-core MEMORY_SOURCE_TYPES may be returned; the
+ * classifier quarantines anything that resolves to 'unknown' without a
+ * source_ref, so an unmapped production source makes the whole cohort
+ * unclassifiable. The live capiro-dev corpus is dominated by three legacy
+ * sources that the original type/slug rules never covered:
+ *
+ *   graph-email     (13057 rows, type=thread,       provenance=ingest@1)
+ *   meeting-service (1723 rows,  type=meeting,      provenance=ingest@1)
+ *   manual          (947 rows,   type=note,         provenance=human)
+ *   meri            (334 rows,   type=meri-session, provenance=ingest@1)
+ *   ingest          (80 rows,    type=client-hub,   provenance=ingest@1)
+ *
+ * Each maps to the vocabulary entry that describes what the row actually is,
+ * never to a new value:
+ *   - graph-email is a synced mail thread, i.e. an external primary source, not
+ *     firm-authored guidance.
+ *   - meeting-service rows are the same confirmed meeting outcomes the legacy
+ *     'meeting' source already claimed.
+ *   - human-authored notes are user messages; they are NOT approved document
+ *     edits, which imply the Settings review path.
+ *   - meri sessions are steward extractions produced by the assistant.
+ *   - the generic 'ingest' pipeline is a legacy projection.
+ *
+ * Type/slug rules are checked first so an explicitly typed row (playbook,
+ * firm-*, client-*, user-*, clio: slugs) keeps its stronger classification.
+ */
 function sourceTypeFor(row: LegacyRow): string {
   if (row.type === 'playbook' || row.type.startsWith('firm-')) return 'firm_playbook';
   if (row.type.startsWith('client-')) return 'client_record';
   if (row.type.startsWith('user-')) return 'user_message';
   if (row.slug.startsWith('clio:')) return 'legacy_projection';
-  if (row.source === 'meeting') return 'confirmed_meeting_outcome';
+  if (row.source === 'meeting' || row.source === 'meeting-service') {
+    return 'confirmed_meeting_outcome';
+  }
   if (row.source === 'crm' || row.source === 'client') return 'crm_record';
+  if (row.source === 'graph-email') return 'external_primary_source';
+  if (row.source === 'manual' && row.provenance === 'human') return 'user_message';
+  if (row.source === 'meri') return 'steward_extraction';
+  if (row.source === 'ingest') return 'legacy_projection';
   return 'unknown';
 }
 
