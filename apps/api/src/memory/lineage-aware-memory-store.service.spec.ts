@@ -55,10 +55,16 @@ function item(overrides: Partial<MemoryItem> = {}): MemoryItem {
   };
 }
 
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => {
+  delete process.env.MEMORY_GOVERNANCE_LIFECYCLE;
+  delete process.env.MEMORY_GOVERNANCE_TENANTS;
+  jest.restoreAllMocks();
+});
 
 describe('LineageAwareMemoryStoreService', () => {
   it('resolves the stable catalog slug to the active immutable descendant', async () => {
+    process.env.MEMORY_GOVERNANCE_LIFECYCLE = 'enforce';
+    process.env.MEMORY_GOVERNANCE_TENANTS = ctx.tenantId;
     const active = item({
       id: '44444444-4444-4444-8444-444444444444',
       slug: 'firm--version-candidate',
@@ -94,5 +100,27 @@ describe('LineageAwareMemoryStoreService', () => {
     const resolved = await service.getByTypeSlug('firm-soul', 'firm');
     expect(resolved?.id).toBe(active.id);
     expect(resolved?.sections[0]?.body).toBe('Current.');
+  });
+
+  it('returns the inherited value unchanged while the tenant is dark', async () => {
+    process.env.MEMORY_GOVERNANCE_LIFECYCLE = 'enforce';
+    process.env.MEMORY_GOVERNANCE_TENANTS = 'other-tenant';
+    const direct = item();
+    const inherited = jest
+      .spyOn(GovernedMemoryStoreService.prototype, 'getByTypeSlug')
+      .mockResolvedValue(direct);
+    const prisma = { withTenantUser: jest.fn() } as unknown as PrismaService;
+    const service = new LineageAwareMemoryStoreService(
+      prisma,
+      { require: () => ctx } as TenantContextStore,
+      {} as MemoryAuthorizationService,
+      {} as MemoryTransitionAuditService,
+      {} as MemoryCleanupOutboxService,
+      {} as ImmutableMemoryVersionService,
+    );
+
+    await expect(service.getByTypeSlug('firm-soul', 'firm')).resolves.toBe(direct);
+    expect(inherited).toHaveBeenCalledTimes(1);
+    expect((prisma as unknown as { withTenantUser: jest.Mock }).withTenantUser).not.toHaveBeenCalled();
   });
 });
