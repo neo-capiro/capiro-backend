@@ -1,28 +1,18 @@
 import { useMemo, useState } from 'react';
 import { Empty, Skeleton } from 'antd';
 import { CaretDownOutlined, CaretUpOutlined } from '@ant-design/icons';
-import { Sparkline, fmtMoneyM } from './charts/index.js';
+import { fmtMoneyM } from './charts/index.js';
 import {
   ActionSignalChip,
-  LineTypeBadge,
-  MaturityMini,
   PeCodeBadge,
   ServiceCell,
   SignalPill,
-  TierBadge,
-  WatchStar,
 } from './pe-shared.js';
 import type { ProgramElementListItem } from './types.js';
 import { STAGE_LABEL, type FundingStage } from './funding-model.js';
 
-type SortKey =
-  | 'peCode'
-  | 'service'
-  | 'latestRequest'
-  | 'latestCurrent'
-  | 'deltaPct'
-  | 'maturity'
-  | 'appropScore';
+type SortKey = 'peCode' | 'title' | 'service' | 'latestCurrent' | 'deltaPct' | 'billCount';
+
 interface SortState {
   key: SortKey | null;
   dir: 'asc' | 'desc';
@@ -39,207 +29,214 @@ interface Props {
 function compare(a: ProgramElementListItem, b: ProgramElementListItem, key: SortKey): number {
   const av = a[key];
   const bv = b[key];
-  // Nulls always sort last (independent of direction).
-  const an = av == null;
-  const bn = bv == null;
-  if (an && bn) return 0;
-  if (an) return 1;
-  if (bn) return -1;
+  const aNull = av == null;
+  const bNull = bv == null;
+  if (aNull && bNull) return 0;
+  if (aNull) return 1;
+  if (bNull) return -1;
   if (typeof av === 'string' && typeof bv === 'string') return av.localeCompare(bv);
-  return (av as number) - (bv as number);
+  return Number(av) - Number(bv);
 }
 
-function MoneyCell({
-  value,
-  fy,
-  stage,
-}: {
-  value: number | null | undefined;
-  fy: number | null | undefined;
-  stage?: string | null;
-}) {
-  if (value == null) return <span className="pe-dash">—</span>;
+function MoneyCell({ row }: { row: ProgramElementListItem }) {
+  if (row.latestCurrent == null) return <span className="pe-rd-dash">—</span>;
   const stageLabel =
-    stage && stage !== 'none' ? (STAGE_LABEL[stage as FundingStage] ?? null) : null;
+    row.latestCurrentStage && row.latestCurrentStage !== 'none'
+      ? STAGE_LABEL[row.latestCurrentStage as FundingStage] ?? row.latestCurrentStage
+      : null;
+  const fy = row.latestCurrentFy ? `FY${String(row.latestCurrentFy).slice(-2)}` : null;
   return (
-    <span className="pe-money-cell">
-      <span className="pe-money-v">{fmtMoneyM(value)}</span>
-      {fy ? <span className="pe-money-fy">FY{String(fy).slice(-2)}</span> : null}
-      {stageLabel ? <span className="pe-money-stage">{stageLabel}</span> : null}
+    <span
+      className="pe-rd-money"
+      title={[fy, stageLabel].filter(Boolean).join(' · ') || undefined}
+    >
+      {fmtMoneyM(row.latestCurrent)}
     </span>
   );
 }
 
-const HEADERS: Array<{
-  key: SortKey | null;
-  label: string;
-  align?: 'r' | 'c';
-}> = [
-  { key: 'peCode', label: 'Budget line' },
-  { key: null, label: 'Type', align: 'c' },
-  { key: 'service', label: 'Service', align: 'c' },
-  { key: 'latestRequest', label: 'Request', align: 'r' },
-  { key: 'latestCurrent', label: 'Current', align: 'r' },
-  { key: 'deltaPct', label: 'Δ vs req', align: 'r' },
-  { key: null, label: '6-yr', align: 'c' },
-  { key: 'maturity', label: 'Maturity', align: 'c' },
-  { key: 'appropScore', label: 'Approp.', align: 'c' },
-  { key: null, label: 'Signal', align: 'c' },
-  { key: null, label: '', align: 'c' },
+const HEADERS: Array<{ key: SortKey | null; label: string; align?: 'right' }> = [
+  { key: 'peCode', label: 'Code' },
+  { key: 'title', label: 'Title' },
+  { key: 'service', label: 'Service' },
+  { key: 'latestCurrent', label: 'Current', align: 'right' },
+  { key: 'deltaPct', label: 'Δ vs req', align: 'right' },
+  { key: 'billCount', label: 'Bills', align: 'right' },
+  { key: null, label: 'Signal' },
+  { key: null, label: 'Monitor', align: 'right' },
 ];
 
-export function FinderCatalogTable({ rows, loading, onOpen, onToggleWatch, watchBusyCode }: Props) {
+function displayDeltaPct(row: ProgramElementListItem): number | null {
+  if (
+    row.latestCurrent != null &&
+    row.latestRequest != null &&
+    row.latestCurrentFy != null &&
+    row.latestCurrentFy === row.latestRequestFy &&
+    row.latestRequest !== 0
+  ) {
+    return ((row.latestCurrent - row.latestRequest) / Math.abs(row.latestRequest)) * 100;
+  }
+  return row.deltaPct ?? null;
+}
+
+function rowTone(row: ProgramElementListItem): string {
+  const tone = row.actionSignalTone;
+  if (tone === 'critical') return 'is-critical';
+  if (tone === 'notable') return 'is-notable';
+  if (tone === 'info') return 'is-info';
+  const delta = displayDeltaPct(row);
+  if ((delta ?? 0) < 0) return 'is-critical';
+  if ((delta ?? 0) > 0) return 'is-positive';
+  return '';
+}
+
+export function FinderCatalogTable({
+  rows,
+  loading,
+  onOpen,
+  onToggleWatch,
+  watchBusyCode,
+}: Props) {
   const [sort, setSort] = useState<SortState>({ key: null, dir: 'desc' });
 
   const sorted = useMemo(() => {
     if (!sort.key) return rows;
-    const dir = sort.dir === 'asc' ? 1 : -1;
+    const direction = sort.dir === 'asc' ? 1 : -1;
     const key = sort.key;
-    return [...rows].sort((a, b) => {
-      const base = compare(a, b, key);
-      // Keep null-last stable regardless of dir: only flip the sign for real values.
-      const aNull = a[key] == null;
-      const bNull = b[key] == null;
-      if (aNull || bNull) return base;
-      return base * dir;
+    return [...rows].sort((left, right) => {
+      const base = compare(left, right, key);
+      if (left[key] == null || right[key] == null) return base;
+      return base * direction;
     });
   }, [rows, sort]);
 
   const toggleSort = (key: SortKey) =>
-    setSort((prev) =>
-      prev.key === key ? { key, dir: prev.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' },
+    setSort((previous) =>
+      previous.key === key
+        ? { key, dir: previous.dir === 'desc' ? 'asc' : 'desc' }
+        : { key, dir: 'desc' },
     );
 
   return (
-    <div className="pe-idx-table" role="table" aria-label="Program elements">
-      <div className="pe-idx-tr pe-idx-thead" role="row">
-        {HEADERS.map((h, i) =>
-          h.key ? (
-            <button
-              key={i}
-              type="button"
-              className={`pe-th${h.align ? ` ${h.align}` : ''}`}
-              onClick={() => toggleSort(h.key as SortKey)}
-              role="columnheader"
-              aria-sort={
-                sort.key === h.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'
-              }
-            >
-              {h.label}
-              {sort.key === h.key ? (
-                <span className="pe-sort-arrow">
-                  {sort.dir === 'desc' ? <CaretDownOutlined /> : <CaretUpOutlined />}
-                </span>
-              ) : null}
-            </button>
-          ) : (
-            <div key={i} className={`pe-th${h.align ? ` ${h.align}` : ''}`} role="columnheader">
-              {h.label}
+    <div className="pe-rd-table-scroll">
+      <div className="pe-rd-table" role="table" aria-label="Program elements">
+        <div className="pe-rd-table-row pe-rd-table-head" role="row">
+          {HEADERS.map((header, index) =>
+            header.key ? (
+              <button
+                key={header.key}
+                type="button"
+                className={header.align === 'right' ? 'is-right' : ''}
+                onClick={() => toggleSort(header.key as SortKey)}
+                role="columnheader"
+                aria-sort={
+                  sort.key === header.key
+                    ? sort.dir === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                }
+              >
+                {header.label}
+                {sort.key === header.key ? (
+                  sort.dir === 'desc' ? (
+                    <CaretDownOutlined />
+                  ) : (
+                    <CaretUpOutlined />
+                  )
+                ) : null}
+              </button>
+            ) : (
+              <span
+                key={`${header.label}-${index}`}
+                className={header.align === 'right' ? 'is-right' : ''}
+                role="columnheader"
+              >
+                {header.label}
+              </span>
+            ),
+          )}
+        </div>
+
+        {loading ? (
+          [0, 1, 2, 3, 4, 5].map((index) => (
+            <div key={index} className="pe-rd-table-row pe-rd-table-data" role="row">
+              <div className="pe-rd-table-skeleton">
+                <Skeleton active paragraph={false} title={{ width: '100%' }} />
+              </div>
             </div>
-          ),
+          ))
+        ) : sorted.length === 0 ? (
+          <div className="pe-rd-table-empty">
+            <Empty description="No budget lines match this search." />
+          </div>
+        ) : (
+          sorted.map((row) => {
+            const delta = displayDeltaPct(row);
+            const busy = watchBusyCode === row.peCode;
+            return (
+              <div
+                key={row.peCode}
+                className={`pe-rd-table-row pe-rd-table-data ${rowTone(row)}`}
+                role="row"
+                tabIndex={0}
+                onClick={() => onOpen(row.peCode)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onOpen(row.peCode);
+                  }
+                }}
+              >
+                <div role="cell">
+                  <PeCodeBadge code={row.peCode} />
+                </div>
+                <div className="pe-rd-table-title" role="cell" title={row.title}>
+                  {row.title}
+                </div>
+                <div role="cell">
+                  <ServiceCell service={row.service} />
+                </div>
+                <div className="is-right" role="cell">
+                  <MoneyCell row={row} />
+                </div>
+                <div
+                  className={`pe-rd-delta is-right${
+                    delta == null ? '' : delta < 0 ? ' is-down' : delta > 0 ? ' is-up' : ''
+                  }`}
+                  role="cell"
+                >
+                  {delta == null ? '—' : `${delta >= 0 ? '+' : ''}${delta.toFixed(1)}%`}
+                </div>
+                <div className="pe-rd-bills is-right" role="cell">
+                  {row.billCount ?? '—'}
+                </div>
+                <div className="pe-rd-signal-cell" role="cell">
+                  {row.actionSignalType ? (
+                    <ActionSignalChip type={row.actionSignalType} tone={row.actionSignalTone} />
+                  ) : (
+                    <SignalPill item={row} />
+                  )}
+                </div>
+                <div className="is-right" role="cell">
+                  <button
+                    type="button"
+                    className={`pe-rd-monitor-btn${row.watched ? ' is-on' : ''}`}
+                    aria-pressed={Boolean(row.watched)}
+                    disabled={busy}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onToggleWatch(row);
+                    }}
+                  >
+                    {row.watched ? 'Monitoring' : 'Monitor'}
+                  </button>
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
-
-      {loading ? (
-        [0, 1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="pe-idx-tr pe-idx-row" role="row">
-            <div className="pe-td" style={{ gridColumn: '1 / -1' }}>
-              <Skeleton active paragraph={false} title={{ width: '100%' }} />
-            </div>
-          </div>
-        ))
-      ) : sorted.length === 0 ? (
-        <div className="pe-idx-empty">
-          <Empty description="No program elements matched your search" />
-        </div>
-      ) : (
-        sorted.map((pe) => {
-          const trendUp =
-            pe.spark && pe.spark.length > 1 ? pe.spark[pe.spark.length - 1]! >= pe.spark[0]! : true;
-          return (
-            <div
-              key={pe.peCode}
-              className="pe-idx-tr pe-idx-row"
-              role="row"
-              tabIndex={0}
-              onClick={() => onOpen(pe.peCode)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onOpen(pe.peCode);
-                }
-              }}
-            >
-              <div className="pe-td pe-idx-name" role="cell">
-                <PeCodeBadge code={pe.peCode} />
-                <span className="pe-idx-name-t" title={pe.title}>
-                  {pe.title}
-                </span>
-              </div>
-              <div className="pe-td c" role="cell">
-                <LineTypeBadge lineType={pe.lineType} small />
-              </div>
-              <div className="pe-td c" role="cell">
-                <ServiceCell service={pe.service} />
-              </div>
-              <div className="pe-td r" role="cell">
-                <MoneyCell value={pe.latestRequest} fy={pe.latestRequestFy} />
-              </div>
-              <div className="pe-td r pe-strong" role="cell">
-                <MoneyCell
-                  value={pe.latestCurrent}
-                  fy={pe.latestCurrentFy}
-                  stage={pe.latestCurrentStage}
-                />
-              </div>
-              <div
-                className={`pe-td r pe-num ${pe.deltaPct == null ? '' : pe.deltaPct >= 0 ? 'pe-up' : 'pe-down'}`}
-                role="cell"
-              >
-                {pe.deltaPct == null
-                  ? '—'
-                  : `${pe.deltaPct >= 0 ? '+' : ''}${pe.deltaPct.toFixed(1)}%`}
-              </div>
-              <div className="pe-td c pe-spark-cell" role="cell">
-                {pe.spark && pe.spark.length > 1 ? (
-                  <Sparkline
-                    data={pe.spark}
-                    width={80}
-                    height={24}
-                    color={trendUp ? 'var(--accent)' : 'var(--critical)'}
-                  />
-                ) : (
-                  <span className="pe-dash">—</span>
-                )}
-              </div>
-              <div className="pe-td c" role="cell">
-                <MaturityMini value={pe.maturity} />
-              </div>
-              <div className="pe-td c" role="cell">
-                {pe.appropScore != null ? (
-                  <TierBadge tier={pe.appropTier} label={String(pe.appropScore)} />
-                ) : (
-                  <span className="pe-dash">—</span>
-                )}
-              </div>
-              <div className="pe-td c" role="cell">
-                {pe.actionSignalType ? (
-                  <ActionSignalChip type={pe.actionSignalType} tone={pe.actionSignalTone} />
-                ) : (
-                  <SignalPill item={pe} />
-                )}
-              </div>
-              <div className="pe-td c" role="cell">
-                <WatchStar
-                  watched={Boolean(pe.watched)}
-                  busy={watchBusyCode === pe.peCode}
-                  onToggle={() => onToggleWatch(pe)}
-                />
-              </div>
-            </div>
-          );
-        })
-      )}
     </div>
   );
 }
