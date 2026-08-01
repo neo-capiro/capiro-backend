@@ -40,15 +40,26 @@ export function generationAssuranceRolloutMode(
   });
 }
 
-/** Backward-compatible parser retained for focused legacy tests. */
+/**
+ * Backward-compatible call shape for the existing generation service. Because it
+ * has no tenant argument, it can enforce only when the operator explicitly
+ * selects `all` tenants in addition to the global and surface controls. Tenant-
+ * specific canaries use generationAssuranceRolloutMode at tenant-aware call sites.
+ */
 export function generationClaimHoldEnforced(
   raw: string | undefined = process.env.MERI_RELEASE_GATE_SURFACES,
+  globalModeRaw: string | undefined = process.env.MERI_RELEASE_GATE,
+  tenantCanariesRaw: string | undefined = process.env.MERI_RELEASE_GATE_TENANTS,
 ): boolean {
-  const tokens = String(raw ?? '')
-    .split(/[,\s]+/)
-    .map((token) => token.trim().toLowerCase())
-    .filter((token) => token.length > 0);
-  return tokens.includes('all') || tokens.includes('workspace-gen');
+  return (
+    resolveAssuranceRolloutMode({
+      globalModeRaw,
+      tenantCanariesRaw,
+      surfacesRaw: raw,
+      tenantId: '__workspace_global__',
+      surface: 'workspace-gen',
+    }) === 'enforce'
+  );
 }
 
 export interface SectionClaimVerdict {
@@ -98,19 +109,17 @@ function stripHtml(html: string): string {
 /**
  * Per-section release decision over freshly generated content. Findings and PE
  * warnings are attributed at their originating section. A genuinely run-wide
- * outage (for example PE evidence unavailable for the complete run) may still
- * affect every section; one section's bad figure cannot hold its siblings.
+ * outage may still affect every section; one section's bad figure cannot hold its
+ * siblings.
  */
 export function assessGeneratedSectionsForRelease(input: {
   generated: ReadonlyArray<{ section: string; html: string }>;
   sectionCitations?: Record<string, SectionCitation[]>;
-  /** Only genuinely run-wide deterministic findings belong here. */
+  /** Unscoped legacy input. The adapter attributes spans/details where possible. */
   groundingFindings?: readonly AuditFinding[];
-  /** Findings derived from exactly one generated section. */
   sectionGroundingFindings?: Record<string, AuditFinding[]>;
-  /** Only genuinely run-wide structural warnings belong here. */
+  /** Unscoped legacy input. The adapter attributes warning semantics where possible. */
   structuralWarnings?: readonly PeStructuralWarning[];
-  /** Structural warnings derived from exactly one generated section. */
   sectionStructuralWarnings?: Record<string, PeStructuralWarning[]>;
   peEvidenceAvailable?: boolean;
   requestContext?: string;
@@ -120,11 +129,55 @@ export function assessGeneratedSectionsForRelease(input: {
   generatedAt?: string | Date;
 }): GeneratedSectionsAssurance {
   const verdicts: SectionClaimVerdict[] = [];
-  const runFindings = [...(input.groundingFindings ?? [])];
-  const runStructural = [...(input.structuralWarnings ?? [])];
+  const generatedText = new Map(
+    input.generated.map(({ section, html }) => [section, stripHtml(html)] as const),
+  );
+  const legacyFindings = [...(input.groundingFindings ?? [])];
+  const legacyStructural = [...(input.structuralWarnings ?? [])];
+  const attributedFindingSections = new Map<AuditFinding, Set<string>>();
+  for (const finding of legacyFindings) {
+    const matches = new Set<string>();
+    for (const [candidateSection, candidateText] of generatedText) {
+      if (findingBelongsToSection(finding, candidateSection, candidateText)) {
+        matches.add(candidateSection);
+      }
+    }
+    attributedFindingSections.set(finding, matches);
+  }
+  const attributedStructuralSections = new Map<PeStructuralWarning, Set<string>>();
+  for (const warning of legacyStructural) {
+    const matches = new Set<string>();
+    for (const [candidateSection, candidateText] of generatedText) {
+      if (structuralWarningBelongsToSection(warning, candidateText)) {
+        matches.add(candidateSection);
+      }
+    }
+    attributedStructuralSections.set(warning, matches);
+  }
 
-  for (const { section, html } of input.generated) {
-    const text = stripHtml(html);
+  for (const { section } of input.generated) {
+    const text = generatedText.get(section) ?? '';
+    const runFindings = legacyFindings.filter(
+      (finding) => (attributedFindingSections.get(finding)?.size ?? 0) === 0,
+    );
+    const inferredSectionFindings = legacyFindings.filter((finding) =>
+      attributedFindingSections.get(finding)?.has(section),
+    );
+    const sectionFindings = [
+      ...inferredSectionFindings,
+      ...(input.sectionGroundingFindings?.[section] ?? []),
+    ];
+    const runStructural = legacyStructural.filter(
+      (warning) => (attributedStructuralSections.get(warning)?.size ?? 0) === 0,
+    );
+    const inferredSectionStructural = legacyStructural.filter((warning) =>
+      attributedStructuralSections.get(warning)?.has(section),
+    );
+    const sectionStructural = [
+      ...inferredSectionStructural,
+      ...(input.sectionStructuralWarnings?.[section] ?? []),
+    ];
+
     const frame = resolveGovernmentAffairsOperatingFrame({
       request: [input.requestContext ?? '', section, text].filter(Boolean).join('\n'),
       ...(input.clientId ? { explicit: { clientId: input.clientId } } : {}),
@@ -148,8 +201,6 @@ export function assessGeneratedSectionsForRelease(input: {
       citations: citationLikes,
       plan,
     });
-    const sectionFindings = [...(input.sectionGroundingFindings?.[section] ?? [])];
-    const sectionStructural = [...(input.sectionStructuralWarnings?.[section] ?? [])];
     const structuralFindings: AuditFinding[] = [...runStructural, ...sectionStructural].map(
       (warning) => ({
         check: `PE:${warning.code}`,
@@ -213,4 +264,36 @@ export function assessGeneratedSectionsForRelease(input: {
     verdicts,
     heldSections: verdicts.filter((verdict) => verdict.held).map((verdict) => verdict.section),
   };
+}
+
+function findingBelongsToSection(
+  finding: AuditFinding,
+  section: string,
+  sectionText: string,
+): boolean {
+  const normalizedText = sectionText.toLowerCase();
+  const span = String(finding.span ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+  if (span.length >= 12 && normalizedText.includes(span.slice(0, Math.min(span.length, 180)))) {
+    return true;
+  }
+  const quotedSection = `section "${section.toLowerCase()}"`;
+  return finding.detail.toLowerCase().includes(quotedSection);
+}
+
+function structuralWarningBelongsToSection(
+  warning: PeStructuralWarning,
+  sectionText: string,
+): boolean {
+  const text = sectionText.toLowerCase();
+  const hasPe = text.includes(warning.peCode.toLowerCase());
+  switch (warning.code) {
+    case 'rdte_procurement_mismatch':
+      return hasPe && /\b(?:directed procurement|procure|buy|production procurement)\b/i.test(text);
+    case 'capability_mission_mismatch':
+      return hasPe && /\b(?:missile|interceptor|munition|kinetic|warhead|projectile|rocket)\b/i.test(text);
+    case 'primary_vehicle_overclaim':
+      return hasPe && /\bprimary\b/i.test(text);
+    default:
+      return hasPe;
+  }
 }
