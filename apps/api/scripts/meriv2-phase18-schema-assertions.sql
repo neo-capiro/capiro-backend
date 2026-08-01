@@ -117,12 +117,11 @@ BEGIN
     ('memory_candidate_governed_queue_idx'),
     ('memory_access_grant_unique_active'),
     ('memory_cleanup_outbox_idempotency_key'),
-    ('memory_cleanup_outbox_due_idx'),
-    ('memory_cleanup_outbox_stale_lease_idx'),
+    ('memory_cleanup_outbox_worker_due_idx'),
     ('memory_cleanup_outbox_dead_letter_idx'),
     ('compliance_policy_pack_published_unique'),
-    ('memory_governance_backfill_job_tenant_created_idx'),
-    ('memory_governance_backfill_row_job_item_key')
+    ('memory_governance_backfill_job_tenant_time_idx'),
+    ('memory_governance_backfill_row_tenant_item_idx')
   ) AS expected(name)
   WHERE to_regclass(expected.name) IS NULL;
   IF missing IS NOT NULL THEN
