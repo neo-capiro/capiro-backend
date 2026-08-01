@@ -4,6 +4,7 @@ import { PrismaModule } from '../prisma/prisma.module.js';
 import { TenantModule } from '../tenant/tenant.module.js';
 import { MemoryStoreService } from './memory-store.service.js';
 import { GovernedMemoryStoreService } from './governed-memory-store.service.js';
+import { LineageAwareMemoryStoreService } from './lineage-aware-memory-store.service.js';
 import { ImmutableMemoryVersionService } from './immutable-memory-version.service.js';
 import { MemoryFkLoader } from './memory-fk-loader.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
@@ -11,6 +12,8 @@ import { GovernedMemoryIngestService } from './governed-memory-ingest.service.js
 import { MemoryInterviewService } from './memory-interview.service.js';
 import { MemoryCandidateService } from './memory-candidate.service.js';
 import { GovernedMemoryCandidateService } from './governed-memory-candidate.service.js';
+import { SettingsAwareMemoryCandidateService } from './settings-aware-memory-candidate.service.js';
+import { SettingsMemoryVersionCandidateService } from './settings-memory-version-candidate.service.js';
 import { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryAccessGrantService } from './memory-access-grant.service.js';
@@ -41,7 +44,9 @@ import { InternalMemoryController } from './internal-memory.controller.js';
  * the inherited best-effort classes as explicit code rollback paths. Phase 15 adds
  * one dark, administrator-only Governance Center facade over those exact services.
  * The application interceptor carries the verified tenant into the Phase 22
- * `MEMORY_GOVERNANCE_TENANTS` canary without modifying auth middleware.
+ * `MEMORY_GOVERNANCE_TENANTS` canary without modifying auth middleware. The final
+ * store/candidate layers preserve stable Settings identities while routing edits to
+ * existing shared files through immutable reviewed versions.
  */
 @Module({
   imports: [PrismaModule, TenantModule],
@@ -54,16 +59,22 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     InternalMemoryController,
   ],
   providers: [
-    GovernedMemoryStoreService,
-    { provide: MemoryStoreService, useExisting: GovernedMemoryStoreService },
+    LineageAwareMemoryStoreService,
+    { provide: GovernedMemoryStoreService, useExisting: LineageAwareMemoryStoreService },
+    { provide: MemoryStoreService, useExisting: LineageAwareMemoryStoreService },
     ImmutableMemoryVersionService,
     MemoryFkLoader,
     StrictMemoryProjectorService,
     GovernedMemoryIngestService,
     { provide: MemoryIngestService, useExisting: GovernedMemoryIngestService },
     MemoryInterviewService,
-    GovernedMemoryCandidateService,
-    { provide: MemoryCandidateService, useExisting: GovernedMemoryCandidateService },
+    SettingsMemoryVersionCandidateService,
+    SettingsAwareMemoryCandidateService,
+    {
+      provide: GovernedMemoryCandidateService,
+      useExisting: SettingsAwareMemoryCandidateService,
+    },
+    { provide: MemoryCandidateService, useExisting: SettingsAwareMemoryCandidateService },
     MemoryCandidateReviewService,
     MemoryAuthorizationService,
     MemoryAccessGrantService,
