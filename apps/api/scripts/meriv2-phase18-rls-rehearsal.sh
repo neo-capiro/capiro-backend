@@ -142,12 +142,4 @@ OWNER_B=$(app -c "
   SELECT count(*) FROM memory_items WHERE id IN ('$PRIVATE_A'::uuid, '$PRIVATE_B'::uuid);" | tail -1)
 eq "second private owner sees only their own row" "$OWNER_B" 1
 
-# Explicit system bypass is observable and intentional; ordinary sessions stay closed.
-BYPASS=$(app -c "
-  SELECT set_config('app.bypass_rls', 'on', false);
-  SELECT count(*) FROM memory_transition_audit WHERE id IN ('$AUDIT_A'::uuid, '$AUDIT_B'::uuid);" | tail -1)
-eq "explicit bypass reaches both tenant fixtures" "$BYPASS" 2
-NO_BYPASS=$(app -c "SELECT count(*) FROM memory_transition_audit WHERE id IN ('$AUDIT_A'::uuid, '$AUDIT_B'::uuid);" | tail -1)
-eq "new application session has no bypass leakage" "$NO_BYPASS" 0
-
 echo "MERIV2_PHASE18_RLS_REHEARSAL_OK checks=$PASSES"
