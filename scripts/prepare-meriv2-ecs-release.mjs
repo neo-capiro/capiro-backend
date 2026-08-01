@@ -18,7 +18,8 @@ const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = parse(process.argv.slice(2));
 const sha = args.sha;
-if (!/^[0-9a-f]{40}$/i.test(sha ?? '')) throw new Error('--sha must be the exact 40-character release SHA.');
+if (!/^[0-9a-f]{40}$/i.test(sha ?? ''))
+  throw new Error('--sha must be the exact 40-character release SHA.');
 const envName = args.env ?? 'dev';
 const profile = args.profile ?? 'capiro-dev';
 const region = args.region ?? 'us-east-1';
@@ -49,10 +50,7 @@ const definitions = [
     service: `capiro-${envName}-workspace`,
     repository: `capiro/${envName}/workspace`,
     containers: ['workspace'],
-    environment: {
-      ...darkAssuranceEnvironment(),
-      MERIV2_CONTEXT_PACKET_V2: 'off',
-    },
+    environment: darkAssuranceEnvironment(),
   },
   {
     key: 'api-strategy',
@@ -184,7 +182,8 @@ async function describeTask(taskDefinition) {
     '--include',
     'TAGS',
   ]);
-  if (!response.taskDefinition) throw new Error(`Task definition ${taskDefinition} was not found.`);
+  if (!response.taskDefinition)
+    throw new Error(`Task definition ${taskDefinition} was not found.`);
   return { ...response.taskDefinition, tags: response.tags ?? [] };
 }
 
@@ -210,7 +209,9 @@ function prepareTaskDefinition(current, definition, image) {
     'enableFaultInjection',
   ];
   const proposed = Object.fromEntries(
-    allowed.filter((key) => current[key] !== undefined).map((key) => [key, structuredClone(current[key])]),
+    allowed
+      .filter((key) => current[key] !== undefined)
+      .map((key) => [key, structuredClone(current[key])]),
   );
   const containers = proposed.containerDefinitions ?? [];
   const target =
@@ -231,6 +232,7 @@ function replaceEnvironment(existing, intended) {
     'MEMORY_GOVERNANCE_CENTER',
     'MERIV2_CONTEXT_PACKET_V2',
     'MERI_POLICY_PACK_SOURCE',
+    'MERI_POLICY_PACK_TENANTS',
     'MERI_RELEASE_GATE',
     'MERI_RELEASE_GATE_TENANTS',
     'MERI_RELEASE_GATE_SURFACES',
@@ -248,10 +250,17 @@ function replaceEnvironment(existing, intended) {
 
 function darkApiEnvironment() {
   return {
+    MEMORY_GOVERNANCE_LIFECYCLE: 'off',
+    MEMORY_GOVERNANCE_ENFORCE: 'off',
+    MEMORY_CLIENT_REVIEW: 'off',
+    MEMORY_GOVERNANCE_CENTER: 'off',
     MEMORY_AUTOLEARN_GOVERNED: 'false',
     MERIV2_CONTEXT_PACKET_V2: 'off',
     MERI_POLICY_PACK_SOURCE: 'off',
+    MERI_POLICY_PACK_TENANTS: '',
     MERI_RELEASE_GATE: 'off',
+    MERI_RELEASE_GATE_TENANTS: '',
+    MERI_RELEASE_GATE_SURFACES: '',
     MERIV2_CONTROL_METRICS: 'on',
   };
 }
@@ -259,6 +268,8 @@ function darkApiEnvironment() {
 function darkAssuranceEnvironment() {
   return {
     MERI_RELEASE_GATE: 'off',
+    MERI_RELEASE_GATE_TENANTS: '',
+    MERI_RELEASE_GATE_SURFACES: '',
     MERIV2_CONTEXT_PACKET_V2: 'off',
   };
 }
