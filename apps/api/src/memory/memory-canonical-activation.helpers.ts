@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import type { Prisma } from '@prisma/client';
+import { ConflictException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { clioMemorySlug } from './memory-clio-adapter.helpers.js';
 import {
   classifyCandidateForGovernance,
@@ -157,6 +158,12 @@ export function governedClioMetadata(governance: CanonicalGovernance): Record<st
  * Upsert the authoritative governed memory item inside the candidate activation
  * transaction. Graph edges, embeddings and markdown remain outbox-backed
  * projections and are intentionally not generated here.
+ *
+ * A first-time shared Settings file is different from a Clio projection: once
+ * any reviewer creates that catalog identity, every later change must be an
+ * immutable version. Its conflict clause is therefore INSERT-ONLY. This closes
+ * the race where two pending "first-time" proposals both saw no active file and
+ * the second approval replaced the first via ON CONFLICT DO UPDATE.
  */
 export async function upsertCanonicalMemoryItemInTx(
   tx: Prisma.TransactionClient,
@@ -180,6 +187,56 @@ export async function upsertCanonicalMemoryItemInTx(
     typeof record.confidence === 'number' && Number.isFinite(record.confidence)
       ? Math.min(1, Math.max(0, record.confidence))
       : null;
+  const insertOnlySharedCatalog = Boolean(canonicalItem && record.scope !== 'user_private');
+  const conflictClause = insertOnlySharedCatalog
+    ? Prisma.sql`ON CONFLICT (tenant_id, type, slug) DO NOTHING`
+    : Prisma.sql`
+        ON CONFLICT (tenant_id, type, slug) DO UPDATE SET
+          client_id = EXCLUDED.client_id,
+          owner_user_id = EXCLUDED.owner_user_id,
+          visibility = EXCLUDED.visibility,
+          title = EXCLUDED.title,
+          tags = EXCLUDED.tags,
+          source = EXCLUDED.source,
+          source_ref = EXCLUDED.source_ref,
+          provenance = EXCLUDED.provenance,
+          sections_jsonb = EXCLUDED.sections_jsonb,
+          status = 'active',
+          sensitivity = EXCLUDED.sensitivity,
+          expires_at = EXCLUDED.expires_at,
+          confidence = EXCLUDED.confidence,
+          memory_class = EXCLUDED.memory_class,
+          memory_authority = EXCLUDED.memory_authority,
+          memory_scope = EXCLUDED.memory_scope,
+          governed_status = EXCLUDED.governed_status,
+          source_type = EXCLUDED.source_type,
+          source_id = EXCLUDED.source_id,
+          source_excerpt = EXCLUDED.source_excerpt,
+          source_content_hash = EXCLUDED.source_content_hash,
+          source_version = EXCLUDED.source_version,
+          asserted_by_user_id = EXCLUDED.asserted_by_user_id,
+          approved_by_user_id = EXCLUDED.approved_by_user_id,
+          approved_at = EXCLUDED.approved_at,
+          second_approved_by_user_id = EXCLUDED.second_approved_by_user_id,
+          second_approved_at = EXCLUDED.second_approved_at,
+          last_confirmed_at = EXCLUDED.last_confirmed_at,
+          review_state = 'confirmed',
+          review_due_at = EXCLUDED.review_due_at,
+          retention_policy_jsonb = EXCLUDED.retention_policy_jsonb,
+          as_of = EXCLUDED.as_of,
+          effective_from = EXCLUDED.effective_from,
+          valid_until = EXCLUDED.valid_until,
+          conflict_status = EXCLUDED.conflict_status,
+          conflict_group_id = EXCLUDED.conflict_group_id,
+          controlling_item_id = EXCLUDED.controlling_item_id,
+          origin_surface = EXCLUDED.origin_surface,
+          origin_trace_id = EXCLUDED.origin_trace_id,
+          origin_context_packet_id = EXCLUDED.origin_context_packet_id,
+          origin_model = EXCLUDED.origin_model,
+          origin_prompt_version = EXCLUDED.origin_prompt_version,
+          instructions_allowed = EXCLUDED.instructions_allowed,
+          updated_at = now()
+      `;
 
   const rows = await tx.$queryRaw<Array<{ id: string }>>`
     INSERT INTO memory_items (
@@ -198,9 +255,9 @@ export async function upsertCanonicalMemoryItemInTx(
       instructions_allowed
     ) VALUES (
       ${tenantId}::uuid, ${clientId}::uuid, ${ownerUserId}::uuid,
-       ${canonicalType}, ${visibility}, NULL,
-       ${canonicalSlug}, ${canonicalTitle}, ARRAY[]::text[],
-       ARRAY['memory', ${record.source}], 'manual', ${governance.sourceRef}, 'human',
+      ${canonicalType}, ${visibility}, NULL,
+      ${canonicalSlug}, ${canonicalTitle}, ARRAY[]::text[],
+      ARRAY['memory', ${record.source}], 'manual', ${governance.sourceRef}, 'human',
       ${sections}::jsonb, 1, 'active', ${governance.sensitivity}, false,
       true, 'excluded', ${record.expiresAt ?? null}, ${confidence},
       ${governance.memoryClass}, ${governance.memoryAuthority}, ${governance.memoryScope},
@@ -216,54 +273,15 @@ export async function upsertCanonicalMemoryItemInTx(
       ${governance.originModel}, ${governance.originPromptVersion},
       ${governance.instructionsAllowed}
     )
-    ON CONFLICT (tenant_id, type, slug) DO UPDATE SET
-      client_id = EXCLUDED.client_id,
-      owner_user_id = EXCLUDED.owner_user_id,
-      visibility = EXCLUDED.visibility,
-      title = EXCLUDED.title,
-      tags = EXCLUDED.tags,
-      source = EXCLUDED.source,
-      source_ref = EXCLUDED.source_ref,
-      provenance = EXCLUDED.provenance,
-      sections_jsonb = EXCLUDED.sections_jsonb,
-      status = 'active',
-      sensitivity = EXCLUDED.sensitivity,
-      expires_at = EXCLUDED.expires_at,
-      confidence = EXCLUDED.confidence,
-      memory_class = EXCLUDED.memory_class,
-      memory_authority = EXCLUDED.memory_authority,
-      memory_scope = EXCLUDED.memory_scope,
-      governed_status = EXCLUDED.governed_status,
-      source_type = EXCLUDED.source_type,
-      source_id = EXCLUDED.source_id,
-      source_excerpt = EXCLUDED.source_excerpt,
-      source_content_hash = EXCLUDED.source_content_hash,
-      source_version = EXCLUDED.source_version,
-      asserted_by_user_id = EXCLUDED.asserted_by_user_id,
-      approved_by_user_id = EXCLUDED.approved_by_user_id,
-      approved_at = EXCLUDED.approved_at,
-      second_approved_by_user_id = EXCLUDED.second_approved_by_user_id,
-      second_approved_at = EXCLUDED.second_approved_at,
-      last_confirmed_at = EXCLUDED.last_confirmed_at,
-      review_state = 'confirmed',
-      review_due_at = EXCLUDED.review_due_at,
-      retention_policy_jsonb = EXCLUDED.retention_policy_jsonb,
-      as_of = EXCLUDED.as_of,
-      effective_from = EXCLUDED.effective_from,
-      valid_until = EXCLUDED.valid_until,
-      conflict_status = EXCLUDED.conflict_status,
-      conflict_group_id = EXCLUDED.conflict_group_id,
-      controlling_item_id = EXCLUDED.controlling_item_id,
-      origin_surface = EXCLUDED.origin_surface,
-      origin_trace_id = EXCLUDED.origin_trace_id,
-      origin_context_packet_id = EXCLUDED.origin_context_packet_id,
-      origin_model = EXCLUDED.origin_model,
-      origin_prompt_version = EXCLUDED.origin_prompt_version,
-      instructions_allowed = EXCLUDED.instructions_allowed,
-      updated_at = now()
+    ${conflictClause}
     RETURNING id::text AS id
   `;
   const item = rows[0];
+  if (!item && insertOnlySharedCatalog) {
+    throw new ConflictException(
+      'This shared Settings memory was created while the proposal was pending. No content was replaced; reload and submit the change as an immutable correction.',
+    );
+  }
   if (!item) throw new Error('Canonical memory_items activation returned no row.');
   return item.id;
 }
