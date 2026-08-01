@@ -75,8 +75,8 @@ export function ActionBoardPage() {
   return (
     <div className="action-board">
       <div className="action-board-header">
-        <Title level={4} style={{ margin: 0 }}>
-          Action Board
+        <Title level={4} className="action-board-title" style={{ margin: 0 }}>
+          Actions
         </Title>
         <Text type="secondary">
           {list.data?.total != null ? `${list.data.total} action${list.data.total === 1 ? '' : 's'}` : ''}
@@ -91,6 +91,7 @@ export function ActionBoardPage() {
         </Button>
         <Button
           type="primary"
+          className="action-board-generate"
           icon={<ThunderboltOutlined />}
           onClick={handleGenerate}
           loading={generate.isPending}
@@ -104,10 +105,13 @@ export function ActionBoardPage() {
           value={view}
           onChange={(v) => setView(v as ViewMode)}
           options={[
+            { label: 'Board', value: 'kanban' },
             { label: 'List', value: 'list' },
-            { label: 'Kanban', value: 'kanban' },
           ]}
         />
+        <span className="action-board-hint">
+          Board groups by workflow state; list keeps the evidence and recommendation visible.
+        </span>
         {view === 'list' ? (
           <Radio.Group
             size="small"

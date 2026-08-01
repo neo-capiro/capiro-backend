@@ -77,7 +77,7 @@ export function PortfolioProgramElementsSection() {
   return (
     <section id="portfolio-program-elements" className="portfolio-pe-section pe-final-portfolio" aria-labelledby="portfolio-pe-title">
       <div className="portfolio-pe-heading">
-        <div className="portfolio-pe-title-row"><h2 id="portfolio-pe-title">Program elements</h2><span>{total.toLocaleString()}</span></div>
+        <div className="portfolio-pe-title-row"><h2 id="portfolio-pe-title">Program elements</h2><span className="portfolio-pe-count">{total.toLocaleString()}</span></div>
         <div className="portfolio-pe-actions"><button type="button" onClick={() => setAddOpen(true)}>Add program element</button><button type="button" className="is-muted" onClick={() => navigate('/program-elements')}>Browse all</button></div>
       </div>
       <p className="portfolio-pe-description">Monitored lines live here, not in a separate watchlist. Opening a card goes straight to its profile under Program elements.</p>
@@ -116,16 +116,113 @@ function ProgramElementCard({ row, actionCount, actionsLoading, busy, onOpen, on
   const delta = displayDelta(row);
   const fundingRisk = (delta ?? 0) < 0 || row.actionSignalType === 'cut' || row.actionSignalType === 'termination';
   const trendUp = row.spark && row.spark.length > 1 ? row.spark.at(-1)! >= row.spark[0]! : true;
-  return <article className={`portfolio-pe-card${fundingRisk ? ' risk' : actionCount ? ' actions' : ''}`} role="button" tabIndex={0} onClick={onOpen} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(); } }}>
-    <div className="portfolio-pe-card-top"><span className="portfolio-pe-code">{row.peCode}</span>{ba ? <span className="portfolio-pe-ba">BA {ba}</span> : null}<span className="portfolio-pe-spacer" /><button type="button" className="portfolio-pe-remove" title="Stop monitoring" aria-label={`Stop monitoring ${row.peCode}`} disabled={busy} onClick={(event) => { event.stopPropagation(); onRemove(); }}><CloseOutlined /></button></div>
-    <h3>{row.title}</h3>
-    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', minHeight: 22 }}>{fundingRisk ? <span className="pe-final-pill critical">Funding at risk</span> : null}{actionCount ? <span className="pe-final-pill info">{actionCount} open action{actionCount === 1 ? '' : 's'}</span> : null}</div>
-    <div className="portfolio-pe-service"><span style={{ background: serviceColor(row.service) }} />{serviceLabel(row.service)}</div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 9, padding: '7px 8px', background: 'var(--pef-surface-2)', borderRadius: 6, color: 'var(--pef-ink-3)', fontSize: 10 }}><LinkOutlined /> No client linked</div>
-    <div className="portfolio-pe-spark">{row.spark && row.spark.length > 1 ? <Sparkline data={row.spark} width={240} height={44} color={trendUp ? 'var(--accent)' : 'var(--critical)'} strokeWidth={2} /> : <span>Not enough history</span>}</div>
-    <div className="portfolio-pe-metrics"><div><span>Current</span><strong>{row.latestCurrent == null ? '—' : fmtMoneyM(row.latestCurrent)}</strong></div><div><span>Δ vs req</span><strong className={delta == null ? '' : delta < 0 ? 'is-down' : delta > 0 ? 'is-up' : ''}>{delta == null ? '—' : `${delta >= 0 ? '+' : ''}${delta.toFixed(1)}%`}</strong></div><div><span>Actions</span><strong>{actionsLoading ? '—' : actionCount}</strong></div></div>
-    {row.actionSignalType || row.signalType ? <div className="portfolio-pe-signal">{row.actionSignalType ? <ActionSignalChip type={row.actionSignalType} tone={row.actionSignalTone} /> : <SignalPill item={row} />}<span>{relativeTime(row.lastSyncedAt)}</span></div> : <div className="portfolio-pe-signal"><span className="pe-final-pill muted">No recent movement</span></div>}
-  </article>;
+  return (
+    <article
+      className={`portfolio-pe-card${fundingRisk ? ' risk' : actionCount ? ' actions' : ''}`}
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+    >
+      <div className="portfolio-pe-card-top">
+        <span className="portfolio-pe-code">{row.peCode}</span>
+        {ba ? <span className="portfolio-pe-ba">BA {ba}</span> : null}
+        <span className="portfolio-pe-spacer" />
+        <button
+          type="button"
+          className="portfolio-pe-remove"
+          title="Stop monitoring"
+          aria-label={`Stop monitoring ${row.peCode}`}
+          disabled={busy}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove();
+          }}
+        >
+          <CloseOutlined />
+        </button>
+      </div>
+      <h3>{row.title}</h3>
+      <div className="portfolio-pe-states">
+        {fundingRisk ? <span className="pe-final-pill critical">Funding at risk</span> : null}
+        {actionCount ? (
+          <span className="pe-final-pill info">
+            {actionCount} open action{actionCount === 1 ? '' : 's'}
+          </span>
+        ) : null}
+      </div>
+      <div className="portfolio-pe-service">
+        <span style={{ background: serviceColor(row.service) }} />
+        {serviceLabel(row.service)}
+      </div>
+      <div className="portfolio-pe-client">
+        <LinkOutlined />
+        <span className="portfolio-pe-client-label">No client linked</span>
+        <button
+          type="button"
+          className="portfolio-pe-client-link"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen();
+          }}
+        >
+          Link
+        </button>
+      </div>
+      <div className="portfolio-pe-spark">
+        {row.spark && row.spark.length > 1 ? (
+          <Sparkline
+            data={row.spark}
+            width={240}
+            height={44}
+            color={trendUp ? 'var(--pef-accent)' : 'var(--pef-critical)'}
+            strokeWidth={2}
+          />
+        ) : (
+          <span>Not enough history</span>
+        )}
+      </div>
+      <div className="portfolio-pe-metrics">
+        <div>
+          <span>Current</span>
+          <strong>{row.latestCurrent == null ? '—' : fmtMoneyM(row.latestCurrent)}</strong>
+        </div>
+        <div>
+          <span>Δ vs req</span>
+          <strong
+            className={
+              delta == null ? '' : delta < 0 ? 'is-down' : delta > 0 ? 'is-up' : ''
+            }
+          >
+            {delta == null ? '—' : `${delta >= 0 ? '+' : ''}${delta.toFixed(1)}%`}
+          </strong>
+        </div>
+        <div>
+          <span>Actions</span>
+          <strong>{actionsLoading ? '—' : actionCount}</strong>
+        </div>
+      </div>
+      {row.actionSignalType || row.signalType ? (
+        <div className="portfolio-pe-signal">
+          {row.actionSignalType ? (
+            <ActionSignalChip type={row.actionSignalType} tone={row.actionSignalTone} />
+          ) : (
+            <SignalPill item={row} />
+          )}
+          <span>{relativeTime(row.lastSyncedAt)}</span>
+        </div>
+      ) : (
+        <div className="portfolio-pe-signal">
+          <span className="pe-final-pill muted">No recent movement</span>
+        </div>
+      )}
+    </article>
+  );
 }
 function displayDelta(row: ProgramElementListItem): number | null {
   if (row.latestCurrent != null && row.latestRequest != null && row.latestCurrentFy != null && row.latestCurrentFy === row.latestRequestFy && row.latestRequest !== 0) return ((row.latestCurrent - row.latestRequest) / Math.abs(row.latestRequest)) * 100;

@@ -1,6 +1,5 @@
 import { Alert, Button, Modal, message } from 'antd';
 import {
-  ArrowLeftOutlined,
   BellFilled,
   BellOutlined,
   DownloadOutlined,
@@ -87,14 +86,13 @@ export function ProgramElementProfileFinalPage() {
       className="pe-watch-page pe-final pe-final-profile"
       data-testid="pe-state-complete"
     >
-      <button
-        className="pe-final-breadcrumb"
-        type="button"
-        onClick={() => navigate('/program-elements')}
-      >
-        <ArrowLeftOutlined /> Program elements <span>›</span>{' '}
-        <b>{detail.peCode}</b>
-      </button>
+      <nav className="pe-final-breadcrumb" aria-label="Breadcrumb">
+        <button type="button" onClick={() => navigate('/program-elements')}>
+          Program elements
+        </button>
+        <span>›</span>
+        <b className="mono">{detail.peCode}</b>
+      </nav>
 
       <div className="pe-final-profile-hero">
         <div className="pe-final-profile-top">
@@ -126,7 +124,7 @@ export function ProgramElementProfileFinalPage() {
 
           <div className="pe-final-profile-actions">
             <button
-              className={`pe-final-btn${
+              className={`pe-final-btn pe-final-monitor${
                 detail.currentUserIsWatching ? ' monitoring' : ''
               }`}
               type="button"
@@ -150,71 +148,75 @@ export function ProgramElementProfileFinalPage() {
               {detail.currentUserIsWatching ? <BellFilled /> : <BellOutlined />}
               {detail.currentUserIsWatching ? 'Monitoring' : 'Monitor'}
             </button>
-            <button
-              className="pe-final-btn"
-              type="button"
-              onClick={() => navigate('/clients?section=program-elements')}
-            >
-              <LinkOutlined />
-              {clients[0] ? `Client: ${clients[0].clientName}` : 'Link client'}
-            </button>
-            <button
-              className="pe-final-btn"
-              type="button"
-              onClick={() => navigate(`/actions?peCode=${encodeURIComponent(code)}`)}
-            >
-              <PlusOutlined /> New action
-            </button>
-            <button
-              className="pe-final-btn"
-              type="button"
-              onClick={() => setAlertsOpen(true)}
-            >
-              Alerts
-            </button>
-            <div className="pe-final-menu-wrap">
+            <div className="pe-final-profile-action-row">
               <button
                 className="pe-final-btn"
                 type="button"
-                aria-expanded={exportOpen}
-                onClick={() => setExportOpen((open) => !open)}
+                onClick={() => navigate('/clients?section=program-elements')}
               >
-                <DownloadOutlined /> Export
+                <LinkOutlined />
+                {clients[0] ? clients[0].clientName : 'Link client'}
               </button>
-              {exportOpen ? (
-                <div className="pe-final-menu">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      exportProfile();
-                      setExportOpen(false);
-                    }}
-                  >
-                    <span>
-                      <strong>Profile CSV</strong>
-                      <small>Identity, funding headline, and coverage fields</small>
-                    </span>
-                  </button>
-                  <button type="button" disabled>
-                    <span>
-                      <strong>Profile brief PDF</strong>
-                      <small>Not supported by the current export handler</small>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setExportOpen(false);
-                      setActiveSection('sources');
-                    }}
-                  >
-                    <span>
-                      <strong>Source package</strong>
-                      <small>Open Sources &amp; coverage</small>
-                    </span>
-                  </button>
-                </div>
-              ) : null}
+              <button
+                className="pe-final-btn"
+                type="button"
+                onClick={() => navigate(`/actions?peCode=${encodeURIComponent(code)}`)}
+              >
+                <PlusOutlined /> New action
+              </button>
+            </div>
+            <div className="pe-final-profile-action-row">
+              <button
+                className="pe-final-btn"
+                type="button"
+                onClick={() => setAlertsOpen(true)}
+              >
+                Alerts
+              </button>
+              <div className="pe-final-menu-wrap">
+                <button
+                  className="pe-final-btn"
+                  type="button"
+                  aria-expanded={exportOpen}
+                  onClick={() => setExportOpen((open) => !open)}
+                >
+                  <DownloadOutlined /> Export
+                </button>
+                {exportOpen ? (
+                  <div className="pe-final-menu">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        exportProfile();
+                        setExportOpen(false);
+                      }}
+                    >
+                      <span>
+                        <strong>Profile CSV</strong>
+                        <small>Identity, funding headline, and coverage fields</small>
+                      </span>
+                    </button>
+                    <button type="button" disabled>
+                      <span>
+                        <strong>Profile brief PDF</strong>
+                        <small>Not supported by the current export handler</small>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExportOpen(false);
+                        setActiveSection('sources');
+                      }}
+                    >
+                      <span>
+                        <strong>Source package</strong>
+                        <small>Open Sources & coverage</small>
+                      </span>
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
