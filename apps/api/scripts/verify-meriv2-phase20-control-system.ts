@@ -2,12 +2,13 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   MERIV2_CONTROL_METRIC_NAMES,
   buildMeriV2ControlMetricEnvelope,
 } from '@capiro/meriv2-core';
 
-const ROOT = path.resolve(import.meta.dirname, '../../..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
 async function text(relative: string): Promise<string> {
   return readFile(path.join(ROOT, relative), 'utf8');
