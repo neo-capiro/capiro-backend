@@ -4,6 +4,7 @@ export * from './claim-ledger';
 export * from './tool-ledger-adapter';
 export * from './checks';
 export * from './risk-gate';
+export * from './envelope';
 export * from './recommendation';
 export * from './policy-pack';
 export * from './eval-gate';
