@@ -1,28 +1,42 @@
 import { describe, expect, it } from '@jest/globals';
-import { generationReleaseHoldEnforced } from './execution-assurance.js';
+import {
+  generationReleaseHoldEnforced,
+  generationReleaseModeForTenant,
+} from './execution-assurance.js';
 
-/**
- * Strategy execution classifies as an external client-facing surface, so
- * `assessGeneratedDocumentForRelease` holds any generation lacking OK context
- * health or per-section provenance. That assessment is correct but strict, so the
- * withholding half must stay dark until it is armed deliberately — otherwise
- * deploying turns ordinary Workspace/Outreach generations into `generation_held`.
- */
-describe('generationReleaseHoldEnforced', () => {
-  it('is off when unset so a deploy cannot start withholding artifacts', () => {
-    expect(generationReleaseHoldEnforced(undefined)).toBe(false);
-    expect(generationReleaseHoldEnforced('')).toBe(false);
-    expect(generationReleaseHoldEnforced('   ')).toBe(false);
+describe('Phase 16 strategy artifact rollout', () => {
+  it('is off when any legacy all-tenant control is absent', () => {
+    expect(generationReleaseHoldEnforced(undefined, 'all', 'all')).toBe(false);
+    expect(generationReleaseHoldEnforced('enforce', undefined, 'all')).toBe(false);
+    expect(generationReleaseHoldEnforced('enforce', 'all', undefined)).toBe(false);
   });
 
-  it('arms only on an explicit enforce value', () => {
-    expect(generationReleaseHoldEnforced('enforce')).toBe(true);
-    expect(generationReleaseHoldEnforced(' Enforce ')).toBe(true);
+  it('legacy staging can enforce only through exact global, all-tenant, all-surface controls', () => {
+    expect(generationReleaseHoldEnforced('enforce', 'all', 'all')).toBe(true);
+    expect(generationReleaseHoldEnforced(' Enforce ', ' all ', ' all ')).toBe(true);
+    expect(generationReleaseHoldEnforced('shadow', 'all', 'all')).toBe(false);
+    expect(generationReleaseHoldEnforced('enforce', 'tenant-a', 'all')).toBe(false);
+    expect(generationReleaseHoldEnforced('enforce', 'all', 'strategy')).toBe(false);
+  });
+
+  it('tenant-aware resolver supports independent strategy and outreach canaries', () => {
+    expect(
+      generationReleaseModeForTenant('tenant-a', 'strategy', 'shadow', 'tenant-a', 'strategy'),
+    ).toBe('shadow');
+    expect(
+      generationReleaseModeForTenant('tenant-a', 'outreach', 'enforce', 'tenant-a', 'outreach'),
+    ).toBe('enforce');
+    expect(
+      generationReleaseModeForTenant('tenant-b', 'strategy', 'enforce', 'tenant-a', 'strategy'),
+    ).toBe('off');
+    expect(
+      generationReleaseModeForTenant('tenant-a', 'outreach', 'enforce', 'tenant-a', 'strategy'),
+    ).toBe('off');
   });
 
   it('fails safe on truthy-looking or near-miss values', () => {
     for (const raw of ['on', 'true', '1', 'yes', 'annotate', 'enforced']) {
-      expect(generationReleaseHoldEnforced(raw)).toBe(false);
+      expect(generationReleaseHoldEnforced(raw, 'all', 'all')).toBe(false);
     }
   });
 });
