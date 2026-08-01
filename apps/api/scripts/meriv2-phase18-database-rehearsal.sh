@@ -30,6 +30,11 @@ export PE_PHASE_9_PG_PORT="$PORT"
 export PE_PHASE_9_EXPECT_BRANCH_MIGS=14
 export PE_PHASE_9_STRICT_PE_MIG_NAMES=0
 export PE_PHASE_9_KEEP=1
+# These values apply only to the disposable databases created below. They make
+# the application rehearsal exercise the governed and persisted-policy paths
+# after Phase 22 added exact tenant allowlists; no shared tenant is selected.
+export MEMORY_GOVERNANCE_TENANTS=all
+export MERI_POLICY_PACK_TENANTS=all
 
 # Reuse the repository's established PostgreSQL 16 + pgvector clean/upgrade
 # replay harness. It applies every migration to a clean DB, constructs a
