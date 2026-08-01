@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AgentsController } from './agents.controller.js';
 import { MissionsService } from './missions.service.js';
 import { RunsService } from './runs.service.js';
@@ -9,6 +10,7 @@ import { WatcherSchedulerService } from './watcher-scheduler.service.js';
 import { OutboxConsumerService } from './outbox-consumer.service.js';
 import { ExecutionArtifactClient } from './execution-artifact.client.js';
 import { ExecutionService } from './execution.service.js';
+import { ExecutionAssuranceTenantInterceptor } from './execution-assurance-tenant.interceptor.js';
 import { RunReconcilerService } from './run-reconciler.service.js';
 import { VersioningService } from '../strategy/versioning.service.js';
 import { MeriModule } from '../meri/meri.module.js';
@@ -54,6 +56,13 @@ import { ReferenceModule } from '../reference/reference.module.js';
     OutboxConsumerService,
     ExecutionArtifactClient,
     ExecutionService,
+    // Server-resolved tenant binding for the destination-side assurance gate.
+    // The interceptor is inert outside AgentsController and adds no browser
+    // authority; it carries the TenantGuard result through the handler's async work.
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ExecutionAssuranceTenantInterceptor,
+    },
     // P0-2 stranded-run recovery. On-demand reconcile is always available; the
     // cross-tenant SWEEP is another setInterval lifecycle hook that stays DARK
     // unless STRATEGY_AGENTS_ENABLED and STRATEGY_RUN_RECONCILER are BOTH 'true'.
