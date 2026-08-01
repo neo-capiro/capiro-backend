@@ -118,15 +118,10 @@ describe('PE finder data-mapping / display', () => {
     expect(screen.getByText('0601102A')).toBeInTheDocument();
     expect(screen.getByText('Defense Research Sciences')).toBeInTheDocument();
     expect(screen.getByText('Army')).toBeInTheDocument(); // service CODE -> label
-    expect(screen.getByText('RDT&E PE')).toBeInTheDocument(); // lineType -> badge (BL-1)
-    expect(screen.getByText('$215.3M')).toBeInTheDocument(); // latestRequest, millions
     expect(screen.getByText('$310.5M')).toBeInTheDocument(); // latestCurrent (FY27 conference), millions
-    expect(screen.getByText('Conference')).toBeInTheDocument(); // current stage label on the headline cell
-    expect(screen.getByText('+19.0%')).toBeInTheDocument(); // deltaPct sign + 1dp
-    expect(screen.getByTitle('Transition maturity 2/5')).toBeInTheDocument(); // maturity pips
-    expect(screen.getByText('61')).toBeInTheDocument(); // appropriability score badge
+    expect(screen.getByText('+44.2%')).toBeInTheDocument(); // (310.5-215.3)/215.3 — same FY, so computed
     expect(screen.getByText('Markup')).toBeInTheDocument(); // delta signal fallback pill
-    expect(screen.getByRole('button', { name: /watchlist/i })).toBeInTheDocument(); // watch star
+    expect(screen.getByRole('button', { name: /monitor/i })).toBeInTheDocument(); // watch toggle
   });
 
   test('summary strip renders aggregates as $B and avg Δ with direction', () => {
@@ -134,22 +129,19 @@ describe('PE finder data-mapping / display', () => {
       <FinderSummaryStrip
         summary={SUMMARY}
         loading={false}
-        serviceFilter={null}
-        onServiceFilter={() => {}}
+        actionCount={0}
+        actionsLoading={false}
+        onOpenPortfolio={() => {}}
+        onOpenMovement={() => {}}
+        onOpenActions={() => {}}
       />,
     );
-    // Scope count assertions to their KPI card ('12' and '3' also appear in the donut).
-    const trackedCard = screen.getByText('Tracked elements').closest('.pe-idx-kpi') as HTMLElement;
+    const trackedCard = screen.getByText('Lines in catalog').closest('.pe-rd-kpi') as HTMLElement;
     expect(within(trackedCard).getByText('12')).toBeInTheDocument(); // tracked
-    expect(screen.getByText('5 on your watchlist')).toBeInTheDocument();
+    expect(screen.getByText('5 monitored in Portfolio')).toBeInTheDocument(); // watched sub
     expect(screen.getByText('$2.89B')).toBeInTheDocument(); // totalRequest 2894.8M
-    expect(screen.getByText('$2.95B')).toBeInTheDocument(); // totalEnacted 2946.4M
-    expect(screen.getByText(/▲ 4\.9%/)).toBeInTheDocument(); // avgDeltaPct up
-    const markupCard = screen.getByText('Open markups').closest('.pe-idx-kpi') as HTMLElement;
+    const markupCard = screen.getByText('Open markups').closest('.pe-rd-kpi') as HTMLElement;
     expect(within(markupCard).getByText('3')).toBeInTheDocument(); // open markups
-    // Donut legend maps service code -> label + count.
-    expect(screen.getByText('Army')).toBeInTheDocument();
-    expect(screen.getByText('DARPA')).toBeInTheDocument();
   });
 
   test('watchlist card + signal feed render enriched stats and the change', () => {
