@@ -3,6 +3,7 @@ import {
   assessGeneratedSectionsForRelease,
   generationAssuranceRolloutMode,
   generationClaimHoldEnforced,
+  runWithGenerationAssuranceTenant,
 } from './generation-assurance';
 import type { SectionCitation } from './citations';
 
@@ -30,6 +31,33 @@ describe('Phase 16 Workspace assurance rollout', () => {
     expect(generationAssuranceRolloutMode('tenant-b', 'enforce', 'tenant-a', 'workspace-gen')).toBe(
       'off',
     );
+  });
+
+  it('binds the inherited no-argument hold helper to the authenticated request tenant', async () => {
+    await runWithGenerationAssuranceTenant('tenant-a', async () => {
+      await Promise.resolve();
+      expect(generationClaimHoldEnforced('workspace-gen', 'enforce', 'tenant-a')).toBe(true);
+      expect(generationClaimHoldEnforced('workspace-gen', 'enforce', 'tenant-b')).toBe(false);
+    });
+    await runWithGenerationAssuranceTenant('tenant-b', async () => {
+      await Promise.resolve();
+      expect(generationClaimHoldEnforced('workspace-gen', 'enforce', 'tenant-a')).toBe(false);
+    });
+  });
+
+  it('isolates concurrent request tenants without process-global mutation', async () => {
+    const [tenantA, tenantB] = await Promise.all([
+      runWithGenerationAssuranceTenant('tenant-a', async () => {
+        await new Promise((resolve) => setTimeout(resolve, 2));
+        return generationClaimHoldEnforced('workspace-gen', 'enforce', 'tenant-a');
+      }),
+      runWithGenerationAssuranceTenant('tenant-b', async () => {
+        await Promise.resolve();
+        return generationClaimHoldEnforced('workspace-gen', 'enforce', 'tenant-a');
+      }),
+    ]);
+    expect(tenantA).toBe(true);
+    expect(tenantB).toBe(false);
   });
 
   it('fails safe on near-miss or truthy-looking values', () => {
