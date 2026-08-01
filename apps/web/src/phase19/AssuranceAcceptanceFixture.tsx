@@ -4,6 +4,7 @@ import { VerificationStatus } from '../components/trust/VerificationStatus.js';
 import { MeriEditReview } from '../pages/workspace/editor/MeriEditReview.js';
 import '../theme.css';
 import '../pages/workspace/workspace.css';
+import './phase19.css';
 
 function Fixture() {
   const [failedSections, setFailedSections] = useState(['Budget impact']);
