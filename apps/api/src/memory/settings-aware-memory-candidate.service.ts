@@ -1,5 +1,10 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
-import type { ConfigService } from '@nestjs/config';
+// Value import, not `import type`: Nest reads the emitted design:paramtypes
+// metadata to inject this constructor parameter. A type-only import is erased at
+// compile time, leaving index [2] as a bare Function that MemoryModule cannot
+// resolve — which fails the AppModule DI graph and would break API boot. The
+// parent GovernedMemoryCandidateService imports it the same way.
+import { ConfigService } from '@nestjs/config';
 import type { TenantContext } from '@capiro/shared';
 import { governedMemoryModeEnabledForTenant } from '@capiro/meriv2-core';
 import type { AppConfig } from '../config/config.schema.js';

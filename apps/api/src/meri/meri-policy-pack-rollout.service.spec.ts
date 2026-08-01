@@ -22,6 +22,17 @@ describe('persisted policy-pack tenant rollout', () => {
   const originalMode = process.env.MERI_POLICY_PACK_SOURCE;
   const originalTenants = process.env.MERI_POLICY_PACK_TENANTS;
 
+  // jest.setup.ts sets MERI_POLICY_PACK_TENANTS ??= 'all' so ordinary governed
+  // suites run selected. This suite is the dedicated rollout test that must prove
+  // fail-closed PRODUCTION semantics, so it owns the environment: an explicit
+  // `undefined` argument below falls through to the default parameter, which reads
+  // process.env — leaving the Jest-wide 'all' in place would assert 'enforce' and
+  // silently invert the invariant this test exists to protect.
+  beforeEach(() => {
+    delete process.env.MERI_POLICY_PACK_SOURCE;
+    delete process.env.MERI_POLICY_PACK_TENANTS;
+  });
+
   afterEach(() => {
     if (originalMode === undefined) delete process.env.MERI_POLICY_PACK_SOURCE;
     else process.env.MERI_POLICY_PACK_SOURCE = originalMode;
