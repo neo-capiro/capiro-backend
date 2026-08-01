@@ -18,6 +18,7 @@ export interface ScheduledMemoryProjectionWorkerProps {
   apiRepo: ecr.IRepository;
   /** Exact release-SHA image tag. A mutable `latest` tag is refused when scheduled work is armed. */
   apiImageTag: string;
+  subnets: ec2.ISubnet[];
   securityGroup: ec2.ISecurityGroup;
   dbSecret: secretsmanager.ISecret;
   appDbSecret: secretsmanager.ISecret;
@@ -48,6 +49,9 @@ export class ScheduledMemoryProjectionWorker extends Construct {
 
   constructor(scope: Construct, id: string, props: ScheduledMemoryProjectionWorkerProps) {
     super(scope, id);
+    if (props.subnets.length === 0) {
+      throw new Error('The governed-memory projection worker requires at least one private subnet.');
+    }
 
     const logGroup = new logs.LogGroup(this, 'Logs', {
       logGroupName: `/capiro/${props.envName}/memory-projection-worker`,
@@ -129,7 +133,7 @@ export class ScheduledMemoryProjectionWorker extends Construct {
         cluster: props.cluster,
         taskDefinition: this.taskDefinition,
         taskCount: 1,
-        subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+        subnetSelection: { subnets: props.subnets },
         securityGroups: [props.securityGroup],
         retryAttempts: 2,
         maxEventAge: cdk.Duration.minutes(30),
