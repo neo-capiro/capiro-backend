@@ -9,7 +9,9 @@ function infra(path: string): string {
 const construct = infra('lib/constructs/scheduled-memory-projection-worker.ts');
 const stack = infra('lib/memory-projection-worker-stack.ts');
 const control = infra('lib/meriv2-control-stack.ts');
-const app = infra('bin/capiro.ts');
+const primaryApp = infra('bin/capiro.ts');
+const operationsApp = infra('bin/meriv2-operations.ts');
+const infraPackage = infra('package.json');
 const dispatcher = readFileSync(resolve(process.cwd(), 'scripts/entrypoint-dispatcher.inc'), 'utf8');
 
 describe('scheduled governed-memory projection infrastructure', () => {
@@ -19,8 +21,8 @@ describe('scheduled governed-memory projection infrastructure', () => {
     expect(construct).toContain('enabled: props.scheduleEnabled');
     expect(construct).not.toContain('enabled: true');
     expect(dispatcher).toContain('drain-memory-cleanup-outbox)');
-    expect(app).toContain("tryGetContext('enableMemoryProjectionWorker')");
-    expect(app).toContain('scheduleEnabled: memoryProjectionWorkerEnabled');
+    expect(operationsApp).toContain("tryGetContext('enableMemoryProjectionWorker')");
+    expect(operationsApp).toContain('scheduleEnabled: exactTrue');
   });
 
   test('binds scheduled tasks to an exact immutable release-SHA image tag', () => {
@@ -28,11 +30,12 @@ describe('scheduled governed-memory projection infrastructure', () => {
       'ecs.ContainerImage.fromEcrRepository(props.apiRepo, props.apiImageTag)',
     );
     expect(control).toContain(
-      'ecs.ContainerImage.fromEcrRepository(props.apiRepo, props.apiImageTag)',
+      'ecs.ContainerImage.fromEcrRepository(apiRepo, props.apiImageTag)',
     );
-    expect(app).toContain("tryGetContext('meriv2ApiImageTag')");
-    expect(app).toContain('/^[0-9a-f]{40}$/i.test(tag)');
-    expect(app).toContain('mutable tags such as latest are refused');
+    expect(operationsApp).toContain("required(app, 'meriv2ApiImageTag')");
+    expect(operationsApp).toContain('/^[0-9a-f]{40}$/i.test(apiImageTag)');
+    expect(primaryApp).toContain('meriv2-disabled-unpinned');
+    expect(primaryApp).toContain('mutable tags such as latest are refused');
   });
 
   test('uses the app database credential and Titan-only model invocation', () => {
@@ -56,6 +59,7 @@ describe('scheduled governed-memory projection infrastructure', () => {
     expect(construct).toContain('new cwActions.SnsAction(props.alertsTopic)');
     expect(construct).toContain('alarm.addAlarmAction(action)');
     expect(construct).toContain('alarm.addOkAction(action)');
+    expect(operationsApp).toContain('protectFromDestroy: true');
   });
 
   test('keeps an intentionally disabled control monitor from false-alarming on silence', () => {
@@ -65,13 +69,20 @@ describe('scheduled governed-memory projection infrastructure', () => {
     expect(control).toContain('cloudwatch.TreatMissingData.NOT_BREACHING');
   });
 
-  test('is isolated in its own stack with explicit rollback and alert dependencies', () => {
-    expect(stack).toContain('export class MemoryProjectionWorkerStack');
-    expect(stack).toContain("new ScheduledMemoryProjectionWorker(this, 'ScheduledWorker'");
-    expect(stack).toContain('alertsTopic');
-    expect(app).toContain("stackName(cfg.envName, 'MemoryProjectionWorker')");
-    expect(app).toContain('memoryProjectionWorker.addDependency(compute)');
-    expect(app).toContain('memoryProjectionWorker.addDependency(data)');
-    expect(app).toContain('memoryProjectionWorker.addDependency(alarms)');
+  test('deploys operations without instantiating or updating the frozen Compute stack', () => {
+    expect(stack).toContain('ecs.Cluster.fromClusterArn');
+    expect(stack).toContain('ec2.Subnet.fromSubnetId');
+    expect(stack).toContain('ec2.SecurityGroup.fromSecurityGroupId');
+    expect(control).toContain('ecs.Cluster.fromClusterArn');
+    expect(control).toContain('ec2.Subnet.fromSubnetId');
+    expect(control).toContain('secretsmanager.Secret.fromSecretCompleteArn');
+    expect(operationsApp).not.toContain('new ComputeStack');
+    expect(operationsApp).not.toContain('new DataStack');
+    expect(operationsApp).not.toContain('new NetworkStack');
+    expect(operationsApp).not.toContain('new AlarmsStack');
+    expect(operationsApp).toContain("stackName(operationsCfg.envName, 'MemoryProjectionWorker')");
+    expect(operationsApp).toContain("stackName(operationsCfg.envName, 'MeriV2Control')");
+    expect(infraPackage).toContain('synth:meriv2-ops');
+    expect(infraPackage).toContain('deploy:meriv2-ops');
   });
 });
