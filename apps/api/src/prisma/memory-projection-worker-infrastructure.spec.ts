@@ -25,15 +25,17 @@ describe('scheduled governed-memory projection infrastructure', () => {
     expect(operationsApp).toContain('scheduleEnabled: exactTrue');
   });
 
-  test('binds scheduled tasks to an exact immutable release-SHA image tag', () => {
+  test('binds scheduled tasks to an immutable ECR image digest', () => {
     expect(construct).toContain(
-      'ecs.ContainerImage.fromEcrRepository(props.apiRepo, props.apiImageTag)',
+      'ecs.ContainerImage.fromEcrRepository(props.apiRepo, props.apiImageDigest)',
     );
     expect(control).toContain(
-      'ecs.ContainerImage.fromEcrRepository(apiRepo, props.apiImageTag)',
+      'ecs.ContainerImage.fromEcrRepository(apiRepo, props.apiImageDigest)',
     );
-    expect(operationsApp).toContain("required(app, 'meriv2ApiImageTag')");
-    expect(operationsApp).toContain('/^[0-9a-f]{40}$/i.test(apiImageTag)');
+    // The release SHA remains audit evidence; the digest is the container identity.
+    expect(operationsApp).toContain("required(app, 'meriv2ApiImageDigest')");
+    expect(operationsApp).toContain('/^sha256:[0-9a-f]{64}$/i.test(apiImageDigest)');
+    expect(operationsApp).toContain('/^[0-9a-f]{40}$/i.test(releaseSha)');
     expect(operationsApp).not.toContain("'latest'");
   });
 

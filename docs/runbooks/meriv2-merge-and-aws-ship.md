@@ -416,10 +416,12 @@ First run the worker task manually against no work or a controlled test obligati
 
 ```text
 enableMemoryProjectionWorker=true
-meriv2ApiImageTag=<exact release SHA>
+meriv2ApiImageDigest=<immutable sha256:... digest of that SHA-tagged image>
+releaseSha=<exact release SHA>
 ```
 
-The stack refuses an armed schedule with `latest` or any non-SHA tag.
+The stack refuses an armed schedule without an immutable `sha256:` digest, so
+`latest` or a bare tag cannot be armed.
 
 ## Control monitor
 
@@ -427,7 +429,8 @@ Run its task manually once on the migrated schema. Then update only the `Capiro-
 
 ```text
 enableMeriV2ControlMonitor=true
-meriv2ApiImageTag=<exact release SHA>
+meriv2ApiImageDigest=<immutable sha256:... digest of that SHA-tagged image>
+releaseSha=<exact release SHA>
 ```
 
 Verify two consecutive five-minute snapshots and encrypted SNS routing. Do not run the deliberate alarm-breach demonstration in `dev`; it is production.

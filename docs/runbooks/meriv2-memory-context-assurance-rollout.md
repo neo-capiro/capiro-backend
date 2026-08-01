@@ -128,13 +128,24 @@ Run the task manually against no work or a controlled synthetic obligation. Veri
 
 Then deploy only the independent operations app with:
 
+The dark baseline established by the release deployment is:
+
+```text
+enableMemoryProjectionWorker=false
+enableMeriV2ControlMonitor=false
+```
+
+Arm only the worker by re-deploying that app with:
+
 ```text
 enableMemoryProjectionWorker=true
 enableMeriV2ControlMonitor=false
-meriv2ApiImageTag=<exact release SHA>
+meriv2ApiImageDigest=<immutable sha256:... digest of that SHA-tagged image>
+releaseSha=<exact release SHA>
 ```
 
-The CDK app refuses to arm a scheduled task with `latest` or any non-SHA image tag.
+The CDK app refuses to arm a scheduled task without an immutable `sha256:` digest;
+the release SHA is carried separately as audit evidence.
 
 Observe at least two schedule intervals before continuing.
 
@@ -159,7 +170,8 @@ Run the task manually once against the migrated schema. Then deploy only the ind
 ```text
 enableMemoryProjectionWorker=true
 enableMeriV2ControlMonitor=true
-meriv2ApiImageTag=<exact release SHA>
+meriv2ApiImageDigest=<immutable sha256:... digest of that SHA-tagged image>
+releaseSha=<exact release SHA>
 ```
 
 Verify two consecutive successful snapshots and the following bounded namespace:
