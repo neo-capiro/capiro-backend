@@ -62,7 +62,7 @@ afterEach(() => {
 });
 
 describe('LineageAwareMemoryStoreService', () => {
-  it('resolves the stable catalog slug to the active immutable descendant', async () => {
+  it('resolves the active descendant before the superseded root can be suppressed', async () => {
     process.env.MEMORY_GOVERNANCE_LIFECYCLE = 'enforce';
     process.env.MEMORY_GOVERNANCE_TENANTS = ctx.tenantId;
     const active = item({
@@ -72,10 +72,9 @@ describe('LineageAwareMemoryStoreService', () => {
       governedStatus: 'active',
       sections: [{ key: 'who', heading: 'Who', owner: 'human', body: 'Current.' }],
     });
-    jest
+    const inherited = jest
       .spyOn(GovernedMemoryStoreService.prototype, 'getByTypeSlug')
-      .mockResolvedValueOnce(item())
-      .mockResolvedValueOnce(active);
+      .mockResolvedValue(active);
 
     const tx = {
       $queryRaw: jest.fn(async () => [
@@ -86,10 +85,9 @@ describe('LineageAwareMemoryStoreService', () => {
       async (_tenant: string, _user: string, work: (value: typeof tx) => unknown) => work(tx),
     );
     const prisma = { withTenantUser } as unknown as PrismaService;
-    const tenantCtx = { require: () => ctx } as TenantContextStore;
     const service = new LineageAwareMemoryStoreService(
       prisma,
-      tenantCtx,
+      { require: () => ctx } as TenantContextStore,
       {} as MemoryAuthorizationService,
       {} as MemoryTransitionAuditService,
       {} as MemoryCleanupOutboxService,
@@ -99,6 +97,8 @@ describe('LineageAwareMemoryStoreService', () => {
     const resolved = await service.getByTypeSlug('firm-soul', 'firm');
     expect(resolved?.id).toBe(active.id);
     expect(resolved?.sections[0]?.body).toBe('Current.');
+    expect(withTenantUser).toHaveBeenCalledTimes(1);
+    expect(inherited).toHaveBeenCalledWith(active.type, active.slug);
   });
 
   it('returns the inherited value unchanged while the tenant is dark', async () => {
