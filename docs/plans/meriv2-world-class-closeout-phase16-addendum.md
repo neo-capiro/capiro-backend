@@ -64,7 +64,16 @@ The browser cannot select mode, tenant, surface, Context Packet, policy binding,
 
 #### Chat and external chat-created deliverables
 
-The existing chat release and pre-persistence gates now receive a canonical envelope from the shared gate. Low-risk conversational help remains streamable. High-risk chat and model-authored persisted memo/note bodies remain behind the release switch. The legacy no-tenant chat entry point can enforce only through an explicit all-tenant canary; a tenant-aware chat-call conversion remains part of exact-head validation before any tenant-specific chat canary.
+Full chat now resolves rollout from the authenticated `MeriContext.tenantId` and exact `chat` surface.
+
+- low-risk conversational help continues normal token streaming;
+- shadow evaluates the same evidence, claims, findings, gate, and envelope while leaving the reply and persisted actions unchanged;
+- enforce buffers high-risk prose before release;
+- model-authored memo/note bodies are checked before the persisting tool is invoked;
+- page-write and artifact frames are withheld when the final release decision is `repair` or `hold`;
+- bounded metrics contain mode, decision, category, jurisdiction, and envelope hash only.
+
+The inherited chat test file still assumes the pre-Phase-16 one-switch rollout. It must be updated to arm all three controls and receive a fresh exact-head run; the production resolver is not weakened to satisfy that stale fixture.
 
 #### In-editor
 
@@ -122,11 +131,14 @@ This stops Phase 16 enforcement without deleting envelopes, findings, audit evid
 
 Phase 16 is **not accepted yet**. Acceptance requires:
 
-1. focused and cumulative validation on one exact synchronized head;
-2. shadow evidence from an internal tenant showing no output changes;
-3. a reviewed false-positive sample for each canaried high-risk surface;
-4. zero broad low-risk refusal regression;
-5. zero cross-tenant or browser-forged authority acceptance; and
-6. successful rollback to shadow/off.
+1. update and pass the inherited chat test suite under the three-control rollout contract;
+2. focused and cumulative validation on one exact synchronized head;
+3. shadow evidence from an internal tenant showing no output changes;
+4. a reviewed false-positive sample for each canaried high-risk surface;
+5. zero broad low-risk refusal regression;
+6. zero cross-tenant or browser-forged authority acceptance; and
+7. successful rollback to shadow/off.
+
+GitHub attempted validation on the implementation head but produced a zero-job `startup_failure` under the repository's orphan `BuildFailed` workflow identity. No legitimate job ran, so no test, typecheck, build, or canary result is claimed.
 
 No internal or production flags were enabled during implementation. No customer data, production migration, AWS resource, external communication, or production environment was changed.
