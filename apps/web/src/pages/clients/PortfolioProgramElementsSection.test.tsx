@@ -8,26 +8,11 @@ const apiGetMock = vi.fn();
 const apiPostMock = vi.fn();
 
 vi.mock('../../lib/use-api.js', () => ({
-  useApi: () => ({
-    get: apiGetMock,
-    post: apiPostMock,
-  }),
+  useApi: () => ({ get: apiGetMock, post: apiPostMock }),
 }));
-
 vi.mock('../actions/actions-api.js', () => ({
   useActionsList: () => ({
-    data: {
-      data: [
-        {
-          id: 'action-1',
-          peCode: '0603270A',
-          status: 'triaged',
-        },
-      ],
-      total: 1,
-      page: 1,
-      limit: 100,
-    },
+    data: { data: [{ id: 'action-1', peCode: '0603270A', status: 'triaged' }], total: 1, page: 1, limit: 100 },
     isLoading: false,
   }),
 }));
@@ -51,6 +36,8 @@ const ROW = {
   billCount: 2,
   signalType: 'mark_vs_request',
   signalScore: 0.8,
+  actionSignalType: 'cut',
+  actionSignalTone: 'critical',
 };
 
 function setupBrowserMocks() {
@@ -67,7 +54,6 @@ function setupBrowserMocks() {
       dispatchEvent: vi.fn(),
     })),
   });
-
   class ResizeObserverMock {
     observe() {}
     unobserve() {}
@@ -85,7 +71,6 @@ function renderSection() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-
   render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={['/clients']}>
@@ -95,50 +80,39 @@ function renderSection() {
   );
 }
 
-describe('PortfolioProgramElementsSection', () => {
+describe('PortfolioProgramElementsSection final redesign', () => {
   beforeEach(() => {
     setupBrowserMocks();
     apiGetMock.mockReset();
     apiPostMock.mockReset();
-    apiGetMock.mockResolvedValue({
-      data: { data: [ROW], total: 1, page: 1, limit: 100 },
-    });
-    apiPostMock.mockResolvedValue({
-      data: { peCode: ROW.peCode, watching: false },
-    });
+    apiGetMock.mockResolvedValue({ data: { data: [ROW], total: 1, page: 1, limit: 100 } });
+    apiPostMock.mockResolvedValue({ data: { peCode: ROW.peCode, watching: false } });
   });
 
-  test('renders monitored program elements as portfolio cards', async () => {
+  test('renders monitored Program Elements as approved Portfolio cards', async () => {
     renderSection();
-
     await waitFor(() => expect(screen.getByText(ROW.peCode)).toBeInTheDocument());
     expect(screen.getByText(ROW.title)).toBeInTheDocument();
     expect(screen.getByText('$310.5M')).toBeInTheDocument();
-    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getByText(/Funding at risk/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 open action/i)).toBeInTheDocument();
   });
 
-  test('opens the add-program-element search modal', async () => {
+  test('opens the approved multi-select add modal', async () => {
     renderSection();
     await waitFor(() => expect(screen.getByText(ROW.peCode)).toBeInTheDocument());
-
     fireEvent.click(screen.getAllByRole('button', { name: 'Add program element' })[0]!);
-
-    expect(await screen.findByText('Add a program element')).toBeInTheDocument();
+    expect(await screen.findByText('Add program elements')).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/0603270A or electronic warfare/i)).toBeInTheDocument();
+    expect(screen.getByText(/Link selected lines to a client/i)).toBeInTheDocument();
   });
 
   test('uses the existing watch mutation when removing a card', async () => {
     renderSection();
-    const remove = await screen.findByRole('button', {
-      name: `Stop monitoring ${ROW.peCode}`,
-    });
-
+    const remove = await screen.findByRole('button', { name: `Stop monitoring ${ROW.peCode}` });
     fireEvent.click(remove);
-
     await waitFor(() =>
-      expect(apiPostMock).toHaveBeenCalledWith(`/api/program-elements/${ROW.peCode}/watch`, {
-        watching: false,
-      }),
+      expect(apiPostMock).toHaveBeenCalledWith(`/api/program-elements/${ROW.peCode}/watch`, { watching: false }),
     );
   });
 });

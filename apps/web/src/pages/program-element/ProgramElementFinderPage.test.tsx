@@ -8,12 +8,8 @@ import type { ProgramElementListItem } from './types.js';
 const apiGetMock = vi.fn();
 
 vi.mock('../../lib/use-api.js', () => ({
-  useApi: () => ({
-    get: apiGetMock,
-    post: vi.fn(),
-  }),
+  useApi: () => ({ get: apiGetMock, post: vi.fn() }),
 }));
-
 vi.mock('../../lib/me.js', () => ({
   useMe: () => ({ data: { role: 'standard_user' } }),
 }));
@@ -61,20 +57,13 @@ const ROW: Partial<ProgramElementListItem> = {
 
 function setupApi(rows: Partial<ProgramElementListItem>[]) {
   apiGetMock.mockImplementation(async (url: string) => {
-    if (url.includes('/api/program-elements/summary')) {
-      return { data: SUMMARY };
-    }
-    if (url.includes('/api/intelligence/actions')) {
+    if (url.includes('/api/program-elements/summary')) return { data: SUMMARY };
+    if (url === '/api/intelligence/actions') {
       return { data: { data: [], total: 0, page: 1, limit: 100 } };
     }
-    if (url.includes('/api/intelligence/changes')) {
-      return { data: [] };
-    }
-    // BL-1: capability taxonomy (empty = finder shows honest seed state in capability mode).
     if (url.includes('/api/budget-lines/capabilities')) {
       return { data: { data: [] } };
     }
-    // Default: the list endpoint.
     return { data: { data: rows, total: rows.length, page: 1, limit: 50 } };
   });
 }
@@ -93,7 +82,6 @@ function setupBrowserMocks() {
       dispatchEvent: vi.fn(),
     })),
   });
-
   class ResizeObserverMock {
     observe() {}
     unobserve() {}
@@ -106,7 +94,6 @@ function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-
   render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
@@ -116,32 +103,26 @@ function renderPage() {
   );
 }
 
-describe('ProgramElementFinderPage', () => {
+describe('ProgramElementFinderPage final redesign', () => {
   beforeEach(() => {
     setupBrowserMocks();
     apiGetMock.mockReset();
   });
 
-  test('renders matching program elements', async () => {
+  test('renders matching Program Elements', async () => {
     setupApi([ROW]);
-
     renderPage();
-
     await waitFor(() => expect(screen.getByText('0603270A')).toBeInTheDocument());
     expect(screen.getByText('Army Electronic Warfare Technology')).toBeInTheDocument();
   });
 
-  test('passes the search term to the list endpoint', async () => {
+  test('passes the search term to the existing list endpoint', async () => {
     setupApi([]);
-
     renderPage();
-
     await waitFor(() => expect(apiGetMock).toHaveBeenCalled());
-
     fireEvent.change(screen.getByPlaceholderText(/Search code or title/i), {
       target: { value: 'electronic warfare' },
     });
-
     await waitFor(() => {
       const listCall = apiGetMock.mock.calls
         .filter((call) => call[0] === '/api/program-elements')
@@ -150,26 +131,35 @@ describe('ProgramElementFinderPage', () => {
     });
   });
 
-  test('shows an empty state when nothing matches', async () => {
+  test('shows the approved no-results state', async () => {
     setupApi([]);
-
     renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByText('No budget lines match this search.')).toBeInTheDocument();
-    });
+    expect(
+      await screen.findByText('No budget lines match these filters.'),
+    ).toBeInTheDocument();
   });
 
-  test('uses the prototype information architecture and explicit monitor control', async () => {
+  test('uses Explore, Movement, and Actions with explicit monitoring', async () => {
     setupApi([ROW]);
-
     renderPage();
-
     await waitFor(() => expect(screen.getByText('0603270A')).toBeInTheDocument());
-    expect(screen.getByRole('button', { name: 'Explore' })).toHaveClass('is-active');
+    expect(screen.getByRole('button', { name: 'Explore' })).toHaveClass('active');
     expect(screen.getByRole('button', { name: 'Movement' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Actions' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Monitor' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Monitored · 0/i })).toBeInTheDocument();
+  });
+
+  test('selects two rows and opens comparison without changing the API contract', async () => {
+    setupApi([
+      ROW,
+      { ...ROW, peCode: '0604768A', title: 'Brigade Analysis' },
+    ]);
+    renderPage();
+    await screen.findByText('0603270A');
+    fireEvent.click(screen.getByRole('button', { name: 'Select 0603270A' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Select 0604768A' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+    expect(await screen.findByText('Compare program elements')).toBeInTheDocument();
   });
 });
