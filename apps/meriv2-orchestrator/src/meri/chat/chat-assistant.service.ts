@@ -13,7 +13,7 @@ import {
   classifyAssuranceRisk,
   evaluateAssuranceRelease,
   assurePreToolPersist,
-  resolveAssuranceReleaseMode,
+  resolveAssuranceRolloutMode,
   runGovernmentAffairsChecks,
   assuranceMetric,
   metricLogLine,
@@ -59,52 +59,15 @@ export interface ChatRunOptions {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/**
- * Is this value a real client id rather than a display name the model guessed?
- * The distinction is what lets a multi-client turn address several clients
- * while still repairing the "sent 'RADD' where a UUID goes" mistake.
- */
 export function isUuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_RE.test(value);
 }
 
-// A complex analyst question ("why was this PE cut, is there report language,
-// who do I call, will it survive conference?") legitimately fans out to a dozen+
-// tool calls. 8 rounds capped that mid-research; the loop then returned a canned
-// "ran out of steps" line and DISCARDED everything it had gathered — the reported
-// "Meri never answers" bug. 14 rounds gives real headroom, and on exhaustion we
-// now force a synthesis turn (below) instead of throwing the context away.
 const MAX_ROUNDS = 14;
-// Output budget. 4096 could truncate a thorough strategic answer mid-sentence
-// (another flavor of "incomplete"); tool-call rounds rarely emit near this, so
-// the extra ceiling only ever helps the prose answer.
 const MAX_TOKENS = 8192;
 const TOOL_RESULT_CHARS = 12_000;
-
-// Page-write mode (2.1): the draft tools whose body is applied to the open page.
-// Mirrors the legacy loop (apps/api meri.service.ts), which captures the
-// page-write payload only from these two draft producers.
 const PAGE_WRITE_DRAFT_TOOLS = new Set(['draft_policy_memo', 'create_meeting_brief']);
 
-/**
- * Tools whose INPUT carries MODEL-AUTHORED prose that apps/api turns into a
- * durable row. Map: tool name → the input field holding that prose.
- *
- * WHY THE INPUT AND NOT THE OUTPUT. Persistence for these tools happens inside
- * apps/api (MeriToolsService.draftPolicyMemo → persistArtifact), reached over
- * HTTP by the registry. By the time the orchestrator sees the tool RESULT the
- * ClioArtifact row already exists and the orchestrator cannot retract it — so
- * the chat release gate running at finalize was structurally too late. The only
- * place the orchestrator can still refuse is BEFORE the call, and the only thing
- * it can inspect there is the tool input. That is exactly where the fabrication
- * lives: the model-authored body.
- *
- * `create_meeting_brief` is deliberately ABSENT: it accepts no body and
- * renders its text server-side from meeting notes/debriefs/threads
- * (renderMeetingBrief), so there is no model-authored claim to hold. Omitting a
- * tool here is a statement that it has no model-authored persisted prose, NOT
- * that its output is verified.
- */
 const MODEL_AUTHORED_PERSISTED_BODY_FIELDS: ReadonlyMap<string, string> = new Map([
   ['draft_policy_memo', 'body'],
   ['save_note', 'body'],
@@ -119,22 +82,6 @@ interface ContentBlock {
   [k: string]: unknown;
 }
 
-/**
- * MeriV2-served full chat surface (Workstream C4). The bounded agentic loop over
- * the ENTIRE tool registry (all read tools + the gated write tools), on the
- * tenant's key (BYOK via the shared RequestScopedLlmClient). Read tools delegate
- * to apps/api; write tools run through the registry's compliance gate — an
- * unapproved write comes back as `pending_approval` (carrying the durable,
- * server-created proposalId the surface approves by ID only), NOT as a
- * completed action, and the model is told so.
- *
- * SCOPE (v1): stateless per turn — the caller threads `messages[]` (same
- * contract as the in-editor surface). STREAMING (SSE) and server-side
- * conversation-history persistence are deliberate follow-ups: the orchestrator
- * has no SSE transport yet and apps/api exposes no message-append delegation
- * endpoint, so inventing either here would be speculative. This returns a
- * complete result; a streaming transport can wrap the same loop later.
- */
 @Injectable()
 export class ChatAssistantService {
   private readonly logger = new Logger(ChatAssistantService.name);
@@ -151,7 +98,7 @@ export class ChatAssistantService {
     private readonly actionProposals: ApiActionProposalRepo,
   ) {
     this.registry = registryService.registry;
-    this.llm = registryService.llm; // single global-key-read site lives in the registry (BYOK4-clean)
+    this.llm = registryService.llm;
     this.callTimeoutMs = Number.parseInt(config.get<string>('MERIV2_TIMEOUT_MS') ?? '120000', 10);
     this.apiBaseUrl = (
       config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000'
@@ -170,9 +117,6 @@ export class ChatAssistantService {
       return { reply: 'What can I help you with?' };
     }
 
-    // Plan-mode routing (deterministic keyword router): classify the last user
-    // turn and steer the prompt when a non-default mode matches. Capture the text
-    // BEFORE any vision rewrite below turns the content into a block array.
     const lastUserText = String(messages[messages.length - 1]?.content ?? '');
     const intent = new KeywordIntentRouter().classify(lastUserText);
     const operatingFrame = resolveGovernmentAffairsOperatingFrame({
@@ -185,20 +129,18 @@ export class ChatAssistantService {
       surface: 'chat',
     });
     const assuranceRisk = classifyAssuranceRisk('chat', evidencePlan);
-    // Phase 4's pre-release hold is DARK by default (MERI_RELEASE_GATE=enforce arms
-    // it). The classifier is broad by design — a plain "ndaa status?" is bill_status
-    // and would be withheld whenever the same turn did not resolve authoritative
-    // status + procedure evidence — so arming it is a canary decision, not a deploy
-    // side effect. With the switch off, chat keeps the pre-Phase-4 contract exactly:
-    // stream the reply, then attach a post-hoc grounding caveat.
+    const assuranceMode = resolveAssuranceRolloutMode({
+      globalModeRaw: process.env.MERI_RELEASE_GATE,
+      tenantCanariesRaw: process.env.MERI_RELEASE_GATE_TENANTS,
+      surfacesRaw: process.env.MERI_RELEASE_GATE_SURFACES,
+      tenantId: ctx.tenantId,
+      surface: 'chat',
+    });
+    const evaluateBeforeRelease =
+      assuranceMode !== 'off' && assuranceRisk.requiresBufferBeforeRelease;
     const bufferBeforeRelease =
-      resolveAssuranceReleaseMode(process.env.MERI_RELEASE_GATE) === 'enforce' &&
-      assuranceRisk.requiresBufferBeforeRelease;
+      assuranceMode === 'enforce' && assuranceRisk.requiresBufferBeforeRelease;
 
-    // Vision (2.2): attach current-turn images as native Anthropic vision blocks
-    // on the last user message — images first, then the text (legacy parity, the
-    // apps/api loop does the same). completeWithTools carries the content array
-    // verbatim to Anthropic; the OpenAI adapter fails loud on image content.
     const turnImages = dto.currentTurnImages ?? [];
     if (turnImages.length) {
       const last = messages[messages.length - 1];
@@ -212,13 +154,6 @@ export class ChatAssistantService {
         ];
       }
     }
-    // Prompt caching (P0-1 orchestrator parity): `systemParts` (the {base,
-    // dynamic} split) is what every round of THIS turn's tool loop sends —
-    // request-scoped-llm.client.ts places the cache breakpoint on `base`, so
-    // round 2..N of this turn (and turn 2..N of this conversation, within the
-    // ~5-minute cache TTL) reuse that prefix. `system` (the flat string) is
-    // kept only for the one-off "FINISH NOW" synthesis retry below, which is
-    // never repeated and so never benefits from a breakpoint.
     const baseSystemParts = composeChatSystemPrompt(dto, ctx, intent);
     const systemParts = {
       ...baseSystemParts,
@@ -226,78 +161,33 @@ export class ChatAssistantService {
     };
     const system = flattenSystemParts(systemParts);
     const toolSchemas = await this.fetchToolSchemas();
-    // VERIFICATION AVAILABILITY (was hardcoded `true` at the gate call below,
-    // which permanently disabled risk-gate.ts's "required pre-release
-    // verification was unavailable" blocker). fetchToolSchemas degrades to [] on
-    // a missing bearer or an apps/api failure — that is precisely the state in
-    // which a high-risk answer CANNOT be verified this turn, because the model
-    // has no data tools to verify it with. Note the degradation is not
-    // distinguishable from "this tenant legitimately has no tools", which is why
-    // it only ever adds a blocker on a surface already classified high-risk.
     const verificationAvailable = toolSchemas.length > 0;
     const steps: ChatStep[] = [];
     const pendingApprovals: NonNullable<ChatResult['pendingApprovals']> = [];
     const artifacts: ChatArtifact[] = [];
-    // COMPLIANCE OUTCOME for the release gate. The turn's strongest policy
-    // decision, threaded from invokeTool's catch branches: a ComplianceBlockedError
-    // is BLOCK, an ApprovalPendingError is WARN. Without this the BLOCK path
-    // (risk-gate.ts) and the WARN path were dead code on the only wired surface,
-    // even though this same service already catches both errors.
     let complianceOutcome: 'PASS' | 'WARN' | 'BLOCK' | undefined;
     const noteComplianceOutcome = (outcome: 'PASS' | 'WARN' | 'BLOCK'): void => {
-      // Strongest wins: BLOCK > WARN > PASS. A later PASS must never erase an
-      // earlier block.
       const rank = { PASS: 0, WARN: 1, BLOCK: 2 } as const;
       if (complianceOutcome === undefined || rank[outcome] > rank[complianceOutcome]) {
         complianceOutcome = outcome;
       }
     };
-    // Wave-2 post-hoc auditor ledger for the GA chat surface (the DEFAULT chat
-    // path — most traffic). Accumulated across tool rounds; audited at finalize.
     const ledgerEntries: LedgerEntry[] = [];
-    // Inline citations (1B.5): numbered sources accumulated across tool rounds;
-    // injected into each tool_result the model reads, then validated against the
-    // final reply so only real [N] markers survive.
     const citations: MeriCitation[] = [];
-    // Every exit shares the same aggregates (steps + gate-held writes + produced
-    // deliverables), so build the result in one place. finalize also fires the
-    // shadow auditor (fire-and-forget, like meterRound) so every exit is covered.
-    // Aggregate token usage across every tool-loop round (1A.2) — one row per
-    // round is metered separately (meterRound); this is the turn total the
-    // proxy surfaces as a `usage` frame + persists.
     const usageAcc = {
       inputTokens: 0,
       outputTokens: 0,
       cacheReadTokens: 0,
       cacheCreationTokens: 0,
     };
-    // Page-write mode (2.1): the last draft body produced this turn, applied to
-    // the open page. Mirrors legacy (last draft wins); emitted once at finalize.
     let pageWritePayload: { subject: string; body: string } | null = null;
 
-    /**
-     * PRE-PERSISTENCE hold for a model-authored draft body (see
-     * MODEL_AUTHORED_PERSISTED_BODY_FIELDS). Returns a refusal string to hand
-     * back to the model as the tool result, or null to let the call through.
-     *
-     * Evaluated against the SAME-TURN evidence the model has actually gathered so
-     * far (ledgerEntries + citations from earlier rounds), which is the whole
-     * point: a memo drafted before any lookup has nothing supporting it.
-     *
-     * DARK BY DEFAULT via `bufferBeforeRelease` — the existing
-     * resolveAssuranceReleaseMode(MERI_RELEASE_GATE) read above. Deliberately NOT
-     * a second env var: this is the same surface and the same canary decision as
-     * the finalize hold, so splitting them would let one arm without the other and
-     * produce the worst state (held prose, persisted artifact).
-     */
     const prePersistRefusal = (name: string, input: Record<string, unknown>): string | null => {
-      if (!bufferBeforeRelease) return null;
+      if (!evaluateBeforeRelease) return null;
       const field = MODEL_AUTHORED_PERSISTED_BODY_FIELDS.get(name);
       if (!field) return null;
       const raw = input[field];
       const body = typeof raw === 'string' ? raw.trim() : '';
-      // No model-authored body ⇒ apps/api renders from its own records. Nothing
-      // the model asserted is being persisted, so there is nothing to hold.
       if (!body) return null;
       try {
         const claimLedger = buildClaimLedgerFromToolResults({
@@ -318,8 +208,6 @@ export class ChatAssistantService {
           outputText: body,
         });
         const decision = assurePreToolPersist({
-          // The DELIVERABLE's surface, not the conversation's: a persisted memo /
-          // client note is a client-facing artifact, so it classifies as one.
           surface: 'memo',
           plan: evidencePlan,
           ledger: claimLedger,
@@ -334,39 +222,31 @@ export class ChatAssistantService {
               name: 'release_gate',
               dimensions: {
                 surface: 'chat',
-                domain: 'pre_persist',
+                domain: `${assuranceMode}:pre_persist`,
                 outcome: decision.gate.decision,
                 category: name,
                 jurisdiction: operatingFrame.jurisdictions.join(',').slice(0, 120),
+                envelope: decision.gate.envelope.hash.slice(0, 16),
               },
             }),
           ),
         );
+        if (assuranceMode !== 'enforce') return null;
         return decision.allowPersist ? null : decision.refusal;
       } catch (error) {
-        // FAIL CLOSED. Unlike verifyEdits' advisory enrichment, this decides
-        // whether a durable row is created; a crash here must not become an
-        // unchecked write.
         this.logger.warn(
-          `[meri-assurance] pre-persist verification failed closed for ${name}: ${
+          `[meri-assurance] pre-persist verification failed for ${name}: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
-        return 'Pre-persistence verification was unavailable, so this deliverable was NOT created or saved. Tell the user nothing was written and try again once verification is available.';
+        return assuranceMode === 'enforce'
+          ? 'Pre-persistence verification was unavailable, so this deliverable was NOT created or saved. Tell the user nothing was written and try again once verification is available.'
+          : null;
       }
     };
+
     const finalize = (reply: string): ChatResult => {
-      // Validate [N] markers against the sources we injected: keep only real
-      // ones, strip hallucinated ones from the prose, and report the citations
-      // actually used (1B.5). Audit the CLEANED reply.
       const { used, cleanedText: formACleaned } = validateCitationMarkers(reply, citations);
-      // Same idea for FORM B [S:tool_name:record_id] tokens (legacy chat parity —
-      // meri.service.ts strips these before persistence too): a token whose tool
-      // wasn't called this turn, or whose record_id isn't verbatim in that tool's
-      // result, gets stripped so it can't lend false authority to a fabricated
-      // claim in the persisted history. Does not affect text already streamed to
-      // the client this turn (chat stays observe-only per ADR-2, same as the
-      // post-hoc auditor below).
       const formB = validateFormBCitations(formACleaned, ledgerToToolResultMap(ledgerEntries));
       if (formB.invalid.length) {
         this.logger.warn(
@@ -376,11 +256,6 @@ export class ChatAssistantService {
       const cleanedText = formB.sanitizedText;
       let releasedText = cleanedText;
       let releaseHeld = false;
-      // Post-hoc auditor. runAuditor is synchronous/deterministic, so we run it
-      // INLINE (negligible latency) to surface a non-blocking caveat under
-      // enforce/annotate — chat can't hold an already-streamed reply (ADR-2), so
-      // HIGH/CRITICAL grounding findings become a visible caveat frame instead.
-      // The DB persist stays fire-and-forget (no added latency).
       const audit = this.auditChatReply(cleanedText, ledgerEntries);
       if (audit && audit.verdict.findings.length > 0) {
         if (!bufferBeforeRelease && (audit.mode === 'enforce' || audit.mode === 'annotate')) {
@@ -402,12 +277,7 @@ export class ChatAssistantService {
         void this.persistChatAudit(ctx.tenantId, audit.mode, audit.verdict, cleanedText);
       }
 
-      // Phase 4: high-risk answers were buffered, so deterministic checks and a
-      // source-resolved claim ledger run BEFORE any prose is released. A caveat
-      // cannot repair an unsupported money/status/role/deadline/legal claim after
-      // streaming; the answer is held and replaced with an explicit verification
-      // failure instead.
-      if (bufferBeforeRelease && cleanedText.trim()) {
+      if (evaluateBeforeRelease && cleanedText.trim()) {
         try {
           const claimLedger = buildClaimLedgerFromToolResults({
             output: cleanedText,
@@ -441,10 +311,12 @@ export class ChatAssistantService {
                 name: 'release_gate',
                 dimensions: {
                   surface: 'chat',
+                  domain: assuranceMode,
                   outcome: gate.decision,
                   category: assuranceRisk.categories.join(',').slice(0, 120),
                   severity: grounding.topSeverity ?? undefined,
                   jurisdiction: operatingFrame.jurisdictions.join(',').slice(0, 120),
+                  envelope: gate.envelope.hash.slice(0, 16),
                 },
               }),
             ),
@@ -452,7 +324,7 @@ export class ChatAssistantService {
           const severe = combinedFindings.filter(
             (finding) => finding.severity === 'critical' || finding.severity === 'high',
           );
-          if (severe.length) {
+          if (assuranceMode === 'enforce' && severe.length) {
             emit({
               type: 'grounding_caveat',
               topSeverity: severe.some((finding) => finding.severity === 'critical')
@@ -465,7 +337,10 @@ export class ChatAssistantService {
               })),
             });
           }
-          if (gate.decision === 'repair' || gate.decision === 'hold') {
+          if (
+            assuranceMode === 'enforce' &&
+            (gate.decision === 'repair' || gate.decision === 'hold')
+          ) {
             releaseHeld = true;
             const reasons = gate.blockers
               .slice(0, 6)
@@ -479,19 +354,18 @@ export class ChatAssistantService {
             ].join('\n');
           }
         } catch (error) {
-          releaseHeld = true;
           this.logger.warn(
-            `[meri-assurance] pre-release verification failed closed: ${error instanceof Error ? error.message : String(error)}`,
+            `[meri-assurance] pre-release verification failed: ${error instanceof Error ? error.message : String(error)}`,
           );
-          releasedText =
-            'Verification was unavailable, so I did not release the requested high-stakes answer. Please try again after the authoritative sources are available.';
+          if (assuranceMode === 'enforce') {
+            releaseHeld = true;
+            releasedText =
+              'Verification was unavailable, so I did not release the requested high-stakes answer. Please try again after the authoritative sources are available.';
+          }
         }
-        emit({ type: 'text', text: releasedText });
+        if (bufferBeforeRelease) emit({ type: 'text', text: releasedText });
       }
 
-      // Page-write mode: apply the produced draft to the open page (one frame,
-      // last draft wins — legacy parity). Only when the caller opted in and a
-      // draft actually produced a body.
       if (dto.pageWrite && pageWritePayload && !releaseHeld) {
         emit({
           type: 'page_write',
@@ -507,26 +381,14 @@ export class ChatAssistantService {
         steps,
         ...(used.length ? { citations: used } : {}),
         ...(pendingApprovals.length ? { pendingApprovals } : {}),
-        // A held turn must not advertise a downloadable deliverable. `page_write`
-        // was already suppressed above; the `artifacts` array was not, so a held
-        // high-risk turn still shipped a card for a durable ClioArtifact whose
-        // body is the very content we refused to release. The row itself was
-        // persisted by apps/api inside the tool call (see the invokeTool
-        // preflight below, which is what actually prevents the write).
         ...(artifacts.length && !releaseHeld ? { artifacts } : {}),
       };
     };
 
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
-      if (opts.signal?.aborted) {
-        // Caller went away (streaming client disconnect) — stop burning tokens.
-        return finalize('');
-      }
+      if (opts.signal?.aborted) return finalize('');
       let content: ContentBlock[];
       let stopReason: string | null;
-      // Token-level streaming (2.4): stream text deltas straight to the client so
-      // chat types token-by-token instead of in per-round bursts. `streamed`
-      // tells us the text already went out — don't re-emit it below.
       let streamed = false;
       try {
         const resp = await this.llm.completeWithTools({
@@ -549,9 +411,7 @@ export class ChatAssistantService {
         stopReason = resp.stopReason;
         streamed = bufferBeforeRelease ? false : (resp.streamed ?? false);
       } catch (e) {
-        if (opts.signal?.aborted) {
-          return finalize('');
-        }
+        if (opts.signal?.aborted) return finalize('');
         this.logger.warn(`chat model call failed: ${(e as Error).message}`);
         return finalize('Sorry — I hit an error reaching the model. Please try again in a moment.');
       }
@@ -568,13 +428,9 @@ export class ChatAssistantService {
 
       if (!toolUses.length || stopReason !== 'tool_use') {
         if (textOut) {
-          // When streamed, the deltas already went out this round — don't double-emit.
           if (!bufferBeforeRelease && !streamed) emit({ type: 'text', text: textOut });
           return finalize(textOut);
         }
-        // The model ended its turn with no prose (a stray stop / whitespace-only
-        // turn). Never ship a bare "Done." — force one tool-free synthesis pass
-        // over the context already in `messages`.
         return finalize(
           await this.synthesizeFinalAnswer(
             ctx,
@@ -588,20 +444,11 @@ export class ChatAssistantService {
         );
       }
 
-      // Intermediate round text ("Let me look that up…") streams to the client
-      // but stays OUT of ChatResult.reply — reply remains the final round's text
-      // (the non-streaming contract existing callers/tests pin). When streamed,
-      // the deltas already went out; just add the round separator.
       if (textOut && !bufferBeforeRelease) {
         emit({ type: 'text', text: streamed ? '\n\n' : `${textOut}\n\n` });
       }
 
       messages.push({ role: 'assistant', content });
-      // Invoke tools in PARALLEL, then number/serialize SEQUENTIALLY — citation
-      // marker numbers must be deterministic (a shared counter inside the
-      // parallel map would race). Citations extracted per tool result get a
-      // stable 1-based [N]; the numbered sources are injected into the
-      // tool_result the model reads so it cites the exact [N] we assigned (1B.5).
       const invoked = await Promise.all(
         toolUses.map(async (tu) => ({
           tu,
@@ -619,9 +466,6 @@ export class ChatAssistantService {
           ),
         })),
       );
-      // Page-write mode: capture the body of any draft a draft tool produced this
-      // round so finalize can apply it to the open page (last draft wins, legacy
-      // parity). The `artifact` event already surfaced the same deliverable.
       if (dto.pageWrite) {
         for (const { tu, result } of invoked) {
           if (!PAGE_WRITE_DRAFT_TOOLS.has(tu.name)) continue;
@@ -640,8 +484,6 @@ export class ChatAssistantService {
       messages.push({ role: 'user', content: results });
     }
 
-    // Tool-round budget spent while the model still wanted tools. Do NOT discard
-    // the research — force a final tool-free synthesis over everything gathered.
     return finalize(
       await this.synthesizeFinalAnswer(
         ctx,
@@ -655,12 +497,6 @@ export class ChatAssistantService {
     );
   }
 
-  /**
-   * Best-effort metering for one `completeWithTools` round (Phase 1 M5.0, H-1) —
-   * one `ai_usage_events` row per round (each round is its own Anthropic API
-   * call). `recordAiUsageEvent` never throws (it swallows + logs its own
-   * failures), so this is fire-and-forget from the caller's perspective.
-   */
   private async meterRound(ctx: MeriContext, resp: ToolLoopResponse): Promise<void> {
     await recordAiUsageEvent(
       { prisma: this.prisma, logger: this.logger },
@@ -675,16 +511,6 @@ export class ChatAssistantService {
     );
   }
 
-  /**
-   * Wave-2 post-hoc auditor on the GA chat surface (default/highest-traffic).
-   * SYNCHRONOUS + deterministic (MERI_AUDITOR_MODE off = no-op): re-derives ground
-   * truth from the turn's tool-result ledger and returns any contradiction
-   * (reversed direction, failed-rule-as-operative, LI-as-PE, unresolved citation).
-   * Run inline so the caller can surface a non-blocking caveat under enforce/
-   * annotate — chat can't withhold an already-streamed reply (ADR-2), so real
-   * enforcement (hold-as-draft) stays on the DELIVERABLE surfaces (outreach/
-   * alert-memo/research). Fully guarded — an auditor error never affects the reply.
-   */
   private auditChatReply(
     reply: string,
     ledgerEntries: LedgerEntry[],
@@ -707,12 +533,6 @@ export class ChatAssistantService {
     }
   }
 
-  /**
-   * Persist a chat auditor verdict to meri_audit_ledger — fire-and-forget from the
-   * caller (like meterRound), so the DB write never adds latency to the reply. The
-   * orchestrator shares apps/api's generated Prisma client + DB, so this is the
-   * SAME table the other 4 surfaces write to.
-   */
   private async persistChatAudit(
     tenantId: string,
     mode: AuditorMode,
@@ -746,14 +566,6 @@ export class ChatAssistantService {
     }
   }
 
-  /**
-   * Force a final, TOOL-FREE answer from everything gathered so far. Invoked when
-   * the tool-round budget is spent (or a turn ended with no prose) so the loop
-   * never returns bare "Let me look that up…" narration or a canned "ran out of
-   * steps" line while throwing real context away — the reported completion bug.
-   * Sends `tool_choice:'none'` with a synthesis directive appended to the system
-   * prompt; degrades to a helpful message (never empty) on model error.
-   */
   private async synthesizeFinalAnswer(
     ctx: MeriContext,
     system: string,
@@ -794,9 +606,7 @@ export class ChatAssistantService {
         .join('\n')
         .trim();
       if (text && !suppressStreaming) emit({ type: 'text', text });
-      return (
-        text || 'I gathered the context but could not compose a final answer — please ask again.'
-      );
+      return text || 'I gathered the context but could not compose a final answer — please ask again.';
     } catch (e) {
       if (opts.signal?.aborted) return '';
       this.logger.warn(`chat synthesis call failed: ${(e as Error).message}`);
@@ -804,36 +614,6 @@ export class ChatAssistantService {
     }
   }
 
-  /**
-   * Thread the conversation context the model never sees into a tool input —
-   * mirroring the legacy loop (apps/api MeriService): default clientId from the
-   * conversation focus, and ALWAYS supply the active conversationId. The
-   * artifact-producing write tools (create_word / create_excel /
-   * create_powerpoint, create_meeting_brief, draft_policy_memo) REQUIRE
-   * conversationId to persist their ClioArtifact row — without it apps/api returns
-   * { persisted: false }, the generated Office document is dropped, and no
-   * download URL comes back.
-   *
-   * clientId: the conversation focus is a FALLBACK, not an override.
-   *
-   * History: it used to override unconditionally (2026-07-16), because the model
-   * kept sending a display name like "RADD" where a UUID belonged and the raw
-   * P2023 surfaced as "Action approved but failed to run". Overriding fixed that
-   * for single-client conversations and silently broke every multi-client one:
-   * "update all my client profiles" proposes N writes against N different ids in
-   * one focused conversation, and all N were rewritten to the focused client —
-   * so N-1 clients got someone else's data and the user was told all N succeeded.
-   *
-   * The real defect was never "the model chose a client", it was "the model sent
-   * a name where an id goes". So: a VALID UUID from the model is respected (it
-   * names a real client the user asked for), and the conversation focus only
-   * fills in when the model supplied nothing or supplied a non-UUID. apps/api
-   * re-validates and 404s cleanly on an id outside the tenant, so respecting the
-   * model's UUID cannot cross a tenant boundary.
-   *
-   * conversationId is only filled when unset. apps/api re-validates and ignores
-   * fields a tool does not use.
-   */
   private augmentToolInput(
     dto: ChatInput,
     input: Record<string, unknown>,
@@ -846,16 +626,6 @@ export class ChatAssistantService {
     return out;
   }
 
-  /**
-   * Run one tool through the registry (scoping + write gate enforced). A gated
-   * write throws ApprovalPendingError / ComplianceBlockedError — caught here.
-   * ApprovalPendingError is turned into a durable, server-created
-   * MeriActionProposal (Phase 0: apps/api is the sole source of proposal
-   * authority) surfaced as a `pending_approval` step + tool_result the model
-   * reads, so it tells the user the action awaits approval instead of claiming
-   * it ran. Only the opaque proposalId is surfaced — never a
-   * browser-authoritative tool/payload/fingerprint.
-   */
   private async invokeTool(
     ctx: MeriContext,
     name: string,
@@ -994,14 +764,6 @@ export class ChatAssistantService {
     }
   }
 
-  /**
-   * If a held write names a client, can that client actually be written to?
-   *
-   * Returns a human-readable blocker, or null when the reference resolves (or
-   * when we simply could not check). FAIL-OPEN by design: this is advisory
-   * copy on an approve card, so a slow or unreachable apps/api must never
-   * degrade the turn or, worse, mark a perfectly good action as doomed.
-   */
   private async describeClientBlocker(input: Record<string, unknown>): Promise<string | null> {
     const ref = input.clientId;
     if (typeof ref !== 'string' || !ref.trim()) return null;
@@ -1028,12 +790,6 @@ export class ChatAssistantService {
     }
   }
 
-  /**
-   * Fetch the Anthropic tool schemas from apps/api (single source) with the
-   * caller's bearer — the FULL set (chat may use any registered tool). Filtered
-   * to what the registry actually knows so a schema for an unregistered tool
-   * can't be offered. On failure, degrade to no data tools (still answers).
-   */
   private async fetchToolSchemas(): Promise<AnthropicToolSchema[]> {
     const bearer = RequestCredentialsStore.get()?.bearerToken;
     if (!bearer) {
@@ -1055,16 +811,6 @@ export class ChatAssistantService {
   }
 }
 
-/**
- * Pull persisted deliverables out of a tool result. The artifact-producing Meri
- * tools return either `{ artifact: {...} }` (create_word/excel/powerpoint,
- * create_meeting_brief, draft_policy_memo) or `{ artifacts: [...] }`; the
- * persisted row carries an `id`, and the document tools add top-level
- * `downloadUrl` / `filename` / `mimeType`. A tool that could not persist returns
- * the row as `{ persisted: false }` (no id) — skipped so we never surface a card
- * for a document that was silently dropped. Same contract apps/api's
- * extractToolArtifacts reads.
- */
 function extractChatArtifacts(result: unknown): ChatArtifact[] {
   if (!result || typeof result !== 'object') return [];
   const r = result as Record<string, unknown>;
