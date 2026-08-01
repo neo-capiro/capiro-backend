@@ -12,7 +12,8 @@ export interface MemoryProjectionWorkerStackProps extends cdk.StackProps {
   cfg: EnvConfig;
   clusterArn: string;
   apiRepositoryName: string;
-  apiImageTag: string;
+  /** Immutable `sha256:...` digest resolved from the exact release-SHA tag. */
+  apiImageDigest: string;
   privateSubnetIds: string[];
   serviceSecurityGroupId: string;
   dbSecretArn: string;
@@ -76,7 +77,7 @@ export class MemoryProjectionWorkerStack extends cdk.Stack {
       envName: cfg.envName,
       cluster,
       apiRepo,
-      apiImageTag: props.apiImageTag,
+      apiImageDigest: props.apiImageDigest,
       subnets,
       securityGroup,
       dbSecret,
@@ -95,9 +96,9 @@ export class MemoryProjectionWorkerStack extends cdk.Stack {
       value: worker.rule.ruleName,
       description: `Governed-memory projection schedule (enabled=${props.scheduleEnabled})`,
     });
-    new cdk.CfnOutput(this, 'ProjectionWorkerImageTag', {
-      value: props.apiImageTag,
-      description: 'API image tag bound to the governed-memory projection task definition',
+    new cdk.CfnOutput(this, 'ProjectionWorkerImageDigest', {
+      value: props.apiImageDigest,
+      description: 'Immutable API image digest bound to the projection task definition',
     });
   }
 }
