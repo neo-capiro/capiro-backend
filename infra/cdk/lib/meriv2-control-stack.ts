@@ -7,7 +7,6 @@ import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as eventsTargets from 'aws-cdk-lib/aws-events-targets';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as kms from 'aws-cdk-lib/aws-kms';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as sns from 'aws-cdk-lib/aws-sns';
@@ -18,17 +17,18 @@ const NAMESPACE = 'Capiro/MeriV2Control';
 
 export interface MeriV2ControlStackProps extends cdk.StackProps {
   cfg: EnvConfig;
-  cluster: ecs.ICluster;
-  apiRepo: ecr.IRepository;
+  clusterArn: string;
+  apiRepositoryName: string;
   /** Exact release-SHA image tag. A mutable `latest` tag is refused when the monitor is armed. */
   apiImageTag: string;
-  securityGroup: ec2.ISecurityGroup;
-  dbSecret: secretsmanager.ISecret;
-  appDbSecret: secretsmanager.ISecret;
+  privateSubnetIds: string[];
+  serviceSecurityGroupId: string;
+  dbSecretArn: string;
+  appDbSecretArn: string;
   databaseName: string;
-  dataKey: kms.IKey;
-  secretsKey: kms.IKey;
-  alertsTopic: sns.ITopic;
+  dataKeyArn: string;
+  secretsKeyArn: string;
+  alertsTopicArn: string;
   /** Explicit CDK-context gate. A stack deploy alone does not start the monitor. */
   monitorEnabled: boolean;
 }
@@ -47,10 +47,11 @@ interface AlarmDefinition {
 /**
  * MeriV2 Phase 20 operational control system.
  *
- * This stack is intentionally separate from ComputeStack. It creates one
- * read-only scheduled task, bounded CloudWatch metrics/alarms, and a dashboard.
- * The schedule defaults OFF and is enabled only with the explicit CDK context
- * `enableMeriV2ControlMonitor=true` after database/browser prerequisites pass.
+ * This stack is intentionally separate from ComputeStack. Existing runtime
+ * dependencies are imported by literal ARN/name/id, so the dedicated operations
+ * CDK app can deploy it without updating the drifted/frozen Compute stack merely
+ * to add cross-stack exports. The schedule defaults OFF and is enabled only after
+ * database/browser prerequisites and a manual monitor run pass.
  */
 export class MeriV2ControlStack extends cdk.Stack {
   readonly taskDefinition: ecs.FargateTaskDefinition;
@@ -59,9 +60,43 @@ export class MeriV2ControlStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: MeriV2ControlStackProps) {
     super(scope, id, props);
     const { cfg } = props;
+    if (props.privateSubnetIds.length === 0) {
+      throw new Error('The MeriV2 control monitor requires at least one private subnet.');
+    }
     for (const [key, value] of Object.entries(commonTags(cfg))) {
       cdk.Tags.of(this).add(key, value);
     }
+
+    const cluster = ecs.Cluster.fromClusterArn(this, 'ImportedCluster', props.clusterArn);
+    const apiRepo = ecr.Repository.fromRepositoryName(
+      this,
+      'ImportedApiRepository',
+      props.apiRepositoryName,
+    );
+    const subnets = props.privateSubnetIds.map((subnetId, index) =>
+      ec2.Subnet.fromSubnetId(this, `ImportedPrivateSubnet${index + 1}`, subnetId),
+    );
+    const securityGroup = ec2.SecurityGroup.fromSecurityGroupId(
+      this,
+      'ImportedServiceSecurityGroup',
+      props.serviceSecurityGroupId,
+      { mutable: false },
+    );
+    const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(
+      this,
+      'ImportedDatabaseSecret',
+      props.dbSecretArn,
+    );
+    const appDbSecret = secretsmanager.Secret.fromSecretCompleteArn(
+      this,
+      'ImportedApplicationDatabaseSecret',
+      props.appDbSecretArn,
+    );
+    const alertsTopic = sns.Topic.fromTopicArn(
+      this,
+      'ImportedAlertsTopic',
+      props.alertsTopicArn,
+    );
 
     const logGroup = new logs.LogGroup(this, 'ControlMonitorLogs', {
       logGroupName: `/capiro/${cfg.envName}/meriv2-control-monitor`,
@@ -85,18 +120,18 @@ export class MeriV2ControlStack extends cdk.Stack {
     executionRole.addToPrincipalPolicy(
       new iam.PolicyStatement({
         actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
-        resources: [props.dbSecret.secretArn, props.appDbSecret.secretArn],
+        resources: [props.dbSecretArn, props.appDbSecretArn],
       }),
     );
     executionRole.addToPrincipalPolicy(
       new iam.PolicyStatement({
         actions: ['kms:Decrypt', 'kms:DescribeKey'],
-        resources: [props.dataKey.keyArn, props.secretsKey.keyArn],
+        resources: [props.dataKeyArn, props.secretsKeyArn],
       }),
     );
 
     this.taskDefinition.addContainer('meriv2-control-monitor', {
-      image: ecs.ContainerImage.fromEcrRepository(props.apiRepo, props.apiImageTag),
+      image: ecs.ContainerImage.fromEcrRepository(apiRepo, props.apiImageTag),
       essential: true,
       logging: ecs.LogDrivers.awsLogs({ logGroup, streamPrefix: 'monitor' }),
       command: ['emit-meriv2-control-metrics'],
@@ -108,10 +143,10 @@ export class MeriV2ControlStack extends cdk.Stack {
         DB_NAME: props.databaseName,
       },
       secrets: {
-        DB_HOST: ecs.Secret.fromSecretsManager(props.dbSecret, 'host'),
-        DB_PORT: ecs.Secret.fromSecretsManager(props.dbSecret, 'port'),
-        DB_USER: ecs.Secret.fromSecretsManager(props.appDbSecret, 'username'),
-        DB_PASSWORD: ecs.Secret.fromSecretsManager(props.appDbSecret, 'password'),
+        DB_HOST: ecs.Secret.fromSecretsManager(dbSecret, 'host'),
+        DB_PORT: ecs.Secret.fromSecretsManager(dbSecret, 'port'),
+        DB_USER: ecs.Secret.fromSecretsManager(appDbSecret, 'username'),
+        DB_PASSWORD: ecs.Secret.fromSecretsManager(appDbSecret, 'password'),
       },
       readonlyRootFilesystem: false,
     });
@@ -124,17 +159,17 @@ export class MeriV2ControlStack extends cdk.Stack {
     });
     this.schedule.addTarget(
       new eventsTargets.EcsTask({
-        cluster: props.cluster,
+        cluster,
         taskDefinition: this.taskDefinition,
         taskCount: 1,
-        subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-        securityGroups: [props.securityGroup],
+        subnetSelection: { subnets },
+        securityGroups: [securityGroup],
         retryAttempts: 2,
         maxEventAge: cdk.Duration.minutes(30),
       }),
     );
 
-    const action = new cwActions.SnsAction(props.alertsTopic);
+    const action = new cwActions.SnsAction(alertsTopic);
     const dimensionsMap = { Environment: cfg.envName };
     const definitions: AlarmDefinition[] = [
       {
