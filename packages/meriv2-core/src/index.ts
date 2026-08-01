@@ -28,6 +28,7 @@ export * from './context/surface-policy';
 export * from './context/context-release-switch';
 export * from './context/governed-columns';
 export * from './memory/governance';
+export * from './memory/governance-rollout';
 export * from './assurance/index';
 export * from './llm/llm-client';
 export * from './tools/client/get-client-context';
