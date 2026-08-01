@@ -3,23 +3,16 @@ import type { AuditFinding, AuditSeverity } from '../grounding/auditor';
 import type { ClaimLedger } from './claim-ledger';
 import type { DomainEvidencePlan } from './evidence-plan';
 import type { GovernmentAffairsOperatingFrame } from './operating-frame';
-import type {
-  AssuranceGateResult,
-  AssuranceReleaseDecision,
-  AssuranceSurface,
-} from './risk-gate';
+import type { AssuranceReleaseDecision, AssuranceSurface } from './risk-gate';
 
 export const ASSURANCE_ENVELOPE_VERSION = 'ga-assurance-envelope-v1' as const;
 export const ASSURANCE_VERIFIER_VERSION = 'ga-verifier-2026-07-31.v1' as const;
 
-/** Exact persisted-policy identity that governed the generated output. */
 export interface AssurancePolicyBinding {
   packId: string;
   packVersion: string;
   ruleId: string | null;
-  /** Canonical server decision/binding hash when the policy service produced one. */
   decisionHash?: string | null;
-  /** Canonical context hash bound to the policy decision, when applicable. */
   contextHash?: string | null;
 }
 
@@ -27,16 +20,9 @@ export type AssuranceFindingScope = 'run' | 'section' | 'claim';
 
 export interface AssuranceFindingAttribution {
   scope: AssuranceFindingScope;
-  /** Section heading/id or claim id. Omitted only for genuinely run-wide findings. */
   subjectId?: string;
 }
 
-/**
- * The finding projection carried by the envelope. It intentionally excludes the
- * raw offending span: spans can contain client content and must never leak into
- * logs or bounded operational evidence. The full finding remains available to
- * the in-process verifier that created this projection.
- */
 export interface AssuranceEnvelopeFinding {
   check: string;
   severity: AuditSeverity;
@@ -58,7 +44,6 @@ export interface AssuranceEnvelope {
   contextPacketId: string | null;
   policyBinding: AssurancePolicyBinding | null;
   generatedAt: string;
-  /** SHA-256 over every preceding field in this envelope. */
   hash: string;
 }
 
@@ -69,26 +54,26 @@ export interface AssuranceFindingInput {
   attribution?: AssuranceFindingAttribution;
 }
 
+export interface AssuranceGateProjection {
+  decision: AssuranceReleaseDecision;
+  blockers: readonly string[];
+  warnings: readonly string[];
+}
+
 export interface BuildAssuranceEnvelopeInput {
   surface: AssuranceSurface;
   operatingFrame: GovernmentAffairsOperatingFrame;
   evidencePlan: DomainEvidencePlan;
   claimLedger: ClaimLedger;
   findings?: readonly (AuditFinding | AssuranceFindingInput)[];
-  gate: AssuranceGateResult;
+  gate: AssuranceGateProjection;
   verifierVersion?: string;
   contextPacketId?: string | null;
   policyBinding?: AssurancePolicyBinding | null;
   generatedAt?: string | Date;
-  /**
-   * Default attribution for findings that do not carry their own scope. Supply a
-   * section/claim attribution at the originating verifier; use run only for a
-   * condition that truly affects the complete generation.
-   */
   defaultAttribution?: AssuranceFindingAttribution;
 }
 
-/** Build the one server-owned pre-release assurance contract used by every surface. */
 export function buildAssuranceEnvelope(input: BuildAssuranceEnvelopeInput): AssuranceEnvelope {
   const generatedAt = iso(input.generatedAt ?? new Date());
   const defaultAttribution = input.defaultAttribution ?? { scope: 'run' as const };
@@ -128,11 +113,6 @@ export interface VerifyAssuranceEnvelopeExpected {
   verifierVersion?: string;
 }
 
-/**
- * Verify an envelope received across a service boundary. This is integrity and
- * drift verification, not authorization: the destination still recomputes its
- * own server-side release decision before persisting or releasing content.
- */
 export function verifyAssuranceEnvelope(
   envelope: AssuranceEnvelope,
   expected: VerifyAssuranceEnvelopeExpected = {},
@@ -162,7 +142,6 @@ export function verifyAssuranceEnvelope(
   return { valid: errors.length === 0, errors };
 }
 
-/** Bounded operational projection. Safe for metrics/audit logs; contains no claim text. */
 export function summarizeAssuranceEnvelope(envelope: AssuranceEnvelope): {
   version: string;
   surface: AssuranceSurface;
