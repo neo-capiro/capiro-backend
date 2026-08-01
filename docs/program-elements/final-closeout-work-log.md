@@ -1796,3 +1796,5 @@ export PE_CLOSEOUT_REPO="/c/Users/neoma/OneDrive/Documents/Claude/Projects/capir
 ```
 
 Do **not** merge #705 until REVIEW PASS **and** Neo merge authorization.
+
+**Phase 11 final remote tip (after docs pin):** 
