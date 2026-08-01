@@ -9,15 +9,18 @@ import { SecretsStack } from '../lib/secrets-stack';
 import { ComputeStack } from '../lib/compute-stack';
 import { MemoryProjectionWorkerStack } from '../lib/memory-projection-worker-stack';
 import { AlarmsStack } from '../lib/alarms-stack';
+import { MeriV2ControlStack } from '../lib/meriv2-control-stack';
 import { AssetsStack } from '../lib/assets-stack';
 
 /**
  * Capiro CDK app. Stacks are deployed in dependency order:
- *   Network → Dns → Data → Secrets → Compute → MemoryProjectionWorker
+ *   Network → Dns → Data → Secrets → Compute → MemoryProjectionWorker → Alarms
+ *   → MeriV2Control
  *
  * `cdk deploy --all --context env=dev --context account=<id>` will respect
  * the dependency graph below. Individual stacks can also be deployed by
- * name when iterating.
+ * name when iterating. The MeriV2 control monitor schedule remains disabled
+ * unless `--context enableMeriV2ControlMonitor=true` is supplied explicitly.
  */
 const app = new cdk.App();
 const cfg = loadConfig(app);
@@ -115,5 +118,35 @@ const alarms = new AlarmsStack(app, stackName(cfg.envName, 'Alarms'), {
 });
 alarms.addDependency(compute);
 alarms.addDependency(data);
+
+const controlMonitorEnabled =
+  String(app.node.tryGetContext('enableMeriV2ControlMonitor') ?? '')
+    .trim()
+    .toLowerCase() === 'true';
+const meriV2Control = new MeriV2ControlStack(
+  app,
+  stackName(cfg.envName, 'MeriV2Control'),
+  {
+    env,
+    tags,
+    cfg,
+    cluster: compute.cluster,
+    apiRepo: compute.apiRepo,
+    securityGroup: network.serviceSecurityGroup,
+    dbSecret: data.secret,
+    appDbSecret: data.appSecret,
+    databaseName: data.databaseName,
+    dataKey: data.key,
+    secretsKey: secrets.secretsKey,
+    alertsTopic: alarms.alertsTopic,
+    monitorEnabled: controlMonitorEnabled,
+  },
+);
+meriV2Control.addDependency(network);
+meriV2Control.addDependency(data);
+meriV2Control.addDependency(secrets);
+meriV2Control.addDependency(compute);
+meriV2Control.addDependency(memoryProjectionWorker);
+meriV2Control.addDependency(alarms);
 
 app.synth();
