@@ -7,7 +7,7 @@
  * trusted operators. No ids, titles, memory bodies, prompts, policy material,
  * source excerpts, or error messages are emitted.
  */
-import { PrismaClient, type Prisma } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import {
   emitMeriV2ControlMetrics,
   type MeriV2ControlMetricValues,
@@ -94,6 +94,9 @@ async function main(): Promise<void> {
         OutboxDeadLetterCount: count(outbox[0]?.dead_letter_count),
         BackfillQuarantineCount: count(backfill[0]?.quarantine_count),
         BackfillDriftCount: count(backfill[0]?.drift_count),
+        // Successful scheduled runs publish a zero so the monitor-failure alarm
+        // can treat missing data as a real missed heartbeat rather than normal silence.
+        ControlMonitorFailures: 0,
       } satisfies MeriV2ControlMetricValues;
     });
 
