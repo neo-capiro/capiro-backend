@@ -93,6 +93,10 @@ async function main() {
     WEB_ORIGIN: 'http://127.0.0.1:5173',
     API_PORT: '4000',
     API_BIND_HOST: '127.0.0.1',
+    // This is a disposable, isolated database. Selecting all here is intentional:
+    // it proves the tenant-canary code path instead of silently exercising the
+    // dark fallback after Phase 22 introduced MEMORY_GOVERNANCE_TENANTS.
+    MEMORY_GOVERNANCE_TENANTS: 'all',
     MEMORY_GOVERNANCE_LIFECYCLE: 'enforce',
     MEMORY_GOVERNANCE_ENFORCE: 'enforce',
     MEMORY_GOVERNANCE_CENTER: 'enforce',
@@ -100,7 +104,10 @@ async function main() {
     MERIV2_CONTEXT_PACKET_V2: 'enforce',
     MEMORY_AUTOLEARN_GOVERNED: 'false',
     MERI_POLICY_PACK_SOURCE: 'off',
+    MERI_POLICY_PACK_TENANTS: '',
     MERI_RELEASE_GATE: 'off',
+    MERI_RELEASE_GATE_TENANTS: '',
+    MERI_RELEASE_GATE_SURFACES: '',
     NOTES_ENCRYPTION_KEY: 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
     NOTES_ENCRYPTION_KEY_VERSION: 'phase19-local',
     OAUTH_TOKEN_ENCRYPTION_KEY: 'ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=',
@@ -169,7 +176,10 @@ async function main() {
       sharedDatabaseTouched: false,
       awsMutation: false,
     };
-    await writeFile(path.join(evidenceDir, 'local-runner-summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
+    await writeFile(
+      path.join(evidenceDir, 'local-runner-summary.json'),
+      `${JSON.stringify(summary, null, 2)}\n`,
+    );
     console.log(JSON.stringify(summary));
   } finally {
     await cleanup();
@@ -179,15 +189,12 @@ async function main() {
 async function waitForDatabase(env) {
   const deadline = Date.now() + 90_000;
   while (Date.now() < deadline) {
-    const code = await run('PostgreSQL readiness probe', docker, [
-      'exec',
-      containerName,
-      'pg_isready',
-      '-U',
-      'capiro',
-      '-d',
-      'capiro',
-    ], { allowFailure: true, quiet: true, env });
+    const code = await run(
+      'PostgreSQL readiness probe',
+      docker,
+      ['exec', containerName, 'pg_isready', '-U', 'capiro', '-d', 'capiro'],
+      { allowFailure: true, quiet: true, env },
+    );
     if (code === 0) return;
     await sleep(1000);
   }
@@ -248,11 +255,15 @@ async function run(label, command, commandArgs, options = {}) {
 
 async function capture(command, commandArgs) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.platform === 'win32' && command === 'git' ? 'git.exe' : command, commandArgs, {
-      cwd: ROOT,
-      windowsHide: true,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const child = spawn(
+      process.platform === 'win32' && command === 'git' ? 'git.exe' : command,
+      commandArgs,
+      {
+        cwd: ROOT,
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (chunk) => (stdout += chunk));
@@ -322,7 +333,10 @@ main().catch(async (error) => {
     sharedDatabaseTouched: false,
     awsMutation: false,
   };
-  await writeFile(path.join(evidenceDir, 'local-runner-failure.json'), `${JSON.stringify(payload, null, 2)}\n`).catch(() => undefined);
+  await writeFile(
+    path.join(evidenceDir, 'local-runner-failure.json'),
+    `${JSON.stringify(payload, null, 2)}\n`,
+  ).catch(() => undefined);
   console.error(JSON.stringify(payload));
   await cleanup().catch(() => undefined);
   process.exitCode = 1;
