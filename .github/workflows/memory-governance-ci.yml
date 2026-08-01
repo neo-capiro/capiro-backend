@@ -1,9 +1,9 @@
-# Institutional-memory governance cumulative release gate.
+# Institutional-memory governance and assurance cumulative release gate.
 #
-# Durable Phase 1-15 acceptance matrix. It runs the full governed-memory,
-# projection, truthful persistence, rollout, lifecycle, policy-authority,
-# reversible backfill, grant-scoped review, proposer withdrawal, accessible
-# Context Inspector, Governance Center, and surface contracts on one exact head.
+# Durable Phase 1-16 acceptance matrix. It runs governed-memory, projection,
+# truthful persistence, rollout, lifecycle, policy authority, reversible
+# backfill, review/withdrawal, accessibility, Governance Center, and the
+# cross-surface assurance envelope on one exact head.
 name: memory-governance-ci
 
 on:
@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 jobs:
-  governed-memory-phases-1-15:
+  governed-memory-phases-1-16:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     services:
@@ -78,7 +78,7 @@ jobs:
       - name: Typecheck projection-worker infrastructure
         run: pnpm --filter @capiro/infra-cdk typecheck
 
-      - name: Test API governed-memory Phases 1-15
+      - name: Test API governed-memory Phases 1-16
         run: >
           pnpm --filter @capiro/api exec jest --ci --silent --runInBand
           src/memory
@@ -106,7 +106,7 @@ jobs:
           src/meri/meri-policy-pack.switch.spec.ts
           src/meri/meri-action-proposal.service.spec.ts
 
-      - name: Test governed lifecycle, policy authority, persistence rollout and surface policy
+      - name: Test governed lifecycle, policy authority, assurance envelope, and rollout
         run: >
           pnpm --filter @capiro/meriv2-core exec jest --ci --runInBand
           src/memory/governance.spec.ts
@@ -116,20 +116,30 @@ jobs:
           src/context/compiler-v2.spec.ts
           src/compliance/action-approval.spec.ts
           src/assurance/assurance.spec.ts
+          src/assurance/release-switch.spec.ts
+          src/assurance/rollout.spec.ts
+          src/assurance/envelope.spec.ts
 
-      - name: Test orchestrator Context, Strategy, Steward, and action-policy delegation
+      - name: Test orchestrator Context, Chat, Editor, Strategy, Steward, and action-policy delegation
         run: >
           pnpm --filter @capiro/meriv2-orchestrator exec jest --ci --runInBand
           src/meri/context-compiler-v2.service.spec.ts
           src/meri/context-compiler.service.spec.ts
           src/meri/meri-context.resolver.spec.ts
           src/meri/meri-context.resolver.v2.spec.ts
+          src/meri/chat/chat-assistant.service.spec.ts
+          src/meri/in-editor/in-editor-assistant.service.spec.ts
           src/meri/strategy/strategy-assurance.spec.ts
           src/meri/steward/steward-assurance.spec.ts
           src/meri/api-action-proposal.repo.spec.ts
-          src/meri/chat/chat-assistant.service.spec.ts
 
-      - name: Test Workspace canonical context and persistence hold
+      - name: Test Strategy destination-side assurance verification
+        run: >
+          pnpm --filter @capiro/api-strategy exec jest --ci --runInBand
+          src/agents/execution-assurance.spec.ts
+          src/agents/execution-assurance.switch.spec.ts
+
+      - name: Test Workspace canonical context, section-aware assurance, and persistence hold
         run: >
           pnpm --filter @capiro/workspace exec jest --ci --runInBand
           src/generation/context-compiler.canonical-memory.spec.ts
