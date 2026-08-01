@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   assuranceMetric,
-  assuranceReleaseArmedFor,
   buildClaimLedgerFromToolResults,
   classifyAssuranceRisk,
   collectPeStructuralWarnings,
@@ -11,11 +10,13 @@ import {
   extractCitedPeCodes,
   metricLogLine,
   parseVerifierClaims,
+  resolveAssuranceRolloutMode,
   runAuditor,
   runGovernmentAffairsChecks,
   serializeRecordForGrounding,
   summarizeVerification,
   wrapToolResultForPrompt,
+  type AssuranceRolloutMode,
   type Confidence,
   type LedgerEntry,
   type MeriContext,
@@ -46,7 +47,6 @@ import {
 } from './in-editor-prompt.js';
 import { flattenSystemParts } from '../prompt-cache.helpers.js';
 
-/** System prompt for the cheap grounding-claims pass (mirrors apps/api's verifier). */
 const VERIFIER_SYSTEM_PROMPT =
   'You are a strict grounding verifier for a government-affairs assistant. Given SOURCES and a ' +
   "DOCUMENT, extract the document's distinct factual claims (skip headings, opinions, and " +
@@ -55,10 +55,6 @@ const VERIFIER_SYSTEM_PROMPT =
   'Mark supported=true only when a listed source backs the claim. Be conservative: if unsure, use ' +
   'supported=false with sourceIds [].';
 
-// 5 rounds cut off document tasks that needed a few lookups before proposing
-// edits; on exhaustion the loop returned a canned "ran out of steps" line and
-// dropped its context (same completion bug as the chat surface). 8 rounds + a
-// forced prose synthesis on exhaustion (below) fixes it.
 const MAX_ROUNDS = 8;
 const MAX_TOKENS = 8192;
 const TOOL_RESULT_CHARS = 12_000;
@@ -72,19 +68,6 @@ interface ContentBlock {
   [k: string]: unknown;
 }
 
-/**
- * MeriV2-served in-editor assistant (A3). Reproduces apps/api's bounded,
- * READ-ONLY agentic loop, but tool execution goes through the orchestrator
- * registry (scoped + gated) and the model runs on the tenant's key (BYOK2, via
- * RequestScopedLlmClient). Tool JSON-schemas are fetched from apps/api at
- * request time so definitions stay single-sourced. The loop must run inside a
- * RequestCredentialsStore scope (the controller sets it) so both the delegated
- * tool calls (bearer) and the LLM (tenant credential) resolve.
- *
- * v1 returns { reply, edits, steps }; the fail-open grounding/structural
- * enrichment (confidence/structuralWarnings) is a follow-up — omitting it
- * matches the legacy path with the verifier disabled.
- */
 @Injectable()
 export class InEditorAssistantService {
   private readonly logger = new Logger(InEditorAssistantService.name);
@@ -92,7 +75,6 @@ export class InEditorAssistantService {
   private readonly llm: RequestScopedLlmClient;
   private readonly apiBaseUrl: string;
   private readonly callTimeoutMs: number;
-  /** Mirrors apps/api's CLIO_VERIFIER_ENABLED — fail-open enrichment, off by default. */
   private readonly verifierEnabled: boolean;
 
   constructor(
@@ -101,10 +83,6 @@ export class InEditorAssistantService {
     private readonly prisma: PrismaService,
   ) {
     this.registry = registryService.registry;
-    // Reuse the ONE request-scoped LLM client (BYOK2) the registry built — the
-    // single global-key-read site lives in MeriRegistryService, so this surface
-    // stays BYOK4-clean (never reads the global Anthropic env key itself). The
-    // tenant key wins per-request; the default model is the orchestrator's (Sonnet).
     this.llm = registryService.llm;
     this.callTimeoutMs = Number.parseInt(config.get<string>('MERIV2_TIMEOUT_MS') ?? '120000', 10);
     this.apiBaseUrl = (
@@ -124,40 +102,23 @@ export class InEditorAssistantService {
       return { reply: 'What would you like me to do with this document?', edits: [] };
     }
 
-    // Prompt caching (P0-1 orchestrator parity): `systemParts` (the {base,
-    // dynamic} split) is what every round of THIS turn's tool loop sends —
-    // request-scoped-llm.client.ts places the cache breakpoint on `base`, so
-    // round 2..N of this turn reuses that prefix (the live document in
-    // `dynamic` still changes turn-to-turn, so cross-turn caching is not
-    // expected here — the win is within one turn's multi-round loop). `system`
-    // (the flat string) is kept only for the one-off "FINISH NOW" fallback
-    // below, which is never repeated and so never benefits from a breakpoint.
     const systemParts = composeInEditorSystemPrompt(dto);
     const system = flattenSystemParts(systemParts);
     const toolSchemas = [...(await this.fetchToolSchemas()), PROPOSE_EDITS_TOOL];
-    // The SAME frame/plan the prompt above told the model to satisfy — see
-    // resolveInEditorAssurance. Computed here (not re-derived) so the gate below
-    // cannot demand evidence the prompt never asked for.
     const assurance = resolveInEditorAssurance(dto);
     const assuranceRisk = classifyAssuranceRisk('in-editor', assurance.plan);
-    // DARK BY DEFAULT. `MERI_RELEASE_GATE=enforce` alone does NOT arm this: it is
-    // already read by chat finalize and by api-strategy's generation hold, and
-    // withholding EDITS is a different, independently-canaried behaviour, so the
-    // in-editor hold must be named in MERI_RELEASE_GATE_SURFACES. With it unset,
-    // this surface keeps its exact previous contract: propose the edits, annotate
-    // them fail-open via verifyEdits, withhold nothing.
-    const withholdUnverifiedEdits =
-      assuranceReleaseArmedFor(process.env.MERI_RELEASE_GATE_SURFACES, 'in-editor') &&
-      assuranceRisk.requiresBufferBeforeRelease;
+    const assuranceMode = resolveAssuranceRolloutMode({
+      globalModeRaw: process.env.MERI_RELEASE_GATE,
+      tenantCanariesRaw: process.env.MERI_RELEASE_GATE_TENANTS,
+      surfacesRaw: process.env.MERI_RELEASE_GATE_SURFACES,
+      tenantId: ctx.tenantId,
+      surface: 'in-editor',
+    });
+    const evaluateBeforeApply =
+      assuranceMode !== 'off' && assuranceRisk.requiresBufferBeforeRelease;
     const steps: AssistantStep[] = [];
-    // Grounding capture for the post-turn verifier + structural pass (parity
-    // with apps/api's legacy in-editor verifyEdits).
     const groundingBodies: string[] = [];
     const citedPeRecords = new Map<string, PeRecordForValidation>();
-    // Claim-ledger evidence for the release gate: the same tool results the model
-    // saw, in the shape buildClaimLedgerFromToolResults resolves citations
-    // against. groundingBodies alone is not enough — it is prose, so a FORM B
-    // token in an edit could not be proven to come from a real record.
     const ledgerEntries: LedgerEntry[] = [];
 
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
@@ -192,7 +153,6 @@ export class InEditorAssistantService {
           b.type === 'tool_use' && typeof b.name === 'string' && typeof b.id === 'string',
       );
 
-      // Terminal: the model proposed its answer (+ optional edits).
       const propose = toolUses.find((t) => t.name === 'propose_document_edits');
       if (propose) {
         const input = propose.input ?? {};
@@ -207,14 +167,15 @@ export class InEditorAssistantService {
           citedPeRecords,
           subjectId,
         );
-        // PRE-APPLY RELEASE GATE. verifyEdits above is fail-open ENRICHMENT: it
-        // returns {} on any error and is itself flag-gated by
-        // CLIO_VERIFIER_ENABLED, so it annotates but never withholds. That
-        // contract is left untouched. This is the separate, deterministic
-        // decision — an unsupported high-risk claim must not reach the editor as
-        // an applyable edit, because the next click makes it the document.
-        const held = withholdUnverifiedEdits
-          ? this.holdUnverifiedEdits(edits, structuralWarnings, ledgerEntries, assurance)
+        const held = evaluateBeforeApply
+          ? this.holdUnverifiedEdits(
+              edits,
+              structuralWarnings,
+              ledgerEntries,
+              assurance,
+              assuranceMode,
+              ctx.contextPacket?.persisted ? (ctx.contextPacket.packetId ?? null) : null,
+            )
           : null;
         if (held) {
           return {
@@ -227,14 +188,10 @@ export class InEditorAssistantService {
         return { reply: reply || 'Done.', edits, confidence, structuralWarnings, steps };
       }
 
-      // No tools requested → plain conversational answer.
       if (!toolUses.length || stopReason !== 'tool_use') {
         return { reply: textOut || 'Done.', edits: [], steps };
       }
 
-      // Execute the requested read-only data tools through the registry and feed
-      // results back. The registry enforces scoping (and would gate any write —
-      // none are in the allowlist).
       messages.push({ role: 'assistant', content });
       const results = await Promise.all(
         toolUses.map(async (tu) => {
@@ -263,9 +220,6 @@ export class InEditorAssistantService {
             }
           }
           const serialized = wrapToolResultForPrompt(tu.name, result, TOOL_RESULT_CHARS);
-          // Ledger entry for the release gate: the EXACT bytes the model read, so
-          // a FORM B token in an edit can be proved (or disproved) against the
-          // record it claims to come from.
           ledgerEntries.push({ tool: tu.name, serialized, result });
           return {
             type: 'tool_result' as const,
@@ -277,9 +231,6 @@ export class InEditorAssistantService {
       messages.push({ role: 'user', content: results });
     }
 
-    // Tool-round budget spent before the model proposed edits. Rather than
-    // discarding the research, force one tool-free pass so the user gets Meri's
-    // findings + recommendation in prose (no edits) instead of a canned line.
     let reply =
       'I gathered a lot of context but ran out of steps before finishing — ask again and I’ll continue.';
     try {
@@ -304,26 +255,13 @@ export class InEditorAssistantService {
     return { reply, edits: [], steps };
   }
 
-  /**
-   * Should these proposed edits be WITHHELD? Returns the verification-failure
-   * text to reply with, or null to release the edits unchanged.
-   *
-   * Runs the same three deterministic mechanisms chat's finalize runs, over the
-   * EDIT TEXT rather than the chat prose: the claim ledger resolved against this
-   * turn's tool results, the grounding auditor, and the government-affairs domain
-   * checks. `evaluateAssuranceRelease` returns 'repair' for the in-editor surface
-   * (risk-gate.ts), which on a document surface means "do not hand the user
-   * something applyable" — there is no partial apply.
-   *
-   * FAILS CLOSED. The caller has already decided the surface is armed and that
-   * the request is high-risk; a crash inside the verification of a high-risk
-   * document edit must not become a silent release.
-   */
   private holdUnverifiedEdits(
     edits: AssistantEdit[],
     structuralWarnings: PeStructuralWarning[] | undefined,
     ledgerEntries: readonly LedgerEntry[],
     assurance: ReturnType<typeof resolveInEditorAssurance>,
+    mode: AssuranceRolloutMode,
+    contextPacketId: string | null,
   ): string | null {
     const editText = edits
       .map((edit) =>
@@ -331,7 +269,6 @@ export class InEditorAssistantService {
       )
       .join('\n')
       .trim();
-    // Advice-only turns (empty edits array) change no document — nothing to hold.
     if (!editText) return null;
     try {
       const ledger = buildClaimLedgerFromToolResults({
@@ -355,24 +292,32 @@ export class InEditorAssistantService {
         plan: assurance.plan,
         ledger,
         findings: [...grounding.findings, ...domainFindings],
-        // A structural PE warning (RDT&E-vs-procurement, mission mismatch) means
-        // the deterministic pre-release check itself did not come back clean.
         verificationAvailable: !(structuralWarnings ?? []).length,
       });
+      // The generic gate creates an envelope for every evaluated surface. Bind
+      // the persisted Context Packet identity in the metric without trusting a
+      // browser-provided packet id; the destination still recomputes on apply.
+      const envelopeHash = gate.envelope.hash.slice(0, 16);
       this.logger.log(
         metricLogLine(
           assuranceMetric({
             name: 'release_gate',
             dimensions: {
               surface: 'in-editor',
+              domain: mode,
               outcome: gate.decision,
               category: assurance.plan.requestCategories.join(',').slice(0, 120),
               severity: grounding.topSeverity ?? undefined,
               jurisdiction: assurance.frame.jurisdictions.join(',').slice(0, 120),
+              envelope: envelopeHash,
+              context: contextPacketId ? 'persisted' : 'none',
             },
           }),
         ),
       );
+      // Shadow computes the exact same ledger, findings, gate, and envelope but
+      // returns the original edits byte-for-byte.
+      if (mode !== 'enforce') return null;
       if (gate.decision !== 'repair' && gate.decision !== 'hold') return null;
       const reasons = gate.blockers
         .slice(0, 6)
@@ -386,18 +331,16 @@ export class InEditorAssistantService {
       ].join('\n');
     } catch (error) {
       this.logger.warn(
-        `[meri-assurance] in-editor pre-release verification failed closed: ${
+        `[meri-assurance] in-editor pre-release verification failed: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
-      return 'Verification was unavailable, so I did not propose edits to this document. Nothing was changed. Please try again once the authoritative sources are reachable.';
+      return mode === 'enforce'
+        ? 'Verification was unavailable, so I did not propose edits to this document. Nothing was changed. Please try again once the authoritative sources are reachable.'
+        : null;
     }
   }
 
-  /**
-   * Best-effort metering for one `completeWithTools` round (Phase 1 M5.0, H-1) —
-   * one `ai_usage_events` row per round. `recordAiUsageEvent` never throws.
-   */
   private async meterRound(ctx: MeriContext, resp: ToolLoopResponse): Promise<void> {
     await recordAiUsageEvent(
       { prisma: this.prisma, logger: this.logger },
@@ -412,11 +355,6 @@ export class InEditorAssistantService {
     );
   }
 
-  /**
-   * Fetch the Anthropic tool schemas from apps/api (single source) with the
-   * caller's bearer, filtered to the read-only allowlist. On failure, degrade to
-   * no data tools (the model can still reply, just without lookups).
-   */
   private async fetchToolSchemas(): Promise<AnthropicToolSchema[]> {
     const bearer = RequestCredentialsStore.get()?.bearerToken;
     if (!bearer) {
@@ -436,12 +374,6 @@ export class InEditorAssistantService {
     }
   }
 
-  /**
-   * Capture rich grounding bodies + cited PE records from a read-only tool
-   * result, so the post-turn verifier sees the SAME records the model saw (not
-   * a stub) and the structural validator can check PE category/mission.
-   * Mirrors apps/api's legacy in-editor captureGrounding.
-   */
   private captureGrounding(
     toolName: string,
     result: unknown,
@@ -452,7 +384,6 @@ export class InEditorAssistantService {
     const rec = result as Record<string, unknown>;
     if (typeof rec.error === 'string') return;
 
-    // PE detail tools carry the typed record we validate structurally.
     const pe = rec.programElement as Record<string, unknown> | undefined;
     if (pe && typeof pe === 'object' && typeof pe.peCode === 'string') {
       citedPeRecords.set(pe.peCode, {
@@ -464,7 +395,6 @@ export class InEditorAssistantService {
         budgetActivityName: (pe.budgetActivityName as string | null) ?? null,
       });
     }
-    // Any list rows / detail object → grounding text for the verifier.
     const rows = Array.isArray(rec.data)
       ? rec.data
       : Array.isArray(rec.results)
@@ -478,15 +408,6 @@ export class InEditorAssistantService {
     }
   }
 
-  /**
-   * Run the SAME grounding + structural pass as apps/api's legacy in-editor
-   * assistant on the proposed edits: (1) deterministic PE structural checks
-   * (RDT&E vs procurement, capability/mission mismatch, primary-vehicle
-   * overclaim) against any cited PE records; (2) a cheap grounding verifier
-   * over the edit text vs the retrieved records. Fail-open + flag-gated
-   * (CLIO_VERIFIER_ENABLED) — never blocks the edits. Runs on the request-scoped
-   * LLM client (BYOK-clean — no direct global-key read here).
-   */
   private async verifyEdits(
     edits: AssistantEdit[],
     groundingBodies: string[],
@@ -500,8 +421,6 @@ export class InEditorAssistantService {
         .trim();
       if (!editText) return {};
 
-      // (1) Deterministic structural checks — also validate PEs cited in the
-      // edit text even if no detail tool ran (so a bad seed PE is still flagged).
       const pes = [...citedPeRecords.values()];
       for (const code of extractCitedPeCodes(editText)) {
         if (!citedPeRecords.has(code)) pes.push({ peCode: code });
@@ -510,8 +429,6 @@ export class InEditorAssistantService {
 
       return await this.verifyEditsInner(editText, groundingBodies, structuralWarnings, subjectId);
     } catch (e) {
-      // Non-essential enrichment: never let it fail the turn. Return edits
-      // unannotated.
       this.logger.warn(
         `in-editor verifyEdits failed (returning edits unannotated): ${(e as Error).message}`,
       );
@@ -539,8 +456,6 @@ export class InEditorAssistantService {
         const claims = parseVerifierClaims(JSON.stringify(raw));
         if (claims.length) {
           confidence = confidenceLevel(summarizeVerification(claims).unsupportedRatio);
-          // Claim/Evidence store: persist the verified claims via apps/api
-          // (fire-and-forget, fail-open — grounding audit never blocks a turn).
           this.persistClaims(subjectId, claims, groundingBodies);
         }
       } catch (e) {
@@ -554,12 +469,6 @@ export class InEditorAssistantService {
     };
   }
 
-  /**
-   * Persist verified claims to apps/api's Claim/Evidence store
-   * (POST /api/clio/claims) with the caller's forwarded bearer, so the rows are
-   * tenant-scoped by RLS. Fire-and-forget + fail-open: no bearer / non-2xx /
-   * network error is logged and swallowed — never blocks or fails the turn.
-   */
   private persistClaims(
     subjectId: string,
     claims: Array<{ claim: string; supported: boolean; sourceIds: number[] }>,
