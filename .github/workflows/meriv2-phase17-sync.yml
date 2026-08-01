@@ -1,0 +1,60 @@
+name: meriv2-phase17-sync
+
+on:
+  push:
+    branches: [agent/meriv2-world-class-closeout]
+    paths:
+      - docs/tmp/meriv2-phase17-sync-request.txt
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: meriv2-phase17-sync
+  cancel-in-progress: false
+
+jobs:
+  synchronize-current-main:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/meriv2-world-class-closeout
+          fetch-depth: 0
+
+      - name: Merge current main with current-main precedence
+        run: |
+          set -euo pipefail
+          git config user.name "Capiro Phase 17 Sync"
+          git config user.email "noreply@capiro.ai"
+          git fetch origin main
+          git merge --no-ff -X theirs origin/main \
+            -m "merge(main): synchronize MeriV2 Phase 17 release head"
+
+      - name: Verify both release streams survived the merge
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor origin/main HEAD
+
+          # MeriV2 governed-memory schema and worker invariants.
+          grep -q '^model MemoryAccessGrant {' apps/api/prisma/schema.prisma
+          grep -q '^model MemoryCleanupOutbox {' apps/api/prisma/schema.prisma
+          grep -q '^model CompliancePolicyPack {' apps/api/prisma/schema.prisma
+          grep -q 'governed_status' apps/api/prisma/schema.prisma
+          grep -q 'drain-memory-cleanup-outbox)' apps/api/scripts/entrypoint-dispatcher.inc
+          grep -q 'backfill-memory-governance-v2)' apps/api/scripts/entrypoint-dispatcher.inc
+          test -f apps/api/src/meri/governed-meri-tools.proxy.ts
+          grep -q 'MemoryGovernanceActionService' apps/api/src/meri/meri-tools.service.ts
+
+          # Current-main Program Elements invariants from the incoming stream.
+          grep -q '^model ProgramElementDataIssue {' apps/api/prisma/schema.prisma
+          grep -q '^model ProgramElementChangeOutbox {' apps/api/prisma/schema.prisma
+          grep -q 'drain-pe-change-outbox)' apps/api/scripts/entrypoint-dispatcher.inc
+          grep -q 'MeriDefenseBudgetTool' apps/api/src/meri/meri-tools.service.ts
+
+          git diff --check origin/main...HEAD
+
+      - name: Push the verified merge commit
+        run: git push origin HEAD:agent/meriv2-world-class-closeout
