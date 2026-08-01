@@ -1,6 +1,7 @@
 import type { AuditFinding } from '../grounding/auditor';
 import type { ClaimLedger } from './claim-ledger';
 import type { DomainEvidencePlan } from './evidence-plan';
+import { buildAssuranceEnvelope, type AssuranceEnvelope } from './envelope';
 
 export type AssuranceSurface =
   | 'chat'
@@ -11,11 +12,6 @@ export type AssuranceSurface =
   | 'outreach'
   | 'memo'
   | 'district-brief'
-  // Context Steward extraction. NOT client-facing (its output becomes
-  // sp_context_* facts that api-strategy persists), so it is deliberately absent
-  // from EXTERNAL_OR_EXECUTION_SURFACES below — it is gated as a claim-ledger
-  // PRODUCER (an anchor-less high-risk fact must not be persisted), not as an
-  // external artifact.
   | 'steward';
 
 export const ASSURANCE_SURFACES: readonly AssuranceSurface[] = [
@@ -32,74 +28,55 @@ export const ASSURANCE_SURFACES: readonly AssuranceSurface[] = [
 
 export type AssuranceRiskLevel = 'low' | 'moderate' | 'high' | 'restricted';
 export type AssuranceReleaseDecision = 'deliver' | 'deliver_with_flags' | 'repair' | 'hold';
-
-export type AssuranceReleaseMode = 'off' | 'enforce';
+export type AssuranceReleaseMode = 'off' | 'shadow' | 'enforce';
 
 /**
- * Master switch for actually WITHHOLDING output on a failed release decision.
- *
- * `classifyAssuranceRisk` below is deliberately broad: every external/strategy
- * artifact and any high-risk factual category buffers before release. That is the
- * right classification, but it means enforcing the hold changes behaviour on a
- * large share of real traffic — a plain "ndaa status?" classifies as `bill_status`
- * and is held whenever the same turn did not resolve authoritative status +
- * procedure evidence. So the hold ships DARK and is enabled per environment during
- * the canary, mirroring the existing MERI_AUDITOR_MODE switch.
- *
- * With `off`, the pre-Phase-4 behaviour is preserved exactly: stream the reply and
- * attach a post-hoc grounding caveat. Classification, the claim ledger, and the
- * release metrics still run, so the gate can be observed before it is armed.
- *
- * Pure by design — callers pass the raw environment value so this stays testable
- * and this package keeps no ambient environment dependency.
+ * Backward-compatible chat resolver. Phase 16 requires all three controls even
+ * for this legacy no-tenant call: global mode, `all` tenants, and the chat
+ * surface. Tenant-specific canaries use resolveAssuranceRolloutMode at call sites
+ * that possess the server-resolved tenant id.
  */
-export function resolveAssuranceReleaseMode(raw: string | undefined): AssuranceReleaseMode {
-  return String(raw ?? '')
-    .trim()
-    .toLowerCase() === 'enforce'
-    ? 'enforce'
-    : 'off';
+export function resolveAssuranceReleaseMode(
+  raw: string | undefined,
+  tenantCanariesRaw: string | undefined = process.env.MERI_RELEASE_GATE_TENANTS,
+  surfacesRaw: string | undefined = process.env.MERI_RELEASE_GATE_SURFACES,
+): AssuranceReleaseMode {
+  const mode = normalize(raw);
+  if (mode !== 'shadow' && mode !== 'enforce') return 'off';
+  const tenants = tokens(tenantCanariesRaw);
+  const surfaces = tokens(surfacesRaw);
+  if (!tenants.includes('all')) return 'off';
+  if (!surfaces.includes('all') && !surfaces.includes('chat')) return 'off';
+  return mode;
 }
 
-/**
- * PER-SURFACE arming for the pre-release hold — sibling of
- * `resolveAssuranceReleaseMode`, read from `MERI_RELEASE_GATE_SURFACES`.
- *
- * WHY A SECOND SWITCH. `MERI_RELEASE_GATE` is already read by TWO
- * independently-deployed services: the orchestrator's chat finalize and
- * api-strategy's `generationReleaseHoldEnforced`. Hanging four MORE surfaces off
- * the same variable would mean one flip arms six behaviours at once across three
- * services — the opposite of a canary. So every surface added after chat is armed
- * by NAME here, and `MERI_RELEASE_GATE=enforce` alone changes nothing about them.
- *
- * Format: a comma/space separated list of `AssuranceSurface` names, or the single
- * token `all`. Unknown tokens are ignored rather than throwing — a typo must
- * NEVER be the thing that silently arms (or disarms) a withhold. Empty, unset, or
- * all-unknown ⇒ the empty set ⇒ every new surface stays dark.
- *
- * Pure by design: callers pass the raw environment value.
- */
 export function resolveAssuranceReleaseSurfaces(
   raw: string | undefined,
 ): ReadonlySet<AssuranceSurface> {
-  const tokens = String(raw ?? '')
-    .split(/[,\s]+/)
-    .map((token) => token.trim().toLowerCase())
-    .filter((token) => token.length > 0);
-  if (!tokens.length) return new Set<AssuranceSurface>();
-  if (tokens.includes('all')) return new Set<AssuranceSurface>(ASSURANCE_SURFACES);
+  const parsed = tokens(raw);
+  if (!parsed.length) return new Set<AssuranceSurface>();
+  if (parsed.includes('all')) return new Set<AssuranceSurface>(ASSURANCE_SURFACES);
   const known = new Set<string>(ASSURANCE_SURFACES);
   return new Set<AssuranceSurface>(
-    tokens.filter((token): token is AssuranceSurface => known.has(token)),
+    parsed.filter((token): token is AssuranceSurface => known.has(token)),
   );
 }
 
-/** Is the pre-release hold armed for exactly this surface? Defaults to false. */
+/**
+ * Legacy no-tenant surface resolver. It can arm only for an explicit all-tenant
+ * canary. Tenant-specific callers must use resolveAssuranceRolloutMode.
+ */
 export function assuranceReleaseArmedFor(
   raw: string | undefined,
   surface: AssuranceSurface,
+  globalModeRaw: string | undefined = process.env.MERI_RELEASE_GATE,
+  tenantCanariesRaw: string | undefined = process.env.MERI_RELEASE_GATE_TENANTS,
 ): boolean {
-  return resolveAssuranceReleaseSurfaces(raw).has(surface);
+  return (
+    normalize(globalModeRaw) === 'enforce' &&
+    tokens(tenantCanariesRaw).includes('all') &&
+    resolveAssuranceReleaseSurfaces(raw).has(surface)
+  );
 }
 
 export const HIGH_RISK_CLAIM_CATEGORIES = new Set([
@@ -140,7 +117,6 @@ export interface AssuranceGateInput {
   plan: DomainEvidencePlan;
   ledger: ClaimLedger;
   findings?: readonly AuditFinding[];
-  /** A policy decision from the active, reviewed policy pack. */
   complianceOutcome?: 'PASS' | 'WARN' | 'BLOCK';
   verificationAvailable?: boolean;
 }
@@ -151,13 +127,10 @@ export interface AssuranceGateResult {
   blockers: string[];
   warnings: string[];
   canStreamIrreversibly: boolean;
+  /** Canonical envelope created for every evaluated surface, including shadow. */
+  envelope: AssuranceEnvelope;
 }
 
-/**
- * Classify risk deterministically from surface and claim categories. The model
- * cannot lower its own risk tier. High-risk factual categories and all external
- * or strategy-execution artifacts are buffered before release.
- */
 export function classifyAssuranceRisk(
   surface: AssuranceSurface,
   plan: DomainEvidencePlan,
@@ -195,10 +168,6 @@ export function classifyAssuranceRisk(
   };
 }
 
-/**
- * Release decision after claim resolution and deterministic checks. A post-hoc
- * caveat cannot turn an unsupported high-risk fact into releaseable content.
- */
 export function evaluateAssuranceRelease(input: AssuranceGateInput): AssuranceGateResult {
   const assessment = classifyAssuranceRisk(input.surface, input.plan);
   const blockers: string[] = [];
@@ -240,40 +209,34 @@ export function evaluateAssuranceRelease(input: AssuranceGateInput): AssuranceGa
     decision = assessment.level === 'restricted' ? 'hold' : 'deliver_with_flags';
   }
 
-  return {
+  const core = {
     assessment,
     decision,
     blockers,
     warnings,
     canStreamIrreversibly: !assessment.requiresBufferBeforeRelease && decision === 'deliver',
   };
+  const envelope = buildAssuranceEnvelope({
+    surface: input.surface,
+    operatingFrame: {
+      jurisdictions: [...input.plan.jurisdictions],
+      missingRequired: [...input.plan.unresolvedFrameFields],
+      assumptions: ['operating frame reconstructed from the canonical evidence plan'],
+    },
+    evidencePlan: input.plan,
+    claimLedger: input.ledger,
+    findings,
+    gate: core,
+  });
+  return { ...core, envelope };
 }
 
 export interface PrePersistAssuranceResult {
   gate: AssuranceGateResult;
-  /**
-   * May the caller perform the DURABLE write? `deliver_with_flags` still
-   * persists — the flags travel with the artifact. `repair`/`hold` must not.
-   */
   allowPersist: boolean;
-  /** Bounded, non-fabricating explanation for the model / the run summary. */
   refusal: string;
 }
 
-/**
- * The ONE pre-persistence decision every surface shares.
- *
- * `evaluateAssuranceRelease` answers "may this be RELEASED"; on chat that runs at
- * finalize, which is far too late for a tool that already wrote a durable row.
- * This wrapper is the pre-write form: same classification, same blockers, plus a
- * canonical refusal string so four call sites cannot drift into four different
- * (and differently misleading) apology texts.
- *
- * It deliberately does NOT read the environment. Every caller must have already
- * decided it is armed (`assuranceReleaseArmedFor` / `resolveAssuranceReleaseMode`)
- * before calling, so the dark-by-default decision stays visible at the call site
- * instead of being buried in here.
- */
 export function assurePreToolPersist(
   input: AssuranceGateInput & { subject?: string },
 ): PrePersistAssuranceResult {
@@ -298,22 +261,24 @@ export function assurePreToolPersist(
   return { gate, allowPersist, refusal };
 }
 
-/**
- * Conservative preflight used before a model call. It intentionally over-buffers
- * ambiguous high-stakes requests; latency is preferable to irreversibly streaming
- * an unchecked status, money, role, deadline, or legal assertion.
- */
 export function shouldBufferRequestBeforeRelease(
   request: string,
   surface: AssuranceSurface = 'chat',
 ): boolean {
   if (EXTERNAL_OR_EXECUTION_SURFACES.has(surface)) return true;
   const text = String(request ?? '');
-  // Money phrasing must include the literal ways a dollar figure is asked for. The
-  // original list covered process words (budget/appropriat/authoriz) but missed the
-  // most direct forms — "what is the current FY27 amount", "how much did it get" —
-  // which are exactly the high-stakes numbers that must not stream unverified.
   return /(?:\$|\b(?:budget|funding|appropriat|authoriz|amount|how\s+much|top-?line|plus-?up|cost|dollars?|fy\s?\d{2,4}|vote|passed|failed|enacted|public\s+law|current\s+(?:chair|member|official|role)|deadline|due\s+date|comment\s+period|effective\s+date|legal|compliance|recommend|strategy|who\s+should\s+we|no\s+evidence|none|only|all|every)\b)/i.test(
     text,
   );
+}
+
+function tokens(raw: string | undefined): string[] {
+  return String(raw ?? '')
+    .split(/[,\s]+/)
+    .map(normalize)
+    .filter(Boolean);
+}
+
+function normalize(value: unknown): string {
+  return String(value ?? '').trim().toLowerCase();
 }
