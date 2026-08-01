@@ -18,8 +18,9 @@ const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = parse(process.argv.slice(2));
 const sha = args.sha;
-if (!/^[0-9a-f]{40}$/i.test(sha ?? ''))
+if (!/^[0-9a-f]{40}$/i.test(sha ?? '')) {
   throw new Error('--sha must be the exact 40-character release SHA.');
+}
 const envName = args.env ?? 'dev';
 const profile = args.profile ?? 'capiro-dev';
 const region = args.region ?? 'us-east-1';
@@ -114,8 +115,6 @@ async function main() {
     });
   }
 
-  // API migration is an on-demand task family, not an ECS service. Preserve its
-  // current secrets/roles/network mode and bind it to the same release image.
   const migrationFamily = args.migrationFamily ?? `capiro-${envName}-api-migrate`;
   const migrationCurrent = await describeTask(migrationFamily);
   const apiDefinition = definitions[0];
@@ -182,8 +181,9 @@ async function describeTask(taskDefinition) {
     '--include',
     'TAGS',
   ]);
-  if (!response.taskDefinition)
+  if (!response.taskDefinition) {
     throw new Error(`Task definition ${taskDefinition} was not found.`);
+  }
   return { ...response.taskDefinition, tags: response.tags ?? [] };
 }
 
@@ -226,11 +226,13 @@ function prepareTaskDefinition(current, definition, image) {
 
 function replaceEnvironment(existing, intended) {
   const controlled = new Set([
+    'MEMORY_GOVERNANCE_TENANTS',
     'MEMORY_GOVERNANCE_LIFECYCLE',
     'MEMORY_GOVERNANCE_ENFORCE',
     'MEMORY_CLIENT_REVIEW',
     'MEMORY_GOVERNANCE_CENTER',
     'MERIV2_CONTEXT_PACKET_V2',
+    'CONTEXT_PACKET_V2',
     'MERI_POLICY_PACK_SOURCE',
     'MERI_POLICY_PACK_TENANTS',
     'MERI_RELEASE_GATE',
@@ -250,12 +252,14 @@ function replaceEnvironment(existing, intended) {
 
 function darkApiEnvironment() {
   return {
+    MEMORY_GOVERNANCE_TENANTS: '',
     MEMORY_GOVERNANCE_LIFECYCLE: 'off',
     MEMORY_GOVERNANCE_ENFORCE: 'off',
     MEMORY_CLIENT_REVIEW: 'off',
     MEMORY_GOVERNANCE_CENTER: 'off',
     MEMORY_AUTOLEARN_GOVERNED: 'false',
     MERIV2_CONTEXT_PACKET_V2: 'off',
+    CONTEXT_PACKET_V2: '',
     MERI_POLICY_PACK_SOURCE: 'off',
     MERI_POLICY_PACK_TENANTS: '',
     MERI_RELEASE_GATE: 'off',
@@ -267,10 +271,11 @@ function darkApiEnvironment() {
 
 function darkAssuranceEnvironment() {
   return {
+    MERIV2_CONTEXT_PACKET_V2: 'off',
+    CONTEXT_PACKET_V2: '',
     MERI_RELEASE_GATE: 'off',
     MERI_RELEASE_GATE_TENANTS: '',
     MERI_RELEASE_GATE_SURFACES: '',
-    MERIV2_CONTEXT_PACKET_V2: 'off',
   };
 }
 
