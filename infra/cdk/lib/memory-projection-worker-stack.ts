@@ -11,6 +11,10 @@ import { ScheduledMemoryProjectionWorker } from './constructs/scheduled-memory-p
 export interface MemoryProjectionWorkerStackProps extends cdk.StackProps {
   cfg: EnvConfig;
   clusterArn: string;
+  /** VPC that owns the imported private subnets (required by fromClusterAttributes). */
+  vpcId: string;
+  /** One AZ per privateSubnetIds entry, same order. */
+  privateSubnetAvailabilityZones: string[];
   apiRepositoryName: string;
   /** Immutable `sha256:...` digest resolved from the exact release-SHA tag. */
   apiImageDigest: string;
@@ -42,7 +46,33 @@ export class MemoryProjectionWorkerStack extends cdk.Stack {
       cdk.Tags.of(this).add(key, value);
     }
 
-    const cluster = ecs.Cluster.fromClusterArn(this, 'ImportedCluster', props.clusterArn);
+    const securityGroup = ec2.SecurityGroup.fromSecurityGroupId(
+      this,
+      'ImportedServiceSecurityGroup',
+      props.serviceSecurityGroupId,
+      { mutable: false },
+    );
+    // fromClusterArn() leaves cluster.vpc undefined, and EventBridge EcsTask then
+    // throws "vpc is not available for a Cluster imported using fromClusterArn()".
+    // Import by attributes with the real VPC + private subnets instead.
+    const vpc = ec2.Vpc.fromVpcAttributes(this, 'ImportedVpc', {
+      vpcId: props.vpcId,
+      availabilityZones: props.privateSubnetAvailabilityZones,
+      privateSubnetIds: props.privateSubnetIds,
+    });
+    const clusterName =
+      cdk.Arn.split(props.clusterArn, cdk.ArnFormat.SLASH_RESOURCE_NAME).resourceName ??
+      props.clusterArn.split('/').pop() ??
+      '';
+    if (!clusterName) {
+      throw new Error(`Could not parse ECS cluster name from ARN: ${props.clusterArn}`);
+    }
+    const cluster = ecs.Cluster.fromClusterAttributes(this, 'ImportedCluster', {
+      clusterName,
+      clusterArn: props.clusterArn,
+      vpc,
+      securityGroups: [securityGroup],
+    });
     const apiRepo = ecr.Repository.fromRepositoryName(
       this,
       'ImportedApiRepository',
@@ -50,12 +80,6 @@ export class MemoryProjectionWorkerStack extends cdk.Stack {
     );
     const subnets = props.privateSubnetIds.map((subnetId, index) =>
       ec2.Subnet.fromSubnetId(this, `ImportedPrivateSubnet${index + 1}`, subnetId),
-    );
-    const securityGroup = ec2.SecurityGroup.fromSecurityGroupId(
-      this,
-      'ImportedServiceSecurityGroup',
-      props.serviceSecurityGroupId,
-      { mutable: false },
     );
     const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(
       this,

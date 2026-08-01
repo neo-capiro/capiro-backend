@@ -54,6 +54,38 @@ async function main() {
     throw new Error('The API service did not expose awsvpc subnets and a security group.');
   }
 
+  // EventBridge EcsTask targets require an imported Cluster with a VPC. fromClusterArn()
+  // alone has no vpc; collect the real VPC id from the service's private subnets.
+  const subnetResponse = await awsJson([
+    'ec2',
+    'describe-subnets',
+    '--subnet-ids',
+    ...privateSubnetIds,
+  ]);
+  const vpcIds = unique(
+    (subnetResponse.Subnets ?? []).map((subnet) => String(subnet.VpcId ?? '')).filter(Boolean),
+  );
+  if (vpcIds.length !== 1) {
+    throw new Error(
+      `Expected exactly one VPC for the API private subnets, found ${vpcIds.length || 0}.`,
+    );
+  }
+  const existingVpcId = vpcIds[0];
+  if (!/^vpc-[a-z0-9]+$/i.test(existingVpcId)) {
+    throw new Error(`Resolved VPC id is malformed: ${existingVpcId}`);
+  }
+  // Preserve subnet-id order so AZs align 1:1 with existingPrivateSubnetIds.
+  const subnetAzById = new Map(
+    (subnetResponse.Subnets ?? []).map((subnet) => [
+      String(subnet.SubnetId ?? ''),
+      String(subnet.AvailabilityZone ?? '').trim(),
+    ]),
+  );
+  const existingPrivateSubnetAzs = privateSubnetIds.map((id) => subnetAzById.get(id) ?? '');
+  if (existingPrivateSubnetAzs.some((az) => !az)) {
+    throw new Error('Could not resolve an availability zone for every private subnet.');
+  }
+
   const taskResponse = await awsJson([
     'ecs',
     'describe-task-definition',
@@ -109,6 +141,8 @@ async function main() {
     region,
     env: envName,
     existingClusterArn: cluster.clusterArn,
+    existingVpcId,
+    existingPrivateSubnetAzs: existingPrivateSubnetAzs.join(','),
     existingApiRepositoryName: apiRepositoryName,
     existingApiImageDigest,
     existingPrivateSubnetIds: privateSubnetIds.join(','),

@@ -14,6 +14,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { resolveAwsCli } from './lib/resolve-aws-cli.mjs';
+import { resolveSpawn } from './lib/resolve-tool.mjs';
 
 const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -23,7 +24,9 @@ if (!/^[0-9a-f]{40}$/i.test(sha)) throw new Error('--sha must be an exact 40-cha
 const contextPath = path.resolve(ROOT, required('context'));
 const profile = args.profile ?? 'capiro-dev';
 const region = args.region ?? 'us-east-1';
-const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+// Windows: never spawn pnpm.cmd shell-less (Node 20+ EINVAL). Resolve to
+// node + corepack/pnpm.js (or a real pnpm.exe) the same way the release gates do.
+const pnpmSpawn = resolveSpawn('pnpm');
 const aws = resolveAwsCli();
 const evidenceDir = path.resolve(ROOT, args.evidenceDir ?? `.deploy-logs/meriv2-operations/${sha}`);
 
@@ -70,10 +73,11 @@ async function main() {
     '--outputs-file',
     path.join(evidenceDir, 'cdk-outputs.json'),
   ];
-  const { stdout, stderr } = await execFileAsync(pnpm, commandArgs, {
+  const { stdout, stderr } = await execFileAsync(pnpmSpawn.command, [...pnpmSpawn.args, ...commandArgs], {
     cwd: path.join(ROOT, 'infra/cdk'),
     maxBuffer: 64 * 1024 * 1024,
     windowsHide: true,
+    shell: false,
   });
   await writeFile(path.join(evidenceDir, 'cdk-deploy.log'), `${stdout}${stderr}`, 'utf8');
   if (stdout?.trim()) process.stdout.write(stdout);
@@ -130,6 +134,8 @@ function validateContexts(contexts) {
     'region',
     'env',
     'existingClusterArn',
+    'existingVpcId',
+    'existingPrivateSubnetAzs',
     'existingApiRepositoryName',
     'existingPrivateSubnetIds',
     'existingServiceSecurityGroupId',

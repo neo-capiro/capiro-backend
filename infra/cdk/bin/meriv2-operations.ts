@@ -61,6 +61,22 @@ const shared = {
   clusterArn:
     optional(app, 'existingClusterArn') ??
     `arn:${partition}:ecs:${operationsCfg.region}:${operationsCfg.account}:cluster/capiro-${operationsCfg.envName}`,
+  vpcId: (() => {
+    const value = required(app, 'existingVpcId');
+    if (!/^vpc-[a-z0-9]+$/i.test(value)) {
+      throw new Error('existingVpcId must be a vpc-* id.');
+    }
+    return value;
+  })(),
+  privateSubnetAvailabilityZones: (() => {
+    const zones = csv(required(app, 'existingPrivateSubnetAzs'));
+    if (zones.length !== privateSubnetIds.length) {
+      throw new Error(
+        'existingPrivateSubnetAzs must list one availability zone per private subnet, in order.',
+      );
+    }
+    return zones;
+  })(),
   apiRepositoryName:
     optional(app, 'existingApiRepositoryName') ?? `capiro/${operationsCfg.envName}/api`,
   apiImageDigest,

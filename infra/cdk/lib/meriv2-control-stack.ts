@@ -18,6 +18,10 @@ const NAMESPACE = 'Capiro/MeriV2Control';
 export interface MeriV2ControlStackProps extends cdk.StackProps {
   cfg: EnvConfig;
   clusterArn: string;
+  /** VPC that owns the imported private subnets (required by fromClusterAttributes). */
+  vpcId: string;
+  /** One AZ per privateSubnetIds entry, same order. */
+  privateSubnetAvailabilityZones: string[];
   apiRepositoryName: string;
   /** Immutable `sha256:...` digest resolved from the exact release-SHA tag. */
   apiImageDigest: string;
@@ -70,7 +74,31 @@ export class MeriV2ControlStack extends cdk.Stack {
       cdk.Tags.of(this).add(key, value);
     }
 
-    const cluster = ecs.Cluster.fromClusterArn(this, 'ImportedCluster', props.clusterArn);
+    const securityGroup = ec2.SecurityGroup.fromSecurityGroupId(
+      this,
+      'ImportedServiceSecurityGroup',
+      props.serviceSecurityGroupId,
+      { mutable: false },
+    );
+    // fromClusterArn() leaves cluster.vpc undefined; EventBridge EcsTask requires it.
+    const vpc = ec2.Vpc.fromVpcAttributes(this, 'ImportedVpc', {
+      vpcId: props.vpcId,
+      availabilityZones: props.privateSubnetAvailabilityZones,
+      privateSubnetIds: props.privateSubnetIds,
+    });
+    const clusterName =
+      cdk.Arn.split(props.clusterArn, cdk.ArnFormat.SLASH_RESOURCE_NAME).resourceName ??
+      props.clusterArn.split('/').pop() ??
+      '';
+    if (!clusterName) {
+      throw new Error(`Could not parse ECS cluster name from ARN: ${props.clusterArn}`);
+    }
+    const cluster = ecs.Cluster.fromClusterAttributes(this, 'ImportedCluster', {
+      clusterName,
+      clusterArn: props.clusterArn,
+      vpc,
+      securityGroups: [securityGroup],
+    });
     const apiRepo = ecr.Repository.fromRepositoryName(
       this,
       'ImportedApiRepository',
@@ -78,12 +106,6 @@ export class MeriV2ControlStack extends cdk.Stack {
     );
     const subnets = props.privateSubnetIds.map((subnetId, index) =>
       ec2.Subnet.fromSubnetId(this, `ImportedPrivateSubnet${index + 1}`, subnetId),
-    );
-    const securityGroup = ec2.SecurityGroup.fromSecurityGroupId(
-      this,
-      'ImportedServiceSecurityGroup',
-      props.serviceSecurityGroupId,
-      { mutable: false },
     );
     const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(
       this,
