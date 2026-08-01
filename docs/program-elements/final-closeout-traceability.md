@@ -222,7 +222,7 @@ bash apps/api/scripts/pe-phase-9-migration-replay.sh
 
 | Field | Value |
 |---|---|
-| Remote tip / origin HEAD (review) | `0000000000000000000000000000000000000000` |
+| Remote tip / origin HEAD (review) | `693eb7093d48376621180ef71d81cfd45be97573` |
 | Product/live-proofs tip | `28dbed74845a74f1cb432ee4e5d1577827eaf182` |
 | origin/main | `3dcb12f823774b6fae8578dc56fc122bf9a0879e` |
 | Plane | `capiro-dev` / workflow `env=dev` / `app.capiro.ai` |
@@ -439,4 +439,37 @@ plus concrete findings. Do not implement fixes.
 13. **B14** Force `GET .../intelligence` 500 → open Relationships (RDTE) → `pe-secondary-failed-intelligence-maturity` + Partial; never "Transition maturity not yet computed". Open Appropriability → `pe-secondary-failed-intelligence-appropriability`; never "Appropriability not yet scored". Partial banner alone is insufficient if body still paints derivation Empty.
 14. **B15** Force `GET .../bill-actions` 500 → open Legislation → `pe-secondary-failed-bill-actions` + Partial; never "No action history synced yet" from silent `data ?? []`. Overview Partial may fire before tab switch (billActions enabled on overview).
 
+---
 
+## Phase 11 status (Final PR Closeout)
+
+| Field | Value |
+|---|---|
+| Phase | 11 — Final PR Closeout |
+| origin/main | `3dcb12f823774b6fae8578dc56fc122bf9a0879e` |
+| Start tip (Phase 10 PASS) | `693eb7093d48376621180ef71d81cfd45be97573` |
+| Main sync | 0 behind (merge empty / skipped) |
+| Phase 9 re-run | PE_PHASE_9_OK harness + RLS 23/23 operator re-run |
+| Evidence | `docs/verification/program-elements-trust/phase-11/` |
+| PR | #705 ready-for-review (not merged) |
+| Implementer gate | IMPLEMENT PUSHED / review **REQUIRED** — **not** self-PASS |
+| MeriV2 | untouched |
+| Migrations this phase | none |
+| Next | `./pe-closeout-run.sh review 11` |
+
+### Definition of Ready mapping (implementer claims only)
+
+| Ready bullet | Evidence |
+|---|---|
+| Real product diff | 179 files vs main; no transport parts |
+| Current with main | 0 behind |
+| GitHub mergeable | MERGEABLE / CLEAN at implement time |
+| Required checks green | Local PE_PHASE_9_OK; GH statusCheckRollup may be empty (hosted residual) |
+| Migrations replay cleanly | clean_upgrade_migrate_replay exit 0 |
+| RLS isolation | pe-phase-c-rls-rehearsal 23/23 + Phase 10 live leakN=0 |
+| Loader replay idempotent | Phase 9 extended + phase-e gates |
+| Accuracy evidence truthful | synthetic-loud goldens; not humanReviewed |
+| Unsupported coverage explicit | source-coverage-matrix.md |
+| Browser/staging when authorized | Phase 10 sole-live + neo_residual plan Verify |
+| Deploy/rollback executable | Phase 10 record + this closeout record |
+| No unresolved review thread | 0 threads |

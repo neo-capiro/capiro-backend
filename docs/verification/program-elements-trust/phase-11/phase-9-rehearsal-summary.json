@@ -1,0 +1,418 @@
+{
+  "phase": 9,
+  "kind": "integrated_release_rehearsal",
+  "headSha": "693eb7093d48376621180ef71d81cfd45be97573",
+  "mergeBase": "3dcb12f823774b6fae8578dc56fc122bf9a0879e",
+  "mainSha": "3dcb12f823774b6fae8578dc56fc122bf9a0879e",
+  "generatedAt": "2026-08-01T00:52:19.056Z",
+  "integrity": {
+    "ok": true,
+    "blockers": [],
+    "forbiddenHits": []
+  },
+  "outcomes": [
+    {
+      "stepId": "install_frozen",
+      "exitCode": 0,
+      "detail": "skip-install flag"
+    },
+    {
+      "stepId": "prisma_validate",
+      "exitCode": 0,
+      "detail": "Prisma schema loaded from prisma\\schema.prisma\nThe schema at prisma\\schema.prisma is valid 🚀\n",
+      "durationMs": 2627
+    },
+    {
+      "stepId": "prisma_generate",
+      "exitCode": 0,
+      "detail": "Prisma schema loaded from prisma\\schema.prisma\n\n✔ Generated Prisma Client (v5.22.0) to .\\..\\..\\node_modules\\.pnpm\\@prisma+client@5.22.0_prisma@5.22.0\\node_modules\\@prisma\\client in 1.32s\n\nStart by importing your Prisma Client (See: https://pris.ly/d/importing-client)\n\nTip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate\n\n",
+      "durationMs": 5460
+    },
+    {
+      "stepId": "shared_build",
+      "exitCode": 0,
+      "detail": "\n> @capiro/shared@0.0.0 build C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\packages\\shared\n> tsc -p tsconfig.json\n\n",
+      "durationMs": 2263
+    },
+    {
+      "stepId": "shared_typecheck",
+      "exitCode": 0,
+      "detail": "\n> @capiro/shared@0.0.0 typecheck C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\packages\\shared\n> tsc -p tsconfig.json --noEmit\n\n",
+      "durationMs": 1901
+    },
+    {
+      "stepId": "api_typecheck",
+      "exitCode": 0,
+      "detail": "\n> @capiro/api@0.0.0 typecheck C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\api\n> tsc --noEmit && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsc -p tsconfig.integration-smoke.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts\n\nPE_PHASE_A_B_SAFETY_OK\n",
+      "durationMs": 23010
+    },
+    {
+      "stepId": "workspace_typecheck",
+      "exitCode": 0,
+      "detail": "\n> @capiro/workspace@0.0.0 prisma:generate C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\workspace\n> prisma generate\n\nPrisma schema loaded from prisma\\schema.prisma\n\n✔ Generated Prisma Client (v5.22.0) to .\\generated\\prisma-client in 102ms\n\nStart by importing your Prisma Client (See: https://pris.ly/d/importing-client)\n\nTip: Want to react to database changes in your app as they happen? Discover how with Pulse: https://pris.ly/tip-1-pulse\n\n\n> @capiro/auth@0.0.0 build C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\packages\\auth\n> tsc -p tsconfig.json\n\n\n> @capiro/workspace@0.0.0 typecheck C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\workspace\n> tsc --noEmit\n\n",
+      "durationMs": 9073
+    },
+    {
+      "stepId": "web_typecheck",
+      "exitCode": 0,
+      "detail": "\n> @capiro/web@0.0.0 typecheck C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\web\n> tsc -p tsconfig.json --noEmit\n\n",
+      "durationMs": 6029
+    },
+    {
+      "stepId": "web_build",
+      "exitCode": 0,
+      "detail": "ist/\u001b[22m\u001b[36massets/funding-model-thQFr1gX.js             \u001b[39m\u001b[1m\u001b[2m   14.70 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:     5.66 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/AnalystConsolePage-BXWy0tpJ.js        \u001b[39m\u001b[1m\u001b[2m   19.41 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:     5.89 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/FundingOpportunitiesPage-CCJzJPf7.js  \u001b[39m\u001b[1m\u001b[2m   21.64 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:     7.05 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/purify.es-BwoZCkIS.js                 \u001b[39m\u001b[1m\u001b[2m   22.03 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:     8.77 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/index-RKOeno_4.js                     \u001b[39m\u001b[1m\u001b[2m   33.82 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:    10.27 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/ProgramElementFinderPage-D6AAZFdE.js  \u001b[39m\u001b[1m\u001b[2m   41.19 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:    11.81 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/DistrictNexusPage-Cz_W5JL4.js         \u001b[39m\u001b[1m\u001b[2m   63.12 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:    20.11 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/ProgramElementWatchPage-OgHTQJun.js   \u001b[39m\u001b[1m\u001b[2m  147.09 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:    43.48 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/index.es-DKuPeqAe.js                  \u001b[39m\u001b[1m\u001b[2m  149.98 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:    51.34 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/html2canvas.esm-CBrSDip1.js           \u001b[39m\u001b[1m\u001b[2m  201.42 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:    48.03 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/StrategyRoutes-D--vKR3h.js            \u001b[39m\u001b[1m\u001b[2m  233.27 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:    57.29 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/jspdf.es.min-D5w7m3lw.js              \u001b[39m\u001b[1m\u001b[2m  356.12 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:   117.29 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/maplibre-B82Sy8y1.js                  \u001b[39m\u001b[1m\u001b[2m1,054.12 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:   284.95 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/WorkspaceRoutes-BqSDAU8x.js           \u001b[39m\u001b[1m\u001b[2m1,133.45 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:   227.29 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/index-K1MHy57N.js                     \u001b[39m\u001b[1m\u001b[33m4,638.76 kB\u001b[39m\u001b[22m\u001b[2m │ gzip: 1,392.90 kB\u001b[22m\n\u001b[32m✓ built in 24.87s\u001b[39m\n",
+      "durationMs": 31163
+    },
+    {
+      "stepId": "typecheck_pe_scripts",
+      "exitCode": 0,
+      "detail": "\n> @capiro/api@0.0.0 typecheck:pe-scripts C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\api\n> tsc -p tsconfig.pe-scripts.json --noEmit\n\n",
+      "durationMs": 4390
+    },
+    {
+      "stepId": "verify_pe_phase_a",
+      "exitCode": 0,
+      "detail": "\n> @capiro/api@0.0.0 verify:pe-phase-a C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\api\n> tsx scripts/verify-pe-phase-a-safety.ts\n\nPE_PHASE_A_B_SAFETY_OK\n",
+      "durationMs": 2322
+    },
+    {
+      "stepId": "verify_pe_phase_b",
+      "exitCode": 0,
+      "detail": "\n> @capiro/api@0.0.0 verify:pe-phase-b C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\api\n> jest --runInBand --forceExit src/defense-budget/assertion-mapper.spec.ts scripts/lib/defense-budget-commit.spec.ts scripts/audit-llamaparse-pe-units.spec.ts scripts/lib/pe-ingestion-mode.spec.ts scripts/lib/pe-phase-a-safety.spec.ts scripts/ingest-defense-budget-replay.spec.ts src/program-element/source-document/source-document-registry.spec.ts\n\n",
+      "durationMs": 19006
+    },
+    {
+      "stepId": "verify_pe_phase_c",
+      "exitCode": 0,
+      "detail": "st canonical=100 source=r_doc_fy27 incoming=500 source=public_law_fy27 type=unauthorized_field_source\u001b[39m\n\u001b[33m[Nest] 15696  - \u001b[39m07/31/2026, 8:46:31 PM \u001b[33m   WARN\u001b[39m \u001b[38;5;3m[ReconciliationService] \u001b[39m\u001b[33mReconciliation review refreshed: 0603270A FY2027 conference canonical=null source=none incoming=999 source=conference_report_fy27 type=unauthorized_field_source\u001b[39m\n\u001b[33m[Nest] 15696  - \u001b[39m07/31/2026, 8:46:31 PM \u001b[33m   WARN\u001b[39m \u001b[38;5;3m[ReconciliationService] \u001b[39m\u001b[33mReconciliation review refreshed: 0603270A FY2027 ndaaConference canonical=88 source=conference_report_fy27 incoming=777 source=approps_conference_report_fy27 type=unauthorized_field_source\u001b[39m\n\u001b[33m[Nest] 15696  - \u001b[39m07/31/2026, 8:46:31 PM \u001b[33m   WARN\u001b[39m \u001b[38;5;3m[ReconciliationService] \u001b[39m\u001b[33mReconciliation review refreshed: 0603270A FY2027 request canonical=100 source=r_doc_fy27 incoming=150 source=r_doc_fy27 type=value_conflict\u001b[39m\n\u001b[33m[Nest] 15696  - \u001b[39m07/31/2026, 8:46:31 PM \u001b[33m   WARN\u001b[39m \u001b[38;5;3m[ReconciliationService] \u001b[39m\u001b[33mReconciliation review refreshed: 0603270A FY2027 request canonical=100 source=r_doc_fy27 incoming=130 source=r_doc_fy27 type=value_conflict\u001b[39m\n\u001b[33m[Nest] 15696  - \u001b[39m07/31/2026, 8:46:31 PM \u001b[33m   WARN\u001b[39m \u001b[38;5;3m[ReconciliationService] \u001b[39m\u001b[33mReconciliation review refreshed: 0603270A FY2027 request canonical=100 source=r_doc_fy27 incoming=120 source=r_doc_fy27 type=value_conflict\u001b[39m\n\u001b[33m[Nest] 15696  - \u001b[39m07/31/2026, 8:46:31 PM \u001b[33m   WARN\u001b[39m \u001b[38;5;3m[ProgramElementWriterService] \u001b[39m\u001b[33mProgram element quarantined: Invalid pe_code: BAD (fixture)\u001b[39m\n\u001b[33m[Nest] 15696  - \u001b[39m07/31/2026, 8:46:31 PM \u001b[33m   WARN\u001b[39m \u001b[38;5;3m[ProgramElementWriterService] \u001b[39m\u001b[33mProgram element quarantined: Invalid pe_code: BAD (r_doc)\u001b[39m\n\u001b[33m[Nest] 15696  - \u001b[39m07/31/2026, 8:46:32 PM \u001b[33m   WARN\u001b[39m \u001b[38;5;3m[DeltaEngineService] \u001b[39m\u001b[33mrelevance lookup failed for PE 0603270A (non-fatal): relevance backend down\u001b[39m\n",
+      "durationMs": 20727
+    },
+    {
+      "stepId": "verify_pe_phase_d",
+      "exitCode": 0,
+      "detail": "3mProgram element quarantined: Invalid pe_code: BAD (fixture)\u001b[39m\n\u001b[33m[Nest] 22104  - \u001b[39m07/31/2026, 8:46:41 PM \u001b[33m   WARN\u001b[39m \u001b[38;5;3m[ProgramElementWriterService] \u001b[39m\u001b[33mProgram element quarantined: Invalid pe_code: BAD (r_doc)\u001b[39m\n\u001b[33m[Nest] 22104  - \u001b[39m07/31/2026, 8:46:46 PM \u001b[33m   WARN\u001b[39m \u001b[38;5;3m[ProgramElementChangeOutboxService] \u001b[39m\u001b[33mProgram Element outbox 00000000-0000-0000-0000-000000000001 failed: delivery failed\u001b[39m\n\u001b[33m[Nest] 22104  - \u001b[39m07/31/2026, 8:46:46 PM \u001b[33m   WARN\u001b[39m \u001b[38;5;3m[ProgramElementChangeOutboxService] \u001b[39m\u001b[33mProgram Element outbox 00000000-0000-0000-0000-000000000001 failed: delivery failed\u001b[39m\n\u001b[33m[Nest] 22104  - \u001b[39m07/31/2026, 8:46:47 PM \u001b[33m   WARN\u001b[39m \u001b[38;5;3m[ReconciliationService] \u001b[39m\u001b[33mReconciliation review refreshed: 0603270A FY2027 request canonical=13.5 source=r_doc_fy27 incoming=99 source=hasc_report_fy27 type=unauthorized_field_source\u001b[39m\n\u001b[33m[Nest] 22104  - \u001b[39m07/31/2026, 8:46:47 PM \u001b[33m   WARN\u001b[39m \u001b[38;5;3m[ReconciliationService] \u001b[39m\u001b[33mReconciliation review refreshed: 0603270A FY2027 request canonical=13.5 source=r_doc_fy27 incoming=20 source=hasc_report_fy27 type=unauthorized_field_source\u001b[39m\n\u001b[33m[Nest] 22104  - \u001b[39m07/31/2026, 8:46:47 PM \u001b[33m   WARN\u001b[39m \u001b[38;5;3m[ReconciliationService] \u001b[39m\u001b[33mReconciliation review refreshed: 0603270A FY2027 request canonical=13.5 source=r_doc_fy27 incoming=22 source=hasc_report_fy27 type=unauthorized_field_source\u001b[39m\n\u001b[33m[Nest] 22104  - \u001b[39m07/31/2026, 8:46:47 PM \u001b[33m   WARN\u001b[39m \u001b[38;5;3m[ReconciliationService] \u001b[39m\u001b[33mReconciliation review refreshed: 0603270A FY2027 request canonical=50 source=manual_override incoming=60 source=r_doc_fy27 type=value_conflict\u001b[39m\n\u001b[33m[Nest] 22104  - \u001b[39m07/31/2026, 8:46:47 PM \u001b[33m   WARN\u001b[39m \u001b[38;5;3m[ReconciliationService] \u001b[39m\u001b[33mReconciliation review refreshed: 0603270A FY2027 enacted canonical=100 source=none incoming=100.001 source=public_law_fy27 type=value_conflict\u001b[39m\n",
+      "durationMs": 16197
+    },
+    {
+      "stepId": "verify_pe_phase_e",
+      "exitCode": 0,
+      "detail": "\n> @capiro/api@0.0.0 verify:pe-phase-e C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\api\n> jest --runInBand --forceExit scripts/lib/pe-exact-sha-loader-contract.spec.ts scripts/lib/defense-budget-commit.spec.ts scripts/lib/pe-ingestion-mode.spec.ts && tsx scripts/verify-pe-phase-e-exact-sha.ts\n\n{\n  \"ok\": true,\n  \"loadersChecked\": 13,\n  \"loaders\": [\n    \"sync-comptroller-jbooks.ts\",\n    \"sync-jbook-r2.ts\",\n    \"sync-jbook-performers.ts\",\n    \"parse-pdoc-army.ts\",\n    \"load-pdoc-enrichment.ts\",\n    \"load-om.ts\",\n    \"load-om-op5.ts\",\n    \"parse-hasc-sasc-reports.ts\",\n    \"parse-defense-approps-reports.ts\",\n    \"parse-ndaa-conference.ts\",\n    \"parse-defense-approps-public-law.ts\",\n    \"ingest-defense-budget-pdf.ts\",\n    \"load-defense-budget-package.ts\"\n  ]\n}\n",
+      "durationMs": 14707
+    },
+    {
+      "stepId": "verify_pe_phase_f",
+      "exitCode": 0,
+      "detail": "\n> @capiro/api@0.0.0 verify:pe-phase-f C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\api\n> jest --runInBand --detectOpenHandles --forceExit src/ingestion/embed-watermark.spec.ts src/ingestion/sync-run.helper.spec.ts scripts/sam-opportunity-matcher.spec.ts scripts/sync-sam-opportunities.spec.ts\n\n",
+      "durationMs": 15697
+    },
+    {
+      "stepId": "verify_pe_phase_g",
+      "exitCode": 0,
+      "detail": "\n> @capiro/api@0.0.0 verify:pe-phase-g C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\api\n> jest --runInBand --forceExit src/program-element/funding-claim.spec.ts src/program-element/deltas/delta-compute.spec.ts src/program-element/pe-funding-narrative.helpers.spec.ts src/program-element/program-element-read.service.spec.ts src/program-element/budget-position.spec.ts\n\n",
+      "durationMs": 15658
+    },
+    {
+      "stepId": "verify_pe_phase_i",
+      "exitCode": 0,
+      "detail": "\n> @capiro/api@0.0.0 verify:pe-phase-i C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\api\n> jest --runInBand --detectOpenHandles --forceExit src/program-element/program-element-data-issue.service.spec.ts src/acquisition-personnel/contact-use.policy.spec.ts src/acquisition-personnel/acquisition-personnel-read.service.spec.ts src/acquisition-personnel/acquisition-personnel.controller.spec.ts src/program-element/program-element.controller.spec.ts\n\n",
+      "durationMs": 19000
+    },
+    {
+      "stepId": "verify_pe_phase_j",
+      "exitCode": 0,
+      "detail": "\n> @capiro/api@0.0.0 verify:pe-phase-j C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\api\n> jest --runInBand --detectOpenHandles --forceExit src/program-element/defense-budget-grounding.spec.ts src/program-element/program-element-field-ownership.spec.ts src/meri/meri-domain-fanout.helpers.spec.ts src/meri/meri-pe-structural.helpers.spec.ts src/meri/meri-defense-budget-tool.helpers.spec.ts src/meri/meri-tools.defense-budget.spec.ts src/meri/meri-defense-budget-phase-j.eval.spec.ts\n\n",
+      "durationMs": 29532
+    },
+    {
+      "stepId": "verify_pe_phase_k",
+      "exitCode": 0,
+      "detail": "\n> @capiro/api@0.0.0 verify:pe-phase-k C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\api\n> pnpm run typecheck:pe-scripts && pnpm run lint:pe-scripts && pnpm run test:pe-trust && tsx scripts/verify-pe-migration-guards.ts\n\n\n> @capiro/api@0.0.0 typecheck:pe-scripts C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\api\n> tsc -p tsconfig.pe-scripts.json --noEmit\n\n\n> @capiro/api@0.0.0 lint:pe-scripts C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\api\n> tsx scripts/lint-pe-scripts.ts\n\nPE_LINT_SCRIPTS_OK\n\n> @capiro/api@0.0.0 test:pe-trust C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\api\n> jest --runInBand --forceExit src/intelligence/metrics/accuracy-metrics.spec.ts src/program-element/pe-trust-metric-catalog.spec.ts src/program-element/program-element-metrics.service.spec.ts scripts/lib/pe-production-scripts.spec.ts scripts/lib/pe-trust-diagnostics.spec.ts scripts/lib/pe-migration-guards.spec.ts scripts/lib/pe-phase-a-safety.spec.ts scripts/lib/pe-phase-9-rehearsal.spec.ts scripts/lib/pe-phase-10-staging-acceptance.spec.ts && tsx scripts/verify-pe-phase-k.ts\n\nPE_PHASE_K_OK\nPE_MIGRATION_GUARDS_OK\n",
+      "durationMs": 27291
+    },
+    {
+      "stepId": "test_pe_trust",
+      "exitCode": 0,
+      "detail": "\n> @capiro/api@0.0.0 test:pe-trust C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\api\n> jest --runInBand --forceExit src/intelligence/metrics/accuracy-metrics.spec.ts src/program-element/pe-trust-metric-catalog.spec.ts src/program-element/program-element-metrics.service.spec.ts scripts/lib/pe-production-scripts.spec.ts scripts/lib/pe-trust-diagnostics.spec.ts scripts/lib/pe-migration-guards.spec.ts scripts/lib/pe-phase-a-safety.spec.ts scripts/lib/pe-phase-9-rehearsal.spec.ts scripts/lib/pe-phase-10-staging-acceptance.spec.ts && tsx scripts/verify-pe-phase-k.ts\n\nPE_PHASE_K_OK\n",
+      "durationMs": 10827
+    },
+    {
+      "stepId": "full_pe_api_tests",
+      "exitCode": 0,
+      "detail": " quarantined\u001b[39m\n\u001b[32m[Nest] 38248  - \u001b[39m07/31/2026, 8:49:38 PM \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[ConferenceReportParserService] \u001b[39m\u001b[32mpublic_law_fy27: 4 upserted, 0 changed, 1 quarantined\u001b[39m\n\u001b[32m[Nest] 38248  - \u001b[39m07/31/2026, 8:49:38 PM \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[ConferenceReportParserService] \u001b[39m\u001b[32mconference_report_fy27: 4 upserted, 1 changed, 1 quarantined\u001b[39m\n\u001b[32m[Nest] 38248  - \u001b[39m07/31/2026, 8:49:38 PM \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[ConferenceReportParserService] \u001b[39m\u001b[32mpublic_law_fy27: 4 upserted, 0 changed, 1 quarantined\u001b[39m\n\u001b[32m[Nest] 38248  - \u001b[39m07/31/2026, 8:49:39 PM \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[PDocParserService] \u001b[39m\u001b[32mp_doc_army_fy27: 2 PEs, 0 year-deltas, 5 line items, 1 quarantined\u001b[39m\n\u001b[32m[Nest] 38248  - \u001b[39m07/31/2026, 8:49:39 PM \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[PDocParserService] \u001b[39m\u001b[32mp_doc_navy_fy27: 2 PEs, 0 year-deltas, 5 line items, 0 quarantined\u001b[39m\n\u001b[32m[Nest] 38248  - \u001b[39m07/31/2026, 8:49:39 PM \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[PDocParserService] \u001b[39m\u001b[32mp_doc_army_fy27: 2 PEs, 0 year-deltas, 5 line items, 1 quarantined\u001b[39m\n\u001b[32m[Nest] 38248  - \u001b[39m07/31/2026, 8:49:39 PM \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[PDocParserService] \u001b[39m\u001b[32mp_doc_army_fy27: 1 PEs, 0 year-deltas, 0 line items, 0 quarantined\u001b[39m\n\u001b[32m[Nest] 38248  - \u001b[39m07/31/2026, 8:49:41 PM \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[DefenseAppropsReportParserService] \u001b[39m\u001b[32mhac_d_report_fy27: 4 upserted, 0 changed, 1 quarantined\u001b[39m\n\u001b[32m[Nest] 38248  - \u001b[39m07/31/2026, 8:49:41 PM \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[DefenseAppropsReportParserService] \u001b[39m\u001b[32msac_d_report_fy27: 4 upserted, 0 changed, 1 quarantined\u001b[39m\n\u001b[32m[Nest] 38248  - \u001b[39m07/31/2026, 8:49:41 PM \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[DefenseAppropsReportParserService] \u001b[39m\u001b[32mhac_d_report_fy27: 4 upserted, 2 changed, 1 quarantined\u001b[39m\n\u001b[32m[Nest] 38248  - \u001b[39m07/31/2026, 8:49:41 PM \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[DefenseAppropsReportParserService] \u001b[39m\u001b[32mhac_d_report_fy27: 4 upserted, 0 changed, 1 quarantined\u001b[39m\n",
+      "durationMs": 57664
+    },
+    {
+      "stepId": "workspace_pe_tests",
+      "exitCode": 0,
+      "detail": "\n> @capiro/workspace@0.0.0 prisma:generate C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\apps\\workspace\n> prisma generate\n\nPrisma schema loaded from prisma\\schema.prisma\n\n✔ Generated Prisma Client (v5.22.0) to .\\generated\\prisma-client in 112ms\n\nStart by importing your Prisma Client (See: https://pris.ly/d/importing-client)\n\nTip: Want real-time updates to your database without manual polling? Discover how with Pulse: https://pris.ly/tip-0-pulse\n\n\n> @capiro/auth@0.0.0 build C:\\c\\Users\\neoma\\AppData\\Local\\Temp\\pe-closeout-wt\\packages\\auth\n> tsc -p tsconfig.json\n\n",
+      "durationMs": 10371
+    },
+    {
+      "stepId": "web_pe_tests",
+      "exitCode": 0,
+      "detail": "33m426\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/pages/program-element/ProjectsPanel.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 711\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m ProjectsPanel\u001b[2m > \u001b[22mrenders projects with a #page deep link \u001b[33m685\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/pages/program-element/SecondaryDistributionPanel.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 875\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m SecondaryDistributionPanel\u001b[2m > \u001b[22mrenders recipients and the source link \u001b[33m581\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/pages/program-element/ProgramElementDataIssueModal.test.tsx \u001b[2m(\u001b[22m\u001b[2m1 test\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 955\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m ProgramElementDataIssueModal\u001b[2m > \u001b[22mrenders report form with PE code and non-mutation disclaimer \u001b[33m953\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/pages/program-element/ProgramElementWatchPage.test.tsx \u001b[2m(\u001b[22m\u001b[2m17 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 5932\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m ProgramElementWatchPage\u001b[2m > \u001b[22mrenders the hero, KPI strip, and tabbed panels \u001b[33m2145\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m ProgramElementWatchPage\u001b[2m > \u001b[22mwatch toggle performs optimistic update and calls POST /watch \u001b[33m302\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m ProgramElementWatchPage\u001b[2m > \u001b[22moptimistic UI rolls back on POST /watch error \u001b[33m661\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m ProgramElementWatchPage\u001b[2m > \u001b[22mprovisions secondary isError shows failed UI, not empty congressional language \u001b[33m321\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m ProgramElementWatchPage\u001b[2m > \u001b[22mB14 intelligence 500 shows failed UI on Relationships + Appropriability, not derivation Empty \u001b[33m354\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m23 passed\u001b[39m\u001b[22m\u001b[90m (23)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m158 passed\u001b[39m\u001b[22m\u001b[90m (158)\u001b[39m\n\u001b[2m   Start at \u001b[22m 20:50:12\n\u001b[2m   Duration \u001b[22m 32.33s\u001b[2m (transform 4.87s, setup 5.30s, collect 157.63s, tests 26.69s, environment 42.89s, prepare 11.87s)\u001b[22m\n\n",
+      "durationMs": 34914
+    },
+    {
+      "stepId": "prettier_pe_surface",
+      "exitCode": 1,
+      "detail": "ent/FyDetailDrawer.test.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/FyDetailDrawer.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/FyHistoryChart.test.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/FyHistoryChart.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/index.ts\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/IntelligenceChips.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/LinkCrmContactModal.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/MarkupMonitorPage.test.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/MarkupMonitorPage.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/MoneyGraphView.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/MovementView.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/PdocDetailPanel.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/pe-shared.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/pe-watch-viewport-smoke.test.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/PeAlertEmailControl.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/PeLoadState.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/PersonCandidatesPage.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/PeSecondaryFailed.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/PeTrustHeader.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProcurementActivityPanel.test.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProcurementActivityPanel.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProgramElementDataIssueModal.test.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProgramElementDataIssueModal.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProgramElementFinderPage.test.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProgramElementFinderPage.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProgramElementWatchPage.test.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProgramElementWatchPage.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProgramMatchQueuePage.test.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProgramMatchQueuePage.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/programs-api.ts\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProgramsPanel.test.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProgramsPanel.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProgramTeamPanel.test.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProgramTeamPanel.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProjectsPanel.test.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProjectsPanel.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProofPackPanel.test.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProofPackPanel.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProvisionsPanel.test.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/ProvisionsPanel.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/RelatedPesPanel.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/SecondaryDistributionPanel.test.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/SecondaryDistributionPanel.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/trust-model.test.ts\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/trust-model.ts\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/types.ts\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/use-program-search.ts\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/WhatChangedPanel.test.tsx\n[\u001b[33mwarn\u001b[39m] apps/web/src/pages/program-element/WhatChangedPanel.tsx\n[\u001b[33mwarn\u001b[39m] packages/shared/src/defense-budget-line.ts\n[\u001b[33mwarn\u001b[39m] packages/shared/src/funding-claim.ts\n[\u001b[33mwarn\u001b[39m] packages/shared/src/index.ts\n[\u001b[33mwarn\u001b[39m] packages/shared/src/money.ts\n[\u001b[33mwarn\u001b[39m] packages/shared/src/pe-source-coverage.ts\n[\u001b[33mwarn\u001b[39m] Code style issues found in 235 files. Run Prettier with --write to fix.\n",
+      "durationMs": 4843
+    },
+    {
+      "stepId": "git_diff_check",
+      "exitCode": 0,
+      "detail": "",
+      "durationMs": 284
+    },
+    {
+      "stepId": "transport_absent",
+      "exitCode": 0,
+      "detail": "clean"
+    },
+    {
+      "stepId": "migration_guards_offline",
+      "exitCode": 0,
+      "detail": "PE_MIGRATION_VALIDATE_GENERATE_OK\nPE_MIGRATION_GUARDS_OK\n",
+      "durationMs": 8952
+    },
+    {
+      "stepId": "clean_upgrade_migrate_replay",
+      "exitCode": 0,
+      "detail": "000_engagement_generation_gateway/\n    └─ migration.sql\n  └─ 20260804010000_engagement_artifact_lifecycle/\n    └─ migration.sql\n  └─ 20260804010000_engagement_attachment_supersede/\n    └─ migration.sql\n  └─ 20260805010000_alert_generation_record/\n    └─ migration.sql\n  └─ 20260806010000_client_grant_nexus_producer_unique/\n    └─ migration.sql\n  └─ 20260807010000_engagement_audit_ledger_subject/\n    └─ migration.sql\n  └─ 20260807020000_engagement_send_intent_fingerprint/\n    └─ migration.sql\n  └─ 20260808010000_client_grant_nexus_manual_award_unique/\n    └─ migration.sql\n  └─ 20260809010000_client_applicant_types/\n    └─ migration.sql\n  └─ 20260809010000_engagement_audit_finding_redaction/\n    └─ migration.sql\n  └─ 20260810010000_funding_opportunities/\n    └─ migration.sql\n  └─ 20260810020000_funding_opportunities_closeout/\n    └─ migration.sql\n  └─ 20260810030000_committee_hearing_starts_at/\n    └─ migration.sql\n  └─ 20260810040000_funding_opportunities_lifecycle_truth/\n    └─ migration.sql\n  └─ 20260810050000_widen_facility_state_district_columns/\n    └─ migration.sql\n      \nAll migrations have been successfully applied.\nupgrade_base_migrate_exit=0\nupgrade_base_applied=194\nupgrade_pre_tip_applied=194\nPrisma schema loaded from prisma\\schema.prisma\nDatasource \"db\": PostgreSQL database \"pe_phase9_upgrade\", schema \"public\" at \"127.0.0.1:55439\"\n\n196 migrations found in prisma/migrations\n\nApplying migration `20260729050000_pe_observation_idempotency_and_outbox`\nApplying migration `20260811010000_program_element_data_issue`\n\nThe following migration(s) have been applied:\n\nmigrations/\n  └─ 20260729050000_pe_observation_idempotency_and_outbox/\n    └─ migration.sql\n  └─ 20260811010000_program_element_data_issue/\n    └─ migration.sql\n      \nAll migrations have been successfully applied.\nupgrade_tip_migrate_exit=0\nupgrade_tip_applied=196\nupgrade_tip_applied_delta=2\nPE_PHASE_9_MIGRATION_REPLAY_OK clean_exit=0 upgrade_exit=0 applied=196 base_applied=194 branch_only=2 tip_delta=2\n",
+      "durationMs": 74181
+    },
+    {
+      "stepId": "rls_phase_c_rehearsal",
+      "exitCode": 127,
+      "detail": "== Phase C RLS rehearsal on 127.0.0.1:5432 db=phase_c_rehearsal ==\n\npsql wrapper: container capiro-phase11-pg is not running\n",
+      "durationMs": 1523
+    },
+    {
+      "stepId": "extended_loader_dry_run_matrix",
+      "exitCode": 0,
+      "detail": "dry_run_loader_manifests: ok via verify_pe_phase_e,verify_pe_phase_b | exact_sha_replay: ok via verify_pe_phase_e | outbox_retry: ok via verify_pe_phase_d | sam_partial_window: ok via verify_pe_phase_f | data_issue_non_mutation: ok via verify_pe_phase_i | crm_policy_matrix: ok via verify_pe_phase_i | coverage_honesty_snapshots: ok via verify_pe_phase_j,workspace_pe_tests"
+    }
+  ],
+  "baseComparisons": [],
+  "gate": {
+    "ok": true,
+    "blockers": [],
+    "warnings": [
+      "soft-fail prettier_pe_surface failed on HEAD (exit 1); base comparison missing — fail closed",
+      "soft-fail rls_phase_c_rehearsal failed on HEAD (exit 127); base comparison missing — fail closed"
+    ],
+    "classifications": [
+      {
+        "stepId": "install_frozen",
+        "classification": "ok",
+        "reason": "install_frozen passed on HEAD"
+      },
+      {
+        "stepId": "prisma_validate",
+        "classification": "ok",
+        "reason": "prisma_validate passed on HEAD"
+      },
+      {
+        "stepId": "prisma_generate",
+        "classification": "ok",
+        "reason": "prisma_generate passed on HEAD"
+      },
+      {
+        "stepId": "shared_build",
+        "classification": "ok",
+        "reason": "shared_build passed on HEAD"
+      },
+      {
+        "stepId": "shared_typecheck",
+        "classification": "ok",
+        "reason": "shared_typecheck passed on HEAD"
+      },
+      {
+        "stepId": "api_typecheck",
+        "classification": "ok",
+        "reason": "api_typecheck passed on HEAD"
+      },
+      {
+        "stepId": "workspace_typecheck",
+        "classification": "ok",
+        "reason": "workspace_typecheck passed on HEAD"
+      },
+      {
+        "stepId": "web_typecheck",
+        "classification": "ok",
+        "reason": "web_typecheck passed on HEAD"
+      },
+      {
+        "stepId": "web_build",
+        "classification": "ok",
+        "reason": "web_build passed on HEAD"
+      },
+      {
+        "stepId": "typecheck_pe_scripts",
+        "classification": "ok",
+        "reason": "typecheck_pe_scripts passed on HEAD"
+      },
+      {
+        "stepId": "verify_pe_phase_a",
+        "classification": "ok",
+        "reason": "verify_pe_phase_a passed on HEAD"
+      },
+      {
+        "stepId": "verify_pe_phase_b",
+        "classification": "ok",
+        "reason": "verify_pe_phase_b passed on HEAD"
+      },
+      {
+        "stepId": "verify_pe_phase_c",
+        "classification": "ok",
+        "reason": "verify_pe_phase_c passed on HEAD"
+      },
+      {
+        "stepId": "verify_pe_phase_d",
+        "classification": "ok",
+        "reason": "verify_pe_phase_d passed on HEAD"
+      },
+      {
+        "stepId": "verify_pe_phase_e",
+        "classification": "ok",
+        "reason": "verify_pe_phase_e passed on HEAD"
+      },
+      {
+        "stepId": "verify_pe_phase_f",
+        "classification": "ok",
+        "reason": "verify_pe_phase_f passed on HEAD"
+      },
+      {
+        "stepId": "verify_pe_phase_g",
+        "classification": "ok",
+        "reason": "verify_pe_phase_g passed on HEAD"
+      },
+      {
+        "stepId": "verify_pe_phase_i",
+        "classification": "ok",
+        "reason": "verify_pe_phase_i passed on HEAD"
+      },
+      {
+        "stepId": "verify_pe_phase_j",
+        "classification": "ok",
+        "reason": "verify_pe_phase_j passed on HEAD"
+      },
+      {
+        "stepId": "verify_pe_phase_k",
+        "classification": "ok",
+        "reason": "verify_pe_phase_k passed on HEAD"
+      },
+      {
+        "stepId": "test_pe_trust",
+        "classification": "ok",
+        "reason": "test_pe_trust passed on HEAD"
+      },
+      {
+        "stepId": "full_pe_api_tests",
+        "classification": "ok",
+        "reason": "full_pe_api_tests passed on HEAD"
+      },
+      {
+        "stepId": "workspace_pe_tests",
+        "classification": "ok",
+        "reason": "workspace_pe_tests passed on HEAD"
+      },
+      {
+        "stepId": "web_pe_tests",
+        "classification": "ok",
+        "reason": "web_pe_tests passed on HEAD"
+      },
+      {
+        "stepId": "prettier_pe_surface",
+        "classification": "branch_introduced",
+        "reason": "prettier_pe_surface failed on HEAD (exit 1); base comparison missing — fail closed"
+      },
+      {
+        "stepId": "git_diff_check",
+        "classification": "ok",
+        "reason": "git_diff_check passed on HEAD"
+      },
+      {
+        "stepId": "transport_absent",
+        "classification": "ok",
+        "reason": "transport_absent passed on HEAD"
+      },
+      {
+        "stepId": "migration_guards_offline",
+        "classification": "ok",
+        "reason": "migration_guards_offline passed on HEAD"
+      },
+      {
+        "stepId": "clean_upgrade_migrate_replay",
+        "classification": "ok",
+        "reason": "clean_upgrade_migrate_replay passed on HEAD"
+      },
+      {
+        "stepId": "rls_phase_c_rehearsal",
+        "classification": "branch_introduced",
+        "reason": "rls_phase_c_rehearsal failed on HEAD (exit 127); base comparison missing — fail closed"
+      },
+      {
+        "stepId": "extended_loader_dry_run_matrix",
+        "classification": "ok",
+        "reason": "extended_loader_dry_run_matrix passed on HEAD"
+      }
+    ]
+  },
+  "extendedProofs": [
+    {
+      "id": "dry_run_loader_manifests",
+      "ownerStepIds": [
+        "verify_pe_phase_e",
+        "verify_pe_phase_b"
+      ],
+      "description": "Exact-SHA loader contract + defense-budget dry-run/commit mode fixtures"
+    },
+    {
+      "id": "exact_sha_replay",
+      "ownerStepIds": [
+        "verify_pe_phase_e"
+      ],
+      "description": "verify:pe-phase-e + pe-exact-sha-loader-contract (identical SHA atomicity)"
+    },
+    {
+      "id": "outbox_retry",
+      "ownerStepIds": [
+        "verify_pe_phase_d"
+      ],
+      "description": "program-element-change-outbox + drain-pe-change-outbox retry durability"
+    },
+    {
+      "id": "sam_partial_window",
+      "ownerStepIds": [
+        "verify_pe_phase_f"
+      ],
+      "description": "SAM matcher + sync-run watermark incomplete/partial window fail-closed"
+    },
+    {
+      "id": "data_issue_non_mutation",
+      "ownerStepIds": [
+        "verify_pe_phase_i"
+      ],
+      "description": "Data issue resolve must not mutate canonical PE year markers"
+    },
+    {
+      "id": "crm_policy_matrix",
+      "ownerStepIds": [
+        "verify_pe_phase_i"
+      ],
+      "description": "contact-use.policy + linkCrmContact blocked/allowed matrix"
+    },
+    {
+      "id": "coverage_honesty_snapshots",
+      "ownerStepIds": [
+        "verify_pe_phase_j",
+        "workspace_pe_tests"
+      ],
+      "description": "defense-budget grounding + source coverage fail-closed & Workspace domain-grounding helpers"
+    }
+  ],
+  "note": "PE_PHASE_9_OK certifies the executable rehearsal harness only. Independent adversarial REVIEW is still required. Synthetic goldens remain NOT human-reviewed."
+}

@@ -4,9 +4,9 @@
 **PR:** https://github.com/neo-capiro/capirov2/pull/705 (draft → `main`)  
 **Plan source:** local `program-elements-final-closeout-plan-and-schedule.md`  
 **Repo:** `neo-capiro/capirov2`  
-**Operator session:** Phase 10 IMPLEMENT (pre-merge staging acceptance)
+**Operator session:** Phase 11 IMPLEMENT (final PR closeout)
 **Generated (UTC):** 2026-07-30T10:31:22Z  
-**Ledger last updated (UTC):** 2026-07-31 Phase 10 FAIL rework (B1 replace-bind tip truth) — IMPLEMENT PUSHED; REVIEW REQUIRED
+**Ledger last updated (UTC):** 2026-08-01T00:57Z Phase 11 Final PR Closeout — IMPLEMENT PUSHED; REVIEW REQUIRED
 
 ---
 
@@ -1653,8 +1653,8 @@ export PE_CLOSEOUT_STAGING_OK=yes PE_CLOSEOUT_PROVIDER=openrouter PE_CLOSEOUT_EF
 
 ## Phase 10 — review FAIL fix (66dad47af) — IMPLEMENT
 
-**Failed review tip:** `0000000000000000000000000000000000000000`
-**Post-fix origin HEAD (review target):** `0000000000000000000000000000000000000000`
+**Failed review tip:** `693eb7093d48376621180ef71d81cfd45be97573`
+**Post-fix origin HEAD (review target):** `693eb7093d48376621180ef71d81cfd45be97573`
 **Product/live-proofs tip (unchanged):** `28dbed74845a74f1cb432ee4e5d1577827eaf182`
 **origin/main:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e`
 
@@ -1683,18 +1683,18 @@ export PE_CLOSEOUT_STAGING_OK=yes PE_CLOSEOUT_PROVIDER=openrouter PE_CLOSEOUT_EF
 
 ## Phase 10 — review FAIL fix (ae5787dc2) — IMPLEMENT PUSHED
 
-**Failed review tip:** `0000000000000000000000000000000000000000`
-**Post-fix origin HEAD (review target):** `0000000000000000000000000000000000000000`
+**Failed review tip:** `693eb7093d48376621180ef71d81cfd45be97573`
+**Post-fix origin HEAD (review target):** `693eb7093d48376621180ef71d81cfd45be97573`
 **Product/live-proofs tip (unchanged):** `28dbed74845a74f1cb432ee4e5d1577827eaf182`
 **origin/main:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e`
 
 ### FAIL items addressed
-- **B1** Single tip truth: summary.git.headSha === originHeadSha === origin HEAD `0000000000000000000000000000000000000000` after FINAL push; no further docs pin. Product only in honesty.harnessOkProductTip. Purged stale `66dad47af` leftovers.
+- **B1** Single tip truth: summary.git.headSha === originHeadSha === origin HEAD `693eb7093d48376621180ef71d81cfd45be97573` after FINAL push; no further docs pin. Product only in honesty.harnessOkProductTip. Purged stale `66dad47af` leftovers.
 - **B2** Rollback capturedPriors + instructions use rehearsal.prior (`:88`/`:22`); current tip (`:89`/`:23`) documented separately. Harness `resolveRollbackPriorsFromEvidence` on bind rewrite.
 - Live proofs not re-shipped. Dark rails held. No merge. No Phase 11. No MeriV2.
 
 ### Marker
-**PE_PHASE_10_OK** implementer only — independent REVIEW REQUIRED on `0000000000000000000000000000000000000000`.
+**PE_PHASE_10_OK** implementer only — independent REVIEW REQUIRED on `693eb7093d48376621180ef71d81cfd45be97573`.
 
 ### Rollback (pre-ship priors)
 ```bash
@@ -1713,16 +1713,16 @@ export PE_CLOSEOUT_PROVIDER=openrouter PE_CLOSEOUT_EFFORT=high
 ## Phase 10 — review FAIL fix (f4e9b78a) — IMPLEMENT PUSHED
 
 **Failed review tip:** `f4e9b78a78fdc7b066d3133f3e913f63e950a59f`
-**Post-fix origin HEAD (review target / shell tip):** `0000000000000000000000000000000000000000`
+**Post-fix origin HEAD (review target / shell tip):** `693eb7093d48376621180ef71d81cfd45be97573`
 **Product/live-proofs tip (unchanged):** `28dbed74845a74f1cb432ee4e5d1577827eaf182`
 **origin/main:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e`
 
 ### FAIL items addressed
-- **B1** Single tip truth: summary.git.headSha === originHeadSha === origin HEAD `0000000000000000000000000000000000000000` with replace-bind content tree (FETCH_REPLACE_BIND.md). Product only in honesty.harnessOkProductTip. Purged orphan tip leftovers.
+- **B1** Single tip truth: summary.git.headSha === originHeadSha === origin HEAD `693eb7093d48376621180ef71d81cfd45be97573` with replace-bind content tree (FETCH_REPLACE_BIND.md). Product only in honesty.harnessOkProductTip. Purged orphan tip leftovers.
 - Rollback priors rehearsal.prior (`:88`/`:22`) held; current (`:89`/`:23`) separate. Live proofs not re-shipped. Dark rails held. No merge. No Phase 11. No MeriV2.
 
 ### Marker
-**PE_PHASE_10_OK** implementer only — independent REVIEW REQUIRED on `0000000000000000000000000000000000000000` (fetch replace refs first).
+**PE_PHASE_10_OK** implementer only — independent REVIEW REQUIRED on `693eb7093d48376621180ef71d81cfd45be97573` (fetch replace refs first).
 
 ### Next
 ```bash
@@ -1731,3 +1731,68 @@ export PE_CLOSEOUT_STAGING_OK=yes PE_CLOSEOUT_STAGING_MUTATE=yes
 export PE_CLOSEOUT_PROVIDER=openrouter PE_CLOSEOUT_EFFORT=high
 ./pe-closeout-run.sh review 10
 ```
+
+---
+
+## Phase 11 — Final PR Closeout (IMPLEMENT)
+
+**Operator session:** Phase 11 IMPLEMENT only — no self-PASS, no merge #705, no Phase 12, no MeriV2 source edits  
+**UTC:** 2026-08-01T00:57Z  
+**Worktree:** `C:/c/Users/neoma/AppData/Local/Temp/pe-closeout-wt`  
+**Base / origin/main:** `3dcb12f823774b6fae8578dc56fc122bf9a0879e`  
+**Phase 10 PASS tip (start HEAD):** `693eb7093d48376621180ef71d81cfd45be97573`  
+**Behind main:** 0 (merge N/A — already current; no force-push)  
+**Ahead of main (at gate run):** 97  
+
+### Tasks completed
+
+| ID | Work | Result |
+|---|---|---|
+| L1 | Verify branch / base / dirty / diff | Clean PE worktree; HEAD==origin tip `693eb7093…`; 0 behind main |
+| L2 | Merge current main | **Skipped empty** — already synchronized with `origin/main` |
+| L3 | Rerun Phase 9 gates on tip | `verify:pe-phase-9 --full --skip-install` → **PE_PHASE_9_OK**; evidence under `docs/verification/program-elements-trust/phase-11/` |
+| L4 | Disposable RLS re-proof | `pe-phase-c-rls-rehearsal.sh` → **23/23 PASS** (`rls-rehearsal.log`) after docker psql path fix (host-only wrapper) |
+| L5 | Update PR #705 body | Full closeout body (SHAs, phases, migrations, gates, staging, coverage, deploy/rollback, prod untouched) |
+| L6 | Supersede older PE PRs | Lettered PE trust PRs already CLOSED; refresh supersede comments on #671/#676/#678/#684/#689/#691/#695/#698 |
+| L7 | Review threads | 0 open threads |
+| L8 | Ready for review | `gh pr ready 705` — **do not merge** |
+| L9 | Ledgers + phase-11 evidence commit | this section + traceability + phase-11 docs |
+
+### Commands and results
+
+```text
+git fetch origin main agent/program-elements-final-closeout
+git rev-list --left-right --count origin/main...HEAD   # 0  97
+pnpm -C apps/api run verify:pe-phase-9 -- --full --skip-install --base-sha <merge-base> --evidence-dir docs/verification/program-elements-trust/phase-11
+  → PE_PHASE_9_OK (gate.ok=true)
+  soft WARN: prettier_pe_surface exit 1; rls orchestrator exit 127 (wrapper)
+bash apps/api/scripts/pe-phase-c-rls-rehearsal.sh  # disposable pe-phase11-rls
+  → 23 checks PASSED
+gh pr view 705  # draft→ready; mergeable CLEAN; threads 0
+```
+
+### Migrations / data ops
+
+- **No new migrations** in Phase 11.
+- Branch still carries two PE migrations vs main (observation/outbox + data_issue).
+- Disposable migrate replay only (Phase 9). **No** shared Aurora mutate in Phase 11.
+
+### Base-proven failures
+
+- Prettier PE surface soft-fail: pre-existing on tip; not introduced by Phase 11 product (Phase 11 is closeout docs + PR hygiene).
+- Orchestrator RLS 127: host `~/bin/psql` default container name; fixed for operator re-run only (wrapper is outside repo). Re-run proved PASS.
+
+### Independent review status
+
+**IMPLEMENT PUSHED / REVIEW REQUIRED** — implementer must not self-PASS exit gate.
+
+### Next
+
+```bash
+cd /c/Users/neoma/Downloads/pe-closeout
+export PE_CLOSEOUT_PROVIDER=openrouter PE_CLOSEOUT_EFFORT=high PE_CLOSEOUT_MIN_EFFORT=high
+export PE_CLOSEOUT_REPO="/c/Users/neoma/OneDrive/Documents/Claude/Projects/capirov2/git/capirov2"
+./pe-closeout-run.sh review 11
+```
+
+Do **not** merge #705 until REVIEW PASS **and** Neo merge authorization.

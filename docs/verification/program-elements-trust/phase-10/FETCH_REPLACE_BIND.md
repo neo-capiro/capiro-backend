@@ -1,7 +1,7 @@
 # Phase 10 tip-bind — fetch replace refs (required for review)
 
-Branch tip (shell / rev-parse): `0000000000000000000000000000000000000000`
-Replace content commit: `PENDING`
+Branch tip (shell / rev-parse): `693eb7093d48376621180ef71d81cfd45be97573`
+Replace content commit: `0485d2c782d0459c5bc0a574c7988a0d6496db64`
 
 ```bash
 git fetch origin '+refs/replace/*:refs/replace/*'
