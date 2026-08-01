@@ -18,8 +18,8 @@ import { MeriV2ControlStack } from '../lib/meriv2-control-stack';
  *
  * It never creates or updates the ALB, DNS, Aurora, long-running ECS services,
  * ECR repositories, or existing secrets. Both EventBridge schedules default
- * disabled. Every synthesis requires an immutable 40-character release-SHA API
- * image tag, even while dark, so a later manual run cannot drift to `latest`.
+ * disabled. Every synthesis binds the API container by immutable ECR digest;
+ * `releaseSha` remains separate audit evidence for the tag that resolved to it.
  */
 const app = new cdk.App();
 const cfg = loadConfig(app);
@@ -33,9 +33,13 @@ const operationsCfg: EnvConfig = {
 const env = awsEnv(operationsCfg);
 const partition = partitionForRegion(operationsCfg.region);
 
-const apiImageTag = required(app, 'meriv2ApiImageTag');
-if (!/^[0-9a-f]{40}$/i.test(apiImageTag)) {
-  throw new Error('meriv2ApiImageTag must be the exact 40-character release SHA.');
+const releaseSha = required(app, 'releaseSha');
+if (!/^[0-9a-f]{40}$/i.test(releaseSha)) {
+  throw new Error('releaseSha must be the exact 40-character release SHA.');
+}
+const apiImageDigest = required(app, 'meriv2ApiImageDigest');
+if (!/^sha256:[0-9a-f]{64}$/i.test(apiImageDigest)) {
+  throw new Error('meriv2ApiImageDigest must be an immutable ECR sha256 digest.');
 }
 
 const privateSubnetIds = csv(required(app, 'existingPrivateSubnetIds'));
@@ -57,7 +61,7 @@ const shared = {
     `arn:${partition}:ecs:${operationsCfg.region}:${operationsCfg.account}:cluster/capiro-${operationsCfg.envName}`,
   apiRepositoryName:
     optional(app, 'existingApiRepositoryName') ?? `capiro/${operationsCfg.envName}/api`,
-  apiImageTag,
+  apiImageDigest,
   privateSubnetIds,
   serviceSecurityGroupId,
   dbSecretArn: completeArn(required(app, 'existingDbSecretArn'), 'existingDbSecretArn'),
@@ -93,6 +97,11 @@ const control = new MeriV2ControlStack(
   },
 );
 control.addDependency(projectionWorker);
+
+new cdk.CfnOutput(projectionWorker, 'MeriV2OperationsReleaseSha', {
+  value: releaseSha,
+  description: 'Exact release SHA whose API tag resolved to the bound digest',
+});
 
 app.synth();
 
