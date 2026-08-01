@@ -23,6 +23,7 @@ import { MeriActionProposalController } from './meri-action-proposal.controller.
 import { MeriContextPacketController } from './meri-context-packet.controller.js';
 import { MeriActionProposalService } from './meri-action-proposal.service.js';
 import { MeriPolicyPackService } from './meri-policy-pack.service.js';
+import { TenantCanariedMeriPolicyPackService } from './meri-policy-pack-rollout.service.js';
 import { MeriPolicyPackController } from './meri-policy-pack.controller.js';
 import { MeriFeedbackFixtureService } from './meri-feedback-fixture.service.js';
 import { MeriService } from './meri.service.js';
@@ -95,7 +96,10 @@ import { MeriV2ChatClient } from './meriv2-chat.client.js';
     MeriFeatureFlagsService,
     MeriApprovalService,
     MeriActionProposalService,
-    MeriPolicyPackService,
+    {
+      provide: MeriPolicyPackService,
+      useClass: TenantCanariedMeriPolicyPackService,
+    },
     MeriFeedbackFixtureService,
     MeriComplianceAuditService,
     MeriClaimWriterService,
