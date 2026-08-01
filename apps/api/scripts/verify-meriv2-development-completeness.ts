@@ -50,7 +50,12 @@ async function main(): Promise<void> {
       'apps/api/src/memory/memory-private-fail-closed.spec.ts',
       'apps/meriv2-orchestrator/src/meri/api-action-proposal.repo.ts',
     ]);
-    await contains('apps/api/src/meri/governed-meri-tools.proxy.ts', 'service secret');
+    // The server-owned service-secret boundary is enforced by InternalServiceGuard
+    // (fail-closed x-internal-service-secret header), which is what internal write
+    // paths mount. The tools proxy only translates governed-memory signals.
+    await contains('apps/api/src/auth/internal-service.guard.ts', 'service secret');
+    await contains('apps/api/src/auth/internal-service.guard.ts', 'INTERNAL_SERVICE_SECRET');
+    await contains('apps/api/src/memory/internal-memory.controller.ts', 'InternalServiceGuard');
     await contains('apps/api/src/memory/memory-private-fail-closed.spec.ts', 'private');
     await contains('apps/meriv2-orchestrator/src/meri/api-action-proposal.repo.ts', 'bearerToken');
   });
@@ -77,7 +82,10 @@ async function main(): Promise<void> {
     ]);
     await contains('apps/api/prisma/schema.prisma', 'governedStatus');
     await contains('apps/api/prisma/schema.prisma', 'memoryAuthority');
-    await contains('apps/api/src/memory/memory-canonical-activation.helpers.ts', 'upsertCanonicalMemoryItemInTx');
+    await contains(
+      'apps/api/src/memory/memory-canonical-activation.helpers.ts',
+      'upsertCanonicalMemoryItemInTx',
+    );
   });
 
   await phase(3, 'Settings shared-memory review lifecycle', async () => {
@@ -91,28 +99,50 @@ async function main(): Promise<void> {
       'apps/api/src/memory/memory.controller.settings-review.spec.ts',
       'apps/web/src/components/MemoryFileEditor.phase3.test.ts',
     ]);
-    await contains('apps/web/src/components/MemoryFileEditor.tsx', 'Submitted for independent review');
-    await contains('apps/api/src/memory/settings-aware-memory-candidate.service.ts', 'proposeExistingCorrection');
-    await contains('apps/api/src/memory/settings-memory-version-candidate.service.ts', "'memory_correction'");
-    await contains('apps/api/src/memory/settings-memory-version-candidate.service.ts', 'settingsStableSlug');
+    await contains(
+      'apps/web/src/components/MemoryFileEditor.tsx',
+      'Submitted for independent review',
+    );
+    await contains(
+      'apps/api/src/memory/settings-aware-memory-candidate.service.ts',
+      'proposeExistingCorrection',
+    );
+    await contains(
+      'apps/api/src/memory/settings-memory-version-candidate.service.ts',
+      "'memory_correction'",
+    );
+    await contains(
+      'apps/api/src/memory/settings-memory-version-candidate.service.ts',
+      'settingsStableSlug',
+    );
   });
 
-  await phase(4, 'Immutable corrections, conflicts, restore, and stable catalog identity', async () => {
-    await migration('20260812010000_memory_immutable_versions');
-    await files([
-      'apps/api/src/memory/immutable-memory-version.service.ts',
-      'apps/api/src/memory/memory-conflict.service.ts',
-      'apps/api/src/memory/memory-version.controller.ts',
-      'apps/api/src/memory/lineage-aware-memory-store.service.ts',
-      'apps/api/src/memory/lineage-aware-memory-store.service.spec.ts',
-      'docs/qa/meriv2-phase-4-immutable-memory-versions.md',
-    ]);
-    await contains('apps/api/src/memory/immutable-memory-version.service.ts', 'proposeRestore');
-    await contains('apps/api/src/memory/immutable-memory-version.service.ts', 'supersedeOne');
-    await contains('apps/api/src/memory/lineage-aware-memory-store.service.ts', 'WITH RECURSIVE lineage');
-    await contains('apps/api/src/memory/lineage-aware-memory-store.service.ts', 'MEMORY_GOVERNANCE_TENANTS');
-    await contains('apps/api/src/memory/memory-authorization.helpers.ts', 'legal_hold');
-  });
+  await phase(
+    4,
+    'Immutable corrections, conflicts, restore, and stable catalog identity',
+    async () => {
+      await migration('20260812010000_memory_immutable_versions');
+      await files([
+        'apps/api/src/memory/immutable-memory-version.service.ts',
+        'apps/api/src/memory/memory-conflict.service.ts',
+        'apps/api/src/memory/memory-version.controller.ts',
+        'apps/api/src/memory/lineage-aware-memory-store.service.ts',
+        'apps/api/src/memory/lineage-aware-memory-store.service.spec.ts',
+        'docs/qa/meriv2-phase-4-immutable-memory-versions.md',
+      ]);
+      await contains('apps/api/src/memory/immutable-memory-version.service.ts', 'proposeRestore');
+      await contains('apps/api/src/memory/immutable-memory-version.service.ts', 'supersedeOne');
+      await contains(
+        'apps/api/src/memory/lineage-aware-memory-store.service.ts',
+        'WITH RECURSIVE lineage',
+      );
+      await contains(
+        'apps/api/src/memory/lineage-aware-memory-store.service.ts',
+        'MEMORY_GOVERNANCE_TENANTS',
+      );
+      await contains('apps/api/src/memory/memory-authorization.helpers.ts', 'legal_hold');
+    },
+  );
 
   await phase(5, 'Durable scheduled projection worker', async () => {
     await files([
@@ -125,7 +155,10 @@ async function main(): Promise<void> {
       'infra/cdk/lib/constructs/scheduled-memory-projection-worker.ts',
       'enabled: props.scheduleEnabled',
     );
-    await excludes('infra/cdk/lib/constructs/scheduled-memory-projection-worker.ts', 'enabled: true');
+    await excludes(
+      'infra/cdk/lib/constructs/scheduled-memory-projection-worker.ts',
+      'enabled: true',
+    );
     await contains(
       'infra/cdk/lib/constructs/scheduled-memory-projection-worker.ts',
       'alarm.addAlarmAction(action)',
@@ -146,7 +179,10 @@ async function main(): Promise<void> {
     ]);
     await contains('apps/api/src/memory/exact-memory-projection-worker.service.ts', 'dead_letter');
     await contains('apps/api/src/memory/exact-memory-projection-worker.service.ts', 'lease');
-    await contains('apps/api/src/memory/exact-memory-projection-worker.service.ts', 'expected_content_hash');
+    await contains(
+      'apps/api/src/memory/exact-memory-projection-worker.service.ts',
+      'expected_content_hash',
+    );
   });
 
   await phase(7, 'Truthful Context Packet persistence', async () => {
@@ -156,8 +192,14 @@ async function main(): Promise<void> {
       'apps/api/src/context/context-required-persistence.ts',
       'apps/workspace/src/generation/context-persistence-hold.ts',
     ]);
-    await contains('apps/api/src/context/context-compiler.service.ts', 'context_packet_read_after_write_missing');
-    await contains('apps/workspace/src/generation/context-compiler.service.ts', 'context_packet_read_after_write_missing');
+    await contains(
+      'apps/api/src/context/context-compiler.service.ts',
+      'context_packet_read_after_write_missing',
+    );
+    await contains(
+      'apps/workspace/src/generation/context-compiler.service.ts',
+      'context_packet_read_after_write_missing',
+    );
   });
 
   await phase(8, 'Context Packet v2 rollout and surface policy', async () => {
@@ -169,7 +211,10 @@ async function main(): Promise<void> {
       'apps/api/src/context/context-compiler-v2.service.spec.ts',
     ]);
     await contains('packages/meriv2-core/src/context/context-rollout.ts', "mode === 'shadow'");
-    await contains('packages/meriv2-core/src/context/context-release-switch.ts', 'tenantContextPacketCanaryEnabled');
+    await contains(
+      'packages/meriv2-core/src/context/context-release-switch.ts',
+      'tenantContextPacketCanaryEnabled',
+    );
     await contains('packages/meriv2-core/src/context/surface-policy.ts', "'district-brief'");
   });
 
@@ -179,7 +224,10 @@ async function main(): Promise<void> {
       'apps/api/src/memory/memory-recall-suppression.helpers.ts',
       'packages/meriv2-core/src/memory/governance.ts',
     ]);
-    await contains('apps/api/src/memory/memory-governance-lifecycle.helpers.ts', 'MEMORY_GOVERNANCE_LIFECYCLE');
+    await contains(
+      'apps/api/src/memory/memory-governance-lifecycle.helpers.ts',
+      'MEMORY_GOVERNANCE_LIFECYCLE',
+    );
     await contains('apps/api/src/memory/memory-recall-suppression.helpers.ts', 'governed_status');
     await contains('packages/meriv2-core/src/memory/governance.ts', "'superseded'");
   });
@@ -196,8 +244,14 @@ async function main(): Promise<void> {
       'apps/api/scripts/test-policy-pack-lifecycle-concurrency.sh',
     ]);
     await contains('apps/api/src/meri/meri-policy-pack.service.ts', 'recordDecisionInTx');
-    await contains('apps/api/src/meri/meri-policy-pack-rollout.service.ts', 'MERI_POLICY_PACK_TENANTS');
-    await contains('apps/api/src/meri/meri-policy-pack-rollout.service.ts', 'persistedPolicyPacksEnforcedForTenant');
+    await contains(
+      'apps/api/src/meri/meri-policy-pack-rollout.service.ts',
+      'MERI_POLICY_PACK_TENANTS',
+    );
+    await contains(
+      'apps/api/src/meri/meri-policy-pack-rollout.service.ts',
+      'persistedPolicyPacksEnforcedForTenant',
+    );
   });
 
   await phase(11, 'Reversible drift-safe governance backfill', async () => {
@@ -235,8 +289,18 @@ async function main(): Promise<void> {
       'apps/web/src/components/MemoryReviewQueue.tsx',
       'docs/qa/meriv2-phase-13-withdrawal-vs-rejection.md',
     ]);
-    await contains('apps/api/src/memory/governed-memory-candidate.service.ts', 'withdrawn_by_proposer');
-    await contains('apps/api/src/memory/governed-memory-candidate.service.ts', 'rejected_by_reviewer');
+    // The withdrawn/rejected disposition vocabulary is owned by the governance
+    // lifecycle helpers; the candidate service records the terminal decision and
+    // delegates the disposition mapping to them.
+    await contains(
+      'apps/api/src/memory/memory-governance-lifecycle.helpers.ts',
+      'withdrawn_by_proposer',
+    );
+    await contains(
+      'apps/api/src/memory/memory-governance-lifecycle.helpers.ts',
+      'rejected_by_reviewer',
+    );
+    await contains('apps/api/src/memory/governed-memory-candidate.service.ts', 'dispositionActor');
   });
 
   await phase(14, 'Accessible Context Inspector', async () => {
@@ -261,8 +325,14 @@ async function main(): Promise<void> {
       'apps/web/src/components/MemoryGovernanceCenter.test.ts',
       'docs/qa/meriv2-phase-15-memory-governance-center.md',
     ]);
-    await contains('apps/api/src/memory/memory-governance-center.switch.ts', 'MEMORY_GOVERNANCE_CENTER');
-    await contains('apps/api/src/memory/memory-governance-tenant.interceptor.ts', 'runWithMemoryGovernanceTenant');
+    await contains(
+      'apps/api/src/memory/memory-governance-center.switch.ts',
+      'MEMORY_GOVERNANCE_CENTER',
+    );
+    await contains(
+      'apps/api/src/memory/memory-governance-tenant.interceptor.ts',
+      'runWithMemoryGovernanceTenant',
+    );
   });
 
   await phase(16, 'Cross-surface government-affairs assurance envelope', async () => {
@@ -280,10 +350,22 @@ async function main(): Promise<void> {
       'apps/meriv2-orchestrator/src/meri/steward/steward-assurance.ts',
       'apps/api-strategy/src/agents/execution-assurance.ts',
     ]);
-    await contains('apps/workspace/src/generation/generation.controller.ts', 'assertSingleGeneratedSectionRelease');
-    await contains('apps/workspace/src/generation/generation.controller.ts', 'runWithGenerationAssuranceTenant');
-    await contains('apps/api-strategy/src/agents/agents.module.ts', 'ExecutionAssuranceTenantInterceptor');
-    await contains('apps/meriv2-orchestrator/src/meri/strategy/strategy.controller.ts', 'runWithAssuranceRequestScope');
+    await contains(
+      'apps/workspace/src/generation/generation.controller.ts',
+      'assertSingleGeneratedSectionRelease',
+    );
+    await contains(
+      'apps/workspace/src/generation/generation.controller.ts',
+      'runWithGenerationAssuranceTenant',
+    );
+    await contains(
+      'apps/api-strategy/src/agents/agents.module.ts',
+      'ExecutionAssuranceTenantInterceptor',
+    );
+    await contains(
+      'apps/meriv2-orchestrator/src/meri/strategy/strategy.controller.ts',
+      'runWithAssuranceRequestScope',
+    );
   });
 
   await phase(17, 'One exact local release matrix', async () => {
@@ -292,7 +374,10 @@ async function main(): Promise<void> {
       'apps/api/scripts/verify-meriv2-development-completeness.ts',
       'docs/qa/meriv2-phase-17-final-ci.md',
     ]);
-    await contains('scripts/verify-meriv2-release.mjs', 'pnpm install');
+    // The harness spawns pnpm with an argv array, so assert the gate identity and
+    // the locked-install flag rather than a concatenated "pnpm install" string.
+    await contains('scripts/verify-meriv2-release.mjs', 'install-locked-dependencies');
+    await contains('scripts/verify-meriv2-release.mjs', '--frozen-lockfile');
     await contains('scripts/verify-meriv2-release.mjs', 'eval:meriv2');
     await contains('scripts/verify-meriv2-release.mjs', 'assertCurrentWithMain');
     await contains('scripts/verify-meriv2-release.mjs', 'MERIV2_LOCAL_RELEASE_PREFLIGHT_OK');
@@ -308,8 +393,14 @@ async function main(): Promise<void> {
       'docs/qa/meriv2-database-release-rehearsal.md',
     ]);
     await contains('apps/api/scripts/meriv2-phase18-database-rehearsal.sh', 'prisma migrate diff');
-    await contains('apps/api/scripts/meriv2-phase18-database-rehearsal.sh', 'MEMORY_GOVERNANCE_TENANTS=all');
-    await contains('apps/api/scripts/meriv2-phase18-database-rehearsal.sh', 'MERI_POLICY_PACK_TENANTS=all');
+    await contains(
+      'apps/api/scripts/meriv2-phase18-database-rehearsal.sh',
+      'MEMORY_GOVERNANCE_TENANTS=all',
+    );
+    await contains(
+      'apps/api/scripts/meriv2-phase18-database-rehearsal.sh',
+      'MERI_POLICY_PACK_TENANTS=all',
+    );
   });
 
   await phase(19, 'Authenticated browser and accessibility acceptance', async () => {
@@ -322,7 +413,10 @@ async function main(): Promise<void> {
       'docs/qa/meriv2-closeout-browser-acceptance.md',
     ]);
     await contains('scripts/run-meriv2-phase19-local.mjs', "MEMORY_GOVERNANCE_TENANTS: 'all'");
-    await contains('apps/web/scripts/meriv2-phase19-browser-acceptance.mjs', 'ethical-wall-denied-user');
+    await contains(
+      'apps/web/scripts/meriv2-phase19-browser-acceptance.mjs',
+      'ethical-wall-denied-user',
+    );
   });
 
   await phase(20, 'SOC 2 control system, alarms, and operations isolation', async () => {
@@ -351,29 +445,42 @@ async function main(): Promise<void> {
       'docs/qa/meriv2-development-completeness-review.md',
       'docs/runbooks/meriv2-merge-and-aws-ship.md',
     ]);
-    await contains('docs/runbooks/meriv2-merge-and-aws-ship.md', 'MERIV2_LOCAL_RELEASE_PREFLIGHT_OK');
-    await contains('docs/runbooks/meriv2-merge-and-aws-ship.md', 'must not be the sole production approver');
+    await contains(
+      'docs/runbooks/meriv2-merge-and-aws-ship.md',
+      'MERIV2_LOCAL_RELEASE_PREFLIGHT_OK',
+    );
+    await contains(
+      'docs/runbooks/meriv2-merge-and-aws-ship.md',
+      'must not be the sole production approver',
+    );
   });
 
-  await phase(22, 'Migration, dark deployment, canary, backfill, and rollback execution', async () => {
-    await files([
-      'scripts/collect-meriv2-aws-context.mjs',
-      'scripts/prepare-meriv2-ecs-release.mjs',
-      'scripts/execute-meriv2-ecs-release.mjs',
-      'scripts/deploy-meriv2-operations-dark.mjs',
-      'docs/runbooks/meriv2-merge-and-aws-ship.md',
-      'docs/runbooks/meriv2-memory-context-assurance-rollout.md',
-      'docs/runbooks/meriv2-memory-context-assurance-rollback.md',
-    ]);
-    await contains('scripts/prepare-meriv2-ecs-release.mjs', "MEMORY_GOVERNANCE_TENANTS: ''");
-    await contains('scripts/prepare-meriv2-ecs-release.mjs', "MERI_POLICY_PACK_TENANTS: ''");
-    await contains('scripts/execute-meriv2-ecs-release.mjs', 'imageDigest');
-    await contains('scripts/execute-meriv2-ecs-release.mjs', 'rollbackServices');
-    await contains('scripts/execute-meriv2-ecs-release.mjs', 'DEPLOY_CAPIRO_');
-    await contains('scripts/deploy-meriv2-operations-dark.mjs', 'OPERATIONS_DARK');
-    await contains('docs/runbooks/meriv2-merge-and-aws-ship.md', 'serves production traffic');
-    await contains('docs/runbooks/meriv2-merge-and-aws-ship.md', 'MEMORY_GOVERNANCE_TENANTS=<internal-tenant-uuid>');
-  });
+  await phase(
+    22,
+    'Migration, dark deployment, canary, backfill, and rollback execution',
+    async () => {
+      await files([
+        'scripts/collect-meriv2-aws-context.mjs',
+        'scripts/prepare-meriv2-ecs-release.mjs',
+        'scripts/execute-meriv2-ecs-release.mjs',
+        'scripts/deploy-meriv2-operations-dark.mjs',
+        'docs/runbooks/meriv2-merge-and-aws-ship.md',
+        'docs/runbooks/meriv2-memory-context-assurance-rollout.md',
+        'docs/runbooks/meriv2-memory-context-assurance-rollback.md',
+      ]);
+      await contains('scripts/prepare-meriv2-ecs-release.mjs', "MEMORY_GOVERNANCE_TENANTS: ''");
+      await contains('scripts/prepare-meriv2-ecs-release.mjs', "MERI_POLICY_PACK_TENANTS: ''");
+      await contains('scripts/execute-meriv2-ecs-release.mjs', 'imageDigest');
+      await contains('scripts/execute-meriv2-ecs-release.mjs', 'rollbackServices');
+      await contains('scripts/execute-meriv2-ecs-release.mjs', 'DEPLOY_CAPIRO_');
+      await contains('scripts/deploy-meriv2-operations-dark.mjs', 'OPERATIONS_DARK');
+      await contains('docs/runbooks/meriv2-merge-and-aws-ship.md', 'serves production traffic');
+      await contains(
+        'docs/runbooks/meriv2-merge-and-aws-ship.md',
+        'MEMORY_GOVERNANCE_TENANTS=<internal-tenant-uuid>',
+      );
+    },
+  );
 
   await globalChecks();
   await writeEvidence();
@@ -412,10 +519,7 @@ async function globalChecks(): Promise<void> {
   ]);
   for (const relative of relevantFiles.filter(isLiveTypeScript)) {
     const value = await text(relative);
-    ok(
-      !/ethicalWallAllowed\s*:\s*true/.test(value),
-      `Live ethical-wall bypass found: ${relative}`,
-    );
+    ok(!/ethicalWallAllowed\s*:\s*true/.test(value), `Live ethical-wall bypass found: ${relative}`);
     if (/admin_auto_commit/.test(value)) {
       ok(
         relative === 'apps/api/src/memory/memory-candidate-rules.ts',
