@@ -2,7 +2,6 @@ import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
-import * as kms from 'aws-cdk-lib/aws-kms';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import { Construct } from 'constructs';
@@ -11,74 +10,93 @@ import { ScheduledMemoryProjectionWorker } from './constructs/scheduled-memory-p
 
 export interface MemoryProjectionWorkerStackProps extends cdk.StackProps {
   cfg: EnvConfig;
-  cluster: ecs.ICluster;
-  apiRepo: ecr.IRepository;
+  clusterArn: string;
+  apiRepositoryName: string;
   apiImageTag: string;
-  serviceSecurityGroup: ec2.ISecurityGroup;
-  dbSecret: secretsmanager.ISecret;
-  appDbSecret: secretsmanager.ISecret;
+  privateSubnetIds: string[];
+  serviceSecurityGroupId: string;
+  dbSecretArn: string;
+  appDbSecretArn: string;
   databaseName: string;
-  dataKey: kms.IKey;
-  secretsKey: kms.IKey;
+  dataKeyArn: string;
+  secretsKeyArn: string;
   scheduleEnabled: boolean;
-  alertsTopic: sns.ITopic;
+  alertsTopicArn: string;
 }
 
 /**
  * Separate stack for the scheduled governed-memory projector.
  *
- * Keeping this outside ComputeStack gives operations an explicit rollback switch:
- * disable the EventBridge rule or roll back this task definition without replacing
- * long-running API services. The stack consumes existing cluster/network/data
- * outputs and creates no database, customer-data, or migration resources. Its
- * schedule is dark unless the release operator supplies the exact enable context.
+ * Every existing runtime dependency is imported by a literal ARN/name/id. That
+ * lets the operator deploy this stack from the dedicated MeriV2 operations CDK
+ * app without updating the drifted/frozen Compute stack merely to add new
+ * cross-stack exports. The stack creates no database, customer-data, or migration
+ * resource and its schedule remains dark unless explicitly enabled.
  */
 export class MemoryProjectionWorkerStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: MemoryProjectionWorkerStackProps) {
     super(scope, id, props);
-    const {
-      cfg,
-      cluster,
-      apiRepo,
-      apiImageTag,
-      serviceSecurityGroup,
-      dbSecret,
-      appDbSecret,
-      databaseName,
-      dataKey,
-      secretsKey,
-      scheduleEnabled,
-      alertsTopic,
-    } = props;
-
+    const { cfg } = props;
     for (const [key, value] of Object.entries(commonTags(cfg))) {
       cdk.Tags.of(this).add(key, value);
     }
+
+    const cluster = ecs.Cluster.fromClusterArn(this, 'ImportedCluster', props.clusterArn);
+    const apiRepo = ecr.Repository.fromRepositoryName(
+      this,
+      'ImportedApiRepository',
+      props.apiRepositoryName,
+    );
+    const subnets = props.privateSubnetIds.map((subnetId, index) =>
+      ec2.Subnet.fromSubnetId(this, `ImportedPrivateSubnet${index + 1}`, subnetId),
+    );
+    const securityGroup = ec2.SecurityGroup.fromSecurityGroupId(
+      this,
+      'ImportedServiceSecurityGroup',
+      props.serviceSecurityGroupId,
+      { mutable: false },
+    );
+    const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(
+      this,
+      'ImportedDatabaseSecret',
+      props.dbSecretArn,
+    );
+    const appDbSecret = secretsmanager.Secret.fromSecretCompleteArn(
+      this,
+      'ImportedApplicationDatabaseSecret',
+      props.appDbSecretArn,
+    );
+    const alertsTopic = sns.Topic.fromTopicArn(
+      this,
+      'ImportedAlertsTopic',
+      props.alertsTopicArn,
+    );
 
     const worker = new ScheduledMemoryProjectionWorker(this, 'ScheduledWorker', {
       envName: cfg.envName,
       cluster,
       apiRepo,
-      apiImageTag,
-      securityGroup: serviceSecurityGroup,
+      apiImageTag: props.apiImageTag,
+      subnets,
+      securityGroup,
       dbSecret,
       appDbSecret,
-      databaseName,
-      dataKeyArn: dataKey.keyArn,
-      secretsKeyArn: secretsKey.keyArn,
+      databaseName: props.databaseName,
+      dataKeyArn: props.dataKeyArn,
+      secretsKeyArn: props.secretsKeyArn,
       region: this.region,
       account: this.account,
       protectFromDestroy: cfg.protectFromDestroy,
-      scheduleEnabled,
+      scheduleEnabled: props.scheduleEnabled,
       alertsTopic,
     });
 
     new cdk.CfnOutput(this, 'ProjectionWorkerScheduleName', {
       value: worker.rule.ruleName,
-      description: `Governed-memory projection schedule (enabled=${scheduleEnabled})`,
+      description: `Governed-memory projection schedule (enabled=${props.scheduleEnabled})`,
     });
     new cdk.CfnOutput(this, 'ProjectionWorkerImageTag', {
-      value: apiImageTag,
+      value: props.apiImageTag,
       description: 'API image tag bound to the governed-memory projection task definition',
     });
   }
