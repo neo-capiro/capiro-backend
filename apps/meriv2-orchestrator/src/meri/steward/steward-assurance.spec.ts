@@ -1,3 +1,4 @@
+import { verifyAssuranceEnvelope } from '@capiro/meriv2-core';
 import { assessStewardFacts } from './steward-assurance';
 import type { ExtractedConflict, ExtractedFact, StewardRef } from './steward-prompt';
 
@@ -18,41 +19,41 @@ function fact(over: Partial<ExtractedFact> = {}): ExtractedFact {
   };
 }
 
-/** A high-risk budget claim citing an anchor the document does not have. */
 const FABRICATED_BUDGET = fact({
   fact: 'PE 0604270F received $412.5 million in the FY27 budget request.',
   sourceRef: 'row:Program Elements:99',
 });
 
-/** The same claim, correctly anchored. */
 const GROUNDED_BUDGET = fact({
   fact: 'PE 0604270F received $412.5 million in the FY27 budget request.',
   sourceRef: 'row:Program Elements:3',
 });
 
 describe('assessStewardFacts', () => {
-  it('withholds NOTHING when not armed — the response stays byte-identical', () => {
+  it('observes but withholds nothing in shadow', () => {
     const facts = [FABRICATED_BUDGET, fact()];
     const out = assessStewardFacts({
       facts,
       conflicts: [],
       refs,
       templateKey: 'client-budget-profile',
-      armed: false,
+      mode: 'shadow',
+      contextPacketId: 'packet-1',
     });
     expect(out.facts).toEqual(facts);
-    expect(out.heldCount).toBe(1); // observed…
-    expect(out.verdicts[0]?.held).toBe(true); // …and reported…
-    expect(out.facts).toHaveLength(2); // …but not acted on.
+    expect(out.heldCount).toBe(1);
+    expect(out.verdicts[0]?.held).toBe(true);
+    expect(out.envelope.contextPacketId).toBe('packet-1');
+    expect(verifyAssuranceEnvelope(out.envelope).valid).toBe(true);
   });
 
-  it('holds a high-risk fact citing an anchor outside the closed set once armed', () => {
+  it('holds a high-risk fact citing an anchor outside the closed set in enforce', () => {
     const out = assessStewardFacts({
       facts: [FABRICATED_BUDGET, fact()],
       conflicts: [],
       refs,
       templateKey: 'client-budget-profile',
-      armed: true,
+      mode: 'enforce',
     });
     expect(out.facts).toHaveLength(1);
     expect(out.facts[0]?.fact).toMatch(/Arlington/);
@@ -65,25 +66,25 @@ describe('assessStewardFacts', () => {
     expect(out.verdicts[0]?.reason).toMatch(/closed set/i);
   });
 
-  it('releases the SAME claim when it resolves to a real anchor', () => {
+  it('releases the same claim when it resolves to a real anchor', () => {
     const out = assessStewardFacts({
       facts: [GROUNDED_BUDGET],
       conflicts: [],
       refs,
       templateKey: 'client-budget-profile',
-      armed: true,
+      mode: 'enforce',
     });
     expect(out.facts).toHaveLength(1);
     expect(out.verdicts[0]).toMatchObject({ highRisk: true, anchorResolved: true, held: false });
   });
 
-  it('does not hold a LOW-risk fact with a bad anchor (quality issue, not fabricated authority)', () => {
+  it('does not hold a low-risk fact with a bad anchor', () => {
     const out = assessStewardFacts({
       facts: [fact({ sourceRef: 'heading:Does Not Exist' })],
       conflicts: [],
       refs,
       templateKey: 'client-profile',
-      armed: true,
+      mode: 'enforce',
     });
     expect(out.facts).toHaveLength(1);
     expect(out.verdicts[0]).toMatchObject({ anchorResolved: false, held: false });
@@ -95,31 +96,44 @@ describe('assessStewardFacts', () => {
       { newFactIndex: 2, existingFactId: 'e2', material: false, rationale: 'differs' },
     ];
     const out = assessStewardFacts({
-      // index 0 held, indices 1 and 2 survive
       facts: [FABRICATED_BUDGET, fact(), fact({ fact: 'The client has 4 registered lobbyists.' })],
       conflicts,
       refs,
       templateKey: 'client-budget-profile',
-      armed: true,
+      mode: 'enforce',
     });
     expect(out.facts).toHaveLength(2);
-    // The conflict on the HELD fact is gone, never re-paired with the fact that
-    // shifted into slot 0.
     expect(out.conflicts).toEqual([
       { newFactIndex: 1, existingFactId: 'e2', material: false, rationale: 'differs' },
     ]);
   });
 
-  it('holds nothing when the document exposed no anchors and no high-risk fact was claimed', () => {
+  it('holds nothing when no high-risk fact was claimed', () => {
     const out = assessStewardFacts({
       facts: [fact({ sourceRef: 'heading:X' })],
       conflicts: [],
       refs: [],
       templateKey: 'client-profile',
-      armed: true,
+      mode: 'enforce',
     });
     expect(out.facts).toHaveLength(1);
     expect(out.heldCount).toBe(0);
+  });
+
+  it('binds policy identity and detects stale policy drift', () => {
+    const out = assessStewardFacts({
+      facts: [GROUNDED_BUDGET],
+      conflicts: [],
+      refs,
+      templateKey: 'client-budget-profile',
+      mode: 'shadow',
+      policyBinding: { packId: 'pack-a', packVersion: '2', ruleId: 'facts' },
+    });
+    expect(
+      verifyAssuranceEnvelope(out.envelope, {
+        policyBinding: { packId: 'pack-a', packVersion: '3', ruleId: 'facts' },
+      }).errors,
+    ).toContain('policy_binding_drift');
   });
 
   it('produces a stable ledger hash for identical input', () => {
@@ -128,8 +142,8 @@ describe('assessStewardFacts', () => {
       conflicts: [],
       refs,
       templateKey: 'client-budget-profile',
-      armed: true,
-    } as const;
+      mode: 'enforce' as const,
+    };
     expect(assessStewardFacts({ ...args }).ledgerHash).toBe(
       assessStewardFacts({ ...args }).ledgerHash,
     );
