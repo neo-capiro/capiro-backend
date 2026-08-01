@@ -5,7 +5,7 @@ import {
   GOVERNED_STEERING_COLUMNS_SQL,
   MERIV2_CONTEXT_PACKET_V2_ENV,
   STEERING_ORDER_COLUMNS_SQL,
-  governedMemoryLifecycleEnabled,
+  governedMemoryModeEnabledForTenant,
   governedRecallSuppressionSql,
   resolveContextPacketMode,
   resolveTenantContextPacketMode,
@@ -128,7 +128,11 @@ export class OrchestratorContextCompilerService {
       )
       ${Prisma.raw(
         governedRecallSuppressionSql(
-          governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE),
+          governedMemoryModeEnabledForTenant(
+            req.tenantId,
+            process.env.MEMORY_GOVERNANCE_LIFECYCLE,
+            process.env.MEMORY_GOVERNANCE_TENANTS,
+          ),
         ),
       )}
     `;
