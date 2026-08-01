@@ -54,9 +54,10 @@ function Fixture() {
               note: 'The unsupported amount was removed before review.',
             },
             {
-              op: 'remove_section',
+              op: 'replace_section',
               section: 'Unverified Forecast',
-              note: 'Removal requires explicit confirmation.',
+              content: '<p>The unsupported forecast remains withheld pending evidence.</p>',
+              note: 'No unsupported forecast is applied as verified content.',
             },
           ] as never}
           document={{
