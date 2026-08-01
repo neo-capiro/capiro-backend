@@ -113,38 +113,65 @@ export function classifyUnitRatio(
 }
 
 /**
- * Pick the single observation this promotion just created, so it can be linked to
- * the exact SourceDocument.
+ * Pick the observation this promotion should link to the exact SourceDocument.
  *
- * Extracted as a pure function because the fail-closed rule is the whole safety
- * property and it must be provable without a database. The writer creates
- * per-field observations via ReconciliationService and one `__row__` observation
- * per PE/FY row; the caller snapshots the ids that existed BEFORE the writer ran
- * and passes them here so historical rows — including historical rows that still
- * have `sourceDocumentId = null` — can never be adopted by a new promotion.
+ * Fail-closed for ambiguous matches. Supports:
+ * 1) Exactly one fresh unlinked observation created by this write (primary path)
+ * 2) Exactly one candidate already linked to preferredSourceDocumentId (idempotent replay)
  *
- * Anything other than exactly one new candidate throws, which aborts the
- * surrounding canonical transaction rather than linking a guess.
- *
- * NOTE (Phase D): this guarantees fail-closed linking of observations created by
- * THIS promotion. It does not make repeated promotion of the same source
- * idempotent at the observation level — durable observation keys are Phase D.
+ * Historical null-linked rows remain excluded via preExistingIds (they never count as fresh).
  */
 export function selectPromotedObservationId(input: {
   preExistingIds: Iterable<string>;
   candidates: readonly { id: string; sourceDocumentId?: string | null }[];
   label: string;
+  /** When set, accept an observation already linked to this document (replay). */
+  preferredSourceDocumentId?: string | null;
 }): string {
   const preExisting = new Set(input.preExistingIds);
   const fresh = input.candidates.filter(
     (candidate) => !preExisting.has(candidate.id) && candidate.sourceDocumentId == null,
   );
-  if (fresh.length !== 1) {
+  if (fresh.length === 1) return fresh[0]!.id;
+  if (fresh.length > 1) {
     throw new Error(
       `Expected exactly one new canonical observation for ${input.label}; found ${fresh.length}`,
     );
   }
-  return fresh[0]!.id;
+
+  if (input.preferredSourceDocumentId) {
+    const already = input.candidates.filter(
+      (candidate) => candidate.sourceDocumentId === input.preferredSourceDocumentId,
+    );
+    if (already.length === 1) return already[0]!.id;
+    if (already.length > 1) {
+      throw new Error(
+        `Expected exactly one observation linked to source document for ${input.label}; found ${already.length}`,
+      );
+    }
+  }
+
+  throw new Error(
+    `Expected exactly one new canonical observation for ${input.label}; found 0`,
+  );
+}
+
+/** Stable observation key for the PE/FY row audit stamp (__row__). */
+export function buildRowObservationKey(input: {
+  sourceDocumentId: string;
+  source: string;
+  peCode: string;
+  fy: number;
+  sourceSha256: string;
+}): string {
+  return [
+    'row',
+    input.sourceDocumentId,
+    input.source,
+    input.peCode,
+    String(input.fy),
+    input.sourceSha256,
+  ].join(':');
 }
 
 export type UnitAuditBucket = 'provenAffected' | 'needsHumanReview' | 'notAffected';
