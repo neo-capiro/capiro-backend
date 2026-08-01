@@ -5,6 +5,7 @@ on:
     branches: [agent/meriv2-world-class-closeout]
     paths:
       - 'apps/api/scripts/seed-meriv2-phase19-browser-fixtures.ts'
+      - 'apps/web/scripts/phase19-cdp.mjs'
       - 'apps/web/scripts/meriv2-phase19-browser-acceptance.mjs'
       - 'apps/web/phase19-assurance-fixture.html'
       - 'apps/web/src/phase19/**'
@@ -71,6 +72,10 @@ jobs:
       PHASE18_ACCEPTED_SHA: ${{ vars.PHASE18_ACCEPTED_SHA }}
       PHASE19_LIVE_CONTEXT_PATH: ${{ vars.PHASE19_LIVE_CONTEXT_PATH }}
       PHASE19_LIVE_CONTEXT_EXPECT: ${{ vars.PHASE19_LIVE_CONTEXT_EXPECT }}
+      PHASE19_LIVE_SHADOW_PATH: ${{ vars.PHASE19_LIVE_SHADOW_PATH }}
+      PHASE19_LIVE_SHADOW_EXPECT: ${{ vars.PHASE19_LIVE_SHADOW_EXPECT }}
+      PHASE19_LIVE_ENFORCE_PATH: ${{ vars.PHASE19_LIVE_ENFORCE_PATH }}
+      PHASE19_LIVE_ENFORCE_EXPECT: ${{ vars.PHASE19_LIVE_ENFORCE_EXPECT }}
       PHASE19_LIVE_CHAT_PATH: ${{ vars.PHASE19_LIVE_CHAT_PATH }}
       PHASE19_LIVE_CHAT_EXPECT: ${{ vars.PHASE19_LIVE_CHAT_EXPECT }}
       PHASE19_LIVE_EDITOR_PATH: ${{ vars.PHASE19_LIVE_EDITOR_PATH }}
@@ -137,6 +142,7 @@ jobs:
 
       - name: Static validation
         run: |
+          node --check apps/web/scripts/phase19-cdp.mjs
           node --check apps/web/scripts/meriv2-phase19-browser-acceptance.mjs
           pnpm --filter @capiro/api typecheck
           pnpm --filter @capiro/web typecheck
