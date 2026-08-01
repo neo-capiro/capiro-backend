@@ -13,6 +13,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { resolveAwsCli } from './lib/resolve-aws-cli.mjs';
 
 const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -23,11 +24,8 @@ const contextPath = path.resolve(ROOT, required('context'));
 const profile = args.profile ?? 'capiro-dev';
 const region = args.region ?? 'us-east-1';
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
-const aws = process.platform === 'win32' ? 'aws.cmd' : 'aws';
-const evidenceDir = path.resolve(
-  ROOT,
-  args.evidenceDir ?? `.deploy-logs/meriv2-operations/${sha}`,
-);
+const aws = resolveAwsCli();
+const evidenceDir = path.resolve(ROOT, args.evidenceDir ?? `.deploy-logs/meriv2-operations/${sha}`);
 
 async function main() {
   const document = JSON.parse(await readFile(contextPath, 'utf8'));
@@ -55,10 +53,7 @@ async function main() {
     `${key}=${String(value)}`,
   ]);
   const envName = String(contexts.env);
-  const stacks = [
-    `Capiro-${envName}-MemoryProjectionWorker`,
-    `Capiro-${envName}-MeriV2Control`,
-  ];
+  const stacks = [`Capiro-${envName}-MemoryProjectionWorker`, `Capiro-${envName}-MeriV2Control`];
   const app = 'ts-node --prefer-ts-exts bin/meriv2-operations.ts';
   const commandArgs = [
     'exec',
@@ -149,7 +144,8 @@ function validateContexts(contexts) {
     throw new Error('Operations context document has no contexts object.');
   }
   for (const key of requiredKeys) {
-    if (!String(contexts[key] ?? '').trim()) throw new Error(`Operations context is missing ${key}.`);
+    if (!String(contexts[key] ?? '').trim())
+      throw new Error(`Operations context is missing ${key}.`);
   }
   if (String(contexts.region) !== region) {
     throw new Error(`--region ${region} does not match context region ${contexts.region}.`);
@@ -195,9 +191,10 @@ main().catch(async (error) => {
     productFeatureActivationAttempted: false,
   };
   await mkdir(evidenceDir, { recursive: true }).catch(() => undefined);
-  await writeFile(path.join(evidenceDir, 'failure.json'), `${JSON.stringify(payload, null, 2)}\n`).catch(
-    () => undefined,
-  );
+  await writeFile(
+    path.join(evidenceDir, 'failure.json'),
+    `${JSON.stringify(payload, null, 2)}\n`,
+  ).catch(() => undefined);
   console.error(JSON.stringify(payload));
   process.exitCode = 1;
 });

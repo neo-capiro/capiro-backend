@@ -13,6 +13,7 @@
  * reads secret values, or sends anything.
  */
 import { spawn } from 'node:child_process';
+import { resolveSpawn, toolAvailable } from './lib/resolve-tool.mjs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,17 +24,16 @@ const mode = args.mode ?? 'development';
 if (mode !== 'development' && mode !== 'release') {
   throw new Error('--mode must be development or release.');
 }
-const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
-const git = process.platform === 'win32' ? 'git.exe' : 'git';
-const docker = process.platform === 'win32' ? 'docker.exe' : 'docker';
-const psql = process.platform === 'win32' ? 'psql.exe' : 'psql';
-const actionlint = process.platform === 'win32' ? 'actionlint.exe' : 'actionlint';
+// Logical tool tokens. resolveSpawn() maps each to a directly spawnable binary
+// at launch time, so these gates keep shell: false on every platform.
+const pnpm = 'pnpm';
+const git = 'git';
+const docker = 'docker';
+const psql = 'psql';
+const actionlint = 'actionlint';
 const sha = (await capture(git, ['rev-parse', 'HEAD'])).trim();
 if (!/^[0-9a-f]{40}$/i.test(sha)) throw new Error('Could not resolve an exact checkout SHA.');
-const evidenceDir = path.resolve(
-  ROOT,
-  args.evidenceDir ?? `.artifacts/meriv2-release-${sha}`,
-);
+const evidenceDir = path.resolve(ROOT, args.evidenceDir ?? `.artifacts/meriv2-release-${sha}`);
 const steps = [];
 const commonEnv = {
   ...process.env,
@@ -65,7 +65,13 @@ async function main() {
     '@capiro/onboard-api',
     '@capiro/workspace',
   ]) {
-    await gate(`prisma-generate-${slug(pkg)}`, pnpm, ['--filter', pkg, 'exec', 'prisma', 'generate']);
+    await gate(`prisma-generate-${slug(pkg)}`, pnpm, [
+      '--filter',
+      pkg,
+      'exec',
+      'prisma',
+      'generate',
+    ]);
   }
 
   for (const pkg of [
@@ -153,25 +159,33 @@ async function main() {
   await gate('meriv2-evaluations', pnpm, ['--filter', '@capiro/meriv2-core', 'eval:meriv2']);
 
   if (!args.skipDatabase) {
-    await gate('phase18-database-rehearsal', 'bash', [
-      'apps/api/scripts/meriv2-phase18-database-rehearsal.sh',
-    ], {
-      ...commonEnv,
-      PHASE18_EVIDENCE_DIR: path.join(evidenceDir, 'phase18'),
-    });
+    await gate(
+      'phase18-database-rehearsal',
+      'bash',
+      ['apps/api/scripts/meriv2-phase18-database-rehearsal.sh'],
+      {
+        ...commonEnv,
+        PHASE18_EVIDENCE_DIR: path.join(evidenceDir, 'phase18'),
+      },
+    );
   }
 
   if (mode === 'release') {
     if (args.skipBrowser) {
       throw new Error('Release mode does not permit --skip-browser.');
     }
-    await gate('phase19-authenticated-browser', process.execPath, [
-      'scripts/run-meriv2-phase19-local.mjs',
-      '--sha',
-      sha,
-      '--evidence-dir',
-      path.join(evidenceDir, 'phase19'),
-    ], commonEnv);
+    await gate(
+      'phase19-authenticated-browser',
+      process.execPath,
+      [
+        'scripts/run-meriv2-phase19-local.mjs',
+        '--sha',
+        sha,
+        '--evidence-dir',
+        path.join(evidenceDir, 'phase19'),
+      ],
+      commonEnv,
+    );
 
     const contextFile = args.opsContext ?? process.env.MERIV2_OPERATIONS_CONTEXT_FILE;
     if (!contextFile) {
@@ -275,7 +289,10 @@ function operationsCdkArgs(contexts, releaseSha) {
 async function gate(name, command, commandArgs, env = commonEnv) {
   console.log(`\n==> ${name}`);
   const startedAt = new Date().toISOString();
-  const logPath = path.join(evidenceDir, `${String(steps.length + 1).padStart(2, '0')}-${name}.log`);
+  const logPath = path.join(
+    evidenceDir,
+    `${String(steps.length + 1).padStart(2, '0')}-${name}.log`,
+  );
   const code = await execute(command, commandArgs, { cwd: ROOT, env, logPath });
   const result = {
     name,
@@ -299,13 +316,7 @@ async function assertCurrentWithMain() {
   const remote = args.remote ?? 'origin';
   await execute(git, ['fetch', remote, 'main', '--quiet'], { cwd: ROOT, env: process.env });
   const behind = Number(
-    (
-      await capture(git, [
-        'rev-list',
-        '--count',
-        `HEAD..${remote}/main`,
-      ])
-    ).trim(),
+    (await capture(git, ['rev-list', '--count', `HEAD..${remote}/main`])).trim(),
   );
   if (!Number.isFinite(behind) || behind !== 0) {
     throw new Error(`The checkout is ${behind} commit(s) behind ${remote}/main.`);
@@ -313,13 +324,13 @@ async function assertCurrentWithMain() {
 }
 
 async function commandExists(command) {
-  const checker = process.platform === 'win32' ? 'where.exe' : 'which';
-  return (await exitCode(checker, [command])) === 0;
+  return toolAvailable(command);
 }
 
 async function execute(command, commandArgs, options) {
   let log = '';
-  const child = spawn(command, commandArgs, {
+  const resolved = resolveSpawn(command, commandArgs);
+  const child = spawn(resolved.command, resolved.args, {
     cwd: options.cwd,
     env: options.env,
     shell: false,
@@ -343,7 +354,8 @@ async function execute(command, commandArgs, options) {
 
 async function capture(command, commandArgs) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, commandArgs, {
+    const resolved = resolveSpawn(command, commandArgs);
+    const child = spawn(resolved.command, resolved.args, {
       cwd: ROOT,
       shell: false,
       windowsHide: true,
@@ -388,7 +400,11 @@ function parse(values) {
 }
 
 function slug(value) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 80);
 }
 
 main().catch(async (error) => {
@@ -404,7 +420,10 @@ main().catch(async (error) => {
     sharedDatabaseTouched: false,
     steps,
   };
-  await writeFile(path.join(evidenceDir, 'failure.json'), `${JSON.stringify(payload, null, 2)}\n`).catch(() => undefined);
+  await writeFile(
+    path.join(evidenceDir, 'failure.json'),
+    `${JSON.stringify(payload, null, 2)}\n`,
+  ).catch(() => undefined);
   console.error(JSON.stringify(payload));
   process.exitCode = 1;
 });

@@ -13,6 +13,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { resolveAwsCli } from './lib/resolve-aws-cli.mjs';
 
 const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -25,11 +26,8 @@ const envName = args.env ?? 'dev';
 const profile = args.profile ?? 'capiro-dev';
 const region = args.region ?? 'us-east-1';
 const cluster = args.cluster ?? `capiro-${envName}`;
-const outputDir = path.resolve(
-  ROOT,
-  args.outputDir ?? `.deploy-logs/meriv2-ecs-release/${sha}`,
-);
-const aws = process.platform === 'win32' ? 'aws.cmd' : 'aws';
+const outputDir = path.resolve(ROOT, args.outputDir ?? `.deploy-logs/meriv2-ecs-release/${sha}`);
+const aws = resolveAwsCli();
 
 const definitions = [
   {

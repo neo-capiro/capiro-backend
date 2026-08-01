@@ -18,6 +18,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { resolveAwsCli } from './lib/resolve-aws-cli.mjs';
 
 const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -28,7 +29,7 @@ const manifestPath = path.resolve(ROOT, requiredArg('manifest'));
 const profile = args.profile ?? 'capiro-dev';
 const region = args.region ?? 'us-east-1';
 const confirmation = requiredArg('confirm');
-const aws = process.platform === 'win32' ? 'aws.cmd' : 'aws';
+const aws = resolveAwsCli();
 const evidenceDir = path.resolve(
   ROOT,
   args.evidenceDir ?? `.deploy-logs/meriv2-ecs-release/${sha}/execution`,
@@ -181,7 +182,10 @@ async function runMigration(manifest, taskDefinitionArn) {
     '--network-configuration',
     JSON.stringify(manifest.migration.networkConfiguration),
   ];
-  if (Array.isArray(manifest.migration.capacityProviderStrategy) && manifest.migration.capacityProviderStrategy.length) {
+  if (
+    Array.isArray(manifest.migration.capacityProviderStrategy) &&
+    manifest.migration.capacityProviderStrategy.length
+  ) {
     runArgs.push(
       '--capacity-provider-strategy',
       JSON.stringify(manifest.migration.capacityProviderStrategy),
@@ -212,7 +216,9 @@ async function runMigration(manifest, taskDefinitionArn) {
     taskArn,
   ]);
   const task = described.tasks?.[0];
-  const failedContainer = (task?.containers ?? []).find((container) => Number(container.exitCode) !== 0);
+  const failedContainer = (task?.containers ?? []).find(
+    (container) => Number(container.exitCode) !== 0,
+  );
   if (!task || task.stopCode === 'TaskFailedToStart' || failedContainer) {
     throw new Error(
       `Migration task failed: stopCode=${task?.stopCode ?? 'missing'} exitCode=${failedContainer?.exitCode ?? 'missing'} reason=${failedContainer?.reason ?? task?.stoppedReason ?? 'unknown'}.`,
@@ -270,7 +276,7 @@ function pinTaskImages(taskDefinition, repository, imageTag, digest) {
   let replacements = 0;
   for (const container of taskDefinition.containerDefinitions ?? []) {
     if (typeof container.image === 'string' && container.image.endsWith(suffix)) {
-      container.image = container.image.slice(0, -(`:${imageTag}`.length)) + `@${digest}`;
+      container.image = container.image.slice(0, -`:${imageTag}`.length) + `@${digest}`;
       replacements += 1;
     }
   }
@@ -285,7 +291,8 @@ function pinTaskImages(taskDefinition, repository, imageTag, digest) {
 function assertDarkTaskDefinition(key, taskDefinition) {
   const controlled = new Map();
   for (const container of taskDefinition.containerDefinitions ?? []) {
-    for (const entry of container.environment ?? []) controlled.set(entry.name, String(entry.value ?? ''));
+    for (const entry of container.environment ?? [])
+      controlled.set(entry.name, String(entry.value ?? ''));
   }
   const mustBeOff = [
     'MEMORY_GOVERNANCE_LIFECYCLE',
@@ -395,7 +402,8 @@ async function writeJson(name, value) {
 
 function requiredArg(name) {
   const value = args[name];
-  if (!value) throw new Error(`--${name.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`)} is required.`);
+  if (!value)
+    throw new Error(`--${name.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`)} is required.`);
   return String(value);
 }
 

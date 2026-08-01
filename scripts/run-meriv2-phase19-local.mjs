@@ -14,13 +14,11 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = parse(process.argv.slice(2));
-const sha = args.sha ?? process.env.PHASE19_SHA ?? (await capture('git', ['rev-parse', 'HEAD'])).trim();
+const sha =
+  args.sha ?? process.env.PHASE19_SHA ?? (await capture('git', ['rev-parse', 'HEAD'])).trim();
 if (!/^[0-9a-f]{40}$/i.test(sha)) throw new Error('Phase 19 requires an exact 40-character SHA.');
 
-const evidenceDir = path.resolve(
-  ROOT,
-  args.evidenceDir ?? `.artifacts/meriv2-phase19-${sha}`,
-);
+const evidenceDir = path.resolve(ROOT, args.evidenceDir ?? `.artifacts/meriv2-phase19-${sha}`);
 const fixtureFile = path.join(evidenceDir, 'fixtures.json');
 const databaseUrl = 'postgresql://capiro:capiro@127.0.0.1:55459/capiro?schema=public';
 const psqlUrl = 'postgresql://capiro:capiro@127.0.0.1:55459/capiro';
@@ -121,38 +119,40 @@ async function main() {
       allowFailure: true,
       env,
     });
-    await run('Start disposable pgvector PostgreSQL', docker, [
-      'run',
-      '-d',
-      '--name',
-      containerName,
-      '-e',
-      'POSTGRES_USER=capiro',
-      '-e',
-      'POSTGRES_PASSWORD=capiro',
-      '-e',
-      'POSTGRES_DB=capiro',
-      '-p',
-      '55459:5432',
-      'pgvector/pgvector:pg16',
-    ], { env });
+    await run(
+      'Start disposable pgvector PostgreSQL',
+      docker,
+      [
+        'run',
+        '-d',
+        '--name',
+        containerName,
+        '-e',
+        'POSTGRES_USER=capiro',
+        '-e',
+        'POSTGRES_PASSWORD=capiro',
+        '-e',
+        'POSTGRES_DB=capiro',
+        '-p',
+        '55459:5432',
+        'pgvector/pgvector:pg16',
+      ],
+      { env },
+    );
     await waitForDatabase(env);
 
-    await run('Apply all API migrations', pnpm, [
-      '--filter',
-      '@capiro/api',
-      'exec',
-      'prisma',
-      'migrate',
-      'deploy',
-    ], { env });
-    await run('Seed application-valid Phase 19 fixtures', pnpm, [
-      '--filter',
-      '@capiro/api',
-      'exec',
-      'tsx',
-      'scripts/seed-meriv2-phase19-browser-fixtures.ts',
-    ], { env });
+    await run(
+      'Apply all API migrations',
+      pnpm,
+      ['--filter', '@capiro/api', 'exec', 'prisma', 'migrate', 'deploy'],
+      { env },
+    );
+    await run(
+      'Seed application-valid Phase 19 fixtures',
+      pnpm,
+      ['--filter', '@capiro/api', 'exec', 'tsx', 'scripts/seed-meriv2-phase19-browser-fixtures.ts'],
+      { env },
+    );
 
     const api = start('api', pnpm, ['--filter', '@capiro/api', 'dev'], env);
     const web = start(
@@ -165,9 +165,12 @@ async function main() {
     await waitForUrl('http://127.0.0.1:4000/health', 120_000);
     await waitForUrl('http://127.0.0.1:5173/', 120_000);
 
-    await run('Run authenticated browser and accessibility acceptance', process.execPath, [
-      'apps/web/scripts/meriv2-phase19-browser-acceptance.mjs',
-    ], { env });
+    await run(
+      'Run authenticated browser and accessibility acceptance',
+      process.execPath,
+      ['apps/web/scripts/meriv2-phase19-browser-acceptance.mjs'],
+      { env },
+    );
 
     const summary = {
       marker: 'MERIV2_PHASE19_LOCAL_COMPLETE',
@@ -287,10 +290,15 @@ async function cleanup() {
 async function terminate(child) {
   if (!child || child.exitCode !== null) return;
   if (process.platform === 'win32') {
-    await run('Terminate local child process', 'taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], {
-      allowFailure: true,
-      quiet: true,
-    }).catch(() => undefined);
+    await run(
+      'Terminate local child process',
+      'taskkill.exe',
+      ['/PID', String(child.pid), '/T', '/F'],
+      {
+        allowFailure: true,
+        quiet: true,
+      },
+    ).catch(() => undefined);
   } else {
     child.kill('SIGTERM');
     await Promise.race([

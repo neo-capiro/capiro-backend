@@ -12,6 +12,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { resolveAwsCli } from './lib/resolve-aws-cli.mjs';
 
 const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -21,19 +22,14 @@ const profile = options.profile ?? 'capiro-dev';
 const region = options.region ?? 'us-east-1';
 const clusterName = options.cluster ?? `capiro-${envName}`;
 const apiServiceName = options.service ?? `capiro-${envName}-api`;
-const aws = process.platform === 'win32' ? 'aws.cmd' : 'aws';
+const aws = resolveAwsCli();
 
 async function main() {
   const identity = await awsJson(['sts', 'get-caller-identity']);
   const account = String(identity.Account ?? '');
   if (!/^\d{12}$/.test(account)) throw new Error('AWS caller account could not be resolved.');
 
-  const clusterResponse = await awsJson([
-    'ecs',
-    'describe-clusters',
-    '--clusters',
-    clusterName,
-  ]);
+  const clusterResponse = await awsJson(['ecs', 'describe-clusters', '--clusters', clusterName]);
   const cluster = clusterResponse.clusters?.[0];
   if (!cluster?.clusterArn || cluster.status !== 'ACTIVE') {
     throw new Error(`ECS cluster ${clusterName} is missing or not ACTIVE.`);
@@ -72,7 +68,9 @@ async function main() {
     task?.containerDefinitions?.find((item) => item.essential) ??
     task?.containerDefinitions?.[0];
   if (!container) throw new Error('The current API task definition has no container definition.');
-  const secretByName = new Map((container.secrets ?? []).map((item) => [item.name, item.valueFrom]));
+  const secretByName = new Map(
+    (container.secrets ?? []).map((item) => [item.name, item.valueFrom]),
+  );
   const dbSecretArn = stripSecretSelector(
     requiredSecret(secretByName, 'DB_HOST', 'master database secret'),
   );
