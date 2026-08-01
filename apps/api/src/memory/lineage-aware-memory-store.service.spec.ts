@@ -82,11 +82,10 @@ describe('LineageAwareMemoryStoreService', () => {
         { id: active.id, type: active.type, slug: active.slug },
       ]),
     };
-    const prisma = {
-      withTenantUser: jest.fn(
-        async (_tenant: string, _user: string, work: (value: typeof tx) => unknown) => work(tx),
-      ),
-    } as unknown as PrismaService;
+    const withTenantUser = jest.fn(
+      async (_tenant: string, _user: string, work: (value: typeof tx) => unknown) => work(tx),
+    );
+    const prisma = { withTenantUser } as unknown as PrismaService;
     const tenantCtx = { require: () => ctx } as TenantContextStore;
     const service = new LineageAwareMemoryStoreService(
       prisma,
@@ -109,7 +108,8 @@ describe('LineageAwareMemoryStoreService', () => {
     const inherited = jest
       .spyOn(GovernedMemoryStoreService.prototype, 'getByTypeSlug')
       .mockResolvedValue(direct);
-    const prisma = { withTenantUser: jest.fn() } as unknown as PrismaService;
+    const withTenantUser = jest.fn();
+    const prisma = { withTenantUser } as unknown as PrismaService;
     const service = new LineageAwareMemoryStoreService(
       prisma,
       { require: () => ctx } as TenantContextStore,
@@ -121,6 +121,6 @@ describe('LineageAwareMemoryStoreService', () => {
 
     await expect(service.getByTypeSlug('firm-soul', 'firm')).resolves.toBe(direct);
     expect(inherited).toHaveBeenCalledTimes(1);
-    expect((prisma as unknown as { withTenantUser: jest.Mock }).withTenantUser).not.toHaveBeenCalled();
+    expect(withTenantUser).not.toHaveBeenCalled();
   });
 });
