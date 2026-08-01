@@ -34,8 +34,12 @@ function harness() {
     approveCandidate,
     rejectCandidate,
   } as unknown as ImmutableMemoryVersionService;
+  const tx = { $queryRaw: jest.fn(async () => []) };
+  const withTenantUser = jest.fn(
+    async (_tenantId: string, _userId: string, work: (value: typeof tx) => unknown) => work(tx),
+  );
   const service = new SettingsAwareMemoryCandidateService(
-    {} as PrismaService,
+    { withTenantUser } as unknown as PrismaService,
     {} as MemoryIngestService,
     { get: jest.fn(() => undefined) } as unknown as ConfigService<AppConfig, true>,
     {} as MemoryTransitionAuditService,
@@ -52,6 +56,7 @@ function harness() {
       isImmutableVersionCandidate,
     },
     versions: { approveCandidate, rejectCandidate },
+    inherited: { withTenantUser, query: tx.$queryRaw },
   };
 }
 
@@ -119,7 +124,7 @@ describe('SettingsAwareMemoryCandidateService', () => {
     ).resolves.toMatchObject({ candidateId: 'candidate-1' });
   });
 
-  it('does not enter the immutable Settings path for an unselected tenant', async () => {
+  it('delegates to the inherited query for an unselected tenant', async () => {
     enableForTenant('33333333-3333-4333-8333-333333333333');
     const h = harness();
 
@@ -127,5 +132,7 @@ describe('SettingsAwareMemoryCandidateService', () => {
       h.service.findPendingSettingsCandidate(ctx.tenantId, ctx.userId, 'firm-soul', 'firm'),
     ).resolves.toBeNull();
     expect(h.settings.findPendingSettingsCorrection).not.toHaveBeenCalled();
+    expect(h.inherited.withTenantUser).toHaveBeenCalledTimes(1);
+    expect(h.inherited.query).toHaveBeenCalledTimes(1);
   });
 });
