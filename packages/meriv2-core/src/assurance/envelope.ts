@@ -4,6 +4,7 @@ import type { ClaimLedger } from './claim-ledger';
 import type { DomainEvidencePlan } from './evidence-plan';
 import type { GovernmentAffairsOperatingFrame } from './operating-frame';
 import type { AssuranceReleaseDecision, AssuranceSurface } from './risk-gate';
+import { emitMeriV2ControlMetrics } from './control-metrics';
 
 export const ASSURANCE_ENVELOPE_VERSION = 'ga-assurance-envelope-v1' as const;
 export const ASSURANCE_VERIFIER_VERSION = 'ga-verifier-2026-07-31.v1' as const;
@@ -138,6 +139,10 @@ export function verifyAssuranceEnvelope(
   }
   if (expected.verifierVersion && envelope.verifierVersion !== expected.verifierVersion) {
     errors.push('verifier_version_drift');
+  }
+
+  if (errors.includes('policy_binding_drift')) {
+    emitMeriV2ControlMetrics({ PolicyDriftInvalidations: 1 });
   }
   return { valid: errors.length === 0, errors };
 }
