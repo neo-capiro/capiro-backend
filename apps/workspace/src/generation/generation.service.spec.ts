@@ -41,6 +41,8 @@ function harness(
     credential?: ResolvedAiCredential | null;
     packetPersisted?: boolean;
     resolveClientId?: string | null;
+    /** Simulate a walled client the caller holds no grant for (closeout §6). */
+    ethicalWallDenied?: boolean;
     snapshotFails?: boolean;
   } = {},
 ): Harness {
@@ -108,6 +110,11 @@ function harness(
 
   const contextCompiler = {
     resolveClientIdByExactName: async () => opts.resolveClientId ?? null,
+    // Server-derived ethical-wall decision (closeout §6). Defaults to allowed so
+    // these fixtures keep exercising generation rather than the wall; the wall's
+    // own fail-closed behaviour is covered in meriv2-core's compiler-v2 spec and
+    // by `ethicalWallDenied` below.
+    resolveEthicalWallAllowedForClerkOwner: async () => opts.ethicalWallDenied !== true,
     compileForClerkOwner: async (request: Record<string, unknown>) => {
       compileCalls.push(request);
       return {
@@ -317,9 +324,7 @@ describe('GenerationService generation runs', () => {
     const run = runOf(await h.service.generateAllSectionsInProcess(TENANT, DRAFT, 'clerk_owner'));
 
     expect(run.status).toBe('complete_with_warnings');
-    expect(run.invalidCitations).toEqual([
-      { section: 'Overview', token: '[S:pe:0603851F]' },
-    ]);
+    expect(run.invalidCitations).toEqual([{ section: 'Overview', token: '[S:pe:0603851F]' }]);
   });
 
   it('records the durable context packet and the credential that actually ran', async () => {
@@ -394,6 +399,27 @@ describe('GenerationService generation runs', () => {
       layers: ['firm-identity', 'user-voice'],
     });
     expect(run.contextDegraded).toBe(true);
+  });
+
+  /**
+   * Closeout §6. The wall decision is resolved server-side from the database
+   * before the packet is compiled. When the caller holds no grant for a walled
+   * client, the run must say its context is degraded rather than quietly
+   * generating a client deliverable as though it had the client's steering
+   * material — a silent success here is the leak-shaped failure.
+   */
+  it('degrades when the caller is walled off from the resolved client', async () => {
+    const h = harness({
+      client: 'Acme Defense',
+      resolveClientId: CLIENT,
+      ethicalWallDenied: true,
+    });
+    const run = runOf(await h.service.generateAllSectionsInProcess(TENANT, DRAFT, 'clerk_owner'));
+
+    expect(run.contextDegraded).toBe(true);
+    // The client is still the compile scope — the wall governs which ROWS the
+    // compiler may admit, and it is the compiler that withholds them.
+    expect(h.compileCalls()[0]).toMatchObject({ clientId: CLIENT });
   });
 
   it('never persists or returns a provider error body or API key', async () => {

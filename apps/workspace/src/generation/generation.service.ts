@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriV2FlagsService } from '../meriv2/meriv2-flags.service.js';
@@ -36,6 +37,12 @@ import {
   type LedgerEntry,
 } from '@capiro/meriv2-core/grounding/auditor';
 import type { FundingYearRecord } from '@capiro/meriv2-core/grounding/evidence';
+import { contextPacketV2Overrides } from '@capiro/meriv2-core/context/context-release-switch';
+import { compactAssurancePromptBlock } from '@capiro/meriv2-core/assurance';
+import {
+  assessGeneratedSectionsForRelease,
+  generationClaimHoldEnforced,
+} from './generation-assurance.js';
 import {
   finalizeGenerationRun,
   generationFailure,
@@ -259,6 +266,25 @@ function readGenerationRun(value: unknown): GenerationRunSummary | null {
   };
 }
 
+/**
+ * Merge server-recomputed and caller-supplied structural warnings without
+ * double-reporting the same (code, peCode) pair. Keyed on code+peCode rather than
+ * the whole object because the message text may differ in wording between the
+ * orchestrator's copy and ours while describing the same defect.
+ */
+function dedupeStructuralWarnings(warnings: PeStructuralWarning[]): PeStructuralWarning[] {
+  const seen = new Set<string>();
+  const out: PeStructuralWarning[] = [];
+  for (const warning of warnings) {
+    if (!warning || typeof warning.code !== 'string') continue;
+    const key = `${warning.code}::${warning.peCode ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(warning);
+  }
+  return out;
+}
+
 /** Strip HTML tags to plain text for the grounding auditor's sentence scan. */
 function stripHtmlToText(html: string): string {
   return String(html ?? '')
@@ -426,7 +452,8 @@ export class GenerationService {
     const targetPages = Number(cfg.pages) > 0 ? Number(cfg.pages) : suggestedPages;
 
     const steering =
-      shared?.steering ?? (await this.loadSteeringMemories(tenantId, draft.ownerId, client, draftId));
+      shared?.steering ??
+      (await this.loadSteeringMemories(tenantId, draft.ownerId, client, draftId));
 
     const prompt = this.buildSectionPrompt({
       product,
@@ -958,11 +985,88 @@ export class GenerationService {
     // resulting text against the AUTHORITATIVE PE records, plus the shared
     // claim-level grounding auditor. Both advisory (Ninja D1) but persisted so
     // ChecksService surfaces them at creation time, not just on edit.
-    const structuralWarnings = this.computeStructuralWarnings(cfg, sectionContent, authPes);
-    const groundingFindings = [
+    const generatedStructuralWarnings = this.computeStructuralWarnings(
+      cfg,
+      sectionContent,
+      authPes,
+    );
+    const generatedGroundingFindings = [
       ...citationFindings,
       ...this.runGroundingAuditor(sectionContent, authPes),
     ];
+
+    // PRE-PERSISTENCE CLAIM GATE. Everything above is computed and then, until
+    // now, IGNORED: persistGeneratedSections wrote the text regardless,
+    // createAsGeneratedSnapshot froze it into an immutable WsDocVersion, and
+    // ChecksService reported "grounding ran" purely because a findings array was
+    // present. This is where an unsupported high-risk claim stops before the write.
+    //
+    // A held section becomes a normal section FAILURE, which is what makes this
+    // safe: failureFor/failedMeta preserve the section's PRIOR content, so holding
+    // never blanks a document — it declines to REPLACE existing text with
+    // unverifiable text, and finalizeGenerationRun reports `partial`/`failed`.
+    //
+    // DARK BY DEFAULT via generationClaimHoldEnforced (MERI_RELEASE_GATE_SURFACES
+    // must name `workspace-gen`). The verdicts are computed either way so the hold
+    // can be observed before it is armed.
+    const claimAssurance = assessGeneratedSectionsForRelease({
+      generated: succeeded.map((output) => ({
+        section: output.section,
+        html: sectionContent[output.section] ?? '',
+      })),
+      sectionCitations,
+      groundingFindings: generatedGroundingFindings,
+      structuralWarnings: generatedStructuralWarnings,
+      requestContext: [cfg.product, cfg.industry, typeof draft.ask === 'string' ? draft.ask : '']
+        .filter((value): value is string => typeof value === 'string' && value.length > 0)
+        .join('\n')
+        .slice(0, 2_000),
+      ...(typeof cfg.client === 'string' && cfg.client ? { clientId: cfg.client } : {}),
+    });
+    const holdEnforced = generationClaimHoldEnforced();
+    const heldSections = holdEnforced ? claimAssurance.heldSections : [];
+    if (claimAssurance.heldSections.length) {
+      this.logger.warn(
+        `generation run: claim assurance ${holdEnforced ? 'HELD' : 'would hold (dark)'} ` +
+          `${claimAssurance.heldSections.length} section(s): ${claimAssurance.heldSections.join(', ')}`,
+      );
+    }
+    for (const section of heldSections) {
+      const index = requestedSections.indexOf(section);
+      const verdict = claimAssurance.verdicts.find((item) => item.section === section);
+      const failure = failureFor(
+        section,
+        new Error(
+          `claim verification did not pass: ${verdict?.blockers.slice(0, 3).join(' ') || 'unsupported high-risk claim'}`,
+        ),
+        priorContent,
+      );
+      if (index >= 0) sectionResults[index] = failure;
+      sectionMeta[section] = failedMeta(sectionMeta[section], failure);
+      // Revert to the PRIOR content (or drop the key when there was none) so the
+      // unverified text is never written. `sectionContent[section]` currently holds
+      // the generated body — assigned during the fan-out above.
+      const prior = priorContent[section];
+      if (prior === undefined) delete sectionContent[section];
+      else sectionContent[section] = prior;
+      // A citation map for text that is no longer stored would be a lie the editor
+      // renders as footnotes.
+      delete sectionCitations[section];
+    }
+    // Recompute over what will ACTUALLY be persisted. Storing findings derived from
+    // the withheld text alongside the restored prior text is exactly the
+    // stale-verdict trap this work is meant to close.
+    const structuralWarnings = heldSections.length
+      ? this.computeStructuralWarnings(cfg, sectionContent, authPes)
+      : generatedStructuralWarnings;
+    const groundingFindings = heldSections.length
+      ? [
+          ...citationFindings.filter(
+            (finding) => !heldSections.some((s) => finding.detail.includes(`Section "${s}"`)),
+          ),
+          ...this.runGroundingAuditor(sectionContent, authPes),
+        ]
+      : generatedGroundingFindings;
 
     // Provenance describes what actually grounded THIS run. Every section in a
     // run shares one packet/credential, so any successful section's provenance is
@@ -1148,6 +1252,15 @@ export class GenerationService {
    * Tenant-scoped like every other draft mutation — a caller can already set
    * their own draft's section content via the normal editor save path, so this
    * grants no new capability, only a new source for the content.
+   *
+   * VERIFICATION IS NO LONGER TAKEN ON TRUST. Two things used to combine into a
+   * stale-clean verdict on this path: `structuralWarnings` was taken verbatim from
+   * the CALLER, and persistGeneratedSections PRESERVES a prior run's
+   * `groundingFindings` when the caller supplies none. So replacing section content
+   * here could inherit the previous run's clean findings, which ChecksService then
+   * reports as "grounding ran" for text that was never audited. Both warnings and
+   * findings are now RECOMPUTED server-side over the content actually being
+   * written, and the claim gate runs before the write.
    */
   async applyGeneratedSections(
     tenantId: string,
@@ -1155,6 +1268,11 @@ export class GenerationService {
     input: {
       sectionContent?: Record<string, string>;
       sectionMeta?: Record<string, SectionGenerationMeta>;
+      /**
+       * ADVISORY ONLY as of the assurance work: recomputed server-side below and
+       * merged, never trusted as the whole picture. Kept in the shape so the
+       * orchestrator's existing wire contract does not break.
+       */
       structuralWarnings?: PeStructuralWarning[];
     },
     actorId?: string,
@@ -1182,14 +1300,83 @@ export class GenerationService {
       input.sectionMeta && typeof input.sectionMeta === 'object'
         ? input.sectionMeta
         : ((cfg.sectionMeta as Record<string, SectionGenerationMeta> | undefined) ?? {});
-    const structuralWarnings = Array.isArray(input.structuralWarnings)
-      ? input.structuralWarnings
-      : [];
+    // RECOMPUTE, don't trust. The caller-supplied warnings are merged in (an
+    // orchestrator that found something we cannot see must not lose it), but the
+    // authoritative set is derived HERE from the content being written, against the
+    // draft's AUTHORITATIVE PE records.
+    //
+    // Best-effort like computeStructuralWarnings/runGroundingAuditor themselves: a
+    // PE-resolver failure must not fail an apply. It DOES mean same-turn
+    // verification could not be established, which is fed to the gate below as
+    // `peEvidenceAvailable: false` — fail-safe when armed, inert when dark.
+    let authPes: AuthoritativePeRecord[] = [];
+    let peEvidenceAvailable = true;
+    try {
+      authPes = await this.peResolver.resolve(
+        ((cfg.linkedProgramElements as Array<{ peCode?: string }> | undefined) ?? []).map(
+          (pe) => pe.peCode,
+        ),
+      );
+    } catch (e) {
+      peEvidenceAvailable = false;
+      this.logger.warn(`apply-generated-sections: PE resolve failed (${(e as Error).message})`);
+    }
+    const recomputedWarnings = this.computeStructuralWarnings(cfg, sectionContent, authPes);
+    const structuralWarnings = dedupeStructuralWarnings([
+      ...recomputedWarnings,
+      ...(Array.isArray(input.structuralWarnings) ? input.structuralWarnings : []),
+    ]);
+    const recomputedFindings = this.runGroundingAuditor(sectionContent, authPes);
+    // Findings for the text ACTUALLY being written.
+    //
+    // persistGeneratedSections treats `undefined` as "preserve whatever a prior
+    // generation stored", which is how replacing section content here could inherit
+    // the PREVIOUS run's clean findings — a stale verdict ChecksService then reports
+    // as though grounding had run on the new text. So we supply the recompute
+    // whenever there is anything to say OR whenever a stored value exists that would
+    // otherwise go stale. When neither holds (a draft that never had findings and
+    // whose new content produces none) we still pass `undefined`, so we do not add
+    // an empty key to drafts that never carried one.
+    const priorFindings = cfg.groundingFindings;
+    const findingsPatch =
+      recomputedFindings.length || priorFindings !== undefined
+        ? { groundingFindings: recomputedFindings }
+        : {};
+
+    // Same pre-persistence claim gate as the in-process path, same dark switch.
+    // Every applied section is treated as newly generated, because it is.
+    const claimAssurance = assessGeneratedSectionsForRelease({
+      generated: Object.entries(sectionContent).map(([section, html]) => ({ section, html })),
+      groundingFindings: recomputedFindings,
+      structuralWarnings,
+      peEvidenceAvailable,
+      requestContext: [cfg.product, cfg.industry]
+        .filter((value): value is string => typeof value === 'string' && value.length > 0)
+        .join('\n'),
+      ...(typeof cfg.client === 'string' && cfg.client ? { clientId: cfg.client } : {}),
+    });
+    if (claimAssurance.heldSections.length) {
+      this.logger.warn(
+        `apply-generated-sections: claim assurance ${
+          generationClaimHoldEnforced() ? 'HELD' : 'would hold (dark)'
+        } ${claimAssurance.heldSections.length} section(s): ${claimAssurance.heldSections.join(', ')}`,
+      );
+    }
+    if (generationClaimHoldEnforced() && claimAssurance.heldSections.length) {
+      // No partial apply here: this endpoint returns no run summary, so it has no
+      // way to report a per-section outcome — a held section must therefore not be
+      // silently dropped from an otherwise-successful apply. Refuse the whole write
+      // and say why. Nothing is persisted; the prior document is untouched.
+      throw new ServiceUnavailableException(
+        `Generated content was not applied: claim verification did not pass for ${claimAssurance.heldSections.join(', ')}. The document was not changed.`,
+      );
+    }
 
     const refreshed = await this.persistGeneratedSections(tenantId, draftId, cfg, {
       sectionContent,
       sectionMeta,
       structuralWarnings,
+      ...findingsPatch,
     });
     // Snapshot the applied state too, so the G3 edit-distance baseline exists no
     // matter which surface reasoned the content. AWAITED (it used to ride
@@ -1370,6 +1557,17 @@ export class GenerationService {
       const clientId = await this.contextCompiler.resolveClientIdByExactName(tenantId, clientName);
       if (clientName?.trim() && !clientId) degradedReasons.push('client_not_resolved');
 
+      // Server-derived ethical-wall decision for the v2 compile (closeout §6).
+      // Read from the database for the real Clerk caller; denies on an
+      // unresolvable user or client. Only consumed when v2 is armed for this
+      // surface — contextPacketV2Overrides drops it entirely otherwise.
+      const ethicalWallAllowed = await this.contextCompiler.resolveEthicalWallAllowedForClerkOwner(
+        tenantId,
+        ownerId,
+        clientId,
+      );
+      if (clientId && !ethicalWallAllowed) degradedReasons.push('client_context_walled');
+
       const packet = await this.contextCompiler.compileForClerkOwner(
         {
           tenantId,
@@ -1379,12 +1577,19 @@ export class GenerationService {
             ? ['firm-identity', 'user-voice', 'client-steering', 'client-people']
             : ['firm-identity', 'user-voice'],
           ref: { draftId: draftId ?? null },
+          // ContextPacket v2, dark by default. Returns {} unless
+          // CONTEXT_PACKET_V2=enforce, so the compiled request — and therefore the
+          // generation prompt — is byte-for-byte unchanged until it is armed.
+          ...contextPacketV2Overrides(process.env.CONTEXT_PACKET_V2, {
+            surface: 'workspace-gen',
+            traceId: randomUUID(),
+            ethicalWallAllowed,
+          }),
         },
         ownerId,
       );
 
-      const memoryLabel = (type: string): string =>
-        MEMORY_LABELS[type] ?? type;
+      const memoryLabel = (type: string): string => MEMORY_LABELS[type] ?? type;
       const firmBlocks: string[] = [];
       const clientBlocks: string[] = [];
       let userVoiceContext: string | undefined;
@@ -1543,6 +1748,7 @@ export class GenerationService {
       args.userVoiceContext ? `\nDraft in this author's voice:\n${args.userVoiceContext}` : '',
       '',
       DOMAIN_PRIMER,
+      compactAssurancePromptBlock(),
       '',
       `Goal of this section: ${spec.goal}`,
       `Target length: roughly ${loWords}–${hiWords} words — respect it.`,

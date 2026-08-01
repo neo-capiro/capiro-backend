@@ -11,6 +11,10 @@ import { AiCredentialResolverService } from './ai-credential-resolver.service.js
 import { ClientAssociationService } from './client-association.service.js';
 import { EngagementAiService } from './engagement-ai.service.js';
 import { EngagementService } from './engagement.service.js';
+import {
+  createGovernedEngagementService,
+  RAW_ENGAGEMENT_SERVICE,
+} from './governed-engagement.factory.js';
 import { OutreachJobService } from './outreach-job.service.js';
 import { RaceSafeOutreachJobService } from './race-safe-outreach-job.service.js';
 import { NotetakerService } from './notetaker/notetaker.service.js';
@@ -20,6 +24,8 @@ import { MicrosoftOAuthController } from './microsoft/microsoft-oauth.controller
 import { MicrosoftOAuthService } from './microsoft/microsoft-oauth.service.js';
 import { TokenCryptoService } from './microsoft/token-crypto.service.js';
 import { ContextModule } from '../context/context.module.js';
+import { ContextCompilerService } from '../context/context-compiler.service.js';
+import { ContextPersistenceBoundaryService } from '../context/context-persistence-boundary.service.js';
 import { GoogleOAuthController } from './google/google-oauth.controller.js';
 import { GoogleOAuthService } from './google/google-oauth.service.js';
 import { GoogleSyncService } from './google/google-sync.service.js';
@@ -64,7 +70,16 @@ import { AlertPacketClientService } from './generation/alert-packet-client.servi
     OutcomeController,
   ],
   providers: [
-    EngagementService,
+    { provide: RAW_ENGAGEMENT_SERVICE, useClass: EngagementService },
+    {
+      provide: EngagementService,
+      useFactory: createGovernedEngagementService,
+      inject: [
+        RAW_ENGAGEMENT_SERVICE,
+        ContextPersistenceBoundaryService,
+        ContextCompilerService,
+      ],
+    },
     { provide: OutreachJobService, useClass: RaceSafeOutreachJobService },
     OutcomeService,
     NotetakerService,

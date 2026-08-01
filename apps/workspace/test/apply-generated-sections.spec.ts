@@ -139,6 +139,73 @@ describe('GenerationService.applyGeneratedSections', () => {
       .data.config;
     expect(written.contextProvenance).toEqual(prov);
   });
+
+  /**
+   * The stale-clean-verdict path. persistGeneratedSections PRESERVES a prior run's
+   * groundingFindings when the caller supplies none, so replacing section content
+   * here used to inherit the previous run's findings — which ChecksService then
+   * reports as "grounding ran" for text that was never audited.
+   */
+  it('replaces a prior run groundingFindings with a recompute over the NEW content', async () => {
+    const stale = [
+      { check: 'D4', severity: 'critical', span: 'old text', detail: 'from a previous run' },
+    ];
+    const draft = {
+      id: 'draft-1',
+      config: {
+        product: 'memo',
+        sectionContent: { Summary: '<p>old</p>' },
+        groundingFindings: stale,
+      },
+    };
+    const { service, updateSpy } = makeService(draft);
+
+    await service.applyGeneratedSections('tenant-1', 'draft-1', {
+      sectionContent: { Summary: '<p>Entirely different content.</p>' },
+    });
+
+    const written = (updateSpy.mock.calls[0]![0] as { data: { config: Record<string, unknown> } })
+      .data.config;
+    expect(written.groundingFindings).not.toEqual(stale);
+    expect(written.groundingFindings).toEqual([]);
+  });
+
+  it('does not add an empty groundingFindings key to a draft that never had one', async () => {
+    const draft = { id: 'draft-1', config: { product: 'memo' } };
+    const { service, updateSpy } = makeService(draft);
+
+    await service.applyGeneratedSections('tenant-1', 'draft-1', {
+      sectionContent: { Summary: '<p>Clean prose.</p>' },
+    });
+
+    const written = (updateSpy.mock.calls[0]![0] as { data: { config: Record<string, unknown> } })
+      .data.config;
+    expect('groundingFindings' in written).toBe(false);
+  });
+
+  /**
+   * Caller-supplied structural warnings are ADVISORY now: the authoritative set is
+   * recomputed server-side, so a caller cannot manufacture a clean verification
+   * record for content this service never validated.
+   */
+  it('keeps caller-supplied structural warnings without double-reporting the same pair', async () => {
+    const draft = { id: 'draft-1', config: { product: 'memo' } };
+    const { service, updateSpy } = makeService(draft);
+
+    await service.applyGeneratedSections('tenant-1', 'draft-1', {
+      sectionContent: { Summary: '<p>x</p>' },
+      structuralWarnings: [
+        { code: 'rdte_procurement_mismatch', peCode: '0207179F', message: 'from orchestrator' },
+        { code: 'rdte_procurement_mismatch', peCode: '0207179F', message: 'duplicate wording' },
+      ],
+    });
+
+    const written = (updateSpy.mock.calls[0]![0] as { data: { config: Record<string, unknown> } })
+      .data.config;
+    expect(written.structuralWarnings).toEqual([
+      { code: 'rdte_procurement_mismatch', peCode: '0207179F', message: 'from orchestrator' },
+    ]);
+  });
 });
 
 describe('GenerationService.getContextUsed (Phase 3.3 "context used" panel)', () => {

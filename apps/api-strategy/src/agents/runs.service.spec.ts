@@ -168,13 +168,7 @@ function makeTx(store: Store) {
     // CAS write the service uses for transitions: the where carries the
     // expected state; a mismatch is count 0, exactly like Postgres
     // re-evaluating the predicate against the committed row.
-    updateMany: async ({
-      where,
-      data,
-    }: {
-      where: { id: string; state?: string };
-      data: Rec;
-    }) => {
+    updateMany: async ({ where, data }: { where: { id: string; state?: string }; data: Rec }) => {
       const rec = store.runs.get(where.id);
       if (!rec || (where.state !== undefined && rec.state !== where.state)) {
         return { count: 0 };
@@ -310,7 +304,7 @@ describe('RunsService.createRun', () => {
     expect(store.outbox.filter((o) => o.type === 'run.created')).toHaveLength(1);
   });
 
-  it('rejects an idempotencyKey reused on a DIFFERENT mission with 409 — never returns the other mission\'s run', async () => {
+  it("rejects an idempotencyKey reused on a DIFFERENT mission with 409 — never returns the other mission's run", async () => {
     // @@unique([tenantId, idempotencyKey]) is tenant-wide, not per-mission: a
     // key collision from another mission must NOT read as an idempotent replay,
     // or the caller (e.g. the F2 scheduler) would get a 200 with M1's run and

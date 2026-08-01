@@ -300,6 +300,11 @@ export class EvidencePacketService {
           data: {
             id: packet.packetId,
             tenantId: packet.tenantId,
+            // NOT NULL with no DB default once
+            // 20260729010000_memory_governance_context_v2 is applied. This write
+            // is fail-CLOSED under ENGAGEMENT_GENERATION_GATEWAY, so omitting it
+            // would turn every gated generation into a hard 500.
+            effectiveTenantId: packet.tenantId,
             // The COLUMN keeps the canonical ContextSurface vocabulary
             // ('outreach' | 'memo' | …) that every existing provenance reader
             // filters on; writing 'outreach_email' here would make these packets

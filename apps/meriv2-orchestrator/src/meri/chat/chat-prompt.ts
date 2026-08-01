@@ -122,7 +122,13 @@ export interface ChatResult {
    * approve) — no fingerprint, tool, or payload the browser could forge.
    * Empty/absent when nothing was gated.
    */
-  pendingApprovals?: Array<{ tool: string; proposalId: string; reason: string; status: string }>;
+  pendingApprovals?: Array<{
+    tool: string;
+    proposalId: string;
+    reason: string;
+    status: string;
+    policy: { packKey: string; packVersion: string; binding: string; decisionHash: string };
+  }>;
   /** Deliverables produced + persisted this turn (documents, briefs, memos). */
   artifacts?: ChatArtifact[];
 }
@@ -155,6 +161,23 @@ export type ChatStreamEvent =
       expiresAt: string;
       riskTier: string | null;
       policyCode: string | null;
+      /**
+       * Policy rule label behind the hold, so the card's expandable details can
+       * say *why* approval is required. Approval attribution (`approvedAt`/
+       * `approvedBy`) is deliberately absent: a freshly created proposal is always
+       * `proposed`, so those only exist on the approve response and the recovery
+       * list fetch.
+       */
+      ruleId: string | null;
+      policy: {
+        source: string;
+        mode: string;
+        packKey: string;
+        packVersion: string;
+        binding: string;
+        decisionHash: string;
+        contextHash: string;
+      };
       preview: {
         label: string;
         riskTier: string | null;

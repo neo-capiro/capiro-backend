@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import type { MeriContextPacketSummary } from '@capiro/meriv2-core';
 
 /** The resolved tenant AI credential forwarded to the orchestrator (BYOK option c). */
 export interface ResolvedAiForChatHeader {
@@ -36,6 +37,8 @@ export type MeriV2ChatStreamEvent =
       expiresAt: string;
       riskTier: string | null;
       policyCode: string | null;
+      /** Policy rule behind the hold; forwarded to the card's expandable details. */
+      ruleId: string | null;
       preview: {
         label: string;
         riskTier: string | null;
@@ -95,6 +98,8 @@ export type MeriV2ChatStreamEvent =
         status: 'done' | 'error' | 'pending_approval' | 'blocked';
       }>;
       pendingApprovals?: Array<{ tool: string; proposalId: string; reason: string; status: string }>;
+      /** Safe provenance summary for the trust UX; never context body text. */
+      contextPacket?: MeriContextPacketSummary;
       aborted?: boolean;
     }
   | { type: 'error'; message: string };

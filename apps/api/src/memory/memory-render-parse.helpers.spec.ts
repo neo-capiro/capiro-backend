@@ -1,8 +1,4 @@
-import {
-  renderMemoryItem,
-  vaultPathForItem,
-  renderWikiLink,
-} from './memory-render.helpers.js';
+import { renderMemoryItem, vaultPathForItem, renderWikiLink } from './memory-render.helpers.js';
 import {
   splitDocument,
   parseFrontmatter,

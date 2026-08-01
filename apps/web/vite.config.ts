@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const phase19ApiTarget = process.env.PHASE19_API_TARGET?.trim();
+
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -12,6 +14,20 @@ export default defineConfig({
     fs: {
       strict: false,
     },
+    // Phase 19's authenticated browser runner performs direct, same-origin
+    // confidentiality probes in addition to the app's axios calls. Enable the
+    // proxy only when the dedicated rehearsal explicitly supplies a target;
+    // ordinary local development and every deployed build are unchanged.
+    ...(phase19ApiTarget
+      ? {
+          proxy: {
+            '/api': {
+              target: phase19ApiTarget,
+              changeOrigin: true,
+            },
+          },
+        }
+      : {}),
   },
   // The dev server uses esbuild's depOptimizer rather than Rollup's commonjs
   // plugin, so the build-time `commonjsOptions` block below doesn't help.

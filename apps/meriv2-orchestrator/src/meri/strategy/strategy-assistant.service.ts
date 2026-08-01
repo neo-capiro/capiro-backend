@@ -1,7 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { MeriContext } from '@capiro/meriv2-core';
+import {
+  assuranceMetric,
+  assuranceReleaseArmedFor,
+  metricLogLine,
+  type MeriContext,
+} from '@capiro/meriv2-core';
 import { recordAiUsageEvent } from '@capiro/shared';
+import { assessStrategyDocumentClaims } from './strategy-assurance.js';
 import { MeriRegistryService } from '../meri-registry.service.js';
 import {
   RequestScopedLlmClient,
@@ -345,13 +351,55 @@ export class StrategyAssistantService {
       ctx,
       'meriv2_strategy_document_draft',
     );
+    const sections = sanitizeDocumentSections(result.input?.sections);
+    const groundingHealth = mergeGroundingHealth(pack.health, input.stewardHealth);
+    // CLAIM-LEVEL pre-persistence assurance, layered ON TOP OF api-strategy's
+    // structural assessGeneratedDocumentForRelease (which never inspects claim
+    // support — a well-formed document of fabricated figures passes it).
+    //
+    // TWO-SERVICE, DOUBLY-DARK by design. The orchestrator DECIDES (armed by
+    // naming `strategy` in MERI_RELEASE_GATE_SURFACES here) and api-strategy
+    // ENFORCES (armed by its own MERI_RELEASE_GATE=enforce). The two services are
+    // deployed independently, so each gets its own flip; with either unset the
+    // blockers are still reported for observation and nothing is withheld.
+    // api-strategy cannot run this itself: it deliberately has no
+    // @capiro/meriv2-core dependency.
+    const assurance = assessStrategyDocumentClaims({
+      sections,
+      provenance: pack.provenance,
+      health: groundingHealth,
+      kind: input.kind,
+      goal: input.goal ?? null,
+      ...(input.clientId ? { clientId: input.clientId } : {}),
+      armed: assuranceReleaseArmedFor(process.env.MERI_RELEASE_GATE_SURFACES, 'strategy'),
+    });
+    this.logger.log(
+      metricLogLine(
+        assuranceMetric({
+          name: 'release_gate',
+          value: assurance.blockers.length,
+          dimensions: {
+            surface: input.kind === 'outreach_record' ? 'outreach' : 'strategy',
+            domain: assurance.held ? 'enforce' : 'observe',
+            outcome: assurance.decision,
+            category: input.kind,
+          },
+        }),
+      ),
+    );
+    if (assurance.held) {
+      this.logger.warn(
+        `[meri-assurance] strategy ${input.kind} claim hold: ${assurance.blockers.slice(0, 3).join(' ')}`,
+      );
+    }
     return {
       title: str(result.input?.title) ?? null,
       summary: str(result.input?.summary) ?? null,
-      sections: sanitizeDocumentSections(result.input?.sections),
+      sections,
       provenance: pack.provenance,
-      groundingHealth: mergeGroundingHealth(pack.health, input.stewardHealth),
+      groundingHealth,
       model: result.model ?? null,
+      assurance,
     };
   }
 

@@ -26,7 +26,7 @@
  * picker, Meri chat editing. These toast / no-op.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { App as AntApp, Spin } from 'antd';
 import { StepsRail } from './StepsRail.js';
 import {
@@ -80,6 +80,11 @@ import { PacketDocCanvas, type PacketBody } from './editor/PacketDocCanvas.js';
 import { Letterhead } from './editor/canvas-blocks.js';
 import { InsertRail } from './editor/InsertRail.js';
 import { MeriPanel } from './editor/MeriPanel.js';
+import type { EditApplyOutcome } from './editor/MeriEditReview.js';
+import {
+  applyWorkspaceAssistantEdits,
+  type WorkspaceSectionState,
+} from './editor/edit-review.js';
 import { AnonymizeReview, type AnonymizeMap } from './editor/AnonymizeReview.js';
 import { VersionPopover } from './editor/VersionPopover.js';
 import { LockBanner } from './editor/LockBanner.js';
@@ -103,9 +108,27 @@ const AUTOSAVE_MS = 1200;
 const VERSION_CHECKPOINT_MS = 5 * 60_000;
 const MAIN_TAB = 'main';
 
+/**
+ * Read-only tools the in-editor assistant may call. MeriPanel gates each
+ * context-aware quick action on these, so an action whose tool is unavailable on
+ * this surface is never offered.
+ */
+const WORKSPACE_ASSISTANT_TOOLS = [
+  'get_client_context', 'search_client_knowledge', 'search_research_sources',
+  'read_client_documents', 'query_intelligence', 'query_knowledge_graph', 'find_path_to',
+  'search_intel_articles', 'search_congress_bills', 'search_tracked_bills',
+  'search_lda_filings', 'search_committee_hearings', 'search_crs_reports',
+  'search_gao_reports', 'query_regulatory_dockets', 'search_federal_awards',
+  'search_program_elements', 'get_program_element', 'get_pe_budget_timeline',
+  'get_pe_contractors', 'get_pe_bills', 'search_acquisition_personnel',
+  'get_acquisition_person', 'query_economic_data', 'search_state_bills',
+  'get_state_bill_status',
+];
+
 export function EditorPage() {
   const { draftId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { message, modal } = AntApp.useApp();
   const { data: draft, isLoading } = useDraft(draftId ?? null);
 
@@ -168,6 +191,13 @@ export function EditorPage() {
 
   // ── Phase 6: rail tab, comment composing, selection FAB, anonymize modal ────
   const [railTab, setRailTab] = useState<'meri' | 'comments'>('meri');
+  // Inverse of the last applied Meri edit set, so "Undo last Meri application"
+  // restores the document rather than asking the model to reverse its own work.
+  const lastMeriInverse = useRef<WsAssistantEdit[] | null>(null);
+  // Preview -> "Fix with Meri": Preview hands over a bounded prompt plus the
+  // section the failing check is anchored to. Consumed exactly once, so a
+  // re-render cannot re-send the assistant turn.
+  const [fixWithMeriPrompt, setFixWithMeriPrompt] = useState<string | null>(null);
   const [composing, setComposing] = useState<ComposingComment | null>(null);
   // Floating "Comment" button anchored at a live canvas selection.
   const [selectionFab, setSelectionFab] = useState<{ top: number; left: number } | null>(null);
@@ -490,46 +520,111 @@ export function EditorPage() {
     [cfg, contextPlan, meriClientId, assistant, docTitle, draft?.docTitle, draft?.client],
   );
 
-  // Apply Meri's accepted edits to the MAIN doc section model (sanitized) + save.
-  const applyMeriEdits = useCallback(
-    (edits: WsAssistantEdit[]) => {
-      if (!cfg || !edits.length) return;
-      let sections = [...(cfg.sections ?? [])];
-      const content = { ...((cfg.sectionContent as Record<string, string> | undefined) ?? {}) };
-      const meta = { ...((cfg.sectionMeta as Record<string, WsSectionMeta> | undefined) ?? {}) };
-      // Resolve a target section name to the EXISTING canonical name, tolerant of
-      // case/whitespace drift in the model's output — so replace/remove never
-      // create a ghost duplicate of a section that already exists.
-      const resolve = (name: string) =>
-        sections.find((s) => s.toLowerCase().trim() === name.toLowerCase().trim());
-      for (const e of edits) {
-        if (e.op === 'replace_section' && e.section) {
-          const target = resolve(e.section);
-          if (!target) continue; // unknown section → skip rather than create a ghost
-          content[target] = sanitizeWorkspaceBody(e.content ?? '');
-          meta[target] = { ...(meta[target] ?? {}), status: 'review' };
-        } else if (e.op === 'remove_section' && e.section) {
-          const target = resolve(e.section);
-          if (!target) continue;
-          sections = sections.filter((s) => s !== target);
-          delete content[target];
-          delete meta[target];
-        } else if (e.op === 'insert_section' && e.name) {
-          let name = e.name;
-          let n = 2;
-          while (sections.includes(name)) name = `${e.name} ${n++}`;
-          const after = e.afterSection ? sections.indexOf(e.afterSection) : -1;
-          if (after >= 0) sections.splice(after + 1, 0, name);
-          else sections.push(name);
-          content[name] = sanitizeWorkspaceBody(e.content ?? '');
-          meta[name] = { status: 'review' };
-        }
+  /**
+   * Commit a new section model and report the DURABLE result.
+   *
+   * Step 4 requires the edit card to say "Applied" only once the save has actually
+   * reached a durable success state. main's previous implementation optimistically
+   * announced "Applied locally — saving" and returned void, so the card could
+   * claim success while the write was still in flight or already failing.
+   *
+   * Reuses the editor's own flush() path rather than building a second save
+   * pipeline, so Meri edits are persisted by exactly the code that persists
+   * ordinary typing — including its retry and recovery behaviour.
+   */
+  const persistMeriState = useCallback(
+    async (
+      state: WorkspaceSectionState,
+      inverseEdits: WsAssistantEdit[],
+    ): Promise<EditApplyOutcome> => {
+      if (!cfg) return { status: 'failed', message: 'The document is not loaded.' };
+      setCfg({
+        ...cfg,
+        sections: state.sections,
+        sectionContent: state.content,
+        sectionMeta: state.meta,
+      });
+      cfgDirty.current = true;
+      const outcome = await flushRef.current(true);
+      if (outcome.ok) {
+        lastMeriInverse.current = inverseEdits;
+        return { status: 'saved' };
       }
-      patchCfg({ sections, sectionContent: content, sectionMeta: meta });
-      message.info('Applied locally — saving');
+      return {
+        status: 'save_failed',
+        message: 'The edit is visible locally but the draft did not save.',
+      };
     },
-    [cfg, patchCfg, message],
+    [cfg],
   );
+
+  /**
+   * Apply the accepted edits through the CANONICAL section resolver, so
+   * replace/remove/insert-after all agree on how a section name is matched
+   * (Step 4). main resolved names inline for replace/remove but compared
+   * `afterSection` exactly, so an insert whose anchor differed only in case or
+   * whitespace silently appended to the end of the document instead.
+   */
+  const applyMeriEdits = useCallback(
+    async (edits: WsAssistantEdit[]): Promise<EditApplyOutcome> => {
+      if (!cfg || !edits.length) {
+        return { status: 'failed', message: 'No edits were selected.' };
+      }
+      const current: WorkspaceSectionState = {
+        sections: [...(cfg.sections ?? [])],
+        content: { ...((cfg.sectionContent as Record<string, string> | undefined) ?? {}) },
+        meta: { ...((cfg.sectionMeta as Record<string, WsSectionMeta> | undefined) ?? {}) },
+      };
+      const safeEdits = edits.map((edit) => ({
+        ...edit,
+        ...(typeof edit.content === 'string'
+          ? { content: sanitizeWorkspaceBody(edit.content) }
+          : {}),
+      }));
+      const result = applyWorkspaceAssistantEdits(current, safeEdits);
+      if (!result.applied.length) {
+        return {
+          status: 'failed',
+          message: result.skipped[0]?.reason || 'No edit matched the current document.',
+        };
+      }
+      return persistMeriState(result.state, result.inverseEdits);
+    },
+    [cfg, persistMeriState],
+  );
+
+  const undoLastMeri = useCallback(async (): Promise<EditApplyOutcome> => {
+    if (!cfg || !lastMeriInverse.current?.length) {
+      return { status: 'failed', message: 'There is no Meri application to undo.' };
+    }
+    const current: WorkspaceSectionState = {
+      sections: [...(cfg.sections ?? [])],
+      content: { ...((cfg.sectionContent as Record<string, string> | undefined) ?? {}) },
+      meta: { ...((cfg.sectionMeta as Record<string, WsSectionMeta> | undefined) ?? {}) },
+    };
+    const result = applyWorkspaceAssistantEdits(current, lastMeriInverse.current);
+    const outcome = await persistMeriState(result.state, []);
+    if (outcome.status === 'saved') lastMeriInverse.current = null;
+    return outcome;
+  }, [cfg, persistMeriState]);
+
+  /** Live section model the review card diffs against. */
+  const meriDocumentState = useMemo<WorkspaceSectionState>(
+    () => ({
+      sections: [...(cfg?.sections ?? [])],
+      content: { ...((cfg?.sectionContent as Record<string, string> | undefined) ?? {}) },
+      meta: { ...((cfg?.sectionMeta as Record<string, WsSectionMeta> | undefined) ?? {}) },
+    }),
+    [cfg],
+  );
+
+  /** Retry the failed save from the edit card, reported as a durable outcome. */
+  const retrySaveForMeri = useCallback(async (): Promise<EditApplyOutcome> => {
+    const outcome = await flushRef.current(true);
+    return outcome.ok
+      ? { status: 'saved' }
+      : { status: 'save_failed', message: 'The draft still did not save.' };
+  }, []);
 
   // Cover-letter: ensure a packet doc exists when cfg.coverLetter flips on.
   useEffect(() => {
@@ -583,6 +678,34 @@ export function EditorPage() {
     document.addEventListener('mouseup', onMouseUp);
     return () => document.removeEventListener('mouseup', onMouseUp);
   }, []);
+
+  // Preview -> editor handoff for a failing check. Focuses the Meri rail, scrolls
+  // the affected section into view, and stages the bounded prompt. The history
+  // entry is replaced so back/forward cannot re-fire the same assistant turn.
+  useEffect(() => {
+    const handoff = (
+      location.state as { fixWithMeri?: { prompt?: string; section?: string } } | null
+    )?.fixWithMeri;
+    if (!handoff?.prompt) return;
+    setRailTab('meri');
+    setFixWithMeriPrompt(handoff.prompt);
+    navigate(location.pathname, { replace: true, state: null });
+    if (handoff.section) {
+      const target = handoff.section;
+      window.setTimeout(() => {
+        const block = [
+          ...document.querySelectorAll<HTMLElement>('[data-ws-section-block]'),
+        ].find(
+          (node) =>
+            node.dataset.wsSectionBlock?.trim().toLowerCase() === target.trim().toLowerCase(),
+        );
+        block?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        block?.focus({ preventScroll: true });
+      }, 400);
+    }
+    // location.state is cleared above, so this runs once per handoff.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   if (isLoading || !draft || !cfg) {
     return (
@@ -1222,7 +1345,13 @@ export function EditorPage() {
             onApplyEdit={onApplyEdit}
             onRunMeri={runMeri}
             onApplyEdits={applyMeriEdits}
+            onRetrySave={retrySaveForMeri}
+            onUndoLastMeri={undoLastMeri}
+            documentState={meriDocumentState}
+            availableTools={WORKSPACE_ASSISTANT_TOOLS}
             onEditContext={onEditContext}
+            pendingPrompt={fixWithMeriPrompt}
+            onPromptConsumed={() => setFixWithMeriPrompt(null)}
           />
         </div>
       </div>

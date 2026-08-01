@@ -1,6 +1,62 @@
 import type { ZodType, ZodIssue } from 'zod';
 import type { TenantContext, TenantRole } from '@capiro/shared';
+import type { MemoryAuthority } from '../memory/governance';
 import type { ToolExecutionMetadata } from './tool-execution-metadata';
+
+export type MeriContextScope = 'personal' | 'client' | 'firm';
+
+export type MeriContextAuthority =
+  | 'human-authored'
+  | 'system-of-record'
+  | 'derived'
+  | 'unknown'
+  | MemoryAuthority;
+
+export interface MeriContextPacketItem {
+  id: string;
+  label: string;
+  type: string;
+  scope: MeriContextScope;
+  authority: MeriContextAuthority;
+  clientName?: string | null;
+  userScoped?: boolean;
+  asOf?: string | null;
+  lastConfirmedAt?: string | null;
+  rationale?: string | null;
+  selection: 'explicit' | 'automatic';
+}
+
+export interface MeriContextPacketExclusion {
+  id?: string;
+  label?: string;
+  type?: string;
+  reason:
+    | 'expired'
+    | 'superseded'
+    | 'revoked'
+    | 'over-budget'
+    | 'unauthorized'
+    | 'unavailable'
+    | 'empty'
+    | string;
+}
+
+/** Safe display projection of a compiled context packet; never carries body text. */
+export interface MeriContextPacketSummary {
+  /** Durable ID only. Null when persistence failed or no row exists. */
+  packetId?: string | null;
+  persisted?: boolean;
+  /** Bounded code only; never a database/provider message. */
+  persistenceErrorCode?: string | null;
+  compiledAt?: string | null;
+  surface?: string | null;
+  clientId?: string | null;
+  items: MeriContextPacketItem[];
+  exclusions: MeriContextPacketExclusion[];
+  unauthorizedCount: number;
+  degraded: boolean;
+  degradedReason?: string | null;
+}
 
 export interface MeriContext {
   tenantId: string;
@@ -12,6 +68,7 @@ export interface MeriContext {
   userVoice?: string;
   clientRoster?: Array<{ name: string; status: string }>;
   clientSteering?: { soul?: string; compass?: string; people?: string };
+  contextPacket?: MeriContextPacketSummary;
 }
 
 export function meriContextFromTenant(ctx: TenantContext, org?: MeriContext['org']): MeriContext {
@@ -30,7 +87,6 @@ export interface ToolDefinition<I, O> {
   readonly inputSchema: ZodType<I>;
   readonly handler: (input: I, ctx: MeriContext) => Promise<O>;
   readonly readOnly: boolean;
-  /** Optional explicit metadata; registry derives the canonical default otherwise. */
   readonly execution?: ToolExecutionMetadata;
 }
 
@@ -45,7 +101,6 @@ export interface ToolRegistry {
   get(name: string): AnyToolDefinition | undefined;
   list(): string[];
   executionMetadata(name: string): ToolExecutionMetadata | undefined;
-  /** Validates input, enforces scoping, runs the write gate, then the handler. */
   invoke<O>(name: string, input: unknown, ctx: MeriContext): Promise<O>;
 }
 
@@ -62,7 +117,7 @@ export class ToolInputValidationError extends Error {
     public readonly issues: ZodIssue[],
   ) {
     super(
-      `Invalid input for tool "${toolName}": ` +
+      `Invalid input for "${toolName}": ` +
         issues.map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`).join('; '),
     );
     this.name = 'ToolInputValidationError';

@@ -30,7 +30,10 @@ const outreachNode: EligibilityNode = {
   endsOn: '2027-02-10',
 };
 
-function ws(node: Partial<EligibilityNode>, over: Partial<EligibilityInput> = {}): EligibilityInput {
+function ws(
+  node: Partial<EligibilityNode>,
+  over: Partial<EligibilityInput> = {},
+): EligibilityInput {
   return {
     node: { ...workspaceNode, ...node },
     strategyHealth: { openMaterialConflicts: 0 },
@@ -65,7 +68,9 @@ describe('evaluateEligibility — workspace kind', () => {
     for (const kind of ['decision', 'gate', 'milestone', 'risk']) {
       const r = evaluateEligibility(ws({ kind }));
       expect(r.eligible).toBe(false);
-      expect(r.reasons).toContain(`node kind must be 'action' for workspace execution (is '${kind}')`);
+      expect(r.reasons).toContain(
+        `node kind must be 'action' for workspace execution (is '${kind}')`,
+      );
     }
   });
 

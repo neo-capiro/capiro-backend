@@ -11,6 +11,9 @@
     "synth": "cdk synth",
     "diff": "cdk diff",
     "deploy": "cdk deploy",
+    "synth:meriv2-ops": "cdk synth --app \"ts-node --prefer-ts-exts bin/meriv2-operations.ts\"",
+    "diff:meriv2-ops": "cdk diff --app \"ts-node --prefer-ts-exts bin/meriv2-operations.ts\"",
+    "deploy:meriv2-ops": "cdk deploy --app \"ts-node --prefer-ts-exts bin/meriv2-operations.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -1,5 +1,7 @@
 import {
   STEWARD_FACTS_SECTION,
+  PROPOSE_DOCUMENT_DRAFT_TOOL,
+  PROPOSE_STRATEGY_DRAFT_TOOL,
   buildAssistantSystemPrompt,
   buildDocumentDraftSystemPrompt,
   buildDraftSystemPrompt,
@@ -478,5 +480,29 @@ describe('buildDocumentDraftSystemPrompt (Stage-G)', () => {
     );
     expect(sys).toContain('# Grounding health');
     expect(sys).toContain('Some context could not be loaded.');
+  });
+});
+
+describe('strategy-prompt — Phase 4 assurance', () => {
+  it('does not manufacture an unstated objective and includes the shared assurance contract', () => {
+    const sys = buildDraftSystemPrompt(
+      { clientId: 'c1', type: 'state appropriations', goal: null } as StrategyDraftInput,
+      '(pack)',
+    );
+    expect(sys).toContain('<government_affairs_assurance version="1">');
+    expect(sys).toContain('do not invent one');
+    expect(sys).not.toContain('infer a reasonable objective');
+  });
+
+  it('requires provenance for fresh nodes and document sections', () => {
+    // Read the real `as const` schemas directly rather than asserting a shape onto
+    // them: a cast here would blind the compiler to a schema restructure, which is
+    // precisely the regression this test exists to catch.
+    expect(PROPOSE_STRATEGY_DRAFT_TOOL.input_schema.properties.nodes.items.required).toContain(
+      'sources',
+    );
+    expect(PROPOSE_DOCUMENT_DRAFT_TOOL.input_schema.properties.sections.items.required).toContain(
+      'sources',
+    );
   });
 });

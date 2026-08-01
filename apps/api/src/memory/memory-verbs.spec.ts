@@ -30,7 +30,9 @@ function makeStore(opts: {
     auditLog: { create: auditCreate },
   };
   const prisma = {
-    withTenantUser: jest.fn(async (_t: string, _u: string, fn: (t: typeof tx) => unknown) => fn(tx)),
+    withTenantUser: jest.fn(async (_t: string, _u: string, fn: (t: typeof tx) => unknown) =>
+      fn(tx),
+    ),
   };
   const tenantCtx = {
     require: () => ({ tenantId: 'tenant-1', userId: 'user-1', role: 'standard_user' }),
@@ -74,7 +76,10 @@ describe('memory verbs (Phase 1, 1D)', () => {
       },
       captureExec: (s) => execs.push(s),
     });
-    expect(await store.confirmMemory('m1')).toEqual({ found: true, title: 'Prefers bullet points' });
+    expect(await store.confirmMemory('m1')).toEqual({
+      found: true,
+      title: 'Prefers bullet points',
+    });
     expect(execs.some((s) => s.includes('last_confirmed_at = now()'))).toBe(true);
   });
 

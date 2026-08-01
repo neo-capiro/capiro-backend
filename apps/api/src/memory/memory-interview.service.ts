@@ -40,7 +40,9 @@ export class MemoryInterviewService {
         const body = await this.polish(system, section.heading, section.body);
         polished.push({ ...section, body: body || section.body });
       } catch (err) {
-        this.logger.warn(`polish failed for section ${section.key}: ${err instanceof Error ? err.message : err}`);
+        this.logger.warn(
+          `polish failed for section ${section.key}: ${err instanceof Error ? err.message : err}`,
+        );
         polished.push(section); // fall back to verbatim for this section
       }
     }
@@ -77,7 +79,10 @@ export class MemoryInterviewService {
       });
       if (!res.ok) throw new Error(`Anthropic HTTP ${res.status}`);
       const json = (await res.json()) as { content?: Array<{ text?: string }> };
-      const text = (json.content ?? []).map((c) => c.text ?? '').join('').trim();
+      const text = (json.content ?? [])
+        .map((c) => c.text ?? '')
+        .join('')
+        .trim();
       return text;
     } finally {
       clearTimeout(timeout);

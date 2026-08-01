@@ -62,14 +62,33 @@ function fakeProposal(input: CreateActionProposalInput): ActionProposalResult {
     policyCode: null,
     attemptCount: 0,
     resultSummary: null,
+    policy: {
+      source: 'persisted',
+      mode: 'enforce',
+      packKey: 'default',
+      packVersion: '1',
+      binding: 'binding-1',
+      decisionHash: 'decision-hash-1',
+      contextHash: 'context-hash-1',
+      decision: 'WARN',
+      jurisdiction: 'federal',
+      channel: 'internal',
+      recipientType: null,
+    },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 }
 
+// Module-level spy so individual tests can assert on create() without depending
+// on a single fixed disposition. makeService rebinds the implementation so PASS
+// tools execute (via the test executor) and WARN tools stay held.
 const actionProposalsRepo = {
-  create: jest.fn(async (input: CreateActionProposalInput) => fakeProposal(input)),
+  create: jest.fn(),
 } as unknown as ApiActionProposalRepo;
+
+/** Tools the product holds for human approval (WARN / external) in these tests. */
+const HELD_WRITE_TOOLS = new Set(['send_email', 'reply_email', 'update_client_profile']);
 
 // Phase 1 M5.0 (H-1): the chat loop meters every round via recordAiUsageEvent,
 // which needs prisma.withTenant/withSystem. A no-op fake is enough here — the
@@ -80,6 +99,25 @@ const fakePrisma = {
 } as never;
 
 function makeService(executor: ApiToolExecutorRepo) {
+  (actionProposalsRepo.create as jest.Mock).mockImplementation(
+    async (input: CreateActionProposalInput) => {
+      if (HELD_WRITE_TOOLS.has(input.tool)) {
+        return {
+          disposition: 'pending_approval' as const,
+          proposal: fakeProposal(input),
+        };
+      }
+      // PASS / internal-artifact tools: apps/api executes immediately under
+      // server-owned authority. Mirror that by running the local test executor
+      // and returning disposition/executed with its result.
+      const executionResult = await executor.execute(ctx, input.tool, input.input);
+      return {
+        disposition: 'executed' as const,
+        proposal: { ...fakeProposal(input), status: 'succeeded' },
+        executionResult,
+      };
+    },
+  );
   const registryService = new MeriRegistryService(clientRepo, executor, config);
   return new ChatAssistantService(
     registryService,
@@ -909,5 +947,118 @@ describe('ChatAssistantService.run', () => {
     );
     expect(modelCalls).toHaveLength(1); // round 2 never ran
     expect(out.reply).toBe(''); // aborted turns return empty, not an apology
+  });
+});
+
+/**
+ * PRE-PERSISTENCE hold for model-authored draft bodies.
+ *
+ * `draft_policy_memo` persists a durable ClioArtifact inside apps/api, so the
+ * release gate at finalize was structurally too late: by then the row exists and
+ * the orchestrator cannot retract it. These tests pin (a) that the hold is dark
+ * by default and (b) that when armed the persisting call is never made at all —
+ * not merely that the reply was replaced.
+ */
+describe('ChatAssistantService pre-persistence hold', () => {
+  const FABRICATED_BODY =
+    '<p>PE 0604270F received $412.5 million in FY27, a 22% increase, and H.R. 1234 was enacted on July 1.</p>';
+  const HIGH_RISK_REQUEST = 'draft a memo on the FY27 budget amount for PE 0604270F';
+
+  function driveMemoDraft(executeSpy: jest.Mock) {
+    let call = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['draft_policy_memo']);
+      call += 1;
+      if (call === 1) {
+        return anthropic(
+          [
+            {
+              type: 'tool_use',
+              id: 'tu1',
+              name: 'draft_policy_memo',
+              input: { clientId: 'c1', title: 'FY27 memo', body: FABRICATED_BODY },
+            },
+          ],
+          'tool_use',
+        );
+      }
+      return anthropic([{ type: 'text', text: 'Memo drafted.' }], 'end_turn');
+    });
+    return { execute: executeSpy } as unknown as ApiToolExecutorRepo;
+  }
+
+  const memoResult = {
+    tool: 'draft_policy_memo',
+    artifact: { id: 'artifact-1', title: 'FY27 memo', kind: 'policy_memo', bodyText: 'x' },
+  };
+
+  const original = process.env.MERI_RELEASE_GATE;
+  afterEach(() => {
+    if (original === undefined) delete process.env.MERI_RELEASE_GATE;
+    else process.env.MERI_RELEASE_GATE = original;
+  });
+
+  it('is DARK by default — the memo is persisted and the artifact card is returned', async () => {
+    delete process.env.MERI_RELEASE_GATE;
+    const executeSpy = jest.fn(async () => memoResult);
+    const executor = driveMemoDraft(executeSpy);
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(ctx, { messages: [{ role: 'user', text: HIGH_RISK_REQUEST }] }),
+    );
+    expect(executeSpy).toHaveBeenCalledTimes(1);
+    expect(out.reply).toBe('Memo drafted.');
+    expect(out.artifacts).toEqual([
+      { id: 'artifact-1', title: 'FY27 memo', kind: 'policy_memo', bodyText: 'x' },
+    ]);
+  });
+
+  it('when armed, NEVER calls the persisting tool and returns no artifact card', async () => {
+    process.env.MERI_RELEASE_GATE = 'enforce';
+    const executeSpy = jest.fn(async () => memoResult);
+    const executor = driveMemoDraft(executeSpy);
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService(executor).run(ctx, { messages: [{ role: 'user', text: HIGH_RISK_REQUEST }] }),
+    );
+    // The whole point: the durable write never happened.
+    expect(executeSpy).not.toHaveBeenCalled();
+    expect(out.artifacts).toBeUndefined();
+    const step = out.steps?.find((s) => s.tool === 'draft_policy_memo');
+    expect(step?.status).toBe('blocked');
+  });
+
+  it('does not hold a draft tool that carries no model-authored body', async () => {
+    // create_meeting_brief renders server-side from meeting records, so there is
+    // no model claim to gate; arming the surface must not break it.
+    process.env.MERI_RELEASE_GATE = 'enforce';
+    const executeSpy = jest.fn(async () => ({
+      tool: 'create_meeting_brief',
+      artifact: { id: 'brief-1', title: 'Brief', kind: 'meeting_brief' },
+    }));
+    let call = 0;
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) return schemasResponse(['create_meeting_brief']);
+      call += 1;
+      if (call === 1) {
+        return anthropic(
+          [
+            {
+              type: 'tool_use',
+              id: 'tu1',
+              name: 'create_meeting_brief',
+              input: { meetingId: 'm1' },
+            },
+          ],
+          'tool_use',
+        );
+      }
+      return anthropic([{ type: 'text', text: 'Brief ready.' }], 'end_turn');
+    });
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      makeService({ execute: executeSpy } as unknown as ApiToolExecutorRepo).run(ctx, {
+        messages: [{ role: 'user', text: 'build the brief for tomorrow' }],
+      }),
+    );
+    expect(executeSpy).toHaveBeenCalledTimes(1);
+    expect(out.steps?.find((s) => s.tool === 'create_meeting_brief')?.status).toBe('done');
   });
 });

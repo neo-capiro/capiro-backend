@@ -16,15 +16,15 @@ describe('evaluateMemoryCandidate — explicit human saves', () => {
     });
   });
 
-  it('auto-commits an explicit admin firm-scope save', () => {
-    expect(evaluateMemoryCandidate({ scope: 'firm', isAdmin: true })).toMatchObject({
-      outcome: 'PASS',
-      ruleId: 'memory.firm.admin_auto_commit',
-    });
-  });
-
-  it('requires approval for a non-admin firm-scope save', () => {
-    expect(evaluateMemoryCandidate({ scope: 'firm', isAdmin: false })).toMatchObject({
+  // Closeout §2.2 / definition-of-done item 1. These four cases are the
+  // regression guard for the self-ratification hole: an administrator used to
+  // get PASS on their own firm/client proposal, so the candidate never became
+  // pending and requireIndependentReviewer never ran.
+  it.each([
+    ['firm', true],
+    ['firm', false],
+  ] as const)('never auto-commits a firm-scope save (admin=%s)', (scope, isAdmin) => {
+    expect(evaluateMemoryCandidate({ scope, isAdmin })).toMatchObject({
       outcome: 'WARN',
       ruleId: 'memory.firm.requires_approval',
     });
@@ -32,16 +32,56 @@ describe('evaluateMemoryCandidate — explicit human saves', () => {
 });
 
 describe('evaluateMemoryCandidate — client scope', () => {
-  it('explicit client + admin saves retain their existing auto-commit behavior', () => {
-    const d = evaluateMemoryCandidate({ scope: 'client', isAdmin: true });
-    expect(d.outcome).toBe('PASS');
-    expect(d.ruleId).toBe('memory.client.admin_auto_commit');
+  it.each([
+    ['client', true],
+    ['client', false],
+  ] as const)('never auto-commits a client-scope save (admin=%s)', (scope, isAdmin) => {
+    expect(evaluateMemoryCandidate({ scope, isAdmin })).toMatchObject({
+      outcome: 'WARN',
+      ruleId: 'memory.client.requires_approval',
+    });
+  });
+});
+
+describe('evaluateMemoryCandidate — segregation of duties is unconditional', () => {
+  it('exposes no rule that can PASS a shared scope', () => {
+    // Brute-force the whole input space that reaches a shared scope, including
+    // the fields an author might be tempted to make an escape hatch.
+    for (const scope of ['firm', 'client'] as const) {
+      for (const isAdmin of [true, false]) {
+        for (const sourceKind of [
+          undefined,
+          'explicit_user',
+          'model_extraction',
+          'workspace_artifact',
+          'unknown_future_source',
+        ]) {
+          for (const confidence of [null, 0, 0.5, 1]) {
+            for (const minConfidence of [undefined, 0, 1]) {
+              const d = evaluateMemoryCandidate({
+                scope,
+                isAdmin,
+                sourceKind,
+                confidence,
+                minConfidence,
+              });
+              expect(d.outcome).toBe('WARN');
+            }
+          }
+        }
+      }
+    }
   });
 
-  it('explicit client + non-admin saves land pending for review', () => {
-    const d = evaluateMemoryCandidate({ scope: 'client', isAdmin: false });
-    expect(d.outcome).toBe('WARN');
-    expect(d.ruleId).toBe('memory.client.requires_approval');
+  it('retires the two admin auto-commit rule ids entirely', () => {
+    const ids = new Set<string>();
+    for (const scope of ['personal', 'firm', 'client'] as const) {
+      for (const isAdmin of [true, false]) {
+        ids.add(evaluateMemoryCandidate({ scope, isAdmin }).ruleId);
+      }
+    }
+    expect(ids.has('memory.firm.admin_auto_commit')).toBe(false);
+    expect(ids.has('memory.client.admin_auto_commit')).toBe(false);
   });
 });
 

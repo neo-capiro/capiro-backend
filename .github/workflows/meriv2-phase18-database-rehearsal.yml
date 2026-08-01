@@ -1,0 +1,87 @@
+name: meriv2-phase18-database-rehearsal
+
+on:
+  push:
+    branches: [agent/meriv2-world-class-closeout]
+    paths:
+      - .github/workflows/meriv2-phase18-database-rehearsal.yml
+      - apps/api/prisma/**
+      - apps/api/scripts/meriv2-phase18-**
+      - apps/api/scripts/test-memory-governance-backfill-rollback.sh
+      - apps/api/scripts/test-policy-pack-lifecycle-concurrency.sh
+      - apps/api/scripts/pe-phase-9-migration-replay.sh
+      - apps/api/src/memory/**
+      - apps/api/src/context/**
+      - packages/meriv2-core/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meriv2-phase18-database-rehearsal-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  database-release-rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      PHASE18_EVIDENCE_DIR: /tmp/meriv2-phase18-evidence
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Ensure PostgreSQL client is available
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+          psql --version
+          docker --version
+
+      - name: Generate all Prisma clients
+        run: |
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/api-strategy exec prisma generate
+          pnpm --filter @capiro/intel-api exec prisma generate
+          pnpm --filter @capiro/onboard-api exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
+
+      - name: Build imported workspace packages
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/meriv2-core build
+
+      - name: Static rehearsal harness checks
+        run: |
+          bash -n apps/api/scripts/meriv2-phase18-database-rehearsal.sh
+          bash -n apps/api/scripts/meriv2-phase18-rls-rehearsal.sh
+          pnpm exec prettier --check \
+            apps/api/scripts/meriv2-phase18-application-rehearsal.ts \
+            apps/api/scripts/meriv2-phase18-backfill-rehearsal.ts
+
+      - name: Run clean and production-equivalent upgrade rehearsals
+        run: bash apps/api/scripts/meriv2-phase18-database-rehearsal.sh
+
+      - name: Upload bounded rehearsal evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meriv2-phase18-database-rehearsal-${{ github.sha }}
+          path: /tmp/meriv2-phase18-evidence
+          if-no-files-found: warn
+          retention-days: 30

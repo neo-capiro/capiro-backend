@@ -10,7 +10,7 @@
 // visibility 'user' (owner = ownerUserId). Stable slug 'clio:<id>' guarantees
 // idempotent upserts (re-running never duplicates).
 
-import type { MemoryItem } from './memory.types.js';
+import type { GovernedMemoryMetadata, MemoryItem } from './memory.types.js';
 import { MEMORY_SCHEMA_VERSION, defaultMemoryGovernanceFields } from './memory.types.js';
 
 export interface ClioMemoryRow {
@@ -52,6 +52,7 @@ export function clioMemorySlug(id: string): string {
  * "Related" line of typed wikilinks so the store derives graph edges on upsert.
  */
 export function clioMemoryToItem(row: ClioMemoryRow, resolveName?: NameResolver): MemoryItem {
+  const governance = governanceFromClioMetadata(row.metadata);
   const links: string[] = [];
   if (resolveName) {
     const seen = new Set<string>();
@@ -77,7 +78,7 @@ export function clioMemoryToItem(row: ClioMemoryRow, resolveName?: NameResolver)
     // G2: client-scoped memories carry their client; firm/user rows stay null.
     clientId: row.scope === 'client' ? (row.clientId ?? null) : null,
     ownerUserId: row.scope === 'user_private' ? row.ownerUserId : null,
-    type: 'note',
+    type: governance.canonicalType ?? 'note',
     // client scope projects as tenant-visible + client-keyed (a RELEVANCE
     // boundary — see the G2 plan; no per-user client ACL exists).
     visibility: row.scope === 'user_private' ? 'user' : 'tenant',
@@ -87,13 +88,14 @@ export function clioMemoryToItem(row: ClioMemoryRow, resolveName?: NameResolver)
     aliases: [],
     tags: ['memory', row.source || 'conversation'],
     source: 'manual',
-    sourceRef: row.id,
+    sourceRef: governance.sourceRef ?? row.id,
     provenance: 'human',
     sections: [{ key: 'memory', heading: 'Memory', owner: 'human', body }],
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     schemaVersion: MEMORY_SCHEMA_VERSION,
     ...defaultMemoryGovernanceFields(),
+    ...governance.fields,
     // G2 ephemeral: the projection expires exactly when its source does.
     ...(row.expiresAt ? { expiresAt: new Date(row.expiresAt) } : {}),
     // Phase 4: carry auto-learn's extraction confidence (stored in
@@ -103,6 +105,56 @@ export function clioMemoryToItem(row: ClioMemoryRow, resolveName?: NameResolver)
     ...(typeof row.metadata?.confidence === 'number' && Number.isFinite(row.metadata.confidence)
       ? { confidence: Math.min(1, Math.max(0, row.metadata.confidence as number)) }
       : {}),
+  };
+}
+
+export function governanceFromClioMetadata(metadata: Record<string, unknown> | null): {
+  canonicalType: MemoryItem['type'] | null;
+  sourceRef: string | null;
+  fields: GovernedMemoryMetadata;
+} {
+  const raw = metadata?.governance;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+    return { canonicalType: null, sourceRef: null, fields: {} };
+  const value = raw as Record<string, unknown>;
+  const stringValue = (key: string): string | null =>
+    typeof value[key] === 'string' && value[key] ? String(value[key]) : null;
+  const booleanValue = (key: string): boolean | undefined =>
+    typeof value[key] === 'boolean' ? Boolean(value[key]) : undefined;
+  const fields: GovernedMemoryMetadata = {
+    memoryClass: stringValue('memoryClass') ?? undefined,
+    memoryAuthority: stringValue('memoryAuthority') ?? undefined,
+    memoryScope: (stringValue('memoryScope') as GovernedMemoryMetadata['memoryScope']) ?? undefined,
+    governedStatus: stringValue('governedStatus') ?? undefined,
+    sourceType: stringValue('sourceType') ?? undefined,
+    sourceId: stringValue('sourceId'),
+    sourceExcerpt: stringValue('sourceExcerpt'),
+    sourceContentHash: stringValue('sourceContentHash'),
+    sourceVersion: stringValue('sourceVersion'),
+    assertedByUserId: stringValue('assertedByUserId'),
+    approvedByUserId: stringValue('approvedByUserId'),
+    approvedAt: stringValue('approvedAt'),
+    secondApprovedByUserId: stringValue('secondApprovedByUserId'),
+    secondApprovedAt: stringValue('secondApprovedAt'),
+    asOf: stringValue('asOf'),
+    effectiveFrom: stringValue('effectiveFrom'),
+    validUntil: stringValue('validUntil'),
+    reviewDueAt: stringValue('reviewDueAt'),
+    conflictStatus: stringValue('conflictStatus') ?? undefined,
+    conflictGroupId: stringValue('conflictGroupId'),
+    controllingItemId: stringValue('controllingItemId'),
+    originSurface: stringValue('originSurface'),
+    originTraceId: stringValue('originTraceId'),
+    originContextPacketId: stringValue('originContextPacketId'),
+    originModel: stringValue('originModel'),
+    originPromptVersion: stringValue('originPromptVersion'),
+    instructionsAllowed: booleanValue('instructionsAllowed'),
+  };
+  const canonicalType = stringValue('canonicalType');
+  return {
+    canonicalType: canonicalType as MemoryItem['type'] | null,
+    sourceRef: stringValue('sourceRef'),
+    fields,
   };
 }
 

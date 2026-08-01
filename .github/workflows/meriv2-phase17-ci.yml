@@ -1,0 +1,163 @@
+name: meriv2-phase17-ci
+
+on:
+  push:
+    branches: [agent/meriv2-world-class-closeout]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meriv2-phase17-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  final-release-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: capiro
+          POSTGRES_PASSWORD: capiro
+          POSTGRES_DB: capiro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U capiro -d capiro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: 'true'
+      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro?schema=public
+      DIRECT_URL: postgresql://capiro:capiro@localhost:5432/capiro?schema=public
+      CLERK_SECRET_KEY: sk_test_meriv2_phase17_ci
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate all required Prisma clients
+        run: |
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/api-strategy exec prisma generate
+          pnpm --filter @capiro/intel-api exec prisma generate
+          pnpm --filter @capiro/onboard-api exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
+
+      - name: Build required dependency packages
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/strategy-verifier build
+          pnpm --filter @capiro/meriv2-core build
+
+      - name: Check Phase 17 formatting scope
+        run: >-
+          pnpm exec prettier --check
+          ".github/workflows/meriv2-phase17-*.yml"
+          "packages/meriv2-core/**/*.{ts,json}"
+          "apps/meriv2-orchestrator/**/*.{ts,cjs,json}"
+          "apps/api/src/memory/**/*.ts"
+          "apps/api/src/context/**/*.ts"
+          "apps/workspace/src/generation/**/*.ts"
+          "apps/api-strategy/src/agents/**/*.ts"
+
+      - name: Run and classify Phase 17 bypass searches
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .phase17
+
+          rg -n "admin_auto_commit|void this\.memoryIngest\.projectClioMemory|ethicalWallAllowed:\s*true" apps packages \
+            | tee .phase17/bypass-memory.txt || true
+          rg -n "PROPOSED_CAPIRO_RULES|ruleBasedCompliancePolicy" apps packages \
+            | tee .phase17/bypass-policy.txt || true
+          rg -n "TODO|FIXME|not implemented|deliberate follow-up" \
+            apps/api/src/memory \
+            apps/meriv2-orchestrator/src/meri \
+            apps/workspace/src/generation \
+            apps/api-strategy/src/agents \
+            packages/meriv2-core/src \
+            | tee .phase17/follow-ups.txt || true
+
+          # Fail on dangerous values in live non-test TypeScript. Historical
+          # migration comments, regression fixtures, and explicit fallback
+          # definitions remain visible in the captured evidence for review.
+          live_wall=$(rg -n "ethicalWallAllowed:\s*true" apps packages -g '*.ts' -g '!*.spec.ts' -g '!*.test.ts' || true)
+          if [ -n "$live_wall" ]; then
+            echo "Live ethical-wall bypass found:"
+            echo "$live_wall"
+            exit 1
+          fi
+
+          live_auto=$(rg -n "admin_auto_commit" apps packages -g '*.ts' -g '!*.spec.ts' -g '!*.test.ts' || true)
+          if [ -n "$live_auto" ] && ! printf '%s\n' "$live_auto" | grep -q '^apps/api/src/memory/memory-candidate-rules.ts:'; then
+            echo "Unexpected live admin auto-commit reference found:"
+            echo "$live_auto"
+            exit 1
+          fi
+
+          {
+            echo '## MeriV2 Phase 17 bypass audit'
+            echo
+            echo 'All raw matches are retained in the job log. Live ethical-wall bypasses are forbidden; the remaining known matches are historical comments, regression assertions, the durable-outbox fast path, or the documented off/shadow static policy fallback.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Typecheck MeriV2 core
+        run: pnpm --filter @capiro/meriv2-core typecheck
+
+      - name: Typecheck API
+        run: pnpm --filter @capiro/api typecheck
+
+      - name: Typecheck Workspace
+        run: pnpm --filter @capiro/workspace typecheck
+
+      - name: Typecheck Web
+        run: pnpm --filter @capiro/web typecheck
+
+      - name: Typecheck MeriV2 orchestrator
+        run: pnpm --filter @capiro/meriv2-orchestrator typecheck
+
+      - name: Typecheck Strategy API
+        run: pnpm --filter @capiro/api-strategy typecheck
+
+      - name: Typecheck full dependency graph
+        run: pnpm turbo run typecheck
+
+      - name: Test MeriV2 core
+        run: pnpm --filter @capiro/meriv2-core test
+
+      - name: Test MeriV2 orchestrator
+        run: pnpm --filter @capiro/meriv2-orchestrator test
+
+      - name: Test Strategy API
+        run: pnpm --filter @capiro/api-strategy test
+
+      - name: Test API
+        run: pnpm --filter @capiro/api test
+
+      - name: Test Workspace
+        run: pnpm --filter @capiro/workspace test
+
+      - name: Test Web
+        run: pnpm --filter @capiro/web test
+
+      - name: Run MeriV2 evaluation suite
+        run: pnpm --filter @capiro/meriv2-core eval:meriv2

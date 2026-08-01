@@ -2,6 +2,11 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('../../env.js', () => ({ config: { apiBaseUrl: 'http://api.test' } }));
+// The work log resolves its context packet through the real axios client, which
+// needs a ClerkProvider this surface-only fixture deliberately does not mount.
+vi.mock('../../lib/use-api.js', () => ({
+  useApi: () => ({ get: vi.fn().mockRejectedValue(new Error('unavailable in fixture')) }),
+}));
 vi.mock('./SessionRail.js', () => ({
   SessionRail: () => (
     <div className="meri-session-rail" data-testid="visual-history">

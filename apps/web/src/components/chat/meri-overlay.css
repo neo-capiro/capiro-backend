@@ -1162,3 +1162,90 @@
     transition: none !important;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Phase 2 Step 9: honest memory chips. Each row now carries scope, provenance,
+   review state, dates and expiry, so the row is a small block rather than a
+   single ellipsised line. The list is taller and the value wraps — truncating a
+   remembered fact to one line is how a wrong memory stays invisible.
+   ──────────────────────────────────────────────────────────────────────────── */
+.meri-memory-list {
+  max-height: 320px;
+}
+.meri-memory-item {
+  align-items: flex-start;
+}
+.meri-memory-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+/* Override the single-line truncation from the legacy chip layout. */
+.meri-memory-body .meri-memory-text {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.45;
+}
+.meri-memory-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.meri-memory-chip {
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border-1);
+  background: var(--bg-surface-2);
+  color: var(--ink-3);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+/* Pending review is the one state that must never read as established fact. */
+.meri-memory-chip--pending {
+  border-color: var(--notable, #a26913);
+  background: var(--notable-soft, #f4e5c3);
+  color: var(--notable, #a26913);
+}
+.meri-memory-chip--active {
+  border-color: var(--success, #2e6b43);
+  color: var(--success, #2e6b43);
+  background: transparent;
+}
+.meri-memory-chip--expired {
+  border-color: var(--critical, #b5301b);
+  background: var(--critical-soft, #f6ddd6);
+  color: var(--critical, #b5301b);
+}
+.meri-memory-note {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+.meri-memory-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.meri-memory-actions button {
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-sm, 4px);
+  background: var(--bg-surface);
+  color: var(--ink-2);
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.meri-memory-actions button:hover {
+  color: var(--ink-1);
+  border-color: var(--border-2);
+}
+.meri-memory-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

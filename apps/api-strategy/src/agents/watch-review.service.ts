@@ -10,7 +10,10 @@ import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VersioningService } from '../strategy/versioning.service.js';
 import { MeriService } from '../meri/meri.service.js';
-import { StrategyConversationService, type ChatOpenNodeAction } from '../meri/strategy-conversation.service.js';
+import {
+  StrategyConversationService,
+  type ChatOpenNodeAction,
+} from '../meri/strategy-conversation.service.js';
 import { LIVE_NODE_WHERE } from '../strategy/live-node.js';
 import { WatcherService } from './watcher.service.js';
 import { findingKey, type Finding, type FindingCategory } from './watcher-checks.js';
@@ -167,7 +170,13 @@ export class WatchReviewService {
             select: { id: true, createdAt: true },
           })
         : null;
-      return { lastEditedAt: strategy.lastEditedAt, headId: head.id, mission, openProposals, latestRun };
+      return {
+        lastEditedAt: strategy.lastEditedAt,
+        headId: head.id,
+        mission,
+        openProposals,
+        latestRun,
+      };
     });
 
     const { headId, mission, openProposals, latestRun, lastEditedAt } = snapshot;
@@ -180,10 +189,18 @@ export class WatchReviewService {
           mission ? 'already fresh' : 'no Watch mission'
         }`,
       );
-      const state = await this.prisma.withTenant(tenantId, (tx) => this.loadState(tx, strategyId, null));
+      const state = await this.prisma.withTenant(tenantId, (tx) =>
+        this.loadState(tx, strategyId, null),
+      );
       return {
         ...state,
-        lastRecheck: { state: 'complete', elapsedMs: Date.now() - t0, unchanged: [], updated: [], dropped: [] },
+        lastRecheck: {
+          state: 'complete',
+          elapsedMs: Date.now() - t0,
+          unchanged: [],
+          updated: [],
+          dropped: [],
+        },
       };
     }
 
@@ -201,10 +218,18 @@ export class WatchReviewService {
     }
 
     if (recheckFailed) {
-      const state = await this.prisma.withTenant(tenantId, (tx) => this.loadState(tx, strategyId, null));
+      const state = await this.prisma.withTenant(tenantId, (tx) =>
+        this.loadState(tx, strategyId, null),
+      );
       return {
         ...state,
-        lastRecheck: { state: 'failed', elapsedMs: Date.now() - t0, unchanged: [], updated: [], dropped: [] },
+        lastRecheck: {
+          state: 'failed',
+          elapsedMs: Date.now() - t0,
+          unchanged: [],
+          updated: [],
+          dropped: [],
+        },
       };
     }
 
@@ -218,7 +243,9 @@ export class WatchReviewService {
         `${recheck.dropped.length} dropped (${droppedDeleted} deleted-target) in ${Date.now() - t0}ms`,
     );
 
-    const finalState = await this.prisma.withTenant(tenantId, (tx) => this.loadState(tx, strategyId, null));
+    const finalState = await this.prisma.withTenant(tenantId, (tx) =>
+      this.loadState(tx, strategyId, null),
+    );
     return { ...finalState, lastRecheck: { ...recheck, elapsedMs: Date.now() - t0 } };
   }
 
@@ -238,7 +265,12 @@ export class WatchReviewService {
     userId: string,
     strategyId: string,
     preHeadId: string,
-    preProposals: Array<{ id: string; watchKey: string | null; strategyVersionId: string; ops: unknown }>,
+    preProposals: Array<{
+      id: string;
+      watchKey: string | null;
+      strategyVersionId: string;
+      ops: unknown;
+    }>,
   ): Promise<Omit<WatchRecheckResult, 'elapsedMs'>> {
     await tx.$queryRaw`
       SELECT id FROM sp_strategy
@@ -253,14 +285,22 @@ export class WatchReviewService {
     const newHeadId = newHead?.id ?? preHeadId;
 
     const freshRows = await tx.spChangeSet.findMany({
-      where: { strategyId, status: 'proposed', watchKey: { not: null }, strategyVersionId: newHeadId },
+      where: {
+        strategyId,
+        status: 'proposed',
+        watchKey: { not: null },
+        strategyVersionId: newHeadId,
+      },
       select: { id: true, watchKey: true, ops: true },
     });
     const freshByKey = new Map(freshRows.filter((r) => r.watchKey).map((r) => [r.watchKey!, r]));
 
     const liveIds = new Set(
       (
-        await tx.spNode.findMany({ where: { strategyId, ...LIVE_NODE_WHERE }, select: { id: true } })
+        await tx.spNode.findMany({
+          where: { strategyId, ...LIVE_NODE_WHERE },
+          select: { id: true },
+        })
       ).map((n) => n.id),
     );
 
@@ -307,7 +347,9 @@ export class WatchReviewService {
             entityId: old.id,
             after: { watchKey: old.watchKey, reason, targetDeleted },
           });
-          this.logger.log(`[strategy:${strategyId}] Watch proposal dropped (${old.watchKey}): ${reason}`);
+          this.logger.log(
+            `[strategy:${strategyId}] Watch proposal dropped (${old.watchKey}): ${reason}`,
+          );
         }
         dropped.push({ watchKey: old.watchKey, reason, targetDeleted });
         continue;
@@ -354,14 +396,24 @@ export class WatchReviewService {
       const cs = await tx.spChangeSet.findFirst({ where: { id: proposalId } });
       if (!cs) throw new NotFoundException('Proposal not found');
       if (cs.status !== 'proposed') {
-        throw new ConflictException(`Proposal is ${cs.status} — only a proposed Watch finding can be dismissed`);
+        throw new ConflictException(
+          `Proposal is ${cs.status} — only a proposed Watch finding can be dismissed`,
+        );
       }
       if (!cs.watchKey) {
-        throw new BadRequestException('Not a Watch proposal — use the change-set reject endpoint instead');
+        throw new BadRequestException(
+          'Not a Watch proposal — use the change-set reject endpoint instead',
+        );
       }
 
       await tx.spWatchDismissal.upsert({
-        where: { tenantId_strategyId_watchKey: { tenantId, strategyId: cs.strategyId, watchKey: cs.watchKey } },
+        where: {
+          tenantId_strategyId_watchKey: {
+            tenantId,
+            strategyId: cs.strategyId,
+            watchKey: cs.watchKey,
+          },
+        },
         create: {
           tenantId,
           strategyId: cs.strategyId,
@@ -387,7 +439,9 @@ export class WatchReviewService {
       return cs.strategyId;
     });
 
-    this.logger.log(`[strategy:${strategyId}] Watch proposal permanently dismissed (change-set ${proposalId})`);
+    this.logger.log(
+      `[strategy:${strategyId}] Watch proposal permanently dismissed (change-set ${proposalId})`,
+    );
     return this.getState(tenantId, strategyId);
   }
 
@@ -412,10 +466,14 @@ export class WatchReviewService {
       const cs = await tx.spChangeSet.findFirst({ where: { id: proposalId } });
       if (!cs) throw new NotFoundException('Proposal not found');
       if (!cs.watchKey) {
-        throw new BadRequestException('Not a Watch proposal — use the change-set approve/apply endpoints instead');
+        throw new BadRequestException(
+          'Not a Watch proposal — use the change-set approve/apply endpoints instead',
+        );
       }
       if (cs.status !== 'proposed') {
-        throw new ConflictException(`Proposal is ${cs.status} — only a proposed Watch finding can be accepted`);
+        throw new ConflictException(
+          `Proposal is ${cs.status} — only a proposed Watch finding can be accepted`,
+        );
       }
 
       // Lock order change-set -> strategy, matching ChangeSetsService.apply
@@ -433,7 +491,10 @@ export class WatchReviewService {
       if (!head || head.id !== cs.strategyVersionId) {
         await tx.spChangeSet.updateMany({
           where: { id: proposalId, status: 'proposed' },
-          data: { status: 'superseded', supersededReason: 'The plan changed since this was proposed.' },
+          data: {
+            status: 'superseded',
+            supersededReason: 'The plan changed since this was proposed.',
+          },
         });
         return { stale: true as const };
       }
@@ -497,7 +558,13 @@ export class WatchReviewService {
           impact: stripWatchMarker(cs.summary),
         },
       });
-      const { detail } = await this.meri.verifyAppliedPlan(tx, tenantId, userId, cs.strategyId, ground);
+      const { detail } = await this.meri.verifyAppliedPlan(
+        tx,
+        tenantId,
+        userId,
+        cs.strategyId,
+        ground,
+      );
       const created = detail.nodes
         .filter((n) => !beforeNodeIds.has(n.id))
         .map((n) => ({ id: n.id, title: n.title }));
@@ -520,7 +587,9 @@ export class WatchReviewService {
       this.logger.warn(
         `Watch accept prevented on a stale head (change-set ${proposalId}) — the proposal was superseded`,
       );
-      throw new ConflictException('This plan changed since the proposal was made — refresh and try again.');
+      throw new ConflictException(
+        'This plan changed since the proposal was made — refresh and try again.',
+      );
     }
 
     // Immediately revalidate against the new head — old-head proposals must
@@ -617,7 +686,9 @@ export class WatchReviewService {
           );
         }
         if (r.strategyVersionId !== expectedVersionId) {
-          throw new ConflictException('One or more proposals are pinned to a version other than expectedVersionId');
+          throw new ConflictException(
+            'One or more proposals are pinned to a version other than expectedVersionId',
+          );
         }
       }
 
@@ -633,7 +704,9 @@ export class WatchReviewService {
           `[strategy:${strategyId}] Watch accept-all prevented on a stale head ` +
             `(expected ${expectedVersionId}, head ${head?.id ?? 'none'}, ${uniqueIds.length} proposals)`,
         );
-        throw new ConflictException('expectedVersionId is not the current head — refresh and try again');
+        throw new ConflictException(
+          'expectedVersionId is not the current head — refresh and try again',
+        );
       }
 
       const liveNodes = await tx.spNode.findMany({
@@ -648,13 +721,17 @@ export class WatchReviewService {
       // itself sortRank-derived from getState) — Prisma's `in` filter makes
       // no ordering guarantee, and watch-batch-order.ts's "stable proposal
       // order" contract needs a real anchor, not DB return order.
-      const orderedInputOps = uniqueIds.flatMap((id) => rowsById.get(id)!.ops as unknown as PlanEdit[]);
+      const orderedInputOps = uniqueIds.flatMap(
+        (id) => rowsById.get(id)!.ops as unknown as PlanEdit[],
+      );
       const orderResult = orderBatchOps(
         liveNodes.map((n) => ({ id: n.id, dependsOnIds: n.dependsOnIds })),
         orderedInputOps,
       );
       if (!orderResult.ok) {
-        throw new UnprocessableEntityException(`Cannot batch these proposals: ${orderResult.error.message}`);
+        throw new UnprocessableEntityException(
+          `Cannot batch these proposals: ${orderResult.error.message}`,
+        );
       }
 
       await this.meri.applyEditSet(tx, tenantId, strategyId, userId, orderResult.ops);
@@ -698,7 +775,13 @@ export class WatchReviewService {
           appliedVersionId,
         },
       });
-      const { detail } = await this.meri.verifyAppliedPlan(tx, tenantId, userId, strategyId, ground);
+      const { detail } = await this.meri.verifyAppliedPlan(
+        tx,
+        tenantId,
+        userId,
+        strategyId,
+        ground,
+      );
       const created = detail.nodes
         .filter((n) => !beforeNodeIds.has(n.id))
         .map((n) => ({ id: n.id, title: n.title }));
@@ -724,7 +807,10 @@ export class WatchReviewService {
     strategyId: string,
     lastRecheck: WatchRecheckResult | null,
   ): Promise<WatchReviewState> {
-    const strategy = await tx.spStrategy.findFirst({ where: { id: strategyId }, select: { id: true } });
+    const strategy = await tx.spStrategy.findFirst({
+      where: { id: strategyId },
+      select: { id: true },
+    });
     if (!strategy) throw new NotFoundException('Strategy not found');
 
     const head = await tx.spVersion.findFirst({
@@ -763,7 +849,12 @@ export class WatchReviewService {
     // Only current-head, proposed, watch-originated rows: an old-head
     // proposal is never actionable, and getState must never return one.
     const openChangeSets = await tx.spChangeSet.findMany({
-      where: { strategyId, status: 'proposed', watchKey: { not: null }, strategyVersionId: head.id },
+      where: {
+        strategyId,
+        status: 'proposed',
+        watchKey: { not: null },
+        strategyVersionId: head.id,
+      },
       orderBy: [{ createdAt: 'asc' }],
     });
 
@@ -779,7 +870,9 @@ export class WatchReviewService {
       // throw "referenced an unknown node") — vanish silently, no error card.
       if (targetIds.some((id) => !liveNodeIds.has(id))) continue;
       const finding = findingsByKey.get(cs.watchKey);
-      const primaryNodeTitle = targetIds.map((id) => nodeTitleById.get(id)).find((t): t is string => !!t);
+      const primaryNodeTitle = targetIds
+        .map((id) => nodeTitleById.get(id))
+        .find((t): t is string => !!t);
       rows.push({ cs, finding, primaryNodeTitle });
     }
 
@@ -892,7 +985,8 @@ function buildProposalCard(
     impact: finding?.impact ?? fallbackText,
     why: finding?.message ?? fallbackText,
     risk: cs.risk,
-    recheckStatus: cs.recheckStatus === 'unchanged' || cs.recheckStatus === 'updated' ? cs.recheckStatus : null,
+    recheckStatus:
+      cs.recheckStatus === 'unchanged' || cs.recheckStatus === 'updated' ? cs.recheckStatus : null,
   };
 }
 

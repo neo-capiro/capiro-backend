@@ -24,7 +24,15 @@
     "db:reset": "pnpm --filter @capiro/api prisma:reset",
     "verify:pe-phase-9": "pnpm -C apps/api run verify:pe-phase-9",
     "verify:pe-phase-9:full": "pnpm -C apps/api run verify:pe-phase-9:full",
-    "verify:pe-phase-10": "pnpm -C apps/api run verify:pe-phase-10"
+    "verify:pe-phase-10": "pnpm -C apps/api run verify:pe-phase-10",
+    "verify:meriv2-scripts": "node scripts/verify-meriv2-release-scripts.mjs",
+    "verify:meriv2-development": "pnpm verify:meriv2-scripts && node scripts/verify-meriv2-release.mjs --mode=development",
+    "verify:meriv2-release": "pnpm verify:meriv2-scripts && node scripts/verify-meriv2-release.mjs --mode=release",
+    "verify:meriv2-browser": "node scripts/run-meriv2-phase19-local.mjs",
+    "collect:meriv2-aws-context": "node scripts/collect-meriv2-aws-context.mjs",
+    "prepare:meriv2-ecs-release": "node scripts/prepare-meriv2-ecs-release.mjs",
+    "ship:meriv2-ecs-release": "node scripts/execute-meriv2-ecs-release.mjs",
+    "deploy:meriv2-operations-dark": "node scripts/deploy-meriv2-operations-dark.mjs"
   },
   "devDependencies": {
     "turbo": "^2.1.3",

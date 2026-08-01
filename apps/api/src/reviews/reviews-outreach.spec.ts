@@ -288,7 +288,12 @@ describe('module wiring (no Engagement <-> Reviews cycle)', () => {
   });
 
   test('all three Phase 0 services are registered as providers', () => {
-    const providersBlock = /providers:\s*\[([\s\S]*?)\]/.exec(engagementModule)?.[1] ?? '';
+    // Extract the providers array by BALANCING brackets. A lazy /\[([\s\S]*?)\]/
+    // stops at the first ']', which the closeout's multi-line
+    // `useFactory: createGovernedEngagementService, inject: [...]` provider now
+    // closes early — truncating the block before these three services and
+    // failing even though they are registered.
+    const providersBlock = bracketedBlock(engagementModule, 'providers');
     for (const provider of [
       'OutreachDraftService',
       'OutreachDraftAuditService',
@@ -298,3 +303,19 @@ describe('module wiring (no Engagement <-> Reviews cycle)', () => {
     }
   });
 });
+
+/** Return the contents of `key: [ ... ]`, honouring nested brackets. */
+function bracketedBlock(source: string, key: string): string {
+  const start = source.search(new RegExp(`${key}\\s*:\\s*\\[`));
+  if (start < 0) return '';
+  const open = source.indexOf('[', start);
+  let depth = 0;
+  for (let i = open; i < source.length; i += 1) {
+    if (source[i] === '[') depth += 1;
+    else if (source[i] === ']') {
+      depth -= 1;
+      if (depth === 0) return source.slice(open + 1, i);
+    }
+  }
+  return '';
+}

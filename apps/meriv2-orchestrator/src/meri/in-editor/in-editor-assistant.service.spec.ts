@@ -33,8 +33,6 @@ const clientRepo = {
   loadClientContext: async () => ({ client: { id: 'c', name: 'n' } }),
 } as unknown as ApiClientContextRepo;
 
-// Phase 1 M5.0 (H-1): the loop meters every round via recordAiUsageEvent,
-// which needs prisma.withTenant/withSystem. A no-op fake is enough here.
 const fakePrisma = {
   withTenant: async (_tenantId: string, fn: (tx: unknown) => Promise<unknown>) => fn({}),
   withSystem: async (fn: (tx: unknown) => Promise<unknown>) => fn({}),
@@ -74,12 +72,11 @@ describe('InEditorAssistantService.run', () => {
           json: async () => ({
             schemas: [
               { name: 'search_congress_bills', description: 'x', input_schema: { type: 'object' } },
-              { name: 'send_email', description: 'x', input_schema: { type: 'object' } }, // must be filtered out
+              { name: 'send_email', description: 'x', input_schema: { type: 'object' } },
             ],
           }),
         };
       }
-      // Anthropic: round 1 → tool_use; round 2 → propose_document_edits.
       anthropicCall += 1;
       if (anthropicCall === 1) {
         return anthropic(
@@ -112,10 +109,8 @@ describe('InEditorAssistantService.run', () => {
     expect(out.edits).toEqual([
       { op: 'replace_section', section: 'Summary', content: '<p>Updated.</p>' },
     ]);
-    // The data tool ran THROUGH the registry (delegated → fake executor).
     expect(executeSpy).toHaveBeenCalledTimes(1);
     expect(executeSpy.mock.calls[0]?.[1]).toBe('search_congress_bills');
-    // The step trace recorded the lookup.
     expect(out.steps?.some((s) => s.tool === 'search_congress_bills' && s.status === 'done')).toBe(
       true,
     );
@@ -164,9 +159,6 @@ describe('InEditorAssistantService.run', () => {
   });
 
   it('flags a PE structural mismatch on the proposed edits (verifier LLM disabled)', async () => {
-    // get_program_element returns an RDT&E PE; the proposed edit uses
-    // procurement-intent language against it => rdte_procurement_mismatch,
-    // computed deterministically without any verifier model call.
     const executor = {
       execute: jest.fn(async () => ({
         programElement: {
@@ -234,7 +226,7 @@ describe('InEditorAssistantService.run', () => {
       svc.run(ctx, { messages: [{ role: 'user', text: 'tighten the ask' }] }),
     );
 
-    expect(out.confidence).toBeUndefined(); // verifier disabled — no LLM claims pass
+    expect(out.confidence).toBeUndefined();
     expect(out.structuralWarnings).toHaveLength(1);
     expect(out.structuralWarnings?.[0]?.code).toBe('rdte_procurement_mismatch');
     expect(out.structuralWarnings?.[0]?.peCode).toBe('0207179F');
@@ -260,7 +252,6 @@ describe('InEditorAssistantService.run', () => {
       }
       anthropicCall += 1;
       if (anthropicCall === 1) {
-        // propose_document_edits straight away (no data tool needed)
         return anthropic(
           [
             {
@@ -282,7 +273,6 @@ describe('InEditorAssistantService.run', () => {
           'tool_use',
         );
       }
-      // The grounding-verifier completeJson call.
       return anthropic(
         [
           {
@@ -340,8 +330,6 @@ describe('InEditorAssistantService.run', () => {
           'tool_use',
         );
       }
-      // The grounding-verifier call fails. AnthropicLlmClient.completeJson
-      // always calls res.json() (even on !ok), unlike completeWithTools.
       return { ok: false, status: 500, json: async () => ({ error: { message: 'boom' } }) };
     });
 
@@ -354,5 +342,152 @@ describe('InEditorAssistantService.run', () => {
     expect(out.reply).toBe('Done.');
     expect(out.edits).toHaveLength(1);
     expect(out.confidence).toBeUndefined();
+  });
+});
+
+describe('InEditorAssistantService Phase 16 release gate', () => {
+  const HIGH_RISK_REQUEST =
+    'confirm the FY27 budget amount for PE 0604270F and whether the NDAA passed the House';
+  const UNSUPPORTED_EDIT =
+    '<p>PE 0604270F received $412.5 million in FY27 and the NDAA passed the House on July 1.</p>';
+
+  function driveProposeEdits(): jest.Mock {
+    const fetchMock = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            schemas: [
+              { name: 'search_congress_bills', description: 'x', input_schema: { type: 'object' } },
+            ],
+          }),
+        };
+      }
+      return anthropic(
+        [
+          {
+            type: 'tool_use',
+            id: 'tu1',
+            name: 'propose_document_edits',
+            input: {
+              reply: 'Applied the figures.',
+              edits: [{ op: 'replace_section', section: 'Summary', content: UNSUPPORTED_EDIT }],
+            },
+          },
+        ],
+        'tool_use',
+      );
+    });
+    (global as unknown as { fetch: unknown }).fetch = fetchMock;
+    return fetchMock as unknown as jest.Mock;
+  }
+
+  const originalSurfaces = process.env.MERI_RELEASE_GATE_SURFACES;
+  const originalGate = process.env.MERI_RELEASE_GATE;
+  const originalTenants = process.env.MERI_RELEASE_GATE_TENANTS;
+  afterEach(() => {
+    if (originalSurfaces === undefined) delete process.env.MERI_RELEASE_GATE_SURFACES;
+    else process.env.MERI_RELEASE_GATE_SURFACES = originalSurfaces;
+    if (originalGate === undefined) delete process.env.MERI_RELEASE_GATE;
+    else process.env.MERI_RELEASE_GATE = originalGate;
+    if (originalTenants === undefined) delete process.env.MERI_RELEASE_GATE_TENANTS;
+    else process.env.MERI_RELEASE_GATE_TENANTS = originalTenants;
+  });
+
+  it('is dark by default — unverified high-risk edits are returned unchanged', async () => {
+    delete process.env.MERI_RELEASE_GATE_SURFACES;
+    delete process.env.MERI_RELEASE_GATE;
+    delete process.env.MERI_RELEASE_GATE_TENANTS;
+    driveProposeEdits();
+    const svc = makeService({ execute: jest.fn() } as unknown as ApiToolExecutorRepo);
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      svc.run(ctx, { messages: [{ role: 'user', text: HIGH_RISK_REQUEST }] }),
+    );
+    expect(out.reply).toBe('Applied the figures.');
+    expect(out.edits).toEqual([
+      { op: 'replace_section', section: 'Summary', content: UNSUPPORTED_EDIT },
+    ]);
+  });
+
+  it('requires all three controls and does not infer a tenant canary', async () => {
+    process.env.MERI_RELEASE_GATE = 'enforce';
+    process.env.MERI_RELEASE_GATE_SURFACES = 'in-editor';
+    delete process.env.MERI_RELEASE_GATE_TENANTS;
+    driveProposeEdits();
+    const svc = makeService({ execute: jest.fn() } as unknown as ApiToolExecutorRepo);
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      svc.run(ctx, { messages: [{ role: 'user', text: HIGH_RISK_REQUEST }] }),
+    );
+    expect(out.edits).toHaveLength(1);
+  });
+
+  it('shadow computes verification but returns the original edits unchanged', async () => {
+    process.env.MERI_RELEASE_GATE = 'shadow';
+    process.env.MERI_RELEASE_GATE_TENANTS = 't1';
+    process.env.MERI_RELEASE_GATE_SURFACES = 'in-editor';
+    driveProposeEdits();
+    const svc = makeService({ execute: jest.fn() } as unknown as ApiToolExecutorRepo);
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      svc.run(ctx, { messages: [{ role: 'user', text: HIGH_RISK_REQUEST }] }),
+    );
+    expect(out.reply).toBe('Applied the figures.');
+    expect(out.edits).toEqual([
+      { op: 'replace_section', section: 'Summary', content: UNSUPPORTED_EDIT },
+    ]);
+  });
+
+  it('withholds the edits only for the explicitly canaried tenant in enforce', async () => {
+    process.env.MERI_RELEASE_GATE = 'enforce';
+    process.env.MERI_RELEASE_GATE_TENANTS = 't1';
+    process.env.MERI_RELEASE_GATE_SURFACES = 'in-editor';
+    driveProposeEdits();
+    const svc = makeService({ execute: jest.fn() } as unknown as ApiToolExecutorRepo);
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      svc.run(ctx, { messages: [{ role: 'user', text: HIGH_RISK_REQUEST }] }),
+    );
+    expect(out.edits).toEqual([]);
+    expect(out.reply).toMatch(/did not propose these edits/i);
+    expect(out.reply).toMatch(/Nothing was changed in your document/i);
+  });
+
+  it('leaves a non-canaried tenant unchanged', async () => {
+    process.env.MERI_RELEASE_GATE = 'enforce';
+    process.env.MERI_RELEASE_GATE_TENANTS = 'other-tenant';
+    process.env.MERI_RELEASE_GATE_SURFACES = 'in-editor';
+    driveProposeEdits();
+    const svc = makeService({ execute: jest.fn() } as unknown as ApiToolExecutorRepo);
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      svc.run(ctx, { messages: [{ role: 'user', text: HIGH_RISK_REQUEST }] }),
+    );
+    expect(out.edits).toHaveLength(1);
+  });
+
+  it('never withholds an advice-only turn, even when enforced', async () => {
+    process.env.MERI_RELEASE_GATE = 'enforce';
+    process.env.MERI_RELEASE_GATE_TENANTS = 't1';
+    process.env.MERI_RELEASE_GATE_SURFACES = 'all';
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clio/tool-schemas')) {
+        return { ok: true, status: 200, json: async () => ({ schemas: [] }) };
+      }
+      return anthropic(
+        [
+          {
+            type: 'tool_use',
+            id: 'tu1',
+            name: 'propose_document_edits',
+            input: { reply: 'I could not confirm the FY27 amount.', edits: [] },
+          },
+        ],
+        'tool_use',
+      );
+    });
+    const svc = makeService({ execute: jest.fn() } as unknown as ApiToolExecutorRepo);
+    const out = await RequestCredentialsStore.run({ bearerToken: 'jwt' }, () =>
+      svc.run(ctx, { messages: [{ role: 'user', text: HIGH_RISK_REQUEST }] }),
+    );
+    expect(out.reply).toBe('I could not confirm the FY27 amount.');
+    expect(out.edits).toEqual([]);
   });
 });

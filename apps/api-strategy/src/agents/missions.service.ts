@@ -150,9 +150,7 @@ export class MissionsService {
           err instanceof Prisma.PrismaClientKnownRequestError &&
           err.code === 'P2025'
         ) {
-          throw new ConflictException(
-            'mission state changed concurrently — re-read and retry',
-          );
+          throw new ConflictException('mission state changed concurrently — re-read and retry');
         }
         throw err;
       }

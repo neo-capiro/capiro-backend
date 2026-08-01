@@ -11,6 +11,12 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./assurance": {
+      "types": "./dist/assurance/index.d.ts",
+      "require": "./dist/assurance/index.js",
+      "import": "./dist/assurance/index.js",
+      "default": "./dist/assurance/index.js"
+    },
     "./grounding/auditor": {
       "types": "./dist/grounding/auditor.d.ts",
       "require": "./dist/grounding/auditor.js",
@@ -34,6 +40,30 @@
       "require": "./dist/context/compiler.js",
       "import": "./dist/context/compiler.js",
       "default": "./dist/context/compiler.js"
+    },
+    "./context/truthful-compiler": {
+      "types": "./dist/context/truthful-compiler.d.ts",
+      "require": "./dist/context/truthful-compiler.js",
+      "import": "./dist/context/truthful-compiler.js",
+      "default": "./dist/context/truthful-compiler.js"
+    },
+    "./context/context-rollout": {
+      "types": "./dist/context/context-rollout.d.ts",
+      "require": "./dist/context/context-rollout.js",
+      "import": "./dist/context/context-rollout.js",
+      "default": "./dist/context/context-rollout.js"
+    },
+    "./context/governed-columns": {
+      "types": "./dist/context/governed-columns.d.ts",
+      "require": "./dist/context/governed-columns.js",
+      "import": "./dist/context/governed-columns.js",
+      "default": "./dist/context/governed-columns.js"
+    },
+    "./context/context-release-switch": {
+      "types": "./dist/context/context-release-switch.d.ts",
+      "require": "./dist/context/context-release-switch.js",
+      "import": "./dist/context/context-release-switch.js",
+      "default": "./dist/context/context-release-switch.js"
     }
   },
   "scripts": {
@@ -50,6 +80,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@jest/globals": "^29.7.0",
     "@types/jest": "^29.5.13",
     "@types/node": "^20.16.10",
     "jest": "^29.7.0",

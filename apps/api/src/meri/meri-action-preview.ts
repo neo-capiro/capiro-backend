@@ -30,6 +30,22 @@ const TOOL_LABELS: Record<string, string> = {
   draft_policy_memo: 'Draft policy memo',
 };
 
+const PROFILE_FIELD_KEYS = [
+  'name',
+  'website',
+  'description',
+  'productDescription',
+  'primaryContactName',
+  'primaryContactEmail',
+  'primaryContactPhone',
+  'sectorTag',
+  'issueCodes',
+  'uei',
+  'cageCode',
+  'naicsCodes',
+  'pscCodes',
+] as const;
+
 function short(value: unknown, max = 240): string | undefined {
   if (typeof value !== 'string') return undefined;
   const normalized = value.replace(/\s+/g, ' ').trim();
@@ -50,7 +66,21 @@ function addField(
   if (text) target[key] = text;
 }
 
-/** Display-only informed-consent summary. It is never fed back into execution. */
+function profileFieldNames(input: Record<string, unknown>): string[] {
+  return PROFILE_FIELD_KEYS.filter((key) => {
+    const value = input[key];
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string') return value.trim().length > 0;
+    if (Array.isArray(value)) return value.length > 0;
+    return true;
+  });
+}
+
+/**
+ * Display-only informed-consent summary. It is never fed back into execution.
+ * The preview is deliberately allowlisted and bounded: no raw input JSON,
+ * credentials, attachment bodies, or full outbound message bodies reach the UI.
+ */
 export function buildMeriActionPreview(args: {
   tool: string;
   input: Record<string, unknown>;
@@ -75,6 +105,9 @@ export function buildMeriActionPreview(args: {
     'cadence',
     'destination',
     'intervalMinutes',
+    'dailyAtUtc',
+    'deliverEmailTo',
+    'emailBriefing',
     'scope',
     'memoryItemId',
   ]) {
@@ -87,10 +120,28 @@ export function buildMeriActionPreview(args: {
     }
   }
 
+  // Outbound content is sensitive. Show a bounded, whitespace-normalized preview
+  // only after the user explicitly expands it; never ship the full body in the
+  // preview contract. The immutable encrypted/persisted proposal remains the
+  // execution authority on the server.
+  if (tool === 'send_email' || tool === 'reply_email') {
+    const body = typeof input.body === 'string' ? input.body : '';
+    const bodyPreview = short(body, 500);
+    if (bodyPreview) fields.bodyPreview = bodyPreview;
+    fields.bodyCharacters = body.length;
+  }
+
   for (const key of ['people', 'facilities', 'capabilities', 'recipients', 'attachments']) {
     if (Array.isArray(input[key])) counts[key] = input[key].length;
   }
-  if (input.fields && typeof input.fields === 'object' && !Array.isArray(input.fields)) {
+
+  if (tool === 'update_client_profile') {
+    const changed = profileFieldNames(input);
+    if (changed.length) {
+      fields.changedFields = short(changed.join(', '), 500) ?? changed.join(', ');
+      counts.profileFields = changed.length;
+    }
+  } else if (input.fields && typeof input.fields === 'object' && !Array.isArray(input.fields)) {
     counts.profileFields = Object.keys(input.fields as Record<string, unknown>).length;
   }
 

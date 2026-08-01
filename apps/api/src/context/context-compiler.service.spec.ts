@@ -43,6 +43,15 @@ describe('ContextCompilerService (apps/api adapter)', () => {
           packetCreates.push(args);
           return args;
         }),
+        // Phase 7 persistence is truthful: the adapter re-reads the row it just
+        // wrote and only reports success when the id reads back. A mock without
+        // findFirst makes every persist fail read-after-write, which leaves
+        // packetId null by design. Model the real store.
+        findFirst: jest.fn(async (args: { where?: { id?: string } }) => {
+          const id = args?.where?.id;
+          const written = packetCreates.some((entry) => entry.data.id === id);
+          return written && id ? { id } : null;
+        }),
       },
     };
     const prisma = {
@@ -107,7 +116,11 @@ describe('ContextCompilerService (apps/api adapter)', () => {
     expect(packet.exclusions).toEqual([expect.objectContaining({ id: 'mi-r', reason: 'revoked' })]);
     expect(packetCreates).toHaveLength(1);
     const data = packetCreates[0]!.data;
-    expect(data.id).toBe(packet.packetId);
+    // The compiler generates the id; packetId is only populated once the
+    // read-after-write confirms persistence, and both must be that same id.
+    expect(data.id).toBe(packet.generatedPacketId);
+    expect(packet.persisted).toBe(true);
+    expect(packet.packetId).toBe(packet.generatedPacketId);
     expect(data.surface).toBe('chat');
     expect(data.itemCount).toBe(1);
     expect(data.exclusionCount).toBe(1);

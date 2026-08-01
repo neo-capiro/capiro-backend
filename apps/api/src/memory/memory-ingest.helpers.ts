@@ -152,18 +152,23 @@ export function meetingToItem(input: MeetingInput): MemoryItem {
         key: 'prep',
         heading: 'Prep',
         owner: 'engine',
-        body: [input.prep.trim(), input.wikilinks.length ? `\nRelated: ${input.wikilinks.join(' ')}` : '']
+        body: [
+          input.prep.trim(),
+          input.wikilinks.length ? `\nRelated: ${input.wikilinks.join(' ')}` : '',
+        ]
           .join('\n')
           .trimEnd(),
       },
       { key: 'debrief', heading: 'Debrief', owner: 'human', body: '' },
       ...(input.debriefBody && input.debriefBody.trim()
-        ? [{
-            key: 'debrief-recorded',
-            heading: 'Debrief (recorded)',
-            owner: 'engine' as const,
-            body: `${input.debriefBody.trim()}\n\n_Projected from the meeting debrief (tenant-visible). Not embedded._`,
-          }]
+        ? [
+            {
+              key: 'debrief-recorded',
+              heading: 'Debrief (recorded)',
+              owner: 'engine' as const,
+              body: `${input.debriefBody.trim()}\n\n_Projected from the meeting debrief (tenant-visible). Not embedded._`,
+            },
+          ]
         : []),
     ],
   };
@@ -238,9 +243,11 @@ export function buildPromotionCandidate(
 }
 
 function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 60) || 'untitled';
+  return (
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'untitled'
+  );
 }

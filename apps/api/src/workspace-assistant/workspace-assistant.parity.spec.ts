@@ -34,6 +34,8 @@ const ctx: TenantContext = {
 
 interface HarnessOptions {
   clientExists?: boolean;
+  /** Simulate a walled client the caller holds no grant for (closeout §6). */
+  ethicalWallDenied?: boolean;
   packetPersisted?: boolean;
   usedTenantKey?: boolean;
   /** Rendered steering rows the compiler returns. */
@@ -120,6 +122,12 @@ function harness(opts: HarnessOptions = {}) {
             return opts.clientExists === false ? null : { id: args.where.id };
           },
         },
+        // Server-derived ethical-wall probe (closeout §6): `clientMemoryAllowed`
+        // runs on this same transaction, right after the existence check.
+        // Allowed by default so these parity fixtures keep testing scoping; the
+        // wall's fail-closed behaviour is covered in meriv2-core's compiler-v2
+        // spec, which is where the decision is actually enforced.
+        $queryRawUnsafe: async () => [{ allowed: opts.ethicalWallDenied !== true }],
       });
     },
   } as never;

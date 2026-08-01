@@ -70,11 +70,22 @@ export function buildKnowledgeGraph(
   const nodes = new Map<string, GraphNode>();
   const edges = new Map<string, GraphEdge>();
 
-  const addNode = (type: string, slug: string, label?: string, attrs?: Record<string, string>): string => {
+  const addNode = (
+    type: string,
+    slug: string,
+    label?: string,
+    attrs?: Record<string, string>,
+  ): string => {
     const id = nodeId(type, slug);
     const existing = nodes.get(id);
     if (!existing) {
-      nodes.set(id, { id, type, slug, label: label ?? slug, ...(attrs && Object.keys(attrs).length ? { attrs } : {}) });
+      nodes.set(id, {
+        id,
+        type,
+        slug,
+        label: label ?? slug,
+        ...(attrs && Object.keys(attrs).length ? { attrs } : {}),
+      });
     } else {
       if (label && existing.label === existing.slug) {
         // upgrade a slug-only label when a real one arrives
@@ -87,12 +98,7 @@ export function buildKnowledgeGraph(
     return id;
   };
 
-  const addEdge = (
-    src: string,
-    dst: string,
-    relation: string,
-    origin: 'fk' | 'mention',
-  ): void => {
+  const addEdge = (src: string, dst: string, relation: string, origin: 'fk' | 'mention'): void => {
     const key = `${src}|${relation}|${dst}|${origin}`;
     if (!edges.has(key)) edges.set(key, { src, dst, relation, origin });
   };
@@ -149,11 +155,7 @@ export function restrictGraphToClient(graph: KnowledgeGraph, clientNodeId: strin
  * like "our history with this office on this issue" by returning the connected
  * subgraph. Deterministic ordering for stable rendering + tests.
  */
-export function walkFrom(
-  graph: KnowledgeGraph,
-  seedId: string,
-  depth: number,
-): KnowledgeGraph {
+export function walkFrom(graph: KnowledgeGraph, seedId: string, depth: number): KnowledgeGraph {
   const adjacency = new Map<string, GraphEdge[]>();
   for (const e of graph.edges) {
     (adjacency.get(e.src) ?? adjacency.set(e.src, []).get(e.src)!).push(e);
@@ -183,9 +185,7 @@ export function walkFrom(
   }
 
   return {
-    nodes: graph.nodes
-      .filter((n) => keptNodes.has(n.id))
-      .sort((a, b) => a.id.localeCompare(b.id)),
+    nodes: graph.nodes.filter((n) => keptNodes.has(n.id)).sort((a, b) => a.id.localeCompare(b.id)),
     edges: Array.from(keptEdges).sort((a, b) =>
       `${a.src}${a.relation}${a.dst}`.localeCompare(`${b.src}${b.relation}${b.dst}`),
     ),

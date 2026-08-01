@@ -39,6 +39,11 @@ import {
 import { evaluateEligibility, type EligibilityResult } from './execution-eligibility.js';
 import { stampRunMetrics, type RunMetricsInput } from './run-metrics.js';
 import { PENDING_ARTIFACT_REF } from './artifact-ref.js';
+import {
+  GENERATION_ASSURANCE_HOLD_REASON,
+  assessGeneratedDocumentForRelease,
+  generationReleaseHoldEnforced,
+} from './execution-assurance.js';
 import { isActionAllowed, reasonForState } from './run-state.js';
 import type {
   CreateRunDto,
@@ -337,8 +342,7 @@ export class ExecutionService {
       openMaterialConflicts: health.openMaterialConflicts,
     };
 
-    const versionDrift =
-      meta.pinnedVersionId != null && headVersionId !== meta.pinnedVersionId;
+    const versionDrift = meta.pinnedVersionId != null && headVersionId !== meta.pinnedVersionId;
     const chain = this.chainOf(targetNode.id, strategy.nodes);
     const violations = this.verify(strategy.type, strategy.nodes, ground);
     const chainErrors = violations.filter(
@@ -424,7 +428,12 @@ export class ExecutionService {
    *    send is NEVER performed (Stage-H hard boundary);
    *  - a do-not-contact-blocked outreach => park with the block finding.
    */
-  async execute(tenantId: string, userId: string | null, bearer: string | undefined, runId: string) {
+  async execute(
+    tenantId: string,
+    userId: string | null,
+    bearer: string | undefined,
+    runId: string,
+  ) {
     const run = await this.runs.get(tenantId, runId);
     const meta = this.readExecutionMeta(run);
     await this.assertKindEnabled(tenantId, meta.kind);
@@ -435,11 +444,7 @@ export class ExecutionService {
     // P0-2/P0-3: `approved` is the approval-bound entry into staging. `executing`
     // stays accepted so a re-entered (crash-resumed) run can continue, which is
     // what the write-ahead reservation exists to make safe.
-    if (
-      run.state !== 'ready_for_review' &&
-      run.state !== 'approved' &&
-      run.state !== 'executing'
-    ) {
+    if (run.state !== 'ready_for_review' && run.state !== 'approved' && run.state !== 'executing') {
       throw new ConflictException(
         `run is ${run.state} — only a reviewed or approved run can be executed`,
       );
@@ -554,6 +559,7 @@ export class ExecutionService {
     let sendPending = false;
     let blocked = false;
     let stagingIncomplete = false;
+    let generationHeld = false;
     // Stage-G grounded generation provenance for this phase's metrics stamp —
     // set only when a generation call actually ran and returned a model.
     let generationModel: string | undefined;
@@ -575,6 +581,7 @@ export class ExecutionService {
         );
         results[key] = staged;
         if (isStagingIncomplete(staged)) stagingIncomplete = true;
+        if (isGenerationHeld(staged)) generationHeld = true;
         generationModel ??= readGeneratedModel(staged);
       } else if (task.type === 'outreach_record') {
         const constraint = await this.checkClientConstraints(
@@ -604,12 +611,20 @@ export class ExecutionService {
           stagingIncomplete = true;
           continue; // skip the dependent await_send_approval task
         }
+        if (isGenerationHeld(staged)) {
+          generationHeld = true;
+          continue; // no artifact exists and there is nothing to approve/send
+        }
       } else {
         // await_send_approval: compute the send token, park — NEVER send.
-        if (blocked || stagingIncomplete) {
+        if (blocked || stagingIncomplete || generationHeld) {
           results[key] = {
             status: 'skipped',
-            reason: blocked ? 'outreach blocked' : 'outreach staging incomplete',
+            reason: blocked
+              ? 'outreach blocked'
+              : generationHeld
+                ? 'outreach generation held by assurance'
+                : 'outreach staging incomplete',
           };
           continue;
         }
@@ -633,13 +648,41 @@ export class ExecutionService {
       ? { model: generationModel, promptSpecVersion: EXECUTION_DOC_PROMPT_SPEC }
       : undefined;
 
+    if (generationHeld) {
+      await this.runs.transition(tenantId, userId, runId, {
+        to: 'waiting_for_input',
+        waitingReason: GENERATION_ASSURANCE_HOLD_REASON,
+        findings: {
+          results,
+          assurance: { decision: 'hold', reason: GENERATION_ASSURANCE_HOLD_REASON },
+        },
+      } as TransitionRunDto);
+      return this.settlePhase(
+        tenantId,
+        userId,
+        runId,
+        meta.missionId,
+        'execute',
+        phaseStart,
+        generation,
+      );
+    }
+
     if (stagingIncomplete) {
       await this.runs.transition(tenantId, userId, runId, {
         to: 'waiting_for_input',
         waitingReason: STAGING_INCOMPLETE_REASON,
         findings: { results, ...(sendApproval ? { sendApproval } : {}) },
       } as TransitionRunDto);
-      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart, generation);
+      return this.settlePhase(
+        tenantId,
+        userId,
+        runId,
+        meta.missionId,
+        'execute',
+        phaseStart,
+        generation,
+      );
     }
     if (blocked) {
       await this.runs.transition(tenantId, userId, runId, {
@@ -647,7 +690,15 @@ export class ExecutionService {
         waitingReason: 'outreach blocked by a client do-not-contact constraint',
         findings: { results, ...(sendApproval ? { sendApproval } : {}) },
       } as TransitionRunDto);
-      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart, generation);
+      return this.settlePhase(
+        tenantId,
+        userId,
+        runId,
+        meta.missionId,
+        'execute',
+        phaseStart,
+        generation,
+      );
     }
     if (sendPending) {
       // The run does NOT auto-complete while a send is pending — it parks for a
@@ -657,7 +708,15 @@ export class ExecutionService {
         waitingReason: 'awaiting send approval',
         findings: { results, sendApproval },
       } as TransitionRunDto);
-      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart, generation);
+      return this.settlePhase(
+        tenantId,
+        userId,
+        runId,
+        meta.missionId,
+        'execute',
+        phaseStart,
+        generation,
+      );
     }
 
     // All non-send tasks done, nothing pending => STAGED, then complete.
@@ -676,7 +735,15 @@ export class ExecutionService {
     await this.runs.transition(tenantId, userId, runId, {
       to: 'completed',
     } as TransitionRunDto);
-    return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart, generation);
+    return this.settlePhase(
+      tenantId,
+      userId,
+      runId,
+      meta.missionId,
+      'execute',
+      phaseStart,
+      generation,
+    );
   }
 
   // ---- resume / cancel -----------------------------------------------------
@@ -797,6 +864,17 @@ export class ExecutionService {
         stewardHealth,
       }),
     );
+    const assurance = assessGeneratedDocumentForRelease(doc);
+    if (generationReleaseHoldEnforced() && !assurance.releaseable) {
+      await this.releaseArtifactReservation(tenantId, node.id, 'workspace_draft');
+      return {
+        status: 'generation_held',
+        reason: GENERATION_ASSURANCE_HOLD_REASON,
+        blockers: assurance.blockers,
+        model: doc?.model ?? undefined,
+        promptSpecVersion: EXECUTION_DOC_PROMPT_SPEC,
+      };
+    }
     const sections = this.buildWorkspaceSections(doc, node, strategy);
     // Gate title selection on the same signal buildWorkspaceSections uses for the
     // body (doc.sections.length) — a degenerate generation (title present, sections
@@ -866,6 +944,17 @@ export class ExecutionService {
         stewardHealth,
       }),
     );
+    const assurance = assessGeneratedDocumentForRelease(doc);
+    if (generationReleaseHoldEnforced() && !assurance.releaseable) {
+      await this.releaseArtifactReservation(tenantId, node.id, 'outreach_record');
+      return {
+        status: 'generation_held',
+        reason: GENERATION_ASSURANCE_HOLD_REASON,
+        blockers: assurance.blockers,
+        model: doc?.model ?? undefined,
+        promptSpecVersion: EXECUTION_DOC_PROMPT_SPEC,
+      };
+    }
     // Gate title selection on the same signal the body uses (doc.sections.length)
     // — mirrors stageWorkspace's docTitle gating: a degenerate generation (title
     // present, sections empty/sanitized-away) must fall back to node.title for
@@ -1012,6 +1101,22 @@ export class ExecutionService {
   }
 
   /**
+   * Release a reservation only when assurance holds BEFORE the external create.
+   * A real artifact reference is never deleted here.
+   */
+  private async releaseArtifactReservation(
+    tenantId: string,
+    nodeId: string,
+    artifactType: 'workspace_draft' | 'outreach_record',
+  ): Promise<void> {
+    await this.prisma.withTenant(tenantId, (tx) =>
+      tx.spNodeArtifact.deleteMany({
+        where: { nodeId, artifactType, artifactRef: PENDING_ARTIFACT_REF },
+      }),
+    );
+  }
+
+  /**
    * Finalize a staged artifact: retire the write-ahead reservation, record the node
    * -> artifact back-link with the REAL ref, AND advance the node's status
    * draft/suggested -> in_progress — but NEVER past it (DO NOT submit; stop before
@@ -1032,7 +1137,10 @@ export class ExecutionService {
     artifactRef: string,
     /** Stage-G grounded generation provenance (Task e2) — omitted on the
      *  deterministic fallback path (doc: null). */
-    generation?: { doc: { model: string | null; sections: DocumentDraftSection[] } | null; stewardFactCount: number },
+    generation?: {
+      doc: { model: string | null; sections: DocumentDraftSection[] } | null;
+      stewardFactCount: number;
+    },
   ): Promise<void> {
     const advance = node.status === 'draft' || node.status === 'suggested';
     const refs = citedFactRefs(generation?.doc?.sections ?? []);
@@ -1606,7 +1714,10 @@ export class ExecutionService {
         // read from this, so a node archived AFTER the plan was reviewed makes
         // execute() fail closed instead of staging against plan history.
         include: {
-          nodes: { where: { ...LIVE_NODE_WHERE }, orderBy: [{ startsOn: 'asc' }, { createdAt: 'asc' }] },
+          nodes: {
+            where: { ...LIVE_NODE_WHERE },
+            orderBy: [{ startsOn: 'asc' }, { createdAt: 'asc' }],
+          },
         },
       });
       if (!strategy) throw new NotFoundException('Strategy not found');
@@ -1625,8 +1736,10 @@ export class ExecutionService {
   /** Workspace expects the client NAME (unlike outreach's clientId). Tenant-scoped raw read. */
   private async resolveClientName(tenantId: string, clientId: string | null): Promise<string> {
     if (!clientId) return 'Client';
-    const rows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRaw<Array<{ name: string }>>`
+    const rows = await this.prisma.withTenant(
+      tenantId,
+      (tx) =>
+        tx.$queryRaw<Array<{ name: string }>>`
         SELECT name FROM clients WHERE id = ${clientId}::uuid AND tenant_id = ${tenantId}::uuid LIMIT 1`,
     );
     return rows[0]?.name ?? 'Client';
@@ -1812,7 +1925,13 @@ export class ExecutionService {
     if (!recipient) {
       return { lastStep: 3, metadata: { lastStepId: 'recipients' } };
     }
-    const target = { key: 'node-target', type: 'individual', recipients: [recipient], cc: [], bcc: [] };
+    const target = {
+      key: 'node-target',
+      type: 'individual',
+      recipients: [recipient],
+      cc: [],
+      bcc: [],
+    };
     if (!generated || !htmlBody) {
       return { lastStep: 3, metadata: { lastStepId: 'recipients', targets: [target] } };
     }
@@ -1990,7 +2109,11 @@ function asObject(v: unknown): Record<string, unknown> | null {
  * thing being approved is an external transmission rather than internal staging.
  * Keyed off the same waitingReason the send park writes.
  */
-function isSendPark(run: { state?: unknown; waitingReason?: unknown; findings?: unknown }): boolean {
+function isSendPark(run: {
+  state?: unknown;
+  waitingReason?: unknown;
+  findings?: unknown;
+}): boolean {
   if (run.state !== 'waiting_for_input') return false;
   if (typeof run.waitingReason === 'string' && /awaiting send approval/i.test(run.waitingReason)) {
     return true;
@@ -2001,6 +2124,10 @@ function isSendPark(run: { state?: unknown; waitingReason?: unknown; findings?: 
 /** A stage result that signals a surviving write-ahead reservation (parks the run). */
 function isStagingIncomplete(result: unknown): boolean {
   return asObject(result)?.status === 'staging_incomplete';
+}
+
+function isGenerationHeld(result: unknown): boolean {
+  return asObject(result)?.status === 'generation_held';
 }
 
 function escapeHtml(value: string): string {
@@ -2052,8 +2179,8 @@ function isWellFormedSection(s: unknown): s is DocumentDraftSection {
  */
 function targetDisplayName(target: NodeTargetRef): string {
   const name = target.memberName?.trim() || target.memberId;
-  const parts = [target.party, target.state, target.chamber].filter(
-    (p): p is string => Boolean(p?.trim()),
+  const parts = [target.party, target.state, target.chamber].filter((p): p is string =>
+    Boolean(p?.trim()),
   );
   return parts.length ? `${name} (${parts.join(', ')})` : name;
 }

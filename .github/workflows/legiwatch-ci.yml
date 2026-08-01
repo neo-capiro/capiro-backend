@@ -71,6 +71,11 @@ jobs:
   legiwatch:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # The enumerated apps/api Jest run repeatedly exceeded Node's default
+    # ~2 GiB heap before it could write its JSON summary. Keep one worker
+    # and a bounded larger heap so the absolute-zero gate is deterministic.
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -111,7 +116,7 @@ jobs:
       # that Documents boundary but must never reuse alert-memo/save.
       - name: Tests — apps/api LegiWatch scope
         run: >
-          pnpm --filter @capiro/api exec jest --ci --silent
+          pnpm --filter @capiro/api exec jest --ci --silent --runInBand
           --json --outputFile=$GITHUB_WORKSPACE/api-summary.json
           src/tracker/
           src/intelligence/alert-memo/

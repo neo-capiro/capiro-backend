@@ -229,7 +229,11 @@ export class RunsService {
       // P0-2: all three failure states carry the reason (was: only legacy 'failed').
       if (RUN_FAILURE_STATES.has(dto.to)) data.error = dto.error ?? null;
       if (dto.findings !== undefined) {
-        if (typeof dto.findings !== 'object' || dto.findings === null || Array.isArray(dto.findings)) {
+        if (
+          typeof dto.findings !== 'object' ||
+          dto.findings === null ||
+          Array.isArray(dto.findings)
+        ) {
           throw new BadRequestException('findings must be a JSON object');
         }
         // Shallow-merge onto existing findings (later runs accumulate keys).
@@ -417,7 +421,11 @@ export class RunsService {
         entityType: 'run',
         entityId: next.id,
         before: { priorRunId: prior.id, priorState: lockedState },
-        after: { attempt, idempotencyKey, supersededPrior: RUN_SUPERSEDABLE_STATES.has(lockedState) },
+        after: {
+          attempt,
+          idempotencyKey,
+          supersededPrior: RUN_SUPERSEDABLE_STATES.has(lockedState),
+        },
       });
       return next;
     });
@@ -435,7 +443,9 @@ export class RunsService {
         // baseKey and every `baseKey#n`. `startsWith` alone would also match a
         // DIFFERENT kind whose key is a prefix extension, so the family is
         // narrowed to exactly the base key or the base key + '#'.
-        where: { OR: [{ idempotencyKey: baseKey }, { idempotencyKey: { startsWith: `${baseKey}#` } }] },
+        where: {
+          OR: [{ idempotencyKey: baseKey }, { idempotencyKey: { startsWith: `${baseKey}#` } }],
+        },
         orderBy: [{ attempt: 'asc' }, { createdAt: 'asc' }],
         take: 50,
       }),

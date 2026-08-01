@@ -5,7 +5,11 @@ import type { PrismaService } from '../prisma/prisma.service';
 import type { OrchestratorTenantContext } from '../auth/tenant-context';
 
 function prismaWithUser(user: { id: string } | null): PrismaService {
-  return { user: { findUnique: async () => user } } as unknown as PrismaService;
+  return {
+    user: { findUnique: async () => user },
+    withTenant: async (_tenantId: string, fn: (tx: unknown) => unknown) =>
+      fn({ client: { findMany: async () => [] } }),
+  } as unknown as PrismaService;
 }
 
 function compilerWith(
@@ -14,6 +18,20 @@ function compilerWith(
   return {
     compile: jest.fn(async () => ({
       packetId: 'pkt-1',
+      generatedPacketId: 'pkt-1',
+      persistedPacketId: 'pkt-1',
+      persisted: true,
+      persistenceErrorCode: null,
+      compiledAt: '2026-07-29T12:00:00.000Z',
+      version: 1,
+      surface: 'ga-chat',
+      tenantId: 't1',
+      effectiveTenantId: 't1',
+      actorUserId: 'user-9',
+      userId: 'user-9',
+      clientId: null,
+      ref: {},
+      traceHash: 'hash-1',
       rendered: rendered.map((r, i) => ({ id: `mi-${i}`, slug: 'x', title: null, ...r })),
       items: [],
       exclusions: [],
@@ -36,27 +54,33 @@ describe('MeriContextResolver', () => {
       userId: 'user-9',
       clerkUserId: 'clerk_1',
       role: 'standard_user',
+      contextPacket: {
+        packetId: 'pkt-1',
+        persisted: true,
+        persistenceErrorCode: null,
+        compiledAt: '2026-07-29T12:00:00.000Z',
+        surface: 'ga-chat',
+        clientId: null,
+        items: [],
+        exclusions: [],
+        unauthorizedCount: 0,
+        degraded: false,
+      },
     });
   });
 
-  it('maps an admin org role to user_admin (conservative, never escalates)', async () => {
+  it('maps an admin org role to user_admin conservatively', async () => {
     const r = new MeriContextResolver(prismaWithUser({ id: 'u' }), compilerWith([]));
     expect((await r.resolve({ ...tc, role: 'org:admin' })).role).toBe('user_admin');
     expect((await r.resolve({ ...tc, role: null })).role).toBe('standard_user');
   });
 
-  it('fails closed (401) when the verified identity has no Capiro user', async () => {
+  it('fails closed when the verified identity has no Capiro user', async () => {
     const r = new MeriContextResolver(prismaWithUser(null), compilerWith([]));
     await expect(r.resolve(tc)).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
-  // G1-b: firm identity + user voice load through the shared Context Compiler
-  // with the RESOLVED Capiro userId. The withTenantUser/1C tenancy discipline
-  // — whose absence silently zeroed GA-chat voice on 2026-07-12 — lives in the
-  // adapter now (locked by context-compiler.service.spec); what this resolver
-  // must guarantee is that it asks for the right layers with the right
-  // identity and maps the packet onto MeriContext.
-  it('compiles firm-identity + user-voice with the resolved Capiro userId', async () => {
+  it('compiles firm identity and user voice with the resolved Capiro userId', async () => {
     const compiler = compilerWith([
       { layer: 'firm-identity', type: 'firm-soul', body: 'Who: Us.' },
       { layer: 'firm-identity', type: 'firm-compass', body: 'Where: Up.' },
@@ -67,15 +91,16 @@ describe('MeriContextResolver', () => {
 
     expect(compiler.compile).toHaveBeenCalledWith({
       tenantId: 't1',
-      userId: 'user-9', // the RESOLVED Capiro uuid, never the Clerk id
+      userId: 'user-9',
       surface: 'ga-chat',
       layers: ['firm-identity', 'user-voice'],
+      ref: {},
     });
     expect(ctx.firmMemory).toEqual({ soul: 'Who: Us.', compass: 'Where: Up.' });
     expect(ctx.userVoice).toContain('Direct and concise.');
   });
 
-  it('a compile failure is non-fatal: context resolves without firm/voice blocks', async () => {
+  it('a compile failure is non-fatal on chat and returns degraded provenance', async () => {
     const compiler = {
       compile: jest.fn().mockRejectedValue(new Error('db down')),
     } as unknown as OrchestratorContextCompilerService;
@@ -84,5 +109,8 @@ describe('MeriContextResolver', () => {
     expect(ctx.userId).toBe('user-9');
     expect(ctx.firmMemory).toBeUndefined();
     expect(ctx.userVoice).toBeUndefined();
+    expect(ctx.contextPacket).toEqual(
+      expect.objectContaining({ packetId: null, persisted: false, degraded: true }),
+    );
   });
 });

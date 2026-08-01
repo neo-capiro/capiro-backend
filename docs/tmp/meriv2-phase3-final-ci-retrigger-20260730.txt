@@ -1,0 +1,5 @@
+MeriV2 Phase 3 final CI retrigger.
+
+The runtime implementation, targeted tests, acceptance record, and cleanup are complete. This documentation-only commit retriggers normal PR checks after GitHub marked the workflow-authored acceptance commit action_required without creating jobs.
+
+No runtime behavior, Program Element source, migration, backfill, feature flag, AWS resource, customer data, or main branch is changed.

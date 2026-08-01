@@ -11,12 +11,15 @@ import { AlarmsStack } from '../lib/alarms-stack';
 import { AssetsStack } from '../lib/assets-stack';
 
 /**
- * Capiro CDK app. Stacks are deployed in dependency order:
- *   Network → Dns → Data → Secrets → Compute
+ * Primary Capiro infrastructure app. Stacks are deployed in dependency order:
+ *   Network → Dns → Data → Secrets → Assets → Compute → Alarms
  *
- * `cdk deploy --all --context env=dev --context account=<id>` will respect
- * the dependency graph below. Individual stacks can also be deployed by
- * name when iterating.
+ * IMPORTANT: the live environment named `dev` serves production traffic and its
+ * historical Compute stack is drifted/frozen. Do not use `cdk deploy --all` as
+ * the MeriV2 release path. The governed-memory projection worker and MeriV2
+ * control monitor are deliberately owned only by `bin/meriv2-operations.ts`,
+ * which imports live resources by literal identifier and cannot mutate this
+ * app's DNS, ALB, Aurora, or long-running ECS services.
  */
 const app = new cdk.App();
 const cfg = loadConfig(app);

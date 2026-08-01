@@ -42,6 +42,10 @@ import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
 import { MemoryStoreService } from '../memory/memory-store.service.js';
 import { fetchDeniedClientIds, wallExclusionSql } from '../memory/memory-wall.helpers.js';
+import {
+  governedRecallSuppressionEnabled,
+  governedRecallSuppressionSql,
+} from '../memory/memory-recall-suppression.helpers.js';
 import { enrichFromKgCache } from '../memory/kg-cache-enrich.helpers.js';
 import { pickKgTraversalSource, type KgTraversalSource } from './memory-recall-source.helpers.js';
 import {
@@ -1722,12 +1726,11 @@ export class MeriToolsService {
   }
 
   /**
-   * Phase 1 (1B): every save now goes through a memory_candidate row first
-   * (MemoryCandidateService.proposeSaveMemory). Personal-scope and an
-   * admin's own firm-scope save still commit in this same call — same
-   * latency/behavior as before 1B. A non-admin's firm-scope save no longer
-   * dead-ends in a rejection message; it becomes a real pending candidate
-   * any admin can approve via GET/POST /memory/candidates.
+   * Phase 1 (1B): every save goes through a memory_candidate row first
+   * (MemoryCandidateService.proposeSaveMemory). Personal-scope saves commit in
+   * this same call. Firm- and client-scope saves ALWAYS become a pending
+   * candidate — including an administrator's own (closeout §2.2) — which a
+   * different authorized reviewer approves via GET/POST /memory/candidates.
    */
   private async saveMemory(ctx: TenantContext, input: Record<string, unknown>) {
     const content = requiredString(input, 'content', 4000);
@@ -1771,7 +1774,11 @@ export class MeriToolsService {
         saved: false,
         scope: pendingLabel,
         candidateId: result.candidateId,
-        message: `I've proposed this as ${pendingLabel === 'client' ? 'client-scope' : 'firm-wide'} memory; an admin needs to approve it before it becomes shared truth. I can save it as your personal memory right now instead — just say so.`,
+        // Says "another authorized reviewer", not "an admin": an administrator
+        // proposing shared memory also lands here and cannot approve their own
+        // candidate, so "an admin needs to approve it" would read as though the
+        // proposer could go do it themselves.
+        message: `I've proposed this as ${pendingLabel === 'client' ? 'client-scope' : 'firm-wide'} memory; another authorized reviewer needs to approve it before it becomes shared truth. I can save it as your personal memory right now instead — just say so.`,
       };
     }
 
@@ -1958,6 +1965,13 @@ export class MeriToolsService {
         FROM memory_items
         WHERE (owner_user_id IS NULL OR owner_user_id = ${ctx.userId}::uuid)
           ${Prisma.raw(wallExclusionSql(denied, 'client_id'))}
+          -- Pre-existing defect this closes: query_knowledge_graph / find_path_to
+          -- filtered NO status at all, so revoked and superseded items still
+          -- surfaced to the model as graph nodes. Fixing it WITHHOLDS content that
+          -- is visible today, so it rides the same dark switch rather than shipping
+          -- armed. The legacy status column is deliberately still not filtered
+          -- here: narrowing that is a behaviour change with its own blast radius.
+          ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled()))}
       `;
         const itemNodeById = new Map(
           items.map((i) => [i.id, { type: i.type, slug: i.slug, label: i.title }]),
@@ -1970,6 +1984,7 @@ export class MeriToolsService {
         JOIN memory_items i ON i.id = e.src_item_id
         WHERE (i.owner_user_id IS NULL OR i.owner_user_id = ${ctx.userId}::uuid)
           ${Prisma.raw(wallExclusionSql(denied, 'i.client_id'))}
+          ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled(), 'i'))}
       `;
         // FK relations (structural backbone): client->bill/issue/person, meeting->client
         const fk: FkRelation[] = [];
@@ -2210,7 +2225,14 @@ export class MeriToolsService {
             AND (mi.owner_user_id IS NULL OR mi.owner_user_id = $2::uuid)
             AND mi.status = 'active'
             AND (mi.expires_at IS NULL OR mi.expires_at > now())
-            AND ($3::uuid IS NULL OR mi.client_id IS NULL OR mi.client_id = $3::uuid)${wallExclusionSql(denied, 'mi.client_id')}
+            -- Four INDEPENDENT recall filters, all required; the merge of #690 and
+            -- this branch had each side adding one the other lacked.
+            --   $3 client scope (#690): a client-scoped session must not recall
+            --     another client's memory. NULL client_id = firm-wide, still visible.
+            --   wallExclusionSql: ethical wall — clients this user holds no grant for.
+            --   governedRecallSuppressionSql: governed lifecycle status (pending,
+            --     superseded, revoked, conflicted) once the flag is armed.
+            AND ($3::uuid IS NULL OR mi.client_id IS NULL OR mi.client_id = $3::uuid)${wallExclusionSql(denied, 'mi.client_id')}${governedRecallSuppressionSql(governedRecallSuppressionEnabled(), 'mi')}
           ORDER BY ce.embedding <=> '${literal}'::vector
           LIMIT ${k}`,
             ctx.tenantId,

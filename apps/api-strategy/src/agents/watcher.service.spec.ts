@@ -1,8 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import {
-  BadRequestException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { WatcherService, computeArtifactMismatches } from './watcher.service.js';
 import { RunsService } from './runs.service.js';
@@ -61,8 +58,7 @@ function makeStore() {
   let seq = 0;
   const nextId = (p: string) => `${p}-${++seq}`;
   const nodesFor = (sid: string) => [...nodes.values()].filter((n) => n.strategyId === sid);
-  const artifactsFor = (sid: string) =>
-    [...artifacts.values()].filter((a) => a.strategyId === sid);
+  const artifactsFor = (sid: string) => [...artifacts.values()].filter((a) => a.strategyId === sid);
   return {
     missions,
     strategies,
@@ -168,8 +164,7 @@ function seedNode(store: Store, overrides: Partial<Rec> & { id: string }): void 
 function makeTx(store: Store, lock: (key: string) => Promise<void> = async () => {}) {
   const now = new Date();
   const spAgentMission = {
-    findFirst: async ({ where }: { where: { id: string } }) =>
-      store.missions.get(where.id) ?? null,
+    findFirst: async ({ where }: { where: { id: string } }) => store.missions.get(where.id) ?? null,
   };
   // Raw SELECT ... FOR UPDATE gates (explicit tenant_id): the mission gate in
   // RunsService.createRun (locking modelled as a no-op — nothing here contends
@@ -319,13 +314,7 @@ function makeTx(store: Store, lock: (key: string) => Promise<void> = async () =>
       }),
     // CAS write (ChangeSetsService.refreshProposedOps): the where carries the
     // expected status; a mismatch is count 0 like Postgres.
-    updateMany: async ({
-      where,
-      data,
-    }: {
-      where: { id: string; status?: string };
-      data: Rec;
-    }) => {
+    updateMany: async ({ where, data }: { where: { id: string; status?: string }; data: Rec }) => {
       const rec = store.changeSets.get(where.id);
       if (!rec || (where.status !== undefined && rec.status !== where.status)) return { count: 0 };
       store.changeSets.set(where.id, { ...rec, ...data, updatedAt: now });
@@ -468,10 +457,7 @@ function makeService(store: Store) {
 function transitions(store: Store): Array<[string, string]> {
   return store.activity
     .filter((a) => a.action === 'run.transitioned')
-    .map((a) => [
-      (a.before as { state: string }).state,
-      (a.after as { state: string }).state,
-    ]);
+    .map((a) => [(a.before as { state: string }).state, (a.after as { state: string }).state]);
 }
 
 describe('WatcherService.runCheckNow — deterministic check run', () => {
@@ -956,7 +942,7 @@ describe('WatcherService.runCheckNow — deterministic check run', () => {
     }
   });
 
-  it("an explicit opts.trigger (the scheduler pass-through) beats the caller-shape fallback on the run row AND the run.created audit", async () => {
+  it('an explicit opts.trigger (the scheduler pass-through) beats the caller-shape fallback on the run row AND the run.created audit', async () => {
     const store = makeStore();
     seedStrategy(store);
     seedMission(store);
@@ -996,9 +982,9 @@ describe('computeArtifactMismatches (check-h seam input)', () => {
   });
 
   it('is empty for a healthy plan (and for a plan with no artifacts)', () => {
-    expect(
-      computeArtifactMismatches([{ id: 'N1', status: 'active' }], [{ nodeId: 'N1' }]),
-    ).toEqual([]);
+    expect(computeArtifactMismatches([{ id: 'N1', status: 'active' }], [{ nodeId: 'N1' }])).toEqual(
+      [],
+    );
     expect(computeArtifactMismatches([{ id: 'N1', status: 'draft' }], [])).toEqual([]);
   });
 });
@@ -1054,7 +1040,7 @@ describe('Phase 3 — permanent Watch dismissals', () => {
     expect(store.changeSets.size).toBe(1); // the old rejected row only — nothing new
   });
 
-  it('a dismissal recorded for a DIFFERENT strategy does not suppress this strategy\'s matching finding', async () => {
+  it("a dismissal recorded for a DIFFERENT strategy does not suppress this strategy's matching finding", async () => {
     const store = makeStore();
     seedStrategy(store);
     seedMission(store);

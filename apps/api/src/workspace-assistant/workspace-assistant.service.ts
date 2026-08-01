@@ -1,7 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { TenantContext } from '@capiro/shared';
 import {
+  contextPacketV2Overrides,
   IN_EDITOR_READ_TOOLS,
   inEditorToolErrorCategory,
   inEditorToolLabel,
@@ -12,6 +14,7 @@ import { MeriToolsService } from '../meri/meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { DOMAIN_PRIMER, extractCitedPeCodes } from '../meri/meri-domain-fanout.helpers.js';
 import {
   collectPeStructuralWarnings,
@@ -72,6 +75,13 @@ export interface AssistantContextMetadata {
   /** Durable context_packet row id; null when the trace was not persisted. */
   contextPacketId: string | null;
   contextTraceHash: string | null;
+  /**
+   * Correlation key for this run, minted once per `run()` and written to
+   * `context_packet.trace_id` on the v2 path. Null while ContextPacket v2 is dark
+   * (a v1 packet has no trace_id column to correlate on), so a consumer must treat
+   * absence as "not correlated", never as "no context".
+   */
+  contextTraceId: string | null;
   includedSources: CompiledContextPacket['items'];
   exclusions: CompiledContextPacket['exclusions'];
   degraded: boolean;
@@ -250,10 +260,15 @@ export class WorkspaceAssistantService {
       );
     }
 
+    // One correlation key per turn, minted before context compilation so the
+    // context_packet row, the returned metadata and any later audit row all join
+    // on the same value.
+    const traceId = randomUUID();
+
     // Client scope is validated inside the tenant BEFORE any context compilation
     // or tool use, so a browser-supplied clientId can never pull another tenant's
     // (or another client's) approved steering into the prompt.
-    const packet = await this.resolveContextPacket(ctx, dto);
+    const packet = await this.resolveContextPacket(ctx, dto, traceId);
 
     const resolved = await this.aiCredentials.resolveProvider(ctx, 'anthropic');
     if (!resolved?.apiKey) {
@@ -477,6 +492,8 @@ export class WorkspaceAssistantService {
       // A packet id is only claimed when the row was actually written.
       contextPacketId: packet.persisted ? packet.packetId : null,
       contextTraceHash: packet.traceHash,
+      // Only a v2 packet carries a trace_id; v1 has no column to correlate on.
+      contextTraceId: packet.version === 2 ? packet.traceId : null,
       includedSources: packet.items,
       exclusions: packet.exclusions,
       degraded: degradedReasons.length > 0,
@@ -494,15 +511,25 @@ export class WorkspaceAssistantService {
   private async resolveContextPacket(
     ctx: TenantContext,
     dto: WorkspaceAssistantDto,
+    traceId: string,
   ): Promise<CompiledContextPacket> {
     const clientId = dto.clientId?.trim() || null;
+    // Server-derived ethical-wall decision for the v2 compile (closeout §6),
+    // resolved on the same transaction as the client-existence check and for the
+    // REAL caller. Stays `false` when no client is in scope: the flag only gates
+    // client-scope rows, which a clientless request cannot match anyway.
+    let ethicalWallAllowed = false;
     if (clientId) {
-      const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.client.findFirst({
+      const client = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        const found = await tx.client.findFirst({
           where: { id: clientId, tenantId: ctx.tenantId },
           select: { id: true },
-        }),
-      );
+        });
+        if (found) {
+          ethicalWallAllowed = await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId);
+        }
+        return found;
+      });
       if (!client) throw new NotFoundException('Client was not found in this tenant');
     }
     return this.contextCompiler.compile({
@@ -514,6 +541,18 @@ export class WorkspaceAssistantService {
         ? ['firm-identity', 'user-voice', 'client-steering', 'client-people']
         : ['firm-identity', 'user-voice'],
       ref: { documentId: dto.document?.id ?? null },
+      // ContextPacket v2, dark by default. `contextPacketV2Overrides` returns {}
+      // unless CONTEXT_PACKET_V2=enforce, so this request is byte-for-byte the
+      // pre-v2 one until the switch is armed. Layers stay EXPLICIT (they encode
+      // "no client in scope ⇒ do not claim a missing client layer") and
+      // `persistence` is deliberately left unset so a trace-write failure cannot
+      // 500 this route.
+      ...contextPacketV2Overrides(process.env.CONTEXT_PACKET_V2, {
+        surface: 'in-editor',
+        traceId,
+        promptVersion: PROMPT_VERSION,
+        ethicalWallAllowed,
+      }),
     });
   }
 

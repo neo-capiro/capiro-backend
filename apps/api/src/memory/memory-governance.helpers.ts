@@ -59,9 +59,7 @@ export function redactSections(item: MemoryItem, sectionKeys: string[]): MemoryI
   const keys = new Set(sectionKeys);
   return {
     ...item,
-    sections: item.sections.map((s) =>
-      keys.has(s.key) ? { ...s, body: '[redacted]' } : s,
-    ),
+    sections: item.sections.map((s) => (keys.has(s.key) ? { ...s, body: '[redacted]' } : s)),
   };
 }
 

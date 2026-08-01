@@ -64,7 +64,12 @@ describe('ContextCompiler.compile', () => {
     expect(packet.rendered.map((item) => item.id)).toEqual(['f1', 'v1']);
     expect(packet.items.map((item) => item.layer)).toEqual(['firm-identity', 'user-voice']);
     expect(packet.exclusions).toEqual([]);
-    expect(packet.items.every((item) => item.rationale.length > 0)).toBe(true);
+    // Bare v1-shaped rows (no governed metadata) must still compile to a v1
+    // packet, so this narrows before touching the v1-only `rationale` field.
+    expect(packet.version).toBe(1);
+    if (packet.version === 1) {
+      expect(packet.items.every((item) => item.rationale.length > 0)).toBe(true);
+    }
     // Every included item carries a full SHA-256 of the exact body that was rendered.
     expect(packet.items).toHaveLength(2);
     expect(packet.items.every((item) => /^[a-f0-9]{64}$/.test(item.contentHash))).toBe(true);

@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ConfigService } from '@nestjs/config';
-import {
-  ExecutionArtifactClient,
-  ExecutionArtifactError,
-} from './execution-artifact.client.js';
+import { ExecutionArtifactClient, ExecutionArtifactError } from './execution-artifact.client.js';
 
 /*
  * Stage G artifact hop. Mocks global fetch to assert the EXACT two-call
@@ -78,7 +75,9 @@ describe('createWorkspaceDraft', () => {
     fetchMock.mockImplementation((url: unknown, init: unknown) => {
       calls.push(recordCall(url, init));
       if (String(url).endsWith('/workspace-api/drafts')) {
-        return Promise.resolve(jsonResponse({ id: 'draft-1', config: { sections: ['Analysis', 'Background'] } }));
+        return Promise.resolve(
+          jsonResponse({ id: 'draft-1', config: { sections: ['Analysis', 'Background'] } }),
+        );
       }
       return Promise.resolve(jsonResponse({ ok: true }));
     });
@@ -196,7 +195,12 @@ describe('createWorkspaceDraft', () => {
     fetchMock.mockResolvedValue(jsonResponse({}, { status: 502 }) as never);
     const client = new ExecutionArtifactClient(makeConfig());
     const err = await client
-      .createWorkspaceDraft(BEARER, { docTitle: 'T', clientName: 'C', product: 'P', sections: { Background: '<p/>' } })
+      .createWorkspaceDraft(BEARER, {
+        docTitle: 'T',
+        clientName: 'C',
+        product: 'P',
+        sections: { Background: '<p/>' },
+      })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ExecutionArtifactError);
     expect((err as ExecutionArtifactError).kind).toBe('upstream');
@@ -211,7 +215,12 @@ describe('createWorkspaceDraft', () => {
     });
     const client = new ExecutionArtifactClient(makeConfig());
     await expect(
-      client.createWorkspaceDraft(BEARER, { docTitle: 'T', clientName: 'C', product: 'P', sections: { Background: '<p/>' } }),
+      client.createWorkspaceDraft(BEARER, {
+        docTitle: 'T',
+        clientName: 'C',
+        product: 'P',
+        sections: { Background: '<p/>' },
+      }),
     ).rejects.toMatchObject({ name: 'ExecutionArtifactError', kind: 'timeout' });
   });
 });
@@ -236,7 +245,13 @@ describe('createOutreachRecord', () => {
     expect(calls).toHaveLength(1);
     expect(nthCall(0).method).toBe('POST');
     expect(nthCall(0).url).toBe(`${BASE}/api/engagement/outreach`);
-    const body = nthCall(0).body as { type: string; title: string; subject: string; clientId: string; metadata: unknown };
+    const body = nthCall(0).body as {
+      type: string;
+      title: string;
+      subject: string;
+      clientId: string;
+      metadata: unknown;
+    };
     expect(body.type).toBe('campaign');
     expect(body.title).toHaveLength(240);
     expect(body.title).toBe(longTitle.slice(0, 240));
@@ -274,8 +289,18 @@ describe('safety boundary — only creation endpoints are ever hit', () => {
     });
 
     const client = new ExecutionArtifactClient(makeConfig());
-    await client.createWorkspaceDraft(BEARER, { docTitle: 'T', clientName: 'C', product: 'P', sections: { Background: '<p/>' } });
-    await client.createOutreachRecord(BEARER, { title: 'T', subject: 'S', clientId: 'c', metadata: {} });
+    await client.createWorkspaceDraft(BEARER, {
+      docTitle: 'T',
+      clientName: 'C',
+      product: 'P',
+      sections: { Background: '<p/>' },
+    });
+    await client.createOutreachRecord(BEARER, {
+      title: 'T',
+      subject: 'S',
+      clientId: 'c',
+      metadata: {},
+    });
 
     const allowedPaths = new Set([
       '/workspace-api/drafts',

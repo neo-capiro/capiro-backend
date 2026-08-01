@@ -471,9 +471,19 @@ export class MeriController {
   async recordMessageFeedback(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
-    @Body() body: { rating?: unknown; note?: unknown },
+    @Body() body: { rating?: unknown; reasons?: unknown; note?: unknown },
   ) {
     return this.service.recordMessageFeedback(ctx, id, body);
+  }
+
+  @Get('feedback/export')
+  @Roles('user_admin')
+  exportFeedbackForEvaluation(
+    @CurrentTenant() ctx: TenantContext,
+    @Query('limit') limit?: string,
+  ) {
+    const parsed = limit ? Math.min(Math.max(parseInt(limit, 10) || 200, 1), 500) : 200;
+    return this.service.exportFeedbackForEvaluation(ctx, parsed);
   }
 
   // ── Multimodal / document input (P2-7 + F1) ──
@@ -651,6 +661,21 @@ export class MeriController {
   @Delete('memory/:id')
   async forgetMemory(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
     return this.service.forgetMemory(ctx, id);
+  }
+
+  /**
+   * Propose a correction to a memory the caller is not authorized to edit
+   * (Phase 2 Step 9). Deliberately NOT role-gated: the whole point is that a
+   * standard user can raise a correction on firm/client memory. It only ever
+   * creates a PENDING candidate for admin review — never a direct write.
+   */
+  @Post('memory/:id/suggest-correction')
+  async suggestMemoryCorrection(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: { value?: unknown; note?: unknown },
+  ) {
+    return this.service.suggestMemoryCorrection(ctx, id, body);
   }
 
   @Get('memory')

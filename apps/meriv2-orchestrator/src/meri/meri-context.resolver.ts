@@ -1,26 +1,82 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import type { TenantRole } from '@capiro/shared';
-import { renderedBody, type MeriContext } from '@capiro/meriv2-core';
+import {
+  contextPacketV2Overrides,
+  contextSurfacePolicy,
+  durableContextPacketId,
+  isContextPacketPersistenceError,
+  renderedBody,
+  type CompiledContextPacket,
+  type ContextSurface,
+  type MeriContext,
+  type MeriContextPacketSummary,
+} from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { OrchestratorContextCompilerService } from './context-compiler.service.js';
 import type { OrchestratorTenantContext } from '../auth/tenant-context.js';
 
-/**
- * Builds a full `MeriContext` from the guard's verified `OrchestratorTenantContext`.
- *
- * The Capiro `userId` is resolved from the globally-unique `clerk_user_id`
- * (the `User` table is global; the PER-TENANT membership check is enforced by
- * apps/api on the delegated call, so this lookup is identity resolution, not an
- * authorization decision). Throws 401 if the verified Clerk user has no Capiro
- * User row — fail closed, never synthesize an id.
- *
- * Firm identity + user voice load through the shared Context Compiler (G1-b)
- * — the same contract, owner-aware tenancy discipline (withTenantUser; the 1C
- * RLS policy hides private user-voice rows otherwise — the exact per-surface
- * drift that silently broke GA-chat voice on 2026-07-12) and packet trace as
- * every other Meri surface. Best-effort: a compile failure must never block a
- * chat turn, so the context simply arrives without firm/voice blocks.
- */
+function packetSummary(
+  packet: CompiledContextPacket,
+  requestedSurface: ContextSurface,
+): MeriContextPacketSummary {
+  const renderedById = new Map(packet.rendered.map((item) => [item.id, item]));
+  const identityWithheldReasons = new Set(['unauthorized', 'wrong-client', 'sensitivity-denied']);
+  const unauthorized = packet.exclusions.filter((item) => identityWithheldReasons.has(item.reason));
+  const persistenceFailed = packet.persisted !== true;
+  const healthReasons = packet.version === 2 ? packet.health.reasons : [];
+  const degradedReasons = [
+    ...healthReasons,
+    ...(persistenceFailed
+      ? [`Context packet persistence unavailable (${packet.persistenceErrorCode ?? 'unknown'})`]
+      : []),
+  ];
+  return {
+    packetId: durableContextPacketId(packet),
+    persisted: packet.persisted,
+    persistenceErrorCode: packet.persistenceErrorCode ?? null,
+    compiledAt: packet.compiledAt,
+    surface: requestedSurface,
+    clientId: packet.clientId,
+    items: packet.items.map((item) => {
+      const rendered = renderedById.get(item.id);
+      const scope =
+        item.layer === 'user-voice'
+          ? 'personal'
+          : item.layer.startsWith('client-')
+            ? 'client'
+            : 'firm';
+      return {
+        id: item.id,
+        label: rendered?.title || item.type,
+        type: item.type,
+        scope,
+        authority: 'authority' in item ? item.authority : 'human-authored',
+        userScoped: scope === 'personal',
+        rationale: 'rationale' in item ? item.rationale : item.inclusionReason,
+        selection:
+          'selectionTier' in item && item.selectionTier === 'explicit' ? 'explicit' : 'automatic',
+        ...('asOf' in item && item.asOf ? { asOf: item.asOf } : {}),
+        ...('lastConfirmedAt' in item && item.lastConfirmedAt
+          ? { lastConfirmedAt: item.lastConfirmedAt }
+          : {}),
+      };
+    }),
+    exclusions: packet.exclusions
+      .filter((item) => !identityWithheldReasons.has(item.reason))
+      .map((item) => ({
+        id: item.id,
+        label: item.type,
+        type: item.type,
+        reason: item.reason,
+      })),
+    unauthorizedCount: unauthorized.length,
+    degraded:
+      persistenceFailed || (packet.version === 2 ? packet.health.status !== 'healthy' : false),
+    ...(degradedReasons.length ? { degradedReason: degradedReasons.join('; ') } : {}),
+  };
+}
+
 @Injectable()
 export class MeriContextResolver {
   private readonly logger = new Logger(MeriContextResolver.name);
@@ -30,9 +86,14 @@ export class MeriContextResolver {
     private readonly contextCompiler: OrchestratorContextCompilerService,
   ) {}
 
-  async resolve(tc: OrchestratorTenantContext, clientId?: string | null): Promise<MeriContext> {
+  async resolve(
+    tenant: OrchestratorTenantContext,
+    clientId?: string | null,
+    surface: ContextSurface = 'ga-chat',
+    ref: Record<string, string | null | undefined> = {},
+  ): Promise<MeriContext> {
     const user = await this.prisma.user.findUnique({
-      where: { clerkUserId: tc.clerkUserId },
+      where: { clerkUserId: tenant.clerkUserId },
       select: { id: true },
     });
     if (!user) {
@@ -42,19 +103,30 @@ export class MeriContextResolver {
     let firmMemory: MeriContext['firmMemory'] | undefined;
     let userVoice: string | undefined;
     let clientSteering: MeriContext['clientSteering'] | undefined;
+    let contextPacket: MeriContextPacketSummary | undefined;
     try {
-      // Client-steering/people layers ride the SAME compiler, requested only when
-      // the turn is scoped to a client (the adapter gates them on clientId).
       const layers = clientId
         ? (['firm-identity', 'user-voice', 'client-steering', 'client-people'] as const)
         : (['firm-identity', 'user-voice'] as const);
+      const ethicalWallAllowed = await this.resolveEthicalWallAllowed(
+        tenant.tenantId,
+        user.id,
+        clientId ?? null,
+      );
       const packet = await this.contextCompiler.compile({
-        tenantId: tc.tenantId,
+        tenantId: tenant.tenantId,
         userId: user.id,
-        surface: 'ga-chat',
+        surface,
         layers: [...layers],
+        ref,
         ...(clientId ? { clientId } : {}),
+        ...contextPacketV2Overrides(process.env.CONTEXT_PACKET_V2, {
+          surface,
+          traceId: randomUUID(),
+          ethicalWallAllowed,
+        }),
       });
+      contextPacket = packetSummary(packet, surface);
       const soul = renderedBody(packet, 'firm-soul');
       const compass = renderedBody(packet, 'firm-compass');
       firmMemory =
@@ -63,63 +135,104 @@ export class MeriContextResolver {
           : undefined;
       userVoice = renderedBody(packet, 'user-voice') || undefined;
       if (clientId) {
-        const cSoul = renderedBody(packet, 'client-soul');
-        const cCompass = renderedBody(packet, 'client-compass');
-        const cPeople = renderedBody(packet, 'client-people');
+        const clientSoul = renderedBody(packet, 'client-soul');
+        const clientCompass = renderedBody(packet, 'client-compass');
+        const clientPeople = renderedBody(packet, 'client-people');
         clientSteering =
-          cSoul || cCompass || cPeople
+          clientSoul || clientCompass || clientPeople
             ? {
-                ...(cSoul ? { soul: cSoul } : {}),
-                ...(cCompass ? { compass: cCompass } : {}),
-                ...(cPeople ? { people: cPeople } : {}),
+                ...(clientSoul ? { soul: clientSoul } : {}),
+                ...(clientCompass ? { compass: clientCompass } : {}),
+                ...(clientPeople ? { people: clientPeople } : {}),
               }
             : undefined;
       }
-    } catch (e) {
-      this.logger.warn(`context compile failed (non-fatal): ${(e as Error).message}`);
+    } catch (error) {
+      if (
+        isContextPacketPersistenceError(error) &&
+        contextSurfacePolicy(surface).externalDeliverable
+      ) {
+        throw error;
+      }
+      const reason = error instanceof Error ? error.message : 'Context compilation failed';
+      this.logger.warn(`context compile failed (non-fatal): ${reason}`);
+      contextPacket = {
+        packetId: null,
+        persisted: false,
+        persistenceErrorCode: isContextPacketPersistenceError(error) ? error.code : null,
+        surface,
+        clientId: clientId ?? null,
+        items: [],
+        exclusions: [],
+        unauthorizedCount: 0,
+        degraded: true,
+        degradedReason: isContextPacketPersistenceError(error)
+          ? 'Context was compiled, but its durable provenance trace could not be saved.'
+          : 'Required firm or client context could not be loaded.',
+      };
     }
 
-    // AUTHORITATIVE client roster (1B.1): the system of record for "who are my
-    // clients" is the `client` table, NOT clio_memory. Load it tenant-scoped
-    // (RLS via withTenant) so the chat prompt can answer roster questions from
-    // real data and refuse to enumerate clients from memory. Best-effort: a
-    // load failure must never block a turn (the block is simply omitted).
     let clientRoster: MeriContext['clientRoster'] | undefined;
     try {
-      const rows = await this.prisma.withTenant(tc.tenantId, (tx) =>
+      const rows = await this.prisma.withTenant(tenant.tenantId, (tx) =>
         tx.client.findMany({
-          where: { tenantId: tc.tenantId },
+          where: { tenantId: tenant.tenantId },
           select: { name: true, status: true },
           orderBy: { name: 'asc' },
           take: 500,
         }),
       );
-      if (rows.length) clientRoster = rows.map((r) => ({ name: r.name, status: r.status }));
-    } catch (e) {
-      this.logger.warn(`client roster load failed (non-fatal): ${(e as Error).message}`);
+      if (rows.length) clientRoster = rows.map((row) => ({ name: row.name, status: row.status }));
+    } catch (error) {
+      this.logger.warn(
+        `client roster load failed (non-fatal): ${error instanceof Error ? error.message : error}`,
+      );
     }
 
     return {
-      tenantId: tc.tenantId,
+      tenantId: tenant.tenantId,
       userId: user.id,
-      clerkUserId: tc.clerkUserId,
-      role: mapRole(tc.role),
+      clerkUserId: tenant.clerkUserId,
+      role: mapRole(tenant.role),
       ...(firmMemory ? { firmMemory } : {}),
       ...(userVoice ? { userVoice } : {}),
       ...(clientRoster ? { clientRoster } : {}),
       ...(clientSteering ? { clientSteering } : {}),
+      ...(contextPacket ? { contextPacket } : {}),
     };
+  }
+
+  private async resolveEthicalWallAllowed(
+    tenantId: string,
+    userId: string,
+    clientId: string | null,
+  ): Promise<boolean> {
+    if (!clientId) return false;
+    try {
+      const rows = await this.prisma.withTenant(
+        tenantId,
+        (tx) =>
+          tx.$queryRaw<Array<{ allowed: boolean }>>`
+          SELECT (NOT c.memory_wall
+                  OR EXISTS (
+                        SELECT 1 FROM client_memory_access a
+                        WHERE a.tenant_id = c.tenant_id
+                          AND a.client_id = c.id
+                          AND a.user_id = ${userId}::uuid)) AS allowed
+            FROM clients c
+           WHERE c.tenant_id = ${tenantId}::uuid AND c.id = ${clientId}::uuid
+        `,
+      );
+      return rows[0]?.allowed === true;
+    } catch (error) {
+      this.logger.warn(
+        `Ethical-wall resolution failed; denying client context: ${(error as Error).message}`,
+      );
+      return false;
+    }
   }
 }
 
-/**
- * Map the Clerk org role carried on the guard context to a `TenantRole`. The
- * CANONICAL mapping is owned by apps/api (mapClerkRoleToCapiro) and the
- * delegated api call is the authority on per-user permissions, so this is
- * informational for Phase 0. Map conservatively (admin → user_admin, otherwise
- * the least-privileged standard_user) so a wrong guess can only ever DENY, not
- * escalate.
- */
 function mapRole(role: string | null): TenantRole {
   if (role && /admin/i.test(role)) return 'user_admin';
   return 'standard_user';

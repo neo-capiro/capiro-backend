@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   NotFoundException,
@@ -25,6 +26,14 @@ import { MemoryFkLoader } from './memory-fk-loader.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
 import { MemoryInterviewService } from './memory-interview.service.js';
 import { MemoryCandidateService } from './memory-candidate.service.js';
+import { MemoryAuthorizationService } from './memory-authorization.service.js';
+import { MemoryAccessGrantService } from './memory-access-grant.service.js';
+import { MemoryConflictService } from './memory-conflict.service.js';
+import {
+  governedMemoryEnforcementEnabled,
+  MEMORY_PERMISSIONS,
+} from './memory-authorization.helpers.js';
+import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.helpers.js';
 import type { MemoryItemType } from './memory.types.js';
 import { buildKnowledgeGraph, walkFrom } from './memory-graph.helpers.js';
 import {
@@ -32,6 +41,7 @@ import {
   fileDefForType,
   editableSectionKeys,
   skeletonSections,
+  mergeEditedSections,
 } from './memory-catalog.js';
 import { buildInterviewQuestions } from './memory-interview.helpers.js';
 import {
@@ -76,6 +86,9 @@ export class MemoryController {
     private readonly interview: MemoryInterviewService,
     private readonly candidates: MemoryCandidateService,
     private readonly purge: MemoryPurgeService,
+    private readonly authz: MemoryAuthorizationService,
+    private readonly grants: MemoryAccessGrantService,
+    private readonly conflicts: MemoryConflictService,
     private readonly config: ConfigService<AppConfig, true>,
   ) {}
 
@@ -155,7 +168,19 @@ export class MemoryController {
     // GET must read the SAME slug — otherwise the saved text never reads back and
     // the editor shows the empty skeleton despite a successful save.
     const effectiveSlug = def?.scope === 'user' ? ctx.userId : slug;
+    if (def?.scope === 'client' && !(await this.store.clientMemoryAllowedForCurrentUser(slug))) {
+      throw new ForbiddenException('This client is behind an ethical wall you are not granted.');
+    }
     const item = await this.store.getByTypeSlug(type, effectiveSlug);
+    const pendingReview =
+      def?.scope === 'firm' || def?.scope === 'client'
+        ? await this.candidates.findPendingSettingsCandidate(
+            ctx.tenantId,
+            ctx.userId,
+            type,
+            effectiveSlug,
+          )
+        : null;
     const helpByKey = new Map((def?.sections ?? []).map((s) => [s.key, s]));
     const sections = item ? item.sections : skeletonSections(type);
     if (!item && !def) throw new NotFoundException('unknown memory file type');
@@ -167,6 +192,7 @@ export class MemoryController {
       clientId: item?.clientId ?? null,
       updatedAt: item?.updatedAt ?? null,
       exists: !!item,
+      pendingReview,
       sections: sections.map((s) => ({
         key: s.key,
         heading: s.heading,
@@ -202,14 +228,37 @@ export class MemoryController {
     // User files key on the caller's own id — ignore any slug spoof.
     const effectiveSlug = scope === 'user' ? ctx.userId : slug;
     const clientId = scope === 'client' ? slug : null;
-    // Ethical wall (fail-closed, binds admins too): a non-granted user must not
-    // WRITE a walled client's file. Without this, the wall hides the existing
-    // row from the read path, so upsertSections would rebuild it from the
-    // catalog skeleton and clobber the real content via the RLS-bypassing
-    // upsertSystem. 403 loudly rather than silently corrupt.
     if (clientId && !(await this.store.clientMemoryAllowedForCurrentUser(clientId))) {
       throw new ForbiddenException('This client is behind an ethical wall you are not granted.');
     }
+
+    const existing = await this.store.getByTypeSlug(type, effectiveSlug);
+    if (governedMemoryEnforcementEnabled(process.env.MEMORY_GOVERNANCE_ENFORCE) && existing) {
+      await this.authz.requireItem(ctx, existing.id, 'edit');
+    }
+
+    if (scope === 'firm' || scope === 'client') {
+      const sections = mergeEditedSections(
+        type,
+        existing?.sections ?? null,
+        body?.sections ?? [],
+        editableSectionKeys(type),
+      );
+      const pending = await this.candidates.proposeSettingsSections(ctx, {
+        type,
+        slug: effectiveSlug,
+        title: existing?.title ?? def.label,
+        scope,
+        clientId,
+        sections,
+      });
+      return {
+        status: 'pending_review' as const,
+        candidateId: pending.candidateId,
+        activeItemUnchanged: true as const,
+      };
+    }
+
     const updated = await this.store.upsertSectionsForCurrentTenant(
       type,
       effectiveSlug,
@@ -218,7 +267,7 @@ export class MemoryController {
       body?.sections ?? [],
       editableSectionKeys(type),
     );
-    return { ok: true, updatedAt: updated.updatedAt };
+    return { ok: true as const, updatedAt: updated.updatedAt };
   }
 
   /**
@@ -248,18 +297,118 @@ export class MemoryController {
     return { candidates: await this.candidates.listPending(ctx.tenantId, ctx.userId) };
   }
 
+  /**
+   * Approve a pending candidate.
+   *
+   * `listPending` already withholds candidates for walled clients, but the WALL
+   * ONLY FILTERED THE LIST — the decision routes went straight to
+   * MemoryCandidateService and never consulted it, so a non-granted admin who knew
+   * (or guessed) a candidate id could ratify a walled client's memory. The
+   * candidate service now evaluates the canonical authorization decision while
+   * holding the candidate row lock, in the same transaction as activation. It
+   * applies the ethical wall, legal hold, per-client grants, and self-review rule.
+   * Governed enforcement remains dark until the additive migration is applied;
+   * the independent-review check remains always on.
+   */
   @Post('candidates/:id/approve')
   @Roles('user_admin')
   async approveCandidate(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    const { memoryId } = await this.candidates.approve(ctx.tenantId, id, ctx.userId);
+    // Candidate authorization now runs inside the row-locked activation
+    // transaction. This removes the pre-check/commit race while preserving the
+    // dark enforcement switch and the always-on independent-review gate.
+    const { memoryId } = await this.candidates.approve(ctx.tenantId, id, ctx.userId, ctx);
     return { ok: true, memoryId };
   }
 
   @Post('candidates/:id/reject')
   @Roles('user_admin')
   async rejectCandidate(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    await this.candidates.reject(ctx.tenantId, id, ctx.userId);
+    await this.candidates.reject(ctx.tenantId, id, ctx.userId, ctx);
     return { ok: true };
+  }
+
+  // ── Governed memory grants (memory_access_grant) ──────────────────────────
+  //
+  // MemoryAuthorizationService has READ this table since Phase 3, but nothing
+  // could write it, so an explicit per-client edit/review/approve grant could only
+  // be created by hand-written SQL. All three routes are admin-only AND bound by
+  // the ethical wall inside MemoryAccessGrantService, so a walled admin cannot
+  // grant themselves in. Dark behind MEMORY_GOVERNANCE_LIFECYCLE: the table only
+  // exists after 20260729010000, which is unapplied everywhere.
+
+  @Get('clients/:clientId/grants')
+  @Roles('user_admin')
+  async listGrants(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
+    this.requireGovernanceArmed();
+    return { grants: await this.grants.list(ctx, clientId) };
+  }
+
+  @Post('clients/:clientId/grants')
+  @Roles('user_admin')
+  async createGrant(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Body() body: { userId?: string; permissions?: unknown; reason?: string; expiresAt?: string },
+  ) {
+    this.requireGovernanceArmed();
+    if (!body?.userId) throw new BadRequestException('userId is required.');
+    const result = await this.grants.grant(ctx, clientId, {
+      userId: body.userId,
+      permissions: body.permissions,
+      reason: body.reason ?? null,
+      expiresAt: body.expiresAt ?? null,
+    });
+    return { ok: true, ...result };
+  }
+
+  @Delete('clients/:clientId/grants/:userId')
+  @Roles('user_admin')
+  async revokeGrant(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('userId') userId: string,
+  ) {
+    this.requireGovernanceArmed();
+    return { ok: true, ...(await this.grants.revoke(ctx, clientId, userId)) };
+  }
+
+  /** The permission vocabulary the grant body must draw from (UI + API discovery). */
+  @Get('grants/permissions')
+  grantPermissions() {
+    return { permissions: MEMORY_PERMISSIONS };
+  }
+
+  /**
+   * Resolve a memory conflict by naming the controlling item. Authorized with the
+   * 'resolve_conflict' operation, which already exists in MEMORY_PERMISSIONS and in
+   * memory_access_grant_permissions_check.
+   */
+  @Post('items/:id/conflicts/resolve')
+  async resolveConflict(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: { controllingItemId?: string; reason?: string },
+  ) {
+    this.requireGovernanceArmed();
+    if (!body?.controllingItemId) {
+      throw new BadRequestException('controllingItemId is required.');
+    }
+    const result = await this.conflicts.resolve(ctx, id, body.controllingItemId, body.reason ?? '');
+    return { ok: true, ...result };
+  }
+
+  /**
+   * 503 rather than a 500 on a missing relation. These routes touch tables/columns
+   * from 20260729010000 / 20260729011000, and neither migration is applied in any
+   * environment — so until the switch is armed the honest answer is "not available
+   * here", not a Postgres error leaking through.
+   */
+  private requireGovernanceArmed(): void {
+    if (!governedMemoryLifecycleEnabled(process.env.MEMORY_GOVERNANCE_LIFECYCLE)) {
+      throw new ServiceUnavailableException(
+        'Governed memory management is disabled (MEMORY_GOVERNANCE_LIFECYCLE is not "enforce").',
+      );
+    }
   }
 
   /** Interview questions for a memory type (the Meri-guided fill flow). */
@@ -358,7 +507,9 @@ export class MemoryController {
     @Body() body: { dryRun?: boolean; reason?: string; confirm?: string },
   ) {
     if (!this.config.get('MEMORY_PURGE_ENABLED', { infer: true })) {
-      throw new ServiceUnavailableException('Memory purge is disabled (MEMORY_PURGE_ENABLED=false).');
+      throw new ServiceUnavailableException(
+        'Memory purge is disabled (MEMORY_PURGE_ENABLED=false).',
+      );
     }
     if (!body?.reason || typeof body.reason !== 'string') {
       throw new BadRequestException('A reason is required for a client memory purge.');

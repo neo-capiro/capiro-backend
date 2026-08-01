@@ -48,7 +48,8 @@ import { anonymizeMap, anonText } from './editor/anonymize.js';
 import type { StoredRedaction } from './editor/anonymize.js';
 import { sanitizeWorkspaceBody as sanitizeHtml } from './editor/workspace-richtext.js';
 import { InsertedBlock } from './editor/canvas-blocks.js';
-import type { WsAsk, WsBlock, WsCheckResult } from './types.js';
+import type { WsAsk, WsBlock, WsCheckResult, WsCheckSeverity } from './types.js';
+import { deriveVerificationDisplay, VerificationStatus } from '../../components/trust/VerificationStatus.js';
 
 type ViewKey = 'cover' | 'paper' | 'packet';
 type Fmt = 'pdf' | 'word';
@@ -74,6 +75,11 @@ export function PreviewPage() {
   const [officeIdx, setOfficeIdx] = useState(0);
   const [officeMenu, setOfficeMenu] = useState(false);
   const [exporting, setExporting] = useState(false);
+  // Two SEPARATE acknowledgements. Confirming that you have read the critical
+  // findings is not the same as accepting that verification is out of date, so one
+  // checkbox must not silently satisfy the other.
+  const [ackCritical, setAckCritical] = useState(false);
+  const [ackStale, setAckStale] = useState(false);
   // Phase 3.4 memory write-back: the optional key-fact note + proposed state.
   const [promoteNote, setPromoteNote] = useState('');
   const [promoted, setPromoted] = useState(false);
@@ -146,6 +152,68 @@ export function PreviewPage() {
 
   // ── Rule-based checks (live; advisory only — human sign-off gates removed) ────
   const openChecks: WsCheckResult[] = (checks?.checks ?? []).filter((c) => c.status !== 'success');
+
+  // Group by severity so a funding-direction error does not sit in the same
+  // undifferentiated list as an unexpanded acronym.
+  const SEVERITY_ORDER: WsCheckSeverity[] = ['critical', 'high', 'medium', 'low'];
+  const severityOf = (check: WsCheckResult): WsCheckSeverity =>
+    check.severity ?? (check.status === 'critical' ? 'critical' : 'medium');
+  const groupedChecks = SEVERITY_ORDER.map((severity) => ({
+    severity,
+    items: openChecks.filter((check) => severityOf(check) === severity),
+  })).filter((group) => group.items.length > 0);
+  const criticalChecks = openChecks.filter((check) => {
+    const severity = severityOf(check);
+    return severity === 'critical' || severity === 'high';
+  });
+
+  // Server-owned verification verdict. An older server that omits the field is
+  // treated as never-verified rather than assumed clean.
+  const verification = checks?.verification ?? null;
+  const verificationDisplay = deriveVerificationDisplay({
+    verification: verification
+      ? {
+          totalCount: verification.supportedCount + verification.unsupportedCount,
+          unsupportedCount: verification.unsupportedCount,
+        }
+      : null,
+    findings: criticalChecks.map((check) => ({
+      check: check.id,
+      severity: severityOf(check),
+      detail: check.detail || check.label,
+      section: check.section ?? undefined,
+    })),
+    ran: verification?.ran ?? false,
+  });
+  const checksContext = checks?.context ?? null;
+  const staleness = checks?.staleness ?? null;
+  const staleVerification = Boolean(staleness?.changedAfterVerification && verification?.ran);
+
+  // Export gates. Advisory checks NEVER block on their own — only an
+  // un-acknowledged critical finding or un-acknowledged stale verification does,
+  // and both are satisfied by an explicit checkbox rather than a hard stop.
+  const needsCriticalAck = criticalChecks.length > 0 && !ackCritical;
+  const needsStaleAck = staleVerification && !ackStale;
+  const exportBlockedReason = needsCriticalAck
+    ? `Acknowledge ${criticalChecks.length} critical finding${criticalChecks.length === 1 ? '' : 's'} before exporting.`
+    : needsStaleAck
+      ? 'This document changed after it was last verified. Re-run verification or acknowledge the risk.'
+      : null;
+
+  const fixWithMeri = (check: WsCheckResult) => {
+    // A BOUNDED prompt: it names the finding and the section and asks for proposed
+    // edits only. The editor consumes it once and Meri still proposes rather than
+    // applying, so this never becomes a way to mutate the document from Preview.
+    const where = check.section ? ` in the section "${check.section}"` : '';
+    const prompt =
+      `A pre-export check flagged this document${where}: "${check.label}"` +
+      (check.detail ? ` — ${check.detail}.` : '.') +
+      ' Review that specific issue against retrieved sources and propose section edits to resolve it.' +
+      ' Do not change the document until I approve the edits.';
+    navigate(`/workspace/draft/${draftId}`, {
+      state: { fixWithMeri: { prompt, section: check.section ?? undefined } },
+    });
+  };
 
   const docTitle = draft.docTitle || draft.product || 'Document';
 
@@ -251,9 +319,22 @@ export function PreviewPage() {
     else void doExportWord();
   };
 
-  // Export proceeds directly — sign-off gates were removed. The live rule-based
-  // checks are advisory and shown in the panel; they never block export.
-  const onExport = () => runExport();
+  /**
+   * Export remains advisory for ordinary style checks (Ninja D1: Workspace is
+   * gate-less). What it will NOT do is let a critical finding or a stale
+   * verification leave the building unnoticed: those require an explicit
+   * acknowledgement first, which is a different thing from blocking.
+   *
+   * This gate covers EXPORT only. External send is a different risk class and is
+   * gated server-side; nothing here weakens or substitutes for that.
+   */
+  const onExport = () => {
+    if (exportBlockedReason) {
+      message.warning(exportBlockedReason);
+      return;
+    }
+    runExport();
+  };
 
   const onSaveCheckpoint = () => {
     if (!draftId) return;
@@ -501,24 +582,175 @@ export function PreviewPage() {
                   </span>
                 )}
               </div>
+
+              {/* Verification verdict FIRST. "All checks pass" says nothing about
+                  whether any claim was ever verified, and reading the two as one
+                  statement is the misreading Step 6 exists to prevent. */}
+              <div style={{ marginBottom: 9 }}>
+                <VerificationStatus display={verificationDisplay} compact />
+                {verification?.capturedAt && (
+                  <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginTop: 4 }}>
+                    Verified as of {new Date(verification.capturedAt).toLocaleString()}
+                  </div>
+                )}
+              </div>
+
+              {/* The document moved on after verification. Shown whether or not
+                  any check is currently failing. */}
+              {staleVerification && (
+                <div
+                  role="alert"
+                  style={{
+                    border: '1px solid var(--notable)',
+                    background: 'var(--notable-soft)',
+                    color: 'var(--notable)',
+                    borderRadius: 6,
+                    padding: '7px 9px',
+                    fontSize: 11.5,
+                    marginBottom: 9,
+                  }}
+                >
+                  <strong>Verification is out of date.</strong> This document was edited after it
+                  was last verified
+                  {staleness?.verifiedAt
+                    ? ` (${new Date(staleness.verifiedAt).toLocaleDateString()})`
+                    : ''}
+                  . Re-run generation to re-verify, or acknowledge the risk below.
+                </div>
+              )}
+
               {openChecks.length === 0 ? (
-                <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>All checks pass.</div>
+                <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+                  No advisory check is currently failing.
+                </div>
               ) : (
-                openChecks.map((c) => (
-                  <div
-                    key={c.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '5px 0',
-                      fontSize: 12,
-                    }}
-                  >
-                    <span className={`dot ${c.status}`} />
-                    <span style={{ flex: 1, color: 'var(--ink-2)' }}>{c.label}</span>
+                groupedChecks.map((group) => (
+                  <div key={group.severity} style={{ marginBottom: 8 }}>
+                    <div
+                      style={{
+                        fontSize: 10,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        fontWeight: 700,
+                        color:
+                          group.severity === 'critical' || group.severity === 'high'
+                            ? 'var(--critical)'
+                            : 'var(--ink-3)',
+                        marginBottom: 3,
+                      }}
+                    >
+                      {group.severity} · {group.items.length}
+                    </div>
+                    {group.items.map((c) => (
+                      <div
+                        key={c.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 8,
+                          padding: '4px 0',
+                          fontSize: 12,
+                        }}
+                      >
+                        <span className={`dot ${c.status}`} style={{ marginTop: 5 }} />
+                        <span style={{ flex: 1, minWidth: 0, color: 'var(--ink-2)' }}>
+                          <span>{c.label}</span>
+                          {c.detail && (
+                            <span style={{ color: 'var(--ink-3)' }}> — {c.detail}</span>
+                          )}
+                          {c.section && (
+                            <span style={{ display: 'block', fontSize: 10.5, color: 'var(--ink-3)' }}>
+                              Section: {c.section}
+                            </span>
+                          )}
+                        </span>
+                        {c.fixable && (
+                          <button
+                            className="btn sm btn-ghost"
+                            style={{ flex: 'none', fontSize: 10.5, padding: '2px 7px' }}
+                            onClick={() => fixWithMeri(c)}
+                            title="Open the editor with a bounded prompt for this finding"
+                          >
+                            Fix with Meri
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 ))
+              )}
+
+              {/* The two acknowledgements. Rendered next to the findings they refer
+                  to, and each gates export independently. */}
+              {criticalChecks.length > 0 && (
+                <label
+                  style={{
+                    display: 'flex',
+                    gap: 7,
+                    alignItems: 'flex-start',
+                    fontSize: 11.5,
+                    marginTop: 7,
+                    color: 'var(--ink-2)',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={ackCritical}
+                    onChange={(e) => setAckCritical(e.currentTarget.checked)}
+                  />
+                  <span>
+                    I reviewed the {criticalChecks.length} critical finding
+                    {criticalChecks.length === 1 ? '' : 's'} above and accept exporting anyway.
+                  </span>
+                </label>
+              )}
+              {staleVerification && (
+                <label
+                  style={{
+                    display: 'flex',
+                    gap: 7,
+                    alignItems: 'flex-start',
+                    fontSize: 11.5,
+                    marginTop: 5,
+                    color: 'var(--ink-2)',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={ackStale}
+                    onChange={(e) => setAckStale(e.currentTarget.checked)}
+                  />
+                  <span>I accept exporting content whose verification is out of date.</span>
+                </label>
+              )}
+
+              {/* Context that grounded the text, plus what was left out. */}
+              {checksContext && (
+                <div style={{ marginTop: 9, fontSize: 11 }}>
+                  {checksContext.degraded && (
+                    <div role="alert" style={{ color: 'var(--critical)', marginBottom: 3 }}>
+                      Context was degraded during the last generation.
+                    </div>
+                  )}
+                  <div style={{ color: 'var(--ink-3)' }}>
+                    Grounded on {checksContext.itemCount} context item
+                    {checksContext.itemCount === 1 ? '' : 's'}
+                    {checksContext.memoryFileCount
+                      ? `, ${checksContext.memoryFileCount} memory file${checksContext.memoryFileCount === 1 ? '' : 's'}`
+                      : ''}
+                    {checksContext.linkedPeCount
+                      ? `, ${checksContext.linkedPeCount} program element${checksContext.linkedPeCount === 1 ? '' : 's'}`
+                      : ''}
+                    {checksContext.capturedAt
+                      ? ` · as of ${new Date(checksContext.capturedAt).toLocaleDateString()}`
+                      : ''}
+                  </div>
+                  {checksContext.exclusions.map((exclusion, index) => (
+                    <div key={index} style={{ color: 'var(--ink-3)' }}>
+                      Excluded: {exclusion.label} — {exclusion.reason}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
 
@@ -741,11 +973,25 @@ export function PreviewPage() {
                 <Icon name="Save" size={14} />
                 Save checkpoint
               </button>
+              {/* Why export is held, stated where the user is about to click. The
+                  button stays enabled so the reason is discoverable by keyboard —
+                  a disabled control is not focusable and would announce nothing. */}
+              {exportBlockedReason && (
+                <div
+                  id="ws-export-gate"
+                  role="status"
+                  style={{ fontSize: 11, color: 'var(--notable)', lineHeight: 1.4 }}
+                >
+                  {exportBlockedReason}
+                </div>
+              )}
               <button
                 className="btn btn-primary"
                 style={{ width: '100%', justifyContent: 'center' }}
                 onClick={onExport}
                 disabled={exporting}
+                aria-describedby={exportBlockedReason ? 'ws-export-gate' : undefined}
+                title={exportBlockedReason ?? undefined}
               >
                 <Icon name="Download" size={14} />
                 {exporting ? 'Exporting…' : exportLabel}

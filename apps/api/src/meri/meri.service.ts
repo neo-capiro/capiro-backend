@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   ForbiddenException,
@@ -15,6 +16,7 @@ import {
   type TenantContext,
 } from '@capiro/shared';
 import {
+  contextPacketV2Overrides,
   runAuditor,
   ledgerToToolResultMap,
   sanitizeToolResultText,
@@ -43,11 +45,22 @@ import {
   fetchDeniedClientIds,
   toUuidArrayLiteral,
 } from '../memory/memory-wall.helpers.js';
-import { resolveCacheNodeLabels, keepCacheEdge, aggSuffix } from '../memory/kg-cache-enrich.helpers.js';
+import {
+  governedClioSuppressionSql,
+  governedRecallSuppressionEnabled,
+  governedRecallSuppressionSql,
+  TERMINAL_GOVERNED_STATUSES,
+} from '../memory/memory-recall-suppression.helpers.js';
+import {
+  resolveCacheNodeLabels,
+  keepCacheEdge,
+  aggSuffix,
+} from '../memory/kg-cache-enrich.helpers.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
+import { MemoryCleanupOutboxService } from '../memory/memory-cleanup-outbox.service.js';
 import { evaluateMemoryMutation } from '../memory/memory-mutation-auth.js';
 import { decideMemoryAutoLearn, exactUserExcerpt } from '../memory/memory-autolearn-governance.js';
 import { clioMemorySlug } from '../memory/memory-clio-adapter.helpers.js';
@@ -90,6 +103,7 @@ import { ToolCircuitBreaker, CircuitOpenError } from './meri-circuit-breaker.js'
 import { loopBudgetExceeded, type LoopStopReason } from './meri-budget.helpers.js';
 import { parseSuggestions } from './meri-suggestions.helpers.js';
 import { normalizeFeedback, type NormalizedFeedback } from './meri-feedback.helpers.js';
+import { anonymizeFeedbackExcerpt } from './meri-feedback-anonymize.js';
 import {
   COMPLIANCE_GUARDRAILS,
   screenComplianceRisk,
@@ -268,6 +282,11 @@ export class MeriService {
     private readonly meriV2Chat: MeriV2ChatClient,
     private readonly claimWriter: MeriClaimWriterService,
     private readonly contextCompiler: ContextCompilerService,
+    // Durable record of projection work owed by the memory-edit write-through
+    // (closeout §4, gap B2). Optional so the existing unit tests that construct
+    // MeriService positionally keep compiling; when absent the edit path behaves
+    // exactly as it did before, i.e. best-effort only.
+    private readonly cleanupOutbox?: MemoryCleanupOutboxService,
   ) {}
 
   async status(ctx: TenantContext) {
@@ -465,8 +484,14 @@ export class MeriService {
    * bytes — clamped for prompt inclusion.
    */
   async resolveAttachmentText(ctx: TenantContext, attachmentIds: string[]) {
-    const ids = [...new Set((attachmentIds ?? []).filter((s) => typeof s === 'string' && s))].slice(0, 10);
-    if (!ids.length) return { documents: [] as Array<{ id: string; filename: string; kind: string; text: string }> };
+    const ids = [...new Set((attachmentIds ?? []).filter((s) => typeof s === 'string' && s))].slice(
+      0,
+      10,
+    );
+    if (!ids.length)
+      return {
+        documents: [] as Array<{ id: string; filename: string; kind: string; text: string }>,
+      };
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioAttachment.findMany({
         where: { id: { in: ids }, tenantId: ctx.tenantId, userId: ctx.userId },
@@ -926,6 +951,7 @@ export class MeriService {
       conversation.clientId,
       intent,
       content,
+      conversationId,
     );
     const effectiveTemplate = firmSkill?.template ?? orchestration.template;
     const promptCacheEnabled = this.config.get('CLIO_PROMPT_CACHE_ENABLED', { infer: true });
@@ -2085,6 +2111,7 @@ export class MeriService {
             expiresAt: event.expiresAt,
             riskTier: event.riskTier,
             policyCode: event.policyCode,
+            ruleId: event.ruleId,
             preview: event.preview,
           });
           return;
@@ -2670,6 +2697,8 @@ export class MeriService {
     clientId: string | null,
     intent: string,
     query: string,
+    /** Anchors the compiled context_packet trace to the conversation it steered. */
+    conversationId: string | null = null,
   ): Promise<OrchestratorResult> {
     const policy = this.policyForIntent(intent, query);
     const contextParts: string[] = [];
@@ -2695,7 +2724,7 @@ export class MeriService {
     // User voice/profile (memory files): standing context so Meri always writes
     // in the caller's voice and knows their role — not just when it calls a tool.
     try {
-      const voice = await this.loadUserVoiceContext(ctx, clientId);
+      const voice = await this.loadUserVoiceContext(ctx, clientId, conversationId);
       if (voice) {
         contextParts.push(voice);
         trace.push({
@@ -3579,17 +3608,47 @@ export class MeriService {
   private async loadUserVoiceContext(
     ctx: TenantContext,
     clientId: string | null,
+    conversationId: string | null = null,
   ): Promise<string | null> {
     // Context Compiler v1 (G1): loading, tenancy discipline (withTenantUser —
     // the 1C owner-aware RLS gate), governance filtering and the packet trace
     // all live in ContextCompilerService now; this method only composes the
     // legacy block format from the compiled packet. Block text is unchanged.
+    //
+    // Server-derived ethical-wall decision for the v2 compile (closeout §6).
+    // Resolved here, from the database, for the REAL caller — never inferred
+    // from the request body. No client in scope ⇒ false: the flag only gates
+    // client-scope rows, which a clientless request cannot match anyway.
+    const ethicalWallAllowed = clientId
+      ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId),
+        )
+      : false;
     const packet = await this.contextCompiler.compile({
       tenantId: ctx.tenantId,
       userId: ctx.userId,
       clientId,
       surface: 'chat',
       layers: ['user-voice', 'firm-identity', 'client-steering'],
+      // The Context Inspector finds a packet by surface + ref key. This trace used
+      // to be written with ref = {}, so on the legacy chat path (any tenant without
+      // meriv2.fullChat) the inspector could never match the conversation and told
+      // the user "Context degraded" on every answer even though the context HAD
+      // been compiled and used.
+      ...(conversationId ? { ref: { conversationId } } : {}),
+      // ContextPacket v2, dark by default (returns {} unless
+      // CONTEXT_PACKET_V2=enforce arms the 'chat' surface).
+      //
+      // One compile per turn, so a fresh uuid here IS the per-turn trace id. The
+      // key a reader joins on for this surface is `ref.conversationId` above;
+      // trace_id distinguishes the turns within that conversation. It is logged
+      // rather than returned because the SSE chat frame has no provenance channel
+      // for it yet.
+      ...contextPacketV2Overrides(process.env.CONTEXT_PACKET_V2, {
+        surface: 'chat',
+        traceId: randomUUID(),
+        ethicalWallAllowed,
+      }),
     });
 
     const blocks: string[] = [];
@@ -3693,9 +3752,14 @@ export class MeriService {
       // Prefer the memory_items projection; on an INFRA error (not merely an
       // empty result) fall back to clio so a bad Titan/DB call never blanks
       // recall. An empty projection result legitimately returns [].
-      const proj = await this.projectionRecall(tenantId, userId, query, clientId, 8, rerankOn).catch(
-        () => null,
-      );
+      const proj = await this.projectionRecall(
+        tenantId,
+        userId,
+        query,
+        clientId,
+        8,
+        rerankOn,
+      ).catch(() => null);
       return proj ?? this.clioRecall(tenantId, userId, query, clientId);
     }
 
@@ -3871,7 +3935,7 @@ export class MeriService {
         // this client's memory (fail-closed; firm/private arms unaffected).
         const clientArm =
           clientId !== null && (await clientMemoryAllowed(tx, tenantId, userId, clientId));
-        return tx.clioMemory.findMany({
+        const rows = await tx.clioMemory.findMany({
           where: {
             tenantId,
             // G2 ephemeral: expired working memory never reaches recall.
@@ -3884,8 +3948,24 @@ export class MeriService {
           },
           orderBy: { updatedAt: 'desc' },
           take: 20,
-          select: { key: true, value: true },
+          select: { id: true, key: true, value: true },
         });
+        // Governed suppression for the keyword fallback. This one cannot be a SQL
+        // predicate (it is a Prisma findMany), so it is a BOUNDED second query over
+        // exactly the <=20 ids just fetched, served by
+        // memory_items_tenant_type_slug_unique. Dark by default: when off, no extra
+        // query runs and `governed_status` is never referenced.
+        if (!governedRecallSuppressionEnabled() || rows.length === 0) return rows;
+        const slugs = rows.map((r) => `clio:${r.id}`);
+        const suppressed = await tx.$queryRaw<Array<{ slug: string }>>`
+          SELECT slug FROM memory_items
+          WHERE tenant_id = ${tenantId}::uuid
+            AND type = 'note'
+            AND slug = ANY(${slugs}::text[])
+            AND governed_status = ANY(${[...TERMINAL_GOVERNED_STATUSES]}::text[])
+        `;
+        const blocked = new Set(suppressed.map((s) => s.slug));
+        return blocked.size ? rows.filter((r) => !blocked.has(`clio:${r.id}`)) : rows;
       });
       // Keyword-rank with a recency fallback so a stored memory is never
       // silently invisible when embeddings are unavailable (W2 M1).
@@ -3954,7 +4034,7 @@ export class MeriService {
             AND (mi.owner_user_id IS NULL OR mi.owner_user_id = $2::uuid)
             AND mi.status = 'active'
             AND (mi.expires_at IS NULL OR mi.expires_at > now())
-            AND (mi.client_id IS NULL OR ($3::uuid IS NOT NULL AND mi.client_id = $3::uuid))
+            AND (mi.client_id IS NULL OR ($3::uuid IS NOT NULL AND mi.client_id = $3::uuid))${governedRecallSuppressionSql(governedRecallSuppressionEnabled(), 'mi')}
           ORDER BY ce.embedding <=> '${literal}'::vector
           LIMIT ${fetchN}`,
         tenantId,
@@ -3977,7 +4057,9 @@ export class MeriService {
       (this.config.get('MEMORY_PROJECTION_MIN_SCORE', { infer: true }) as number | undefined) ??
       0.4;
     const floored = applyRecallScoreFloor(rows, minScore);
-    const ordered = rerankOn ? rerankByFusion(this.toRecalledRows(floored), this.fusionOpts()) : floored;
+    const ordered = rerankOn
+      ? rerankByFusion(this.toRecalledRows(floored), this.fusionOpts())
+      : floored;
     return (ordered as Array<{ title?: string; sections?: unknown; key?: string; value?: string }>)
       .slice(0, cappedLimit)
       .map((r) =>
@@ -3991,7 +4073,13 @@ export class MeriService {
    *  carrying the reconstructed {key,value}, raw similarity, age in days, and
    *  Phase-4 confidence. */
   private toRecalledRows(
-    rows: Array<{ title: string; sections: unknown; score: number; confidence: number | null; observed_at: Date | null }>,
+    rows: Array<{
+      title: string;
+      sections: unknown;
+      score: number;
+      confidence: number | null;
+      observed_at: Date | null;
+    }>,
   ): RecalledRow[] {
     const now = Date.now();
     return rows.map((r) => ({
@@ -4013,7 +4101,9 @@ export class MeriService {
       if ((this.config.get('MERI_CONTEXT_METRICS', { infer: true }) as string) === 'off') return;
       const source =
         (this.config.get('MEMORY_RECALL_SOURCE', { infer: true }) as string | undefined) ?? 'clio';
-      this.logger.log(JSON.stringify(recallOutcomeMetric(outcome, source, count, new Date().toISOString())));
+      this.logger.log(
+        JSON.stringify(recallOutcomeMetric(outcome, source, count, new Date().toISOString())),
+      );
       if (outcome === 'error') {
         this.logger.warn(
           `${recallOutcomeSummary(outcome, source, count)} err=${err instanceof Error ? err.message : String(err)}`,
@@ -4051,16 +4141,19 @@ export class MeriService {
       weights: {
         sim: (this.config.get('MEMORY_RECALL_W_SIM', { infer: true }) as number | undefined) ?? 0.6,
         rec:
-          (this.config.get('MEMORY_RECALL_W_RECENCY', { infer: true }) as number | undefined) ?? 0.25,
+          (this.config.get('MEMORY_RECALL_W_RECENCY', { infer: true }) as number | undefined) ??
+          0.25,
         conf:
           (this.config.get('MEMORY_RECALL_W_CONFIDENCE', { infer: true }) as number | undefined) ??
           0.15,
       },
       halfLifeDays:
-        (this.config.get('MEMORY_RECALL_HALFLIFE_DAYS', { infer: true }) as number | undefined) ?? 180,
+        (this.config.get('MEMORY_RECALL_HALFLIFE_DAYS', { infer: true }) as number | undefined) ??
+        180,
       neutralConfidence:
-        (this.config.get('MEMORY_RECALL_NEUTRAL_CONFIDENCE', { infer: true }) as number | undefined) ??
-        0.75,
+        (this.config.get('MEMORY_RECALL_NEUTRAL_CONFIDENCE', { infer: true }) as
+          | number
+          | undefined) ?? 0.75,
     };
   }
 
@@ -4068,9 +4161,7 @@ export class MeriService {
     event: 'attempted' | 'skipped' | 'candidate_created' | 'failed',
     reason?: string,
   ): void {
-    this.logger.log(
-      `[memory-autolearn] metric=${event}${reason ? ` reason=${reason}` : ''}`,
-    );
+    this.logger.log(`[memory-autolearn] metric=${event}${reason ? ` reason=${reason}` : ''}`);
   }
 
   private async maybeLearnFromConversation(args: {
@@ -4324,29 +4415,146 @@ export class MeriService {
   async recordMessageFeedback(
     ctx: TenantContext,
     messageId: string,
-    input: { rating?: unknown; note?: unknown },
+    input: { rating?: unknown; reasons?: unknown; note?: unknown },
   ): Promise<NormalizedFeedback> {
     const feedback = normalizeFeedback(input);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const msg = await tx.clioMessage.findFirst({
-        where: { id: messageId, tenantId: ctx.tenantId },
+        where: { id: messageId, tenantId: ctx.tenantId, userId: ctx.userId },
       });
       if (!msg) throw new NotFoundException('Message not found');
+      if (msg.role !== 'assistant')
+        throw new BadRequestException('Feedback applies to assistant messages only');
       const metadata =
         msg.metadata && typeof msg.metadata === 'object' && !Array.isArray(msg.metadata)
           ? (msg.metadata as Record<string, unknown>)
           : {};
+      const verification =
+        metadata.verification &&
+        typeof metadata.verification === 'object' &&
+        !Array.isArray(metadata.verification)
+          ? (metadata.verification as Record<string, unknown>)
+          : null;
+      const unsupportedCount =
+        typeof verification?.unsupportedCount === 'number' ? verification.unsupportedCount : null;
+      const totalCount =
+        typeof verification?.totalCount === 'number' ? verification.totalCount : null;
+      const verificationState = !verification
+        ? 'not_verified'
+        : totalCount === 0
+          ? 'not_verified'
+          : unsupportedCount && unsupportedCount > 0
+            ? 'partially_verified'
+            : 'verified';
+      const contextPacketId =
+        typeof metadata.contextPacketId === 'string'
+          ? metadata.contextPacketId
+          : metadata.contextPacket &&
+              typeof metadata.contextPacket === 'object' &&
+              !Array.isArray(metadata.contextPacket) &&
+              typeof (metadata.contextPacket as Record<string, unknown>).packetId === 'string'
+            ? String((metadata.contextPacket as Record<string, unknown>).packetId)
+            : null;
+      const serverFeedback = {
+        ...feedback,
+        userId: ctx.userId,
+        at: new Date().toISOString(),
+        surface: typeof metadata.surface === 'string' ? metadata.surface : 'chat',
+        model: typeof metadata.model === 'string' ? metadata.model : null,
+        provider:
+          typeof metadata.provider === 'string'
+            ? metadata.provider
+            : typeof metadata.servedBy === 'string'
+              ? metadata.servedBy
+              : null,
+        promptVersion:
+          typeof metadata.promptVersion === 'string'
+            ? metadata.promptVersion
+            : typeof metadata.promptSpecVersion === 'string'
+              ? metadata.promptSpecVersion
+              : null,
+        contextPacketId,
+        verificationState,
+      };
       await tx.clioMessage.update({
         where: { id: messageId },
         data: {
           metadata: {
             ...metadata,
-            feedback: { ...feedback, userId: ctx.userId, at: new Date().toISOString() },
+            feedback: serverFeedback,
           } as unknown as Prisma.InputJsonValue,
         },
       });
       return feedback;
     });
+  }
+
+  /**
+   * Admin-only, bounded feedback export for evaluation fixtures.
+   *
+   * ANONYMIZED AND VERSIONED. This used to emit `responseExcerpt` — a raw
+   * 1200-character slab of `clio_message.body`, i.e. an un-redacted piece of a real
+   * client conversation, with no record of what redaction had been applied. It now
+   * emits `responseExcerpt` produced by `anonymizeFeedbackExcerpt` and stamps
+   * `anonymizationVersion`, which is exactly what
+   * `reviewFeedbackFixtureCandidate` requires before feedback may become an eval
+   * fixture (it refuses an empty anonymizationVersion).
+   *
+   * The client NAME is fetched per conversation so it can be redacted by name, not
+   * only by pattern — a client is far more often identified by its own name than by
+   * an email address.
+   */
+  async exportFeedbackForEvaluation(ctx: TenantContext, limit = 200) {
+    const take = Math.min(Math.max(limit, 1), 500);
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioMessage.findMany({
+        where: { tenantId: ctx.tenantId, role: 'assistant' },
+        orderBy: { createdAt: 'desc' },
+        take: Math.min(take * 5, 2000),
+        select: {
+          id: true,
+          conversationId: true,
+          clientId: true,
+          body: true,
+          metadata: true,
+          createdAt: true,
+          client: { select: { name: true } },
+        },
+      }),
+    );
+    return rows
+      .map((row) => {
+        const metadata =
+          row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
+            ? (row.metadata as Record<string, unknown>)
+            : {};
+        const feedback = metadata.feedback;
+        if (!feedback || typeof feedback !== 'object' || Array.isArray(feedback)) return null;
+        const record = feedback as Record<string, unknown>;
+        const excerpt = anonymizeFeedbackExcerpt(row.body, {
+          names: [row.client?.name ?? null],
+        });
+        return {
+          messageId: row.id,
+          conversationId: row.conversationId,
+          clientId: row.clientId,
+          createdAt: row.createdAt.toISOString(),
+          responseExcerpt: excerpt.text,
+          anonymizationVersion: excerpt.anonymizationVersion,
+          redactions: excerpt.redactions,
+          rating: record.rating ?? null,
+          reasons: Array.isArray(record.reasons) ? record.reasons.slice(0, 10) : [],
+          note: typeof record.note === 'string' ? record.note.slice(0, 1000) : null,
+          surface: record.surface ?? null,
+          model: record.model ?? null,
+          provider: record.provider ?? null,
+          promptVersion: record.promptVersion ?? null,
+          contextPacketId: record.contextPacketId ?? null,
+          verificationState: record.verificationState ?? null,
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null)
+      .slice(0, take);
   }
 
   /**
@@ -4587,38 +4795,14 @@ export class MeriService {
 
   // ── Embedding-based memory search (Phase 4 semantic) ──────────────────
 
-  async embedAndStoreMemory(tenantId: string, key: string, value: string): Promise<void> {
-    // Use OpenAI for embeddings (1536-dim text-embedding-3-small). No Anthropic
-    // call happens here (the previous ANTHROPIC_API_KEY read was dead code).
-    const openaiKey = this.config.get('OPENAI_API_KEY', { infer: true });
-    if (!openaiKey) return;
-
-    try {
-      const res = await fetch('https://api.openai.com/v1/embeddings', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'text-embedding-3-small', input: `${key}: ${value}` }),
-      });
-      if (!res.ok) return;
-      const json = (await res.json()) as { data?: Array<{ embedding?: number[] }> };
-      const embedding = json.data?.[0]?.embedding;
-      if (!embedding || embedding.length !== 1536) return;
-
-      const vecStr = `[${embedding.join(',')}]`;
-      // withTenant: clio_memory is RLS-protected; a bare write would match 0 rows
-      // under FORCE ROW LEVEL SECURITY and silently drop the embedding.
-      await this.prisma.withTenant(tenantId, (tx) =>
-        tx.$executeRawUnsafe(
-          `UPDATE clio_memory SET embedding = $1::vector WHERE tenant_id = $2::uuid AND key = $3`,
-          vecStr,
-          tenantId,
-          key,
-        ),
-      );
-    } catch (err) {
-      this.logger.debug(`Embedding failed for memory ${key}: ${(err as Error).message}`);
-    }
-  }
+  // `embedAndStoreMemory` was removed here (closeout §4). It was dead code — the
+  // only occurrence of the name in the whole repository was its own definition —
+  // and it carried the same cross-client bug as MemoryCandidateService.embedMemory:
+  // it wrote one vector to EVERY row matching `(tenant_id, key)`, but clio_memory
+  // is unique on (tenant, scope, owner, client, key), so the same key exists once
+  // per client and once per user. An unreferenced method with that predicate is a
+  // landmine for the next caller. The live path is
+  // MemoryCandidateService.embedMemory, which targets the exact row id.
 
   async semanticMemorySearch(
     tenantId: string,
@@ -4661,7 +4845,7 @@ export class MeriService {
              scope = 'firm'
              OR (scope = 'user_private' AND owner_user_id = $3::uuid)
              OR (scope = 'client' AND client_id = $5::uuid)
-           )
+           )${governedClioSuppressionSql(governedRecallSuppressionEnabled())}
          ORDER BY embedding <=> $1::vector
          LIMIT $4`,
           vecStr,
@@ -4690,33 +4874,144 @@ export class MeriService {
    * undo affordance. Only auto-created entries are surfaced (createdBy === 'auto').
    */
   async listRecentLearnedMemories(ctx: TenantContext, limit = 5) {
-    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMemory.findMany({
+    const rows = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const memories = await tx.clioMemory.findMany({
         where: {
           tenantId: ctx.tenantId,
-          OR: [{ scope: 'firm' }, { scope: 'user_private', ownerUserId: ctx.userId }],
+          OR: [
+            { scope: 'firm' },
+            { scope: 'client' },
+            { scope: 'user_private', ownerUserId: ctx.userId },
+          ],
         },
         orderBy: { updatedAt: 'desc' },
-        take: Math.min(Math.max(limit, 1), 20),
-        select: { id: true, key: true, value: true, scope: true, metadata: true, updatedAt: true },
-      }),
-    );
-    return rows
+        take: Math.min(Math.max(limit * 4, 10), 80),
+        select: {
+          id: true,
+          key: true,
+          value: true,
+          scope: true,
+          ownerUserId: true,
+          clientId: true,
+          source: true,
+          expiresAt: true,
+          metadata: true,
+          updatedAt: true,
+        },
+      });
+      const clientIds = [
+        ...new Set(memories.map((memory) => memory.clientId).filter(Boolean)),
+      ] as string[];
+      const clients = clientIds.length
+        ? await tx.client.findMany({
+            where: { id: { in: clientIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+      return { memories, clients };
+    });
+    const clientNames = new Map(rows.clients.map((client) => [client.id, client.name]));
+    return rows.memories
       .filter((row) => {
         const meta = (row.metadata ?? {}) as Record<string, unknown>;
-        return meta.createdBy === 'auto' || meta.updatedBy === 'auto';
+        return (
+          meta.createdBy === 'auto' || meta.updatedBy === 'auto' || meta.reviewState === 'pending'
+        );
       })
+      .slice(0, Math.min(Math.max(limit, 1), 20))
       .map((row) => {
         const meta = (row.metadata ?? {}) as Record<string, unknown>;
+        const mutation = evaluateMemoryMutation(ctx, row, 'edit');
+        const pending = meta.reviewState === 'pending' || meta.status === 'candidate';
+        const source = pending
+          ? 'candidate_review'
+          : meta.createdBy === 'auto' || meta.updatedBy === 'auto'
+            ? 'auto_learned_legacy'
+            : row.source || 'explicit_save';
         return {
           id: row.id,
           key: row.key,
           value: row.value,
           scope: row.scope,
+          clientId: row.clientId,
+          clientName: row.clientId ? (clientNames.get(row.clientId) ?? null) : null,
+          source,
+          state: pending ? 'pending_review' : 'active',
           confidence: typeof meta.confidence === 'number' ? meta.confidence : null,
           learnedAt: row.updatedAt,
+          confirmedAt: typeof meta.lastConfirmedAt === 'string' ? meta.lastConfirmedAt : null,
+          expiresAt: row.expiresAt,
+          canMutate: mutation.allowed,
         };
       });
+  }
+
+  /**
+   * "Suggest correction" for a memory the caller may not mutate (Phase 2 Step 9).
+   *
+   * A standard user cannot edit firm- or client-scope memory — evaluateMemoryMutation
+   * denies it — but dead-ending them is why auto-learned mistakes used to persist.
+   * The suggestion becomes a PENDING memory_candidate through Phase 1's real
+   * candidate lifecycle, so an admin reviews it and nothing is committed here.
+   *
+   * `isAdmin: false` is passed unconditionally and on purpose: this route only
+   * ever PROPOSES. An admin who genuinely wants to write uses the normal PATCH
+   * path, so a correction suggestion can never become a silent direct write.
+   */
+  async suggestMemoryCorrection(
+    ctx: TenantContext,
+    memoryId: string,
+    input: { value?: unknown; note?: unknown },
+  ): Promise<{ ok: true; state: 'pending_review'; candidateId: string | null }> {
+    const proposed = typeof input.value === 'string' ? input.value.trim() : '';
+    if (!proposed) throw new BadRequestException('A corrected value is required.');
+    if (proposed.length > 8000) throw new BadRequestException('The correction is too long.');
+    const note =
+      typeof input.note === 'string' && input.note.trim() ? input.note.trim().slice(0, 1000) : null;
+
+    // Tenant-scoped read: RLS plus the explicit tenantId filter, so a caller can
+    // never propose a correction against another tenant's memory.
+    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioMemory.findFirst({
+        where: { id: memoryId, tenantId: ctx.tenantId },
+        select: {
+          id: true,
+          key: true,
+          value: true,
+          scope: true,
+          clientId: true,
+          ownerUserId: true,
+        },
+      }),
+    );
+    if (!row) throw new NotFoundException('Memory not found');
+
+    const scope = (
+      row.scope === 'user_private' ? 'user_private' : row.scope === 'client' ? 'client' : 'firm'
+    ) as 'firm' | 'user_private' | 'client';
+    const result = await this.memoryCandidates.proposeSaveMemory(
+      ctx.tenantId,
+      ctx.userId,
+      {
+        scope,
+        ownerUserId: scope === 'user_private' ? row.ownerUserId : null,
+        clientId: scope === 'client' ? row.clientId : null,
+        key: row.key,
+        value: note
+          ? `${proposed}
+
+[Correction note] ${note}`
+          : proposed,
+        source: 'user_correction',
+      },
+      false,
+      'user_correction',
+    );
+    const candidateId =
+      result && typeof result === 'object' && 'candidateId' in result
+        ? (((result as { candidateId?: unknown }).candidateId as string | null) ?? null)
+        : null;
+    return { ok: true, state: 'pending_review', candidateId };
   }
 
   /**
@@ -4791,9 +5086,50 @@ export class MeriService {
           before: { key: row.key, value: row.value, scope: row.scope },
         },
       });
+      // Record the projection revocation this forget owes, in the SAME
+      // transaction as the delete (closeout §4, gap B2).
+      //
+      // This is the most dangerous of the fire-and-forget dispatches. The others
+      // could leave a projection STALE; this one could leave a FORGOTTEN memory
+      // still semantically recallable — the clio_memory row is gone, but the
+      // memory_items projection and its context_embeddings vector survive, so
+      // "forget this" silently means "hide it from the KV read path only".
+      //
+      // The projection is found by its derived slug (`clio:<id>`), which is how
+      // the clio adapter names it; resolving it here rather than in the worker
+      // keeps the read inside the RLS/user context that can actually see a
+      // user_private projection.
+      if (this.cleanupOutbox) {
+        const projected = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id::text AS id FROM memory_items
+          WHERE tenant_id = ${ctx.tenantId}::uuid AND slug = ${slug}
+          LIMIT 1
+        `;
+        await this.cleanupOutbox.enqueue(tx, ctx.tenantId, {
+          // Both subjects: the projection to strip embeddings from, and the
+          // clio id so the fast-path close can find this job.
+          memoryItemId: projected[0]?.id ?? null,
+          clioMemoryId: memoryId,
+          operation: 'revoke_projections',
+          idempotencyKey: `revoke_projections:${memoryId}`,
+        });
+      }
     });
-    // Write-through: drop the projected memory_item + its embedding/edges.
-    void this.memoryIngest.removeClioMemory(ctx.tenantId, memoryId);
+    // Write-through: drop the projected memory_item + its embedding/edges. Still
+    // non-blocking, but no longer forgettable — the row enqueued above means a
+    // failed revocation is retried by the drain instead of leaving deleted memory
+    // recallable through semantic search.
+    void this.memoryIngest
+      .removeClioMemory(ctx.tenantId, memoryId)
+      .then(() =>
+        this.cleanupOutbox?.markIndexedOnFastPath(ctx.tenantId, memoryId, 'revoke_projections'),
+      )
+      .catch((err: unknown) => {
+        this.logger.warn(
+          `memory.forget write-through failed for clio_memory ${memoryId}; left queued for the ` +
+            `cleanup drain: ${(err as Error).message}`,
+        );
+      });
     return { ok: true, id: memoryId };
   }
 
@@ -4802,26 +5138,65 @@ export class MeriService {
    * inspect/edit panel (P2-6). Not limited to auto-created entries.
    */
   async listMemories(ctx: TenantContext, limit = 100) {
-    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMemory.findMany({
+    const rows = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const memories = await tx.clioMemory.findMany({
         where: {
           tenantId: ctx.tenantId,
-          OR: [{ scope: 'firm' }, { scope: 'user_private', ownerUserId: ctx.userId }],
+          OR: [
+            { scope: 'firm' },
+            { scope: 'client' },
+            { scope: 'user_private', ownerUserId: ctx.userId },
+          ],
         },
         orderBy: { updatedAt: 'desc' },
         take: Math.min(Math.max(limit, 1), 200),
-        select: { id: true, key: true, value: true, scope: true, metadata: true, updatedAt: true },
-      }),
-    );
-    return rows.map((row) => {
+        select: {
+          id: true,
+          key: true,
+          value: true,
+          scope: true,
+          ownerUserId: true,
+          clientId: true,
+          source: true,
+          expiresAt: true,
+          metadata: true,
+          updatedAt: true,
+        },
+      });
+      const clientIds = [
+        ...new Set(memories.map((memory) => memory.clientId).filter(Boolean)),
+      ] as string[];
+      const clients = clientIds.length
+        ? await tx.client.findMany({
+            where: { id: { in: clientIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+      return { memories, clients };
+    });
+    const clientNames = new Map(rows.clients.map((client) => [client.id, client.name]));
+    return rows.memories.map((row) => {
       const meta = (row.metadata ?? {}) as Record<string, unknown>;
+      const mutation = evaluateMemoryMutation(ctx, row, 'edit');
+      const pending = meta.reviewState === 'pending' || meta.status === 'candidate';
       return {
         id: row.id,
         key: row.key,
         value: row.value,
         scope: row.scope,
+        clientId: row.clientId,
+        clientName: row.clientId ? (clientNames.get(row.clientId) ?? null) : null,
+        source: pending
+          ? 'candidate_review'
+          : meta.createdBy === 'auto' || meta.updatedBy === 'auto'
+            ? 'auto_learned_legacy'
+            : row.source || 'explicit_save',
+        state: pending ? 'pending_review' : 'active',
         confidence: typeof meta.confidence === 'number' ? meta.confidence : null,
         learnedAt: row.updatedAt,
+        confirmedAt: typeof meta.lastConfirmedAt === 'string' ? meta.lastConfirmedAt : null,
+        expiresAt: row.expiresAt,
+        canMutate: mutation.allowed,
       };
     });
   }
@@ -4907,9 +5282,42 @@ export class MeriService {
           after: { key: row.key, value: next },
         },
       });
+      // Record the re-projection this edit owes, in the SAME transaction as the
+      // edit and its audit row (closeout §4, gap B2). Without this the
+      // write-through below was fire-and-forget: an edit that lost its race with
+      // a container stop left memory_items and the embedding showing the OLD
+      // text, with nothing queued to correct it — a silently stale answer rather
+      // than a missing one.
+      if (this.cleanupOutbox) {
+        // Keyed on the row's updated_at, which the edit above just bumped — NOT
+        // on a wall clock. A distinct edit owes distinct work, but a retried
+        // identical request collapses via ON CONFLICT DO NOTHING instead of
+        // queueing a duplicate re-projection.
+        const stamp = await tx.$queryRaw<Array<{ updated_at: Date }>>`
+          SELECT updated_at FROM clio_memory
+          WHERE id = ${memoryId}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+        `;
+        const version = stamp[0]?.updated_at?.toISOString() ?? 'unstamped';
+        await this.cleanupOutbox.enqueue(tx, ctx.tenantId, {
+          clioMemoryId: memoryId,
+          operation: 'index_memory_item',
+          idempotencyKey: `index_memory_item:${memoryId}:${version}`,
+        });
+      }
     });
-    // Write-through: refresh the projected memory_item + embedding.
-    void this.memoryIngest.projectClioMemory(ctx.tenantId, memoryId);
+    // Write-through: refresh the projected memory_item + embedding. Still
+    // non-blocking (it embeds via Bedrock — see commitToClioMemory's note), but
+    // now backed by the row enqueued above, so a failure is retried by the drain
+    // instead of leaving a stale projection forever.
+    void this.memoryIngest
+      .projectClioMemory(ctx.tenantId, memoryId)
+      .then(() => this.cleanupOutbox?.markIndexedOnFastPath(ctx.tenantId, memoryId))
+      .catch((err: unknown) => {
+        this.logger.warn(
+          `memory.edit write-through failed for clio_memory ${memoryId}; left queued for the ` +
+            `cleanup drain: ${(err as Error).message}`,
+        );
+      });
     return { ok: true, id: memoryId, value: next };
   }
 }

@@ -13,6 +13,10 @@ import {
   type MeriActionProposalStatus,
 } from './meri-action-proposal.service.js';
 import type { MeriToolsService } from './meri-tools.service.js';
+import type {
+  AuthoritativePolicyDecision,
+  MeriPolicyPackService,
+} from './meri-policy-pack.service.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
@@ -24,6 +28,51 @@ const ctx = {
   clerkUserId: 'user_test',
   role: 'standard_user',
 } satisfies TenantContext;
+
+function authoritativeDecision(
+  tool: string,
+  decision: {
+    outcome: 'PASS' | 'WARN' | 'BLOCK';
+    reasons: string[];
+    code?: string;
+    tier?: 'low' | 'moderate' | 'high' | 'restricted';
+    ruleId?: string;
+  },
+): AuthoritativePolicyDecision {
+  const at = new Date('2026-07-27T00:00:00.000Z');
+  const channel = /^(?:send_email|reply_email)$/.test(tool) ? 'email' : 'crm';
+  return {
+    outcome: decision.outcome,
+    packId: 'capiro-generic-action-approval',
+    packVersion: CAPIRO_COMPLIANCE_POLICY_VERSION,
+    ruleId: decision.ruleId ?? null,
+    reason: decision.reasons.join(' ') || 'Policy decision',
+    ...(decision.code ? { code: decision.code } : {}),
+    ...(decision.tier ? { tier: decision.tier } : {}),
+    simulated: false,
+    mode: 'off',
+    source: 'static',
+    verified: true,
+    bindable: true,
+    policyPackRowId: null,
+    binding: 'policy-binding',
+    contextHash: 'policy-context-hash',
+    decisionHash: 'policy-decision-hash',
+    context: {
+      tenantId: TENANT,
+      actorUserId: USER,
+      effectiveUserId: USER,
+      actorRole: 'standard_user',
+      jurisdiction: 'federal',
+      tool,
+      channel,
+      recipientType: 'unknown',
+      at,
+      effectiveAt: at,
+      contextFlags: { impersonating: false },
+    },
+  };
+}
 
 function makeRow(overrides: Partial<MeriActionProposal> = {}): MeriActionProposal {
   const input = (overrides.input as Record<string, unknown> | undefined) ?? {
@@ -48,8 +97,25 @@ function makeRow(overrides: Partial<MeriActionProposal> = {}): MeriActionProposa
       tool,
       input,
       policyVersion: CAPIRO_COMPLIANCE_POLICY_VERSION,
+      policyBinding: 'policy-binding',
+      policyDecisionHash: 'policy-decision-hash',
+      policyContextHash: 'policy-context-hash',
     }),
     policyVersion: CAPIRO_COMPLIANCE_POLICY_VERSION,
+    policyPackId: null,
+    policyPackKey: 'capiro-generic-action-approval',
+    policyPackVersion: CAPIRO_COMPLIANCE_POLICY_VERSION,
+    policyBinding: 'policy-binding',
+    policyDecisionHash: 'policy-decision-hash',
+    policyContextHash: 'policy-context-hash',
+    policySource: 'static',
+    policyMode: 'off',
+    policyJurisdiction: 'federal',
+    policyChannel: /^(?:send_email|reply_email)$/.test(tool) ? 'email' : 'crm',
+    policyRecipientType: 'unknown',
+    policyClientId: null,
+    policyEffectiveUserId: USER,
+    policyEffectiveAt: new Date('2026-07-27T00:00:00.000Z'),
     policyRuleId: 'external_send.requires_approval',
     policyDecision: 'WARN',
     policyCode: 'external_send',
@@ -81,7 +147,11 @@ function makeRow(overrides: Partial<MeriActionProposal> = {}): MeriActionProposa
 
 function statusMatches(statusFilter: unknown, status: string): boolean {
   if (typeof statusFilter === 'string') return statusFilter === status;
-  if (statusFilter && typeof statusFilter === 'object' && Array.isArray((statusFilter as { in?: unknown }).in)) {
+  if (
+    statusFilter &&
+    typeof statusFilter === 'object' &&
+    Array.isArray((statusFilter as { in?: unknown }).in)
+  ) {
     return ((statusFilter as { in: string[] }).in).includes(status);
   }
   return true;
@@ -96,12 +166,14 @@ function dateMatches(filter: unknown, value: Date | null): boolean {
   return true;
 }
 
-function harness(options: {
-  row?: MeriActionProposal | null;
-  forceClaimLoss?: boolean;
-  executeResult?: unknown;
-  executeError?: unknown;
-} = {}) {
+function harness(
+  options: {
+    row?: MeriActionProposal | null;
+    forceClaimLoss?: boolean;
+    executeResult?: unknown;
+    executeError?: unknown;
+  } = {},
+) {
   let row = options.row === undefined ? makeRow() : options.row;
   const complianceCreate = jest.fn().mockResolvedValue({ id: 'audit' });
   const execute = options.executeError
@@ -118,7 +190,9 @@ function harness(options: {
     if (where.userId && where.userId !== row.userId) return false;
     if (where.status && !statusMatches(where.status, row.status)) return false;
     if (where.expiresAt && !dateMatches(where.expiresAt, row.expiresAt)) return false;
-    if (where.executionStartedAt && !dateMatches(where.executionStartedAt, row.executionStartedAt)) return false;
+    if (where.executionStartedAt && !dateMatches(where.executionStartedAt, row.executionStartedAt)) {
+      return false;
+    }
     return true;
   }
 
@@ -143,29 +217,44 @@ function harness(options: {
         return row;
       }),
       findMany: jest.fn(async () => (row ? [row] : [])),
-      updateMany: jest.fn(async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
-        if (!matches(where) || !row) return { count: 0 };
-        if (options.forceClaimLoss && data.status === 'executing') {
-          row = { ...row, status: 'executing', executionStartedAt: new Date() } as MeriActionProposal;
-          return { count: 0 };
-        }
-        const next: Record<string, unknown> = { ...row };
-        for (const [key, value] of Object.entries(data)) {
-          if (value === undefined) continue;
-          if (value && typeof value === 'object' && 'increment' in value) {
-            next[key] = Number(next[key] ?? 0) + Number((value as { increment: number }).increment);
-          } else {
-            next[key] = value;
+      updateMany: jest.fn(
+        async ({
+          where,
+          data,
+        }: {
+          where: Record<string, unknown>;
+          data: Record<string, unknown>;
+        }) => {
+          if (!matches(where) || !row) return { count: 0 };
+          if (options.forceClaimLoss && data.status === 'executing') {
+            row = {
+              ...row,
+              status: 'executing',
+              executionStartedAt: new Date(),
+            } as MeriActionProposal;
+            return { count: 0 };
           }
-        }
-        next.updatedAt = new Date();
-        row = next as unknown as MeriActionProposal;
-        return { count: 1 };
-      }),
+          const next: Record<string, unknown> = { ...row };
+          for (const [key, value] of Object.entries(data)) {
+            if (value === undefined) continue;
+            if (value && typeof value === 'object' && 'increment' in value) {
+              next[key] =
+                Number(next[key] ?? 0) + Number((value as { increment: number }).increment);
+            } else {
+              next[key] = value;
+            }
+          }
+          next.updatedAt = new Date();
+          row = next as unknown as MeriActionProposal;
+          return { count: 1 };
+        },
+      ),
     },
   };
   const prisma = {
-    withTenant: jest.fn((_tenantId: string, callback: (arg: typeof tx) => unknown) => callback(tx)),
+    withTenant: jest.fn((_tenantId: string, callback: (arg: typeof tx) => unknown) =>
+      callback(tx),
+    ),
   } as unknown as PrismaService;
   const tools = {
     validateSideEffectingInput: validate,
@@ -179,7 +268,20 @@ function harness(options: {
           ? 15
           : undefined,
   } as unknown as ConfigService<AppConfig, true>;
-  const service = new MeriActionProposalService(prisma, tools, config);
+  const defaultPolicy = {
+    outcome: 'WARN' as const,
+    reasons: ['Requires approval'],
+    code: 'external_send',
+    tier: 'restricted' as const,
+    ruleId: 'external_send.requires_approval',
+  };
+  const policyPacks = {
+    decideForAction: jest.fn(async (_ctx: TenantContext, tool: string) =>
+      authoritativeDecision(tool, defaultPolicy),
+    ),
+    recordDecisionInTx: jest.fn().mockResolvedValue(undefined),
+  } as unknown as MeriPolicyPackService;
+  const service = new MeriActionProposalService(prisma, tools, config, policyPacks);
   const setPolicy = (decision: {
     outcome: 'PASS' | 'WARN' | 'BLOCK';
     reasons: string[];
@@ -187,11 +289,18 @@ function harness(options: {
     tier?: 'low' | 'moderate' | 'high' | 'restricted';
     ruleId?: string;
   }) => {
-    (service as unknown as { policy: { evaluate: jest.Mock } }).policy = {
-      evaluate: jest.fn().mockResolvedValue(decision),
-    };
+    (policyPacks.decideForAction as jest.Mock).mockImplementation(
+      async (_ctx: TenantContext, tool: string) => authoritativeDecision(tool, decision),
+    );
   };
-  return { service, tx, tools: { execute, validate }, getRow: () => row, setPolicy };
+  return {
+    service,
+    tx,
+    tools: { execute, validate },
+    policyPacks,
+    getRow: () => row,
+    setPolicy,
+  };
 }
 
 describe('MeriActionProposalService', () => {
@@ -213,7 +322,11 @@ describe('MeriActionProposalService', () => {
       tenantId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     } as never);
     const stored = h.getRow()!;
-    expect(result.proposalId).toBe(PROPOSAL);
+    expect(result.disposition).toBe('pending_approval');
+    if (result.disposition !== 'pending_approval') {
+      throw new Error('expected pending approval');
+    }
+    expect(result.proposal.proposalId).toBe(PROPOSAL);
     expect(stored.tenantId).toBe(TENANT);
     expect(stored.userId).toBe(USER);
     expect(stored.fingerprint).not.toBe('f'.repeat(64));
@@ -224,7 +337,10 @@ describe('MeriActionProposalService', () => {
 
   it('blocks changed stored payloads because the fingerprint no longer matches', async () => {
     const original = makeRow();
-    const tampered = { ...original, input: { ...original.input as object, body: 'Changed after review' } } as MeriActionProposal;
+    const tampered = {
+      ...original,
+      input: { ...(original.input as object), body: 'Changed after review' },
+    } as MeriActionProposal;
     const h = harness({ row: tampered });
     h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
     const result = await h.service.approveAndExecute(ctx, PROPOSAL);
@@ -246,10 +362,14 @@ describe('MeriActionProposalService', () => {
 
   it('rechecks current policy and blocks a WARN proposal that is now BLOCK', async () => {
     const h = harness();
-    h.setPolicy({ outcome: 'BLOCK', reasons: ['Policy now blocks this action'], code: 'new_block' });
+    h.setPolicy({
+      outcome: 'BLOCK',
+      reasons: ['Policy now blocks this action'],
+      code: 'new_block',
+    });
     const result = await h.service.approveAndExecute(ctx, PROPOSAL);
     expect(result.status).toBe('blocked');
-    expect(result.error?.code).toBe('new_block');
+    expect(result.error?.code).toBe('policy_binding_changed');
     expect(h.tools.execute).not.toHaveBeenCalled();
   });
 
@@ -278,7 +398,11 @@ describe('MeriActionProposalService', () => {
   });
 
   it('executes the exact stored canonical payload and records succeeded separately from approval', async () => {
-    const row = makeRow({ tool: 'update_client_profile', input: { clientId: TENANT, name: 'Acme' } });
+    const row = makeRow({
+      tool: 'update_client_profile',
+      input: { clientId: TENANT, name: 'Acme' },
+      policyChannel: 'crm',
+    });
     const h = harness({ row, executeResult: { ok: true, clientId: TENANT } });
     h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
     const result = await h.service.approveAndExecute(ctx, PROPOSAL);
@@ -296,14 +420,24 @@ describe('MeriActionProposalService', () => {
   });
 
   it('classifies safe internal transient errors as failed_retryable', async () => {
-    const row = makeRow({ tool: 'update_client_profile', input: { clientId: TENANT, name: 'Acme' } });
+    const row = makeRow({
+      tool: 'update_client_profile',
+      input: { clientId: TENANT, name: 'Acme' },
+      policyChannel: 'crm',
+    });
     const h = harness({ row, executeError: new Error('temporarily unavailable') });
     h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
-    expect((await h.service.approveAndExecute(ctx, PROPOSAL)).status).toBe('failed_retryable');
+    expect((await h.service.approveAndExecute(ctx, PROPOSAL)).status).toBe(
+      'failed_retryable',
+    );
   });
 
   it('classifies a genuine validation failure as failed_terminal, never succeeded', async () => {
-    const row = makeRow({ tool: 'update_client_profile', input: { clientId: TENANT, name: 'Acme' } });
+    const row = makeRow({
+      tool: 'update_client_profile',
+      input: { clientId: TENANT, name: 'Acme' },
+      policyChannel: 'crm',
+    });
     const h = harness({ row, executeError: new Error('validation failed: clientId not found') });
     h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
     const result = await h.service.approveAndExecute(ctx, PROPOSAL);
@@ -316,10 +450,16 @@ describe('MeriActionProposalService', () => {
     const h = harness();
     h.setPolicy({ outcome: 'WARN', reasons: ['Requires approval'] });
     await expect(
-      h.service.approveAndExecute({ ...ctx, userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' }, PROPOSAL),
+      h.service.approveAndExecute(
+        { ...ctx, userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' },
+        PROPOSAL,
+      ),
     ).rejects.toBeInstanceOf(NotFoundException);
     await expect(
-      h.service.approveAndExecute({ ...ctx, tenantId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' }, PROPOSAL),
+      h.service.approveAndExecute(
+        { ...ctx, tenantId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' },
+        PROPOSAL,
+      ),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(h.tools.execute).not.toHaveBeenCalled();
   });
@@ -355,7 +495,12 @@ describe('MeriActionProposalService', () => {
     expect(h.tx.complianceCheck.create).not.toHaveBeenCalled();
   });
 
-  it.each<MeriActionProposalStatus>(['succeeded', 'failed_terminal', 'dismissed', 'expired'])(
+  it.each<MeriActionProposalStatus>([
+    'succeeded',
+    'failed_terminal',
+    'dismissed',
+    'expired',
+  ])(
     'dismiss: is a no-op against terminal status %s (cannot resurrect it)',
     async (status) => {
       const h = harness({ row: makeRow({ status }) });
@@ -368,10 +513,16 @@ describe('MeriActionProposalService', () => {
   it('dismiss: does not reveal or affect another user or tenant proposal', async () => {
     const h = harness();
     await expect(
-      h.service.dismiss({ ...ctx, userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' }, PROPOSAL),
+      h.service.dismiss(
+        { ...ctx, userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' },
+        PROPOSAL,
+      ),
     ).rejects.toBeInstanceOf(NotFoundException);
     await expect(
-      h.service.dismiss({ ...ctx, tenantId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' }, PROPOSAL),
+      h.service.dismiss(
+        { ...ctx, tenantId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' },
+        PROPOSAL,
+      ),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(h.getRow()?.status).toBe('proposed');
   });
@@ -395,20 +546,30 @@ describe('MeriActionProposalService.list', () => {
       },
     };
     const prisma = {
-      withTenant: jest.fn((_tenantId: string, callback: (arg: typeof tx) => unknown) => callback(tx)),
+      withTenant: jest.fn((_tenantId: string, callback: (arg: typeof tx) => unknown) =>
+        callback(tx),
+      ),
     } as unknown as PrismaService;
     const tools = {} as unknown as MeriToolsService;
     const config = {
-      get: (key: string) => (key === 'MERIV2_ACTION_PROPOSALS_ENABLED' ? true : undefined),
+      get: (key: string) =>
+        key === 'MERIV2_ACTION_PROPOSALS_ENABLED' ? true : undefined,
     } as unknown as ConfigService<AppConfig, true>;
-    const service = new MeriActionProposalService(prisma, tools, config);
+    const service = new MeriActionProposalService(
+      prisma,
+      tools,
+      config,
+      {} as unknown as MeriPolicyPackService,
+    );
 
     const result = await service.list(ctx);
 
     expect(result).toHaveLength(1);
     expect(result[0]?.proposalId).toBe(PROPOSAL);
     expect(tx.meriActionProposal.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ tenantId: TENANT, userId: USER }) }),
+      expect.objectContaining({
+        where: expect.objectContaining({ tenantId: TENANT, userId: USER }),
+      }),
     );
   });
 });

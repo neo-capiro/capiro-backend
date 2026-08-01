@@ -1,0 +1,160 @@
+# Institutional-memory governance and assurance cumulative release gate.
+#
+# Durable Phase 1-16 acceptance matrix. It runs governed-memory, projection,
+# truthful persistence, rollout, lifecycle, policy authority, reversible
+# backfill, review/withdrawal, accessibility, Governance Center, and the
+# cross-surface assurance envelope on one exact head.
+name: memory-governance-ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, agent/meriv2-world-class-closeout]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  governed-memory-phases-1-16:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: capiro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d capiro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro?schema=public
+      PSQL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate all Prisma clients used by the repository typecheck
+        run: |
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
+          pnpm --filter @capiro/intel-api exec prisma generate
+          pnpm --filter @capiro/onboard-api exec prisma generate
+          pnpm --filter @capiro/api-strategy exec prisma generate
+
+      - name: Replay all API migrations on clean Postgres
+        run: pnpm --filter @capiro/api exec prisma migrate deploy
+
+      - name: Build packages required by governance operators
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/meriv2-core build
+
+      - name: Prove policy-pack reviewer concurrency and rollback transitions
+        run: bash apps/api/scripts/test-policy-pack-lifecycle-concurrency.sh
+
+      - name: Prove governance backfill prepare, execute, drift preservation, and rollback
+        run: bash apps/api/scripts/test-memory-governance-backfill-rollback.sh
+
+      - name: Typecheck the full repository dependency graph
+        run: pnpm turbo run typecheck
+
+      - name: Typecheck the production governance-backfill operator
+        run: pnpm --filter @capiro/api exec tsc -p tsconfig.memory-governance-backfill.json --noEmit
+
+      - name: Typecheck projection-worker infrastructure
+        run: pnpm --filter @capiro/infra-cdk typecheck
+
+      - name: Test API governed-memory Phases 1-16
+        run: >
+          pnpm --filter @capiro/api exec jest --ci --silent --runInBand
+          src/memory
+          scripts/lib/memory-governance-backfill.spec.ts
+          src/context/context-compiler-v2.service.spec.ts
+          src/context/context-persistence-boundary.spec.ts
+          src/engagement/governed-engagement.factory.spec.ts
+          src/intelligence/alert-memo/governed-alert-deliverables.factory.spec.ts
+          src/workspace-assistant/workspace-assistant.context-v2.spec.ts
+          src/workspace-assistant/workspace-assistant.parity.spec.ts
+          src/meri/governed-meri-research.factory.spec.ts
+          src/meri/governed-meri-tools.proxy.spec.ts
+          src/meri/meri-context-packet-view.spec.ts
+          src/meri/meri-context-packet.controller.spec.ts
+          src/prisma/migration-memory-immutable-versions.spec.ts
+          src/prisma/migration-memory-cleanup-worker-leases.spec.ts
+          src/prisma/migration-memory-projection-exact-completion.spec.ts
+          src/prisma/memory-projection-worker-infrastructure.spec.ts
+          src/prisma/migration-policy-pack-action-authority.spec.ts
+          src/prisma/migration-policy-pack-lifecycle-concurrency.spec.ts
+          src/prisma/migration-memory-governance-backfill-jobs.spec.ts
+          src/prisma/migration-memory-governance-backfill-delete-guards.spec.ts
+          src/prisma/migration-memory-candidate-withdrawal.spec.ts
+          src/meri/meri-policy-pack.service.spec.ts
+          src/meri/meri-policy-pack.switch.spec.ts
+          src/meri/meri-action-proposal.service.spec.ts
+
+      - name: Test governed lifecycle, policy authority, assurance envelope, and rollout
+        run: >
+          pnpm --filter @capiro/meriv2-core exec jest --ci --runInBand
+          src/memory/governance.spec.ts
+          src/context/truthful-compiler.spec.ts
+          src/context/context-release-switch.spec.ts
+          src/context/context-rollout.spec.ts
+          src/context/compiler-v2.spec.ts
+          src/compliance/action-approval.spec.ts
+          src/assurance/assurance.spec.ts
+          src/assurance/release-switch.spec.ts
+          src/assurance/rollout.spec.ts
+          src/assurance/envelope.spec.ts
+
+      - name: Test orchestrator Context, Chat, Editor, Strategy, Steward, and action-policy delegation
+        run: >
+          pnpm --filter @capiro/meriv2-orchestrator exec jest --ci --runInBand
+          src/meri/context-compiler-v2.service.spec.ts
+          src/meri/context-compiler.service.spec.ts
+          src/meri/meri-context.resolver.spec.ts
+          src/meri/meri-context.resolver.v2.spec.ts
+          src/meri/chat/chat-assistant.service.spec.ts
+          src/meri/in-editor/in-editor-assistant.service.spec.ts
+          src/meri/strategy/strategy-assurance.spec.ts
+          src/meri/steward/steward-assurance.spec.ts
+          src/meri/api-action-proposal.repo.spec.ts
+
+      - name: Test Strategy destination-side assurance verification
+        run: >
+          pnpm --filter @capiro/api-strategy exec jest --ci --runInBand
+          src/agents/execution-assurance.spec.ts
+          src/agents/execution-assurance.switch.spec.ts
+
+      - name: Test Workspace canonical context, section-aware assurance, and persistence hold
+        run: >
+          pnpm --filter @capiro/workspace exec jest --ci --runInBand
+          src/generation/context-compiler.canonical-memory.spec.ts
+          src/generation/context-persistence-hold.spec.ts
+          src/generation/generation-assurance.spec.ts
+          src/checks/checks.verification.spec.ts
+          test/steering-memories.spec.ts
+
+      - name: Test Settings, Governance Center, review, withdrawal, Context Inspector, and Policy Packs
+        run: >
+          pnpm --filter @capiro/web exec vitest run
+          src/components/MemoryFileEditor.phase3.test.ts
+          src/components/MemoryGovernanceCenter.test.ts
+          src/components/MemoryProposalQueue.test.ts
+          src/components/MemoryReviewQueue.test.ts
+          src/components/trust/ContextInspector.test.tsx
+          src/pages/settings/PolicyPacksPage.test.tsx
+          --testTimeout=20000 --hookTimeout=20000

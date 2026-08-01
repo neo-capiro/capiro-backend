@@ -2,7 +2,13 @@ import {
   MERI_GROUNDING_INVARIANT,
   meriGroundingSurfaceBlock,
   meriGroundingDateBlock,
+  GOVERNMENT_AFFAIRS_ASSURANCE_PROTOCOL,
+  buildAssurancePromptBlock,
+  planGovernmentAffairsEvidence,
+  resolveGovernmentAffairsOperatingFrame,
   type Confidence,
+  type DomainEvidencePlan,
+  type GovernmentAffairsOperatingFrame,
   type PeStructuralWarning,
 } from '@capiro/meriv2-core';
 import { flattenSystemParts, type SystemPromptParts } from '../prompt-cache.helpers.js';
@@ -198,6 +204,41 @@ export function sanitizeEdits(raw: unknown): AssistantEdit[] {
  * the top and are now appended at the end, after the base's tool-contract/
  * sourcing/response instructions — not a byte-identical reflow.
  */
+export interface InEditorAssurance {
+  frame: GovernmentAffairsOperatingFrame;
+  plan: DomainEvidencePlan;
+  /** The request text the frame/plan were derived from (last user turn). */
+  request: string;
+}
+
+/**
+ * Resolve the operating frame + evidence plan for THIS in-editor turn.
+ *
+ * Exported (rather than inlined into the prompt builder) so the prompt the model
+ * reads and the gate that judges its output are derived from ONE plan. Two
+ * independent derivations would let the gate demand evidence the prompt never
+ * asked for — the failure mode that makes a release gate feel arbitrary.
+ *
+ * `surface: 'in-editor'` matters: planGovernmentAffairsEvidence adds the
+ * `surface.high-risk-primary-basis` requirement for client-facing surfaces, and
+ * an in-document draft is client-facing.
+ */
+export function resolveInEditorAssurance(dto: InEditorInput): InEditorAssurance {
+  const turns = (dto.messages ?? []).filter(
+    (m) => m && m.role === 'user' && typeof m.text === 'string',
+  );
+  const request = String(turns[turns.length - 1]?.text ?? '');
+  const frame = resolveGovernmentAffairsOperatingFrame({
+    request,
+    ...(dto.clientId ? { explicit: { clientId: dto.clientId } } : {}),
+  });
+  return {
+    frame,
+    plan: planGovernmentAffairsEvidence({ request, frame, surface: 'in-editor' }),
+    request,
+  };
+}
+
 export function composeInEditorSystemPrompt(dto: InEditorInput): SystemPromptParts {
   const doc = dto.document ?? {};
   const title = typeof doc.title === 'string' ? doc.title : 'Untitled document';
@@ -239,7 +280,7 @@ export function composeInEditorSystemPrompt(dto: InEditorInput): SystemPromptPar
     .filter((n): n is string => typeof n === 'string');
 
   const base = [
-    'You are Meri, an in-document drafting assistant for a U.S. federal government-affairs (lobbying) firm.',
+    'You are Meri, an in-document drafting assistant for federal, state, local, regulatory, procurement, and grants government-affairs work.',
     'You are editing ONE specific document with the user, like an AI assistant inside a Google Doc. Operate ONLY in the context of THIS document — do not invent unrelated content.',
     '',
     '# Tools',
@@ -258,6 +299,7 @@ export function composeInEditorSystemPrompt(dto: InEditorInput): SystemPromptPar
     // tail below — it changes daily, so it must never sit in the cached base.
     MERI_GROUNDING_INVARIANT,
     meriGroundingSurfaceBlock('memo'),
+    GOVERNMENT_AFFAIRS_ASSURANCE_PROTOCOL,
     '',
     '# Primary sources outrank secondary coverage',
     'When a news summary and a primary source disagree (bill text, committee report, CBO score, roll call, floor transcript), the primary source wins — say so and cite it. News coverage of legislation is frequently wrong on mechanics: what a bill actually does, vote counts, and timing.',
@@ -285,8 +327,16 @@ export function composeInEditorSystemPrompt(dto: InEditorInput): SystemPromptPar
   // comment above. The live document (title/sections/setup/linked context)
   // follows: it is genuinely per-document and typically changes every turn as
   // the user or the model edits it, so it must never sit in the cached base.
+  const assurance = resolveInEditorAssurance(dto);
   const dynamic = [
     meriGroundingDateBlock(new Date().toISOString()),
+    // Per-turn operating frame + evidence plan (parity with chat's
+    // buildAssurancePromptBlock injection). The static
+    // GOVERNMENT_AFFAIRS_ASSURANCE_PROTOCOL in `base` states the DOCTRINE; this
+    // states which jurisdictions/vehicles/fiscal years this specific request
+    // resolved to and exactly which evidence classes it therefore requires. It
+    // belongs in `dynamic` because it changes with the user's turn.
+    buildAssurancePromptBlock(assurance.frame, assurance.plan),
     `\n# Document\nTitle: ${title}${product ? `\nWork product: ${product}` : ''}${client ? `\nClient: ${client}` : ''}${dto.clientId ? `\nClient id (use for client tools): ${dto.clientId}` : ''}`,
     sectionNames.length ? `Sections (in order): ${sectionNames.join(' | ')}` : '',
     '\n## Current section content\n' + (sectionText || '(no sections yet)'),

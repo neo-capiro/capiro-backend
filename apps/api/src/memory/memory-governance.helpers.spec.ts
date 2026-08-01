@@ -14,17 +14,29 @@ const TENANT = '11111111-1111-1111-1111-111111111111';
 
 function item(over: Partial<MemoryItem> = {}): MemoryItem {
   return {
-    id: 'i', tenantId: TENANT, clientId: 'acme', ownerUserId: null,
-    type: 'thread', visibility: 'tenant', entityId: null, slug: 's', title: 't',
-    aliases: [], tags: [], source: 'graph-email', sourceRef: 'r',
+    id: 'i',
+    tenantId: TENANT,
+    clientId: 'acme',
+    ownerUserId: null,
+    type: 'thread',
+    visibility: 'tenant',
+    entityId: null,
+    slug: 's',
+    title: 't',
+    aliases: [],
+    tags: [],
+    source: 'graph-email',
+    sourceRef: 'r',
     provenance: `ingest@${MEMORY_SCHEMA_VERSION}`,
     sections: [
       { key: 'summary', heading: 'Summary', owner: 'engine', body: 'sensitive' },
       { key: 'analyst-notes', heading: 'Analyst notes', owner: 'human', body: 'keep' },
     ],
-    createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
     schemaVersion: MEMORY_SCHEMA_VERSION,
-    ...defaultMemoryGovernanceFields(), ...over,
+    ...defaultMemoryGovernanceFields(),
+    ...over,
   };
 }
 
@@ -66,7 +78,11 @@ describe('memory governance (Phase 4)', () => {
     const a = item({ id: 'a', clientId: 'acme' });
     const b = item({ id: 'b', clientId: 'acme', type: 'meeting' });
     const c = item({ id: 'c', clientId: 'beta' });
-    expect(selectForLegalHold([a, b, c], 'acme').map((i) => i.id).sort()).toEqual(['a', 'b']);
+    expect(
+      selectForLegalHold([a, b, c], 'acme')
+        .map((i) => i.id)
+        .sort(),
+    ).toEqual(['a', 'b']);
   });
 
   it('redacts only the named section bodies', () => {
@@ -98,8 +114,20 @@ describe('memory governance (Phase 4)', () => {
     });
 
     it('selectForUserPurge never selects a held private item for that user', () => {
-      const held = item({ id: 'held', visibility: 'user', ownerUserId: 'u1', clientId: null, legalHold: true });
-      const notHeld = item({ id: 'free', visibility: 'user', ownerUserId: 'u1', clientId: null, legalHold: false });
+      const held = item({
+        id: 'held',
+        visibility: 'user',
+        ownerUserId: 'u1',
+        clientId: null,
+        legalHold: true,
+      });
+      const notHeld = item({
+        id: 'free',
+        visibility: 'user',
+        ownerUserId: 'u1',
+        clientId: null,
+        legalHold: false,
+      });
       expect(selectForUserPurge([held, notHeld], 'u1').map((i) => i.id)).toEqual(['free']);
     });
   });

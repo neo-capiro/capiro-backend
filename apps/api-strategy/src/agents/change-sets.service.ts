@@ -227,7 +227,9 @@ export class ChangeSetsService {
       const cs = await tx.spChangeSet.findFirst({ where: { id } });
       if (!cs) throw new NotFoundException('Change-set not found');
       if (cs.status !== 'proposed') {
-        throw new ConflictException(`Change-set is ${cs.status} — only a proposed change-set can be approved`);
+        throw new ConflictException(
+          `Change-set is ${cs.status} — only a proposed change-set can be approved`,
+        );
       }
 
       // Selective approval: opIndexes are indexes into ops; the stored
@@ -279,7 +281,9 @@ export class ChangeSetsService {
       const cs = await tx.spChangeSet.findFirst({ where: { id } });
       if (!cs) throw new NotFoundException('Change-set not found');
       if (cs.status !== 'proposed' && cs.status !== 'approved') {
-        throw new ConflictException(`Change-set is ${cs.status} — only proposed/approved can be rejected`);
+        throw new ConflictException(
+          `Change-set is ${cs.status} — only proposed/approved can be rejected`,
+        );
       }
       const updated = await tx.spChangeSet.update({
         where: { id },
@@ -401,7 +405,13 @@ export class ChangeSetsService {
       // resulting persisted plan, hard-block under STRATEGY_VERIFY_BLOCK (the
       // 422 rolls this WHOLE tx back — ops, version cut and status flip) and
       // log plan.verified in the same tx.
-      const { detail } = await this.meri.verifyAppliedPlan(tx, tenantId, userId, cs.strategyId, ground);
+      const { detail } = await this.meri.verifyAppliedPlan(
+        tx,
+        tenantId,
+        userId,
+        cs.strategyId,
+        ground,
+      );
       return { stale: false as const, detail };
     });
 
@@ -430,7 +440,9 @@ export class ChangeSetsService {
       const row = await tx.spChangeSet.findFirst({ where: { id } });
       if (!row) throw new NotFoundException('Change-set not found');
       if (row.status !== 'applied') {
-        throw new ConflictException(`Change-set is ${row.status} — only an applied change-set can be undone`);
+        throw new ConflictException(
+          `Change-set is ${row.status} — only an applied change-set can be undone`,
+        );
       }
       // Head guard: only the MOST RECENT apply may be undone this way. If the
       // head moved (later edits or a later apply), reverting to the pre-apply
@@ -444,7 +456,12 @@ export class ChangeSetsService {
       return row;
     });
 
-    const detail = await this.versions.restore(tenantId, userId, cs.strategyId, cs.strategyVersionId);
+    const detail = await this.versions.restore(
+      tenantId,
+      userId,
+      cs.strategyId,
+      cs.strategyVersionId,
+    );
 
     await this.prisma.withTenantUser(tenantId, userId, async (tx) => {
       await tx.spChangeSet.update({

@@ -20,12 +20,7 @@ import { RunsService } from './runs.service.js';
 import { ChangeSetsService } from './change-sets.service.js';
 import { classifyRisk } from './risk-router.js';
 import { stampRunMetrics, type RunMetricsInput } from './run-metrics.js';
-import {
-  findingKey,
-  runWatcherChecks,
-  type Finding,
-  type WatcherNode,
-} from './watcher-checks.js';
+import { findingKey, runWatcherChecks, type Finding, type WatcherNode } from './watcher-checks.js';
 import type {
   CreateChangeSetDto,
   CreateRunDto,
@@ -209,7 +204,10 @@ export class WatcherService {
         include: {
           // P0-1: LIVE plan only — a node archived by a restore must never
           // produce watcher findings or verifier violations.
-          nodes: { where: { ...LIVE_NODE_WHERE }, orderBy: [{ startsOn: 'asc' }, { createdAt: 'asc' }] },
+          nodes: {
+            where: { ...LIVE_NODE_WHERE },
+            orderBy: [{ startsOn: 'asc' }, { createdAt: 'asc' }],
+          },
           artifacts: true,
         },
       }),
@@ -379,9 +377,9 @@ export class WatcherService {
       // row it just suppressed. Keyed on findingKey (code + sorted nodeIds) —
       // the same identity persisted as sp_change_set.watch_key below.
       const dismissedKeys = new Set(
-        (await tx.spWatchDismissal.findMany({ where: { strategyId }, select: { watchKey: true } })).map(
-          (d) => d.watchKey,
-        ),
+        (
+          await tx.spWatchDismissal.findMany({ where: { strategyId }, select: { watchKey: true } })
+        ).map((d) => d.watchKey),
       );
       // Zombie exclusion (see doc comment): only proposals still pinned to
       // the current head can apply, so only those block re-proposal. The row

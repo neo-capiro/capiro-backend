@@ -1,35 +1,115 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
-  ContextCompiler,
+  ContextPacketRolloutCompiler,
+  GOVERNED_STEERING_COLUMNS_SQL,
+  MERIV2_CONTEXT_PACKET_V2_ENV,
+  emitMeriV2ControlMetrics,
+  isContextPacketPersistenceError,
+  resolveContextPacketMode,
+  resolveTenantContextPacketMode,
   type CompiledContextPacket,
+  type ContextPacketMode,
+  type ContextPacketRolloutStoreAdapter,
+  type ContextPacketShadowComparison,
   type ContextRequest,
-  type ContextStoreAdapter,
   type SteeringLayer,
   type SteeringRow,
+  type TruthfulCompiledContextPacket,
   typesForLayers,
 } from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
+import {
+  governedRecallSuppressionEnabled,
+  governedRecallSuppressionSql,
+} from '../memory/memory-recall-suppression.helpers.js';
+import { ContextPersistenceBoundaryService } from './context-persistence-boundary.service.js';
 
-/** apps/api adapter for the shared deterministic Context Compiler. */
+/** apps/api adapter and server-owned Phase 8 rollout resolver. */
 @Injectable()
 export class ContextCompilerService {
-  private readonly compiler: ContextCompiler;
+  private readonly logger = new Logger(ContextCompilerService.name);
+  private readonly compiler: ContextPacketRolloutCompiler;
 
-  constructor(private readonly prisma: PrismaService) {
-    const adapter: ContextStoreAdapter = {
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly persistenceBoundary?: ContextPersistenceBoundaryService,
+  ) {
+    const adapter: ContextPacketRolloutStoreAdapter = {
       loadSteeringRows: (req) => this.loadSteeringRows(req),
+      loadGovernedSteeringRows: (req) => this.loadSteeringRows(req, { governed: true }),
       persistPacket: (packet) => this.persistPacket(packet),
+      persistShadowComparison: (input) => this.persistShadowComparison(input),
     };
-    this.compiler = new ContextCompiler(adapter);
+    this.compiler = new ContextPacketRolloutCompiler(adapter);
   }
 
-  compile(req: ContextRequest): Promise<CompiledContextPacket> {
-    return this.compiler.compile(req);
+  async compile(req: ContextRequest): Promise<CompiledContextPacket> {
+    const mode = await this.modeFor(req.tenantId, req.surface);
+    const ethicalWallAllowed = await this.ethicalWallAllowed(req);
+    try {
+      return await this.compiler.compile({ ...req, ethicalWallAllowed }, mode);
+    } catch (error) {
+      // Preserve the exact bounded persistence error even when a legacy caller
+      // catches ordinary context failures and continues. The global boundary
+      // interceptor checks this request-local record before releasing output.
+      this.persistenceBoundary?.record(error);
+      if (isContextPacketPersistenceError(error)) {
+        emitMeriV2ControlMetrics({ ContextPacketPersistenceFailures: 1 });
+      }
+      throw error;
+    }
   }
 
-  private async loadSteeringRows(req: ContextRequest): Promise<SteeringRow[]> {
+  /** Server-owned rollout resolution for adapters that must preserve off/shadow output. */
+  modeFor(tenantId: string, surface: ContextRequest['surface']): Promise<ContextPacketMode> {
+    return this.rolloutMode(tenantId, surface);
+  }
+
+  private async rolloutMode(
+    tenantId: string,
+    surface: ContextRequest['surface'],
+  ): Promise<ContextPacketMode> {
+    const ceiling = resolveContextPacketMode(process.env[MERIV2_CONTEXT_PACKET_V2_ENV]);
+    if (ceiling === 'off') return 'off';
+    try {
+      const tenant = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.tenant.findFirst({ where: { id: tenantId }, select: { settings: true } }),
+      );
+      return resolveTenantContextPacketMode(
+        process.env[MERIV2_CONTEXT_PACKET_V2_ENV],
+        tenant?.settings,
+        surface,
+      );
+    } catch {
+      this.logger.warn(
+        'Context Packet tenant canary lookup failed closed (context_packet_canary_lookup_failed)',
+      );
+      return 'off';
+    }
+  }
+
+  private async ethicalWallAllowed(req: ContextRequest): Promise<boolean> {
+    if (!req.clientId) return false;
+    try {
+      const run = (tx: Prisma.TransactionClient) =>
+        clientMemoryAllowed(tx, req.tenantId, req.userId ?? null, req.clientId as string);
+      return req.userId
+        ? await this.prisma.withTenantUser(req.tenantId, req.userId, run)
+        : await this.prisma.withTenant(req.tenantId, run);
+    } catch {
+      this.logger.warn(
+        'Context Packet ethical-wall lookup failed closed (context_packet_wall_lookup_failed)',
+      );
+      return false;
+    }
+  }
+
+  private async loadSteeringRows(
+    req: ContextRequest,
+    opts: { governed?: boolean } = {},
+  ): Promise<SteeringRow[]> {
     const wantsUser = hasLayer(req.layers, 'user-voice') && !!req.userId;
     const wantsClientReq =
       (hasLayer(req.layers, 'client-steering') || hasLayer(req.layers, 'client-people')) &&
@@ -54,6 +134,7 @@ export class ContextCompilerService {
                expires_at AS "expiresAt", updated_at AS "updatedAt",
                last_confirmed_at AS "confirmedAt", provenance AS authority,
                sections_jsonb AS sections
+               ${Prisma.raw(opts.governed ? GOVERNED_STEERING_COLUMNS_SQL : '')}
         FROM memory_items
         WHERE (
           (${wantsFirm} AND type = ANY(${firmTypes}) AND slug = 'firm')
@@ -62,6 +143,7 @@ export class ContextCompilerService {
           OR (${wantsClient} AND type = ANY(${clientTypes})
               AND client_id = ${req.clientId ?? null}::uuid)
         )
+        ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled()))}
         ORDER BY
           CASE type
             WHEN 'firm-soul' THEN 10
@@ -89,12 +171,13 @@ export class ContextCompilerService {
       : this.prisma.withTenant(req.tenantId, run);
   }
 
-  private async persistPacket(packet: CompiledContextPacket): Promise<void> {
-    await this.prisma.withTenant(packet.tenantId, (tx) =>
-      tx.contextPacket.create({
+  private async persistPacket(packet: TruthfulCompiledContextPacket): Promise<string> {
+    return this.prisma.withTenant(packet.tenantId, async (tx) => {
+      await tx.contextPacket.create({
         data: {
-          id: packet.packetId,
+          id: packet.generatedPacketId,
           tenantId: packet.tenantId,
+          effectiveTenantId: packet.effectiveTenantId,
           surface: packet.surface,
           userId: packet.userId,
           clientId: packet.clientId,
@@ -105,10 +188,56 @@ export class ContextCompilerService {
           exclusionCount: packet.exclusions.length,
           blockChars: packet.rendered.reduce((sum, item) => sum + item.body.length, 0),
           packetHash: packet.traceHash,
+          ...contextPacketVersionColumns(packet),
         },
-      }),
+      });
+      const verified = await tx.contextPacket.findFirst({
+        where: { id: packet.generatedPacketId, tenantId: packet.tenantId },
+        select: { id: true },
+      });
+      if (verified?.id !== packet.generatedPacketId) {
+        throw new Error('context_packet_read_after_write_missing');
+      }
+      return verified.id;
+    });
+  }
+
+  private async persistShadowComparison(input: {
+    tenantId: string;
+    comparisonPacketId: string;
+    comparison: ContextPacketShadowComparison;
+  }): Promise<void> {
+    await this.prisma.withTenant(
+      input.tenantId,
+      (tx) =>
+        tx.$executeRaw`
+        UPDATE context_packet
+        SET health_jsonb = COALESCE(health_jsonb, '{}'::jsonb)
+            || jsonb_build_object('shadowComparison', ${JSON.stringify(input.comparison)}::jsonb)
+        WHERE id = ${input.comparisonPacketId}::uuid AND tenant_id = ${input.tenantId}::uuid
+      `,
     );
   }
+}
+
+export function contextPacketVersionColumns(
+  packet: CompiledContextPacket,
+): Partial<Prisma.ContextPacketUncheckedCreateInput> {
+  if (packet.version !== 2) return { packetVersion: 1 };
+  return {
+    packetVersion: 2,
+    actorUserId: packet.actorUserId,
+    traceId: packet.traceId,
+    promptVersion: packet.promptVersion,
+    policyVersion: packet.policyVersion,
+    compilerVersion: packet.compilerVersion,
+    requiredLayers: [...packet.requiredLayers],
+    health: packet.health as unknown as Prisma.InputJsonValue,
+    totalTokenBudget: packet.totalTokenBudget,
+    usedTokens: packet.usedTokens,
+    truncated: packet.truncated,
+    incomplete: packet.incomplete,
+  };
 }
 
 function hasLayer(layers: readonly SteeringLayer[], layer: SteeringLayer): boolean {

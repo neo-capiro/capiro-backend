@@ -855,8 +855,11 @@ export class AlertMemoService {
       // to the slug. Reasons are the compiler's own vocabulary: revoked / superseded /
       // expired / empty / over-budget / unauthorized.
       for (const x of packet.exclusions ?? []) {
+        // x.type/x.slug are omitted for identity-withheld reasons (unauthorized,
+        // wrong-client, sensitivity-denied) so a restricted item's identity can
+        // never leak into a client-facing memo — fall back to a generic label.
         contextExcluded.push({
-          title: LABEL_BY_TYPE[x.type] ?? x.slug ?? x.type,
+          title: x.type ? LABEL_BY_TYPE[x.type] ?? x.slug ?? x.type : 'Restricted item',
           reason: x.reason,
         });
       }

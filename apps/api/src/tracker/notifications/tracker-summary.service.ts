@@ -13,9 +13,14 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AiCredentialResolverService } from '../../engagement/ai-credential-resolver.service.js';
+import {
+  governedRecallSuppressionEnabled,
+  governedRecallSuppressionSql,
+} from '../../memory/memory-recall-suppression.helpers.js';
 import { recordAiUsageEvent, parseProviderUsage } from '@capiro/shared';
 
 const SUMMARY_TIMEOUT_MS = 15_000;
@@ -149,6 +154,11 @@ export class TrackerSummaryService {
           WHERE tenant_id = ${tenantId}::uuid
             AND type IN ('firm-soul', 'firm-compass')
             AND slug = 'firm'
+            -- Pre-existing defect this closes: NO status filter at all, so a
+            -- revoked or superseded Firm Soul / Firm Compass still went into the
+            -- alert-summary model prompt. Withholding it changes output that is
+            -- live today, so it rides the same dark switch.
+            ${Prisma.raw(governedRecallSuppressionSql(governedRecallSuppressionEnabled()))}
         `,
       );
       const renderHuman = (sections: unknown): string => {

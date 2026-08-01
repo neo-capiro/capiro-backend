@@ -65,19 +65,26 @@ export class MemoryFkLoader {
     return this.prisma.withTenant(
       ctx.tenantId,
       async (tx) => {
-      // Ethical wall: every relation rooted at a walled client this user is
-      // not granted is dropped before it reaches the graph (fail-closed) —
-      // including that client's meetings' attendee edges, which would
-      // otherwise dangle and leak the meeting subject.
-      const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
-      const deniedSet = new Set(denied);
-      const deniedMeetingIds = new Set<string>();
-      const out: FkRelation[] = [];
+        // Ethical wall: every relation rooted at a walled client this user is
+        // not granted is dropped before it reaches the graph (fail-closed) —
+        // including that client's meetings' attendee edges, which would
+        // otherwise dangle and leak the meeting subject.
+        const denied = await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId);
+        const deniedSet = new Set(denied);
+        const deniedMeetingIds = new Set<string>();
+        const out: FkRelation[] = [];
 
-      // client -> bill (tracked_bill), enriched with bill title/status/policy area
-      const bills = await tx.$queryRaw<
-        Array<{ client_id: string; client_name: string; bill_id: string; title: string | null; latest_action: string | null; policy_area: string | null }>
-      >`
+        // client -> bill (tracked_bill), enriched with bill title/status/policy area
+        const bills = await tx.$queryRaw<
+          Array<{
+            client_id: string;
+            client_name: string;
+            bill_id: string;
+            title: string | null;
+            latest_action: string | null;
+            policy_area: string | null;
+          }>
+        >`
         SELECT tb.client_id, c.name AS client_name, tb.bill_id,
                cb.title, cb.latest_action_text AS latest_action, cb.policy_area
         FROM tracked_bill tb
@@ -85,60 +92,79 @@ export class MemoryFkLoader {
         LEFT JOIN congress_bill cb ON cb.id = tb.bill_id
         WHERE tb.tenant_id = ${ctx.tenantId}::uuid
       `;
-      for (const b of bills) {
-        const attrs: Record<string, string> = {};
-        if (b.policy_area) attrs.policyArea = b.policy_area;
-        if (b.latest_action) attrs.latestAction = b.latest_action.slice(0, 160);
-        out.push({
-          srcType: 'client', srcSlug: b.client_id, srcLabel: b.client_name,
-          dstType: 'bill', dstSlug: b.bill_id, dstLabel: b.title || b.bill_id, dstAttrs: attrs,
-          relation: 'tracks',
-        });
-      }
+        for (const b of bills) {
+          const attrs: Record<string, string> = {};
+          if (b.policy_area) attrs.policyArea = b.policy_area;
+          if (b.latest_action) attrs.latestAction = b.latest_action.slice(0, 160);
+          out.push({
+            srcType: 'client',
+            srcSlug: b.client_id,
+            srcLabel: b.client_name,
+            dstType: 'bill',
+            dstSlug: b.bill_id,
+            dstLabel: b.title || b.bill_id,
+            dstAttrs: attrs,
+            relation: 'tracks',
+          });
+        }
 
-      // client -> issue (issue_codes array on clients)
-      const issues = await tx.$queryRaw<
-        Array<{ id: string; name: string; code: string }>
-      >`
+        // client -> issue (issue_codes array on clients)
+        const issues = await tx.$queryRaw<Array<{ id: string; name: string; code: string }>>`
         SELECT c.id, c.name, unnest(c.issue_codes) AS code
         FROM clients c
         WHERE c.tenant_id = ${ctx.tenantId}::uuid
           AND array_length(c.issue_codes, 1) > 0
       `;
-      for (const i of issues) {
-        out.push({
-          srcType: 'client', srcSlug: i.id, srcLabel: i.name,
-          dstType: 'issue', dstSlug: i.code, dstLabel: i.code,
-          relation: 'works-on',
-        });
-      }
+        for (const i of issues) {
+          out.push({
+            srcType: 'client',
+            srcSlug: i.id,
+            srcLabel: i.name,
+            dstType: 'issue',
+            dstSlug: i.code,
+            dstLabel: i.code,
+            relation: 'works-on',
+          });
+        }
 
-      // client -> person (client_people), enriched with title/role
-      const people = await tx.$queryRaw<
-        Array<{ client_id: string; client_name: string; person_id: string; person_name: string; title: string | null; role: string | null }>
-      >`
+        // client -> person (client_people), enriched with title/role
+        const people = await tx.$queryRaw<
+          Array<{
+            client_id: string;
+            client_name: string;
+            person_id: string;
+            person_name: string;
+            title: string | null;
+            role: string | null;
+          }>
+        >`
         SELECT cp.client_id, c.name AS client_name, cp.id AS person_id, cp.name AS person_name,
                cp.title, cp.role
         FROM client_people cp
         JOIN clients c ON c.id = cp.client_id
         WHERE cp.tenant_id = ${ctx.tenantId}::uuid
       `;
-      for (const p of people) {
-        const attrs: Record<string, string> = {};
-        if (p.title) attrs.title = p.title;
-        if (p.role) attrs.role = p.role;
-        out.push({
-          srcType: 'client', srcSlug: p.client_id, srcLabel: p.client_name,
-          dstType: 'person', dstSlug: p.person_id, dstLabel: p.person_name, dstAttrs: attrs,
-          relation: 'contact',
-        });
-      }
+        for (const p of people) {
+          const attrs: Record<string, string> = {};
+          if (p.title) attrs.title = p.title;
+          if (p.role) attrs.role = p.role;
+          out.push({
+            srcType: 'client',
+            srcSlug: p.client_id,
+            srcLabel: p.client_name,
+            dstType: 'person',
+            dstSlug: p.person_id,
+            dstLabel: p.person_name,
+            dstAttrs: attrs,
+            relation: 'contact',
+          });
+        }
 
-      // client -> meeting (meetings with a client_id). Debrief bodies are
-      // encrypted and intentionally NOT read here — we only link the meeting.
-      const meetings = await tx.$queryRaw<
-        Array<{ client_id: string; client_name: string; meeting_id: string; subject: string }>
-      >`
+        // client -> meeting (meetings with a client_id). Debrief bodies are
+        // encrypted and intentionally NOT read here — we only link the meeting.
+        const meetings = await tx.$queryRaw<
+          Array<{ client_id: string; client_name: string; meeting_id: string; subject: string }>
+        >`
         SELECT m.client_id, c.name AS client_name, m.id AS meeting_id, m.subject
         FROM meetings m
         JOIN clients c ON c.id = m.client_id
@@ -146,51 +172,66 @@ export class MemoryFkLoader {
           AND m.client_id IS NOT NULL
           AND m.is_internal = false
       `;
-      for (const mt of meetings) {
-        if (deniedSet.has(mt.client_id)) {
-          deniedMeetingIds.add(mt.meeting_id);
-          continue;
+        for (const mt of meetings) {
+          if (deniedSet.has(mt.client_id)) {
+            deniedMeetingIds.add(mt.meeting_id);
+            continue;
+          }
+          out.push({
+            srcType: 'client',
+            srcSlug: mt.client_id,
+            srcLabel: mt.client_name,
+            dstType: 'meeting',
+            dstSlug: mt.meeting_id,
+            dstLabel: mt.subject || 'Meeting',
+            relation: 'met-on',
+          });
         }
-        out.push({
-          srcType: 'client', srcSlug: mt.client_id, srcLabel: mt.client_name,
-          dstType: 'meeting', dstSlug: mt.meeting_id, dstLabel: mt.subject || 'Meeting',
-          relation: 'met-on',
-        });
-      }
 
-      // meeting -> attendee person (by contactId when present)
-      const attendees = await tx.$queryRaw<
-        Array<{ meeting_id: string; subject: string; contact_id: string; name: string | null }>
-      >`
+        // meeting -> attendee person (by contactId when present)
+        const attendees = await tx.$queryRaw<
+          Array<{ meeting_id: string; subject: string; contact_id: string; name: string | null }>
+        >`
         SELECT ma.meeting_id, m.subject, ma.contact_id, ma.name
         FROM meeting_attendees ma
         JOIN meetings m ON m.id = ma.meeting_id
         WHERE ma.tenant_id = ${ctx.tenantId}::uuid
           AND ma.contact_id IS NOT NULL
       `;
-      for (const a of attendees) {
-        if (deniedMeetingIds.has(a.meeting_id)) continue;
-        out.push({
-          srcType: 'meeting', srcSlug: a.meeting_id, srcLabel: a.subject || 'Meeting',
-          dstType: 'person', dstSlug: a.contact_id, dstLabel: a.name ?? a.contact_id,
-          relation: 'attended-by',
-        });
-      }
+        for (const a of attendees) {
+          if (deniedMeetingIds.has(a.meeting_id)) continue;
+          out.push({
+            srcType: 'meeting',
+            srcSlug: a.meeting_id,
+            srcLabel: a.subject || 'Meeting',
+            dstType: 'person',
+            dstSlug: a.contact_id,
+            dstLabel: a.name ?? a.contact_id,
+            relation: 'attended-by',
+          });
+        }
 
-      // client -> office (the congressional/report-target offices this client
-      // engages in outreach). Tenant-scoped (engagement_report_target_offices has
-      // tenant_id + client_id) and bounded by the client's own target list.
-      //
-      // NOTE: we intentionally do NOT source office nodes from the global DoD
-      // program_office / derive-office-program-links reference data. That data has
-      // no tenant scope, so loading it here would flood every tenant's graph with
-      // the entire org chart; wiring those offices to a specific client requires
-      // the acquisition-personnel role chain (client -> PE relevance -> program ->
-      // office), which lives in the intelligence subsystem, not this FK backbone.
-      // Node id: office:<officeKey>, matching the advertised convention.
-      const offices = await tx.$queryRaw<
-        Array<{ client_id: string; client_name: string; office_key: string; member_principal: string | null; committee: string | null; building: string | null }>
-      >`
+        // client -> office (the congressional/report-target offices this client
+        // engages in outreach). Tenant-scoped (engagement_report_target_offices has
+        // tenant_id + client_id) and bounded by the client's own target list.
+        //
+        // NOTE: we intentionally do NOT source office nodes from the global DoD
+        // program_office / derive-office-program-links reference data. That data has
+        // no tenant scope, so loading it here would flood every tenant's graph with
+        // the entire org chart; wiring those offices to a specific client requires
+        // the acquisition-personnel role chain (client -> PE relevance -> program ->
+        // office), which lives in the intelligence subsystem, not this FK backbone.
+        // Node id: office:<officeKey>, matching the advertised convention.
+        const offices = await tx.$queryRaw<
+          Array<{
+            client_id: string;
+            client_name: string;
+            office_key: string;
+            member_principal: string | null;
+            committee: string | null;
+            building: string | null;
+          }>
+        >`
         SELECT DISTINCT ON (rto.client_id, rto.office_key)
                rto.client_id, c.name AS client_name, rto.office_key,
                rto.member_principal, rto.committee, rto.building
@@ -200,57 +241,61 @@ export class MemoryFkLoader {
           AND rto.client_id IS NOT NULL
         ORDER BY rto.client_id, rto.office_key, rto.updated_at DESC
       `;
-      for (const o of offices) {
-        const attrs: Record<string, string> = {};
-        if (o.committee) attrs.committee = o.committee;
-        if (o.building) attrs.building = o.building;
-        out.push({
-          srcType: 'client', srcSlug: o.client_id, srcLabel: o.client_name,
-          dstType: 'office', dstSlug: o.office_key,
-          dstLabel: o.member_principal || o.office_key, dstAttrs: attrs,
-          relation: 'targets',
-        });
-      }
+        for (const o of offices) {
+          const attrs: Record<string, string> = {};
+          if (o.committee) attrs.committee = o.committee;
+          if (o.building) attrs.building = o.building;
+          out.push({
+            srcType: 'client',
+            srcSlug: o.client_id,
+            srcLabel: o.client_name,
+            dstType: 'office',
+            dstSlug: o.office_key,
+            dstLabel: o.member_principal || o.office_key,
+            dstAttrs: attrs,
+            relation: 'targets',
+          });
+        }
 
-      const backbone = deniedSet.size
-        ? out.filter((r) => !(r.srcType === 'client' && deniedSet.has(r.srcSlug)))
-        : out;
+        const backbone = deniedSet.size
+          ? out.filter((r) => !(r.srcType === 'client' && deniedSet.has(r.srcSlug)))
+          : out;
 
-      if (kgSource !== 'cache') return backbone;
+        if (kgSource !== 'cache') return backbone;
 
-      // Track B enrichment: seed-based bounded walks over the materialized
-      // kg_edge_cache around this tenant's visible clients (money flow,
-      // lobbying, intel mappings). Fail-safe: an enrichment error degrades to
-      // the plain backbone, never breaks the graph panel.
-      try {
-        // Bound EVERY statement in the enrichment phase server-side.
-        // kg_walk_bounded's fn-scoped statement_timeout is inert (a fn-level SET
-        // cannot re-arm the invoking statement's timer), so SET LOCAL here is
-        // the real guard against an RC3-class pooled-connection hold on a dense
-        // hub or a slow label lookup. Auto-resets on tx commit.
-        await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = '8s'`);
-        const clients = await tx.$queryRaw<Array<{ id: string; name: string }>>`
+        // Track B enrichment: seed-based bounded walks over the materialized
+        // kg_edge_cache around this tenant's visible clients (money flow,
+        // lobbying, intel mappings). Fail-safe: an enrichment error degrades to
+        // the plain backbone, never breaks the graph panel.
+        try {
+          // Bound EVERY statement in the enrichment phase server-side.
+          // kg_walk_bounded's fn-scoped statement_timeout is inert (a fn-level SET
+          // cannot re-arm the invoking statement's timer), so SET LOCAL here is
+          // the real guard against an RC3-class pooled-connection hold on a dense
+          // hub or a slow label lookup. Auto-resets on tx commit.
+          await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = '8s'`);
+          const clients = await tx.$queryRaw<Array<{ id: string; name: string }>>`
           SELECT id, name FROM clients
           WHERE tenant_id = ${ctx.tenantId}::uuid AND status <> 'archived'
           ORDER BY updated_at DESC
         `;
-        const enriched = await enrichFromKgCache(tx, {
-          tenantId: ctx.tenantId,
-          deniedClientIds: denied,
-          clients: clients.filter((c) => !deniedSet.has(c.id)),
-        });
-        if (enriched.truncated) {
-          this.logger.debug(
-            `kg cache enrichment truncated: ${enriched.clientsWalked}/${enriched.clientsTotal} clients, ${enriched.relations.length} edges`,
+          const enriched = await enrichFromKgCache(tx, {
+            tenantId: ctx.tenantId,
+            deniedClientIds: denied,
+            clients: clients.filter((c) => !deniedSet.has(c.id)),
+          });
+          if (enriched.truncated) {
+            this.logger.debug(
+              `kg cache enrichment truncated: ${enriched.clientsWalked}/${enriched.clientsTotal} clients, ${enriched.relations.length} edges`,
+            );
+          }
+          return [...backbone, ...enriched.relations];
+        } catch (err) {
+          this.logger.warn(
+            `kg cache enrichment failed; serving plain backbone: ${err instanceof Error ? err.message : String(err)}`,
           );
+          return backbone;
         }
-        return [...backbone, ...enriched.relations];
-      } catch (err) {
-        this.logger.warn(
-          `kg cache enrichment failed; serving plain backbone: ${err instanceof Error ? err.message : String(err)}`,
-        );
-        return backbone;
-      }
       },
       // The cache branch runs bounded walks sequentially; give it the same
       // 30s ceiling the intel graph path uses instead of the 5s default.

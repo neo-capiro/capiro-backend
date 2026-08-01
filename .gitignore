@@ -47,8 +47,9 @@ docker-compose.override.yml
 # Local Claude session state
 .claude/
 
-# Local-only deploy logs
+# Local-only deploy logs and release evidence
 .deploy-logs/
+.artifacts/
 
 # Transient build/extraction artifacts (not source)
 .cache/gap/

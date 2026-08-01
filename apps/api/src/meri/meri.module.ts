@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EngagementModule } from '../engagement/engagement.module.js';
+import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { LdaIntelModule } from '../lda-intel/lda-intel.module.js';
 import { LobbyIntelModule } from '../lobby-intel/lobby-intel.module.js';
 import { FederalSpendingModule } from '../federal-spending/federal-spending.module.js';
@@ -12,13 +14,26 @@ import { RegulatoryDocketModule } from '../regulatory-docket/regulatory-docket.m
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { MemoryModule } from '../memory/memory.module.js';
 import { ContextModule } from '../context/context.module.js';
+import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { ReviewsModule } from '../reviews/reviews.module.js';
+import { ReviewsService } from '../reviews/reviews.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriController } from './meri.controller.js';
 import { MeriActionProposalController } from './meri-action-proposal.controller.js';
+import { MeriContextPacketController } from './meri-context-packet.controller.js';
 import { MeriActionProposalService } from './meri-action-proposal.service.js';
+import { MeriPolicyPackService } from './meri-policy-pack.service.js';
+import { TenantCanariedMeriPolicyPackService } from './meri-policy-pack-rollout.service.js';
+import { MeriPolicyPackController } from './meri-policy-pack.controller.js';
+import { MeriFeedbackFixtureService } from './meri-feedback-fixture.service.js';
 import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
+import {
+  createGovernedMeriToolsService,
+  RAW_MERI_TOOLS_SERVICE,
+} from './governed-meri-tools.proxy.js';
 import { MeriResearchService } from './meri-research.service.js';
+import { createGovernedMeriResearchService } from './governed-meri-research.factory.js';
 import { MeriDocgenService } from './meri-docgen.service.js';
 import { MeriMcpService } from './meri-mcp.service.js';
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
@@ -47,11 +62,33 @@ import { MeriV2ChatClient } from './meriv2-chat.client.js';
     ContextModule,
     ReviewsModule,
   ],
-  controllers: [MeriController, MeriActionProposalController, MeriMcpOAuthController],
+  controllers: [
+    MeriController,
+    MeriActionProposalController,
+    MeriContextPacketController,
+    MeriPolicyPackController,
+    MeriMcpOAuthController,
+  ],
   providers: [
     MeriService,
-    MeriToolsService,
-    MeriResearchService,
+    { provide: RAW_MERI_TOOLS_SERVICE, useClass: MeriToolsService },
+    {
+      provide: MeriToolsService,
+      useFactory: createGovernedMeriToolsService,
+      inject: [RAW_MERI_TOOLS_SERVICE],
+    },
+    {
+      provide: MeriResearchService,
+      useFactory: createGovernedMeriResearchService,
+      inject: [
+        PrismaService,
+        ConfigService,
+        MeriToolsService,
+        AiCredentialResolverService,
+        ReviewsService,
+        ContextCompilerService,
+      ],
+    },
     MeriDocgenService,
     MeriMcpService,
     MeriMcpOAuthService,
@@ -59,13 +96,15 @@ import { MeriV2ChatClient } from './meriv2-chat.client.js';
     MeriFeatureFlagsService,
     MeriApprovalService,
     MeriActionProposalService,
+    {
+      provide: MeriPolicyPackService,
+      useClass: TenantCanariedMeriPolicyPackService,
+    },
+    MeriFeedbackFixtureService,
     MeriComplianceAuditService,
     MeriClaimWriterService,
     MeriV2ChatClient,
   ],
-  // Exported so the in-editor workspace assistant can reuse the tool harness
-  // (a constrained, read-only subset) without duplicating tool logic, and the
-  // MeriV2 surface gate (P0-T3/T4) without re-reading flags.
   exports: [MeriToolsService, MeriFeatureFlagsService],
 })
 export class MeriModule {}

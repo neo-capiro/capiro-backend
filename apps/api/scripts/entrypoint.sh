@@ -1,10 +1,10 @@
 #!/bin/sh
-# Program Elements trust-safety wrapper for the API container entrypoint.
+# Program Elements and MeriV2 trust-safety wrapper for the API container entrypoint.
 #
 # It owns the trust-critical verbs that must not pass through the legacy
-# entrypoint behavior: migration deployment (fail closed; never edits Prisma's
-# migration ledger) and SELECT-only PE diagnostics. Every other command
-# delegates byte-for-byte to the existing dispatcher.
+# entrypoint behavior: migration status/deployment (fail closed; never edits
+# Prisma's migration ledger), SELECT-only diagnostics, and bounded operational
+# monitors. Every other command delegates byte-for-byte to the existing dispatcher.
 set -e
 
 compose_database_url() {
@@ -41,6 +41,11 @@ compose_database_url() {
 }
 
 case "${1:-serve}" in
+  migration-status)
+    compose_database_url
+    echo "Running prisma migrate status (READ-ONLY; migration history is never edited)"
+    exec node ./node_modules/prisma/build/index.js migrate status --schema=./prisma/schema.prisma
+    ;;
   migrate)
     compose_database_url
     echo "Running prisma migrate deploy (failed migration history is never auto-resolved)"
@@ -76,6 +81,17 @@ case "${1:-serve}" in
     export TSX_TSCONFIG_PATH="${TSX_TSCONFIG_PATH:-./tsconfig.json}"
     echo "Running pe-phase-10-live-proofs (sole-live Aurora; synthetic pe10_closeout domain only; TMPDIR=$TMPDIR)"
     exec ./node_modules/.bin/tsx scripts/pe-phase-10-live-proofs.ts "$@"
+    ;;
+  emit-meriv2-control-metrics)
+    shift
+    compose_database_url
+    echo "Running emit-meriv2-control-metrics (read-only bounded control snapshot)"
+    exec ./node_modules/.bin/tsx scripts/emit-meriv2-control-metrics.ts "$@"
+    ;;
+  demo-meriv2-control-alarms)
+    shift
+    echo "Running demo-meriv2-control-alarms (refuses dev/prod; explicit non-prod confirmation required)"
+    exec ./node_modules/.bin/tsx scripts/demo-meriv2-control-alarms.ts "$@"
     ;;
   *)
     exec /bin/sh /usr/local/lib/capiro/entrypoint-legacy.sh "$@"

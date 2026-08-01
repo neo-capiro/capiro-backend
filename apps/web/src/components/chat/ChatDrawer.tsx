@@ -10,7 +10,10 @@ import { AnalysisChartCard } from './AnalysisChartCard.js';
 import { ChatInput } from './ChatInput.js';
 import { ChatMessage } from './ChatMessage.js';
 import { SessionRail } from './SessionRail.js';
-import { ThoughtProcess } from './ThoughtProcess.js';
+import { WorkPerformed } from './WorkPerformed.js';
+import { ActionProposalList } from './ActionProposalList.js';
+import { MessageFeedback } from './MessageFeedback.js';
+import { deriveVerificationDisplay, VerificationStatus } from '../trust/VerificationStatus.js';
 import { MeriCanvas } from './MeriCanvas.js';
 import { ResearchClarifyForm } from './ResearchClarifyForm.js';
 import { MeriClientScopeSelect } from './MeriClientScopeSelect.js';
@@ -18,7 +21,6 @@ import { MeriMemoryPanel } from './MeriMemoryPanel.js';
 import { MeriInboxBanner } from './MeriInboxBanner.js';
 import { MeriEmptyState } from './MeriEmptyState.js';
 import { config } from '../../env.js';
-import { describeApprovalOutcome, outstandingApprovals } from './meri-pending-approvals.js';
 import {
   useMeriChatController,
   type ChatDrawerProps,
@@ -101,7 +103,6 @@ export function MeriLegacyDrawer({
     orchestratorTier,
     trustSteps,
     planSteps,
-    reasoningText,
     drawerRef,
     drawerWidth,
     startResize,
@@ -110,8 +111,8 @@ export function MeriLegacyDrawer({
     handleNewSession,
     saveConversationMeta,
     archiveConversation,
-    submitMemoryEdit,
     saveMemoryEdit,
+    suggestMemoryCorrection,
     forgetMemory,
     undoForgetMemory,
     handleApprovePending,
@@ -135,9 +136,6 @@ export function MeriLegacyDrawer({
     researchSessionRef,
   } = controller;
 
-  // Resolved cards stay on screen carrying their outcome, so "how many still
-  // need you" is the pending count — not the length of the list.
-  const outstanding = outstandingApprovals(pendingApprovals);
 
   return (
     <>
@@ -266,163 +264,45 @@ export function MeriLegacyDrawer({
             </button>
           </div>
           {metaError && <div className="chat-session-error">{metaError}</div>}
-          {embedded && (
-            <MeriMemoryPanel
-              memories={learnedMemories}
-              forgotten={forgottenMemories}
-              expanded={learnedExpanded}
-              onExpandedChange={setLearnedExpanded}
-              onSave={(id, value) => void saveMemoryEdit(id, value)}
-              onForget={forgetMemory}
-              onUndo={undoForgetMemory}
-            />
-          )}
-          {!embedded && learnedMemories.length > 0 && (
-            <div className="chat-learned-memories" aria-label="Things Meri learned">
-              <button
-                type="button"
-                className="chat-learned-header"
-                onClick={() => setLearnedExpanded((v) => !v)}
-                aria-expanded={learnedExpanded}
-              >
-                <span className="chat-learned-header-label">
-                  <span className="chat-learned-spark" aria-hidden="true">
-                    ✦
-                  </span>
-                  Meri learned {learnedMemories.length} thing
-                  {learnedMemories.length === 1 ? '' : 's'}
-                </span>
-                <span className="chat-learned-chevron" aria-hidden="true">
-                  {learnedExpanded ? '▾' : '▸'}
-                </span>
-              </button>
-              {learnedExpanded &&
-                learnedMemories.map((mem) => (
-                  <span
-                    key={mem.id}
-                    className={`chat-learned-pill chat-learned-pill--${mem.scope === 'firm' ? 'firm' : 'private'}`}
-                    title={mem.value}
-                  >
-                    Meri learned: {mem.value.length > 80 ? `${mem.value.slice(0, 77)}…` : mem.value}
-                    <button
-                      type="button"
-                      className="chat-learned-undo"
-                      aria-label="Edit this memory"
-                      title="Edit"
-                      onClick={() => void submitMemoryEdit(mem.id, mem.value)}
-                    >
-                      edit
-                    </button>
-                    <button
-                      type="button"
-                      className="chat-learned-undo"
-                      aria-label="Undo (forget this)"
-                      title="Forget this"
-                      onClick={() => void forgetMemory(mem.id)}
-                    >
-                      undo
-                    </button>
-                  </span>
-                ))}
-            </div>
-          )}
+          {/* ONE memory surface for both layouts. The legacy drawer used to render
+              its own chips that hard-coded "Meri learned", showed only firm-vs-private,
+              and offered edit + forget on every row regardless of authority — so a
+              standard user was invited to mutate firm memory the API would refuse.
+              MeriMemoryPanel renders the server's real scope, provenance, review
+              state, dates, expiry, and per-row authorization instead. */}
+          <MeriMemoryPanel
+            memories={learnedMemories}
+            forgotten={forgottenMemories}
+            expanded={learnedExpanded}
+            onExpandedChange={setLearnedExpanded}
+            onSave={(id, value) => void saveMemoryEdit(id, value)}
+            onForget={forgetMemory}
+            onUndo={undoForgetMemory}
+            onSuggestCorrection={(id, value) => void suggestMemoryCorrection(id, value)}
+          />
           {orchestratorConflict && (
             <div className="chat-orchestrator-conflict" role="status">
               <strong>{orchestratorConflict.title}</strong>: {orchestratorConflict.detail}
             </div>
           )}
           {pendingApprovals.length > 0 && !isStreaming && (
-            <div className="chat-pending-approvals" role="status">
-              <div className="chat-pending-approvals-title">
-                {outstanding.length > 0 ? (
-                  <>
-                    Meri proposed {outstanding.length === 1 ? 'an action' : 'actions'} that need
-                    your approval — nothing runs until you approve it here
-                  </>
-                ) : (
-                  <>Proposed actions</>
-                )}
-                {outstanding.length > 1 && (
-                  <button
-                    type="button"
-                    className="chat-pending-approval-approve-all"
-                    disabled={Boolean(approvingProposalId)}
-                    onClick={() => void handleApproveAll()}
-                  >
-                    {approvingProposalId ? 'Approving…' : `Approve all (${outstanding.length})`}
-                  </button>
-                )}
-              </div>
-              {pendingApprovals.map((p) => {
-                const isPending = p.status === 'proposed';
-                const isExecuting = p.status === 'executing';
-                const isRetryable = p.status === 'failed_retryable';
-                const isBusy = approvingProposalId === p.proposalId;
-                const icon =
-                  p.status === 'succeeded'
-                    ? '✓'
-                    : p.status === 'outcome_unknown'
-                      ? '⚠'
-                      : p.status === 'blocked' || p.status === 'expired'
-                        ? '⛔'
-                        : '✗';
-                return (
-                  <div
-                    key={p.proposalId}
-                    className={`chat-pending-approval-row chat-pending-approval-row--${p.status}`}
-                  >
-                    <span className="chat-pending-approval-label">
-                      <strong>{p.preview.label}</strong>
-                      {isPending && p.reason ? ` — ${p.reason}` : ''}
-                      {isExecuting ? ' — executing…' : ''}
-                      {/* A resolved row reports its own honest outcome — never
-                          "approved" as if it succeeded. When several were
-                          approved at once this is the only place the user can
-                          see WHICH one failed and why. outcome_unknown warns
-                          explicitly rather than inviting a duplicate retry. */}
-                      {!isPending && !isExecuting && (
-                        <span
-                          className={`chat-pending-approval-outcome${
-                            p.status === 'succeeded'
-                              ? ''
-                              : ' chat-pending-approval-outcome--failed'
-                          }`}
-                        >
-                          {icon} {describeApprovalOutcome(p)}
-                        </span>
-                      )}
-                    </span>
-                    <span className="chat-pending-approval-actions">
-                      {isExecuting && (
-                        <button type="button" className="chat-pending-approval-approve" disabled>
-                          Approving…
-                        </button>
-                      )}
-                      {(isPending || isRetryable) && (
-                        <button
-                          type="button"
-                          className="chat-pending-approval-approve"
-                          disabled={Boolean(approvingProposalId)}
-                          onClick={() => void handleApprovePending(p.proposalId)}
-                        >
-                          {isBusy ? 'Approving…' : isRetryable ? 'Retry' : 'Approve & run'}
-                        </button>
-                      )}
-                      {!isExecuting && (
-                        <button
-                          type="button"
-                          className="chat-pending-approval-dismiss"
-                          disabled={Boolean(approvingProposalId)}
-                          onClick={() => void handleDismissPending(p.proposalId)}
-                        >
-                          {isPending ? 'Dismiss' : 'Clear'}
-                        </button>
-                      )}
-                    </span>
-                  </div>
+            <ActionProposalList
+              proposals={pendingApprovals}
+              busyProposalId={approvingProposalId}
+              onApprove={handleApprovePending}
+              onApproveAll={handleApproveAll}
+              onDismiss={handleDismissPending}
+              onEditProposal={(proposal) => {
+                void sendMessage(
+                  `Revise the proposed action “${proposal.preview.label}”. Keep proposal ${proposal.proposalId} immutable and ask me what should change, then create a NEW action proposal with the revised fields. Do not execute anything yet.`,
                 );
-              })}
-            </div>
+              }}
+              onRepropose={(proposal) => {
+                void sendMessage(
+                  `Re-propose the expired or blocked action “${proposal.preview.label}” using current policy and current context. Create a NEW action proposal; do not reuse or mutate proposal ${proposal.proposalId}.`,
+                );
+              }}
+            />
           )}
           {orchestratorTemplate && (
             <div className="chat-orchestrator-template" role="note">
@@ -452,16 +332,23 @@ export function MeriLegacyDrawer({
 
           {messages.map((msg, i) => {
             const isLastAssistant = msg.role === 'assistant' && i === messages.length - 1;
+            const verificationDisplay =
+              msg.role === 'assistant' && msg.content !== ''
+                ? deriveVerificationDisplay({
+                    verification: msg.verification ?? null,
+                    findings: msg.groundingCaveat?.findings ?? [],
+                    ran: Boolean(msg.verification),
+                  })
+                : null;
             return (
               <div key={msg.id} className={`meri-turn meri-turn--${msg.role}`}>
                 {isLastAssistant && (
-                  <ThoughtProcess
+                  <WorkPerformed
                     intent={orchestratorIntent}
                     tier={orchestratorTier}
                     steps={trustSteps}
                     planSteps={planSteps}
                     isStreaming={isStreaming}
-                    reasoningText={reasoningText}
                   />
                 )}
                 <ChatMessage
@@ -478,6 +365,12 @@ export function MeriLegacyDrawer({
                     msg.content !== ''
                   }
                 />
+                {verificationDisplay &&
+                  !(isStreaming && i === messages.length - 1) && (
+                    <div className="chat-verification-summary">
+                      <VerificationStatus display={verificationDisplay} compact />
+                    </div>
+                  )}
                 {msg.role === 'assistant' &&
                   msg.chartArtifacts &&
                   msg.chartArtifacts.length > 0 && (
@@ -494,44 +387,11 @@ export function MeriLegacyDrawer({
                 {msg.role === 'assistant' &&
                   msg.content !== '' &&
                   !(isStreaming && i === messages.length - 1) && (
-                    <div
-                      className="meri-feedback-actions"
-                      style={{ marginLeft: 40, marginTop: 2, display: 'flex', gap: 4 }}
-                    >
-                      <button
-                        type="button"
-                        aria-label="Helpful"
-                        title="Helpful"
-                        onClick={() => submitFeedback(msg.id, msg.feedback === 'up' ? null : 'up')}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontSize: 13,
-                          padding: 2,
-                          opacity: msg.feedback === 'up' ? 1 : 0.45,
-                        }}
-                      >
-                        👍
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Not helpful"
-                        title="Not helpful"
-                        onClick={() =>
-                          submitFeedback(msg.id, msg.feedback === 'down' ? null : 'down')
-                        }
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontSize: 13,
-                          padding: 2,
-                          opacity: msg.feedback === 'down' ? 1 : 0.45,
-                        }}
-                      >
-                        👎
-                      </button>
+                    <div style={{ marginLeft: 40, marginTop: 2 }}>
+                      <MessageFeedback
+                        currentRating={msg.feedback ?? null}
+                        onSubmit={(feedback) => submitFeedback(msg.id, feedback)}
+                      />
                     </div>
                   )}
                 {isLastAssistant && !isStreaming && !researchReports[msg.id] && (

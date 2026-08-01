@@ -43,6 +43,11 @@ jobs:
       # URI for the direct trigger assertion below.
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro?schema=public
       PSQL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro
+      # The 13-suite API trust-boundary matrix consistently reaches Node's
+      # default ~2 GiB old-space limit on hosted runners. Keep the suite and its
+      # count floor intact; raise only the process heap ceiling so CI validates
+      # the same tests instead of aborting before a JSON summary is written.
+      NODE_OPTIONS: --max-old-space-size=4096
 
     steps:
       - uses: actions/checkout@v4
