@@ -1,7 +1,12 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext, TenantRole } from '@capiro/shared';
-import type { GovernedMemoryScope, GovernedMemoryStatus, MemoryClass } from '@capiro/meriv2-core';
+import {
+  emitMeriV2ControlMetrics,
+  type GovernedMemoryScope,
+  type GovernedMemoryStatus,
+  type MemoryClass,
+} from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { clientMemoryAllowed } from './memory-wall.helpers.js';
 import {
@@ -94,7 +99,7 @@ export class MemoryAuthorizationService {
       `);
       grantPermissions = grants[0]?.permissions ?? [];
     }
-    return evaluateGovernedMemoryAuthorization({
+    const decision = evaluateGovernedMemoryAuthorization({
       userId: ctx.userId,
       role: ctx.role,
       operation,
@@ -105,6 +110,13 @@ export class MemoryAuthorizationService {
       impersonating: options.impersonating,
       actorRole: options.actorRole,
     });
+    if (!decision.allowed && decision.reason === 'ethical_wall') {
+      emitMeriV2ControlMetrics({ EthicalWallDenials: 1 });
+    }
+    if (!decision.allowed && decision.reason === 'self_review') {
+      emitMeriV2ControlMetrics({ SelfReviewDenials: 1 });
+    }
+    return decision;
   }
 
   async loadItemInTx(
