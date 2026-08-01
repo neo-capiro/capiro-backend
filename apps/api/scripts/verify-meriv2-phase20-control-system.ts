@@ -15,17 +15,29 @@ async function text(relative: string): Promise<string> {
 }
 
 async function main(): Promise<void> {
-  const [stack, control, entrypoint, rollout, rollback, backfill, policy, mapping] =
-    await Promise.all([
-      text('infra/cdk/lib/meriv2-control-stack.ts'),
-      text('packages/meriv2-core/src/assurance/control-metrics.ts'),
-      text('apps/api/scripts/entrypoint.sh'),
-      text('docs/runbooks/meriv2-memory-context-assurance-rollout.md'),
-      text('docs/runbooks/meriv2-memory-context-assurance-rollback.md'),
-      text('docs/runbooks/meriv2-memory-backfill.md'),
-      text('docs/runbooks/meriv2-policy-pack-operations.md'),
-      text('docs/security/meriv2-memory-assurance-control-mapping.md'),
-    ]);
+  const [
+    stack,
+    worker,
+    app,
+    control,
+    entrypoint,
+    rollout,
+    rollback,
+    backfill,
+    policy,
+    mapping,
+  ] = await Promise.all([
+    text('infra/cdk/lib/meriv2-control-stack.ts'),
+    text('infra/cdk/lib/constructs/scheduled-memory-projection-worker.ts'),
+    text('infra/cdk/bin/capiro.ts'),
+    text('packages/meriv2-core/src/assurance/control-metrics.ts'),
+    text('apps/api/scripts/entrypoint.sh'),
+    text('docs/runbooks/meriv2-memory-context-assurance-rollout.md'),
+    text('docs/runbooks/meriv2-memory-context-assurance-rollback.md'),
+    text('docs/runbooks/meriv2-memory-backfill.md'),
+    text('docs/runbooks/meriv2-policy-pack-operations.md'),
+    text('docs/security/meriv2-memory-assurance-control-mapping.md'),
+  ]);
 
   for (const name of MERIV2_CONTROL_METRIC_NAMES) {
     assert.match(stack, new RegExp(`metricName:\\s*['\"]${name}['\"]`), `${name} alarm missing`);
@@ -37,7 +49,23 @@ async function main(): Promise<void> {
   assert.match(stack, /alarm\.addAlarmAction\(action\)/);
   assert.match(stack, /alarm\.addOkAction\(action\)/);
   assert.match(stack, /dashboardName:/);
+  assert.match(stack, /fromEcrRepository\(props\.apiRepo, props\.apiImageTag\)/);
+  assert.match(
+    stack,
+    /props\.monitorEnabled[\s\S]*TreatMissingData\.BREACHING[\s\S]*TreatMissingData\.NOT_BREACHING/,
+  );
   assert.match(control, /Dimensions:\s*\[\['Environment'\]\]/);
+
+  assert.match(worker, /enabled:\s*props\.scheduleEnabled/);
+  assert.doesNotMatch(worker, /enabled:\s*true/);
+  assert.match(worker, /fromEcrRepository\(props\.apiRepo, props\.apiImageTag\)/);
+  assert.match(worker, /new cwActions\.SnsAction\(props\.alertsTopic\)/);
+  assert.match(worker, /alarm\.addAlarmAction\(action\)/);
+  assert.match(worker, /alarm\.addOkAction\(action\)/);
+  assert.match(app, /tryGetContext\('enableMemoryProjectionWorker'\)/);
+  assert.match(app, /tryGetContext\('enableMeriV2ControlMonitor'\)/);
+  assert.match(app, /tryGetContext\('meriv2ApiImageTag'\)/);
+  assert.match(app, /\^\[0-9a-f\]\{40\}\$/i);
 
   const forbiddenDimensions = [
     'TenantId',
@@ -72,6 +100,8 @@ async function main(): Promise<void> {
 
   assert.match(rollout, /MEMORY_GOVERNANCE_LIFECYCLE=enforce/);
   assert.match(rollout, /MERIV2_CONTEXT_PACKET_V2=shadow/);
+  assert.match(rollout, /enableMemoryProjectionWorker=false/);
+  assert.match(rollout, /meriv2ApiImageTag/);
   assert.match(rollback, /--rollback/);
   assert.match(backfill, /--confirm-tenant/);
   assert.match(backfill, /--confirm-job/);
@@ -86,6 +116,8 @@ async function main(): Promise<void> {
       marker: 'MERIV2_PHASE20_CONTROL_SYSTEM_CONTRACT_OK',
       metricCount: MERIV2_CONTROL_METRIC_NAMES.length,
       boundedDimensions: ['Environment'],
+      scheduledTasksDarkByDefault: true,
+      immutableScheduledTaskTagRequired: true,
       requiredDocuments: 5,
       productionAction: false,
     }),
