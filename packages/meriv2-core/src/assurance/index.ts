@@ -5,6 +5,7 @@ export * from './tool-ledger-adapter';
 export * from './checks';
 export * from './risk-gate';
 export * from './rollout';
+export * from './request-scope';
 export * from './envelope';
 export * from './recommendation';
 export * from './policy-pack';
