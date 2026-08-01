@@ -2,10 +2,10 @@
 /**
  * Read-only collector for the independent MeriV2 operations CDK app.
  *
- * It reads identifiers and ARNs only. It never calls GetSecretValue, never
- * registers a task definition, never changes an ECS service/rule/stack, and
- * never writes to AWS. The JSON output can be passed to the local release
- * preflight and converted to CDK --context arguments by that script.
+ * It reads identifiers, ARNs, and the currently deployed API image digest only.
+ * It never calls GetSecretValue, never registers a task definition, never changes
+ * an ECS service/rule/stack, and never writes to AWS. The JSON output can be
+ * passed to the local release preflight and converted to CDK --context arguments.
  */
 import { execFile } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -104,6 +104,7 @@ async function main() {
   await awsJson(['sns', 'get-topic-attributes', '--topic-arn', alertsTopicArn]);
   const apiRepositoryName = `capiro/${envName}/api`;
   await awsJson(['ecr', 'describe-repositories', '--repository-names', apiRepositoryName]);
+  const existingApiImageDigest = await resolveImageDigest(container.image, apiRepositoryName);
 
   const contexts = {
     account,
@@ -111,6 +112,7 @@ async function main() {
     env: envName,
     existingClusterArn: cluster.clusterArn,
     existingApiRepositoryName: apiRepositoryName,
+    existingApiImageDigest,
     existingPrivateSubnetIds: privateSubnetIds.join(','),
     existingServiceSecurityGroupId: securityGroups[0],
     existingDbSecretArn: dbSecretArn,
@@ -147,6 +149,7 @@ async function main() {
           pendingCount: service.pendingCount,
           taskDefinitionArn: service.taskDefinition,
           currentImage: container.image,
+          currentImageDigest: existingApiImageDigest,
         },
         contexts,
       },
@@ -162,12 +165,36 @@ async function main() {
       account,
       region,
       env: envName,
+      existingApiImageDigest,
       privateSubnetCount: privateSubnetIds.length,
       securityGroupCount: securityGroups.length,
       secretValuesRead: false,
       awsMutation: false,
     }),
   );
+}
+
+async function resolveImageDigest(image, repository) {
+  const raw = String(image ?? '').trim();
+  const at = raw.match(/@(sha256:[0-9a-f]{64})$/i);
+  if (at) return at[1];
+  const separator = raw.lastIndexOf(':');
+  const slash = raw.lastIndexOf('/');
+  const tag = separator > slash ? raw.slice(separator + 1) : '';
+  if (!tag) throw new Error(`Current API image is neither digest-pinned nor tagged: ${raw}`);
+  const response = await awsJson([
+    'ecr',
+    'describe-images',
+    '--repository-name',
+    repository,
+    '--image-ids',
+    `imageTag=${tag}`,
+  ]);
+  const digest = response.imageDetails?.[0]?.imageDigest;
+  if (!/^sha256:[0-9a-f]{64}$/i.test(String(digest ?? ''))) {
+    throw new Error(`Current API image tag ${repository}:${tag} did not resolve to one digest.`);
+  }
+  return digest;
 }
 
 async function awsJson(args) {
