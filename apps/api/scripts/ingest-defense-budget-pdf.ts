@@ -684,6 +684,10 @@ async function parseAndRecordOutsideTransaction(input: {
 
 function buildGuardRows(mapped: MappedPeData): GuardRow[] {
   const titleByPe = new Map(mapped.records.map((record) => [record.peCode, record.title] as const));
+  // Units-anomaly guard compares request vs a *chamber mark*. Do NOT feed R-1
+  // prior-year enacted/executed into `mark` — those can legitimately differ from
+  // current-year request by >>1000x (e.g. thin discretionary enacted vs PB total)
+  // and are not the "In Thousands vs dollars" bug the guard targets.
   const markFields = [
     'hascMark',
     'sascMark',
@@ -691,7 +695,6 @@ function buildGuardRows(mapped: MappedPeData): GuardRow[] {
     'sacDMark',
     'conference',
     'ndaaConference',
-    'enacted',
   ];
   return mapped.years.map((year) => {
     const obj = year as unknown as Record<string, unknown>;

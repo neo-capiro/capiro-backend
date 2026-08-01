@@ -47,6 +47,8 @@ export function isTruncatedTitle(title: string | null | undefined): boolean {
   const t = title.trim();
   if (t.length === 0) return false;
   if (/[-\u2010-\u2015\u2212]$/.test(t)) return true;
+  // Real airframe / system designators (E-7, F-35, B-21, MQ-9, C-130J) are not truncations.
+  if (/^[A-Z]{1,3}-?\d{1,4}[A-Z0-9]{0,3}$/i.test(t)) return false;
   if (t.length <= 3) return true;
   return false;
 }
