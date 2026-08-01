@@ -1,47 +1,41 @@
+import { verifyAssuranceEnvelope } from '@capiro/meriv2-core/assurance';
 import {
   assessGeneratedSectionsForRelease,
+  generationAssuranceRolloutMode,
   generationClaimHoldEnforced,
 } from './generation-assurance';
 import type { SectionCitation } from './citations';
 
-/**
- * The switch test is the important one. A Phase 4 gate previously shipped ARMED
- * and unflagged and silently replaced real answers with refusals; this pins that
- * deploying this code, with no environment change, withholds nothing.
- */
-describe('generationClaimHoldEnforced', () => {
-  it('is OFF when unset — deploying must never arm the hold by itself', () => {
-    for (const raw of [undefined, '', '   ', ',', ' , ']) {
-      expect(generationClaimHoldEnforced(raw)).toBe(false);
-    }
+describe('Phase 16 Workspace assurance rollout', () => {
+  it('is OFF when any of the three required controls is absent', () => {
+    expect(generationClaimHoldEnforced('workspace-gen', undefined, 'all')).toBe(false);
+    expect(generationClaimHoldEnforced('workspace-gen', 'enforce', undefined)).toBe(false);
+    expect(generationClaimHoldEnforced(undefined, 'enforce', 'all')).toBe(false);
   });
 
-  it('does NOT inherit MERI_RELEASE_GATE=enforce — that arms chat and api-strategy', () => {
-    // A third service must not start withholding because someone armed the canary
-    // on the first two.
-    expect(generationClaimHoldEnforced('enforce')).toBe(false);
+  it('legacy no-tenant call can enforce only through an explicit all-tenant canary', () => {
+    expect(generationClaimHoldEnforced('workspace-gen', 'enforce', 'all')).toBe(true);
+    expect(generationClaimHoldEnforced('all', 'enforce', 'all')).toBe(true);
+    expect(generationClaimHoldEnforced('workspace-gen', 'shadow', 'all')).toBe(false);
+    expect(generationClaimHoldEnforced('workspace-gen', 'enforce', 'tenant-a')).toBe(false);
   });
 
-  it('arms only on an explicit workspace-gen or all token', () => {
-    expect(generationClaimHoldEnforced('workspace-gen')).toBe(true);
-    expect(generationClaimHoldEnforced('in-editor,workspace-gen')).toBe(true);
-    expect(generationClaimHoldEnforced(' WORKSPACE-GEN ')).toBe(true);
-    expect(generationClaimHoldEnforced('all')).toBe(true);
-  });
-
-  it('fails safe on near-miss or truthy-looking values rather than guessing', () => {
-    for (const raw of ['workspacegen', 'workspace_gen', 'true', 'on', '1', 'yes', 'workspace']) {
-      expect(generationClaimHoldEnforced(raw)).toBe(false);
-    }
-  });
-
-  it('reads MERI_RELEASE_GATE_SURFACES by default, and that variable is unset in CI', () => {
-    // Belt and braces: the zero-argument form is what the service actually calls.
-    expect(generationClaimHoldEnforced()).toBe(
-      process.env.MERI_RELEASE_GATE_SURFACES
-        ? generationClaimHoldEnforced(process.env.MERI_RELEASE_GATE_SURFACES)
-        : false,
+  it('supports an exact tenant shadow/enforce canary at tenant-aware call sites', () => {
+    expect(generationAssuranceRolloutMode('tenant-a', 'shadow', 'tenant-a', 'workspace-gen')).toBe(
+      'shadow',
     );
+    expect(generationAssuranceRolloutMode('tenant-a', 'enforce', 'tenant-a', 'workspace-gen')).toBe(
+      'enforce',
+    );
+    expect(generationAssuranceRolloutMode('tenant-b', 'enforce', 'tenant-a', 'workspace-gen')).toBe(
+      'off',
+    );
+  });
+
+  it('fails safe on near-miss or truthy-looking values', () => {
+    for (const raw of ['workspacegen', 'workspace_gen', 'true', 'on', '1', 'yes']) {
+      expect(generationClaimHoldEnforced(raw, 'enforce', 'all')).toBe(false);
+    }
   });
 });
 
@@ -62,22 +56,62 @@ describe('assessGeneratedSectionsForRelease', () => {
     expect(out.heldSections).toEqual(['Funding']);
     expect(out.verdicts[0]?.riskLevel).toBe('high');
     expect(out.verdicts[0]?.blockers.length).toBeGreaterThan(0);
+    expect(verifyAssuranceEnvelope(out.verdicts[0]!.envelope).valid).toBe(true);
   });
 
-  it('judges each section SEPARATELY so one bad section cannot fail the good ones', () => {
+  it('judges each section separately so one unsupported section cannot fail siblings', () => {
     const out = assessGeneratedSectionsForRelease({
       generated: [
         {
           section: 'Funding',
           html: '<p>PE 0604270F received $412.5 million in the FY27 request.</p>',
         },
-        // No factual high-risk claim: nothing to hold.
         { section: 'Cover', html: '<p>Prepared for the client leadership team.</p>' },
       ],
       sectionCitations: { Funding: [] },
     });
     expect(out.heldSections).toEqual(['Funding']);
     expect(out.verdicts.find((v) => v.section === 'Cover')?.held).toBe(false);
+  });
+
+  it('attributes a deterministic finding to the section containing its span', () => {
+    const out = assessGeneratedSectionsForRelease({
+      generated: [
+        {
+          section: 'Funding',
+          html: '<p>The FY27 request fell from $200 million to $300 million.</p>',
+        },
+        { section: 'Background', html: '<p>The program supports autonomous systems.</p>' },
+      ],
+      groundingFindings: [
+        {
+          check: 'D4',
+          severity: 'critical',
+          span: 'The FY27 request fell from $200 million to $300 million.',
+          detail: 'Funding direction is reversed.',
+        },
+      ],
+    });
+    expect(out.heldSections).toContain('Funding');
+    expect(out.verdicts.find((v) => v.section === 'Background')?.envelope.findings).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ check: 'D4' })]),
+    );
+    expect(
+      out.verdicts
+        .find((v) => v.section === 'Funding')
+        ?.envelope.findings.find((finding) => finding.check === 'D4')?.attribution,
+    ).toEqual({ scope: 'section', subjectId: 'Funding' });
+  });
+
+  it('retains a genuinely un-attributable critical finding as run-wide', () => {
+    const out = assessGeneratedSectionsForRelease({
+      generated: [{ section: 'Cover', html: '<p>Prepared for leadership.</p>' }],
+      groundingFindings: [
+        { check: 'D4', severity: 'critical', span: 'x', detail: 'run-wide verifier failure' },
+      ],
+    });
+    expect(out.heldSections).toEqual(['Cover']);
+    expect(out.verdicts[0]?.envelope.findings[0]?.attribution).toEqual({ scope: 'run' });
   });
 
   it('treats an empty section as nothing to hold', () => {
@@ -88,9 +122,7 @@ describe('assessGeneratedSectionsForRelease', () => {
     expect(out.verdicts[0]?.decision).toBe('deliver');
   });
 
-  it('a resolving [n] citation to an authoritative PE record supports the claim', () => {
-    // applyCitations rewrites [S:pe:CODE] to <sup>[1]</sup>, so a persisted section
-    // carries FORM A markers — the same shape the chat surface resolves.
+  it('a resolving citation to an authoritative PE record reduces blockers', () => {
     const withCitation = assessGeneratedSectionsForRelease({
       generated: [
         { section: 'Funding', html: '<p>The FY27 request is $412.5 million.<sup>[1]</sup></p>' },
@@ -101,8 +133,6 @@ describe('assessGeneratedSectionsForRelease', () => {
       generated: [{ section: 'Funding', html: '<p>The FY27 request is $412.5 million.</p>' }],
       sectionCitations: { Funding: [] },
     });
-    // The citation must make a real difference to the blocker set — otherwise the
-    // gate is not reading provenance at all.
     expect(withCitation.verdicts[0]?.blockers).not.toEqual(withoutCitation.verdicts[0]?.blockers);
     expect(withoutCitation.verdicts[0]?.blockers.length).toBeGreaterThan(
       withCitation.verdicts[0]?.blockers.length ?? 0,
@@ -124,15 +154,5 @@ describe('assessGeneratedSectionsForRelease', () => {
     expect(available.verdicts[0]?.blockers).not.toContain(
       'Required pre-release verification was unavailable.',
     );
-  });
-
-  it('folds a run-level CRITICAL grounding finding into every section decision', () => {
-    const out = assessGeneratedSectionsForRelease({
-      generated: [{ section: 'Cover', html: '<p>Prepared for the client leadership team.</p>' }],
-      groundingFindings: [
-        { check: 'D4', severity: 'critical', span: 'x', detail: 'funding direction reversed' },
-      ],
-    });
-    expect(out.heldSections).toEqual(['Cover']);
   });
 });
