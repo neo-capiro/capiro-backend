@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 // Imported from the '@capiro/meriv2-core/assurance' SUBPATH (not the package
 // barrel) for the same reason generation.service.ts imports the auditor from
 // '@capiro/meriv2-core/grounding/auditor': the barrel re-exports the skeptic
@@ -22,6 +23,21 @@ import type { PeStructuralWarning } from './domain-grounding.helpers.js';
 import type { SectionCitation } from './citations.js';
 
 /**
+ * Request-local tenant binding for the inherited GenerationService call shape.
+ * GenerationService already receives the server-resolved tenant, but its legacy
+ * hold helper has no tenant parameter. Controllers enter this context before any
+ * generation/apply call; AsyncLocalStorage preserves it across concurrent awaits
+ * without process-global mutation or browser-supplied authority.
+ */
+const generationAssuranceTenant = new AsyncLocalStorage<string>();
+
+export function runWithGenerationAssuranceTenant<T>(tenantId: string, work: () => T): T {
+  const normalized = String(tenantId ?? '').trim();
+  if (!normalized) throw new Error('Workspace assurance requires a server-resolved tenant id.');
+  return generationAssuranceTenant.run(normalized, work);
+}
+
+/**
  * Exact Phase 16 rollout. A global mode alone never arms Workspace: the
  * server-resolved tenant and the `workspace-gen` surface must both be selected.
  */
@@ -41,22 +57,25 @@ export function generationAssuranceRolloutMode(
 }
 
 /**
- * Backward-compatible call shape for the existing generation service. Because it
- * has no tenant argument, it can enforce only when the operator explicitly
- * selects `all` tenants in addition to the global and surface controls. Tenant-
- * specific canaries use generationAssuranceRolloutMode at tenant-aware call sites.
+ * Backward-compatible call shape for the existing generation service.
+ *
+ * On a live HTTP path, GenerationController establishes a request-local,
+ * server-resolved tenant and this helper applies the exact tenant/surface canary.
+ * Direct legacy/unit callers with no request context can enforce only through an
+ * explicit `all`-tenant canary, preserving the prior fail-closed behavior.
  */
 export function generationClaimHoldEnforced(
   raw: string | undefined = process.env.MERI_RELEASE_GATE_SURFACES,
   globalModeRaw: string | undefined = process.env.MERI_RELEASE_GATE,
   tenantCanariesRaw: string | undefined = process.env.MERI_RELEASE_GATE_TENANTS,
 ): boolean {
+  const tenantId = generationAssuranceTenant.getStore();
   return (
     resolveAssuranceRolloutMode({
       globalModeRaw,
       tenantCanariesRaw,
       surfacesRaw: raw,
-      tenantId: '__workspace_global__',
+      tenantId: tenantId ?? '__workspace_global__',
       surface: 'workspace-gen',
     }) === 'enforce'
   );
