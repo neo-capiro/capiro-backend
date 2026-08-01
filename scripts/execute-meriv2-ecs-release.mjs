@@ -37,6 +37,14 @@ const evidenceDir = path.resolve(
 
 const SERVICE_ORDER = ['api', 'meriv2-orchestrator', 'workspace', 'api-strategy', 'web'];
 
+/**
+ * Service stability budget. `aws ecs wait services-stable` caps out at ~10
+ * minutes and cannot be extended, so stability is polled here instead. Override
+ * with --stability-timeout-minutes when a service needs longer.
+ */
+const STABILITY_TIMEOUT_MS = Number(args.stabilityTimeoutMinutes ?? 25) * 60 * 1000;
+const STABILITY_POLL_MS = 15_000;
+
 async function main() {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   validateManifest(manifest);
@@ -124,15 +132,7 @@ async function main() {
         '--force-new-deployment',
       ]);
       updated.push(key);
-      await awsCall([
-        'ecs',
-        'wait',
-        'services-stable',
-        '--cluster',
-        manifest.cluster,
-        '--services',
-        service.service,
-      ]);
+      await waitForServiceStable(manifest.cluster, service.service, taskDefinitionArn);
       const verified = await describeService(manifest.cluster, service.service);
       if (
         verified.taskDefinition !== taskDefinitionArn ||
@@ -244,15 +244,7 @@ async function rollbackServices(manifest, updated, baseline, cause) {
         prior,
         '--force-new-deployment',
       ]);
-      await awsCall([
-        'ecs',
-        'wait',
-        'services-stable',
-        '--cluster',
-        manifest.cluster,
-        '--services',
-        service.service,
-      ]);
+      await waitForServiceStable(manifest.cluster, service.service, prior);
       results.push({ key, restored: true, taskDefinitionArn: prior });
     } catch (rollbackError) {
       results.push({
@@ -269,6 +261,69 @@ async function rollbackServices(manifest, updated, baseline, cause) {
     results,
     additiveMigrationsRetained: true,
   });
+}
+
+/**
+ * Wait for one ECS service to finish rolling onto an exact task definition.
+ *
+ * `aws ecs wait services-stable` is capped at 40 polls x 15s (~10 minutes) and
+ * cannot be extended from the CLI. A rolling deployment with load-balancer
+ * draining and minimumHealthyPercent=100 legitimately exceeds that on this
+ * cluster, and the waiter's "Max attempts exceeded" is indistinguishable from a
+ * genuine failure — it previously triggered a rollback of a deployment whose new
+ * tasks had already started and registered healthy targets.
+ *
+ * Poll the service state instead, and fail fast on real trouble: a stopped task
+ * with a non-zero exit, or a FAILED rollout state.
+ */
+async function waitForServiceStable(cluster, service, expectedTaskDefinitionArn) {
+  const deadline = Date.now() + STABILITY_TIMEOUT_MS;
+  let last = '';
+  while (Date.now() < deadline) {
+    const described = await describeService(cluster, service);
+    const primary = (described.deployments ?? []).find((entry) => entry.status === 'PRIMARY');
+    const rollout = primary?.rolloutState;
+    const state = [
+      described.taskDefinition,
+      described.runningCount,
+      described.pendingCount,
+      described.desiredCount,
+      rollout,
+    ].join('|');
+    if (state !== last) {
+      console.log(
+        `[wait] ${service} td=${String(described.taskDefinition).split('/').pop()} ` +
+          `running=${described.runningCount}/${described.desiredCount} ` +
+          `pending=${described.pendingCount} rollout=${rollout ?? '-'}`,
+      );
+      last = state;
+    }
+
+    if (rollout === 'FAILED') {
+      throw new Error(
+        `Service ${service} reported a FAILED rollout: ${primary?.rolloutStateReason ?? 'no reason given'}`,
+      );
+    }
+
+    const onTarget = described.taskDefinition === expectedTaskDefinitionArn;
+    const settled =
+      Number(described.runningCount ?? -1) === Number(described.desiredCount ?? -2) &&
+      Number(described.pendingCount ?? 1) === 0 &&
+      (described.deployments ?? []).length === 1;
+    if (onTarget && settled && (rollout === undefined || rollout === 'COMPLETED')) {
+      return described;
+    }
+    await sleep(STABILITY_POLL_MS);
+  }
+  throw new Error(
+    `Service ${service} did not stabilize on ${expectedTaskDefinitionArn} within ${Math.round(
+      STABILITY_TIMEOUT_MS / 60000,
+    )} minutes.`,
+  );
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function pinTaskImages(taskDefinition, repository, imageTag, digest) {
