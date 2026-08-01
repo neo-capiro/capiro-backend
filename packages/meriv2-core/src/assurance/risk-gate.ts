@@ -3,6 +3,7 @@ import type { ClaimLedger } from './claim-ledger';
 import type { DomainEvidencePlan } from './evidence-plan';
 import { buildAssuranceEnvelope, type AssuranceEnvelope } from './envelope';
 import { emitAssuranceGateControlMetrics } from './control-metrics';
+import { currentAssuranceRequestScope } from './request-scope';
 
 export type AssuranceSurface =
   | 'chat'
@@ -64,8 +65,13 @@ export function resolveAssuranceReleaseSurfaces(
 }
 
 /**
- * Legacy no-tenant surface resolver. It can arm only for an explicit all-tenant
- * canary. Tenant-specific callers must use resolveAssuranceRolloutMode.
+ * Backward-compatible surface resolver.
+ *
+ * When an authenticated server boundary establishes an AssuranceRequestScope,
+ * this helper uses the exact tenant and actual artifact surface from that scope.
+ * This keeps legacy call sites source-compatible without widening a one-tenant or
+ * one-surface canary. With no request scope it retains the strict legacy rule:
+ * only an explicit all-tenant canary may arm it.
  */
 export function assuranceReleaseArmedFor(
   raw: string | undefined,
@@ -73,6 +79,15 @@ export function assuranceReleaseArmedFor(
   globalModeRaw: string | undefined = process.env.MERI_RELEASE_GATE,
   tenantCanariesRaw: string | undefined = process.env.MERI_RELEASE_GATE_TENANTS,
 ): boolean {
+  const scoped = currentAssuranceRequestScope();
+  if (scoped) {
+    const tenants = tokens(tenantCanariesRaw);
+    return (
+      normalize(globalModeRaw) === 'enforce' &&
+      (tenants.includes('all') || tenants.includes(scoped.tenantId)) &&
+      resolveAssuranceReleaseSurfaces(raw).has(scoped.surface)
+    );
+  }
   return (
     normalize(globalModeRaw) === 'enforce' &&
     tokens(tenantCanariesRaw).includes('all') &&
