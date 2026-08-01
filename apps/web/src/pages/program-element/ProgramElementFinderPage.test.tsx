@@ -36,15 +36,41 @@ const SUMMARY = {
   byService: [{ service: 'ARMY', count: 1 }],
 };
 
+const ROW: Partial<ProgramElementListItem> = {
+  peCode: '0603270A',
+  title: 'Army Electronic Warfare Technology',
+  service: 'ARMY',
+  budgetActivity: '03',
+  appropriationType: 'RDTE',
+  status: 'active',
+  lastSyncedAt: '2026-05-01T00:00:00.000Z',
+  latestRequest: 215.3,
+  latestRequestFy: 2027,
+  latestEnacted: 297.7,
+  latestEnactedFy: 2025,
+  latestCurrent: 310.5,
+  latestCurrentFy: 2027,
+  latestCurrentStage: 'conference',
+  deltaPct: 19,
+  spark: [258, 273, 281, 298, 233, 215],
+  billCount: 2,
+  watched: false,
+  signalType: 'mark_vs_request',
+  signalScore: 0.8,
+};
+
 function setupApi(rows: Partial<ProgramElementListItem>[]) {
   apiGetMock.mockImplementation(async (url: string) => {
     if (url.includes('/api/program-elements/summary')) {
       return { data: SUMMARY };
     }
+    if (url.includes('/api/intelligence/actions')) {
+      return { data: { data: [], total: 0, page: 1, limit: 100 } };
+    }
     if (url.includes('/api/intelligence/changes')) {
       return { data: [] };
     }
-    // BL-1: capability taxonomy (empty = hero hidden, finder shows seed note).
+    // BL-1: capability taxonomy (empty = finder shows honest seed state in capability mode).
     if (url.includes('/api/budget-lines/capabilities')) {
       return { data: { data: [] } };
     }
@@ -97,30 +123,7 @@ describe('ProgramElementFinderPage', () => {
   });
 
   test('renders matching program elements', async () => {
-    setupApi([
-      {
-        peCode: '0603270A',
-        title: 'Army Electronic Warfare Technology',
-        service: 'ARMY',
-        budgetActivity: '03',
-        appropriationType: 'RDTE',
-        status: 'active',
-        lastSyncedAt: '2026-05-01T00:00:00.000Z',
-        latestRequest: 215.3,
-        latestRequestFy: 2027,
-        latestEnacted: 297.7,
-        latestEnactedFy: 2025,
-        latestCurrent: 310.5,
-        latestCurrentFy: 2027,
-        latestCurrentStage: 'conference',
-        deltaPct: 19,
-        spark: [258, 273, 281, 298, 233, 215],
-        billCount: 2,
-        watched: false,
-        signalType: 'mark_vs_request',
-        signalScore: 0.8,
-      },
-    ]);
+    setupApi([ROW]);
 
     renderPage();
 
@@ -153,7 +156,20 @@ describe('ProgramElementFinderPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('No program elements matched your search')).toBeInTheDocument();
+      expect(screen.getByText('No budget lines match this search.')).toBeInTheDocument();
     });
+  });
+
+  test('uses the prototype information architecture and explicit monitor control', async () => {
+    setupApi([ROW]);
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('0603270A')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Explore' })).toHaveClass('is-active');
+    expect(screen.getByRole('button', { name: 'Movement' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Actions' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Monitor' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Monitored · 0/i })).toBeInTheDocument();
   });
 });
