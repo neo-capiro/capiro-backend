@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash } from 'node:crypto';
 import type { NodeDocumentDraftResponse } from '../meri/meri.types.js';
 
@@ -24,18 +25,62 @@ interface WireAssuranceEnvelope {
   [key: string]: unknown;
 }
 
+interface ExecutionAssuranceRequestContext {
+  tenantId: string;
+  assessedSurface: 'strategy' | 'outreach' | null;
+}
+
 /**
- * Legacy call shape used by ExecutionService. It can enforce only when the
- * operator explicitly selects ALL tenants and ALL assurance surfaces; tenant-
- * specific staging canaries must use generationReleaseModeForTenant at a
- * tenant-aware call site. This prevents a single global flag from arming two
- * independently deployed artifact writers.
+ * Request-local binding for ExecutionService's inherited no-argument hold helper.
+ * The controller establishes the authenticated tenant. The destination verifier
+ * records the exact envelope surface before the helper is queried. No process env
+ * is mutated and concurrent tenants remain isolated.
+ */
+const executionAssuranceContext = new AsyncLocalStorage<ExecutionAssuranceRequestContext>();
+
+export function runWithExecutionAssuranceTenant<T>(tenantId: string, work: () => T): T {
+  const normalized = normalize(tenantId);
+  if (!normalized) throw new Error('Strategy execution assurance requires a server tenant id.');
+  return executionAssuranceContext.run({ tenantId: normalized, assessedSurface: null }, work);
+}
+
+/**
+ * Legacy call shape used by ExecutionService.
+ *
+ * On authenticated execute/resume routes, this resolves the exact tenant and the
+ * surface most recently verified by assessGeneratedDocumentForRelease. If a
+ * selected tenant returns no envelope at all, it fails closed whenever either
+ * artifact surface is selected so a provider outage cannot fall through to a
+ * deterministic placeholder in enforce mode. Direct non-request callers retain
+ * the prior all-tenant/all-surface requirement.
  */
 export function generationReleaseHoldEnforced(
   globalModeRaw: string | undefined = process.env.MERI_RELEASE_GATE,
   tenantCanariesRaw: string | undefined = process.env.MERI_RELEASE_GATE_TENANTS,
   surfacesRaw: string | undefined = process.env.MERI_RELEASE_GATE_SURFACES,
 ): boolean {
+  const request = executionAssuranceContext.getStore();
+  if (request) {
+    if (request.assessedSurface) {
+      return (
+        generationReleaseModeForTenant(
+          request.tenantId,
+          request.assessedSurface,
+          globalModeRaw,
+          tenantCanariesRaw,
+          surfacesRaw,
+        ) === 'enforce'
+      );
+    }
+    const global = normalize(globalModeRaw);
+    const tenants = tokens(tenantCanariesRaw);
+    const surfaces = tokens(surfacesRaw);
+    const tenantSelected = tenants.includes('all') || tenants.includes(request.tenantId);
+    const artifactSurfaceSelected =
+      surfaces.includes('all') || surfaces.includes('strategy') || surfaces.includes('outreach');
+    return global === 'enforce' && tenantSelected && artifactSurfaceSelected;
+  }
+
   return (
     normalize(globalModeRaw) === 'enforce' &&
     tokens(tenantCanariesRaw).includes('all') &&
@@ -68,6 +113,9 @@ export function generationReleaseModeForTenant(
 export function assessGeneratedDocumentForRelease(
   doc: NodeDocumentDraftResponse | null,
 ): GeneratedDocumentAssurance {
+  const request = executionAssuranceContext.getStore();
+  if (request) request.assessedSurface = null;
+
   const blockers: string[] = [];
   const groundedFactRefs: string[] = [];
   if (!doc) {
@@ -124,12 +172,12 @@ export function assessGeneratedDocumentForRelease(
   }
 
   const envelope = (doc.assurance as { envelope?: WireAssuranceEnvelope } | undefined)?.envelope;
+  if (request && (envelope?.surface === 'strategy' || envelope?.surface === 'outreach')) {
+    request.assessedSurface = envelope.surface;
+  }
   const envelopeErrors = verifyWireEnvelope(envelope, doc.assurance);
   blockers.push(...envelopeErrors.map((error) => `Assurance envelope: ${error}.`));
-  if (
-    envelope?.releaseDecision === 'hold' ||
-    envelope?.releaseDecision === 'repair'
-  ) {
+  if (envelope?.releaseDecision === 'hold' || envelope?.releaseDecision === 'repair') {
     blockers.push(`Assurance envelope release decision is ${String(envelope.releaseDecision)}.`);
   }
 
