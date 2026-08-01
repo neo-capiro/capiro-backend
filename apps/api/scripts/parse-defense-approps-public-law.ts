@@ -28,10 +28,18 @@ import type { ExtractedReportRow } from '../src/program-element/parsers/committe
 import { diffMarks } from '../src/program-element/parsers/mark-dry-run-diff.js';
 import {
   upsertSourceDocument,
+  supersedeSourceDocumentHead,
   sha256OfFile,
   readDocumentToolVersion,
   type SourceDocumentClient,
 } from '../src/program-element/source-document/source-document-registry.js';
+import {
+  assertExactShaCommitAllowed,
+  auditArtifactQuality,
+  buildInspectReport,
+  resolvePeDollarLoaderPosture,
+  argValue as exactShaArgValue,
+} from './lib/pe-exact-sha-loader-contract.js';
 import {
   emitToplineCandidates,
   type ArtifactTopline,
@@ -55,7 +63,9 @@ function arg(name: string): string | undefined {
 async function main(): Promise<void> {
   const artifactPath = arg('artifact');
   if (!artifactPath) {
-    console.error('Usage: parse-defense-approps-public-law.ts --artifact <rows.json> [--fy 2027]');
+    console.error(
+      'Usage: parse-defense-approps-public-law.ts --artifact <rows.json> [--fy 2027] [--inspect | --commit --approved-sha256 <sha>]',
+    );
     process.exit(1);
   }
 
@@ -66,15 +76,20 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const commit = process.argv.includes('--commit');
-  const prisma = new PrismaService();
-  await prisma.$connect();
-  try {
-    const writer = new ProgramElementWriterService(prisma);
-    const parser = new ConferenceReportParserService(writer);
-    const records = parseExtractedRows(artifact.rows ?? [], { fy });
+  const posture = resolvePeDollarLoaderPosture(process.argv);
+  if (posture === 'extract_only') {
+    throw new Error(
+      'parse-defense-approps-public-law.ts: --extract-only/--dry-run is not valid; use default inspect or --commit --approved-sha256 <sha>.',
+    );
+  }
+  const sha256 = sha256OfFile(artifactPath);
+  const records = parseExtractedRows(artifact.rows ?? [], { fy });
+  const quality = auditArtifactQuality({ rowCount: records.length });
 
-    if (!commit) {
+  if (posture === 'inspect') {
+    const prisma = new PrismaService();
+    await prisma.$connect();
+    try {
       const peCodes = [...new Set(records.map((r) => r.peCode))];
       const pes = await prisma.programElement.findMany({
         where: { peCode: { in: peCodes } },
@@ -94,40 +109,69 @@ async function main(): Promise<void> {
       const diffLimit = dlIdx >= 0 ? Number(process.argv[dlIdx + 1]) : 15;
       const diff = diffMarks(records, existing, new Set(pes.map((p) => p.peCode)), diffLimit);
       console.log(
-        JSON.stringify({ mode: 'DRY_RUN', stage: 'public_law', fy, artifact: artifactPath, diff }, null, 2),
+        JSON.stringify(
+          {
+            ...buildInspectReport({
+              loader: 'parse-defense-approps-public-law.ts',
+              posture,
+              artifactPath,
+              sha256,
+              byteSize: fs.statSync(artifactPath).size,
+              quality,
+              extra: { stage: 'public_law', fy, rowCount: records.length },
+            }),
+            diff,
+          },
+          null,
+          2,
+        ),
       );
-      console.log('DRY RUN — inspect the diff, then re-run with --commit to load.');
-      return;
+      console.log('INSPECT — no writes. Re-run with --commit --approved-sha256 <sha above> to promote.');
+    } finally {
+      await prisma.$disconnect();
     }
+    return;
+  }
 
-    const result = await parser.load(records, 'public_law', fy);
+  assertExactShaCommitAllowed({
+    actualSha256: sha256,
+    approvedSha256Raw: exactShaArgValue(process.argv, 'approved-sha256'),
+    quality: { rowCount: records.length },
+  });
 
+  const prisma = new PrismaService();
+  await prisma.$connect();
+  try {
+    const writer = new ProgramElementWriterService(prisma);
+    const parser = new ConferenceReportParserService(writer);
     const source = conferenceReportSource('public_law', fy);
-    const reg = await upsertSourceDocument(prisma as unknown as SourceDocumentClient, {
-      sourceKey: path.basename(artifactPath).replace(/\.json$/i, ''),
-      sha256: sha256OfFile(artifactPath),
-      fiscalYear: fy,
-      budgetCycle: 'enacted',
-      component: null,
-      documentType: 'public_law',
-      title: `Defense Appropriations public law (FY${fy})`,
-      sourceUrl: artifact.source ?? path.basename(artifactPath),
-      byteSize: fs.statSync(artifactPath).size,
-      artifactPath: path.relative(process.cwd(), artifactPath),
-      extractionMethod: 'deterministic_pdf',
-      extractionToolVersion: readDocumentToolVersion(artifact),
-      metadata: { stage: 'public_law', sourceTag: source },
-    });
-    // The writer logs rows under both the full tag (logSourceValue, '__row__') and the
-    // fy-suffix-stripped tag (reconciliation per-field rows); fy disambiguates the stripped
-    // form across fiscal years.
-    const stamped = await prisma.programElementYearSourceValue.updateMany({
-      where: { fy, source: { in: [source, source.replace(/_fy\d+$/i, '')] } },
-      data: { sourceDocumentId: reg.document.id },
+
+    const reg = await upsertSourceDocument(
+      prisma as unknown as SourceDocumentClient,
+      {
+        sourceKey: path.basename(artifactPath).replace(/\.json$/i, ''),
+        sha256,
+        fiscalYear: fy,
+        budgetCycle: 'enacted',
+        component: null,
+        documentType: 'public_law',
+        title: 'Defense Appropriations public law (FY' + fy + ')',
+        sourceUrl: artifact.source ?? path.basename(artifactPath),
+        byteSize: fs.statSync(artifactPath).size,
+        artifactPath: path.relative(process.cwd(), artifactPath),
+        extractionMethod: 'deterministic_pdf',
+        extractionToolVersion: readDocumentToolVersion(artifact),
+        metadata: { stage: 'public_law', sourceTag: source, approvedSha256: sha256 },
+      },
+      { deferSupersede: true },
+    );
+
+    const result = await parser.load(records, 'public_law', fy, {
+      authority: 'enacted_public_law',
+      sourceDocumentId: reg.document.id,
+      extractorVersion: readDocumentToolVersion(artifact) ?? 'parse-public-law@exact-sha',
     });
 
-    // R3 §3.3 — ENACTED appropriations stage. Runs only past the --commit gate
-    // above, so a dry run never stages a topline either.
     const toplines = await emitToplineCandidates(
       prisma as never,
       artifact.toplines,
@@ -143,17 +187,26 @@ async function main(): Promise<void> {
       { commit: true },
     );
 
+    if (reg.supersededDocument) {
+      await supersedeSourceDocumentHead(
+        prisma as unknown as SourceDocumentClient,
+        reg.supersededDocument.id,
+        reg.document.id,
+      );
+    }
+
     console.log(
       JSON.stringify(
         {
+          mode: 'COMMIT',
           artifact: artifactPath,
+          sha256,
           ...result,
           toplines,
           sourceDocument: {
             id: reg.document.id,
             action: reg.created ? 'inserted' : 'deduped',
             superseded: reg.supersededDocument?.id ?? null,
-            stamped_year_source_values: stamped.count,
           },
         },
         null,

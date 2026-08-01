@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { isValidProgramCode, dollarsToMillions } from '../jbook/jbook-extract.js';
 import { ProgramElementWriterService } from '../program-element-writer.service.js';
+import type { PeYearWriteContext } from '../types.js';
 
 /**
  * Shared base for congressional committee-report PE-mark parsers (Steps 22 & 23).
@@ -167,6 +168,7 @@ export abstract class CommitteeReportParserBase {
     records: CommitteeReportMarkRecord[],
     source: string,
     markField: MarkField,
+    writeContext?: PeYearWriteContext,
   ): Promise<LoadResult> {
     let upserted = 0;
     let changed = 0;
@@ -195,16 +197,33 @@ export abstract class CommitteeReportParserBase {
       // Committee / NDAA-conference / enacted public-law extraction artifacts encode
       // FULL DOLLARS (e.g. 215322000 = $215.3M); convert to the canonical MILLIONS
       // unit before the write so marks aren't 1,000,000x inflated in the UI.
+      const requestM = dollarsToMillions(rec.request);
+      const markM = dollarsToMillions(rec.mark);
+      const context: PeYearWriteContext | undefined = writeContext
+        ? {
+            ...writeContext,
+            originalValues: {
+              ...(writeContext.originalValues ?? {}),
+              ...(rec.request != null
+                ? { request: { value: rec.request, unit: 'dollars' as const } }
+                : {}),
+              ...(rec.mark != null
+                ? { [markField]: { value: rec.mark, unit: 'dollars' as const } }
+                : {}),
+            },
+          }
+        : undefined;
       const result = await this.writer.upsertProgramElementYear(
         {
           peCode: rec.peCode,
           fy: rec.fy,
-          request: dollarsToMillions(rec.request),
-          [markField]: dollarsToMillions(rec.mark),
+          request: requestM,
+          [markField]: markM,
           notes: rec.explanation,
           raw: rec,
         },
         source,
+        context,
       );
       upserted += 1;
       if (result.changed) changed += 1;

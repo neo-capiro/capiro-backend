@@ -2,12 +2,16 @@ import { Card, Empty, Segmented, Skeleton, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useState } from 'react';
 import type { ProcurementLinesResponse, ProcurementLineRecipient } from './types.js';
+import { PeSecondaryFailed } from './PeSecondaryFailed.js';
 
 const { Text } = Typography;
 
 export interface SecondaryDistributionPanelProps {
   data: ProcurementLinesResponse | null | undefined;
   loading?: boolean;
+  /** Request failed — must not paint honesty Empty. */
+  errored?: boolean;
+  onRetry?: () => void;
 }
 
 /** Compact USD: $1.59M / $2.04B from a full-dollar value. */
@@ -37,13 +41,30 @@ interface RecipientRow {
  * Honest empty state for PEs with no procurement lines (RDT&E, or PROC books
  * without a Secondary Distribution block).
  */
-export function SecondaryDistributionPanel({ data, loading = false }: SecondaryDistributionPanelProps) {
+export function SecondaryDistributionPanel({
+  data,
+  loading = false,
+  errored = false,
+  onRetry,
+}: SecondaryDistributionPanelProps) {
   const [metric, setMetric] = useState<'quantity' | 'dollars'>('dollars');
 
   if (loading) {
     return (
       <Card title="Secondary Distribution">
         <Skeleton active paragraph={{ rows: 3 }} />
+      </Card>
+    );
+  }
+
+  if (errored) {
+    return (
+      <Card className="pe-sd-card" title="Secondary Distribution">
+        <PeSecondaryFailed
+          label="secondary distribution"
+          testId="pe-secondary-failed-procurement-lines"
+          onRetry={onRetry}
+        />
       </Card>
     );
   }

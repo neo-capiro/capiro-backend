@@ -148,12 +148,73 @@ describe('ProgramTeamPanel', () => {
     );
 
     expect(screen.getByText('Program team')).toBeInTheDocument();
-    expect(screen.getByText('5 of ~12 known')).toBeInTheDocument();
-    expect(screen.getByText('View all sources →')).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Link' })).toHaveLength(5);
+        // Phase 5: no fabricated "~12 known" roster estimate — identified count only.
+        expect(screen.getByTestId('pe-team-identified-count')).toHaveTextContent('5 identified people');
+        expect(screen.queryByText(/of ~/)).toBeNull();
+        expect(screen.getByText('View all sources →')).toBeInTheDocument();
+    const links = screen.getAllByRole('button', { name: /Link .* to CRM contact/i });
+    expect(links).toHaveLength(5);
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Link' })[0]!);
+    fireEvent.click(links[0]!);
     expect(onLink).toHaveBeenCalledWith('1');
+  });
+
+  test('disabled Link with accessible reason when crmLinkBlocked', () => {
+    setupBrowserMocks();
+    const onLink = vi.fn();
+    const blocked = {
+      ...personWithRoles,
+      crmLinkBlocked: true,
+      crmLinkBlockedReason: 'CRM linking is blocked: official procurement point of contact (FAR).',
+    };
+    render(
+      <ProgramTeamPanel
+        personnel={[blocked]}
+        onLinkCrmContact={onLink}
+      />,
+    );
+    const btn = screen.getByTestId('pe-crm-link-blocked-r1');
+    expect(btn).toBeDisabled();
+    expect(screen.getByTestId('pe-crm-link-reason-r1')).toBeInTheDocument();
+    fireEvent.click(btn);
+    expect(onLink).not.toHaveBeenCalled();
+  });
+
+  test('enabled Link when crmLinkBlocked is false', () => {
+    setupBrowserMocks();
+    const onLink = vi.fn();
+    const allowed = {
+      id: 'ok1',
+      fullName: 'Casey Ok',
+      title: 'PM',
+      organization: 'Army',
+      role: 'PM',
+      confidence: 0.9,
+      lastSeenAt: '2026-01-01T00:00:00.000Z',
+      sourceCount: 1,
+      roles: [
+        {
+          id: 'role-ok',
+          roleTitle: 'Program Manager',
+          roleType: 'pm',
+          officeName: 'PEO',
+          programName: 'X',
+          contactUse: 'program_ownership_context',
+          contactUseLabel: 'Program ownership context',
+          reviewStatus: 'accepted',
+          observedAt: '2026-01-01T00:00:00.000Z',
+          staleAt: null,
+          whyShown: 'PM in PEO',
+        },
+      ],
+      crmLinkBlocked: false,
+      crmLinkBlockedReason: null,
+    };
+    render(<ProgramTeamPanel personnel={[allowed]} onLinkCrmContact={onLink} />);
+    const btn = screen.getByTestId('pe-crm-link-ok1');
+    expect(btn).not.toBeDisabled();
+    fireEvent.click(btn);
+    expect(onLink).toHaveBeenCalledWith('ok1');
   });
 
   test('shows empty state', () => {

@@ -61,9 +61,17 @@ describe('AcquisitionPersonnelController', () => {
     const { controller, readService } = makeController();
     readService.linkCrmContact.mockResolvedValueOnce({ linked: true });
 
-    const result = await controller.linkCrmContact(standardCtx, 'person-1', { engagementContactId: 'contact-1' });
+    const result = await controller.linkCrmContact(standardCtx, 'person-1', {
+      engagementContactId: 'contact-1',
+      peCode: '0603270A',
+    });
 
-    expect(readService.linkCrmContact).toHaveBeenCalledWith('person-1', 'contact-1', standardCtx);
+    expect(readService.linkCrmContact).toHaveBeenCalledWith(
+      'person-1',
+      'contact-1',
+      '0603270A',
+      standardCtx,
+    );
     expect(result).toEqual({ linked: true });
   });
 

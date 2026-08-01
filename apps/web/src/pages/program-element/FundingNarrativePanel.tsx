@@ -1,9 +1,16 @@
-import { useQuery } from '@tanstack/react-query';
 import { Card, Empty, Skeleton, Tag, Tooltip, Typography } from 'antd';
-import { useApi } from '../../lib/use-api.js';
-import { getProgramElementNarrative, type FundingNarrativeStep } from './api.js';
+import type { FundingNarrativeStep, ProgramElementNarrative } from './api.js';
+import { PeSecondaryFailed } from './PeSecondaryFailed.js';
 
 const { Text } = Typography;
+
+export interface FundingNarrativePanelProps {
+  peCode: string;
+  data?: ProgramElementNarrative | null;
+  loading?: boolean;
+  errored?: boolean;
+  onRetry?: () => void;
+}
 
 /**
  * Phase 4 (4.1) — the assembled "request → marks → enactment" narrative for a
@@ -11,24 +18,44 @@ const { Text } = Typography;
  * its vehicle (authorization vs appropriation) and signed deltas; the FY's
  * material moves are surfaced beneath (4.1.2). Read-only; data + math come from
  * GET /api/program-elements/:peCode/narrative.
+ *
+ * Phase 5 — failed ≠ valid empty: isError must paint PeSecondaryFailed, never
+ * the success Empty for missing stages.
  */
-export function FundingNarrativePanel({ peCode }: { peCode: string }) {
-  const api = useApi();
-  const { data, isLoading } = useQuery({
-    queryKey: ['pe-narrative', peCode],
-    queryFn: () => getProgramElementNarrative(api, peCode),
-    enabled: !!peCode,
-  });
-
+export function FundingNarrativePanel({
+  peCode: _peCode,
+  data = null,
+  loading = false,
+  errored = false,
+  onRetry,
+}: FundingNarrativePanelProps) {
   const title = data?.currentCycleFy
     ? `Funding narrative — FY${data.currentCycleFy}`
     : 'Funding narrative';
 
+  if (loading) {
+    return (
+      <Card size="small" title={title}>
+        <Skeleton active paragraph={{ rows: 3 }} />
+      </Card>
+    );
+  }
+
+  if (errored) {
+    return (
+      <Card size="small" title={title}>
+        <PeSecondaryFailed
+          label="funding narrative"
+          testId="pe-secondary-failed-narrative"
+          onRetry={onRetry}
+        />
+      </Card>
+    );
+  }
+
   return (
     <Card size="small" title={title}>
-      {isLoading ? (
-        <Skeleton active paragraph={{ rows: 3 }} />
-      ) : !data?.steps?.length ? (
+      {!data?.steps?.length ? (
         <Empty description="No current-cycle funding stages recorded for this program element yet." />
       ) : (
         <>

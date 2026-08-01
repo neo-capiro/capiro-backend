@@ -1,5 +1,16 @@
 import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
-import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUrl,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -11,6 +22,7 @@ import {
   type ReconciliationDecision,
 } from './program-element-read.service.js';
 import { ProgramElementWriterService } from './program-element-writer.service.js';
+import { ProgramElementDataIssueService } from './program-element-data-issue.service.js';
 import { MANUAL_OVERRIDE_SOURCE, type PeYearInput } from './types.js';
 
 class SetPeAlertEmailPrefDto {
@@ -33,6 +45,71 @@ class ResolveReconciliationDto {
   notes?: string;
 }
 
+class CreatePeDataIssueDto {
+  @IsIn([
+    'value_incorrect',
+    'missing_value',
+    'wrong_source',
+    'wrong_stage_or_vehicle',
+    'wrong_pe_attribution',
+    'other',
+  ])
+  issueType!: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(4000)
+  description!: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  fy?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  fieldName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
+  suggestedSourceUrl?: string;
+}
+
+class ListPeDataIssuesQueryDto {
+  @IsOptional()
+  @IsIn(['open', 'resolved', 'dismissed'])
+  status?: string;
+
+  @IsOptional()
+  @IsString()
+  peCode?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number;
+}
+
+class ResolvePeDataIssueDto {
+  @IsIn(['resolved', 'dismissed'])
+  status!: 'resolved' | 'dismissed';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  resolutionNotes?: string;
+}
+
 @Controller('program-elements')
 @UseGuards(RolesGuard)
 @Roles('standard_user')
@@ -40,6 +117,7 @@ export class ProgramElementController {
   constructor(
     private readonly service: ProgramElementReadService,
     private readonly writer: ProgramElementWriterService,
+    private readonly dataIssues: ProgramElementDataIssueService,
   ) {}
 
   // Static admin route declared before the ':peCode' dynamic route so 'admin' is
@@ -48,6 +126,36 @@ export class ProgramElementController {
   @Roles('capiro_admin')
   reconciliationQueue(@Query() query: QueryProgramElementsDto) {
     return this.service.listReconciliationQueue(query.status ?? 'open', query.page, query.limit);
+  }
+
+  // Tenant-scoped PE data issues (Phase I / closeout Phase 6). Admin list is still
+  // RLS'd to the caller's tenant — no cross-tenant scan here.
+  @Get('admin/data-issues')
+  @Roles('capiro_admin')
+  listDataIssuesAdmin(
+    @CurrentTenant() ctx: TenantContext,
+    @Query() query: ListPeDataIssuesQueryDto,
+  ) {
+    return this.dataIssues.listAdmin(ctx, {
+      status: query.status,
+      peCode: query.peCode,
+      page: query.page,
+      limit: query.limit,
+    });
+  }
+
+  @Post('admin/data-issues/:id/resolve')
+  @Roles('capiro_admin')
+  resolveDataIssue(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: ResolvePeDataIssueDto,
+  ) {
+    return this.dataIssues.resolve(
+      id,
+      { status: body.status, resolutionNotes: body.resolutionNotes },
+      ctx,
+    );
   }
 
   // Resolve a queued conflict. accept_conflicting/manual_value write the chosen value through
@@ -242,5 +350,38 @@ export class ProgramElementController {
     @Body() body: WatchProgramElementDto,
   ) {
     return this.service.setWatching(peCode, body.watching, ctx);
+  }
+
+  // Phase I / closeout Phase 6 — tenant analyst feedback (does not mutate PE dollars).
+  @Get(':peCode/data-issues')
+  listDataIssues(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('peCode') peCode: string,
+    @Query() query: ListPeDataIssuesQueryDto,
+  ) {
+    return this.dataIssues.listForPe(peCode, ctx, {
+      status: query.status,
+      page: query.page,
+      limit: query.limit,
+    });
+  }
+
+  @Post(':peCode/data-issues')
+  createDataIssue(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('peCode') peCode: string,
+    @Body() body: CreatePeDataIssueDto,
+  ) {
+    return this.dataIssues.create(
+      peCode,
+      {
+        issueType: body.issueType,
+        description: body.description,
+        fy: body.fy,
+        fieldName: body.fieldName,
+        suggestedSourceUrl: body.suggestedSourceUrl,
+      },
+      ctx,
+    );
   }
 }

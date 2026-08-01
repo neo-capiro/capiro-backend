@@ -108,6 +108,37 @@ export function isExcludedFromRecommendations(contactUse: ContactUse): boolean {
   );
 }
 
+/**
+ * True when CRM linking from a PE page must be refused for this contact-use.
+ * Blocks procurement POC / procurement-sensitive / candidate / quarantined.
+ * Allows program ownership / internal / relationship context and explicit
+ * lobbying_contact — WITHOUT promoting context roles to lobbying-eligible.
+ */
+export function isCrmLinkBlocked(contactUse: ContactUse | string): boolean {
+  return (
+    contactUse === 'official_procurement_poc' ||
+    contactUse === 'do_not_contact_procurement_sensitive' ||
+    contactUse === 'candidate' ||
+    contactUse === 'quarantined'
+  );
+}
+
+/** Accessible reason string for disabled CRM link UI (no PII). */
+export function crmLinkBlockedReason(contactUse: ContactUse | string): string {
+  switch (contactUse) {
+    case 'official_procurement_poc':
+      return 'CRM linking is blocked: official procurement point of contact (FAR).';
+    case 'do_not_contact_procurement_sensitive':
+      return 'CRM linking is blocked: procurement-sensitive / source-selection role.';
+    case 'candidate':
+      return 'CRM linking is blocked: role is still a candidate and requires review.';
+    case 'quarantined':
+      return 'CRM linking is blocked: role is quarantined.';
+    default:
+      return 'CRM linking is blocked for this role.';
+  }
+}
+
 /** Human-readable labels for each contact-use classification. */
 export const CONTACT_USE_LABELS: Record<ContactUse, string> = {
   lobbying_contact: 'Lobbying contact',

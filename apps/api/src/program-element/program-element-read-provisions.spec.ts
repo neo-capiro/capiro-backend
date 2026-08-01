@@ -31,7 +31,13 @@ interface FakeLinkRow {
 function makePrisma(rows: FakeLinkRow[]) {
   const findMany = jest.fn(async (_args: unknown) => rows);
   return {
-    prisma: { provisionPeLink: { findMany } },
+    prisma: {
+      provisionPeLink: { findMany },
+      // Program-level attribution expansion is optional for these focused
+      // provision tests. An empty crosswalk lets the method reach the contract
+      // assertions instead of crashing on an undefined delegate.
+      peProgramMatch: { findMany: jest.fn(async () => []) },
+    },
     findMany,
   };
 }
@@ -123,6 +129,8 @@ describe('ProgramElementReadService.getProvisionsForPe (Step 2.4)', () => {
       matchBasis: 'pe_code',
       reviewStatus: 'accepted',
       confidence: 0.99,
+      matchScope: 'pe_specific',
+      attributionCaveat: null,
     });
     // A provision with no SourceDocument yields sourceUrl: null.
     expect(result.find((r) => r.id === 'cand-2025')?.sourceUrl).toBeNull();

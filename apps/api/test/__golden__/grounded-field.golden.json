@@ -1,0 +1,50 @@
+{
+  "_note": "SYNTHETIC placeholder grounded-field golden set \u2014 NOT HUMAN REVIEWED. Do not cite accuracy numbers from this file as verified. Replace rows only after a human records source SHA, page/span, reviewer, and review date.",
+  "_schema": "GroundedFieldGolden: { id, peCode, fy, field, stage?, sourceSha256, page?, span?, expectedValue?, humanReviewed, reviewer?, reviewedAt?, syntheticWarning? }. Harness joins on id and requires identity+FY+field+SHA+page/span.",
+  "_sampling": {
+    "status": "synthetic_not_sampled",
+    "seed": null,
+    "instruction": "Programmatic sample then human verify against primary PDF; see test/__golden__/README.md"
+  },
+  "rows": [
+    {
+      "id": "syn-0603766E-2027-request",
+      "peCode": "0603766E",
+      "fy": 2027,
+      "field": "request",
+      "stage": "request",
+      "sourceSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "page": 41,
+      "span": "p41:1200-1280",
+      "expectedValue": "312.45",
+      "humanReviewed": false,
+      "syntheticWarning": "SYNTHETIC \u2014 NOT HUMAN REVIEWED"
+    },
+    {
+      "id": "syn-0604161D8Z-2027-hascMark",
+      "peCode": "0604161D8Z",
+      "fy": 2027,
+      "field": "hascMark",
+      "stage": "hascMark",
+      "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "page": 88,
+      "span": "p88:200-260",
+      "expectedValue": "190.0",
+      "humanReviewed": false,
+      "syntheticWarning": "SYNTHETIC \u2014 NOT HUMAN REVIEWED"
+    },
+    {
+      "id": "syn-0604402F-2026-enacted",
+      "peCode": "0604402F",
+      "fy": 2026,
+      "field": "enacted",
+      "stage": "enacted",
+      "sourceSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "page": 153,
+      "span": null,
+      "expectedValue": "1000.0",
+      "humanReviewed": false,
+      "syntheticWarning": "SYNTHETIC \u2014 NOT HUMAN REVIEWED"
+    }
+  ]
+}

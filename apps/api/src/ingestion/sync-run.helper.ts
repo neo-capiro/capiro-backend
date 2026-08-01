@@ -7,7 +7,7 @@
  *      (so the job only pulls NEW data — "only ingest new data"),
  *   2. opens a SyncRun row (status='running'),
  *   3. runs `fn({ since, prisma })` which returns row counts,
- *   4. closes the SyncRun row (success / success_with_errors / error) with counts.
+ *   4. closes the SyncRun row (success / success_with_errors / partial / error) with counts.
  *
  * This standardizes what only 6 scripts did ad-hoc, and is the single source of
  * truth the ingestion dashboard + alarms read.
@@ -82,6 +82,7 @@ function emitMetricLine(source: string, counts: RunCounts, durationSeconds: numb
         rows_inserted: counts.inserted,
         rows_updated: counts.updated,
         error_count: counts.errors,
+        complete: counts.complete !== false,
         duration_seconds: Math.round(durationSeconds),
       })}`,
     );
@@ -127,6 +128,10 @@ export async function activeRunStartedAt(
  * `fn` receives the resolved `since` window and must return row counts.
  * On throw: records status='error' + message, then rethrows (process exits
  * non-zero so the scheduler/alarm sees the failure).
+ *
+ * Watermark advancement: only status='success' is read by
+ * `lastSuccessfulWatermark`. Partial and success_with_errors must never become
+ * the incremental floor.
  */
 export async function runWithSyncRun(
   prisma: SyncRunCapablePrisma,
@@ -145,7 +150,11 @@ export async function runWithSyncRun(
   let metricEmitted = false;
   const emitErrorMetricOnce = () => {
     if (metricEmitted) return;
-    emitMetricLine(source, { inserted: 0, updated: 0, skipped: 0, errors: 1 }, (Date.now() - t0) / 1000);
+    emitMetricLine(
+      source,
+      { inserted: 0, updated: 0, skipped: 0, errors: 1 },
+      (Date.now() - t0) / 1000,
+    );
     metricEmitted = true;
   };
 
@@ -182,20 +191,26 @@ export async function runWithSyncRun(
 
     try {
       const counts = await fn(ctx);
+      const status = statusFromCounts(counts);
+      // Partial carries incompleteReason; success_with_errors carries operator
+      // errorMessage (geocode-facilities path). Clean success leaves the field alone.
+      const data: Record<string, unknown> = {
+        finishedAt: new Date(),
+        rowsInserted: counts.inserted,
+        rowsUpdated: counts.updated,
+        errorCount: counts.errors,
+        status,
+      };
+      if (status === 'partial') {
+        data.errorMessage = (
+          counts.incompleteReason ?? 'Source window was not fully processed'
+        ).slice(0, 1000);
+      } else if (counts.errorMessage) {
+        data.errorMessage = counts.errorMessage.slice(0, 1000);
+      }
       await prisma.syncRun.update({
         where: { id: run.id },
-        data: {
-          finishedAt: new Date(),
-          rowsInserted: counts.inserted,
-          rowsUpdated: counts.updated,
-          errorCount: counts.errors,
-          status: statusFromCounts(counts),
-          // Persist the caller's reason for a PARTIAL failure. Without this a
-          // `success_with_errors` row carried a null `error_message`, so the
-          // only way to learn why was to find the raw task log — see the
-          // RunCounts.errorMessage doc comment.
-          ...(counts.errorMessage ? { errorMessage: counts.errorMessage.slice(0, 1000) } : {}),
-        },
+        data,
       });
       emitMetricLine(source, counts, (Date.now() - t0) / 1000);
       metricEmitted = true;

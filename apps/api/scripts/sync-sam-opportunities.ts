@@ -18,16 +18,21 @@
  * all-federal scope has its own SyncRun source/watermark so the two schedules can
  * coexist safely during rollout.
  *
+ * Complete-window + network safety (PE Phase F / closeout Phase 3):
+ *   - oversized windows recursively split; single-day overflow stays partial
+ *   - notice IDs dedupe across split boundaries
+ *   - only complete runs close as success (partial never advances watermark)
+ *   - search/description calls: timeout, HTTPS, host allowlist, private-IP guard,
+ *     response size limit, API-key redaction
+ *   - historical backfill uses a distinct SyncRun source per scope
+ *   - opportunity + match writes are atomic; accepted/rejected human decisions stick
+ *
  * HISTORICAL BACKFILL. The daily job only pulls the last ~30 days; older/closed
  * notices need a one-off backfill. SAM.gov caps a single search's date span at ~1
  * year, so walk it in <=1yr windows (newest first is fine — upsert is idempotent):
  *   tsx scripts/sync-sam-opportunities.ts --backfill --since 2024-07-01 --posted-to 2025-06-30 --commit
- *   tsx scripts/sync-sam-opportunities.ts --backfill --since 2023-07-01 --posted-to 2024-06-30 --commit
- * `--backfill` bypasses the "already running" guard (so a manual run isn't skipped
- * by the daily cron) and does NOT touch the incremental watermark (the SyncRun's
- * startedAt is wall-clock now, so the daily floor is unaffected). Raise the page
- * circuit-breaker for dense windows with SAM_MAX_PAGES (default 50 -> 5,000 rows);
- * if a window is capped the run logs a loud CAPPED warning so no gap goes silent.
+ * `--backfill` bypasses the "already running" guard and writes to a SEPARATE
+ * source so the daily watermark is unaffected.
  *
  * Review gating (sam-opportunity-matcher):
  *   - a verbatim PE-code hit in the text         -> review_status 'accepted'
@@ -36,17 +41,15 @@
  * No fuzzy / coarse path is ever auto-accepted.
  *
  * Requires SAM_GOV_API_KEY (Secrets Manager -> env). Dry-run by default; pass
- * `--commit` to write. Idempotent.
+ * `--commit` to write. Idempotent. Dry-run never opens a SyncRun row.
  *
  * MATCH-ONLY (no API key, no network):
- *   tsx scripts/sync-sam-opportunities.ts --match-only --commit   # (verb: rematch-sam-opportunities)
- * Re-runs the pure matcher over EVERY existing sam_opportunity row to realize a
- * matcher change (e.g. procurement-BLIN recognition) across the ingested backlog —
- * the daily sync only re-matches the notices it freshly fetches.
+ *   tsx scripts/sync-sam-opportunities.ts --match-only --commit
  */
 import { config as dotenvConfig } from 'dotenv';
-import { PrismaClient } from '@prisma/client';
-import { runWithSyncRun, type RunCounts } from '../src/ingestion/sync-run.helper.js';
+import { Prisma, PrismaClient } from '@prisma/client';
+import sanitizeHtml from 'sanitize-html';
+import { runWithSyncRun, lastSuccessfulWatermark, type RunCounts } from '../src/ingestion/sync-run.helper.js';
 import {
   matchOpportunity,
   trigrams,
@@ -65,9 +68,13 @@ const SOURCE_ALL_FEDERAL = 'sync-sam-opportunities-all-federal';
 const DEFAULT_DOD_LOOKBACK_DAYS = 30;
 const DEFAULT_ALL_FEDERAL_LOOKBACK_DAYS = 2;
 const PAGE_LIMIT = 100;
-// Circuit breaker on pages/run (PAGE_LIMIT rows each). Env-overridable so a dense
+// Circuit breaker on pages/leaf-window (PAGE_LIMIT rows each). Env-overridable so a dense
 // historical backfill window can pull deeper than the daily's 5,000-row default.
 const MAX_PAGES = Number(process.env.SAM_MAX_PAGES) || 50;
+const SEARCH_TIMEOUT_MS = 30_000;
+const DESCRIPTION_TIMEOUT_MS = 15_000;
+const DESCRIPTION_MAX_BYTES = 1_048_576;
+const UTC_DAY_MS = 86_400_000;
 
 function arg(name: string, argv: string[] = process.argv): string | undefined {
   const withEq = argv.find((value) => value.startsWith(`--${name}=`));
@@ -218,7 +225,7 @@ interface SamPointOfContact {
   email?: string;
   type?: string;
 }
-interface SamOpportunityRecord {
+export interface SamOpportunityRecord {
   noticeId?: string;
   solicitationNumber?: string;
   title?: string;
@@ -245,7 +252,7 @@ interface SamOpportunityRecord {
   active?: string; // 'Yes' | 'No'
 }
 
-interface SamSearchResponse {
+export interface SamSearchResponse {
   totalRecords?: number;
   opportunitiesData?: SamOpportunityRecord[];
   error?: { message?: string };
@@ -323,22 +330,453 @@ export function recordInSamScope(rec: SamOpportunityRecord, scope: SamIngestionS
   return scope === 'all_federal' || isDod(rec);
 }
 
-async function fetchPage(
+export type SamFetchPage = (
   apiKey: string,
   postedFrom: string,
   postedTo: string,
   offset: number,
-  scope: SamIngestionScope,
+  pageLimit: number,
+) => Promise<SamSearchResponse>;
+
+export async function fetchPage(
+  apiKey: string,
+  postedFrom: string,
+  postedTo: string,
+  offset: number,
+  pageLimit = PAGE_LIMIT,
+  scopeOrFetch: SamIngestionScope | typeof fetch = 'dod',
+  fetchOrTimeout: typeof fetch | number = fetch,
+  maybeTimeoutMs = SEARCH_TIMEOUT_MS,
 ): Promise<SamSearchResponse> {
-  const params = buildSamSearchParams({ apiKey, postedFrom, postedTo, offset, scope });
-  const res = await fetch(`${SAM_URL}?${params.toString()}`);
-  const json = (await res.json()) as SamSearchResponse;
-  if (!res.ok) {
+  let scope: SamIngestionScope = 'dod';
+  let fetchImpl: typeof fetch = fetch;
+  let timeoutMs = SEARCH_TIMEOUT_MS;
+
+  if (typeof scopeOrFetch === 'function') {
+    fetchImpl = scopeOrFetch;
+    timeoutMs = typeof fetchOrTimeout === 'number' ? fetchOrTimeout : SEARCH_TIMEOUT_MS;
+  } else {
+    scope = scopeOrFetch;
+    if (typeof fetchOrTimeout === 'function') {
+      fetchImpl = fetchOrTimeout;
+      timeoutMs = maybeTimeoutMs;
+    } else {
+      timeoutMs = fetchOrTimeout;
+    }
+  }
+
+  const params = buildSamSearchParams({
+    apiKey,
+    postedFrom,
+    postedTo,
+    offset,
+    scope,
+  });
+  params.set('limit', String(pageLimit));
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetchImpl(`${SAM_URL}?${params.toString()}`, { signal: controller.signal });
+    let json: SamSearchResponse;
+    try {
+      json = (await res.json()) as SamSearchResponse;
+    } catch {
+      throw new Error(`SAM.gov ${res.status}: response was not valid JSON`);
+    }
+    if (!res.ok) {
+      throw new Error(
+        `SAM.gov ${res.status}: ${json.error?.message ?? JSON.stringify(json).slice(0, 200)}`,
+      );
+    }
+    return json;
+  } catch (error) {
+    const rawMessage = error instanceof Error ? error.message : String(error);
+    const redacted = apiKey ? rawMessage.split(apiKey).join('[REDACTED]') : rawMessage;
+    throw new Error(`SAM.gov request failed: ${redacted.slice(0, 500)}`);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function utcDayStart(value: Date): Date {
+  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+}
+
+function utcDayCount(window: SamDateWindow): number {
+  return (
+    Math.floor(
+      (utcDayStart(window.postedTo).getTime() - utcDayStart(window.postedFrom).getTime()) /
+        UTC_DAY_MS,
+    ) + 1
+  );
+}
+
+export interface SamDateWindow {
+  postedFrom: Date;
+  postedTo: Date;
+}
+
+/**
+ * Split an inclusive UTC-date window into two smaller, non-overlapping windows.
+ * SAM's API accepts date-only bounds, so an overlapping split can recurse forever
+ * for a two-day range. The collector still de-duplicates noticeIds globally because
+ * upstream date-boundary behavior can return the same notice in adjacent windows.
+ */
+export function splitSamWindow(window: SamDateWindow): [SamDateWindow, SamDateWindow] {
+  const postedFrom = utcDayStart(window.postedFrom);
+  const postedTo = utcDayStart(window.postedTo);
+  const days = utcDayCount({ postedFrom, postedTo });
+  if (days <= 1) {
+    throw new Error(`Cannot split single-day SAM window ${samDate(postedFrom)}`);
+  }
+
+  const leftDays = Math.floor(days / 2);
+  const leftTo = new Date(postedFrom.getTime() + (leftDays - 1) * UTC_DAY_MS);
+  const rightFrom = new Date(leftTo.getTime() + UTC_DAY_MS);
+  return [
+    { postedFrom, postedTo: leftTo },
+    { postedFrom: rightFrom, postedTo },
+  ];
+}
+
+export interface SamWindowCollection {
+  records: SamOpportunityRecord[];
+  complete: boolean;
+  incompleteReason: string | null;
+  incompleteReasons: string[];
+  duplicateNoticeCount: number;
+  reportedTotal: number;
+  rowsFetched: number;
+  leafWindows: number;
+}
+
+export interface CollectSamWindowOptions {
+  fetchPage?: SamFetchPage;
+  pageLimit?: number;
+  maxPages?: number;
+  scope?: SamIngestionScope;
+}
+
+/**
+ * Exhaust a SAM date range without silently accepting the page cap. Windows that
+ * exceed the configured capacity are recursively divided until each leaf fits.
+ * A single UTC day that still overflows is processed up to the cap and returned as
+ * incomplete, which causes runWithSyncRun to persist status='partial'.
+ */
+export async function collectSamWindowRecords(
+  apiKey: string,
+  rootWindow: SamDateWindow,
+  options: CollectSamWindowOptions = {},
+): Promise<SamWindowCollection> {
+  const pageLimit = options.pageLimit ?? PAGE_LIMIT;
+  const maxPages = options.maxPages ?? MAX_PAGES;
+  const scope = options.scope ?? 'dod';
+  const fetchPageFn: SamFetchPage =
+    options.fetchPage ??
+    ((key, from, to, offset, limit) => fetchPage(key, from, to, offset, limit, scope));
+  if (!Number.isInteger(pageLimit) || pageLimit <= 0) {
+    throw new Error(`SAM pageLimit must be a positive integer; received ${pageLimit}`);
+  }
+  if (!Number.isInteger(maxPages) || maxPages <= 0) {
+    throw new Error(`SAM maxPages must be a positive integer; received ${maxPages}`);
+  }
+
+  const normalizedRoot = {
+    postedFrom: utcDayStart(rootWindow.postedFrom),
+    postedTo: utcDayStart(rootWindow.postedTo),
+  };
+  if (normalizedRoot.postedFrom > normalizedRoot.postedTo) {
     throw new Error(
-      `SAM.gov ${res.status}: ${json.error?.message ?? JSON.stringify(json).slice(0, 200)}`,
+      `Invalid SAM window ${samDate(normalizedRoot.postedFrom)}..${samDate(normalizedRoot.postedTo)}`,
     );
   }
-  return json;
+
+  const capacity = pageLimit * maxPages;
+  const records: SamOpportunityRecord[] = [];
+  const seenNoticeIds = new Set<string>();
+  const incompleteReasons: string[] = [];
+  let duplicateNoticeCount = 0;
+  let reportedTotal = 0;
+  let rowsFetched = 0;
+  let leafWindows = 0;
+
+  const append = (batch: SamOpportunityRecord[]): void => {
+    rowsFetched += batch.length;
+    for (const record of batch) {
+      const noticeId = str(record.noticeId);
+      if (!noticeId) {
+        // Keep malformed records so the caller can count them as skipped rather
+        // than making the source denominator disappear.
+        records.push(record);
+        continue;
+      }
+      if (seenNoticeIds.has(noticeId)) {
+        duplicateNoticeCount += 1;
+        continue;
+      }
+      seenNoticeIds.add(noticeId);
+      records.push(record);
+    }
+  };
+
+  const processWindow = async (window: SamDateWindow): Promise<void> => {
+    const postedFrom = samDate(window.postedFrom);
+    const postedTo = samDate(window.postedTo);
+    const first = await fetchPageFn(apiKey, postedFrom, postedTo, 0, pageLimit);
+    const firstBatch = first.opportunitiesData ?? [];
+    const total =
+      typeof first.totalRecords === 'number' && Number.isFinite(first.totalRecords)
+        ? Math.max(0, Math.trunc(first.totalRecords))
+        : undefined;
+
+    if (total !== undefined && total > capacity && utcDayCount(window) > 1) {
+      const [left, right] = splitSamWindow(window);
+      await processWindow(left);
+      await processWindow(right);
+      return;
+    }
+
+    const batches: SamOpportunityRecord[][] = [firstBatch];
+    let offset = pageLimit;
+    let lastBatchLength = firstBatch.length;
+    for (let page = 1; page < maxPages; page += 1) {
+      if (lastBatchLength < pageLimit) break;
+      if (total !== undefined && offset >= total) break;
+      const response = await fetchPageFn(apiKey, postedFrom, postedTo, offset, pageLimit);
+      const batch = response.opportunitiesData ?? [];
+      batches.push(batch);
+      lastBatchLength = batch.length;
+      offset += pageLimit;
+      if (batch.length === 0) break;
+    }
+
+    const fetchedForWindow = batches.reduce((sum, batch) => sum + batch.length, 0);
+    const capped =
+      total !== undefined
+        ? fetchedForWindow < total
+        : batches.length >= maxPages && lastBatchLength >= pageLimit;
+
+    if (capped && utcDayCount(window) > 1) {
+      const [left, right] = splitSamWindow(window);
+      await processWindow(left);
+      await processWindow(right);
+      return;
+    }
+
+    leafWindows += 1;
+    reportedTotal += Math.max(total ?? fetchedForWindow, fetchedForWindow);
+    for (const batch of batches) append(batch);
+
+    if (capped) {
+      const exactTotal = total ?? `more than ${capacity}`;
+      incompleteReasons.push(
+        `SAM.gov single-day window ${postedFrom} reported ${exactTotal} records; ` +
+          `processed ${fetchedForWindow} within capacity ${capacity} ` +
+          `(SAM_MAX_PAGES=${maxPages}, pageLimit=${pageLimit})`,
+      );
+    }
+  };
+
+  await processWindow(normalizedRoot);
+  return {
+    records,
+    complete: incompleteReasons.length === 0,
+    incompleteReason: incompleteReasons.length ? incompleteReasons.join('; ') : null,
+    incompleteReasons,
+    duplicateNoticeCount,
+    reportedTotal,
+    rowsFetched,
+    leafWindows,
+  };
+}
+
+function looksLikeUrl(value: string): boolean {
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(value);
+}
+
+function isSamHost(hostname: string): boolean {
+  const normalized = hostname.toLowerCase().replace(/\.$/, '');
+  return normalized === 'sam.gov' || normalized.endsWith('.sam.gov');
+}
+
+function isPrivateIpLiteral(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (host === 'localhost' || host === '::1') return true;
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (!v4) return false;
+  const octets = v4.slice(1).map(Number);
+  if (octets.some((n) => n < 0 || n > 255)) return true;
+  const a = octets[0] ?? -1;
+  const b = octets[1] ?? -1;
+  return (
+    a === 10 ||
+    a === 127 ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    a === 0
+  );
+}
+
+function safeSamUrl(rawDescription: string): URL | null {
+  const trimmed = rawDescription.trim();
+  if (!looksLikeUrl(trimmed)) return null;
+
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    throw new Error('SAM description URL is malformed');
+  }
+  if (url.protocol !== 'https:') {
+    throw new Error(`SAM description URL protocol is not allowed: ${url.protocol}`);
+  }
+  if (url.username || url.password) {
+    throw new Error('SAM description URL must not contain credentials');
+  }
+  if (isPrivateIpLiteral(url.hostname)) {
+    throw new Error('SAM description URL points to a private or loopback host');
+  }
+  if (!isSamHost(url.hostname)) {
+    throw new Error(`SAM description URL host is not allowed: ${url.hostname}`);
+  }
+  if (url.port && url.port !== '80' && url.port !== '443') {
+    throw new Error(`SAM description URL port is not allowed: ${url.port}`);
+  }
+  return url;
+}
+
+export function samDescriptionSourceUrl(rawDescription: string | null): string | null {
+  const value = str(rawDescription);
+  if (!value || !looksLikeUrl(value)) return null;
+  try {
+    const url = new URL(value);
+    url.username = '';
+    url.password = '';
+    for (const key of [...url.searchParams.keys()]) {
+      const normalized = key.toLowerCase().replace(/[-_]/g, '');
+      if (normalized === 'apikey') url.searchParams.delete(key);
+    }
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+async function readBoundedBody(response: Response, maxBytes: number): Promise<string> {
+  const contentLength = Number(response.headers.get('content-length') ?? NaN);
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new Error(`SAM description response exceeded ${maxBytes} bytes`);
+  }
+  if (!response.body) return '';
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    size += value.byteLength;
+    if (size > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      throw new Error(`SAM description response exceeded ${maxBytes} bytes`);
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))).toString('utf8');
+}
+
+function descriptionTextFromResponse(body: string, contentType: string | null): string | null {
+  let candidate = body;
+  if ((contentType ?? '').toLowerCase().includes('json')) {
+    try {
+      const parsed = JSON.parse(body) as unknown;
+      if (typeof parsed === 'string') candidate = parsed;
+      else if (parsed && typeof parsed === 'object') {
+        const obj = parsed as Record<string, unknown>;
+        const nested =
+          (typeof obj.description === 'string' && obj.description) ||
+          (typeof obj.content === 'string' && obj.content) ||
+          (typeof obj.text === 'string' && obj.text) ||
+          (obj.opportunity &&
+          typeof obj.opportunity === 'object' &&
+          typeof (obj.opportunity as Record<string, unknown>).description === 'string'
+            ? ((obj.opportunity as Record<string, unknown>).description as string)
+            : null);
+        candidate = nested ?? '';
+      }
+    } catch {
+      throw new Error('SAM description endpoint returned malformed JSON');
+    }
+  }
+
+  const blockSeparated = candidate.replace(
+    /<(?:br\s*\/?|\/?(?:p|div|li|h[1-6]|tr|section|article))[^>]*>/gi,
+    ' ',
+  );
+  const text = sanitizeHtml(blockSeparated, { allowedTags: [], allowedAttributes: {} })
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text || null;
+}
+
+export interface ResolveSamDescriptionOptions {
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+  maxBytes?: number;
+}
+
+/** Resolve a SAM-hosted description endpoint without ever matching the URL itself. */
+export async function resolveSamDescription(
+  rawDescription: string | null,
+  apiKey: string,
+  options: ResolveSamDescriptionOptions = {},
+): Promise<{ text: string | null; sourceUrl: string | null }> {
+  const value = str(rawDescription);
+  if (!value) return { text: null, sourceUrl: null };
+  if (!looksLikeUrl(value)) return { text: value, sourceUrl: null };
+
+  const source = safeSamUrl(value);
+  if (!source) return { text: value, sourceUrl: null };
+  const sourceUrl = samDescriptionSourceUrl(value);
+  const requestUrl = new URL(source.toString());
+  if (
+    requestUrl.hostname.toLowerCase() === 'api.sam.gov' &&
+    !requestUrl.searchParams.has('api_key')
+  ) {
+    requestUrl.searchParams.set('api_key', apiKey);
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? DESCRIPTION_TIMEOUT_MS);
+  try {
+    const response = await (options.fetchImpl ?? fetch)(requestUrl, {
+      signal: controller.signal,
+      redirect: 'manual',
+      headers: { accept: 'application/json, text/html, text/plain;q=0.9' },
+    });
+    if (response.status >= 300 && response.status < 400) {
+      throw new Error(`SAM description endpoint redirected with status ${response.status}`);
+    }
+    if (!response.ok) {
+      throw new Error(`SAM description endpoint returned HTTP ${response.status}`);
+    }
+    const body = await readBoundedBody(response, options.maxBytes ?? DESCRIPTION_MAX_BYTES);
+    return {
+      text: descriptionTextFromResponse(body, response.headers.get('content-type')),
+      sourceUrl,
+    };
+  } catch (error) {
+    const rawMessage = error instanceof Error ? error.message : String(error);
+    const redacted = apiKey ? rawMessage.split(apiKey).join('[REDACTED]') : rawMessage;
+    throw new Error(
+      `Unable to resolve SAM.gov description ${sourceUrl ?? source.origin}: ${redacted.slice(0, 500)}`,
+    );
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -377,15 +815,207 @@ function buildAliasIndex(
   }));
 }
 
+type SamMatchPersistenceClient = Pick<Prisma.TransactionClient, 'samOpportunityMatch'>;
+
+type ExistingSamMatch = {
+  id: string;
+  matchBasis: string;
+  confidence: number;
+  reviewStatus: string;
+};
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+}
+
+async function persistOneMatch(
+  client: SamMatchPersistenceClient,
+  opportunityId: string,
+  match: ProposedSamMatch,
+): Promise<number> {
+  const where = {
+    opportunityId,
+    programId: match.programId,
+    peCode: match.peCode,
+  };
+  const select = {
+    id: true,
+    matchBasis: true,
+    confidence: true,
+    reviewStatus: true,
+  } as const;
+
+  const applyExisting = async (existing: ExistingSamMatch): Promise<number> => {
+    // Human review decisions are terminal for machine reruns. Do not touch updatedAt,
+    // confidence, basis, or status: accepted and rejected rows remain explicit decisions.
+    if (existing.reviewStatus === 'rejected' || existing.reviewStatus === 'accepted') return 0;
+
+    // Same evidence basis: refresh confidence and Prisma's updatedAt while preserving
+    // the existing review status. The schema has no reviewer/machine-author column, so
+    // preserving status is the only safe behavior for both human-accepted and machine
+    // candidate rows.
+    if (existing.matchBasis === match.matchBasis) {
+      await client.samOpportunityMatch.update({
+        where: { id: existing.id },
+        data: { confidence: match.confidence },
+      });
+      return 1;
+    }
+
+    // A changed machine basis must not rewrite an existing human-visible decision.
+    // The proposed evidence will be reconsidered only through a separately keyed row
+    // (programId/peCode) or a future explicit review workflow.
+    return 0;
+  };
+
+  const existing = await client.samOpportunityMatch.findFirst({ where, select });
+  if (existing) return applyExisting(existing);
+
+  try {
+    await client.samOpportunityMatch.create({
+      data: {
+        opportunityId,
+        programId: match.programId,
+        peCode: match.peCode,
+        matchBasis: match.matchBasis,
+        confidence: match.confidence,
+        reviewStatus: match.reviewStatus,
+      },
+    });
+    return 1;
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) throw error;
+    // Another worker won the functional-natural-key race. Re-read and apply the
+    // same review-preserving update instead of creating a duplicate or returning 500.
+    const raced = await client.samOpportunityMatch.findFirst({ where, select });
+    if (!raced) throw error;
+    return applyExisting(raced);
+  }
+}
+
+/**
+ * Persist proposed matches without overwriting human review decisions. The functional
+ * natural key prevents duplicate opportunity/program/PE rows; a race is re-read and
+ * handled idempotently.
+ */
+export async function persistMatches(
+  client: SamMatchPersistenceClient,
+  opportunityId: string,
+  proposed: ProposedSamMatch[],
+): Promise<number> {
+  let written = 0;
+  for (const match of proposed) {
+    written += await persistOneMatch(client, opportunityId, match);
+  }
+  return written;
+}
+
+export function descriptionForMatching(description: string | null): string | null {
+  const value = str(description);
+  return value && looksLikeUrl(value) ? null : value;
+}
+
+interface PreparedOpportunity {
+  data: {
+    noticeId: string;
+    solicitationNumber: string | null;
+    title: string;
+    noticeType: string;
+    baseType: string | null;
+    agency: string | null;
+    subAgency: string | null;
+    setAside: string | null;
+    setAsideCode: string | null;
+    office: string | null;
+    pscCode: string | null;
+    naicsCode: string | null;
+    postedDate: Date | null;
+    responseDeadline: Date | null;
+    archiveDate: Date | null;
+    description: string | null;
+    pocName: string | null;
+    pocEmail: string | null;
+    placeOfPerformance: Prisma.InputJsonValue;
+    sourceUrl: string;
+    active: boolean;
+  };
+  raw: Prisma.InputJsonValue;
+  descriptionError: string | null;
+}
+
+async function prepareOpportunity(
+  record: SamOpportunityRecord,
+  noticeId: string,
+  apiKey: string,
+): Promise<PreparedOpportunity> {
+  const archiveDate = safeDate(record.archiveDate);
+  const active =
+    record.active != null
+      ? record.active.toLowerCase() !== 'no'
+      : archiveDate == null || archiveDate.getTime() > Date.now();
+  const poc = primaryPoc(record);
+  const promoted = extractPromotedFields(record);
+  const rawDescription = str(record.description);
+  const descriptionSourceUrl = samDescriptionSourceUrl(rawDescription);
+  let description: string | null = null;
+  let descriptionError: string | null = null;
+  let descriptionResolution: 'none' | 'inline' | 'resolved' | 'failed' = 'none';
+
+  try {
+    const resolved = await resolveSamDescription(rawDescription, apiKey);
+    description = resolved.text;
+    descriptionResolution = resolved.sourceUrl ? 'resolved' : description ? 'inline' : 'none';
+  } catch (error) {
+    descriptionError = (error instanceof Error ? error.message : String(error)).slice(0, 1000);
+    descriptionResolution = 'failed';
+  }
+
+  const raw = JSON.parse(
+    JSON.stringify({
+      ...record,
+      _capiro: {
+        descriptionResolution,
+        descriptionSourceUrl,
+        descriptionError,
+      },
+    }),
+  ) as Prisma.InputJsonValue;
+
+  return {
+    data: {
+      noticeId,
+      solicitationNumber: str(record.solicitationNumber),
+      title: str(record.title) ?? '(untitled)',
+      noticeType: (str(record.type) ?? str(record.baseType) ?? 'unknown').slice(0, 32),
+      baseType: promoted.baseType,
+      agency: agencyOf(record),
+      subAgency: promoted.subAgency,
+      setAside: promoted.setAside,
+      setAsideCode: promoted.setAsideCode,
+      office: officeOf(record),
+      pscCode: str(record.classificationCode)?.slice(0, 8) ?? null,
+      naicsCode: str(record.naicsCode)?.slice(0, 8) ?? null,
+      postedDate: safeDate(record.postedDate),
+      responseDeadline: safeDate(record.responseDeadLine),
+      archiveDate,
+      description,
+      pocName: poc.name,
+      pocEmail: poc.email,
+      placeOfPerformance: JSON.parse(
+        JSON.stringify(record.placeOfPerformance ?? {}),
+      ) as Prisma.InputJsonValue,
+      sourceUrl: str(record.uiLink) ?? `https://sam.gov/opp/${noticeId}/view`,
+      active,
+    },
+    raw,
+    descriptionError,
+  };
+}
+
 async function main(): Promise<void> {
   const parsed = parseSamSyncArgs(process.argv.slice(2));
   const { commit, backfill, matchOnly, scope } = parsed;
 
-  // MATCH-ONLY: re-run the PURE matcher over EXISTING sam_opportunity rows WITHOUT
-  // hitting the SAM.gov API. Realizes a matcher change (e.g. the procurement-BLIN
-  // shape) across the already-ingested backlog — the daily sync only re-matches the
-  // notices it freshly fetches. Needs no API key. Idempotent (persistMatches is a
-  // find-or-create + update on the natural key).
   if (matchOnly) {
     const prismaMatch = new PrismaClient();
     try {
@@ -398,8 +1028,6 @@ async function main(): Promise<void> {
 
   const apiKey = process.env.SAM_GOV_API_KEY ?? '';
   if (!apiKey) throw new Error('SAM_GOV_API_KEY not configured');
-  // Validated BEFORE the network and BEFORE the ledger, so a bad window stops the
-  // run rather than silently becoming a different window.
   const window = resolveSamWindow(parsed);
   const sinceArg = window.since ?? undefined;
   const postedToDate = window.postedTo ?? new Date();
@@ -411,186 +1039,139 @@ async function main(): Promise<void> {
   const prisma = new PrismaClient();
   try {
     const execute = async (ctx: { since: Date | null }): Promise<RunCounts> => {
-        // Incremental window: explicit --since wins; else the watermark; else lookback.
-        // Window end is `now` for the daily, or an explicit --posted-to for a backfill.
-        const since =
-          ctx.since ?? new Date(Date.now() - defaultLookbackDaysForScope(scope) * 86_400_000);
-        const postedFrom = samDate(since);
-        const postedTo = samDate(postedToDate);
-        console.log(`[sam-opportunities] window postedFrom=${postedFrom} postedTo=${postedTo}`);
+      const since =
+        ctx.since ?? new Date(Date.now() - defaultLookbackDaysForScope(scope) * UTC_DAY_MS);
+      const rootWindow = { postedFrom: since, postedTo: postedToDate };
+      console.log(
+        `[sam-opportunities] window postedFrom=${samDate(since)} postedTo=${samDate(postedToDate)}`,
+      );
 
-        // Known PEs (for verbatim PE/BLIN-code matching) + the program alias universe.
-        // NOTE: no officeHint/pscHints are selected (ProgramAlias has no such columns),
-        // so the matcher's alias tier stays dormant — see buildAliasIndex's ⚠️ note.
-        const pes = await prisma.programElement.findMany({ select: { peCode: true } });
-        const knownPeCodes = new Set<string>(pes.map((p) => p.peCode.toUpperCase()));
-        const aliasRows = await prisma.programAlias.findMany({
-          select: { programId: true, aliasNormalized: true, aliasType: true },
-        });
-        const aliasIndex = buildAliasIndex(aliasRows);
-        console.log(
-          `[sam-opportunities] ${knownPeCodes.size} known PEs, ${aliasIndex.length} program aliases`,
-        );
+      const pes = await prisma.programElement.findMany({ select: { peCode: true } });
+      const knownPeCodes = new Set<string>(pes.map((p) => p.peCode.toUpperCase()));
+      const aliasRows = await prisma.programAlias.findMany({
+        select: { programId: true, aliasNormalized: true, aliasType: true },
+      });
+      const aliasIndex = buildAliasIndex(aliasRows);
+      console.log(
+        `[sam-opportunities] ${knownPeCodes.size} known PEs, ${aliasIndex.length} program aliases`,
+      );
 
-        const counts: RunCounts = { inserted: 0, updated: 0, skipped: 0, errors: 0 };
-        let matchesWritten = 0;
-        let offset = 0;
-        let totalRecords: number | undefined;
-        let capped = false;
+      const collection = await collectSamWindowRecords(apiKey, rootWindow, { scope });
+      console.log(
+        `[sam-opportunities] sourceTotal=${collection.reportedTotal} uniqueRows=${collection.records.length} ` +
+          `rowsFetched=${collection.rowsFetched} duplicateNotices=${collection.duplicateNoticeCount} ` +
+          `leafWindows=${collection.leafWindows} complete=${collection.complete}`,
+      );
+      for (const reason of collection.incompleteReasons) {
+        console.warn(`[sam-opportunities] PARTIAL: ${reason}`);
+      }
 
-        for (let page = 0; page < MAX_PAGES; page += 1) {
-          const resp = await fetchPage(apiKey, postedFrom, postedTo, offset, scope);
-          totalRecords = resp.totalRecords;
-          const batch = resp.opportunitiesData ?? [];
-          if (batch.length === 0) break;
+      const counts: RunCounts = {
+        inserted: 0,
+        updated: 0,
+        skipped: 0,
+        errors: 0,
+        complete: collection.complete,
+        incompleteReason: collection.incompleteReason ?? undefined,
+      };
+      let matchesWritten = 0;
+      let matchesProposed = 0;
 
-          for (const rec of batch) {
-            if (!recordInSamScope(rec, scope)) {
-              counts.skipped += 1;
-              continue;
-            }
-            const noticeId = str(rec.noticeId);
-            if (!noticeId) {
-              counts.skipped += 1;
-              continue;
-            }
-
-            const archiveDate = safeDate(rec.archiveDate);
-            // active: SAM's own flag if present, else derived from archive date.
-            const active =
-              rec.active != null
-                ? rec.active.toLowerCase() !== 'no'
-                : archiveDate == null || archiveDate.getTime() > Date.now();
-            const poc = primaryPoc(rec);
-            // Four source fields the notice already carries and this sync used to
-            // drop on the floor. Extracted through the SAME function
-            // backfill-sam-opportunity-fields.ts uses, so the live sync and the
-            // backfill cannot drift into disagreeing about the same payload.
-            //
-            // `baseType` is the one that matters for correctness rather than
-            // completeness: an amended notice carries type 'Solicitation' with
-            // baseType 'Presolicitation', and without it the UI cannot tell an
-            // open solicitation from an amended pre-solicitation.
-            const promoted = extractPromotedFields(rec);
-            const opp = {
-              noticeId,
-              solicitationNumber: str(rec.solicitationNumber),
-              title: str(rec.title) ?? '(untitled)',
-              noticeType: (str(rec.type) ?? str(rec.baseType) ?? 'unknown').slice(0, 32),
-              baseType: promoted.baseType,
-              agency: agencyOf(rec),
-              subAgency: promoted.subAgency,
-              setAside: promoted.setAside,
-              setAsideCode: promoted.setAsideCode,
-              office: officeOf(rec),
-              pscCode: str(rec.classificationCode)?.slice(0, 8) ?? null,
-              naicsCode: str(rec.naicsCode)?.slice(0, 8) ?? null,
-              postedDate: safeDate(rec.postedDate),
-              responseDeadline: safeDate(rec.responseDeadLine),
-              archiveDate,
-              description: str(rec.description),
-              pocName: poc.name,
-              pocEmail: poc.email,
-              placeOfPerformance: (rec.placeOfPerformance ?? {}) as object,
-              sourceUrl: str(rec.uiLink) ?? `https://sam.gov/opp/${noticeId}/view`,
-              active,
-            };
-
-            try {
-              const existed = await prisma.samOpportunity.findUnique({
-                where: { noticeId },
-                select: { id: true },
-              });
-              const row = commit
-                ? await prisma.samOpportunity.upsert({
-                    where: { noticeId },
-                    create: { ...opp, raw: rec as object, lastSyncedAt: new Date() },
-                    update: { ...opp, raw: rec as object, lastSyncedAt: new Date() },
-                  })
-                : { id: existed?.id ?? '(dry-run)' };
-              if (existed) counts.updated += 1;
-              else counts.inserted += 1;
-
-              // ── review-gated matching pass (pure) ──
-              const forMatch: OpportunityForMatch = {
-                title: opp.title,
-                description: opp.description,
-                office: opp.office,
-                pscCode: opp.pscCode,
-                naicsCode: opp.naicsCode,
-              };
-              const proposed = matchOpportunity(forMatch, knownPeCodes, aliasIndex);
-              if (commit && proposed.length > 0) {
-                matchesWritten += await persistMatches(prisma, row.id, proposed);
-              }
-            } catch (err) {
-              counts.errors += 1;
-              console.warn(
-                `[sam-opportunities] upsert/match failed for ${noticeId}: ${(err as Error).message}`,
-              );
-            }
-          }
-
-          offset += PAGE_LIMIT;
-          if (resp.totalRecords !== undefined && offset >= resp.totalRecords) break;
-          // Ran out of page budget with more records still available -> capped window.
-          if (
-            page === MAX_PAGES - 1 &&
-            resp.totalRecords !== undefined &&
-            offset < resp.totalRecords
-          ) {
-            capped = true;
-          }
+      for (const rec of collection.records) {
+        if (!recordInSamScope(rec, scope)) {
+          counts.skipped += 1;
+          continue;
+        }
+        const noticeId = str(rec.noticeId);
+        if (!noticeId) {
+          counts.skipped += 1;
+          continue;
         }
 
-        if (capped) {
-          // Counted as an error so the run closes `success_with_errors` — an
-          // INCOMPLETE window must never be recorded as a clean success, because the
-          // watermark then advances past a range that was only partly ingested.
+        const prepared = await prepareOpportunity(rec, noticeId, apiKey);
+        if (prepared.descriptionError) {
           counts.errors += 1;
           console.warn(
-            `[sam-opportunities] ⚠️ INCOMPLETE (${scope}): window ${postedFrom}..${postedTo} has ${totalRecords} records but the page budget stopped at ${offset} (SAM_MAX_PAGES=${MAX_PAGES}). Narrow the window (--posted-to) or raise SAM_MAX_PAGES; the tail was NOT ingested. The SyncRun is marked success_with_errors, and the incremental watermark must NOT be trusted to have covered this window.`,
+            `[sam-opportunities] description unavailable for ${noticeId}: ${prepared.descriptionError}`,
           );
         }
 
-        const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
-        // Dry-run counts are HYPOTHETICAL and say so. "inserted=412" from a run that
-        // wrote nothing is the kind of line an operator pastes into a runbook as
-        // evidence that ingestion happened.
-        console.log(
-          commit
-            ? `[sam-opportunities] inserted=${counts.inserted} updated=${counts.updated} skipped=${counts.skipped} errors=${counts.errors} matches=${matchesWritten} in ${elapsed}s`
-            : `[sam-opportunities] DRY RUN — would insert=${counts.inserted} would update=${counts.updated} skipped=${counts.skipped} errors=${counts.errors} would match=${matchesWritten} in ${elapsed}s (NOTHING WAS WRITTEN, no SyncRun row, watermark unchanged)`,
-        );
-        return counts;
+        try {
+          if (commit) {
+            const result = await prisma.$transaction(async (tx) => {
+              const existing = await tx.samOpportunity.findUnique({
+                where: { noticeId },
+                select: { id: true },
+              });
+              const row = await tx.samOpportunity.upsert({
+                where: { noticeId },
+                create: { ...prepared.data, raw: prepared.raw, lastSyncedAt: new Date() },
+                update: { ...prepared.data, raw: prepared.raw, lastSyncedAt: new Date() },
+                select: { id: true },
+              });
+              const forMatch: OpportunityForMatch = {
+                title: prepared.data.title,
+                description: descriptionForMatching(prepared.data.description),
+                office: prepared.data.office,
+                pscCode: prepared.data.pscCode,
+                naicsCode: prepared.data.naicsCode,
+              };
+              const proposed = matchOpportunity(forMatch, knownPeCodes, aliasIndex);
+              const written = await persistMatches(tx, row.id, proposed);
+              return { existed: Boolean(existing), proposed: proposed.length, written };
+            });
+            if (result.existed) counts.updated += 1;
+            else counts.inserted += 1;
+            matchesProposed += result.proposed;
+            matchesWritten += result.written;
+          } else {
+            const existing = await prisma.samOpportunity.findUnique({
+              where: { noticeId },
+              select: { id: true },
+            });
+            if (existing) counts.updated += 1;
+            else counts.inserted += 1;
+            matchesProposed += matchOpportunity(
+              {
+                title: prepared.data.title,
+                description: descriptionForMatching(prepared.data.description),
+                office: prepared.data.office,
+                pscCode: prepared.data.pscCode,
+                naicsCode: prepared.data.naicsCode,
+              },
+              knownPeCodes,
+              aliasIndex,
+            ).length;
+          }
+        } catch (err) {
+          counts.errors += 1;
+          console.warn(
+            `[sam-opportunities] upsert/match failed for ${noticeId}: ${(err as Error).message}`,
+          );
+        }
+      }
+
+      const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+      console.log(
+        commit
+          ? `[sam-opportunities] inserted=${counts.inserted} updated=${counts.updated} skipped=${counts.skipped} errors=${counts.errors} matches=${matchesWritten} proposed=${matchesProposed} complete=${counts.complete !== false} in ${elapsed}s`
+          : `[sam-opportunities] DRY RUN — would insert=${counts.inserted} would update=${counts.updated} skipped=${counts.skipped} errors=${counts.errors} would match=${matchesProposed} complete=${counts.complete !== false} in ${elapsed}s (NOTHING WAS WRITTEN, no SyncRun row, watermark unchanged)`,
+      );
+      return counts;
     };
 
     if (commit) {
       await runWithSyncRun(
         prisma as never,
-        // A backfill writes to its OWN ledger source, so closing it cannot move the
-        // daily's incremental watermark past a window the daily never read.
         syncSourceForScope(scope, backfill),
         execute,
-        // A manual backfill must not be skipped by an in-flight daily run.
         { overrideSince: sinceArg ?? null, skipIfRunning: !backfill },
       );
     } else {
-      // ── No SyncRun row, and therefore no watermark movement, in dry-run mode.
-      //
-      // This is the most consequential fix in this file. `runWithSyncRun` was called
-      // unconditionally, so a DRY RUN opened a SyncRun row and closed it `success`.
-      // The incremental window is derived from the last successful run's
-      // `startedAt`, so a dry run — a command whose entire contract is "change
-      // nothing" — advanced the watermark to now, and the next real run silently
-      // skipped every notice posted in the window the dry run had merely LOOKED at.
-      // Nothing revisits a passed window, so those notices were lost permanently.
-      //
-      // A dry run reads the watermark (so the window it reports is the window a real
-      // run would use) but never writes one.
+      // Dry-run must not create a SyncRun row (would advance / pollute the ledger).
       const watermark = sinceArg
         ? sinceArg
-        : await readLastSuccessfulRunStart(prisma, syncSourceForScope(scope, backfill));
+        : await lastSuccessfulWatermark(prisma as never, syncSourceForScope(scope, backfill));
       await execute({ since: watermark });
     }
   } finally {
@@ -599,68 +1180,8 @@ async function main(): Promise<void> {
 }
 
 /**
- * The incremental watermark, READ-ONLY.
- *
- * Mirrors `runWithSyncRun`'s own derivation (last successful run's `startedAt`) so a
- * dry run reports the window a committed run would actually use, without creating
- * the ledger row that would move it.
- */
-async function readLastSuccessfulRunStart(
-  prisma: PrismaClient,
-  source: string,
-): Promise<Date | null> {
-  const row = await prisma.syncRun.findFirst({
-    where: { source, status: { in: ['success', 'success_with_errors'] } },
-    orderBy: { startedAt: 'desc' },
-    select: { startedAt: true },
-  });
-  return row?.startedAt ?? null;
-}
-
-/**
- * Upsert proposed matches into sam_opportunity_match, idempotent on the natural key
- * (opportunity_id, program_id, pe_code). Returns the number written. Uses the
- * functional-unique index via a manual find-or-create (Prisma cannot target a
- * coalesce()-based unique index in upsert).
- */
-async function persistMatches(
-  prisma: PrismaClient,
-  opportunityId: string,
-  proposed: ProposedSamMatch[],
-): Promise<number> {
-  let written = 0;
-  for (const m of proposed) {
-    const existing = await prisma.samOpportunityMatch.findFirst({
-      where: { opportunityId, programId: m.programId, peCode: m.peCode },
-      select: { id: true },
-    });
-    if (existing) {
-      await prisma.samOpportunityMatch.update({
-        where: { id: existing.id },
-        data: { matchBasis: m.matchBasis, confidence: m.confidence, reviewStatus: m.reviewStatus },
-      });
-    } else {
-      await prisma.samOpportunityMatch.create({
-        data: {
-          opportunityId,
-          programId: m.programId,
-          peCode: m.peCode,
-          matchBasis: m.matchBasis,
-          confidence: m.confidence,
-          reviewStatus: m.reviewStatus,
-        },
-      });
-    }
-    written += 1;
-  }
-  return written;
-}
-
-/**
- * Re-run the pure matcher over EVERY existing sam_opportunity row (no network). Used
- * by `--match-only` to realize a matcher change across the already-ingested backlog.
- * Keyset-paginates by id so it streams the full table in bounded memory. Dry-run
- * reports what WOULD be written; `--commit` persists via the idempotent persistMatches.
+ * Re-run the pure matcher over EVERY existing sam_opportunity row (no network).
+ * URL-shaped legacy descriptions are treated as absent rather than scanned as notice text.
  */
 async function rematchExisting(prisma: PrismaClient, commit: boolean): Promise<void> {
   const t0 = Date.now();
@@ -668,7 +1189,6 @@ async function rematchExisting(prisma: PrismaClient, commit: boolean): Promise<v
     `[sam-opportunities] MATCH-ONLY re-match over existing opportunities (${commit ? 'COMMIT' : 'DRY-RUN'})`,
   );
 
-  // Same universes the sync loop uses: known PE/BLIN codes + the program alias index.
   const pes = await prisma.programElement.findMany({ select: { peCode: true } });
   const knownPeCodes = new Set<string>(pes.map((p) => p.peCode.toUpperCase()));
   const aliasRows = await prisma.programAlias.findMany({
@@ -700,17 +1220,27 @@ async function rematchExisting(prisma: PrismaClient, commit: boolean): Promise<v
     });
     if (rows.length === 0) break;
     for (const row of rows) {
-      const forMatch: OpportunityForMatch = {
-        title: row.title,
-        description: row.description,
-        office: row.office,
-        pscCode: row.pscCode,
-        naicsCode: row.naicsCode,
-      };
-      const proposed = matchOpportunity(forMatch, knownPeCodes, aliasIndex);
-      if (proposed.length > 0) withProposed += 1;
-      if (commit && proposed.length > 0) {
-        matchesWritten += await persistMatches(prisma, row.id, proposed);
+      const runMatch = () =>
+        matchOpportunity(
+          {
+            title: row.title,
+            description: descriptionForMatching(row.description),
+            office: row.office,
+            pscCode: row.pscCode,
+            naicsCode: row.naicsCode,
+          },
+          knownPeCodes,
+          aliasIndex,
+        );
+      if (commit) {
+        const result = await prisma.$transaction(async (tx) => {
+          const proposed = runMatch();
+          return { proposed: proposed.length, written: await persistMatches(tx, row.id, proposed) };
+        });
+        if (result.proposed > 0) withProposed += 1;
+        matchesWritten += result.written;
+      } else {
+        if (runMatch().length > 0) withProposed += 1;
       }
       scanned += 1;
     }
@@ -726,8 +1256,6 @@ async function rematchExisting(prisma: PrismaClient, commit: boolean): Promise<v
   );
 }
 
-// Guarded entrypoint: only runs when invoked directly (never on import — the matcher
-// is imported by the spec). Mirrors the project's `void main().catch(...)` pattern.
 const isDirectRun = (() => {
   try {
     const invoked = process.argv[1] ?? '';
@@ -744,7 +1272,4 @@ if (isDirectRun) {
   });
 }
 
-// `normalizeText` re-exported so callers/tests can build hints with the same form.
-// `isDod` is NOT listed here: the all-federal rail made it a scope predicate and
-// exported it inline at its declaration, so re-exporting it is a redeclaration.
-export { main, persistMatches, officeOf, buildAliasIndex, normalizeText };
+export { main, officeOf, buildAliasIndex, normalizeText };

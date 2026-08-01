@@ -211,13 +211,47 @@ export async function linkProgramElementPersonToCrm(
   api: AxiosInstance,
   personId: string,
   engagementContactId: string,
+  peCode: string,
 ): Promise<{ linked: true }> {
   return (
     await api.post<{ linked: true }>(
       `/api/acquisition-personnel/${encodeURIComponent(personId)}/link-crm-contact`,
       {
         engagementContactId,
+        peCode,
       },
+    )
+  ).data;
+}
+
+export async function createProgramElementDataIssue(
+  api: AxiosInstance,
+  peCode: string,
+  body: {
+    issueType: string;
+    description: string;
+    fy?: number | null;
+    fieldName?: string | null;
+    suggestedSourceUrl?: string | null;
+  },
+): Promise<{ id: string; status: string }> {
+  return (
+    await api.post<{ id: string; status: string }>(
+      `/api/program-elements/${encodeURIComponent(peCode)}/data-issues`,
+      body,
+    )
+  ).data;
+}
+
+export async function listProgramElementDataIssues(
+  api: AxiosInstance,
+  peCode: string,
+  params: { status?: string; page?: number; limit?: number } = {},
+): Promise<{ data: unknown[]; total: number; page: number; limit: number }> {
+  return (
+    await api.get<{ data: unknown[]; total: number; page: number; limit: number }>(
+      `/api/program-elements/${encodeURIComponent(peCode)}/data-issues`,
+      { params },
     )
   ).data;
 }

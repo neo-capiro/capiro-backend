@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Alert, Button, Card, Empty, Skeleton, Tabs, Tag, Tooltip, message } from 'antd';
 import {
   BellFilled,
@@ -37,6 +37,7 @@ import {
   getProgramElementProvisions,
   getProgramElementOpportunities,
   getProgramElementProcurementLines,
+  getProgramElementNarrative,
 } from './api.js';
 import { FyHistoryChart } from './FyHistoryChart.js';
 import { FundingNarrativePanel } from './FundingNarrativePanel.js';
@@ -51,6 +52,7 @@ import { ClientRelevancePanel } from './ClientRelevancePanel.js';
 import { getRelevantClientsForPe } from '../clients/relevance-api.js';
 import { FyDetailDrawer } from './FyDetailDrawer.js';
 import { LinkCrmContactModal } from './LinkCrmContactModal.js';
+import { ProgramElementDataIssueModal } from './ProgramElementDataIssueModal.js';
 import { ProgramTeamPanel } from './ProgramTeamPanel.js';
 import { ProjectsPanel } from './ProjectsPanel.js';
 import { ProvisionsPanel } from './ProvisionsPanel.js';
@@ -58,6 +60,20 @@ import { ProcurementActivityPanel } from './ProcurementActivityPanel.js';
 import { RelatedPesPanel } from './RelatedPesPanel.js';
 import { SecondaryDistributionPanel } from './SecondaryDistributionPanel.js';
 import { LINE_TYPES, useWatchToggle } from './pe-shared.js';
+import { PeTrustHeader } from './PeTrustHeader.js';
+import { PeLoadState } from './PeLoadState.js';
+import {
+  anyEnabledSecondaryFailed,
+  effectivePeWatchTab,
+  filterTabsForLineType,
+  parsePeWatchFy,
+  parsePeWatchTab,
+  peWatchQueryEnabled,
+  resolvePeSurfaceState,
+  serializePeWatchUrlState,
+  yearsHaveStageValue,
+  type PeWatchTab,
+} from './trust-model.js';
 import { Sparkline, LineChart, DeltaBars, Donut, HBars, fmtMoneyM } from './charts/index.js';
 import type {
   ProgramElementBill,
@@ -66,6 +82,7 @@ import type {
   ProgramElementYearPoint,
   ProgramTeamPerson,
 } from './types.js';
+import { PeSecondaryFailed } from './PeSecondaryFailed.js';
 
 function numberOrNull(value: string | number | null | undefined): number | null {
   if (value == null) return null;
@@ -97,7 +114,8 @@ function toHistoryRow(year: ProgramElementYearPoint): ProgramElementHistoryRow {
     conference: numberOrNull(year.conference),
     ndaaConference: numberOrNull(year.ndaaConference),
     enacted: numberOrNull(year.enacted),
-    projectedEnacted: year.enacted == null,
+    // Phase 5: never flag "projected enacted" — missing enacted stays null.
+    projectedEnacted: false,
     sourceAttribution: sourceFromRaw(year.raw),
   };
 }
@@ -106,7 +124,7 @@ function toHistoryRows(years: ProgramElementYearPoint[]): ProgramElementHistoryR
   return [...years].sort((a, b) => a.fy - b.fy).map(toHistoryRow);
 }
 
-/** Most recent FY where a metric has a real (non-null, non-zero) value. */
+/** Most recent FY where a metric has a real (non-null) value — explicit $0 counts. */
 function latestMeaningful(
   years: ProgramElementYearPoint[],
   field: 'request' | 'enacted' | 'conference',
@@ -115,7 +133,8 @@ function latestMeaningful(
     const raw = y[field];
     if (raw == null) continue;
     const num = Number(raw);
-    if (Number.isFinite(num) && num !== 0) return { fy: y.fy, value: num };
+    // Phase 5 B6: do not skip num===0 — a real zero is a real stage value.
+    if (Number.isFinite(num)) return { fy: y.fy, value: num };
   }
   return undefined;
 }
@@ -212,10 +231,44 @@ export function ProgramElementWatchPage() {
   const { peCode = '' } = useParams<{ peCode: string }>();
   const normalizedPeCode = peCode.toUpperCase();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const api = useApi();
-  const [selectedFy, setSelectedFy] = useState<number | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const pePresent = normalizedPeCode.length > 0;
+
+  const urlTab = parsePeWatchTab(searchParams.get('tab'));
+  const urlFy = parsePeWatchFy(searchParams.get('fy'));
+  const [activeTab, setActiveTab] = useState<PeWatchTab>(urlTab);
+  const [selectedFy, setSelectedFy] = useState<number | null>(urlFy);
+  const [drawerOpen, setDrawerOpen] = useState(urlFy != null);
   const [linkTarget, setLinkTarget] = useState<{ id: string; name: string } | null>(null);
+  const [dataIssueOpen, setDataIssueOpen] = useState(false);
+
+  // Keep local tab/fy in sync when the user lands via a shared deep-link.
+  useEffect(() => {
+    setActiveTab(urlTab);
+  }, [urlTab]);
+  useEffect(() => {
+    if (urlFy != null) {
+      setSelectedFy(urlFy);
+      setDrawerOpen(true);
+    }
+  }, [urlFy]);
+
+  const writeUrl = useCallback(
+    (next: { tab?: PeWatchTab; fy?: number | null }) => {
+      const tab = next.tab ?? activeTab;
+      const fy = next.fy !== undefined ? next.fy : selectedFy;
+      const qs = serializePeWatchUrlState({ tab, fy });
+      setSearchParams(qs ? new URLSearchParams(qs) : new URLSearchParams(), { replace: true });
+    },
+    [activeTab, selectedFy, setSearchParams],
+  );
+
+  const onTabChange = (key: string) => {
+    const tab = parsePeWatchTab(key);
+    setActiveTab(tab);
+    writeUrl({ tab });
+  };
 
   const watch = useWatchToggle();
 
@@ -223,55 +276,63 @@ export function ProgramElementWatchPage() {
     queryKey: ['program-element-detail', normalizedPeCode],
     queryFn: () => getProgramElementDetail(api, normalizedPeCode),
     staleTime: 5 * 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: pePresent,
   });
 
+  // B13: secondary enablement follows the line-type-clamped tab (same as Tabs UI),
+  // not a raw activeTab that may still be a disallowed deep-link value.
+  const lineTypeForQueries = lineTypeFor(detailQuery.data?.appropriationType);
+  const queryTab = effectivePeWatchTab(activeTab, lineTypeForQueries);
+  const q = (bucket: Parameters<typeof peWatchQueryEnabled>[1]) =>
+    peWatchQueryEnabled(queryTab, bucket, pePresent);
+
+  // Always-on for hero BPM counts / classification when detail opens.
   const billsQuery = useQuery({
     queryKey: ['program-element-bills', normalizedPeCode],
     queryFn: () => getProgramElementBills(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('bills'),
   });
 
   const contractorsQuery = useQuery({
     queryKey: ['program-element-contractors', normalizedPeCode],
     queryFn: () => getProgramElementContractors(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('contractors'),
   });
 
   const programTeamQuery = useQuery({
     queryKey: ['program-element-personnel', normalizedPeCode],
     queryFn: () => getProgramElementPersonnel(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('personnel'),
   });
 
   const sourcesQuery = useQuery({
     queryKey: ['program-element-sources', normalizedPeCode],
     queryFn: () => getProgramElementSources(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('sources'),
   });
 
   const programsQuery = useQuery({
     queryKey: ['program-element-programs', normalizedPeCode],
     queryFn: () => getProgramsForPe(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('programs'),
   });
 
   const clientRelevanceQuery = useQuery({
     queryKey: ['program-element-client-relevance', normalizedPeCode],
     queryFn: () => getRelevantClientsForPe(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('clientRelevance'),
   });
 
   const intelligenceQuery = useQuery({
     queryKey: ['program-element-intelligence', normalizedPeCode],
     queryFn: () => getProgramElementIntelligence(api, normalizedPeCode),
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('intelligence'),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -279,105 +340,169 @@ export function ProgramElementWatchPage() {
     queryKey: ['program-element-deltas', normalizedPeCode],
     queryFn: () => getProgramElementDeltas(api, normalizedPeCode, { limit: 25 }),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('deltas'),
   });
 
   const projectsQuery = useQuery({
     queryKey: ['program-element-projects', normalizedPeCode],
     queryFn: () => getProgramElementProjects(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('projects'),
   });
 
   const relatedQuery = useQuery({
     queryKey: ['program-element-related', normalizedPeCode],
     queryFn: () => getProgramElementRelated(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('related'),
   });
 
   const provisionsQuery = useQuery({
     queryKey: ['program-element-provisions', normalizedPeCode],
     queryFn: () => getProgramElementProvisions(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('provisions'),
   });
 
   const opportunitiesQuery = useQuery({
     queryKey: ['program-element-opportunities', normalizedPeCode],
     queryFn: () => getProgramElementOpportunities(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('opportunities'),
   });
 
   const procurementLinesQuery = useQuery({
     queryKey: ['program-element-procurement-lines', normalizedPeCode],
     queryFn: () => getProgramElementProcurementLines(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('procurementLines'),
   });
 
-  // ── BL-2 money-graph reads ────────────────────────────────────────────────
   const actionsQuery = useQuery({
     queryKey: ['program-element-actions', normalizedPeCode],
     queryFn: () => getBudgetActions(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('actions'),
   });
 
   const relationshipsQuery = useQuery({
     queryKey: ['program-element-relationships', normalizedPeCode],
     queryFn: () => getBudgetLineRelationships(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('relationships'),
   });
 
   const incumbentsQuery = useQuery({
     queryKey: ['program-element-incumbents', normalizedPeCode],
     queryFn: () => getIncumbents(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('incumbents'),
   });
 
-  // LEG-A: full stage-classified action history across the PE's bills.
   const billActionsQuery = useQuery({
     queryKey: ['program-element-bill-actions', normalizedPeCode],
     queryFn: () => getProgramElementBillActions(api, normalizedPeCode),
     staleTime: 60 * 1000,
-    enabled: normalizedPeCode.length > 0,
+    enabled: q('billActions'),
   });
 
-  if (!normalizedPeCode) {
+  // Funding-tab only: current-cycle request→marks→enactment narrative (B12).
+  const narrativeQuery = useQuery({
+    queryKey: ['pe-narrative', normalizedPeCode],
+    queryFn: () => getProgramElementNarrative(api, normalizedPeCode),
+    staleTime: 60 * 1000,
+    enabled: q('narrative'),
+  });
+
+  const errorStatus = (() => {
+    const err = detailQuery.error as { response?: { status?: number }; status?: number } | null;
+    if (!err) return null;
+    return err.response?.status ?? err.status ?? null;
+  })();
+
+  const secondaryFailed = anyEnabledSecondaryFailed([
+    { enabled: q('bills'), isError: billsQuery.isError },
+    { enabled: q('intelligence'), isError: intelligenceQuery.isError },
+    { enabled: q('sources'), isError: sourcesQuery.isError },
+    { enabled: q('contractors'), isError: contractorsQuery.isError },
+    { enabled: q('personnel'), isError: programTeamQuery.isError },
+    { enabled: q('programs'), isError: programsQuery.isError },
+    { enabled: q('clientRelevance'), isError: clientRelevanceQuery.isError },
+    { enabled: q('deltas'), isError: deltasQuery.isError },
+    { enabled: q('projects'), isError: projectsQuery.isError },
+    { enabled: q('related'), isError: relatedQuery.isError },
+    { enabled: q('provisions'), isError: provisionsQuery.isError },
+    { enabled: q('opportunities'), isError: opportunitiesQuery.isError },
+    { enabled: q('procurementLines'), isError: procurementLinesQuery.isError },
+    { enabled: q('actions'), isError: actionsQuery.isError },
+    { enabled: q('relationships'), isError: relationshipsQuery.isError },
+    { enabled: q('incumbents'), isError: incumbentsQuery.isError },
+    { enabled: q('billActions'), isError: billActionsQuery.isError },
+    { enabled: q('narrative'), isError: narrativeQuery.isError },
+  ]);
+
+  const yearRows = detailQuery.data?.years ?? [];
+  const surfaceState = resolvePeSurfaceState({
+    peCodePresent: pePresent,
+    isLoading: detailQuery.isLoading,
+    isError: detailQuery.isError,
+    errorStatus,
+    hasDetail: Boolean(detailQuery.data),
+    yearCount: yearRows.length,
+    hasStageValue: yearsHaveStageValue(yearRows),
+    unsupported: Boolean(detailQuery.data?.unsupportedSourceFamily),
+    secondaryFailed,
+  });
+
+  const refetchEnabledSecondaries = () => {
+    if (q('bills')) void billsQuery.refetch();
+    if (q('intelligence')) void intelligenceQuery.refetch();
+    if (q('sources')) void sourcesQuery.refetch();
+    if (q('contractors')) void contractorsQuery.refetch();
+    if (q('personnel')) void programTeamQuery.refetch();
+    if (q('programs')) void programsQuery.refetch();
+    if (q('clientRelevance')) void clientRelevanceQuery.refetch();
+    if (q('deltas')) void deltasQuery.refetch();
+    if (q('projects')) void projectsQuery.refetch();
+    if (q('related')) void relatedQuery.refetch();
+    if (q('provisions')) void provisionsQuery.refetch();
+    if (q('opportunities')) void opportunitiesQuery.refetch();
+    if (q('procurementLines')) void procurementLinesQuery.refetch();
+    if (q('actions')) void actionsQuery.refetch();
+    if (q('relationships')) void relationshipsQuery.refetch();
+    if (q('incumbents')) void incumbentsQuery.refetch();
+    if (q('billActions')) void billActionsQuery.refetch();
+    if (q('narrative')) void narrativeQuery.refetch();
+  };
+
+  if (!pePresent) {
     return <Alert type="warning" message="Missing PE code" showIcon />;
   }
 
-  if (detailQuery.isLoading) {
+  if (surfaceState === 'loading' || surfaceState === 'failed' || surfaceState === 'not_found' || surfaceState === 'unsupported') {
     return (
-      <section className="pe-watch-page redesign">
-        <Skeleton active paragraph={{ rows: 3 }} />
-        <div className="pe-strip">
-          {[0, 1, 2, 3].map((idx) => (
-            <div className="pe-strip-cell" key={idx}>
-              <Skeleton active paragraph={{ rows: 1 }} title={false} />
-            </div>
-          ))}
-        </div>
-      </section>
-    );
-  }
-
-  if (detailQuery.isError || !detailQuery.data) {
-    return (
-      <Alert
-        type="error"
-        showIcon
-        message="Unable to load program element"
-        description="Please retry in a moment."
+      <PeLoadState
+        state={surfaceState}
+        peCode={normalizedPeCode}
+        onRetry={() => {
+          void detailQuery.refetch();
+        }}
       />
     );
   }
 
-  const detail = detailQuery.data;
+    const detail = detailQuery.data;
+  if (!detail) {
+    return (
+      <PeLoadState
+        state="failed"
+        peCode={normalizedPeCode}
+        onRetry={() => {
+          void detailQuery.refetch();
+        }}
+      />
+    );
+  }
   const detailRaw =
     (
       detail as {
@@ -457,12 +582,13 @@ export function ProgramElementWatchPage() {
   })();
 
   // ── Derived chart data ────────────────────────────────────────────────────
+  // Phase 5: keep explicit zeros in sparklines (only drop true nulls).
   const reqSpark = chartYears
     .map((y) => numberOrNull(y.request))
-    .filter((v): v is number => v != null && v !== 0);
+    .filter((v): v is number => v != null);
   const encSpark = chartYears
     .map((y) => numberOrNull(y.enacted))
-    .filter((v): v is number => v != null && v !== 0);
+    .filter((v): v is number => v != null);
 
   // Overview trajectory: the President's request (dashed baseline) vs the
   // "current" number per FY — the furthest-along stage from the shared
@@ -543,23 +669,30 @@ export function ProgramElementWatchPage() {
   // bills whose history hasn't been ingested. Blanket authorizers (NDAA-scale
   // peCodeCount) are capped to their most recent actions so a 700-PE bill's
   // procedural churn doesn't drown the PE-specific story.
-  const historyEvents = billActionsQuery.data ?? [];
+  // B15: never treat bill-actions request failure as "no history" via data ?? [].
+  const historyEvents = billActionsQuery.isError ? [] : (billActionsQuery.data ?? []);
 
   // LEG-A: attach the (already-fetched) stage-classified action feed to each bill
   // so the bill-timeline swimlane renders full per-bill histories rather than a
   // single latest-action dot. historyEvents is capped server-side; bills with no
   // events in the feed fall back to their latestAction inside the panel.
+  // When billActions is errored, leave actions unset so BillsTouchingPePanel can
+  // paint pe-secondary-failed-bill-actions instead of "No action history synced".
   const billsWithActions: ProgramElementBill[] = bills.map((b) => ({
     ...b,
-    actions: historyEvents
-      .filter((e) => e.billId === b.id)
-      .map((e, i) => ({
-        id: `${e.billId}-${e.date}-${i}`,
-        date: e.date,
-        text: e.text,
-        type: e.type,
-        chamber: e.chamber,
-      })),
+    ...(billActionsQuery.isError
+      ? {}
+      : {
+          actions: historyEvents
+            .filter((e) => e.billId === b.id)
+            .map((e, i) => ({
+              id: `${e.billId}-${e.date}-${i}`,
+              date: e.date,
+              text: e.text,
+              type: e.type,
+              chamber: e.chamber,
+            })),
+        }),
   }));
 
   const projects = projectsQuery.data ?? [];
@@ -592,6 +725,7 @@ export function ProgramElementWatchPage() {
   const openFy = (fy: number) => {
     setSelectedFy(fy);
     setDrawerOpen(true);
+    writeUrl({ fy });
   };
 
   const reqFmt = latestRequest ? fmtMoneyM(latestRequest.value) : null;
@@ -604,6 +738,14 @@ export function ProgramElementWatchPage() {
     lineTypeFor(detail.appropriationType) ?? intelligenceQuery.data?.lineType ?? null;
   const isRdte = lineType === 'RDTE_PE' || lineType === null;
   const isProc = lineType === 'PROCUREMENT_BLIN';
+
+  // Drop procurement/incumbents tabs that do not apply; fall back to overview.
+  const allowedTabs = filterTabsForLineType(
+    ['overview', 'funding', 'procurement', 'legislation', 'relationships', 'incumbents', 'team', 'approp', 'proof'],
+    lineType,
+  );
+  // Same clamp as queryTab (B13); intelligence may refine lineType after first paint.
+  const effectiveTab: PeWatchTab = effectivePeWatchTab(activeTab, lineType, allowedTabs);
 
   // ── Tab content ─────────────────────────────────────────────────────────
   const overviewTab = (
@@ -681,7 +823,15 @@ export function ProgramElementWatchPage() {
       </ChartCard>
 
       <ChartCard title="Recent activity" sub="latest actions on this PE">
-        {recentActivity.length ? (
+        {billsQuery.isLoading ? (
+          <Skeleton active paragraph={{ rows: 3 }} />
+        ) : billsQuery.isError ? (
+          <PeSecondaryFailed
+            label="recent legislative activity"
+            testId="pe-secondary-failed-recent-activity"
+            onRetry={() => void billsQuery.refetch()}
+          />
+        ) : recentActivity.length ? (
           <div className="pe-ov-activity">
             {recentActivity.map((b) => {
               const kind = classifyAction(b.latestActionText);
@@ -726,8 +876,10 @@ export function ProgramElementWatchPage() {
         </div>
         <div className="bl-panel-body">
           <LinkedLinesRail
-            relationships={relationshipsQuery.data}
+            relationships={relationshipsQuery.isError ? undefined : relationshipsQuery.data}
             loading={relationshipsQuery.isLoading}
+            errored={relationshipsQuery.isError}
+            onRetry={() => void relationshipsQuery.refetch()}
             onOpen={(pe) => navigate(`/program-elements/${pe}`)}
           />
         </div>
@@ -741,16 +893,23 @@ export function ProgramElementWatchPage() {
         </div>
         <div className="bl-panel-body">
           <BudgetActionsFeed
-            actions={actionsQuery.data}
+            actions={actionsQuery.isError ? undefined : actionsQuery.data}
             loading={actionsQuery.isLoading}
             limit={4}
+            errored={actionsQuery.isError}
+            onRetry={() => void actionsQuery.refetch()}
           />
         </div>
       </div>
 
       {isRdte ? (
         <div className="pe-surface pe-plain-surface">
-          <ProjectsPanel projects={projects} loading={projectsQuery.isLoading} />
+          <ProjectsPanel
+          projects={projectsQuery.isError ? undefined : projects}
+          loading={projectsQuery.isLoading}
+          errored={projectsQuery.isError}
+          onRetry={() => void projectsQuery.refetch()}
+        />
         </div>
       ) : null}
     </div>
@@ -806,7 +965,13 @@ export function ProgramElementWatchPage() {
 
       {/* Phase 4 (4.1): assembled request→marks→enactment narrative for the current cycle. */}
       <div className="pe-surface pe-plain-surface span-2">
-        <FundingNarrativePanel peCode={normalizedPeCode} />
+        <FundingNarrativePanel
+          peCode={normalizedPeCode}
+          data={narrativeQuery.isError ? undefined : narrativeQuery.data}
+          loading={narrativeQuery.isLoading}
+          errored={narrativeQuery.isError}
+          onRetry={() => void narrativeQuery.refetch()}
+        />
       </div>
     </div>
   );
@@ -818,8 +983,10 @@ export function ProgramElementWatchPage() {
     <div className="pe-dt-panel">
       <div className="pe-surface pe-plain-surface span-2">
         <SecondaryDistributionPanel
-          data={procurementLinesQuery.data}
+          data={procurementLinesQuery.isError ? undefined : procurementLinesQuery.data}
           loading={procurementLinesQuery.isLoading}
+          errored={procurementLinesQuery.isError}
+          onRetry={() => void procurementLinesQuery.refetch()}
         />
       </div>
       <div className="pe-surface pe-plain-surface span-2">
@@ -834,7 +1001,14 @@ export function ProgramElementWatchPage() {
   const legislationTab = (
     <div className="pe-dt-panel">
       <div className="pe-surface pe-plain-surface span-2">
-        <BillsTouchingPePanel bills={billsWithActions} loading={billsQuery.isLoading} />
+        <BillsTouchingPePanel
+          bills={billsWithActions}
+          loading={billsQuery.isLoading || (q('billActions') && billActionsQuery.isLoading)}
+          errored={billsQuery.isError}
+          onRetry={() => void billsQuery.refetch()}
+          billActionsErrored={billActionsQuery.isError}
+          onRetryBillActions={() => void billActionsQuery.refetch()}
+        />
       </div>
 
       <div className="pe-surface pe-plain-surface span-2">
@@ -843,16 +1017,28 @@ export function ProgramElementWatchPage() {
           <span className="pe-surface-sub">every normalized committee event on this line</span>
         </div>
         <div className="bl-panel-body">
-          <BudgetActionsFeed actions={actionsQuery.data} loading={actionsQuery.isLoading} />
+          <BudgetActionsFeed
+            actions={actionsQuery.data}
+            loading={actionsQuery.isLoading}
+            errored={actionsQuery.isError}
+            onRetry={() => void actionsQuery.refetch()}
+          />
         </div>
       </div>
       <div className="pe-surface pe-plain-surface span-2">
-        <ProvisionsPanel provisions={provisionsQuery.data} loading={provisionsQuery.isLoading} />
+        <ProvisionsPanel
+          provisions={provisionsQuery.isError ? undefined : provisionsQuery.data}
+          loading={provisionsQuery.isLoading}
+          errored={provisionsQuery.isError}
+          onRetry={() => void provisionsQuery.refetch()}
+        />
       </div>
       <div className="pe-surface pe-plain-surface span-2">
         <ProcurementActivityPanel
-          opportunities={opportunitiesQuery.data}
+          opportunities={opportunitiesQuery.isError ? undefined : opportunitiesQuery.data}
           loading={opportunitiesQuery.isLoading}
+          errored={opportunitiesQuery.isError}
+          onRetry={() => void opportunitiesQuery.refetch()}
         />
       </div>
     </div>
@@ -868,8 +1054,10 @@ export function ProgramElementWatchPage() {
         <div className="bl-panel-body">
           <RelationshipGraphPanel
             peCode={normalizedPeCode}
-            relationships={relationshipsQuery.data}
+            relationships={relationshipsQuery.isError ? undefined : relationshipsQuery.data}
             loading={relationshipsQuery.isLoading}
+            errored={relationshipsQuery.isError}
+            onRetry={() => void relationshipsQuery.refetch()}
             onOpen={(pe) => navigate(`/program-elements/${pe}`)}
           />
         </div>
@@ -881,15 +1069,29 @@ export function ProgramElementWatchPage() {
             <span className="pe-surface-sub">research → contracts · per-rung evidence</span>
           </div>
           <div className="bl-panel-body">
-            <MaturityLadderPanel ladder={intelligenceQuery.data?.maturityLadder} />
+            <MaturityLadderPanel
+              ladder={intelligenceQuery.isError ? undefined : intelligenceQuery.data?.maturityLadder}
+              errored={intelligenceQuery.isError}
+              onRetry={() => void intelligenceQuery.refetch()}
+            />
           </div>
         </div>
       ) : null}
       <div className="pe-surface pe-plain-surface span-2">
-        <ProgramsPanel programs={programsQuery.data} loading={programsQuery.isLoading} />
+        <ProgramsPanel
+          programs={programsQuery.isError ? undefined : programsQuery.data}
+          loading={programsQuery.isLoading}
+          errored={programsQuery.isError}
+          onRetry={() => void programsQuery.refetch()}
+        />
       </div>
       <div className="pe-surface pe-plain-surface span-2">
-        <RelatedPesPanel related={relatedQuery.data} loading={relatedQuery.isLoading} />
+        <RelatedPesPanel
+          related={relatedQuery.isError ? undefined : relatedQuery.data}
+          loading={relatedQuery.isLoading}
+          errored={relatedQuery.isError}
+          onRetry={() => void relatedQuery.refetch()}
+        />
       </div>
     </div>
   );
@@ -898,7 +1100,11 @@ export function ProgramElementWatchPage() {
     <div className="pe-dt-panel">
       <div className="pe-surface pe-plain-surface span-2">
         <div className="bl-panel-body">
-          <AppropriabilityPanel approp={intelligenceQuery.data?.appropriability} />
+          <AppropriabilityPanel
+            approp={intelligenceQuery.isError ? undefined : intelligenceQuery.data?.appropriability}
+            errored={intelligenceQuery.isError}
+            onRetry={() => void intelligenceQuery.refetch()}
+          />
         </div>
       </div>
     </div>
@@ -907,14 +1113,26 @@ export function ProgramElementWatchPage() {
   const teamTab = (
     <div className="pe-dt-panel">
       <ChartCard title="Roster by organization" pad>
-        {byOrg.length ? (
+        {programTeamQuery.isError ? (
+          <PeSecondaryFailed
+            label="program team roster"
+            testId="pe-secondary-failed-personnel-roster"
+            onRetry={() => void programTeamQuery.refetch()}
+          />
+        ) : byOrg.length ? (
           <HBars data={byOrg} fmt={(v) => v} />
         ) : (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No identified personnel yet." />
         )}
       </ChartCard>
       <ChartCard title="Identification confidence">
-        {confData.length ? (
+        {programTeamQuery.isError ? (
+          <PeSecondaryFailed
+            label="program team confidence"
+            testId="pe-secondary-failed-personnel-confidence"
+            onRetry={() => void programTeamQuery.refetch()}
+          />
+        ) : confData.length ? (
           <div className="pe-donut-block">
             <Donut
               data={confData}
@@ -940,9 +1158,10 @@ export function ProgramElementWatchPage() {
 
       <div className="pe-surface pe-plain-surface span-2">
         <ProgramTeamPanel
-          personnel={programTeam}
+          personnel={programTeamQuery.isError ? [] : programTeam}
           loading={programTeamQuery.isLoading}
-          estimatedTotal={Math.max(programTeam.length, 6)}
+          errored={programTeamQuery.isError}
+          onRetry={() => void programTeamQuery.refetch()}
           onViewAllSources={() => navigate('/directory')}
           onLinkCrmContact={(personId) => {
             const person = programTeam.find((candidate) => candidate.id === personId);
@@ -962,13 +1181,20 @@ export function ProgramElementWatchPage() {
         </div>
         <div className="bl-panel-body">
           <IncumbentMapPanel
-            incumbents={incumbentsQuery.data}
+            incumbents={incumbentsQuery.isError ? undefined : incumbentsQuery.data}
             loading={incumbentsQuery.isLoading}
+            errored={incumbentsQuery.isError}
+            onRetry={() => void incumbentsQuery.refetch()}
           />
         </div>
       </div>
       <div className="pe-surface pe-plain-surface span-2">
-        <ContractorsPanel contractors={contractors} loading={contractorsQuery.isLoading} />
+        <ContractorsPanel
+          contractors={contractorsQuery.isError ? undefined : contractors}
+          loading={contractorsQuery.isLoading}
+          errored={contractorsQuery.isError}
+          onRetry={() => void contractorsQuery.refetch()}
+        />
       </div>
     </div>
   );
@@ -976,16 +1202,28 @@ export function ProgramElementWatchPage() {
   const proofPackTab = (
     <div className="pe-dt-panel">
       <div className="pe-surface pe-plain-surface span-2">
-        <WhatChangedPanel deltas={deltasQuery.data?.data} loading={deltasQuery.isLoading} />
-      </div>
-      <div className="pe-surface pe-plain-surface span-2">
-        <ClientRelevancePanel
-          clients={clientRelevanceQuery.data}
-          loading={clientRelevanceQuery.isLoading}
+        <WhatChangedPanel
+          deltas={deltasQuery.isError ? undefined : deltasQuery.data?.data}
+          loading={deltasQuery.isLoading}
+          errored={deltasQuery.isError}
+          onRetry={() => void deltasQuery.refetch()}
         />
       </div>
       <div className="pe-surface pe-plain-surface span-2">
-        <ProofPackPanel sources={sourcesQuery.data} loading={sourcesQuery.isLoading} />
+        <ClientRelevancePanel
+          clients={clientRelevanceQuery.isError ? undefined : clientRelevanceQuery.data}
+          loading={clientRelevanceQuery.isLoading}
+          errored={clientRelevanceQuery.isError}
+          onRetry={() => void clientRelevanceQuery.refetch()}
+        />
+      </div>
+      <div className="pe-surface pe-plain-surface span-2">
+        <ProofPackPanel
+          sources={sourcesQuery.isError ? undefined : sourcesQuery.data}
+          loading={sourcesQuery.isLoading}
+          errored={sourcesQuery.isError}
+          onRetry={() => void sourcesQuery.refetch()}
+        />
       </div>
     </div>
   );
@@ -1032,7 +1270,7 @@ export function ProgramElementWatchPage() {
   ];
 
   return (
-    <section className="pe-watch-page redesign">
+    <section className="pe-watch-page redesign" data-testid="pe-state-complete">
       {/* ── Navy hero banner ──────────────────────────────────────────── */}
       <header className="pe-hero">
         <div className="pe-hero-main">
@@ -1200,12 +1438,86 @@ export function ProgramElementWatchPage() {
         </div>
       </div>
 
-      {/* ── Sub-tabs ──────────────────────────────────────────────────── */}
-      <Tabs className="pe-detail-tabs" defaultActiveKey="overview" items={tabItems} />
+      <PeTrustHeader
+        peCode={detail.peCode}
+        title={detail.title}
+        years={years}
+        catalogCurrentCycleFy={detail.currentCycleFy}
+        lastSyncedAt={detail.lastSyncedAt}
+        sourceCount={detail.sourceCount}
+        projectCount={detail.projectCount}
+        billCount={detail.billCount ?? bills.length}
+        description={detail.description}
+        reconciliationConflictCount={detail.openReconciliationConflictCount ?? 0}
+        extraCaveats={
+          isHistoricalOnly
+            ? [
+                `This line's last mark-bearing year (FY${peLatestFy}) predates the catalog mode-request cycle (FY${detail.currentCycleFy}). Treat dollars as historical unless a newer ingest lands.`,
+              ]
+            : []
+        }
+      onReportDataIssue={() => setDataIssueOpen(true)}
+      />
+
+      {surfaceState === 'partial' ? (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="Partial data"
+          description="Detail loaded but at least one secondary panel failed. Failed sections are not silent empties — retry or switch tabs after recovery."
+          action={
+            <Button
+              size="small"
+              onClick={() => {
+                void detailQuery.refetch();
+                refetchEnabledSecondaries();
+              }}
+              data-testid="pe-state-retry"
+            >
+              Retry failed panels
+            </Button>
+          }
+        />
+      ) : null}
+
+      {surfaceState === 'not_ingested' ? (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="Not yet ingested"
+          description="PE identity is known, but no budget-year rows have been ingested for this code."
+          data-testid="pe-banner-not-ingested"
+        />
+      ) : null}
+
+      {surfaceState === 'complete_empty' ? (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="Ingested structure without stage dollars"
+          description="Budget-year rows exist but no stage values (including $0) are populated yet. This is complete empty — not a silent failure."
+          data-testid="pe-banner-complete-empty"
+        />
+      ) : null}
+
+      {/* ── Sub-tabs (lazy: only the active tab's secondary queries fire) ── */}
+      <Tabs
+        className="pe-detail-tabs"
+        activeKey={effectiveTab}
+        onChange={onTabChange}
+        destroyOnHidden
+                items={tabItems}
+      />
 
       <FyDetailDrawer
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={() => {
+          setDrawerOpen(false);
+          writeUrl({ fy: null });
+        }}
         peCode={detail.peCode}
         selectedFy={selectedFy}
         timeline={years}
@@ -1215,7 +1527,14 @@ export function ProgramElementWatchPage() {
         open={linkTarget !== null}
         personId={linkTarget?.id ?? null}
         personName={linkTarget?.name ?? null}
+        peCode={normalizedPeCode}
         onClose={() => setLinkTarget(null)}
+      />
+      <ProgramElementDataIssueModal
+        open={dataIssueOpen}
+        peCode={normalizedPeCode}
+        defaultFy={selectedFy}
+        onClose={() => setDataIssueOpen(false)}
       />
     </section>
   );

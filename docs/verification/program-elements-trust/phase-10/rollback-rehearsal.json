@@ -1,0 +1,32 @@
+{
+  "prior": {
+    "api": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
+    "web": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22"
+  },
+  "current": {
+    "api": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
+    "web": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23"
+  },
+  "backApi": 0,
+  "backWeb": 0,
+  "fwApi": 0,
+  "fwWeb": 0,
+  "waitApi": 0,
+  "waitWeb": 0,
+  "describe": [
+    {
+      "name": "capiro-dev-api",
+      "td": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
+      "roll": "COMPLETED",
+      "running": 2
+    },
+    {
+      "name": "capiro-dev-web",
+      "td": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
+      "roll": "COMPLETED",
+      "running": 1
+    }
+  ],
+  "apiOk": true,
+  "webOk": true
+}

@@ -3,12 +3,19 @@ import { Card, Empty, Skeleton, Tooltip, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useBillTarget } from '../bills/bill-target.js';
 import type { ProgramElementBill, ProgramElementBillAction } from './types.js';
+import { PeSecondaryFailed } from './PeSecondaryFailed.js';
 
 const { Text } = Typography;
 
 export interface BillsTouchingPePanelProps {
   bills: ProgramElementBill[];
   loading?: boolean;
+
+  errored?: boolean;
+  onRetry?: () => void;
+  /** Phase 5 B15 — /bill-actions failed; must not paint "No action history synced". */
+  billActionsErrored?: boolean;
+  onRetryBillActions?: () => void;
 }
 
 type EventKind = 'reported' | 'committee' | 'passed' | 'president' | 'law' | 'procedural';
@@ -361,7 +368,12 @@ function PeLinkBasis({ bill }: { bill: ProgramElementBill }) {
   );
 }
 
-export function BillsTouchingPePanel({ bills, loading = false }: BillsTouchingPePanelProps) {
+export function BillsTouchingPePanel({ bills, loading = false,
+  errored = false,
+  onRetry,
+  billActionsErrored = false,
+  onRetryBillActions,
+}: BillsTouchingPePanelProps) {
   const navigate = useNavigate();
   // R2 §2.5 routes a bill lane to Bill 360 — but ONLY for a tenant that has it.
   // useBillTarget keeps the Explorer destination for tenants without the flag, so
@@ -375,6 +387,13 @@ export function BillsTouchingPePanel({ bills, loading = false }: BillsTouchingPe
       </Card>
     );
   }
+
+  if (errored) {
+    return (
+      <PeSecondaryFailed label="bills" testId="pe-secondary-failed-bills" onRetry={onRetry} />
+    );
+  }
+
 
   if (bills.length === 0) {
     return (
@@ -522,7 +541,13 @@ export function BillsTouchingPePanel({ bills, loading = false }: BillsTouchingPe
 
         <div className="pe-action-history">
           <div className="pe-action-history-title">Action history</div>
-          {detailEvents.length > 0 ? (
+          {billActionsErrored ? (
+            <PeSecondaryFailed
+              label="bill action history"
+              testId="pe-secondary-failed-bill-actions"
+              onRetry={onRetryBillActions}
+            />
+          ) : detailEvents.length > 0 ? (
             <div className="pe-action-table">
               <div className="pe-action-row pe-action-head">
                 <span>Date</span>

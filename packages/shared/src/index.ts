@@ -1920,6 +1920,29 @@ function matchSubcommittee(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// Defense-budget line identity + Phase L coverage (Phase 7 / Phase J port).
+// Implementation lives in dedicated modules; re-exported here for @capiro/shared.
+// ─────────────────────────────────────────────────────────────────────────
+export {
+  DEFENSE_BUDGET_DOMAIN_PRIMER,
+  defenseBudgetExhibitLabel,
+  defenseBudgetLineKind,
+  isProcurementBudgetLine,
+  isRdteBudgetLine,
+  type DefenseBudgetLineIdentity,
+  type DefenseBudgetLineKind,
+} from './defense-budget-line.js';
+export {
+  PE_SOURCE_FAMILY_COVERAGE,
+  getPeSourceFamilyCoverage,
+  peSourceCoverageModelCaveat,
+  sourceKeyForbiddenForCanonical,
+  unsupportedOrBlockedSourceFamilies,
+  type PeSourceFamilyCoverage,
+  type PeSourceFamilyStatus,
+} from './pe-source-coverage.js';
+
+// ─────────────────────────────────────────────────────────────────────────
 // PE funding lifecycle — THE canonical per-FY "which stage counts" precedence.
 // The PE detail page (apps/web funding-model.ts) and every server-side funding
 // figure (finder list current, spark, summary trend, capability current) MUST
@@ -2156,16 +2179,18 @@ export interface FundingYearMarks {
   hacDMark?: number | null;
   sacDMark?: number | null;
   conference?: number | null;
+  /** Authorization-track NDAA conference — mark-bearing for cycle FY (Phase G B3/B6). */
+  ndaaConference?: number | null;
 }
 
 /**
  * The current budget CYCLE FY = the latest FY carrying any congressional
- * appropriations/authorization mark; else the latest request-bearing FY; else
- * null. Congress only marks the year in process, so later FYs are FYDP OUTYEAR
- * projections and earlier FYs are historical. THE shared rule so the timeline
- * tool and the outreach/memo truth block label cycles identically. (NDAA
- * conference is excluded here on purpose — the cycle tracks where the money
- * process is, and this matches the finder/timeline behavior.)
+ * mark (auth chamber, NDAA conference, approps chamber, or approps conference);
+ * else the latest request-bearing FY; else null. Congress only marks the year
+ * in process, so later FYs are FYDP OUTYEAR projections and earlier FYs are
+ * historical. Aligned with currentCycleFyPreservingZero / sqlCurrentCycleFyExpr
+ * so detail fundingSummary, timeline, and outreach/memo truth cannot disagree
+ * on NDAA-only years (Phase 4 B3 / B6).
  */
 export function currentCycleFyOf(years: readonly FundingYearMarks[]): number | null {
   const hasMark = (y: FundingYearMarks): boolean =>
@@ -2173,7 +2198,8 @@ export function currentCycleFyOf(years: readonly FundingYearMarks[]): number | n
     y.sascMark != null ||
     y.hacDMark != null ||
     y.sacDMark != null ||
-    y.conference != null;
+    y.conference != null ||
+    y.ndaaConference != null;
   const markFys = years.filter(hasMark).map((y) => y.fy);
   if (markFys.length) return Math.max(...markFys);
   const reqFys = years.filter((y) => y.request != null).map((y) => y.fy);
@@ -2190,7 +2216,7 @@ export interface ModelFundingInput {
   peCode: string;
   title?: string | null;
   service?: string | null;
-  /** From budgetExhibitType(): "R-1 RDT&E Program Element" / "P-1 procurement line item…". */
+  /** From defenseBudgetExhibitLabel(): the explicit RDT&E/procurement/unknown noun. */
   budgetExhibitType?: string | null;
   /** Latest mark-bearing FY; computed via currentCycleFyOf when omitted. */
   currentCycleFy?: number | null;
@@ -3937,3 +3963,8 @@ export type GrantsGovApplicantType = (typeof GRANTS_GOV_APPLICANT_TYPES)[number]
 export function applicantTypeKey(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toLowerCase();
 }
+
+// PE Phase G funding-claim contract — subpath @capiro/shared/funding-claim
+// Import FundingClaim helpers from '@capiro/shared/funding-claim' (subpath export).
+// Kept out of this single-file barrel so Vite/Rollup named-export tracing for the
+// main entry stays intact (same pattern as './money').

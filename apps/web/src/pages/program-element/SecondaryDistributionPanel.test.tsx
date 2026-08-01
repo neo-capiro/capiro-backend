@@ -67,6 +67,20 @@ describe('SecondaryDistributionPanel', () => {
     expect(screen.getByText(/No per-recipient procurement breakdown/)).toBeInTheDocument();
   });
 
+  test('errored request shows failed UI, not honesty Empty (B11)', () => {
+    render(
+      <SecondaryDistributionPanel
+        data={undefined}
+        loading={false}
+        errored
+        onRetry={() => undefined}
+      />,
+    );
+    expect(screen.getByTestId('pe-secondary-failed-procurement-lines')).toBeInTheDocument();
+    expect(screen.queryByText(/No per-recipient procurement breakdown/)).not.toBeInTheDocument();
+    expect(screen.getByTestId('pe-secondary-retry')).toBeInTheDocument();
+  });
+
   test('formatters', () => {
     expect(fmtDollars(159166000)).toBe('$159.17M');
     expect(fmtDollars(2036358000)).toBe('$2.04B');

@@ -1,0 +1,53 @@
+{
+  "phase": 10,
+  "generatedAt": "2026-07-31T19:04:06.962Z",
+  "plane": {
+    "workflowEnv": "dev",
+    "ecsCluster": "capiro-dev",
+    "appHost": "app.capiro.ai",
+    "note": "sole live env=dev = prod path"
+  },
+  "priorTaskDefs": [
+    {
+      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:88",
+      "family": "capiro-dev-api",
+      "image": null,
+      "revision": 88
+    },
+    {
+      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:22",
+      "family": "capiro-dev-web",
+      "image": null,
+      "revision": 22
+    }
+  ],
+  "newApiTaskDefArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
+  "newWebTaskDefArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
+  "migrateTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8a574f6fe5004e69836876dc70c5c211",
+  "images": [
+    {
+      "repo": "capiro/dev/api",
+      "tag": "latest",
+      "digest": "sha256:74074cc59c039c847ef1db14db7ddfd466c09a15c3b815d3907aaa5a43bf4854",
+      "pushedAt": "2026-07-31T13:41:41.691000-04:00",
+      "present": true
+    },
+    {
+      "repo": "capiro/dev/web",
+      "tag": "latest",
+      "digest": "sha256:80433fa869ea4454d5b432e242755c42aeb22cddf2bf0964290bffada5ac3c56",
+      "pushedAt": "2026-07-31T13:22:26.114000-04:00",
+      "present": true
+    }
+  ],
+  "apiImageDigest": "sha256:74074cc59c039c847ef1db14db7ddfd466c09a15c3b815d3907aaa5a43bf4854",
+  "webImageDigest": "sha256:80433fa869ea4454d5b432e242755c42aeb22cddf2bf0964290bffada5ac3c56",
+  "deployedCluster": "capiro-dev",
+  "notes": [
+    "migrate task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/8a574f6fe5004e69836876dc70c5c211 exit=0",
+    "deployed api=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89 web=arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23 on capiro-dev",
+    "live proofs task arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3dba59c0f1ac4d19b11348af3621296d exit=0 marker=PE_PHASE_10_LIVE_PROOFS_OK",
+    "evidence-bind-only: skipped migrate/deploy/live-proofs re-ship"
+  ],
+  "liveProofsTaskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3dba59c0f1ac4d19b11348af3621296d"
+}

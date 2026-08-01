@@ -19,7 +19,17 @@
     "scripts/send-pe-alert-emails.ts",
     "scripts/send-pe-alert-emails.watch-isolation.spec.ts",
     "scripts/lib/pe-watch-tenant-isolation.spec.ts",
-    "src/program-element/pe-alerts/tenant-watch-aggregation.ts"
+    "src/program-element/pe-alerts/tenant-watch-aggregation.ts",
+    "scripts/backfill-pe-observation-keys.ts",
+    "scripts/backfill-pe-observation-keys.spec.ts",
+    "scripts/drain-pe-change-outbox.ts",
+    "scripts/drain-pe-change-outbox.spec.ts",
+    "src/program-element/program-element-change-outbox.service.ts",
+    "src/program-element/program-element-field-ownership.ts",
+    "src/program-element/program-element-raw-merge.ts"
   ],
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

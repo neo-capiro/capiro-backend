@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { isValidProgramCode, thousandsToMillions } from '../../jbook/jbook-extract.js';
 import { ProgramElementWriterService } from '../../program-element-writer.service.js';
+import type { PeYearWriteContext } from '../../types.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 
 /**
@@ -155,6 +156,7 @@ export class PDocParserService {
     service: ProcurementService,
     fy: number,
     sourceUrl?: string,
+    writeContext?: PeYearWriteContext,
   ): Promise<PDocLoadResult> {
     const source = pdocSource(service, fy);
     let pesUpserted = 0;
@@ -191,6 +193,22 @@ export class PDocParserService {
       // P-1 exhibits print dollars in THOUSANDS; convert to the canonical MILLIONS
       // unit so procurement requests aren't 1000x inflated against the UI/fixtures.
       for (const fyRow of rec.fyData) {
+        const yearContext: PeYearWriteContext | undefined = writeContext
+          ? {
+              ...writeContext,
+              originalValues: {
+                ...(writeContext.originalValues ?? {}),
+                ...(fyRow.requestDollarsThousands != null
+                  ? {
+                      request: {
+                        value: fyRow.requestDollarsThousands,
+                        unit: 'thousands' as const,
+                      },
+                    }
+                  : {}),
+              },
+            }
+          : undefined;
         const result = await this.writer.upsertProgramElementYear(
           {
             peCode: rec.peCode,
@@ -200,6 +218,7 @@ export class PDocParserService {
             raw: fyRow,
           },
           source,
+          yearContext,
         );
         if (result.changed) pesChanged += 1;
       }

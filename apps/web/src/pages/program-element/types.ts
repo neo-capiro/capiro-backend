@@ -15,6 +15,18 @@ export interface ProgramElementYearPoint {
   raw?: unknown;
 }
 
+/** Phase G FundingClaim bag as returned on list/detail money headlines. */
+export interface WebFundingClaim {
+  value: number | null;
+  fiscalYear: number | null;
+  stage: string;
+  stageLabel: string;
+  legislativeVehicle: string;
+  cycleClass: string;
+  isProjection: boolean;
+  unit: 'USD millions';
+}
+
 export interface ProgramElementDetail {
   peCode: string;
   title: string;
@@ -31,14 +43,19 @@ export interface ProgramElementDetail {
   /** Step 1.2: counts so the profile can badge + lazy-load the project/proof-pack panels. */
   projectCount?: number;
   sourceCount?: number;
+  billCount?: number | null;
   /**
-   * The FY with the most PEs carrying a live PB request catalog-wide (the "current
-   * budget cycle" nearly every active PE is in). Lets the hero flag a PE whose own
-   * latest year of record predates it — e.g. a program that finished RDT&E and
-   * dropped out of the current justification books — as historical rather than
-   * silently sparse.
+   * Catalog-wide mode-request FY (most PEs with a live PB request). Prefer the
+   * PE mark-bearing cycle via shared currentCycleFyPreservingZero for headlines;
+   * this field is still useful as a catalog coverage signal (Phase 4 residual R1).
    */
   currentCycleFy?: number | null;
+  /** RC1 LLM funding block — web may ignore or surface for trust copy. */
+  fundingSummary?: string | null;
+  /** Open reconciliation conflicts when the API opts to attach them. */
+  openReconciliationConflictCount?: number | null;
+  /** Fail-closed flag for intentionally unsupported source families. */
+  unsupportedSourceFamily?: boolean | null;
 }
 
 /** R-2A project / sub-element of a PE (Step 1.2). */
@@ -143,7 +160,10 @@ export interface ProgramElementListItem {
   latestCurrent?: number | null;
   latestCurrentFy?: number | null;
   latestCurrentStage?: string | null;
-  /** Enacted-vs-request % for the latest-enacted FY (Congress over/under the PB). */
+  /**
+   * Enacted-vs-request % for the matched enacted FY only (requestAtEnactedFy).
+   * Never a cross-FY latestRequest vs latestEnacted (Phase 4 / Phase 5).
+   */
   deltaPct?: number | null;
   /** Last 6 fiscal years of enacted-or-conference-or-request ($M), ascending, for the row sparkline. */
   spark?: number[] | null;
@@ -151,6 +171,19 @@ export interface ProgramElementListItem {
   signalType?: string | null;
   signalScore?: number | null;
   signalDeltaPct?: number | null;
+  // ── Phase 4/5 claim bags (API may send; UI must prefer these for %) ──
+  currentClaim?: WebFundingClaim | null;
+  requestClaim?: WebFundingClaim | null;
+  enactedClaim?: WebFundingClaim | null;
+  /** Request dollars at the same FY as latest enacted — the only paired %. */
+  requestAtEnactedClaim?: WebFundingClaim | null;
+  requestAtEnactedFy?: number | null;
+  comparableEnactedVsRequest?: {
+    fiscalYear: number;
+    enacted: number;
+    request: number;
+    deltaPct: number | null;
+  } | null;
   // ── BL-1 money-graph enrichment (from program_element_intelligence_cache;
   //    null until the first derive-intelligence-cache run) ──
   /** RDTE_PE | PROCUREMENT_BLIN | OM_BLI (MILCON/TRANSFER/CLASSIFIED reserved). */
@@ -366,7 +399,11 @@ export interface ProgramElementMarkupMonitorItem {
   sascMark: number | null;
   hacDMark: number | null;
   sacDMark: number | null;
+  /** Max within-track chamber span % (auth OR approps — never blended). */
   divergencePct: number;
+  authDivergencePct?: number;
+  appropsDivergencePct?: number;
+  divergenceTrack?: 'authorization' | 'appropriations' | null;
 }
 
 export interface ProgramElementListResponse {
@@ -546,6 +583,21 @@ export interface ProgramTeamPerson {
   // Additive (Step 2.2, plan §8). Empty array when the person has no PersonRole
   // rows yet — render the legacy display + a "role mapping pending" note.
   roles?: PersonRoleSummary[];
+  /** Server-derived PE-page CRM link gate (Phase I / closeout Phase 6). */
+  crmLinkBlocked?: boolean;
+  crmLinkBlockedReason?: string | null;
+}
+
+export interface ProgramElementDataIssue {
+  id: string;
+  peCode: string;
+  fy: number | null;
+  fieldName: string | null;
+  issueType: string;
+  description: string;
+  suggestedSourceUrl: string | null;
+  status: string;
+  createdAt: string;
 }
 
 export type ProgramElementSourceField =
@@ -685,6 +737,10 @@ export interface ProvisionItem {
   matchBasis: string;
   reviewStatus: string;
   confidence: number;
+  /** pe_specific = names this PE/project; program_level = sibling-scope candidate. */
+  matchScope?: 'pe_specific' | 'program_level';
+  /** Non-null when matchScope is program_level — must be displayed, not endless. */
+  attributionCaveat?: string | null;
 }
 
 // ── SAM.gov procurement opportunities (Step 3.1) ─────────────────────────────

@@ -1,22 +1,16 @@
+import { createHash } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { normalizeMoneyToMillions } from '@capiro/shared/money';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { MANUAL_OVERRIDE_SOURCE, SOURCE_PRIORITY } from '../types.js';
-
-/**
- * Cross-source reconciliation (Step 29, Boss Plan §4.1).
- *
- * Every program_element_year write routes through here. For each numeric field we:
- *   1. Log the per-source value to program_element_year_source_value.
- *   2. Compare against the current canonical value.
- *   3. Queue a reconciliation_review_queue entry when a conflict crosses threshold:
- *        - enacted field: ANY non-zero conflict (enacted is ground truth — any
- *          disagreement must be reviewed regardless of magnitude), OR
- *        - other fields: relative delta > 10%.
- *
- * The canonical value itself is owned by the writer's source-priority logic; this
- * service only logs + flags. A lower-priority source never overwrites canonical,
- * but its conflicting value is still logged and (if over threshold) queued.
- */
+import {
+  authorityForSource,
+  mayOwnCanonicalField,
+  type CanonicalPeYearField,
+  type PeSourceAuthority,
+} from '../program-element-field-ownership.js';
+import { sourceRank } from '../source-priority.js';
+import type { PeYearWriteContext } from '../types.js';
 
 export const RECONCILE_FIELDS = [
   'request',
@@ -32,32 +26,36 @@ export const RECONCILE_FIELDS = [
 ] as const;
 export type ReconcileField = (typeof RECONCILE_FIELDS)[number];
 
-const DELTA_THRESHOLD = 0.1; // 10% for non-enacted fields
+const DELTA_THRESHOLD = 0.1;
+
+type ReconciliationClient = Pick<
+  Prisma.TransactionClient,
+  'programElementYearSourceValue' | 'reconciliationReviewQueue'
+>;
 
 export interface ReconcileInput {
   peCode: string;
   fy: number;
-  source: string; // base source tag, e.g. 'hasc_report' (priority key)
-  /** Field → numeric value from this write (only fields the source set). */
+  source: string;
+  authority: PeSourceAuthority;
   values: Partial<Record<ReconcileField, number | null>>;
+  currentValues: Partial<Record<ReconcileField, number | null>>;
+  context?: PeYearWriteContext;
 }
 
 export interface FieldReconcileResult {
-  fieldName: string;
-  logged: boolean;
+  fieldName: ReconcileField;
+  observationId: string;
+  observationKey: string;
+  canonicalValueM: number;
+  mayOwn: boolean;
+  shouldWin: boolean;
   queued: boolean;
+  conflictType: 'value_conflict' | 'unauthorized_field_source' | null;
   deltaPct: number | null;
-  reason?: 'enacted_conflict' | 'over_threshold';
+  reason?: 'enacted_conflict' | 'over_threshold' | 'manual_override_protected';
 }
 
-/** Source-priority rank — lower index = higher priority (canonical wins). */
-export function sourceRank(source: string): number {
-  const base = source.replace(/_fy\d+$/i, ''); // strip _fy27 suffix if present
-  const idx = SOURCE_PRIORITY.indexOf(base as (typeof SOURCE_PRIORITY)[number]);
-  return idx === -1 ? SOURCE_PRIORITY.length : idx;
-}
-
-/** Relative delta between two numbers (|a-b| / max(|a|,|b|)); 0 when both 0. */
 export function relativeDelta(a: number, b: number): number {
   if (a === b) return 0;
   const denom = Math.max(Math.abs(a), Math.abs(b));
@@ -65,10 +63,6 @@ export function relativeDelta(a: number, b: number): number {
   return Math.abs(a - b) / denom;
 }
 
-/**
- * Pure threshold decision: given the canonical value and an incoming conflicting
- * value for a field, should it be queued for review?
- */
 export function shouldQueue(
   fieldName: string,
   canonical: number | null,
@@ -79,7 +73,6 @@ export function shouldQueue(
 
   const delta = relativeDelta(canonical, incoming);
   if (fieldName === 'enacted') {
-    // Any conflict on enacted is reviewable regardless of magnitude.
     return { queued: true, deltaPct: delta, reason: 'enacted_conflict' };
   }
   if (delta > DELTA_THRESHOLD) {
@@ -88,101 +81,255 @@ export function shouldQueue(
   return { queued: false, deltaPct: delta };
 }
 
+function stableNumber(value: number): string {
+  if (!Number.isFinite(value)) throw new TypeError(`Observation value must be finite: ${String(value)}`);
+  return new Prisma.Decimal(Object.is(value, -0) ? 0 : value).toString();
+}
+
+export function buildObservationKey(input: {
+  sourceDocumentId?: string | null;
+  source: string;
+  parseJobId?: string | null;
+  peCode: string;
+  fy: number;
+  fieldName: ReconcileField;
+  originalValue: number;
+  originalUnit: string;
+  canonicalValueM: number;
+  pageNumber?: number | null;
+  sourceSpanHash?: string | null;
+  extractorVersion?: string | null;
+}): string {
+  const tuple = [
+    input.sourceDocumentId ?? input.source,
+    input.parseJobId ?? '',
+    input.peCode,
+    input.fy,
+    input.fieldName,
+    stableNumber(input.originalValue),
+    input.originalUnit,
+    stableNumber(input.canonicalValueM),
+    input.pageNumber ?? '',
+    input.sourceSpanHash ?? '',
+    input.extractorVersion ?? '',
+  ];
+  return createHash('sha256').update(JSON.stringify(tuple)).digest('hex');
+}
+
 @Injectable()
 export class ReconciliationService {
   private readonly logger = new Logger(ReconciliationService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Reconcile an incoming write against canonical. Logs every field value to the
-   * source-value table and queues review entries for over-threshold conflicts.
-   * Returns per-field results (used by tests + writer instrumentation).
-   */
-  async reconcile(input: ReconcileInput): Promise<FieldReconcileResult[]> {
-    const canonical = await this.prisma.programElementYear.findUnique({
-      where: { peCode_fy: { peCode: input.peCode, fy: input.fy } },
-    });
-
+  async reconcile(
+    input: ReconcileInput,
+    client: ReconciliationClient = this.prisma as unknown as ReconciliationClient,
+  ): Promise<FieldReconcileResult[]> {
     const results: FieldReconcileResult[] = [];
 
-    for (const [fieldName, rawValue] of Object.entries(input.values)) {
-      const incoming = rawValue ?? null;
+    for (const fieldName of RECONCILE_FIELDS) {
+      const incoming = input.values[fieldName] ?? null;
       if (incoming === null) continue;
+      if (!Number.isFinite(incoming)) {
+        throw new TypeError(`${input.peCode} FY${input.fy} ${fieldName} must be finite`);
+      }
 
-      // 1. Log the per-source value.
-      await this.prisma.programElementYearSourceValue.create({
-        data: {
+      const original = input.context?.originalValues?.[fieldName] ?? {
+        value: incoming,
+        unit: 'millions' as const,
+      };
+      const normalized = normalizeMoneyToMillions(original.value, original.unit).valueM;
+      if (Math.abs(normalized - incoming) > 0.000001) {
+        throw new Error(
+          `Original-value provenance does not normalize to canonical value for ${input.peCode} FY${input.fy} ${fieldName}: original=${original.value} ${original.unit} normalized=${normalized} canonical=${incoming}`,
+        );
+      }
+
+      const observationKey = buildObservationKey({
+        sourceDocumentId: input.context?.sourceDocumentId,
+        source: input.source,
+        parseJobId: input.context?.parseJobId,
+        peCode: input.peCode,
+        fy: input.fy,
+        fieldName,
+        originalValue: original.value,
+        originalUnit: original.unit,
+        canonicalValueM: incoming,
+        pageNumber: input.context?.pageNumber,
+        sourceSpanHash: input.context?.sourceSpanHash,
+        extractorVersion: input.context?.extractorVersion,
+      });
+      const observedAt = new Date();
+      const observation = await client.programElementYearSourceValue.upsert({
+        where: { observationKey },
+        create: {
           peCode: input.peCode,
           fy: input.fy,
           fieldName,
           source: input.source,
-          valueJsonb: incoming,
+          valueJsonb: {
+            canonicalValueM: incoming,
+            originalValue: original.value,
+            originalUnit: original.unit,
+          },
           valueDecimal: incoming,
+          canonicalValueM: incoming,
+          originalValueDecimal: original.value,
+          originalUnit: original.unit,
+          sourceDocumentId: input.context?.sourceDocumentId ?? null,
+          parseJobId: input.context?.parseJobId ?? null,
+          pageNumber: input.context?.pageNumber ?? null,
+          sourceSpanHash: input.context?.sourceSpanHash ?? null,
+          extractorVersion: input.context?.extractorVersion ?? null,
+          observationKey,
           isWinner: false,
+          lastObservedAt: observedAt,
+          observationCount: 1,
+        },
+        update: {
+          lastObservedAt: observedAt,
+          observationCount: { increment: 1 },
+          sourceDocumentId: input.context?.sourceDocumentId ?? undefined,
+          parseJobId: input.context?.parseJobId ?? undefined,
+          pageNumber: input.context?.pageNumber ?? undefined,
+          sourceSpanHash: input.context?.sourceSpanHash ?? undefined,
+          extractorVersion: input.context?.extractorVersion ?? undefined,
+        },
+        select: {
+          id: true,
+          source: true,
+          sourceDocumentId: true,
+          isWinner: true,
         },
       });
 
-      // 2. Compare against canonical (DB value for this field, if any).
-      const canonicalValue = canonical
-        ? this.toNumber((canonical as Record<string, unknown>)[fieldName])
-        : null;
-
+      const currentWinner = await client.programElementYearSourceValue.findFirst({
+        where: {
+          peCode: input.peCode,
+          fy: input.fy,
+          fieldName,
+          isWinner: true,
+        },
+        orderBy: { lastObservedAt: 'desc' },
+        select: { id: true, source: true, sourceDocumentId: true, observationKey: true },
+      });
+      const incomingAuthority = input.authority ?? authorityForSource(input.source);
+      const mayOwn = mayOwnCanonicalField(incomingAuthority, fieldName);
+      const currentAuthority = currentWinner ? authorityForSource(currentWinner.source) : 'unknown';
+      const manualOverrideProtected =
+        currentAuthority === 'manual_override' && incomingAuthority !== 'manual_override';
+      const sameAuthorityTieBreakAllows =
+        !currentWinner ||
+        currentAuthority !== incomingAuthority ||
+        sourceRank(input.source) <= sourceRank(currentWinner.source);
+      const shouldWin = mayOwn && !manualOverrideProtected && sameAuthorityTieBreakAllows;
+      const canonicalValue = input.currentValues[fieldName] ?? null;
       const decision = shouldQueue(fieldName, canonicalValue, incoming);
-      // A capiro_admin override (manual_override) is authoritative — it is logged for
-      // history above but is never itself queued for review (Step 0.2).
-      const queued = decision.queued && input.source !== MANUAL_OVERRIDE_SOURCE;
 
-      // 3. Queue if over threshold. Dedup: don't re-queue an identical open entry.
-      if (queued) {
-        const existingOpen = await this.prisma.reconciliationReviewQueue.findFirst({
+      let conflictType: FieldReconcileResult['conflictType'] = null;
+      let reason: FieldReconcileResult['reason'] = decision.reason;
+      if (!mayOwn) conflictType = 'unauthorized_field_source';
+      else if (manualOverrideProtected) {
+        conflictType = 'value_conflict';
+        reason = 'manual_override_protected';
+      } else if (decision.queued && incomingAuthority !== 'manual_override') {
+        conflictType = 'value_conflict';
+      }
+
+      const reviewConflictType =
+        incomingAuthority !== 'manual_override' ? conflictType : null;
+      const queued = reviewConflictType !== null;
+      if (reviewConflictType) {
+        const existingOpen = await client.reconciliationReviewQueue.findFirst({
           where: {
             peCode: input.peCode,
             fy: input.fy,
             fieldName,
             conflictingSource: input.source,
+            conflictType: reviewConflictType,
             status: 'open',
           },
+          select: { id: true },
         });
-        if (!existingOpen) {
-          await this.prisma.reconciliationReviewQueue.create({
+        const reviewData = {
+          currentValue: canonicalValue === null ? null : stableNumber(canonicalValue),
+          currentSource: currentWinner?.source ?? null,
+          currentSourceDocumentId: currentWinner?.sourceDocumentId ?? null,
+          conflictingValue: stableNumber(incoming),
+          conflictingSourceDocumentId: input.context?.sourceDocumentId ?? null,
+          deltaPct: decision.deltaPct,
+          lastObservedAt: observedAt,
+        };
+        if (existingOpen) {
+          await client.reconciliationReviewQueue.update({
+            where: { id: existingOpen.id },
+            data: { ...reviewData, observationCount: { increment: 1 } },
+          });
+        } else {
+          await client.reconciliationReviewQueue.create({
             data: {
               peCode: input.peCode,
               fy: input.fy,
               fieldName,
-              currentValue: canonicalValue !== null ? String(canonicalValue) : null,
+              conflictType: reviewConflictType,
               conflictingSource: input.source,
-              conflictingValue: String(incoming),
-              deltaPct: decision.deltaPct,
               status: 'open',
+              observationCount: 1,
+              ...reviewData,
             },
           });
         }
         this.logger.warn(
-          `Reconciliation conflict queued: ${input.peCode} FY${input.fy} ${fieldName} ` +
-            `canonical=${canonicalValue} vs ${input.source}=${incoming} (${decision.reason})`,
+          `Reconciliation review refreshed: ${input.peCode} FY${input.fy} ${fieldName} ` +
+            `canonical=${canonicalValue} source=${currentWinner?.source ?? 'none'} ` +
+            `incoming=${incoming} source=${input.source} type=${reviewConflictType}`,
         );
       }
 
       results.push({
         fieldName,
-        logged: true,
+        observationId: observation.id,
+        observationKey,
+        canonicalValueM: incoming,
+        mayOwn,
+        shouldWin,
         queued,
+        conflictType,
         deltaPct: decision.deltaPct,
-        reason: decision.reason,
+        reason,
       });
     }
 
     return results;
   }
 
-  private toNumber(v: unknown): number | null {
-    if (v === null || v === undefined) return null;
-    if (typeof v === 'number') return Number.isFinite(v) ? v : null;
-    // Prisma Decimal → string/object with toString
-    const n = Number(
-      typeof v === 'object' && v !== null ? (v as { toString(): string }).toString() : v,
-    );
-    return Number.isFinite(n) ? n : null;
+  async applyWinnerFlags(
+    input: { peCode: string; fy: number; results: readonly FieldReconcileResult[] },
+    client: ReconciliationClient = this.prisma as unknown as ReconciliationClient,
+  ): Promise<void> {
+    for (const result of input.results) {
+      if (!result.shouldWin) {
+        await client.programElementYearSourceValue.update({
+          where: { observationKey: result.observationKey },
+          data: { isWinner: false },
+        });
+        continue;
+      }
+      await client.programElementYearSourceValue.updateMany({
+        where: {
+          peCode: input.peCode,
+          fy: input.fy,
+          fieldName: result.fieldName,
+          isWinner: true,
+          observationKey: { not: result.observationKey },
+        },
+        data: { isWinner: false },
+      });
+      await client.programElementYearSourceValue.update({
+        where: { observationKey: result.observationKey },
+        data: { isWinner: true },
+      });
+    }
   }
 }

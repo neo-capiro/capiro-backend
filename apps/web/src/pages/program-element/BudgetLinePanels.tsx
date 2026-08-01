@@ -31,6 +31,7 @@ import type {
   MaturityLadderData,
   RelationshipItem,
 } from './types.js';
+import { PeSecondaryFailed } from './PeSecondaryFailed.js';
 
 const REL_META: Record<string, { label: string; color: string }> = {
   rdte_to_procurement: { label: 'RDT&E → Procurement', color: '#1A6E78' },
@@ -52,12 +53,25 @@ export function LinkedLinesRail({
   relationships,
   loading,
   onOpen,
+  errored = false,
+  onRetry,
 }: {
   relationships: RelationshipItem[] | undefined;
   loading: boolean;
   onOpen: (peCode: string) => void;
+  errored?: boolean;
+  onRetry?: () => void;
 }) {
   if (loading) return <Skeleton active paragraph={{ rows: 2 }} />;
+  if (errored) {
+    return (
+      <PeSecondaryFailed
+        label="linked lines"
+        testId="pe-secondary-failed-linked-lines"
+        onRetry={onRetry}
+      />
+    );
+  }
   const links = relationships ?? [];
   if (links.length === 0) {
     return (
@@ -73,13 +87,21 @@ export function LinkedLinesRail({
         const meta = REL_META[lk.relType] ?? { label: lk.relType, color: 'var(--ink-3)' };
         return (
           <button
-            key={lk.id}
-            type="button"
-            className={`bl-linked-card${lk.status === 'candidate' ? ' cand' : ''}`}
-            style={{ ['--rel' as string]: meta.color }}
-            onClick={() => onOpen(lk.line.peCode)}
-            title={lk.evidence}
-          >
+                      key={lk.id}
+                      type="button"
+                      className={`bl-linked-card${lk.status === 'candidate' ? ' cand' : ''}`}
+                      style={{ ['--rel' as string]: meta.color }}
+                      onClick={() => onOpen(lk.line.peCode)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onOpen(lk.line.peCode);
+                        }
+                      }}
+                      title={lk.evidence}
+                      aria-label={`Open related line ${lk.line.peCode}: ${lk.line.title}`}
+                      data-testid={`pe-linked-line-${lk.line.peCode}`}
+                    >
             <div className="bl-lc-rel">
               <span className="bl-lc-dir">{lk.direction === 'in' ? '←' : '→'}</span>
               {meta.label}
@@ -106,13 +128,26 @@ export function RelationshipGraphPanel({
   relationships,
   loading,
   onOpen,
+  errored = false,
+  onRetry,
 }: {
   peCode: string;
   relationships: RelationshipItem[] | undefined;
   loading: boolean;
   onOpen: (peCode: string) => void;
+  errored?: boolean;
+  onRetry?: () => void;
 }) {
   if (loading) return <Skeleton active paragraph={{ rows: 5 }} />;
+  if (errored) {
+    return (
+      <PeSecondaryFailed
+        label="relationship graph"
+        testId="pe-secondary-failed-relationships"
+        onRetry={onRetry}
+      />
+    );
+  }
   const links = relationships ?? [];
   if (links.length === 0) {
     return (
@@ -202,12 +237,19 @@ export function BudgetActionsFeed({
   actions,
   loading,
   limit,
+  errored = false,
+  onRetry,
 }: {
   actions: BudgetActionItem[] | undefined;
   loading: boolean;
   limit?: number;
+  errored?: boolean;
+  onRetry?: () => void;
 }) {
   if (loading) return <Skeleton active paragraph={{ rows: 3 }} />;
+  if (errored) {
+    return <PeSecondaryFailed label="budget actions" testId="pe-secondary-failed-actions" onRetry={onRetry} />;
+  }
   const rows = (actions ?? []).slice(0, limit ?? actions?.length ?? 0);
   if (rows.length === 0) {
     return (
@@ -252,11 +294,20 @@ const INC_TIER: Record<string, { color: string; label: string }> = {
 export function IncumbentMapPanel({
   incumbents,
   loading,
+  errored = false,
+  onRetry,
 }: {
   incumbents: IncumbentItem[] | undefined;
   loading: boolean;
+  errored?: boolean;
+  onRetry?: () => void;
 }) {
   if (loading) return <Skeleton active paragraph={{ rows: 4 }} />;
+  if (errored) {
+    return (
+      <PeSecondaryFailed label="incumbent map" testId="pe-secondary-failed-incumbents" onRetry={onRetry} />
+    );
+  }
   const rows = incumbents ?? [];
   return (
     <>
@@ -325,10 +376,24 @@ export function IncumbentMapPanel({
 export function MaturityLadderPanel({
   ladder,
   compact,
+  errored = false,
+  onRetry,
 }: {
   ladder: MaturityLadderData | null | undefined;
   compact?: boolean;
+  /** Phase 5 B14 — intelligence request failed; never show derivation-pending Empty. */
+  errored?: boolean;
+  onRetry?: () => void;
 }) {
+  if (errored) {
+    return (
+      <PeSecondaryFailed
+        label="transition maturity"
+        testId="pe-secondary-failed-intelligence-maturity"
+        onRetry={onRetry}
+      />
+    );
+  }
   if (!ladder || !Array.isArray(ladder.rungs) || ladder.rungs.length === 0) {
     return (
       <Empty
@@ -353,9 +418,23 @@ export function MaturityLadderPanel({
 // ── Appropriability (F27) ────────────────────────────────────────────────────
 export function AppropriabilityPanel({
   approp,
+  errored = false,
+  onRetry,
 }: {
   approp: AppropriabilityData | null | undefined;
+  /** Phase 5 B14 — intelligence request failed; never show derivation-pending Empty. */
+  errored?: boolean;
+  onRetry?: () => void;
 }) {
+  if (errored) {
+    return (
+      <PeSecondaryFailed
+        label="appropriability"
+        testId="pe-secondary-failed-intelligence-appropriability"
+        onRetry={onRetry}
+      />
+    );
+  }
   if (!approp || (!approp.factors?.length && !approp.unscored?.length)) {
     return (
       <Empty description="Appropriability not yet scored — runs with the nightly intelligence derivation once the line has enough evidence." />

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ProgramElementWriterService } from '../program-element-writer.service.js';
+import type { PeYearWriteContext } from '../types.js';
 import {
   CommitteeReportParserBase,
   parseAmount,
@@ -46,9 +47,14 @@ export class ArmedServicesReportParserService extends CommitteeReportParserBase 
   }
 
   /** Load parsed marks for a chamber + fiscal year. */
-  async load(records: ArmedServicesMarkRecord[], chamber: Chamber, fy: number): Promise<LoadResult> {
+  async load(
+    records: ArmedServicesMarkRecord[],
+    chamber: Chamber,
+    fy: number,
+    writeContext?: PeYearWriteContext,
+  ): Promise<LoadResult> {
     const source = reportSource(chamber, fy);
     const markField = chamber === 'HASC' ? 'hascMark' : 'sascMark';
-    return this.loadRecords(records, source, markField);
+    return this.loadRecords(records, source, markField, writeContext);
   }
 }

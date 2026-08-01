@@ -1,0 +1,44 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "scripts/lib/pe-production-scripts.ts",
+    "scripts/lib/pe-production-scripts.spec.ts",
+    "scripts/lib/pe-exact-sha-loader-contract.ts",
+    "scripts/lib/defense-budget-commit.ts",
+    "scripts/lib/defense-budget-ingest-mode.ts",
+    "scripts/lib/pe-trust-diagnostics.ts",
+    "scripts/lib/pe-trust-diagnostics.spec.ts",
+    "scripts/lib/pe-migration-guards.ts",
+    "scripts/lib/pe-migration-guards.spec.ts",
+    "scripts/verify-pe-phase-9.ts",
+    "scripts/verify-pe-phase-10.ts",
+    "scripts/lib/pe-phase-9-rehearsal.spec.ts",
+    "scripts/lib/pe-phase-9-rehearsal.ts",
+    "scripts/lib/pe-phase-9-rehearsal-catalog.ts",
+    "scripts/lib/pe-phase-10-staging-acceptance.spec.ts",
+    "scripts/lib/pe-phase-10-staging-acceptance.ts",
+    "scripts/lib/pe-phase-10-staging-acceptance-catalog.ts",
+    "scripts/lint-pe-scripts.ts",
+    "scripts/verify-pe-phase-k.ts",
+    "scripts/verify-pe-migration-guards.ts",
+    "scripts/verify-pe-phase-a-safety.ts",
+    "scripts/verify-pe-phase-e-exact-sha.ts",
+    "src/intelligence/metrics/accuracy-metrics.ts",
+    "src/intelligence/metrics/accuracy-metrics.spec.ts",
+    "src/program-element/pe-trust-metric-catalog.ts",
+    "src/program-element/pe-trust-metric-catalog.spec.ts",
+    "src/program-element/program-element-metrics.service.ts",
+    "src/program-element/program-element-metrics.service.spec.ts",
+    "scripts/pe-phase-10-live-proofs.ts",
+    "scripts/lib/pe-phase-10-ship.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

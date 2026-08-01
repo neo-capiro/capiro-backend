@@ -1,6 +1,7 @@
-import { Avatar, Button, Card, Empty, Skeleton, Tag, Typography } from 'antd';
+import { Avatar, Button, Card, Empty, Skeleton, Tag, Tooltip, Typography } from 'antd';
 import { ExportOutlined } from '@ant-design/icons';
 import type { PersonRoleSummary } from './types.js';
+import { PeSecondaryFailed } from './PeSecondaryFailed.js';
 
 const { Text, Link } = Typography;
 
@@ -20,6 +21,9 @@ export interface ProgramTeamPerson {
   // Step 2.2 (plan §8): people hang off OFFICES and ROLES, never directly off a PE.
   // Empty/absent → render the legacy display + a muted "role mapping pending" note.
   roles?: PersonRoleSummary[];
+  /** Server-derived PE-page CRM link gate. */
+  crmLinkBlocked?: boolean;
+  crmLinkBlockedReason?: string | null;
 }
 
 // contactUse → AntD Tag color. Procurement-sensitive / quarantined buckets read
@@ -59,6 +63,14 @@ function sourceHost(role: PersonRoleSummary): string | null {
 export interface ProgramTeamPanelProps {
   personnel: ProgramTeamPerson[];
   loading?: boolean;
+  /** True when the personnel query failed — must not look like empty roster. */
+  errored?: boolean;
+  onRetry?: () => void;
+  /**
+   * @deprecated Phase 5 — fabricated roster estimates removed. If provided and
+   * larger than the identified roster, it is ignored so the UI never invents
+   * headcount beyond identified personnel.
+   */
   estimatedTotal?: number;
   onViewAllSources?: () => void;
   onLinkCrmContact?: (personId: string) => void;
@@ -112,7 +124,9 @@ function formatDate(value: string): string {
 export function ProgramTeamPanel({
   personnel,
   loading = false,
-  estimatedTotal,
+  errored = false,
+  onRetry,
+  estimatedTotal: _estimatedTotalIgnored,
   onViewAllSources,
   onLinkCrmContact,
 }: ProgramTeamPanelProps) {
@@ -124,7 +138,15 @@ export function ProgramTeamPanel({
     );
   }
 
-  const total = estimatedTotal ?? personnel.length;
+  if (errored) {
+    return (
+      <PeSecondaryFailed label="program team" testId="pe-secondary-failed-personnel" onRetry={onRetry} />
+    );
+  }
+
+
+  // Phase 5: show only identified personnel counts — never "~N known" fabrications.
+  void _estimatedTotalIgnored;
 
   return (
     <Card
@@ -132,8 +154,10 @@ export function ProgramTeamPanel({
       title="Program team"
       extra={
         <span className="pe-team-extra">
-          <Text type="secondary">
-            {personnel.length} of ~{total} known
+          <Text type="secondary" data-testid="pe-team-identified-count">
+            {personnel.length === 1
+              ? '1 identified person'
+              : `${personnel.length} identified people`}
           </Text>
           <Link onClick={onViewAllSources}>View all sources →</Link>
         </span>
@@ -218,14 +242,46 @@ export function ProgramTeamPanel({
                     Last seen {formatDate(person.lastSeenAt)} · {person.sourceCount} sources
                   </span>
                 </div>
-                <Button
-                  className="pe-link-btn"
-                  size="small"
-                  icon={<ExportOutlined aria-hidden />}
-                  onClick={() => onLinkCrmContact?.(person.id)}
-                >
-                  Link
-                </Button>
+                {(() => {
+                  const blocked = person.crmLinkBlocked === true;
+                  const reason =
+                    person.crmLinkBlockedReason?.trim() ||
+                    'CRM linking is blocked for this person on this Program Element.';
+                  const btn = (
+                    <Button
+                      className="pe-link-btn"
+                      size="small"
+                      icon={<ExportOutlined aria-hidden />}
+                      disabled={blocked || !onLinkCrmContact}
+                      aria-disabled={blocked || !onLinkCrmContact}
+                      title={blocked ? reason : 'Link to CRM contact'}
+                      aria-label={
+                        blocked
+                          ? `Link unavailable. ${reason}`
+                          : `Link ${person.fullName} to CRM contact`
+                      }
+                      data-testid={
+                        blocked
+                          ? `pe-crm-link-blocked-${person.id}`
+                          : `pe-crm-link-${person.id}`
+                      }
+                      onClick={() => {
+                        if (!blocked) onLinkCrmContact?.(person.id);
+                      }}
+                    >
+                      Link
+                    </Button>
+                  );
+                  return blocked ? (
+                    <Tooltip title={reason}>
+                      <span className="pe-crm-link-wrap" data-testid={`pe-crm-link-reason-${person.id}`}>
+                        {btn}
+                      </span>
+                    </Tooltip>
+                  ) : (
+                    btn
+                  );
+                })()}
               </div>
             );
           })}

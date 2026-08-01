@@ -1,12 +1,15 @@
 import { Card, Empty, Skeleton, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { ProgramElementProject } from './types.js';
+import { PeSecondaryFailed } from './PeSecondaryFailed.js';
 
 const { Text, Paragraph } = Typography;
 
 export interface ProjectsPanelProps {
   projects: ProgramElementProject[] | null | undefined;
   loading?: boolean;
+  errored?: boolean;
+  onRetry?: () => void;
 }
 
 /** Open-at-page deep link for a project's R-2A citation. */
@@ -19,7 +22,7 @@ export function projectSourceHref(p: Pick<ProgramElementProject, 'sourceUrl' | '
  * Step 1.2 — R-2A projects/sub-elements for a PE. Each row deep-links to the exact exhibit
  * page; the mission narrative is collapsible. Honest empty state when no projects exist.
  */
-export function ProjectsPanel({ projects, loading = false }: ProjectsPanelProps) {
+export function ProjectsPanel({ projects, loading = false, errored = false, onRetry }: ProjectsPanelProps) {
   if (loading) {
     return (
       <Card title="Projects (R-2A)">
@@ -27,6 +30,13 @@ export function ProjectsPanel({ projects, loading = false }: ProjectsPanelProps)
       </Card>
     );
   }
+
+  if (errored) {
+    return (
+      <PeSecondaryFailed label="R-2A projects" testId="pe-secondary-failed-projects" onRetry={onRetry} />
+    );
+  }
+
 
   const rows = Array.isArray(projects) ? projects : [];
   if (rows.length === 0) {

@@ -156,6 +156,8 @@ describe('FyHistoryChart', () => {
   });
 
   test('tooltip shows all marks with source attribution', () => {
+    // Phase 5 B5: fixture reflects post-substitution-removal shape — null enacted,
+    // projected=false, enactedSource not 'projected'. Must not render Enacted (Projected).
     render(
       <TooltipContent
         active
@@ -164,10 +166,10 @@ describe('FyHistoryChart', () => {
             payload: {
               fy: 2027,
               request: 278.5,
-              enacted: 278.5,
+              enacted: null,
               funding: 278.5,
-              fundingStage: 'Pending',
-              projected: true,
+              fundingStage: 'Requested',
+              projected: false,
               requestSource: 'rdoc',
               hascMark: null,
               sascMark: null,
@@ -175,7 +177,7 @@ describe('FyHistoryChart', () => {
               sacDMark: null,
               conference: null,
               ndaaConference: null,
-              enactedSource: 'projected',
+              enactedSource: 'n/a',
               hascSource: 'n/a',
               sascSource: 'n/a',
               hacDSource: 'n/a',
@@ -190,17 +192,21 @@ describe('FyHistoryChart', () => {
     );
 
     expect(screen.getByText(/FY 2027/i)).toBeInTheDocument();
-    expect(screen.getByText(/Request/i)).toBeInTheDocument();
-    expect(screen.getByText(/HASC/i)).toBeInTheDocument();
-    expect(screen.getByText(/SASC/i)).toBeInTheDocument();
-    expect(screen.getByText(/HAC-D/i)).toBeInTheDocument();
-    expect(screen.getByText(/SAC-D/i)).toBeInTheDocument();
-    expect(screen.getByText(/Conference/i)).toBeInTheDocument();
-    expect(screen.getByText(/Enacted \(Projected\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/\[rdoc\]/i)).toBeInTheDocument();
-    expect(screen.getByText(/\[projected\]/i)).toBeInTheDocument();
-  });
-});
+        // Exact label match — avoid /Request/i matching "Requested" stage source tag.
+        expect(screen.getByText('Request')).toBeInTheDocument();
+        expect(screen.getByText(/HASC/i)).toBeInTheDocument();
+        expect(screen.getByText(/SASC/i)).toBeInTheDocument();
+        expect(screen.getByText(/HAC-D/i)).toBeInTheDocument();
+        expect(screen.getByText(/SAC-D/i)).toBeInTheDocument();
+        expect(screen.getByText(/Conference/i)).toBeInTheDocument();
+        expect(screen.getByText('Enacted')).toBeInTheDocument();
+        expect(screen.queryByText(/Enacted \(Projected\)/i)).not.toBeInTheDocument();
+        expect(screen.getByText(/Authoritative \(stage\)/i)).toBeInTheDocument();
+        expect(screen.getByText(/\[rdoc\]/i)).toBeInTheDocument();
+        // Must not label any stage with [projected] when toChartPoint keeps projected=false.
+        expect(screen.queryByText(/\[projected\]/i)).not.toBeInTheDocument();
+      });
+    });
 
 describe('toChartPoint — shared funding-model precedence', () => {
   test('committee mark drives the bar when nothing final exists (E-7 FY27 shape)', () => {
@@ -230,9 +236,25 @@ describe('toChartPoint — shared funding-model precedence', () => {
     expect(p.fundingStage).toBe('Requested');
   });
 
-  test('empty year → Pending, funding 0', () => {
-    const p = toChartPoint(row(2030, {}));
-    expect(p.funding).toBe(0);
-    expect(p.fundingStage).toBe('Pending');
+  test('empty year → Pending, funding null (not coerced to 0)', () => {
+      const p = toChartPoint(row(2030, {}));
+      expect(p.funding).toBeNull();
+      expect(p.fundingStage).toBe('Pending');
+      expect(p.enacted).toBeNull();
+      expect(p.request).toBeNull();
+    });
+
+    test('never substitutes request for missing enacted', () => {
+      const p = toChartPoint(row(2027, { request: 100, enacted: null }));
+      expect(p.enacted).toBeNull();
+      expect(p.rawEnacted).toBeNull();
+      expect(p.funding).toBe(100);
+      expect(p.projected).toBe(false);
+    });
+
+    test('preserves explicit zero request', () => {
+      const p = toChartPoint(row(2027, { request: 0, sascMark: 10 }));
+      expect(p.request).toBe(0);
+      expect(p.funding).toBe(10);
+    });
   });
-});

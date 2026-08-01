@@ -130,16 +130,41 @@ describe('ProgramElementReadService.resolveReconciliation', () => {
   });
 });
 
-/** Minimal in-memory Prisma surface for the writer's upsertProgramElementYear path. */
+/** Minimal in-memory transaction-client surface for the writer path. */
 function makeWriterPrisma(seedYear: Record<string, unknown>) {
-  const years = new Map<string, Record<string, unknown>>([[`${seedYear.peCode}:${seedYear.fy}`, { ...seedYear }]]);
+  const years = new Map<string, Record<string, unknown>>([
+    [`${seedYear.peCode}:${seedYear.fy}`, { ...seedYear }],
+  ]);
   const sourceValues: Array<Record<string, unknown>> = [
-    // Pre-existing winning row from the committee load.
-    { id: 'sv0', peCode: seedYear.peCode, fy: seedYear.fy, fieldName: '__row__', source: 'hasc_report', isWinner: true },
+    {
+      id: 'sv0',
+      observationKey: 'legacy:sv0',
+      peCode: seedYear.peCode,
+      fy: seedYear.fy,
+      fieldName: 'hascMark',
+      source: 'hasc_report',
+      valueDecimal: new Prisma.Decimal(100),
+      canonicalValueM: new Prisma.Decimal(100),
+      isWinner: true,
+      recordedAt: new Date('2026-07-01T00:00:00Z'),
+    },
   ];
   const queue: Array<Record<string, unknown>> = [];
+  const outboxes: Array<Record<string, unknown>> = [];
   const key = (peCode: string, fy: number) => `${peCode}:${fy}`;
+
+  const matches = (row: Record<string, unknown>, where: Record<string, unknown>): boolean =>
+    Object.entries(where).every(([field, expected]) => {
+      const actual = row[field];
+      if (expected && typeof expected === 'object' && !Array.isArray(expected)) {
+        const condition = expected as Record<string, unknown>;
+        if ('not' in condition) return actual !== condition.not;
+      }
+      return actual === expected;
+    });
+
   const prisma = {
+    $queryRaw: async () => [],
     programElementYear: {
       findUnique: async ({ where }: { where: { peCode_fy: { peCode: string; fy: number } } }) =>
         years.get(key(where.peCode_fy.peCode, where.peCode_fy.fy)) ?? null,
@@ -147,7 +172,13 @@ function makeWriterPrisma(seedYear: Record<string, unknown>) {
         years.set(key(data.peCode as string, data.fy as number), { ...data });
         return data;
       },
-      update: async ({ where, data }: { where: { peCode_fy: { peCode: string; fy: number } }; data: Record<string, unknown> }) => {
+      update: async ({
+        where,
+        data,
+      }: {
+        where: { peCode_fy: { peCode: string; fy: number } };
+        data: Record<string, unknown>;
+      }) => {
         const k = key(where.peCode_fy.peCode, where.peCode_fy.fy);
         const next = { ...(years.get(k) ?? {}), ...data };
         years.set(k, next);
@@ -155,43 +186,83 @@ function makeWriterPrisma(seedYear: Record<string, unknown>) {
       },
     },
     programElementYearSourceValue: {
-      create: async ({ data }: { data: Record<string, unknown> }) => {
-        sourceValues.push({ id: `sv${sourceValues.length}`, ...data });
-        return data;
+      findFirst: async ({ where }: { where: Record<string, unknown> }) =>
+        sourceValues.find((row) => matches(row, where)) ?? null,
+      upsert: async ({
+        where,
+        create,
+        update,
+      }: {
+        where: { observationKey: string };
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      }) => {
+        let row = sourceValues.find((item) => item.observationKey === where.observationKey);
+        if (!row) {
+          row = {
+            id: `sv${sourceValues.length}`,
+            recordedAt: new Date(),
+            writtenAt: new Date(),
+            ...create,
+          };
+          sourceValues.push(row!);
+        } else {
+          Object.assign(row, update);
+        }
+        return row;
       },
-      updateMany: async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+      updateMany: async ({
+        where,
+        data,
+      }: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+      }) => {
         let count = 0;
-        for (const sv of sourceValues) {
-          if (
-            sv.peCode === where.peCode &&
-            sv.fy === where.fy &&
-            sv.fieldName === where.fieldName &&
-            sv.isWinner === where.isWinner
-          ) {
-            Object.assign(sv, data);
+        for (const row of sourceValues) {
+          if (matches(row, where)) {
+            Object.assign(row, data);
             count += 1;
           }
         }
         return { count };
       },
+      update: async ({
+        where,
+        data,
+      }: {
+        where: { observationKey: string };
+        data: Record<string, unknown>;
+      }) => {
+        const row = sourceValues.find((item) => item.observationKey === where.observationKey)!;
+        Object.assign(row, data);
+        return row;
+      },
     },
     reconciliationReviewQueue: {
-      findFirst: async () => null,
-      create: async ({ data }: { data: Record<string, unknown> }) => (queue.push(data), data),
+      findFirst: async ({ where }: { where: Record<string, unknown> }) =>
+        queue.find((row) => matches(row, where)) ?? null,
+      create: async ({ data }: { data: Record<string, unknown> }) => {
+        const row = { id: `q${queue.length}`, ...data };
+        queue.push(row);
+        return row;
+      },
+      update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+        const row = queue.find((item) => item.id === where.id)!;
+        Object.assign(row, data);
+        return row;
+      },
+    },
+    programElementChangeOutbox: {
+      upsert: async ({ create }: { create: Record<string, unknown> }) => {
+        const row = { id: `outbox${outboxes.length}`, ...create };
+        outboxes.push(row);
+        return { id: row.id };
+      },
     },
     programElementQuarantine: { create: async () => ({}) },
-    programElementWatch: { findMany: async () => [] },
-    clientCapability: { findMany: async () => [] },
-    intelligenceChange: { create: async () => ({}) },
   };
-  // emitYearDeltaChange→getAffectedTenants reads RLS-forced tables through
-  // prisma.withSystem; mirror the withTenant mocks elsewhere by re-entering
-  // the same in-memory client as the tx.
-  const prismaWithSystem = {
-    ...prisma,
-    withSystem: async <T>(fn: (t: typeof prisma) => Promise<T>) => fn(prisma),
-  };
-  return { prisma: prismaWithSystem, years, sourceValues, queue, key };
+  return { prisma, years, sourceValues, queue, outboxes, key };
 }
 
 describe('writer-path consistency: accepting a conflict via manual_override', () => {
@@ -215,12 +286,12 @@ describe('writer-path consistency: accepting a conflict via manual_override', ()
     expect(Number(row.request)).toBe(200);
     expect((row.raw as { fieldSources: Record<string, string> }).fieldSources.hascMark).toBe(MANUAL_OVERRIDE_SOURCE);
 
-    // (b) is_winner flips: the new manual_override __row__ wins, the prior one is demoted.
-    const rowMarkers = sourceValues.filter((sv) => sv.fieldName === '__row__');
-    const winners = rowMarkers.filter((sv) => sv.isWinner);
+    // (b) is_winner flips at the exact field-observation level.
+    const fieldObservations = sourceValues.filter((sv) => sv.fieldName === 'hascMark');
+    const winners = fieldObservations.filter((sv) => sv.isWinner);
     expect(winners).toHaveLength(1);
     expect(winners[0]?.source).toBe(MANUAL_OVERRIDE_SOURCE);
-    expect(rowMarkers.find((sv) => sv.source === 'hasc_report')?.isWinner).toBe(false);
+    expect(fieldObservations.find((sv) => sv.source === 'hasc_report')?.isWinner).toBe(false);
 
     // (c) the override itself is never queued for review.
     expect(queue).toHaveLength(0);

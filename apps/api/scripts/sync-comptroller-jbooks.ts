@@ -13,12 +13,20 @@ import {
 } from '../src/program-element/budget-position-writer.js';
 import {
   upsertSourceDocument,
+  supersedeSourceDocumentHead,
   sha256OfFile,
   sha256OfBuffer,
   readDocumentToolVersion,
   type SourceDocumentClient,
 } from '../src/program-element/source-document/source-document-registry.js';
 import { classifyArtifact } from '../src/program-element/source-document/source-document-classify.js';
+import {
+  assertExactShaCommitAllowed,
+  auditArtifactQuality,
+  buildInspectReport,
+  resolvePeDollarLoaderPosture,
+  argValue as exactShaArgValue,
+} from './lib/pe-exact-sha-loader-contract.js';
 import {
   emitToplineCandidates,
   type ArtifactTopline,
@@ -94,7 +102,13 @@ async function download(url: string, dest: string): Promise<void> {
 }
 
 async function main() {
-  const commit = process.argv.includes('--commit');
+  const posture = resolvePeDollarLoaderPosture(process.argv);
+  if (posture === 'extract_only') {
+    throw new Error(
+      'sync-comptroller-jbooks.ts: --extract-only is not valid; use default inspect or --commit --approved-sha256 <sha>.',
+    );
+  }
+  const commit = posture === 'commit';
   const configPath = path.resolve('scripts/__config__/comptroller-document-urls.yaml');
   const extractor = path.resolve('scripts/__tools__/extract_jbook_r1.py');
   // Committed extraction artifact (Python/pdfplumber output). Preferred source so
@@ -117,6 +131,35 @@ async function main() {
     result = JSON.parse(stdout) as ExtractResult;
   }
   if (result.error) throw new Error(`extractor error: ${result.error}`);
+
+  const artifactExistsForSha = fs.existsSync(artifactPath);
+  const inspectSha = artifactExistsForSha
+    ? sha256OfFile(artifactPath)
+    : sha256OfBuffer(Buffer.from(JSON.stringify(result)));
+  const quality = auditArtifactQuality({ rowCount: result.rows.length });
+  if (!commit) {
+    console.log(JSON.stringify(buildInspectReport({
+      loader: 'sync-comptroller-jbooks.ts',
+      posture: 'inspect',
+      artifactPath: artifactExistsForSha ? artifactPath : '(live-extract)',
+      sha256: inspectSha,
+      byteSize: artifactExistsForSha ? fs.statSync(artifactPath).size : Buffer.byteLength(JSON.stringify(result)),
+      quality,
+      extra: {
+        sourceUrl: url,
+        pageCount: result.pageCount,
+        extracted_rows: result.rows.length,
+        unparsed_pages: result.unparsed_pages.length,
+      },
+    }), null, 2));
+    console.log('INSPECT — no writes. Re-run with --commit --approved-sha256 <sha above> to promote.');
+    return;
+  }
+  assertExactShaCommitAllowed({
+    actualSha256: inspectSha,
+    approvedSha256Raw: exactShaArgValue(process.argv, 'approved-sha256'),
+    quality: { rowCount: result.rows.length },
+  });
 
   const stats = {
     mode: commit ? 'COMMIT' : 'DRY_RUN',
@@ -142,12 +185,11 @@ async function main() {
     // Register the fingerprinted source document first; stamp its id on every citation
     // we write. Checksum-deduped + version-chained (see source-document-registry.ts).
     let sourceDocumentId: string | null = null;
+    let deferredSupersede: { prev: string; next: string } | null = null;
     if (commit) {
       const artifactExists = fs.existsSync(artifactPath);
       const cls = classifyArtifact(path.basename(artifactPath), { fy: 2027 });
-      const sha = artifactExists
-        ? sha256OfFile(artifactPath)
-        : sha256OfBuffer(Buffer.from(JSON.stringify(result)));
+      const sha = inspectSha;
       const reg = await upsertSourceDocument(prisma as unknown as SourceDocumentClient, {
         sourceKey: cls?.sourceKey ?? 'jbook_r1_fy2027',
         sha256: sha,
@@ -162,9 +204,12 @@ async function main() {
         artifactPath: artifactExists ? path.relative(process.cwd(), artifactPath) : null,
         extractionMethod: 'deterministic_pdf',
         extractionToolVersion: readDocumentToolVersion(result),
-        metadata: { exhibit: 'R-1', fy: 2027 },
-      });
+        metadata: { exhibit: 'R-1', fy: 2027, approvedSha256: inspectSha },
+      }, { deferSupersede: true });
       sourceDocumentId = reg.document.id;
+      if (reg.supersededDocument) {
+        deferredSupersede = { prev: reg.supersededDocument.id, next: reg.document.id };
+      }
       stats.sourceDocument = {
         id: reg.document.id,
         action: reg.created ? 'inserted' : 'deduped',
@@ -286,7 +331,15 @@ async function main() {
       { commit },
     );
 
-    console.log(JSON.stringify({ ...stats, toplines }, null, 2));
+    if (deferredSupersede) {
+      await supersedeSourceDocumentHead(
+        prisma as unknown as SourceDocumentClient,
+        deferredSupersede.prev,
+        deferredSupersede.next,
+      );
+    }
+
+    console.log(JSON.stringify({ ...stats, sha256: inspectSha, toplines }, null, 2));
   } finally {
     await prisma.onModuleDestroy();
   }

@@ -4,6 +4,8 @@ import {
   ContactUseInput,
   RoleType,
   classifyContactUse,
+  crmLinkBlockedReason,
+  isCrmLinkBlocked,
   isExcludedFromRecommendations,
   isLobbyingEligible,
 } from './contact-use.policy';
@@ -204,4 +206,32 @@ describe('contact-use policy', () => {
       );
     });
   });
+
+  describe('isCrmLinkBlocked', () => {
+    const cases: Array<{ contactUse: ContactUse; blocked: boolean }> = [
+      { contactUse: 'official_procurement_poc', blocked: true },
+      { contactUse: 'do_not_contact_procurement_sensitive', blocked: true },
+      { contactUse: 'candidate', blocked: true },
+      { contactUse: 'quarantined', blocked: true },
+      { contactUse: 'program_ownership_context', blocked: false },
+      { contactUse: 'lobbying_contact', blocked: false },
+      { contactUse: 'internal_owner', blocked: false },
+      { contactUse: 'relationship_owner', blocked: false },
+    ];
+
+    it.each(cases)('%j has expected CRM-link block', ({ contactUse, blocked }) => {
+      expect(isCrmLinkBlocked(contactUse)).toBe(blocked);
+      if (blocked) {
+        expect(crmLinkBlockedReason(contactUse).length).toBeGreaterThan(10);
+      }
+    });
+
+    it('context roles remain non-lobbying-eligible even when CRM link is allowed', () => {
+      expect(isCrmLinkBlocked('program_ownership_context')).toBe(false);
+      expect(isLobbyingEligible('program_ownership_context')).toBe(false);
+      expect(isCrmLinkBlocked('internal_owner')).toBe(false);
+      expect(isLobbyingEligible('internal_owner')).toBe(false);
+    });
+  });
+
 });

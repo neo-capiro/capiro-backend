@@ -11,6 +11,8 @@ export interface LinkCrmContactModalProps {
   open: boolean;
   personId: string | null;
   personName?: string | null;
+  /** Exact PE code from the watch page (required by CRM link gate). */
+  peCode: string;
   onClose: () => void;
   onLinked?: () => void;
 }
@@ -30,6 +32,7 @@ export function LinkCrmContactModal({
   open,
   personId,
   personName,
+  peCode,
   onClose,
   onLinked,
 }: LinkCrmContactModalProps) {
@@ -48,7 +51,7 @@ export function LinkCrmContactModal({
   const linkMutation = useMutation({
     mutationFn: (contactId: string) => {
       if (!personId) throw new Error('No person selected');
-      return linkProgramElementPersonToCrm(api, personId, contactId);
+      return linkProgramElementPersonToCrm(api, personId, contactId, peCode);
     },
     onSuccess: () => {
       message.success('Linked to CRM contact');

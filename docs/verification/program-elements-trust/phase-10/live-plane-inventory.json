@@ -1,0 +1,51 @@
+{
+  "accountId": "967807252336",
+  "apiServiceExists": true,
+  "apiTaskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
+  "auroraClusterId": "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv",
+  "auroraClusterLive": true,
+  "blockers": [],
+  "capturedAt": "2026-07-31T19:03:56Z",
+  "cfAuroraPhysicalId": "capiro-dev-data-auroracluster23d869c0-ltmz40k47ewv",
+  "computeStackStatus": "UPDATE_ROLLBACK_COMPLETE",
+  "dataStackStatus": "UPDATE_COMPLETE",
+  "devSecretNameCount": 10,
+  "ecsClusterExists": true,
+  "ecsClusterName": "capiro-dev",
+  "ecsClusterStatus": "ACTIVE",
+  "forbiddenClusterPresent": true,
+  "healthyCompute": true,
+  "networkStackStatus": "UPDATE_COMPLETE",
+  "planeName": "sole-live-env-dev",
+  "priorTaskDefs": [
+    {
+      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:89",
+      "family": "capiro-dev-api",
+      "image": null,
+      "revision": 89
+    },
+    {
+      "arn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
+      "family": "capiro-dev-web",
+      "image": null,
+      "revision": 23
+    }
+  ],
+  "probeOk": true,
+  "probeVersion": 2,
+  "region": "us-east-1",
+  "safety": {
+    "cdkDeploy": false,
+    "ecsUpdateService": false,
+    "runTaskMigrate": false,
+    "secretsGetValue": false
+  },
+  "stagingSecretNameCount": 10,
+  "warnings": [
+    "Compute stack status=UPDATE_ROLLBACK_COMPLETE — known drift; ECS live health authoritative",
+    "Forbidden clusters capiro-staging / capiro-prod-os-capiro are present; Phase 10 must not deploy to them"
+  ],
+  "webServiceExists": true,
+  "webTaskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web:23",
+  "workflowEnv": "dev"
+}

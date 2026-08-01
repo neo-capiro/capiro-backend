@@ -1,5 +1,6 @@
 import { Card, Empty, Skeleton, Space, Tag, Tooltip, Typography } from 'antd';
 import type { ProgramElementDelta } from './types.js';
+import { PeSecondaryFailed } from './PeSecondaryFailed.js';
 
 const { Text } = Typography;
 
@@ -7,6 +8,9 @@ export interface WhatChangedPanelProps {
   deltas: ProgramElementDelta[] | null | undefined;
   loading?: boolean;
   max?: number;
+
+  errored?: boolean;
+  onRetry?: () => void;
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -45,7 +49,10 @@ export function materialityColor(score: number): string {
  * Step 1.4 — "What changed": the top materiality-scored budget deltas for this PE
  * (type badge, from→to in $M + %, materiality score). Honest empty state.
  */
-export function WhatChangedPanel({ deltas, loading = false, max = 5 }: WhatChangedPanelProps) {
+export function WhatChangedPanel({ deltas, loading = false, max = 5,
+  errored = false,
+  onRetry,
+}: WhatChangedPanelProps) {
   if (loading) {
     return (
       <Card title="What changed">
@@ -53,6 +60,13 @@ export function WhatChangedPanel({ deltas, loading = false, max = 5 }: WhatChang
       </Card>
     );
   }
+
+  if (errored) {
+    return (
+      <PeSecondaryFailed label="what changed deltas" testId="pe-secondary-failed-deltas" onRetry={onRetry} />
+    );
+  }
+
 
   const rows = Array.isArray(deltas) ? deltas.slice(0, max) : [];
   if (rows.length === 0) {

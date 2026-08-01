@@ -11,6 +11,8 @@ replays against current DB state to compute the plan's **§22 accuracy targets**
 | `program-match.golden.json`      | PE→program precision      | ≥ 0.95     |
 | `person-role.golden.json`        | Person→role precision     | ≥ 0.97     |
 | `delta-classification.golden.json` | Delta classification    | ≥ 0.98     |
+| `grounded-field.golden.json`      | Grounded field (id/FY/field/SHA/span) | ≥ 0.99 |
+| _(separated families)_             | precision, recall, coverage, FP, FN | separate |
 
 ## ⚠️ These are SYNTHETIC placeholders — NOT human-verified
 
@@ -69,3 +71,21 @@ paste the resulting §22 table into the step's report.
 Each file is `{ "_note", "_schema", "rows": [...] }`. The `_schema` string documents
 the row shape and how `id` joins to live data. The harness reads `rows`; everything
 else is provenance/metadata for humans.
+
+
+## Phase K grounded field rows
+
+`grounded-field.golden.json` is the permanent-gate schema for exact:
+
+- identity (`peCode`)
+- FY
+- field / stage
+- source SHA-256
+- page / span
+
+AI-exported candidates must keep `humanReviewed: false` and a loud `syntheticWarning`.
+Human-reviewed rows must set `humanReviewed: true`, `reviewer`, `reviewedAt`, and a real 64-char
+`sourceSha256`, and must **not** carry `syntheticWarning`.
+
+The permanent gate (`verify:pe-phase-k` / `test:pe-trust`) **fails closed** if synthetic rows
+lose their warning or if any committed row falsely claims human review without provenance.

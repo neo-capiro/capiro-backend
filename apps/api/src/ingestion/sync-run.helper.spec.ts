@@ -123,6 +123,68 @@ describe('runWithSyncRun (Phase 0 shared watermark)', () => {
     expect(calls.update[0].data.errorCount).toBe(2);
   });
 
+  test('incomplete run records partial and persists its bounded reason even with zero errors', async () => {
+    const { prisma, calls } = makePrisma();
+    await runWithSyncRun(prisma, 'sync-sam-opportunities', async () => ({
+      inserted: 5000,
+      updated: 0,
+      skipped: 0,
+      errors: 0,
+      complete: false,
+      incompleteReason: 'SAM.gov single-day window 07/01/2026 exceeded capacity',
+    }));
+    expect(calls.update[0].data).toMatchObject({
+      status: 'partial',
+      errorCount: 0,
+      errorMessage: 'SAM.gov single-day window 07/01/2026 exceeded capacity',
+    });
+  });
+
+  test('lastSuccessfulWatermark ignores newer partial and success_with_errors rows', async () => {
+    const successAt = new Date('2026-07-01T00:00:00.000Z');
+    const partialAt = new Date('2026-07-02T00:00:00.000Z');
+    const warningAt = new Date('2026-07-03T00:00:00.000Z');
+    const rows = [
+      { status: 'success', startedAt: successAt },
+      { status: 'partial', startedAt: partialAt },
+      { status: 'success_with_errors', startedAt: warningAt },
+    ];
+    const prisma: SyncRunCapablePrisma = {
+      syncRun: {
+        async findFirst(args: unknown) {
+          const where = (args as { where?: { status?: string } }).where;
+          const candidates = rows
+            .filter((row) => row.status === where?.status)
+            .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+          return candidates[0] ?? null;
+        },
+        async create() {
+          return { id: 'unused' };
+        },
+        async update() {
+          return {};
+        },
+      },
+    };
+    expect(await lastSuccessfulWatermark(prisma, 'sync-sam-opportunities')).toEqual(successAt);
+  });
+
+  test('success_with_errors persists operator errorMessage when complete', async () => {
+    const { prisma, calls } = makePrisma();
+    await runWithSyncRun(prisma, 'geocode-facilities', async () => ({
+      inserted: 1,
+      updated: 0,
+      skipped: 0,
+      errors: 2,
+      errorMessage: 'Census 503 on facility X',
+    }));
+    expect(calls.update[0].data).toMatchObject({
+      status: 'success_with_errors',
+      errorCount: 2,
+      errorMessage: 'Census 503 on facility X',
+    });
+  });
+
   test('throwing fn records status=error and rethrows', async () => {
     const { prisma, calls } = makePrisma();
     await expect(
@@ -171,6 +233,30 @@ describe('runWithSyncRun observability (W4.3 / M5-G — pageable failures)', () 
       expect(m).toHaveLength(1);
       expect(m[0].error_count).toBeGreaterThanOrEqual(1);
       expect(m[0].source).toBe('sync-x');
+    } finally {
+      cap.restore();
+    }
+  });
+
+  test('an incomplete run emits exactly one metric with complete=false', async () => {
+    const cap = captureMetrics();
+    const { prisma } = makePrisma();
+    try {
+      await runWithSyncRun(prisma, 'sync-sam-opportunities', async () => ({
+        inserted: 4,
+        updated: 0,
+        skipped: 0,
+        errors: 0,
+        complete: false,
+        incompleteReason: 'single-day overflow',
+      }));
+      const metrics = cap.metrics();
+      expect(metrics).toHaveLength(1);
+      expect(metrics[0]).toMatchObject({
+        source: 'sync-sam-opportunities',
+        error_count: 0,
+        complete: false,
+      });
     } finally {
       cap.restore();
     }
