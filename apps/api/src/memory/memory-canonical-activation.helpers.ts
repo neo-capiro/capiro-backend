@@ -94,7 +94,7 @@ export function buildCanonicalGovernance(input: {
       : sourceKind === 'explicit_user'
         ? 'user_message'
         : sourceKind === 'settings_sections'
-          ? 'settings_editor'
+          ? 'approved_document_edit'
           : 'unknown';
 
   return {
