@@ -20,6 +20,8 @@ export interface MeriV2ControlStackProps extends cdk.StackProps {
   cfg: EnvConfig;
   cluster: ecs.ICluster;
   apiRepo: ecr.IRepository;
+  /** Exact release-SHA image tag. A mutable `latest` tag is refused when the monitor is armed. */
+  apiImageTag: string;
   securityGroup: ec2.ISecurityGroup;
   dbSecret: secretsmanager.ISecret;
   appDbSecret: secretsmanager.ISecret;
@@ -94,7 +96,7 @@ export class MeriV2ControlStack extends cdk.Stack {
     );
 
     this.taskDefinition.addContainer('meriv2-control-monitor', {
-      image: ecs.ContainerImage.fromEcrRepository(props.apiRepo, 'latest'),
+      image: ecs.ContainerImage.fromEcrRepository(props.apiRepo, props.apiImageTag),
       essential: true,
       logging: ecs.LogDrivers.awsLogs({ logGroup, streamPrefix: 'monitor' }),
       command: ['emit-meriv2-control-metrics'],
@@ -254,7 +256,11 @@ export class MeriV2ControlStack extends cdk.Stack {
         statistic: 'Sum',
         periodMinutes: 5,
         threshold: 1,
-        treatMissingData: cloudwatch.TreatMissingData.BREACHING,
+        // Intentional silence while the schedule is dark is healthy. Once armed,
+        // a missing heartbeat must alarm.
+        treatMissingData: props.monitorEnabled
+          ? cloudwatch.TreatMissingData.BREACHING
+          : cloudwatch.TreatMissingData.NOT_BREACHING,
       },
     ];
 
@@ -335,6 +341,10 @@ export class MeriV2ControlStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'ControlMonitorScheduleName', {
       value: this.schedule.ruleName,
       description: `MeriV2 control monitor schedule (enabled=${props.monitorEnabled})`,
+    });
+    new cdk.CfnOutput(this, 'ControlMonitorImageTag', {
+      value: props.apiImageTag,
+      description: 'API image tag bound to the MeriV2 control monitor task definition',
     });
   }
 }
