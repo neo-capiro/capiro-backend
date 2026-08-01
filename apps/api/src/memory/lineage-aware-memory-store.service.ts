@@ -21,9 +21,9 @@ interface DescendantIdentity {
  *
  * Immutable corrections use unique historical slugs. Settings and other catalog
  * callers continue to address the original type/slug, so this final store layer
- * follows `supersedes_id` to the active controlling descendant before returning
- * content. A superseded root is never presented as current truth merely because
- * it still owns the stable catalog slug. The behavior is tenant-canary scoped and
+ * resolves the lineage BEFORE the inherited governed read applies terminal-state
+ * suppression. Otherwise a superseded root would disappear before its active
+ * descendant could be discovered. The behavior is tenant-canary scoped and
  * byte-compatible with the inherited store for every unselected tenant.
  */
 @Injectable()
@@ -50,7 +50,6 @@ export class LineageAwareMemoryStoreService extends GovernedMemoryStoreService {
     type: MemoryItemType,
     slug: string,
   ): Promise<MemoryItem | null> {
-    const direct = await super.getByTypeSlug(type, slug);
     const ctx = this.lineageTenantCtx.require();
     if (
       !governedMemoryModeEnabledForTenant(
@@ -59,17 +58,10 @@ export class LineageAwareMemoryStoreService extends GovernedMemoryStoreService {
         process.env.MEMORY_GOVERNANCE_TENANTS,
       )
     ) {
-      return direct;
-    }
-    if (!direct) return null;
-    if (
-      direct.status === 'active' &&
-      ['active', 'stale', 'conflicted'].includes(direct.governedStatus ?? '')
-    ) {
-      return direct;
+      return super.getByTypeSlug(type, slug);
     }
 
-    const descendant = await this.lineagePrisma.withTenantUser(
+    const descendants = await this.lineagePrisma.withTenantUser(
       ctx.tenantId,
       ctx.userId,
       (tx: Prisma.TransactionClient) =>
@@ -77,7 +69,9 @@ export class LineageAwareMemoryStoreService extends GovernedMemoryStoreService {
           WITH RECURSIVE lineage AS (
             SELECT id
             FROM memory_items
-            WHERE id = ${direct.id}::uuid AND tenant_id = ${ctx.tenantId}::uuid
+            WHERE tenant_id = ${ctx.tenantId}::uuid
+              AND type = ${type}
+              AND slug = ${slug}
             UNION ALL
             SELECT child.id
             FROM memory_items child
@@ -94,9 +88,12 @@ export class LineageAwareMemoryStoreService extends GovernedMemoryStoreService {
           LIMIT 1
         `,
     );
-    const current = descendant[0];
-    if (!current) return null;
-    if (current.id === direct.id) return direct;
+    const current = descendants[0];
+    if (!current) {
+      // Preserve every inherited absence/visibility rule for files with no active
+      // controlling descendant (pending-only, revoked, hidden, or nonexistent).
+      return super.getByTypeSlug(type, slug);
+    }
     return super.getByTypeSlug(current.type, current.slug);
   }
 }
