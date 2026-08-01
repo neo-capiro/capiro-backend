@@ -1,5 +1,6 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
+import { runWithAssuranceRequestScope, type AssuranceSurface } from '@capiro/meriv2-core';
 import { TenantGuard } from '../../auth/tenant.guard.js';
 import { CurrentTenant } from '../../auth/current-tenant.decorator.js';
 import type { OrchestratorTenantContext } from '../../auth/tenant-context.js';
@@ -63,8 +64,14 @@ export class StrategyController {
     @CurrentTenant() tc: OrchestratorTenantContext,
     @Req() req: Request,
   ) {
-    const ctx = await this.resolver.resolve(tc, dto.clientId, 'strategy');
-    return this.scoped(req, () => this.assistant.draftDocument(ctx, dto));
+    const surface = documentAssuranceSurface(dto.kind);
+    return runWithAssuranceRequestScope(tc.tenantId, surface, async () => {
+      // Context Packet policy and assurance release policy must agree on the
+      // actual destination. An outreach artifact must not compile under the
+      // less-restrictive strategy surface merely because both share an endpoint.
+      const ctx = await this.resolver.resolve(tc, dto.clientId, surface);
+      return this.scoped(req, () => this.assistant.draftDocument(ctx, dto));
+    });
   }
 
   @Post('strategy-reference-assist')
@@ -87,6 +94,14 @@ export class StrategyController {
         )
       : exec();
   }
+}
+
+function documentAssuranceSurface(
+  kind: StrategyDocumentDraftInput['kind'],
+): Extract<AssuranceSurface, 'strategy' | 'outreach'> {
+  if (kind === 'workspace_draft') return 'strategy';
+  if (kind === 'outreach_record') return 'outreach';
+  throw new BadRequestException('Unsupported strategy document artifact kind');
 }
 
 function extractBearerToken(req: Request): string | null {
