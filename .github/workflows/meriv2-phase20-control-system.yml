@@ -1,0 +1,190 @@
+name: meriv2-phase20-control-system
+
+on:
+  push:
+    branches: [agent/meriv2-world-class-closeout]
+    paths:
+      - 'packages/meriv2-core/src/assurance/control-metrics*'
+      - 'packages/meriv2-core/src/assurance/risk-gate.ts'
+      - 'packages/meriv2-core/src/assurance/envelope.ts'
+      - 'apps/api/src/memory/memory-authorization.service.ts'
+      - 'apps/api/src/context/context-compiler.service.ts'
+      - 'apps/api/scripts/emit-meriv2-control-metrics.ts'
+      - 'apps/api/scripts/demo-meriv2-control-alarms.ts'
+      - 'apps/api/scripts/verify-meriv2-phase20-control-system.ts'
+      - 'apps/api/scripts/entrypoint.sh'
+      - 'infra/cdk/lib/meriv2-control-stack.ts'
+      - 'infra/cdk/bin/capiro.ts'
+      - 'docs/security/meriv2-memory-assurance-control-mapping.md'
+      - 'docs/runbooks/meriv2-memory-context-assurance-*.md'
+      - 'docs/runbooks/meriv2-memory-backfill.md'
+      - 'docs/runbooks/meriv2-policy-pack-operations.md'
+      - '.github/workflows/meriv2-phase20-control-system.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meriv2-phase20-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  control-system:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: capiro
+          POSTGRES_PASSWORD: capiro
+          POSTGRES_DB: capiro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U capiro -d capiro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: 'true'
+      NODE_OPTIONS: --max-old-space-size=4096
+      NODE_ENV: test
+      CAPIRO_ENV: test
+      DATABASE_URL: postgresql://capiro:capiro@127.0.0.1:5432/capiro?schema=public
+      PSQL_DATABASE_URL: postgresql://capiro:capiro@127.0.0.1:5432/capiro
+      CLERK_SECRET_KEY: sk_test_meriv2_phase20
+      CLERK_WEBHOOK_SIGNING_SECRET: whsec_meriv2_phase20
+      MERIV2_PHASE20_EVIDENCE: /tmp/meriv2-phase20-evidence
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate required Prisma clients
+        run: |
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
+          pnpm --filter @capiro/api-strategy exec prisma generate
+
+      - name: Build shared runtime packages
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/meriv2-core build
+
+      - name: Replay migrations on disposable PostgreSQL
+        run: pnpm --filter @capiro/api exec prisma migrate deploy
+
+      - name: Typecheck the control system
+        run: |
+          pnpm --filter @capiro/meriv2-core typecheck
+          pnpm --filter @capiro/api typecheck
+          pnpm --filter @capiro/infra-cdk typecheck
+
+      - name: Test bounded metrics and canonical decision boundaries
+        run: >-
+          pnpm --filter @capiro/meriv2-core exec jest --ci --runInBand
+          src/assurance/control-metrics.spec.ts
+          src/assurance/envelope.spec.ts
+          src/assurance/assurance.spec.ts
+
+      - name: Test memory authorization and Context Packet persistence boundaries
+        run: >-
+          pnpm --filter @capiro/api exec jest --ci --silent --runInBand
+          src/memory/memory-authorization.helpers.spec.ts
+          src/memory/memory-authorization.phase12.spec.ts
+          src/context/context-compiler-v2.service.spec.ts
+          src/context/context-persistence-boundary.spec.ts
+
+      - name: Verify Phase 20 source and runbook contract
+        run: pnpm --filter @capiro/api exec tsx scripts/verify-meriv2-phase20-control-system.ts
+
+      - name: Run read-only database monitor and validate EMF
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$MERIV2_PHASE20_EVIDENCE"
+          pnpm --filter @capiro/api exec tsx scripts/emit-meriv2-control-metrics.ts \
+            | tee "$MERIV2_PHASE20_EVIDENCE/control-monitor.log"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const lines = fs.readFileSync(process.env.MERIV2_PHASE20_EVIDENCE + '/control-monitor.log', 'utf8')
+            .trim().split(/\n+/).map((line) => { try { return JSON.parse(line); } catch { return null; } }).filter(Boolean);
+          const emf = lines.find((line) => line._aws?.CloudWatchMetrics?.[0]?.Namespace === 'Capiro/MeriV2Control');
+          if (!emf) throw new Error('No MeriV2 control EMF envelope was emitted.');
+          const names = emf._aws.CloudWatchMetrics[0].Metrics.map((metric) => metric.Name).sort();
+          const expected = [
+            'BackfillDriftCount','BackfillQuarantineCount','ConflictedMemoryCount',
+            'OutboxDeadLetterCount','OutboxOldestAgeSeconds','OutboxRetryingCount',
+            'PendingCandidateOldestAgeSeconds'
+          ].sort();
+          if (JSON.stringify(names) !== JSON.stringify(expected)) throw new Error(`Unexpected monitor metrics: ${names}`);
+          if (JSON.stringify(emf._aws.CloudWatchMetrics[0].Dimensions) !== JSON.stringify([['Environment']])) {
+            throw new Error('Control metrics have an unexpected dimension set.');
+          }
+          if (JSON.stringify(emf).match(/tenantId|userId|clientId|memoryItemId|sourceExcerpt|prompt/i)) {
+            throw new Error('Control evidence contains a forbidden content/cardinality key.');
+          }
+          NODE
+
+      - name: Validate guarded non-production alarm demonstration payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          MERIV2_ALARM_DEMO_CONFIRM=NONPRODUCTION_ONLY CAPIRO_ENV=test \
+            pnpm --filter @capiro/api exec tsx scripts/demo-meriv2-control-alarms.ts \
+            | tee "$MERIV2_PHASE20_EVIDENCE/alarm-demo.log"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const lines = fs.readFileSync(process.env.MERIV2_PHASE20_EVIDENCE + '/alarm-demo.log', 'utf8')
+            .trim().split(/\n+/).map((line) => { try { return JSON.parse(line); } catch { return null; } }).filter(Boolean);
+          const emf = lines.find((line) => line._aws?.CloudWatchMetrics?.[0]?.Namespace === 'Capiro/MeriV2Control');
+          if (!emf) throw new Error('Alarm demo emitted no EMF envelope.');
+          if (emf._aws.CloudWatchMetrics[0].Metrics.length !== 15) {
+            throw new Error(`Expected 15 control metrics, received ${emf._aws.CloudWatchMetrics[0].Metrics.length}`);
+          }
+          NODE
+          if MERIV2_ALARM_DEMO_CONFIRM=NONPRODUCTION_ONLY CAPIRO_ENV=dev \
+            pnpm --filter @capiro/api exec tsx scripts/demo-meriv2-control-alarms.ts \
+            >"$MERIV2_PHASE20_EVIDENCE/alarm-demo-dev-refusal.log" 2>&1; then
+            echo 'Alarm demo unexpectedly allowed the live dev environment' >&2
+            exit 1
+          fi
+
+      - name: Rehearse backfill rollback and policy lifecycle procedures
+        run: |
+          bash apps/api/scripts/test-memory-governance-backfill-rollback.sh \
+            | tee "$MERIV2_PHASE20_EVIDENCE/backfill-rollback.log"
+          bash apps/api/scripts/test-policy-pack-lifecycle-concurrency.sh \
+            | tee "$MERIV2_PHASE20_EVIDENCE/policy-lifecycle.log"
+
+      - name: Capture bounded Phase 20 summary
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "$MERIV2_PHASE20_EVIDENCE"
+          printf '{"marker":"MERIV2_PHASE20_WORKFLOW_COMPLETE","sha":"%s","productionAction":false}\n' \
+            "$GITHUB_SHA" > "$MERIV2_PHASE20_EVIDENCE/summary.json"
+
+      - name: Upload Phase 20 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meriv2-phase20-control-${{ github.sha }}
+          path: /tmp/meriv2-phase20-evidence
+          retention-days: 30
+          if-no-files-found: warn
