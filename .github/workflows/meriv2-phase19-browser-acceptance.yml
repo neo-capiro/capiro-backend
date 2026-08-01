@@ -1,0 +1,233 @@
+name: meriv2-phase19-browser-acceptance
+
+on:
+  push:
+    branches: [agent/meriv2-world-class-closeout]
+    paths:
+      - 'apps/api/scripts/seed-meriv2-phase19-browser-fixtures.ts'
+      - 'apps/web/scripts/meriv2-phase19-browser-acceptance.mjs'
+      - 'apps/web/phase19-assurance-fixture.html'
+      - 'apps/web/src/phase19/**'
+      - 'apps/web/vite.config.ts'
+      - '.github/workflows/meriv2-phase19-browser-acceptance.yml'
+      - 'docs/qa/meriv2-closeout-browser-acceptance.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  authenticated-browser-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      DATABASE_URL: postgresql://capiro:capiro@127.0.0.1:55459/capiro?schema=public
+      PSQL_DATABASE_URL: postgresql://capiro:capiro@127.0.0.1:55459/capiro
+      PHASE19_FIXTURE_FILE: /tmp/meriv2-phase19-fixtures.json
+      PHASE19_EVIDENCE_DIR: /tmp/meriv2-phase19-browser-evidence
+      PHASE19_BASE_URL: http://127.0.0.1:5173
+      PHASE19_API_TARGET: http://127.0.0.1:4000
+      VITE_API_BASE_URL: http://127.0.0.1:4000
+      WEB_ORIGIN: http://127.0.0.1:5173
+      API_PORT: '4000'
+      API_BIND_HOST: 127.0.0.1
+      NODE_ENV: test
+      LOG_LEVEL: info
+      MEMORY_GOVERNANCE_LIFECYCLE: enforce
+      MEMORY_GOVERNANCE_ENFORCE: enforce
+      MEMORY_GOVERNANCE_CENTER: enforce
+      MEMORY_CLIENT_REVIEW: enforce
+      MERIV2_CONTEXT_PACKET_V2: enforce
+      MEMORY_AUTOLEARN_GOVERNED: 'false'
+      MERI_POLICY_PACK_SOURCE: off
+      MERI_RELEASE_GATE: off
+      NOTES_ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      NOTES_ENCRYPTION_KEY_VERSION: phase19
+      OAUTH_TOKEN_ENCRYPTION_KEY: ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=
+      OAUTH_TOKEN_ENCRYPTION_KEY_VERSION: phase19
+      OAUTH_STATE_SECRET: phase19-local-only-oauth-state-secret-not-production
+
+      CLERK_SECRET_KEY: ${{ secrets.PHASE19_CLERK_SECRET_KEY }}
+      CLERK_WEBHOOK_SIGNING_SECRET: ${{ secrets.PHASE19_CLERK_WEBHOOK_SIGNING_SECRET }}
+      CLERK_JWT_ISSUER: ${{ secrets.PHASE19_CLERK_JWT_ISSUER }}
+      VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.PHASE19_CLERK_PUBLISHABLE_KEY }}
+      PHASE19_CLERK_ORG_ID: ${{ secrets.PHASE19_CLERK_ORG_ID }}
+
+      PHASE19_PROPOSER_CLERK_USER_ID: ${{ secrets.PHASE19_PROPOSER_CLERK_USER_ID }}
+      PHASE19_PROPOSER_EMAIL: ${{ secrets.PHASE19_PROPOSER_EMAIL }}
+      PHASE19_PROPOSER_COOKIE: ${{ secrets.PHASE19_PROPOSER_COOKIE }}
+      PHASE19_REVIEWER_CLERK_USER_ID: ${{ secrets.PHASE19_REVIEWER_CLERK_USER_ID }}
+      PHASE19_REVIEWER_EMAIL: ${{ secrets.PHASE19_REVIEWER_EMAIL }}
+      PHASE19_REVIEWER_COOKIE: ${{ secrets.PHASE19_REVIEWER_COOKIE }}
+      PHASE19_CLIENT_REVIEWER_CLERK_USER_ID: ${{ secrets.PHASE19_CLIENT_REVIEWER_CLERK_USER_ID }}
+      PHASE19_CLIENT_REVIEWER_EMAIL: ${{ secrets.PHASE19_CLIENT_REVIEWER_EMAIL }}
+      PHASE19_CLIENT_REVIEWER_COOKIE: ${{ secrets.PHASE19_CLIENT_REVIEWER_COOKIE }}
+      PHASE19_DENIED_CLERK_USER_ID: ${{ secrets.PHASE19_DENIED_CLERK_USER_ID }}
+      PHASE19_DENIED_EMAIL: ${{ secrets.PHASE19_DENIED_EMAIL }}
+      PHASE19_DENIED_COOKIE: ${{ secrets.PHASE19_DENIED_COOKIE }}
+
+      ANTHROPIC_API_KEY: ${{ secrets.PHASE19_ANTHROPIC_API_KEY }}
+      PHASE18_ACCEPTED_SHA: ${{ vars.PHASE18_ACCEPTED_SHA }}
+      PHASE19_LIVE_CONTEXT_PATH: ${{ vars.PHASE19_LIVE_CONTEXT_PATH }}
+      PHASE19_LIVE_CONTEXT_EXPECT: ${{ vars.PHASE19_LIVE_CONTEXT_EXPECT }}
+      PHASE19_LIVE_CHAT_PATH: ${{ vars.PHASE19_LIVE_CHAT_PATH }}
+      PHASE19_LIVE_CHAT_EXPECT: ${{ vars.PHASE19_LIVE_CHAT_EXPECT }}
+      PHASE19_LIVE_EDITOR_PATH: ${{ vars.PHASE19_LIVE_EDITOR_PATH }}
+      PHASE19_LIVE_EDITOR_EXPECT: ${{ vars.PHASE19_LIVE_EDITOR_EXPECT }}
+      PHASE19_LIVE_WORKSPACE_PATH: ${{ vars.PHASE19_LIVE_WORKSPACE_PATH }}
+      PHASE19_LIVE_WORKSPACE_EXPECT: ${{ vars.PHASE19_LIVE_WORKSPACE_EXPECT }}
+      PHASE19_LIVE_STRATEGY_PATH: ${{ vars.PHASE19_LIVE_STRATEGY_PATH }}
+      PHASE19_LIVE_STRATEGY_EXPECT: ${{ vars.PHASE19_LIVE_STRATEGY_EXPECT }}
+      PHASE19_LIVE_EXPORT_PATH: ${{ vars.PHASE19_LIVE_EXPORT_PATH }}
+      PHASE19_LIVE_EXPORT_EXPECT: ${{ vars.PHASE19_LIVE_EXPORT_EXPECT }}
+      PHASE19_LIVE_PROPOSAL_PATH: ${{ vars.PHASE19_LIVE_PROPOSAL_PATH }}
+      PHASE19_LIVE_PROPOSAL_EXPECT: ${{ vars.PHASE19_LIVE_PROPOSAL_EXPECT }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Require dedicated Clerk test identities and sessions
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            CLERK_SECRET_KEY CLERK_WEBHOOK_SIGNING_SECRET CLERK_JWT_ISSUER
+            VITE_CLERK_PUBLISHABLE_KEY PHASE19_CLERK_ORG_ID
+            PHASE19_PROPOSER_CLERK_USER_ID PHASE19_PROPOSER_EMAIL PHASE19_PROPOSER_COOKIE
+            PHASE19_REVIEWER_CLERK_USER_ID PHASE19_REVIEWER_EMAIL PHASE19_REVIEWER_COOKIE
+            PHASE19_CLIENT_REVIEWER_CLERK_USER_ID PHASE19_CLIENT_REVIEWER_EMAIL PHASE19_CLIENT_REVIEWER_COOKIE
+            PHASE19_DENIED_CLERK_USER_ID PHASE19_DENIED_EMAIL PHASE19_DENIED_COOKIE
+          )
+          for name in "${required[@]}"; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "Missing required Phase 19 secret: $name" >&2
+              exit 2
+            fi
+          done
+          for value in "$PHASE19_PROPOSER_EMAIL" "$PHASE19_REVIEWER_EMAIL" "$PHASE19_CLIENT_REVIEWER_EMAIL" "$PHASE19_DENIED_EMAIL"; do
+            [[ "$value" == *@* ]] || { echo 'Phase 19 email secret is malformed' >&2; exit 2; }
+          done
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma clients
+        run: |
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
+          pnpm --filter @capiro/intel-api exec prisma generate
+          pnpm --filter @capiro/onboard-api exec prisma generate
+          pnpm --filter @capiro/api-strategy exec prisma generate
+
+      - name: Build imported workspace packages
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/meriv2-core build
+
+      - name: Static validation
+        run: |
+          node --check apps/web/scripts/meriv2-phase19-browser-acceptance.mjs
+          pnpm --filter @capiro/api typecheck
+          pnpm --filter @capiro/web typecheck
+          pnpm --filter @capiro/web build
+
+      - name: Start disposable pgvector PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker rm -f meriv2-phase19-pg >/dev/null 2>&1 || true
+          docker run -d --name meriv2-phase19-pg \
+            -e POSTGRES_USER=capiro \
+            -e POSTGRES_PASSWORD=capiro \
+            -e POSTGRES_DB=capiro \
+            -p 55459:5432 \
+            pgvector/pgvector:pg16
+          for i in $(seq 1 60); do
+            docker exec meriv2-phase19-pg pg_isready -U capiro -d capiro >/dev/null 2>&1 && exit 0
+            sleep 1
+          done
+          echo 'PostgreSQL did not become ready' >&2
+          exit 1
+
+      - name: Apply all API migrations
+        run: pnpm --filter @capiro/api exec prisma migrate deploy
+
+      - name: Seed application-valid Phase 19 fixtures
+        run: pnpm --filter @capiro/api exec tsx scripts/seed-meriv2-phase19-browser-fixtures.ts
+
+      - name: Start real API and web applications
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$PHASE19_EVIDENCE_DIR"
+          nohup pnpm --filter @capiro/api dev >"$PHASE19_EVIDENCE_DIR/api.log" 2>&1 &
+          echo $! >"$PHASE19_EVIDENCE_DIR/api.pid"
+          nohup pnpm --filter @capiro/web dev -- --host 127.0.0.1 \
+            >"$PHASE19_EVIDENCE_DIR/web.log" 2>&1 &
+          echo $! >"$PHASE19_EVIDENCE_DIR/web.pid"
+          for i in $(seq 1 120); do
+            api=0; web=0
+            curl -fsS http://127.0.0.1:4000/health >/dev/null 2>&1 && api=1 || true
+            curl -fsS http://127.0.0.1:5173/ >/dev/null 2>&1 && web=1 || true
+            if [[ $api -eq 1 && $web -eq 1 ]]; then exit 0; fi
+            sleep 1
+          done
+          echo 'API or web app did not become ready' >&2
+          tail -200 "$PHASE19_EVIDENCE_DIR/api.log" >&2 || true
+          tail -200 "$PHASE19_EVIDENCE_DIR/web.log" >&2 || true
+          exit 1
+
+      - name: Run authenticated browser and accessibility acceptance
+        id: browser
+        shell: bash
+        run: |
+          set +e
+          node apps/web/scripts/meriv2-phase19-browser-acceptance.mjs
+          code=$?
+          set -e
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload Phase 19 browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meriv2-phase19-browser-${{ github.sha }}
+          path: |
+            /tmp/meriv2-phase19-browser-evidence
+            /tmp/meriv2-phase19-fixtures.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Enforce final Phase 19 result
+        if: always()
+        shell: bash
+        run: |
+          code='${{ steps.browser.outputs.exit_code }}'
+          if [[ -z "$code" ]]; then
+            echo 'Browser runner did not produce an exit code' >&2
+            exit 1
+          fi
+          if [[ "$code" == '2' ]]; then
+            echo 'Phase 19 remains blocked: review results.json for missing live scenarios or Phase 18 prerequisite.' >&2
+          fi
+          exit "$code"
+
+      - name: Stop disposable services
+        if: always()
+        shell: bash
+        run: |
+          kill "$(cat "$PHASE19_EVIDENCE_DIR/api.pid" 2>/dev/null)" >/dev/null 2>&1 || true
+          kill "$(cat "$PHASE19_EVIDENCE_DIR/web.pid" 2>/dev/null)" >/dev/null 2>&1 || true
+          docker rm -f meriv2-phase19-pg >/dev/null 2>&1 || true
