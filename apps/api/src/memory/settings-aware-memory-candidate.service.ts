@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, forwardRef } from '@nestjs/common';
 // Value import, not `import type`: Nest reads the emitted design:paramtypes
 // metadata to inject this constructor parameter. A type-only import is erased at
 // compile time, leaving index [2] as a bare Function that MemoryModule cannot
@@ -38,9 +38,17 @@ type CandidateActorContext = Pick<TenantContext, 'tenantId' | 'userId' | 'role'>
 export class SettingsAwareMemoryCandidateService extends GovernedMemoryCandidateService {
   constructor(
     prisma: PrismaService,
+    // MemoryIngest and MemoryCleanupOutbox sit on the documented
+    // Store <-> CleanupOutbox <-> Ingest cycle, which the base classes break with
+    // forwardRef. A subclass that injects the same tokens EAGERLY closes the cycle
+    // again: Nest then waits on an instance that is itself waiting on this one, and
+    // NestFactory.create() never settles (no error, container exits 0 at boot).
+    // Match the base-class tokens exactly.
+    @Inject(forwardRef(() => MemoryIngestService))
     memoryIngest: MemoryIngestService,
     config: ConfigService<AppConfig, true>,
     transitionAudit: MemoryTransitionAuditService,
+    @Inject(forwardRef(() => MemoryCleanupOutboxService))
     cleanupOutbox: MemoryCleanupOutboxService,
     authorization: MemoryAuthorizationService,
     private readonly settingsVersions: SettingsMemoryVersionCandidateService,

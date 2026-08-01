@@ -1,8 +1,10 @@
 import {
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
@@ -97,9 +99,13 @@ export interface OwnedMemoryCandidate {
 export class GovernedMemoryCandidateService extends MemoryCandidateService {
   constructor(
     private readonly governedPrisma: PrismaService,
+    // Same cycle discipline as the store/outbox/ingest chain: inject the shared
+    // tokens lazily so a subclass on this cycle cannot deadlock NestFactory.
+    @Inject(forwardRef(() => MemoryIngestService))
     memoryIngest: MemoryIngestService,
     config: ConfigService<AppConfig, true>,
     private readonly governedTransitionAudit: MemoryTransitionAuditService,
+    @Inject(forwardRef(() => MemoryCleanupOutboxService))
     cleanupOutbox: MemoryCleanupOutboxService,
     private readonly governedAuthorization: MemoryAuthorizationService,
   ) {
