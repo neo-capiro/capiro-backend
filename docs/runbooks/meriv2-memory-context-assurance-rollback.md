@@ -1,216 +1,297 @@
-# Runbook — MeriV2 memory / context / assurance ROLLBACK
+# MeriV2 Memory, Context, and Assurance Rollback
 
-**Nothing in this runbook has been executed.** Every step is a proposal. No
-migration has been applied, no image deployed, no flag written. Steps marked
-**MUTATING** require Neo's explicit approval before running.
+## Status and environment warning
 
-Scope: undoing the MeriV2 Phase 2–4 closeout (PR #679, branch
-`agent/meriv2-world-class-closeout`) in production. Paired with the rollout
-runbook; this document is the one you reach for at 2am.
+This runbook is executable operator guidance, but **none of its mutating steps were run by the Phase 20 implementation task**.
 
-Environment reminders (from prior incidents):
+The AWS environment named `dev` currently serves production traffic. There is no accepted staging environment in the Phase 17–20 evidence. Treat `capiro-dev` as production and do not use it for an alarm demonstration or rollback rehearsal.
 
-- **`capiro-dev` IS production.** There is no separate prod cluster.
-- **`capiro-staging`'s ECS cluster does not exist**, despite CloudFormation
-  reporting `CREATE_COMPLETE`. Never treat it as a rollback target.
-- **Do NOT run `cdk deploy Capiro-dev-Compute`.** That stack holds dead-ALB
-  values; a rollback reverts production DNS (7-minute outage).
-- Deploys go via CI + `aws ecs update-service`, profile `capiro-dev`.
-- Log group `/capiro/dev/api`. Diag task `capiro-dev-api-diag`, container
-  `db-inspect`; it must compose `DATABASE_URL` itself and set `app.bypass_rls`
-  for RLS-forced tables.
+## Safety principle
 
----
+**Stop expansion, remove the smallest canary, and turn behavior off before rolling code back. Never drop additive columns during an incident.**
 
-## Ordering principle
+The schema is expand-only and older code ignores the new columns. A destructive down migration removes governance and audit evidence and is not the normal rollback mechanism.
 
-**Turn behaviour off before you take code away, and never drop a column during
-an incident.** Every control in this closeout is either env-gated or additive,
-so the fast, safe rollback is always a *mode flip*, not a migration.
+## Incident roles
 
-Escalation ladder, cheapest first:
+- **Incident commander:** authorizes rollback rung and customer-impact communication.
+- **Release operator:** executes commands and records exact task definitions, flags, timestamps, and results.
+- **Security reviewer:** approves any reduction in authorization, wall, legal-hold, or release-verification controls.
+- **Database reviewer:** approves backfill rollback and any migration-recovery action.
+- **Product owner:** validates restored user behavior and held/degraded messaging.
 
-| # | Action | Blast radius | Reversible? |
-| --- | --- | --- | --- |
-| 1 | Flip a feature mode to `off` | one behaviour | instantly |
-| 2 | Stop the outbox drain | cleanup lag only | instantly |
-| 3 | Roll the application image back | all MeriV2 behaviour | minutes |
-| 4 | Roll back a backfill job | governed columns | drift-checked |
-| 5 | Roll back a policy-pack version | action policy | audited |
-| 6 | Drop additive columns | **destructive** | no — last resort |
+No implementer may be the sole approver for a production rollback.
 
-Do not skip down the ladder. Rungs 1–3 resolve almost every incident.
+## Rollback ladder
 
----
+| Rung | Action | Typical blast radius | Schema action |
+|---|---|---|---|
+| 0 | Stop rollout expansion and preserve evidence | none | none |
+| 1 | Remove one tenant/surface canary | one tenant or surface | none |
+| 2 | Move enforce → shadow/off for one subsystem | one behavior family | none |
+| 3 | Disable a scheduled rule | worker/monitor only | none |
+| 4 | Restore previous service task definitions | affected services | none |
+| 5 | Roll back one confirmed backfill job | exact tenant/job rows that have not drifted | no migration |
+| 6 | Roll back a policy pack to a prior independently reviewed version | one tenant/pack key | no migration |
+| 7 | Failed-migration recovery under a separate change | deployment | forward repair only |
+| 8 | Drop columns/tables | destructive and normally prohibited | destructive |
 
-## 1. Turn feature modes off (no deploy required)
+Do not skip to a lower rung while a higher rung can contain the incident.
 
-These are read from the environment at request time, so a service restart with
-changed env is sufficient — no image rebuild.
-
-| Variable | Armed value | Rollback value | Effect of rollback |
-| --- | --- | --- | --- |
-| `CONTEXT_PACKET_V2` | `enforce` | *unset* or any other string | Context Packet v2 stops compiling; every surface returns to v1 context. The parser admits **only** the exact string `enforce`, so any other value is off. |
-| `MERI_RELEASE_GATE` | `enforce` / `annotate` | *unset* | High-risk release gate stops holding output. |
-| `MERI_AUDITOR_MODE` | `enforce` | `annotate` | Grounding audit keeps running and keeps writing `meri_audit_ledger` evidence, but stops withholding bodies. **Prefer `annotate` over `off`** — see §3. |
-| `MEMORY_GOVERNANCE_LIFECYCLE` | on | *unset* | `markDecided` returns to the pre-governance single-row write. |
+## Step 0 — Freeze and capture
 
 ```bash
-# MUTATING — requires approval
-aws ecs update-service --cluster capiro-dev --service capiro-dev-api \
-  --force-new-deployment --profile capiro-dev
+export AWS_REGION=us-east-1
+export CAPIRO_ENV=<approved-environment>
+export CLUSTER="capiro-${CAPIRO_ENV}"
+export INCIDENT_ID=<ticket-or-incident-id>
+export EVIDENCE_DIR="evidence/${INCIDENT_ID}"
+mkdir -p "$EVIDENCE_DIR"
 ```
 
-Verify with a fresh log line, not with the task definition:
+Capture current services, alarms, and schedules before mutation:
 
 ```bash
-# READ-ONLY
-aws logs filter-log-events --log-group-name "/capiro/dev/api" \
-  --start-time $(( ($(date +%s) - 600) * 1000 )) \
-  --filter-pattern '"context_packet"' --max-items 20 --profile capiro-dev
+for service in api web workspace meriv2-orchestrator api-strategy; do
+  aws ecs describe-services \
+    --cluster "$CLUSTER" \
+    --services "capiro-${CAPIRO_ENV}-${service}" \
+    --query 'services[0].{service:serviceName,taskDefinition:taskDefinition,desired:desiredCount,running:runningCount,pending:pendingCount,deployments:deployments}' \
+    > "$EVIDENCE_DIR/${service}-before.json"
+done
+
+aws cloudwatch describe-alarms \
+  --alarm-name-prefix "capiro-${CAPIRO_ENV}-meriv2-" \
+  > "$EVIDENCE_DIR/alarms-before.json"
+
+for rule in memory-projection-worker meriv2-control-monitor; do
+  aws events describe-rule \
+    --name "capiro-${CAPIRO_ENV}-${rule}" \
+    > "$EVIDENCE_DIR/${rule}-before.json" 2>&1 || true
+done
 ```
 
-> `MSYS_NO_PATHCONV=1` is required on Git Bash or the log-group path is mangled
-> into a Windows path and the call fails validation.
+Record the customer-visible symptom, first observed time, affected tenant/surface, current release SHA, and rollback decision owner.
 
----
+## Step 1 — Remove the smallest canary
 
-## 2. Revert to v1 context behaviour specifically
+### Assurance gate
 
-If context is the only suspect, `CONTEXT_PACKET_V2` alone is the whole rollback.
-v2 is additive at every call site: `contextPacketV2Overrides` returns `{}` when
-the switch is not armed, so the compiled request is byte-for-byte the pre-v2
-one. No packet rows need deleting — stale `context_packet` rows are inert
-metadata and are safe to leave for forensics.
+Prefer removing the affected tenant or surface from the canary lists over changing the global mode:
 
-**Do not** roll back the ethical-wall change to get client context back. If
-client memory has vanished from packets after arming v2, the cause is a wall
-denial or an adapter not selecting governed columns — both are diagnosed with
-the exclusion counts on the packet, and the correct response is to disarm v2
-(above), not to reopen the wall.
+```text
+MERI_RELEASE_GATE_TENANTS=<remove-affected-tenant>
+MERI_RELEASE_GATE_SURFACES=<remove-affected-surface>
+```
 
----
+A tenant/surface not present in both lists resolves to `off`. Use this for a false-positive hold or surface-specific outage.
 
-## 3. Disable release enforcement WITHOUT losing audit
+**Do not remove assurance enforcement when the incident is unsupported or unsafe output.** In that case, stop the affected surface or hold the release rather than restoring unverified delivery.
 
-The common mistake is setting `MERI_AUDITOR_MODE=off`, which also stops the
-evidence you need to explain the incident afterwards.
+### Context Packet v2
 
-- `annotate` — audit runs, findings are recorded and banner-prefixed, nothing is
-  withheld. **This is the correct incident setting.**
-- `off` — no audit, no ledger rows, no evidence.
+Clear the exact tenant/surface feature flag first:
 
-Same for `MERI_RELEASE_GATE`: prefer `annotate` to `off`.
+```text
+clioFeatureFlags.meriv2.contextPacketV2.<surface>=false or absent
+```
 
----
+If all v2 surfaces for the tenant are affected, clear:
 
-## 4. Stop the outbox consumers safely
+```text
+clioFeatureFlags.meriv2.contextPacketV2=false or absent
+```
 
-The memory cleanup outbox is drained out-of-band by an entrypoint verb, not an
-in-process scheduler, so "stopping the worker" means not running the task.
+The global ceiling can remain `shadow` or `enforce`; a tenant without its canary stays on v1.
+
+## Step 2 — Move one subsystem to shadow or off
+
+Change the task-definition environment through the approved deployment mechanism, then restart only the affected services. Capture old and new task-definition ARNs.
+
+| Subsystem | Armed value | First rollback | Full rollback | Important consequence |
+|---|---|---|---|---|
+| Context Packet v2 | `MERIV2_CONTEXT_PACKET_V2=enforce` | `shadow` | `off` or unset | v1 output remains authoritative; persisted packet metadata remains for evidence |
+| Persisted policy packs | `MERI_POLICY_PACK_SOURCE=enforce` | `shadow` | `off` or unset | reviewed static product policy becomes authoritative; persisted pack remains auditable |
+| Assurance release gate | `MERI_RELEASE_GATE=enforce` | `shadow` | `off` or unset | hold/repair enforcement stops; use only when accuracy/security impact is understood |
+| Governance Center | `MEMORY_GOVERNANCE_CENTER=enforce` | n/a | `off` or unset | administrators fall back to legacy review queues |
+| Review/withdrawal surface | `MEMORY_CLIENT_REVIEW=enforce` | n/a | `off` or unset | new reviewer/proposer surface hides; canonical rows are unchanged |
+| Governed authorization | `MEMORY_GOVERNANCE_ENFORCE=enforce` | n/a | `off` or unset | governed grant/role enforcement stops; requires Security approval |
+| Governed lifecycle/suppression | `MEMORY_GOVERNANCE_LIFECYCLE=enforce` | n/a | `off` or unset | governed bookkeeping and suppression stop; **do not disable blindly** |
+| Control EMF | default on | n/a | `MERIV2_CONTROL_METRICS=off` | stops runtime metrics only; use only if logging itself is causing harm |
+
+### Lifecycle warning
+
+`MEMORY_GOVERNANCE_LIFECYCLE` controls terminal-state suppression and durable cleanup bookkeeping. Turning it off can make a row whose legacy status still appears active eligible to older recall paths. Leave it on during ordinary UI, policy, context, or assurance rollback.
+
+Disable it only when:
+
+1. the migration/schema is unavailable or lifecycle writes are causing an outage;
+2. Security and Database reviewers approve;
+3. a read-only query confirms there are no governed-only revoked, superseded, rejected, expired, stale, or conflicted rows that legacy status would incorrectly expose;
+4. the resulting recall behavior is tested before traffic resumes.
+
+## Step 3 — Disable scheduled rules without deleting work
+
+### Projection worker
 
 ```bash
-# READ-ONLY — how much work is queued and how old is it?
-#   SELECT status, count(*), min(created_at)
-#     FROM memory_cleanup_outbox GROUP BY status;
+aws events disable-rule \
+  --name "capiro-${CAPIRO_ENV}-memory-projection-worker"
 ```
 
-Stopping the drain is **safe by design**: canonical status transitions suppress
-governed recall synchronously, inside the caller's transaction. A pending
-cleanup means a secondary projection (`clio_memory`, `context_embeddings`) is
-stale, which can degrade semantic recall — it can **never** re-authorize revoked
-memory. Let the queue build; it is idempotent on resume.
+Stopping the worker does not roll back canonical status. It permits projection obligations to accumulate. Do not delete, complete, or rewrite outbox rows to make the queue look healthy.
 
-Do **not** delete outbox rows to "clear a backlog". A deleted
-`revoke_projections` job leaves a revoked memory's projection alive forever.
+Read-only backlog check:
 
----
+```sql
+SELECT status,
+       count(*) AS jobs,
+       min(created_at) AS oldest_created_at,
+       max(attempts) AS max_attempts
+FROM memory_cleanup_outbox
+GROUP BY status
+ORDER BY status;
+```
 
-## 5. Roll the application back
+### MeriV2 control monitor
 
 ```bash
-# READ-ONLY — what is running now?
-aws ecs describe-services --cluster capiro-dev --services capiro-dev-api \
-  --query 'services[0].taskDefinition' --profile capiro-dev
+aws events disable-rule \
+  --name "capiro-${CAPIRO_ENV}-meriv2-control-monitor"
 ```
+
+Disable the monitor only if its read-only queries create measurable database pressure or the task definition is faulty. Runtime authorization, persistence, assurance, and drift metrics continue independently.
+
+Re-enable a rule only after the task succeeds manually and its alarm state is understood:
 
 ```bash
-# MUTATING — requires approval. Pin the previous revision.
-aws ecs update-service --cluster capiro-dev --service capiro-dev-api \
-  --task-definition capiro-dev-api:<PREVIOUS_REVISION> --profile capiro-dev
+aws events enable-rule --name "capiro-${CAPIRO_ENV}-<rule-name>"
 ```
 
-Roll `capiro-dev-api`, `capiro-dev-web` and the orchestrator **together** if the
-context contract changed: the v2 request shape crosses all three.
+## Step 4 — Restore previous task definitions
 
-**The additive migrations stay applied.** Older code ignores the new columns.
-Rolling the schema back to meet the code is the failure mode that causes a
-second, worse incident.
+Read the previous task-definition ARNs from the rollout baseline. Do not guess revisions.
 
----
+```bash
+aws ecs update-service \
+  --cluster "$CLUSTER" \
+  --service "capiro-${CAPIRO_ENV}-api" \
+  --task-definition <approved-previous-api-task-definition>
+```
 
-## 6. Roll back a governance backfill job
+Repeat for the affected services. When a context, policy, or assurance wire contract changed, roll the coordinated set together:
 
-> Not yet implementable — `apps/api/scripts/rollback-memory-governance-v2.ts`
-> **does not exist** (plan §5 is unstarted). Recorded here so the gap is visible
-> rather than discovered during an incident.
+- API;
+- MeriV2 orchestrator;
+- Workspace;
+- Strategy API;
+- web client where its display contract changed.
 
-Intended contract once written: requires tenant id **and** job id **and**
-explicit confirmation; restores a row only when its governed fields still hash
-to the expected post-backfill value, and **skips with a drift report** when a
-human reviewer has since changed the row. Until it exists, a backfill is
-effectively one-way — which is a reason not to run one in production yet.
+Wait for stability after each approved group:
 
----
+```bash
+aws ecs wait services-stable \
+  --cluster "$CLUSTER" \
+  --services "capiro-${CAPIRO_ENV}-api"
+```
 
-## 7. Roll back a policy-pack version
+The additive migrations stay applied. Do not make the database “match” old code by dropping new columns.
 
-Published pack versions are immutable, so rollback is *publishing the prior
-reviewed version*, never editing one in place. The replaced version is retired
-with audit evidence. Approvals bound to the old pack hash are invalidated and
-require reapproval — expected, not a bug.
+## Step 5 — Roll back one governance backfill job
 
----
+Use only the exact job produced by the prepare step. The operator must provide tenant ID, job ID, and both confirmations:
 
-## 8. Governed-memory behaviour that is code, not config
+```bash
+pnpm --filter @capiro/api exec tsx scripts/backfill-memory-governance-v2.ts \
+  --tenant-id <tenant-uuid> \
+  --rollback \
+  --job-id <job-uuid> \
+  --confirm-tenant <same-tenant-uuid> \
+  --confirm-job <same-job-uuid> \
+  | tee "$EVIDENCE_DIR/backfill-rollback.json"
+```
 
-Two closeout changes are deliberately **not** flag-gated, because a flag
-defaulting off would have left the defect live in production. Rolling either
-back is a code revert plus a deploy (rung 3):
+The rollback restores only rows that still match the job’s expected post-state. A later human/system change is reported as `skipped_drift` and is not overwritten. `rollback_partial` requires Database and Security review; do not manually force the skipped rows.
 
-| Change | Commit | Why no flag |
-| --- | --- | --- |
-| Firm/client memory can no longer be self-ratified by its proposer | `b1cf7dd6` | A default-off flag leaves shared institutional truth self-approvable — the finding itself. |
-| Embedding writeback targets the exact row id | `b1cf7dd6` | The previous behaviour overwrote other clients' vectors. There is no state in which the old predicate is preferable. |
+See `docs/runbooks/meriv2-memory-backfill.md` for verification queries and evidence requirements.
 
-Operational note for the first: after this ships, firm- and client-scope saves
-land in the review queue instead of committing inline. A sudden rise in pending
-candidates is the **expected** signal, not an incident. Watch
-`memory_candidate` pending-count-by-age; if the queue is genuinely unmanageable,
-the answer is more authorized reviewers or a grant, not reverting segregation of
-duties.
+## Step 6 — Roll back a policy pack
 
----
+Policy packs are immutable after review. Rollback republishes an earlier independently reviewed target; it never edits the current published row in place.
 
-## 9. Last resort — dropping additive columns
+Authorized administrator API call:
 
-Only if a column is actively breaking writes and rungs 1–5 have failed.
+```http
+POST /api/clio/policy-packs/<current-pack-row-id>/rollback/<target-pack-row-id>
+Content-Type: application/json
 
-Requires: a fresh snapshot, Neo's explicit approval, and a written decision
-record. Governed columns carry review decisions that exist nowhere else, so a
-drop is **irreversible data loss of audit evidence**. Prefer leaving the columns
-and disabling the code that reads them.
+{"reason":"<incident/change-ticket reason>"}
+```
 
----
+Verify:
 
-## Verification after any rollback
+1. the current version is retired;
+2. the target version is published;
+3. the rollback event names both rows;
+4. future policy decisions bind the target pack/version/rule;
+5. stale action approvals are invalidated and reapproved rather than silently reused.
 
-1. Service healthy and on the intended digest — check the running task
-   definition, not the CloudFormation template.
-2. A real chat turn returns an answer (not a hold).
-3. `/capiro/dev/api` shows no new `ERROR` lines in the last 10 minutes.
-4. Context Inspector opens and reports a packet, or truthfully reports that
-   trace persistence is unavailable — it must not claim a packet id it does not
-   have.
-5. Outbox oldest-pending age is falling, or the drain is intentionally stopped
-   and that decision is recorded.
+If the policy service itself is unavailable, set `MERI_POLICY_PACK_SOURCE=shadow` or `off` first. Do not update pack status with manual SQL.
+
+## Step 7 — Failed migration handling
+
+A failed migration blocks release. The normal rollback remains application rollback with the additive schema retained.
+
+Prohibited during the incident:
+
+- direct `_prisma_migrations` edits;
+- automatic `prisma migrate resolve`;
+- deleting a migration directory;
+- manual SQL that makes `migrate status` appear green without a reviewed forward repair.
+
+Use `docs/runbooks/prisma-failed-migration-recovery.md` under a separate approved database change.
+
+## Step 8 — Destructive schema rollback
+
+Dropping governed columns or tables is not an emergency default. It destroys policy, approval, transition, backfill, and recovery evidence.
+
+It requires all of the following:
+
+- confirmed database snapshot and restore test;
+- Legal/Security review of evidence loss;
+- Database reviewer-approved down plan;
+- incident commander and executive approval;
+- customer-impact and audit-impact record;
+- proof that rungs 1–7 cannot contain the incident.
+
+No destructive rollback SQL is included in this runbook intentionally.
+
+## Verification after rollback
+
+Capture each result in the incident evidence directory:
+
+1. Every affected ECS service is stable on the intended previous task definition and image digest.
+2. The exact tenant/surface canary and global mode values match the rollback decision.
+3. A real authorized user can complete the affected workflow.
+4. A denied user remains unable to access walled/private content, and the denied response contains no confidential text.
+5. Shared proposals still require an independent reviewer unless Security explicitly accepted an authorization rollback.
+6. Legal-held memory still exposes no destructive action.
+7. Context output either uses v1 or truthfully identifies a persisted v2 packet; no generated-only ID is presented as durable.
+8. Policy decisions bind the expected source and pack version.
+9. Assurance output matches the chosen mode; unsupported high-risk output is not silently released.
+10. Outbox age/retry/dead-letter state is stable or recovering.
+11. No control/audit log contains memory bodies, prompts, source excerpts, provider payloads, Clerk cookies, JWTs, or secrets.
+12. MeriV2 alarms are `OK`, or every remaining `ALARM` has a named owner and incident disposition.
+
+## Evidence closeout
+
+The incident commander signs the rollback complete only after recording:
+
+- trigger and impact;
+- exact rollback rungs used;
+- before/after task definitions and flags;
+- database/backfill/policy outcomes;
+- alarm timeline;
+- user and confidentiality verification;
+- follow-up owner and due date;
+- explicit decision on whether rollout may resume.
