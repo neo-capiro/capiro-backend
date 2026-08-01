@@ -77,7 +77,7 @@ async function main(): Promise<void> {
     ]);
     await contains('apps/api/prisma/schema.prisma', 'governedStatus');
     await contains('apps/api/prisma/schema.prisma', 'memoryAuthority');
-    await contains('apps/api/src/memory/memory-canonical-activation.helpers.ts', 'committedMemoryItemId');
+    await contains('apps/api/src/memory/memory-canonical-activation.helpers.ts', 'upsertCanonicalMemoryItemInTx');
   });
 
   await phase(3, 'Settings shared-memory review lifecycle', async () => {
@@ -143,7 +143,7 @@ async function main(): Promise<void> {
     ]);
     await contains('apps/api/src/memory/exact-memory-projection-worker.service.ts', 'dead_letter');
     await contains('apps/api/src/memory/exact-memory-projection-worker.service.ts', 'lease');
-    await contains('apps/api/src/memory/exact-memory-projection-worker.service.ts', 'sourceContentHash');
+    await contains('apps/api/src/memory/exact-memory-projection-worker.service.ts', 'expected_content_hash');
   });
 
   await phase(7, 'Truthful Context Packet persistence', async () => {
@@ -194,7 +194,7 @@ async function main(): Promise<void> {
     ]);
     await contains('apps/api/src/meri/meri-policy-pack.service.ts', 'recordDecisionInTx');
     await contains('apps/api/src/meri/meri-policy-pack-rollout.service.ts', 'MERI_POLICY_PACK_TENANTS');
-    await contains('apps/api/src/meri/meri-policy-pack-rollout.service.ts', "source === 'enforce'");
+    await contains('apps/api/src/meri/meri-policy-pack-rollout.service.ts', 'persistedPolicyPacksEnforcedForTenant');
   });
 
   await phase(11, 'Reversible drift-safe governance backfill', async () => {
@@ -349,7 +349,7 @@ async function main(): Promise<void> {
       'docs/runbooks/meriv2-merge-and-aws-ship.md',
     ]);
     await contains('docs/runbooks/meriv2-merge-and-aws-ship.md', 'MERIV2_LOCAL_RELEASE_PREFLIGHT_OK');
-    await contains('docs/runbooks/meriv2-merge-and-aws-ship.md', 'No implementer may be the sole');
+    await contains('docs/runbooks/meriv2-merge-and-aws-ship.md', 'must not be the sole production approver');
   });
 
   await phase(22, 'Migration, dark deployment, canary, backfill, and rollback execution', async () => {
