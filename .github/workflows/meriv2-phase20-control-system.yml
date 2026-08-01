@@ -129,10 +129,11 @@ jobs:
           const names = emf._aws.CloudWatchMetrics[0].Metrics.map((metric) => metric.Name).sort();
           const expected = [
             'BackfillDriftCount','BackfillQuarantineCount','ConflictedMemoryCount',
-            'OutboxDeadLetterCount','OutboxOldestAgeSeconds','OutboxRetryingCount',
-            'PendingCandidateOldestAgeSeconds'
+            'ControlMonitorFailures','OutboxDeadLetterCount','OutboxOldestAgeSeconds',
+            'OutboxRetryingCount','PendingCandidateOldestAgeSeconds'
           ].sort();
           if (JSON.stringify(names) !== JSON.stringify(expected)) throw new Error(`Unexpected monitor metrics: ${names}`);
+          if (emf.ControlMonitorFailures !== 0) throw new Error('Healthy monitor did not emit a zero failure heartbeat.');
           if (JSON.stringify(emf._aws.CloudWatchMetrics[0].Dimensions) !== JSON.stringify([['Environment']])) {
             throw new Error('Control metrics have an unexpected dimension set.');
           }
