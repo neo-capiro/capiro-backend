@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import type { MemoryItem, MemorySection } from './memory.types.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { embedAndUpsert, normalize } from '../embeddings/embedder.js';
@@ -118,6 +118,7 @@ export function canonicalProjectionSnapshot(input: {
 export class StrictMemoryProjectorService {
   constructor(
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => MemoryStoreService))
     private readonly store: MemoryStoreService,
   ) {}
 

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
@@ -47,6 +47,9 @@ export class ExactMemoryCleanupOutboxService extends MemoryCleanupOutboxService 
 
   constructor(
     private readonly exactPrisma: PrismaService,
+    // Must match the base-class forwardRef token so Nest does not try to
+    // construct a second MemoryIngestService edge around the cycle.
+    @Inject(forwardRef(() => MemoryIngestService))
     ingest: MemoryIngestService,
   ) {
     super(exactPrisma, ingest);

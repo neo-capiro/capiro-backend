@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { governedMemoryModeEnabledForTenant } from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -33,6 +33,7 @@ export class LineageAwareMemoryStoreService extends GovernedMemoryStoreService {
     private readonly lineageTenantCtx: TenantContextStore,
     authz: MemoryAuthorizationService,
     transitionAudit: MemoryTransitionAuditService,
+    @Inject(forwardRef(() => MemoryCleanupOutboxService))
     cleanupOutbox: MemoryCleanupOutboxService,
     versions: ImmutableMemoryVersionService,
   ) {

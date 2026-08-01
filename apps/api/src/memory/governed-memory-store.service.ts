@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { forwardRef, Inject, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextStore } from '../tenant/tenant-context.store.js';
 import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.helpers.js';
@@ -23,6 +23,7 @@ export class GovernedMemoryStoreService extends MemoryStoreService {
     tenantCtx: TenantContextStore,
     authz: MemoryAuthorizationService,
     transitionAudit: MemoryTransitionAuditService,
+    @Inject(forwardRef(() => MemoryCleanupOutboxService))
     cleanupOutbox: MemoryCleanupOutboxService,
     private readonly versions: ImmutableMemoryVersionService,
   ) {

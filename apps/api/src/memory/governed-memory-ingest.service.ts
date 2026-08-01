@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TenantContextStore } from '../tenant/tenant-context.store.js';
 import { MeetingNotesCryptoService } from '../engagement/meeting-notes-crypto.service.js';
@@ -31,6 +31,8 @@ interface ExactProjectionJob {
 export class GovernedMemoryIngestService extends MemoryIngestService {
   constructor(
     private readonly exactPrisma: PrismaService,
+    // Other half of the Store <-> CleanupOutbox <-> Ingest cycle break.
+    @Inject(forwardRef(() => MemoryStoreService))
     store: MemoryStoreService,
     tenantContext: TenantContextStore,
     notesCrypto: MeetingNotesCryptoService,

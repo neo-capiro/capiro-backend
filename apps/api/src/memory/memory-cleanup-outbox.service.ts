@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryIngestService } from './memory-ingest.service.js';
@@ -97,6 +97,10 @@ export class MemoryCleanupOutboxService {
    */
   constructor(
     private readonly prisma: PrismaService,
+    // forwardRef breaks Store -> CleanupOutbox -> Ingest -> Store. Without it
+    // Nest hangs resolving MemoryModule and the API container never binds :4000
+    // (health fails; ECS SIGTERMs; exit 0 with only "Starting Capiro API").
+    @Inject(forwardRef(() => MemoryIngestService))
     private readonly ingest?: MemoryIngestService,
   ) {}
 
