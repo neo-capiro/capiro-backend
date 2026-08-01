@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
-import { awsEnv, loadConfig, stackName } from '../lib/config';
+import { awsEnv, loadConfig, stackName, type EnvConfig } from '../lib/config';
 import { MemoryProjectionWorkerStack } from '../lib/memory-projection-worker-stack';
 import { MeriV2ControlStack } from '../lib/meriv2-control-stack';
 
@@ -23,7 +23,15 @@ import { MeriV2ControlStack } from '../lib/meriv2-control-stack';
  */
 const app = new cdk.App();
 const cfg = loadConfig(app);
-const env = awsEnv(cfg);
+// The historical `dev` config allows stack deletion for iteration, but that
+// environment is production. These audit/control stacks always retain evidence.
+const operationsCfg: EnvConfig = {
+  ...cfg,
+  protectFromDestroy: true,
+  logRetentionDays: Math.max(cfg.logRetentionDays, 365),
+};
+const env = awsEnv(operationsCfg);
+const partition = partitionForRegion(operationsCfg.region);
 
 const apiImageTag = required(app, 'meriv2ApiImageTag');
 if (!/^[0-9a-f]{40}$/i.test(apiImageTag)) {
@@ -31,7 +39,10 @@ if (!/^[0-9a-f]{40}$/i.test(apiImageTag)) {
 }
 
 const privateSubnetIds = csv(required(app, 'existingPrivateSubnetIds'));
-if (privateSubnetIds.length === 0 || privateSubnetIds.some((id) => !/^subnet-[a-z0-9]+$/i.test(id))) {
+if (
+  privateSubnetIds.length === 0 ||
+  privateSubnetIds.some((id) => !/^subnet-[a-z0-9]+$/i.test(id))
+) {
   throw new Error('existingPrivateSubnetIds must contain one or more comma-separated subnet-* ids.');
 }
 const serviceSecurityGroupId = required(app, 'existingServiceSecurityGroupId');
@@ -40,12 +51,12 @@ if (!/^sg-[a-z0-9]+$/i.test(serviceSecurityGroupId)) {
 }
 
 const shared = {
-  cfg,
+  cfg: operationsCfg,
   clusterArn:
     optional(app, 'existingClusterArn') ??
-    `arn:${cdk.Aws.PARTITION}:ecs:${cfg.region}:${cfg.account}:cluster/capiro-${cfg.envName}`,
+    `arn:${partition}:ecs:${operationsCfg.region}:${operationsCfg.account}:cluster/capiro-${operationsCfg.envName}`,
   apiRepositoryName:
-    optional(app, 'existingApiRepositoryName') ?? `capiro/${cfg.envName}/api`,
+    optional(app, 'existingApiRepositoryName') ?? `capiro/${operationsCfg.envName}/api`,
   apiImageTag,
   privateSubnetIds,
   serviceSecurityGroupId,
@@ -59,12 +70,12 @@ const shared = {
   secretsKeyArn: keyArn(required(app, 'existingSecretsKeyArn'), 'existingSecretsKeyArn'),
   alertsTopicArn:
     optional(app, 'existingAlertsTopicArn') ??
-    `arn:${cdk.Aws.PARTITION}:sns:${cfg.region}:${cfg.account}:capiro-${cfg.envName}-alerts`,
+    `arn:${partition}:sns:${operationsCfg.region}:${operationsCfg.account}:capiro-${operationsCfg.envName}-alerts`,
 };
 
 const projectionWorker = new MemoryProjectionWorkerStack(
   app,
-  stackName(cfg.envName, 'MemoryProjectionWorker'),
+  stackName(operationsCfg.envName, 'MemoryProjectionWorker'),
   {
     env,
     ...shared,
@@ -72,11 +83,15 @@ const projectionWorker = new MemoryProjectionWorkerStack(
   },
 );
 
-const control = new MeriV2ControlStack(app, stackName(cfg.envName, 'MeriV2Control'), {
-  env,
-  ...shared,
-  monitorEnabled: exactTrue(app.node.tryGetContext('enableMeriV2ControlMonitor')),
-});
+const control = new MeriV2ControlStack(
+  app,
+  stackName(operationsCfg.envName, 'MeriV2Control'),
+  {
+    env,
+    ...shared,
+    monitorEnabled: exactTrue(app.node.tryGetContext('enableMeriV2ControlMonitor')),
+  },
+);
 control.addDependency(projectionWorker);
 
 app.synth();
@@ -112,4 +127,10 @@ function keyArn(value: string, name: string): string {
     throw new Error(`${name} must be a KMS key ARN.`);
   }
   return value;
+}
+
+function partitionForRegion(region: string): string {
+  if (region.startsWith('us-gov-')) return 'aws-us-gov';
+  if (region.startsWith('cn-')) return 'aws-cn';
+  return 'aws';
 }
