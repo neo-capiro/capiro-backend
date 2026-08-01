@@ -1,3 +1,4 @@
+import { ConflictException } from '@nestjs/common';
 import { ContextCompiler, type SteeringRow } from '@capiro/meriv2-core';
 import type { Prisma } from '@prisma/client';
 import {
@@ -27,6 +28,33 @@ function record(scope: CanonicalMemoryRecord['scope']): CanonicalMemoryRecord {
     sourceMessageId: 'message-1',
     sourceExcerpt: 'The analyst explicitly asked Meri to remember this position.',
   };
+}
+
+function settingsRecord(): CanonicalMemoryRecord {
+  return {
+    ...record('firm'),
+    key: 'settings-file:firm-soul:firm',
+    value: JSON.stringify([
+      { key: 'mission', heading: 'Mission', owner: 'human', body: 'Reviewed' },
+    ]),
+    source: 'settings_memory_editor',
+    canonicalItem: {
+      type: 'firm-soul',
+      slug: 'firm',
+      title: 'Firm Soul',
+      sections: [{ key: 'mission', heading: 'Mission', owner: 'human', body: 'Reviewed' }],
+    },
+  };
+}
+
+function embeddedSql(values: unknown[]): string {
+  return values
+    .map((value) => {
+      if (!value || typeof value !== 'object') return '';
+      const sql = (value as { sql?: unknown }).sql;
+      return typeof sql === 'string' ? sql : '';
+    })
+    .join('\n');
 }
 
 describe('canonical governed memory activation', () => {
@@ -76,7 +104,7 @@ describe('canonical governed memory activation', () => {
     expect(governance.approvedByUserId).toBe(REVIEWER);
   });
 
-  it('writes the canonical item with governed fields and returns exact lineage id', async () => {
+  it('writes a non-catalog canonical item with governed fields and upsert recovery', async () => {
     let sql = '';
     let params: unknown[] = [];
     const tx = {
@@ -101,14 +129,14 @@ describe('canonical governed memory activation', () => {
     expect(sql).toContain('INSERT INTO memory_items');
     expect(sql).toContain('memory_authority');
     expect(sql).toContain('governed_status');
-    expect(sql).toContain('ON CONFLICT (tenant_id, type, slug) DO UPDATE');
+    expect(embeddedSql(params)).toContain('DO UPDATE SET');
     expect(params).toContain('firm_approved');
     expect(params).toContain('active');
     expect(params).toContain(PROPOSER);
     expect(params).toContain(REVIEWER);
   });
 
-  it('activates an approved Settings proposal into the exact canonical file identity', async () => {
+  it('activates an approved first-time Settings proposal insert-only', async () => {
     let params: unknown[] = [];
     const tx = {
       $queryRaw: async (_strings: TemplateStringsArray, ...values: unknown[]) => {
@@ -116,22 +144,9 @@ describe('canonical governed memory activation', () => {
         return [{ id: ITEM }];
       },
     } as unknown as Prisma.TransactionClient;
-    const settingsRecord: CanonicalMemoryRecord = {
-      ...record('firm'),
-      key: 'settings-file:firm-soul:firm',
-      value: JSON.stringify([
-        { key: 'mission', heading: 'Mission', owner: 'human', body: 'Reviewed' },
-      ]),
-      source: 'settings_memory_editor',
-      canonicalItem: {
-        type: 'firm-soul',
-        slug: 'firm',
-        title: 'Firm Soul',
-        sections: [{ key: 'mission', heading: 'Mission', owner: 'human', body: 'Reviewed' }],
-      },
-    };
+    const proposed = settingsRecord();
     const governance = buildCanonicalGovernance({
-      record: settingsRecord,
+      record: proposed,
       sourceKind: 'settings_sections',
       candidateId: CANDIDATE,
       assertedByUserId: PROPOSER,
@@ -139,13 +154,33 @@ describe('canonical governed memory activation', () => {
       decision: 'approved',
     });
     expect(governance.sourceType).toBe('approved_document_edit');
-    await upsertCanonicalMemoryItemInTx(tx, TENANT, CLIO, settingsRecord, governance);
+    await upsertCanonicalMemoryItemInTx(tx, TENANT, CLIO, proposed, governance);
+    expect(embeddedSql(params)).toContain('DO NOTHING');
     expect(params).toContain('firm-soul');
     expect(params).toContain('firm');
     expect(params).toContain('Firm Soul');
     expect(params).toContain('firm_approved');
     expect(params).toContain('approved_document_edit');
     expect(params).toContainEqual(expect.stringContaining('Reviewed'));
+  });
+
+  it('refuses a racing first-time Settings approval without replacing active truth', async () => {
+    const tx = {
+      $queryRaw: async () => [],
+    } as unknown as Prisma.TransactionClient;
+    const proposed = settingsRecord();
+    const governance = buildCanonicalGovernance({
+      record: proposed,
+      sourceKind: 'settings_sections',
+      candidateId: CANDIDATE,
+      assertedByUserId: PROPOSER,
+      approvedByUserId: REVIEWER,
+      decision: 'approved',
+    });
+
+    await expect(
+      upsertCanonicalMemoryItemInTx(tx, TENANT, CLIO, proposed, governance),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('preserves authoritative governance when rebuilding the Clio projection', () => {
