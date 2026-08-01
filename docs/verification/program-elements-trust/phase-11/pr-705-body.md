@@ -10,7 +10,7 @@
 | `origin/main` (base) | `3dcb12f823774b6fae8578dc56fc122bf9a0879e` |
 | merge-base | `3dcb12f823774b6fae8578dc56fc122bf9a0879e` |
 | Branch tip (Phase 10 PASS / Phase 11 start) | `693eb7093d48376621180ef71d81cfd45be97573` |
-| Phase 11 docs tip | *(see HEAD after Phase 11 push)* |
+| Phase 11 docs tip | `851a4f2941c3e21083d444c1dfd4cb6b38890759` |
 | Behind main | **0** |
 | Ahead of main | **97+** (product + evidence + Phase 11 closeout docs) |
 

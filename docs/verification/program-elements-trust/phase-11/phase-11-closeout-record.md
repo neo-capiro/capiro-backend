@@ -10,6 +10,7 @@
 | origin/main | `3dcb12f823774b6fae8578dc56fc122bf9a0879e` |
 | merge-base | `3dcb12f823774b6fae8578dc56fc122bf9a0879e` |
 | Branch tip at Phase 11 gate run | `693eb7093d48376621180ef71d81cfd45be97573` |
+| Phase 11 final origin tip (this commit parent chain) | `851a4f2941c3e21083d444c1dfd4cb6b38890759` |
 | Ahead of main | 97 commits (product + evidence) |
 | Behind main | **0** (no merge needed) |
 

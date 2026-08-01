@@ -1,0 +1,105 @@
+
+> @capiro/api@0.0.0 verify:pe-phase-9 C:\c\Users\neoma\AppData\Local\Temp\pe-closeout-wt\apps\api
+> tsx scripts/verify-pe-phase-9.ts "--" "--full" "--skip-install" "--base-sha" "3dcb12f823774b6fae8578dc56fc122bf9a0879e" "--evidence-dir" "C:/c/Users/neoma/AppData/Local/Temp/pe-closeout-wt/docs/verification/program-elements-trust/phase-11"
+
+PE Phase 9 rehearsal HEAD=693eb7093d48376621180ef71d81cfd45be97573
+merge-base=3dcb12f823774b6fae8578dc56fc122bf9a0879e origin/main=3dcb12f823774b6fae8578dc56fc122bf9a0879e
+SKIP install_frozen: skip-install flag
+RUN prisma_validate: pnpm exec prisma validate
+  exit=0 durationMs=2627
+RUN prisma_generate: pnpm exec prisma generate
+  exit=0 durationMs=5460
+RUN shared_build: pnpm run build
+  exit=0 durationMs=2263
+RUN shared_typecheck: pnpm run typecheck
+  exit=0 durationMs=1901
+RUN api_typecheck: pnpm run typecheck
+  exit=0 durationMs=23010
+RUN workspace_typecheck: pnpm run prisma:generate && pnpm --filter @capiro/auth run build && pnpm run typecheck
+  exit=0 durationMs=9073
+RUN web_typecheck: pnpm run typecheck
+  exit=0 durationMs=6029
+RUN web_build: pnpm run build
+  exit=0 durationMs=31163
+RUN typecheck_pe_scripts: pnpm run typecheck:pe-scripts
+  exit=0 durationMs=4390
+RUN verify_pe_phase_a: pnpm run verify:pe-phase-a
+  exit=0 durationMs=2322
+RUN verify_pe_phase_b: pnpm run verify:pe-phase-b
+  exit=0 durationMs=19006
+RUN verify_pe_phase_c: pnpm run verify:pe-phase-c
+  exit=0 durationMs=20727
+RUN verify_pe_phase_d: pnpm run verify:pe-phase-d
+  exit=0 durationMs=16197
+RUN verify_pe_phase_e: pnpm run verify:pe-phase-e
+  exit=0 durationMs=14707
+RUN verify_pe_phase_f: pnpm run verify:pe-phase-f
+  exit=0 durationMs=15697
+RUN verify_pe_phase_g: pnpm run verify:pe-phase-g
+  exit=0 durationMs=15658
+RUN verify_pe_phase_i: pnpm run verify:pe-phase-i
+  exit=0 durationMs=19000
+RUN verify_pe_phase_j: pnpm run verify:pe-phase-j
+  exit=0 durationMs=29532
+RUN verify_pe_phase_k: pnpm run verify:pe-phase-k
+  exit=0 durationMs=27291
+RUN test_pe_trust: pnpm run test:pe-trust
+  exit=0 durationMs=10827
+RUN full_pe_api_tests: pnpm exec jest --runInBand --forceExit --testPathPattern='src/program-element|scripts/lib/pe-|scripts/sam-opportunity|scripts/sync-sam-opportunities|scripts/drain-pe|scripts/backfill-pe|scripts/send-pe|src/acquisition-personnel/contact-use.policy|src/acquisition-personnel/acquisition-personnel-read.service|src/acquisition-personnel/acquisition-personnel.controller'
+  exit=0 durationMs=57664
+RUN workspace_pe_tests: pnpm run prisma:generate && pnpm --filter @capiro/auth run build && pnpm exec jest --runInBand --forceExit --testPathPattern=domain-grounding.helpers.spec
+  exit=0 durationMs=10371
+RUN web_pe_tests: pnpm exec vitest run --testTimeout=20000 --hookTimeout=20000 src/pages/program-element
+  exit=0 durationMs=34914
+RUN prettier_pe_surface: pnpm exec prettier --check 'apps/api/src/program-element/**/*.{ts,tsx}' 'apps/api/scripts/lib/pe-*.ts' 'apps/api/scripts/verify-pe-*.ts' 'apps/web/src/pages/program-element/**/*.{ts,tsx}' 'packages/shared/src/**/*.{ts,tsx}'
+  exit=1 durationMs=4843
+  detail_tail:
+[[33mwarn[39m] apps/web/src/pages/program-element/ProgramElementWatchPage.tsx
+[[33mwarn[39m] apps/web/src/pages/program-element/ProgramMatchQueuePage.test.tsx
+[[33mwarn[39m] apps/web/src/pages/program-element/ProgramMatchQueuePage.tsx
+[[33mwarn[39m] apps/web/src/pages/program-element/programs-api.ts
+[[33mwarn[39m] apps/web/src/pages/program-element/ProgramsPanel.test.tsx
+[[33mwarn[39m] apps/web/src/pages/program-element/ProgramsPanel.tsx
+[[33mwarn[39m] apps/web/src/pages/program-element/ProgramTeamPanel.test.tsx
+[[33mwarn[39m] apps/web/src/pages/program-element/ProgramTeamPanel.tsx
+[[33mwarn[39m] apps/web/src/pages/program-element/ProjectsPanel.test.tsx
+[[33mwarn[39m] apps/web/src/pages/program-element/ProjectsPanel.tsx
+[[33mwarn[39m] apps/web/src/pages/program-element/ProofPackPanel.test.tsx
+[[33mwarn[39m] apps/web/src/pages/program-element/ProofPackPanel.tsx
+[[33mwarn[39m] apps/web/src/pages/program-element/ProvisionsPanel.test.tsx
+[[33mwarn[39m] apps/web/src/pages/program-element/ProvisionsPanel.tsx
+[[33mwarn[39m] apps/web/src/pages/program-element/RelatedPesPanel.tsx
+[[33mwarn[39m] apps/web/src/pages/program-element/SecondaryDistributionPanel.test.tsx
+[[33mwarn[39m] apps/web/src/pages/program-element/SecondaryDistributionPanel.tsx
+[[33mwarn[39m] apps/web/src/pages/program-element/trust-model.test.ts
+[[33mwarn[39m] apps/web/src/pages/program-element/trust-model.ts
+[[33mwarn[39m] apps/web/src/pages/program-element/types.ts
+[[33mwarn[39m] apps/web/src/pages/program-element/use-program-search.ts
+[[33mwarn[39m] apps/web/src/pages/program-element/WhatChangedPanel.test.tsx
+[[33mwarn[39m] apps/web/src/pages/program-element/WhatChangedPanel.tsx
+[[33mwarn[39m] packages/shared/src/defense-budget-line.ts
+[[33mwarn[39m] packages/shared/src/funding-claim.ts
+[[33mwarn[39m] packages/shared/src/index.ts
+[[33mwarn[39m] packages/shared/src/money.ts
+[[33mwarn[39m] packages/shared/src/pe-source-coverage.ts
+[[33mwarn[39m] Code style issues found in 235 files. Run Prettier with --write to fix.
+
+RUN git_diff_check: git diff --check origin/main...HEAD -- apps/api/src/program-element apps/api/scripts/lib/pe-phase-9-rehearsal-catalog.ts apps/api/scripts/lib/pe-phase-9-rehearsal.ts apps/api/scripts/lib/pe-phase-9-rehearsal.spec.ts apps/api/scripts/verify-pe-phase-9.ts apps/api/scripts/pe-phase-9-migration-replay.sh apps/web/src/pages/program-element packages/shared/src/funding-claim.ts packages/shared/src/defense-budget-line.ts packages/shared/src/pe-source-coverage.ts apps/workspace/src/generation/domain-grounding.helpers.ts apps/workspace/src/generation/domain-grounding.helpers.spec.ts
+  exit=0 durationMs=284
+RUN transport_absent (in-process integrity)
+RUN migration_guards_offline: pnpm exec tsx scripts/verify-pe-migration-guards.ts --validate-generate
+  exit=0 durationMs=8952
+RUN clean_upgrade_migrate_replay: bash apps/api/scripts/pe-phase-9-migration-replay.sh
+  exit=0 durationMs=74181
+RUN rls_phase_c_rehearsal: bash apps/api/scripts/pe-phase-c-rls-rehearsal.sh
+  exit=127 durationMs=1523
+  detail_tail:
+== Phase C RLS rehearsal on 127.0.0.1:5432 db=phase_c_rehearsal ==
+
+psql wrapper: container capiro-phase11-pg is not running
+
+RUN extended_loader_dry_run_matrix (in-process extended map)
+Wrote evidence C:\c\Users\neoma\AppData\Local\Temp\pe-closeout-wt\docs\verification\program-elements-trust\phase-11\phase-9-rehearsal-summary.json
+  WARN: soft-fail prettier_pe_surface failed on HEAD (exit 1); base comparison missing — fail closed
+  WARN: soft-fail rls_phase_c_rehearsal failed on HEAD (exit 127); base comparison missing — fail closed
+PE_PHASE_9_OK

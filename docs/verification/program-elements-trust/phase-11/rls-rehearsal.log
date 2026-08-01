@@ -1,0 +1,27 @@
+== Phase C RLS rehearsal on 127.0.0.1:5432 db=phase_c_rehearsal ==
+psql:/repo/apps/api/prisma/migrations/20260528112943_add_program_element_watch/migration.sql:3: NOTICE:  table "program_element_watch" does not exist, skipping
+  PASS  1. original watch table creates in the legacy state
+  PASS  2. duplicate preflight aborts with the intended message
+psql:/repo/apps/api/prisma/migrations/20260528112943_add_program_element_watch/migration.sql:3: NOTICE:  table "program_element_watch" does not exist, skipping
+  PASS  3. clean data allows the tenant-aware index to be created
+  PASS  4. legacy index still exists after expansion (1)
+  PASS  5. tenant-aware index exists after expansion (1)
+  PASS  6. unexpected existing policy aborts the RLS migration
+  PASS  7. canonical RLS migration succeeds after the unexpected policy is removed
+  PASS  8. RLS is enabled and forced (2)
+  PASS  9. exactly the reviewed intended policy exists (1)
+  PASS  9b. no other policy exists on the table (1)
+  PASS  10. runtime role with NO tenant context sees zero rows (0)
+  PASS  11. tenant A can insert and read tenant A's row (1)
+  PASS  12. tenant A cannot insert tenant B's row (WITH CHECK denies)
+  PASS  13. legacy key blocks tenant B's same user+PE insert during coexistence
+  PASS  14a. tenant A's row was not moved or modified (1)
+  PASS  14b. no tenant B row was created (0)
+  PASS  19a. bypass GUC ('on') restores full cross-tenant fan-out reach (2)
+  PASS  19b. WITHOUT the bypass GUC the same fan-out read returns zero rows, no error (0)
+  PASS  15. after dropping only the legacy key, both tenant rows coexist (2)
+  PASS  16. tenant A sees only tenant A's row (1)
+  PASS  17. tenant B sees only tenant B's row (1)
+  PASS  18a. tenant B cannot delete tenant A's row (1)
+  PASS  18b. tenant B's own row is still present (1)
+== Phase C RLS rehearsal: 23 checks PASSED; disposable database dropped ==
