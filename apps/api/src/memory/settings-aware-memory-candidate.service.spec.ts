@@ -3,10 +3,14 @@ import type { ConfigService } from '@nestjs/config';
 import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import type { ImmutableMemoryVersionService } from './immutable-memory-version.service.js';
+import type {
+  ImmutableMemoryVersionService,
+  VersionCandidateDecisionResult,
+} from './immutable-memory-version.service.js';
 import type { MemoryAuthorizationService } from './memory-authorization.service.js';
 import type { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
 import type { MemoryIngestService } from './memory-ingest.service.js';
+import type { PendingSettingsCandidate } from './memory-candidate.service.js';
 import { SettingsAwareMemoryCandidateService } from './settings-aware-memory-candidate.service.js';
 import type { SettingsMemoryVersionCandidateService } from './settings-memory-version-candidate.service.js';
 import type { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
@@ -20,11 +24,13 @@ const ctx: TenantContext = {
 };
 
 function harness() {
-  const proposeExistingCorrection = jest.fn();
-  const findPendingSettingsCorrection = jest.fn();
-  const isImmutableVersionCandidate = jest.fn();
-  const approveCandidate = jest.fn();
-  const rejectCandidate = jest.fn();
+  // Untyped jest.fn() infers its resolved value as `never`, so mockResolvedValue
+  // of a real payload fails TS2345. Pin each mock to the service's return type.
+  const proposeExistingCorrection = jest.fn<() => Promise<PendingSettingsCandidate | null>>();
+  const findPendingSettingsCorrection = jest.fn<() => Promise<PendingSettingsCandidate | null>>();
+  const isImmutableVersionCandidate = jest.fn<() => Promise<boolean>>();
+  const approveCandidate = jest.fn<() => Promise<VersionCandidateDecisionResult>>();
+  const rejectCandidate = jest.fn<() => Promise<VersionCandidateDecisionResult>>();
   const settings = {
     proposeExistingCorrection,
     findPendingSettingsCorrection,
