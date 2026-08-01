@@ -1,3 +1,4 @@
+import { verifyAssuranceEnvelope } from '@capiro/meriv2-core';
 import { assessStrategyDocumentClaims } from './strategy-assurance';
 import type { PackHealth, PackProvenance } from './strategy-context-pack.service';
 import type { DocumentDraftSection } from './strategy-prompt';
@@ -23,7 +24,7 @@ function section(over: Partial<DocumentDraftSection> = {}): DocumentDraftSection
 }
 
 describe('assessStrategyDocumentClaims', () => {
-  it('reports blockers but NEVER holds when not armed', () => {
+  it('reports blockers and a valid envelope but never holds in shadow', () => {
     const out = assessStrategyDocumentClaims({
       sections: [
         section({
@@ -34,24 +35,23 @@ describe('assessStrategyDocumentClaims', () => {
       provenance,
       health: healthy,
       kind: 'workspace_draft',
-      armed: false,
+      mode: 'shadow',
+      contextPacketId: 'packet-1',
     });
     expect(out.held).toBe(false);
-    // …but the problem IS observable before arming.
     expect(out.blockers.length).toBeGreaterThan(0);
     expect(out.unresolvedProvenanceSections).toEqual(['Background']);
+    expect(out.envelope.contextPacketId).toBe('packet-1');
+    expect(verifyAssuranceEnvelope(out.envelope).valid).toBe(true);
   });
 
   it('flags provenance citing a section the context pack did NOT load', () => {
-    // `omitted` sections were never shown to the model, so citing one is a
-    // fabricated provenance entry — exactly what the structural check waves
-    // through, since the entry is non-empty.
     const out = assessStrategyDocumentClaims({
       sections: [section({ sources: [{ section: 'Knowledge graph (walled)' }] })],
       provenance,
       health: healthy,
       kind: 'workspace_draft',
-      armed: true,
+      mode: 'enforce',
     });
     expect(out.held).toBe(true);
     expect(out.unresolvedProvenanceSections).toEqual(['Background']);
@@ -64,21 +64,23 @@ describe('assessStrategyDocumentClaims', () => {
       provenance,
       health: healthy,
       kind: 'workspace_draft',
-      armed: true,
+      mode: 'enforce',
     });
     expect(out.unresolvedProvenanceSections).toEqual(['Background']);
   });
 
-  it('holds an outreach_record on degraded context health', () => {
-    const out = assessStrategyDocumentClaims({
+  it('holds an outreach_record on degraded context health only in enforce mode', () => {
+    const args = {
       sections: [section()],
       provenance,
-      health: { status: 'degraded', missingRequired: ['Client profile'], omittedOptional: [] },
-      kind: 'outreach_record',
-      armed: true,
-    });
+      health: { status: 'degraded' as const, missingRequired: ['Client profile'], omittedOptional: [] },
+      kind: 'outreach_record' as const,
+    };
+    expect(assessStrategyDocumentClaims({ ...args, mode: 'shadow' }).held).toBe(false);
+    const out = assessStrategyDocumentClaims({ ...args, mode: 'enforce' });
     expect(out.held).toBe(true);
     expect(out.blockers.some((b) => /verification was unavailable/i.test(b))).toBe(true);
+    expect(out.envelope.surface).toBe('outreach');
   });
 
   it('does not flag provenance that resolves to a loaded pack section', () => {
@@ -87,18 +89,42 @@ describe('assessStrategyDocumentClaims', () => {
       provenance,
       health: healthy,
       kind: 'workspace_draft',
-      armed: true,
+      mode: 'enforce',
     });
     expect(out.unresolvedProvenanceSections).toEqual([]);
   });
 
-  it('is deterministic — the same draft hashes to the same ledger', () => {
+  it('binds policy and Context Packet drift inputs into the envelope', () => {
+    const out = assessStrategyDocumentClaims({
+      sections: [section()],
+      provenance,
+      health: healthy,
+      kind: 'workspace_draft',
+      mode: 'shadow',
+      contextPacketId: 'packet-9',
+      policyBinding: {
+        packId: 'pack-a',
+        packVersion: '7',
+        ruleId: 'strategy-release',
+        decisionHash: 'decision-hash',
+      },
+    });
+    expect(out.envelope.policyBinding).toMatchObject({ packId: 'pack-a', packVersion: '7' });
+    expect(
+      verifyAssuranceEnvelope(out.envelope, {
+        contextPacketId: 'packet-10',
+        policyBinding: { packId: 'pack-a', packVersion: '8', ruleId: 'strategy-release' },
+      }).errors,
+    ).toEqual(expect.arrayContaining(['context_packet_drift', 'policy_binding_drift']));
+  });
+
+  it('is deterministic at the claim-ledger boundary', () => {
     const args = {
       sections: [section()],
       provenance,
       health: healthy,
       kind: 'workspace_draft' as const,
-      armed: true,
+      mode: 'enforce' as const,
     };
     expect(assessStrategyDocumentClaims(args).ledgerHash).toBe(
       assessStrategyDocumentClaims(args).ledgerHash,
