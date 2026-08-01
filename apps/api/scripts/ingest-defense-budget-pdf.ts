@@ -219,35 +219,36 @@ function runExtractor(
     ? [cls.fiscalYear - 1, cls.fiscalYear, cls.fiscalYear + 1]
     : [];
   switch (cls.family) {
-    case 'rdte':
-      return extractRdte({
-        exhibit: 'R-2',
-        component: cls.component,
-        pages,
-        fyColumns,
-      });
-    case 'procurement':
-      return extractProcurementOrOm({
-        exhibit: 'P-40',
-        account: `Procurement, ${cls.component ?? 'DoD'}`,
-        component: cls.component,
-        pages,
-      });
-    case 'om':
-      return extractProcurementOrOm({
-        exhibit: 'OP-5',
-        account: `O&M, ${cls.component ?? 'DoD'}`,
-        component: cls.component,
-        pages,
-      });
-    default:
-      return {
-        lineAssertions: [],
-        yearValues: [],
-        warnings: [`no extractor for family ${cls.family}`],
-      };
+      case 'rdte':
+        return extractRdte({
+          // Prefer classifier exhibit (R-1 master list vs R-2 volume). Default R-2.
+          exhibit: cls.exhibit === 'R-1' ? 'R-1' : 'R-2',
+          component: cls.component,
+          pages,
+          fyColumns,
+        });
+      case 'procurement':
+        return extractProcurementOrOm({
+          exhibit: 'P-40',
+          account: `Procurement, ${cls.component ?? 'DoD'}`,
+          component: cls.component,
+          pages,
+        });
+      case 'om':
+        return extractProcurementOrOm({
+          exhibit: 'OP-5',
+          account: `O&M, ${cls.component ?? 'DoD'}`,
+          component: cls.component,
+          pages,
+        });
+      default:
+        return {
+          lineAssertions: [],
+          yearValues: [],
+          warnings: [`no extractor for family ${cls.family}`],
+        };
+    }
   }
-}
 
 function classificationFor(file: string, fyFallback: number | null): DocClassification {
   const cls = classifyDocument(file);
