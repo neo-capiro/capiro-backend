@@ -1,8 +1,8 @@
 Phase 17 synchronization request
 
-Requested at: 2026-07-31T21:36:00-04:00
-Attempt: 2
+Requested at: 2026-07-31T21:41:00-04:00
+Attempt: 3
 Target branch: agent/meriv2-world-class-closeout
 Source branch: main
-Strategy: three-way merge with current-main conflict precedence, followed by explicit MeriV2 and Program Elements invariant checks before push.
+Strategy: three-way merge with current-main conflict precedence, followed by explicit MeriV2 and Program Elements invariant checks before push. On failure, publish bounded conflict-path diagnostics only.
 No deployment, migration execution, backfill, feature-flag activation, external send, or customer-data mutation is authorized.
