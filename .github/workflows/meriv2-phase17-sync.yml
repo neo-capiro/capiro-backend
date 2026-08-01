@@ -24,37 +24,84 @@ jobs:
           ref: agent/meriv2-world-class-closeout
           fetch-depth: 0
 
-      - name: Merge current main with current-main precedence
+      - name: Attempt merge and verify both release streams
+        id: sync
+        shell: bash
         run: |
-          set -euo pipefail
+          set -u
           git config user.name "Capiro Phase 17 Sync"
           git config user.email "noreply@capiro.ai"
           git fetch origin main
-          git merge --no-ff -X theirs origin/main \
-            -m "merge(main): synchronize MeriV2 Phase 17 release head"
 
-      - name: Verify both release streams survived the merge
+          pre_sha=$(git rev-parse HEAD)
+          main_sha=$(git rev-parse origin/main)
+          result=success
+          reason=verified
+          conflicts=''
+
+          if ! git merge --no-ff -X theirs origin/main \
+            -m "merge(main): synchronize MeriV2 Phase 17 release head"; then
+            result=merge_failed
+            reason=unresolved_conflicts
+            conflicts=$(git diff --name-only --diff-filter=U | paste -sd ',' -)
+            git merge --abort || true
+          fi
+
+          if [ "$result" = success ]; then
+            set +e
+            git merge-base --is-ancestor origin/main HEAD && \
+            grep -q '^model MemoryAccessGrant {' apps/api/prisma/schema.prisma && \
+            grep -q '^model MemoryCleanupOutbox {' apps/api/prisma/schema.prisma && \
+            grep -q '^model CompliancePolicyPack {' apps/api/prisma/schema.prisma && \
+            grep -q 'governed_status' apps/api/prisma/schema.prisma && \
+            grep -q 'drain-memory-cleanup-outbox)' apps/api/scripts/entrypoint-dispatcher.inc && \
+            grep -q 'backfill-memory-governance)' apps/api/scripts/entrypoint-dispatcher.inc && \
+            test -f apps/api/src/meri/governed-meri-tools.proxy.ts && \
+            grep -q 'governedRecallSuppressionSql' apps/api/src/meri/meri-tools.service.ts && \
+            grep -q '^model ProgramElementDataIssue {' apps/api/prisma/schema.prisma && \
+            grep -q '^model ProgramElementChangeOutbox {' apps/api/prisma/schema.prisma && \
+            grep -q 'drain-pe-change-outbox)' apps/api/scripts/entrypoint-dispatcher.inc && \
+            grep -q 'modelBudgetLineMetadata' apps/api/src/meri/meri-tools.service.ts && \
+            git diff --check origin/main...HEAD
+            verify_code=$?
+            set -e
+            if [ "$verify_code" -ne 0 ]; then
+              result=verify_failed
+              reason=release_stream_invariant_failed
+              git reset --hard "$pre_sha"
+            fi
+          fi
+
+          {
+            echo "result=$result"
+            echo "pre_sha=$pre_sha"
+            echo "main_sha=$main_sha"
+          } >> "$GITHUB_OUTPUT"
+
+          cat > /tmp/meriv2-phase17-sync-result.md <<EOF
+          # MeriV2 Phase 17 synchronization result
+
+          - Result: \`$result\`
+          - Reason: \`$reason\`
+          - Starting branch SHA: \`$pre_sha\`
+          - Fetched main SHA: \`$main_sha\`
+          - Unresolved conflict paths: \`${conflicts:-none}\`
+          - Production actions: none
+
+          A successful result is pushed only after both MeriV2 and Program Elements invariants pass. A failed result records bounded file-path diagnostics only.
+          EOF
+
+      - name: Push verified merge
+        if: steps.sync.outputs.result == 'success'
+        run: git push origin HEAD:agent/meriv2-world-class-closeout
+
+      - name: Publish bounded failure diagnostic
+        if: steps.sync.outputs.result != 'success'
+        shell: bash
         run: |
           set -euo pipefail
-          git merge-base --is-ancestor origin/main HEAD
-
-          # MeriV2 governed-memory schema and worker invariants.
-          grep -q '^model MemoryAccessGrant {' apps/api/prisma/schema.prisma
-          grep -q '^model MemoryCleanupOutbox {' apps/api/prisma/schema.prisma
-          grep -q '^model CompliancePolicyPack {' apps/api/prisma/schema.prisma
-          grep -q 'governed_status' apps/api/prisma/schema.prisma
-          grep -q 'drain-memory-cleanup-outbox)' apps/api/scripts/entrypoint-dispatcher.inc
-          grep -q 'backfill-memory-governance)' apps/api/scripts/entrypoint-dispatcher.inc
-          test -f apps/api/src/meri/governed-meri-tools.proxy.ts
-          grep -q 'governedRecallSuppressionSql' apps/api/src/meri/meri-tools.service.ts
-
-          # Current-main Program Elements invariants from the incoming stream.
-          grep -q '^model ProgramElementDataIssue {' apps/api/prisma/schema.prisma
-          grep -q '^model ProgramElementChangeOutbox {' apps/api/prisma/schema.prisma
-          grep -q 'drain-pe-change-outbox)' apps/api/scripts/entrypoint-dispatcher.inc
-          grep -q 'modelBudgetLineMetadata' apps/api/src/meri/meri-tools.service.ts
-
-          git diff --check origin/main...HEAD
-
-      - name: Push the verified merge commit
-        run: git push origin HEAD:agent/meriv2-world-class-closeout
+          cp /tmp/meriv2-phase17-sync-result.md docs/tmp/meriv2-phase17-sync-result.md
+          git add docs/tmp/meriv2-phase17-sync-result.md
+          git commit -m "docs(meriv2): record Phase 17 synchronization diagnostic"
+          git push origin HEAD:agent/meriv2-world-class-closeout
+          exit 1
