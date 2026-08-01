@@ -13,7 +13,7 @@ Phase 17 requires one final SHA synchronized with current `main`, all branch-int
 - Primary PR: `#679`
 - Main advanced from `3dcb12f823774b6fae8578dc56fc122bf9a0879e` to `b792f2d24920d56d7addcda88a602c6282563f47` during Phase 17 execution.
 - The release branch became 101 commits behind and GitHub reports merge conflicts.
-- Synchronization PR: `#725` (`main` into the release branch); GitHub refused the merge with `Pull Request has merge conflicts`.
+- Synchronization PR `#725` (`main` into the release branch) was closed unmerged after GitHub refused it with `Pull Request has merge conflicts`.
 
 ## Phase 17 implementation completed
 
@@ -38,25 +38,27 @@ Added `.github/workflows/meriv2-phase17-ci.yml` with the plan’s exact dependen
 
 The bypass audit preserves raw matches and fails on live non-test ethical-wall bypasses. Known remaining text matches are restricted to historical migration/comments, regression assertions, the durable-outbox fast path, or the documented off/shadow static policy fallback and must still be reviewed in the final successful run log.
 
-### Guarded current-main synchronization
+### Current-main synchronization attempt
 
-Added `.github/workflows/meriv2-phase17-sync.yml` and a branch-local request marker. The job:
+A temporary branch-only synchronization workflow was created to:
 
-- performs a real three-way merge with current-main conflict precedence;
-- verifies MeriV2 governed-memory schema, worker, policy, and recall-suppression invariants;
-- verifies the newly landed Program Elements schema, worker, and model-grounding invariants;
-- pushes only after both streams survive;
-- otherwise aborts and publishes bounded conflict-path diagnostics.
+- perform a real three-way merge with current-main conflict precedence;
+- verify MeriV2 governed-memory schema, worker, policy, and recall-suppression invariants;
+- verify the newly landed Program Elements schema, worker, and model-grounding invariants;
+- push only after both release streams survived;
+- otherwise abort and publish bounded conflict-path diagnostics.
 
-No merge commit or diagnostic was published because GitHub Actions did not register/execute the branch workflow.
+GitHub Actions did not register or execute that workflow. It produced neither a merge commit nor a diagnostic. The temporary write-capable workflow and its request marker were therefore removed from the branch, rather than left dormant.
+
+The permanent Phase 17 CI matrix remains read-only and is intended to run after synchronization is resolved.
 
 ## GitHub Actions control-plane blocker
 
-The repository continues to expose the orphan synthetic workflow identity `324351375` with `path=BuildFailed`. On the current Phase 17 commits:
+The repository continues to expose the orphan synthetic workflow identity `324351375` with `path=BuildFailed`. On the Phase 17 commits:
 
 - no pull-request workflow run registered;
 - no commit status context registered;
-- the branch-only sync workflow published neither a verified merge nor its failure diagnostic.
+- the branch-only synchronization attempt did not execute.
 
 This is not test evidence. No build, typecheck, test, evaluation, migration rehearsal, or canary result is claimed from these commits.
 
