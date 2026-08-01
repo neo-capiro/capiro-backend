@@ -1,5 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -52,10 +57,14 @@ export class SettingsMemoryVersionCandidateService {
       const source = await this.findCurrentSettingsItem(tx, ctx.tenantId, input.type, input.slug);
       if (!source) return null;
       if (source.memoryScope !== input.scope) {
-        throw new BadRequestException('The Settings file scope no longer matches its active memory.');
+        throw new BadRequestException(
+          'The Settings file scope no longer matches its active memory.',
+        );
       }
       if (input.scope === 'client' && source.clientId !== input.clientId) {
-        throw new BadRequestException('The Settings file client no longer matches its active memory.');
+        throw new BadRequestException(
+          'The Settings file client no longer matches its active memory.',
+        );
       }
       if (source.legalHold) throw new ForbiddenException('Memory operation denied: legal_hold');
 
@@ -125,7 +134,7 @@ export class SettingsMemoryVersionCandidateService {
         toStatus: 'pending_review',
         reasonCode: 'submitted_for_review',
         reason: 'Existing shared Settings memory submitted as an immutable correction.',
-        sourceType: 'settings_editor',
+        sourceType: 'approved_document_edit',
         sourceId: source.id,
         proposalId: id,
         metadata: {
