@@ -355,11 +355,14 @@ async function main() {
       );
     }
 
+    // Bind the element so noUncheckedIndexedAccess sees the narrowing;
+    // artifacts[0] is string|undefined even behind a length check.
+    const soleArtifact = artifacts.length === 1 ? artifacts[0] : undefined;
     console.log(
       JSON.stringify(
         {
           ...stats,
-          sha256: artifacts.length === 1 ? sha256OfFile(artifacts[0]) : undefined,
+          sha256: soleArtifact ? sha256OfFile(soleArtifact) : undefined,
         },
         null,
         2,
