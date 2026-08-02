@@ -65,12 +65,10 @@ export function parseExtractionAdapterContextV1(input: unknown): ExtractionAdapt
 
 /** Build the artifact source object from a validated context. */
 export function sourceFromContext(context: ExtractionAdapterContextV1): ExtractionSourceV1 {
-  return extractionSourceV1Schema.parse({
+  const parsed = extractionSourceV1Schema.parse({
     manifestDocumentKey: context.manifestDocumentKey,
-    sourceDocumentId: context.sourceDocumentId,
     sourcePdfSha256: context.sourcePdfSha256,
     sourceLocator: context.sourceLocator,
-    sourceUrl: context.sourceUrl,
     fiscalYear: context.fiscalYear,
     family: context.family,
     exhibit: context.exhibit,
@@ -78,9 +76,12 @@ export function sourceFromContext(context: ExtractionAdapterContextV1): Extracti
     component: context.component,
     budgetCycle: context.budgetCycle,
     documentType: context.documentType,
-    pageCount: context.pageCount,
-    title: context.title,
+    ...(context.sourceDocumentId != null ? { sourceDocumentId: context.sourceDocumentId } : {}),
+    ...(context.sourceUrl != null ? { sourceUrl: context.sourceUrl } : {}),
+    ...(context.pageCount != null ? { pageCount: context.pageCount } : {}),
+    ...(context.title != null ? { title: context.title } : {}),
   });
+  return parsed;
 }
 
 /**
