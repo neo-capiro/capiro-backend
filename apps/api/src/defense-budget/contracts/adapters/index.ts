@@ -29,3 +29,19 @@ export {
   r3PerformerArtifactV1InputSchema,
   type R3PerformerArtifactV1Input,
 } from './r3-performer-artifact-v1.adapter.js';
+export {
+  adaptCommitteeArtifactToArtifactV1,
+  COMMITTEE_ADAPTER_MODE_VALUES,
+  COMMITTEE_MODE_AUTHORITY,
+  COMMITTEE_MODE_FUNDING_FIELD,
+  committeeArtifactV1InputSchema,
+  type CommitteeAdapterMode,
+  type CommitteeAdapterOptions,
+  type CommitteeArtifactV1Input,
+} from './committee-artifact-v1.adapter.js';
+export {
+  adaptPdocArtifactToArtifactV1,
+  pdocArtifactV1InputSchema,
+  type PdocAdapterOptions,
+  type PdocArtifactV1Input,
+} from './pdoc-artifact-v1.adapter.js';
