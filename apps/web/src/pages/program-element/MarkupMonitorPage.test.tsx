@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { MarkupMonitorPage } from './MarkupMonitorPage.js';
 
 const apiGetMock = vi.fn();
@@ -45,7 +46,9 @@ function renderPage() {
 
   render(
     <QueryClientProvider client={queryClient}>
-      <MarkupMonitorPage />
+      <MemoryRouter>
+        <MarkupMonitorPage />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }

@@ -15,12 +15,29 @@ import {
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../lib/use-api.js';
 import { useMe } from '../../lib/me.js';
 import { getPersonCandidates, resolvePersonCandidate, suggestPersonForPe } from './api.js';
 import type { PersonCandidate } from './types.js';
+import './program-elements-final.css';
 
 const { Title, Paragraph, Text } = Typography;
+
+function QueueBreadcrumb() {
+  const navigate = useNavigate();
+  return (
+    <div className="pe-final-breadcrumb">
+      <button type="button" onClick={() => navigate('/program-elements')}>
+        Program elements
+      </button>
+      <span>›</span>
+      <span>Monitoring tools</span>
+      <span>›</span>
+      <span>Contact review queue</span>
+    </div>
+  );
+}
 
 /** Score -> colored confidence tag. */
 function scoreTag(score: number) {
@@ -129,25 +146,35 @@ function ReviewQueue() {
   );
 
   return (
-    <Card>
-      <Title level={4} style={{ marginTop: 0 }}>
-        Person → Program Element review queue
-      </Title>
-      <Paragraph type="secondary">
-        Proposed links awaiting your review. Confirming sets the person&apos;s primary PE and attaches a J-book
-        citation; rejecting discards the suggestion. Nothing is applied automatically.
-      </Paragraph>
+    <section className="pe-finder pe-final">
+      <QueueBreadcrumb />
+      <div className="pe-final-page-copy">
+        <h1>Contact review queue</h1>
+        <p>
+          Acquisition personnel matched to your monitored lines from public records. Confirm the
+          ones you recognize; low-confidence matches never reach a client brief unconfirmed.
+        </p>
+      </div>
+
+      <div className="pe-final-queue-notice">
+        Restricted lines never reach this queue. Where a program office is withheld from the
+        public directory, Capiro records the restriction on the profile rather than sourcing the
+        contact.
+      </div>
+
       {queue.isError && <Alert type="error" message="Failed to load the queue." style={{ marginBottom: 12 }} />}
-      <Table<PersonCandidate>
-        rowKey="id"
-        loading={queue.isLoading}
-        dataSource={rows}
-        columns={columns}
-        size="small"
-        pagination={{ pageSize: 25, showSizeChanger: false }}
-        locale={{ emptyText: <Empty description="No open candidates — queue is clear." /> }}
-      />
-    </Card>
+      <div className="pe-final-card">
+        <Table<PersonCandidate>
+          rowKey="id"
+          loading={queue.isLoading}
+          dataSource={rows}
+          columns={columns}
+          size="small"
+          pagination={{ pageSize: 25, showSizeChanger: false }}
+          locale={{ emptyText: <Empty description="No open candidates — queue is clear." /> }}
+        />
+      </div>
+    </section>
   );
 }
 
@@ -172,41 +199,49 @@ function SuggestForm() {
   });
 
   return (
-    <Card style={{ maxWidth: 640 }}>
-      <Title level={4} style={{ marginTop: 0 }}>
-        Suggest a program contact
-      </Title>
-      <Paragraph type="secondary">
-        Know who runs a program? Tell us their name and the Program Element (PE) code. Our team reviews every
-        suggestion before it&apos;s added — this never changes the data directly.
-      </Paragraph>
-      <Form form={form} layout="vertical" onFinish={(v) => submit.mutate(v)} disabled={submit.isPending}>
-        <Form.Item
-          label="Program Element (PE) code"
-          name="peCode"
-          rules={[{ required: true, message: 'Enter the PE code, e.g. 0604201A' }]}
-        >
-          <Input placeholder="e.g. 0604201A" />
-        </Form.Item>
-        <Form.Item label="Person's full name" name="fullName" rules={[{ required: true, message: 'Enter a name' }]}>
-          <Input placeholder="e.g. Jane A. Smith" />
-        </Form.Item>
-        <Form.Item label="Role / title (optional)" name="roleTitle">
-          <Input placeholder="e.g. Project Manager, Apache Helicopters" />
-        </Form.Item>
-        <Form.Item label="Organization (optional)" name="organization">
-          <Input placeholder="e.g. CPE Aviation" />
-        </Form.Item>
-        <Form.Item label="Notes (optional)" name="notes">
-          <Input.TextArea rows={2} placeholder="How do you know this? Any context helps our review." />
-        </Form.Item>
-        <Form.Item>
-          <Button type="primary" htmlType="submit" loading={submit.isPending}>
-            Submit suggestion
-          </Button>
-        </Form.Item>
-      </Form>
-    </Card>
+    <section className="pe-finder pe-final">
+      <QueueBreadcrumb />
+      <div className="pe-final-page-copy">
+        <h1>Contact review queue</h1>
+      </div>
+      <div className="pe-final-card" style={{ maxWidth: 640 }}>
+        <div className="pe-final-card-head">
+          <h3>Suggest a program contact</h3>
+        </div>
+        <div style={{ padding: 16 }}>
+          <Paragraph type="secondary">
+            Know who runs a program? Tell us their name and the Program Element (PE) code. Our team reviews every
+            suggestion before it&apos;s added — this never changes the data directly.
+          </Paragraph>
+          <Form form={form} layout="vertical" onFinish={(v) => submit.mutate(v)} disabled={submit.isPending}>
+            <Form.Item
+              label="Program Element (PE) code"
+              name="peCode"
+              rules={[{ required: true, message: 'Enter the PE code, e.g. 0604201A' }]}
+            >
+              <Input placeholder="e.g. 0604201A" />
+            </Form.Item>
+            <Form.Item label="Person's full name" name="fullName" rules={[{ required: true, message: 'Enter a name' }]}>
+              <Input placeholder="e.g. Jane A. Smith" />
+            </Form.Item>
+            <Form.Item label="Role / title (optional)" name="roleTitle">
+              <Input placeholder="e.g. Project Manager, Apache Helicopters" />
+            </Form.Item>
+            <Form.Item label="Organization (optional)" name="organization">
+              <Input placeholder="e.g. CPE Aviation" />
+            </Form.Item>
+            <Form.Item label="Notes (optional)" name="notes">
+              <Input.TextArea rows={2} placeholder="How do you know this? Any context helps our review." />
+            </Form.Item>
+            <Form.Item>
+              <Button type="primary" htmlType="submit" loading={submit.isPending}>
+                Submit suggestion
+              </Button>
+            </Form.Item>
+          </Form>
+        </div>
+      </div>
+    </section>
   );
 }
 

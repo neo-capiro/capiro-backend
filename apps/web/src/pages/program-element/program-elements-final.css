@@ -80,7 +80,7 @@
 .pe-final-portfolio .portfolio-pe-count,.pe-final-portfolio .portfolio-pe-title-row span{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11.5px;color:var(--pef-ink-3)}
 .pe-final-portfolio .portfolio-pe-actions>button{height:30px;padding:0 12px;border:1px solid var(--pef-border-strong);border-radius:6px;background:var(--pef-surface);font-size:12.5px}
 .pe-final-portfolio .portfolio-pe-description{margin:0 0 12px;font-size:12px;color:var(--pef-ink-3)}
-.pe-final-portfolio .portfolio-pe-grid{grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:14px}
+.pe-final-portfolio .portfolio-pe-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:14px}
 .portfolio-pe-card{min-height:auto;border:1px solid var(--pef-border);border-radius:12px;padding:16px;background:var(--pef-surface);box-shadow:none;cursor:pointer;transition:border-color .12s ease,background .12s ease,transform .12s ease}
 .portfolio-pe-card:hover,.portfolio-pe-card:focus-visible{border-color:var(--pef-border-strong);background:var(--pef-surface-2);outline:none;transform:translateY(-1px)}
 .portfolio-pe-card.risk,.portfolio-pe-card.actions{border-top-width:1px;border-top-color:var(--pef-border)}
@@ -123,7 +123,27 @@
 .pe-final .action-kanban-column{flex:unset;min-width:232px;background:var(--pef-sunken);border:1px solid var(--pef-border);border-radius:12px;padding:10px;max-height:none}
 .pe-final .action-kanban-column-header{font-size:12px;font-weight:600;padding:3px 4px 5px}
 .pe-final .action-kanban-column-count{font-family:"JetBrains Mono",monospace;font-size:11px;background:transparent;color:var(--pef-ink-3);padding:0}
-.pe-final .action-card .ant-card{border:1px solid var(--pef-border);border-radius:9px;box-shadow:none}
-.pe-final .action-card .ant-card-body{padding:11px 12px}
 .pe-final .action-list{gap:9px}
 @media (max-width:1100px){.pe-final-profile-top{grid-template-columns:1fr}}
+
+/* ===== Mark-up monitor / Contact review queue ===== */
+.pe-final-markup-filters{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;padding:15px 16px}
+.pe-final-markup-filters label{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--pef-ink-3)}
+.pe-final-stage-bar-row{display:flex;align-items:center;gap:8px}
+.pe-final-queue-notice{display:flex;align-items:flex-start;gap:9px;background:var(--pef-sunken);border:1px solid var(--pef-border);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--pef-ink-2);line-height:1.55}
+
+/* AntD Table, brought in line with the prototype's catalog-table look
+   wherever it's used inside a .pe-final page (Mark-up monitor, Contact
+   review queue, and any other admin table hosted under this design). */
+.pe-final .ant-table{background:transparent;font-family:"Hanken Grotesk",Inter,system-ui,sans-serif;font-size:12.5px}
+.pe-final .ant-table-thead>tr>th{background:var(--pef-surface-2);border-bottom:1px solid var(--pef-border);color:var(--pef-ink-3);font-size:10px;letter-spacing:.07em;text-transform:uppercase;font-weight:500}
+.pe-final .ant-table-thead>tr>th::before{display:none}
+.pe-final .ant-table-tbody>tr>td{border-bottom:1px solid var(--pef-border);color:var(--pef-ink-1)}
+.pe-final .ant-table-tbody>tr:hover>td{background:var(--pef-surface-2)!important}
+.pe-final .ant-table-placeholder:hover>td{background:transparent!important}
+.pe-final .ant-pagination{font-size:12px}
+.pe-final .ant-select-selector,.pe-final .ant-input,.pe-final .ant-input-number,.pe-final .ant-picker{border-radius:6px!important;border-color:var(--pef-border-strong)!important;font-size:12.5px}
+.pe-final .ant-select-focused .ant-select-selector,.pe-final .ant-input:focus,.pe-final .ant-input-number-focused{border-color:var(--pef-accent)!important;box-shadow:0 0 0 2px var(--pef-accent-glow)!important}
+.pe-final .ant-btn-primary{background:var(--pef-accent);border-color:var(--pef-accent)}
+.pe-final .ant-btn-primary:hover{background:var(--pef-accent-ink)!important;border-color:var(--pef-accent-ink)!important}
+.pe-final .ant-tag{border:none;border-radius:3px;padding:2px 7px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;line-height:1.6}

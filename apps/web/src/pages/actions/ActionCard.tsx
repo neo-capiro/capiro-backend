@@ -202,7 +202,7 @@ export function ActionCard({
 
   return (
     <Card
-      className="action-card"
+      className={compact ? 'action-card compact' : 'action-card'}
       size="small"
       title={
         <div className="action-card-badges">
@@ -243,12 +243,12 @@ export function ActionCard({
           <Paragraph style={{ margin: 0 }}>{card.whatChanged || '—'}</Paragraph>
         </div>
 
-        <div>
+        <div className="action-card-detail">
           <div className="action-card-section-label">Why it matters</div>
           <Paragraph style={{ margin: 0 }}>{card.whyItMatters || '—'}</Paragraph>
         </div>
 
-        <div>
+        <div className="action-card-detail">
           <div className="action-card-section-label">Recommended action</div>
           <Paragraph style={{ margin: 0 }} strong>
             {card.recommendedAction || '—'}
@@ -260,7 +260,7 @@ export function ActionCard({
           ) : null}
         </div>
 
-        <div>
+        <div className="action-card-detail">
           <div className="action-card-section-label">Target audience</div>
           {audience.length ? (
             <div className="action-card-badges">
@@ -308,7 +308,7 @@ export function ActionCard({
           )}
         </div>
 
-        <div>
+        <div className="action-card-detail">
           <div className="action-card-section-label">Confidence</div>
           <div className="action-card-badges">
             <ConfidenceChip label="Delta" band={confidence.delta} />
@@ -325,7 +325,7 @@ export function ActionCard({
         </div>
 
         {evidence.length ? (
-          <div>
+          <div className="action-card-detail">
             <div className="action-card-section-label">Evidence</div>
             <div className="action-card-evidence">
               {evidence.map((ref, idx) =>
@@ -350,7 +350,7 @@ export function ActionCard({
           </div>
         ) : null}
 
-        <div className="action-card-coverage">
+        <div className="action-card-coverage action-card-detail">
           <button
             type="button"
             className="action-card-coverage-toggle"
@@ -366,7 +366,7 @@ export function ActionCard({
           ) : null}
         </div>
 
-        <div className="action-card-artifacts">
+        <div className="action-card-artifacts action-card-detail">
           <button
             type="button"
             className="action-card-coverage-toggle"

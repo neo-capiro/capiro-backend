@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Card, Empty, InputNumber, Select, Space, Table, Tag, Typography } from 'antd';
+import { Empty, InputNumber, Select, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../lib/use-api.js';
 import { getMarkupMonitor } from './api.js';
 import type { ProgramElementMarkupMonitorItem } from './types.js';
+import './program-elements-final.css';
 
 const { Text } = Typography;
 
@@ -39,24 +41,9 @@ function MarkCell({ value, request }: { value: number | null; request: number | 
 function DivergenceBar({ value }: { value: number }) {
   const clamped = Math.max(0, Math.min(100, value));
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div
-        aria-hidden
-        style={{
-          width: 96,
-          height: 8,
-          borderRadius: 999,
-          background: '#f0f0f0',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            width: `${clamped}%`,
-            height: '100%',
-            background: '#1677ff',
-          }}
-        />
+    <div className="pe-final-stage-bar-row">
+      <div className="pe-final-stage-bar" aria-hidden>
+        <i style={{ width: `${clamped}%`, background: 'var(--pef-accent, var(--accent))' }} />
       </div>
       <Text>{value.toFixed(1)}%</Text>
     </div>
@@ -65,6 +52,7 @@ function DivergenceBar({ value }: { value: number }) {
 
 export function MarkupMonitorPage() {
   const api = useApi();
+  const navigate = useNavigate();
   const [serviceFilter, setServiceFilter] = useState<string>('all');
   const [divergenceThreshold, setDivergenceThreshold] = useState<number>(0);
 
@@ -149,20 +137,38 @@ export function MarkupMonitorPage() {
   ];
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card>
-        <Space size={16} wrap>
-          <Space direction="vertical" size={4}>
-            <Text type="secondary">Service</Text>
+    <section className="pe-finder pe-final">
+      <div className="pe-final-breadcrumb">
+        <button type="button" onClick={() => navigate('/program-elements')}>
+          Program elements
+        </button>
+        <span>›</span>
+        <span>Monitoring tools</span>
+        <span>›</span>
+        <span>Mark-up monitor</span>
+      </div>
+
+      <div className="pe-final-page-copy">
+        <h1>Mark-up monitor</h1>
+        <p>
+          Committee marks across HASC, SASC, HAC-D and SAC-D for every program element you
+          watch, with how far each mark diverges from the President&apos;s Budget request.
+        </p>
+      </div>
+
+      <div className="pe-final-card" style={{ margin: '16px 0' }}>
+        <div className="pe-final-markup-filters">
+          <label>
+            <span>Service</span>
             <Select
               style={{ width: 220 }}
               options={serviceOptions}
               value={serviceFilter}
               onChange={(value) => setServiceFilter(value)}
             />
-          </Space>
-          <Space direction="vertical" size={4}>
-            <Text type="secondary">Divergence threshold</Text>
+          </label>
+          <label>
+            <span>Divergence threshold</span>
             <InputNumber
               min={0}
               max={100}
@@ -171,11 +177,14 @@ export function MarkupMonitorPage() {
               onChange={(value) => setDivergenceThreshold(value ?? 0)}
               addonAfter="%"
             />
-          </Space>
-        </Space>
-      </Card>
+          </label>
+        </div>
+      </div>
 
-      <Card title="Program Element Mark-Up Monitor">
+      <div className="pe-final-card">
+        <div className="pe-final-card-head">
+          <h3>Program element mark-up monitor</h3>
+        </div>
         <Table<ProgramElementMarkupMonitorItem>
           rowKey="peCode"
           dataSource={filteredRows}
@@ -186,7 +195,7 @@ export function MarkupMonitorPage() {
             emptyText: <Empty description="Watch some PEs to populate this view" />,
           }}
         />
-      </Card>
-    </Space>
+      </div>
+    </section>
   );
 }
