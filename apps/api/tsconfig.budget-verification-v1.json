@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "declarationMap": false,
+    "noEmit": true,
+    "noUncheckedIndexedAccess": true,
+    "strict": true
+  },
+  "exclude": [
+    "node_modules",
+    "dist"
+  ],
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/defense-budget/verification/verification-contract-v1.ts",
+    "src/defense-budget/verification/verification-input-v1.ts",
+    "src/defense-budget/verification/verification-policy-v1.ts",
+    "src/defense-budget/verification/verification-policy-registry.ts",
+    "src/defense-budget/verification/trusted-proof/trusted-proof-types.ts",
+    "src/defense-budget/verification/trusted-proof/trusted-proof-resolver.ts",
+    "src/defense-budget/verification/trusted-proof/index.ts",
+    "src/defense-budget/verification/trusted-proof/filesystem-proof-resolver.ts",
+    "src/defense-budget/verification/trusted-proof/source-document-proof-resolver.ts",
+    "src/defense-budget/verification/trusted-proof/archive-proof-resolver.ts",
+    "src/defense-budget/verification/trusted-proof/parser-run-proof-resolver.ts",
+    "src/defense-budget/verification/trusted-proof/extraction-artifact-proof-resolver.ts",
+    "src/defense-budget/verification/trusted-proof/composite-proof-resolver.ts",
+    "src/defense-budget/contracts/extraction-artifact-v1.ts",
+    "src/defense-budget/contracts/extraction-artifact-v1.semantic.ts",
+    "src/defense-budget/contracts/canonical-json.ts",
+    "src/defense-budget/contracts/decimal-string.ts",
+    "src/defense-budget/contracts/budget-cycle-manifest-v1.ts",
+    "src/defense-budget/contracts/artifact-builders.ts",
+    "src/defense-budget/contracts/index.ts",
+    "src/defense-budget/contracts/adapters/adapter-context.ts",
+    "src/defense-budget/contracts/adapters/adapter-helpers.ts",
+    "src/program-element/source-document/source-document-registry.ts"
+  ]
+}
