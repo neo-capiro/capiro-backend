@@ -1,4 +1,4 @@
-import { verifyAndPersistBudgetDocument } from './budget-verification-service.js';
+import { structurallyValidateAndPersistAuditDraft } from './budget-verification-service.js';
 import type { BudgetDocument } from './budget-verification.js';
 import type { BudgetVerificationRepository } from './budget-verification-repository.js';
 
@@ -7,7 +7,7 @@ const evidence = {
   sourceDocumentId: 'doc-1',
   sourceSha256: SHA,
   page: 1,
-  boundingBox: { left: 0, top: 0, right: 10, bottom: 10 },
+  granularity: 'page_only' as const,
   extractionMethod: 'llamaparse' as const,
 };
 const document = {
@@ -25,6 +25,13 @@ const document = {
   sourceAuthority: 'presidents_budget_request' as const,
   sourceLineKind: 'RDTE_PE' as const,
   evidence,
+  extractionDiagnostics: {
+    sourceYearValueCount: 1,
+    sourceMoneyAssertionCount: 1,
+    acceptedMoneyAssertionCount: 1,
+    droppedMoneyAssertions: [],
+    parserWarnings: [],
+  },
   columns: [
     {
       key: 'fy27-request',
@@ -59,8 +66,8 @@ const document = {
   ],
 } satisfies BudgetDocument;
 
-describe('verifyAndPersistBudgetDocument', () => {
-  it('keeps parser, verification, and audit persistence separate from canonical writes', async () => {
+describe('structurallyValidateAndPersistAuditDraft', () => {
+  it('validates and persists only draft audit rows with scaffold statuses', async () => {
     const statuses: string[] = [];
     const repository: BudgetVerificationRepository = {
       async createCandidate() {},
@@ -71,15 +78,14 @@ describe('verifyAndPersistBudgetDocument', () => {
         statuses.push(status);
       },
     };
-    const result = await verifyAndPersistBudgetDocument(repository, document, {
+    const result = await structurallyValidateAndPersistAuditDraft(repository, document, {
       candidateId: 'candidate-1',
       runId: 'run-1',
-      approvedSha256: SHA,
       clock: { now: () => new Date('2026-08-02T00:00:00.000Z') },
     });
-    expect(result.promotionReady).toBe(true);
-    expect(statuses).toEqual(['VERIFIED_AUTOMATIC']);
+    expect(result.status).toBe('STRUCTURALLY_VALIDATED');
+    expect(statuses).toEqual(['STRUCTURALLY_VALIDATED']);
+    expect(result).not.toHaveProperty('promotionReady');
+    expect(result).not.toHaveProperty('canonicalEligible');
   });
 });
-
-export {};

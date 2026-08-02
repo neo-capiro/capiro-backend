@@ -1,6 +1,7 @@
 import {
   buildBudgetDocumentFromExtraction,
   buildBudgetDocumentFromMappedExtraction,
+  buildExtractionDiagnostics,
   evidenceForAssertion,
   sourceLineKindFromClassification,
 } from './budget-document-adapter.js';
@@ -35,7 +36,7 @@ function classification(over: Partial<DocClassification> = {}): DocClassificatio
   };
 }
 
-function extraction(): ExtractionResult {
+function cleanExtraction(): ExtractionResult {
   return {
     lineAssertions: [
       {
@@ -45,12 +46,6 @@ function extraction(): ExtractionResult {
         component: 'ARMY',
         provenance: prov(),
       },
-      {
-        lineKind: 'PROCUREMENT_BLIN',
-        code: '12',
-        title: 'Radio',
-        provenance: prov({ exhibit: 'P-40' }),
-      },
     ],
     yearValues: [
       {
@@ -59,47 +54,6 @@ function extraction(): ExtractionResult {
         fy: 2027,
         fieldName: 'request',
         money: { value: 1250, unit: 'thousands' },
-        provenance: prov(),
-      },
-      {
-        lineKind: 'RDTE_PE',
-        code: '0602308A',
-        fy: 2027,
-        fieldName: 'hascMark',
-        money: { value: 1300, unit: 'thousands' },
-        provenance: prov({ exhibit: 'committee_report', colLabel: 'HASC Mark' }),
-      },
-      {
-        lineKind: 'RDTE_PE',
-        code: '0602308A',
-        fy: 2027,
-        // Extractor vocabulary (lowercase d) must map to canonical hacDMark.
-        fieldName: 'hacdMark',
-        money: { value: 1400, unit: 'thousands' },
-        provenance: prov({ exhibit: 'committee_report', colLabel: 'HAC-D Mark' }),
-      },
-      {
-        lineKind: 'PROCUREMENT_BLIN',
-        code: '12',
-        fy: 2027,
-        fieldName: 'request',
-        money: { value: 99, unit: 'millions' },
-        provenance: prov({ exhibit: 'P-40' }),
-      },
-      {
-        lineKind: 'RDTE_PE',
-        code: '0602308A',
-        fy: 2026,
-        fieldName: 'quantity',
-        quantity: 4,
-        provenance: prov(),
-      },
-      {
-        lineKind: 'RDTE_PE',
-        code: '0602308A',
-        fy: 2027,
-        fieldName: 'request',
-        money: { value: Number.NaN, unit: 'thousands' },
         provenance: prov(),
       },
     ],
@@ -113,6 +67,23 @@ const archive = {
   versionId: 'version-abc',
   sha256: SHA,
 };
+
+function build(extraction: ExtractionResult, cls = classification()) {
+  return buildBudgetDocumentFromExtraction({
+    classification: cls,
+    extraction,
+    sourceDocumentId: 'src-doc-1',
+    sourceSha256: SHA,
+    archive,
+    parse: {
+      id: 'parse-job-1',
+      provider: 'llamaparse',
+      status: 'succeeded',
+      inputSha256: SHA,
+      outputJsonKey: 'derived/parsed.pages-all.json',
+    },
+  });
+}
 
 describe('sourceLineKindFromClassification', () => {
   it('maps classifier exhibits to line identity without collapsing procurement into PE', () => {
@@ -128,163 +99,185 @@ describe('sourceLineKindFromClassification', () => {
   });
 });
 
-describe('buildBudgetDocumentFromExtraction', () => {
-  it('maps extractor money assertions into a BudgetDocument the verifier accepts for structure', () => {
-    const doc = buildBudgetDocumentFromExtraction({
-      classification: classification(),
-      extraction: extraction(),
-      sourceDocumentId: 'src-doc-1',
-      sourceSha256: SHA,
-      archive,
-      parse: {
-        id: 'parse-job-1',
-        provider: 'llamaparse',
-        status: 'succeeded',
-        inputSha256: SHA,
-        outputJsonKey: 'derived/public/…/parsed.pages-all.json',
-      },
-    });
-
-    expect(doc.documentId).toBe('rdte_vol_1_budget_activity_1');
-    expect(doc.fiscalYear).toBe(2027);
-    expect(doc.sourceAuthority).toBe('presidents_budget_request');
-    expect(doc.sourceLineKind).toBe('RDTE_PE');
-    expect(doc.archiveProof).toEqual(archive);
-    expect(doc.parseProof.provider).toBe('llamaparse');
-
-    // Money fields only — quantity and NaN dropped.
-    expect(doc.columns.map((c) => c.key).sort()).toEqual([
-      '2027-hacDMark',
-      '2027-hascMark',
-      '2027-request',
-    ]);
-    expect(doc.rows).toHaveLength(2); // PE + procurement BLIN
-
-    const peRow = doc.rows.find((r) => r.code === '0602308A');
-    expect(peRow?.cells.map((c) => c.field).sort()).toEqual(['hacDMark', 'hascMark', 'request']);
-    expect(peRow?.cells.find((c) => c.field === 'request')).toEqual(
-      expect.objectContaining({
-        rawValue: 1250,
-        unit: 'thousands',
-        columnKey: '2027-request',
-        evidence: expect.objectContaining({
-          page: 12,
-          extractionMethod: 'llamaparse',
-          sourceSha256: SHA,
-          boundingBox: { left: 0, top: 0, right: 1, bottom: 1 },
-        }),
-      }),
-    );
-
-    // Document sourceLineKind is RDTE_PE; procurement row kind differs → verifier blocks.
-    // That is intentional identity separation, not adapter silence.
-    const mixed = verifyBudgetDocument(doc);
-    expect(mixed.checks.find((c) => c.code === 'schema_identifiers')?.passed).toBe(false);
-  });
-
-  it('maps authority and PE-only extracts so a clean LlamaParse candidate auto-verifies', () => {
-    const peOnly: ExtractionResult = {
-      lineAssertions: [
-        {
-          lineKind: 'RDTE_PE',
-          code: '0602308A',
-          title: 'Advanced Technology',
-          provenance: prov(),
-        },
-      ],
+describe('buildExtractionDiagnostics', () => {
+  it('counts accepted and dropped money assertions and reconciles exactly', () => {
+    const extraction: ExtractionResult = {
+      lineAssertions: [],
       yearValues: [
         {
           lineKind: 'RDTE_PE',
           code: '0602308A',
           fy: 2027,
           fieldName: 'request',
-          money: { value: 1250, unit: 'thousands' },
+          money: { value: 100, unit: 'thousands' },
+          provenance: prov(),
+        },
+        {
+          lineKind: 'RDTE_PE',
+          code: '0602308A',
+          fy: 2027,
+          fieldName: 'quantity',
+          quantity: 4,
+          provenance: prov(),
+        },
+        {
+          lineKind: 'RDTE_PE',
+          code: '0602308A',
+          fy: 2027,
+          fieldName: 'request',
+          money: { value: Number.NaN, unit: 'thousands' },
+          provenance: prov(),
+        },
+        {
+          lineKind: 'RDTE_PE',
+          code: '0602308A',
+          fy: 2027,
+          fieldName: 'request',
+          money: { value: 5, unit: 'billions' } as never,
           provenance: prov(),
         },
       ],
-      warnings: [],
+      warnings: ['unit header ambiguous on page 9'],
     };
+    const diag = buildExtractionDiagnostics(extraction);
+    expect(diag.sourceYearValueCount).toBe(4);
+    expect(diag.sourceMoneyAssertionCount).toBe(3);
+    expect(diag.acceptedMoneyAssertionCount).toBe(1);
+    expect(diag.sourceMoneyAssertionCount).toBe(
+      diag.acceptedMoneyAssertionCount +
+        diag.droppedMoneyAssertions.filter((d) => d.reason !== 'unsupported_field').length -
+        0,
+    );
+    expect(diag.droppedMoneyAssertions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ fieldName: 'quantity', reason: 'unsupported_field' }),
+        expect.objectContaining({ reason: 'non_finite_value' }),
+        expect.objectContaining({ reason: 'unsupported_unit' }),
+      ]),
+    );
+    expect(diag.parserWarnings).toEqual(['unit header ambiguous on page 9']);
+  });
+});
 
-    const doc = buildBudgetDocumentFromMappedExtraction({
-      classification: classification(),
-      extraction: peOnly,
-      sourceDocumentId: 'src-doc-1',
-      sourceSha256: SHA,
-      archive,
-      parseJobId: 'parse-job-2',
-      outputJsonS3Key: 'derived/parsed.pages-all.json',
-    });
+describe('buildBudgetDocumentFromExtraction', () => {
+  it('emits page_only evidence with no bounding box and truthful llamaparse provenance', () => {
+    const doc = build(cleanExtraction());
+    expect(doc.extractionDiagnostics.acceptedMoneyAssertionCount).toBe(1);
+    expect(doc.rows[0]?.cells[0]?.evidence).toEqual(
+      expect.objectContaining({
+        granularity: 'page_only',
+        extractionMethod: 'llamaparse',
+        page: 12,
+      }),
+    );
+    expect(doc.rows[0]?.cells[0]?.evidence.boundingBox).toBeUndefined();
+    expect(doc.columns[0]?.evidence.boundingBox).toBeUndefined();
+  });
 
-    const result = verifyBudgetDocument(doc, { approvedSha256: SHA });
-    expect(result.status).toBe('VERIFIED_AUTOMATIC');
-    expect(result.promotionReady).toBe(true);
+  it('keeps deterministic_pdfplumber provenance truthful', () => {
+    const extraction = cleanExtraction();
+    extraction.yearValues[0]!.provenance = prov({ extractionMethod: 'deterministic_pdfplumber' });
+    const doc = build(extraction);
+    expect(doc.rows[0]?.cells[0]?.evidence.extractionMethod).toBe('deterministic_pdfplumber');
+  });
+
+  it('structurally validates a clean PE-only candidate end to end', () => {
+    const result = verifyBudgetDocument(build(cleanExtraction()));
+    expect(result.status).toBe('STRUCTURALLY_VALIDATED');
     expect(result.normalizedRecords).toEqual([
       expect.objectContaining({
         peCode: '0602308A',
         fy: 2027,
         field: 'request',
         valueMillions: 1.25,
-        originalValue: 1250,
-        originalUnit: 'thousands',
-        sourcePage: 12,
+        granularity: 'page_only',
       }),
     ]);
   });
 
-  it('maps HASC authority for mark extracts and never labels pdfplumber as llamaparse', () => {
-    const doc = buildBudgetDocumentFromExtraction({
-      classification: classification({
-        authority: 'hasc',
-        exhibit: 'committee_report',
-        family: 'committee',
-        sourceKey: 'hasc_mark_fy2027',
-      }),
-      extraction: {
-        lineAssertions: [],
-        yearValues: [
-          {
-            lineKind: 'RDTE_PE',
-            code: '0602308A',
-            fy: 2027,
-            fieldName: 'hascMark',
-            money: { value: 10, unit: 'millions' },
-            provenance: prov({
-              extractionMethod: 'deterministic_pdfplumber',
-              exhibit: 'committee_report',
-            }),
-          },
-        ],
-        warnings: [],
-      },
-      sourceDocumentId: 'src-hasc',
-      sourceSha256: SHA,
-      archive: { ...archive, key: 'incoming/fy2027/hasc.pdf' },
-      parse: {
-        id: 'parse-hasc',
-        provider: 'llamaparse',
-        status: 'succeeded',
-        inputSha256: SHA,
-      },
-    });
+  it('rejects an extraction whose only money assertion is NaN', () => {
+    const extraction = cleanExtraction();
+    extraction.yearValues[0]!.money = { value: Number.NaN, unit: 'thousands' };
+    const doc = build(extraction);
+    expect(doc.extractionDiagnostics.droppedMoneyAssertions).toEqual([
+      expect.objectContaining({ reason: 'non_finite_value', index: 0 }),
+    ]);
+    const result = verifyBudgetDocument(doc);
+    expect(result.status).toBe('REJECTED');
+    expect(result.normalizedRecords).toEqual([]);
+  });
 
-    expect(doc.sourceAuthority).toBe('hasc_authorization');
-    expect(doc.rows[0]?.cells[0]?.evidence.extractionMethod).toBe('manual');
-    expect(doc.rows[0]?.cells[0]?.field).toBe('hascMark');
+  it('rejects an extraction with only unsupported fields', () => {
+    const extraction: ExtractionResult = {
+      lineAssertions: [],
+      yearValues: [
+        {
+          lineKind: 'RDTE_PE',
+          code: '0602308A',
+          fy: 2027,
+          fieldName: 'quantity',
+          quantity: 4,
+          provenance: prov(),
+        },
+      ],
+      warnings: [],
+    };
+    const result = verifyBudgetDocument(build(extraction));
+    expect(result.status).toBe('REJECTED');
+    expect(result.normalizedRecords).toEqual([]);
+  });
+
+  it('routes a warning-bearing but otherwise valid extraction to review', () => {
+    const extraction = cleanExtraction();
+    extraction.warnings = ['continuation row suspected on page 30'];
+    const result = verifyBudgetDocument(build(extraction));
+    expect(result.status).toBe('NEEDS_REVIEW');
+  });
+
+  it('marks mixed PE + procurement identity for the verifier to block', () => {
+    const extraction = cleanExtraction();
+    extraction.yearValues.push({
+      lineKind: 'PROCUREMENT_BLIN',
+      code: '12',
+      fy: 2027,
+      fieldName: 'request',
+      money: { value: 99, unit: 'millions' },
+      provenance: prov({ exhibit: 'P-40' }),
+    });
+    const result = verifyBudgetDocument(build(extraction));
+    expect(result.checks.find((c) => c.code === 'schema_identifiers')?.passed).toBe(false);
+    expect(result.status).toBe('REJECTED');
+  });
+
+  it('maps mapped-extraction input identically', () => {
+    const doc = buildBudgetDocumentFromMappedExtraction({
+      classification: classification(),
+      extraction: cleanExtraction(),
+      sourceDocumentId: 'src-doc-1',
+      sourceSha256: SHA,
+      archive,
+      parseJobId: 'parse-job-2',
+      outputJsonS3Key: 'derived/parsed.pages-all.json',
+    });
+    expect(doc.parseProof.id).toBe('parse-job-2');
+    expect(verifyBudgetDocument(doc).status).toBe('STRUCTURALLY_VALIDATED');
   });
 });
 
 describe('evidenceForAssertion', () => {
-  it('copies page + method for a single year-value assertion', () => {
-    const value = extraction().yearValues[0]!;
+  it('copies page + method without fabricating geometry', () => {
+    const value = cleanExtraction().yearValues[0]!;
     const ev = evidenceForAssertion(value, 'src-doc-1', SHA);
     expect(ev).toEqual(
       expect.objectContaining({
         sourceDocumentId: 'src-doc-1',
         sourceSha256: SHA,
         page: 12,
+        granularity: 'page_only',
         extractionMethod: 'llamaparse',
         excerpt: 'Advanced Technology',
       }),
     );
+    expect(ev.boundingBox).toBeUndefined();
   });
 });

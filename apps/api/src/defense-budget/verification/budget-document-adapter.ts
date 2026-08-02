@@ -1,14 +1,16 @@
 /**
- * Parser → verification adapter.
+ * Parser → structural-validation adapter (Phase 0 containment).
  *
- * Maps existing LlamaParse ExtractionResult (+ classification / archive / parse proof)
- * into the pure BudgetDocument shape consumed by verifyBudgetDocument.
+ * Maps an existing ExtractionResult (+ classification / caller-supplied archive and
+ * parse proof) into the BudgetDocument shape consumed by verifyBudgetDocument.
  *
  * Boundaries:
  * - No DB, S3, LlamaParse, or canonical PE-year writes.
- * - Preserves original money unit + value; normalization stays in the verifier.
- * - Field names accept extractor vocabulary (hacdMark) and canonical PE keys (hacDMark).
- * - Bounding boxes are page-level placeholders until extractor provenance carries real boxes.
+ * - Records every dropped money assertion and parser warning in ExtractionDiagnostics;
+ *   the verifier fails closed on them instead of silently validating an empty candidate.
+ * - Emits page_only evidence with no fabricated bounding box; real cell geometry is
+ *   used only if the extractor provenance ever supplies it.
+ * - Extraction method is mapped one-to-one and never relabeled.
  */
 import type {
   LineKind,
@@ -24,10 +26,11 @@ import type {
   BudgetEvidence,
   BudgetRow,
   BudgetSourceAuthority,
+  ExtractionDiagnostics,
   VerificationField,
 } from './budget-verification.js';
 
-/** Extractor field names → verification / PE-year field keys (mirrors assertion-mapper). */
+/** Extractor field names → structural-validation / PE-year field keys (mirrors assertion-mapper). */
 const FIELD_MAP: Record<string, VerificationField> = {
   request: 'request',
   hascMark: 'hascMark',
@@ -42,6 +45,8 @@ const FIELD_MAP: Record<string, VerificationField> = {
   reprogrammed: 'reprogrammed',
   executed: 'executed',
 };
+
+const VALID_UNITS = new Set(['dollars', 'thousands', 'millions']);
 
 const SOURCE_AUTHORITIES = new Set<BudgetSourceAuthority>([
   'manual_override',
@@ -58,9 +63,6 @@ const SOURCE_AUTHORITIES = new Set<BudgetSourceAuthority>([
   'fixture',
   'unknown',
 ]);
-
-/** Page-level placeholder until ValueProvenance carries real geometry. */
-const PAGE_PLACEHOLDER_BBOX = { left: 0, top: 0, right: 1, bottom: 1 } as const;
 
 function sourceAuthority(classification: DocClassification): BudgetSourceAuthority {
   switch (classification.authority) {
@@ -85,10 +87,7 @@ function sourceAuthority(classification: DocClassification): BudgetSourceAuthori
   }
 }
 
-/**
- * Document-level line identity from classifier exhibit.
- * Committee/conference/public-law PE marks are RDTE_PE; procurement/O&M stay separate.
- */
+/** Document-level line identity from classifier exhibit; procurement/O&M stay separate. */
 export function sourceLineKindFromClassification(classification: DocClassification): LineKind {
   switch (classification.exhibit) {
     case 'R-2':
@@ -106,25 +105,70 @@ export function sourceLineKindFromClassification(classification: DocClassificati
   }
 }
 
+/** One-to-one provenance mapping. pdfplumber is never relabeled. */
 function mapExtractionMethod(
   method: YearValueAssertion['provenance']['extractionMethod'],
 ): BudgetEvidence['extractionMethod'] {
-  // Verifier rejects pdfplumber as a primary money path; never label it llamaparse.
-  if (method === 'llamaparse') return 'llamaparse';
-  return 'manual';
+  switch (method) {
+    case 'llamaparse':
+      return 'llamaparse';
+    case 'deterministic_pdfplumber':
+      return 'deterministic_pdfplumber';
+    case 'manual':
+      return 'manual';
+    default:
+      return 'manual';
+  }
 }
 
-function fieldFor(value: YearValueAssertion): VerificationField | null {
-  return FIELD_MAP[value.fieldName] ?? null;
-}
+type DropReason = ExtractionDiagnostics['droppedMoneyAssertions'][number]['reason'];
 
-function unitFor(value: YearValueAssertion): 'dollars' | 'thousands' | 'millions' | null {
-  if (value.money == null) return null;
-  const unit = value.money.unit;
-  if (unit === 'dollars' || unit === 'thousands' || unit === 'millions') return unit;
+function dropReason(value: YearValueAssertion): DropReason | null {
+  if (FIELD_MAP[value.fieldName] == null) return 'unsupported_field';
+  if (value.money == null) return 'missing_money';
+  if (!VALID_UNITS.has(value.money.unit)) return 'unsupported_unit';
+  if (!Number.isFinite(value.money.value)) return 'non_finite_value';
   return null;
 }
 
+/** Build diagnostics from the complete extraction, recording every dropped money assertion. */
+export function buildExtractionDiagnostics(extraction: ExtractionResult): ExtractionDiagnostics {
+  const dropped: ExtractionDiagnostics['droppedMoneyAssertions'] = [];
+  let sourceMoneyAssertionCount = 0;
+  let acceptedMoneyAssertionCount = 0;
+  for (const [index, value] of extraction.yearValues.entries()) {
+    if (value.money != null) sourceMoneyAssertionCount += 1;
+    const reason = dropReason(value);
+    if (reason) {
+      // Record dropped money assertions (money present but unusable) AND money-less
+      // rows only when they carried a recognizable field — unsupported_field covers both.
+      if (value.money != null || reason === 'unsupported_field' || reason === 'missing_money') {
+        dropped.push({
+          index,
+          code: value.code,
+          fiscalYear: value.fy,
+          fieldName: value.fieldName,
+          reason,
+        });
+      }
+      continue;
+    }
+    acceptedMoneyAssertionCount += 1;
+  }
+  return {
+    sourceYearValueCount: extraction.yearValues.length,
+    sourceMoneyAssertionCount,
+    acceptedMoneyAssertionCount,
+    droppedMoneyAssertions: dropped,
+    parserWarnings: [...extraction.warnings],
+  };
+}
+
+/**
+ * Page-level evidence. The current ValueProvenance carries no geometry, so granularity
+ * is always page_only with no bounding box; invalid pages are passed through unchanged
+ * so the verifier's evidence check rejects them instead of coercing to page 1.
+ */
 function evidence(
   sourceDocumentId: string,
   sourceSha256: string,
@@ -137,8 +181,8 @@ function evidence(
   return {
     sourceDocumentId,
     sourceSha256,
-    page: Number.isInteger(page) && page >= 1 ? page : 1,
-    boundingBox: { ...PAGE_PLACEHOLDER_BBOX },
+    page,
+    granularity: 'page_only',
     extractionMethod,
     rowIndex,
     columnIndex,
@@ -146,24 +190,23 @@ function evidence(
   };
 }
 
-function moneyValues(values: YearValueAssertion[]): Array<{
+interface AcceptedMoney {
   index: number;
   value: YearValueAssertion;
   field: VerificationField;
   unit: 'dollars' | 'thousands' | 'millions';
-}> {
-  const out: Array<{
-    index: number;
-    value: YearValueAssertion;
-    field: VerificationField;
-    unit: 'dollars' | 'thousands' | 'millions';
-  }> = [];
+}
+
+function moneyValues(values: YearValueAssertion[]): AcceptedMoney[] {
+  const out: AcceptedMoney[] = [];
   for (const [index, value] of values.entries()) {
-    const field = fieldFor(value);
-    const unit = unitFor(value);
-    if (!field || unit == null || value.money == null) continue;
-    if (!Number.isFinite(value.money.value)) continue;
-    out.push({ index, value, field, unit });
+    if (dropReason(value) != null) continue;
+    out.push({
+      index,
+      value,
+      field: FIELD_MAP[value.fieldName]!,
+      unit: value.money!.unit as AcceptedMoney['unit'],
+    });
   }
   return out;
 }
@@ -264,7 +307,7 @@ export function buildBudgetDocumentFromExtraction(input: {
     outputJsonKey?: string;
   };
 }): BudgetDocument {
-  const first = moneyValues(input.extraction.yearValues)[0]?.value.provenance;
+  const first = input.extraction.yearValues[0]?.provenance;
   const documentEvidence = evidence(
     input.sourceDocumentId,
     input.sourceSha256,
@@ -282,6 +325,7 @@ export function buildBudgetDocumentFromExtraction(input: {
     sourceAuthority: sourceAuthority(input.classification),
     sourceLineKind: sourceLineKindFromClassification(input.classification),
     evidence: documentEvidence,
+    extractionDiagnostics: buildExtractionDiagnostics(input.extraction),
     columns: buildColumns(input.extraction.yearValues, input.sourceDocumentId, input.sourceSha256),
     rows: buildRows(
       input.extraction.yearValues,

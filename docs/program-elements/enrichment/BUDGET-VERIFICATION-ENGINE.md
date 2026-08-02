@@ -1,99 +1,107 @@
-# Official budget verification engine
+# Budget structural-validation scaffold
 
-## Purpose
+> **This scaffold does not prove that extracted values match the official PDF and does
+> not authorize canonical Program Element writes.**
 
-This engine stages and verifies official budget-document extracts without promoting PE-year dollars. It keeps the existing LlamaParse-only money path, exact source SHA checks, immutable archive proof, and parse-job proof separate from any canonical writer.
+It is a Phase 0 containment of the original extract-only verification scaffold. Every
+public contract and persisted status is honest about what the code can currently prove.
 
-The primary API is the pure `verifyBudgetDocument` function in:
+## What it does
 
-`apps/api/src/defense-budget/verification/budget-verification.ts`
+- validates supplied source identity fields (document id, exact SHA-256 format)
+- checks candidate structure (rows, columns, identifiers, line-kind identity)
+- checks units and finite numeric values against explicit source units
+- enforces PE-specific ownership tracks (`request`/PB, marks, `ndaaConference` vs
+  appropriations `conference`, enacted, etc.)
+- detects duplicate natural-key cells, repeated headers, and broken continuation links
+- records extraction omissions (dropped money assertions) and parser warnings, and
+  fails closed on them
+- performs explicit subtotal/total arithmetic only when parent/child relationships are
+  supplied by the caller
+- optionally evaluates caller-supplied cross-document and historical comparisons;
+  controls that were not supplied are marked `skipped` / `NOT RUN`, never passed
+- emits a routing recommendation (`automatic`, `targeted_local_reextraction`,
+  `paid_page_verifier`, `human_review`, `none`)
 
-It accepts normalized cells from the existing parser/extractor layer and emits a reviewable result. It performs no database writes, no LlamaParse calls, no S3 calls, and no canonical PE-year mutations.
+## What it does not do
 
-Parser wiring (still audit-only; no canonical promotion):
+- independently retrieve or re-hash S3 source objects
+- independently load `SourceDocument` or `DocumentParseJob` rows — archive and parse
+  proofs are caller-supplied claims checked for internal consistency only
+- prove extraction payload lineage
+- retrieve comparison documents
+- persist governed review approval (no authorization, no segregation of duties)
+- authorize promotion of any value
+- call a canonical writer
 
-`apps/api/src/defense-budget/verification/budget-document-adapter.ts`
-
-- `buildBudgetDocumentFromExtraction` / `buildBudgetDocumentFromMappedExtraction` map `ExtractionResult` + classification + archive/parse proof into `BudgetDocument`.
-- Extractor field aliases (`hacdMark` / `sacdMark`) normalize to PE keys (`hacDMark` / `sacDMark`).
-- Bounding boxes are page-level placeholders until extractor provenance carries geometry.
-- Non-money / non-finite values are dropped; identity mixing (e.g. PE + procurement in one document) is left for the verifier to block.
-
-## Flow
+## Lifecycle vocabulary
 
 ```text
-official PDF
-  -> existing LlamaParse extract-only path
-  -> SourceDocument + DocumentParseJob evidence
-  -> normalized BudgetDocument
-  -> verifyBudgetDocument
-  -> audit persistence (candidate/cells/run/checks)
-  -> optional targeted re-extraction / paid page verification / human review
-  -> exact-SHA approval gate
-  -> future canonical writer (not implemented here)
+EXTRACTED → VALIDATING → STRUCTURALLY_VALIDATED
+                       → NEEDS_REVIEW → REVIEW_ACCEPTED
+                       → REJECTED
+                       → SUPERSEDED
 ```
 
-## Deterministic checks
+- `STRUCTURALLY_VALIDATED` means only that the supplied candidate passed the checks
+  implemented in this scaffold.
+- `REVIEW_ACCEPTED` means an in-memory reviewer decision accepted a candidate for later
+  governed processing. It is not canonical approval. Review persistence, authorization,
+  segregation of duties, and canonical promotion are not implemented.
+- `CANONICAL`, `VERIFIED_AUTOMATIC`, and `VERIFIED_REVIEWED` are prohibited in this
+  contract.
 
-The verifier records every check with page/bounding-box evidence tied to the candidate's exact SHA:
+## Fail-closed extraction rules
 
-- source SHA format
-- source-page evidence identity, page, bounding box, and allowed extraction method
-- immutable S3 archive bucket/key/VersionId/SHA proof
-- succeeded LlamaParse `DocumentParseJob` proof with matching input SHA
-- PE/line identifiers and line-kind identity
-- fiscal year/field columns, column units, and cell-column agreement
-- source-authority ownership (`request`/PB, `ndaaConference`, appropriations `conference`, enacted, etc.)
-- finite values and explicit money units
-- duplicate PE/FY/field cells
-- repeated headers
-- continuation-row links
-- explicit subtotal/total arithmetic, normalized to USD millions
-- optional cross-document and historical controls
+- A document with no candidate row, no money cell, no accepted money assertion, or no
+  normalizable record is `REJECTED`.
+- Any money assertion dropped by the adapter (unsupported field, missing money,
+  unsupported unit, non-finite value) is recorded in `ExtractionDiagnostics` and blocks
+  structural validation.
+- Any parser warning forces `NEEDS_REVIEW` and adds risk above the automatic band.
+- A `REJECTED` result exposes no normalized records, so a caller cannot consume staged
+  values without checking status.
 
-`dollars`, `thousands`, and `millions` are normalized through `@capiro/shared/money`; original value and unit remain adjacent to the canonical USD-millions value.
+## Evidence honesty
 
-## Risk routing
+- Evidence carries `granularity: 'cell_bbox' | 'page_only'`.
+- The current extractor provenance has no geometry, so the adapter emits `page_only`
+  with **no** bounding box. No placeholder box is presented as cell-level evidence.
+- Invalid or missing page numbers fail evidence validation; they are never coerced to
+  page 1.
+- Extraction method is mapped one-to-one (`llamaparse`, `deterministic_pdfplumber`,
+  `manual`, `targeted_local_reextraction`, `paid_page_verifier`) and never relabeled.
 
-Default policy:
+## Persistence (draft only)
 
-- `0..10`: `VERIFIED_AUTOMATIC`
-- `11..30`: `NEEDS_REVIEW`, route `targeted_local_reextraction`
-- `31..60`: `NEEDS_REVIEW`, route `paid_page_verifier`
-- `61..100`: `NEEDS_REVIEW`, route `human_review`
-- any failed blocking check: `REJECTED`, route `none`
+- `persistVerificationAuditDraft` and `structurallyValidateAndPersistAuditDraft` write
+  only draft audit rows through the narrow `BudgetVerificationRepository` interface.
+- No concrete production repository exists in Phase 0; a transactional Prisma
+  implementation is Phase 2 work gated on approved models.
+- The scaffold accepts no approval SHA and returns no promotion properties.
 
-No route invokes a provider automatically. The route is a recommendation for the next governed step.
+## Phase 0 containment boundary
 
-Only `VERIFIED_AUTOMATIC` and `VERIFIED_REVIEWED` are canonical-eligible. Even then, `promotionReady` remains false unless the caller supplies the exact approved source SHA. `assertPromotionReady` and `getCanonicalPromotionRecords` are defensive writer boundaries; they do not write canonical data.
+The following are prohibited integration points for this scaffold:
 
-## Audit persistence
+- importing `ProgramElementWriterService` or any canonical PE-year writer
+- importing the scaffold from any operational script under `apps/api/scripts/`
+- exposing a verification or promotion command in `entrypoint-dispatcher.inc`
+- registering the scaffold in any Nest module
+- any status, property, or helper claiming canonical eligibility or promotion readiness
 
-`apps/api/src/defense-budget/verification/budget-verification-repository.ts` contains:
+`verification-containment.spec.ts` enforces this boundary statically.
 
-- narrow repository interfaces for extraction candidate, cell, run, and check rows
-- an adapter shape for a future generated Prisma client
-- `persistVerificationResult`, which writes only audit records and updates candidate status
+## Migrations
 
-The migration is:
-
-`apps/api/prisma/migrations/20260802050000_budget_verification_audit/migration.sql`
-
-It creates the handoff tables:
-
-- `budget_extraction_candidate`
-- `budget_extraction_cell`
-- `budget_verification_run`
-- `budget_verification_check`
-- `budget_verification_discrepancy`
-- `budget_review_decision`
-- `budget_golden_example`
-
-The migration is additive and has no `ProgramElementYear` mutation. The Prisma adapter is intentionally narrow until the generated Prisma schema/client contract is approved.
+- `20260802050000_budget_verification_audit` — original additive audit tables (unchanged).
+- `20260802180000_budget_verification_containment` — additive containment: refuses
+  existing `CANONICAL` rows, renames `VERIFIED_AUTOMATIC`→`STRUCTURALLY_VALIDATED` and
+  `VERIFIED_REVIEWED`→`REVIEW_ACCEPTED`, replaces the candidate status constraint, adds
+  run status/route constraints, and updates table comments. Applied to shared
+  environments only by a separate, gated operation.
 
 ## Verification commands
-
-From the isolated worktree:
 
 ```bash
 pnpm exec prettier --check apps/api/src/defense-budget/verification apps/api/tsconfig.verification.json
@@ -101,14 +109,13 @@ pnpm exec tsc -p apps/api/tsconfig.verification.json --noEmit
 pnpm --dir apps/api exec jest --runInBand --forceExit src/defense-budget/verification src/defense-budget/assertion-mapper.spec.ts scripts/lib/defense-budget-commit.spec.ts
 ```
 
-The verification-engine suite includes migration-contract checks and repository/service boundary tests. The broader selected PE regression set must remain green before merge.
+## Remaining limitations (later phases)
 
-## Safety boundaries
-
-- Do not run `--commit` or promote any PE-year dollar from this engine by itself.
-- Do not use `pdfplumber` or a second primary PDF money parser.
-- Do not infer a winner from duplicate cells.
-- Do not convert units based on magnitude alone; use explicit source units.
-- Do not merge authorization and appropriations tracks.
-- Do not treat extraction status as review or canonical status.
-- Keep the occupied `C:\Users\neoma\Downloads\capiro-p11` worktree untouched; this implementation belongs in the isolated `capiro-pe-budget-verification` worktree/branch.
+- trusted source/parse proof resolver
+- complete extraction contract
+- family-specific completeness rules
+- independent comparison retrieval
+- governed review persistence
+- transactional production repository
+- verified canonical promotion service
+- integration into annual ingestion
