@@ -144,9 +144,16 @@ function scopeFor(row: LegacyRow): 'firm' | 'client' | 'user_private' {
 }
 
 function buildPlan(row: LegacyRow, duplicateIds: Set<string>): ClassificationPlan {
+  const memoryScope = scopeFor(row);
   const classified = classifyLegacyMemory({
     type: row.type,
     visibility: row.visibility,
+    // scope is a declared field on LegacyMemoryShape and classifyLegacyMemory
+    // keys a deterministic rule off `row.scope === 'user_private'`. It was never
+    // populated here, so that rule could never fire and every owner-scoped row
+    // fell through to the ambiguous default and quarantined -- ~1700 rows on
+    // live capiro-dev that are in fact deterministically classifiable.
+    scope: memoryScope,
     ownerUserId: row.ownerUserId,
     clientId: row.clientId,
     provenance: row.provenance,
@@ -158,7 +165,6 @@ function buildPlan(row: LegacyRow, duplicateIds: Set<string>): ClassificationPla
   const duplicate = duplicateIds.has(row.id);
   const sourceType = sourceTypeFor(row);
   const missingSource = sourceType === 'unknown' && !row.sourceRef;
-  const memoryScope = scopeFor(row);
   const classScopeMismatch =
     (classified.memoryClass === 'institutional_authoritative' && memoryScope !== 'firm') ||
     (classified.memoryClass === 'client_steering' && memoryScope !== 'client') ||
