@@ -1,3 +1,11 @@
+/**
+ * Narrow audit-persistence contract for the structural-validation scaffold.
+ *
+ * No concrete production repository exists in Phase 0. The concrete Prisma adapter
+ * class was deliberately removed: it referenced an invalid accessor and was not a
+ * real generated-Prisma integration. A transactional production repository is
+ * Phase 2 work, gated on approved Prisma models.
+ */
 import type {
   BudgetVerificationResult,
   NormalizedBudgetRecord,
@@ -34,7 +42,7 @@ export interface BudgetVerificationCheckRecord extends VerificationCheck {
   runId: string;
 }
 
-/** Narrow persistence contract; implementations may be Prisma, a test fake, or a queue writer. */
+/** Narrow persistence contract; implementations may be a test fake or a queue writer. */
 export interface BudgetVerificationRepository {
   createCandidate(record: BudgetExtractionCandidateRecord): Promise<void>;
   createCells(records: BudgetExtractionCellRecord[]): Promise<void>;
@@ -43,57 +51,11 @@ export interface BudgetVerificationRepository {
   updateCandidateStatus(candidateId: string, status: string): Promise<void>;
 }
 
-export interface PrismaLikeVerificationClient {
-  budgetExtractionCandidate: {
-    create(args: { data: unknown }): Promise<unknown>;
-  };
-  budgetExtractionCell: {
-    createMany(args: { data: unknown[] }): Promise<unknown>;
-  };
-  budgetVerificationRun: {
-    create(args: { data: unknown }): Promise<unknown>;
-  };
-  budgetVerificationCheck: {
-    createMany(args: { data: unknown[] }): Promise<unknown>;
-  };
-  budgetExtractionCandidateUpdate: {
-    update(args: { where: { id: string }; data: unknown }): Promise<unknown>;
-  };
-}
-
-/** Adapter shape for the future Prisma tables named in the PE handoff. */
-export class PrismaBudgetVerificationRepository implements BudgetVerificationRepository {
-  constructor(private readonly client: PrismaLikeVerificationClient) {}
-
-  createCandidate(record: BudgetExtractionCandidateRecord): Promise<void> {
-    return this.client.budgetExtractionCandidate.create({ data: record }).then(() => undefined);
-  }
-
-  createCells(records: BudgetExtractionCellRecord[]): Promise<void> {
-    return this.client.budgetExtractionCell.createMany({ data: records }).then(() => undefined);
-  }
-
-  createRun(record: BudgetVerificationRunRecord): Promise<void> {
-    return this.client.budgetVerificationRun.create({ data: record }).then(() => undefined);
-  }
-
-  createChecks(records: BudgetVerificationCheckRecord[]): Promise<void> {
-    return this.client.budgetVerificationCheck.createMany({ data: records }).then(() => undefined);
-  }
-
-  updateCandidateStatus(candidateId: string, status: string): Promise<void> {
-    return this.client.budgetExtractionCandidateUpdate
-      .update({ where: { id: candidateId }, data: { status } })
-      .then(() => undefined);
-  }
-}
-
 /**
- * Persist only candidate/extraction/verification audit rows. This deliberately has
- * no canonical PE-year writer dependency; canonical promotion remains a separate,
- * exact-SHA-gated operation.
+ * Persist only draft candidate/extraction/validation audit rows. This deliberately has
+ * no canonical PE-year writer dependency and records no approval.
  */
-export async function persistVerificationResult(
+export async function persistVerificationAuditDraft(
   repository: BudgetVerificationRepository,
   input: {
     candidate: BudgetExtractionCandidateRecord;

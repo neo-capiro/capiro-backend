@@ -1,18 +1,35 @@
+/**
+ * Budget structural-validation scaffold (Phase 0 containment).
+ *
+ * This module validates the STRUCTURE of a supplied extraction candidate:
+ * source identity fields, identifiers, units, ownership tracks, duplicates,
+ * explicit parent/child arithmetic, and caller-supplied comparisons.
+ *
+ * It does NOT:
+ *   - prove extracted values match the official PDF
+ *   - independently retrieve or re-hash S3 objects, SourceDocument, or
+ *     DocumentParseJob rows (proofs are caller-supplied claims, checked for
+ *     internal consistency only)
+ *   - retrieve comparison documents
+ *   - persist review approval or authorize canonical Program Element writes
+ *   - call a canonical writer
+ *
+ * There is deliberately no promotion/canonical vocabulary in this contract.
+ */
 import { isValidPeCode, type LineKind } from '../extractors/types.js';
 import { normalizeMoneyToMillions, type MoneyUnit } from '@capiro/shared/money';
 
-/** Verification lifecycle proposed by the PE closeout handoff. */
+/** Scaffold lifecycle vocabulary. No status here authorizes canonical PE writes. */
 export type VerificationStatus =
   | 'EXTRACTED'
   | 'VALIDATING'
-  | 'VERIFIED_AUTOMATIC'
-  | 'VERIFIED_REVIEWED'
+  | 'STRUCTURALLY_VALIDATED'
   | 'NEEDS_REVIEW'
+  | 'REVIEW_ACCEPTED'
   | 'REJECTED'
-  | 'CANONICAL'
   | 'SUPERSEDED';
 
-/** A route is a recommendation only; this module never calls a paid provider. */
+/** A route is a recommendation only; this module never calls a provider. */
 export type VerificationRoute =
   | 'automatic'
   | 'targeted_local_reextraction'
@@ -54,16 +71,26 @@ export interface BoundingBox {
   bottom: number;
 }
 
-/** Evidence is immutable-source evidence, not merely a parser confidence score. */
+/** Evidence precision: real per-cell geometry vs page-level-only provenance. */
+export type EvidenceGranularity = 'cell_bbox' | 'page_only';
+
+/** Truthful evidence — mirrors the extractor vocabulary, never relabeled. */
 export interface BudgetEvidence {
   sourceDocumentId: string;
   sourceSha256: string;
   page: number;
-  boundingBox: BoundingBox;
+  granularity: EvidenceGranularity;
+  /** Present only when granularity is 'cell_bbox' and the extractor supplied real geometry. */
+  boundingBox?: BoundingBox;
   rowIndex?: number;
   columnIndex?: number;
   excerpt?: string;
-  extractionMethod: 'llamaparse' | 'targeted_local_reextraction' | 'paid_page_verifier' | 'manual';
+  extractionMethod:
+    | 'llamaparse'
+    | 'deterministic_pdfplumber'
+    | 'manual'
+    | 'targeted_local_reextraction'
+    | 'paid_page_verifier';
 }
 
 export type BudgetRowKind = 'header' | 'line' | 'continuation' | 'subtotal' | 'total';
@@ -118,6 +145,21 @@ export interface ParseProof {
   outputJsonKey?: string;
 }
 
+/** Containment diagnostics derived from the complete ExtractionResult. */
+export interface ExtractionDiagnostics {
+  sourceYearValueCount: number;
+  sourceMoneyAssertionCount: number;
+  acceptedMoneyAssertionCount: number;
+  droppedMoneyAssertions: Array<{
+    index: number;
+    code: string;
+    fiscalYear: number;
+    fieldName: string;
+    reason: 'unsupported_field' | 'missing_money' | 'unsupported_unit' | 'non_finite_value';
+  }>;
+  parserWarnings: string[];
+}
+
 export interface BudgetDocument {
   sourceDocumentId: string;
   sourceSha256: string;
@@ -128,6 +170,7 @@ export interface BudgetDocument {
   sourceAuthority: BudgetSourceAuthority;
   sourceLineKind: LineKind;
   evidence: BudgetEvidence;
+  extractionDiagnostics: ExtractionDiagnostics;
   columns: BudgetColumn[];
   rows: BudgetRow[];
   /** Optional deterministic controls supplied by a separate corpus/reconciliation query. */
@@ -150,6 +193,9 @@ export interface BudgetComparison {
 }
 
 export type VerificationCheckCode =
+  | 'candidate_presence'
+  | 'extraction_completeness'
+  | 'parser_warnings'
   | 'source_sha256'
   | 'source_evidence'
   | 'archive_proof'
@@ -173,6 +219,8 @@ export interface VerificationCheck {
   message: string;
   evidence: BudgetEvidence[];
   details?: Record<string, unknown>;
+  /** True when a control was not run because its inputs were absent; never a pass. */
+  skipped?: boolean;
 }
 
 export interface NormalizedBudgetRecord {
@@ -188,12 +236,13 @@ export interface NormalizedBudgetRecord {
   sourceDocumentId: string;
   sourceSha256: string;
   sourcePage: number;
-  boundingBox: BoundingBox;
+  granularity: EvidenceGranularity;
+  boundingBox?: BoundingBox;
   evidence: BudgetEvidence;
 }
 
 export interface VerificationPolicy {
-  /** Scores at or below this threshold are automatically verified. */
+  /** Scores at or below this threshold are structurally validated without review. */
   automaticRiskMax: number;
   /** Scores above automatic and at or below this threshold get targeted extraction. */
   targetedReextractionRiskMax: number;
@@ -209,8 +258,6 @@ export const DEFAULT_VERIFICATION_POLICY: VerificationPolicy = {
 
 export interface VerificationOptions {
   policy?: Partial<VerificationPolicy>;
-  /** Exact operator approval is deliberately separate from verification status. */
-  approvedSha256?: string;
 }
 
 export interface BudgetVerificationResult {
@@ -220,10 +267,6 @@ export interface BudgetVerificationResult {
   checks: VerificationCheck[];
   normalizedRecords: NormalizedBudgetRecord[];
   blockingFailures: VerificationCheck[];
-  /** Status eligibility only; this is not an instruction to write canonical data. */
-  canonicalEligible: boolean;
-  /** Exact-SHA gate + verification status, for a future writer to consume. */
-  promotionReady: boolean;
   sourceSha256: string;
   sourceDocumentId: string;
 }
@@ -242,6 +285,14 @@ export interface BudgetVerificationRun {
 const SHA256_RE = /^[a-f0-9]{64}$/;
 const VALID_UNITS = new Set<MoneyUnit>(['dollars', 'thousands', 'millions']);
 const MAX_SAFE_RISK = 100;
+
+const ALLOWED_EXTRACTION_METHODS = new Set<BudgetEvidence['extractionMethod']>([
+  'llamaparse',
+  'deterministic_pdfplumber',
+  'manual',
+  'targeted_local_reextraction',
+  'paid_page_verifier',
+]);
 
 const FIELD_AUTHORITIES: Record<VerificationField, readonly BudgetSourceAuthority[]> = {
   request: ['manual_override', 'presidents_budget_request'],
@@ -276,6 +327,23 @@ function check(
   };
 }
 
+function skippedCheck(
+  code: VerificationCheckCode,
+  message: string,
+  evidence: BudgetEvidence[],
+): VerificationCheck {
+  return {
+    code,
+    passed: false,
+    blocking: false,
+    riskPoints: 0,
+    message: `NOT RUN: ${message}`,
+    evidence,
+    details: { comparisonCount: 0 },
+    skipped: true,
+  };
+}
+
 function allEvidence(document: BudgetDocument): BudgetEvidence[] {
   return [
     document.evidence,
@@ -285,10 +353,13 @@ function allEvidence(document: BudgetDocument): BudgetEvidence[] {
   ];
 }
 
+/** Skipped checks never contribute risk. */
 function boundedRisk(checks: VerificationCheck[]): number {
   return Math.min(
     MAX_SAFE_RISK,
-    checks.filter((item) => !item.passed).reduce((sum, item) => sum + item.riskPoints, 0),
+    checks
+      .filter((item) => !item.passed && !item.skipped)
+      .reduce((sum, item) => sum + item.riskPoints, 0),
   );
 }
 
@@ -297,20 +368,26 @@ function isValidBoundingBox(box: BoundingBox): boolean {
     [box.left, box.top, box.right, box.bottom].every(Number.isFinite) &&
     box.left >= 0 &&
     box.top >= 0 &&
-    box.right >= box.left &&
-    box.bottom >= box.top
+    box.right > box.left &&
+    box.bottom > box.top
   );
 }
 
 function evidenceIsValid(document: BudgetDocument, evidence: BudgetEvidence): boolean {
-  return (
-    evidence.sourceDocumentId === document.sourceDocumentId &&
-    evidence.sourceSha256 === document.sourceSha256 &&
-    Number.isInteger(evidence.page) &&
-    evidence.page >= 1 &&
-    isValidBoundingBox(evidence.boundingBox) &&
-    evidence.extractionMethod !== ('pdfplumber' as BudgetEvidence['extractionMethod'])
-  );
+  if (
+    evidence.sourceDocumentId !== document.sourceDocumentId ||
+    evidence.sourceSha256 !== document.sourceSha256 ||
+    !Number.isInteger(evidence.page) ||
+    evidence.page < 1
+  ) {
+    return false;
+  }
+  if (!ALLOWED_EXTRACTION_METHODS.has(evidence.extractionMethod)) return false;
+  if (evidence.granularity === 'cell_bbox') {
+    return evidence.boundingBox != null && isValidBoundingBox(evidence.boundingBox);
+  }
+  // page_only evidence must not carry a fabricated box.
+  return evidence.boundingBox == null;
 }
 
 function archiveProofIsValid(document: BudgetDocument): boolean {
@@ -367,7 +444,7 @@ function normalizeCell(
   cell: BudgetCell,
 ): NormalizedBudgetRecord {
   const normalized = normalizeMoneyToMillions(cell.rawValue, cell.unit);
-  return {
+  const record: NormalizedBudgetRecord = {
     rowId: row.id,
     cellId: cell.id,
     peCode: cell.code,
@@ -380,14 +457,89 @@ function normalizeCell(
     sourceDocumentId: document.sourceDocumentId,
     sourceSha256: document.sourceSha256,
     sourcePage: cell.evidence.page,
-    boundingBox: cell.evidence.boundingBox,
+    granularity: cell.evidence.granularity,
     evidence: cell.evidence,
   };
+  if (cell.evidence.boundingBox != null) record.boundingBox = cell.evidence.boundingBox;
+  return record;
 }
 
 function runChecks(document: BudgetDocument): VerificationCheck[] {
   const sourceEvidence = allEvidence(document);
   const checks: VerificationCheck[] = [];
+  const diagnostics = document.extractionDiagnostics;
+
+  // B1 — candidate presence (blocking). A document with no money content must fail closed.
+  const candidateRows = document.rows.filter(isCandidateRow);
+  const candidateMoneyCells = candidateRows.flatMap((row) => row.cells);
+  const normalizedCount = candidateMoneyCells.filter(
+    (cell) =>
+      Number.isFinite(cell.rawValue) &&
+      VALID_UNITS.has(cell.unit) &&
+      evidenceIsValid(document, cell.evidence),
+  ).length;
+  const presenceFailures: string[] = [];
+  if (candidateRows.length === 0) presenceFailures.push('document has no candidate row');
+  if (candidateMoneyCells.length === 0)
+    presenceFailures.push('no candidate row contains a money cell');
+  if (diagnostics.acceptedMoneyAssertionCount === 0)
+    presenceFailures.push('no accepted money assertions');
+  if (normalizedCount === 0) presenceFailures.push('no normalized money records would be produced');
+  checks.push(
+    check(
+      'candidate_presence',
+      presenceFailures.length === 0,
+      true,
+      100,
+      presenceFailures.length === 0
+        ? `Candidate carries ${candidateMoneyCells.length} money cell(s) across ${candidateRows.length} row(s).`
+        : presenceFailures.join('; '),
+      presenceFailures.length ? [document.evidence] : checkEvidence(document),
+      { failures: presenceFailures },
+    ),
+  );
+
+  // B2 — dropped money assertions (blocking).
+  const dropped = diagnostics.droppedMoneyAssertions;
+  const droppedByReason = dropped.reduce<Record<string, number>>((acc, item) => {
+    acc[item.reason] = (acc[item.reason] ?? 0) + 1;
+    return acc;
+  }, {});
+  checks.push(
+    check(
+      'extraction_completeness',
+      dropped.length === 0,
+      true,
+      60,
+      dropped.length === 0
+        ? 'No money assertions were dropped by the adapter.'
+        : `${dropped.length} money assertion(s) were dropped: ${JSON.stringify(droppedByReason)}.`,
+      [document.evidence],
+      {
+        countByReason: droppedByReason,
+        indices: dropped.map((item) => item.index),
+        codes: [...new Set(dropped.map((item) => item.code))],
+        fiscalYears: [...new Set(dropped.map((item) => item.fiscalYear))],
+        fieldNames: [...new Set(dropped.map((item) => item.fieldName))],
+        droppedMoneyAssertions: dropped,
+      },
+    ),
+  );
+
+  // B3 — parser warnings (non-blocking, but force review and add risk above the automatic band).
+  const warnings = diagnostics.parserWarnings;
+  checks.push({
+    code: 'parser_warnings',
+    passed: warnings.length === 0,
+    blocking: false,
+    riskPoints: warnings.length === 0 ? 0 : 25,
+    message:
+      warnings.length === 0
+        ? 'The parser reported no warnings.'
+        : `Parser reported ${warnings.length} warning(s); review is required before structural validation.`,
+    evidence: [document.evidence],
+    details: { warnings },
+  });
 
   checks.push(
     check(
@@ -397,7 +549,7 @@ function runChecks(document: BudgetDocument): VerificationCheck[] {
       100,
       SHA256_RE.test(document.sourceSha256)
         ? 'Source SHA-256 is an exact lowercase 64-character digest.'
-        : 'Source SHA-256 is missing or malformed; exact-SHA promotion is blocked.',
+        : 'Source SHA-256 is missing or malformed.',
       [document.evidence],
     ),
   );
@@ -411,8 +563,8 @@ function runChecks(document: BudgetDocument): VerificationCheck[] {
       true,
       100,
       invalidEvidence.length === 0 && sourceEvidence.length > 0
-        ? 'Every candidate/check source reference has matching document identity, SHA, page, bounding box, and an allowed extraction method.'
-        : `${invalidEvidence.length} source reference(s) do not carry valid exact-SHA page/bounding-box evidence.`,
+        ? 'Every candidate carries exact-source page evidence; cell bounding boxes are present only where supplied by the extractor.'
+        : `${invalidEvidence.length} source reference(s) failed identity/page/granularity validation.`,
       invalidEvidence.length > 0
         ? invalidEvidence
         : candidateEvidence.length > 0
@@ -429,8 +581,8 @@ function runChecks(document: BudgetDocument): VerificationCheck[] {
       true,
       100,
       archiveProofIsValid(document)
-        ? 'The exact source SHA is linked to an immutable archived object version.'
-        : 'Immutable source archive proof is incomplete or does not match the candidate SHA.',
+        ? 'Caller-supplied archive proof is internally consistent with the source SHA.'
+        : 'Caller-supplied archive proof is incomplete or does not match the candidate SHA.',
       checkEvidence(document),
       { archive: document.archiveProof },
     ),
@@ -443,8 +595,8 @@ function runChecks(document: BudgetDocument): VerificationCheck[] {
       true,
       100,
       parseProofIsValid(document)
-        ? 'A succeeded LlamaParse job is linked to the exact source SHA.'
-        : 'A succeeded exact-SHA LlamaParse parse proof is required before verification.',
+        ? 'Caller-supplied parse proof is internally consistent with the source SHA.'
+        : 'Caller-supplied parse proof is incomplete or does not match the candidate SHA.',
       checkEvidence(document),
       { parse: document.parseProof },
     ),
@@ -737,12 +889,9 @@ function runComparisonCheck(
 ): VerificationCheck {
   const comparisons = (document.comparisons ?? []).filter((item) => item.kind === kind);
   if (comparisons.length === 0) {
-    return check(
+    return skippedCheck(
       kind === 'cross_document' ? 'cross_document_reconciliation' : 'historical_consistency',
-      true,
-      false,
-      0,
-      `No ${kind.replace('_', ' ')} controls were supplied for this candidate.`,
+      `no ${kind.replace('_', ' ')} controls were supplied for this candidate.`,
       [document.evidence],
     );
   }
@@ -799,7 +948,7 @@ function statusFor(
   policy: VerificationPolicy,
 ): VerificationStatus {
   if (checks.some((item) => !item.passed && item.blocking)) return 'REJECTED';
-  if (riskScore <= policy.automaticRiskMax) return 'VERIFIED_AUTOMATIC';
+  if (riskScore <= policy.automaticRiskMax) return 'STRUCTURALLY_VALIDATED';
   return 'NEEDS_REVIEW';
 }
 
@@ -820,8 +969,10 @@ function mergePolicy(policy?: Partial<VerificationPolicy>): VerificationPolicy {
 }
 
 /**
- * Verify a normalized, extract-only candidate. This function has no database or writer
- * dependency and cannot promote PE-year dollars; it emits a reviewable decision artifact.
+ * Structurally validate a normalized, extract-only candidate. No database, writer,
+ * approval, or canonical authority exists here; the result is a reviewable artifact.
+ * Rejected results expose no normalized records so a caller cannot consume staged
+ * values without checking status.
  */
 export function verifyBudgetDocument(
   document: BudgetDocument,
@@ -829,25 +980,25 @@ export function verifyBudgetDocument(
 ): BudgetVerificationResult {
   const policy = mergePolicy(options.policy);
   const checks = runChecks(document);
+  const status = statusFor(checks, boundedRisk(checks), policy);
   const normalizedRecords: NormalizedBudgetRecord[] = [];
-  for (const row of document.rows) {
-    for (const cell of row.cells) {
-      if (
-        isCandidateRow(row) &&
-        Number.isFinite(cell.rawValue) &&
-        VALID_UNITS.has(cell.unit) &&
-        evidenceIsValid(document, cell.evidence)
-      ) {
-        normalizedRecords.push(normalizeCell(document, row, cell));
+  if (status !== 'REJECTED') {
+    for (const row of document.rows) {
+      for (const cell of row.cells) {
+        if (
+          isCandidateRow(row) &&
+          Number.isFinite(cell.rawValue) &&
+          VALID_UNITS.has(cell.unit) &&
+          evidenceIsValid(document, cell.evidence)
+        ) {
+          normalizedRecords.push(normalizeCell(document, row, cell));
+        }
       }
     }
   }
   const riskScore = boundedRisk(checks);
-  const status = statusFor(checks, riskScore, policy);
   const route = status === 'REJECTED' ? 'none' : routeForRisk(riskScore, policy);
   const blockingFailures = checks.filter((item) => !item.passed && item.blocking);
-  const canonicalEligible = status === 'VERIFIED_AUTOMATIC' || status === 'VERIFIED_REVIEWED';
-  const promotionReady = canonicalEligible && options.approvedSha256 === document.sourceSha256;
   return {
     status,
     route,
@@ -855,8 +1006,6 @@ export function verifyBudgetDocument(
     checks,
     normalizedRecords,
     blockingFailures,
-    canonicalEligible,
-    promotionReady,
     sourceSha256: document.sourceSha256,
     sourceDocumentId: document.sourceDocumentId,
   };
@@ -881,21 +1030,6 @@ export function buildVerificationRun(
   };
 }
 
-export function getCanonicalPromotionRecords(
-  result: BudgetVerificationResult,
-): NormalizedBudgetRecord[] {
-  return result.promotionReady ? result.normalizedRecords : [];
-}
-
-/** Preserve exact-SHA approval as a separate, explicit writer precondition. */
-export function assertPromotionReady(result: BudgetVerificationResult): void {
-  if (!result.promotionReady) {
-    throw new Error(
-      `Canonical promotion is blocked for ${result.sourceDocumentId}; verification and exact-SHA approval are both required.`,
-    );
-  }
-}
-
 export interface ReviewDecision {
   reviewerId: string;
   accepted: boolean;
@@ -903,11 +1037,16 @@ export interface ReviewDecision {
   evidence: BudgetEvidence[];
 }
 
-/** Apply a human review without touching canonical PE data. */
+/**
+ * Apply an in-memory review decision. This is a pure helper: it persists nothing,
+ * authorizes nothing, and exposes no canonical eligibility. Accepted review returns
+ * REVIEW_ACCEPTED — a marker for later governed processing, not canonical approval.
+ * Review persistence, authorization, segregation of duties, and canonical promotion
+ * are not implemented.
+ */
 export function applyReviewDecision(
   result: BudgetVerificationResult,
   decision: ReviewDecision,
-  approvedSha256?: string,
 ): BudgetVerificationResult {
   if (result.status !== 'NEEDS_REVIEW') {
     throw new Error(`Human review requires NEEDS_REVIEW status; received ${result.status}`);
@@ -918,50 +1057,12 @@ export function applyReviewDecision(
   const reviewEvidenceValid = decision.evidence.every(
     (item) =>
       item.sourceDocumentId === result.sourceDocumentId &&
-      item.sourceSha256 === result.sourceSha256 &&
-      evidenceIsValid(
-        {
-          sourceDocumentId: result.sourceDocumentId,
-          sourceSha256: result.sourceSha256,
-          archiveProof: {
-            bucket: 'review',
-            key: 'review',
-            versionId: 'review',
-            sha256: result.sourceSha256,
-          },
-          parseProof: {
-            id: 'review',
-            provider: 'llamaparse',
-            status: 'succeeded',
-            inputSha256: result.sourceSha256,
-          },
-          documentId: 'review',
-          fiscalYear: 0,
-          sourceAuthority: 'unknown',
-          sourceLineKind: 'UNKNOWN',
-          evidence: item,
-          columns: [],
-          rows: [],
-        },
-        item,
-      ),
+      item.sourceSha256 === result.sourceSha256,
   );
   if (!reviewEvidenceValid)
     throw new Error('Review evidence must point to the exact candidate document and SHA.');
   if (!decision.accepted) {
-    return {
-      ...result,
-      status: 'REJECTED',
-      route: 'none',
-      canonicalEligible: false,
-      promotionReady: false,
-    };
+    return { ...result, status: 'REJECTED', route: 'none' };
   }
-  return {
-    ...result,
-    status: 'VERIFIED_REVIEWED',
-    route: 'human_review',
-    canonicalEligible: true,
-    promotionReady: approvedSha256 === result.sourceSha256,
-  };
+  return { ...result, status: 'REVIEW_ACCEPTED', route: 'human_review' };
 }

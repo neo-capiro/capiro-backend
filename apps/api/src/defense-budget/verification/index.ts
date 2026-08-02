@@ -1,19 +1,15 @@
 export {
   applyReviewDecision,
-  assertPromotionReady,
   buildVerificationRun,
   DEFAULT_VERIFICATION_POLICY,
-  getCanonicalPromotionRecords,
   verifyBudgetDocument,
 } from './budget-verification.js';
-export {
-  persistVerificationResult,
-  PrismaBudgetVerificationRepository,
-} from './budget-verification-repository.js';
-export { verifyAndPersistBudgetDocument } from './budget-verification-service.js';
+export { persistVerificationAuditDraft } from './budget-verification-repository.js';
+export { structurallyValidateAndPersistAuditDraft } from './budget-verification-service.js';
 export {
   buildBudgetDocumentFromExtraction,
   buildBudgetDocumentFromMappedExtraction,
+  buildExtractionDiagnostics,
   evidenceForAssertion,
   sourceLineKindFromClassification,
 } from './budget-document-adapter.js';
@@ -30,6 +26,8 @@ export type {
   BudgetSourceAuthority,
   BudgetVerificationResult,
   BudgetVerificationRun,
+  EvidenceGranularity,
+  ExtractionDiagnostics,
   NormalizedBudgetRecord,
   ParseProof,
   ReviewDecision,
@@ -47,6 +45,5 @@ export type {
   BudgetVerificationCheckRecord,
   BudgetVerificationRepository,
   BudgetVerificationRunRecord,
-  PrismaLikeVerificationClient,
 } from './budget-verification-repository.js';
 export type { VerificationClock } from './budget-verification-service.js';

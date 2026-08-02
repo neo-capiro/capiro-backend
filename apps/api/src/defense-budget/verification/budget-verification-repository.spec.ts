@@ -1,71 +1,79 @@
-import {
-  persistVerificationResult,
-  type BudgetVerificationRepository,
-} from './budget-verification-repository.js';
+import { persistVerificationAuditDraft } from './budget-verification-repository.js';
+import type { BudgetVerificationRepository } from './budget-verification-repository.js';
 import { verifyBudgetDocument } from './budget-verification.js';
 import type { BudgetDocument } from './budget-verification.js';
 
-const SHA = 'a'.repeat(64);
+const SHA = 'c'.repeat(64);
 const evidence = {
   sourceDocumentId: 'doc-1',
   sourceSha256: SHA,
   page: 1,
-  boundingBox: { left: 0, top: 0, right: 10, bottom: 10 },
+  granularity: 'page_only' as const,
   extractionMethod: 'llamaparse' as const,
 };
 
-const document = {
-  sourceDocumentId: 'doc-1',
-  sourceSha256: SHA,
-  archiveProof: { bucket: 'bucket', key: 'incoming/doc.pdf', versionId: 'v1', sha256: SHA },
-  parseProof: {
-    id: 'parse-1',
-    provider: 'llamaparse' as const,
-    status: 'succeeded' as const,
-    inputSha256: SHA,
-  },
-  documentId: 'doc-1',
-  fiscalYear: 2027,
-  sourceAuthority: 'presidents_budget_request' as const,
-  sourceLineKind: 'RDTE_PE' as const,
-  evidence,
-  columns: [
-    {
-      key: 'fy27-request',
-      fiscalYear: 2027,
-      field: 'request' as const,
-      label: 'Request',
-      unit: 'thousands' as const,
-      evidence,
+function document(): BudgetDocument {
+  return {
+    sourceDocumentId: 'doc-1',
+    sourceSha256: SHA,
+    archiveProof: { bucket: 'b', key: 'k', versionId: 'v', sha256: SHA },
+    parseProof: {
+      id: 'p',
+      provider: 'llamaparse',
+      status: 'succeeded',
+      inputSha256: SHA,
     },
-  ],
-  rows: [
-    {
-      id: 'row-1',
-      kind: 'line' as const,
-      lineKind: 'RDTE_PE' as const,
-      code: '0602308A',
-      evidence,
-      cells: [
-        {
-          id: 'cell-1',
-          columnKey: 'fy27-request',
-          lineKind: 'RDTE_PE' as const,
-          code: '0602308A',
-          fiscalYear: 2027,
-          field: 'request' as const,
-          rawValue: 1250,
-          unit: 'thousands' as const,
-          evidence,
-        },
-      ],
+    documentId: 'doc-1',
+    fiscalYear: 2027,
+    sourceAuthority: 'presidents_budget_request',
+    sourceLineKind: 'RDTE_PE',
+    evidence,
+    extractionDiagnostics: {
+      sourceYearValueCount: 1,
+      sourceMoneyAssertionCount: 1,
+      acceptedMoneyAssertionCount: 1,
+      droppedMoneyAssertions: [],
+      parserWarnings: [],
     },
-  ],
-} satisfies BudgetDocument;
+    columns: [
+      {
+        key: 'c1',
+        fiscalYear: 2027,
+        field: 'request',
+        label: 'Request',
+        unit: 'thousands',
+        evidence,
+      },
+    ],
+    rows: [
+      {
+        id: 'r1',
+        kind: 'line',
+        lineKind: 'RDTE_PE',
+        code: '0602308A',
+        evidence,
+        cells: [
+          {
+            id: 'cell1',
+            columnKey: 'c1',
+            lineKind: 'RDTE_PE',
+            code: '0602308A',
+            fiscalYear: 2027,
+            field: 'request',
+            rawValue: 100,
+            unit: 'thousands',
+            evidence,
+          },
+        ],
+      },
+    ],
+  };
+}
 
-describe('persistVerificationResult', () => {
-  it('writes only audit records and preserves the exact-SHA status boundary', async () => {
+describe('persistVerificationAuditDraft', () => {
+  it('persists candidate, cells, run, checks, and final scaffold status', async () => {
     const calls: string[] = [];
+    const statuses: string[] = [];
     const repository: BudgetVerificationRepository = {
       async createCandidate() {
         calls.push('candidate');
@@ -80,14 +88,13 @@ describe('persistVerificationResult', () => {
         calls.push(`checks:${records.length}`);
       },
       async updateCandidateStatus(_id, status) {
-        calls.push(`status:${status}`);
+        statuses.push(status);
       },
     };
-
-    const result = verifyBudgetDocument(document);
-    await persistVerificationResult(repository, {
+    const result = verifyBudgetDocument(document());
+    await persistVerificationAuditDraft(repository, {
       candidate: {
-        id: 'candidate-1',
+        id: 'cand-1',
         sourceDocumentId: 'doc-1',
         sourceSha256: SHA,
         documentId: 'doc-1',
@@ -99,7 +106,7 @@ describe('persistVerificationResult', () => {
       result,
       run: {
         id: 'run-1',
-        candidateId: 'candidate-1',
+        candidateId: 'cand-1',
         status: result.status,
         route: result.route,
         riskScore: result.riskScore,
@@ -107,14 +114,48 @@ describe('persistVerificationResult', () => {
         completedAt: '2026-08-02T00:00:01.000Z',
       },
     });
+    expect(calls[0]).toBe('candidate');
+    expect(calls).toContain('cells:1');
+    expect(calls).toContain('run');
+    expect(calls.some((c) => c.startsWith('checks:'))).toBe(true);
+    expect(statuses).toEqual(['STRUCTURALLY_VALIDATED']);
+  });
 
-    expect(calls).toEqual([
-      'candidate',
-      'cells:1',
-      'run',
-      'checks:14',
-      'status:VERIFIED_AUTOMATIC',
-    ]);
+  it('persists zero cells for a rejected result (fail closed)', async () => {
+    let cellCount = -1;
+    const repository: BudgetVerificationRepository = {
+      async createCandidate() {},
+      async createCells(records) {
+        cellCount = records.length;
+      },
+      async createRun() {},
+      async createChecks() {},
+      async updateCandidateStatus() {},
+    };
+    const rejected = verifyBudgetDocument({ ...document(), rows: [], columns: [] });
+    expect(rejected.status).toBe('REJECTED');
+    await persistVerificationAuditDraft(repository, {
+      candidate: {
+        id: 'cand-2',
+        sourceDocumentId: 'doc-1',
+        sourceSha256: SHA,
+        documentId: 'doc-1',
+        fiscalYear: 2027,
+        sourceAuthority: 'presidents_budget_request',
+        sourceLineKind: 'RDTE_PE',
+        status: 'EXTRACTED',
+      },
+      result: rejected,
+      run: {
+        id: 'run-2',
+        candidateId: 'cand-2',
+        status: rejected.status,
+        route: rejected.route,
+        riskScore: rejected.riskScore,
+        startedAt: '2026-08-02T00:00:00.000Z',
+        completedAt: '2026-08-02T00:00:01.000Z',
+      },
+    });
+    expect(cellCount).toBe(0);
   });
 });
-export {};

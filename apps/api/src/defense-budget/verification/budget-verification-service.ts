@@ -5,7 +5,7 @@ import {
   type BudgetVerificationResult,
 } from './budget-verification.js';
 import {
-  persistVerificationResult,
+  persistVerificationAuditDraft,
   type BudgetExtractionCandidateRecord,
   type BudgetVerificationRepository,
   type BudgetVerificationRunRecord,
@@ -16,22 +16,22 @@ export interface VerificationClock {
 }
 
 /**
- * End-to-end extract-only orchestration. The parser/loader supplies a normalized
- * BudgetDocument; this service verifies it and persists only audit rows.
+ * Draft-only structural-validation orchestration. The parser/loader supplies a
+ * normalized BudgetDocument; this service structurally validates it and persists
+ * only draft audit rows. It accepts no approval and authorizes no canonical write.
  */
-export async function verifyAndPersistBudgetDocument(
+export async function structurallyValidateAndPersistAuditDraft(
   repository: BudgetVerificationRepository,
   document: BudgetDocument,
   input: {
     candidateId: string;
     runId: string;
     clock?: VerificationClock;
-    approvedSha256?: string;
   },
 ): Promise<BudgetVerificationResult> {
   const clock = input.clock ?? { now: () => new Date() };
   const startedAt = clock.now().toISOString();
-  const result = verifyBudgetDocument(document, { approvedSha256: input.approvedSha256 });
+  const result = verifyBudgetDocument(document);
   const completedAt = clock.now().toISOString();
   const candidate: BudgetExtractionCandidateRecord = {
     id: input.candidateId,
@@ -52,6 +52,6 @@ export async function verifyAndPersistBudgetDocument(
       completedAt,
     }),
   };
-  await persistVerificationResult(repository, { candidate, result, run });
+  await persistVerificationAuditDraft(repository, { candidate, result, run });
   return result;
 }
