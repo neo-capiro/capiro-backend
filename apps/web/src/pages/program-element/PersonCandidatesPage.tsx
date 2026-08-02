@@ -148,12 +148,14 @@ function ReviewQueue() {
   return (
     <section className="pe-finder pe-final">
       <QueueBreadcrumb />
-      <div className="pe-final-page-copy">
-        <h1>Contact review queue</h1>
-        <p>
-          Acquisition personnel matched to your monitored lines from public records. Confirm the
-          ones you recognize; low-confidence matches never reach a client brief unconfirmed.
-        </p>
+      <div className="pe-final-page-head">
+        <div className="pe-final-page-copy">
+          <h1>Contact review queue</h1>
+          <p>
+            Acquisition personnel matched to your monitored lines from public records. Confirm the
+            ones you recognize; low-confidence matches never reach a client brief unconfirmed.
+          </p>
+        </div>
       </div>
 
       <div className="pe-final-queue-notice">
@@ -201,8 +203,10 @@ function SuggestForm() {
   return (
     <section className="pe-finder pe-final">
       <QueueBreadcrumb />
-      <div className="pe-final-page-copy">
-        <h1>Contact review queue</h1>
+      <div className="pe-final-page-head">
+        <div className="pe-final-page-copy">
+          <h1>Contact review queue</h1>
+        </div>
       </div>
       <div className="pe-final-card" style={{ maxWidth: 640 }}>
         <div className="pe-final-card-head">

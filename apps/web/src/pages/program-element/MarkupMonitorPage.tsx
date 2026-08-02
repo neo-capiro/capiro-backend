@@ -148,12 +148,14 @@ export function MarkupMonitorPage() {
         <span>Mark-up monitor</span>
       </div>
 
-      <div className="pe-final-page-copy">
-        <h1>Mark-up monitor</h1>
-        <p>
-          Committee marks across HASC, SASC, HAC-D and SAC-D for every program element you
-          watch, with how far each mark diverges from the President&apos;s Budget request.
-        </p>
+      <div className="pe-final-page-head">
+        <div className="pe-final-page-copy">
+          <h1>Mark-up monitor</h1>
+          <p>
+            Committee marks across HASC, SASC, HAC-D and SAC-D for every program element you
+            watch, with how far each mark diverges from the President&apos;s Budget request.
+          </p>
+        </div>
       </div>
 
       <div className="pe-final-card" style={{ margin: '16px 0' }}>
