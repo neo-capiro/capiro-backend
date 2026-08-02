@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient } from '@prisma/client';
 import {
   classifyLegacyMemory,
+  type GovernedMemorySourceType,
   type GovernedMemoryStatus,
   type MemoryAuthority,
   type MemoryClass,
@@ -51,7 +52,7 @@ interface ClassificationPlan {
   memoryAuthority: MemoryAuthority;
   memoryScope: 'firm' | 'client' | 'user_private';
   governedStatus: GovernedMemoryStatus;
-  sourceType: string;
+  sourceType: GovernedMemorySourceType;
   sourceId: string | null;
   reason: string;
   quarantined: boolean;
@@ -95,33 +96,22 @@ interface StoredRow {
 /**
  * Map a legacy row onto the canonical MEMORY_SOURCE_TYPES vocabulary.
  *
- * Only values in @capiro/meriv2-core MEMORY_SOURCE_TYPES may be returned; the
- * classifier quarantines anything that resolves to 'unknown' without a
- * source_ref, so an unmapped production source makes the whole cohort
- * unclassifiable. The live capiro-dev corpus is dominated by three legacy
- * sources that the original type/slug rules never covered:
+ * A row whose source type resolves to 'unknown' with no source_ref trips the
+ * classifier's missingSource guard, so an unmapped production source quarantines
+ * its entire cohort. Live capiro-dev cohorts the original type/slug rules missed
+ * (counts from diag-memory-governance):
  *
- *   graph-email     (13057 rows, type=thread,       provenance=ingest@1)
- *   meeting-service (1723 rows,  type=meeting,      provenance=ingest@1)
- *   manual          (947 rows,   type=note,         provenance=human)
- *   meri            (334 rows,   type=meri-session, provenance=ingest@1)
- *   ingest          (80 rows,    type=client-hub,   provenance=ingest@1)
+ *   graph-email     13057  thread        external mail, not firm-authored guidance
+ *   meeting-service  1723  meeting       same outcomes legacy 'meeting' claimed
+ *   manual (human)    947  note          user_message, NOT approved_document_edit
+ *                                        (that implies the Settings review path)
+ *   meri              334  meri-session  assistant-produced extraction
+ *   ingest             80  client-hub    generic legacy pipeline
  *
- * Each maps to the vocabulary entry that describes what the row actually is,
- * never to a new value:
- *   - graph-email is a synced mail thread, i.e. an external primary source, not
- *     firm-authored guidance.
- *   - meeting-service rows are the same confirmed meeting outcomes the legacy
- *     'meeting' source already claimed.
- *   - human-authored notes are user messages; they are NOT approved document
- *     edits, which imply the Settings review path.
- *   - meri sessions are steward extractions produced by the assistant.
- *   - the generic 'ingest' pipeline is a legacy projection.
- *
- * Type/slug rules are checked first so an explicitly typed row (playbook,
- * firm-*, client-*, user-*, clio: slugs) keeps its stronger classification.
+ * Type and slug rules stay first so an explicitly typed row (playbook, firm-*,
+ * client-*, user-*, clio: slugs) keeps its stronger classification.
  */
-function sourceTypeFor(row: LegacyRow): string {
+function sourceTypeFor(row: LegacyRow): GovernedMemorySourceType {
   if (row.type === 'playbook' || row.type.startsWith('firm-')) return 'firm_playbook';
   if (row.type.startsWith('client-')) return 'client_record';
   if (row.type.startsWith('user-')) return 'user_message';

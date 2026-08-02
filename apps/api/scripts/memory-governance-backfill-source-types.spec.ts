@@ -21,11 +21,10 @@ const storeSource = readFileSync(storePath, 'utf8');
 
 /** Extract the sourceTypeFor body so we can assert on its vocabulary statically. */
 function sourceTypeForBody(): string {
-  const match = /function sourceTypeFor\(row: LegacyRow\): string \{([\s\S]*?)\n\}/.exec(
-    storeSource,
-  );
-  const body = match?.[1];
-  if (!body) throw new Error('sourceTypeFor(row: LegacyRow) not found in the backfill store.');
+  // Match any return-type annotation so tightening the signature does not break
+  // this guard.
+  const body = /function sourceTypeFor\([^)]*\):[^{]*\{([\s\S]*?)\n\}/.exec(storeSource)?.[1];
+  if (!body) throw new Error('sourceTypeFor() not found in the backfill store.');
   return body;
 }
 
