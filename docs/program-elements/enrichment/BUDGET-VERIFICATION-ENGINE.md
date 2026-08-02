@@ -109,6 +109,16 @@ pnpm exec tsc -p apps/api/tsconfig.verification.json --noEmit
 pnpm --dir apps/api exec jest --runInBand --forceExit src/defense-budget/verification src/defense-budget/assertion-mapper.spec.ts scripts/lib/defense-budget-commit.spec.ts
 ```
 
+## Phase 1 contract boundary
+
+- Phase 1 `defense_budget_extraction_v1` artifacts (see
+  `BUDGET-EXTRACTION-CONTRACT-V1.md`) are the future verifier input contract.
+- The Phase 0 verifier documented here remains contained and is **not** yet
+  rewired to consume V1 artifacts in this phase.
+- Phase 2 will consume V1 artifacts and implement trusted verification.
+
+The Phase 0 verifier is not complete; nothing above claims otherwise.
+
 ## Remaining limitations (later phases)
 
 - trusted source/parse proof resolver
