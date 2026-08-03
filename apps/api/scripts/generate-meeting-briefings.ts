@@ -33,6 +33,7 @@ async function generateForTenant(tenantId: string, now: Date): Promise<number> {
       tenantId,
       startsAt: { gte: now, lte: horizon },
       createdByUserId: { not: null },
+      status: { not: 'deleted' },
     },
     select: {
       id: true,
@@ -40,6 +41,7 @@ async function generateForTenant(tenantId: string, now: Date): Promise<number> {
       startsAt: true,
       clientId: true,
       createdByUserId: true,
+      timeZone: true,
       client: { select: { name: true } },
     },
   });
@@ -51,6 +53,7 @@ async function generateForTenant(tenantId: string, now: Date): Promise<number> {
     clientName: m.client?.name ?? null,
     title: m.subject,
     startsAt: m.startsAt,
+    timeZone: m.timeZone,
   }));
 
   // Daily delta: only meetings that newly entered the window since ~yesterday.

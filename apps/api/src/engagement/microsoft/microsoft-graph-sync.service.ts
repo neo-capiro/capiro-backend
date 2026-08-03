@@ -179,6 +179,9 @@ interface GraphEvent {
   bodyPreview?: string | null;
   webLink?: string | null;
   isCancelled?: boolean | null;
+  // Graph sensitivity: "normal" | "personal" | "private" | "confidential".
+  // Private events can arrive with subject=null for non-organizer attendees.
+  sensitivity?: string | null;
   // Structured online-meeting fields (Meetings v2 §5). Graph's default event
   // representation on /calendarView(/delta) already returns these, so no $select
   // change is needed (adding a $select to the delta query would risk the existing
@@ -1176,8 +1179,14 @@ export class MicrosoftGraphSyncService {
               externalId: event.id!,
             },
           },
-          select: { id: true, clientId: true, isInternal: true, associationSignals: true },
+          select: { id: true, clientId: true, isInternal: true, associationSignals: true, status: true },
         });
+        // Resurrection guard: if this meeting was previously marked deleted
+        // (via @removed from a Graph delta), do not revive it when a full
+        // calendar refresh re-encounters the event id.
+        if (existing?.status === 'deleted' && !event.isCancelled) {
+          return 'skipped';
+        }
         const hasManualOverride = existing
           ? await hasManualAssociationOverride(
               tx,
@@ -1216,13 +1225,22 @@ export class MicrosoftGraphSyncService {
           externalId: event.id!,
           // Phase 2 groundwork: stored (dormant) for future cross-mailbox grouping.
           iCalUId: event.iCalUId ?? null,
-          subject: clean(event.subject) || 'Untitled calendar event',
+          subject:
+            clean(event.subject) ||
+            (event.sensitivity === 'private'
+              ? 'Private meeting'
+              : event.sensitivity === 'personal'
+                ? 'Personal event'
+                : event.sensitivity === 'confidential'
+                  ? 'Confidential meeting'
+                  : 'Untitled calendar event'),
           description: clean(event.bodyPreview),
           location: clean(event.location?.displayName),
           startsAt,
           endsAt,
           organizerEmail,
           organizerName: clean(event.organizer?.emailAddress?.name),
+          timeZone: event.start?.timeZone ?? null,
           status: event.isCancelled ? 'cancelled' : 'scheduled',
           isVirtual: virtuality.isVirtual,
           joinLink: virtuality.joinLink,

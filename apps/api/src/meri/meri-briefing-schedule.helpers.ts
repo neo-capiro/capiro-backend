@@ -17,6 +17,8 @@ export interface UpcomingMeeting {
   clientName: string | null;
   title: string;
   startsAt: Date;
+  /** IANA timezone from the meeting record, when known. */
+  timeZone?: string | null;
 }
 
 export interface BriefingSelectionOptions {
@@ -79,6 +81,7 @@ export function formatBriefingDigest(plan: UserBriefingPlan): string {
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
+      ...(m.timeZone ? { timeZone: m.timeZone } : {}),
     });
     const who = m.clientName ? ` — ${m.clientName}` : '';
     lines.push(`• ${when}: ${m.title}${who}`);

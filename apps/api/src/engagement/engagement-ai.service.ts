@@ -1520,6 +1520,27 @@ export class EngagementAiService {
     const location =
       typeof meetingRecord.location === 'string' ? meetingRecord.location.trim() : '';
     const hasLocation = location.length > 0;
+    const timeZone =
+      typeof meetingRecord.timeZone === 'string' ? meetingRecord.timeZone.trim() : '';
+    const startsAtRaw = meetingRecord.startsAt;
+    let formattedTime = '';
+    if (typeof startsAtRaw === 'string' || startsAtRaw instanceof Date) {
+      try {
+        const date = startsAtRaw instanceof Date ? startsAtRaw : new Date(startsAtRaw);
+        if (!Number.isNaN(date.getTime())) {
+          formattedTime = date.toLocaleString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            ...(timeZone ? { timeZone } : {}),
+          });
+        }
+      } catch {
+        formattedTime = '';
+      }
+    }
 
     return [
       'Write a lobbyist-ready meeting prep. Keep it concise, specific, and decision-focused.',
@@ -1544,8 +1565,8 @@ export class EngagementAiService {
         : '',
       '',
       hasLocation
-        ? `MEETING LOGISTICS: this meeting has a location ("${location}"). OPEN the summary with a one-line logistics header stating the meeting date/time and this location, before any narrative. Make a "Logistics" item the FIRST entry in the agenda, naming the location and time. Use only the supplied meeting date/time fields verbatim; do not guess a timezone or reformat into one.`
-        : 'MEETING LOGISTICS: no location is recorded for this meeting. Do not invent one. Open the summary with the meeting date/time only.',
+        ? `MEETING LOGISTICS: this meeting has a location ("${location}"). OPEN the summary with a one-line logistics header stating "${formattedTime || 'the meeting date/time'}" and this location, before any narrative. Make a "Logistics" item the FIRST entry in the agenda, naming the location and that same time. Use the date/time exactly as given here; do not re-convert or reformat.`
+        : `MEETING LOGISTICS: no location is recorded for this meeting. Do not invent one. Open the summary with "${formattedTime || 'the meeting date/time'}" only.`,
       '',
       'CENTRAL SUBJECT & DISCUSSION POINTS: Determine the core subject of this meeting and its key discussion points by synthesizing the meeting subject/description, recentThreads (email correspondence), recentMeetings, tasks, and any user context. Surface them explicitly as a "Discussion Priorities" agenda section and as concrete talkingPoints. Where the threads or prior meetings reveal an open ask, pending decision, or unresolved thread, name it specifically. Do not assert a subject the supplied data does not support.',
       '',

@@ -25,6 +25,9 @@ import { activeMailMessageWhere, activeMailThreadWhere } from './mail-message-st
 export function ownMeetingWhere(userId: string): Prisma.MeetingWhereInput {
   return {
     OR: [{ createdByUserId: userId }, { connection: { createdByUserId: userId } }],
+    // Soft-deleted calendar events stay in DB for audit/artifacts but must not
+    // appear in the Meetings UI, library, or prep surfaces.
+    status: { not: 'deleted' },
   };
 }
 

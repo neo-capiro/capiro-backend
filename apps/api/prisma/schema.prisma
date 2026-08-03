@@ -766,6 +766,10 @@ model Meeting {
   endsAt             DateTime          @map("ends_at") @db.Timestamptz(6)
   organizerEmail     String?           @map("organizer_email") @db.Citext
   organizerName      String?           @map("organizer_name")
+  // IANA timezone captured at sync from Graph event.start.timeZone / Google
+  // Calendar start.timeZone. Used to format prep/briefing times in the
+  // meeting's local zone instead of server UTC.
+  timeZone           String?           @map("time_zone")
   status             String            @default("scheduled")
   // Meetings v2 (2026-07): virtual-meeting classification derived once at
   // sync/create time (see @capiro/shared deriveMeetingVirtuality) instead of
