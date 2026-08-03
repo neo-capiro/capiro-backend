@@ -425,8 +425,19 @@ def compute_parser_config_sha256(config: Any) -> str:
 
 
 def compute_result_content_sha256(result_dict: dict[str, Any]) -> str:
-    """Compute content SHA from a result dict, excluding the contentSha256 field."""
+    """Compute content SHA from a result dict, excluding non-deterministic fields.
+
+    Excludes:
+    - contentSha256 (the hash itself)
+    - metrics.durationMillis (runtime timing, not content)
+    """
     rest = {k: v for k, v in result_dict.items() if k != 'contentSha256'}
+    # Exclude durationMillis from metrics for deterministic hashing
+    if 'metrics' in rest and isinstance(rest['metrics'], dict):
+        rest = dict(rest)
+        rest['metrics'] = {
+            k: v for k, v in rest['metrics'].items() if k != 'durationMillis'
+        }
     return sha256_canonical_json(rest)
 
 

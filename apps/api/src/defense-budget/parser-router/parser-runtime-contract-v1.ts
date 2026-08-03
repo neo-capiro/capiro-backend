@@ -436,12 +436,15 @@ export function computeParserConfigSha256(config: JsonValue): string {
 
 /**
  * Compute the content SHA-256 of a parser runtime result.
- * Excludes the contentSha256 field itself from the hash.
+ * Excludes the contentSha256 field itself and metrics.durationMillis
+ * (runtime timing) from the hash to ensure determinism.
  */
 export function computeResultContentSha256(
   result: Omit<ParserRuntimeResultV1, 'contentSha256'>,
 ): string {
-  return sha256CanonicalJson(result as unknown as JsonValue);
+  const { metrics: rawMetrics, ...rest } = result as ParserRuntimeResultV1;
+  const { durationMillis: _ignored, ...stableMetrics } = rawMetrics;
+  return sha256CanonicalJson({ ...rest, metrics: stableMetrics } as unknown as JsonValue);
 }
 
 /**
@@ -535,9 +538,9 @@ export function parseParserArtifactDescriptorV1(input: unknown): ParserArtifactD
  */
 export function verifyResultContentSha256(result: ParserRuntimeResultV1): boolean {
   try {
-    // Strip contentSha256, recompute, compare
+    // Strip contentSha256, recompute (excluding durationMillis), compare
     const { contentSha256: _ignored, ...rest } = result;
-    const recomputed = sha256CanonicalJson(rest as unknown as JsonValue);
+    const recomputed = computeResultContentSha256(rest);
     return recomputed === result.contentSha256;
   } catch {
     return false;
