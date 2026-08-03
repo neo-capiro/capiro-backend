@@ -11,6 +11,8 @@
  *     --expected-source-sha256 <sha> \
  *     --expected-artifact-sha256 <sha> \
  *     --expected-manifest-sha256 <sha> \
+ *     [--extractor-actor-id <id>] \
+ *     [--extraction-method <method>] \
  *     [--commit]
  *
  * Behavior:
@@ -136,6 +138,7 @@ class DryRunReviewRepo implements BudgetVerificationRepositoryV1 {
       manifestContentSha256: this.expectedManifestSha256,
       extractionArtifactSha256: this.expectedArtifactSha256,
       sourceSha256: this.expectedSourceSha256,
+      resultSnapshot: null,
       createdAt: '2026-01-01T00:00:00Z',
     };
   }
@@ -170,6 +173,8 @@ interface ReviewArgs {
   expectedSourceSha256: string;
   expectedArtifactSha256: string;
   expectedManifestSha256: string;
+  extractorActorId?: string;
+  extractionMethod?: string;
   commit: boolean;
 }
 
@@ -182,6 +187,8 @@ const KNOWN_FLAGS = new Set([
   '--expected-source-sha256',
   '--expected-artifact-sha256',
   '--expected-manifest-sha256',
+  '--extractor-actor-id',
+  '--extraction-method',
   '--commit',
 ]);
 
@@ -237,6 +244,12 @@ function parseArgs(argv: string[]): ReviewArgs {
         break;
       case '--expected-manifest-sha256':
         args.expectedManifestSha256 = argv[++i] ?? '';
+        break;
+      case '--extractor-actor-id':
+        args.extractorActorId = argv[++i] ?? '';
+        break;
+      case '--extraction-method':
+        args.extractionMethod = argv[++i] ?? '';
         break;
       case '--commit':
         args.commit = true;
@@ -303,6 +316,8 @@ async function main(): Promise<void> {
     expectedSourceSha256: args.expectedSourceSha256,
     expectedExtractionArtifactSha256: args.expectedArtifactSha256,
     expectedManifestContentSha256: args.expectedManifestSha256,
+    ...(args.extractorActorId ? { extractorActorId: args.extractorActorId } : {}),
+    ...(args.extractionMethod ? { extractionMethod: args.extractionMethod } : {}),
   };
 
   // In dry-run mode, use the fake repository
@@ -350,17 +365,19 @@ async function main(): Promise<void> {
     process.exit(EXIT_ERROR);
   }
 
-  // Print exact decision and hashes
+  // Print exact decision, hashes, prior status, and limitation findings
   const output = {
     reviewDecisionId: result.reviewDecisionId,
     candidateId: result.candidateId,
     runId: result.runId,
     decision: result.decision,
     finalStatus: result.finalStatus,
+    priorStatus: result.priorStatus,
     createdAt: result.createdAt,
     expectedSourceSha256: args.expectedSourceSha256,
     expectedExtractionArtifactSha256: args.expectedArtifactSha256,
     expectedManifestContentSha256: args.expectedManifestSha256,
+    limitationFindings: result.limitationFindings,
     committed: args.commit,
   };
   console.log(JSON.stringify(output, null, 2));
