@@ -4,6 +4,18 @@
  * Reports local vs paid page counts and parser execution metrics truthfully.
  * Does not fabricate dollar cost when the provider does not return enough
  * current pricing data.
+ *
+ * Per-document report fields (Section 21 / O1):
+ *   - source pages
+ *   - profiled pages
+ *   - per-engine pages executed / reused (pdfplumber, Camelot, Docling,
+ *     PaddleOCR, LlamaParse)
+ *   - provider credits used, when returned
+ *   - paid page cap
+ *   - paid pages remaining
+ *   - local runtime durations
+ *   - parser failures
+ *   - final verification decision
  */
 
 import type { ExtractionMethodV1 } from '../contracts/extraction-artifact-v1.js';

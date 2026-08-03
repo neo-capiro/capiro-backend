@@ -435,9 +435,7 @@ def compute_result_content_sha256(result_dict: dict[str, Any]) -> str:
     # Exclude durationMillis from metrics for deterministic hashing
     if 'metrics' in rest and isinstance(rest['metrics'], dict):
         rest = dict(rest)
-        rest['metrics'] = {
-            k: v for k, v in rest['metrics'].items() if k != 'durationMillis'
-        }
+        rest['metrics'] = {k: v for k, v in rest['metrics'].items() if k != 'durationMillis'}
     return sha256_canonical_json(rest)
 
 

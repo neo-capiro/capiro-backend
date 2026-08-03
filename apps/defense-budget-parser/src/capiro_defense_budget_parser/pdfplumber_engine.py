@@ -15,6 +15,7 @@ from typing import Any
 
 try:
     import pdfplumber as _pdfplumber_module  # noqa: F401 — for test patching
+
     pdfplumber = _pdfplumber_module  # re-export for module-level patch access
 except ImportError:
     _pdfplumber_module = None  # type: ignore[assignment]
@@ -133,18 +134,20 @@ def _extract_blocks(page: Any) -> list[LayoutBlockV1]:
                 x1 = max(float(w.get('x1', 0)) for w in line_words)
                 y1 = max(float(w.get('bottom', 0)) for w in line_words)
 
-                blocks.append(LayoutBlockV1(
-                    blockIndex=idx,
-                    blockType=block_type,  # type: ignore[arg-type]
-                    text=text.strip(),
-                    readingOrder=idx,
-                    boundingBox=BoundingBoxV1(
-                        x0=_to_decimal_string(x0),
-                        y0=_to_decimal_string(y0),
-                        x1=_to_decimal_string(x1),
-                        y1=_to_decimal_string(y1),
-                    ),
-                ))
+                blocks.append(
+                    LayoutBlockV1(
+                        blockIndex=idx,
+                        blockType=block_type,  # type: ignore[arg-type]
+                        text=text.strip(),
+                        readingOrder=idx,
+                        boundingBox=BoundingBoxV1(
+                            x0=_to_decimal_string(x0),
+                            y0=_to_decimal_string(y0),
+                            x1=_to_decimal_string(x1),
+                            y1=_to_decimal_string(y1),
+                        ),
+                    )
+                )
 
     return blocks
 
@@ -194,12 +197,14 @@ def _extract_tables(page: Any, table_settings: dict[str, Any]) -> list[ParsedTab
                 except Exception:
                     pass
 
-                cells.append(ParsedTableCellV1(
-                    rowIndex=r_idx,
-                    columnIndex=c_idx,
-                    text=cell_text,
-                    boundingBox=bbox,
-                ))
+                cells.append(
+                    ParsedTableCellV1(
+                        rowIndex=r_idx,
+                        columnIndex=c_idx,
+                        text=cell_text,
+                        boundingBox=bbox,
+                    )
+                )
 
         # Table-level bounding box
         table_bbox = None
@@ -216,14 +221,16 @@ def _extract_tables(page: Any, table_settings: dict[str, Any]) -> list[ParsedTab
         except Exception:
             pass
 
-        tables.append(ParsedTableV1(
-            tableIndex=t_idx,
-            rowCount=row_count,
-            columnCount=col_count,
-            cells=cells,
-            boundingBox=table_bbox,
-            warnings=[],
-        ))
+        tables.append(
+            ParsedTableV1(
+                tableIndex=t_idx,
+                rowCount=row_count,
+                columnCount=col_count,
+                cells=cells,
+                boundingBox=table_bbox,
+                warnings=[],
+            )
+        )
 
     return tables
 
@@ -256,10 +263,7 @@ def process_page(
 
     # Determine evidence precision
     # If we have tables with cell bounding boxes, use cell_bbox
-    has_cell_bbox = any(
-        any(c.boundingBox is not None for c in t.cells)
-        for t in tables
-    )
+    has_cell_bbox = any(any(c.boundingBox is not None for c in t.cells) for t in tables)
     if has_cell_bbox:
         evidence_precision = 'cell_bbox'
     elif tables:
@@ -318,18 +322,30 @@ def run_pdfplumber_engine(
             raise ImportError('pdfplumber is not installed')
     except ImportError as e:
         for pn in requested_pages:
-            failed_pages.append(ParserPageFailureV1(
-                page=pn, code='pdf_parse_error', message=str(e),
-            ))
+            failed_pages.append(
+                ParserPageFailureV1(
+                    page=pn,
+                    code='pdf_parse_error',
+                    message=str(e),
+                )
+            )
         metrics = ParserRuntimeMetricsV1(
-            durationMillis=0, pagesProcessed=len(requested_pages),
-            pagesSucceeded=0, pagesFailed=len(requested_pages),
+            durationMillis=0,
+            pagesProcessed=len(requested_pages),
+            pagesSucceeded=0,
+            pagesFailed=len(requested_pages),
             engineVersion=ENGINE_VERSION,
         )
         return _build_result(
-            job_id, config_sha, actual_sha, requested_pages,
-            succeeded_pages, failed_pages, page_results,
-            runtime_warnings, metrics,
+            job_id,
+            config_sha,
+            actual_sha,
+            requested_pages,
+            succeeded_pages,
+            failed_pages,
+            page_results,
+            runtime_warnings,
+            metrics,
         )
 
     page_set = set(requested_pages)
@@ -344,10 +360,13 @@ def run_pdfplumber_engine(
 
             try:
                 if pn > total_pages or pn < 1:
-                    failed_pages.append(ParserPageFailureV1(
-                        page=pn, code='page_out_of_range',
-                        message=f'page {pn} out of range (1-{total_pages})',
-                    ))
+                    failed_pages.append(
+                        ParserPageFailureV1(
+                            page=pn,
+                            code='page_out_of_range',
+                            message=f'page {pn} out of range (1-{total_pages})',
+                        )
+                    )
                     continue
 
                 result = process_page(page, pn, table_settings, cfg)
@@ -355,10 +374,13 @@ def run_pdfplumber_engine(
                 succeeded_pages.append(pn)
 
             except Exception as e:
-                failed_pages.append(ParserPageFailureV1(
-                    page=pn, code='pdf_parse_error',
-                    message=f'{type(e).__name__}: {e}',
-                ))
+                failed_pages.append(
+                    ParserPageFailureV1(
+                        page=pn,
+                        code='pdf_parse_error',
+                        message=f'{type(e).__name__}: {e}',
+                    )
+                )
 
     duration_ms = int((time.monotonic() - start_time) * 1000)
 
@@ -369,10 +391,13 @@ def run_pdfplumber_engine(
             idx = succeeded_pages.index(result.page)
             succeeded_pages.pop(idx)
             page_results.pop(idx)
-            failed_pages.append(ParserPageFailureV1(
-                page=result.page, code='no_embedded_text',
-                message='page has no embedded text layer',
-            ))
+            failed_pages.append(
+                ParserPageFailureV1(
+                    page=result.page,
+                    code='no_embedded_text',
+                    message='page has no embedded text layer',
+                )
+            )
 
     metrics = ParserRuntimeMetricsV1(
         durationMillis=duration_ms,
@@ -383,9 +408,15 @@ def run_pdfplumber_engine(
     )
 
     return _build_result(
-        job_id, config_sha, actual_sha, requested_pages,
-        succeeded_pages, failed_pages, page_results,
-        runtime_warnings, metrics,
+        job_id,
+        config_sha,
+        actual_sha,
+        requested_pages,
+        succeeded_pages,
+        failed_pages,
+        page_results,
+        runtime_warnings,
+        metrics,
     )
 
 

@@ -180,21 +180,25 @@ class TestClassifyStructureResult:
         assert result['regions'] == []
 
     def test_text_region(self):
-        pp_result = [{
-            'type': 'text',
-            'bbox': [10, 20, 100, 50],
-            'res': 'Some extracted text',
-        }]
+        pp_result = [
+            {
+                'type': 'text',
+                'bbox': [10, 20, 100, 50],
+                'res': 'Some extracted text',
+            }
+        ]
         parsed = _classify_structure_result(pp_result)
         assert len(parsed['regions']) == 1
         assert parsed['regions'][0]['type'] == 'text'
 
     def test_table_region(self):
-        pp_result = [{
-            'type': 'table',
-            'bbox': [10, 20, 300, 200],
-            'res': {'html': '<table><tr><td>R1C1</td><td>R1C2</td></tr></table>'},
-        }]
+        pp_result = [
+            {
+                'type': 'table',
+                'bbox': [10, 20, 300, 200],
+                'res': {'html': '<table><tr><td>R1C1</td><td>R1C2</td></tr></table>'},
+            }
+        ]
         parsed = _classify_structure_result(pp_result)
         assert len(parsed['regions']) == 1
         assert parsed['regions'][0]['type'] == 'table'
@@ -346,18 +350,22 @@ class TestExtractTableFromRegion:
 class TestProcessPageWithPaddleOCR:
     def test_image_only_table_fixture(self):
         """Simulate PP-StructureV3 output for an image-only table page."""
-        mock_engine = MagicMock(return_value=[{
-            'type': 'table',
-            'bbox': [10, 20, 300, 200],
-            'res': {
-                'html': (
-                    '<table>'
-                    '<tr><td>Program Element</td><td>FY 2027</td></tr>'
-                    '<tr><td>PE 0601102A</td><td>$45,678,000</td></tr>'
-                    '</table>'
-                ),
-            },
-        }])
+        mock_engine = MagicMock(
+            return_value=[
+                {
+                    'type': 'table',
+                    'bbox': [10, 20, 300, 200],
+                    'res': {
+                        'html': (
+                            '<table>'
+                            '<tr><td>Program Element</td><td>FY 2027</td></tr>'
+                            '<tr><td>PE 0601102A</td><td>$45,678,000</td></tr>'
+                            '</table>'
+                        ),
+                    },
+                }
+            ]
+        )
 
         result = process_page_with_paddleocr(
             engine=mock_engine,
@@ -381,18 +389,20 @@ class TestProcessPageWithPaddleOCR:
 
     def test_rotated_scan_fixture(self):
         """Simulate PP-StructureV3 output for a rotated scan page."""
-        mock_engine = MagicMock(return_value=[
-            {
-                'type': 'title',
-                'bbox': [10, 20, 200, 50],
-                'res': 'Research & Development',
-            },
-            {
-                'type': 'text',
-                'bbox': [10, 60, 200, 200],
-                'res': 'Budget Activities Description',
-            },
-        ])
+        mock_engine = MagicMock(
+            return_value=[
+                {
+                    'type': 'title',
+                    'bbox': [10, 20, 200, 50],
+                    'res': 'Research & Development',
+                },
+                {
+                    'type': 'text',
+                    'bbox': [10, 60, 200, 200],
+                    'res': 'Budget Activities Description',
+                },
+            ]
+        )
 
         result = process_page_with_paddleocr(
             engine=mock_engine,
@@ -616,11 +626,13 @@ class TestRunPaddleOCREngine:
         pdf_path = tmp_path / 'test.pdf'
         actual_sha = _make_test_pdf(pdf_path, num_pages=1)
 
-        mock_pp_result = [{
-            'type': 'text',
-            'bbox': [10, 20, 100, 50],
-            'res': 'Test text',
-        }]
+        mock_pp_result = [
+            {
+                'type': 'text',
+                'bbox': [10, 20, 100, 50],
+                'res': 'Test text',
+            }
+        ]
 
         with patch(
             'capiro_defense_budget_parser.paddleocr_engine._create_paddle_structure',
@@ -645,11 +657,13 @@ class TestRunPaddleOCREngine:
         pdf_path = tmp_path / 'test.pdf'
         actual_sha = _make_test_pdf(pdf_path, num_pages=1)
 
-        mock_pp_result = [{
-            'type': 'text',
-            'bbox': [10, 20, 100, 50],
-            'res': 'Test text',
-        }]
+        mock_pp_result = [
+            {
+                'type': 'text',
+                'bbox': [10, 20, 100, 50],
+                'res': 'Test text',
+            }
+        ]
 
         with patch(
             'capiro_defense_budget_parser.paddleocr_engine._create_paddle_structure',
@@ -672,11 +686,13 @@ class TestRunPaddleOCREngine:
         pdf_path = tmp_path / 'test.pdf'
         actual_sha = _make_test_pdf(pdf_path, num_pages=1)
 
-        mock_pp_result = [{
-            'type': 'text',
-            'bbox': [10, 20, 100, 50],
-            'res': 'Test text',
-        }]
+        mock_pp_result = [
+            {
+                'type': 'text',
+                'bbox': [10, 20, 100, 50],
+                'res': 'Test text',
+            }
+        ]
 
         with patch(
             'capiro_defense_budget_parser.paddleocr_engine._create_paddle_structure',
@@ -739,12 +755,15 @@ class TestRunPaddleOCREngine:
         pdf_path = tmp_path / 'test.pdf'
         actual_sha = _make_test_pdf(pdf_path, num_pages=3)
 
-        with patch(
-            'capiro_defense_budget_parser.paddleocr_engine._create_paddle_structure',
-            return_value=MagicMock(return_value=[]),
-        ), patch(
-            'capiro_defense_budget_parser.paddleocr_engine.render_page_to_image',
-            return_value=MagicMock(),
+        with (
+            patch(
+                'capiro_defense_budget_parser.paddleocr_engine._create_paddle_structure',
+                return_value=MagicMock(return_value=[]),
+            ),
+            patch(
+                'capiro_defense_budget_parser.paddleocr_engine.render_page_to_image',
+                return_value=MagicMock(),
+            ),
         ):
             result = run_paddleocr_engine(
                 source_path=pdf_path,

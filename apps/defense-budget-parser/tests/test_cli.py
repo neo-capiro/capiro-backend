@@ -37,8 +37,7 @@ class TestValidateJobCommand:
             'requestedPages': [1, 2, 3],
             'parserVersion': 'pdfplumber-0.11.0',
             'parserConfig': {'tableStrategy': 'lines'},
-            'parserConfigSha256':
-                'e3d0f0c1a2b3e4d5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9',
+            'parserConfigSha256': 'e3d0f0c1a2b3e4d5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9',
             'outputDirectory': '/work/output',
             'includeDebugArtifacts': False,
         }
@@ -83,10 +82,15 @@ class TestProfileCommand:
         # Create a minimal PDF
         (tmp_path / 'input.pdf').write_bytes(b'%PDF-1.0\n%%EOF\n')
 
-        exit_code = main([
-            'profile', '--job', str(job_path),
-            '--out', str(tmp_path / 'result.json'),
-        ])
+        exit_code = main(
+            [
+                'profile',
+                '--job',
+                str(job_path),
+                '--out',
+                str(tmp_path / 'result.json'),
+            ]
+        )
         assert exit_code == 3
 
 

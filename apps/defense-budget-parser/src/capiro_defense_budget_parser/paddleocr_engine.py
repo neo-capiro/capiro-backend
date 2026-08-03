@@ -181,8 +181,7 @@ def _create_paddle_structure(config: dict[str, Any]) -> Any:
             from paddleocr import PPStructure as PPStructureV3  # type: ignore[import-not-found]
         except ImportError as e:
             raise RuntimeError(
-                'PaddleOCR is not installed. Install with: '
-                'pip install paddleocr paddlepaddle'
+                'PaddleOCR is not installed. Install with: pip install paddleocr paddlepaddle'
             ) from e
 
     engine_kwargs: dict[str, Any] = {
@@ -223,11 +222,13 @@ def _classify_structure_result(result: Any) -> dict[str, Any]:
         bbox = region.get('bbox', [0, 0, 0, 0])
         res = region.get('res', {})
 
-        regions.append({
-            'type': region_type,
-            'bbox': bbox,
-            'res': res,
-        })
+        regions.append(
+            {
+                'type': region_type,
+                'bbox': bbox,
+                'res': res,
+            }
+        )
 
     return {'regions': regions}
 
@@ -282,11 +283,13 @@ def _extract_table_from_region(
 
                 def handle_endtag(self, tag: str) -> None:
                     if tag in ('td', 'th') and self.in_cell:
-                        self.cells.append({
-                            'rowIndex': max(self.current_row, 0),
-                            'columnIndex': max(self.current_col, 0),
-                            'text': self.cell_text.strip(),
-                        })
+                        self.cells.append(
+                            {
+                                'rowIndex': max(self.current_row, 0),
+                                'columnIndex': max(self.current_col, 0),
+                                'text': self.cell_text.strip(),
+                            }
+                        )
                         self.max_row = max(self.max_row, self.current_row)
                         self.max_col = max(self.max_col, self.current_col)
                         self.in_cell = False
@@ -300,12 +303,14 @@ def _extract_table_from_region(
             row_count = parser.max_row + 1
             col_count = parser.max_col + 1
             for c in parser.cells:
-                cells.append(ParsedTableCellV1(
-                    rowIndex=c['rowIndex'],
-                    columnIndex=c['columnIndex'],
-                    text=c['text'],
-                    confidence=None,
-                ))
+                cells.append(
+                    ParsedTableCellV1(
+                        rowIndex=c['rowIndex'],
+                        columnIndex=c['columnIndex'],
+                        text=c['text'],
+                        confidence=None,
+                    )
+                )
         except Exception:
             # If HTML parsing fails, return None
             return None
@@ -320,22 +325,26 @@ def _extract_table_from_region(
                     cell_text = str(text[2]) if len(text) > 2 else ''
                     row_count = max(row_count, row_idx + 1)
                     col_count = max(col_count, col_idx + 1)
-                    cells.append(ParsedTableCellV1(
-                        rowIndex=row_idx,
-                        columnIndex=col_idx,
-                        text=cell_text,
-                    ))
+                    cells.append(
+                        ParsedTableCellV1(
+                            rowIndex=row_idx,
+                            columnIndex=col_idx,
+                            text=cell_text,
+                        )
+                    )
             if isinstance(cell_bboxes, list) and len(cell_bboxes) == len(cells):
                 for i, bbox in enumerate(cell_bboxes):
                     if isinstance(bbox, (list, tuple)) and len(bbox) == 4:
-                        cells[i] = cells[i].model_copy(update={
-                            'boundingBox': BoundingBoxV1(
-                                x0=str(bbox[0]),
-                                y0=str(bbox[1]),
-                                x1=str(bbox[2]),
-                                y1=str(bbox[3]),
-                            )
-                        })
+                        cells[i] = cells[i].model_copy(
+                            update={
+                                'boundingBox': BoundingBoxV1(
+                                    x0=str(bbox[0]),
+                                    y0=str(bbox[1]),
+                                    x1=str(bbox[2]),
+                                    y1=str(bbox[3]),
+                                )
+                            }
+                        )
 
     if not cells:
         return None
@@ -382,8 +391,18 @@ def _map_region_to_block(
         'footer': 'footer',
     }
     block_type = cast(
-        Literal['text', 'heading', 'paragraph', 'list_item', 'table', 'image',
-               'header', 'footer', 'caption', 'unknown'],
+        Literal[
+            'text',
+            'heading',
+            'paragraph',
+            'list_item',
+            'table',
+            'image',
+            'header',
+            'footer',
+            'caption',
+            'unknown',
+        ],
         block_type_map.get(region_type, 'unknown'),
     )
 
@@ -586,11 +605,13 @@ def run_paddleocr_engine(
     runtime_warnings: list[ParserRuntimeWarningV1] = []
 
     if config_warnings:
-        runtime_warnings.append(ParserRuntimeWarningV1(
-            code='config_warning',
-            message='; '.join(config_warnings),
-            pages=requested_pages,
-        ))
+        runtime_warnings.append(
+            ParserRuntimeWarningV1(
+                code='config_warning',
+                message='; '.join(config_warnings),
+                pages=requested_pages,
+            )
+        )
 
     # Get page dimensions from PDF
     page_dims: dict[int, tuple[float, float, int]] = {}
@@ -607,11 +628,13 @@ def run_paddleocr_engine(
                         int(getattr(page, 'rotation', 0) or 0),
                     )
     except ImportError:
-        runtime_warnings.append(ParserRuntimeWarningV1(
-            code='pdfplumber_unavailable',
-            message='pdfplumber not available for page dimension lookup',
-            pages=requested_pages,
-        ))
+        runtime_warnings.append(
+            ParserRuntimeWarningV1(
+                code='pdfplumber_unavailable',
+                message='pdfplumber not available for page dimension lookup',
+                pages=requested_pages,
+            )
+        )
 
     # Initialize PaddleOCR engine (lazy)
     try:
@@ -619,11 +642,13 @@ def run_paddleocr_engine(
     except RuntimeError as e:
         # PaddleOCR not installed — fail all pages
         for pn in requested_pages:
-            failed_pages.append(ParserPageFailureV1(
-                page=pn,
-                code='model_unavailable',
-                message=str(e),
-            ))
+            failed_pages.append(
+                ParserPageFailureV1(
+                    page=pn,
+                    code='model_unavailable',
+                    message=str(e),
+                )
+            )
         duration_ms = int((time.monotonic() - start_time) * 1000)
         metrics = ParserRuntimeMetricsV1(
             durationMillis=duration_ms,
@@ -689,27 +714,33 @@ def run_paddleocr_engine(
             page_elapsed = time.monotonic() - page_start
 
             if page_elapsed > timeout:
-                runtime_warnings.append(ParserRuntimeWarningV1(
-                    code='page_timeout_exceeded',
-                    message=f'page {pn} took {page_elapsed:.1f}s (limit {timeout}s)',
-                    pages=[pn],
-                ))
+                runtime_warnings.append(
+                    ParserRuntimeWarningV1(
+                        code='page_timeout_exceeded',
+                        message=f'page {pn} took {page_elapsed:.1f}s (limit {timeout}s)',
+                        pages=[pn],
+                    )
+                )
 
             page_results.append(page_result)
             succeeded_pages.append(pn)
 
         except ValueError as e:
-            failed_pages.append(ParserPageFailureV1(
-                page=pn,
-                code='page_out_of_range' if 'out of range' in str(e) else 'render_error',
-                message=str(e),
-            ))
+            failed_pages.append(
+                ParserPageFailureV1(
+                    page=pn,
+                    code='page_out_of_range' if 'out of range' in str(e) else 'render_error',
+                    message=str(e),
+                )
+            )
         except Exception as e:
-            failed_pages.append(ParserPageFailureV1(
-                page=pn,
-                code='unknown_error',
-                message=f'{type(e).__name__}: {e}',
-            ))
+            failed_pages.append(
+                ParserPageFailureV1(
+                    page=pn,
+                    code='unknown_error',
+                    message=f'{type(e).__name__}: {e}',
+                )
+            )
 
     duration_ms = int((time.monotonic() - start_time) * 1000)
 
@@ -719,7 +750,9 @@ def run_paddleocr_engine(
         pagesSucceeded=len(succeeded_pages),
         pagesFailed=len(failed_pages),
         engineVersion=ENGINE_VERSION,
-        modelVersions=[ENGINE_VERSION] if not cfg.get('orientationClassification') else [
+        modelVersions=[ENGINE_VERSION]
+        if not cfg.get('orientationClassification')
+        else [
             ENGINE_VERSION,
             'paddleocr-orientation-cls-v1',
         ],

@@ -42,12 +42,14 @@ def text_blocks_from_lines(lines: list[str], start_index: int = 0) -> list[Layou
     blocks: list[LayoutBlockV1] = []
     for i, line in enumerate(lines):
         if line.strip():
-            blocks.append(LayoutBlockV1(
-                blockIndex=start_index + i,
-                blockType='text',
-                text=line.strip(),
-                readingOrder=start_index + i,
-            ))
+            blocks.append(
+                LayoutBlockV1(
+                    blockIndex=start_index + i,
+                    blockType='text',
+                    text=line.strip(),
+                    readingOrder=start_index + i,
+                )
+            )
     return blocks
 
 
@@ -63,11 +65,13 @@ def table_from_grid(
     for r_idx, row in enumerate(grid):
         for c_idx in range(col_count):
             text = row[c_idx] if c_idx < len(row) else ''
-            cells.append(ParsedTableCellV1(
-                rowIndex=r_idx,
-                columnIndex=c_idx,
-                text=text,
-            ))
+            cells.append(
+                ParsedTableCellV1(
+                    rowIndex=r_idx,
+                    columnIndex=c_idx,
+                    text=text,
+                )
+            )
     return ParsedTableV1(
         tableIndex=table_index,
         label=label,

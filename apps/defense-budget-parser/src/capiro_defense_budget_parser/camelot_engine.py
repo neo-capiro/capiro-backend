@@ -13,6 +13,7 @@ from typing import Any
 
 try:
     import camelot as _camelot_module  # type: ignore[import-not-found]
+
     camelot = _camelot_module
 except ImportError:
     _camelot_module = None
@@ -20,6 +21,7 @@ except ImportError:
 
 try:
     import pdfplumber as _pdfplumber_module  # noqa: F401 — for test patching
+
     pdfplumber = _pdfplumber_module
 except ImportError:
     _pdfplumber_module = None  # type: ignore[assignment]
@@ -142,12 +144,14 @@ def _extract_cells_from_table(
                 except Exception:
                     pass
 
-                cells.append(ParsedTableCellV1(
-                    rowIndex=r_idx,
-                    columnIndex=c_idx,
-                    text=cell_text,
-                    boundingBox=bbox,
-                ))
+                cells.append(
+                    ParsedTableCellV1(
+                        rowIndex=r_idx,
+                        columnIndex=c_idx,
+                        text=cell_text,
+                        boundingBox=bbox,
+                    )
+                )
     except Exception:
         row_count = 0
         col_count = 0
@@ -244,19 +248,30 @@ def run_camelot_engine(
     # Check Camelot availability
     if camelot is None:
         for pn in requested_pages:
-            failed_pages.append(ParserPageFailureV1(
-                page=pn, code='model_unavailable',
-                message='camelot is not installed',
-            ))
+            failed_pages.append(
+                ParserPageFailureV1(
+                    page=pn,
+                    code='model_unavailable',
+                    message='camelot is not installed',
+                )
+            )
         metrics = ParserRuntimeMetricsV1(
-            durationMillis=0, pagesProcessed=len(requested_pages),
-            pagesSucceeded=0, pagesFailed=len(requested_pages),
+            durationMillis=0,
+            pagesProcessed=len(requested_pages),
+            pagesSucceeded=0,
+            pagesFailed=len(requested_pages),
             engineVersion=ENGINE_VERSION,
         )
         return _build_result(
-            job_id, config_sha, actual_sha, requested_pages,
-            succeeded_pages, failed_pages, page_results,
-            runtime_warnings, metrics,
+            job_id,
+            config_sha,
+            actual_sha,
+            requested_pages,
+            succeeded_pages,
+            failed_pages,
+            page_results,
+            runtime_warnings,
+            metrics,
         )
 
     # Get page dimensions from pdfplumber
@@ -285,15 +300,24 @@ def run_camelot_engine(
             if flavor_name == 'hybrid':
                 # G1: hybrid = try lattice first, fallback to stream
                 raw_tables = _run_camelot_single_flavor(
-                    source_path, pn, 'lattice', flavor_kwargs,
+                    source_path,
+                    pn,
+                    'lattice',
+                    flavor_kwargs,
                 )
                 if not raw_tables:
                     raw_tables = _run_camelot_single_flavor(
-                        source_path, pn, 'stream', flavor_kwargs,
+                        source_path,
+                        pn,
+                        'stream',
+                        flavor_kwargs,
                     )
             else:
                 raw_tables = _run_camelot_single_flavor(
-                    source_path, pn, flavor_name, flavor_kwargs,
+                    source_path,
+                    pn,
+                    flavor_name,
+                    flavor_kwargs,
                 )
 
             if not raw_tables:
@@ -341,8 +365,7 @@ def run_camelot_engine(
 
             # Determine evidence precision (G4)
             has_cell_bbox = any(
-                any(c.boundingBox is not None for c in t.cells)
-                for t in parsed_tables
+                any(c.boundingBox is not None for c in t.cells) for t in parsed_tables
             )
             if has_cell_bbox:
                 evidence_precision = 'cell_bbox'
@@ -369,10 +392,13 @@ def run_camelot_engine(
             succeeded_pages.append(pn)
 
         except Exception as e:
-            failed_pages.append(ParserPageFailureV1(
-                page=pn, code='pdf_parse_error',
-                message=f'{type(e).__name__}: {e}',
-            ))
+            failed_pages.append(
+                ParserPageFailureV1(
+                    page=pn,
+                    code='pdf_parse_error',
+                    message=f'{type(e).__name__}: {e}',
+                )
+            )
 
     duration_ms = int((time.monotonic() - start_time) * 1000)
 
@@ -385,9 +411,15 @@ def run_camelot_engine(
     )
 
     return _build_result(
-        job_id, config_sha, actual_sha, requested_pages,
-        succeeded_pages, failed_pages, page_results,
-        runtime_warnings, metrics,
+        job_id,
+        config_sha,
+        actual_sha,
+        requested_pages,
+        succeeded_pages,
+        failed_pages,
+        page_results,
+        runtime_warnings,
+        metrics,
     )
 
 

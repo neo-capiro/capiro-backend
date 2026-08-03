@@ -108,3 +108,21 @@ export { PrismaParserRunRecorder } from './prisma-parser-run-recorder.js';
 
 // Cost accounting
 export { CostAccumulator, type ParserCostReportV1 } from './cost-accounting.js';
+
+// Workstream L: V1 artifact bridge and parser router service
+export {
+  pagesToContiguousRanges,
+  buildContributingParserRuns,
+  buildExtractionArtifact,
+  computeArtifactId,
+  type ExtractionArtifactBridgeInput,
+  type ExtractionArtifactBridgeOutput,
+} from './extraction-artifact-bridge.js';
+
+export {
+  ParserRouterV1Service,
+  type ParserRouterConfigV1,
+  type ParserRouterDependencies,
+  type ParserRouterTerminalOutputV1,
+  type ExecutionRoundReportV1,
+} from './parser-router-v1.service.js';

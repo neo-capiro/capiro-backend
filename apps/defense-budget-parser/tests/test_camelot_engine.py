@@ -139,8 +139,10 @@ class TestRunCamelotEngine:
 
         mock_camelot_module.read_pdf = mock_read_pdf
 
-        with patch('capiro_defense_budget_parser.camelot_engine.camelot', mock_camelot_module), \
-             patch('capiro_defense_budget_parser.camelot_engine.pdfplumber', MagicMock()):
+        with (
+            patch('capiro_defense_budget_parser.camelot_engine.camelot', mock_camelot_module),
+            patch('capiro_defense_budget_parser.camelot_engine.pdfplumber', MagicMock()),
+        ):
             result = run_camelot_engine(
                 source_path=pdf_path,
                 expected_sha256=actual_sha,
@@ -161,9 +163,11 @@ class TestRunCamelotEngine:
         mock_table.df.iloc = MagicMock(return_value='Data')
         mock_table.df.__len__ = MagicMock(return_value=1)
         mock_table.df.columns = ['A']
-        mock_table.df.__getitem__ = MagicMock(return_value=MagicMock(
-            __len__=lambda _: 1,
-        ))
+        mock_table.df.__getitem__ = MagicMock(
+            return_value=MagicMock(
+                __len__=lambda _: 1,
+            )
+        )
         mock_table.cells = {}
         mock_table.bbox = None
         mock_table.accuracy = 95.0
@@ -173,8 +177,10 @@ class TestRunCamelotEngine:
 
         mock_camelot_module.read_pdf = MagicMock(return_value=[mock_table])
 
-        with patch('capiro_defense_budget_parser.camelot_engine.camelot', mock_camelot_module), \
-             patch('capiro_defense_budget_parser.camelot_engine.pdfplumber', MagicMock()):
+        with (
+            patch('capiro_defense_budget_parser.camelot_engine.camelot', mock_camelot_module),
+            patch('capiro_defense_budget_parser.camelot_engine.pdfplumber', MagicMock()),
+        ):
             run_camelot_engine(
                 source_path=pdf_path,
                 expected_sha256=actual_sha,
@@ -195,8 +201,10 @@ class TestRunCamelotEngine:
         mock_camelot_module = MagicMock()
         mock_camelot_module.read_pdf = MagicMock(return_value=[])
 
-        with patch('capiro_defense_budget_parser.camelot_engine.camelot', mock_camelot_module), \
-             patch('capiro_defense_budget_parser.camelot_engine.pdfplumber', MagicMock()):
+        with (
+            patch('capiro_defense_budget_parser.camelot_engine.camelot', mock_camelot_module),
+            patch('capiro_defense_budget_parser.camelot_engine.pdfplumber', MagicMock()),
+        ):
             result = run_camelot_engine(
                 source_path=pdf_path,
                 expected_sha256=actual_sha,
@@ -217,8 +225,10 @@ class TestRunCamelotEngine:
         mock_camelot_module = MagicMock()
         mock_camelot_module.read_pdf = MagicMock(return_value=[])
 
-        with patch('capiro_defense_budget_parser.camelot_engine.camelot', mock_camelot_module), \
-             patch('capiro_defense_budget_parser.camelot_engine.pdfplumber', MagicMock()):
+        with (
+            patch('capiro_defense_budget_parser.camelot_engine.camelot', mock_camelot_module),
+            patch('capiro_defense_budget_parser.camelot_engine.pdfplumber', MagicMock()),
+        ):
             result = run_camelot_engine(
                 source_path=pdf_path,
                 expected_sha256=actual_sha,
@@ -238,8 +248,10 @@ class TestRunCamelotEngine:
         mock_camelot_module = MagicMock()
         mock_camelot_module.read_pdf = MagicMock(return_value=[])
 
-        with patch('capiro_defense_budget_parser.camelot_engine.camelot', mock_camelot_module), \
-             patch('capiro_defense_budget_parser.camelot_engine.pdfplumber', MagicMock()):
+        with (
+            patch('capiro_defense_budget_parser.camelot_engine.camelot', mock_camelot_module),
+            patch('capiro_defense_budget_parser.camelot_engine.pdfplumber', MagicMock()),
+        ):
             result = run_camelot_engine(
                 source_path=pdf_path,
                 expected_sha256=actual_sha,
@@ -257,8 +269,10 @@ class TestRunCamelotEngine:
         mock_camelot_module = MagicMock()
         mock_camelot_module.read_pdf = MagicMock(return_value=[])
 
-        with patch('capiro_defense_budget_parser.camelot_engine.camelot', mock_camelot_module), \
-             patch('capiro_defense_budget_parser.camelot_engine.pdfplumber', MagicMock()):
+        with (
+            patch('capiro_defense_budget_parser.camelot_engine.camelot', mock_camelot_module),
+            patch('capiro_defense_budget_parser.camelot_engine.pdfplumber', MagicMock()),
+        ):
             result = run_camelot_engine(
                 source_path=pdf_path,
                 expected_sha256=actual_sha,
@@ -291,8 +305,10 @@ class TestRunCamelotEngine:
 
         mock_camelot_module.read_pdf = mock_read_pdf
 
-        with patch('capiro_defense_budget_parser.camelot_engine.camelot', mock_camelot_module), \
-             patch('capiro_defense_budget_parser.camelot_engine.pdfplumber', MagicMock()):
+        with (
+            patch('capiro_defense_budget_parser.camelot_engine.camelot', mock_camelot_module),
+            patch('capiro_defense_budget_parser.camelot_engine.pdfplumber', MagicMock()),
+        ):
             result = run_camelot_engine(
                 source_path=pdf_path,
                 expected_sha256=actual_sha,
