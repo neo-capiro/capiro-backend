@@ -217,6 +217,9 @@ export {
   assertValidTransition,
   statusFromDecision,
   candidateIdempotencyKey,
+  computeCandidateId,
+  computeRunId,
+  deterministicUuid,
 } from './persistence/index.js';
 
 // V1 verification services (Workstream L/M)

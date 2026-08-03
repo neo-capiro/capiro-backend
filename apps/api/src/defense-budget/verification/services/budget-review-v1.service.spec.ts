@@ -18,8 +18,17 @@ import {
   BLOCKING_CHECK_CODES,
   BLOCKING_REVIEW_CODES,
 } from './budget-review-v1.service.js';
-import type { BudgetVerificationRepositoryV1, ReadCandidateV1, ReadRunV1, PersistReviewDecisionInputV1, PersistedReviewDecisionV1 } from '../persistence/verification-repository.js';
-import type { VerificationCheckV1, VerificationDiscrepancyV1 } from '../verification-contract-v1.js';
+import type {
+  BudgetVerificationRepositoryV1,
+  ReadCandidateV1,
+  ReadRunV1,
+  PersistReviewDecisionInputV1,
+  PersistedReviewDecisionV1,
+} from '../persistence/verification-repository.js';
+import type {
+  VerificationCheckV1,
+  VerificationDiscrepancyV1,
+} from '../verification-contract-v1.js';
 import type { ProofFindingV1 } from '../trusted-proof/trusted-proof-types.js';
 
 /* ------------------------------------------------------------------ */
@@ -33,15 +42,30 @@ class FakeReviewRepo implements BudgetVerificationRepositoryV1 {
   persistCallCount = 0;
   shouldFailPersist = false;
 
-  async findTerminalRunByIdentity(): Promise<{ candidate: ReadCandidateV1; run: ReadRunV1 } | null> {
+  async findTerminalRunByIdentity(): Promise<{
+    candidate: ReadCandidateV1;
+    run: ReadRunV1;
+  } | null> {
     return null;
   }
 
-  async persistCompletedVerification(): Promise<{ candidate: { id: string; status: string; currentRunId: string | null }; run: { id: string; candidateId: string; decision: string; status: string; route: string; riskScore: number } }> {
+  async persistCompletedVerification(): Promise<{
+    candidate: { id: string; status: string; currentRunId: string | null };
+    run: {
+      id: string;
+      candidateId: string;
+      decision: string;
+      status: string;
+      route: string;
+      riskScore: number;
+    };
+  }> {
     throw new Error('not implemented in review tests');
   }
 
-  async persistReviewDecision(input: PersistReviewDecisionInputV1): Promise<PersistedReviewDecisionV1> {
+  async persistReviewDecision(
+    input: PersistReviewDecisionInputV1,
+  ): Promise<PersistedReviewDecisionV1> {
     this.persistCallCount++;
     if (this.shouldFailPersist) {
       throw new Error('simulated concurrent modification');
@@ -119,12 +143,15 @@ function makeRun(overrides: Partial<ReadRunV1> = {}): ReadRunV1 {
     manifestContentSha256: 'a'.repeat(64),
     extractionArtifactSha256: 'b'.repeat(64),
     sourceSha256: 'c'.repeat(64),
+    resultSnapshot: null,
     createdAt: '2026-01-01T00:00:00Z',
     ...overrides,
   };
 }
 
-function makeReviewInput(overrides: Record<string, unknown> = {}): Parameters<BudgetReviewV1Service['review']>[0] {
+function makeReviewInput(
+  overrides: Record<string, unknown> = {},
+): Parameters<BudgetReviewV1Service['review']>[0] {
   return {
     candidateId: 'cand-1',
     verificationRunId: 'run-1',
@@ -257,9 +284,9 @@ describe('BudgetReviewV1Service', () => {
     repo.run = makeRun();
     const service = new BudgetReviewV1Service(repo);
 
-    await expect(
-      service.review(makeReviewInput({ notes: '   ' })),
-    ).rejects.toMatchObject({ code: 'blank_notes' });
+    await expect(service.review(makeReviewInput({ notes: '   ' }))).rejects.toMatchObject({
+      code: 'blank_notes',
+    });
   });
 
   // M1: run/candidate mismatch
@@ -292,9 +319,9 @@ describe('BudgetReviewV1Service', () => {
     repo.run = makeRun({ decision: 'REJECT' });
     const service = new BudgetReviewV1Service(repo);
 
-    await expect(
-      service.review(makeReviewInput({ decision: 'accept' })),
-    ).rejects.toMatchObject({ code: 'blocking_finding_present' });
+    await expect(service.review(makeReviewInput({ decision: 'accept' }))).rejects.toMatchObject({
+      code: 'blocking_finding_present',
+    });
   });
 
   it('allows rejecting a run with REJECT decision (M2)', async () => {
@@ -370,7 +397,9 @@ describe('hasNonWaivableBlockingFailure', () => {
   });
 
   it('returns true for blocking FAIL on a non-waivable code', () => {
-    expect(hasNonWaivableBlockingFailure([makeCheck('identity_validation', 'FAIL', true)])).toBe(true);
+    expect(hasNonWaivableBlockingFailure([makeCheck('identity_validation', 'FAIL', true)])).toBe(
+      true,
+    );
   });
 
   it('returns false for non-blocking FAIL', () => {
@@ -378,7 +407,9 @@ describe('hasNonWaivableBlockingFailure', () => {
   });
 
   it('returns false for PASS', () => {
-    expect(hasNonWaivableBlockingFailure([makeCheck('identity_validation', 'PASS', true)])).toBe(false);
+    expect(hasNonWaivableBlockingFailure([makeCheck('identity_validation', 'PASS', true)])).toBe(
+      false,
+    );
   });
 
   it('returns false for FAIL on a non-blocking-severity code', () => {
@@ -395,11 +426,15 @@ describe('hasNonWaivableBlockingProofFinding', () => {
   });
 
   it('returns true for blocking source_sha_mismatch', () => {
-    expect(hasNonWaivableBlockingProofFinding([makeFinding('source_sha_mismatch', 'blocking')])).toBe(true);
+    expect(
+      hasNonWaivableBlockingProofFinding([makeFinding('source_sha_mismatch', 'blocking')]),
+    ).toBe(true);
   });
 
   it('returns false for review-severity finding', () => {
-    expect(hasNonWaivableBlockingProofFinding([makeFinding('source_sha_mismatch', 'review')])).toBe(false);
+    expect(hasNonWaivableBlockingProofFinding([makeFinding('source_sha_mismatch', 'review')])).toBe(
+      false,
+    );
   });
 
   it('returns false for no findings', () => {
@@ -408,7 +443,9 @@ describe('hasNonWaivableBlockingProofFinding', () => {
 });
 
 describe('hasNonWaivableBlockingDiscrepancy', () => {
-  const makeDiscrepancy = (severity: 'blocking' | 'review' | 'informational'): VerificationDiscrepancyV1 => ({
+  const makeDiscrepancy = (
+    severity: 'blocking' | 'review' | 'informational',
+  ): VerificationDiscrepancyV1 => ({
     discrepancyId: 'vd1_1',
     code: 'test',
     severity,

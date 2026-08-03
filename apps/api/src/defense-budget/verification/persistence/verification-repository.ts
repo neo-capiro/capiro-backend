@@ -5,8 +5,14 @@
  * Does not expose the Phase 0 five-call persistence sequence.
  */
 import type { DefenseBudgetVerificationResultV1 } from '../verification-contract-v1.js';
-import type { VerificationCheckV1, VerificationDiscrepancyV1 } from '../verification-contract-v1.js';
-import type { TrustedVerificationProofBundleV1, ProofFindingV1 } from '../trusted-proof/trusted-proof-types.js';
+import type {
+  VerificationCheckV1,
+  VerificationDiscrepancyV1,
+} from '../verification-contract-v1.js';
+import type {
+  TrustedVerificationProofBundleV1,
+  ProofFindingV1,
+} from '../trusted-proof/trusted-proof-types.js';
 
 /* ------------------------------------------------------------------ */
 /* Input types                                                         */
@@ -119,6 +125,7 @@ export interface ReadRunV1 {
   manifestContentSha256: string;
   extractionArtifactSha256: string;
   sourceSha256: string;
+  resultSnapshot: unknown;
   createdAt: string;
 }
 
@@ -138,9 +145,7 @@ export interface BudgetVerificationRepositoryV1 {
   ): Promise<{ candidate: PersistedCandidateV1; run: PersistedRunV1 }>;
 
   /** Persist an immutable review decision and update candidate status atomically. */
-  persistReviewDecision(
-    input: PersistReviewDecisionInputV1,
-  ): Promise<PersistedReviewDecisionV1>;
+  persistReviewDecision(input: PersistReviewDecisionInputV1): Promise<PersistedReviewDecisionV1>;
 
   /** Read a candidate by ID. */
   readCandidate(candidateId: string): Promise<ReadCandidateV1 | null>;
