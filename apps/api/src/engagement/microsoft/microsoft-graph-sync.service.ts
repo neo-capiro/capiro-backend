@@ -169,6 +169,10 @@ interface GraphRecipient {
 
 interface GraphEvent {
   id?: string;
+  // 'singleInstance' | 'occurrence' | 'exception' | 'seriesMaster'. Default
+  // event property, always present on the wire — used to skip seriesMaster
+  // (see persistGraphEvent).
+  type?: string | null;
   // Cross-mailbox-stable meeting id (Phase 2 groundwork). Default event property.
   iCalUId?: string | null;
   subject?: string | null;
@@ -1083,6 +1087,16 @@ export class MicrosoftGraphSyncService {
     accountEmail?: string | null,
   ): Promise<'matched' | 'skipped' | 'removed'> {
     if (!event.id) return 'skipped';
+    // The calendarView delta stream surfaces the bare seriesMaster object
+    // alongside real occurrence/exception instances for any recurring series
+    // with changes in range. It is not a meeting instance — start/end reflect
+    // only the pattern's anchor date and never advance — so persisting it
+    // verbatim creates a permanent duplicate "meeting" beside every real
+    // occurrence that goes stale the moment the series is edited or crosses a
+    // DST boundary the anchor date didn't. Graph's own guidance is to expand
+    // occurrences client-side from the pattern, never render seriesMaster as
+    // an instance. singleInstance/occurrence/exception all persist as before.
+    if (event.type === 'seriesMaster') return 'skipped';
     if (event['@removed']) {
       await this.prisma.withTenant(tenantId, (tx) =>
         tx.meeting.updateMany({
