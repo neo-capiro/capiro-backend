@@ -52,6 +52,20 @@
     "src/defense-budget/verification/rules/arithmetic/committee-adjustment.rules.ts",
     "src/defense-budget/verification/rules/arithmetic/index.ts",
     "src/defense-budget/verification/rules/index.ts",
+    "src/defense-budget/verification/rules/comparison/comparison-types.ts",
+    "src/defense-budget/verification/rules/comparison/reference-artifact-index.ts",
+    "src/defense-budget/verification/rules/comparison/comparison-provider.ts",
+    "src/defense-budget/verification/rules/comparison/comparison.rules.ts",
+    "src/defense-budget/verification/rules/comparison/index.ts",
+    "src/defense-budget/verification/decision/risk-engine-v1.ts",
+    "src/defense-budget/verification/decision/decision-engine-v1.ts",
+    "src/defense-budget/verification/decision/index.ts",
+    "src/defense-budget/verification/persistence/verification-repository.ts",
+    "src/defense-budget/verification/persistence/verification-persistence-mappers.ts",
+    "src/defense-budget/verification/persistence/prisma-budget-verification.repository.ts",
+    "src/defense-budget/verification/persistence/index.ts",
+    "src/defense-budget/verification/services/budget-verification-v1.service.ts",
+    "src/defense-budget/verification/services/index.ts",
     "src/defense-budget/verification/index.ts"
   ]
 }

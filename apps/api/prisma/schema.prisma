@@ -7575,3 +7575,156 @@ model AssuranceEvalFixture {
   @@index([tenantId, datasetVersion, retiredAt], map: "assurance_eval_fixture_dataset_idx")
   @@map("assurance_eval_fixture")
 }
+
+// ── Phase 2 V1 budget verification audit tables ──────────────────── //
+// These Prisma models map the actual SQL tables created by PR #739 and
+// Phase 0 containment. They are audit-only: no canonical Program Element
+// promotion authority exists here. The V1 verification gate persists
+// candidate, proof snapshot, run, checks, discrepancies, and decisions.
+
+/// One extraction candidate per unique (manifest SHA, source SHA, artifact SHA,
+/// verifier version, policy SHA). Idempotent on exact identity.
+model BudgetExtractionCandidateV1 {
+  id                     String   @id @default(uuid()) @db.Uuid
+  cycleId                String   @map("cycle_id")
+  manifestContentSha256  String   @map("manifest_content_sha256") @db.Char(64)
+  manifestDocumentKey    String   @map("manifest_document_key")
+  extractionArtifactId   String   @map("extraction_artifact_id")
+  extractionArtifactSha256 String @map("extraction_artifact_sha256") @db.Char(64)
+  extractionArtifactLocator String? @map("extraction_artifact_locator")
+  sourceDocumentId       String   @map("source_document_id") @db.Uuid
+  sourceSha256           String   @map("source_sha256") @db.Char(64)
+  verifierVersion        String   @map("verifier_version")
+  policyVersion          String   @map("policy_version")
+  policySha256           String   @map("policy_sha256") @db.Char(64)
+  status                 String   @default("EXTRACTED")
+  currentRunId           String?  @map("current_run_id") @db.Uuid
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  runs          BudgetVerificationRunV1[]
+  discrepancies BudgetVerificationDiscrepancyV1[]
+  reviewDecisions BudgetReviewDecisionV1[]
+
+  @@unique([manifestContentSha256, sourceSha256, extractionArtifactSha256, verifierVersion, policySha256], map: "budget_v1_candidate_identity_key")
+  @@index([sourceDocumentId], map: "budget_v1_candidate_source_document_idx")
+  @@index([status], map: "budget_v1_candidate_status_idx")
+  @@index([cycleId], map: "budget_v1_candidate_cycle_idx")
+  @@map("budget_extraction_candidate_v1")
+}
+
+/// One verification run per candidate attempt. Completed runs are append-only.
+model BudgetVerificationRunV1 {
+  id                     String   @id @default(uuid()) @db.Uuid
+  candidateId            String   @map("candidate_id") @db.Uuid
+  verifierVersion        String   @map("verifier_version")
+  policyVersion          String   @map("policy_version")
+  policySha256           String   @map("policy_sha256") @db.Char(64)
+  decision               String   // PASS | REVIEW | REJECT
+  status                 String   // VERIFICATION_PASSED | NEEDS_REVIEW | REJECTED
+  route                  String   // none | targeted_local_reextraction | paid_page_verifier | human_review
+  riskScore              Int      @map("risk_score")
+  startedAt              DateTime @map("started_at") @db.Timestamptz(6)
+  completedAt            DateTime @map("completed_at") @db.Timestamptz(6)
+  manifestContentSha256  String   @map("manifest_content_sha256") @db.Char(64)
+  extractionArtifactSha256 String @map("extraction_artifact_sha256") @db.Char(64)
+  sourceSha256           String   @map("source_sha256") @db.Char(64)
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  candidate    BudgetExtractionCandidateV1 @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  checks       BudgetVerificationCheckV1[]
+  proofSnapshots BudgetVerificationProofV1[]
+  discrepancies BudgetVerificationDiscrepancyV1[]
+  reviewDecisions BudgetReviewDecisionV1[]
+
+  @@index([candidateId, createdAt], map: "budget_v1_run_candidate_idx")
+  @@map("budget_verification_run_v1")
+}
+
+/// One check per rule execution. `outcome` evolves the legacy `passed` boolean.
+model BudgetVerificationCheckV1 {
+  id              String   @id @default(uuid()) @db.Uuid
+  runId           String   @map("run_id") @db.Uuid
+  checkId         String   @map("check_id")
+  code            String
+  ruleVersion     String   @map("rule_version")
+  outcome         String   // PASS | FAIL | NOT_RUN | SKIPPED
+  required        Boolean
+  blocking        Boolean
+  riskPoints      Int      @map("risk_points")
+  message         String
+  assertionIds    Json     @map("assertion_ids_jsonb")
+  evidenceIds     Json     @map("evidence_ids_jsonb")
+  referenceArtifactIds Json @map("reference_artifact_ids_jsonb")
+  details         Json?    @map("details_jsonb")
+  // Legacy boolean retained for backward compatibility (passed=true -> PASS, passed=false -> FAIL)
+  passed          Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  run BudgetVerificationRunV1 @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, code], map: "budget_v1_check_run_idx")
+  @@map("budget_verification_check_v1")
+}
+
+/// Proof snapshot — append-only record of resolved proof for one run.
+model BudgetVerificationProofV1 {
+  id              String   @id @default(uuid()) @db.Uuid
+  runId           String   @map("run_id") @db.Uuid
+  proofKind       String   @map("proof_kind")
+  status          String   // verified | not_applicable | missing | mismatch
+  sourceDocumentId String? @map("source_document_id") @db.Uuid
+  artifactId      String?  @map("artifact_id")
+  referenceArtifactId String? @map("reference_artifact_id")
+  evidenceJson    Json     @map("evidence_jsonb")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  run BudgetVerificationRunV1 @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId], map: "budget_v1_proof_run_idx")
+  @@map("budget_verification_proof")
+}
+
+/// Discrepancy record — one per verification discrepancy found during a run.
+model BudgetVerificationDiscrepancyV1 {
+  id              String   @id @default(uuid()) @db.Uuid
+  runId           String   @map("run_id") @db.Uuid
+  candidateId     String   @map("candidate_id") @db.Uuid
+  discrepancyId   String   @map("discrepancy_id")
+  code            String
+  severity        String   // blocking | review | informational
+  description     String
+  assertionIds    Json     @map("assertion_ids_jsonb")
+  evidenceIds     Json     @map("evidence_ids_jsonb")
+  referenceArtifactIds Json @map("reference_artifact_ids_jsonb")
+  details         Json?    @map("details_jsonb")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  run       BudgetVerificationRunV1      @relation(fields: [runId], references: [id], onDelete: Cascade)
+  candidate BudgetExtractionCandidateV1  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId, createdAt], map: "budget_v1_discrepancy_candidate_idx")
+  @@index([runId], map: "budget_v1_discrepancy_run_idx")
+  @@map("budget_verification_discrepancy_v1")
+}
+
+/// Immutable audit-only human review decision. Append-only.
+model BudgetReviewDecisionV1 {
+  id              String   @id @default(uuid()) @db.Uuid
+  candidateId     String   @map("candidate_id") @db.Uuid
+  runId           String   @map("run_id") @db.Uuid
+  reviewerId      String   @map("reviewer_id")
+  decision        String   // accept | reject
+  notes           String
+  sourceSha256    String   @map("source_sha256") @db.Char(64)
+  extractionArtifactSha256 String @map("extraction_artifact_sha256") @db.Char(64)
+  manifestContentSha256 String @map("manifest_content_sha256") @db.Char(64)
+  evidenceJson    Json     @map("evidence_jsonb")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  candidate BudgetExtractionCandidateV1 @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  run       BudgetVerificationRunV1     @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId, createdAt], map: "budget_v1_review_candidate_idx")
+  @@map("budget_review_decision_v1")
+}

@@ -163,3 +163,62 @@ export {
   printedUnitToleranceMillions,
   sumDecimals,
 } from './rules/index.js';
+
+// V1 comparison rules (Workstream I)
+export type {
+  ComparisonKindV1,
+  ComparisonOutcomeV1,
+  ComparisonResultV1,
+  ComparisonMismatchDetailV1,
+  ReferenceMatchResultV1,
+  ReferenceArtifactEntryV1,
+  ReferenceIndexKeyV1,
+} from './rules/comparison/index.js';
+export {
+  isHistoricalConsistency,
+  COMPARISON_KIND_V1_VALUES,
+  ReferenceArtifactIndexV1,
+  identityNaturalKey,
+} from './rules/comparison/index.js';
+export type { ComparisonProviderV1 } from './rules/comparison/index.js';
+export { createComparisonProvider } from './rules/comparison/index.js';
+export {
+  CROSS_DOCUMENT_SUMMARY_DETAIL_RULE,
+  COMMITTEE_REQUEST_REFERENCE_RULE,
+  HISTORICAL_CONSISTENCY_RULE,
+} from './rules/comparison/index.js';
+
+// V1 decision engine (Workstream J)
+export type {
+  DecisionEngineInputV1,
+  DecisionEngineResultV1,
+  RiskEngineInputV1,
+  RiskEngineResultV1,
+} from './decision/index.js';
+export { computeDecisionV1, computeRiskScoreV1 } from './decision/index.js';
+
+// V1 persistence (Workstream L)
+export type {
+  BudgetVerificationRepositoryV1,
+  CandidateIdentityV1,
+  PersistCompletedVerificationInputV1,
+  PersistReviewDecisionInputV1,
+  ProofSnapshotInputV1,
+  PersistedCandidateV1,
+  PersistedRunV1,
+  PersistedReviewDecisionV1,
+  ReadCandidateV1,
+  ReadRunV1,
+} from './persistence/index.js';
+export {
+  PrismaBudgetVerificationRepositoryV1,
+  createPrismaBudgetVerificationRepository,
+  isValidTransition,
+  assertValidTransition,
+  statusFromDecision,
+  candidateIdempotencyKey,
+} from './persistence/index.js';
+
+// V1 verification services (Workstream L/M)
+export { BudgetVerificationV1Service } from './services/index.js';
+export { BudgetReviewV1Service } from './services/index.js';
