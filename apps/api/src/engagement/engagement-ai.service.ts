@@ -1520,8 +1520,15 @@ export class EngagementAiService {
     const location =
       typeof meetingRecord.location === 'string' ? meetingRecord.location.trim() : '';
     const hasLocation = location.length > 0;
-    const timeZone =
+    const rawTimeZone =
       typeof meetingRecord.timeZone === 'string' ? meetingRecord.timeZone.trim() : '';
+    // Graph calendarView often stamps start.timeZone as "UTC" even for local
+    // meetings — the instant is correct, but formatting *as* UTC makes prep
+    // read 4:00 PM when the calendar row (browser-local) shows 12:00 PM ET.
+    // Prefer a real non-UTC IANA zone; otherwise default to America/New_York
+    // (US federal lobbying default) so logistics match what operators see.
+    const timeZone =
+      rawTimeZone && rawTimeZone.toUpperCase() !== 'UTC' ? rawTimeZone : 'America/New_York';
     const startsAtRaw = meetingRecord.startsAt;
     let formattedTime = '';
     if (typeof startsAtRaw === 'string' || startsAtRaw instanceof Date) {
@@ -1534,7 +1541,7 @@ export class EngagementAiService {
             day: 'numeric',
             hour: 'numeric',
             minute: '2-digit',
-            ...(timeZone ? { timeZone } : {}),
+            timeZone,
           });
         }
       } catch {

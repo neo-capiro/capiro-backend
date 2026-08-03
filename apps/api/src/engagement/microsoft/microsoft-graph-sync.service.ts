@@ -1100,6 +1100,21 @@ export class MicrosoftGraphSyncService {
     // occurrences client-side from the pattern, never render seriesMaster as
     // an instance. singleInstance/occurrence/exception all persist as before.
     if (event.type === 'seriesMaster') return 'skipped';
+    // Sparse expanded occurrences: Graph sometimes returns occurrence shells
+    // with only id/start/end/type/seriesMasterId and an empty subject. These
+    // are not real calendar items (no organizer, no attendees, no body) and
+    // used to flood DualSight as "Untitled calendar event". Skip on ingest;
+    // a cleanup migration soft-deletes any already stored.
+    if (
+      event.type === 'occurrence' &&
+      !clean(event.subject) &&
+      !event.organizer?.emailAddress?.address &&
+      !(event.attendees && event.attendees.length > 0) &&
+      !event.bodyPreview &&
+      !event.onlineMeeting?.joinUrl
+    ) {
+      return 'skipped';
+    }
     if (event['@removed']) {
       await this.prisma.withTenant(tenantId, (tx) =>
         tx.meeting.updateMany({

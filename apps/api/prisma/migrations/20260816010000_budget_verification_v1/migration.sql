@@ -226,11 +226,14 @@ CREATE TABLE "budget_review_decision_v1" (
 );
 
 CREATE INDEX "budget_v1_review_candidate_idx"
+    ON "budget_review_decision_v1" ("candidate_id");
 
 -- R8-F2: Concurrent review — at most one terminal decision per candidate.
 CREATE UNIQUE INDEX "budget_v1_review_one_terminal_per_candidate"
     ON "budget_review_decision_v1" ("candidate_id")
     WHERE "decision" IN ('accept', 'reject');
+
+CREATE INDEX "budget_v1_review_candidate_created_idx"
     ON "budget_review_decision_v1" ("candidate_id", "created_at" DESC);
 
 -- K8: Append-only controls — prevent update/delete of immutable rows.

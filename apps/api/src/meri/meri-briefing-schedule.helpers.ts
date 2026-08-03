@@ -75,13 +75,15 @@ export function selectMeetingBriefings(
 export function formatBriefingDigest(plan: UserBriefingPlan): string {
   const lines = ['Upcoming meetings that need prep:', ''];
   for (const m of plan.meetings) {
+    const rawTz = (m.timeZone ?? '').trim();
+    const tz = rawTz && rawTz.toUpperCase() !== 'UTC' ? rawTz : 'America/New_York';
     const when = m.startsAt.toLocaleString('en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-      ...(m.timeZone ? { timeZone: m.timeZone } : {}),
+      timeZone: tz,
     });
     const who = m.clientName ? ` — ${m.clientName}` : '';
     lines.push(`• ${when}: ${m.title}${who}`);
