@@ -127,8 +127,10 @@ export class FilesystemParserArtifactStore implements ParserArtifactStoreV1 {
     // 7. Compare requested pages
     const descPages = [...descriptor.requestedPages].sort((a, b) => a - b);
     const resultPages = [...result.requestedPages].sort((a, b) => a - b);
-    if (descPages.length !== resultPages.length ||
-        descPages.every((v, i) => v === resultPages[i]) === false) {
+    if (
+      descPages.length !== resultPages.length ||
+      descPages.every((v, i) => v === resultPages[i]) === false
+    ) {
       throw new Error(
         `artifact requested pages mismatch: descriptor ${descPages}, result ${resultPages}`,
       );

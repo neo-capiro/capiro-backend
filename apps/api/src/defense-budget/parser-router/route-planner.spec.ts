@@ -142,7 +142,9 @@ describe('route-planner', () => {
         manifestDocumentKey: 'scan-fy2025',
         sourceSha256: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
         parserPolicy: 'ocr',
-        pageProfiles: [makeProfile({ page: 1, likelyImageOnly: true, hasEmbeddedTextLayer: false })],
+        pageProfiles: [
+          makeProfile({ page: 1, likelyImageOnly: true, hasEmbeddedTextLayer: false }),
+        ],
       });
       expect(plan.steps[0]!.engine).toBe('paddleocr');
     });
@@ -295,7 +297,11 @@ describe('route-planner', () => {
         manifestDocumentKey: 'r1-fy2025',
         sourceSha256: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
         parserPolicy: 'deterministic_table',
-        pageProfiles: [makeProfile({ page: 2 }), makeProfile({ page: 3 }), makeProfile({ page: 4 })],
+        pageProfiles: [
+          makeProfile({ page: 2 }),
+          makeProfile({ page: 3 }),
+          makeProfile({ page: 4 }),
+        ],
         correctableFindings: [finding],
         attemptedEnginesByPage: new Map([
           [2, ['deterministic_pdfplumber', 'camelot', 'docling']],
@@ -359,7 +365,9 @@ describe('route-planner', () => {
 
     it('NON_PARSER_CORRECTABLE_FINDING_CODES has expected entries', () => {
       expect(NON_PARSER_CORRECTABLE_FINDING_CODES.has('source_sha_mismatch')).toBe(true);
-      expect(NON_PARSER_CORRECTABLE_FINDING_CODES.has('duplicate_conflicting_assertion')).toBe(true);
+      expect(NON_PARSER_CORRECTABLE_FINDING_CODES.has('duplicate_conflicting_assertion')).toBe(
+        true,
+      );
     });
   });
 
@@ -383,7 +391,9 @@ describe('route-planner', () => {
         parserPolicy: 'deterministic_table' as const,
         pageProfiles: [makeProfile({ page: 1 })],
         correctableFindings: [finding],
-        attemptedEnginesByPage: new Map<number, readonly ExtractionMethodV1[]>([[1, ['deterministic_pdfplumber'] as const]]),
+        attemptedEnginesByPage: new Map<number, readonly ExtractionMethodV1[]>([
+          [1, ['deterministic_pdfplumber'] as const],
+        ]),
         allowPaidParse: false,
         maxPaidPages: 0,
         currentRound: 0,

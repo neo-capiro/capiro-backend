@@ -52,9 +52,7 @@ export interface VerificationResultMinimalV1 {
 /**
  * Determine the recommended engine class from a finding code.
  */
-function recommendEngineClass(
-  code: string,
-): 'table' | 'layout' | 'ocr' | 'complex' | null {
+function recommendEngineClass(code: string): 'table' | 'layout' | 'ocr' | 'complex' | null {
   if (code.includes('arithmetic') || code.includes('comparison')) {
     return 'table';
   }
@@ -147,13 +145,16 @@ export function mapCorrectableFindings(
  * In the full implementation, this resolves through the artifact's
  * evidence records. For now, returns empty if no pages can be determined.
  */
-function extractPagesFromCheck(
-  check: VerificationResultMinimalV1['checks'][number],
-): number[] {
+function extractPagesFromCheck(check: VerificationResultMinimalV1['checks'][number]): number[] {
   // Page resolution would go through the artifact's evidence records
   // to find the page numbers. This is a placeholder that will be
   // connected to the actual evidence resolver in the full implementation.
   // The escalation planner requires explicit page mappings from findings.
+  //
+  // TODO(WS L): Connect to evidence resolver when artifact bridge
+  // and V1 extraction compose are implemented. Until then, findings
+  // without explicit page mappings are correctly filtered out
+  // (no page guess per Section 9.C3 requirement).
   return [];
 }
 
@@ -164,19 +165,21 @@ export function resolveFindingPages(
   findings: ParserCorrectableFindingV1[],
   evidenceToPages: ReadonlyMap<string, number[]>,
 ): ParserCorrectableFindingV1[] {
-  return findings.map((finding) => {
-    const pages = new Set<number>();
-    for (const evidenceId of finding.evidenceIds) {
-      const evPages = evidenceToPages.get(evidenceId);
-      if (evPages) {
-        for (const p of evPages) pages.add(p);
+  return findings
+    .map((finding) => {
+      const pages = new Set<number>();
+      for (const evidenceId of finding.evidenceIds) {
+        const evPages = evidenceToPages.get(evidenceId);
+        if (evPages) {
+          for (const p of evPages) pages.add(p);
+        }
       }
-    }
-    return {
-      ...finding,
-      pages: [...pages].sort((a, b) => a - b),
-    };
-  }).filter((f) => f.pages.length > 0);
+      return {
+        ...finding,
+        pages: [...pages].sort((a, b) => a - b),
+      };
+    })
+    .filter((f) => f.pages.length > 0);
 }
 
 /* ------------------------------------------------------------------ */

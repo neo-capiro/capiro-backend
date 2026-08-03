@@ -12,19 +12,29 @@
  * LlamaParse zero-based pages happens only at the LlamaParse client boundary.
  */
 import { z } from 'zod';
-import { sha256Schema, jsonValueSchema, jsonMetadataSchema } from '../contracts/extraction-artifact-v1.js';
+import {
+  sha256Schema,
+  jsonValueSchema,
+  jsonMetadataSchema,
+} from '../contracts/extraction-artifact-v1.js';
 import {
   EXTRACTION_METHOD_V1_VALUES,
   type ExtractionMethodV1,
 } from '../contracts/extraction-artifact-v1.js';
-import { canonicalJsonStringify, sha256CanonicalJson, sha256Hex, type JsonValue } from '../contracts/canonical-json.js';
+import {
+  canonicalJsonStringify,
+  sha256CanonicalJson,
+  sha256Hex,
+  type JsonValue,
+} from '../contracts/canonical-json.js';
 
 /* ------------------------------------------------------------------ */
 /* A1. Schema version constants                                        */
 /* ------------------------------------------------------------------ */
 
 export const DEFENSE_BUDGET_PARSER_JOB_SCHEMA_VERSION = 'defense_budget_parser_job_v1' as const;
-export const DEFENSE_BUDGET_PARSER_RESULT_SCHEMA_VERSION = 'defense_budget_parser_result_v1' as const;
+export const DEFENSE_BUDGET_PARSER_RESULT_SCHEMA_VERSION =
+  'defense_budget_parser_result_v1' as const;
 export const DEFENSE_BUDGET_PARSE_PLAN_SCHEMA_VERSION = 'defense_budget_parse_plan_v1' as const;
 
 /* ------------------------------------------------------------------ */
@@ -246,10 +256,7 @@ const sortedUniquePositivePages = z
     },
     { message: 'pages must be sorted ascending' },
   )
-  .refine(
-    (pages) => new Set(pages).size === pages.length,
-    { message: 'pages must be unique' },
-  );
+  .refine((pages) => new Set(pages).size === pages.length, { message: 'pages must be unique' });
 
 export const parserRuntimeJobV1Schema = z
   .object({
@@ -315,11 +322,20 @@ export type ParserDocumentStateV1 = z.infer<typeof parserDocumentStateV1Schema>;
  * Allowed state transitions. No terminal state may transition back to a
  * running state within the same execution ID.
  */
-export const PARSER_STATE_TRANSITIONS: Record<ParserDocumentStateV1, readonly ParserDocumentStateV1[]> = {
+export const PARSER_STATE_TRANSITIONS: Record<
+  ParserDocumentStateV1,
+  readonly ParserDocumentStateV1[]
+> = {
   PLANNED: ['RUNNING_LOCAL', 'FAILED'],
   RUNNING_LOCAL: ['LOCAL_COMPLETE', 'FAILED'],
   LOCAL_COMPLETE: ['VERIFYING', 'FAILED'],
-  VERIFYING: ['ESCALATION_PLANNED', 'TERMINAL_PASSED', 'TERMINAL_REVIEW', 'TERMINAL_REJECTED', 'FAILED'],
+  VERIFYING: [
+    'ESCALATION_PLANNED',
+    'TERMINAL_PASSED',
+    'TERMINAL_REVIEW',
+    'TERMINAL_REJECTED',
+    'FAILED',
+  ],
   ESCALATION_PLANNED: ['RUNNING_PAID', 'TERMINAL_REVIEW', 'TERMINAL_REJECTED', 'FAILED'],
   RUNNING_PAID: ['PAID_COMPLETE', 'FAILED'],
   PAID_COMPLETE: ['VERIFYING', 'FAILED'],
@@ -342,10 +358,7 @@ export function isTerminalState(state: ParserDocumentStateV1): boolean {
 }
 
 /** Returns true if the transition from → to is allowed. */
-export function isValidTransition(
-  from: ParserDocumentStateV1,
-  to: ParserDocumentStateV1,
-): boolean {
+export function isValidTransition(from: ParserDocumentStateV1, to: ParserDocumentStateV1): boolean {
   if (isTerminalState(from)) return false;
   const allowed = PARSER_STATE_TRANSITIONS[from];
   return allowed.includes(to);
@@ -357,9 +370,7 @@ export function assertValidTransition(
   to: ParserDocumentStateV1,
 ): void {
   if (!isValidTransition(from, to)) {
-    throw new Error(
-      `invalid parser document state transition: ${from} -> ${to}`,
-    );
+    throw new Error(`invalid parser document state transition: ${from} -> ${to}`);
   }
 }
 

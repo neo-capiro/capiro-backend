@@ -101,8 +101,7 @@ export class CostAccumulator {
   }
 
   buildReport(): ParserCostReportV1 {
-    const paidPagesUsed =
-      this.executed.llamaparse + this.reused.llamaparse;
+    const paidPagesUsed = this.executed.llamaparse + this.reused.llamaparse;
     return {
       sourcePages: this.sourcePages,
       profiledPages: this.profiledPages,

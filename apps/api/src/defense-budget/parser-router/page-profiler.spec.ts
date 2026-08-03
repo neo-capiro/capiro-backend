@@ -189,7 +189,7 @@ describe('page-profiler', () => {
     it('default thresholds are valid', () => {
       const parsed = profilingThresholdsV1Schema.parse(DEFAULT_PROFILING_THRESHOLDS);
       expect(parsed.minimumEmbeddedTextCharacters).toBe(40);
-      expect(parsed.imageOnlyAreaRatio).toBe(0.80);
+      expect(parsed.imageOnlyAreaRatio).toBe(0.8);
       expect(parsed.minimumTableLikeTextLines).toBe(3);
     });
 

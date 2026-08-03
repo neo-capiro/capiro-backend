@@ -18,7 +18,10 @@ import {
 } from './parser-runtime-contract-v1.js';
 import { sha256Hex } from '../contracts/canonical-json.js';
 
-function makeMinimalResult(): { result: Omit<ParserRuntimeResultV1, 'contentSha256'>; json: string } {
+function makeMinimalResult(): {
+  result: Omit<ParserRuntimeResultV1, 'contentSha256'>;
+  json: string;
+} {
   const result = {
     schemaVersion: 'defense_budget_parser_result_v1' as const,
     jobId: 'job-test-001',

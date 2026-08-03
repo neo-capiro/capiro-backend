@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Literal
+from typing import Any, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -16,9 +16,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 # A1. Schema version constants                                       #
 # ------------------------------------------------------------------ #
 
-DEFENSE_BUDGET_PARSER_JOB_SCHEMA_VERSION = 'defense_budget_parser_job_v1'
-DEFENSE_BUDGET_PARSER_RESULT_SCHEMA_VERSION = 'defense_budget_parser_result_v1'
-DEFENSE_BUDGET_PARSE_PLAN_SCHEMA_VERSION = 'defense_budget_parse_plan_v1'
+DEFENSE_BUDGET_PARSER_JOB_SCHEMA_VERSION: Final = 'defense_budget_parser_job_v1'
+DEFENSE_BUDGET_PARSER_RESULT_SCHEMA_VERSION: Final = 'defense_budget_parser_result_v1'
+DEFENSE_BUDGET_PARSE_PLAN_SCHEMA_VERSION: Final = 'defense_budget_parse_plan_v1'
 
 # ------------------------------------------------------------------ #
 # A2. Parser runtime engine vocabulary                               #

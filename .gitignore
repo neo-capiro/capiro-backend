@@ -60,6 +60,11 @@ __pycache__/
 apps/api/scripts/**/extract_err.txt
 apps/web/lh-*.json
 
+# Defense-budget parser artifacts (local cache/store)
+parser-artifacts/
+.parser-runs/
+*.parser-artifact/
+
 # DoW directory org-chart images are large binaries -> S3/R2, not git
 apps/api/scripts/__data__/dow_directory_v6/assets/*.png
 apps/api/scripts/__data__/_incoming/

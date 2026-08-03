@@ -106,21 +106,13 @@ const DEFAULT_DIGITAL_LADDER: readonly ExtractionMethodV1[] = [
  * For image-only pages:
  *   paddleocr -> docling -> llamaparse
  */
-const IMAGE_ONLY_LADDER: readonly ExtractionMethodV1[] = [
-  'paddleocr',
-  'docling',
-  'llamaparse',
-];
+const IMAGE_ONLY_LADDER: readonly ExtractionMethodV1[] = ['paddleocr', 'docling', 'llamaparse'];
 
 /**
  * For mixed layout:
  *   docling -> camelot -> llamaparse
  */
-const MIXED_LAYOUT_LADDER: readonly ExtractionMethodV1[] = [
-  'docling',
-  'camelot',
-  'llamaparse',
-];
+const MIXED_LAYOUT_LADDER: readonly ExtractionMethodV1[] = ['docling', 'camelot', 'llamaparse'];
 
 /**
  * Maps a recommended engine class from a finding to the appropriate ladder.

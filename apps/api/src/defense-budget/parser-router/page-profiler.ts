@@ -12,9 +12,7 @@
  */
 import { z } from 'zod';
 import { sha256Schema, jsonMetadataSchema } from '../contracts/extraction-artifact-v1.js';
-import {
-  DEFENSE_BUDGET_PARSER_JOB_SCHEMA_VERSION,
-} from './parser-runtime-contract-v1.js';
+import { DEFENSE_BUDGET_PARSER_JOB_SCHEMA_VERSION } from './parser-runtime-contract-v1.js';
 
 /* ------------------------------------------------------------------ */
 /* B1. Page profile record                                            */
@@ -102,7 +100,7 @@ export type ProfilingThresholdsV1 = z.infer<typeof profilingThresholdsV1Schema>;
 export const DEFAULT_PROFILING_THRESHOLDS: ProfilingThresholdsV1 = {
   minimumEmbeddedTextCharacters: 40,
   minimumAlphanumericCharacters: 20,
-  imageOnlyAreaRatio: 0.80,
+  imageOnlyAreaRatio: 0.8,
   rotationDegreesRequiringCorrection: [90, 180, 270, -90, -180, -270],
   minimumTableLikeTextLines: 3,
   minimumVectorLinesForTableCue: 6,

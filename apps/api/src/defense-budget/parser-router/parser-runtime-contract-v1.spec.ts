@@ -128,7 +128,9 @@ describe('parser-runtime-contract-v1', () => {
   /* A5: Engine vocabulary — only local engines allowed in runtime */
   describe('engine vocabulary', () => {
     it('accepts deterministic_pdfplumber', () => {
-      expect(parserRuntimeEngineV1Schema.parse('deterministic_pdfplumber')).toBe('deterministic_pdfplumber');
+      expect(parserRuntimeEngineV1Schema.parse('deterministic_pdfplumber')).toBe(
+        'deterministic_pdfplumber',
+      );
     });
     it('accepts camelot', () => {
       expect(parserRuntimeEngineV1Schema.parse('camelot')).toBe('camelot');
