@@ -1,1 +1,15 @@
-{"docType": "r3", "pageCount": 1, "rows": [{"page": 1, "peCode": "0601102A", "performerName": "Test Performer", "performerRole": "PERFORMING_ACTIVITY", "projectCode": "001"}], "stats": {"pages_with_rows": 1, "rows": 1}, "unparsed_pages": []}
+{
+  "docType": "r3",
+  "pageCount": 1,
+  "rows": [
+    {
+      "page": 1,
+      "peCode": "0601102A",
+      "performerName": "Test Performer",
+      "performerRole": "PERFORMING_ACTIVITY",
+      "projectCode": "001"
+    }
+  ],
+  "stats": { "pages_with_rows": 1, "rows": 1 },
+  "unparsed_pages": []
+}

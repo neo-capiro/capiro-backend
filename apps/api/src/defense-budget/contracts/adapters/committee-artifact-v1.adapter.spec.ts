@@ -176,7 +176,8 @@ describe('adaptCommitteeArtifactToArtifactV1', () => {
     expect(unitOmissions.length).toBe(2); // request + mark
     expect(unitOmissions.every((o) => o.severity === 'blocking')).toBe(true);
     expect(fundingAssertions(artifact.assertions)).toHaveLength(0);
-    expect(artifact.summary.completenessStatus).toBe('complete_with_omissions');
+    // Blocking omissions now produce 'incomplete' (Phase 1 §1).
+    expect(artifact.summary.completenessStatus).toBe('incomplete');
   });
 
   it('prefers row-level units over the legacy declared convention', () => {
@@ -269,7 +270,8 @@ describe('adaptCommitteeArtifactToArtifactV1', () => {
     });
     expect(fundingAssertions(artifact.assertions)).toHaveLength(0);
     expect(artifact.omissions.some((o) => o.reason === 'invalid_identity')).toBe(true);
-    expect(artifact.summary.completenessStatus).toBe('complete_with_omissions');
+    // Blocking omissions now produce 'incomplete' (Phase 1 §1).
+    expect(artifact.summary.completenessStatus).toBe('incomplete');
   });
 
   it('creates an invalid_number omission for malformed money', () => {
@@ -315,6 +317,80 @@ describe('adaptCommitteeArtifactToArtifactV1', () => {
     });
     const funding = fundingAssertions(artifact.assertions);
     expect(funding.every((a) => a.fiscalYear === 2099)).toBe(true);
+  });
+
+  it('invalid FY preserves request, mark, and explanation as source facts with blocking omissions', () => {
+    const invalidFy = committeeInput({
+      rows: [
+        {
+          peCode: '0601102A',
+          fy: 'not-a-year',
+          request: 100,
+          mark: 200,
+          explanation: 'DEFENSE RESEARCH SCIENCES',
+          requestUnit: 'dollars',
+          markUnit: 'dollars',
+        },
+      ],
+    });
+    const artifact = adaptCommitteeArtifactToArtifactV1(invalidFy, adapterTestContext(), {
+      mode: 'HASC',
+      legacyDeclaredUnit: 'dollars',
+      defaultFiscalYear: 2099,
+    });
+
+    // The FY, request, mark, and explanation facts are all preserved.
+    const paths = artifact.sourceFacts.map((f) => f.sourcePath);
+    expect(paths).toContain('rows[0].fy');
+    expect(paths).toContain('rows[0].request');
+    expect(paths).toContain('rows[0].mark');
+    expect(paths).toContain('rows[0].explanation');
+
+    // Every represented source fact gets an omission.
+    const factIds = artifact.sourceFacts.map((f) => f.factId);
+    const omittedFactIds = new Set(artifact.omissions.map((o) => o.sourceFactId));
+    for (const factId of factIds) {
+      // identity fact is omitted separately (it may or may not be valid); the
+      // three value facts (fy, request, mark, explanation) must all be omitted.
+    }
+    const fyFact = artifact.sourceFacts.find((f) => f.sourcePath === 'rows[0].fy')!;
+    const requestFact = artifact.sourceFacts.find((f) => f.sourcePath === 'rows[0].request')!;
+    const markFact = artifact.sourceFacts.find((f) => f.sourcePath === 'rows[0].mark')!;
+    const explanationFact = artifact.sourceFacts.find(
+      (f) => f.sourcePath === 'rows[0].explanation',
+    )!;
+    expect(omittedFactIds.has(fyFact.factId)).toBe(true);
+    expect(omittedFactIds.has(requestFact.factId)).toBe(true);
+    expect(omittedFactIds.has(markFact.factId)).toBe(true);
+    expect(omittedFactIds.has(explanationFact.factId)).toBe(true);
+
+    // The FY omission uses 'invalid_number'; the value omissions use 'other'.
+    const fyOmission = artifact.omissions.find((o) => o.sourceFactId === fyFact.factId)!;
+    expect(fyOmission.reason).toBe('invalid_number');
+    expect(fyOmission.severity).toBe('blocking');
+
+    const valueOmissions = [requestFact, markFact, explanationFact].map(
+      (f) => artifact.omissions.find((o) => o.sourceFactId === f.factId)!,
+    );
+    expect(valueOmissions.every((o) => o.severity === 'blocking')).toBe(true);
+    expect(
+      valueOmissions.every(
+        (o) => o.message === 'value cannot be asserted because the row fiscal year is invalid',
+      ),
+    ).toBe(true);
+
+    // No funding or narrative assertions should be created with a substituted year.
+    expect(fundingAssertions(artifact.assertions)).toHaveLength(0);
+    expect(artifact.assertions.some((a) => a.assertionKind === 'narrative')).toBe(false);
+
+    // No assertion should carry the default fiscal year.
+    const assertionsWithDefaultFy = artifact.assertions.filter(
+      (a) => 'fiscalYear' in a && a.fiscalYear === 2099,
+    );
+    expect(assertionsWithDefaultFy).toHaveLength(0);
+
+    // Artifact is incomplete because of the blocking omissions.
+    expect(artifact.summary.completenessStatus).toBe('incomplete');
   });
 
   it('replay is deterministic', () => {

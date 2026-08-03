@@ -1,1 +1,31 @@
-{"lineAssertions": [{"code": "0601102A", "lineKind": "RDTE_PE", "provenance": {"confidence": 1, "exhibit": "R-1", "extractionMethod": "deterministic_pdfplumber", "pdfPage": 1}, "title": "Test PE"}], "warnings": [], "yearValues": [{"code": "0601102A", "fieldName": "request", "fy": 2027, "lineKind": "RDTE_PE", "money": {"unit": "thousands", "value": 100}, "provenance": {"confidence": 1, "exhibit": "R-1", "extractionMethod": "deterministic_pdfplumber", "pdfPage": 1}}]}
+{
+  "lineAssertions": [
+    {
+      "code": "0601102A",
+      "lineKind": "RDTE_PE",
+      "provenance": {
+        "confidence": 1,
+        "exhibit": "R-1",
+        "extractionMethod": "deterministic_pdfplumber",
+        "pdfPage": 1
+      },
+      "title": "Test PE"
+    }
+  ],
+  "warnings": [],
+  "yearValues": [
+    {
+      "code": "0601102A",
+      "fieldName": "request",
+      "fy": 2027,
+      "lineKind": "RDTE_PE",
+      "money": { "unit": "thousands", "value": 100 },
+      "provenance": {
+        "confidence": 1,
+        "exhibit": "R-1",
+        "extractionMethod": "deterministic_pdfplumber",
+        "pdfPage": 1
+      }
+    }
+  ]
+}

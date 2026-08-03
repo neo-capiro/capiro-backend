@@ -235,7 +235,9 @@ export function runConversion(args: ConverterArgs): ConverterResult {
 
   /* 5. Require explicit R-1 funding unit; do not default to thousands */
   if (args.kind === 'r1' && args.r1FundingUnit == null) {
-    throw new ConverterArgError('--kind r1 requires --r1-funding-unit (dollars|thousands|millions)');
+    throw new ConverterArgError(
+      '--kind r1 requires --r1-funding-unit (dollars|thousands|millions)',
+    );
   }
 
   /* 6. adapter context */
@@ -351,8 +353,12 @@ if (invokedDirectly) {
  * Derive page ranges from explicit page numbers in the legacy artifact.
  * Does NOT fabricate a `1–10000` range. When no pages are found, returns
  * an empty array (unknown pages).
+ *
+ * Type-aware: only reads the explicit page fields documented for each legacy
+ * artifact family (ExtractionResult, R-1, R-2/R-2A, R-3, Committee, P-doc).
+ * `pageCount` is deliberately ignored (it is not a page).
  */
-function derivePageRanges(legacy: unknown): Array<{ startPage: number; endPage: number }> {
+export function derivePageRanges(legacy: unknown): Array<{ startPage: number; endPage: number }> {
   const pages = extractPageNumbers(legacy);
   if (pages.length === 0) return [];
   const sorted = [...new Set(pages)].sort((a, b) => a - b);
@@ -371,31 +377,126 @@ function derivePageRanges(legacy: unknown): Array<{ startPage: number; endPage: 
   return ranges;
 }
 
+const isPositiveInt = (v: unknown): v is number =>
+  typeof v === 'number' && Number.isInteger(v) && v > 0;
+
+const asArray = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+
+const asRecord = (v: unknown): Record<string, unknown> | null =>
+  v != null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+
 /**
- * Recursively extract page numbers from a legacy artifact object.
- * Looks for `page`, `page_number`, `pageNumber`, `sourcePage` fields.
+ * Extract page numbers from a legacy artifact using explicit, type-aware
+ * property access per artifact family. Deliberately ignores `pageCount`
+ * (a count, not a page) and never invents page 1 or a `1–10000` range.
  */
-function extractPageNumbers(obj: unknown): number[] {
+function extractPageNumbers(legacy: unknown): number[] {
   const pages: number[] = [];
-  if (obj == null || typeof obj !== 'object') return pages;
-  if (Array.isArray(obj)) {
-    for (const item of obj) {
-      pages.push(...extractPageNumbers(item));
-    }
-    return pages;
-  }
-  const record = obj as Record<string, unknown>;
-  for (const key of ['page', 'page_number', 'pageNumber', 'sourcePage']) {
-    const val = record[key];
-    if (typeof val === 'number' && Number.isInteger(val) && val > 0) {
-      pages.push(val);
-    }
-  }
-  for (const key of Object.keys(record)) {
-    const val = record[key];
-    if (val != null && typeof val === 'object') {
-      pages.push(...extractPageNumbers(val));
+  const root = asRecord(legacy);
+  if (root == null) return pages;
+
+  // ExtractionResult: lineAssertions[].provenance.pdfPage, yearValues[].provenance.pdfPage
+  for (const key of ['lineAssertions', 'yearValues'] as const) {
+    for (const item of asArray(root[key])) {
+      const rec = asRecord(item);
+      if (rec == null) continue;
+      const prov = asRecord(rec['provenance']);
+      if (prov != null && isPositiveInt(prov['pdfPage'])) {
+        pages.push(prov['pdfPage']);
+      }
     }
   }
+
+  // R-1: rows[].page, unparsed_pages[], toplines[].sourcePage
+  for (const row of asArray(root['rows'])) {
+    const rec = asRecord(row);
+    if (rec != null && isPositiveInt(rec['page'])) {
+      pages.push(rec['page']);
+    }
+  }
+  for (const entry of asArray(root['unparsed_pages'])) {
+    if (isPositiveInt(entry)) {
+      pages.push(entry);
+    } else {
+      // unparsed_pages entries may be objects carrying a page field
+      const rec = asRecord(entry);
+      if (rec != null && isPositiveInt(rec['page'])) {
+        pages.push(rec['page']);
+      }
+    }
+  }
+  for (const tl of asArray(root['toplines'])) {
+    const rec = asRecord(tl);
+    if (rec != null && isPositiveInt(rec['sourcePage'])) {
+      pages.push(rec['sourcePage']);
+    }
+  }
+
+  // R-2 / R-2A: programElements[].pageStart/pageEnd (range), .fyData[].page,
+  //   .projects[].page, .projects[].fyData[].page
+  for (const peRaw of asArray(root['programElements'])) {
+    const pe = asRecord(peRaw);
+    if (pe == null) continue;
+
+    const start = pe['pageStart'];
+    const end = pe['pageEnd'];
+    if (isPositiveInt(start) && isPositiveInt(end) && end >= start) {
+      for (let p = start; p <= end; p += 1) pages.push(p);
+    } else if (isPositiveInt(start)) {
+      pages.push(start);
+    } else if (isPositiveInt(end)) {
+      pages.push(end);
+    }
+
+    for (const row of asArray(pe['fyData'])) {
+      const rec = asRecord(row);
+      if (rec != null && isPositiveInt(rec['page'])) {
+        pages.push(rec['page']);
+      }
+    }
+    for (const projectRaw of asArray(pe['projects'])) {
+      const project = asRecord(projectRaw);
+      if (project == null) continue;
+      if (isPositiveInt(project['page'])) {
+        pages.push(project['page']);
+      }
+      for (const row of asArray(project['fyData'])) {
+        const rec = asRecord(row);
+        if (rec != null && isPositiveInt(rec['page'])) {
+          pages.push(rec['page']);
+        }
+      }
+    }
+  }
+
+  // R-3: performers[].page
+  for (const performer of asArray(root['performers'])) {
+    const rec = asRecord(performer);
+    if (rec != null && isPositiveInt(rec['page'])) {
+      pages.push(rec['page']);
+    }
+  }
+
+  // P-doc: pes[].page, pes[].fyData[].page, pes[].lineItems[].page
+  for (const peRaw of asArray(root['pes'])) {
+    const pe = asRecord(peRaw);
+    if (pe == null) continue;
+    if (isPositiveInt(pe['page'])) {
+      pages.push(pe['page']);
+    }
+    for (const row of asArray(pe['fyData'])) {
+      const rec = asRecord(row);
+      if (rec != null && isPositiveInt(rec['page'])) {
+        pages.push(rec['page']);
+      }
+    }
+    for (const liRaw of asArray(pe['lineItems'])) {
+      const li = asRecord(liRaw);
+      if (li != null && isPositiveInt(li['page'])) {
+        pages.push(li['page']);
+      }
+    }
+  }
+
   return pages;
 }

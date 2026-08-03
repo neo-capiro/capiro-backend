@@ -1,5 +1,6 @@
 import { adaptR1ArtifactToArtifactV1, type R1ArtifactV1Input } from './r1-artifact-v1.adapter.js';
 import { adapterTestContext } from './testing-helpers.js';
+import { assertDefenseBudgetExtractionArtifactV1 } from '../extraction-artifact-v1.semantic.js';
 
 function r1Input(overrides: Partial<R1ArtifactV1Input> = {}): R1ArtifactV1Input {
   return {
@@ -156,7 +157,7 @@ describe('adaptR1ArtifactToArtifactV1', () => {
     ).toBe(true);
   });
 
-  it('artifact-level error becomes a blocking warning', () => {
+  it('artifact-level error becomes a blocking warning, a source fact, and a blocking omission', () => {
     const artifact = adaptR1ArtifactToArtifactV1(
       r1Input({ error: 'extractor exploded' }),
       adapterTestContext(),
@@ -164,11 +165,34 @@ describe('adaptR1ArtifactToArtifactV1', () => {
         fundingUnit: 'dollars',
       },
     );
+    // Blocking warning exists.
     expect(
       artifact.warnings.some(
         (w) => w.code === 'legacy_r1_artifact_error' && w.severity === 'blocking',
       ),
     ).toBe(true);
+    // Error source fact exists at path 'error'.
+    const errorFact = artifact.sourceFacts.find((f) => f.sourcePath === 'error');
+    expect(errorFact).toBeDefined();
+    expect(errorFact!.category).toBe('metadata');
+    expect(errorFact!.requiredForCompleteness).toBe(true);
+    // Raw error value is preserved in the fact.
+    expect(errorFact!.rawValue).toBe('extractor exploded');
+    // Blocking omission exists for the error fact.
+    expect(
+      artifact.omissions.some(
+        (o) =>
+          o.sourceFactId === errorFact!.factId &&
+          o.reason === 'legacy_artifact_missing_detail' &&
+          o.severity === 'blocking',
+      ),
+    ).toBe(true);
+    // Artifact status is incomplete.
+    expect(artifact.summary.completenessStatus).toBe('incomplete');
+    // requireComplete rejects the artifact.
+    expect(() =>
+      assertDefenseBudgetExtractionArtifactV1(artifact, { requireComplete: true }),
+    ).toThrow(/completeness_required/);
   });
 
   it('replay is deterministic', () => {

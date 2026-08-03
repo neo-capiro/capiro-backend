@@ -166,7 +166,8 @@ describe('adaptPdocArtifactToArtifactV1', () => {
     input.pes[0]!.lineItems = [{ description: '', fy: 2099, quantity: 1, dollars: 100 }];
     const artifact = adaptPdocArtifactToArtifactV1(input, pdocContext(), BASE_OPTIONS);
     expect(artifact.omissions.some((o) => o.reason === 'missing_value')).toBe(true);
-    expect(artifact.summary.completenessStatus).toBe('complete_with_omissions');
+    // Blocking omissions now produce 'incomplete' (Phase 1 §1).
+    expect(artifact.summary.completenessStatus).toBe('incomplete');
   });
 
   it('creates a blocking unsupported_unit omission when child dollars unit is unprovable', () => {
@@ -245,6 +246,140 @@ describe('adaptPdocArtifactToArtifactV1', () => {
     const artifact = adaptPdocArtifactToArtifactV1(pdocInput(), pdocContext(), BASE_OPTIONS);
     expect(artifact.summary.completenessStatus).toBe('complete');
     expect(artifact.summary.uncoveredRequiredSourceFactCount).toBe(0);
+  });
+
+  it('invalid parent FY preserves request, quantity, and unitCost as source facts with blocking omissions', () => {
+    const input = pdocInput();
+    input.pes[0]!.fyData = [
+      {
+        fy: 'not-a-year',
+        quantity: 12,
+        requestDollarsThousands: 2036358,
+        unitCostDollars: 169696500,
+      },
+    ];
+    const artifact = adaptPdocArtifactToArtifactV1(input, pdocContext(), BASE_OPTIONS);
+
+    // FY, request, quantity, and unitCost facts are all preserved.
+    const paths = artifact.sourceFacts.map((f) => f.sourcePath);
+    expect(paths).toContain('pes[0].fyData[0].fy');
+    expect(paths).toContain('pes[0].fyData[0].requestDollarsThousands');
+    expect(paths).toContain('pes[0].fyData[0].quantity');
+    expect(paths).toContain('pes[0].fyData[0].unitCostDollars');
+
+    // Every represented value fact gets a blocking omission.
+    const omittedFactIds = new Set(artifact.omissions.map((o) => o.sourceFactId));
+    const fyFact = artifact.sourceFacts.find((f) => f.sourcePath === 'pes[0].fyData[0].fy')!;
+    const requestFact = artifact.sourceFacts.find(
+      (f) => f.sourcePath === 'pes[0].fyData[0].requestDollarsThousands',
+    )!;
+    const quantityFact = artifact.sourceFacts.find(
+      (f) => f.sourcePath === 'pes[0].fyData[0].quantity',
+    )!;
+    const unitCostFact = artifact.sourceFacts.find(
+      (f) => f.sourcePath === 'pes[0].fyData[0].unitCostDollars',
+    )!;
+    expect(omittedFactIds.has(fyFact.factId)).toBe(true);
+    expect(omittedFactIds.has(requestFact.factId)).toBe(true);
+    expect(omittedFactIds.has(quantityFact.factId)).toBe(true);
+    expect(omittedFactIds.has(unitCostFact.factId)).toBe(true);
+
+    // FY omission uses 'invalid_number'; value omissions use 'other'.
+    const fyOmission = artifact.omissions.find((o) => o.sourceFactId === fyFact.factId)!;
+    expect(fyOmission.reason).toBe('invalid_number');
+    expect(fyOmission.severity).toBe('blocking');
+
+    const valueOmissions = [requestFact, quantityFact, unitCostFact].map(
+      (f) => artifact.omissions.find((o) => o.sourceFactId === f.factId)!,
+    );
+    expect(valueOmissions.every((o) => o.severity === 'blocking')).toBe(true);
+    expect(
+      valueOmissions.every(
+        (o) => o.message === 'value cannot be asserted because the row fiscal year is invalid',
+      ),
+    ).toBe(true);
+
+    // No funding, quantity, or unit_cost assertions using the default FY.
+    expect(funding(artifact.assertions)).toHaveLength(0);
+    expect(quantities(artifact.assertions)).toHaveLength(0);
+    expect(unitCosts(artifact.assertions)).toHaveLength(0);
+
+    // No assertion should carry the default fiscal year from this invalid row.
+    const fundingWithDefaultFy = artifact.assertions.filter(
+      (a) => 'fiscalYear' in a && a.fiscalYear === 2099 && a.assertionKind !== 'procurement_line',
+    );
+    // The parent-level procurement_line assertion uses defaultFiscalYear, but
+    // no funding/quantity/unit-cost assertion from this fyData row should.
+    expect(fundingWithDefaultFy).toHaveLength(0);
+
+    // Artifact is incomplete because of the blocking omissions.
+    expect(artifact.summary.completenessStatus).toBe('incomplete');
+  });
+
+  it('invalid child line item FY preserves description, dollars, quantity, and unitCost as source facts with blocking omissions', () => {
+    const input = pdocInput();
+    input.pes[0]!.lineItems = [
+      {
+        description: 'Army',
+        fy: 'not-a-year',
+        quantity: 12,
+        dollars: 2036358000,
+        unitCost: 169696500,
+        dollarsUnit: 'dollars',
+      },
+    ];
+    const artifact = adaptPdocArtifactToArtifactV1(input, pdocContext(), BASE_OPTIONS);
+
+    // Description, dollars, quantity, and unitCost facts are all preserved.
+    const paths = artifact.sourceFacts.map((f) => f.sourcePath);
+    expect(paths).toContain('pes[0].lineItems[0].description');
+    expect(paths).toContain('pes[0].lineItems[0].dollars');
+    expect(paths).toContain('pes[0].lineItems[0].quantity');
+    expect(paths).toContain('pes[0].lineItems[0].unitCost');
+
+    // Every represented value fact gets a blocking omission.
+    const omittedFactIds = new Set(artifact.omissions.map((o) => o.sourceFactId));
+    const fyFact = artifact.sourceFacts.find((f) => f.sourcePath === 'pes[0].lineItems[0].fy')!;
+    const descriptionFact = artifact.sourceFacts.find(
+      (f) => f.sourcePath === 'pes[0].lineItems[0].description',
+    )!;
+    const dollarsFact = artifact.sourceFacts.find(
+      (f) => f.sourcePath === 'pes[0].lineItems[0].dollars',
+    )!;
+    const quantityFact = artifact.sourceFacts.find(
+      (f) => f.sourcePath === 'pes[0].lineItems[0].quantity',
+    )!;
+    const unitCostFact = artifact.sourceFacts.find(
+      (f) => f.sourcePath === 'pes[0].lineItems[0].unitCost',
+    )!;
+    expect(omittedFactIds.has(fyFact.factId)).toBe(true);
+    expect(omittedFactIds.has(descriptionFact.factId)).toBe(true);
+    expect(omittedFactIds.has(dollarsFact.factId)).toBe(true);
+    expect(omittedFactIds.has(quantityFact.factId)).toBe(true);
+    expect(omittedFactIds.has(unitCostFact.factId)).toBe(true);
+
+    // FY omission uses 'invalid_number'; value omissions use 'other'.
+    const fyOmission = artifact.omissions.find((o) => o.sourceFactId === fyFact.factId)!;
+    expect(fyOmission.reason).toBe('invalid_number');
+    expect(fyOmission.severity).toBe('blocking');
+
+    const valueOmissions = [descriptionFact, dollarsFact, quantityFact, unitCostFact].map(
+      (f) => artifact.omissions.find((o) => o.sourceFactId === f.factId)!,
+    );
+    expect(valueOmissions.every((o) => o.severity === 'blocking')).toBe(true);
+    expect(
+      valueOmissions.every(
+        (o) => o.message === 'value cannot be asserted because the row fiscal year is invalid',
+      ),
+    ).toBe(true);
+
+    // No child procurement_line assertion should be created for the invalid-FY line item.
+    // (The parent-level assertion from the identity block is still present.)
+    const childLines = lines(artifact.assertions).filter((a) => a.description === 'Army');
+    expect(childLines).toHaveLength(0);
+
+    // Artifact is incomplete because of the blocking omissions.
+    expect(artifact.summary.completenessStatus).toBe('incomplete');
   });
 
   it('replay is deterministic', () => {
