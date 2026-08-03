@@ -68,7 +68,7 @@ function addUnsignedInt(a: string, b: string): string {
   let carry = 0;
   const result: string[] = [];
   for (let i = len - 1; i >= 0; i--) {
-    const sum = (pa.charCodeAt(i) - 48) + (pb.charCodeAt(i) - 48) + carry;
+    const sum = pa.charCodeAt(i) - 48 + (pb.charCodeAt(i) - 48) + carry;
     result.push(String(sum % 10));
     carry = sum > 9 ? 1 : 0;
   }
@@ -83,7 +83,7 @@ function subUnsignedInt(a: string, b: string): string {
   let borrow = 0;
   const result: string[] = [];
   for (let i = len - 1; i >= 0; i--) {
-    let diff = (a.charCodeAt(i) - 48) - (pb.charCodeAt(i) - 48) - borrow;
+    let diff = a.charCodeAt(i) - 48 - (pb.charCodeAt(i) - 48) - borrow;
     if (diff < 0) {
       diff += 10;
       borrow = 1;
@@ -92,7 +92,12 @@ function subUnsignedInt(a: string, b: string): string {
     }
     result.push(String(diff));
   }
-  return result.reverse().join('').replace(/^0+(?=\d)/, '') || '0';
+  return (
+    result
+      .reverse()
+      .join('')
+      .replace(/^0+(?=\d)/, '') || '0'
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -254,11 +259,7 @@ export function absDifference(a: string, b: string): string {
  * Compare two canonical decimals with tolerance.
  * Returns 0 if within tolerance, -1 if a < b - tolerance, 1 if a > b + tolerance.
  */
-export function compareWithTolerance(
-  a: string,
-  b: string,
-  tolerance: string,
-): -1 | 0 | 1 {
+export function compareWithTolerance(a: string, b: string, tolerance: string): -1 | 0 | 1 {
   const aCanonical = parseCanonicalDecimalString(a);
   const bCanonical = parseCanonicalDecimalString(b);
   const diff = subtractDecimals(aCanonical, bCanonical);

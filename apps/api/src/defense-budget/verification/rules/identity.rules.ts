@@ -192,14 +192,7 @@ export const IDENTITY_RULE: VerificationRuleV1 = {
     }
 
     return {
-      check: passCheck(
-        IDENTITY_RULE,
-        runId,
-        [],
-        [],
-        [],
-        'all assertion identities are valid',
-      ),
+      check: passCheck(IDENTITY_RULE, runId, [], [], [], 'all assertion identities are valid'),
       discrepancies: [],
     };
   },

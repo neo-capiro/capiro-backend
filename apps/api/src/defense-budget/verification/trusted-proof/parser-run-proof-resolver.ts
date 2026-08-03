@@ -19,10 +19,7 @@ import type {
   ParserRunV1,
   ExtractionMethodV1,
 } from '../../contracts/extraction-artifact-v1.js';
-import type {
-  TrustedParserRunProofV1,
-  ProofFindingV1,
-} from './trusted-proof-types.js';
+import type { TrustedParserRunProofV1, ProofFindingV1 } from './trusted-proof-types.js';
 import { blockingFinding, reviewFinding } from './trusted-proof-types.js';
 
 export interface ParseJobRow {
@@ -68,9 +65,7 @@ export interface ParserRunProofResolverResult {
  * Resolve parser-run proof for all parser runs in the artifact.
  */
 export class ParserRunProofResolver {
-  constructor(
-    private readonly parseJobClient?: ParseJobClient,
-  ) {}
+  constructor(private readonly parseJobClient?: ParseJobClient) {}
 
   async resolve(input: ParserRunProofResolverInput): Promise<ParserRunProofResolverResult> {
     const findings: ProofFindingV1[] = [];
@@ -242,7 +237,11 @@ export class ParserRunProofResolver {
     }
 
     // Verify provider job ID when present
-    if (run.providerJobId && parseJob.providerJobId && run.providerJobId !== parseJob.providerJobId) {
+    if (
+      run.providerJobId &&
+      parseJob.providerJobId &&
+      run.providerJobId !== parseJob.providerJobId
+    ) {
       findings.push(
         blockingFinding(
           'parser_method_mismatch',

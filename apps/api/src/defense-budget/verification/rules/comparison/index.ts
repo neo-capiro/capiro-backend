@@ -12,10 +12,7 @@ export type {
 } from './comparison-types.js';
 export { isHistoricalConsistency, COMPARISON_KIND_V1_VALUES } from './comparison-types.js';
 
-export {
-  ReferenceArtifactIndexV1,
-  identityNaturalKey,
-} from './reference-artifact-index.js';
+export { ReferenceArtifactIndexV1, identityNaturalKey } from './reference-artifact-index.js';
 
 export type { ComparisonProviderV1 } from './comparison-provider.js';
 export { createComparisonProvider } from './comparison-provider.js';

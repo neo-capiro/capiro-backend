@@ -116,11 +116,7 @@ export const PROJECT_ROLLUP_RULE: VerificationRuleV1 = {
       // Find matching R-2 PE total (funding assertion with same identity + FY + field)
       const peTotal = funding.find((f) => {
         if (f.identity.lineKind !== 'RDTE_PE') return false;
-        return (
-          f.identity.peCode === peCode &&
-          f.fiscalYear === fy &&
-          f.field === field
-        );
+        return f.identity.peCode === peCode && f.fiscalYear === fy && f.field === field;
       });
 
       if (!peTotal) {

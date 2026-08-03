@@ -161,7 +161,9 @@ describe('computeDecisionV1 — J1 precedence', () => {
     const result = computeDecisionV1({
       checks: [makeCheck({ outcome: 'PASS' })],
       discrepancies: [],
-      proofFindings: [{ code: 'archive_version_missing', severity: 'blocking', message: 'archive missing' }],
+      proofFindings: [
+        { code: 'archive_version_missing', severity: 'blocking', message: 'archive missing' },
+      ],
       policy: makePolicy({ requireImmutableArchive: false }),
       hasManualParser: false,
       hasOcrParser: false,
@@ -190,7 +192,17 @@ describe('computeDecisionV1 — J1 precedence', () => {
   it('J1.4: review discrepancy -> REVIEW', () => {
     const result = computeDecisionV1({
       checks: [makeCheck({ outcome: 'PASS' })],
-      discrepancies: [{ discrepancyId: 'vd1_1', code: 'test', severity: 'review', description: 'review finding', assertionIds: [], evidenceIds: [], referenceArtifactIds: [] }],
+      discrepancies: [
+        {
+          discrepancyId: 'vd1_1',
+          code: 'test',
+          severity: 'review',
+          description: 'review finding',
+          assertionIds: [],
+          evidenceIds: [],
+          referenceArtifactIds: [],
+        },
+      ],
       proofFindings: noProofFindings,
       policy: makePolicy(),
       hasManualParser: false,
@@ -217,7 +229,10 @@ describe('computeDecisionV1 — J1 precedence', () => {
 
   it('J1.6: all pass, no triggers -> PASS', () => {
     const result = computeDecisionV1({
-      checks: [makeCheck({ outcome: 'PASS', required: true }), makeCheck({ outcome: 'PASS', required: true })],
+      checks: [
+        makeCheck({ outcome: 'PASS', required: true }),
+        makeCheck({ outcome: 'PASS', required: true }),
+      ],
       discrepancies: [],
       proofFindings: noProofFindings,
       policy: makePolicy(),
@@ -257,7 +272,9 @@ describe('computeDecisionV1 — J3 route', () => {
       checks: [makeCheck({ outcome: 'NOT_RUN', required: true, riskPoints: 5 })],
       discrepancies: [],
       proofFindings: noProofFindings,
-      policy: makePolicy({ riskThresholds: { automaticPassMax: 10, targetedReextractionMax: 30, paidVerifierMax: 60 } }),
+      policy: makePolicy({
+        riskThresholds: { automaticPassMax: 10, targetedReextractionMax: 30, paidVerifierMax: 60 },
+      }),
       hasManualParser: false,
       hasOcrParser: false,
       hasUncorroboratedCongressionalMoney: false,
@@ -276,7 +293,9 @@ describe('computeDecisionV1 — J3 route', () => {
       checks: notRunChecks,
       discrepancies: [],
       proofFindings: noProofFindings,
-      policy: makePolicy({ riskThresholds: { automaticPassMax: 10, targetedReextractionMax: 30, paidVerifierMax: 60 } }),
+      policy: makePolicy({
+        riskThresholds: { automaticPassMax: 10, targetedReextractionMax: 30, paidVerifierMax: 60 },
+      }),
       hasManualParser: false,
       hasOcrParser: false,
       hasUncorroboratedCongressionalMoney: false,

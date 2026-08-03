@@ -10,7 +10,9 @@ import type { ProofFindingV1 } from '../../trusted-proof/trusted-proof-types.js'
 /* Helpers                                                              */
 /* ------------------------------------------------------------------ */
 
-function makeArtifact(overrides: Partial<DefenseBudgetExtractionArtifactV1> = {}): DefenseBudgetExtractionArtifactV1 {
+function makeArtifact(
+  overrides: Partial<DefenseBudgetExtractionArtifactV1> = {},
+): DefenseBudgetExtractionArtifactV1 {
   return {
     schemaVersion: 'defense_budget_extraction_v1',
     artifactId: 'test-artifact-1',
@@ -50,7 +52,13 @@ function makeArtifact(overrides: Partial<DefenseBudgetExtractionArtifactV1> = {}
   };
 }
 
-function makeFundingAssertion(id: string, peCode: string, fy: number, field: string, valueMillions: string) {
+function makeFundingAssertion(
+  id: string,
+  peCode: string,
+  fy: number,
+  field: string,
+  valueMillions: string,
+) {
   return {
     assertionId: id,
     assertionKind: 'funding' as const,

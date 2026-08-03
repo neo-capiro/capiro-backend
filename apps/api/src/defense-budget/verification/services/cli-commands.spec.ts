@@ -42,17 +42,41 @@ describe('review-defense-budget-verification-v1 argument parsing', () => {
 
 describe('report-defense-budget-verification-cycle-v1', () => {
   it('script file exists', () => {
-    const scriptPath = path.join(__dirname, '..', '..', '..', '..', 'scripts', 'report-defense-budget-verification-cycle-v1.ts');
+    const scriptPath = path.join(
+      __dirname,
+      '..',
+      '..',
+      '..',
+      '..',
+      'scripts',
+      'report-defense-budget-verification-cycle-v1.ts',
+    );
     expect(fs.existsSync(scriptPath)).toBe(true);
   });
 
   it('verify script file exists', () => {
-    const scriptPath = path.join(__dirname, '..', '..', '..', '..', 'scripts', 'verify-defense-budget-extraction-v1.ts');
+    const scriptPath = path.join(
+      __dirname,
+      '..',
+      '..',
+      '..',
+      '..',
+      'scripts',
+      'verify-defense-budget-extraction-v1.ts',
+    );
     expect(fs.existsSync(scriptPath)).toBe(true);
   });
 
   it('review script file exists', () => {
-    const scriptPath = path.join(__dirname, '..', '..', '..', '..', 'scripts', 'review-defense-budget-verification-v1.ts');
+    const scriptPath = path.join(
+      __dirname,
+      '..',
+      '..',
+      '..',
+      '..',
+      'scripts',
+      'review-defense-budget-verification-v1.ts',
+    );
     expect(fs.existsSync(scriptPath)).toBe(true);
   });
 });
@@ -68,17 +92,23 @@ describe('package.json scripts (N1/O1)', () => {
 
   it('has verify:defense-budget-artifact-v1', () => {
     expect(pkg.scripts['verify:defense-budget-artifact-v1']).toBeDefined();
-    expect(pkg.scripts['verify:defense-budget-artifact-v1']).toContain('verify-defense-budget-extraction-v1.ts');
+    expect(pkg.scripts['verify:defense-budget-artifact-v1']).toContain(
+      'verify-defense-budget-extraction-v1.ts',
+    );
   });
 
   it('has review:defense-budget-verification-v1', () => {
     expect(pkg.scripts['review:defense-budget-verification-v1']).toBeDefined();
-    expect(pkg.scripts['review:defense-budget-verification-v1']).toContain('review-defense-budget-verification-v1.ts');
+    expect(pkg.scripts['review:defense-budget-verification-v1']).toContain(
+      'review-defense-budget-verification-v1.ts',
+    );
   });
 
   it('has report:defense-budget-verification-cycle-v1', () => {
     expect(pkg.scripts['report:defense-budget-verification-cycle-v1']).toBeDefined();
-    expect(pkg.scripts['report:defense-budget-verification-cycle-v1']).toContain('report-defense-budget-verification-cycle-v1.ts');
+    expect(pkg.scripts['report:defense-budget-verification-cycle-v1']).toContain(
+      'report-defense-budget-verification-cycle-v1.ts',
+    );
   });
 
   it('has verify:pe-budget-phase-2', () => {
