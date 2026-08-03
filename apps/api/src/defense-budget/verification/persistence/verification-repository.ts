@@ -1,0 +1,150 @@
+/**
+ * Workstream L1 — Repository contract for V1 budget verification.
+ *
+ * Exposes high-level atomic methods, not one method per table insert.
+ * Does not expose the Phase 0 five-call persistence sequence.
+ */
+import type { DefenseBudgetVerificationResultV1 } from '../verification-contract-v1.js';
+import type { VerificationCheckV1, VerificationDiscrepancyV1 } from '../verification-contract-v1.js';
+import type { TrustedVerificationProofBundleV1, ProofFindingV1 } from '../trusted-proof/trusted-proof-types.js';
+
+/* ------------------------------------------------------------------ */
+/* Input types                                                         */
+/* ------------------------------------------------------------------ */
+
+export interface CandidateIdentityV1 {
+  cycleId: string;
+  manifestContentSha256: string;
+  manifestDocumentKey: string;
+  extractionArtifactId: string;
+  extractionArtifactSha256: string;
+  extractionArtifactLocator: string;
+  sourceDocumentId: string;
+  sourceSha256: string;
+  verifierVersion: string;
+  policyVersion: string;
+  policySha256: string;
+}
+
+export interface ProofSnapshotInputV1 {
+  proofKind: string;
+  status: string;
+  sourceDocumentId?: string;
+  artifactId?: string;
+  referenceArtifactId?: string;
+  evidenceJson: Record<string, unknown>;
+}
+
+export interface PersistCompletedVerificationInputV1 {
+  candidateIdentity: CandidateIdentityV1;
+  result: DefenseBudgetVerificationResultV1;
+  proofBundle: TrustedVerificationProofBundleV1;
+  proofFindings: ProofFindingV1[];
+  proofSnapshots: ProofSnapshotInputV1[];
+  checks: VerificationCheckV1[];
+  discrepancies: VerificationDiscrepancyV1[];
+  startedAt: string;
+  completedAt: string;
+}
+
+export interface PersistReviewDecisionInputV1 {
+  candidateId: string;
+  verificationRunId: string;
+  reviewerId: string;
+  decision: 'accept' | 'reject';
+  notes: string;
+  evidenceIds: string[];
+  expectedSourceSha256: string;
+  expectedExtractionArtifactSha256: string;
+  expectedManifestContentSha256: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Output types                                                        */
+/* ------------------------------------------------------------------ */
+
+export interface PersistedCandidateV1 {
+  id: string;
+  status: string;
+  currentRunId: string | null;
+}
+
+export interface PersistedRunV1 {
+  id: string;
+  candidateId: string;
+  decision: string;
+  status: string;
+  route: string;
+  riskScore: number;
+}
+
+export interface PersistedReviewDecisionV1 {
+  id: string;
+  candidateId: string;
+  runId: string;
+  decision: string;
+  createdAt: string;
+}
+
+export interface ReadCandidateV1 {
+  id: string;
+  cycleId: string;
+  manifestContentSha256: string;
+  manifestDocumentKey: string;
+  extractionArtifactId: string;
+  extractionArtifactSha256: string;
+  sourceDocumentId: string;
+  sourceSha256: string;
+  verifierVersion: string;
+  policyVersion: string;
+  policySha256: string;
+  status: string;
+  currentRunId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReadRunV1 {
+  id: string;
+  candidateId: string;
+  verifierVersion: string;
+  policyVersion: string;
+  policySha256: string;
+  decision: string;
+  status: string;
+  route: string;
+  riskScore: number;
+  startedAt: string;
+  completedAt: string;
+  manifestContentSha256: string;
+  extractionArtifactSha256: string;
+  sourceSha256: string;
+  createdAt: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Repository contract (L1)                                           */
+/* ------------------------------------------------------------------ */
+
+export interface BudgetVerificationRepositoryV1 {
+  /** Find an existing terminal run by exact candidate identity. */
+  findTerminalRunByIdentity(
+    identity: CandidateIdentityV1,
+  ): Promise<{ candidate: ReadCandidateV1; run: ReadRunV1 } | null>;
+
+  /** Persist a completed verification run and all associated audit rows atomically. */
+  persistCompletedVerification(
+    input: PersistCompletedVerificationInputV1,
+  ): Promise<{ candidate: PersistedCandidateV1; run: PersistedRunV1 }>;
+
+  /** Persist an immutable review decision and update candidate status atomically. */
+  persistReviewDecision(
+    input: PersistReviewDecisionInputV1,
+  ): Promise<PersistedReviewDecisionV1>;
+
+  /** Read a candidate by ID. */
+  readCandidate(candidateId: string): Promise<ReadCandidateV1 | null>;
+
+  /** Read a run by ID. */
+  readRun(runId: string): Promise<ReadRunV1 | null>;
+}
