@@ -129,6 +129,54 @@ export interface ReadRunV1 {
   createdAt: string;
 }
 
+export interface ReadCheckV1 {
+  checkId: string;
+  code: string;
+  ruleVersion: string;
+  outcome: string;
+  required: boolean;
+  blocking: boolean;
+  riskPoints: number;
+  message: string;
+  assertionIds: string[];
+  evidenceIds: string[];
+  referenceArtifactIds: string[];
+  details?: Record<string, unknown>;
+}
+
+export interface ReadDiscrepancyV1 {
+  discrepancyId: string;
+  code: string;
+  severity: string;
+  description: string;
+  assertionIds: string[];
+  evidenceIds: string[];
+  referenceArtifactIds: string[];
+  details?: Record<string, unknown>;
+}
+
+export interface ReadProofSnapshotV1 {
+  proofKind: string;
+  status: string;
+  sourceDocumentId: string | null;
+  artifactId: string | null;
+  referenceArtifactId: string | null;
+  evidenceJson: Record<string, unknown>;
+}
+
+export interface ReadReviewDecisionV1 {
+  id: string;
+  candidateId: string;
+  runId: string;
+  reviewerId: string;
+  decision: string;
+  notes: string;
+  sourceSha256: string;
+  extractionArtifactSha256: string;
+  manifestContentSha256: string;
+  createdAt: string;
+}
+
 /* ------------------------------------------------------------------ */
 /* Repository contract (L1)                                           */
 /* ------------------------------------------------------------------ */
@@ -152,4 +200,16 @@ export interface BudgetVerificationRepositoryV1 {
 
   /** Read a run by ID. */
   readRun(runId: string): Promise<ReadRunV1 | null>;
+
+  /** Read all checks for a run. */
+  readChecks(runId: string): Promise<ReadCheckV1[]>;
+
+  /** Read all discrepancies for a run. */
+  readDiscrepancies(runId: string): Promise<ReadDiscrepancyV1[]>;
+
+  /** Read all proof findings (as snapshots) for a run. */
+  readProofSnapshots(runId: string): Promise<ReadProofSnapshotV1[]>;
+
+  /** Read all prior review decisions for a candidate. */
+  readReviewDecisions(candidateId: string): Promise<ReadReviewDecisionV1[]>;
 }

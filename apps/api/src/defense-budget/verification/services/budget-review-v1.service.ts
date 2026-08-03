@@ -1,21 +1,45 @@
 /**
- * Workstream M — Immutable audit-only review workflow.
+ * R4 — Governed, non-waivable review service.
  *
- * M1: Only a candidate with latest terminal status NEEDS_REVIEW may be reviewed.
- * M2: Blocking findings cannot be waived.
- * M3: Reviewable findings may be accepted.
- * M4: Review input binds exact hashes.
- * M5: Segregation of duties for high-risk extraction methods.
- * M6: Immutable decision — append-only review row + candidate status update.
- * M7: Concurrent review prevented via row locks / optimistic state checks.
+ * Human review is allowed only for uncertainty that policy explicitly permits,
+ * never for corruption or broken proof.
  *
- * Human review cannot override blocking corruption or proof failures.
- * A corrected candidate must be a new artifact and a new verification candidate.
+ * Review process (inside one repository transaction):
+ *   1. Lock or conditionally claim the candidate.
+ *   2. Load candidate, terminal run, checks, discrepancies, proof findings,
+ *      prior review decisions.
+ *   3. Confirm candidate is exactly NEEDS_REVIEW.
+ *   4. Confirm run belongs to the candidate.
+ *   5. Confirm expected hashes match candidate and run.
+ *   6. Reject blank notes.
+ *   7. Confirm evidence IDs exist.
+ *   8. Evaluate non-waivable findings.
+ *   9. Enforce reviewer independence where extractor/operator identity is known.
+ *   10. Insert one immutable review decision.
+ *   11. Transition the candidate atomically.
+ *
+ * Non-waivable findings require:
+ *   correct/re-extract -> new artifact -> new candidate -> new verification run
+ *
  * No canonical promotion property is created.
  */
-import type { BudgetVerificationRepositoryV1, ReadCandidateV1, ReadRunV1 } from '../persistence/verification-repository.js';
-import type { PersistReviewDecisionInputV1, PersistedReviewDecisionV1 } from '../persistence/verification-repository.js';
-import type { VerificationCheckV1, VerificationDiscrepancyV1 } from '../verification-contract-v1.js';
+import type {
+  BudgetVerificationRepositoryV1,
+  ReadCandidateV1,
+  ReadRunV1,
+  ReadCheckV1,
+  ReadDiscrepancyV1,
+  ReadProofSnapshotV1,
+  ReadReviewDecisionV1,
+} from '../persistence/verification-repository.js';
+import type {
+  PersistReviewDecisionInputV1,
+  PersistedReviewDecisionV1,
+} from '../persistence/verification-repository.js';
+import type {
+  VerificationCheckV1,
+  VerificationDiscrepancyV1,
+} from '../verification-contract-v1.js';
 import type { ProofFindingV1 } from '../trusted-proof/trusted-proof-types.js';
 
 /* ------------------------------------------------------------------ */
@@ -32,6 +56,17 @@ export interface ReviewInputV1 {
   expectedSourceSha256: string;
   expectedExtractionArtifactSha256: string;
   expectedManifestContentSha256: string;
+  /**
+   * Optional extractor/operator actor ID for segregation-of-duties checks.
+   * When absent, a limitation finding is created instead of pretending
+   * independence was established.
+   */
+  extractorActorId?: string;
+  /**
+   * Optional extraction method for segregation-of-duties enforcement.
+   * When absent, segregation is not enforced (with a limitation finding).
+   */
+  extractionMethod?: string;
 }
 
 /**
@@ -48,7 +83,9 @@ export interface ReviewResultV1 {
   runId: string;
   decision: 'accept' | 'reject';
   finalStatus: 'REVIEW_ACCEPTED' | 'REJECTED';
+  priorStatus: string;
   createdAt: string;
+  limitationFindings: string[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -75,6 +112,11 @@ export const BLOCKING_REVIEW_CODES = new Set<string>([
 
 /**
  * Check codes that produce blocking FAIL outcomes and cannot be waived.
+ * Per R4 spec: source SHA mismatch, artifact byte/content mismatch, manifest
+ * mismatch, parser lineage corruption, conflicting duplicate money assertions,
+ * funding-field ownership violation, invalid identity, blocking omission,
+ * failed required arithmetic reconciliation, required comparison failure
+ * classified as blocking, reference-artifact proof failure classified as blocking.
  */
 export const BLOCKING_CHECK_CODES = new Set<string>([
   'contract_integrity',
@@ -83,7 +125,21 @@ export const BLOCKING_CHECK_CODES = new Set<string>([
   'identity_validation',
   'numeric_validation',
   'duplicate_detection',
+  'rdte_summary_detail',
+  'project_rollup',
+  'procurement_rollup',
+  'committee_adjustment',
 ]);
+
+/**
+ * Discrepancy codes that are always non-waivable when severity is blocking.
+ */
+export const BLOCKING_DISCREPANCY_SEVERITY = new Set<string>(['blocking']);
+
+/**
+ * Proof snapshot statuses that indicate blocking proof failure.
+ */
+export const BLOCKING_PROOF_STATUSES = new Set<string>(['missing', 'mismatch']);
 
 /* ------------------------------------------------------------------ */
 /* Review policy (M5)                                                  */
@@ -94,11 +150,14 @@ export interface ReviewPolicyV1 {
   requireSegregationOfDuties: boolean;
   /** High-materiality threshold in decimal millions. */
   highMaterialityThresholdMillions: string;
+  /** Extraction methods that require segregation of duties. */
+  segregationRequiredMethods: Set<string>;
 }
 
 export const DEFAULT_REVIEW_POLICY_V1: ReviewPolicyV1 = {
   requireSegregationOfDuties: true,
   highMaterialityThresholdMillions: '0',
+  segregationRequiredMethods: new Set(['manual', 'paddleocr', 'targeted_local_reextraction']),
 };
 
 /* ------------------------------------------------------------------ */
@@ -116,7 +175,10 @@ export class ReviewEligibilityError extends Error {
       | 'blocking_finding_present'
       | 'segregation_violation'
       | 'blank_notes'
-      | 'run_candidate_mismatch',
+      | 'run_candidate_mismatch'
+      | 'evidence_id_not_found'
+      | 'prior_review_exists'
+      | 'invalid_decision',
   ) {
     super(message);
     this.name = 'ReviewEligibilityError';
@@ -136,23 +198,25 @@ export class BudgetReviewV1Service {
   /**
    * Review a verification candidate.
    *
-   * M1: Only NEEDS_REVIEW candidates are eligible.
-   * M2: Blocking findings cannot be accepted (reject is always allowed).
-   * M4: Hash binding is verified.
-   * M5: Segregation of duties enforced where actor data exists.
-   * M6: Immutable append-only decision.
-   * M7: Concurrent review prevented by the repository transaction.
+   * R4: Governed, non-waivable review.
+   *
+   * Steps 1–11 per the R4 specification.
    *
    * Returns the review decision result.
    * Throws ReviewEligibilityError if the review is not permitted.
    */
   async review(input: ReviewInputV1): Promise<ReviewResultV1> {
-    // M4: Reject blank notes
+    // Step 6: Reject blank notes (checked first — no DB access needed)
     if (!input.notes.trim()) {
       throw new ReviewEligibilityError('notes must not be blank', 'blank_notes');
     }
 
-    // M1: Read the candidate
+    // Validate decision vocabulary
+    if (input.decision !== 'accept' && input.decision !== 'reject') {
+      throw new ReviewEligibilityError(`invalid decision: ${input.decision}`, 'invalid_decision');
+    }
+
+    // Step 2: Load candidate
     const candidate = await this.repository.readCandidate(input.candidateId);
     if (!candidate) {
       throw new ReviewEligibilityError(
@@ -161,7 +225,10 @@ export class BudgetReviewV1Service {
       );
     }
 
-    // M1: Only NEEDS_REVIEW is eligible
+    // Record prior status for the result
+    const priorStatus = candidate.status;
+
+    // Step 3: Confirm candidate is exactly NEEDS_REVIEW
     if (candidate.status !== 'NEEDS_REVIEW') {
       throw new ReviewEligibilityError(
         `candidate ${input.candidateId} is not in NEEDS_REVIEW state (got ${candidate.status})`,
@@ -169,7 +236,22 @@ export class BudgetReviewV1Service {
       );
     }
 
-    // M4: Hash binding — verify expected hashes match the candidate
+    // Step 4: Confirm run belongs to the candidate
+    const run = await this.repository.readRun(input.verificationRunId);
+    if (!run) {
+      throw new ReviewEligibilityError(
+        `run not found: ${input.verificationRunId}`,
+        'run_not_found',
+      );
+    }
+    if (run.candidateId !== input.candidateId) {
+      throw new ReviewEligibilityError(
+        `run ${input.verificationRunId} does not belong to candidate ${input.candidateId}`,
+        'run_candidate_mismatch',
+      );
+    }
+
+    // Step 5: Confirm expected hashes match candidate
     if (candidate.sourceSha256 !== input.expectedSourceSha256) {
       throw new ReviewEligibilityError(
         'source SHA mismatch — review hash binding failed',
@@ -189,64 +271,117 @@ export class BudgetReviewV1Service {
       );
     }
 
-    // M1: Read the run and verify it belongs to this candidate
-    const run = await this.repository.readRun(input.verificationRunId);
-    if (!run) {
+    // Step 5b: Confirm run hashes match candidate hashes
+    if (run.sourceSha256 !== candidate.sourceSha256) {
+      throw new ReviewEligibilityError('run source SHA does not match candidate', 'hash_mismatch');
+    }
+    if (run.extractionArtifactSha256 !== candidate.extractionArtifactSha256) {
       throw new ReviewEligibilityError(
-        `run not found: ${input.verificationRunId}`,
-        'run_not_found',
+        'run artifact SHA does not match candidate',
+        'hash_mismatch',
       );
     }
-    if (run.candidateId !== input.candidateId) {
+    if (run.manifestContentSha256 !== candidate.manifestContentSha256) {
       throw new ReviewEligibilityError(
-        `run ${input.verificationRunId} does not belong to candidate ${input.candidateId}`,
-        'run_candidate_mismatch',
+        'run manifest SHA does not match candidate',
+        'hash_mismatch',
       );
     }
 
-    // M2: If accepting, verify no blocking findings are present.
-    // We check the run's checks and discrepancies via the run data.
-    // The repository readRun gives us the run; we need to also verify
-    // the run's checks for blocking failures. Since the repository
-    // doesn't expose a readChecks method, we rely on the run's decision
-    // and status: a run that reached NEEDS_REVIEW via blocking findings
-    // that were downgraded is not possible — blocking findings produce
-    // REJECTED. However, if policy allowed archive-missing as review,
-    // we need to check the actual checks.
-    //
-    // For accept decisions, we validate that the run's decision was REVIEW
-    // (not REJECT) and that no blocking proof findings exist.
+    // Step 2b: Load checks, discrepancies, proof snapshots, prior reviews
+    const checks = await this.repository.readChecks(input.verificationRunId);
+    const discrepancies = await this.repository.readDiscrepancies(input.verificationRunId);
+    const proofSnapshots = await this.repository.readProofSnapshots(input.verificationRunId);
+    const priorReviews = await this.repository.readReviewDecisions(input.candidateId);
+
+    // Step 2c: Reject if a terminal review decision already exists
+    if (priorReviews.length > 0) {
+      throw new ReviewEligibilityError(
+        `candidate ${input.candidateId} already has a terminal review decision`,
+        'prior_review_exists',
+      );
+    }
+
+    // Step 7: Confirm evidence IDs exist in checks or discrepancies
+    const knownEvidenceIds = new Set<string>();
+    for (const check of checks) {
+      for (const eid of check.evidenceIds) knownEvidenceIds.add(eid);
+    }
+    for (const disc of discrepancies) {
+      for (const eid of disc.evidenceIds) knownEvidenceIds.add(eid);
+    }
+    // If no evidence IDs are known (e.g. dry-run), skip this check
+    if (knownEvidenceIds.size > 0) {
+      for (const eid of input.evidenceIds) {
+        if (!knownEvidenceIds.has(eid)) {
+          throw new ReviewEligibilityError(
+            `evidence ID not found in run checks or discrepancies: ${eid}`,
+            'evidence_id_not_found',
+          );
+        }
+      }
+    }
+
+    // Collect limitation findings (non-blocking but documented)
+    const limitationFindings: string[] = [];
+
+    // Step 8: Evaluate non-waivable findings (only for accept decisions)
     if (input.decision === 'accept') {
-      // The run must have decision REVIEW (status NEEDS_REVIEW)
-      if (run.decision !== 'REVIEW') {
+      // 8a: Check for non-waivable blocking check failures
+      if (hasNonWaivableBlockingFailure(checks)) {
         throw new ReviewEligibilityError(
-          `cannot accept: run decision is ${run.decision}, not REVIEW`,
+          'cannot accept: non-waivable blocking check failure present',
           'blocking_finding_present',
         );
       }
-      // The run must not have riskScore at 100 from blocking failures
-      // (blocking FAIL -> REJECT, so a REVIEW run has no blocking FAIL)
-      // This is an invariant from the decision engine: REVIEW means no blocking FAIL.
+
+      // 8b: Check for non-waivable blocking discrepancies
+      if (hasNonWaivableBlockingDiscrepancy(discrepancies)) {
+        throw new ReviewEligibilityError(
+          'cannot accept: non-waivable blocking discrepancy present',
+          'blocking_finding_present',
+        );
+      }
+
+      // 8c: Check for non-waivable blocking proof findings
+      if (hasNonWaivableBlockingProofSnapshot(proofSnapshots)) {
+        throw new ReviewEligibilityError(
+          'cannot accept: non-waivable blocking proof finding present',
+          'blocking_finding_present',
+        );
+      }
+
+      // 8d: Check for blocking FAIL on any check with blocking=true
+      // (broader than just BLOCKING_CHECK_CODES — any blocking FAIL is non-waivable)
+      const anyBlockingFail = checks.some((c) => c.outcome === 'FAIL' && c.blocking);
+      if (anyBlockingFail) {
+        throw new ReviewEligibilityError(
+          'cannot accept: blocking FAIL check present',
+          'blocking_finding_present',
+        );
+      }
     }
 
-    // M5: Segregation of duties — if we have extractor actor data and the
-    // extraction method is high-risk, require a different reviewer.
-    // Since Phase 1 artifacts may not yet carry extractor actor data,
-    // we add a review-policy finding and document the limitation.
-    // This is a no-op check when actor data is absent.
-    //
-    // When actor data becomes available, this check will enforce:
-    // - manual parser method: different reviewer
-    // - PaddleOCR-derived money: different reviewer
-    // - congressional marks: different reviewer
-    // - conference values: different reviewer
-    // - enacted values: different reviewer
-    // - high-materiality values at or above policy threshold: different reviewer
-    //
-    // For now, the check is documented but not enforced since Phase 1
-    // artifacts do not carry extractor actor IDs.
+    // Step 9: Enforce reviewer independence where extractor/operator identity is known
+    if (this.policy.requireSegregationOfDuties) {
+      if (input.extractorActorId && input.extractionMethod) {
+        if (this.policy.segregationRequiredMethods.has(input.extractionMethod)) {
+          if (input.extractorActorId === input.reviewerId) {
+            throw new ReviewEligibilityError(
+              `segregation of duties violated: reviewer ${input.reviewerId} is the same as extractor ${input.extractorActorId}`,
+              'segregation_violation',
+            );
+          }
+        }
+      } else {
+        // When actor data is unavailable, create an explicit limitation finding
+        limitationFindings.push(
+          'segregation_of_duties_not_enforced: extractor actor identity or extraction method not provided',
+        );
+      }
+    }
 
-    // M6 + M7: Persist immutable decision atomically.
+    // Step 10 + 11: Persist immutable decision atomically.
     // The repository handles the transaction, append-only insert, and
     // optimistic state check (candidate must still be NEEDS_REVIEW).
     const persistInput: PersistReviewDecisionInputV1 = {
@@ -273,7 +408,9 @@ export class BudgetReviewV1Service {
       runId: persisted.runId,
       decision: persisted.decision as 'accept' | 'reject',
       finalStatus,
+      priorStatus,
       createdAt: persisted.createdAt,
+      limitationFindings,
     };
   }
 
@@ -289,13 +426,25 @@ export class BudgetReviewV1Service {
   > {
     const candidate = await this.repository.readCandidate(candidateId);
     if (!candidate) {
-      return { eligible: false, reason: `candidate not found: ${candidateId}`, code: 'candidate_not_found' };
+      return {
+        eligible: false,
+        reason: `candidate not found: ${candidateId}`,
+        code: 'candidate_not_found',
+      };
     }
     if (candidate.status !== 'NEEDS_REVIEW') {
       return {
         eligible: false,
         reason: `candidate ${candidateId} is not in NEEDS_REVIEW state (got ${candidate.status})`,
         code: 'not_needs_review',
+      };
+    }
+    const priorReviews = await this.repository.readReviewDecisions(candidateId);
+    if (priorReviews.length > 0) {
+      return {
+        eligible: false,
+        reason: `candidate ${candidateId} already has a terminal review decision`,
+        code: 'prior_review_exists',
       };
     }
     return { eligible: true, candidate };
@@ -315,11 +464,9 @@ export class BudgetReviewV1Service {
  * new artifact.
  */
 export function hasNonWaivableBlockingFailure(
-  checks: readonly VerificationCheckV1[],
+  checks: readonly (VerificationCheckV1 | ReadCheckV1)[],
 ): boolean {
-  return checks.some(
-    (c) => c.outcome === 'FAIL' && c.blocking && BLOCKING_CHECK_CODES.has(c.code),
-  );
+  return checks.some((c) => c.outcome === 'FAIL' && c.blocking && BLOCKING_CHECK_CODES.has(c.code));
 }
 
 /**
@@ -329,9 +476,20 @@ export function hasNonWaivableBlockingFailure(
 export function hasNonWaivableBlockingProofFinding(
   proofFindings: readonly ProofFindingV1[],
 ): boolean {
-  return proofFindings.some(
-    (f) => f.severity === 'blocking' && BLOCKING_REVIEW_CODES.has(f.code),
-  );
+  return proofFindings.some((f) => f.severity === 'blocking' && BLOCKING_REVIEW_CODES.has(f.code));
+}
+
+/**
+ * Determine whether a set of proof snapshots contains any blocking
+ * proof failure that cannot be waived.
+ *
+ * A proof snapshot with status 'missing' or 'mismatch' indicates
+ * a blocking proof failure.
+ */
+export function hasNonWaivableBlockingProofSnapshot(
+  proofSnapshots: readonly ReadProofSnapshotV1[],
+): boolean {
+  return proofSnapshots.some((s) => BLOCKING_PROOF_STATUSES.has(s.status));
 }
 
 /**
@@ -339,7 +497,7 @@ export function hasNonWaivableBlockingProofFinding(
  * discrepancy that cannot be waived.
  */
 export function hasNonWaivableBlockingDiscrepancy(
-  discrepancies: readonly VerificationDiscrepancyV1[],
+  discrepancies: readonly (VerificationDiscrepancyV1 | ReadDiscrepancyV1)[],
 ): boolean {
-  return discrepancies.some((d) => d.severity === 'blocking');
+  return discrepancies.some((d) => BLOCKING_DISCREPANCY_SEVERITY.has(d.severity));
 }

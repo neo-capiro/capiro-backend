@@ -18,6 +18,10 @@ import type {
   PersistReviewDecisionInputV1,
   ReadCandidateV1,
   ReadRunV1,
+  ReadCheckV1,
+  ReadDiscrepancyV1,
+  ReadProofSnapshotV1,
+  ReadReviewDecisionV1,
   PersistedCandidateV1,
   PersistedRunV1,
   PersistedReviewDecisionV1,
@@ -84,6 +88,22 @@ class FakeRecordingRepository implements BudgetVerificationRepositoryV1 {
 
   async readRun(): Promise<ReadRunV1 | null> {
     return null;
+  }
+
+  async readChecks(): Promise<ReadCheckV1[]> {
+    return [];
+  }
+
+  async readDiscrepancies(): Promise<ReadDiscrepancyV1[]> {
+    return [];
+  }
+
+  async readProofSnapshots(): Promise<ReadProofSnapshotV1[]> {
+    return [];
+  }
+
+  async readReviewDecisions(): Promise<ReadReviewDecisionV1[]> {
+    return [];
   }
 }
 

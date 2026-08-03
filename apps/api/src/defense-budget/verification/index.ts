@@ -209,6 +209,10 @@ export type {
   PersistedReviewDecisionV1,
   ReadCandidateV1,
   ReadRunV1,
+  ReadCheckV1,
+  ReadDiscrepancyV1,
+  ReadProofSnapshotV1,
+  ReadReviewDecisionV1,
 } from './persistence/index.js';
 export {
   PrismaBudgetVerificationRepositoryV1,
@@ -232,6 +236,7 @@ export {
   BLOCKING_CHECK_CODES,
   hasNonWaivableBlockingFailure,
   hasNonWaivableBlockingProofFinding,
+  hasNonWaivableBlockingProofSnapshot,
   hasNonWaivableBlockingDiscrepancy,
 } from './services/index.js';
 export type { ReviewInputV1, ReviewResultV1, ReviewPolicyV1 } from './services/index.js';

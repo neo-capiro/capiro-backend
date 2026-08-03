@@ -31,6 +31,10 @@ import type {
   PersistReviewDecisionInputV1,
   ReadCandidateV1,
   ReadRunV1,
+  ReadCheckV1,
+  ReadDiscrepancyV1,
+  ReadProofSnapshotV1,
+  ReadReviewDecisionV1,
   PersistedCandidateV1,
   PersistedRunV1,
   PersistedReviewDecisionV1,
@@ -347,6 +351,78 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
       orderBy: { createdAt: 'desc' },
     });
     return row ? mapRowToReadRun(row) : null;
+  }
+
+  async readChecks(runId: string): Promise<ReadCheckV1[]> {
+    const rows = await this.prisma.budgetVerificationCheckV1.findMany({
+      where: { runId },
+      orderBy: { code: 'asc' },
+    });
+    return rows.map((row) => ({
+      checkId: row.checkId,
+      code: row.code,
+      ruleVersion: row.ruleVersion,
+      outcome: row.outcome,
+      required: row.required,
+      blocking: row.blocking,
+      riskPoints: row.riskPoints,
+      message: row.message,
+      assertionIds: row.assertionIds as string[],
+      evidenceIds: row.evidenceIds as string[],
+      referenceArtifactIds: row.referenceArtifactIds as string[],
+      details: (row.details as Record<string, unknown> | null) ?? undefined,
+    }));
+  }
+
+  async readDiscrepancies(runId: string): Promise<ReadDiscrepancyV1[]> {
+    const rows = await this.prisma.budgetVerificationDiscrepancyV1.findMany({
+      where: { runId },
+      orderBy: { code: 'asc' },
+    });
+    return rows.map((row) => ({
+      discrepancyId: row.discrepancyId,
+      code: row.code,
+      severity: row.severity,
+      description: row.description,
+      assertionIds: row.assertionIds as string[],
+      evidenceIds: row.evidenceIds as string[],
+      referenceArtifactIds: row.referenceArtifactIds as string[],
+      details: (row.details as Record<string, unknown> | null) ?? undefined,
+    }));
+  }
+
+  async readProofSnapshots(runId: string): Promise<ReadProofSnapshotV1[]> {
+    const rows = await this.prisma.budgetVerificationProofV1.findMany({
+      where: { runId },
+      orderBy: { proofKind: 'asc' },
+    });
+    return rows.map((row) => ({
+      proofKind: row.proofKind,
+      status: row.status,
+      sourceDocumentId: row.sourceDocumentId,
+      artifactId: row.artifactId,
+      referenceArtifactId: row.referenceArtifactId,
+      evidenceJson: row.evidenceJson as Record<string, unknown>,
+    }));
+  }
+
+  async readReviewDecisions(candidateId: string): Promise<ReadReviewDecisionV1[]> {
+    const rows = await this.prisma.budgetReviewDecisionV1.findMany({
+      where: { candidateId },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      candidateId: row.candidateId,
+      runId: row.runId,
+      reviewerId: row.reviewerId,
+      decision: row.decision,
+      notes: row.notes,
+      sourceSha256: row.sourceSha256,
+      extractionArtifactSha256: row.extractionArtifactSha256,
+      manifestContentSha256: row.manifestContentSha256,
+      createdAt: row.createdAt.toISOString(),
+    }));
   }
 }
 

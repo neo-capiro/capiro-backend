@@ -13,10 +13,7 @@ export {
   BLOCKING_CHECK_CODES,
   hasNonWaivableBlockingFailure,
   hasNonWaivableBlockingProofFinding,
+  hasNonWaivableBlockingProofSnapshot,
   hasNonWaivableBlockingDiscrepancy,
 } from './budget-review-v1.service.js';
-export type {
-  ReviewInputV1,
-  ReviewResultV1,
-  ReviewPolicyV1,
-} from './budget-review-v1.service.js';
+export type { ReviewInputV1, ReviewResultV1, ReviewPolicyV1 } from './budget-review-v1.service.js';

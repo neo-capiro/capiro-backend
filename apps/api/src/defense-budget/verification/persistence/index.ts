@@ -13,6 +13,10 @@ export type {
   PersistedReviewDecisionV1,
   ReadCandidateV1,
   ReadRunV1,
+  ReadCheckV1,
+  ReadDiscrepancyV1,
+  ReadProofSnapshotV1,
+  ReadReviewDecisionV1,
 } from './verification-repository.js';
 export {
   PrismaBudgetVerificationRepositoryV1,
