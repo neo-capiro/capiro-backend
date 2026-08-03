@@ -47,120 +47,6 @@ const EXIT_OK = 0;
 const EXIT_ERROR = 1;
 
 /* ------------------------------------------------------------------ */
-/* Dry-run fake repository (inspect mode)                              */
-/* ------------------------------------------------------------------ */
-
-/**
- * A read-only fake repository for dry-run/inspect mode.
- * It does NOT persist anything — it only validates eligibility
- * using the provided candidate/run data (which the operator supplies
- * via the CLI arguments). In --commit mode, the real Prisma repository
- * is used instead.
- */
-class DryRunReviewRepo implements BudgetVerificationRepositoryV1 {
-  constructor(
-    private readonly candidateId: string,
-    private readonly runId: string,
-    private readonly expectedSourceSha256: string,
-    private readonly expectedArtifactSha256: string,
-    private readonly expectedManifestSha256: string,
-  ) {}
-
-  async findTerminalRunByIdentity(): Promise<null> {
-    return null;
-  }
-
-  async persistCompletedVerification(): Promise<never> {
-    throw new Error('persistCompletedVerification not available in dry-run mode');
-  }
-
-  async persistReviewDecision(input: {
-    candidateId: string;
-    verificationRunId: string;
-    reviewerId: string;
-    decision: 'accept' | 'reject';
-    notes: string;
-    evidenceIds: string[];
-    expectedSourceSha256: string;
-    expectedExtractionArtifactSha256: string;
-    expectedManifestContentSha256: string;
-  }): Promise<{
-    id: string;
-    candidateId: string;
-    runId: string;
-    decision: string;
-    createdAt: string;
-  }> {
-    return {
-      id: `dryrun_review_${Date.now()}`,
-      candidateId: input.candidateId,
-      runId: input.verificationRunId,
-      decision: input.decision,
-      createdAt: new Date().toISOString(),
-    };
-  }
-
-  async readCandidate(candidateId: string) {
-    if (candidateId !== this.candidateId) return null;
-    return {
-      id: this.candidateId,
-      cycleId: 'dry-run',
-      manifestContentSha256: this.expectedManifestSha256,
-      manifestDocumentKey: 'dry-run',
-      extractionArtifactId: 'dry-run',
-      extractionArtifactSha256: this.expectedArtifactSha256,
-      sourceDocumentId: 'dry-run',
-      sourceSha256: this.expectedSourceSha256,
-      verifierVersion: 'defense_budget_verifier_v1',
-      policyVersion: 'defense_budget_verification_policy_v1',
-      policySha256: 'dry-run',
-      status: 'NEEDS_REVIEW' as const,
-      currentRunId: this.runId,
-      createdAt: '2026-01-01T00:00:00Z',
-      updatedAt: '2026-01-01T00:00:00Z',
-    };
-  }
-
-  async readRun(runId: string) {
-    if (runId !== this.runId) return null;
-    return {
-      id: this.runId,
-      candidateId: this.candidateId,
-      verifierVersion: 'defense_budget_verifier_v1',
-      policyVersion: 'defense_budget_verification_policy_v1',
-      policySha256: 'dry-run',
-      decision: 'REVIEW' as const,
-      status: 'NEEDS_REVIEW' as const,
-      route: 'human_review' as const,
-      riskScore: 50,
-      startedAt: '2026-01-01T00:00:00Z',
-      completedAt: '2026-01-01T00:01:00Z',
-      manifestContentSha256: this.expectedManifestSha256,
-      extractionArtifactSha256: this.expectedArtifactSha256,
-      sourceSha256: this.expectedSourceSha256,
-      resultSnapshot: null,
-      createdAt: '2026-01-01T00:00:00Z',
-    };
-  }
-
-  async readChecks(): Promise<[]> {
-    return [];
-  }
-
-  async readDiscrepancies(): Promise<[]> {
-    return [];
-  }
-
-  async readProofSnapshots(): Promise<[]> {
-    return [];
-  }
-
-  async readReviewDecisions(): Promise<[]> {
-    return [];
-  }
-}
-
-/* ------------------------------------------------------------------ */
 /* Argument parsing                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -175,6 +61,7 @@ interface ReviewArgs {
   expectedManifestSha256: string;
   extractorActorId?: string;
   extractionMethod?: string;
+  evidenceIds: string[];
   commit: boolean;
 }
 
@@ -189,6 +76,7 @@ const KNOWN_FLAGS = new Set([
   '--expected-manifest-sha256',
   '--extractor-actor-id',
   '--extraction-method',
+  '--evidence-id',
   '--commit',
 ]);
 
@@ -203,6 +91,7 @@ function parseArgs(argv: string[]): ReviewArgs {
     expectedArtifactSha256: '',
     expectedManifestSha256: '',
     commit: false,
+    evidenceIds: [],
   };
 
   let i = 0;
@@ -253,6 +142,9 @@ function parseArgs(argv: string[]): ReviewArgs {
         break;
       case '--commit':
         args.commit = true;
+        break;
+      case '--evidence-id':
+        args.evidenceIds.push(argv[++i] ?? '');
         break;
     }
     i++;
@@ -305,56 +197,94 @@ async function main(): Promise<void> {
   }
   const notes = fs.readFileSync(args.notesFile, 'utf8');
 
-  // Build the review input
-  const reviewInput: ReviewInputV1 = {
-    candidateId: args.candidateId,
-    verificationRunId: args.runId,
-    reviewerId: args.reviewerId,
-    decision: args.decision,
-    notes,
-    evidenceIds: [],
-    expectedSourceSha256: args.expectedSourceSha256,
-    expectedExtractionArtifactSha256: args.expectedArtifactSha256,
-    expectedManifestContentSha256: args.expectedManifestSha256,
-    ...(args.extractorActorId ? { extractorActorId: args.extractorActorId } : {}),
-    ...(args.extractionMethod ? { extractionMethod: args.extractionMethod } : {}),
-  };
-
-  // In dry-run mode, use the fake repository
-  // In --commit mode, we'd use the real Prisma repository, but that requires
-  // a running database. For now, we support dry-run and document that
-  // --commit requires a configured database.
+  // Always use real Prisma repository — dry-run reads DB, commit reads+persists
+  let prisma: any;
   let repository: BudgetVerificationRepositoryV1;
 
-  if (args.commit) {
-    // In --commit mode, dynamically import Prisma and create the real repository.
-    // This is only available when a database is configured.
-    try {
-      const { PrismaClient } = await import('@prisma/client');
-      const { createPrismaBudgetVerificationRepository } =
-        await import('../src/defense-budget/verification/persistence/prisma-budget-verification.repository.js');
-      const prisma = new PrismaClient();
-      repository = createPrismaBudgetVerificationRepository(prisma);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`--commit requires a configured database: ${message}`);
-      process.exit(EXIT_ERROR);
-    }
-  } else {
-    repository = new DryRunReviewRepo(
-      args.candidateId,
-      args.runId,
-      args.expectedSourceSha256,
-      args.expectedArtifactSha256,
-      args.expectedManifestSha256,
-    );
+  try {
+    const { PrismaClient } = await import('@prisma/client');
+    const { createPrismaBudgetVerificationRepository } =
+      await import('../src/defense-budget/verification/persistence/prisma-budget-verification.repository.js');
+    prisma = new PrismaClient();
+    repository = createPrismaBudgetVerificationRepository(prisma);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`Database connection required: ${message}`);
+    process.exit(EXIT_ERROR);
   }
 
-  const service = new BudgetReviewV1Service(repository);
-
-  let result: ReviewResultV1;
   try {
-    result = await service.review(reviewInput);
+    // Build the review input
+    const reviewInput: ReviewInputV1 = {
+      candidateId: args.candidateId,
+      verificationRunId: args.runId,
+      reviewerId: args.reviewerId,
+      decision: args.decision,
+      notes,
+      evidenceIds: args.evidenceIds,
+      expectedSourceSha256: args.expectedSourceSha256,
+      expectedExtractionArtifactSha256: args.expectedArtifactSha256,
+      expectedManifestContentSha256: args.expectedManifestSha256,
+      ...(args.extractorActorId ? { extractorActorId: args.extractorActorId } : {}),
+      ...(args.extractionMethod ? { extractionMethod: args.extractionMethod } : {}),
+    };
+
+    const service = new BudgetReviewV1Service(repository);
+
+    if (args.commit) {
+      // Commit mode: persist the review decision
+      const result = await service.review(reviewInput);
+      const output = {
+        reviewDecisionId: result.reviewDecisionId,
+        candidateId: result.candidateId,
+        runId: result.runId,
+        decision: result.decision,
+        finalStatus: result.finalStatus,
+        priorStatus: result.priorStatus,
+        createdAt: result.createdAt,
+        expectedSourceSha256: args.expectedSourceSha256,
+        expectedExtractionArtifactSha256: args.expectedArtifactSha256,
+        expectedManifestContentSha256: args.expectedManifestSha256,
+        limitationFindings: result.limitationFindings,
+        committed: true,
+      };
+      console.log(JSON.stringify(output, null, 2));
+      console.error('Review committed successfully.');
+    } else {
+      // Dry-run mode: read real persisted data, perform eligibility checks, write nothing
+      const candidate = await repository.readCandidate(args.candidateId);
+      if (!candidate) {
+        console.error(`candidate not found: ${args.candidateId}`);
+        process.exit(EXIT_ERROR);
+      }
+      const run = await repository.readRun(args.runId);
+      if (!run) {
+        console.error(`run not found: ${args.runId}`);
+        process.exit(EXIT_ERROR);
+      }
+      const checks = await repository.readChecks(args.runId);
+      const discrepancies = await repository.readDiscrepancies(args.runId);
+      const priorDecisions = await repository.readReviewDecisions(args.candidateId);
+
+      const dryRunOutput = {
+        mode: 'dry-run',
+        candidateId: candidate.id,
+        candidateStatus: candidate.status,
+        runId: run.id,
+        runDecision: run.decision,
+        runStatus: run.status,
+        checkCount: checks.length,
+        blockingFailCount: checks.filter(c => c.outcome === 'FAIL' && c.blocking).length,
+        requiredNotRunCount: checks.filter(c => c.outcome === 'NOT_RUN' && c.required).length,
+        discrepancyCount: discrepancies.length,
+        blockingDiscrepancyCount: discrepancies.filter(d => d.severity === 'blocking').length,
+        priorReviewDecisions: priorDecisions.length,
+        proposedDecision: args.decision,
+        committed: false,
+      };
+      console.log(JSON.stringify(dryRunOutput, null, 2));
+      console.error('Dry-run complete — no writes performed.');
+    }
   } catch (err) {
     if (err instanceof ReviewEligibilityError) {
       console.error(`Review rejected: ${err.message} (code: ${err.code})`);
@@ -363,24 +293,11 @@ async function main(): Promise<void> {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`Review failed: ${message}`);
     process.exit(EXIT_ERROR);
+  } finally {
+    if (prisma) {
+      await prisma.$disconnect().catch(() => {});
+    }
   }
-
-  // Print exact decision, hashes, prior status, and limitation findings
-  const output = {
-    reviewDecisionId: result.reviewDecisionId,
-    candidateId: result.candidateId,
-    runId: result.runId,
-    decision: result.decision,
-    finalStatus: result.finalStatus,
-    priorStatus: result.priorStatus,
-    createdAt: result.createdAt,
-    expectedSourceSha256: args.expectedSourceSha256,
-    expectedExtractionArtifactSha256: args.expectedArtifactSha256,
-    expectedManifestContentSha256: args.expectedManifestSha256,
-    limitationFindings: result.limitationFindings,
-    committed: args.commit,
-  };
-  console.log(JSON.stringify(output, null, 2));
 
   process.exit(EXIT_OK);
 }

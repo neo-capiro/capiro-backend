@@ -24,7 +24,7 @@ export const IDENTITY_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input } = ctx;
-    const runId = '';
+    const runId = ctx.verificationRunId;;
     const { artifact } = input;
     const discrepancies: ReturnType<typeof makeDiscrepancy>[] = [];
     const failingIds: string[] = [];

@@ -65,6 +65,10 @@ export interface VerificationContextV1 {
   input: ArtifactVerificationInputV1;
   policy: VerificationPolicyV1;
   policySha256: string;
+  /** Immutable verification run ID computed before rule execution. */
+  verificationRunId: string;
+  /** Immutable candidate ID computed from artifact identity. */
+  candidateId: string;
 }
 
 /* ------------------------------------------------------------------ */

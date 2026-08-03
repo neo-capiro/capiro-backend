@@ -26,10 +26,8 @@ export const CONTRACT_INTEGRITY_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input } = ctx;
-    const { artifact, verificationRunId: runId } = {
-      artifact: input.artifact,
-      verificationRunId: '', // will be set by engine; we use a placeholder
-    };
+    const runId = ctx.verificationRunId;
+    const { artifact } = input;
 
     // The artifact is already parsed by the proof resolver, but we
     // re-validate here to prove integrity independently.

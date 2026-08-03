@@ -30,7 +30,7 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = '';
+    const runId = ctx.verificationRunId;;
     const { artifact, referenceArtifacts } = input;
 
     // Only run when arithmeticRules includes this rule

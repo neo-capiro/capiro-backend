@@ -242,7 +242,7 @@ export class FilesystemProofResolver {
     const referenceArtifacts: DefenseBudgetExtractionArtifactV1[] = [];
     const referenceArtifactsProofBundles: TrustedVerificationProofBundleV1[] = [];
     const referenceArtifactsFindings: ProofFindingV1[] = [];
-    for (const refLocator of input.referenceArtifactLocators) {
+    for (const refLocator of input.referenceArtifactLocators ?? []) {
       try {
         const refBytes = await this.readBytes(refLocator);
         const refArtifact = parseDefenseBudgetExtractionArtifactV1(

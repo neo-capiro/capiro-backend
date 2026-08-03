@@ -29,7 +29,7 @@ export const PROCUREMENT_ROLLUP_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = '';
+    const runId = ctx.verificationRunId;;
     const { artifact } = input;
 
     if (!policy.arithmeticRules.includes('procurement_rollup')) {

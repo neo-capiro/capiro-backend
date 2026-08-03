@@ -22,6 +22,7 @@
     "src/defense-budget/verification/trusted-proof/parser-run-proof-resolver.ts",
     "src/defense-budget/verification/trusted-proof/extraction-artifact-proof-resolver.ts",
     "src/defense-budget/verification/trusted-proof/composite-proof-resolver.ts",
+    "src/defense-budget/verification/trusted-proof/trusted-byte-locator-reader.ts",
     "src/defense-budget/contracts/extraction-artifact-v1.ts",
     "src/defense-budget/contracts/extraction-artifact-v1.semantic.ts",
     "src/defense-budget/contracts/canonical-json.ts",

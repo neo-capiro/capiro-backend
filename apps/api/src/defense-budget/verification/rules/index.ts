@@ -22,6 +22,8 @@ export {
   EVIDENCE_BINDING_RULE,
   MONEY_EVIDENCE_RULE,
   WARNING_POLICY_RULE,
+  ARCHIVE_PROOF_RULE,
+  PARSER_RUN_PROOF_RULE,
 } from './evidence.rules.js';
 
 // Workstream G — Identity, ownership, numeric, duplicate
@@ -58,6 +60,8 @@ import {
   EVIDENCE_BINDING_RULE,
   MONEY_EVIDENCE_RULE,
   WARNING_POLICY_RULE,
+  ARCHIVE_PROOF_RULE,
+  PARSER_RUN_PROOF_RULE,
 } from './evidence.rules.js';
 import { IDENTITY_RULE } from './identity.rules.js';
 import { FUNDING_FIELD_OWNERSHIP_RULE } from './funding-field-ownership.rules.js';
@@ -76,6 +80,8 @@ export const ALL_VERIFICATION_RULES: readonly VerificationRuleV1[] = [
   EVIDENCE_BINDING_RULE,
   MONEY_EVIDENCE_RULE,
   WARNING_POLICY_RULE,
+  ARCHIVE_PROOF_RULE,
+  PARSER_RUN_PROOF_RULE,
   IDENTITY_RULE,
   FUNDING_FIELD_OWNERSHIP_RULE,
   NUMERIC_RULE,

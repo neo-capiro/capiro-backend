@@ -27,6 +27,7 @@
 import * as fs from 'node:fs';
 import { FilesystemProofResolver } from '../src/defense-budget/verification/trusted-proof/filesystem-proof-resolver.js';
 import { BudgetVerificationV1Service } from '../src/defense-budget/verification/services/budget-verification-v1.service.js';
+import type { BudgetVerificationRepositoryV1 } from '../src/defense-budget/verification/persistence/verification-repository.js';
 import { verificationRequestV1Schema } from '../src/defense-budget/verification/verification-contract-v1.js';
 import type { DefenseBudgetVerificationResultV1 } from '../src/defense-budget/verification/verification-contract-v1.js';
 
@@ -191,11 +192,31 @@ async function main(): Promise<void> {
     process.exit(EXIT_ERROR);
   }
 
-  // Create the filesystem proof resolver (local-only, no DB/S3)
+  // Create the proof resolver and repository based on mode
+  let repository: BudgetVerificationRepositoryV1 | null = null;
+
+  if (args.persistAudit) {
+    // Persist mode: create real Prisma repository
+    try {
+      const { PrismaClient } = await import('@prisma/client');
+      const { createPrismaBudgetVerificationRepository } =
+        await import('../src/defense-budget/verification/persistence/prisma-budget-verification.repository.js');
+      const prisma = new PrismaClient();
+      repository = createPrismaBudgetVerificationRepository(prisma);
+      console.error('--persist-audit enabled: verification result will be persisted to the database');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`--persist-audit requires a configured database: ${message}`);
+      process.exit(EXIT_ERROR);
+    }
+  } else {
+    // Inspect mode: filesystem resolver, no repository
+    repository = null;
+  }
+
+  // Create filesystem proof resolver for local-only operation
   const proofResolver = new FilesystemProofResolver();
 
-  // Create the verification service (no repository in inspect mode)
-  const repository = null;
   const service = new BudgetVerificationV1Service(proofResolver, repository);
 
   let result: DefenseBudgetVerificationResultV1;

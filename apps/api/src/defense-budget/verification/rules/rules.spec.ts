@@ -29,8 +29,8 @@ import {
 } from './index.js';
 
 describe('rule infrastructure', () => {
-  it('exports all 14 verification rules', () => {
-    expect(ALL_VERIFICATION_RULES).toHaveLength(14);
+  it('exports all 16 verification rules', () => {
+    expect(ALL_VERIFICATION_RULES).toHaveLength(16);
   });
 
   it('each rule has a unique code', () => {

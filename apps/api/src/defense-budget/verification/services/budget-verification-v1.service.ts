@@ -95,8 +95,25 @@ export class BudgetVerificationV1Service {
     });
     const policySha256 = computePolicySha256(policy);
 
-    // L6.4: Run deterministic verification
+    // R8-E: Compute candidate and run identity BEFORE rule execution
     const startedAt = this.clock.now();
+    const candidateIdentity: CandidateIdentityV1 = {
+      cycleId: resolution.manifest.cycleId ?? '',
+      manifestContentSha256: resolution.manifestContentSha256,
+      manifestDocumentKey: request.manifestDocumentKey,
+      extractionArtifactId: resolution.artifact.artifactId,
+      extractionArtifactSha256: resolution.extractionArtifactContentSha256,
+      extractionArtifactLocator: request.extractionArtifactLocator,
+      sourceDocumentId: request.sourceDocumentId,
+      sourceSha256: resolution.proofBundle.sourceDocument.sourceSha256,
+      verifierVersion: 'defense_budget_verifier_v1',
+      policyVersion: 'defense_budget_verification_policy_v1',
+      policySha256,
+    };
+    const candidateId = computeCandidateId(candidateIdentity);
+    const verificationRunId = computeRunId(candidateIdentity, startedAt.toISOString());
+
+    // L6.4: Run deterministic verification
     const input: ArtifactVerificationInputV1 = {
       request,
       manifest: resolution.manifest,
@@ -111,7 +128,13 @@ export class BudgetVerificationV1Service {
       referenceArtifactsFindings: resolution.referenceArtifactsFindings,
       startedAt: startedAt.toISOString(),
     };
-    const ctx: VerificationContextV1 = { input, policy, policySha256 };
+    const ctx: VerificationContextV1 = {
+      input,
+      policy,
+      policySha256,
+      verificationRunId,
+      candidateId,
+    };
 
     // Run all E-H rules + I comparison rules
     const allRules = [
@@ -157,25 +180,7 @@ export class BudgetVerificationV1Service {
 
     const completedAt = this.clock.now();
 
-    // R3: Build candidate identity for deterministic ID generation
-    const candidateIdentity: CandidateIdentityV1 = {
-      cycleId: resolution.manifest.cycleId ?? '',
-      manifestContentSha256: resolution.manifestContentSha256,
-      manifestDocumentKey: request.manifestDocumentKey,
-      extractionArtifactId: resolution.artifact.artifactId,
-      extractionArtifactSha256: resolution.extractionArtifactContentSha256,
-      extractionArtifactLocator: request.extractionArtifactLocator,
-      sourceDocumentId: request.sourceDocumentId,
-      sourceSha256: resolution.proofBundle.sourceDocument.sourceSha256,
-      verifierVersion: 'defense_budget_verifier_v1',
-      policyVersion: 'defense_budget_verification_policy_v1',
-      policySha256,
-    };
-
-    // R3: Deterministic IDs — same in inspect and persist modes
-    const candidateId = computeCandidateId(candidateIdentity);
-    const verificationRunId = computeRunId(candidateIdentity, startedAt.toISOString());
-
+    // R8-E: candidateId and verificationRunId already computed before rule execution
     const result: DefenseBudgetVerificationResultV1 = {
       verifierVersion: 'defense_budget_verifier_v1',
       policyVersion: 'defense_budget_verification_policy_v1',

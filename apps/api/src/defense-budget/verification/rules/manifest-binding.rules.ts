@@ -22,7 +22,7 @@ export const MANIFEST_BINDING_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = ''; // set by engine
+    const runId = ctx.verificationRunId;; // set by engine
     const { manifest, manifestDocumentKey, artifact, proofBundle } = input;
     const doc = manifest.documents.find((d) => d.documentKey === manifestDocumentKey);
 

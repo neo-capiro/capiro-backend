@@ -226,6 +226,11 @@ CREATE TABLE "budget_review_decision_v1" (
 );
 
 CREATE INDEX "budget_v1_review_candidate_idx"
+
+-- R8-F2: Concurrent review — at most one terminal decision per candidate.
+CREATE UNIQUE INDEX "budget_v1_review_one_terminal_per_candidate"
+    ON "budget_review_decision_v1" ("candidate_id")
+    WHERE "decision" IN ('accept', 'reject');
     ON "budget_review_decision_v1" ("candidate_id", "created_at" DESC);
 
 -- K8: Append-only controls — prevent update/delete of immutable rows.
@@ -240,6 +245,17 @@ CREATE TRIGGER budget_v1_run_no_update
   BEFORE UPDATE ON "budget_verification_run_v1"
   FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_run_update();
 
+CREATE OR REPLACE FUNCTION prevent_budget_v1_run_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+  RAISE EXCEPTION 'budget_verification_run_v1 rows cannot be deleted';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER budget_v1_run_no_delete
+  BEFORE DELETE ON "budget_verification_run_v1"
+  FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_run_delete();
+
 CREATE OR REPLACE FUNCTION prevent_budget_v1_check_update()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -250,6 +266,17 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER budget_v1_check_no_update
   BEFORE UPDATE ON "budget_verification_check_v1"
   FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_check_update();
+
+CREATE OR REPLACE FUNCTION prevent_budget_v1_check_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+  RAISE EXCEPTION 'budget_verification_check_v1 rows cannot be deleted';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER budget_v1_check_no_delete
+  BEFORE DELETE ON "budget_verification_check_v1"
+  FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_check_delete();
 
 CREATE OR REPLACE FUNCTION prevent_budget_v1_proof_update()
 RETURNS TRIGGER AS $$
@@ -262,6 +289,17 @@ CREATE TRIGGER budget_v1_proof_no_update
   BEFORE UPDATE ON "budget_verification_proof"
   FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_proof_update();
 
+CREATE OR REPLACE FUNCTION prevent_budget_v1_proof_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+  RAISE EXCEPTION 'budget_verification_proof rows cannot be deleted';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER budget_v1_proof_no_delete
+  BEFORE DELETE ON "budget_verification_proof"
+  FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_proof_delete();
+
 CREATE OR REPLACE FUNCTION prevent_budget_v1_discrepancy_update()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -273,6 +311,17 @@ CREATE TRIGGER budget_v1_discrepancy_no_update
   BEFORE UPDATE ON "budget_verification_discrepancy_v1"
   FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_discrepancy_update();
 
+CREATE OR REPLACE FUNCTION prevent_budget_v1_discrepancy_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+  RAISE EXCEPTION 'budget_verification_discrepancy_v1 rows cannot be deleted';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER budget_v1_discrepancy_no_delete
+  BEFORE DELETE ON "budget_verification_discrepancy_v1"
+  FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_discrepancy_delete();
+
 CREATE OR REPLACE FUNCTION prevent_budget_v1_review_update()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -283,6 +332,17 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER budget_v1_review_no_update
   BEFORE UPDATE ON "budget_review_decision_v1"
   FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_review_update();
+
+CREATE OR REPLACE FUNCTION prevent_budget_v1_review_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+  RAISE EXCEPTION 'budget_review_decision_v1 rows cannot be deleted';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER budget_v1_review_no_delete
+  BEFORE DELETE ON "budget_review_decision_v1"
+  FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_review_delete();
 
 -- K7: Referential consistency — prevent mismatched candidate/run pairs.
 CREATE OR REPLACE FUNCTION check_budget_v1_discrepancy_candidate_run()

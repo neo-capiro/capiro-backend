@@ -123,7 +123,13 @@ export interface ProofFindingV1 {
   severity: 'blocking' | 'review';
   message: string;
   details?: Record<string, JsonValue>;
+  artifactId?: string;
+  sourceDocumentId?: string;
+  locator?: string;
 }
+
+/** Resolver operation mode. */
+export type ProofResolverMode = 'local_inspect' | 'production_proof';
 
 /**
  * Every proof finding is either blocking or review by policy. None is
@@ -142,7 +148,13 @@ export interface TrustedProofResolveInputV1 {
   manifestDocumentKey: string;
   extractionArtifactLocator: string;
   sourceDocumentId: string;
-  referenceArtifactLocators: readonly string[];
+  referenceArtifacts?: Array<{
+    artifactLocator: string;
+    sourceDocumentId: string;
+    manifestDocumentKey?: string;
+  }>;
+  /** @deprecated Use referenceArtifacts instead. */
+  referenceArtifactLocators?: readonly string[];
   expectedSourcePdfSha256?: string;
   expectedExtractionArtifactSha256?: string;
 }

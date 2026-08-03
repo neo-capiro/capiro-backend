@@ -41,6 +41,59 @@ export interface SourceDocumentProofResolverResult {
 export class SourceDocumentProofResolver {
   constructor(private readonly client: SourceDocumentClient) {}
 
+  /**
+   * Load SourceDocument row without comparing SHAs. Used by the composite
+   * resolver to obtain the row before reading actual bytes.
+   */
+  async resolveWithRow(
+    input: {
+      sourceDocumentId: string;
+      actualSourcePdfSha256?: string;
+      artifactSourcePdfSha256?: string;
+      fiscalYear?: number;
+      sourceKey?: string;
+    },
+  ): Promise<SourceDocumentProofResolverResult> {
+    const findings: ProofFindingV1[] = [];
+    const row = await this.client.sourceDocument.findFirst({
+      where: { id: input.sourceDocumentId },
+    });
+
+    if (!row) {
+      findings.push(
+        blockingFinding('source_document_not_found', `SourceDocument ${input.sourceDocumentId} not found`),
+      );
+      return {
+        sourceDocument: {
+          id: input.sourceDocumentId,
+          sourceKey: input.sourceKey ?? '',
+          sourceSha256: input.artifactSourcePdfSha256 ?? '',
+        },
+        findings,
+        row: null,
+      };
+    }
+
+    const sourceDocument: TrustedSourceDocumentProofV1 = {
+      id: row.id,
+      sourceKey: row.sourceKey,
+      sourceSha256: row.sha256 ?? input.actualSourcePdfSha256 ?? '',
+      sourceUrl: (row.sourceUrl as string | undefined) ?? undefined,
+      artifactPath: (row.artifactPath as string | undefined) ?? undefined,
+      fiscalYear: (row.fiscalYear as number | undefined) ?? undefined,
+      budgetCycle: (row.budgetCycle as string | undefined) ?? undefined,
+      component: (row.component as string | undefined) ?? undefined,
+      documentType: (row.documentType as string | undefined) ?? undefined,
+      extractionMethod: (row.extractionMethod as string | undefined) ?? undefined,
+      extractionToolVersion: (row.extractionToolVersion as string | undefined) ?? undefined,
+      metadata: row.metadata as Record<string, unknown> | undefined as
+        | Record<string, import('../../contracts/canonical-json.js').JsonValue>
+        | undefined,
+    };
+
+    return { sourceDocument, findings, row };
+  }
+
   async resolve(
     input: SourceDocumentProofResolverInput,
   ): Promise<SourceDocumentProofResolverResult> {

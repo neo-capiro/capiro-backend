@@ -45,7 +45,7 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = '';
+    const runId = ctx.verificationRunId;;
     const { artifact } = input;
 
     // Determine if this comparison is required or optional for this policy
@@ -258,7 +258,7 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = '';
+    const runId = ctx.verificationRunId;;
 
     const isRequired = policy.requiredComparisonRules.includes('committee_request_reference');
     const isReview = policy.reviewComparisonRules.includes('committee_request_reference');
@@ -442,7 +442,7 @@ export const HISTORICAL_CONSISTENCY_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = '';
+    const runId = ctx.verificationRunId;;
 
     const isRequired = policy.requiredComparisonRules.includes('historical_consistency');
     const isReview = policy.reviewComparisonRules.includes('historical_consistency');
