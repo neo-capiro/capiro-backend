@@ -11,4 +11,4 @@ Docling, and PaddleOCR. It must never:
 - know tenant/client data
 """
 
-__version__ = "0.1.0"
+__version__ = '0.1.0'

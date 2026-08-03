@@ -8,46 +8,44 @@ from __future__ import annotations
 
 import hashlib
 import json
-from enum import Enum
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # ------------------------------------------------------------------ #
 # A1. Schema version constants                                       #
 # ------------------------------------------------------------------ #
 
-DEFENSE_BUDGET_PARSER_JOB_SCHEMA_VERSION = "defense_budget_parser_job_v1"
-DEFENSE_BUDGET_PARSER_RESULT_SCHEMA_VERSION = "defense_budget_parser_result_v1"
-DEFENSE_BUDGET_PARSE_PLAN_SCHEMA_VERSION = "defense_budget_parse_plan_v1"
+DEFENSE_BUDGET_PARSER_JOB_SCHEMA_VERSION = 'defense_budget_parser_job_v1'
+DEFENSE_BUDGET_PARSER_RESULT_SCHEMA_VERSION = 'defense_budget_parser_result_v1'
+DEFENSE_BUDGET_PARSE_PLAN_SCHEMA_VERSION = 'defense_budget_parse_plan_v1'
 
 # ------------------------------------------------------------------ #
 # A2. Parser runtime engine vocabulary                               #
 # ------------------------------------------------------------------ #
 
 ParserRuntimeEngineV1 = Literal[
-    "deterministic_pdfplumber",
-    "camelot",
-    "docling",
-    "paddleocr",
+    'deterministic_pdfplumber',
+    'camelot',
+    'docling',
+    'paddleocr',
 ]
 
 ExtractionMethodV1 = Literal[
-    "native_structured",
-    "deterministic_pdfplumber",
-    "camelot",
-    "docling",
-    "paddleocr",
-    "llamaparse",
-    "manual",
+    'native_structured',
+    'deterministic_pdfplumber',
+    'camelot',
+    'docling',
+    'paddleocr',
+    'llamaparse',
+    'manual',
 ]
 
 # ------------------------------------------------------------------ #
 # A3. Evidence precision vocabulary                                   #
 # ------------------------------------------------------------------ #
 
-EvidencePrecisionV1 = Literal["page_only", "text_span", "cell_bbox"]
+EvidencePrecisionV1 = Literal['page_only', 'text_span', 'cell_bbox']
 
 # ------------------------------------------------------------------ #
 # A4. Bounding box                                                    #
@@ -55,7 +53,7 @@ EvidencePrecisionV1 = Literal["page_only", "text_span", "cell_bbox"]
 
 
 class BoundingBoxV1(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra='forbid')
 
     x0: str
     y0: str
@@ -68,27 +66,27 @@ class BoundingBoxV1(BaseModel):
 # ------------------------------------------------------------------ #
 
 BlockTypeV1 = Literal[
-    "text",
-    "heading",
-    "paragraph",
-    "list_item",
-    "table",
-    "image",
-    "header",
-    "footer",
-    "caption",
-    "unknown",
+    'text',
+    'heading',
+    'paragraph',
+    'list_item',
+    'table',
+    'image',
+    'header',
+    'footer',
+    'caption',
+    'unknown',
 ]
 
 
 class LayoutBlockV1(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra='forbid')
 
     blockIndex: int = Field(ge=0)
     blockType: BlockTypeV1
     text: str
-    readingOrder: Optional[int] = Field(default=None, ge=0)
-    boundingBox: Optional[BoundingBoxV1] = None
+    readingOrder: int | None = Field(default=None, ge=0)
+    boundingBox: BoundingBoxV1 | None = None
 
 
 # ------------------------------------------------------------------ #
@@ -97,15 +95,15 @@ class LayoutBlockV1(BaseModel):
 
 
 class ParsedTableCellV1(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra='forbid')
 
     rowIndex: int = Field(ge=0)
     columnIndex: int = Field(ge=0)
     text: str
-    rowSpan: Optional[int] = Field(default=None, ge=1)
-    colSpan: Optional[int] = Field(default=None, ge=1)
-    boundingBox: Optional[BoundingBoxV1] = None
-    confidence: Optional[str] = None
+    rowSpan: int | None = Field(default=None, ge=1)
+    colSpan: int | None = Field(default=None, ge=1)
+    boundingBox: BoundingBoxV1 | None = None
+    confidence: str | None = None
 
 
 # ------------------------------------------------------------------ #
@@ -114,15 +112,15 @@ class ParsedTableCellV1(BaseModel):
 
 
 class ParsedTableV1(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra='forbid')
 
     tableIndex: int = Field(ge=0)
-    label: Optional[str] = None
+    label: str | None = None
     rowCount: int = Field(ge=0)
     columnCount: int = Field(ge=0)
     cells: list[ParsedTableCellV1]
-    boundingBox: Optional[BoundingBoxV1] = None
-    parserReportAccuracy: Optional[str] = None
+    boundingBox: BoundingBoxV1 | None = None
+    parserReportAccuracy: str | None = None
     warnings: list[str]
 
 
@@ -132,13 +130,13 @@ class ParsedTableV1(BaseModel):
 
 
 class ParsedImageRegionV1(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra='forbid')
 
     imageIndex: int = Field(ge=0)
-    boundingBox: Optional[BoundingBoxV1] = None
-    width: Optional[str] = None
-    height: Optional[str] = None
-    format: Optional[str] = None
+    boundingBox: BoundingBoxV1 | None = None
+    width: str | None = None
+    height: str | None = None
+    format: str | None = None
 
 
 # ------------------------------------------------------------------ #
@@ -147,19 +145,19 @@ class ParsedImageRegionV1(BaseModel):
 
 
 class ParserPageResultV1(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra='forbid')
 
     page: int = Field(ge=1)
-    width: Optional[str] = None
-    height: Optional[str] = None
-    rotation: Optional[int] = None
-    text: Optional[str] = None
-    markdown: Optional[str] = None
-    printedPage: Optional[str] = None
+    width: str | None = None
+    height: str | None = None
+    rotation: int | None = None
+    text: str | None = None
+    markdown: str | None = None
+    printedPage: str | None = None
     blocks: list[LayoutBlockV1]
     tables: list[ParsedTableV1]
     images: list[ParsedImageRegionV1]
-    confidence: Optional[str] = None
+    confidence: str | None = None
     evidencePrecision: EvidencePrecisionV1
     warnings: list[str]
 
@@ -169,21 +167,21 @@ class ParserPageResultV1(BaseModel):
 # ------------------------------------------------------------------ #
 
 ParserPageFailureCodeV1 = Literal[
-    "no_embedded_text",
-    "page_out_of_range",
-    "pdf_parse_error",
-    "no_table_detected",
-    "table_shape_unstable",
-    "coordinate_error",
-    "render_error",
-    "model_unavailable",
-    "timeout",
-    "unknown_error",
+    'no_embedded_text',
+    'page_out_of_range',
+    'pdf_parse_error',
+    'no_table_detected',
+    'table_shape_unstable',
+    'coordinate_error',
+    'render_error',
+    'model_unavailable',
+    'timeout',
+    'unknown_error',
 ]
 
 
 class ParserPageFailureV1(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra='forbid')
 
     page: int = Field(ge=1)
     code: ParserPageFailureCodeV1
@@ -196,7 +194,7 @@ class ParserPageFailureV1(BaseModel):
 
 
 class ParserRuntimeWarningV1(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra='forbid')
 
     code: str = Field(min_length=1)
     message: str
@@ -209,14 +207,14 @@ class ParserRuntimeWarningV1(BaseModel):
 
 
 class ParserRuntimeMetricsV1(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra='forbid')
 
     durationMillis: int = Field(ge=0)
     pagesProcessed: int = Field(ge=0)
     pagesSucceeded: int = Field(ge=0)
     pagesFailed: int = Field(ge=0)
     engineVersion: str = Field(min_length=1)
-    modelVersions: Optional[list[str]] = None
+    modelVersions: list[str] | None = None
 
 
 # ------------------------------------------------------------------ #
@@ -226,22 +224,22 @@ class ParserRuntimeMetricsV1(BaseModel):
 
 def _validate_sorted_unique_positive_pages(pages: list[int]) -> list[int]:
     if not pages:
-        raise ValueError("pages must be nonempty")
+        raise ValueError('pages must be nonempty')
     for p in pages:
         if p < 1:
-            raise ValueError("pages must be positive")
+            raise ValueError('pages must be positive')
     sorted_pages = sorted(pages)
     if pages != sorted_pages:
-        raise ValueError("pages must be sorted ascending")
+        raise ValueError('pages must be sorted ascending')
     if len(set(pages)) != len(pages):
-        raise ValueError("pages must be unique")
+        raise ValueError('pages must be unique')
     return pages
 
 
 class ParserRuntimeJobV1(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra='forbid')
 
-    schemaVersion: Literal["defense_budget_parser_job_v1"] = Field(
+    schemaVersion: Literal['defense_budget_parser_job_v1'] = Field(
         default=DEFENSE_BUDGET_PARSER_JOB_SCHEMA_VERSION
     )
     jobId: str = Field(min_length=1)
@@ -255,14 +253,14 @@ class ParserRuntimeJobV1(BaseModel):
     outputDirectory: str = Field(min_length=1)
     includeDebugArtifacts: bool
 
-    @field_validator("sourceSha256", "parserConfigSha256")
+    @field_validator('sourceSha256', 'parserConfigSha256')
     @classmethod
     def _validate_sha256(cls, v: str) -> str:
-        if not (isinstance(v, str) and len(v) == 64 and all(c in "0123456789abcdef" for c in v)):
-            raise ValueError("expected lowercase 64-character hexadecimal SHA-256")
+        if not (isinstance(v, str) and len(v) == 64 and all(c in '0123456789abcdef' for c in v)):
+            raise ValueError('expected lowercase 64-character hexadecimal SHA-256')
         return v
 
-    @field_validator("requestedPages")
+    @field_validator('requestedPages')
     @classmethod
     def _validate_pages(cls, v: list[int]) -> list[int]:
         return _validate_sorted_unique_positive_pages(v)
@@ -274,9 +272,9 @@ class ParserRuntimeJobV1(BaseModel):
 
 
 class ParserRuntimeResultV1(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra='forbid')
 
-    schemaVersion: Literal["defense_budget_parser_result_v1"] = Field(
+    schemaVersion: Literal['defense_budget_parser_result_v1'] = Field(
         default=DEFENSE_BUDGET_PARSER_RESULT_SCHEMA_VERSION
     )
     jobId: str = Field(min_length=1)
@@ -292,14 +290,14 @@ class ParserRuntimeResultV1(BaseModel):
     metrics: ParserRuntimeMetricsV1
     contentSha256: str
 
-    @field_validator("parserConfigSha256", "inputSourceSha256", "contentSha256")
+    @field_validator('parserConfigSha256', 'inputSourceSha256', 'contentSha256')
     @classmethod
     def _validate_sha256(cls, v: str) -> str:
-        if not (isinstance(v, str) and len(v) == 64 and all(c in "0123456789abcdef" for c in v)):
-            raise ValueError("expected lowercase 64-character hexadecimal SHA-256")
+        if not (isinstance(v, str) and len(v) == 64 and all(c in '0123456789abcdef' for c in v)):
+            raise ValueError('expected lowercase 64-character hexadecimal SHA-256')
         return v
 
-    @field_validator("requestedPages")
+    @field_validator('requestedPages')
     @classmethod
     def _validate_pages(cls, v: list[int]) -> list[int]:
         return _validate_sorted_unique_positive_pages(v)
@@ -310,46 +308,46 @@ class ParserRuntimeResultV1(BaseModel):
 # ------------------------------------------------------------------ #
 
 ParserDocumentStateV1 = Literal[
-    "PLANNED",
-    "RUNNING_LOCAL",
-    "LOCAL_COMPLETE",
-    "VERIFYING",
-    "ESCALATION_PLANNED",
-    "RUNNING_PAID",
-    "PAID_COMPLETE",
-    "TERMINAL_PASSED",
-    "TERMINAL_REVIEW",
-    "TERMINAL_REJECTED",
-    "FAILED",
+    'PLANNED',
+    'RUNNING_LOCAL',
+    'LOCAL_COMPLETE',
+    'VERIFYING',
+    'ESCALATION_PLANNED',
+    'RUNNING_PAID',
+    'PAID_COMPLETE',
+    'TERMINAL_PASSED',
+    'TERMINAL_REVIEW',
+    'TERMINAL_REJECTED',
+    'FAILED',
 ]
 
 PARSER_STATE_TRANSITIONS: dict[str, tuple[str, ...]] = {
-    "PLANNED": ("RUNNING_LOCAL", "FAILED"),
-    "RUNNING_LOCAL": ("LOCAL_COMPLETE", "FAILED"),
-    "LOCAL_COMPLETE": ("VERIFYING", "FAILED"),
-    "VERIFYING": (
-        "ESCALATION_PLANNED",
-        "TERMINAL_PASSED",
-        "TERMINAL_REVIEW",
-        "TERMINAL_REJECTED",
-        "FAILED",
+    'PLANNED': ('RUNNING_LOCAL', 'FAILED'),
+    'RUNNING_LOCAL': ('LOCAL_COMPLETE', 'FAILED'),
+    'LOCAL_COMPLETE': ('VERIFYING', 'FAILED'),
+    'VERIFYING': (
+        'ESCALATION_PLANNED',
+        'TERMINAL_PASSED',
+        'TERMINAL_REVIEW',
+        'TERMINAL_REJECTED',
+        'FAILED',
     ),
-    "ESCALATION_PLANNED": (
-        "RUNNING_PAID",
-        "TERMINAL_REVIEW",
-        "TERMINAL_REJECTED",
-        "FAILED",
+    'ESCALATION_PLANNED': (
+        'RUNNING_PAID',
+        'TERMINAL_REVIEW',
+        'TERMINAL_REJECTED',
+        'FAILED',
     ),
-    "RUNNING_PAID": ("PAID_COMPLETE", "FAILED"),
-    "PAID_COMPLETE": ("VERIFYING", "FAILED"),
-    "TERMINAL_PASSED": (),
-    "TERMINAL_REVIEW": (),
-    "TERMINAL_REJECTED": (),
-    "FAILED": (),
+    'RUNNING_PAID': ('PAID_COMPLETE', 'FAILED'),
+    'PAID_COMPLETE': ('VERIFYING', 'FAILED'),
+    'TERMINAL_PASSED': (),
+    'TERMINAL_REVIEW': (),
+    'TERMINAL_REJECTED': (),
+    'FAILED': (),
 }
 
 _TERMINAL_STATES: frozenset[str] = frozenset(
-    {"TERMINAL_PASSED", "TERMINAL_REVIEW", "TERMINAL_REJECTED", "FAILED"}
+    {'TERMINAL_PASSED', 'TERMINAL_REVIEW', 'TERMINAL_REJECTED', 'FAILED'}
 )
 
 
@@ -370,11 +368,11 @@ def is_valid_transition(from_state: str, to_state: str) -> bool:
 
 def canonical_json_stringify(value: Any) -> str:
     """Serialize to canonical JSON: sorted keys, no extra whitespace."""
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
 
 
 def sha256_hex(input_str: str) -> str:
-    return hashlib.sha256(input_str.encode("utf-8")).hexdigest()
+    return hashlib.sha256(input_str.encode('utf-8')).hexdigest()
 
 
 def sha256_canonical_json(value: Any) -> str:
@@ -395,12 +393,12 @@ def compute_parser_run_cache_key(
     runtime_contract_version: str,
 ) -> str:
     canonical = {
-        "sourceSha256": source_sha256,
-        "method": method,
-        "parserVersion": parser_version,
-        "parserConfigSha256": parser_config_sha256,
-        "pages": sorted(pages),
-        "runtimeContractVersion": runtime_contract_version,
+        'sourceSha256': source_sha256,
+        'method': method,
+        'parserVersion': parser_version,
+        'parserConfigSha256': parser_config_sha256,
+        'pages': sorted(pages),
+        'runtimeContractVersion': runtime_contract_version,
     }
     return sha256_canonical_json(canonical)
 
@@ -413,13 +411,13 @@ def compute_parser_run_id(
     pages: list[int],
 ) -> str:
     canonical = {
-        "sourceSha256": source_sha256,
-        "method": method,
-        "parserVersion": parser_version,
-        "parserConfigSha256": parser_config_sha256,
-        "pages": sorted(pages),
+        'sourceSha256': source_sha256,
+        'method': method,
+        'parserVersion': parser_version,
+        'parserConfigSha256': parser_config_sha256,
+        'pages': sorted(pages),
     }
-    return f"pr1_{sha256_canonical_json(canonical)}"
+    return f'pr1_{sha256_canonical_json(canonical)}'
 
 
 def compute_parser_config_sha256(config: Any) -> str:
@@ -428,7 +426,7 @@ def compute_parser_config_sha256(config: Any) -> str:
 
 def compute_result_content_sha256(result_dict: dict[str, Any]) -> str:
     """Compute content SHA from a result dict, excluding the contentSha256 field."""
-    rest = {k: v for k, v in result_dict.items() if k != "contentSha256"}
+    rest = {k: v for k, v in result_dict.items() if k != 'contentSha256'}
     return sha256_canonical_json(rest)
 
 
@@ -439,7 +437,7 @@ def compute_result_content_sha256(result_dict: dict[str, Any]) -> str:
 
 def page_range_key(pages: list[int]) -> str:
     if not pages:
-        return "none"
+        return 'none'
     sorted_pages = sorted(pages)
     parts: list[str] = []
     start = sorted_pages[0]
@@ -448,8 +446,8 @@ def page_range_key(pages: list[int]) -> str:
         if p == end + 1:
             end = p
         else:
-            parts.append(f"{start}" if start == end else f"{start}-{end}")
+            parts.append(f'{start}' if start == end else f'{start}-{end}')
             start = p
             end = p
-    parts.append(f"{start}" if start == end else f"{start}-{end}")
-    return ",".join(parts)
+    parts.append(f'{start}' if start == end else f'{start}-{end}')
+    return ','.join(parts)

@@ -8,31 +8,24 @@ LlamaParse may run during profiling.
 from __future__ import annotations
 
 import hashlib
-import json
-import re
-import sys
 from pathlib import Path
 from typing import Any
 
 from .contracts import (
-    canonical_json_stringify,
-    sha256_hex,
     sha256_canonical_json,
-    ParserRuntimeJobV1,
 )
-
 
 # ------------------------------------------------------------------ #
 # Profiling thresholds                                               #
 # ------------------------------------------------------------------ #
 
 DEFAULT_THRESHOLDS: dict[str, Any] = {
-    "minimumEmbeddedTextCharacters": 40,
-    "minimumAlphanumericCharacters": 20,
-    "imageOnlyAreaRatio": 0.80,
-    "rotationDegreesRequiringCorrection": [90, 180, 270, -90, -180, -270],
-    "minimumTableLikeTextLines": 3,
-    "minimumVectorLinesForTableCue": 6,
+    'minimumEmbeddedTextCharacters': 40,
+    'minimumAlphanumericCharacters': 20,
+    'imageOnlyAreaRatio': 0.80,
+    'rotationDegreesRequiringCorrection': [90, 180, 270, -90, -180, -270],
+    'minimumTableLikeTextLines': 3,
+    'minimumVectorLinesForTableCue': 6,
 }
 
 
@@ -48,7 +41,7 @@ def compute_profiling_config_sha256(thresholds: dict[str, Any]) -> str:
 def compute_file_sha256(path: str | Path) -> str:
     """Compute SHA-256 of a file, reading in chunks."""
     h = hashlib.sha256()
-    with open(path, "rb") as f:
+    with open(path, 'rb') as f:
         while True:
             chunk = f.read(65536)
             if not chunk:
@@ -61,9 +54,7 @@ def verify_source_sha256(source_path: str | Path, expected_sha256: str) -> None:
     """Verify the file SHA matches the expected SHA. Raises on mismatch."""
     actual = compute_file_sha256(source_path)
     if actual != expected_sha256:
-        raise ValueError(
-            f"source SHA mismatch: expected {expected_sha256}, got {actual}"
-        )
+        raise ValueError(f'source SHA mismatch: expected {expected_sha256}, got {actual}')
 
 
 # ------------------------------------------------------------------ #
@@ -99,10 +90,10 @@ def profile_page(page: Any, thresholds: dict[str, Any]) -> dict[str, Any]:
     """Profile a single pdfplumber page object."""
     width = float(page.width)
     height = float(page.height)
-    rotation = int(getattr(page, "rotation", 0) or 0)
+    rotation = int(getattr(page, 'rotation', 0) or 0)
 
     # Extract text
-    text = page.extract_text() or ""
+    text = page.extract_text() or ''
     embedded_text_chars = len(text)
     alpha_chars = _alphanumeric_count(text)
     word_count = _word_count(text)
@@ -113,8 +104,8 @@ def profile_page(page: Any, thresholds: dict[str, Any]) -> dict[str, Any]:
     image_area = 0.0
     page_area = width * height
     for img in images:
-        img_width = float(img.get("x1", 0)) - float(img.get("x0", 0))
-        img_height = float(img.get("top", 0)) - float(img.get("bottom", 0))
+        img_width = float(img.get('x1', 0)) - float(img.get('x0', 0))
+        img_height = float(img.get('top', 0)) - float(img.get('bottom', 0))
         image_area += abs(img_width * img_height)
     image_area_ratio = image_area / page_area if page_area > 0 else 0.0
 
@@ -126,62 +117,60 @@ def profile_page(page: Any, thresholds: dict[str, Any]) -> dict[str, Any]:
     horizontal_line_count = 0
     vertical_line_count = 0
     for line in all_lines:
-        x0 = float(line.get("x0", 0))
-        y0 = float(line.get("top", 0))
-        x1 = float(line.get("x1", 0))
-        y1 = float(line.get("bottom", 0))
+        x0 = float(line.get('x0', 0))
+        y0 = float(line.get('top', 0))
+        x1 = float(line.get('x1', 0))
+        y1 = float(line.get('bottom', 0))
         if abs(y1 - y0) < 0.5 and abs(x1 - x0) > 0.5:
             horizontal_line_count += 1
         elif abs(x1 - x0) < 0.5 and abs(y1 - y0) > 0.5:
             vertical_line_count += 1
 
     # Table-like text lines
-    text_lines = text.split("\n") if text else []
-    table_like_lines = sum(1 for l in text_lines if _is_table_like_line(l))
+    text_lines = text.split('\n') if text else []
+    table_like_lines = sum(1 for line in text_lines if _is_table_like_line(line))
 
     # Classifications
-    has_embedded_text = embedded_text_chars >= thresholds["minimumEmbeddedTextCharacters"]
-    has_min_alpha = alpha_chars >= thresholds["minimumAlphanumericCharacters"]
+    has_embedded_text = embedded_text_chars >= thresholds['minimumEmbeddedTextCharacters']
     likely_image_only = (
-        not has_embedded_text
-        and image_area_ratio >= thresholds["imageOnlyAreaRatio"]
+        not has_embedded_text and image_area_ratio >= thresholds['imageOnlyAreaRatio']
     )
-    likely_rotated = rotation in thresholds["rotationDegreesRequiringCorrection"]
+    likely_rotated = rotation in thresholds['rotationDegreesRequiringCorrection']
     likely_table = (
-        table_like_lines >= thresholds["minimumTableLikeTextLines"]
-        or vector_line_count >= thresholds["minimumVectorLinesForTableCue"]
+        table_like_lines >= thresholds['minimumTableLikeTextLines']
+        or vector_line_count >= thresholds['minimumVectorLinesForTableCue']
     )
     likely_mixed = (
         has_embedded_text
         and table_like_lines > 0
-        and table_like_lines < thresholds["minimumTableLikeTextLines"]
+        and table_like_lines < thresholds['minimumTableLikeTextLines']
         and image_count > 0
     )
 
     warnings: list[str] = []
     if not has_embedded_text and not likely_image_only:
-        warnings.append("page has low text but below image-only threshold")
+        warnings.append('page has low text but below image-only threshold')
 
     return {
-        "page": int(page.page_number),
-        "width": _to_decimal_string(width),
-        "height": _to_decimal_string(height),
-        "rotation": rotation,
-        "embeddedTextCharacters": embedded_text_chars,
-        "alphanumericCharacters": alpha_chars,
-        "wordCount": word_count,
-        "imageCount": image_count,
-        "imageAreaRatio": _to_decimal_string(image_area_ratio),
-        "vectorLineCount": vector_line_count,
-        "horizontalLineCount": horizontal_line_count,
-        "verticalLineCount": vertical_line_count,
-        "tableLikeTextLineCount": table_like_lines,
-        "hasEmbeddedTextLayer": has_embedded_text,
-        "likelyImageOnly": likely_image_only,
-        "likelyRotated": likely_rotated,
-        "likelyTablePage": likely_table,
-        "likelyMixedLayout": likely_mixed,
-        "profileWarnings": warnings,
+        'page': int(page.page_number),
+        'width': _to_decimal_string(width),
+        'height': _to_decimal_string(height),
+        'rotation': rotation,
+        'embeddedTextCharacters': embedded_text_chars,
+        'alphanumericCharacters': alpha_chars,
+        'wordCount': word_count,
+        'imageCount': image_count,
+        'imageAreaRatio': _to_decimal_string(image_area_ratio),
+        'vectorLineCount': vector_line_count,
+        'horizontalLineCount': horizontal_line_count,
+        'verticalLineCount': vertical_line_count,
+        'tableLikeTextLineCount': table_like_lines,
+        'hasEmbeddedTextLayer': has_embedded_text,
+        'likelyImageOnly': likely_image_only,
+        'likelyRotated': likely_rotated,
+        'likelyTablePage': likely_table,
+        'likelyMixedLayout': likely_mixed,
+        'profileWarnings': warnings,
     }
 
 
@@ -192,43 +181,37 @@ def profile_page(page: Any, thresholds: dict[str, Any]) -> dict[str, Any]:
 
 def build_summary(page_profiles: list[dict[str, Any]]) -> dict[str, Any]:
     page_count = len(page_profiles)
-    image_only = sum(1 for p in page_profiles if p["likelyImageOnly"])
-    table_likely = sum(1 for p in page_profiles if p["likelyTablePage"])
-    mixed_layout = sum(1 for p in page_profiles if p["likelyMixedLayout"])
-    rotated = sum(1 for p in page_profiles if p["likelyRotated"])
+    image_only = sum(1 for p in page_profiles if p['likelyImageOnly'])
+    table_likely = sum(1 for p in page_profiles if p['likelyTablePage'])
+    mixed_layout = sum(1 for p in page_profiles if p['likelyMixedLayout'])
+    rotated = sum(1 for p in page_profiles if p['likelyRotated'])
     zero_content = sum(
-        1 for p in page_profiles
-        if p["embeddedTextCharacters"] == 0 and p["imageCount"] == 0
+        1 for p in page_profiles if p['embeddedTextCharacters'] == 0 and p['imageCount'] == 0
     )
 
     # Initial route estimates
     est_pdfplumber = sum(
-        1 for p in page_profiles
-        if p["hasEmbeddedTextLayer"] and not p["likelyImageOnly"]
+        1 for p in page_profiles if p['hasEmbeddedTextLayer'] and not p['likelyImageOnly']
     )
     est_camelot = sum(
-        1 for p in page_profiles
-        if p["likelyTablePage"] and p["hasEmbeddedTextLayer"]
+        1 for p in page_profiles if p['likelyTablePage'] and p['hasEmbeddedTextLayer']
     )
-    est_docling = sum(
-        1 for p in page_profiles
-        if p["likelyMixedLayout"]
-    )
-    est_paddleocr = sum(1 for p in page_profiles if p["likelyImageOnly"])
+    est_docling = sum(1 for p in page_profiles if p['likelyMixedLayout'])
+    est_paddleocr = sum(1 for p in page_profiles if p['likelyImageOnly'])
     est_llamaparse = 0  # never auto-estimate paid
 
     return {
-        "pageCount": page_count,
-        "imageOnlyPageCount": image_only,
-        "tableLikelyPageCount": table_likely,
-        "mixedLayoutPageCount": mixed_layout,
-        "rotatedPageCount": rotated,
-        "zeroContentPageCount": zero_content,
-        "estimatedPdfplumberPages": est_pdfplumber,
-        "estimatedCamelotPages": est_camelot,
-        "estimatedDoclingPages": est_docling,
-        "estimatedPaddleocrPages": est_paddleocr,
-        "estimatedLlamaparsePages": est_llamaparse,
+        'pageCount': page_count,
+        'imageOnlyPageCount': image_only,
+        'tableLikelyPageCount': table_likely,
+        'mixedLayoutPageCount': mixed_layout,
+        'rotatedPageCount': rotated,
+        'zeroContentPageCount': zero_content,
+        'estimatedPdfplumberPages': est_pdfplumber,
+        'estimatedCamelotPages': est_camelot,
+        'estimatedDoclingPages': est_docling,
+        'estimatedPaddleocrPages': est_paddleocr,
+        'estimatedLlamaparsePages': est_llamaparse,
     }
 
 
@@ -256,7 +239,7 @@ def profile_document(
     try:
         import pdfplumber
     except ImportError as e:
-        raise RuntimeError("pdfplumber is required for profiling") from e
+        raise RuntimeError('pdfplumber is required for profiling') from e
 
     page_profiles: list[dict[str, Any]] = []
 
@@ -269,15 +252,15 @@ def profile_document(
     config_sha = compute_profiling_config_sha256(thresh)
 
     result = {
-        "schemaVersion": "defense_budget_page_profile_v1",
-        "sourceSha256": expected_sha256,
-        "pages": page_profiles,
-        "summary": summary,
-        "profileConfigSha256": config_sha,
+        'schemaVersion': 'defense_budget_page_profile_v1',
+        'sourceSha256': expected_sha256,
+        'pages': page_profiles,
+        'summary': summary,
+        'profileConfigSha256': config_sha,
     }
     # Compute content SHA
     content_sha = sha256_canonical_json(result)
-    result["contentSha256"] = content_sha
+    result['contentSha256'] = content_sha
 
     return result
 
@@ -302,7 +285,7 @@ def profile_pages(
     try:
         import pdfplumber
     except ImportError as e:
-        raise RuntimeError("pdfplumber is required for profiling") from e
+        raise RuntimeError('pdfplumber is required for profiling') from e
 
     page_profiles: list[dict[str, Any]] = []
 
@@ -317,13 +300,13 @@ def profile_pages(
     config_sha = compute_profiling_config_sha256(thresh)
 
     result = {
-        "schemaVersion": "defense_budget_page_profile_v1",
-        "sourceSha256": expected_sha256,
-        "pages": page_profiles,
-        "summary": summary,
-        "profileConfigSha256": config_sha,
+        'schemaVersion': 'defense_budget_page_profile_v1',
+        'sourceSha256': expected_sha256,
+        'pages': page_profiles,
+        'summary': summary,
+        'profileConfigSha256': config_sha,
     }
     content_sha = sha256_canonical_json(result)
-    result["contentSha256"] = content_sha
+    result['contentSha256'] = content_sha
 
     return result
