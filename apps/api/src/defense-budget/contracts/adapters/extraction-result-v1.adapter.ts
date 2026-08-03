@@ -74,6 +74,14 @@ export function adaptExtractionResultToArtifactV1(
   const parserRun = parserRunFromContext(context);
   builder.addParserRun(parserRun);
 
+  // Phase A.5: Verify parser provenance — every value's extraction method
+  // must match the parser run method. Fail on disagreement.
+  const expectedMethod = parserRun.method;
+  const provenanceMismatch = (method: string): boolean => {
+    const mapped = PROVENANCE_METHOD_MAP[method as keyof typeof PROVENANCE_METHOD_MAP];
+    return mapped !== expectedMethod;
+  };
+
   const evidenceCache = new Map<string, SourceEvidenceV1>();
   const evidenceFor = (prov: ValueProvenance, discriminator: string): SourceEvidenceV1 => {
     // Truthful provenance mapping: the current extractor's provenance has page
@@ -101,11 +109,33 @@ export function adaptExtractionResultToArtifactV1(
 
   /* ---------------- line assertions ---------------- */
   extraction.lineAssertions.forEach((line, index) => {
+    // Phase A.5: Check provenance consistency
+    if (provenanceMismatch(line.provenance.extractionMethod)) {
+      builder.addWarning(
+        buildWarning({
+          code: 'provenance_mismatch',
+          severity: 'blocking',
+          message: `lineAssertions[${index}] extraction method "${line.provenance.extractionMethod}" does not match parser run method "${expectedMethod}"`,
+          discriminator: `lineAssertions[${index}].provenance`,
+        }),
+      );
+    }
     mapLineAssertion(builder, context, line, index, evidenceFor, parserRun.parserRunId);
   });
 
   /* ---------------- year values ---------------- */
   extraction.yearValues.forEach((value, index) => {
+    // Phase A.5: Check provenance consistency
+    if (provenanceMismatch(value.provenance.extractionMethod)) {
+      builder.addWarning(
+        buildWarning({
+          code: 'provenance_mismatch',
+          severity: 'blocking',
+          message: `yearValues[${index}] extraction method "${value.provenance.extractionMethod}" does not match parser run method "${expectedMethod}"`,
+          discriminator: `yearValues[${index}].provenance`,
+        }),
+      );
+    }
     mapYearValue(builder, context, value, index, evidenceFor);
   });
 

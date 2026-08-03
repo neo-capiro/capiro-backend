@@ -25,7 +25,10 @@ import type {
   ExtractionMethodV1,
 } from '../src/defense-budget/contracts/extraction-artifact-v1.js';
 import { extractionMethodV1Schema } from '../src/defense-budget/contracts/extraction-artifact-v1.js';
-import { parseBudgetCycleManifestV1 } from '../src/defense-budget/contracts/budget-cycle-manifest-v1.js';
+import {
+  parseBudgetCycleManifestV1,
+  validateBudgetCycleManifestV1,
+} from '../src/defense-budget/contracts/budget-cycle-manifest-v1.js';
 import type { ExtractionAdapterContextV1 } from '../src/defense-budget/contracts/adapters/adapter-context.js';
 import { parseExtractionAdapterContextV1 } from '../src/defense-budget/contracts/adapters/adapter-context.js';
 import { adaptExtractionResultToArtifactV1 } from '../src/defense-budget/contracts/adapters/extraction-result-v1.adapter.js';
@@ -84,7 +87,7 @@ export interface ConverterResult {
 const SHA256_RE = /^[a-f0-9]{64}$/;
 const UNIT_VALUES = ['dollars', 'thousands', 'millions'] as const;
 
-class ConverterArgError extends Error {}
+export class ConverterArgError extends Error {}
 
 function requireArg(args: Record<string, string | boolean | undefined>, name: string): string {
   const value = args[name];
@@ -190,10 +193,17 @@ export function parseConverterArgs(argv: string[]): ConverterArgs {
 
 /** Run the conversion. Throws ConverterArgError or adapter/build errors. */
 export function runConversion(args: ConverterArgs): ConverterResult {
-  /* 1. manifest + document entry */
+  /* 1. manifest + document entry + semantic validation */
   const manifest = parseBudgetCycleManifestV1(
     JSON.parse(fs.readFileSync(args.manifest, 'utf8')) as unknown,
   );
+  const manifestFindings = validateBudgetCycleManifestV1(manifest);
+  const manifestErrors = manifestFindings.filter((f) => f.severity === 'error');
+  if (manifestErrors.length > 0) {
+    throw new ConverterArgError(
+      `manifest semantic validation failed: ${manifestErrors.map((f) => `${f.code} at ${f.path}: ${f.message}`).join('; ')}`,
+    );
+  }
   const documentEntry = manifest.documents.find((doc) => doc.documentKey === args.document);
   if (documentEntry == null) {
     throw new ConverterArgError(
@@ -206,12 +216,29 @@ export function runConversion(args: ConverterArgs): ConverterResult {
     );
   }
 
-  /* 2. legacy input + its SHA (parser output SHA) */
+  /* 2. Enforce expectedSourceSha256 when present in manifest */
+  if (documentEntry.expectedSourceSha256 != null) {
+    if (documentEntry.expectedSourceSha256 !== args.sourceSha256) {
+      throw new ConverterArgError(
+        `--source-sha256 ${args.sourceSha256} does not match manifest expectedSourceSha256 ${documentEntry.expectedSourceSha256} for document "${args.document}"`,
+      );
+    }
+  }
+
+  /* 3. legacy input + its SHA (parser output SHA) */
   const inputRaw = fs.readFileSync(args.input, 'utf8');
   const outputArtifactSha256 = sha256Hex(inputRaw);
   const legacy = JSON.parse(inputRaw) as unknown;
 
-  /* 3. adapter context */
+  /* 4. Derive page ranges from explicit pages in the legacy artifact */
+  const pageRanges = derivePageRanges(legacy);
+
+  /* 5. Require explicit R-1 funding unit; do not default to thousands */
+  if (args.kind === 'r1' && args.r1FundingUnit == null) {
+    throw new ConverterArgError('--kind r1 requires --r1-funding-unit (dollars|thousands|millions)');
+  }
+
+  /* 6. adapter context */
   const context: ExtractionAdapterContextV1 = parseExtractionAdapterContextV1({
     manifestDocumentKey: documentEntry.documentKey,
     sourcePdfSha256: args.sourceSha256,
@@ -230,7 +257,7 @@ export function runConversion(args: ConverterArgs): ConverterResult {
       parserVersion: args.parserVersion,
       parserConfigSha256: args.parserConfigSha256,
       outputArtifactSha256,
-      pageRanges: [{ startPage: 1, endPage: 10000 }],
+      pageRanges,
     },
   });
 
@@ -265,7 +292,7 @@ function invokeAdapter(
       return adaptExtractionResultToArtifactV1(legacy as ExtractionResult, context);
     case 'r1':
       return adaptR1ArtifactToArtifactV1(legacy as never, context, {
-        fundingUnit: args.r1FundingUnit ?? 'thousands',
+        fundingUnit: args.r1FundingUnit!,
       });
     case 'r2':
       return adaptR2ArtifactToArtifactV1(legacy as never, context);
@@ -314,4 +341,61 @@ const invokedDirectly =
   process.argv[1] != null && process.argv[1].endsWith('convert-defense-budget-artifact.ts');
 if (invokedDirectly) {
   main();
+}
+
+/* ------------------------------------------------------------------ */
+/* Page range derivation from legacy artifact pages                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Derive page ranges from explicit page numbers in the legacy artifact.
+ * Does NOT fabricate a `1–10000` range. When no pages are found, returns
+ * an empty array (unknown pages).
+ */
+function derivePageRanges(legacy: unknown): Array<{ startPage: number; endPage: number }> {
+  const pages = extractPageNumbers(legacy);
+  if (pages.length === 0) return [];
+  const sorted = [...new Set(pages)].sort((a, b) => a - b);
+  const ranges: Array<{ startPage: number; endPage: number }> = [];
+  let rangeStart = sorted[0]!;
+  let prev = sorted[0]!;
+  for (let i = 1; i < sorted.length; i += 1) {
+    const current = sorted[i]!;
+    if (current !== prev + 1) {
+      ranges.push({ startPage: rangeStart, endPage: prev });
+      rangeStart = current;
+    }
+    prev = current;
+  }
+  ranges.push({ startPage: rangeStart, endPage: prev });
+  return ranges;
+}
+
+/**
+ * Recursively extract page numbers from a legacy artifact object.
+ * Looks for `page`, `page_number`, `pageNumber`, `sourcePage` fields.
+ */
+function extractPageNumbers(obj: unknown): number[] {
+  const pages: number[] = [];
+  if (obj == null || typeof obj !== 'object') return pages;
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      pages.push(...extractPageNumbers(item));
+    }
+    return pages;
+  }
+  const record = obj as Record<string, unknown>;
+  for (const key of ['page', 'page_number', 'pageNumber', 'sourcePage']) {
+    const val = record[key];
+    if (typeof val === 'number' && Number.isInteger(val) && val > 0) {
+      pages.push(val);
+    }
+  }
+  for (const key of Object.keys(record)) {
+    const val = record[key];
+    if (val != null && typeof val === 'object') {
+      pages.push(...extractPageNumbers(val));
+    }
+  }
+  return pages;
 }

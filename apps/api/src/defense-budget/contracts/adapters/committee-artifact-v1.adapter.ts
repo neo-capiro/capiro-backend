@@ -220,7 +220,43 @@ export function adaptCommitteeArtifactToArtifactV1(
     }
 
     /* ---------------- fiscal year ---------------- */
-    const rowFy = resolveRowFiscalYear(row.fy, options.defaultFiscalYear);
+    const fyResult = resolveRowFiscalYear(row.fy, options.defaultFiscalYear);
+
+    // Phase A.4: Invalid FY must create an omission, not substitute.
+    if (fyResult.kind === 'invalid') {
+      const invalidFyFact = buildSourceFact({
+        sourcePath: `${rowPath}.fy`,
+        category: 'metadata',
+        requiredForCompleteness: true,
+        rawValue: { fy: fyResult.raw, reason: 'invalid_fiscal_year' },
+        evidenceIds: [rowEvidence.evidenceId],
+      });
+      builder.addSourceFact(invalidFyFact);
+      builder.addOmission(
+        buildOmission({
+          sourceFactId: invalidFyFact.factId,
+          reason: 'invalid_number',
+          severity: 'blocking',
+          message: `row fiscal year "${fyResult.raw}" is not a valid year (1900-2200)`,
+        }),
+      );
+      // Skip money assertions for invalid FY — do not create assertions with a substituted year.
+      return;
+    }
+
+    // Phase A.4: Missing FY uses manifest FY with a review warning.
+    if (fyResult.kind === 'missing') {
+      builder.addWarning(
+        buildWarning({
+          code: 'missing_fiscal_year_defaulted',
+          severity: 'review',
+          message: `row at ${rowPath} has no fiscal year; using manifest fiscal year ${fyResult.fy}`,
+          discriminator: `${rowPath}.fy`,
+        }),
+      );
+    }
+
+    const rowFy = fyResult.fy;
 
     /* ---------------- request money fact ---------------- */
     if (row.request != null) {
@@ -348,14 +384,27 @@ export function adaptCommitteeArtifactToArtifactV1(
 /* internals                                                           */
 /* ------------------------------------------------------------------ */
 
+type FiscalYearResult =
+  | { kind: 'valid'; fy: number }
+  | { kind: 'missing'; fy: number }
+  | { kind: 'invalid'; raw: string | number };
+
+/**
+ * Phase A.4: Resolve row fiscal year.
+ * - Missing FY may use the manifest FY with a review warning.
+ * - A supplied but invalid FY must create an omission.
+ * - Do not create assertions using a substituted year.
+ */
 function resolveRowFiscalYear(
   rowFy: number | string | null | undefined,
   defaultFiscalYear: number,
-): number {
-  if (rowFy == null || rowFy === '') return defaultFiscalYear;
+): FiscalYearResult {
+  if (rowFy == null || rowFy === '') return { kind: 'missing', fy: defaultFiscalYear };
   const parsed = typeof rowFy === 'number' ? rowFy : Number(rowFy);
-  if (!Number.isInteger(parsed) || parsed < 1900 || parsed > 2200) return defaultFiscalYear;
-  return parsed;
+  if (!Number.isInteger(parsed) || parsed < 1900 || parsed > 2200) {
+    return { kind: 'invalid', raw: rowFy };
+  }
+  return { kind: 'valid', fy: parsed };
 }
 
 function emitMoneyAssertionOrOmission(

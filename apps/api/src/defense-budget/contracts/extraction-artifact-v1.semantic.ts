@@ -314,7 +314,17 @@ export function computeArtifactContentSha256(artifact: DefenseBudgetExtractionAr
   return sha256CanonicalJson(payload as unknown as JsonValue);
 }
 
-/** Recompute the summary from artifact contents. */
+/**
+ * Recompute the summary from artifact contents.
+ *
+ * An artifact is `incomplete` when it contains:
+ *   - An uncovered required fact
+ *   - A blocking warning
+ *   - An UNKNOWN identity assertion
+ *
+ * `complete_with_omissions` is retained for explicit nonblocking omissions.
+ * `complete` only when no blocking condition or omission exists.
+ */
 export function computeArtifactSummary(
   artifact: Pick<
     DefenseBudgetExtractionArtifactV1,
@@ -342,8 +352,17 @@ export function computeArtifactSummary(
     countsByOmissionReason[omission.reason] = (countsByOmissionReason[omission.reason] ?? 0) + 1;
   }
 
+  // Check for blocking conditions beyond uncovered required facts:
+  // - A blocking warning
+  const hasBlockingWarning = artifact.warnings.some((w) => w.severity === 'blocking');
+  // - An UNKNOWN identity assertion (funding/narrative/etc may carry UNKNOWN lineKind)
+  const hasUnknownIdentity = artifact.assertions.some((assertion) => {
+    if (!('identity' in assertion)) return false;
+    return assertion.identity.lineKind === 'UNKNOWN';
+  });
+
   const completenessStatus =
-    uncovered > 0
+    uncovered > 0 || hasBlockingWarning || hasUnknownIdentity
       ? 'incomplete'
       : artifact.omissions.length > 0
         ? 'complete_with_omissions'

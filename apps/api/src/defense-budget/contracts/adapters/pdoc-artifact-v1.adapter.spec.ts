@@ -196,14 +196,16 @@ describe('adaptPdocArtifactToArtifactV1', () => {
     expect(child.metadata?.['dollarsUnitSource']).toBe('row');
   });
 
-  it('warns and defaults when an fyData row carries an invalid fy', () => {
+  it('creates a blocking omission when an fyData row carries an invalid fy', () => {
     const input = pdocInput();
     input.pes[0]!.fyData = [
       { fy: 'not-a-year', quantity: 1, requestDollarsThousands: 100, unitCostDollars: 100 },
     ];
     const artifact = adaptPdocArtifactToArtifactV1(input, pdocContext(), BASE_OPTIONS);
-    expect(artifact.warnings.some((w) => w.code === 'legacy_pdoc_fydata_missing_fy')).toBe(true);
-    expect(funding(artifact.assertions)[0]!.fiscalYear).toBe(2099);
+    // Phase A.4: Invalid FY must create a blocking omission, not substitute.
+    expect(artifact.omissions.some((o) => o.reason === 'invalid_number')).toBe(true);
+    // No funding assertion should be created with a substituted year.
+    expect(funding(artifact.assertions).length).toBe(0);
   });
 
   it('creates an invalid_number omission for malformed fyData money', () => {

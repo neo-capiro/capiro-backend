@@ -20,6 +20,7 @@ import {
 } from './extraction-artifact-v1.semantic.js';
 import {
   DEFENSE_BUDGET_EXTRACTION_SCHEMA_VERSION,
+  defenseBudgetExtractionArtifactV1Schema,
   type DefenseBudgetAssertionV1,
   type DefenseBudgetExtractionArtifactV1,
   type ExtractionOmissionV1,
@@ -103,7 +104,8 @@ export class ArtifactBuilderV1 {
 
   /**
    * Finalize: reject duplicates, canonicalize ordering, compute summary + hash,
-   * and run semantic validation. Throws on duplicate IDs or semantic errors.
+   * parse through strict Zod schema, run semantic validation, and return the
+   * parsed artifact. Throws on duplicate IDs, schema errors, or semantic errors.
    */
   finalize(): DefenseBudgetExtractionArtifactV1 {
     rejectDuplicates(
@@ -158,15 +160,20 @@ export class ArtifactBuilderV1 {
       source: this.source,
       ...ordered,
       summary,
-    } satisfies DefenseBudgetExtractionArtifactV1;
+    };
 
     const contentSha256 = computeArtifactContentSha256(unsigned);
-    const artifact: DefenseBudgetExtractionArtifactV1 = {
+    const preParse: Record<string, unknown> = {
       ...unsigned,
       artifactId: `dbx1_${contentSha256}`,
       contentSha256,
     };
 
+    // Parse through strict Zod schema to reject invalid titles, project codes,
+    // performer names, fiscal years, and unknown fields.
+    const artifact = defenseBudgetExtractionArtifactV1Schema.parse(preParse);
+
+    // Run semantic validation on the parsed artifact.
     const findings = validateDefenseBudgetExtractionArtifactV1(artifact);
     const errors = findings.filter((finding) => finding.severity === 'error');
     if (errors.length > 0) {

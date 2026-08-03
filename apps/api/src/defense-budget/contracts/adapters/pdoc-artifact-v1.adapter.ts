@@ -208,7 +208,36 @@ export function adaptPdocArtifactToArtifactV1(
     /* ---------------- parent fyData rows ---------------- */
     (pe.fyData ?? []).forEach((row, fyIndex) => {
       const fyPath = `${pePath}.fyData[${fyIndex}]`;
-      const rowFy = resolvePdocFiscalYear(row.fy, options.defaultFiscalYear);
+      const fyResult = resolvePdocFiscalYear(row.fy, options.defaultFiscalYear);
+
+      // Phase A.4: Invalid FY must create an omission, not substitute.
+      if (fyResult.kind === 'invalid') {
+        const invalidFyEvidence = buildTruthfulEvidence(context, {
+          parserRunId: parserRun.parserRunId,
+          ...(row.page != null ? { page: row.page } : pe.page != null ? { page: pe.page } : {}),
+          discriminator: `${fyPath}.fy`,
+        });
+        builder.addEvidence(invalidFyEvidence);
+        const invalidFyFact = buildSourceFact({
+          sourcePath: `${fyPath}.fy`,
+          category: 'metadata',
+          requiredForCompleteness: true,
+          rawValue: { fy: fyResult.raw, reason: 'invalid_fiscal_year' },
+          evidenceIds: [invalidFyEvidence.evidenceId],
+        });
+        builder.addSourceFact(invalidFyFact);
+        builder.addOmission(
+          buildOmission({
+            sourceFactId: invalidFyFact.factId,
+            reason: 'invalid_number',
+            severity: 'blocking',
+            message: `fyData row fiscal year "${fyResult.raw}" is not a valid year (1900-2200)`,
+          }),
+        );
+        return; // Skip money assertions — do not create assertions with a substituted year.
+      }
+
+      const rowFy = fyResult.fy;
       const rowEvidence = buildTruthfulEvidence(context, {
         parserRunId: parserRun.parserRunId,
         ...(row.page != null ? { page: row.page } : pe.page != null ? { page: pe.page } : {}),
@@ -216,7 +245,8 @@ export function adaptPdocArtifactToArtifactV1(
       });
       builder.addEvidence(rowEvidence);
 
-      if (row.fy == null || !isValidFiscalYearValue(row.fy)) {
+      // Phase A.4: Missing FY uses manifest FY with a review warning.
+      if (fyResult.kind === 'missing') {
         builder.addWarning(
           buildWarning({
             code: 'legacy_pdoc_fydata_missing_fy',
@@ -373,7 +403,40 @@ export function adaptPdocArtifactToArtifactV1(
     /* ---------------- child line items ---------------- */
     (pe.lineItems ?? []).forEach((lineItem, lineIndex) => {
       const linePath = `${pePath}.lineItems[${lineIndex}]`;
-      const lineFy = resolvePdocFiscalYear(lineItem.fy, options.defaultFiscalYear);
+      const lineFyResult = resolvePdocFiscalYear(lineItem.fy, options.defaultFiscalYear);
+
+      // Phase A.4: Invalid FY must create an omission, not substitute.
+      if (lineFyResult.kind === 'invalid') {
+        const invalidFyEvidence = buildTruthfulEvidence(context, {
+          parserRunId: parserRun.parserRunId,
+          ...(lineItem.page != null
+            ? { page: lineItem.page }
+            : pe.page != null
+              ? { page: pe.page }
+              : {}),
+          discriminator: `${linePath}.fy`,
+        });
+        builder.addEvidence(invalidFyEvidence);
+        const invalidFyFact = buildSourceFact({
+          sourcePath: `${linePath}.fy`,
+          category: 'metadata',
+          requiredForCompleteness: true,
+          rawValue: { fy: lineFyResult.raw, reason: 'invalid_fiscal_year' },
+          evidenceIds: [invalidFyEvidence.evidenceId],
+        });
+        builder.addSourceFact(invalidFyFact);
+        builder.addOmission(
+          buildOmission({
+            sourceFactId: invalidFyFact.factId,
+            reason: 'invalid_number',
+            severity: 'blocking',
+            message: `line item fiscal year "${lineFyResult.raw}" is not a valid year (1900-2200)`,
+          }),
+        );
+        return; // Skip money assertions — do not create assertions with a substituted year.
+      }
+
+      const lineFy = lineFyResult.fy;
       const lineEvidence = buildTruthfulEvidence(context, {
         parserRunId: parserRun.parserRunId,
         ...(lineItem.page != null
@@ -618,17 +681,28 @@ function isValidFiscalYearValue(value: number | string): boolean {
   return Number.isInteger(parsed) && parsed >= 1900 && parsed <= 2200;
 }
 
+type PdocFiscalYearResult =
+  | { kind: 'valid'; fy: number }
+  | { kind: 'missing'; fy: number }
+  | { kind: 'invalid'; raw: string | number };
+
+/**
+ * Phase A.4: Resolve P-doc row fiscal year.
+ * - Missing FY may use the manifest FY with a review warning.
+ * - A supplied but invalid FY must create an omission.
+ * - Do not create assertions using a substituted year.
+ */
 function resolvePdocFiscalYear(
   rowFy: number | string | null | undefined,
   defaultFiscalYear: number,
-): number {
-  if (rowFy == null || rowFy === '') return defaultFiscalYear;
+): PdocFiscalYearResult {
+  if (rowFy == null || rowFy === '') return { kind: 'missing', fy: defaultFiscalYear };
   if (typeof rowFy === 'number' || typeof rowFy === 'string') {
     if (isValidFiscalYearValue(rowFy)) {
-      return typeof rowFy === 'number' ? rowFy : Number(rowFy);
+      return { kind: 'valid', fy: typeof rowFy === 'number' ? rowFy : Number(rowFy) };
     }
   }
-  return defaultFiscalYear;
+  return { kind: 'invalid', raw: rowFy };
 }
 
 function tryParseDecimal(value: string | number): string | null {
