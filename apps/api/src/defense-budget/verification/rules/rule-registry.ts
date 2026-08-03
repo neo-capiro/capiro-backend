@@ -33,9 +33,7 @@ export function getAllRules(): readonly VerificationRuleV1[] {
 
 /** Get rules by codes, preserving order. Unknown codes are skipped. */
 export function getRulesByCodes(codes: readonly string[]): readonly VerificationRuleV1[] {
-  return codes
-    .map((c) => REGISTRY.get(c))
-    .filter((r): r is VerificationRuleV1 => r !== undefined);
+  return codes.map((c) => REGISTRY.get(c)).filter((r): r is VerificationRuleV1 => r !== undefined);
 }
 
 /** Clear the registry (for testing). */

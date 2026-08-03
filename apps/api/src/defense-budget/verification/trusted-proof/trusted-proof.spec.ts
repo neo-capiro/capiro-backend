@@ -22,7 +22,10 @@ import { SourceDocumentProofResolver } from './source-document-proof-resolver.js
 import { ArchiveProofResolver, type S3ObjectReader } from './archive-proof-resolver.js';
 import { ParserRunProofResolver } from './parser-run-proof-resolver.js';
 import type { DefenseBudgetExtractionArtifactV1 } from '../../contracts/extraction-artifact-v1.js';
-import type { SourceDocumentClient, SourceDocumentRow } from '../../../program-element/source-document/source-document-registry.js';
+import type {
+  SourceDocumentClient,
+  SourceDocumentRow,
+} from '../../../program-element/source-document/source-document-registry.js';
 
 const VALID_SHA = 'a'.repeat(64);
 const DIFFERENT_SHA = 'b'.repeat(64);
@@ -67,7 +70,9 @@ describe('SourceDocumentProofResolver', () => {
   function makeFakeClient(row: SourceDocumentRow | null): SourceDocumentClient {
     return {
       sourceDocument: {
-        findFirst: jest.fn(async () => row) as unknown as SourceDocumentClient['sourceDocument']['findFirst'],
+        findFirst: jest.fn(
+          async () => row,
+        ) as unknown as SourceDocumentClient['sourceDocument']['findFirst'],
         create: jest.fn() as unknown as SourceDocumentClient['sourceDocument']['create'],
         update: jest.fn() as unknown as SourceDocumentClient['sourceDocument']['update'],
       },
@@ -325,5 +330,25 @@ describe('ParserRunProofResolver — manual parser', () => {
     });
     expect(result.parserRuns[0]!.proofStatus).toBe('verified');
     expect(result.manualReviewTriggered).toBe(false);
+  });
+});
+
+describe('R1 — sha256Bytes binary hashing tests', () => {
+  it('PDF with non-ASCII bytes hashes correctly (not via string conversion)', () => {
+    const { sha256Bytes, sha256Hex } = require('../../contracts/canonical-json.js');
+    const pdfBytes = Buffer.from([
+      0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34, 0x0a, 0xff, 0xfe, 0x00,
+    ]);
+    const hash = sha256Bytes(pdfBytes);
+    expect(hash).toMatch(/^[a-f0-9]{64}$/);
+    // The hash must NOT equal the hash of the binary string representation
+    expect(hash).not.toBe(sha256Hex(pdfBytes.toString('binary')));
+  });
+
+  it('one-byte PDF mutation changes the SHA', () => {
+    const { sha256Bytes } = require('../../contracts/canonical-json.js');
+    const original = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34]);
+    const mutated = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x35]);
+    expect(sha256Bytes(original)).not.toBe(sha256Bytes(mutated));
   });
 });

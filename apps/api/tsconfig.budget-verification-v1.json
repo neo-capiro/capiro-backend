@@ -3,12 +3,10 @@
     "declarationMap": false,
     "noEmit": true,
     "noUncheckedIndexedAccess": true,
-    "strict": true
+    "strict": true,
+    "rootDir": "."
   },
-  "exclude": [
-    "node_modules",
-    "dist"
-  ],
+  "exclude": ["node_modules", "dist"],
   "extends": "./tsconfig.json",
   "include": [
     "src/defense-budget/verification/verification-contract-v1.ts",
@@ -67,6 +65,9 @@
     "src/defense-budget/verification/services/budget-verification-v1.service.ts",
     "src/defense-budget/verification/services/budget-review-v1.service.ts",
     "src/defense-budget/verification/services/index.ts",
+    "scripts/verify-defense-budget-extraction-v1.ts",
+    "scripts/review-defense-budget-verification-v1.ts",
+    "scripts/report-defense-budget-verification-cycle-v1.ts",
     "src/defense-budget/verification/index.ts"
   ]
 }

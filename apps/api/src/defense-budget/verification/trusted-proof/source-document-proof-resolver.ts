@@ -12,10 +12,7 @@ import type {
   SourceDocumentRow,
   SourceDocumentClient,
 } from '../../../program-element/source-document/source-document-registry.js';
-import type {
-  TrustedSourceDocumentProofV1,
-  ProofFindingV1,
-} from './trusted-proof-types.js';
+import type { TrustedSourceDocumentProofV1, ProofFindingV1 } from './trusted-proof-types.js';
 import { blockingFinding } from './trusted-proof-types.js';
 
 export interface SourceDocumentProofResolverInput {
@@ -115,7 +112,9 @@ export class SourceDocumentProofResolver {
       documentType: (row.documentType as string | undefined) ?? undefined,
       extractionMethod: (row.extractionMethod as string | undefined) ?? undefined,
       extractionToolVersion: (row.extractionToolVersion as string | undefined) ?? undefined,
-      metadata: (row.metadata as Record<string, unknown> | undefined) as Record<string, import('../../contracts/canonical-json.js').JsonValue> | undefined,
+      metadata: row.metadata as Record<string, unknown> | undefined as
+        | Record<string, import('../../contracts/canonical-json.js').JsonValue>
+        | undefined,
     };
 
     return { sourceDocument, findings, row };

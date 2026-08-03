@@ -13,10 +13,8 @@
  * string alone. For reviewed legacy artifacts whose source PDF is not
  * archived, returns `missing` and allows policy to determine REVIEW vs REJECT.
  */
-import type {
-  TrustedArchiveProofV1,
-  ProofFindingV1,
-} from './trusted-proof-types.js';
+import { sha256Bytes } from '../../contracts/canonical-json.js';
+import type { TrustedArchiveProofV1, ProofFindingV1 } from './trusted-proof-types.js';
 import { blockingFinding, reviewFinding } from './trusted-proof-types.js';
 
 export interface ArchiveProofResolverInput {
@@ -55,9 +53,7 @@ export interface ArchiveProofResolverResult {
  * Unit tests use a fake `S3ObjectReader`; production uses real S3.
  */
 export class ArchiveProofResolver {
-  constructor(
-    private readonly s3Reader: S3ObjectReader,
-  ) {}
+  constructor(private readonly s3Reader: S3ObjectReader) {}
 
   async resolve(input: ArchiveProofResolverInput): Promise<ArchiveProofResolverResult> {
     const findings: ProofFindingV1[] = [];
@@ -117,15 +113,14 @@ export class ArchiveProofResolver {
     if (metadata.sha256Checksum) {
       objectSha256 = metadata.sha256Checksum;
     } else {
-      // Read bytes and hash — this is the "exact object bytes" path
+      // Read bytes and hash — R1: use sha256Bytes for raw object bytes
       const bytes = await this.s3Reader.getObjectBytes(
         input.archiveBucket,
         input.archiveS3Key,
         input.archiveVersionId,
       );
       if (bytes) {
-        const { createHash } = await import('node:crypto');
-        objectSha256 = createHash('sha256').update(bytes).digest('hex');
+        objectSha256 = sha256Bytes(bytes);
       }
     }
 

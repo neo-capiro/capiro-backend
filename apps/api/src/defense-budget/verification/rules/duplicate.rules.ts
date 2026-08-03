@@ -19,7 +19,9 @@ import type { VerificationRuleV1, RuleResultV1 } from './rule-types.js';
 import { passCheck, failCheck, notRunCheck, makeDiscrepancy } from './rule-types.js';
 import type { DefenseBudgetAssertionV1 } from '../../contracts/extraction-artifact-v1.js';
 
-function fundingNaturalKey(a: Extract<DefenseBudgetAssertionV1, { assertionKind: 'funding' }>): string {
+function fundingNaturalKey(
+  a: Extract<DefenseBudgetAssertionV1, { assertionKind: 'funding' }>,
+): string {
   return JSON.stringify({
     identity: a.identity,
     fiscalYear: a.fiscalYear,

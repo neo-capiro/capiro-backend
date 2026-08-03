@@ -11,7 +11,10 @@
  * The provider returns zero, one, or multiple matches.
  * Multiple matches are never silently reduced to one.
  */
-import type { DefenseBudgetExtractionArtifactV1, DefenseBudgetAssertionV1 } from '../../../contracts/extraction-artifact-v1.js';
+import type {
+  DefenseBudgetExtractionArtifactV1,
+  DefenseBudgetAssertionV1,
+} from '../../../contracts/extraction-artifact-v1.js';
 import type {
   ReferenceArtifactEntryV1,
   ReferenceIndexKeyV1,

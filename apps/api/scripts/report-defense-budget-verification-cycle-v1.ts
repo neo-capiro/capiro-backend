@@ -50,7 +50,14 @@ const EXIT_ERROR = 1;
 interface DocumentStatusEntry {
   documentKey: string;
   required: boolean;
-  status: 'not_present' | 'not_verified' | 'verification_passed' | 'needs_review' | 'review_accepted' | 'rejected' | 'superseded';
+  status:
+    | 'not_present'
+    | 'not_verified'
+    | 'verification_passed'
+    | 'needs_review'
+    | 'review_accepted'
+    | 'rejected'
+    | 'superseded';
   sourceSha256: string | null;
   extractionArtifactSha256: string | null;
   blockingDiscrepancyCount: number;
@@ -100,7 +107,9 @@ function parseArgs(argv: string[]): string {
     i++;
   }
   if (!manifest) {
-    console.error('Usage: report-defense-budget-verification-cycle-v1 --manifest <cycle-manifest.json>');
+    console.error(
+      'Usage: report-defense-budget-verification-cycle-v1 --manifest <cycle-manifest.json>',
+    );
     process.exit(EXIT_ERROR);
   }
   return manifest;
@@ -136,15 +145,17 @@ function generateReport(manifestPath: string): CycleReport {
     process.exit(EXIT_ERROR);
   }
 
-  const documents: DocumentStatusEntry[] = manifest.documents.map((doc: BudgetCycleManifestDocumentV1) => ({
-    documentKey: doc.documentKey,
-    required: doc.required ?? true,
-    status: 'not_verified' as const,
-    sourceSha256: null,
-    extractionArtifactSha256: null,
-    blockingDiscrepancyCount: 0,
-    unresolvedRequiredComparisons: 0,
-  }));
+  const documents: DocumentStatusEntry[] = manifest.documents.map(
+    (doc: BudgetCycleManifestDocumentV1) => ({
+      documentKey: doc.documentKey,
+      required: doc.required ?? true,
+      status: 'not_verified' as const,
+      sourceSha256: null,
+      extractionArtifactSha256: null,
+      blockingDiscrepancyCount: 0,
+      unresolvedRequiredComparisons: 0,
+    }),
+  );
 
   const requiredDocs = documents.filter((d) => d.required);
   const optionalDocs = documents.filter((d) => !d.required);

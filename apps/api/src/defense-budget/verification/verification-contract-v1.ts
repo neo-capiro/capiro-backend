@@ -36,8 +36,7 @@ import {
 /* A1. Version constants                                               */
 /* ------------------------------------------------------------------ */
 
-export const DEFENSE_BUDGET_VERIFIER_VERSION =
-  'defense_budget_verifier_v1' as const;
+export const DEFENSE_BUDGET_VERIFIER_VERSION = 'defense_budget_verifier_v1' as const;
 
 export const DEFENSE_BUDGET_VERIFICATION_POLICY_VERSION =
   'defense_budget_verification_policy_v1' as const;
@@ -56,12 +55,8 @@ export const VERIFICATION_CANDIDATE_STATUS_V1_VALUES = [
   'REJECTED',
   'SUPERSEDED',
 ] as const;
-export const verificationCandidateStatusV1Schema = z.enum(
-  VERIFICATION_CANDIDATE_STATUS_V1_VALUES,
-);
-export type VerificationCandidateStatusV1 = z.infer<
-  typeof verificationCandidateStatusV1Schema
->;
+export const verificationCandidateStatusV1Schema = z.enum(VERIFICATION_CANDIDATE_STATUS_V1_VALUES);
+export type VerificationCandidateStatusV1 = z.infer<typeof verificationCandidateStatusV1Schema>;
 
 /**
  * `STRUCTURALLY_VALIDATED` may exist as an intermediate/input state from
@@ -166,9 +161,7 @@ export const verificationDiscrepancyV1Schema = z
     details: z.record(jsonValueSchema).optional(),
   })
   .strict();
-export type VerificationDiscrepancyV1 = z.infer<
-  typeof verificationDiscrepancyV1Schema
->;
+export type VerificationDiscrepancyV1 = z.infer<typeof verificationDiscrepancyV1Schema>;
 
 /* ------------------------------------------------------------------ */
 /* A8. Verification result                                              */
@@ -212,14 +205,10 @@ export const defenseBudgetVerificationResultV1Schema = z
     message: 'completedAt must be >= startedAt',
     path: ['completedAt'],
   })
-  .refine(
-    (result) =>
-      result.decision !== 'REJECT' || result.acceptedAssertionIds.length === 0,
-    {
-      message: 'a rejected result must have an empty acceptedAssertionIds list',
-      path: ['acceptedAssertionIds'],
-    }
-  );
+  .refine((result) => result.decision !== 'REJECT' || result.acceptedAssertionIds.length === 0, {
+    message: 'a rejected result must have an empty acceptedAssertionIds list',
+    path: ['acceptedAssertionIds'],
+  });
 export type DefenseBudgetVerificationResultV1 = z.infer<
   typeof defenseBudgetVerificationResultV1Schema
 >;

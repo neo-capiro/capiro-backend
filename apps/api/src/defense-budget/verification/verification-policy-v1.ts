@@ -29,14 +29,10 @@ import {
   budgetLineKindV1Schema,
   type RequiredDataCategoryV1,
 } from '../contracts/budget-cycle-manifest-v1.js';
-import {
-  canonicalJsonStringify,
-} from '../contracts/canonical-json.js';
+import { canonicalJsonStringify } from '../contracts/canonical-json.js';
 import { isCanonicalDecimalString } from '../contracts/decimal-string.js';
 import { createHash } from 'node:crypto';
-import {
-  DEFENSE_BUDGET_VERIFICATION_POLICY_VERSION,
-} from './verification-contract-v1.js';
+import { DEFENSE_BUDGET_VERIFICATION_POLICY_VERSION } from './verification-contract-v1.js';
 
 /* ------------------------------------------------------------------ */
 /* D1. Policy structure                                                */
@@ -79,7 +75,8 @@ export const verificationPolicyV1Schema = z
       p.riskThresholds.automaticPassMax <= p.riskThresholds.targetedReextractionMax &&
       p.riskThresholds.targetedReextractionMax <= p.riskThresholds.paidVerifierMax,
     {
-      message: 'risk thresholds must be ordered: automaticPassMax <= targetedReextractionMax <= paidVerifierMax',
+      message:
+        'risk thresholds must be ordered: automaticPassMax <= targetedReextractionMax <= paidVerifierMax',
       path: ['riskThresholds'],
     },
   );
@@ -99,7 +96,9 @@ export type VerificationPolicyV1 = z.infer<typeof verificationPolicyV1Schema>;
  * `policySha256`. Every run persists the exact policy SHA.
  */
 export function computePolicySha256(policy: VerificationPolicyV1): string {
-  const canonicalJson = canonicalJsonStringify(policy as unknown as import('../contracts/canonical-json.js').JsonValue);
+  const canonicalJson = canonicalJsonStringify(
+    policy as unknown as import('../contracts/canonical-json.js').JsonValue,
+  );
   return createHash('sha256').update(canonicalJson, 'utf8').digest('hex');
 }
 
@@ -214,9 +213,7 @@ export function checkManifestDoesNotWeakenPolicy(
 /* Re-exported types                                                    */
 /* ------------------------------------------------------------------ */
 
-export {
-  DEFENSE_BUDGET_VERIFICATION_POLICY_VERSION,
-} from './verification-contract-v1.js';
+export { DEFENSE_BUDGET_VERIFICATION_POLICY_VERSION } from './verification-contract-v1.js';
 export type {
   BudgetFamilyV1,
   ExhibitV1,
@@ -224,6 +221,4 @@ export type {
   FundingFieldV1,
   BudgetLineKindV1,
 } from '../contracts/extraction-artifact-v1.js';
-export type {
-  RequiredDataCategoryV1,
-} from '../contracts/budget-cycle-manifest-v1.js';
+export type { RequiredDataCategoryV1 } from '../contracts/budget-cycle-manifest-v1.js';

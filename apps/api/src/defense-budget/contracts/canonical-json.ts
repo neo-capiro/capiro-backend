@@ -29,6 +29,18 @@ export function sha256Hex(input: string): string {
   return createHash('sha256').update(input, 'utf8').digest('hex');
 }
 
+/**
+ * SHA-256 (lowercase hex) of raw bytes. Use this for PDFs, JSON file bytes,
+ * parser outputs, and S3 objects — any binary data where the hash must cover
+ * the original bytes, not an encoded string representation.
+ *
+ * Do NOT use sha256Hex for binary data: sha256Hex hashes the UTF-8 encoding
+ * of its string argument, which is NOT the same as hashing raw bytes.
+ */
+export function sha256Bytes(input: Buffer | Uint8Array): string {
+  return createHash('sha256').update(input).digest('hex');
+}
+
 function serialize(value: JsonValue, seen: Set<object>): string {
   if (value === null) return 'null';
   switch (typeof value) {

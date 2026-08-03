@@ -15,10 +15,7 @@
  */
 import type { VerificationRuleV1, RuleResultV1 } from './rule-types.js';
 import { passCheck, failCheck, notRunCheck, makeDiscrepancy } from './rule-types.js';
-import {
-  isCanonicalDecimalString,
-  moneyToMillionsString,
-} from '../../contracts/decimal-string.js';
+import { isCanonicalDecimalString, moneyToMillionsString } from '../../contracts/decimal-string.js';
 
 export const NUMERIC_RULE: VerificationRuleV1 = {
   code: 'numeric_validation',

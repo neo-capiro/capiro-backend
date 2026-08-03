@@ -22,7 +22,10 @@
  *     warnings→review, informational warnings add no risk unless policy says,
  *     no parser warning may disappear from the verification result.
  */
-import type { DefenseBudgetAssertionV1, SourceEvidenceV1 } from '../../contracts/extraction-artifact-v1.js';
+import type {
+  DefenseBudgetAssertionV1,
+  SourceEvidenceV1,
+} from '../../contracts/extraction-artifact-v1.js';
 import type { VerificationRuleV1, RuleResultV1 } from './rule-types.js';
 import { passCheck, failCheck, notRunCheck, makeDiscrepancy } from './rule-types.js';
 
@@ -247,8 +250,7 @@ export const MONEY_EVIDENCE_RULE: VerificationRuleV1 = {
 
     for (const assertion of artifact.assertions) {
       const isMoneyAssertion =
-        assertion.assertionKind === 'funding' ||
-        assertion.assertionKind === 'project_funding';
+        assertion.assertionKind === 'funding' || assertion.assertionKind === 'project_funding';
 
       if (!isMoneyAssertion) continue;
 
@@ -290,10 +292,7 @@ export const MONEY_EVIDENCE_RULE: VerificationRuleV1 = {
           const box = evidence.boundingBox;
           if (box.pageWidth && box.pageHeight) {
             const coversFullPage =
-              box.x0 <= 0 &&
-              box.y0 <= 0 &&
-              box.x1 >= box.pageWidth &&
-              box.y1 >= box.pageHeight;
+              box.x0 <= 0 && box.y0 <= 0 && box.x1 >= box.pageWidth && box.y1 >= box.pageHeight;
             if (coversFullPage) {
               discrepancies.push(
                 makeDiscrepancy(

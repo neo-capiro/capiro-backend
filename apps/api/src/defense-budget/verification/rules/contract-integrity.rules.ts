@@ -117,7 +117,8 @@ export const CONTRACT_INTEGRITY_RULE: VerificationRuleV1 = {
 
     // Recompute summary
     const recomputedSummary = computeArtifactSummary(input.artifact);
-    const summaryMismatch = JSON.stringify(recomputedSummary) !== JSON.stringify(input.artifact.summary);
+    const summaryMismatch =
+      JSON.stringify(recomputedSummary) !== JSON.stringify(input.artifact.summary);
     if (summaryMismatch) {
       return {
         check: failCheck(

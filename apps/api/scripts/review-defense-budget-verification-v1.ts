@@ -11,6 +11,8 @@
  *     --expected-source-sha256 <sha> \
  *     --expected-artifact-sha256 <sha> \
  *     --expected-manifest-sha256 <sha> \
+ *     [--extractor-actor-id <id>] \
+ *     [--extraction-method <method>] \
  *     [--commit]
  *
  * Behavior:
@@ -31,7 +33,10 @@ import {
   BudgetReviewV1Service,
   ReviewEligibilityError,
 } from '../src/defense-budget/verification/services/budget-review-v1.service.js';
-import type { ReviewInputV1, ReviewResultV1 } from '../src/defense-budget/verification/services/budget-review-v1.service.js';
+import type {
+  ReviewInputV1,
+  ReviewResultV1,
+} from '../src/defense-budget/verification/services/budget-review-v1.service.js';
 import type { BudgetVerificationRepositoryV1 } from '../src/defense-budget/verification/persistence/verification-repository.js';
 
 /* ------------------------------------------------------------------ */
@@ -79,7 +84,13 @@ class DryRunReviewRepo implements BudgetVerificationRepositoryV1 {
     expectedSourceSha256: string;
     expectedExtractionArtifactSha256: string;
     expectedManifestContentSha256: string;
-  }): Promise<{ id: string; candidateId: string; runId: string; decision: string; createdAt: string }> {
+  }): Promise<{
+    id: string;
+    candidateId: string;
+    runId: string;
+    decision: string;
+    createdAt: string;
+  }> {
     return {
       id: `dryrun_review_${Date.now()}`,
       candidateId: input.candidateId,
@@ -127,8 +138,25 @@ class DryRunReviewRepo implements BudgetVerificationRepositoryV1 {
       manifestContentSha256: this.expectedManifestSha256,
       extractionArtifactSha256: this.expectedArtifactSha256,
       sourceSha256: this.expectedSourceSha256,
+      resultSnapshot: null,
       createdAt: '2026-01-01T00:00:00Z',
     };
+  }
+
+  async readChecks(): Promise<[]> {
+    return [];
+  }
+
+  async readDiscrepancies(): Promise<[]> {
+    return [];
+  }
+
+  async readProofSnapshots(): Promise<[]> {
+    return [];
+  }
+
+  async readReviewDecisions(): Promise<[]> {
+    return [];
   }
 }
 
@@ -145,6 +173,8 @@ interface ReviewArgs {
   expectedSourceSha256: string;
   expectedArtifactSha256: string;
   expectedManifestSha256: string;
+  extractorActorId?: string;
+  extractionMethod?: string;
   commit: boolean;
 }
 
@@ -157,6 +187,8 @@ const KNOWN_FLAGS = new Set([
   '--expected-source-sha256',
   '--expected-artifact-sha256',
   '--expected-manifest-sha256',
+  '--extractor-actor-id',
+  '--extraction-method',
   '--commit',
 ]);
 
@@ -213,6 +245,12 @@ function parseArgs(argv: string[]): ReviewArgs {
       case '--expected-manifest-sha256':
         args.expectedManifestSha256 = argv[++i] ?? '';
         break;
+      case '--extractor-actor-id':
+        args.extractorActorId = argv[++i] ?? '';
+        break;
+      case '--extraction-method':
+        args.extractionMethod = argv[++i] ?? '';
+        break;
       case '--commit':
         args.commit = true;
         break;
@@ -221,13 +259,34 @@ function parseArgs(argv: string[]): ReviewArgs {
   }
 
   // Validate required args
-  if (!args.candidateId) { console.error('Missing --candidate-id'); process.exit(EXIT_ERROR); }
-  if (!args.runId) { console.error('Missing --run-id'); process.exit(EXIT_ERROR); }
-  if (!args.reviewerId) { console.error('Missing --reviewer-id'); process.exit(EXIT_ERROR); }
-  if (!args.notesFile) { console.error('Missing --notes-file'); process.exit(EXIT_ERROR); }
-  if (!args.expectedSourceSha256) { console.error('Missing --expected-source-sha256'); process.exit(EXIT_ERROR); }
-  if (!args.expectedArtifactSha256) { console.error('Missing --expected-artifact-sha256'); process.exit(EXIT_ERROR); }
-  if (!args.expectedManifestSha256) { console.error('Missing --expected-manifest-sha256'); process.exit(EXIT_ERROR); }
+  if (!args.candidateId) {
+    console.error('Missing --candidate-id');
+    process.exit(EXIT_ERROR);
+  }
+  if (!args.runId) {
+    console.error('Missing --run-id');
+    process.exit(EXIT_ERROR);
+  }
+  if (!args.reviewerId) {
+    console.error('Missing --reviewer-id');
+    process.exit(EXIT_ERROR);
+  }
+  if (!args.notesFile) {
+    console.error('Missing --notes-file');
+    process.exit(EXIT_ERROR);
+  }
+  if (!args.expectedSourceSha256) {
+    console.error('Missing --expected-source-sha256');
+    process.exit(EXIT_ERROR);
+  }
+  if (!args.expectedArtifactSha256) {
+    console.error('Missing --expected-artifact-sha256');
+    process.exit(EXIT_ERROR);
+  }
+  if (!args.expectedManifestSha256) {
+    console.error('Missing --expected-manifest-sha256');
+    process.exit(EXIT_ERROR);
+  }
 
   return args;
 }
@@ -257,6 +316,8 @@ async function main(): Promise<void> {
     expectedSourceSha256: args.expectedSourceSha256,
     expectedExtractionArtifactSha256: args.expectedArtifactSha256,
     expectedManifestContentSha256: args.expectedManifestSha256,
+    ...(args.extractorActorId ? { extractorActorId: args.extractorActorId } : {}),
+    ...(args.extractionMethod ? { extractionMethod: args.extractionMethod } : {}),
   };
 
   // In dry-run mode, use the fake repository
@@ -270,9 +331,8 @@ async function main(): Promise<void> {
     // This is only available when a database is configured.
     try {
       const { PrismaClient } = await import('@prisma/client');
-      const { createPrismaBudgetVerificationRepository } = await import(
-        '../src/defense-budget/verification/persistence/prisma-budget-verification.repository.js'
-      );
+      const { createPrismaBudgetVerificationRepository } =
+        await import('../src/defense-budget/verification/persistence/prisma-budget-verification.repository.js');
       const prisma = new PrismaClient();
       repository = createPrismaBudgetVerificationRepository(prisma);
     } catch (err) {
@@ -305,17 +365,19 @@ async function main(): Promise<void> {
     process.exit(EXIT_ERROR);
   }
 
-  // Print exact decision and hashes
+  // Print exact decision, hashes, prior status, and limitation findings
   const output = {
     reviewDecisionId: result.reviewDecisionId,
     candidateId: result.candidateId,
     runId: result.runId,
     decision: result.decision,
     finalStatus: result.finalStatus,
+    priorStatus: result.priorStatus,
     createdAt: result.createdAt,
     expectedSourceSha256: args.expectedSourceSha256,
     expectedExtractionArtifactSha256: args.expectedArtifactSha256,
     expectedManifestContentSha256: args.expectedManifestSha256,
+    limitationFindings: result.limitationFindings,
     committed: args.commit,
   };
   console.log(JSON.stringify(output, null, 2));

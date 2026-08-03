@@ -20,9 +20,5 @@ export type {
   TrustedProofResolutionV1,
   TrustedVerificationProofResolverV1,
 } from './trusted-proof-types.js';
-export {
-  blockingFinding,
-  reviewFinding,
-  PROOF_FINDING_V1_VALUES,
-} from './trusted-proof-types.js';
+export { blockingFinding, reviewFinding, PROOF_FINDING_V1_VALUES } from './trusted-proof-types.js';
 export type { TrustedVerificationProofResolverV1 as default } from './trusted-proof-types.js';

@@ -12,9 +12,7 @@ import type {
   FundingFieldV1,
   BudgetLineKindV1,
 } from '../contracts/extraction-artifact-v1.js';
-import type {
-  RequiredDataCategoryV1,
-} from '../contracts/budget-cycle-manifest-v1.js';
+import type { RequiredDataCategoryV1 } from '../contracts/budget-cycle-manifest-v1.js';
 import type { BudgetCycleManifestV1 } from '../contracts/budget-cycle-manifest-v1.js';
 import type { DefenseBudgetExtractionArtifactV1 } from '../contracts/extraction-artifact-v1.js';
 import type {
@@ -23,7 +21,10 @@ import type {
   VerificationRouteV1,
   VerificationDecisionV1,
 } from './verification-contract-v1.js';
-import type { TrustedVerificationProofBundleV1, ProofFindingV1 } from './trusted-proof/trusted-proof-types.js';
+import type {
+  TrustedVerificationProofBundleV1,
+  ProofFindingV1,
+} from './trusted-proof/trusted-proof-types.js';
 
 /* ------------------------------------------------------------------ */
 /* Resolved inputs to the verification engine                           */
