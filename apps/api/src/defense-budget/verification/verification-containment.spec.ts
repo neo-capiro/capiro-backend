@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const VERIFICATION_DIR = 'src/defense-budget/verification';
@@ -11,12 +11,23 @@ function stripComments(source: string): string {
 }
 
 function verificationSources(): Array<{ file: string; code: string }> {
-  return readdirSync(VERIFICATION_DIR)
-    .filter((name) => name.endsWith('.ts') && !name.endsWith('.spec.ts'))
-    .map((name) => ({
-      file: name,
-      code: stripComments(readFileSync(join(VERIFICATION_DIR, name), 'utf8')),
-    }));
+  const results: Array<{ file: string; code: string }> = [];
+  const walk = (dir: string, prefix: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        walk(full, rel);
+      } else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.spec.ts')) {
+        results.push({
+          file: rel,
+          code: stripComments(readFileSync(full, 'utf8')),
+        });
+      }
+    }
+  };
+  walk(VERIFICATION_DIR, '');
+  return results;
 }
 
 describe('verification scaffold containment', () => {
@@ -53,7 +64,14 @@ describe('verification scaffold containment', () => {
       /ProgramElementWriterService/,
       /program-element-writer\.service/,
       /programElementYear\.(create|update|upsert|updateMany|createMany)/,
-      /@prisma\/client/,
+      /programElement\.create/,
+      /programElement\.update/,
+      /upsertProgramElement/,
+      /upsertProgramElementYear/,
+      /promotionReady/,
+      /canonicalEligible/,
+      /CANONICAL/,
+      /PROMOTED/,
     ];
     for (const { file, code } of verificationSources()) {
       for (const pattern of banned) {
@@ -69,7 +87,42 @@ describe('verification scaffold containment', () => {
       const code = stripComments(readFileSync(join(SCRIPTS_DIR, name), 'utf8'));
       if (/defense-budget\/verification/.test(code)) offenders.push(name);
     }
-    expect(offenders).toEqual([]);
+    // Phase 2 V1 CLI scripts import from the verification directory — those are allowed.
+    // Filter out the approved V1 CLI scripts.
+    const approvedV1 = new Set([
+      'verify-defense-budget-extraction-v1.ts',
+      'review-defense-budget-verification-v1.ts',
+      'report-defense-budget-verification-cycle-v1.ts',
+    ]);
+    const real = offenders.filter((s) => !approvedV1.has(s));
+    expect(real).toEqual([]);
+  });
+
+  it('V1 CLI scripts import no canonical writers (O4)', () => {
+    const v1Scripts = [
+      'verify-defense-budget-extraction-v1.ts',
+      'review-defense-budget-verification-v1.ts',
+      'report-defense-budget-verification-cycle-v1.ts',
+    ];
+    const banned = [
+      /ProgramElementWriterService/,
+      /program-element-writer\.service/,
+      /programElementYear\.(create|update|upsert|updateMany|createMany)/,
+      /programElement\.create/,
+      /programElement\.update/,
+      /upsertProgramElement/,
+      /upsertProgramElementYear/,
+      /promotionReady/,
+      /canonicalEligible/,
+    ];
+    for (const name of v1Scripts) {
+      const fullPath = join(SCRIPTS_DIR, name);
+      if (!existsSync(fullPath)) continue;
+      const code = stripComments(readFileSync(fullPath, 'utf8'));
+      for (const pattern of banned) {
+        expect({ file: name, hit: pattern.test(code) }).toEqual({ file: name, hit: false });
+      }
+    }
   });
 
   it('exposes no verification or promotion command in the entrypoint dispatcher', () => {

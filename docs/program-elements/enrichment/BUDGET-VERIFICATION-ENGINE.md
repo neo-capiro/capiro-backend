@@ -1,7 +1,12 @@
 # Budget structural-validation scaffold
 
-> **This scaffold does not prove that extracted values match the official PDF and does
-> not authorize canonical Program Element writes.**
+> **This scaffold is superseded by the V1 trusted verification gate.**
+> See [BUDGET-VERIFICATION-GATE-V1.md](./BUDGET-VERIFICATION-GATE-V1.md) for the
+> trusted, audit-persisted verification gate that replaces this scaffold.
+>
+> The Phase 0 scaffold remains internal/deprecated and explicitly non-trusted.
+> It does not prove that extracted values match the official PDF and does
+> not authorize canonical Program Element writes.
 
 It is a Phase 0 containment of the original extract-only verification scaffold. Every
 public contract and persisted status is honest about what the code can currently prove.

@@ -65,6 +65,7 @@
     "src/defense-budget/verification/persistence/prisma-budget-verification.repository.ts",
     "src/defense-budget/verification/persistence/index.ts",
     "src/defense-budget/verification/services/budget-verification-v1.service.ts",
+    "src/defense-budget/verification/services/budget-review-v1.service.ts",
     "src/defense-budget/verification/services/index.ts",
     "src/defense-budget/verification/index.ts"
   ]
