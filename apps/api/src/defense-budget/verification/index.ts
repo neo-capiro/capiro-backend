@@ -221,4 +221,18 @@ export {
 
 // V1 verification services (Workstream L/M)
 export { BudgetVerificationV1Service } from './services/index.js';
-export { BudgetReviewV1Service } from './services/index.js';
+export {
+  BudgetReviewV1Service,
+  ReviewEligibilityError,
+  DEFAULT_REVIEW_POLICY_V1,
+  BLOCKING_REVIEW_CODES,
+  BLOCKING_CHECK_CODES,
+  hasNonWaivableBlockingFailure,
+  hasNonWaivableBlockingProofFinding,
+  hasNonWaivableBlockingDiscrepancy,
+} from './services/index.js';
+export type {
+  ReviewInputV1,
+  ReviewResultV1,
+  ReviewPolicyV1,
+} from './services/index.js';

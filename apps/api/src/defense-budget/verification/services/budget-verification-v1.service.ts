@@ -368,23 +368,5 @@ export class BudgetVerificationV1Service {
 }
 
 /* ------------------------------------------------------------------ */
-/* Review service (Workstream M — stub for L barrel)                    */
+/* Review service — moved to budget-review-v1.service.ts (Workstream M) */
 /* ------------------------------------------------------------------ */
-
-export class BudgetReviewV1Service {
-  constructor(private readonly repository: BudgetVerificationRepositoryV1) {}
-
-  async review(input: {
-    candidateId: string;
-    verificationRunId: string;
-    reviewerId: string;
-    decision: 'accept' | 'reject';
-    notes: string;
-    evidenceIds: string[];
-    expectedSourceSha256: string;
-    expectedExtractionArtifactSha256: string;
-    expectedManifestContentSha256: string;
-  }): Promise<{ id: string; decision: string; createdAt: string }> {
-    return this.repository.persistReviewDecision(input);
-  }
-}
