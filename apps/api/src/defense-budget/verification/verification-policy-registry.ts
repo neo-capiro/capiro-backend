@@ -13,7 +13,11 @@
  *   - return NEEDS_REVIEW or REJECTED according to manifest requirements
  *   - record an explicit `verification_policy_not_implemented` finding
  */
-import type { BudgetFamilyV1, ExhibitV1, FundingFieldV1 } from '../contracts/extraction-artifact-v1.js';
+import type {
+  BudgetFamilyV1,
+  ExhibitV1,
+  FundingFieldV1,
+} from '../contracts/extraction-artifact-v1.js';
 import type { RequiredDataCategoryV1 } from '../contracts/budget-cycle-manifest-v1.js';
 import type { VerificationPolicyV1 } from './verification-policy-v1.js';
 import { DEFENSE_BUDGET_VERIFICATION_POLICY_VERSION } from './verification-contract-v1.js';
@@ -38,10 +42,23 @@ const R1_POLICY: VerificationPolicyV1 = {
   policyVersion: DEFENSE_BUDGET_VERIFICATION_POLICY_VERSION,
   family: 'rdte',
   exhibit: 'R-1',
-  requiredDataCategories: ['identity', 'funding', 'narrative', 'projects', 'project_funding', 'performers'],
+  requiredDataCategories: [
+    'identity',
+    'funding',
+    'narrative',
+    'projects',
+    'project_funding',
+    'performers',
+  ],
   requiredFundingFields: ['request'],
   requiredLineKinds: ['RDTE_PE'],
-  allowedParserMethods: ['native_structured', 'deterministic_pdfplumber', 'camelot', 'docling', 'llamaparse'],
+  allowedParserMethods: [
+    'native_structured',
+    'deterministic_pdfplumber',
+    'camelot',
+    'docling',
+    'llamaparse',
+  ],
   minimumMoneyEvidenceGranularity: 'cell_bbox',
   pageOnlyMayPassWithIndependentReconciliation: true,
   requireImmutableArchive: true,
@@ -68,7 +85,13 @@ const R2_POLICY: VerificationPolicyV1 = {
   requiredDataCategories: ['identity', 'funding', 'narrative', 'projects'],
   requiredFundingFields: ['request'],
   requiredLineKinds: ['RDTE_PE'],
-  allowedParserMethods: ['native_structured', 'deterministic_pdfplumber', 'camelot', 'docling', 'llamaparse'],
+  allowedParserMethods: [
+    'native_structured',
+    'deterministic_pdfplumber',
+    'camelot',
+    'docling',
+    'llamaparse',
+  ],
   minimumMoneyEvidenceGranularity: 'cell_bbox',
   pageOnlyMayPassWithIndependentReconciliation: true,
   requireImmutableArchive: true,
@@ -95,7 +118,13 @@ const R2A_POLICY: VerificationPolicyV1 = {
   requiredDataCategories: ['identity', 'funding', 'projects', 'project_funding', 'performers'],
   requiredFundingFields: ['request'],
   requiredLineKinds: ['RDTE_PE'],
-  allowedParserMethods: ['native_structured', 'deterministic_pdfplumber', 'camelot', 'docling', 'llamaparse'],
+  allowedParserMethods: [
+    'native_structured',
+    'deterministic_pdfplumber',
+    'camelot',
+    'docling',
+    'llamaparse',
+  ],
   minimumMoneyEvidenceGranularity: 'cell_bbox',
   pageOnlyMayPassWithIndependentReconciliation: true,
   requireImmutableArchive: true,
@@ -122,7 +151,13 @@ const R3_POLICY: VerificationPolicyV1 = {
   requiredDataCategories: ['identity', 'performers'],
   requiredFundingFields: [],
   requiredLineKinds: ['RDTE_PE'],
-  allowedParserMethods: ['native_structured', 'deterministic_pdfplumber', 'camelot', 'docling', 'llamaparse'],
+  allowedParserMethods: [
+    'native_structured',
+    'deterministic_pdfplumber',
+    'camelot',
+    'docling',
+    'llamaparse',
+  ],
   minimumMoneyEvidenceGranularity: 'cell_bbox',
   pageOnlyMayPassWithIndependentReconciliation: true,
   requireImmutableArchive: true,
@@ -142,10 +177,7 @@ const R3_POLICY: VerificationPolicyV1 = {
 /* Committee report policies                                           */
 /* ------------------------------------------------------------------ */
 
-function committeePolicy(
-  authority: string,
-  fundingFields: FundingFieldV1[],
-): VerificationPolicyV1 {
+function committeePolicy(authority: string, fundingFields: FundingFieldV1[]): VerificationPolicyV1 {
   return {
     policyVersion: DEFENSE_BUDGET_VERIFICATION_POLICY_VERSION,
     family: 'committee',
@@ -153,7 +185,14 @@ function committeePolicy(
     requiredDataCategories: ['identity', 'funding', 'narrative'],
     requiredFundingFields: fundingFields,
     requiredLineKinds: ['RDTE_PE', 'PROCUREMENT_BLIN', 'OM_SAG'],
-    allowedParserMethods: ['native_structured', 'deterministic_pdfplumber', 'camelot', 'docling', 'paddleocr', 'llamaparse'],
+    allowedParserMethods: [
+      'native_structured',
+      'deterministic_pdfplumber',
+      'camelot',
+      'docling',
+      'paddleocr',
+      'llamaparse',
+    ],
     minimumMoneyEvidenceGranularity: 'cell_bbox',
     pageOnlyMayPassWithIndependentReconciliation: true,
     requireImmutableArchive: true,
@@ -192,7 +231,14 @@ const PUBLIC_LAW_POLICY: VerificationPolicyV1 = {
   requiredDataCategories: ['identity', 'funding', 'narrative'],
   requiredFundingFields: ['enacted'],
   requiredLineKinds: ['RDTE_PE', 'PROCUREMENT_BLIN', 'OM_SAG', 'MILCON_PROJECT'],
-  allowedParserMethods: ['native_structured', 'deterministic_pdfplumber', 'camelot', 'docling', 'paddleocr', 'llamaparse'],
+  allowedParserMethods: [
+    'native_structured',
+    'deterministic_pdfplumber',
+    'camelot',
+    'docling',
+    'paddleocr',
+    'llamaparse',
+  ],
   minimumMoneyEvidenceGranularity: 'cell_bbox',
   pageOnlyMayPassWithIndependentReconciliation: true,
   requireImmutableArchive: true,
@@ -219,7 +265,13 @@ const PDOC_POLICY: VerificationPolicyV1 = {
   requiredDataCategories: ['identity', 'funding', 'procurement_lines', 'quantities', 'unit_cost'],
   requiredFundingFields: ['request'],
   requiredLineKinds: ['PROCUREMENT_BLIN'],
-  allowedParserMethods: ['native_structured', 'deterministic_pdfplumber', 'camelot', 'docling', 'llamaparse'],
+  allowedParserMethods: [
+    'native_structured',
+    'deterministic_pdfplumber',
+    'camelot',
+    'docling',
+    'llamaparse',
+  ],
   minimumMoneyEvidenceGranularity: 'cell_bbox',
   pageOnlyMayPassWithIndependentReconciliation: true,
   requireImmutableArchive: true,
@@ -306,7 +358,10 @@ export function lookupPolicyByExhibit(exhibit: ExhibitV1): VerificationPolicyV1 
 /**
  * Look up a policy by family + exhibit.
  */
-export function lookupPolicy(family: BudgetFamilyV1, exhibit: ExhibitV1): VerificationPolicyV1 | null {
+export function lookupPolicy(
+  family: BudgetFamilyV1,
+  exhibit: ExhibitV1,
+): VerificationPolicyV1 | null {
   const entry = REGISTRY.find((e) => e.policy.family === family && e.policy.exhibit === exhibit);
   return entry?.policy ?? null;
 }
@@ -315,7 +370,9 @@ export function lookupPolicy(family: BudgetFamilyV1, exhibit: ExhibitV1): Verifi
  * Check if a family+exhibit combination is supported.
  */
 export function isPolicySupported(family: BudgetFamilyV1, exhibit: ExhibitV1): boolean {
-  return REGISTRY.some((e) => e.policy.family === family && e.policy.exhibit === exhibit && e.supported);
+  return REGISTRY.some(
+    (e) => e.policy.family === family && e.policy.exhibit === exhibit && e.supported,
+  );
 }
 
 /**

@@ -22,7 +22,7 @@ export const MANIFEST_BINDING_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = ''; // set by engine
+    const runId = ctx.verificationRunId;; // set by engine
     const { manifest, manifestDocumentKey, artifact, proofBundle } = input;
     const doc = manifest.documents.find((d) => d.documentKey === manifestDocumentKey);
 
@@ -54,7 +54,9 @@ export const MANIFEST_BINDING_RULE: VerificationRuleV1 = {
 
     // document key
     if (src.manifestDocumentKey !== doc.documentKey) {
-      mismatches.push(`documentKey: artifact="${src.manifestDocumentKey}" manifest="${doc.documentKey}"`);
+      mismatches.push(
+        `documentKey: artifact="${src.manifestDocumentKey}" manifest="${doc.documentKey}"`,
+      );
     }
 
     // fiscal year
@@ -89,7 +91,9 @@ export const MANIFEST_BINDING_RULE: VerificationRuleV1 = {
 
     // document type
     if (src.documentType !== doc.documentType) {
-      mismatches.push(`documentType: artifact="${src.documentType}" manifest="${doc.documentType}"`);
+      mismatches.push(
+        `documentType: artifact="${src.documentType}" manifest="${doc.documentType}"`,
+      );
     }
 
     // expected source SHA when supplied

@@ -2004,7 +2004,7 @@ export class EngagementService {
       const [tenant, rows] = await Promise.all([
         tx.tenant.findFirst({ where: { id: ctx.tenantId }, select: { settings: true } }),
         tx.meeting.findMany({
-          where: { tenantId: ctx.tenantId, clientId, visibility: MeetingVisibility.shared },
+          where: { tenantId: ctx.tenantId, clientId, visibility: MeetingVisibility.shared, status: { not: 'deleted' } },
           include: meetingInclude(),
           orderBy: [{ sharedAt: 'desc' }, { startsAt: 'desc' }],
         }),

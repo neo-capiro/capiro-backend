@@ -19,7 +19,7 @@
  *   - Exit 0 for VERIFICATION_PASSED.
  *   - Exit 2 for NEEDS_REVIEW.
  *   - Exit 3 for REJECTED.
- *   - Exit 1 for execution failure (bad arguments, file not found, etc.).
+ *   - Exit 4 for execution/configuration failure (bad arguments, file not found, etc.).
  *   - --persist-audit writes only verification audit tables (requires DB).
  *   - No canonical writes.
  *   - Refuses unknown arguments.
@@ -27,6 +27,7 @@
 import * as fs from 'node:fs';
 import { FilesystemProofResolver } from '../src/defense-budget/verification/trusted-proof/filesystem-proof-resolver.js';
 import { BudgetVerificationV1Service } from '../src/defense-budget/verification/services/budget-verification-v1.service.js';
+import type { BudgetVerificationRepositoryV1 } from '../src/defense-budget/verification/persistence/verification-repository.js';
 import { verificationRequestV1Schema } from '../src/defense-budget/verification/verification-contract-v1.js';
 import type { DefenseBudgetVerificationResultV1 } from '../src/defense-budget/verification/verification-contract-v1.js';
 
@@ -35,9 +36,9 @@ import type { DefenseBudgetVerificationResultV1 } from '../src/defense-budget/ve
 /* ------------------------------------------------------------------ */
 
 const EXIT_OK = 0;
-const EXIT_ERROR = 1;
 const EXIT_NEEDS_REVIEW = 2;
 const EXIT_REJECTED = 3;
+const EXIT_ERROR = 4;
 
 /* ------------------------------------------------------------------ */
 /* Argument parsing (refuses unknown arguments)                        */
@@ -119,10 +120,22 @@ function parseArgs(argv: string[]): VerifyArgs {
   }
 
   // Validate required args
-  if (!args.manifest) { console.error('Missing --manifest'); process.exit(EXIT_ERROR); }
-  if (!args.document) { console.error('Missing --document'); process.exit(EXIT_ERROR); }
-  if (!args.artifact) { console.error('Missing --artifact'); process.exit(EXIT_ERROR); }
-  if (!args.sourceDocumentId) { console.error('Missing --source-document-id'); process.exit(EXIT_ERROR); }
+  if (!args.manifest) {
+    console.error('Missing --manifest');
+    process.exit(EXIT_ERROR);
+  }
+  if (!args.document) {
+    console.error('Missing --document');
+    process.exit(EXIT_ERROR);
+  }
+  if (!args.artifact) {
+    console.error('Missing --artifact');
+    process.exit(EXIT_ERROR);
+  }
+  if (!args.sourceDocumentId) {
+    console.error('Missing --source-document-id');
+    process.exit(EXIT_ERROR);
+  }
 
   return args;
 }
@@ -179,11 +192,31 @@ async function main(): Promise<void> {
     process.exit(EXIT_ERROR);
   }
 
-  // Create the filesystem proof resolver (local-only, no DB/S3)
+  // Create the proof resolver and repository based on mode
+  let repository: BudgetVerificationRepositoryV1 | null = null;
+
+  if (args.persistAudit) {
+    // Persist mode: create real Prisma repository
+    try {
+      const { PrismaClient } = await import('@prisma/client');
+      const { createPrismaBudgetVerificationRepository } =
+        await import('../src/defense-budget/verification/persistence/prisma-budget-verification.repository.js');
+      const prisma = new PrismaClient();
+      repository = createPrismaBudgetVerificationRepository(prisma);
+      console.error('--persist-audit enabled: verification result will be persisted to the database');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`--persist-audit requires a configured database: ${message}`);
+      process.exit(EXIT_ERROR);
+    }
+  } else {
+    // Inspect mode: filesystem resolver, no repository
+    repository = null;
+  }
+
+  // Create filesystem proof resolver for local-only operation
   const proofResolver = new FilesystemProofResolver();
 
-  // Create the verification service (no repository in inspect mode)
-  const repository = null;
   const service = new BudgetVerificationV1Service(proofResolver, repository);
 
   let result: DefenseBudgetVerificationResultV1;

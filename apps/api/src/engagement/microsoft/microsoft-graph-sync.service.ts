@@ -169,12 +169,19 @@ interface GraphRecipient {
 
 interface GraphEvent {
   id?: string;
+  // 'singleInstance' | 'occurrence' | 'exception' | 'seriesMaster'. Default
+  // event property, always present on the wire — used to skip seriesMaster
+  // (see persistGraphEvent).
+  type?: string | null;
   // Cross-mailbox-stable meeting id (Phase 2 groundwork). Default event property.
   iCalUId?: string | null;
   subject?: string | null;
   bodyPreview?: string | null;
   webLink?: string | null;
   isCancelled?: boolean | null;
+  // Graph sensitivity: "normal" | "personal" | "private" | "confidential".
+  // Private events can arrive with subject=null for non-organizer attendees.
+  sensitivity?: string | null;
   // Structured online-meeting fields (Meetings v2 §5). Graph's default event
   // representation on /calendarView(/delta) already returns these, so no $select
   // change is needed (adding a $select to the delta query would risk the existing
@@ -1083,6 +1090,31 @@ export class MicrosoftGraphSyncService {
     accountEmail?: string | null,
   ): Promise<'matched' | 'skipped' | 'removed'> {
     if (!event.id) return 'skipped';
+    // The calendarView delta stream surfaces the bare seriesMaster object
+    // alongside real occurrence/exception instances for any recurring series
+    // with changes in range. It is not a meeting instance — start/end reflect
+    // only the pattern's anchor date and never advance — so persisting it
+    // verbatim creates a permanent duplicate "meeting" beside every real
+    // occurrence that goes stale the moment the series is edited or crosses a
+    // DST boundary the anchor date didn't. Graph's own guidance is to expand
+    // occurrences client-side from the pattern, never render seriesMaster as
+    // an instance. singleInstance/occurrence/exception all persist as before.
+    if (event.type === 'seriesMaster') return 'skipped';
+    // Sparse expanded occurrences: Graph sometimes returns occurrence shells
+    // with only id/start/end/type/seriesMasterId and an empty subject. These
+    // are not real calendar items (no organizer, no attendees, no body) and
+    // used to flood DualSight as "Untitled calendar event". Skip on ingest;
+    // a cleanup migration soft-deletes any already stored.
+    if (
+      event.type === 'occurrence' &&
+      !clean(event.subject) &&
+      !event.organizer?.emailAddress?.address &&
+      !(event.attendees && event.attendees.length > 0) &&
+      !event.bodyPreview &&
+      !event.onlineMeeting?.joinUrl
+    ) {
+      return 'skipped';
+    }
     if (event['@removed']) {
       await this.prisma.withTenant(tenantId, (tx) =>
         tx.meeting.updateMany({
@@ -1162,8 +1194,14 @@ export class MicrosoftGraphSyncService {
               externalId: event.id!,
             },
           },
-          select: { id: true, clientId: true, isInternal: true, associationSignals: true },
+          select: { id: true, clientId: true, isInternal: true, associationSignals: true, status: true },
         });
+        // Resurrection guard: if this meeting was previously marked deleted
+        // (via @removed from a Graph delta), do not revive it when a full
+        // calendar refresh re-encounters the event id.
+        if (existing?.status === 'deleted' && !event.isCancelled) {
+          return 'skipped';
+        }
         const hasManualOverride = existing
           ? await hasManualAssociationOverride(
               tx,
@@ -1202,13 +1240,22 @@ export class MicrosoftGraphSyncService {
           externalId: event.id!,
           // Phase 2 groundwork: stored (dormant) for future cross-mailbox grouping.
           iCalUId: event.iCalUId ?? null,
-          subject: clean(event.subject) || 'Untitled calendar event',
+          subject:
+            clean(event.subject) ||
+            (event.sensitivity === 'private'
+              ? 'Private meeting'
+              : event.sensitivity === 'personal'
+                ? 'Personal event'
+                : event.sensitivity === 'confidential'
+                  ? 'Confidential meeting'
+                  : 'Untitled calendar event'),
           description: clean(event.bodyPreview),
           location: clean(event.location?.displayName),
           startsAt,
           endsAt,
           organizerEmail,
           organizerName: clean(event.organizer?.emailAddress?.name),
+          timeZone: event.start?.timeZone ?? null,
           status: event.isCancelled ? 'cancelled' : 'scheduled',
           isVirtual: virtuality.isVirtual,
           joinLink: virtuality.joinLink,

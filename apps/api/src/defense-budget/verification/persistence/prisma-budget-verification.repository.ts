@@ -1,10 +1,13 @@
 /**
  * Workstream L3/L4/L7 — Concrete transactional Prisma repository.
  *
+ * R3 remediation: Uses generated Prisma types directly. No PrismaLike
+ * interface, no `as unknown as` casts, no `findUniqueById`.
+ *
  * One transaction must:
- *   1. create or reuse the exact candidate;
+ *   1. create or reuse the exact candidate (deterministic ID);
  *   2. set/verify VALIDATING state;
- *   3. insert completed run;
+ *   3. insert completed run (deterministic ID);
  *   4. insert proof snapshots;
  *   5. insert checks;
  *   6. insert discrepancies;
@@ -15,8 +18,12 @@
  *
  * External proof resolution happens BEFORE the transaction (L2).
  * Inside the transaction, only already-resolved immutable snapshots are persisted.
+ *
+ * R3: Idempotent exact replay — if a terminal candidate exists for the
+ * same identity, return the existing immutable result without inserting
+ * duplicate evidence.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import type {
   BudgetVerificationRepositoryV1,
   CandidateIdentityV1,
@@ -24,6 +31,10 @@ import type {
   PersistReviewDecisionInputV1,
   ReadCandidateV1,
   ReadRunV1,
+  ReadCheckV1,
+  ReadDiscrepancyV1,
+  ReadProofSnapshotV1,
+  ReadReviewDecisionV1,
   PersistedCandidateV1,
   PersistedRunV1,
   PersistedReviewDecisionV1,
@@ -37,105 +48,46 @@ import {
   mapRowToReadRun,
   statusFromDecision,
   assertValidTransition,
-  candidateIdempotencyKey,
+  computeCandidateId,
+  computeRunId,
 } from './verification-persistence-mappers.js';
 
 /* ------------------------------------------------------------------ */
-/* Prisma client interface (minimal subset for testability)            */
+/* Terminal status set                                                 */
 /* ------------------------------------------------------------------ */
 
-/**
- * The Prisma client methods we use. This interface allows injecting a
- * test fake or a transaction-scoped client.
- */
-export interface PrismaLike {
-  budgetExtractionCandidateV1: {
-    findUnique(args: { where: { manifestContentSha256_sourceSha256_extractionArtifactSha256_verifierVersion_policySha256: Record<string, string> } }): Promise<RawCandidateRow | null>;
-    create(args: { data: Record<string, unknown> }): Promise<RawCandidateRow>;
-    update(args: { where: { id: string }; data: Record<string, unknown> }): Promise<RawCandidateRow>;
-  };
-  budgetVerificationRunV1: {
-    findFirst(args: { where: Record<string, unknown>; orderBy: Record<string, string> }): Promise<RawRunRow | null>;
-    create(args: { data: Record<string, unknown> }): Promise<RawRunRow>;
-  };
-  budgetVerificationCheckV1: {
-    createMany(args: { data: readonly Record<string, unknown>[] }): Promise<{ count: number }>;
-  };
-  budgetVerificationProof: {
-    createMany(args: { data: readonly Record<string, unknown>[] }): Promise<{ count: number }>;
-  };
-  budgetVerificationDiscrepancyV1: {
-    createMany(args: { data: readonly Record<string, unknown>[] }): Promise<{ count: number }>;
-  };
-  budgetReviewDecisionV1: {
-    create(args: { data: Record<string, unknown> }): Promise<RawReviewRow>;
-  };
-  $transaction<T>(fn: (tx: PrismaLike) => Promise<T>): Promise<T>;
-}
-
-interface RawCandidateRow {
-  id: string;
-  cycleId: string;
-  manifestContentSha256: string;
-  manifestDocumentKey: string;
-  extractionArtifactId: string;
-  extractionArtifactSha256: string;
-  sourceDocumentId: string;
-  sourceSha256: string;
-  verifierVersion: string;
-  policyVersion: string;
-  policySha256: string;
-  status: string;
-  currentRunId: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface RawRunRow {
-  id: string;
-  candidateId: string;
-  verifierVersion: string;
-  policyVersion: string;
-  policySha256: string;
-  decision: string;
-  status: string;
-  route: string;
-  riskScore: number;
-  startedAt: Date;
-  completedAt: Date;
-  manifestContentSha256: string;
-  extractionArtifactSha256: string;
-  sourceSha256: string;
-  createdAt: Date;
-}
-
-interface RawReviewRow {
-  id: string;
-  candidateId: string;
-  runId: string;
-  decision: string;
-  createdAt: Date;
-}
+const TERMINAL_STATUSES = new Set([
+  'VERIFICATION_PASSED',
+  'NEEDS_REVIEW',
+  'REJECTED',
+  'REVIEW_ACCEPTED',
+]);
 
 /* ------------------------------------------------------------------ */
 /* Concrete Prisma repository                                          */
 /* ------------------------------------------------------------------ */
 
 export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationRepositoryV1 {
-  constructor(private readonly prisma: PrismaLike) {}
+  constructor(private readonly prisma: PrismaClient) {}
 
   async findTerminalRunByIdentity(
     identity: CandidateIdentityV1,
   ): Promise<{ candidate: ReadCandidateV1; run: ReadRunV1 } | null> {
     const candidate = await this.prisma.budgetExtractionCandidateV1.findUnique({
       where: {
-        manifestContentSha256_sourceSha256_extractionArtifactSha256_verifierVersion_policySha256: {
-          manifestContentSha256: identity.manifestContentSha256,
-          sourceSha256: identity.sourceSha256,
-          extractionArtifactSha256: identity.extractionArtifactSha256,
-          verifierVersion: identity.verifierVersion,
-          policySha256: identity.policySha256,
-        },
+        cycleId_manifestContentSha256_manifestDocumentKey_sourceDocumentId_sourceSha256_extractionArtifactId_extractionArtifactSha256_verifierVersion_policyVersion_policySha256:
+          {
+            cycleId: identity.cycleId,
+            manifestContentSha256: identity.manifestContentSha256,
+            manifestDocumentKey: identity.manifestDocumentKey,
+            sourceDocumentId: identity.sourceDocumentId,
+            sourceSha256: identity.sourceSha256,
+            extractionArtifactId: identity.extractionArtifactId,
+            extractionArtifactSha256: identity.extractionArtifactSha256,
+            verifierVersion: identity.verifierVersion,
+            policyVersion: identity.policyVersion,
+            policySha256: identity.policySha256,
+          },
       },
     });
     if (!candidate) return null;
@@ -156,59 +108,76 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
   async persistCompletedVerification(
     input: PersistCompletedVerificationInputV1,
   ): Promise<{ candidate: PersistedCandidateV1; run: PersistedRunV1 }> {
+    // R3: Generate deterministic IDs before persistence
+    const candidateId = computeCandidateId(input.candidateIdentity);
+    const runId = computeRunId(input.candidateIdentity, input.startedAt);
+
     return this.prisma.$transaction(async (tx) => {
       const { candidateIdentity, result, proofSnapshots, checks, discrepancies } = input;
 
-      // L3.1: Create or reuse the exact candidate
-      const idKey = candidateIdempotencyKey(candidateIdentity);
-      void idKey;
+      // R3: Idempotent — check for existing terminal candidate
       const existing = await tx.budgetExtractionCandidateV1.findUnique({
         where: {
-          manifestContentSha256_sourceSha256_extractionArtifactSha256_verifierVersion_policySha256: {
-            manifestContentSha256: candidateIdentity.manifestContentSha256,
-            sourceSha256: candidateIdentity.sourceSha256,
-            extractionArtifactSha256: candidateIdentity.extractionArtifactSha256,
-            verifierVersion: candidateIdentity.verifierVersion,
-            policySha256: candidateIdentity.policySha256,
-          },
+          cycleId_manifestContentSha256_manifestDocumentKey_sourceDocumentId_sourceSha256_extractionArtifactId_extractionArtifactSha256_verifierVersion_policyVersion_policySha256:
+            {
+              cycleId: candidateIdentity.cycleId,
+              manifestContentSha256: candidateIdentity.manifestContentSha256,
+              manifestDocumentKey: candidateIdentity.manifestDocumentKey,
+              sourceDocumentId: candidateIdentity.sourceDocumentId,
+              sourceSha256: candidateIdentity.sourceSha256,
+              extractionArtifactId: candidateIdentity.extractionArtifactId,
+              extractionArtifactSha256: candidateIdentity.extractionArtifactSha256,
+              verifierVersion: candidateIdentity.verifierVersion,
+              policyVersion: candidateIdentity.policyVersion,
+              policySha256: candidateIdentity.policySha256,
+            },
         },
       });
 
-      let candidate: RawCandidateRow;
-      if (existing) {
-        // L4: Idempotent — return existing terminal result if the same identity
-        if (existing.status === 'VERIFICATION_PASSED' || existing.status === 'NEEDS_REVIEW' || existing.status === 'REJECTED' || existing.status === 'REVIEW_ACCEPTED') {
-          // Terminal — return existing
-          if (existing.currentRunId) {
-            const existingRun = await tx.budgetVerificationRunV1.findFirst({
-              where: { id: existing.currentRunId },
-              orderBy: { createdAt: 'desc' },
-            });
-            if (existingRun) {
-              return {
-                candidate: { id: existing.id, status: existing.status, currentRunId: existing.currentRunId },
-                run: {
-                  id: existingRun.id,
-                  candidateId: existingRun.candidateId,
-                  decision: existingRun.decision,
-                  status: existingRun.status,
-                  route: existingRun.route,
-                  riskScore: existingRun.riskScore,
-                },
-              };
-            }
+      if (existing && TERMINAL_STATUSES.has(existing.status)) {
+        // R3: Return existing immutable result — no duplicate evidence
+        if (existing.currentRunId) {
+          const existingRun = await tx.budgetVerificationRunV1.findFirst({
+            where: { id: existing.currentRunId },
+            orderBy: { createdAt: 'desc' },
+          });
+          if (existingRun) {
+            return {
+              candidate: {
+                id: existing.id,
+                status: existing.status,
+                currentRunId: existing.currentRunId,
+              },
+              run: {
+                id: existingRun.id,
+                candidateId: existingRun.candidateId,
+                decision: existingRun.decision,
+                status: existingRun.status,
+                route: existingRun.route,
+                riskScore: existingRun.riskScore,
+              },
+            };
           }
         }
-        // L3.2: Set/verify VALIDATING state
+      }
+
+      let candidateIdToUse = candidateId;
+
+      if (existing) {
+        // Re-verify: transition to VALIDATING
         assertValidTransition(existing.status, 'VALIDATING');
-        candidate = await tx.budgetExtractionCandidateV1.update({
+        // R3: Use updateMany to update candidate (avoids needing findUnique by id
+        // inside transaction — updateMany is available on the tx client)
+        await tx.budgetExtractionCandidateV1.updateMany({
           where: { id: existing.id },
-          data: { status: 'VALIDATING' },
+          data: { status: 'VALIDATING', updatedAt: new Date() },
         });
+        candidateIdToUse = existing.id;
       } else {
-        // Create new candidate
-        candidate = await tx.budgetExtractionCandidateV1.create({
+        // R3: Create new candidate with deterministic ID
+        await tx.budgetExtractionCandidateV1.create({
           data: {
+            id: candidateId,
             cycleId: candidateIdentity.cycleId,
             manifestContentSha256: candidateIdentity.manifestContentSha256,
             manifestDocumentKey: candidateIdentity.manifestDocumentKey,
@@ -225,53 +194,72 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
         });
       }
 
-      // L3.3: Insert completed run
-      const runRow = await tx.budgetVerificationRunV1.create({
+      // R3: Insert completed run with deterministic ID
+      const runRow = mapResultToRunRow(result, candidateIdToUse);
+      await tx.budgetVerificationRunV1.create({
         data: {
-          ...mapResultToRunRow(result, candidate.id),
-        },
-      });
-
-      // L3.4: Insert proof snapshots
-      if (proofSnapshots.length > 0) {
-        await tx.budgetVerificationProof.createMany({
-          data: proofSnapshots.map((s) => mapProofSnapshotToRow(runRow.id, s)),
-        });
-      }
-
-      // L3.5: Insert checks
-      if (checks.length > 0) {
-        await tx.budgetVerificationCheckV1.createMany({
-          data: checks.map((c) => mapCheckToRow(runRow.id, c)),
-        });
-      }
-
-      // L3.6: Insert discrepancies
-      if (discrepancies.length > 0) {
-        await tx.budgetVerificationDiscrepancyV1.createMany({
-          data: discrepancies.map((d) => mapDiscrepancyToRow(runRow.id, candidate.id, d)),
-        });
-      }
-
-      // L3.7: Update final candidate status
-      const finalStatus = statusFromDecision(result.decision);
-      assertValidTransition('VALIDATING', finalStatus);
-      const updated = await tx.budgetExtractionCandidateV1.update({
-        where: { id: candidate.id },
-        data: { status: finalStatus, currentRunId: runRow.id },
-      });
-
-      // L3.8: commit (implicit on return)
-
-      return {
-        candidate: { id: updated.id, status: updated.status, currentRunId: runRow.id },
-        run: {
-          id: runRow.id,
+          id: runId,
           candidateId: runRow.candidateId,
+          verifierVersion: runRow.verifierVersion,
+          policyVersion: runRow.policyVersion,
+          policySha256: runRow.policySha256,
           decision: runRow.decision,
           status: runRow.status,
           route: runRow.route,
           riskScore: runRow.riskScore,
+          startedAt: new Date(runRow.startedAt),
+          completedAt: new Date(runRow.completedAt),
+          manifestContentSha256: runRow.manifestContentSha256,
+          extractionArtifactSha256: runRow.extractionArtifactSha256,
+          sourceSha256: runRow.sourceSha256,
+          resultSnapshot: runRow.resultSnapshot as Prisma.InputJsonValue,
+        },
+      });
+
+      // R3: Insert proof snapshots
+      if (proofSnapshots.length > 0) {
+        await tx.budgetVerificationProofV1.createMany({
+          data: proofSnapshots.map((s) =>
+            mapProofSnapshotToRow(runId, s),
+          ) as Prisma.BudgetVerificationProofV1CreateManyInput[],
+        });
+      }
+
+      // R3: Insert checks
+      if (checks.length > 0) {
+        await tx.budgetVerificationCheckV1.createMany({
+          data: checks.map((c) =>
+            mapCheckToRow(runId, c),
+          ) as Prisma.BudgetVerificationCheckV1CreateManyInput[],
+        });
+      }
+
+      // R3: Insert discrepancies
+      if (discrepancies.length > 0) {
+        await tx.budgetVerificationDiscrepancyV1.createMany({
+          data: discrepancies.map((d) =>
+            mapDiscrepancyToRow(runId, candidateIdToUse, d),
+          ) as Prisma.BudgetVerificationDiscrepancyV1CreateManyInput[],
+        });
+      }
+
+      // R3: Update final candidate status
+      const finalStatus = statusFromDecision(result.decision);
+      assertValidTransition('VALIDATING', finalStatus);
+      await tx.budgetExtractionCandidateV1.updateMany({
+        where: { id: candidateIdToUse },
+        data: { status: finalStatus, currentRunId: runId, updatedAt: new Date() },
+      });
+
+      return {
+        candidate: { id: candidateIdToUse, status: finalStatus, currentRunId: runId },
+        run: {
+          id: runId,
+          candidateId: candidateIdToUse,
+          decision: result.decision,
+          status: result.status,
+          route: result.route,
+          riskScore: result.riskScore,
         },
       };
     });
@@ -281,55 +269,43 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
     input: PersistReviewDecisionInputV1,
   ): Promise<PersistedReviewDecisionV1> {
     return this.prisma.$transaction(async (tx) => {
-      // M1: Only NEEDS_REVIEW is eligible
-      const candidate = await tx.budgetExtractionCandidateV1.findUnique({
-        where: {
-          manifestContentSha256_sourceSha256_extractionArtifactSha256_verifierVersion_policySha256: {
-            manifestContentSha256: input.expectedManifestContentSha256,
-            sourceSha256: input.expectedSourceSha256,
-            extractionArtifactSha256: input.expectedExtractionArtifactSha256,
-            verifierVersion: '__review_lookup__',
-            policySha256: '__review_lookup__',
-          },
-        },
-      });
-
-      // If lookup by identity doesn't work (we don't have verifier/policy SHA in review input),
-      // fall back to reading by candidate ID
-      void candidate;
-
-      // For review, we need to look up the candidate by ID
-      // The Prisma client should support findUnique by id
-      const candidateById = await (tx as unknown as {
-        budgetExtractionCandidateV1: {
-          findUniqueById: (args: { where: { id: string } }) => Promise<RawCandidateRow | null>;
-        };
-      }).budgetExtractionCandidateV1.findUniqueById({
+      // R3: Look up candidate by candidateId using findFirst (real Prisma method)
+      const candidate = await tx.budgetExtractionCandidateV1.findFirst({
         where: { id: input.candidateId },
       });
 
-      if (!candidateById) {
+      if (!candidate) {
         throw new Error(`candidate not found: ${input.candidateId}`);
       }
 
-      if (candidateById.status !== 'NEEDS_REVIEW') {
+      if (candidate.status !== 'NEEDS_REVIEW') {
         throw new Error(
-          `candidate ${input.candidateId} is not in NEEDS_REVIEW state (got ${candidateById.status})`,
+          `candidate ${input.candidateId} is not in NEEDS_REVIEW state (got ${candidate.status})`,
         );
       }
 
-      // M4: Hash binding — verify expected hashes match
-      if (candidateById.sourceSha256 !== input.expectedSourceSha256) {
+      // R3: Hash binding — verify expected hashes match
+      if (candidate.sourceSha256 !== input.expectedSourceSha256) {
         throw new Error('source SHA mismatch — review hash binding failed');
       }
-      if (candidateById.extractionArtifactSha256 !== input.expectedExtractionArtifactSha256) {
+      if (candidate.extractionArtifactSha256 !== input.expectedExtractionArtifactSha256) {
         throw new Error('artifact SHA mismatch — review hash binding failed');
       }
-      if (candidateById.manifestContentSha256 !== input.expectedManifestContentSha256) {
+      if (candidate.manifestContentSha256 !== input.expectedManifestContentSha256) {
         throw new Error('manifest SHA mismatch — review hash binding failed');
       }
 
-      // M6: Insert append-only review row
+      // R3: Verify run belongs to candidate
+      const run = await tx.budgetVerificationRunV1.findFirst({
+        where: { id: input.verificationRunId, candidateId: input.candidateId },
+      });
+      if (!run) {
+        throw new Error(
+          `run ${input.verificationRunId} not found for candidate ${input.candidateId}`,
+        );
+      }
+
+      // R3: Insert immutable review decision
       const reviewRow = await tx.budgetReviewDecisionV1.create({
         data: {
           candidateId: input.candidateId,
@@ -340,16 +316,16 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
           sourceSha256: input.expectedSourceSha256,
           extractionArtifactSha256: input.expectedExtractionArtifactSha256,
           manifestContentSha256: input.expectedManifestContentSha256,
-          evidenceJson: { evidenceIds: input.evidenceIds },
+          evidenceJson: { evidenceIds: input.evidenceIds } as Prisma.InputJsonValue,
         },
       });
 
-      // M6: Update candidate status
+      // R3: Update candidate status
       const newStatus = input.decision === 'accept' ? 'REVIEW_ACCEPTED' : 'REJECTED';
       assertValidTransition('NEEDS_REVIEW', newStatus);
-      await tx.budgetExtractionCandidateV1.update({
-        where: { id: input.candidateId },
-        data: { status: newStatus },
+      await tx.budgetExtractionCandidateV1.updateMany({
+        where: { id: input.candidateId, status: 'NEEDS_REVIEW' },
+        data: { status: newStatus, updatedAt: new Date() },
       });
 
       return {
@@ -363,11 +339,7 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
   }
 
   async readCandidate(candidateId: string): Promise<ReadCandidateV1 | null> {
-    const row = await (this.prisma as unknown as {
-      budgetExtractionCandidateV1: {
-        findUniqueById: (args: { where: { id: string } }) => Promise<RawCandidateRow | null>;
-      };
-    }).budgetExtractionCandidateV1.findUniqueById({
+    const row = await this.prisma.budgetExtractionCandidateV1.findFirst({
       where: { id: candidateId },
     });
     return row ? mapRowToReadCandidate(row) : null;
@@ -380,6 +352,78 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
     });
     return row ? mapRowToReadRun(row) : null;
   }
+
+  async readChecks(runId: string): Promise<ReadCheckV1[]> {
+    const rows = await this.prisma.budgetVerificationCheckV1.findMany({
+      where: { runId },
+      orderBy: { code: 'asc' },
+    });
+    return rows.map((row) => ({
+      checkId: row.checkId,
+      code: row.code,
+      ruleVersion: row.ruleVersion,
+      outcome: row.outcome,
+      required: row.required,
+      blocking: row.blocking,
+      riskPoints: row.riskPoints,
+      message: row.message,
+      assertionIds: row.assertionIds as string[],
+      evidenceIds: row.evidenceIds as string[],
+      referenceArtifactIds: row.referenceArtifactIds as string[],
+      details: (row.details as Record<string, unknown> | null) ?? undefined,
+    }));
+  }
+
+  async readDiscrepancies(runId: string): Promise<ReadDiscrepancyV1[]> {
+    const rows = await this.prisma.budgetVerificationDiscrepancyV1.findMany({
+      where: { runId },
+      orderBy: { code: 'asc' },
+    });
+    return rows.map((row) => ({
+      discrepancyId: row.discrepancyId,
+      code: row.code,
+      severity: row.severity,
+      description: row.description,
+      assertionIds: row.assertionIds as string[],
+      evidenceIds: row.evidenceIds as string[],
+      referenceArtifactIds: row.referenceArtifactIds as string[],
+      details: (row.details as Record<string, unknown> | null) ?? undefined,
+    }));
+  }
+
+  async readProofSnapshots(runId: string): Promise<ReadProofSnapshotV1[]> {
+    const rows = await this.prisma.budgetVerificationProofV1.findMany({
+      where: { runId },
+      orderBy: { proofKind: 'asc' },
+    });
+    return rows.map((row) => ({
+      proofKind: row.proofKind,
+      status: row.status,
+      sourceDocumentId: row.sourceDocumentId,
+      artifactId: row.artifactId,
+      referenceArtifactId: row.referenceArtifactId,
+      evidenceJson: row.evidenceJson as Record<string, unknown>,
+    }));
+  }
+
+  async readReviewDecisions(candidateId: string): Promise<ReadReviewDecisionV1[]> {
+    const rows = await this.prisma.budgetReviewDecisionV1.findMany({
+      where: { candidateId },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      candidateId: row.candidateId,
+      runId: row.runId,
+      reviewerId: row.reviewerId,
+      decision: row.decision,
+      notes: row.notes,
+      sourceSha256: row.sourceSha256,
+      extractionArtifactSha256: row.extractionArtifactSha256,
+      manifestContentSha256: row.manifestContentSha256,
+      createdAt: row.createdAt.toISOString(),
+    }));
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -389,7 +433,5 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
 export function createPrismaBudgetVerificationRepository(
   prisma: PrismaClient,
 ): PrismaBudgetVerificationRepositoryV1 {
-  return new PrismaBudgetVerificationRepositoryV1(
-    prisma as unknown as PrismaLike,
-  );
+  return new PrismaBudgetVerificationRepositoryV1(prisma);
 }

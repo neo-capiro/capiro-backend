@@ -14,6 +14,11 @@
  *
  * L7: Inspect mode — resolve proof, run all checks, write nothing,
  * return the same deterministic decision content except DB IDs.
+ *
+ * R3: Deterministic candidate and run IDs derived from the canonical
+ * identity material. Inspect and persist modes produce the same IDs.
+ * R3: persist_audit fails loudly when no repository is configured.
+ * R3: Unsupported policy decisions are also persisted.
  */
 import type {
   VerificationRequestV1,
@@ -21,10 +26,17 @@ import type {
   VerificationCheckV1,
   VerificationDiscrepancyV1,
 } from '../verification-contract-v1.js';
-import type { TrustedVerificationProofResolverV1, TrustedProofResolutionV1 } from '../trusted-proof/trusted-proof-types.js';
+import type {
+  TrustedVerificationProofResolverV1,
+  TrustedProofResolutionV1,
+} from '../trusted-proof/trusted-proof-types.js';
 import type { VerificationPolicyV1 } from '../verification-policy-v1.js';
-import type { ArtifactVerificationInputV1, VerificationContextV1 } from '../verification-input-v1.js';
+import type {
+  ArtifactVerificationInputV1,
+  VerificationContextV1,
+} from '../verification-input-v1.js';
 import type { BudgetVerificationRepositoryV1 } from '../persistence/verification-repository.js';
+import type { CandidateIdentityV1 } from '../persistence/verification-repository.js';
 import { computePolicySha256, mergeManifestWithPolicy } from '../verification-policy-v1.js';
 import { lookupPolicy } from '../verification-policy-registry.js';
 import { ALL_VERIFICATION_RULES } from '../rules/index.js';
@@ -36,7 +48,10 @@ import {
 import type { RuleResultV1 } from '../rules/rule-types.js';
 import { computeDecisionV1 } from '../decision/decision-engine-v1.js';
 import type { DecisionEngineInputV1 } from '../decision/decision-engine-v1.js';
-import { createHash } from 'node:crypto';
+import {
+  computeCandidateId,
+  computeRunId,
+} from '../persistence/verification-persistence-mappers.js';
 
 /* ------------------------------------------------------------------ */
 /* Service                                                             */
@@ -70,7 +85,7 @@ export class BudgetVerificationV1Service {
     const manifestDoc = resolution.manifestDocument;
     const basePolicy = lookupPolicy(manifestDoc.family, manifestDoc.exhibit);
     if (!basePolicy) {
-      // Unsupported family — honest NEEDS_REVIEW or REJECTED
+      // Unsupported family — honest NEEDS_REVIEW
       return this.buildUnsupportedPolicyResult(request, resolution);
     }
     const policy = mergeManifestWithPolicy(basePolicy, {
@@ -80,8 +95,25 @@ export class BudgetVerificationV1Service {
     });
     const policySha256 = computePolicySha256(policy);
 
-    // L6.4: Run deterministic verification
+    // R8-E: Compute candidate and run identity BEFORE rule execution
     const startedAt = this.clock.now();
+    const candidateIdentity: CandidateIdentityV1 = {
+      cycleId: resolution.manifest.cycleId ?? '',
+      manifestContentSha256: resolution.manifestContentSha256,
+      manifestDocumentKey: request.manifestDocumentKey,
+      extractionArtifactId: resolution.artifact.artifactId,
+      extractionArtifactSha256: resolution.extractionArtifactContentSha256,
+      extractionArtifactLocator: request.extractionArtifactLocator,
+      sourceDocumentId: request.sourceDocumentId,
+      sourceSha256: resolution.proofBundle.sourceDocument.sourceSha256,
+      verifierVersion: 'defense_budget_verifier_v1',
+      policyVersion: 'defense_budget_verification_policy_v1',
+      policySha256,
+    };
+    const candidateId = computeCandidateId(candidateIdentity);
+    const verificationRunId = computeRunId(candidateIdentity, startedAt.toISOString());
+
+    // L6.4: Run deterministic verification
     const input: ArtifactVerificationInputV1 = {
       request,
       manifest: resolution.manifest,
@@ -96,10 +128,21 @@ export class BudgetVerificationV1Service {
       referenceArtifactsFindings: resolution.referenceArtifactsFindings,
       startedAt: startedAt.toISOString(),
     };
-    const ctx: VerificationContextV1 = { input, policy, policySha256 };
+    const ctx: VerificationContextV1 = {
+      input,
+      policy,
+      policySha256,
+      verificationRunId,
+      candidateId,
+    };
 
     // Run all E-H rules + I comparison rules
-    const allRules = [...ALL_VERIFICATION_RULES, CROSS_DOCUMENT_SUMMARY_DETAIL_RULE, COMMITTEE_REQUEST_REFERENCE_RULE, HISTORICAL_CONSISTENCY_RULE];
+    const allRules = [
+      ...ALL_VERIFICATION_RULES,
+      CROSS_DOCUMENT_SUMMARY_DETAIL_RULE,
+      COMMITTEE_REQUEST_REFERENCE_RULE,
+      HISTORICAL_CONSISTENCY_RULE,
+    ];
     const ruleResults: RuleResultV1[] = allRules.map((rule) => rule.execute(ctx));
     const checks: VerificationCheckV1[] = ruleResults
       .map((r) => r.check)
@@ -110,8 +153,14 @@ export class BudgetVerificationV1Service {
     const hasManualParser = resolution.artifact.parserRuns.some((pr) => pr.method === 'manual');
     const hasOcrParser = resolution.artifact.parserRuns.some((pr) => pr.method === 'paddleocr');
     const hasUncorroboratedCongressionalMoney = resolution.artifact.assertions.some(
-      (a) => a.assertionKind === 'funding' &&
-        (a.field === 'hascMark' || a.field === 'sascMark' || a.field === 'hacDMark' || a.field === 'sacDMark' || a.field === 'ndaaConference' || a.field === 'conference'),
+      (a) =>
+        a.assertionKind === 'funding' &&
+        (a.field === 'hascMark' ||
+          a.field === 'sascMark' ||
+          a.field === 'hacDMark' ||
+          a.field === 'sacDMark' ||
+          a.field === 'ndaaConference' ||
+          a.field === 'conference'),
     );
     const hasUncorroboratedEnacted = resolution.artifact.assertions.some(
       (a) => a.assertionKind === 'funding' && a.field === 'enacted',
@@ -130,14 +179,14 @@ export class BudgetVerificationV1Service {
     const decisionResult = computeDecisionV1(decisionInput);
 
     const completedAt = this.clock.now();
-    const verificationRunId = this.computeRunId(input, policySha256);
 
+    // R8-E: candidateId and verificationRunId already computed before rule execution
     const result: DefenseBudgetVerificationResultV1 = {
       verifierVersion: 'defense_budget_verifier_v1',
       policyVersion: 'defense_budget_verification_policy_v1',
       policySha256,
       verificationRunId,
-      candidateId: this.computeCandidateId(input, policySha256),
+      candidateId,
       cycleId: resolution.manifest.cycleId ?? '',
       manifestContentSha256: resolution.manifestContentSha256,
       manifestDocumentKey: request.manifestDocumentKey,
@@ -158,22 +207,16 @@ export class BudgetVerificationV1Service {
       completedAt: completedAt.toISOString(),
     };
 
-    // L6.6: Optionally persist audit in one transaction
-    if (request.mode === 'persist_audit' && this.repository) {
+    // R3: persist_audit fails loudly when no repository is configured
+    if (request.mode === 'persist_audit') {
+      if (!this.repository) {
+        throw new Error(
+          'persist_audit mode requires a repository, but no repository was configured',
+        );
+      }
+      // R3: Persist all results including unsupported policies
       await this.repository.persistCompletedVerification({
-        candidateIdentity: {
-          cycleId: result.cycleId,
-          manifestContentSha256: result.manifestContentSha256,
-          manifestDocumentKey: result.manifestDocumentKey,
-          extractionArtifactId: result.extractionArtifactId,
-          extractionArtifactSha256: result.extractionArtifactSha256,
-          extractionArtifactLocator: request.extractionArtifactLocator,
-          sourceDocumentId: result.sourceDocumentId,
-          sourceSha256: result.sourcePdfSha256,
-          verifierVersion: result.verifierVersion,
-          policyVersion: result.policyVersion,
-          policySha256: result.policySha256,
-        },
+        candidateIdentity,
         result,
         proofBundle: resolution.proofBundle,
         proofFindings: resolution.proofFindings,
@@ -190,46 +233,21 @@ export class BudgetVerificationV1Service {
   }
 
   /* ------------------------------------------------------------------ */
-  /* L7: Inspect mode                                                    */
-  /* ------------------------------------------------------------------ */
-
-  // Inspect mode is the default (mode='inspect'); verify() already handles
-  // it by only persisting when mode='persist_audit'. No separate method needed.
-
-  /* ------------------------------------------------------------------ */
   /* Helpers                                                             */
   /* ------------------------------------------------------------------ */
 
-  private computeRunId(input: ArtifactVerificationInputV1, policySha256: string): string {
-    const material = [
-      input.manifestContentSha256,
-      input.extractionArtifactSha256,
-      input.proofBundle.sourceDocument.id,
-      input.proofBundle.sourceDocument.sourceSha256,
-      policySha256,
-    ].join('|');
-    return `vrun_${createHash('sha256').update(material, 'utf8').digest('hex')}`;
-  }
-
-  private computeCandidateId(input: ArtifactVerificationInputV1, policySha256: string): string {
-    const material = [
-      input.manifestContentSha256,
-      input.manifestDocumentKey,
-      input.proofBundle.sourceDocument.id,
-      input.proofBundle.sourceDocument.sourceSha256,
-      input.extractionArtifactSha256,
-      'defense_budget_verifier_v1',
-      policySha256,
-    ].join('|');
-    return `vcan_${createHash('sha256').update(material, 'utf8').digest('hex')}`;
-  }
-
   private sortChecks(checks: VerificationCheckV1[]): VerificationCheckV1[] {
-    return [...checks].sort((a, b) => a.code.localeCompare(b.code) || a.checkId.localeCompare(b.checkId));
+    return [...checks].sort(
+      (a, b) => a.code.localeCompare(b.code) || a.checkId.localeCompare(b.checkId),
+    );
   }
 
-  private sortDiscrepancies(discrepancies: VerificationDiscrepancyV1[]): VerificationDiscrepancyV1[] {
-    return [...discrepancies].sort((a, b) => a.code.localeCompare(b.code) || a.discrepancyId.localeCompare(b.discrepancyId));
+  private sortDiscrepancies(
+    discrepancies: VerificationDiscrepancyV1[],
+  ): VerificationDiscrepancyV1[] {
+    return [...discrepancies].sort(
+      (a, b) => a.code.localeCompare(b.code) || a.discrepancyId.localeCompare(b.discrepancyId),
+    );
   }
 
   private buildProofSnapshots(resolution: TrustedProofResolutionV1) {
@@ -296,10 +314,10 @@ export class BudgetVerificationV1Service {
     return snapshots;
   }
 
-  private buildUnsupportedPolicyResult(
+  private async buildUnsupportedPolicyResult(
     request: VerificationRequestV1,
     resolution: TrustedProofResolutionV1,
-  ): DefenseBudgetVerificationResultV1 {
+  ): Promise<DefenseBudgetVerificationResultV1> {
     const startedAt = this.clock.now();
     const completedAt = this.clock.now();
     const policySha256 = computePolicySha256({
@@ -325,13 +343,31 @@ export class BudgetVerificationV1Service {
       riskThresholds: { automaticPassMax: 0, targetedReextractionMax: 0, paidVerifierMax: 0 },
     });
 
-    const verificationRunId = `vrun_unsupported_${createHash('sha256').update(resolution.manifestContentSha256, 'utf8').digest('hex')}`;
-    return {
+    // R3: Build candidate identity for unsupported policy too
+    const candidateIdentity: CandidateIdentityV1 = {
+      cycleId: resolution.manifest.cycleId ?? '',
+      manifestContentSha256: resolution.manifestContentSha256,
+      manifestDocumentKey: request.manifestDocumentKey,
+      extractionArtifactId: resolution.artifact.artifactId,
+      extractionArtifactSha256: resolution.extractionArtifactContentSha256,
+      extractionArtifactLocator: request.extractionArtifactLocator,
+      sourceDocumentId: request.sourceDocumentId,
+      sourceSha256: resolution.proofBundle.sourceDocument.sourceSha256,
+      verifierVersion: 'defense_budget_verifier_v1',
+      policyVersion: 'defense_budget_verification_policy_v1',
+      policySha256,
+    };
+
+    // R3: Deterministic IDs for unsupported policy result
+    const candidateId = computeCandidateId(candidateIdentity);
+    const verificationRunId = computeRunId(candidateIdentity, startedAt.toISOString());
+
+    const result: DefenseBudgetVerificationResultV1 = {
       verifierVersion: 'defense_budget_verifier_v1',
       policyVersion: 'defense_budget_verification_policy_v1',
       policySha256,
       verificationRunId,
-      candidateId: `vcan_unsupported_${createHash('sha256').update(resolution.manifestContentSha256, 'utf8').digest('hex')}`,
+      candidateId,
       cycleId: resolution.manifest.cycleId ?? '',
       manifestContentSha256: resolution.manifestContentSha256,
       manifestDocumentKey: request.manifestDocumentKey,
@@ -343,20 +379,25 @@ export class BudgetVerificationV1Service {
       status: 'NEEDS_REVIEW',
       route: 'human_review',
       riskScore: 100,
-      checks: [{
-        checkId: `vc1_unsupported_policy_${resolution.manifestDocument.exhibit}`,
-        code: 'verification_policy_not_implemented',
-        ruleVersion: 'defense_budget_verification_rule_v1',
-        outcome: 'NOT_RUN',
-        required: true,
-        blocking: false,
-        riskPoints: 100,
-        message: `no verification policy implemented for family=${resolution.manifestDocument.family} exhibit=${resolution.manifestDocument.exhibit}`,
-        assertionIds: [],
-        evidenceIds: [],
-        referenceArtifactIds: [],
-        details: { family: resolution.manifestDocument.family, exhibit: resolution.manifestDocument.exhibit },
-      }],
+      checks: [
+        {
+          checkId: `vc1_unsupported_policy_${resolution.manifestDocument.exhibit}`,
+          code: 'verification_policy_not_implemented',
+          ruleVersion: 'defense_budget_verification_rule_v1',
+          outcome: 'NOT_RUN',
+          required: true,
+          blocking: false,
+          riskPoints: 100,
+          message: `no verification policy implemented for family=${resolution.manifestDocument.family} exhibit=${resolution.manifestDocument.exhibit}`,
+          assertionIds: [],
+          evidenceIds: [],
+          referenceArtifactIds: [],
+          details: {
+            family: resolution.manifestDocument.family,
+            exhibit: resolution.manifestDocument.exhibit,
+          },
+        },
+      ],
       discrepancies: [],
       acceptedAssertionIds: [],
       rejectedAssertionIds: [],
@@ -364,6 +405,29 @@ export class BudgetVerificationV1Service {
       startedAt: startedAt.toISOString(),
       completedAt: completedAt.toISOString(),
     };
+
+    // R3: persist_audit for unsupported policy also writes audit evidence
+    if (request.mode === 'persist_audit') {
+      if (!this.repository) {
+        throw new Error(
+          'persist_audit mode requires a repository, but no repository was configured',
+        );
+      }
+      // R3: Persist unsupported policy outcome — must not return before recording
+      await this.repository.persistCompletedVerification({
+        candidateIdentity,
+        result,
+        proofBundle: resolution.proofBundle,
+        proofFindings: resolution.proofFindings,
+        proofSnapshots: this.buildProofSnapshots(resolution),
+        checks: result.checks,
+        discrepancies: result.discrepancies,
+        startedAt: result.startedAt,
+        completedAt: result.completedAt,
+      });
+    }
+
+    return result;
   }
 }
 

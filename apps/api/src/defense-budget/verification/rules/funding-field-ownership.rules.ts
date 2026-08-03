@@ -44,7 +44,7 @@ export const FUNDING_FIELD_OWNERSHIP_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input } = ctx;
-    const runId = '';
+    const runId = ctx.verificationRunId;;
     const { artifact } = input;
     const sourceAuthority = artifact.source.authority;
     const discrepancies: ReturnType<typeof makeDiscrepancy>[] = [];

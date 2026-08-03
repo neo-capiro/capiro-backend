@@ -1,12 +1,24 @@
 -- Phase 2 V1 budget verification audit tables.
+-- R2 remediation: corrected migration replacing the original 20260816010000.
 -- Additive only: creates V1 audit tables for the trusted verification gate.
 -- No canonical Program Element table is altered; no canonical promotion authority exists.
 -- These tables are separate from the Phase 0 scaffold tables (budget_extraction_candidate,
 -- budget_verification_run, etc.) which remain for backward compatibility.
+--
+-- R2 changes from original:
+--   1. Full candidate identity (cycle_id, manifest_document_key, source_document_id,
+--      extraction_artifact_id, policy_version) in the unique constraint.
+--   2. ON DELETE RESTRICT on all FKs — audit evidence cannot be cascade-deleted.
+--   3. Deterministic IDs (no gen_random_uuid default on candidate/run).
+--   4. result_snapshot_jsonb column on run for idempotent replay.
+--   5. completed_at >= started_at check on run.
+--   6. Blank notes check on review.
+--   7. Single-terminal-review constraint via trigger.
+--   8. Review hash consistency trigger (review hashes must match candidate).
 
 -- K2: V1 extraction candidate with exact identity idempotency.
 CREATE TABLE "budget_extraction_candidate_v1" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "id" UUID NOT NULL,
     "cycle_id" TEXT NOT NULL,
     "manifest_content_sha256" CHAR(64) NOT NULL,
     "manifest_document_key" TEXT NOT NULL,
@@ -42,8 +54,10 @@ CREATE TABLE "budget_extraction_candidate_v1" (
 
 CREATE UNIQUE INDEX "budget_v1_candidate_identity_key"
     ON "budget_extraction_candidate_v1"
-    ("manifest_content_sha256", "source_sha256", "extraction_artifact_sha256",
-     "verifier_version", "policy_sha256");
+    ("cycle_id", "manifest_content_sha256", "manifest_document_key",
+     "source_document_id", "source_sha256",
+     "extraction_artifact_id", "extraction_artifact_sha256",
+     "verifier_version", "policy_version", "policy_sha256");
 CREATE INDEX "budget_v1_candidate_source_document_idx"
     ON "budget_extraction_candidate_v1" ("source_document_id");
 CREATE INDEX "budget_v1_candidate_status_idx"
@@ -53,7 +67,7 @@ CREATE INDEX "budget_v1_candidate_cycle_idx"
 
 -- K4: V1 verification run.
 CREATE TABLE "budget_verification_run_v1" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "id" UUID NOT NULL,
     "candidate_id" UUID NOT NULL,
     "verifier_version" TEXT NOT NULL,
     "policy_version" TEXT NOT NULL,
@@ -67,11 +81,12 @@ CREATE TABLE "budget_verification_run_v1" (
     "manifest_content_sha256" CHAR(64) NOT NULL,
     "extraction_artifact_sha256" CHAR(64) NOT NULL,
     "source_sha256" CHAR(64) NOT NULL,
+    "result_snapshot_jsonb" JSONB NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
     CONSTRAINT "budget_verification_run_v1_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "budget_verification_run_v1_candidate_fkey"
         FOREIGN KEY ("candidate_id") REFERENCES "budget_extraction_candidate_v1"("id")
-        ON DELETE CASCADE ON UPDATE CASCADE,
+        ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "budget_verification_run_v1_risk_score_check"
         CHECK ("risk_score" >= 0 AND "risk_score" <= 100),
     CONSTRAINT "budget_verification_run_v1_decision_check"
@@ -86,7 +101,9 @@ CREATE TABLE "budget_verification_run_v1" (
     CONSTRAINT "budget_verification_run_v1_sha_checks"
         CHECK ("manifest_content_sha256" ~ '^[0-9a-f]{64}$'
            AND "extraction_artifact_sha256" ~ '^[0-9a-f]{64}$'
-           AND "source_sha256" ~ '^[0-9a-f]{64}$')
+           AND "source_sha256" ~ '^[0-9a-f]{64}$'),
+    CONSTRAINT "budget_verification_run_v1_completed_after_started_check"
+        CHECK ("completed_at" >= "started_at")
 );
 
 CREATE INDEX "budget_v1_run_candidate_idx"
@@ -113,7 +130,7 @@ CREATE TABLE "budget_verification_check_v1" (
     CONSTRAINT "budget_verification_check_v1_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "budget_verification_check_v1_run_fkey"
         FOREIGN KEY ("run_id") REFERENCES "budget_verification_run_v1"("id")
-        ON DELETE CASCADE ON UPDATE CASCADE,
+        ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "budget_verification_check_v1_outcome_check"
         CHECK ("outcome" IN ('PASS', 'FAIL', 'NOT_RUN', 'SKIPPED')),
     CONSTRAINT "budget_verification_check_v1_risk_points_check"
@@ -140,7 +157,7 @@ CREATE TABLE "budget_verification_proof" (
     CONSTRAINT "budget_verification_proof_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "budget_verification_proof_run_fkey"
         FOREIGN KEY ("run_id") REFERENCES "budget_verification_run_v1"("id")
-        ON DELETE CASCADE ON UPDATE CASCADE,
+        ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "budget_verification_proof_status_check"
         CHECK ("status" IN ('verified', 'not_applicable', 'missing', 'mismatch'))
 );
@@ -165,10 +182,10 @@ CREATE TABLE "budget_verification_discrepancy_v1" (
     CONSTRAINT "budget_verification_discrepancy_v1_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "budget_verification_discrepancy_v1_run_fkey"
         FOREIGN KEY ("run_id") REFERENCES "budget_verification_run_v1"("id")
-        ON DELETE CASCADE ON UPDATE CASCADE,
+        ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "budget_verification_discrepancy_v1_candidate_fkey"
         FOREIGN KEY ("candidate_id") REFERENCES "budget_extraction_candidate_v1"("id")
-        ON DELETE CASCADE ON UPDATE CASCADE,
+        ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "budget_verification_discrepancy_v1_severity_check"
         CHECK ("severity" IN ('blocking', 'review', 'informational'))
 );
@@ -194,12 +211,14 @@ CREATE TABLE "budget_review_decision_v1" (
     CONSTRAINT "budget_review_decision_v1_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "budget_review_decision_v1_candidate_fkey"
         FOREIGN KEY ("candidate_id") REFERENCES "budget_extraction_candidate_v1"("id")
-        ON DELETE CASCADE ON UPDATE CASCADE,
+        ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "budget_review_decision_v1_run_fkey"
         FOREIGN KEY ("run_id") REFERENCES "budget_verification_run_v1"("id")
-        ON DELETE CASCADE ON UPDATE CASCADE,
+        ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "budget_review_decision_v1_decision_check"
         CHECK ("decision" IN ('accept', 'reject')),
+    CONSTRAINT "budget_review_decision_v1_notes_check"
+        CHECK (length(btrim("notes")) > 0),
     CONSTRAINT "budget_review_decision_v1_sha_checks"
         CHECK ("source_sha256" ~ '^[0-9a-f]{64}$'
            AND "extraction_artifact_sha256" ~ '^[0-9a-f]{64}$'
@@ -207,6 +226,14 @@ CREATE TABLE "budget_review_decision_v1" (
 );
 
 CREATE INDEX "budget_v1_review_candidate_idx"
+    ON "budget_review_decision_v1" ("candidate_id");
+
+-- R8-F2: Concurrent review — at most one terminal decision per candidate.
+CREATE UNIQUE INDEX "budget_v1_review_one_terminal_per_candidate"
+    ON "budget_review_decision_v1" ("candidate_id")
+    WHERE "decision" IN ('accept', 'reject');
+
+CREATE INDEX "budget_v1_review_candidate_created_idx"
     ON "budget_review_decision_v1" ("candidate_id", "created_at" DESC);
 
 -- K8: Append-only controls — prevent update/delete of immutable rows.
@@ -221,6 +248,17 @@ CREATE TRIGGER budget_v1_run_no_update
   BEFORE UPDATE ON "budget_verification_run_v1"
   FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_run_update();
 
+CREATE OR REPLACE FUNCTION prevent_budget_v1_run_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+  RAISE EXCEPTION 'budget_verification_run_v1 rows cannot be deleted';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER budget_v1_run_no_delete
+  BEFORE DELETE ON "budget_verification_run_v1"
+  FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_run_delete();
+
 CREATE OR REPLACE FUNCTION prevent_budget_v1_check_update()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -231,6 +269,17 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER budget_v1_check_no_update
   BEFORE UPDATE ON "budget_verification_check_v1"
   FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_check_update();
+
+CREATE OR REPLACE FUNCTION prevent_budget_v1_check_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+  RAISE EXCEPTION 'budget_verification_check_v1 rows cannot be deleted';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER budget_v1_check_no_delete
+  BEFORE DELETE ON "budget_verification_check_v1"
+  FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_check_delete();
 
 CREATE OR REPLACE FUNCTION prevent_budget_v1_proof_update()
 RETURNS TRIGGER AS $$
@@ -243,6 +292,39 @@ CREATE TRIGGER budget_v1_proof_no_update
   BEFORE UPDATE ON "budget_verification_proof"
   FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_proof_update();
 
+CREATE OR REPLACE FUNCTION prevent_budget_v1_proof_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+  RAISE EXCEPTION 'budget_verification_proof rows cannot be deleted';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER budget_v1_proof_no_delete
+  BEFORE DELETE ON "budget_verification_proof"
+  FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_proof_delete();
+
+CREATE OR REPLACE FUNCTION prevent_budget_v1_discrepancy_update()
+RETURNS TRIGGER AS $$
+BEGIN
+  RAISE EXCEPTION 'budget_verification_discrepancy_v1 rows are append-only';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER budget_v1_discrepancy_no_update
+  BEFORE UPDATE ON "budget_verification_discrepancy_v1"
+  FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_discrepancy_update();
+
+CREATE OR REPLACE FUNCTION prevent_budget_v1_discrepancy_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+  RAISE EXCEPTION 'budget_verification_discrepancy_v1 rows cannot be deleted';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER budget_v1_discrepancy_no_delete
+  BEFORE DELETE ON "budget_verification_discrepancy_v1"
+  FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_discrepancy_delete();
+
 CREATE OR REPLACE FUNCTION prevent_budget_v1_review_update()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -253,6 +335,17 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER budget_v1_review_no_update
   BEFORE UPDATE ON "budget_review_decision_v1"
   FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_review_update();
+
+CREATE OR REPLACE FUNCTION prevent_budget_v1_review_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+  RAISE EXCEPTION 'budget_review_decision_v1 rows cannot be deleted';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER budget_v1_review_no_delete
+  BEFORE DELETE ON "budget_review_decision_v1"
+  FOR EACH ROW EXECUTE FUNCTION prevent_budget_v1_review_delete();
 
 -- K7: Referential consistency — prevent mismatched candidate/run pairs.
 CREATE OR REPLACE FUNCTION check_budget_v1_discrepancy_candidate_run()
@@ -277,10 +370,13 @@ CREATE TRIGGER budget_v1_discrepancy_candidate_run_check
   BEFORE INSERT ON "budget_verification_discrepancy_v1"
   FOR EACH ROW EXECUTE FUNCTION check_budget_v1_discrepancy_candidate_run();
 
+-- R2: Review integrity — verify hashes match candidate and single terminal decision.
 CREATE OR REPLACE FUNCTION check_budget_v1_review_candidate_run()
 RETURNS TRIGGER AS $$
 DECLARE
   run_candidate_id UUID;
+  candidate_rec RECORD;
+  existing_terminal_count INTEGER;
 BEGIN
   SELECT candidate_id INTO run_candidate_id
   FROM budget_verification_run_v1
@@ -291,6 +387,40 @@ BEGIN
   IF run_candidate_id <> NEW.candidate_id THEN
     RAISE EXCEPTION 'review candidate_id does not match run candidate_id';
   END IF;
+
+  SELECT * INTO candidate_rec
+  FROM budget_extraction_candidate_v1
+  WHERE id = NEW.candidate_id;
+
+  IF candidate_rec IS NULL THEN
+    RAISE EXCEPTION 'review candidate_id does not reference a valid candidate';
+  END IF;
+
+  IF candidate_rec.source_sha256 <> NEW.source_sha256 THEN
+    RAISE EXCEPTION 'review source_sha256 does not match candidate';
+  END IF;
+  IF candidate_rec.extraction_artifact_sha256 <> NEW.extraction_artifact_sha256 THEN
+    RAISE EXCEPTION 'review extraction_artifact_sha256 does not match candidate';
+  END IF;
+  IF candidate_rec.manifest_content_sha256 <> NEW.manifest_content_sha256 THEN
+    RAISE EXCEPTION 'review manifest_content_sha256 does not match candidate';
+  END IF;
+
+  -- Enforce single terminal review decision per candidate
+  SELECT COUNT(*) INTO existing_terminal_count
+  FROM budget_review_decision_v1
+  WHERE candidate_id = NEW.candidate_id
+    AND decision IN ('accept', 'reject');
+
+  IF existing_terminal_count > 0 THEN
+    RAISE EXCEPTION 'candidate already has a terminal review decision';
+  END IF;
+
+  -- Candidate must be in NEEDS_REVIEW state
+  IF candidate_rec.status <> 'NEEDS_REVIEW' THEN
+    RAISE EXCEPTION 'candidate is not in NEEDS_REVIEW state';
+  END IF;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

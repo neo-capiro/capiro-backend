@@ -15,10 +15,7 @@
  */
 import type { VerificationRuleV1, RuleResultV1 } from './rule-types.js';
 import { passCheck, failCheck, notRunCheck, makeDiscrepancy } from './rule-types.js';
-import {
-  isCanonicalDecimalString,
-  moneyToMillionsString,
-} from '../../contracts/decimal-string.js';
+import { isCanonicalDecimalString, moneyToMillionsString } from '../../contracts/decimal-string.js';
 
 export const NUMERIC_RULE: VerificationRuleV1 = {
   code: 'numeric_validation',
@@ -30,7 +27,7 @@ export const NUMERIC_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input } = ctx;
-    const runId = '';
+    const runId = ctx.verificationRunId;;
     const { artifact } = input;
     const discrepancies: ReturnType<typeof makeDiscrepancy>[] = [];
     const failingIds: string[] = [];

@@ -15,14 +15,14 @@
  */
 import type { VerificationRuleV1, RuleResultV1 } from '../rule-types.js';
 import { passCheck, failCheck, notRunCheck, skippedCheck, makeDiscrepancy } from '../rule-types.js';
-import type { DefenseBudgetAssertionV1, DefenseBudgetExtractionArtifactV1 } from '../../../contracts/extraction-artifact-v1.js';
+import type {
+  DefenseBudgetAssertionV1,
+  DefenseBudgetExtractionArtifactV1,
+} from '../../../contracts/extraction-artifact-v1.js';
 import type { TrustedVerificationProofBundleV1 } from '../../trusted-proof/trusted-proof-types.js';
 import type { ProofFindingV1 } from '../../trusted-proof/trusted-proof-types.js';
 import type { ComparisonProviderV1 } from './comparison-provider.js';
-import type {
-  ComparisonResultV1,
-  ComparisonMismatchDetailV1,
-} from './comparison-types.js';
+import type { ComparisonResultV1, ComparisonMismatchDetailV1 } from './comparison-types.js';
 import { isHistoricalConsistency } from './comparison-types.js';
 import { identityNaturalKey } from './reference-artifact-index.js';
 import {
@@ -45,7 +45,7 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = '';
+    const runId = ctx.verificationRunId;;
     const { artifact } = input;
 
     // Determine if this comparison is required or optional for this policy
@@ -53,7 +53,11 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
     const isReview = policy.reviewComparisonRules.includes('cross_document_summary_detail');
     if (!isRequired && !isReview) {
       return {
-        check: skippedCheck(CROSS_DOCUMENT_SUMMARY_DETAIL_RULE, runId, 'cross_document_summary_detail not in policy'),
+        check: skippedCheck(
+          CROSS_DOCUMENT_SUMMARY_DETAIL_RULE,
+          runId,
+          'cross_document_summary_detail not in policy',
+        ),
         discrepancies: [],
       };
     }
@@ -89,12 +93,16 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
             : 'no reference artifacts available',
         ),
         discrepancies: isRequired
-          ? [makeDiscrepancy(
-              'cross_document_summary_detail_missing',
-              'review',
-              'required comparison has no reference artifact',
-              [], [], [],
-            )]
+          ? [
+              makeDiscrepancy(
+                'cross_document_summary_detail_missing',
+                'review',
+                'required comparison has no reference artifact',
+                [],
+                [],
+                [],
+              ),
+            ]
           : [],
       };
     }
@@ -123,7 +131,11 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
 
     if (fundingAssertions.length === 0) {
       return {
-        check: skippedCheck(CROSS_DOCUMENT_SUMMARY_DETAIL_RULE, runId, 'no funding assertions to compare'),
+        check: skippedCheck(
+          CROSS_DOCUMENT_SUMMARY_DETAIL_RULE,
+          runId,
+          'no funding assertions to compare',
+        ),
         discrepancies: [],
       };
     }
@@ -177,12 +189,16 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
           refIds,
           'ambiguous reference matches — multiple reference assertions match the same natural key',
         ),
-        discrepancies: [makeDiscrepancy(
-          'cross_document_summary_detail_ambiguous',
-          isRequired ? 'blocking' : 'review',
-          'multiple reference assertions match the same natural key — cannot select one',
-          matchedAssertionIds, [], refIds,
-        )],
+        discrepancies: [
+          makeDiscrepancy(
+            'cross_document_summary_detail_ambiguous',
+            isRequired ? 'blocking' : 'review',
+            'multiple reference assertions match the same natural key — cannot select one',
+            matchedAssertionIds,
+            [],
+            refIds,
+          ),
+        ],
       };
     }
 
@@ -205,7 +221,10 @@ export const CROSS_DOCUMENT_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
             [m.candidateAssertionId],
             [m.candidateEvidenceId],
             [m.referenceArtifactId],
-            { ...m } as unknown as Record<string, import('../../../contracts/canonical-json.js').JsonValue>,
+            { ...m } as unknown as Record<
+              string,
+              import('../../../contracts/canonical-json.js').JsonValue
+            >,
           ),
         ),
       };
@@ -239,13 +258,17 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = '';
+    const runId = ctx.verificationRunId;;
 
     const isRequired = policy.requiredComparisonRules.includes('committee_request_reference');
     const isReview = policy.reviewComparisonRules.includes('committee_request_reference');
     if (!isRequired && !isReview) {
       return {
-        check: skippedCheck(COMMITTEE_REQUEST_REFERENCE_RULE, runId, 'committee_request_reference not in policy'),
+        check: skippedCheck(
+          COMMITTEE_REQUEST_REFERENCE_RULE,
+          runId,
+          'committee_request_reference not in policy',
+        ),
         discrepancies: [],
       };
     }
@@ -255,13 +278,24 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
         check: notRunCheck(
           COMMITTEE_REQUEST_REFERENCE_RULE,
           runId,
-          [], [], [],
+          [],
+          [],
+          [],
           isRequired
             ? 'no reference artifacts for required committee_request_reference'
             : 'no reference artifacts available',
         ),
         discrepancies: isRequired
-          ? [makeDiscrepancy('committee_request_reference_missing', 'review', 'required comparison missing', [], [], [])]
+          ? [
+              makeDiscrepancy(
+                'committee_request_reference_missing',
+                'review',
+                'required comparison missing',
+                [],
+                [],
+                [],
+              ),
+            ]
           : [],
       };
     }
@@ -270,7 +304,14 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
     const provider = createComparisonProviderFromContext(ctx);
     if (!provider.allReferencesProved) {
       return {
-        check: notRunCheck(COMMITTEE_REQUEST_REFERENCE_RULE, runId, [], [], input.referenceArtifacts.map((a) => a.artifactId), 'reference proof failed'),
+        check: notRunCheck(
+          COMMITTEE_REQUEST_REFERENCE_RULE,
+          runId,
+          [],
+          [],
+          input.referenceArtifacts.map((a) => a.artifactId),
+          'reference proof failed',
+        ),
         discrepancies: [],
       };
     }
@@ -282,7 +323,11 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
 
     if (requestFunding.length === 0) {
       return {
-        check: skippedCheck(COMMITTEE_REQUEST_REFERENCE_RULE, runId, 'no request funding assertions to compare'),
+        check: skippedCheck(
+          COMMITTEE_REQUEST_REFERENCE_RULE,
+          runId,
+          'no request funding assertions to compare',
+        ),
         discrepancies: [],
       };
     }
@@ -297,8 +342,24 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
       if (match.kind === 'zero') continue;
       if (match.kind === 'multiple') {
         return {
-          check: failCheck(COMMITTEE_REQUEST_REFERENCE_RULE, runId, [candidate.assertionId], candidate.evidenceIds, refIds, 'ambiguous reference matches'),
-          discrepancies: [makeDiscrepancy('committee_request_reference_ambiguous', 'review', 'multiple matches', [candidate.assertionId], candidate.evidenceIds, refIds)],
+          check: failCheck(
+            COMMITTEE_REQUEST_REFERENCE_RULE,
+            runId,
+            [candidate.assertionId],
+            candidate.evidenceIds,
+            refIds,
+            'ambiguous reference matches',
+          ),
+          discrepancies: [
+            makeDiscrepancy(
+              'committee_request_reference_ambiguous',
+              'review',
+              'multiple matches',
+              [candidate.assertionId],
+              candidate.evidenceIds,
+              refIds,
+            ),
+          ],
         };
       }
 
@@ -337,13 +398,31 @@ export const COMMITTEE_REQUEST_REFERENCE_RULE: VerificationRuleV1 = {
           { mismatches: JSON.parse(JSON.stringify(mismatches)) },
         ),
         discrepancies: mismatches.map((m) =>
-          makeDiscrepancy('committee_request_reference_mismatch', 'review', `candidate ${m.candidateValue} vs reference ${m.referenceValue}`, [m.candidateAssertionId], [m.candidateEvidenceId], [m.referenceArtifactId], { ...m } as unknown as Record<string, import('../../../contracts/canonical-json.js').JsonValue>),
+          makeDiscrepancy(
+            'committee_request_reference_mismatch',
+            'review',
+            `candidate ${m.candidateValue} vs reference ${m.referenceValue}`,
+            [m.candidateAssertionId],
+            [m.candidateEvidenceId],
+            [m.referenceArtifactId],
+            { ...m } as unknown as Record<
+              string,
+              import('../../../contracts/canonical-json.js').JsonValue
+            >,
+          ),
         ),
       };
     }
 
     return {
-      check: passCheck(COMMITTEE_REQUEST_REFERENCE_RULE, runId, matchedIds, [], refIds, `${matchedIds.length} request assertions matched`),
+      check: passCheck(
+        COMMITTEE_REQUEST_REFERENCE_RULE,
+        runId,
+        matchedIds,
+        [],
+        refIds,
+        `${matchedIds.length} request assertions matched`,
+      ),
       discrepancies: [],
     };
   },
@@ -363,13 +442,17 @@ export const HISTORICAL_CONSISTENCY_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = '';
+    const runId = ctx.verificationRunId;;
 
     const isRequired = policy.requiredComparisonRules.includes('historical_consistency');
     const isReview = policy.reviewComparisonRules.includes('historical_consistency');
     if (!isRequired && !isReview) {
       return {
-        check: skippedCheck(HISTORICAL_CONSISTENCY_RULE, runId, 'historical_consistency not in policy'),
+        check: skippedCheck(
+          HISTORICAL_CONSISTENCY_RULE,
+          runId,
+          'historical_consistency not in policy',
+        ),
         discrepancies: [],
       };
     }
@@ -378,7 +461,14 @@ export const HISTORICAL_CONSISTENCY_RULE: VerificationRuleV1 = {
     // It may adjust risk or flag anomalies only.
     if (input.referenceArtifacts.length === 0) {
       return {
-        check: notRunCheck(HISTORICAL_CONSISTENCY_RULE, runId, [], [], [], 'no historical reference artifacts'),
+        check: notRunCheck(
+          HISTORICAL_CONSISTENCY_RULE,
+          runId,
+          [],
+          [],
+          [],
+          'no historical reference artifacts',
+        ),
         discrepancies: [],
       };
     }

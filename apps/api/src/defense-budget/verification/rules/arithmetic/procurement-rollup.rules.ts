@@ -29,7 +29,7 @@ export const PROCUREMENT_ROLLUP_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = '';
+    const runId = ctx.verificationRunId;;
     const { artifact } = input;
 
     if (!policy.arithmeticRules.includes('procurement_rollup')) {
@@ -164,7 +164,11 @@ export const PROCUREMENT_ROLLUP_RULE: VerificationRuleV1 = {
             try {
               const computedDollars = multiplyByInteger(line.unitCostDollars, line.quantity);
               const lineDollars = line.dollars.valueMillions;
-              const qtyCmp = compareWithTolerance(lineDollars, computedDollars, printedUnitToleranceMillions(1));
+              const qtyCmp = compareWithTolerance(
+                lineDollars,
+                computedDollars,
+                printedUnitToleranceMillions(1),
+              );
               if (qtyCmp !== 0) {
                 // Not forced — ancillary costs may differ. Review, not blocking.
                 discrepancies.push(

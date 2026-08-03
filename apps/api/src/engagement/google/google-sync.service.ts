@@ -555,8 +555,13 @@ export class GoogleSyncService {
               externalId: event.id!,
             },
           },
-          select: { id: true, clientId: true, isInternal: true, associationSignals: true },
+          select: { id: true, clientId: true, isInternal: true, associationSignals: true, status: true },
         });
+        // Resurrection guard: a previously-deleted meeting must not be
+        // revived when a full calendar refresh re-encounters its id.
+        if (existing?.status === 'deleted' && event.status !== 'cancelled') {
+          return 'skipped';
+        }
         const ownEmail = accountEmail?.trim().toLowerCase();
         const association = await this.association.associate(tx, tenantId, {
           subject: event.summary,
@@ -598,6 +603,7 @@ export class GoogleSyncService {
           endsAt,
           organizerEmail,
           organizerName: clean(event.organizer?.displayName),
+          timeZone: event.start?.timeZone ?? null,
           status: 'scheduled',
           isVirtual: virtuality.isVirtual,
           joinLink: virtuality.joinLink,

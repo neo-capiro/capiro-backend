@@ -126,11 +126,17 @@ The Phase 0 verifier is not complete; nothing above claims otherwise.
 
 ## Remaining limitations (later phases)
 
-- trusted source/parse proof resolver
-- complete extraction contract
-- family-specific completeness rules
-- independent comparison retrieval
-- governed review persistence
-- transactional production repository
-- verified canonical promotion service
-- integration into annual ingestion
+The V1 trusted verification gate (BUDGET-VERIFICATION-GATE-V1.md) now implements
+trusted source/archive/parser/reference proof, deterministic decisions,
+transactional audit persistence, governed review, and operator CLIs. The
+Phase 0 scaffold documented above remains internal/deprecated.
+
+Items still outside Phase 2 scope:
+
+- production S3 archive proof resolution (filesystem resolver is implemented;
+  S3 resolver is production-capable but not wired to a live bucket in Phase 2)
+- LlamaParse or paid-verifier invocation (forbidden in Phase 2)
+- canonical Program Element promotion (forbidden in Phase 2)
+- integration into annual ingestion pipeline
+- review UI or public HTTP review API
+- EventBridge, ECS, CDK, or deployment wiring

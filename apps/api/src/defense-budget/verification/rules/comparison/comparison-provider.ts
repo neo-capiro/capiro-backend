@@ -12,7 +12,10 @@
  * - Multiple matches produce AMBIGUOUS, never silently reduced to one (I2/I4).
  */
 import type { DefenseBudgetExtractionArtifactV1 } from '../../../contracts/extraction-artifact-v1.js';
-import type { TrustedVerificationProofBundleV1, ProofFindingV1 } from '../../trusted-proof/trusted-proof-types.js';
+import type {
+  TrustedVerificationProofBundleV1,
+  ProofFindingV1,
+} from '../../trusted-proof/trusted-proof-types.js';
 import type { ReferenceMatchResultV1, ReferenceArtifactEntryV1 } from './comparison-types.js';
 import { ReferenceArtifactIndexV1 } from './reference-artifact-index.js';
 

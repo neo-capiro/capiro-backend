@@ -766,6 +766,10 @@ model Meeting {
   endsAt             DateTime          @map("ends_at") @db.Timestamptz(6)
   organizerEmail     String?           @map("organizer_email") @db.Citext
   organizerName      String?           @map("organizer_name")
+  // IANA timezone captured at sync from Graph event.start.timeZone / Google
+  // Calendar start.timeZone. Used to format prep/briefing times in the
+  // meeting's local zone instead of server UTC.
+  timeZone           String?           @map("time_zone")
   status             String            @default("scheduled")
   // Meetings v2 (2026-07): virtual-meeting classification derived once at
   // sync/create time (see @capiro/shared deriveMeetingVirtuality) instead of
@@ -7582,10 +7586,11 @@ model AssuranceEvalFixture {
 // promotion authority exists here. The V1 verification gate persists
 // candidate, proof snapshot, run, checks, discrepancies, and decisions.
 
-/// One extraction candidate per unique (manifest SHA, source SHA, artifact SHA,
-/// verifier version, policy SHA). Idempotent on exact identity.
+/// One extraction candidate per unique identity. Idempotent on exact identity.
+/// R2: Full candidate identity includes cycle, manifest, artifact, source,
+/// verifier, and policy material. Deterministic UUID (not random default).
 model BudgetExtractionCandidateV1 {
-  id                     String   @id @default(uuid()) @db.Uuid
+  id                     String   @id @db.Uuid
   cycleId                String   @map("cycle_id")
   manifestContentSha256  String   @map("manifest_content_sha256") @db.Char(64)
   manifestDocumentKey    String   @map("manifest_document_key")
@@ -7606,7 +7611,7 @@ model BudgetExtractionCandidateV1 {
   discrepancies BudgetVerificationDiscrepancyV1[]
   reviewDecisions BudgetReviewDecisionV1[]
 
-  @@unique([manifestContentSha256, sourceSha256, extractionArtifactSha256, verifierVersion, policySha256], map: "budget_v1_candidate_identity_key")
+  @@unique([cycleId, manifestContentSha256, manifestDocumentKey, sourceDocumentId, sourceSha256, extractionArtifactId, extractionArtifactSha256, verifierVersion, policyVersion, policySha256], map: "budget_v1_candidate_identity_key")
   @@index([sourceDocumentId], map: "budget_v1_candidate_source_document_idx")
   @@index([status], map: "budget_v1_candidate_status_idx")
   @@index([cycleId], map: "budget_v1_candidate_cycle_idx")
@@ -7614,8 +7619,10 @@ model BudgetExtractionCandidateV1 {
 }
 
 /// One verification run per candidate attempt. Completed runs are append-only.
+/// R2: Deterministic UUID. Run integrity: completed_at >= started_at,
+/// risk 0..100, exact decision/status mapping, controlled routes, SHA format.
 model BudgetVerificationRunV1 {
-  id                     String   @id @default(uuid()) @db.Uuid
+  id                     String   @id @db.Uuid
   candidateId            String   @map("candidate_id") @db.Uuid
   verifierVersion        String   @map("verifier_version")
   policyVersion          String   @map("policy_version")
@@ -7629,9 +7636,10 @@ model BudgetVerificationRunV1 {
   manifestContentSha256  String   @map("manifest_content_sha256") @db.Char(64)
   extractionArtifactSha256 String @map("extraction_artifact_sha256") @db.Char(64)
   sourceSha256           String   @map("source_sha256") @db.Char(64)
+  resultSnapshot         Json     @map("result_snapshot_jsonb")
   createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  candidate    BudgetExtractionCandidateV1 @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  candidate    BudgetExtractionCandidateV1 @relation(fields: [candidateId], references: [id], onDelete: Restrict)
   checks       BudgetVerificationCheckV1[]
   proofSnapshots BudgetVerificationProofV1[]
   discrepancies BudgetVerificationDiscrepancyV1[]
@@ -7661,7 +7669,7 @@ model BudgetVerificationCheckV1 {
   passed          Boolean  @default(false)
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  run BudgetVerificationRunV1 @relation(fields: [runId], references: [id], onDelete: Cascade)
+  run BudgetVerificationRunV1 @relation(fields: [runId], references: [id], onDelete: Restrict)
 
   @@index([runId, code], map: "budget_v1_check_run_idx")
   @@map("budget_verification_check_v1")
@@ -7679,7 +7687,7 @@ model BudgetVerificationProofV1 {
   evidenceJson    Json     @map("evidence_jsonb")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  run BudgetVerificationRunV1 @relation(fields: [runId], references: [id], onDelete: Cascade)
+  run BudgetVerificationRunV1 @relation(fields: [runId], references: [id], onDelete: Restrict)
 
   @@index([runId], map: "budget_v1_proof_run_idx")
   @@map("budget_verification_proof")
@@ -7700,8 +7708,8 @@ model BudgetVerificationDiscrepancyV1 {
   details         Json?    @map("details_jsonb")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  run       BudgetVerificationRunV1      @relation(fields: [runId], references: [id], onDelete: Cascade)
-  candidate BudgetExtractionCandidateV1  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  run       BudgetVerificationRunV1      @relation(fields: [runId], references: [id], onDelete: Restrict)
+  candidate BudgetExtractionCandidateV1  @relation(fields: [candidateId], references: [id], onDelete: Restrict)
 
   @@index([candidateId, createdAt], map: "budget_v1_discrepancy_candidate_idx")
   @@index([runId], map: "budget_v1_discrepancy_run_idx")
@@ -7722,8 +7730,8 @@ model BudgetReviewDecisionV1 {
   evidenceJson    Json     @map("evidence_jsonb")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  candidate BudgetExtractionCandidateV1 @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  run       BudgetVerificationRunV1     @relation(fields: [runId], references: [id], onDelete: Cascade)
+  candidate BudgetExtractionCandidateV1 @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  run       BudgetVerificationRunV1     @relation(fields: [runId], references: [id], onDelete: Restrict)
 
   @@index([candidateId, createdAt], map: "budget_v1_review_candidate_idx")
   @@map("budget_review_decision_v1")

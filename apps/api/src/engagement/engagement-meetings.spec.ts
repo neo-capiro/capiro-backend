@@ -255,7 +255,7 @@ describe('listSharedMeetingsForClient', () => {
     >;
 
     const where = findArgs!.where as Record<string, unknown>;
-    expect(where).toEqual({ tenantId: 'tenant-1', clientId: 'c1', visibility: 'shared' });
+    expect(where).toEqual({ tenantId: 'tenant-1', clientId: 'c1', visibility: 'shared', status: { not: 'deleted' } });
     // Deliberately NO ownMeetingWhere — shared material is org-visible.
     expect(where).not.toHaveProperty('OR');
     expect(findArgs!.orderBy).toEqual([{ sharedAt: 'desc' }, { startsAt: 'desc' }]);

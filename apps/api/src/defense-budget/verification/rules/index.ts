@@ -2,17 +2,8 @@
  * Barrel exports for verification rules (Workstreams E–H).
  */
 // Shared rule infrastructure
-export type {
-  VerificationRuleV1,
-  RuleResultV1,
-} from './rule-types.js';
-export {
-  passCheck,
-  failCheck,
-  notRunCheck,
-  skippedCheck,
-  makeDiscrepancy,
-} from './rule-types.js';
+export type { VerificationRuleV1, RuleResultV1 } from './rule-types.js';
+export { passCheck, failCheck, notRunCheck, skippedCheck, makeDiscrepancy } from './rule-types.js';
 export {
   registerRule,
   lookupRule,
@@ -27,7 +18,13 @@ export { MANIFEST_BINDING_RULE } from './manifest-binding.rules.js';
 export { COMPLETENESS_RULE } from './completeness.rules.js';
 
 // Workstream F — Evidence and parser-lineage
-export { EVIDENCE_BINDING_RULE, MONEY_EVIDENCE_RULE, WARNING_POLICY_RULE } from './evidence.rules.js';
+export {
+  EVIDENCE_BINDING_RULE,
+  MONEY_EVIDENCE_RULE,
+  WARNING_POLICY_RULE,
+  ARCHIVE_PROOF_RULE,
+  PARSER_RUN_PROOF_RULE,
+} from './evidence.rules.js';
 
 // Workstream G — Identity, ownership, numeric, duplicate
 export { IDENTITY_RULE } from './identity.rules.js';
@@ -59,7 +56,13 @@ export {
 import { CONTRACT_INTEGRITY_RULE } from './contract-integrity.rules.js';
 import { MANIFEST_BINDING_RULE } from './manifest-binding.rules.js';
 import { COMPLETENESS_RULE } from './completeness.rules.js';
-import { EVIDENCE_BINDING_RULE, MONEY_EVIDENCE_RULE, WARNING_POLICY_RULE } from './evidence.rules.js';
+import {
+  EVIDENCE_BINDING_RULE,
+  MONEY_EVIDENCE_RULE,
+  WARNING_POLICY_RULE,
+  ARCHIVE_PROOF_RULE,
+  PARSER_RUN_PROOF_RULE,
+} from './evidence.rules.js';
 import { IDENTITY_RULE } from './identity.rules.js';
 import { FUNDING_FIELD_OWNERSHIP_RULE } from './funding-field-ownership.rules.js';
 import { NUMERIC_RULE } from './numeric.rules.js';
@@ -77,6 +80,8 @@ export const ALL_VERIFICATION_RULES: readonly VerificationRuleV1[] = [
   EVIDENCE_BINDING_RULE,
   MONEY_EVIDENCE_RULE,
   WARNING_POLICY_RULE,
+  ARCHIVE_PROOF_RULE,
+  PARSER_RUN_PROOF_RULE,
   IDENTITY_RULE,
   FUNDING_FIELD_OWNERSHIP_RULE,
   NUMERIC_RULE,

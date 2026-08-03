@@ -136,7 +136,10 @@ export function computeDecisionV1(input: DecisionEngineInputV1): DecisionEngineR
   if (hasOcrParser && policy.ocrMoneyAlwaysReview) {
     return finalizeResult('REVIEW', riskResult.riskScore, checks, discrepancies, policy);
   }
-  if (hasUncorroboratedCongressionalMoney && policy.congressionalMoneyAlwaysReviewWhenUncorroborated) {
+  if (
+    hasUncorroboratedCongressionalMoney &&
+    policy.congressionalMoneyAlwaysReviewWhenUncorroborated
+  ) {
     return finalizeResult('REVIEW', riskResult.riskScore, checks, discrepancies, policy);
   }
   if (hasUncorroboratedEnacted && policy.enactedAlwaysReviewWhenUncorroborated) {
@@ -175,23 +178,27 @@ function finalizeResult(
   policy: VerificationPolicyV1,
 ): DecisionEngineResultV1 {
   const status: VerificationCandidateStatusV1 =
-    decision === 'PASS' ? 'VERIFICATION_PASSED' :
-    decision === 'REVIEW' ? 'NEEDS_REVIEW' :
-    'REJECTED';
+    decision === 'PASS'
+      ? 'VERIFICATION_PASSED'
+      : decision === 'REVIEW'
+        ? 'NEEDS_REVIEW'
+        : 'REJECTED';
 
   // J4: Stable ordering — sort assertion IDs, evidence IDs, reference IDs
   // A rejected result must have an empty acceptedAssertionIds list.
-  const acceptedAssertionIds = decision === 'REJECT'
-    ? []
-    : collectAcceptedAssertionIds(checks).sort();
+  const acceptedAssertionIds =
+    decision === 'REJECT' ? [] : collectAcceptedAssertionIds(checks).sort();
   const rejectedAssertionIds = collectRejectedAssertionIds(checks, discrepancies).sort();
 
   return {
     decision,
     status,
-    route: decision === 'PASS' ? 'none' :
-           decision === 'REJECT' ? 'none' :
-           routeForReview(riskScore, policy),
+    route:
+      decision === 'PASS'
+        ? 'none'
+        : decision === 'REJECT'
+          ? 'none'
+          : routeForReview(riskScore, policy),
     riskScore,
     acceptedAssertionIds,
     rejectedAssertionIds,

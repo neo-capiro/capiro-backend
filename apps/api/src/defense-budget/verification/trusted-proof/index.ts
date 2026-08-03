@@ -15,11 +15,7 @@ export type {
   TrustedProofResolutionV1,
   TrustedVerificationProofResolverV1,
 } from './trusted-proof-types.js';
-export {
-  blockingFinding,
-  reviewFinding,
-  PROOF_FINDING_V1_VALUES,
-} from './trusted-proof-types.js';
+export { blockingFinding, reviewFinding, PROOF_FINDING_V1_VALUES } from './trusted-proof-types.js';
 export type { FilesystemProofResolver } from './filesystem-proof-resolver.js';
 export type { SourceDocumentProofResolver } from './source-document-proof-resolver.js';
 export type { ArchiveProofResolver } from './archive-proof-resolver.js';

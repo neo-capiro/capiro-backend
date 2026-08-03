@@ -29,7 +29,7 @@ export const COMMITTEE_ADJUSTMENT_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = '';
+    const runId = ctx.verificationRunId;;
     const { artifact } = input;
 
     if (!policy.arithmeticRules.includes('committee_adjustment')) {
@@ -78,14 +78,7 @@ export const COMMITTEE_ADJUSTMENT_RULE: VerificationRuleV1 = {
 
     if (funding.length === 0) {
       return {
-        check: notRunCheck(
-          COMMITTEE_ADJUSTMENT_RULE,
-          runId,
-          [],
-          [],
-          [],
-          'no funding assertions',
-        ),
+        check: notRunCheck(COMMITTEE_ADJUSTMENT_RULE, runId, [], [], [], 'no funding assertions'),
         discrepancies: [],
       };
     }
@@ -108,7 +101,13 @@ export const COMMITTEE_ADJUSTMENT_RULE: VerificationRuleV1 = {
     for (const [key, group] of groups) {
       const request = group.find((f) => f.field === 'request');
       const mark = group.find(
-        (f) => f.field === 'hascMark' || f.field === 'sascMark' || f.field === 'hacDMark' || f.field === 'sacDMark' || f.field === 'ndaaConference' || f.field === 'conference',
+        (f) =>
+          f.field === 'hascMark' ||
+          f.field === 'sascMark' ||
+          f.field === 'hacDMark' ||
+          f.field === 'sacDMark' ||
+          f.field === 'ndaaConference' ||
+          f.field === 'conference',
       );
 
       // Only run when both request and mark are present
@@ -118,9 +117,7 @@ export const COMMITTEE_ADJUSTMENT_RULE: VerificationRuleV1 = {
       //   mark = request + adjustments
       // If there are no adjustment assertions (separate reprogramming/transfer
       // assertions), we return NOT_RUN — do not infer zero adjustments.
-      const hasAdjustments = group.some(
-        (f) => f.field === 'reprogrammed',
-      );
+      const hasAdjustments = group.some((f) => f.field === 'reprogrammed');
 
       if (!hasAdjustments) {
         // No adjustment detail — NOT_RUN, do not infer zero

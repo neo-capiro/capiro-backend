@@ -13,11 +13,8 @@ import {
   computeArtifactContentSha256,
 } from '../../contracts/extraction-artifact-v1.semantic.js';
 import type { DefenseBudgetExtractionArtifactV1 } from '../../contracts/extraction-artifact-v1.js';
-import { sha256Hex } from '../../contracts/canonical-json.js';
-import type {
-  TrustedExtractionArtifactProofV1,
-  ProofFindingV1,
-} from './trusted-proof-types.js';
+import { sha256Bytes } from '../../contracts/canonical-json.js';
+import type { TrustedExtractionArtifactProofV1, ProofFindingV1 } from './trusted-proof-types.js';
 import { blockingFinding } from './trusted-proof-types.js';
 
 export interface ExtractionArtifactProofResolverInput {
@@ -44,13 +41,15 @@ export class ExtractionArtifactProofResolver {
   ): Promise<ExtractionArtifactProofResolverResult> {
     const findings: ProofFindingV1[] = [];
 
-    // Hash the raw bytes
-    const byteSha256 = sha256Hex(input.artifactBytes.toString('utf8'));
+    // Hash the raw bytes — R1: use sha256Bytes for raw file bytes
+    const byteSha256 = sha256Bytes(input.artifactBytes);
 
     // Parse with Zod
     let artifact: DefenseBudgetExtractionArtifactV1;
     try {
-      artifact = parseDefenseBudgetExtractionArtifactV1(JSON.parse(input.artifactBytes.toString('utf8')));
+      artifact = parseDefenseBudgetExtractionArtifactV1(
+        JSON.parse(input.artifactBytes.toString('utf8')),
+      );
     } catch (err) {
       findings.push(
         blockingFinding(

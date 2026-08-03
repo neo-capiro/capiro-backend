@@ -3,7 +3,12 @@
  *
  * Map between the verification contract types and the Prisma model rows.
  * Also enforces status transition validation (L5).
+ *
+ * R3: Added deterministic UUID generation for candidate and run IDs.
+ * IDs are derived from the canonical identity material so that inspect
+ * and persist modes produce the same IDs.
  */
+import { createHash } from 'node:crypto';
 import type {
   VerificationCheckV1,
   VerificationDiscrepancyV1,
@@ -13,7 +18,6 @@ import type { VerificationCandidateStatusV1 } from '../verification-contract-v1.
 import type {
   CandidateIdentityV1,
   ProofSnapshotInputV1,
-  PersistCompletedVerificationInputV1,
   ReadCandidateV1,
   ReadRunV1,
 } from './verification-repository.js';
@@ -42,10 +46,81 @@ export function isValidTransition(from: string, to: string): boolean {
 
 export function assertValidTransition(from: string, to: string): void {
   if (!isValidTransition(from, to)) {
-    throw new Error(
-      `invalid candidate status transition: ${from} -> ${to}`,
-    );
+    throw new Error(`invalid candidate status transition: ${from} -> ${to}`);
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Deterministic UUID generation (R3)                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Generate a deterministic UUID v5 from a string input.
+ * Uses a fixed namespace UUID so results are reproducible across runs.
+ */
+const NAMESPACE_UUID = '6ba7b810-9dad-11d1-80b4-00c04fd430c8'; // DNS namespace
+
+export function deterministicUuid(input: string): string {
+  const hash = createHash('sha256').update(NAMESPACE_UUID).update(input).digest();
+
+  const bytes = new Uint8Array(hash);
+  // Set version (5 = SHA-1 based, but we use SHA-256; set to 5 for semantic)
+  const b6 = bytes[6] ?? 0;
+  bytes[6] = (b6 & 0x0f) | 0x50;
+  // Set variant (10xx)
+  const b8 = bytes[8] ?? 0;
+  bytes[8] = (b8 & 0x3f) | 0x80;
+
+  const hex = Buffer.from(bytes).toString('hex');
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20, 32),
+  ].join('-');
+}
+
+/**
+ * Compute a deterministic candidate UUID from the full candidate identity.
+ * Inspect and persist modes produce the same ID.
+ */
+export function computeCandidateId(identity: CandidateIdentityV1): string {
+  const material = [
+    identity.cycleId,
+    identity.manifestContentSha256,
+    identity.manifestDocumentKey,
+    identity.sourceDocumentId,
+    identity.sourceSha256,
+    identity.extractionArtifactId,
+    identity.extractionArtifactSha256,
+    identity.verifierVersion,
+    identity.policyVersion,
+    identity.policySha256,
+  ].join('|');
+  return deterministicUuid(material);
+}
+
+/**
+ * Compute a deterministic run UUID from the candidate ID and run-attempt
+ * identity. The run-attempt identity includes the candidate identity plus
+ * startedAt timestamp so re-runs get different IDs.
+ */
+export function computeRunId(identity: CandidateIdentityV1, startedAt: string): string {
+  const material = [
+    identity.cycleId,
+    identity.manifestContentSha256,
+    identity.manifestDocumentKey,
+    identity.sourceDocumentId,
+    identity.sourceSha256,
+    identity.extractionArtifactId,
+    identity.extractionArtifactSha256,
+    identity.verifierVersion,
+    identity.policyVersion,
+    identity.policySha256,
+    startedAt,
+  ].join('|');
+  return deterministicUuid(material);
 }
 
 /* ------------------------------------------------------------------ */
@@ -158,6 +233,7 @@ export function mapResultToRunRow(
   result: DefenseBudgetVerificationResultV1,
   candidateId: string,
 ): {
+  id: string;
   candidateId: string;
   verifierVersion: string;
   policyVersion: string;
@@ -171,8 +247,10 @@ export function mapResultToRunRow(
   manifestContentSha256: string;
   extractionArtifactSha256: string;
   sourceSha256: string;
+  resultSnapshot: JsonValue;
 } {
   return {
+    id: result.verificationRunId,
     candidateId,
     verifierVersion: result.verifierVersion,
     policyVersion: result.policyVersion,
@@ -186,6 +264,7 @@ export function mapResultToRunRow(
     manifestContentSha256: result.manifestContentSha256,
     extractionArtifactSha256: result.extractionArtifactSha256,
     sourceSha256: result.sourcePdfSha256,
+    resultSnapshot: result as unknown as JsonValue,
   };
 }
 
@@ -193,7 +272,9 @@ export function mapResultToRunRow(
 /* Candidate status from decision                                      */
 /* ------------------------------------------------------------------ */
 
-export function statusFromDecision(decision: 'PASS' | 'REVIEW' | 'REJECT'): VerificationCandidateStatusV1 {
+export function statusFromDecision(
+  decision: 'PASS' | 'REVIEW' | 'REJECT',
+): VerificationCandidateStatusV1 {
   switch (decision) {
     case 'PASS':
       return 'VERIFICATION_PASSED';
@@ -210,10 +291,15 @@ export function statusFromDecision(decision: 'PASS' | 'REVIEW' | 'REJECT'): Veri
 
 export function candidateIdempotencyKey(identity: CandidateIdentityV1): string {
   return [
+    identity.cycleId,
     identity.manifestContentSha256,
+    identity.manifestDocumentKey,
+    identity.sourceDocumentId,
     identity.sourceSha256,
+    identity.extractionArtifactId,
     identity.extractionArtifactSha256,
     identity.verifierVersion,
+    identity.policyVersion,
     identity.policySha256,
   ].join('|');
 }
@@ -273,6 +359,7 @@ export function mapRowToReadRun(row: {
   manifestContentSha256: string;
   extractionArtifactSha256: string;
   sourceSha256: string;
+  resultSnapshot: unknown;
   createdAt: Date | string;
 }): ReadRunV1 {
   return {
@@ -286,10 +373,12 @@ export function mapRowToReadRun(row: {
     route: row.route,
     riskScore: row.riskScore,
     startedAt: typeof row.startedAt === 'string' ? row.startedAt : row.startedAt.toISOString(),
-    completedAt: typeof row.completedAt === 'string' ? row.completedAt : row.completedAt.toISOString(),
+    completedAt:
+      typeof row.completedAt === 'string' ? row.completedAt : row.completedAt.toISOString(),
     manifestContentSha256: row.manifestContentSha256,
     extractionArtifactSha256: row.extractionArtifactSha256,
     sourceSha256: row.sourceSha256,
+    resultSnapshot: row.resultSnapshot,
     createdAt: typeof row.createdAt === 'string' ? row.createdAt : row.createdAt.toISOString(),
   };
 }

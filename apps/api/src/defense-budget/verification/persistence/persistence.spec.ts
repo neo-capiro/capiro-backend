@@ -10,7 +10,10 @@ import {
   mapCheckToRow,
   mapDiscrepancyToRow,
 } from './verification-persistence-mappers.js';
-import type { VerificationCheckV1, VerificationDiscrepancyV1 } from '../verification-contract-v1.js';
+import type {
+  VerificationCheckV1,
+  VerificationDiscrepancyV1,
+} from '../verification-contract-v1.js';
 
 /* ------------------------------------------------------------------ */
 /* Status transitions (L5)                                             */

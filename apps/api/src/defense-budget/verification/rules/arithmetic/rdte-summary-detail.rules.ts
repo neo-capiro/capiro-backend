@@ -15,7 +15,10 @@ import {
   printedUnitToleranceMillions,
   absDifference,
 } from './exact-arithmetic.js';
-import type { DefenseBudgetExtractionArtifactV1, DefenseBudgetAssertionV1 } from '../../../contracts/extraction-artifact-v1.js';
+import type {
+  DefenseBudgetExtractionArtifactV1,
+  DefenseBudgetAssertionV1,
+} from '../../../contracts/extraction-artifact-v1.js';
 
 export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
   code: 'rdte_summary_detail',
@@ -27,7 +30,7 @@ export const RDTE_SUMMARY_DETAIL_RULE: VerificationRuleV1 = {
 
   execute(ctx): RuleResultV1 {
     const { input, policy } = ctx;
-    const runId = '';
+    const runId = ctx.verificationRunId;;
     const { artifact, referenceArtifacts } = input;
 
     // Only run when arithmeticRules includes this rule
