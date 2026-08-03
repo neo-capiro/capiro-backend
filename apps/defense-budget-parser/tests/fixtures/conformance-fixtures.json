@@ -1,0 +1,291 @@
+{
+  "valid_job": {
+    "schemaVersion": "defense_budget_parser_job_v1",
+    "jobId": "job-test-001",
+    "sourcePath": "/work/input.pdf",
+    "sourceSha256": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "engine": "deterministic_pdfplumber",
+    "requestedPages": [1, 2, 3],
+    "parserVersion": "pdfplumber-0.11.0",
+    "parserConfig": {
+      "tableStrategy": "lines",
+      "minEmbeddedTextCharacters": 40
+    },
+    "parserConfigSha256": "e3d0f0c1a2b3e4d5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9",
+    "outputDirectory": "/work/output",
+    "includeDebugArtifacts": false
+  },
+  "valid_result": {
+    "schemaVersion": "defense_budget_parser_result_v1",
+    "jobId": "job-test-001",
+    "engine": "deterministic_pdfplumber",
+    "parserVersion": "pdfplumber-0.11.0",
+    "parserConfigSha256": "e3d0f0c1a2b3e4d5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9",
+    "inputSourceSha256": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "requestedPages": [1, 2, 3],
+    "succeededPages": [1, 2],
+    "failedPages": [
+      {
+        "page": 3,
+        "code": "page_out_of_range",
+        "message": "page 3 does not exist in the document (2 pages total)"
+      }
+    ],
+    "pages": [
+      {
+        "page": 1,
+        "width": "612.0",
+        "height": "792.0",
+        "rotation": 0,
+        "text": "Program Element: 0601101D8Z\nMission: Test mission",
+        "blocks": [
+          {
+            "blockIndex": 0,
+            "blockType": "heading",
+            "text": "Program Element: 0601101D8Z",
+            "readingOrder": 0
+          },
+          {
+            "blockIndex": 1,
+            "blockType": "paragraph",
+            "text": "Mission: Test mission",
+            "readingOrder": 1
+          }
+        ],
+        "tables": [
+          {
+            "tableIndex": 0,
+            "label": "R-1 Table",
+            "rowCount": 2,
+            "columnCount": 3,
+            "cells": [
+              {
+                "rowIndex": 0,
+                "columnIndex": 0,
+                "text": "PE Code",
+                "boundingBox": {
+                  "x0": "72.0",
+                  "y0": "700.0",
+                  "x1": "200.0",
+                  "y1": "720.0"
+                },
+                "confidence": "0.95"
+              },
+              {
+                "rowIndex": 0,
+                "columnIndex": 1,
+                "text": "FY 2025",
+                "boundingBox": {
+                  "x0": "200.0",
+                  "y0": "700.0",
+                  "x1": "300.0",
+                  "y1": "720.0"
+                },
+                "confidence": "0.95"
+              },
+              {
+                "rowIndex": 1,
+                "columnIndex": 0,
+                "text": "0601101D8Z",
+                "boundingBox": {
+                  "x0": "72.0",
+                  "y0": "680.0",
+                  "x1": "200.0",
+                  "y1": "700.0"
+                },
+                "confidence": "0.95"
+              },
+              {
+                "rowIndex": 1,
+                "columnIndex": 1,
+                "text": "12500.0",
+                "boundingBox": {
+                  "x0": "200.0",
+                  "y0": "680.0",
+                  "x1": "300.0",
+                  "y1": "700.0"
+                },
+                "confidence": "0.95"
+              }
+            ],
+            "boundingBox": {
+              "x0": "72.0",
+              "y0": "680.0",
+              "x1": "540.0",
+              "y1": "720.0"
+            },
+            "warnings": []
+          }
+        ],
+        "images": [],
+        "confidence": "0.95",
+        "evidencePrecision": "cell_bbox",
+        "warnings": []
+      },
+      {
+        "page": 2,
+        "text": "Continuation page",
+        "blocks": [
+          {
+            "blockIndex": 0,
+            "blockType": "paragraph",
+            "text": "Continuation page",
+            "readingOrder": 0
+          }
+        ],
+        "tables": [],
+        "images": [],
+        "evidencePrecision": "page_only",
+        "warnings": ["no tables detected on this page"]
+      }
+    ],
+    "warnings": [],
+    "metrics": {
+      "durationMillis": 150,
+      "pagesProcessed": 3,
+      "pagesSucceeded": 2,
+      "pagesFailed": 1,
+      "engineVersion": "pdfplumber-0.11.0"
+    },
+    "contentSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "page_failure": {
+    "page": 5,
+    "code": "no_embedded_text",
+    "message": "page 5 has no embedded text layer"
+  },
+  "cell_bbox_fixture": {
+    "page": 1,
+    "width": "612.0",
+    "height": "792.0",
+    "blocks": [],
+    "tables": [
+      {
+        "tableIndex": 0,
+        "label": "Budget Table",
+        "rowCount": 1,
+        "columnCount": 2,
+        "cells": [
+          {
+            "rowIndex": 0,
+            "columnIndex": 0,
+            "text": "1000",
+            "boundingBox": {
+              "x0": "10.0",
+              "y0": "10.0",
+              "x1": "100.0",
+              "y1": "30.0"
+            },
+            "confidence": "0.99"
+          },
+          {
+            "rowIndex": 0,
+            "columnIndex": 1,
+            "text": "2000",
+            "boundingBox": {
+              "x0": "100.0",
+              "y0": "10.0",
+              "x1": "200.0",
+              "y1": "30.0"
+            },
+            "confidence": "0.99"
+          }
+        ],
+        "warnings": []
+      }
+    ],
+    "images": [],
+    "evidencePrecision": "cell_bbox",
+    "warnings": []
+  },
+  "page_only_result": {
+    "page": 1,
+    "text": "Narrative-only page with no tables.",
+    "blocks": [
+      {
+        "blockIndex": 0,
+        "blockType": "paragraph",
+        "text": "Narrative-only page with no tables.",
+        "readingOrder": 0
+      }
+    ],
+    "tables": [],
+    "images": [],
+    "evidencePrecision": "page_only",
+    "warnings": []
+  },
+  "invalid_unsorted_pages": {
+    "schemaVersion": "defense_budget_parser_job_v1",
+    "jobId": "job-bad-pages",
+    "sourcePath": "/work/input.pdf",
+    "sourceSha256": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "engine": "deterministic_pdfplumber",
+    "requestedPages": [3, 1, 2],
+    "parserVersion": "pdfplumber-0.11.0",
+    "parserConfig": {},
+    "parserConfigSha256": "e3d0f0c1a2b3e4d5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9",
+    "outputDirectory": "/work/output",
+    "includeDebugArtifacts": false
+  },
+  "invalid_duplicate_pages": {
+    "schemaVersion": "defense_budget_parser_job_v1",
+    "jobId": "job-dup-pages",
+    "sourcePath": "/work/input.pdf",
+    "sourceSha256": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "engine": "deterministic_pdfplumber",
+    "requestedPages": [1, 1, 2],
+    "parserVersion": "pdfplumber-0.11.0",
+    "parserConfig": {},
+    "parserConfigSha256": "e3d0f0c1a2b3e4d5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9",
+    "outputDirectory": "/work/output",
+    "includeDebugArtifacts": false
+  },
+  "invalid_unknown_field": {
+    "schemaVersion": "defense_budget_parser_job_v1",
+    "jobId": "job-unknown",
+    "sourcePath": "/work/input.pdf",
+    "sourceSha256": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "engine": "deterministic_pdfplumber",
+    "requestedPages": [1],
+    "parserVersion": "pdfplumber-0.11.0",
+    "parserConfig": {},
+    "parserConfigSha256": "e3d0f0c1a2b3e4d5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9",
+    "outputDirectory": "/work/output",
+    "includeDebugArtifacts": false,
+    "extraUnknownField": "should be rejected"
+  },
+  "invalid_config_sha_mismatch": {
+    "schemaVersion": "defense_budget_parser_job_v1",
+    "jobId": "job-sha-mismatch",
+    "sourcePath": "/work/input.pdf",
+    "sourceSha256": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "engine": "deterministic_pdfplumber",
+    "requestedPages": [1],
+    "parserVersion": "pdfplumber-0.11.0",
+    "parserConfig": {"tableStrategy": "lines"},
+    "parserConfigSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "outputDirectory": "/work/output",
+    "includeDebugArtifacts": false
+  },
+  "invalid_content_sha_mismatch": {
+    "schemaVersion": "defense_budget_parser_result_v1",
+    "jobId": "job-test-001",
+    "engine": "deterministic_pdfplumber",
+    "parserVersion": "pdfplumber-0.11.0",
+    "parserConfigSha256": "e3d0f0c1a2b3e4d5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9",
+    "inputSourceSha256": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "requestedPages": [1],
+    "succeededPages": [1],
+    "failedPages": [],
+    "pages": [],
+    "warnings": [],
+    "metrics": {
+      "durationMillis": 10,
+      "pagesProcessed": 1,
+      "pagesSucceeded": 1,
+      "pagesFailed": 0,
+      "engineVersion": "pdfplumber-0.11.0"
+    },
+    "contentSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}
