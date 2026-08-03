@@ -240,7 +240,77 @@ export function adaptCommitteeArtifactToArtifactV1(
           message: `row fiscal year "${fyResult.raw}" is not a valid year (1900-2200)`,
         }),
       );
-      // Skip money assertions for invalid FY — do not create assertions with a substituted year.
+
+      // Phase A.4: Invalid FY must NOT silently drop other represented values
+      // on the same row. Create a source fact + blocking omission for every
+      // represented value (request, mark, explanation). Do not create
+      // funding or narrative assertions — the row FY is unresolvable.
+      const invalidFyMessage = 'value cannot be asserted because the row fiscal year is invalid';
+
+      if (row.request != null) {
+        const requestPath = `${rowPath}.request`;
+        const requestFact = buildSourceFact({
+          sourcePath: requestPath,
+          category: 'money',
+          requiredForCompleteness: true,
+          rawValue: {
+            value: row.request,
+            unit: row.requestUnit ?? options.legacyDeclaredUnit ?? null,
+          },
+          evidenceIds: [rowEvidence.evidenceId],
+        });
+        builder.addSourceFact(requestFact);
+        builder.addOmission(
+          buildOmission({
+            sourceFactId: requestFact.factId,
+            reason: 'other',
+            severity: 'blocking',
+            message: invalidFyMessage,
+          }),
+        );
+      }
+
+      if (row.mark != null) {
+        const markPath = `${rowPath}.mark`;
+        const markFact = buildSourceFact({
+          sourcePath: markPath,
+          category: 'money',
+          requiredForCompleteness: true,
+          rawValue: { value: row.mark, unit: row.markUnit ?? options.legacyDeclaredUnit ?? null },
+          evidenceIds: [rowEvidence.evidenceId],
+        });
+        builder.addSourceFact(markFact);
+        builder.addOmission(
+          buildOmission({
+            sourceFactId: markFact.factId,
+            reason: 'other',
+            severity: 'blocking',
+            message: invalidFyMessage,
+          }),
+        );
+      }
+
+      if (row.explanation != null && row.explanation.trim().length > 0) {
+        const explanationPath = `${rowPath}.explanation`;
+        const explanationFact = buildSourceFact({
+          sourcePath: explanationPath,
+          category: 'text',
+          requiredForCompleteness: true,
+          rawValue: row.explanation,
+          evidenceIds: [rowEvidence.evidenceId],
+        });
+        builder.addSourceFact(explanationFact);
+        builder.addOmission(
+          buildOmission({
+            sourceFactId: explanationFact.factId,
+            reason: 'other',
+            severity: 'blocking',
+            message: invalidFyMessage,
+          }),
+        );
+      }
+
+      // Do not create funding/narrative assertions for this row.
       return;
     }
 

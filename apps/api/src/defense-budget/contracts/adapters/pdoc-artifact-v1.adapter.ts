@@ -234,7 +234,79 @@ export function adaptPdocArtifactToArtifactV1(
             message: `fyData row fiscal year "${fyResult.raw}" is not a valid year (1900-2200)`,
           }),
         );
-        return; // Skip money assertions — do not create assertions with a substituted year.
+
+        // Phase A.4: Invalid FY must NOT silently drop other represented values
+        // on the same fyData row. Create a source fact + blocking omission for
+        // every represented value (request, quantity, unitCost). Do not create
+        // funding/quantity/unit-cost assertions.
+        const invalidFyMessage = 'value cannot be asserted because the row fiscal year is invalid';
+
+        const rawRequest =
+          row.requestDollarsThousands ?? row.request_dollars_thousands ?? row.dollars ?? null;
+        const rawUnitCost = row.unitCostDollars ?? row.unit_cost_dollars ?? row.unitCost ?? null;
+
+        if (rawRequest != null) {
+          const requestPath = `${fyPath}.requestDollarsThousands`;
+          const moneyFact = buildSourceFact({
+            sourcePath: requestPath,
+            category: 'money',
+            requiredForCompleteness: true,
+            rawValue: { value: rawRequest, unit: 'thousands' },
+            evidenceIds: [invalidFyEvidence.evidenceId],
+          });
+          builder.addSourceFact(moneyFact);
+          builder.addOmission(
+            buildOmission({
+              sourceFactId: moneyFact.factId,
+              reason: 'other',
+              severity: 'blocking',
+              message: invalidFyMessage,
+            }),
+          );
+        }
+
+        if (row.quantity != null) {
+          const quantityPath = `${fyPath}.quantity`;
+          const quantityFact = buildSourceFact({
+            sourcePath: quantityPath,
+            category: 'quantity',
+            requiredForCompleteness: true,
+            rawValue: row.quantity,
+            evidenceIds: [invalidFyEvidence.evidenceId],
+          });
+          builder.addSourceFact(quantityFact);
+          builder.addOmission(
+            buildOmission({
+              sourceFactId: quantityFact.factId,
+              reason: 'other',
+              severity: 'blocking',
+              message: invalidFyMessage,
+            }),
+          );
+        }
+
+        if (rawUnitCost != null) {
+          const unitCostPath = `${fyPath}.unitCostDollars`;
+          const unitCostFact = buildSourceFact({
+            sourcePath: unitCostPath,
+            category: 'money',
+            requiredForCompleteness: true,
+            rawValue: { value: rawUnitCost, unit: 'dollars' },
+            evidenceIds: [invalidFyEvidence.evidenceId],
+          });
+          builder.addSourceFact(unitCostFact);
+          builder.addOmission(
+            buildOmission({
+              sourceFactId: unitCostFact.factId,
+              reason: 'other',
+              severity: 'blocking',
+              message: invalidFyMessage,
+            }),
+          );
+        }
+
+        // Do not create funding/quantity/unit-cost assertions for this row.
+        return;
       }
 
       const rowFy = fyResult.fy;
@@ -433,7 +505,96 @@ export function adaptPdocArtifactToArtifactV1(
             message: `line item fiscal year "${lineFyResult.raw}" is not a valid year (1900-2200)`,
           }),
         );
-        return; // Skip money assertions — do not create assertions with a substituted year.
+
+        // Phase A.4: Invalid FY must NOT silently drop other represented values
+        // on the same child line item. Create a source fact + blocking omission
+        // for every represented value (description, dollars, quantity,
+        // unitCost). Do not create a procurement_line assertion.
+        const invalidFyMessage = 'value cannot be asserted because the row fiscal year is invalid';
+
+        // Description fact (always created — it is part of the identity)
+        const description = (lineItem.description ?? '').toString().trim();
+        const descriptionFact = buildSourceFact({
+          sourcePath: `${linePath}.description`,
+          category: 'text',
+          requiredForCompleteness: true,
+          rawValue: lineItem.description ?? null,
+          evidenceIds: [invalidFyEvidence.evidenceId],
+        });
+        builder.addSourceFact(descriptionFact);
+        builder.addOmission(
+          buildOmission({
+            sourceFactId: descriptionFact.factId,
+            reason: 'other',
+            severity: 'blocking',
+            message: invalidFyMessage,
+          }),
+        );
+
+        // Dollars fact
+        if (lineItem.dollars != null) {
+          const dollarsUnit = lineItem.dollarsUnit ?? options.legacyLineItemDollarsUnit ?? null;
+          const dollarsFact = buildSourceFact({
+            sourcePath: `${linePath}.dollars`,
+            category: 'money',
+            requiredForCompleteness: true,
+            rawValue: { value: lineItem.dollars, unit: dollarsUnit },
+            evidenceIds: [invalidFyEvidence.evidenceId],
+          });
+          builder.addSourceFact(dollarsFact);
+          builder.addOmission(
+            buildOmission({
+              sourceFactId: dollarsFact.factId,
+              reason: 'other',
+              severity: 'blocking',
+              message: invalidFyMessage,
+            }),
+          );
+        }
+
+        // Quantity fact
+        if (lineItem.quantity != null) {
+          const quantityFact = buildSourceFact({
+            sourcePath: `${linePath}.quantity`,
+            category: 'quantity',
+            requiredForCompleteness: true,
+            rawValue: lineItem.quantity,
+            evidenceIds: [invalidFyEvidence.evidenceId],
+          });
+          builder.addSourceFact(quantityFact);
+          builder.addOmission(
+            buildOmission({
+              sourceFactId: quantityFact.factId,
+              reason: 'other',
+              severity: 'blocking',
+              message: invalidFyMessage,
+            }),
+          );
+        }
+
+        // Unit cost fact
+        const rawLineUnitCost = lineItem.unitCost ?? lineItem.unit_cost ?? null;
+        if (rawLineUnitCost != null) {
+          const unitCostFact = buildSourceFact({
+            sourcePath: `${linePath}.unitCost`,
+            category: 'money',
+            requiredForCompleteness: true,
+            rawValue: { value: rawLineUnitCost, unit: 'dollars' },
+            evidenceIds: [invalidFyEvidence.evidenceId],
+          });
+          builder.addSourceFact(unitCostFact);
+          builder.addOmission(
+            buildOmission({
+              sourceFactId: unitCostFact.factId,
+              reason: 'other',
+              severity: 'blocking',
+              message: invalidFyMessage,
+            }),
+          );
+        }
+
+        // Do not create a procurement_line assertion for this line item.
+        return;
       }
 
       const lineFy = lineFyResult.fy;

@@ -431,6 +431,26 @@ export function adaptR2ArtifactToArtifactV1(
         evidenceIds: [docEvidence.evidenceId],
       }),
     );
+    // Create a source fact at path 'error' so the error is explicitly
+    // accounted for in the artifact's fact inventory.
+    const errorFact = buildSourceFact({
+      sourcePath: 'error',
+      category: 'metadata',
+      requiredForCompleteness: true,
+      rawValue: artifact.error,
+      evidenceIds: [docEvidence.evidenceId],
+    });
+    builder.addSourceFact(errorFact);
+    // Add a blocking omission: the error fact carries no extractable detail
+    // beyond the raw error string, so it cannot be asserted.
+    builder.addOmission(
+      buildOmission({
+        sourceFactId: errorFact.factId,
+        reason: 'legacy_artifact_missing_detail',
+        severity: 'blocking',
+        message: `artifact-level error: ${artifact.error}`,
+      }),
+    );
   }
 
   return builder.finalize();

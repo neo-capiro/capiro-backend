@@ -187,7 +187,7 @@ describe('validateDefenseBudgetExtractionArtifactV1', () => {
       artifactId: `dbx1_${contentSha256}`,
     };
     expect(validateDefenseBudgetExtractionArtifactV1(final)).toEqual([]);
-    expect(final.summary.completenessStatus).toBe('complete_with_omissions');
+    expect(final.summary.completenessStatus).toBe('incomplete');
     expect(() => assertDefenseBudgetExtractionArtifactV1(final, { requireComplete: true })).toThrow(
       /completeness_required/,
     );
@@ -480,5 +480,329 @@ describe('deterministic IDs', () => {
     expect(factIdV1({ a: 1 })).toMatch(/^fact_[a-f0-9]{64}$/);
     expect(assertionIdV1({ a: 1 })).toMatch(/^asrt_[a-f0-9]{64}$/);
     expect(omissionIdV1({ a: 1 })).toMatch(/^omit_[a-f0-9]{64}$/);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Phase 1 Final Correctness — completeness rules                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Helper: build an artifact with an extra fact + a blocking or review omission.
+ * The fact is required for completeness so it must be covered.
+ */
+function buildArtifactWithOmission(
+  severity: 'blocking' | 'review',
+): DefenseBudgetExtractionArtifactV1 {
+  const artifact = buildMinimalArtifact();
+  const evidenceId = artifact.evidence[0]!.evidenceId;
+  const extraFactId = factIdV1({
+    sourcePath: 'rows[1].money',
+    category: 'money',
+    rawValue: '5',
+  });
+  const built: DefenseBudgetExtractionArtifactV1 = {
+    ...artifact,
+    sourceFacts: [
+      ...artifact.sourceFacts,
+      {
+        factId: extraFactId,
+        sourcePath: 'rows[1].money',
+        category: 'money',
+        requiredForCompleteness: true,
+        rawValue: '5',
+        evidenceIds: [evidenceId],
+      },
+    ],
+    omissions: [
+      {
+        omissionId: omissionIdV1({ sourceFactId: extraFactId, reason: 'other' }),
+        sourceFactId: extraFactId,
+        reason: 'other',
+        severity,
+        message: 'test omission',
+      },
+    ],
+  };
+  const summary = computeArtifactSummary(built);
+  const withSummary = { ...built, summary };
+  const contentSha256 = computeArtifactContentSha256(withSummary);
+  return {
+    ...withSummary,
+    contentSha256,
+    artifactId: `dbx1_${contentSha256}`,
+  };
+}
+
+describe('completeness rules — final correctness', () => {
+  it('a blocking omission produces incomplete', () => {
+    const artifact = buildArtifactWithOmission('blocking');
+    expect(artifact.summary.completenessStatus).toBe('incomplete');
+    expect(() => assertDefenseBudgetExtractionArtifactV1(artifact)).not.toThrow();
+    expect(() =>
+      assertDefenseBudgetExtractionArtifactV1(artifact, { requireComplete: true }),
+    ).toThrow(/completeness_required/);
+  });
+
+  it('a review omission produces complete_with_omissions', () => {
+    const artifact = buildArtifactWithOmission('review');
+    expect(artifact.summary.completenessStatus).toBe('complete_with_omissions');
+    expect(() => assertDefenseBudgetExtractionArtifactV1(artifact)).not.toThrow();
+    expect(() =>
+      assertDefenseBudgetExtractionArtifactV1(artifact, { requireComplete: true }),
+    ).toThrow(/completeness_required/);
+  });
+
+  it('a blocking warning produces incomplete', () => {
+    const artifact = buildMinimalArtifact();
+    const tampered: DefenseBudgetExtractionArtifactV1 = {
+      ...artifact,
+      warnings: [
+        {
+          warningId: 'warn_test_blocking',
+          code: 'test_blocking_warning',
+          severity: 'blocking',
+          message: 'blocking test warning',
+          sourceFactIds: [],
+          evidenceIds: [],
+        },
+      ],
+    };
+    const summary = computeArtifactSummary(tampered);
+    const withSummary = { ...tampered, summary };
+    const contentSha256 = computeArtifactContentSha256(withSummary);
+    const final: DefenseBudgetExtractionArtifactV1 = {
+      ...withSummary,
+      contentSha256,
+      artifactId: `dbx1_${contentSha256}`,
+    };
+    expect(final.summary.completenessStatus).toBe('incomplete');
+  });
+
+  it('an artifact without warnings or omissions produces complete', () => {
+    const artifact = buildMinimalArtifact();
+    expect(artifact.summary.completenessStatus).toBe('complete');
+    expect(artifact.summary.warningCount).toBe(0);
+    expect(artifact.summary.omissionCount).toBe(0);
+  });
+
+  it('requireComplete rejects incomplete', () => {
+    const artifact = buildArtifactWithOmission('blocking');
+    expect(() =>
+      assertDefenseBudgetExtractionArtifactV1(artifact, { requireComplete: true }),
+    ).toThrow(/completeness_required/);
+  });
+
+  it('requireComplete rejects complete_with_omissions', () => {
+    const artifact = buildArtifactWithOmission('review');
+    expect(() =>
+      assertDefenseBudgetExtractionArtifactV1(artifact, { requireComplete: true }),
+    ).toThrow(/completeness_required/);
+  });
+
+  it('summary tampering remains detectable', () => {
+    const artifact = buildMinimalArtifact();
+    const tampered: DefenseBudgetExtractionArtifactV1 = {
+      ...artifact,
+      summary: { ...artifact.summary, completenessStatus: 'complete' as const, omissionCount: 99 },
+    };
+    expect(errorCodes(tampered)).toContain('summary_mismatch');
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* UNKNOWN identity detection                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Helper: add a funding assertion with a given identity lineKind.
+ */
+function buildArtifactWithFundingIdentity(
+  identityLineKind: 'RDTE_PE' | 'UNKNOWN',
+): DefenseBudgetExtractionArtifactV1 {
+  const artifact = buildMinimalArtifact();
+  const evidenceId = artifact.evidence[0]!.evidenceId;
+  const moneyFactId = factIdV1({
+    sourcePath: 'rows[0].money',
+    category: 'money',
+    rawValue: '100',
+  });
+  const funding = {
+    assertionId: assertionIdV1({ kind: 'funding', n: 1 }),
+    assertionKind: 'funding' as const,
+    identity:
+      identityLineKind === 'UNKNOWN'
+        ? { lineKind: 'UNKNOWN' as const, code: '???' }
+        : { lineKind: 'RDTE_PE' as const, peCode: '0602308A' },
+    fiscalYear: 2099,
+    field: 'request' as const,
+    money: { originalValue: '100', originalUnit: 'thousands' as const, valueMillions: '0.1' },
+    sourceFactIds: [moneyFactId],
+    evidenceIds: [evidenceId],
+    confidence: 1,
+  };
+  const built: DefenseBudgetExtractionArtifactV1 = {
+    ...artifact,
+    sourceFacts: [
+      ...artifact.sourceFacts,
+      {
+        factId: moneyFactId,
+        sourcePath: 'rows[0].money',
+        category: 'money',
+        requiredForCompleteness: false,
+        rawValue: '100',
+        evidenceIds: [evidenceId],
+      },
+    ],
+    assertions: [...artifact.assertions, funding],
+  };
+  const summary = computeArtifactSummary(built);
+  const withSummary = { ...built, summary };
+  const contentSha256 = computeArtifactContentSha256(withSummary);
+  return {
+    ...withSummary,
+    contentSha256,
+    artifactId: `dbx1_${contentSha256}`,
+  };
+}
+
+/**
+ * Helper: add a narrative assertion with a given identity.
+ */
+function buildArtifactWithNarrativeIdentity(
+  identityLineKind: 'RDTE_PE' | 'UNKNOWN',
+): DefenseBudgetExtractionArtifactV1 {
+  const artifact = buildMinimalArtifact();
+  const evidenceId = artifact.evidence[0]!.evidenceId;
+  const textFactId = factIdV1({
+    sourcePath: 'rows[0].mission',
+    category: 'text',
+    rawValue: 'mission text',
+  });
+  const narrative = {
+    assertionId: assertionIdV1({ kind: 'narrative', n: 1 }),
+    assertionKind: 'narrative' as const,
+    identity:
+      identityLineKind === 'UNKNOWN'
+        ? { lineKind: 'UNKNOWN' as const, code: '???' }
+        : { lineKind: 'RDTE_PE' as const, peCode: '0602308A' },
+    narrativeType: 'mission' as const,
+    text: 'mission text',
+    sourceFactIds: [textFactId],
+    evidenceIds: [evidenceId],
+    confidence: 1,
+  };
+  const built: DefenseBudgetExtractionArtifactV1 = {
+    ...artifact,
+    sourceFacts: [
+      ...artifact.sourceFacts,
+      {
+        factId: textFactId,
+        sourcePath: 'rows[0].mission',
+        category: 'text',
+        requiredForCompleteness: false,
+        rawValue: 'mission text',
+        evidenceIds: [evidenceId],
+      },
+    ],
+    assertions: [...artifact.assertions, narrative],
+  };
+  const summary = computeArtifactSummary(built);
+  const withSummary = { ...built, summary };
+  const contentSha256 = computeArtifactContentSha256(withSummary);
+  return {
+    ...withSummary,
+    contentSha256,
+    artifactId: `dbx1_${contentSha256}`,
+  };
+}
+
+/**
+ * Helper: add a relationship assertion with given from/to identity lineKinds.
+ */
+function buildArtifactWithRelationship(
+  fromKind: 'RDTE_PE' | 'UNKNOWN',
+  toKind: 'RDTE_PE' | 'UNKNOWN',
+): DefenseBudgetExtractionArtifactV1 {
+  const artifact = buildMinimalArtifact();
+  const evidenceId = artifact.evidence[0]!.evidenceId;
+  const relFactId = factIdV1({
+    sourcePath: 'rows[0].refs',
+    category: 'relationship',
+    rawValue: null,
+  });
+  const mkId = (kind: 'RDTE_PE' | 'UNKNOWN') =>
+    kind === 'UNKNOWN'
+      ? { lineKind: 'UNKNOWN' as const, code: '???' }
+      : { lineKind: 'RDTE_PE' as const, peCode: '0601102A' };
+  const relationship = {
+    assertionId: assertionIdV1({ kind: 'relationship', n: 1 }),
+    assertionKind: 'relationship' as const,
+    from: mkId(fromKind),
+    to: mkId(toKind),
+    relationshipType: 'references' as const,
+    explicitInSource: true,
+    sourceFactIds: [relFactId],
+    evidenceIds: [evidenceId],
+    confidence: 1,
+  };
+  const built: DefenseBudgetExtractionArtifactV1 = {
+    ...artifact,
+    sourceFacts: [
+      ...artifact.sourceFacts,
+      {
+        factId: relFactId,
+        sourcePath: 'rows[0].refs',
+        category: 'relationship',
+        requiredForCompleteness: false,
+        evidenceIds: [evidenceId],
+      },
+    ],
+    assertions: [...artifact.assertions, relationship],
+  };
+  const summary = computeArtifactSummary(built);
+  const withSummary = { ...built, summary };
+  const contentSha256 = computeArtifactContentSha256(withSummary);
+  return {
+    ...withSummary,
+    contentSha256,
+    artifactId: `dbx1_${contentSha256}`,
+  };
+}
+
+describe('UNKNOWN identity detection', () => {
+  it('a funding assertion with UNKNOWN identity is incomplete', () => {
+    const artifact = buildArtifactWithFundingIdentity('UNKNOWN');
+    expect(artifact.summary.completenessStatus).toBe('incomplete');
+  });
+
+  it('a funding assertion with valid identity is complete', () => {
+    const artifact = buildArtifactWithFundingIdentity('RDTE_PE');
+    expect(artifact.summary.completenessStatus).toBe('complete');
+  });
+
+  it('a narrative assertion with UNKNOWN identity is incomplete', () => {
+    const artifact = buildArtifactWithNarrativeIdentity('UNKNOWN');
+    expect(artifact.summary.completenessStatus).toBe('incomplete');
+  });
+
+  it('a narrative assertion with valid identity is complete', () => {
+    const artifact = buildArtifactWithNarrativeIdentity('RDTE_PE');
+    expect(artifact.summary.completenessStatus).toBe('complete');
+  });
+
+  it('a relationship with from: UNKNOWN is incomplete', () => {
+    const artifact = buildArtifactWithRelationship('UNKNOWN', 'RDTE_PE');
+    expect(artifact.summary.completenessStatus).toBe('incomplete');
+  });
+
+  it('a relationship with to: UNKNOWN is incomplete', () => {
+    const artifact = buildArtifactWithRelationship('RDTE_PE', 'UNKNOWN');
+    expect(artifact.summary.completenessStatus).toBe('incomplete');
+  });
+
+  it('relationships with valid endpoints are unaffected', () => {
+    const artifact = buildArtifactWithRelationship('RDTE_PE', 'RDTE_PE');
+    expect(artifact.summary.completenessStatus).toBe('complete');
   });
 });

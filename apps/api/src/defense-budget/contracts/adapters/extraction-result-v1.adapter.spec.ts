@@ -218,7 +218,8 @@ describe('adaptExtractionResultToArtifactV1', () => {
     expect(
       artifact.omissions.some((o) => o.reason === 'invalid_identity' && o.severity === 'blocking'),
     ).toBe(true);
-    expect(artifact.summary.completenessStatus).toBe('complete_with_omissions');
+    // Blocking omissions now produce 'incomplete' (Phase 1 §1).
+    expect(artifact.summary.completenessStatus).toBe('incomplete');
   });
 
   it('creates an omission for unsupported money fields', () => {
@@ -320,5 +321,132 @@ describe('adaptExtractionResultToArtifactV1', () => {
     const paths = artifact.sourceFacts.map((f) => f.sourcePath);
     expect(paths).toContain('lineAssertions[0].identity');
     expect(paths).toContain('lineAssertions[1].identity');
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Phase 1 §3 — parser provenance mismatch                             */
+/* ------------------------------------------------------------------ */
+
+import { ParserProvenanceMismatchError } from './extraction-result-v1.adapter.js';
+
+describe('parser provenance mismatch', () => {
+  it('pdfplumber value under a pdfplumber parser run passes', () => {
+    const extraction: ExtractionResult = {
+      lineAssertions: [rdteLine()],
+      yearValues: [],
+      warnings: [],
+    };
+    expect(() => adaptExtractionResultToArtifactV1(extraction, adapterTestContext())).not.toThrow();
+  });
+
+  it('LlamaParse value under a LlamaParse parser run passes', () => {
+    const extraction: ExtractionResult = {
+      lineAssertions: [rdteLine({ provenance: prov({ extractionMethod: 'llamaparse' }) })],
+      yearValues: [],
+      warnings: [],
+    };
+    const ctx = adapterTestContext({
+      parser: {
+        method: 'llamaparse',
+        parserVersion: '0.0.0-test',
+        parserConfigSha256: '1'.repeat(64),
+        outputArtifactSha256: '2'.repeat(64),
+        pageRanges: [{ startPage: 1, endPage: 500 }],
+      },
+    });
+    expect(() => adaptExtractionResultToArtifactV1(extraction, ctx)).not.toThrow();
+  });
+
+  it('manual value under a manual parser run passes', () => {
+    const extraction: ExtractionResult = {
+      lineAssertions: [rdteLine({ provenance: prov({ extractionMethod: 'manual' }) })],
+      yearValues: [],
+      warnings: [],
+    };
+    const ctx = adapterTestContext({
+      parser: {
+        method: 'manual',
+        parserVersion: '0.0.0-test',
+        parserConfigSha256: '1'.repeat(64),
+        outputArtifactSha256: '2'.repeat(64),
+        pageRanges: [{ startPage: 1, endPage: 500 }],
+      },
+    });
+    expect(() => adaptExtractionResultToArtifactV1(extraction, ctx)).not.toThrow();
+  });
+
+  it('pdfplumber value under a manual parser run fails', () => {
+    const extraction: ExtractionResult = {
+      lineAssertions: [
+        rdteLine({ provenance: prov({ extractionMethod: 'deterministic_pdfplumber' }) }),
+      ],
+      yearValues: [],
+      warnings: [],
+    };
+    const ctx = adapterTestContext({
+      parser: {
+        method: 'manual',
+        parserVersion: '0.0.0-test',
+        parserConfigSha256: '1'.repeat(64),
+        outputArtifactSha256: '2'.repeat(64),
+        pageRanges: [{ startPage: 1, endPage: 500 }],
+      },
+    });
+    expect(() => adaptExtractionResultToArtifactV1(extraction, ctx)).toThrow(
+      ParserProvenanceMismatchError,
+    );
+  });
+
+  it('manual value under a pdfplumber parser run fails', () => {
+    const extraction: ExtractionResult = {
+      lineAssertions: [rdteLine({ provenance: prov({ extractionMethod: 'manual' }) })],
+      yearValues: [],
+      warnings: [],
+    };
+    expect(() => adaptExtractionResultToArtifactV1(extraction, adapterTestContext())).toThrow(
+      ParserProvenanceMismatchError,
+    );
+  });
+
+  it('mixed-method input under one parser run fails', () => {
+    const extraction: ExtractionResult = {
+      lineAssertions: [
+        rdteLine({ provenance: prov({ extractionMethod: 'deterministic_pdfplumber' }) }),
+      ],
+      yearValues: [
+        {
+          lineKind: 'RDTE_PE',
+          code: '0602308A',
+          fy: 2099,
+          fieldName: 'request',
+          money: { value: 100, unit: 'thousands' },
+          provenance: prov({ extractionMethod: 'llamaparse' }),
+        },
+      ],
+      warnings: [],
+    };
+    expect(() => adaptExtractionResultToArtifactV1(extraction, adapterTestContext())).toThrow(
+      ParserProvenanceMismatchError,
+    );
+  });
+
+  it('no artifact is returned after a mismatch', () => {
+    const extraction: ExtractionResult = {
+      lineAssertions: [rdteLine({ provenance: prov({ extractionMethod: 'manual' }) })],
+      yearValues: [],
+      warnings: [],
+    };
+    let result: unknown = 'not-thrown';
+    try {
+      adaptExtractionResultToArtifactV1(extraction, adapterTestContext());
+    } catch (error) {
+      if (error instanceof ParserProvenanceMismatchError) {
+        result = 'thrown';
+      } else {
+        throw error;
+      }
+    }
+    expect(result).toBe('thrown');
   });
 });

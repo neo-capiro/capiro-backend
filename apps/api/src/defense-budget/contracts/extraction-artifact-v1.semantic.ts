@@ -320,7 +320,9 @@ export function computeArtifactContentSha256(artifact: DefenseBudgetExtractionAr
  * An artifact is `incomplete` when it contains:
  *   - An uncovered required fact
  *   - A blocking warning
- *   - An UNKNOWN identity assertion
+ *   - A blocking omission
+ *   - An UNKNOWN identity assertion (direct identity, relationship endpoint,
+ *     or procurement parent identity)
  *
  * `complete_with_omissions` is retained for explicit nonblocking omissions.
  * `complete` only when no blocking condition or omission exists.
@@ -355,14 +357,15 @@ export function computeArtifactSummary(
   // Check for blocking conditions beyond uncovered required facts:
   // - A blocking warning
   const hasBlockingWarning = artifact.warnings.some((w) => w.severity === 'blocking');
-  // - An UNKNOWN identity assertion (funding/narrative/etc may carry UNKNOWN lineKind)
-  const hasUnknownIdentity = artifact.assertions.some((assertion) => {
-    if (!('identity' in assertion)) return false;
-    return assertion.identity.lineKind === 'UNKNOWN';
-  });
+  // - A blocking omission
+  const hasBlockingOmission = artifact.omissions.some((o) => o.severity === 'blocking');
+  // - An UNKNOWN identity in any assertion carrying a budget-line identity
+  const hasUnknownIdentity = artifact.assertions.some((assertion) =>
+    assertionContainsUnknownIdentity(assertion),
+  );
 
   const completenessStatus =
-    uncovered > 0 || hasBlockingWarning || hasUnknownIdentity
+    uncovered > 0 || hasBlockingWarning || hasBlockingOmission || hasUnknownIdentity
       ? 'incomplete'
       : artifact.omissions.length > 0
         ? 'complete_with_omissions'
@@ -386,6 +389,36 @@ export function computeArtifactSummary(
 /* ------------------------------------------------------------------ */
 /* internals                                                           */
 /* ------------------------------------------------------------------ */
+
+/**
+ * Check whether an assertion contains an UNKNOWN budget-line identity.
+ *
+ * Inspects `identity`, `from`, `to`, and `parentIdentity` fields on any
+ * assertion kind that carries a budget-line identity.
+ */
+export function assertionContainsUnknownIdentity(assertion: DefenseBudgetAssertionV1): boolean {
+  // Direct identity: funding, narrative, quantity, unit_cost, om_line,
+  // milcon_project, program_element_identity (though PE identity is always
+  // RDTE_PE, the check is harmless).
+  if ('identity' in assertion && assertion.identity != null) {
+    if (assertion.identity.lineKind === 'UNKNOWN') return true;
+  }
+  // Relationship endpoints.
+  if ('from' in assertion && assertion.from != null) {
+    if (assertion.from.lineKind === 'UNKNOWN') return true;
+  }
+  if ('to' in assertion && assertion.to != null) {
+    if (assertion.to.lineKind === 'UNKNOWN') return true;
+  }
+  // Procurement line parent identity.
+  if ('parentIdentity' in assertion && assertion.parentIdentity != null) {
+    // parentIdentity is PROCUREMENT_BLIN which cannot be UNKNOWN, but check
+    // for completeness. Cast to string to satisfy the compiler — the runtime
+    // check is harmless and defensive.
+    if ((assertion.parentIdentity.lineKind as string) === 'UNKNOWN') return true;
+  }
+  return false;
+}
 
 function checkPageRangeOverlap(
   ranges: Array<{ startPage: number; endPage: number }>,

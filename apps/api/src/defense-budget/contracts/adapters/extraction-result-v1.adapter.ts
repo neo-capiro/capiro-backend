@@ -66,6 +66,19 @@ const PROVENANCE_METHOD_MAP = {
   manual: 'manual',
 } as const;
 
+/**
+ * Phase 1 §3: Thrown when a value's provenance extraction method does not
+ * match the parser run method. The adapter must fail conversion before
+ * returning an artifact — no contradictory assertions are produced.
+ */
+export class ParserProvenanceMismatchError extends Error {
+  readonly code = 'parser_provenance_mismatch';
+  constructor(message: string) {
+    super(message);
+    this.name = 'ParserProvenanceMismatchError';
+  }
+}
+
 export function adaptExtractionResultToArtifactV1(
   extraction: ExtractionResult,
   context: ExtractionAdapterContextV1,
@@ -108,36 +121,27 @@ export function adaptExtractionResultToArtifactV1(
   };
 
   /* ---------------- line assertions ---------------- */
-  extraction.lineAssertions.forEach((line, index) => {
-    // Phase A.5: Check provenance consistency
+  for (const [index, line] of extraction.lineAssertions.entries()) {
+    // Phase 1 §3: Fail on parser provenance mismatch — do not produce
+    // contradictory assertions and rely only on completeness classification.
     if (provenanceMismatch(line.provenance.extractionMethod)) {
-      builder.addWarning(
-        buildWarning({
-          code: 'provenance_mismatch',
-          severity: 'blocking',
-          message: `lineAssertions[${index}] extraction method "${line.provenance.extractionMethod}" does not match parser run method "${expectedMethod}"`,
-          discriminator: `lineAssertions[${index}].provenance`,
-        }),
+      throw new ParserProvenanceMismatchError(
+        `lineAssertions[${index}] extraction method "${line.provenance.extractionMethod}" does not match parser run method "${expectedMethod}"`,
       );
     }
     mapLineAssertion(builder, context, line, index, evidenceFor, parserRun.parserRunId);
-  });
+  }
 
   /* ---------------- year values ---------------- */
-  extraction.yearValues.forEach((value, index) => {
-    // Phase A.5: Check provenance consistency
+  for (const [index, value] of extraction.yearValues.entries()) {
+    // Phase 1 §3: Fail on parser provenance mismatch.
     if (provenanceMismatch(value.provenance.extractionMethod)) {
-      builder.addWarning(
-        buildWarning({
-          code: 'provenance_mismatch',
-          severity: 'blocking',
-          message: `yearValues[${index}] extraction method "${value.provenance.extractionMethod}" does not match parser run method "${expectedMethod}"`,
-          discriminator: `yearValues[${index}].provenance`,
-        }),
+      throw new ParserProvenanceMismatchError(
+        `yearValues[${index}] extraction method "${value.provenance.extractionMethod}" does not match parser run method "${expectedMethod}"`,
       );
     }
     mapYearValue(builder, context, value, index, evidenceFor);
-  });
+  }
 
   /* ---------------- warnings ---------------- */
   extraction.warnings.forEach((message, index) => {
