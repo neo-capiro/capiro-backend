@@ -33,6 +33,25 @@
     "src/defense-budget/contracts/index.ts",
     "src/defense-budget/contracts/adapters/adapter-context.ts",
     "src/defense-budget/contracts/adapters/adapter-helpers.ts",
-    "src/program-element/source-document/source-document-registry.ts"
+    "src/program-element/source-document/source-document-registry.ts",
+    "src/defense-budget/verification/rules/rule-types.ts",
+    "src/defense-budget/verification/rules/rule-registry.ts",
+    "src/defense-budget/verification/rules/contract-integrity.rules.ts",
+    "src/defense-budget/verification/rules/manifest-binding.rules.ts",
+    "src/defense-budget/verification/rules/completeness.rules.ts",
+    "src/defense-budget/verification/rules/evidence.rules.ts",
+    "src/defense-budget/verification/rules/identity.rules.ts",
+    "src/defense-budget/verification/rules/funding-field-ownership.rules.ts",
+    "src/defense-budget/verification/rules/numeric.rules.ts",
+    "src/defense-budget/verification/rules/duplicate.rules.ts",
+    "src/defense-budget/verification/rules/arithmetic/exact-arithmetic.ts",
+    "src/defense-budget/verification/rules/arithmetic/arithmetic-rule-types.ts",
+    "src/defense-budget/verification/rules/arithmetic/rdte-summary-detail.rules.ts",
+    "src/defense-budget/verification/rules/arithmetic/project-rollup.rules.ts",
+    "src/defense-budget/verification/rules/arithmetic/procurement-rollup.rules.ts",
+    "src/defense-budget/verification/rules/arithmetic/committee-adjustment.rules.ts",
+    "src/defense-budget/verification/rules/arithmetic/index.ts",
+    "src/defense-budget/verification/rules/index.ts",
+    "src/defense-budget/verification/index.ts"
   ]
 }

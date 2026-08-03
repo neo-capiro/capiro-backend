@@ -119,3 +119,47 @@ export {
   getSupportedPolicies,
   type PolicyRegistryEntry,
 } from './verification-policy-registry.js';
+
+// V1 verification rules (Workstreams E–H)
+export type {
+  VerificationRuleV1,
+  RuleResultV1,
+} from './rules/rule-types.js';
+export {
+  passCheck,
+  failCheck,
+  notRunCheck,
+  skippedCheck,
+  makeDiscrepancy,
+  registerRule,
+  lookupRule,
+  getAllRules,
+  getRulesByCodes,
+  clearRuleRegistry,
+} from './rules/index.js';
+export {
+  CONTRACT_INTEGRITY_RULE,
+  MANIFEST_BINDING_RULE,
+  COMPLETENESS_RULE,
+  EVIDENCE_BINDING_RULE,
+  MONEY_EVIDENCE_RULE,
+  WARNING_POLICY_RULE,
+  IDENTITY_RULE,
+  FUNDING_FIELD_OWNERSHIP_RULE,
+  NUMERIC_RULE,
+  DUPLICATE_RULE,
+  RDTE_SUMMARY_DETAIL_RULE,
+  PROJECT_ROLLUP_RULE,
+  PROCUREMENT_ROLLUP_RULE,
+  COMMITTEE_ADJUSTMENT_RULE,
+  ALL_VERIFICATION_RULES,
+} from './rules/index.js';
+export {
+  addDecimals,
+  subtractDecimals,
+  multiplyByInteger,
+  absDifference,
+  compareWithTolerance,
+  printedUnitToleranceMillions,
+  sumDecimals,
+} from './rules/index.js';
