@@ -1,3 +1,10 @@
+// ── Phase 0 legacy scaffold (INTERNAL/DEPRECATED — NOT TRUSTED) ───── //
+// The Phase 0 structural-validation scaffold is retained for backward
+// compatibility only. It is NOT a trusted verification gate. Do not consume
+// these exports in production code. Use the V1 exports below instead.
+//
+// These exports are intentionally separated from the V1 API to avoid
+// presenting two equally authoritative verification interfaces.
 export {
   applyReviewDecision,
   buildVerificationRun,
@@ -48,10 +55,10 @@ export type {
 } from './budget-verification-repository.js';
 export type { VerificationClock } from './budget-verification-service.js';
 
-// ── Phase 2 V1 trusted verification gate ─────────────────────────── //
-// V1 exports take precedence over the Phase 0 scaffold. The scaffold
-// (verifyBudgetDocument) remains internal/deprecated and explicitly
-// non-trusted.
+// ── Phase 2 V1 trusted verification gate (AUTHORITATIVE) ─────────── //
+// V1 exports are the authoritative verification API. The Phase 0 scaffold
+// exports above are internal/deprecated and explicitly non-trusted.
+// (See R0 containment in the remediation plan.)
 
 // V1 verification contract (Workstream A)
 export {
@@ -90,11 +97,7 @@ export type {
   TrustedProofResolutionV1,
   TrustedVerificationProofResolverV1,
 } from './trusted-proof/index.js';
-export {
-  blockingFinding,
-  reviewFinding,
-  PROOF_FINDING_V1_VALUES,
-} from './trusted-proof/index.js';
+export { blockingFinding, reviewFinding, PROOF_FINDING_V1_VALUES } from './trusted-proof/index.js';
 export { FilesystemProofResolver } from './trusted-proof/filesystem-proof-resolver.js';
 export { SourceDocumentProofResolver } from './trusted-proof/source-document-proof-resolver.js';
 export { ArchiveProofResolver } from './trusted-proof/archive-proof-resolver.js';
@@ -121,10 +124,7 @@ export {
 } from './verification-policy-registry.js';
 
 // V1 verification rules (Workstreams E–H)
-export type {
-  VerificationRuleV1,
-  RuleResultV1,
-} from './rules/rule-types.js';
+export type { VerificationRuleV1, RuleResultV1 } from './rules/rule-types.js';
 export {
   passCheck,
   failCheck,
@@ -231,8 +231,4 @@ export {
   hasNonWaivableBlockingProofFinding,
   hasNonWaivableBlockingDiscrepancy,
 } from './services/index.js';
-export type {
-  ReviewInputV1,
-  ReviewResultV1,
-  ReviewPolicyV1,
-} from './services/index.js';
+export type { ReviewInputV1, ReviewResultV1, ReviewPolicyV1 } from './services/index.js';

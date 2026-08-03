@@ -1,5 +1,21 @@
 # Budget Verification Gate V1
 
+> **STATUS: IMPLEMENTATION INCOMPLETE — REMEDIATION IN PROGRESS**
+>
+> The Phase 2 verification gate is undergoing remediation. Until the
+> remediation is complete on one exact SHA and all definition-of-done items
+> pass:
+>
+> - The gate is **not authorized for production use**.
+> - The migration `20260816010000_budget_verification_v1` is **not approved**
+>   and has not been applied to any shared environment.
+> - `VERIFICATION_PASSED` is **not yet trusted** as a verification decision.
+> - No ingestion, scheduler, API controller, Nest module, canonical writer, or
+>   operational command consumes Phase 2 results.
+>
+> This document describes the target architecture. Until remediation completes,
+> treat the code as a scaffold under repair, not a trusted verifier.
+
 ## Trust boundary
 
 The V1 verification gate answers:
@@ -29,12 +45,12 @@ The resolver never accepts caller-provided `archiveProof`, `parseProof`, `approv
 
 ## Check outcomes
 
-| Outcome | Meaning |
-|---------|---------|
-| `PASS` | The rule executed and passed |
-| `FAIL` | The rule executed and failed |
+| Outcome   | Meaning                                                                |
+| --------- | ---------------------------------------------------------------------- |
+| `PASS`    | The rule executed and passed                                           |
+| `FAIL`    | The rule executed and failed                                           |
 | `NOT_RUN` | Required inputs were unavailable or no provider/reference was supplied |
-| `SKIPPED` | Policy explicitly determined the rule is inapplicable |
+| `SKIPPED` | Policy explicitly determined the rule is inapplicable                  |
 
 `NOT_RUN` and `SKIPPED` are never represented as `PASS`. A required `NOT_RUN` forces at least `REVIEW`.
 
@@ -44,14 +60,14 @@ Policy JSON is canonicalized using the Phase 1 canonical serializer and `policyS
 
 ## Family policy matrix
 
-| Family | Exhibit | Required categories | Evidence | Comparisons | Review triggers |
-|--------|---------|--------------------|---------|-------------|-----------------|
-| RDTE | R-1 | identity, funding | cell_bbox | R-1↔R-2 summary/detail | manual, OCR, uncorroborated congressional/enacted |
-| RDTE | R-2 | identity, funding, projects | cell_bbox | R-1↔R-2 summary/detail | manual, OCR, uncorroborated congressional/enacted |
-| RDTE | R-2A | identity, funding, project_funding | cell_bbox | project rollup | manual, OCR, uncorroborated congressional/enacted |
-| RDTE | R-3 | identity, funding, performers | cell_bbox | — | manual, OCR |
-| Committee | HASC/SASC/HAC-D/SAC-D/NDAA conference/Approps conference/Public law | identity, funding | cell_bbox | committee_request_reference | manual, OCR, uncorroborated congressional/enacted |
-| Procurement | P-doc | identity, funding, procurement_lines, quantities, unit_cost | cell_bbox | procurement rollup | manual, OCR |
+| Family      | Exhibit                                                             | Required categories                                         | Evidence  | Comparisons                 | Review triggers                                   |
+| ----------- | ------------------------------------------------------------------- | ----------------------------------------------------------- | --------- | --------------------------- | ------------------------------------------------- |
+| RDTE        | R-1                                                                 | identity, funding                                           | cell_bbox | R-1↔R-2 summary/detail      | manual, OCR, uncorroborated congressional/enacted |
+| RDTE        | R-2                                                                 | identity, funding, projects                                 | cell_bbox | R-1↔R-2 summary/detail      | manual, OCR, uncorroborated congressional/enacted |
+| RDTE        | R-2A                                                                | identity, funding, project_funding                          | cell_bbox | project rollup              | manual, OCR, uncorroborated congressional/enacted |
+| RDTE        | R-3                                                                 | identity, funding, performers                               | cell_bbox | —                           | manual, OCR                                       |
+| Committee   | HASC/SASC/HAC-D/SAC-D/NDAA conference/Approps conference/Public law | identity, funding                                           | cell_bbox | committee_request_reference | manual, OCR, uncorroborated congressional/enacted |
+| Procurement | P-doc                                                               | identity, funding, procurement_lines, quantities, unit_cost | cell_bbox | procurement rollup          | manual, OCR                                       |
 
 Unsupported families (O&M, MILCON without complete adapters) return `NEEDS_REVIEW` or `REJECTED` with a `verification_policy_not_implemented` finding.
 
