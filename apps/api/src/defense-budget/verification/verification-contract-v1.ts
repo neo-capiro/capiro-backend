@@ -239,7 +239,17 @@ export const verificationRequestV1Schema = z
           .object({
             artifactLocator: z.string().min(1),
             sourceDocumentId: z.string().min(1),
-            manifestDocumentKey: z.string().min(1).optional(),
+            /**
+             * R8.2 Workstream D: every reference must name the manifest
+             * document entry that governs its own proof policy. Never
+             * defaulted from the candidate.
+             */
+            manifestDocumentKey: z.string().min(1),
+            /**
+             * R8.2 Workstream D: a reference may be governed by a separate
+             * manifest. Defaults ONLY to the candidate manifest locator.
+             */
+            manifestLocator: z.string().min(1).optional(),
           })
           .strict(),
       )

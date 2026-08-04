@@ -118,6 +118,17 @@ export const PROOF_FINDING_V1_VALUES = [
   'source_bytes_unresolved',
   'source_metadata_mismatch',
   'production_dependency_missing',
+  // R8.2 Workstream C — independent parser-output proof findings.
+  /** Parser output was never persisted independently (legacy) — never verified. */
+  'parse_output_missing',
+  /** Persisted parser output parser version differs from the declaration. */
+  'parser_version_mismatch',
+  /** Persisted parser output config SHA differs from the declaration. */
+  'parser_config_mismatch',
+  /** Persisted parse job provider job ID differs from the declaration. */
+  'provider_job_mismatch',
+  /** Evidence pages are not covered by the persisted parser output. */
+  'parse_page_coverage_incomplete',
 ] as const;
 export type ProofFindingCodeV1 = (typeof PROOF_FINDING_V1_VALUES)[number];
 
@@ -158,6 +169,10 @@ export type ProofResolverMode = 'local_inspect' | 'production_proof';
 
 /**
  * The input to the trusted proof resolver.
+ *
+ * R8.2 Workstream D: every reference artifact carries its own explicit
+ * SourceDocument identity and its own mandatory manifest document key.
+ * `manifestLocator` defaults only to the candidate manifest locator.
  */
 export interface TrustedProofResolveInputV1 {
   manifestLocator: string;
@@ -167,7 +182,8 @@ export interface TrustedProofResolveInputV1 {
   referenceArtifacts?: Array<{
     artifactLocator: string;
     sourceDocumentId: string;
-    manifestDocumentKey?: string;
+    manifestDocumentKey: string;
+    manifestLocator?: string;
   }>;
   expectedSourcePdfSha256?: string;
   expectedExtractionArtifactSha256?: string;

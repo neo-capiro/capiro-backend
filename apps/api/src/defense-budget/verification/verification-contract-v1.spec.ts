@@ -159,13 +159,21 @@ describe('verificationRequestV1Schema', () => {
           sourceDocumentId: 'ref-src-1',
           manifestDocumentKey: 'r2_army_fy2027',
         },
-        { artifactLocator: '/ref2.json', sourceDocumentId: 'ref-src-2' },
+        // R8.2-D: manifestDocumentKey is mandatory for every reference.
+        {
+          artifactLocator: '/ref2.json',
+          sourceDocumentId: 'ref-src-2',
+          manifestDocumentKey: 'r3_army_fy2027',
+          manifestLocator: '/other-manifest.json',
+        },
       ],
     };
     const parsed = verificationRequestV1Schema.parse(request);
     expect(parsed.referenceArtifacts).toHaveLength(2);
     expect(parsed.referenceArtifacts?.[0]?.sourceDocumentId).toBe('ref-src-1');
     expect(parsed.referenceArtifacts?.[1]?.sourceDocumentId).toBe('ref-src-2');
+    expect(parsed.referenceArtifacts?.[1]?.manifestDocumentKey).toBe('r3_army_fy2027');
+    expect(parsed.referenceArtifacts?.[1]?.manifestLocator).toBe('/other-manifest.json');
   });
 
   it('rejects a reference without sourceDocumentId', () => {
@@ -218,8 +226,16 @@ describe('verificationRequestV1Schema', () => {
       sourceDocumentId: 'candidate-src',
       mode: 'inspect',
       referenceArtifacts: [
-        { artifactLocator: '/r1.json', sourceDocumentId: 'src-r1' },
-        { artifactLocator: '/r2.json', sourceDocumentId: 'src-r2' },
+        {
+          artifactLocator: '/r1.json',
+          sourceDocumentId: 'src-r1',
+          manifestDocumentKey: 'r1_army_fy2027',
+        },
+        {
+          artifactLocator: '/r2.json',
+          sourceDocumentId: 'src-r2',
+          manifestDocumentKey: 'r2_army_fy2027',
+        },
       ],
     };
     const parsed = verificationRequestV1Schema.parse(request);
@@ -229,6 +245,58 @@ describe('verificationRequestV1Schema', () => {
     expect(parsed.referenceArtifacts?.every((r) => r.sourceDocumentId !== 'candidate-src')).toBe(
       true,
     );
+  });
+
+  it('rejects a reference without manifestDocumentKey (R8.2-D: mandatory)', () => {
+    const request = {
+      manifestLocator: '/path',
+      manifestDocumentKey: 'key',
+      extractionArtifactLocator: '/path',
+      sourceDocumentId: 'id',
+      mode: 'inspect',
+      referenceArtifacts: [{ artifactLocator: '/ref.json', sourceDocumentId: 'ref-src' }],
+    };
+    expect(() => verificationRequestV1Schema.parse(request)).toThrow();
+  });
+
+  it('rejects a reference with unknown properties (R8.2-D: fail closed)', () => {
+    const request = {
+      manifestLocator: '/path',
+      manifestDocumentKey: 'key',
+      extractionArtifactLocator: '/path',
+      sourceDocumentId: 'id',
+      mode: 'inspect',
+      referenceArtifacts: [
+        {
+          artifactLocator: '/ref.json',
+          sourceDocumentId: 'ref-src',
+          manifestDocumentKey: 'r1_army_fy2027',
+          attemptId: 'extra-field',
+        },
+      ],
+    };
+    expect(() => verificationRequestV1Schema.parse(request)).toThrow();
+  });
+
+  it('manifestLocator defaults only to the candidate manifest (never required)', () => {
+    const request = {
+      manifestLocator: '/candidate-manifest.json',
+      manifestDocumentKey: 'key',
+      extractionArtifactLocator: '/path',
+      sourceDocumentId: 'id',
+      mode: 'inspect',
+      referenceArtifacts: [
+        {
+          artifactLocator: '/ref.json',
+          sourceDocumentId: 'ref-src',
+          manifestDocumentKey: 'r1_army_fy2027',
+        },
+      ],
+    };
+    const parsed = verificationRequestV1Schema.parse(request);
+    // Absent manifestLocator means "use the candidate manifest" — resolved by
+    // the resolver, never stored as a defaulted value.
+    expect(parsed.referenceArtifacts?.[0]?.manifestLocator).toBeUndefined();
   });
 });
 

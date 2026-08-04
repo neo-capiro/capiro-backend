@@ -57,7 +57,8 @@ const EXIT_ERROR = 4;
 interface ReferenceDescriptor {
   artifactLocator: string;
   sourceDocumentId: string;
-  manifestDocumentKey?: string;
+  manifestDocumentKey: string;
+  manifestLocator?: string;
 }
 
 interface VerifyArgs {
@@ -184,7 +185,13 @@ function loadReferenceDescriptors(referenceFile: string): ReferenceDescriptor[] 
       process.exit(EXIT_ERROR);
     }
     const rec = entry as Record<string, unknown>;
-    const allowedKeys = new Set(['artifactLocator', 'sourceDocumentId', 'manifestDocumentKey']);
+    // R8.2-D: unknown properties fail closed.
+    const allowedKeys = new Set([
+      'artifactLocator',
+      'sourceDocumentId',
+      'manifestDocumentKey',
+      'manifestLocator',
+    ]);
     for (const key of Object.keys(rec)) {
       if (!allowedKeys.has(key)) {
         console.error(`reference[${idx}] has unknown property: ${key}`);
@@ -195,25 +202,29 @@ function loadReferenceDescriptors(referenceFile: string): ReferenceDescriptor[] 
       console.error(`reference[${idx}].artifactLocator is required (non-empty string)`);
       process.exit(EXIT_ERROR);
     }
+    // R8.2-D: SourceDocument ID is never defaulted.
     if (typeof rec.sourceDocumentId !== 'string' || rec.sourceDocumentId.length === 0) {
       console.error(`reference[${idx}].sourceDocumentId is required (non-empty string)`);
       process.exit(EXIT_ERROR);
     }
+    // R8.2-D: manifestDocumentKey is mandatory — a reference is governed by
+    // its own manifest entry, never silently defaulted from the candidate.
+    if (typeof rec.manifestDocumentKey !== 'string' || rec.manifestDocumentKey.length === 0) {
+      console.error(`reference[${idx}].manifestDocumentKey is required (non-empty string)`);
+      process.exit(EXIT_ERROR);
+    }
     if (
-      rec.manifestDocumentKey !== undefined &&
-      (typeof rec.manifestDocumentKey !== 'string' || rec.manifestDocumentKey.length === 0)
+      rec.manifestLocator !== undefined &&
+      (typeof rec.manifestLocator !== 'string' || rec.manifestLocator.length === 0)
     ) {
-      console.error(
-        `reference[${idx}].manifestDocumentKey must be a non-empty string when present`,
-      );
+      console.error(`reference[${idx}].manifestLocator must be a non-empty string when present`);
       process.exit(EXIT_ERROR);
     }
     descriptors.push({
       artifactLocator: rec.artifactLocator,
       sourceDocumentId: rec.sourceDocumentId,
-      ...(rec.manifestDocumentKey !== undefined
-        ? { manifestDocumentKey: rec.manifestDocumentKey }
-        : {}),
+      manifestDocumentKey: rec.manifestDocumentKey,
+      ...(rec.manifestLocator !== undefined ? { manifestLocator: rec.manifestLocator } : {}),
     });
   }
   return descriptors;
@@ -275,32 +286,64 @@ async function main(): Promise<void> {
     process.exit(EXIT_ERROR);
   }
 
-  // Create the proof resolver and repository based on mode
+  // Create the proof resolver and repository based on mode.
+  //
+  // R8.2 Workstream B: the two modes use disjoint proof boundaries.
+  //   - inspect mode: FilesystemProofResolver — read-only, local files only,
+  //     no database required, cannot create durable trusted audit evidence;
+  //   - persist mode: CompositeProofResolver in production_proof mode wired
+  //     from the SAME Prisma client as the repository. Persist mode never
+  //     constructs FilesystemProofResolver.
   let repository: BudgetVerificationRepositoryV1 | null = null;
+  let proofResolver:
+    | import('../src/defense-budget/verification/trusted-proof/trusted-proof-types.js').TrustedVerificationProofResolverV1
+    | null = null;
+  let prismaForPersist: import('@prisma/client').PrismaClient | null = null;
+  let disposePersistProof: (() => Promise<void>) | null = null;
 
   if (args.persistAudit) {
-    // Persist mode: create real Prisma repository
     try {
       const { PrismaClient } = await import('@prisma/client');
-      const { createPrismaBudgetVerificationRepository } =
-        await import('../src/defense-budget/verification/persistence/prisma-budget-verification.repository.js');
+      const { wireProductionProofBoundary } =
+        await import('../src/defense-budget/verification/trusted-proof/production-proof-wiring.js');
       const prisma = new PrismaClient();
-      repository = createPrismaBudgetVerificationRepository(prisma);
+      const wired = await wireProductionProofBoundary({ prisma });
+      prismaForPersist = prisma;
+      repository = wired.repository;
+      proofResolver = wired.proofResolver;
+      disposePersistProof = wired.dispose;
       console.error(
-        '--persist-audit enabled: verification result will be persisted to the database',
+        '--persist-audit enabled: production_proof resolver active; verification result will be persisted to the database',
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error(`--persist-audit requires a configured database: ${message}`);
+      const kind =
+        err instanceof Object && (err as Error).name === 'ProductionProofWiringError'
+          ? 'production proof wiring failed'
+          : 'persist-audit setup failed';
+      console.error(
+        `--persist-audit requires the full production proof boundary (${kind}): ${message}`,
+      );
+      if (prismaForPersist) {
+        try {
+          await prismaForPersist.$disconnect();
+        } catch {
+          // Closing must never mask the primary failure.
+        }
+      }
       process.exit(EXIT_ERROR);
     }
   } else {
-    // Inspect mode: filesystem resolver, no repository
+    // Inspect mode: filesystem resolver, no repository, no database.
     repository = null;
+    proofResolver = new FilesystemProofResolver();
   }
 
-  // Create filesystem proof resolver for local-only operation
-  const proofResolver = new FilesystemProofResolver();
+  if (!proofResolver) {
+    // Unreachable: exactly one branch above assigns the resolver. Guarded so
+    // persist mode can never silently fall back to the filesystem resolver.
+    throw new Error('internal error: no proof resolver was constructed');
+  }
 
   const service = new BudgetVerificationV1Service(proofResolver, repository);
 
@@ -311,6 +354,22 @@ async function main(): Promise<void> {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`Verification failed: ${message}`);
     process.exit(EXIT_ERROR);
+  } finally {
+    // Close AWS clients and Prisma even when verification fails.
+    if (disposePersistProof) {
+      try {
+        await disposePersistProof();
+      } catch {
+        // Closing must never mask the primary failure.
+      }
+    }
+    if (prismaForPersist) {
+      try {
+        await prismaForPersist.$disconnect();
+      } catch {
+        // Closing must never mask the primary failure.
+      }
+    }
   }
 
   // Print deterministic JSON result

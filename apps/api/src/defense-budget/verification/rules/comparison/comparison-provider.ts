@@ -63,22 +63,26 @@ export function createComparisonProvider(
   referenceProofBundles: readonly TrustedVerificationProofBundleV1[],
   referenceFindings: readonly ProofFindingV1[],
 ): ComparisonProviderV1 {
-  // Identify which reference artifacts have blocking findings
+  // R8.2-D: surgical per-reference exclusion. Proof findings are tagged with
+  // the reference's artifactId (and locator/sourceDocumentId) by the unified
+  // proof path, so only the specific failed reference is excluded from the
+  // index — valid references still contribute to comparisons.
   const blockingArtifactIds = new Set<string>();
+  let unattributedBlocking = false;
   for (const finding of referenceFindings) {
-    if (finding.severity === 'blocking') {
-      // We don't have a direct mapping from finding to artifact ID here,
-      // so if any blocking finding exists, we mark all reference artifacts
-      // as unproved. The comparison rules will see allReferencesProved=false
-      // and emit NOT_RUN/FAIL accordingly.
-      for (const ref of referenceArtifacts) {
-        blockingArtifactIds.add(ref.artifactId);
-      }
-      break;
+    if (finding.severity !== 'blocking') continue;
+    if (finding.artifactId) {
+      blockingArtifactIds.add(finding.artifactId);
+    } else {
+      // A blocking finding we cannot attribute to one specific reference
+      // (e.g. the reference artifact itself could not be loaded) still means
+      // not all references are proved — but it must not poison the index
+      // membership of references that WERE independently proved.
+      unattributedBlocking = true;
     }
   }
 
-  const allReferencesProved = blockingArtifactIds.size === 0;
+  const allReferencesProved = blockingArtifactIds.size === 0 && !unattributedBlocking;
   const provedArtifacts = allReferencesProved
     ? referenceArtifacts
     : referenceArtifacts.filter((a) => !blockingArtifactIds.has(a.artifactId));

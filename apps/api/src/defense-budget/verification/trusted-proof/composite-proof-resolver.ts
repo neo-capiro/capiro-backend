@@ -5,8 +5,28 @@
  *   - TrustedByteLocatorReader (filesystem + S3)
  *   - SourceDocument client (for SourceDocument row loading)
  *   - ParseJobClient (for parser-run proof)
+ *   - ParserOutputProofSource (R8.2-C: independent parser output bytes)
  *   - S3ObjectReader (for archive-head verification)
  *   - clock for audit timestamps only (not IDs/hashes)
+ *
+ * R8.2 Workstream D: candidate and reference artifacts are proved by ONE
+ * shared method (`resolveSingleArtifactProof`). There is no separate,
+ * weaker reference trust path:
+ *
+ *   - every reference must carry its own SourceDocument ID (never defaulted)
+ *     and its own mandatory manifest document key;
+ *   - a reference's `manifestLocator` defaults ONLY to the candidate
+ *     manifest locator; a separate manifest is resolved independently;
+ *   - the reference's own manifest entry governs its policy (archive /
+ *     parser-run requirements);
+ *   - in production mode, a required reference-proof failure produces an
+ *     artifact-specific blocking finding (tagged with the reference's
+ *     artifact ID, source document ID, and locator) and the reference is
+ *     excluded from comparison — it can never satisfy a required
+ *     production-grade comparison;
+ *   - in local inspect mode a reference may be inspected without full
+ *     production proof, but it likewise cannot satisfy a required
+ *     production-grade comparison when its proof is incomplete.
  *
  * Unit tests use fakes. Do not make real AWS calls in unit tests.
  */
@@ -21,7 +41,6 @@ import {
   computeArtifactContentSha256,
 } from '../../contracts/extraction-artifact-v1.semantic.js';
 import type { DefenseBudgetExtractionArtifactV1 } from '../../contracts/extraction-artifact-v1.js';
-import { sha256Hex } from '../../contracts/canonical-json.js';
 import type { SourceDocumentClient } from '../../../program-element/source-document/source-document-registry.js';
 import type {
   TrustedProofResolveInputV1,
@@ -40,6 +59,7 @@ import { blockingFinding, reviewFinding } from './trusted-proof-types.js';
 import { SourceDocumentProofResolver } from './source-document-proof-resolver.js';
 import { ArchiveProofResolver, type S3ObjectReader } from './archive-proof-resolver.js';
 import { ParserRunProofResolver, type ParseJobClient } from './parser-run-proof-resolver.js';
+import type { ParserOutputProofSource } from './parser-output-proof-source.js';
 import type {
   TrustedByteLocatorReader,
   TrustedLocatedBytes,
@@ -56,6 +76,44 @@ export interface CompositeProofResolverOptions {
   byteLocatorReader?: TrustedByteLocatorReader;
   /** Operation mode: local_inspect (default) or production_proof. */
   mode?: ProofResolverMode;
+  /**
+   * R8.2 Workstream C: source of independently persisted parser output
+   * bytes. When absent, parser runs (other than manual) can never reach
+   * `proofStatus: 'verified'` — they are reported `missing`.
+   */
+  parserOutputProofSource?: ParserOutputProofSource;
+}
+
+/* ------------------------------------------------------------------ */
+/* Unified single-artifact proof resolution (R8.2-D)                   */
+/* ------------------------------------------------------------------ */
+
+export interface SingleArtifactProofInput {
+  manifestLocator: string;
+  manifestDocumentKey: string;
+  artifactLocator: string;
+  sourceDocumentId: string;
+  /**
+   * Candidate failures abort the whole resolution in production mode
+   * (throw). Reference failures produce artifact-specific blocking
+   * findings and exclude the reference from comparison.
+   */
+  isCandidate: boolean;
+}
+
+export interface SingleArtifactProofResult {
+  manifest: BudgetCycleManifestV1;
+  manifestDocument: BudgetCycleManifestDocumentV1;
+  manifestContentSha256: string;
+  manifestProof: TrustedManifestProofV1;
+  artifact: DefenseBudgetExtractionArtifactV1;
+  artifactByteSha256: string;
+  artifactContentSha256: string;
+  extractionArtifactProof: TrustedExtractionArtifactProofV1;
+  sourceDocumentProof: TrustedSourceDocumentProofV1;
+  archiveProof: TrustedArchiveProofV1;
+  parserRuns: TrustedParserRunProofV1[];
+  findings: ProofFindingV1[];
 }
 
 /**
@@ -77,7 +135,19 @@ export class CompositeProofResolver {
     if (options.s3Reader) {
       this.archiveResolver = new ArchiveProofResolver(options.s3Reader);
     }
-    this.parserRunResolver = new ParserRunProofResolver(options.parseJobClient);
+    this.parserRunResolver = new ParserRunProofResolver(
+      options.parseJobClient,
+      options.parserOutputProofSource,
+    );
+  }
+
+  /**
+   * The resolved operation mode. Read-only — exposed so the CLI wiring and
+   * its tests can prove that persist mode constructs `production_proof` and
+   * never the filesystem-only resolver.
+   */
+  get resolverMode(): ProofResolverMode {
+    return this.mode;
   }
 
   async resolve(input: TrustedProofResolveInputV1): Promise<TrustedProofResolutionV1> {
@@ -94,9 +164,182 @@ export class CompositeProofResolver {
       }
     }
 
-    const findings: ProofFindingV1[] = [];
+    // ------------------------------------------------------------------
+    // Candidate proof — the SAME unified method used for references.
+    // ------------------------------------------------------------------
+    const candidate = await this.resolveSingleArtifactProof({
+      manifestLocator: input.manifestLocator,
+      manifestDocumentKey: input.manifestDocumentKey,
+      artifactLocator: input.extractionArtifactLocator,
+      sourceDocumentId: input.sourceDocumentId,
+      isCandidate: true,
+    });
 
-    // 1. Read and hash manifest bytes through locator reader
+    const findings: ProofFindingV1[] = [...candidate.findings];
+
+    // Expected hash TOCTOU guards (candidate only — operator confirmation).
+    if (input.expectedSourcePdfSha256) {
+      const actual = candidate.sourceDocumentProof.sourceSha256;
+      if (
+        actual &&
+        actual !== 'UNRESOLVED_SOURCE_SHA' &&
+        input.expectedSourcePdfSha256 !== actual
+      ) {
+        findings.push(
+          blockingFinding(
+            'source_sha_mismatch',
+            `expected source SHA ${input.expectedSourcePdfSha256} does not match actual ${actual}`,
+          ),
+        );
+      }
+    }
+    if (
+      input.expectedExtractionArtifactSha256 &&
+      input.expectedExtractionArtifactSha256 !== candidate.artifactByteSha256
+    ) {
+      findings.push(
+        blockingFinding(
+          'artifact_byte_sha_mismatch',
+          `expected artifact SHA ${input.expectedExtractionArtifactSha256} does not match actual ${candidate.artifactByteSha256}`,
+        ),
+      );
+    }
+
+    // ------------------------------------------------------------------
+    // Reference proofs — independently, through the SAME method.
+    // ------------------------------------------------------------------
+    const referenceArtifacts: DefenseBudgetExtractionArtifactV1[] = [];
+    const referenceArtifactsProofBundles: TrustedVerificationProofBundleV1[] = [];
+    const referenceArtifactsFindings: ProofFindingV1[] = [];
+
+    for (const refDesc of input.referenceArtifacts ?? []) {
+      const refManifestLocator = refDesc.manifestLocator ?? input.manifestLocator;
+      try {
+        const ref = await this.resolveSingleArtifactProof({
+          manifestLocator: refManifestLocator,
+          manifestDocumentKey: refDesc.manifestDocumentKey,
+          artifactLocator: refDesc.artifactLocator,
+          sourceDocumentId: refDesc.sourceDocumentId,
+          isCandidate: false,
+        });
+
+        // Tag every finding with the reference's identity so comparison
+        // exclusion and audit review can attribute it exactly.
+        const taggedFindings = ref.findings.map((f) => ({
+          ...f,
+          artifactId: ref.artifact.artifactId,
+          sourceDocumentId: refDesc.sourceDocumentId,
+          locator: refDesc.artifactLocator,
+        }));
+        referenceArtifactsFindings.push(...taggedFindings);
+
+        // R8.2-D: any required reference-proof failure EXCLUDES the reference
+        // from comparison. It is never added to the comparison set, so it
+        // can never be indexed for matching or satisfy a required
+        // production-grade comparison.
+        if (taggedFindings.some((f) => f.severity === 'blocking')) {
+          continue;
+        }
+
+        referenceArtifacts.push(ref.artifact);
+        referenceArtifactsProofBundles.push({
+          manifest: ref.manifestProof,
+          extractionArtifact: ref.extractionArtifactProof,
+          sourceDocument: ref.sourceDocumentProof,
+          archive: ref.archiveProof,
+          parserRuns: ref.parserRuns,
+          resolvedReferenceArtifacts: [],
+        });
+      } catch (err) {
+        // Required reference-proof failure: artifact-specific blocking
+        // finding; the reference is excluded from comparison (never indexed).
+        // Best-effort: recover the reference artifactId so the finding retains
+        // full reference identity even when resolution itself failed.
+        let refArtifactId: string | undefined;
+        try {
+          const refLocated = await this.readBytesWithReader(refDesc.artifactLocator);
+          const parsed = JSON.parse(refLocated.bytes.toString('utf8')) as {
+            artifactId?: unknown;
+          };
+          if (typeof parsed.artifactId === 'string') refArtifactId = parsed.artifactId;
+        } catch {
+          // Artifact unreadable/unparseable — finding is still attributed by
+          // locator and sourceDocumentId.
+        }
+        const finding = blockingFinding(
+          'reference_artifact_proof_failed',
+          `failed to prove reference artifact at ${refDesc.artifactLocator}: ${(err as Error).message}`,
+          {
+            manifestLocator: refManifestLocator,
+            manifestDocumentKey: refDesc.manifestDocumentKey,
+            sourceDocumentId: refDesc.sourceDocumentId,
+          },
+        );
+        finding.artifactId = refArtifactId;
+        finding.sourceDocumentId = refDesc.sourceDocumentId;
+        finding.locator = refDesc.artifactLocator;
+        referenceArtifactsFindings.push(finding);
+      }
+    }
+
+    // Build resolved reference artifact list with correct locators
+    const resolvedRefs: TrustedReferenceArtifactProofV1[] = referenceArtifactsProofBundles.map(
+      (bundle) => ({
+        artifactId: bundle.extractionArtifact.artifactId,
+        contentSha256: bundle.extractionArtifact.contentSha256,
+        sourceDocumentId: bundle.sourceDocument.id,
+        sourcePdfSha256: bundle.sourceDocument.sourceSha256,
+        locator: bundle.extractionArtifact.locator,
+      }),
+    );
+
+    const proofBundle: TrustedVerificationProofBundleV1 = {
+      manifest: candidate.manifestProof,
+      extractionArtifact: candidate.extractionArtifactProof,
+      sourceDocument: candidate.sourceDocumentProof,
+      archive: candidate.archiveProof,
+      parserRuns: candidate.parserRuns,
+      resolvedReferenceArtifacts: resolvedRefs,
+    };
+
+    return {
+      manifest: candidate.manifest,
+      manifestDocument: candidate.manifestDocument,
+      manifestContentSha256: candidate.manifestContentSha256,
+      artifact: candidate.artifact,
+      extractionArtifactByteSha256: candidate.artifactByteSha256,
+      extractionArtifactContentSha256: candidate.artifactContentSha256,
+      proofBundle,
+      proofFindings: findings,
+      referenceArtifacts,
+      referenceArtifactsProofBundles,
+      referenceArtifactsFindings,
+    };
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Unified artifact proof — candidate AND references (R8.2-D)          */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * Resolve the full proof for ONE artifact (candidate or reference):
+   * manifest identity, artifact byte/content integrity, authoritative
+   * source bytes, SourceDocument metadata agreement, archive proof when the
+   * artifact's own policy requires it, and parser-run proof when its own
+   * policy requires it.
+   *
+   * Candidate failures abort the resolution in production mode (throw).
+   * Reference failures surface as blocking findings for the caller to tag
+   * and exclude.
+   */
+  private async resolveSingleArtifactProof(
+    input: SingleArtifactProofInput,
+  ): Promise<SingleArtifactProofResult> {
+    const findings: ProofFindingV1[] = [];
+    const production = this.mode === 'production_proof';
+
+    // 1. Read and hash manifest bytes through locator reader. The manifest
+    //    governing THIS artifact may be the candidate's or a separate one.
     const manifestLocated = await this.readBytesWithReader(input.manifestLocator);
     const manifestContentSha256 = sha256Bytes(manifestLocated.bytes);
     const manifest: BudgetCycleManifestV1 = parseBudgetCycleManifestV1(
@@ -112,32 +355,44 @@ export class CompositeProofResolver {
       (d) => d.documentKey === input.manifestDocumentKey,
     );
     if (!manifestDocument) {
-      throw new Error(`document key "${input.manifestDocumentKey}" not found in manifest`);
+      throw new Error(
+        `document key "${input.manifestDocumentKey}" not found in manifest ${input.manifestLocator}`,
+      );
     }
 
-    // R8.1 §2.2/§2.5: resolve the policy so archive/parser dependency
-    // requirements are known before proof resolution completes.
+    // 2. Resolve THIS artifact's policy from its own manifest entry.
     const resolvedPolicy = lookupPolicy(manifestDocument.family, manifestDocument.exhibit);
     const requireImmutableArchive = resolvedPolicy?.requireImmutableArchive ?? false;
     const requireParserRunProof = resolvedPolicy?.requireParserRunProof ?? false;
 
-    // R8.1 §2.2: policy-required dependencies must exist in production mode.
-    if (this.mode === 'production_proof') {
+    // 3. Policy-required dependencies. Candidate: abort in production mode.
+    //    Reference: artifact-specific blocking finding (comparison exclusion).
+    if (production) {
+      const missing: string[] = [];
       if (requireParserRunProof && !this.options.parseJobClient) {
-        throw new TrustedProofResolutionError(
-          `production_proof mode requires parseJobClient (policy ${manifestDocument.family}/${manifestDocument.exhibit} requires parser-run proof)`,
-        );
+        missing.push('parseJobClient');
+      }
+      if (requireParserRunProof && !this.options.parserOutputProofSource) {
+        missing.push('parserOutputProofSource');
       }
       if (requireImmutableArchive && !this.options.s3Reader) {
-        throw new TrustedProofResolutionError(
-          `production_proof mode requires s3Reader (policy ${manifestDocument.family}/${manifestDocument.exhibit} requires immutable archive)`,
-        );
+        missing.push('s3Reader');
+      }
+      if (missing.length > 0) {
+        const message =
+          `policy ${manifestDocument.family}/${manifestDocument.exhibit} requires ` +
+          `${missing.join(', ')} but production proof dependencies are unavailable ` +
+          `(artifact=${input.artifactLocator})`;
+        if (input.isCandidate) {
+          throw new TrustedProofResolutionError(`production_proof mode: ${message}`);
+        }
+        findings.push(blockingFinding('production_dependency_missing', message));
       }
     }
 
-    // 2. Read and hash artifact bytes
-    const artifactLocated = await this.readBytesWithReader(input.extractionArtifactLocator);
-    const extractionArtifactByteSha256 = sha256Bytes(artifactLocated.bytes);
+    // 4. Read and hash artifact bytes.
+    const artifactLocated = await this.readBytesWithReader(input.artifactLocator);
+    const artifactByteSha256 = sha256Bytes(artifactLocated.bytes);
     const artifact: DefenseBudgetExtractionArtifactV1 = parseDefenseBudgetExtractionArtifactV1(
       JSON.parse(artifactLocated.bytes.toString('utf8')),
     );
@@ -151,17 +406,16 @@ export class CompositeProofResolver {
       );
     }
 
-    // 3. Load SourceDocument in production mode
+    // 5. Load SourceDocument and authoritative source bytes.
     let sourceDocumentProof: TrustedSourceDocumentProofV1;
     let sourceDocRow: Awaited<ReturnType<SourceDocumentClient['sourceDocument']['findFirst']>> =
       null;
     let sourcePdfLocated: TrustedLocatedBytes | null = null;
 
     if (this.sourceDocResolver) {
-      // Load SourceDocument row by ID
       const sdResult = await this.sourceDocResolver.resolveWithRow({
         sourceDocumentId: input.sourceDocumentId,
-        actualSourcePdfSha256: '', // Will be filled in after reading bytes
+        actualSourcePdfSha256: '',
         artifactSourcePdfSha256: artifact.source.sourcePdfSha256,
         fiscalYear: manifest.fiscalYear,
         sourceKey: manifestDocument.sourceLocator,
@@ -170,7 +424,6 @@ export class CompositeProofResolver {
       sourceDocRow = sdResult.row;
       findings.push(...sdResult.findings);
 
-      // If SourceDocument has an authoritative locator (S3 or filesystem), read through it
       if (sourceDocRow) {
         const authLocator = this.resolveAuthoritativeLocator(sourceDocRow);
         if (authLocator) {
@@ -227,11 +480,14 @@ export class CompositeProofResolver {
 
     // R8.1 §2.1: production_proof must never fall back to the artifact-asserted
     // source SHA. If authoritative source bytes could not be resolved, fail.
-    if (this.mode === 'production_proof' && !sourcePdfLocated) {
-      throw new TrustedProofResolutionError(
+    if (production && !sourcePdfLocated) {
+      const message =
         'authoritative source bytes could not be resolved for production proof ' +
-          `(sourceDocumentId=${input.sourceDocumentId})`,
-      );
+        `(sourceDocumentId=${input.sourceDocumentId}, artifact=${input.artifactLocator})`;
+      if (input.isCandidate) {
+        throw new TrustedProofResolutionError(message);
+      }
+      findings.push(blockingFinding('source_bytes_unresolved', message));
     }
 
     const actualSourceSha256 = sourcePdfLocated
@@ -239,7 +495,7 @@ export class CompositeProofResolver {
       : artifact.source.sourcePdfSha256;
 
     // R8.1 §2.4: SourceDocument metadata must agree with manifest + artifact.
-    if (this.mode === 'production_proof' && sourceDocRow) {
+    if (production && sourceDocRow) {
       const row = sourceDocRow as Record<string, unknown>;
       if (row.sourceKey != null && row.sourceKey !== manifestDocument.sourceLocator) {
         findings.push(
@@ -312,7 +568,7 @@ export class CompositeProofResolver {
       findings.push(...sdResult2.findings);
     }
 
-    // 4. Verify artifact source SHA matches actual
+    // 6. Verify artifact source SHA matches actual
     if (actualSourceSha256 !== artifact.source.sourcePdfSha256) {
       findings.push(
         blockingFinding(
@@ -322,72 +578,46 @@ export class CompositeProofResolver {
       );
     }
 
-    // 5. Resolve archive proof from SourceDocument archive fields
+    // 7. Resolve archive proof from SourceDocument archive fields using THIS
+    //    artifact's own policy requirement.
     let archiveProof: TrustedArchiveProofV1 = { status: 'not_applicable' };
     if (this.archiveResolver && sourceDocRow) {
-      const archiveInput = {
-        archiveBucket: (sourceDocRow as Record<string, unknown>).archiveBucket as
-          | string
-          | null
-          | undefined,
-        archiveS3Key: (sourceDocRow as Record<string, unknown>).archiveS3Key as
-          | string
-          | null
-          | undefined,
-        archiveVersionId: (sourceDocRow as Record<string, unknown>).archiveVersionId as
-          | string
-          | null
-          | undefined,
-        archiveKmsKeyArn: (sourceDocRow as Record<string, unknown>).archiveKmsKeyArn as
-          | string
-          | null
-          | undefined,
-        retainUntil: (sourceDocRow as Record<string, unknown>).retainUntil as
-          | Date
-          | null
-          | undefined,
-        archivedAt: (sourceDocRow as Record<string, unknown>).archivedAt as Date | null | undefined,
+      const row = sourceDocRow as Record<string, unknown>;
+      const archiveResult = await this.archiveResolver.resolve({
+        archiveBucket: row.archiveBucket as string | null | undefined,
+        archiveS3Key: row.archiveS3Key as string | null | undefined,
+        archiveVersionId: row.archiveVersionId as string | null | undefined,
+        archiveKmsKeyArn: row.archiveKmsKeyArn as string | null | undefined,
+        retainUntil: row.retainUntil as Date | null | undefined,
+        archivedAt: row.archivedAt as Date | null | undefined,
         expectedSourceSha256: actualSourceSha256,
         requireImmutableArchive,
-      };
-      const archiveResult = await this.archiveResolver.resolve(archiveInput);
+      });
       archiveProof = archiveResult.archive;
-      for (const f of archiveResult.findings) {
-        findings.push({
-          ...f,
-          artifactId: artifact.artifactId,
-          sourceDocumentId: input.sourceDocumentId,
-        });
-      }
+      findings.push(...archiveResult.findings);
     } else if (this.archiveResolver) {
       // No source document row but archive resolver exists — check if source is in S3
       if (sourcePdfLocated?.kind === 's3' && sourcePdfLocated.bucket && sourcePdfLocated.key) {
-        const archiveInput = {
+        const archiveResult = await this.archiveResolver.resolve({
           archiveBucket: sourcePdfLocated.bucket,
           archiveS3Key: sourcePdfLocated.key,
           archiveVersionId: sourcePdfLocated.versionId,
           archiveKmsKeyArn: sourcePdfLocated.kmsKeyArn,
           expectedSourceSha256: actualSourceSha256,
           requireImmutableArchive,
-        };
-        const archiveResult = await this.archiveResolver.resolve(archiveInput);
+        });
         archiveProof = archiveResult.archive;
-        for (const f of archiveResult.findings) {
-          findings.push({
-            ...f,
-            artifactId: artifact.artifactId,
-            sourceDocumentId: input.sourceDocumentId,
-          });
-        }
+        findings.push(...archiveResult.findings);
       }
     }
 
-    // 6. Resolve parser-run proof
+    // 8. Resolve parser-run proof using THIS artifact's own policy.
     let parserRuns: TrustedParserRunProofV1[] = [];
     if (this.parserRunResolver && actualSourceSha256) {
       const prResult = await this.parserRunResolver.resolve({
         artifact,
         actualSourcePdfSha256: actualSourceSha256,
+        sourceDocumentId: input.sourceDocumentId,
       });
       parserRuns = prResult.parserRuns;
       findings.push(...prResult.findings);
@@ -402,10 +632,10 @@ export class CompositeProofResolver {
         outputArtifactSha256: run.outputArtifactSha256,
         proofStatus: 'not_applicable' as const,
       }));
-      // R8.1 §2.2/§2.6: when policy requires parser-run proof, a resolver is
-      // mandatory — never silently mark not_applicable.
+      // When policy requires parser-run proof, a resolver is mandatory —
+      // never silently mark not_applicable.
       if (requireParserRunProof) {
-        if (this.mode === 'production_proof') {
+        if (production && input.isCandidate) {
           throw new TrustedProofResolutionError(
             'policy requires parser-run proof but no parser-run resolver could run',
           );
@@ -419,28 +649,7 @@ export class CompositeProofResolver {
       }
     }
 
-    // 7. Expected hash TOCTOU guards
-    if (input.expectedSourcePdfSha256 && input.expectedSourcePdfSha256 !== actualSourceSha256) {
-      findings.push(
-        blockingFinding(
-          'source_sha_mismatch',
-          `expected source SHA ${input.expectedSourcePdfSha256} does not match actual ${actualSourceSha256}`,
-        ),
-      );
-    }
-    if (
-      input.expectedExtractionArtifactSha256 &&
-      input.expectedExtractionArtifactSha256 !== extractionArtifactByteSha256
-    ) {
-      findings.push(
-        blockingFinding(
-          'artifact_byte_sha_mismatch',
-          `expected artifact SHA ${input.expectedExtractionArtifactSha256} does not match actual ${extractionArtifactByteSha256}`,
-        ),
-      );
-    }
-
-    // 8. Build manifest and artifact proof
+    // 9. Build manifest and artifact proof for THIS artifact.
     const manifestProof: TrustedManifestProofV1 = {
       locator: input.manifestLocator,
       contentSha256: manifestContentSha256,
@@ -450,215 +659,26 @@ export class CompositeProofResolver {
     };
 
     const extractionArtifactProof: TrustedExtractionArtifactProofV1 = {
-      locator: input.extractionArtifactLocator,
+      locator: input.artifactLocator,
       artifactId: artifact.artifactId,
       contentSha256: recomputedContentSha,
-      byteSha256: extractionArtifactByteSha256,
+      byteSha256: artifactByteSha256,
       schemaVersion: 'defense_budget_extraction_v1',
-    };
-
-    // 9. Resolve reference artifacts independently
-    const referenceArtifacts: DefenseBudgetExtractionArtifactV1[] = [];
-    const referenceArtifactsProofBundles: TrustedVerificationProofBundleV1[] = [];
-    const referenceArtifactsFindings: ProofFindingV1[] = [];
-
-    // References must use the structured descriptor form; every reference
-    // carries its own explicit SourceDocument identity.
-    const refDescriptors = input.referenceArtifacts ?? [];
-
-    for (const refDesc of refDescriptors) {
-      try {
-        // Read reference artifact bytes through locator reader
-        const refLocated = await this.readBytesWithReader(refDesc.artifactLocator);
-        const refArtifact = parseDefenseBudgetExtractionArtifactV1(
-          JSON.parse(refLocated.bytes.toString('utf8')),
-        );
-        const refByteSha = sha256Bytes(refLocated.bytes);
-
-        // Recompute reference content SHA
-        const refContentSha = computeArtifactContentSha256(refArtifact);
-        if (refArtifact.contentSha256 !== refContentSha) {
-          referenceArtifactsFindings.push(
-            blockingFinding(
-              'artifact_content_sha_mismatch',
-              `reference artifact ${refArtifact.artifactId} content SHA mismatch`,
-              undefined,
-            ),
-          );
-        }
-
-        // Resolve reference's own source proof
-        let refSourceProof: TrustedSourceDocumentProofV1;
-        let refArchiveProof: TrustedArchiveProofV1 = { status: 'not_applicable' };
-        let refParserRuns: TrustedParserRunProofV1[] = [];
-
-        if (this.sourceDocResolver) {
-          // Independently resolve the reference's own source document. A
-          // reference may identify the same official document as the
-          // candidate, but it still executes the proof process against that
-          // document independently — never reusing the candidate's proof.
-          const refSdResult = await this.sourceDocResolver.resolveWithRow({
-            sourceDocumentId: refDesc.sourceDocumentId,
-            actualSourcePdfSha256: '', // Will be filled
-            artifactSourcePdfSha256: refArtifact.source.sourcePdfSha256,
-          });
-          refSourceProof = refSdResult.sourceDocument;
-          const refSdRow = refSdResult.row;
-
-          // Tag findings with reference artifact ID
-          for (const f of refSdResult.findings) {
-            referenceArtifactsFindings.push({
-              ...f,
-              artifactId: refArtifact.artifactId,
-              sourceDocumentId: refDesc.sourceDocumentId,
-            });
-          }
-
-          // Resolve reference source bytes
-          let refSourceSha = refArtifact.source.sourcePdfSha256;
-          if (refSdRow) {
-            const refAuthLocator = this.resolveAuthoritativeLocator(refSdRow);
-            if (refAuthLocator) {
-              try {
-                const refSourceLocated = await this.readBytesWithReader(refAuthLocator);
-                refSourceSha = sha256Bytes(refSourceLocated.bytes);
-
-                // Archive proof for reference
-                if (this.archiveResolver) {
-                  const refArchiveResult = await this.archiveResolver.resolve({
-                    archiveBucket: (refSdRow as Record<string, unknown>).archiveBucket as
-                      | string
-                      | null
-                      | undefined,
-                    archiveS3Key: (refSdRow as Record<string, unknown>).archiveS3Key as
-                      | string
-                      | null
-                      | undefined,
-                    archiveVersionId: (refSdRow as Record<string, unknown>).archiveVersionId as
-                      | string
-                      | null
-                      | undefined,
-                    expectedSourceSha256: refSourceSha,
-                  });
-                  refArchiveProof = refArchiveResult.archive;
-                  for (const f of refArchiveResult.findings) {
-                    referenceArtifactsFindings.push({
-                      ...f,
-                      artifactId: refArtifact.artifactId,
-                      sourceDocumentId: refDesc.sourceDocumentId,
-                    });
-                  }
-                }
-              } catch (err) {
-                referenceArtifactsFindings.push(
-                  blockingFinding(
-                    'source_document_not_found',
-                    `reference source not found for ${refArtifact.artifactId}: ${(err as Error).message}`,
-                  ),
-                );
-              }
-            }
-          }
-
-          // Parser-run proof for reference
-          if (this.parserRunResolver && refSourceSha) {
-            const refPrResult = await this.parserRunResolver.resolve({
-              artifact: refArtifact,
-              actualSourcePdfSha256: refSourceSha,
-            });
-            refParserRuns = refPrResult.parserRuns;
-            for (const f of refPrResult.findings) {
-              referenceArtifactsFindings.push({
-                ...f,
-                artifactId: refArtifact.artifactId,
-                sourceDocumentId: refDesc.sourceDocumentId,
-              });
-            }
-          }
-        } else {
-          // No SourceDocument client (local_inspect): build an independent
-          // reference proof from the reference artifact's own claims. Never
-          // reuse the candidate's source/archive/parser proof.
-          refSourceProof = {
-            id: refDesc.sourceDocumentId,
-            sourceKey: manifestDocument.sourceLocator,
-            sourceSha256: refArtifact.source.sourcePdfSha256,
-            fiscalYear: manifest.fiscalYear,
-            budgetCycle: manifestDocument.budgetCycle,
-            component: manifestDocument.component,
-            documentType: manifestDocument.documentType,
-          };
-          refArchiveProof = { status: 'not_applicable' };
-          refParserRuns = refArtifact.parserRuns.map((run) => ({
-            parserRunId: run.parserRunId,
-            method: run.method,
-            parserVersion: run.parserVersion,
-            parserConfigSha256: run.parserConfigSha256,
-            inputSourceSha256: run.inputSourceSha256,
-            outputArtifactSha256: run.outputArtifactSha256,
-            proofStatus: 'not_applicable' as const,
-          }));
-        }
-
-        referenceArtifacts.push(refArtifact);
-
-        const refBundle: TrustedVerificationProofBundleV1 = {
-          manifest: manifestProof,
-          extractionArtifact: {
-            locator: refDesc.artifactLocator,
-            artifactId: refArtifact.artifactId,
-            contentSha256: refContentSha,
-            byteSha256: refByteSha,
-            schemaVersion: 'defense_budget_extraction_v1',
-          },
-          sourceDocument: refSourceProof,
-          archive: refArchiveProof,
-          parserRuns: refParserRuns,
-          resolvedReferenceArtifacts: [],
-        };
-        referenceArtifactsProofBundles.push(refBundle);
-      } catch (err) {
-        referenceArtifactsFindings.push(
-          reviewFinding(
-            'reference_artifact_proof_failed',
-            `failed to load reference artifact ${refDesc.artifactLocator}: ${(err as Error).message}`,
-          ),
-        );
-      }
-    }
-
-    // Build resolved reference artifact list with correct locators
-    const resolvedRefs: TrustedReferenceArtifactProofV1[] = referenceArtifactsProofBundles.map(
-      (bundle, i) => ({
-        artifactId: bundle.extractionArtifact.artifactId,
-        contentSha256: bundle.extractionArtifact.contentSha256,
-        sourceDocumentId: bundle.sourceDocument.id,
-        sourcePdfSha256: bundle.sourceDocument.sourceSha256,
-        locator: bundle.extractionArtifact.locator, // Uses reference's own locator, not candidate's
-      }),
-    );
-
-    const proofBundle: TrustedVerificationProofBundleV1 = {
-      manifest: manifestProof,
-      extractionArtifact: extractionArtifactProof,
-      sourceDocument: sourceDocumentProof,
-      archive: archiveProof,
-      parserRuns,
-      resolvedReferenceArtifacts: resolvedRefs,
     };
 
     return {
       manifest,
       manifestDocument,
       manifestContentSha256,
+      manifestProof,
       artifact,
-      extractionArtifactByteSha256,
-      extractionArtifactContentSha256: recomputedContentSha,
-      proofBundle,
-      proofFindings: findings,
-      referenceArtifacts,
-      referenceArtifactsProofBundles,
-      referenceArtifactsFindings,
+      artifactByteSha256,
+      artifactContentSha256: recomputedContentSha,
+      extractionArtifactProof,
+      sourceDocumentProof,
+      archiveProof,
+      parserRuns,
+      findings,
     };
   }
 

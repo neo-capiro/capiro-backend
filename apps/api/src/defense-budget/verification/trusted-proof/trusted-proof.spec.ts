@@ -341,7 +341,10 @@ describe('ParserRunProofResolver — manual parser', () => {
     expect(result.findings.some((f) => f.code === 'parse_job_missing')).toBe(true);
   });
 
-  it('deterministic parser with matching SHAs returns verified', async () => {
+  it('deterministic parser WITHOUT a proof source is missing, never verified', async () => {
+    // R8.2-C: fields inside the artifact are not independent proof. Without
+    // an injected ParserOutputProofSource the persisted output bytes cannot
+    // be loaded, so the run must be reported missing.
     const resolver = new ParserRunProofResolver();
     const artifact = makeMinimalArtifact(VALID_SHA);
     artifact.parserRuns[0]!.method = 'deterministic_pdfplumber';
@@ -349,7 +352,37 @@ describe('ParserRunProofResolver — manual parser', () => {
       artifact,
       actualSourcePdfSha256: VALID_SHA,
     });
+    expect(result.parserRuns[0]!.proofStatus).toBe('missing');
+    expect(result.findings.some((f) => f.code === 'parse_output_missing')).toBe(true);
+    expect(result.manualReviewTriggered).toBe(false);
+  });
+
+  it('deterministic parser WITH matching persisted output is verified', async () => {
+    const { sha256Hex } = require('../../contracts/canonical-json.js');
+    const outputBytes = Buffer.from('{"pages":[1]}');
+    const outputProofSource = {
+      resolveParserOutput: jest.fn(async () => ({
+        persistedRunId: 'run-1',
+        outputLocator: '/store/run-1/result.json',
+        outputBytes,
+        inputSourceSha256: VALID_SHA,
+        parserVersion: '1.0',
+        parserConfigSha256: VALID_SHA,
+        status: 'succeeded',
+        outputContentSha256: sha256Hex('x'),
+        outputByteSha256: sha256Hex(outputBytes.toString('utf8')),
+        succeededPages: [1],
+      })),
+    };
+    const resolver = new ParserRunProofResolver(undefined, outputProofSource);
+    const artifact = makeMinimalArtifact(VALID_SHA);
+    artifact.parserRuns[0]!.method = 'deterministic_pdfplumber';
+    const result = await resolver.resolve({
+      artifact,
+      actualSourcePdfSha256: VALID_SHA,
+    });
     expect(result.parserRuns[0]!.proofStatus).toBe('verified');
+    expect(outputProofSource.resolveParserOutput).toHaveBeenCalledTimes(1);
     expect(result.manualReviewTriggered).toBe(false);
   });
 });
@@ -590,12 +623,29 @@ describe('CompositeProofResolver — R8.1 fail-closed production proof', () => {
       getObjectBytes: jest.fn(async () => SRC_BYTES),
       headObject: jest.fn(async () => ({ contentLength: SRC_BYTES.length })),
     };
+    // R8.2-C: production parser-run proof requires an injected proof source
+    // that returns matching persisted output bytes.
+    const parserOutputProofSource = {
+      resolveParserOutput: jest.fn(async (req: { declaredOutputSha256: string }) => ({
+        persistedRunId: 'run-1',
+        outputLocator: '/store/run-1/result.json',
+        outputBytes: Buffer.from('{"pages":[1]}'),
+        inputSourceSha256: SOURCE_SHA,
+        parserVersion: '1.0',
+        parserConfigSha256: VALID_SHA,
+        status: 'succeeded',
+        outputContentSha256: req.declaredOutputSha256,
+        outputByteSha256: VALID_SHA,
+        succeededPages: [1],
+      })),
+    };
     return {
       mode: 'production_proof' as const,
       byteLocatorReader: reader,
       sourceDocumentClient,
       parseJobClient: { documentParseJob: { findFirst: jest.fn(async () => null) } },
       s3Reader,
+      parserOutputProofSource,
       ...overrides,
     };
   }
@@ -624,6 +674,13 @@ describe('CompositeProofResolver — R8.1 fail-closed production proof', () => {
   it('production_proof without parseJobClient fails when policy requires parser proof', async () => {
     const deps = makeDeps();
     delete (deps as Record<string, unknown>).parseJobClient;
+    const resolver = new CompositeProofResolver(deps);
+    await expect(resolver.resolve(makeInput())).rejects.toThrow(TrustedProofResolutionError);
+  });
+
+  it('production_proof without parserOutputProofSource fails when policy requires parser proof', async () => {
+    const deps = makeDeps();
+    delete (deps as Record<string, unknown>).parserOutputProofSource;
     const resolver = new CompositeProofResolver(deps);
     await expect(resolver.resolve(makeInput())).rejects.toThrow(TrustedProofResolutionError);
   });

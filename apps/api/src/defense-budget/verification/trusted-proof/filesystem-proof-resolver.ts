@@ -235,21 +235,57 @@ export class FilesystemProofResolver {
         : 'not_applicable',
     }));
 
-    // 9. Resolve reference artifacts — R1.6: independently proved.
+    // 9. Resolve reference artifacts — R1.6 + R8.2-D: independently proved.
     // Each reference artifact gets its own proof bundle with independent
-    // source document lookup, archive proof, and parser run proof.
-    // They never reuse the candidate's sourceDocumentProof or archiveProof.
+    // manifest resolution, source document lookup, archive proof, and parser
+    // run proof. They never reuse the candidate's proof bundle, never
+    // initialize their source SHA from the artifact itself, and never
+    // continue on the candidate's manifest entry when their own document
+    // key names a different entry.
     const referenceArtifacts: DefenseBudgetExtractionArtifactV1[] = [];
     const referenceArtifactsProofBundles: TrustedVerificationProofBundleV1[] = [];
     const referenceArtifactsFindings: ProofFindingV1[] = [];
     for (const refDesc of input.referenceArtifacts ?? []) {
       const refLocator = refDesc.artifactLocator;
+      // R8.2-D: findings pushed while proving THIS reference are tagged with
+      // its identity so comparison exclusion and audit review can attribute
+      // them exactly.
+      const findingsStart = referenceArtifactsFindings.length;
+      const tagNewFindings = (artifactId?: string) => {
+        for (let i = findingsStart; i < referenceArtifactsFindings.length; i++) {
+          const f = referenceArtifactsFindings[i]!;
+          if (!f.artifactId && artifactId) f.artifactId = artifactId;
+          if (!f.sourceDocumentId) f.sourceDocumentId = refDesc.sourceDocumentId;
+          if (!f.locator) f.locator = refLocator;
+        }
+      };
       try {
         const refBytes = await this.readBytes(refLocator);
         const refArtifact = parseDefenseBudgetExtractionArtifactV1(
           JSON.parse(refBytes.toString('utf8')),
         );
-        referenceArtifacts.push(refArtifact);
+
+        // R8.2-D: resolve the reference's OWN manifest and document entry.
+        // The manifest locator defaults only to the candidate manifest
+        // locator; the document key is mandatory and governs the reference.
+        const refManifestLocator = refDesc.manifestLocator ?? input.manifestLocator;
+        const refManifestBytes = await this.readBytes(refManifestLocator);
+        const refManifest = parseBudgetCycleManifestV1(
+          JSON.parse(refManifestBytes.toString('utf8')),
+        );
+        const refManifestDocument = refManifest.documents.find(
+          (d) => d.documentKey === refDesc.manifestDocumentKey,
+        );
+        if (!refManifestDocument) {
+          referenceArtifactsFindings.push(
+            blockingFinding(
+              'reference_artifact_proof_failed',
+              `reference ${refArtifact.artifactId}: document key "${refDesc.manifestDocumentKey}" not found in manifest ${refManifestLocator}`,
+            ),
+          );
+          tagNewFindings(refArtifact.artifactId);
+          continue;
+        }
 
         // R1.6: Independently prove each reference artifact
         const refByteSha = sha256Bytes(refBytes);
@@ -263,34 +299,48 @@ export class FilesystemProofResolver {
           );
         }
 
-        // R1.6: Independent source document proof for the reference artifact.
-        // The structured descriptor carries the reference's own explicit
-        // SourceDocument identity — never substituted from the candidate.
-        const refSourceDocId = refDesc.sourceDocumentId;
-        const refSourceSha = refArtifact.source.sourcePdfSha256;
-
-        // Try to read the reference's source PDF if available locally
+        // R8.2-D: the reference source SHA is NEVER initialized from the
+        // reference artifact's own claims. Read the reference's own source
+        // bytes through its own manifest document entry.
         let refSourcePdfAvailable = false;
         let refSourcePdfSha: string | undefined;
         try {
-          // Use the manifest source locator as a best-effort local path for the ref source
-          const refSourcePath = manifestDocument.sourceLocator;
+          const refSourcePath = refManifestDocument.sourceLocator;
           const refSourceBytes = await this.readBytes(refSourcePath);
           refSourcePdfSha = sha256Bytes(refSourceBytes);
           refSourcePdfAvailable = true;
         } catch {
-          // Reference source PDF not available locally — record as a finding
-          // but do not fail unless the reference's SHA doesn't match the candidate's
+          // R8.2-D: fail closed — an unavailable authoritative source means
+          // the reference cannot satisfy a production-grade comparison.
+          referenceArtifactsFindings.push(
+            blockingFinding(
+              'reference_artifact_proof_failed',
+              `reference ${refArtifact.artifactId}: source bytes unavailable at ${refManifestDocument.sourceLocator}`,
+            ),
+          );
+        }
+
+        if (refSourcePdfAvailable && refSourcePdfSha) {
+          if (refArtifact.source.sourcePdfSha256 !== refSourcePdfSha) {
+            referenceArtifactsFindings.push(
+              blockingFinding(
+                'source_sha_mismatch',
+                `reference artifact ${refArtifact.artifactId} source SHA ${refArtifact.source.sourcePdfSha256} does not match actual source SHA ${refSourcePdfSha}`,
+              ),
+            );
+          }
         }
 
         const refSourceDocumentProof: TrustedSourceDocumentProofV1 = {
-          id: refSourceDocId,
-          sourceKey: manifestDocument.sourceLocator,
-          sourceSha256: refSourcePdfSha ?? refSourceSha,
-          fiscalYear: manifest.fiscalYear,
-          budgetCycle: manifestDocument.budgetCycle,
-          component: manifestDocument.component,
-          documentType: manifestDocument.documentType,
+          id: refDesc.sourceDocumentId,
+          sourceKey: refManifestDocument.sourceLocator,
+          // Never fall back to the artifact-asserted SHA: unresolved stays
+          // unresolved so comparison cannot pass on an unproved reference.
+          sourceSha256: refSourcePdfSha ?? 'UNRESOLVED_SOURCE_SHA',
+          fiscalYear: refManifest.fiscalYear,
+          budgetCycle: refManifestDocument.budgetCycle,
+          component: refManifestDocument.component,
+          documentType: refManifestDocument.documentType,
         };
 
         // R1.6: Independent archive proof for the reference
@@ -311,8 +361,16 @@ export class FilesystemProofResolver {
             : 'not_applicable',
         }));
 
+        const refManifestProof: TrustedManifestProofV1 = {
+          locator: refManifestLocator,
+          contentSha256: sha256Hex(refManifestBytes.toString('utf8')),
+          cycleId: refManifest.cycleId,
+          fiscalYear: refManifest.fiscalYear,
+          documentKey: refDesc.manifestDocumentKey,
+        };
+
         const refBundle: TrustedVerificationProofBundleV1 = {
-          manifest: manifestProof,
+          manifest: refManifestProof,
           extractionArtifact: {
             locator: refLocator,
             artifactId: refArtifact.artifactId,
@@ -325,14 +383,21 @@ export class FilesystemProofResolver {
           parserRuns: refParserRuns,
           resolvedReferenceArtifacts: [],
         };
+
+        // Tag findings accumulated for this reference with its identity.
+        tagNewFindings(refArtifact.artifactId);
+
+        referenceArtifacts.push(refArtifact);
         referenceArtifactsProofBundles.push(refBundle);
       } catch (err) {
         referenceArtifactsFindings.push(
           blockingFinding(
             'reference_artifact_proof_failed',
             `failed to load reference artifact ${refLocator}: ${(err as Error).message}`,
+            { sourceDocumentId: refDesc.sourceDocumentId, locator: refLocator },
           ),
         );
+        tagNewFindings();
       }
     }
 
