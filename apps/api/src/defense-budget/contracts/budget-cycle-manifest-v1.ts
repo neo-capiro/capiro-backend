@@ -103,6 +103,21 @@ export const budgetCycleManifestDocumentV1Schema = z
     allowEmpty: z.boolean(),
     legacyArtifactKind: legacyArtifactKindV1Schema.optional(),
     legacyArtifactPath: z.string().optional(),
+    /**
+     * Phase 5 family-specific declarations (optional, backward-compatible).
+     * When present, the manifest semantic validator checks family completeness.
+     */
+    account: nonBlankString.optional(),
+    summaryDetailRole: z.enum(['summary', 'detail', 'standalone']).optional(),
+    procurementBaseAdvance: z.enum(['base', 'advance', 'both']).optional(),
+    expectedHierarchyDepth: z
+      .enum(['budget_activity', 'activity_group', 'subactivity_group'])
+      .optional(),
+    requiresProjectNumber: z.boolean().optional(),
+    requiredQuantityCategories: z.array(nonBlankString).optional(),
+    requiredUnitCostCategories: z.array(nonBlankString).optional(),
+    requiredNarrativeSections: z.array(nonBlankString).optional(),
+    authoritativeComparisonKeys: z.array(nonBlankString).optional(),
     metadata: jsonMetadataSchema.optional(),
   })
   .strict();
@@ -265,6 +280,128 @@ export function validateBudgetCycleManifestV1(
         `${path}.legacyArtifactPath`,
         `document "${doc.documentKey}" names a legacy artifact kind without a legacy artifact path`,
       );
+    }
+
+    /* Phase 5 family-completeness checks */
+
+    /* P-series documents with account must have procurement family */
+    if (doc.account != null && P_SERIES_EXHIBITS.has(doc.exhibit) && doc.family !== 'procurement') {
+      error(
+        'account_family_mismatch',
+        `${path}.account`,
+        `${doc.exhibit} document declares an account but family is "${doc.family}", expected "procurement"`,
+      );
+    }
+
+    /* O-series documents with account must have om family */
+    if (doc.account != null && O_SERIES_EXHIBITS.has(doc.exhibit) && doc.family !== 'om') {
+      error(
+        'account_family_mismatch',
+        `${path}.account`,
+        `${doc.exhibit} document declares an account but family is "${doc.family}", expected "om"`,
+      );
+    }
+
+    /* C-1/DD1391 documents with account must have milcon family */
+    if (doc.account != null && MILCON_EXHIBITS.has(doc.exhibit) && doc.family !== 'milcon') {
+      error(
+        'account_family_mismatch',
+        `${path}.account`,
+        `${doc.exhibit} document declares an account but family is "${doc.family}", expected "milcon"`,
+      );
+    }
+
+    /* procurementBaseAdvance only valid for P-series */
+    if (doc.procurementBaseAdvance != null && !P_SERIES_EXHIBITS.has(doc.exhibit)) {
+      error(
+        'base_advance_on_non_procurement',
+        `${path}.procurementBaseAdvance`,
+        `${doc.exhibit} document declares procurementBaseAdvance but is not a P-series exhibit`,
+      );
+    }
+
+    /* expectedHierarchyDepth only valid for O-series */
+    if (doc.expectedHierarchyDepth != null && !O_SERIES_EXHIBITS.has(doc.exhibit)) {
+      error(
+        'hierarchy_depth_on_non_om',
+        `${path}.expectedHierarchyDepth`,
+        `${doc.exhibit} document declares expectedHierarchyDepth but is not an O-series exhibit`,
+      );
+    }
+
+    /* requiresProjectNumber only valid for MILCON */
+    if (doc.requiresProjectNumber != null && !MILCON_EXHIBITS.has(doc.exhibit)) {
+      error(
+        'project_number_on_non_milcon',
+        `${path}.requiresProjectNumber`,
+        `${doc.exhibit} document declares requiresProjectNumber but is not a MILCON exhibit`,
+      );
+    }
+
+    /* R-series exhibit must NOT declare Phase 5 procurement/om/milcon fields */
+    if (R_SERIES_EXHIBITS.has(doc.exhibit)) {
+      if (doc.procurementBaseAdvance != null) {
+        error(
+          'rdte_with_procurement_field',
+          `${path}.procurementBaseAdvance`,
+          `R-series document must not declare procurementBaseAdvance`,
+        );
+      }
+      if (doc.expectedHierarchyDepth != null) {
+        error(
+          'rdte_with_om_field',
+          `${path}.expectedHierarchyDepth`,
+          `R-series document must not declare expectedHierarchyDepth`,
+        );
+      }
+      if (doc.requiresProjectNumber != null) {
+        error(
+          'rdte_with_milcon_field',
+          `${path}.requiresProjectNumber`,
+          `R-series document must not declare requiresProjectNumber`,
+        );
+      }
+    }
+
+    /* P-series manifest expecting RDTE_PE → rejection */
+    if (P_SERIES_EXHIBITS.has(doc.exhibit) && lineKinds.has('RDTE_PE')) {
+      error(
+        'p_series_expecting_rdte_pe',
+        `${path}.expectedLineKinds`,
+        `${doc.exhibit} document must not expect RDTE_PE line kind`,
+      );
+    }
+
+    /* O-series manifest expecting PROCUREMENT_BLIN → rejection */
+    if (O_SERIES_EXHIBITS.has(doc.exhibit) && lineKinds.has('PROCUREMENT_BLIN')) {
+      error(
+        'o_series_expecting_procurement_blin',
+        `${path}.expectedLineKinds`,
+        `${doc.exhibit} document must not expect PROCUREMENT_BLIN line kind`,
+      );
+    }
+
+    /* C-1/DD1391 manifest expecting OM_SAG → rejection */
+    if (MILCON_EXHIBITS.has(doc.exhibit) && lineKinds.has('OM_SAG')) {
+      error(
+        'milcon_expecting_om_sag',
+        `${path}.expectedLineKinds`,
+        `${doc.exhibit} document must not expect OM_SAG line kind`,
+      );
+    }
+
+    /* Cross-document: authoritativeComparisonKeys should reference existing document keys */
+    if (doc.authoritativeComparisonKeys != null) {
+      const knownKeys = new Set(manifest.documents.map((d) => d.documentKey));
+      for (const refKey of doc.authoritativeComparisonKeys) {
+        if (!knownKeys.has(refKey)) {
+          error(
+            'comparison_key_not_found',
+            `${path}.authoritativeComparisonKeys`,
+            `document "${doc.documentKey}" references comparison key "${refKey}" which is not in the manifest`,
+          );
+        }
+      }
     }
   });
 
