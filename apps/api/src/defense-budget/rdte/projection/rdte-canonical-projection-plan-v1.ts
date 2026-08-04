@@ -74,9 +74,7 @@ export const RDTE_PROJECTION_EXCLUSION_V1_VALUES = [
   'not_projection_eligible',
 ] as const;
 export const rdteProjectionExclusionReasonV1Schema = z.enum(RDTE_PROJECTION_EXCLUSION_V1_VALUES);
-export type RdteProjectionExclusionReasonV1 = z.infer<
-  typeof rdteProjectionExclusionReasonV1Schema
->;
+export type RdteProjectionExclusionReasonV1 = z.infer<typeof rdteProjectionExclusionReasonV1Schema>;
 
 /* ------------------------------------------------------------------ */
 /* Candidate                                                           */

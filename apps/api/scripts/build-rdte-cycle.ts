@@ -41,7 +41,10 @@ import {
 import { defenseBudgetExtractionArtifactV1Schema } from '../src/defense-budget/contracts/extraction-artifact-v1.js';
 import type { ParserPageResultV1 } from '../src/defense-budget/parser-router/parser-runtime-contract-v1.js';
 import { runRdteCyclePipeline } from '../src/defense-budget/rdte/cycle/rdte-cycle-pipeline-v1.js';
-import { goldenPagesByKey, goldenSource } from '../src/defense-budget/rdte/cycle/rdte-golden-cycle-v1.js';
+import {
+  goldenPagesByKey,
+  goldenSource,
+} from '../src/defense-budget/rdte/cycle/rdte-golden-cycle-v1.js';
 import { planRdteCanonicalProjection } from '../src/defense-budget/rdte/projection/rdte-projection-planner-v1.js';
 import type { RdteCycleVerificationRefV1 } from '../src/defense-budget/rdte/rdte-cycle-bundle-v1.js';
 

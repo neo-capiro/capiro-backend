@@ -299,9 +299,9 @@ describe('negative-control probes', () => {
     /* No funding assertion and no annual money document fact may carry the
      * R-3 total cost — it is a cost-analysis fact on the performer row. */
     expect(artifact.assertions.filter((a) => a.assertionKind === 'funding')).toHaveLength(0);
-    expect(
-      artifact.assertions.filter((a) => a.assertionKind === 'project_funding'),
-    ).toHaveLength(0);
+    expect(artifact.assertions.filter((a) => a.assertionKind === 'project_funding')).toHaveLength(
+      0,
+    );
     for (const assertion of artifact.assertions) {
       if (assertion.assertionKind === 'document_fact') {
         const value = assertion.value as Record<string, unknown>;

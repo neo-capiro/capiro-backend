@@ -219,9 +219,7 @@ export function goldenR3Pages(): ParserPageResultV1[] {
     makePage({
       page: 1,
       text: `R-3 RDT&E Cost Analysis $ in Millions PE ${GOLDEN_PE}`,
-      blocks: [
-        makeBlock(0, 'header', `R-3 RDT&E Cost Analysis PE ${GOLDEN_PE}`),
-      ],
+      blocks: [makeBlock(0, 'header', `R-3 RDT&E Cost Analysis PE ${GOLDEN_PE}`)],
       tables: [table],
     }),
   ];

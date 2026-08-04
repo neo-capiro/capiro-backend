@@ -42,10 +42,7 @@ function main(): void {
 
   const decisionCounts = new Map<string, number>();
   for (const verification of bundle.verifications) {
-    decisionCounts.set(
-      verification.decision,
-      (decisionCounts.get(verification.decision) ?? 0) + 1,
-    );
+    decisionCounts.set(verification.decision, (decisionCounts.get(verification.decision) ?? 0) + 1);
   }
 
   const report = {

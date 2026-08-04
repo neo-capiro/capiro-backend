@@ -133,8 +133,7 @@ function exhibitRoleOf(exhibit: string): RdteExhibitRoleV1 {
 /* ------------------------------------------------------------------ */
 
 export function runRdteCyclePipeline(input: RdteCyclePipelineInput): RdteCyclePipelineResult {
-  const artifacts: Array<{ documentKey: string; artifact: DefenseBudgetExtractionArtifactV1 }> =
-    [];
+  const artifacts: Array<{ documentKey: string; artifact: DefenseBudgetExtractionArtifactV1 }> = [];
   const sourceDocuments: RdteCycleSourceDocumentV1[] = input.documents.map((doc) => ({
     manifestDocumentKey: doc.document.documentKey,
     exhibitRole: exhibitRoleOf(doc.document.exhibit),
@@ -325,8 +324,8 @@ export function runRdteCyclePipeline(input: RdteCyclePipelineInput): RdteCyclePi
    * columns (prior actuals, enacted) carry no R-2A project detail by
    * design and are not project-sum columns. */
   const projectSumResults = [];
-  for (const total of peTotals.filter((t) =>
-    t.columnRole === 'budget_year_request' || t.columnRole === 'outyear_projection',
+  for (const total of peTotals.filter(
+    (t) => t.columnRole === 'budget_year_request' || t.columnRole === 'outyear_projection',
   )) {
     const expectedProjects = r2aProjectKeys
       .filter((p) => p.peCode === total.peCode)
@@ -365,10 +364,7 @@ export function runRdteCyclePipeline(input: RdteCyclePipelineInput): RdteCyclePi
 
   /* ---------- Coverage ---------- */
   const r1PeSet = [...new Set(r1PeCodes)].sort();
-  const otherPeCodes = new Set<string>([
-    ...r2PeCodes,
-    ...r2aProjectKeys.map((p) => p.peCode),
-  ]);
+  const otherPeCodes = new Set<string>([...r2PeCodes, ...r2aProjectKeys.map((p) => p.peCode)]);
   const narrativeCovered = r2NarrativeCount > 0 ? [...otherPeCodes].sort() : [];
   const coverageInputs: CategoryCoverageInput[] = [
     {

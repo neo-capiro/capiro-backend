@@ -117,9 +117,7 @@ describe('rdte-cycle-pipeline-v1 (golden cycle)', () => {
         tables: page.tables.map((table) => ({
           ...table,
           cells: table.cells.map((cell) =>
-            cell.rowIndex === 1 && cell.columnIndex === 4
-              ? { ...cell, text: '99.000' }
-              : cell,
+            cell.rowIndex === 1 && cell.columnIndex === 4 ? { ...cell, text: '99.000' } : cell,
           ),
         })),
       }));
@@ -127,9 +125,7 @@ describe('rdte-cycle-pipeline-v1 (golden cycle)', () => {
     });
     const result = runGolden({ documents });
     expect(result.certification).not.toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
-    expect(
-      result.bundle.blockingFindings.some((f) => f.code.startsWith('r1_r2')),
-    ).toBe(true);
+    expect(result.bundle.blockingFindings.some((f) => f.code.startsWith('r1_r2'))).toBe(true);
   });
 
   it('blocks certification when the project sum does not reconcile', () => {
@@ -154,9 +150,8 @@ describe('rdte-cycle-pipeline-v1 (golden cycle)', () => {
   });
 
   it('projects every golden PE through the projection planner', async () => {
-    const { planRdteCanonicalProjection } = await import(
-      '../projection/rdte-projection-planner-v1.js'
-    );
+    const { planRdteCanonicalProjection } =
+      await import('../projection/rdte-projection-planner-v1.js');
     const result = runGolden();
     expect(result.certification).toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
     const { plan } = planRdteCanonicalProjection({
@@ -182,23 +177,21 @@ describe('rdte-cycle-pipeline-v1 (golden cycle)', () => {
     expect(year?.values.fy).toBe(GOLDEN_CYCLE_FY);
 
     /* Outyear appears as a PE position, never as a ProgramElementYear. */
-    const positions = plan.candidates.filter(
-      (c) => c.target === 'ProgramElementBudgetPosition',
-    );
+    const positions = plan.candidates.filter((c) => c.target === 'ProgramElementBudgetPosition');
     expect(positions.some((c) => c.values.assertedFy === 2028)).toBe(true);
 
     /* IOC keeps its fiscal-quarter period without a fabricated date. */
     const ioc = plan.candidates.find(
-      (c) => c.target === 'ProgramElementMilestone' && String(c.values.milestoneType).includes('Initial Operational'),
+      (c) =>
+        c.target === 'ProgramElementMilestone' &&
+        String(c.values.milestoneType).includes('Initial Operational'),
     );
     expect(ioc?.values.plannedDate).toBeUndefined();
     const periods = plan.candidates.filter(
       (c) => c.target === 'ProgramElementMilestoneSchedulePeriod',
     );
     expect(
-      periods.some(
-        (c) => c.values.periodKind === 'fiscal_quarter' && c.values.fiscalQuarter === 3,
-      ),
+      periods.some((c) => c.values.periodKind === 'fiscal_quarter' && c.values.fiscalQuarter === 3),
     ).toBe(true);
 
     /* CTC/total-cost never reach annual funding targets. */

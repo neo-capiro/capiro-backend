@@ -110,7 +110,12 @@ function buildR1Artifact(): DefenseBudgetExtractionArtifactV1 {
   const builder = newBuilder(source);
 
   const { evidenceId, factId } = addRegisteredEvidenceFact(
-    builder, source, { peCode: PE1, row: 0 }, 'identity', PE1, 3,
+    builder,
+    source,
+    { peCode: PE1, row: 0 },
+    'identity',
+    PE1,
+    3,
   );
   builder.addAssertion({
     assertionKind: 'program_element_identity',
@@ -126,7 +131,12 @@ function buildR1Artifact(): DefenseBudgetExtractionArtifactV1 {
 
   /* Budget-year request (canonical_request_candidate). */
   const request = addRegisteredEvidenceFact(
-    builder, source, { peCode: PE1, fy: CYCLE_FY, role: 'budget_year_request' }, 'money', '100.0', 3,
+    builder,
+    source,
+    { peCode: PE1, fy: CYCLE_FY, role: 'budget_year_request' },
+    'money',
+    '100.0',
+    3,
   );
   builder.addAssertion({
     assertionKind: 'funding',
@@ -143,7 +153,12 @@ function buildR1Artifact(): DefenseBudgetExtractionArtifactV1 {
 
   /* Outyear value — document fact with pe_budget_position disposition. */
   const outyear = addRegisteredEvidenceFact(
-    builder, source, { peCode: PE1, fy: 2028, role: 'outyear_projection' }, 'money', '110.0', 3,
+    builder,
+    source,
+    { peCode: PE1, fy: 2028, role: 'outyear_projection' },
+    'money',
+    '110.0',
+    3,
   );
   builder.addAssertion({
     assertionKind: 'document_fact',
@@ -168,7 +183,12 @@ function buildR1Artifact(): DefenseBudgetExtractionArtifactV1 {
 
   /* Historical prior-year actuals — contextual only. */
   const historical = addRegisteredEvidenceFact(
-    builder, source, { peCode: PE1, fy: 2026, role: 'prior_actual_context' }, 'money', '90.0', 3,
+    builder,
+    source,
+    { peCode: PE1, fy: 2026, role: 'prior_actual_context' },
+    'money',
+    '90.0',
+    3,
   );
   builder.addAssertion({
     assertionKind: 'document_fact',
@@ -193,7 +213,12 @@ function buildR1Artifact(): DefenseBudgetExtractionArtifactV1 {
 
   /* Cost-to-complete — non-annual cost. */
   const ctc = addRegisteredEvidenceFact(
-    builder, source, { peCode: PE1, role: 'cost_to_complete' }, 'money', '50.0', 3,
+    builder,
+    source,
+    { peCode: PE1, role: 'cost_to_complete' },
+    'money',
+    '50.0',
+    3,
   );
   builder.addAssertion({
     assertionKind: 'document_fact',
@@ -224,7 +249,12 @@ function buildR2aArtifact(): DefenseBudgetExtractionArtifactV1 {
   const builder = newBuilder(source);
 
   const { evidenceId, factId } = addRegisteredEvidenceFact(
-    builder, source, { peCode: PE1, project: 'A1' }, 'project', 'Advanced Radar', 5,
+    builder,
+    source,
+    { peCode: PE1, project: 'A1' },
+    'project',
+    'Advanced Radar',
+    5,
   );
   builder.addAssertion({
     assertionKind: 'project',
@@ -241,7 +271,12 @@ function buildR2aArtifact(): DefenseBudgetExtractionArtifactV1 {
 
   /* Project budget-year request → project position. */
   const funding = addRegisteredEvidenceFact(
-    builder, source, { peCode: PE1, project: 'A1', fy: CYCLE_FY }, 'money', '60.0', 6,
+    builder,
+    source,
+    { peCode: PE1, project: 'A1', fy: CYCLE_FY },
+    'money',
+    '60.0',
+    6,
   );
   builder.addAssertion({
     assertionKind: 'project_funding',
@@ -264,7 +299,12 @@ function buildR2aArtifact(): DefenseBudgetExtractionArtifactV1 {
 
   /* Project outyear → still a position of the printing cycle. */
   const outyear = addRegisteredEvidenceFact(
-    builder, source, { peCode: PE1, project: 'A1', fy: 2028 }, 'money', '66.0', 6,
+    builder,
+    source,
+    { peCode: PE1, project: 'A1', fy: 2028 },
+    'money',
+    '66.0',
+    6,
   );
   builder.addAssertion({
     assertionKind: 'project_funding',
@@ -288,12 +328,19 @@ function buildR2aArtifact(): DefenseBudgetExtractionArtifactV1 {
   return builder.finalize();
 }
 
-function buildR3Artifact(options?: { primeWithoutEvidence?: boolean }): DefenseBudgetExtractionArtifactV1 {
+function buildR3Artifact(options?: {
+  primeWithoutEvidence?: boolean;
+}): DefenseBudgetExtractionArtifactV1 {
   const source = makeSource('R-3', 'r3');
   const builder = newBuilder(source);
 
   const { evidenceId, factId } = addRegisteredEvidenceFact(
-    builder, source, { peCode: PE1, performer: 'LOCKHEED MARTIN' }, 'performer', 'LOCKHEED MARTIN', 8,
+    builder,
+    source,
+    { peCode: PE1, performer: 'LOCKHEED MARTIN' },
+    'performer',
+    'LOCKHEED MARTIN',
+    8,
   );
   builder.addAssertion({
     assertionKind: 'performer',
@@ -315,7 +362,12 @@ function buildR3Artifact(options?: { primeWithoutEvidence?: boolean }): DefenseB
 
   if (options?.primeWithoutEvidence === true) {
     const prime = addRegisteredEvidenceFact(
-      builder, source, { peCode: PE1, performer: 'NORTHROP' }, 'performer', 'NORTHROP', 8,
+      builder,
+      source,
+      { peCode: PE1, performer: 'NORTHROP' },
+      'performer',
+      'NORTHROP',
+      8,
     );
     builder.addAssertion({
       assertionKind: 'performer',
@@ -341,7 +393,12 @@ function buildR4Artifact(): DefenseBudgetExtractionArtifactV1 {
 
   /* Fiscal-quarter milestone — no exact date must be fabricated. */
   const q = addRegisteredEvidenceFact(
-    builder, source, { peCode: PE1, milestone: 'IOC' }, 'milestone', 'IOC', 10,
+    builder,
+    source,
+    { peCode: PE1, milestone: 'IOC' },
+    'milestone',
+    'IOC',
+    10,
   );
   builder.addAssertion({
     assertionKind: 'milestone',
@@ -365,7 +422,12 @@ function buildR4Artifact(): DefenseBudgetExtractionArtifactV1 {
 
   /* Exact-date milestone. */
   const exact = addRegisteredEvidenceFact(
-    builder, source, { peCode: PE1, milestone: 'CDR' }, 'milestone', 'CDR', 10,
+    builder,
+    source,
+    { peCode: PE1, milestone: 'CDR' },
+    'milestone',
+    'CDR',
+    10,
   );
   builder.addAssertion({
     assertionKind: 'milestone',
@@ -464,12 +526,7 @@ function makeCertifiedBundle(
 }
 
 function fullArtifactSet(options?: { primeWithoutEvidence?: boolean }) {
-  return [
-    buildR1Artifact(),
-    buildR2aArtifact(),
-    buildR3Artifact(options),
-    buildR4Artifact(),
-  ];
+  return [buildR1Artifact(), buildR2aArtifact(), buildR3Artifact(options), buildR4Artifact()];
 }
 
 function planAll(options?: { primeWithoutEvidence?: boolean }) {
@@ -493,9 +550,7 @@ describe('rdte-projection-planner-v1', () => {
     expect(plan.cycleCertification).toBe('CERTIFIED_RDTE_READY_FOR_PROJECTION');
     expect(plan.positionCycle).toBe(`pb_fy${CYCLE_FY}`);
 
-    const pe = plan.candidates.find(
-      (c) => c.target === 'ProgramElement' && c.naturalKey === PE1,
-    );
+    const pe = plan.candidates.find((c) => c.target === 'ProgramElement' && c.naturalKey === PE1);
     expect(pe).toBeDefined();
     expect(pe?.values.peCode).toBe(PE1);
     expect(pe?.values.title).toBe('Advanced Technology Development');
@@ -609,9 +664,9 @@ describe('rdte-projection-planner-v1', () => {
       verifications: makeVerifications('REJECTED'),
     });
     expect(rejected.certification).toBe('REJECTED');
-    expect(() =>
-      planRdteCanonicalProjection({ bundle: rejected.bundle, artifacts: [] }),
-    ).toThrow(ProjectionPlanningError);
+    expect(() => planRdteCanonicalProjection({ bundle: rejected.bundle, artifacts: [] })).toThrow(
+      ProjectionPlanningError,
+    );
   });
 
   it('excludes NEEDS_REVIEW artifacts without allowed reviewed acceptance', () => {
@@ -630,6 +685,27 @@ describe('rdte-projection-planner-v1', () => {
         artifacts: [buildR3Artifact()],
       }),
     ).toThrow(ProjectionPlanningError);
+  });
+
+  it('excludes NEEDS_REVIEW artifacts via the ledger on a tampered certified bundle', () => {
+    /* Planner-level guard (independent of the certifier): a bundle that was
+     * certified but whose R-3 verification was later flipped to NEEDS_REVIEW
+     * must have that artifact's assertions excluded with
+     * reason 'artifact_needs_review' — never projected, never silently
+     * dropped. Mirrors the REJECTED tampering test below. */
+    const r3Artifact = buildR3Artifact();
+    const certified = makeCertifiedBundle([r3Artifact]);
+    const verifications = certified.bundle.verifications.map((v) =>
+      v.manifestDocumentKey === 'r3' ? { ...v, decision: 'NEEDS_REVIEW' as const } : v,
+    );
+    const tamperedBundle = { ...certified.bundle, verifications };
+    const { plan } = planRdteCanonicalProjection({
+      bundle: tamperedBundle,
+      artifacts: [r3Artifact],
+    });
+    expect(plan.candidates.filter((c) => c.target === 'ProgramElementPerformer')).toHaveLength(0);
+    const excluded = plan.exclusions.filter((e) => e.reason === 'artifact_needs_review');
+    expect(excluded.length).toBeGreaterThanOrEqual(1);
   });
 
   it('excludes REJECTED artifacts when the cycle is still certified via allowance', () => {
@@ -666,7 +742,12 @@ describe('rdte-projection-planner-v1', () => {
       [9, 'A Different Title'],
     ] as const) {
       const { evidenceId, factId } = addRegisteredEvidenceFact(
-        builder, source, { peCode: PE1, row }, 'identity', PE1, 3,
+        builder,
+        source,
+        { peCode: PE1, row },
+        'identity',
+        PE1,
+        3,
       );
       builder.addAssertion({
         assertionKind: 'program_element_identity',

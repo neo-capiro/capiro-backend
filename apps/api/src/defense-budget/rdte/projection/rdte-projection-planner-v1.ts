@@ -169,9 +169,7 @@ export function planRdteCanonicalProjection(
   const verificationByKey = new Map<string, RdteCycleVerificationRefV1>(
     bundle.verifications.map((v) => [v.manifestDocumentKey, v]),
   );
-  const sourceDocByKey = new Map(
-    bundle.sourceDocuments.map((d) => [d.manifestDocumentKey, d]),
-  );
+  const sourceDocByKey = new Map(bundle.sourceDocuments.map((d) => [d.manifestDocumentKey, d]));
 
   const candidates: PlannedCandidate[] = [];
   const exclusions: RdteProjectionExclusionV1[] = [];
@@ -200,9 +198,7 @@ export function planRdteCanonicalProjection(
     return verificationByKey.get(artifact.source.manifestDocumentKey);
   }
 
-  const artifactRefByKey = new Map(
-    bundle.artifacts.map((a) => [a.manifestDocumentKey, a]),
-  );
+  const artifactRefByKey = new Map(bundle.artifacts.map((a) => [a.manifestDocumentKey, a]));
 
   for (const artifact of input.artifacts) {
     const documentKey = artifact.source.manifestDocumentKey;
@@ -485,9 +481,7 @@ function projectAssertion(input: {
           ...(assertion.appropriationType != null
             ? { appropriationType: assertion.appropriationType }
             : {}),
-          ...(assertion.budgetActivity != null
-            ? { budgetActivity: assertion.budgetActivity }
-            : {}),
+          ...(assertion.budgetActivity != null ? { budgetActivity: assertion.budgetActivity } : {}),
           ...(assertion.budgetActivityName != null
             ? { budgetActivityName: assertion.budgetActivityName }
             : {}),
@@ -570,12 +564,9 @@ function projectAssertion(input: {
         typeof value.valueMillions === 'string' ? value.valueMillions : undefined;
       const originalValue =
         typeof value.originalValue === 'string' ? value.originalValue : undefined;
-      const originalUnit =
-        typeof value.originalUnit === 'string' ? value.originalUnit : undefined;
+      const originalUnit = typeof value.originalUnit === 'string' ? value.originalUnit : undefined;
       const positionCycle =
-        typeof value.positionCycle === 'string'
-          ? value.positionCycle
-          : `pb_fy${cycleFiscalYear}`;
+        typeof value.positionCycle === 'string' ? value.positionCycle : `pb_fy${cycleFiscalYear}`;
       const direct = value.direct !== false;
 
       /* Comparison-request facts and other non-value document facts are
@@ -643,8 +634,7 @@ function projectAssertion(input: {
       }
 
       if (disposition === 'project_budget_position' && fiscalYear != null) {
-        const projectCode =
-          typeof value.projectCode === 'string' ? value.projectCode : undefined;
+        const projectCode = typeof value.projectCode === 'string' ? value.projectCode : undefined;
         if (projectCode == null) {
           exclude(
             provenance.artifactId,
@@ -703,9 +693,7 @@ function projectAssertion(input: {
           projectCode: assertion.projectCode,
           title: assertion.title,
           ...(assertion.mission != null ? { mission: assertion.mission } : {}),
-          ...(assertion.budgetActivity != null
-            ? { budgetActivity: assertion.budgetActivity }
-            : {}),
+          ...(assertion.budgetActivity != null ? { budgetActivity: assertion.budgetActivity } : {}),
         },
         reason: 'R-2A project identity child of its parent PE',
       });
@@ -731,9 +719,7 @@ function projectAssertion(input: {
         exclude(
           provenance.artifactId,
           assertionId,
-          disposition === 'contextual_only'
-            ? 'contextual_only_value'
-            : 'non_annual_cost_value',
+          disposition === 'contextual_only' ? 'contextual_only_value' : 'non_annual_cost_value',
           `project_funding disposition ${disposition} for ${assertion.parentPeCode}/${assertion.projectCode} is not an annual position`,
         );
         return;
@@ -798,9 +784,7 @@ function projectAssertion(input: {
           contractMethod: assertion.contractMethod ?? '',
           costCategory: assertion.costCategory ?? '',
           fy: assertion.fiscalYear,
-          ...(assertion.totalCost != null
-            ? { totalCostM: assertion.totalCost.valueMillions }
-            : {}),
+          ...(assertion.totalCost != null ? { totalCostM: assertion.totalCost.valueMillions } : {}),
           sourceUrl: input.sourceUrl,
           pageNumber: page,
         },
@@ -922,7 +906,10 @@ function dedupeCandidates(
     message: string,
   ) => void,
 ): Array<
-  PlannedCandidate & { operation: RdteProjectionOperationV1; exclusionReason?: RdteProjectionExclusionReasonV1 }
+  PlannedCandidate & {
+    operation: RdteProjectionOperationV1;
+    exclusionReason?: RdteProjectionExclusionReasonV1;
+  }
 > {
   const groups = new Map<string, PlannedCandidate[]>();
   for (const candidate of candidates) {
@@ -1042,8 +1029,7 @@ function classifyOperation(
         (r) => r.peCode === v.peCode && typeof v.peCode === 'string',
       );
       if (existing == null) return candidate;
-      const sameTitle =
-        v.title === '' || v.title == null || existing.title === v.title;
+      const sameTitle = v.title === '' || v.title == null || existing.title === v.title;
       return {
         ...candidate,
         operation: sameTitle ? 'no_op' : 'update',
@@ -1163,8 +1149,7 @@ function summarizeDiff(
     { insert: number; update: number; noOp: number; conflict: number }
   >();
   for (const candidate of candidates) {
-    const entry =
-      byTarget.get(candidate.target) ?? { insert: 0, update: 0, noOp: 0, conflict: 0 };
+    const entry = byTarget.get(candidate.target) ?? { insert: 0, update: 0, noOp: 0, conflict: 0 };
     if (candidate.operation === 'insert') entry.insert += 1;
     else if (candidate.operation === 'update') entry.update += 1;
     else if (candidate.operation === 'no_op') entry.noOp += 1;

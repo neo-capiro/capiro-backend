@@ -143,8 +143,7 @@ const RULES: readonly GateRule[] = [
   },
   {
     gateId: 'contextual_canonical_label',
-    description:
-      'contextual/outyear values must never be labeled canonical-request eligible',
+    description: 'contextual/outyear values must never be labeled canonical-request eligible',
     pattern:
       /(contextual_only|prior_actual_context|current_enacted_context|outyear_projection)[^;]{0,120}canonical_request_candidate[^;]{0,40}(eligible|allow|permit)/i,
   },

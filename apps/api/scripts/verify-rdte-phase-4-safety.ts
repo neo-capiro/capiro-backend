@@ -42,8 +42,9 @@ function main(): void {
   const failures: string[] = [];
 
   /* 1. Static gates over rdte/ production source + phase-4 scripts. */
-  const rdteSources = collect(path.join(API_ROOT, 'src', 'defense-budget', 'rdte'), (name) =>
-    name.endsWith('.ts') && !name.endsWith('.spec.ts') && !name.includes('__tmp__'),
+  const rdteSources = collect(
+    path.join(API_ROOT, 'src', 'defense-budget', 'rdte'),
+    (name) => name.endsWith('.ts') && !name.endsWith('.spec.ts') && !name.includes('__tmp__'),
   );
   const phase4Scripts: Record<string, string> = {};
   for (const script of [

@@ -45,7 +45,7 @@ describe('rdte-phase4-gates-v1', () => {
     const violations = runRdtePhase4Gates({
       files: {
         'evil.ts':
-          "await prisma.programElementProjectBudgetPosition.upsert({ where: {}, create: {}, update: {} });",
+          'await prisma.programElementProjectBudgetPosition.upsert({ where: {}, create: {}, update: {} });',
       },
     });
     expect(violations.some((v) => v.gateId === 'prisma_canonical_mutation')).toBe(true);
@@ -71,7 +71,7 @@ describe('rdte-phase4-gates-v1', () => {
     const violations = runRdtePhase4Gates({
       files: {
         'pure.ts':
-          "/**\n * Pure module. Never invokes a parser, never calls LlamaParse, never writes\n * to a database. No ProgramElementWriterService here.\n */\nexport const x = 1;\n",
+          '/**\n * Pure module. Never invokes a parser, never calls LlamaParse, never writes\n * to a database. No ProgramElementWriterService here.\n */\nexport const x = 1;\n',
       },
     });
     expect(violations).toEqual([]);
