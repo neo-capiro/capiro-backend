@@ -59,4 +59,18 @@ describe('R8.3 authority-aware verification policy resolution', () => {
       AmbiguousVerificationPolicyError,
     );
   });
+
+  it.each([
+    ['om', 'O-1'],
+    ['milcon', 'C-1'],
+  ])('routes unsupported %s/%s to the explicit unsupported result', (family, exhibit) => {
+    const policy = lookupPolicyForManifestDocument({
+      documentKey: `${family}_fy2027`,
+      family,
+      exhibit,
+      authority: 'dod-comptroller',
+      documentType: exhibit.toLowerCase(),
+    } as never);
+    expect(policy).toBeNull();
+  });
 });
