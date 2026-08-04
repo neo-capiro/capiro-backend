@@ -3636,8 +3636,10 @@ model ProgramElement {
 
   years                   ProgramElementYear[]
   milestones              ProgramElementMilestone[]
+  milestoneSchedulePeriods ProgramElementMilestoneSchedulePeriod[]
   yearSourceValues        ProgramElementYearSourceValue[]
   budgetPositions         ProgramElementBudgetPosition[]
+  projectBudgetPositions  ProgramElementProjectBudgetPosition[]
   deltas                  ProgramElementDelta[]
   watches                 ProgramElementWatch[]
   dataIssues              ProgramElementDataIssue[]
@@ -3696,7 +3698,11 @@ model ProgramElementSource {
 model ProgramElementProject {
   id               String   @id @default(uuid()) @db.Uuid
   peCode           String   @map("pe_code") @db.VarChar(16)
-  projectCode      String   @map("project_code") @db.VarChar(8)
+  // Phase 4 WS M: expanded from VarChar(8) to the source-faithful bounded
+  // width VarChar(32) (R-2A project token policy: 1-32 chars, no truncation).
+  // Widening only; enforced by reviewed migration
+  // 20260817010000_rdte_phase4_projection_schema.
+  projectCode      String   @map("project_code") @db.VarChar(32)
   title            String
   mission          String?  @db.Text
   budgetActivity   String?  @map("budget_activity")
@@ -3797,6 +3803,44 @@ model ProgramElementBudgetPosition {
   @@map("program_element_budget_position")
 }
 
+// Phase 4 WS M (plan §18): project-level budget-position dimension. The
+// R-2A project funding extractor asserts annual project values per President's
+// Budget cycle (positionCycle = 'pb_fy<cycleFY>'). Every year-bearing R-2A
+// project value is a position of the printing cycle — never the outyear
+// cycle's independently submitted request. Same provenance conventions as
+// ProgramElementBudgetPosition (sourceUrl/pageNumber, nullable
+// source_document_id FK). ADDITIVE: no existing table is altered.
+//
+// amount is in $ MILLIONS (project money convention); original value/unit are
+// preserved in metadata by the loader (exact decimal strings, never floats).
+// valueKind: 'total' (dollars $M) | 'quantity' (units).
+model ProgramElementProjectBudgetPosition {
+  id               String   @id @default(uuid()) @db.Uuid
+  peCode           String   @map("pe_code") @db.VarChar(16)
+  projectCode      String   @map("project_code") @db.VarChar(32)
+  positionCycle    String   @map("position_cycle")
+  assertedFy       Int      @map("asserted_fy")
+  amount           Decimal  @db.Decimal(14, 2)
+  quantity         Decimal? @db.Decimal(14, 2)
+  valueKind        String   @map("value_kind") // total | quantity
+  sourceUrl        String?  @map("source_url")
+  pageNumber       Int?     @map("page_number")
+  metadata         Json     @default("{}") @map("metadata_jsonb")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  // Registry link: the fingerprinted source file this position came from.
+  sourceDocumentId String?  @map("source_document_id") @db.Uuid
+
+  programElement ProgramElement  @relation(fields: [peCode], references: [peCode], onDelete: Cascade)
+  sourceDocument SourceDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([peCode, projectCode, positionCycle, assertedFy, valueKind], map: "program_element_project_budget_position_natural_key")
+  @@index([peCode, projectCode], map: "program_element_project_budget_position_pe_project_idx")
+  @@index([peCode, assertedFy], map: "program_element_project_budget_position_pe_fy_idx")
+  @@index([positionCycle], map: "program_element_project_budget_position_cycle_idx")
+  @@index([sourceDocumentId], map: "program_element_project_budget_position_source_document_idx")
+  @@map("program_element_project_budget_position")
+}
+
 // Typed, materiality-scored budget delta (Step 1.4, plan §6). ONE row per
 // (PE, asserted FY, delta type, fromRef, toRef) — the engine recomputes it
 // idempotently from ProgramElementYear / ProgramElementBudgetPosition /
@@ -3862,11 +3906,57 @@ model ProgramElementMilestone {
   notes         String?   @db.Text
   lastSyncedAt  DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
 
-  programElement ProgramElement @relation(fields: [peCode], references: [peCode], onDelete: Cascade)
+  programElement  ProgramElement                          @relation(fields: [peCode], references: [peCode], onDelete: Cascade)
+  schedulePeriods ProgramElementMilestoneSchedulePeriod[]
 
   @@unique([peCode, milestoneType], map: "program_element_milestone_pe_code_type_key")
   @@index([status], map: "program_element_milestone_status_idx")
   @@map("program_element_milestone")
+}
+
+// Phase 4 WS M (plan §18): truthful schedule-period fidelity for R-4/R-4A
+// milestones. planned_date/actual_date on ProgramElementMilestone are exact
+// calendar dates ONLY when the source prints an exact date; quarter/month/
+// year labels must never be coerced into fabricated first/last-day dates.
+// This child table preserves the raw period text, period kind, and every
+// explicit structured component (fiscal/calendar year, quarter, month) with
+// source provenance. ADDITIVE.
+//
+// periodRole: 'planned' | 'actual'.
+// periodKind: exact_date | calendar_month | calendar_quarter | fiscal_quarter
+//             | fiscal_year | text_only | range | unknown
+//             (R4_SCHEDULE_PERIOD_KIND_V1_VALUES, CHECK-constrained in the
+//             reviewed migration).
+model ProgramElementMilestoneSchedulePeriod {
+  id               String    @id @default(uuid()) @db.Uuid
+  milestoneId      String    @map("milestone_id") @db.Uuid
+  peCode           String    @map("pe_code") @db.VarChar(16)
+  milestoneType    String    @map("milestone_type")
+  periodRole       String    @map("period_role") // planned | actual
+  rawText          String    @db.Text
+  periodKind       String    @map("period_kind")
+  fiscalYear       Int?      @map("fiscal_year")
+  fiscalQuarter    Int?      @map("fiscal_quarter")
+  calendarYear     Int?      @map("calendar_year")
+  calendarQuarter  Int?      @map("calendar_quarter")
+  calendarMonth    Int?      @map("calendar_month")
+  exactDate        DateTime? @map("exact_date") @db.Date
+  rangeStart       DateTime? @map("range_start") @db.Date
+  rangeEnd         DateTime? @map("range_end") @db.Date
+  sourceUrl        String?   @map("source_url")
+  pageNumber       Int?      @map("page_number")
+  metadata         Json      @default("{}") @map("metadata_jsonb")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  sourceDocumentId String?   @map("source_document_id") @db.Uuid
+
+  milestone      ProgramElementMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  programElement ProgramElement          @relation(fields: [peCode], references: [peCode], onDelete: Cascade)
+  sourceDocument SourceDocument?         @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([milestoneId, periodRole, rawText], map: "program_element_milestone_schedule_period_natural_key")
+  @@index([peCode, milestoneType], map: "program_element_milestone_schedule_period_pe_type_idx")
+  @@index([periodKind], map: "program_element_milestone_schedule_period_kind_idx")
+  @@map("program_element_milestone_schedule_period")
 }
 
 model ProgramElementQuarantine {
@@ -4027,6 +4117,8 @@ model SourceDocument {
   programElementPerformers ProgramElementPerformer[]
   yearSourceValues         ProgramElementYearSourceValue[]
   budgetPositions          ProgramElementBudgetPosition[]
+  projectBudgetPositions   ProgramElementProjectBudgetPosition[]
+  milestoneSchedulePeriods ProgramElementMilestoneSchedulePeriod[]
   provisions               CommitteeReportProvision[]
   parseJobs                DocumentParseJob[]
   // Defense budget packages (R3 §3.1) — the source doc a topline/vehicle came from.
@@ -6137,7 +6229,8 @@ model PeProgramMatch {
   id               String    @id @default(uuid()) @db.Uuid
   peCode           String    @map("pe_code") @db.VarChar(16)
   /// Project (R-2A) code within the PE when the match is project-level, else null.
-  projectCode      String?   @map("project_code") @db.VarChar(8)
+  /// Phase 4 WS M: widened to VarChar(32) to match program_element_project.project_code.
+  projectCode      String?   @map("project_code") @db.VarChar(32)
   programId        String    @map("program_id") @db.Uuid
   score            Float
   /// 'exact_pe_number' | 'exact_project_title' | 'r2a_office_named' |
@@ -6323,7 +6416,8 @@ model ProvisionPeLink {
   id           String   @id @default(uuid()) @db.Uuid
   provisionId  String   @map("provision_id") @db.Uuid
   peCode       String?  @map("pe_code") @db.VarChar(16)
-  projectCode  String?  @map("project_code") @db.VarChar(8)
+  /// Phase 4 WS M: widened to VarChar(32) to match program_element_project.project_code.
+  projectCode  String?  @map("project_code") @db.VarChar(32)
   programId    String?  @map("program_id") @db.Uuid
   /// 'pe_code' | 'project_title' | 'program_alias' | 'manual' — how the link was found.
   matchBasis   String   @map("match_basis") @db.VarChar(24)

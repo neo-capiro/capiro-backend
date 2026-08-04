@@ -49,6 +49,9 @@ export {
   sumDecimals,
 } from './arithmetic/exact-arithmetic.js';
 
+// Phase 4 WS D — R-1 specific verification
+export { R1_SPECIFIC_RULE } from './r1-verification.rules.js';
+
 /**
  * All verification rules E–H, in execution order.
  * The engine iterates this array to produce checks and discrepancies.
@@ -71,6 +74,7 @@ import { RDTE_SUMMARY_DETAIL_RULE } from './arithmetic/rdte-summary-detail.rules
 import { PROJECT_ROLLUP_RULE } from './arithmetic/project-rollup.rules.js';
 import { PROCUREMENT_ROLLUP_RULE } from './arithmetic/procurement-rollup.rules.js';
 import { COMMITTEE_ADJUSTMENT_RULE } from './arithmetic/committee-adjustment.rules.js';
+import { R1_SPECIFIC_RULE } from './r1-verification.rules.js';
 import type { VerificationRuleV1 } from './rule-types.js';
 
 export const ALL_VERIFICATION_RULES: readonly VerificationRuleV1[] = [
@@ -90,6 +94,7 @@ export const ALL_VERIFICATION_RULES: readonly VerificationRuleV1[] = [
   PROJECT_ROLLUP_RULE,
   PROCUREMENT_ROLLUP_RULE,
   COMMITTEE_ADJUSTMENT_RULE,
+  R1_SPECIFIC_RULE,
 ];
 
 import { CROSS_DOCUMENT_SUMMARY_DETAIL_RULE } from './comparison/comparison.rules.js';
