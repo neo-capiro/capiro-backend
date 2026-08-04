@@ -1,228 +1,251 @@
 # Budget Verification Gate V1
 
-> **STATUS: IMPLEMENTATION INCOMPLETE — REMEDIATION IN PROGRESS**
+> **STATUS: R8.3 IMPLEMENTED — MERGE PENDING — NOT OPERATIONALLY ACTIVATED**
 >
-> The Phase 2 verification gate is undergoing remediation. Until the
-> remediation is complete on one exact SHA and all definition-of-done items
-> pass:
+> The Phase 2 verification implementation is complete on the R8.3 closeout
+> branch. The schema migration `20260816010000_budget_verification_v1` is
+> successfully applied in `capiro-dev`; its original failed attempt was resolved
+> as rolled back and the corrected migration subsequently finished.
 >
-> - The gate is **not authorized for production use**.
-> - The migration `20260816010000_budget_verification_v1` is **not approved**
->   and has not been applied to any shared environment.
-> - `VERIFICATION_PASSED` is **not yet trusted** as a verification decision.
-> - No ingestion, scheduler, API controller, Nest module, canonical writer, or
->   operational command consumes Phase 2 results.
->
-> This document describes the target architecture. Until remediation completes,
-> treat the code as a scaffold under repair, not a trusted verifier.
+> Phase 2 remains an audit-only trust boundary. It is not a canonical promotion
+> mechanism, is not wired to an ingestion scheduler or public API, and performs
+> no canonical Program Element write.
 
 ## Trust boundary
 
-The V1 verification gate answers:
+The gate answers:
 
-> Does this exact, immutable extraction artifact faithfully and completely represent the supplied official source document according to the approved document-family policy and independent reconciliation evidence?
+> Does this exact immutable extraction artifact faithfully and completely
+> represent the supplied official source document under the exact approved
+> document policy and independently proved reconciliation evidence?
 
 It does **not** answer:
 
-> May these assertions now be written into canonical Program Element tables?
+> May these assertions be written into canonical Program Element tables?
 
-Canonical promotion remains forbidden in Phase 2. `VERIFICATION_PASSED` contains no canonical implication. No promotion token, canonical eligibility property, or canonical records are produced.
+`VERIFICATION_PASSED` contains no canonical implication. The gate produces no
+promotion token, canonical eligibility property, or canonical record.
+
+## Proof boundary
+
+Persist mode uses `CompositeProofResolver` in `production_proof` mode. Inspect
+mode uses `FilesystemProofResolver` and cannot create durable trusted audit
+evidence.
+
+Production proof requires:
+
+- a reachable SourceDocument database client;
+- authoritative source bytes;
+- the exact SourceDocument identity and stored SHA;
+- immutable archive proof where policy requires it;
+- independently persisted parser output proof where policy requires it;
+- independently proved reference artifacts;
+- a real audit repository created from the same Prisma client.
+
+Missing production dependencies fail before any audit row is written.
 
 ## Byte hashing
 
-The verifier hashes raw bytes, never encoded strings.
-
-- `sha256Bytes()` is used for PDFs, JSON file bytes, parser outputs, and S3 objects.
-- `sha256Hex()` is used only for deliberate UTF-8 string hashing.
+- `sha256Bytes()` hashes PDFs, JSON file bytes, parser outputs, and S3 objects.
+- `sha256Hex()` hashes deliberate UTF-8 strings only.
 - Canonical JSON hashing is used only for normalized logical content.
 
-No binary hashing path uses `buffer.toString('binary')` or `buffer.toString('utf8')` unless the hash is explicitly intended to cover that encoded string.
+Binary proof paths never trust an encoded string in place of the original
+bytes.
 
 ## Source-document proof
 
-The `SourceDocumentProofResolver` independently:
+`SourceDocumentProofResolver`:
 
-- loads the exact requested `sourceDocumentId` from the database;
-- fails closed when the row is missing;
-- compares the row SHA with actual PDF bytes;
-- compares the artifact source SHA with actual PDF bytes;
-- validates source key, fiscal year, component, document type, and budget cycle where represented;
-- compares artifact `sourceDocumentId` when present.
+- loads the exact requested `sourceDocumentId`;
+- fails closed when the row is absent;
+- resolves authoritative bytes from a versioned archive, approved artifact
+  path, or explicitly supported source URL;
+- compares actual bytes with SourceDocument and artifact SHAs;
+- validates source key, fiscal year, component, document type, budget cycle,
+  and SourceDocument ID.
 
-A "trusted" SourceDocument proof is never constructed from artifact fields when the database dependency is absent.
+Production proof never substitutes an artifact-asserted SHA when authoritative
+source bytes are unavailable.
 
 ## Archive proof
 
-The `ArchiveProofResolver` resolves and verifies:
+`ArchiveProofResolver` verifies:
 
-- bucket;
-- key;
+- bucket and key;
 - exact VersionId;
-- actual bytes or trusted checksum;
-- source SHA;
-- artifact source SHA;
-- SourceDocument SHA;
-- object byte size;
+- actual bytes or an explicit full-object SHA-256 checksum;
+- expected source SHA;
+- object size;
 - encryption and Object Lock metadata where available.
 
-A nonempty bucket/key/version combination is not proof by itself.
+For policies requiring immutable archive proof, `missing`, `mismatch`, and
+`not_applicable` cannot pass.
 
-## Parser-run proof
+## Parser-output proof
 
-The `ParserRunProofResolver` verifies for each parser method:
+Parser fields embedded inside the extraction artifact are not independent proof.
+Production proof loads persisted parser output through a verifier-owned
+`ParserOutputProofSource` and verifies:
 
-- input source SHA;
+- parser-run identity;
+- source SHA;
+- parser method;
 - parser version;
 - parser configuration SHA;
-- output artifact bytes;
-- output artifact SHA;
-- page ranges cover the evidence attributed to the parser run.
+- exact requested and succeeded pages;
+- evidence-page coverage;
+- persisted output bytes;
+- persisted output byte SHA;
+- canonical parser-result content SHA.
 
-For LlamaParse, the real persisted parse-job record is required when one should exist. For manual extraction, source and artifact bytes are proved but a mandatory review trigger is always created.
+`DeclaredParserOutputProofSource` centrally requires the independently loaded
+canonical parser-result SHA to equal the parser run's declared
+`outputArtifactSha256`, including for injected/custom proof sources.
 
-## Independent reference-artifact proof
+For LlamaParse, the persisted parse-job row alone is insufficient. The output
+object is loaded, its raw bytes are hashed, its provider job is bound, and the
+stored normalized-result SHA must equal the parser-run declaration.
 
-Each reference artifact is independently proved via `resolveArtifactProof(locator, sourceDocumentId, context)`. Each has its own:
+Manual extraction always creates a mandatory human-review trigger.
 
-- artifact byte SHA;
-- content SHA;
-- SourceDocument lookup;
-- source PDF SHA;
-- archive proof;
-- parser-run proof;
-- findings;
-- locator.
+### Parser artifact location
 
-The candidate's SourceDocument or archive proof is never reused for a reference artifact.
+Production wiring no longer defaults local parser proof to a process-relative
+directory. A shared persistent root must be configured explicitly through
+`BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT`; otherwise local-parser proof fails
+closed. LlamaParse output is resolved from object storage.
 
-## Policy hashing
+## Independent reference proof
 
-Policy JSON is canonicalized using the Phase 1 canonical serializer and `policySha256` is computed. Every run persists the exact policy SHA. The same artifact, manifest, verifier version, and policy must produce the same candidate/run identity inputs.
+Candidate and reference artifacts use the same internal
+`resolveSingleArtifactProof` method. Every reference supplies:
 
-## Family policy matrix
+- its own artifact locator;
+- its own SourceDocument ID;
+- its own mandatory manifest document key;
+- an optional separate manifest locator.
 
-| Family      | Exhibit                                                             | Required categories                                         | Evidence  | Comparisons                 | Review triggers                                   |
-| ----------- | ------------------------------------------------------------------- | ----------------------------------------------------------- | --------- | --------------------------- | ------------------------------------------------- |
-| RDTE        | R-1                                                                 | identity, funding                                           | cell_bbox | R-1↔R-2 summary/detail      | manual, OCR, uncorroborated congressional/enacted |
-| RDTE        | R-2                                                                 | identity, funding, projects                                 | cell_bbox | R-1↔R-2 summary/detail      | manual, OCR, uncorroborated congressional/enacted |
-| RDTE        | R-2A                                                                | identity, funding, project_funding                          | cell_bbox | project rollup              | manual, OCR, uncorroborated congressional/enacted |
-| RDTE        | R-3                                                                 | identity, funding, performers                               | cell_bbox | —                           | manual, OCR                                       |
-| Committee   | HASC/SASC/HAC-D/SAC-D/NDAA conference/Approps conference/Public law | identity, funding                                           | cell_bbox | committee_request_reference | manual, OCR, uncorroborated congressional/enacted |
-| Procurement | P-doc                                                               | identity, funding, procurement_lines, quantities, unit_cost | cell_bbox | procurement rollup          | manual, OCR                                       |
+Each reference is independently checked for manifest identity, artifact bytes
+and content, authoritative source bytes, SourceDocument metadata, archive proof,
+and parser-output proof. A failed reference is excluded from the comparison
+index and cannot satisfy a required comparison.
 
-Unsupported families (O&M, MILCON without complete adapters) return `NEEDS_REVIEW` or `REJECTED` with a `verification_policy_not_implemented` finding.
+## Authority-aware policy selection
+
+Family and exhibit alone are not sufficient for committee documents. R8.3
+selects the exact policy using manifest authority:
+
+| Authority | Required mark field |
+| --- | --- |
+| HASC | `hascMark` |
+| SASC | `sascMark` |
+| HAC-D | `hacDMark` |
+| SAC-D | `sacDMark` |
+| NDAA conference | `ndaaConference` |
+| Appropriations conference | `conference` |
+| Public law | `enacted` |
+
+Ambiguous policy matches fail closed. HASC and SASC can no longer inherit each
+other's required funding fields. Authority-specific policy differences are
+included in the computed policy SHA through the selected policy content.
 
 ## Check outcomes
 
-| Outcome   | Meaning                                                                |
-| --------- | ---------------------------------------------------------------------- |
-| `PASS`    | The rule executed and passed                                           |
-| `FAIL`    | The rule executed and failed                                           |
-| `NOT_RUN` | Required inputs were unavailable or no provider/reference was supplied |
-| `SKIPPED` | Policy explicitly determined the rule is inapplicable                  |
+| Outcome | Meaning |
+| --- | --- |
+| `PASS` | The rule executed and passed |
+| `FAIL` | The rule executed and failed |
+| `NOT_RUN` | Required inputs were unavailable or incomplete |
+| `SKIPPED` | Policy explicitly determined the rule was inapplicable |
 
-`NOT_RUN` and `SKIPPED` are never represented as `PASS`. A required `NOT_RUN` forces at least `REVIEW`.
+A required `NOT_RUN` forces at least `REVIEW`. A blocking `FAIL` forces
+`REJECT`.
+
+## Required comparison coverage
+
+Policy-required comparisons cannot pass with:
+
+- no reference artifacts;
+- failed reference proof;
+- zero exact matches;
+- partial assertion coverage;
+- ambiguous matches;
+- value mismatches.
+
+Checks record candidate assertion count, matched count, unmatched IDs,
+ambiguous IDs, reference count, and coverage percentage.
+
+## Page-only monetary evidence
+
+The money-evidence rule treats page-only monetary evidence as provisional when
+the policy permits independent reconciliation. After comparison rules execute,
+`page_only_reconciliation` emits a real check:
+
+- all page-only assertions exactly corroborated → `PASS`;
+- partial or unavailable reconciliation → required `NOT_RUN`;
+- failed covering comparison → blocking `FAIL`;
+- no page-only monetary assertions → `SKIPPED`.
+
+A successful reconciliation converts the provisional money-evidence `NOT_RUN`
+to `PASS`; fully corroborated page-only evidence no longer causes a false review.
+One passing comparison never clears an unrelated assertion.
+
+## Congressional and enacted review triggers
+
+Congressional mark and enacted assertions force review only when they are
+uncorroborated. A passing independent-reference check must explicitly include
+the exact assertion ID before the review trigger is cleared.
 
 ## Decision precedence
 
-Applied in order:
-
 1. Any blocking `FAIL` → `REJECT`
-2. Any required proof failure → `REJECT` (unless policy explicitly marks archival absence reviewable)
-3. Any required check `NOT_RUN` → at least `REVIEW`
-4. Any review-severity omission/warning/discrepancy → at least `REVIEW`
-5. Manual/OCR/congressional/enacted review triggers → at least `REVIEW` (unless required corroboration passes and policy permits machine pass)
-6. Only when every required check passes and no review trigger remains → `PASS`
+2. Any blocking proof finding → `REJECT`
+3. Any required `NOT_RUN` → at least `REVIEW`
+4. Any review-severity discrepancy → at least `REVIEW`
+5. Remaining manual, OCR, uncorroborated congressional, or uncorroborated
+   enacted trigger → at least `REVIEW`
+6. Every required check passes and no review trigger remains → `PASS`
 
 Risk score never overrides a blocking failure or required `NOT_RUN`.
 
-## Arithmetic and comparison evidence
+## Persistence and replay
 
-- Exact-decimal arithmetic: `addDecimals`, `subtractDecimals`, `multiplyByInteger`, `absDifference`, `compareWithTolerance`, `sumDecimals`. No binary floating-point comparison.
-- RDTE summary/detail, project rollup, procurement rollup, and committee-adjustment rules produce discrepancies with severity `blocking` or `review`.
-- Cross-document comparison rules (summary-detail, committee-request-reference, historical-consistency) produce `NOT_RUN` truthfully when no reference artifact is supplied. Missing comparison evidence is never converted to `PASS`.
-- Reference artifacts are indexed by `ReferenceArtifactIndexV1` and matched by identity natural key.
+One database transaction:
 
-## Persistence
+1. creates or reuses the exact candidate;
+2. establishes `VALIDATING` state;
+3. inserts the completed run;
+4. inserts proof snapshots;
+5. inserts checks;
+6. inserts discrepancies;
+7. updates the final candidate status;
+8. commits.
 
-One transaction atomically:
+Any failure rolls back the transaction. Completed runs, checks, proofs,
+discrepancies, and review decisions are append-only and protected from update
+and deletion.
 
-1. Creates or reuses the exact candidate (idempotency by cycle ID + manifest SHA + document key + source document ID + source SHA + artifact ID + artifact SHA + verifier version + policy version + policy SHA)
-2. Sets/verifies `VALIDATING` state
-3. Inserts completed run (deterministic UUID)
-4. Inserts proof snapshots (append-only)
-5. Inserts checks
-6. Inserts discrepancies
-7. Updates final candidate status
-8. Commits
-
-Any failure rolls back all of the above. Completed runs, checks, proofs, and reviews are append-only. Candidate status may be updated only through controlled lifecycle transitions.
-
-### Deterministic IDs
-
-- Candidate ID: deterministic UUID from the complete 10-field candidate identity.
-- Run ID: deterministic UUID from candidate identity + startedAt timestamp.
-- Inspect and persist modes produce the same IDs.
-- IDs are explicitly inserted, not left to database random defaults.
-
-### Idempotent replay
-
-Before persisting, the repository checks for an existing terminal candidate with the same identity. If one exists, the existing immutable result is returned — no duplicate evidence is inserted.
-
-### Transaction integrity
-
-All database writes (candidate, run, proof snapshots, checks, discrepancies, final status) are inside one `$transaction`. Proof resolution happens before the transaction. Unsupported-policy decisions are also persisted — `persist_audit` must not return before recording the unsupported policy outcome. `mode='persist_audit'` fails loudly when no repository is configured.
+Exact immutable identity has one deterministic verification run. The public
+request exposes no `attemptId`. A correction requires a changed source,
+manifest, artifact, policy, or verifier identity and therefore a new candidate.
+Exact replay returns the persisted result snapshot and inserts no duplicate
+evidence.
 
 ## Review workflow
 
-### Non-waivable findings
+Human review may accept reviewable uncertainty but cannot waive corruption or
+broken proof. Review acceptance is rejected when there is a blocking check,
+blocking discrepancy, missing/mismatched proof snapshot, hash mismatch, invalid
+evidence ID, or segregation-of-duties violation.
 
-An acceptance decision is rejected when any of these exist:
+Dry-run and commit use the same eligibility pipeline. Commit mode locks the
+candidate row, requires `NEEDS_REVIEW`, permits one terminal decision, inserts an
+immutable review record, and conditionally updates exactly one candidate row.
 
-- source SHA mismatch
-- artifact byte/content mismatch
-- manifest mismatch
-- parser lineage corruption
-- conflicting duplicate money assertions
-- funding-field ownership violation
-- invalid identity
-- blocking omission
-- failed required arithmetic reconciliation
-- required comparison failure classified as blocking
-- reference-artifact proof failure classified as blocking
+## Operator commands
 
-These require: correct/re-extract → new artifact → new candidate → new verification run.
-
-### Reviewable uncertainty
-
-Examples that may be accepted with evidence and notes:
-
-- page-only evidence manually inspected
-- optional comparison unavailable
-- manual extraction with exact page evidence
-- OCR money confirmed against the source page
-- nonblocking historical anomaly
-- uncorroborated congressional or enacted values manually confirmed
-
-### Review rules
-
-- **M1**: Only a candidate with latest terminal status `NEEDS_REVIEW` may be reviewed
-- **M2**: Blocking findings cannot be waived
-- **M3**: Reviewable findings may be accepted
-- **M4**: Expected hashes are concurrency guards and review binding, not source proof. Run hashes must match candidate hashes.
-- **M5**: Segregation of duties required for high-risk extraction methods (manual, PaddleOCR, congressional marks, conference values, enacted values, high-materiality values). When actor data is unavailable, an explicit limitation finding is created rather than pretending independence was established.
-- **M6**: Immutable append-only review decision — accepted → `REVIEW_ACCEPTED`, rejected → `REJECTED`. Prior terminal review decisions prevent new reviews.
-- **M7**: Concurrent double review prevented via optimistic state checks (candidate must still be `NEEDS_REVIEW` at persist time)
-
-### Evidence ID verification
-
-All evidence IDs supplied in the review input must exist in the run's checks or discrepancies.
-
-A corrected candidate must be a new artifact and a new verification candidate. No canonical promotion property is created.
-
-## CLI commands
-
-### Verify (inspect by default)
+### Verify
 
 ```bash
 pnpm --filter @capiro/api verify:defense-budget-artifact-v1 -- \
@@ -230,15 +253,17 @@ pnpm --filter @capiro/api verify:defense-budget-artifact-v1 -- \
   --document <document-key> \
   --artifact <artifact.extraction-v1.json> \
   --source-document-id <uuid> \
-  [--reference-artifact <path>]... \
+  [--reference-file <references.json>] \
   [--expected-source-sha256 <sha>] \
   [--expected-artifact-sha256 <sha>] \
   [--persist-audit]
 ```
 
-Exit codes: 0 = VERIFICATION_PASSED, 2 = NEEDS_REVIEW, 3 = REJECTED, 4 = execution/configuration failure. Default is inspect/read-only. `--persist-audit` must be explicit.
+Exit codes: `0` passed, `2` needs review, `3` rejected, `4` execution or
+configuration failure. `--persist-audit` activates the production proof
+boundary; inspect remains read-only.
 
-### Review (dry-run by default)
+### Review
 
 ```bash
 pnpm --filter @capiro/api review:defense-budget-verification-v1 -- \
@@ -250,64 +275,34 @@ pnpm --filter @capiro/api review:defense-budget-verification-v1 -- \
   --expected-source-sha256 <sha> \
   --expected-artifact-sha256 <sha> \
   --expected-manifest-sha256 <sha> \
+  [--evidence-id <id>]... \
   [--extractor-actor-id <id>] \
   [--extraction-method <method>] \
   [--commit]
 ```
 
-Default is dry-run. `--commit` is required for a write. Notes supplied by file only (no sensitive notes in process arguments). Prints candidate ID, run ID, hashes, prior status, final decision, and limitation findings.
+Dry-run is the default. `--commit` writes one review decision only.
 
-### Cycle report (read-only)
+### Exact-manifest cycle report
 
 ```bash
 pnpm --filter @capiro/api report:defense-budget-verification-cycle-v1 -- \
   --manifest <cycle-manifest.json>
 ```
 
-Read-only per-document statuses:
-
-```text
-not_present
-not_verified
-verification_passed
-needs_review
-review_accepted
-rejected
-superseded
-```
-
-Includes required and optional document counts, missing required documents, unresolved required comparisons, blocking discrepancy counts, and exact source and artifact identities.
-
-## Package scripts
-
-```json
-{
-  "verify:defense-budget-artifact-v1": "tsx scripts/verify-defense-budget-extraction-v1.ts",
-  "review:defense-budget-verification-v1": "tsx scripts/review-defense-budget-verification-v1.ts",
-  "report:defense-budget-verification-cycle-v1": "tsx scripts/report-defense-budget-verification-cycle-v1.ts",
-  "verify:pe-budget-phase-2": "jest --runInBand --forceExit src/defense-budget/verification src/defense-budget/contracts"
-}
-```
-
-All scripts are included in `tsconfig.budget-verification-v1.json`.
-
-## Scripts are not ECS entrypoints
-
-Phase 2 CLI commands are local/operator/CI commands. They are not added to `entrypoint-dispatcher.inc` and remain local until later operational integration.
+The report hashes the exact supplied manifest bytes and queries candidates by
+cycle ID, manifest SHA, and document key. Candidate selection is deterministic,
+multiple exact candidates create a visible warning, and unresolved comparison
+counts include only comparison/reconciliation checks.
 
 ## Explicit absence of canonical promotion
 
-The V1 verification gate:
+The gate:
 
-- Imports no `ProgramElementWriterService`
-- Provides no promotion token, canonical eligibility property, or canonical records
-- Performs no canonical Program Element write
-- Produces no `CANONICAL`, `PROMOTED`, `promotionReady`, or `canonicalEligible` status
+- imports no canonical writer;
+- creates no promotion token;
+- performs no canonical Program Element mutation;
+- produces no `CANONICAL`, `PROMOTED`, `promotionReady`, or
+  `canonicalEligible` status.
 
-`VERIFICATION_PASSED` means "passed verification checks," not "approved for canonical write."
-
-`REVIEW_ACCEPTED` means "human review accepted a reviewable finding," not "canonical promotion authorized."
-
-## Reusability
-
-The gate is reusable for FY2027, FY2028, and later fiscal years. Policy, manifest, and artifact contracts are versioned (`defense_budget_verifier_v1`, `defense_budget_verification_policy_v1`, `defense_budget_extraction_v1`).
+`VERIFICATION_PASSED` means passed verification checks only.
